@@ -1,0 +1,11 @@
+{
+  "d3nexus-session-start": {
+    "PreInvocation": [
+      {
+        "type": "command",
+        "command": "bash hooks/session-start",
+        "timeout": 10
+      }
+    ]
+  }
+}

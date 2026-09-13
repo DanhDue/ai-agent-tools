@@ -31,8 +31,9 @@ the four approval gates, and routes to the right skill at each step.
 - [3. Reference](#3-reference)
   - [3.1. Repository layout](#31-repository-layout)
   - [3.2. How the runtimes differ](#32-how-the-runtimes-differ)
-  - [3.3. Authoring a skill](#33-authoring-a-skill)
-  - [3.4. Rules vs audit criteria](#34-rules-vs-audit-criteria)
+  - [3.3. The session-start hook](#33-the-session-start-hook)
+  - [3.4. Authoring a skill](#34-authoring-a-skill)
+  - [3.5. Rules vs audit criteria](#35-rules-vs-audit-criteria)
 - [4. License](#4-license)
 ---
 
@@ -188,6 +189,10 @@ scripts/verify.sh                # pre-publish checks
 scripts/release.sh               # the publish loop
 scripts/init-project.sh          # per-project scaffolding
 
+hooks/session-start              # injects using-superpowers at conversation start
+hooks/hooks.json                 # Claude Code hook config (SessionStart)
+hooks.json                       # Antigravity hook config (PreInvocation, root level)
+
 plugin.json                      # Antigravity plugin manifest (root level — required)
 .claude-plugin/plugin.json       # Claude Code plugin manifest
 .claude-plugin/marketplace.json  # Claude Code marketplace
@@ -215,7 +220,27 @@ Both load skills by **progressive disclosure**: only `name` and `description` en
 window; the body is read when the skill activates. Keep `SKILL.md` concise and push bulk into the
 skill's own `references/`, `scripts/`, `resources/` or `examples/` subdirectory.
 
-### 3.3. Authoring a skill
+### 3.3. The session-start hook
+
+Skills activate on `description` matching, which is probabilistic. The hook makes it
+deterministic: at the start of a conversation it injects the `using-superpowers` skill, which
+instructs the agent to reach for a skill before answering.
+
+The two runtimes need different wiring, so one script serves both:
+
+| | Event | Output | Fires |
+|---|---|---|---|
+| Claude Code | `SessionStart` (`hooks/hooks.json`) | `hookSpecificOutput.additionalContext` | once per session |
+| Antigravity | `PreInvocation` (root `hooks.json`) | `injectSteps[].ephemeralMessage` | **every turn** |
+
+Antigravity has no `SessionStart` event — `PreInvocation` is the only place to inject context,
+and it runs before *every* model call. The script therefore gates on `invocationNum == 1`, and
+**fails closed**: if the payload cannot be parsed it injects nothing, because guessing "first
+turn" would re-inject on every turn for the rest of the session.
+
+`scripts/verify.sh` step 6 exercises all four paths.
+
+### 3.4. Authoring a skill
 
 A skill is a directory under `skills/` containing `SKILL.md` with YAML frontmatter of exactly two
 fields:
@@ -234,7 +259,7 @@ else — adding non-standard keys risks a frontmatter parse failure with no erro
 Use the `writing-skills` skill when creating or editing one, and run `scripts/verify.sh` before
 publishing.
 
-### 3.4. Rules vs audit criteria
+### 3.5. Rules vs audit criteria
 
 Rules stay deliberately thin and runtime-agnostic — they are constraints that hold in every
 context, not checklists.

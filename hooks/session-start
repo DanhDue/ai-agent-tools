@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+# Injects the `using-superpowers` skill at the start of a conversation, so the
+# agent is told to reach for a skill before answering rather than relying on
+# description matching alone.
+#
+# One script, two runtimes:
+#   Claude Code — SessionStart hook; emits hookSpecificOutput.additionalContext.
+#   Antigravity — PreInvocation hook (it has no SessionStart); fires before every
+#                 model call, so we gate on invocationNum == 1 and emit an
+#                 ephemeralMessage via injectSteps.
+#
+# Emitting the wrong shape is harmless — the host ignores unknown keys — but
+# emitting on every Antigravity invocation would not be, hence the gate.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PLUGIN_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+SKILL_FILE="${PLUGIN_ROOT}/skills/using-superpowers/SKILL.md"
+
+# Hosts send a JSON payload on stdin. Guard against a terminal so the script can
+# be run by hand without hanging.
+payload=""
+if [ ! -t 0 ]; then
+  payload="$(cat || true)"
+fi
+
+emit_nothing() { printf '{}\n'; exit 0; }
+
+[ -f "$SKILL_FILE" ] || emit_nothing
+
+skill_content="$(cat "$SKILL_FILE")"
+
+# JSON-escape via bash parameter substitution — one C-level pass each, far
+# faster than a character loop.
+escape_for_json() {
+  local s="$1"
+  s="${s//\\/\\\\}"
+  s="${s//\"/\\\"}"
+  s="${s//$'\n'/\\n}"
+  s="${s//$'\r'/\\r}"
+  s="${s//$'\t'/\\t}"
+  printf '%s' "$s"
+}
+
+escaped="$(escape_for_json "$skill_content")"
+context="<EXTREMELY_IMPORTANT>\nYou have the d3nexus agent kit.\n\n**Below is the full content of the 'd3nexus:using-superpowers' skill — your introduction to using skills. For every other skill, use the Skill tool:**\n\n${escaped}\n</EXTREMELY_IMPORTANT>"
+
+if [ -n "${CLAUDE_PLUGIN_ROOT:-}" ]; then
+  # Claude Code: SessionStart already fires once per session, so no gate needed.
+  printf '{\n  "hookSpecificOutput": {\n    "hookEventName": "SessionStart",\n    "additionalContext": "%s"\n  }\n}\n' "$context"
+  exit 0
+fi
+
+# Antigravity: PreInvocation fires on EVERY turn, so inject only on the first.
+# Fail closed: if the payload cannot be read we cannot tell which turn this is,
+# and guessing "first" would re-inject on every turn for the rest of the session.
+invocation_num="$(
+  printf '%s' "$payload" | python3 -c '
+import json, sys
+try:
+    print(json.load(sys.stdin)["invocationNum"])
+except Exception:
+    print("unknown")
+' 2>/dev/null || printf 'unknown'
+)"
+
+[ "$invocation_num" = "1" ] || emit_nothing
+
+printf '{\n  "injectSteps": [\n    { "ephemeralMessage": "%s" }\n  ]\n}\n' "$context"
