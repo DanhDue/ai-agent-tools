@@ -215,6 +215,10 @@ Text(t.wallet.balanceTitle)
 
 User-facing strings must never be hardcoded as raw string literals. Consume typed accessors generated from `.xcstrings`.
 
+> When the diff also touches a `Localizable.xcstrings`, apply
+> [`references/localization-catalogs.md`](references/localization-catalogs.md) as well — this rule
+> only inspects `.swift` views, never the catalogs themselves.
+
 ```swift
 // ❌ BAD - Raw string literal
 Text("Send Money") // ❌ VIOLATION
