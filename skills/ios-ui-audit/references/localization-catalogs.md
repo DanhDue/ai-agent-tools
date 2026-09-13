@@ -20,7 +20,8 @@ edit will be silently overwritten on the next sync, so it looks applied and then
 
 ## 2. Key naming
 
-Every segment must match `^[a-z][a-zA-Z0-9]*$`.
+Every segment must match `^[a-z][a-zA-Z0-9]*$`. Mason brick templates under
+`__brick__/` hold `{{placeholder}}` keys and are not real catalogs — both scripts below skip them.
 
 ```bash
 # keys whose segments are not camelCase
@@ -28,6 +29,8 @@ python3 - <<'PY'
 import json, re, sys, pathlib
 seg = re.compile(r'^[a-z][a-zA-Z0-9]*$')
 for f in pathlib.Path('.').rglob('Localizable.xcstrings'):
+    if any(x in str(f) for x in ('__brick__', '.worktrees', '.git')):
+        continue   # templates and other checkouts are not real catalogs
     for key in json.loads(f.read_text()).get('strings', {}):
         parts = key.split('.')
         if len(parts) < 2 or not all(seg.match(p) for p in parts):
@@ -56,6 +59,8 @@ A key must never be a prefix of another key.
 python3 - <<'PY'
 import json, pathlib
 for f in pathlib.Path('.').rglob('Localizable.xcstrings'):
+    if any(x in str(f) for x in ('__brick__', '.worktrees', '.git')):
+        continue   # templates and other checkouts are not real catalogs
     keys = set(json.loads(f.read_text()).get('strings', {}))
     for k in sorted(keys):
         if any(o.startswith(k + '.') for o in keys):
