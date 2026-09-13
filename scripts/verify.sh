@@ -92,6 +92,18 @@ else
   note "  ok   none"
 fi
 
+note "== 5b. Rule files start with frontmatter =="
+# Antigravity rejects a rules/*.md without frontmatter outright:
+#   "Failed to parse plugin rule file ...: invalid frontmatter format"
+# and the rule then silently never loads.
+for f in rules/*.md; do
+  if head -1 "$f" | grep -qx -- '---'; then
+    note "  ok   $f"
+  else
+    fail "$f has no frontmatter — Antigravity will refuse to load it"
+  fi
+done
+
 note "== 6. Session-start hook emits valid JSON for both runtimes =="
 hook_case() {  # <label> <expect: inject|silent> <env> <payload>
   local label="$1" expect="$2" env="$3" payload="$4" out
