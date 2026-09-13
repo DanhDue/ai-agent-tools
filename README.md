@@ -234,9 +234,22 @@ The two runtimes need different wiring, so one script serves both:
 | Antigravity | `PreInvocation` (root `hooks.json`) | `injectSteps[].ephemeralMessage` | **every turn** |
 
 Antigravity has no `SessionStart` event — `PreInvocation` is the only place to inject context,
-and it runs before *every* model call. The script therefore gates on `invocationNum == 1`, and
+and it runs before *every* model call. The script therefore gates on the invocation number, and
 **fails closed**: if the payload cannot be parsed it injects nothing, because guessing "first
 turn" would re-inject on every turn for the rest of the session.
+
+> [!IMPORTANT]
+> `invocationNum` is **zero-based** — the opening turn of a conversation reports `0`, not `1`.
+> Gating on `1` silently never fires, and because the gate fails closed there is no error to
+> notice. Confirmed from a live payload:
+>
+> ```json
+> {"conversationId":"…","invocationNum":0,"initialNumSteps":1,"modelName":"…"}
+> ```
+
+Antigravity reads a `hooks.json` both at the customization root (`~/.gemini/config/hooks.json`)
+and inside a plugin (`plugins/<name>/hooks.json`) — configuring both makes the hook run **twice**.
+This kit ships only the plugin-level one, so nothing extra is needed per machine.
 
 `scripts/verify.sh` step 6 exercises all four paths.
 

@@ -53,8 +53,10 @@ if [ -n "${CLAUDE_PLUGIN_ROOT:-}" ]; then
 fi
 
 # Antigravity: PreInvocation fires on EVERY turn, so inject only on the first.
-# Fail closed: if the payload cannot be read we cannot tell which turn this is,
-# and guessing "first" would re-inject on every turn for the rest of the session.
+# invocationNum is ZERO-based — the opening turn of a conversation reports 0, not 1
+# (confirmed from a live payload). Fail closed: if the payload cannot be read we
+# cannot tell which turn this is, and guessing "first" would re-inject on every
+# turn for the rest of the session.
 invocation_num="$(
   printf '%s' "$payload" | python3 -c '
 import json, sys
@@ -65,6 +67,6 @@ except Exception:
 ' 2>/dev/null || printf 'unknown'
 )"
 
-[ "$invocation_num" = "1" ] || emit_nothing
+[ "$invocation_num" = "0" ] || emit_nothing
 
 printf '{\n  "injectSteps": [\n    { "ephemeralMessage": "%s" }\n  ]\n}\n' "$context"

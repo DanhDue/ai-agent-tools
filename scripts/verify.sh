@@ -117,7 +117,8 @@ sys.exit(0 if got=='$expect' else 1)
 " 2>/dev/null && note "  ok   $label" || fail "$label — expected $expect"
 }
 hook_case "Claude Code SessionStart"        inject "CLAUDE_PLUGIN_ROOT=$KIT_DIR" '{}'
-hook_case "Antigravity first invocation"    inject "X=1" '{"invocationNum":1}'
+hook_case "Antigravity first invocation"    inject "X=1" '{"invocationNum":0}'
+hook_case "Antigravity second invocation"   silent "X=1" '{"invocationNum":1}'
 hook_case "Antigravity later invocation"    silent "X=1" '{"invocationNum":7}'
 hook_case "Antigravity unreadable payload"  silent "X=1" 'not json'
 
