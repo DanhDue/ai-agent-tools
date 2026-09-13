@@ -1,0 +1,16 @@
+{
+  "//": "Merge these keys into the project's .vscode/settings.json. Agent terminal guardrails shared across all mobile projects.",
+  "agent.terminal.allowList": [
+    "fvm *", "flutter *", "dart *", "pod *",
+    "gradle *", "./gradlew *",
+    "tuist *", "swift *", "xcodebuild *",
+    "ls *", "pwd", "git *",
+    "mason *", "melos *", "fluttergen *",
+    "adb *", "npx *", "node *", "cp *", "mkdir *"
+  ],
+  "agent.terminal.denyList": [
+    "rm -rf *",
+    "git push --force",
+    "sudo *"
+  ]
+}

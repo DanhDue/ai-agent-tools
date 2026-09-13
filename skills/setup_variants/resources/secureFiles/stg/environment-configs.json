@@ -1,0 +1,17 @@
+{
+  "APP_NAME": "Zeno(stg)",
+  "APP_ID_SUFFIX": ".stg",
+  "APP_SUFFIX": "stg",
+  "ENVIRONMENT": "staging",
+  "API_BASE_URL": "https://digital-wallet-93c4ba68a41d.herokuapp.com/",
+  "API_VERSION": "v1",
+  "ENABLE_LOGGING": "true",
+  "ENABLE_ANALYTICS": "true",
+  "SHOW_DEBUG_BANNER": "true",
+  "FIREBASE_OPTIONS": {
+    "apiKey": "stg-api-key",
+    "projectId": "stg-project-id",
+    "messagingSenderId": "stg-sender-id",
+    "appId": "stg-app-id"
+  }
+}

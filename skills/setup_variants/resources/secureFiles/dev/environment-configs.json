@@ -1,0 +1,17 @@
+{
+  "APP_NAME": "Zeno(dev)",
+  "APP_ID_SUFFIX": ".dev",
+  "APP_SUFFIX": "dev",
+  "ENVIRONMENT": "development",
+  "API_BASE_URL": "https://digital-wallet-93c4ba68a41d.herokuapp.com/",
+  "API_VERSION": "v1",
+  "ENABLE_LOGGING": "true",
+  "ENABLE_ANALYTICS": "false",
+  "SHOW_DEBUG_BANNER": "true",
+  "FIREBASE_OPTIONS": {
+    "apiKey": "dev-api-key",
+    "projectId": "dev-project-id",
+    "messagingSenderId": "dev-sender-id",
+    "appId": "dev-app-id"
+  }
+}

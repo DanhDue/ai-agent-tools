@@ -1,0 +1,20 @@
+{
+  "name": "danhdue-agent-tools",
+  "interface": {
+    "displayName": "DanhDue Agent Tools"
+  },
+  "plugins": [
+    {
+      "name": "d3nexus",
+      "source": {
+        "source": "url",
+        "url": "./"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}

@@ -1,0 +1,119 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Zeno(devDebug)",
+            "request": "launch",
+            "type": "dart",
+            "program": "lib/main.dart",
+            "args": [
+                "--dart-define-from-file",
+                "secureFiles/dev/environment-configs.json",
+                "--flavor",
+                "dev"
+            ]
+        },
+        {
+            "name": "Zeno(devProfile)",
+            "request": "launch",
+            "type": "dart",
+            "program": "lib/main.dart",
+            "args": [
+                "--dart-define-from-file",
+                "secureFiles/dev/environment-configs.json",
+                "--flavor",
+                "dev",
+                "--profile"
+            ]
+        },
+        {
+            "name": "Zeno(devProd)",
+            "request": "launch",
+            "type": "dart",
+            "program": "lib/main.dart",
+            "args": [
+                "--dart-define-from-file",
+                "secureFiles/dev/environment-configs.json",
+                "--flavor",
+                "dev",
+                "--release"
+            ]
+        },
+        {
+            "name": "Zeno(stgDebug)",
+            "request": "launch",
+            "type": "dart",
+            "program": "lib/main.dart",
+            "args": [
+                "--dart-define-from-file",
+                "secureFiles/stg/environment-configs.json",
+                "--flavor",
+                "stg"
+            ]
+        },
+        {
+            "name": "Zeno(stgProfile)",
+            "request": "launch",
+            "type": "dart",
+            "program": "lib/main.dart",
+            "args": [
+                "--dart-define-from-file",
+                "secureFiles/stg/environment-configs.json",
+                "--flavor",
+                "stg",
+                "--profile"
+            ]
+        },
+        {
+            "name": "Zeno(stgProd)",
+            "request": "launch",
+            "type": "dart",
+            "program": "lib/main.dart",
+            "args": [
+                "--dart-define-from-file",
+                "secureFiles/stg/environment-configs.json",
+                "--flavor",
+                "stg",
+                "--release"
+            ]
+        },
+        {
+            "name": "Zeno(prdDebug)",
+            "request": "launch",
+            "type": "dart",
+            "program": "lib/main.dart",
+            "args": [
+                "--dart-define-from-file",
+                "secureFiles/prd/environment-configs.json",
+                "--flavor",
+                "prd"
+            ]
+        },
+        {
+            "name": "Zeno(prdProfile)",
+            "request": "launch",
+            "type": "dart",
+            "program": "lib/main.dart",
+            "args": [
+                "--dart-define-from-file",
+                "secureFiles/prd/environment-configs.json",
+                "--flavor",
+                "prd",
+                "--profile"
+            ]
+        },
+        {
+            "name": "Zeno(prdProd)",
+            "request": "launch",
+            "type": "dart",
+            "program": "lib/main.dart",
+            "args": [
+                "--dart-define-from-file",
+                "secureFiles/prd/environment-configs.json",
+                "--flavor",
+                "prd",
+                "--release"
+            ]
+        }
+    ]
+}

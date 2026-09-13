@@ -1,0 +1,22 @@
+{
+  "name": "d3nexus",
+  "description": "Mobile engineering agent kit: epic lifecycle orchestration, 3-tier quality gates, and security/architecture/UI/code-health audits for Flutter, Android Native, and iOS Native.",
+  "version": "1.0.8",
+  "author": {
+    "name": "DanhDue ExOICTIF"
+  },
+  "homepage": "https://github.com/DanhDue/ai-agent-tools",
+  "repository": "https://github.com/DanhDue/ai-agent-tools",
+  "license": "MIT",
+  "keywords": [
+    "skills",
+    "flutter",
+    "android",
+    "ios",
+    "clean-architecture",
+    "mvi",
+    "tdd",
+    "quality-gate",
+    "fintech"
+  ]
+}
