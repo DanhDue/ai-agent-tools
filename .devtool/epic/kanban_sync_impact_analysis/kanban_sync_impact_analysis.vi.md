@@ -81,34 +81,29 @@ flowchart TD
 ```mermaid
 flowchart TB
     ACTOR["Kỹ sư Di động / AI Agent"]
-    
-    subgraph USE_CASES["Các Trường hợp Sử dụng Vòng đời Epic (1 -> 2 -> 3 Từ Trái qua Phải)"]
-        direction LR
-        subgraph UC1["1. Use Case 1: Chuyển Trạng thái Task"]
-            direction TB
-            UC1_START["Kích hoạt chuyển trạng thái"] --> UC1_EXEC["Chạy sync_task_status.py task <id> <status>"]
-            UC1_EXEC --> UC1_FANOUT["Ghi đồng thời vào Main & Worktree"]
-            UC1_FANOUT --> UC1_TIME["Cập nhật timestamp modified & completedAt"]
-        end
 
-        subgraph UC2["2. Use Case 2: Kiểm tra Tác động Trước khi Sửa Code"]
-            direction TB
-            UC2_START["Nhận task để thực hiện"] --> UC2_CHECK["Chạy check_code_impact.py"]
-            UC2_CHECK --> UC2_VERIFY{"Có xung đột hoặc Rủi ro cao?"}
-            UC2_VERIFY -->|Có| UC2_HALT["Dừng lại & cảnh báo kỹ sư"]
-            UC2_VERIFY -->|Không| UC2_CONT["Tiến hành TDD Red-Green-Refactor"]
-        end
+    subgraph UC3["3. Use Case 3: Nghiệm thu Cuối Epic & Đối chiếu Coverage"]
+        direction TB
+        UC3_START["Hoàn thành tất cả các task"] --> UC3_RUN["Chạy @quality_check đo Coverage"]
+        UC3_RUN --> UC3_REVERSE["Đối chiếu ngược Coverage với 4 Audits"]
+        UC3_REVERSE --> UC3_GATE{"Test Pass & Đạt ngưỡng Coverage?"}
+        UC3_GATE -->|Đạt| UC3_MERGE["Gate 4 🟢 LGTM: Dọn dẹp & Merge"]
+        UC3_GATE -->|Chưa đạt| UC3_FAIL["Sửa lỗi / Bổ sung test"]
+    end
 
-        subgraph UC3["3. Use Case 3: Nghiệm thu Cuối Epic & Đối chiếu Coverage"]
-            direction TB
-            UC3_START["Hoàn thành tất cả các task"] --> UC3_RUN["Chạy @quality_check đo Coverage"]
-            UC3_RUN --> UC3_REVERSE["Đối chiếu ngược Coverage với 4 Audits"]
-            UC3_REVERSE --> UC3_GATE{"Test Pass & Đạt ngưỡng Coverage?"}
-            UC3_GATE -->|Đạt| UC3_MERGE["Gate 4 🟢 LGTM: Dọn dẹp & Merge"]
-            UC3_GATE -->|Chưa đạt| UC3_FAIL["Sửa lỗi / Bổ sung test"]
-        end
+    subgraph UC2["2. Use Case 2: Kiểm tra Tác động Trước khi Sửa Code"]
+        direction TB
+        UC2_START["Nhận task để thực hiện"] --> UC2_CHECK["Chạy check_code_impact.py"]
+        UC2_CHECK --> UC2_VERIFY{"Có xung đột hoặc Rủi ro cao?"}
+        UC2_VERIFY -->|Có| UC2_HALT["Dừng lại & cảnh báo kỹ sư"]
+        UC2_VERIFY -->|Không| UC2_CONT["Tiến hành TDD Red-Green-Refactor"]
+    end
 
-        UC1 ~~~ UC2 ~~~ UC3
+    subgraph UC1["1. Use Case 1: Chuyển Trạng thái Task"]
+        direction TB
+        UC1_START["Kích hoạt chuyển trạng thái"] --> UC1_EXEC["Chạy sync_task_status.py task [id] [status]"]
+        UC1_EXEC --> UC1_FANOUT["Ghi đồng thời vào Main & Worktree"]
+        UC1_FANOUT --> UC1_TIME["Cập nhật timestamp modified & completedAt"]
     end
 
     ACTOR --> UC1_START

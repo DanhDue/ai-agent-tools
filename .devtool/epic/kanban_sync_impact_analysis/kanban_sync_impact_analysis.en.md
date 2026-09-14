@@ -81,34 +81,29 @@ flowchart TD
 ```mermaid
 flowchart TB
     ACTOR["Mobile Engineer / AI Agent"]
-    
-    subgraph USE_CASES["Epic Lifecycle Use Cases (1 -> 2 -> 3 Left to Right)"]
-        direction LR
-        subgraph UC1["1. Use Case 1: Task State Transition"]
-            direction TB
-            UC1_START["Trigger Status Transition"] --> UC1_EXEC["Run sync_task_status.py task <id> <status>"]
-            UC1_EXEC --> UC1_FANOUT["Fan out to Main & Worktree copies"]
-            UC1_FANOUT --> UC1_TIME["Update modified & completedAt timestamps"]
-        end
 
-        subgraph UC2["2. Use Case 2: Pre-Edit Impact Verification"]
-            direction TB
-            UC2_START["Pick up Task for Implementation"] --> UC2_CHECK["Run check_code_impact.py"]
-            UC2_CHECK --> UC2_VERIFY{"Conflict or High Risk?"}
-            UC2_VERIFY -->|Yes| UC2_HALT["Halt & alert Engineer"]
-            UC2_VERIFY -->|No| UC2_CONT["Proceed with TDD Red-Green-Refactor"]
-        end
+    subgraph UC3["3. Use Case 3: End-of-Epic Audit & Coverage Gate"]
+        direction TB
+        UC3_START["All Tasks Done"] --> UC3_RUN["Run @quality_check with Coverage"]
+        UC3_RUN --> UC3_REVERSE["Reverse Verify Coverage against 4 Audits"]
+        UC3_REVERSE --> UC3_GATE{"All Pass & Coverage Met?"}
+        UC3_GATE -->|Yes| UC3_MERGE["Gate 4 🟢 LGTM: Clean & Merge"]
+        UC3_GATE -->|No| UC3_FAIL["Fix Findings / Add Tests"]
+    end
 
-        subgraph UC3["3. Use Case 3: End-of-Epic Audit & Coverage Gate"]
-            direction TB
-            UC3_START["All Tasks Done"] --> UC3_RUN["Run @quality_check with Coverage"]
-            UC3_RUN --> UC3_REVERSE["Reverse Verify Coverage against 4 Audits"]
-            UC3_REVERSE --> UC3_GATE{"All Pass & Coverage Met?"}
-            UC3_GATE -->|Yes| UC3_MERGE["Gate 4 🟢 LGTM: Clean & Merge"]
-            UC3_GATE -->|No| UC3_FAIL["Fix Findings / Add Tests"]
-        end
+    subgraph UC2["2. Use Case 2: Pre-Edit Impact Verification"]
+        direction TB
+        UC2_START["Pick up Task for Implementation"] --> UC2_CHECK["Run check_code_impact.py"]
+        UC2_CHECK --> UC2_VERIFY{"Conflict or High Risk?"}
+        UC2_VERIFY -->|Yes| UC2_HALT["Halt & alert Engineer"]
+        UC2_VERIFY -->|No| UC2_CONT["Proceed with TDD Red-Green-Refactor"]
+    end
 
-        UC1 ~~~ UC2 ~~~ UC3
+    subgraph UC1["1. Use Case 1: Task State Transition"]
+        direction TB
+        UC1_START["Trigger Status Transition"] --> UC1_EXEC["Run sync_task_status.py task [id] [status]"]
+        UC1_EXEC --> UC1_FANOUT["Fan out to Main & Worktree copies"]
+        UC1_FANOUT --> UC1_TIME["Update modified & completedAt timestamps"]
     end
 
     ACTOR --> UC1_START
