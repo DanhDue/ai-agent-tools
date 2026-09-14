@@ -1,13 +1,13 @@
 ---
 id: "task_5_quality_check_coverage_gate"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "kanban-sync-impact-analysis"
 dueDate: null
 created: "2026-09-15T02:30:00Z"
-modified: "2026-09-15T02:30:00Z"
-completedAt: null
+modified: "2026-09-14T19:58:40Z"
+completedAt: "2026-09-14T19:58:40Z"
 labels: ["quality-check", "coverage", "reverse-verification", "gate-4"]
 order: "a5"
 ---
@@ -59,13 +59,13 @@ This task integrates test coverage extraction and reverse verification into `qua
 - **And** Gate 4 grants `🟢 LGTM` only when both 3-Tier tests, 4 semantic audits, and the Coverage Matrix pass.
 
 ## Test & Verification Checklist
-- [ ] **RED**: Verify that `quality_check/SKILL.md` lacks explicit Coverage-by-Audit Category thresholds and reverse verification instructions.
-- [ ] **GREEN**: Update `skills/quality_check/SKILL.md` and `skills/epic-lifecycle/SKILL.md` with:
+- [x] **RED**: Verify that `quality_check/SKILL.md` lacks explicit Coverage-by-Audit Category thresholds and reverse verification instructions.
+- [x] **GREEN**: Update `skills/quality_check/SKILL.md` and `skills/epic-lifecycle/SKILL.md` with:
   - Platform-specific coverage invocation commands.
   - The Coverage-by-Audit Category Matrix table.
   - Check 2 (Shift-Right) cumulative diff validation instructions.
-- [ ] **REFACTOR**: Ensure clear terminal reporting templates and unified executive summary formats.
-- [ ] **Tier C (Integration)**: Perform a dry-run test asserting that a simulated low-coverage security file triggers a Gate 4 rejection.
+- [x] **REFACTOR**: Ensure clear terminal reporting templates and unified executive summary formats.
+- [x] **Tier C (Integration)**: Perform a dry-run test asserting that a simulated low-coverage security file triggers a Gate 4 rejection.
 
 ## Definition of Done (DoD)
 - `quality_check/SKILL.md` incorporates platform coverage commands and reverse verification auditing.

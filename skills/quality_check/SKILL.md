@@ -320,11 +320,32 @@ While the tooling suite executes in the background, inspect the Git Diff (`git d
 - **Linter / Module Boundary / Compiler Issues**: Apply targeted fixes to violating lines.
 - **Category Audit Blockers**: Remediate security, architecture, stability, or null-safety violations immediately.
 
-### Step 4: Tier C Acceptance Verification (PR / Epic Gate)
+### Step 4: Tier C Acceptance Verification & Reverse Coverage Gate (PR / Epic Gate)
 When finalizing an Epic, verifying a development branch, or preparing a PR:
-- **Flutter**: Run integration test suite (`fvm flutter test integration_test` or `./scripts/testWithCoverage.sh`).
-- **Android**: Run acceptance harness (`./scripts/acceptance_check.sh`).
-- **iOS**: Run simulator acceptance harness (`tuist generate --no-open && xcodebuild test -workspace iOSDigitalWallet.xcworkspace -scheme iOSDigitalWallet -destination "platform=iOS Simulator,id=<UDID>" CODE_SIGNING_ALLOWED=NO`).
+
+1. **Platform-Aware Test Suite & Coverage Execution**:
+   - **Flutter**: Run `./scripts/testWithCoverage.sh` (or `melos run test:coverage`), generating `coverage/lcov.info`.
+   - **Android**: Run `./gradlew testDebugUnitTest jacocoTestReport` (or Kover), generating XML coverage reports.
+   - **iOS**: Run `tuist generate --no-open && xcodebuild test -workspace iOSDigitalWallet.xcworkspace -scheme iOSDigitalWallet -destination "platform=iOS Simulator,id=<UDID>" -enableCodeCoverage YES CODE_SIGNING_ALLOWED=NO`, parsing coverage via `xcrun xccov view --report --json`.
+
+2. **Reverse Verification against 4 Audit Categories**:
+   Cross-check files flagged across the 4 specialized audits against actual line coverage:
+   - **Security Audit**: Files handling auth, keychain, crypto, biometrics require **100% line coverage**. Zero untested lines allowed.
+   - **Architecture Audit**: Pure Domain UseCases, Repositories, and Entities require **$\ge 85\%$ line coverage**.
+   - **UI Audit**: State hoisting, BLoC/ViewModel reducers, and state transitions require **$\ge 80\%$ line coverage**.
+   - **Code Health Audit**: Refactored methods (< 20 lines) require **$\ge 75\%$ line coverage**.
+
+3. **Check 2 (Shift-Right Bookend Verification)**:
+   Run the pre-merge impact analyzer on the cumulative diff against `<base_ref>`:
+   ```bash
+   python3 skills/impact-analysis/resources/scripts/check_code_impact.py \
+     --files $(git diff --name-only <base_ref>...HEAD) \
+     --base-ref <base_ref>
+   ```
+   Confirm:
+   - Zero upstream divergence detected.
+   - Zero modified files with 0% coverage (unprotected code).
+   - All `MethodChannel` native bridge changes are paired across Dart, Kotlin, and Swift.
 
 ### Step 5: Resource Cleanup
 - **Android**: Execute `cleanup-java` (or `pkill -9 java`) to terminate lingering background Gradle daemon threads.
@@ -362,6 +383,17 @@ Your response **MUST** follow this comprehensive structure:
 | **Tier B** | ABI & Static Analysis | BCV / SwiftLint / Analyzer & Detekt | ✅ PASSED / ❌ FAILED | No unauthorized drift |
 | **Tier B** | Formatter & Headers | Dartfmt / Spotless / SwiftFormat | ✅ PASSED / ❌ FAILED | Auto-fixed formatting |
 | **Tier C** | Acceptance Harness | App Assembly / Integration / Simulator | ✅ PASSED / ❌ FAILED | Integration verified |
+
+---
+
+### 🎯 Reverse Verification Coverage by Audit Dimension
+
+| Audit Category | Scope / Target Modules | Required Threshold | Actual Measured | Status |
+| :--- | :--- | :--- | :--- | :--- |
+| **Security Audit** | Auth, Tokens, Keychain, Biometrics, Crypto | **100%** | XX.X% | ✅ PASS / ❌ FAIL |
+| **Architecture Audit** | Pure Domain UseCases, Repositories, Entities | **$\ge 85\%$** | XX.X% | ✅ PASS / ❌ FAIL |
+| **UI Audit** | State Hoisting, BLoCs, ViewModels, Reducers | **$\ge 80\%$** | XX.X% | ✅ PASS / ❌ FAIL |
+| **Code Health Audit** | Refactored Methods (<20 lines), Utilities | **$\ge 75\%$** | XX.X% | ✅ PASS / ❌ FAIL |
 
 ---
 
