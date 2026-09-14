@@ -127,7 +127,24 @@ flowchart TB
 
 For each task in the confirmed order, follow `d3nexus:subagent-driven-development`.
 
-1. **Live Kanban Status**: Before dispatching, edit — **do not commit** — that task's frontmatter in `.devtool/features/task_<n>.md` to `status: "in-progress"`.
+0. **Pre-Edit Verification (Impact & Conflict Check)**:
+   Before modifying any source file for the task, run the impact analyzer against `<base_ref>`:
+   ```bash
+   python3 skills/impact-analysis/resources/scripts/check_code_impact.py \
+     --files <target_files> \
+     --symbols <target_symbols> \
+     --base-ref <base_ref>
+   ```
+   - If `🔴 DIVERGENCE DETECTED`: **HALT IMMEDIATELY**. Run `git fetch && git rebase origin/<base_ref>`. Do not touch source files with unmerged upstream commits.
+   - If `⚠️ NATIVE BRIDGE DETECTED`: Note Android Kotlin and iOS Swift bridge files; plan simultaneous updates.
+   - If `⚠️ UNPROTECTED CODE (0% Coverage)`: Author baseline characterization unit tests first before modifying behavior.
+
+1. **Live Dual-Workspace Kanban Status (In-Progress)**:
+   Before dispatching, synchronize the task status across all checkouts:
+   ```bash
+   python3 skills/epic-implementation/resources/scripts/sync_task_status.py task <task_id> in-progress
+   ```
+   This automatically updates `status: "in-progress"` and advances `modified:` in both the isolated worktree and the main workspace checkout without creating an untracked git commit.
 
    **CRITICAL TRI-PERSONA DISPATCH**: When dispatching the implementer subagent, inject the Tri-Persona instructions adapted to the detected platform:
 
@@ -183,13 +200,20 @@ For each task in the confirmed order, follow `d3nexus:subagent-driven-developmen
    > - **PHASE 2**: TDD Unit Implementation (RED failing test: `swift test --package-path <Path>` -> GREEN Swift code -> REFACTOR `swiftformat --config quality/.swiftformat .`, `swiftlint lint --strict --config quality/.swiftlint.yml`, `bash scripts/check_module_boundaries.sh`, `swift test --package-path ArchTests`).
    > - **PHASE 3**: System Integration (`App/Tests`, RouteProvider registration, `tuist generate --no-open && xcodebuild test ...`).
 
-2. Once the implementer reports `DONE`, edit frontmatter to `status: "review"` before dispatching reviewers.
-3. If review finds issues, cycle between `status: "in-progress"` and `status: "review"` through the fix loop.
-4. Only once both reviews pass, update frontmatter: `status: "done"`, `completedAt: "<ISO-8601 now>"`.
+2. Once the implementer reports `DONE`, synchronize review status:
+   ```bash
+   python3 skills/epic-implementation/resources/scripts/sync_task_status.py task <task_id> review
+   ```
+3. If review finds issues, cycle between `status: "in-progress"` and `status: "review"` through the fix loop using `sync_task_status.py`.
+4. Only once both reviews pass, update status to `done`:
+   ```bash
+   python3 skills/epic-implementation/resources/scripts/sync_task_status.py task <task_id> done
+   ```
+   This writes `status: "done"`, advances `modified:`, and sets `completedAt:` across all checkout roots.
 5. Make exactly one commit staging code and task file:
    ```bash
    git status                                    # check nothing unrelated is pending
-   git add -A                                    # code changes + .devtool/features/task_<n>.md
+   git add -A                                    # code changes + .devtool/features/
    git commit -m "[EPIC_NAME] <task_title>" -m "- <subtask 1>
    - <subtask 2>"
    ```
@@ -217,7 +241,16 @@ The `@quality_check` skill automatically detects the platform and executes:
 - **Android**: Runs `./gradlew check :konsist-test:test apiCheck`, `./scripts/acceptance_check.sh`, the 4 Android semantic audits (`@security-audit`, `@architecture-audit`, `@android-ui-audit`, `@code-health-audit`), followed by `cleanup-java`.
 - **iOS**: Runs `swiftlint lint --strict`, `swiftformat --lint`, `check_module_boundaries.sh`, `swift test --package-path ArchTests`, simulator acceptance tests, and the 4 iOS semantic audits (`@security-audit`, `@architecture-audit`, `@ios-ui-audit`, `@code-health-audit`).
 
-Only when `@quality_check` reports **🟢 LGTM (All checks passing)**, use `d3nexus:finishing-a-development-branch` on the epic branch (base = `develop`).
+### Phase 5 — Main Checkout Clean-up Before Merge (Scenario 5.2)
+
+Because `sync_task_status.py` mirrored task file updates to the main workspace checkout (`$MAIN_ROOT/.devtool/features/`), before merging the branch into `<base_ref>`, clean the main checkout's working tree:
+```bash
+MAIN_ROOT=$(git worktree list --porcelain | head -n 1 | awk '{print $2}')
+git -C "$MAIN_ROOT" restore -- .devtool/features/ .devtool/epic/<epic_dir>/
+```
+Verify that `git -C "$MAIN_ROOT" status --porcelain` is 100% clean. This eliminates working tree collision errors when git checkout/merge executes.
+
+Only when `@quality_check` reports **🟢 LGTM (All checks passing)** and the main checkout is clean, use `d3nexus:finishing-a-development-branch` on the epic branch (base = `develop`).
 
 ## Quick Reference
 

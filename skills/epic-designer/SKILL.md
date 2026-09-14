@@ -60,6 +60,14 @@ Each document MUST contain the following sections:
    - **High-Level Architecture**: Use a `mermaid graph TD` to show component interactions.
    - **Use Cases**: Use a `mermaid flowchart` to define Actors and their interactions with the system.
    - **Sequence Diagram**: Use a `mermaid sequenceDiagram` to show the step-by-step lifecycle of the primary flow.
+   - **Check 1 (Shift-Left Impact Analysis)**: Run `check_code_impact.py` on planned touchpoints and core symbols:
+     ```bash
+     python3 skills/impact-analysis/resources/scripts/check_code_impact.py \
+       --files <planned_files> \
+       --symbols <core_classes> \
+       --base-ref develop
+     ```
+     Inspect blast radius, downstream callers, native `MethodChannel` bridges, and coverage safety nets before freezing contracts.
    - **Comprehensive BDD Test Scenarios**: A detailed Gherkin suite (`Given - When - Then`) covering all Use Cases and Sequence Diagram flows.
 5. **BDD Output in Epic Directory (`bdd_scenarios.md`)**:
    - In addition to embedding in the Epic Overview, generate a dedicated `bdd_scenarios.md` file located at `.devtool/epic/<epic_name>/bdd_scenarios.md`.
@@ -201,7 +209,12 @@ Each task file MUST adhere to this exact structure:
    - **For Flutter Tasks**: `flutter-ui-audit`, Mason bricks (`mason make pac_mvi_feature`), `build_runner`.
    - **For Android Tasks**: `android-ui-audit`, `android-api-integration`, `moshi_dto_generator`.
    - **For iOS Tasks**: `ios-ui-audit`, Tuist (`tuist generate`), `ArchTests`.
-7. **BDD Scenarios & Acceptance Criteria (The QA Persona)**:
+7. **Impact Analysis & Blast Radius**: Document predictive impact analysis for this specific task:
+   - **Target Files & Symbols**: Classes, functions, and interfaces to be created or modified.
+   - **Downstream Callers**: Known caller files that consume the target symbols.
+   - **Cross-Platform Bridges**: Any `MethodChannel` or Native bridge contracts touched.
+   - **Target Test Coverage Threshold**: Minimum line coverage threshold (100% for Security, $\ge 85\%$ for Domain UseCases, $\ge 80\%$ for UI/BLoC).
+8. **BDD Scenarios & Acceptance Criteria (The QA Persona)**:
    Document this section under the markdown heading `### BDD SCENARIOS`.
    Define behavioral scenarios using Gherkin syntax (`Given - When - Then`).
 
@@ -222,7 +235,7 @@ Each task file MUST adhere to this exact structure:
    - `[Tier A - Unit]`: Scenarios covering class/function level logic, BLoCs/ViewModels, UseCases, Repositories, Parsers, and Guards.
    - `[Tier C - Integration]`: Scenarios covering end-to-end user navigation, Host App lifecycle, Tab switching, Auth Gating & Replay.
 
-8. **Test & Verification Checklist**:
+9. **Test & Verification Checklist**:
    - **For Flutter Tasks (Dev Persona / Integration Persona)**:
      - [ ] **RED**: Translate all `[Tier A - Unit]` BDD scenarios into failing unit/BLoC tests (`bloc_test`, Mocktail). Confirm tests fail for the right reasons before writing implementation code.
      - [ ] **GREEN**: Write minimal implementation code to satisfy the tests (use Mason `pac_mvi_feature` if creating a new feature package).
@@ -240,9 +253,9 @@ Each task file MUST adhere to this exact structure:
      - [ ] **Tier C (Integration)**: Host App composition testbed (`App/Tests` + `Shell/Tests`), assert user flows, and run simulator acceptance check (`tuist generate --no-open && xcodebuild test ...`).
 
    **TDD Adaptation**: For tasks that are pure refactors or config changes with no new behavior, state the adaptation explicitly (e.g., "run existing test suite / analyzer to confirm zero regressions").
-9. **Definition of Done (DoD)**: Acceptance criteria (100% scenario coverage, passes Tier A/B/C verification, clean git status).
-10. **Dependencies & Blockers**: Link to blocking/blocked task files as markdown links (e.g. `Blocked by [Task 1](task_1_create_package.md)`).
-11. **References & Rollback**: Links to docs, APIs, and a rollback strategy if this specific task fails.
+10. **Definition of Done (DoD)**: Acceptance criteria (100% scenario coverage, passes Tier A/B/C verification, clean git status).
+11. **Dependencies & Blockers**: Link to blocking/blocked task files as markdown links (e.g. `Blocked by [Task 1](task_1_create_package.md)`).
+12. **References & Rollback**: Links to docs, APIs, and a rollback strategy if this specific task fails.
 
 ### Step 3: Finalize & Commit
 After the Epic Overview and all confirmed task files are written (or updated), commit them to git:
