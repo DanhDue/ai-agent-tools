@@ -22,7 +22,9 @@ byte-for-byte. Frontmatter is parsed with the same hand-rolled regex idiom as
 compute_execution_order.py -- deliberately no PyYAML, so this stays stdlib-only.
 """
 import re
+import subprocess
 from datetime import datetime, timezone
+from pathlib import Path
 
 TASK_STATUSES = ("backlog", "todo", "in-progress", "review", "done")
 FRONTMATTER_RE = re.compile(r"^---\n(.*?)\n---\n", re.DOTALL)
@@ -69,3 +71,51 @@ def set_frontmatter_field(text: str, key: str, value: str) -> str:
         else:
             new_block = block + "\n" + new_line
     return text[:match.start(1)] + new_block + text[match.end(1):]
+
+
+def parse_worktree_list(output: str) -> list[Path]:
+    """Extract checkout roots from `git worktree list --porcelain` output.
+
+    Git always reports the main worktree first, and callers rely on that
+    ordering -- Phase 4's main-checkout restore uses roots[0]. Paths may
+    contain spaces, so take everything after the first token.
+    """
+    return [Path(line[len("worktree "):]) for line in output.splitlines()
+            if line.startswith("worktree ")]
+
+
+def checkout_roots() -> list[Path]:
+    """Every checkout of this repo, main worktree first.
+
+    The only subprocess boundary in this module -- everything else is pure and
+    directly testable, which is why the test suite needs no git fixtures.
+    """
+    result = subprocess.run(["git", "worktree", "list", "--porcelain"],
+                            capture_output=True, text=True, check=True)
+    return parse_worktree_list(result.stdout)
+
+
+def task_targets(root: Path, task_id: str) -> list[Path]:
+    """Every copy of one task inside one checkout: features + each epic dir."""
+    candidates = [root / ".devtool" / "features" / f"{task_id}.md"]
+    candidates.extend(sorted((root / ".devtool" / "epic").glob(f"*/{task_id}.md")))
+    return [path for path in candidates if path.is_file()]
+
+
+def epic_of(path: Path) -> str | None:
+    return parse_frontmatter(path.read_text()).get("epic")
+
+
+def expected_epic(roots: list[Path], task_id: str) -> str | None:
+    """The epic this task_id belongs to, per the authoritative features copy.
+
+    Task ids are `task_<number>_<name>`, so a name like `task_1_setup` can
+    plausibly exist under two different epics -- and `task_targets`' `*/` glob
+    would match both. Callers use this value to refuse any copy whose own
+    `epic:` differs. Checked main-worktree-first; mirrors cannot disagree.
+    """
+    for root in roots:
+        features = root / ".devtool" / "features" / f"{task_id}.md"
+        if features.is_file():
+            return epic_of(features)
+    return None
