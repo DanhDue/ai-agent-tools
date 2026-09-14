@@ -2,3 +2,5 @@
 node_modules/
 *.log
 .superpowers/
+__pycache__/
+*.pyc
