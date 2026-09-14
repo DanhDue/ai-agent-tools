@@ -7,6 +7,7 @@
   - `skills/epic-designer/SKILL.md`
   - `skills/epic-implementation/SKILL.md`
   - `skills/impact-analysis/SKILL.md` (New Skill)
+  - `skills/impact-analysis/references/impact-mechanisms.md` (New Reference Document)
   - `skills/epic-implementation/resources/scripts/sync_task_status.py`
   - `skills/epic-implementation/resources/scripts/check_code_impact.py` (New Script)
 
@@ -22,6 +23,7 @@ In epic-scale software development across **Flutter**, **Android Native**, and *
    - **Git Divergence & Merge Conflicts**: Edits made against outdated base refs when `<base_ref>` (e.g. `develop`) has moved ahead, or colliding with edits from another active worktree.
    - **Blast Radius & Downstream Breakages**: Changing a class, function, or DTO without identifying all callers across modules or checking public ABI contracts.
    - **Cross-Platform Bridge Mismatch**: In Flutter apps communicating with Android (Kotlin) or iOS (Swift) via `MethodChannel` or `EventChannel`, changing channel or method names in Dart causes silent runtime crashes (`MissingPluginException`) because standard compilers inspect only their own language.
+   - **Unprotected Code & Missing Logic Cases**: Editing code that has 0% or low test coverage without a safety net, or introducing new logic without addressing boundary values, error branches, and race conditions.
 
 ---
 
@@ -34,9 +36,11 @@ In epic-scale software development across **Flutter**, **Android Native**, and *
    - The main checkout's mirrored copies are restored to clean git status before branch merge.
 2. **Dedicated `impact-analysis` Skill & Pre-Edit Impact Checker**:
    - A standalone, reusable skill `skills/impact-analysis/SKILL.md` and automated CLI script `check_code_impact.py`.
+   - Accompanied by a detailed reference document `skills/impact-analysis/references/impact-mechanisms.md` explaining the "What, Why, Benefit, and Failure Modes" of each check.
    - **Layer 1 (Git & Workspace Conflicts)**: Detects branch divergence against `<base_ref>` and overlapping edits across active worktrees.
    - **Layer 2 (Architecture & Blast Radius)**: Maps module dependency graphs and scans symbol references/callers across packages using fast text search (`ripgrep`), warning of public ABI/contract changes.
    - **Layer 3 (Cross-Platform Bridge)**: In Flutter projects, performs cross-boundary string scanning across `lib/` and `android/` / `ios/` to link `MethodChannel` and `EventChannel` callers with native handlers.
+   - **Layer 4 (Test Impact Analysis & Missing Logic Detection)**: Maps modified files to associated unit/integration tests, runs test baselines, flags unprotected code (low/zero coverage), and detects untested error/edge branches.
 3. **Seamless Workflow Integration**:
    - **`epic-designer`**: Adds an explicit `### Impact Analysis & Blast Radius` section to every generated `task_*.md` and an overview in the HLD.
    - **`epic-implementation`**: Embeds **Step 0 in Phase 2: Pre-Edit Impact & Conflict Check** (calling `@impact-analysis`) before writing code, and executes live status flips via `sync_task_status.py`.
@@ -71,8 +75,9 @@ flowchart TD
             CHK_GIT["1. Git Divergence & Worktree Conflict Check"]
             CHK_BLAST["2. Blast Radius & Caller Scan (ripgrep)"]
             CHK_BRIDGE["3. Cross-Platform Bridge Scan (MethodChannel)"]
+            CHK_TEST["4. Test Impact Analysis (TIA) & Coverage Check"]
             REPORT["Unified Impact Report"]
-            CHK_GIT --> CHK_BLAST --> CHK_BRIDGE --> REPORT
+            CHK_GIT --> CHK_BLAST --> CHK_BRIDGE --> CHK_TEST --> REPORT
         end
 
         TDD["Tri-Persona TDD Implementation (Red-Green-Refactor)"]
@@ -98,21 +103,22 @@ flowchart TD
 ### 5.1 Component A: `skills/impact-analysis/SKILL.md` (New Skill)
 
 * **Location**: `skills/impact-analysis/SKILL.md`
-* **Purpose**: Analyzes source code impacts, blast radius, and git conflicts before modifying any file.
+* **Reference Guide**: `skills/impact-analysis/references/impact-mechanisms.md`
+* **Purpose**: Analyzes source code impacts, blast radius, test coverage, and git conflicts before modifying any file.
 * **CLI Tool**: `skills/epic-implementation/resources/scripts/check_code_impact.py`
 * **Invocation**:
   ```bash
   python3 skills/epic-implementation/resources/scripts/check_code_impact.py --files <path1> <path2> --base-ref <base_ref> [--symbols <sym1> <sym2>]
   ```
 
-#### The 3-Layer Check Pipeline
+#### The 4-Layer Check Pipeline
 
 ```mermaid
 flowchart LR
     subgraph L1["Layer 1: Git Conflicts"]
         G_LOG["git log base_ref...HEAD -- files"]
         G_DIFF["git diff base_ref...HEAD -- files"]
-        G_WT["Check other worktrees for uncommitted edits"]
+        G_WT["Active worktrees uncommitted edit scan"]
     end
 
     subgraph L2["Layer 2: Blast Radius"]
@@ -122,11 +128,17 @@ flowchart LR
     end
 
     subgraph L3["Layer 3: Cross-Bridge"]
-        DART_SCAN["Dart MethodChannel / EventChannel Extraction"]
+        DART_SCAN["Dart MethodChannel Extraction"]
         NATIVE_SCAN["Native Kotlin/Swift Handler Matching"]
     end
 
-    L1 --> L2 --> L3
+    subgraph L4["Layer 4: Test & Coverage (TIA)"]
+        TEST_MAP["Map Source -> Test Files"]
+        COV_CHK["Coverage Blind-spot Detection"]
+        EDGE_CHK["Missing Logic / Edge Case Analysis"]
+    end
+
+    L1 --> L2 --> L3 --> L4
 ```
 
 1. **Layer 1: Git & Workspace Conflict Detection**:
@@ -144,6 +156,11 @@ flowchart LR
    - Extracts channel identifiers (e.g. `"com.example/channel"`) and invoked method names (e.g. `"authenticate"`).
    - Searches across `lib/**/*.dart`, `android/**/*.kt`, `android/**/*.java`, and `ios/**/*.swift`.
    - Flags all coupled native and Dart counterparts to ensure contract synchronization.
+4. **Layer 4: Test Impact Analysis (TIA) & Missing Logic Detection**:
+   - Maps target source files to their test files (`*Test.kt`, `*_test.dart`, `*Tests.swift`).
+   - Runs affected test files to establish a green baseline before modifications.
+   - Checks coverage status: flags files/functions with 0% or low test coverage as `UNPROTECTED CODE`.
+   - Analyzes missing edge cases against the 5 BDD dimensions (Null/Empty, State Transitions, Failures/Timeouts, Race Conditions).
 
 #### Output Report Format
 Prints a structured markdown report:
@@ -158,12 +175,30 @@ Prints a structured markdown report:
   * features/payment/PaymentUseCase.kt:18
 - Public Contract / ABI Risk: 🟢 NONE (Internal class)
 - Cross-Platform Bridge: 🟢 NONE
-- Verdict: PROCEED
+- Test Impact (TIA): 2 Associated Test Files
+  * features/payment/PaymentRepositoryTest.kt (12 tests - PASSING)
+  * features/payment/PaymentViewModelTest.kt (8 tests - PASSING)
+- Coverage Safety Net: 🟢 85% Covered
+- Missing Logic Alert: ⚠️ Function processPayment() has an unhandled timeout branch in existing tests.
+- Verdict: PROCEED WITH CAUTION (Add timeout test case first)
 ```
 
 ---
 
-### 5.2 Component B: `sync_task_status.py` (Dual-Workspace Sync)
+### 5.2 Component B: `skills/impact-analysis/references/impact-mechanisms.md` (New Reference Document)
+
+A comprehensive guide explaining the rationale, mechanics, and failure modes of each check:
+
+| Check Layer | What is Checked? (Check gì?) | Why? (Tại sao?) | What is the Benefit? (Tác dụng gì?) | Failure Mode if Omitted |
+|---|---|---|---|---|
+| **1. Git & Workspace Conflicts** | Diffs against `<base_ref>` and dirty files across worktrees | Avoid coding on stale base or clobbering concurrent work | Guarantees zero merge conflicts at Phase 4 finish | Painful git merge conflicts requiring manual resolution |
+| **2. Blast Radius & Callers** | All files/modules that import or call modified symbols | Code changes ripple outward to unsuspecting consumers | Accurately scopes edits and prevents breaking public contracts | Silent compile errors or runtime crashes in other modules |
+| **3. Cross-Platform Bridge** | MethodChannel names and method calls across Dart & Native | Compilers inspect only their own language; bridges are string-coupled | Prevents cross-language desynchronization | `MissingPluginException` or crashes on physical devices |
+| **4. Test Impact & Coverage (TIA)** | Associated test files, current coverage, missing edge branches | Untested code cannot be safely refactored or modified | Provides immediate regression feedback and reveals logic blind spots | Regressions shipped to production; edge case crashes |
+
+---
+
+### 5.3 Component C: `sync_task_status.py` (Dual-Workspace Sync)
 
 * **Location**: `skills/epic-implementation/resources/scripts/sync_task_status.py`
 * **Test Suite**: `skills/epic-implementation/resources/scripts/test_sync_task_status.py`
@@ -185,7 +220,7 @@ Prints a structured markdown report:
 
 ---
 
-### 5.3 Component C: Skill Integrations
+### 5.4 Component D: Skill Integrations
 
 #### 1. `skills/epic-designer/SKILL.md`
 - **Step 1 (HLD)**: Mandates an **Impact Analysis & Blast Radius Overview** subsection in the Epic Overview document.
@@ -196,6 +231,7 @@ Prints a structured markdown report:
   - **Dependent Modules & Callers**: Expected blast radius.
   - **Public Contracts & ABI**: Interfaces, DTOs, or routes affected.
   - **Cross-Platform Bridge**: MethodChannel names if applicable.
+  - **Associated Tests & Coverage**: Unit test files and coverage status.
   ```
 
 #### 2. `skills/epic-implementation/SKILL.md`
@@ -203,7 +239,7 @@ Prints a structured markdown report:
 - **Phase 2 (Sequential Task Execution)**:
   - Before dispatching implementer:
     1. Runs `sync_task_status.py task <task_id> in-progress` (and `sync_task_status.py epic <epic_dir> "In Progress"` on first task).
-    2. Runs `check_code_impact.py` on the task's target files. If a Git conflict or unexpected blast radius is found, halts and surfaces to user.
+    2. Runs `check_code_impact.py` on the task's target files. If a Git conflict, untested blind spot, or unexpected blast radius is found, halts and surfaces to user.
   - When implementer reports `DONE`: runs `sync_task_status.py task <task_id> review`.
   - When reviews pass: runs `sync_task_status.py task <task_id> done`.
   - Exactly one commit per task committing worktree copies.
@@ -214,9 +250,9 @@ Prints a structured markdown report:
   4. Finishes epic branch against `<base_ref>`.
 
 #### 3. `skills/epic-lifecycle/SKILL.md`
-- **Gate 2 (HLD & Task Breakdown)**: Explicitly checks that every task includes an Impact Analysis & Blast Radius assessment.
+- **Gate 2 (HLD & Task Breakdown)**: Explicitly checks that every task includes an Impact Analysis & Blast Radius assessment with test mapping.
 - **Gate 3 (Execution Plan)**: Confirms execution order, `<base_ref>`, and verified absence of upstream Git merge conflicts.
-- **Stage 3 Invariant**: Mandates pre-edit impact checks and live dual-workspace status sync.
+- **Stage 3 Invariant**: Mandates pre-edit impact checks, TIA verification, and live dual-workspace status sync.
 
 ---
 
@@ -224,7 +260,7 @@ Prints a structured markdown report:
 
 1. **Automated Unit Tests**:
    - `test_sync_task_status.py`: 47 test cases covering frontmatter parsing, key insertion, timestamp generation, worktree fan-out, collision guard, and CLI exit codes.
-   - `test_check_code_impact.py`: Unit tests covering Git divergence checking, symbol caller search, module boundary validation, and cross-platform MethodChannel extraction using mock temporary directory structures.
+   - `test_check_code_impact.py`: Unit tests covering Git divergence checking, symbol caller search, module boundary validation, cross-platform MethodChannel extraction, and test file mapping using mock temporary directory structures.
 2. **Skill Verification**:
    - Run `bash scripts/verify.sh` to ensure all frontmatters (`name`, `description`), cross-skill links, and in-page anchors across `skills/**/*.md` pass cleanly.
 
@@ -233,5 +269,5 @@ Prints a structured markdown report:
 ## 7. Spec Self-Review
 
 - **Placeholder Scan**: Zero "TBD", "TODO", or missing sections.
-- **Consistency**: The five-column status enum and timestamp ISO format match across all tools and skills.
-- **Scope**: Covers the 3 user requirements with clean architectural separation (tooling + skill protocols).
+- **Consistency**: The five-column status enum, timestamp ISO format, and 4 check layers match across all tools and skills.
+- **Scope**: Covers dual-workspace Kanban synchronization, timestamp tracking, dedicated `impact-analysis` skill, and detailed reference documentation.
