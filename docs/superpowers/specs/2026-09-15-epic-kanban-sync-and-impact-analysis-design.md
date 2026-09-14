@@ -6,6 +6,7 @@
   - `skills/epic-lifecycle/SKILL.md`
   - `skills/epic-designer/SKILL.md`
   - `skills/epic-implementation/SKILL.md`
+  - `skills/quality_check/SKILL.md`
   - `skills/impact-analysis/SKILL.md` (New Skill)
   - `skills/impact-analysis/references/impact-mechanisms.md` (New Reference Document)
   - `skills/epic-implementation/resources/scripts/sync_task_status.py`
@@ -24,6 +25,8 @@ In epic-scale software development across **Flutter**, **Android Native**, and *
    - **Blast Radius & Downstream Breakages**: Changing a class, function, or DTO without identifying all callers across modules or checking public ABI contracts.
    - **Cross-Platform Bridge Mismatch**: In Flutter apps communicating with Android (Kotlin) or iOS (Swift) via `MethodChannel` or `EventChannel`, changing channel or method names in Dart causes silent runtime crashes (`MissingPluginException`) because standard compilers inspect only their own language.
    - **Unprotected Code & Missing Logic Cases**: Editing code that has 0% or low test coverage without a safety net, or introducing new logic without addressing boundary values, error branches, and race conditions.
+3. **Disjoint Quality & Coverage Verification**:
+   Running semantic audits (`@security-audit`, `@architecture-audit`, etc.) in isolation without correlating them with actual test coverage allows security-sensitive logic, financial precision paths, or critical architectural seams to pass audit with zero test coverage, leaving them vulnerable to runtime regression.
 
 ---
 
@@ -41,10 +44,18 @@ In epic-scale software development across **Flutter**, **Android Native**, and *
    - **Layer 2 (Architecture & Blast Radius)**: Maps module dependency graphs and scans symbol references/callers across packages using fast text search (`ripgrep`), warning of public ABI/contract changes.
    - **Layer 3 (Cross-Platform Bridge)**: In Flutter projects, performs cross-boundary string scanning across `lib/` and `android/` / `ios/` to link `MethodChannel` and `EventChannel` callers with native handlers.
    - **Layer 4 (Test Impact Analysis & Missing Logic Detection)**: Maps modified files to associated unit/integration tests, runs test baselines, flags unprotected code (low/zero coverage), and detects untested error/edge branches.
-3. **Seamless Workflow Integration**:
-   - **`epic-designer`**: Adds an explicit `### Impact Analysis & Blast Radius` section to every generated `task_*.md` and an overview in the HLD.
-   - **`epic-implementation`**: Embeds **Step 0 in Phase 2: Pre-Edit Impact & Conflict Check** (calling `@impact-analysis`) before writing code, and executes live status flips via `sync_task_status.py`.
-   - **`epic-lifecycle`**: Updates Gate 2 (HLD & Task Breakdown mandates blast radius assessment) and Gate 3 (Execution Plan verifies conflict-free base ref).
+3. **BDD/TDD Coverage & Missing Case Enforcement**:
+   - During BDD/TDD authoring in `epic-designer` and execution in `epic-implementation`:
+     - BDD scenarios must exhaustively cover the 5 dimensions (Happy, Boundaries/Null, State Transitions, Async/Race, Failures/Offline) to eliminate missing logic cases.
+     - TDD Dev Persona must write tests that satisfy coverage thresholds ($\ge 80\%$ on domain/logic, $100\%$ on security/financial paths) before moving to review.
+4. **End-of-Epic Coverage & Audit Reverse Verification (`@quality_check`)**:
+   - In Phase 4 / Gate 4, `@quality_check` executes the platform test suite with coverage (`testWithCoverage.sh` in Flutter, JaCoCo/Kover in Android, Tuist/xccov in iOS).
+   - Correlates test coverage against the 4 specialized semantic audit categories:
+     - **Security & Fintech**: 100% coverage on encryption, tokens, biometric bridge, and `BigDecimal`/`Decimal` financial calculations.
+     - **Clean Architecture**: $\ge 85\%$ coverage on Domain UseCases and Repositories; 100% on MVI state/action reducers.
+     - **UI Performance**: State hoisting and lifecycle disposal covered.
+     - **Code Health**: Branch coverage on complex branching logic.
+   - Generates a **Test Coverage by Audit Category Matrix** in the Unified Executive Quality Report.
 
 ---
 
@@ -62,7 +73,7 @@ In epic-scale software development across **Flutter**, **Android Native**, and *
 flowchart TD
     subgraph STAGE2["Stage 2: epic-designer"]
         S2_HLD["Create HLD with Impact Overview"]
-        S2_TASKS["Generate Tasks with '### Impact Analysis & Blast Radius'"]
+        S2_TASKS["Generate Tasks with '### Impact Analysis & Blast Radius' + Coverage DoD"]
         S2_HLD --> S2_TASKS
     end
 
@@ -80,9 +91,17 @@ flowchart TD
             CHK_GIT --> CHK_BLAST --> CHK_BRIDGE --> CHK_TEST --> REPORT
         end
 
-        TDD["Tri-Persona TDD Implementation (Red-Green-Refactor)"]
+        TDD["Tri-Persona TDD Implementation (Red-Green-Refactor with Coverage)"]
         SYNC_REV["sync_task_status.py task <id> review"]
         SYNC_DONE["sync_task_status.py task <id> done"]
+        
+        subgraph QC["Phase 4: @quality_check & Reverse Verification"]
+            RUN_TESTS["Platform Test Run + Coverage Computation<br/>(Flutter: testWithCoverage.sh / Android: Jacoco/Kover / iOS: xccov)"]
+            AUDIT_CORR["Reverse Verify Against 4 Audits<br/>(Security 100% / Arch >=85% / UI / Code Health)"]
+            QC_REPORT["Executive Report with Coverage-by-Audit Matrix"]
+            RUN_TESTS --> AUDIT_CORR --> QC_REPORT
+        end
+
         P4_RESTORE["Phase 4: git restore main checkout & merge"]
 
         P1 --> P2_START --> SYNC_INP
@@ -90,7 +109,8 @@ flowchart TD
         REPORT -->|🟢 Clean / Acknowledged| TDD
         REPORT -->|🔴 Conflict Detected| HALT["Halt & Prompt for Resolution"]
         TDD --> SYNC_REV --> SYNC_DONE
-        SYNC_DONE --> P4_RESTORE
+        SYNC_DONE --> RUN_TESTS
+        QC_REPORT -->|🟢 LGTM| P4_RESTORE
     end
 
     STAGE2 --> STAGE3
@@ -162,27 +182,6 @@ flowchart LR
    - Checks coverage status: flags files/functions with 0% or low test coverage as `UNPROTECTED CODE`.
    - Analyzes missing edge cases against the 5 BDD dimensions (Null/Empty, State Transitions, Failures/Timeouts, Race Conditions).
 
-#### Output Report Format
-Prints a structured markdown report:
-```text
-## 🔍 Impact Analysis Report
-- Target Files: :features:payment/PaymentRepository.kt
-- Base Ref: develop
-- Git Conflict: 🟢 CLEAN (No upstream divergence)
-- Owning Module: :features:payment
-- Downstream Callers: 2 files
-  * features/payment/PaymentViewModel.kt:32
-  * features/payment/PaymentUseCase.kt:18
-- Public Contract / ABI Risk: 🟢 NONE (Internal class)
-- Cross-Platform Bridge: 🟢 NONE
-- Test Impact (TIA): 2 Associated Test Files
-  * features/payment/PaymentRepositoryTest.kt (12 tests - PASSING)
-  * features/payment/PaymentViewModelTest.kt (8 tests - PASSING)
-- Coverage Safety Net: 🟢 85% Covered
-- Missing Logic Alert: ⚠️ Function processPayment() has an unhandled timeout branch in existing tests.
-- Verdict: PROCEED WITH CAUTION (Add timeout test case first)
-```
-
 ---
 
 ### 5.2 Component B: `skills/impact-analysis/references/impact-mechanisms.md` (New Reference Document)
@@ -220,7 +219,7 @@ A comprehensive guide explaining the rationale, mechanics, and failure modes of 
 
 ---
 
-### 5.4 Component D: Skill Integrations
+### 5.4 Component D: Skill Integrations & Quality Gates
 
 #### 1. `skills/epic-designer/SKILL.md`
 - **Step 1 (HLD)**: Mandates an **Impact Analysis & Blast Radius Overview** subsection in the Epic Overview document.
@@ -231,8 +230,9 @@ A comprehensive guide explaining the rationale, mechanics, and failure modes of 
   - **Dependent Modules & Callers**: Expected blast radius.
   - **Public Contracts & ABI**: Interfaces, DTOs, or routes affected.
   - **Cross-Platform Bridge**: MethodChannel names if applicable.
-  - **Associated Tests & Coverage**: Unit test files and coverage status.
+  - **Associated Tests & Coverage Baseline**: Unit test files and minimum coverage target (e.g. >= 80%).
   ```
+- **Definition of Done (DoD)**: Must require that unit tests achieve the defined coverage target and pass with zero regressions.
 
 #### 2. `skills/epic-implementation/SKILL.md`
 - **Phase 1 (Execution Plan)**: Resolves `<base_ref>` dynamically (validating that the ref carries the HLD and all task files) rather than hardcoding `develop`.
@@ -240,19 +240,33 @@ A comprehensive guide explaining the rationale, mechanics, and failure modes of 
   - Before dispatching implementer:
     1. Runs `sync_task_status.py task <task_id> in-progress` (and `sync_task_status.py epic <epic_dir> "In Progress"` on first task).
     2. Runs `check_code_impact.py` on the task's target files. If a Git conflict, untested blind spot, or unexpected blast radius is found, halts and surfaces to user.
+  - TDD Implementation: Dev Persona enforces coverage thresholds during Red-Green-Refactor.
   - When implementer reports `DONE`: runs `sync_task_status.py task <task_id> review`.
   - When reviews pass: runs `sync_task_status.py task <task_id> done`.
   - Exactly one commit per task committing worktree copies.
 - **Phase 4 (Close-out)**:
-  1. Runs `sync_task_status.py epic <epic_dir> "Done"`.
-  2. Restores main checkout's mirrored copies via `git -C "$MAIN_ROOT" restore -- .devtool/features/ .devtool/epic/<epic_dir>/`.
-  3. Verifies `git status --porcelain` is clean in main checkout.
-  4. Finishes epic branch against `<base_ref>`.
+  1. Runs `@quality_check` with platform-specific test coverage computation and reverse verification.
+  2. Runs `sync_task_status.py epic <epic_dir> "Done"`.
+  3. Restores main checkout's mirrored copies via `git -C "$MAIN_ROOT" restore -- .devtool/features/ .devtool/epic/<epic_dir>/`.
+  4. Verifies `git status --porcelain` is clean in main checkout.
+  5. Finishes epic branch against `<base_ref>`.
 
-#### 3. `skills/epic-lifecycle/SKILL.md`
-- **Gate 2 (HLD & Task Breakdown)**: Explicitly checks that every task includes an Impact Analysis & Blast Radius assessment with test mapping.
+#### 3. `skills/quality_check/SKILL.md`
+- **Coverage Execution by Platform**:
+  - **Flutter**: Runs `./scripts/testWithCoverage.sh` or `fvm flutter test --coverage`, parsing `coverage/lcov.info`.
+  - **Android**: Runs `./gradlew testDebugUnitTestCoverage` or `./gradlew koverHtmlReport` / JaCoCo, parsing reports.
+  - **iOS**: Runs `tuist test --coverage` or `xcodebuild test -enableCodeCoverage YES`, parsing `xccov`.
+- **Reverse Verification Against 4 Semantic Audits**:
+  - **Security Audit**: 100% test coverage mandatory for crypto, token storage, biometrics, and `BigDecimal`/`Decimal` calculations.
+  - **Architecture Audit**: $\ge 85\%$ coverage for Domain UseCases and Repositories; 100% for MVI state reducers.
+  - **UI Audit**: State hoisting and lifecycle resource disposal covered by tests.
+  - **Code Health Audit**: Cyclomatic complexity / branching logic covered.
+- **Unified Executive Quality Report**: Includes a new **Test Coverage by Audit Category Matrix**.
+
+#### 4. `skills/epic-lifecycle/SKILL.md`
+- **Gate 2 (HLD & Task Breakdown)**: Explicitly checks that every task includes an Impact Analysis & Blast Radius assessment with test mapping and coverage targets.
 - **Gate 3 (Execution Plan)**: Confirms execution order, `<base_ref>`, and verified absence of upstream Git merge conflicts.
-- **Stage 3 Invariant**: Mandates pre-edit impact checks, TIA verification, and live dual-workspace status sync.
+- **Gate 4 (Quality LGTM)**: Requires passing 3-Tier tests, passing 4 semantic audits, AND meeting the Audit Coverage Matrix thresholds.
 
 ---
 
@@ -269,5 +283,5 @@ A comprehensive guide explaining the rationale, mechanics, and failure modes of 
 ## 7. Spec Self-Review
 
 - **Placeholder Scan**: Zero "TBD", "TODO", or missing sections.
-- **Consistency**: The five-column status enum, timestamp ISO format, and 4 check layers match across all tools and skills.
-- **Scope**: Covers dual-workspace Kanban synchronization, timestamp tracking, dedicated `impact-analysis` skill, and detailed reference documentation.
+- **Consistency**: The five-column status enum, timestamp ISO format, 4 check layers, and coverage reverse verification match across all tools and skills.
+- **Scope**: Covers dual-workspace Kanban synchronization, timestamp tracking, dedicated `impact-analysis` skill with detailed reference documentation, and full quality check coverage verification.
