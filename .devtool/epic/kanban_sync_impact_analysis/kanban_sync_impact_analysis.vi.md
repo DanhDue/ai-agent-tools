@@ -43,7 +43,7 @@ Trong quy trình phát triển phần mềm di động quy mô lớn với nhi�
 
 ### Sơ đồ Kiến trúc Tổng quan (High-Level Architecture)
 ```mermaid
-graph TD
+flowchart TD
     subgraph KANBAN_SYNC["Đồng bộ Kanban Hai Chiều (Dual-Workspace Sync)"]
         SYNC_TOOL["sync_task_status.py"]
         WT_DISCOVER["git worktree list --porcelain"]
@@ -63,20 +63,20 @@ graph TD
     end
 
     subgraph WORKFLOW_INTEGRATION["Vòng đời Epic với CƠ CHẾ CHECK KÉP (DOUBLE-CHECK)"]
-        STAGE2["<b>1. CHECK 1: Khâu Thiết Kế (Shift-Left)</b><br/>Stage 2: epic-designer<br/><i>(Dự báo Blast Radius, Khóa Hợp đồng & DoD Coverage)</i>"]
-        STAGE3["<b>2. TRUNG GIAN: Trước khi Sửa Code</b><br/>Stage 3: epic-implementation<br/><i>(Bước 0: Pre-Edit Check & Live Sync Kanban)</i>"]
-        STAGE4["<b>3. CHECK 2: Khâu Nghiệm Thu (Shift-Right)</b><br/>Stage 4: quality_check (Gate 4)<br/><i>(Đối chiếu Diff thực tế, develop divergence & Ma trận Coverage)</i>"]
+        STAGE2["1. CHECK 1: Khâu Thiết Kế (Shift-Left)<br/>Stage 2: epic-designer<br/>(Dự báo Blast Radius, Khóa Hợp đồng & DoD Coverage)"]
+        STAGE3["2. TRUNG GIAN: Trước khi Sửa Code<br/>Stage 3: epic-implementation<br/>(Bước 0: Pre-Edit Check & Live Sync Kanban)"]
+        STAGE4["3. CHECK 2: Khâu Nghiệm Thu (Shift-Right)<br/>Stage 4: quality_check (Gate 4)<br/>(Đối chiếu Diff thực tế, develop divergence & Ma trận Coverage)"]
         
         STAGE2 -->|Chuyển giao Spec & Tasks| STAGE3
         STAGE3 -->|Chuyển giao Code hoàn thành| STAGE4
     end
 
     %% Các đường liên kết Check Kép thể hiện rõ ràng
-    REPORT ==>|<b>CHECK 1 (Shift-Left)</b>: Quét dự báo phạm vi & sinh Task| STAGE2
-    REPORT -.->|<b>Intermediate Check</b>: Khóa an toàn trước khi gõ code| STAGE3
-    REPORT ==>|<b>CHECK 2 (Shift-Right)</b>: Nghiệm thu Diff thực tế so với base_ref| STAGE4
+    REPORT ==>|"CHECK 1 (Shift-Left): Quét dự báo phạm vi & sinh Task"| STAGE2
+    REPORT -.->|"Intermediate Check: Khóa an toàn trước khi gõ code"| STAGE3
+    REPORT ==>|"CHECK 2 (Shift-Right): Nghiệm thu Diff thực tế so với base_ref"| STAGE4
 
-    SYNC_TOOL -.->|Lật trạng thái live 2 chiều| STAGE3
+    SYNC_TOOL -.->|"Lật trạng thái live 2 chiều"| STAGE3
 ```
 
 ### Sơ đồ Trường hợp Sử dụng (Use Cases Flowchart)

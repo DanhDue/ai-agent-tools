@@ -43,7 +43,7 @@ In multi-agent and multi-worktree mobile software engineering across **Flutter**
 
 ### High-Level Architecture
 ```mermaid
-graph TD
+flowchart TD
     subgraph KANBAN_SYNC["Dual-Workspace Kanban Synchronization"]
         SYNC_TOOL["sync_task_status.py"]
         WT_DISCOVER["git worktree list --porcelain"]
@@ -63,20 +63,20 @@ graph TD
     end
 
     subgraph WORKFLOW_INTEGRATION["Epic Lifecycle with DOUBLE-CHECK (BOOKEND) MECHANISM"]
-        STAGE2["<b>1. CHECK 1: Design-Time (Shift-Left)</b><br/>Stage 2: epic-designer<br/><i>(Predict Blast Radius, Lock Contracts & Coverage DoD)</i>"]
-        STAGE3["<b>2. INTERMEDIATE: Before Code Edits</b><br/>Stage 3: epic-implementation<br/><i>(Step 0 Pre-Edit Check & Live Kanban Sync)</i>"]
-        STAGE4["<b>3. CHECK 2: Merge-Time (Shift-Right)</b><br/>Stage 4: quality_check (Gate 4)<br/><i>(Verify Actual Diff, develop divergence & Audit Coverage Matrix)</i>"]
+        STAGE2["1. CHECK 1: Design-Time (Shift-Left)<br/>Stage 2: epic-designer<br/>(Predict Blast Radius, Lock Contracts & Coverage DoD)"]
+        STAGE3["2. INTERMEDIATE: Before Code Edits<br/>Stage 3: epic-implementation<br/>(Step 0 Pre-Edit Check & Live Kanban Sync)"]
+        STAGE4["3. CHECK 2: Merge-Time (Shift-Right)<br/>Stage 4: quality_check (Gate 4)<br/>(Verify Actual Diff, develop divergence & Audit Coverage Matrix)"]
         
         STAGE2 -->|Handoff Spec & Tasks| STAGE3
         STAGE3 -->|Handoff Completed Code| STAGE4
     end
 
     %% Explicit Double-Check connections
-    REPORT ==>|<b>CHECK 1 (Shift-Left)</b>: Predict blast radius & author tasks| STAGE2
-    REPORT -.->|<b>Intermediate Check</b>: Safety gate before code edits| STAGE3
-    REPORT ==>|<b>CHECK 2 (Shift-Right)</b>: Verify actual diff against base_ref| STAGE4
+    REPORT ==>|"CHECK 1 (Shift-Left): Predict blast radius & author tasks"| STAGE2
+    REPORT -.->|"Intermediate Check: Safety gate before code edits"| STAGE3
+    REPORT ==>|"CHECK 2 (Shift-Right): Verify actual diff against base_ref"| STAGE4
 
-    SYNC_TOOL -.->|Live 2-way status flips| STAGE3
+    SYNC_TOOL -.->|"Live 2-way status flips"| STAGE3
 ```
 
 ### Use Cases Flowchart
