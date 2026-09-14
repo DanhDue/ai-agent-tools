@@ -10,8 +10,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 from sync_task_status import (
-    epic_of, expected_epic, now_iso, parse_frontmatter, parse_worktree_list,
-    set_frontmatter_field, task_targets,
+    board_tally, epic_of, expected_epic, now_iso, parse_frontmatter,
+    parse_worktree_list, set_frontmatter_field, sync_epic, sync_task, task_targets,
 )
 
 TASK_TEXT = '''---
@@ -169,6 +169,152 @@ class ExpectedEpicTests(unittest.TestCase):
             path = Path(tmp) / "task_1_setup.md"
             make_task(path, epic="payments")
             self.assertEqual(epic_of(path), "payments")
+
+
+class SyncTaskTests(unittest.TestCase):
+    def _two_checkouts(self, tmp: str) -> list[Path]:
+        main, wt = Path(tmp) / "main", Path(tmp) / "wt"
+        for root in (main, wt):
+            make_checkout(root, epic_dir="logging_refactor", epic="logging-refactor",
+                          task_id="task_1_setup")
+        return [main, wt]
+
+    def test_writes_all_four_copies(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            roots = self._two_checkouts(tmp)
+            written, notes = sync_task(roots, "task_1_setup", "in-progress")
+            self.assertEqual(len(written), 4)
+            self.assertEqual(notes, [])
+            for path in written:
+                self.assertIn('status: "in-progress"', path.read_text())
+
+    def test_modified_advances_on_every_copy(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            roots = self._two_checkouts(tmp)
+            written, _ = sync_task(roots, "task_1_setup", "review")
+            for path in written:
+                self.assertNotIn('modified: "2026-09-01T09:00:00Z"', path.read_text())
+                self.assertIn("modified:", path.read_text())
+
+    def test_completed_at_only_on_done(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            roots = self._two_checkouts(tmp)
+            sync_task(roots, "task_1_setup", "review")
+            self.assertIn("completedAt: null",
+                          (roots[0] / ".devtool/features/task_1_setup.md").read_text())
+            sync_task(roots, "task_1_setup", "done")
+            text = (roots[0] / ".devtool/features/task_1_setup.md").read_text()
+            self.assertNotIn("completedAt: null", text)
+            self.assertIn('completedAt: "20', text)
+
+    def test_completed_at_resets_to_null_when_leaving_done(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            roots = self._two_checkouts(tmp)
+            sync_task(roots, "task_1_setup", "done")
+            self.assertNotIn("completedAt: null",
+                             (roots[0] / ".devtool/features/task_1_setup.md").read_text())
+            sync_task(roots, "task_1_setup", "in-progress")
+            text = (roots[0] / ".devtool/features/task_1_setup.md").read_text()
+            self.assertIn("completedAt: null", text)
+
+    def test_skips_same_task_id_under_a_different_epic(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            make_checkout(root, epic_dir="logging_refactor", epic="logging-refactor",
+                          task_id="task_1_setup")
+            intruder = root / ".devtool" / "epic" / "payments" / "task_1_setup.md"
+            make_task(intruder, epic="payments")
+            written, notes = sync_task([root], "task_1_setup", "done")
+            self.assertEqual(len(written), 2)
+            self.assertNotIn(intruder, written)
+            self.assertEqual(len(notes), 1)
+            self.assertIn("payments", notes[0])
+            self.assertIn('status: "todo"', intruder.read_text())
+
+    def test_checkout_missing_the_task_is_skipped_not_fatal(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            main = Path(tmp) / "main"
+            make_checkout(main, epic_dir="logging_refactor", epic="logging-refactor",
+                          task_id="task_1_setup")
+            written, _ = sync_task([main, Path(tmp) / "empty"], "task_1_setup", "done")
+            self.assertEqual(len(written), 2)
+
+    def test_no_copies_anywhere_returns_empty(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            written, notes = sync_task([Path(tmp)], "task_9_absent", "done")
+            self.assertEqual(written, [])
+            self.assertEqual(notes, [])
+
+
+class BoardTallyTests(unittest.TestCase):
+    def test_counts_by_status_for_one_epic(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            features = root / ".devtool" / "features"
+            make_task(features / "task_1_a.md", epic="logging-refactor", status="done")
+            make_task(features / "task_2_b.md", epic="logging-refactor", status="done")
+            make_task(features / "task_3_c.md", epic="logging-refactor", status="in-progress")
+            make_task(features / "task_4_d.md", epic="logging-refactor", status="todo")
+            make_task(features / "task_5_e.md", epic="payments", status="todo")
+            counts = board_tally([root], "logging-refactor")
+            self.assertEqual(counts["done"], 2)
+            self.assertEqual(counts["in-progress"], 1)
+            self.assertEqual(counts["todo"], 1)
+            self.assertEqual(counts["backlog"], 0)
+            self.assertEqual(counts["review"], 0)
+
+    def test_counts_once_not_per_checkout(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            roots = [Path(tmp) / "main", Path(tmp) / "wt"]
+            for root in roots:
+                make_task(root / ".devtool" / "features" / "task_1_a.md",
+                          epic="logging-refactor", status="done")
+            self.assertEqual(board_tally(roots, "logging-refactor")["done"], 1)
+
+    def test_unknown_status_value_is_ignored(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            make_task(root / ".devtool" / "features" / "task_1_a.md",
+                      epic="logging-refactor", status="blocked")
+            self.assertEqual(sum(board_tally([root], "logging-refactor").values()), 0)
+
+
+class SyncEpicTests(unittest.TestCase):
+    def test_updates_both_en_and_vi_docs(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            epic_dir = root / ".devtool" / "epic" / "logging_refactor"
+            epic_dir.mkdir(parents=True, exist_ok=True)
+            en_doc = epic_dir / "logging_refactor.en.md"
+            vi_doc = epic_dir / "logging_refactor.vi.md"
+            en_doc.write_text("# Epic: Logging Refactor\n\n## 1. Meta Data\n- **Status**: Planned\n")
+            vi_doc.write_text("# Epic: Tái cấu trúc Logging\n\n## 1. Meta Data\n- **Status**: Planned\n")
+
+            matched, written = sync_epic([root], "logging_refactor", "In Progress")
+            self.assertEqual(len(matched), 2)
+            self.assertEqual(len(written), 2)
+            self.assertIn("- **Status**: In Progress", en_doc.read_text())
+            self.assertIn("- **Status**: In Progress", vi_doc.read_text())
+
+    def test_handles_vietnamese_meta_data_label(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            epic_dir = root / ".devtool" / "epic" / "logging_refactor"
+            epic_dir.mkdir(parents=True, exist_ok=True)
+            vi_doc = epic_dir / "logging_refactor.vi.md"
+            vi_doc.write_text("# Epic: Tái cấu trúc\n\n- **Trạng thái**: Đã lên kế hoạch\n")
+
+            matched, written = sync_epic([root], "logging_refactor", "Đang thực hiện")
+            self.assertEqual(len(matched), 1)
+            self.assertEqual(len(written), 1)
+            self.assertIn("- **Trạng thái**: Đang thực hiện", vi_doc.read_text())
+
+    def test_missing_doc_skipped(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            matched, written = sync_epic([root], "non_existent", "In Progress")
+            self.assertEqual(matched, [])
+            self.assertEqual(written, [])
 
 
 if __name__ == "__main__":

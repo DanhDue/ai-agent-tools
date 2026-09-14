@@ -49,8 +49,8 @@ def parse_frontmatter(text: str) -> dict:
     return fields
 
 
-def set_frontmatter_field(text: str, key: str, value: str) -> str:
-    """Set `key: "value"` inside the leading frontmatter block only.
+def set_frontmatter_field(text: str, key: str, value: str | None) -> str:
+    """Set `key: "value"` or `key: null` inside the leading frontmatter block only.
 
     A key that is absent is inserted directly after `status:`, so task files
     written before this script existed (no `modified`, no `completedAt`) keep
@@ -60,7 +60,10 @@ def set_frontmatter_field(text: str, key: str, value: str) -> str:
     if not match:
         return text
     block = match.group(1)
-    new_line = f'{key}: "{value}"'
+    if value is None or value == "null":
+        new_line = f"{key}: null"
+    else:
+        new_line = f'{key}: "{value}"'
     key_re = re.compile(rf"^{re.escape(key)}\s*:.*$", re.M)
     if key_re.search(block):
         new_block = key_re.sub(lambda _m: new_line, block, count=1)
@@ -96,8 +99,11 @@ def checkout_roots() -> list[Path]:
 
 
 def task_targets(root: Path, task_id: str) -> list[Path]:
-    """Every copy of one task inside one checkout: features + each epic dir."""
-    candidates = [root / ".devtool" / "features" / f"{task_id}.md"]
+    """Every copy of one task inside one checkout: features, features/done, + each epic dir."""
+    candidates = [
+        root / ".devtool" / "features" / f"{task_id}.md",
+        root / ".devtool" / "features" / "done" / f"{task_id}.md",
+    ]
     candidates.extend(sorted((root / ".devtool" / "epic").glob(f"*/{task_id}.md")))
     return [path for path in candidates if path.is_file()]
 
@@ -115,7 +121,144 @@ def expected_epic(roots: list[Path], task_id: str) -> str | None:
     `epic:` differs. Checked main-worktree-first; mirrors cannot disagree.
     """
     for root in roots:
-        features = root / ".devtool" / "features" / f"{task_id}.md"
-        if features.is_file():
-            return epic_of(features)
+        for features_dir in (root / ".devtool" / "features", root / ".devtool" / "features" / "done"):
+            features = features_dir / f"{task_id}.md"
+            if features.is_file():
+                return epic_of(features)
     return None
+
+
+def sync_task(roots: list[Path], task_id: str, new_status: str) -> tuple[list[Path], list[str]]:
+    """Synchronize a task's status across all checkout roots."""
+    exp_epic = expected_epic(roots, task_id)
+    written: list[Path] = []
+    notes: list[str] = []
+    now = now_iso()
+
+    for root in roots:
+        targets = task_targets(root, task_id)
+        for path in targets:
+            file_epic = epic_of(path)
+            if exp_epic and file_epic and file_epic != exp_epic:
+                notes.append(f"Skipped {path}: belongs to epic '{file_epic}', expected '{exp_epic}'")
+                continue
+            text = path.read_text()
+            text = set_frontmatter_field(text, "status", new_status)
+            text = set_frontmatter_field(text, "modified", now)
+            if new_status == "done":
+                text = set_frontmatter_field(text, "completedAt", now)
+            else:
+                fm = parse_frontmatter(text)
+                if "completedAt" in fm and fm["completedAt"] != "null":
+                    text = set_frontmatter_field(text, "completedAt", "null")
+            path.write_text(text)
+            written.append(path)
+
+    return written, notes
+
+
+def board_tally(roots: list[Path], epic_slug: str) -> dict[str, int]:
+    """Tally task counts per status for the given epic, counting each task once."""
+    tally = {status: 0 for status in TASK_STATUSES}
+    seen_tasks: set[str] = set()
+    for root in roots:
+        for features_dir in (root / ".devtool" / "features", root / ".devtool" / "features" / "done"):
+            if not features_dir.is_dir():
+                continue
+            for path in sorted(features_dir.glob("task_*.md")):
+                task_id = path.stem
+                if task_id in seen_tasks:
+                    continue
+                fm = parse_frontmatter(path.read_text())
+                if fm.get("epic") == epic_slug:
+                    seen_tasks.add(task_id)
+                    status = fm.get("status")
+                    if status in tally:
+                        tally[status] += 1
+    return tally
+
+
+def sync_epic(roots: list[Path], epic_dir: str, new_status: str) -> tuple[list[Path], list[Path]]:
+    """Update Status line in Meta Data for both .en.md and .vi.md across all checkouts.
+
+    Returns (matched_docs, written_docs).
+    """
+    matched: list[Path] = []
+    written: list[Path] = []
+    status_re = re.compile(r"^(-\s*\*\*(?:Status|Trạng thái)\*\*:\s*).*$", re.M)
+    for root in roots:
+        epic_path = root / ".devtool" / "epic" / epic_dir
+        if not epic_path.is_dir():
+            continue
+        for ext in (".en.md", ".vi.md"):
+            doc = epic_path / f"{epic_dir}{ext}"
+            if not doc.is_file():
+                continue
+            matched.append(doc)
+            text = doc.read_text()
+            if status_re.search(text):
+                new_text = status_re.sub(rf"\g<1>{new_status}", text)
+                if new_text != text:
+                    doc.write_text(new_text)
+                written.append(doc)
+    return matched, written
+
+
+def main() -> None:
+    import argparse
+    import sys
+
+    parser = argparse.ArgumentParser(
+        description="Mirror one epic task's Kanban status across every checkout of this repo."
+    )
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    task_parser = subparsers.add_parser("task", help="Sync task status")
+    task_parser.add_argument("task_id", help="Task ID (e.g. task_1_setup)")
+    task_parser.add_argument("status", help=f"New status ({', '.join(TASK_STATUSES)})")
+
+    epic_parser = subparsers.add_parser("epic", help="Sync epic overview status")
+    epic_parser.add_argument("epic_dir", help="Epic directory name (e.g. logging_refactor)")
+    epic_parser.add_argument("status", help="New status string (e.g. 'In Progress')")
+
+    args = parser.parse_args()
+
+    if args.command == "task":
+        if args.status not in TASK_STATUSES:
+            sys.stderr.write(
+                f"Invalid status '{args.status}'. Expected one of: {', '.join(TASK_STATUSES)}\n"
+            )
+            sys.exit(2)
+
+        roots = checkout_roots()
+        written, notes = sync_task(roots, args.task_id, args.status)
+        for note in notes:
+            sys.stderr.write(f"Note: {note}\n")
+
+        if not written:
+            sys.stderr.write(f"Warning: No copies of task '{args.task_id}' found in any checkout.\n")
+            sys.exit(1)
+
+        exp_epic = expected_epic(roots, args.task_id)
+        if exp_epic:
+            tally = board_tally(roots, exp_epic)
+            tally_str = ", ".join(f"{k}: {v}" for k, v in tally.items())
+            print(
+                f"Updated {len(written)} copies of {args.task_id} -> '{args.status}' "
+                f"[Epic '{exp_epic}': {tally_str}]"
+            )
+        else:
+            print(f"Updated {len(written)} copies of {args.task_id} -> '{args.status}'")
+
+    elif args.command == "epic":
+        roots = checkout_roots()
+        matched, written = sync_epic(roots, args.epic_dir, args.status)
+        if not matched:
+            sys.stderr.write(f"Warning: No epic docs found for '{args.epic_dir}'.\n")
+            sys.exit(1)
+        print(f"Synchronized {len(matched)} epic docs for '{args.epic_dir}' -> '{args.status}'")
+
+
+if __name__ == "__main__":
+    main()
+

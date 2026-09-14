@@ -1,13 +1,13 @@
 ---
 id: "task_1_kanban_sync_status"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "kanban-sync-impact-analysis"
 dueDate: null
 created: "2026-09-15T02:30:00Z"
-modified: "2026-09-15T02:30:00Z"
-completedAt: null
+modified: "2026-09-14T19:45:49Z"
+completedAt: "2026-09-14T19:45:49Z"
 labels: ["tooling", "kanban", "worktree"]
 order: "a1"
 ---
