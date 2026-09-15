@@ -310,8 +310,8 @@ Một file hợp đồng hành vi riêng được lưu trữ tại `bdd_scenario
 ---
 
 ## 8. Phân rã Tasks Kanban (Kanban Tasks Breakdown)
-- [Task 1: Hoàn thiện và tích hợp công cụ Đồng bộ Trạng thái Kanban](../../features/task_1_kanban_sync_status.md)
-- [Task 2: Xây dựng công cụ Kiểm tra Tác động và Xung đột trước khi sửa code](../../features/task_2_pre_edit_impact_checker.md)
-- [Task 3: Soạn thảo Skill chuyên trách Impact Analysis và Tài liệu Hướng dẫn](../../features/task_3_impact_analysis_skill.md)
-- [Task 4: Tích hợp Cổng Quy trình vào Epic Designer và Epic Implementation](../../features/task_4_workflow_integration.md)
-- [Task 5: Tích hợp Đo lường Coverage và Cổng Đối chiếu Ngược vào Quality Check](../../features/task_5_quality_check_coverage_gate.md)
+- [Task 1: Hoàn thiện và tích hợp công cụ Đồng bộ Trạng thái Kanban](task_1_kanban_sync_status.md)
+- [Task 2: Xây dựng công cụ Kiểm tra Tác động và Xung đột trước khi sửa code](task_2_pre_edit_impact_checker.md)
+- [Task 3: Soạn thảo Skill chuyên trách Impact Analysis và Tài liệu Hướng dẫn](task_3_impact_analysis_skill.md)
+- [Task 4: Tích hợp Cổng Quy trình vào Epic Designer và Epic Implementation](task_4_workflow_integration.md)
+- [Task 5: Tích hợp Đo lường Coverage và Cổng Đối chiếu Ngược vào Quality Check](task_5_quality_check_coverage_gate.md)

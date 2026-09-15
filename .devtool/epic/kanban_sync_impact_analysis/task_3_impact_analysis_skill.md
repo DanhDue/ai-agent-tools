@@ -70,8 +70,8 @@ This task creates the dedicated `impact-analysis` agent skill and reference manu
 - All code snippets and command examples match the CLI interface created in Task 2.
 
 ## Dependencies & Blockers
-- **Blocked by**: [Task 2](../../features/task_2_pre_edit_impact_checker.md).
-- **Blocks**: [Task 4](../../features/task_4_workflow_integration.md), [Task 5](../../features/task_5_quality_check_coverage_gate.md).
+- **Blocked by**: [Task 2](task_2_pre_edit_impact_checker.md).
+- **Blocks**: [Task 4](task_4_workflow_integration.md), [Task 5](task_5_quality_check_coverage_gate.md).
 
 ## References & Rollback
 - Reference: [HLD Section 5.4: Double-Check Mechanism (Bookend Verification)](kanban_sync_impact_analysis.en.md#54-double-check-mechanism-bookend-verification)

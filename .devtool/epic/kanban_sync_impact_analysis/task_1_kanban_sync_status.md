@@ -109,7 +109,7 @@ This task requires completing and hardening `sync_task_status.py` and its compre
 
 ## Dependencies & Blockers
 - **Blocked by**: None (Foundation Task).
-- **Blocks**: [Task 4](../../features/task_4_workflow_integration.md).
+- **Blocks**: [Task 4](task_4_workflow_integration.md).
 
 ## References & Rollback
 - Reference: [HLD Section 4: Dual-Workspace Kanban Synchronization](kanban_sync_impact_analysis.en.md#4-dual-workspace-kanban-synchronization)

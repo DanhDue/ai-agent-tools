@@ -311,8 +311,8 @@ A dedicated behavioral specification contract is maintained in `bdd_scenarios.md
 ---
 
 ## 8. Kanban Tasks Breakdown
-- [Task 1: Complete and Wire Dual-Workspace Status Synchronizer](../../features/task_1_kanban_sync_status.md)
-- [Task 2: Build Pre-Edit Impact and Conflict Checker](../../features/task_2_pre_edit_impact_checker.md)
-- [Task 3: Author Dedicated Impact Analysis Skill and Reference Manual](../../features/task_3_impact_analysis_skill.md)
-- [Task 4: Integrate Workflow Gates in Epic Designer and Epic Implementation](../../features/task_4_workflow_integration.md)
-- [Task 5: Integrate Quality Check Test Coverage and Reverse Verification Gate](../../features/task_5_quality_check_coverage_gate.md)
+- [Task 1: Complete and Wire Dual-Workspace Status Synchronizer](task_1_kanban_sync_status.md)
+- [Task 2: Build Pre-Edit Impact and Conflict Checker](task_2_pre_edit_impact_checker.md)
+- [Task 3: Author Dedicated Impact Analysis Skill and Reference Manual](task_3_impact_analysis_skill.md)
+- [Task 4: Integrate Workflow Gates in Epic Designer and Epic Implementation](task_4_workflow_integration.md)
+- [Task 5: Integrate Quality Check Test Coverage and Reverse Verification Gate](task_5_quality_check_coverage_gate.md)

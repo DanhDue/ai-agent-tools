@@ -60,7 +60,7 @@ This task integrates the tools and gates into `epic-designer` and `epic-implemen
 - Markdown links between skills and tools are validated.
 
 ## Dependencies & Blockers
-- **Blocked by**: [Task 1](../../features/task_1_kanban_sync_status.md), [Task 2](../../features/task_2_pre_edit_impact_checker.md), [Task 3](../../features/task_3_impact_analysis_skill.md).
+- **Blocked by**: [Task 1](task_1_kanban_sync_status.md), [Task 2](task_2_pre_edit_impact_checker.md), [Task 3](task_3_impact_analysis_skill.md).
 - **Blocks**: None.
 
 ## References & Rollback

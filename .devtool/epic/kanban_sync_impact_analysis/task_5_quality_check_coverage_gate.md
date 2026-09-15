@@ -73,7 +73,7 @@ This task integrates test coverage extraction and reverse verification into `qua
 - Executive summary report template in `quality_check` includes coverage breakdowns per audit category.
 
 ## Dependencies & Blockers
-- **Blocked by**: [Task 3](../../features/task_3_impact_analysis_skill.md), [Task 4](../../features/task_4_workflow_integration.md).
+- **Blocked by**: [Task 3](task_3_impact_analysis_skill.md), [Task 4](task_4_workflow_integration.md).
 - **Blocks**: None (Final Epic Gate Task).
 
 ## References & Rollback

@@ -95,7 +95,7 @@ This task implements the core analysis engine `check_code_impact.py` and its tes
 
 ## Dependencies & Blockers
 - **Blocked by**: None (Engine can be built in parallel with Task 1).
-- **Blocks**: [Task 3](../../features/task_3_impact_analysis_skill.md), [Task 4](../../features/task_4_workflow_integration.md).
+- **Blocks**: [Task 3](task_3_impact_analysis_skill.md), [Task 4](task_4_workflow_integration.md).
 
 ## References & Rollback
 - Reference: [HLD Section 3: High-Level Architecture & 4-Layer Impact Pipeline](kanban_sync_impact_analysis.en.md#3-high-level-architecture)
