@@ -1,13 +1,13 @@
 ---
 id: "task_4_workspace_verification_and_release"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "epic-archival-and-planning-gate"
 dueDate: null
 created: "2026-09-15T04:50:00Z"
-modified: "2026-09-15T04:50:00Z"
-completedAt: null
+modified: "2026-09-15T04:53:36Z"
+completedAt: "2026-09-15T04:53:36Z"
 labels: ["verification", "release", "quality-check"]
 order: "a4"
 ---
