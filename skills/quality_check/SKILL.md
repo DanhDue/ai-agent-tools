@@ -27,7 +27,7 @@ description: Master quality gatekeeper running platform-aware 3-Tier test suite 
    - [Step 1: Launch Background 3-Tier Tooling Suite](#step-1-launch-background-3-tier-tooling-suite)
    - [Step 2: Dispatch Parallel Category Audits](#step-2-dispatch-parallel-category-audits)
    - [Step 3: Collect Results & Auto-Fix](#step-3-collect-results--auto-fix)
-   - [Step 4: Tier C Acceptance Verification (PR / Epic Gate)](#step-4-tier-c-acceptance-verification-pr--epic-gate)
+   - [Step 4: Tier C Acceptance Verification & Reverse Coverage Gate (PR / Epic Gate)](#step-4-tier-c-acceptance-verification--reverse-coverage-gate-pr--epic-gate)
    - [Step 5: Resource Cleanup](#step-5-resource-cleanup)
 6. [Input Specifications](#-input-specifications)
 7. [Unified Executive Quality Report Format](#-unified-executive-quality-report-format)
