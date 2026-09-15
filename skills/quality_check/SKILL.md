@@ -105,9 +105,11 @@ flowchart TD
             T_TIER_C["Tier C: Acceptance & System Integration<br/>(testWithCoverage / acceptance_check / xcodebuild)"]
             T_DONE["Tooling Suite Complete"]
 
-            T_TIER_A --> T_TIER_B --> T_GATE
+            T_TIER_A --> T_TIER_B
+            T_TIER_B --> T_GATE
             T_GATE -->|Routine| T_DONE
-            T_GATE -->|PR / Epic Gate| T_TIER_C --> T_DONE
+            T_GATE -->|"PR / Epic Gate"| T_TIER_C
+            T_TIER_C --> T_DONE
         end
 
         subgraph TRACK2["Track 2: 4 Specialist Semantic Audits (Parallel Subagents)"]
@@ -115,12 +117,12 @@ flowchart TD
             A_SEC["@security-audit<br/>(Fintech, OWASP Mobile Top 10, Storage, Precision)"]
             A_ARCH["@architecture-audit<br/>(Clean Architecture, Domain Purity, MVI Immutability)"]
             A_UI["@ui-audit<br/>(Compose / Flutter / SwiftUI Performance & Tokens)"]
-            A_HEALTH["@code-health-audit<br/>(Functions &lt;20 lines, Params &le;2, Strict Null Safety)"]
+            A_HEALTH["@code-health-audit<br/>(Functions under 20 lines, max 2 params, strict null safety)"]
         end
     end
 
     ORCH ==>|Async Background Process| TRACK1
-    ORCH ==>|Parallel Dispatch (dispatching-parallel-agents)| TRACK2
+    ORCH ==>|"Parallel Dispatch (dispatching-parallel-agents)"| TRACK2
 
     TRACK1 ==> MERGE["Quality & Security Aggregator<br/>(Reverse Verification Coverage & Synthesis)"]
     TRACK2 ==> MERGE
@@ -149,9 +151,11 @@ flowchart TD
         F4["Tier C: ./scripts/testWithCoverage.sh / integration_test"]
         F_DONE["Tooling Complete"]
 
-        F1 --> F2 --> F3
+        F1 --> F2
+        F2 --> F3
         F3 -->|Routine| F_DONE
-        F3 -->|PR / Epic Gate| F4 --> F_DONE
+        F3 -->|"PR / Epic Gate"| F4
+        F4 --> F_DONE
     end
 
     subgraph F_T2["Track 2: Flutter Specialist Audits (Parallel Subagents)"]
@@ -159,7 +163,7 @@ flowchart TD
         FA1["@security-audit (Decimal, flutter_secure_storage, OWASP)"]
         FA2["@architecture-audit (Pure Dart Domain, BLoC MVI, Isolation)"]
         FA3["@flutter-ui-audit (Widgets: const, Rebuilds, Dispose, Tokens)"]
-        FA4["@code-health-audit (Dart: Ban '!', Sizing &lt;20, Effective Dart)"]
+        FA4["@code-health-audit (Dart: Ban '!', under 20 lines, Effective Dart)"]
     end
 
     F_DISPATCH ==>|Async Background| F_T1
@@ -187,9 +191,11 @@ flowchart TD
         A4["Tier C: ./scripts/acceptance_check.sh (Host App & DFM Splits)"]
         A_DONE["Tooling Complete"]
 
-        A1 --> A2 --> A3
+        A1 --> A2
+        A2 --> A3
         A3 -->|Routine| A_DONE
-        A3 -->|PR / Epic Gate| A4 --> A_DONE
+        A3 -->|"PR / Epic Gate"| A4
+        A4 --> A_DONE
     end
 
     subgraph A_T2["Track 2: Android Specialist Audits (Parallel Subagents)"]
@@ -197,7 +203,7 @@ flowchart TD
         AA1["@security-audit (BigDecimal, Keystore, OWASP)"]
         AA2["@architecture-audit (Domain Purity, MVI, Dispatchers)"]
         AA3["@android-ui-audit (Compose Stability, Material3 Tokens)"]
-        AA4["@code-health-audit (Kotlin: Ban '!!', Sizing &lt;20, Idioms)"]
+        AA4["@code-health-audit (Kotlin: Ban '!!', under 20 lines, Idioms)"]
     end
 
     A_DISPATCH ==>|Async Background| A_T1
@@ -226,9 +232,11 @@ flowchart TD
         I4["Tier C: tuist generate + xcodebuild test (Simulator)"]
         I_DONE["Tooling Complete"]
 
-        I1 --> I2 --> I3
+        I1 --> I2
+        I2 --> I3
         I3 -->|Routine| I_DONE
-        I3 -->|PR / Epic Gate| I4 --> I_DONE
+        I3 -->|"PR / Epic Gate"| I4
+        I4 --> I_DONE
     end
 
     subgraph I_T2["Track 2: iOS Specialist Audits (Parallel Subagents)"]
@@ -236,7 +244,7 @@ flowchart TD
         IA1["@security-audit (Decimal, Keychain, OWASP)"]
         IA2["@architecture-audit (Pure Swift Domain, MVI, Isolation)"]
         IA3["@ios-ui-audit (SwiftUI: Re-eval, Dumb Views, AppUIKit)"]
-        IA4["@code-health-audit (Swift: Ban '!'/'try!', Sizing &lt;20)"]
+        IA4["@code-health-audit (Swift: Ban '!'/'try!', under 20 lines)"]
     end
 
     I_DISPATCH ==>|Async Background| I_T1
