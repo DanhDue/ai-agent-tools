@@ -241,6 +241,27 @@ The `@quality_check` skill automatically detects the platform and executes:
 - **Android**: Runs `./gradlew check :konsist-test:test apiCheck`, `./scripts/acceptance_check.sh`, the 4 Android semantic audits (`@security-audit`, `@architecture-audit`, `@android-ui-audit`, `@code-health-audit`), followed by `cleanup-java`.
 - **iOS**: Runs `swiftlint lint --strict`, `swiftformat --lint`, `check_module_boundaries.sh`, `swift test --package-path ArchTests`, simulator acceptance tests, and the 4 iOS semantic audits (`@security-audit`, `@architecture-audit`, `@ios-ui-audit`, `@code-health-audit`).
 
+### Phase 4.1 — End of Epic Task Archival & Cleanup
+
+Once `@quality_check` reports 🟢 LGTM and all tasks are completed:
+1. Mark the Epic status as `Done` and archive all completed tasks:
+   ```bash
+   python3 skills/epic-implementation/resources/scripts/sync_task_status.py epic <epic_dir> Done
+   ```
+   This automatically:
+   - Sets Epic Status to `Done` across `<epic_dir>.en.md` and `<epic_dir>.vi.md`.
+   - Moves all `task_*.md` files belonging to this epic from `.devtool/features/done/` into `.devtool/epic/<epic_dir>/`.
+   - Rewrites relative markdown links in task files and Section 8 of the Epic Overviews to point directly to local `task_*.md`.
+   - Cleans up `.devtool/features/done/`, leaving zero leftover `task_*.md` files from this epic and retaining `.gitkeep`.
+   - Relocates any related specs or plans in `docs/superpowers/specs/` or `docs/superpowers/plans/` into `.devtool/epic/<epic_dir>/`.
+2. Stage and commit the archival:
+   ```bash
+   git add .devtool/ docs/
+   git commit -m "[EPIC_NAME] Complete epic and archive done tasks" -m "- archive done tasks into .devtool/epic/<epic_dir>
+   - update epic status to Done across English and Vietnamese HLDs
+   - clean up .devtool/features/done and docs/superpowers"
+   ```
+
 ### Phase 5 — Main Checkout Clean-up Before Merge (Scenario 5.2)
 
 Because `sync_task_status.py` mirrored task file updates to the main workspace checkout (`$MAIN_ROOT/.devtool/features/`), before merging the branch into `<base_ref>`, clean the main checkout's working tree:
@@ -250,7 +271,7 @@ git -C "$MAIN_ROOT" restore -- .devtool/features/ .devtool/epic/<epic_dir>/
 ```
 Verify that `git -C "$MAIN_ROOT" status --porcelain` is 100% clean. This eliminates working tree collision errors when git checkout/merge executes.
 
-Only when `@quality_check` reports **🟢 LGTM (All checks passing)** and the main checkout is clean, use `d3nexus:finishing-a-development-branch` on the epic branch (base = `develop`).
+Only when `@quality_check` reports **🟢 LGTM (All checks passing)**, done tasks are archived, and the main checkout is clean, use `d3nexus:finishing-a-development-branch` on the epic branch (base = `develop`).
 
 ## Quick Reference
 
@@ -289,6 +310,7 @@ Only when `@quality_check` reports **🟢 LGTM (All checks passing)** and the ma
 - Skipping the Phase 1 confirmation checkpoint before touching git.
 - Running cross-platform commands inappropriately (e.g., Gradle on Flutter/iOS, Melos on Android/iOS, Tuist/Swift on Flutter/Android).
 - Merging to `develop` without passing `@quality_check` (🟢 LGTM).
+- Leaving completed `task_*.md` files in `.devtool/features/done/` after epic completion instead of archiving them into `.devtool/epic/<epic_dir>/`.
 
 ## Integration
 

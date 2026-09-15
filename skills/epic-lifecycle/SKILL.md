@@ -59,7 +59,7 @@ on your own judgement.
 | **1** | Spec Approved | User | end of `brainstorming` | `<epic_dir>/YYYY-MM-DD-<topic>-design.md` |
 | **2** | HLD & Task Breakdown | User | `epic-designer` task-breakdown checkpoint | `<epic_dir>.en.md` + `.vi.md` + `bdd_scenarios.md` + `task_*.md` |
 | **3** | Execution Order | User | `epic-implementation` Phase 1 checkpoint | confirmed order + bootstrapped worktree |
-| **4** | Quality LGTM & Check 2 | `quality_check` | `epic-implementation` Phase 4 | 🟢 report + coverage matrix + merge-ready branch |
+| **4** | Quality LGTM & Check 2 | `quality_check` | `epic-implementation` Phase 4 | 🟢 report + coverage matrix + merge-ready branch (done tasks archived to `<epic_dir>/`) |
 
 ## Stages
 
@@ -114,6 +114,7 @@ Gate 4 grants `🟢 LGTM` only when all 4 conditions are satisfied:
    - **UI Audit**: State hoisting, BLoCs, and ViewModels have **$\ge 80\%$ line coverage**.
    - **Code Health Audit**: Refactored methods (< 20 lines) have **$\ge 75\%$ line coverage**.
 4. **Check 2 (Shift-Right Bookend) Clean**: Pre-merge cumulative diff analysis (`check_code_impact.py`) against `<base_ref>` reports zero divergence, zero unprotected modified files, and synchronized native bridge interfaces.
+5. **Epic Done Archival Clean**: All completed tasks from `.devtool/features/done/` and design drafts from `docs/superpowers/` are archived into `.devtool/epic/<epic_dir>/`, with relative links rewritten and zero leftover files in `.devtool/features/done/`.
 
 If any condition fails, Gate 4 routes back to Stage 3 Phase 2 (`epic-implementation`) with an actionable gap report.
 
@@ -141,6 +142,8 @@ the 🟢 verdict must come from a complete run.
 - Creating a worktree or dispatching a subagent before Gate 3.
 - Merging to `develop` without a 🟢 from Gate 4.
 - Leaving a spec split across `docs/superpowers/specs/` and `.devtool/epic/<epic_dir>/`.
+- Leaving completed `task_*.md` files in `.devtool/features/done/` or draft specs in `docs/superpowers/` instead of archiving them into `.devtool/epic/<epic_dir>/`.
+
 
 ## Stage Skills
 

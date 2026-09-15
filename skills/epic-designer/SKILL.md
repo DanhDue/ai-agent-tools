@@ -93,6 +93,11 @@ If no other epic has any active (`todo`/`in-progress`/`review`) task, generate t
 ### Step 2: Generate LachyFS Kanban Tasks
 Break the Epic down into granular implementation tasks. **Crucially, each task must be structured around Behavior-Driven Development (BDD), Test-Driven Development (TDD), and Integration Flow Testing** to feed directly into the Tri-Persona (QA Red Team + TDD Master + System Integration Engineer) execution workflow in `epic-implementation`. Wherever the task produces testable behavior, generate Markdown task files located at `.devtool/features/task_<number>_<name>.md` (and mirrored in `.devtool/epic/<epic_name>/task_<number>_<name>.md` as permanent epic outputs).
 
+#### Task Lifecycle & Archival Model
+- **Creation**: Tasks are generated into `.devtool/features/task_<number>_<name>.md` and mirrored into `.devtool/epic/<epic_name>/task_<number>_<name>.md`.
+- **In-Flight**: As tasks complete during `epic-implementation`, `sync_task_status.py` moves them from `.devtool/features/` into `.devtool/features/done/`.
+- **Epic Completion Archival**: When all tasks of an epic finish and the epic status transitions to `Done` (`sync_task_status.py epic <epic_dir> Done`), all completed tasks and draft superpowers documents are archived permanently into `.devtool/epic/<epic_dir>/`. Relative markdown links are rewritten to point locally, and `.devtool/features/done/` is left clean with zero lingering task files.
+
 #### Mandatory 3-Tier Testing Standard in Task Breakdown
 Every Epic breakdown MUST explicitly structure and address all 3 testing tiers across the Tri-Persona system based on the target platform:
 

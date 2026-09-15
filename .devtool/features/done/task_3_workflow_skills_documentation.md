@@ -1,13 +1,13 @@
 ---
 id: "task_3_workflow_skills_documentation"
-status: "todo"
+status: "done"
 priority: "medium"
 assignee: null
 epic: "epic-archival-and-planning-gate"
 dueDate: null
 created: "2026-09-15T04:50:00Z"
-modified: "2026-09-15T04:50:00Z"
-completedAt: null
+modified: "2026-09-15T04:53:21Z"
+completedAt: "2026-09-15T04:53:21Z"
 labels: ["documentation", "skills", "lifecycle", "designer"]
 order: "a3"
 ---
