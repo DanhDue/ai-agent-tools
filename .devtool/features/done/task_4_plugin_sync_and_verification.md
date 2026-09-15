@@ -1,13 +1,13 @@
 ---
 id: "task_4_plugin_sync_and_verification"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "epic_slug_sanitization"
 dueDate: null
 created: "2026-09-15T12:00:00Z"
-modified: "2026-09-15T12:00:00Z"
-completedAt: null
+modified: "2026-09-15T12:46:05Z"
+completedAt: "2026-09-15T12:46:05Z"
 labels: ["tooling", "verification", "release"]
 order: "c1"
 ---
