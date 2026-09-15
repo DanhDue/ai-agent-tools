@@ -1,7 +1,7 @@
 {
   "name": "d3nexus",
   "description": "Mobile engineering agent kit: epic lifecycle orchestration, 3-tier quality gates, and security/architecture/UI/code-health audits for Flutter, Android Native, and iOS Native.",
-  "version": "1.0.13",
+  "version": "1.0.14",
   "author": {
     "name": "DanhDue ExOICTIF"
   },
