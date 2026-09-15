@@ -2,7 +2,7 @@
 
 ## 1. Meta Data
 - **Epic**: epic-archival-and-planning-gate
-- **Status**: In Progress
+- **Status**: Done
 - **Target Release**: v1.0.15
 - **Platform**: Cross-Platform Tooling (Agent Kit, Python, Bash, Markdown)
 - **Source Spec**: [2026-09-15-epic-done-archival-and-antigravity-planning-gate-design.md](2026-09-15-epic-done-archival-and-antigravity-planning-gate-design.md)
@@ -38,17 +38,18 @@ This Epic delivers a unified automated archival engine in `sync_task_status.py` 
 ### 4.1 High-Level Architecture
 ```mermaid
 graph TD
-    subgraph TRIGGER["Epic Done Event (Phase 4.1)"]
-        QC["@quality_check 🟢 LGTM"]
-        SYNC_CLI["sync_task_status.py epic <epic_dir> Done"]
-    end
+    QC["@quality_check: 🟢 LGTM"]
+    REVIEW["Developer Kanban Review<br/>(All tasks visible in DONE column)"]
+    FINISH["finishing-a-development-branch<br/>(User selects Option 1: Merge or Option 2: PR)"]
 
-    subgraph ENGINE["Archival Engine (sync_task_status.py)"]
-        DISCOVER["1. discover_epic_slug & match_tasks"]
-        MOVE_TASKS["2. relocate .devtool/features/done/task_*.md -> .devtool/epic/<epic_dir>/"]
-        MOVE_DOCS["3. relocate docs/superpowers/(specs|plans) -> .devtool/epic/<epic_dir>/"]
+    subgraph ARCHIVAL["Pre-Finish Archival Engine (sync_task_status.py)"]
+        SYNC_CLI["sync_task_status.py archive-done"]
+        DISCOVER["1. auto-discover epics from .devtool/features/done/"]
+        MOVE_TASKS["2. relocate task_*.md to .devtool/epic/<epic_dir>/"]
+        MOVE_DOCS["3. relocate superpowers draft specs/plans to epic dir"]
         REWRITE["4. rewrite relative links to local format"]
-        CLEAN["5. remove source files & ensure .gitkeep"]
+        STATUS_DONE["5. update epic status to Done in .en.md and .vi.md"]
+        CLEAN["6. remove source files & ensure .gitkeep"]
     end
 
     subgraph GOVERNANCE["Antigravity Governance Gate"]
@@ -57,13 +58,16 @@ graph TD
         INTERCEPT["Intercept <planning_mode> -> Force d3nexus:brainstorming"]
     end
 
-    QC --> SYNC_CLI
+    QC --> REVIEW
+    REVIEW --> FINISH
+    FINISH --> SYNC_CLI
     SYNC_CLI --> DISCOVER
     DISCOVER --> MOVE_TASKS
     DISCOVER --> MOVE_DOCS
     MOVE_TASKS --> REWRITE
     MOVE_DOCS --> REWRITE
-    REWRITE --> CLEAN
+    REWRITE --> STATUS_DONE
+    STATUS_DONE --> CLEAN
 
     RULES --> INTERCEPT
     HOOK --> INTERCEPT
@@ -103,20 +107,23 @@ flowchart TD
 sequenceDiagram
     autonumber
     actor Dev as Developer / Lead Agent
+    participant Kanban as Kanban Board (.devtool/features/done/)
+    participant Finish as finishing-a-development-branch
     participant Script as sync_task_status.py
-    participant Features as .devtool/features/done/
-    participant Superpowers as docs/superpowers/
     participant EpicDir as .devtool/epic/<epic_dir>/
     participant Rules as rules/CRITICAL_RULES.md
 
-    Note over Dev,Script: Phase 4.1 Epic Done Archival
-    Dev->>Script: sync_task_status.py epic <epic_dir> Done
-    Script->>Features: scan task_*.md matching epic
-    Script->>Superpowers: scan specs & plans matching epic
-    Script->>EpicDir: move tasks and docs, rewrite links
-    Script->>Features: remove sources, ensure .gitkeep
-    Script->>Superpowers: remove sources, ensure .gitkeep
-    Script-->>Dev: report archived tasks & updated status
+    Note over Dev,Kanban: Phase 4.1 Developer Review
+    Dev->>Kanban: inspect all completed tasks in DONE column
+    Dev->>Finish: invoke finishing-a-development-branch
+
+    Note over Finish,Script: Pre-Finish Archival Hook
+    Finish->>Script: sync_task_status.py archive-done
+    Script->>Kanban: scan task_*.md matching epic
+    Script->>EpicDir: move tasks and docs, rewrite links, set status Done
+    Script->>Kanban: remove sources, ensure .gitkeep
+    Script-->>Finish: archival complete & committed
+    Finish-->>Dev: proceed with merge or PR creation
 
     Note over Dev,Rules: Antigravity Planning Mode Gate
     Dev->>Rules: check planning rules on user request

@@ -47,9 +47,10 @@ flowchart TB
     phase2["Phase 2: one task\nd3nexus:subagent-driven-development\n(Tri-Persona TDD adapted to Platform)"]
     diverged{"Divergence\nfrom the HLD?"}
     phase3["Phase 3: Doc Sync\n(direct edits, no skill)"]
-    moretasks{"More tasks\nin the order?"}
-    phase4["Phase 4: End of Epic Verification\nquality_check (Platform 3-Tier + 4 Specialist Audits) ->\nd3nexus:finishing-a-development-branch"]
+    phase4["Phase 4: End of Epic Verification & Kanban Review\nquality_check (Platform 3-Tier + 4 Specialist Audits)\n-> Tasks visible in .devtool/features/done/ for Developer Review"]
+    phase5["Phase 5: Finish Branch & Archival\nd3nexus:finishing-a-development-branch\n(Pre-finish Hook: sync_task_status archive-done)"]
     style phase4 fill:green
+    style phase5 fill:#4285f4,color:#fff
 
     phase0 --> phase1a
     phase1a --> checkpoint
@@ -62,7 +63,9 @@ flowchart TB
     phase3 --> moretasks
     moretasks -- "yes, next task" --> phase2
     moretasks -- "no, epic done" --> phase4
+    phase4 --> phase5
 ```
+
 
 ### Phase 0 — Context Reload & Platform Detection (once, not per task)
 
@@ -241,37 +244,35 @@ The `@quality_check` skill automatically detects the platform and executes:
 - **Android**: Runs `./gradlew check :konsist-test:test apiCheck`, `./scripts/acceptance_check.sh`, the 4 Android semantic audits (`@security-audit`, `@architecture-audit`, `@android-ui-audit`, `@code-health-audit`), followed by `cleanup-java`.
 - **iOS**: Runs `swiftlint lint --strict`, `swiftformat --lint`, `check_module_boundaries.sh`, `swift test --package-path ArchTests`, simulator acceptance tests, and the 4 iOS semantic audits (`@security-audit`, `@architecture-audit`, `@ios-ui-audit`, `@code-health-audit`).
 
-### Phase 4.1 — End of Epic Task Archival & Cleanup
+### Phase 4.1 — Developer Kanban Review State
 
 Once `@quality_check` reports 🟢 LGTM and all tasks are completed:
-1. Mark the Epic status as `Done` and archive all completed tasks:
+- All completed `task_*.md` files remain in `.devtool/features/done/`.
+- The developer opens the Kanban dashboard to visually verify that 100% of tasks sit in the **DONE** column and all acceptance criteria are met.
+- Archival is deferred until `finishing-a-development-branch` executes the choice to merge or push a PR. This ensures that the developer has a dedicated inspection window and tasks do not vanish prematurely.
+
+### Phase 5 — Main Checkout Clean-up & Branch Finishing
+
+1. Because `sync_task_status.py` mirrored task file updates to the main workspace checkout (`$MAIN_ROOT/.devtool/features/`), before merging the branch into `<base_ref>`, clean the main checkout's working tree:
    ```bash
-   python3 skills/epic-implementation/resources/scripts/sync_task_status.py epic <epic_dir> Done
+   MAIN_ROOT=$(git worktree list --porcelain | head -n 1 | awk '{print $2}')
+   git -C "$MAIN_ROOT" restore -- .devtool/features/ .devtool/epic/<epic_dir>/
+   ```
+   Verify that `git -C "$MAIN_ROOT" status --porcelain` is 100% clean. This eliminates working tree collision errors when git checkout/merge executes.
+
+2. Once `@quality_check` reports **🟢 LGTM (All checks passing)** and the developer has reviewed the Kanban board, invoke `d3nexus:finishing-a-development-branch` on the epic branch (base = `develop`).
+   When the developer selects **Option 1 (Merge Locally)** or **Option 2 (Push & Create PR)**, `finishing-a-development-branch` automatically executes the **Pre-Finish Archival Hook**:
+   ```bash
+   python3 skills/epic-implementation/resources/scripts/sync_task_status.py archive-done
    ```
    This automatically:
    - Sets Epic Status to `Done` across `<epic_dir>.en.md` and `<epic_dir>.vi.md`.
-   - Moves all `task_*.md` files belonging to this epic from `.devtool/features/done/` into `.devtool/epic/<epic_dir>/`.
-   - Rewrites relative markdown links in task files and Section 8 of the Epic Overviews to point directly to local `task_*.md`.
-   - Cleans up `.devtool/features/done/`, leaving zero leftover `task_*.md` files from this epic and retaining `.gitkeep`.
+   - Moves all completed `task_*.md` files from `.devtool/features/done/` into `.devtool/epic/<epic_dir>/`.
+   - Rewrites relative markdown links in task files and Section 8 of the Epic Overviews to point locally.
+   - Cleans up `.devtool/features/done/` (leaving only `.gitkeep`).
    - Relocates any related specs or plans in `docs/superpowers/specs/` or `docs/superpowers/plans/` into `.devtool/epic/<epic_dir>/`.
-2. Stage and commit the archival:
-   ```bash
-   git add .devtool/ docs/
-   git commit -m "[EPIC_NAME] Complete epic and archive done tasks" -m "- archive done tasks into .devtool/epic/<epic_dir>
-   - update epic status to Done across English and Vietnamese HLDs
-   - clean up .devtool/features/done and docs/superpowers"
-   ```
+   - Commits the archival to the branch before proceeding with merge or PR creation.
 
-### Phase 5 — Main Checkout Clean-up Before Merge (Scenario 5.2)
-
-Because `sync_task_status.py` mirrored task file updates to the main workspace checkout (`$MAIN_ROOT/.devtool/features/`), before merging the branch into `<base_ref>`, clean the main checkout's working tree:
-```bash
-MAIN_ROOT=$(git worktree list --porcelain | head -n 1 | awk '{print $2}')
-git -C "$MAIN_ROOT" restore -- .devtool/features/ .devtool/epic/<epic_dir>/
-```
-Verify that `git -C "$MAIN_ROOT" status --porcelain` is 100% clean. This eliminates working tree collision errors when git checkout/merge executes.
-
-Only when `@quality_check` reports **🟢 LGTM (All checks passing)**, done tasks are archived, and the main checkout is clean, use `d3nexus:finishing-a-development-branch` on the epic branch (base = `develop`).
 
 ## Quick Reference
 

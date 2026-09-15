@@ -2,7 +2,7 @@
 
 ## 1. Meta Data
 - **Epic**: epic-archival-and-planning-gate
-- **Trạng thái**: Đang thực hiện
+- **Trạng thái**: Done
 - **Phiên bản mục tiêu**: v1.0.15
 - **Nền tảng**: Cross-Platform Tooling (Agent Kit, Python, Bash, Markdown)
 - **Tài liệu thiết kế gốc (Source Spec)**: [2026-09-15-epic-done-archival-and-antigravity-planning-gate-design.md](2026-09-15-epic-done-archival-and-antigravity-planning-gate-design.md)
@@ -39,16 +39,19 @@ Epic này cung cấp công cụ tự động lưu trữ trong `sync_task_status.
 ```mermaid
 graph TD
     subgraph TRIGGER["Sự kiện Hoàn thành Epic (Phase 4.1)"]
-        QC["@quality_check 🟢 LGTM"]
-        SYNC_CLI["sync_task_status.py epic <epic_dir> Done"]
+        QC["@quality_check: 🟢 LGTM"]
+        REVIEW["Developer Kanban Review<br/>(Toàn bộ tasks hiển thị tại cột DONE)"]
+        FINISH["finishing-a-development-branch<br/>(Developer chọn Option 1: Merge hoặc 2: PR)"]
     end
 
-    subgraph ENGINE["Động cơ Lưu trữ (sync_task_status.py)"]
-        DISCOVER["1. discover_epic_slug & match_tasks"]
-        MOVE_TASKS["2. relocate .devtool/features/done/task_*.md -> .devtool/epic/<epic_dir>/"]
-        MOVE_DOCS["3. relocate docs/superpowers/(specs|plans) -> .devtool/epic/<epic_dir>/"]
-        REWRITE["4. rewrite relative links to local format"]
-        CLEAN["5. remove source files & ensure .gitkeep"]
+    subgraph ARCHIVAL["Engine Lưu trữ Trước khi Finish (sync_task_status.py)"]
+        SYNC_CLI["sync_task_status.py archive-done"]
+        DISCOVER["1. tự động nhận diện epic từ .devtool/features/done/"]
+        MOVE_TASKS["2. di chuyển task_*.md vào .devtool/epic/<epic_dir>/"]
+        MOVE_DOCS["3. gom draft specs/plans từ superpowers vào epic dir"]
+        REWRITE["4. viết lại relative links sang định dạng local"]
+        STATUS_DONE["5. cập nhật trạng thái Epic thành Done (.en.md và .vi.md)"]
+        CLEAN["6. xóa files nguồn & duy trì .gitkeep"]
     end
 
     subgraph GOVERNANCE["Cổng Kiểm soát Antigravity"]
@@ -57,13 +60,16 @@ graph TD
         INTERCEPT["Chặn <planning_mode> -> Bắt buộc gọi d3nexus:brainstorming"]
     end
 
-    QC --> SYNC_CLI
+    QC --> REVIEW
+    REVIEW --> FINISH
+    FINISH --> SYNC_CLI
     SYNC_CLI --> DISCOVER
     DISCOVER --> MOVE_TASKS
     DISCOVER --> MOVE_DOCS
     MOVE_TASKS --> REWRITE
     MOVE_DOCS --> REWRITE
-    REWRITE --> CLEAN
+    REWRITE --> STATUS_DONE
+    STATUS_DONE --> CLEAN
 
     RULES --> INTERCEPT
     HOOK --> INTERCEPT
@@ -103,20 +109,23 @@ flowchart TD
 sequenceDiagram
     autonumber
     actor Dev as Lập trình viên / Lead Agent
+    participant Kanban as Bảng Kanban (.devtool/features/done/)
+    participant Finish as finishing-a-development-branch
     participant Script as sync_task_status.py
-    participant Features as .devtool/features/done/
-    participant Superpowers as docs/superpowers/
     participant EpicDir as .devtool/epic/<epic_dir>/
     participant Rules as rules/CRITICAL_RULES.md
 
-    Note over Dev,Script: Phase 4.1 Lưu trữ khi Hoàn thành Epic
-    Dev->>Script: sync_task_status.py epic <epic_dir> Done
-    Script->>Features: quét task_*.md khớp với epic
-    Script->>Superpowers: quét specs & plans khớp với epic
-    Script->>EpicDir: di chuyển tasks và docs, chuẩn hóa links
-    Script->>Features: xóa files nguồn, duy trì .gitkeep
-    Script->>Superpowers: xóa files nguồn, duy trì .gitkeep
-    Script-->>Dev: báo cáo số lượng tasks đã lưu trữ & cập nhật trạng thái
+    Note over Dev,Kanban: Phase 4.1 Developer Review
+    Dev->>Kanban: kiểm tra toàn bộ tasks hoàn tất ở cột DONE
+    Dev->>Finish: gọi skill finishing-a-development-branch
+
+    Note over Finish,Script: Pre-Finish Archival Hook
+    Finish->>Script: sync_task_status.py archive-done
+    Script->>Kanban: quét task_*.md khớp với epic
+    Script->>EpicDir: di chuyển tasks và docs, chuẩn hóa links, set status Done
+    Script->>Kanban: xóa files nguồn, duy trì .gitkeep
+    Script-->>Finish: lưu trữ hoàn tất & commit vào branch
+    Finish-->>Dev: tiến hành Merge hoặc tạo Pull Request
 
     Note over Dev,Rules: Cổng chặn Antigravity Planning Mode
     Dev->>Rules: kiểm tra rules khi nhận yêu cầu lập kế hoạch

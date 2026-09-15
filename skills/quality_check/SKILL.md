@@ -431,4 +431,7 @@ Your response **MUST** follow this comprehensive structure:
 
 ### 🏁 Verdict & Next Steps
 - [Clear instruction on whether code is ready to merge or requires specific remediation]
+- **When Verdict is 🟢 LGTM (All checks passing)**:
+  - If working on a development branch or completing an Epic: Keep completed tasks in `.devtool/features/done/` for final developer Kanban inspection, and invoke `d3nexus:finishing-a-development-branch` to present merge/PR options and execute automated archival.
 ```
+

@@ -204,6 +204,25 @@ def find_epic_slug(root: Path, epic_dir: str) -> str | None:
     return None
 
 
+def find_epic_dir_for_slug(root: Path, epic_slug: str) -> str | None:
+    """Find the epic directory name matching the given epic slug."""
+    epics_parent = root / ".devtool" / "epic"
+    if not epics_parent.is_dir():
+        return None
+    for sub in sorted(epics_parent.iterdir()):
+        if not sub.is_dir():
+            continue
+        slug = find_epic_slug(root, sub.name)
+        if slug == epic_slug:
+            return sub.name
+    # Fallback to name heuristic: replace hyphens with underscores
+    candidate = epic_slug.replace("-", "_")
+    if (epics_parent / candidate).is_dir():
+        return candidate
+    return None
+
+
+
 def fix_task_markdown_links(text: str, epic_dir: str) -> str:
     """Rewrite task links when relocated into .devtool/epic/<epic_dir>/."""
     text = re.sub(rf"\]\(\.\./epic/{re.escape(epic_dir)}/([^)]+)\)", r"](\1)", text)
@@ -338,6 +357,31 @@ def sync_epic(roots: list[Path], epic_dir: str, new_status: str) -> tuple[list[P
     return matched, written
 
 
+def archive_all_done_epics(roots: list[Path]) -> list[str]:
+    """Find all completed tasks in .devtool/features/done/ and archive them into their epics.
+
+    Returns the list of epic_dirs that were archived and marked Done.
+    """
+    epics_to_archive: set[str] = set()
+    for root in roots:
+        done_dir = root / ".devtool" / "features" / "done"
+        if not done_dir.is_dir():
+            continue
+        for task_file in sorted(done_dir.glob("task_*.md")):
+            slug = epic_of(task_file)
+            if slug:
+                epic_dir = find_epic_dir_for_slug(root, slug)
+                if epic_dir:
+                    epics_to_archive.add(epic_dir)
+
+    archived_dirs: list[str] = []
+    for epic_dir in sorted(epics_to_archive):
+        sync_epic(roots, epic_dir, "Done")
+        archived_dirs.append(epic_dir)
+
+    return archived_dirs
+
+
 def main() -> None:
     import argparse
     import sys
@@ -359,6 +403,11 @@ def main() -> None:
         "archive-epic", help="Archive done tasks of an epic into .devtool/epic/<epic_dir>/"
     )
     archive_parser.add_argument("epic_dir", help="Epic directory name (e.g. logging_refactor)")
+
+    archive_done_parser = subparsers.add_parser(
+        "archive-done",
+        help="Find all completed tasks in .devtool/features/done/ and archive them into their respective epic directories",
+    )
 
     args = parser.parse_args()
 
@@ -404,6 +453,15 @@ def main() -> None:
             f"Archived {len(archived)} tasks into .devtool/epic/{args.epic_dir} "
             f"(cleaned {len(cleaned)} from features)"
         )
+
+    elif args.command == "archive-done":
+        roots = checkout_roots()
+        archived = archive_all_done_epics(roots)
+        if archived:
+            print(f"Archived {len(archived)} epic(s) into .devtool/epic/: {', '.join(archived)}")
+        else:
+            print("No completed tasks to archive.")
+
 
 
 if __name__ == "__main__":

@@ -31,7 +31,8 @@ flowchart TD
     G3{"Gate 3<br/>Execution order confirmed?"}
     EXEC["Phase 2-3: task-by-task TDD<br/>one commit per task, doc sync on divergence"]
     G4{"Gate 4<br/>quality_check 🟢 LGTM?"}
-    S4["Stage 4 — Finish Branch<br/>(finishing-a-development-branch)"]
+    REVIEW["Developer Kanban Review<br/>(All tasks visible in DONE column)"]
+    S4["Stage 4 — Finish Branch &amp; Archival<br/>(finishing-a-development-branch)"]
 
     S1 --> G1
     G1 -->|no, revise| S1
@@ -46,7 +47,9 @@ flowchart TD
     G3 -->|yes| EXEC
     EXEC --> G4
     G4 -->|no, fix findings| EXEC
-    G4 -->|yes| S4
+    G4 -->|yes| REVIEW
+    REVIEW --> S4
+
 ```
 
 ## The Four Gates

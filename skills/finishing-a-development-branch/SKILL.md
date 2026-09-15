@@ -11,6 +11,22 @@ description: Use when implementation is complete, all tests pass, and you need t
 
 **Announce at start:** "I'm using the finishing-a-development-branch skill to complete this work."
 
+```mermaid
+flowchart TD
+    TESTS["Step 1: Verify Tests Passing"] --> DETECT["Step 2: Detect Environment (Worktree vs Repo)"]
+    DETECT --> BASE["Step 3: Determine Base Branch"]
+    BASE --> OPTS["Step 4: Present Options (Merge / PR / Keep)"]
+    OPTS --> EXEC{"Step 5: User Choice"}
+    EXEC -->|1. Merge Locally| ARCHIVE_1["Pre-Finish Hook:\nsync_task_status archive-done\n(Clean .devtool/features/done & commit)"]
+    EXEC -->|2. Push & Create PR| ARCHIVE_2["Pre-Finish Hook:\nsync_task_status archive-done\n(Clean .devtool/features/done & commit)"]
+    EXEC -->|3. Keep As-Is| KEEP["Preserve branch & worktree\n(Tasks remain in done/ for Kanban review)"]
+    ARCHIVE_1 --> MERGE["git checkout base && git merge"]
+    MERGE --> CLEANUP["Step 6: Worktree Cleanup & Delete Branch"]
+    ARCHIVE_2 --> PUSH["git push & forge PR create"]
+    PUSH --> RETAIN["Retain worktree for PR review iteration"]
+```
+
+
 ## Step 1: Verify Tests
 
 Run the project's full test suite (`npm test` / `cargo test` / `pytest` / `go test ./...`).
@@ -83,7 +99,35 @@ is theirs.
 
 ## Step 5: Execute Choice
 
+### Pre-Finish Hook: Epic Archival & Kanban Clean-up
+
+Before executing **Option 1 (Merge)** or **Option 2 (Push & PR)**, if the workspace contains completed tasks in `.devtool/features/done/`, archive them into their respective epic directory:
+
+```bash
+# Locate sync_task_status.py script from d3nexus plugin or repo
+SYNC_SCRIPT=""
+if [ -f "skills/epic-implementation/resources/scripts/sync_task_status.py" ]; then
+  SYNC_SCRIPT="skills/epic-implementation/resources/scripts/sync_task_status.py"
+elif [ -f "$HOME/.gemini/config/plugins/d3nexus/skills/epic-implementation/resources/scripts/sync_task_status.py" ]; then
+  SYNC_SCRIPT="$HOME/.gemini/config/plugins/d3nexus/skills/epic-implementation/resources/scripts/sync_task_status.py"
+fi
+
+if [ -n "$SYNC_SCRIPT" ] && [ -d ".devtool/features/done" ] && ls .devtool/features/done/task_*.md 1>/dev/null 2>&1; then
+  python3 "$SYNC_SCRIPT" archive-done
+  git add .devtool/ docs/ 2>/dev/null || true
+  git commit -m "[EPIC] Complete epic and archive done tasks" -m "- archive done tasks into .devtool/epic/<epic_dir>
+- update epic status to Done across English and Vietnamese HLDs
+- clean up .devtool/features/done and docs/superpowers" 2>/dev/null || true
+fi
+```
+
+This guarantees:
+- Tasks remain visible in the **DONE** column on the Kanban dashboard throughout development and review.
+- Archival, link rewriting, and status transition to `Done` occur cleanly and are committed to the branch before it is merged or pushed to a PR.
+- If the user selects **Option 3 (Keep As-Is)**, tasks remain untouched in `.devtool/features/done/` so the developer can continue tracking them on the Kanban board.
+
 ### Option 1: Merge Locally
+
 
 ```bash
 # Get main repo root for CWD safety
