@@ -24,7 +24,11 @@ compute_execution_order.py -- deliberately no PyYAML, so this stays stdlib-only.
 import re
 import subprocess
 from datetime import datetime, timezone
+import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent))
+from slug_utils import parse_frontmatter, sanitize_slug
 
 TASK_STATUSES = ("backlog", "todo", "in-progress", "review", "done")
 FRONTMATTER_RE = re.compile(r"^---\n(.*?)\n---\n", re.DOTALL)
@@ -33,20 +37,6 @@ FRONTMATTER_RE = re.compile(r"^---\n(.*?)\n---\n", re.DOTALL)
 def now_iso() -> str:
     """UTC, seconds precision, Zulu suffix -- e.g. 2026-09-14T10:23:45Z."""
     return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
-
-
-def parse_frontmatter(text: str) -> dict:
-    match = FRONTMATTER_RE.match(text)
-    if not match:
-        return {}
-    fields = {}
-    for line in match.group(1).splitlines():
-        line = line.strip()
-        if not line or ":" not in line:
-            continue
-        key, _, value = line.partition(":")
-        fields[key.strip()] = value.strip().strip('"')
-    return fields
 
 
 def set_frontmatter_field(text: str, key: str, value: str | None) -> str:
@@ -109,7 +99,8 @@ def task_targets(root: Path, task_id: str) -> list[Path]:
 
 
 def epic_of(path: Path) -> str | None:
-    return parse_frontmatter(path.read_text()).get("epic")
+    val = parse_frontmatter(path.read_text()).get("epic")
+    return sanitize_slug(val) if val else None
 
 
 def expected_epic(roots: list[Path], task_id: str) -> str | None:
@@ -196,7 +187,9 @@ def find_epic_slug(root: Path, epic_dir: str) -> str | None:
         if doc.is_file():
             match = re.search(r"^-\s*\*\*(?:Epic)\*\*:\s*(.+)$", doc.read_text(), re.M)
             if match:
-                return match.group(1).strip()
+                slug = sanitize_slug(match.group(1))
+                if slug:
+                    return slug
     for task_file in sorted(epic_path.glob("task_*.md")):
         slug = epic_of(task_file)
         if slug:

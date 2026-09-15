@@ -1,13 +1,13 @@
 ---
 id: "task_2_sync_task_status_integration"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "epic_slug_sanitization"
 dueDate: null
 created: "2026-09-15T12:00:00Z"
-modified: "2026-09-15T12:00:00Z"
-completedAt: null
+modified: "2026-09-15T12:40:37Z"
+completedAt: "2026-09-15T12:40:37Z"
 labels: ["tooling", "python", "archival"]
 order: "b1"
 ---

@@ -456,6 +456,31 @@ class ArchiveEpicTasksTests(unittest.TestCase):
             self.assertTrue((done_dir / ".gitkeep").is_file())
             self.assertIn("Status**: Done", en_doc.read_text())
 
+    def test_archive_all_done_epics_with_backtick_header(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            epic_dir = root / ".devtool" / "epic" / "logging_refactor"
+            epic_dir.mkdir(parents=True, exist_ok=True)
+            en_doc = epic_dir / "logging_refactor.en.md"
+            en_doc.write_text(
+                "# Logging\n\n## 1. Meta Data\n- **Epic**: `logging-refactor`\n- **Status**: In Progress\n\n"
+                "## 8. Tasks\n- [Task 1](../../features/done/task_1_setup.md)\n"
+            )
+
+            done_dir = root / ".devtool" / "features" / "done"
+            done_dir.mkdir(parents=True, exist_ok=True)
+            task_file = done_dir / "task_1_setup.md"
+            task_file.write_text(
+                '---\nid: "task_1_setup"\nstatus: "done"\nepic: "logging-refactor"\n---\n'
+            )
+
+            archived = archive_all_done_epics([root])
+            self.assertEqual(archived, ["logging_refactor"])
+            self.assertTrue((epic_dir / "task_1_setup.md").is_file())
+            self.assertFalse(task_file.exists())
+            self.assertTrue((done_dir / ".gitkeep").is_file())
+            self.assertIn("Status**: Done", en_doc.read_text())
+
     def test_archive_all_done_epics_empty(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
