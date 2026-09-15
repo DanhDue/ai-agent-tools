@@ -50,9 +50,17 @@ echo "  pushed"
 
 echo
 echo "== 4. Refresh this machine =="
-claude plugin marketplace update danhdue-agent-tools
-claude plugin update d3nexus@danhdue-agent-tools
+if command -v claude >/dev/null 2>&1; then
+  claude plugin marketplace update danhdue-agent-tools 2>/dev/null || true
+  claude plugin update d3nexus@danhdue-agent-tools 2>/dev/null || true
+fi
+
+if [ -d "$HOME/.gemini/config/plugins/d3nexus/.git" ]; then
+  echo "  pulling updates into ~/.gemini/config/plugins/d3nexus"
+  git -C "$HOME/.gemini/config/plugins/d3nexus" pull -q origin main || true
+fi
 
 echo
-echo "Done. Restart the Claude Code session (or reload the IDE window) to load $NEW."
+echo "Done. Restart the session (or reload the IDE window) to load $NEW."
 echo "On any other machine, run only step 4."
+
