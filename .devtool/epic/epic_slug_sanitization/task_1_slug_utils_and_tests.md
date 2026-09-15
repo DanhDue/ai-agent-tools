@@ -1,13 +1,13 @@
 ---
 id: "task_1_slug_utils_and_tests"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "epic_slug_sanitization"
 dueDate: null
 created: "2026-09-15T12:00:00Z"
-modified: "2026-09-15T12:00:00Z"
-completedAt: null
+modified: "2026-09-15T12:34:43Z"
+completedAt: "2026-09-15T12:34:43Z"
 labels: ["tooling", "python", "sanitization"]
 order: "a1"
 ---
