@@ -2,7 +2,7 @@
 
 ## 1. Meta Data
 - **Epic**: `epic_slug_sanitization`
-- **Status**: Draft (In Review)
+- **Status**: Done
 - **Target Release**: `1.0.18`
 - **Platform**: `Agent Tools (Python)`
 - **Source Spec**: [2026-09-15-robust-slug-sanitization-design.md](2026-09-15-robust-slug-sanitization-design.md)

@@ -2,7 +2,7 @@
 
 ## 1. Meta Data
 - **Epic**: `epic_slug_sanitization`
-- **Trạng thái**: Bản thảo (Đang đánh giá)
+- **Trạng thái**: Done
 - **Phiên bản mục tiêu**: `1.0.18`
 - **Nền tảng**: `Agent Tools (Python)`
 - **Tài liệu thiết kế gốc**: [2026-09-15-robust-slug-sanitization-design.md](2026-09-15-robust-slug-sanitization-design.md)
