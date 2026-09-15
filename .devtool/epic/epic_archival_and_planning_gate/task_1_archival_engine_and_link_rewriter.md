@@ -1,13 +1,13 @@
 ---
 id: "task_1_archival_engine_and_link_rewriter"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "epic-archival-and-planning-gate"
 dueDate: null
 created: "2026-09-15T04:50:00Z"
-modified: "2026-09-15T04:50:00Z"
-completedAt: null
+modified: "2026-09-15T04:51:41Z"
+completedAt: "2026-09-15T04:51:41Z"
 labels: ["tooling", "archival", "sync", "kanban"]
 order: "a1"
 ---

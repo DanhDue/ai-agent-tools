@@ -10,7 +10,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 from sync_task_status import (
-    board_tally, epic_of, expected_epic, now_iso, parse_frontmatter,
+    archive_epic_tasks, archive_superpowers_docs, board_tally, epic_of,
+    expected_epic, find_epic_slug, fix_epic_overview_links,
+    fix_task_markdown_links, now_iso, parse_frontmatter,
     parse_worktree_list, set_frontmatter_field, sync_epic, sync_task, task_targets,
 )
 
@@ -315,6 +317,118 @@ class SyncEpicTests(unittest.TestCase):
             matched, written = sync_epic([root], "non_existent", "In Progress")
             self.assertEqual(matched, [])
             self.assertEqual(written, [])
+
+
+class LinkFixTests(unittest.TestCase):
+    def test_fix_task_markdown_links(self):
+        text = (
+            "Epic: [logging-refactor](../epic/logging_refactor/logging_refactor.en.md)\n"
+            "- **Blocks**: [Task 2](../../features/task_2_b.md), [Task 3](../../features/done/task_3_c.md).\n"
+        )
+        out = fix_task_markdown_links(text, "logging_refactor")
+        self.assertIn("Epic: [logging-refactor](logging_refactor.en.md)", out)
+        self.assertIn("- **Blocks**: [Task 2](task_2_b.md), [Task 3](task_3_c.md).", out)
+
+    def test_fix_epic_overview_links(self):
+        text = (
+            "## 8. Kanban Tasks Breakdown\n"
+            "- [Task 1: Setup](../../features/task_1_setup.md)\n"
+            "- [Task 2: Done](../../features/done/task_2_done.md)\n"
+        )
+        out = fix_epic_overview_links(text)
+        self.assertIn("- [Task 1: Setup](task_1_setup.md)", out)
+        self.assertIn("- [Task 2: Done](task_2_done.md)", out)
+
+
+class ArchiveEpicTasksTests(unittest.TestCase):
+    def test_archive_done_tasks(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            epic_dir = root / ".devtool" / "epic" / "logging_refactor"
+            epic_dir.mkdir(parents=True, exist_ok=True)
+            en_doc = epic_dir / "logging_refactor.en.md"
+            en_doc.write_text(
+                "# Logging Refactor\n\n## 1. Meta Data\n- **Epic**: logging-refactor\n- **Status**: In Progress\n\n"
+                "## 8. Tasks\n- [Task 1](../../features/task_1_setup.md)\n"
+            )
+
+            done_dir = root / ".devtool" / "features" / "done"
+            done_dir.mkdir(parents=True, exist_ok=True)
+            task_file = done_dir / "task_1_setup.md"
+            task_file.write_text(
+                '---\nid: "task_1_setup"\nstatus: "done"\nepic: "logging-refactor"\n---\n\n'
+                "Epic: [logging-refactor](../epic/logging_refactor/logging_refactor.en.md)\n"
+                "- **Blocks**: [Task 2](../../features/task_2_b.md).\n"
+            )
+
+            archived, cleaned = archive_epic_tasks([root], "logging_refactor")
+            self.assertEqual(len(archived), 1)
+            self.assertEqual(len(cleaned), 1)
+
+            dest_task = epic_dir / "task_1_setup.md"
+            self.assertTrue(dest_task.is_file())
+            self.assertFalse(task_file.exists())
+            self.assertTrue((done_dir / ".gitkeep").is_file())
+
+            content = dest_task.read_text()
+            self.assertIn("[logging-refactor](logging_refactor.en.md)", content)
+            self.assertIn("[Task 2](task_2_b.md)", content)
+
+            # Check overview doc links updated
+            self.assertIn("- [Task 1](task_1_setup.md)", en_doc.read_text())
+
+    def test_sync_epic_done_triggers_archival(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            epic_dir = root / ".devtool" / "epic" / "logging_refactor"
+            epic_dir.mkdir(parents=True, exist_ok=True)
+            en_doc = epic_dir / "logging_refactor.en.md"
+            en_doc.write_text(
+                "# Logging\n\n## 1. Meta Data\n- **Epic**: logging-refactor\n- **Status**: In Progress\n\n"
+                "## 8. Tasks\n- [Task 1](../../features/done/task_1_setup.md)\n"
+            )
+
+            done_dir = root / ".devtool" / "features" / "done"
+            done_dir.mkdir(parents=True, exist_ok=True)
+            task_file = done_dir / "task_1_setup.md"
+            task_file.write_text(
+                '---\nid: "task_1_setup"\nstatus: "done"\nepic: "logging-refactor"\n---\n'
+            )
+
+            matched, written = sync_epic([root], "logging_refactor", "Done")
+            self.assertEqual(len(written), 1)
+            self.assertTrue((epic_dir / "task_1_setup.md").is_file())
+            self.assertFalse(task_file.exists())
+            self.assertTrue((done_dir / ".gitkeep").is_file())
+            self.assertIn("- [Task 1](task_1_setup.md)", en_doc.read_text())
+
+    def test_archive_superpowers_docs(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            epic_dir = root / ".devtool" / "epic" / "logging_refactor"
+            epic_dir.mkdir(parents=True, exist_ok=True)
+            sp_plans = root / "docs" / "superpowers" / "plans"
+            sp_plans.mkdir(parents=True, exist_ok=True)
+            plan_file = sp_plans / "2026-09-14-logging-refactor.md"
+            plan_file.write_text("# Old plan\n")
+
+            moved = archive_superpowers_docs(root, "logging_refactor", "logging-refactor")
+            self.assertEqual(len(moved), 1)
+            self.assertTrue((epic_dir / "2026-09-14-logging-refactor.md").is_file())
+            self.assertFalse(plan_file.exists())
+            self.assertTrue((sp_plans / ".gitkeep").is_file())
+
+    def test_expected_epic_and_tally_with_archived_tasks(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            epic_dir = root / ".devtool" / "epic" / "logging_refactor"
+            epic_dir.mkdir(parents=True, exist_ok=True)
+            task_file = epic_dir / "task_1_setup.md"
+            make_task(task_file, epic="logging-refactor", status="done")
+
+            self.assertEqual(expected_epic([root], "task_1_setup"), "logging-refactor")
+            tally = board_tally([root], "logging-refactor")
+            self.assertEqual(tally["done"], 1)
 
 
 if __name__ == "__main__":

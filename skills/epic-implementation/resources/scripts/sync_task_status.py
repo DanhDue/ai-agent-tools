@@ -113,7 +113,7 @@ def epic_of(path: Path) -> str | None:
 
 
 def expected_epic(roots: list[Path], task_id: str) -> str | None:
-    """The epic this task_id belongs to, per the authoritative features copy.
+    """The epic this task_id belongs to, per the authoritative features copy (or epic copy if archived).
 
     Task ids are `task_<number>_<name>`, so a name like `task_1_setup` can
     plausibly exist under two different epics -- and `task_targets`' `*/` glob
@@ -125,6 +125,9 @@ def expected_epic(roots: list[Path], task_id: str) -> str | None:
             features = features_dir / f"{task_id}.md"
             if features.is_file():
                 return epic_of(features)
+        for epic_copy in sorted((root / ".devtool" / "epic").glob(f"*/{task_id}.md")):
+            if epic_copy.is_file():
+                return epic_of(epic_copy)
     return None
 
 
@@ -162,7 +165,12 @@ def board_tally(roots: list[Path], epic_slug: str) -> dict[str, int]:
     tally = {status: 0 for status in TASK_STATUSES}
     seen_tasks: set[str] = set()
     for root in roots:
-        for features_dir in (root / ".devtool" / "features", root / ".devtool" / "features" / "done"):
+        search_dirs = [
+            root / ".devtool" / "features",
+            root / ".devtool" / "features" / "done",
+        ]
+        search_dirs.extend(sorted((root / ".devtool" / "epic").glob("*")))
+        for features_dir in search_dirs:
             if not features_dir.is_dir():
                 continue
             for path in sorted(features_dir.glob("task_*.md")):
@@ -176,6 +184,128 @@ def board_tally(roots: list[Path], epic_slug: str) -> dict[str, int]:
                     if status in tally:
                         tally[status] += 1
     return tally
+
+
+def find_epic_slug(root: Path, epic_dir: str) -> str | None:
+    """Find the epic slug from the epic's HLD overview or contained tasks."""
+    epic_path = root / ".devtool" / "epic" / epic_dir
+    if not epic_path.is_dir():
+        return None
+    for ext in (".en.md", ".vi.md"):
+        doc = epic_path / f"{epic_dir}{ext}"
+        if doc.is_file():
+            match = re.search(r"^-\s*\*\*(?:Epic)\*\*:\s*(.+)$", doc.read_text(), re.M)
+            if match:
+                return match.group(1).strip()
+    for task_file in sorted(epic_path.glob("task_*.md")):
+        slug = epic_of(task_file)
+        if slug:
+            return slug
+    return None
+
+
+def fix_task_markdown_links(text: str, epic_dir: str) -> str:
+    """Rewrite task links when relocated into .devtool/epic/<epic_dir>/."""
+    text = re.sub(rf"\]\(\.\./epic/{re.escape(epic_dir)}/([^)]+)\)", r"](\1)", text)
+    text = re.sub(r"\]\(\.\./\.\./features/(?:done/)?(task_[^)]+\.md)\)", r"](\1)", text)
+    return text
+
+
+def fix_epic_overview_links(text: str) -> str:
+    """Rewrite Section 8 links in <epic_dir>.en.md / .vi.md to local task_*.md."""
+    return re.sub(r"\]\(\.\./\.\./features/(?:done/)?(task_[^)]+\.md)\)", r"](\1)", text)
+
+
+def archive_superpowers_docs(root: Path, epic_dir: str, epic_slug: str | None) -> list[Path]:
+    """Relocate any specs or plans matching this epic from docs/superpowers/ to the epic dir."""
+    moved: list[Path] = []
+    dest_dir = root / ".devtool" / "epic" / epic_dir
+    if not dest_dir.is_dir():
+        return moved
+    patterns = {epic_dir}
+    if epic_slug:
+        patterns.add(epic_slug)
+        patterns.add(epic_slug.replace("-", "_"))
+        patterns.add(epic_slug.replace("_", "-"))
+
+    for sub in ("plans", "specs"):
+        sp_dir = root / "docs" / "superpowers" / sub
+        if not sp_dir.is_dir():
+            continue
+        for f in sorted(sp_dir.glob("*.md")):
+            if any(pat in f.name for pat in patterns):
+                dest_file = dest_dir / f.name
+                if not dest_file.exists():
+                    f.rename(dest_file)
+                    moved.append(dest_file)
+                else:
+                    f.unlink()
+                    moved.append(dest_file)
+        non_keep = [f for f in sp_dir.iterdir() if f.name != ".gitkeep"]
+        if not non_keep:
+            (sp_dir / ".gitkeep").touch()
+    return moved
+
+
+def archive_epic_tasks(roots: list[Path], epic_dir: str) -> tuple[list[Path], list[Path]]:
+    """Move all done tasks of an epic from features/done into .devtool/epic/<epic_dir>/,
+
+    clean up source files, rewrite links to local format, and retain .gitkeep.
+    Returns (archived_files, cleaned_source_files).
+    """
+    archived: list[Path] = []
+    cleaned: list[Path] = []
+
+    for root in roots:
+        dest_dir = root / ".devtool" / "epic" / epic_dir
+        dest_dir.mkdir(parents=True, exist_ok=True)
+        epic_slug = find_epic_slug(root, epic_dir)
+
+        # 1. Relocate task files from features and features/done
+        for fdir in (root / ".devtool" / "features", root / ".devtool" / "features" / "done"):
+            if not fdir.is_dir():
+                continue
+            for task_file in sorted(fdir.glob("task_*.md")):
+                file_epic = epic_of(task_file)
+                if epic_slug and file_epic and file_epic != epic_slug:
+                    continue
+                dest_file = dest_dir / task_file.name
+                content = task_file.read_text()
+                content = fix_task_markdown_links(content, epic_dir)
+                dest_file.write_text(content)
+                archived.append(dest_file)
+                task_file.unlink()
+                cleaned.append(task_file)
+
+        # 2. Ensure existing tasks in dest_dir have clean links
+        for task_file in sorted(dest_dir.glob("task_*.md")):
+            content = task_file.read_text()
+            fixed = fix_task_markdown_links(content, epic_dir)
+            if fixed != content:
+                task_file.write_text(fixed)
+                if task_file not in archived:
+                    archived.append(task_file)
+
+        # 3. Fix Section 8 links in epic overview documents (.en.md and .vi.md)
+        for ext in (".en.md", ".vi.md"):
+            doc = dest_dir / f"{epic_dir}{ext}"
+            if doc.is_file():
+                doc_content = doc.read_text()
+                fixed_doc = fix_epic_overview_links(doc_content)
+                if fixed_doc != doc_content:
+                    doc.write_text(fixed_doc)
+
+        # 4. Relocate superpowers specs & plans if any exist for this epic
+        archive_superpowers_docs(root, epic_dir, epic_slug)
+
+        # 5. Ensure .gitkeep exists in features/done if directory is empty
+        done_dir = root / ".devtool" / "features" / "done"
+        if done_dir.is_dir():
+            non_keep = [f for f in done_dir.iterdir() if f.name != ".gitkeep"]
+            if not non_keep:
+                (done_dir / ".gitkeep").touch()
+
+    return archived, cleaned
 
 
 def sync_epic(roots: list[Path], epic_dir: str, new_status: str) -> tuple[list[Path], list[Path]]:
@@ -201,6 +331,10 @@ def sync_epic(roots: list[Path], epic_dir: str, new_status: str) -> tuple[list[P
                 if new_text != text:
                     doc.write_text(new_text)
                 written.append(doc)
+
+    if new_status.strip().lower() in ("done", "hoàn thành"):
+        archive_epic_tasks(roots, epic_dir)
+
     return matched, written
 
 
@@ -220,6 +354,11 @@ def main() -> None:
     epic_parser = subparsers.add_parser("epic", help="Sync epic overview status")
     epic_parser.add_argument("epic_dir", help="Epic directory name (e.g. logging_refactor)")
     epic_parser.add_argument("status", help="New status string (e.g. 'In Progress')")
+
+    archive_parser = subparsers.add_parser(
+        "archive-epic", help="Archive done tasks of an epic into .devtool/epic/<epic_dir>/"
+    )
+    archive_parser.add_argument("epic_dir", help="Epic directory name (e.g. logging_refactor)")
 
     args = parser.parse_args()
 
@@ -258,7 +397,16 @@ def main() -> None:
             sys.exit(1)
         print(f"Synchronized {len(matched)} epic docs for '{args.epic_dir}' -> '{args.status}'")
 
+    elif args.command == "archive-epic":
+        roots = checkout_roots()
+        archived, cleaned = archive_epic_tasks(roots, args.epic_dir)
+        print(
+            f"Archived {len(archived)} tasks into .devtool/epic/{args.epic_dir} "
+            f"(cleaned {len(cleaned)} from features)"
+        )
+
 
 if __name__ == "__main__":
     main()
+
 
