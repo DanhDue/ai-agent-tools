@@ -90,98 +90,165 @@ When invoked, the skill runs detection:
 
 ```mermaid
 flowchart TD
-    START(["Trigger: @quality_check"]) --> DETECT{"Detect Platform<br/>pubspec.yaml vs build.gradle vs Project.swift"}
+    START(["Trigger: @quality_check"]) --> DETECT{"Platform Detection<br/>(Flutter / Android / iOS)"}
 
-    %% Flutter Branch
-    DETECT -->|Flutter Project| F_DISPATCH{"Flutter Orchestrator"}
-    subgraph F_TRACK_TOOLING["Track 1: Flutter Automated 3-Tier Tooling (Background)"]
+    DETECT -->|Load Platform Context| ORCH["Quality & Security Orchestrator"]
+
+    subgraph DUAL_TRACK["Dual-Track Parallel Processing Pipeline"]
+        direction TB
+
+        subgraph TRACK1["Track 1: Automated 3-Tier Tooling Suite (Background)"]
+            direction TB
+            T_TIER_A["Tier A: Unit & Business Logic Tests<br/>(melos test / gradlew test / swift test)"]
+            T_TIER_B["Tier B: Architecture Governance & Static Lint<br/>(Boundaries / Konsist / ArchTests / Linters)"]
+            T_GATE{"PR / Epic Gate?"}
+            T_TIER_C["Tier C: Acceptance & System Integration<br/>(testWithCoverage / acceptance_check / xcodebuild)"]
+            T_DONE["Tooling Suite Complete"]
+
+            T_TIER_A --> T_TIER_B --> T_GATE
+            T_GATE -->|Routine| T_DONE
+            T_GATE -->|PR / Epic Gate| T_TIER_C --> T_DONE
+        end
+
+        subgraph TRACK2["Track 2: 4 Specialist Semantic Audits (Parallel Subagents)"]
+            direction TB
+            A_SEC["@security-audit<br/>(Fintech, OWASP Mobile Top 10, Storage, Precision)"]
+            A_ARCH["@architecture-audit<br/>(Clean Architecture, Domain Purity, MVI Immutability)"]
+            A_UI["@ui-audit<br/>(Compose / Flutter / SwiftUI Performance & Tokens)"]
+            A_HEALTH["@code-health-audit<br/>(Functions &lt;20 lines, Params &le;2, Strict Null Safety)"]
+        end
+    end
+
+    ORCH ==>|Async Background Process| TRACK1
+    ORCH ==>|Parallel Dispatch (dispatching-parallel-agents)| TRACK2
+
+    TRACK1 ==> MERGE["Quality & Security Aggregator<br/>(Reverse Verification Coverage & Synthesis)"]
+    TRACK2 ==> MERGE
+
+    MERGE --> REPORT["Render Unified Executive Quality Report"]
+    REPORT --> CLEANUP{"Resource Cleanup"}
+    CLEANUP -->|Android: pkill -9 java| C_DONE["Cleanup Done"]
+    CLEANUP -->|Flutter / iOS| C_DONE
+    C_DONE --> VERDICT{"Verdict & Next Steps"}
+    VERDICT -->|🟢 LGTM| FINISH["d3nexus:finishing-a-development-branch"]
+    VERDICT -->|🔴 Blocker| FIX["Auto-Fix / Return to Implementation"]
+```
+
+<details>
+<summary><b>💙 Detailed Flutter Pipeline Flowchart (Click to expand)</b></summary>
+
+```mermaid
+flowchart TD
+    F_START(["Flutter Quality Pipeline"]) --> F_DISPATCH["Flutter Orchestrator"]
+
+    subgraph F_T1["Track 1: Flutter Automated 3-Tier Tooling (Background)"]
         direction TB
         F1["Tier A: melos test (fvm flutter test)"]
         F2["Tier B: melos analyze + check_module_boundaries.sh + check_license_header.sh"]
         F3{"PR / Epic Gate?"}
         F4["Tier C: ./scripts/testWithCoverage.sh / integration_test"]
+        F_DONE["Tooling Complete"]
+
         F1 --> F2 --> F3
-        F3 -->|Yes| F4
-        F3 -->|Routine| F_DONE["Tooling Complete"]
-        F4 --> F_DONE
+        F3 -->|Routine| F_DONE
+        F3 -->|PR / Epic Gate| F4 --> F_DONE
     end
 
-    subgraph F_TRACK_AUDIT["Track 2: Flutter Specialist Audits (Parallel Subagents)"]
+    subgraph F_T2["Track 2: Flutter Specialist Audits (Parallel Subagents)"]
         direction TB
-        FA1["@security-audit (Flutter: Decimal, Storage, OWASP)"]
-        FA2["@architecture-audit (Flutter: Pure Dart Domain, BLoC MVI, Isolation)"]
+        FA1["@security-audit (Decimal, flutter_secure_storage, OWASP)"]
+        FA2["@architecture-audit (Pure Dart Domain, BLoC MVI, Isolation)"]
         FA3["@flutter-ui-audit (Widgets: const, Rebuilds, Dispose, Tokens)"]
-        FA4["@code-health-audit (Dart: Ban '!', Sizing <20, Effective Dart)"]
+        FA4["@code-health-audit (Dart: Ban '!', Sizing &lt;20, Effective Dart)"]
     end
 
-    F_DISPATCH ==>|Async Background| F_TRACK_TOOLING
-    F_DISPATCH ==>|Parallel Subagents| F_TRACK_AUDIT
+    F_DISPATCH ==>|Async Background| F_T1
+    F_DISPATCH ==>|Parallel Subagents| F_T2
 
-    %% Android Branch
-    DETECT -->|Android Project| A_DISPATCH{"Android Orchestrator"}
-    subgraph A_TRACK_TOOLING["Track 1: Android Automated 3-Tier Tooling (Background)"]
+    F_T1 ==> F_MERGE["Quality Aggregator"]
+    F_T2 ==> F_MERGE
+    F_MERGE --> F_REP["Unified Executive Report"]
+```
+
+</details>
+
+<details>
+<summary><b>🤖 Detailed Android Native Pipeline Flowchart (Click to expand)</b></summary>
+
+```mermaid
+flowchart TD
+    A_START(["Android Quality Pipeline"]) --> A_DISPATCH["Android Orchestrator"]
+
+    subgraph A_T1["Track 1: Android Automated 3-Tier Tooling (Background)"]
         direction TB
         A1["Tier A & B: ./gradlew check (Spotless + Detekt + Unit Tests)"]
         A2["Tier B: ./gradlew :konsist-test:test apiCheck (Konsist & BCV)"]
         A3{"PR / Epic Gate?"}
         A4["Tier C: ./scripts/acceptance_check.sh (Host App & DFM Splits)"]
+        A_DONE["Tooling Complete"]
+
         A1 --> A2 --> A3
-        A3 -->|Yes| A4
-        A3 -->|Routine| A_DONE["Tooling Complete"]
-        A4 --> A_DONE
+        A3 -->|Routine| A_DONE
+        A3 -->|PR / Epic Gate| A4 --> A_DONE
     end
 
-    subgraph A_TRACK_AUDIT["Track 2: Android Specialist Audits (Parallel Subagents)"]
+    subgraph A_T2["Track 2: Android Specialist Audits (Parallel Subagents)"]
         direction TB
-        AA1["@security-audit (Android: BigDecimal, Keystore, OWASP)"]
-        AA2["@architecture-audit (Android: Domain Purity, MVI, Dispatchers)"]
-        AA3["@android-ui-audit (Android UI & Compose: Stability, Material3)"]
-        AA4["@code-health-audit (Kotlin: Ban '!!', Sizing <20, Idioms)"]
+        AA1["@security-audit (BigDecimal, Keystore, OWASP)"]
+        AA2["@architecture-audit (Domain Purity, MVI, Dispatchers)"]
+        AA3["@android-ui-audit (Compose Stability, Material3 Tokens)"]
+        AA4["@code-health-audit (Kotlin: Ban '!!', Sizing &lt;20, Idioms)"]
     end
 
-    A_DISPATCH ==>|Async Background| A_TRACK_TOOLING
-    A_DISPATCH ==>|Parallel Subagents| A_TRACK_AUDIT
+    A_DISPATCH ==>|Async Background| A_T1
+    A_DISPATCH ==>|Parallel Subagents| A_T2
 
-    %% iOS Branch
-    DETECT -->|iOS Project| I_DISPATCH{"iOS Orchestrator"}
-    subgraph I_TRACK_TOOLING["Track 1: iOS Automated 3-Tier Tooling (Background)"]
+    A_T1 ==> A_MERGE["Quality Aggregator"]
+    A_T2 ==> A_MERGE
+    A_MERGE --> A_REP["Unified Executive Report"]
+    A_REP --> A_CLEAN["cleanup-java (pkill -9 java)"]
+```
+
+</details>
+
+<details>
+<summary><b>🍎 Detailed iOS Native Pipeline Flowchart (Click to expand)</b></summary>
+
+```mermaid
+flowchart TD
+    I_START(["iOS Quality Pipeline"]) --> I_DISPATCH["iOS Orchestrator"]
+
+    subgraph I_T1["Track 1: iOS Automated 3-Tier Tooling (Background)"]
         direction TB
         I1["Tier A: swift test across Packages/* and Features/*"]
         I2["Tier B: swiftlint + swiftformat + check_module_boundaries.sh + ArchTests"]
         I3{"PR / Epic Gate?"}
         I4["Tier C: tuist generate + xcodebuild test (Simulator)"]
+        I_DONE["Tooling Complete"]
+
         I1 --> I2 --> I3
-        I3 -->|Yes| I4
-        I3 -->|Routine| I_DONE["Tooling Complete"]
-        I4 --> I_DONE
+        I3 -->|Routine| I_DONE
+        I3 -->|PR / Epic Gate| I4 --> I_DONE
     end
 
-    subgraph I_TRACK_AUDIT["Track 2: iOS Specialist Audits (Parallel Subagents)"]
+    subgraph I_T2["Track 2: iOS Specialist Audits (Parallel Subagents)"]
         direction TB
-        IA1["@security-audit (iOS: Decimal, Keychain, OWASP)"]
-        IA2["@architecture-audit (iOS: Pure Swift Domain, MVI, Isolation)"]
+        IA1["@security-audit (Decimal, Keychain, OWASP)"]
+        IA2["@architecture-audit (Pure Swift Domain, MVI, Isolation)"]
         IA3["@ios-ui-audit (SwiftUI: Re-eval, Dumb Views, AppUIKit)"]
-        IA4["@code-health-audit (Swift: Ban '!'/'try!', Sizing <20)"]
+        IA4["@code-health-audit (Swift: Ban '!'/'try!', Sizing &lt;20)"]
     end
 
-    I_DISPATCH ==>|Async Background| I_TRACK_TOOLING
-    I_DISPATCH ==>|Parallel Subagents| I_TRACK_AUDIT
+    I_DISPATCH ==>|Async Background| I_T1
+    I_DISPATCH ==>|Parallel Subagents| I_T2
 
-    %% Aggregation
-    F_TRACK_TOOLING ==> MERGE["Quality & Security Aggregator"]
-    F_TRACK_AUDIT ==> MERGE
-    A_TRACK_TOOLING ==> MERGE
-    A_TRACK_AUDIT ==> MERGE
-    I_TRACK_TOOLING ==> MERGE
-    I_TRACK_AUDIT ==> MERGE
-
-    MERGE --> REPORT["Render Unified Executive Quality Report"]
-    REPORT --> CLEANUP{"Resource Cleanup"}
-    CLEANUP -->|Android| C_JAVA["cleanup-java (pkill -9 java)"]
-    CLEANUP -->|Flutter / iOS| C_DONE["Cleanup Done"]
-    C_JAVA --> END(["Quality Gate Completed"])
-    C_DONE --> END
+    I_T1 ==> I_MERGE["Quality Aggregator"]
+    I_T2 ==> I_MERGE
+    I_MERGE --> I_REP["Unified Executive Report"]
 ```
+
+</details>
+
 
 
 ### Diagram 2: Execution Sequence & Concurrency (Timeline)
