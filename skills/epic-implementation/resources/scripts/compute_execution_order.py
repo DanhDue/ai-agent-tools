@@ -26,6 +26,9 @@ import re
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).parent))
+from slug_utils import parse_frontmatter, sanitize_slug
+
 PRIORITY_RANK = {"high": 0, "medium": 1, "low": 2}
 # Soft-note markers: keyword list used to surface advisory content that isn't a hard blocker.
 # These are small, documented keywords — not a general sentence parser. Phase 0 (full task text)
@@ -36,20 +39,6 @@ SECTION_RE = re.compile(r"##\s*Dependencies\s*&\s*Blockers\s*\n(.*?)(\n##|\Z)", 
 LINK_RE = re.compile(r"\]\(([^)]+\.md)\)")
 TITLE_RE = re.compile(r"^#\s*Task\s*\d+:\s*(.+)$", re.MULTILINE)
 NUMBER_RE = re.compile(r"\d+")
-
-
-def parse_frontmatter(text: str) -> dict:
-    match = FRONTMATTER_RE.match(text)
-    if not match:
-        return {}
-    fields = {}
-    for line in match.group(1).splitlines():
-        line = line.strip()
-        if not line or ":" not in line:
-            continue
-        key, _, value = line.partition(":")
-        fields[key.strip()] = value.strip().strip('"')
-    return fields
 
 
 def parse_dependencies_section(text: str) -> str:
@@ -88,11 +77,13 @@ def scan_tasks(features_dir: Path, epic: str) -> tuple[dict[str, dict], list[Pat
     tasks: dict[str, dict] = {}
     scanned: list[Path] = []
     skipped: list[Path] = []
+    target_epic = sanitize_slug(epic)
     for path in sorted(Path(features_dir).glob("task_*.md")):
         scanned.append(path)
         text = path.read_text()
         fm = parse_frontmatter(text)
-        if fm.get("epic") != epic:
+        task_epic = sanitize_slug(fm.get("epic"))
+        if task_epic != target_epic:
             skipped.append(path)
             continue
         section = parse_dependencies_section(text)

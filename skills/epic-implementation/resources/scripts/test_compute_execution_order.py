@@ -90,6 +90,20 @@ class ScanTasksTests(unittest.TestCase):
             self.assertEqual(load_tasks(directory, "demo"), scan_tasks(directory, "demo")[0])
 
 
+    def test_scan_tasks_matches_formatted_epic_slug(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            directory = Path(tmp)
+            write_task(directory, "task_1_a.md", epic="`demo`", priority="high", title="Task 1: A",
+                       dependencies_body="- **Dependencies**: None.")
+            write_task(directory, "task_2_b.md", epic="'demo'", priority="high", title="Task 2: B",
+                       dependencies_body="- **Dependencies**: Blocked by [Task 1](task_1_a.md).")
+            # Query with backtick-wrapped epic
+            tasks, scanned, skipped = scan_tasks(directory, "`demo`")
+            self.assertEqual(len(scanned), 2)
+            self.assertEqual(len(tasks), 2)
+            self.assertEqual(len(skipped), 0)
+
+
 class ComputeLayersTests(unittest.TestCase):
     def test_linear_chain(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -147,6 +161,9 @@ class ComputeLayersTests(unittest.TestCase):
 
 
 class RealLoggingRefactorEpicTests(unittest.TestCase):
+    def setUp(self):
+        if not self.FEATURES_DIR.is_dir() or not any("task_7_native_bridge" in p.name for p in self.FEATURES_DIR.glob("*.md")):
+            self.skipTest("logging-refactor tasks not present in features directory")
     """Integration test against this repo's actual logging-refactor tasks.
 
     Pins the CURRENT state of `.devtool/features/task_*.md` for the

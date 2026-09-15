@@ -1,13 +1,13 @@
 ---
 id: "task_3_compute_execution_order_integration"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "epic_slug_sanitization"
 dueDate: null
 created: "2026-09-15T12:00:00Z"
-modified: "2026-09-15T12:00:00Z"
-completedAt: null
+modified: "2026-09-15T12:43:44Z"
+completedAt: "2026-09-15T12:43:44Z"
 labels: ["tooling", "python", "ordering"]
 order: "b2"
 ---
