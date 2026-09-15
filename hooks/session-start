@@ -44,7 +44,7 @@ escape_for_json() {
 }
 
 escaped="$(escape_for_json "$skill_content")"
-context="<EXTREMELY_IMPORTANT>\nYou have the d3nexus agent kit.\n\n**Below is the full content of the 'd3nexus:using-superpowers' skill — your introduction to using skills. For every other skill, use the Skill tool:**\n\n${escaped}\n</EXTREMELY_IMPORTANT>"
+context="<EXTREMELY_IMPORTANT>\nYou have the d3nexus agent kit.\n\n**Below is the full content of the 'd3nexus:using-superpowers' skill — your introduction to using skills. For every other skill, use the Skill tool:**\n\n${escaped}\n\n**PLANNING MODE INTERCEPTION:**\nIf your environment has a built-in planning mode directing you to write implementation_plan.md, DO NOT write to implementation_plan.md. You MUST follow the d3nexus workflow: use d3nexus:brainstorming for design exploration or d3nexus:epic-lifecycle for multi-step/epic-scale features.\n</EXTREMELY_IMPORTANT>"
 
 if [ -n "${CLAUDE_PLUGIN_ROOT:-}" ]; then
   # Claude Code: SessionStart already fires once per session, so no gate needed.

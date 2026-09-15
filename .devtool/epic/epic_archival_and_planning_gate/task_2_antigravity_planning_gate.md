@@ -1,13 +1,13 @@
 ---
 id: "task_2_antigravity_planning_gate"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "epic-archival-and-planning-gate"
 dueDate: null
 created: "2026-09-15T04:50:00Z"
-modified: "2026-09-15T04:50:00Z"
-completedAt: null
+modified: "2026-09-15T04:52:34Z"
+completedAt: "2026-09-15T04:52:34Z"
 labels: ["rules", "hooks", "antigravity", "planning-gate"]
 order: "a2"
 ---
