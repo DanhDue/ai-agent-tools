@@ -1,13 +1,13 @@
 ---
 id: "task_2_lean_market_discovery_skill"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "lean_product_suite"
 dueDate: null
 created: "2026-09-16T16:34:00Z"
-modified: "2026-09-16T18:10:00Z"
-completedAt: null
+modified: "2026-09-16T19:30:00Z"
+completedAt: "2026-09-16T19:30:00Z"
 labels: ["product-management", "customer-discovery", "problem-space", "opportunity-score"]
 order: "b1"
 ---
