@@ -155,7 +155,33 @@ picking among the three lifecycles, a gap this repository genuinely had once `do
   knows the domain and needs directions rather than teaching.
 - **One Diátaxis type**: how-to guide — informs action, application of skill.
 - **Six sections, six commits**, `46a2547` through `f99eeb0`, one per section.
-- **Gate 2**: `doc_quality_check` checks 0 and 1 clean; check 3 dispatched to a reviewer subagent.
+- **Gate 2 failed on the first attempt.** Checks 0 and 1 were clean; the content audit returned
+  *Issues Found* and *Acceptance: not met*. This is the single most valuable result of the whole
+  acceptance task — the gate was not a formality.
+
+### What Gate 2 caught that nothing else did
+
+`check_document.py` passed the document with zero findings. `scripts/verify.sh` passed all nine
+steps. Both were right: nothing mechanical was wrong. The content audit found four real defects
+anyway.
+
+| Finding | Why no mechanical check could have caught it |
+|---|---|
+| A sentence on the one-component code path was garbled, and it was the **only route on the page with no gate cost stated** — the most common case in this repo | Grammatical prose, resolving links, valid anchors |
+| "There is nothing for a gate to do" sat two lines above "You still run a quality gate afterwards" — a reader fixing a typo could not tell which applied | Both sentences are true in isolation; only their adjacency is wrong |
+| The handoff section promised three moves that "keep your work"; the third gave no artefact and no path, handing the reader to a skill that would restart them at Stage 1 cold | A promise a document fails to keep is invisible to any parser |
+| **`doc-lifecycle` still named `quality_check` in its mermaid Gate 2 node and in its Stage 1 prose** | In a different file, not under review, and syntactically fine |
+
+The fourth is the serious one. It is a defect in a skill this epic shipped, and it contradicts the
+premise the split was built on — that the two gates never reference each other. It survived Task 6
+because the rewrite replaced exact strings and missed two. `doc-implementation` carried a fifth
+instance of the same drift, found while fixing it.
+
+**A reviewer reading for meaning found what nine mechanical checks could not.** That is the argument
+for check 3 existing, and it would have been unprovable if the gate had passed first time.
+
+All findings fixed; Gate 2 re-run **in full** rather than re-running only check 3, per
+`doc-lifecycle`'s own rule.
 
 **Two honest limitations of this run:**
 

@@ -32,6 +32,10 @@ the epic lifecycle; its remaining gates do not apply. You still cross two: `brai
 let you start without an approved design, and it asks you to review the written spec before
 planning.
 
+**On the one-plan route, something has to execute the plan.** `writing-plans` produces a document,
+not code. Run `d3nexus:subagent-driven-development` (recommended) or `d3nexus:executing-plans` on it
+before you go near a quality gate. The epic route does this for you inside `dev-implementation`.
+
 Either way, finish with `d3nexus:quality_check` and `d3nexus:finishing-a-development-branch`.
 
 ## If you are writing a document
@@ -46,6 +50,9 @@ Two shortcuts sit below that threshold:
   commit the record. Do not open gates around one file.
 - **Anything smaller** — see [If the work is too small](#if-the-work-is-too-small).
 
+A *batch* of records produced or backfilled as one piece of work is different: that does belong in
+`d3nexus:doc-lifecycle`.
+
 If you do not yet know what the document should say — a strategy piece, a proposal, an argument you
 have not finished having — run `d3nexus:brainstorming` first, then come back.
 
@@ -54,6 +61,9 @@ have not finished having — run `d3nexus:brainstorming` first, then come back.
 Run `d3nexus:lean-product-lifecycle`. Three gates: problem space, value proposition, MVP backlog.
 Gate 3 hands its backlog to `d3nexus:dev-designer`, so you land back in the code branch with
 something worth building.
+
+Budget for seven gates, not three — once you arrive at `dev-designer` you are at Stage 2 of
+`dev-lifecycle` and its Gates 2 through 5 still apply.
 
 Two signs you are in this case and should stop where you are:
 
@@ -87,11 +97,14 @@ You will sometimes start in the wrong one. These are the three moves that keep y
 tasks stay together.
 
 **Code back to discovery.** If a spec turns out to rest on an unvalidated assumption, stop and run
-`d3nexus:lean-product-lifecycle`. Unlike the other two moves there is no artefact waiting for it, so
-make one: write what you already know — the segment, the need, the evidence you have and the evidence
-you are missing — into `.devtool/product/<slug>/01_problem_space_spec.md` before you start. That file
-is what `lean-product-lifecycle` looks for on invocation; without it you will be taken through Stage 1
-from scratch, which is the one thing this move exists to avoid.
+`d3nexus:lean-product-lifecycle`. Carry what you already know into the session as context — the
+segment, the need, the evidence you have and the evidence you are missing — so Stage 1 does not start
+cold.
+
+> **Do not pre-create `.devtool/product/<slug>/01_problem_space_spec.md`.**
+> `lean-product-lifecycle` resumes on file *presence*: that file existing makes it announce
+> "Gate 1 is already verified" and start at Stage 2. You came here because the problem space was
+> never validated, and Stage 1 is the validation. Creating the artefact skips it.
 
 Leave the epic directory and its `task_*.md` files where they are. If the assumption survives
 discovery you will come back to them; if it does not, they are the record of what you did not build.
