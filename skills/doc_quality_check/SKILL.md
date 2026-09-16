@@ -54,11 +54,16 @@ work belongs in `dev-lifecycle`.
 ### Check 1 — Mechanical
 
 ```bash
-python3 skills/doc_quality_check/resources/scripts/check_document.py <file> [<file> ...]
+python3 skills/doc_quality_check/resources/scripts/check_document.py --require-toc <file> [<file> ...]
 ```
 
 Catches placeholders (`TBD`, `TODO`, `FIXME`, `XXX`) in prose, relative links that do not resolve,
-anchors with no matching heading, and unbalanced code fences.
+anchors with no matching heading, unbalanced code fences, and — with `--require-toc` — a document of
+four sections or more with no table of contents.
+
+**Pass `--require-toc` for a `doc-lifecycle` deliverable, and omit it otherwise.** Task files, epic
+records and `SKILL.md` files are not deliverables and were never meant to carry one; requiring it of
+them would fail dozens of files that are correct as they stand.
 
 It strips fenced blocks and inline code spans before scanning, so a document that *documents* these
 checks does not fail them. That is not hypothetical — it was observed while building this skill,

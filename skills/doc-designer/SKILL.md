@@ -83,6 +83,10 @@ A list of sections, each with **one line stating that section's purpose**. That 
 decoration: `doc-implementation` checks every drafted section against it, and it is the only
 pre-written expectation a section is measured by.
 
+**This outline becomes the deliverable's table of contents.** From four sections upward the finished
+document carries one, linking each section — it is the same list the reader needs, so write it once.
+Gate 2 checks for it.
+
 ### Step 4 — Break the outline into tasks
 
 One task per section. Present the numbered list and ask the user to confirm the breakdown and

@@ -104,7 +104,9 @@ outline is synced before the next section starts.
 pass:
 
 1. **Mechanical** — no placeholder text, every internal link resolves, ToC anchors match headings,
-   mermaid parses, fenced samples are syntactically valid.
+   mermaid parses, fenced samples are syntactically valid, and **a document of four sections or more
+   carries a table of contents**. A reader who has to scroll a long document hunting for one section
+   is the problem it solves; below four sections there is nothing to navigate.
 2. **Diátaxis conformance** — the document stays inside its declared mode.
 3. **Content audit** — no unsupported claims, and the `Acceptance` criterion is actually met.
 4. **Not code work** — the diff touches no file that ships in the build.

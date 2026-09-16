@@ -6,7 +6,11 @@ skipped under load, so the mechanical half of Gate 2 is a script rather than a c
 
 Usage:
   check_document.py FILE [FILE ...]           run the mechanical checks
+  check_document.py --require-toc FILE ...    also require a table of contents
   check_document.py --changed-files F [F ...] apply the refusal rule and exit
+
+--require-toc applies to doc-lifecycle deliverables. It is opt-in because task files, epic
+records and SKILL.md files are not deliverables and were never meant to carry one.
 
 Exit 0 clean, 1 on any finding.
 """
@@ -27,6 +31,10 @@ SHIPPED_SUFFIXES = {
 SHIPPED_EXCEPTIONS = re.compile(r"(?:^|/)(\.devtool|docs|\.github)/|(?:^|/)CHANGELOG\.md$")
 
 PLACEHOLDER = re.compile(r"\b(TBD|TODO|FIXME|XXX)\b")
+
+# A reader scrolling a long document to find one section is the problem a table of contents
+# solves. Below this many top-level sections there is nothing to navigate.
+TOC_MIN_SECTIONS = 4
 
 
 def strip_code(text: str) -> str:
@@ -51,7 +59,7 @@ def anchor(heading: str) -> str:
     return "#" + h.replace(" ", "-")
 
 
-def check_file(path: pathlib.Path) -> list:
+def check_file(path: pathlib.Path, require_toc: bool = False) -> list:
     findings = []
     raw = path.read_text()
     prose = strip_code(raw)
@@ -78,6 +86,13 @@ def check_file(path: pathlib.Path) -> list:
             target = (path.parent / link.split("#")[0]).resolve()
             if not target.exists():
                 findings.append((path, i, f"link does not resolve: {link}"))
+
+    if require_toc:
+        sections = [ln for ln in raw.split("\n") if re.match(r"^##\s+", ln)]
+        if len(sections) >= TOC_MIN_SECTIONS and not re.search(r"\]\(#", prose):
+            findings.append((path, 0,
+                             f"{len(sections)} sections and no table of contents — "
+                             "a reader cannot navigate it"))
     return findings
 
 
@@ -96,6 +111,8 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("files", nargs="*")
     ap.add_argument("--changed-files", nargs="*", default=None)
+    ap.add_argument("--require-toc", action="store_true",
+                    help="require a table of contents (doc-lifecycle deliverables)")
     args = ap.parse_args()
 
     if args.changed_files is not None:
@@ -115,7 +132,7 @@ def main() -> int:
 
     findings = []
     for f in args.files:
-        findings += check_file(pathlib.Path(f))
+        findings += check_file(pathlib.Path(f), require_toc=args.require_toc)
     for path, line, msg in findings:
         where = f"{path}:{line}" if line else str(path)
         print(f"  FAIL {where} — {msg}")
