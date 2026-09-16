@@ -2,7 +2,7 @@
 
 ## 1. Meta Data
 - **Epic**: `lean_product_suite`
-- **Status**: In-Progress
+- **Status**: Done — released in 1.1.0
 - **Target Release**: `1.1.0`
 - **Platform**: `Agent Tools (Markdown, YAML, Shell)`
 - **Source Spec**: [2026-09-16-lean-product-lifecycle-suite-design.md](2026-09-16-lean-product-lifecycle-suite-design.md)
