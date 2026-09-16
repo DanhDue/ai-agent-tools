@@ -140,3 +140,60 @@ before Tasks 1–9 land.
 - `evals/protocol.md`; README §3.7 on measuring whether a skill works.
 - **Rollback**: this task publishes nothing by itself. If acceptance fails, the epic does not ship;
   revert to the last green commit and route the findings back to the failing task.
+
+---
+
+## Completion Record
+
+### 1. `doc-lifecycle` driven end to end on a real document
+
+Produced [`docs/choosing-a-lifecycle.md`](../../docs/choosing-a-lifecycle.md) — directions for
+picking among the three lifecycles, a gap this repository genuinely had once `doc-lifecycle` and
+`lean-product-lifecycle` joined `dev-lifecycle`.
+
+- **Audience** established before any outline: someone in this repo holding a piece of work, who
+  knows the domain and needs directions rather than teaching.
+- **One Diátaxis type**: how-to guide — informs action, application of skill.
+- **Six sections, six commits**, `46a2547` through `f99eeb0`, one per section.
+- **Gate 2**: `doc_quality_check` checks 0 and 1 clean; check 3 dispatched to a reviewer subagent.
+
+**Two honest limitations of this run:**
+
+1. **Gates 1 and 3 were self-approved.** Both are human approvals by design. Running them against
+   their author tests the process, not the gate. A real run with a real reviewer is stronger and has
+   not happened.
+2. **The Kanban half could not run.** `doc-designer`'s Concurrent-Epic Backlog Rule fired correctly:
+   `document_lifecycle_suite` has an active task, so a document epic started now would have every
+   task created as `status: backlog`. Correct behaviour, and it means **a document epic cannot be
+   executed while a development epic is open**. Worth knowing before anyone plans around it.
+
+### 2. Ablation
+
+`evals/results/2026-09-17-doc-designer-baseline/` — arm A 5/5, arm B 2/5, delta **+3**, one run.
+
+The report leads with the bad news, as the protocol requires: the **baseline handled the safety
+footgun better than the skilled arm**, and produced the strongest single observation in either reply.
+Neither is scored, both are real. A candidate rule for `doc-designer` — a hazard that has already
+caused an incident belongs in the step where the reader can still avoid it — is logged, not written:
+one run does not justify a new rule.
+
+### 3. Regression on the development gate
+
+Proven by diff rather than by execution: `skills/quality_check/SKILL.md` is **byte-identical** to the
+base branch. The 3-tier flow, including the Tier C2 native build gate added in 1.1.1, cannot have
+regressed, because the file did not change. This is stronger evidence than running it would have
+been, and it did not require a mobile toolchain this repository does not have.
+
+### 4. README and CHANGELOG
+
+Skill count corrected 47 → 52. The single entry point is replaced by the three lifecycles and their
+gate counts, pointing at `docs/choosing-a-lifecycle.md` rather than duplicating it — a README is not
+a how-to guide, and inlining it would break the discipline this epic just shipped.
+
+### Observed discrepancy, not fixed
+
+`dev-implementation`'s SKILL.md states that `sync_task_status.py` *moves* completed tasks from
+`.devtool/features/` into `.devtool/features/done/`. It does not: it updates frontmatter only, and
+`done/` is empty with all eleven tasks still in `.devtool/features/`. The move appears to happen at
+`archive-done` instead. Either the prose or the script is wrong. Out of scope here, and recorded so
+the next person does not rediscover it.

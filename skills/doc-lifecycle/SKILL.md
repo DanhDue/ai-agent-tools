@@ -39,7 +39,7 @@ flowchart TD
     S1["Stage 1 — Brief &amp; Outline<br/>(doc-designer)"]
     G1{"Gate 1<br/>Brief &amp; outline approved?"}
     S2["Stage 2 — Drafting<br/>(doc-implementation)"]
-    G2{"Gate 2<br/>quality_check 🟢?"}
+    G2{"Gate 2<br/>doc_quality_check 🟢?"}
     G3{"Gate 3<br/>User sign-off?"}
     S3["Stage 3 — Finish Branch<br/>(finishing-a-development-branch)"]
 
@@ -88,7 +88,8 @@ needs a brief, not a design exploration, and `doc-designer` produces the brief.
 **Exit (Gate 1):** the user has confirmed the outline and the section breakdown.
 
 Produces the audience, exactly one Diátaxis mode, the outline, and one task per section. The
-overview's Meta Data carries `Kind: document`, which is what `quality_check` dispatches on.
+overview's Meta Data carries `Kind: document`, which records what the work item is for the board
+and the archive.
 
 ### Stage 2 — Drafting → `doc-implementation`
 
