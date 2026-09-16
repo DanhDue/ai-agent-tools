@@ -1,114 +1,108 @@
 # Ablation Report — 2026-09-16-baseline
 
-**Harness**: `evals/protocol.md`
-**Cases run**: 2 of 5
-**Runs per arm**: **1** — see caveats
-**Judge**: blind, label mapping recorded before dispatch in both cases
+**Harness**: `evals/protocol.md` · **Cases run**: 2 of 5 · **Arms**: 3 · **Runs per arm**: 1
+**Judges**: blind; two-way then three-way, mappings recorded before dispatch
 
 ---
 
 ## Delta table
 
-| Case | Arm A (skill) | Arm B (baseline) | Delta | Reading |
-|---|---|---|---|---|
-| `must-have-rank-23` | 6/6 | 6/6 | **0** | Skill inert on this scenario |
-| `scales-and-threshold` | 5/6 | 5/6 | **0** | Skill inert; **both failed C1** |
-| `no-competitors` | — | — | — | not run |
-| `high-everywhere` | — | — | — | not run |
-| `feature-list-demand` | — | — | — | not run |
+| Case | A (corrected skill) | B (baseline) | C (broken rules) | A−B | **A−C** |
+|---|---|---|---|---|---|
+| `must-have-rank-23` | 6/6 | 6/6 | **6/6** | 0 | **0** |
+| `scales-and-threshold` | 5/6 | 5/6 | **2/6** | 0 | **+3** |
+| `no-competitors` | — | — | — | — | — |
+| `high-everywhere` | — | — | — | — | — |
+| `feature-list-demand` | — | — | — | — | — |
 
-Two cases, both predicted high-delta, both measured at **zero**.
-
----
-
-## Finding 1 — the baseline knows the arbitrary facts too
-
-`scales-and-threshold` was chosen as the hardest remaining test on the reasoning that Ulwick's
-`> 15 / 10–15 / < 10` bands and the 5-point-unipolar / 7-point-bipolar instrument pair are
-**conventions, not derivations** — a model cannot reason its way to them.
-
-The baseline produced all of it: both instruments with the unipolar/bipolar rationale, the
-normalization arithmetic, the correct bands, and the ceiling rule (a score cannot exceed twice
-importance, so a 4/5 rating tops out at exactly 15.0 and can never pass). It reached the ceiling
-insight independently — that one *is* derivable from the formula, but it was documented in the
-skill only after a previous round surfaced it as non-obvious.
-
-That prediction was wrong, and it was wrong in the direction that matters: the facts the skill
-exists to supply are already in the model.
-
-## Finding 2 — the skill has a hole, and the harness found it
-
-**Arm A failed C1.** The skill says: *"Ask which scales were used; refuse to compute until told."*
-The agent holding that instruction flagged the ambiguity, assumed the prescribed scales, and
-computed anyway.
-
-This is the first time the harness has produced its third designed outcome — an arm-A failure — and
-it is the most useful thing either run has generated.
-
-The rule may itself be at fault. The founder said *"the ratings you asked for"*, implying a prior
-specification, so assuming the prescribed scales is a defensible reading. An absolute *"refuse to
-compute"* is probably wrong; *"compute both readings and label the assumption"* — which is roughly
-what both arms did — may be the better rule.
-
-## Finding 3 — the skill contained a factual error about its own headline threshold
-
-Both replies asserted that 10 is *"the floor of the band Ulwick calls unattractive"*. The floor of
-that band is 0. **10 is where the unattractive band ends.**
-
-Traced to `skills/lean-market-discovery/references/opportunity-score-formulas.md` — inside the
-warning box written specifically to correct the `OS >= 10` threshold. The correction carried its own
-error. Arm A inherited it; arm B produced the same slip independently.
-
-Fixed in all three places it appeared, with an explicit note against repeating the phrasing.
-
-An ablation run found a factual error in the skill under test. That was not a designed purpose of
-the harness, and it is arguably worth more than the delta measurement.
+Arms A and B were scored twice, by independent judges, and the scores were identical both times.
 
 ---
 
-## What two zero deltas do and do not establish
+## The finding
 
-**Do:** on both scenarios, with this model, the skills did not change what the agent decided. The
-two cases predicted most likely to show an effect showed none.
+**Neither correction taught the model anything. One of them prevented real damage; the other did
+not.**
 
-**Do not:**
+`A−B = 0` on both cases: the skill adds nothing a competent agent does not already do.
 
-- **n = 1 per arm.** `protocol.md` requires three runs to separate a null result from variance, and
-  this does not meet its own standard.
-- **Two cases of five.** Three remain, including `feature-list-demand`, which was predicted to show
-  zero delta and would be informative either way.
-- **Model-dependent.** A capable model was used throughout. A skill that is inert here may not be
-  inert on a weaker one — and the kit's skills run on whatever model the user has.
-- **Rubric-bounded.** The judge preferred arm A "modestly" and "marginally" in the two runs, both
-  times on unscored dimensions. Either the rubrics are too coarse or the extra content is not worth
-  its context. These runs cannot distinguish those.
+`A−C` splits sharply:
 
-## The reframing, now with two data points
+- **`MVP = ROI cells 1-3`** — arm C read the rule and **overrode it**: *"The ROI matrix sequences
+  work. It does not decide whether a must-have ships."* Same 6/6 as the other arms. The broken rule
+  did no damage.
+- **`OS >= 10` and both scales 1–10** — arm C **adopted both**, computed `4 + max(4−6,0) = 4` from
+  raw figures, and repeated *"a bar of ten"* three times. 2/6. The broken rules did exactly the
+  damage they were predicted to do.
 
-The epic corrected real documentation errors — `MVP = ROI cells 1-3`, `OS >= 10`, a six-layer
-pyramid. Those were genuine and worth fixing.
+## Why one broken rule stuck and the other did not
 
-But the measurement says the corrected rules are **defensive, not instructive**. A plain agent
-already reaches these conclusions. An agent carrying the *broken* rules would not have. The skills'
-value is that they do not teach the wrong thing — not that they teach the right thing.
+Both rules contradict something the model demonstrably knows — the baseline passed every criterion
+in both cases. The difference is **whether following the wrong rule produces a visible contradiction
+at the point of use.**
 
-That is a much narrower claim than the epic was built on, and it has a direct consequence: a
-defensive rule needs one line and a regression check, not a reference file.
+| | `MVP = cells 1-3` | `OS >= 10` |
+|---|---|---|
+| Kind of rule | A judgement about what ships | An arbitrary numeric threshold |
+| Following it here means | Cutting regulatory compliance from a veterinary product | Calling 4 a fail and 11 a near-pass |
+| Locally absurd? | **Yes, glaringly** | **No — the arithmetic still works** |
+| Outcome | Overridden | Adopted |
+
+A wrong judgement rule collides with the situation and loses. A wrong number does not collide with
+anything: every downstream step remains internally consistent, so nothing prompts re-examination.
+The judge caught precisely this — arm C's reasoning *"sounds rigorous"* while resting on a false
+premise.
+
+**Consequence for where the skill should spend its words:** the numeric conventions — thresholds,
+scale definitions, normalization — are where documentation errors survive and propagate, and where
+getting it right has measurable value. The judgement rules are where the model holds its own with or
+without help.
+
+## Secondary findings
+
+**Arm A failed C1 on `scales-and-threshold`.** The skill says *"refuse to compute until told"*; the
+agent holding it assumed the scales and computed. So did every other arm — a clean sweep. The rule
+is probably too absolute: the founder said *"the ratings you asked for"*, implying a prior spec.
+*"Compute both readings and label the assumption"* is likely the better rule.
+
+**The skill contained a factual error about its own headline threshold.** Both A and B asserted 10
+is *"the floor of the band Ulwick calls unattractive"*. The floor of that band is 0; 10 is where it
+ends. Traced to the warning box written to correct the `OS >= 10` threshold — the correction carried
+its own error. Fixed in all three places.
+
+**The rubric missed a real effect.** On `must-have-rank-23` the blind judge flagged arm C as the
+only reply recommending the delighter be traded away — a direct consequence of the pre-correction
+rule making the delighter conditional. No criterion asked about the delighter, so a genuine
+behavioural difference scored zero. Rubrics bound what an ablation can see.
+
+---
+
+## What this does and does not establish
+
+**Does:** the `OS >= 10` and scale corrections have measurable value — `+3` against the broken
+version. The `cells 1-3` correction does not, on this scenario. Neither correction has instructive
+value over an unaided agent.
+
+**Does not:**
+
+- **n = 1 per arm.** `protocol.md` requires three runs. Judge agreement across two independent
+  scorings is reassuring about the *judge*, not about arm variance.
+- **Two cases of five.**
+- **Model-dependent.** A capable model was used. The override in case 1 is exactly the behaviour
+  most likely to disappear on a weaker one — which is where defensive rules would start to matter.
+- **Rubric-bounded**, as the delighter finding demonstrates directly.
 
 ---
 
 ## Recommended next
 
-1. **Add a third arm carrying the original broken rules** (`MVP = cells 1-3`, `OS >= 10`) to both
-   completed cases. If those arms fail, the defensive-value reading becomes a measurement rather
-   than an inference. **This is the highest-value next run** — it is the only one that can establish
-   positive value for the corrections.
-2. **Fix or soften the C1 rule** in `lean-market-discovery`, then re-run `scales-and-threshold` to
-   confirm arm A recovers.
-3. **Run `feature-list-demand`.** Predicted zero delta; a non-zero result there would overturn the
-   pattern and is cheap to check.
-4. **Three runs per arm** on any case before it is cited as settled.
-5. **Consider consolidating.** If a third arm confirms the defensive reading, the four skills are
-   carrying reference-file weight for rules the model already knows. Candidate shape: keep the
-   gates, the artefact templates and the regression checks; cut the explanatory material that is
-   re-deriving what the model does unaided.
+1. **Three runs per arm on `scales-and-threshold`.** It is the case that produced a signal; confirm
+   it is not variance before acting on it.
+2. **Fix the C1 rule**, then re-run. All three arms failed it, which points at the rule.
+3. **Run the remaining three cases with all three arms.** The A−C split is now the interesting
+   measurement, not A−B.
+4. **Re-test case 1 on a weaker model.** The override is the whole result there, and override is the
+   least portable behaviour across model capability.
+5. **Rebalance the skills toward the numeric material.** The measurement says thresholds, scales and
+   normalization earn their words; the judgement rules largely restate what the model does anyway
+   and could be compressed to a short guard plus a regression check.

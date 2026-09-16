@@ -108,6 +108,32 @@ Compare against the most recent previous run and note movement.
 
 ---
 
+## Variant: the third arm
+
+Two arms answer *"does the skill help?"*. They cannot answer *"what did correcting the skill buy?"*
+— and when arms A and B tie, that becomes the only question left.
+
+**Arm C** receives the **pre-correction rules** in place of the current skill:
+`evals/_fixtures/broken-rules/`. Same role framing, same prompt, same rubric.
+
+| Outcome | Reading |
+|---|---|
+| C scores below A and B | The correction has measurable value. The skill is **defensive** — it stops an agent being taught the wrong thing. |
+| C scores level with A and B | Even the defensive value is absent. The model overrides the wrong rule, and the skill is carrying weight for nothing. |
+| C scores above A or B | The correction made things worse. Re-open the fidelity review. |
+
+The fixtures quote the broken rules verbatim from the commit before the correction, but the
+surrounding prose is a reconstruction — the broken skill was never built. Keep the fixture at a
+density comparable to the real skill, or the run measures document length rather than correctness.
+See `evals/_fixtures/broken-rules/README.md`.
+
+**Judging three arms:** shuffle all three labels, record the mapping before dispatch, and let one
+fresh judge score all three against the same rubric. Re-scoring A and B is the point, not waste —
+agreement with an earlier two-way verdict is a robustness check on it, and disagreement measures
+judge variance, which is otherwise invisible when every arm runs once.
+
+---
+
 ## Rules that keep the measurement honest
 
 **Fix the rubric before the run.** If a reply does something good that the rubric misses, record it
