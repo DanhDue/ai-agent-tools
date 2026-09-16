@@ -46,3 +46,17 @@ Two shortcuts sit below that threshold:
 
 If you do not yet know what the document should say — a strategy piece, a proposal, an argument you
 have not finished having — run `d3nexus:brainstorming` first, then come back.
+
+## If you do not know what to build yet
+
+Run `d3nexus:lean-product-lifecycle`. Three gates: problem space, value proposition, MVP backlog.
+Gate 3 hands its backlog to `d3nexus:dev-designer`, so you land back in the code branch with
+something worth building.
+
+Two signs you are in this case and should stop where you are:
+
+- Nobody can name the target customer as a specific segment — only as "users" or "the business".
+- The need is asserted rather than evidenced: no interviews, no data, no ranking of importance
+  against satisfaction.
+
+`d3nexus:brainstorming` checks both at step 2 and will send you here before it asks you anything else.
