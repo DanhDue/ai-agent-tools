@@ -281,3 +281,19 @@ These techniques are part of systematic debugging and available in this director
 - **`root-cause-tracing.md`** - Trace bugs backward through call stack to find original trigger
 - **`defense-in-depth.md`** - Add validation at multiple layers after finding root cause
 - **`condition-based-waiting.md`** - Replace arbitrary timeouts with condition polling
+
+## Verifying This Skill
+
+Three pressure-test scenarios check whether this process survives the conditions that actually break
+it — urgency, sunk cost, and authority. Run them against a subagent that holds this skill and one
+that does not; the finding is the difference.
+
+- [Pressure Test 1 — Emergency Production Fix](test-pressure-1.md)
+- [Pressure Test 2 — Sunk Cost and Exhaustion](test-pressure-2.md)
+- [Pressure Test 3 — Authority and Social Pressure](test-pressure-3.md)
+
+[Academic Test](test-academic.md) checks comprehension rather than resistance: an agent can recite
+this process perfectly and still abandon it under the three pressures above, so passing it proves
+less than it appears to.
+
+How this skill was extracted and hardened is recorded in [CREATION-LOG.md](CREATION-LOG.md).

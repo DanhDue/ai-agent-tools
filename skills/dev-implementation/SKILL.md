@@ -129,6 +129,9 @@ flowchart TB
      ```bash
      ls <worktree_path>/*.xcworkspace
      ```
+   Validate the bootstrap script itself with
+   `bash skills/dev-implementation/resources/scripts/test_bootstrap_worktree_validation.sh`
+   after changing it — it checks the guards that stop a corrupt worktree being created.
 6. Do not copy or symlink `.dart_tool/`, `/build/`, `ios/Flutter/ephemeral/Packages/`, `.build/`, or any `android/**/.cxx/` directory from another checkout into this worktree — these embed the source checkout's absolute paths and will corrupt the build.
 
 ### Phase 2 — Sequential Task Execution
