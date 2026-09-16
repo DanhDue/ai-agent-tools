@@ -4,7 +4,7 @@
 > **Date**: 2026-09-17
 > **Status**: Approved Design Spec
 > **Scope**: 4 new skills, 2 modified skills, 3 renames. Assumption mapping is split into its own
-> spec — see [2026-09-17-assumption-mapping-design.md](2026-09-17-assumption-mapping-design.md)
+> spec — see [2026-09-17-assumption-mapping-design.md](../../../docs/superpowers/specs/2026-09-17-assumption-mapping-design.md)
 
 ---
 

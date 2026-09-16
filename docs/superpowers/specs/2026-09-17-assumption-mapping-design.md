@@ -30,7 +30,7 @@ This is the Build Trap arriving one step later than usual, with better paperwork
 `assumption-mapping` belongs to the **upstream discovery suite**, not to the document lifecycle. It
 extends `lean-product-lifecycle`, writes into `.devtool/product/<slug>/`, and draws on a different
 methodology and a different author. It ships independently and delivers value with or without
-[the document lifecycle suite](2026-09-17-document-lifecycle-suite-design.md).
+[the document lifecycle suite](../../../.devtool/epic/document_lifecycle_suite/2026-09-17-document-lifecycle-suite-design.md).
 
 ---
 
