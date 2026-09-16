@@ -23,8 +23,9 @@ need to know what runs next or what must be true before it does, stay here.
 flowchart TD
     S1["Stage 1 — Inception &amp; Spec<br/>(brainstorming)"]
     G1{"Gate 1<br/>Spec approved?"}
-    ROUTE{"Epic-scale?"}
+    ROUTE{"What is the deliverable,<br/>and at what scale?"}
     PLANS(["writing-plans<br/>(leaves this workflow)"])
+    DOCD(["doc-designer<br/>(leaves this workflow for doc-lifecycle)"])
     S2["Stage 2 — Architecture &amp; Tasks<br/>(dev-designer)"]
     G2{"Gate 2<br/>HLD &amp; task breakdown approved?"}
     S3["Stage 3 — Isolated Execution<br/>(dev-implementation)"]
@@ -38,8 +39,9 @@ flowchart TD
     S1 --> G1
     G1 -->|no, revise| S1
     G1 -->|yes| ROUTE
-    ROUTE -->|no| PLANS
-    ROUTE -->|yes| S2
+    ROUTE -->|"code, one plan"| PLANS
+    ROUTE -->|"a document"| DOCD
+    ROUTE -->|"code, epic-scale"| S2
     S2 --> G2
     G2 -->|no, adjust breakdown| S2
     G2 -->|yes| S3
@@ -77,8 +79,9 @@ on your own judgement.
 
 **Routing decision, made here and nowhere else.** Once the spec is approved, choose:
 
-- **Epic-scale** — multiple independent components/services, needs Kanban breakdown plus
-  architecture/use-case/sequence diagrams, or the user called it an epic or large feature.
+- **Epic-scale code** → `dev-designer`, which is Stage 2 of this lifecycle — multiple independent
+  components/services, needs Kanban breakdown plus architecture/use-case/sequence diagrams, or the
+  user called it an epic or large feature.
   → relocate the spec from `docs/superpowers/specs/` into `.devtool/epic/<epic_dir>/<same-filename>`
   (create the directory if needed), fix relative links inside the moved file, then go to Stage 2
   passing that new path.
