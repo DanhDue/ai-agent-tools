@@ -18,3 +18,16 @@ document path outright.
 
 If the whole job is smaller than a review, skip to
 [If the work is too small](#if-the-work-is-too-small).
+
+## If you are writing code
+
+Pick by how many reviewable pieces the work has.
+
+**Several independent components, or you would want an architecture diagram and a task board** —
+run `d3nexus:dev-lifecycle`. It takes you through five gates: spec, task breakdown, execution order,
+`quality_check`, and your own sign-off before the branch is finished.
+
+**One component, one plan** — run `d3nexus:brainstorming`, then `d3nexus:writing-plans`. This leaves
+the epic lifecycle and its remaining gates do not apply.
+
+Either way, finish with `d3nexus:quality_check` and `d3nexus:finishing-a-development-branch`.
