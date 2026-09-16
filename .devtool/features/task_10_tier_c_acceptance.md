@@ -270,6 +270,53 @@ unrelated to this epic, corrected in passing.
 The mechanical half was right every time — nothing mechanical was ever wrong. It is simply not the
 half that catches a document routing people into an unverified merge.
 
+### Round four — a false claim about a named skill
+
+One blocking finding, and again **the round-three fix created it**.
+
+Round three's fix warned that both executors call `finishing-a-development-branch` themselves, then
+added: *"once it reaches its finish step your branch is merged or PR'd, verified or not."* That is
+false. `skills/finishing-a-development-branch/SKILL.md:97` reads *"Wait for their answer; the
+integration decision is theirs."* It presents three options and stops. Nothing is merged or pushed
+until a human answers.
+
+The instruction attached to the false claim was also unfollowable. It said to run `quality_check`
+"while the executor is still working", but `subagent-driven-development` mandates *"Continuous
+execution: Do not pause to check in with your human partner between tasks"*, and `executing-plans`
+runs straight into its finish step. There is no window mid-run, and forcing one would grade a
+half-written branch.
+
+Net effect: a reader would believe integration was automatic, find the only stated window
+unreachable, and skip the quality gate — the exact outcome the paragraph was written to prevent.
+
+The real window was sitting in plain sight: the executor **stops** at the three-option menu. Choose
+option 3, run `quality_check`, fix, then finish and choose merge or PR.
+
+### A severity bug in `doc_quality_check`, found by using it
+
+The audit also noted that a typo fix in a file with no Meta Data — a README, a `SKILL.md` — would
+return 🔴: Check 2 treated an absent `Diátaxis mode` as a finding, and 🟢 requires all four checks
+clean. The routing was correct and the verdict was useless. Check 2 is now scoped: a missing mode is
+a finding on a `doc-lifecycle` deliverable and **not applicable** on a file that never was one.
+Returning 🔴 on a one-word fix teaches people to stop running the gate.
+
+### The pattern, stated plainly
+
+| Round | Defects found | Of which created by the previous round's fix |
+|---|---|---|
+| 1 | 4 | — |
+| 2 | 3 | 1 |
+| 3 | 2 | 1 |
+| 4 | 1 | 1 |
+
+**Three consecutive rounds surfaced a defect introduced while fixing the round before.** Each fix was
+plausible, specific, cited a real file, and passed every mechanical check. Each was wrong in a way
+visible only to someone who opened the skill being described and followed its control flow.
+
+This is the measured case for `doc-lifecycle`'s rule that a failed Gate 2 is re-run **in full**. The
+rule is not about the sections that did not change. It is that **a fix is new, unreviewed work, and
+the person writing it is the person who just got it wrong.**
+
 **Two honest limitations of this run:**
 
 1. **Gates 1 and 3 were self-approved.** Both are human approvals by design. Running them against
