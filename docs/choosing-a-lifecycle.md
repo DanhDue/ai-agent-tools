@@ -70,3 +70,22 @@ whether you can imagine a reviewer rejecting it. If you cannot, there is nothing
 
 You still run a quality gate afterwards — `d3nexus:quality_check` for code,
 `d3nexus:doc_quality_check` for prose. That rule has no size exemption.
+
+## Handing off between lifecycles
+
+You will sometimes start in the wrong one. These are the three moves that keep your work:
+
+**Discovery to code.** At Gate 3, `lean-product-lifecycle` hands `03_mvp_feature_backlog.md` to
+`d3nexus:dev-designer`. Pass the file path; do not re-derive the backlog.
+
+**Brainstorming to either branch.** `d3nexus:brainstorming` ends by invoking exactly one of
+`dev-designer`, `writing-plans`, `doc-designer` or `lean-product-lifecycle`. Before it routes to
+`dev-designer`, it moves your spec into `.devtool/epic/<epic_name>/` so the spec, the design and the
+tasks stay together.
+
+**Code back to discovery.** If a spec turns out to rest on an unvalidated assumption, stop and run
+`d3nexus:lean-product-lifecycle`. Carry the context you already gathered so Stage 1 does not start
+cold.
+
+One rule holds across all three: **never merge two specs into one epic.** Each keeps its own
+spec → design → implementation lineage.
