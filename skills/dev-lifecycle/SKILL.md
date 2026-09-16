@@ -26,6 +26,7 @@ flowchart TD
     ROUTE{"What is the deliverable,<br/>and at what scale?"}
     PLANS(["writing-plans<br/>(leaves this workflow)"])
     DOCD(["doc-designer<br/>(leaves this workflow for doc-lifecycle)"])
+    LEAN(["lean-product-lifecycle Gate 3<br/>enters here with an MVP backlog"])
     S2["Stage 2 — Architecture &amp; Tasks<br/>(dev-designer)"]
     G2{"Gate 2<br/>HLD &amp; task breakdown approved?"}
     S3["Stage 3 — Isolated Execution<br/>(dev-implementation)"]
@@ -42,6 +43,7 @@ flowchart TD
     ROUTE -->|"code, one plan"| PLANS
     ROUTE -->|"a document"| DOCD
     ROUTE -->|"code, epic-scale"| S2
+    LEAN --> S2
     S2 --> G2
     G2 -->|no, adjust breakdown| S2
     G2 -->|yes| S3
