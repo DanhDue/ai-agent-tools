@@ -31,7 +31,8 @@ flowchart TD
     G3{"Gate 3<br/>Execution order confirmed?"}
     EXEC["Phase 2-3: task-by-task TDD<br/>one commit per task, doc sync on divergence"]
     G4{"Gate 4<br/>quality_check 🟢 LGTM?"}
-    REVIEW["Developer Kanban Review<br/>(All tasks visible in DONE column)"]
+    REVIEW["Phase 4.1: Developer Kanban Review<br/>(All tasks held in DONE column for visual inspection)"]
+    G5{"Gate 5<br/>User sign-off &amp; finish approved?"}
     S4["Stage 4 — Finish Branch &amp; Archival<br/>(finishing-a-development-branch)"]
 
     S1 --> G1
@@ -48,11 +49,13 @@ flowchart TD
     EXEC --> G4
     G4 -->|no, fix findings| EXEC
     G4 -->|yes| REVIEW
-    REVIEW --> S4
+    REVIEW --> G5
+    G5 -->|no, request changes/fixes| EXEC
+    G5 -->|yes| S4
 
 ```
 
-## The Four Gates
+## The Five Gates
 
 Every gate is a **human approval** except Gate 4, which is a machine verdict. Never cross one
 on your own judgement.
@@ -62,7 +65,8 @@ on your own judgement.
 | **1** | Spec Approved | User | end of `brainstorming` | `<epic_dir>/YYYY-MM-DD-<topic>-design.md` |
 | **2** | HLD & Task Breakdown | User | `epic-designer` task-breakdown checkpoint | `<epic_dir>.en.md` + `.vi.md` + `bdd_scenarios.md` + `task_*.md` |
 | **3** | Execution Order | User | `epic-implementation` Phase 1 checkpoint | confirmed order + bootstrapped worktree |
-| **4** | Quality LGTM & Check 2 | `quality_check` | `epic-implementation` Phase 4 | 🟢 report + coverage matrix + merge-ready branch (done tasks archived to `<epic_dir>/`) |
+| **4** | Quality LGTM & Check 2 | `quality_check` | `epic-implementation` Phase 4 | 🟢 report + coverage matrix + merge-ready branch |
+| **5** | Developer Kanban Sign-Off | User | `epic-implementation` Phase 4.1 checkpoint | User confirmation to proceed with branch finishing and archival |
 
 ## Stages
 
@@ -99,7 +103,7 @@ architecture was already approved at Gate 1.
 ### Stage 3 — Isolated Execution → `epic-implementation`
 
 **Entry:** Gate 2 passed; HLD and `task_*.md` files exist.
-**Exit (Gate 4):** `quality_check` reports 🟢 LGTM with Check 2 (Shift-Right Bookend Verification) passed.
+**Exit (Gate 5):** `quality_check` reports 🟢 LGTM (Gate 4) AND the user explicitly reviews the completed tasks on the Kanban dashboard and approves finishing the branch (Gate 5).
 
 Gate 3 sits inside this stage, at the end of Phase 1: present the computed execution order and
 get confirmation **before** creating any worktree or dispatching any subagent.
@@ -117,14 +121,16 @@ Gate 4 grants `🟢 LGTM` only when all 4 conditions are satisfied:
    - **UI Audit**: State hoisting, BLoCs, and ViewModels have **$\ge 80\%$ line coverage**.
    - **Code Health Audit**: Refactored methods (< 20 lines) have **$\ge 75\%$ line coverage**.
 4. **Check 2 (Shift-Right Bookend) Clean**: Pre-merge cumulative diff analysis (`check_code_impact.py`) against `<base_ref>` reports zero divergence, zero unprotected modified files, and synchronized native bridge interfaces.
-5. **Epic Done Archival Clean**: All completed tasks from `.devtool/features/done/` and design drafts from `docs/superpowers/` are archived into `.devtool/epic/<epic_dir>/`, with relative links rewritten and zero leftover files in `.devtool/features/done/`.
 
 If any condition fails, Gate 4 routes back to Stage 3 Phase 2 (`epic-implementation`) with an actionable gap report.
 
+**Gate 5 Developer Kanban Review & Sign-Off:**
+Once Gate 4 passes, all completed tasks MUST remain in `.devtool/features/done/`. The agent MUST STOP calling tools and present the final executive report to the user. The user visually reviews the Kanban board and approves proceeding to Stage 4. If the user requests adjustments or fixes, execution routes back to Stage 3 Phase 2.
+
 ### Stage 4 — Finish Branch → `finishing-a-development-branch`
 
-**Entry:** Gate 4 passed.
-**Exit:** epic branch integrated into `develop`.
+**Entry:** Gate 5 passed (user confirmed).
+**Exit:** epic branch integrated into `develop` and done tasks archived into `.devtool/epic/<epic_dir>/`.
 
 ## When a Gate Fails
 
@@ -134,6 +140,7 @@ If any condition fails, Gate 4 routes back to Stage 3 Phase 2 (`epic-implementat
 | 2 | Stage 2 — adjust the breakdown; only revisit Stage 1 if scope itself was wrong |
 | 3 | Stage 3 Phase 1 — reorder by hand; prose notes in task files outrank the calculator |
 | 4 | Stage 3 Phase 2 — fix findings in the worktree, then re-run `quality_check` in full |
+| 5 | Stage 3 Phase 2 — implement user-requested changes or fixes |
 
 Never advance on a partial pass, and never re-run only the previously failing check at Gate 4 —
 the 🟢 verdict must come from a complete run.
@@ -144,9 +151,10 @@ the 🟢 verdict must come from a complete run.
 - Merging several sub-project specs into one epic directory.
 - Creating a worktree or dispatching a subagent before Gate 3.
 - Merging to `develop` without a 🟢 from Gate 4.
+- Invoking `finishing-a-development-branch` without passing Gate 5 (explicit user sign-off after Kanban review).
+- Archiving tasks from `.devtool/features/done/` prematurely before Gate 5 user review.
 - Leaving a spec split across `docs/superpowers/specs/` and `.devtool/epic/<epic_dir>/`.
-- Leaving completed `task_*.md` files in `.devtool/features/done/` or draft specs in `docs/superpowers/` instead of archiving them into `.devtool/epic/<epic_dir>/`.
-
+- Leaving completed `task_*.md` files in `.devtool/features/done/` or draft specs in `docs/superpowers/` after branch integration.
 
 ## Stage Skills
 
@@ -154,6 +162,6 @@ the 🟢 verdict must come from a complete run.
 |-------|-------|------------------|
 | 1 | `brainstorming` | 1 |
 | 2 | `epic-designer` | 2 |
-| 3 | `epic-implementation` | 3, and triggers 4 |
+| 3 | `epic-implementation` | 3, triggers 4, and enforces 5 |
 | 3 (verification) | `quality_check` | 4 |
 | 4 | `finishing-a-development-branch` | — |

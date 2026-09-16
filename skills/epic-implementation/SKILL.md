@@ -47,9 +47,11 @@ flowchart TB
     phase2["Phase 2: one task\nd3nexus:subagent-driven-development\n(Tri-Persona TDD adapted to Platform)"]
     diverged{"Divergence\nfrom the HLD?"}
     phase3["Phase 3: Doc Sync\n(direct edits, no skill)"]
-    phase4["Phase 4: End of Epic Verification & Kanban Review\nquality_check (Platform 3-Tier + 4 Specialist Audits)\n-> Tasks visible in .devtool/features/done/ for Developer Review"]
+    phase4["Phase 4: End of Epic Verification\nquality_check (Platform 3-Tier + 4 Specialist Audits)"]
+    checkpoint4{"Phase 4.1 Checkpoint:\nUser Kanban Review & Sign-Off?\n(All tasks held in done/)"}
     phase5["Phase 5: Finish Branch & Archival\nd3nexus:finishing-a-development-branch\n(Pre-finish Hook: sync_task_status archive-done)"]
     style phase4 fill:green
+    style checkpoint4 fill:#ff9900,color:#000
     style phase5 fill:#4285f4,color:#fff
 
     phase0 --> phase1a
@@ -63,7 +65,9 @@ flowchart TB
     phase3 --> moretasks
     moretasks -- "yes, next task" --> phase2
     moretasks -- "no, epic done" --> phase4
-    phase4 --> phase5
+    phase4 --> checkpoint4
+    checkpoint4 -- "request changes" --> phase2
+    checkpoint4 -- "confirmed" --> phase5
 ```
 
 
@@ -71,6 +75,7 @@ flowchart TB
 
 1. Read, in full:
    - `.devtool/epic/<epic_dir>/<epic_dir>.en.md` (the canonical HLD — never `.vi.md` for decisions, that's a synced translation).
+   - `.devtool/epic/<epic_dir>/bdd_scenarios.md` (the canonical behavioral contract across the 5 dimensions, if present).
    - Every `.devtool/features/task_*.md` whose frontmatter `epic:` matches `<epic_slug>`.
    - Any spec file(s) linked from the HLD's Meta Data section.
 2. Resolve the two paths the rest of this skill uses. `SKILL_DIR` is the directory this
@@ -162,7 +167,13 @@ For each task in the confirmed order, follow `d3nexus:subagent-driven-developmen
    > # PHASE 1: BDD SCENARIOS & TIER CATEGORIZATION (The QA Persona)
    > ⚠️ **STRICT ADVERSARIAL INDEPENDENCE MANDATE (DECOUPLED FROM CODING)**:
    > - You MUST author BDD scenarios in complete isolation from coding.
-   > - Derive scenarios PURELY from the Epic's HLD specifications, Use Cases (flowchart), and Sequence Diagrams.
+   > - Derive scenarios PURELY from the Epic's HLD specifications, `bdd_scenarios.md`, Use Cases (flowchart), and Sequence Diagrams.
+   > - Exhaustively apply Boundary Value Analysis & Equivalence Partitioning across 5 dimensions:
+   >   1. **Happy Paths**: Normal data flow and standard successful outcomes.
+   >   2. **Edge Cases & Boundaries**: Null inputs, empty collections, malformed payloads, boundary numbers.
+   >   3. **State Transitions**: Valid and invalid state transitions (MVI Action -> State / Event).
+   >   4. **Async / Race Conditions**: Rapid consecutive user interactions (debouncing, stream transformers, cancellation).
+   >   5. **Failures & Storage/Network Resilience**: Timeouts, 4xx/5xx HTTP errors, offline states, corrupted storage/DB.
    > - Categorize each scenario:
    >   - `[Tier A - Unit]`: Class/function logic, BLoCs, UseCases, Repositories, Parsers, Guards.
    >   - `[Tier C - Integration]`: End-to-end flows, cross-module interactions, AppRoutes navigation, Tab switching, Auth Gating & Replay.
@@ -188,7 +199,7 @@ For each task in the confirmed order, follow `d3nexus:subagent-driven-developmen
    > 3. **System Integration & E2E Engineer (Tier C Persona)**: Implements host integration flow tests (`*FlowTest.kt` in `:app` / `:shell`).
    > 
    > Follow these phases sequentially:
-   > - **PHASE 1**: BDD Scenarios purely derived from HLD diagrams.
+   > - **PHASE 1**: BDD Scenarios purely derived from HLD diagrams and `bdd_scenarios.md`, exhaustively applying the 5 dimensions (Happy Paths, Edge Cases & Boundaries, State Transitions, Async / Race Conditions, Failures & Storage/Network Resilience) tagged with `[Tier A - Unit]` vs `[Tier C - Integration]`.
    > - **PHASE 2**: TDD Unit Implementation (RED failing test -> GREEN Kotlin code -> REFACTOR `./gradlew spotlessApply` + `./gradlew detekt`).
    > - **PHASE 3**: System Integration (`*FlowTest.kt`, cold/warm start, DFM split resolution, `./scripts/acceptance_check.sh`).
 
@@ -199,7 +210,7 @@ For each task in the confirmed order, follow `d3nexus:subagent-driven-developmen
    > 3. **System Integration & E2E Engineer (Tier C Persona)**: Implements host integration flow tests (`App/Tests` / `Shell/Tests`) wiring DI, `AppRoutes`, and RouteProvider registration.
    > 
    > Follow these phases sequentially:
-   > - **PHASE 1**: BDD Scenarios purely derived from HLD diagrams (`bdd_scenarios.md`).
+   > - **PHASE 1**: BDD Scenarios purely derived from HLD diagrams and `bdd_scenarios.md`, exhaustively applying the 5 dimensions (Happy Paths, Edge Cases & Boundaries, State Transitions, Async / Race Conditions, Failures & Storage/Network Resilience) tagged with `[Tier A - Unit]` vs `[Tier C - Integration]`.
    > - **PHASE 2**: TDD Unit Implementation (RED failing test: `swift test --package-path <Path>` -> GREEN Swift code -> REFACTOR `swiftformat --config quality/.swiftformat .`, `swiftlint lint --strict --config quality/.swiftlint.yml`, `bash scripts/check_module_boundaries.sh`, `swift test --package-path ArchTests`).
    > - **PHASE 3**: System Integration (`App/Tests`, RouteProvider registration, `tuist generate --no-open && xcodebuild test ...`).
 
@@ -244,14 +255,27 @@ The `@quality_check` skill automatically detects the platform and executes:
 - **Android**: Runs `./gradlew check :konsist-test:test apiCheck`, `./scripts/acceptance_check.sh`, the 4 Android semantic audits (`@security-audit`, `@architecture-audit`, `@android-ui-audit`, `@code-health-audit`), followed by `cleanup-java`.
 - **iOS**: Runs `swiftlint lint --strict`, `swiftformat --lint`, `check_module_boundaries.sh`, `swift test --package-path ArchTests`, simulator acceptance tests, and the 4 iOS semantic audits (`@security-audit`, `@architecture-audit`, `@ios-ui-audit`, `@code-health-audit`).
 
-### Phase 4.1 — Developer Kanban Review State
+### Phase 4.1 — Developer Kanban Review Checkpoint (🛑 MANDATORY STOP & WAIT — Gate 5)
 
 Once `@quality_check` reports 🟢 LGTM and all tasks are completed:
-- All completed `task_*.md` files remain in `.devtool/features/done/`.
-- The developer opens the Kanban dashboard to visually verify that 100% of tasks sit in the **DONE** column and all acceptance criteria are met.
-- Archival is deferred until `finishing-a-development-branch` executes the choice to merge or push a PR. This ensures that the developer has a dedicated inspection window and tasks do not vanish prematurely.
+1. **Preserve Kanban Visibility**: All completed `task_*.md` files MUST remain in `.devtool/features/done/`. Do NOT run archival or move them yet.
+2. **Present Executive Summary**: Output a clear summary to the user containing:
+   - Epic slug and worktree path.
+   - List of all completed tasks in `.devtool/features/done/`.
+   - The `@quality_check` verdict (3-Tier test results, 4 semantic audits, coverage matrix, Check 2 impact diff).
+3. 🛑 **MANDATORY STOP & WAIT**:
+   - The agent MUST STOP calling tools immediately.
+   - Do NOT proceed to Phase 5 or invoke `finishing-a-development-branch` automatically.
+   - Prompt the user explicitly:
+     > "All tasks for epic `<epic_slug>` are completed and `@quality_check` is **🟢 LGTM**.
+     > All task cards are currently visible in the **DONE** column on your Kanban dashboard for visual inspection.
+     > 
+     > Please review the completed tasks and code changes. When you are ready to proceed with branch integration and task archival, reply to proceed."
+4. **Wait for Gate 5 Confirmation**: Only proceed to Phase 5 when the user explicitly responds with approval (e.g., "proceed", "looks good", "finish branch"). If the user requests adjustments or fixes, route back to Phase 2.
 
 ### Phase 5 — Main Checkout Clean-up & Branch Finishing
+
+Only after the user explicitly approves Gate 5 at the Phase 4.1 Checkpoint:
 
 1. Because `sync_task_status.py` mirrored task file updates to the main workspace checkout (`$MAIN_ROOT/.devtool/features/`), before merging the branch into `<base_ref>`, clean the main checkout's working tree:
    ```bash
@@ -260,8 +284,8 @@ Once `@quality_check` reports 🟢 LGTM and all tasks are completed:
    ```
    Verify that `git -C "$MAIN_ROOT" status --porcelain` is 100% clean. This eliminates working tree collision errors when git checkout/merge executes.
 
-2. Once `@quality_check` reports **🟢 LGTM (All checks passing)** and the developer has reviewed the Kanban board, invoke `d3nexus:finishing-a-development-branch` on the epic branch (base = `develop`).
-   When the developer selects **Option 1 (Merge Locally)** or **Option 2 (Push & Create PR)**, `finishing-a-development-branch` automatically executes the **Pre-Finish Archival Hook**:
+2. Invoke `d3nexus:finishing-a-development-branch` on the epic branch (base = `develop`).
+   When the user selects **Option 1 (Merge Locally)** or **Option 2 (Push & Create PR)**, `finishing-a-development-branch` automatically executes the **Pre-Finish Archival Hook**:
    ```bash
    python3 skills/epic-implementation/resources/scripts/sync_task_status.py archive-done
    ```
@@ -272,6 +296,7 @@ Once `@quality_check` reports 🟢 LGTM and all tasks are completed:
    - Cleans up `.devtool/features/done/` (leaving only `.gitkeep`).
    - Relocates any related specs or plans in `docs/superpowers/specs/` or `docs/superpowers/plans/` into `.devtool/epic/<epic_dir>/`.
    - Commits the archival to the branch before proceeding with merge or PR creation.
+   If the user selects **Option 3 (Keep As-Is)**, tasks remain in `.devtool/features/done/` for ongoing inspection.
 
 
 ## Quick Reference
@@ -306,12 +331,15 @@ Once `@quality_check` reports 🟢 LGTM and all tasks are completed:
 **Leaving `status` at `todo` while a task is actually running** — the dashboard should show `in-progress` the moment you dispatch the implementer and `review` the moment reviewers are dispatched, cycling between the two through any fix rounds, all updated live on disk with no commit of their own; only the final `done` flip rides along with the task's single commit. The board's real columns are `backlog | todo | in-progress | review | done` — do not invent a `blocked` or `in-review` value that isn't one of these five; a stalled task just stays at `in-progress`.
 
 ## Red Flags
+- Manually editing task frontmatter status instead of using `sync_task_status.py`, causing Kanban desynchronization across checkouts.
 - Committing before updating the task file's frontmatter.
 - Creating a worktree per task or dispatching concurrent implementation subagents without disjoint contracts.
 - Skipping the Phase 1 confirmation checkpoint before touching git.
 - Running cross-platform commands inappropriately (e.g., Gradle on Flutter/iOS, Melos on Android/iOS, Tuist/Swift on Flutter/Android).
 - Merging to `develop` without passing `@quality_check` (🟢 LGTM).
-- Leaving completed `task_*.md` files in `.devtool/features/done/` after epic completion instead of archiving them into `.devtool/epic/<epic_dir>/`.
+- Automatically invoking `finishing-a-development-branch` without stopping at Phase 4.1 and waiting for user Gate 5 approval.
+- Archiving tasks from `.devtool/features/done/` before the user has reviewed them on the Kanban dashboard.
+- Leaving completed `task_*.md` files in `.devtool/features/done/` after branch integration instead of archiving them into `.devtool/epic/<epic_dir>/`.
 
 ## Integration
 
