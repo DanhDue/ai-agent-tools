@@ -221,6 +221,55 @@ Three rounds of Gate 2 on a six-section document is not a sign the gate is too s
 measurement: one author, writing carefully, produced defects in two consecutive attempts, and the
 mechanical half of the gate reported clean every single time.
 
+### Round three — an ordering that merges before it verifies
+
+Two findings, one of them worse than either previous round.
+
+**The one-plan route told the reader to merge unverified code.** The page said to run the executor,
+then "finish with `quality_check` and `finishing-a-development-branch`". But both executors call
+`finishing-a-development-branch` **themselves**, as their terminal step, and neither mentions
+`quality_check` at all — zero occurrences in either file. Following the page literally, the branch is
+merged or PR'd *before* the quality gate ever runs. That is the exact outcome
+`rules/CRITICAL_RULES.md` and `dev-lifecycle`'s Gate 4 exist to prevent, and the page was routing
+people into it.
+
+**A gate-worthy one-page document had no destination.** The threshold was written as "enough sections
+that a reviewer could accept some and reject others", with two shortcuts below it: a single ADR, and
+"anything smaller". A one-page runbook — `doc-lifecycle`'s own worked example — is neither
+multi-section nor an ADR, so it fell into "anything smaller", which says skip every lifecycle. The
+too-small section's own test ("can you imagine a reviewer rejecting it") then said the opposite. The
+skill does not have this gap: its exclusion list ends with a **residual** test rather than a size
+comparison. The page had replaced the residual with a size word and lost a case.
+
+### A process gap in this run, found by the gate
+
+The audit also observed that **no `Diátaxis mode` Meta Data existed on disk for this document**. The
+type, audience and Acceptance criterion had been decided and stated in prose, but never written into
+the artefact `doc-designer` specifies. `doc_quality_check` Check 2 reads the declared mode "from its
+Meta Data" — so the next person to re-run Gate 2 would have had nothing to read, and Check 2 would
+have been unrunnable rather than passing.
+
+This is worth naming plainly: **the Stage 1 steps were followed and the Stage 1 artefact was not
+produced.** Fixed by writing
+[`.devtool/epic/choosing_a_lifecycle/choosing_a_lifecycle.en.md`](../epic/choosing_a_lifecycle/choosing_a_lifecycle.en.md)
+and its `.vi.md`.
+
+### Incidental: three skills carried a stale gate count
+
+`dev-lifecycle`'s description said "the four approval gates" while its own table says five, and
+`dev-designer` and `dev-implementation` repeated it. Pre-existing drift from when Gate 5 was added,
+unrelated to this epic, corrected in passing.
+
+### The measurement after three rounds
+
+| | Rounds run | Rounds clean | Defects found |
+|---|---|---|---|
+| Mechanical (`check_document.py`, `verify.sh`) | 4 | **4** | 0 |
+| Semantic (content audit) | 3 | 0 | 9 |
+
+The mechanical half was right every time — nothing mechanical was ever wrong. It is simply not the
+half that catches a document routing people into an unverified merge.
+
 **Two honest limitations of this run:**
 
 1. **Gates 1 and 3 were self-approved.** Both are human approvals by design. Running them against
