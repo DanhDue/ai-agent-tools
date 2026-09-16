@@ -37,6 +37,29 @@ across them is expensive.
 **This is a breaking change.** `/d3nexus:epic-lifecycle` stops working, as do per-project
 `AGENTS.md` files naming the old skills.
 
+### Self-modification hazard — read before starting
+
+**This task renames the skill that is executing it.** `epic-implementation` runs this epic, and
+Task 2 renames `skills/epic-implementation/`.
+
+The running skill itself is safe: it is loaded from the installed plugin cache, not from the working
+tree. **The Kanban scripts are not.** They are invoked by repository-relative path, and there are
+**35 live call sites across four files**:
+
+| File | Call sites |
+|---|---|
+| `skills/epic-implementation/SKILL.md` | 15 |
+| `skills/finishing-a-development-branch/SKILL.md` | 5 |
+| `skills/epic-designer/SKILL.md` | 2 |
+| The scripts' own self-referential docstrings | the remainder |
+
+The moment this task renames the directory, every status update in Tasks 3–10 points at a path that
+no longer exists. **The breakage lands mid-epic, not after it.**
+
+**Therefore: the directory rename and every one of those 35 call sites land in the same commit, and
+one real status-update cycle is executed before Task 3 starts.** Splitting them across commits
+leaves the repository in a state where the epic cannot record its own progress.
+
 ## Relevant Files & Context Pointers
 
 Measured live surface — **19 files**. The source spec estimated 18 and omitted `hooks/` and
@@ -101,6 +124,15 @@ Scenario: The runtime script path survives the rename  # [Tier C - Integration]
 ```
 
 ```gherkin
+Scenario: The Kanban board still works immediately after the rename  # [Tier C - Integration]
+  Given the epic-implementation directory has just been renamed
+  When a task status is updated through sync_task_status.py
+  Then the invocation resolves to the renamed path
+  And the task file moves as expected
+  And no call site anywhere still names the old path
+```
+
+```gherkin
 Scenario: Historical records are left alone  # [Tier B - Governance]
   Given files under .devtool/ that name the old skills
   When the rename is complete
@@ -123,8 +155,11 @@ prove the new state, prove nothing else moved".
 
 - [ ] **Before**: record `git grep -l` counts for the three old names across live paths.
 - [ ] `git mv` the three directories; update the 19 live files.
+- [ ] Update **all 35 call sites** of the Kanban scripts in the same commit as the directory rename.
 - [ ] Fix `finishing-a-development-branch/SKILL.md:109-112` and **execute** that probe logic against
       the renamed tree to confirm it takes the primary branch, not the fallback.
+- [ ] **Run one real status-update cycle** — move a task to `in-progress` and back — before Task 3
+      starts. This is the proof that the epic can still record its own progress.
 - [ ] Update `hooks/session-start`; re-run `scripts/verify.sh` step 6 (hook JSON, both runtimes).
 - [ ] Confirm each renamed skill's `description:` still contains "epic".
 - [ ] **Tier A**: `verify.sh` steps 1–4 pass, including name/directory agreement.
@@ -136,6 +171,8 @@ prove the new state, prove nothing else moved".
 - Three directories renamed via `git mv`; all 19 live files updated; zero live occurrences of the
   old names outside `.devtool/` and CHANGELOG history.
 - The archival path probe demonstrably resolves post-rename.
+- All 35 Kanban-script call sites updated in the same commit, and one real status-update cycle
+  executed successfully against the renamed tree.
 - `hooks/session-start` updated and its JSON still valid for both runtimes.
 - CHANGELOG marks 1.2.0 breaking. `scripts/verify.sh` passes in full. Clean git status.
 
