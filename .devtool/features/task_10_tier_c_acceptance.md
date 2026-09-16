@@ -1,13 +1,13 @@
 ---
 id: "task_10_tier_c_acceptance"
-status: "in-progress"
+status: "done"
 priority: "high"
 assignee: null
 epic: "document_lifecycle_suite"
 dueDate: null
 created: "2026-09-17T09:00:00Z"
-modified: "2026-09-16T19:01:35Z"
-completedAt: null
+modified: "2026-09-16T19:18:33Z"
+completedAt: "2026-09-16T19:18:33Z"
 labels: ["integration", "acceptance", "evals"]
 order: "a10"
 ---
@@ -357,3 +357,42 @@ a how-to guide, and inlining it would break the discipline this epic just shippe
 `done/` is empty with all eleven tasks still in `.devtool/features/`. The move appears to happen at
 `archive-done` instead. Either the prose or the script is wrong. Out of scope here, and recorded so
 the next person does not rediscover it.
+
+### Round five — 🟢 Approved
+
+Gate 2 passed. The auditor traced every instruction through the named skill's control flow, including
+the two chains most likely to strand a reader: `doc-designer` → `doc-implementation` →
+`finishing-a-development-branch`, and the one-plan code route. Both run to a finished branch. The
+option-3 recovery path was verified end to end — Option 3 preserves branch *and* worktree,
+`quality_check` runs against the working tree and its cleanup does not remove the worktree, and
+re-invoking `finishing-a-development-branch` re-presents the menu. The advice produces what it
+promises.
+
+**Final defect count: 4 → 3 → 2 → 1 → 0.**
+
+### Advisories deliberately not applied
+
+Five advisories came back, none blocking. They are **not** applied, and the reason is the same rule
+this task spent four rounds demonstrating: a fix is new, unreviewed work. Applying five edits after
+approval and shipping without another audit would contradict the principle that the preceding rounds
+established at some cost. The approved version is the version that ships.
+
+Logged for a follow-up pass:
+
+1. **"Pick option 3"** is true in a normal repo; in a **detached-HEAD** workspace
+   `finishing-a-development-branch` presents only two options and "keep as-is" is option 2. The
+   document names the label as well as the number, so a reader recovers — prefer the label.
+2. **`executing-plans` is internally inconsistent.** Its procedure body runs straight through, but its
+   own frontmatter says "with review checkpoints" and `writing-plans` advertises it the same way. The
+   document is right about the behaviour; the kit disagrees with itself. **This is a real defect in
+   `executing-plans`, not in the document.**
+3. **"bumping a version"** overlaps `brainstorming`'s anti-pattern, which names a config change as
+   still needing a short design. Narrow it to "bumping a version string".
+4. **`writing-skills` is never named**, and for this repository editing a skill is the most common
+   piece of work there is. Nobody is stranded — the page's own test routes a skill edit to the
+   document branch — but a one-line pointer would close it for the stated audience.
+5. **After fixing `quality_check` findings, say "re-run it in full"**, matching the rule both quality
+   gates already carry.
+
+Item 2 is the one worth acting on soonest: it is a contradiction inside a shipped skill, found only
+because a document had to describe that skill accurately.
