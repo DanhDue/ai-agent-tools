@@ -8,6 +8,47 @@
 
 ---
 
+## 0. Amendments after Gate 1
+
+> [!IMPORTANT]
+> **This document has been edited since it was approved.** What follows is the current design; the
+> version the user approved at Gate 1 is commit `40f796d`. The changes below were decided during
+> implementation, not during brainstorming, and they are listed here so the spec cannot be mistaken
+> for a record of what was originally agreed.
+
+**The architectural change.** The approved design put a `Kind` branch **inside `quality_check`**, on
+the reasoning that it left `rules/CRITICAL_RULES.md` untouched. During Task 6 the user asked whether
+the documentation gate should be a separate skill instead, so the skills would not couple and stay
+maintainable apart. It became the standalone **`doc_quality_check`**, `quality_check` was left
+byte-identical, and `CRITICAL_RULES.md` was amended after all.
+
+**This decision never went through brainstorming.** It was taken in a two-message exchange
+mid-execution. The reasoning is recorded in
+[`../../../docs/adr/0001-separate-quality-gate-for-documentation.md`](../../../docs/adr/0001-separate-quality-gate-for-documentation.md),
+including the two rejected alternatives and the negative consequences. It is the most consequential
+decision in the epic and the one with the least process behind it.
+
+**Every section it touched:**
+
+| Section | Approved at Gate 1 | Now |
+|---|---|---|
+| §2, Goal 4 | `rules/CRITICAL_RULES.md` is not edited | `skills/quality_check/SKILL.md` is not edited; a Goal 5 on decoupling was added |
+| §3.1, diagram | `quality_check` branches on `Kind` | a gate chosen by the kind of work |
+| §3.3, gate table | Gate 2 approved by `quality_check` | Gate 2 approved by `doc_quality_check` |
+| §4.1, Stage 2 | Gate 2 is `quality_check` with `Kind: document` | Gate 2 is `doc_quality_check` |
+| §4.1, gate failure | re-run `quality_check` in full | re-run `doc_quality_check` in full |
+| §4.4 | a `Kind` branch inside `quality_check` | a new standalone skill *(already marked in place)* |
+| §6.1 | `quality_check` refuses the document path | `doc_quality_check` refuses the job |
+| §9, out of scope | any change to `rules/CRITICAL_RULES.md` | any change to `skills/quality_check/SKILL.md` |
+
+**A separate correction, made for a different reason.** §4.5's ADR rules were corrected in Task 1
+after the primary sources were fetched: the section order was wrong, and the rejected-alternatives
+rule had been **attributed to Nygard**, whose 2011 article does not mention it. That change
+fixed an error in the approved spec rather than changing the design. Evidence:
+[`source_fidelity_review.md`](source_fidelity_review.md).
+
+---
+
 ## 1. Problem
 
 The kit assumes every unit of work ends in a compiled, tested artifact. Three places hard-code that
