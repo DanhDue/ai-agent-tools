@@ -1,6 +1,6 @@
 ---
 name: doc-implementation
-description: Use when a document already has an approved brief, outline and section task files and you need to actually write it — one worktree, one section at a time, one commit per section. It enforces Gate 2 by handing the draft to doc_quality_check, and holds Gate 3 for the user's sign-off. Activate it at Stage 2 of the document lifecycle, after doc-designer's breakdown has been confirmed.
+description: Drafts an approved document outline section by section — one worktree, one commit per section, the outline kept truthful. Hands the draft to doc_quality_check at Gate 2 and holds Gate 3 for sign-off. Use it at Stage 2 of the document lifecycle.
 ---
 
 # Document Implementation

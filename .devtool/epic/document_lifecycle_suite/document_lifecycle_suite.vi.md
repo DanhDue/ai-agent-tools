@@ -281,6 +281,7 @@ trên mọi máy đã cài plugin.
 | 8 | [`decision-records` Skill (ADR + Spike Report)](task_8_decision_records_skill.md) | Nygard five-section format, immutability, rejected alternatives, negative consequences | 1 |
 | 9 | [Two New `verify.sh` Checks](task_9_verify_sh_orphan_and_rename_checks.md) | Orphan check (SKILL.md exempt) and rename completeness; each proven by defect injection | 2 |
 | 10 | [Tier C — End-to-End Acceptance](task_10_tier_c_acceptance.md) | One real document through all three gates; evals ablation; full verify.sh; README + CHANGELOG | 3–9 |
+| 11 | [Áp dụng progressive disclosure cho các skill mới](task_11_progressive_disclosure_cleanup.md) | Cắt 5 description về gần mức trung bình của kit; chuyển trích dẫn nguồn sang `references/`, giữ mọi luật ở lại SKILL.md | 3–8 |
 
 File task được mirror sang `.devtool/features/` làm bảng Kanban đang chạy. Không có epic nào
 khác đang có task hoạt động, nên mọi task được tạo với `status: todo`.

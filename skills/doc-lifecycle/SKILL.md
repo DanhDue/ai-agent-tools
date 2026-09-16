@@ -1,6 +1,6 @@
 ---
 name: doc-lifecycle
-description: Use this skill to orchestrate work whose deliverable is a document rather than code — a runbook, a handbook, an onboarding guide, a research write-up, a set of reference pages. It owns the sequence and the three approval gates connecting brainstorming, doc-designer, doc-implementation and quality_check, and it is the document-side sibling of dev-lifecycle. Activate it when the finished artefact is prose someone will read, when a document spans enough sections to need a breakdown, or whenever it is unclear which document stage the work is currently in.
+description: Orchestrates work whose deliverable is a document rather than code — a runbook, handbook, onboarding guide or set of reference pages. Owns the sequence and the three approval gates connecting doc-designer, doc-implementation and doc_quality_check. Use it when a document spans enough sections to need a breakdown.
 ---
 
 # Document Lifecycle

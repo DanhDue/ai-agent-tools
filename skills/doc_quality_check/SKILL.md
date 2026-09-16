@@ -1,6 +1,6 @@
 ---
 name: doc_quality_check
-description: Quality gate for work whose deliverable is a document — runbooks, handbooks, guides, reference pages, research write-ups. Runs mechanical checks, Diátaxis type conformance and a content audit, and refuses outright if the change touches files that ship in the build. Use it in place of quality_check whenever the deliverable is prose, and at Gate 2 of the document lifecycle.
+description: Quality gate for documentation. Runs mechanical checks, Diátaxis type conformance and a content audit, and refuses outright if the change touches files that ship in the build. Use it in place of quality_check whenever the deliverable is prose.
 ---
 
 # Document Quality Check

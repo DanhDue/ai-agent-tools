@@ -1,6 +1,6 @@
 ---
 name: doc-designer
-description: Use when turning a document request into a brief, an outline and a section-by-section task breakdown — for runbooks, handbooks, onboarding guides, reference pages or research write-ups. It establishes who the document is for, classifies it into exactly one Diátaxis type, and enforces Gate 1 of the document lifecycle. Activate it at the start of any documentation work large enough that a reviewer could accept some sections and reject others.
+description: Turns a document request into a brief, an outline and one task per section. Establishes who the document is for, classifies it into exactly one Diátaxis type, and enforces Gate 1 of the document lifecycle. Use it at the start of any documentation work large enough to break down.
 ---
 
 # Document Designer
@@ -56,32 +56,26 @@ and **acquisition or application?**
 | informs cognition | application of skill | **reference** |
 | informs cognition | acquisition of skill | **explanation** |
 
-| Type | Orientation | What it is |
-|---|---|---|
-| Tutorial | learning-oriented | "An *experience* that takes place under the guidance of a tutor" |
-| How-to guide | goal-oriented | "directions that guide the reader through a problem or towards a result" |
-| Reference | information-oriented | "technical descriptions of the machinery and how to operate it" |
-| Explanation | understanding-oriented | "a discursive treatment of a subject, that permits *reflection*" |
+| Type | Orientation |
+|---|---|
+| Tutorial | learning-oriented |
+| How-to guide | goal-oriented |
+| Reference | information-oriented |
+| Explanation | understanding-oriented |
+
+The author's own definitions of each type: [`references/diataxis-source.md`](references/diataxis-source.md).
 
 **If the material spans more than one type, split it into more than one document — one per type —
 and link between them.** This is a procedure step, not advice. An agent asked for "a guide" produces
 a blend by default, and advice does not stop a default. The result of a blend is a document that is
 part tutorial, part reference, part explanation, and serves nobody.
 
-The author states the exclusion separately for each type:
-
-- **Tutorial** — "*A tutorial is not the place for explanation.*" "Ruthlessly minimise explanation."
-- **How-to guide** — "no digression, explanation, teaching." A recipe does not teach you to cook.
-- **Reference** — resist introducing instruction and explanation; "Instead, **link to** how-to
-  guides, explanation and introductory tutorials."
-- **Explanation** — do not let instruction or technical description creep in; it "interferes with
-  the explanation itself, and removes them from view in the correct place."
+The author states this exclusion separately for **all four** types — it is his rule, not an
+inference from it. The four passages are quoted in
+[`references/diataxis-source.md`](references/diataxis-source.md).
 
 Note the remedy is to **relocate and link**, never to delete. The other material belongs elsewhere,
 not nowhere.
-
-Full quotations and their sources:
-[`source_fidelity_review.md`](../../.devtool/epic/document_lifecycle_suite/source_fidelity_review.md).
 
 ### Step 3 — Write the outline
 

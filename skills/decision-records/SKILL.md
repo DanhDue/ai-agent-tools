@@ -1,6 +1,6 @@
 ---
 name: decision-records
-description: Use when a technical decision has been made and needs recording, or when a research spike has produced a recommendation. Writes Architecture Decision Records in Michael Nygard's format and spike reports that state what would refute them. Activate it whenever someone asks why a choice was made, when a decision is being reversed, or after any investigation whose output is a recommendation rather than code.
+description: Writes Architecture Decision Records in Michael Nygard's format, and spike reports that state what would refute them. Use it when a technical decision needs recording, when one is being reversed, or after an investigation that produced a recommendation.
 ---
 
 # Decision Records
@@ -29,27 +29,23 @@ piece of work.
 
 ## Architecture Decision Records
 
-Grounded in **Michael Nygard, *Documenting Architecture Decisions* (2011)**. Quotations and their
-sourcing:
-[`source_fidelity_review.md`](../../.devtool/epic/document_lifecycle_suite/source_fidelity_review.md).
+Grounded in **Michael Nygard, *Documenting Architecture Decisions* (2011)**. His wording for every
+rule below: [`references/adr-source.md`](references/adr-source.md).
 
 ### The format, in the author's section order
 
 | Section | What it holds |
 |---|---|
-| **Title** | "short noun phrases" |
-| **Context** | "describes the forces at play", in language that is "value-neutral" |
-| **Decision** | "our response to these forces… stated in full sentences, with active voice" |
+| **Title** | A short noun phrase |
+| **Context** | The forces at play, described in value-neutral language |
+| **Decision** | The response to those forces, in full sentences and active voice |
 | **Status** | `proposed`, `accepted`, `deprecated` or `superseded` |
-| **Consequences** | "describes the resulting context, after applying the decision" |
+| **Consequences** | The resulting context, after applying the decision |
 
 Note where `Status` sits: **fourth, after Decision**. Reordering an author's template while citing
 him for it is a small dishonesty that costs nothing to avoid.
 
 ### Rule 1 — one decision per record, immutable once accepted
-
-Nygard: *"If a decision is reversed, we will keep the old one around, but mark it as superseded…
-It's still relevant to know that it* was *the decision, but is* no longer *the decision."*
 
 An accepted record is **never edited**. A reversal is a new record that supersedes it by number.
 This is the whole difference between an ADR and a wiki page: a wiki page always agrees with the
@@ -69,11 +65,7 @@ Legal transitions:
 
 ### Rule 2 — all consequences, not just the good ones
 
-Nygard: *"All consequences should be listed here, not just the 'positive' ones. A particular decision
-may have positive, negative, and neutral consequences, but all of them affect the team and project
-in the future."*
-
-Three categories, not two. A record whose consequences are all benefits is a sales pitch, and it
+Three categories — positive, negative **and neutral** — not two. A record whose consequences are all benefits is a sales pitch, and it
 will be read as one.
 
 ### Rule 3 — the alternatives that lost, and why

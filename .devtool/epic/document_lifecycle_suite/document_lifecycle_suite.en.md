@@ -278,6 +278,7 @@ project on every machine that has the plugin installed.
 | 8 | [`decision-records` Skill (ADR + Spike Report)](task_8_decision_records_skill.md) | Nygard five-section format, immutability, rejected alternatives, negative consequences | 1 |
 | 9 | [Two New `verify.sh` Checks](task_9_verify_sh_orphan_and_rename_checks.md) | Orphan check (SKILL.md exempt) and rename completeness; each proven by defect injection | 2 |
 | 10 | [Tier C — End-to-End Acceptance](task_10_tier_c_acceptance.md) | One real document through all three gates; evals ablation; full verify.sh; README + CHANGELOG | 3–9 |
+| 11 | [Apply progressive disclosure to the new skills](task_11_progressive_disclosure_cleanup.md) | Trim the five descriptions toward the kit mean; move quoted source material into `references/`, keeping every rule inline | 3–8 |
 
 Task files are mirrored in `.devtool/features/` as the live Kanban board. No other epic
 has an active task, so every task is created with `status: todo`.
