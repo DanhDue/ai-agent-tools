@@ -228,7 +228,8 @@ A single new decision at the **entry point**, above all existing tier tables. `K
 1. **Mechanical.** No `TBD`/`TODO`/placeholder text; every internal link resolves; ToC anchors match
    their headings; mermaid blocks parse; fenced code samples are syntactically valid. The first
    three are already stated as release requirements in this repository's `CLAUDE.md` — reuse that
-   wording rather than inventing a second version of it.
+   wording rather than inventing a second version of it. The placeholder scan must skip code spans
+   and fenced blocks, or it fires on any document that documents the check — as this spec does.
 2. **Diátaxis conformance.** Does the document stay inside its declared mode? Mode-mixing is a
    finding.
 3. **Content audit (subagent).** Generalize `skills/brainstorming/spec-document-reviewer-prompt.md`
