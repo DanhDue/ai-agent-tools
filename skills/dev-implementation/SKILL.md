@@ -3,7 +3,7 @@ name: dev-implementation
 description: Use when an epic already has an approved HLD and Kanban task files (`.devtool/epic/<epic_dir>/` + `.devtool/features/task_*.md`) and you need to actually execute those tasks against the codebase, in the right order, inside an isolated worktree across Android Native, Flutter, or iOS Native projects.
 ---
 
-# Epic Implementation
+# Development Implementation
 
 ## Overview
 

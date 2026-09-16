@@ -3,7 +3,7 @@ name: dev-lifecycle
 description: Use this skill to orchestrate epic-scale work from idea to merged branch. It owns the sequence and the four approval gates connecting brainstorming, dev-designer, dev-implementation, and quality_check — which skill runs next, what each stage must hand over, and what to do when a gate fails. Activate it when a request spans multiple components or needs an HLD plus a Kanban task breakdown, when routing an approved spec, or whenever it is unclear which epic stage the work is currently in.
 ---
 
-# Epic Lifecycle
+# Development Lifecycle
 
 The orchestrator for epic-scale work. It owns **sequence and gates only** — each stage's *how*
 stays in that stage's own skill. If you need to know how to run a stage, open its skill; if you

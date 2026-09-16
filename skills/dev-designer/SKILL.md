@@ -3,7 +3,7 @@ name: dev-designer
 description: Use when analyzing high-level requirements to design a complete software Epic across Android Native, Flutter, or iOS Native projects, including High-Level Design (HLD), Mermaid diagrams, and Kanban task breakdowns with BDD & TDD specifications.
 ---
 
-# Epic Designer
+# Development Designer
 
 ## Overview
 This skill transforms high-level product or technical requirements into a structured, developer-ready Epic for **Android Native**, **Flutter**, and **iOS Native** projects. It creates a centralized High-Level Design (HLD) document and breaks the work down into granular Kanban tasks enforcing Behavior-Driven Development (BDD), Test-Driven Development (TDD), and strict Definition of Done (DoD), fully aligned with `dev-implementation`'s Tri-Persona workflow (QA Red Team + TDD Master + System Integration Engineer).
