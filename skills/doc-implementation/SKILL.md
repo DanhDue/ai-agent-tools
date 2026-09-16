@@ -122,7 +122,7 @@ On any failure, fix and re-run **in full**. A 🟢 assembled from a partial re-r
 ### Phase 4.1 — Gate 3 sign-off (🛑 mandatory stop)
 
 With Gate 2 green, **stop calling tools.** Leave every completed task in `.devtool/features/done/`
-so the board is inspectable, present the draft and the `quality_check` verdict, and wait:
+so the board is inspectable, present the draft and the `doc_quality_check` verdict, and wait:
 
 > "The `<doc_slug>` document is drafted and `doc_quality_check` is 🟢. All sections are visible in the
 > DONE column. Please review the document. Reply to proceed with branch finishing and archival."

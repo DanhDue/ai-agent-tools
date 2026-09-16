@@ -13,7 +13,7 @@ Answer one question: **what will exist when you are finished?**
 | A decision about what to build at all | [If you do not know what to build yet](#if-you-do-not-know-what-to-build-yet) |
 
 If two of those look true at once, pick by the **build**: if any file that ships is changing, it is
-code work, however much prose you also write. `doc_quality_check` enforces this and will refuse the
+code work, however much prose you also write. `d3nexus:doc_quality_check` enforces this and will refuse the
 document path outright.
 
 If the whole job is smaller than a review, skip to
@@ -28,14 +28,16 @@ run `d3nexus:dev-lifecycle`. It takes you through five gates: spec, task breakdo
 `quality_check`, and your own sign-off before the branch is finished.
 
 **One component, one plan** — run `d3nexus:brainstorming`, then `d3nexus:writing-plans`. This leaves
-the epic lifecycle and its remaining gates do not apply.
+the epic lifecycle; its remaining gates do not apply. You still cross two: `brainstorming` will not
+let you start without an approved design, and it asks you to review the written spec before
+planning.
 
 Either way, finish with `d3nexus:quality_check` and `d3nexus:finishing-a-development-branch`.
 
 ## If you are writing a document
 
 Run `d3nexus:doc-lifecycle` when the document has enough sections that a reviewer could accept some
-and reject others. It takes you through three gates: brief and outline, `doc_quality_check`, and
+and reject others. It takes you through three gates: brief and outline, `d3nexus:doc_quality_check`, and
 your sign-off.
 
 Two shortcuts sit below that threshold:
@@ -66,10 +68,11 @@ Two signs you are in this case and should stop where you are:
 Do it. Commit it. Skip every lifecycle on this page.
 
 Concretely: a typo, a broken link, a one-line correction, bumping a version, a comment. The test is
-whether you can imagine a reviewer rejecting it. If you cannot, there is nothing for a gate to do.
+whether you can imagine a reviewer rejecting it. If you cannot, there is no breakdown to approve and
+no outline to agree, so the **lifecycle gates** have nothing to do.
 
-You still run a quality gate afterwards — `d3nexus:quality_check` for code,
-`d3nexus:doc_quality_check` for prose. That rule has no size exemption.
+The **quality gate** is a different thing and you still run it — `d3nexus:quality_check` for code,
+`d3nexus:doc_quality_check` for prose. Skipping a lifecycle is not skipping verification.
 
 ## Handing off between lifecycles
 
@@ -84,8 +87,14 @@ You will sometimes start in the wrong one. These are the three moves that keep y
 tasks stay together.
 
 **Code back to discovery.** If a spec turns out to rest on an unvalidated assumption, stop and run
-`d3nexus:lean-product-lifecycle`. Carry the context you already gathered so Stage 1 does not start
-cold.
+`d3nexus:lean-product-lifecycle`. Unlike the other two moves there is no artefact waiting for it, so
+make one: write what you already know — the segment, the need, the evidence you have and the evidence
+you are missing — into `.devtool/product/<slug>/01_problem_space_spec.md` before you start. That file
+is what `lean-product-lifecycle` looks for on invocation; without it you will be taken through Stage 1
+from scratch, which is the one thing this move exists to avoid.
+
+Leave the epic directory and its `task_*.md` files where they are. If the assumption survives
+discovery you will come back to them; if it does not, they are the record of what you did not build.
 
 One rule holds across all three: **never merge two specs into one epic.** Each keeps its own
 spec → design → implementation lineage.
