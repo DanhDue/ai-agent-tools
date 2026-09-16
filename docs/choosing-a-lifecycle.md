@@ -32,11 +32,16 @@ the epic lifecycle; its remaining gates do not apply. You still cross two: `brai
 let you start without an approved design, and it asks you to review the written spec before
 planning.
 
-**On the one-plan route, something has to execute the plan.** `writing-plans` produces a document,
-not code. Run `d3nexus:subagent-driven-development` (recommended) or `d3nexus:executing-plans` on it
-before you go near a quality gate. The epic route does this for you inside `dev-implementation`.
+**On the one-plan route, something has to execute the plan, and you have to verify before it
+finishes.** `writing-plans` produces a document, not code. Run `d3nexus:subagent-driven-development`
+(recommended) or `d3nexus:executing-plans` on it.
 
-Either way, finish with `d3nexus:quality_check` and `d3nexus:finishing-a-development-branch`.
+> Both executors call `d3nexus:finishing-a-development-branch` themselves as their last step, and
+> **neither runs `quality_check`**. Run `d3nexus:quality_check` while the executor is still working —
+> once it reaches its finish step your branch is merged or PR'd, verified or not.
+
+The epic route needs none of this: `dev-implementation` drives the executor, holds `quality_check` at
+Gate 4 and your sign-off at Gate 5, and only then finishes the branch.
 
 ## If you are writing a document
 
@@ -44,14 +49,17 @@ Run `d3nexus:doc-lifecycle` when the document has enough sections that a reviewe
 and reject others. It takes you through three gates: brief and outline, `d3nexus:doc_quality_check`, and
 your sign-off.
 
-Two shortcuts sit below that threshold:
+A one-section document still belongs here if a reviewer would genuinely gate it — a runbook people
+will follow under pressure is worth a brief and an outline even at one page. The test is whether you
+can imagine rejecting it, not how long it is.
+
+Two cases sit below that threshold:
 
 - **A single architecture decision or spike report** — run `d3nexus:decision-records` directly and
-  commit the record. Do not open gates around one file.
-- **Anything smaller** — see [If the work is too small](#if-the-work-is-too-small).
-
-A *batch* of records produced or backfilled as one piece of work is different: that does belong in
-`d3nexus:doc-lifecycle`.
+  commit the record. Do not open gates around one file. A *batch* of records produced or backfilled
+  as one piece of work is different: that does belong in `d3nexus:doc-lifecycle`.
+- **A change no reviewer would meaningfully gate** — see
+  [If the work is too small](#if-the-work-is-too-small).
 
 If you do not yet know what the document should say — a strategy piece, a proposal, an argument you
 have not finished having — run `d3nexus:brainstorming` first, then come back.
@@ -108,6 +116,10 @@ cold.
 
 Leave the epic directory and its `task_*.md` files where they are. If the assumption survives
 discovery you will come back to them; if it does not, they are the record of what you did not build.
+
+One consequence to expect: while those tasks sit at `todo`, `in-progress` or `review`, the
+Concurrent-Epic Backlog Rule treats that epic as active, so every task of the *next* epic is created
+as `status: "backlog"` and someone has to flip them by hand.
 
 One rule holds across all three: **never merge two specs into one epic.** Each keeps its own
 spec → design → implementation lineage.
