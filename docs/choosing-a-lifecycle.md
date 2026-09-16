@@ -31,3 +31,18 @@ run `d3nexus:dev-lifecycle`. It takes you through five gates: spec, task breakdo
 the epic lifecycle and its remaining gates do not apply.
 
 Either way, finish with `d3nexus:quality_check` and `d3nexus:finishing-a-development-branch`.
+
+## If you are writing a document
+
+Run `d3nexus:doc-lifecycle` when the document has enough sections that a reviewer could accept some
+and reject others. It takes you through three gates: brief and outline, `doc_quality_check`, and
+your sign-off.
+
+Two shortcuts sit below that threshold:
+
+- **A single architecture decision or spike report** — run `d3nexus:decision-records` directly and
+  commit the record. Do not open gates around one file.
+- **Anything smaller** — see [If the work is too small](#if-the-work-is-too-small).
+
+If you do not yet know what the document should say — a strategy piece, a proposal, an argument you
+have not finished having — run `d3nexus:brainstorming` first, then come back.
