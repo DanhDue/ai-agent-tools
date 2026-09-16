@@ -1,16 +1,16 @@
 ---
-name: epic-designer
+name: dev-designer
 description: Use when analyzing high-level requirements to design a complete software Epic across Android Native, Flutter, or iOS Native projects, including High-Level Design (HLD), Mermaid diagrams, and Kanban task breakdowns with BDD & TDD specifications.
 ---
 
 # Epic Designer
 
 ## Overview
-This skill transforms high-level product or technical requirements into a structured, developer-ready Epic for **Android Native**, **Flutter**, and **iOS Native** projects. It creates a centralized High-Level Design (HLD) document and breaks the work down into granular Kanban tasks enforcing Behavior-Driven Development (BDD), Test-Driven Development (TDD), and strict Definition of Done (DoD), fully aligned with `epic-implementation`'s Tri-Persona workflow (QA Red Team + TDD Master + System Integration Engineer).
+This skill transforms high-level product or technical requirements into a structured, developer-ready Epic for **Android Native**, **Flutter**, and **iOS Native** projects. It creates a centralized High-Level Design (HLD) document and breaks the work down into granular Kanban tasks enforcing Behavior-Driven Development (BDD), Test-Driven Development (TDD), and strict Definition of Done (DoD), fully aligned with `dev-implementation`'s Tri-Persona workflow (QA Red Team + TDD Master + System Integration Engineer).
 
 This skill is **Stage 2** of the Epic Lifecycle. The surrounding stages, the four approval
 gates, and what each stage hands over are owned by the
-[`epic-lifecycle`](../epic-lifecycle/SKILL.md) skill. Gate 2 (task breakdown confirmed) is
+[`dev-lifecycle`](../dev-lifecycle/SKILL.md) skill. Gate 2 (task breakdown confirmed) is
 enforced below, at the Checkpoint before task files are written.
 
 ## When to Use
@@ -97,11 +97,11 @@ Before writing any task file, check `.devtool/features/*.md` (excluding the `don
 If no other epic has any active (`todo`/`in-progress`/`review`) task, generate tasks with the normal default `status: "todo"` as usual.
 
 ### Step 2: Generate LachyFS Kanban Tasks
-Break the Epic down into granular implementation tasks. **Crucially, each task must be structured around Behavior-Driven Development (BDD), Test-Driven Development (TDD), and Integration Flow Testing** to feed directly into the Tri-Persona (QA Red Team + TDD Master + System Integration Engineer) execution workflow in `epic-implementation`. Wherever the task produces testable behavior, generate Markdown task files located at `.devtool/features/task_<number>_<name>.md` (and mirrored in `.devtool/epic/<epic_name>/task_<number>_<name>.md` as permanent epic outputs).
+Break the Epic down into granular implementation tasks. **Crucially, each task must be structured around Behavior-Driven Development (BDD), Test-Driven Development (TDD), and Integration Flow Testing** to feed directly into the Tri-Persona (QA Red Team + TDD Master + System Integration Engineer) execution workflow in `dev-implementation`. Wherever the task produces testable behavior, generate Markdown task files located at `.devtool/features/task_<number>_<name>.md` (and mirrored in `.devtool/epic/<epic_name>/task_<number>_<name>.md` as permanent epic outputs).
 
 #### Task Lifecycle & Archival Model
 - **Creation**: Tasks are generated into `.devtool/features/task_<number>_<name>.md` and mirrored into `.devtool/epic/<epic_name>/task_<number>_<name>.md`.
-- **In-Flight**: As tasks complete during `epic-implementation`, `sync_task_status.py` moves them from `.devtool/features/` into `.devtool/features/done/`.
+- **In-Flight**: As tasks complete during `dev-implementation`, `sync_task_status.py` moves them from `.devtool/features/` into `.devtool/features/done/`.
 - **Epic Completion Archival**: When all tasks of an epic finish and the epic status transitions to `Done` (`sync_task_status.py epic <epic_dir> Done`), all completed tasks and draft superpowers documents are archived permanently into `.devtool/epic/<epic_dir>/`. Relative markdown links are rewritten to point locally, and `.devtool/features/done/` is left clean with zero lingering task files.
 
 #### Mandatory 3-Tier Testing Standard in Task Breakdown

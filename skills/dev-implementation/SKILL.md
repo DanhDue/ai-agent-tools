@@ -1,5 +1,5 @@
 ---
-name: epic-implementation
+name: dev-implementation
 description: Use when an epic already has an approved HLD and Kanban task files (`.devtool/epic/<epic_dir>/` + `.devtool/features/task_*.md`) and you need to actually execute those tasks against the codebase, in the right order, inside an isolated worktree across Android Native, Flutter, or iOS Native projects.
 ---
 
@@ -11,7 +11,7 @@ Runs an already-approved epic's Kanban tasks end-to-end: reload the epic's own d
 
 **Core principle:** One worktree, one task at a time, one commit per task, docs stay truthful.
 
-**Announce at start:** "I'm using the epic-implementation skill to implement the `<epic_slug>` epic."
+**Announce at start:** "I'm using the dev-implementation skill to implement the `<epic_slug>` epic."
 
 ## Two Placeholders, Not One
 
@@ -29,13 +29,13 @@ Read both values off disk at the start — never derive one from the other by gu
 - The epic has a `.devtool/epic/<epic_dir>/<epic_dir>.en.md` HLD and one or more `.devtool/features/task_*.md` files with `epic: "<epic_slug>"` in frontmatter, and a human has already approved that design.
 - You are about to implement more than one task from that epic in this session.
 
-**Don't use when:** the epic/tasks don't exist yet (use `d3nexus:brainstorming` then `epic-designer` first), or you're implementing a single one-off task with no epic context (just use `d3nexus:subagent-driven-development` directly).
+**Don't use when:** the epic/tasks don't exist yet (use `d3nexus:brainstorming` then `dev-designer` first), or you're implementing a single one-off task with no epic context (just use `d3nexus:subagent-driven-development` directly).
 
 ## Process
 
 This skill is **Stage 3** of the Epic Lifecycle. The surrounding stages, the four approval
 gates, and what each stage hands over are owned by the
-[`epic-lifecycle`](../epic-lifecycle/SKILL.md) skill. Gate 3 (execution order confirmed) is
+[`dev-lifecycle`](../dev-lifecycle/SKILL.md) skill. Gate 3 (execution order confirmed) is
 enforced below, in Phase 1.
 
 ```mermaid
@@ -150,7 +150,7 @@ For each task in the confirmed order, follow `d3nexus:subagent-driven-developmen
 1. **Live Dual-Workspace Kanban Status (In-Progress)**:
    Before dispatching, synchronize the task status across all checkouts:
    ```bash
-   python3 skills/epic-implementation/resources/scripts/sync_task_status.py task <task_id> in-progress
+   python3 skills/dev-implementation/resources/scripts/sync_task_status.py task <task_id> in-progress
    ```
    This automatically updates `status: "in-progress"` and advances `modified:` in both the isolated worktree and the main workspace checkout without creating an untracked git commit.
 
@@ -216,12 +216,12 @@ For each task in the confirmed order, follow `d3nexus:subagent-driven-developmen
 
 2. Once the implementer reports `DONE`, synchronize review status:
    ```bash
-   python3 skills/epic-implementation/resources/scripts/sync_task_status.py task <task_id> review
+   python3 skills/dev-implementation/resources/scripts/sync_task_status.py task <task_id> review
    ```
 3. If review finds issues, cycle between `status: "in-progress"` and `status: "review"` through the fix loop using `sync_task_status.py`.
 4. Only once both reviews pass, update status to `done`:
    ```bash
-   python3 skills/epic-implementation/resources/scripts/sync_task_status.py task <task_id> done
+   python3 skills/dev-implementation/resources/scripts/sync_task_status.py task <task_id> done
    ```
    This writes `status: "done"`, advances `modified:`, and sets `completedAt:` across all checkout roots.
 5. Make exactly one commit staging code and task file:
@@ -287,7 +287,7 @@ Only after the user explicitly approves Gate 5 at the Phase 4.1 Checkpoint:
 2. Invoke `d3nexus:finishing-a-development-branch` on the epic branch (base = `develop`).
    When the user selects **Option 1 (Merge Locally)** or **Option 2 (Push & Create PR)**, `finishing-a-development-branch` automatically executes the **Pre-Finish Archival Hook**:
    ```bash
-   python3 skills/epic-implementation/resources/scripts/sync_task_status.py archive-done
+   python3 skills/dev-implementation/resources/scripts/sync_task_status.py archive-done
    ```
    This automatically:
    - Sets Epic Status to `Done` across `<epic_dir>.en.md` and `<epic_dir>.vi.md`.

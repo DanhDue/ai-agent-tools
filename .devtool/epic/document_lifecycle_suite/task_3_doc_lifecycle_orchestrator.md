@@ -6,7 +6,7 @@ assignee: null
 epic: "document_lifecycle_suite"
 dueDate: null
 created: "2026-09-17T09:00:00Z"
-modified: "2026-09-17T09:00:00Z"
+modified: "2026-09-16T18:37:22Z"
 completedAt: null
 labels: ["skill", "orchestrator", "documentation"]
 order: "a3"

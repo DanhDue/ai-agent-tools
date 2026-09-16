@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Tests for compute_execution_order.py.
 
-Run: python3 .agents/skills/epic-implementation/resources/scripts/test_compute_execution_order.py -v
+Run: python3 .agents/skills/dev-implementation/resources/scripts/test_compute_execution_order.py -v
 """
 import sys
 import tempfile

@@ -5,11 +5,11 @@ Reads every `.devtool/features/task_*.md` file whose frontmatter `epic:`
 matches the given epic slug, builds a dependency graph from each task's
 "## Dependencies & Blockers" section (only lines containing the literal
 phrase "Blocked by" count as hard blockers -- this matches the phrasing
-epic-designer's own task template prescribes), and prints:
+dev-designer's own task template prescribes), and prints:
 
   1. Tasks grouped into layers. Tasks in the same layer have no dependency
      on each other -- they could technically run in parallel, though
-     epic-implementation runs them sequentially (see the design spec).
+     dev-implementation runs them sequentially (see the design spec).
   2. Any soft notes found in that section -- currently lines containing
      "Recommended" or "New dependency" (see SOFT_NOTE_MARKERS). These are
      NOT treated as hard blockers, so review them manually; the computed

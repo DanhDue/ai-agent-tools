@@ -279,8 +279,8 @@ founder still owes themselves the lowest-fidelity prototype that can test these 
 of five to eight target customers.
 
 **What comes next here.** `03_mvp_feature_backlog.md` is directly consumable by
-`d3nexus:epic-designer`, which produces the HLD, diagrams and Kanban breakdown; from there
-`d3nexus:epic-lifecycle` owns the engineering gates.
+`d3nexus:dev-designer`, which produces the HLD, diagrams and Kanban breakdown; from there
+`d3nexus:dev-lifecycle` owns the engineering gates.
 
 > "Your MVP is still just a candidate — a bundle of interrelated hypotheses. You need to get customer
 > feedback on your MVP candidate to test those hypotheses."
@@ -306,7 +306,7 @@ of five to eight target customers.
 
 - `d3nexus:lean-product-lifecycle` — the orchestrator and gates
 - `d3nexus:lean-value-strategy` — Stage 2, produces this stage's input
-- `d3nexus:epic-designer` — consumes the Gate 3 artefact
+- `d3nexus:dev-designer` — consumes the Gate 3 artefact
 - [ROI Prioritization](references/roi-prioritization.md)
 - [The MVP Candidate Grid](references/mvp-candidate-grid.md)
 - [The MVP Attribute Pyramid](references/mvp-attribute-pyramid.md)

@@ -1,6 +1,6 @@
 ---
-name: epic-lifecycle
-description: Use this skill to orchestrate epic-scale work from idea to merged branch. It owns the sequence and the four approval gates connecting brainstorming, epic-designer, epic-implementation, and quality_check — which skill runs next, what each stage must hand over, and what to do when a gate fails. Activate it when a request spans multiple components or needs an HLD plus a Kanban task breakdown, when routing an approved spec, or whenever it is unclear which epic stage the work is currently in.
+name: dev-lifecycle
+description: Use this skill to orchestrate epic-scale work from idea to merged branch. It owns the sequence and the four approval gates connecting brainstorming, dev-designer, dev-implementation, and quality_check — which skill runs next, what each stage must hand over, and what to do when a gate fails. Activate it when a request spans multiple components or needs an HLD plus a Kanban task breakdown, when routing an approved spec, or whenever it is unclear which epic stage the work is currently in.
 ---
 
 # Epic Lifecycle
@@ -9,7 +9,7 @@ The orchestrator for epic-scale work. It owns **sequence and gates only** — ea
 stays in that stage's own skill. If you need to know how to run a stage, open its skill; if you
 need to know what runs next or what must be true before it does, stay here.
 
-**Announce at start:** "I'm using the epic-lifecycle skill to orchestrate the `<epic_slug>` epic."
+**Announce at start:** "I'm using the dev-lifecycle skill to orchestrate the `<epic_slug>` epic."
 
 ## When NOT to use this
 
@@ -25,9 +25,9 @@ flowchart TD
     G1{"Gate 1<br/>Spec approved?"}
     ROUTE{"Epic-scale?"}
     PLANS(["writing-plans<br/>(leaves this workflow)"])
-    S2["Stage 2 — Architecture &amp; Tasks<br/>(epic-designer)"]
+    S2["Stage 2 — Architecture &amp; Tasks<br/>(dev-designer)"]
     G2{"Gate 2<br/>HLD &amp; task breakdown approved?"}
-    S3["Stage 3 — Isolated Execution<br/>(epic-implementation)"]
+    S3["Stage 3 — Isolated Execution<br/>(dev-implementation)"]
     G3{"Gate 3<br/>Execution order confirmed?"}
     EXEC["Phase 2-3: task-by-task TDD<br/>one commit per task, doc sync on divergence"]
     G4{"Gate 4<br/>quality_check 🟢 LGTM?"}
@@ -63,10 +63,10 @@ on your own judgement.
 | Gate | Name | Approver | Enforced in | Handoff artefact |
 |------|------|----------|-------------|------------------|
 | **1** | Spec Approved | User | end of `brainstorming` | `<epic_dir>/YYYY-MM-DD-<topic>-design.md` |
-| **2** | HLD & Task Breakdown | User | `epic-designer` task-breakdown checkpoint | `<epic_dir>.en.md` + `.vi.md` + `bdd_scenarios.md` + `task_*.md` |
-| **3** | Execution Order | User | `epic-implementation` Phase 1 checkpoint | confirmed order + bootstrapped worktree |
-| **4** | Quality LGTM & Check 2 | `quality_check` | `epic-implementation` Phase 4 | 🟢 report + coverage matrix + merge-ready branch |
-| **5** | Developer Kanban Sign-Off | User | `epic-implementation` Phase 4.1 checkpoint | User confirmation to proceed with branch finishing and archival |
+| **2** | HLD & Task Breakdown | User | `dev-designer` task-breakdown checkpoint | `<epic_dir>.en.md` + `.vi.md` + `bdd_scenarios.md` + `task_*.md` |
+| **3** | Execution Order | User | `dev-implementation` Phase 1 checkpoint | confirmed order + bootstrapped worktree |
+| **4** | Quality LGTM & Check 2 | `quality_check` | `dev-implementation` Phase 4 | 🟢 report + coverage matrix + merge-ready branch |
+| **5** | Developer Kanban Sign-Off | User | `dev-implementation` Phase 4.1 checkpoint | User confirmation to proceed with branch finishing and archival |
 
 ## Stages
 
@@ -91,7 +91,7 @@ If brainstorming decomposed the request into several sub-project specs, **route 
 independently**. Each spec keeps its own spec → design → implementation lineage and gets its own
 epic directory. Never merge multiple specs into one epic.
 
-### Stage 2 — Architecture & Tasks → `epic-designer`
+### Stage 2 — Architecture & Tasks → `dev-designer`
 
 **Entry:** a Gate 1 spec, already sitting in `.devtool/epic/<epic_dir>/`.
 **Exit (Gate 2):** the user has confirmed the proposed task list and granularity.
@@ -100,7 +100,7 @@ Treat the approved spec as the source of truth for scope and decisions already m
 it, do not re-litigate it. Gate 2 is a lightweight confirmation of the *task split* only; the
 architecture was already approved at Gate 1.
 
-### Stage 3 — Isolated Execution → `epic-implementation`
+### Stage 3 — Isolated Execution → `dev-implementation`
 
 **Entry:** Gate 2 passed; HLD and `task_*.md` files exist.
 **Exit (Gate 5):** `quality_check` reports 🟢 LGTM (Gate 4) AND the user explicitly reviews the completed tasks on the Kanban dashboard and approves finishing the branch (Gate 5).
@@ -122,7 +122,7 @@ Gate 4 grants `🟢 LGTM` only when all 4 conditions are satisfied:
    - **Code Health Audit**: Refactored methods (< 20 lines) have **$\ge 75\%$ line coverage**.
 4. **Check 2 (Shift-Right Bookend) Clean**: Pre-merge cumulative diff analysis (`check_code_impact.py`) against `<base_ref>` reports zero divergence, zero unprotected modified files, and synchronized native bridge interfaces.
 
-If any condition fails, Gate 4 routes back to Stage 3 Phase 2 (`epic-implementation`) with an actionable gap report.
+If any condition fails, Gate 4 routes back to Stage 3 Phase 2 (`dev-implementation`) with an actionable gap report.
 
 **Gate 5 Developer Kanban Review & Sign-Off:**
 Once Gate 4 passes, all completed tasks MUST remain in `.devtool/features/done/`. The agent MUST STOP calling tools and present the final executive report to the user. The user visually reviews the Kanban board and approves proceeding to Stage 4. If the user requests adjustments or fixes, execution routes back to Stage 3 Phase 2.
@@ -161,7 +161,7 @@ the 🟢 verdict must come from a complete run.
 | Stage | Skill | Gate it enforces |
 |-------|-------|------------------|
 | 1 | `brainstorming` | 1 |
-| 2 | `epic-designer` | 2 |
-| 3 | `epic-implementation` | 3, triggers 4, and enforces 5 |
+| 2 | `dev-designer` | 2 |
+| 3 | `dev-implementation` | 3, triggers 4, and enforces 5 |
 | 3 (verification) | `quality_check` | 4 |
 | 4 | `finishing-a-development-branch` | — |

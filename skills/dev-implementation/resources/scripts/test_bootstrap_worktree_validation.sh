@@ -3,7 +3,7 @@
 # actually running melos/copy_secure_configurations (those are exercised
 # for real in Task 4's end-to-end dry run).
 #
-# Run: bash .agents/skills/epic-implementation/resources/scripts/test_bootstrap_worktree_validation.sh
+# Run: bash .agents/skills/dev-implementation/resources/scripts/test_bootstrap_worktree_validation.sh
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

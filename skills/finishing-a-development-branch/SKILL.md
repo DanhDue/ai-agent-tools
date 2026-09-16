@@ -106,10 +106,10 @@ Before executing **Option 1 (Merge)** or **Option 2 (Push & PR)**, if the worksp
 ```bash
 # Locate sync_task_status.py script from d3nexus plugin or repo
 SYNC_SCRIPT=""
-if [ -f "skills/epic-implementation/resources/scripts/sync_task_status.py" ]; then
-  SYNC_SCRIPT="skills/epic-implementation/resources/scripts/sync_task_status.py"
-elif [ -f "$HOME/.gemini/config/plugins/d3nexus/skills/epic-implementation/resources/scripts/sync_task_status.py" ]; then
-  SYNC_SCRIPT="$HOME/.gemini/config/plugins/d3nexus/skills/epic-implementation/resources/scripts/sync_task_status.py"
+if [ -f "skills/dev-implementation/resources/scripts/sync_task_status.py" ]; then
+  SYNC_SCRIPT="skills/dev-implementation/resources/scripts/sync_task_status.py"
+elif [ -f "$HOME/.gemini/config/plugins/d3nexus/skills/dev-implementation/resources/scripts/sync_task_status.py" ]; then
+  SYNC_SCRIPT="$HOME/.gemini/config/plugins/d3nexus/skills/dev-implementation/resources/scripts/sync_task_status.py"
 fi
 
 if [ -n "$SYNC_SCRIPT" ] && [ -d ".devtool/features/done" ] && ls .devtool/features/done/task_*.md 1>/dev/null 2>&1; then

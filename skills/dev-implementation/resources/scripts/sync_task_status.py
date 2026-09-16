@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Mirror one epic task's Kanban status across every checkout of this repo.
 
-`epic-implementation` runs an epic inside an isolated worktree, but the same
-task files are also checked out in the main workspace -- and `epic-designer`
+`dev-implementation` runs an epic inside an isolated worktree, but the same
+task files are also checked out in the main workspace -- and `dev-designer`
 writes each task twice, into `.devtool/features/` and into
 `.devtool/epic/<epic_dir>/`. Writing a status to only one of those four copies
 leaves every other Kanban board stale for the whole epic.

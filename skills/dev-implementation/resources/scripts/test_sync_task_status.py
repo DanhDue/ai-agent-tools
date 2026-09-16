@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Tests for sync_task_status.py.
 
-Run: python3 skills/epic-implementation/resources/scripts/test_sync_task_status.py -v
+Run: python3 skills/dev-implementation/resources/scripts/test_sync_task_status.py -v
 """
 import sys
 import tempfile

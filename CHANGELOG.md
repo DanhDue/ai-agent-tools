@@ -8,6 +8,36 @@ every installed machine on the old cached copy.
 
 ---
 
+## 1.2.0 — unreleased
+
+> [!CAUTION]
+> **Breaking.** Three skills are renamed. `/d3nexus:epic-lifecycle`,
+> `/d3nexus:epic-designer` and `/d3nexus:epic-implementation` no longer resolve, and any
+> per-project `AGENTS.md` naming them must be updated.
+
+### Renamed — the development lifecycle
+
+"Epic" becomes the umbrella term covering both development and documentation work, so the
+development lifecycle takes a name that distinguishes it:
+
+| Old | New |
+|---|---|
+| `epic-lifecycle` | `dev-lifecycle` |
+| `epic-designer` | `dev-designer` |
+| `epic-implementation` | `dev-implementation` |
+
+Each renamed skill keeps the word "epic" in its `description`, so a request phrased as epic-scale
+work still activates it. `finishing-a-development-branch` and the directory `.devtool/epic/` are
+unchanged — both kinds of epic live there, distinguished by a `Kind:` field. There is no data
+migration, and the historical epic records under `.devtool/` deliberately keep the old names.
+
+### Changed — source fidelity
+
+- `check_source_fidelity.py` becomes a multi-source registry instead of a Lean-Product-only guard,
+  and `verify.sh` step 7 is retitled accordingly.
+
+---
+
 ## 1.1.1 — 2026-09-17
 
 Strengthens the `quality_check` master governance skill by making Tier B zero-tolerance explicit and introducing Tier C2 Native Build Smoke Testing.

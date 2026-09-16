@@ -26,10 +26,10 @@ You MUST create a task for each of these items and complete them in order:
 3. **Ask clarifying questions** — one at a time, understand purpose/constraints/success criteria
 4. **Propose 2-3 approaches** — with trade-offs and your recommendation
 5. **Present design** — in sections scaled to their complexity, get user approval after each section
-6. **Write design doc** — save to `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md` and commit (relocated into `.devtool/epic/<epic_name>/` later if routed to epic-designer — see Routing After Approval)
+6. **Write design doc** — save to `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md` and commit (relocated into `.devtool/epic/<epic_name>/` later if routed to dev-designer — see Routing After Approval)
 7. **Spec self-review** — quick inline check for placeholders, contradictions, ambiguity, scope (see below)
 8. **User reviews written spec** — ask user to review the spec file before proceeding
-9. **Route to the next skill** — if the spec is epic-scale, invoke epic-designer with the spec path; otherwise invoke writing-plans (see Routing After Approval below)
+9. **Route to the next skill** — if the spec is epic-scale, invoke dev-designer with the spec path; otherwise invoke writing-plans (see Routing After Approval below)
 
 ## Process Flow
 
@@ -48,28 +48,28 @@ flowchart TD
     I --> J{"User reviews spec?"}
     J -->|changes requested| H
     J -->|approved| K{"Epic-scale spec?"}
-    K -->|yes| L((("Invoke epic-designer skill")))
+    K -->|yes| L((("Invoke dev-designer skill")))
     K -->|no| M((("Invoke writing-plans skill")))
 ```
 
-**The terminal state is invoking either epic-designer or writing-plans — never both, and never any other implementation skill.** Do NOT invoke frontend-design, mcp-builder, or any other implementation skill directly from brainstorming.
+**The terminal state is invoking either dev-designer or writing-plans — never both, and never any other implementation skill.** Do NOT invoke frontend-design, mcp-builder, or any other implementation skill directly from brainstorming.
 
 ### Routing After Approval
 
 Once the spec is approved (and has passed self-review), decide which skill picks it up next:
 
-- **Invoke `epic-designer`** when the approved spec describes epic-scale work: multiple independent components/services, a design that will need Kanban task breakdown and architecture/use-case/sequence diagrams, or the user explicitly called it an "epic" or large feature. Before invoking, relocate the spec file from `docs/superpowers/specs/` into `.devtool/epic/<epic_name>/<same-filename>` (creating the directory if `epic-designer` hasn't run for this epic yet), fix any relative links inside the moved file, then pass that new path as input — this keeps the spec, the HLD, and the task files for one epic all in the same directory instead of split across `docs/` and `.devtool/`.
+- **Invoke `dev-designer`** when the approved spec describes epic-scale work: multiple independent components/services, a design that will need Kanban task breakdown and architecture/use-case/sequence diagrams, or the user explicitly called it an "epic" or large feature. Before invoking, relocate the spec file from `docs/superpowers/specs/` into `.devtool/epic/<epic_name>/<same-filename>` (creating the directory if `dev-designer` hasn't run for this epic yet), fix any relative links inside the moved file, then pass that new path as input — this keeps the spec, the HLD, and the task files for one epic all in the same directory instead of split across `docs/` and `.devtool/`.
 - **Invoke `writing-plans`** (as before) for everything else — a single-component feature, bugfix, or small enough scope that one implementation plan covers it without a separate HLD.
 
 When in doubt, ask the user which they want rather than guessing.
 
-If brainstorming decomposed the original request into multiple sub-project specs, route **each spec independently** — do not merge multiple specs into a single epic-designer invocation. Each spec keeps its own spec → design → implementation lineage.
+If brainstorming decomposed the original request into multiple sub-project specs, route **each spec independently** — do not merge multiple specs into a single dev-designer invocation. Each spec keeps its own spec → design → implementation lineage.
 
 ### Complete End-to-End Epic Lifecycle
 
-Routing to `epic-designer` enters the governed Epic Lifecycle. The stage sequence, the four
+Routing to `dev-designer` enters the governed Epic Lifecycle. The stage sequence, the four
 approval gates, and the handoff artefact each stage owes the next are defined in one place —
-the **[`epic-lifecycle`](../epic-lifecycle/SKILL.md)** skill. Do not restate them here; this
+the **[`dev-lifecycle`](../dev-lifecycle/SKILL.md)** skill. Do not restate them here; this
 skill owns Stage 1 and Gate 1 only.
 
 ---
@@ -133,7 +133,7 @@ To ensure this is a true creative collaboration and not just a rigid interrogati
 
 - Write the validated design (spec) to `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md`
   - (User preferences for spec location override this default)
-  - If this spec is later routed to `epic-designer` (see Routing After Approval), it does not stay here — it gets relocated into the epic's own directory so every doc for that epic lives in one place.
+  - If this spec is later routed to `dev-designer` (see Routing After Approval), it does not stay here — it gets relocated into the epic's own directory so every doc for that epic lives in one place.
 - Use elements-of-style:writing-clearly-and-concisely skill if available
 - Commit the design document to git (if `auto_commit` is enabled):
   - Read `.agents/config.json` — check `auto_commit` setting
@@ -160,7 +160,7 @@ Wait for the user's response. If they request changes, make them and re-run the 
 
 **Implementation:**
 
-- Apply the Routing After Approval rule above to pick the next skill: `epic-designer` (pass the spec's file path) for epic-scale specs, or `writing-plans` for everything else.
+- Apply the Routing After Approval rule above to pick the next skill: `dev-designer` (pass the spec's file path) for epic-scale specs, or `writing-plans` for everything else.
 - Do NOT invoke any other skill — these two are the only valid next steps.
 
 ## Key Principles
