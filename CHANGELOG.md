@@ -8,6 +8,18 @@ every installed machine on the old cached copy.
 
 ---
 
+## 1.1.1 — 2026-09-17
+
+Strengthens the `quality_check` master governance skill by making Tier B zero-tolerance explicit and introducing Tier C2 Native Build Smoke Testing.
+
+### Changed — quality_check
+
+- **Tier B Zero-Tolerance Enforcement**: Formally documents that all analyzer errors, compiler warnings, module boundary leaks, formatting issues, and license headers must be 100% resolved (0 errors, 0 warnings).
+- **Tier C2 Native Build Smoke Gate**: Adds an explicit binary compilation check (`flutter build apk --debug`, `./gradlew assembleDebug`, `xcodebuild build`) to Tier C before merging, closing the blind spot where headless tests pass but native binary assembly fails.
+- **Reporting**: Updates the 3-Tier Automated Test Results table to track Tier C1 (Integration Flows) and Tier C2 (Native Build Smoke Gate) separately.
+
+---
+
 ## 1.1.0 — 2026-09-16
 
 Adds the **Lean Product Lifecycle Suite**: four skills covering upstream product discovery, for

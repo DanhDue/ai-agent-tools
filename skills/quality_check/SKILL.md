@@ -47,8 +47,9 @@ When invoked, the skill runs detection:
 | :--- | :--- | :--- | :--- | :--- |
 | **Tier A** | **Unit & BLoC Logic** | BLoC State transitions, Actions, UseCases, Repositories, DataSources, Mappers. | `melos test` / `fvm flutter test` | 🔴 Blocker |
 | **Tier B** | **Architecture Boundaries** | Chans cross-feature imports and deep-imports into `data/` or `*_impl.dart`. | `./scripts/check_module_boundaries.sh` | 🔴 Blocker |
-| **Tier B** | **Static Quality & Formatting** | Code smells, static analysis, trailing commas, line length 99, license headers. | `melos analyze` + `melos format` + `./scripts/check_license_header.sh` | 🔴 Blocker |
-| **Tier C** | **E2E & Integration** | End-to-end integration flows, app startup, full test coverage. | `fvm flutter test integration_test` or `./scripts/testWithCoverage.sh` | 🔴 Blocker |
+| **Tier B** | **Static Quality & Formatting** | Code smells, static analysis, trailing commas, line length 99, license headers. (Zero tolerance: 0 errors, 0 warnings). | `melos analyze` + `melos format` + `./scripts/check_license_header.sh` | 🔴 Blocker |
+| **Tier C1** | **E2E & Integration Flows** | End-to-end integration flows, app startup, navigation across all modules. | `fvm flutter test integration_test` or `./scripts/testWithCoverage.sh` | 🔴 Blocker |
+| **Tier C2** | **Native Build Smoke Test** | Verifies native app binary compilation, Gradle/CocoaPods assembly, AndroidManifest/Info.plist merge, ProGuard, and runnable app binary. | `fvm flutter build apk --debug --flavor dev -t lib/main.dart --dart-define-from-file=secureFiles/dev/environment-configs.json` | 🔴 Blocker |
 | **[`@security-audit`](../security-audit/SKILL.md)** | **Fintech & OWASP** | OWASP Mobile Top 10 (2024), strictly `Decimal` for money, no PII logging, `flutter_secure_storage`, SSL pinning. | Semantic Pattern Audit | 🔴 Blocker |
 | **[`@architecture-audit`](../architecture-audit/SKILL.md)** | **Clean Arch & Boundaries** | Pure Dart domain (zero `package:flutter/*`), feature isolation via `packages/platform`, BLoC MVI immutability. | Semantic Pattern Audit | 🔴 Blocker |
 | **[`@flutter-ui-audit`](../flutter-ui-audit/SKILL.md)** | **Flutter UI & Performance** | Rebuild optimization (`const`, `buildWhen`), state hoisting, controller disposal in `dispose()`, theme tokens. | Semantic Pattern Audit | 🔴 Blocker / 🟡 Warning |
@@ -62,7 +63,8 @@ When invoked, the skill runs detection:
 | **Tier B** | **Architecture Rules (AST)** | Konsist architectural assertions K1–K10 (layer boundaries, package structures, module dependencies). | Konsist (`./gradlew :konsist-test:test`) | 🔴 Blocker |
 | **Tier B** | **Contract Governance (ABI)** | Binary Compatibility Validator (BCV) ensuring public ABI contracts are not modified unintentionally. | BCV (`./gradlew apiCheck`) | 🔴 Blocker |
 | **Tier B** | **Static Quality & Linting** | Detekt code smells & Spotless code formatting. Auto-fixes formatting via `spotlessApply`. | Detekt & Spotless (`./gradlew check`) | 🔴 Blocker |
-| **Tier C** | **E2E & Integration** | Host App composition (`*FlowTest.kt`), DI graph verification, navigation, on-demand DFM splits. | Acceptance Harness (`./scripts/acceptance_check.sh`) | 🔴 Blocker |
+| **Tier C1** | **E2E & Integration Flows** | Host App composition (`*FlowTest.kt`), DI graph verification, navigation, on-demand DFM splits. | Acceptance Harness (`./scripts/acceptance_check.sh`) | 🔴 Blocker |
+| **Tier C2** | **Native Build Smoke Test** | Verifies full debug APK/AAB packaging, R8/ProGuard configuration, resource shrinking, and binary assembly. | `./gradlew assembleDebug` | 🔴 Blocker |
 | **[`@security-audit`](../security-audit/SKILL.md)** | **Fintech & OWASP** | OWASP Mobile Top 10 (2024), strict `BigDecimal` for currency, no PII logging, Keystore, TLS/Cert pinning. | Semantic Pattern Audit | 🔴 Blocker |
 | **[`@architecture-audit`](../architecture-audit/SKILL.md)** | **Clean Arch & Boundaries** | Domain layer purity (zero `android.*` imports), feature isolation, MVI immutability (`val`), injected dispatchers. | Semantic Pattern Audit | 🔴 Blocker |
 | **[`@android-ui-audit`](../android-ui-audit/SKILL.md)** | **Compose Performance & UI** | Recomposition stability, `@Immutable`/`@Stable`, state hoisting, side-effect keys, Material3 tokens. | Semantic Pattern Audit | 🔴 Blocker / 🟡 Warning |
@@ -76,7 +78,8 @@ When invoked, the skill runs detection:
 | **Tier B** | **Architecture Boundaries** | Blocks cross-feature imports and deep-imports into `Data/` or internal types. | `bash scripts/check_module_boundaries.sh` | 🔴 Blocker |
 | **Tier B** | **Architecture Rules (AST)** | Swift-syntax AST governance rules K1–K10 (layer boundaries, package structures, module dependencies). | `swift test --package-path ArchTests` | 🔴 Blocker |
 | **Tier B** | **Static Quality & Formatting** | SwiftLint strict static analysis + SwiftFormat style compliance. | `swiftlint lint --strict` + `swiftformat --lint` | 🔴 Blocker |
-| **Tier C** | **E2E & Acceptance Tests** | Host App composition (`App/` + `Shell/`), DI wiring, navigation routes, simulator execution. | `tuist generate` + `xcodebuild test` | 🔴 Blocker |
+| **Tier C1** | **E2E & Acceptance Tests** | Host App composition (`App/` + `Shell/`), DI wiring, navigation routes, simulator execution. | `tuist generate` + `xcodebuild test` | 🔴 Blocker |
+| **Tier C2** | **Native Build Smoke Test** | Verifies Xcode scheme compilation, CocoaPods/SPM framework embedding, and binary linking. | `tuist generate && xcodebuild build -workspace iOSDigitalWallet.xcworkspace -scheme iOSDigitalWallet -destination "generic/platform=iOS Simulator" CODE_SIGNING_ALLOWED=NO` | 🔴 Blocker |
 | **[`@security-audit`](../security-audit/SKILL.md)** | **Fintech & OWASP** | OWASP Mobile Top 10 (2024), strictly `Decimal` for currency, no PII logging, Keychain Services, TLS pinning. | Semantic Pattern Audit | 🔴 Blocker |
 | **[`@architecture-audit`](../architecture-audit/SKILL.md)** | **Clean Arch & Boundaries** | Pure Swift domain (zero `SwiftUI`/`UIKit`/`Combine`), feature package isolation, MVI immutability (`struct`). | Semantic Pattern Audit | 🔴 Blocker |
 | **[`@ios-ui-audit`](../ios-ui-audit/SKILL.md)** | **SwiftUI Performance & Tokens** | Body re-evaluation optimization, Dumb Views / state hoisting, `.task` cancellation, `AppUIKit` tokens. | Semantic Pattern Audit | 🔴 Blocker / 🟡 Warning |
@@ -303,31 +306,44 @@ sequenceDiagram
 1. **Tier A (Unit / Package Tests)**: Isolated logic tests for individual packages (`packages/*`) and features (`features/*`). Tests BLoC State transitions, UseCases, Repositories, DataSources, and Mappers.
    - Command: `melos test` (or `fvm flutter test`)
 2. **Tier B (Tooling & Governance Tests)**:
+   > [!CRITICAL]
+   > **Tier B is a Zero-Tolerance Quality Gate**: All analyzer errors, compiler warnings, module boundary violations, and formatting/license issues MUST be 100% resolved (0 errors, 0 warnings). Formatting and license headers are auto-fixed via tooling, but boundary and analyzer errors require explicit code fixes. A task or PR cannot proceed past Tier B with unresolved problems.
    - Module boundaries & isolation: `./scripts/check_module_boundaries.sh`
    - License header compliance: `./scripts/check_license_header.sh`
    - Static analysis: `melos analyze` (or `fvm flutter analyze`)
    - Formatting: `melos format` (or `fvm dart format lib test -l 99`)
-3. **Tier C (Acceptance & App Tests)**: End-to-end user navigation flows, application startup, and whole-app integration test suite.
-   - Command: `fvm flutter test integration_test` or `./scripts/testWithCoverage.sh`
+3. **Tier C (Acceptance, App Tests & Native Build Smoke Gate)**:
+   - **Tier C1 (Acceptance & E2E Flows)**: End-to-end user navigation flows, application startup, and whole-app integration test suite (`fvm flutter test integration_test` or `./scripts/testWithCoverage.sh`).
+   - **Tier C2 (Native Build Smoke Gate)**: Compiles the full runnable native debug binary to verify Gradle/CocoaPods assembly, AndroidManifest/Info.plist merge, ProGuard rules, and asset bundling. Guarantees the app is buildable and runnable on physical/virtual devices.
+     - Prerequisite: Verify secure configuration files exist (via `@check_secure_files` or `@copy_secure_configurations`).
+     - Command: `fvm flutter build apk --debug --flavor dev -t lib/main.dart --dart-define-from-file=secureFiles/dev/environment-configs.json` (and `fvm flutter build ios --config-only --flavor dev` on macOS).
 
 ### For Android Native Projects:
 1. **Tier A (Unit / Package Tests)**: Isolated logic tests for individual packages and features (`:packages:*`, `:features:*`). Tests MVI State, ViewModel, UseCase, Repository, Parsers with mocks.
    - Command: `./gradlew testDebugUnitTest`
-2. **Tier B (Tooling & Governance Tests)**: Architecture rules and contract validation. AST linting via Konsist K1–K10 (`:konsist-test:test`), Binary Compatibility Validator public ABI checks (`apiCheck`), Detekt code smells, and Spotless formatting.
-   - Command: `./gradlew :konsist-test:test apiCheck detekt spotlessCheck`
-3. **Tier C (Acceptance & App Tests)**: Host App integration tests (`*FlowTest.kt` in `:app` + `:shell`) and automated acceptance harness. Tests whole-app DI graph, navigation flow, Intent cold-start / warm-start, on-demand DFM splits.
-   - Command: `./scripts/acceptance_check.sh` (or `./gradlew assembleDebug`)
+2. **Tier B (Tooling & Governance Tests)**:
+   > [!CRITICAL]
+   > **Tier B is a Zero-Tolerance Quality Gate**: All Detekt code smells, Konsist rule violations, Spotless formatting, and BCV ABI breaks MUST be 100% resolved.
+   - Architecture rules: Konsist AST assertions K1–K10 (`./gradlew :konsist-test:test`)
+   - Contract governance: Binary Compatibility Validator public ABI checks (`./gradlew apiCheck`)
+   - Static quality & linting: Detekt code smells & Spotless formatting (`./gradlew check detekt spotlessCheck`)
+3. **Tier C (Acceptance, App Tests & Native Build Smoke Gate)**:
+   - **Tier C1 (Acceptance & Flow Tests)**: Host App integration tests (`*FlowTest.kt` in `:app` + `:shell`) and automated acceptance harness (`./scripts/acceptance_check.sh`).
+   - **Tier C2 (Native Build Smoke Gate)**: Verifies full APK/AAB packaging and resource shrinking: `./gradlew assembleDebug`.
 
 ### For iOS Native Projects:
 1. **Tier A (Unit / Package Tests)**: Isolated logic tests for individual packages (`Packages/*`) and feature modules (`Features/*`). Tests MVI State transitions, ViewModel logic, UseCases, Repositories with Swift Testing (`@Test`) or XCTest.
    - Command: `swift test --package-path <PackagePath>`
-2. **Tier B (Tooling & Governance Tests)**: Architecture boundaries, AST rules, and formatting validation:
+2. **Tier B (Tooling & Governance Tests)**:
+   > [!CRITICAL]
+   > **Tier B is a Zero-Tolerance Quality Gate**: Zero SwiftLint violations under `--strict`, zero boundary leaks, and full SwiftFormat compliance.
    - Module boundaries & isolation: `bash scripts/check_module_boundaries.sh`
    - AST Architecture rules: `swift test --package-path ArchTests` (K1–K10 via `swift-syntax`)
    - Static analysis: `swiftlint lint --strict --config quality/.swiftlint.yml`
    - Code formatting: `swiftformat --config quality/.swiftformat . --lint`
-3. **Tier C (Acceptance & App Tests)**: Host App integration tests (`App/Tests` + `Shell/Tests`) and simulator acceptance harness. Tests whole-app DI graph, navigation routes via `AppRoutes`, RouteProvider registration.
-   - Command: `tuist generate --no-open && xcodebuild test -workspace iOSDigitalWallet.xcworkspace -scheme iOSDigitalWallet -destination "platform=iOS Simulator,id=<UDID>" CODE_SIGNING_ALLOWED=NO`
+3. **Tier C (Acceptance, App Tests & Native Build Smoke Gate)**:
+   - **Tier C1 (Acceptance & Flow Tests)**: Host App integration tests (`App/Tests` + `Shell/Tests`) and simulator acceptance harness (`tuist generate --no-open && xcodebuild test -workspace iOSDigitalWallet.xcworkspace -scheme iOSDigitalWallet -destination "platform=iOS Simulator,id=<UDID>" CODE_SIGNING_ALLOWED=NO`).
+   - **Tier C2 (Native Build Smoke Gate)**: Verifies full Xcode scheme compilation, framework embedding, and binary linking: `tuist generate --no-open && xcodebuild build -workspace iOSDigitalWallet.xcworkspace -scheme iOSDigitalWallet -destination "generic/platform=iOS Simulator" CODE_SIGNING_ALLOWED=NO`.
 
 ---
 
@@ -398,10 +414,16 @@ While the tooling suite executes in the background, inspect the Git Diff (`git d
 ### Step 4: Tier C Acceptance Verification & Reverse Coverage Gate (PR / Epic Gate)
 When finalizing an Epic, verifying a development branch, or preparing a PR:
 
-1. **Platform-Aware Test Suite & Coverage Execution**:
-   - **Flutter**: Run `./scripts/testWithCoverage.sh` (or `melos run test:coverage`), generating `coverage/lcov.info`.
-   - **Android**: Run `./gradlew testDebugUnitTest jacocoTestReport` (or Kover), generating XML coverage reports.
+1. **Tier C1: Platform-Aware Test Suite & Coverage Execution**:
+   - **Flutter**: Run `fvm flutter test integration_test` and `./scripts/testWithCoverage.sh` (or `melos run test:coverage`), generating `coverage/lcov.info`.
+   - **Android**: Run `./scripts/acceptance_check.sh` and `./gradlew testDebugUnitTest jacocoTestReport` (or Kover), generating XML coverage reports.
    - **iOS**: Run `tuist generate --no-open && xcodebuild test -workspace iOSDigitalWallet.xcworkspace -scheme iOSDigitalWallet -destination "platform=iOS Simulator,id=<UDID>" -enableCodeCoverage YES CODE_SIGNING_ALLOWED=NO`, parsing coverage via `xcrun xccov view --report --json`.
+
+2. **Tier C2: Native Build Smoke Test (App Compilation Gate)**:
+   - **Mandate**: Headless test runners do NOT invoke Gradle/CocoaPods native assembly, Manifest merging, ProGuard rules, or native linkers. An app can pass 100% of unit/integration tests and still fail to compile or launch. The Native Build Smoke Test verifies that the app actually compiles into a runnable binary artifact before code can merge.
+   - **Flutter**: Ensure secure files are provisioned (`@copy_secure_configurations`), then run `fvm flutter build apk --debug --flavor dev -t lib/main.dart --dart-define-from-file=secureFiles/dev/environment-configs.json`.
+   - **Android Native**: Run `./gradlew assembleDebug`.
+   - **iOS Native**: Run `tuist generate --no-open && xcodebuild build -workspace iOSDigitalWallet.xcworkspace -scheme iOSDigitalWallet -destination "generic/platform=iOS Simulator" CODE_SIGNING_ALLOWED=NO`.
 
 2. **Reverse Verification against 4 Audit Categories**:
    Cross-check files flagged across the 4 specialized audits against actual line coverage:
@@ -457,7 +479,8 @@ Your response **MUST** follow this comprehensive structure:
 | **Tier B** | Architecture Gate | Module Boundaries / Konsist / ArchTests | ✅ PASSED / ❌ FAILED | Zero boundary leaks |
 | **Tier B** | ABI & Static Analysis | BCV / SwiftLint / Analyzer & Detekt | ✅ PASSED / ❌ FAILED | No unauthorized drift |
 | **Tier B** | Formatter & Headers | Dartfmt / Spotless / SwiftFormat | ✅ PASSED / ❌ FAILED | Auto-fixed formatting |
-| **Tier C** | Acceptance Harness | App Assembly / Integration / Simulator | ✅ PASSED / ❌ FAILED | Integration verified |
+| **Tier C1** | Acceptance Harness | App Integration Flows / Routes | ✅ PASSED / ❌ FAILED | Integration flows verified |
+| **Tier C2** | Build Smoke Gate | Native Binary Assembly & Packaging | ✅ PASSED / ❌ FAILED | Binary compiled & runnable |
 
 ---
 
