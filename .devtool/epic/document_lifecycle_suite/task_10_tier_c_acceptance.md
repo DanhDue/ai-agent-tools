@@ -183,6 +183,44 @@ for check 3 existing, and it would have been unprovable if the gate had passed f
 All findings fixed; Gate 2 re-run **in full** rather than re-running only check 3, per
 `doc-lifecycle`'s own rule.
 
+### Round two — the fix was worse than the defect
+
+The full re-run failed again, and the most serious finding was **a regression introduced by the
+round-one fix**.
+
+Round one's finding was that the "code back to discovery" handoff gave the reader no artefact. The
+fix told them to write `.devtool/product/<slug>/01_problem_space_spec.md` before invoking
+`lean-product-lifecycle`, so Stage 1 would not start cold. That is exactly backwards.
+`skills/lean-product-lifecycle/SKILL.md:188` resumes on file **presence**:
+
+> `01_problem_space_spec.md` present → "Gate 1 is already verified. Resuming at Stage 2."
+
+So the advice made the lifecycle **announce the problem space as validated and skip Stage 1** — for a
+reader who arrived precisely because the problem space had never been validated. Stage 1 *is* the
+validation being sought. The fix defeated the purpose of the move it was fixing, and it read as
+helpful, specific and well-sourced.
+
+Two further findings in the same round, both real:
+
+- The one-plan code route ran `brainstorming` → `writing-plans` → quality gate with **nothing
+  executing the plan**. `writing-plans` produces a document; the reader needed
+  `subagent-driven-development` or `executing-plans` and was never told.
+- The discovery route was costed at three gates. Gate 3 hands off to `dev-designer`, which is Stage 2
+  of `dev-lifecycle` — so the true cost is **seven**. A reader budgeting three is off by more than
+  double.
+
+### What this run actually demonstrated
+
+The point of "re-run the gate **in full**, never only the failing check" stopped being a principle
+and became a measured result. Had round two re-run only check 3 against the unchanged sections, it
+would still have caught the regression — but the rule's real value is that **a fix is new work and
+new work is unverified**. The round-one fix passed every mechanical check, was internally consistent,
+cited a real file path, and was wrong in a way only someone reading the target skill could see.
+
+Three rounds of Gate 2 on a six-section document is not a sign the gate is too strict. It is the
+measurement: one author, writing carefully, produced defects in two consecutive attempts, and the
+mechanical half of the gate reported clean every single time.
+
 **Two honest limitations of this run:**
 
 1. **Gates 1 and 3 were self-approved.** Both are human approvals by design. Running them against
