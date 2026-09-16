@@ -1,13 +1,13 @@
 ---
 id: "task_0_book_reference_corrections"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "lean_product_suite"
 dueDate: null
 created: "2026-09-16T18:10:00Z"
-modified: "2026-09-16T18:10:00Z"
-completedAt: null
+modified: "2026-09-16T18:40:00Z"
+completedAt: "2026-09-16T18:40:00Z"
 labels: ["source-fidelity", "documentation", "prerequisite"]
 order: "a0"
 ---

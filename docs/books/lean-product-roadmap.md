@@ -2,6 +2,12 @@
 > **A Comprehensive System Manual & Execution Roadmap based on *The Lean Product Playbook* by Dan Olsen**  
 > *Target Audience: AI Agents, Product Managers, & Startup Founders*
 
+> [!IMPORTANT]
+> **Tài liệu phái sinh (Derivative).** Đây là bản tóm tắt được soạn lại từ cuốn sách, **không phải nguồn
+> gốc**. Nơi nào tài liệu này mâu thuẫn với cuốn sách, **cuốn sách thắng**. Các điểm đã được đối chiếu
+> với nguyên văn của tác giả và sửa lại ngày 2026-09-16; toàn bộ bằng chứng được ghi tại
+> [source_fidelity_review.md](../../.devtool/epic/lean_product_suite/source_fidelity_review.md).
+
 ---
 
 ## 📑 MỤC LỤC
@@ -52,6 +58,12 @@ PMF được định nghĩa là **mức độ sản phẩm (3 tầng trên) th�
 4. **Underserved Needs** *(Problem Space)*: Các nhu cầu có tầm quan trọng cao nhưng độ hài lòng hiện tại thấp.
 5. **Target Customer** *(Problem Space)*: Phân đoạn khách hàng cụ thể có cùng bộ nhu cầu.
 
+> [!WARNING]
+> **Kim tự tháp có 5 TẦNG; Quy trình có 6 BƯỚC. Đây là hai đối tượng khác nhau.**
+> "MVP Prototype" và "Test with Customers" là **bước** của Lean Product Process, **không phải tầng** của
+> Kim tự tháp PMF. Gộp hai mô hình lại sẽ làm biến mất tầng **UX** — đúng tầng mà quy trình lùi-tầng
+> (Tectonic Plates) thường cần gọi tên nhất.
+
 ---
 
 ## 2. ROADMAP QUY TRÌNH 6 BƯỚC
@@ -86,7 +98,15 @@ PMF được định nghĩa là **mức độ sản phẩm (3 tầng trên) th�
   3. Đo lường theo Khung **Importance vs. Satisfaction**:
      - **Importance (Tầm quan trọng)**: Nhu cầu này quan trọng như thế nào với khách hàng? (Thang 1-5 hoặc 0-100%).
      - **Satisfaction (Mức độ hài lòng)**: Khách hàng hài lòng thế nào với các giải pháp hiện có trên thị trường? (Thang 1-7 hoặc 0-100%).
-  4. Xác định **Opportunity Score** (Điểm cơ hội) để chọn bài toán đáng giải nhất.
+  4. **Chuẩn hóa thang đo trước khi tính (bước bắt buộc, không được bỏ qua)**:
+     - *Vì sao hai thang khác nhau*: Satisfaction có cực âm (hài lòng / không hài lòng) nên dùng thang
+       **lưỡng cực (bipolar) 7 điểm**; Importance chỉ là mức độ, không có giá trị âm, nên dùng thang
+       **đơn cực (unipolar) 5 điểm**. Thang lưỡng cực luôn dùng số điểm lẻ để có mốc trung tính ở giữa.
+     - *Giới hạn thiết kế thang*: quá 11 lựa chọn sẽ làm khách hàng quá tải; dưới 5 lựa chọn thì mất độ phân giải.
+     - *Bảng quy đổi của Olsen*: thang 5 điểm → 0 / 25 / 50 / 75 / 100 (hoặc 0 / 2.5 / 5 / 7.5 / 10);
+       thang 7 điểm → 0 / 16.7 / 33.3 / 50 / 66.7 / 83.3 / 100.
+     - ⛔ *Đưa thẳng điểm thô 1-5 và 1-7 vào công thức mà chưa quy đổi sẽ cho ra con số vô nghĩa.*
+  5. Xác định **Opportunity Score** (Điểm cơ hội) để chọn bài toán đáng giải nhất.
 * **Rules / Validation**:
   - ⛔ *Không mô tả nhu cầu bằng tên tính năng. Ví dụ: Đúng = "Muốn di chuyển nhanh từ A đến B", Sai = "Muốn có ứng dụng gọi xe Uber".*
   - ⛔ *Tập trung vào góc phần tư phía trên bên trái: Importance Cao (High) & Satisfaction Thấp (Low).*
@@ -120,13 +140,34 @@ PMF được định nghĩa là **mức độ sản phẩm (3 tầng trên) th�
   2. Chia nhỏ tính năng (**Feature Chunking**): Tách các User Story lớn thành các mảnh nhỏ đủ khả năng ước lượng chính xác.
   3. Ước lượng Chi phí/Nỗ lực (**Investment / Developer-Weeks / Story Points**).
   4. Ước lượng Giá trị tạo ra (**Return / Customer Value Created**).
-  5. Sắp xếp ưu tiên bằng **Ma trận ROI 3x3 (Value vs. Effort Grid)**:
-     - Ưu tiên 1: High Value / Low Effort (Ô số 1)
-     - Ưu tiên 2: High Value / Medium Effort (Ô số 3) hoặc Medium Value / Low Effort (Ô số 2)
-  6. Chọn ứng viên **MVP Candidate**: Bao gồm đủ Must-Haves cơ bản + Tính năng chiến thắng cho Performance Benefit + 1 Delighter độc đáo.
+  5. **Sắp xếp ưu tiên bằng ROI định lượng (phương pháp chính)**:
+     $$\text{ROI} = \frac{\text{Customer Value Created}}{\text{Development Effort (developer-weeks)}}$$
+     - Giá trị khách hàng phải chấm trên **thang tỷ lệ (ratio scale)**: điểm 10 phải thực sự gấp đôi điểm 5.
+     - Sắp xếp toàn bộ feature chunk thành **danh sách xếp hạng**. Mục đích không phải là con số ROI
+       chính xác mà là **thứ tự so sánh giữa chúng**.
+     - *Quy tắc phá hòa*: hai chunk cùng ROI thì **ưu tiên chunk nhỏ hơn**, vì giao giá trị sớm hơn.
+     - *Nước đi của đội giỏi*: thay vì loại một ý tưởng giá trị cao nhưng tốn công, hãy chia nhỏ nó, cắt
+       bỏ phần ít giá trị, và tìm cách giao cùng giá trị với ít công sức hơn — đẩy nó sang trái trên biểu đồ.
+     - **Ma trận ROI 3x3 (Value vs. Effort Grid) chỉ là phương án DỰ PHÒNG** — chính Olsen gọi đây là cách
+       dùng "kém chặt chẽ hơn", dành cho khi không ước lượng được bằng số. Khi dùng, phải nói rõ là đang dùng dự phòng.
+  6. Chọn ứng viên **MVP Candidate** theo **quy tắc cấu thành**, không theo ngưỡng cắt thứ hạng:
+     1. **Toàn bộ** Must-Haves đã xác định — bắt buộc, **bất kể thứ hạng ROI**.
+     2. Đủ số chunk của **đúng một** Performance Benefit được chọn để thắng, đủ để khách hàng thấy được sự khác biệt.
+     3. **Delighter hàng đầu** — chỉ được bỏ khi lợi thế Performance đã đủ lớn để tự đứng vững.
+     - ⛔ *Olsen nói rõ: "đôi khi bạn không thể đi theo đúng thứ tự xếp hạng để tạo ra một MVP hoàn chỉnh;
+       bạn có thể cần **nhảy xuống** để đưa vào những tính năng quan trọng." Một Must-Have tốn công vẫn
+       phải nằm trong v1 — ROI xếp thứ tự công việc, ROI không quyết định tư cách thành viên của MVP.*
+  7. Lập **lưới Lợi ích × Feature Chunk** (Hình 6.3/6.4): mỗi hàng là một lợi ích (`M1`, `M2`, `P1`…, `D1`…),
+     các chunk của lợi ích đó xếp theo thứ tự ưu tiên từ trái sang. **Cột trái nhất là v1**; các chunk bị
+     đẩy sang phải trở thành v1.1, v1.2. Không lập kế hoạch quá **một đến hai** phiên bản phụ.
 * **Rules / Validation**:
   - ⛔ *MVP không được cắt gọt theo chiều ngang chất lượng (chỉ làm tính năng chạy được mà bỏ qua trải nghiệm/độ tin cậy).*
-  - ⛔ *Cắt MVP theo lát cắt dọc hẹp (Slice of the pie): Vừa Functional, Reliable, Usable, vừa Delightful trên phạm vi tính năng giới hạn.*
+  - ⛔ *Cắt MVP theo lát cắt dọc hẹp: hẹp về phạm vi tính năng nhưng **trọn vẹn** qua cả bốn thuộc tính
+    **Functional, Reliable, Usable, Delightful**.*
+  - 📖 *Nguồn chính xác*: đây là **Kim tự tháp Thuộc tính MVP** (Hình 7.1, "Building an MVP"). Olsen ghi rõ
+    ông phỏng theo hình của nhà thiết kế UX **Jussi Pasanen** (Volkside), người ghi công **Aarron Walter,
+    Ben Tollady và Ben Rowe**. Ẩn dụ "cupcake / bánh cưới" là của **Brandon Schauer**, **không có trong
+    cuốn sách này** — không được gán cho Olsen.
 
 ---
 
@@ -153,7 +194,9 @@ PMF được định nghĩa là **mức độ sản phẩm (3 tầng trên) th�
   1. Lập kịch bản phỏng vấn & bài kiểm thử sử dụng (Usability & PMF Testing Script).
   2. Tuyển chọn chính xác nhóm khách hàng theo đúng Persona (Screener Questions).
   3. Chạy testing theo từng **Wave (Làn sóng)**:
-     - Mỗi làn sóng gồm khoảng **5 khách hàng/lượt** (đủ phát hiện 85% lỗi UX & nhận diện pattern phản hồi).
+     - Mỗi làn sóng gồm **5 đến 8 khách hàng** — đủ để nhận diện pattern phản hồi.
+     - ⚠️ *Con số "5 người dùng phát hiện 85% lỗi UX" là của **Jakob Nielsen**, không phải của Olsen; đừng
+       gán nó cho cuốn sách này.*
   4. Tổng hợp bài học sau mỗi wave: Phân loại phản hồi thành (1) Vấn đề UX, (2) Thiếu hụt tính năng, (3) Sai lệch Value Proposition, (4) Sai Target Customer.
   5. Thực hiện Vòng lặp **Hypothesize - Design - Test - Learn Loop**.
 * **Rules / Validation**:
@@ -277,9 +320,20 @@ Sau khi ra mắt sản phẩm live, tối ưu hóa theo phễu Pirating Metrics:
 
 Khi đóng vai trò AI Agent tư vấn hoặc phát triển sản phẩm theo Lean Product, Agent **BẮT BUỘC** phải tuân thủ các điều kiện logic (Guardrails) sau đây để không đưa ra tư vấn sai lệch:
 
-### 🛡️ Guardrail 1: Không Nhảy Vào Solution Space Quá Sớm
+### 🛡️ Guardrail 1: Tách Biệt Hai Không Gian — Ghi Nhận, Quy Đổi, Tạm Gác
 * **Lỗi AI thường gặp**: Khi người dùng đưa ra một ý tưởng, AI lập tức đề xuất danh sách tính năng, giao diện app, hay sơ đồ cơ sở dữ liệu.
-* **Luật bắt buộc**: Nếu chưa xác định rõ **Target Customer** và **Underserved Need** (Problem Space), AI **KHÔNG ĐƯỢC** phép gợi ý danh sách tính năng chi tiết. AI phải hỏi ngược lại người dùng để làm rõ Problem Space trước.
+* **Luật bắt buộc**: Nếu chưa xác định rõ **Target Customer** và **Underserved Need**, AI **KHÔNG ĐƯỢC**
+  đề xuất danh sách tính năng chi tiết, schema hay wireframe.
+* **Nhưng AI cũng KHÔNG ĐƯỢC từ chối người dùng.** Luật của Olsen là **tách biệt và luân phiên**, không
+  phải cấm đoán: *"học hỏi tốt nhất về Problem Space thường đến từ phản hồi của khách hàng trên chính các
+  artifact Solution Space mà bạn đã tạo ra."* Bản thân Lean Product Process cố ý bước vào Solution Space
+  ở Bước 4, 5 và 6.
+* **Hành vi đúng — ba nhịp**:
+  1. **Ghi nhận**: chép nguyên văn ý tưởng giải pháp vào mục *Solution Space Parking Lot*.
+  2. **Quy đổi**: chuyển nó thành nhu cầu Problem Space mà nó hàm ý, rồi nhờ người dùng xác nhận bản quy đổi.
+  3. **Tạm gác**: tiếp tục bước hiện tại, và **mang mục đã gác trở lại ở Bước 4**.
+* **Điều thực sự cần chặn** là một ý tưởng giải pháp **thay thế cho** một giả thuyết nhu cầu đã kiểm chứng
+  — không phải sự tồn tại của ý tưởng đó.
 
 ### 🛡️ Guardrail 2: Kiểm Tra Tectonic Plates (Sự Thay Đổi Đáy Kim Tự Tháp)
 * **Lỗi AI thường gặp**: Khi thử nghiệm thất bại, AI cố gắng sửa lỗi bằng cách gợi ý đổi màu nút bấm, đổi giao diện (UX).

@@ -1,6 +1,11 @@
 # KIẾN TRÚC MẠNG LƯỚI MICRO-SKILLS CHO AI AGENTS
 ## Dựa trên cuốn sách "The Lean Product Playbook" - Dan Olsen
 
+> [!IMPORTANT]
+> **Tài liệu phái sinh (Derivative).** Đây là bản tóm tắt soạn từ cuốn sách, **không phải nguồn gốc**.
+> Nơi nào mâu thuẫn với cuốn sách, **cuốn sách thắng**. Đã đối chiếu và sửa ngày 2026-09-16; bằng chứng
+> tại [source_fidelity_review.md](../../.devtool/epic/lean_product_suite/source_fidelity_review.md).
+
 ---
 
 ## 1. TỔNG QUAN KIẾN TRÚC (ARCHITECTURE OVERVIEW)
@@ -56,9 +61,20 @@ lean-market-discovery                lean-value-strategy                  lean-m
 * **Workflows & Tools**:
   * **Phân đoạn dựa trên Nhu cầu (Needs-based Segmentation)**.
   * **Tạo Needs-based Personas**: Định nghĩa rõ *Goals*, *Pains*, *Triggers*, và *Current Workarounds*.
-  * **Khung Importance vs. Satisfaction**: Thu thập dữ liệu đánh giá độ quan trọng và mức độ hài lòng.
-  * **Tính điểm cơ hội (Opportunity Score)**:
-    $$\text{Opportunity Score} = \text{Importance} \times (1 - \text{Satisfaction})$$
+  * **Khung Importance vs. Satisfaction** — thiết kế thang đo trước, tính sau:
+    * **Importance**: thang **đơn cực (unipolar) 5 điểm** (Không quan trọng → Cực kỳ quan trọng).
+    * **Satisfaction**: thang **lưỡng cực (bipolar) 7 điểm** (Hoàn toàn không hài lòng → Hoàn toàn hài lòng).
+    * *Vì sao khác nhau*: Satisfaction có cực âm, Importance thì không. Thang lưỡng cực dùng số điểm lẻ
+      để có mốc trung tính. Quá 11 lựa chọn gây quá tải; dưới 5 lựa chọn mất độ phân giải.
+    * **Chuẩn hóa bắt buộc**: 5 điểm → 0 / 25 / 50 / 75 / 100 (hoặc 0 / 2.5 / 5 / 7.5 / 10);
+      7 điểm → 0 / 16.7 / 33.3 / 50 / 66.7 / 83.3 / 100.
+  * **Tính điểm cơ hội — chạy cả hai công thức, mỗi công thức trên đúng thang của nó**:
+    * *Olsen* (đầu vào 0–1, kết quả 0–1), so sánh tương đối:
+      $$\text{Opportunity to Add Value} = \text{Importance} \times (1 - \text{Satisfaction})$$
+    * *Ulwick* (đầu vào 0–10, kết quả 0–20), có ngưỡng tuyệt đối:
+      $$\text{Opportunity Score} = \text{Importance} + \max(\text{Importance} - \text{Satisfaction}, 0)$$
+      **`> 15` rất hấp dẫn · `10–15` ở mức biên · `< 10` không hấp dẫn.**
+    * ⛔ *Không bao giờ đối chiếu con số của công thức này với ngưỡng của công thức kia.*
 * **Sản phẩm bàn giao (Hand-off Gate 1)**: `problem-space-spec.md` (Gồm danh sách Personas và Top 3-5 Opportunity Gaps có điểm số cao nhất).
 
 ---
@@ -75,7 +91,18 @@ lean-market-discovery                lean-value-strategy                  lean-m
     1. *Must-haves* (Bắt buộc phải có - không tạo sự hài lòng nhưng thiếu sẽ thất bại).
     2. *Performance Benefits* (Càng nhiều càng tốt - so sánh trực tiếp với đối thủ).
     3. *Delighters* (Gây bất ngờ, thích thú - tạo sự khác biệt đột phá).
-  * **Lập lưới Định vị Giá trị (Value Proposition Grid)**: So sánh sản phẩm dự kiến với Top 2-3 đối thủ hiện tại.
+  * **Lập lưới Định vị Giá trị (Value Proposition Grid)**: So sánh sản phẩm dự kiến với 2-3 đối thủ hiện tại.
+    * *"Đối thủ" không chỉ là đối thủ trực tiếp*: nếu không có đối thủ trực tiếp, cột đối thủ phải là
+      **giải pháp thay thế khách hàng đang dùng hôm nay** (giấy bút từng là đối thủ của TurboTax).
+      Không bao giờ chấp nhận tập đối thủ rỗng.
+    * *Quy ước chấm điểm*: Must-haves chấm Yes/No; Performance Benefits chấm High/Medium/Low hoặc số
+      liệu cụ thể; mỗi Delighter một hàng, đánh dấu Yes ở nơi có. Differentiator in **đậm**.
+  * **Quy tắc thắng-một / giữ-ngang-bằng**: chọn **đúng một** Performance Benefit để thắng; các tiêu chí
+    còn lại chỉ cần **ngang bằng**, không cần vượt trội. Được phép — và nên — chấm mình **Low** ở tiêu
+    chí không cạnh tranh. Chấm High ở mọi tiêu chí là né tránh chiến lược và phải bị từ chối.
+    * *Ca Google*: các search engine đầu tiên cạnh tranh ở số lượng, độ tươi và độ liên quan của kết quả.
+      Khi số lượng và độ tươi bão hòa, độ liên quan thành tiêu chí quan trọng nhất — Google thắng vì giỏi
+      nhất ở đúng tiêu chí đó **trong khi vẫn ngang bằng hoặc tốt hơn ở các chiều còn lại**.
 * **Sản phẩm bàn giao (Hand-off Gate 2)**: `value-proposition-spec.md` (Bảng phân loại Kano và tuyên ngôn giá trị độc nhất).
 
 ---
@@ -86,11 +113,24 @@ lean-market-discovery                lean-value-strategy                  lean-m
 * **Nhiệm vụ chính**: Cắt gọt tính năng để xây dựng phiên bản MVP tối thiểu nhưng vẫn đem lại giá trị tối đa.
 * **Core Rules & Constraints**:
   * **Quy tắc Chunking**: Chia nhỏ các epic thành các User Stories nhỏ nhất có thể kiểm thử độc lập.
-  * **Quy tắc ROI 3x3**: Chỉ đưa vào MVP v1 các tính năng thuộc ô High Value / Low Effort hoặc High Value / Medium Effort.
+  * **Quy tắc ROI**: Ưu tiên bằng **ROI định lượng** (`Customer Value / Developer-Weeks`) trước; lưới 3x3
+    High/Med/Low chỉ là **phương án dự phòng** Olsen gọi là "kém chặt chẽ hơn", dùng khi không ước lượng
+    được bằng số. Hai chunk cùng ROI thì ưu tiên chunk **nhỏ hơn**.
+  * **Quy tắc cấu thành MVP (thay cho mọi ngưỡng cắt thứ hạng)**: v1 gồm (1) **toàn bộ** Must-Haves — bắt
+    buộc, **bất kể thứ hạng ROI**; (2) đủ chunk của **đúng một** Performance Benefit được chọn để thắng;
+    (3) **Delighter hàng đầu**, chỉ bỏ được khi lợi thế Performance đủ lớn để tự đứng vững.
+    * ⛔ *Olsen nói rõ có lúc phải **nhảy xuống** khỏi thứ tự xếp hạng để MVP được hoàn chỉnh. Một
+      Must-Have tốn công vẫn phải nằm trong v1 — ROI xếp thứ tự công việc, không quyết định tư cách
+      thành viên của MVP. Nếu quá tốn công thì chia nhỏ nó ra, đừng cắt nó đi.*
 * **Workflows & Tools**:
   * **Chuẩn hóa User Stories**: `As a [Persona], I want to [Action], so that [Benefit]`.
   * **Ma trận Ưu tiên ROI 3x3 (Value vs. Effort)**.
-  * **Xác định MVP Candidate v1**: Đảm bảo cấu trúc MVP có đủ 3 tầng Kano (Must-have đủ xài + Performance vượt trội + 1 Delighter nhỏ).
+  * **Lưới Ứng Viên MVP (Hình 6.3/6.4)**: mỗi hàng là một lợi ích (`M1`, `M2`, `P1`…, `D1`…), các chunk của
+    lợi ích đó xếp theo thứ tự ưu tiên từ trái sang; **cột trái nhất là v1**, các chunk bị đẩy sang phải
+    thành v1.1, v1.2. Không lập kế hoạch quá **một đến hai** phiên bản phụ.
+  * **Kiểm tra tính trọn vẹn** theo **Kim tự tháp Thuộc tính MVP** — Functional, Reliable, Usable,
+    Delightful (Hình 7.1, Olsen phỏng theo **Jussi Pasanen**; ẩn dụ "cupcake" là của Brandon Schauer,
+    **không có trong sách này**).
 * **Sản phẩm bàn giao (Hand-off Gate 3)**: `mvp-feature-backlog.md` (Danh sách User Stories cho MVP v1 được xếp thứ tự ưu tiên).
 
 ---
@@ -106,6 +146,10 @@ lean-market-discovery                lean-value-strategy                  lean-m
   * **Lựa chọn loại Prototype**: *Landing Page/Smoke Test*, *Wizard of Oz*, *Clickable Wireframe*, hoặc *Concierge MVP*.
   * **Soạn bộ lọc Khách hàng (Screener Grid)**.
   * **Kịch bản phỏng vấn kiểm thử (Usability & Value Testing Script)**.
+  * **Quy mô mỗi làn sóng: 5 đến 8 khách hàng.** (Con số "5 người phát hiện 85% lỗi UX" là của Jakob
+    Nielsen, không phải của Olsen.)
+  * **Chấm điểm bán định lượng khi kết thúc mỗi buổi test**: thang 0–10 cho *mức độ giá trị*, *khả năng
+    sẽ dùng*, *mức độ dễ dùng*; theo dõi xu hướng qua từng làn sóng.
   * **Vòng lặp Hypothesize - Design - Test - Learn**: Đánh giá kết quả thu được để quyết định *Persevere* (Tiếp tục) hay *Pivot* (Xoay hướng).
 * **Sản phẩm bàn giao (Hand-off Gate 4)**: `test-results-and-pivot-report.md` (Báo cáo kết quả kiểm thử và định hướng điều chỉnh).
 
