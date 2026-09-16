@@ -10,6 +10,42 @@ every installed machine on the old cached copy.
 
 ## 1.2.0 — unreleased
 
+Adds the **Document Lifecycle Suite**: work whose deliverable is a document now has its own
+lifecycle, its own quality gate and its own stage skills, instead of being forced through gates
+built for code.
+
+### Added
+
+| Skill | What it does |
+|---|---|
+| `doc-lifecycle` | Orchestrates document work through three gates — brief and outline, verification, sign-off |
+| `doc-designer` | Establishes the audience, classifies the document into exactly one Diátaxis type, produces the outline and the section breakdown |
+| `doc-implementation` | Drafts section by section, one commit each, reusing the existing Kanban machinery unchanged |
+| `doc_quality_check` | The documentation quality gate: refusal rule, mechanical checks, type conformance, content audit |
+| `decision-records` | Architecture Decision Records in Michael Nygard's format, plus spike reports |
+
+- **`brainstorming` gains two exits.** It now routes to `doc-designer` for document deliverables, and
+  **upstream** to `lean-product-lifecycle` when the problem space was never validated — a route that
+  did not previously exist in that direction.
+- **`scripts/verify.sh` gains two checks.** Step 8 fails when a skill's own supporting file is
+  referenced by nothing; it found seven pre-existing orphans on its first run, including a second
+  reviewer prompt that had never been wired in. Step 9 fails when a live file still names a
+  pre-rename skill.
+- **`docs/choosing-a-lifecycle.md`** — directions for picking among the three lifecycles, including
+  when to skip all of them.
+- **`docs/adr/`** — decision records for this repository, starting with why the documentation
+  quality gate is a separate skill.
+- **`evals/doc-designer/mixed-mode-material`** — the first ablation case for a documentation skill.
+  Arm A 5/5, arm B 2/5. The report leads with where the baseline beat the skill.
+
+### Changed
+
+- **`rules/CRITICAL_RULES.md`** now selects the quality gate by the kind of work: `@quality_check`
+  for anything that changes a file shipping in the build, `@doc_quality_check` for prose. The
+  previous mandate was unsatisfiable for a Markdown deliverable.
+- **`skills/quality_check/SKILL.md` is unmodified.** The documentation gate is a separate skill
+  precisely so that the gate guarding every merge in every project did not have to change.
+
 > [!CAUTION]
 > **Breaking.** Three skills are renamed. `/d3nexus:epic-lifecycle`,
 > `/d3nexus:epic-designer` and `/d3nexus:epic-implementation` no longer resolve, and any
