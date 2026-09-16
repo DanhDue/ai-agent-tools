@@ -1,13 +1,13 @@
 ---
 id: "task_4_doc_designer_skill"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "document_lifecycle_suite"
 dueDate: null
 created: "2026-09-17T09:00:00Z"
-modified: "2026-09-17T09:00:00Z"
-completedAt: null
+modified: "2026-09-16T18:41:16Z"
+completedAt: "2026-09-16T18:41:16Z"
 labels: ["skill", "diataxis", "documentation"]
 order: "a4"
 ---
