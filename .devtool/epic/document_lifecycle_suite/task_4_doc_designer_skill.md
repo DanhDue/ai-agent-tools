@@ -59,8 +59,12 @@ by whether the reader can do the thing. "Explains the deploy process" is not an 
 
 ## Design Rationale
 
-The four modes exist on two axes (theory/practice against study/work), which is why a document
-serving two of them serves neither well. Encode the split rule as a **procedure step**, not advice:
+The four modes sit on the author's two axes — **action/cognition** and
+**acquisition/application** — and his compass resolves them into a decision table:
+content that informs action serves either acquisition (tutorial) or application (how-to guide);
+content that informs cognition serves either application (reference) or acquisition (explanation).
+A document serving two cells serves neither well. Encode the split rule as a **procedure step**,
+not advice:
 an agent asked to write "a guide" will otherwise produce a blend by default, and advice does not stop
 a default.
 

@@ -21,16 +21,25 @@ Epic: [document_lifecycle_suite](document_lifecycle_suite.en.md)
 Create `skills/decision-records/SKILL.md`, grounded in **Michael Nygard, *Documenting Architecture
 Decisions* (2011)**, retained by [Task 1](task_1_primary_sources_and_fidelity_guard.md).
 
-Record structure: **Title / Status / Context / Decision / Consequences**. Three rules carry the
-value, each corresponding to a way teams routinely get ADRs wrong:
+Record structure, in Nygard's own order: **Title / Context / Decision / Status / Consequences**.
 
-1. **One decision per record, immutable once `Accepted`.** An accepted ADR is never edited; it is
-   superseded by a new record that references it. This is what separates an ADR from a wiki page and
-   why the history stays trustworthy.
-2. **Record the rejected alternatives and why they were rejected.** Precisely what nobody remembers
-   six months later, and the reason teams reverse decisions that were correct.
-3. **`Consequences` must include the negative ones.** A record listing only benefits is a sales
+Two rules come from the source itself, quoted in the epic's
+[source fidelity review](source_fidelity_review.md):
+
+1. **One decision per record, immutable once `Accepted`.** Nygard: *"If a decision is reversed, we
+   will keep the old one around, but mark it as superseded… It's still relevant to know that it
+   *was* the decision, but is *no longer* the decision."* This is what separates an ADR from a wiki
+   page, and why the history stays trustworthy.
+2. **`Consequences` lists positive, negative *and* neutral outcomes.** Nygard: *"All consequences
+   should be listed here, not just the 'positive' ones."* A record listing only benefits is a sales
    pitch.
+
+A third rule is **this kit's own addition and must not be cited to Nygard** — his 2011 article does
+not mention it:
+
+3. **Name the alternatives that were rejected, and why.** This is precisely what nobody remembers
+   six months later, and the reason teams reverse decisions that were correct. It comes from later
+   ADR templates, not from the source; the skill must say so wherever it states the rule.
 
 **Spike / research report variant**: Question / Method / Findings / Recommendation / Confidence /
 **What would change this conclusion**. The last field is mandatory and forces the conclusion to be

@@ -246,16 +246,23 @@ Rationale for putting this inside `quality_check` rather than creating a fourth 
 
 ### 4.5 `decision-records` (new) — grounded in Nygard
 
-Architecture Decision Records: **Title / Status / Context / Decision / Consequences**. Three rules
-carry the value, and each corresponds to a way teams routinely get ADRs wrong:
+Architecture Decision Records, in Nygard's own section order:
+**Title / Context / Decision / Status / Consequences**.
+
+Two rules come from the source, quoted in [source_fidelity_review.md](source_fidelity_review.md):
 
 1. **One decision per record, immutable once `Accepted`.** An accepted ADR is never edited; it is
    superseded by a new record that references it. This is what separates an ADR from a wiki page,
    and it is why the history stays trustworthy.
-2. **Record the rejected alternatives and why they were rejected.** This is precisely what nobody
-   remembers six months later, and it is the reason teams reverse decisions that were correct.
-3. **`Consequences` must include the negative ones.** An ADR listing only benefits is a sales pitch,
-   not a record.
+2. **`Consequences` lists positive, negative and neutral outcomes** — the author names three
+   categories, not two. An ADR listing only benefits is a sales pitch, not a record.
+
+The third rule is **this kit's own addition, not Nygard's** — his article does not mention it, and
+the skill must never cite him for it:
+
+3. **Name the alternatives that were rejected, and why.** Precisely what nobody remembers six months
+   later, and the reason teams reverse decisions that were correct. It comes from later ADR
+   templates.
 
 **Spike / research report variant**: Question / Method / Findings / Recommendation / Confidence /
 **What would change this conclusion**. The last field forces the conclusion to be falsifiable and is
