@@ -1,12 +1,12 @@
 ---
 id: "task_10_tier_c_acceptance"
-status: "todo"
+status: "in-progress"
 priority: "high"
 assignee: null
 epic: "document_lifecycle_suite"
 dueDate: null
 created: "2026-09-17T09:00:00Z"
-modified: "2026-09-17T09:00:00Z"
+modified: "2026-09-16T19:01:35Z"
 completedAt: null
 labels: ["integration", "acceptance", "evals"]
 order: "a10"
