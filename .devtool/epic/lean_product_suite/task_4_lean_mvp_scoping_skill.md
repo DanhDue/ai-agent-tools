@@ -1,13 +1,13 @@
 ---
 id: "task_4_lean_mvp_scoping_skill"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "lean_product_suite"
 dueDate: null
 created: "2026-09-16T16:34:00Z"
-modified: "2026-09-16T18:10:00Z"
-completedAt: null
+modified: "2026-09-16T20:20:00Z"
+completedAt: "2026-09-16T20:20:00Z"
 labels: ["product-management", "mvp-scoping", "user-stories", "roi", "mvp-candidate-grid"]
 order: "d1"
 ---
