@@ -2,7 +2,7 @@
 
 > **Topic**: Transforming Dan Olsen's *The Lean Product Playbook* into a Standardized AI Agent Skill Suite  
 > **Date**: 2026-09-16  
-> **Status**: Approved Design Spec  
+> **Status**: Approved Design Spec — revised 2026-09-16 after [Source Fidelity Review](source_fidelity_review.md)  
 > **Target Audience**: AI Agents, Startup Founders, Product Managers, Engineers  
 
 ---
@@ -33,7 +33,8 @@ skills/
 ├── lean-market-discovery/               # Stage 1: Problem Space (Steve Blank & Anthony Ulwick)
 │   ├── SKILL.md
 │   ├── references/
-│   │   ├── opportunity-score-formulas.md # Dan Olsen & Ulwick algorithms
+│   │   ├── opportunity-score-formulas.md # Olsen & Ulwick algorithms, scales, thresholds
+│   │   ├── importance-satisfaction-survey.md # 5-pt unipolar / 7-pt bipolar + normalization
 │   │   └── customer-discovery-script.md  # Customer benefit laddering (5 Whys)
 │   └── templates/
 │       └── problem-space-spec.template.md# Gate 1 Artifact Contract
@@ -49,8 +50,9 @@ skills/
 └── lean-mvp-scoping/                    # Stage 3: MVP Scoping & ROI (Eric Ries & Jeff Patton)
     ├── SKILL.md
     ├── references/
-    │   ├── roi-3x3-matrix-rules.md       # 9-cell ROI priority sequencing
-    │   └── vertical-slice-guide.md       # Cupcake MVP (Vertical slice)
+    │   ├── roi-prioritization.md         # Numeric ROI first, 3x3 grid as fallback
+    │   ├── mvp-candidate-grid.md          # Benefit x feature-chunk grid (Fig 6.3/6.4)
+    │   └── mvp-attribute-pyramid.md       # Functional/Reliable/Usable/Delightful (Fig 7.1)
     └── templates/
         └── mvp-backlog.template.md       # Gate 3 Artifact Contract (Handoff to epic-designer)
 ```
@@ -108,18 +110,40 @@ Each skill embodies a world-renowned pioneer in product management, equipped wit
 
 ## 4. The Five Anti-Hallucination Guardrails (Hard Brakes)
 
-All skills enforce five axiomatic guardrails extracted from `docs/books/lean-product-roadmap.md`:
+All skills enforce five axiomatic guardrails. Each is stated in the form the book supports; see
+[Source Fidelity Review](source_fidelity_review.md) for the passages that constrain them.
 
-1. **Guardrail 1: Ban Premature Solution Space Jumping**
-   - The agent MUST reject any discussion of tech stacks, database schemas, UI wireframes, or detailed mechanics until Problem Space (Target Customer & Underserved Needs) is signed off at Gate 1.
+1. **Guardrail 1: Separate the Spaces — Capture, Convert, Park**
+   - Olsen's rule is *separate and alternate*, not *forbid*: "the best problem space learning often
+     comes from feedback you receive from customers on the solution space artifacts you have created."
+   - The agent therefore **never rejects** a solution-space statement. It **captures** it verbatim in a
+     Solution Space Parking Lot, **converts** it into the problem-space need it implies, continues the
+     current step, and **returns** the parked item at Step 4 (MVP Feature Set).
+   - The failure this blocks is a solution idea *substituting for* a validated need — not the idea existing.
+
 2. **Guardrail 2: Tectonic Plates Check (Root Cause Pullback)**
-   - If downstream testing or value strategy stalls, the agent MUST NOT patch the UX. It must trace the issue back to root tectonic plates: Is the Target Persona invalid? Are the Needs misunderstood?
+   - Diagnosis runs against the **5-layer PMF Pyramid** (Target Customer → Underserved Needs → Value
+     Proposition | Feature Set → UX), bottom-up. If the failure is in a lower layer, the agent must not
+     patch a higher one. "It's easier to make changes near the top of the pyramid, but changing
+     hypotheses near the bottom can have significant" consequences.
+
 3. **Guardrail 3: Strict Conversion of Features into Needs**
-   - When users state *"Users want an AI chatbot"*, the agent converts it to: *"Users need immediate, zero-waiting support responses at 2 AM."*
-4. **Guardrail 4: Vertical Slice MVP Enforcement**
-   - Banned: Horizontal slicing (building a buggy, unstyled backend or a non-functional mock). Enforced: Vertical slicing across Functional, Reliable, Usable, and Delightful.
-5. **Guardrail 5: Mathematical Quantification over Qualitative Vague Claims**
-   - Banned: "This is a huge opportunity." Enforced: Calculate Opportunity Score via Dan Olsen and Anthony Ulwick formulas, and prioritize using the 3x3 ROI grid.
+   - "Users want an AI chatbot" → "Users need immediate, zero-waiting support responses at 2 AM."
+   - Needs are never named after features: "wants to get from A to B quickly", not "wants an Uber app".
+
+4. **Guardrail 4: Complete MVP Across All Four Attributes**
+   - The MVP Attribute Pyramid — **functional, reliable, usable, delightful** (Figure 7.1, adapted by
+     Olsen from Jussi Pasanen) — must be satisfied across a deliberately narrow feature scope.
+   - Banned: treating "minimum" as licence for a buggy or unusable build.
+   - The MVP candidate must contain **all must-haves**, enough of **one** winning performance benefit to
+     be visibly better, and normally the **top delighter** — ROI rank orders the work, it does not decide
+     membership.
+
+5. **Guardrail 5: Quantify on the Correct Scale**
+   - Banned: "This is a huge opportunity."
+   - Enforced: measure Importance on a **5-point unipolar** scale and Satisfaction on a **7-point
+     bipolar** scale, **normalize explicitly**, then compute Olsen's `I x (1 - S)` on 0–1 and Ulwick's
+     `I + max(I - S, 0)` on 0–10 — never reporting one formula's number against the other's threshold.
 
 ---
 
@@ -140,24 +164,34 @@ All deliverables are saved in `.devtool/product/<product_slug>/` as versioned, s
   1. Needs-based segmentation (Demographics, Psychographics, Behavioral Triggers).
   2. Construction of primary Target Persona.
   3. Benefit Laddering interview protocol.
-  4. Importance (1–10) and Satisfaction (1–10) scoring.
-  5. Opportunity Score calculation:
-     $$\text{Opportunity Score (Ulwick)} = \text{Importance} + \max(\text{Importance} - \text{Satisfaction}, 0)$$
+  4. Importance (5-point unipolar) and Satisfaction (7-point bipolar) scoring, then normalization
+     to a common 0–10 / 0–1 basis.
+  5. Opportunity Score calculation on both formulas, each on its own scale:
+     $$\text{Ulwick (0-10 inputs, 0-20 range)} = \text{Importance} + \max(\text{Importance} - \text{Satisfaction}, 0)$$
+     $$\text{Olsen (0-1 inputs, 0-1 range)} = \text{Importance} \times (1 - \text{Satisfaction})$$
 * **Deliverable (Gate 1)**: `01_problem_space_spec.md`
   * **Required Sections**:
     - `Target Persona Profile`: Goals, Pains, Triggers, Current Workarounds.
     - `Underserved Needs Table`: 3–5 pain points purely in Problem Space.
     - `Quantified Opportunity Matrix`: Importance, Satisfaction, Opportunity Score.
     - `Top Priority Problem Gap`: The #1–2 highest scoring needs.
-* **Gate 1 Criteria**: User & Agent sign-off. Zero solution terminology allowed. $OS \ge 10$ confirmed for top gaps.
+* **Gate 1 Criteria**: User & Agent sign-off. Needs stated in problem-space language (solution ideas
+  live in the Parking Lot, not in the needs table). **At least one need scores $OS > 15$** on Ulwick's
+  scale — "very attractive". Scores of 10–15 are marginal and admitted only with a written rationale;
+  $OS < 10$ is rejected outright as over-served.
 
 ### 5.2 Stage 2: Value Proposition Strategy (`lean-value-strategy`)
-* **Inputs**: Gate 1 Artifact (`01_problem_space_spec.md`) + List of 2–3 key competitors.
+* **Inputs**: Gate 1 Artifact (`01_problem_space_spec.md`) + 2–3 competitors **or**, where there are no
+  direct competitors, the customer's current workaround (pen and paper was TurboTax's competitor).
 * **Process**:
   1. Kano Model categorization: Must-Haves, Performance Benefits, Delighters.
-  2. Competitive benchmarking matrix against Top 2–3 competitors.
-  3. Definition of 1–2 Key Differentiators.
-  4. Explicit enumeration of Non-Goals ("What we choose NOT to do").
+  2. Competitive benchmarking grid: must-haves scored Yes/No, performance benefits High/Medium/Low or
+     numeric, delighters one per row marked Yes where present.
+  3. Selection of exactly **one** performance benefit to win on — with parity, not superiority, required
+     on the others. Scoring the product deliberately **Low** on a benefit is permitted and encouraged;
+     scoring it High everywhere is rejected as strategy avoidance.
+  4. Definition of 1–2 Key Differentiators (marked in bold, as in Olsen's Table 5.5).
+  5. Explicit enumeration of Non-Goals ("What we choose NOT to do").
 * **Deliverable (Gate 2)**: `02_value_proposition_spec.md`
   * **Required Sections**:
     - `Kano Category Breakdown`: Must-Haves (table stakes), Performance (linear scale), Delighters (wow factors).
@@ -171,15 +205,24 @@ All deliverables are saved in `.devtool/product/<product_slug>/` as versioned, s
 * **Process**:
   1. Translate value benefits into User Stories: `As a [Persona], I want to [Action], so that [Benefit]`.
   2. Feature Chunking into atomic, estimable units.
-  3. 3x3 ROI Matrix evaluation (Customer Value vs Dev Effort).
-  4. Vertical Slice scoping (The Cupcake principle).
+  3. ROI prioritization: numeric `Customer Value / Developer-Weeks` on a ratio scale first; the 3x3
+     High/Med/Low grid only as the declared fallback when numeric estimates are not obtainable.
+     Ties break toward the smaller-scope chunk.
+  4. Construction of the **MVP Candidate Grid** — benefits as rows, their feature chunks in priority
+     order across columns, leftmost column = v1 (Figures 6.3/6.4).
+  5. Completeness check against the MVP Attribute Pyramid (functional, reliable, usable, delightful).
 * **Deliverable (Gate 3)**: `03_mvp_feature_backlog.md`
   * **Required Sections**:
-    - `Prioritized User Story Backlog`: Stories with initial acceptance criteria.
-    - `ROI 3x3 Grid Distribution`: Mapping of stories into Priority Cells 1–9.
-    - `MVP v1 Scope (Vertical Slice)`: Must-haves + 1 Performance Leader + 1 Delighter.
-    - `Roadmap Backlog (v1.1, v1.2)`: Deferred features.
-* **Gate 3 Criteria**: User & Agent sign-off. MVP features strictly confined to Cells 1–3 of the ROI grid.
+    - `Prioritized Feature Chunk Backlog`: chunks with ROI estimates and initial acceptance criteria.
+    - `MVP Candidate Grid`: benefits (M1, M2, P1…, D1…) as rows; chunks in priority order across
+      v1 / v1.1 / v1.2 columns.
+    - `MVP v1 Scope`: **all** must-haves + enough chunks of the one winning performance benefit + the
+      top delighter.
+    - `Roadmap Backlog (v1.1, v1.2)`: deferred chunks — no further than two minor versions ahead.
+* **Gate 3 Criteria**: User & Agent sign-off. Every identified must-have is present in v1 regardless of
+  its ROI rank; exactly one performance benefit is designated the winner and is represented by enough
+  chunks to be visible; a delighter is present unless the performance advantage is documented as large
+  enough to stand alone; the roadmap stops at v1.2.
 
 ---
 
@@ -213,7 +256,20 @@ Following [writing-skills](file:///Users/danhdueexoictif/AllProjects/ai-agent-to
 
 ## 8. Implementation Rollout Plan
 
-- **Step 1**: Commit this Design Spec to `docs/superpowers/specs/2026-09-16-lean-product-lifecycle-suite-design.md`.
-- **Step 2**: Route to `epic-designer` (since this is an epic-scale suite of 4 coordinated skills, references, and templates) to generate the technical HLD and Kanban tasks.
-- **Step 3**: Implement the 4 skills and their supporting reference files and templates.
-- **Step 4**: Run Quality Check and verification test scenarios.
+- **Step 1**: ~~Commit this Design Spec to `docs/superpowers/specs/`~~ — relocated to
+  `.devtool/epic/lean_product_suite/` per the epic-lifecycle Stage 1 routing rule. Done.
+- **Step 2**: Route to `epic-designer` to generate the technical HLD and Kanban tasks. Done.
+- **Step 3**: Re-evaluate every derived claim against the primary source and correct this spec, the
+  HLD, the BDD scenarios, and the task files. See [Source Fidelity Review](source_fidelity_review.md). Done.
+- **Step 4**: Correct the three intermediate documents in `docs/books/` so the errors cannot re-propagate.
+- **Step 5**: Implement the 4 skills and their supporting reference files and templates.
+- **Step 6**: Run Quality Check and the verification test scenarios.
+
+---
+
+## 9. Source Fidelity
+
+This specification is grounded in *The Lean Product Playbook* (Dan Olsen, Wiley 2015) directly. The
+three documents in `docs/books/` are **derivatives**, useful as leads but not as evidence; where they
+conflict with the book, the book wins. Every correction, with the supporting passage, is recorded in
+[Source Fidelity Review](source_fidelity_review.md).
