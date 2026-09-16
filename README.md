@@ -38,7 +38,10 @@ If the question is still *what should we build and for whom*, start one stage ea
   - [3.4. Authoring a skill](#34-authoring-a-skill)
   - [3.5. Rules vs audit criteria](#35-rules-vs-audit-criteria)
   - [3.6. The upstream product discovery suite](#36-the-upstream-product-discovery-suite)
+  - [3.7. Measuring whether a skill works](#37-measuring-whether-a-skill-works)
 - [4. License](#4-license)
+
+Release notes: [CHANGELOG.md](CHANGELOG.md).
 ---
 
 ## 1. Installation
@@ -310,6 +313,24 @@ are **not implemented**; the orchestrator says so at Gate 3 rather than implying
 > author's own wording in
 > [`.devtool/epic/lean_product_suite/source_fidelity_review.md`](.devtool/epic/lean_product_suite/source_fidelity_review.md),
 > and `scripts/verify.sh` step 7 fails the build if any of them reappear.
+
+### 3.7. Measuring whether a skill works
+
+`evals/` holds a blind-judge ablation harness. Each scenario runs **with** the skill and **without**
+it, and a third agent grades both replies without knowing which is which. The finding is the
+**delta** — whether the skill changed what the agent decided, as opposed to whether an agent holding
+it can recite it.
+
+```bash
+# see evals/protocol.md — ~3 agent invocations per case
+```
+
+Not part of `scripts/verify.sh`: each run costs real agent invocations, so it belongs at release
+time or after editing a skill. A zero delta is a **result**, not a failure — it says the rule is not
+paying for the context it occupies.
+
+Current findings for the Lean Product suite are in `evals/results/2026-09-16-baseline/report.md`,
+and the honest summary is in [CHANGELOG.md](CHANGELOG.md) under *Known limitations*.
 
 ---
 
