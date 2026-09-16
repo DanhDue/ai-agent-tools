@@ -213,10 +213,13 @@ they conflict, the benefit grid wins.
 
 **Script, for the expensive must-have**
 
-> "That one's expensive — eleventh by ROI. It still goes in v1. It's a must-have, and in this
-> category a product without it isn't a cheaper product, it's not a product. What I'd rather do is
-> chunk it down: what's the smallest version that still clears the bar customers expect? Cutting it
-> isn't on the table; shrinking it is."
+> "That one's expensive — it lands near the bottom by ROI. It still goes in v1. It's a must-have,
+> and in this category a product without it isn't a cheaper product, it's not a product. What I'd
+> rather do is chunk it down: what's the smallest version that still clears the bar customers
+> expect? Cutting it isn't on the table; shrinking it is."
+>
+> *(Also worth a look: a must-have scoring very low on customer value is often a scoring-scale
+> problem rather than a fact about the feature — see [ROI Prioritization](references/roi-prioritization.md).)*
 
 ---
 

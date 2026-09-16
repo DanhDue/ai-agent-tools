@@ -57,6 +57,22 @@ A rating scale where 10 is "very valuable" and 5 is "moderately valuable" is **n
 and dividing by effort produces a number with no meaning. Before scoring, ask: *is a 10 here really
 worth twice a 5?* If not, rescale until it is.
 
+> [!WARNING]
+> **Must-haves break naive value scoring, and the symptom is a distorted rank order.** By Kano
+> definition a must-have produces *no* satisfaction when present and severe dissatisfaction when
+> absent. So if "customer value" is scored as *how much this delights someone* — the intuitive
+> reading — every must-have floors at 1 or 2 out of 10 **by construction**, and the whole ranking
+> tilts away from the features the product cannot ship without.
+>
+> Score customer value as **value destroyed by absence, not delight created by presence**. On that
+> basis a must-have scores high, which is correct: a product without it is worth nothing in its
+> category.
+>
+> When a must-have comes back at 2/10, treat it as a **scale defect to investigate**, not as
+> evidence about the feature. Re-scoring is a data-quality fix — it is never a reason to keep or cut
+> a must-have, because [the composition rule](mvp-candidate-grid.md) already settles that
+> independently of any number.
+
 **On precision — do not over-invest in it.**
 
 > "Some people struggle to create numerical estimates of customer value they feel are accurate.

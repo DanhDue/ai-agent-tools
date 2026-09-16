@@ -213,6 +213,17 @@ Solution-space ideas will arrive constantly during this stage. **Never refuse th
 2. **Convert** to the need it implies; ask the founder to confirm your reading.
 3. **Park** — continue, and hand the list forward. `d3nexus:lean-mvp-scoping` drains it at step 4.
 
+> [!IMPORTANT]
+> **Write the file, do not narrate writing it.** At first contact
+> `.devtool/product/<slug>/01_problem_space_spec.md` does not exist yet. The moment you capture the
+> first parked item, **create it from the template** and write the item in — even though every other
+> section is still empty. Saying "this goes into the parking lot" without a file on disk fails this
+> guardrail while appearing to satisfy it, and the item is gone at the end of the session. A parking
+> lot that silently empties is worse than no parking lot.
+>
+> If you do not have a slug yet, **ask for one** before creating the directory. Do not invent it and
+> do not silently rename it later — the path is referenced from every downstream artefact.
+
 > "Noted and parked for step 4 — writing it down as you said it so we don't lose it. So I capture
 > the need behind it rather than the shape of it: who specifically hits this, and what are they
 > trying to get done when they do?"

@@ -1,13 +1,13 @@
 ---
 id: "task_5_suite_integration_and_verification"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "lean_product_suite"
 dueDate: null
 created: "2026-09-16T16:34:00Z"
-modified: "2026-09-16T18:10:00Z"
-completedAt: null
+modified: "2026-09-16T21:10:00Z"
+completedAt: "2026-09-16T21:10:00Z"
 labels: ["integration", "plugin-sync", "tdd-verification", "quality-gate"]
 order: "e1"
 ---
@@ -36,10 +36,21 @@ This task requires:
   the kit description if the suite broadens its stated scope beyond mobile engineering.
 
 ### 2. Plugin Synchronization
-- Sync `lean-product-lifecycle`, `lean-market-discovery`, `lean-value-strategy` and
-  `lean-mvp-scoping` with their `references/` and `templates/` to
-  `~/.gemini/config/plugins/d3nexus/skills/`, following the procedure the kit already uses.
-- Verify the target path exists before writing; report rather than create silently if it does not.
+
+> [!IMPORTANT]
+> **Divergence from the original task description, recorded during execution.**
+> `~/.gemini/config/plugins/d3nexus/` is **a git clone of this repository** on `main`, not a
+> file-copy target. `scripts/release.sh` syncs it with `git -C "$HOME/.gemini/config/plugins/d3nexus"
+> pull origin main` after bumping the version and pushing.
+>
+> Manually copying skill directories into that clone would leave it with a dirty working tree and
+> conflict with the next pull. So there is nothing to copy here: synchronization happens through
+> the normal release flow, which runs **after this branch merges to `main`** — i.e. in Stage 4
+> (`finishing-a-development-branch`), not Stage 3.
+
+- Confirm the clone's state and record it: remote, branch, HEAD, and whether it is clean.
+- Do **not** hand-copy files into it.
+- Synchronization is performed by `scripts/release.sh` once the branch is on `main`.
 
 ### 3. Source-Fidelity Regression Check
 A grep-level check over `skills/lean-*/` and `docs/books/` that fails on any reintroduction of the
@@ -85,8 +96,8 @@ Run each scenario against a subagent with the skills present, and record the tra
 
 ## Acceptance Criteria
 - `README.md` documents the four new Lean Product skills with triggering descriptions.
-- All four skills exist under `skills/` and are synchronized to
-  `~/.gemini/config/plugins/d3nexus/skills/`, or the absence of that path is reported.
+- All four skills exist under `skills/`. The Gemini plugin clone's state is recorded and it is
+  left clean — synchronization is deferred to `scripts/release.sh` after the branch merges.
 - `scripts/verify.sh` contains a source-fidelity regression section and passes.
 - All five pressure scenarios pass with zero guardrail breaches, and transcripts are recorded.
 - `d3nexus:quality_check` reports 🟢 LGTM.

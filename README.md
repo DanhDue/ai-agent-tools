@@ -8,12 +8,15 @@ written once, and each runtime gets a thin manifest pointing at them.
 
 | | |
 |---|---|
-| **42 skills** | Epic lifecycle orchestration · 3-tier quality gates · security / architecture / UI / code-health audits · TDD and debugging process · build-environment and secure-file setup · Flutter and Android feature/API scaffolding |
+| **47 skills** | Upstream product discovery (Lean Product Process) · epic lifecycle orchestration · 3-tier quality gates · security / architecture / UI / code-health audits · TDD and debugging process · build-environment and secure-file setup · Flutter and Android feature/API scaffolding |
 | **2 rules** | `CRITICAL_RULES.md` (mandatory `quality_check` after every workflow) and `coding-guidelines.md` (think first, simplicity, surgical changes, verify) |
 | **Templates** | Per-project `AGENTS.md` and shared editor guardrails |
 
 Start with the **`epic-lifecycle`** skill for anything epic-scale — it owns the stage sequence and
 the four approval gates, and routes to the right skill at each step.
+
+If the question is still *what should we build and for whom*, start one stage earlier with
+**`lean-product-lifecycle`** — see [3.6](#36-the-upstream-product-discovery-suite).
 
 ---
 
@@ -34,6 +37,7 @@ the four approval gates, and routes to the right skill at each step.
   - [3.3. The session-start hook](#33-the-session-start-hook)
   - [3.4. Authoring a skill](#34-authoring-a-skill)
   - [3.5. Rules vs audit criteria](#35-rules-vs-audit-criteria)
+  - [3.6. The upstream product discovery suite](#36-the-upstream-product-discovery-suite)
 - [4. License](#4-license)
 ---
 
@@ -266,7 +270,7 @@ description: Use this skill when …   # what it does AND when to use it — dri
 ```
 
 `description` is the field both runtimes read to decide whether to activate the skill, so it
-carries more weight than anything in the body. All 42 skills use these two fields and nothing
+carries more weight than anything in the body. All 47 skills use these two fields and nothing
 else — adding non-standard keys risks a frontmatter parse failure with no error surfaced.
 
 Use the `writing-skills` skill when creating or editing one, and run `scripts/verify.sh` before
@@ -282,6 +286,30 @@ contract, naming and formatting, the security baseline — live in
 `references/flutter-project-baseline.md` inside the audit skill that enforces them. That way
 `quality_check` loads them only when it actually audits a Flutter project, and each reference
 holds only what its `SKILL.md` does not already cover.
+
+### 3.6. The upstream product discovery suite
+
+Four skills implementing Dan Olsen's **Lean Product Process**, covering the discovery work that
+happens *before* `epic-lifecycle` — deciding what to build and for whom, rather than how.
+
+| Skill | Persona | Covers | Produces |
+|---|---|---|---|
+| `lean-product-lifecycle` | Dan Olsen | Orchestration, 3 gates, 5 guardrails | routes the other three |
+| `lean-market-discovery` | Steve Blank & Anthony Ulwick | Steps 1–2: target customer, underserved needs | `01_problem_space_spec.md` |
+| `lean-value-strategy` | Noriaki Kano & Michael Porter | Step 3: Kano classification, competitive grid | `02_value_proposition_spec.md` |
+| `lean-mvp-scoping` | Eric Ries & Jeff Patton | Step 4: chunking, ROI, MVP candidate grid | `03_mvp_feature_backlog.md` |
+
+Artefacts land in `.devtool/product/<slug>/`, and the Gate 3 backlog is consumed directly by
+`epic-designer`. Steps 5 and 6 of the process — building an MVP test and running it with customers —
+are **not implemented**; the orchestrator says so at Gate 3 rather than implying the journey is over.
+
+> [!IMPORTANT]
+> These skills teach an external methodology, so they are written from *The Lean Product Playbook*
+> itself rather than from summaries of it. The summaries in `docs/books/` are **derivatives**: useful
+> as leads, not as evidence. Six behaviour-changing errors found in them are catalogued with the
+> author's own wording in
+> [`.devtool/epic/lean_product_suite/source_fidelity_review.md`](.devtool/epic/lean_product_suite/source_fidelity_review.md),
+> and `scripts/verify.sh` step 7 fails the build if any of them reappear.
 
 ---
 

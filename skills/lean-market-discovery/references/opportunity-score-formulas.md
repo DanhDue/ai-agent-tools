@@ -85,6 +85,43 @@ Olsen's own worked comparison:
 | **10 – 15** | Marginal | Admit only with a written rationale. Never the sole basis for Gate 1. |
 | **< 10** | Unattractive / over-served | Reject. Ladder further, or re-segment. |
 
+### The ceiling that makes laddering non-optional
+
+A consequence of combining Olsen's 5-point importance scale with Ulwick's `> 15` bar, worth knowing
+before you wonder why a promising need will not pass:
+
+**A need's Ulwick score can never exceed twice its importance**, because the gap term is capped at
+importance itself (satisfaction cannot go below zero). So importance alone sets the ceiling:
+
+| Raw importance | Normalized | Ceiling (at satisfaction 0) | Can clear `> 15`? |
+|---|---|---|---|
+| 5/5 Extremely important | 10.0 | 20.0 | **Yes** |
+| 4/5 Very important | 7.5 | **15.0** | **No** — 15.0 is not *above* 15 |
+| 3/5 Moderately important | 5.0 | 10.0 | No |
+| 2/5 Slightly important | 2.5 | 5.0 | No |
+
+So with a **single integer rating**, only a need rated **5/5 "extremely important"** can ever pass
+Gate 1 — no matter how badly served it is today. A need rated "very important" and *completely*
+unsatisfied lands on exactly 15.0 and fails.
+
+**This is not a defect in the threshold; it is the threshold working.** "Very important, and nobody
+serves it" is a real problem and still not a *product-founding* problem. The remedy is the one the
+method already prescribes: **ladder one rung up**. A 4/5 rating is usually a detailed benefit, and
+the high-level benefit it rolls into is the one people rate 5/5.
+
+**With measured data the ceiling softens**, because averaging across respondents produces fractional
+ratings:
+
+| Averaged importance | Normalized | Ceiling | Clears `> 15`? |
+|---|---|---|---|
+| 4.2 / 5 | 8.0 | 16.0 | Yes |
+| 4.5 / 5 | 8.75 | 17.5 | Yes |
+| 4.8 / 5 | 9.5 | 19.0 | Yes |
+
+An average above **4.0** is what it takes. This is another reason to record whether a rating is
+`measured` or `hypothesis`: in hypothesis mode the founder is picking an integer, and the arithmetic
+is stricter than they will expect.
+
 > [!WARNING]
 > A threshold of `>= 10` is **not** a bar for an attractive opportunity — it is the floor of the
 > band Olsen calls unattractive. Gate 1 requires a need above **15**.

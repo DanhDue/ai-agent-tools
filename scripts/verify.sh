@@ -122,6 +122,9 @@ hook_case "Antigravity second invocation"   silent "X=1" '{"invocationNum":1}'
 hook_case "Antigravity later invocation"    silent "X=1" '{"invocationNum":7}'
 hook_case "Antigravity unreadable payload"  silent "X=1" 'not json'
 
+note "== 7. Lean Product suite stays faithful to its source =="
+python3 scripts/check_source_fidelity.py || FAILED=1
+
 echo
 if [ "$FAILED" -eq 0 ]; then
   echo "PASS — safe to publish"

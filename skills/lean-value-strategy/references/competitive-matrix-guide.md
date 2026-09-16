@@ -202,6 +202,14 @@ customers are already satisfied with, which buys no switching.
 **The me-too column.** Your column is identical to a competitor's. No bold cells, no delighter, no
 Low. There is no reason for a rational customer to switch, and switching costs are never zero.
 
+**Parity everywhere, including no Low.** Your column matches the competitors on every row — Yes on
+the must-haves, Medium on every performance benefit, no delighters. No bold cell, and, just as
+telling, **no Low**: nothing was scored down, so nothing paid for anything. This is the quietest
+me-too signature because every individual cell looks defensible; only the column read as a whole
+shows that no decision was made. Check the competitors' scores for evidence before diagnosing —
+whether this is an uncontested opening or a market already won turns on whether those Mediums are
+real.
+
 **High everywhere.** The founder has scored themselves best on every performance benefit. This is not
 ambition; it is the refusal to choose, and it reliably produces a product that is second-best at
 everything.

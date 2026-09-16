@@ -229,6 +229,24 @@ Diagnose which layer actually failed before proposing a fix.
 | The founder refuses to score anything Medium or Low | Not a data problem | **Stop.** This is a decision they have to make; the grid cannot make it for them |
 | Must-haves are unaffordable | Target Customer | **Stage 1** — a segment whose table stakes you cannot meet is the wrong segment |
 
+### Telling the first two rows apart
+
+The first two rows look identical on the page — an undifferentiated grid — and they have opposite
+treatments, so guessing is expensive. The diagnostic is **how the competitors are scored, not how
+you are**:
+
+| | "Nobody leads" — an opening | "I'm flattering myself" — a dead end |
+|---|---|---|
+| Competitor columns | Genuinely Medium / mixed | Actually High, softened to Medium |
+| What it means | The axis is uncontested | The axis is already won by someone |
+| Where to fix it | **Stage 2** — take the most upper-left benefit to High | **Stage 1** — these needs are not underserved |
+
+**Score the competitors honestly before diagnosing your own column.** Ask for evidence per cell:
+*"what makes Competitor A a Medium rather than a High on this — what would a customer of theirs
+say?"* Numbers settle it where the benefit is measurable. An all-Medium grid where every competitor
+is *genuinely* Medium is good news badly presented — it is exactly the position Google was in on
+relevance before PageRank.
+
 The second row is the tectonic-plates case, and it is the one that hurts. Say it plainly:
 
 > "We can't fix this at the value proposition layer. Every benefit we've identified is already
