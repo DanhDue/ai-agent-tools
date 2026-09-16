@@ -131,7 +131,7 @@ before Tasks 1–9 land.
 ## Dependencies & Blockers
 
 - Blocked by Tasks [3](task_3_doc_lifecycle_orchestrator.md), [4](task_4_doc_designer_skill.md),
-  [5](task_5_doc_implementation_skill.md), [6](task_6_quality_check_kind_branch.md),
+  [5](task_5_doc_implementation_skill.md), [6](task_6_doc_quality_check_skill.md),
   [7](task_7_brainstorming_fourth_exit.md), [8](task_8_decision_records_skill.md),
   [9](task_9_verify_sh_orphan_and_rename_checks.md).
 

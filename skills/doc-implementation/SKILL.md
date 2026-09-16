@@ -1,6 +1,6 @@
 ---
 name: doc-implementation
-description: Use when a document already has an approved brief, outline and section task files and you need to actually write it — one worktree, one section at a time, one commit per section. It enforces Gate 2 by handing the draft to quality_check with Kind document, and holds Gate 3 for the user's sign-off. Activate it at Stage 2 of the document lifecycle, after doc-designer's breakdown has been confirmed.
+description: Use when a document already has an approved brief, outline and section task files and you need to actually write it — one worktree, one section at a time, one commit per section. It enforces Gate 2 by handing the draft to doc_quality_check, and holds Gate 3 for the user's sign-off. Activate it at Stage 2 of the document lifecycle, after doc-designer's breakdown has been confirmed.
 ---
 
 # Document Implementation
@@ -85,7 +85,7 @@ For each section, in order:
 
 **No test suite runs here.** Not unit tests, not integration tests, not a native build. There is
 nothing to run, and running the development gates on prose would produce a green light that means
-nothing. Gate 2 is `quality_check` with `Kind: document`, at Phase 4.
+nothing. Gate 2 is `doc_quality_check`, at Phase 4.
 
 #### What replaces TDD
 
@@ -113,9 +113,9 @@ Keeping it out of the section's own commit is what keeps `git log` readable as o
 
 ### Phase 4 — Gate 2 verification
 
-Once every section is done, run `quality_check`. The document's `Kind: document` selects the
-document path: mechanical checks, Diátaxis conformance, the content audit, and the refusal rule
-that aborts if the diff touches a file shipping in the build.
+Once every section is done, run `doc_quality_check`: the refusal rule, mechanical checks, Diátaxis
+conformance and the content audit. Do not run `quality_check` — it verifies code, shares nothing
+with this path, and would report on checks that do not apply.
 
 On any failure, fix and re-run **in full**. A 🟢 assembled from a partial re-run is not a 🟢.
 
@@ -124,7 +124,7 @@ On any failure, fix and re-run **in full**. A 🟢 assembled from a partial re-r
 With Gate 2 green, **stop calling tools.** Leave every completed task in `.devtool/features/done/`
 so the board is inspectable, present the draft and the `quality_check` verdict, and wait:
 
-> "The `<doc_slug>` document is drafted and `quality_check` is 🟢. All sections are visible in the
+> "The `<doc_slug>` document is drafted and `doc_quality_check` is 🟢. All sections are visible in the
 > DONE column. Please review the document. Reply to proceed with branch finishing and archival."
 
 Only an explicit approval advances. A change request routes back to Phase 2.
@@ -140,7 +140,7 @@ A deliverable left in `.devtool/` has not shipped.
 ## Red Flags
 
 - Running unit, integration or native build commands on a document.
-- Skipping `quality_check` because "it is only prose".
+- Skipping `doc_quality_check` because "it is only prose".
 - More than one commit per section, or folding an outline sync into a section's commit.
 - Drafting material that belongs to another Diátaxis mode instead of relocating and linking it.
 - Leaving a section that does not match its outline purpose, without changing either one.

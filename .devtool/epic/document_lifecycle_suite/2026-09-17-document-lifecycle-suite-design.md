@@ -59,8 +59,9 @@ prevents that from recurring, so §7 adds a check for it.
 1. A document-shaped unit of work can travel from brief to merged branch without leaving the kit.
 2. The human, not the agent, chooses which lifecycle a piece of work enters.
 3. Document work is verified — mechanically and semantically — without pretending it can be tested.
-4. `rules/CRITICAL_RULES.md` is not edited. It loads into every session on every project; the fewer
-   edits it takes, the better.
+4. `skills/quality_check/SKILL.md` is not edited. It gates every merge in every project and changed
+   57 lines in 1.1.1; leaving it alone puts its regression risk at zero.
+5. The two quality gates are **decoupled** — no shared file, and neither invokes the other.
 
 **Non-goals**
 
@@ -90,7 +91,7 @@ flowchart TD
 
     DD["dev-designer → dev-implementation"]
     DOCD["doc-designer → doc-implementation"]
-    QC{"quality_check<br/>branches on Kind"}
+    QC{"gate, chosen by kind of work"}
     FIN["finishing-a-development-branch"]
 
     IDEA --> BS --> PICK
@@ -130,7 +131,7 @@ approvals will not be written through this lifecycle; it will be written around 
 | Gate | Name | Approver | Handoff artefact |
 |---|---|---|---|
 | **1** | Brief & Outline approved | User | `<slug>.en.md` + `<slug>.vi.md` + `task_*.md` |
-| **2** | Draft verified | `quality_check` (machine) | 🟢 report |
+| **2** | Draft verified | `doc_quality_check` (machine) | 🟢 report |
 | **3** | Sign-off | User | confirmation to finish the branch |
 
 ### 3.4 `brainstorming` is optional for document work
@@ -153,7 +154,7 @@ stage's own skill.
 
 - **Stage 0 (optional)** — `brainstorming`, per §3.4.
 - **Stage 1** — `doc-designer`; exits at Gate 1.
-- **Stage 2** — `doc-implementation`; exits at Gate 2 (`quality_check` with `Kind: document`), then
+- **Stage 2** — `doc-implementation`; exits at Gate 2 (`doc_quality_check`), then
   Gate 3 (user sign-off).
 - **Stage 3** — `finishing-a-development-branch`; entered only once Gate 3 has passed.
 
@@ -167,7 +168,7 @@ Gate failure routing:
 | Gate | On failure, return to |
 |---|---|
 | 1 | Stage 1 — revise brief or outline |
-| 2 | Stage 2 — fix findings, re-run `quality_check` **in full** |
+| 2 | Stage 2 — fix findings, re-run `doc_quality_check` **in full** |
 | 3 | Stage 2 — apply requested changes |
 
 ### 4.2 `doc-designer` (new) — grounded in Diátaxis
@@ -220,29 +221,45 @@ draft departs from the outline, sync the outline before starting the next task.
 against that section's own one-line purpose in the outline. On mismatch, either fix the section or
 change the outline deliberately. There is no third option, and "it's close enough" is not one.
 
-### 4.4 `quality_check` — branch on `Kind` (modified)
+### 4.4 `doc_quality_check` (new)
 
-A single new decision at the **entry point**, above all existing tier tables. `Kind: development`
-(the default when absent) runs today's flow untouched. `Kind: document` runs four checks:
+> [!NOTE]
+> **Revised during implementation.** This section originally added a `Kind` branch inside
+> `quality_check`. It now specifies a **standalone skill**, and `quality_check` is not modified at
+> all. The reasoning is below.
 
-1. **Mechanical.** No `TBD`/`TODO`/placeholder text; every internal link resolves; ToC anchors match
-   their headings; mermaid blocks parse; fenced code samples are syntactically valid. The first
-   three are already stated as release requirements in this repository's `CLAUDE.md` — reuse that
-   wording rather than inventing a second version of it. The placeholder scan must skip code spans
-   and fenced blocks, or it fires on any document that documents the check — as this spec does.
-2. **Diátaxis conformance.** Does the document stay inside its declared mode? Mode-mixing is a
-   finding.
-3. **Content audit (subagent).** Generalize `skills/brainstorming/spec-document-reviewer-prompt.md`
-   from "spec reviewer" to "document reviewer" and relocate it to
-   `skills/quality_check/references/document-reviewer-prompt.md`, beside the skill that dispatches it.
-   Add two checks to its existing table: **unsupported claims**, and **whether the `Acceptance`
-   criterion is actually met**.
-4. **Refusal rule.** If the diff touches any file that ships in the build, abort with a message
-   naming the offending files: this is development work and belongs in `dev-lifecycle`. See §6.1 for
-   why this is mechanical rather than a judgment call.
+A new skill, `skills/doc_quality_check/`, running four checks in order:
 
-Rationale for putting this inside `quality_check` rather than creating a fourth skill: it leaves
-`rules/CRITICAL_RULES.md` untouched. One door, two paths behind it.
+0. **Refusal rule.** If the change touches any file that ships in the build, abort and name the
+   offending paths. Nothing else runs. See §6.1 for why this is mechanical.
+1. **Mechanical.** No placeholder text; every internal link resolves; anchors match headings; code
+   fences balanced. Executable, not a checklist:
+   `skills/doc_quality_check/resources/scripts/check_document.py`. **The placeholder scan strips code
+   spans and fenced blocks**, or it fires on any document that documents the check — observed, not
+   hypothetical. `verify.sh` step 3 strips the same way for the same reason.
+2. **Diátaxis type conformance.** Does the document stay inside its declared type? A missing type
+   declaration is itself a finding. The remedy is always to relocate and link, never to delete.
+3. **Content audit (subagent).** `skills/brainstorming/spec-document-reviewer-prompt.md` —
+   49 lines that nothing in the repository referenced — is generalized from "spec reviewer" to
+   "document reviewer" and relocated to
+   `skills/doc_quality_check/references/document-reviewer-prompt.md`. Two checks are added:
+   **unsupported claims**, and **whether the `Acceptance` criterion is actually met**.
+
+**Why standalone rather than a branch inside `quality_check`:**
+
+1. **Decoupling.** The two gates share no tier, no audit and no tooling, and neither invokes the
+   other. Routing lives in `doc-lifecycle` and in `rules/CRITICAL_RULES.md` — where routing belongs.
+   The skills can be maintained independently.
+2. **Progressive disclosure.** Both runtimes load skills lazily, as `CLAUDE.md` states. Loading 512
+   lines of Flutter, Gradle and Xcode matrices to verify a runbook is pure waste.
+3. **Regression risk.** `quality_check` gates every merge in every project. Not touching it makes
+   that risk zero.
+
+**`rules/CRITICAL_RULES.md` is amended** so the mandated gate depends on the kind of work. An earlier
+draft of this spec set "do not edit it" as a goal — but §1 of this same spec observes that its
+mandate is *unsatisfiable* for a Markdown deliverable, and that an instruction which cannot be obeyed
+teaches the agent that rules are negotiable. Those positions were in tension. Amending the rule
+resolves the problem; leaving it merely avoided the file.
 
 ### 4.5 `decision-records` (new) — grounded in Nygard
 
@@ -340,7 +357,7 @@ development path does not. **This hands the agent a legitimate-looking lazy path
 This is an incentive misalignment, not a comprehension failure, so it cannot be fixed by writing the
 rule more clearly. The mitigation must be mechanical and independent of the agent's judgment:
 **if the diff touches any file that ships in the build, it is development work** — regardless of how
-much prose the task involved. `quality_check` enforces this by refusing the document path outright
+much prose the task involved. `doc_quality_check` enforces this by refusing the job outright
 (§4.4, check 4).
 
 The user choosing the lifecycle by hand (§3.1) is a second, independent layer of the same defense.
@@ -421,6 +438,6 @@ document.
 - `assumption-mapping` — separate spec, separate lineage.
 - Prose style enforcement (plain language, Elements of Style, vendor style guides).
 - Translating existing documentation into Diátaxis modes retroactively.
-- Any change to `rules/CRITICAL_RULES.md`.
+- Any change to `skills/quality_check/SKILL.md`.
 - The duplicate list numbering at `skills/quality_check/SKILL.md:422` and `:428`, introduced in
   1.1.1. Noted, deliberately not fixed here — unrelated to this epic.

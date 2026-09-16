@@ -68,7 +68,7 @@ not advice:
 an agent asked to write "a guide" will otherwise produce a blend by default, and advice does not stop
 a default.
 
-`Kind: document` in Meta Data is what [Task 6](task_6_quality_check_kind_branch.md) dispatches on —
+`Kind: document` in Meta Data is what [Task 6](task_6_doc_quality_check_skill.md) dispatches on —
 this task defines the field, that task consumes it.
 
 Applicable kit skills: `writing-skills`.
@@ -77,7 +77,7 @@ Applicable kit skills: `writing-skills`.
 
 - **Target files & symbols**: new `skills/doc-designer/SKILL.md`; the `Kind`/`Audience`/mode/
   `Non-goals`/`Acceptance` Meta Data contract.
-- **Downstream callers**: [Task 6](task_6_quality_check_kind_branch.md) reads `Kind` and the declared
+- **Downstream callers**: [Task 6](task_6_doc_quality_check_skill.md) reads `Kind` and the declared
   mode; [Task 5](task_5_doc_implementation_skill.md) consumes the outline and task files;
   [Task 7](task_7_brainstorming_fourth_exit.md) routes here.
 - **Cross-platform bridges**: none.
@@ -153,7 +153,7 @@ RED/GREEN.
 ## Dependencies & Blockers
 
 - Blocked by [Task 1](task_1_primary_sources_and_fidelity_guard.md).
-- Blocks [Task 6](task_6_quality_check_kind_branch.md).
+- Blocks [Task 6](task_6_doc_quality_check_skill.md).
 
 ## References & Rollback
 

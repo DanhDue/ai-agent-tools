@@ -131,7 +131,7 @@ is performed by injecting the defect each check targets.
 ## Dependencies & Blockers
 
 - Blocked by [Task 2](task_2_rename_epic_skills_to_dev.md) — step 9 cannot pass before the rename.
-- Step 8 turns green only once [Task 6](task_6_quality_check_kind_branch.md) relocates the orphan.
+- Step 8 turns green only once [Task 6](task_6_doc_quality_check_skill.md) relocates the orphan.
 
 ## References & Rollback
 

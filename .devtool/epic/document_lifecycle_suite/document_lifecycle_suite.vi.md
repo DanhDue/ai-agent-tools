@@ -276,7 +276,7 @@ trên mọi máy đã cài plugin.
 | 3 | [`doc-lifecycle` Orchestrator Skill](task_3_doc_lifecycle_orchestrator.md) | 3 gates, stage list, gate-failure routing, a concrete *When NOT to use this* | — |
 | 4 | [`doc-designer` Skill (Diátaxis)](task_4_doc_designer_skill.md) | Four steps, the Meta Data contract, the one-mode-per-document split rule | 1 |
 | 5 | [`doc-implementation` Skill](task_5_doc_implementation_skill.md) | Kanban reuse, one commit per section, outline sync, the re-read rule replacing TDD | 3 |
-| 6 | [Branch `quality_check` on `Kind`](task_6_quality_check_kind_branch.md) | Entry dispatch, four document checks, the refusal rule, reviewer prompt relocated | 4 |
+| 6 | [Add the `doc_quality_check` skill](task_6_doc_quality_check_skill.md) | Standalone gate: refusal rule, mechanical script, type conformance, content audit; `quality_check` untouched | 4 |
 | 7 | [`brainstorming` — Fourth Exit and Upstream Escape](task_7_brainstorming_fourth_exit.md) | Four terminal states; stop-and-escape to lean-product-lifecycle | 3, 4 |
 | 8 | [`decision-records` Skill (ADR + Spike Report)](task_8_decision_records_skill.md) | Nygard five-section format, immutability, rejected alternatives, negative consequences | 1 |
 | 9 | [Two New `verify.sh` Checks](task_9_verify_sh_orphan_and_rename_checks.md) | Orphan check (SKILL.md exempt) and rename completeness; each proven by defect injection | 2 |

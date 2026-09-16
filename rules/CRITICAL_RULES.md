@@ -9,9 +9,19 @@ trigger: always_on
 
 
 > [!IMPORTANT]
-> After completing any workflow or skill, you **MUST** use the `@quality_check` skill to run quality checks and fix any issues that arise. This is critical to maintain the quality of the project.
-> 
-> See: [Quality Check Skill](../skills/quality_check/SKILL.md)
+> After completing any workflow or skill, you **MUST** run the quality gate for the **kind of work
+> you did**, and fix any issues it raises. This is critical to maintain the quality of the project.
+>
+> | Kind of work | Gate |
+> |---|---|
+> | Anything that changes a file shipping in the build | `@quality_check` |
+> | Anything whose deliverable is prose | `@doc_quality_check` |
+>
+> The two share no tier, no audit and no tooling. Running the wrong one produces a green light that
+> means nothing — and `@doc_quality_check` refuses outright if the change touches shipped files.
+>
+> See: [Quality Check Skill](../skills/quality_check/SKILL.md) ·
+> [Document Quality Check Skill](../skills/doc_quality_check/SKILL.md)
 
 ## Commit Message Format
 

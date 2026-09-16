@@ -114,8 +114,9 @@ Acceptance: <one thing the reader can do after reading it>
 Source Spec: <link, if this came from brainstorming>
 ```
 
-`Kind: document` is what `quality_check` dispatches on. Omit it and the document is verified as
-code, which it will fail.
+`Kind: document` records what this work item is, for the shared Kanban board and the archive. It is
+not a dispatch key — `doc-lifecycle` names `doc_quality_check` as Gate 2 directly, so the two
+quality gates never have to know about each other.
 
 **`Acceptance` must name something the reader can do.** Not a length, not a section count, and not
 "explains the deploy process" — that describes the document, not the reader. "A new engineer

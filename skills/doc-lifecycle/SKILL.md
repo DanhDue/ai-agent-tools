@@ -68,7 +68,7 @@ being wrong is low, the gate count is low.
 | Gate | Name | Approver | Enforced in | Handoff artefact |
 |------|------|----------|-------------|------------------|
 | **1** | Brief & Outline | User | `doc-designer` breakdown checkpoint | `<doc_dir>.en.md` + `.vi.md` + `task_*.md` |
-| **2** | Draft Verified | `quality_check` | `doc-implementation` final phase | 🟢 report with `Kind: document` |
+| **2** | Draft Verified | `doc_quality_check` | `doc-implementation` final phase | 🟢 document quality report |
 | **3** | Sign-Off | User | `doc-implementation` review checkpoint | User confirmation to finish the branch |
 
 ## Stages
@@ -93,13 +93,13 @@ overview's Meta Data carries `Kind: document`, which is what `quality_check` dis
 ### Stage 2 — Drafting → `doc-implementation`
 
 **Entry:** Gate 1 passed; outline and `task_*.md` files exist.
-**Exit (Gate 3):** `quality_check` reports 🟢 (Gate 2) **and** the user signs off on the draft.
+**Exit (Gate 3):** `doc_quality_check` reports 🟢 (Gate 2) **and** the user signs off on the draft.
 
 One worktree, one section at a time, one commit per section. No test suite runs — there is nothing
 to run. Each section is re-read against its own purpose line in the outline, and on divergence the
 outline is synced before the next section starts.
 
-**Gate 2 acceptance criteria.** `quality_check` with `Kind: document` grants 🟢 only when all four
+**Gate 2 acceptance criteria.** `doc_quality_check` grants 🟢 only when all four of its checks
 pass:
 
 1. **Mechanical** — no placeholder text, every internal link resolves, ToC anchors match headings,
@@ -122,7 +122,7 @@ publication target.
 | Gate | On failure, return to |
 |------|----------------------|
 | 1 | Stage 1 — revise the brief or the outline; re-confirm the breakdown |
-| 2 | Stage 2 — fix the findings, then re-run `quality_check` **in full** |
+| 2 | Stage 2 — fix the findings, then re-run `doc_quality_check` **in full** |
 | 3 | Stage 2 — apply the requested changes |
 
 Never advance on a partial pass, and never re-run only the previously failing check at Gate 2 — the
@@ -134,7 +134,7 @@ Never advance on a partial pass, and never re-run only the previously failing ch
 - Declaring two Diátaxis modes on one document instead of splitting it.
 - An `Acceptance` criterion that is a length, a section count, or "explains X" rather than something
   the reader can do.
-- Running the 3-tier test suite on a document, or skipping `quality_check` because "it is only prose".
+- Running the 3-tier test suite on a document, or skipping the gate because "it is only prose".
 - Taking the document path for a diff that touches shipped files.
 - Finishing the branch without the user's Gate 3 sign-off.
 - Leaving the finished document inside `.devtool/`.
@@ -146,5 +146,5 @@ Never advance on a partial pass, and never re-run only the previously failing ch
 | 0 | `brainstorming` | — (optional) |
 | 1 | `doc-designer` | 1 |
 | 2 | `doc-implementation` | triggers 2, enforces 3 |
-| 2 (verification) | `quality_check` | 2 |
+| 2 (verification) | `doc_quality_check` | 2 |
 | 3 | `finishing-a-development-branch` | — |
