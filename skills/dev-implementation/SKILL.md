@@ -33,7 +33,7 @@ Read both values off disk at the start — never derive one from the other by gu
 
 ## Process
 
-This skill is **Stage 3** of the Epic Lifecycle. The surrounding stages, the four approval
+This skill is **Stage 3** of the Epic Lifecycle. The surrounding stages, the five approval
 gates, and what each stage hands over are owned by the
 [`dev-lifecycle`](../dev-lifecycle/SKILL.md) skill. Gate 3 (execution order confirmed) is
 enforced below, in Phase 1.
