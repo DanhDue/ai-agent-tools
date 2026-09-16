@@ -79,8 +79,13 @@ type:
 | explanation | instruction, or technical description |
 
 The remedy is always to **relocate and link**, never to delete — the material belongs elsewhere,
-not nowhere. If a document declares no type, that is itself the finding: it never passed
-`doc-designer`'s Step 2.
+not nowhere.
+
+**When no type is declared, check which case you are in.** A `doc-lifecycle` deliverable with no
+declared mode never passed `doc-designer`'s Step 2, and that is a 🔴 finding. A file that was never a
+lifecycle deliverable — a README, a `SKILL.md`, a one-word correction to either — has no Meta Data to
+read and never should have; record Check 2 as **not applicable** and move on. Returning 🔴 on a typo
+fix because a README has no `Diátaxis mode` teaches people to stop running the gate.
 
 🟡 **Warning**, unless the document declares one type and is substantially another — then 🔴.
 

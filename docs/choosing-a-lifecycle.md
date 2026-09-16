@@ -12,6 +12,11 @@ Answer one question: **what will exist when you are finished?**
 | A document someone will read | [If you are writing a document](#if-you-are-writing-a-document) |
 | A decision about what to build at all | [If you do not know what to build yet](#if-you-do-not-know-what-to-build-yet) |
 
+Gate counts below are the **named gates of the lifecycle you enter**. Where a route has approvals
+outside a lifecycle — `brainstorming`'s design approval and spec review on the one-plan route — they
+are named separately rather than folded into the count, so the numbers on this page are not directly
+comparable with each other.
+
 If two of those look true at once, pick by the **build**: if any file that ships is changing, it is
 code work, however much prose you also write. `d3nexus:doc_quality_check` enforces this and will refuse the
 document path outright.
@@ -37,21 +42,24 @@ finishes.** `writing-plans` produces a document, not code. Run `d3nexus:subagent
 (recommended) or `d3nexus:executing-plans` on it.
 
 > Both executors call `d3nexus:finishing-a-development-branch` themselves as their last step, and
-> **neither runs `quality_check`**. Run `d3nexus:quality_check` while the executor is still working —
-> once it reaches its finish step your branch is merged or PR'd, verified or not.
+> **neither runs `quality_check`**. They also run without stopping, so there is no window mid-run.
+>
+> Your window is where the executor stops: `finishing-a-development-branch` presents three options
+> and waits — nothing is merged or pushed until you answer. **Pick option 3, "keep the branch
+> as-is", run `d3nexus:quality_check`, fix what it finds, then run
+> `d3nexus:finishing-a-development-branch` again and choose merge or PR.**
 
 The epic route needs none of this: `dev-implementation` drives the executor, holds `quality_check` at
 Gate 4 and your sign-off at Gate 5, and only then finishes the branch.
 
 ## If you are writing a document
 
-Run `d3nexus:doc-lifecycle` when the document has enough sections that a reviewer could accept some
-and reject others. It takes you through three gates: brief and outline, `d3nexus:doc_quality_check`, and
-your sign-off.
+**The test is whether you can imagine a reviewer rejecting it, not how long it is.** A one-page
+runbook people will follow under pressure earns a brief and an outline; a page nobody would gate does
+not.
 
-A one-section document still belongs here if a reviewer would genuinely gate it — a runbook people
-will follow under pressure is worth a brief and an outline even at one page. The test is whether you
-can imagine rejecting it, not how long it is.
+Run `d3nexus:doc-lifecycle` when it passes that test. Three gates: brief and outline,
+`d3nexus:doc_quality_check`, and your sign-off.
 
 Two cases sit below that threshold:
 
@@ -62,7 +70,8 @@ Two cases sit below that threshold:
   [If the work is too small](#if-the-work-is-too-small).
 
 If you do not yet know what the document should say — a strategy piece, a proposal, an argument you
-have not finished having — run `d3nexus:brainstorming` first, then come back.
+have not finished having — run `d3nexus:brainstorming` first. It ends by invoking `doc-designer`
+itself, which is Stage 1 of this lifecycle, so you arrive here without coming back to this page.
 
 ## If you do not know what to build yet
 
