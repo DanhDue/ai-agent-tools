@@ -1,13 +1,13 @@
 ---
 id: "task_7_brainstorming_fourth_exit"
-status: "todo"
+status: "done"
 priority: "medium"
 assignee: null
 epic: "document_lifecycle_suite"
 dueDate: null
 created: "2026-09-17T09:00:00Z"
-modified: "2026-09-17T09:00:00Z"
-completedAt: null
+modified: "2026-09-16T18:54:42Z"
+completedAt: "2026-09-16T18:54:42Z"
 labels: ["skill", "routing", "documentation"]
 order: "a7"
 ---

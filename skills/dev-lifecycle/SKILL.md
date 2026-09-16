@@ -82,8 +82,14 @@ on your own judgement.
   → relocate the spec from `docs/superpowers/specs/` into `.devtool/epic/<epic_dir>/<same-filename>`
   (create the directory if needed), fix relative links inside the moved file, then go to Stage 2
   passing that new path.
+- **A document deliverable** → `doc-designer`. This leaves the development lifecycle for
+  `doc-lifecycle`, which has three gates rather than five. The deliverable decides, not the amount of
+  writing involved: **if the work changes a file that ships in the build, it is development work**.
 - **Everything else** → `writing-plans`. This leaves the epic lifecycle; the remaining gates do
   not apply.
+
+`brainstorming` has a fourth exit that fires *before* this decision: if the problem space was never
+validated, it routes up to `lean-product-lifecycle` rather than producing a spec at all.
 
 When in doubt, ask the user rather than guessing.
 
