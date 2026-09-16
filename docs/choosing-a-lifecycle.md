@@ -60,3 +60,13 @@ Two signs you are in this case and should stop where you are:
   against satisfaction.
 
 `d3nexus:brainstorming` checks both at step 2 and will send you here before it asks you anything else.
+
+## If the work is too small
+
+Do it. Commit it. Skip every lifecycle on this page.
+
+Concretely: a typo, a broken link, a one-line correction, bumping a version, a comment. The test is
+whether you can imagine a reviewer rejecting it. If you cannot, there is nothing for a gate to do.
+
+You still run a quality gate afterwards — `d3nexus:quality_check` for code,
+`d3nexus:doc_quality_check` for prose. That rule has no size exemption.
