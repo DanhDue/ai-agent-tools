@@ -118,8 +118,9 @@ Proposition and Feature Set**.
 > opportunities with scores greater than 15 to be very attractive, and those below 10 to be
 > unattractive.**"
 
-**Why it matters.** `OS ≥ 10` is the floor of the *unattractive* band, not a bar for a top
-opportunity. The gate as specified passes almost anything.
+**Why it matters.** `OS ≥ 10` is where the *unattractive* band ends, not a bar for a top
+opportunity — it admits the whole 10–15 marginal range and excludes only what Olsen already calls
+over-served. The gate as specified passes almost anything.
 
 **Corrected thresholds** (Ulwick scale, 0–20):
 

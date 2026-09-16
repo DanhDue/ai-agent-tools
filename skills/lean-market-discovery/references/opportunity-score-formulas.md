@@ -123,8 +123,12 @@ An average above **4.0** is what it takes. This is another reason to record whet
 is stricter than they will expect.
 
 > [!WARNING]
-> A threshold of `>= 10` is **not** a bar for an attractive opportunity — it is the floor of the
-> band Olsen calls unattractive. Gate 1 requires a need above **15**.
+> A threshold of `>= 10` is **not** a bar for an attractive opportunity. 10 is where the
+> *unattractive* band **ends** — so `>= 10` admits the entire 10–15 marginal range and rejects
+> nothing but the band Olsen already calls over-served. Gate 1 requires a need above **15**.
+>
+> (Say "10 is the top of the unattractive band", never "the floor of it" — the floor of that band
+> is 0. This phrasing error was found in an ablation run and is easy to repeat.)
 
 ---
 

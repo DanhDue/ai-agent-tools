@@ -25,7 +25,8 @@ Target Customer and clearly identified Underserved Needs, any product built wast
 task specified Importance and Satisfaction as "1–10" and a Gate 1 bar of `OS >= 10`. Both are wrong.
 Olsen measures Importance on a **5-point unipolar** scale and Satisfaction on a **7-point bipolar**
 scale and treats normalization as an explicit step; Ulwick's bands are `> 15` very attractive and
-`< 10` unattractive, so `>= 10` is the floor of the unattractive band, not a bar.
+`< 10` unattractive, so `>= 10` merely clears the over-served band and admits the whole 10–15
+marginal range — not a bar.
 
 This task requires creating:
 
