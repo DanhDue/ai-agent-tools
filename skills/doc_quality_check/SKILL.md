@@ -71,6 +71,21 @@ and `scripts/verify.sh` step 3 strips the same way for the same reason.
 
 🔴 **Blocker.**
 
+#### Rewrapping prose
+
+Line breaks are not a finding, but bad ones make a document harder to read than its content
+warrants — and in Vietnamese they are much worse, because compounds are written as separate
+syllables and a naive wrap splits words in half.
+
+```bash
+python3 skills/doc_quality_check/resources/scripts/rewrap_markdown.py <file> [<file> ...]
+```
+
+It re-flows prose at 100 characters without ever ending a line inside `**bold**`, `*italic*`, a code
+span or a link, prefers to break after a clause, and never strands a Vietnamese compound's first
+syllable. It refuses to write if anything but whitespace would change, so it cannot silently edit a
+document.
+
 ### Check 2 — Diátaxis type conformance
 
 Read the document's declared `Diátaxis mode` from its Meta Data, then check it stays inside that

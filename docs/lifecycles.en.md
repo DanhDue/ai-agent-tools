@@ -2,8 +2,8 @@
 
 Reference for what each lifecycle in this kit is for, what it produces, and how it runs.
 
-This page **describes**. To decide which one a specific piece of work belongs to, see
-[choosing-a-lifecycle.en.md](choosing-a-lifecycle.en.md).
+This page **describes**. To decide which one a specific piece of work belongs to,
+see [choosing-a-lifecycle.en.md](choosing-a-lifecycle.en.md).
 
 ## Contents
 
@@ -34,12 +34,13 @@ The two quality gates share no tier, no audit and no tooling, and neither invoke
 **Purpose.** Orchestrate epic-scale code work from an idea to a merged branch. It owns sequence and
 gates only; each stage's method lives in that stage's own skill.
 
-**What it produces.** A merged branch, plus a High-Level Design in English and Vietnamese, a Gherkin
-BDD suite, and one task file per unit of work — all archived into `.devtool/epic/<slug>/` when the
-epic closes.
+**What it produces.** A merged branch, plus a High-Level Design in English and Vietnamese,
+a Gherkin BDD suite, and one task file per unit of work — all archived into
+`.devtool/epic/<slug>/` when the epic closes.
 
-**When it does not apply.** A single component that one implementation plan covers. That work uses
-`brainstorming` then `writing-plans`, which leaves this lifecycle and its remaining gates behind.
+**When it does not apply.** A single component that one implementation plan covers.
+That work uses `brainstorming` then `writing-plans`, which leaves this lifecycle and its
+remaining gates behind.
 
 ```mermaid
 flowchart TD
@@ -66,22 +67,22 @@ diff — never on a partial re-run.
 
 ## doc-lifecycle
 
-**Purpose.** Orchestrate work whose deliverable is a document rather than code — a runbook, a
-handbook, an onboarding guide, a set of reference pages.
+**Purpose.** Orchestrate work whose deliverable is a document rather than code — a runbook,
+a handbook, an onboarding guide, a set of reference pages.
 
-**What it produces.** The finished document, in the place it belongs: `docs/`, a README, a skill's
-`references/`. Its working artefacts — the brief, the outline, one task per section — stay in
-`.devtool/epic/<slug>/`. A deliverable left inside `.devtool/` has not shipped.
+**What it produces.** The finished document, in the place it belongs: `docs/`, a README,
+a skill's `references/`. Its working artefacts — the brief, the outline, one task per section —
+stay in `.devtool/epic/<slug>/`. A deliverable left inside `.devtool/` has not shipped.
 
 **Why three gates and not five.** Code and prose differ in four ways that change what verification
 can mean: the unit of work is a section rather than an independently testable deliverable;
-verification is mechanical checks plus human judgement rather than a machine running tests; the
-governing constraint is the **audience** rather than the architecture; and the cost of being wrong is
-low. Because the cost of being wrong is low, the gate count is low. A runbook that costs five
-approvals does not get written through the lifecycle — it gets written around it.
+verification is mechanical checks plus human judgement rather than a machine running tests;
+the governing constraint is the **audience** rather than the architecture; and the cost of being
+wrong is low. Because the cost of being wrong is low, the gate count is low. A runbook that costs
+five approvals does not get written through the lifecycle — it gets written around it.
 
-**When it does not apply.** A typo, a broken link, a single Architecture Decision Record, or any
-change a reviewer would not meaningfully gate.
+**When it does not apply.** A typo, a broken link, a single Architecture Decision Record,
+or any change a reviewer would not meaningfully gate.
 
 ```mermaid
 flowchart TD
@@ -98,18 +99,18 @@ flowchart TD
 ```
 
 Stage 0 is skipped whenever the content is known and only its shape is open. Stage 1 establishes the
-audience, classifies the document into exactly one Diátaxis type, and turns the outline into one task
-per section.
+audience, classifies the document into exactly one Diátaxis type, and turns the outline into
+one task per section.
 
 ## lean-product-lifecycle
 
-**Purpose.** Decide what to build and for whom, before any engineering begins. It implements Dan
-Olsen's Lean Product Process and enforces problem-space discipline: needs are described as needs, not
-as the features someone already has in mind.
+**Purpose.** Decide what to build and for whom, before any engineering begins.
+It implements Dan Olsen's Lean Product Process and enforces problem-space discipline:
+needs are described as needs, not as the features someone already has in mind.
 
 **What it produces.** Three signed-off specifications in `.devtool/product/<slug>/` —
-`01_problem_space_spec.md`, `02_value_proposition_spec.md`, `03_mvp_feature_backlog.md`. The backlog
-is what engineering receives.
+`01_problem_space_spec.md`, `02_value_proposition_spec.md`, `03_mvp_feature_backlog.md`.
+The backlog is what engineering receives.
 
 **What it does not cover.** Steps 5 and 6 of Olsen's process — building an MVP prototype and testing
 it with customers — are not implemented in this release. The orchestrator says so at Gate 3 rather
@@ -133,8 +134,8 @@ flowchart TD
 ```
 
 The dotted edges are the Tectonic Plates protocol: when a gate fails, the failing hypothesis is
-located on the five-layer Product-Market Fit Pyramid and re-validated from there upward, rather than
-patched at the layer the work is standing on.
+located on the five-layer Product-Market Fit Pyramid and re-validated from there upward,
+rather than patched at the layer the work is standing on.
 
 ## What is not a lifecycle
 
@@ -163,7 +164,7 @@ flowchart LR
     LEAN -->|"Gate 3 backlog"| DEV
 ```
 
-Two rules hold across every connection. **The deliverable decides, not the amount of writing
-involved** — if the work changes a file that ships in the build, it is development work.
-And **two specs are never merged into one epic**: each keeps its own spec → design → implementation
-lineage.
+Two rules hold across every connection.
+**The deliverable decides, not the amount of writing involved** — if the work changes a file that
+ships in the build, it is development work. And **two specs are never merged into one epic**:
+each keeps its own spec → design → implementation lineage.
