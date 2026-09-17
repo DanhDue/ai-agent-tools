@@ -187,6 +187,29 @@ else
 fi
 
 echo
+note "== 10. Orchestrators route to a variant, never the router =="
+# Step 9's repo-wide sweep cannot be reused for this rename. `brainstorming` is an ordinary English
+# word: it appears legitimately as "during brainstorming" in writing-plans, "not a full brainstorming
+# dialogue" in dev-designer, as a deliberately preserved pre-1.2.0 path in
+# doc_quality_check/references/document-reviewer-prompt.md, and in this file's own comments. A bare
+# sweep would fail on all four. Scope it instead to the two orchestrators, and only to the two forms
+# that actually denote the skill rather than the activity.
+#
+# What this guards: `brainstorming` is a router that resolves an ambiguous entry. A lifecycle stage
+# naming it has not routed — it has moved the ambiguity one hop downstream. The precedent is real:
+# epic-lifecycle never contained the word "invoke", so agents read a stage description and did that
+# stage's work themselves, skipping the gate the stage owned.
+if hits=$(git ls-files 'skills/dev-lifecycle/*' 'skills/doc-lifecycle/*' \
+          | tr '\n' '\0' \
+          | xargs -0 grep -n 'd3nexus:brainstorming\|`brainstorming`' 2>/dev/null) \
+   && [ -n "$hits" ]; then
+  printf '%s\n' "$hits" | head -5
+  fail "an orchestrator stage names the brainstorming router instead of a variant"
+else
+  note "  ok   both orchestrators name a concrete brainstorming variant"
+fi
+
+echo
 if [ "$FAILED" -eq 0 ]; then
   echo "PASS — safe to publish"
 else
