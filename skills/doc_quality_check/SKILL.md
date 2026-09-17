@@ -71,48 +71,6 @@ and `scripts/verify.sh` step 3 strips the same way for the same reason.
 
 🔴 **Blocker.**
 
-#### Rewrapping prose
-
-Line breaks are not a finding, but bad ones make a document harder to read than its content
-warrants — and in Vietnamese they are much worse, because compounds are written as separate
-syllables and a naive wrap splits words in half.
-
-```bash
-python3 skills/doc_quality_check/resources/scripts/rewrap_markdown.py <file> [<file> ...]
-```
-
-It re-flows prose at 100 characters under five rules, each of which exists because breaking it
-produced something worse:
-
-| Rule | Why |
-|---|---|
-| A link never breaks | The syntax would stop working |
-| A span up to 80 characters never breaks | Longer ones held whole force stub lines around them, and markdown renders `**a⏎b**` as bold anyway |
-| A line never ends on a Vietnamese compound's first syllable or a bare classifier | Vietnamese writes compounds as separate syllables, so a whitespace wrapper splits words in half |
-| Back off to a clause boundary only when it costs under 15 characters | English has a comma near any position; an unconditional preference leaves a ragged margin — 39 characters beside 97 |
-| A short line may run up to 10 characters over | Bounded on purpose: an unbounded version of this rule produced 231-character lines |
-
-**It refuses to write if anything but whitespace would change**, so it cannot silently edit a
-document. That guard caught three real mistakes while the rules above were being settled.
-
-#### `--semantic`: break where the sentence breaks
-
-Column wrapping ends lines wherever the margin falls, which strands phrases like
-`512 lines of` / `platform-specific`. `--semantic` never does that: it breaks only where the prose
-itself breaks.
-
-```bash
-python3 skills/doc_quality_check/resources/scripts/rewrap_markdown.py --semantic <file> ...
-```
-
-Sentences first. A sentence still over the margin is cut at its strongest internal seam, trying each
-in turn and stopping as soon as the pieces fit: a semicolon or em-dash, then a colon, then a comma
-before a connective, then any comma. A sentence with no seam at all stays long — that is the honest
-cost of the mode, and it is the only case where a line runs past 120 characters.
-
-**Use `--semantic` for prose people read** (`docs/`), and the column mode for files where a
-predictable right margin matters more.
-
 ### Check 2 — Diátaxis type conformance
 
 Read the document's declared `Diátaxis mode` from its Meta Data, then check it stays inside that
