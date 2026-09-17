@@ -167,10 +167,7 @@ Scenario: [Tier A - Unit] Existing CHANGELOG entries are untouched
 
 ## Dependencies & Blockers
 
-Blocked by Tasks [1](task_1_dev_brainstorming_rename.md), [2](task_2_brainstorming_router.md),
-[3](task_3_doc_brainstorming_skill.md), [4](task_4_doc_lifecycle_mandatory_stage_0.md),
-[5](task_5_dev_lifecycle_retarget.md), [6](task_6_consumer_retarget.md),
-[7](task_7_verify_orchestrator_routing_check.md) and [8](task_8_docs_bilingual_update.md).
+Blocked by Tasks [1](task_1_dev_brainstorming_rename.md), [2](task_2_brainstorming_router.md), [3](task_3_doc_brainstorming_skill.md), [4](task_4_doc_lifecycle_mandatory_stage_0.md), [5](task_5_dev_lifecycle_retarget.md), [6](task_6_consumer_retarget.md), [7](task_7_verify_orchestrator_routing_check.md) and [8](task_8_docs_bilingual_update.md).
 
 ## References & Rollback
 

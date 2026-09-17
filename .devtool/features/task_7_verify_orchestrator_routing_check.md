@@ -149,9 +149,8 @@ Scenario: [Tier C - Integration] The full suite passes from a normal checkout
 
 ## Dependencies & Blockers
 
-Blocked by [Task 4](task_4_doc_lifecycle_mandatory_stage_0.md) and
-[Task 5](task_5_dev_lifecycle_retarget.md) — both orchestrators must already name variants, or the
-new check fails on landing.
+Blocked by [Task 4](task_4_doc_lifecycle_mandatory_stage_0.md) and [Task 5](task_5_dev_lifecycle_retarget.md).
+Both orchestrators must already name variants, or the new check fails on landing.
 
 ## References & Rollback
 

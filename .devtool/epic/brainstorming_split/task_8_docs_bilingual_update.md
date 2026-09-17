@@ -143,10 +143,8 @@ Scenario: [Tier A - Unit] Internal links and anchors still resolve
 
 ## Dependencies & Blockers
 
-Blocked by [Task 1](task_1_dev_brainstorming_rename.md),
-[Task 3](task_3_doc_brainstorming_skill.md),
-[Task 4](task_4_doc_lifecycle_mandatory_stage_0.md) and
-[Task 5](task_5_dev_lifecycle_retarget.md) — the documents describe what those tasks build.
+Blocked by [Task 1](task_1_dev_brainstorming_rename.md), [Task 3](task_3_doc_brainstorming_skill.md), [Task 4](task_4_doc_lifecycle_mandatory_stage_0.md) and [Task 5](task_5_dev_lifecycle_retarget.md).
+The documents describe what those tasks build.
 
 ## References & Rollback
 

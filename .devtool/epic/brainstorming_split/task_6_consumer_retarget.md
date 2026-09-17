@@ -163,8 +163,8 @@ expected value.
 
 ## Dependencies & Blockers
 
-Blocked by [Task 1](task_1_dev_brainstorming_rename.md) and
-[Task 3](task_3_doc_brainstorming_skill.md) — both targets must exist.
+Blocked by [Task 1](task_1_dev_brainstorming_rename.md) and [Task 3](task_3_doc_brainstorming_skill.md).
+Both targets must exist.
 Blocks [Task 8](task_8_docs_bilingual_update.md).
 
 ## References & Rollback
