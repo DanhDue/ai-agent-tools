@@ -3,7 +3,7 @@
 ## 1. Meta Data
 
 - **Epic name**: `brainstorming_split`
-- **Status**: In Progress
+- **Status**: Done
 - **Target Release**: 1.3.0 (minor — the router keeps `d3nexus:brainstorming` working)
 - **Platform**: **Agent Kit (Markdown + Bash/Python)** — see the platform note below
 - **Source Spec**: [2026-09-17-brainstorming-split-design.md](2026-09-17-brainstorming-split-design.md)
