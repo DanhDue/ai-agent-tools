@@ -1,13 +1,13 @@
 ---
 id: "task_9_tier_c_acceptance"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "brainstorming_split"
 dueDate: null
 created: "2026-09-17T09:27:07Z"
-modified: "2026-09-17T09:27:07Z"
-completedAt: null
+modified: "2026-09-17T09:41:00Z"
+completedAt: "2026-09-17T09:41:00Z"
 labels: ["acceptance", "verification", "release"]
 order: "a9"
 ---

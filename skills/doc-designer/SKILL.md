@@ -1,12 +1,12 @@
 ---
 name: doc-designer
-description: Turns a document request into a brief, an outline and one task per section. Establishes who the document is for, classifies it into exactly one Diátaxis type, and enforces Gate 1 of the document lifecycle. Use it at the start of any documentation work large enough to break down.
+description: Turns a document request into a brief, an outline and one task per section. Establishes who the document is for, classifies it into exactly one Diátaxis type, and enforces Gate 2 of the document lifecycle. Use it at the start of any documentation work large enough to break down.
 ---
 
 # Document Designer
 
 Stage 1 of `doc-lifecycle`. Turns a document request into a brief, an outline, and one task per
-section. Enforces **Gate 1**.
+section. Enforces **Gate 2**.
 
 The development-side sibling is `dev-designer`. Where that skill produces architecture diagrams and
 BDD scenarios, this one produces an audience and a type — because a document's binding constraint
@@ -85,12 +85,12 @@ pre-written expectation a section is measured by.
 
 **This outline becomes the deliverable's table of contents.** From four sections upward the finished
 document carries one, linking each section — it is the same list the reader needs, so write it once.
-Gate 2 checks for it.
+Gate 3 checks for it.
 
 ### Step 4 — Break the outline into tasks
 
 One task per section. Present the numbered list and ask the user to confirm the breakdown and
-granularity. **This checkpoint is Gate 1.** Write no task file before the user confirms.
+granularity. **This checkpoint is Gate 2.** Write no task file before the user confirms.
 
 ## The Overview Document
 
@@ -113,7 +113,7 @@ Source Spec: <link, if this came from doc-brainstorming>
 ```
 
 `Kind: document` records what this work item is, for the shared Kanban board and the archive. It is
-not a dispatch key — `doc-lifecycle` names `doc_quality_check` as Gate 2 directly, so the two
+not a dispatch key — `doc-lifecycle` names `doc_quality_check` as Gate 3 directly, so the two
 quality gates never have to know about each other.
 
 **`Acceptance` must name something the reader can do.** Not a length, not a section count, and not
@@ -138,6 +138,6 @@ Flipping `backlog` to `todo` later is a human call, not this skill's.
 - Declaring two types on one document, or declaring none.
 - Deleting out-of-type material instead of relocating and linking it.
 - An `Acceptance` field describing the document rather than the reader.
-- Writing task files before the user confirms the breakdown — that checkpoint *is* Gate 1.
+- Writing task files before the user confirms the breakdown — that checkpoint *is* Gate 2.
 - Stating a Diátaxis rule that does not trace to a quotation in the source fidelity review.
 - Defaulting tasks to `todo` without checking for another epic's active tasks first.

@@ -8,6 +8,64 @@ every installed machine on the old cached copy.
 
 ---
 
+## Unreleased — targeting 1.3.0
+
+Splits `brainstorming` into a development variant and a documentation variant, and makes the
+document lifecycle's inception stage mandatory.
+
+### Added
+
+| Skill | What it does |
+|---|---|
+| `dev-brainstorming` | Turns an idea for code work into an approved design spec. The former `brainstorming`, with the document branch removed. Keeps the visual companion and its server scripts |
+| `doc-brainstorming` | Turns an idea or a document request into an approved content spec. Written around what a document must say rather than around architecture. No visual companion |
+
+- **`scripts/verify.sh` gains step 10.** It fails when either orchestrator names the `brainstorming`
+  router instead of a concrete variant. The check is scoped to the two orchestrators and to the two
+  forms that denote the skill, because `brainstorming` is also an ordinary English word and a
+  repo-wide sweep like step 9's would fire on four legitimate uses.
+
+### Changed
+
+- **`brainstorming` is now a router.** It keeps its name and path, holds one question — idea,
+  document, or coding — and invokes the matching variant. It has no default: an unclear answer is
+  asked about again rather than guessed at. Everything that names `d3nexus:brainstorming` today
+  keeps working, including the session-start hook and `rules/CRITICAL_RULES.md`.
+- **`doc-lifecycle` Stage 0 is mandatory, and the gates renumber from three to four.** Gate 1 is now
+  spec approval; the former gates 1, 2 and 3 become 2, 3 and 4. The stage was optional, and its skip
+  condition asked whether the content was already known — a question an agent answers yes to
+  essentially always. The stage is now required to *happen* while its depth still scales, so a
+  runbook's spec is three sentences.
+- **The upstream escape to `lean-product-lifecycle` splits asymmetrically.** `dev-brainstorming`
+  keeps the original trigger. `doc-brainstorming` fires only when the document *is* a product
+  argument whose idea has no evidence; a runbook or reference page never triggers it.
+- **Each variant can correct a misroute to its sibling**, using the existing test: if the work
+  changes a file that ships in the build, it is code.
+- `dev-lifecycle` Stage 1 now names `dev-brainstorming`; its five gates and stage order are
+  unchanged.
+- Stage entry in both orchestrators is now imperative — a stage is entered by invoking its skill,
+  not by reading its description and doing the work. `dev-lifecycle` had never contained the word
+  "invoke", which is why agents skipped Gate 1.
+- Guidance in `dev-brainstorming` that leaned toward code is no longer branch-conditional, since the
+  branch is gone.
+
+### Fixed
+
+- Fifteen stale `doc-lifecycle` gate numbers across `doc-designer`, `doc-implementation` and
+  `doc_quality_check`, left wrong by the renumber.
+- A dead path in `dev-brainstorming` to `skills/brainstorming/visual-companion.md`, which the rename
+  broke at exactly the point where the user had just accepted the visual companion.
+- A claim in `dev-brainstorming` that `dev-lifecycle` has four approval gates. It has five.
+
+### Upgrading
+
+No action is required. `d3nexus:brainstorming` still resolves, and now asks which kind of work you
+want before routing. Name `d3nexus:dev-brainstorming` or `d3nexus:doc-brainstorming` directly to
+skip the question. Anything that quotes `doc-lifecycle` gate numbers needs re-reading: they shifted
+by one.
+
+---
+
 ## 1.2.0 — 2026-09-17
 
 Adds the **Document Lifecycle Suite**: work whose deliverable is a document now has its own

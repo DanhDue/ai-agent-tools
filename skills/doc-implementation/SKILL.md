@@ -1,6 +1,6 @@
 ---
 name: doc-implementation
-description: Drafts an approved document outline section by section — one worktree, one commit per section, the outline kept truthful. Hands the draft to doc_quality_check at Gate 2 and holds Gate 3 for sign-off. Use it at Stage 2 of the document lifecycle.
+description: Drafts an approved document outline section by section — one worktree, one commit per section, the outline kept truthful. Hands the draft to doc_quality_check at Gate 3 and holds Gate 4 for sign-off. Use it at Stage 2 of the document lifecycle.
 ---
 
 # Document Implementation
@@ -24,7 +24,7 @@ from the other:
 
 ## When to Use
 
-- `doc-lifecycle` routes here at Stage 2, after Gate 1.
+- `doc-lifecycle` routes here at Stage 2, after Gate 2.
 - `.devtool/epic/<doc_dir>/<doc_dir>.en.md` exists with `Kind: document`, and one or more
   `.devtool/features/task_*.md` carry that document's `epic:` value.
 
@@ -49,7 +49,7 @@ behavioural gain. If a script needs changing, change it once, in `dev-implementa
 Read in full: the canonical `<doc_dir>.en.md` (never the `.vi.md` for decisions — it is a synced
 translation), every `task_*.md` whose `epic:` matches `<doc_slug>`, and any source spec the Meta
 Data links to. Note the declared **audience**, **Diátaxis mode** and **Acceptance** criterion; all
-three are checked at Gate 2.
+three are checked at Gate 3.
 
 ### Phase 1 — Order and worktree
 
@@ -85,7 +85,7 @@ For each section, in order:
 
 **No test suite runs here.** Not unit tests, not integration tests, not a native build. There is
 nothing to run, and running the development gates on prose would produce a green light that means
-nothing. Gate 2 is `doc_quality_check`, at Phase 4.
+nothing. Gate 3 is `doc_quality_check`, at Phase 4.
 
 #### What replaces TDD
 
@@ -111,7 +111,7 @@ git commit -m "[DOC_NAME] Sync outline after <section title>"
 
 Keeping it out of the section's own commit is what keeps `git log` readable as one-commit-per-section.
 
-### Phase 4 — Gate 2 verification
+### Phase 4 — Gate 3 verification
 
 Once every section is done, run `doc_quality_check`: the refusal rule, mechanical checks, Diátaxis
 conformance and the content audit. Do not run `quality_check` — it verifies code, shares nothing
@@ -119,9 +119,9 @@ with this path, and would report on checks that do not apply.
 
 On any failure, fix and re-run **in full**. A 🟢 assembled from a partial re-run is not a 🟢.
 
-### Phase 4.1 — Gate 3 sign-off (🛑 mandatory stop)
+### Phase 4.1 — Gate 4 sign-off (🛑 mandatory stop)
 
-With Gate 2 green, **stop calling tools.** Leave every completed task in `.devtool/features/done/`
+With Gate 3 green, **stop calling tools.** Leave every completed task in `.devtool/features/done/`
 so the board is inspectable, present the draft and the `doc_quality_check` verdict, and wait:
 
 > "The `<doc_slug>` document is drafted and `doc_quality_check` is 🟢. All sections are visible in the
@@ -131,7 +131,7 @@ Only an explicit approval advances. A change request routes back to Phase 2.
 
 ### Phase 5 — Finish the branch
 
-After Gate 3, invoke `finishing-a-development-branch`. Its pre-finish hook archives the completed
+After Gate 4, invoke `finishing-a-development-branch`. Its pre-finish hook archives the completed
 tasks into `.devtool/epic/<doc_dir>/`.
 
 **Then place the finished document where it belongs** — `docs/`, a README, a skill's `references/`.

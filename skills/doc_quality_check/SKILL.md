@@ -19,7 +19,7 @@ branches of one. Routing between them belongs to the lifecycle that owns the wor
 
 ## When to Use
 
-- Gate 2 of `doc-lifecycle`.
+- Gate 3 of `doc-lifecycle`.
 - Any time a document is finished and someone else will rely on it.
 - Before merging a branch whose changes are entirely documentation.
 
