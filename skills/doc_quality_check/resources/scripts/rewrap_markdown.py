@@ -83,7 +83,62 @@ def wrap(text, first="", sub=None):
             lines[-1] = sub + moved + " " + lines[-1][len(sub):].lstrip()
     return lines
 
-def rewrap(path):
+
+MASK = re.compile(r"`[^`]+`|\[[^\]]+\]\([^)]+\)")
+
+def semantic_units(text):
+    """Split prose where the sentence itself breaks, never at an arbitrary column.
+
+    Sentences first. A sentence that still overruns the margin is split again at its own
+    semicolons and em-dashes — a pressure valve, so short sentences stay on one line.
+    """
+    keep = []
+    def hide(m):
+        keep.append(m.group(0)); return "\x00%d\x00" % (len(keep) - 1)
+    masked = MASK.sub(hide, text)
+    restore = lambda p: re.sub(r"\x00(\d+)\x00", lambda m: keep[int(m.group(1))], p).strip()
+    out = []
+    for sent in re.split(r"(?<=[.?!])\s+(?=[A-Z\x00*>])", masked):
+        if not sent.strip(): continue
+        out += _relieve([sent])
+    return [restore(u) for u in out if u.strip()]
+
+
+# Applied in order, and only while a unit still overruns the margin. Each is a weaker join than
+# the one before, so a sentence breaks at its strongest internal seam first.
+SEAMS = [
+    r"(?<=;)\s+|\s+(?=— )",                                   # semicolon, em-dash
+    r"(?<=:)\s+(?=[a-z\x00*])",                                # colon introducing a clause
+    r"(?<=,)\s+(?=(?:so|and|but|or|which|while|rather|because|then)\b)",
+    r"(?<=,)\s+",                                             # any comma, last resort
+]
+
+
+def _relieve(units, depth=0):
+    if depth >= len(SEAMS):
+        return units
+    out = []
+    for u in units:
+        if len(u) <= WIDTH:
+            out.append(u)
+        else:
+            parts = [c for c in re.split(SEAMS[depth], u) if c.strip()]
+            out += _relieve(parts, depth + 1) if len(parts) > 1 else _relieve([u], depth + 1)
+    return out
+
+def pack_semantic(text, first="", sub=None):
+    sub = first if sub is None else sub
+    lines, cur = [], ""
+    for u in semantic_units(text):
+        pref = first if not lines else sub
+        if cur and len(pref) + len(cur) + 1 + len(u) > WIDTH:
+            lines.append(pref + cur); cur = u
+        else:
+            cur = u if not cur else cur + " " + u
+    if cur: lines.append((first if not lines else sub) + cur)
+    return lines
+
+def rewrap(path, semantic=False):
     src = pathlib.Path(path).read_text().split("\n")
     out, i, fence = [], 0, False
     while i < len(src):
@@ -108,20 +163,21 @@ def rewrap(path):
             while i < len(src) and src[i].strip() and src[i].startswith(" " * len(pre)) \
                   and not re.match(r"^\s*(?:[-*]|\d+\.)\s+", src[i]):
                 buf.append(src[i].strip()); i += 1
-            out += wrap(" ".join(buf), pre, " " * len(pre))
+            out += (pack_semantic if semantic else wrap)(" ".join(buf), pre, " " * len(pre))
         else:
             buf = []
             while i < len(src) and src[i].strip() and not src[i].startswith(("|", "#", ">", "```")) \
                   and not re.match(r"^\s*(?:[-*]|\d+\.)\s+", src[i]):
                 buf.append(src[i].strip()); i += 1
-            out += wrap(" ".join(buf))
+            out += (pack_semantic if semantic else wrap)(" ".join(buf))
         if i == start:
             raise RuntimeError(f"{path}: parser stalled at line {i+1}: {src[i]!r}")
     return "\n".join(out)
 
-for path in sys.argv[1:]:
+SEMANTIC = "--semantic" in sys.argv
+for path in [a for a in sys.argv[1:] if not a.startswith("--")]:
     before = pathlib.Path(path).read_text()
-    after = rewrap(path)
+    after = rewrap(path, semantic=SEMANTIC)
     def norm(t):
         # line-leading > is blockquote markup, and rewrapping legitimately moves it
         return " ".join(" ".join(re.sub(r"^>\s?", "", l) for l in t.split("\n")).split())

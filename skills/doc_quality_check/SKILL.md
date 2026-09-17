@@ -95,6 +95,24 @@ produced something worse:
 **It refuses to write if anything but whitespace would change**, so it cannot silently edit a
 document. That guard caught three real mistakes while the rules above were being settled.
 
+#### `--semantic`: break where the sentence breaks
+
+Column wrapping ends lines wherever the margin falls, which strands phrases like
+`512 lines of` / `platform-specific`. `--semantic` never does that: it breaks only where the prose
+itself breaks.
+
+```bash
+python3 skills/doc_quality_check/resources/scripts/rewrap_markdown.py --semantic <file> ...
+```
+
+Sentences first. A sentence still over the margin is cut at its strongest internal seam, trying each
+in turn and stopping as soon as the pieces fit: a semicolon or em-dash, then a colon, then a comma
+before a connective, then any comma. A sentence with no seam at all stays long — that is the honest
+cost of the mode, and it is the only case where a line runs past 120 characters.
+
+**Use `--semantic` for prose people read** (`docs/`), and the column mode for files where a
+predictable right margin matters more.
+
 ### Check 2 — Diátaxis type conformance
 
 Read the document's declared `Diátaxis mode` from its Meta Data, then check it stays inside that
