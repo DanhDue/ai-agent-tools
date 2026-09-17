@@ -8,7 +8,7 @@ every installed machine on the old cached copy.
 
 ---
 
-## Unreleased — targeting 1.3.0
+## 1.3.0 — 2026-09-17
 
 Splits `brainstorming` into a development variant and a documentation variant, and makes the
 document lifecycle's inception stage mandatory.
