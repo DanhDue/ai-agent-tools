@@ -8,15 +8,22 @@ written once, and each runtime gets a thin manifest pointing at them.
 
 | | |
 |---|---|
-| **47 skills** | Upstream product discovery (Lean Product Process) · epic lifecycle orchestration · 3-tier quality gates · security / architecture / UI / code-health audits · TDD and debugging process · build-environment and secure-file setup · Flutter and Android feature/API scaffolding |
-| **2 rules** | `CRITICAL_RULES.md` (mandatory `quality_check` after every workflow) and `coding-guidelines.md` (think first, simplicity, surgical changes, verify) |
+| **52 skills** | Upstream product discovery (Lean Product Process) · development and documentation lifecycles · 3-tier quality gates · security / architecture / UI / code-health audits · decision records · TDD and debugging process · build-environment and secure-file setup · Flutter and Android feature/API scaffolding |
+| **2 rules** | `CRITICAL_RULES.md` (a mandatory quality gate after every workflow, chosen by the kind of work) and `coding-guidelines.md` (think first, simplicity, surgical changes, verify) |
 | **Templates** | Per-project `AGENTS.md` and shared editor guardrails |
 
-Start with the **`epic-lifecycle`** skill for anything epic-scale — it owns the stage sequence and
-the four approval gates, and routes to the right skill at each step.
+There are **three lifecycles**, and which one you enter depends on what will exist when you finish:
 
-If the question is still *what should we build and for whom*, start one stage earlier with
-**`lean-product-lifecycle`** — see [3.6](#36-the-upstream-product-discovery-suite).
+| What you will have produced | Lifecycle | Gates |
+|---|---|---|
+| Changed code that ships in the build | **`dev-lifecycle`** | 5 |
+| A document someone will read | **`doc-lifecycle`** | 3 |
+| A decision about what to build at all | **`lean-product-lifecycle`** | 3 |
+
+Full directions, including the cases where you should skip all three:
+**[docs/choosing-a-lifecycle.md](docs/choosing-a-lifecycle.md)**.
+
+The product discovery suite is described in [3.6](#36-the-upstream-product-discovery-suite).
 
 ---
 
@@ -56,7 +63,7 @@ claude plugin marketplace add DanhDue/ai-agent-tools
 claude plugin install d3nexus@danhdue-agent-tools
 ```
 
-Skills then appear as `d3nexus:<skill-name>` — for example `/d3nexus:epic-lifecycle`.
+Skills then appear as `d3nexus:<skill-name>` — for example `/d3nexus:dev-lifecycle`.
 
 **Restart the session afterwards.** Reload the IDE window (`Cmd+Shift+P` → *Developer: Reload
 Window*) or start a new CLI session. Skills are read at session start, and a new chat in the same
@@ -138,7 +145,7 @@ the source one click away.
 
 ```bash
 cd ~/AllProjects/ai-agent-tools
-$EDITOR skills/epic-lifecycle/SKILL.md     # 1. edit
+$EDITOR skills/dev-lifecycle/SKILL.md     # 1. edit
 scripts/release.sh                         # 2. verify + bump + commit + push + refresh this machine
 ```
 
@@ -273,7 +280,7 @@ description: Use this skill when …   # what it does AND when to use it — dri
 ```
 
 `description` is the field both runtimes read to decide whether to activate the skill, so it
-carries more weight than anything in the body. All 47 skills use these two fields and nothing
+carries more weight than anything in the body. All 52 skills use these two fields and nothing
 else — adding non-standard keys risks a frontmatter parse failure with no error surfaced.
 
 Use the `writing-skills` skill when creating or editing one, and run `scripts/verify.sh` before
@@ -293,7 +300,7 @@ holds only what its `SKILL.md` does not already cover.
 ### 3.6. The upstream product discovery suite
 
 Four skills implementing Dan Olsen's **Lean Product Process**, covering the discovery work that
-happens *before* `epic-lifecycle` — deciding what to build and for whom, rather than how.
+happens *before* `dev-lifecycle` — deciding what to build and for whom, rather than how.
 
 | Skill | Persona | Covers | Produces |
 |---|---|---|---|
@@ -303,7 +310,7 @@ happens *before* `epic-lifecycle` — deciding what to build and for whom, rathe
 | `lean-mvp-scoping` | Eric Ries & Jeff Patton | Step 4: chunking, ROI, MVP candidate grid | `03_mvp_feature_backlog.md` |
 
 Artefacts land in `.devtool/product/<slug>/`, and the Gate 3 backlog is consumed directly by
-`epic-designer`. Steps 5 and 6 of the process — building an MVP test and running it with customers —
+`dev-designer`. Steps 5 and 6 of the process — building an MVP test and running it with customers —
 are **not implemented**; the orchestrator says so at Gate 3 rather than implying the journey is over.
 
 > [!IMPORTANT]

@@ -9,9 +9,19 @@ trigger: always_on
 
 
 > [!IMPORTANT]
-> After completing any workflow or skill, you **MUST** use the `@quality_check` skill to run quality checks and fix any issues that arise. This is critical to maintain the quality of the project.
-> 
-> See: [Quality Check Skill](../skills/quality_check/SKILL.md)
+> After completing any workflow or skill, you **MUST** run the quality gate for the **kind of work
+> you did**, and fix any issues it raises. This is critical to maintain the quality of the project.
+>
+> | Kind of work | Gate |
+> |---|---|
+> | Anything that changes a file shipping in the build | `@quality_check` |
+> | Anything whose deliverable is prose | `@doc_quality_check` |
+>
+> The two share no tier, no audit and no tooling. Running the wrong one produces a green light that
+> means nothing — and `@doc_quality_check` refuses outright if the change touches shipped files.
+>
+> See: [Quality Check Skill](../skills/quality_check/SKILL.md) ·
+> [Document Quality Check Skill](../skills/doc_quality_check/SKILL.md)
 
 ## Commit Message Format
 
@@ -49,6 +59,6 @@ git commit -m "[EPIC_NAME] Task title" -m "- subtask title 01
 > When a user request requires planning, design exploration, architectural changes, or epic-level features:
 > 1. Because `<user_rules>` has absolute precedence over all instructions, you **MUST NOT** follow Antigravity's default `<planning_mode>` instructions to create an `implementation_plan.md` artifact.
 > 2. For single features or exploratory design, you **MUST** invoke the [Brainstorming Skill](../skills/brainstorming/SKILL.md) (`d3nexus:brainstorming`).
-> 3. For multi-step, multi-feature, or epic-level work, you **MUST** invoke the [Epic Lifecycle Skill](../skills/epic-lifecycle/SKILL.md) (`d3nexus:epic-lifecycle`), which orchestrates `brainstorming` -> `epic-designer` -> `epic-implementation` -> `quality_check`.
+> 3. For multi-step, multi-feature, or epic-level work, you **MUST** invoke the [Epic Lifecycle Skill](../skills/dev-lifecycle/SKILL.md) (`d3nexus:dev-lifecycle`), which orchestrates `brainstorming` -> `dev-designer` -> `dev-implementation` -> `quality_check`.
 > 4. Only use native `implementation_plan.md` if the user explicitly instructs you to bypass d3nexus workflows.
 

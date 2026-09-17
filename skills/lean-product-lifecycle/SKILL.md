@@ -33,7 +33,7 @@ product through the Lean Product Process."
 ## When NOT to use this
 
 - The product already has validated product-market fit and the question is purely technical
-  → go straight to `d3nexus:epic-lifecycle`.
+  → go straight to `d3nexus:dev-lifecycle`.
 - A single bug, a refactor, or a change to an existing feature → `d3nexus:brainstorming`.
 - The user is mid-stage and knows which stage → go straight to that stage's skill.
 
@@ -76,14 +76,16 @@ Full treatment: [references/pmf-pyramid-guide.md](references/pmf-pyramid-guide.m
 
 ```mermaid
 flowchart TD
+    IN(["Arrives here from brainstorming's step-2 escape,<br/>or directly with a raw idea"])
     S1["Stage 1 - Problem Space<br/>(lean-market-discovery)<br/>Process steps 1-2"]
     G1{"Gate 1<br/>Problem space signed off?"}
     S2["Stage 2 - Value Proposition<br/>(lean-value-strategy)<br/>Process step 3"]
     G2{"Gate 2<br/>Value proposition signed off?"}
     S3["Stage 3 - MVP Feature Set<br/>(lean-mvp-scoping)<br/>Process step 4"]
     G3{"Gate 3<br/>MVP backlog signed off?"}
-    OUT(["Handoff to d3nexus:epic-designer<br/>Steps 5-6 not yet covered"])
+    OUT(["Handoff to d3nexus:dev-designer<br/>Steps 5-6 not yet covered"])
 
+    IN --> S1
     S1 --> G1
     G1 -->|no, re-ladder or re-segment| S1
     G1 -->|yes| S2
@@ -202,8 +204,8 @@ this release.** Say so explicitly at Gate 3 rather than implying the journey is 
 what the founder still owes themselves: a prototype at the lowest fidelity that can test these
 hypotheses, and waves of five to eight target customers.
 
-Then hand `03_mvp_feature_backlog.md` to `d3nexus:epic-designer`, which generates the HLD, diagrams
-and Kanban breakdown, and from there `d3nexus:epic-lifecycle` owns the engineering gates.
+Then hand `03_mvp_feature_backlog.md` to `d3nexus:dev-designer`, which generates the HLD, diagrams
+and Kanban breakdown, and from there `d3nexus:dev-lifecycle` owns the engineering gates.
 
 ---
 

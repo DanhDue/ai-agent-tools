@@ -64,7 +64,7 @@ flowchart TD
 ```
 
 1. **Check 1 (Shift-Left Bookend)**:
-   - Invoked during `brainstorming` and `epic-designer`.
+   - Invoked during `brainstorming` and `dev-designer`.
    - Runs predictive AST and symbol scans on planned architectural touchpoints.
    - Enriches every generated Kanban task with `### Impact Analysis & Blast Radius` and sets explicit test coverage targets.
 2. **Phase 2 Step 0 (Just-In-Time Guard)**:

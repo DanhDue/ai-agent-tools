@@ -122,8 +122,65 @@ hook_case "Antigravity second invocation"   silent "X=1" '{"invocationNum":1}'
 hook_case "Antigravity later invocation"    silent "X=1" '{"invocationNum":7}'
 hook_case "Antigravity unreadable payload"  silent "X=1" 'not json'
 
-note "== 7. Lean Product suite stays faithful to its source =="
+note "== 7. Methodology skills stay faithful to their sources =="
 python3 scripts/check_source_fidelity.py || FAILED=1
+
+note "== 8. Every supporting skill file is referenced by something =="
+# skills/brainstorming/spec-document-reviewer-prompt.md was 49 lines of working reviewer prompt
+# that nothing in the repository referenced, for its entire life. Nothing prevented that from
+# recurring. SKILL.md is exempt: it is a skill's entry point by definition, and without the
+# exemption this check fires on every skill in the kit.
+python3 - <<'PY' || FAILED=1
+import pathlib, sys
+root = pathlib.Path(".")
+# The rule is that a skill's own content must be reachable from the skill. Three things are
+# not that content: binary assets, legal files, and the repo furniture a vendored skill brings
+# with it (CI workflows and other dotfile directories, which their own tooling invokes).
+ASSET_SUFFIXES = {".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".ico", ".pdf"}
+LEGAL_PREFIXES = ("LICENSE", "COPYING", "NOTICE")
+def is_skill_content(p):
+    if p.name == "SKILL.md" or "__pycache__" in p.parts:
+        return False
+    if p.suffix.lower() in ASSET_SUFFIXES:
+        return False
+    if p.name.upper().startswith(LEGAL_PREFIXES):
+        return False
+    return not any(part.startswith(".") for part in p.parts)
+
+supporting = [p for p in root.glob("skills/*/**/*") if p.is_file() and is_skill_content(p)]
+corpus = [p for p in root.rglob("*")
+          if p.is_file() and ".git/" not in str(p) and "__pycache__" not in p.parts
+          and p.suffix in {".md", ".py", ".sh", ".json", ".yaml", ".yml", ""}]
+texts = {}
+for c in corpus:
+    try:
+        texts[c] = c.read_text(errors="ignore")
+    except OSError:
+        pass
+bad = 0
+for f in sorted(supporting):
+    name = f.name
+    if any(other != f and name in body for other, body in texts.items()):
+        continue
+    print(f"  FAIL {f} is referenced by nothing")
+    bad = 1
+print(f"  checked {len(supporting)} supporting files")
+sys.exit(bad)
+PY
+
+note "== 9. The dev-* rename is complete =="
+# The old names must survive only where they are history: archived epic records under .devtool/
+# and the CHANGELOG entries that describe the rename itself.
+# grep -v below drops this file: the check's own pattern necessarily contains the old names.
+if hits=$(grep -rn "epic-lifecycle\|epic-designer\|epic-implementation" . \
+          --exclude-dir=.git --exclude-dir=.devtool --exclude-dir=__pycache__ \
+          --exclude-dir=.worktrees --exclude=CHANGELOG.md 2>/dev/null \
+          | grep -v "^\./scripts/verify\.sh:") && [ -n "$hits" ]; then
+  printf '%s\n' "$hits" | head -5
+  fail "live files still reference the pre-rename skill names"
+else
+  note "  ok   no live file names epic-lifecycle, epic-designer or epic-implementation"
+fi
 
 echo
 if [ "$FAILED" -eq 0 ]; then

@@ -18,6 +18,12 @@ Assume they are a skilled developer, but know almost nothing about our toolset o
 **Save plans to:** `docs/superpowers/plans/YYYY-MM-DD-<feature-name>.md`
 - (User preferences for plan location override this default)
 
+## Reviewing a Written Plan
+
+Before handing a plan to an executor, dispatch a reviewer subagent using
+[`plan-document-reviewer-prompt.md`](plan-document-reviewer-prompt.md). A plan that reads well to
+its author and is missing a step reads exactly the same either way.
+
 ## Scope Check
 
 If the spec covers multiple independent subsystems, it should have been broken into sub-project specs during brainstorming. If it wasn't, suggest breaking this into separate plans — one per subsystem. Each plan should produce working, testable software on its own.

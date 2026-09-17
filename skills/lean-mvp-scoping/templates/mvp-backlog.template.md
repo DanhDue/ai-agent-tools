@@ -7,7 +7,7 @@
 > **Created**: `<YYYY-MM-DD>` · **Last updated**: `<YYYY-MM-DD>`
 > **Upstream**: `01_problem_space_spec.md`, `02_value_proposition_spec.md` (same directory)
 > **Produced by**: `d3nexus:lean-mvp-scoping`
-> **Downstream**: `d3nexus:epic-designer`
+> **Downstream**: `d3nexus:dev-designer`
 
 > [!IMPORTANT]
 > **Every identified must-have is in v1, regardless of its ROI rank.** ROI orders the work; it does
@@ -175,7 +175,7 @@ Narrow in functionality, complete through all four layers. A horizontal cut fail
 
 ---
 
-## 9. Handoff Notes for `d3nexus:epic-designer`
+## 9. Handoff Notes for `d3nexus:dev-designer`
 
 | | |
 |---|---|
@@ -207,7 +207,7 @@ Narrow in functionality, complete through all four layers. A horizontal cut fail
 
 ---
 
-**Next**: hand this file to `d3nexus:epic-designer` for the HLD, diagrams and Kanban breakdown;
-`d3nexus:epic-lifecycle` then owns the engineering gates. Separately, steps 5 and 6 of the Lean
+**Next**: hand this file to `d3nexus:dev-designer` for the HLD, diagrams and Kanban breakdown;
+`d3nexus:dev-lifecycle` then owns the engineering gates. Separately, steps 5 and 6 of the Lean
 Product Process remain outstanding — an MVP test at the lowest fidelity that can test these
 hypotheses, and waves of five to eight target customers.

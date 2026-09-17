@@ -22,20 +22,24 @@ Every project goes through this process. A todo list, a single-function utility,
 You MUST create a task for each of these items and complete them in order:
 
 1. **Explore project context** — check files, docs, recent commits
-2. **Offer visual companion** (if topic will involve visual questions) — this is its own message, not combined with a clarifying question. See the Visual Companion section below.
-3. **Ask clarifying questions** — one at a time, understand purpose/constraints/success criteria
-4. **Propose 2-3 approaches** — with trade-offs and your recommendation
-5. **Present design** — in sections scaled to their complexity, get user approval after each section
-6. **Write design doc** — save to `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md` and commit (relocated into `.devtool/epic/<epic_name>/` later if routed to epic-designer — see Routing After Approval)
-7. **Spec self-review** — quick inline check for placeholders, contradictions, ambiguity, scope (see below)
-8. **User reviews written spec** — ask user to review the spec file before proceeding
-9. **Route to the next skill** — if the spec is epic-scale, invoke epic-designer with the spec path; otherwise invoke writing-plans (see Routing After Approval below)
+2. **Check the problem space is settled** — if nobody has validated who the customer is or which
+   need is underserved, stop here and route to `lean-product-lifecycle` (see Upstream Escape below)
+3. **Offer visual companion** (if topic will involve visual questions) — this is its own message, not combined with a clarifying question. See the Visual Companion section below.
+4. **Ask clarifying questions** — one at a time, understand purpose/constraints/success criteria
+5. **Propose 2-3 approaches** — with trade-offs and your recommendation
+6. **Present design** — in sections scaled to their complexity, get user approval after each section
+7. **Write design doc** — save to `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md` and commit (relocated into `.devtool/epic/<epic_name>/` later if routed to dev-designer — see Routing After Approval)
+8. **Spec self-review** — quick inline check for placeholders, contradictions, ambiguity, scope (see below)
+9. **User reviews written spec** — ask user to review the spec file before proceeding
+10. **Route to the next skill** — one of four exits, see Routing After Approval below
 
 ## Process Flow
 
 ```mermaid
 flowchart TD
-    A["Explore project context"] --> B{"Visual questions ahead?"}
+    A["Explore project context"] --> A2{"Problem space validated?"}
+    A2 -->|"no — customer or need unknown"| LP((("Route to lean-product-lifecycle")))
+    A2 -->|yes| B{"Visual questions ahead?"}
     B -->|yes| C["Offer Visual Companion<br>(own message, no other content)"]
     B -->|no| D["Ask clarifying questions"]
     C --> D
@@ -47,29 +51,55 @@ flowchart TD
     H --> I["Spec self-review<br>(fix inline)"]
     I --> J{"User reviews spec?"}
     J -->|changes requested| H
-    J -->|approved| K{"Epic-scale spec?"}
-    K -->|yes| L((("Invoke epic-designer skill")))
-    K -->|no| M((("Invoke writing-plans skill")))
+    J -->|approved| K{"Deliverable and scale?"}
+    K -->|"code, epic-scale"| L((("Invoke dev-designer skill")))
+    K -->|"code, one plan"| M((("Invoke writing-plans skill")))
+    K -->|"a document"| N((("Invoke doc-designer skill")))
 ```
 
-**The terminal state is invoking either epic-designer or writing-plans — never both, and never any other implementation skill.** Do NOT invoke frontend-design, mcp-builder, or any other implementation skill directly from brainstorming.
+**The terminal state is invoking exactly one of four skills: `dev-designer`, `writing-plans`, `doc-designer`, or `lean-product-lifecycle` — never two, and never any other skill.** Do NOT invoke frontend-design, mcp-builder, or any other implementation skill directly from brainstorming.
+
+### Upstream Escape — when the problem space was never validated
+
+`lean-product-lifecycle` routes *down* here for small work, but historically there was no route back
+*up*. A session that discovered nobody had validated the customer could only carry on downhill into a
+spec — the Build Trap with better paperwork. This is that route.
+
+**Fire it at step 2, before the clarifying questions.** Those questions are Stage 1 of
+`lean-market-discovery` asked less rigorously; asking them first makes the user answer the same
+things twice, which is exactly the friction that makes people stop using a gate.
+
+Stop and recommend `lean-product-lifecycle` when **either** is true:
+
+- Nobody can name the target customer as a specific segment, only as "users" or "the business".
+- The underserved need is asserted rather than evidenced — no interviews, no data, no ranking of
+  importance against satisfaction.
+
+Say plainly what it costs and what it saves: a few days of discovery against building the wrong
+thing. Then hand over whatever context this session already gathered, so Stage 1 does not start cold.
+
+If the user decides to proceed anyway, that is their call — record the unvalidated assumption in the
+spec's risks section and continue.
 
 ### Routing After Approval
 
 Once the spec is approved (and has passed self-review), decide which skill picks it up next:
 
-- **Invoke `epic-designer`** when the approved spec describes epic-scale work: multiple independent components/services, a design that will need Kanban task breakdown and architecture/use-case/sequence diagrams, or the user explicitly called it an "epic" or large feature. Before invoking, relocate the spec file from `docs/superpowers/specs/` into `.devtool/epic/<epic_name>/<same-filename>` (creating the directory if `epic-designer` hasn't run for this epic yet), fix any relative links inside the moved file, then pass that new path as input — this keeps the spec, the HLD, and the task files for one epic all in the same directory instead of split across `docs/` and `.devtool/`.
+- **Invoke `dev-designer`** when the approved spec describes epic-scale work: multiple independent components/services, a design that will need Kanban task breakdown and architecture/use-case/sequence diagrams, or the user explicitly called it an "epic" or large feature. Before invoking, relocate the spec file from `docs/superpowers/specs/` into `.devtool/epic/<epic_name>/<same-filename>` (creating the directory if `dev-designer` hasn't run for this epic yet), fix any relative links inside the moved file, then pass that new path as input — this keeps the spec, the HLD, and the task files for one epic all in the same directory instead of split across `docs/` and `.devtool/`.
+- **Invoke `doc-designer`** when the deliverable is a **document** rather than code — a runbook, a handbook, an onboarding guide, a set of reference pages, a research write-up. This enters the Document Lifecycle, which has three gates rather than five. A single Architecture Decision Record is below even that threshold: invoke `decision-records` directly instead.
 - **Invoke `writing-plans`** (as before) for everything else — a single-component feature, bugfix, or small enough scope that one implementation plan covers it without a separate HLD.
+
+The deliverable decides, not the amount of writing involved. **If the work changes a file that ships in the build, it is code**, however much prose it also produces.
 
 When in doubt, ask the user which they want rather than guessing.
 
-If brainstorming decomposed the original request into multiple sub-project specs, route **each spec independently** — do not merge multiple specs into a single epic-designer invocation. Each spec keeps its own spec → design → implementation lineage.
+If brainstorming decomposed the original request into multiple sub-project specs, route **each spec independently** — do not merge multiple specs into a single dev-designer invocation. Each spec keeps its own spec → design → implementation lineage.
 
 ### Complete End-to-End Epic Lifecycle
 
-Routing to `epic-designer` enters the governed Epic Lifecycle. The stage sequence, the four
+Routing to `dev-designer` enters the governed Epic Lifecycle. The stage sequence, the four
 approval gates, and the handoff artefact each stage owes the next are defined in one place —
-the **[`epic-lifecycle`](../epic-lifecycle/SKILL.md)** skill. Do not restate them here; this
+the **[`dev-lifecycle`](../dev-lifecycle/SKILL.md)** skill. Do not restate them here; this
 skill owns Stage 1 and Gate 1 only.
 
 ---
@@ -133,7 +163,7 @@ To ensure this is a true creative collaboration and not just a rigid interrogati
 
 - Write the validated design (spec) to `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md`
   - (User preferences for spec location override this default)
-  - If this spec is later routed to `epic-designer` (see Routing After Approval), it does not stay here — it gets relocated into the epic's own directory so every doc for that epic lives in one place.
+  - If this spec is later routed to `dev-designer` (see Routing After Approval), it does not stay here — it gets relocated into the epic's own directory so every doc for that epic lives in one place.
 - Use elements-of-style:writing-clearly-and-concisely skill if available
 - Commit the design document to git (if `auto_commit` is enabled):
   - Read `.agents/config.json` — check `auto_commit` setting
@@ -160,8 +190,8 @@ Wait for the user's response. If they request changes, make them and re-run the 
 
 **Implementation:**
 
-- Apply the Routing After Approval rule above to pick the next skill: `epic-designer` (pass the spec's file path) for epic-scale specs, or `writing-plans` for everything else.
-- Do NOT invoke any other skill — these two are the only valid next steps.
+- Apply the Routing After Approval rule above to pick the next skill: `dev-designer` (pass the spec's file path) for epic-scale code, `doc-designer` for a document deliverable, or `writing-plans` for everything else.
+- Do NOT invoke any other skill — those three, plus the `lean-product-lifecycle` escape at step 2, are the only valid next steps.
 
 ## Key Principles
 
