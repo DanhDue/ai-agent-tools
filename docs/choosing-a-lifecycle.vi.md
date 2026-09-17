@@ -30,7 +30,7 @@ Trả lời một câu hỏi: **làm xong rồi thì sẽ có cái gì?**
 
 Số cổng nêu bên dưới là **số cổng có tên của chính lifecycle bạn bước vào**.
 Chỗ nào một tuyến có phê duyệt nằm ngoài lifecycle
-— như phê duyệt thiết kế và soát spec của `brainstorming` trên tuyến một-plan
+— như phê duyệt thiết kế và soát spec của `dev-brainstorming` trên tuyến một-plan
 — thì chúng được kể riêng chứ không gộp vào con số,
 nên các con số trên trang này **không so sánh trực tiếp với nhau được**.
 
@@ -48,9 +48,9 @@ Chọn theo số mảnh review được của công việc.
 Nó đưa bạn qua năm cổng:
 spec, phân rã task, thứ tự thực thi, `quality_check`, và chữ ký của chính bạn trước khi nhánh được hoàn tất.
 
-**Một thành phần, một plan** — chạy `d3nexus:brainstorming`, rồi `d3nexus:writing-plans`.
+**Một thành phần, một plan** — chạy `d3nexus:dev-brainstorming`, rồi `d3nexus:writing-plans`.
 Cách này rời khỏi epic lifecycle; các cổng còn lại của nó không áp dụng. Bạn vẫn qua hai cổng:
-`brainstorming` không cho bắt đầu khi thiết kế chưa được duyệt,
+`dev-brainstorming` không cho bắt đầu khi thiết kế chưa được duyệt,
 và nó yêu cầu bạn soát lại spec đã viết trước khi lập plan.
 
 **Trên tuyến một-plan, phải có thứ gì đó thực thi cái plan,
@@ -85,10 +85,13 @@ Hai trường hợp nằm dưới ngưỡng đó:
   Một *loạt* hồ sơ được tạo hoặc bổ sung ngược như một khối công việc thì khác: cái đó thuộc về `d3nexus:doc-lifecycle`.
 - **Một thay đổi không người review nào buồn gate** — xem [Nếu việc quá nhỏ](#nếu-việc-quá-nhỏ).
 
-Nếu bạn chưa biết tài liệu nên nói gì
-— một bài chiến lược, một đề xuất, một lập luận bạn chưa tranh xong
-— chạy `d3nexus:brainstorming` trước. Nó kết thúc bằng việc gọi thẳng `doc-designer`,
-vốn là Stage 1 của lifecycle này, nên bạn tới đây mà không phải quay lại trang này.
+**Mọi tài liệu đều bắt đầu ở Stage 0**, dù bạn đã biết trước bao nhiêu về nó.
+`doc-lifecycle` gọi `d3nexus:doc-brainstorming` trước, và nó không còn là tùy chọn nữa.
+Điều đó không làm một tài liệu nhỏ trở nên đắt đỏ: giai đoạn này bắt buộc phải *diễn ra*,
+nhưng độ sâu của nó co giãn theo công việc, nên spec của một runbook chỉ dài ba câu
+và Cổng 1 là việc bạn duyệt ba câu đó.
+`doc-brainstorming` kết thúc bằng việc gọi `doc-designer`, vốn là Stage 1,
+nên bạn tới đó mà không phải quay lại trang này.
 
 ## Nếu bạn chưa biết nên xây gì
 
@@ -105,7 +108,12 @@ Hai dấu hiệu cho thấy bạn đang ở trường hợp này và nên dừng
 - Nhu cầu được khẳng định chứ không có bằng chứng:
   không phỏng vấn, không dữ liệu, không xếp hạng mức quan trọng đối chiếu với mức thỏa mãn.
 
-`d3nexus:brainstorming` kiểm cả hai ở bước 2 và sẽ đẩy bạn sang đây trước khi hỏi bạn bất cứ điều gì khác.
+Cả `d3nexus:dev-brainstorming` lẫn `d3nexus:doc-brainstorming` đều kiểm ở bước 2 và sẽ đẩy bạn sang đây
+trước khi hỏi bạn bất cứ điều gì khác — nhưng hai bên kiểm hai thứ khác nhau.
+Biến thể phát triển kích hoạt theo hai điều kiện ở trên.
+Biến thể tài liệu chỉ kích hoạt khi bản thân tài liệu **là một luận điểm sản phẩm**
+— một bài chiến lược, một đề xuất, một business case — mà ý tưởng của nó không có bằng chứng nào chống đỡ.
+Một runbook hay một trang reference thì không bao giờ kích hoạt nó, dù biết rất ít về độc giả.
 
 ## Nếu việc quá nhỏ
 
@@ -127,9 +135,16 @@ Bỏ qua một lifecycle không có nghĩa là bỏ qua xác minh.
 **Từ discovery sang code.** Ở Cổng 3, `lean-product-lifecycle` bàn giao `03_mvp_feature_backlog.md` sang `d3nexus:dev-designer`.
 Hãy truyền đường dẫn file; đừng dựng lại backlog từ đầu.
 
-**Từ brainstorming sang một trong hai nhánh.** `d3nexus:brainstorming` kết thúc bằng việc gọi đúng **một** trong `dev-designer`,
-`writing-plans`, `doc-designer` hoặc `lean-product-lifecycle`.
-Trước khi định tuyến sang `dev-designer`,
+**Router sang một trong hai nhánh.** Nếu bạn không chắc đây là loại việc nào, hãy chạy
+`d3nexus:brainstorming`. Nó hỏi đúng một câu — bạn muốn phát triển ý tưởng, làm tài liệu, hay
+phát triển tính năng — rồi gọi biến thể tương ứng. Nó không làm gì khác, và nó không đoán:
+câu trả lời không rõ sẽ bị hỏi lại.
+
+Nếu bạn đã biết rồi thì bỏ qua nó và gọi thẳng biến thể.
+`dev-brainstorming` kết thúc bằng việc gọi đúng **một** trong `dev-designer`, `writing-plans`
+hoặc `lean-product-lifecycle`; `doc-brainstorming` kết thúc bằng việc gọi đúng **một** trong
+`doc-designer`, `decision-records` hoặc `lean-product-lifecycle`.
+Trước khi `dev-brainstorming` định tuyến sang `dev-designer`,
 nó dời spec của bạn vào `.devtool/epic/<epic_name>/` để spec, thiết kế và các task nằm cùng một chỗ.
 
 **Từ code ngược về discovery.** Nếu một spec hóa ra dựa trên một giả định chưa được kiểm chứng,

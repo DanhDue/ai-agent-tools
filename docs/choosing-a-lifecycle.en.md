@@ -26,7 +26,7 @@ Answer one question: **what will exist when you are finished?**
 
 Gate counts below are the **named gates of the lifecycle you enter**.
 Where a route has approvals outside a lifecycle
-— `brainstorming`'s design approval and spec review on the one-plan route
+— `dev-brainstorming`'s design approval and spec review on the one-plan route
 — they are named separately rather than folded into the count,
 so the numbers on this page are not directly comparable with each other.
 
@@ -44,9 +44,9 @@ Pick by how many reviewable pieces the work has.
 — run `d3nexus:dev-lifecycle`. It takes you through five gates:
 spec, task breakdown, execution order, `quality_check`, and your own sign-off before the branch is finished.
 
-**One component, one plan** — run `d3nexus:brainstorming`, then `d3nexus:writing-plans`.
+**One component, one plan** — run `d3nexus:dev-brainstorming`, then `d3nexus:writing-plans`.
 This leaves the epic lifecycle; its remaining gates do not apply. You still cross two:
-`brainstorming` will not let you start without an approved design,
+`dev-brainstorming` will not let you start without an approved design,
 and it asks you to review the written spec before planning.
 
 **On the one-plan route, something has to execute the plan,
@@ -83,10 +83,13 @@ Two cases sit below that threshold:
   that does belong in `d3nexus:doc-lifecycle`.
 - **A change no reviewer would meaningfully gate** — see [If the work is too small](#if-the-work-is-too-small).
 
-If you do not yet know what the document should say
-— a strategy piece, a proposal, an argument you have not finished having
-— run `d3nexus:brainstorming` first. It ends by invoking `doc-designer` itself,
-which is Stage 1 of this lifecycle, so you arrive here without coming back to this page.
+**Every document starts at Stage 0**, whatever you already know about it.
+`doc-lifecycle` invokes `d3nexus:doc-brainstorming` first and it is no longer optional.
+That does not make a small document expensive: the stage is required to *happen*,
+but its depth scales with the work, so a runbook's spec runs to three sentences
+and Gate 1 is you approving them.
+`doc-brainstorming` ends by invoking `doc-designer`, which is Stage 1,
+so you arrive there without coming back to this page.
 
 ## If you do not know what to build yet
 
@@ -102,7 +105,12 @@ Two signs you are in this case and should stop where you are:
 - The need is asserted rather than evidenced:
   no interviews, no data, no ranking of importance against satisfaction.
 
-`d3nexus:brainstorming` checks both at step 2 and will send you here before it asks you anything else.
+Both `d3nexus:dev-brainstorming` and `d3nexus:doc-brainstorming` check at step 2 and will send you here
+before asking you anything else — though they check different things.
+The development variant fires on the two conditions above.
+The documentation variant fires only when the document **is itself a product argument**
+— a strategy paper, a proposal, a business case — whose idea has no evidence behind it.
+A runbook or a reference page never triggers it, however little is known about its readers.
 
 ## If the work is too small
 
@@ -123,8 +131,16 @@ You will sometimes start in the wrong one. These are the three moves that keep y
 **Discovery to code.** At Gate 3, `lean-product-lifecycle` hands `03_mvp_feature_backlog.md` to `d3nexus:dev-designer`.
 Pass the file path; do not re-derive the backlog.
 
-**Brainstorming to either branch.** `d3nexus:brainstorming` ends by invoking exactly one of `dev-designer`, `writing-plans`, `doc-designer` or `lean-product-lifecycle`.
-Before it routes to `dev-designer`,
+**The router to either branch.** If you are not sure which kind of work this is, run
+`d3nexus:brainstorming`. It asks one question — whether you want to develop an idea, produce a
+document, or build a feature — and invokes the matching variant. It does nothing else, and it does
+not guess: an unclear answer gets asked again.
+
+If you already know, skip it and name the variant yourself.
+`dev-brainstorming` ends by invoking exactly one of `dev-designer`, `writing-plans` or
+`lean-product-lifecycle`; `doc-brainstorming` ends by invoking exactly one of `doc-designer`,
+`decision-records` or `lean-product-lifecycle`.
+Before `dev-brainstorming` routes to `dev-designer`,
 it moves your spec into `.devtool/epic/<epic_name>/` so the spec,
 the design and the tasks stay together.
 

@@ -42,11 +42,11 @@ một bộ BDD viết bằng Gherkin, và mỗi đơn vị công việc một fi
 — tất cả được archive vào `.devtool/epic/<slug>/` khi epic đóng.
 
 **Khi nào không áp dụng.** Một thành phần đơn lẻ mà một implementation plan là đủ.
-Việc đó dùng `brainstorming` rồi `writing-plans`, tức là rời khỏi lifecycle này cùng các cổng còn lại của nó.
+Việc đó dùng `dev-brainstorming` rồi `writing-plans`, tức là rời khỏi lifecycle này cùng các cổng còn lại của nó.
 
 ```mermaid
 flowchart TD
-    S1["Stage 1 — Khởi đầu<br/>(brainstorming)"]
+    S1["Stage 1 — Khởi đầu<br/>(dev-brainstorming)"]
     G1{"Cổng 1 — spec được duyệt"}
     ROUTE{"Quy mô epic?"}
     PLANS(["writing-plans<br/>(rời lifecycle này)"])
@@ -78,10 +78,16 @@ các ngưỡng reverse-coverage và bản diff tác động trước merge
 Các artefact quá trình — brief, outline, mỗi section một task — ở lại `.devtool/epic/<slug>/`.
 **Một thành phẩm còn nằm trong `.devtool/` là chưa ship.**
 
-**Vì sao ba cổng chứ không phải năm.** Code và văn bản khác nhau ở bốn chỗ làm đổi ý nghĩa của việc xác minh: đơn vị công việc là một section chứ không phải một deliverable test được độc lập;
+**Vì sao bốn cổng chứ không phải năm.** Code và văn bản khác nhau ở bốn chỗ làm đổi ý nghĩa của việc xác minh: đơn vị công việc là một section chứ không phải một deliverable test được độc lập;
 xác minh là kiểm tra cơ học cộng phán đoán người chứ không phải máy chạy test;
 ràng buộc chi phối là **độc giả** chứ không phải kiến trúc; và chi phí sai là thấp.
-Vì chi phí sai thấp nên số cổng thấp.
+Vì chi phí sai thấp nên số cổng vẫn ít hơn năm cổng của phía phát triển.
+
+Cổng đầu tiên trong bốn cổng là khởi đầu, và nó **không phải tùy chọn**.
+Trước đây nó từng là, với điều kiện bỏ qua hỏi rằng nội dung đã biết hay chưa
+— một câu mà agent hầu như luôn trả lời là rồi.
+Thứ khiến một giai đoạn bắt buộc vẫn kham được là *độ sâu* của nó co giãn còn *sự tồn tại* thì không:
+một runbook vẫn đi qua Stage 0, và spec của nó dài ba câu.
 Một runbook mà tốn năm lần phê duyệt thì sẽ không được viết *qua* lifecycle
 — nó sẽ được viết *vòng qua* lifecycle.
 
@@ -90,19 +96,19 @@ hay bất kỳ thay đổi nào không người review nào buồn gate.
 
 ```mermaid
 flowchart TD
-    S0["Stage 0 — Khởi đầu (tùy chọn)<br/>(brainstorming)"]
+    S0["Stage 0 — Khởi đầu<br/>(doc-brainstorming)"]
+    G1{"Cổng 1 — spec được duyệt"}
     S1["Stage 1 — Brief &amp; Outline<br/>(doc-designer)"]
-    G1{"Cổng 1 — brief &amp; outline"}
+    G2{"Cổng 2 — brief &amp; outline"}
     S2["Stage 2 — Viết bản thảo<br/>(doc-implementation)"]
-    G2{"Cổng 2 — doc_quality_check 🟢"}
-    G3{"Cổng 3 — ký duyệt"}
+    G3{"Cổng 3 — doc_quality_check 🟢"}
+    G4{"Cổng 4 — ký duyệt"}
     S3["Stage 3 — Hoàn tất nhánh<br/>(finishing-a-development-branch)"]
 
-    S0 --> S1
-    S1 --> G1 --> S2 --> G2 --> G3 --> S3
+    S0 --> G1 --> S1 --> G2 --> S2 --> G3 --> G4 --> S3
 ```
 
-Stage 0 được bỏ qua bất cứ khi nào nội dung đã rõ và chỉ còn hình hài là mở.
+Stage 0 là bắt buộc — độ sâu co giãn, sự tồn tại thì không.
 Stage 1 xác lập độc giả, phân loại tài liệu vào **đúng một** mode Diátaxis,
 và biến outline thành mỗi section một task.
 
@@ -121,7 +127,7 @@ Bộ điều phối nói thẳng điều đó ở Cổng 3 thay vì để ngư�
 
 ```mermaid
 flowchart TD
-    IN(["Một ý tưởng thô, hoặc lối thoát bước 2 của brainstorming"])
+    IN(["Một ý tưởng thô, hoặc lối thoát bước 2 của một trong hai biến thể brainstorming"])
     S1["Stage 1 — Problem Space<br/>(lean-market-discovery)"]
     G1{"Cổng 1 — problem space"}
     S2["Stage 2 — Value Proposition<br/>(lean-value-strategy)"]
@@ -142,11 +148,13 @@ thay vì vá ngay tại tầng mình đang đứng.
 
 ## Những thứ không phải lifecycle
 
-Ba thứ định tuyến công việc mà bản thân không phải lifecycle.
+Năm thứ định tuyến công việc mà bản thân không phải lifecycle.
 
 | | Là cái gì | Cổng |
 |---|---|---|
-| `brainstorming` | Cửa chung. Biến một ý tưởng thành spec được duyệt và chọn spec đó vào lifecycle nào. Có bốn lối ra: `dev-designer`, `writing-plans`, `doc-designer`, `lean-product-lifecycle` | Một lần duyệt thiết kế và một lần soát spec, đều là người |
+| `brainstorming` | Router. Hỏi công việc là phát triển ý tưởng, làm tài liệu hay coding, rồi gọi biến thể tương ứng. Không giữ quy trình nào của riêng nó | Không — nó định tuyến rồi kết thúc |
+| `dev-brainstorming` | Biến một ý tưởng về việc code thành design spec được duyệt. Lối ra: `dev-designer`, `writing-plans` hoặc `lean-product-lifecycle` | Một lần duyệt thiết kế và một lần soát spec, đều là người |
+| `doc-brainstorming` | Biến một ý tưởng hoặc yêu cầu tài liệu thành content spec được duyệt. Lối ra: `doc-designer`, `decision-records` hoặc `lean-product-lifecycle` | Một lần duyệt thiết kế và một lần soát spec, đều là người |
 | `writing-plans` + một executor | Đường code nhỏ. `writing-plans` sinh ra plan; `subagent-driven-development` hoặc `executing-plans` thực thi nó | Không có cổng riêng |
 | `decision-records` | Một ADR hoặc một spike report lẻ, viết rồi commit thẳng | Không |
 
@@ -154,16 +162,21 @@ Ba thứ định tuyến công việc mà bản thân không phải lifecycle.
 
 ```mermaid
 flowchart LR
-    BS["brainstorming"]
+    BS["brainstorming<br/>(router)"]
+    DEVB["dev-brainstorming"]
+    DOCB["doc-brainstorming"]
     LEAN["lean-product-lifecycle"]
     DEV["dev-lifecycle"]
     DOC["doc-lifecycle"]
     PLANS["writing-plans + executor"]
 
-    BS -->|"problem space chưa kiểm chứng"| LEAN
-    BS -->|"code, quy mô epic"| DEV
-    BS -->|"code, một plan"| PLANS
-    BS -->|"một tài liệu"| DOC
+    BS -->|"coding"| DEVB
+    BS -->|"ý tưởng hoặc tài liệu"| DOCB
+    DEVB -->|"quy mô epic"| DEV
+    DEVB -->|"một plan"| PLANS
+    DOCB --> DOC
+    DEVB -.->|"problem space chưa kiểm chứng"| LEAN
+    DOCB -.->|"luận điểm sản phẩm không bằng chứng"| LEAN
     LEAN -->|"backlog Cổng 3"| DEV
 ```
 

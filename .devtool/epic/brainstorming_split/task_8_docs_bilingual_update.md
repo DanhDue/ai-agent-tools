@@ -1,13 +1,13 @@
 ---
 id: "task_8_docs_bilingual_update"
-status: "todo"
+status: "done"
 priority: "medium"
 assignee: null
 epic: "brainstorming_split"
 dueDate: null
 created: "2026-09-17T09:27:07Z"
-modified: "2026-09-17T09:27:07Z"
-completedAt: null
+modified: "2026-09-17T09:39:29Z"
+completedAt: "2026-09-17T09:39:29Z"
 labels: ["documentation", "bilingual"]
 order: "a8"
 ---
@@ -128,7 +128,7 @@ Scenario: [Tier A - Unit] Internal links and anchors still resolve
 - [ ] **GREEN**: update `.en` first, then bring `.vi` into line; rework the how-to's decision path.
 - [ ] **REFACTOR**: re-read the wrapping; semantic line breaks must survive the edit.
 - [ ] **Tier A**: ToC anchors match headings; internal links resolve.
-- [ ] **Tier B**: `@doc_quality_check` green, on a commit containing **only** `docs/` changes.
+- [ ] **Tier B**: `@doc_quality_check` green, on a commit carrying no shipped-file changes.
 - [ ] **Tier C**: follow `choosing-a-lifecycle.en.md` end to end as a reader with an ambiguous
       request and confirm it lands in the right lifecycle.
 
@@ -138,7 +138,10 @@ Scenario: [Tier A - Unit] Internal links and anchors still resolve
 - `.en`/`.vi` pairs match in structure and facts; `.en` was edited first.
 - The how-to gives a decision path including the router's question; the reference states facts.
 - Semantic line breaks preserved.
-- `@doc_quality_check` green on a docs-only commit.
+- `@doc_quality_check` green. Check 0's real rule is that no *shipped-file extension* changes
+  outside its exempt directories — `docs/`, `.devtool/`, `.github/` and `CHANGELOG.md` are all
+  exempt — so this commit may carry its own task-file updates alongside the four documents.
+  It must not carry `skills/`, `rules/`, `hooks/`, `templates/` or `scripts/` changes.
 - Clean `git status` after the commit.
 
 ## Dependencies & Blockers

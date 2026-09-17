@@ -39,11 +39,11 @@ a Gherkin BDD suite, and one task file per unit of work
 — all archived into `.devtool/epic/<slug>/` when the epic closes.
 
 **When it does not apply.** A single component that one implementation plan covers.
-That work uses `brainstorming` then `writing-plans`, which leaves this lifecycle and its remaining gates behind.
+That work uses `dev-brainstorming` then `writing-plans`, which leaves this lifecycle and its remaining gates behind.
 
 ```mermaid
 flowchart TD
-    S1["Stage 1 — Inception<br/>(brainstorming)"]
+    S1["Stage 1 — Inception<br/>(dev-brainstorming)"]
     G1{"Gate 1 — spec approved"}
     ROUTE{"Epic-scale?"}
     PLANS(["writing-plans<br/>(leaves this lifecycle)"])
@@ -73,11 +73,18 @@ the reverse-coverage thresholds and the pre-merge impact diff — never on a par
 Its working artefacts — the brief, the outline, one task per section — stay in `.devtool/epic/<slug>/`.
 A deliverable left inside `.devtool/` has not shipped.
 
-**Why three gates and not five.** Code and prose differ in four ways that change what verification can mean:
+**Why four gates and not five.** Code and prose differ in four ways that change what verification can mean:
 the unit of work is a section rather than an independently testable deliverable;
 verification is mechanical checks plus human judgement rather than a machine running tests;
 the governing constraint is the **audience** rather than the architecture;
-and the cost of being wrong is low. Because the cost of being wrong is low, the gate count is low.
+and the cost of being wrong is low.
+Because the cost of being wrong is low, the gate count stays below the development side's five.
+
+The first of the four is inception, and it is **not optional**.
+It was once, and its skip condition asked whether the content was already known
+— a question an agent answers yes to essentially always.
+What makes a mandatory stage affordable is that its *depth* scales while its *existence* does not:
+a runbook still passes through Stage 0, and its spec is three sentences.
 A runbook that costs five approvals does not get written through the lifecycle
 — it gets written around it.
 
@@ -86,19 +93,19 @@ or any change a reviewer would not meaningfully gate.
 
 ```mermaid
 flowchart TD
-    S0["Stage 0 — Inception (optional)<br/>(brainstorming)"]
+    S0["Stage 0 — Inception<br/>(doc-brainstorming)"]
+    G1{"Gate 1 — spec approved"}
     S1["Stage 1 — Brief &amp; Outline<br/>(doc-designer)"]
-    G1{"Gate 1 — brief &amp; outline"}
+    G2{"Gate 2 — brief &amp; outline"}
     S2["Stage 2 — Drafting<br/>(doc-implementation)"]
-    G2{"Gate 2 — doc_quality_check 🟢"}
-    G3{"Gate 3 — sign-off"}
+    G3{"Gate 3 — doc_quality_check 🟢"}
+    G4{"Gate 4 — sign-off"}
     S3["Stage 3 — Finish branch<br/>(finishing-a-development-branch)"]
 
-    S0 --> S1
-    S1 --> G1 --> S2 --> G2 --> G3 --> S3
+    S0 --> G1 --> S1 --> G2 --> S2 --> G3 --> G4 --> S3
 ```
 
-Stage 0 is skipped whenever the content is known and only its shape is open.
+Stage 0 is mandatory — its depth scales, its existence does not.
 Stage 1 establishes the audience, classifies the document into exactly one Diátaxis type,
 and turns the outline into one task per section.
 
@@ -117,7 +124,7 @@ The orchestrator says so at Gate 3 rather than implying the journey is complete.
 
 ```mermaid
 flowchart TD
-    IN(["A raw idea, or brainstorming's step-2 escape"])
+    IN(["A raw idea, or either brainstorming variant's step-2 escape"])
     S1["Stage 1 — Problem Space<br/>(lean-market-discovery)"]
     G1{"Gate 1 — problem space"}
     S2["Stage 2 — Value Proposition<br/>(lean-value-strategy)"]
@@ -138,11 +145,13 @@ rather than patched at the layer the work is standing on.
 
 ## What is not a lifecycle
 
-Three things route work without being lifecycles themselves.
+Five things route work without being lifecycles themselves.
 
 | | What it is | Gates |
 |---|---|---|
-| `brainstorming` | The shared front door. Turns an idea into an approved spec and chooses which lifecycle the spec enters. Has four exits: `dev-designer`, `writing-plans`, `doc-designer`, `lean-product-lifecycle` | A design approval and a spec review, both human |
+| `brainstorming` | The router. Asks whether the work is idea development, a document, or coding, then invokes the matching variant. Holds no process of its own | None — it routes and is finished |
+| `dev-brainstorming` | Turns an idea for code work into an approved design spec. Exits to `dev-designer`, `writing-plans` or `lean-product-lifecycle` | A design approval and a spec review, both human |
+| `doc-brainstorming` | Turns an idea or a document request into an approved content spec. Exits to `doc-designer`, `decision-records` or `lean-product-lifecycle` | A design approval and a spec review, both human |
 | `writing-plans` + an executor | The small-code path. `writing-plans` produces the plan; `subagent-driven-development` or `executing-plans` carries it out | None of its own |
 | `decision-records` | A single Architecture Decision Record or spike report, written and committed directly | None |
 
@@ -150,16 +159,21 @@ Three things route work without being lifecycles themselves.
 
 ```mermaid
 flowchart LR
-    BS["brainstorming"]
+    BS["brainstorming<br/>(router)"]
+    DEVB["dev-brainstorming"]
+    DOCB["doc-brainstorming"]
     LEAN["lean-product-lifecycle"]
     DEV["dev-lifecycle"]
     DOC["doc-lifecycle"]
     PLANS["writing-plans + executor"]
 
-    BS -->|"problem space unvalidated"| LEAN
-    BS -->|"code, epic-scale"| DEV
-    BS -->|"code, one plan"| PLANS
-    BS -->|"a document"| DOC
+    BS -->|"coding"| DEVB
+    BS -->|"idea or document"| DOCB
+    DEVB -->|"epic-scale"| DEV
+    DEVB -->|"one plan"| PLANS
+    DOCB --> DOC
+    DEVB -.->|"problem space unvalidated"| LEAN
+    DOCB -.->|"unevidenced product argument"| LEAN
     LEAN -->|"Gate 3 backlog"| DEV
 ```
 
