@@ -1,13 +1,13 @@
 ---
 id: "task_1_dev_brainstorming_rename"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "brainstorming_split"
 dueDate: null
 created: "2026-09-17T09:27:07Z"
-modified: "2026-09-17T09:27:07Z"
-completedAt: null
+modified: "2026-09-17T09:33:39Z"
+completedAt: "2026-09-17T09:33:39Z"
 labels: ["refactor", "skills", "rename"]
 order: "a1"
 ---
@@ -139,7 +139,8 @@ tests.
       strip the `doc-designer` routine exit; add the §3.7 correction exit.
 - [ ] **REFACTOR**: re-read the process-flow mermaid against the prose; the exit count in the text
       must match the edges in the diagram.
-- [ ] **Tier A**: `scripts/verify.sh` steps 1–4 pass.
+- [ ] **Tier A**: `scripts/verify.sh` steps 1, 2 and 4 pass; step 3 fails on exactly one link,
+      the `CRITICAL_RULES.md` reference to the router that Task 2 restores.
 - [ ] **Mermaid**: the process-flow diagram renders via `mermaid-cli`.
 - [ ] **Tier C**: invoke `d3nexus:dev-brainstorming` on a throwaway request and confirm it offers
       the companion, resolves the guide path, and terminates in exactly one of its three routine
@@ -152,7 +153,10 @@ tests.
 - Zero occurrences of `skills/brainstorming/` inside the moved files.
 - Three routine exits; `doc-designer` removed; correction exit present and not drawn as a routine
   edge.
-- `verify.sh` steps 1–4 green; the process-flow mermaid renders.
+- `verify.sh` steps 1, 2 and 4 green; the process-flow mermaid renders.
+- Step 3 reports exactly one broken link — `rules/CRITICAL_RULES.md -> ../skills/brainstorming/SKILL.md`.
+  This is expected and is [Task 2](task_2_brainstorming_router.md)'s RED proof that the router is
+  load-bearing. Any *other* broken link is a defect in this task.
 - Clean `git status` after the commit.
 
 ## Dependencies & Blockers

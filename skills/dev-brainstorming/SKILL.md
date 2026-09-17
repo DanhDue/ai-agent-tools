@@ -1,11 +1,13 @@
 ---
-name: brainstorming
-description: "You MUST use this before any creative work - creating features, building components, adding functionality, or modifying behavior. Explores user intent, requirements and design before implementation."
+name: dev-brainstorming
+description: "Turns an idea for code work into an approved design spec through collaborative dialogue — clarifying questions, two or three alternatives, and a design the user approves section by section. Use it before creating features, building components, adding functionality or changing behaviour. When the deliverable is a document rather than code, use doc-brainstorming instead."
 ---
 
-# Brainstorming Ideas Into Designs
+# Brainstorming Code Work Into Designs
 
-Help turn ideas into fully formed designs and specs through natural collaborative dialogue.
+Help turn ideas for code work into fully formed designs and specs through natural collaborative
+dialogue. The sibling skill for document deliverables is `doc-brainstorming`; the router that picks
+between them is `brainstorming`.
 
 Start by understanding the current project context, then ask questions one at a time to refine the idea. Once you understand what you're building, present the design and get user approval.
 
@@ -31,7 +33,7 @@ You MUST create a task for each of these items and complete them in order:
 7. **Write design doc** — save to `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md` and commit (relocated into `.devtool/epic/<epic_name>/` later if routed to dev-designer — see Routing After Approval)
 8. **Spec self-review** — quick inline check for placeholders, contradictions, ambiguity, scope (see below)
 9. **User reviews written spec** — ask user to review the spec file before proceeding
-10. **Route to the next skill** — one of four exits, see Routing After Approval below
+10. **Route to the next skill** — one of three routine exits, see Routing After Approval below
 
 ## Process Flow
 
@@ -51,13 +53,12 @@ flowchart TD
     H --> I["Spec self-review<br>(fix inline)"]
     I --> J{"User reviews spec?"}
     J -->|changes requested| H
-    J -->|approved| K{"Deliverable and scale?"}
-    K -->|"code, epic-scale"| L((("Invoke dev-designer skill")))
-    K -->|"code, one plan"| M((("Invoke writing-plans skill")))
-    K -->|"a document"| N((("Invoke doc-designer skill")))
+    J -->|approved| K{"Scale?"}
+    K -->|"epic-scale"| L((("Invoke dev-designer skill")))
+    K -->|"one plan"| M((("Invoke writing-plans skill")))
 ```
 
-**The terminal state is invoking exactly one of four skills: `dev-designer`, `writing-plans`, `doc-designer`, or `lean-product-lifecycle` — never two, and never any other skill.** Do NOT invoke frontend-design, mcp-builder, or any other implementation skill directly from brainstorming.
+**The terminal state is invoking exactly one of three skills: `dev-designer`, `writing-plans`, or `lean-product-lifecycle` — never two, and never any other skill.** Do NOT invoke frontend-design, mcp-builder, or any other implementation skill directly from dev-brainstorming.
 
 ### Upstream Escape — when the problem space was never validated
 
@@ -86,18 +87,28 @@ spec's risks section and continue.
 Once the spec is approved (and has passed self-review), decide which skill picks it up next:
 
 - **Invoke `dev-designer`** when the approved spec describes epic-scale work: multiple independent components/services, a design that will need Kanban task breakdown and architecture/use-case/sequence diagrams, or the user explicitly called it an "epic" or large feature. Before invoking, relocate the spec file from `docs/superpowers/specs/` into `.devtool/epic/<epic_name>/<same-filename>` (creating the directory if `dev-designer` hasn't run for this epic yet), fix any relative links inside the moved file, then pass that new path as input — this keeps the spec, the HLD, and the task files for one epic all in the same directory instead of split across `docs/` and `.devtool/`.
-- **Invoke `doc-designer`** when the deliverable is a **document** rather than code — a runbook, a handbook, an onboarding guide, a set of reference pages, a research write-up. This enters the Document Lifecycle, which has three gates rather than five. A single Architecture Decision Record is below even that threshold: invoke `decision-records` directly instead.
 - **Invoke `writing-plans`** (as before) for everything else — a single-component feature, bugfix, or small enough scope that one implementation plan covers it without a separate HLD.
 
 The deliverable decides, not the amount of writing involved. **If the work changes a file that ships in the build, it is code**, however much prose it also produces.
 
-When in doubt, ask the user which they want rather than guessing.
+### Correction — when this is the wrong variant
+
+The `brainstorming` router decides which variant a session enters. This section covers the other
+case: the branch was chosen, and chosen wrongly.
+
+If you discover mid-session that **nothing this work produces will ship in the build**, stop and
+hand over to `doc-brainstorming`. Restart inception there; do not carry a half-written code-oriented
+spec across as though it were approved.
+
+This fires on a discovery, not on a decision. It is deliberately not an edge in the process flow
+above — "is this actually a document?" is the router's question to ask at the start, not this
+skill's question to keep asking.
 
 If brainstorming decomposed the original request into multiple sub-project specs, route **each spec independently** — do not merge multiple specs into a single dev-designer invocation. Each spec keeps its own spec → design → implementation lineage.
 
 ### Complete End-to-End Epic Lifecycle
 
-Routing to `dev-designer` enters the governed Epic Lifecycle. The stage sequence, the four
+Routing to `dev-designer` enters the governed Epic Lifecycle. The stage sequence, the five
 approval gates, and the handoff artefact each stage owes the next are defined in one place —
 the **[`dev-lifecycle`](../dev-lifecycle/SKILL.md)** skill. Do not restate them here; this
 skill owns Stage 1 and Gate 1 only.
@@ -140,9 +151,7 @@ To ensure this is a true creative collaboration and not just a rigid interrogati
 - Once you believe you understand what you're building, present the design
 - Scale each section to its complexity: a few sentences if straightforward, up to 200-300 words if nuanced
 - Ask after each section whether it looks right so far
-- Cover, **for code**: architecture, components, data flow, error handling, testing
-- Cover, **for a document**: who reads it, which Diátaxis type it is, the section outline, and one
-  acceptance criterion the reader can act on
+- Cover: architecture, components, data flow, error handling, testing
 - **Dependency Mapping:** Explicitly list any assumptions, risks, and cross-feature/cross-team dependencies (e.g., "Does this feature block another one? Does it rely on a third-party API being ready?").
 - Be ready to go back and clarify if something doesn't make sense
 
@@ -153,9 +162,7 @@ To ensure this is a true creative collaboration and not just a rigid interrogati
 - Can someone understand what a unit does without reading its internals? Can you change the internals without breaking consumers? If not, the boundaries need work.
 - Smaller, well-bounded units are also easier for you to work with - you reason better about code you can hold in context at once, and your edits are more reliable when files are focused. When a file grows large, that's often a signal that it's doing too much.
 
-**Working in existing codebases — code deliverables:**
-
-For a document deliverable, `doc-designer` owns the equivalent questions; do not answer them here.
+**Working in existing codebases:**
 
 - Explore the current structure before proposing changes. Follow existing patterns.
 - Where existing code has problems that affect the work (e.g., a file that's grown too large, unclear boundaries, tangled responsibilities), include targeted improvements as part of the design - the way a good developer improves code they're working in.
@@ -178,10 +185,10 @@ For a document deliverable, `doc-designer` owns the equivalent questions; do not
 After writing the spec document, look at it with fresh eyes:
 
 1. **Placeholder scan:** Any "TBD", "TODO", incomplete sections, or vague requirements? Fix them.
-2. **Internal consistency:** Do any sections contradict each other? For code, does the architecture
-   match the feature descriptions; for a document, does the outline match what each section promises?
-3. **Scope check:** Is this focused enough for one implementation plan — or, for a document, one
-   Diátaxis type — or does it need decomposition?
+2. **Internal consistency:** Do any sections contradict each other? Does the architecture match the
+   feature descriptions?
+3. **Scope check:** Is this focused enough for one implementation plan, or does it need
+   decomposition?
 4. **Ambiguity check:** Could any requirement be interpreted two different ways? If so, pick one and make it explicit.
 5. **Take a Step Back (Helicopter View):** Review the entire system holistically. Are the component boundaries logical? Do any features belong in a different epic or module? Shuffle them now before implementation begins.
 
@@ -196,8 +203,8 @@ Wait for the user's response. If they request changes, make them and re-run the 
 
 **Implementation:**
 
-- Apply the Routing After Approval rule above to pick the next skill: `dev-designer` (pass the spec's file path) for epic-scale code, `doc-designer` for a document deliverable, or `writing-plans` for everything else.
-- Do NOT invoke any other skill — those three, plus the `lean-product-lifecycle` escape at step 2, are the only valid next steps.
+- Apply the Routing After Approval rule above to pick the next skill: `dev-designer` (pass the spec's file path) for epic-scale work, or `writing-plans` for everything else.
+- Do NOT invoke any other skill — those two, plus the `lean-product-lifecycle` escape at step 2 and the correction exit to `doc-brainstorming`, are the only valid next steps.
 
 ## Key Principles
 
@@ -225,4 +232,4 @@ A browser-based companion for showing mockups, diagrams, and visual options duri
 A question about a UI topic is not automatically a visual question. "What does personality mean in this context?" is a conceptual question — use the terminal. "Which wizard layout works better?" is a visual question — use the browser.
 
 If they agree to the companion, read the detailed guide before proceeding:
-`skills/brainstorming/visual-companion.md`
+`skills/dev-brainstorming/visual-companion.md`

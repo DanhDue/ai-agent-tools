@@ -77,7 +77,7 @@ fi
 # Generate unique session directory
 SESSION_ID="$$-$(date +%s)"
 
-# SCRIPT_DIR is .agents/skills/brainstorming/scripts — walk up to .agents/
+# SCRIPT_DIR is .agents/skills/dev-brainstorming/scripts — walk up to .agents/
 AGENT_DIR="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 
 if [[ -n "$PROJECT_DIR" ]]; then
