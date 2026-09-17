@@ -171,11 +171,15 @@ PY
 note "== 9. The dev-* rename is complete =="
 # The old names must survive only where they are history: archived epic records under .devtool/
 # and the CHANGELOG entries that describe the rename itself.
-# grep -v below drops this file: the check's own pattern necessarily contains the old names.
-if hits=$(grep -rn "epic-lifecycle\|epic-designer\|epic-implementation" . \
-          --exclude-dir=.git --exclude-dir=.devtool --exclude-dir=__pycache__ \
-          --exclude-dir=.worktrees --exclude=CHANGELOG.md 2>/dev/null \
-          | grep -v "^\./scripts/verify\.sh:") && [ -n "$hits" ]; then
+# Driven from `git ls-files`, not a filesystem walk: a walk also reads gitignored scratch such as
+# .superpowers/, which exists in a normal checkout and not in a worktree — so the same tree passed
+# in one and failed in the other. The repository's own file list is the only deterministic input.
+# This file is excluded because the check's pattern necessarily contains the names it looks for.
+if hits=$(git ls-files \
+          | grep -v -e '^\.devtool/' -e '^CHANGELOG\.md$' -e '^scripts/verify\.sh$' \
+          | tr '\n' '\0' \
+          | xargs -0 grep -n "epic-lifecycle\|epic-designer\|epic-implementation" 2>/dev/null) \
+   && [ -n "$hits" ]; then
   printf '%s\n' "$hits" | head -5
   fail "live files still reference the pre-rename skill names"
 else
