@@ -30,8 +30,6 @@ When invoked with an approved spec, **treat it as the source of truth for scope 
 
 Record the link back to the source in the Epic's **Meta Data** section, e.g. `Source Spec: [<topic>-design.md](<file>.md)` — a same-directory link, since the spec already lives in this epic's directory — so the HLD and the original spec stay traceable to each other without leaving `.devtool/epic/<epic_name>/`. If there is no source spec (standalone use), omit this field.
 
-3. **An MVP backlog from `lean-product-lifecycle`** (`03_mvp_feature_backlog.md`). Its three gates already settled scope with the user, so treat it exactly as an approved spec: relocate it into `.devtool/epic/<epic_name>/` before writing anything else, and record it as the `Source Spec`.
-
 If the original brainstorming request was decomposed into multiple sub-project specs, each spec maps to **its own separate epic** — never merge multiple specs into one epic directory.
 
 ## Workflow / Prompt Instructions

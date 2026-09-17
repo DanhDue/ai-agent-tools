@@ -26,7 +26,6 @@ flowchart TD
     ROUTE{"What is the deliverable,<br/>and at what scale?"}
     PLANS(["writing-plans<br/>(leaves this workflow)"])
     DOCD(["doc-designer<br/>(leaves this workflow for doc-lifecycle)"])
-    LEAN(["lean-product-lifecycle Gate 3<br/>enters here with an MVP backlog"])
     S2["Stage 2 — Architecture &amp; Tasks<br/>(dev-designer)"]
     G2{"Gate 2<br/>HLD &amp; task breakdown approved?"}
     S3["Stage 3 — Isolated Execution<br/>(dev-implementation)"]
@@ -43,7 +42,6 @@ flowchart TD
     ROUTE -->|"code, one plan"| PLANS
     ROUTE -->|"a document"| DOCD
     ROUTE -->|"code, epic-scale"| S2
-    LEAN --> S2
     S2 --> G2
     G2 -->|no, adjust breakdown| S2
     G2 -->|yes| S3
@@ -66,7 +64,7 @@ on your own judgement.
 
 | Gate | Name | Approver | Enforced in | Handoff artefact |
 |------|------|----------|-------------|------------------|
-| **1** | Spec Approved | User | end of `brainstorming`, **or** `lean-product-lifecycle` Gate 3 | `<epic_dir>/YYYY-MM-DD-<topic>-design.md`, **or** `03_mvp_feature_backlog.md` |
+| **1** | Spec Approved | User | end of `brainstorming` | `<epic_dir>/YYYY-MM-DD-<topic>-design.md` |
 | **2** | HLD & Task Breakdown | User | `dev-designer` task-breakdown checkpoint | `<epic_dir>.en.md` + `.vi.md` + `bdd_scenarios.md` + `task_*.md` |
 | **3** | Execution Order | User | `dev-implementation` Phase 1 checkpoint | confirmed order + bootstrapped worktree |
 | **4** | Quality LGTM & Check 2 | `quality_check` | `dev-implementation` Phase 4 | 🟢 report + coverage matrix + merge-ready branch |
@@ -104,20 +102,12 @@ epic directory. Never merge multiple specs into one epic.
 
 ### Stage 2 — Architecture & Tasks → `dev-designer`
 
-**Entry — one of two:**
-
-- A Gate 1 spec from `brainstorming`, already sitting in `.devtool/epic/<epic_dir>/`.
-- **An MVP backlog from `lean-product-lifecycle` Gate 3.** Work can enter the lifecycle here rather
-  than at Stage 1: that suite's three gates already established the scope with the user's approval,
-  so its Gate 3 **stands in for Gate 1** and `03_mvp_feature_backlog.md` is the source-of-truth
-  artefact. Relocate it from `.devtool/product/<slug>/` into `.devtool/epic/<epic_dir>/` exactly as a
-  spec would be relocated, so everything for the epic stays in one directory.
-
+**Entry:** a Gate 1 spec, already sitting in `.devtool/epic/<epic_dir>/`.
 **Exit (Gate 2):** the user has confirmed the proposed task list and granularity.
 
-Treat the incoming artefact as the source of truth for scope and decisions already made — formalize
-it, do not re-litigate it. Gate 2 is a lightweight confirmation of the *task split* only; the scope
-was already approved at Gate 1 or at lean's Gate 3.
+Treat the approved spec as the source of truth for scope and decisions already made — formalize
+it, do not re-litigate it. Gate 2 is a lightweight confirmation of the *task split* only; the
+architecture was already approved at Gate 1.
 
 ### Stage 3 — Isolated Execution → `dev-implementation`
 
