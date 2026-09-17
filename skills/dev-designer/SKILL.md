@@ -17,20 +17,20 @@ enforced below, at the Checkpoint before task files are written.
 - When the user provides a high-level requirement or problem statement and asks for a technical design or task breakdown.
 - When starting a new major feature, epic, or large-scale refactoring.
 - When generating architecture diagrams (Use Cases, Sequence, Architecture) and converting them into actionable tasks.
-- When the `brainstorming` skill routes here after spec approval, for a spec it judged epic-scale.
+- When the `dev-brainstorming` skill routes here after spec approval, for a spec it judged epic-scale.
 
 ## Input
 
 This skill can start from either:
 
 1. **A raw high-level requirement** given directly by the user (standalone use).
-2. **An approved spec from the `brainstorming` skill** (preferred entry point — the spec has already been through clarifying questions, alternatives, and user approval). For epic-scale work, `brainstorming` relocates the spec file into this epic's own directory, `.devtool/epic/<epic_name>/<same-filename>.md`, before invoking this skill — so the spec already lives alongside the HLD and task files this skill generates.
+2. **An approved spec from the `dev-brainstorming` skill** (preferred entry point — the spec has already been through clarifying questions, alternatives, and user approval). For epic-scale work, `dev-brainstorming` relocates the spec file into this epic's own directory, `.devtool/epic/<epic_name>/<same-filename>.md`, before invoking this skill — so the spec already lives alongside the HLD and task files this skill generates.
 
 When invoked with an approved spec, **treat it as the source of truth for scope and decisions already made** — do not re-litigate architecture choices or trade-offs the user already approved. Your job is to *formalize* it: translate its architecture/components/data-flow into the Mermaid diagrams and structured sections below, and break it into Kanban tasks. If the spec is missing something this skill requires (e.g., a rollout strategy), fill the gap, but don't override decisions the spec already made.
 
 Record the link back to the source in the Epic's **Meta Data** section, e.g. `Source Spec: [<topic>-design.md](<file>.md)` — a same-directory link, since the spec already lives in this epic's directory — so the HLD and the original spec stay traceable to each other without leaving `.devtool/epic/<epic_name>/`. If there is no source spec (standalone use), omit this field.
 
-If the original brainstorming request was decomposed into multiple sub-project specs, each spec maps to **its own separate epic** — never merge multiple specs into one epic directory.
+If the original `dev-brainstorming` request was decomposed into multiple sub-project specs, each spec maps to **its own separate epic** — never merge multiple specs into one epic directory.
 
 ## Workflow / Prompt Instructions
 
@@ -45,7 +45,7 @@ Detect whether the active project is Flutter, Android Native, or iOS Native:
 ### Step 1: Create the Epic Overview Document (HLD/RFC)
 Generate the Epic Overview documents inside a dedicated directory: `.devtool/epic/<epic_name>/`.
 
-**Self-sufficiency check (source spec placement)**: if this epic has a source spec and it is not already inside `.devtool/epic/<epic_name>/` — e.g. it is still at `docs/superpowers/specs/<file>.md` because `brainstorming`'s Routing After Approval relocation step was skipped, or this skill was invoked directly with a spec path outside the epic directory — relocate it now, before writing anything else: `git mv` the file into `.devtool/epic/<epic_name>/<same-filename>`, then check every relative link inside it (e.g. links into `packages/`, `lib/`, `features/`) still resolves from the new location and fix any that don't. Commit this move on its own, before generating the HLD. Never leave a source spec split across `docs/` and `.devtool/epic/`.
+**Self-sufficiency check (source spec placement)**: if this epic has a source spec and it is not already inside `.devtool/epic/<epic_name>/` — e.g. it is still at `docs/superpowers/specs/<file>.md` because `dev-brainstorming`'s Routing After Approval relocation step was skipped, or this skill was invoked directly with a spec path outside the epic directory — relocate it now, before writing anything else: `git mv` the file into `.devtool/epic/<epic_name>/<same-filename>`, then check every relative link inside it (e.g. links into `packages/`, `lib/`, `features/`) still resolves from the new location and fix any that don't. Commit this move on its own, before generating the HLD. Never leave a source spec split across `docs/` and `.devtool/epic/`.
 
 You MUST generate two language variants for the overview document:
 - English: `.devtool/epic/<epic_name>/<epic_name>.en.md`
@@ -53,7 +53,7 @@ You MUST generate two language variants for the overview document:
 
 Each document MUST contain the following sections:
 
-1. **Meta Data**: Epic name, Status, Target Release, Platform (`Flutter`, `Android Native`, or `iOS Native`), and `Source Spec` link if this epic was derived from an approved brainstorming spec.
+1. **Meta Data**: Epic name, Status, Target Release, Platform (`Flutter`, `Android Native`, or `iOS Native`), and `Source Spec` link if this epic was derived from an approved `dev-brainstorming` spec.
 2. **Background (Bối cảnh)**: The problem statement or context (Why are we doing this?).
 3. **Goals & Non-Goals**: Clearly define what is expected to be achieved and what is strictly out of scope to avoid scope creep.
 4. **Architecture & Technical Design**:

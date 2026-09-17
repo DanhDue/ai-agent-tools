@@ -33,7 +33,7 @@ The **Double-Check Architecture** clamps the development lifecycle between two s
 flowchart LR
     subgraph STAGE1["Stage 1: Design-Time (Shift-Left Bookend)"]
         direction TB
-        CHECK1["Check 1: Static AST & Predictive Blast Radius\n(brainstorming & dev-designer)"]
+        CHECK1["Check 1: Static AST & Predictive Blast Radius\n(dev-brainstorming & dev-designer)"]
         CHECK1 --> SCOPE["Freeze Contract & Map Callers"]
     end
 
@@ -55,7 +55,7 @@ flowchart LR
 
 | Dimension | Check 1 (Design-Time / Shift-Left) | Check 2 (Merge-Time / Shift-Right) |
 | :--- | :--- | :--- |
-| **Trigger Point** | `brainstorming` & `dev-designer` | `quality_check` (Gate 4) |
+| **Trigger Point** | `dev-brainstorming` & `dev-designer` | `quality_check` (Gate 4) |
 | **Inspection Target** | Architectural files & symbol definitions | Cumulative `git diff <base_ref>...HEAD` |
 | **Primary Goal** | Expose blast radius, native bridges, and missing test files before writing tasks. | Verify real-world test coverage matches the 4-Audit Category thresholds. |
 | **Decision Output** | Enriches Kanban tasks with `### Impact Analysis & Blast Radius`. | Grants `🟢 LGTM` or rejects PR with concrete line coverage gaps. |
@@ -64,7 +64,7 @@ flowchart LR
 
 ## When to Use
 
-- During **`brainstorming`** and **`dev-designer`** (Check 1) to inspect proposed architectural changes.
+- During **`dev-brainstorming`** and **`dev-designer`** (Check 1) to inspect proposed architectural changes.
 - At **Phase 2 Step 0** of **`dev-implementation`** immediately before editing any source file.
 - During **`quality_check`** (Check 2) to evaluate the cumulative diff against the upstream `<base_ref>`.
 - Whenever a developer asks to evaluate the blast radius of modifying a specific class or function.

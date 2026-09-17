@@ -1,13 +1,13 @@
 ---
 id: "task_6_consumer_retarget"
-status: "todo"
+status: "done"
 priority: "medium"
 assignee: null
 epic: "brainstorming_split"
 dueDate: null
 created: "2026-09-17T09:27:07Z"
-modified: "2026-09-17T09:27:07Z"
-completedAt: null
+modified: "2026-09-17T09:37:07Z"
+completedAt: "2026-09-17T09:37:07Z"
 labels: ["skills", "rename", "governance"]
 order: "a6"
 ---

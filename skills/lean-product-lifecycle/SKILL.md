@@ -34,7 +34,7 @@ product through the Lean Product Process."
 
 - The product already has validated product-market fit and the question is purely technical
   → go straight to `d3nexus:dev-lifecycle`.
-- A single bug, a refactor, or a change to an existing feature → `d3nexus:brainstorming`.
+- A single bug, a refactor, or a change to an existing feature → `d3nexus:dev-brainstorming`.
 - The user is mid-stage and knows which stage → go straight to that stage's skill.
 
 ---
@@ -76,7 +76,7 @@ Full treatment: [references/pmf-pyramid-guide.md](references/pmf-pyramid-guide.m
 
 ```mermaid
 flowchart TD
-    IN(["Arrives here from brainstorming's step-2 escape,<br/>or directly with a raw idea"])
+    IN(["Arrives here from either brainstorming variant's step-2 escape,<br/>or directly with a raw idea"])
     S1["Stage 1 - Problem Space<br/>(lean-market-discovery)<br/>Process steps 1-2"]
     G1{"Gate 1<br/>Problem space signed off?"}
     S2["Stage 2 - Value Proposition<br/>(lean-value-strategy)<br/>Process step 3"]

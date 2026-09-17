@@ -25,7 +25,7 @@ Record — see `doc-lifecycle`'s *When NOT to use this*.
 
 ## Input
 
-Either a raw request ("we need a runbook for X") or an approved spec from `brainstorming`. When a
+Either a raw request ("we need a runbook for X") or an approved spec from `doc-brainstorming`. When a
 spec exists, treat it as settled on scope and record it in the overview's Meta Data as
 `Source Spec:`. Your job is to give it an audience, a type and a shape — not to re-open its
 decisions.
@@ -109,7 +109,7 @@ Audience: <who reads this, and what they are trying to do>
 Diátaxis mode: tutorial | how-to | reference | explanation
 Non-goals: <what this document deliberately does not cover>
 Acceptance: <one thing the reader can do after reading it>
-Source Spec: <link, if this came from brainstorming>
+Source Spec: <link, if this came from doc-brainstorming>
 ```
 
 `Kind: document` records what this work item is, for the shared Kanban board and the archive. It is

@@ -59,6 +59,6 @@ git commit -m "[EPIC_NAME] Task title" -m "- subtask title 01
 > When a user request requires planning, design exploration, architectural changes, or epic-level features:
 > 1. Because `<user_rules>` has absolute precedence over all instructions, you **MUST NOT** follow Antigravity's default `<planning_mode>` instructions to create an `implementation_plan.md` artifact.
 > 2. For single features or exploratory design, you **MUST** invoke the [Brainstorming Skill](../skills/brainstorming/SKILL.md) (`d3nexus:brainstorming`).
-> 3. For multi-step, multi-feature, or epic-level work, you **MUST** invoke the [Epic Lifecycle Skill](../skills/dev-lifecycle/SKILL.md) (`d3nexus:dev-lifecycle`), which orchestrates `brainstorming` -> `dev-designer` -> `dev-implementation` -> `quality_check`.
+> 3. For multi-step, multi-feature, or epic-level work, you **MUST** invoke the [Epic Lifecycle Skill](../skills/dev-lifecycle/SKILL.md) (`d3nexus:dev-lifecycle`), which orchestrates `dev-brainstorming` -> `dev-designer` -> `dev-implementation` -> `quality_check`.
 > 4. Only use native `implementation_plan.md` if the user explicitly instructs you to bypass d3nexus workflows.
 

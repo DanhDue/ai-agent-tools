@@ -29,7 +29,7 @@ Read both values off disk at the start — never derive one from the other by gu
 - The epic has a `.devtool/epic/<epic_dir>/<epic_dir>.en.md` HLD and one or more `.devtool/features/task_*.md` files with `epic: "<epic_slug>"` in frontmatter, and a human has already approved that design.
 - You are about to implement more than one task from that epic in this session.
 
-**Don't use when:** the epic/tasks don't exist yet (use `d3nexus:brainstorming` then `dev-designer` first), or you're implementing a single one-off task with no epic context (just use `d3nexus:subagent-driven-development` directly).
+**Don't use when:** the epic/tasks don't exist yet (use `d3nexus:dev-brainstorming` then `dev-designer` first), or you're implementing a single one-off task with no epic context (just use `d3nexus:subagent-driven-development` directly).
 
 ## Process
 
