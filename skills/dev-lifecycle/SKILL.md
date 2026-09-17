@@ -1,6 +1,6 @@
 ---
 name: dev-lifecycle
-description: Use this skill to orchestrate epic-scale work from idea to merged branch. It owns the sequence and the five approval gates connecting brainstorming, dev-designer, dev-implementation, and quality_check — which skill runs next, what each stage must hand over, and what to do when a gate fails. Activate it when a request spans multiple components or needs an HLD plus a Kanban task breakdown, when routing an approved spec, or whenever it is unclear which epic stage the work is currently in.
+description: Use this skill to orchestrate epic-scale work from idea to merged branch. It owns the sequence and the five approval gates connecting dev-brainstorming, dev-designer, dev-implementation, and quality_check — which skill runs next, what each stage must hand over, and what to do when a gate fails. Activate it when a request spans multiple components or needs an HLD plus a Kanban task breakdown, when routing an approved spec, or whenever it is unclear which epic stage the work is currently in.
 ---
 
 # Development Lifecycle
@@ -17,7 +17,7 @@ gate the stage owns.
 
 ## When NOT to use this
 
-- Single-component feature, bugfix, or anything one implementation plan covers → `brainstorming`
+- Single-component feature, bugfix, or anything one implementation plan covers → `dev-brainstorming`
   then `writing-plans`. Do not open an epic for it.
 - You are already mid-stage and know exactly which stage → go straight to that stage's skill.
 
@@ -25,7 +25,7 @@ gate the stage owns.
 
 ```mermaid
 flowchart TD
-    S1["Stage 1 — Inception &amp; Spec<br/>(brainstorming)"]
+    S1["Stage 1 — Inception &amp; Spec<br/>(dev-brainstorming)"]
     G1{"Gate 1<br/>Spec approved?"}
     ROUTE{"Epic-scale?"}
     PLANS(["writing-plans<br/>(leaves this workflow)"])
@@ -66,7 +66,7 @@ on your own judgement.
 
 | Gate | Name | Approver | Enforced in | Handoff artefact |
 |------|------|----------|-------------|------------------|
-| **1** | Spec Approved | User | end of `brainstorming` | `<epic_dir>/YYYY-MM-DD-<topic>-design.md` |
+| **1** | Spec Approved | User | end of `dev-brainstorming` | `<epic_dir>/YYYY-MM-DD-<topic>-design.md` |
 | **2** | HLD & Task Breakdown | User | `dev-designer` task-breakdown checkpoint | `<epic_dir>.en.md` + `.vi.md` + `bdd_scenarios.md` + `task_*.md` |
 | **3** | Execution Order | User | `dev-implementation` Phase 1 checkpoint | confirmed order + bootstrapped worktree |
 | **4** | Quality LGTM & Check 2 | `quality_check` | `dev-implementation` Phase 4 | 🟢 report + coverage matrix + merge-ready branch |
@@ -74,9 +74,9 @@ on your own judgement.
 
 ## Stages
 
-### Stage 1 — Inception & Spec → `brainstorming`
+### Stage 1 — Inception & Spec → `dev-brainstorming`
 
-**Invoke `d3nexus:brainstorming`.** Do not write the spec yourself: Gate 1 is *its* user-approval
+**Invoke `d3nexus:dev-brainstorming`.** Do not write the spec yourself: Gate 1 is *its* user-approval
 step, and a spec that never passed through it has not cleared the gate.
 
 **Entry:** a raw idea or requirement.
@@ -95,7 +95,7 @@ step, and a spec that never passed through it has not cleared the gate.
 
 When in doubt, ask the user rather than guessing.
 
-If brainstorming decomposed the request into several sub-project specs, **route each one
+If dev-brainstorming decomposed the request into several sub-project specs, **route each one
 independently**. Each spec keeps its own spec → design → implementation lineage and gets its own
 epic directory. Never merge multiple specs into one epic.
 
@@ -168,7 +168,7 @@ the 🟢 verdict must come from a complete run.
 
 | Stage | Skill | Gate it enforces |
 |-------|-------|------------------|
-| 1 | `brainstorming` | 1 |
+| 1 | `dev-brainstorming` | 1 |
 | 2 | `dev-designer` | 2 |
 | 3 | `dev-implementation` | 3, triggers 4, and enforces 5 |
 | 3 (verification) | `quality_check` | 4 |
