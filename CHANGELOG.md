@@ -8,7 +8,7 @@ every installed machine on the old cached copy.
 
 ---
 
-## 1.2.0 — unreleased
+## 1.2.0 — 2026-09-17
 
 Adds the **Document Lifecycle Suite**: work whose deliverable is a document now has its own
 lifecycle, its own quality gate and its own stage skills, instead of being forced through gates
