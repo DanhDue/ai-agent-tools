@@ -5,8 +5,8 @@
 
 Tài liệu tra cứu về việc mỗi lifecycle trong kit này dùng để làm gì, cho ra cái gì, và chạy ra sao.
 
-Trang này **mô tả**. Muốn quyết định một việc cụ thể thuộc lifecycle nào,
-xem [choosing-a-lifecycle.vi.md](choosing-a-lifecycle.vi.md).
+Trang này **mô tả**. Muốn quyết định một việc cụ thể thuộc lifecycle nào, xem
+[choosing-a-lifecycle.vi.md](choosing-a-lifecycle.vi.md).
 
 ## Mục lục
 
@@ -41,9 +41,8 @@ trình tự và các cổng; cách làm của từng stage nằm trong skill c�
 một bộ BDD viết bằng Gherkin, và mỗi đơn vị công việc một file task — tất cả được archive vào
 `.devtool/epic/<slug>/` khi epic đóng.
 
-**Khi nào không áp dụng.** Một thành phần đơn lẻ mà một implementation plan là đủ.
-Việc đó dùng `brainstorming` rồi `writing-plans`, tức là rời khỏi lifecycle này cùng các cổng
-còn lại của nó.
+**Khi nào không áp dụng.** Một thành phần đơn lẻ mà một implementation plan là đủ. Việc đó dùng
+`brainstorming` rồi `writing-plans`, tức là rời khỏi lifecycle này cùng các cổng còn lại của nó.
 
 ```mermaid
 flowchart TD
@@ -64,9 +63,9 @@ flowchart TD
     ROUTE -->|có| S2 --> G2 --> S3 --> G3 --> G4 --> G5 --> S4
 ```
 
-Cổng 4 là cổng máy duy nhất trên nhánh phát triển của kit này. Nó cấp 🟢 dựa trên
-**một lần chạy đầy đủ** bộ 3-tier, bốn semantic audit, các ngưỡng reverse-coverage và bản diff tác
-động trước merge — không bao giờ dựa trên một lần chạy lại từng phần.
+Cổng 4 là cổng máy duy nhất trên nhánh phát triển của kit này. Nó cấp 🟢 dựa trên **một lần chạy đầy đủ**
+bộ 3-tier, bốn semantic audit, các ngưỡng reverse-coverage và bản diff tác động trước merge —
+không bao giờ dựa trên một lần chạy lại từng phần.
 
 ## doc-lifecycle
 
@@ -110,9 +109,9 @@ giả, phân loại tài liệu vào **đúng một** mode Diátaxis, và biến
 Nó hiện thực hóa Lean Product Process của Dan Olsen và thi hành kỷ luật problem-space:
 nhu cầu phải được mô tả như nhu cầu, không phải như tính năng mà ai đó đã nghĩ sẵn trong đầu.
 
-**Cho ra cái gì.** Ba đặc tả đã được ký duyệt trong `.devtool/product/<slug>/` —
-`01_problem_space_spec.md`, `02_value_proposition_spec.md`, `03_mvp_feature_backlog.md`.
-Backlog là thứ mà bên kỹ thuật nhận được.
+**Cho ra cái gì.** Ba đặc tả đã được ký duyệt trong `.devtool/product/<slug>/` — `01_problem_space_spec.md`,
+`02_value_proposition_spec.md`, `03_mvp_feature_backlog.md`. Backlog là thứ mà bên kỹ thuật
+nhận được.
 
 **Nó không phủ cái gì.** Bước 5 và 6 trong quy trình của Olsen — dựng prototype MVP và đem thử với
 khách hàng — **chưa được hiện thực** trong bản này. Bộ điều phối nói thẳng điều đó ở Cổng 3 thay vì
@@ -135,9 +134,9 @@ flowchart TD
     G3 -.->|"phạm vi phình"| S3
 ```
 
-Các cạnh nét đứt là giao thức Tectonic Plates: khi một cổng fail,
-ta **định vị giả thuyết hỏng** trên kim tự tháp Product-Market Fit năm tầng rồi kiểm chứng lại từ đó
-đi lên, thay vì vá ngay tại tầng mình đang đứng.
+Các cạnh nét đứt là giao thức Tectonic Plates: khi một cổng fail, ta **định vị giả thuyết hỏng**
+trên kim tự tháp Product-Market Fit năm tầng rồi kiểm chứng lại từ đó đi lên, thay vì vá ngay
+tại tầng mình đang đứng.
 
 ## Những thứ không phải lifecycle
 
@@ -167,6 +166,6 @@ flowchart LR
 ```
 
 Hai luật đúng cho mọi kết nối. **Sản phẩm cuối quyết định, không phải lượng chữ phải viết** —
-chỉ cần việc đó đổi một file đi vào build thì đó là việc phát triển.
-Và **không bao giờ gộp hai spec vào một epic**: mỗi spec giữ dòng đời spec → thiết kế → thi công của
+chỉ cần việc đó đổi một file đi vào build thì đó là việc phát triển. Và
+**không bao giờ gộp hai spec vào một epic**: mỗi spec giữ dòng đời spec → thiết kế → thi công của
 riêng nó.

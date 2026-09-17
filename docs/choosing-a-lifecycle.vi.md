@@ -6,8 +6,8 @@
 
 Bạn đang cầm một việc và có ba lifecycle để chọn. Trang này đưa bạn tới đúng cái cần.
 
-Muốn biết mỗi lifecycle **dùng để làm gì** và **cho ra cái gì**,
-xem **[lifecycles.vi.md](lifecycles.vi.md)**. Trang này quyết định; trang kia mô tả.
+Muốn biết mỗi lifecycle **dùng để làm gì** và **cho ra cái gì**, xem **[lifecycles.vi.md](lifecycles.vi.md)**.
+Trang này quyết định; trang kia mô tả.
 
 ## Mục lục
 
@@ -43,8 +43,8 @@ Nếu cả việc còn nhỏ hơn một lượt review, nhảy tới [Nếu vi�
 
 Chọn theo số mảnh review được của công việc.
 
-**Nhiều thành phần độc lập, hoặc bạn sẽ muốn có sơ đồ kiến trúc và một bảng task** —
-chạy `d3nexus:dev-lifecycle`. Nó đưa bạn qua năm cổng: spec, phân rã task, thứ tự thực thi,
+**Nhiều thành phần độc lập, hoặc bạn sẽ muốn có sơ đồ kiến trúc và một bảng task** — chạy
+`d3nexus:dev-lifecycle`. Nó đưa bạn qua năm cổng: spec, phân rã task, thứ tự thực thi,
 `quality_check`, và chữ ký của chính bạn trước khi nhánh được hoàn tất.
 
 **Một thành phần, một plan** — chạy `d3nexus:brainstorming`, rồi `d3nexus:writing-plans`.
@@ -52,26 +52,27 @@ Cách này rời khỏi epic lifecycle; các cổng còn lại của nó không 
 `brainstorming` không cho bắt đầu khi thiết kế chưa được duyệt, và nó yêu cầu bạn soát lại spec đã
 viết trước khi lập plan.
 
-**Trên tuyến một-plan, phải có thứ gì đó thực thi cái plan, và bạn phải verify trước khi nó kết thúc.**
-`writing-plans` sinh ra tài liệu, không sinh ra code.
-Chạy `d3nexus:subagent-driven-development` (khuyến nghị) hoặc `d3nexus:executing-plans` lên nó.
+**Trên tuyến một-plan, phải có thứ gì đó thực thi cái plan, và bạn phải verify trước khi nó
+kết thúc.** `writing-plans` sinh ra tài liệu, không sinh ra code. Chạy `d3nexus:subagent-driven-development`
+(khuyến nghị) hoặc `d3nexus:executing-plans` lên nó.
 
-> Cả hai executor **tự gọi** `d3nexus:finishing-a-development-branch` ở bước cuối,
-> và **không cái nào chạy `quality_check`**. Chúng cũng chạy liên tục không dừng, nên không có
-> cửa sổ nào ở giữa.
+> Cả hai executor **tự gọi** `d3nexus:finishing-a-development-branch` ở bước cuối, và
+> **không cái nào chạy `quality_check`**. Chúng cũng chạy liên tục không dừng, nên không có cửa
+> sổ nào ở giữa.
 >
 > Cửa sổ của bạn là chỗ executor dừng lại: `finishing-a-development-branch` trình ba lựa chọn rồi
-> chờ — không có gì bị merge hay push cho tới khi bạn trả lời.
-> **Chọn phương án 3, "keep the branch as-is", chạy `d3nexus:quality_check`, sửa những gì nó tìm ra, rồi chạy lại `d3nexus:finishing-a-development-branch` và chọn merge hoặc PR.**
+> chờ — không có gì bị merge hay push cho tới khi bạn trả lời. **Chọn phương án 3, "keep the branch
+> as-is", chạy `d3nexus:quality_check`, sửa những gì nó tìm ra, rồi chạy lại
+> `d3nexus:finishing-a-development-branch` và chọn merge hoặc PR.**
 
-Tuyến epic không cần gì trong số này: `dev-implementation` điều khiển executor,
-giữ `quality_check` ở Cổng 4 và chữ ký của bạn ở Cổng 5, rồi mới hoàn tất nhánh.
+Tuyến epic không cần gì trong số này: `dev-implementation` điều khiển executor, giữ `quality_check`
+ở Cổng 4 và chữ ký của bạn ở Cổng 5, rồi mới hoàn tất nhánh.
 
 ## Nếu bạn viết tài liệu
 
-**Bài test là bạn có hình dung nổi một người review từ chối nó hay không, chứ không phải nó dài bao nhiêu.**
-Một runbook một trang mà người ta sẽ làm theo lúc đang căng thẳng thì xứng đáng có brief và outline;
-một trang không ai buồn gate thì không.
+**Bài test là bạn có hình dung nổi một người review từ chối nó hay không, chứ không phải nó dài
+bao nhiêu.** Một runbook một trang mà người ta sẽ làm theo lúc đang căng thẳng thì xứng đáng có
+brief và outline; một trang không ai buồn gate thì không.
 
 Chạy `d3nexus:doc-lifecycle` khi nó qua được bài test đó. Ba cổng: brief và outline,
 `d3nexus:doc_quality_check`, và chữ ký của bạn.
@@ -100,8 +101,8 @@ Hai dấu hiệu cho thấy bạn đang ở trường hợp này và nên dừng
 
 - Không ai gọi được tên khách hàng mục tiêu như một phân khúc cụ thể — chỉ nói chung chung là "người
   dùng" hoặc "doanh nghiệp".
-- Nhu cầu được khẳng định chứ không có bằng chứng: không phỏng vấn, không dữ liệu,
-  không xếp hạng mức quan trọng đối chiếu với mức thỏa mãn.
+- Nhu cầu được khẳng định chứ không có bằng chứng: không phỏng vấn, không dữ liệu, không xếp hạng
+  mức quan trọng đối chiếu với mức thỏa mãn.
 
 `d3nexus:brainstorming` kiểm cả hai ở bước 2 và sẽ đẩy bạn sang đây trước khi hỏi bạn bất cứ điều gì
 khác.
@@ -110,10 +111,10 @@ khác.
 
 Làm luôn. Commit luôn. Bỏ qua mọi lifecycle trên trang này.
 
-Cụ thể: một lỗi chính tả, một link hỏng, một dòng sửa lẻ, nâng một con số phiên bản,
-một dòng chú thích. Bài test là bạn có hình dung nổi một người review từ chối nó không. Nếu không,
-thì chẳng có phân rã nào để duyệt và chẳng có outline nào để thống nhất,
-nên **các cổng lifecycle** không có việc gì để làm.
+Cụ thể: một lỗi chính tả, một link hỏng, một dòng sửa lẻ, nâng một con số phiên bản, một dòng chú
+thích. Bài test là bạn có hình dung nổi một người review từ chối nó không. Nếu không,
+thì chẳng có phân rã nào để duyệt và chẳng có outline nào để thống nhất, nên **các cổng lifecycle**
+không có việc gì để làm.
 
 **Cổng chất lượng là chuyện khác, và bạn vẫn phải chạy** — `d3nexus:quality_check` cho code,
 `d3nexus:doc_quality_check` cho văn bản. Bỏ qua một lifecycle không có nghĩa là bỏ qua xác minh.
@@ -135,13 +136,13 @@ hãy dừng lại và chạy `d3nexus:lean-product-lifecycle`. Mang những gì 
 việc dưới dạng ngữ cảnh — phân khúc, nhu cầu, bằng chứng bạn có và bằng chứng bạn còn thiếu —
 để Stage 1 không phải bắt đầu từ con số không.
 
-> **Đừng tạo sẵn `.devtool/product/<slug>/01_problem_space_spec.md`.**
-> `lean-product-lifecycle` resume dựa trên **sự tồn tại** của file: file đó có mặt sẽ khiến nó tuyên
-> bố "Gate 1 is already verified" và bắt đầu từ Stage 2. Bạn tới đây chính vì problem space chưa
-> bao giờ được kiểm chứng, mà Stage 1 chính là phần kiểm chứng đó. Tạo sẵn artefact là bỏ qua nó.
+> **Đừng tạo sẵn `.devtool/product/<slug>/01_problem_space_spec.md`.** `lean-product-lifecycle`
+> resume dựa trên **sự tồn tại** của file: file đó có mặt sẽ khiến nó tuyên bố "Gate 1 is already
+> verified" và bắt đầu từ Stage 2. Bạn tới đây chính vì problem space chưa bao giờ được kiểm chứng,
+> mà Stage 1 chính là phần kiểm chứng đó. Tạo sẵn artefact là bỏ qua nó.
 
-Cứ để nguyên thư mục epic và các file
-`task_*.md` của nó tại chỗ. Nếu giả định sống sót qua discovery, bạn sẽ quay lại với chúng; nếu không, chúng là hồ sơ ghi lại thứ bạn đã không xây.
+Cứ để nguyên thư mục epic và các file `task_*.md` của nó tại chỗ. Nếu giả định sống sót qua
+discovery, bạn sẽ quay lại với chúng; nếu không, chúng là hồ sơ ghi lại thứ bạn đã không xây.
 
 Một hệ quả cần lường trước: chừng nào các task đó còn ở `todo`, `in-progress` hoặc `review`,
 luật Concurrent-Epic Backlog vẫn coi epic đó là đang hoạt động, nên mọi task của epic *kế tiếp* sẽ

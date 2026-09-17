@@ -2,8 +2,8 @@
 
 Reference for what each lifecycle in this kit is for, what it produces, and how it runs.
 
-This page **describes**. To decide which one a specific piece of work belongs to,
-see [choosing-a-lifecycle.en.md](choosing-a-lifecycle.en.md).
+This page **describes**. To decide which one a specific piece of work belongs to, see
+[choosing-a-lifecycle.en.md](choosing-a-lifecycle.en.md).
 
 ## Contents
 
@@ -38,9 +38,8 @@ gates only; each stage's method lives in that stage's own skill.
 a Gherkin BDD suite, and one task file per unit of work — all archived into
 `.devtool/epic/<slug>/` when the epic closes.
 
-**When it does not apply.** A single component that one implementation plan covers.
-That work uses `brainstorming` then `writing-plans`, which leaves this lifecycle and its
-remaining gates behind.
+**When it does not apply.** A single component that one implementation plan covers. That work uses
+`brainstorming` then `writing-plans`, which leaves this lifecycle and its remaining gates behind.
 
 ```mermaid
 flowchart TD
@@ -104,9 +103,9 @@ one task per section.
 
 ## lean-product-lifecycle
 
-**Purpose.** Decide what to build and for whom, before any engineering begins.
-It implements Dan Olsen's Lean Product Process and enforces problem-space discipline:
-needs are described as needs, not as the features someone already has in mind.
+**Purpose.** Decide what to build and for whom, before any engineering begins. It implements Dan
+Olsen's Lean Product Process and enforces problem-space discipline: needs are described as needs,
+not as the features someone already has in mind.
 
 **What it produces.** Three signed-off specifications in `.devtool/product/<slug>/` —
 `01_problem_space_spec.md`, `02_value_proposition_spec.md`, `03_mvp_feature_backlog.md`.
@@ -164,7 +163,7 @@ flowchart LR
     LEAN -->|"Gate 3 backlog"| DEV
 ```
 
-Two rules hold across every connection.
-**The deliverable decides, not the amount of writing involved** — if the work changes a file that
-ships in the build, it is development work. And **two specs are never merged into one epic**:
-each keeps its own spec → design → implementation lineage.
+Two rules hold across every connection. **The deliverable decides, not the amount of writing involved**
+— if the work changes a file that ships in the build, it is development work. And
+**two specs are never merged into one epic**: each keeps its own spec → design →
+implementation lineage.

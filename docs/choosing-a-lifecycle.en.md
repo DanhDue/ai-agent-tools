@@ -33,8 +33,7 @@ If two of those look true at once, pick by the **build**: if any file that ships
 it is code work, however much prose you also write. `d3nexus:doc_quality_check` enforces this and
 will refuse the document path outright.
 
-If the whole job is smaller than a review,
-skip to [If the work is too small](#if-the-work-is-too-small).
+If the whole job is smaller than a review, skip to [If the work is too small](#if-the-work-is-too-small).
 
 ## If you are writing code
 
@@ -49,26 +48,27 @@ This leaves the epic lifecycle; its remaining gates do not apply. You still cros
 `brainstorming` will not let you start without an approved design, and it asks you to review the
 written spec before planning.
 
-**On the one-plan route, something has to execute the plan, and you have to verify before it finishes.**
-`writing-plans` produces a document, not code.
-Run `d3nexus:subagent-driven-development` (recommended) or `d3nexus:executing-plans` on it.
+**On the one-plan route, something has to execute the plan, and you have to verify before it
+finishes.** `writing-plans` produces a document, not code. Run `d3nexus:subagent-driven-development`
+(recommended) or `d3nexus:executing-plans` on it.
 
 > Both executors call `d3nexus:finishing-a-development-branch` themselves as their last step,
 > and **neither runs `quality_check`**. They also run without stopping, so there is no
 > window mid-run.
 >
 > Your window is where the executor stops: `finishing-a-development-branch` presents three options
-> and waits — nothing is merged or pushed until you answer.
-> **Pick option 3, "keep the branch as-is", run `d3nexus:quality_check`, fix what it finds, then run `d3nexus:finishing-a-development-branch` again and choose merge or PR.**
+> and waits — nothing is merged or pushed until you answer. **Pick option 3, "keep the branch
+> as-is", run `d3nexus:quality_check`, fix what it finds, then run `d3nexus:finishing-a-development-branch`
+> again and choose merge or PR.**
 
-The epic route needs none of this: `dev-implementation` drives the executor,
-holds `quality_check` at Gate 4 and your sign-off at Gate 5, and only then finishes the branch.
+The epic route needs none of this: `dev-implementation` drives the executor, holds `quality_check`
+at Gate 4 and your sign-off at Gate 5, and only then finishes the branch.
 
 ## If you are writing a document
 
-**The test is whether you can imagine a reviewer rejecting it, not how long it is.**
-A one-page runbook people will follow under pressure earns a brief and an outline;
-a page nobody would gate does not.
+**The test is whether you can imagine a reviewer rejecting it, not how long it is.** A one-page
+runbook people will follow under pressure earns a brief and an outline; a page nobody would
+gate does not.
 
 Run `d3nexus:doc-lifecycle` when it passes that test. Three gates: brief and outline,
 `d3nexus:doc_quality_check`, and your sign-off.
@@ -78,13 +78,12 @@ Two cases sit below that threshold:
 - **A single architecture decision or spike report** — run `d3nexus:decision-records` directly and
   commit the record. Do not open gates around one file. A *batch* of records produced or backfilled
   as one piece of work is different: that does belong in `d3nexus:doc-lifecycle`.
-- **A change no reviewer would meaningfully gate** —
-  see [If the work is too small](#if-the-work-is-too-small).
+- **A change no reviewer would meaningfully gate** — see
+  [If the work is too small](#if-the-work-is-too-small).
 
-If you do not yet know what the document should say — a strategy piece, a proposal,
-an argument you have not finished having — run `d3nexus:brainstorming` first. It ends by invoking
-`doc-designer` itself, which is Stage 1 of this lifecycle, so you arrive here without coming back
-to this page.
+If you do not yet know what the document should say — a strategy piece, a proposal, an argument you
+have not finished having — run `d3nexus:brainstorming` first. It ends by invoking `doc-designer`
+itself, which is Stage 1 of this lifecycle, so you arrive here without coming back to this page.
 
 ## If you do not know what to build yet
 
@@ -132,13 +131,13 @@ stop and run `d3nexus:lean-product-lifecycle`. Carry what you already know into 
 context — the segment, the need, the evidence you have and the evidence you are missing —
 so Stage 1 does not start cold.
 
-> **Do not pre-create `.devtool/product/<slug>/01_problem_space_spec.md`.**
-> `lean-product-lifecycle` resumes on file *presence*: that file existing makes it announce "Gate 1
-> is already verified" and start at Stage 2. You came here because the problem space was never
-> validated, and Stage 1 is the validation. Creating the artefact skips it.
+> **Do not pre-create `.devtool/product/<slug>/01_problem_space_spec.md`.** `lean-product-lifecycle`
+> resumes on file *presence*: that file existing makes it announce "Gate 1 is already verified" and
+> start at Stage 2. You came here because the problem space was never validated, and Stage 1 is the
+> validation. Creating the artefact skips it.
 
-Leave the epic directory and its
-`task_*.md` files where they are. If the assumption survives discovery you will come back to them; if it does not, they are the record of what you did not build.
+Leave the epic directory and its `task_*.md` files where they are. If the assumption survives
+discovery you will come back to them; if it does not, they are the record of what you did not build.
 
 One consequence to expect: while those tasks sit at `todo`, `in-progress` or `review`,
 the Concurrent-Epic Backlog Rule treats that epic as active, so every task of the *next* epic is

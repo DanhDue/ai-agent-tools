@@ -81,10 +81,19 @@ syllables and a naive wrap splits words in half.
 python3 skills/doc_quality_check/resources/scripts/rewrap_markdown.py <file> [<file> ...]
 ```
 
-It re-flows prose at 100 characters without ever ending a line inside `**bold**`, `*italic*`, a code
-span or a link, prefers to break after a clause, and never strands a Vietnamese compound's first
-syllable. It refuses to write if anything but whitespace would change, so it cannot silently edit a
-document.
+It re-flows prose at 100 characters under five rules, each of which exists because breaking it
+produced something worse:
+
+| Rule | Why |
+|---|---|
+| A link never breaks | The syntax would stop working |
+| A span up to 80 characters never breaks | Longer ones held whole force stub lines around them, and markdown renders `**a⏎b**` as bold anyway |
+| A line never ends on a Vietnamese compound's first syllable or a bare classifier | Vietnamese writes compounds as separate syllables, so a whitespace wrapper splits words in half |
+| Back off to a clause boundary only when it costs under 15 characters | English has a comma near any position; an unconditional preference leaves a ragged margin — 39 characters beside 97 |
+| A short line may run up to 10 characters over | Bounded on purpose: an unbounded version of this rule produced 231-character lines |
+
+**It refuses to write if anything but whitespace would change**, so it cannot silently edit a
+document. That guard caught three real mistakes while the rules above were being settled.
 
 ### Check 2 — Diátaxis type conformance
 

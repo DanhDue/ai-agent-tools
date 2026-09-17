@@ -1,6 +1,9 @@
 import re, sys, pathlib
 
 WIDTH = 100
+MIN_FILL = 85
+SLACK = 10      # characters a short line may run over rather than strand a span on its own
+MAX_ATOM = 80   # longest span kept unbroken; measured against these docs, only 4 spans sit in 61-80
 CLAUSE_END = tuple(",;:.—?!")
 
 # Vietnamese writes compounds as separate syllables, so a whitespace wrapper cannot see that
@@ -31,8 +34,15 @@ def atoms(text):
     for tok in text.split():
         cur = tok if not cur else cur + " " + tok
         if _balanced(cur):
-            out.append(cur); cur = ""
-    if cur: out.append(cur)
+            # A long span held whole forces everything around it onto stub lines, and markdown
+            # renders **a\nb** as bold anyway — so keeping it intact buys readability only while
+            # it is short. Past that, let it wrap like ordinary words.
+            # A link must never break — the syntax would stop working. Emphasis and code spans
+            # may, because markdown still renders them across a line break.
+            is_link = "](" in cur
+            out += [cur] if (is_link or len(cur) <= MAX_ATOM) else cur.split()
+            cur = ""
+    if cur: out += cur.split()
     return out
 
 def wrap(text, first="", sub=None):
@@ -41,10 +51,21 @@ def wrap(text, first="", sub=None):
     if not toks: return []
     for t in toks:
         pref = first if not lines else sub
-        if cur and len(pref) + len(" ".join(cur + [t])) > WIDTH:
+        # A span that will not fit would otherwise leave a stub line in front of it. Allow a
+        # bounded overflow instead — capped, because an unbounded version produced 231-character
+        # lines the first time this was tried.
+        proposed = len(pref) + len(" ".join(cur + [t]))
+        room = WIDTH + (SLACK if cur and len(pref) + len(" ".join(cur)) < MIN_FILL else 0)
+        if cur and proposed > room:
             cut = len(cur)
+            # Back off to a clause boundary only when it is nearly free. English puts a comma
+            # within a few words of almost any position, so an unconditional preference shortens
+            # every line and leaves the right margin ragged — 39 characters next to 97.
             for j in range(len(cur) - 1, max(0, len(cur) - 4) - 1, -1):
-                if cur[j].rstrip("*`)").endswith(CLAUSE_END): cut = j + 1; break
+                if not cur[j].rstrip("*`)").endswith(CLAUSE_END): continue
+                if len(pref) + len(" ".join(cur[:j + 1])) >= MIN_FILL:
+                    cut = j + 1
+                break
             # never strand a compound's first syllable or a bare classifier at a line end
             while cut > 1 and cur[cut - 1].strip("*`_").lower() in NEVER_END:
                 cut -= 1
