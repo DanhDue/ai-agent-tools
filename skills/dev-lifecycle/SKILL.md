@@ -11,6 +11,10 @@ need to know what runs next or what must be true before it does, stay here.
 
 **Announce at start:** "I'm using the dev-lifecycle skill to orchestrate the `<epic_slug>` epic."
 
+**Every stage is entered by invoking its skill.** This file names what runs next; it does not
+replace it. Reading a stage's description here and then doing that stage's work yourself skips the
+gate the stage owns.
+
 ## When NOT to use this
 
 - Single-component feature, bugfix, or anything one implementation plan covers → `brainstorming`
@@ -71,6 +75,9 @@ on your own judgement.
 ## Stages
 
 ### Stage 1 — Inception & Spec → `brainstorming`
+
+**Invoke `d3nexus:brainstorming`.** Do not write the spec yourself: Gate 1 is *its* user-approval
+step, and a spec that never passed through it has not cleared the gate.
 
 **Entry:** a raw idea or requirement.
 **Exit (Gate 1):** the user has approved a written spec that passed self-review.

@@ -15,6 +15,10 @@ is what makes drift visible.
 
 **Announce at start:** "I'm using the doc-lifecycle skill to orchestrate the `<doc_slug>` document."
 
+**Every stage is entered by invoking its skill.** This file names what runs next; it does not
+replace it. Reading a stage's description here and then doing that stage's work yourself skips the
+gate the stage owns.
+
 ## When NOT to use this
 
 The threshold is real. Opening gates around a small edit costs more than having no lifecycle at
@@ -75,6 +79,8 @@ being wrong is low, the gate count is low.
 
 ### Stage 0 — Inception → `brainstorming` *(optional)*
 
+**When this stage applies, invoke `d3nexus:brainstorming`** rather than exploring the content here.
+
 **Entry:** a request whose *content* is still unknown — a strategy document, a proposal, an argument
 whose conclusion has not been reached.
 **Exit:** an approved spec.
@@ -83,6 +89,9 @@ Skip this stage whenever the content is known and only its shape is open. "Write
 needs a brief, not a design exploration, and `doc-designer` produces the brief.
 
 ### Stage 1 — Brief & Outline → `doc-designer`
+
+**Invoke `d3nexus:doc-designer`.** Do not write the outline yourself: Gate 1 is *its* breakdown
+checkpoint, and an outline that never passed through it has not cleared the gate.
 
 **Entry:** a document request, with or without a Stage 0 spec.
 **Exit (Gate 1):** the user has confirmed the outline and the section breakdown.
