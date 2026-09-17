@@ -396,3 +396,45 @@ Logged for a follow-up pass:
 
 Item 2 is the one worth acting on soonest: it is a contradiction inside a shipped skill, found only
 because a document had to describe that skill accurately.
+
+---
+
+## Post-Gate-5 finding — epic archival was unreachable through the documented flow
+
+Discovered while finishing the branch. Three components each assume another one moves the task
+files, and none of them does:
+
+| Component | What it assumes |
+|---|---|
+| `dev-implementation` prose | *"`sync_task_status.py` moves them from `.devtool/features/` into `.devtool/features/done/`"* |
+| `sync_task_status.py` | `sync_task()` writes frontmatter only — the move lives in `archive_epic_tasks`, nowhere else |
+| `finishing-a-development-branch` hook | guards on `ls .devtool/features/done/task_*.md` |
+| `archive-done` command | its discovery also scans only `done/` |
+
+Net effect: `done/` is always empty, so the hook never fires and `archive-done` reports *"No
+completed tasks to archive."* **Archival never runs through the documented path.**
+
+Worked around with `archive-epic <epic_dir>`, which takes the epic explicitly and whose
+`archive_epic_tasks` does iterate both directories. 21 task copies archived, `features/` left clean.
+
+### A second, separate defect — this one was mine
+
+`sync_epic` flips the epic Status with a regex that matches a **bullet**:
+
+```
+- **Status**: Done
+```
+
+Every earlier epic in `.devtool/epic/` uses that format. **This epic's HLD used a table instead**
+(`| **Status** | In-Progress |`), so the regex matched nothing. The script still printed
+*"Synchronized 4 epic docs"* — it reports files visited, not fields changed — and `git diff` was
+empty. Converted both language variants to the house bullet format; the flip then took.
+
+Two things worth carrying forward:
+
+1. **`dev-designer` specifies which Meta Data *fields* are required but not their *format*.** The
+   tooling depends on the format. Either the skill should state it or the script should accept both.
+2. **A sync script that reports success without verifying it changed anything** hides exactly this
+   class of failure. The message should count fields written, not documents opened.
+
+Neither is fixed here — both are defects in skills outside this epic's scope.

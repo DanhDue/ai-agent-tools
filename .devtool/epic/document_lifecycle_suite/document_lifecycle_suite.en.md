@@ -2,14 +2,12 @@
 
 ## 1. Meta Data
 
-| Field | Value |
-|---|---|
-| **Epic name** | `document_lifecycle_suite` |
-| **Status** | In-Progress |
-| **Target Release** | 1.2.0 (breaking) |
-| **Platform** | **Agent Kit (Markdown + Bash/Python)** — see the platform note below |
-| **Source Spec** | [2026-09-17-document-lifecycle-suite-design.md](2026-09-17-document-lifecycle-suite-design.md) |
-| **Sibling epic** | [assumption-mapping spec](../../../docs/superpowers/specs/2026-09-17-assumption-mapping-design.md) — separate lineage, not part of this epic |
+- **Epic name**: `document_lifecycle_suite`
+- **Status**: Done
+- **Target Release**: 1.2.0 (breaking)
+- **Platform**: **Agent Kit (Markdown + Bash/Python)** — see the platform note below
+- **Source Spec**: [2026-09-17-document-lifecycle-suite-design.md](2026-09-17-document-lifecycle-suite-design.md)
+- **Sibling epic**: [assumption-mapping spec](../../../docs/superpowers/specs/2026-09-17-assumption-mapping-design.md) — separate lineage, not part of this epic
 
 ### Platform note
 

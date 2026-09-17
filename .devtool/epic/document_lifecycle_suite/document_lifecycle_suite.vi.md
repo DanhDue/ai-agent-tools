@@ -5,14 +5,12 @@
 
 ## 1. Meta Data
 
-| Trường | Giá trị |
-|---|---|
-| **Tên epic** | `document_lifecycle_suite` |
-| **Trạng thái** | In-Progress |
-| **Bản phát hành đích** | 1.2.0 (breaking) |
-| **Nền tảng** | **Agent Kit (Markdown + Bash/Python)** — xem ghi chú bên dưới |
-| **Spec nguồn** | [2026-09-17-document-lifecycle-suite-design.md](2026-09-17-document-lifecycle-suite-design.md) |
-| **Epic anh em** | [spec assumption-mapping](../../../docs/superpowers/specs/2026-09-17-assumption-mapping-design.md) — dòng đời riêng, không thuộc epic này |
+- **Tên epic**: `document_lifecycle_suite`
+- **Trạng thái**: Done
+- **Bản phát hành đích**: 1.2.0 (breaking)
+- **Nền tảng**: **Agent Kit (Markdown + Bash/Python)** — xem ghi chú bên dưới
+- **Spec nguồn**: [2026-09-17-document-lifecycle-suite-design.md](2026-09-17-document-lifecycle-suite-design.md)
+- **Epic anh em**: [spec assumption-mapping](../../../docs/superpowers/specs/2026-09-17-assumption-mapping-design.md) — dòng đời riêng, không thuộc epic này
 
 ### Ghi chú về nền tảng
 

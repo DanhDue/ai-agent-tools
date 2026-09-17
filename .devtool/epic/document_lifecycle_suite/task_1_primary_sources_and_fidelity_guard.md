@@ -24,7 +24,7 @@ Decisions*, 2011) in `decision-records`. Neither is in `docs/books/`.
 
 This repository already holds the line that methodology skills are written from primary sources.
 `scripts/check_source_fidelity.py` and
-[`.devtool/epic/lean_product_suite/source_fidelity_review.md`](../lean_product_suite/source_fidelity_review.md)
+[`.devtool/epic/lean_product_suite/source_fidelity_review.md`](../epic/lean_product_suite/source_fidelity_review.md)
 exist because six behaviour-changing errors reached the Lean Product suite through LLM-written
 summaries and propagated through four layers of derived artefacts before anyone opened the book.
 
