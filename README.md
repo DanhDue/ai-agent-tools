@@ -21,7 +21,9 @@ There are **three lifecycles**, and which one you enter depends on what will exi
 | A decision about what to build at all | **`lean-product-lifecycle`** | 3 |
 
 Full directions, including the cases where you should skip all three:
-**[docs/choosing-a-lifecycle.md](docs/choosing-a-lifecycle.md)** · bản tiếng Việt: [choosing-a-lifecycle.vi.md](docs/choosing-a-lifecycle.vi.md).
+**[docs/lifecycles.en.md](docs/lifecycles.en.md)** — what each lifecycle is for and what it produces.
+To pick one for a specific piece of work: **[docs/choosing-a-lifecycle.en.md](docs/choosing-a-lifecycle.en.md)**.
+Bản tiếng Việt: [lifecycles.vi.md](docs/lifecycles.vi.md) · [choosing-a-lifecycle.vi.md](docs/choosing-a-lifecycle.vi.md).
 
 The product discovery suite is described in [3.6](#36-the-upstream-product-discovery-suite).
 

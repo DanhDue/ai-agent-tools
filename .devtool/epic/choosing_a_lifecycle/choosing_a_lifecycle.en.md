@@ -12,7 +12,7 @@ Non-goals: Explaining why the lifecycles exist, teaching any individual skill, o
            happens inside a lifecycle once you are in it. Each skill documents itself.
 Acceptance: A person with a piece of work reaches the correct lifecycle, and knows what it will cost
             them in gates, without asking anyone.
-Deliverable: docs/choosing-a-lifecycle.md
+Deliverable: docs/choosing-a-lifecycle.en.md (how-to) + docs/lifecycles.en.md (reference)
 Source Spec: none — this document was produced as the Tier C acceptance exercise for the
              document_lifecycle_suite epic.
 ```

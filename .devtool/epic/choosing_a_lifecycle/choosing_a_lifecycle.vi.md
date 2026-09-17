@@ -14,7 +14,7 @@ Non-goals: Giải thích vì sao các lifecycle tồn tại, dạy từng skill,
            trong một lifecycle sau khi đã vào. Mỗi skill tự tài liệu hóa phần của nó.
 Acceptance: Người cầm một việc tới được đúng lifecycle, và biết nó tốn bao nhiêu cổng, mà không phải
             hỏi ai.
-Deliverable: docs/choosing-a-lifecycle.md
+Deliverable: docs/choosing-a-lifecycle.en.md (how-to) + docs/lifecycles.en.md (reference)
 Source Spec: không có — tài liệu này được tạo ra như bài nghiệm thu Tier C của epic
              document_lifecycle_suite.
 ```

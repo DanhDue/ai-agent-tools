@@ -1,9 +1,21 @@
 # Chọn lifecycle nào
 
-> Bản dịch của [choosing-a-lifecycle.md](choosing-a-lifecycle.md). Bản tiếng Anh là nguồn sự thật cho
+> Bản dịch của [choosing-a-lifecycle.en.md](choosing-a-lifecycle.en.md). Bản tiếng Anh là nguồn sự thật cho
 > tooling và agent; bản này phục vụ trao đổi trong nhóm và phải luôn đồng bộ về cấu trúc lẫn sự kiện.
 
 Bạn đang cầm một việc và có ba lifecycle để chọn. Trang này đưa bạn tới đúng cái cần.
+
+Muốn biết mỗi lifecycle **dùng để làm gì** và **cho ra cái gì**, xem
+**[lifecycles.vi.md](lifecycles.vi.md)**. Trang này quyết định; trang kia mô tả.
+
+## Mục lục
+
+1. [Bắt đầu từ đây](#bắt-đầu-từ-đây)
+2. [Nếu bạn viết code](#nếu-bạn-viết-code)
+3. [Nếu bạn viết tài liệu](#nếu-bạn-viết-tài-liệu)
+4. [Nếu bạn chưa biết nên xây gì](#nếu-bạn-chưa-biết-nên-xây-gì)
+5. [Nếu việc quá nhỏ](#nếu-việc-quá-nhỏ)
+6. [Bàn giao giữa các lifecycle](#bàn-giao-giữa-các-lifecycle)
 
 ## Bắt đầu từ đây
 

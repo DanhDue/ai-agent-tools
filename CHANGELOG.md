@@ -31,8 +31,9 @@ built for code.
   referenced by nothing; it found seven pre-existing orphans on its first run, including a second
   reviewer prompt that had never been wired in. Step 9 fails when a live file still names a
   pre-rename skill.
-- **`docs/choosing-a-lifecycle.md`** — directions for picking among the three lifecycles, including
-  when to skip all of them.
+- **`docs/lifecycles.en.md`** — reference: what each lifecycle is for, what it produces, and its
+  process flow. **`docs/choosing-a-lifecycle.en.md`** — how-to: picking one for a specific piece of
+  work, including when to skip all of them. Both carry a Vietnamese variant.
 - **`docs/adr/`** — decision records for this repository, starting with why the documentation
   quality gate is a separate skill.
 - **`evals/doc-designer/mixed-mode-material`** — the first ablation case for a documentation skill.

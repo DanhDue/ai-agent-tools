@@ -147,7 +147,7 @@ before Tasks 1–9 land.
 
 ### 1. `doc-lifecycle` driven end to end on a real document
 
-Produced [`docs/choosing-a-lifecycle.md`](../../docs/choosing-a-lifecycle.md) — directions for
+Produced [`docs/choosing-a-lifecycle.en.md`](../../docs/choosing-a-lifecycle.en.md) — directions for
 picking among the three lifecycles, a gap this repository genuinely had once `doc-lifecycle` and
 `lean-product-lifecycle` joined `dev-lifecycle`.
 
@@ -347,7 +347,7 @@ been, and it did not require a mobile toolchain this repository does not have.
 ### 4. README and CHANGELOG
 
 Skill count corrected 47 → 52. The single entry point is replaced by the three lifecycles and their
-gate counts, pointing at `docs/choosing-a-lifecycle.md` rather than duplicating it — a README is not
+gate counts, pointing at `docs/choosing-a-lifecycle.en.md` rather than duplicating it — a README is not
 a how-to guide, and inlining it would break the discipline this epic just shipped.
 
 ### Observed discrepancy, not fixed

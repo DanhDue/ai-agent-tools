@@ -2,6 +2,18 @@
 
 You have a piece of work and three lifecycles to choose from. This page gets you to the right one.
 
+For what each lifecycle is *for* and what it produces, see
+**[lifecycles.en.md](lifecycles.en.md)**. This page decides; that page describes.
+
+## Contents
+
+1. [Start here](#start-here)
+2. [If you are writing code](#if-you-are-writing-code)
+3. [If you are writing a document](#if-you-are-writing-a-document)
+4. [If you do not know what to build yet](#if-you-do-not-know-what-to-build-yet)
+5. [If the work is too small](#if-the-work-is-too-small)
+6. [Handing off between lifecycles](#handing-off-between-lifecycles)
+
 ## Start here
 
 Answer one question: **what will exist when you are finished?**
