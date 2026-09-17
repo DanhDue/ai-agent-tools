@@ -140,18 +140,22 @@ To ensure this is a true creative collaboration and not just a rigid interrogati
 - Once you believe you understand what you're building, present the design
 - Scale each section to its complexity: a few sentences if straightforward, up to 200-300 words if nuanced
 - Ask after each section whether it looks right so far
-- Cover: architecture, components, data flow, error handling, testing
+- Cover, **for code**: architecture, components, data flow, error handling, testing
+- Cover, **for a document**: who reads it, which Diátaxis type it is, the section outline, and one
+  acceptance criterion the reader can act on
 - **Dependency Mapping:** Explicitly list any assumptions, risks, and cross-feature/cross-team dependencies (e.g., "Does this feature block another one? Does it rely on a third-party API being ready?").
 - Be ready to go back and clarify if something doesn't make sense
 
-**Design for isolation and clarity:**
+**Design for isolation and clarity — code deliverables:**
 
 - Break the system into smaller units that each have one clear purpose, communicate through well-defined interfaces, and can be understood and tested independently
 - For each unit, you should be able to answer: what does it do, how do you use it, and what does it depend on?
 - Can someone understand what a unit does without reading its internals? Can you change the internals without breaking consumers? If not, the boundaries need work.
 - Smaller, well-bounded units are also easier for you to work with - you reason better about code you can hold in context at once, and your edits are more reliable when files are focused. When a file grows large, that's often a signal that it's doing too much.
 
-**Working in existing codebases:**
+**Working in existing codebases — code deliverables:**
+
+For a document deliverable, `doc-designer` owns the equivalent questions; do not answer them here.
 
 - Explore the current structure before proposing changes. Follow existing patterns.
 - Where existing code has problems that affect the work (e.g., a file that's grown too large, unclear boundaries, tangled responsibilities), include targeted improvements as part of the design - the way a good developer improves code they're working in.
@@ -174,8 +178,10 @@ To ensure this is a true creative collaboration and not just a rigid interrogati
 After writing the spec document, look at it with fresh eyes:
 
 1. **Placeholder scan:** Any "TBD", "TODO", incomplete sections, or vague requirements? Fix them.
-2. **Internal consistency:** Do any sections contradict each other? Does the architecture match the feature descriptions?
-3. **Scope check:** Is this focused enough for a single implementation plan, or does it need decomposition?
+2. **Internal consistency:** Do any sections contradict each other? For code, does the architecture
+   match the feature descriptions; for a document, does the outline match what each section promises?
+3. **Scope check:** Is this focused enough for one implementation plan — or, for a document, one
+   Diátaxis type — or does it need decomposition?
 4. **Ambiguity check:** Could any requirement be interpreted two different ways? If so, pick one and make it explicit.
 5. **Take a Step Back (Helicopter View):** Review the entire system holistically. Are the component boundaries logical? Do any features belong in a different epic or module? Shuffle them now before implementation begins.
 
