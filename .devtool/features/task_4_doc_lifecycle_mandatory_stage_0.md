@@ -1,13 +1,13 @@
 ---
 id: "task_4_doc_lifecycle_mandatory_stage_0"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "brainstorming_split"
 dueDate: null
 created: "2026-09-17T09:27:07Z"
-modified: "2026-09-17T09:27:07Z"
-completedAt: null
+modified: "2026-09-17T09:36:12Z"
+completedAt: "2026-09-17T09:36:12Z"
 labels: ["skills", "orchestrator", "gates"]
 order: "a4"
 ---
@@ -167,7 +167,7 @@ results must flip.
 - [ ] **Tier A**: `verify.sh` steps 1–4 pass; ToC anchors still match headings.
 - [ ] **Mermaid**: the sequence diagram renders via `mermaid-cli` after renumbering.
 - [ ] **Tier B**: repo-wide sweep for stale "three gates" claims, excluding `.devtool/` and
-      `CHANGELOG.md`.
+      `CHANGELOG.md`; classify each hit as this lifecycle's or `lean-product-lifecycle`'s.
 - [ ] **Tier C**: drive `doc-lifecycle` end-to-end on one small real document and confirm Stage 0
       runs and Gate 1 is the spec approval.
 
@@ -178,7 +178,11 @@ results must flip.
 - `description` frontmatter says four gates and names `doc-brainstorming`.
 - The untestable skip sentence is deleted, not reworded.
 - Stage 0 headings and nodes carry no "optional".
-- Zero stale three-gate claims anywhere outside `.devtool/` and `CHANGELOG.md`.
+- The repo-wide sweep for stale three-gate claims is run and every hit is classified:
+  - `docs/lifecycles.en.md:76` and `docs/lifecycles.vi.md:81` are real and belong to
+    [Task 8](task_8_docs_bilingual_update.md), which owns `docs/`.
+  - `skills/lean-product-lifecycle/SKILL.md` and the assumption-mapping spec are **false positives** —
+    they describe `lean-product-lifecycle`'s own three gates, not this lifecycle's. Leave them alone.
 - `verify.sh` steps 1–4 green; mermaid renders; ToC anchors match.
 - Clean `git status` after the commit.
 

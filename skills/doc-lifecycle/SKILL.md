@@ -1,6 +1,6 @@
 ---
 name: doc-lifecycle
-description: Orchestrates work whose deliverable is a document rather than code — a runbook, handbook, onboarding guide or set of reference pages. Owns the sequence and the three approval gates connecting doc-designer, doc-implementation and doc_quality_check. Use it when a document spans enough sections to need a breakdown.
+description: Orchestrates work whose deliverable is a document rather than code — a runbook, handbook, onboarding guide or set of reference pages. Owns the sequence and the four approval gates connecting doc-brainstorming, doc-designer, doc-implementation and doc_quality_check. Use it when a document spans enough sections to need a breakdown.
 ---
 
 # Document Lifecycle
@@ -39,62 +39,70 @@ reject others.
 
 ```mermaid
 flowchart TD
-    S0["Stage 0 — Inception (optional)<br/>(brainstorming)"]
+    S0["Stage 0 — Inception<br/>(doc-brainstorming)"]
+    G1{"Gate 1<br/>Spec approved?"}
     S1["Stage 1 — Brief &amp; Outline<br/>(doc-designer)"]
-    G1{"Gate 1<br/>Brief &amp; outline approved?"}
+    G2{"Gate 2<br/>Brief &amp; outline approved?"}
     S2["Stage 2 — Drafting<br/>(doc-implementation)"]
-    G2{"Gate 2<br/>doc_quality_check 🟢?"}
-    G3{"Gate 3<br/>User sign-off?"}
+    G3{"Gate 3<br/>doc_quality_check 🟢?"}
+    G4{"Gate 4<br/>User sign-off?"}
     S3["Stage 3 — Finish Branch<br/>(finishing-a-development-branch)"]
 
-    S0 --> S1
-    S1 --> G1
-    G1 -->|no, revise| S1
-    G1 -->|yes| S2
-    S2 --> G2
-    G2 -->|no, fix findings| S2
-    G2 -->|yes| G3
-    G3 -->|no, request changes| S2
-    G3 -->|yes| S3
+    S0 --> G1
+    G1 -->|no, revise| S0
+    G1 -->|yes| S1
+    S1 --> G2
+    G2 -->|no, revise| S1
+    G2 -->|yes| S2
+    S2 --> G3
+    G3 -->|no, fix findings| S2
+    G3 -->|yes| G4
+    G4 -->|no, request changes| S2
+    G4 -->|yes| S3
 ```
 
-## The Three Gates
+## The Four Gates
 
-Gates 1 and 3 are **human approvals**; Gate 2 is a machine verdict. Never cross one on your own
+Gates 1, 2 and 4 are **human approvals**; Gate 3 is a machine verdict. Never cross one on your own
 judgement.
 
-Three, not five. Code and prose differ in ways that change what verification can mean: the unit of
+Four, not five. Code and prose differ in ways that change what verification can mean: the unit of
 work is a section rather than an independently testable deliverable, verification is mechanical
 checks plus human judgement rather than a machine running tests, the governing constraint is the
 **audience** rather than the architecture, and the cost of being wrong is low. Because the cost of
-being wrong is low, the gate count is low.
+being wrong is low, the gate count stays below the development side's five.
 
 | Gate | Name | Approver | Enforced in | Handoff artefact |
 |------|------|----------|-------------|------------------|
-| **1** | Brief & Outline | User | `doc-designer` breakdown checkpoint | `<doc_dir>.en.md` + `.vi.md` + `task_*.md` |
-| **2** | Draft Verified | `doc_quality_check` | `doc-implementation` final phase | 🟢 document quality report |
-| **3** | Sign-Off | User | `doc-implementation` review checkpoint | User confirmation to finish the branch |
+| **1** | Spec Approved | User | `doc-brainstorming` user review gate | `docs/superpowers/specs/<date>-<topic>-design.md` |
+| **2** | Brief & Outline | User | `doc-designer` breakdown checkpoint | `<doc_dir>.en.md` + `.vi.md` + `task_*.md` |
+| **3** | Draft Verified | `doc_quality_check` | `doc-implementation` final phase | 🟢 document quality report |
+| **4** | Sign-Off | User | `doc-implementation` review checkpoint | User confirmation to finish the branch |
 
 ## Stages
 
-### Stage 0 — Inception → `brainstorming` *(optional)*
+### Stage 0 — Inception → `doc-brainstorming`
 
-**When this stage applies, invoke `d3nexus:brainstorming`** rather than exploring the content here.
+**Invoke `d3nexus:doc-brainstorming`.** Do not decide the content yourself: Gate 1 is *its* user
+review gate, and a spec that never passed through it has not cleared the gate.
 
-**Entry:** a request whose *content* is still unknown — a strategy document, a proposal, an argument
-whose conclusion has not been reached.
-**Exit:** an approved spec.
+**Entry:** any document request that reaches this lifecycle.
+**Exit (Gate 1):** the user has approved the content spec.
 
-Skip this stage whenever the content is known and only its shape is open. "Write a runbook for X"
-needs a brief, not a design exploration, and `doc-designer` produces the brief.
+**This stage is not optional.** It was, and its skip condition asked whether the content was already
+known — a question an agent answers yes to essentially always, having just read the request and
+believed it understood it. The stage is mandatory in its *existence* and elastic in its *depth*:
+"write a runbook for X" still passes through, and its spec may be three sentences. The gate question
+is not "is the content known?" but "was a spec presented and approved?", which can actually be
+answered.
 
 ### Stage 1 — Brief & Outline → `doc-designer`
 
-**Invoke `d3nexus:doc-designer`.** Do not write the outline yourself: Gate 1 is *its* breakdown
+**Invoke `d3nexus:doc-designer`.** Do not write the outline yourself: Gate 2 is *its* breakdown
 checkpoint, and an outline that never passed through it has not cleared the gate.
 
-**Entry:** a document request, with or without a Stage 0 spec.
-**Exit (Gate 1):** the user has confirmed the outline and the section breakdown.
+**Entry:** an approved Stage 0 spec.
+**Exit (Gate 2):** the user has confirmed the outline and the section breakdown.
 
 Produces the audience, exactly one Diátaxis mode, the outline, and one task per section. The
 overview's Meta Data carries `Kind: document`, which records what the work item is for the board
@@ -102,14 +110,14 @@ and the archive.
 
 ### Stage 2 — Drafting → `doc-implementation`
 
-**Entry:** Gate 1 passed; outline and `task_*.md` files exist.
-**Exit (Gate 3):** `doc_quality_check` reports 🟢 (Gate 2) **and** the user signs off on the draft.
+**Entry:** Gate 2 passed; outline and `task_*.md` files exist.
+**Exit (Gate 4):** `doc_quality_check` reports 🟢 (Gate 3) **and** the user signs off on the draft.
 
 One worktree, one section at a time, one commit per section. No test suite runs — there is nothing
 to run. Each section is re-read against its own purpose line in the outline, and on divergence the
 outline is synced before the next section starts.
 
-**Gate 2 acceptance criteria.** `doc_quality_check` grants 🟢 only when all four of its checks
+**Gate 3 acceptance criteria.** `doc_quality_check` grants 🟢 only when all four of its checks
 pass:
 
 1. **Mechanical** — no placeholder text, every internal link resolves, ToC anchors match headings,
@@ -122,7 +130,7 @@ pass:
 
 ### Stage 3 — Finish Branch → `finishing-a-development-branch`
 
-**Entry:** Gate 3 passed (user confirmed).
+**Entry:** Gate 4 passed (user confirmed).
 **Exit:** the branch is integrated and completed tasks are archived into the document's directory.
 
 The finished document lands where it belongs — `docs/`, a README, a skill's `references/`. A
@@ -133,11 +141,12 @@ publication target.
 
 | Gate | On failure, return to |
 |------|----------------------|
-| 1 | Stage 1 — revise the brief or the outline; re-confirm the breakdown |
-| 2 | Stage 2 — fix the findings, then re-run `doc_quality_check` **in full** |
-| 3 | Stage 2 — apply the requested changes |
+| 1 | Stage 0 — revise the content spec; re-confirm with the user |
+| 2 | Stage 1 — revise the brief or the outline; re-confirm the breakdown |
+| 3 | Stage 2 — fix the findings, then re-run `doc_quality_check` **in full** |
+| 4 | Stage 2 — apply the requested changes |
 
-Never advance on a partial pass, and never re-run only the previously failing check at Gate 2 — the
+Never advance on a partial pass, and never re-run only the previously failing check at Gate 3 — the
 🟢 verdict must come from a complete run.
 
 ## Red Flags
@@ -148,15 +157,15 @@ Never advance on a partial pass, and never re-run only the previously failing ch
   the reader can do.
 - Running the 3-tier test suite on a document, or skipping the gate because "it is only prose".
 - Taking the document path for a diff that touches shipped files.
-- Finishing the branch without the user's Gate 3 sign-off.
+- Finishing the branch without the user's Gate 4 sign-off.
 - Leaving the finished document inside `.devtool/`.
 
 ## Stage Skills
 
 | Stage | Skill | Gate it enforces |
 |-------|-------|------------------|
-| 0 | `brainstorming` | — (optional) |
-| 1 | `doc-designer` | 1 |
-| 2 | `doc-implementation` | triggers 2, enforces 3 |
-| 2 (verification) | `doc_quality_check` | 2 |
+| 0 | `doc-brainstorming` | 1 |
+| 1 | `doc-designer` | 2 |
+| 2 | `doc-implementation` | triggers 3, enforces 4 |
+| 2 (verification) | `doc_quality_check` | 3 |
 | 3 | `finishing-a-development-branch` | — |
