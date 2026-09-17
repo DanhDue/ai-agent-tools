@@ -29,8 +29,8 @@ Spec §7 lists six verification items; they are this task's acceptance criteria:
 2. The new orchestrator-routing check passes (Task 7).
 3. Step 9's existing `epic-*` check stays exactly as it is.
 4. `find skills -maxdepth 1 -type d` count equals `find skills -name SKILL.md` count. Today both
-   are 52; after this epic both should be 53, since `doc-brainstorming` is added while
-   `brainstorming` is replaced rather than removed. A mismatch is how a stale directory surviving
+   are 52; after this epic both are 54 — the rename is net zero, the router recreated at the
+   vacated path is one addition, and `doc-brainstorming` is a second. A mismatch is how a stale directory surviving
    `git mv` was caught last release, when it held gitignored `__pycache__` and so was never empty.
 5. Both orchestrators' mermaid diagrams match their prose. Four prose/diagram mismatches were
    caught by Gate 2 during 1.2.0; this is the check that caught them.
@@ -61,9 +61,9 @@ lesson from the previous release that cost real time: `verify.sh` was green in t
 on `main`, because a filesystem walk read a gitignored directory that only exists in a normal
 checkout.
 
-**Why the skill count is expected to rise to 53, not stay at 52.** `brainstorming` is replaced in
-place by the router, `dev-brainstorming` is a rename of the same directory, and
-`doc-brainstorming` is genuinely new. One net addition.
+**Why the skill count rises to 54, not 53.** The rename `brainstorming` -> `dev-brainstorming` is net
+zero. The router is then created *at the vacated path*, which is one addition, and
+`doc-brainstorming` is a second. Two net additions, not one.
 
 Applicable kit skills: `d3nexus:quality_check` (shipped files), `d3nexus:doc_quality_check`
 (the four `docs/` files), `d3nexus:verification-before-completion`.
@@ -87,7 +87,7 @@ Scenario: [Tier C - Integration] The full suite passes from a normal checkout
 Scenario: [Tier C - Integration] The skill count rises by exactly one
   Given the merged result
   When skill directories and SKILL.md files are counted
-  Then both counts are 53
+  Then both counts are 54
   And they are equal
 
 Scenario: [Tier C - Integration] An ambiguous request reaches the right variant end to end
@@ -144,7 +144,7 @@ Scenario: [Tier A - Unit] Existing CHANGELOG entries are untouched
 
 ## Test & Verification Checklist
 
-- [ ] **Tier A**: skill directory count equals SKILL.md count, both 53.
+- [ ] **Tier A**: skill directory count equals SKILL.md count, both 54.
 - [ ] **Tier B**: `scripts/verify.sh` full run green **from a normal checkout**; step 9 unchanged.
 - [ ] **Tier B**: `@quality_check` on the shipped-file commits.
 - [ ] **Tier B**: `@doc_quality_check` on the docs-only commit; confirm Check 0 does not refuse.
@@ -157,7 +157,7 @@ Scenario: [Tier A - Unit] Existing CHANGELOG entries are untouched
 ## Definition of Done
 
 - All six spec §7 verification items pass, each with observed output rather than assumption.
-- Skill directory and SKILL.md counts both 53 and equal.
+- Skill directory and SKILL.md counts both 54 and equal.
 - `verify.sh` green in full from a normal checkout; step 9 byte-for-byte unchanged.
 - Both quality gates run on the right commits and both green.
 - Every mermaid diagram renders and agrees with its prose.

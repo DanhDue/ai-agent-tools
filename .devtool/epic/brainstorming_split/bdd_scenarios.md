@@ -413,7 +413,7 @@ Scenario: verify.sh's own comment does not trip the check
 Scenario: The skill count rises by exactly one
   Given the merged result
   When skill directories and SKILL.md files are counted
-  Then both are 53
+  Then both are 54
   And they are equal
 ```
 
