@@ -8,6 +8,21 @@ every installed machine on the old cached copy.
 
 ---
 
+## 1.3.1 — 2026-09-18
+
+Adds planning-mode interception guards to prevent agents from bypassing the d3nexus workflow
+by writing `implementation_plan.md` directly (the Antigravity native planning artifact).
+
+### Changed
+
+- **`dev-lifecycle`**: Added `<HARD-GATE>` prohibiting `implementation_plan.md` creation.
+  Added 2 new Red Flags (writing `implementation_plan.md`, skipping brainstorming).
+  Added Rationalization Table covering 5 common bypass excuses.
+- **`dev-brainstorming`**: Expanded `<HARD-GATE>` to explicitly cover `implementation_plan.md`
+  as a gate bypass.
+
+---
+
 ## 1.3.0 — 2026-09-17
 
 Splits `brainstorming` into a development variant and a documentation variant, and makes the
