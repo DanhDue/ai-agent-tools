@@ -59,6 +59,14 @@ flowchart TD
 
 ```
 
+<HARD-GATE>
+Do NOT create `implementation_plan.md` or any Antigravity planning-mode artifact.
+The d3nexus workflow replaces the native planning mode entirely.
+Specs go to `docs/superpowers/specs/` (Stage 1) or `.devtool/epic/<epic_dir>/` (Stage 2+).
+Plans go through `writing-plans` skill (non-epic) or `dev-designer` task files (epic).
+If you find yourself about to write `implementation_plan.md`, STOP — you are bypassing a gate.
+</HARD-GATE>
+
 ## The Five Gates
 
 Every gate is a **human approval** except Gate 4, which is a machine verdict. Never cross one
@@ -155,6 +163,8 @@ the 🟢 verdict must come from a complete run.
 
 ## Red Flags
 
+- Writing to `implementation_plan.md` or any Antigravity native planning artifact.
+- Skipping `dev-brainstorming` because "the scope is already clear".
 - Routing an approved spec straight to an implementation skill, skipping Stage 2 for epic-scale work.
 - Merging several sub-project specs into one epic directory.
 - Creating a worktree or dispatching a subagent before Gate 3.
@@ -163,6 +173,16 @@ the 🟢 verdict must come from a complete run.
 - Archiving tasks from `.devtool/features/done/` prematurely before Gate 5 user review.
 - Leaving a spec split across `docs/superpowers/specs/` and `.devtool/epic/<epic_dir>/`.
 - Leaving completed `task_*.md` files in `.devtool/features/done/` or draft specs in `docs/superpowers/` after branch integration.
+
+## Rationalizations — STOP and Re-read This Skill
+
+| Excuse | Reality |
+|--------|---------|
+| "I already have enough context to skip brainstorming" | Context ≠ spec. Gate 1 requires a written, approved spec. |
+| "This is too simple for the full lifecycle" | Simple work uses `dev-brainstorming` → `writing-plans`. You still start at Stage 1. |
+| "I'll just write the implementation plan directly" | `implementation_plan.md` is an Antigravity artifact. d3nexus uses `docs/superpowers/specs/` and `.devtool/`. |
+| "The user confirmed the scope, that's basically Gate 1" | Gate 1 is spec approval through `dev-brainstorming`, not a scope question. |
+| "I can combine research + spec into one step" | Stage 1 is `dev-brainstorming`'s job. Invoke the skill. |
 
 ## Stage Skills
 
