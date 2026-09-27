@@ -1,0 +1,38 @@
+{
+  "name": "d3nexus",
+  "version": "1.4.0",
+  "description": "Mobile engineering agent kit: product discovery, development and documentation lifecycles, quality gates, and audits for Flutter, Android Native, and iOS Native.",
+  "author": {
+    "name": "DanhDue ExOICTIF"
+  },
+  "homepage": "https://github.com/DanhDue/ai-agent-tools",
+  "repository": "https://github.com/DanhDue/ai-agent-tools",
+  "license": "MIT",
+  "keywords": [
+    "skills",
+    "flutter",
+    "android",
+    "ios",
+    "clean-architecture",
+    "tdd",
+    "quality-gate"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "d3nexus \u2014 Mobile Agent Tools",
+    "shortDescription": "Plan, build, and review mobile apps",
+    "longDescription": "Shared workflows for Flutter, Android Native, and iOS Native projects, from product discovery and design through implementation, documentation, testing, and security and architecture reviews.",
+    "developerName": "DanhDue ExOICTIF",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "websiteURL": "https://github.com/DanhDue/ai-agent-tools",
+    "defaultPrompt": [
+      "Use d3nexus to plan a new mobile app feature.",
+      "Use d3nexus to review this mobile project.",
+      "Use d3nexus to investigate a failing test."
+    ]
+  }
+}

@@ -11,9 +11,18 @@ See that repo's README for installation.
 @.agents/rules/CRITICAL_RULES.md
 @.agents/rules/coding-guidelines.md
 
-> The `@` lines are Claude Code imports. Antigravity discovers `.agents/rules/*.md` natively,
-> so rules load in both runtimes without being duplicated. If this project does not vendor
-> `.agents/rules/`, delete these two lines — the plugin supplies the rules instead.
+Before starting work, read `CRITICAL_RULES.md` and `coding-guidelines.md`. Use this project's
+`.agents/rules/` files if present; otherwise locate the installed `d3nexus` plugin from one of
+its skill paths and read `rules/CRITICAL_RULES.md` and `rules/coding-guidelines.md` at that plugin's
+root. If the plugin cannot be found, report the missing installation rather than assuming the
+rules loaded.
+
+The `@` lines above are Claude Code imports. Antigravity discovers `.agents/rules/*.md` natively.
+Codex must follow the explicit reading instruction above. If this project does not vendor
+`.agents/rules/`, delete the two import lines and use the installed plugin's files.
+
+When using Codex, select the installed d3nexus skill and read its `SKILL.md`; instructions that
+mention Claude's `Skill` tool mean loading that skill through the available Codex tools.
 
 ## Orchestration
 

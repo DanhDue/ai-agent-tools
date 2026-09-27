@@ -3,12 +3,13 @@
 Shared AI agent tooling for mobile app projects — **Flutter**, **Android Native**, and
 **iOS Native**. One repository, installed once per machine, serving every project.
 
-Works in **Antigravity** and **Claude Code** from a single source: `skills/` and `rules/` are
-written once, and each runtime gets a thin manifest pointing at them.
+Works in **Codex**, **Antigravity**, and **Claude Code** from a single source: `skills/` and
+`rules/` are written once, with a thin manifest for each runtime. Rule loading differs by runtime;
+see [per-project setup](#14-per-project-setup).
 
 | | |
 |---|---|
-| **52 skills** | Upstream product discovery (Lean Product Process) · development and documentation lifecycles · 3-tier quality gates · security / architecture / UI / code-health audits · decision records · TDD and debugging process · build-environment and secure-file setup · Flutter and Android feature/API scaffolding |
+| **54 skills** | Upstream product discovery (Lean Product Process) · development and documentation lifecycles · 3-tier quality gates · security / architecture / UI / code-health audits · decision records · TDD and debugging process · build-environment and secure-file setup · Flutter and Android feature/API scaffolding |
 | **2 rules** | `CRITICAL_RULES.md` (a mandatory quality gate after every workflow, chosen by the kind of work) and `coding-guidelines.md` (think first, simplicity, surgical changes, verify) |
 | **Templates** | Per-project `AGENTS.md` and shared editor guardrails |
 
@@ -34,7 +35,8 @@ The product discovery suite is described in [3.6](#36-the-upstream-product-disco
 - [1. Installation](#1-installation)
   - [1.1. Claude Code](#11-claude-code)
   - [1.2. Antigravity](#12-antigravity)
-  - [1.3. Per-project setup](#13-per-project-setup)
+  - [1.3. Codex](#13-codex)
+  - [1.4. Per-project setup](#14-per-project-setup)
 - [2. Daily workflow](#2-daily-workflow)
   - [2.1. Where the single source of truth is](#21-where-the-single-source-of-truth-is)
   - [2.2. Editing a skill and republishing](#22-editing-a-skill-and-republishing)
@@ -96,17 +98,42 @@ Antigravity also ranks **workspace over global**: a project's own `.agents/skill
 plugin. If a project vendors its own copy, that copy wins there — remove it to let the plugin
 serve every project uniformly.
 
-### 1.3. Per-project setup
+### 1.3. Codex
 
-Skills and rules arrive with the plugin. Each project still needs an entry point:
+Use a Codex CLI version that provides `codex plugin` (check with `codex plugin --help`):
+
+```bash
+codex plugin marketplace add DanhDue/ai-agent-tools
+codex plugin add d3nexus@danhdue-agent-tools
+```
+
+Start a new thread after installation. Select a skill from Codex's skill picker, or ask for it
+explicitly, for example: **Use the d3nexus dev-lifecycle skill to plan this feature.**
+The [Codex manifest](.codex-plugin/plugin.json) loads the same `skills/` directory as the other
+runtimes; the [marketplace](.agents/plugins/marketplace.json) points at the repository root.
+
+This distributes the plugin through this GitHub marketplace. Listing it in OpenAI's public
+Plugins Directory is a separate process: submit a skills-only package, complete review, and
+publish after approval. See [OpenAI's publishing guide](https://developers.openai.com/plugins/deploy/submission)
+and [plugin packaging reference](https://developers.openai.com/plugins/build/plugins).
+
+### 1.4. Per-project setup
+
+The plugin supplies skills and rule files. Each project still needs an entry point. From a
+working clone of this repository, run:
 
 ```bash
 scripts/init-project.sh /path/to/project "Project Name"
 ```
 
 This writes an `AGENTS.md` from the template, symlinks `CLAUDE.md → AGENTS.md` so one file serves
-both runtimes and they cannot drift, and prints the editor guardrails to merge into
+all three runtimes and they cannot drift, and prints the editor guardrails to merge into
 `.vscode/settings.json`.
+
+Codex reads `AGENTS.md`; Claude's `@file` imports and Antigravity's `trigger: always_on` do not
+replace explicit Codex instructions. The template tells Codex to read the two rule files from
+the installed plugin (or the project's own `.agents/rules/` when present). Existing projects
+should merge the updated **Rules** section from [templates/AGENTS.md](templates/AGENTS.md).
 
 > [!NOTE]
 > **Overlap with `superpowers`**: 13 of these skills began as forks of
@@ -127,11 +154,12 @@ DanhDue/ai-agent-tools (GitHub)                              ← THE source
  └─ ~/AllProjects/ai-agent-tools/                            ← your working clone: EDIT HERE
      ├─ ~/.claude/plugins/marketplaces/danhdue-agent-tools/  ← git clone, pulled by `marketplace update`
      │   └─ ~/.claude/plugins/cache/.../d3nexus/<version>/   ← what Claude Code actually reads
-     └─ ~/.gemini/config/plugins/d3nexus/                    ← what Antigravity reads (its own clone)
+     ├─ ~/.gemini/config/plugins/d3nexus/                    ← what Antigravity reads (its own clone)
+     └─ Codex-managed marketplace and plugin cache          ← refreshed by the Codex commands below
 ```
 
 An edit to a copy works until the next update, then silently vanishes. Quick test: if the path
-contains `.claude/plugins` or `.gemini/config`, it is a copy.
+contains `.claude/plugins`, `.codex/plugins`, or `.gemini/config`, it is a copy.
 
 To read what a skill currently says, open it in your working clone (`skills/<name>/SKILL.md`), or
 run `claude plugin details d3nexus` for the installed inventory. Opening the project together with
@@ -148,13 +176,18 @@ the source one click away.
 ```bash
 cd ~/AllProjects/ai-agent-tools
 $EDITOR skills/dev-lifecycle/SKILL.md     # 1. edit
-scripts/release.sh                         # 2. verify + bump + commit + push + refresh this machine
+$EDITOR CHANGELOG.md                     # 2. add dated notes for the next version
+scripts/release.sh                       # 3. verify + bump + commit + push
 ```
 
-`release.sh` runs `verify.sh` first and refuses to publish if it fails. For anything bigger than a
-patch, pass the version explicitly: `scripts/release.sh 1.1.0`.
+`release.sh` requires a newer `MAJOR.MINOR.PATCH` version, dated release notes, and the `main`
+branch. It verifies before and after synchronizing all three manifests and the Claude marketplace,
+then commits and pushes. For anything bigger than a patch, pass the version explicitly, for
+example `scripts/release.sh 1.4.0` when releasing from `1.3.1`.
 
-Then restart the session, as in [1.1](#11-claude-code).
+It refreshes Claude Code and Antigravity when installed and prints the Codex refresh commands
+from [2.3](#23-updating-another-machine). Run those commands for an existing Codex installation,
+then start a new thread. For Claude Code, restart the session as in [1.1](#11-claude-code).
 
 Antigravity needs no bump — it reads its clone's working tree directly:
 
@@ -163,6 +196,15 @@ git -C ~/.gemini/config/plugins/d3nexus pull
 ```
 
 ### 2.3. Updating another machine
+
+**Codex** — refresh the registered marketplace, then reinstall the plugin:
+
+```bash
+codex plugin marketplace upgrade danhdue-agent-tools
+codex plugin add d3nexus@danhdue-agent-tools
+```
+
+Start a new thread to pick up the changed skills.
 
 **Claude Code** — both steps are needed: the first pulls the repo, the second copies it into the
 versioned cache Claude Code reads.
@@ -182,9 +224,12 @@ git -C ~/.gemini/config/plugins/d3nexus pull
 
 | Command | Purpose |
 |---|---|
-| `scripts/verify.sh` | Manifests, frontmatter, links, anchors, stale namespaces |
-| `scripts/release.sh [version]` | Verify → bump → commit → push → refresh this machine |
+| `scripts/verify.sh` | Manifests, matching versions, release notes, frontmatter, links, anchors, stale namespaces |
+| `scripts/release.sh [version]` | Check notes → verify → bump → verify → commit → push → refresh guidance |
 | `scripts/init-project.sh <path> <name>` | Scaffold a consuming project |
+| `codex plugin list` | List Codex plugins |
+| `codex plugin marketplace list` | List Codex marketplace sources |
+| `codex plugin remove d3nexus@danhdue-agent-tools` | Uninstall from Codex |
 | `claude plugin list` | What is installed and enabled |
 | `claude plugin details d3nexus` | Skill inventory and projected token cost |
 | `claude plugin validate <path>` | Check manifests before publishing |
@@ -212,27 +257,27 @@ hooks.json                       # Antigravity hook config (PreInvocation, root 
 plugin.json                      # Antigravity plugin manifest (root level — required)
 .claude-plugin/plugin.json       # Claude Code plugin manifest
 .claude-plugin/marketplace.json  # Claude Code marketplace
-.agents/plugins/marketplace.json # Antigravity marketplace
+.codex-plugin/plugin.json        # Codex plugin manifest
+.agents/plugins/marketplace.json # Codex / Antigravity marketplace
 ```
 
-`skills/<name>/SKILL.md` is simultaneously the Antigravity and the Claude Code skill format, so
-nothing is duplicated between runtimes — only the thin manifests differ.
+`skills/<name>/SKILL.md` is shared by all three runtimes. Supporting files stay beside each skill
+so installed copies retain their relative references.
 
 ### 3.2. How the runtimes differ
 
 Worth knowing, because it explains why the layout looks the way it does:
 
-| | Antigravity | Claude Code |
-|---|---|---|
-| Plugin manifest | `plugin.json` at the plugin root | `.claude-plugin/plugin.json` |
-| Distribution | clone into `~/.gemini/config/plugins/` | marketplace + versioned cache |
-| Picking up an edit | `git pull` — reads the working tree | needs a **version bump** |
-| A project's `.agents/skills/` | ✅ native, and outranks a global plugin | ❌ not a load path |
-| A project's `.agents/rules/*.md` | ✅ native | ❌ — reaches them via root `CLAUDE.md` imports |
-| Rule frontmatter `trigger: always_on` | ✅ honoured | ignored |
-| Symlinked skill folders | followed | ❌ **skipped** (`unsafe or symlinked skill folder`) |
+| | Antigravity | Claude Code | Codex |
+|---|---|---|---|
+| Plugin manifest | root `plugin.json` | `.claude-plugin/plugin.json` | `.codex-plugin/plugin.json` |
+| Distribution | clone into `~/.gemini/config/plugins/` | marketplace + versioned cache | marketplace + managed plugin cache |
+| Picking up a release | `git pull` | marketplace update + plugin update | marketplace upgrade + plugin add; new thread |
+| Project entry point | `AGENTS.md` | `CLAUDE.md` → `AGENTS.md` | `AGENTS.md` |
+| Loading Markdown rules | native discovery | explicit `@` imports | explicit instructions to read the rule files |
+| Rule frontmatter `trigger: always_on` | honoured | ignored | not a Codex rule mechanism |
 
-Both load skills by **progressive disclosure**: only `name` and `description` enter the context
+All three load skills by **progressive disclosure**: only `name` and `description` enter the context
 window; the body is read when the skill activates. Keep `SKILL.md` concise and push bulk into the
 skill's own `references/`, `scripts/`, `resources/` or `examples/` subdirectory.
 
@@ -242,7 +287,7 @@ Skills activate on `description` matching, which is probabilistic. The hook make
 deterministic: at the start of a conversation it injects the `using-superpowers` skill, which
 instructs the agent to reach for a skill before answering.
 
-The two runtimes need different wiring, so one script serves both:
+Claude Code and Antigravity need different wiring, so one script serves both:
 
 | | Event | Output | Fires |
 |---|---|---|---|
@@ -267,7 +312,12 @@ Antigravity reads a `hooks.json` both at the customization root (`~/.gemini/conf
 and inside a plugin (`plugins/<name>/hooks.json`) — configuring both makes the hook run **twice**.
 This kit ships only the plugin-level one, so nothing extra is needed per machine.
 
-`scripts/verify.sh` step 6 exercises all four paths.
+`scripts/verify.sh` step 6 exercises all five paths.
+
+Codex installations with bundled hook support can also discover `hooks/hooks.json` and provide
+the `CLAUDE_PLUGIN_ROOT` compatibility variable. Hook execution depends on the host's hook
+configuration and trust settings. The Codex setup above uses `AGENTS.md` and explicit skill
+selection as its entry point; see the [Codex tool mapping](skills/using-superpowers/references/codex-tools.md).
 
 ### 3.4. Authoring a skill
 
@@ -281,8 +331,8 @@ description: Use this skill when …   # what it does AND when to use it — dri
 ---
 ```
 
-`description` is the field both runtimes read to decide whether to activate the skill, so it
-carries more weight than anything in the body. All 52 skills use these two fields and nothing
+`description` is the field all three runtimes read to decide whether to activate the skill, so it
+carries more weight than anything in the body. All 54 skills use these two fields and nothing
 else — adding non-standard keys risks a frontmatter parse failure with no error surfaced.
 
 Use the `writing-skills` skill when creating or editing one, and run `scripts/verify.sh` before

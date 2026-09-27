@@ -51,9 +51,10 @@ These thoughts mean STOP—you're rationalizing:
 
 ## Platform Adaptation
 
-This kit targets two runtimes: **Claude Code** (the default these skills are written against)
-and **Antigravity**. On Antigravity, read [`references/antigravity-tools.md`](references/antigravity-tools.md)
-for how the actions these skills describe map to its tools.
+This kit targets **Claude Code** (the default these skills are written against), **Antigravity**,
+and **Codex**. On Antigravity, read [`references/antigravity-tools.md`](references/antigravity-tools.md).
+On Codex, read [`references/codex-tools.md`](references/codex-tools.md). These references map the
+actions described in the skills to the tools available in each runtime.
 
 ## User Instructions
 

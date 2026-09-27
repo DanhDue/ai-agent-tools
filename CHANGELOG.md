@@ -8,6 +8,53 @@ every installed machine on the old cached copy.
 
 ---
 
+## 1.4.0 — 2026-09-28
+
+Adds Codex distribution while keeping one shared skill library for Codex, Claude Code, and
+Antigravity.
+
+### Added
+
+- **Codex plugin manifest** at `.codex-plugin/plugin.json`, with discovery metadata, starter
+  prompts, and the existing `skills/` directory as its skill source.
+- **Codex installation and update instructions** in the README, including the distinction
+  between GitHub marketplace distribution and submission to OpenAI's public Plugins Directory.
+- **Codex tool mapping** in `using-superpowers`, covering skill loading, file and shell tools,
+  optional subagents, and explicit rule loading through a project's `AGENTS.md`.
+
+### Changed
+
+- The shared `.agents/plugins/marketplace.json` uses a local source path at the repository root,
+  so Codex resolves the plugin from the checked-out marketplace.
+- Project scaffolding includes Codex installation commands and explicit instructions to read
+  rules from the project or installed plugin. The bootstrap hook directs agents to the runtime
+  tool mapping instead of assuming Claude's `Skill` tool exists.
+- `release.sh` requires dated release notes and a newer version, releases from `main`, and keeps
+  the root, Claude, and Codex manifests plus Claude marketplace versions synchronized. It
+  verifies again after the bump and prints Codex refresh commands.
+- `verify.sh` checks Codex metadata, shared skill paths, marketplace identity, version agreement,
+  dated release notes, and README anchors in addition to the existing checks.
+
+### Fixed
+
+- Claude marketplace metadata still advertised `1.3.0` after the plugin reached `1.3.1`.
+- The shared marketplace described `./` as a remote URL instead of a local plugin path.
+
+### Upgrading
+
+Install in Codex:
+
+```bash
+codex plugin marketplace add DanhDue/ai-agent-tools
+codex plugin add d3nexus@danhdue-agent-tools
+```
+
+Start a new thread after installation. Existing consuming projects should merge the **Rules**
+section from [templates/AGENTS.md](templates/AGENTS.md) so Codex reads the kit's rule files.
+Claude Code and Antigravity users can use their existing update commands.
+
+---
+
 ## 1.3.1 — 2026-09-18
 
 Adds planning-mode interception guards to prevent agents from bypassing the d3nexus workflow

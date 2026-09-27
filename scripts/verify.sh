@@ -10,13 +10,45 @@ note() { printf '%s\n' "$1"; }
 fail() { printf '  FAIL %s\n' "$1"; FAILED=1; }
 
 note "== 1. JSON manifests parse =="
-for f in plugin.json .claude-plugin/plugin.json .claude-plugin/marketplace.json .agents/plugins/marketplace.json; do
+for f in plugin.json .claude-plugin/plugin.json .codex-plugin/plugin.json .claude-plugin/marketplace.json .agents/plugins/marketplace.json; do
   if python3 -c "import json,sys;json.load(open('$f'))" 2>/dev/null; then
     note "  ok   $f"
   else
     fail "$f is not valid JSON"
   fi
 done
+
+note "== 1b. Runtime versions and Codex marketplace agree =="
+python3 - <<'PY' || FAILED=1
+import json, pathlib, re, sys
+try:
+    manifests = [json.loads(pathlib.Path(p).read_text()) for p in
+                 ("plugin.json", ".claude-plugin/plugin.json", ".codex-plugin/plugin.json")]
+    claude = json.loads(pathlib.Path(".claude-plugin/marketplace.json").read_text())
+    catalog = json.loads(pathlib.Path(".agents/plugins/marketplace.json").read_text())
+    entry, = [p for p in catalog["plugins"] if p["name"] == "d3nexus"]
+    claude_entry, = [p for p in claude["plugins"] if p["name"] == "d3nexus"]
+    versions = {m["version"] for m in manifests} | {claude_entry["version"]}
+    assert all(m["name"] == "d3nexus" for m in manifests), "plugin names must agree"
+    assert len(versions) == 1, f"release versions differ: {sorted(versions)}"
+    version, = versions
+    assert re.fullmatch(r'(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)', version), "invalid release version"
+    assert re.search(r'^## ' + re.escape(version) + r' — \d{4}-\d{2}-\d{2}\n\n\S',
+                     pathlib.Path("CHANGELOG.md").read_text(), re.M), "missing dated release notes"
+    assert catalog["name"] == claude["name"] == "danhdue-agent-tools", "marketplace names differ"
+    assert entry["source"] == {"source": "local", "path": "./"}, "marketplace must load the repo root"
+    assert entry["policy"] == {"installation": "AVAILABLE", "authentication": "ON_INSTALL"}, "invalid policy"
+    assert entry["category"] == "Developer Tools", "missing marketplace category"
+    codex = manifests[2]
+    assert codex["skills"] == "./skills/" and pathlib.Path(codex["skills"]).is_dir(), "missing shared skills"
+    assert not ({"apps", "mcpServers", "hooks"} & codex.keys()), "unexpected Codex components"
+    for field in ("displayName", "shortDescription", "longDescription", "developerName", "category"):
+        assert codex["interface"][field].strip(), f"missing Codex interface.{field}"
+    print(f"  ok   d3nexus {version}, shared skills, and repo marketplace")
+except (AssertionError, KeyError, ValueError, OSError, TypeError) as error:
+    print(f"  FAIL {error}")
+    sys.exit(1)
+PY
 
 note "== 2. Skill frontmatter is exactly name + description =="
 python3 - <<'PY' || FAILED=1
@@ -46,7 +78,7 @@ bad = 0
 targets = list(pathlib.Path("skills").glob("*/SKILL.md")) \
         + list(pathlib.Path("skills").glob("*/**/*.md")) \
         + list(pathlib.Path("rules").glob("*.md")) \
-        + [pathlib.Path("README.md"), pathlib.Path("CLAUDE.md")]
+        + [pathlib.Path("README.md"), pathlib.Path("CLAUDE.md"), pathlib.Path("CHANGELOG.md")]
 targets = sorted(set(targets))
 def strip_fences(s):
     # Link syntax also occurs inside code samples and inline code spans that document
@@ -72,7 +104,7 @@ import pathlib, re, sys
 def anchor(h):
     h = h.lower(); h = re.sub(r'[^\w\s-]', '', h); return '#' + h.replace(' ', '-')
 bad = 0
-for p in sorted(pathlib.Path("skills").glob("*/SKILL.md")):
+for p in sorted(pathlib.Path("skills").glob("*/SKILL.md")) + [pathlib.Path("README.md")]:
     s = p.read_text(); fence = False; heads = []
     for ln in s.split("\n"):
         if ln.startswith("```"): fence = not fence; continue
