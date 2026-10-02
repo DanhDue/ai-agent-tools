@@ -52,6 +52,14 @@ git commit -m "[EPIC_NAME] Task title" -m "- subtask title 01
 > **Never append trailer lines.** No `Co-Authored-By:`, no `Generated with`, no tool attribution
 > of any kind. The commit ends with the last bullet.
 
+## Git Push Operations (No Unauthorized Push)
+
+> [!CRITICAL]
+> **NEVER push code to a remote repository (`git push`) without explicit user permission or confirmation.**
+> - You may stage (`git add`) and commit (`git commit`) locally following the commit message format when appropriate.
+> - Running `git push` (to any remote or branch) is **STRICTLY PROHIBITED** unless the user explicitly requests or confirms it in the prompt.
+> - Always let the user review local commits or explicitly ask for permission before pushing to remote.
+
 ## Antigravity Planning Mode Interception
 
 > [!CRITICAL]
