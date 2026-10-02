@@ -49,8 +49,19 @@ echo "Placing platform config via copy_secure_configurations..."
 # prints "⚠️  Missing ..." per file. Capture its output and fail loudly on
 # any warning, otherwise this script would report success for a worktree
 # that cannot actually build.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+COPY_SECURE_SCRIPT=""
+if [ -f "$WORKTREE_PATH/.agents/skills/copy_secure_configurations/resources/scripts/copy_secure_files.sh" ]; then
+  COPY_SECURE_SCRIPT="$WORKTREE_PATH/.agents/skills/copy_secure_configurations/resources/scripts/copy_secure_files.sh"
+elif [ -f "$SCRIPT_DIR/../../../copy_secure_configurations/resources/scripts/copy_secure_files.sh" ]; then
+  COPY_SECURE_SCRIPT="$SCRIPT_DIR/../../../copy_secure_configurations/resources/scripts/copy_secure_files.sh"
+else
+  echo "copy_secure_files.sh not found in worktree or plugin directory" >&2
+  exit 1
+fi
+
 SECURE_CONFIG_STATUS=0
-SECURE_CONFIG_OUTPUT="$(cd "$WORKTREE_PATH" && sh .agents/skills/copy_secure_configurations/resources/scripts/copy_secure_files.sh 2>&1)" || SECURE_CONFIG_STATUS=$?
+SECURE_CONFIG_OUTPUT="$(cd "$WORKTREE_PATH" && sh "$COPY_SECURE_SCRIPT" 2>&1)" || SECURE_CONFIG_STATUS=$?
 echo "$SECURE_CONFIG_OUTPUT"
 if [ "$SECURE_CONFIG_STATUS" -ne 0 ]; then
   echo "copy_secure_configurations failed (exit $SECURE_CONFIG_STATUS)." >&2

@@ -194,7 +194,7 @@ def find_epic_slug(root: Path, epic_dir: str) -> str | None:
         slug = epic_of(task_file)
         if slug:
             return slug
-    return None
+    return sanitize_slug(epic_dir)
 
 
 def find_epic_dir_for_slug(root: Path, epic_slug: str) -> str | None:
@@ -279,7 +279,8 @@ def archive_epic_tasks(roots: list[Path], epic_dir: str) -> tuple[list[Path], li
                 continue
             for task_file in sorted(fdir.glob("task_*.md")):
                 file_epic = epic_of(task_file)
-                if epic_slug and file_epic and file_epic != epic_slug:
+                target_slug = epic_slug or sanitize_slug(epic_dir)
+                if file_epic and file_epic != target_slug:
                     continue
                 dest_file = dest_dir / task_file.name
                 content = task_file.read_text()
