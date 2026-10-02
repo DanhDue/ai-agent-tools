@@ -80,6 +80,12 @@ if [ -d "$HOME/.gemini/config/plugins/d3nexus/.git" ]; then
   git -C "$HOME/.gemini/config/plugins/d3nexus" pull -q origin main || true
 fi
 
+if command -v codex >/dev/null 2>&1; then
+  echo "  updating codex plugin"
+  codex plugin marketplace upgrade danhdue-agent-tools 2>/dev/null || true
+  codex plugin add d3nexus@danhdue-agent-tools 2>/dev/null || true
+fi
+
 echo
 echo "Done. Restart the session (or reload the IDE window) to load $NEW."
 echo "On any other machine, run only step 4."
