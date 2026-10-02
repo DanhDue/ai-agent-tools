@@ -8,6 +8,21 @@ every installed machine on the old cached copy.
 
 ---
 
+## 1.4.1 — 2026-10-02
+
+Adds a mandatory critical rule prohibiting unauthorized remote git push operations and improves worktree bootstrapping resilience.
+
+### Added
+
+- **Git push operations guard** in `rules/CRITICAL_RULES.md`, strictly prohibiting agents from running `git push` to remote repositories without explicit user permission or confirmation.
+
+### Fixed
+
+- **Worktree bootstrap script** (`bootstrap_worktree.sh`) now falls back to locating `copy_secure_files.sh` directly within the installed plugin directory when not vendored in `.agents/`.
+- **Kanban task status synchronizer** (`sync_task_status.py`) falls back to `sanitize_slug(epic_dir)` to prevent lookup failures during task synchronization.
+
+---
+
 ## 1.4.0 — 2026-09-28
 
 Adds Codex distribution while keeping one shared skill library for Codex, Claude Code, and
