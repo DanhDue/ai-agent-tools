@@ -2,8 +2,9 @@
 
 Use this template when dispatching the content-audit subagent on the `Kind: document` path.
 
-**Purpose:** verify a document is complete, internally consistent, stays inside its declared
-Diátaxis type, and actually delivers its stated `Acceptance` criterion.
+**Purpose:** verify a bilingual document pair is complete, internally consistent, stays inside its
+declared Diátaxis type, preserves meaning across translations, and actually delivers its stated
+`Acceptance` criterion.
 
 **Dispatch after:** `check_document.py` has passed. The mechanical checks catch what a script can
 see; this catches what only a reader can.
@@ -15,9 +16,10 @@ see; this catches what only a reader can.
 Task tool (general-purpose):
   description: "Review document"
   prompt: |
-    You are a document reviewer. Verify this document is ready to publish.
+    You are a document reviewer. Verify this bilingual document pair is ready to publish.
 
-    **Document:** [DOCUMENT_PATH]
+    **English document (canonical):** [ENGLISH_DOCUMENT_PATH]
+    **Vietnamese document:** [VIETNAMESE_DOCUMENT_PATH]
     **Declared Diátaxis type:** [tutorial | how-to | reference | explanation]
     **Declared audience:** [AUDIENCE]
     **Declared Acceptance criterion:** [ACCEPTANCE]
@@ -31,6 +33,7 @@ Task tool (general-purpose):
     | Clarity | Wording ambiguous enough that a reader would do the wrong thing |
     | Type conformance | Material belonging to a different Diátaxis type. A tutorial carrying explanation, a how-to guide teaching, reference giving instructions, explanation describing machinery — each is a finding |
     | Unsupported claims | Statements of fact with nothing behind them: invented numbers, attributed rules the source does not contain, capabilities asserted without evidence |
+    | Translation parity | Facts, omissions, examples, links, and section ordering that differ between English and Vietnamese |
     | Acceptance | Could the stated audience actually do the Acceptance criterion after reading this, using only what is here and what it links to? |
 
     ## Calibration
@@ -57,10 +60,13 @@ Task tool (general-purpose):
 
     **Type conformance:** Clean | [passage] belongs in [type]
 
+    **Translation parity:** Clean | [specific mismatch]
+
     **Acceptance:** Met | Not met - [what is missing]
 
     **Recommendations (advisory, do not block approval):**
     - [suggestions]
 ```
 
-**Reviewer returns:** Status, Issues, Type conformance verdict, Acceptance verdict, Recommendations.
+**Reviewer returns:** Status, Issues, Type conformance verdict, Translation parity verdict,
+Acceptance verdict, Recommendations.

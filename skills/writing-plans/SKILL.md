@@ -15,14 +15,23 @@ Assume they are a skilled developer, but know almost nothing about our toolset o
 
 **Context:** If working in an isolated worktree, it should have been created via the `d3nexus:using-git-worktrees` skill at execution time.
 
-**Save plans to:** `docs/superpowers/plans/YYYY-MM-DD-<feature-name>.md`
+**Save plans as a synchronized pair:**
+
+- English, canonical: `docs/superpowers/plans/YYYY-MM-DD-<feature-name>.en.md`
+- Vietnamese: `docs/superpowers/plans/YYYY-MM-DD-<feature-name>.vi.md`
 - (User preferences for plan location override this default)
+
+Both variants MUST have the same structure, facts, task ordering, code samples, and a linked table
+of contents covering every `##` and `### Task` section. Write and update English first, then
+synchronize Vietnamese. `task_*.md` files created by other workflows remain English-only; that
+exception does not apply to an implementation plan.
 
 ## Reviewing a Written Plan
 
 Before handing a plan to an executor, dispatch a reviewer subagent using
 [`plan-document-reviewer-prompt.md`](plan-document-reviewer-prompt.md). A plan that reads well to
-its author and is missing a step reads exactly the same either way.
+its author and is missing a step reads exactly the same either way. Review the canonical `.en.md`
+plan, apply every content fix to it, and then synchronize the `.vi.md` translation.
 
 ## Scope Check
 
@@ -74,6 +83,10 @@ independently testable deliverable.
 
 **Spec:** [path to the spec/design doc this plan implements — the plan
 argues from the spec, so the spec travels with it; executors read both]
+
+## Table of Contents
+
+[A linked entry for every major section and every `### Task` heading]
 
 ## Global Constraints
 
@@ -146,7 +159,8 @@ Every step must contain the actual content an engineer needs. These are **plan f
 
 ## Self-Review
 
-After writing the complete plan, look at the spec with fresh eyes and check the plan against it. This is a checklist you run yourself — not a subagent dispatch.
+After writing the complete plan, look at the spec with fresh eyes and check the canonical English
+plan against it. This is a checklist you run yourself — not a subagent dispatch.
 
 **1. Spec coverage:** Skim each section/requirement in the spec. Can you point to a task that implements it? List any gaps.
 
@@ -156,11 +170,21 @@ After writing the complete plan, look at the spec with fresh eyes and check the 
 
 If you find issues, fix them inline. No need to re-review — just fix and move on. If you find a spec requirement with no task, add the task.
 
+Synchronize the Vietnamese plan after all English fixes, then verify both files mechanically:
+
+```bash
+python3 skills/doc_quality_check/resources/scripts/check_document.py \
+  --require-toc --require-bilingual \
+  docs/superpowers/plans/YYYY-MM-DD-<feature-name>.en.md \
+  docs/superpowers/plans/YYYY-MM-DD-<feature-name>.vi.md
+```
+
 ## Execution Handoff
 
 After saving the plan, offer execution choice:
 
-**"Plan complete and saved to `docs/superpowers/plans/<filename>.md`. Two execution options:**
+**"Plan complete and saved to `docs/superpowers/plans/<filename>.en.md` and
+`docs/superpowers/plans/<filename>.vi.md`. Two execution options:**
 
 **1. Subagent-Driven (recommended)** - I dispatch a fresh subagent per task, review between tasks, fast iteration
 

@@ -67,6 +67,14 @@ Plans go through `writing-plans` skill (non-epic) or `dev-designer` task files (
 If you find yourself about to write `implementation_plan.md`, STOP — you are bypassing a gate.
 </HARD-GATE>
 
+## Document Contract
+
+Every durable design document produced by this lifecycle MUST be emitted as a synchronized English
+`.en.md` and Vietnamese `.vi.md` pair. English is canonical; Vietnamese matches its structure and
+facts. Every variant MUST contain a linked table of contents covering every `##` section, regardless
+of document length. This applies to specs, HLD/overview documents, BDD scenario documents, and
+non-epic implementation plans. `task_*.md` files are the only exception and remain English-only.
+
 ## The Five Gates
 
 Every gate is a **human approval** except Gate 4, which is a machine verdict. Never cross one
@@ -74,8 +82,8 @@ on your own judgement.
 
 | Gate | Name | Approver | Enforced in | Handoff artefact |
 |------|------|----------|-------------|------------------|
-| **1** | Spec Approved | User | end of `dev-brainstorming` | `<epic_dir>/YYYY-MM-DD-<topic>-design.md` |
-| **2** | HLD & Task Breakdown | User | `dev-designer` task-breakdown checkpoint | `<epic_dir>.en.md` + `.vi.md` + `bdd_scenarios.md` + `task_*.md` |
+| **1** | Spec Approved | User | end of `dev-brainstorming` | `YYYY-MM-DD-<topic>-design.en.md` + `.vi.md` |
+| **2** | HLD & Task Breakdown | User | `dev-designer` task-breakdown checkpoint | `<epic_dir>.en.md` + `.vi.md` + `bdd_scenarios.en.md` + `.vi.md` + `task_*.md` |
 | **3** | Execution Order | User | `dev-implementation` Phase 1 checkpoint | confirmed order + bootstrapped worktree |
 | **4** | Quality LGTM & Check 2 | `quality_check` | `dev-implementation` Phase 4 | 🟢 report + coverage matrix + merge-ready branch |
 | **5** | Developer Kanban Sign-Off | User | `dev-implementation` Phase 4.1 checkpoint | User confirmation to proceed with branch finishing and archival |
@@ -95,11 +103,12 @@ step, and a spec that never passed through it has not cleared the gate.
 - **Epic-scale code** → `dev-designer`, which is Stage 2 of this lifecycle — multiple independent
   components/services, needs Kanban breakdown plus architecture/use-case/sequence diagrams, or the
   user called it an epic or large feature.
-  → relocate the spec from `docs/superpowers/specs/` into `.devtool/epic/<epic_dir>/<same-filename>`
-  (create the directory if needed), fix relative links inside the moved file, then go to Stage 2
-  passing that new path.
+  → relocate both spec variants from `docs/superpowers/specs/` into
+  `.devtool/epic/<epic_dir>/` (create the directory if needed), fix relative links inside both
+  moved files, then go to Stage 2 passing the canonical `.en.md` path.
 - **Everything else** → `writing-plans`. This leaves the epic lifecycle; the remaining gates do
-  not apply.
+  not apply. `writing-plans` still emits the required `.en.md`/`.vi.md` plan pair with complete
+  tables of contents.
 
 When in doubt, ask the user rather than guessing.
 
@@ -172,6 +181,9 @@ the 🟢 verdict must come from a complete run.
 - Invoking `finishing-a-development-branch` without passing Gate 5 (explicit user sign-off after Kanban review).
 - Archiving tasks from `.devtool/features/done/` prematurely before Gate 5 user review.
 - Leaving a spec split across `docs/superpowers/specs/` and `.devtool/epic/<epic_dir>/`.
+- Producing a durable design document without both language variants or without a complete table
+  of contents.
+- Translating `task_*.md`; task files remain English-only.
 - Leaving completed `task_*.md` files in `.devtool/features/done/` or draft specs in `docs/superpowers/` after branch integration.
 
 ## Rationalizations — STOP and Re-read This Skill

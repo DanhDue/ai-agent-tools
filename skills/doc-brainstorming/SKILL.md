@@ -47,7 +47,9 @@ You MUST create a task for each of these items and complete them in order:
 3. **Ask clarifying questions** — one at a time, understand purpose, scope and what "done" means
 4. **Propose 2-3 approaches** — with trade-offs and your recommendation
 5. **Present design** — in sections scaled to their complexity, get user approval after each
-6. **Write content spec** — save to `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md` and commit
+6. **Write content specs** — save the English and Vietnamese pair to
+   `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.en.md` and `.vi.md`, each with a complete
+   table of contents, then commit them
 7. **Spec self-review** — quick inline check for placeholders, contradictions, ambiguity, scope
 8. **User reviews written spec** — ask the user to review the spec file before proceeding
 9. **Route to the next skill** — one of two routine exits, see Routing After Approval below
@@ -180,11 +182,23 @@ Stage 0 and Gate 1 only.
 
 **Documentation:**
 
-- Write the validated content spec to `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md`
+- Write the validated content spec as a synchronized pair:
+  - English, canonical: `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.en.md`
+  - Vietnamese: `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.vi.md`
   (user preferences for spec location override this default).
+- Both variants MUST contain a linked table of contents covering every `##` section and MUST stay
+  identical in structure and facts. Write and update English first, then synchronize Vietnamese.
+- Before user review, verify the pair mechanically:
+  ```bash
+  python3 skills/doc_quality_check/resources/scripts/check_document.py \
+    --require-toc --require-bilingual \
+    docs/superpowers/specs/YYYY-MM-DD-<topic>-design.en.md \
+    docs/superpowers/specs/YYYY-MM-DD-<topic>-design.vi.md
+  ```
 - Commit it (if `auto_commit` is enabled):
   - Read `.agents/config.json` — check `auto_commit`
-  - If `auto_commit: true` (default when absent): `git add <path> && git commit -m "[<TOPIC>] Add content spec"` —
+  - If `auto_commit: true` (default when absent): stage both language paths and commit with
+    `git commit -m "[<TOPIC>] Add content spec"` —
     see [Commit Message Format](../../rules/CRITICAL_RULES.md#commit-message-format); no
     `Co-Authored-By` or other trailer
   - If `auto_commit: false`: skip commit and staging entirely. Print: "Skipping commit (auto_commit:
@@ -209,8 +223,8 @@ Fix any issues inline. No need to re-review — just fix and move on.
 
 After the self-review passes, ask the user to review the written spec before proceeding:
 
-> "Content spec written and committed to `<path>`. Please review it and let me know if you want to
-> make any changes before we start on the brief and outline."
+> "Content spec written and committed to `<english-path>` and `<vietnamese-path>`. Please review
+> the pair and let me know if you want to make any changes before we start on the brief and outline."
 
 Wait for the user's response. If they request changes, make them and re-run the self-review. Only
 proceed once the user approves.

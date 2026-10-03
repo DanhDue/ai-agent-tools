@@ -32,7 +32,10 @@ You MUST create a task for each of these items and complete them in order:
 4. **Ask clarifying questions** — one at a time, understand purpose/constraints/success criteria
 5. **Propose 2-3 approaches** — with trade-offs and your recommendation
 6. **Present design** — in sections scaled to their complexity, get user approval after each section
-7. **Write design doc** — save to `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md` and commit (relocated into `.devtool/epic/<epic_name>/` later if routed to dev-designer — see Routing After Approval)
+7. **Write design docs** — save the English and Vietnamese pair to
+   `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.en.md` and `.vi.md`, each with a complete
+   table of contents, then commit them (relocated into `.devtool/epic/<epic_name>/` later if routed
+   to dev-designer — see Routing After Approval)
 8. **Spec self-review** — quick inline check for placeholders, contradictions, ambiguity, scope (see below)
 9. **User reviews written spec** — ask user to review the spec file before proceeding
 10. **Route to the next skill** — one of three routine exits, see Routing After Approval below
@@ -88,7 +91,7 @@ spec's risks section and continue.
 
 Once the spec is approved (and has passed self-review), decide which skill picks it up next:
 
-- **Invoke `dev-designer`** when the approved spec describes epic-scale work: multiple independent components/services, a design that will need Kanban task breakdown and architecture/use-case/sequence diagrams, or the user explicitly called it an "epic" or large feature. Before invoking, relocate the spec file from `docs/superpowers/specs/` into `.devtool/epic/<epic_name>/<same-filename>` (creating the directory if `dev-designer` hasn't run for this epic yet), fix any relative links inside the moved file, then pass that new path as input — this keeps the spec, the HLD, and the task files for one epic all in the same directory instead of split across `docs/` and `.devtool/`.
+- **Invoke `dev-designer`** when the approved spec describes epic-scale work: multiple independent components/services, a design that will need Kanban task breakdown and architecture/use-case/sequence diagrams, or the user explicitly called it an "epic" or large feature. Before invoking, relocate both spec files from `docs/superpowers/specs/` into `.devtool/epic/<epic_name>/` (creating the directory if `dev-designer` hasn't run for this epic yet), fix any relative links inside the moved files, then pass the canonical `.en.md` path as input — this keeps the spec pair, the HLD, and the task files for one epic all in the same directory instead of split across `docs/` and `.devtool/`.
 - **Invoke `writing-plans`** (as before) for everything else — a single-component feature, bugfix, or small enough scope that one implementation plan covers it without a separate HLD.
 
 The deliverable decides, not the amount of writing involved. **If the work changes a file that ships in the build, it is code**, however much prose it also produces.
@@ -174,13 +177,27 @@ To ensure this is a true creative collaboration and not just a rigid interrogati
 
 **Documentation:**
 
-- Write the validated design (spec) to `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md`
+- Write the validated design (spec) as a synchronized pair:
+  - English, canonical: `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.en.md`
+  - Vietnamese: `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.vi.md`
   - (User preferences for spec location override this default)
-  - If this spec is later routed to `dev-designer` (see Routing After Approval), it does not stay here — it gets relocated into the epic's own directory so every doc for that epic lives in one place.
+  - Both variants MUST contain a linked table of contents covering every `##` section and MUST stay
+    identical in structure and facts. Write and update English first, then synchronize Vietnamese.
+  - If this spec is later routed to `dev-designer` (see Routing After Approval), neither file stays here — relocate the pair into the epic's own directory so every doc for that epic lives in one place.
+- Before user review, verify the pair mechanically:
+  ```bash
+  python3 skills/doc_quality_check/resources/scripts/check_document.py \
+    --require-toc --require-bilingual \
+    docs/superpowers/specs/YYYY-MM-DD-<topic>-design.en.md \
+    docs/superpowers/specs/YYYY-MM-DD-<topic>-design.vi.md
+  ```
 - Use elements-of-style:writing-clearly-and-concisely skill if available
 - Commit the design document to git (if `auto_commit` is enabled):
   - Read `.agents/config.json` — check `auto_commit` setting
-  - If `auto_commit: true` (default when absent): `git add <path> && git commit -m "[<TOPIC>] Add design spec"` — see [Commit Message Format](../../rules/CRITICAL_RULES.md#commit-message-format); no `Co-Authored-By` or other trailer
+  - If `auto_commit: true` (default when absent): stage both language paths and commit with
+    `git commit -m "[<TOPIC>] Add design spec"`; see
+    [Commit Message Format](../../rules/CRITICAL_RULES.md#commit-message-format); no
+    `Co-Authored-By` or other trailer
   - If `auto_commit: false`: skip commit and staging entirely. Print: "Skipping commit (auto_commit: false in .agents/config.json). File is ready for manual commit."
 
 **Spec Self-Review:**
@@ -199,7 +216,9 @@ Fix any issues inline. No need to re-review — just fix and move on.
 **User Review Gate:**
 After the spec review loop passes, ask the user to review the written spec before proceeding:
 
-> "Spec written and committed to `<path>`. Please review it and let me know if you want to make any changes before we start writing out the implementation plan."
+> "Spec written and committed to `<english-path>` and `<vietnamese-path>`. Please review the pair
+> and let me know if you want to make any changes before we start writing out the implementation
+> plan."
 
 Wait for the user's response. If they request changes, make them and re-run the spec review loop. Only proceed once the user approves.
 

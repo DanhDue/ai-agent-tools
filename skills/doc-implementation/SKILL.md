@@ -73,8 +73,10 @@ For each section, in order:
    ```bash
    python3 skills/dev-implementation/resources/scripts/sync_task_status.py task <task_id> in-progress
    ```
-2. Draft the section, staying inside the document's declared Diátaxis mode. Material belonging to
-   another mode is **relocated and linked**, never inlined and never deleted.
+2. Draft the section in the canonical English deliverable, then translate it into the matching
+   Vietnamese deliverable. Keep headings, facts, links, examples, and section order synchronized.
+   Material belonging to another Diátaxis mode is **relocated and linked**, never inlined and never
+   deleted. The section's commit includes both language files.
 3. **Re-read the section against its own purpose line in the outline.** This replaces the failing
    test, and it is the whole of this skill's verification discipline — see below.
 4. Mark it done, then make exactly one commit staging the section and its task file:
@@ -113,9 +115,17 @@ Keeping it out of the section's own commit is what keeps `git log` readable as o
 
 ### Phase 4 — Gate 3 verification
 
-Once every section is done, run `doc_quality_check`: the refusal rule, mechanical checks, Diátaxis
-conformance and the content audit. Do not run `quality_check` — it verifies code, shares nothing
-with this path, and would report on checks that do not apply.
+Once every section is done, run `doc_quality_check` on both published language variants: the refusal
+rule, bilingual-pair check, complete table-of-contents check, Diátaxis conformance and the content
+audit. Its mechanical command MUST include both flags and both files:
+
+```bash
+python3 skills/doc_quality_check/resources/scripts/check_document.py \
+  --require-toc --require-bilingual <document>.en.md <document>.vi.md
+```
+
+Do not run `quality_check` — it verifies code, shares nothing with this path, and would report on
+checks that do not apply.
 
 On any failure, fix and re-run **in full**. A 🟢 assembled from a partial re-run is not a 🟢.
 

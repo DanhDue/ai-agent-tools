@@ -24,11 +24,14 @@ enforced below, at the Checkpoint before task files are written.
 This skill can start from either:
 
 1. **A raw high-level requirement** given directly by the user (standalone use).
-2. **An approved spec from the `dev-brainstorming` skill** (preferred entry point — the spec has already been through clarifying questions, alternatives, and user approval). For epic-scale work, `dev-brainstorming` relocates the spec file into this epic's own directory, `.devtool/epic/<epic_name>/<same-filename>.md`, before invoking this skill — so the spec already lives alongside the HLD and task files this skill generates.
+2. **An approved spec from the `dev-brainstorming` skill** (preferred entry point — the spec has already been through clarifying questions, alternatives, and user approval). For epic-scale work, `dev-brainstorming` relocates the `.en.md` and `.vi.md` spec pair into this epic's own directory before invoking this skill — so both specs already live alongside the HLD and task files this skill generates.
 
 When invoked with an approved spec, **treat it as the source of truth for scope and decisions already made** — do not re-litigate architecture choices or trade-offs the user already approved. Your job is to *formalize* it: translate its architecture/components/data-flow into the Mermaid diagrams and structured sections below, and break it into Kanban tasks. If the spec is missing something this skill requires (e.g., a rollout strategy), fill the gap, but don't override decisions the spec already made.
 
-Record the link back to the source in the Epic's **Meta Data** section, e.g. `Source Spec: [<topic>-design.md](<file>.md)` — a same-directory link, since the spec already lives in this epic's directory — so the HLD and the original spec stay traceable to each other without leaving `.devtool/epic/<epic_name>/`. If there is no source spec (standalone use), omit this field.
+Record the link back to the matching-language source in each Epic **Meta Data** section: the
+English HLD links to the `.en.md` spec and the Vietnamese HLD links to the `.vi.md` spec. These are
+same-directory links, so the HLD and original spec pair remain traceable without leaving
+`.devtool/epic/<epic_name>/`. If there is no source spec (standalone use), omit this field.
 
 If the original `dev-brainstorming` request was decomposed into multiple sub-project specs, each spec maps to **its own separate epic** — never merge multiple specs into one epic directory.
 
@@ -45,7 +48,12 @@ Detect whether the active project is Flutter, Android Native, or iOS Native:
 ### Step 1: Create the Epic Overview Document (HLD/RFC)
 Generate the Epic Overview documents inside a dedicated directory: `.devtool/epic/<epic_name>/`.
 
-**Self-sufficiency check (source spec placement)**: if this epic has a source spec and it is not already inside `.devtool/epic/<epic_name>/` — e.g. it is still at `docs/superpowers/specs/<file>.md` because `dev-brainstorming`'s Routing After Approval relocation step was skipped, or this skill was invoked directly with a spec path outside the epic directory — relocate it now, before writing anything else: `git mv` the file into `.devtool/epic/<epic_name>/<same-filename>`, then check every relative link inside it (e.g. links into `packages/`, `lib/`, `features/`) still resolves from the new location and fix any that don't. Commit this move on its own, before generating the HLD. Never leave a source spec split across `docs/` and `.devtool/epic/`.
+**Self-sufficiency check (source spec placement)**: if this epic has a source spec and its `.en.md`
+and `.vi.md` pair is not already inside `.devtool/epic/<epic_name>/` — for example, the pair is
+still under `docs/superpowers/specs/` — relocate both files before writing anything else. Check
+every relative link in both files from the new location and fix failures. Commit the pair's move on
+its own before generating the HLD. Never move only one language or leave the pair split across
+`docs/` and `.devtool/epic/`.
 
 You MUST generate two language variants for the overview document:
 - English: `.devtool/epic/<epic_name>/<epic_name>.en.md`
@@ -53,10 +61,11 @@ You MUST generate two language variants for the overview document:
 
 Each document MUST contain the following sections:
 
-1. **Meta Data**: Epic name, Status, Target Release, Platform (`Flutter`, `Android Native`, or `iOS Native`), and `Source Spec` link if this epic was derived from an approved `dev-brainstorming` spec.
-2. **Background (Bối cảnh)**: The problem statement or context (Why are we doing this?).
-3. **Goals & Non-Goals**: Clearly define what is expected to be achieved and what is strictly out of scope to avoid scope creep.
-4. **Architecture & Technical Design**:
+1. **Table of Contents (Mục lục)**: A linked entry for every `##` section in the document.
+2. **Meta Data**: Epic name, Status, Target Release, Platform (`Flutter`, `Android Native`, or `iOS Native`), and `Source Spec` link if this epic was derived from an approved `dev-brainstorming` spec.
+3. **Background (Bối cảnh)**: The problem statement or context (Why are we doing this?).
+4. **Goals & Non-Goals**: Clearly define what is expected to be achieved and what is strictly out of scope to avoid scope creep.
+5. **Architecture & Technical Design**:
    - **High-Level Architecture**: Use a `mermaid graph TD` to show component interactions.
    - **Use Cases**: Use a `mermaid flowchart` to define Actors and their interactions with the system.
    - **Sequence Diagram**: Use a `mermaid sequenceDiagram` to show the step-by-step lifecycle of the primary flow.
@@ -74,16 +83,33 @@ Each document MUST contain the following sections:
      3. **State Transitions**: Valid and invalid state transitions (MVI Action -> State / Event).
      4. **Async / Race Conditions**: Rapid consecutive user interactions (debouncing, stream transformers, cancellation).
      5. **Failures & Storage/Network Resilience**: Timeouts, 4xx/5xx HTTP errors, offline states, corrupted storage/DB.
-5. **BDD Output in Epic Directory (`bdd_scenarios.md`)**:
-   - In addition to embedding in the Epic Overview, generate a dedicated `bdd_scenarios.md` file located at `.devtool/epic/<epic_name>/bdd_scenarios.md`.
-   - The file MUST organize scenarios by Use Case, exhaustively covering all 5 dimensions above in Gherkin syntax.
+6. **BDD Output in Epic Directory**:
+   - In addition to embedding scenarios in the Epic Overview, generate a synchronized pair:
+     - English, canonical: `.devtool/epic/<epic_name>/bdd_scenarios.en.md`
+     - Vietnamese: `.devtool/epic/<epic_name>/bdd_scenarios.vi.md`
+   - Each file MUST contain a linked table of contents covering every `##` section.
+   - Both files MUST organize scenarios by Use Case, exhaustively covering all 5 dimensions above in Gherkin syntax.
    - **Dual Value Purpose**:
      1. *Human Maintenance (Living Documentation)*: Enables any incoming developer to instantly comprehend the business intent, state transitions, boundary limits, and resilience rules without wading through implementation code.
      2. *Instant AI Agent Context Injection*: Provides a dense, unambiguous behavioral contract that can be loaded into an AI Agent's context window in one shot, eliminating hallucinations and ensuring rigorous compliance during implementation or bug fixes.
-6. **Rollout Strategy & Mitigation**: Describe how to deploy this safely (e.g., phased rollout, feature flags) and fallback plans.
-7. **Kanban Tasks Breakdown**: A list of links pointing to the individual task files created in Step 2.
+7. **Rollout Strategy & Mitigation**: Describe how to deploy this safely (e.g., phased rollout, feature flags) and fallback plans.
+8. **Kanban Tasks Breakdown**: A list of links pointing to the individual task files created in Step 2.
 
-**Canonical language**: The `.en.md` variant is the source of truth for tooling/agents — always write and update it first. The `.vi.md` variant is a translation for local team communication and MUST be kept in sync whenever the `.en.md` changes; never let the two diverge in structure or facts.
+**Canonical language**: Every durable design document uses an `.en.md` and `.vi.md` pair. The
+`.en.md` variant is the source of truth for tooling/agents — always write and update it first. The
+`.vi.md` variant is a translation for local team communication and MUST be kept in sync whenever
+the `.en.md` changes; never let the two diverge in structure, facts, or table-of-contents coverage.
+
+Before the task-breakdown checkpoint, verify both design-document pairs mechanically:
+
+```bash
+python3 skills/doc_quality_check/resources/scripts/check_document.py \
+  --require-toc --require-bilingual \
+  .devtool/epic/<epic_name>/<epic_name>.en.md \
+  .devtool/epic/<epic_name>/<epic_name>.vi.md \
+  .devtool/epic/<epic_name>/bdd_scenarios.en.md \
+  .devtool/epic/<epic_name>/bdd_scenarios.vi.md
+```
 
 ### Checkpoint: Confirm Task Breakdown Before Writing Task Files
 Before generating any task file, list the proposed tasks as a short numbered summary (title + one-line scope each) and ask the user to confirm the breakdown and granularity. This is a lightweight check, not a full brainstorming dialogue — the architecture is already approved (from the spec or from this skill's own Step 1); only the *task split* is new and unapproved. Only proceed to write task files once the user confirms or adjusts the list.
@@ -192,7 +218,9 @@ flowchart TD
 >    - Subagent 2's integration flow tests initially act as **ATDD Red Tests** (failing while Subagent 1's code is in-flight).
 >    - Once both subagents report completion, the Lead Agent performs the **Sync Checkpoint**: merges the branches, validates that the integration tests turn **GREEN**, and runs the Tier C acceptance check.
 
-Task files are English-only — do not generate a `.vi.md` variant for tasks and do not mix Vietnamese prose into section headers or body. The English/Vietnamese pairing applies only to the Epic Overview document from Step 1.
+Task files are English-only — do not generate a `.vi.md` variant for `task_*.md` and do not mix
+Vietnamese prose into their section headers or body. They are the sole language-pair exception in
+this workflow; the spec, Epic Overview, and BDD scenario documents remain bilingual.
 
 Each task file MUST adhere to this exact structure:
 

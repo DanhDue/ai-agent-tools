@@ -1,5 +1,5 @@
 {
   "name": "d3nexus",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "description": "Mobile engineering agent kit: epic lifecycle orchestration, 3-tier quality gates, and security/architecture/UI/code-health audits for Flutter, Android Native, and iOS Native."
 }

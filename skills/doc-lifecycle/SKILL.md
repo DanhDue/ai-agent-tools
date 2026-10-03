@@ -66,6 +66,13 @@ flowchart TD
 Gates 1, 2 and 4 are **human approvals**; Gate 3 is a machine verdict. Never cross one on your own
 judgement.
 
+## Document Contract
+
+Every durable document produced by this lifecycle MUST be emitted as a synchronized English
+`.en.md` and Vietnamese `.vi.md` pair. English is canonical; Vietnamese matches its structure and
+facts. Every variant MUST contain a linked table of contents covering every `##` section, regardless
+of document length. The only exception is Kanban `task_*.md`, which remains English-only.
+
 Four, not five. Code and prose differ in ways that change what verification can mean: the unit of
 work is a section rather than an independently testable deliverable, verification is mechanical
 checks plus human judgement rather than a machine running tests, the governing constraint is the
@@ -74,7 +81,7 @@ being wrong is low, the gate count stays below the development side's five.
 
 | Gate | Name | Approver | Enforced in | Handoff artefact |
 |------|------|----------|-------------|------------------|
-| **1** | Spec Approved | User | `doc-brainstorming` user review gate | `docs/superpowers/specs/<date>-<topic>-design.md` |
+| **1** | Spec Approved | User | `doc-brainstorming` user review gate | `<date>-<topic>-design.en.md` + `.vi.md` |
 | **2** | Brief & Outline | User | `doc-designer` breakdown checkpoint | `<doc_dir>.en.md` + `.vi.md` + `task_*.md` |
 | **3** | Draft Verified | `doc_quality_check` | `doc-implementation` final phase | 🟢 document quality report |
 | **4** | Sign-Off | User | `doc-implementation` review checkpoint | User confirmation to finish the branch |
@@ -113,17 +120,17 @@ and the archive.
 **Entry:** Gate 2 passed; outline and `task_*.md` files exist.
 **Exit (Gate 4):** `doc_quality_check` reports 🟢 (Gate 3) **and** the user signs off on the draft.
 
-One worktree, one section at a time, one commit per section. No test suite runs — there is nothing
+One worktree, one section at a time, one commit per section. Each section commit updates the English
+canonical document and its Vietnamese translation together. No test suite runs — there is nothing
 to run. Each section is re-read against its own purpose line in the outline, and on divergence the
-outline is synced before the next section starts.
+outline pair is synced before the next section starts.
 
 **Gate 3 acceptance criteria.** `doc_quality_check` grants 🟢 only when all four of its checks
 pass:
 
-1. **Mechanical** — no placeholder text, every internal link resolves, ToC anchors match headings,
-   mermaid parses, fenced samples are syntactically valid, and **a document of four sections or more
-   carries a table of contents**. A reader who has to scroll a long document hunting for one section
-   is the problem it solves; below four sections there is nothing to navigate.
+1. **Mechanical** — both `.en.md` and `.vi.md` variants exist; no placeholder text; every internal
+   link resolves; mermaid parses; fenced samples are syntactically valid; and each variant carries
+   a complete table of contents linking every `##` section, regardless of document length.
 2. **Diátaxis conformance** — the document stays inside its declared mode.
 3. **Content audit** — no unsupported claims, and the `Acceptance` criterion is actually met.
 4. **Not code work** — the diff touches no file that ships in the build.
@@ -159,6 +166,9 @@ Never advance on a partial pass, and never re-run only the previously failing ch
 - Taking the document path for a diff that touches shipped files.
 - Finishing the branch without the user's Gate 4 sign-off.
 - Leaving the finished document inside `.devtool/`.
+- Producing a durable document without both language variants or without a complete table of
+  contents.
+- Translating `task_*.md`; task files remain English-only.
 
 ## Stage Skills
 

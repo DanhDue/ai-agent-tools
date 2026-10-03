@@ -75,7 +75,7 @@ flowchart TB
 
 1. Read, in full:
    - `.devtool/epic/<epic_dir>/<epic_dir>.en.md` (the canonical HLD — never `.vi.md` for decisions, that's a synced translation).
-   - `.devtool/epic/<epic_dir>/bdd_scenarios.md` (the canonical behavioral contract across the 5 dimensions, if present).
+   - `.devtool/epic/<epic_dir>/bdd_scenarios.en.md` (the canonical behavioral contract across the 5 dimensions, if present; `.vi.md` is its synchronized translation).
    - Every `.devtool/features/task_*.md` whose frontmatter `epic:` matches `<epic_slug>`.
    - Any spec file(s) linked from the HLD's Meta Data section.
 2. Resolve the two paths the rest of this skill uses. `SKILL_DIR` is the directory this
@@ -170,7 +170,7 @@ For each task in the confirmed order, follow `d3nexus:subagent-driven-developmen
    > # PHASE 1: BDD SCENARIOS & TIER CATEGORIZATION (The QA Persona)
    > ⚠️ **STRICT ADVERSARIAL INDEPENDENCE MANDATE (DECOUPLED FROM CODING)**:
    > - You MUST author BDD scenarios in complete isolation from coding.
-   > - Derive scenarios PURELY from the Epic's HLD specifications, `bdd_scenarios.md`, Use Cases (flowchart), and Sequence Diagrams.
+   > - Derive scenarios PURELY from the Epic's HLD specifications, `bdd_scenarios.en.md`, Use Cases (flowchart), and Sequence Diagrams.
    > - Exhaustively apply Boundary Value Analysis & Equivalence Partitioning across 5 dimensions:
    >   1. **Happy Paths**: Normal data flow and standard successful outcomes.
    >   2. **Edge Cases & Boundaries**: Null inputs, empty collections, malformed payloads, boundary numbers.
@@ -202,7 +202,7 @@ For each task in the confirmed order, follow `d3nexus:subagent-driven-developmen
    > 3. **System Integration & E2E Engineer (Tier C Persona)**: Implements host integration flow tests (`*FlowTest.kt` in `:app` / `:shell`).
    > 
    > Follow these phases sequentially:
-   > - **PHASE 1**: BDD Scenarios purely derived from HLD diagrams and `bdd_scenarios.md`, exhaustively applying the 5 dimensions (Happy Paths, Edge Cases & Boundaries, State Transitions, Async / Race Conditions, Failures & Storage/Network Resilience) tagged with `[Tier A - Unit]` vs `[Tier C - Integration]`.
+   > - **PHASE 1**: BDD Scenarios purely derived from HLD diagrams and `bdd_scenarios.en.md`, exhaustively applying the 5 dimensions (Happy Paths, Edge Cases & Boundaries, State Transitions, Async / Race Conditions, Failures & Storage/Network Resilience) tagged with `[Tier A - Unit]` vs `[Tier C - Integration]`.
    > - **PHASE 2**: TDD Unit Implementation (RED failing test -> GREEN Kotlin code -> REFACTOR `./gradlew spotlessApply` + `./gradlew detekt`).
    > - **PHASE 3**: System Integration (`*FlowTest.kt`, cold/warm start, DFM split resolution, `./scripts/acceptance_check.sh`).
 
@@ -213,7 +213,7 @@ For each task in the confirmed order, follow `d3nexus:subagent-driven-developmen
    > 3. **System Integration & E2E Engineer (Tier C Persona)**: Implements host integration flow tests (`App/Tests` / `Shell/Tests`) wiring DI, `AppRoutes`, and RouteProvider registration.
    > 
    > Follow these phases sequentially:
-   > - **PHASE 1**: BDD Scenarios purely derived from HLD diagrams and `bdd_scenarios.md`, exhaustively applying the 5 dimensions (Happy Paths, Edge Cases & Boundaries, State Transitions, Async / Race Conditions, Failures & Storage/Network Resilience) tagged with `[Tier A - Unit]` vs `[Tier C - Integration]`.
+   > - **PHASE 1**: BDD Scenarios purely derived from HLD diagrams and `bdd_scenarios.en.md`, exhaustively applying the 5 dimensions (Happy Paths, Edge Cases & Boundaries, State Transitions, Async / Race Conditions, Failures & Storage/Network Resilience) tagged with `[Tier A - Unit]` vs `[Tier C - Integration]`.
    > - **PHASE 2**: TDD Unit Implementation (RED failing test: `swift test --package-path <Path>` -> GREEN Swift code -> REFACTOR `swiftformat --config quality/.swiftformat .`, `swiftlint lint --strict --config quality/.swiftlint.yml`, `bash scripts/check_module_boundaries.sh`, `swift test --package-path ArchTests`).
    > - **PHASE 3**: System Integration (`App/Tests`, RouteProvider registration, `tuist generate --no-open && xcodebuild test ...`).
 

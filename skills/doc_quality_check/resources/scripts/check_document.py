@@ -6,11 +6,13 @@ skipped under load, so the mechanical half of Gate 2 is a script rather than a c
 
 Usage:
   check_document.py FILE [FILE ...]           run the mechanical checks
-  check_document.py --require-toc FILE ...    also require a table of contents
+  check_document.py --require-toc FILE ...    require a complete table of contents
+  check_document.py --require-bilingual FILE ... require matching .en.md/.vi.md files
   check_document.py --changed-files F [F ...] apply the refusal rule and exit
 
---require-toc applies to doc-lifecycle deliverables. It is opt-in because task files, epic
-records and SKILL.md files are not deliverables and were never meant to carry one.
+--require-toc and --require-bilingual apply to lifecycle deliverables. They are opt-in because
+task files, epic records and SKILL.md files are not deliverables and were never meant to carry
+either contract.
 
 Exit 0 clean, 1 on any finding.
 """
@@ -32,9 +34,9 @@ SHIPPED_EXCEPTIONS = re.compile(r"(?:^|/)(\.devtool|docs|\.github)/|(?:^|/)CHANG
 
 PLACEHOLDER = re.compile(r"\b(TBD|TODO|FIXME|XXX)\b")
 
-# A reader scrolling a long document to find one section is the problem a table of contents
-# solves. Below this many top-level sections there is nothing to navigate.
-TOC_MIN_SECTIONS = 4
+TOC_HEADING = re.compile(
+    r"^##\s+.*(?:table of contents|contents|mục lục)\s*$", re.IGNORECASE
+)
 
 
 def strip_code(text: str) -> str:
@@ -89,11 +91,55 @@ def check_file(path: pathlib.Path, require_toc: bool = False) -> list:
 
     if require_toc:
         sections = [ln for ln in raw.split("\n") if re.match(r"^##\s+", ln)]
-        if len(sections) >= TOC_MIN_SECTIONS and not re.search(r"\]\(#", prose):
-            findings.append((path, 0,
-                             f"{len(sections)} sections and no table of contents — "
-                             "a reader cannot navigate it"))
+        plan_tasks = [ln for ln in raw.split("\n") if re.match(r"^###\s+Task\s+", ln)]
+        navigable_headings = sections + plan_tasks
+        toc_sections = [ln for ln in sections if TOC_HEADING.match(ln)]
+        linked_anchors = set(re.findall(r"\]\((#[^)]+)\)", prose.lower()))
+        if not toc_sections:
+            findings.append((path, 0, "no table of contents heading — a reader cannot navigate it"))
+        for heading in navigable_headings:
+            if TOC_HEADING.match(heading):
+                continue
+            heading_anchor = anchor(heading)
+            if heading_anchor not in linked_anchors:
+                findings.append((path, 0,
+                                 f"table of contents does not link section: {heading}"))
     return findings
+
+
+def check_language_pairs(paths: list[pathlib.Path]) -> list:
+    """Require every lifecycle document to have matching English and Vietnamese files."""
+    findings = []
+    normalized = {path.resolve() for path in paths}
+    for path in paths:
+        name = path.name
+        if name.endswith(".en.md"):
+            counterpart = path.with_name(name[:-6] + ".vi.md")
+        elif name.endswith(".vi.md"):
+            counterpart = path.with_name(name[:-6] + ".en.md")
+        else:
+            findings.append((path, 0,
+                             "lifecycle document must use an .en.md or .vi.md language suffix"))
+            continue
+        if counterpart.resolve() not in normalized:
+            state = "missing" if not counterpart.exists() else "not included in this check"
+            findings.append((path, 0, f"language counterpart {state}: {counterpart.name}"))
+            continue
+        if name.endswith(".en.md"):
+            english_structure = heading_structure(path)
+            vietnamese_structure = heading_structure(counterpart)
+            if english_structure != vietnamese_structure:
+                findings.append((path, 0,
+                                 "English/Vietnamese heading structure differs: "
+                                 f"{english_structure} != {vietnamese_structure}"))
+    return findings
+
+
+def heading_structure(path: pathlib.Path) -> list[int]:
+    """Return heading levels so translated pairs can be checked without comparing wording."""
+    return [len(match.group(1))
+            for line in path.read_text().splitlines()
+            if (match := re.match(r"^(#{1,6})\s+", line))]
 
 
 def refusal(changed: list) -> list:
@@ -112,7 +158,9 @@ def main() -> int:
     ap.add_argument("files", nargs="*")
     ap.add_argument("--changed-files", nargs="*", default=None)
     ap.add_argument("--require-toc", action="store_true",
-                    help="require a table of contents (doc-lifecycle deliverables)")
+                    help="require a complete table of contents (lifecycle deliverables)")
+    ap.add_argument("--require-bilingual", action="store_true",
+                    help="require matching .en.md and .vi.md lifecycle documents")
     args = ap.parse_args()
 
     if args.changed_files is not None:
@@ -131,8 +179,11 @@ def main() -> int:
         return 1
 
     findings = []
-    for f in args.files:
-        findings += check_file(pathlib.Path(f), require_toc=args.require_toc)
+    paths = [pathlib.Path(f) for f in args.files]
+    for path in paths:
+        findings += check_file(path, require_toc=args.require_toc)
+    if args.require_bilingual:
+        findings += check_language_pairs(paths)
     for path, line, msg in findings:
         where = f"{path}:{line}" if line else str(path)
         print(f"  FAIL {where} — {msg}")

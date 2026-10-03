@@ -83,9 +83,9 @@ A list of sections, each with **one line stating that section's purpose**. That 
 decoration: `doc-implementation` checks every drafted section against it, and it is the only
 pre-written expectation a section is measured by.
 
-**This outline becomes the deliverable's table of contents.** From four sections upward the finished
-document carries one, linking each section — it is the same list the reader needs, so write it once.
-Gate 3 checks for it.
+**This outline becomes the deliverable's table of contents.** Every overview and finished document
+carries one, even when the outline is short, with a link to every `##` section. It is the same list
+the reader needs, so write it once. Gate 3 checks completeness in both languages.
 
 ### Step 4 — Break the outline into tasks
 
@@ -115,6 +115,15 @@ Source Spec: <link, if this came from doc-brainstorming>
 `Kind: document` records what this work item is, for the shared Kanban board and the archive. It is
 not a dispatch key — `doc-lifecycle` names `doc_quality_check` as Gate 3 directly, so the two
 quality gates never have to know about each other.
+
+Before Gate 2, verify the overview pair mechanically:
+
+```bash
+python3 skills/doc_quality_check/resources/scripts/check_document.py \
+  --require-toc --require-bilingual \
+  .devtool/epic/<doc_dir>/<doc_dir>.en.md \
+  .devtool/epic/<doc_dir>/<doc_dir>.vi.md
+```
 
 **`Acceptance` must name something the reader can do.** Not a length, not a section count, and not
 "explains the deploy process" — that describes the document, not the reader. "A new engineer

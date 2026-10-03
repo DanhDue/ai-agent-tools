@@ -54,16 +54,20 @@ work belongs in `dev-lifecycle`.
 ### Check 1 — Mechanical
 
 ```bash
-python3 skills/doc_quality_check/resources/scripts/check_document.py --require-toc <file> [<file> ...]
+python3 skills/doc_quality_check/resources/scripts/check_document.py \
+  --require-toc --require-bilingual <document>.en.md <document>.vi.md
 ```
 
 Catches placeholders (`TBD`, `TODO`, `FIXME`, `XXX`) in prose, relative links that do not resolve,
-anchors with no matching heading, unbalanced code fences, and — with `--require-toc` — a document of
-four sections or more with no table of contents.
+anchors with no matching heading, unbalanced code fences, a missing `.en.md`/`.vi.md` counterpart,
+heading-structure drift between the pair, and a missing or incomplete table of contents. Every `##`
+section and every `### Task` heading in an implementation plan must be linked from that variant's
+contents; document length does not waive the rule.
 
-**Pass `--require-toc` for a `doc-lifecycle` deliverable, and omit it otherwise.** Task files, epic
-records and `SKILL.md` files are not deliverables and were never meant to carry one; requiring it of
-them would fail dozens of files that are correct as they stand.
+**Pass both `--require-toc` and `--require-bilingual` for lifecycle deliverables, and omit them
+otherwise.** Pass the English and Vietnamese paths in the same invocation. `task_*.md` files, epic
+records and `SKILL.md` files are not deliverables and were never meant to carry this contract;
+requiring it of them would fail files that are correct as they stand.
 
 It strips fenced blocks and inline code spans before scanning, so a document that *documents* these
 checks does not fail them. That is not hypothetical — it was observed while building this skill,
@@ -98,7 +102,9 @@ fix because a README has no `Diátaxis mode` teaches people to stop running the 
 
 Dispatch a subagent using
 [`references/document-reviewer-prompt.md`](references/document-reviewer-prompt.md), passing the
-document path, its declared type, audience and `Acceptance` criterion.
+English and Vietnamese document paths, their declared type, audience and `Acceptance` criterion.
+Review English as canonical, then verify that Vietnamese preserves the same facts, omissions,
+examples, links, and section ordering rather than merely having the same heading shape.
 
 It checks what a script cannot see: internal contradictions, ambiguity that would send a reader the
 wrong way, **unsupported claims** — invented numbers, rules attributed to a source that does not

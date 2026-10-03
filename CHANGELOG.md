@@ -8,6 +8,40 @@ every installed machine on the old cached copy.
 
 ---
 
+## 1.4.2 — 2026-10-03
+
+Makes bilingual, navigable design documentation a verified contract across the development and
+document lifecycles.
+
+### Added
+
+- **Bilingual lifecycle artefacts**: specs, HLD/overview documents, BDD scenario documents,
+  non-epic implementation plans, document outlines, and published documents now require a
+  canonical English `.en.md` file and a synchronized Vietnamese `.vi.md` translation.
+- **Complete table-of-contents contract** for every lifecycle document regardless of length.
+  Implementation plans must also link every `### Task` heading.
+- **Lifecycle document regression tests** covering missing translations, omitted variants,
+  heading-structure drift, incomplete tables of contents, short documents, and decorated ToC
+  headings.
+
+### Changed
+
+- **`dev-designer`** now generates bilingual HLD and BDD scenario pairs; `writing-plans` generates
+  bilingual implementation-plan pairs. Kanban `task_*.md` files remain English-only.
+- **`dev-brainstorming`, `doc-brainstorming`, `doc-designer`, and `doc-implementation`** now create,
+  synchronize, and mechanically verify both language variants before their approval gates.
+- **`dev-lifecycle` and `doc-lifecycle`** explicitly carry the bilingual and ToC requirements in
+  their handoff contracts and red flags.
+- **`doc_quality_check`** now requires both variants in the same run, checks heading-shape parity,
+  verifies complete ToC coverage, and audits semantic translation parity.
+- **`dev-implementation`** consumes `bdd_scenarios.en.md` as the canonical behavioral contract.
+
+### Verification
+
+- `scripts/verify.sh` now runs the lifecycle document contract suite as a release gate.
+
+---
+
 ## 1.4.1 — 2026-10-02
 
 Adds a mandatory critical rule prohibiting unauthorized remote git push operations and improves worktree bootstrapping resilience.

@@ -242,6 +242,11 @@ else
 fi
 
 echo
+note "== 11. Lifecycle document contracts are enforced =="
+python3 -m unittest skills/doc_quality_check/resources/scripts/test_check_document.py || FAILED=1
+python3 scripts/test_lifecycle_document_contract.py || FAILED=1
+
+echo
 if [ "$FAILED" -eq 0 ]; then
   echo "PASS — safe to publish"
 else
