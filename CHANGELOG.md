@@ -8,6 +8,26 @@ every installed machine on the old cached copy.
 
 ---
 
+## 1.4.3 — 2026-10-04
+
+Standardizes modern Mermaid diagram syntax, Graphviz DOT conventions, and Markdown lint rules across the development and document lifecycles.
+
+### Added
+
+- **Modern Mermaid syntax standard**: Mandates `flowchart` over deprecated `graph` syntax, enabling per-subgraph `direction` controls, richer styling, and AST stability. Requires enclosing node labels with special characters (parentheses, brackets, colons) in double quotes.
+- **Graphviz (DOT) conventions**: Enforces semantic node shapes (`box`, `diamond`, `cylinder`, `ellipse`), statement terminating semicolons, quoted labels, and `cluster_` subgraph naming.
+- **Markdown linting standards**: Enforces single H1 (MD025), sequential heading increments (MD001/MD003), spaces after `#` (MD018), and mandatory language tags on fenced code blocks (MD040).
+- **Automated mechanical validation**: Extended `check_document.py` with AST checks for legacy Mermaid `graph`, unquoted special-character labels, missing fence language tags, heading whitespace, and DOT statement syntax.
+- **Regression test coverage**: Added unit tests in `test_check_document.py` validating detection of legacy Mermaid syntax, untagged code fences, and heading format issues.
+
+### Changed
+
+- **`dev-lifecycle` and `doc-lifecycle`**: Integrated Markdown and modern diagram standards directly into their Document Contracts, Gate criteria, and Red Flags.
+- **`dev-designer`**: Updated Step 1 architecture prompt to default to `mermaid flowchart TD` (explicitly prohibiting legacy `graph TD`).
+- **`dev-brainstorming`, `doc-brainstorming`, `writing-plans`, `doc-designer`, `doc-implementation`, `doc_quality_check`, `brainstorming`, and `decision-records`**: Added explicit diagram and markdown lint rules into drafting guidelines and self-review checklists.
+
+---
+
 ## 1.4.2 — 2026-10-03
 
 Makes bilingual, navigable design documentation a verified contract across the development and
