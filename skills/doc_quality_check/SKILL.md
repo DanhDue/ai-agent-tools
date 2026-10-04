@@ -64,12 +64,17 @@ heading-structure drift between the pair, and a missing or incomplete table of c
 section and every `### Task` heading in an implementation plan must be linked from that variant's
 contents; document length does not waive the rule.
 
+Additionally enforces **Markdown & Diagram Lint Standards**:
+- **Markdown Lint**: Enforces single top-level H1, sequential heading increments (no skipping levels), space after `#`, no trailing punctuation on headings, mandatory language tags on all fenced code blocks (no bare fences), and formatting hygiene (no trailing whitespace, no hard tabs).
+- **Mermaid Standards**: Mechanically detects and blocks legacy `graph TD`/`graph LR` syntax (requiring `flowchart TD`/`flowchart LR`), flags unquoted special characters/parentheses in node labels, and checks for unclosed subgraphs.
+- **Graphviz (DOT) Standards**: Checks for statement semicolons, valid `->` edges in `digraph`, and proper cluster naming.
+
 **Pass both `--require-toc` and `--require-bilingual` for lifecycle deliverables, and omit them
 otherwise.** Pass the English and Vietnamese paths in the same invocation. `task_*.md` files, epic
 records and `SKILL.md` files are not deliverables and were never meant to carry this contract;
 requiring it of them would fail files that are correct as they stand.
 
-It strips fenced blocks and inline code spans before scanning, so a document that *documents* these
+It strips fenced blocks and inline code spans before scanning prose checks, so a document that *documents* these
 checks does not fail them. That is not hypothetical — it was observed while building this skill,
 and `scripts/verify.sh` step 3 strips the same way for the same reason.
 
@@ -115,7 +120,7 @@ after reading.
 
 ## Verdict
 
-```
+```markdown
 ## Document Quality Report — <document>
 
 | Check | Result | Notes |
@@ -141,3 +146,4 @@ fixing findings, run all four again.
   apply to prose, and a green light from a check that does not apply is worse than no check.
 - Accepting a claim because it sounds like expert advice. Attributed rules that the source does not
   contain are the single most common defect in methodology documentation.
+- Overlooking markdown lint errors (e.g. untagged code blocks, heading skips) or legacy Mermaid syntax (`graph TD`/`graph LR`).

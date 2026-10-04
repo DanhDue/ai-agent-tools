@@ -66,9 +66,13 @@ Each document MUST contain the following sections:
 3. **Background (Bối cảnh)**: The problem statement or context (Why are we doing this?).
 4. **Goals & Non-Goals**: Clearly define what is expected to be achieved and what is strictly out of scope to avoid scope creep.
 5. **Architecture & Technical Design**:
-   - **High-Level Architecture**: Use a `mermaid graph TD` to show component interactions.
-   - **Use Cases**: Use a `mermaid flowchart` to define Actors and their interactions with the system.
-   - **Sequence Diagram**: Use a `mermaid sequenceDiagram` to show the step-by-step lifecycle of the primary flow.
+   - **High-Level Architecture**: Use `mermaid flowchart TD` (or `flowchart LR`) to show component interactions. NEVER use legacy `graph TD` (`graph` is legacy Mermaid syntax; `flowchart` is the modern standard that enables per-subgraph `direction` control, richer node shapes, better rendering engines, and styling).
+   - **Use Cases**: Use `mermaid flowchart` to define Actors and their interactions with the system.
+   - **Sequence Diagram**: Use `mermaid sequenceDiagram` with explicit participants and message flows to show the step-by-step lifecycle of the primary flow.
+   - **Diagram Standards & Lint Rules (Mermaid & Graphviz DOT)**:
+     - All Mermaid diagrams MUST use `flowchart` instead of `graph`, quote node labels containing special characters, parentheses `()`, brackets `[]`, braces `{}`, colons `:`, slashes `/`, ampersands `&` (e.g. `node1["Component (Core Logic)"]`), use clean alphanumeric IDs with underscores, avoid trailing semicolons, and properly close subgraphs (`end`).
+     - Any Graphviz (DOT) diagrams MUST follow semantic shapes (`diamond` for decisions `?`, `box` for actions, `plaintext` for commands, `ellipse` for states, `octagon` for warnings, `doublecircle` for start/complete), terminate statements with semicolons `;`, quote multi-word IDs/labels, use `->` in `digraph`, and prefix visual subgraphs with `cluster_`.
+   - **Markdown Lint Standards**: All generated markdown files (`.en.md`, `.vi.md`, `bdd_scenarios.*.md`, `task_*.md`) MUST strictly adhere to markdown lint rules: single H1 top-level title, no skipped heading levels, space after `#`, no trailing punctuation in headings, all code blocks tagged with language identifiers (no bare fences), and clean formatting hygiene (no trailing whitespace, no hard tabs).
    - **Check 1 (Shift-Left Impact Analysis)**: Run `check_code_impact.py` on planned touchpoints and core symbols:
      ```bash
      python3 skills/impact-analysis/resources/scripts/check_code_impact.py \
@@ -318,3 +322,5 @@ When new requirements arrive for an epic already in progress, append new task fi
 - Creating the Epic overview in the project root instead of `.devtool/epic/<epic_name>/`.
 - Defaulting new tasks to `status: "todo"` without checking for another epic's active tasks first.
 - Mixing languages within a single task file.
+- Using legacy Mermaid syntax (`graph TD`/`graph LR` instead of `flowchart TD`/`flowchart LR`), unquoted special-character labels, or malformed Graphviz (DOT) diagrams.
+- Violating markdown lint standards (e.g. untagged code blocks, heading skips, trailing whitespace).

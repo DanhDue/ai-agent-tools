@@ -34,6 +34,7 @@ Task tool (general-purpose):
     | Type conformance | Material belonging to a different Diátaxis type. A tutorial carrying explanation, a how-to guide teaching, reference giving instructions, explanation describing machinery — each is a finding |
     | Unsupported claims | Statements of fact with nothing behind them: invented numbers, attributed rules the source does not contain, capabilities asserted without evidence |
     | Translation parity | Facts, omissions, examples, links, and section ordering that differ between English and Vietnamese |
+    | Diagram & Markdown Standards | Any Mermaid diagrams using legacy 'graph' instead of 'flowchart', unquoted labels with parentheses/brackets/colons, malformed DOT diagrams, or markdown formatting violations (skipped headings, bare code fences) |
     | Acceptance | Could the stated audience actually do the Acceptance criterion after reading this, using only what is here and what it links to? |
 
     ## Calibration

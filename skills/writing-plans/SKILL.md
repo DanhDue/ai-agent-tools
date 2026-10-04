@@ -26,6 +26,11 @@ of contents covering every `##` and `### Task` section. Write and update English
 synchronize Vietnamese. `task_*.md` files created by other workflows remain English-only; that
 exception does not apply to an implementation plan.
 
+Both variants MUST strictly satisfy **Markdown & Diagram Lint Standards**:
+- **Markdown Lint**: Single H1 title, no skipped heading levels, space after `#`, no trailing punctuation in headings, language tags on all fenced code blocks (no bare fences), and formatting hygiene (no trailing whitespace, no hard tabs).
+- **Mermaid Standards**: ALWAYS use `flowchart TD/LR` (NEVER legacy `graph TD/LR`), double-quote node labels containing special characters/parentheses/brackets/colons (e.g. `node["Text (Details)"]`), use clean alphanumeric IDs, and avoid trailing semicolons.
+- **Graphviz (DOT) Standards**: Follow semantic shapes (`diamond` for decisions `?`, `box` for actions, `plaintext` for commands, `ellipse` for states, `octagon` for warnings, `doublecircle` for start/complete), semicolons on every statement, and quoted labels.
+
 ## Reviewing a Written Plan
 
 Before handing a plan to an executor, dispatch a reviewer subagent using
@@ -150,7 +155,7 @@ git commit -m "[SCOPE] Add specific feature" -m "- <what this step changed>"
 ## No Placeholders
 
 Every step must contain the actual content an engineer needs. These are **plan failures** — never write them:
-- "TBD", "TODO", "implement later", "fill in details"
+- `TBD`, `TODO`, "implement later", "fill in details"
 - "Add appropriate error handling" / "add validation" / "handle edge cases"
 - "Write tests for the above" (without actual test code)
 - "Similar to Task N" (repeat the code — the engineer may be reading tasks out of order)
@@ -167,6 +172,8 @@ plan against it. This is a checklist you run yourself — not a subagent dispatc
 **2. Placeholder scan:** Search your plan for red flags — any of the patterns from the "No Placeholders" section above. Fix them.
 
 **3. Type consistency:** Do the types, method signatures, and property names you used in later tasks match what you defined in earlier tasks? A function called `clearLayers()` in Task 3 but `clearFullLayers()` in Task 7 is a bug.
+
+**4. Markdown & Diagram lint check:** Does the plan strictly adhere to markdown lint standards (all code blocks tagged with language, no skipped headings, clean formatting)? Do any embedded Mermaid diagrams use modern `flowchart` instead of legacy `graph`, with quoted special-character labels? Do any DOT diagrams follow standard semantic shapes and statement semicolons?
 
 If you find issues, fix them inline. No need to re-review — just fix and move on. If you find a spec requirement with no task, add the task.
 

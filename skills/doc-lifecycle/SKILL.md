@@ -73,6 +73,42 @@ Every durable document produced by this lifecycle MUST be emitted as a synchroni
 facts. Every variant MUST contain a linked table of contents covering every `##` section, regardless
 of document length. The only exception is Kanban `task_*.md`, which remains English-only.
 
+### Markdown Formatting & Lint Standards
+
+Every markdown document produced by this lifecycle MUST pass markdown lint standards:
+- **Heading Hierarchy**: Exactly one top-level `# Title` (H1) at the start of the file. Heading levels MUST increment by one (no skipping levels from `#` to `###`). Space after `#` (`# Title`, not `#Title`). No trailing punctuation in headings (`.`, `:`, `,`, `;`).
+- **Fenced Code Blocks**: Fenced code blocks MUST specify a language tag (e.g. ````bash`, ````markdown`, ````python`, ````mermaid`, ````dot`, ````json`). Bare fences without a language are prohibited.
+- **Lists**: Consistent list markers (`-` for unordered lists), 2-space or 4-space nested indentation, and blank lines separating list blocks from surrounding paragraphs.
+- **Links & Anchors**: Relative file links must resolve on disk; heading anchor fragments (`#anchor`) must match existing headings.
+- **Formatting Hygiene**: No trailing whitespace at line ends, no hard tabs (use spaces), maximum 1 consecutive blank line, and ensure the file ends with a trailing newline.
+
+### Diagram Standards & Lint Rules (Mermaid & Graphviz DOT)
+
+All diagrams included in any durable document (spec, brief & outline, drafted guides, reference pages) MUST adhere strictly to the latest modern linting rules:
+
+1. **Mermaid Standards & Lint Rules**:
+   - **`flowchart` over `graph`**: ALWAYS use `flowchart` syntax (e.g. `flowchart TD`, `flowchart LR`). NEVER use legacy `graph` syntax (`graph TD`, `graph LR`). `graph` is legacy Mermaid syntax; `flowchart` is the current keyword that enables per-subgraph `direction` control (e.g. `direction LR` inside a subgraph), richer node shapes, better rendering engines, and styling.
+   - **Quote Node Labels**: Enclose any node label containing special characters, parentheses `()`, brackets `[]`, braces `{}`, colons `:`, slashes `/`, ampersands `&`, or punctuation in double quotes (e.g. `node1["Step (Validation)"]`, `gate1{"Gate 1: Approved?"}`). Unquoted parentheses or colons break parser AST and trigger linter warnings.
+   - **Alphanumeric Node IDs**: Use clean alphanumeric IDs with underscores. Avoid reserved keywords (`end`, `subgraph`, `graph`, `flowchart`).
+   - **Edge Syntax & Quotes**: Use standard edges (`-->`, `-.->`, `==>`). Quote edge labels containing parentheses or punctuation (`A -->|"yes (verified)"| B`). Do not append trailing semicolons `;` on flowchart lines.
+   - **Subgraphs**: Always specify explicit closing `end`, unique alphanumeric subgraph ID, and a quoted label: `subgraph ID ["Label"]` ... `end`.
+   - **Sequence Diagrams**: Use modern `sequenceDiagram` with explicit participants, valid arrows (`->>`, `-->>`, `-)`, `--))`), closed blocks, and optional `autonumber`.
+   - **State Diagrams**: Use `stateDiagram-v2` instead of legacy `stateDiagram`.
+
+2. **Graphviz (DOT) Standards & Lint Rules**:
+   - Follow semantic node shapes (see `writing-skills/graphviz-conventions.dot`):
+     - `[shape=diamond]` for decisions (questions ending in `?`).
+     - `[shape=box]` for actions (imperative verbs: "Write guide", "Draft section").
+     - `[shape=plaintext]` for shell commands or literal code.
+     - `[shape=ellipse]` for states or situations.
+     - `[shape=octagon, style=filled, fillcolor=red, fontcolor=white]` for critical warnings (`STOP:`).
+     - `[shape=doublecircle]` for entry/exit points (`Process starts`, `Process complete`).
+   - **Statement Semicolons**: Every statement inside DOT must terminate with a semicolon `;`.
+   - **Quotes**: Double-quote all multi-word or punctuation-containing node IDs and labels.
+   - **Edges**: In `digraph`, edge operator MUST be `->` (NEVER `--`). Label branches explicitly (`[label="yes"]`, `[label="no"]`).
+   - **Clusters**: Subgraphs intended to have a visual border MUST begin with `cluster_`.
+
+
 Four, not five. Code and prose differ in ways that change what verification can mean: the unit of
 work is a section rather than an independently testable deliverable, verification is mechanical
 checks plus human judgement rather than a machine running tests, the governing constraint is the
@@ -129,7 +165,7 @@ outline pair is synced before the next section starts.
 pass:
 
 1. **Mechanical** — both `.en.md` and `.vi.md` variants exist; no placeholder text; every internal
-   link resolves; mermaid parses; fenced samples are syntactically valid; and each variant carries
+   link resolves; markdown lint passes (heading hierarchy, language-tagged code blocks, formatting hygiene); mermaid parses and adheres to modern syntax (e.g. `flowchart` instead of legacy `graph`, quoted special-character labels); dot/graphviz follows semantic shapes and statement semicolons; fenced samples are syntactically valid; and each variant carries
    a complete table of contents linking every `##` section, regardless of document length.
 2. **Diátaxis conformance** — the document stays inside its declared mode.
 3. **Content audit** — no unsupported claims, and the `Acceptance` criterion is actually met.
@@ -168,6 +204,8 @@ Never advance on a partial pass, and never re-run only the previously failing ch
 - Leaving the finished document inside `.devtool/`.
 - Producing a durable document without both language variants or without a complete table of
   contents.
+- Violating markdown lint rules (e.g., untagged code blocks, heading skips, trailing whitespace).
+- Using legacy Mermaid syntax (`graph TD`/`graph LR`), unquoted special-character labels, or malformed Graphviz (DOT) diagrams.
 - Translating `task_*.md`; task files remain English-only.
 
 ## Stage Skills

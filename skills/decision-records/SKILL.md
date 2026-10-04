@@ -99,6 +99,13 @@ For an investigation rather than a decision:
 The last field is what separates a report from an opinion. A recommendation that no evidence could
 overturn is not a finding — it is a preference, and it should be labelled as one.
 
+## Markdown & Diagram Standards
+
+All ADRs and spike reports MUST adhere to markdown lint and modern diagram standards:
+- **Markdown Lint**: Single H1 title, no skipped heading levels, space after `#`, no trailing punctuation in headings, mandatory language tags on all code fences, and clean formatting hygiene.
+- **Mermaid Standards**: Use `flowchart TD/LR` (NEVER legacy `graph TD/LR`), double-quote node labels with special characters, parentheses `()`, brackets `[]`, braces `{}`, colons `:`, slashes `/`, ampersands `&`, use alphanumeric IDs, and avoid trailing semicolons.
+- **Graphviz (DOT) Standards**: Follow semantic shapes (`diamond` for decisions `?`, `box` for actions, `plaintext` for commands, `ellipse` for states, `octagon` for warnings, `doublecircle` for start/complete) and statement semicolons.
+
 ## Red Flags
 
 - Editing a record whose status is `accepted`. Supersede it instead.
@@ -108,3 +115,4 @@ overturn is not a finding — it is a preference, and it should be labelled as o
 - Restating the section order with `Status` in second place.
 - A spike report whose "what would change this conclusion" section is empty or hedged.
 - Opening `doc-lifecycle` gates around a single record.
+- Violating markdown lint standards or using legacy Mermaid syntax (`graph TD`/`graph LR`).

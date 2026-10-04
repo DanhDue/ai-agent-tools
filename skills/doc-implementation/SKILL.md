@@ -75,6 +75,10 @@ For each section, in order:
    ```
 2. Draft the section in the canonical English deliverable, then translate it into the matching
    Vietnamese deliverable. Keep headings, facts, links, examples, and section order synchronized.
+   Both deliverables MUST strictly follow **Markdown & Diagram Lint Standards**:
+   - Language tags on all code fences, single H1, no heading skips, clean formatting hygiene.
+   - Any Mermaid diagram MUST use `flowchart` (never legacy `graph`), quote labels with special characters `()`/`[]`/`{}`/`:`, and avoid trailing semicolons.
+   - Any Graphviz (DOT) diagram MUST use semantic shapes, terminate statements with semicolons, and quote multi-word labels.
    Material belonging to another Diátaxis mode is **relocated and linked**, never inlined and never
    deleted. The section's commit includes both language files.
 3. **Re-read the section against its own purpose line in the outline.** This replaces the failing
@@ -157,3 +161,5 @@ A deliverable left in `.devtool/` has not shipped.
 - Forking the Kanban scripts instead of reusing `dev-implementation`'s.
 - Advancing past Phase 4.1 without the user's explicit sign-off.
 - Leaving the finished document inside `.devtool/`.
+- Violating markdown lint standards (e.g. untagged code blocks, heading skips, trailing whitespace).
+- Using legacy Mermaid syntax (`graph TD`/`graph LR`), unquoted special-character labels, or malformed Graphviz (DOT) diagrams.

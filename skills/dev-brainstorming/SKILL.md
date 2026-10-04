@@ -183,6 +183,9 @@ To ensure this is a true creative collaboration and not just a rigid interrogati
   - (User preferences for spec location override this default)
   - Both variants MUST contain a linked table of contents covering every `##` section and MUST stay
     identical in structure and facts. Write and update English first, then synchronize Vietnamese.
+  - **Markdown & Diagram Standards**: Both documents MUST adhere to markdown linting standards (single H1, no skipped heading levels, space after `#`, no trailing punctuation in headings, language tags on all fenced code blocks, clean formatting) and modern diagram standards:
+    - **Mermaid**: Use `flowchart TD/LR` (NEVER legacy `graph TD/LR`), double-quote node labels containing special characters, parentheses `()`, brackets `[]`, braces `{}`, colons `:`, slashes `/`, ampersands `&` (e.g. `node1["Component (Core)"]`), use alphanumeric IDs, and avoid trailing semicolons.
+    - **Graphviz (DOT)**: Semantic shapes (`diamond` for decisions `?`, `box` for actions, `plaintext` for commands, `ellipse` for states, `octagon` for warnings, `doublecircle` for start/complete), semicolons terminating every statement, and double-quoted multi-word labels.
   - If this spec is later routed to `dev-designer` (see Routing After Approval), neither file stays here — relocate the pair into the epic's own directory so every doc for that epic lives in one place.
 - Before user review, verify the pair mechanically:
   ```bash
@@ -203,13 +206,14 @@ To ensure this is a true creative collaboration and not just a rigid interrogati
 **Spec Self-Review:**
 After writing the spec document, look at it with fresh eyes:
 
-1. **Placeholder scan:** Any "TBD", "TODO", incomplete sections, or vague requirements? Fix them.
+1. **Placeholder scan:** Any `TBD`, `TODO`, incomplete sections, or vague requirements? Fix them.
 2. **Internal consistency:** Do any sections contradict each other? Does the architecture match the
    feature descriptions?
 3. **Scope check:** Is this focused enough for one implementation plan, or does it need
    decomposition?
 4. **Ambiguity check:** Could any requirement be interpreted two different ways? If so, pick one and make it explicit.
 5. **Take a Step Back (Helicopter View):** Review the entire system holistically. Are the component boundaries logical? Do any features belong in a different epic or module? Shuffle them now before implementation begins.
+6. **Markdown & Diagram lint check:** Does the document strictly pass markdown lint rules (language-tagged code fences, clean headings, no trailing whitespace)? Do all Mermaid diagrams use modern `flowchart` syntax (no legacy `graph`), with all special-character labels quoted? Do DOT diagrams follow semantic shapes and statement semicolons?
 
 Fix any issues inline. No need to re-review — just fix and move on.
 

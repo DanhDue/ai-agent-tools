@@ -242,8 +242,8 @@ For each task in the confirmed order, follow `d3nexus:subagent-driven-developmen
 ### Phase 3 — Doc Sync on Divergence
 
 Only when Phase 2 flags divergence:
-1. Update the epic's Mermaid diagrams in **both** `.devtool/epic/<epic_dir>/<epic_dir>.en.md` and `.vi.md`.
-2. Update the affected task file(s)' prose.
+1. Update the epic's Mermaid diagrams in **both** `.devtool/epic/<epic_dir>/<epic_dir>.en.md` and `.vi.md`. Ensure updated diagrams follow modern Mermaid syntax (`flowchart` instead of legacy `graph`, quoted special-character labels, and proper per-subgraph `direction` controls) and that markdown lint rules are maintained.
+2. Update the affected task file(s)' prose, adhering strictly to markdown lint standards (language-tagged code fences, proper heading hierarchy, no trailing whitespace).
 3. Commit separately:
    ```bash
    git commit -m "[EPIC_NAME] Sync HLD after <task_title>" -m "- <diagram or section updated>"

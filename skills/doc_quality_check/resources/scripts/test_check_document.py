@@ -111,8 +111,35 @@ class DocumentContractTest(unittest.TestCase):
 
             findings = CHECK_DOCUMENT.check_language_pairs([english, vietnamese])
 
-        self.assertTrue(any("heading structure differs" in finding[2] for finding in findings))
+    def test_mermaid_legacy_graph_syntax_reported(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = pathlib.Path(directory) / "doc.en.md"
+            path.write_text("# Doc\n\n```mermaid\ngraph TD\n    A --> B\n```\n")
+            findings = CHECK_DOCUMENT.check_file(path)
+        self.assertTrue(any("legacy Mermaid syntax" in finding[2] for finding in findings))
+
+    def test_modern_mermaid_flowchart_accepted(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = pathlib.Path(directory) / "doc.en.md"
+            path.write_text("# Doc\n\n```mermaid\nflowchart TD\n    A[\"Node A\"] --> B[\"Node B\"]\n```\n")
+            findings = CHECK_DOCUMENT.check_file(path)
+        self.assertEqual([], findings)
+
+    def test_fenced_code_block_missing_language_reported(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = pathlib.Path(directory) / "doc.en.md"
+            path.write_text("# Doc\n\n```\necho hello\n```\n")
+            findings = CHECK_DOCUMENT.check_file(path)
+        self.assertTrue(any("missing language tag" in finding[2] for finding in findings))
+
+    def test_heading_missing_space_reported(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = pathlib.Path(directory) / "doc.en.md"
+            path.write_text("#Doc\n\nContent\n")
+            findings = CHECK_DOCUMENT.check_file(path)
+        self.assertTrue(any("no space after '#'" in finding[2] for finding in findings))
 
 
 if __name__ == "__main__":
     unittest.main()
+

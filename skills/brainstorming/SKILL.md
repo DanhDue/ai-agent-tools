@@ -51,3 +51,10 @@ Skip it whenever the branch is already known:
 
 Once you have routed, this skill is finished. Do not re-enter it later in the session; if a variant
 turns out to be the wrong one, its own correction exit handles that.
+
+## Downstream Document Standards
+
+Both downstream destinations (`dev-brainstorming` and `doc-brainstorming`) enforce strict **Markdown & Diagram Lint Standards** on all generated deliverables:
+- **Markdown Lint**: Single H1 title, sequential headings, language-tagged code blocks, formatting hygiene.
+- **Mermaid Standards**: Modern `flowchart TD/LR` (NEVER legacy `graph TD/LR`), double-quoted node labels with special characters/parentheses/colons, clean alphanumeric IDs, and no trailing semicolons.
+- **Graphviz (DOT) Standards**: Semantic node shapes, statement semicolons, and double-quoted labels.

@@ -103,7 +103,7 @@ Generate both language variants in the document's own directory:
 Architecture diagrams, sequence diagrams and BDD scenarios do not apply. **They are replaced, not
 supplemented, by this Meta Data block:**
 
-```
+```yaml
 Kind: document
 Audience: <who reads this, and what they are trying to do>
 Diátaxis mode: tutorial | how-to | reference | explanation
@@ -124,6 +124,8 @@ python3 skills/doc_quality_check/resources/scripts/check_document.py \
   .devtool/epic/<doc_dir>/<doc_dir>.en.md \
   .devtool/epic/<doc_dir>/<doc_dir>.vi.md
 ```
+
+**Markdown & Diagram Standards**: Both overview documents and all `task_*.md` files MUST adhere strictly to markdown lint standards (single H1, no skipped heading levels, space after `#`, no trailing punctuation in headings, language tags on all code fences, and no trailing whitespace). Any diagrams or flowcharts included MUST use modern Mermaid syntax (`flowchart` instead of legacy `graph`, quoted special-character labels) and Graphviz (DOT) semantic shape conventions with statement semicolons.
 
 **`Acceptance` must name something the reader can do.** Not a length, not a section count, and not
 "explains the deploy process" — that describes the document, not the reader. "A new engineer
@@ -150,3 +152,5 @@ Flipping `backlog` to `todo` later is a human call, not this skill's.
 - Writing task files before the user confirms the breakdown — that checkpoint *is* Gate 2.
 - Stating a Diátaxis rule that does not trace to a quotation in the source fidelity review.
 - Defaulting tasks to `todo` without checking for another epic's active tasks first.
+- Violating markdown lint standards (e.g. untagged code blocks, heading skips, trailing whitespace).
+- Using legacy Mermaid syntax (`graph TD`/`graph LR`), unquoted special-character labels, or malformed Graphviz (DOT) diagrams.

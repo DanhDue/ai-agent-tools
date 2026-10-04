@@ -75,6 +75,41 @@ facts. Every variant MUST contain a linked table of contents covering every `##`
 of document length. This applies to specs, HLD/overview documents, BDD scenario documents, and
 non-epic implementation plans. `task_*.md` files are the only exception and remain English-only.
 
+### Markdown Formatting & Lint Standards
+
+Every markdown document produced by this lifecycle MUST pass markdown lint standards:
+- **Heading Hierarchy**: Exactly one top-level `# Title` (H1) at the start of the file. Heading levels MUST increment by one (no skipping levels from `#` to `###`). Space after `#` (`# Title`, not `#Title`). No trailing punctuation in headings (`.`, `:`, `,`, `;`).
+- **Fenced Code Blocks**: Fenced code blocks MUST specify a language tag (e.g. ````bash`, ````markdown`, ````python`, ````mermaid`, ````dot`, ````json`). Bare fences without a language are prohibited.
+- **Lists**: Consistent list markers (`-` for unordered lists), 2-space or 4-space nested indentation, and blank lines separating list blocks from surrounding paragraphs.
+- **Links & Anchors**: Relative file links must resolve on disk; heading anchor fragments (`#anchor`) must match existing headings.
+- **Formatting Hygiene**: No trailing whitespace at line ends, no hard tabs (use spaces), maximum 1 consecutive blank line, and ensure the file ends with a trailing newline.
+
+### Diagram Standards & Lint Rules (Mermaid & Graphviz DOT)
+
+All diagrams included in any durable document (spec, HLD, BDD scenarios, implementation plan, or doc sync) MUST adhere strictly to the latest modern linting rules:
+
+1. **Mermaid Standards & Lint Rules**:
+   - **`flowchart` over `graph`**: ALWAYS use `flowchart` syntax (e.g. `flowchart TD`, `flowchart LR`). NEVER use legacy `graph` syntax (e.g. `graph TD`, `graph LR`). `graph` is legacy Mermaid syntax; `flowchart` is the current keyword and enables per-subgraph `direction` control (e.g. `direction LR` inside a subgraph), richer node shapes, better rendering engines, and styling.
+   - **Quote Node Labels**: Enclose any node label containing special characters, parentheses `()`, brackets `[]`, braces `{}`, colons `:`, slashes `/`, ampersands `&`, or punctuation in double quotes (e.g. `node1["Component (Core Logic)"]`, `gate1{"Gate 1: Spec Approved?"}`, `db[("Storage (PostgreSQL)")]`). Unquoted parentheses or colons break parser AST and trigger linter warnings.
+   - **Alphanumeric Node IDs**: Use clean alphanumeric IDs with underscores (e.g. `AUTH_SVC`), never spaces, dashes, or dots in the ID itself. Avoid reserved keywords (`end`, `subgraph`, `graph`, `flowchart`).
+   - **Edge Syntax & Quotes**: Use standard edges (`-->`, `-.->`, `==>`). Quote edge labels containing parentheses or punctuation (`A -->|"yes (verified)"| B`). Do not append trailing semicolons `;` on flowchart lines.
+   - **Subgraphs**: Always specify explicit closing `end`, unique alphanumeric subgraph ID, and a quoted label: `subgraph ID ["Label"]` ... `end`.
+   - **Sequence Diagrams**: Use modern `sequenceDiagram` with explicit participants (`actor U as User`, `participant S as Service`), valid arrows (`->>`, `-->>`, `-)`, `--))`), closed blocks (`alt`, `opt`, `loop`, `par`), and optional `autonumber`.
+   - **State Diagrams**: Use `stateDiagram-v2` instead of legacy `stateDiagram`.
+
+2. **Graphviz (DOT) Standards & Lint Rules**:
+   - Follow semantic node shapes (see `writing-skills/graphviz-conventions.dot`):
+     - `[shape=diamond]` for decisions (questions ending in `?`).
+     - `[shape=box]` for actions (imperative verbs: "Write test", "Commit changes").
+     - `[shape=plaintext]` for shell commands or literal code (`git status`, `npm test`).
+     - `[shape=ellipse]` for states or situations ("Test failing", "Build complete").
+     - `[shape=octagon, style=filled, fillcolor=red, fontcolor=white]` for critical warnings (`STOP: ...`).
+     - `[shape=doublecircle]` for entry/exit points (`Process starts`, `Process complete`).
+   - **Statement Semicolons**: Every statement inside DOT must terminate with a semicolon `;`.
+   - **Quotes**: Double-quote all multi-word or punctuation-containing node IDs and labels (`"Process starts"`, `label="Is test passing?"`).
+   - **Edges**: In `digraph`, edge operator MUST be `->` (NEVER `--`). Label branches explicitly (`[label="yes"]`, `[label="no"]`).
+   - **Clusters**: Subgraphs intended to have a visual border MUST begin with `cluster_` (e.g. `subgraph cluster_phase1 { label="Phase 1"; ... }`).
+
 ## The Five Gates
 
 Every gate is a **human approval** except Gate 4, which is a machine verdict. Never cross one
@@ -183,6 +218,7 @@ the 🟢 verdict must come from a complete run.
 - Leaving a spec split across `docs/superpowers/specs/` and `.devtool/epic/<epic_dir>/`.
 - Producing a durable design document without both language variants or without a complete table
   of contents.
+- Using legacy Mermaid syntax (e.g. `graph TD`, `graph LR` instead of `flowchart TD`, `flowchart LR`), unquoted special characters/parentheses in node labels, or malformed Graphviz (DOT) diagrams.
 - Translating `task_*.md`; task files remain English-only.
 - Leaving completed `task_*.md` files in `.devtool/features/done/` or draft specs in `docs/superpowers/` after branch integration.
 

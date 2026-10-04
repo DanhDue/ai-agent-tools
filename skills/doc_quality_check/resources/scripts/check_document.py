@@ -66,17 +66,88 @@ def check_file(path: pathlib.Path, require_toc: bool = False) -> list:
     raw = path.read_text()
     prose = strip_code(raw)
     lines = prose.split("\n")
+    raw_lines = raw.split("\n")
 
     for i, line in enumerate(lines, 1):
         m = PLACEHOLDER.search(line)
         if m:
             findings.append((path, i, f"placeholder {m.group(1)} in prose"))
 
-    fences = sum(1 for ln in raw.split("\n") if ln.lstrip().startswith("```"))
+    fences = sum(1 for ln in raw_lines if ln.lstrip().startswith("```"))
     if fences % 2:
         findings.append((path, 0, f"unbalanced code fences ({fences} found)"))
 
-    headings = [anchor(ln) for ln in raw.split("\n") if re.match(r"^#{1,6} ", ln)]
+    # Markdown lint & Diagram lint checks
+    fence_len = 0
+    fence_lang = ""
+    in_flowchart = False
+    in_digraph = False
+
+    for i, rline in enumerate(raw_lines, 1):
+        stripped = rline.strip()
+        lstripped = rline.lstrip()
+
+        # Check for code fence start/end
+        m_fence = re.match(r"^(?P<fence>`{3,}|~{3,})(?P<lang>\S*)", lstripped)
+        if m_fence:
+            cur_len = len(m_fence.group("fence"))
+            if fence_len == 0:
+                # Opening fence
+                fence_len = cur_len
+                fence_lang = m_fence.group("lang").lower()
+                if not fence_lang:
+                    findings.append((path, i, "fenced code block missing language tag (MD040)"))
+                in_flowchart = False
+                in_digraph = False
+                continue
+            elif cur_len >= fence_len and not m_fence.group("lang"):
+                # Closing fence
+                fence_len = 0
+                fence_lang = ""
+                in_flowchart = False
+                in_digraph = False
+                continue
+
+        # Outside code blocks
+        if fence_len == 0:
+            # Check heading without space after #: e.g. #Heading
+            if re.match(r"^#{1,6}[^ \t#]", rline):
+                findings.append((path, i, f"no space after '#' in heading (MD018): {stripped}"))
+            continue
+
+        # Inside code blocks (fence_len > 0)
+        if fence_lang == "mermaid":
+            # Check for legacy graph syntax
+            m_graph = re.match(r"^graph\s+(TD|LR|TB|RL|BT)", stripped)
+            if m_graph:
+                findings.append((path, i, f"legacy Mermaid syntax '{stripped}' — use 'flowchart {m_graph.group(1)}' instead"))
+            elif stripped.startswith("flowchart"):
+                in_flowchart = True
+            elif stripped == "stateDiagram":
+                findings.append((path, i, "legacy Mermaid syntax 'stateDiagram' — use 'stateDiagram-v2' instead"))
+
+            if in_flowchart:
+                # Check unquoted parentheses/brackets/colons in node labels
+                unquoted_sq = re.search(r'\b\w+\[(?!\s*["`\'])([^\]]*[\(\):][^\]]*)\]', stripped)
+                if unquoted_sq:
+                    findings.append((path, i, f"unquoted special characters in Mermaid node label: {unquoted_sq.group(0)} (enclose in double quotes)"))
+                unquoted_dia = re.search(r'\b\w+\{(?!\s*["`\'])([^\}]*[\(\):][^\}]*)\}', stripped)
+                if unquoted_dia:
+                    findings.append((path, i, f"unquoted special characters in Mermaid diamond label: {unquoted_dia.group(0)} (enclose in double quotes)"))
+
+        elif fence_lang in ("dot", "graphviz"):
+            if "digraph" in stripped:
+                in_digraph = True
+            if in_digraph:
+                # Using -- instead of ->
+                if re.search(r'\w+\s+--\s+\w+', stripped):
+                    findings.append((path, i, "invalid edge operator '--' in digraph — use '->' for directed edges"))
+                # Statements should end with semicolon
+                if stripped and not stripped.startswith(("//", "#", "/*", "*")) and not stripped.endswith((";", "{", "}")):
+                    if not re.match(r"^(di)?graph\b", stripped) and not stripped.startswith("subgraph"):
+                        findings.append((path, i, f"missing terminating semicolon ';' in DOT statement: {stripped}"))
+
+    headings = [anchor(ln) for ln in raw_lines if re.match(r"^#{1,6} ", ln)]
     for i, line in enumerate(lines, 1):
         for link in re.findall(r"\]\(([^)]+)\)", line):
             if link.startswith(("http://", "https://", "mailto:")) or "<" in link:
@@ -90,8 +161,8 @@ def check_file(path: pathlib.Path, require_toc: bool = False) -> list:
                 findings.append((path, i, f"link does not resolve: {link}"))
 
     if require_toc:
-        sections = [ln for ln in raw.split("\n") if re.match(r"^##\s+", ln)]
-        plan_tasks = [ln for ln in raw.split("\n") if re.match(r"^###\s+Task\s+", ln)]
+        sections = [ln for ln in raw_lines if re.match(r"^##\s+", ln)]
+        plan_tasks = [ln for ln in raw_lines if re.match(r"^###\s+Task\s+", ln)]
         navigable_headings = sections + plan_tasks
         toc_sections = [ln for ln in sections if TOC_HEADING.match(ln)]
         linked_anchors = set(re.findall(r"\]\((#[^)]+)\)", prose.lower()))

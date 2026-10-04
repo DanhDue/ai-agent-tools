@@ -188,6 +188,10 @@ Stage 0 and Gate 1 only.
   (user preferences for spec location override this default).
 - Both variants MUST contain a linked table of contents covering every `##` section and MUST stay
   identical in structure and facts. Write and update English first, then synchronize Vietnamese.
+- Both documents MUST strictly adhere to **Markdown & Diagram Lint Standards**:
+  - **Markdown Lint**: Single H1 title, no skipped heading levels, space after `#`, no trailing punctuation in headings, all code fences tagged with language identifiers, and formatting hygiene (no trailing whitespace, no hard tabs).
+  - **Mermaid Standards**: Use `flowchart TD/LR` (NEVER legacy `graph TD/LR`), double-quote node labels containing special characters, parentheses `()`, brackets `[]`, braces `{}`, colons `:`, slashes `/`, ampersands `&`, use alphanumeric IDs, and avoid trailing semicolons.
+  - **Graphviz (DOT) Standards**: Semantic shapes (`diamond` for decisions `?`, `box` for actions, `plaintext` for commands, `ellipse` for states, `octagon` for warnings, `doublecircle` for start/complete), semicolons on all statements, and quoted labels.
 - Before user review, verify the pair mechanically:
   ```bash
   python3 skills/doc_quality_check/resources/scripts/check_document.py \
@@ -208,7 +212,7 @@ Stage 0 and Gate 1 only.
 
 After writing the spec, look at it with fresh eyes:
 
-1. **Placeholder scan:** Any "TBD", "TODO", incomplete sections, or vague claims? Fix them.
+1. **Placeholder scan:** Any `TBD`, `TODO`, incomplete sections, or vague claims? Fix them.
 2. **Internal consistency:** Do any sections contradict each other? Does the stated scope match what
    the claim actually requires?
 3. **Scope check:** Is this one document, or several pretending to be one?
@@ -216,6 +220,7 @@ After writing the spec, look at it with fresh eyes:
 5. **Evidence check:** Does anything here assert a fact the document cannot support? Either source
    it or soften it now — a fabricated detail is far cheaper to remove at spec stage than after a
    reader has acted on it.
+6. **Markdown & Diagram lint check:** Does the document strictly pass markdown lint rules (language-tagged code fences, clean headings, no trailing whitespace)? Do all Mermaid diagrams use modern `flowchart` syntax (no legacy `graph`), with all special-character labels quoted? Do DOT diagrams follow semantic shapes and statement semicolons?
 
 Fix any issues inline. No need to re-review — just fix and move on.
 
