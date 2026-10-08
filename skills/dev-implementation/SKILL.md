@@ -47,6 +47,7 @@ flowchart TB
     phase2["Phase 2: one task\nd3nexus:subagent-driven-development\n(Tri-Persona TDD adapted to Platform)"]
     diverged{"Divergence\nfrom the HLD?"}
     phase3["Phase 3: Doc Sync\n(direct edits, no skill)"]
+    integrate["Phase 2 step 7: Integrate with develop\nintegrate_branch.py preflight, rebase, verify-tier"]
     phase4["Phase 4: End of Epic Verification\nquality_check (Platform 3-Tier + 4 Specialist Audits)"]
     checkpoint4{"Phase 4.1 Checkpoint:\nUser Kanban Review & Sign-Off?\n(All tasks held in done/)"}
     phase5["Phase 5: Finish Branch & Archival\nd3nexus:finishing-a-development-branch\n(Pre-finish Hook: sync_task_status archive-done)"]
@@ -61,8 +62,9 @@ flowchart TB
     phase1b -- "first task" --> phase2
     phase2 --> diverged
     diverged -- "yes" --> phase3
-    diverged -- "no" --> moretasks
-    phase3 --> moretasks
+    diverged -- "no" --> integrate
+    phase3 --> integrate
+    integrate --> moretasks
     moretasks -- "yes, next task" --> phase2
     moretasks -- "no, epic done" --> phase4
     phase4 --> checkpoint4
@@ -84,6 +86,7 @@ flowchart TB
    ```bash
    SKILL_DIR=<absolute path of the directory containing this SKILL.md>
    REPO_ROOT=$(git rev-parse --show-toplevel)
+   INTEGRATE="$SKILL_DIR/../finishing-a-development-branch/resources/scripts/integrate_branch.py"
    ```
 3. Detect the platform:
    ```bash
@@ -103,13 +106,20 @@ flowchart TB
    Check the scan summary line it prints first (`Scanned N task_*.md files; M matched epic ...; K had no parseable frontmatter or a different epic.`). If `M` is smaller than the number of tasks you read in Phase 0, a task file has broken frontmatter or the wrong `epic:` value — fix that before going any further.
 2. Read the "Manual review advised" section of the output (if any) and cross-check it against what you read in Phase 0. Adjust the flattened order by hand if a prose note should win.
 3. **Checkpoint:** present the final order (with any manual adjustment explained) to the user and get confirmation before creating any worktree or dispatching any subagent.
+   In the same message, ask once for permission to fast-forward local `develop` from its upstream
+   for the rest of this epic — at Phase 1 step 4 and at every Phase 2 step 7. If the user declines,
+   skip `sync-base` in step 4, and stop to ask whenever step 7's preflight reports
+   `relation: behind`.
 
 #### Phase 1 (continued) — Worktree Bootstrap, once the order is confirmed
 
-4. Create one worktree for the whole epic, following `d3nexus:using-git-worktrees`. Spell the base ref out explicitly:
+4. Bring local `develop` up to date with its upstream, then create one worktree for the whole epic, following `d3nexus:using-git-worktrees`. Spell the base ref out explicitly:
    ```bash
+   python3 "$INTEGRATE" sync-base --base develop
    git worktree add .worktrees/<epic_dir> -b epic/<epic_slug> develop
    ```
+   If `sync-base` exits 3 — `develop` diverged from its upstream, or a dirty file blocks the
+   fast-forward — stop and ask.
 5. Bootstrap the worktree so it can actually build:
    - **For Flutter Projects**:
      ```bash
@@ -146,7 +156,7 @@ For each task in the confirmed order, follow `d3nexus:subagent-driven-developmen
      --symbols <target_symbols> \
      --base-ref <base_ref>
    ```
-   - If `🔴 DIVERGENCE DETECTED`: **HALT IMMEDIATELY**. Run `git fetch && git rebase origin/<base_ref>`. Do not touch source files with unmerged upstream commits.
+   - If `🔴 DIVERGENCE DETECTED`: **HALT IMMEDIATELY**. Run step 7 (Integrate with develop) now, then rerun this check. Do not touch source files with unmerged upstream commits.
    - If `⚠️ NATIVE BRIDGE DETECTED`: Note Android Kotlin and iOS Swift bridge files; plan simultaneous updates.
    - If `⚠️ UNPROTECTED CODE (0% Coverage)`: Author baseline characterization unit tests first before modifying behavior.
 
@@ -238,6 +248,43 @@ For each task in the confirmed order, follow `d3nexus:subagent-driven-developmen
    See [Commit Message Format](../../rules/CRITICAL_RULES.md#commit-message-format); never append
    `Co-Authored-By` or any other trailer.
 6. If implementation diverged from HLD, perform Phase 3 Doc Sync before next task.
+7. **Integrate with develop.** Runs here, in the orchestrator, from the epic worktree, after the
+   task's commit (step 5) and any Phase 3 doc sync, when the worktree is clean. It is not part of
+   the `subagent-driven-development` per-task loop. It stops only in these cases: a semantic
+   conflict, `develop` diverged from its upstream, a fast-forward git refuses, and — when the user
+   declined the Gate 3 permission — `develop` behind its upstream.
+   ```bash
+   python3 "$INTEGRATE" preflight --base develop
+   ```
+   - `predicted tier: noop` — nothing landed on `develop`; continue with the next task.
+   - A warning that `develop` has diverged from its upstream — **STOP** and ask.
+   - `relation: behind` when the user declined the Gate 3 permission — **STOP** and ask.
+
+   Otherwise rebase:
+   ```bash
+   python3 "$INTEGRATE" rebase --base develop
+   ```
+   - Exit 2 — resolve with the [conflict playbook](../finishing-a-development-branch/references/conflict-playbook.md):
+     mechanical conflicts yourself, **STOP** and ask on semantic ones. Then run
+     `python3 "$INTEGRATE" rebase --continue --base develop` until it exits 0.
+   - Exit 3 because git refused to fast-forward `develop` — **STOP** and ask.
+   - When preflight reported `bootstrap required: True`, rerun the Phase 1 step 5 bootstrap, and
+     regenerate any `regenerate` files as the playbook describes.
+
+   Then measure and verify before the next task starts:
+   ```bash
+   python3 "$INTEGRATE" verify-tier --base develop
+   ```
+
+   | Tier | Verification before the next task |
+   |------|-----------------------------------|
+   | `noop` | None |
+   | `clean` | Analyze, build, and Tier A unit tests: `melos analyze` and `melos test` (Flutter); `./gradlew check` (Android); `swiftlint lint --strict` and `swift test --package-path <Path>` for the touched packages (iOS) |
+   | `conflicts` | The full 3-tier suite `@quality_check` runs, without its audits — Gate 4 audits the whole diff, resolutions included |
+
+   If verification is red, fix it before the next task starts, commit as
+   `[EPIC_NAME] Fix integration with develop after <task_title>`, and rerun `verify-tier` and its
+   verification. Report in one short block: the commits pulled in, the upstream epics, the tier.
 
 ### Phase 3 — Doc Sync on Divergence
 
@@ -276,18 +323,11 @@ Once `@quality_check` reports 🟢 LGTM and all tasks are completed:
      > Please review the completed tasks and code changes. When you are ready to proceed with branch integration and task archival, reply to proceed."
 4. **Wait for Gate 5 Confirmation**: Only proceed to Phase 5 when the user explicitly responds with approval (e.g., "proceed", "looks good", "finish branch"). If the user requests adjustments or fixes, route back to Phase 2.
 
-### Phase 5 — Main Checkout Clean-up & Branch Finishing
+### Phase 5 — Branch Finishing
 
 Only after the user explicitly approves Gate 5 at the Phase 4.1 Checkpoint:
 
-1. Because `sync_task_status.py` mirrored task file updates to the main workspace checkout (`$MAIN_ROOT/.devtool/features/`), before merging the branch into `<base_ref>`, clean the main checkout's working tree:
-   ```bash
-   MAIN_ROOT=$(git worktree list --porcelain | head -n 1 | awk '{print $2}')
-   git -C "$MAIN_ROOT" restore -- .devtool/features/ .devtool/epic/<epic_dir>/
-   ```
-   Verify that `git -C "$MAIN_ROOT" status --porcelain` is 100% clean. This eliminates working tree collision errors when git checkout/merge executes.
-
-2. Invoke `d3nexus:finishing-a-development-branch` on the epic branch (base = `develop`).
+1. Invoke `d3nexus:finishing-a-development-branch` on the epic branch (base = `develop`).
    When the user selects **Option 1 (Merge Locally)** or **Option 2 (Push & Create PR)**, `finishing-a-development-branch` automatically executes the **Pre-Finish Archival Hook**:
    ```bash
    python3 skills/dev-implementation/resources/scripts/sync_task_status.py archive-done
@@ -301,6 +341,11 @@ Only after the user explicitly approves Gate 5 at the Phase 4.1 Checkpoint:
    - Commits the archival to the branch before proceeding with merge or PR creation.
    If the user selects **Option 3 (Keep As-Is)**, tasks remain in `.devtool/features/done/` for ongoing inspection.
 
+   For Options 1 and 2, its Update onto Base section then rebases one last time and re-verifies by
+   tier — usually `noop`, because step 7 ran after the last task. Archival copies in the main
+   checkout (`.devtool/`, `docs/superpowers/`) are restored only when `land` names them as colliding
+   with the merge, after archival.
+
 
 ## Quick Reference
 
@@ -311,6 +356,7 @@ Only after the user explicitly approves Gate 5 at the Phase 4.1 Checkpoint:
 | Create epic worktree | `git worktree add .worktrees/<epic_dir> -b epic/<epic_slug> develop` | Same | Same |
 | Bootstrap worktree | `bootstrap_worktree.sh <worktree_path>` | Platform bootstrap + Gradle sync | `tuist install && tuist generate --no-open` |
 | Run each task | `subagent-driven-development` | `subagent-driven-development` | `subagent-driven-development` |
+| Integrate after each task | `integrate_branch.py` preflight, rebase, verify-tier | Same | Same |
 | Per-task TDD | `test-driven-development` (Dart/BLoC) | `test-driven-development` (Kotlin/Compose) | `test-driven-development` (Swift/SwiftUI) |
 | End-of-epic verification | `@quality_check` (Flutter 3-Tier + 4 Audits) | `@quality_check` (Gradle 3-Tier + 4 Audits + cleanup-java) | `@quality_check` (iOS 3-Tier + 4 Audits) |
 | Finish epic branch | `d3nexus:finishing-a-development-branch` | Same | Same |
@@ -338,6 +384,8 @@ Only after the user explicitly approves Gate 5 at the Phase 4.1 Checkpoint:
 - Committing before updating the task file's frontmatter.
 - Creating a worktree per task or dispatching concurrent implementation subagents without disjoint contracts.
 - Skipping the Phase 1 confirmation checkpoint before touching git.
+- Starting the next task while the previous task's integration with `develop` is red, or before step 7 ran.
+- Resolving a semantic rebase conflict without asking the user.
 - Running cross-platform commands inappropriately (e.g., Gradle on Flutter/iOS, Melos on Android/iOS, Tuist/Swift on Flutter/Android).
 - Merging to `develop` without passing `@quality_check` (🟢 LGTM).
 - Automatically invoking `finishing-a-development-branch` without stopping at Phase 4.1 and waiting for user Gate 5 approval.
