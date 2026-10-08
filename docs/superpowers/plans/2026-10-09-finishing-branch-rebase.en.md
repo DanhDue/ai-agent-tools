@@ -1684,8 +1684,8 @@ It brings in everything that landed on the base since this branch split off, res
 on the branch, and re-verifies the result. Nothing touches the base branch during this section.
 
 Skip this section on a detached HEAD. When preflight warns that the branch `has already been
-pushed`, skip steps 2 to 4 and tell your human partner why: rebasing a pushed branch needs a
-force-push.
+pushed`, skip steps 2 and 3 and tell your human partner why: rebasing a pushed branch needs a
+force-push. Step 4 still runs: without a rebase it measures tier `noop` and gives the candidate sha.
 
 1. **Preflight** — read-only:
 
