@@ -137,9 +137,12 @@ on the second-parent side of the epic's merge commit and break the first-parent 
 |---------|--------|-----------|
 | `sync-base` | Yes | Resolve Base, including the fast-forward. Phase 1 calls it before `git worktree add` |
 | `preflight` | No | Report only (fields below) |
-| `rebase` | Yes | Refuse on a detached HEAD, a dirty worktree, a rebase already in progress, or a branch that has an upstream (already pushed). Run `sync-base`. Force-update `backup/<branch>` to the current HEAD, every time. If the base is already an ancestor, stop with tier `noop`. Otherwise run `git -c rerere.enabled=true rebase <base>`. `--continue` and `--abort` wrap the matching git commands, with rerere enabled on `--continue` so resolutions are recorded |
+| `rebase` | Yes | Refuse on a detached HEAD, a dirty worktree, a rebase already in progress, or a branch that tracks a remote branch (already pushed; a local upstream does not count). Run `sync-base`. Force-update `backup/<branch>` to the current HEAD, every time. If the base is already an ancestor, stop with tier `noop`. Otherwise run `git -c rerere.enabled=true rebase <base>`. `--continue` and `--abort` wrap the matching git commands, with rerere enabled on `--continue` so resolutions are recorded |
 | `verify-tier` | No | Measure the tier (6.3) and print the required verification for both contexts (finish and task boundary), the regression checklist, the overlap files and the candidate SHA |
 | `land --verified <sha> --title "<title>"` | Yes | Run `sync-base`, check preconditions, merge with `--no-ff` in the checkout that has the base checked out (or write the same merge with plumbing when there is none), check postconditions |
+
+`preflight`, `rebase`, `verify-tier` and `land` refuse to run on the base branch itself: from the
+main checkout they would find nothing to integrate and report `noop` silently.
 
 `preflight` reports:
 
@@ -171,6 +174,8 @@ Manifest patterns: `pubspec.yaml`, `melos.yaml`, `build.gradle`, `build.gradle.k
   checkout has no merge or rebase in progress, no staged changes, and none of its dirty files are
   among the files the merge changes. Unrelated dirty files, such as Kanban mirrors of another epic
   running in parallel, are left alone. A refusal for colliding files names them.
+- **Merge failure**: the merge runs with `--no-log`. If `git merge` itself fails, for example
+  because a commit-msg hook rejects the message, abort the merge in that checkout and exit 1.
 - **No base checkout**: in a plain repository whose only checkout holds the feature branch, write the
   merge with `git commit-tree <sha>^{tree} -p <base> -p <sha>` and move the base with
   `git update-ref`, guarded by its old value. The tree is the verified tree by construction.
@@ -252,11 +257,12 @@ flowchart TD
 
    On red, stop. The branch and worktree stay; fix in the worktree, commit, and rerun `verify-tier`.
 6. **Land** with `--verified <sha> --title "[EPIC_NAME] Merge epic/<slug>"`. Exit 3 because the base
-   moved during verification sends the flow back to step 2.
+   moved during verification sends the flow back to step 2, unless the rebase was skipped because the
+   branch was already pushed: then stop and ask.
 7. **Restore on collision.** When `land` exits 3 naming colliding files and every one is under
-   `.devtool/` (mirrors written by the sync scripts), restore the tracked ones in the main checkout,
-   delete the untracked ones, and land again. Any colliding file outside `.devtool/` means stop and
-   ask. Restoring only after archival fixes defect 5.
+   `.devtool/` or `docs/superpowers/` (copies the archival script writes into every checkout),
+   restore the tracked ones in the main checkout, delete the untracked ones, and land again. Any
+   other colliding file means stop and ask. Restoring only after archival fixes defect 5.
 8. **Clean up**: remove the worktree (existing Step 6), then `git branch -d <branch>` and
    `git branch -D backup/<branch>`. In a plain repository, check out the base first.
 
@@ -286,7 +292,7 @@ New rows for the rationalization table:
 | Location | Change |
 |----------|--------|
 | Phase 1, step 4 | Run `sync-base` before `git worktree add .worktrees/<epic_dir> -b epic/<epic_slug> develop` |
-| Phase 1, Gate 3 checkpoint | Ask once, alongside the execution order, for authorization to fast-forward local `develop` from its upstream for the duration of the epic |
+| Phase 1, Gate 3 checkpoint | Ask once, alongside the execution order, for authorization to fast-forward local `develop` from its upstream for the duration of the epic; if declined, skip `sync-base` in Phase 1 |
 | Phase 2, step 0 | On `🔴 DIVERGENCE DETECTED`, run `integrate_branch.py rebase` instead of `git fetch && git rebase origin/<base_ref>` |
 | **Phase 2, new step 7** | **Integrate with base**, after step 5's commit and step 6's doc sync, when the worktree is guaranteed clean |
 | Phase 5 | Drop step 1 (restore main checkout); it moved into the finishing flow, after archival |
@@ -308,8 +314,9 @@ Step 7 runs in the orchestrator, outside the `subagent-driven-development` per-t
    `[EPIC_NAME] Fix integration with develop after <task_title>`.
 6. Report in one short block: commits pulled in, upstream epics, tier.
 
-Step 7 stops in exactly three cases: a semantic conflict, a diverged base, and a fast-forward git refuses
-because it would overwrite a dirty file. Gate 3's authorization
+Step 7 runs from the epic worktree and stops in exactly three cases: a semantic conflict, a diverged
+base, and a fast-forward git refuses because it would overwrite a dirty file. When the user declined
+the Gate 3 authorization, a base behind its upstream is a fourth. Gate 3's authorization
 covers the fast-forward of `develop`, so it does not count as an unauthorized side effect outside the
 worktree.
 
@@ -358,7 +365,9 @@ semantic.
 | Rebase stopped on conflicts (exit 2) | Playbook, then `--continue`; `--abort` restores `backup/<branch>` |
 | Verification red after a rebase | Branch stays; fix with a new commit; `develop` untouched |
 | Base diverged from its upstream | Stop and ask |
-| Dirty file in the base checkout that the merge or fast-forward changes, outside `.devtool/` | Stop and ask; colliding `.devtool/` mirrors are restored and the land retried |
+| Dirty file in the base checkout that the merge or fast-forward changes, outside `.devtool/` and `docs/superpowers/` | Stop and ask; colliding archival copies are restored and the land retried |
+| Command run on the base branch itself | Exit 3: run it from the branch's worktree |
+| `git merge` fails inside `land` (a hook rejects the message) | `merge --abort` in that checkout; exit 1; the base is unchanged |
 | Fetch failed | Warning; at finish, ask before landing |
 | `land` precondition failed (base moved, SHA mismatch) | Exit 3; restart from `preflight` |
 | `land` postcondition failed | `reset --keep` to the pre-merge base, or `update-ref` back without a checkout; exit 4 |
@@ -378,7 +387,8 @@ following the precedent of `test_check_code_impact.py`. Cases:
 5. `land`: two-parent merge commit, matching tree, generated body without trailers; refusal when the
    base moved, when a dirty file collides with the merge, on a malformed title and on SHA mismatch;
    an unrelated dirty file is preserved; landing through `commit-tree` when the base is not checked
-   out.
+   out; aborting a merge a commit-msg hook rejects.
+7. Guards: refusing to integrate the base itself; a local upstream is not treated as a push.
 6. Parallel epics: epic A lands, then epic B picks A up at its next integration.
 
 Also:

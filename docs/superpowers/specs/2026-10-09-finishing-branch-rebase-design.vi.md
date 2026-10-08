@@ -139,9 +139,12 @@ parent thứ hai của merge commit của epic, và phá vỡ history first-pare
 |------|--------|---------|
 | `sync-base` | Có | Resolve base, kể cả fast-forward. Phase 1 gọi lệnh này trước `git worktree add` |
 | `preflight` | Không | Chỉ báo cáo (các mục bên dưới) |
-| `rebase` | Có | Từ chối khi HEAD detached, worktree bẩn, đang có rebase dở, hoặc nhánh đã có upstream (đã push). Chạy `sync-base`. Ghi đè `backup/<branch>` bằng HEAD hiện tại, lần nào cũng vậy. Nếu base đã là tổ tiên thì dừng với tier `noop`. Ngược lại chạy `git -c rerere.enabled=true rebase <base>`. `--continue` và `--abort` bọc các lệnh git tương ứng; `--continue` có bật rerere để ghi nhớ cách giải |
+| `rebase` | Có | Từ chối khi HEAD detached, worktree bẩn, đang có rebase dở, hoặc nhánh đang track một nhánh trên remote (đã push; upstream local không tính). Chạy `sync-base`. Ghi đè `backup/<branch>` bằng HEAD hiện tại, lần nào cũng vậy. Nếu base đã là tổ tiên thì dừng với tier `noop`. Ngược lại chạy `git -c rerere.enabled=true rebase <base>`. `--continue` và `--abort` bọc các lệnh git tương ứng; `--continue` có bật rerere để ghi nhớ cách giải |
 | `verify-tier` | Không | Đo tier (6.3) và in ra mức verify cần chạy cho cả hai ngữ cảnh (finish và ranh giới task), checklist regression, các file giao nhau và SHA ứng viên |
 | `land --verified <sha> --title "<title>"` | Có | Chạy `sync-base`, kiểm tra điều kiện trước, merge `--no-ff` trong checkout đang giữ base (hoặc ghi cùng merge đó bằng plumbing khi không có checkout nào), kiểm tra điều kiện sau |
+
+`preflight`, `rebase`, `verify-tier` và `land` từ chối chạy trên chính nhánh base: chạy từ main
+checkout thì chúng không có gì để tích hợp và sẽ lặng lẽ báo `noop`.
 
 `preflight` báo cáo:
 
@@ -172,6 +175,8 @@ Chi tiết `land`:
   không có merge hay rebase dở, không có thay đổi đã stage, và không file bẩn nào của nó nằm trong số
   file mà merge thay đổi. Các file bẩn không liên quan, ví dụ mirror Kanban của một epic khác đang
   chạy song song, được giữ nguyên. Khi từ chối vì file va chạm, thông báo nêu tên các file đó.
+- **Merge thất bại**: merge chạy với `--no-log`. Nếu chính `git merge` thất bại, ví dụ vì một
+  commit-msg hook từ chối message, abort merge trong checkout đó và exit 1.
 - **Không có checkout của base**: trong một repo thường mà checkout duy nhất đang giữ nhánh feature,
   ghi merge bằng `git commit-tree <sha>^{tree} -p <base> -p <sha>` và di chuyển base bằng
   `git update-ref`, có kiểm tra giá trị cũ. Tree đúng bằng tree đã verify ngay từ cách xây dựng.
@@ -253,11 +258,12 @@ flowchart TD
    Nếu đỏ thì dừng. Nhánh và worktree được giữ nguyên; sửa trong worktree, commit, rồi chạy lại
    `verify-tier`.
 6. **Land** với `--verified <sha> --title "[EPIC_NAME] Merge epic/<slug>"`. Exit 3 do base đã đi tiếp
-   trong lúc verify sẽ đưa luồng quay lại bước 2.
+   trong lúc verify sẽ đưa luồng quay lại bước 2, trừ khi rebase đã bị bỏ qua vì nhánh đã push: khi
+   đó dừng lại hỏi.
 7. **Restore khi va chạm.** Khi `land` exit 3 và nêu tên các file va chạm, nếu tất cả đều nằm trong
-   `.devtool/` (mirror do các script sync ghi), restore những file đã track trong main checkout, xóa
-   những file chưa track, rồi land lại. Có bất kỳ file va chạm nào ngoài `.devtool/` thì dừng lại
-   hỏi. Chỉ restore sau khi archive, qua đó sửa lỗi 5.
+   `.devtool/` hoặc `docs/superpowers/` (bản sao mà script archive ghi vào mọi checkout), restore
+   những file đã track trong main checkout, xóa những file chưa track, rồi land lại. Có bất kỳ file
+   va chạm nào khác thì dừng lại hỏi. Chỉ restore sau khi archive, qua đó sửa lỗi 5.
 8. **Dọn dẹp**: gỡ worktree (Step 6 hiện có), rồi `git branch -d <branch>` và
    `git branch -D backup/<branch>`. Trong repo thường, checkout base trước.
 
@@ -287,7 +293,7 @@ Các dòng mới cho bảng rationalization:
 | Vị trí | Thay đổi |
 |--------|----------|
 | Phase 1, step 4 | Chạy `sync-base` trước `git worktree add .worktrees/<epic_dir> -b epic/<epic_slug> develop` |
-| Phase 1, checkpoint Gate 3 | Hỏi một lần, cùng lúc với thứ tự thực thi, xin phép fast-forward `develop` local từ upstream của nó trong suốt epic |
+| Phase 1, checkpoint Gate 3 | Hỏi một lần, cùng lúc với thứ tự thực thi, xin phép fast-forward `develop` local từ upstream của nó trong suốt epic; nếu bị từ chối, bỏ qua `sync-base` ở Phase 1 |
 | Phase 2, step 0 | Khi gặp `🔴 DIVERGENCE DETECTED`, chạy `integrate_branch.py rebase` thay cho `git fetch && git rebase origin/<base_ref>` |
 | **Phase 2, step 7 mới** | **Integrate with base**, sau commit của step 5 và doc sync của step 6, lúc worktree chắc chắn sạch |
 | Phase 5 | Bỏ step 1 (restore main checkout); việc này đã chuyển vào luồng finishing, sau bước archive |
@@ -309,8 +315,9 @@ Step 7 chạy trong orchestrator, bên ngoài vòng lặp từng task của `sub
    `[EPIC_NAME] Fix integration with develop after <task_title>`.
 6. Báo cáo trong một khối ngắn: số commit đã kéo về, các epic upstream, tier.
 
-Step 7 dừng trong đúng ba trường hợp: conflict ngữ nghĩa, base đã tách nhánh, và git từ chối
-fast-forward vì sẽ ghi đè một file bẩn. Sự cho phép ở Gate 3 bao
+Step 7 chạy từ worktree của epic và dừng trong đúng ba trường hợp: conflict ngữ nghĩa, base đã tách
+nhánh, và git từ chối fast-forward vì sẽ ghi đè một file bẩn. Khi người dùng không cho phép ở Gate 3,
+base tụt sau upstream là trường hợp thứ tư. Sự cho phép ở Gate 3 bao
 gồm việc fast-forward `develop`, nên việc này không bị tính là side effect ngoài worktree chưa được
 cho phép.
 
@@ -358,7 +365,9 @@ ngữ nghĩa.
 | Rebase dừng vì conflict (exit 2) | Theo playbook, rồi `--continue`; `--abort` đưa về `backup/<branch>` |
 | Verify đỏ sau rebase | Giữ nhánh; sửa bằng commit mới; `develop` không bị đụng tới |
 | Base đã tách nhánh với upstream | Dừng lại hỏi |
-| File bẩn trong checkout của base mà merge hoặc fast-forward thay đổi, nằm ngoài `.devtool/` | Dừng lại hỏi; mirror `.devtool/` va chạm thì được restore và land lại |
+| File bẩn trong checkout của base mà merge hoặc fast-forward thay đổi, nằm ngoài `.devtool/` và `docs/superpowers/` | Dừng lại hỏi; bản sao archive va chạm thì được restore và land lại |
+| Lệnh chạy trên chính nhánh base | Exit 3: chạy từ worktree của nhánh |
+| `git merge` thất bại bên trong `land` (hook từ chối message) | `merge --abort` trong checkout đó; exit 1; base không đổi |
 | Fetch lỗi | Cảnh báo; lúc finish, hỏi trước khi land |
 | `land` không đạt điều kiện trước (base đã đi tiếp, SHA không khớp) | Exit 3; bắt đầu lại từ `preflight` |
 | `land` không đạt điều kiện sau | `reset --keep` về base trước khi merge, hoặc `update-ref` ngược lại khi không có checkout; exit 4 |
@@ -378,7 +387,9 @@ theo tiền lệ của `test_check_code_impact.py`. Các ca:
    fetch lỗi.
 5. `land`: merge commit có hai parent, tree trùng khớp, body tự sinh không có trailer; từ chối khi
    base đã đi tiếp, khi một file bẩn va chạm với merge, khi title sai format và khi SHA không khớp;
-   file bẩn không liên quan được giữ nguyên; land bằng `commit-tree` khi base không được checkout.
+   file bẩn không liên quan được giữ nguyên; land bằng `commit-tree` khi base không được checkout;
+   abort merge bị commit-msg hook từ chối.
+7. Các chốt chặn: từ chối tích hợp chính nhánh base; upstream local không bị coi là đã push.
 6. Hai epic song song: epic A land, rồi epic B kéo được A về ở lần tích hợp kế tiếp.
 
 Ngoài ra:
