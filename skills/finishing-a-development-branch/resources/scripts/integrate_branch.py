@@ -61,7 +61,7 @@ class Refusal(Exception):
 
 def git(*args: str, cwd: Path | None = None, check: bool = True) -> subprocess.CompletedProcess:
     env = dict(os.environ, GIT_EDITOR="true")  # rebase --continue must never open an editor
-    result = subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True, env=env)
+    result = subprocess.run(["git", "-c", "core.quotePath=false", *args], cwd=cwd, capture_output=True, text=True, env=env)
     if check and result.returncode != 0:
         raise GitError(f"git {' '.join(args)} failed: {result.stderr.strip()}")
     return result
@@ -114,7 +114,7 @@ def merge_base(a: str, b: str) -> str:
 
 
 def changed_files(a: str, b: str) -> list[str]:
-    return [line for line in out("diff", "--name-only", a, b).splitlines() if line]
+    return [line for line in out("diff", "--name-only", "--no-renames", a, b).splitlines() if line]
 
 
 def git_path(name: str, cwd: Path | None = None) -> Path:
@@ -312,11 +312,13 @@ def cmd_preflight(args) -> tuple[int, dict]:
     target = state.upstream if state.relation == "behind" else args.base
     head = rev("HEAD")
     since = merge_base(head, target)
-    tier, conflicts = predict(target, head)
+    stopped = rebase_in_progress()
+    # Mid-rebase the detached HEAD already sits on the base, so a prediction would read "noop".
+    tier, conflicts = ("rebase-in-progress", []) if stopped else predict(target, head)
     warnings = list(state.warnings)
     if state.relation == "diverged":
         warnings.append(f"{args.base} and {state.upstream} have diverged; reconcile {args.base} first")
-    if rebase_in_progress():
+    if stopped:
         warnings.append("a rebase is in progress; run rebase --continue or rebase --abort")
     if dirty_files(untracked=False):
         warnings.append("the worktree has uncommitted changes")
@@ -351,7 +353,7 @@ def cmd_rebase(args) -> tuple[int, dict]:
             restored = rev("HEAD") == rev(backup_ref(branch))
             return EXIT_OK, {"command": "rebase", "branch": branch, "result": "aborted",
                              "restored_to_backup": restored}
-        result = git("-c", "rerere.enabled=true", "rebase", "--continue", check=False)
+        result = git("-c", "rerere.enabled=true", "-c", "rerere.autoUpdate=false", "rebase", "--continue", check=False)
         return rebase_outcome(branch, result)
     if rebase_in_progress():
         raise Refusal("a rebase is already in progress; use rebase --continue or rebase --abort")
@@ -364,14 +366,15 @@ def cmd_rebase(args) -> tuple[int, dict]:
     git("branch", "--force", backup_ref(branch), head)
     if is_ancestor(args.base, head):
         return EXIT_OK, {"command": "rebase", "branch": branch, "result": "noop", "head": head}
-    result = git("-c", "rerere.enabled=true", "rebase", args.base, check=False)
+    result = git("-c", "rerere.enabled=true", "-c", "rerere.autoUpdate=false", "rebase",
+               "--no-update-refs", args.base, check=False)
     return rebase_outcome(branch, result)
 
 
 def normalised_diff(a: str, b: str) -> list[str]:
     """A zero-context diff without blob ids or line numbers: what changed, not where."""
     lines = []
-    for line in git("diff", "-U0", "--no-color", "--no-ext-diff", a, b).stdout.splitlines():
+    for line in git("diff", "--binary", "-U0", "--no-color", "--no-ext-diff", a, b).stdout.splitlines():
         if line.startswith("index "):
             continue
         lines.append("@@" if line.startswith("@@") else line)
@@ -424,7 +427,7 @@ def cmd_land(args) -> tuple[int, dict]:
         raise Refusal(f"{branch} has no commits that {args.base} lacks; nothing to land")
     if not is_ancestor(old_base, sha):
         raise Refusal(f"{args.base} has moved since the rebase; run preflight and rebase again")
-    message = ["-m", args.title, "-m", out("log", "--reverse", "--format=- %s", f"{old_base}..{sha}")]
+    message = ["-m", args.title, "-m", out("log", "--no-show-signature", "--reverse", "--format=- %s", f"{old_base}..{sha}")]
     checkout = checkout_of(args.base)
     if checkout is None:
         merge = out("commit-tree", f"{sha}^{{tree}}", "-p", old_base, "-p", sha, *message)

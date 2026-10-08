@@ -45,9 +45,9 @@ def edit_line(content: str, number: int, text: str) -> str:
     return "".join(lines)
 
 
-def integrate(cwd: Path, *args: str) -> tuple[int, dict | None, str]:
+def integrate(cwd: Path, *args: str, env: dict | None = None) -> tuple[int, dict | None, str]:
     result = subprocess.run([sys.executable, str(SCRIPT), *args, "--format", "json"], cwd=cwd,
-                            capture_output=True, text=True)
+                            capture_output=True, text=True, env={**os.environ, **(env or {})})
     data = json.loads(result.stdout) if result.stdout.strip() else None
     return result.returncode, data, result.stderr
 
@@ -178,6 +178,13 @@ class TestPreflight(RepoTestCase):
         self.assertEqual(git(self.main, "rev-parse", "develop"), before)
         self.assertEqual(data["predicted_tier"], "clean")
 
+    def test_reports_a_stopped_rebase_instead_of_a_noop(self):
+        epic, _ = self.conflicting_epic()
+        self.assertEqual(integrate(epic, "rebase")[0], 2)
+        code, data, _ = integrate(epic, "preflight")
+        self.assertEqual((code, data["predicted_tier"]), (0, "rebase-in-progress"))
+        self.assertTrue(any("rebase is in progress" in w for w in data["warnings"]))
+
 
 class TestRebase(RepoTestCase):
     def test_refuses_a_dirty_worktree(self):
@@ -278,6 +285,35 @@ class TestVerifyTier(RepoTestCase):
         code, data, _ = integrate(epic, "verify-tier")
         self.assertEqual((code, data["tier"]), (0, "conflicts"))
 
+    def test_conflicts_even_when_user_config_updates_refs_on_rebase(self):
+        epic, _ = self.conflicting_epic()
+        env = {"GIT_CONFIG_COUNT": "1", "GIT_CONFIG_KEY_0": "rebase.updateRefs",
+               "GIT_CONFIG_VALUE_0": "true"}
+        self.assertEqual(integrate(epic, "rebase", env=env)[0], 2)
+        (epic / "lib/app.dart").write_text(edit_line(LINES, 3, "epic and upstream line 3"))
+        git(epic, "add", "lib/app.dart")
+        self.assertEqual(integrate(epic, "rebase", "--continue", env=env)[0], 0)
+        code, data, _ = integrate(epic, "verify-tier", env=env)
+        self.assertEqual((code, data["tier"]), (0, "conflicts"))
+
+    def test_conflicts_after_a_resolved_binary_conflict(self):
+        (self.main / "assets").mkdir()
+        (self.main / "assets/logo.bin").write_bytes(b"\x00original\x00")
+        git(self.main, "add", "assets/logo.bin")
+        git(self.main, "commit", "-q", "-m", "Add logo")
+        epic = self.add_epic()
+        for checkout, content, message in ((epic, b"\x00epic\x00", "Epic logo"),
+                                           (self.main, b"\x00upstream\x00", "Upstream logo")):
+            (checkout / "assets/logo.bin").write_bytes(content)
+            git(checkout, "add", "assets/logo.bin")
+            git(checkout, "commit", "-q", "-m", message)
+        self.assertEqual(integrate(epic, "rebase")[0], 2)
+        git(epic, "checkout", "--theirs", "--", "assets/logo.bin")
+        git(epic, "add", "assets/logo.bin")
+        self.assertEqual(integrate(epic, "rebase", "--continue")[0], 0)
+        code, data, _ = integrate(epic, "verify-tier")
+        self.assertEqual((code, data["tier"]), (0, "conflicts"))
+
     def test_a_commit_after_a_clean_rebase_raises_the_tier(self):
         epic = self.add_epic()
         commit(epic, "lib/app.dart", edit_line(LINES, 3, "epic line 3"), "Task 1")
@@ -343,6 +379,21 @@ class TestLand(RepoTestCase):
         code, _, stderr = integrate(epic, "land", "--verified", sha, "--title", self.TITLE)
         self.assertEqual(code, 3)
         self.assertIn("lib/feature.dart", stderr)
+        self.assertEqual(git(self.main, "rev-parse", "develop"), old_base)
+
+    def test_refuses_a_dirty_path_that_the_epic_renamed_away(self):
+        epic = self.add_epic()
+        git(epic, "mv", "lib/app.dart", "lib/core.dart")
+        (epic / "lib/core.dart").write_text(edit_line(LINES, 2, "renamed"))
+        git(epic, "add", "lib/core.dart")
+        git(epic, "commit", "-q", "-m", "Rename app to core")
+        old_base = commit(self.main, "lib/other.dart", "upstream\n", "Upstream edit")
+        self.assertEqual(integrate(epic, "rebase")[0], 0)
+        sha = git(epic, "rev-parse", "HEAD")
+        (self.main / "lib/app.dart").write_text("dirty\n")
+        code, _, stderr = integrate(epic, "land", "--verified", sha, "--title", self.TITLE)
+        self.assertEqual(code, 3)
+        self.assertIn("lib/app.dart", stderr)
         self.assertEqual(git(self.main, "rev-parse", "develop"), old_base)
 
     def test_keeps_an_unrelated_dirty_file(self):
