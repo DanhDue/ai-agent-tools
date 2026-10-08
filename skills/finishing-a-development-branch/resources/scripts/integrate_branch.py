@@ -42,6 +42,9 @@ MANIFEST_PATTERNS = (
 )
 
 
+TITLE_RE = re.compile(r"^\[[A-Z0-9_]+\] \S(.*[^.\s])?$")
+
+
 class GitError(Exception):
     """A git command failed where failure was not expected."""
 
@@ -179,6 +182,10 @@ def backup_ref(branch: str) -> str:
 
 def ref_exists(ref: str) -> bool:
     return succeeds("rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}")
+
+
+def merge_in_progress(cwd: Path | None = None) -> bool:
+    return git_path("MERGE_HEAD", cwd).exists()
 
 
 # --- resolve base -------------------------------------------------------------------------
@@ -399,6 +406,67 @@ def cmd_verify_tier(args) -> tuple[int, dict]:
                      **upstream_context(since, onto, head)}
 
 
+def cmd_land(args) -> tuple[int, dict]:
+    if not TITLE_RE.match(args.title):
+        raise Refusal("title must look like '[SCOPE] Title', with no trailing period")
+    branch = integrating_branch(args.base)
+    if rebase_in_progress():
+        raise Refusal("a rebase is in progress; finish or abort it first")
+    if not ref_exists(args.verified):
+        raise Refusal(f"'{args.verified}' is not a commit")
+    sync_base(args.base, args.fetch)
+    sha = rev(args.verified)
+    tip = rev(branch)
+    if tip != sha:
+        raise Refusal(f"{branch} is at {tip[:12]}, not the verified {sha[:12]}; verify the current tip")
+    old_base = rev(args.base)
+    if old_base == sha:
+        raise Refusal(f"{branch} has no commits that {args.base} lacks; nothing to land")
+    if not is_ancestor(old_base, sha):
+        raise Refusal(f"{args.base} has moved since the rebase; run preflight and rebase again")
+    message = ["-m", args.title, "-m", out("log", "--reverse", "--format=- %s", f"{old_base}..{sha}")]
+    checkout = checkout_of(args.base)
+    if checkout is None:
+        merge = out("commit-tree", f"{sha}^{{tree}}", "-p", old_base, "-p", sha, *message)
+        git("update-ref", f"refs/heads/{args.base}", merge, old_base)
+    else:
+        guard_checkout(checkout, changed_files(old_base, sha))
+        result = git("merge", "--no-ff", "--no-edit", "--no-log", *message, branch, cwd=checkout, check=False)
+        if result.returncode != 0:  # a hook can reject the merge after git has staged it
+            git("merge", "--abort", cwd=checkout, check=False)
+            raise GitError(f"git merge failed in {checkout} and was aborted: {result.stderr.strip()}")
+    check_landed(args.base, old_base, sha, checkout)
+    return EXIT_OK, {"command": "land", "branch": branch, "base": args.base,
+                     "merge_commit": rev(args.base), "verified_sha": sha,
+                     "checkout": str(checkout) if checkout else None}
+
+
+def guard_checkout(checkout: Path, touched: list[str]) -> None:
+    if rebase_in_progress(checkout) or merge_in_progress(checkout):
+        raise Refusal(f"{checkout} has a merge or rebase in progress")
+    if not succeeds("diff", "--cached", "--quiet", cwd=checkout):
+        raise Refusal(f"{checkout} has staged changes; a merge would record them")
+    collisions = sorted(set(touched).intersection(dirty_files(checkout)))
+    if collisions:
+        raise Refusal(f"dirty files in {checkout} collide with the merge: {', '.join(collisions)}")
+
+
+def check_landed(base: str, old_base: str, sha: str, checkout: Path | None) -> None:
+    new_base = rev(base)
+    problems = []
+    if out("rev-parse", f"{new_base}^{{tree}}") != out("rev-parse", f"{sha}^{{tree}}"):
+        problems.append("the merge tree differs from the verified tree")
+    if rev(f"{new_base}^1") != old_base or rev(f"{new_base}^2") != sha:
+        problems.append("the merge commit's parents are not the old base and the verified sha")
+    if not problems:
+        return
+    if checkout is None:
+        git("update-ref", f"refs/heads/{base}", old_base, new_base)
+    else:
+        git("reset", "--keep", old_base, cwd=checkout)
+    raise Refusal("; ".join(problems) + f"; {base} rolled back to {old_base[:12]}", EXIT_POSTCONDITION)
+
+
 # --- entry point --------------------------------------------------------------------------
 
 def to_markdown(report: dict) -> str:
@@ -439,11 +507,14 @@ def build_parser() -> argparse.ArgumentParser:
     mode.add_argument("--continue", dest="cont", action="store_true")
     mode.add_argument("--abort", action="store_true")
     add("verify-tier", fetch=False)
+    land = add("land")
+    land.add_argument("--verified", required=True)
+    land.add_argument("--title", required=True)
     return parser
 
 
 COMMANDS = {"sync-base": cmd_sync_base, "preflight": cmd_preflight, "rebase": cmd_rebase,
-            "verify-tier": cmd_verify_tier}
+            "verify-tier": cmd_verify_tier, "land": cmd_land}
 
 
 def main(argv: list[str] | None = None) -> int:

@@ -295,5 +295,102 @@ class TestVerifyTier(RepoTestCase):
         self.assertIn("in progress", stderr)
 
 
+class TestLand(RepoTestCase):
+    TITLE = "[DEMO] Merge epic/demo"
+
+    def rebased_epic(self) -> tuple[Path, str, str]:
+        epic = self.add_epic()
+        commit(epic, "lib/feature.dart", "feature\n", "Task 1")
+        commit(epic, "lib/more.dart", "more\n", "Task 2")
+        old_base = commit(self.main, "lib/other.dart", "upstream\n", "Upstream edit")
+        self.assertEqual(integrate(epic, "rebase")[0], 0)
+        return epic, git(epic, "rev-parse", "HEAD"), old_base
+
+    def test_lands_a_two_parent_merge_with_the_verified_tree(self):
+        epic, sha, old_base = self.rebased_epic()
+        code, data, _ = integrate(epic, "land", "--verified", sha, "--title", self.TITLE)
+        self.assertEqual(code, 0)
+        self.assertEqual(git(self.main, "rev-parse", "develop^1"), old_base)
+        self.assertEqual(git(self.main, "rev-parse", "develop^2"), sha)
+        self.assertEqual(git(self.main, "rev-parse", "develop^{tree}"),
+                         git(epic, "rev-parse", f"{sha}^{{tree}}"))
+        self.assertEqual(git(self.main, "log", "-1", "--format=%B", "develop"),
+                         "[DEMO] Merge epic/demo\n\n- Task 1\n- Task 2")
+        self.assertTrue((self.main / "lib/feature.dart").exists())
+
+    def test_refuses_a_title_outside_the_commit_format(self):
+        epic, sha, _ = self.rebased_epic()
+        for title in ("Merge epic/demo", "[DEMO] Merge epic/demo."):
+            self.assertEqual(integrate(epic, "land", "--verified", sha, "--title", title)[0], 3)
+
+    def test_refuses_a_tip_that_is_not_the_verified_sha(self):
+        epic, sha, _ = self.rebased_epic()
+        commit(epic, "lib/late.dart", "late\n", "Unverified change")
+        code, _, stderr = integrate(epic, "land", "--verified", sha, "--title", self.TITLE)
+        self.assertEqual(code, 3)
+        self.assertIn("not the verified", stderr)
+
+    def test_refuses_when_the_base_moved_after_the_rebase(self):
+        epic, sha, _ = self.rebased_epic()
+        commit(self.main, "lib/newer.dart", "newer\n", "Another epic landed")
+        code, _, stderr = integrate(epic, "land", "--verified", sha, "--title", self.TITLE)
+        self.assertEqual(code, 3)
+        self.assertIn("has moved", stderr)
+
+    def test_refuses_a_dirty_file_that_collides_with_the_merge(self):
+        epic, sha, old_base = self.rebased_epic()
+        (self.main / "lib/feature.dart").write_text("mirror\n")
+        code, _, stderr = integrate(epic, "land", "--verified", sha, "--title", self.TITLE)
+        self.assertEqual(code, 3)
+        self.assertIn("lib/feature.dart", stderr)
+        self.assertEqual(git(self.main, "rev-parse", "develop"), old_base)
+
+    def test_keeps_an_unrelated_dirty_file(self):
+        epic, sha, _ = self.rebased_epic()
+        (self.main / "lib/app.dart").write_text("another epic's mirror\n")
+        code, _, _ = integrate(epic, "land", "--verified", sha, "--title", self.TITLE)
+        self.assertEqual(code, 0)
+        self.assertEqual((self.main / "lib/app.dart").read_text(), "another epic's mirror\n")
+
+    def test_aborts_a_merge_that_a_hook_rejects(self):
+        epic, sha, old_base = self.rebased_epic()
+        hook = Path(git(self.main, "rev-parse", "--git-path", "hooks/commit-msg"))
+        hook = hook if hook.is_absolute() else self.main / hook
+        hook.parent.mkdir(parents=True, exist_ok=True)
+        hook.write_text("#!/bin/sh\nexit 1\n")
+        hook.chmod(0o755)
+        code, _, stderr = integrate(epic, "land", "--verified", sha, "--title", self.TITLE)
+        self.assertEqual(code, 1)
+        self.assertIn("aborted", stderr)
+        self.assertEqual(git(self.main, "rev-parse", "develop"), old_base)
+        self.assertEqual(git(self.main, "status", "--porcelain"), "")
+
+    def test_lands_through_plumbing_when_the_base_is_not_checked_out(self):
+        git(self.main, "checkout", "-q", "-b", "feature/solo")
+        sha = commit(self.main, "lib/solo.dart", "solo\n", "Solo task")
+        code, _, _ = integrate(self.main, "land", "--verified", sha, "--title", "[SOLO] Merge feature/solo")
+        self.assertEqual(code, 0)
+        self.assertEqual(git(self.main, "rev-parse", "develop^2"), sha)
+        self.assertEqual(git(self.main, "rev-parse", "develop^{tree}"),
+                         git(self.main, "rev-parse", f"{sha}^{{tree}}"))
+
+
+class TestParallelEpics(RepoTestCase):
+    def test_second_epic_picks_up_the_first_after_it_lands(self):
+        epic_a, epic_b = self.add_epic("a"), self.add_epic("b")
+        sha_a = commit(epic_a, ".devtool/epic/epic_a/bdd_scenarios.en.md", "# BDD\n", "Task A1")
+        commit(epic_b, "lib/b.dart", "b\n", "Task B1")
+        self.assertEqual(integrate(epic_a, "rebase")[0], 0)
+        self.assertEqual(integrate(epic_a, "land", "--verified", sha_a, "--title", "[EPIC_A] Merge epic/a")[0], 0)
+        _, data, _ = integrate(epic_b, "preflight")
+        self.assertEqual(data["upstream_epics"][0]["epic_dir"], "epic_a")
+        self.assertEqual(integrate(epic_b, "rebase")[0], 0)
+        self.assertTrue((epic_b / ".devtool/epic/epic_a/bdd_scenarios.en.md").exists())
+        sha_b = git(epic_b, "rev-parse", "HEAD")
+        self.assertEqual(integrate(epic_b, "land", "--verified", sha_b, "--title", "[EPIC_B] Merge epic/b")[0], 0)
+        first_parent = git(self.main, "log", "--first-parent", "--format=%s", "develop").splitlines()
+        self.assertEqual(first_parent[:2], ["[EPIC_B] Merge epic/b", "[EPIC_A] Merge epic/a"])
+
+
 if __name__ == "__main__":
     unittest.main()
