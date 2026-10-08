@@ -374,6 +374,19 @@ class TestLand(RepoTestCase):
         self.assertEqual(git(self.main, "rev-parse", "develop^{tree}"),
                          git(self.main, "rev-parse", f"{sha}^{{tree}}"))
 
+    def test_rolls_back_when_the_postcondition_fails(self):
+        epic, sha, old_base = self.rebased_epic()
+        hook = Path(git(self.main, "rev-parse", "--git-path", "hooks/post-merge"))
+        hook = hook if hook.is_absolute() else self.main / hook
+        hook.parent.mkdir(parents=True, exist_ok=True)
+        hook.write_text("#!/bin/sh\necho extra > extra.txt && git add extra.txt && git commit -q -m 'Hook commit'\n")
+        hook.chmod(0o755)
+        code, _, stderr = integrate(epic, "land", "--verified", sha, "--title", self.TITLE)
+        self.assertEqual(code, 4)
+        self.assertIn("rolled back", stderr)
+        self.assertEqual(git(self.main, "rev-parse", "develop"), old_base)
+        self.assertEqual(git(self.main, "status", "--porcelain"), "")
+
 
 class TestParallelEpics(RepoTestCase):
     def test_second_epic_picks_up_the_first_after_it_lands(self):
