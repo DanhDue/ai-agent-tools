@@ -179,5 +179,70 @@ class TestPreflight(RepoTestCase):
         self.assertEqual(data["predicted_tier"], "clean")
 
 
+class TestRebase(RepoTestCase):
+    def test_refuses_a_dirty_worktree(self):
+        epic = self.add_epic()
+        (epic / "lib/app.dart").write_text("dirty\n")
+        code, _, stderr = integrate(epic, "rebase")
+        self.assertEqual(code, 3)
+        self.assertIn("uncommitted", stderr)
+
+    def test_refuses_a_branch_that_was_pushed(self):
+        self.add_remote()
+        epic = self.add_epic()
+        git(epic, "push", "-q", "-u", "origin", "epic/demo")
+        code, _, stderr = integrate(epic, "rebase")
+        self.assertEqual(code, 3)
+        self.assertIn("force-push", stderr)
+
+    def test_a_local_upstream_is_not_a_push(self):
+        epic = self.add_epic()
+        git(epic, "branch", "-q", "--set-upstream-to", "develop")
+        code, data, _ = integrate(epic, "rebase")
+        self.assertEqual((code, data["result"]), (0, "noop"))
+
+    def test_refuses_a_detached_head(self):
+        epic = self.add_epic()
+        git(epic, "checkout", "-q", "--detach")
+        code, _, stderr = integrate(epic, "rebase")
+        self.assertEqual(code, 3)
+        self.assertIn("detached", stderr)
+
+    def test_noop_records_the_backup(self):
+        epic = self.add_epic()
+        head = commit(epic, "lib/feature.dart", "feature\n", "Task 1")
+        code, data, _ = integrate(epic, "rebase")
+        self.assertEqual((code, data["result"]), (0, "noop"))
+        self.assertEqual(git(epic, "rev-parse", "backup/epic/demo"), head)
+
+    def test_clean_rebase_replays_onto_the_base(self):
+        epic = self.add_epic()
+        commit(epic, "lib/app.dart", edit_line(LINES, 3, "epic line 3"), "Task 1")
+        commit(self.main, "lib/app.dart", edit_line(LINES, 5, "upstream line 5"), "Upstream edit")
+        code, data, _ = integrate(epic, "rebase")
+        self.assertEqual((code, data["result"]), (0, "complete"))
+        content = (epic / "lib/app.dart").read_text()
+        self.assertIn("epic line 3", content)
+        self.assertIn("upstream line 5", content)
+
+    def test_conflict_stops_then_continue_completes(self):
+        epic, _ = self.conflicting_epic()
+        code, data, _ = integrate(epic, "rebase")
+        self.assertEqual((code, data["result"]), (2, "stopped"))
+        self.assertEqual(data["conflicts"], [{"path": "lib/app.dart", "tag": "review"}])
+        self.assertIn("Task 1", data["replaying"])
+        (epic / "lib/app.dart").write_text(edit_line(LINES, 3, "epic and upstream line 3"))
+        git(epic, "add", "lib/app.dart")
+        code, data, _ = integrate(epic, "rebase", "--continue")
+        self.assertEqual((code, data["result"]), (0, "complete"))
+
+    def test_abort_restores_the_backup(self):
+        epic, head = self.conflicting_epic()
+        self.assertEqual(integrate(epic, "rebase")[0], 2)
+        code, data, _ = integrate(epic, "rebase", "--abort")
+        self.assertEqual((code, data["result"], data["restored_to_backup"]), (0, "aborted", True))
+        self.assertEqual(git(epic, "rev-parse", "HEAD"), head)
+
+
 if __name__ == "__main__":
     unittest.main()

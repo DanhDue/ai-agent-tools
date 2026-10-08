@@ -173,6 +173,10 @@ def tag(path: str) -> str:
     return "regenerate" if matches(path, REGENERATE_PATTERNS) else "review"
 
 
+def backup_ref(branch: str) -> str:
+    return f"backup/{branch}"
+
+
 # --- resolve base -------------------------------------------------------------------------
 
 @dataclass
@@ -314,6 +318,45 @@ def cmd_preflight(args) -> tuple[int, dict]:
                      **upstream_context(since, target, head), "warnings": warnings}
 
 
+def rebase_outcome(branch: str, result: subprocess.CompletedProcess) -> tuple[int, dict]:
+    if rebase_in_progress():
+        conflicted = out("diff", "--name-only", "--diff-filter=U").splitlines()
+        replaying = git("log", "-1", "--format=%h %s", "REBASE_HEAD", check=False).stdout.strip()
+        return EXIT_CONFLICT, {"command": "rebase", "branch": branch, "result": "stopped",
+                               "replaying": replaying,
+                               "conflicts": [{"path": p, "tag": tag(p)} for p in conflicted if p]}
+    if result.returncode != 0:
+        raise GitError(f"git rebase failed: {result.stderr.strip()}")
+    return EXIT_OK, {"command": "rebase", "branch": branch, "result": "complete", "head": rev("HEAD")}
+
+
+def cmd_rebase(args) -> tuple[int, dict]:
+    branch = integrating_branch(args.base)
+    if args.abort or args.cont:
+        if not rebase_in_progress():
+            raise Refusal("no rebase is in progress")
+        if args.abort:
+            git("rebase", "--abort")
+            restored = rev("HEAD") == rev(backup_ref(branch))
+            return EXIT_OK, {"command": "rebase", "branch": branch, "result": "aborted",
+                             "restored_to_backup": restored}
+        result = git("-c", "rerere.enabled=true", "rebase", "--continue", check=False)
+        return rebase_outcome(branch, result)
+    if rebase_in_progress():
+        raise Refusal("a rebase is already in progress; use rebase --continue or rebase --abort")
+    if dirty_files(untracked=False):
+        raise Refusal("the worktree has uncommitted changes; commit them before rebasing")
+    if pushed(branch):
+        raise Refusal(f"{branch} has already been pushed; rebasing it would need a force-push")
+    sync_base(args.base, args.fetch)
+    head = rev("HEAD")
+    git("branch", "--force", backup_ref(branch), head)
+    if is_ancestor(args.base, head):
+        return EXIT_OK, {"command": "rebase", "branch": branch, "result": "noop", "head": head}
+    result = git("-c", "rerere.enabled=true", "rebase", args.base, check=False)
+    return rebase_outcome(branch, result)
+
+
 # --- entry point --------------------------------------------------------------------------
 
 def to_markdown(report: dict) -> str:
@@ -349,10 +392,14 @@ def build_parser() -> argparse.ArgumentParser:
 
     add("sync-base")
     add("preflight")
+    rebase = add("rebase")
+    mode = rebase.add_mutually_exclusive_group()
+    mode.add_argument("--continue", dest="cont", action="store_true")
+    mode.add_argument("--abort", action="store_true")
     return parser
 
 
-COMMANDS = {"sync-base": cmd_sync_base, "preflight": cmd_preflight}
+COMMANDS = {"sync-base": cmd_sync_base, "preflight": cmd_preflight, "rebase": cmd_rebase}
 
 
 def main(argv: list[str] | None = None) -> int:
