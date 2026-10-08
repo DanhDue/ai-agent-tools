@@ -132,5 +132,52 @@ class TestSyncBase(RepoTestCase):
         self.assertIn("fetch from origin failed", data["warnings"][0])
 
 
+class TestPreflight(RepoTestCase):
+    def test_noop_when_base_has_not_moved(self):
+        epic = self.add_epic()
+        commit(epic, "lib/feature.dart", "feature\n", "Task 1")
+        code, data, _ = integrate(epic, "preflight")
+        self.assertEqual((code, data["predicted_tier"]), (0, "noop"))
+        self.assertEqual(data["upstream_commits"], [])
+
+    def test_reports_upstream_work_epics_overlap_and_manifests(self):
+        epic = self.add_epic()
+        commit(epic, "lib/app.dart", edit_line(LINES, 3, "epic line 3"), "Task 1")
+        commit(self.main, "lib/app.dart", edit_line(LINES, 8, "upstream line 8"), "Upstream edit")
+        commit(self.main, ".devtool/epic/other_epic/bdd_scenarios.en.md", "# BDD\n", "Other epic")
+        commit(self.main, "pubspec.yaml", "name: app\n", "Add dependency")
+        code, data, _ = integrate(epic, "preflight")
+        self.assertEqual((code, data["predicted_tier"]), (0, "clean"))
+        self.assertEqual(len(data["upstream_commits"]), 3)
+        self.assertEqual(data["upstream_epics"], [
+            {"epic_dir": "other_epic", "bdd": ".devtool/epic/other_epic/bdd_scenarios.en.md"}])
+        self.assertEqual(data["overlap_files"], ["lib/app.dart"])
+        self.assertTrue(data["bootstrap_required"])
+
+    def test_predicts_conflicts_and_tags_generated_files(self):
+        epic, _ = self.conflicting_epic()
+        commit(epic, "pubspec.lock", "epic: 1\n", "Lock epic")
+        commit(self.main, "pubspec.lock", "upstream: 1\n", "Lock upstream")
+        code, data, _ = integrate(epic, "preflight")
+        self.assertEqual((code, data["predicted_tier"]), (0, "conflicts"))
+        self.assertEqual(data["conflicts"], [{"path": "lib/app.dart", "tag": "review"},
+                                             {"path": "pubspec.lock", "tag": "regenerate"}])
+
+    def test_refuses_to_integrate_the_base_itself(self):
+        code, _, stderr = integrate(self.main, "preflight")
+        self.assertEqual(code, 3)
+        self.assertIn("is the base", stderr)
+
+    def test_does_not_move_a_base_that_is_behind(self):
+        self.add_remote()
+        epic = self.add_epic()
+        before = git(self.main, "rev-parse", "develop")
+        self.push_from_elsewhere("lib/remote.dart", "remote\n", "Remote work")
+        code, data, _ = integrate(epic, "preflight")
+        self.assertEqual((code, data["relation"], data["target"]), (0, "behind", "origin/develop"))
+        self.assertEqual(git(self.main, "rev-parse", "develop"), before)
+        self.assertEqual(data["predicted_tier"], "clean")
+
+
 if __name__ == "__main__":
     unittest.main()
