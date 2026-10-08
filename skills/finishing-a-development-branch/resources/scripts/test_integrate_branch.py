@@ -244,5 +244,56 @@ class TestRebase(RepoTestCase):
         self.assertEqual(git(epic, "rev-parse", "HEAD"), head)
 
 
+class TestVerifyTier(RepoTestCase):
+    def test_noop_without_any_rebase(self):
+        epic = self.add_epic()
+        commit(epic, "lib/feature.dart", "feature\n", "Task 1")
+        code, data, _ = integrate(epic, "verify-tier")
+        self.assertEqual((code, data["tier"]), (0, "noop"))
+
+    def test_noop_after_a_noop_rebase(self):
+        epic = self.add_epic()
+        commit(epic, "lib/feature.dart", "feature\n", "Task 1")
+        self.assertEqual(integrate(epic, "rebase")[0], 0)
+        code, data, _ = integrate(epic, "verify-tier")
+        self.assertEqual((data["tier"], data["verification"]["task_boundary"]), ("noop", "none"))
+
+    def test_clean_when_upstream_only_changed_nearby_lines(self):
+        epic = self.add_epic()
+        commit(epic, "lib/app.dart", edit_line(LINES, 3, "epic line 3"), "Task 1")
+        commit(self.main, "lib/app.dart", edit_line(LINES, 5, "upstream line 5"), "Upstream edit")
+        self.assertEqual(integrate(epic, "rebase")[0], 0)
+        code, data, _ = integrate(epic, "verify-tier")
+        self.assertEqual((code, data["tier"]), (0, "clean"))
+        self.assertEqual(data["candidate_sha"], git(epic, "rev-parse", "HEAD"))
+        self.assertEqual(len(data["upstream_commits"]), 1)
+        self.assertEqual(data["overlap_files"], ["lib/app.dart"])
+
+    def test_conflicts_after_a_resolved_conflict(self):
+        epic, _ = self.conflicting_epic()
+        self.assertEqual(integrate(epic, "rebase")[0], 2)
+        (epic / "lib/app.dart").write_text(edit_line(LINES, 3, "epic and upstream line 3"))
+        git(epic, "add", "lib/app.dart")
+        self.assertEqual(integrate(epic, "rebase", "--continue")[0], 0)
+        code, data, _ = integrate(epic, "verify-tier")
+        self.assertEqual((code, data["tier"]), (0, "conflicts"))
+
+    def test_a_commit_after_a_clean_rebase_raises_the_tier(self):
+        epic = self.add_epic()
+        commit(epic, "lib/app.dart", edit_line(LINES, 3, "epic line 3"), "Task 1")
+        commit(self.main, "lib/other.dart", "upstream\n", "Upstream edit")
+        self.assertEqual(integrate(epic, "rebase")[0], 0)
+        commit(epic, "lib/app.g.dart", "regenerated\n", "Regenerate after rebase onto develop")
+        code, data, _ = integrate(epic, "verify-tier")
+        self.assertEqual(data["tier"], "conflicts")
+
+    def test_refuses_while_a_rebase_is_in_progress(self):
+        epic, _ = self.conflicting_epic()
+        self.assertEqual(integrate(epic, "rebase")[0], 2)
+        code, _, stderr = integrate(epic, "verify-tier")
+        self.assertEqual(code, 3)
+        self.assertIn("in progress", stderr)
+
+
 if __name__ == "__main__":
     unittest.main()

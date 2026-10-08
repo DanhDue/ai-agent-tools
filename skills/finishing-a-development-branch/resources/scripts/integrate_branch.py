@@ -177,6 +177,10 @@ def backup_ref(branch: str) -> str:
     return f"backup/{branch}"
 
 
+def ref_exists(ref: str) -> bool:
+    return succeeds("rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}")
+
+
 # --- resolve base -------------------------------------------------------------------------
 
 @dataclass
@@ -357,6 +361,44 @@ def cmd_rebase(args) -> tuple[int, dict]:
     return rebase_outcome(branch, result)
 
 
+def normalised_diff(a: str, b: str) -> list[str]:
+    """A zero-context diff without blob ids or line numbers: what changed, not where."""
+    lines = []
+    for line in git("diff", "-U0", "--no-color", "--no-ext-diff", a, b).stdout.splitlines():
+        if line.startswith("index "):
+            continue
+        lines.append("@@" if line.startswith("@@") else line)
+    return lines
+
+
+VERIFICATION = {
+    "noop": {"finish": "keep the existing verdict",
+             "task_boundary": "none"},
+    "clean": {"finish": "full test suite, impact-analysis Check 2, regression checklist",
+              "task_boundary": "analyze, build, Tier A unit tests"},
+    "conflicts": {"finish": "the invoking lifecycle's full gate",
+                  "task_boundary": "full 3-tier test suite"},
+}
+
+
+def cmd_verify_tier(args) -> tuple[int, dict]:
+    branch = integrating_branch(args.base)
+    if rebase_in_progress():
+        raise Refusal("a rebase is in progress; finish or abort it first")
+    head = rev("HEAD")
+    onto = merge_base(head, args.base)
+    backup = backup_ref(branch)
+    if not ref_exists(backup) or rev(backup) == head:
+        tier, since = "noop", onto
+    else:
+        since = merge_base(backup, onto)
+        same = normalised_diff(since, backup) == normalised_diff(onto, head)
+        tier = "clean" if same else "conflicts"
+    return EXIT_OK, {"command": "verify-tier", "branch": branch, "tier": tier,
+                     "verification": VERIFICATION[tier], "candidate_sha": head,
+                     **upstream_context(since, onto, head)}
+
+
 # --- entry point --------------------------------------------------------------------------
 
 def to_markdown(report: dict) -> str:
@@ -396,10 +438,12 @@ def build_parser() -> argparse.ArgumentParser:
     mode = rebase.add_mutually_exclusive_group()
     mode.add_argument("--continue", dest="cont", action="store_true")
     mode.add_argument("--abort", action="store_true")
+    add("verify-tier", fetch=False)
     return parser
 
 
-COMMANDS = {"sync-base": cmd_sync_base, "preflight": cmd_preflight, "rebase": cmd_rebase}
+COMMANDS = {"sync-base": cmd_sync_base, "preflight": cmd_preflight, "rebase": cmd_rebase,
+            "verify-tier": cmd_verify_tier}
 
 
 def main(argv: list[str] | None = None) -> int:
