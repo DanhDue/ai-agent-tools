@@ -140,15 +140,16 @@ parent thứ hai của merge commit của epic, và phá vỡ history first-pare
 | `sync-base` | Có | Resolve base, kể cả fast-forward. Phase 1 gọi lệnh này trước `git worktree add` |
 | `preflight` | Không | Chỉ báo cáo (các mục bên dưới) |
 | `rebase` | Có | Từ chối khi HEAD detached, worktree bẩn, đang có rebase dở, hoặc nhánh đã có upstream (đã push). Chạy `sync-base`. Ghi đè `backup/<branch>` bằng HEAD hiện tại, lần nào cũng vậy. Nếu base đã là tổ tiên thì dừng với tier `noop`. Ngược lại chạy `git -c rerere.enabled=true rebase <base>`. `--continue` và `--abort` bọc các lệnh git tương ứng; `--continue` có bật rerere để ghi nhớ cách giải |
-| `verify-tier` | Không | Đo tier (6.3) và in ra mức verify cần chạy, checklist regression, các file giao nhau và SHA ứng viên |
-| `land --verified <sha> --title "<title>"` | Có | Chạy `sync-base`, kiểm tra điều kiện trước, merge `--no-ff` trong checkout đang giữ base, kiểm tra điều kiện sau |
+| `verify-tier` | Không | Đo tier (6.3) và in ra mức verify cần chạy cho cả hai ngữ cảnh (finish và ranh giới task), checklist regression, các file giao nhau và SHA ứng viên |
+| `land --verified <sha> --title "<title>"` | Có | Chạy `sync-base`, kiểm tra điều kiện trước, merge `--no-ff` trong checkout đang giữ base (hoặc ghi cùng merge đó bằng plumbing khi không có checkout nào), kiểm tra điều kiện sau |
 
 `preflight` báo cáo:
 
 - nhánh, base, target đã resolve và merge-base;
 - các commit upstream kể từ merge-base;
-- **các epic upstream**: những thư mục được thêm vào `.devtool/epic/` kể từ merge-base, mỗi thư mục
-  kèm đường dẫn `bdd_scenarios.en.md` nếu có. Đây là checklist regression;
+- **các epic upstream**: những thư mục trong `.devtool/epic/` có thay đổi kể từ merge-base, mỗi thư
+  mục kèm đường dẫn `bdd_scenarios.en.md` nếu có. Thư mục của một epic được tạo từ lúc thiết kế,
+  thường trước điểm rẽ nhánh; commit archive của nó mới vào sau. Đây là checklist regression;
 - **các file giao nhau**: file bị cả hai phía sửa kể từ merge-base;
 - **tier dự đoán**: `noop` khi base là tổ tiên của HEAD, ngược lại là `clean` hoặc `conflicts` theo
   `git merge-tree --write-tree`. Mỗi file dự đoán conflict được gắn nhãn `regenerate` hoặc `review`;
@@ -166,13 +167,17 @@ Chi tiết `land`:
 
 - **Title**: phải khớp `[SCOPE] Title`, không có dấu chấm cuối. Body được sinh tự động, mỗi commit
   trong `<base>..<sha>` một dòng `- <subject>`, cũ nhất trước, không có trailer nào.
-- **Điều kiện trước**: tip của nhánh bằng `<sha>`; base là tổ tiên của `<sha>`; base đang được
-  checkout ở một checkout nào đó; checkout đó không có merge hay rebase dở; không file bẩn nào của nó
-  nằm trong số file mà merge thay đổi. Các file bẩn không liên quan, ví dụ mirror Kanban của một epic
-  khác đang chạy song song, được giữ nguyên.
+- **Điều kiện trước**: `<sha>` là một commit; tip của nhánh bằng `<sha>`; base là tổ tiên của
+  `<sha>`; nhánh có ít nhất một commit mà base chưa có. Khi base đang được checkout: checkout đó
+  không có merge hay rebase dở, không có thay đổi đã stage, và không file bẩn nào của nó nằm trong số
+  file mà merge thay đổi. Các file bẩn không liên quan, ví dụ mirror Kanban của một epic khác đang
+  chạy song song, được giữ nguyên. Khi từ chối vì file va chạm, thông báo nêu tên các file đó.
+- **Không có checkout của base**: trong một repo thường mà checkout duy nhất đang giữ nhánh feature,
+  ghi merge bằng `git commit-tree <sha>^{tree} -p <base> -p <sha>` và di chuyển base bằng
+  `git update-ref`, có kiểm tra giá trị cũ. Tree đúng bằng tree đã verify ngay từ cách xây dựng.
 - **Điều kiện sau**: `<base>^{tree}` bằng `<sha>^{tree}`; `<base>^1` là base trước khi merge;
-  `<base>^2` là `<sha>`. Nếu không đạt, chạy `git reset --keep ORIG_HEAD` trong checkout đó.
-- Khi base không được checkout ở đâu cả, thoát kèm hướng dẫn thay vì merge.
+  `<base>^2` là `<sha>`. Nếu không đạt, chạy `git reset --keep <base trước khi merge>` trong checkout
+  đó, hoặc `update-ref` ngược lại khi không có checkout nào.
 
 ### 6.3 Đo tier
 
@@ -225,8 +230,9 @@ flowchart TD
     BS --> TIER
     TIER -->|"đỏ"| FIX["Sửa trong worktree và commit"]
     FIX --> TIER
-    TIER -->|"xanh"| RESTORE["6. Restore file mirror mà merge chạm tới (main checkout)"]
-    RESTORE --> LAND["7. integrate_branch.py land"]
+    TIER -->|"xanh"| LAND["6. integrate_branch.py land"]
+    LAND -->|"exit 3: mirror .devtool va chạm"| RESTORE["7. Restore các mirror va chạm (main checkout)"]
+    RESTORE --> LAND
     LAND -->|"exit 3: base đã đi tiếp"| PRE
     LAND -->|"exit 0"| CLEAN["8. Gỡ worktree, xóa nhánh và backup ref"]
 ```
@@ -246,12 +252,14 @@ flowchart TD
 
    Nếu đỏ thì dừng. Nhánh và worktree được giữ nguyên; sửa trong worktree, commit, rồi chạy lại
    `verify-tier`.
-6. **Restore** các file `.devtool/` được mirror trong main checkout mà merge thay đổi. Bước này chạy
-   sau archive, qua đó sửa lỗi 5. Nếu merge thay đổi bất kỳ file bẩn nào khác thì dừng lại hỏi.
-7. **Land** với `--verified <sha> --title "[EPIC_NAME] Merge epic/<slug>"`. Exit 3 do base đã đi tiếp
+6. **Land** với `--verified <sha> --title "[EPIC_NAME] Merge epic/<slug>"`. Exit 3 do base đã đi tiếp
    trong lúc verify sẽ đưa luồng quay lại bước 2.
+7. **Restore khi va chạm.** Khi `land` exit 3 và nêu tên các file va chạm, nếu tất cả đều nằm trong
+   `.devtool/` (mirror do các script sync ghi), restore những file đã track trong main checkout, xóa
+   những file chưa track, rồi land lại. Có bất kỳ file va chạm nào ngoài `.devtool/` thì dừng lại
+   hỏi. Chỉ restore sau khi archive, qua đó sửa lỗi 5.
 8. **Dọn dẹp**: gỡ worktree (Step 6 hiện có), rồi `git branch -d <branch>` và
-   `git branch -D backup/<branch>`.
+   `git branch -D backup/<branch>`. Trong repo thường, checkout base trước.
 
 `git checkout <base> && git pull && git merge <feature-branch>` bị xóa bỏ.
 
@@ -350,10 +358,10 @@ ngữ nghĩa.
 | Rebase dừng vì conflict (exit 2) | Theo playbook, rồi `--continue`; `--abort` đưa về `backup/<branch>` |
 | Verify đỏ sau rebase | Giữ nhánh; sửa bằng commit mới; `develop` không bị đụng tới |
 | Base đã tách nhánh với upstream | Dừng lại hỏi |
-| File bẩn trong checkout của base mà merge hoặc fast-forward thay đổi, ngoài các mirror của epic này | Dừng lại hỏi |
+| File bẩn trong checkout của base mà merge hoặc fast-forward thay đổi, nằm ngoài `.devtool/` | Dừng lại hỏi; mirror `.devtool/` va chạm thì được restore và land lại |
 | Fetch lỗi | Cảnh báo; lúc finish, hỏi trước khi land |
 | `land` không đạt điều kiện trước (base đã đi tiếp, SHA không khớp) | Exit 3; bắt đầu lại từ `preflight` |
-| `land` không đạt điều kiện sau | `reset --keep ORIG_HEAD`; exit 4 |
+| `land` không đạt điều kiện sau | `reset --keep` về base trước khi merge, hoặc `update-ref` ngược lại khi không có checkout; exit 4 |
 | Có rebase dở từ phiên trước | `preflight` báo ra; tiếp tục hoặc hủy nó, không bao giờ bắt đầu rebase khác |
 | HEAD detached, hoặc git cũ hơn 2.38 | Exit 3 kèm thông báo rõ ràng |
 | Nhánh đã push | `rebase` exit 3; finishing bỏ qua rebase và báo cho người dùng |
@@ -369,8 +377,8 @@ theo tiền lệ của `test_check_code_impact.py`. Các ca:
 4. Resolve base: không có upstream, local đi trước, local tụt sau (fast-forward), tách nhánh (dừng),
    fetch lỗi.
 5. `land`: merge commit có hai parent, tree trùng khớp, body tự sinh không có trailer; từ chối khi
-   base đã đi tiếp, khi một file bẩn va chạm với merge, và khi SHA không khớp; file bẩn không liên
-   quan được giữ nguyên.
+   base đã đi tiếp, khi một file bẩn va chạm với merge, khi title sai format và khi SHA không khớp;
+   file bẩn không liên quan được giữ nguyên; land bằng `commit-tree` khi base không được checkout.
 6. Hai epic song song: epic A land, rồi epic B kéo được A về ở lần tích hợp kế tiếp.
 
 Ngoài ra:
@@ -397,7 +405,6 @@ Ngoài ra:
 ## 14. Ngoài phạm vi
 
 - Rebase nhánh đã push, hoặc bất kỳ force-push nào.
-- Land khi base không được checkout ở đâu cả: script thoát kèm hướng dẫn.
 - `git rebase --exec` để build từng commit được replay.
 - Lệnh test theo nền tảng ở Step 1 của skill finishing.
 - Lời khuyên rebase `origin/<base_ref>` trong `impact-analysis`, giữ nguyên.

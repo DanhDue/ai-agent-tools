@@ -138,15 +138,16 @@ on the second-parent side of the epic's merge commit and break the first-parent 
 | `sync-base` | Yes | Resolve Base, including the fast-forward. Phase 1 calls it before `git worktree add` |
 | `preflight` | No | Report only (fields below) |
 | `rebase` | Yes | Refuse on a detached HEAD, a dirty worktree, a rebase already in progress, or a branch that has an upstream (already pushed). Run `sync-base`. Force-update `backup/<branch>` to the current HEAD, every time. If the base is already an ancestor, stop with tier `noop`. Otherwise run `git -c rerere.enabled=true rebase <base>`. `--continue` and `--abort` wrap the matching git commands, with rerere enabled on `--continue` so resolutions are recorded |
-| `verify-tier` | No | Measure the tier (6.3) and print the required verification, the regression checklist, the overlap files and the candidate SHA |
-| `land --verified <sha> --title "<title>"` | Yes | Run `sync-base`, check preconditions, merge with `--no-ff` in the checkout that has the base checked out, check postconditions |
+| `verify-tier` | No | Measure the tier (6.3) and print the required verification for both contexts (finish and task boundary), the regression checklist, the overlap files and the candidate SHA |
+| `land --verified <sha> --title "<title>"` | Yes | Run `sync-base`, check preconditions, merge with `--no-ff` in the checkout that has the base checked out (or write the same merge with plumbing when there is none), check postconditions |
 
 `preflight` reports:
 
 - the branch, the base, the resolved target and the merge-base;
 - upstream commits since the merge-base;
-- **upstream epics**: directories added under `.devtool/epic/` since the merge-base, each with its
-  `bdd_scenarios.en.md` path when present. This is the regression checklist;
+- **upstream epics**: directories under `.devtool/epic/` with changes since the merge-base, each with
+  its `bdd_scenarios.en.md` path when present. An epic's directory is created at design time, often
+  before the branch point; its archival lands later. This is the regression checklist;
 - **overlap files**: files changed on both sides since the merge-base;
 - the **predicted tier**: `noop` when the base is an ancestor of HEAD, otherwise `clean` or
   `conflicts` from `git merge-tree --write-tree`. Each predicted conflict file is tagged
@@ -165,13 +166,17 @@ Manifest patterns: `pubspec.yaml`, `melos.yaml`, `build.gradle`, `build.gradle.k
 
 - **Title**: must match `[SCOPE] Title`, with no trailing period. The body is generated as one
   `- <subject>` line per commit in `<base>..<sha>`, oldest first, with no trailer of any kind.
-- **Preconditions**: the branch tip equals `<sha>`; the base is an ancestor of `<sha>`; the base is
-  checked out in some checkout; that checkout has no merge or rebase in progress; none of its dirty
-  files are among the files the merge changes. Unrelated dirty files, such as Kanban mirrors of
-  another epic running in parallel, are left alone.
+- **Preconditions**: `<sha>` names a commit; the branch tip equals `<sha>`; the base is an ancestor
+  of `<sha>`; the branch has at least one commit the base lacks. When the base is checked out: that
+  checkout has no merge or rebase in progress, no staged changes, and none of its dirty files are
+  among the files the merge changes. Unrelated dirty files, such as Kanban mirrors of another epic
+  running in parallel, are left alone. A refusal for colliding files names them.
+- **No base checkout**: in a plain repository whose only checkout holds the feature branch, write the
+  merge with `git commit-tree <sha>^{tree} -p <base> -p <sha>` and move the base with
+  `git update-ref`, guarded by its old value. The tree is the verified tree by construction.
 - **Postconditions**: `<base>^{tree}` equals `<sha>^{tree}`; `<base>^1` is the pre-merge base;
-  `<base>^2` is `<sha>`. On failure, run `git reset --keep ORIG_HEAD` in that checkout.
-- When the base is not checked out anywhere, exit with instructions instead of merging.
+  `<base>^2` is `<sha>`. On failure, run `git reset --keep <pre-merge base>` in that checkout, or
+  `update-ref` back when there is none.
 
 ### 6.3 Tier Measurement
 
@@ -224,8 +229,9 @@ flowchart TD
     BS --> TIER
     TIER -->|"red"| FIX["Fix in the worktree and commit"]
     FIX --> TIER
-    TIER -->|"green"| RESTORE["6. Restore mirror files the merge touches (main checkout)"]
-    RESTORE --> LAND["7. integrate_branch.py land"]
+    TIER -->|"green"| LAND["6. integrate_branch.py land"]
+    LAND -->|"exit 3: colliding .devtool mirrors"| RESTORE["7. Restore the colliding mirrors (main checkout)"]
+    RESTORE --> LAND
     LAND -->|"exit 3: base moved"| PRE
     LAND -->|"exit 0"| CLEAN["8. Remove worktree, delete branch and backup ref"]
 ```
@@ -245,12 +251,14 @@ flowchart TD
 | `conflicts` | The invoking lifecycle's full gate: `quality_check` for code, `doc_quality_check` for documents, the full test suite outside a lifecycle |
 
    On red, stop. The branch and worktree stay; fix in the worktree, commit, and rerun `verify-tier`.
-6. **Restore** the main checkout's mirrored `.devtool/` files that the merge changes. This runs after
-   archival, which fixes defect 5. Any other dirty file the merge changes means stop and ask.
-7. **Land** with `--verified <sha> --title "[EPIC_NAME] Merge epic/<slug>"`. Exit 3 because the base
+6. **Land** with `--verified <sha> --title "[EPIC_NAME] Merge epic/<slug>"`. Exit 3 because the base
    moved during verification sends the flow back to step 2.
+7. **Restore on collision.** When `land` exits 3 naming colliding files and every one is under
+   `.devtool/` (mirrors written by the sync scripts), restore the tracked ones in the main checkout,
+   delete the untracked ones, and land again. Any colliding file outside `.devtool/` means stop and
+   ask. Restoring only after archival fixes defect 5.
 8. **Clean up**: remove the worktree (existing Step 6), then `git branch -d <branch>` and
-   `git branch -D backup/<branch>`.
+   `git branch -D backup/<branch>`. In a plain repository, check out the base first.
 
 `git checkout <base> && git pull && git merge <feature-branch>` is removed.
 
@@ -350,10 +358,10 @@ semantic.
 | Rebase stopped on conflicts (exit 2) | Playbook, then `--continue`; `--abort` restores `backup/<branch>` |
 | Verification red after a rebase | Branch stays; fix with a new commit; `develop` untouched |
 | Base diverged from its upstream | Stop and ask |
-| Dirty file in the base checkout that the merge or fast-forward changes, other than this epic's mirrors | Stop and ask |
+| Dirty file in the base checkout that the merge or fast-forward changes, outside `.devtool/` | Stop and ask; colliding `.devtool/` mirrors are restored and the land retried |
 | Fetch failed | Warning; at finish, ask before landing |
 | `land` precondition failed (base moved, SHA mismatch) | Exit 3; restart from `preflight` |
-| `land` postcondition failed | `reset --keep ORIG_HEAD`; exit 4 |
+| `land` postcondition failed | `reset --keep` to the pre-merge base, or `update-ref` back without a checkout; exit 4 |
 | Rebase in progress from an earlier session | `preflight` reports it; continue or abort it, never start another |
 | Detached HEAD, or git older than 2.38 | Exit 3 with a clear message |
 | Branch already pushed | `rebase` exits 3; finishing skips the rebase and tells the user |
@@ -368,8 +376,9 @@ following the precedent of `test_check_code_impact.py`. Cases:
 3. `regenerate` tagging; upstream-epic detection with its BDD file; manifest-change detection.
 4. Resolve Base: no upstream, local ahead, local behind (fast-forward), diverged (stop), fetch failure.
 5. `land`: two-parent merge commit, matching tree, generated body without trailers; refusal when the
-   base moved, when a dirty file collides with the merge, and on SHA mismatch; an unrelated dirty
-   file is preserved.
+   base moved, when a dirty file collides with the merge, on a malformed title and on SHA mismatch;
+   an unrelated dirty file is preserved; landing through `commit-tree` when the base is not checked
+   out.
 6. Parallel epics: epic A lands, then epic B picks A up at its next integration.
 
 Also:
@@ -396,7 +405,6 @@ Also:
 ## 14. Out of Scope
 
 - Rebasing a pushed branch, or any force-push.
-- Landing when the base is not checked out anywhere: the script exits with instructions.
 - `git rebase --exec` to build every replayed commit.
 - Platform-aware test commands in Step 1 of the finishing skill.
 - The `origin/<base_ref>` rebase advice in `impact-analysis`, left as is.
