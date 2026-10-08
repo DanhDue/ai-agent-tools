@@ -247,6 +247,10 @@ python3 -m unittest skills/doc_quality_check/resources/scripts/test_check_docume
 python3 scripts/test_lifecycle_document_contract.py || FAILED=1
 
 echo
+note "== 12. Branch integration script behaves =="
+python3 -m unittest skills/finishing-a-development-branch/resources/scripts/test_integrate_branch.py || FAILED=1
+
+echo
 if [ "$FAILED" -eq 0 ]; then
   echo "PASS — safe to publish"
 else
