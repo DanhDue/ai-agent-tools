@@ -26,6 +26,7 @@ any other before `git add`.
 | Class | Examples | Handling |
 |-------|----------|----------|
 | `regenerate` (tagged by the script) | `*.g.dart`, `*.freezed.dart`, `*.mocks.dart`, `pubspec.lock`, `Podfile.lock`, `Package.resolved`, `gradle.lockfile` | Never hand-merge. See [Regenerate Files](#regenerate-files) |
+| Kanban mirror | Another epic's task file under `.devtool/` (status written by `sync_task_status.py`) | Take the base side: `git checkout --ours -- <file>`, or `git rm <file>` when the base deleted it; the other epic's own worktree holds the real status |
 | Mechanical (you resolve and record) | Imports; both sides appending distinct entries to a list, enum, DI module or route table; formatting-only or comment-only differences | Keep both sides. See [Mechanical Conflicts](#mechanical-conflicts) |
 | Semantic (stop and ask) | The same function body changed on both sides; a signature, nullability or contract change; one side deleted what the other modified; configuration values and feature flags; security-sensitive files (crypto, auth, keychain, tokens, biometrics) | See [Semantic Conflicts](#semantic-conflicts) |
 

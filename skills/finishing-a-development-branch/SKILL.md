@@ -151,7 +151,7 @@ on the branch, and re-verifies the result. Nothing touches the base branch durin
 
 Skip this section on a detached HEAD. When preflight warns that the branch `has already been
 pushed`, skip steps 2 and 3 and tell your human partner why: rebasing a pushed branch needs a
-force-push. Step 4 still runs: without a rebase it measures tier `noop` and gives the candidate sha.
+force-push. Step 4 still runs and gives the candidate sha.
 
 1. **Preflight** — read-only:
 
@@ -161,7 +161,7 @@ force-push. Step 4 still runs: without a rebase it measures tier `noop` and give
 
    Show your human partner the upstream commits, the upstream epics and the predicted tier. If the
    warnings say the base has diverged from its upstream, stop and ask. If a rebase is already in
-   progress, continue or abort it; never start another. If the fetch failed, ask before landing.
+   progress (`predicted tier: rebase-in-progress`), continue or abort it; never start another. If the fetch failed, ask before landing.
 
 2. **Rebase:**
 
@@ -173,7 +173,7 @@ force-push. Step 4 still runs: without a rebase it measures tier `noop` and give
    [conflict playbook](references/conflict-playbook.md), then run
    `python3 "$INTEGRATE" rebase --continue --base <base-branch>` and repeat until it exits 0. Your
    human partner may ask for `rebase --abort` at any point; it restores the branch to
-   `backup/<feature-branch>`.
+   `backup/<feature-branch>`. Any other non-zero exit — stop and report the output.
 
 3. **Re-bootstrap** the worktree when preflight reported `bootstrap required: True` (for d3nexus
    mobile projects, the platform bootstrap in `dev-implementation` Phase 1 step 5), and regenerate
@@ -187,7 +187,7 @@ force-push. Step 4 still runs: without a rebase it measures tier `noop` and give
 
    | Tier | Verification before integrating |
    |------|---------------------------------|
-   | `noop` | Keep the existing verdict: the `quality_check` 🟢 of Gate 4, or the Step 1 run |
+   | `noop` | Keep the existing verdict only if it ran on this sha, or on its parent when the only newer commit is the archival commit; otherwise run the `clean` row's verification |
    | `clean` | Full test suite (the 3-tier suite for d3nexus mobile projects), `impact-analysis` Check 2, and a check that the run included the integration tests of every epic on the regression checklist |
    | `conflicts` | The invoking lifecycle's full gate: `quality_check` for code, `doc_quality_check` for documents, the full test suite outside a lifecycle |
 
@@ -222,12 +222,12 @@ cd "$MAIN_ROOT"
 # Run Step 6 (worktree cleanup) here: a branch still checked out in a worktree cannot be deleted.
 # Normal repo only: git checkout <base-branch>
 git branch -d <feature-branch>
-git branch -D backup/<feature-branch>
+git branch -D backup/<feature-branch> 2>/dev/null || true
 ```
 
 ### Option 2: Push and Create PR
 
-After Update onto Base is green, or was skipped for a detached HEAD or an already-pushed branch:
+After Update onto Base is green (for an already-pushed branch only step 4 runs), or was skipped for a detached HEAD:
 
 ```bash
 git push -u origin <feature-branch>

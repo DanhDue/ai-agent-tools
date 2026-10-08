@@ -80,7 +80,7 @@ flowchart TB
    - `.devtool/epic/<epic_dir>/bdd_scenarios.en.md` (the canonical behavioral contract across the 5 dimensions, if present; `.vi.md` is its synchronized translation).
    - Every `.devtool/features/task_*.md` whose frontmatter `epic:` matches `<epic_slug>`.
    - Any spec file(s) linked from the HLD's Meta Data section.
-2. Resolve the two paths the rest of this skill uses. `SKILL_DIR` is the directory this
+2. Resolve the three paths the rest of this skill uses. `SKILL_DIR` is the directory this
    `SKILL.md` was loaded from — vendored under `.agents/skills/` in some projects, inside a
    plugin install in others, so never hardcode it:
    ```bash
@@ -250,12 +250,16 @@ For each task in the confirmed order, follow `d3nexus:subagent-driven-developmen
 6. If implementation diverged from HLD, perform Phase 3 Doc Sync before next task.
 7. **Integrate with develop.** Runs here, in the orchestrator, from the epic worktree, after the
    task's commit (step 5) and any Phase 3 doc sync, when the worktree is clean. It is not part of
-   the `subagent-driven-development` per-task loop. It stops only in these cases: a semantic
-   conflict, `develop` diverged from its upstream, a fast-forward git refuses, and — when the user
-   declined the Gate 3 permission — `develop` behind its upstream.
+   the `subagent-driven-development` per-task loop. It stops on a semantic conflict, on `develop`
+   diverged from its upstream, on a fast-forward git refuses, on `develop` behind its upstream when
+   the user declined the Gate 3 permission, and on any other non-zero exit from the script (stop and
+   report the output).
    ```bash
    python3 "$INTEGRATE" preflight --base develop
    ```
+   - Read the warnings first. `rebase is in progress` (or `predicted tier: rebase-in-progress`):
+     finish it with the playbook and `rebase --continue`, or `rebase --abort`; never start the next
+     task on a stopped rebase.
    - `predicted tier: noop` — nothing landed on `develop`; continue with the next task.
    - A warning that `develop` has diverged from its upstream — **STOP** and ask.
    - `relation: behind` when the user declined the Gate 3 permission — **STOP** and ask.
@@ -268,6 +272,12 @@ For each task in the confirmed order, follow `d3nexus:subagent-driven-developmen
      mechanical conflicts yourself, **STOP** and ask on semantic ones. Then run
      `python3 "$INTEGRATE" rebase --continue --base develop` until it exits 0.
    - Exit 3 because git refused to fast-forward `develop` — **STOP** and ask.
+   - Exit 3 because the worktree has uncommitted changes — run `git status --porcelain`. If every
+     dirty file is a `.devtool/` task file of another epic (a Kanban mirror `sync_task_status.py`
+     wrote into this worktree), restore them with
+     `git restore --source=HEAD --staged --worktree -- <files>` and rerun `rebase`. Any other dirty
+     file: **STOP** and report.
+   - Any other non-zero exit — **STOP** and report.
    - When preflight reported `bootstrap required: True`, rerun the Phase 1 step 5 bootstrap, and
      regenerate any `regenerate` files as the playbook describes.
 
