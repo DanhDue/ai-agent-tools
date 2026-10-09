@@ -33,7 +33,7 @@ flowchart TD
     G2{"Gate 2<br/>HLD &amp; task breakdown approved?"}
     S3["Stage 3 — Isolated Execution<br/>(dev-implementation)"]
     G3{"Gate 3<br/>Execution order confirmed?"}
-    EXEC["Phase 2-3: task-by-task TDD<br/>one commit per task, doc sync on divergence"]
+    EXEC["Phase 2-3: task-by-task TDD<br/>one commit per task, doc sync on divergence,<br/>integrate with develop after each task"]
     G4{"Gate 4<br/>quality_check 🟢 LGTM?"}
     REVIEW["Phase 4.1: Developer Kanban Review<br/>(All tasks held in DONE column for visual inspection)"]
     G5{"Gate 5<br/>User sign-off &amp; finish approved?"}
@@ -169,7 +169,8 @@ Gate 3 sits inside this stage, at the end of Phase 1: present the computed execu
 get confirmation **before** creating any worktree or dispatching any subagent.
 
 Then one worktree, one task at a time, one commit per task, docs kept truthful. On divergence
-from the HLD, sync the epic docs before starting the next task.
+from the HLD, sync the epic docs before starting the next task. After every task, integrate the
+branch with `develop` — rebase, then re-verify by tier — before the next one starts.
 
 **Gate 4 Machine Acceptance Criteria:**
 Gate 4 grants `🟢 LGTM` only when all 4 conditions are satisfied:
@@ -184,13 +185,16 @@ Gate 4 grants `🟢 LGTM` only when all 4 conditions are satisfied:
 
 If any condition fails, Gate 4 routes back to Stage 3 Phase 2 (`dev-implementation`) with an actionable gap report.
 
+A 🟢 verdict belongs to the SHA it ran on. If `develop` moves after Gate 4, Stage 4 rebases the
+branch and re-verifies it by tier before landing.
+
 **Gate 5 Developer Kanban Review & Sign-Off:**
 Once Gate 4 passes, all completed tasks MUST remain in `.devtool/features/done/`. The agent MUST STOP calling tools and present the final executive report to the user. The user visually reviews the Kanban board and approves proceeding to Stage 4. If the user requests adjustments or fixes, execution routes back to Stage 3 Phase 2.
 
 ### Stage 4 — Finish Branch → `finishing-a-development-branch`
 
 **Entry:** Gate 5 passed (user confirmed).
-**Exit:** epic branch integrated into `develop` and done tasks archived into `.devtool/epic/<epic_dir>/`.
+**Exit:** epic branch rebased onto `develop`, re-verified by tier, landed with a `--no-ff` merge, and done tasks archived into `.devtool/epic/<epic_dir>/`.
 
 ## When a Gate Fails
 
@@ -213,6 +217,8 @@ the 🟢 verdict must come from a complete run.
 - Merging several sub-project specs into one epic directory.
 - Creating a worktree or dispatching a subagent before Gate 3.
 - Merging to `develop` without a 🟢 from Gate 4.
+- Merging to `develop` by hand instead of through `integrate_branch.py land`.
+- Starting a task while the previous task's integration with `develop` is red.
 - Invoking `finishing-a-development-branch` without passing Gate 5 (explicit user sign-off after Kanban review).
 - Archiving tasks from `.devtool/features/done/` prematurely before Gate 5 user review.
 - Leaving a spec split across `docs/superpowers/specs/` and `.devtool/epic/<epic_dir>/`.

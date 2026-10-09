@@ -1,7 +1,7 @@
 # Finishing Branch Rebase Integration Design
 
 - **Date**: 2026-10-09
-- **Status**: Draft, awaiting user review
+- **Status**: Approved
 - **Scope**: `finishing-a-development-branch`, `dev-implementation`, `dev-lifecycle`, a new shared
   integration script, `scripts/verify.sh`
 - **Next step**: `writing-plans` (one implementation plan, no HLD)
@@ -137,7 +137,7 @@ on the second-parent side of the epic's merge commit and break the first-parent 
 |---------|--------|-----------|
 | `sync-base` | Yes | Resolve Base, including the fast-forward. Phase 1 calls it before `git worktree add` |
 | `preflight` | No | Report only (fields below) |
-| `rebase` | Yes | Refuse on a detached HEAD, a dirty worktree, a rebase already in progress, or a branch that tracks a remote branch (already pushed; a local upstream does not count). Run `sync-base`. Force-update `backup/<branch>` to the current HEAD, every time. If the base is already an ancestor, stop with tier `noop`. Otherwise run `git -c rerere.enabled=true rebase <base>`. `--continue` and `--abort` wrap the matching git commands, with rerere enabled on `--continue` so resolutions are recorded |
+| `rebase` | Yes | Refuse on a detached HEAD, a dirty worktree, a rebase already in progress, or a branch that tracks a remote branch (already pushed; a local upstream does not count). Run `sync-base`. Force-update `backup/<branch>` to the current HEAD, every time. If the base is already an ancestor, stop with tier `noop`. Otherwise run `git -c rerere.enabled=true -c rerere.autoUpdate=false rebase --no-update-refs <base>`, so user config can neither stage a rerere resolution nor move the backup ref. `--continue` and `--abort` wrap the matching git commands, with rerere enabled on `--continue` so resolutions are recorded |
 | `verify-tier` | No | Measure the tier (6.3) and print the required verification for both contexts (finish and task boundary), the regression checklist, the overlap files and the candidate SHA |
 | `land --verified <sha> --title "<title>"` | Yes | Run `sync-base`, check preconditions, merge with `--no-ff` in the checkout that has the base checked out (or write the same merge with plumbing when there is none), check postconditions |
 
@@ -153,7 +153,8 @@ main checkout they would find nothing to integrate and report `noop` silently.
   before the branch point; its archival lands later. This is the regression checklist;
 - **overlap files**: files changed on both sides since the merge-base;
 - the **predicted tier**: `noop` when the base is an ancestor of HEAD, otherwise `clean` or
-  `conflicts` from `git merge-tree --write-tree`. Each predicted conflict file is tagged
+  `conflicts` from `git merge-tree --write-tree`; `rebase-in-progress` while a rebase is stopped,
+  because the detached HEAD already sits on the base. Each predicted conflict file is tagged
   `regenerate` or `review`;
 - whether dependency manifests changed upstream, meaning the worktree needs a fresh bootstrap;
 - warnings: failed fetch, rebase in progress, dirty worktree, branch already pushed.
@@ -191,6 +192,7 @@ intermediate commit even when `merge-tree` predicts a clean merge.
 - `onto` is `merge-base(HEAD, base)`: the base commit the branch now sits on.
 - `before` is `git diff -U0 merge-base(backup, onto) backup`.
 - `after` is `git diff -U0 onto HEAD`.
+- Both diffs are taken with `--binary`, so a conflict in a binary file does not read as unchanged.
 - Both diffs are normalised by dropping `index` lines and hunk-header line numbers.
 
 | Tier | Condition | Meaning |
@@ -251,7 +253,7 @@ flowchart TD
 
 | Tier | Verification |
 |------|--------------|
-| `noop` | Keep the existing verdict: the Gate 4 🟢 or the Step 1 run |
+| `noop` | Keep the existing verdict only if it ran on this sha, or on its parent when the only newer commit is the archival commit; otherwise run the `clean` row's verification |
 | `clean` | Full test suite (the 3-tier suite for mobile projects), Check 2 of `impact-analysis`, and a check that the run included the integration tests of every epic on the regression checklist |
 | `conflicts` | The invoking lifecycle's full gate: `quality_check` for code, `doc_quality_check` for documents, the full test suite outside a lifecycle |
 
@@ -314,9 +316,12 @@ Step 7 runs in the orchestrator, outside the `subagent-driven-development` per-t
    `[EPIC_NAME] Fix integration with develop after <task_title>`.
 6. Report in one short block: commits pulled in, upstream epics, tier.
 
-Step 7 runs from the epic worktree and stops in exactly three cases: a semantic conflict, a diverged
-base, and a fast-forward git refuses because it would overwrite a dirty file. When the user declined
-the Gate 3 authorization, a base behind its upstream is a fourth. Gate 3's authorization
+Step 7 runs from the epic worktree and stops on a semantic conflict, a diverged base, a fast-forward
+git refuses because it would overwrite a dirty file, and any other non-zero exit from the script. When
+the user declined the Gate 3 authorization, a base behind its upstream is another. When another
+epic's `.devtool/` Kanban mirrors (written by `sync_task_status.py`) leave the worktree dirty and
+block the rebase, they are restored with `git restore --source=HEAD --staged --worktree`; any other
+dirty file stops the run. Gate 3's authorization
 covers the fast-forward of `develop`, so it does not count as an unauthorized side effect outside the
 worktree.
 
@@ -388,8 +393,13 @@ following the precedent of `test_check_code_impact.py`. Cases:
    base moved, when a dirty file collides with the merge, on a malformed title and on SHA mismatch;
    an unrelated dirty file is preserved; landing through `commit-tree` when the base is not checked
    out; aborting a merge a commit-msg hook rejects.
-7. Guards: refusing to integrate the base itself; a local upstream is not treated as a push.
-6. Parallel epics: epic A lands, then epic B picks A up at its next integration.
+6. Guards: refusing to integrate the base itself; a local upstream is not treated as a push.
+7. Parallel epics: epic A lands, then epic B picks A up at its next integration.
+8. User config with `rebase.updateRefs=true` does not move the backup ref, so a resolved conflict
+   still measures `conflicts`.
+9. A binary file changed on both sides and resolved by taking one side measures `conflicts`.
+10. A collision on a path the epic renamed away is refused with exit 3, not a failed merge.
+11. `preflight` during a stopped rebase reports `rebase-in-progress`.
 
 Also:
 
@@ -411,6 +421,9 @@ Also:
    release are a separate step.
 6. **Depends on the deferred subagent fix only loosely.** Step 7 works whether tasks run in subagents
    or inline.
+7. **Tier evidence resets when `rebase` is re-run on an unverified resolution.** The backup ref is
+   overwritten each time, so a later `verify-tier` can read `noop` for code nobody verified. Until a
+   follow-up records the last verified sha, the `noop` row's sha rule is the mitigation.
 
 ## 14. Out of Scope
 

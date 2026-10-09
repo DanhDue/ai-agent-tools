@@ -7,9 +7,25 @@ description: Use when implementation is complete, all tests pass, and you need t
 
 ## Overview
 
-**Core principle:** Verify tests → Detect environment → Present options → Execute choice → Clean up.
+**Core principle:** Verify tests → Detect environment → Present options → Update onto base → Execute choice → Clean up.
+
+**Integration rule:** conflicts are resolved on the branch, inside its worktree, never on the base
+branch. The base only ever receives a `--no-ff` merge whose tree is exactly the tree that passed
+verification. `integrate_branch.py` enforces this; do not integrate by hand.
 
 **Announce at start:** "I'm using the finishing-a-development-branch skill to complete this work."
+
+Resolve the paths this skill uses. `SKILL_DIR` is the directory this `SKILL.md` was loaded from —
+vendored under `.agents/skills/` in some projects, inside a plugin install in others, so never
+hardcode it:
+
+```bash
+SKILL_DIR=<absolute path of the directory containing this SKILL.md>
+INTEGRATE="$SKILL_DIR/resources/scripts/integrate_branch.py"
+```
+
+Shell variables do not survive between separate tool calls: set both in the same command that uses
+them, or write the absolute paths out.
 
 ```mermaid
 flowchart TD
@@ -17,12 +33,13 @@ flowchart TD
     DETECT --> BASE["Step 3: Determine Base Branch"]
     BASE --> OPTS["Step 4: Present Options (Merge / PR / Keep)"]
     OPTS --> EXEC{"Step 5: User Choice"}
-    EXEC -->|1. Merge Locally| ARCHIVE_1["Pre-Finish Hook:\nsync_task_status archive-done\n(Clean .devtool/features/done & commit)"]
-    EXEC -->|2. Push & Create PR| ARCHIVE_2["Pre-Finish Hook:\nsync_task_status archive-done\n(Clean .devtool/features/done & commit)"]
-    EXEC -->|3. Keep As-Is| KEEP["Preserve branch & worktree\n(Tasks remain in done/ for Kanban review)"]
-    ARCHIVE_1 --> MERGE["git checkout base && git merge"]
-    MERGE --> CLEANUP["Step 6: Worktree Cleanup & Delete Branch"]
-    ARCHIVE_2 --> PUSH["git push & forge PR create"]
+    EXEC -->|"1. Merge Locally"| ARCHIVE["Pre-Finish Hook: archive done tasks and commit"]
+    EXEC -->|"2. Push and Create PR"| ARCHIVE
+    EXEC -->|"3. Keep As-Is"| KEEP["Preserve branch and worktree (tasks remain in done/)"]
+    ARCHIVE --> UPDATE["Update onto Base: preflight, rebase, verify by tier"]
+    UPDATE -->|"Option 1"| LAND["integrate_branch.py land"]
+    UPDATE -->|"Option 2"| PUSH["git push -u and forge PR create"]
+    LAND --> CLEANUP["Step 6: Worktree Cleanup and Delete Branch"]
     PUSH --> RETAIN["Retain worktree for PR review iteration"]
 ```
 
@@ -104,57 +121,113 @@ is theirs.
 Before executing **Option 1 (Merge)** or **Option 2 (Push & PR)**, if the workspace contains completed tasks in `.devtool/features/done/`, archive them into their respective epic directory:
 
 ```bash
-# Locate sync_task_status.py script from d3nexus plugin or repo
-SYNC_SCRIPT=""
-if [ -f "skills/dev-implementation/resources/scripts/sync_task_status.py" ]; then
-  SYNC_SCRIPT="skills/dev-implementation/resources/scripts/sync_task_status.py"
-elif [ -f "$HOME/.gemini/config/plugins/d3nexus/skills/dev-implementation/resources/scripts/sync_task_status.py" ]; then
-  SYNC_SCRIPT="$HOME/.gemini/config/plugins/d3nexus/skills/dev-implementation/resources/scripts/sync_task_status.py"
-fi
-
-if [ -n "$SYNC_SCRIPT" ] && [ -d ".devtool/features/done" ] && ls .devtool/features/done/task_*.md 1>/dev/null 2>&1; then
-  python3 "$SYNC_SCRIPT" archive-done
-  git add .devtool/ docs/ 2>/dev/null || true
-  git commit -m "[EPIC] Complete epic and archive done tasks" -m "- archive done tasks into .devtool/epic/<epic_dir>
+SYNC_SCRIPT="$SKILL_DIR/../dev-implementation/resources/scripts/sync_task_status.py"
+if ls .devtool/features/done/task_*.md 1>/dev/null 2>&1; then
+  if [ ! -f "$SYNC_SCRIPT" ]; then
+    echo "STOP: done tasks exist but $SYNC_SCRIPT is missing" >&2
+  else
+    python3 "$SYNC_SCRIPT" archive-done
+    git add .devtool/ docs/ 2>/dev/null || true
+    git commit -m "[EPIC] Complete epic and archive done tasks" -m "- archive done tasks into .devtool/epic/<epic_dir>
 - update epic status to Done across English and Vietnamese HLDs
 - clean up .devtool/features/done and docs/superpowers" 2>/dev/null || true
+  fi
 fi
 ```
+
+If it prints `STOP`, report it to your human partner and do not continue: integrating without the
+archival leaves completed tasks stranded in `done/`.
 
 This guarantees:
 - Tasks remain visible in the **DONE** column on the Kanban dashboard throughout development and review.
 - Archival, link rewriting, and status transition to `Done` occur cleanly and are committed to the branch before it is merged or pushed to a PR.
 - If the user selects **Option 3 (Keep As-Is)**, tasks remain untouched in `.devtool/features/done/` so the developer can continue tracking them on the Kanban board.
 
+### Update onto Base (Options 1 and 2)
+
+Runs after the archival commit, from the branch's worktree (or the repository, for a normal repo).
+It brings in everything that landed on the base since this branch split off, resolves conflicts here
+on the branch, and re-verifies the result. Nothing touches the base branch during this section.
+
+Skip this section on a detached HEAD. When preflight warns that the branch `has already been
+pushed`, skip steps 2 and 3 and tell your human partner why: rebasing a pushed branch needs a
+force-push. Step 4 still runs and gives the candidate sha.
+
+1. **Preflight** — read-only:
+
+   ```bash
+   python3 "$INTEGRATE" preflight --base <base-branch>
+   ```
+
+   Show your human partner the upstream commits, the upstream epics and the predicted tier. If the
+   warnings say the base has diverged from its upstream, stop and ask. If a rebase is already in
+   progress (`predicted tier: rebase-in-progress`), continue or abort it; never start another. If the fetch failed, ask before landing.
+
+2. **Rebase:**
+
+   ```bash
+   python3 "$INTEGRATE" rebase --base <base-branch>
+   ```
+
+   On exit 2, resolve the listed conflicts with the
+   [conflict playbook](references/conflict-playbook.md), then run
+   `python3 "$INTEGRATE" rebase --continue --base <base-branch>` and repeat until it exits 0. Your
+   human partner may ask for `rebase --abort` at any point; it restores the branch to
+   `backup/<feature-branch>`. Any other non-zero exit — stop and report the output.
+
+3. **Re-bootstrap** the worktree when preflight reported `bootstrap required: True` (for d3nexus
+   mobile projects, the platform bootstrap in `dev-implementation` Phase 1 step 5), and regenerate
+   any `regenerate` files as the playbook describes.
+
+4. **Measure and verify:**
+
+   ```bash
+   python3 "$INTEGRATE" verify-tier --base <base-branch>
+   ```
+
+   | Tier | Verification before integrating |
+   |------|---------------------------------|
+   | `noop` | Keep the existing verdict only if it ran on this sha, or on its parent when the only newer commit is the archival commit; otherwise run the `clean` row's verification |
+   | `clean` | Full test suite (the 3-tier suite for d3nexus mobile projects), `impact-analysis` Check 2, and a check that the run included the integration tests of every epic on the regression checklist |
+   | `conflicts` | The invoking lifecycle's full gate: `quality_check` for code, `doc_quality_check` for documents, the full test suite outside a lifecycle |
+
+   If verification is red, stop. The branch and worktree stay; fix in the worktree, commit, and
+   rerun `verify-tier` and its verification. Note the `candidate sha` of the green run.
+
 ### Option 1: Merge Locally
 
+From the branch's worktree, land the verified commit:
 
 ```bash
-# Get main repo root for CWD safety
-MAIN_ROOT=$(git -C "$(git rev-parse --git-common-dir)/.." rev-parse --show-toplevel)
-cd "$MAIN_ROOT"
-
-# Merge first — verify success before removing anything
-git checkout <base-branch>
-git pull
-git merge <feature-branch>
-
-# Verify tests on merged result
-<test command>
+python3 "$INTEGRATE" land --base <base-branch> --verified <candidate-sha> \
+  --title "[<SCOPE>] Merge <feature-branch>"
 ```
 
-If tests fail on the merged result: stop, leave the worktree and branch in
-place, and investigate — nothing has been pushed, so the merge is local
-and recoverable.
+| Exit | Meaning | Next |
+|------|---------|------|
+| `0` | Landed | Clean up |
+| `1` | A git command failed, for example a commit-msg hook rejected the merge; the merge was aborted and the base is unchanged | Stop and report |
+| `3`, dirty files collide with the merge | The base checkout holds uncommitted copies of files the merge changes | If every colliding file is under `.devtool/` or `docs/superpowers/` (copies the archival script writes into every checkout), restore the tracked ones with `git -C <checkout> restore --source=HEAD --staged --worktree -- <files>`, delete the untracked ones, and land again. Any other colliding file: stop and ask |
+| `3`, the base has moved | Something landed while you verified | Back to Update onto Base step 1. If the rebase was skipped because the branch was already pushed, stop and ask instead |
+| `4` | Postcondition failed; the base was rolled back | Stop and report |
 
-Once the merged result is green: clean up the worktree (Step 6), then
-delete the branch:
+The title follows the [Commit Message Format](../../rules/CRITICAL_RULES.md#commit-message-format);
+the script writes the body and never adds a trailer.
+
+Once landed: move out of the worktree, clean it up (Step 6), then delete the branch and its backup:
 
 ```bash
+MAIN_ROOT=$(git -C "$(git rev-parse --git-common-dir)/.." rev-parse --show-toplevel)
+cd "$MAIN_ROOT"
+# Run Step 6 (worktree cleanup) here: a branch still checked out in a worktree cannot be deleted.
+# Normal repo only: git checkout <base-branch>
 git branch -d <feature-branch>
+git branch -D backup/<feature-branch> 2>/dev/null || true
 ```
 
 ### Option 2: Push and Create PR
+
+After Update onto Base is green (for an already-pushed branch only step 4 runs), or was skipped for a detached HEAD:
 
 ```bash
 git push -u origin <feature-branch>
@@ -194,10 +267,11 @@ MAIN_ROOT=$(git -C "$(git rev-parse --git-common-dir)/.." rev-parse --show-tople
 cd "$MAIN_ROOT"
 ```
 
-Then clean up the worktree (Step 6) and force-delete the branch:
+Then clean up the worktree (Step 6) and force-delete the branch and any backup:
 
 ```bash
 git branch -D <feature-branch>
+git branch -D backup/<feature-branch> 2>/dev/null || true
 ```
 
 ## Step 6: Cleanup Workspace
@@ -246,12 +320,12 @@ place. If your platform provides a workspace-exit tool, use it.
 
 ## Quick Reference
 
-| Option | Merge | Push | Keep Worktree | Cleanup Branch |
-|--------|-------|------|---------------|----------------|
-| 1. Merge locally | yes | - | - | yes |
-| 2. Create PR | - | yes | yes | - |
-| 3. Keep as-is | - | - | yes | - |
-| Discard (explicit request only) | - | - | - | yes (force) |
+| Option | Rebase onto base | Land | Push | Keep Worktree | Cleanup Branch |
+|--------|------------------|------|------|---------------|----------------|
+| 1. Merge locally | yes | yes | - | - | yes |
+| 2. Create PR | yes, unless already pushed | - | yes | yes | - |
+| 3. Keep as-is | - | - | - | yes | - |
+| Discard (explicit request only) | - | - | - | - | yes (force) |
 
 ## Common Rationalizations
 
@@ -264,6 +338,11 @@ place. If your platform provides a workspace-exit tool, use it.
 | "The PR is up, so the worktree is clutter now" | PR feedback gets fixed in that worktree. It stays until the work lands. |
 | "This other worktree looks stale — I'll clean it too" | Clean up only worktrees under `.worktrees/` or `worktrees/`. Everything else belongs to the host. |
 | "Removal refused — `--force` is just finishing the cleanup" | The refusal means files exist only in that worktree. `--force` destroys them permanently. Show your human partner and ask. |
-| "The merged-result failure is probably flaky" | A failing merged result stops everything. Branch and worktree stay put while you investigate. |
+| "The red verification after the rebase is probably flaky" | A red result stops everything. The branch and worktree stay put, and the base stays untouched, while you investigate. |
 | "The base branch is obviously main" | Confirm the fork point or ask. Merging into the wrong base is expensive to undo. |
 | "The push was rejected — force-push will fix it" | A rejected push means the remote moved. Investigate; force-push only on your human partner's explicit request. |
+| "The rebase was clean, so tests are unnecessary" | Semantic conflicts produce no textual conflict. Tier `clean` still runs the full suite. |
+| "The base just moved; merge now and test later" | `land` refuses. Go back to preflight. |
+| "A plain `git merge` on the base is quicker" | That resolves conflicts on the base and tests afterwards — the failure this flow exists to prevent. Use `land`. |
+| "This conflict is only mechanical" | If it touches logic, it is semantic. Stop and ask. |
+| "Take `--ours` to keep my change" | During a rebase `--ours` is the base. Read the playbook. |
