@@ -8,6 +8,49 @@ every installed machine on the old cached copy.
 
 ---
 
+## 1.5.0 — 2026-10-09
+
+Makes integrating a development branch safe: conflicts are resolved on the branch, inside its
+worktree, and the base branch only ever receives a `--no-ff` merge of the exact tree that passed
+verification — at finish time and after every epic task.
+
+### Added
+
+- **`integrate_branch.py`** (`finishing-a-development-branch/resources/scripts/`): a standard-library
+  CLI with five commands — `sync-base` (fetch, fast-forward a local base that is behind, stop on
+  divergence), `preflight` (read-only report of upstream commits and epics, overlap files, predicted
+  tier, regenerate and manifest flags), `rebase` (backup ref, rerere, `--continue` / `--abort`),
+  `verify-tier` (measures `noop` / `clean` / `conflicts` from zero-context net diffs) and `land`
+  (`--no-ff` merge of the verified sha with pre- and postcondition checks and rollback). Exit codes
+  0–4. Hardened against user git config (`rebase.updateRefs`, `rerere.autoUpdate`,
+  `log.showSignature`, `core.quotePath`).
+- **38 CLI tests** against temporary repositories, run by `scripts/verify.sh` step 12.
+- **Conflict playbook** (`finishing-a-development-branch/references/conflict-playbook.md`): the
+  `--ours` / `--theirs` reversal during a rebase, and the regenerate / Kanban-mirror / mechanical /
+  semantic classification with a stop-and-ask template.
+
+### Changed
+
+- **`finishing-a-development-branch`**: Options 1 and 2 run *Update onto Base* — preflight, rebase
+  in the worktree, re-bootstrap when manifests changed, verify by measured tier — and Option 1 lands
+  through `integrate_branch.py land` instead of `git checkout <base> && git pull && git merge`. An
+  already-pushed branch is never rebased.
+- **`dev-implementation`**: new Phase 2 step 7 integrates the epic branch with `develop` after every
+  task, with lighter task-boundary verification. Phase 1 runs `sync-base` before creating the
+  worktree, and the Gate 3 checkpoint asks once for permission to fast-forward `develop`.
+- **`dev-lifecycle`**: a Gate 4 🟢 belongs to the SHA it ran on; Stage 4 rebases, re-verifies by
+  tier and lands with `--no-ff`.
+
+### Fixed
+
+- The pre-finish archival hook looked for `sync_task_status.py` only in the repository and the
+  Antigravity install, so under Claude Code it skipped archival silently. It now resolves the script
+  through `SKILL_DIR` and stops loudly when it is missing.
+- Restoring the main checkout before archival re-dirtied it and aborted the first merge. Archival
+  copies are now restored only when `land` names them as colliding, after archival.
+
+---
+
 ## 1.4.3 — 2026-10-04
 
 Standardizes modern Mermaid diagram syntax, Graphviz DOT conventions, and Markdown lint rules across the development and document lifecycles.

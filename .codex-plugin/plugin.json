@@ -1,6 +1,6 @@
 {
   "name": "d3nexus",
-  "version": "1.4.3",
+  "version": "1.5.0",
   "description": "Mobile engineering agent kit: product discovery, development and documentation lifecycles, quality gates, and audits for Flutter, Android Native, and iOS Native.",
   "author": {
     "name": "DanhDue ExOICTIF"
