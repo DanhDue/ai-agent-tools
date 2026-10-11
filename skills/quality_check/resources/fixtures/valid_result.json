@@ -1,0 +1,39 @@
+{
+  "provider_id": "rust-core",
+  "contract_version": 1,
+  "profile": "epic",
+  "repository_sha": "5d8b7b0f1b7a9c6f7c8f6498e69c3d6f1e0a4123",
+  "status": "PASS",
+  "checks": [
+    {
+      "id": "cargo-check",
+      "category": "compile",
+      "status": "PASS",
+      "source": "cargo check",
+      "duration": 5.2,
+      "summary": "Check passed",
+      "evidence_refs": [
+        "check-log"
+      ]
+    }
+  ],
+  "coverage": {
+    "lines": {
+      "measured": 0.9,
+      "threshold": 0.85
+    }
+  },
+  "evidence": [
+    {
+      "id": "check-log",
+      "type": "command",
+      "source": "cargo check",
+      "location": "artifacts/cargo-check.log"
+    }
+  ],
+  "started_head": "5d8b7b0f1b7a9c6f7c8f6498e69c3d6f1e0a4123",
+  "finished_head": "5d8b7b0f1b7a9c6f7c8f6498e69c3d6f1e0a4123",
+  "duration": 15.0,
+  "blockers": [],
+  "warnings": []
+}

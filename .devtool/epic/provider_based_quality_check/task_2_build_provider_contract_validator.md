@@ -1,13 +1,13 @@
 ---
 id: "task_2_build_provider_contract_validator"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "provider_based_quality_check"
 dueDate: null
 created: "2026-10-11T14:22:20+07:00"
-modified: "2026-10-11T14:22:20+07:00"
-completedAt: null
+modified: "2026-10-11T17:51:04Z"
+completedAt: "2026-10-11T17:51:04Z"
 labels: ["quality", "contracts", "python", "tdd"]
 order: "a2"
 ---
@@ -95,17 +95,17 @@ Scenario: [Tier C - Integration] Missing provider result becomes structured BLOC
 
 ## Test & Verification Checklist
 
-- [ ] **RED**: Write failing tests for every schema and semantic rule before validator code.
-- [ ] **GREEN**: Implement the smallest standard-library validator that passes each test.
-- [ ] **REFACTOR**: separate parsing, schema-shape, semantic, and identity validation without
+- [x] **RED**: Write failing tests for every schema and semantic rule before validator code.
+- [x] **GREEN**: Implement the smallest standard-library validator that passes each test.
+- [x] **REFACTOR**: separate parsing, schema-shape, semantic, and identity validation without
       changing findings.
-- [ ] Test unsupported versions, unknown fields, duplicate IDs, invalid profiles, empty provider
+- [x] Test unsupported versions, unknown fields, duplicate IDs, invalid profiles, empty provider
       arrays, empty selections, and unresolved skills.
-- [ ] Test result identity, SHA drift, malformed checks, coverage thresholds, evidence references,
+- [x] Test result identity, SHA drift, malformed checks, coverage thresholds, evidence references,
       duration values, and NOT_APPLICABLE reasons.
-- [ ] Prove input order cannot change normalized plans or finding order.
-- [ ] **Tier B**: wire schema parsing and unit tests into `scripts/verify.sh`.
-- [ ] **Tier C**: validate complete valid and invalid fixture repositories through the public script
+- [x] Prove input order cannot change normalized plans or finding order.
+- [x] **Tier B**: wire schema parsing and unit tests into `scripts/verify.sh`.
+- [x] **Tier C**: validate complete valid and invalid fixture repositories through the public script
       interface.
 
 ## Definition of Done
