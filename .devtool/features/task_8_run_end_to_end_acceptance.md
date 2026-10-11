@@ -105,7 +105,8 @@ Scenario: [Tier C - Integration] SHA drift and source mutation cannot pass
 - [ ] Verify Rust complete, missing-tool, command-defect, architecture-missing, and threshold cases.
 - [ ] Verify profile `epic` from Gate 4 and `pr` from PR review.
 - [ ] Verify HEAD drift, tracked-file mutation, deterministic ordering, and preserved evidence.
-- [ ] Rerun the exact five Task 1 behavioral prompts and record the GREEN comparison.
+- [ ] Rerun Task 1's frozen primary selection, including the uncontaminated replacement for the
+      registry-leaking historical prompt, and record the comparison.
 - [ ] Run document validation for spec, HLD, BDD, and durable EN/VI architecture pairs.
 - [ ] Run all Python tests, `git diff --check`, and `scripts/verify.sh`.
 - [ ] Confirm the final worktree contains only intended epic changes and no fixture residue.
@@ -114,7 +115,8 @@ Scenario: [Tier C - Integration] SHA drift and source mutation cannot pass
 ## Definition of Done
 
 - Every HLD use case and canonical BDD scenario has passing evidence.
-- The before/after behavioral evaluation demonstrates correction of all five baseline failures.
+- The before/after behavioral evaluation demonstrates correction of every observed baseline
+  failure and preservation of the passing regression controls.
 - Full unit, governance, document, and acceptance verification is green.
 - Read-only and immutable-SHA invariants are proven end to end.
 - Final evidence is sufficient for the new provider-based Gate 4 to judge the implementation.
@@ -135,4 +137,3 @@ Scenario: [Tier C - Integration] SHA drift and source mutation cannot pass
 - [HLD verification strategy](../epic/provider_based_quality_check/provider_based_quality_check.en.md#verification-strategy)
 - **Rollback**: if acceptance fails, do not publish or integrate the epic. Route findings to the
   owning task, retain failing evidence, and rerun the complete acceptance suite after correction.
-

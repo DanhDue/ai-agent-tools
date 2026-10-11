@@ -316,10 +316,14 @@ Ba testing tier được thích nghi cho agent kit như sau:
 Hành vi skill tuân theo phương pháp pressure-test của `writing-skills`:
 
 1. Chạy baseline agent với adversarial scenario trước khi instruction mới tồn tại.
-2. Ghi nhận lỗi first-match routing, skip-as-pass, hạ profile, precedence và stale SHA.
-3. Thêm thay đổi contract và skill nhỏ nhất để đóng các lỗi đó.
+2. Ghi nhận outcome quan sát được cho first-match routing, skip-as-pass, hạ profile, precedence và
+   stale SHA. Run đầu chứng minh một lỗi precedence; bốn primary pass còn lại trở thành regression
+   control.
+3. Thêm thay đổi contract và skill nhỏ nhất để đóng failure đã chứng minh và triển khai provider
+   architecture đã duyệt mà không làm yếu các control đang pass.
 4. Chạy lại đúng các scenario và ghi nhận hành vi đã sửa.
-5. Thêm rationalization case mới đến khi không test path nào có thể tạo `LGTM` sai.
+5. Chỉ thêm rationalization case khi response quan sát được làm lộ gap; không tạo RED giả bằng cách
+   đổi rubric đã đóng băng sau khi chạy.
 
 Verification cuối gồm document validation cho spec, HLD, BDD và cặp architecture EN/VI bền vững;
 toàn bộ unit và acceptance test; `git diff --check`; cùng suite `scripts/verify.sh` đầy đủ.
