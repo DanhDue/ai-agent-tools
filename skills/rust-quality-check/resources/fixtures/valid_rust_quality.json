@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "capabilities": {
+    "format": [
+      "cargo",
+      "fmt",
+      "--all",
+      "--",
+      "--check"
+    ],
+    "check": [
+      "cargo",
+      "check",
+      "--all-targets"
+    ],
+    "clippy": [
+      "cargo",
+      "clippy",
+      "--all-targets",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "test": [
+      "cargo",
+      "test",
+      "--workspace"
+    ],
+    "coverage": {
+      "command": [
+        "cargo",
+        "llvm-cov",
+        "--workspace",
+        "--fail-under-lines",
+        "80"
+      ],
+      "threshold": 0.8
+    },
+    "architecture": [
+      "cargo",
+      "run",
+      "-p",
+      "xtask",
+      "--",
+      "check-architecture"
+    ]
+  },
+  "profiles": {
+    "pr": [
+      "format",
+      "check",
+      "clippy",
+      "test",
+      "architecture"
+    ],
+    "epic": [
+      "format",
+      "check",
+      "clippy",
+      "test",
+      "coverage",
+      "architecture"
+    ]
+  }
+}

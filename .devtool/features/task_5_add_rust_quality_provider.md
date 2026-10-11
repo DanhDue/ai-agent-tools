@@ -1,13 +1,13 @@
 ---
 id: "task_5_add_rust_quality_provider"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "provider_based_quality_check"
 dueDate: null
 created: "2026-10-11T14:22:20+07:00"
-modified: "2026-10-11T14:22:20+07:00"
-completedAt: null
+modified: "2026-10-11T18:10:24Z"
+completedAt: "2026-10-11T18:10:24Z"
 labels: ["quality", "rust", "skill", "architecture"]
 order: "a5"
 ---
@@ -98,20 +98,20 @@ Scenario: [Tier C - Integration] Missing architecture authority blocks the epic 
 
 ## Test & Verification Checklist
 
-- [ ] **RED**: rerun Rust-related Task 1 pressure cases before authoring provider instructions.
-- [ ] **RED**: add failing schema/fixture tests for every capability and profile-completeness rule.
-- [ ] **GREEN**: add the minimal skill, references, schema, and planner required by the contract.
-- [ ] **REFACTOR**: keep `SKILL.md` operational and place tool matrices and architecture detail in
+- [x] **RED**: rerun Rust-related Task 1 pressure cases before authoring provider instructions.
+- [x] **RED**: add failing schema/fixture tests for every capability and profile-completeness rule.
+- [x] **GREEN**: add the minimal skill, references, schema, and planner required by the contract.
+- [x] **REFACTOR**: keep `SKILL.md` operational and place tool matrices and architecture detail in
       references.
-- [ ] Verify format, check, Clippy, tests, coverage, dependency policy, vulnerability audit,
+- [x] Verify format, check, Clippy, tests, coverage, dependency policy, vulnerability audit,
       architecture, WASM, FFI, acceptance, docs, and semver capabilities.
-- [ ] Verify required missing tool/config/evidence is BLOCKED and completed defect is FAIL.
-- [ ] Verify commands are read-only structured arrays and HEAD/worktree identity is recorded.
-- [ ] Verify semantic audits cover security, architecture, presentation, and code health when
+- [x] Verify required missing tool/config/evidence is BLOCKED and completed defect is FAIL.
+- [x] Verify commands are read-only structured arrays and HEAD/worktree identity is recorded.
+- [x] Verify semantic audits cover security, architecture, presentation, and code health when
       declared by the profile.
-- [ ] **Tier B**: verify exact skill frontmatter, namespaced references, schemas, and no auto-fix
+- [x] **Tier B**: verify exact skill frontmatter, namespaced references, schemas, and no auto-fix
       instruction.
-- [ ] **Tier C**: run valid, missing-tool, failing-check, missing-architecture, and SHA-drift Rust
+- [x] **Tier C**: run valid, missing-tool, failing-check, missing-architecture, and SHA-drift Rust
       fixture repositories.
 
 ## Definition of Done
