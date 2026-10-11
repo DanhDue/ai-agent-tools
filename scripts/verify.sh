@@ -251,8 +251,9 @@ note "== 12. Branch integration script behaves =="
 python3 -m unittest skills/finishing-a-development-branch/resources/scripts/test_integrate_branch.py || FAILED=1
 
 echo
-note "== 13. Quality provider contracts and schemas are enforced =="
+note "== 13. Quality provider contracts, schemas, and aggregation are enforced =="
 python3 -m unittest skills/quality_check/resources/scripts/test_validate_quality_contract.py || FAILED=1
+python3 -m unittest skills/quality_check/resources/scripts/test_aggregate_quality_results.py || FAILED=1
 
 echo
 if [ "$FAILED" -eq 0 ]; then
