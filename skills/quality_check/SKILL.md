@@ -132,3 +132,4 @@ Only an aggregated verdict of **PASS** bound to the candidate commit SHA qualifi
 - [Result Schema](resources/schemas/provider-result.schema.json): Machine-readable JSON Schema for provider results.
 - [Contract Validator](resources/scripts/validate_quality_contract.py): Standard-library validator script and CLI.
 - [Aggregation Engine](resources/scripts/aggregate_quality_results.py): Result aggregation and markdown report engine.
+- [Acceptance Suite](resources/scripts/test_quality_provider_acceptance.py): End-to-end multi-provider acceptance test suite.

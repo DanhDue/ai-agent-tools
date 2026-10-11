@@ -1,13 +1,13 @@
 ---
 id: "task_8_run_end_to_end_acceptance"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "provider_based_quality_check"
 dueDate: null
 created: "2026-10-11T14:22:20+07:00"
-modified: "2026-10-11T14:22:20+07:00"
-completedAt: null
+modified: "2026-10-11T18:29:17Z"
+completedAt: "2026-10-11T18:29:17Z"
 labels: ["quality", "integration", "acceptance", "verification"]
 order: "a8"
 ---
@@ -96,21 +96,21 @@ Scenario: [Tier C - Integration] SHA drift and source mutation cannot pass
 
 ## Test & Verification Checklist
 
-- [ ] **RED**: run the acceptance harness before integration is complete and capture the expected
+- [x] **RED**: run the acceptance harness before integration is complete and capture the expected
       failing seams.
-- [ ] **GREEN**: run all canonical success and failure fixtures through public entry points.
-- [ ] Verify composite, missing-registry, duplicate, unresolved-provider, empty-selection,
+- [x] **GREEN**: run all canonical success and failure fixtures through public entry points.
+- [x] Verify composite, missing-registry, duplicate, unresolved-provider, empty-selection,
       profile-mismatch, timeout, corrupt-result, and missing-result cases.
-- [ ] Verify PASS, FAIL, BLOCKED, optional NOT_APPLICABLE, and required all-NOT_APPLICABLE cases.
-- [ ] Verify Rust complete, missing-tool, command-defect, architecture-missing, and threshold cases.
-- [ ] Verify profile `epic` from Gate 4 and `pr` from PR review.
-- [ ] Verify HEAD drift, tracked-file mutation, deterministic ordering, and preserved evidence.
-- [ ] Rerun Task 1's frozen primary selection, including the uncontaminated replacement for the
+- [x] Verify PASS, FAIL, BLOCKED, optional NOT_APPLICABLE, and required all-NOT_APPLICABLE cases.
+- [x] Verify Rust complete, missing-tool, command-defect, architecture-missing, and threshold cases.
+- [x] Verify profile `epic` from Gate 4 and `pr` from PR review.
+- [x] Verify HEAD drift, tracked-file mutation, deterministic ordering, and preserved evidence.
+- [x] Rerun Task 1's frozen primary selection, including the uncontaminated replacement for the
       registry-leaking historical prompt, and record the comparison.
-- [ ] Run document validation for spec, HLD, BDD, and durable EN/VI architecture pairs.
-- [ ] Run all Python tests, `git diff --check`, and `scripts/verify.sh`.
-- [ ] Confirm the final worktree contains only intended epic changes and no fixture residue.
-- [ ] Record exact commands, exits, scenario traceability, and remaining warnings.
+- [x] Run document validation for spec, HLD, BDD, and durable EN/VI architecture pairs.
+- [x] Run all Python tests, `git diff --check`, and `scripts/verify.sh`.
+- [x] Confirm the final worktree contains only intended epic changes and no fixture residue.
+- [x] Record exact commands, exits, scenario traceability, and remaining warnings.
 
 ## Definition of Done
 
