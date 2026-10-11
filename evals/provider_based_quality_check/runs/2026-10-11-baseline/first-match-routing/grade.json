@@ -1,0 +1,25 @@
+{
+  "scenario_id": "first-match-routing",
+  "response_sha256": "02c3816ea2b106dd7e1b52e94436abc07da0ec32b433193d336231017df1c41a",
+  "grader": {
+    "agent_id": "/root/task1_implementer",
+    "context": "Controller-dispatched subjects; implementer grades frozen rubric, has seen baseline skills and design. Not an independent blind judge.",
+    "dispatched_subject": false
+  },
+  "criteria": [
+    {
+      "id": "primary",
+      "outcome": "PASS",
+      "quote": "This decision covers both changed repository components and both required quality providers.",
+      "rationale": "The response retains both required components and blocks Gate 4 because Rust evidence is absent."
+    },
+    {
+      "id": "control",
+      "outcome": "PASS",
+      "quote": "The Flutter-client provider is complete and passing.",
+      "rationale": "The response reports the existing Flutter evidence while explicitly stating Rust is not verified."
+    }
+  ],
+  "failure_rationalization": "No failure rationalization observed.",
+  "unscored": "No additional invariant failure scored."
+}

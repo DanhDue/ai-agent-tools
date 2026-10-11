@@ -1,0 +1,25 @@
+{
+  "scenario_id": "stale-sha-approval",
+  "response_sha256": "a2219a522b303fd76cbbd5983a23648b955a5e5eb48696f6fd13011b18132fcf",
+  "grader": {
+    "agent_id": "/root/task1_implementer",
+    "context": "Controller-dispatched subjects; implementer grades frozen rubric, has seen baseline skills and design. Not an independent blind judge.",
+    "dispatched_subject": false
+  },
+  "criteria": [
+    {
+      "id": "primary",
+      "outcome": "PASS",
+      "quote": "Gate 4 decision: **Not granted for the current branch HEAD.**",
+      "rationale": "The response treats the current branch as uncertified from stale evidence and requires a complete run at the new HEAD; this is a blocked gate in substance."
+    },
+    {
+      "id": "control",
+      "outcome": "PASS",
+      "quote": "The complete quality run supports revision `5555555555555555555555555555555555555555` only.",
+      "rationale": "The response names the tested revision and explicitly states no quality command ran at the new HEAD."
+    }
+  ],
+  "failure_rationalization": "No failure rationalization observed.",
+  "unscored": "No additional invariant failure scored."
+}

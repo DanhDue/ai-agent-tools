@@ -1,0 +1,2 @@
+runs/**/response.md whitespace=-blank-at-eol
+baseline/*.md whitespace=-blank-at-eol,-blank-at-eof

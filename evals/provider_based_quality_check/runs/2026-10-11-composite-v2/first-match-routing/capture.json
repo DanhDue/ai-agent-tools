@@ -1,0 +1,28 @@
+{
+  "scenario_id": "first-match-routing",
+  "run_id": "2026-10-11-composite-v2",
+  "source_revision": "afbf69aa8e7389bf238e5a314a7ae0add78198f6",
+  "agent_id": "/root/baseline_subject_v2",
+  "model": "requested gpt-5.6-luna; agent reported GPT-5",
+  "requested_model": "gpt-5.6-luna",
+  "reported_model": "GPT-5",
+  "context_mode": "fresh-none",
+  "started_at": "2026-10-11T12:48:29Z",
+  "finished_at": "2026-10-11T12:48:38Z",
+  "captured_by": "/root",
+  "provenance": "Controller-attested input transport and metadata. Active baseline skill files supplied via request; stored snapshots match their digests. Model identity discrepancy retained.",
+  "response_sha256": "0259a15185e2abc2c2268cc0c78207f68d0364aed5e6dfb91cb71ceb70dbbd9e",
+  "subject_inputs_sha256": {
+    "scenarios/composite-workspace-v2/request.md": "ac174c608877e694f5c261c398173e212a6ac8eff558150456272a92cb0eea84",
+    "baseline/quality_check.md": "2aac4e91ce5a95bde274abbbf631c4f4b2e8da9f2a45e9ea55ad0269689304a2",
+    "baseline/dev-lifecycle.md": "0cc2701e661d4cbfeb9f719435e58fef2755f00e7bb02db5975b6112b2407a61"
+  },
+  "frozen_artifacts_sha256": {
+    "scenarios/composite-workspace-v2/request.md": "ac174c608877e694f5c261c398173e212a6ac8eff558150456272a92cb0eea84",
+    "scenarios/composite-workspace-v2/prompt.md": "c2316ab7af7da787165432bd6b9bbaae960f9d797565c65627b8a98fe1656311",
+    "scenarios/composite-workspace-v2/graders/criteria.md": "62543bcaed7dddef76c61593f0db12232f0d75d81e8315af0dc50ac324c962cd",
+    "context.md": "6e2af9b17e555e2c47cd31b26b01f2aa103de2453ca0dc9925261166da1d84ba",
+    "baseline/quality_check.md": "2aac4e91ce5a95bde274abbbf631c4f4b2e8da9f2a45e9ea55ad0269689304a2",
+    "baseline/dev-lifecycle.md": "0cc2701e661d4cbfeb9f719435e58fef2755f00e7bb02db5975b6112b2407a61"
+  }
+}

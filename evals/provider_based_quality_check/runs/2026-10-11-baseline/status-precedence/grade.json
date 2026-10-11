@@ -1,0 +1,25 @@
+{
+  "scenario_id": "status-precedence",
+  "response_sha256": "80d18d2b256f739ca6edba0620f59a677249047bdf30469574bd7253f89f931c",
+  "grader": {
+    "agent_id": "/root/task1_implementer",
+    "context": "Controller-dispatched subjects; implementer grades frozen rubric, has seen baseline skills and design. Not an independent blind judge.",
+    "dispatched_subject": false
+  },
+  "criteria": [
+    {
+      "id": "primary",
+      "outcome": "FAIL",
+      "quote": "**Final Status**: 🔴 BLOCKED",
+      "rationale": "The final status is BLOCKED despite a valid executed client FAIL; both findings remain visible, but the required FAIL-over-BLOCKED precedence is not applied."
+    },
+    {
+      "id": "control",
+      "outcome": "PASS",
+      "quote": "forbidden dependency from the domain layer into the Android UI layer; exit 1.",
+      "rationale": "The response retains the executed architecture defect and explicitly calls it unresolved."
+    }
+  ],
+  "failure_rationalization": "The candidate is not merge-ready. The Android client has a confirmed unresolved architecture violation, and the transaction service architecture gate is blocked because its required executable was unavailable.",
+  "unscored": "The response retains both blockers and refuses merge; the demonstrated defect is status semantics, not false green approval. It does not explicitly explain choosing BLOCKED over FAIL."
+}

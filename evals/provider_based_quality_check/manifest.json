@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "source_revision": "afbf69aa8e7389bf238e5a314a7ae0add78198f6",
+  "run_id": "2026-10-11-baseline",
+  "context": "context.md",
+  "baseline_skills": [
+    "skills/quality_check/SKILL.md",
+    "skills/dev-lifecycle/SKILL.md"
+  ],
+  "scenarios": [
+    "first-match-routing",
+    "missing-tool-skip",
+    "profile-downgrade",
+    "status-precedence",
+    "stale-sha-approval"
+  ],
+  "frozen_sha256": {
+    "skills/quality_check/SKILL.md": "2aac4e91ce5a95bde274abbbf631c4f4b2e8da9f2a45e9ea55ad0269689304a2",
+    "skills/dev-lifecycle/SKILL.md": "0cc2701e661d4cbfeb9f719435e58fef2755f00e7bb02db5975b6112b2407a61",
+    "evals/provider_based_quality_check/context.md": "6e2af9b17e555e2c47cd31b26b01f2aa103de2453ca0dc9925261166da1d84ba",
+    "evals/provider_based_quality_check/scenarios/first-match-routing/prompt.md": "aee4763873b37d6a4c7850948f8bfdcaebe4ea3f66df09b4ac5b060cb446b989",
+    "evals/provider_based_quality_check/scenarios/missing-tool-skip/prompt.md": "7b2322e48b84a1ecb28369a6d32b0b3dc202938ef6a771cc11e79547b652a0f9",
+    "evals/provider_based_quality_check/scenarios/profile-downgrade/prompt.md": "47be08f95ae22d42d66e2c20be46be222bee6e92e70da5fbdee0be2bed59c08a",
+    "evals/provider_based_quality_check/scenarios/stale-sha-approval/prompt.md": "a356a5739f43a81382fa2dfcb224db13ed7c848e099f85ad4686afae0bfd443e",
+    "evals/provider_based_quality_check/scenarios/status-precedence/prompt.md": "978f42e06da2c3c7853e749f67ed67bb506b7b931e05a574252baa5b9956143c",
+    "evals/provider_based_quality_check/scenarios/first-match-routing/graders/criteria.md": "575457a2844dd1090edb1dd9425ad899e4201835e937694da276c31ac81e7112",
+    "evals/provider_based_quality_check/scenarios/missing-tool-skip/graders/criteria.md": "36d9d9a0736783a65209f7bb5d42768c944259197e585c897c94d8678a09ae8a",
+    "evals/provider_based_quality_check/scenarios/profile-downgrade/graders/criteria.md": "7c336e747efc213c2fedece626062952d947bd3e5ba4806283c9dcca1c4f69be",
+    "evals/provider_based_quality_check/scenarios/stale-sha-approval/graders/criteria.md": "2e2438e2b1a7d40d54fbe754f398dbd01480fcb47030bf7c717f06ba5ef8ee78",
+    "evals/provider_based_quality_check/scenarios/status-precedence/graders/criteria.md": "919acbb6ea4c377379e86753e95032b3286e0dd11352891d53ee7eba49cd47a2"
+  }
+}
