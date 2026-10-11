@@ -1,13 +1,13 @@
 ---
 id: "task_6_integrate_lifecycle_consumers"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "provider_based_quality_check"
 dueDate: null
 created: "2026-10-11T14:22:20+07:00"
-modified: "2026-10-11T14:22:20+07:00"
-completedAt: null
+modified: "2026-10-11T18:14:59Z"
+completedAt: "2026-10-11T18:14:59Z"
 labels: ["quality", "lifecycle", "integration", "skill"]
 order: "a6"
 ---
@@ -92,17 +92,17 @@ Scenario: [Tier C - Integration] Candidate mutation invalidates prior approval
 
 ## Test & Verification Checklist
 
-- [ ] **RED**: add or update lifecycle contract tests that fail while callers omit provider inputs.
-- [ ] **GREEN**: minimally update the three consumer skills.
-- [ ] **REFACTOR**: remove duplicated platform quality wording without disturbing task
+- [x] **RED**: add or update lifecycle contract tests that fail while callers omit provider inputs.
+- [x] **GREEN**: minimally update the three consumer skills.
+- [x] **REFACTOR**: remove duplicated platform quality wording without disturbing task
       implementation guidance.
-- [ ] Verify Gate 4 explicitly requests `epic`, base reference, and candidate SHA.
-- [ ] Verify PR review explicitly requests `pr`.
-- [ ] Verify PASS is the only LGTM path and FAIL/BLOCKED return complete findings.
-- [ ] Verify stale SHA language remains consistent with branch integration rules.
-- [ ] **Tier B**: extend lifecycle document contract checks to reject platform command matrices and
+- [x] Verify Gate 4 explicitly requests `epic`, base reference, and candidate SHA.
+- [x] Verify PR review explicitly requests `pr`.
+- [x] Verify PASS is the only LGTM path and FAIL/BLOCKED return complete findings.
+- [x] Verify stale SHA language remains consistent with branch integration rules.
+- [x] **Tier B**: extend lifecycle document contract checks to reject platform command matrices and
       implicit profiles in these consumer sections.
-- [ ] **Tier C**: exercise PASS, FAIL, BLOCKED, multi-provider, and post-verdict SHA-change flows.
+- [x] **Tier C**: exercise PASS, FAIL, BLOCKED, multi-provider, and post-verdict SHA-change flows.
 
 ## Definition of Done
 
