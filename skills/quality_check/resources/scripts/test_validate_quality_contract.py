@@ -305,6 +305,47 @@ class FixtureContractTests(unittest.TestCase):
         self.assertEqual("PASS", checked_res["status"])
 
 
+class DocumentationExamplesTests(unittest.TestCase):
+    def test_embedded_documentation_json_examples_are_valid(self) -> None:
+        import re
+        root = Path(__file__).resolve().parents[4]
+        for doc_rel in (
+            "docs/architecture/quality-provider-system.en.md",
+            "docs/architecture/quality-provider-system.vi.md",
+        ):
+            doc_path = root / doc_rel
+            if not doc_path.exists():
+                continue
+            text = doc_path.read_text()
+            json_blocks = re.findall(r"```json\s*\n(.*?)\n```", text, re.DOTALL)
+            self.assertEqual(4, len(json_blocks), f"Expected 4 JSON blocks in {doc_rel}")
+
+            # 1. Single provider registry
+            reg_single = json.loads(json_blocks[0])
+            res_reg_single = validate_registry(reg_single, "epic", {"d3nexus:rust-quality-check"})
+            self.assertEqual("PASS", res_reg_single["status"], res_reg_single["findings"])
+
+            # 2. Normalized invocation
+            inv_req = json.loads(json_blocks[1])
+            res_inv = normalize_invocation(inv_req)
+            self.assertEqual("PASS", res_inv["status"], res_inv["findings"])
+
+            # 3. Provider result
+            result_doc = json.loads(json_blocks[2])
+            res_result = validate_provider_result(result_doc, res_inv["invocation"])
+            self.assertEqual("PASS", res_result["status"], res_result["findings"])
+
+            # 4. Composite registry
+            reg_composite = json.loads(json_blocks[3])
+            res_reg_composite = validate_registry(
+                reg_composite,
+                "epic",
+                {"d3nexus:rust-quality-check", "d3nexus:android-quality-check"},
+            )
+            self.assertEqual("PASS", res_reg_composite["status"], res_reg_composite["findings"])
+
+
 if __name__ == "__main__":
     unittest.main()
+
 

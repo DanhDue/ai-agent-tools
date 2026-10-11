@@ -26,6 +26,9 @@ Full directions, including the cases where you should skip all three:
 To pick one for a specific piece of work: **[docs/choosing-a-lifecycle.en.md](docs/choosing-a-lifecycle.en.md)**.
 Bản tiếng Việt: [lifecycles.vi.md](docs/lifecycles.vi.md) · [choosing-a-lifecycle.vi.md](docs/choosing-a-lifecycle.vi.md).
 
+Quality provider architecture and contracts:
+**[docs/architecture/quality-provider-system.en.md](docs/architecture/quality-provider-system.en.md)** · Bản tiếng Việt: [quality-provider-system.vi.md](docs/architecture/quality-provider-system.vi.md).
+
 The product discovery suite is described in [3.6](#36-the-upstream-product-discovery-suite).
 
 ---
