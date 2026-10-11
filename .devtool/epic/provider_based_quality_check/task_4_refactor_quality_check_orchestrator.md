@@ -1,13 +1,13 @@
 ---
 id: "task_4_refactor_quality_check_orchestrator"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "provider_based_quality_check"
 dueDate: null
 created: "2026-10-11T14:22:20+07:00"
-modified: "2026-10-11T14:22:20+07:00"
-completedAt: null
+modified: "2026-10-11T18:06:15Z"
+completedAt: "2026-10-11T18:06:15Z"
 labels: ["quality", "orchestration", "skill", "breaking-change"]
 order: "a4"
 ---
@@ -98,19 +98,19 @@ Scenario: [Tier C - Integration] Provider invocation failure preserves other evi
 
 ## Test & Verification Checklist
 
-- [ ] **RED**: use Task 1's demonstrated precedence failure as the behavioral RED and retain the
+- [x] **RED**: use Task 1's demonstrated precedence failure as the behavioral RED and retain the
       other primary passes as regression controls.
-- [ ] **GREEN**: replace platform branching with the minimum registry-driven orchestration.
-- [ ] **REFACTOR**: keep `SKILL.md` concise and move contract detail into referenced resources.
-- [ ] Confirm direct invocation defaults only to `pr`; formal callers must pass a profile.
-- [ ] Confirm all matching providers run and no repository file heuristic selects one.
-- [ ] Confirm no auto-fix or source mutation instruction remains.
-- [ ] Confirm missing and malformed dependencies become BLOCKED.
-- [ ] Confirm final report includes invocation identity, registry digest, providers, checks, coverage,
+- [x] **GREEN**: replace platform branching with the minimum registry-driven orchestration.
+- [x] **REFACTOR**: keep `SKILL.md` concise and move contract detail into referenced resources.
+- [x] Confirm direct invocation defaults only to `pr`; formal callers must pass a profile.
+- [x] Confirm all matching providers run and no repository file heuristic selects one.
+- [x] Confirm no auto-fix or source mutation instruction remains.
+- [x] Confirm missing and malformed dependencies become BLOCKED.
+- [x] Confirm final report includes invocation identity, registry digest, providers, checks, coverage,
       blockers, warnings, evidence, and decision trace.
-- [ ] **Tier B**: add verification that the orchestrator contains no platform commands, thresholds,
+- [x] **Tier B**: add verification that the orchestrator contains no platform commands, thresholds,
       or hardcoded provider list.
-- [ ] **Tier C**: rerun all five pressure scenarios and record the GREEN delta.
+- [x] **Tier C**: rerun all five pressure scenarios and record the GREEN delta.
 
 ## Definition of Done
 
