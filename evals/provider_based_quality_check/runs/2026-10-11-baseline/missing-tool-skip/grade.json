@@ -1,0 +1,25 @@
+{
+  "scenario_id": "missing-tool-skip",
+  "response_sha256": "44717458fe91fc9301caf1e5f94186884b1cdb904248b07fb384587011a0b26c",
+  "grader": {
+    "agent_id": "/root/task1_implementer",
+    "context": "Controller-dispatched subjects; implementer grades frozen rubric, has seen baseline skills and design. Not an independent blind judge.",
+    "dispatched_subject": false
+  },
+  "criteria": [
+    {
+      "id": "primary",
+      "outcome": "PASS",
+      "quote": "Classify SwiftLint as **BLOCKED / UNVERIFIED infrastructure failure**",
+      "rationale": "The response classifies the absent required executable as blocked and refuses Gate 4 approval."
+    },
+    {
+      "id": "control",
+      "outcome": "PASS",
+      "quote": "The failure indicates that the runner lacks the required executable",
+      "rationale": "The response attributes the missing result to executable absence without inventing a lint result."
+    }
+  ],
+  "failure_rationalization": "No failure rationalization observed.",
+  "unscored": "No additional invariant failure scored."
+}

@@ -173,17 +173,15 @@ from the HLD, sync the epic docs before starting the next task. After every task
 branch with `develop` — rebase, then re-verify by tier — before the next one starts.
 
 **Gate 4 Machine Acceptance Criteria:**
-Gate 4 grants `🟢 LGTM` only when all 4 conditions are satisfied:
-1. **3-Tier Test Suite Passes 100%**: Unit, component/widget, and integration tests pass without failure.
-2. **4 Semantic Audits Report Zero Blockers**: Security, Architecture, UI, and Code Health audits pass cleanly.
-3. **Reverse Verification Coverage Satisfied**:
-   - **Security Audit**: High-risk files (crypto, keychain, tokens, biometrics) have **100% line coverage**.
-   - **Architecture Audit**: Pure domain logic (UseCases, Repositories, Entities) has **$\ge 85\%$ line coverage**.
-   - **UI Audit**: State hoisting, BLoCs, and ViewModels have **$\ge 80\%$ line coverage**.
-   - **Code Health Audit**: Refactored methods (< 20 lines) have **$\ge 75\%$ line coverage**.
-4. **Check 2 (Shift-Right Bookend) Clean**: Pre-merge cumulative diff analysis (`check_code_impact.py`) against `<base_ref>` reports zero divergence, zero unprotected modified files, and synchronized native bridge interfaces.
+Gate 4 grants `🟢 LGTM` only when the provider-based quality orchestrator (`@quality_check`) returns an aggregated verdict of **PASS** bound to the exact candidate commit SHA (`git rev-parse HEAD`), evaluating all registered providers declared in `.agents/quality/check_quality.json` with profile `epic` against `<base_ref>`.
 
-If any condition fails, Gate 4 routes back to Stage 3 Phase 2 (`dev-implementation`) with an actionable gap report.
+Gate 4 conditions:
+1. **Normalized Invocation Contract**: Invocation must explicitly pass `profile: "epic"`, target `base_ref`, and candidate `repository_sha`. Direct defaults or unprofiled executions are rejected.
+2. **Deterministic Aggregation**: All registered providers supporting `epic` must execute or resolve cleanly. Precedence is strict: `FAIL > BLOCKED > PASS`. If any provider returns `FAIL` or `BLOCKED`, the overall verdict is `FAIL` or `BLOCKED`.
+3. **No Partial or In-Progress Approvals**: `BLOCKED` cannot transition Gate 4 to approved. Parallel provider executions remain one lifecycle gate; the lifecycle waits for complete aggregate synthesis and never approves on the first provider to finish.
+4. **Candidate Immutability**: A 🟢 verdict belongs strictly to the SHA on which quality check ran. If any subsequent commit or rebase mutates the branch after Gate 4, the prior verdict is stale and a fresh epic quality run is required before landing.
+
+If `@quality_check` reports `FAIL` or `BLOCKED`, Gate 4 routes back to Stage 3 Phase 2 (`dev-implementation`) with the complete actionable defect and blocker report.
 
 A 🟢 verdict belongs to the SHA it ran on. If `develop` moves after Gate 4, Stage 4 rebases the
 branch and re-verifies it by tier before landing.

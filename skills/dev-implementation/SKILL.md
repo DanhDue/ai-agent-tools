@@ -308,12 +308,15 @@ Only when Phase 2 flags divergence:
 
 ### Phase 4 — End of Epic Verification (@quality_check)
 
-Once every task is `done`, run the comprehensive **`@quality_check`** skill on the epic worktree before finishing the branch.
+Once every task is `done`, resolve the candidate commit SHA (`git rev-parse HEAD`) and run the provider-based **`@quality_check`** orchestrator on the epic worktree before finishing the branch:
 
-The `@quality_check` skill automatically detects the platform and executes:
-- **Flutter**: Runs `melos test`, `melos analyze`, `check_module_boundaries.sh`, `check_license_header.sh`, and the 4 Flutter semantic audits (`@security-audit`, `@architecture-audit`, `@flutter-ui-audit`, `@code-health-audit`).
-- **Android**: Runs `./gradlew check :konsist-test:test apiCheck`, `./scripts/acceptance_check.sh`, the 4 Android semantic audits (`@security-audit`, `@architecture-audit`, `@android-ui-audit`, `@code-health-audit`), followed by `cleanup-java`.
-- **iOS**: Runs `swiftlint lint --strict`, `swiftformat --lint`, `check_module_boundaries.sh`, `swift test --package-path ArchTests`, simulator acceptance tests, and the 4 iOS semantic audits (`@security-audit`, `@architecture-audit`, `@ios-ui-audit`, `@code-health-audit`).
+1. Pass explicit normalized invocation inputs:
+   - `profile`: `"epic"`
+   - `base_ref`: `<base_ref>` (e.g. `main` or `develop`)
+   - `repository_sha`: Candidate commit SHA from `git rev-parse HEAD`
+2. `@quality_check` discovers all project-registered providers supporting `epic` from `.agents/quality/check_quality.json`, invokes them, validates result contracts, and synthesizes the unified executive quality report.
+3. Only an aggregated verdict of **PASS** bound to that exact SHA qualifies for Gate 4 `🟢 LGTM`.
+4. If `@quality_check` reports `FAIL` or `BLOCKED` (or SHA drift occurs), route back to Phase 2 to resolve blockers and defects before re-running verification in full.
 
 ### Phase 4.1 — Developer Kanban Review Checkpoint (🛑 MANDATORY STOP & WAIT — Gate 5)
 

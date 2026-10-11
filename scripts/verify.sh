@@ -251,9 +251,17 @@ note "== 12. Branch integration script behaves =="
 python3 -m unittest skills/finishing-a-development-branch/resources/scripts/test_integrate_branch.py || FAILED=1
 
 echo
+note "== 13. Quality provider contracts, schemas, aggregation, and Rust capabilities are enforced =="
+python3 -m unittest skills/quality_check/resources/scripts/test_validate_quality_contract.py || FAILED=1
+python3 -m unittest skills/quality_check/resources/scripts/test_aggregate_quality_results.py || FAILED=1
+python3 -m unittest skills/rust-quality-check/resources/scripts/test_validate_rust_quality.py || FAILED=1
+python3 -m unittest skills/quality_check/resources/scripts/test_quality_provider_acceptance.py || FAILED=1
+
+echo
 if [ "$FAILED" -eq 0 ]; then
   echo "PASS — safe to publish"
 else
   echo "FAILED — fix the above before publishing"
 fi
 exit "$FAILED"
+

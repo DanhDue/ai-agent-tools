@@ -1,0 +1,28 @@
+{
+  "agent_id": "/root/baseline_judge_v2",
+  "model": "requested gpt-5.6-luna; agent reported GPT-5",
+  "requested_model": "gpt-5.6-luna",
+  "reported_model": "GPT-5",
+  "context_mode": "fresh-none",
+  "independent_blind": true,
+  "started_at": "2026-10-11T12:48:00Z",
+  "initial_finished_at": "2026-10-11T12:49:08Z",
+  "finished_at": "2026-10-11T12:49:47Z",
+  "captured_by": "/root",
+  "raw_sha256": "ca4a392a77c38d3e76aa5ae650b47c1582c90461d79ada18d9e6965b22f21d6c",
+  "initial_raw_sha256": "8e9476c36217dca38a462f97df190715c1b77fed950c6fd93dcdc6953cd343e2",
+  "response_sha256": "0259a15185e2abc2c2268cc0c78207f68d0364aed5e6dfb91cb71ceb70dbbd9e",
+  "inputs_sha256": {
+    "scenarios/composite-workspace-v2/prompt.md": "c2316ab7af7da787165432bd6b9bbaae960f9d797565c65627b8a98fe1656311",
+    "scenarios/composite-workspace-v2/graders/criteria.md": "62543bcaed7dddef76c61593f0db12232f0d75d81e8315af0dc50ac324c962cd",
+    "response.md": "0259a15185e2abc2c2268cc0c78207f68d0364aed5e6dfb91cb71ceb70dbbd9e"
+  },
+  "correction": "Original exact quote was not verbatim and criterion IDs were expanded. Same independent judge returned corrected quote and IDs; outcomes/rationales unchanged. Both raw outputs retained.",
+  "inputs_confirmed": [
+    "judge-request-v2.md",
+    "scenarios/composite-workspace-v2/prompt.md",
+    "scenarios/composite-workspace-v2/graders/criteria.md",
+    "composite-v2-response.md",
+    "composite-v2-judge.md (own initial output for correction)"
+  ]
+}

@@ -1,13 +1,13 @@
 ---
 id: "task_3_build_result_aggregation_engine"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "provider_based_quality_check"
 dueDate: null
 created: "2026-10-11T14:22:20+07:00"
-modified: "2026-10-11T14:22:20+07:00"
-completedAt: null
+modified: "2026-10-11T18:03:49Z"
+completedAt: "2026-10-11T18:03:49Z"
 labels: ["quality", "aggregation", "python", "tdd"]
 order: "a3"
 ---
@@ -92,15 +92,15 @@ Scenario: [Tier C - Integration] Missing and corrupt results remain distinguisha
 
 ## Test & Verification Checklist
 
-- [ ] **RED**: Add failing table-driven tests for the complete status truth table.
-- [ ] **GREEN**: Implement minimal pure aggregation functions.
-- [ ] **REFACTOR**: keep ordering, reduction, and report-payload construction separate.
-- [ ] Test PASS-only, FAIL-only, BLOCKED-only, mixed, empty, optional, and required result sets.
-- [ ] Test all valid and invalid NOT_APPLICABLE combinations.
-- [ ] Test provider and check permutations for byte-stable normalized JSON.
-- [ ] Confirm warnings do not change status and blockers cannot be hidden.
-- [ ] **Tier B**: wire aggregation tests and contract-reference checks into `scripts/verify.sh`.
-- [ ] **Tier C**: aggregate a multi-provider fixture containing PASS, FAIL, and BLOCKED evidence.
+- [x] **RED**: Add failing table-driven tests for the complete status truth table.
+- [x] **GREEN**: Implement minimal pure aggregation functions.
+- [x] **REFACTOR**: keep ordering, reduction, and report-payload construction separate.
+- [x] Test PASS-only, FAIL-only, BLOCKED-only, mixed, empty, optional, and required result sets.
+- [x] Test all valid and invalid NOT_APPLICABLE combinations.
+- [x] Test provider and check permutations for byte-stable normalized JSON.
+- [x] Confirm warnings do not change status and blockers cannot be hidden.
+- [x] **Tier B**: wire aggregation tests and contract-reference checks into `scripts/verify.sh`.
+- [x] **Tier C**: aggregate a multi-provider fixture containing PASS, FAIL, and BLOCKED evidence.
 
 ## Definition of Done
 

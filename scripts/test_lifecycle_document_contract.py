@@ -54,6 +54,30 @@ EXPECTED = {
         "Vietnamese document",
         "Translation parity",
     ),
+    "skills/dev-implementation/SKILL.md": (
+        '`profile`: `"epic"`',
+        '`repository_sha`',
+        "aggregated verdict of **PASS**",
+    ),
+    "skills/dev-lifecycle/SKILL.md": (
+        'profile `epic`',
+        "`repository_sha`",
+        "FAIL > BLOCKED > PASS",
+    ),
+    "skills/pr_review/SKILL.md": (
+        '"profile": "pr"',
+        '"base_ref"',
+        "Executive Report Format",
+    ),
+}
+
+FORBIDDEN = {
+    "skills/pr_review/SKILL.md": (
+        "melos test",
+        "./gradlew check",
+        "swift test",
+        "cleanup-java",
+    ),
 }
 
 
@@ -64,6 +88,11 @@ def main() -> int:
         for token in required_tokens:
             if token not in text:
                 failures.append(f"{relative_path}: missing {token}")
+    for relative_path, forbidden_tokens in FORBIDDEN.items():
+        text = (ROOT / relative_path).read_text()
+        for token in forbidden_tokens:
+            if token in text:
+                failures.append(f"{relative_path}: contains forbidden token {token}")
     if failures:
         for failure in failures:
             print(f"  FAIL {failure}")

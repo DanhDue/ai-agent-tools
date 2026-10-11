@@ -317,10 +317,14 @@ The agent-kit adaptation of the three testing tiers is:
 Skill behavior follows the `writing-skills` pressure-test method:
 
 1. Run baseline agents against adversarial scenarios before new instructions exist.
-2. Record first-match routing, skip-as-pass, profile downgrade, precedence, and stale-SHA failures.
-3. Add the smallest contract and skill changes that close those failures.
+2. Record the observed outcome for first-match routing, skip-as-pass, profile downgrade,
+   precedence, and stale-SHA probes. The initial run demonstrated one precedence failure; the four
+   primary passes remain regression controls.
+3. Add the smallest contract and skill changes that close demonstrated failures and implement the
+   approved provider architecture without weakening the passing controls.
 4. Rerun identical scenarios and capture corrected behavior.
-5. Add new rationalization cases until no tested path can create a false `LGTM`.
+5. Add new rationalization cases only when an observed response exposes a gap; never manufacture
+   RED by changing a frozen rubric after a run.
 
 The final verification includes document validation for the spec, HLD, BDD, and durable EN/VI
 architecture pairs; all unit and acceptance tests; `git diff --check`; and the complete

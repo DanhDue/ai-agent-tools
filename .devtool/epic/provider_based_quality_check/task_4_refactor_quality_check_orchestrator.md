@@ -1,13 +1,13 @@
 ---
 id: "task_4_refactor_quality_check_orchestrator"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "provider_based_quality_check"
 dueDate: null
 created: "2026-10-11T14:22:20+07:00"
-modified: "2026-10-11T14:22:20+07:00"
-completedAt: null
+modified: "2026-10-11T18:06:15Z"
+completedAt: "2026-10-11T18:06:15Z"
 labels: ["quality", "orchestration", "skill", "breaking-change"]
 order: "a4"
 ---
@@ -56,8 +56,9 @@ Applicable skills: `d3nexus:writing-skills`, `d3nexus:test-driven-development`,
   and all consumer repositories.
 - **Cross-platform bridges**: existing embedded mobile behavior is removed; later mobile providers
   must restore that capability through registration.
-- **Target test coverage threshold**: 100% of the orchestrator behavioral contract and all five
-  pressure-test regressions; no untested path may emit LGTM.
+- **Target test coverage threshold**: 100% of the orchestrator behavioral contract, correction of
+  the demonstrated precedence failure, and preservation of every passing pressure-test control; no
+  untested path may emit LGTM.
 
 ## BDD SCENARIOS
 
@@ -97,25 +98,27 @@ Scenario: [Tier C - Integration] Provider invocation failure preserves other evi
 
 ## Test & Verification Checklist
 
-- [ ] **RED**: rerun the relevant Task 1 scenarios and confirm current behavior still violates them.
-- [ ] **GREEN**: replace platform branching with the minimum registry-driven orchestration.
-- [ ] **REFACTOR**: keep `SKILL.md` concise and move contract detail into referenced resources.
-- [ ] Confirm direct invocation defaults only to `pr`; formal callers must pass a profile.
-- [ ] Confirm all matching providers run and no repository file heuristic selects one.
-- [ ] Confirm no auto-fix or source mutation instruction remains.
-- [ ] Confirm missing and malformed dependencies become BLOCKED.
-- [ ] Confirm final report includes invocation identity, registry digest, providers, checks, coverage,
+- [x] **RED**: use Task 1's demonstrated precedence failure as the behavioral RED and retain the
+      other primary passes as regression controls.
+- [x] **GREEN**: replace platform branching with the minimum registry-driven orchestration.
+- [x] **REFACTOR**: keep `SKILL.md` concise and move contract detail into referenced resources.
+- [x] Confirm direct invocation defaults only to `pr`; formal callers must pass a profile.
+- [x] Confirm all matching providers run and no repository file heuristic selects one.
+- [x] Confirm no auto-fix or source mutation instruction remains.
+- [x] Confirm missing and malformed dependencies become BLOCKED.
+- [x] Confirm final report includes invocation identity, registry digest, providers, checks, coverage,
       blockers, warnings, evidence, and decision trace.
-- [ ] **Tier B**: add verification that the orchestrator contains no platform commands, thresholds,
+- [x] **Tier B**: add verification that the orchestrator contains no platform commands, thresholds,
       or hardcoded provider list.
-- [ ] **Tier C**: rerun all five pressure scenarios and record the GREEN delta.
+- [x] **Tier C**: rerun all five pressure scenarios and record the GREEN delta.
 
 ## Definition of Done
 
 - `quality_check` is a thin provider orchestrator with exact two-field skill frontmatter.
 - All selected providers are invoked and reconciled.
 - Only an aggregate PASS bound to the requested SHA can render LGTM.
-- The five baseline failures are corrected without introducing auto-fix behavior.
+- The demonstrated baseline failure is corrected and all passing baseline controls remain green
+  without introducing auto-fix behavior.
 - Skill checks, behavioral evaluations, and full repository verification pass.
 
 ## Dependencies & Blockers
@@ -133,4 +136,3 @@ Scenario: [Tier C - Integration] Provider invocation failure preserves other evi
 - [HLD architecture](provider_based_quality_check.en.md#architecture-and-technical-design)
 - **Rollback**: revert the orchestrator change together with any consumer caller changes. Do not keep
   a half-migrated lifecycle that expects provider results from the legacy skill.
-

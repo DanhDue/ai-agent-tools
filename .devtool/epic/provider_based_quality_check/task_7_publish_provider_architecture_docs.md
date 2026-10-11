@@ -1,13 +1,13 @@
 ---
 id: "task_7_publish_provider_architecture_docs"
-status: "todo"
+status: "done"
 priority: "medium"
 assignee: null
 epic: "provider_based_quality_check"
 dueDate: null
 created: "2026-10-11T14:22:20+07:00"
-modified: "2026-10-11T14:22:20+07:00"
-completedAt: null
+modified: "2026-10-11T18:22:27Z"
+completedAt: "2026-10-11T18:22:27Z"
 labels: ["quality", "documentation", "architecture", "migration"]
 order: "a7"
 ---
@@ -95,18 +95,18 @@ Scenario: [Tier C - Integration] Missing required tool troubleshooting stays fai
 **TDD adaptation**: documentation behavior is proven with executable examples and document gates
 rather than production unit code.
 
-- [ ] **RED**: identify current repository guidance that cannot explain Rust registration or
+- [x] **RED**: identify current repository guidance that cannot explain Rust registration or
       multi-provider execution.
-- [ ] Draft the English document from the implemented contract, then translate it to Vietnamese.
-- [ ] Include schema-valid single-provider and composite-provider examples.
-- [ ] Include profile, evidence, status, SHA, troubleshooting, migration, and provider-authoring
+- [x] Draft the English document from the implemented contract, then translate it to Vietnamese.
+- [x] Include schema-valid single-provider and composite-provider examples.
+- [x] Include profile, evidence, status, SHA, troubleshooting, migration, and provider-authoring
       sections.
-- [ ] Explain Cargo metadata plus project `xtask` as the architecture authority and label optional
+- [x] Explain Cargo metadata plus project `xtask` as the architecture authority and label optional
       Rust tools accurately.
-- [ ] Run bilingual ToC, link, placeholder, Markdown, and Mermaid checks.
-- [ ] **Tier B**: validate embedded JSON examples and cross-reference consistency from
+- [x] Run bilingual ToC, link, placeholder, Markdown, and Mermaid checks.
+- [x] **Tier B**: validate embedded JSON examples and cross-reference consistency from
       `scripts/verify.sh`.
-- [ ] **Tier C**: load the documented examples through validator and aggregator acceptance tests.
+- [x] **Tier C**: load the documented examples through validator and aggregator acceptance tests.
 
 ## Definition of Done
 
