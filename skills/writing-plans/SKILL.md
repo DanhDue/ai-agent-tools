@@ -9,7 +9,7 @@ description: Use when you have a spec or requirements for a multi-step task, bef
 
 Write comprehensive implementation plans assuming the engineer has zero context for our codebase and questionable taste. Document everything they need to know: which files to touch for each task, code, testing, docs they might need to check, how to test it. Give them the whole plan as bite-sized tasks. DRY. YAGNI. TDD. Frequent commits.
 
-Assume they are a skilled developer, but know almost nothing about our toolset or problem domain. Assume they don't know good test design very well.
+Assume they are a skilled developer, but know almost nothing about our toolset or problem domain. Assume they don't know good test design very well. Crucially, plans must define bite-sized steps that not only cover unit TDD, but also **Integration Test Planning & Boundary Edge Cases** (empty states, errors, timeouts, race conditions). For any Web or UI deliverables, the plan MUST include a dedicated **Live Web Browser Verification** step using `browser_subagent` to verify actual rendering, interaction, and visual correctness before considering the work complete.
 
 **Announce at start:** "I'm using the writing-plans skill to create the implementation plan."
 
@@ -30,6 +30,29 @@ Both variants MUST strictly satisfy **Markdown & Diagram Lint Standards**:
 - **Markdown Lint**: Single H1 title, no skipped heading levels, space after `#`, no trailing punctuation in headings, language tags on all fenced code blocks (no bare fences), and formatting hygiene (no trailing whitespace, no hard tabs).
 - **Mermaid Standards**: ALWAYS use `flowchart TD/LR` (NEVER legacy `graph TD/LR`), double-quote node labels containing special characters/parentheses/brackets/colons (e.g. `node["Text (Details)"]`), use clean alphanumeric IDs, and avoid trailing semicolons.
 - **Graphviz (DOT) Standards**: Follow semantic shapes (`diamond` for decisions `?`, `box` for actions, `plaintext` for commands, `ellipse` for states, `octagon` for warnings, `doublecircle` for start/complete), semicolons on every statement, and quoted labels.
+
+## Mandatory Integration & Edge Case Testing
+
+Unit tests in isolation are necessary but insufficient to guarantee that a feature works end-to-end. When writing implementation plans:
+
+1. **Map Critical Use Cases to Integration Tests**:
+   - If the feature introduces or modifies user flows, APIs, or database interactions, the plan MUST include an explicit integration test step or dedicated integration task that exercises the end-to-end contract.
+   - Test full data paths: UI/Action -> Controller/Reducer -> Store/Repository -> Mock/Live Backend -> UI State update.
+
+2. **Exhaustive Edge Case Verification**:
+   For every feature, the plan MUST explicitly define test steps covering:
+   - **Boundary inputs**: Null, undefined, empty strings/collections, zero, negative, maximum limits.
+   - **Error states & resilience**: Network timeouts, 4xx/5xx HTTP errors, malformed payloads, storage failures.
+   - **Concurrency & race conditions**: Rapid consecutive clicks/toggles, cancellation, debouncing, state transitions.
+
+3. **Live Web Browser Verification (For Web / UI Deliverables)**:
+   - Component unit tests and DOM mocks do not prove that a web page actually renders or behaves correctly in a real browser engine.
+   - Any task that creates or modifies web pages, UI components, styling, or browser interactions MUST include a **Live Browser Verification** step.
+   - Specify the exact operational steps:
+     1. Build and launch the dev or preview server (e.g. `npm run dev` or `npx astro preview --port 4324`).
+     2. Dispatch `browser_subagent` to open the target URL, click interactive elements, type input, and assert expected DOM text and states.
+     3. Record browser interaction session as a WebP video artifact and capture screenshot artifacts.
+     4. Verify visual hierarchy, CSS layout, responsiveness, and console logs (zero unexpected errors).
 
 ## Reviewing a Written Plan
 
@@ -144,7 +167,21 @@ def function(input):
 Run: `pytest tests/path/test.py::test_name -v`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: Integration & Edge Case Test (if touching workflows/data/APIs)**
+
+Write & run integration test exercising multi-component flow and boundary edge cases (empty payload, timeout, error fallback):
+Run: `npm test tests/integration/test_flow.test.ts` (or `pytest tests/integration/...`)
+Expected: PASS with 100% boundary coverage
+
+- [ ] **Step 6: Live Web Browser Verification (for Web / UI Tasks)**
+
+Launch preview/dev server and dispatch `browser_subagent` to verify live behavior:
+1. Open URL `http://localhost:<port>/<route>`
+2. Test user interaction flow, click controls, verify state transitions
+3. Save video recording (`.webp`) and capture screenshot artifact
+4. Assert expected DOM text and zero console exceptions
+
+- [ ] **Step 7: Commit**
 
 ```bash
 git add tests/path/test.py src/path/file.py
@@ -174,6 +211,8 @@ plan against it. This is a checklist you run yourself — not a subagent dispatc
 **3. Type consistency:** Do the types, method signatures, and property names you used in later tasks match what you defined in earlier tasks? A function called `clearLayers()` in Task 3 but `clearFullLayers()` in Task 7 is a bug.
 
 **4. Markdown & Diagram lint check:** Does the plan strictly adhere to markdown lint standards (all code blocks tagged with language, no skipped headings, clean formatting)? Do any embedded Mermaid diagrams use modern `flowchart` instead of legacy `graph`, with quoted special-character labels? Do any DOT diagrams follow standard semantic shapes and statement semicolons?
+
+**5. Integration & Edge Case Verification Check:** Does the plan specify tests for boundary edge cases (empty states, errors, race conditions)? If the plan touches Web/UI code, does it mandate Live Browser Verification using `browser_subagent` with visual recording and screenshots?
 
 If you find issues, fix them inline. No need to re-review — just fix and move on. If you find a spec requirement with no task, add the task.
 

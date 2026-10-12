@@ -6,7 +6,7 @@ Use this template when dispatching a plan document reviewer subagent.
 
 **Dispatch after:** The complete plan is written.
 
-```
+```yaml
 Subagent (general-purpose):
   description: "Review plan document"
   prompt: |
@@ -23,6 +23,7 @@ Subagent (general-purpose):
     | Spec Alignment | Plan covers spec requirements, no major scope creep |
     | Task Decomposition | Tasks have clear boundaries, steps are actionable |
     | Buildability | Could an engineer follow this plan without getting stuck? |
+    | Integration & Verification | Edge cases covered in tests; UI/web plans have live browser or app verification steps |
 
     ## Calibration
 
