@@ -1,20 +1,20 @@
 ---
 id: "task_1_build_python_quality_provider"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "python_quality_provider_and_onboarding"
 dueDate: null
 created: "2026-10-12T13:20:00Z"
-modified: "2026-10-12T13:20:00Z"
-completedAt: null
+modified: "2026-10-12T06:32:32Z"
+completedAt: "2026-10-12T06:32:32Z"
 labels: ["python", "provider", "quality_check", "ruff", "mypy", "pytest"]
 order: "a1"
 ---
 
 # Task 1: Build Python Quality Provider
 
-Epic: [python_quality_provider_and_onboarding](../epic/python_quality_provider_and_onboarding/python_quality_provider_and_onboarding.en.md)
+Epic: [python_quality_provider_and_onboarding](python_quality_provider_and_onboarding.en.md)
 
 ## Requirement Analysis
 
@@ -78,11 +78,11 @@ Scenario: [Tier A - Unit] Reject Python manifest with empty command array
 
 ## Test & Verification Checklist
 
-- [ ] **RED**: Create test suite `test_validate_python_quality.py` asserting validation of valid fixtures and rejection of duplicate capability IDs, missing profiles, and empty command arrays. Confirm tests fail.
-- [ ] **GREEN**: Implement `python-quality.schema.json` and `validate_python_quality.py`. Implement `skills/python-quality-check/SKILL.md` operational instructions.
-- [ ] **REFACTOR**: Align capability structure with existing providers (`valid_flutter_quality.json`, `valid_rust_quality.json`).
-- [ ] **Tier A Verification**: Run `python3 -B skills/python-quality-check/resources/scripts/test_validate_python_quality.py` and confirm 100% pass.
-- [ ] **Tier B Verification**: Verify frontmatter (`name: python-quality-check`, single-line description) and relative documentation links.
+- [x] **RED**: Create test suite `test_validate_python_quality.py` asserting validation of valid fixtures and rejection of duplicate capability IDs, missing profiles, and empty command arrays. Confirm tests fail.
+- [x] **GREEN**: Implement `python-quality.schema.json` and `validate_python_quality.py`. Implement `skills/python-quality-check/SKILL.md` operational instructions.
+- [x] **REFACTOR**: Align capability structure with existing providers (`valid_flutter_quality.json`, `valid_rust_quality.json`).
+- [x] **Tier A Verification**: Run `python3 -B skills/python-quality-check/resources/scripts/test_validate_python_quality.py` and confirm 100% pass.
+- [x] **Tier B Verification**: Verify frontmatter (`name: python-quality-check`, single-line description) and relative documentation links.
 
 ## Definition of Done (DoD)
 

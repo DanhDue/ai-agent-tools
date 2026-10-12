@@ -1,0 +1,122 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Python Quality Capability Configuration Schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "capabilities",
+    "profiles"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "format": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" }
+        },
+        "lint": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" }
+        },
+        "type_check": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" }
+        },
+        "check": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" }
+        },
+        "test": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" }
+        },
+        "coverage": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["command", "threshold"],
+          "properties": {
+            "command": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "type": "string" }
+            },
+            "threshold": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          }
+        },
+        "architecture": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" }
+        },
+        "boundaries": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" }
+        },
+        "schema": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" }
+        },
+        "acceptance": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" }
+        },
+        "security": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" }
+        },
+        "docs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "profiles": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pr", "epic"],
+      "properties": {
+        "pr": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" }
+        },
+        "epic": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" }
+        },
+        "scheduled": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" }
+        },
+        "release": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" }
+        }
+      }
+    }
+  }
+}

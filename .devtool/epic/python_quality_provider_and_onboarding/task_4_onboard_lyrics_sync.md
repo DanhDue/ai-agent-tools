@@ -1,20 +1,20 @@
 ---
 id: "task_4_onboard_lyrics_sync"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "python_quality_provider_and_onboarding"
 dueDate: null
 created: "2026-10-12T13:20:00Z"
-modified: "2026-10-12T13:20:00Z"
-completedAt: null
+modified: "2026-10-12T07:02:19Z"
+completedAt: "2026-10-12T07:02:19Z"
 labels: ["onboarding", "lyrics-sync", "ruff", "baseline"]
 order: "a4"
 ---
 
 # Task 4: Onboard and Certify lyrics-sync Quality Baseline
 
-Epic: [python_quality_provider_and_onboarding](../epic/python_quality_provider_and_onboarding/python_quality_provider_and_onboarding.en.md)
+Epic: [python_quality_provider_and_onboarding](python_quality_provider_and_onboarding.en.md)
 
 ## Requirement Analysis
 
@@ -76,11 +76,11 @@ Scenario: [Tier A - Unit] Verify lyrics-sync passes all quality gates
 
 ## Test & Verification Checklist
 
-- [ ] **RED**: Run `uv run ruff check .` in `lyrics-sync` confirming 44 errors.
-- [ ] **GREEN**: Scaffold quality manifests, configure capabilities, and remediate all 44 Ruff lint errors.
-- [ ] **REFACTOR**: Ensure all imports and code styles in `lyrics-sync` comply with guidelines.
-- [ ] **Tier A Verification**: Execute `uv run ruff format --check .`, `uv run ruff check .`, `uv run mypy --strict src`, `uv run lint-imports`, and `uv run pytest -m "not slow and not acceptance and not live_llm"`.
-- [ ] **Tier B Verification**: Execute `validate_python_quality.py` on `lyrics-sync/.agents/quality/python-quality.json`.
+- [x] **RED**: Run `uv run ruff check .` in `lyrics-sync` confirming 44 errors.
+- [x] **GREEN**: Scaffold quality manifests, configure capabilities, and remediate all 44 Ruff lint errors.
+- [x] **REFACTOR**: Ensure all imports and code styles in `lyrics-sync` comply with guidelines.
+- [x] **Tier A Verification**: Execute `uv run ruff format --check .`, `uv run ruff check .`, `uv run mypy --strict src`, `uv run lint-imports`, and `uv run pytest -m "not slow and not acceptance and not live_llm"`.
+- [x] **Tier B Verification**: Execute `validate_python_quality.py` on `lyrics-sync/.agents/quality/python-quality.json`.
 
 ## Definition of Done (DoD)
 

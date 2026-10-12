@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "capabilities": {
+    "format": [
+      "uv",
+      "run",
+      "ruff",
+      "format",
+      "--check",
+      "."
+    ],
+    "lint": [
+      "uv",
+      "run",
+      "ruff",
+      "check",
+      "."
+    ],
+    "type_check": [
+      "uv",
+      "run",
+      "mypy",
+      "--strict",
+      "src"
+    ],
+    "test": [
+      "uv",
+      "run",
+      "pytest",
+      "-m",
+      "not slow and not acceptance and not live_llm"
+    ],
+    "coverage": {
+      "command": [
+        "uv",
+        "run",
+        "pytest",
+        "--cov=src",
+        "--cov-report=json:coverage.json"
+      ],
+      "threshold": 0.8
+    },
+    "architecture": [
+      "uv",
+      "run",
+      "lint-imports"
+    ],
+    "schema": [
+      "uv",
+      "run",
+      "python",
+      "-m",
+      "lyrics_sync.model",
+      "--check-schema"
+    ],
+    "acceptance": [
+      "./scripts/run_e2e_acceptance.sh"
+    ]
+  },
+  "profiles": {
+    "pr": [
+      "format",
+      "lint",
+      "type_check",
+      "test"
+    ],
+    "epic": [
+      "format",
+      "lint",
+      "type_check",
+      "test",
+      "coverage",
+      "architecture",
+      "acceptance"
+    ]
+  }
+}

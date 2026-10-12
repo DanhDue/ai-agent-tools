@@ -36,6 +36,7 @@ sys.path.insert(0, str(SKILLS_DIR / "flutter-quality-check" / "resources" / "scr
 sys.path.insert(0, str(SKILLS_DIR / "android-quality-check" / "resources" / "scripts"))
 sys.path.insert(0, str(SKILLS_DIR / "ios-quality-check" / "resources" / "scripts"))
 sys.path.insert(0, str(SKILLS_DIR / "rust-quality-check" / "resources" / "scripts"))
+sys.path.insert(0, str(SKILLS_DIR / "python-quality-check" / "resources" / "scripts"))
 
 try:
     from validate_quality_contract import validate_registry_dict
@@ -61,6 +62,11 @@ try:
     from validate_rust_quality import validate_rust_manifest
 except ImportError:
     validate_rust_manifest = None
+
+try:
+    from validate_python_quality import validate_python_config
+except ImportError:
+    validate_python_config = None
 
 
 class TestDetectPlatforms(unittest.TestCase):
@@ -90,6 +96,16 @@ class TestDetectPlatforms(unittest.TestCase):
         (self.root / "Project.swift").write_text("// tuist project\n")
         platforms = detect_platforms(self.root)
         self.assertEqual(platforms, ["ios"])
+
+    def test_detect_platforms_single_python_pyproject(self):
+        (self.root / "pyproject.toml").write_text("[project]\nname = 'test_py'\n")
+        platforms = detect_platforms(self.root)
+        self.assertEqual(platforms, ["python"])
+
+    def test_detect_platforms_single_python_requirements(self):
+        (self.root / "requirements.txt").write_text("pytest>=8.0.0\n")
+        platforms = detect_platforms(self.root)
+        self.assertEqual(platforms, ["python"])
 
     def test_detect_platforms_polyglot(self):
         (self.root / "Cargo.toml").write_text("[package]\n")
@@ -195,21 +211,44 @@ class TestScaffoldQualityManifests(unittest.TestCase):
             m_errs = validate_rust_manifest(manifest_data)
             self.assertEqual(m_errs, [])
 
+    def test_scaffold_python_generates_valid_files(self):
+        (self.root / "pyproject.toml").write_text("[project]\nname = 'py_app'\n")
+        result = scaffold_quality_manifests(self.root, self.out_dir)
+        self.assertIn("python", result["detected_platforms"])
+
+        reg_path = self.out_dir / "check_quality.json"
+        self.assertTrue(reg_path.exists())
+        reg_data = json.loads(reg_path.read_text())
+        provider_ids = [p["id"] for p in reg_data["providers"]]
+        self.assertIn("python-core", provider_ids)
+        if validate_registry_dict:
+            val_errs = validate_registry_dict(reg_data)
+            self.assertEqual(val_errs, [])
+
+        manifest_path = self.out_dir / "python-quality.json"
+        self.assertTrue(manifest_path.exists())
+        manifest_data = json.loads(manifest_path.read_text())
+        if validate_python_config:
+            res = validate_python_config(manifest_data, "epic")
+            self.assertEqual("PASS", res["status"])
+            self.assertEqual([], res["findings"])
+
     def test_scaffold_polyglot_all_platforms(self):
         (self.root / "Cargo.toml").write_text("[package]\n")
         (self.root / "pubspec.yaml").write_text("name: f\n")
         (self.root / "settings.gradle.kts").write_text("// gradle\n")
         (self.root / "Package.swift").write_text("// spm\n")
+        (self.root / "pyproject.toml").write_text("[project]\n")
 
         result = scaffold_quality_manifests(self.root, self.out_dir)
-        self.assertEqual(len(result["detected_platforms"]), 4)
+        self.assertEqual(len(result["detected_platforms"]), 5)
 
         reg_path = self.out_dir / "check_quality.json"
         reg_data = json.loads(reg_path.read_text())
         provider_ids = [p["id"] for p in reg_data["providers"]]
-        self.assertCountEqual(provider_ids, ["rust-core", "flutter-core", "android-core", "ios-core"])
+        self.assertCountEqual(provider_ids, ["rust-core", "flutter-core", "android-core", "ios-core", "python-core"])
 
-        for p in ["rust", "flutter", "android", "ios"]:
+        for p in ["rust", "flutter", "android", "ios", "python"]:
             self.assertTrue((self.out_dir / f"{p}-quality.json").exists())
 
     def test_idempotence_protects_existing_without_force(self):

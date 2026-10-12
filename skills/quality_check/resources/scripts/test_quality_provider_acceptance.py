@@ -254,6 +254,7 @@ class EndToEndQualityAcceptanceTests(unittest.TestCase):
         self.sha = _init_git_repo(self.repo_path)
         self.skills = {
             "d3nexus:rust-quality-check",
+            "d3nexus:python-quality-check",
             "d3nexus:mobile-quality-check",
             "d3nexus:flutter-quality-check",
             "d3nexus:android-quality-check",
@@ -784,6 +785,56 @@ class EndToEndQualityAcceptanceTests(unittest.TestCase):
         res = validate_capability_manifest(manifest)
         findings = res["findings"]
         self.assertTrue(any(f["code"] == "command_array_empty" for f in findings))
+
+    def test_python_provider_passes_end_to_end(self) -> None:
+        agents_dir = self.repo_path / ".agents" / "quality"
+        agents_dir.mkdir(parents=True, exist_ok=True)
+        registry = {
+            "schema_version": 1,
+            "providers": [
+                {
+                    "id": "python-core",
+                    "skill": "d3nexus:python-quality-check",
+                    "required": True,
+                    "profiles": ["epic", "pr"],
+                },
+            ],
+        }
+        (agents_dir / "check_quality.json").write_text(json.dumps(registry, indent=2))
+        subprocess.run(["git", "add", "."], cwd=self.repo_path, check=True, capture_output=True)
+        subprocess.run(["git", "commit", "-m", "Add Python registry"], cwd=self.repo_path, check=True, capture_output=True)
+        active_sha = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=self.repo_path).decode().strip()
+
+        res_python = _make_provider_result(
+            "python-core",
+            active_sha,
+            "epic",
+            "PASS",
+            check_id="ruff-check",
+            extra_checks=[
+                {
+                    "id": "pytest-unit",
+                    "category": "tests",
+                    "status": "PASS",
+                    "source": "uv run pytest",
+                    "duration": 5.2,
+                    "summary": "all unit tests passed",
+                    "evidence_refs": ["ev-pytest"],
+                }
+            ],
+        )
+
+        inv = {
+            "contract_version": 1,
+            "profile": "epic",
+            "base_ref": "main",
+            "repository_sha": active_sha,
+        }
+
+        pipeline_out = execute_quality_pipeline(self.repo_path, inv, [res_python], self.skills)
+        self.assertEqual("PASS", pipeline_out["status"])
+        report = render_executive_report(pipeline_out["aggregation"])
+        self.assertIn("python-core", report)
 
 
 if __name__ == "__main__":

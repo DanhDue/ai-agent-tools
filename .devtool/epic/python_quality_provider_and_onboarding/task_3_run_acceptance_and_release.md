@@ -1,20 +1,20 @@
 ---
 id: "task_3_run_acceptance_and_release"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "python_quality_provider_and_onboarding"
 dueDate: null
 created: "2026-10-12T13:20:00Z"
-modified: "2026-10-12T13:20:00Z"
-completedAt: null
+modified: "2026-10-12T06:41:51Z"
+completedAt: "2026-10-12T06:41:51Z"
 labels: ["release", "acceptance", "d3nexus", "v1.7.0"]
 order: "a3"
 ---
 
 # Task 3: Run Acceptance Verification and Release d3nexus v1.7.0
 
-Epic: [python_quality_provider_and_onboarding](../epic/python_quality_provider_and_onboarding/python_quality_provider_and_onboarding.en.md)
+Epic: [python_quality_provider_and_onboarding](python_quality_provider_and_onboarding.en.md)
 
 ## Requirement Analysis
 
@@ -66,10 +66,10 @@ Scenario: [Tier B - Metadata] Validate plugin metadata and version bump
 
 ## Test & Verification Checklist
 
-- [ ] **RED**: Add Python scenario to `test_quality_provider_acceptance.py` asserting full execution.
-- [ ] **GREEN**: Register skill and bump version to `1.7.0` in `plugin.json`. Update `CHANGELOG.md`.
-- [ ] **Tier A Verification**: Run `python3 -B skills/quality_check/resources/scripts/test_quality_provider_acceptance.py`.
-- [ ] **Tier B Verification**: Run `./scripts/verify.sh` and confirm all 13 suites pass cleanly.
+- [x] **RED**: Add Python scenario to `test_quality_provider_acceptance.py` asserting full execution.
+- [x] **GREEN**: Register skill and bump version to `1.7.0` in `plugin.json`. Update `CHANGELOG.md`.
+- [x] **Tier A Verification**: Run `python3 -B skills/quality_check/resources/scripts/test_quality_provider_acceptance.py`.
+- [x] **Tier B Verification**: Run `./scripts/verify.sh` and confirm all 13 suites pass cleanly.
 
 ## Definition of Done (DoD)
 
@@ -85,5 +85,5 @@ Scenario: [Tier B - Metadata] Validate plugin metadata and version bump
 
 ## References & Rollback
 
-- Reference: [Acceptance Testing Guidelines](../epic/python_quality_provider_and_onboarding/python_quality_provider_and_onboarding.en.md).
+- Reference: [Acceptance Testing Guidelines](python_quality_provider_and_onboarding.en.md).
 - Rollback: Revert `plugin.json`, `CHANGELOG.md`, and test file updates.
