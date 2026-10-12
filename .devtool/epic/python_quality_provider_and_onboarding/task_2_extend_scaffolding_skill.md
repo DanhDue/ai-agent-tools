@@ -14,7 +14,7 @@ order: "a2"
 
 # Task 2: Extend Scaffolding Skill for Python
 
-Epic: [python_quality_provider_and_onboarding](../epic/python_quality_provider_and_onboarding/python_quality_provider_and_onboarding.en.md)
+Epic: [python_quality_provider_and_onboarding](python_quality_provider_and_onboarding.en.md)
 
 ## Requirement Analysis
 

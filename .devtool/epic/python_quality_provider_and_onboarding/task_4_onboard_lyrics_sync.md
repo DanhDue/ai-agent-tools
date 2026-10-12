@@ -14,7 +14,7 @@ order: "a4"
 
 # Task 4: Onboard and Certify lyrics-sync Quality Baseline
 
-Epic: [python_quality_provider_and_onboarding](../epic/python_quality_provider_and_onboarding/python_quality_provider_and_onboarding.en.md)
+Epic: [python_quality_provider_and_onboarding](python_quality_provider_and_onboarding.en.md)
 
 ## Requirement Analysis
 

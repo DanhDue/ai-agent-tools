@@ -14,7 +14,7 @@ order: "a3"
 
 # Task 3: Run Acceptance Verification and Release d3nexus v1.7.0
 
-Epic: [python_quality_provider_and_onboarding](../epic/python_quality_provider_and_onboarding/python_quality_provider_and_onboarding.en.md)
+Epic: [python_quality_provider_and_onboarding](python_quality_provider_and_onboarding.en.md)
 
 ## Requirement Analysis
 
@@ -85,5 +85,5 @@ Scenario: [Tier B - Metadata] Validate plugin metadata and version bump
 
 ## References & Rollback
 
-- Reference: [Acceptance Testing Guidelines](../epic/python_quality_provider_and_onboarding/python_quality_provider_and_onboarding.en.md).
+- Reference: [Acceptance Testing Guidelines](python_quality_provider_and_onboarding.en.md).
 - Rollback: Revert `plugin.json`, `CHANGELOG.md`, and test file updates.
