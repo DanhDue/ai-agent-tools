@@ -8,6 +8,19 @@ every installed machine on the old cached copy.
 
 ---
 
+## 1.7.0 — 2026-10-12
+
+Introduces dedicated Python quality check provider (`d3nexus:python-quality-check`) with capability schema, manifest validator, and architectural governance via `import-linter`. Extends the automated onboarding engine (`setup_quality_check`) to detect Python projects (`pyproject.toml`, `uv.lock`, `requirements.txt`, etc.), and integrates Python into the multi-provider end-to-end acceptance test suite.
+
+### Added
+
+- **`python-quality-check`** (`skills/python-quality-check/`): dedicated provider for Python environments (`uv`, standard `python -m`, and `pytest`). Enforces Ruff formatting compliance (`uv run ruff format --check .`), Ruff static analysis (`uv run ruff check .`), strict Mypy type-checking (`uv run mypy --strict src`), Clean Architecture layer boundaries via Import-Linter (`uv run lint-imports`), Pytest unit test suites, and line coverage thresholds.
+- **Python Quality Capability Schema & Validator** (`skills/python-quality-check/resources/schemas/python-quality.schema.json`, `validate_python_quality.py`): machine-readable JSON Schema and standalone CLI validator enforcing capability contracts and authoritative architecture checks for epic profiles.
+- **Python Scaffolding Support** (`skills/setup_quality_check/resources/scripts/scaffold_quality_manifest.py`): auto-detects Python codebases via root markers (`pyproject.toml`, `uv.lock`, `requirements.txt`, `setup.py`, `Pipfile`), generates `.agents/quality/python-quality.json`, and registers `python-core` in `check_quality.json`.
+- **Python Acceptance Verification** (`skills/quality_check/resources/scripts/test_quality_provider_acceptance.py`): end-to-end multi-provider acceptance test verifying Python provider registration, result reconciliation, and executive report emission.
+
+---
+
 ## 1.6.0 — 2026-10-12
 
 Introduces dedicated quality check providers for Flutter, Android Native, and iOS Native modeled on canonical digital wallet architecture templates, hardens quality contracts against false-PASS vulnerabilities and candidate SHA drift, and introduces an automated onboarding scaffolding engine.
