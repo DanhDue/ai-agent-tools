@@ -1,13 +1,13 @@
 ---
 id: "task_6_build_scaffolding_skill"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "mobile_quality_providers_and_contract_hardening"
 dueDate: null
 created: "2026-10-12T12:30:00Z"
-modified: "2026-10-12T12:30:00Z"
-completedAt: null
+modified: "2026-10-12T05:53:51Z"
+completedAt: "2026-10-12T05:53:51Z"
 labels: ["scaffolding", "onboarding", "automation", "python"]
 order: "a6"
 ---
@@ -87,11 +87,11 @@ Scenario: [Tier A - Unit] Detect composite polyglot workspace
 
 ## Test & Verification Checklist
 
-- [ ] **RED**: Create test suite `test_scaffold_quality_manifest.py` testing detection of Rust, Flutter, Android, iOS, composite repos, and idempotence. Confirm tests fail.
-- [ ] **GREEN**: Implement `scaffold_quality_manifest.py` detection logic and manifest templates. Implement `skills/setup_quality_check/SKILL.md`.
-- [ ] **REFACTOR**: Ensure generated JSON files strictly validate against their respective schemas (`check-quality.schema.json`, `flutter-quality.schema.json`, etc.).
-- [ ] **Tier A Verification**: Run `python3 -B skills/setup_quality_check/resources/scripts/test_scaffold_quality_manifest.py` and confirm 100% pass.
-- [ ] **Tier B Verification**: Verify frontmatter (`name: setup_quality_check`, single-line description).
+- [x] **RED**: Create test suite `test_scaffold_quality_manifest.py` testing detection of Rust, Flutter, Android, iOS, composite repos, and idempotence. Confirm tests fail.
+- [x] **GREEN**: Implement `scaffold_quality_manifest.py` detection logic and manifest templates. Implement `skills/setup_quality_check/SKILL.md`.
+- [x] **REFACTOR**: Ensure generated JSON files strictly validate against their respective schemas (`check-quality.schema.json`, `flutter-quality.schema.json`, etc.).
+- [x] **Tier A Verification**: Run `python3 -B skills/setup_quality_check/resources/scripts/test_scaffold_quality_manifest.py` and confirm 100% pass.
+- [x] **Tier B Verification**: Verify frontmatter (`name: setup_quality_check`, single-line description).
 
 ## Definition of Done (DoD)
 
