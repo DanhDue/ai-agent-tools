@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "capabilities": {
+    "format": ["./scripts/dartfmt.sh"],
+    "analyze": ["fvm", "flutter", "analyze"],
+    "boundaries": ["./scripts/check_module_boundaries.sh"],
+    "license": ["./scripts/check_license_header.sh"],
+    "test": ["melos", "run", "test"],
+    "coverage": {
+      "command": ["./scripts/testWithCoverage.sh"],
+      "lcov_path": "coverage_report/lcov.info",
+      "threshold": 0.85
+    },
+    "acceptance": ["./scripts/acceptance_check.sh"]
+  },
+  "profiles": {
+    "pr": ["format", "analyze", "test"],
+    "epic": ["format", "analyze", "boundaries", "license", "test", "coverage"]
+  }
+}

@@ -1,13 +1,13 @@
 ---
 id: "task_3_build_flutter_quality_provider"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "mobile_quality_providers_and_contract_hardening"
 dueDate: null
 created: "2026-10-12T12:30:00Z"
-modified: "2026-10-12T12:30:00Z"
-completedAt: null
+modified: "2026-10-12T05:45:44Z"
+completedAt: "2026-10-12T05:45:44Z"
 labels: ["flutter", "provider", "melos", "quality_check"]
 order: "a3"
 ---
@@ -86,11 +86,11 @@ Scenario: [Tier C - Integration] Execute complete Flutter quality provider flow
 
 ## Test & Verification Checklist
 
-- [ ] **RED**: Create test suite `test_validate_flutter_quality.py` asserting validation of valid fixtures and rejection of empty capabilities, missing profiles, and malformed command arrays. Confirm tests fail.
-- [ ] **GREEN**: Implement `flutter-quality.schema.json` and `validate_flutter_quality.py`. Implement `skills/flutter-quality-check/SKILL.md` operational instructions.
-- [ ] **REFACTOR**: Align capability structure with `valid_rust_quality.json` and ensure full schema adherence.
-- [ ] **Tier A Verification**: Run `python3 -B skills/flutter-quality-check/resources/scripts/test_validate_flutter_quality.py` and confirm 100% pass.
-- [ ] **Tier B Verification**: Verify frontmatter (`name: flutter-quality-check`, single-line description) and relative documentation links.
+- [x] **RED**: Create test suite `test_validate_flutter_quality.py` asserting validation of valid fixtures and rejection of empty capabilities, missing profiles, and malformed command arrays. Confirm tests fail.
+- [x] **GREEN**: Implement `flutter-quality.schema.json` and `validate_flutter_quality.py`. Implement `skills/flutter-quality-check/SKILL.md` operational instructions.
+- [x] **REFACTOR**: Align capability structure with `valid_rust_quality.json` and ensure full schema adherence.
+- [x] **Tier A Verification**: Run `python3 -B skills/flutter-quality-check/resources/scripts/test_validate_flutter_quality.py` and confirm 100% pass.
+- [x] **Tier B Verification**: Verify frontmatter (`name: flutter-quality-check`, single-line description) and relative documentation links.
 
 ## Definition of Done (DoD)
 
