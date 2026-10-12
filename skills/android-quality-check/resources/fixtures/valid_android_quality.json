@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "capabilities": {
+    "format": ["./gradlew", "spotlessCheck"],
+    "lint": ["./gradlew", "detekt"],
+    "bcv": ["./gradlew", "apiCheck"],
+    "architecture": ["./gradlew", ":konsist-test:test"],
+    "test": ["./gradlew", "testDebugUnitTest"],
+    "coverage": {
+      "command": ["./gradlew", "jacocoTestReport"],
+      "report_path": "build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml",
+      "threshold": 0.85
+    },
+    "acceptance": ["./scripts/acceptance_check.sh"],
+    "cleanup": ["pkill", "-9", "java"]
+  },
+  "profiles": {
+    "pr": ["format", "lint", "test"],
+    "epic": ["format", "lint", "bcv", "architecture", "test", "coverage", "cleanup"]
+  }
+}

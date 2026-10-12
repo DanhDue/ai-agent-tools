@@ -1,13 +1,13 @@
 ---
 id: "task_4_build_android_quality_provider"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "mobile_quality_providers_and_contract_hardening"
 dueDate: null
 created: "2026-10-12T12:30:00Z"
-modified: "2026-10-12T12:30:00Z"
-completedAt: null
+modified: "2026-10-12T05:47:39Z"
+completedAt: "2026-10-12T05:47:39Z"
 labels: ["android", "provider", "gradle", "konsist", "quality_check"]
 order: "a4"
 ---
@@ -87,11 +87,11 @@ Scenario: [Tier C - Integration] Execute complete Android quality provider flow
 
 ## Test & Verification Checklist
 
-- [ ] **RED**: Create test suite `test_validate_android_quality.py` asserting validation of valid fixtures and rejection of malformed capability arrays, missing profiles, and empty commands. Confirm tests fail.
-- [ ] **GREEN**: Implement `android-quality.schema.json` and `validate_android_quality.py`. Implement `skills/android-quality-check/SKILL.md` operational instructions.
-- [ ] **REFACTOR**: Align capability structure with `valid_rust_quality.json` and ensure full schema adherence.
-- [ ] **Tier A Verification**: Run `python3 -B skills/android-quality-check/resources/scripts/test_validate_android_quality.py` and confirm 100% pass.
-- [ ] **Tier B Verification**: Verify frontmatter (`name: android-quality-check`, single-line description) and relative documentation links.
+- [x] **RED**: Create test suite `test_validate_android_quality.py` asserting validation of valid fixtures and rejection of malformed capability arrays, missing profiles, and empty commands. Confirm tests fail.
+- [x] **GREEN**: Implement `android-quality.schema.json` and `validate_android_quality.py`. Implement `skills/android-quality-check/SKILL.md` operational instructions.
+- [x] **REFACTOR**: Align capability structure with `valid_rust_quality.json` and ensure full schema adherence.
+- [x] **Tier A Verification**: Run `python3 -B skills/android-quality-check/resources/scripts/test_validate_android_quality.py` and confirm 100% pass.
+- [x] **Tier B Verification**: Verify frontmatter (`name: android-quality-check`, single-line description) and relative documentation links.
 
 ## Definition of Done (DoD)
 
