@@ -1,13 +1,13 @@
 ---
 name: dev-implementation
-description: Use when an epic already has an approved HLD and Kanban task files (`.devtool/epic/<epic_dir>/` + `.devtool/features/task_*.md`) and you need to actually execute those tasks against the codebase, in the right order, inside an isolated worktree across Android Native, Flutter, or iOS Native projects.
+description: Use when an epic already has an approved HLD and Kanban task files (`.devtool/epic/<epic_dir>/` + `.devtool/features/task_*.md`) and you need to actually execute those tasks against the codebase, in the right order, inside an isolated worktree across Web Applications, Flutter, Android Native, iOS Native, or Rust projects.
 ---
 
 # Development Implementation
 
 ## Overview
 
-Runs an already-approved epic's Kanban tasks end-to-end: reload the epic's own docs for context, detect the platform (Flutter, Android Native, or iOS Native), compute a dependency-safe execution order, bootstrap one worktree that can actually build this project, then drive each task sequentially through `d3nexus:subagent-driven-development` with exactly one commit per task.
+Runs an already-approved epic's Kanban tasks end-to-end: reload the epic's own docs for context, detect the platform (Flutter, Android Native, iOS Native, Web, or Rust), compute a dependency-safe execution order, bootstrap one worktree that can actually build this project, then drive each task sequentially through `d3nexus:subagent-driven-development` with exactly one commit per task.
 
 **Core principle:** One worktree, one task at a time, one commit per task, docs stay truthful.
 
@@ -96,6 +96,8 @@ flowchart TB
    - **`flutter`**: Flutter monorepo (`melos`, `fvm`, BLoC, Dart).
    - **`android`**: Android Native (`gradlew`, Kotlin, Compose).
    - **`ios`**: iOS Native (`Project.swift`, `Tuist.swift`, Swift 6, SwiftUI).
+   - **`web`**: Web Application / Frontend (`package.json`, Astro, Vite, Next.js, TypeScript).
+   - **`rust`**: Rust workspace (`Cargo.toml`, `xtask`, Clean Architecture + MVI, FFI/WASM).
 
 ### Phase 1 — Execution Plan
 
@@ -226,6 +228,37 @@ For each task in the confirmed order, follow `d3nexus:subagent-driven-developmen
    > - **PHASE 1**: BDD Scenarios purely derived from HLD diagrams and `bdd_scenarios.en.md`, exhaustively applying the 5 dimensions (Happy Paths, Edge Cases & Boundaries, State Transitions, Async / Race Conditions, Failures & Storage/Network Resilience) tagged with `[Tier A - Unit]` vs `[Tier C - Integration]`.
    > - **PHASE 2**: TDD Unit Implementation (RED failing test: `swift test --package-path <Path>` -> GREEN Swift code -> REFACTOR `swiftformat --config quality/.swiftformat .`, `swiftlint lint --strict --config quality/.swiftlint.yml`, `bash scripts/check_module_boundaries.sh`, `swift test --package-path ArchTests`).
    > - **PHASE 3**: System Integration (`App/Tests`, RouteProvider registration, `tuist generate --no-open && xcodebuild test ...`).
+
+   ##### 🌐 If Project Type is `web`:
+   > You are a tri-persona system operating across the Web Frontend 3-Tier Testing Standard:
+   > 1. **Expert QA (Red Team Persona)**: Authors BDD Scenarios (`[Tier A - Unit]` vs `[Tier C - Integration]`).
+   > 2. **Principal Frontend Engineer (TDD Master Persona — Tier A)**: Implements component logic, domain utilities, reactive stores, state machines, parsers, and reducers with isolated unit tests (`node --test`, Vitest, Jest).
+   > 3. **System Integration & E2E Engineer (Tier C Persona)**: Implements host integration flow tests (`tests/e2e/*.test.ts`, Playwright, Cypress) connecting routing, API clients, and live browser state.
+   > 
+   > Follow these phases sequentially:
+   > - **PHASE 1**: BDD Scenarios purely derived from HLD diagrams and `bdd_scenarios.en.md`, exhaustively applying the 5 dimensions (Happy Paths, Edge Cases & Boundaries, State Transitions, Async / Race Conditions, Failures & Storage/Network Resilience) tagged with `[Tier A - Unit]` vs `[Tier C - Integration]`.
+   > - **PHASE 2**: TDD Unit Implementation (RED failing test -> GREEN minimal code -> REFACTOR `tsc --noEmit` + framework lint / `astro check` + code formatter).
+   > - **PHASE 3**: System Integration & Live Browser Verification (Translate ALL `[Tier C - Integration]` scenarios into real Integration Flow Tests in `tests/e2e/`; execute Live Web Browser Verification with `browser_subagent` recording video `.webp` and screenshot artifacts).
+
+   ##### 🦀 If Project Type is `rust`:
+   > You are a tri-persona system operating across the Rust Clean Architecture 3-Tier Testing Standard:
+   > 1. **Expert QA (Red Team Persona)**: Authors BDD Scenarios (`[Tier A - Unit]` vs `[Tier C - Integration]`).
+   > 2. **Principal Systems Engineer (TDD Master Persona — Tier A)**: Implements domain types, pure MVI reducers, use cases, ports, and hermetic in-memory unit tests using `cargo nextest run --workspace --lib` (or `cargo test --workspace --lib`).
+   > 3. **System Integration & FFI/WASM Engineer (Tier C Persona)**: Implements server integration tests, WASM runners (`bindings-wasm`), and Flutter FFI contracts (`bindings-flutter`).
+   > 
+   > Follow these phases sequentially:
+   > - **PHASE 1**: BDD Scenarios purely derived from HLD diagrams and `bdd_scenarios.en.md`, exhaustively applying the 5 dimensions (Happy Paths, Edge Cases & Boundaries, State Transitions, Async / Race Conditions, Failures & Storage/Network Resilience) tagged with `[Tier A - Unit]` vs `[Tier C - Integration]`.
+   > - **PHASE 2**: TDD Unit Implementation (RED failing test -> GREEN Rust code -> REFACTOR `cargo fmt --all`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo run -p xtask -- check-boundaries`, `cargo run -p xtask -- check-headers`).
+   > - **PHASE 3**: System Integration & Contract Parity (`cargo run -p xtask -- provider-wasm`, `cargo run -p xtask -- provider-ffi`, `cargo run -p xtask -- provider-acceptance`, `cargo run -p xtask -- coverage`).
+
+   > [!CRITICAL]
+   > ### 🎯 MANDATORY 100% BDD-TO-TEST TRACEABILITY RULE (ZERO UNCOVERED SCENARIOS)
+   > 1. **100% Scenario Traceability**: Every single BDD scenario authored in Phase 1 (across all 5 dimensions: Happy Paths, Edge Cases & Boundaries, State Transitions, Async / Race Conditions, Failures & Storage/Network Resilience) MUST map directly to at least one concrete automated test function or test block.
+   > 2. **Tier Separation**:
+   >    - `[Tier A - Unit]` scenarios MUST be covered 100% by unit tests executed by the Dev Persona (TDD Master).
+   >    - `[Tier C - Integration]` scenarios MUST be covered 100% by integration/E2E flow tests (`tests/e2e/`, `integration_test/`, `*FlowTest.kt`, etc.) executed by the Integration Persona.
+   > 3. **No Fake Substitution**: Unit tests with mocks DO NOT substitute for Tier C integration tests of integration contracts, live database states, or browser lifecycles.
+   > 4. **Gate to Done**: A task CANNOT be marked `done` (`sync_task_status.py task <id> done`) unless 100% of its BDD scenarios have passing automated tests and verified outputs.
 
 2. Once the implementer reports `DONE`, synchronize review status:
    ```bash

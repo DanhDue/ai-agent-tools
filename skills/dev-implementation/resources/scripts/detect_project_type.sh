@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # detect_project_type.sh
-# Detects whether a repository is a Flutter, Android Native, or iOS Native project.
+# Detects whether a repository is a Flutter, Android Native, iOS Native, Web, or Rust project.
 #
 # Usage:
 #   detect_project_type.sh [path_to_project_root]
 #
 # Output:
-#   "flutter", "android", "ios", or "unknown"
+#   "flutter", "android", "ios", "web", "rust", or "unknown"
 # Exit code:
-#   0 if recognized ("flutter", "android", "ios"), 1 if "unknown"
+#   0 if recognized ("flutter", "android", "ios", "web", "rust"), 1 if "unknown"
 
 set -euo pipefail
 
@@ -48,6 +48,20 @@ fi
 # 3. Android Native Project Check (Gradle)
 if [ -f "$TARGET_DIR/settings.gradle.kts" ] || [ -f "$TARGET_DIR/settings.gradle" ] || [ -f "$TARGET_DIR/build.gradle.kts" ]; then
   echo "android"
+  exit 0
+fi
+
+# 4. Web Project Check (Astro / Vite / Next.js / Nuxt / Svelte / Web package.json)
+if [ -f "$TARGET_DIR/package.json" ]; then
+  if [ -f "$TARGET_DIR/astro.config.mjs" ] || [ -f "$TARGET_DIR/astro.config.ts" ] ||      [ -f "$TARGET_DIR/vite.config.ts" ] || [ -f "$TARGET_DIR/vite.config.js" ] ||      [ -f "$TARGET_DIR/next.config.js" ] || [ -f "$TARGET_DIR/next.config.mjs" ] || [ -f "$TARGET_DIR/next.config.ts" ] ||      [ -f "$TARGET_DIR/nuxt.config.ts" ] || [ -f "$TARGET_DIR/svelte.config.js" ] ||      [ -d "$TARGET_DIR/apps/learning-web" ] || [ -d "$TARGET_DIR/apps/web" ]; then
+    echo "web"
+    exit 0
+  fi
+fi
+
+# 5. Rust Project Check (Cargo)
+if [ -f "$TARGET_DIR/Cargo.toml" ]; then
+  echo "rust"
   exit 0
 fi
 

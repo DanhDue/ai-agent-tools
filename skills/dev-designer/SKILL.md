@@ -289,9 +289,10 @@ Each task file MUST adhere to this exact structure:
    - **Async / Race Conditions**: Rapid consecutive user interactions (debouncing, stream transformers, cancellation).
    - **Failures & Storage/Network Resilience**: Timeouts, 4xx/5xx HTTP errors, offline states, corrupted storage/DB.
 
-   **Tier Categorization Tagging**: Explicitly tag each scenario:
-   - `[Tier A - Unit]`: Scenarios covering class/function level logic, BLoCs/ViewModels, UseCases, Repositories, Parsers, and Guards.
-   - `[Tier C - Integration]`: Scenarios covering end-to-end user navigation, Host App lifecycle, Tab switching, Auth Gating & Replay, and multi-component seams (including media playback synchronization, live database states, and web route transitions).
+   **Tier Categorization Tagging & 100% Traceability Mandate**:
+   - `[Tier A - Unit]`: Scenarios covering class/function level logic, BLoCs/ViewModels, UseCases, Repositories, Parsers, and Guards. Must be covered 100% by unit tests.
+   - `[Tier C - Integration]`: Scenarios covering end-to-end user navigation, Host App lifecycle, Tab switching, Auth Gating & Replay, and multi-component seams (including media playback synchronization, live database states, and web route transitions). Must be covered 100% by integration tests.
+   - **Zero Uncovered Scenarios Rule**: Every authored BDD scenario across all 5 dimensions MUST map 1-to-1 or 1-to-N to an automated test case. Unit tests with mocks do NOT substitute for Tier C integration tests.
 
 9. **Test & Verification Checklist**:
    - **For Flutter Tasks (Dev Persona / Integration Persona)**:
@@ -321,7 +322,7 @@ Each task file MUST adhere to this exact structure:
      - [ ] **Tier C (Integration)**: Run crate integration tests (`cargo test --test '*'`), WASM tests (`just wasm-test`), and acceptance tests (`just acceptance`).
 
    **TDD Adaptation**: For tasks that are pure refactors or config changes with no new behavior, state the adaptation explicitly (e.g., "run existing test suite / analyzer to confirm zero regressions").
-10. **Definition of Done (DoD)**: Acceptance criteria (100% scenario coverage, passes Tier A/B/C verification, clean git status; for Web/UI deliverables: automated integration tests pass AND live browser verification artifacts are captured via `browser_subagent`).
+10. **Definition of Done (DoD)**: Acceptance criteria (100% BDD scenario coverage across Tier A unit and Tier C integration tests with zero uncovered scenarios, passes Tier A/B/C verification, clean git status; for Web/UI deliverables: automated integration tests pass AND live browser verification artifacts are captured via `browser_subagent`).
 11. **Dependencies & Blockers**: Link to blocking/blocked task files as markdown links (e.g. `Blocked by [Task 1](task_1_create_package.md)`).
 12. **References & Rollback**: Links to docs, APIs, and a rollback strategy if this specific task fails.
 

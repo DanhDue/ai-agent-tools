@@ -54,6 +54,10 @@ Unit tests in isolation are necessary but insufficient to guarantee that a featu
      3. Record browser interaction session as a WebP video artifact and capture screenshot artifacts.
      4. Verify visual hierarchy, CSS layout, responsiveness, and console logs (zero unexpected errors).
 
+4. **100% BDD & Edge Case Traceability**:
+   - Every use case and boundary edge case identified in the spec MUST map to an explicit automated test step (unit test step for Tier A, integration test step for Tier C).
+   - Never write an edge case requirement without an accompanying executable test step.
+
 ## Reviewing a Written Plan
 
 Before handing a plan to an executor, dispatch a reviewer subagent using
