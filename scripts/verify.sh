@@ -255,6 +255,7 @@ note "== 13. Quality provider contracts, schemas, aggregation, and platform capa
 python3 -m unittest skills/quality_check/resources/scripts/test_validate_quality_contract.py || FAILED=1
 python3 -m unittest skills/quality_check/resources/scripts/test_aggregate_quality_results.py || FAILED=1
 python3 -m unittest skills/rust-quality-check/resources/scripts/test_validate_rust_quality.py || FAILED=1
+python3 -m unittest skills/python-quality-check/resources/scripts/test_validate_python_quality.py || FAILED=1
 python3 -m unittest skills/flutter-quality-check/resources/scripts/test_validate_flutter_quality.py || FAILED=1
 python3 -m unittest skills/android-quality-check/resources/scripts/test_validate_android_quality.py || FAILED=1
 python3 -m unittest skills/ios-quality-check/resources/scripts/test_validate_ios_quality.py || FAILED=1
