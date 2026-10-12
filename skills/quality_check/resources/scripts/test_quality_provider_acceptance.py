@@ -20,6 +20,7 @@ from skills.quality_check.resources.scripts.validate_quality_contract import (
     normalize_invocation,
     validate_provider_result,
     reconcile_results,
+    validate_capability_manifest,
 )
 from skills.quality_check.resources.scripts.aggregate_quality_results import (
     aggregate_results,
@@ -46,6 +47,9 @@ def _make_provider_result(
     check_status: str = "PASS",
     check_id: str = "main-check",
     blockers: list[str] | None = None,
+    coverage_measured: float = 0.88,
+    coverage_threshold: float = 0.80,
+    extra_checks: list[dict] | None = None,
 ) -> dict:
     """Construct a schema-valid provider result dict."""
     check_entry = {
@@ -63,27 +67,44 @@ def _make_provider_result(
             "detail": "No touched files in this module",
         }
 
+    checks = [check_entry]
+    if extra_checks:
+        checks.extend(extra_checks)
+
+    evidence_items = [
+        {
+            "id": f"ev-{check_id}",
+            "type": "log",
+            "source": "stdout",
+            "location": f"target/quality/{provider_id}/{check_id}.log",
+        }
+    ]
+    if extra_checks:
+        for ec in extra_checks:
+            for ref in ec.get("evidence_refs", []):
+                evidence_items.append(
+                    {
+                        "id": ref,
+                        "type": "log",
+                        "source": "stdout",
+                        "location": f"target/quality/{provider_id}/{ref}.log",
+                    }
+                )
+
     return {
         "provider_id": provider_id,
         "contract_version": 1,
         "profile": profile,
         "repository_sha": sha,
         "status": status,
-        "checks": [check_entry],
+        "checks": checks,
         "coverage": {
             "line": {
-                "measured": 0.88,
-                "threshold": 0.80,
+                "measured": coverage_measured,
+                "threshold": coverage_threshold,
             }
         },
-        "evidence": [
-            {
-                "id": f"ev-{check_id}",
-                "type": "log",
-                "source": "stdout",
-                "location": f"target/quality/{provider_id}/{check_id}.log",
-            }
-        ],
+        "evidence": evidence_items,
         "started_head": sha,
         "finished_head": sha,
         "duration": 25.0,
@@ -231,7 +252,14 @@ class EndToEndQualityAcceptanceTests(unittest.TestCase):
         self.temp_dir = tempfile.TemporaryDirectory()
         self.repo_path = Path(self.temp_dir.name)
         self.sha = _init_git_repo(self.repo_path)
-        self.skills = {"d3nexus:rust-quality-check", "d3nexus:mobile-quality-check"}
+        self.skills = {
+            "d3nexus:rust-quality-check",
+            "d3nexus:mobile-quality-check",
+            "d3nexus:flutter-quality-check",
+            "d3nexus:android-quality-check",
+            "d3nexus:ios-quality-check",
+            "d3nexus:setup_quality_check",
+        }
 
     def tearDown(self) -> None:
         self.temp_dir.cleanup()
@@ -457,6 +485,307 @@ class EndToEndQualityAcceptanceTests(unittest.TestCase):
         self.assertEqual("BLOCKED", pipeline_out["status"])
         self.assertIn("**BLOCKED**", pipeline_out["report"])
 
+    def test_pure_flutter_workspace_passes_end_to_end(self) -> None:
+        agents_dir = self.repo_path / ".agents" / "quality"
+        agents_dir.mkdir(parents=True, exist_ok=True)
+        registry = {
+            "schema_version": 1,
+            "providers": [
+                {
+                    "id": "flutter-core",
+                    "skill": "d3nexus:flutter-quality-check",
+                    "required": True,
+                    "profiles": ["epic", "pr"],
+                },
+            ],
+        }
+        (agents_dir / "check_quality.json").write_text(json.dumps(registry, indent=2))
+        subprocess.run(["git", "add", "."], cwd=self.repo_path, check=True, capture_output=True)
+        subprocess.run(["git", "commit", "-m", "Add flutter registry"], cwd=self.repo_path, check=True, capture_output=True)
+        active_sha = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=self.repo_path).decode().strip()
+
+        flutter_checks = [
+            {"id": "dartfmt", "category": "formatting", "status": "PASS", "source": "./scripts/dartfmt.sh", "duration": 2.1, "summary": "Format clean", "evidence_refs": ["ev-1"]},
+            {"id": "analyze", "category": "analysis", "status": "PASS", "source": "fvm flutter analyze", "duration": 5.4, "summary": "Zero issues", "evidence_refs": ["ev-2"]},
+            {"id": "boundaries", "category": "architecture", "status": "PASS", "source": "./scripts/check_module_boundaries.sh", "duration": 1.2, "summary": "Boundaries valid", "evidence_refs": ["ev-3"]},
+            {"id": "license", "category": "compliance", "status": "PASS", "source": "./scripts/check_license_header.sh", "duration": 0.8, "summary": "Headers clean", "evidence_refs": ["ev-4"]},
+            {"id": "test", "category": "tests", "status": "PASS", "source": "melos run test", "duration": 14.2, "summary": "Tests passed", "evidence_refs": ["ev-5"]},
+        ]
+        res_flutter = _make_provider_result(
+            "flutter-core",
+            active_sha,
+            "epic",
+            "PASS",
+            check_id="coverage",
+            extra_checks=flutter_checks,
+            coverage_measured=0.88,
+            coverage_threshold=0.80,
+        )
+
+        inv = {
+            "contract_version": 1,
+            "profile": "epic",
+            "base_ref": "main",
+            "repository_sha": active_sha,
+        }
+
+        pipeline_out = execute_quality_pipeline(self.repo_path, inv, [res_flutter], self.skills)
+        self.assertEqual("PASS", pipeline_out["status"])
+        self.assertIn("flutter-core", pipeline_out["report"])
+        self.assertIn("**PASS**", pipeline_out["report"])
+
+    def test_pure_android_workspace_passes_end_to_end(self) -> None:
+        agents_dir = self.repo_path / ".agents" / "quality"
+        agents_dir.mkdir(parents=True, exist_ok=True)
+        registry = {
+            "schema_version": 1,
+            "providers": [
+                {
+                    "id": "android-core",
+                    "skill": "d3nexus:android-quality-check",
+                    "required": True,
+                    "profiles": ["epic", "pr"],
+                },
+            ],
+        }
+        (agents_dir / "check_quality.json").write_text(json.dumps(registry, indent=2))
+        subprocess.run(["git", "add", "."], cwd=self.repo_path, check=True, capture_output=True)
+        subprocess.run(["git", "commit", "-m", "Add android registry"], cwd=self.repo_path, check=True, capture_output=True)
+        active_sha = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=self.repo_path).decode().strip()
+
+        android_checks = [
+            {"id": "spotless", "category": "formatting", "status": "PASS", "source": "./gradlew spotlessCheck", "duration": 3.0, "summary": "Spotless clean", "evidence_refs": ["ev-1"]},
+            {"id": "detekt", "category": "analysis", "status": "PASS", "source": "./gradlew detekt", "duration": 7.2, "summary": "Detekt clean", "evidence_refs": ["ev-2"]},
+            {"id": "bcv", "category": "compatibility", "status": "PASS", "source": "./gradlew apiCheck", "duration": 2.5, "summary": "BCV verified", "evidence_refs": ["ev-3"]},
+            {"id": "konsist", "category": "architecture", "status": "PASS", "source": "./gradlew :konsist-test:test", "duration": 4.1, "summary": "Konsist verified", "evidence_refs": ["ev-4"]},
+            {"id": "unit_test", "category": "tests", "status": "PASS", "source": "./gradlew testDebugUnitTest", "duration": 15.0, "summary": "Unit tests passed", "evidence_refs": ["ev-5"]},
+        ]
+        res_android = _make_provider_result(
+            "android-core",
+            active_sha,
+            "epic",
+            "PASS",
+            check_id="coverage",
+            extra_checks=android_checks,
+            coverage_measured=0.86,
+            coverage_threshold=0.80,
+        )
+
+        inv = {
+            "contract_version": 1,
+            "profile": "epic",
+            "base_ref": "main",
+            "repository_sha": active_sha,
+        }
+
+        pipeline_out = execute_quality_pipeline(self.repo_path, inv, [res_android], self.skills)
+        self.assertEqual("PASS", pipeline_out["status"])
+        self.assertIn("android-core", pipeline_out["report"])
+        self.assertIn("**PASS**", pipeline_out["report"])
+
+    def test_pure_ios_workspace_passes_end_to_end(self) -> None:
+        agents_dir = self.repo_path / ".agents" / "quality"
+        agents_dir.mkdir(parents=True, exist_ok=True)
+        registry = {
+            "schema_version": 1,
+            "providers": [
+                {
+                    "id": "ios-core",
+                    "skill": "d3nexus:ios-quality-check",
+                    "required": True,
+                    "profiles": ["epic", "pr"],
+                },
+            ],
+        }
+        (agents_dir / "check_quality.json").write_text(json.dumps(registry, indent=2))
+        subprocess.run(["git", "add", "."], cwd=self.repo_path, check=True, capture_output=True)
+        subprocess.run(["git", "commit", "-m", "Add ios registry"], cwd=self.repo_path, check=True, capture_output=True)
+        active_sha = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=self.repo_path).decode().strip()
+
+        ios_checks = [
+            {"id": "swiftformat", "category": "formatting", "status": "PASS", "source": "swiftformat", "duration": 2.0, "summary": "Format clean", "evidence_refs": ["ev-1"]},
+            {"id": "swiftlint", "category": "analysis", "status": "PASS", "source": "swiftlint", "duration": 4.5, "summary": "Lint strict pass", "evidence_refs": ["ev-2"]},
+            {"id": "arch_tests", "category": "architecture", "status": "PASS", "source": "swift test --package-path ArchTests", "duration": 3.2, "summary": "K1-K10 clean", "evidence_refs": ["ev-3"]},
+            {"id": "boundaries", "category": "architecture", "status": "PASS", "source": "./scripts/check_module_boundaries.sh", "duration": 1.1, "summary": "Boundaries valid", "evidence_refs": ["ev-4"]},
+            {"id": "unit_test", "category": "tests", "status": "PASS", "source": "swift test", "duration": 8.0, "summary": "Tests passed", "evidence_refs": ["ev-5"]},
+        ]
+        res_ios = _make_provider_result(
+            "ios-core",
+            active_sha,
+            "epic",
+            "PASS",
+            check_id="coverage",
+            extra_checks=ios_checks,
+            coverage_measured=0.87,
+            coverage_threshold=0.80,
+        )
+
+        inv = {
+            "contract_version": 1,
+            "profile": "epic",
+            "base_ref": "main",
+            "repository_sha": active_sha,
+        }
+
+        pipeline_out = execute_quality_pipeline(self.repo_path, inv, [res_ios], self.skills)
+        self.assertEqual("PASS", pipeline_out["status"])
+        self.assertIn("ios-core", pipeline_out["report"])
+        self.assertIn("**PASS**", pipeline_out["report"])
+
+    def test_polyglot_rust_android_flutter_passes_end_to_end(self) -> None:
+        agents_dir = self.repo_path / ".agents" / "quality"
+        agents_dir.mkdir(parents=True, exist_ok=True)
+        registry = {
+            "schema_version": 1,
+            "providers": [
+                {"id": "rust-core", "skill": "d3nexus:rust-quality-check", "required": True, "profiles": ["epic", "pr"]},
+                {"id": "android-core", "skill": "d3nexus:android-quality-check", "required": True, "profiles": ["epic", "pr"]},
+                {"id": "flutter-core", "skill": "d3nexus:flutter-quality-check", "required": True, "profiles": ["epic", "pr"]},
+            ],
+        }
+        (agents_dir / "check_quality.json").write_text(json.dumps(registry, indent=2))
+        subprocess.run(["git", "add", "."], cwd=self.repo_path, check=True, capture_output=True)
+        subprocess.run(["git", "commit", "-m", "Add polyglot registry"], cwd=self.repo_path, check=True, capture_output=True)
+        active_sha = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=self.repo_path).decode().strip()
+
+        res_rust = _make_provider_result("rust-core", active_sha, "epic", "PASS", check_id="cargo-test")
+        res_android = _make_provider_result("android-core", active_sha, "epic", "PASS", check_id="gradle-test")
+        res_flutter = _make_provider_result("flutter-core", active_sha, "epic", "PASS", check_id="melos-test")
+
+        inv = {
+            "contract_version": 1,
+            "profile": "epic",
+            "base_ref": "main",
+            "repository_sha": active_sha,
+        }
+
+        pipeline_out = execute_quality_pipeline(self.repo_path, inv, [res_rust, res_android, res_flutter], self.skills)
+        self.assertEqual("PASS", pipeline_out["status"])
+        self.assertIn("rust-core", pipeline_out["report"])
+        self.assertIn("android-core", pipeline_out["report"])
+        self.assertIn("flutter-core", pipeline_out["report"])
+        self.assertIn("**PASS**", pipeline_out["report"])
+
+    def test_false_pass_f1_failing_check_demoted_to_blocked(self) -> None:
+        agents_dir = self.repo_path / ".agents" / "quality"
+        agents_dir.mkdir(parents=True, exist_ok=True)
+        registry = {
+            "schema_version": 1,
+            "providers": [
+                {"id": "flutter-core", "skill": "d3nexus:flutter-quality-check", "required": True, "profiles": ["epic"]},
+            ],
+        }
+        (agents_dir / "check_quality.json").write_text(json.dumps(registry, indent=2))
+        subprocess.run(["git", "add", "."], cwd=self.repo_path, check=True, capture_output=True)
+        subprocess.run(["git", "commit", "-m", "Add registry"], cwd=self.repo_path, check=True, capture_output=True)
+        active_sha = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=self.repo_path).decode().strip()
+
+        # Vulnerability F1: top-level status is PASS, but an individual check is FAIL
+        res_f1 = _make_provider_result(
+            "flutter-core",
+            active_sha,
+            "epic",
+            status="PASS",
+            check_status="FAIL",
+            check_id="failing-test",
+        )
+
+        inv = {
+            "contract_version": 1,
+            "profile": "epic",
+            "base_ref": "main",
+            "repository_sha": active_sha,
+        }
+
+        pipeline_out = execute_quality_pipeline(self.repo_path, inv, [res_f1], self.skills)
+        self.assertEqual("BLOCKED", pipeline_out["status"])
+        self.assertIn("contract_violation", str(pipeline_out["aggregation"]))
+
+    def test_false_pass_f2_sub_threshold_coverage_demoted_to_blocked(self) -> None:
+        agents_dir = self.repo_path / ".agents" / "quality"
+        agents_dir.mkdir(parents=True, exist_ok=True)
+        registry = {
+            "schema_version": 1,
+            "providers": [
+                {"id": "android-core", "skill": "d3nexus:android-quality-check", "required": True, "profiles": ["epic"]},
+            ],
+        }
+        (agents_dir / "check_quality.json").write_text(json.dumps(registry, indent=2))
+        subprocess.run(["git", "add", "."], cwd=self.repo_path, check=True, capture_output=True)
+        subprocess.run(["git", "commit", "-m", "Add registry"], cwd=self.repo_path, check=True, capture_output=True)
+        active_sha = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=self.repo_path).decode().strip()
+
+        # Vulnerability F2: top-level status is PASS, but line coverage is below threshold (0.65 < 0.80)
+        res_f2 = _make_provider_result(
+            "android-core",
+            active_sha,
+            "epic",
+            status="PASS",
+            check_status="PASS",
+            check_id="coverage",
+            coverage_measured=0.65,
+            coverage_threshold=0.80,
+        )
+
+        inv = {
+            "contract_version": 1,
+            "profile": "epic",
+            "base_ref": "main",
+            "repository_sha": active_sha,
+        }
+
+        pipeline_out = execute_quality_pipeline(self.repo_path, inv, [res_f2], self.skills)
+        self.assertEqual("BLOCKED", pipeline_out["status"])
+        self.assertIn("coverage_deficit", str(pipeline_out["aggregation"]))
+
+    def test_false_pass_f3_stale_sha_rejected(self) -> None:
+        agents_dir = self.repo_path / ".agents" / "quality"
+        agents_dir.mkdir(parents=True, exist_ok=True)
+        registry = {
+            "schema_version": 1,
+            "providers": [
+                {"id": "ios-core", "skill": "d3nexus:ios-quality-check", "required": True, "profiles": ["epic"]},
+            ],
+        }
+        (agents_dir / "check_quality.json").write_text(json.dumps(registry, indent=2))
+        subprocess.run(["git", "add", "."], cwd=self.repo_path, check=True, capture_output=True)
+        subprocess.run(["git", "commit", "-m", "Add registry"], cwd=self.repo_path, check=True, capture_output=True)
+        active_sha = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=self.repo_path).decode().strip()
+
+        # Vulnerability F3: provider result bound to stale SHA
+        res_f3 = _make_provider_result(
+            "ios-core",
+            sha="0000000000000000000000000000000000000000",
+            profile="epic",
+            status="PASS",
+        )
+
+        inv = {
+            "contract_version": 1,
+            "profile": "epic",
+            "base_ref": "main",
+            "repository_sha": active_sha,
+        }
+
+        pipeline_out = execute_quality_pipeline(self.repo_path, inv, [res_f3], self.skills)
+        self.assertEqual("BLOCKED", pipeline_out["status"])
+        self.assertIn("repository_sha_mismatch", str(pipeline_out["aggregation"]))
+
+    def test_empty_command_array_capability_rejected(self) -> None:
+        manifest = {
+            "schema_version": 1,
+            "capabilities": {
+                "empty_check": [],
+            },
+            "profiles": {
+                "pr": ["empty_check"],
+            },
+        }
+        res = validate_capability_manifest(manifest)
+        findings = res["findings"]
+        self.assertTrue(any(f["code"] == "command_array_empty" for f in findings))
+
 
 if __name__ == "__main__":
     unittest.main()
+

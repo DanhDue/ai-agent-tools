@@ -1,13 +1,13 @@
 ---
 id: "task_7_run_e2e_acceptance_and_release"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "mobile_quality_providers_and_contract_hardening"
 dueDate: null
 created: "2026-10-12T12:30:00Z"
-modified: "2026-10-12T12:30:00Z"
-completedAt: null
+modified: "2026-10-12T06:00:34Z"
+completedAt: "2026-10-12T06:00:34Z"
 labels: ["e2e", "acceptance", "release", "quality_check"]
 order: "a7"
 ---
@@ -83,12 +83,12 @@ Scenario: [Tier A - Unit] Verify plugin version alignment
 
 ## Test & Verification Checklist
 
-- [ ] **RED**: Create `test_quality_provider_acceptance.py` asserting multi-provider aggregation and False-PASS rejection. Confirm failures before wiring.
-- [ ] **GREEN**: Wire full aggregation simulation, update `plugin.json` and release metadata.
-- [ ] **REFACTOR**: Clean up test fixtures and ensure atomic temporary directory teardown.
-- [ ] **Tier A Verification**: Run `python3 -B skills/quality_check/resources/scripts/test_quality_provider_acceptance.py` and confirm 100% pass.
-- [ ] **Tier B Verification**: Run `./scripts/verify.sh` and confirm all 13+ suite checks PASS.
-- [ ] **Tier C Verification**: Verify `git diff` shows clean version bump and documentation alignment.
+- [x] **RED**: Create `test_quality_provider_acceptance.py` asserting multi-provider aggregation and False-PASS rejection. Confirm failures before wiring.
+- [x] **GREEN**: Wire full aggregation simulation, update `plugin.json` and release metadata.
+- [x] **REFACTOR**: Clean up test fixtures and ensure atomic temporary directory teardown.
+- [x] **Tier A Verification**: Run `python3 -B skills/quality_check/resources/scripts/test_quality_provider_acceptance.py` and confirm 100% pass.
+- [x] **Tier B Verification**: Run `./scripts/verify.sh` and confirm all 13+ suite checks PASS.
+- [x] **Tier C Verification**: Verify `git diff` shows clean version bump and documentation alignment.
 
 ## Definition of Done (DoD)
 
