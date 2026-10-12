@@ -234,11 +234,11 @@ Key behavioral guarantees:
 
 Proposed Gate 2 task split:
 
-1. **Task 1**: Harden Quality Contract Validator and Reconcile Engine (`task_1_harden_contract_validator.md`)
-2. **Task 2**: Harden Result Aggregator Engine and Precedence (`task_2_harden_result_aggregator.md`)
-3. **Task 3**: Build Flutter Quality Provider (`task_3_build_flutter_quality_provider.md`)
-4. **Task 4**: Build Android Quality Provider (`task_4_build_android_quality_provider.md`)
-5. **Task 5**: Build iOS Quality Provider (`task_5_build_ios_quality_provider.md`)
-6. **Task 6**: Build Scaffolding and Onboarding Skill (`task_6_build_scaffolding_skill.md`)
-7. **Task 7**: Run End-to-End Acceptance and Verify Release (`task_7_run_e2e_acceptance_and_release.md`)
+1. **[Task 1: Harden Quality Contract Validator and Reconcile Engine](task_1_harden_contract_validator.md)**
+2. **[Task 2: Harden Result Aggregator Engine and Precedence](task_2_harden_result_aggregator.md)**
+3. **[Task 3: Build Flutter Quality Provider](task_3_build_flutter_quality_provider.md)**
+4. **[Task 4: Build Android Quality Provider](task_4_build_android_quality_provider.md)**
+5. **[Task 5: Build iOS Quality Provider](task_5_build_ios_quality_provider.md)**
+6. **[Task 6: Build Scaffolding and Onboarding Skill](task_6_build_scaffolding_skill.md)**
+7. **[Task 7: Run End-to-End Acceptance and Verify Release](task_7_run_e2e_acceptance_and_release.md)**
 

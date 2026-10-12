@@ -234,11 +234,11 @@ Các đảm bảo hành vi cốt lõi:
 
 Đề xuất phân rã task cho Gate 2:
 
-1. **Task 1**: Gia cố Bộ Xác Thực Hợp Đồng và Engine Đối Soát (`task_1_harden_contract_validator.md`)
-2. **Task 2**: Gia cố Engine Tổng Hợp Kết Quả và Thứ Tự Ưu Tiên (`task_2_harden_result_aggregator.md`)
-3. **Task 3**: Xây dựng Flutter Quality Provider (`task_3_build_flutter_quality_provider.md`)
-4. **Task 4**: Xây dựng Android Quality Provider (`task_4_build_android_quality_provider.md`)
-5. **Task 5**: Xây dựng iOS Quality Provider (`task_5_build_ios_quality_provider.md`)
-6. **Task 6**: Xây dựng Skill Onboarding và Khởi Tạo Mẫu (`task_6_build_scaffolding_skill.md`)
-7. **Task 7**: Chạy Nghiệm Thu End-to-End và Thẩm Định Bản Phát Hành (`task_7_run_e2e_acceptance_and_release.md`)
+1. **[Task 1: Gia Cố Bộ Xác Thực Hợp Đồng và Engine Đối Soát](task_1_harden_contract_validator.md)**
+2. **[Task 2: Gia Cố Engine Tổng Hợp Kết Quả và Thứ Tự Ưu Tiên](task_2_harden_result_aggregator.md)**
+3. **[Task 3: Xây Dựng Flutter Quality Provider](task_3_build_flutter_quality_provider.md)**
+4. **[Task 4: Xây Dựng Android Quality Provider](task_4_build_android_quality_provider.md)**
+5. **[Task 5: Xây Dựng iOS Quality Provider](task_5_build_ios_quality_provider.md)**
+6. **[Task 6: Xây Dựng Skill Onboarding và Khởi Tạo Mẫu](task_6_build_scaffolding_skill.md)**
+7. **[Task 7: Chạy Nghiệm Thu End-to-End và Thẩm Định Bản Phát Hành](task_7_run_e2e_acceptance_and_release.md)**
 
