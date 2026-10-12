@@ -33,12 +33,12 @@ MIN_GIT = (2, 38)  # git merge-tree --write-tree
 # Never hand-merged: taken from the base during the rebase, regenerated once afterwards.
 REGENERATE_PATTERNS = (
     "*.g.dart", "*.freezed.dart", "*.mocks.dart", "*.gr.dart", "pubspec.lock", "Podfile.lock",
-    "Package.resolved", "gradle.lockfile", "*.lockfile", "package-lock.json", "yarn.lock",
+    "Package.resolved", "gradle.lockfile", "*.lockfile", "package-lock.json", "yarn.lock", "Cargo.lock", "uv.lock", "poetry.lock", "Pipfile.lock",
 )
 # A change to any of these upstream means the worktree needs a fresh bootstrap.
 MANIFEST_PATTERNS = (
     "pubspec.yaml", "melos.yaml", "build.gradle", "build.gradle.kts", "settings.gradle",
-    "settings.gradle.kts", "gradle/libs.versions.toml", "Package.swift", "Project.swift", "Podfile",
+    "settings.gradle.kts", "gradle/libs.versions.toml", "Package.swift", "Project.swift", "Podfile", "Cargo.toml", "pyproject.toml", "requirements.txt",
 )
 
 

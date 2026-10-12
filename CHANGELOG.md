@@ -8,6 +8,23 @@ every installed machine on the old cached copy.
 
 ---
 
+## 1.7.1 — 2026-10-12
+
+Enforces 100% BDD-to-Test Traceability rule across lifecycle design, implementation, and observation skills. Extends `dev-designer`, `dev-implementation`, and `writing-plans` with automated Tier C integration test suites and live web browser verification, introduces dedicated Web Frontend Tri-Persona and Python Clean Architecture support across project detection, worktree bootstrap, and 3-Tier Testing discipline.
+
+### Added
+
+- **100% BDD-to-Test Traceability Rule**: Enforced across `dev-designer`, `dev-implementation`, `writing-plans`, and `task-observer`. Mandates that 100% of BDD scenarios (`[Tier A - Unit]` and `[Tier C - Integration]`) in `bdd_scenarios.*.md` and task files map 1-to-1 to executable test cases; tasks and epics cannot be marked complete without full test suite coverage.
+- **Web Frontend Tri-Persona Architecture** (`skills/dev-implementation/`): Introduces specialized Web Tri-Persona execution blocks (`##### 🌐 If Project Type is web:`) specifying `node --test` / Vitest for Tier A unit testing, `tests/e2e` host integration suites for Tier C, and live web browser verification via `browser_subagent` recording video (`.webp`) and screenshot artifacts.
+- **Python Project Detection & Worktree Bootstrap** (`skills/dev-implementation/resources/scripts/`): Extends `detect_project_type.sh` to recognize Python environments (`pyproject.toml`, `setup.py`, `Pipfile`, `requirements.txt`), and `bootstrap_worktree.sh` to synchronize dependencies using `uv sync` (with fallback to `poetry install` or `pip install -r requirements.txt`).
+- **Python 3-Tier Testing Standard & Tri-Persona** (`skills/dev-designer/`, `skills/dev-implementation/`): Integrates Python into the canonical 3-tier testing standard:
+  - **Tier A (Unit Tests)**: `pytest tests/unit/` using `pytest-mock` and `unittest.mock`.
+  - **Tier B (Tooling & Governance)**: Ruff formatting and linting (`ruff check .`, `ruff format --check .`), strict Mypy type-checking (`mypy --strict src`), and architectural boundary validation (`lint-imports`).
+  - **Tier C (Acceptance & Integration)**: `pytest tests/integration/` and `pytest tests/e2e/`.
+  - **Python Tri-Persona**: Red Team QA, Principal Backend Engineer (TDD Master), and System Integration & E2E Engineer.
+
+---
+
 ## 1.7.0 — 2026-10-12
 
 Introduces dedicated Python quality check provider (`d3nexus:python-quality-check`) with capability schema, manifest validator, and architectural governance via `import-linter`. Extends the automated onboarding engine (`setup_quality_check`) to detect Python projects (`pyproject.toml`, `uv.lock`, `requirements.txt`, etc.), and integrates Python into the multi-provider end-to-end acceptance test suite.
