@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # detect_project_type.sh
-# Detects whether a repository is a Flutter, Android Native, iOS Native, Web, or Rust project.
+# Detects whether a repository is a Flutter, Android Native, iOS Native, Web, Python, or Rust project.
 #
 # Usage:
 #   detect_project_type.sh [path_to_project_root]
 #
 # Output:
-#   "flutter", "android", "ios", "web", "rust", or "unknown"
+#   "flutter", "android", "ios", "web", "python", "rust", or "unknown"
 # Exit code:
-#   0 if recognized ("flutter", "android", "ios", "web", "rust"), 1 if "unknown"
+#   0 if recognized ("flutter", "android", "ios", "web", "python", "rust"), 1 if "unknown"
 
 set -euo pipefail
 
@@ -59,7 +59,13 @@ if [ -f "$TARGET_DIR/package.json" ]; then
   fi
 fi
 
-# 5. Rust Project Check (Cargo)
+# 5. Python Project Check (pyproject.toml, setup.py, requirements.txt, Pipfile)
+if [ -f "$TARGET_DIR/pyproject.toml" ] || [ -f "$TARGET_DIR/setup.py" ] || [ -f "$TARGET_DIR/Pipfile" ] || [ -f "$TARGET_DIR/requirements.txt" ]; then
+  echo "python"
+  exit 0
+fi
+
+# 6. Rust Project Check (Cargo)
 if [ -f "$TARGET_DIR/Cargo.toml" ]; then
   echo "rust"
   exit 0

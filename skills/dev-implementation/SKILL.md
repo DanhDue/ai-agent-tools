@@ -1,13 +1,13 @@
 ---
 name: dev-implementation
-description: Use when an epic already has an approved HLD and Kanban task files (`.devtool/epic/<epic_dir>/` + `.devtool/features/task_*.md`) and you need to actually execute those tasks against the codebase, in the right order, inside an isolated worktree across Web Applications, Flutter, Android Native, iOS Native, or Rust projects.
+description: Use when an epic already has an approved HLD and Kanban task files (`.devtool/epic/<epic_dir>/` + `.devtool/features/task_*.md`) and you need to actually execute those tasks against the codebase, in the right order, inside an isolated worktree across Web Applications, Flutter, Android Native, iOS Native, Python, or Rust projects.
 ---
 
 # Development Implementation
 
 ## Overview
 
-Runs an already-approved epic's Kanban tasks end-to-end: reload the epic's own docs for context, detect the platform (Flutter, Android Native, iOS Native, Web, or Rust), compute a dependency-safe execution order, bootstrap one worktree that can actually build this project, then drive each task sequentially through `d3nexus:subagent-driven-development` with exactly one commit per task.
+Runs an already-approved epic's Kanban tasks end-to-end: reload the epic's own docs for context, detect the platform (Flutter, Android Native, iOS Native, Web, Python, or Rust), compute a dependency-safe execution order, bootstrap one worktree that can actually build this project, then drive each task sequentially through `d3nexus:subagent-driven-development` with exactly one commit per task.
 
 **Core principle:** One worktree, one task at a time, one commit per task, docs stay truthful.
 
@@ -97,6 +97,7 @@ flowchart TB
    - **`android`**: Android Native (`gradlew`, Kotlin, Compose).
    - **`ios`**: iOS Native (`Project.swift`, `Tuist.swift`, Swift 6, SwiftUI).
    - **`web`**: Web Application / Frontend (`package.json`, Astro, Vite, Next.js, TypeScript).
+   - **`python`**: Python project (`pyproject.toml`, `setup.py`, pytest, ruff, mypy, uv/poetry).
    - **`rust`**: Rust workspace (`Cargo.toml`, `xtask`, Clean Architecture + MVI, FFI/WASM).
 
 ### Phase 1 — Execution Plan
@@ -140,6 +141,24 @@ flowchart TB
      Verify the bootstrap:
      ```bash
      ls <worktree_path>/*.xcworkspace
+     ```
+   - **For Web Projects**:
+     Run `npm install` or `pnpm install` in the worktree directory.
+     Verify the bootstrap:
+     ```bash
+     ls <worktree_path>/package.json
+     ```
+   - **For Python Projects**:
+     Run `uv sync` (or `poetry install` / `pip install -r requirements.txt`).
+     Verify the bootstrap:
+     ```bash
+     ls <worktree_path>/pyproject.toml
+     ```
+   - **For Rust Projects**:
+     Run `cargo check --workspace` to warm up compilation cache.
+     Verify the bootstrap:
+     ```bash
+     ls <worktree_path>/Cargo.toml
      ```
    Validate the bootstrap script itself with
    `bash skills/dev-implementation/resources/scripts/test_bootstrap_worktree_validation.sh`

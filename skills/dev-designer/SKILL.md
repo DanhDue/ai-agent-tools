@@ -1,12 +1,12 @@
 ---
 name: dev-designer
-description: Use when analyzing high-level requirements to design a complete software Epic across Web Applications, Flutter, Android Native, iOS Native, or Rust projects, including High-Level Design (HLD), Mermaid diagrams, Integration Test Plans, and Kanban task breakdowns with BDD & TDD specifications.
+description: Use when analyzing high-level requirements to design a complete software Epic across Web Applications, Flutter, Android Native, iOS Native, Python, or Rust projects, including High-Level Design (HLD), Mermaid diagrams, Integration Test Plans, and Kanban task breakdowns with BDD & TDD specifications.
 ---
 
 # Development Designer
 
 ## Overview
-This skill transforms high-level product or technical requirements into a structured, developer-ready Epic for **Web Applications**, **Flutter**, **Android Native**, **iOS Native**, and **Rust Core / Polyglot** projects. It creates a centralized High-Level Design (HLD) document, formalizes an **Integration Test Plan** covering analyzed use cases and boundary edge cases, and breaks the work down into granular Kanban tasks enforcing Behavior-Driven Development (BDD), Test-Driven Development (TDD), and strict Definition of Done (DoD), fully aligned with `dev-implementation`'s Tri-Persona workflow (QA Red Team + TDD Master + System Integration Engineer).
+This skill transforms high-level product or technical requirements into a structured, developer-ready Epic for **Web Applications**, **Flutter**, **Android Native**, **iOS Native**, **Python**, and **Rust Core / Polyglot** projects. It creates a centralized High-Level Design (HLD) document, formalizes an **Integration Test Plan** covering analyzed use cases and boundary edge cases, and breaks the work down into granular Kanban tasks enforcing Behavior-Driven Development (BDD), Test-Driven Development (TDD), and strict Definition of Done (DoD), fully aligned with `dev-implementation`'s Tri-Persona workflow (QA Red Team + TDD Master + System Integration Engineer).
 
 This skill is **Stage 2** of the Epic Lifecycle. The surrounding stages, the five approval
 gates, and what each stage hands over are owned by the
@@ -45,6 +45,7 @@ Detect the active project platform architecture:
 - **Flutter**: Root contains `pubspec.yaml` or `melos.yaml`.
 - **Android Native**: Root contains `settings.gradle.kts`, `settings.gradle`, or `build.gradle.kts` (without root `pubspec.yaml`).
 - **iOS Native**: Root contains `Project.swift`, `Tuist.swift`, or `Package.swift`.
+- **Python**: Root contains `pyproject.toml`, `setup.py`, `Pipfile`, or `requirements.txt`.
 - **Rust Core / Polyglot**: Root contains `Cargo.toml`.
 
 ### Step 1: Create the Epic Overview Document (HLD/RFC)
@@ -64,7 +65,7 @@ You MUST generate two language variants for the overview document:
 Each document MUST contain the following sections:
 
 1. **Table of Contents (Mục lục)**: A linked entry for every `##` section in the document.
-2. **Meta Data**: Epic name, Status, Target Release, Platform (`Web Application`, `Flutter`, `Android Native`, `iOS Native`, or `Rust Core`), and `Source Spec` link if this epic was derived from an approved `dev-brainstorming` spec.
+2. **Meta Data**: Epic name, Status, Target Release, Platform (`Web Application`, `Flutter`, `Android Native`, `iOS Native`, `Python`, or `Rust Core`), and `Source Spec` link if this epic was derived from an approved `dev-brainstorming` spec.
 3. **Background (Bối cảnh)**: The problem statement or context (Why are we doing this?).
 4. **Goals & Non-Goals**: Clearly define what is expected to be achieved and what is strictly out of scope to avoid scope creep.
 5. **Architecture & Technical Design**:
@@ -160,6 +161,16 @@ Every Epic breakdown MUST explicitly structure and address all 3 testing tiers a
 - **Tier B (Tooling, Types & Governance Tests)**: Tasks touching components, pages, or shared modules MUST verify type soundness (`tsc --noEmit`), framework diagnostics (`astro check` or framework linter), code style/formatting (`prettier --check` / `eslint`), and module boundaries.
 - **Tier C (Acceptance, E2E & Live Browser Verification)**: Every Web Epic MUST include an explicit final integration task (e.g. `Task N: Integration & Live Browser Verification`) verifying application composition roots, router navigation flows, running the automated integration harness (`tests/e2e/*.test.ts`, Playwright, Cypress) **AND executing Live Web Browser Verification**. The agent MUST launch the local dev/preview server, navigate using `browser_subagent`, record a video session (`.webp`), capture screenshot artifacts, and assert real DOM states, user interactions, audio/video playback, and visual layout against analyzed use cases and edge cases. Executed by the **System Integration Engineer (Integration Persona)**.
 
+##### 🐍 For Python Projects:
+- **Tier A (Unit Tests)**: Tasks covering module/domain logic, services, models, and parsers with isolated unit tests (`pytest tests/unit/` using `pytest-mock`, `unittest.mock`). Executed by the **TDD Master (Dev Persona)**.
+- **Tier B (Tooling & Governance Tests)**: Tasks touching modules or public APIs MUST verify code formatting and linting (`ruff check .`, `ruff format --check .`), strict type checking (`mypy --strict src`), and architectural layer boundaries (`lint-imports` or `import-linter` via `.importlinter`).
+- **Tier C (Acceptance & Integration Tests)**: Every Epic MUST include an explicit final integration task verifying service composition roots, API integrations, database workflows, and running automated integration/acceptance tests (`pytest tests/integration/` and `pytest tests/e2e/`). Executed by the **System Integration Engineer (Integration Persona)**.
+
+##### 🐍 For Python Projects:
+- **Tier A (Unit Tests)**: Tasks covering module/domain logic, services, models, and parsers with isolated unit tests (`pytest tests/unit/` using `pytest-mock`, `unittest.mock`). Executed by the **TDD Master (Dev Persona)**.
+- **Tier B (Tooling & Governance Tests)**: Tasks touching modules or public APIs MUST verify code formatting and linting (`ruff check .`, `ruff format --check .`), strict type checking (`mypy --strict src`), and architectural layer boundaries (`lint-imports` or `import-linter` via `.importlinter`).
+- **Tier C (Acceptance & Integration Tests)**: Every Epic MUST include an explicit final integration task verifying service composition roots, API integrations, database workflows, and running automated integration/acceptance tests (`pytest tests/integration/` and `pytest tests/e2e/`). Executed by the **System Integration Engineer (Integration Persona)**.
+
 ##### 🦀 For Rust Core & Polyglot Backend Projects:
 - **Tier A (Unit / Crate Tests)**: Tasks covering core domain models, business logic, parsers, algorithms, and state machines with isolated unit tests (`cargo test --lib`). Executed by the **TDD Master (Dev Persona)**.
 - **Tier B (Tooling & Governance Tests)**: Tasks touching shared crates or public APIs MUST verify formatting (`just fmt` or `cargo fmt --check`), clippy warnings denied (`just lint` or `cargo clippy -D warnings`), dependency licensing/security (`cargo deny check`), and architecture boundaries (`cargo run -p xtask -- check-boundaries`).
@@ -183,7 +194,7 @@ flowchart TD
             RED["1. RED: Failing Unit Tests"]
             GREEN["2. GREEN: Minimal Feature Code"]
             REFACTOR["3. REFACTOR: Clean Code & Formatter"]
-            VERIFY_A["Web: node --test / vitest<br/>Flutter: melos test<br/>Android: ./gradlew testDebugUnitTest<br/>iOS: swift test<br/>Rust: cargo test --lib"]
+            VERIFY_A["Web: node --test / vitest<br/>Flutter: melos test<br/>Android: ./gradlew testDebugUnitTest<br/>iOS: swift test<br/>Python: pytest tests/unit<br/>Rust: cargo test --lib"]
         end
 
         subgraph TIER_C["Tier C: System Integration & E2E Engineer"]
@@ -196,12 +207,12 @@ flowchart TD
     end
 
     subgraph TIER_B["Tier B: Automated Governance Gates"]
-        GATE["Web: tsc --noEmit + astro check<br/>Flutter: check_module_boundaries + melos analyze<br/>Android: Konsist K1-K10 + BCV apiCheck + detekt<br/>iOS: check_module_boundaries + ArchTests + swiftlint<br/>Rust: clippy -D warnings + xtask check-boundaries"]
+        GATE["Web: tsc --noEmit + astro check<br/>Flutter: check_module_boundaries + melos analyze<br/>Android: Konsist K1-K10 + BCV apiCheck + detekt<br/>iOS: check_module_boundaries + ArchTests + swiftlint<br/>Python: ruff + mypy + lint-imports<br/>Rust: clippy -D warnings + xtask check-boundaries"]
     end
 
     subgraph SYNC["Sync Checkpoint & Acceptance Verification"]
         MERGE["Merge & Sync Checkpoint"]
-        VERIFY_C["Web: tests/e2e + browser verification<br/>Flutter: ./scripts/testWithCoverage.sh<br/>Android: ./scripts/acceptance_check.sh<br/>iOS: tuist generate + xcodebuild test<br/>Rust: just acceptance + wasm-test"]
+        VERIFY_C["Web: tests/e2e + browser verification<br/>Flutter: ./scripts/testWithCoverage.sh<br/>Android: ./scripts/acceptance_check.sh<br/>iOS: tuist generate + xcodebuild test<br/>Python: pytest tests/integration<br/>Rust: just acceptance + wasm-test"]
     end
 
     HLD -->|100% Independent Derivation| BDD
@@ -227,9 +238,9 @@ flowchart TD
 >    - Neither agent is permitted to rename, alter types, or mutate public contract signatures during parallel execution without a synchronized pause.
 > 
 > 2. **Rule 2: Disjoint File Sets (Zero Git Merge Conflicts)**:
->    - **Subagent 1 (Dev)**: Restricted strictly to feature/package sources (`apps/{app}/src/**` in Web; `features/{name}/**`, `packages/{package}/**` in Flutter; `:features:*`, `:packages:*` in Android; `Features/{Name}/**`, `Packages/{Name}/**` in iOS; `crates/{crate}/src/**` in Rust).
->    - **Subagent 2 (SDET)**: Restricted strictly to Host App integration testbeds (`tests/e2e/**` in Web; `integration_test/**` in Flutter; `app/src/test/**`, `shell/src/test/**` in Android; `App/Tests/**`, `Shell/Tests/**` in iOS; `tests/**` in Rust).
->    - **NEITHER agent** may modify shared root build or workspace files (`package.json`, `astro.config.*` in Web; `pubspec.yaml`, `melos.yaml` in Flutter; `settings.gradle.kts`, `buildSrc/**` in Android; `Project.swift`, `Workspace.swift`, `Tuist.swift` in iOS; root `Cargo.toml` in Rust) concurrently.
+>    - **Subagent 1 (Dev)**: Restricted strictly to feature/package sources (`apps/{app}/src/**` in Web; `features/{name}/**`, `packages/{package}/**` in Flutter; `:features:*`, `:packages:*` in Android; `Features/{Name}/**`, `Packages/{Name}/**` in iOS; `src/{package}/**` in Python; `src/{package}/**` in Python; `crates/{crate}/src/**` in Rust).
+>    - **Subagent 2 (SDET)**: Restricted strictly to Host App integration testbeds (`tests/e2e/**` in Web; `integration_test/**` in Flutter; `app/src/test/**`, `shell/src/test/**` in Android; `App/Tests/**`, `Shell/Tests/**` in iOS; `tests/integration/**` in Python; `tests/integration/**` in Python; `tests/**` in Rust).
+>    - **NEITHER agent** may modify shared root build or workspace files (`package.json`, `astro.config.*` in Web; `pubspec.yaml`, `melos.yaml` in Flutter; `settings.gradle.kts`, `buildSrc/**` in Android; `Project.swift`, `Workspace.swift`, `Tuist.swift` in iOS; `pyproject.toml` in Python; `pyproject.toml` in Python; root `Cargo.toml` in Rust) concurrently.
 > 
 > 3. **Rule 3: ATDD Sync Checkpoint & Verification**:
 >    - Subagent 2's integration flow tests initially act as **ATDD Red Tests** (failing while Subagent 1's code is in-flight).
@@ -263,6 +274,8 @@ Each task file MUST adhere to this exact structure:
 5. **Relevant Files & Context Pointers**: An explicit bullet list of exact file/directory paths this task reads or modifies.
 6. **Design Rationale**: Architecture decisions or design patterns chosen. **Crucially, review the available skills in `.agents/skills/` and explicitly note applicable skills here**:
    - **For Web Tasks**: `browser_subagent` (live browser verification), Node.js `--test` / Vitest, Astro check, Playwright.
+   - **For Python Tasks**: `python-quality-check`, `pytest`, `ruff`, `mypy`, `import-linter`.
+   - **For Python Tasks**: `python-quality-check`, `pytest`, `ruff`, `mypy`, `import-linter`.
    - **For Rust Tasks**: `rust-quality-check`, `xtask`, `wasm-pack`.
    - **For Flutter Tasks**: `flutter-ui-audit`, Mason bricks (`mason make pac_mvi_feature`), `build_runner`.
    - **For Android Tasks**: `android-ui-audit`, `android-api-integration`, `moshi_dto_generator`.
@@ -315,6 +328,16 @@ Each task file MUST adhere to this exact structure:
      - [ ] **GREEN**: Write minimal implementation code to satisfy the tests.
      - [ ] **REFACTOR**: Optimize component render lifecycles, run typecheck (`tsc --noEmit`), lint/framework check (`npx astro check`), and format (`prettier`).
      - [ ] **Tier C (Integration & Live Browser Verification)**: Run automated integration tests (`tests/e2e/*.test.ts`). For tasks with Web UI/frontend deliverables, run the local dev/preview server and execute Live Web Browser Verification using `browser_subagent`. Capture video (`.webp`) and screenshot artifacts to verify UI layout, responsive behavior, and edge-case use cases.
+   - **For Python Tasks (Dev Persona / Integration Persona)**:
+     - [ ] **RED**: Translate all `[Tier A - Unit]` BDD scenarios into failing unit tests (`pytest tests/unit/`). Confirm failure before writing code.
+     - [ ] **GREEN**: Write minimal implementation code satisfying the tests.
+     - [ ] **REFACTOR**: Format and lint (`ruff format .`, `ruff check . --fix`), check types (`mypy`), and verify layer boundaries (`lint-imports`).
+     - [ ] **Tier C (Integration)**: Run integration test suites (`pytest tests/integration/` and `pytest tests/e2e/`).
+   - **For Python Tasks (Dev Persona / Integration Persona)**:
+     - [ ] **RED**: Translate all `[Tier A - Unit]` BDD scenarios into failing unit tests (`pytest tests/unit/`). Confirm failure before writing code.
+     - [ ] **GREEN**: Write minimal implementation code satisfying the tests.
+     - [ ] **REFACTOR**: Format and lint (`ruff format .`, `ruff check . --fix`), check types (`mypy`), and verify layer boundaries (`lint-imports`).
+     - [ ] **Tier C (Integration)**: Run integration test suites (`pytest tests/integration/` and `pytest tests/e2e/`).
    - **For Rust Tasks (Dev Persona / Integration Persona)**:
      - [ ] **RED**: Translate all `[Tier A - Unit]` BDD scenarios into failing unit tests (`cargo test --lib`). Confirm failure before writing code.
      - [ ] **GREEN**: Write minimal implementation code satisfying the tests.

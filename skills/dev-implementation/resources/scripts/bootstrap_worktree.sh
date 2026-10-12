@@ -30,6 +30,43 @@ if [ ! -d "$WORKTREE_PATH" ]; then
   exit 1
 fi
 
+if [ -f "$WORKTREE_PATH/pyproject.toml" ] || [ -f "$WORKTREE_PATH/requirements.txt" ]; then
+  echo "Detected Python project in worktree..."
+  if command -v uv &>/dev/null; then
+    echo "Running uv sync (fast dependency sync)..."
+    (cd "$WORKTREE_PATH" && uv sync)
+  elif command -v poetry &>/dev/null && [ -f "$WORKTREE_PATH/poetry.lock" ]; then
+    echo "Running poetry install..."
+    (cd "$WORKTREE_PATH" && poetry install)
+  elif [ -f "$WORKTREE_PATH/requirements.txt" ]; then
+    echo "Running pip install -r requirements.txt..."
+    (cd "$WORKTREE_PATH" && pip install -r requirements.txt)
+  fi
+  echo "Worktree bootstrap complete at $WORKTREE_PATH"
+  exit 0
+fi
+
+if [ -f "$WORKTREE_PATH/Cargo.toml" ] && [ ! -f "$WORKTREE_PATH/pubspec.yaml" ]; then
+  echo "Detected Rust project in worktree..."
+  echo "Running cargo check --workspace (warm up compilation cache)..."
+  (cd "$WORKTREE_PATH" && cargo check --workspace)
+  echo "Worktree bootstrap complete at $WORKTREE_PATH"
+  exit 0
+fi
+
+if [ -f "$WORKTREE_PATH/package.json" ] && [ ! -f "$WORKTREE_PATH/pubspec.yaml" ]; then
+  echo "Detected Web project in worktree..."
+  if command -v pnpm &>/dev/null && [ -f "$WORKTREE_PATH/pnpm-lock.yaml" ]; then
+    echo "Running pnpm install..."
+    (cd "$WORKTREE_PATH" && pnpm install)
+  elif command -v npm &>/dev/null; then
+    echo "Running npm install..."
+    (cd "$WORKTREE_PATH" && npm install)
+  fi
+  echo "Worktree bootstrap complete at $WORKTREE_PATH"
+  exit 0
+fi
+
 if [ ! -d "$REPO_ROOT/secureFiles" ]; then
   echo "secureFiles/ not found at $REPO_ROOT/secureFiles" >&2
   echo "secureFiles/ is gitignored, so it exists only where it was populated by hand --" >&2
