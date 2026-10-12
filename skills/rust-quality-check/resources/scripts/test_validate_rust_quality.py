@@ -54,6 +54,13 @@ class RustQualityConfigTests(unittest.TestCase):
         self.assertEqual("BLOCKED", res["status"])
         self.assertIn("missing_architecture_authority", [f["code"] for f in res["findings"]])
 
+    def test_empty_command_array_is_rejected(self) -> None:
+        cfg = valid_config()
+        cfg["capabilities"]["check"] = []
+        res = validate_rust_config(cfg, "pr")
+        self.assertEqual("BLOCKED", res["status"])
+        self.assertIn("command_array_empty", [f["code"] for f in res["findings"]])
+
     def test_schema_file_is_valid_json_schema(self) -> None:
         schema_path = SCRIPT_DIR.parent / "schemas/rust-quality.schema.json"
         schema = json.loads(schema_path.read_text())

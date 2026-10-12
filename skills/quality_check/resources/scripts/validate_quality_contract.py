@@ -313,6 +313,16 @@ def validate_provider_result(
                 findings.append(_finding("invalid_coverage", f"Invalid measured coverage '{measured}' in '{metric}'"))
             if threshold is not None and (not isinstance(threshold, (int, float)) or threshold < 0 or threshold > 1.0):
                 findings.append(_finding("invalid_coverage", f"Invalid threshold coverage '{threshold}' in '{metric}'"))
+            if status == "PASS" and threshold is not None and isinstance(measured, (int, float)) and isinstance(threshold, (int, float)):
+                if measured < threshold:
+                    findings.append(
+                        _finding(
+                            "coverage_deficit",
+                            f"Provider reported PASS but measured coverage {measured} is below threshold {threshold} in '{metric}'",
+                            provider_id=result_data.get("provider_id"),
+                            field=f"coverage.{metric}",
+                        )
+                    )
     elif coverage is not None:
         findings.append(_finding("invalid_coverage", "Coverage must be an object"))
 
@@ -363,6 +373,15 @@ def validate_provider_result(
                 findings.append(_finding("invalid_duration", f"Invalid duration in check '{chk_id}'"))
 
             chk_status = chk.get("status")
+            if status == "PASS" and chk_status in {"FAIL", "BLOCKED"}:
+                findings.append(
+                    _finding(
+                        "contract_violation",
+                        f"Provider reported PASS but check '{chk_id}' has status '{chk_status}'",
+                        provider_id=result_data.get("provider_id"),
+                        field="status",
+                    )
+                )
             if chk_status == "NOT_APPLICABLE":
                 reason = chk.get("not_applicable_reason")
                 if not isinstance(reason, dict) or "code" not in reason or "detail" not in reason:
@@ -411,20 +430,83 @@ def validate_provider_result(
 
 
 def reconcile_results(
-    execution_plan: list[dict[str, Any]],
+    execution_plan: list[dict[str, Any]] | dict[str, Any],
     provider_results: list[dict[str, Any]],
+    expected_sha: str | None = None,
 ) -> dict[str, Any]:
     """Reconcile collected provider results against the execution plan."""
     findings: list[dict[str, Any]] = []
+
+    if isinstance(execution_plan, dict):
+        plan_entries = execution_plan.get("providers", execution_plan.get("plan", []))
+        expected_sha = expected_sha or execution_plan.get("repository_sha")
+    else:
+        plan_entries = execution_plan
+
+    if expected_sha is None and plan_entries:
+        for pe in plan_entries:
+            if isinstance(pe, dict) and pe.get("repository_sha"):
+                expected_sha = pe.get("repository_sha")
+                break
+
     results_by_id: dict[str, list[dict[str, Any]]] = {}
 
     for res in provider_results:
         p_id = res.get("provider_id", "")
         results_by_id.setdefault(p_id, []).append(res)
 
+        # Validate commit SHA and drift across all results
+        res_sha = res.get("repository_sha")
+        start_sha = res.get("started_head")
+        fin_sha = res.get("finished_head")
+        if start_sha != res_sha or fin_sha != res_sha:
+            findings.append(
+                _finding(
+                    "sha_drift",
+                    f"Provider '{p_id}' started_head or finished_head does not match repository_sha",
+                    provider_id=p_id,
+                )
+            )
+        if expected_sha and (res_sha != expected_sha or start_sha != expected_sha or fin_sha != expected_sha):
+            findings.append(
+                _finding(
+                    "sha_mismatch",
+                    f"Provider '{p_id}' result SHA does not match expected candidate SHA '{expected_sha}'",
+                    provider_id=p_id,
+                )
+            )
+
+        # Anti-False-PASS internal consistency check for each result
+        top_status = res.get("status")
+        if top_status == "PASS":
+            for chk in res.get("checks", []):
+                if isinstance(chk, dict) and chk.get("status") in {"FAIL", "BLOCKED"}:
+                    findings.append(
+                        _finding(
+                            "contract_violation",
+                            f"Provider '{p_id}' reported PASS but check '{chk.get('id')}' has status '{chk.get('status')}'",
+                            provider_id=p_id,
+                        )
+                    )
+            cov = res.get("coverage", {})
+            if isinstance(cov, dict):
+                for metric, m_cov in cov.items():
+                    if isinstance(m_cov, dict):
+                        meas = m_cov.get("measured")
+                        thresh = m_cov.get("threshold")
+                        if thresh is not None and isinstance(meas, (int, float)) and isinstance(thresh, (int, float)):
+                            if meas < thresh:
+                                findings.append(
+                                    _finding(
+                                        "coverage_deficit",
+                                        f"Provider '{p_id}' reported PASS but measured coverage {meas} is below threshold {thresh} in '{metric}'",
+                                        provider_id=p_id,
+                                    )
+                                )
+
     reconciled_results: list[dict[str, Any]] = []
 
-    for plan_entry in execution_plan:
+    for plan_entry in plan_entries:
         p_id = plan_entry.get("id", "")
         is_required = plan_entry.get("required", True)
         matching = results_by_id.get(p_id, [])
@@ -481,6 +563,105 @@ def reconcile_results(
     }
 
 
+def validate_capability_manifest(
+    manifest_data: dict[str, Any],
+    requested_profile: str = "pr",
+) -> dict[str, Any]:
+    """Validate capability manifest (.agents/quality/*-quality.json) against schema version 1."""
+    findings: list[dict[str, Any]] = []
+
+    if manifest_data.get("schema_version") != 1:
+        findings.append(
+            _finding("unsupported_version", f"Unsupported schema_version '{manifest_data.get('schema_version')}', expected 1")
+        )
+
+    capabilities = manifest_data.get("capabilities")
+    if not isinstance(capabilities, dict):
+        findings.append(_finding("missing_capabilities", "Missing or invalid 'capabilities' object"))
+        return {"status": "BLOCKED", "findings": _sort_findings(findings)}
+
+    if len(capabilities) == 0:
+        findings.append(_finding("empty_capabilities", "Capabilities object is empty"))
+
+    for cap_name, cap_val in capabilities.items():
+        if cap_name == "coverage":
+            if not isinstance(cap_val, dict):
+                findings.append(_finding("invalid_coverage_config", "Coverage capability must be an object", capability=cap_name))
+                continue
+            cmd = cap_val.get("command")
+            if not isinstance(cmd, list) or not all(isinstance(arg, str) for arg in cmd):
+                findings.append(
+                    _finding(
+                        "invalid_command_format",
+                        f"Coverage command for '{cap_name}' must be an array of string arguments",
+                        capability=cap_name,
+                    )
+                )
+            elif len(cmd) == 0:
+                findings.append(
+                    _finding(
+                        "command_array_empty",
+                        f"Coverage command for '{cap_name}' has an empty command array []",
+                        capability=cap_name,
+                    )
+                )
+            threshold = cap_val.get("threshold")
+            if not isinstance(threshold, (int, float)) or threshold < 0 or threshold > 1.0:
+                findings.append(_finding("invalid_coverage_threshold", "Coverage threshold must be between 0.0 and 1.0", capability=cap_name))
+        else:
+            if not isinstance(cap_val, list) or not all(isinstance(arg, str) for arg in cap_val):
+                findings.append(
+                    _finding(
+                        "invalid_command_format",
+                        f"Capability command for '{cap_name}' must be an array of string arguments",
+                        capability=cap_name,
+                    )
+                )
+            elif len(cap_val) == 0:
+                findings.append(
+                    _finding(
+                        "command_array_empty",
+                        f"Capability '{cap_name}' has an empty command array []",
+                        capability=cap_name,
+                    )
+                )
+
+    profiles = manifest_data.get("profiles")
+    if not isinstance(profiles, dict):
+        findings.append(_finding("missing_profiles", "Missing or invalid 'profiles' object"))
+        return {"status": "BLOCKED", "findings": _sort_findings(findings)}
+
+    profile_caps = profiles.get(requested_profile)
+    if profile_caps is None:
+        findings.append(
+            _finding(
+                "profile_not_configured",
+                f"Requested profile '{requested_profile}' is not configured in profiles",
+                profile=requested_profile,
+            )
+        )
+    elif not isinstance(profile_caps, list):
+        findings.append(_finding("invalid_profile_format", f"Profile '{requested_profile}' must be an array of capability names", profile=requested_profile))
+    else:
+        if len(profile_caps) == 0:
+            findings.append(_finding("empty_profile_selection", f"Profile '{requested_profile}' has empty capability selection", profile=requested_profile))
+        for cap in profile_caps:
+            if cap not in capabilities:
+                findings.append(
+                    _finding(
+                        "missing_capability_definition",
+                        f"Profile '{requested_profile}' requires capability '{cap}', which is not defined in capabilities",
+                        capability=cap,
+                    )
+                )
+
+    status = "BLOCKED" if findings else "PASS"
+    return {
+        "status": status,
+        "findings": _sort_findings(findings),
+    }
+
+
 def _load_json_arg(arg: str) -> Any:
     import json
     from pathlib import Path
@@ -513,6 +694,11 @@ def main() -> int:
     rec_parser = subparsers.add_parser("reconcile", help="Reconcile provider results with execution plan")
     rec_parser.add_argument("plan_path", help="Path to execution plan JSON or JSON string")
     rec_parser.add_argument("--results", nargs="+", required=True, help="Paths to provider result JSONs")
+    rec_parser.add_argument("--expected-sha", default=None, help="Expected candidate SHA across results")
+
+    cap_parser = subparsers.add_parser("capability", help="Validate provider capability manifest")
+    cap_parser.add_argument("manifest_path", help="Path to capability JSON or JSON string")
+    cap_parser.add_argument("--profile", default="pr", help="Requested profile (pr, epic, scheduled, release)")
 
     args = parser.parse_args()
 
@@ -538,7 +724,13 @@ def main() -> int:
     if args.command == "reconcile":
         plan_data = _load_json_arg(args.plan_path)
         results = [_load_json_arg(r) for r in args.results]
-        res = reconcile_results(plan_data, results)
+        res = reconcile_results(plan_data, results, expected_sha=getattr(args, "expected_sha", None))
+        print(json.dumps(res, indent=2))
+        return 0 if res["status"] == "PASS" else 1
+
+    if args.command == "capability":
+        data = _load_json_arg(args.manifest_path)
+        res = validate_capability_manifest(data, args.profile)
         print(json.dumps(res, indent=2))
         return 0 if res["status"] == "PASS" else 1
 

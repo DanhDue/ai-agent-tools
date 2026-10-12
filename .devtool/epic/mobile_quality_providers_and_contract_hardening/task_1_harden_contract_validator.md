@@ -1,13 +1,13 @@
 ---
 id: "task_1_harden_contract_validator"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "mobile_quality_providers_and_contract_hardening"
 dueDate: null
 created: "2026-10-12T12:30:00Z"
-modified: "2026-10-12T12:30:00Z"
-completedAt: null
+modified: "2026-10-12T05:41:14Z"
+completedAt: "2026-10-12T05:41:14Z"
 labels: ["validator", "contracts", "anti-false-pass", "python"]
 order: "a1"
 ---
@@ -82,10 +82,10 @@ Scenario: [Tier A - Unit] Capability schema rejects empty command array
 
 ## Test & Verification Checklist
 
-- [ ] **RED**: Add failing unit test cases in `test_validate_quality_contract.py` asserting rejection of top-level PASS with failing checks, sub-threshold coverage, stale reconcile SHAs, and empty command arrays. Confirm tests fail.
-- [ ] **GREEN**: Implement validation logic in `validate_quality_contract.py` to enforce consistency, check coverage thresholds, validate result schemas inside reconcile CLI, and reject empty capability arrays.
-- [ ] **REFACTOR**: Ensure clean error formatting, deterministic JSON error reporting, and zero external dependencies outside standard library.
-- [ ] **Tier A Verification**: Run `python3 -B skills/quality_check/resources/scripts/test_validate_quality_contract.py` and confirm 100% pass.
+- [x] **RED**: Add failing unit test cases in `test_validate_quality_contract.py` asserting rejection of top-level PASS with failing checks, sub-threshold coverage, stale reconcile SHAs, and empty command arrays. Confirm tests fail.
+- [x] **GREEN**: Implement validation logic in `validate_quality_contract.py` to enforce consistency, check coverage thresholds, validate result schemas inside reconcile CLI, and reject empty capability arrays.
+- [x] **REFACTOR**: Ensure clean error formatting, deterministic JSON error reporting, and zero external dependencies outside standard library.
+- [x] **Tier A Verification**: Run `python3 -B skills/quality_check/resources/scripts/test_validate_quality_contract.py` and confirm 100% pass.
 
 ## Definition of Done (DoD)
 

@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "iOS Quality Capability Configuration Schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "capabilities",
+    "profiles"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "format": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" }
+        },
+        "lint": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" }
+        },
+        "architecture": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" }
+        },
+        "boundaries": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" }
+        },
+        "test": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" }
+        },
+        "coverage": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["command", "threshold"],
+          "properties": {
+            "command": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "type": "string" }
+            },
+            "profdata_path": {
+              "type": "string"
+            },
+            "threshold": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          }
+        },
+        "acceptance": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "profiles": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pr", "epic"],
+      "properties": {
+        "pr": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" }
+        },
+        "epic": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" }
+        },
+        "scheduled": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" }
+        },
+        "release": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" }
+        }
+      }
+    }
+  }
+}

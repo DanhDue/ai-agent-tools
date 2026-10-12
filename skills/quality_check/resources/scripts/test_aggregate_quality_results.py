@@ -139,6 +139,25 @@ class AggregationEngineTests(unittest.TestCase):
         self.assertIn("PASS", markdown)
         self.assertIn("Decision Trace", markdown)
 
+    def test_missing_required_provider_synthesizes_blocked_entry(self) -> None:
+        plan = [{"id": "android-core", "required": True}, {"id": "alpha", "required": True}]
+        p1 = make_provider_result("alpha", "PASS")
+        res = aggregate_results(plan, [p1])
+        self.assertEqual("BLOCKED", res["status"])
+        self.assertEqual(["alpha", "android-core"], [p["provider_id"] for p in res["providers"]])
+        android_p = [p for p in res["providers"] if p["provider_id"] == "android-core"][0]
+        self.assertEqual("BLOCKED", android_p["status"])
+        self.assertTrue(any("Missing result for provider 'android-core'" in b for b in res["blockers"]))
+
+    def test_contradictory_provider_result_demoted_to_blocked(self) -> None:
+        bad_pass = make_provider_result("alpha", "PASS", checks=[make_check("unit", "FAIL")])
+        plan = [{"id": "alpha", "required": True}]
+        res = aggregate_results(plan, [bad_pass])
+        self.assertEqual("BLOCKED", res["status"])
+        alpha_p = res["providers"][0]
+        self.assertEqual("BLOCKED", alpha_p["status"])
+        self.assertTrue(any("Contradictory result" in b for b in res["blockers"]))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -15,6 +15,7 @@ sys.path.insert(0, str(SCRIPT_DIR))
 from validate_quality_contract import (  # noqa: E402
     normalize_invocation,
     reconcile_results,
+    validate_capability_manifest,
     validate_provider_result,
     validate_registry,
 )
@@ -250,6 +251,33 @@ class ResultContractTests(unittest.TestCase):
         checked = validate_provider_result(invalid, invocation())
         self.assertIn("invalid_not_applicable_reason", [f["code"] for f in checked["findings"]])
 
+    def test_provider_pass_with_check_fail_or_blocked_is_contract_violation(self) -> None:
+        chk_fail = {
+            "id": "unit_tests",
+            "category": "unit",
+            "status": "FAIL",
+            "source": "pytest",
+            "duration": 0.1,
+            "summary": "1 test failed",
+            "evidence_refs": [],
+        }
+        res = result(status="PASS", checks=[chk_fail])
+        checked = validate_provider_result(res, invocation())
+        self.assertEqual("BLOCKED", checked["status"])
+        self.assertIn("contract_violation", [f["code"] for f in checked["findings"]])
+
+    def test_provider_pass_with_sub_threshold_coverage_is_coverage_deficit(self) -> None:
+        cov = {
+            "lines": {
+                "measured": 0.10,
+                "threshold": 0.85,
+            }
+        }
+        res = result(status="PASS", coverage=cov)
+        checked = validate_provider_result(res, invocation())
+        self.assertEqual("BLOCKED", checked["status"])
+        self.assertIn("coverage_deficit", [f["code"] for f in checked["findings"]])
+
 
 class ReconciliationTests(unittest.TestCase):
     def test_missing_result_gets_synthetic_blocked_and_valid_result_remains(self) -> None:
@@ -270,6 +298,43 @@ class ReconciliationTests(unittest.TestCase):
         self.assertEqual(first, second)
         self.assertEqual("BLOCKED", first["status"])
         self.assertIn("duplicate_result", [finding["code"] for finding in first["findings"]])
+
+    def test_reconcile_rejects_stale_commit_sha(self) -> None:
+        plan = [{"id": "alpha", "required": True, "repository_sha": SHA}]
+        stale_result = result(repository_sha="b" * 40, started_head="b" * 40, finished_head="b" * 40)
+        checked = reconcile_results(plan, [stale_result], expected_sha=SHA)
+        self.assertEqual("BLOCKED", checked["status"])
+        self.assertIn("sha_mismatch", [f["code"] for f in checked["findings"]])
+
+
+class CapabilityContractTests(unittest.TestCase):
+    def test_capability_manifest_rejects_empty_command_array(self) -> None:
+        manifest = {
+            "schema_version": 1,
+            "capabilities": {
+                "test": [],
+            },
+            "profiles": {
+                "pr": ["test"],
+            },
+        }
+        checked = validate_capability_manifest(manifest, "pr")
+        self.assertEqual("BLOCKED", checked["status"])
+        self.assertIn("command_array_empty", [f["code"] for f in checked["findings"]])
+
+    def test_capability_manifest_valid_passes(self) -> None:
+        manifest = {
+            "schema_version": 1,
+            "capabilities": {
+                "test": ["pytest"],
+            },
+            "profiles": {
+                "pr": ["test"],
+            },
+        }
+        checked = validate_capability_manifest(manifest, "pr")
+        self.assertEqual("PASS", checked["status"])
+
 
 
 class SchemaContractTests(unittest.TestCase):

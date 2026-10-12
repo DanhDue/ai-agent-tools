@@ -43,6 +43,14 @@ def validate_rust_config(
                         capability=cap_name,
                     )
                 )
+            elif len(cmd) == 0:
+                findings.append(
+                    _finding(
+                        "command_array_empty",
+                        f"Coverage command for '{cap_name}' is empty []",
+                        capability=cap_name,
+                    )
+                )
             threshold = cap_val.get("threshold")
             if not isinstance(threshold, (int, float)) or threshold < 0 or threshold > 1.0:
                 findings.append(_finding("invalid_coverage_threshold", "Coverage threshold must be between 0.0 and 1.0"))
@@ -52,6 +60,14 @@ def validate_rust_config(
                     _finding(
                         "invalid_command_format",
                         f"Capability command for '{cap_name}' must be an array of string arguments, not a string or shell command",
+                        capability=cap_name,
+                    )
+                )
+            elif len(cap_val) == 0:
+                findings.append(
+                    _finding(
+                        "command_array_empty",
+                        f"Capability command for '{cap_name}' is empty []",
                         capability=cap_name,
                     )
                 )

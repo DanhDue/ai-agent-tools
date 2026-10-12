@@ -8,6 +8,26 @@ every installed machine on the old cached copy.
 
 ---
 
+## 1.6.0 — 2026-10-12
+
+Introduces dedicated quality check providers for Flutter, Android Native, and iOS Native modeled on canonical digital wallet architecture templates, hardens quality contracts against false-PASS vulnerabilities and candidate SHA drift, and introduces an automated onboarding scaffolding engine.
+
+### Added
+
+- **`flutter-quality-check`** (`skills/flutter-quality-check/`): dedicated provider for Flutter and Melos multi-package workspaces modeled after `bloc_digital_wallet`. Enforces Dart formatting (`dartfmt.sh`), static analysis (`fvm flutter analyze`), Clean Architecture module boundaries (`check_module_boundaries.sh`), license headers (`check_license_header.sh`), package tests (`melos run test`), and LCOV coverage thresholds (`testWithCoverage.sh`).
+- **`android-quality-check`** (`skills/android-quality-check/`): dedicated provider for Android Gradle multi-module codebases modeled after `android_digital_wallet`. Enforces Spotless formatting (`spotlessCheck`), Detekt static analysis (`detekt`), Binary Compatibility Validator (`apiCheck`), Konsist architectural governance (`:konsist-test:test`), unit testing (`testDebugUnitTest`), Jacoco coverage (`jacocoTestReport`), and Gradle daemon cleanup (`pkill -9 java`).
+- **`ios-quality-check`** (`skills/ios-quality-check/`): dedicated provider for iOS Tuist and SwiftPM workspaces modeled after `ios_digital_wallet`. Enforces SwiftFormat (`swiftformat`), strict SwiftLint (`swiftlint`), ArchTests AST architectural governance (`swift test --package-path ArchTests`), framework boundary validation (`check_module_boundaries.sh`), unit testing (`swift test`), and profdata code coverage thresholds (`check_coverage_thresholds.sh`).
+- **`setup_quality_check`** (`skills/setup_quality_check/`): automated scaffolding engine and operational skill that inspects repository roots, auto-detects project platforms (Flutter, Android, iOS, Rust, and Polyglot composites), and generates standardized `.agents/quality/check_quality.json` and platform capability manifests with zero configuration friction.
+- **Multi-provider end-to-end acceptance test suite** (`skills/quality_check/resources/scripts/test_quality_provider_acceptance.py`): tests pure platform workspaces, composite repositories, and False-PASS vulnerability elimination.
+
+### Changed
+
+- **Quality contract validator (`validate_quality_contract.py`)**: hardened against False-PASS vulnerabilities F1–F3. Reject top-level PASS when checks fail (`contract_violation`), reject top-level PASS with sub-threshold coverage (`coverage_deficit`), reject stale candidate SHAs (`repository_sha_mismatch`), and reject empty command arrays (`command_array_empty`).
+- **Result aggregator engine (`aggregate_quality_results.py`)**: synthesizes BLOCKED provider records for missing required providers and demotes contradictory provider results to BLOCKED.
+- **Pre-release verification harness (`scripts/verify.sh`)**: step 13 now runs contract, schema, aggregation, Rust, Flutter, Android, iOS, scaffolding, and end-to-end acceptance test suites.
+
+---
+
 ## 1.5.0 — 2026-10-09
 
 Makes integrating a development branch safe: conflicts are resolved on the branch, inside its
