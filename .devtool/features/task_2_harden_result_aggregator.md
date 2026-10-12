@@ -1,13 +1,13 @@
 ---
 id: "task_2_harden_result_aggregator"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "mobile_quality_providers_and_contract_hardening"
 dueDate: null
 created: "2026-10-12T12:30:00Z"
-modified: "2026-10-12T12:30:00Z"
-completedAt: null
+modified: "2026-10-12T05:43:11Z"
+completedAt: "2026-10-12T05:43:11Z"
 labels: ["aggregator", "precedence", "engine", "python"]
 order: "a2"
 ---
@@ -84,10 +84,10 @@ Scenario: [Tier A - Unit] Consensus requires 100% PASS across all required provi
 
 ## Test & Verification Checklist
 
-- [ ] **RED**: Add failing unit test cases in `test_aggregate_quality_results.py` asserting that FAIL outranks BLOCKED, missing required providers generate synthetic blockers, and conflicting statuses are surfaced cleanly. Confirm tests fail.
-- [ ] **GREEN**: Implement status reduction logic in `aggregate_quality_results.py` ensuring strict precedence, deterministic provider ordering, and complete executive markdown rendering.
-- [ ] **REFACTOR**: Validate report formatting against `executive-report-format.md` standards.
-- [ ] **Tier A Verification**: Run `python3 -B skills/quality_check/resources/scripts/test_aggregate_quality_results.py` and confirm 100% pass.
+- [x] **RED**: Add failing unit test cases in `test_aggregate_quality_results.py` asserting that FAIL outranks BLOCKED, missing required providers generate synthetic blockers, and conflicting statuses are surfaced cleanly. Confirm tests fail.
+- [x] **GREEN**: Implement status reduction logic in `aggregate_quality_results.py` ensuring strict precedence, deterministic provider ordering, and complete executive markdown rendering.
+- [x] **REFACTOR**: Validate report formatting against `executive-report-format.md` standards.
+- [x] **Tier A Verification**: Run `python3 -B skills/quality_check/resources/scripts/test_aggregate_quality_results.py` and confirm 100% pass.
 
 ## Definition of Done (DoD)
 

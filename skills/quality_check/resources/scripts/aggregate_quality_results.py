@@ -45,7 +45,53 @@ def aggregate_results(
                 p["blockers"].append(blocker_msg)
                 p["blockers"].sort()
 
+        # Check for contradictory result (e.g. status PASS with failing check or sub-threshold coverage)
+        if p.get("status") == "PASS":
+            for c in checks:
+                if c.get("status") in {"FAIL", "BLOCKED"}:
+                    p["status"] = "BLOCKED"
+                    blocker_msg = f"Contradictory result: provider reported PASS but check '{c.get('id')}' has status '{c.get('status')}'"
+                    if blocker_msg not in p["blockers"]:
+                        p["blockers"].append(blocker_msg)
+            cov = p.get("coverage", {})
+            if isinstance(cov, dict):
+                for k, v in cov.items():
+                    if isinstance(v, dict):
+                        meas = v.get("measured")
+                        thresh = v.get("threshold")
+                        if thresh is not None and isinstance(meas, (int, float)) and isinstance(thresh, (int, float)):
+                            if meas < thresh:
+                                p["status"] = "BLOCKED"
+                                blocker_msg = f"Contradictory result: provider reported PASS but coverage '{k}' is below threshold ({meas} < {thresh})"
+                                if blocker_msg not in p["blockers"]:
+                                    p["blockers"].append(blocker_msg)
+            p["blockers"].sort()
+
         normalized_providers.append(p)
+
+    # Synthesize missing providers declared in plan
+    seen_result_ids = {r.get("provider_id") for r in results if r.get("provider_id")}
+    for plan_item in plan:
+        plan_id = plan_item.get("id")
+        if plan_id and plan_id not in seen_result_ids:
+            is_req = plan_item.get("required", True)
+            synthetic = {
+                "provider_id": plan_id,
+                "contract_version": 1,
+                "profile": invocation.get("profile") if invocation else (results[0].get("profile") if results else "pr"),
+                "repository_sha": invocation.get("repository_sha") if invocation else (results[0].get("repository_sha") if results else ""),
+                "status": "BLOCKED",
+                "required": is_req,
+                "checks": [],
+                "coverage": {},
+                "evidence": [],
+                "started_head": "",
+                "finished_head": "",
+                "duration": 0.0,
+                "blockers": [f"Missing result for provider '{plan_id}'"],
+                "warnings": [],
+            }
+            normalized_providers.append(synthetic)
 
     # Sort providers by provider_id
     normalized_providers.sort(key=lambda item: item.get("provider_id", ""))
