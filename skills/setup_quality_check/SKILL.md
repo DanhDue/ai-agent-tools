@@ -13,7 +13,7 @@ Automated onboarding skill that bootstraps the d3nexus quality governance system
 The quality governance model requires deterministic, SHA-bound quality verification before any feature branch
 or PR is merged. Setting up quality checking ensures that:
 - Every platform present in the repository is discovered and registered in `.agents/quality/check_quality.json`.
-- Platform-specific quality manifests (`flutter-quality.json`, `android-quality.json`, `ios-quality.json`, `rust-quality.json`) are populated with canonical, production-tested verification toolchains.
+- Platform-specific quality manifests (`flutter-quality.json`, `android-quality.json`, `ios-quality.json`, `rust-quality.json`, `python-quality.json`) are populated with canonical, production-tested verification toolchains.
 - Code generation agents and developers are constrained by automated quality gates from day one.
 
 ## Platform Detection Heuristics
@@ -26,6 +26,7 @@ The scaffolding engine inspects repository roots against the following marker fi
 | **Android** | `build.gradle.kts`, `build.gradle`, `settings.gradle.kts`, `settings.gradle` | `android-core` | `android-quality.json` | `spotlessCheck`, `detekt`, `apiCheck`, `:konsist-test:test`, `testDebugUnitTest`, `jacocoTestReport`, `pkill -9 java` |
 | **iOS** | `Project.swift`, `Tuist.swift`, `Package.swift` | `ios-core` | `ios-quality.json` | `swiftformat`, `swiftlint`, `ArchTests` (K1-K10), `check_module_boundaries.sh`, `swift test`, `check_coverage_thresholds.sh` |
 | **Rust** | `Cargo.toml` | `rust-core` | `rust-quality.json` | `cargo fmt`, `cargo check`, `cargo clippy`, `cargo test`, `cargo llvm-cov`, `xtask check-architecture` |
+| **Python** | `pyproject.toml`, `uv.lock`, `requirements.txt`, `setup.py`, `Pipfile` | `python-core` | `python-quality.json` | `ruff format`, `ruff check`, `mypy --strict`, `pytest`, `pytest-cov`, `lint-imports` |
 
 In composite repositories (e.g. Flutter mobile host with Rust core, or native Android/iOS bridging modules), all detected platforms are registered in `.agents/quality/check_quality.json`.
 
@@ -68,7 +69,7 @@ python3 skills/quality_check/resources/scripts/validate_quality_contract.py .age
 
 - `--root <DIR>`: Path to the target repository root (default: current directory `.`).
 - `--output-dir <DIR>`: Explicit output directory for generated manifests (default: `<root>/.agents/quality`).
-- `--platform <LIST>`: Override automatic detection with comma-separated platforms (`flutter`, `android`, `ios`, `rust`).
+- `--platform <LIST>`: Override automatic detection with comma-separated platforms (`flutter`, `android`, `ios`, `rust`, `python`).
 - `--force`: Overwrite existing quality manifests (fails safely by default to prevent accidental overwrite).
 - `--dry-run`: Display detected platforms and planned file list without writing to disk.
 
@@ -79,3 +80,4 @@ python3 skills/quality_check/resources/scripts/validate_quality_contract.py .age
 - [Android Quality Check](../android-quality-check/SKILL.md)
 - [iOS Quality Check](../ios-quality-check/SKILL.md)
 - [Rust Quality Check](../rust-quality-check/SKILL.md)
+- [Python Quality Check](../python-quality-check/SKILL.md)

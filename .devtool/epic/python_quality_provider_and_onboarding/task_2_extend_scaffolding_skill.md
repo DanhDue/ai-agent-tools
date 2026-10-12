@@ -1,13 +1,13 @@
 ---
 id: "task_2_extend_scaffolding_skill"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "python_quality_provider_and_onboarding"
 dueDate: null
 created: "2026-10-12T13:20:00Z"
-modified: "2026-10-12T13:20:00Z"
-completedAt: null
+modified: "2026-10-12T06:37:07Z"
+completedAt: "2026-10-12T06:37:07Z"
 labels: ["python", "scaffolding", "setup_quality_check"]
 order: "a2"
 ---
@@ -66,11 +66,11 @@ Scenario: [Tier A - Unit] Auto-detect Python repository via requirements.txt
 
 ## Test & Verification Checklist
 
-- [ ] **RED**: Add tests in `test_scaffold_quality_manifest.py` for Python markers and polyglot Python repositories. Confirm tests fail.
-- [ ] **GREEN**: Implement Python detection in `scaffold_quality_manifest.py` and update `SKILL.md`.
-- [ ] **REFACTOR**: Ensure generated Python JSON files validate cleanly against `python-quality.schema.json`.
-- [ ] **Tier A Verification**: Run `python3 -B skills/setup_quality_check/resources/scripts/test_scaffold_quality_manifest.py` and confirm 100% pass.
-- [ ] **Tier B Verification**: Verify skill documentation and relative links.
+- [x] **RED**: Add tests in `test_scaffold_quality_manifest.py` for Python markers and polyglot Python repositories. Confirm tests fail.
+- [x] **GREEN**: Implement Python detection in `scaffold_quality_manifest.py` and update `SKILL.md`.
+- [x] **REFACTOR**: Ensure generated Python JSON files validate cleanly against `python-quality.schema.json`.
+- [x] **Tier A Verification**: Run `python3 -B skills/setup_quality_check/resources/scripts/test_scaffold_quality_manifest.py` and confirm 100% pass.
+- [x] **Tier B Verification**: Verify skill documentation and relative links.
 
 ## Definition of Done (DoD)
 

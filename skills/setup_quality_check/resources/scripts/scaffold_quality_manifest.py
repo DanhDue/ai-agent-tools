@@ -116,6 +116,29 @@ PLATFORM_CONFIGS: Dict[str, Dict[str, Any]] = {
                 "epic": ["format", "check", "clippy", "test", "coverage", "architecture"]
             }
         }
+    },
+    "python": {
+        "provider_id": "python-core",
+        "skill": "d3nexus:python-quality-check",
+        "filename": "python-quality.json",
+        "manifest": {
+            "schema_version": 1,
+            "capabilities": {
+                "format": ["uv", "run", "ruff", "format", "--check", "."],
+                "lint": ["uv", "run", "ruff", "check", "."],
+                "type_check": ["uv", "run", "mypy", "--strict", "src"],
+                "test": ["uv", "run", "pytest", "-m", "not slow and not acceptance and not live_llm"],
+                "coverage": {
+                    "command": ["uv", "run", "pytest", "--cov=src", "--cov-report=json:coverage.json"],
+                    "threshold": 0.8
+                },
+                "architecture": ["uv", "run", "lint-imports"]
+            },
+            "profiles": {
+                "pr": ["format", "lint", "type_check", "test"],
+                "epic": ["format", "lint", "type_check", "test", "coverage", "architecture"]
+            }
+        }
     }
 }
 
@@ -123,7 +146,7 @@ PLATFORM_CONFIGS: Dict[str, Dict[str, Any]] = {
 def detect_platforms(repo_root: Path) -> List[str]:
     """
     Inspects repository root directory and returns detected platform names.
-    Supports Flutter, Android, iOS, and Rust heuristics.
+    Supports Flutter, Android, iOS, Rust, and Python heuristics.
     """
     detected = []
 
@@ -153,6 +176,17 @@ def detect_platforms(repo_root: Path) -> List[str]:
     # Rust detection
     if (repo_root / "Cargo.toml").is_file():
         detected.append("rust")
+
+    # Python detection
+    python_markers = [
+        "pyproject.toml",
+        "uv.lock",
+        "requirements.txt",
+        "setup.py",
+        "Pipfile",
+    ]
+    if any((repo_root / marker).is_file() for marker in python_markers):
+        detected.append("python")
 
     return sorted(list(set(detected)))
 
