@@ -1,13 +1,13 @@
 ---
 id: "task_5_build_ios_quality_provider"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "mobile_quality_providers_and_contract_hardening"
 dueDate: null
 created: "2026-10-12T12:30:00Z"
-modified: "2026-10-12T12:30:00Z"
-completedAt: null
+modified: "2026-10-12T05:50:35Z"
+completedAt: "2026-10-12T05:50:35Z"
 labels: ["ios", "provider", "tuist", "swiftlint", "quality_check"]
 order: "a5"
 ---
@@ -88,11 +88,11 @@ Scenario: [Tier C - Integration] Execute complete iOS quality provider flow
 
 ## Test & Verification Checklist
 
-- [ ] **RED**: Create test suite `test_validate_ios_quality.py` asserting validation of valid fixtures and rejection of duplicate capability IDs, missing profiles, and empty command arrays. Confirm tests fail.
-- [ ] **GREEN**: Implement `ios-quality.schema.json` and `validate_ios_quality.py`. Implement `skills/ios-quality-check/SKILL.md` operational instructions.
-- [ ] **REFACTOR**: Align capability structure with `valid_rust_quality.json` and ensure full schema adherence.
-- [ ] **Tier A Verification**: Run `python3 -B skills/ios-quality-check/resources/scripts/test_validate_ios_quality.py` and confirm 100% pass.
-- [ ] **Tier B Verification**: Verify frontmatter (`name: ios-quality-check`, single-line description) and relative documentation links.
+- [x] **RED**: Create test suite `test_validate_ios_quality.py` asserting validation of valid fixtures and rejection of duplicate capability IDs, missing profiles, and empty command arrays. Confirm tests fail.
+- [x] **GREEN**: Implement `ios-quality.schema.json` and `validate_ios_quality.py`. Implement `skills/ios-quality-check/SKILL.md` operational instructions.
+- [x] **REFACTOR**: Align capability structure with `valid_rust_quality.json` and ensure full schema adherence.
+- [x] **Tier A Verification**: Run `python3 -B skills/ios-quality-check/resources/scripts/test_validate_ios_quality.py` and confirm 100% pass.
+- [x] **Tier B Verification**: Verify frontmatter (`name: ios-quality-check`, single-line description) and relative documentation links.
 
 ## Definition of Done (DoD)
 
