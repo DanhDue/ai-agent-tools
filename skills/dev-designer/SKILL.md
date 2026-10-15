@@ -182,7 +182,7 @@ Every Epic breakdown MUST explicitly structure and address all 3 testing tiers a
 
 ##### 🔗 Tier C — BDD Automation (All Platforms)
 - Every scenario in `bdd_scenarios.en.md` MUST be covered by **at least one automated integration test**, whatever its tier tag. One test may cover several scenarios. There are no waivers: a scenario that cannot be automated is rewritten before Gate 2.
-- The test carries the scenario identifier in its name, description or tag (`test_py_hp_01_...`, `testWidgets('[PY-HP-01] ...')`, ``@Test fun `PY-HP-01 ...`()``) and lives under one of the HLD's `Integration test roots`.
+- The test carries the scenario identifier in its name, description or tag (`test_py_hp_01_...`, `func test_PY_HP_01_...()`, `testWidgets('[PY-HP-01] ...')`, ``@Test fun `PY-HP-01 ...`()``) and lives under one of the HLD's `Integration test roots`.
 - Each identifier is assigned to at least one task through that task's `Covers:` line. The final Tier C task takes every identifier no earlier task covers.
 
 ```mermaid
@@ -381,7 +381,7 @@ After the Epic Overview and all confirmed task files are written (or updated), c
 - If `auto_commit: false`: skip staging and committing entirely.
 
 ### Updating an Existing Epic
-When new requirements arrive for an epic already in progress, append new task files continuing the sequence, and append links to the Epic Overview's Kanban Tasks Breakdown section (in both `.en.md` and `.vi.md`). Update the Mermaid diagrams if architecture changes.
+When new requirements arrive for an epic already in progress, append new task files continuing the sequence, and append links to the Epic Overview's Kanban Tasks Breakdown section (in both `.en.md` and `.vi.md`). Update the Mermaid diagrams if architecture changes. If the epic's `bdd_scenarios.en.md` predates scenario identifiers, retrofit the whole epic first — identifiers, `Covers:` lines and the `Integration test roots:` line, as dev-implementation Phase 1 step 3 describes — before running the Step 3 `plan` check.
 
 ## Red Flags - STOP and Start Over
 - Writing task files before the user has confirmed the task breakdown checkpoint.

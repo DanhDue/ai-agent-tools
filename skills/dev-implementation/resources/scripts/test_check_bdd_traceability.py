@@ -94,6 +94,14 @@ class DocumentValidationTest(TraceabilityCase):
         code, out, _ = self.plan(scenarios, self.covering_task())
         self.assertEqual(code, 0, out)
 
+    def test_longer_closing_fence_closes_the_block(self) -> None:
+        text = (f"# BDD Scenarios\n\n{TICKS}text\nnot gherkin\n{TICKS}`\n\n"
+                f"{TICKS}gherkin\nFeature: Sample\n\n  Scenario: Missing identifier\n{TICKS}\n")
+        scenarios = self.write("epic/bdd_scenarios.en.md", text)
+        code, out, _ = self.plan(scenarios, self.covering_task())
+        self.assertEqual(code, 1)
+        self.assertIn("scenario has no identifier", out)
+
     def test_document_without_scenarios_fails(self) -> None:
         scenarios = self.write("epic/bdd_scenarios.en.md", "# BDD Scenarios\n")
         code, out, _ = self.plan(scenarios, self.covering_task())
@@ -175,6 +183,12 @@ class TestsModeTest(TraceabilityCase):
         code, out, _ = self.run_tests_mode()
         self.assertEqual(code, 1)
         self.assertIn("stale reference PY-HP-07", out)
+
+    def test_tokens_shaped_unlike_the_identifiers_are_never_stale(self) -> None:
+        self.write("tests/integration/flow_test.ts",
+                   "test('[PY-HP-01] [PY-EC-02] all', () => { expect(code).toBe('PY-1001'); });\n")
+        code, out, _ = self.run_tests_mode()
+        self.assertEqual(code, 0, out)
 
     def test_snake_and_lowercase_tokens_are_never_stale(self) -> None:
         self.write("tests/integration/test_flow.py",

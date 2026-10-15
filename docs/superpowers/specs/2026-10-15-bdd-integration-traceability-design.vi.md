@@ -121,6 +121,8 @@ ngay trước hoặc ngay sau chuỗi khớp. Nhờ vậy mỗi nền tảng dù
   được tính cho coverage nhưng không tính cho stale: trong `test_py_hp_01_retry_2`, script không phân
   biệt được định danh kết thúc ở đâu và tên test bắt đầu ở đâu, và một prefix ngắn như `PY` sẽ bắt
   nhầm những chuỗi chữ thường không liên quan như `py-3`.
+- Token stale còn phải có cùng hình dạng với định danh của tài liệu — cùng prefix và cùng số đoạn —
+  nên những mã không liên quan như `UTF-8` hay `PAY-1001` không bao giờ bị báo.
 
 ## 6. Khai báo trong tài liệu thiết kế
 

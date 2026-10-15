@@ -42,7 +42,8 @@ def scenario_ids(path: Path) -> tuple[list[str], list[str]]:
         if fence and fence_marker is None:
             fence_marker, in_gherkin = fence.group(1), fence.group(2).lower() == "gherkin"
             continue
-        if fence and fence.group(1) == fence_marker and not fence.group(2):
+        if (fence and fence.group(1)[0] == fence_marker[0]
+                and len(fence.group(1)) >= len(fence_marker) and not fence.group(2)):
             fence_marker, in_gherkin = None, False
             continue
         match = SCENARIO_LINE.match(line) if in_gherkin else None
@@ -113,9 +114,11 @@ def reference_pattern(identifier: str) -> re.Pattern[str]:
 
 
 def stale_pattern(ids: list[str]) -> re.Pattern[str]:
-    """Uppercase hyphenated tokens that share a prefix with this document's identifiers."""
-    prefixes = "|".join(sorted({re.escape(identifier.split("-")[0]) for identifier in ids}))
-    return re.compile(r"(?<![A-Za-z0-9-])(?:" + prefixes + r")(?:-[A-Z0-9]+)*-[0-9]+(?![A-Za-z0-9-])")
+    """Uppercase hyphenated tokens shaped like this document's identifiers: same prefix, same segment count."""
+    shapes = sorted({(identifier.split("-")[0], identifier.count("-")) for identifier in ids})
+    alternatives = "|".join(re.escape(prefix) + "(?:-[A-Z0-9]+)" * (hyphens - 1) + "-[0-9]+"
+                            for prefix, hyphens in shapes)
+    return re.compile(r"(?<![A-Za-z0-9-])(?:" + alternatives + r")(?![A-Za-z0-9-])")
 
 
 def integration_files(roots: list[Path]) -> tuple[list[Path], list[str]]:
