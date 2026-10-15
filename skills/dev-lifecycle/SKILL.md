@@ -191,6 +191,8 @@ update — and continue through Resuming an Epic:
 >    picked up later or by another LLM.
 > 2. **Continue** — enter Stage 3 now (`dev-implementation`, starting with Gate 3: execution order).
 
+When the overview Status says the epic is queued behind another epic, say so in the question.
+
 **Continue** → invoke `dev-implementation`. **Package** → run the packaging procedure below, then
 stop: no worktree and no Stage 3 in this session. Resolve the paths from this skill's directory:
 
@@ -215,7 +217,7 @@ CHECK_DOC="$SKILL_DIR/../doc_quality_check/resources/scripts/check_document.py"
    dependency cycle or a scenario no `Covers:` line names. Fix it now — the receiving agent has no
    context to diagnose it.
 2. Copy this skill's `references/handoff-template.md` to `.devtool/epic/<epic_dir>/handoff.md`
-   and fill every placeholder. The first column of its Identifiers table names the placeholders and
+   and fill every placeholder; `<N>` is the task count the preflight printed. The first column of its Identifiers table names the placeholders and
    stays as written; drop the source-spec line when the epic has no source spec. Write Open Notes from this
    session's conversation: decisions, risks and doubts the documents do not record.
 3. Lint it: `python3 "$CHECK_DOC" --require-toc .devtool/epic/<epic_dir>/handoff.md`.
@@ -228,7 +230,10 @@ CHECK_DOC="$SKILL_DIR/../doc_quality_check/resources/scripts/check_document.py"
      .devtool/epic/<epic_dir>/<epic_dir>.en.md .devtool/epic/<epic_dir>/<epic_dir>.vi.md
    ```
 
-   Two matching lines are required; with fewer, set the Status line by hand in both variants. Task
+   Two matching lines are required; with fewer, set the Status line by hand in both variants. If the
+   Status read `Queued (backlog) — behind <epic>` before packaging, run the script with
+   `"Packaged (queued behind <epic>)"` instead and copy that line into Open Notes; the `grep` still
+   matches. Task
    statuses stay as they are, so a packaged epic still counts as active under dev-designer's
    Concurrent-Epic Backlog Rule.
 5. Commit, when `auto_commit` is `true` or absent: stage `handoff.md`, the overview pair and any task files fixed at step 1, then
@@ -259,7 +264,7 @@ Gate 4 conditions:
 1. **Normalized Invocation Contract**: Invocation must explicitly pass `profile: "epic"`, target `base_ref`, and candidate `repository_sha`. Direct defaults or unprofiled executions are rejected.
 2. **Deterministic Aggregation**: All registered providers supporting `epic` must execute or resolve cleanly. Precedence is strict: `FAIL > BLOCKED > PASS`. If any provider returns `FAIL` or `BLOCKED`, the overall verdict is `FAIL` or `BLOCKED`.
 3. **No Partial or In-Progress Approvals**: `BLOCKED` cannot transition Gate 4 to approved. Parallel provider executions remain one lifecycle gate; the lifecycle waits for complete aggregate synthesis and never approves on the first provider to finish.
-4. **Candidate Immutability**: A 🟢 verdict belongs strictly to the SHA on which the traceability check and quality check ran. If any subsequent commit or rebase mutates the branch after Gate 4, the prior verdict is stale and a fresh epic quality run is required before landing.
+4. **Candidate Immutability**: A 🟢 verdict belongs strictly to the SHA on which the traceability check and quality check ran. If any subsequent commit or rebase mutates the branch after Gate 4, the prior verdict is stale and a fresh traceability check and epic quality run are required before landing.
 
 If the traceability check exits non-zero, or `@quality_check` reports `FAIL` or `BLOCKED`, Gate 4 routes back to Stage 3 Phase 2 (`dev-implementation`) with the complete actionable defect and blocker report.
 

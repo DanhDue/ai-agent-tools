@@ -121,13 +121,13 @@ Read these signals, all read-only, from the main checkout:
 test -f .devtool/epic/<epic_dir>/handoff.md && echo packaged-handoff
 grep -m1 -E '^- \*\*Status\*\*:' .devtool/epic/<epic_dir>/<epic_dir>.en.md
 git rev-parse --verify --quiet refs/heads/epic/<epic_slug>
-git branch -r --list '*/epic/<epic_slug>'
+for remote in $(git remote); do git ls-remote --heads "$remote" "epic/<epic_slug>"; done
 git worktree list --porcelain | grep -E '^worktree .*/\.worktrees/<epic_dir>$'
 python3 "$SKILL_DIR"/resources/scripts/compute_execution_order.py <epic_slug> \
   --features-dir .devtool/epic/<epic_dir>
 ```
 
-`git branch -r` reveals an epic branch pushed from another clone. The last command reads the epic's own task mirrors, which `sync_task_status.py` keeps in step with `.devtool/features/` and `.devtool/features/done/`, so tasks already moved into `done/` (Phase 4.1) still count; its flattened order prints each task's status as `[priority, status]`. Evaluate the rows top-down — the first match wins — and announce it: "Entry point: row N — <state>."
+`git ls-remote` asks each remote directly, so an epic branch pushed from another clone shows before any fetch; if a remote cannot be reached, say so in the announcement and fall back to `git branch -r --list '*/epic/<epic_slug>'`. The last command reads the epic's own task mirrors, which `sync_task_status.py` keeps in step with `.devtool/features/` and `.devtool/features/done/`, so tasks already moved into `done/` (Phase 4.1) still count; its flattened order prints each task's status as `[priority, status]`. Evaluate the rows top-down — the first match wins — and announce it: "Entry point: row N — <state>."
 
 | # | Signals | State | Entry point |
 |---|---------|-------|-------------|
@@ -146,9 +146,9 @@ For rows 4 and 5. Phase 1 step 4's `git worktree add -b` never runs here.
 1. Row 4 only: recreate the worktree from the existing branch, `git worktree add .worktrees/<epic_dir> epic/<epic_slug>` with no `-b`. This restores an epic already under way; it is not the new worktree that Gate 3 guards. For rows 4 and 5, check the bootstrap with Phase 1 step 5's platform checks and re-run it if they fail.
 2. In the worktree, run `python3 "$INTEGRATE" preflight --base develop`. A rebase in progress, or a base that diverged, is handled the way Phase 2 step 7 prescribes before anything else.
 3. Find the interrupted task: one at `in-progress` or `review`. If the worktree has uncommitted changes, collect `git status --short`; uncommitted changes with no interrupted task are presented the same way.
-4. **Gate 3 (resume).** Check the mirror scan's summary line against the number of task mirrors and read its Manual review advised section, as Phase 1 steps 1–2 do. Then run Phase 1 step 3's BDD mapping check, including its retrofit for an epic designed before scenario identifiers, and commit any retrofit on the epic branch, staging only the files it touched by path — both `bdd_scenarios` variants, both HLD variants and the task files — never `git add -A`, so the interrupted task's uncommitted work stays out of that commit. Then, in one message, present the tasks already `done` with their commits (`git log --oneline develop..epic/<epic_slug>`); the remaining order — the flattened order with `done` tasks removed, which keeps every dependency satisfied; for uncommitted changes, a choice between keeping them and continuing the task or discarding them and restarting it, discarding only on that explicit answer; and the request for permission to fast-forward `develop`, asked again because it does not carry across sessions. Wait for confirmation.
-5. If the overview Status is `Packaged`, run `python3 "$SKILL_DIR"/resources/scripts/sync_task_status.py epic <epic_dir> "In Progress"`.
-6. Enter Phase 2 at the interrupted task, or at the first remaining task.
+4. **Gate 3 (resume).** Check the mirror scan's summary line against the number of task mirrors and read its Manual review advised section, as Phase 1 steps 1–2 do. Then run Phase 1 step 3's BDD mapping check, including its retrofit for an epic designed before scenario identifiers, and commit any retrofit on the epic branch, staging only the files it touched by path — both `bdd_scenarios` variants, both HLD variants and the task files — never `git add -A`, so the interrupted task's uncommitted work stays out of that commit. The interrupted task's own status fields may ride along in that commit; that is expected. Then, in one message, present the tasks already `done` with their commits (`git log --oneline develop..epic/<epic_slug>`); the remaining order — the flattened order with `done` tasks removed, which keeps every dependency satisfied; for uncommitted changes, a choice between keeping them and continuing the task or discarding them and restarting it, discarding only on that explicit answer; and the request for permission to fast-forward `develop`, asked again because it does not carry across sessions. Wait for confirmation.
+5. If the overview Status begins with `Packaged`, run `python3 "$SKILL_DIR"/resources/scripts/sync_task_status.py epic <epic_dir> "In Progress"`.
+6. Enter Phase 2 at the interrupted task — a task at `review` re-enters at Phase 2 step 2 and is reviewed on its existing changes; a task at `in-progress` resumes implementation with the changes kept at Gate 3 (resume) — or at the first remaining task.
 
 ### Phase 1 — Execution Plan
 
@@ -183,7 +183,7 @@ For rows 4 and 5. Phase 1 step 4's `git worktree add -b` never runs here.
    ```
    If `sync-base` exits 3 — `develop` diverged from its upstream, or a dirty file blocks the
    fast-forward — stop and ask.
-   Once the worktree exists, if the overview Status is `Packaged` (a packaged epic starting fresh, row 3), run `python3 "$SKILL_DIR"/resources/scripts/sync_task_status.py epic <epic_dir> "In Progress"`; the change travels with the first task commit.
+   Once the worktree exists, if the overview Status begins with `Packaged` (a packaged epic starting fresh, row 3), run `python3 "$SKILL_DIR"/resources/scripts/sync_task_status.py epic <epic_dir> "In Progress"`; the change travels with the first task commit.
 5. Bootstrap the worktree so it can actually build:
    - **For Flutter Projects**:
      ```bash
@@ -436,7 +436,7 @@ python3 "$SKILL_DIR"/resources/scripts/check_bdd_traceability.py tests \
   --roots <Integration test roots from the HLD>
 ```
 
-It must exit 0: every scenario in `bdd_scenarios.en.md` is covered by at least one integration test, and no test references a removed scenario. On exit 1 or 2, route back to Phase 2 and do not run `@quality_check` yet. If the failure is the scenario document itself — scenario lines without identifiers, from an epic designed before BDD traceability — apply the Phase 1 step 3 retrofit in the epic worktree, commit it on the epic branch as `[EPIC_NAME] Add BDD scenario identifiers`, add the missing integration tests, and re-run. Then run the provider-based **`@quality_check`** orchestrator on the same SHA before finishing the branch:
+It must exit 0: every scenario in `bdd_scenarios.en.md` is covered by at least one integration test, and no test references a removed scenario. `--roots` and `--ids` take space- or comma-separated values, so the HLD's roots line and a task's `Covers:` line can be pasted as written. On exit 1 or 2, route back to Phase 2 and do not run `@quality_check` yet. If the failure is the scenario document itself — scenario lines without identifiers, from an epic designed before BDD traceability — apply the Phase 1 step 3 retrofit in the epic worktree, commit it on the epic branch as `[EPIC_NAME] Add BDD scenario identifiers`, add the missing integration tests, and re-run. Then run the provider-based **`@quality_check`** orchestrator on the same SHA before finishing the branch:
 
 1. Pass explicit normalized invocation inputs:
    - `profile`: `"epic"`

@@ -33,6 +33,7 @@ EXPECTED = {
         "Integration test roots:",
         "at least one automated integration test",
         "Handoff Choice",
+        "`tests/integration/` and `tests/e2e/` (Python)",  # LF-HP-03
     ),
     "skills/writing-plans/SKILL.md": (
         "YYYY-MM-DD-<feature-name>.en.md",
@@ -68,6 +69,9 @@ EXPECTED = {
         "Entry-Point Detection",
         "Resume Procedure",
         "handoff.md",
+        "space- or comma-separated values",  # LF-HP-04
+        "re-enters at Phase 2 step 2",  # LF-ST-04
+        "may ride along in that commit",  # LF-ST-06
     ),
     "skills/dev-lifecycle/SKILL.md": (
         'profile `epic`',
@@ -79,6 +83,11 @@ EXPECTED = {
         "handoff-template.md",
         "Resuming an Epic",
         "Packaged",
+        "a fresh traceability check and epic quality run",  # LF-ST-05
+        "`<N>` is the task count the preflight printed",  # LF-HP-05
+    ),
+    "skills/dev-lifecycle/references/handoff-template.md": (
+        "or `uncommitted` when `auto_commit` is false",  # LF-FR-04
     ),
     "skills/pr_review/SKILL.md": (
         '"profile": "pr"',
