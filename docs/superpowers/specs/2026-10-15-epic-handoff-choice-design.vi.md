@@ -234,7 +234,7 @@ Xét từ trên xuống; dòng đầu tiên khớp sẽ được chọn.
 | 1 | Status của overview là `Done` | Đã xong | Báo cáo và dừng |
 | 2 | Không có epic branch, và có task ở `backlog` | Đang xếp hàng sau epic khác | Dừng. Chuyển `backlog` sang `todo` là quyết định của developer |
 | 3 | Không có epic branch, không có worktree, mọi task `todo` | Chưa bắt đầu — đã đóng gói nếu có `handoff.md` | Phase 0 → Phase 1 → Gate 3 → tạo worktree mới, như hiện nay |
-| 4 | Có epic branch, không có worktree, có task chưa `done` | Bị ngắt, worktree đã bị xóa | Resume Procedure (§8.4); tạo lại worktree sau Gate 3 bằng `git worktree add .worktrees/<epic_dir> epic/<epic_slug>` (không có `-b`), rồi bootstrap |
+| 4 | Có epic branch, không có worktree, có task chưa `done` | Bị ngắt, worktree đã bị xóa | Resume Procedure (§8.4), với bước 1 tạo lại worktree bằng `git worktree add .worktrees/<epic_dir> epic/<epic_slug>` (không có `-b`) |
 | 5 | Có worktree, có task chưa `done` | Bị ngắt giữa Stage 3 | Resume Procedure (§8.4) |
 | 6 | Có epic branch, mọi task `done` | Đã xong các task | Tạo lại worktree như dòng 4 nếu thiếu, rồi vào Phase 4, chạy `quality_check` đầy đủ — verdict từ phiên khác không gắn được với SHA này |
 | 7 | Mọi trường hợp khác, ví dụ task `in-progress` hoặc `done` mà không có epic branch | Không nhất quán | Dừng, báo các tín hiệu, hỏi |
@@ -243,6 +243,10 @@ Thông báo dòng đã chọn: "Entry point: row N — <state>."
 
 ### 8.4 Quy trình tiếp tục
 
+0. Chỉ với dòng 4: tạo lại worktree từ branch có sẵn, không có `-b`. Việc này khôi phục một epic
+   đang làm dở — không phải worktree mới mà Gate 3 canh giữ — và commit bổ sung định danh ở bước 3
+   cần đến nó. Với dòng 4 và 5, kiểm tra bootstrap bằng các bước kiểm tra theo nền tảng ở Phase 1
+   bước 5, và chạy lại bootstrap nếu không đạt.
 1. Trong worktree, chạy `integrate_branch.py preflight` mà Phase 2 bước 7 đang dùng. Nếu có rebase
    dang dở, hoặc base đã phân kỳ, xử lý theo cách bước 7 quy định trước khi làm bất cứ việc gì khác.
 2. Tìm task bị ngắt: task ở `in-progress` hoặc `review`. Nếu worktree có thay đổi chưa commit, lấy
@@ -258,10 +262,8 @@ Thông báo dòng đã chọn: "Entry point: row N — <state>."
    - yêu cầu xin quyền fast-forward `develop`, hỏi lại vì quyền này không mang qua phiên khác (D9).
 
    Chờ xác nhận.
-4. Chỉ với dòng 4: tạo lại worktree từ branch có sẵn. Sau đó, với dòng 4 và 5, kiểm tra bootstrap
-   bằng các bước kiểm tra theo nền tảng ở Phase 1 bước 5, và chạy lại bootstrap nếu không đạt.
-5. Nếu Status của overview là `Packaged`, chuyển thành `In Progress`.
-6. Vào Phase 2 tại task bị ngắt, hoặc tại task còn lại đầu tiên nếu không có task nào bị ngắt.
+4. Nếu Status của overview là `Packaged`, chuyển thành `In Progress`.
+5. Vào Phase 2 tại task bị ngắt, hoặc tại task còn lại đầu tiên nếu không có task nào bị ngắt.
 
 ### 8.5 Đổi trạng thái khi bắt đầu mới
 

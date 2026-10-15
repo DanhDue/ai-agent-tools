@@ -235,7 +235,7 @@ Evaluate top-down; the first matching row wins.
 | 1 | Overview Status is `Done` | Finished | Report it and stop |
 | 2 | No epic branch, and any task is `backlog` | Queued behind another epic | Stop. Flipping `backlog` to `todo` is the developer's call |
 | 3 | No epic branch, no worktree, every task `todo` | Not started — packaged if `handoff.md` exists | Phase 0 → Phase 1 → Gate 3 → new worktree, as today |
-| 4 | Epic branch exists, no worktree, some task not `done` | Interrupted, worktree removed | Resume Procedure (§8.4); recreate the worktree after Gate 3 with `git worktree add .worktrees/<epic_dir> epic/<epic_slug>` (no `-b`), then bootstrap |
+| 4 | Epic branch exists, no worktree, some task not `done` | Interrupted, worktree removed | Resume Procedure (§8.4), whose step 1 recreates the worktree with `git worktree add .worktrees/<epic_dir> epic/<epic_slug>` (no `-b`) |
 | 5 | Worktree exists, some task not `done` | Interrupted midway through Stage 3 | Resume Procedure (§8.4) |
 | 6 | Epic branch exists, every task `done` | Tasks finished | Recreate the worktree as in row 4 if it is missing, then Phase 4, a full `quality_check` run — a verdict from another session cannot be tied to this SHA |
 | 7 | Anything else, for example tasks `in-progress` or `done` with no epic branch | Inconsistent | Stop, report the signals, ask |
@@ -244,6 +244,10 @@ Announce the row: "Entry point: row N — <state>."
 
 ### 8.4 Resume Procedure
 
+0. Row 4 only: recreate the worktree from the existing branch, with no `-b`. This restores an epic
+   already under way — it is not the new worktree that Gate 3 guards — and the retrofit commit in
+   step 3 needs it. For rows 4 and 5, check the bootstrap with the platform checks of Phase 1
+   step 5, and re-run the bootstrap if they fail.
 1. In the worktree, run the `integrate_branch.py preflight` that Phase 2 step 7 already uses. A
    rebase in progress, or a base that diverged, is handled the way step 7 prescribes before
    anything else happens.
@@ -263,10 +267,8 @@ Announce the row: "Entry point: row N — <state>."
      across sessions (D9).
 
    Wait for confirmation.
-4. Row 4 only: recreate the worktree from the existing branch. Then, for rows 4 and 5, check the
-   bootstrap with the platform checks of Phase 1 step 5, and re-run the bootstrap if they fail.
-5. If the overview Status is `Packaged`, set it to `In Progress`.
-6. Enter Phase 2 at the interrupted task, or at the first remaining task if none was interrupted.
+4. If the overview Status is `Packaged`, set it to `In Progress`.
+5. Enter Phase 2 at the interrupted task, or at the first remaining task if none was interrupted.
 
 ### 8.5 Status Change on a Fresh Start
 
