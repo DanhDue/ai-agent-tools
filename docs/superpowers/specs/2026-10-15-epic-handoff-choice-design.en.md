@@ -98,8 +98,10 @@ flowchart TD
     PKG -.->|"later session or another LLM"| S3
 ```
 
-The question is asked after `dev-designer` Step 3 has committed the task files, or, when
-`auto_commit` is `false`, right after they are written. It is phrased runtime-neutrally — "ask the
+The question is asked after `dev-designer` Step 3 has committed the task files of a new epic, or,
+when `auto_commit` is `false`, right after they are written. After dev-designer's Updating an
+Existing Epic it is asked only when the epic has neither `handoff.md` nor an epic branch; otherwise
+an existing `handoff.md` stays untouched and the epic continues through Resuming an Epic. It is phrased runtime-neutrally — "ask the
 developer" — so it works in Claude Code, Antigravity and Codex alike:
 
 > Gate 2 passed: the HLD, BDD scenarios and N task files for `<epic_slug>` are written. How do you
@@ -221,12 +223,14 @@ grep -m1 -E '^- \*\*Status\*\*:' .devtool/epic/<epic_dir>/<epic_dir>.en.md
 git rev-parse --verify --quiet refs/heads/epic/<epic_slug>
 git branch -r --list '*/epic/<epic_slug>'
 git worktree list --porcelain | grep -E '^worktree .*/\.worktrees/<epic_dir>$'
-python3 "$SKILL_DIR"/resources/scripts/compute_execution_order.py <epic_slug>
+python3 "$SKILL_DIR"/resources/scripts/compute_execution_order.py <epic_slug> \
+  --features-dir .devtool/epic/<epic_dir>
 ```
 
-`git branch -r` reveals an epic branch pushed from another clone. The last command's flattened
-order prints each task's status as `[priority, status]`. Task files
-stay in `.devtool/features/` while `done` until Stage 4 archives them, so the scan sees every task.
+`git branch -r` reveals an epic branch pushed from another clone. The last command reads the
+epic's own task mirrors, which `sync_task_status.py` keeps in step with `.devtool/features/` and
+`.devtool/features/done/`, so tasks already moved into `done/` still count; its flattened order
+prints each task's status as `[priority, status]`.
 
 ### 8.3 Pick the Entry Point
 
@@ -234,12 +238,12 @@ Evaluate top-down; the first matching row wins.
 
 | # | Signals | State | Entry point |
 |---|---------|-------|-------------|
-| 1 | Overview Status is `Done` | Finished | Report it and stop |
+| 1 | Overview Status is `Done` | Finished, or Stage 4 interrupted | With no epic branch left, report it finished and stop; with the epic branch still present, report that Stage 4 was interrupted or its PR is open, and ask |
 | 2 | No epic branch, and any task is `backlog` | Queued behind another epic | Stop. Flipping `backlog` to `todo` is the developer's call |
 | 3 | No epic branch locally or on a remote, no worktree, every task `todo` | Not started — packaged if `handoff.md` exists | Phase 0 → Phase 1 → Gate 3 → new worktree, as today |
 | 4 | Epic branch exists, no worktree, some task not `done` | Interrupted, worktree removed | Resume Procedure (§8.4), whose step 1 recreates the worktree with `git worktree add .worktrees/<epic_dir> epic/<epic_slug>` (no `-b`) |
 | 5 | Worktree exists, some task not `done` | Interrupted midway through Stage 3 | Resume Procedure (§8.4) |
-| 6 | Epic branch exists, every task `done` | Tasks finished | Recreate the worktree as in row 4 if it is missing and bootstrap it, then Phase 4, a full `quality_check` run — a verdict from another session cannot be tied to this SHA |
+| 6 | Epic branch exists, every task `done` | Tasks finished | Recreate the worktree as in row 4 if it is missing and bootstrap it, run the Resume Procedure's preflight, then Phase 4, a full `quality_check` run — a verdict from another session cannot be tied to this SHA |
 | 7 | Anything else — for example the epic branch only on a remote (work done in another clone), or tasks `in-progress` or `done` with no epic branch | Inconsistent | Stop, report the signals, ask |
 
 Announce the row: "Entry point: row N — <state>."
@@ -256,7 +260,8 @@ Announce the row: "Entry point: row N — <state>."
 2. Find the interrupted task: one at `in-progress` or `review`. If the worktree has uncommitted
    changes, collect `git status --short`. Uncommitted changes with no interrupted task are still
    presented in step 3, with the same keep-or-discard choice.
-3. **Gate 3 (resume).** First run the BDD mapping check of Phase 1 step 3, including its retrofit
+3. **Gate 3 (resume).** First check the mirror scan's summary line and its Manual review advised
+   section, as Phase 1 steps 1–2 do. Then run the BDD mapping check of Phase 1 step 3, including its retrofit
    for an epic designed before scenario identifiers; the retrofit commit goes on the epic branch and
    stages only the files the retrofit touched, by path — never `git add -A` — so the interrupted
    task's uncommitted work stays out of it.

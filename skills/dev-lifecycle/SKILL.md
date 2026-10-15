@@ -179,7 +179,10 @@ architecture was already approved at Gate 1.
 
 Between Gate 2 and Stage 3 the developer decides when, and by whom, the epic is implemented. This
 is a routing decision like Stage 1's, not a sixth gate. Ask it once `dev-designer` Step 3 has
-committed the task files — or, with `auto_commit: false`, once they are written:
+committed the task files of a new epic — or, with `auto_commit: false`, once they are written.
+After dev-designer's Updating an Existing Epic, ask it only when the epic has neither `handoff.md`
+nor an epic branch; otherwise leave any `handoff.md` untouched — its staleness rule flags the
+update — and continue through Resuming an Epic:
 
 > Gate 2 passed: the HLD, BDD scenarios and N task files for `<epic_slug>` are written. How do you
 > want to proceed?
@@ -317,7 +320,7 @@ the 🟢 verdict must come from a complete run.
 | "I'll just write the implementation plan directly" | `implementation_plan.md` is an Antigravity artifact. d3nexus uses `docs/superpowers/specs/` and `.devtool/`. |
 | "The user confirmed the scope, that's basically Gate 1" | Gate 1 is spec approval through `dev-brainstorming`, not a scope question. |
 | "I can combine research + spec into one step" | Stage 1 is `dev-brainstorming`'s job. Invoke the skill. |
-| "The developer obviously wants to continue" | The Handoff Choice is theirs. Ask it every time Gate 2 passes. |
+| "The developer obviously wants to continue" | The Handoff Choice is theirs. Ask it every time a new epic passes Gate 2. |
 
 ## Stage Skills
 

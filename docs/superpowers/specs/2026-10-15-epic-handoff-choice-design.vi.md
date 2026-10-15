@@ -94,8 +94,10 @@ flowchart TD
     PKG -.->|"later session or another LLM"| S3
 ```
 
-Câu hỏi được đặt ra sau khi Step 3 của `dev-designer` đã commit các file task, hoặc ngay sau khi các
-file được ghi nếu `auto_commit` là `false`. Câu hỏi viết trung lập — "hỏi developer" — để chạy được
+Câu hỏi được đặt ra sau khi Step 3 của `dev-designer` đã commit các file task của một epic mới, hoặc
+ngay sau khi các file được ghi nếu `auto_commit` là `false`. Sau mục Updating an Existing Epic của
+dev-designer, câu hỏi chỉ được đặt khi epic chưa có `handoff.md` lẫn epic branch; nếu không,
+`handoff.md` hiện có được giữ nguyên và epic đi tiếp qua Resuming an Epic. Câu hỏi viết trung lập — "hỏi developer" — để chạy được
 trên Claude Code, Antigravity và Codex:
 
 > Gate 2 đã qua: HLD, các BDD scenario và N file task của `<epic_slug>` đã được ghi. Anh/chị muốn đi
@@ -219,13 +221,14 @@ grep -m1 -E '^- \*\*Status\*\*:' .devtool/epic/<epic_dir>/<epic_dir>.en.md
 git rev-parse --verify --quiet refs/heads/epic/<epic_slug>
 git branch -r --list '*/epic/<epic_slug>'
 git worktree list --porcelain | grep -E '^worktree .*/\.worktrees/<epic_dir>$'
-python3 "$SKILL_DIR"/resources/scripts/compute_execution_order.py <epic_slug>
+python3 "$SKILL_DIR"/resources/scripts/compute_execution_order.py <epic_slug> \
+  --features-dir .devtool/epic/<epic_dir>
 ```
 
-`git branch -r` cho thấy epic branch đã được push từ một clone khác. Thứ tự phẳng mà lệnh cuối in
-ra ghi trạng thái từng task dưới dạng `[priority, status]`. File task
-vẫn nằm trong `.devtool/features/` khi đã `done` cho tới khi Stage 4 lưu trữ chúng, nên lệnh quét
-thấy mọi task.
+`git branch -r` cho thấy epic branch đã được push từ một clone khác. Lệnh cuối đọc các bản mirror
+task của chính epic, được `sync_task_status.py` giữ đồng bộ với `.devtool/features/` và
+`.devtool/features/done/`, nên các task đã chuyển vào `done/` vẫn được tính; thứ tự phẳng của nó
+ghi trạng thái từng task dưới dạng `[priority, status]`.
 
 ### 8.3 Chọn điểm vào
 
@@ -233,12 +236,12 @@ Xét từ trên xuống; dòng đầu tiên khớp sẽ được chọn.
 
 | # | Tín hiệu | Trạng thái | Điểm vào |
 |---|----------|-----------|----------|
-| 1 | Status của overview là `Done` | Đã xong | Báo cáo và dừng |
+| 1 | Status của overview là `Done` | Đã xong, hoặc Stage 4 bị ngắt | Không còn epic branch thì báo đã xong và dừng; nếu epic branch vẫn còn, báo Stage 4 bị ngắt hoặc PR còn mở, rồi hỏi |
 | 2 | Không có epic branch, và có task ở `backlog` | Đang xếp hàng sau epic khác | Dừng. Chuyển `backlog` sang `todo` là quyết định của developer |
 | 3 | Không có epic branch ở local lẫn trên remote, không có worktree, mọi task `todo` | Chưa bắt đầu — đã đóng gói nếu có `handoff.md` | Phase 0 → Phase 1 → Gate 3 → tạo worktree mới, như hiện nay |
 | 4 | Có epic branch, không có worktree, có task chưa `done` | Bị ngắt, worktree đã bị xóa | Resume Procedure (§8.4), với bước 1 tạo lại worktree bằng `git worktree add .worktrees/<epic_dir> epic/<epic_slug>` (không có `-b`) |
 | 5 | Có worktree, có task chưa `done` | Bị ngắt giữa Stage 3 | Resume Procedure (§8.4) |
-| 6 | Có epic branch, mọi task `done` | Đã xong các task | Tạo lại worktree như dòng 4 nếu thiếu và bootstrap nó, rồi vào Phase 4, chạy `quality_check` đầy đủ — verdict từ phiên khác không gắn được với SHA này |
+| 6 | Có epic branch, mọi task `done` | Đã xong các task | Tạo lại worktree như dòng 4 nếu thiếu và bootstrap nó, chạy preflight của Resume Procedure, rồi vào Phase 4, chạy `quality_check` đầy đủ — verdict từ phiên khác không gắn được với SHA này |
 | 7 | Mọi trường hợp khác — ví dụ epic branch chỉ có trên remote (đã làm ở clone khác), hoặc task `in-progress` hay `done` mà không có epic branch | Không nhất quán | Dừng, báo các tín hiệu, hỏi |
 
 Thông báo dòng đã chọn: "Entry point: row N — <state>."
@@ -254,7 +257,8 @@ Thông báo dòng đã chọn: "Entry point: row N — <state>."
 2. Tìm task bị ngắt: task ở `in-progress` hoặc `review`. Nếu worktree có thay đổi chưa commit, lấy
    `git status --short`. Thay đổi chưa commit mà không có task nào bị ngắt vẫn được trình bày ở bước
    3, với cùng lựa chọn giữ lại hoặc bỏ đi.
-3. **Gate 3 (tiếp tục).** Trước hết chạy kiểm tra mapping BDD của Phase 1 bước 3, kể cả phần bổ
+3. **Gate 3 (tiếp tục).** Trước hết kiểm tra dòng tóm tắt của lần quét mirror và mục Manual review
+   advised, như Phase 1 bước 1–2. Sau đó chạy kiểm tra mapping BDD của Phase 1 bước 3, kể cả phần bổ
    sung định danh cho epic thiết kế trước khi có scenario ID; commit bổ sung nằm trên epic branch và
    chỉ stage đúng những file mà phần bổ sung đã sửa, theo đường dẫn — không bao giờ `git add -A` —
    để công việc chưa commit của task bị ngắt không lẫn vào đó.
