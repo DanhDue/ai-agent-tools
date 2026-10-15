@@ -94,8 +94,10 @@ Scenario: [PY-HP-01] [Tier C - Integration] Auto-detect Python workspace and sca
 - **Uniqueness:** each identifier appears once in the document.
 - **Language parity:** `bdd_scenarios.vi.md` carries exactly the same identifier set. Identifiers are
   never translated.
-- **Prefix:** the first segment. All identifiers sharing a prefix belong to this epic; the prefix is
-  what the stale check looks for (§7).
+- **Prefix:** the first segment. All identifiers sharing a prefix belong to this epic, and no other
+  epic in the project may use it: integration test roots hold every epic's tests, so a shared prefix
+  would let one epic's tests cover — or look stale to — another's. The prefix is what the stale check
+  looks for (§7).
 
 ## 5. Test References
 
@@ -115,10 +117,11 @@ before or after the match. That lets every platform use its idiom:
 
 - One test may carry several identifiers; each identifier needs at least one test (D1).
 - Markdown files under the roots are ignored, and so are files that are not valid UTF-8.
-- **Stale references (D8)** are detected in the hyphenated form only — a token matching
-  `<PREFIX>(-[A-Z0-9]+)*-[0-9]+`, any case, that is not an identifier in the document. The snake_case
-  form counts towards coverage but not towards staleness: in `test_py_hp_01_retry_2` the script cannot
-  tell where an identifier ends and a test name begins.
+- **Stale references (D8)** are detected in the canonical form only — an uppercase, hyphenated token
+  matching `<PREFIX>(-[A-Z0-9]+)*-[0-9]+` that is not an identifier in the document. The snake_case
+  and lowercase forms count towards coverage but not towards staleness: in `test_py_hp_01_retry_2`
+  the script cannot tell where an identifier ends and a test name begins, and a short prefix such as
+  `PY` would flag unrelated lowercase text like `py-3`.
 
 ## 6. Design Declarations
 
@@ -157,6 +160,9 @@ with `test_check_bdd_traceability.py` beside it in the `unittest` style of its s
 check_bdd_traceability.py plan  --scenarios <bdd_scenarios.en.md> --tasks <task_*.md ...>
 check_bdd_traceability.py tests --scenarios <bdd_scenarios.en.md> --roots <dir ...> [--ids <ID ...>]
 ```
+
+`--roots` and `--ids` accept space- or comma-separated values, so the HLD's roots line and a task's
+`Covers:` line can be copied verbatim.
 
 **Both modes** first validate the scenario document: every scenario line has an identifier, every
 identifier has the right shape and appears once, and — when a `.vi.md` sibling exists — the two

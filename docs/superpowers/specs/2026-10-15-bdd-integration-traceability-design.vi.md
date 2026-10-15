@@ -93,8 +93,10 @@ Scenario: [PY-HP-01] [Tier C - Integration] Auto-detect Python workspace and sca
 - **Tính duy nhất:** mỗi định danh xuất hiện một lần trong tài liệu.
 - **Đồng bộ ngôn ngữ:** `bdd_scenarios.vi.md` mang đúng cùng tập định danh. Định danh không bao giờ
   được dịch.
-- **Prefix:** đoạn đầu tiên. Mọi định danh cùng prefix thuộc epic này; prefix là thứ mà kiểm tra stale
-  tìm kiếm (§7).
+- **Prefix:** đoạn đầu tiên. Mọi định danh cùng prefix thuộc epic này, và không epic nào khác trong
+  project được dùng lại nó: các thư mục integration test chứa test của mọi epic, nên một prefix dùng
+  chung sẽ khiến test của epic này phủ nhầm — hoặc bị coi là stale — đối với epic kia. Prefix là thứ
+  mà kiểm tra stale tìm kiếm (§7).
 
 ## 5. Tham chiếu trong test
 
@@ -114,10 +116,11 @@ ngay trước hoặc ngay sau chuỗi khớp. Nhờ vậy mỗi nền tảng dù
 
 - Một test có thể mang nhiều định danh; mỗi định danh cần ít nhất một test (D1).
 - File markdown dưới các thư mục này bị bỏ qua, và file không phải UTF-8 hợp lệ cũng vậy.
-- **Tham chiếu stale (D8)** chỉ được phát hiện ở dạng có gạch nối — một token khớp
-  `<PREFIX>(-[A-Z0-9]+)*-[0-9]+`, không phân biệt hoa thường, mà không phải định danh trong tài liệu.
-  Dạng snake_case được tính cho coverage nhưng không tính cho stale: trong `test_py_hp_01_retry_2`,
-  script không phân biệt được định danh kết thúc ở đâu và tên test bắt đầu ở đâu.
+- **Tham chiếu stale (D8)** chỉ được phát hiện ở dạng chuẩn — một token viết hoa, có gạch nối, khớp
+  `<PREFIX>(-[A-Z0-9]+)*-[0-9]+` mà không phải định danh trong tài liệu. Dạng snake_case và chữ thường
+  được tính cho coverage nhưng không tính cho stale: trong `test_py_hp_01_retry_2`, script không phân
+  biệt được định danh kết thúc ở đâu và tên test bắt đầu ở đâu, và một prefix ngắn như `PY` sẽ bắt
+  nhầm những chuỗi chữ thường không liên quan như `py-3`.
 
 ## 6. Khai báo trong tài liệu thiết kế
 
@@ -156,6 +159,9 @@ ngay trước hoặc ngay sau chuỗi khớp. Nhờ vậy mỗi nền tảng dù
 check_bdd_traceability.py plan  --scenarios <bdd_scenarios.en.md> --tasks <task_*.md ...>
 check_bdd_traceability.py tests --scenarios <bdd_scenarios.en.md> --roots <dir ...> [--ids <ID ...>]
 ```
+
+`--roots` và `--ids` nhận giá trị phân tách bằng dấu cách hoặc dấu phẩy, nên có thể chép nguyên văn
+dòng roots của HLD và dòng `Covers:` của task.
 
 **Cả hai chế độ** đều kiểm tra tài liệu scenario trước: mọi dòng scenario có định danh, mọi định danh
 đúng hình dạng và chỉ xuất hiện một lần, và — khi có file `.vi.md` đi kèm — hai tập định danh bằng
