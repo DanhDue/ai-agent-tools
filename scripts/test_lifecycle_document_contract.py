@@ -65,6 +65,9 @@ EXPECTED = {
         "aggregated verdict of **PASS**",
         "check_bdd_traceability.py tests",
         "--ids",
+        "Entry-Point Detection",
+        "Resume Procedure",
+        "handoff.md",
     ),
     "skills/dev-lifecycle/SKILL.md": (
         'profile `epic`',
