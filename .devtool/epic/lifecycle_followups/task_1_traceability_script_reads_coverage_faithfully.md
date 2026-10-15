@@ -1,20 +1,20 @@
 ---
 id: "task_1_traceability_script_reads_coverage_faithfully"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "lifecycle-followups"
 dueDate: null
 created: "2026-10-15T15:57:47Z"
-modified: "2026-10-15T15:57:47Z"
-completedAt: null
+modified: "2026-10-15T16:16:44Z"
+completedAt: "2026-10-15T16:16:44Z"
 labels: ["tooling", "bdd-traceability"]
 order: "a1"
 ---
 
 # Task 1: Traceability script reads coverage faithfully
 
-Epic: [lifecycle-followups](../epic/lifecycle_followups/lifecycle_followups.en.md)
+Epic: [lifecycle-followups](lifecycle_followups.en.md)
 
 ## Requirement Analysis
 

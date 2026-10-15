@@ -5,6 +5,7 @@ Run: python3 -m unittest skills/dev-implementation/resources/scripts/test_check_
 """
 import contextlib
 import io
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -102,6 +103,14 @@ class DocumentValidationTest(TraceabilityCase):
         self.assertEqual(code, 1)
         self.assertIn("scenario has no identifier", out)
 
+    def test_lf_fr_02_non_utf8_scenario_document_exits_2(self) -> None:
+        scenarios = self.root / "epic/bdd_scenarios.en.md"
+        scenarios.parent.mkdir(parents=True, exist_ok=True)
+        scenarios.write_bytes(b"\xff\xfe# BDD Scenarios\n")
+        code, _, err = self.plan(scenarios, self.covering_task())
+        self.assertEqual(code, 2)
+        self.assertIn("is not valid UTF-8", err)
+
     def test_document_without_scenarios_fails(self) -> None:
         scenarios = self.write("epic/bdd_scenarios.en.md", "# BDD Scenarios\n")
         code, out, _ = self.plan(scenarios, self.covering_task())
@@ -139,6 +148,20 @@ class PlanModeTest(TraceabilityCase):
         second = self.write("epic/task_2_second.md", "**Covers:** PY-EC-02\n")
         code, out, _ = self.plan(self.scenarios(*TWO), first, second)
         self.assertEqual(code, 0, out)
+
+    def test_lf_hp_01_prose_and_trailing_punctuation_in_covers_are_ignored(self) -> None:
+        task = self.write("epic/task_1_all.md", "Covers: PY-HP-01 (happy path), PY-EC-02.\n")
+        code, out, _ = self.plan(self.scenarios(*TWO), task)
+        self.assertEqual(code, 0, out)
+        self.assertIn("Result: 2/2 covered — PASS", out)
+
+    def test_lf_fr_01_non_utf8_task_file_exits_2(self) -> None:
+        task = self.root / "epic/task_1_all.md"
+        task.parent.mkdir(parents=True, exist_ok=True)
+        task.write_bytes(b"\xff\xfeCovers: PY-HP-01\n")
+        code, _, err = self.plan(self.scenarios(*TWO), task)
+        self.assertEqual(code, 2)
+        self.assertIn("is not valid UTF-8", err)
 
     def test_missing_task_file_exits_2(self) -> None:
         code, _, err = self.plan(self.scenarios(*TWO), self.root / "epic/task_9_absent.md")
@@ -215,6 +238,30 @@ class TestsModeTest(TraceabilityCase):
                                     "--ids", "PY-HP-01,", "PY-EC-02")
         self.assertEqual(code, 0, out)
         self.assertIn("Result: 2/2 covered — PASS", out)
+
+    def git(self, *args: str) -> None:
+        subprocess.run(["git", "-C", str(self.root), *args], check=True, capture_output=True)
+
+    def test_lf_ec_01_gitignored_files_do_not_cover(self) -> None:
+        self.git("init", "-q")
+        self.write(".gitignore", "playwright-report/\n")
+        self.write("tests/integration/playwright-report/index.html", "<li>[PY-HP-01] [PY-EC-02]</li>\n")
+        code, out, _ = self.run_tests_mode()
+        self.assertEqual(code, 1)
+        self.assertIn("Result: 0/2 covered — FAIL", out)
+
+    def test_lf_hp_02_tracked_and_untracked_unignored_files_cover(self) -> None:
+        self.git("init", "-q")
+        self.write("tests/integration/flow_test.ts", "test('[PY-HP-01] first', () => {});\n")
+        self.git("add", "tests/integration/flow_test.ts")
+        self.write("tests/integration/new_test.ts", "test('[PY-EC-02] second', () => {});\n")
+        code, out, _ = self.run_tests_mode()
+        self.assertEqual(code, 0, out)
+
+    def test_lf_ec_02_roots_outside_git_fall_back_to_the_directory_walk(self) -> None:
+        self.write("tests/integration/flow_test.ts", "test('[PY-HP-01] [PY-EC-02] all', () => {});\n")
+        code, out, _ = self.run_tests_mode()
+        self.assertEqual(code, 0, out)
 
     def test_unknown_identifier_in_ids_fails(self) -> None:
         self.write("tests/integration/flow_test.ts", "test('[PY-HP-01] first', () => {});\n")

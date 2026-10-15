@@ -1,20 +1,20 @@
 ---
 id: "task_3_lifecycle_signal_integration_tests"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "lifecycle-followups"
 dueDate: null
 created: "2026-10-15T15:57:47Z"
-modified: "2026-10-15T15:57:47Z"
-completedAt: null
+modified: "2026-10-15T16:23:37Z"
+completedAt: "2026-10-15T16:23:37Z"
 labels: ["tests", "integration"]
 order: "a3"
 ---
 
 # Task 3: Lifecycle signal integration tests
 
-Epic: [lifecycle-followups](../epic/lifecycle_followups/lifecycle_followups.en.md)
+Epic: [lifecycle-followups](lifecycle_followups.en.md)
 
 ## Requirement Analysis
 

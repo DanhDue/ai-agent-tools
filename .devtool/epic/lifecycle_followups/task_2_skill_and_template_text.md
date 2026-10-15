@@ -1,20 +1,20 @@
 ---
 id: "task_2_skill_and_template_text"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "lifecycle-followups"
 dueDate: null
 created: "2026-10-15T15:57:47Z"
-modified: "2026-10-15T15:57:47Z"
-completedAt: null
+modified: "2026-10-15T16:21:11Z"
+completedAt: "2026-10-15T16:21:11Z"
 labels: ["skills", "documentation"]
 order: "a2"
 ---
 
 # Task 2: Skill and template text
 
-Epic: [lifecycle-followups](../epic/lifecycle_followups/lifecycle_followups.en.md)
+Epic: [lifecycle-followups](lifecycle_followups.en.md)
 
 ## Requirement Analysis
 

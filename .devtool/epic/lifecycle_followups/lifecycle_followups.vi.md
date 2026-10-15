@@ -14,7 +14,7 @@
 ## 1. Meta Data
 
 - **Epic**: lifecycle-followups (thư mục `lifecycle_followups`)
-- **Trạng thái**: Packaged
+- **Trạng thái**: Done
 - **Bản phát hành mục tiêu**: bản d3nexus tiếp theo sau 1.7.1
 - **Platform**: Python — chính repo của kit: script chỉ dùng thư viện chuẩn, test bằng `unittest`,
   cùng các skill Markdown. `detect_project_type.sh` báo `unknown` cho repo này.
