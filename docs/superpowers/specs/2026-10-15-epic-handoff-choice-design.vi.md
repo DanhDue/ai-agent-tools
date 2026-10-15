@@ -162,11 +162,15 @@ Khi developer chọn phương án 1:
    ```bash
    python3 "$SCRIPTS"/compute_execution_order.py <epic_slug>
    ls .devtool/epic/<epic_dir>/task_*.md | wc -l
+   python3 "$SCRIPTS"/check_bdd_traceability.py plan \
+     --scenarios .devtool/epic/<epic_dir>/bdd_scenarios.en.md \
+     --tasks .devtool/epic/<epic_dir>/task_*.md
    ```
 
-   Số task khớp `M` trong dòng tóm tắt phải bằng số file task mirror trong thư mục epic, và lệnh phải
-   exit 0. Nếu không, có task bị hỏng frontmatter, sai giá trị `epic:`, hoặc có vòng phụ thuộc: sửa
-   trước khi đóng gói, vì agent nhận không có ngữ cảnh để chẩn đoán.
+   Số task khớp `M` trong dòng tóm tắt phải bằng số file task mirror trong thư mục epic, và cả hai
+   script phải exit 0. Nếu không, có task bị hỏng frontmatter, sai giá trị `epic:`, có vòng phụ thuộc,
+   hoặc có scenario không được dòng `Covers:` nào nêu tên: sửa trước khi đóng gói, vì agent nhận không
+   có ngữ cảnh để chẩn đoán.
 2. Ghi `handoff.md` từ template, điền Open Notes từ cuộc hội thoại của phiên này.
 3. Lint file:
 
@@ -244,7 +248,9 @@ Thông báo dòng đã chọn: "Entry point: row N — <state>."
 2. Tìm task bị ngắt: task ở `in-progress` hoặc `review`. Nếu worktree có thay đổi chưa commit, lấy
    `git status --short`. Thay đổi chưa commit mà không có task nào bị ngắt vẫn được trình bày ở bước
    3, với cùng lựa chọn giữ lại hoặc bỏ đi.
-3. **Gate 3 (tiếp tục).** Trong cùng một tin nhắn, trình bày:
+3. **Gate 3 (tiếp tục).** Trước hết chạy kiểm tra mapping BDD của Phase 1 bước 3, kể cả phần bổ
+   sung định danh cho epic thiết kế trước khi có scenario ID; commit bổ sung nằm trên epic branch.
+   Sau đó, trong cùng một tin nhắn, trình bày:
    - các task đã `done`, kèm commit của chúng từ `git log --oneline develop..epic/<epic_slug>`;
    - thứ tự còn lại — thứ tự phẳng đã bỏ các task `done`, vẫn thỏa mọi phụ thuộc;
    - với task bị ngắt có thay đổi chưa commit, lựa chọn giữ lại thay đổi và làm tiếp task, hoặc bỏ
@@ -324,7 +330,9 @@ Red Flags mới trong `dev-implementation`:
   (D2). Developer để epic chờ lâu cần biết điều này.
 - **Đọc trạng thái.** Trạng thái task được đọc từ main checkout. `sync_task_status.py` mirror chúng
   vào mọi checkout, nên main checkout và worktree khớp nhau trừ khi có người sửa tay một bản.
-- Không phụ thuộc vào công việc nào khác đang chạy.
+- **Truy vết BDD đã được triển khai trước** (merge `bde3493`). Vì vậy spec này đảm nhận bước
+  `check_bdd_traceability.py plan` trong preflight đóng gói (§7) và dùng lại kiểm tra mapping ở Gate 3
+  mà truy vết BDD đã thêm vào Phase 1 bước 3 của dev-implementation (§8.4).
 
 ## 12. Ngoài phạm vi
 

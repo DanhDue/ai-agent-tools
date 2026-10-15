@@ -165,12 +165,15 @@ When the developer picks option 1:
    ```bash
    python3 "$SCRIPTS"/compute_execution_order.py <epic_slug>
    ls .devtool/epic/<epic_dir>/task_*.md | wc -l
+   python3 "$SCRIPTS"/check_bdd_traceability.py plan \
+     --scenarios .devtool/epic/<epic_dir>/bdd_scenarios.en.md \
+     --tasks .devtool/epic/<epic_dir>/task_*.md
    ```
 
    The scan summary's matched count `M` must equal the number of mirrored task files in the epic
-   directory, and the command must exit 0. Otherwise a task has broken frontmatter, a wrong `epic:`
-   value, or a dependency cycle: fix it before packaging, because the receiving agent has no
-   context to diagnose it.
+   directory, and both scripts must exit 0. Otherwise a task has broken frontmatter, a wrong `epic:`
+   value, a dependency cycle, or a scenario that no task's `Covers:` line names: fix it before
+   packaging, because the receiving agent has no context to diagnose it.
 2. Write `handoff.md` from the template, filling Open Notes from this session's conversation.
 3. Lint it:
 
@@ -247,7 +250,9 @@ Announce the row: "Entry point: row N — <state>."
 2. Find the interrupted task: one at `in-progress` or `review`. If the worktree has uncommitted
    changes, collect `git status --short`. Uncommitted changes with no interrupted task are still
    presented in step 3, with the same keep-or-discard choice.
-3. **Gate 3 (resume).** In one message, present:
+3. **Gate 3 (resume).** First run the BDD mapping check of Phase 1 step 3, including its retrofit
+   for an epic designed before scenario identifiers; the retrofit commit goes on the epic branch.
+   Then, in one message, present:
    - the tasks already `done`, with their commits from `git log --oneline develop..epic/<epic_slug>`;
    - the remaining order — the flattened order with `done` tasks removed, which keeps every
      dependency satisfied;
@@ -331,7 +336,9 @@ New Red Flags in `dev-implementation`:
 - **Status reads.** Task statuses are read from the main checkout. They are mirrored into every
   checkout by `sync_task_status.py`, so the main checkout and the worktree agree unless someone
   edits a copy by hand.
-- No dependency on other in-flight work.
+- **BDD traceability landed first** (merge `bde3493`). This spec therefore owns the packaging
+  preflight's `check_bdd_traceability.py plan` step (§7) and reuses the Gate 3 mapping check that
+  BDD traceability added to dev-implementation Phase 1 step 3 (§8.4).
 
 ## 12. Out of Scope
 
