@@ -109,7 +109,7 @@ trên Claude Code, Antigravity và Codex:
 
 | File | Thay đổi |
 |------|----------|
-| `skills/dev-lifecycle/SKILL.md` | Mục mới "Handoff Choice" giữa Stage 2 và Stage 3, chứa câu hỏi (§4) và quy trình đóng gói (§7). Quy tắc mới "Resuming an Epic": khi thư mục của epic được nêu tên đã có file task, Gate 2 đã qua, nên gọi `dev-implementation` với tên đó và để Phase 0 của nó chọn điểm vào (§8). Cập nhật sơ đồ trình tự. Document Contract ghi `handoff.md` cạnh `task_*.md` là file chỉ tiếng Anh. Red Flags mới (§9) |
+| `skills/dev-lifecycle/SKILL.md` | Mục mới "Handoff Choice" giữa Stage 2 và Stage 3, chứa câu hỏi (§4) và quy trình đóng gói (§7). Quy tắc mới "Resuming an Epic": yêu cầu implement, làm tiếp hoặc tiếp tục một epic mà thư mục đã có file task thì đã qua Gate 2, nên gọi `dev-implementation` với tên đó và để Phase 0 của nó chọn điểm vào (§8); yêu cầu mới cho epic đó vẫn đi qua mục Updating an Existing Epic của dev-designer. Cập nhật sơ đồ trình tự. Document Contract ghi `handoff.md` cạnh `task_*.md` là file chỉ tiếng Anh. Red Flags mới (§9) |
 | `skills/dev-lifecycle/references/handoff-template.md` | Mới. Template cho `handoff.md` (§6) |
 | `skills/dev-designer/SKILL.md` | Step 3 kết thúc bằng một đoạn trỏ sang Handoff Choice; dev-designer không bao giờ gọi thẳng `dev-implementation` |
 | `skills/dev-implementation/SKILL.md` | Nhận tên thư mục epic hoặc slug. Phase 0 có thêm Entry-Point Detection và đọc `handoff.md` nếu có. Thêm Resume Procedure vào Phase 1. Phase 1 bước 4 chuyển epic `Packaged` sang `In Progress`. Cập nhật sơ đồ quy trình và Red Flags (§8, §9) |
@@ -135,7 +135,7 @@ CHECK_DOC="$SKILL_DIR/../doc_quality_check/resources/scripts/check_document.py"
 | Read First | Danh sách có thứ tự: HLD `.en.md`, `bdd_scenarios.en.md`, spec gốc `.en.md`, và số lượng task, với danh sách task nằm trong mục Kanban Tasks Breakdown của HLD |
 | Resume Prompt | Một khối `text` để developer dán vào agent nhận |
 | Open Notes | Những gì phiên thiết kế biết mà tài liệu chưa nói: quyết định chốt trong hội thoại, rủi ro, điểm còn ngờ. Ghi `None` nếu không có |
-| Rules for the Receiving Agent | Không chạy lại `dev-brainstorming` hay `dev-designer`; tài liệu sai thì nêu ra tại Gate 3. Bản bàn giao này không thay cho Gate 3. Nếu `git log <sha>..HEAD -- .devtool/epic/<epic_dir>` có commit, tài liệu đã thay đổi sau khi đóng gói: tài liệu thắng, và file này có thể đã cũ |
+| Rules for the Receiving Agent | Không chạy lại `dev-brainstorming` hay `dev-designer`; tài liệu sai thì nêu ra tại Gate 3. Bản bàn giao này không thay cho Gate 3. Nếu `git log <sha>..HEAD -- .devtool/epic/<epic_dir>` có commit nào khác ngoài commit `Package epic for handoff`, tài liệu đã thay đổi sau khi đóng gói: tài liệu thắng, và file này có thể đã cũ |
 
 Resume Prompt sau khi điền giá trị thật:
 
@@ -188,8 +188,8 @@ Khi developer chọn phương án 1:
    ```
 
    Trạng thái task không bị đụng tới (D2).
-5. Commit, khi `auto_commit` là `true` hoặc không được khai báo: stage `handoff.md` và cặp overview,
-   rồi chạy `git commit -m "[<EPIC_NAME>] Package epic for handoff"`, không có trailer. Khi
+5. Commit, khi `auto_commit` là `true` hoặc không được khai báo: stage `handoff.md`, cặp overview và
+   mọi file task đã sửa ở bước 1, rồi chạy `git commit -m "[<EPIC_NAME>] Package epic for handoff"`, không có trailer. Khi
    `auto_commit` là `false`, bỏ qua và cảnh báo rằng agent ở clone khác sẽ không thấy gói.
 6. Đề nghị push; chỉ push khi được cho phép rõ ràng (D7). Nói rõ rằng người nhận ở clone khác hoặc
    máy khác cần bản push này.
@@ -217,11 +217,13 @@ Tất cả chỉ đọc, chạy từ main checkout:
 test -f .devtool/epic/<epic_dir>/handoff.md && echo packaged-handoff
 grep -m1 -E '^- \*\*Status\*\*:' .devtool/epic/<epic_dir>/<epic_dir>.en.md
 git rev-parse --verify --quiet refs/heads/epic/<epic_slug>
-git worktree list --porcelain | grep -F "/.worktrees/<epic_dir>"
+git branch -r --list '*/epic/<epic_slug>'
+git worktree list --porcelain | grep -E '^worktree .*/\.worktrees/<epic_dir>$'
 python3 "$SKILL_DIR"/resources/scripts/compute_execution_order.py <epic_slug>
 ```
 
-Thứ tự phẳng mà lệnh cuối in ra ghi trạng thái từng task dưới dạng `[priority, status]`. File task
+`git branch -r` cho thấy epic branch đã được push từ một clone khác. Thứ tự phẳng mà lệnh cuối in
+ra ghi trạng thái từng task dưới dạng `[priority, status]`. File task
 vẫn nằm trong `.devtool/features/` khi đã `done` cho tới khi Stage 4 lưu trữ chúng, nên lệnh quét
 thấy mọi task.
 
@@ -233,11 +235,11 @@ Xét từ trên xuống; dòng đầu tiên khớp sẽ được chọn.
 |---|----------|-----------|----------|
 | 1 | Status của overview là `Done` | Đã xong | Báo cáo và dừng |
 | 2 | Không có epic branch, và có task ở `backlog` | Đang xếp hàng sau epic khác | Dừng. Chuyển `backlog` sang `todo` là quyết định của developer |
-| 3 | Không có epic branch, không có worktree, mọi task `todo` | Chưa bắt đầu — đã đóng gói nếu có `handoff.md` | Phase 0 → Phase 1 → Gate 3 → tạo worktree mới, như hiện nay |
+| 3 | Không có epic branch ở local lẫn trên remote, không có worktree, mọi task `todo` | Chưa bắt đầu — đã đóng gói nếu có `handoff.md` | Phase 0 → Phase 1 → Gate 3 → tạo worktree mới, như hiện nay |
 | 4 | Có epic branch, không có worktree, có task chưa `done` | Bị ngắt, worktree đã bị xóa | Resume Procedure (§8.4), với bước 1 tạo lại worktree bằng `git worktree add .worktrees/<epic_dir> epic/<epic_slug>` (không có `-b`) |
 | 5 | Có worktree, có task chưa `done` | Bị ngắt giữa Stage 3 | Resume Procedure (§8.4) |
-| 6 | Có epic branch, mọi task `done` | Đã xong các task | Tạo lại worktree như dòng 4 nếu thiếu, rồi vào Phase 4, chạy `quality_check` đầy đủ — verdict từ phiên khác không gắn được với SHA này |
-| 7 | Mọi trường hợp khác, ví dụ task `in-progress` hoặc `done` mà không có epic branch | Không nhất quán | Dừng, báo các tín hiệu, hỏi |
+| 6 | Có epic branch, mọi task `done` | Đã xong các task | Tạo lại worktree như dòng 4 nếu thiếu và bootstrap nó, rồi vào Phase 4, chạy `quality_check` đầy đủ — verdict từ phiên khác không gắn được với SHA này |
+| 7 | Mọi trường hợp khác — ví dụ epic branch chỉ có trên remote (đã làm ở clone khác), hoặc task `in-progress` hay `done` mà không có epic branch | Không nhất quán | Dừng, báo các tín hiệu, hỏi |
 
 Thông báo dòng đã chọn: "Entry point: row N — <state>."
 
@@ -253,7 +255,9 @@ Thông báo dòng đã chọn: "Entry point: row N — <state>."
    `git status --short`. Thay đổi chưa commit mà không có task nào bị ngắt vẫn được trình bày ở bước
    3, với cùng lựa chọn giữ lại hoặc bỏ đi.
 3. **Gate 3 (tiếp tục).** Trước hết chạy kiểm tra mapping BDD của Phase 1 bước 3, kể cả phần bổ
-   sung định danh cho epic thiết kế trước khi có scenario ID; commit bổ sung nằm trên epic branch.
+   sung định danh cho epic thiết kế trước khi có scenario ID; commit bổ sung nằm trên epic branch và
+   chỉ stage đúng những file mà phần bổ sung đã sửa, theo đường dẫn — không bao giờ `git add -A` —
+   để công việc chưa commit của task bị ngắt không lẫn vào đó.
    Sau đó, trong cùng một tin nhắn, trình bày:
    - các task đã `done`, kèm commit của chúng từ `git log --oneline develop..epic/<epic_slug>`;
    - thứ tự còn lại — thứ tự phẳng đã bỏ các task `done`, vẫn thỏa mọi phụ thuộc;
@@ -291,7 +295,8 @@ Red Flags mới trong `dev-lifecycle`:
 
 - Gọi `dev-implementation` ngay sau `dev-designer` mà không hỏi Handoff Choice.
 - Coi Gate 3 của một epic đã đóng gói là đã qua.
-- Chạy lại `dev-brainstorming` hoặc `dev-designer` cho một epic đã có file task.
+- Thiết kế lại một epic đã có file task; yêu cầu mới đi qua mục Updating an Existing Epic của
+  dev-designer.
 - Đóng gói mà không chạy preflight.
 
 Red Flags mới trong `dev-implementation`:

@@ -113,7 +113,7 @@ developer" — so it works in Claude Code, Antigravity and Codex alike:
 
 | File | Change |
 |------|--------|
-| `skills/dev-lifecycle/SKILL.md` | New "Handoff Choice" section between Stage 2 and Stage 3, holding the question (§4) and the packaging procedure (§7). New "Resuming an Epic" rule: when the named epic's directory already holds task files, Gate 2 has passed, so invoke `dev-implementation` with that name and let its Phase 0 pick the entry point (§8). Updated sequence diagram. Document Contract names `handoff.md` beside `task_*.md` as English-only. New Red Flags (§9) |
+| `skills/dev-lifecycle/SKILL.md` | New "Handoff Choice" section between Stage 2 and Stage 3, holding the question (§4) and the packaging procedure (§7). New "Resuming an Epic" rule: a request to implement, continue or resume an epic whose directory already holds task files is past Gate 2, so invoke `dev-implementation` with that name and let its Phase 0 pick the entry point (§8); new requirements for such an epic still go to dev-designer's Updating an Existing Epic. Updated sequence diagram. Document Contract names `handoff.md` beside `task_*.md` as English-only. New Red Flags (§9) |
 | `skills/dev-lifecycle/references/handoff-template.md` | New. The template for `handoff.md` (§6) |
 | `skills/dev-designer/SKILL.md` | Step 3 ends with a pointer to the Handoff Choice; dev-designer never invokes `dev-implementation` directly |
 | `skills/dev-implementation/SKILL.md` | Accepts the epic directory name or the slug. Phase 0 gains Entry-Point Detection and reads `handoff.md` when present. A Resume Procedure joins Phase 1. Phase 1 step 4 sets a `Packaged` epic to `In Progress`. Process diagram and Red Flags updated (§8, §9) |
@@ -139,7 +139,7 @@ Path: `.devtool/epic/<epic_dir>/handoff.md`. English-only, a linked table of con
 | Read First | Ordered list: HLD `.en.md`, `bdd_scenarios.en.md`, source spec `.en.md`, and the task count, with tasks listed in the HLD's Kanban Tasks Breakdown |
 | Resume Prompt | A `text` block the developer pastes into the receiving agent |
 | Open Notes | What the design session knows that the documents do not say: decisions taken in conversation, risks, doubts. `None` when empty |
-| Rules for the Receiving Agent | Do not re-run `dev-brainstorming` or `dev-designer`; raise wrong documents at Gate 3. This handoff does not pass Gate 3. If `git log <sha>..HEAD -- .devtool/epic/<epic_dir>` lists commits, the documents changed after packaging: they win, and this file may be stale |
+| Rules for the Receiving Agent | Do not re-run `dev-brainstorming` or `dev-designer`; raise wrong documents at Gate 3. This handoff does not pass Gate 3. If `git log <sha>..HEAD -- .devtool/epic/<epic_dir>` lists any commit besides the `Package epic for handoff` commit, the documents changed after packaging: they win, and this file may be stale |
 
 Resume Prompt, as rendered with real values:
 
@@ -191,7 +191,7 @@ When the developer picks option 1:
    ```
 
    Task statuses are not touched (D2).
-5. Commit, when `auto_commit` is `true` or absent: stage `handoff.md` and the overview pair, then
+5. Commit, when `auto_commit` is `true` or absent: stage `handoff.md`, the overview pair and any task files fixed at step 1, then
    `git commit -m "[<EPIC_NAME>] Package epic for handoff"`, with no trailer. When `auto_commit` is
    `false`, skip it and warn that an agent in another clone will not see the package.
 6. Offer to push; push only on explicit permission (D7). Say that a receiver in another clone or on
@@ -219,11 +219,13 @@ All read-only, from the main checkout:
 test -f .devtool/epic/<epic_dir>/handoff.md && echo packaged-handoff
 grep -m1 -E '^- \*\*Status\*\*:' .devtool/epic/<epic_dir>/<epic_dir>.en.md
 git rev-parse --verify --quiet refs/heads/epic/<epic_slug>
-git worktree list --porcelain | grep -F "/.worktrees/<epic_dir>"
+git branch -r --list '*/epic/<epic_slug>'
+git worktree list --porcelain | grep -E '^worktree .*/\.worktrees/<epic_dir>$'
 python3 "$SKILL_DIR"/resources/scripts/compute_execution_order.py <epic_slug>
 ```
 
-The last command's flattened order prints each task's status as `[priority, status]`. Task files
+`git branch -r` reveals an epic branch pushed from another clone. The last command's flattened
+order prints each task's status as `[priority, status]`. Task files
 stay in `.devtool/features/` while `done` until Stage 4 archives them, so the scan sees every task.
 
 ### 8.3 Pick the Entry Point
@@ -234,11 +236,11 @@ Evaluate top-down; the first matching row wins.
 |---|---------|-------|-------------|
 | 1 | Overview Status is `Done` | Finished | Report it and stop |
 | 2 | No epic branch, and any task is `backlog` | Queued behind another epic | Stop. Flipping `backlog` to `todo` is the developer's call |
-| 3 | No epic branch, no worktree, every task `todo` | Not started — packaged if `handoff.md` exists | Phase 0 → Phase 1 → Gate 3 → new worktree, as today |
+| 3 | No epic branch locally or on a remote, no worktree, every task `todo` | Not started — packaged if `handoff.md` exists | Phase 0 → Phase 1 → Gate 3 → new worktree, as today |
 | 4 | Epic branch exists, no worktree, some task not `done` | Interrupted, worktree removed | Resume Procedure (§8.4), whose step 1 recreates the worktree with `git worktree add .worktrees/<epic_dir> epic/<epic_slug>` (no `-b`) |
 | 5 | Worktree exists, some task not `done` | Interrupted midway through Stage 3 | Resume Procedure (§8.4) |
-| 6 | Epic branch exists, every task `done` | Tasks finished | Recreate the worktree as in row 4 if it is missing, then Phase 4, a full `quality_check` run — a verdict from another session cannot be tied to this SHA |
-| 7 | Anything else, for example tasks `in-progress` or `done` with no epic branch | Inconsistent | Stop, report the signals, ask |
+| 6 | Epic branch exists, every task `done` | Tasks finished | Recreate the worktree as in row 4 if it is missing and bootstrap it, then Phase 4, a full `quality_check` run — a verdict from another session cannot be tied to this SHA |
+| 7 | Anything else — for example the epic branch only on a remote (work done in another clone), or tasks `in-progress` or `done` with no epic branch | Inconsistent | Stop, report the signals, ask |
 
 Announce the row: "Entry point: row N — <state>."
 
@@ -255,7 +257,9 @@ Announce the row: "Entry point: row N — <state>."
    changes, collect `git status --short`. Uncommitted changes with no interrupted task are still
    presented in step 3, with the same keep-or-discard choice.
 3. **Gate 3 (resume).** First run the BDD mapping check of Phase 1 step 3, including its retrofit
-   for an epic designed before scenario identifiers; the retrofit commit goes on the epic branch.
+   for an epic designed before scenario identifiers; the retrofit commit goes on the epic branch and
+   stages only the files the retrofit touched, by path — never `git add -A` — so the interrupted
+   task's uncommitted work stays out of it.
    Then, in one message, present:
    - the tasks already `done`, with their commits from `git log --oneline develop..epic/<epic_slug>`;
    - the remaining order — the flattened order with `done` tasks removed, which keeps every
@@ -296,7 +300,8 @@ New Red Flags in `dev-lifecycle`:
 
 - Invoking `dev-implementation` straight after `dev-designer` without asking the Handoff Choice.
 - Treating a packaged epic's Gate 3 as already passed.
-- Re-running `dev-brainstorming` or `dev-designer` for an epic whose task files already exist.
+- Redoing the design of an epic whose task files already exist; new requirements go to
+  dev-designer's Updating an Existing Epic.
 - Packaging without the preflight.
 
 New Red Flags in `dev-implementation`:
