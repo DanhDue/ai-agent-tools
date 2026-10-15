@@ -14,7 +14,7 @@ order: "a3"
 
 # Task 3: Lifecycle signal integration tests
 
-Epic: [lifecycle-followups](../epic/lifecycle_followups/lifecycle_followups.en.md)
+Epic: [lifecycle-followups](lifecycle_followups.en.md)
 
 ## Requirement Analysis
 

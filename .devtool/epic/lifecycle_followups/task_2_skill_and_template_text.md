@@ -14,7 +14,7 @@ order: "a2"
 
 # Task 2: Skill and template text
 
-Epic: [lifecycle-followups](../epic/lifecycle_followups/lifecycle_followups.en.md)
+Epic: [lifecycle-followups](lifecycle_followups.en.md)
 
 ## Requirement Analysis
 

@@ -14,7 +14,7 @@ order: "a1"
 
 # Task 1: Traceability script reads coverage faithfully
 
-Epic: [lifecycle-followups](../epic/lifecycle_followups/lifecycle_followups.en.md)
+Epic: [lifecycle-followups](lifecycle_followups.en.md)
 
 ## Requirement Analysis
 
