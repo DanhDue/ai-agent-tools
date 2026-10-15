@@ -69,6 +69,8 @@ EXPECTED = {
         'profile `epic`',
         "`repository_sha`",
         "FAIL > BLOCKED > PASS",
+        "check_bdd_traceability.py tests",
+        "Granting Gate 4 without a passing traceability check",
     ),
     "skills/pr_review/SKILL.md": (
         '"profile": "pr"',

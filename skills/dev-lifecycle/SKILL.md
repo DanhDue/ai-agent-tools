@@ -34,7 +34,7 @@ flowchart TD
     S3["Stage 3 — Isolated Execution<br/>(dev-implementation)"]
     G3{"Gate 3<br/>Execution order confirmed?"}
     EXEC["Phase 2-3: task-by-task TDD<br/>one commit per task, doc sync on divergence,<br/>integrate with develop after each task"]
-    G4{"Gate 4<br/>quality_check 🟢 LGTM?"}
+    G4{"Gate 4<br/>BDD traceability + quality_check 🟢 LGTM?"}
     REVIEW["Phase 4.1: Developer Kanban Review<br/>(All tasks held in DONE column for visual inspection)"]
     G5{"Gate 5<br/>User sign-off &amp; finish approved?"}
     S4["Stage 4 — Finish Branch &amp; Archival<br/>(finishing-a-development-branch)"]
@@ -120,7 +120,7 @@ on your own judgement.
 | **1** | Spec Approved | User | end of `dev-brainstorming` | `YYYY-MM-DD-<topic>-design.en.md` + `.vi.md` |
 | **2** | HLD & Task Breakdown | User | `dev-designer` task-breakdown checkpoint | `<epic_dir>.en.md` + `.vi.md` + `bdd_scenarios.en.md` + `.vi.md` + `task_*.md` |
 | **3** | Execution Order | User | `dev-implementation` Phase 1 checkpoint | confirmed order + bootstrapped worktree |
-| **4** | Quality LGTM & Check 2 | `quality_check` | `dev-implementation` Phase 4 | 🟢 report + coverage matrix + merge-ready branch |
+| **4** | Quality LGTM & Check 2 | `check_bdd_traceability.py` + `quality_check` | `dev-implementation` Phase 4 | 🟢 report + coverage matrix + BDD traceability matrix + merge-ready branch |
 | **5** | Developer Kanban Sign-Off | User | `dev-implementation` Phase 4.1 checkpoint | User confirmation to proceed with branch finishing and archival |
 
 ## Stages
@@ -163,7 +163,7 @@ architecture was already approved at Gate 1.
 ### Stage 3 — Isolated Execution → `dev-implementation`
 
 **Entry:** Gate 2 passed; HLD and `task_*.md` files exist.
-**Exit (Gate 5):** `quality_check` reports 🟢 LGTM (Gate 4) AND the user explicitly reviews the completed tasks on the Kanban dashboard and approves finishing the branch (Gate 5).
+**Exit (Gate 5):** Gate 4 is 🟢 LGTM (BDD traceability and `quality_check`) AND the user explicitly reviews the completed tasks on the Kanban dashboard and approves finishing the branch (Gate 5).
 
 Gate 3 sits inside this stage, at the end of Phase 1: present the computed execution order and
 get confirmation **before** creating any worktree or dispatching any subagent.
@@ -173,15 +173,15 @@ from the HLD, sync the epic docs before starting the next task. After every task
 branch with `develop` — rebase, then re-verify by tier — before the next one starts.
 
 **Gate 4 Machine Acceptance Criteria:**
-Gate 4 grants `🟢 LGTM` only when the provider-based quality orchestrator (`@quality_check`) returns an aggregated verdict of **PASS** bound to the exact candidate commit SHA (`git rev-parse HEAD`), evaluating all registered providers declared in `.agents/quality/check_quality.json` with profile `epic` against `<base_ref>`.
+Gate 4 grants `🟢 LGTM` only when `check_bdd_traceability.py tests` exits 0 — every scenario in `bdd_scenarios.en.md` covered by at least one integration test, no test referencing a removed scenario — **and** the provider-based quality orchestrator (`@quality_check`) returns an aggregated verdict of **PASS**, both bound to the exact candidate commit SHA (`git rev-parse HEAD`), with `@quality_check` evaluating all registered providers declared in `.agents/quality/check_quality.json` with profile `epic` against `<base_ref>`.
 
 Gate 4 conditions:
 1. **Normalized Invocation Contract**: Invocation must explicitly pass `profile: "epic"`, target `base_ref`, and candidate `repository_sha`. Direct defaults or unprofiled executions are rejected.
 2. **Deterministic Aggregation**: All registered providers supporting `epic` must execute or resolve cleanly. Precedence is strict: `FAIL > BLOCKED > PASS`. If any provider returns `FAIL` or `BLOCKED`, the overall verdict is `FAIL` or `BLOCKED`.
 3. **No Partial or In-Progress Approvals**: `BLOCKED` cannot transition Gate 4 to approved. Parallel provider executions remain one lifecycle gate; the lifecycle waits for complete aggregate synthesis and never approves on the first provider to finish.
-4. **Candidate Immutability**: A 🟢 verdict belongs strictly to the SHA on which quality check ran. If any subsequent commit or rebase mutates the branch after Gate 4, the prior verdict is stale and a fresh epic quality run is required before landing.
+4. **Candidate Immutability**: A 🟢 verdict belongs strictly to the SHA on which the traceability check and quality check ran. If any subsequent commit or rebase mutates the branch after Gate 4, the prior verdict is stale and a fresh epic quality run is required before landing.
 
-If `@quality_check` reports `FAIL` or `BLOCKED`, Gate 4 routes back to Stage 3 Phase 2 (`dev-implementation`) with the complete actionable defect and blocker report.
+If the traceability check exits non-zero, or `@quality_check` reports `FAIL` or `BLOCKED`, Gate 4 routes back to Stage 3 Phase 2 (`dev-implementation`) with the complete actionable defect and blocker report.
 
 A 🟢 verdict belongs to the SHA it ran on. If `develop` moves after Gate 4, Stage 4 rebases the
 branch and re-verifies it by tier before landing.
@@ -201,7 +201,7 @@ Once Gate 4 passes, all completed tasks MUST remain in `.devtool/features/done/`
 | 1 | Stage 1 — revise the spec, re-run its self-review |
 | 2 | Stage 2 — adjust the breakdown; only revisit Stage 1 if scope itself was wrong |
 | 3 | Stage 3 Phase 1 — reorder by hand; prose notes in task files outrank the calculator |
-| 4 | Stage 3 Phase 2 — fix findings in the worktree, then re-run `quality_check` in full |
+| 4 | Stage 3 Phase 2 — fix findings in the worktree, then re-run the traceability check and `quality_check` in full |
 | 5 | Stage 3 Phase 2 — implement user-requested changes or fixes |
 
 Never advance on a partial pass, and never re-run only the previously failing check at Gate 4 —
@@ -215,6 +215,7 @@ the 🟢 verdict must come from a complete run.
 - Merging several sub-project specs into one epic directory.
 - Creating a worktree or dispatching a subagent before Gate 3.
 - Merging to `develop` without a 🟢 from Gate 4.
+- Granting Gate 4 without a passing traceability check on the same SHA.
 - Merging to `develop` by hand instead of through `integrate_branch.py land`.
 - Starting a task while the previous task's integration with `develop` is red.
 - Invoking `finishing-a-development-branch` without passing Gate 5 (explicit user sign-off after Kanban review).
@@ -243,5 +244,5 @@ the 🟢 verdict must come from a complete run.
 | 1 | `dev-brainstorming` | 1 |
 | 2 | `dev-designer` | 2 |
 | 3 | `dev-implementation` | 3, triggers 4, and enforces 5 |
-| 3 (verification) | `quality_check` | 4 |
+| 3 (verification) | `quality_check` + `check_bdd_traceability.py` | 4 |
 | 4 | `finishing-a-development-branch` | — |
