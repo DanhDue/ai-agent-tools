@@ -85,6 +85,7 @@ Each document MUST contain the following sections:
      ```
      Inspect blast radius, downstream callers, native `MethodChannel` bridges, and coverage safety nets before freezing contracts.
    - **Integration Test Plan & Boundary Matrix**: Map every Use Case and Sequence Diagram interaction into an explicit Integration Test Plan. Detail the end-to-end integration boundaries, mock/live services, data stores, and multi-component seams. For Web/UI applications, explicitly specify the **Visual & Browser Verification Matrix** (target viewports, URL routes/query parameters, interactive states, audio/video playback, and DOM verification).
+   - **Integration Test Roots**: The Integration Test Plan MUST contain the line `Integration test roots: <dir>, <dir>` naming every directory that holds integration tests. Defaults: `tests/e2e/` (Web), `integration_test/` (Flutter), `app/src/test/` and `shell/src/test/` (Android), `App/Tests/` and `Shell/Tests/` (iOS), `tests/integration/` (Python), `tests/` (Rust). `check_bdd_traceability.py` scans exactly these directories.
    - **Comprehensive BDD Test Scenarios**: A detailed Gherkin suite (`Given - When - Then`) covering all Use Cases and Sequence Diagram flows across the **Mandatory 5-Dimension Boundary Matrix**:
      1. **Happy Paths**: Normal data flow and standard successful outcomes.
      2. **Edge Cases & Boundaries**: Null inputs, empty arrays/collections, malformed payloads, boundary numbers.
@@ -97,6 +98,7 @@ Each document MUST contain the following sections:
      - Vietnamese: `.devtool/epic/<epic_name>/bdd_scenarios.vi.md`
    - Each file MUST contain a linked table of contents covering every `##` section.
    - Both files MUST organize scenarios by Use Case, exhaustively covering all 5 dimensions above in Gherkin syntax.
+   - **Scenario IDs**: Every `Scenario:` or `Scenario Outline:` line starts with a unique identifier in brackets, before any tier tag: `Scenario: [PY-HP-01] [Tier C - Integration] ...`. Shape: uppercase segments joined by `-`, ending in digits; convention `<EPIC>-<DIM>-<NN>` with `HP`, `EC`, `ST`, `AR`, `FR` for the five dimensions. The `.vi.md` file carries exactly the same identifiers, untranslated. The first segment is this epic's prefix and MUST NOT be used by any other epic in the project, because integration test roots hold every epic's tests; list the prefixes already taken with `grep -ho '\[[A-Z][A-Z0-9]*-' .devtool/epic/*/bdd_scenarios.en.md | sort -u`.
    - **Dual Value Purpose**:
      1. *Human Maintenance (Living Documentation)*: Enables any incoming developer to instantly comprehend the business intent, state transitions, boundary limits, and resilience rules without wading through implementation code.
      2. *Instant AI Agent Context Injection*: Provides a dense, unambiguous behavioral contract that can be loaded into an AI Agent's context window in one shot, eliminating hallucinations and ensuring rigorous compliance during implementation or bug fixes.
@@ -121,6 +123,8 @@ python3 skills/doc_quality_check/resources/scripts/check_document.py \
 
 ### Checkpoint: Confirm Task Breakdown Before Writing Task Files
 Before generating any task file, list the proposed tasks as a short numbered summary (title + one-line scope each) and ask the user to confirm the breakdown and granularity. This is a lightweight check, not a full brainstorming dialogue — the architecture is already approved (from the spec or from this skill's own Step 1); only the *task split* is new and unapproved. Only proceed to write task files once the user confirms or adjusts the list.
+
+Beside each proposed task, list the epic scenario identifiers it will cover (its future `Covers:` line, see Tier C — BDD Automation below), so the user approves the scenario-to-task mapping together with the split.
 
 ### Concurrent-Epic Backlog Rule
 Before writing any task file, check `.devtool/features/*.md` (excluding the `done/` and `archived/` subfolders) for a task whose `epic:` frontmatter field names a *different* epic and whose `status` is `todo`, `in-progress`, or `review` — that means another epic is actively being worked on right now. If so:
@@ -175,6 +179,11 @@ Every Epic breakdown MUST explicitly structure and address all 3 testing tiers a
 - **Tier A (Unit / Crate Tests)**: Tasks covering core domain models, business logic, parsers, algorithms, and state machines with isolated unit tests (`cargo test --lib`). Executed by the **TDD Master (Dev Persona)**.
 - **Tier B (Tooling & Governance Tests)**: Tasks touching shared crates or public APIs MUST verify formatting (`just fmt` or `cargo fmt --check`), clippy warnings denied (`just lint` or `cargo clippy -D warnings`), dependency licensing/security (`cargo deny check`), and architecture boundaries (`cargo run -p xtask -- check-boundaries`).
 - **Tier C (Acceptance & App Tests)**: Every Epic MUST include an explicit final integration task verifying composition roots, WASM bindings (`just wasm-test`), FFI exports, and running end-to-end acceptance tests (`cargo test --test '*'` or `just acceptance`). Executed by the **System Integration Engineer (Integration Persona)**.
+
+##### 🔗 Tier C — BDD Automation (All Platforms)
+- Every scenario in `bdd_scenarios.en.md` MUST be covered by **at least one automated integration test**, whatever its tier tag. One test may cover several scenarios. There are no waivers: a scenario that cannot be automated is rewritten before Gate 2.
+- The test carries the scenario identifier in its name, description or tag (`test_py_hp_01_...`, `func test_PY_HP_01_...()`, `testWidgets('[PY-HP-01] ...')`, ``@Test fun `PY-HP-01 ...`()``) and lives under one of the HLD's `Integration test roots`.
+- Each identifier is assigned to at least one task through that task's `Covers:` line. The final Tier C task takes every identifier no earlier task covers.
 
 ```mermaid
 flowchart TD
@@ -287,6 +296,7 @@ Each task file MUST adhere to this exact structure:
    - **Target Test Coverage Threshold**: Minimum line coverage threshold (100% for Security, $\ge 85\%$ for Domain UseCases, $\ge 80\%$ for UI/BLoC).
 8. **BDD Scenarios & Acceptance Criteria (The QA Persona)**:
    Document this section under the markdown heading `### BDD SCENARIOS`.
+   Directly under that heading, write the line `Covers: <ID>, <ID>` naming the epic scenario identifiers from `bdd_scenarios.en.md` whose integration tests this task writes. Omit the line only when the task covers no epic scenario, for example a Tier B tooling task.
    Define behavioral scenarios using Gherkin syntax (`Given - When - Then`).
 
    **Strict Adversarial Independence Mandate**:
@@ -305,7 +315,7 @@ Each task file MUST adhere to this exact structure:
    **Tier Categorization Tagging & 100% Traceability Mandate**:
    - `[Tier A - Unit]`: Scenarios covering class/function level logic, BLoCs/ViewModels, UseCases, Repositories, Parsers, and Guards. Must be covered 100% by unit tests.
    - `[Tier C - Integration]`: Scenarios covering end-to-end user navigation, Host App lifecycle, Tab switching, Auth Gating & Replay, and multi-component seams (including media playback synchronization, live database states, and web route transitions). Must be covered 100% by integration tests.
-   - **Zero Uncovered Scenarios Rule**: Every authored BDD scenario across all 5 dimensions MUST map 1-to-1 or 1-to-N to an automated test case. Unit tests with mocks do NOT substitute for Tier C integration tests.
+   - **Zero Uncovered Scenarios Rule**: Every authored BDD scenario across all 5 dimensions MUST map to at least one automated test case. Unit tests with mocks do NOT substitute for Tier C integration tests.
 
 9. **Test & Verification Checklist**:
    - **For Flutter Tasks (Dev Persona / Integration Persona)**:
@@ -350,6 +360,16 @@ Each task file MUST adhere to this exact structure:
 12. **References & Rollback**: Links to docs, APIs, and a rollback strategy if this specific task fails.
 
 ### Step 3: Finalize & Commit
+Before committing — and whether or not `auto_commit` is enabled — confirm that every epic scenario is assigned to a task. `SKILL_DIR` is the directory containing this `SKILL.md`:
+
+```bash
+python3 "$SKILL_DIR"/../dev-implementation/resources/scripts/check_bdd_traceability.py plan \
+  --scenarios .devtool/epic/<epic_name>/bdd_scenarios.en.md \
+  --tasks .devtool/epic/<epic_name>/task_*.md
+```
+
+It must exit 0. Exit 1 names the unassigned, unknown or malformed identifiers: fix the task files or the scenario documents and run it again. Pass the epic directory's task mirrors, never `.devtool/features/task_*.md`, which can hold other epics' tasks.
+
 After the Epic Overview and all confirmed task files are written (or updated), commit them to git:
 - Read `.agents/config.json` — check the `auto_commit` setting.
 - If `auto_commit: true`: stage exactly the generated/modified paths (the epic's `.devtool/epic/<epic_name>/` directory and each new/modified `.devtool/features/task_*.md` file). Then commit:
@@ -361,7 +381,7 @@ After the Epic Overview and all confirmed task files are written (or updated), c
 - If `auto_commit: false`: skip staging and committing entirely.
 
 ### Updating an Existing Epic
-When new requirements arrive for an epic already in progress, append new task files continuing the sequence, and append links to the Epic Overview's Kanban Tasks Breakdown section (in both `.en.md` and `.vi.md`). Update the Mermaid diagrams if architecture changes.
+When new requirements arrive for an epic already in progress, append new task files continuing the sequence, and append links to the Epic Overview's Kanban Tasks Breakdown section (in both `.en.md` and `.vi.md`). Update the Mermaid diagrams if architecture changes. If the epic's `bdd_scenarios.en.md` predates scenario identifiers, retrofit the whole epic first — identifiers, `Covers:` lines and the `Integration test roots:` line, as dev-implementation Phase 1 step 3 describes — before running the Step 3 `plan` check.
 
 ## Red Flags - STOP and Start Over
 - Writing task files before the user has confirmed the task breakdown checkpoint.
@@ -374,3 +394,5 @@ When new requirements arrive for an epic already in progress, append new task fi
 - Mixing languages within a single task file.
 - Using legacy Mermaid syntax (`graph TD`/`graph LR` instead of `flowchart TD`/`flowchart LR`), unquoted special-character labels, or malformed Graphviz (DOT) diagrams.
 - Violating markdown lint standards (e.g. untagged code blocks, heading skips, trailing whitespace).
+- Writing a scenario in `bdd_scenarios.*.md` without a bracketed identifier, or a task that writes integration tests without its `Covers:` line.
+- Committing the epic before `check_bdd_traceability.py plan` exits 0.

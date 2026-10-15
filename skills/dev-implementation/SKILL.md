@@ -48,7 +48,7 @@ flowchart TB
     diverged{"Divergence\nfrom the HLD?"}
     phase3["Phase 3: Doc Sync\n(direct edits, no skill)"]
     integrate["Phase 2 step 7: Integrate with develop\nintegrate_branch.py preflight, rebase, verify-tier"]
-    phase4["Phase 4: End of Epic Verification\nquality_check (Platform 3-Tier + 4 Specialist Audits)"]
+    phase4["Phase 4: End of Epic Verification\ncheck_bdd_traceability.py tests, then\nquality_check (Platform 3-Tier + 4 Specialist Audits)"]
     checkpoint4{"Phase 4.1 Checkpoint:\nUser Kanban Review & Sign-Off?\n(All tasks held in done/)"}
     phase5["Phase 5: Finish Branch & Archival\nd3nexus:finishing-a-development-branch\n(Pre-finish Hook: sync_task_status archive-done)"]
     style phase4 fill:green
@@ -113,6 +113,16 @@ flowchart TB
    for the rest of this epic — at Phase 1 step 4 and at every Phase 2 step 7. If the user declines,
    skip `sync-base` in step 4, and stop to ask whenever step 7's preflight reports
    `relation: behind`.
+
+   Before presenting the order, run the mapping check from dev-designer Step 3:
+
+   ```bash
+   python3 "$SKILL_DIR"/resources/scripts/check_bdd_traceability.py plan \
+     --scenarios .devtool/epic/<epic_dir>/bdd_scenarios.en.md \
+     --tasks .devtool/epic/<epic_dir>/task_*.md
+   ```
+
+   An epic designed before BDD traceability fails it. Add bracketed identifiers with a prefix no other epic uses to both `bdd_scenarios` variants, `Covers:` lines to the task files and their mirrors, and the `Integration test roots:` line to both HLD variants. Re-run the check until it exits 0, commit the result as `[EPIC_NAME] Add BDD scenario identifiers` before creating the worktree, and show the mapping in the checkpoint message.
 
 #### Phase 1 (continued) — Worktree Bootstrap, once the order is confirmed
 
@@ -188,7 +198,7 @@ For each task in the confirmed order, follow `d3nexus:subagent-driven-developmen
    ```
    This automatically updates `status: "in-progress"` and advances `modified:` in both the isolated worktree and the main workspace checkout without creating an untracked git commit.
 
-   **CRITICAL TRI-PERSONA DISPATCH**: When dispatching the implementer subagent, inject the Tri-Persona instructions adapted to the detected platform:
+   **CRITICAL TRI-PERSONA DISPATCH**: When dispatching the implementer subagent, inject the Tri-Persona instructions adapted to the detected platform, followed by the BDD-to-test traceability rule block after the platform blocks, the task's `Covers:` identifiers and the HLD's `Integration test roots`:
 
    ##### 💙 If Project Type is `flutter`:
    > You are a tri-persona system operating across the Flutter 3-Tier Testing Standard:
@@ -277,14 +287,21 @@ For each task in the confirmed order, follow `d3nexus:subagent-driven-developmen
    >    - `[Tier A - Unit]` scenarios MUST be covered 100% by unit tests executed by the Dev Persona (TDD Master).
    >    - `[Tier C - Integration]` scenarios MUST be covered 100% by integration/E2E flow tests (`tests/e2e/`, `integration_test/`, `*FlowTest.kt`, etc.) executed by the Integration Persona.
    > 3. **No Fake Substitution**: Unit tests with mocks DO NOT substitute for Tier C integration tests of integration contracts, live database states, or browser lifecycles.
-   > 4. **Gate to Done**: A task CANNOT be marked `done` (`sync_task_status.py task <id> done`) unless 100% of its BDD scenarios have passing automated tests and verified outputs.
+   > 4. **BDD Automation (Tier C, all platforms)**: For every identifier on the task's `Covers:` line, the Integration Persona writes at least one integration test under the HLD's `Integration test roots`, carrying the identifier in the test's name, description or tag (`test_py_hp_01_...`, `func test_PY_HP_01_...()`, `testWidgets('[PY-HP-01] ...')`, ``@Test fun `PY-HP-01 ...`()``).
+   > 5. **Gate to Done**: A task CANNOT be marked `done` (`sync_task_status.py task <id> done`) unless 100% of its BDD scenarios have passing automated tests and verified outputs, and — when the task has a `Covers:` line — this exits 0 when run in the epic worktree:
+   >    ```bash
+   >    python3 "$SKILL_DIR"/resources/scripts/check_bdd_traceability.py tests \
+   >      --scenarios .devtool/epic/<epic_dir>/bdd_scenarios.en.md \
+   >      --roots <Integration test roots from the HLD> \
+   >      --ids <identifiers on the task's Covers: line>
+   >    ```
 
 2. Once the implementer reports `DONE`, synchronize review status:
    ```bash
    python3 skills/dev-implementation/resources/scripts/sync_task_status.py task <task_id> review
    ```
 3. If review finds issues, cycle between `status: "in-progress"` and `status: "review"` through the fix loop using `sync_task_status.py`.
-4. Only once both reviews pass, update status to `done`:
+4. Only once both reviews pass and the task's Gate to Done traceability check (`check_bdd_traceability.py tests --ids`, run in the epic worktree) exits 0, update status to `done`:
    ```bash
    python3 skills/dev-implementation/resources/scripts/sync_task_status.py task <task_id> done
    ```
@@ -360,14 +377,22 @@ Only when Phase 2 flags divergence:
 
 ### Phase 4 — End of Epic Verification (@quality_check)
 
-Once every task is `done`, resolve the candidate commit SHA (`git rev-parse HEAD`) and run the provider-based **`@quality_check`** orchestrator on the epic worktree before finishing the branch:
+Once every task is `done`, resolve the candidate commit SHA (`git rev-parse HEAD`) and, in the epic worktree with a clean working tree (`git status --porcelain` prints nothing, so the result belongs to that SHA), run the full BDD traceability check first:
+
+```bash
+python3 "$SKILL_DIR"/resources/scripts/check_bdd_traceability.py tests \
+  --scenarios .devtool/epic/<epic_dir>/bdd_scenarios.en.md \
+  --roots <Integration test roots from the HLD>
+```
+
+It must exit 0: every scenario in `bdd_scenarios.en.md` is covered by at least one integration test, and no test references a removed scenario. On exit 1 or 2, route back to Phase 2 and do not run `@quality_check` yet. If the failure is the scenario document itself — scenario lines without identifiers, from an epic designed before BDD traceability — apply the Phase 1 step 3 retrofit in the epic worktree, commit it on the epic branch as `[EPIC_NAME] Add BDD scenario identifiers`, add the missing integration tests, and re-run. Then run the provider-based **`@quality_check`** orchestrator on the same SHA before finishing the branch:
 
 1. Pass explicit normalized invocation inputs:
    - `profile`: `"epic"`
    - `base_ref`: `<base_ref>` (e.g. `main` or `develop`)
    - `repository_sha`: Candidate commit SHA from `git rev-parse HEAD`
 2. `@quality_check` discovers all project-registered providers supporting `epic` from `.agents/quality/check_quality.json`, invokes them, validates result contracts, and synthesizes the unified executive quality report.
-3. Only an aggregated verdict of **PASS** bound to that exact SHA qualifies for Gate 4 `🟢 LGTM`.
+3. Only an aggregated verdict of **PASS** bound to that exact SHA, on which the traceability check also exited 0, qualifies for Gate 4 `🟢 LGTM`.
 4. If `@quality_check` reports `FAIL` or `BLOCKED` (or SHA drift occurs), route back to Phase 2 to resolve blockers and defects before re-running verification in full.
 
 ### Phase 4.1 — Developer Kanban Review Checkpoint (🛑 MANDATORY STOP & WAIT — Gate 5)
@@ -378,6 +403,7 @@ Once `@quality_check` reports 🟢 LGTM and all tasks are completed:
    - Epic slug and worktree path.
    - List of all completed tasks in `.devtool/features/done/`.
    - The `@quality_check` verdict (3-Tier test results, 4 semantic audits, coverage matrix, Check 2 impact diff).
+   - The BDD traceability matrix printed by `check_bdd_traceability.py tests`.
 3. 🛑 **MANDATORY STOP & WAIT**:
    - The agent MUST STOP calling tools immediately.
    - Do NOT proceed to Phase 5 or invoke `finishing-a-development-branch` automatically.
@@ -423,6 +449,7 @@ Only after the user explicitly approves Gate 5 at the Phase 4.1 Checkpoint:
 | Run each task | `subagent-driven-development` | `subagent-driven-development` | `subagent-driven-development` |
 | Integrate after each task | `integrate_branch.py` preflight, rebase, verify-tier | Same | Same |
 | Per-task TDD | `test-driven-development` (Dart/BLoC) | `test-driven-development` (Kotlin/Compose) | `test-driven-development` (Swift/SwiftUI) |
+| BDD traceability (per task with `--ids`, then full) | `check_bdd_traceability.py tests` | Same | Same |
 | End-of-epic verification | `@quality_check` (Flutter 3-Tier + 4 Audits) | `@quality_check` (Gradle 3-Tier + 4 Audits + cleanup-java) | `@quality_check` (iOS 3-Tier + 4 Audits) |
 | Finish epic branch | `d3nexus:finishing-a-development-branch` | Same | Same |
 
@@ -453,6 +480,8 @@ Only after the user explicitly approves Gate 5 at the Phase 4.1 Checkpoint:
 - Resolving a semantic rebase conflict without asking the user.
 - Running cross-platform commands inappropriately (e.g., Gradle on Flutter/iOS, Melos on Android/iOS, Tuist/Swift on Flutter/Android).
 - Merging to `develop` without passing `@quality_check` (🟢 LGTM).
+- Marking a task `done` while `check_bdd_traceability.py tests --ids <its Covers identifiers>` fails.
+- Running `@quality_check` for Gate 4 before the full traceability check exits 0, or on a commit that check did not see.
 - Automatically invoking `finishing-a-development-branch` without stopping at Phase 4.1 and waiting for user Gate 5 approval.
 - Archiving tasks from `.devtool/features/done/` before the user has reviewed them on the Kanban dashboard.
 - Leaving completed `task_*.md` files in `.devtool/features/done/` after branch integration instead of archiving them into `.devtool/epic/<epic_dir>/`.

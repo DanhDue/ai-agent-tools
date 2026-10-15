@@ -122,6 +122,8 @@ before or after the match. That lets every platform use its idiom:
   and lowercase forms count towards coverage but not towards staleness: in `test_py_hp_01_retry_2`
   the script cannot tell where an identifier ends and a test name begins, and a short prefix such as
   `PY` would flag unrelated lowercase text like `py-3`.
+- A stale token must also have the shape of this document's identifiers — the same prefix and the
+  same number of segments — so unrelated codes such as `UTF-8` or `PAY-1001` are never flagged.
 
 ## 6. Design Declarations
 
