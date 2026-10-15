@@ -8,6 +8,25 @@ every installed machine on the old cached copy.
 
 ---
 
+## 1.8.0 — 2026-10-15
+
+Introduces automated 100% BDD-to-Test integration traceability tooling with Gate 4 verification, formalizes Stage 4 (Gate 5) Epic Handoff Choice and packaging lifecycle, and integrates entry-point detection and in-flight epic resume capabilities into `dev-implementation`.
+
+### Added
+
+- **BDD Integration Traceability Tooling** (`skills/dev-implementation/resources/scripts/check_bdd_traceability.py`): Standalone CLI tool with `plan` and `tests` modes enforcing 100% traceability between Gherkin BDD scenario identifiers (e.g. `[SCN-FEATURE-001]`) and executable test cases. Validates bracketed IDs, checks for stale references, and verifies test suites directly.
+- **Scenario IDs and Covers Mapping in Design** (`skills/dev-designer/`): Requires all BDD scenarios to carry uppercase hyphenated scenario IDs, mandates a `Covers:` metadata line in Kanban task files, and requires Tier C BDD Automation coverage across all testable requirements.
+- **BDD Traceability Enforcement in Implementation** (`skills/dev-implementation/`): Enforces that the System Integration Engineer (Tier C persona) authors an automated test for every identifier in the task's `Covers:` line. Gates task completion on `check_bdd_traceability.py tests --ids` exit 0, and runs full traceability verification before `quality_check` in Phase 4.
+- **Gate 4 BDD Traceability Verification** (`skills/dev-lifecycle/`): Mandates that `check_bdd_traceability.py tests` exits 0 alongside `quality_check` PASS on the exact same commit SHA before passing Gate 4.
+- **Epic Handoff Choice & Packaging Lifecycle** (`skills/dev-lifecycle/`): Introduces formal Stage 4 (Gate 5) handoff protocol with 4 explicit delivery options:
+  1. *Pull Request & Review*: Push branch, open PR, and delegate to `pr_review`.
+  2. *Push Branch*: Push epic branch to remote and notify user.
+  3. *Local Merge*: Fast-forward / rebase merge directly to local base branch with post-merge verification.
+  4. *Pack & Park*: Clean worktree, preserve branch, and archive tasks into `.devtool/epic/<epic_dir>/` for future handoff.
+- **Entry-Point Detection & Epic Resume** (`skills/dev-implementation/`): Auto-detects whether an epic is starting fresh (Row 1) or resuming from an existing branch or worktree (Rows 4/6). Recreates worktrees when needed, discovers entry points, and provides BDD mapping retrofits for epics created before scenario identifiers.
+
+---
+
 ## 1.7.1 — 2026-10-12
 
 Enforces 100% BDD-to-Test Traceability rule across lifecycle design, implementation, and observation skills. Extends `dev-designer`, `dev-implementation`, and `writing-plans` with automated Tier C integration test suites and live web browser verification, introduces dedicated Web Frontend Tri-Persona and Python Clean Architecture support across project detection, worktree bootstrap, and 3-Tier Testing discipline.
