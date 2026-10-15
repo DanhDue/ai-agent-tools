@@ -32,6 +32,7 @@ EXPECTED = {
         "Covers:",
         "Integration test roots:",
         "at least one automated integration test",
+        "Handoff Choice",
     ),
     "skills/writing-plans/SKILL.md": (
         "YYYY-MM-DD-<feature-name>.en.md",
@@ -71,6 +72,10 @@ EXPECTED = {
         "FAIL > BLOCKED > PASS",
         "check_bdd_traceability.py tests",
         "Granting Gate 4 without a passing traceability check",
+        "Handoff Choice",
+        "handoff-template.md",
+        "Resuming an Epic",
+        "Packaged",
     ),
     "skills/pr_review/SKILL.md": (
         '"profile": "pr"',

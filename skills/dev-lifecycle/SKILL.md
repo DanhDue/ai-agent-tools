@@ -31,6 +31,8 @@ flowchart TD
     PLANS(["writing-plans<br/>(leaves this workflow)"])
     S2["Stage 2 — Architecture &amp; Tasks<br/>(dev-designer)"]
     G2{"Gate 2<br/>HLD &amp; task breakdown approved?"}
+    HC{"Handoff choice<br/>package or continue?"}
+    PKG(["Package epic<br/>handoff.md, status Packaged, stop"])
     S3["Stage 3 — Isolated Execution<br/>(dev-implementation)"]
     G3{"Gate 3<br/>Execution order confirmed?"}
     EXEC["Phase 2-3: task-by-task TDD<br/>one commit per task, doc sync on divergence,<br/>integrate with develop after each task"]
@@ -46,7 +48,10 @@ flowchart TD
     ROUTE -->|yes| S2
     S2 --> G2
     G2 -->|no, adjust breakdown| S2
-    G2 -->|yes| S3
+    G2 -->|yes| HC
+    HC -->|"1. package"| PKG
+    HC -->|"2. continue"| S3
+    PKG -.->|"later session or another LLM"| S3
     S3 --> G3
     G3 -->|no, reorder| G3
     G3 -->|yes| EXEC
@@ -73,7 +78,8 @@ Every durable design document produced by this lifecycle MUST be emitted as a sy
 `.en.md` and Vietnamese `.vi.md` pair. English is canonical; Vietnamese matches its structure and
 facts. Every variant MUST contain a linked table of contents covering every `##` section, regardless
 of document length. This applies to specs, HLD/overview documents, BDD scenario documents, and
-non-epic implementation plans. `task_*.md` files are the only exception and remain English-only.
+non-epic implementation plans. `task_*.md` files and an epic's `handoff.md` are the only exceptions and remain English-only;
+`handoff.md` still carries a complete table of contents.
 
 ### Markdown Formatting & Lint Standards
 
@@ -119,11 +125,20 @@ on your own judgement.
 |------|------|----------|-------------|------------------|
 | **1** | Spec Approved | User | end of `dev-brainstorming` | `YYYY-MM-DD-<topic>-design.en.md` + `.vi.md` |
 | **2** | HLD & Task Breakdown | User | `dev-designer` task-breakdown checkpoint | `<epic_dir>.en.md` + `.vi.md` + `bdd_scenarios.en.md` + `.vi.md` + `task_*.md` |
-| **3** | Execution Order | User | `dev-implementation` Phase 1 checkpoint | confirmed order + bootstrapped worktree |
+| **3** | Execution Order | User | `dev-implementation` Phase 1 checkpoint, or Gate 3 (resume) in its Resume Procedure | confirmed order + bootstrapped worktree |
 | **4** | Quality LGTM & Check 2 | `check_bdd_traceability.py` + `quality_check` | `dev-implementation` Phase 4 | 🟢 report + coverage matrix + BDD traceability matrix + merge-ready branch |
 | **5** | Developer Kanban Sign-Off | User | `dev-implementation` Phase 4.1 checkpoint | User confirmation to proceed with branch finishing and archival |
 
 ## Stages
+
+### Resuming an Epic
+
+A request to implement, continue or resume an epic whose `.devtool/epic/<epic_dir>/` already holds
+`task_*.md` files is past Gate 2 — whether the epic was packaged (`handoff.md` present, Status
+`Packaged`) or interrupted midway through Stage 3. Announce "Gates 1 and 2 already passed; resuming
+at Stage 3", invoke `dev-implementation` with that epic name, and let its Entry-Point Detection
+choose where to start. Never redo Stage 1 or Stage 2 for it. New requirements for such an epic are
+not a resume: they go to dev-designer's Updating an Existing Epic.
 
 ### Stage 1 — Inception & Spec → `dev-brainstorming`
 
@@ -160,9 +175,71 @@ Treat the approved spec as the source of truth for scope and decisions already m
 it, do not re-litigate it. Gate 2 is a lightweight confirmation of the *task split* only; the
 architecture was already approved at Gate 1.
 
+### Handoff Choice
+
+Between Gate 2 and Stage 3 the developer decides when, and by whom, the epic is implemented. This
+is a routing decision like Stage 1's, not a sixth gate. Ask it once `dev-designer` Step 3 has
+committed the task files — or, with `auto_commit: false`, once they are written:
+
+> Gate 2 passed: the HLD, BDD scenarios and N task files for `<epic_slug>` are written. How do you
+> want to proceed?
+>
+> 1. **Package** — write `handoff.md`, mark the epic `Packaged`, and stop, so the work can be
+>    picked up later or by another LLM.
+> 2. **Continue** — enter Stage 3 now (`dev-implementation`, starting with Gate 3: execution order).
+
+**Continue** → invoke `dev-implementation`. **Package** → run the packaging procedure below, then
+stop: no worktree and no Stage 3 in this session. Resolve the paths from this skill's directory:
+
+```bash
+SKILL_DIR=<absolute path of the directory containing this SKILL.md>
+SCRIPTS="$SKILL_DIR/../dev-implementation/resources/scripts"
+CHECK_DOC="$SKILL_DIR/../doc_quality_check/resources/scripts/check_document.py"
+```
+
+1. **Preflight, read-only.** All of it must pass before anything is written:
+
+   ```bash
+   python3 "$SCRIPTS"/compute_execution_order.py <epic_slug>
+   ls .devtool/epic/<epic_dir>/task_*.md | wc -l
+   python3 "$SCRIPTS"/check_bdd_traceability.py plan \
+     --scenarios .devtool/epic/<epic_dir>/bdd_scenarios.en.md \
+     --tasks .devtool/epic/<epic_dir>/task_*.md
+   ```
+
+   The scan summary's matched count must equal the number of task mirrors, and both scripts must
+   exit 0. A smaller count means broken frontmatter or a wrong `epic:` value; exit 1 means a
+   dependency cycle or a scenario no `Covers:` line names. Fix it now — the receiving agent has no
+   context to diagnose it.
+2. Copy this skill's `references/handoff-template.md` to `.devtool/epic/<epic_dir>/handoff.md`
+   and fill every placeholder. The first column of its Identifiers table names the placeholders and
+   stays as written; drop the source-spec line when the epic has no source spec. Write Open Notes from this
+   session's conversation: decisions, risks and doubts the documents do not record.
+3. Lint it: `python3 "$CHECK_DOC" --require-toc .devtool/epic/<epic_dir>/handoff.md`.
+4. Mark the epic packaged, then confirm both overview variants changed — the script reports the
+   documents it found, not the documents it wrote:
+
+   ```bash
+   python3 "$SCRIPTS"/sync_task_status.py epic <epic_dir> Packaged
+   grep -n -E '^- \*\*(Status|Trạng thái)\*\*: Packaged' \
+     .devtool/epic/<epic_dir>/<epic_dir>.en.md .devtool/epic/<epic_dir>/<epic_dir>.vi.md
+   ```
+
+   Two matching lines are required; with fewer, set the Status line by hand in both variants. Task
+   statuses stay as they are, so a packaged epic still counts as active under dev-designer's
+   Concurrent-Epic Backlog Rule.
+5. Commit, when `auto_commit` is `true` or absent: stage `handoff.md`, the overview pair and any task files fixed at step 1, then
+   `git commit -m "[<EPIC_NAME>] Package epic for handoff"`, with no trailer. When `auto_commit` is
+   `false`, skip it and warn that an agent in another clone will not see the package.
+6. Offer to push, and push only on the developer's explicit permission. Say that a receiver in
+   another clone or on another machine needs the push.
+7. Print the `handoff.md` path and its rendered Resume Prompt, then stop.
+
 ### Stage 3 — Isolated Execution → `dev-implementation`
 
-**Entry:** Gate 2 passed; HLD and `task_*.md` files exist.
+**Entry:** Gate 2 passed, HLD and `task_*.md` files exist, and the developer chose Continue at
+the Handoff Choice — or a packaged or interrupted epic is being resumed (see
+[Resuming an Epic](#resuming-an-epic)).
 **Exit (Gate 5):** Gate 4 is 🟢 LGTM (BDD traceability and `quality_check`) AND the user explicitly reviews the completed tasks on the Kanban dashboard and approves finishing the branch (Gate 5).
 
 Gate 3 sits inside this stage, at the end of Phase 1: present the computed execution order and
@@ -213,7 +290,11 @@ the 🟢 verdict must come from a complete run.
 - Skipping `dev-brainstorming` because "the scope is already clear".
 - Routing an approved spec straight to an implementation skill, skipping Stage 2 for epic-scale work.
 - Merging several sub-project specs into one epic directory.
-- Creating a worktree or dispatching a subagent before Gate 3.
+- Creating a worktree or dispatching a subagent before Gate 3. Recreating the worktree of an epic branch that already exists (dev-implementation's Resume Procedure) is not creating one.
+- Invoking `dev-implementation` straight after `dev-designer` without asking the Handoff Choice.
+- Packaging an epic without the preflight, or pushing the package without explicit permission.
+- Treating a packaged epic's Gate 3 as already passed.
+- Redoing the design of an epic whose task files already exist; new requirements go to dev-designer's Updating an Existing Epic.
 - Merging to `develop` without a 🟢 from Gate 4.
 - Granting Gate 4 without a passing traceability check on the same SHA.
 - Merging to `develop` by hand instead of through `integrate_branch.py land`.
@@ -236,6 +317,7 @@ the 🟢 verdict must come from a complete run.
 | "I'll just write the implementation plan directly" | `implementation_plan.md` is an Antigravity artifact. d3nexus uses `docs/superpowers/specs/` and `.devtool/`. |
 | "The user confirmed the scope, that's basically Gate 1" | Gate 1 is spec approval through `dev-brainstorming`, not a scope question. |
 | "I can combine research + spec into one step" | Stage 1 is `dev-brainstorming`'s job. Invoke the skill. |
+| "The developer obviously wants to continue" | The Handoff Choice is theirs. Ask it every time Gate 2 passes. |
 
 ## Stage Skills
 
