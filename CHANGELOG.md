@@ -8,6 +8,26 @@ every installed machine on the old cached copy.
 
 ---
 
+## 1.8.1 — 2026-10-16
+
+Tightens BDD integration traceability and epic lifecycle reliability: prevents ignored files from masking missing test coverage, accepts prose in task `Covers:` lines, reports non-UTF-8 files as usage errors, discovers remote-only epic branches before fetching, and fixes handoff staleness checks and queued packaging.
+
+### Added
+
+- **Lifecycle Signal Integration Tests** (`scripts/test_lifecycle_signals.py`): Standalone integration test suite testing lifecycle git signals against throwaway repositories: verifies remote branch discovery (`git ls-remote --heads`), fallback on unreachable remotes, handoff staleness check scoping against base branch, and queued epic packaging status synchronization and grep validation. Integrated into `scripts/verify.sh`.
+- **Gitignore-Aware Test File Discovery** (`skills/dev-implementation/resources/scripts/check_bdd_traceability.py`): Scans integration test roots using `git -C <root> ls-files --cached --others --exclude-standard -z` so generated test reports, vendored code, and gitignored artifacts never count toward BDD scenario coverage. Falls back to directory walking when run outside a git repository.
+- **Python E2E Integration Roots Default** (`skills/dev-designer/`): Adds `tests/e2e/` alongside `tests/integration/` in default integration test roots for Python projects.
+
+### Changed
+
+- **Fault-Tolerant Covers Parsing** (`skills/dev-implementation/resources/scripts/check_bdd_traceability.py`): Matches BDD scenario identifiers by token shape (`ID_TOKEN`) across `Covers:` lines, cleanly accepting trailing punctuation and descriptive prose (e.g., `Covers: SCN-01 (happy path), SCN-02.`) without causing false "unknown identifier" failures.
+- **Strict UTF-8 Enforcement** (`skills/dev-implementation/resources/scripts/check_bdd_traceability.py`): Requires scenario documents (`.en.md`, `.vi.md`) and task files to be valid UTF-8, exiting immediately with usage code 2 and a clear error message instead of unhandled decode exceptions.
+- **Direct Remote Branch Discovery** (`skills/dev-implementation/`): Entry-Point Detection checks remote branches using `for remote in $(git remote); do git ls-remote --heads "$remote" "epic/<epic_slug>"; done`, detecting epic branches pushed from other clones before any local `git fetch` runs, and falling back gracefully on unreachable remotes.
+- **Handoff Staleness Scoping** (`skills/dev-lifecycle/references/handoff-template.md`): Scopes the handoff staleness check against `<base_branch>` instead of `HEAD`, preventing task commits on the epic branch from triggering false "stale handoff" warnings. Handles uncommitted designs when `auto_commit` is false.
+- **Queued Epic Packaging & Review Re-Entry** (`skills/dev-lifecycle/`, `skills/dev-implementation/`): Preserves queued status when packaging epics (`Packaged (queued behind <epic>)`), allows interrupted tasks at `review` to re-enter at review verification instead of restarting implementation, and permits BDD retrofit commits to carry interrupted task status fields.
+
+---
+
 ## 1.8.0 — 2026-10-15
 
 Introduces automated 100% BDD-to-Test integration traceability tooling with Gate 4 verification, formalizes Stage 4 (Gate 5) Epic Handoff Choice and packaging lifecycle, and integrates entry-point detection and in-flight epic resume capabilities into `dev-implementation`.
