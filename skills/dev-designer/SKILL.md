@@ -380,6 +380,10 @@ After the Epic Overview and all confirmed task files are written (or updated), c
   scope, one-line title, one bullet per task written. No `Co-Authored-By` or other trailer.
 - If `auto_commit: false`: skip staging and committing entirely.
 
+Then stop and return to the [Handoff Choice](../dev-lifecycle/SKILL.md#handoff-choice) in
+`dev-lifecycle`, which also says when the choice applies after an update: ask the developer whether
+to package the epic or continue to Stage 3. This skill never invokes `dev-implementation` itself.
+
 ### Updating an Existing Epic
 When new requirements arrive for an epic already in progress, append new task files continuing the sequence, and append links to the Epic Overview's Kanban Tasks Breakdown section (in both `.en.md` and `.vi.md`). Update the Mermaid diagrams if architecture changes. If the epic's `bdd_scenarios.en.md` predates scenario identifiers, retrofit the whole epic first — identifiers, `Covers:` lines and the `Integration test roots:` line, as dev-implementation Phase 1 step 3 describes — before running the Step 3 `plan` check.
 
@@ -396,3 +400,4 @@ When new requirements arrive for an epic already in progress, append new task fi
 - Violating markdown lint standards (e.g. untagged code blocks, heading skips, trailing whitespace).
 - Writing a scenario in `bdd_scenarios.*.md` without a bracketed identifier, or a task that writes integration tests without its `Covers:` line.
 - Committing the epic before `check_bdd_traceability.py plan` exits 0.
+- Invoking `dev-implementation` after Step 3 instead of returning to the Handoff Choice.

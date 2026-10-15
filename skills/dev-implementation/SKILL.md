@@ -28,6 +28,7 @@ Read both values off disk at the start — never derive one from the other by gu
 
 - The epic has a `.devtool/epic/<epic_dir>/<epic_dir>.en.md` HLD and one or more `.devtool/features/task_*.md` files with `epic: "<epic_slug>"` in frontmatter, and a human has already approved that design.
 - You are about to implement more than one task from that epic in this session.
+- You are resuming an epic — packaged (`handoff.md` present, Status `Packaged`) or interrupted midway through Stage 3. Invoke this skill with the epic's directory name or slug; Entry-Point Detection in Phase 0 decides where to start.
 
 **Don't use when:** the epic/tasks don't exist yet (use `d3nexus:dev-brainstorming` then `dev-designer` first), or you're implementing a single one-off task with no epic context (just use `d3nexus:subagent-driven-development` directly).
 
@@ -41,6 +42,8 @@ enforced below, in Phase 1.
 ```mermaid
 flowchart TB
     phase0["Phase 0: Context Reload & Platform Detection\n(detect_project_type.sh)"]
+    entry{"Entry-Point Detection\n(rows 1-7)"}
+    resume["Resume Procedure\nGate 3 (resume), reuse the worktree"]
     phase1a["Phase 1: compute_execution_order.py\n(script, no skill)"]
     checkpoint{"Checkpoint:\nuser confirms order?"}
     phase1b["Phase 1 (cont'd): Worktree Bootstrap\nd3nexus:using-git-worktrees\n+ bootstrap_worktree.sh"]
@@ -55,7 +58,11 @@ flowchart TB
     style checkpoint4 fill:#ff9900,color:#000
     style phase5 fill:#4285f4,color:#fff
 
-    phase0 --> phase1a
+    phase0 --> entry
+    entry -- "row 3: fresh start" --> phase1a
+    entry -- "rows 4-5: interrupted" --> resume
+    entry -- "row 6: tasks done" --> phase4
+    resume --> phase2
     phase1a --> checkpoint
     checkpoint -- "adjust order" --> phase1a
     checkpoint -- "confirmed" --> phase1b
@@ -75,11 +82,16 @@ flowchart TB
 
 ### Phase 0 — Context Reload & Platform Detection (once, not per task)
 
+0. **Resolve the epic.** This skill takes one epic name, in either form:
+   - If `.devtool/epic/<name>/` exists, `<epic_dir>` is `<name>`, and `<epic_slug>` is the `epic:` value of its task mirrors: `grep -h -m1 '^epic:' .devtool/epic/<name>/task_*.md`.
+   - Otherwise `<name>` is a slug, and `<epic_dir>` is the directory holding the files `grep -l -F 'epic: "<name>"' .devtool/epic/*/task_*.md` lists.
+   - With no name, or no match, list the epic directories whose overview Status is not `Done` and ask which one. Never guess, even when only one is listed.
 1. Read, in full:
    - `.devtool/epic/<epic_dir>/<epic_dir>.en.md` (the canonical HLD — never `.vi.md` for decisions, that's a synced translation).
    - `.devtool/epic/<epic_dir>/bdd_scenarios.en.md` (the canonical behavioral contract across the 5 dimensions, if present; `.vi.md` is its synchronized translation).
    - Every `.devtool/features/task_*.md` whose frontmatter `epic:` matches `<epic_slug>`.
    - Any spec file(s) linked from the HLD's Meta Data section.
+   - `.devtool/epic/<epic_dir>/handoff.md`, when present — the packaging record. Use its Open Notes as context; it is never updated after packaging.
 2. Resolve the three paths the rest of this skill uses. `SKILL_DIR` is the directory this
    `SKILL.md` was loaded from — vendored under `.agents/skills/` in some projects, inside a
    plugin install in others, so never hardcode it:
@@ -99,6 +111,44 @@ flowchart TB
    - **`web`**: Web Application / Frontend (`package.json`, Astro, Vite, Next.js, TypeScript).
    - **`python`**: Python project (`pyproject.toml`, `setup.py`, pytest, ruff, mypy, uv/poetry).
    - **`rust`**: Rust workspace (`Cargo.toml`, `xtask`, Clean Architecture + MVI, FFI/WASM).
+4. Run **Entry-Point Detection** (below) before Phase 1. It decides whether Phase 1 starts fresh or the Resume Procedure takes over.
+
+#### Entry-Point Detection
+
+Read these signals, all read-only, from the main checkout:
+
+```bash
+test -f .devtool/epic/<epic_dir>/handoff.md && echo packaged-handoff
+grep -m1 -E '^- \*\*Status\*\*:' .devtool/epic/<epic_dir>/<epic_dir>.en.md
+git rev-parse --verify --quiet refs/heads/epic/<epic_slug>
+git branch -r --list '*/epic/<epic_slug>'
+git worktree list --porcelain | grep -E '^worktree .*/\.worktrees/<epic_dir>$'
+python3 "$SKILL_DIR"/resources/scripts/compute_execution_order.py <epic_slug> \
+  --features-dir .devtool/epic/<epic_dir>
+```
+
+`git branch -r` reveals an epic branch pushed from another clone. The last command reads the epic's own task mirrors, which `sync_task_status.py` keeps in step with `.devtool/features/` and `.devtool/features/done/`, so tasks already moved into `done/` (Phase 4.1) still count; its flattened order prints each task's status as `[priority, status]`. Evaluate the rows top-down — the first match wins — and announce it: "Entry point: row N — <state>."
+
+| # | Signals | State | Entry point |
+|---|---------|-------|-------------|
+| 1 | Overview Status is `Done` | Finished, or Stage 4 interrupted | With no epic branch left, report it finished and stop. With the epic branch still present, Stage 4 was interrupted or its PR is still open: report that and ask |
+| 2 | No epic branch, and any task is `backlog` | Queued behind another epic | Stop. Flipping `backlog` to `todo` is the developer's call |
+| 3 | No epic branch locally or on a remote, no worktree, every task `todo` | Not started — packaged if `handoff.md` exists | Phase 1 as written: Gate 3, then a new worktree |
+| 4 | Epic branch exists, no worktree, some task not `done` | Interrupted, worktree removed | Resume Procedure |
+| 5 | Worktree exists, some task not `done` | Interrupted midway through Stage 3 | Resume Procedure |
+| 6 | Epic branch exists, every task `done` | Tasks finished | Recreate the worktree if it is missing (`git worktree add .worktrees/<epic_dir> epic/<epic_slug>`, no `-b`) and bootstrap it (Phase 1 step 5), run the Resume Procedure's preflight (step 2), then Phase 4 with a full run — a verdict from another session cannot be tied to this SHA |
+| 7 | Anything else — for example the epic branch only on a remote (work done in another clone), or tasks `in-progress` or `done` with no epic branch | Inconsistent | Stop, report the signals, ask |
+
+#### Resume Procedure
+
+For rows 4 and 5. Phase 1 step 4's `git worktree add -b` never runs here.
+
+1. Row 4 only: recreate the worktree from the existing branch, `git worktree add .worktrees/<epic_dir> epic/<epic_slug>` with no `-b`. This restores an epic already under way; it is not the new worktree that Gate 3 guards. For rows 4 and 5, check the bootstrap with Phase 1 step 5's platform checks and re-run it if they fail.
+2. In the worktree, run `python3 "$INTEGRATE" preflight --base develop`. A rebase in progress, or a base that diverged, is handled the way Phase 2 step 7 prescribes before anything else.
+3. Find the interrupted task: one at `in-progress` or `review`. If the worktree has uncommitted changes, collect `git status --short`; uncommitted changes with no interrupted task are presented the same way.
+4. **Gate 3 (resume).** Check the mirror scan's summary line against the number of task mirrors and read its Manual review advised section, as Phase 1 steps 1–2 do. Then run Phase 1 step 3's BDD mapping check, including its retrofit for an epic designed before scenario identifiers, and commit any retrofit on the epic branch, staging only the files it touched by path — both `bdd_scenarios` variants, both HLD variants and the task files — never `git add -A`, so the interrupted task's uncommitted work stays out of that commit. Then, in one message, present the tasks already `done` with their commits (`git log --oneline develop..epic/<epic_slug>`); the remaining order — the flattened order with `done` tasks removed, which keeps every dependency satisfied; for uncommitted changes, a choice between keeping them and continuing the task or discarding them and restarting it, discarding only on that explicit answer; and the request for permission to fast-forward `develop`, asked again because it does not carry across sessions. Wait for confirmation.
+5. If the overview Status is `Packaged`, run `python3 "$SKILL_DIR"/resources/scripts/sync_task_status.py epic <epic_dir> "In Progress"`.
+6. Enter Phase 2 at the interrupted task, or at the first remaining task.
 
 ### Phase 1 — Execution Plan
 
@@ -133,6 +183,7 @@ flowchart TB
    ```
    If `sync-base` exits 3 — `develop` diverged from its upstream, or a dirty file blocks the
    fast-forward — stop and ask.
+   Once the worktree exists, if the overview Status is `Packaged` (a packaged epic starting fresh, row 3), run `python3 "$SKILL_DIR"/resources/scripts/sync_task_status.py epic <epic_dir> "In Progress"`; the change travels with the first task commit.
 5. Bootstrap the worktree so it can actually build:
    - **For Flutter Projects**:
      ```bash
@@ -342,8 +393,8 @@ For each task in the confirmed order, follow `d3nexus:subagent-driven-developmen
      `python3 "$INTEGRATE" rebase --continue --base develop` until it exits 0.
    - Exit 3 because git refused to fast-forward `develop` — **STOP** and ask.
    - Exit 3 because the worktree has uncommitted changes — run `git status --porcelain`. If every
-     dirty file is a `.devtool/` task file of another epic (a Kanban mirror `sync_task_status.py`
-     wrote into this worktree), restore them with
+     dirty file is a `.devtool/` task file or epic overview of another epic (a mirror that
+     `sync_task_status.py` wrote into this worktree), restore them with
      `git restore --source=HEAD --staged --worktree -- <files>` and rerun `rebase`. Any other dirty
      file: **STOP** and report.
    - Any other non-zero exit — **STOP** and report.
@@ -444,6 +495,7 @@ Only after the user explicitly approves Gate 5 at the Phase 4.1 Checkpoint:
 |------|--------------|--------------|----------|
 | Platform Detection | `detect_project_type.sh .` | `detect_project_type.sh .` | `detect_project_type.sh .` |
 | Compute execution order | `compute_execution_order.py <epic_slug>` | `compute_execution_order.py <epic_slug>` | `compute_execution_order.py <epic_slug>` |
+| Resume an epic | Entry-Point Detection, then the Resume Procedure (no `-b`) | Same | Same |
 | Create epic worktree | `git worktree add .worktrees/<epic_dir> -b epic/<epic_slug> develop` | Same | Same |
 | Bootstrap worktree | `bootstrap_worktree.sh <worktree_path>` | Platform bootstrap + Gradle sync | `tuist install && tuist generate --no-open` |
 | Run each task | `subagent-driven-development` | `subagent-driven-development` | `subagent-driven-development` |
@@ -482,6 +534,10 @@ Only after the user explicitly approves Gate 5 at the Phase 4.1 Checkpoint:
 - Merging to `develop` without passing `@quality_check` (🟢 LGTM).
 - Marking a task `done` while `check_bdd_traceability.py tests --ids <its Covers identifiers>` fails.
 - Running `@quality_check` for Gate 4 before the full traceability check exits 0, or on a commit that check did not see.
+- Starting Phase 1 without running Entry-Point Detection.
+- Running `git worktree add -b` for an epic whose branch already exists.
+- Re-implementing a task already `done`.
+- Discarding an interrupted session's uncommitted changes without an explicit answer.
 - Automatically invoking `finishing-a-development-branch` without stopping at Phase 4.1 and waiting for user Gate 5 approval.
 - Archiving tasks from `.devtool/features/done/` before the user has reviewed them on the Kanban dashboard.
 - Leaving completed `task_*.md` files in `.devtool/features/done/` after branch integration instead of archiving them into `.devtool/epic/<epic_dir>/`.
