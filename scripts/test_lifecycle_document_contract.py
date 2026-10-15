@@ -62,6 +62,8 @@ EXPECTED = {
         '`profile`: `"epic"`',
         '`repository_sha`',
         "aggregated verdict of **PASS**",
+        "check_bdd_traceability.py tests",
+        "--ids",
     ),
     "skills/dev-lifecycle/SKILL.md": (
         'profile `epic`',
