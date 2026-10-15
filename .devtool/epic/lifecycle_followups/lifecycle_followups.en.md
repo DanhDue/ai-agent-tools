@@ -14,7 +14,7 @@
 ## 1. Meta Data
 
 - **Epic**: lifecycle-followups (directory `lifecycle_followups`)
-- **Status**: Packaged
+- **Status**: In Progress
 - **Target Release**: the next d3nexus release after 1.7.1
 - **Platform**: Python — the kit repository: standard-library scripts tested with `unittest`, plus
   Markdown skills. `detect_project_type.sh` reports `unknown` for this repository.

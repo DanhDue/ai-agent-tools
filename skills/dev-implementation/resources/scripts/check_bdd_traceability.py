@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -25,10 +26,19 @@ SCENARIO_LINE = re.compile(
 LEADING_TAG = re.compile(r"^\[([^\]]*)\]")
 FENCE = re.compile(r"^\s*(`{3,}|~{3,})\s*(\S*)")
 COVERS_LINE = re.compile(r"^\s*(?:[-*]\s+)?\**Covers\**\s*:\**\s*(.*)$")
+ID_TOKEN = re.compile(r"(?<![A-Za-z0-9-])" + ID_SHAPE.pattern + r"(?![A-Za-z0-9])")
 
 
 class UsageError(Exception):
     """Missing input: exit 2."""
+
+
+def read_text(path: Path) -> str:
+    """Read a scenario document or task file; anything but UTF-8 is a usage error."""
+    try:
+        return path.read_text(encoding="utf-8")
+    except UnicodeDecodeError:
+        raise UsageError(f"{path} is not valid UTF-8") from None
 
 
 def scenario_ids(path: Path) -> tuple[list[str], list[str]]:
@@ -37,7 +47,7 @@ def scenario_ids(path: Path) -> tuple[list[str], list[str]]:
     problems: list[str] = []
     fence_marker: str | None = None
     in_gherkin = False
-    for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+    for number, line in enumerate(read_text(path).splitlines(), start=1):
         fence = FENCE.match(line)
         if fence and fence_marker is None:
             fence_marker, in_gherkin = fence.group(1), fence.group(2).lower() == "gherkin"
@@ -85,11 +95,10 @@ def load_scenarios(path: Path) -> tuple[list[str], list[str]]:
 def covers_of(path: Path) -> list[str]:
     """Identifiers named on every Covers: line of one task file."""
     found: list[str] = []
-    for line in path.read_text(encoding="utf-8").splitlines():
+    for line in read_text(path).splitlines():
         match = COVERS_LINE.match(line)
         if match:
-            tokens = (token.strip("`[]*") for token in re.split(r"[,\s]+", match.group(1)))
-            found.extend(token for token in tokens if token)
+            found.extend(ID_TOKEN.findall(match.group(1)))
     return found
 
 
@@ -121,14 +130,27 @@ def stale_pattern(ids: list[str]) -> re.Pattern[str]:
     return re.compile(r"(?<![A-Za-z0-9-])(?:" + alternatives + r")(?![A-Za-z0-9-])")
 
 
+def listed_files(root: Path) -> list[Path] | None:
+    """Files git lists under root — tracked, plus untracked but not ignored — or None outside git."""
+    try:
+        listed = subprocess.run(["git", "-C", str(root), "ls-files", "--cached", "--others",
+                                 "--exclude-standard", "-z"], capture_output=True, check=True)
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    return [root / name for name in listed.stdout.decode("utf-8", "surrogateescape").split("\0") if name]
+
+
 def integration_files(roots: list[Path]) -> tuple[list[Path], list[str]]:
     existing = [root for root in roots if root.is_dir()]
     warnings = [f"warning: integration test root not found, skipped: {root}"
                 for root in roots if not root.is_dir()]
     if not existing:
         raise UsageError("none of the integration test roots exists: " + ", ".join(map(str, roots)))
-    files = [path for root in existing for path in sorted(root.rglob("*"))
-             if path.is_file() and path.suffix.lower() != ".md"]
+    files: list[Path] = []
+    for root in existing:
+        listed = listed_files(root)
+        candidates = sorted(listed) if listed is not None else sorted(root.rglob("*"))
+        files.extend(path for path in candidates if path.is_file() and path.suffix.lower() != ".md")
     return files, warnings
 
 
