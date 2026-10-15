@@ -28,6 +28,10 @@ EXPECTED = {
         "--require-toc",
         "--require-bilingual",
         "Task files are English-only",
+        "check_bdd_traceability.py plan",
+        "Covers:",
+        "Integration test roots:",
+        "at least one automated integration test",
     ),
     "skills/writing-plans/SKILL.md": (
         "YYYY-MM-DD-<feature-name>.en.md",
