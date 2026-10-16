@@ -457,7 +457,7 @@ python3 "$SCRIPTS"/audit_epic.py --epic-dir <epic_dir> --base <base_ref>
 
 | Mục | Nội dung | Làm fail Gate 4 |
 |---|---|---|
-| Evidence | Mọi task `done` có mục `## Verification` đều có file evidence trong commit của task — commit cuối cùng trong `<base>..HEAD` đã đổi file đó — với mọi dòng `PASS`. `git patch-id --stable` của commit, ngoài `.devtool/`, được so với `patch_id` của lần chạy `verify`; khác nhau thì hiển thị `patch changed after verify`, thường do giải conflict khi rebase | Có với thiếu evidence hoặc dòng không `PASS`; không với patch khác nhau |
+| Evidence | Mọi task `done` có mục `## Verification` đều có file evidence trong commit của task — commit cuối cùng trong `<base>..HEAD` đã đổi file đó — trong đó mọi dòng của bảng Verification đều được ghi là `PASS`. `git patch-id --stable` của commit, ngoài `.devtool/`, được so với `patch_id` của lần chạy `verify`; khác nhau thì hiển thị `patch changed after verify`, thường do giải conflict khi rebase | Có với thiếu evidence hoặc dòng không `PASS`; không với patch khác nhau |
 | Task legacy | Task `done` mà commit của nó không có mục `## Verification`, gắn nhãn `legacy — no evidence` | Không |
 | Protected path | Mọi protected path bị đổi trong `<base>...HEAD`, kèm commit. Thay đổi ngoài `.devtool/` mà không Allowed files của task nào nêu đích danh — ví dụ trong commit "Fix integration with develop" — làm fail | Có, với thay đổi không được phép ngoài `.devtool/` |
 | Sửa grader | Với mỗi task, diff của Verification, Definition of Done, Allowed files và `Covers:` so với commit đã tạo bản mirror của task trong `.devtool/epic/<epic_dir>/`, kèm tiêu đề các commit đã sửa; các scenario identifier được thêm vào hoặc xóa khỏi `bdd_scenarios.en.md` | Không |

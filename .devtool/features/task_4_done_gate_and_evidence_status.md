@@ -51,8 +51,9 @@ Before `sync_task` writes anything for the status `done`:
 2. Read `epic:` from this checkout's `.devtool/features/<id>.md`, or `.devtool/features/done/<id>.md`,
    and find the epic directory with the existing `find_epic_dir_for_slug(root, slug)`.
 3. If the overview `.devtool/epic/<epic_dir>/<epic_dir>.en.md` is not a code epic (`is_code_epic` is
-   false), or the task or epic cannot be found, the gate does not apply and the command behaves as
-   today.
+   false), or no checkout holds the task, the gate does not apply and the command behaves as today.
+   When this checkout lacks the task but another checkout holds it under a code epic, refuse with
+   `run the done gate in the checkout that holds the task and its evidence (the epic worktree)`.
 4. If the mirror `.devtool/epic/<epic_dir>/<id>.md` has no `## Verification` section, refuse with
    `retrofit required: <mirror> has no Verification section — retrofit it through dev-designer's Updating an Existing Epic`.
 5. Otherwise call `evaluate_done_gate(mirror)`. On failures, print each to stderr after
