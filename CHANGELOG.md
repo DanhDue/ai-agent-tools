@@ -8,6 +8,16 @@ every installed machine on the old cached copy.
 
 ---
 
+## 1.9.1 — 2026-10-16
+
+Lets epic status synchronization handle overview documents that write the colon inside the bold label.
+
+### Fixed
+
+- **Epic Status lines with the colon inside the bold** (`skills/dev-implementation/resources/scripts/sync_task_status.py`): `sync_task_status.py epic <epic_dir> <status>` now rewrites `- **Status:** …` and `- **Trạng thái:** …` as well as `- **Status**: …`, so overviews written in that style no longer keep a stale Status after packaging, resuming or archiving.
+
+---
+
 ## 1.9.0 — 2026-10-16
 
 Makes epic tasks verifiable when they are handed to another model: a task reaches `done` only through evidence a script recorded by running the task's declared commands, traceability is proved by test results rather than identifier strings, every grader change is disclosed at Gate 4, and the developer can have the finished epic reviewed by the Claude CLI or the Codex CLI before Gate 4.
