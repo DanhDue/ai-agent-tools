@@ -1,13 +1,13 @@
 ---
 id: "task_6_cross_model_review_runner"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "verifiable_task_handoff"
 dueDate: null
 created: "2026-10-16T06:53:44Z"
-modified: "2026-10-16T06:53:44Z"
-completedAt: null
+modified: "2026-10-16T08:07:01Z"
+completedAt: "2026-10-16T08:07:01Z"
 labels: ["scripts", "review"]
 order: "a6"
 ---
