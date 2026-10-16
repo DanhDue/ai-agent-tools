@@ -344,7 +344,8 @@ của task này:
 - Mọi path thay đổi ngoài `.devtool/` — bị sửa, thêm, xóa, hoặc chưa track mà không bị ignore — phải
   khớp Allowed files.
 - Protected path, khai rõ hay ngầm định, kể cả những path dưới `.devtool/`, chỉ được đổi khi Allowed
-  files nêu đích danh nó; glob không bao giờ cho phép.
+  files nêu đích danh nó; glob không bao giờ cho phép. Protected path, và các dòng task định nghĩa
+  chương trình ngầm định, được đọc từ `HEAD`, nên một task không thể tự nới lỏng sự bảo vệ của nó.
 
 ### File evidence
 
@@ -382,11 +383,12 @@ exit 1, nêu các điều kiện không đạt — khi:
 1. thiếu file evidence; thiếu lần chạy `red` trong khi task không có dòng `RED: n/a`; hoặc thiếu lần
    chạy `verify`;
 2. một dòng của bảng Verification **hiện tại** không có kết quả `PASS`, hoặc `command` hay `expect`
-   đã ghi khác với bảng;
+   đã ghi khác với bảng, hoặc một dòng đã ghi không `PASS` không còn trong bảng;
 3. có dòng `BLOCKED`;
-4. `tree` của lần chạy `verify` khác fingerprint hiện tại — code bị sửa sau khi verify;
+4. `tree` của lần chạy `verify` khác fingerprint hiện tại — code bị sửa sau khi verify — hoặc
+   `patch_id` của nó là null — `verify` không thấy thay đổi nào ngoài `.devtool/`, tức nó chạy sau một commit;
 5. với task có dòng RED, `tree` của lần chạy `red` bằng `tree` của lần chạy `verify`, hoặc `red`
-   kết thúc sau khi `verify` bắt đầu;
+   kết thúc sau khi `verify` bắt đầu, hoặc `red` và `verify` được ghi trên hai commit khác nhau;
 6. traceability dựa trên kết quả không đạt cho các identifier trên dòng `Covers:` của task (mục 10);
 7. dòng `SCOPE` không phải `PASS`.
 
@@ -432,7 +434,7 @@ python3 "$SCRIPTS"/check_bdd_traceability.py tests \
   Gate 4 luôn dùng kết quả.
 
 **Độ mới.** Khi recorder chạy một dòng có `results <path>`, nó chỉ chấp nhận báo cáo có thời điểm sửa
-đổi sau lúc dòng đó bắt đầu; nếu không, dòng đó fail với `results not produced by this run`. Digest
+đổi sau lúc dòng đó bắt đầu — với thư mục hoặc glob, chỉ các file do lần chạy này ghi ra được đọc; nếu không, dòng đó fail với `results not produced by this run`. Digest
 nó lưu là thứ mà điều kiện 6 của gate `done` kiểm, qua cùng đoạn code với `--results`.
 
 **Định dạng báo cáo** được ghi vào `references/verification-rows.md`:
@@ -457,10 +459,10 @@ python3 "$SCRIPTS"/audit_epic.py --epic-dir <epic_dir> --base <base_ref>
 
 | Mục | Nội dung | Làm fail Gate 4 |
 |---|---|---|
-| Evidence | Mọi task `done` có mục `## Verification` đều có file evidence trong commit của task — commit cuối cùng trong `<base>..HEAD` đã đổi file đó — trong đó mọi dòng của bảng Verification đều được ghi là `PASS`. `git patch-id --stable` của commit, ngoài `.devtool/`, được so với `patch_id` của lần chạy `verify`; khác nhau thì hiển thị `patch changed after verify`, thường do giải conflict khi rebase | Có với thiếu evidence hoặc dòng không `PASS`; không với patch khác nhau |
+| Evidence | Mọi task được đánh dấu `done` ở bản mirror hoặc bản trong features, có mục `## Verification`, đều có file evidence trong commit của task — commit cuối cùng trong `<base>..HEAD` đã đổi file đó — trong đó mọi dòng của bảng Verification đều được ghi là `PASS`. `git patch-id --stable` của commit, ngoài `.devtool/`, được so với `patch_id` của lần chạy `verify`; khác nhau thì hiển thị `patch changed after verify`, thường do giải conflict khi rebase | Có với thiếu evidence hoặc dòng không `PASS`; không với patch khác nhau |
 | Task legacy | Task `done` mà commit của nó không có mục `## Verification`, gắn nhãn `legacy — no evidence` | Không |
 | Protected path | Mọi protected path bị đổi trong `<base>...HEAD`, kèm commit. Thay đổi ngoài `.devtool/` mà không Allowed files của task nào nêu đích danh — ví dụ trong commit "Fix integration with develop" — làm fail | Có, với thay đổi không được phép ngoài `.devtool/` |
-| Sửa grader | Với mỗi task, diff của Verification, Definition of Done, Allowed files và `Covers:` so với commit đã tạo bản mirror của task trong `.devtool/epic/<epic_dir>/`, kèm tiêu đề các commit đã sửa; các scenario identifier được thêm vào hoặc xóa khỏi `bdd_scenarios.en.md` | Không |
+| Sửa grader | Với mỗi task, diff của Verification, Definition of Done, Allowed files và `Covers:` so với commit đã tạo bản mirror của task trong `.devtool/epic/<epic_dir>/`, kèm tiêu đề các commit đã sửa; các scenario identifier được thêm vào hoặc xóa khỏi `bdd_scenarios.en.md`; các thay đổi ở dòng `Protected paths:` và `Integration results:` của HLD | Không |
 | Commit ngoài task | Commit trên nhánh epic không phải commit của task nào mà đụng tới file ngoài `.devtool/` | Không |
 | Mục Gate 5 | Mọi bullet Definition of Done đánh dấu `(Gate 5)` | Không |
 
