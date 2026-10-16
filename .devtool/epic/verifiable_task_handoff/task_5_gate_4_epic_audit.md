@@ -1,13 +1,13 @@
 ---
 id: "task_5_gate_4_epic_audit"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "verifiable_task_handoff"
 dueDate: null
 created: "2026-10-16T06:53:44Z"
-modified: "2026-10-16T06:53:44Z"
-completedAt: null
+modified: "2026-10-16T08:00:45Z"
+completedAt: "2026-10-16T08:00:45Z"
 labels: ["scripts", "audit"]
 order: "a5"
 ---

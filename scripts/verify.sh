@@ -246,6 +246,7 @@ note "== 11. Lifecycle document contracts are enforced =="
 python3 -m unittest skills/doc_quality_check/resources/scripts/test_check_document.py || FAILED=1
 python3 scripts/test_lifecycle_document_contract.py || FAILED=1
 python3 -m unittest scripts/test_lifecycle_signals.py || FAILED=1
+python3 -m unittest skills/dev-implementation/resources/scripts/test_audit_epic.py || FAILED=1
 python3 -m unittest skills/dev-implementation/resources/scripts/test_check_bdd_traceability.py || FAILED=1
 python3 -m unittest skills/dev-implementation/resources/scripts/test_check_task_contract.py || FAILED=1
 python3 -m unittest skills/dev-implementation/resources/scripts/test_result_reports.py || FAILED=1
