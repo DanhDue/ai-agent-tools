@@ -538,7 +538,7 @@ appended and never rewritten; only the Decision column changes later.
 | Outcome | What happens |
 |---|---|
 | Completed, no Critical or Important finding | Commit `review_results.md` as `[<EPIC_NAME>] Record cross-model review round N`, then Phase 4 |
-| Completed with Critical or Important findings | Return to Phase 2 and fix them. Each gets a Decision: `fixed in <sha>`, or `dismissed: <reason>` written only on the developer's explicit words. Then the developer chooses again: another round, or Finish |
+| Completed with Critical or Important findings | Fix them as separate `[<EPIC_NAME>] Fix <what>` commits; done tasks are not reopened, and the audit discloses the commits under Commits outside tasks. Each gets a Decision: `fixed in <sha>`, or `dismissed: <reason>` written only on the developer's explicit words. Then the developer chooses again: another round, or Finish |
 | No CLI, a CLI error or timeout (for example, credits exhausted), no Verdict line, or a changed tree | `run` exits 2 and records the round with its status; the developer chooses again, and may pick the other CLI |
 
 ### check

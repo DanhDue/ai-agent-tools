@@ -531,7 +531,7 @@ nối thêm, không bao giờ viết lại; về sau chỉ cột Decision thay �
 | Kết quả | Điều xảy ra |
 |---|---|
 | Hoàn tất, không có finding Critical hay Important | Commit `review_results.md` với tiêu đề `[<EPIC_NAME>] Record cross-model review round N`, rồi vào Phase 4 |
-| Hoàn tất với finding Critical hoặc Important | Quay về Phase 2 để sửa. Mỗi finding nhận một Decision: `fixed in <sha>`, hoặc `dismissed: <reason>` chỉ được ghi khi developer nói rõ. Sau đó developer chọn lại: thêm một round, hoặc Finish |
+| Hoàn tất với finding Critical hoặc Important | Sửa bằng các commit `[<EPIC_NAME>] Fix <what>` riêng; task đã done không bị mở lại, và audit hiển thị các commit đó ở mục Commit ngoài task. Mỗi finding nhận một Decision: `fixed in <sha>`, hoặc `dismissed: <reason>` chỉ được ghi khi developer nói rõ. Sau đó developer chọn lại: thêm một round, hoặc Finish |
 | Không có CLI, CLI lỗi hoặc hết thời gian (ví dụ hết credit), thiếu dòng Verdict, hoặc cây bị đổi | `run` trả exit 2 và ghi round kèm trạng thái của nó; developer chọn lại, và có thể chọn CLI kia |
 
 ### check
