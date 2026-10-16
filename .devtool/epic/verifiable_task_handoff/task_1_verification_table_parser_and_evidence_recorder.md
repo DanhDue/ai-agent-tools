@@ -1,20 +1,20 @@
 ---
 id: "task_1_verification_table_parser_and_evidence_recorder"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "verifiable_task_handoff"
 dueDate: null
 created: "2026-10-16T06:53:44Z"
-modified: "2026-10-16T06:53:44Z"
-completedAt: null
+modified: "2026-10-16T07:33:00Z"
+completedAt: "2026-10-16T07:33:00Z"
 labels: ["scripts", "evidence"]
 order: "a1"
 ---
 
 # Task 1: Verification table parser and evidence recorder
 
-Epic: [verifiable_task_handoff](../epic/verifiable_task_handoff/verifiable_task_handoff.en.md)
+Epic: [verifiable_task_handoff](verifiable_task_handoff.en.md)
 
 ## Requirement Analysis
 

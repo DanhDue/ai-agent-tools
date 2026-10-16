@@ -294,7 +294,7 @@ It reports problems as `task_34:V4: <problem>` and checks:
   of Done bullet references existing rows or `(Gate 5)`.
 - **Grounding.** An Allowed files path without `(new)` is tracked by git, and a glob matches at least
   one tracked file. A `(new)` path does not exist, and its parent directory exists or is itself
-  `(new)` somewhere in the epic. Read-only context paths exist. Every repository path token in a
+  `(new)` somewhere in the epic. Read-only context paths exist or are `(new)` in some task of the epic. Every repository path token in a
   Command exists or is `(new)` in some task of the epic. An executable not found on `PATH` is a
   warning, not a problem, because environments differ.
 - **Declarations.** The HLD has a `Protected paths:` line, at least one `Integration results:` line
@@ -349,7 +349,8 @@ difference is this task's change:
 - Every changed path outside `.devtool/` — modified, added, deleted, or untracked and not ignored —
   matches Allowed files.
 - A protected path, explicit or implicit and including those under `.devtool/`, changes only when
-  Allowed files names it exactly; a glob never authorises one.
+  Allowed files names it exactly; a glob never authorises one. Protected paths, and the task rows that
+  define implicit programs, are read from `HEAD`, so a task cannot weaken its own protection.
 
 ### Evidence file
 
@@ -387,11 +388,12 @@ the task's one commit:
 1. the evidence file is missing; a `red` run is missing although the task has no `RED: n/a` line; or
    the `verify` run is missing;
 2. a row of the **current** Verification table has no `PASS` result, or its recorded `command` or
-   `expect` differs from the table;
+   `expect` differs from the table, or a recorded non-`PASS` row is no longer in the table;
 3. any row is `BLOCKED`;
-4. the `verify` run's `tree` differs from the current fingerprint — code changed after verification;
+4. the `verify` run's `tree` differs from the current fingerprint — code changed after verification —
+   or its `patch_id` is null — `verify` saw no change outside `.devtool/`, so it ran after a commit;
 5. for a task with RED rows, the `red` run's `tree` equals the `verify` run's `tree`, or `red`
-   finished after `verify` started;
+   finished after `verify` started, or `red` and `verify` were recorded on different commits;
 6. result-based traceability fails for the identifiers on the task's `Covers:` line (section 10);
 7. the `SCOPE` row is not `PASS`.
 
@@ -438,7 +440,8 @@ python3 "$SCRIPTS"/check_bdd_traceability.py tests \
   always use results.
 
 **Freshness.** When the recorder runs a row with `results <path>`, it accepts the report only if its
-modification time is later than the row's start; otherwise the row fails with
+modification time is later than the row's start — for a directory or glob, only the files this run
+wrote are read; otherwise the row fails with
 `results not produced by this run`. The digest it stores is what the `done` gate's condition 6
 checks, through the same code as `--results`.
 
@@ -464,10 +467,10 @@ python3 "$SCRIPTS"/audit_epic.py --epic-dir <epic_dir> --base <base_ref>
 
 | Section | Content | Fails Gate 4 |
 |---|---|---|
-| Evidence | Every `done` task with a `## Verification` section has an evidence file in its task commit — the last commit in `<base>..HEAD` that changed it — with every row `PASS`. The commit's `git patch-id --stable` outside `.devtool/` is compared with the `verify` run's `patch_id`; a difference is shown as `patch changed after verify`, usually a rebase conflict resolution | Yes for missing evidence or a non-`PASS` row; no for a patch difference |
+| Evidence | Every task marked `done` in its mirror or its features copy, with a `## Verification` section, has an evidence file in its task commit — the last commit in `<base>..HEAD` that changed it — in which every row of its Verification table is recorded as `PASS`. The commit's `git patch-id --stable` outside `.devtool/` is compared with the `verify` run's `patch_id`; a difference is shown as `patch changed after verify`, usually a rebase conflict resolution | Yes for missing evidence or a non-`PASS` row; no for a patch difference |
 | Legacy tasks | `done` tasks whose task commit has no `## Verification` section, labelled `legacy — no evidence` | No |
 | Protected paths | Every protected path changed in `<base>...HEAD`, with the commit. A change outside `.devtool/` that no task's Allowed files names exactly — for example in a "Fix integration with develop" commit — fails | Yes, for an unauthorised change outside `.devtool/` |
-| Grader amendments | For each task, the diff of Verification, Definition of Done, Allowed files and `Covers:` against the commit that created the task's mirror in `.devtool/epic/<epic_dir>/`, with the amending commits' titles; scenario identifiers added to or removed from `bdd_scenarios.en.md` | No |
+| Grader amendments | For each task, the diff of Verification, Definition of Done, Allowed files and `Covers:` against the commit that created the task's mirror in `.devtool/epic/<epic_dir>/`, with the amending commits' titles; scenario identifiers added to or removed from `bdd_scenarios.en.md`; changes to the HLD's `Protected paths:` and `Integration results:` lines | No |
 | Commits outside tasks | Commits on the epic branch that are no task's commit and touch files outside `.devtool/` | No |
 | Gate 5 items | Every Definition of Done bullet marked `(Gate 5)` | No |
 
@@ -538,7 +541,7 @@ appended and never rewritten; only the Decision column changes later.
 | Outcome | What happens |
 |---|---|
 | Completed, no Critical or Important finding | Commit `review_results.md` as `[<EPIC_NAME>] Record cross-model review round N`, then Phase 4 |
-| Completed with Critical or Important findings | Return to Phase 2 and fix them. Each gets a Decision: `fixed in <sha>`, or `dismissed: <reason>` written only on the developer's explicit words. Then the developer chooses again: another round, or Finish |
+| Completed with Critical or Important findings | Fix them as separate `[<EPIC_NAME>] Fix <what>` commits; done tasks are not reopened, and the audit discloses the commits under Commits outside tasks. Each gets a Decision: `fixed in <sha>`, or `dismissed: <reason>` written only on the developer's explicit words. Then the developer chooses again: another round, or Finish |
 | No CLI, a CLI error or timeout (for example, credits exhausted), no Verdict line, or a changed tree | `run` exits 2 and records the round with its status; the developer chooses again, and may pick the other CLI |
 
 ### check

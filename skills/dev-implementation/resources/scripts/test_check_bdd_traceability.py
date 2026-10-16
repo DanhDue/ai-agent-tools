@@ -168,6 +168,15 @@ class PlanModeTest(TraceabilityCase):
         self.assertEqual(code, 2)
         self.assertIn("task file not found", err)
 
+    def test_vth_st_01_an_identifier_owned_by_two_tasks_fails_the_plan(self) -> None:
+        scenarios = self.scenarios("Scenario: [DEMO-HP-01] First")
+        first = self.write("epic/task_1_a.md", "Covers: DEMO-HP-01\n")
+        second = self.write("epic/task_2_b.md", "Covers: DEMO-HP-01\n")
+        code, out, _ = self.plan(scenarios, first, second)
+        self.assertEqual(code, 1)
+        self.assertIn("DEMO-HP-01 is on the Covers lines of task_1_a.md and task_2_b.md", out)
+        self.assertIn("Result: 1/1 covered — FAIL", out)
+
 
 class TestsModeTest(TraceabilityCase):
     def run_tests_mode(self, *extra: object, roots: tuple[str, ...] = ("tests/integration",)) -> tuple[int, str, str]:
@@ -274,6 +283,79 @@ class TestsModeTest(TraceabilityCase):
         (self.root / "tests/integration/fixture.bin").write_bytes(b"\xff\xfe\x00PY-HP-07")
         code, out, _ = self.run_tests_mode()
         self.assertEqual(code, 0, out)
+
+
+DEMO = ("Scenario: [DEMO-HP-01] One", "Scenario: [DEMO-EC-01] Two", "Scenario: [DEMO-ST-01] Three")
+
+
+def junit(*cases: str) -> str:
+    return '<testsuite name="s">' + "".join(cases) + "</testsuite>"
+
+
+def case(name: str, child: str = "", classname: str = "demo.Suite") -> str:
+    return f'<testcase classname="{classname}" name="{name}">{child}</testcase>'
+
+
+class ResultsModeTest(TraceabilityCase):
+    def run_results(self, *results: object, ids: tuple[str, ...] = ()) -> tuple[int, str, str]:
+        self.write("tests/placeholder.txt", "nothing\n")
+        extra = ("--ids", *ids) if ids else ()
+        return self.run_cli("tests", "--scenarios", self.scenarios(*DEMO), "--roots", self.root / "tests",
+                            "--results", *results, *extra)
+
+    def test_vth_hp_04_junit_directory_and_dart_reports_prove_every_identifier(self) -> None:
+        single = self.write("reports/pytest.xml", junit(case("test_demo_hp_01_compliant_epic")))
+        self.write("reports/gradle/TEST-a.xml", junit(case("checks_demo_ec_01", classname="a.B")))
+        self.write("reports/gradle/TEST-b.xml", junit(case("unrelated")))
+        dart = self.write("reports/dart.json", "\n".join([
+            '{"type":"start","protocolVersion":"0.1.1"}',
+            '{"type":"group","group":{"id":1,"name":"outer"}}',
+            '{"type":"testStart","test":{"id":2,"name":"outer [DEMO-ST-01] plan rejects"}}',
+            '{"type":"testDone","testID":2,"result":"success","skipped":false,"hidden":false}',
+        ]))
+        code, out, err = self.run_results(single, self.root / "reports/gradle", dart)
+        self.assertEqual((code, err), (0, ""), out)
+        self.assertIn("DEMO-HP-01    PASS test_demo_hp_01_compliant_epic", out)
+        self.assertIn("DEMO-ST-01    PASS outer [DEMO-ST-01] plan rejects", out)
+        self.assertIn("Result: 3/3 covered \u2014 PASS", out)
+
+    def test_vth_ec_06_misleading_coverage_is_rejected_with_its_reason(self) -> None:
+        self.write("tests/test_flow.py", "# DEMO-HP-01 is only mentioned in a comment\n")
+        report = self.write("reports/r.xml", junit(
+            case("test_demo_ec_01_skipped", "<skipped/>"),
+            case("test_demo_st_01_good"), case("test_demo_st_01_bad", "<failure>x</failure>")))
+        code, out, _ = self.run_results(report)
+        self.assertEqual(code, 1)
+        self.assertIn("DEMO-HP-01    FAIL no test case in results", out)
+        self.assertIn("DEMO-EC-01    FAIL skipped", out)
+        self.assertIn("DEMO-ST-01    FAIL failed in test_demo_st_01_bad", out)
+        self.assertIn("Result: 0/3 covered \u2014 FAIL", out)
+
+    def test_vth_fr_02_report_in_neither_format_exits_2_naming_the_file(self) -> None:
+        report = self.write("reports/bad.txt", "plain text\n")
+        code, out, err = self.run_results(report)
+        self.assertEqual((code, out), (2, ""))
+        self.assertIn("error:", err)
+        self.assertIn("bad.txt", err)
+
+    def test_missing_results_path_exits_2(self) -> None:
+        code, _, err = self.run_results(self.root / "nowhere.xml")
+        self.assertEqual(code, 2)
+        self.assertIn("nowhere.xml", err)
+
+    def test_stale_reference_in_a_root_file_fails_a_full_run(self) -> None:
+        self.write("tests/test_flow.py", "# DEMO-HP-09 was removed\n")
+        report = self.write("reports/r.xml", junit(
+            case("demo_hp_01"), case("demo_ec_01"), case("demo_st_01")))
+        code, out, _ = self.run_results(report)
+        self.assertEqual(code, 1)
+        self.assertIn("stale reference DEMO-HP-09", out)
+
+    def test_ids_limits_the_selection(self) -> None:
+        report = self.write("reports/r.xml", junit(case("demo_hp_01")))
+        code, out, _ = self.run_results(report, ids=("DEMO-HP-01",))
+        self.assertEqual(code, 0, out)
+        self.assertIn("Result: 1/1 covered \u2014 PASS", out)
 
 
 if __name__ == "__main__":

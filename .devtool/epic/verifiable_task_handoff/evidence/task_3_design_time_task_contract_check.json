@@ -1,0 +1,360 @@
+{
+  "schema": 1,
+  "task": "task_3_design_time_task_contract_check",
+  "runs": {
+    "red": {
+      "head": "c16cca2179ca9dc1052d820adac768b06b8907be",
+      "tree": "310b180301ccde8731bae98b8f3df4683157e7a9",
+      "patch_id": "d1de7726bedd17b4b4ea0da4c69d4b60926e26a3",
+      "started": "2026-10-16T07:39:30Z",
+      "finished": "2026-10-16T07:39:31Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m unittest skills/dev-implementation/resources/scripts/test_check_task_contract.py",
+          "expect": "exit 1; contains \"ModuleNotFoundError\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-16T07:39:30Z",
+          "finished": "2026-10-16T07:39:31Z",
+          "output_tail": [
+            "E",
+            "======================================================================",
+            "ERROR: test_check_task_contract (unittest.loader._FailedTest.test_check_task_contract)",
+            "----------------------------------------------------------------------",
+            "ImportError: Failed to import test module: test_check_task_contract",
+            "Traceback (most recent call last):",
+            "  File \"/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py\", line 137, in loadTestsFromName",
+            "    module = __import__(module_name)",
+            "  File \"/Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/verifiable_task_handoff/skills/dev-implementation/resources/scripts/test_check_task_contract.py\", line 16, in <module>",
+            "    from check_task_contract import main",
+            "ModuleNotFoundError: No module named 'check_task_contract'",
+            "",
+            "",
+            "----------------------------------------------------------------------",
+            "Ran 1 test in 0.000s",
+            "",
+            "FAILED (errors=1)"
+          ],
+          "output_sha256": "4ee6dae7f15a0b0527cdb57819c6421420272fd4af0ad48283cf14530b285055"
+        },
+        {
+          "id": "V2",
+          "phase": "RED",
+          "command": "python3 -m unittest -k vth_st_01 skills/dev-implementation/resources/scripts/test_check_bdd_traceability.py",
+          "expect": "exit 1; contains \"FAILED\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-16T07:39:31Z",
+          "finished": "2026-10-16T07:39:31Z",
+          "output_tail": [
+            "F",
+            "======================================================================",
+            "FAIL: test_vth_st_01_an_identifier_owned_by_two_tasks_fails_the_plan (skills.dev-implementation.resources.scripts.test_check_bdd_traceability.PlanModeTest.test_vth_st_01_an_identifier_owned_by_two_tasks_fails_the_plan)",
+            "----------------------------------------------------------------------",
+            "Traceback (most recent call last):",
+            "  File \"/Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/verifiable_task_handoff/skills/dev-implementation/resources/scripts/test_check_bdd_traceability.py\", line 176, in test_vth_st_01_an_identifier_owned_by_two_tasks_fails_the_plan",
+            "    self.assertEqual(code, 1)",
+            "    ~~~~~~~~~~~~~~~~^^^^^^^^^",
+            "AssertionError: 0 != 1",
+            "",
+            "----------------------------------------------------------------------",
+            "Ran 1 test in 0.002s",
+            "",
+            "FAILED (failures=1)"
+          ],
+          "output_sha256": "7307e600dc139042e89bf98c43b81f7468ff7833f2cb0ad0b07cb1e39eacb7d9"
+        }
+      ]
+    },
+    "verify": {
+      "head": "c16cca2179ca9dc1052d820adac768b06b8907be",
+      "tree": "b16ee3042e2fe9ed823f193a40ae66eb6fcf9337",
+      "patch_id": "709bd54bfb2241fd9f8b0659c2da59e016806cb7",
+      "started": "2026-10-16T07:41:50Z",
+      "finished": "2026-10-16T07:42:30Z",
+      "rows": [
+        {
+          "id": "V3",
+          "phase": "GREEN",
+          "command": "python3 -m unittest skills/dev-implementation/resources/scripts/test_check_task_contract.py skills/dev-implementation/resources/scripts/test_check_bdd_traceability.py",
+          "expect": "exit 0; contains \"OK\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-16T07:41:50Z",
+          "finished": "2026-10-16T07:41:53Z",
+          "output_tail": [
+            ".........................................................",
+            "----------------------------------------------------------------------",
+            "Ran 57 tests in 2.877s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "ec4189fe955b4b78d166c092159dc6ce4f6a00c2bf0dbdd2ea0b8b977b9e0051"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "bash scripts/verify.sh",
+          "expect": "exit 0; contains \"PASS — safe to publish\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-16T07:41:53Z",
+          "finished": "2026-10-16T07:42:26Z",
+          "output_tail": [
+            "Ran 9 tests in 0.000s",
+            "",
+            "OK",
+            ".....",
+            "----------------------------------------------------------------------",
+            "Ran 5 tests in 0.000s",
+            "",
+            "OK",
+            ".........",
+            "----------------------------------------------------------------------",
+            "Ran 9 tests in 0.000s",
+            "",
+            "OK",
+            "......",
+            "----------------------------------------------------------------------",
+            "Ran 6 tests in 0.000s",
+            "",
+            "OK",
+            "......",
+            "----------------------------------------------------------------------",
+            "Ran 6 tests in 0.000s",
+            "",
+            "OK",
+            "......",
+            "----------------------------------------------------------------------",
+            "Ran 6 tests in 0.000s",
+            "",
+            "OK",
+            "..................",
+            "----------------------------------------------------------------------",
+            "Ran 18 tests in 0.011s",
+            "",
+            "OK",
+            "...............",
+            "----------------------------------------------------------------------",
+            "Ran 15 tests in 2.121s",
+            "",
+            "OK",
+            "",
+            "PASS — safe to publish"
+          ],
+          "output_sha256": "5068bf641f6ebf582da320b4a4a28b732e7549a68180fe732cfac2b8a0b5c2c5"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-C",
+          "command": "python3 scripts/run_unittest_junit.py --junitxml build/test-results/task_3.xml skills/dev-implementation/resources/scripts/test_check_task_contract.py skills/dev-implementation/resources/scripts/test_check_bdd_traceability.py",
+          "expect": "exit 0; results build/test-results/task_3.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-16T07:42:26Z",
+          "finished": "2026-10-16T07:42:29Z",
+          "output_tail": [
+            "..................",
+            "----------------------------------------------------------------------",
+            "Ran 18 tests in 2.674s",
+            "",
+            "OK",
+            ".......................................",
+            "----------------------------------------------------------------------",
+            "Ran 39 tests in 0.253s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "93a3486a4c2c8a0681763a4ea5903ef1ac29498dbd6b3fb13ad0398f23379d04",
+          "results": {
+            "path": "build/test-results/task_3.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 14,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_vth_hp_01_a_compliant_epic_passes_and_prints_implicit_protected_paths",
+                  "classname": "test_check_task_contract.CompliantEpicTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_vth_ec_04_missing_hld_declarations_are_rejected",
+                  "classname": "test_check_task_contract.DeclarationTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_vth_ec_04_needs_name_and_integration_report_path_are_checked",
+                  "classname": "test_check_task_contract.DeclarationTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_vth_ec_01_paths_that_do_not_match_the_repository_are_named",
+                  "classname": "test_check_task_contract.GroundingTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_vth_ec_01_without_design_a_done_task_is_not_grounded_and_new_is_not_checked",
+                  "classname": "test_check_task_contract.GroundingTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_vth_ec_02_a_definition_of_done_item_with_no_command_is_rejected",
+                  "classname": "test_check_task_contract.StructureTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_vth_ec_03_a_malformed_verification_table_is_rejected_row_by_row",
+                  "classname": "test_check_task_contract.StructureTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_vth_fr_04_a_directory_outside_any_git_repository_exits_2",
+                  "classname": "test_check_task_contract.UsageTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_vth_fr_04_a_missing_argument_exits_2",
+                  "classname": "test_check_task_contract.UsageTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_vth_fr_04_an_unreadable_task_exits_2_with_the_reason_on_stderr",
+                  "classname": "test_check_task_contract.UsageTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_vth_st_01_an_identifier_owned_by_two_tasks_fails_the_plan",
+                  "classname": "test_check_bdd_traceability.PlanModeTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_vth_ec_06_misleading_coverage_is_rejected_with_its_reason",
+                  "classname": "test_check_bdd_traceability.ResultsModeTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_vth_fr_02_report_in_neither_format_exits_2_naming_the_file",
+                  "classname": "test_check_bdd_traceability.ResultsModeTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_vth_hp_04_junit_directory_and_dart_reports_prove_every_identifier",
+                  "classname": "test_check_bdd_traceability.ResultsModeTest",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "V6",
+          "phase": "TIER-C",
+          "command": "python3 skills/dev-implementation/resources/scripts/check_bdd_traceability.py tests --scenarios .devtool/epic/verifiable_task_handoff/bdd_scenarios.en.md --roots skills/dev-implementation/resources/scripts/ --results build/test-results/task_3.xml --ids VTH-HP-01 VTH-EC-01 VTH-EC-02 VTH-EC-03 VTH-EC-04 VTH-ST-01 VTH-FR-04",
+          "expect": "exit 0; contains \"Result: 7/7 covered — PASS\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-16T07:42:29Z",
+          "finished": "2026-10-16T07:42:29Z",
+          "output_tail": [
+            "VTH-HP-01    PASS test_vth_hp_01_a_compliant_epic_passes_and_prints_implicit_protected_paths",
+            "VTH-EC-01    PASS test_vth_ec_01_paths_that_do_not_match_the_repository_are_named",
+            "VTH-EC-02    PASS test_vth_ec_02_a_definition_of_done_item_with_no_command_is_rejected",
+            "VTH-EC-03    PASS test_vth_ec_03_a_malformed_verification_table_is_rejected_row_by_row",
+            "VTH-EC-04    PASS test_vth_ec_04_missing_hld_declarations_are_rejected",
+            "VTH-ST-01    PASS test_vth_st_01_an_identifier_owned_by_two_tasks_fails_the_plan",
+            "VTH-FR-04    PASS test_vth_fr_04_a_directory_outside_any_git_repository_exits_2",
+            "Result: 7/7 covered — PASS"
+          ],
+          "output_sha256": "a73dada4b25e4c04c0f0f9e20bdb1c0bfe73bbea9b45c3d62c85eabc7079e9fa"
+        },
+        {
+          "id": "V7",
+          "phase": "TIER-C",
+          "command": "python3 skills/dev-implementation/resources/scripts/check_bdd_traceability.py plan --scenarios .devtool/epic/verifiable_task_handoff/bdd_scenarios.en.md --tasks .devtool/epic/verifiable_task_handoff/task_*.md",
+          "expect": "exit 0; contains \"Result: 41/41 covered — PASS\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-16T07:42:29Z",
+          "finished": "2026-10-16T07:42:29Z",
+          "output_tail": [
+            "VTH-EC-02    task_3_design_time_task_contract_check.md",
+            "VTH-EC-03    task_3_design_time_task_contract_check.md",
+            "VTH-EC-04    task_3_design_time_task_contract_check.md",
+            "VTH-ST-01    task_3_design_time_task_contract_check.md",
+            "VTH-FR-04    task_3_design_time_task_contract_check.md",
+            "VTH-HP-02    task_1_verification_table_parser_and_evidence_recorder.md",
+            "VTH-EC-05    task_1_verification_table_parser_and_evidence_recorder.md",
+            "VTH-ST-02    task_1_verification_table_parser_and_evidence_recorder.md",
+            "VTH-FR-01    task_1_verification_table_parser_and_evidence_recorder.md",
+            "VTH-FR-05    task_1_verification_table_parser_and_evidence_recorder.md",
+            "VTH-HP-03    task_4_done_gate_and_evidence_status.md",
+            "VTH-ST-03    task_4_done_gate_and_evidence_status.md",
+            "VTH-ST-04    task_4_done_gate_and_evidence_status.md",
+            "VTH-ST-05    task_4_done_gate_and_evidence_status.md",
+            "VTH-ST-06    task_4_done_gate_and_evidence_status.md",
+            "VTH-ST-07    task_4_done_gate_and_evidence_status.md",
+            "VTH-AR-02    task_4_done_gate_and_evidence_status.md",
+            "VTH-HP-04    task_2_test_result_reports_and_result_based_traceability.md",
+            "VTH-EC-06    task_2_test_result_reports_and_result_based_traceability.md",
+            "VTH-FR-02    task_2_test_result_reports_and_result_based_traceability.md",
+            "VTH-HP-05    task_5_gate_4_epic_audit.md",
+            "VTH-HP-10    task_5_gate_4_epic_audit.md",
+            "VTH-ST-08    task_5_gate_4_epic_audit.md",
+            "VTH-ST-09    task_5_gate_4_epic_audit.md",
+            "VTH-AR-01    task_5_gate_4_epic_audit.md",
+            "VTH-FR-03    task_5_gate_4_epic_audit.md",
+            "VTH-HP-06    task_7_skill_prompt_and_reference_text.md",
+            "VTH-HP-07    task_7_skill_prompt_and_reference_text.md",
+            "VTH-HP-08    task_7_skill_prompt_and_reference_text.md",
+            "VTH-HP-09    task_7_skill_prompt_and_reference_text.md",
+            "VTH-HP-13    task_7_skill_prompt_and_reference_text.md",
+            "VTH-HP-11    task_8_end_to_end_lifecycle_acceptance.md",
+            "VTH-HP-12    task_6_cross_model_review_runner.md",
+            "VTH-EC-07    task_6_cross_model_review_runner.md",
+            "VTH-ST-10    task_6_cross_model_review_runner.md",
+            "VTH-ST-11    task_6_cross_model_review_runner.md",
+            "VTH-FR-06    task_6_cross_model_review_runner.md",
+            "VTH-FR-07    task_6_cross_model_review_runner.md",
+            "VTH-FR-08    task_6_cross_model_review_runner.md",
+            "Result: 41/41 covered — PASS"
+          ],
+          "output_sha256": "7b3ae66c6f57ddc4d45ad89e202bc7268d0781cabba469c80fe52e2c52eaceca"
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "scripts/verify.sh",
+            "skills/dev-implementation/resources/scripts/check_bdd_traceability.py",
+            "skills/dev-implementation/resources/scripts/check_task_contract.py",
+            "skills/dev-implementation/resources/scripts/task_contract.py",
+            "skills/dev-implementation/resources/scripts/test_check_bdd_traceability.py",
+            "skills/dev-implementation/resources/scripts/test_check_task_contract.py"
+          ],
+          "violations": []
+        }
+      ]
+    }
+  }
+}

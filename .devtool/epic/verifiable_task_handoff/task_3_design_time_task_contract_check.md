@@ -1,20 +1,20 @@
 ---
 id: "task_3_design_time_task_contract_check"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "verifiable_task_handoff"
 dueDate: null
 created: "2026-10-16T06:53:44Z"
-modified: "2026-10-16T06:53:44Z"
-completedAt: null
+modified: "2026-10-16T07:44:01Z"
+completedAt: "2026-10-16T07:44:01Z"
 labels: ["scripts", "design-time"]
 order: "a3"
 ---
 
 # Task 3: Design-time task contract check
 
-Epic: [verifiable_task_handoff](../epic/verifiable_task_handoff/verifiable_task_handoff.en.md)
+Epic: [verifiable_task_handoff](verifiable_task_handoff.en.md)
 
 ## Requirement Analysis
 
@@ -52,7 +52,7 @@ file, or a missing argument.
   tracked file. Bare directories are a problem.
 - With `--design` only: a `(new)` path does not exist yet, and its parent directory exists or its
   grandparent does (one new directory level).
-- Every Read-only context path exists.
+- Every Read-only context path exists, or is `(new)` in some task of the epic.
 - In every Command, each shell token containing `/` — the value part of `--name=value` included,
   tokens starting with `-` or containing `*` or `://` excluded — exists, is ignored by git (an output
   path), or is `(new)` in some task of the epic. An executable not on `PATH` is printed as a warning,

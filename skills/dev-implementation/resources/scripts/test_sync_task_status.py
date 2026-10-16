@@ -3,6 +3,8 @@
 
 Run: python3 skills/dev-implementation/resources/scripts/test_sync_task_status.py -v
 """
+import json
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -491,6 +493,228 @@ class ArchiveEpicTasksTests(unittest.TestCase):
             archived = archive_all_done_epics([root])
             self.assertEqual(archived, [])
 
+
+
+
+SCRIPTS = Path(__file__).parent
+SYNC = SCRIPTS / "sync_task_status.py"
+RECORDER = SCRIPTS / "run_task_checks.py"
+TICKS = "`" * 3
+TASK_ID = "task_1_demo"
+MIRROR = f".devtool/epic/demo/{TASK_ID}.md"
+FEATURE = f".devtool/features/{TASK_ID}.md"
+EVIDENCE = f".devtool/epic/demo/evidence/{TASK_ID}.json"
+TABLE = (
+    "| ID | Phase | Command | Expect | Needs |\n|----|-------|---------|--------|-------|\n"
+    "| V1 | RED | `bash check.sh` | exit 1 | — |\n"
+    '| V2 | GREEN | `bash check.sh` | exit 0; contains "OK" | — |\n'
+    "| V3 | TIER-C | `bash report.sh` | exit 0; results build/r.xml | — |\n"
+)
+REPORT = ("<testsuite>"
+          '<testcase classname="Demo" name="test_demo_hp_01_one"/>'
+          '<testcase classname="Demo" name="test_demo_ec_01_two"/>'
+          "</testsuite>")
+
+
+def task_file(verification: bool) -> str:
+    text = ('---\nid: "task_1_demo"\nstatus: "in-progress"\nepic: "demo"\ncreated: "2026-01-01T00:00:00Z"\n'
+            'modified: "2026-01-01T00:00:00Z"\ncompletedAt: null\n---\n\n# Task 1\n\n'
+            "## Files\n\nAllowed files:\n- `feature.txt` (new)\n\n"
+            "## BDD\n\nCovers: DEMO-HP-01, DEMO-EC-01\n\n")
+    if verification:
+        text += f"## Verification\n\n{TABLE}\n"
+    return text + "## Definition of Done\n\n- done (V2)\n"
+
+
+def run_py(script: Path, cwd: Path, *argv: str) -> subprocess.CompletedProcess:
+    return subprocess.run([sys.executable, str(script), *argv], cwd=cwd, capture_output=True, text=True)
+
+
+def git(cwd: Path, *argv: str) -> None:
+    subprocess.run(["git", "-C", str(cwd), *argv], capture_output=True, text=True, check=True)
+
+
+class DoneGateCase(unittest.TestCase):
+    """A main checkout plus an epic worktree, with the two CLIs run as subprocesses."""
+
+    def build(self, code_epic: bool = True, verification: bool = True) -> None:
+        directory = tempfile.TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        base = Path(directory.name).resolve()
+        self.main, self.wt = base / "main", base / "wt"
+        self.main.mkdir()
+        git(self.main, "init", "-q", "-b", "main")
+        git(self.main, "config", "user.email", "demo@example.com")
+        git(self.main, "config", "user.name", "Demo")
+        overview = "# Demo\n\n- **Epic**: demo\n\n" + ("Integration test roots: tests\n" if code_epic else "")
+        files = {
+            ".gitignore": "build/\n",
+            "check.sh": "[ -f feature.txt ] && echo OK\n",
+            "report.sh": f"mkdir -p build && printf '%s' '{REPORT}' > build/r.xml\n",
+            ".devtool/epic/demo/demo.en.md": overview,
+            ".devtool/epic/demo/bdd_scenarios.en.md": (
+                f"{TICKS}gherkin\nScenario: [DEMO-HP-01] One\nScenario: [DEMO-EC-01] Two\n{TICKS}\n"),
+            MIRROR: task_file(verification),
+            FEATURE: task_file(verification),
+        }
+        for relative, text in files.items():
+            path = self.main / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(text, encoding="utf-8")
+        git(self.main, "add", "-A")
+        git(self.main, "commit", "-q", "-m", "base")
+        git(self.main, "worktree", "add", "-q", "-b", "epic/demo", str(self.wt))
+
+    def record(self) -> None:
+        mirror = self.wt / MIRROR
+        self.assertEqual(run_py(RECORDER, self.wt, "red", str(mirror)).returncode, 0)
+        (self.wt / "feature.txt").write_text("done\n", encoding="utf-8")
+        self.assertEqual(run_py(RECORDER, self.wt, "verify", str(mirror)).returncode, 0)
+
+    def edit_evidence(self, change) -> None:
+        path = self.wt / EVIDENCE
+        data = json.loads(path.read_text(encoding="utf-8"))
+        change(data["runs"])
+        path.write_text(json.dumps(data), encoding="utf-8")
+
+    def copies(self) -> dict[str, str]:
+        return {f"{root.name}/{rel}": (root / rel).read_text(encoding="utf-8")
+                for root in (self.main, self.wt) for rel in (MIRROR, FEATURE)}
+
+    def done(self, cwd: Path) -> subprocess.CompletedProcess:
+        return run_py(SYNC, cwd, "task", TASK_ID, "done")
+
+    def assert_refused(self, result: subprocess.CompletedProcess, *fragments: str) -> None:
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertIn(f"refused: {TASK_ID} cannot be marked done", result.stderr)
+        for fragment in fragments:
+            self.assertIn(fragment, result.stderr)
+
+    def refuse_leaves_copies(self, *fragments: str) -> None:
+        before = self.copies()
+        self.assert_refused(self.done(self.wt), *fragments)
+        self.assertEqual(self.copies(), before)
+
+
+class DoneGateTests(DoneGateCase):
+    def test_vth_hp_03_matching_evidence_reaches_done(self):
+        self.build()
+        self.record()
+        status = run_py(RECORDER, self.wt, "status", str(self.wt / MIRROR))
+        self.assertEqual(status.returncode, 0, status.stdout)
+        self.assertIn("done gate: PASS", status.stdout)
+        result = self.done(self.wt)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        for text in self.copies().values():
+            self.assertIn('status: "done"', text)
+            self.assertNotIn('modified: "2026-01-01T00:00:00Z"', text)
+            self.assertNotIn("completedAt: null", text)
+
+    def test_vth_st_03_done_without_evidence_is_refused(self):
+        self.build()
+        self.refuse_leaves_copies("condition 1:", "not found in this checkout",
+                                  "run the done gate in the epic worktree")
+
+    def test_vth_st_04_edits_after_verification_are_refused(self):
+        self.build()
+        self.record()
+        (self.wt / "feature.txt").write_text("changed\n", encoding="utf-8")
+        self.refuse_leaves_copies("condition 4:")
+        (self.wt / "feature.txt").write_text("done\n", encoding="utf-8")
+        mirror = self.wt / MIRROR
+        mirror.write_text(mirror.read_text(encoding="utf-8").replace(
+            'exit 0; contains "OK"', 'exit 0; contains "OK!"'), encoding="utf-8")
+        self.refuse_leaves_copies("condition 2:", "row V2: recorded expect differs from the table")
+
+    def test_vth_st_05_red_that_did_not_precede_the_change_is_refused(self):
+        self.build()
+        self.record()
+        recorded = json.loads((self.wt / EVIDENCE).read_text(encoding="utf-8"))["runs"]["red"]["tree"]
+        self.edit_evidence(lambda runs: runs["red"].update(tree=runs["verify"]["tree"]))
+        self.refuse_leaves_copies("condition 5:", "RED was not recorded before the change")
+        self.edit_evidence(lambda runs: runs["red"].update(tree=recorded, finished="2999-01-01T00:00:00Z"))
+        self.refuse_leaves_copies("condition 5:", "finished after the verify run started")
+
+    def test_vth_st_06_only_code_epics_are_gated(self):
+        self.build(verification=False)
+        self.refuse_leaves_copies("retrofit required:", "has no Verification section")
+        self.build(code_epic=False, verification=False)
+        result = self.done(self.wt)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('status: "done"', (self.wt / FEATURE).read_text(encoding="utf-8"))
+
+    def test_vth_st_07_covered_identifier_without_a_passing_case_is_refused(self):
+        self.build()
+        self.record()
+
+        def drop_case(runs):
+            row = next(r for r in runs["verify"]["rows"] if r["id"] == "V3")
+            row["results"]["digest"]["cases"] = [
+                c for c in row["results"]["digest"]["cases"] if "demo_ec_01" not in c["name"]]
+
+        self.edit_evidence(drop_case)
+        self.refuse_leaves_copies("condition 6:", "DEMO-EC-01")
+
+    def test_vth_ar_02_gate_from_checkout_without_evidence_writes_nothing(self):
+        self.build()
+        self.record()
+        before = self.copies()
+        result = self.done(self.main)
+        self.assert_refused(result, "condition 1:", "run the done gate in the epic worktree")
+        self.assertEqual(self.copies(), before)
+
+    def test_done_from_a_checkout_lacking_the_task_is_refused(self):
+        self.build()
+        for rel in (MIRROR, FEATURE):
+            (self.main / rel).unlink()
+        before = (self.wt / FEATURE).read_text(encoding="utf-8")
+        result = self.done(self.main)
+        self.assert_refused(result, "run the done gate in the checkout that holds the task and its evidence "
+                                    "(the epic worktree)")
+        self.assertEqual((self.wt / FEATURE).read_text(encoding="utf-8"), before)
+
+    def test_blocked_row_and_failed_scope_are_refused(self):
+        self.build()
+        self.record()
+
+        def break_rows(runs):
+            rows = {r["id"]: r for r in runs["verify"]["rows"]}
+            rows["V3"].update(outcome="BLOCKED", reason="unset: X")
+            rows["SCOPE"].update(outcome="FAIL", violations=["outside Allowed files: x"])
+
+        self.edit_evidence(break_rows)
+        self.refuse_leaves_copies("condition 3:", "V3", "condition 7:")
+
+    def test_verify_recorded_after_committing_is_refused(self):
+        self.build()
+        self.record()
+        git(self.wt, "add", "-A")
+        git(self.wt, "commit", "-q", "-m", "[DEMO] Task 1 committed before the gate")
+        self.assertEqual(run_py(RECORDER, self.wt, "verify", str(self.wt / MIRROR)).returncode, 0)
+        self.refuse_leaves_copies("condition 4: verify saw no change outside .devtool — record verify before committing",
+                                  "condition 5: red and verify were recorded on different commits")
+
+    def test_red_and_verify_on_different_commits_is_refused(self):
+        self.build()
+        mirror = self.wt / MIRROR
+        self.assertEqual(run_py(RECORDER, self.wt, "red", str(mirror)).returncode, 0)
+        git(self.wt, "add", "-A")
+        git(self.wt, "commit", "-q", "-m", "[DEMO] Unrelated commit between red and verify")
+        (self.wt / "feature.txt").write_text("done\n", encoding="utf-8")
+        self.assertEqual(run_py(RECORDER, self.wt, "verify", str(mirror)).returncode, 0)
+        result = self.done(self.wt)
+        self.assert_refused(result, "condition 5: red and verify were recorded on different commits")
+        self.assertNotIn("condition 4:", result.stderr)
+
+    def test_failed_row_no_longer_in_the_table_is_refused(self):
+        self.build()
+        self.record()
+
+        def add_dropped_row(runs):
+            runs["verify"]["rows"].append({"id": "V9", "phase": "GREEN", "outcome": "FAIL", "reason": "exit 1"})
+
+        self.edit_evidence(add_dropped_row)
+        self.refuse_leaves_copies("condition 2: verify row V9 is FAIL and no longer in the table")
 
 
 if __name__ == "__main__":

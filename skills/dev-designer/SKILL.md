@@ -86,6 +86,13 @@ Each document MUST contain the following sections:
      Inspect blast radius, downstream callers, native `MethodChannel` bridges, and coverage safety nets before freezing contracts.
    - **Integration Test Plan & Boundary Matrix**: Map every Use Case and Sequence Diagram interaction into an explicit Integration Test Plan. Detail the end-to-end integration boundaries, mock/live services, data stores, and multi-component seams. For Web/UI applications, explicitly specify the **Visual & Browser Verification Matrix** (target viewports, URL routes/query parameters, interactive states, audio/video playback, and DOM verification).
    - **Integration Test Roots**: The Integration Test Plan MUST contain the line `Integration test roots: <dir>, <dir>` naming every directory that holds integration tests. Defaults: `tests/e2e/` (Web), `integration_test/` (Flutter), `app/src/test/` and `shell/src/test/` (Android), `App/Tests/` and `Shell/Tests/` (iOS), `tests/integration/` and `tests/e2e/` (Python), `tests/` (Rust). `check_bdd_traceability.py` scans exactly these directories.
+   - **Protected Paths & Integration Results**: Beside `Integration test roots:`, the Integration Test Plan MUST carry these lines, which the recorder, the done gate and Gate 4 read:
+     ```text
+     Protected paths: .agents/quality/**, .devtool/epic/<epic_name>/bdd_scenarios.en.md, .devtool/epic/<epic_name>/bdd_scenarios.vi.md
+     Integration results: uv run pytest tests/integration tests/e2e --junitxml=build/test-results/py.xml -> build/test-results/py.xml
+     ```
+     `Protected paths:` lists explicit paths and globs; the three shown are the minimum, and a tracked program that a Verification row runs is protected implicitly. Write one `Integration results:` line per platform, at least one: the command Gate 4 runs, then ` -> `, then the report it writes.
+   - **Verification Environment**: The HLD MUST also carry a `## Verification Environment` section: how tests are isolated from real data, which live resources are forbidden, and every variable a `Needs` column may name. When the project has a live data store, the first task carries a sentinel row proving tests cannot write to it.
    - **Comprehensive BDD Test Scenarios**: A detailed Gherkin suite (`Given - When - Then`) covering all Use Cases and Sequence Diagram flows across the **Mandatory 5-Dimension Boundary Matrix**:
      1. **Happy Paths**: Normal data flow and standard successful outcomes.
      2. **Edge Cases & Boundaries**: Null inputs, empty arrays/collections, malformed payloads, boundary numbers.
@@ -183,7 +190,7 @@ Every Epic breakdown MUST explicitly structure and address all 3 testing tiers a
 ##### 🔗 Tier C — BDD Automation (All Platforms)
 - Every scenario in `bdd_scenarios.en.md` MUST be covered by **at least one automated integration test**, whatever its tier tag. One test may cover several scenarios. There are no waivers: a scenario that cannot be automated is rewritten before Gate 2.
 - The test carries the scenario identifier in its name, description or tag (`test_py_hp_01_...`, `func test_PY_HP_01_...()`, `testWidgets('[PY-HP-01] ...')`, ``@Test fun `PY-HP-01 ...`()``) and lives under one of the HLD's `Integration test roots`.
-- Each identifier is assigned to at least one task through that task's `Covers:` line. The final Tier C task takes every identifier no earlier task covers.
+- Each identifier is assigned to exactly one task through that task's `Covers:` line; two tasks never share an identifier. The final Tier C task takes every identifier no earlier task covers.
 
 ```mermaid
 flowchart TD
@@ -280,7 +287,9 @@ Each task file MUST adhere to this exact structure:
 2. **Title**: `# Task <number>: <Task Name>`
 3. **Epic Reference**: A link back to the parent HLD, e.g. `Epic: [<epic_name>](../epic/<epic_name>/<epic_name>.en.md)`. This is the agent's entry point back to architecture/diagram context.
 4. **Requirement Analysis**: Context and requirements specific to this task.
-5. **Relevant Files & Context Pointers**: An explicit bullet list of exact file/directory paths this task reads or modifies.
+5. **Files**: A `## Files` section holding two lists.
+   - `Allowed files:` lists the exact paths or globs (`*`, `?`, and `**` across directories) the task may create, change or delete. A path that does not exist yet carries `(new)`. Bare directories are not allowed. Changes under `.devtool/` (task status, mirrors, evidence) are never listed, except changes to a protected path.
+   - `Read-only context:` lists the paths the task only reads, each with a note. It restricts nothing, and a path that another task creates may carry `(new)`.
 6. **Design Rationale**: Architecture decisions or design patterns chosen. **Crucially, review the available skills in `.agents/skills/` and explicitly note applicable skills here**:
    - **For Web Tasks**: `browser_subagent` (live browser verification), Node.js `--test` / Vitest, Astro check, Playwright.
    - **For Python Tasks**: `python-quality-check`, `pytest`, `ruff`, `mypy`, `import-linter`.
@@ -317,46 +326,49 @@ Each task file MUST adhere to this exact structure:
    - `[Tier C - Integration]`: Scenarios covering end-to-end user navigation, Host App lifecycle, Tab switching, Auth Gating & Replay, and multi-component seams (including media playback synchronization, live database states, and web route transitions). Must be covered 100% by integration tests.
    - **Zero Uncovered Scenarios Rule**: Every authored BDD scenario across all 5 dimensions MUST map to at least one automated test case. Unit tests with mocks do NOT substitute for Tier C integration tests.
 
-9. **Test & Verification Checklist**:
-   - **For Flutter Tasks (Dev Persona / Integration Persona)**:
-     - [ ] **RED**: Translate all `[Tier A - Unit]` BDD scenarios into failing unit/BLoC tests (`bloc_test`, Mocktail). Confirm tests fail for the right reasons before writing implementation code.
-     - [ ] **GREEN**: Write minimal implementation code to satisfy the tests (use Mason `pac_mvi_feature` if creating a new feature package).
-     - [ ] **REFACTOR**: Optimize performance (`const` constructors), format (`melos format` / `dartfmt.sh`), check module boundaries (`./scripts/check_module_boundaries.sh`), and verify zero linter warnings (`melos analyze`).
-     - [ ] **Tier C (Integration)**: Configure Host App integration testbed (`integration_test/`), assert navigation, lifecycle, and run `./scripts/testWithCoverage.sh`.
-   - **For Android Tasks (Dev Persona / Integration Persona)**:
-     - [ ] **RED**: Translate all `[Tier A - Unit]` BDD scenarios into failing unit tests (`./gradlew testDebugUnitTest`).
-     - [ ] **GREEN**: Write minimal implementation code to satisfy the tests.
-     - [ ] **REFACTOR**: Format (`./gradlew spotlessApply`), check lint (`./gradlew detekt`), and verify Konsist (`./gradlew :konsist-test:test`).
-     - [ ] **Tier C (Integration)**: Host App composition testbed (`:app` / `:shell`), assert user flows, and run `./scripts/acceptance_check.sh`.
-   - **For iOS Tasks (Dev Persona / Integration Persona)**:
-     - [ ] **RED**: Translate all `[Tier A - Unit]` BDD scenarios into failing Swift unit tests (`swift test --package-path <PackagePath>`). Confirm tests fail for the right reasons before writing implementation code.
-     - [ ] **GREEN**: Write minimal Swift implementation code to satisfy the tests (Clean Architecture + MVI, pure Swift domain).
-     - [ ] **REFACTOR**: Optimize SwiftUI body re-evaluation, format (`swiftformat --config quality/.swiftformat .`), lint (`swiftlint lint --strict --config quality/.swiftlint.yml`), verify module boundaries (`bash scripts/check_module_boundaries.sh`), and verify AST rules (`swift test --package-path ArchTests`).
-     - [ ] **Tier C (Integration)**: Host App composition testbed (`App/Tests` + `Shell/Tests`), assert user flows, and run simulator acceptance check (`tuist generate --no-open && xcodebuild test ...`).
-   - **For Web Tasks (Dev Persona / Integration Persona)**:
-     - [ ] **RED**: Translate all `[Tier A - Unit]` BDD scenarios into failing unit/store tests (`node --test` or `vitest`). Confirm tests fail for the right reasons before writing implementation code.
-     - [ ] **GREEN**: Write minimal implementation code to satisfy the tests.
-     - [ ] **REFACTOR**: Optimize component render lifecycles, run typecheck (`tsc --noEmit`), lint/framework check (`npx astro check`), and format (`prettier`).
-     - [ ] **Tier C (Integration & Live Browser Verification)**: Run automated integration tests (`tests/e2e/*.test.ts`). For tasks with Web UI/frontend deliverables, run the local dev/preview server and execute Live Web Browser Verification using `browser_subagent`. Capture video (`.webp`) and screenshot artifacts to verify UI layout, responsive behavior, and edge-case use cases.
-   - **For Python Tasks (Dev Persona / Integration Persona)**:
-     - [ ] **RED**: Translate all `[Tier A - Unit]` BDD scenarios into failing unit tests (`pytest tests/unit/`). Confirm failure before writing code.
-     - [ ] **GREEN**: Write minimal implementation code satisfying the tests.
-     - [ ] **REFACTOR**: Format and lint (`ruff format .`, `ruff check . --fix`), check types (`mypy`), and verify layer boundaries (`lint-imports`).
-     - [ ] **Tier C (Integration)**: Run integration test suites (`pytest tests/integration/` and `pytest tests/e2e/`).
-   - **For Python Tasks (Dev Persona / Integration Persona)**:
-     - [ ] **RED**: Translate all `[Tier A - Unit]` BDD scenarios into failing unit tests (`pytest tests/unit/`). Confirm failure before writing code.
-     - [ ] **GREEN**: Write minimal implementation code satisfying the tests.
-     - [ ] **REFACTOR**: Format and lint (`ruff format .`, `ruff check . --fix`), check types (`mypy`), and verify layer boundaries (`lint-imports`).
-     - [ ] **Tier C (Integration)**: Run integration test suites (`pytest tests/integration/` and `pytest tests/e2e/`).
-   - **For Rust Tasks (Dev Persona / Integration Persona)**:
-     - [ ] **RED**: Translate all `[Tier A - Unit]` BDD scenarios into failing unit tests (`cargo test --lib`). Confirm failure before writing code.
-     - [ ] **GREEN**: Write minimal implementation code satisfying the tests.
-     - [ ] **REFACTOR**: Run `just fmt`, `just lint` (`cargo clippy -D warnings`), and boundary checks (`cargo run -p xtask -- check-boundaries`).
-     - [ ] **Tier C (Integration)**: Run crate integration tests (`cargo test --test '*'`), WASM tests (`just wasm-test`), and acceptance tests (`just acceptance`).
+9. **Verification**: A `## Verification` section holding one table and nothing else to tick. Each row is a command the recorder (`run_task_checks.py`) runs and the done gate checks; nothing is ticked by hand. Per-platform example rows, and the command that produces each platform's test report, are in [`references/verification-rows.md`](references/verification-rows.md).
 
-   **TDD Adaptation**: For tasks that are pure refactors or config changes with no new behavior, state the adaptation explicitly (e.g., "run existing test suite / analyzer to confirm zero regressions").
-10. **Definition of Done (DoD)**: Acceptance criteria (100% BDD scenario coverage across Tier A unit and Tier C integration tests with zero uncovered scenarios, passes Tier A/B/C verification, clean git status; for Web/UI deliverables: automated integration tests pass AND live browser verification artifacts are captured via `browser_subagent`).
-11. **Dependencies & Blockers**: Link to blocking/blocked task files as markdown links (e.g. `Blocked by [Task 1](task_1_create_package.md)`).
+   ```markdown
+   | ID | Phase | Command | Expect | Needs |
+   |----|-------|---------|--------|-------|
+   | V1 | RED | `uv run pytest tests/unit/test_taxonomy.py` | exit 1; contains "ModuleNotFoundError" | — |
+   | V2 | GREEN | `uv run pytest tests/unit/test_taxonomy.py` | exit 0; contains "passed" | — |
+   | V3 | TIER-B | `uv run ruff check src tests` | exit 0 | — |
+   | V4 | TIER-C | `uv run pytest tests/integration/test_taxonomy_bdd.py --junitxml=build/test-results/task_34.xml` | exit 0; results build/test-results/task_34.xml | TEST_DATABASE_URL |
+   ```
+
+   - **Columns** are exactly `ID | Phase | Command | Expect | Needs`. IDs are `V1`, `V2`, … and unique within the task.
+   - **Phase** is `RED` (run before implementation), `GREEN`, `TIER-B` (tooling and governance) or `TIER-C` (integration and acceptance).
+   - **Command** is one inline code span, run as `bash -o pipefail -c '<command>'` from the worktree root.
+   - **Expect** follows this grammar; every `contains` text must appear in the combined stdout and stderr:
+
+     ```text
+     expect := exit-clause ( "; " clause )*
+     exit-clause := "exit " DIGITS | "exit non-zero"
+     clause := "contains \"" TEXT "\"" | "results " PATH
+     ```
+
+     `results <path>` appears only on `TIER-C` rows, at most once per row, and names the JUnit or Dart JSON report the command writes. The path must be ignored by git.
+   - **Needs** is `—` or a comma-separated list of environment variable names. An unset variable makes the row `BLOCKED` without running it.
+   - A task with no new behaviour (a pure refactor, a config or tooling change) has no `RED` rows. Put the line `RED: n/a — <reason>` directly under the table instead, for example `RED: n/a — documentation only; no behaviour changes`.
+   - The Tier A/B/C testing standard above decides which rows a task needs; the rows are the proof, not a checklist.
+
+   Under the table, add `## Stop and Report If` with these five default bullets verbatim, then the bullets specific to this task:
+
+   ```markdown
+   ## Stop and Report If
+
+   - A command, path, symbol or anchor named in this task does not match the repository.
+   - A Verification row fails for a reason other than its Expect.
+   - The work needs a change to a file outside Allowed files, or to a protected path.
+   - The work needs a change to this task's Verification table, Definition of Done, Allowed files or
+     Covers line.
+   - A variable named in the Needs column is unset.
+   ```
+
+   Then add `## Decisions Already Made`: the choices from the spec or HLD that the task must not revisit, copied inline so the receiver does not have to find them. Write `None` when there are none.
+10. **Definition of Done (DoD)**: Acceptance criteria (100% BDD scenario coverage across Tier A unit and Tier C integration tests with zero uncovered scenarios, passes Tier A/B/C verification, clean git status; for Web/UI deliverables: automated integration tests pass AND live browser verification artifacts are captured via `browser_subagent`). Every bullet ends with a parenthesised reference: the Verification rows that prove it, such as `(V2, V4)`, or `(Gate 5)` for an item only the developer can judge at Kanban review. The Gate 4 report lists `(Gate 5)` items; no script marks one met.
+11. **Dependencies & Blockers**: Link to blocking/blocked task files as markdown links, each `Blocked by` clause on one line (e.g. `Blocked by [Task 1](task_1_create_package.md)`).
 12. **References & Rollback**: Links to docs, APIs, and a rollback strategy if this specific task fails.
 
 ### Step 3: Finalize & Commit
@@ -368,7 +380,17 @@ python3 "$SKILL_DIR"/../dev-implementation/resources/scripts/check_bdd_traceabil
   --tasks .devtool/epic/<epic_name>/task_*.md
 ```
 
-It must exit 0. Exit 1 names the unassigned, unknown or malformed identifiers: fix the task files or the scenario documents and run it again. Pass the epic directory's task mirrors, never `.devtool/features/task_*.md`, which can hold other epics' tasks.
+It must exit 0. Exit 1 names the unassigned, duplicated, unknown or malformed identifiers: fix the task files or the scenario documents and run it again.
+
+Then check the task contract, which `plan` does not cover: the Files, Verification and Definition of Done sections, the Allowed files and Read-only context paths, the commands and the HLD declarations.
+
+```bash
+python3 "$SKILL_DIR"/../dev-implementation/resources/scripts/check_task_contract.py --design \
+  --hld .devtool/epic/<epic_name>/<epic_name>.en.md \
+  --tasks .devtool/epic/<epic_name>/task_*.md
+```
+
+It must exit 0 as well; fix what it names and run both checks again. Both must exit 0 before the commit. Pass the epic directory's task mirrors, never `.devtool/features/task_*.md`, which can hold other epics' tasks.
 
 After the Epic Overview and all confirmed task files are written (or updated), commit them to git:
 - Read `.agents/config.json` — check the `auto_commit` setting.
@@ -399,5 +421,7 @@ When new requirements arrive for an epic already in progress, append new task fi
 - Using legacy Mermaid syntax (`graph TD`/`graph LR` instead of `flowchart TD`/`flowchart LR`), unquoted special-character labels, or malformed Graphviz (DOT) diagrams.
 - Violating markdown lint standards (e.g. untagged code blocks, heading skips, trailing whitespace).
 - Writing a scenario in `bdd_scenarios.*.md` without a bracketed identifier, or a task that writes integration tests without its `Covers:` line.
-- Committing the epic before `check_bdd_traceability.py plan` exits 0.
+- Committing the epic before `check_bdd_traceability.py plan` and `check_task_contract.py --design` both exit 0.
+- A Definition of Done item with neither a row reference nor `(Gate 5)`.
+- Task files whose paths or commands were not checked with `check_task_contract.py --design`.
 - Invoking `dev-implementation` after Step 3 instead of returning to the Handoff Choice.

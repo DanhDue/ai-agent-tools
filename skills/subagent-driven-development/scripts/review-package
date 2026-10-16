@@ -5,12 +5,16 @@
 # tasks intact.
 #
 # Usage: review-package PLAN_FILE BASE HEAD [OUTFILE]
+# HEAD may be WORKTREE: the package is then the uncommitted working tree
+# (untracked files that are not ignored included) against BASE, built in a
+# temporary index so the real index is never touched. It prints the tree id
+# it packaged; pass that id as BASE to package only a later fix round.
 # Default OUTFILE: <repo-root>/.superpowers/sdd/<plan-basename>/review-<base7>..<head7>.diff
 # (named per range, so a re-review after fixes gets a distinct fresh file).
 set -euo pipefail
 
 if [ $# -lt 3 ] || [ $# -gt 4 ]; then
-  echo "usage: review-package PLAN_FILE BASE HEAD [OUTFILE]" >&2
+  echo "usage: review-package PLAN_FILE BASE HEAD|WORKTREE [OUTFILE]" >&2
   exit 2
 fi
 
@@ -20,27 +24,54 @@ head=$3
 [ -f "$plan" ] || { echo "no such plan file: $plan" >&2; exit 2; }
 
 git rev-parse --verify --quiet "$base" >/dev/null || { echo "bad BASE: $base" >&2; exit 2; }
-git rev-parse --verify --quiet "$head" >/dev/null || { echo "bad HEAD: $head" >&2; exit 2; }
+
+if [ "$head" = WORKTREE ]; then
+  scratch=$(mktemp -d)
+  trap 'rm -rf "$scratch"' EXIT
+  export GIT_INDEX_FILE="$scratch/index"
+  git read-tree HEAD
+  git add -A
+  tree=$(git write-tree)
+  head_label="wt-$(git rev-parse --short "$tree")"
+  range="${base}..working tree (tree ${tree})"
+  diff_range=(--cached "$base")
+else
+  git rev-parse --verify --quiet "$head" >/dev/null || { echo "bad HEAD: $head" >&2; exit 2; }
+  head_label=$(git rev-parse --short "$head")
+  range="${base}..${head}"
+  diff_range=("${base}..${head}")
+fi
 
 if [ $# -eq 4 ]; then
   out=$4
 else
   dir=$("$(cd "$(dirname "$0")" && pwd)/sdd-workspace" "$plan")
-  out="$dir/review-$(git rev-parse --short "$base")..$(git rev-parse --short "$head").diff"
+  out="$dir/review-$(git rev-parse --short "$base")..${head_label}.diff"
 fi
 
 {
-  echo "# Review package: ${base}..${head}"
+  echo "# Review package: ${range}"
   echo
   echo "## Commits"
-  git log --oneline "${base}..${head}"
+  if [ "$head" = WORKTREE ]; then
+    if git rev-parse --verify --quiet "${base}^{commit}" >/dev/null 2>&1; then
+      git log --oneline "${base}..HEAD"
+    fi
+    echo "(uncommitted working tree)"
+  else
+    git log --oneline "${base}..${head}"
+  fi
   echo
   echo "## Files changed"
-  git diff --stat "${base}..${head}"
+  git diff --stat "${diff_range[@]}"
   echo
   echo "## Diff"
-  git diff -U10 "${base}..${head}"
+  git diff -U10 "${diff_range[@]}"
 } > "$out"
 
-commits=$(git rev-list --count "${base}..${head}")
-echo "wrote ${out}: ${commits} commit(s), $(wc -c < "$out" | tr -d ' ') bytes"
+if [ "$head" = WORKTREE ]; then
+  echo "wrote ${out}: uncommitted working tree, tree ${tree}, $(wc -c < "$out" | tr -d ' ') bytes"
+else
+  commits=$(git rev-list --count "${base}..${head}")
+  echo "wrote ${out}: ${commits} commit(s), $(wc -c < "$out" | tr -d ' ') bytes"
+fi

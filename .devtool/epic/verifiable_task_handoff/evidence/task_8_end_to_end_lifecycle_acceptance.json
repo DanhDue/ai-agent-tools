@@ -1,0 +1,571 @@
+{
+  "schema": 1,
+  "task": "task_8_end_to_end_lifecycle_acceptance",
+  "runs": {
+    "verify": {
+      "head": "93f0f6e80671a15f28158e301e48364c1cfde44d",
+      "tree": "8c8cc8db33bae47e2046549001278cf7a32f990c",
+      "patch_id": "190035d7028e3196e6cccf90bc15a69dc2bc7e34",
+      "started": "2026-10-16T08:22:38Z",
+      "finished": "2026-10-16T08:23:58Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "GREEN",
+          "command": "python3 -m unittest scripts/test_verifiable_handoff.py",
+          "expect": "exit 0; contains \"OK\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-16T08:22:38Z",
+          "finished": "2026-10-16T08:22:39Z",
+          "output_tail": [
+            ".",
+            "----------------------------------------------------------------------",
+            "Ran 1 test in 0.832s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "d6b7ff4ff34765bfb1552c11d65b8624fa1fccde4cf216206f9dbaf6aa0f3e90"
+        },
+        {
+          "id": "V2",
+          "phase": "TIER-B",
+          "command": "bash scripts/verify.sh",
+          "expect": "exit 0; contains \"PASS — safe to publish\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-16T08:22:39Z",
+          "finished": "2026-10-16T08:23:28Z",
+          "output_tail": [
+            "Ran 9 tests in 0.000s",
+            "",
+            "OK",
+            ".....",
+            "----------------------------------------------------------------------",
+            "Ran 5 tests in 0.000s",
+            "",
+            "OK",
+            ".........",
+            "----------------------------------------------------------------------",
+            "Ran 9 tests in 0.000s",
+            "",
+            "OK",
+            "......",
+            "----------------------------------------------------------------------",
+            "Ran 6 tests in 0.000s",
+            "",
+            "OK",
+            "......",
+            "----------------------------------------------------------------------",
+            "Ran 6 tests in 0.000s",
+            "",
+            "OK",
+            "......",
+            "----------------------------------------------------------------------",
+            "Ran 6 tests in 0.000s",
+            "",
+            "OK",
+            "..................",
+            "----------------------------------------------------------------------",
+            "Ran 18 tests in 0.010s",
+            "",
+            "OK",
+            "...............",
+            "----------------------------------------------------------------------",
+            "Ran 15 tests in 2.196s",
+            "",
+            "OK",
+            "",
+            "PASS — safe to publish"
+          ],
+          "output_sha256": "b8b77ba0ae275a41d344f54b2572b36f6d7c12d192805102d06fadf31e4700be"
+        },
+        {
+          "id": "V3",
+          "phase": "TIER-C",
+          "command": "python3 scripts/run_unittest_junit.py --junitxml build/test-results/vth.xml skills/dev-implementation/resources/scripts/test_run_task_checks.py skills/dev-implementation/resources/scripts/test_result_reports.py skills/dev-implementation/resources/scripts/test_check_bdd_traceability.py skills/dev-implementation/resources/scripts/test_check_task_contract.py skills/dev-implementation/resources/scripts/test_sync_task_status.py skills/dev-implementation/resources/scripts/test_audit_epic.py skills/dev-implementation/resources/scripts/test_run_external_review.py scripts/test_verifiable_handoff_text.py scripts/test_verifiable_handoff.py",
+          "expect": "exit 0; results build/test-results/vth.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-16T08:23:28Z",
+          "finished": "2026-10-16T08:23:55Z",
+          "output_tail": [
+            ".......",
+            "----------------------------------------------------------------------",
+            "Ran 7 tests in 0.003s",
+            "",
+            "OK",
+            ".......................................",
+            "----------------------------------------------------------------------",
+            "Ran 39 tests in 0.299s",
+            "",
+            "OK",
+            "..................",
+            "----------------------------------------------------------------------",
+            "Ran 18 tests in 3.030s",
+            "",
+            "OK",
+            "...................................................",
+            "----------------------------------------------------------------------",
+            "Ran 51 tests in 4.373s",
+            "",
+            "OK",
+            "..........",
+            "----------------------------------------------------------------------",
+            "Ran 10 tests in 6.940s",
+            "",
+            "OK",
+            ".......",
+            "----------------------------------------------------------------------",
+            "Ran 7 tests in 5.295s",
+            "",
+            "OK",
+            ".....",
+            "----------------------------------------------------------------------",
+            "Ran 5 tests in 0.001s",
+            "",
+            "OK",
+            ".",
+            "----------------------------------------------------------------------",
+            "Ran 1 test in 0.948s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "49587ac18c4a0f737a695356f710bd5c3994de83a230fd91741dd670dccd2ad0",
+          "results": {
+            "path": "build/test-results/vth.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 45,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_vth_ec_05_unset_needs_variable_blocks_without_running",
+                  "classname": "test_run_task_checks.RecorderTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_vth_fr_01_slow_row_and_stale_report_fail_closed",
+                  "classname": "test_run_task_checks.RecorderTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_vth_fr_05_unparseable_task_exits_two_and_writes_no_evidence",
+                  "classname": "test_run_task_checks.RecorderTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_vth_hp_02_red_then_verify_records_passing_evidence",
+                  "classname": "test_run_task_checks.RecorderTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_vth_st_02_scope_rejects_outside_and_protected_changes",
+                  "classname": "test_run_task_checks.RecorderTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_vth_st_01_an_identifier_owned_by_two_tasks_fails_the_plan",
+                  "classname": "test_check_bdd_traceability.PlanModeTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_vth_ec_06_misleading_coverage_is_rejected_with_its_reason",
+                  "classname": "test_check_bdd_traceability.ResultsModeTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_vth_fr_02_report_in_neither_format_exits_2_naming_the_file",
+                  "classname": "test_check_bdd_traceability.ResultsModeTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_vth_hp_04_junit_directory_and_dart_reports_prove_every_identifier",
+                  "classname": "test_check_bdd_traceability.ResultsModeTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_vth_hp_01_a_compliant_epic_passes_and_prints_implicit_protected_paths",
+                  "classname": "test_check_task_contract.CompliantEpicTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_vth_ec_04_missing_hld_declarations_are_rejected",
+                  "classname": "test_check_task_contract.DeclarationTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_vth_ec_04_needs_name_and_integration_report_path_are_checked",
+                  "classname": "test_check_task_contract.DeclarationTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_vth_ec_01_paths_that_do_not_match_the_repository_are_named",
+                  "classname": "test_check_task_contract.GroundingTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_vth_ec_01_without_design_a_done_task_is_not_grounded_and_new_is_not_checked",
+                  "classname": "test_check_task_contract.GroundingTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_vth_ec_02_a_definition_of_done_item_with_no_command_is_rejected",
+                  "classname": "test_check_task_contract.StructureTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_vth_ec_03_a_malformed_verification_table_is_rejected_row_by_row",
+                  "classname": "test_check_task_contract.StructureTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_vth_fr_04_a_directory_outside_any_git_repository_exits_2",
+                  "classname": "test_check_task_contract.UsageTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_vth_fr_04_a_missing_argument_exits_2",
+                  "classname": "test_check_task_contract.UsageTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_vth_fr_04_an_unreadable_task_exits_2_with_the_reason_on_stderr",
+                  "classname": "test_check_task_contract.UsageTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_vth_ar_02_gate_from_checkout_without_evidence_writes_nothing",
+                  "classname": "test_sync_task_status.DoneGateTests",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_vth_hp_03_matching_evidence_reaches_done",
+                  "classname": "test_sync_task_status.DoneGateTests",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_vth_st_03_done_without_evidence_is_refused",
+                  "classname": "test_sync_task_status.DoneGateTests",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_vth_st_04_edits_after_verification_are_refused",
+                  "classname": "test_sync_task_status.DoneGateTests",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_vth_st_05_red_that_did_not_precede_the_change_is_refused",
+                  "classname": "test_sync_task_status.DoneGateTests",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_vth_st_06_only_code_epics_are_gated",
+                  "classname": "test_sync_task_status.DoneGateTests",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_vth_st_07_covered_identifier_without_a_passing_case_is_refused",
+                  "classname": "test_sync_task_status.DoneGateTests",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_vth_ar_01_a_moved_base_branch_changes_trees_but_not_the_verdict",
+                  "classname": "test_audit_epic.AuditEpicTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_vth_fr_03_an_unknown_base_reference_is_a_usage_error",
+                  "classname": "test_audit_epic.AuditEpicTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_vth_hp_05_a_clean_epic_passes_the_audit",
+                  "classname": "test_audit_epic.AuditEpicTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_vth_hp_10_disclosures_are_listed_without_failing_the_audit",
+                  "classname": "test_audit_epic.AuditEpicTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_vth_st_08_a_done_status_written_by_hand_fails_the_audit",
+                  "classname": "test_audit_epic.AuditEpicTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_vth_st_09_protected_changes_outside_tasks_fail_outside_devtool_and_are_disclosed_inside",
+                  "classname": "test_audit_epic.AuditEpicTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_vth_ec_07_minor_findings_alone_do_not_block",
+                  "classname": "test_run_external_review.RunExternalReviewTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_vth_fr_06_a_missing_cli_or_a_dirty_tree_stops_the_review_before_it_runs",
+                  "classname": "test_run_external_review.RunExternalReviewTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_vth_fr_07_a_reviewer_that_modifies_the_tree_is_discarded",
+                  "classname": "test_run_external_review.RunExternalReviewTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_vth_fr_08_a_failing_silent_or_slow_cli_records_no_verdict",
+                  "classname": "test_run_external_review.RunExternalReviewTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_vth_hp_12_a_clean_review_round_is_recorded",
+                  "classname": "test_run_external_review.RunExternalReviewTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_vth_st_10_blocking_findings_hold_phase_4_until_each_has_a_decision",
+                  "classname": "test_run_external_review.RunExternalReviewTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_vth_st_11_the_latest_completed_round_governs_check",
+                  "classname": "test_run_external_review.RunExternalReviewTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_vth_hp_06_dev_designer_states_the_task_contract",
+                  "classname": "test_verifiable_handoff_text.VerifiableHandoffText",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_vth_hp_07_dev_implementation_states_recorder_and_gate",
+                  "classname": "test_verifiable_handoff_text.VerifiableHandoffText",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_vth_hp_08_dev_lifecycle_and_handoff_state_the_rules",
+                  "classname": "test_verifiable_handoff_text.VerifiableHandoffText",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_vth_hp_09_sdd_prompts_treat_evidence_as_proof",
+                  "classname": "test_verifiable_handoff_text.VerifiableHandoffText",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_vth_hp_13_review_choice_is_stated",
+                  "classname": "test_verifiable_handoff_text.VerifiableHandoffText",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_vth_hp_11_design_to_audit_every_step_exits_0",
+                  "classname": "test_verifiable_handoff.DesignToAuditTest",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-C",
+          "command": "python3 skills/dev-implementation/resources/scripts/check_bdd_traceability.py tests --scenarios .devtool/epic/verifiable_task_handoff/bdd_scenarios.en.md --roots skills/dev-implementation/resources/scripts/ scripts/ --results build/test-results/vth.xml",
+          "expect": "exit 0; contains \"Result: 41/41 covered — PASS\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-16T08:23:55Z",
+          "finished": "2026-10-16T08:23:55Z",
+          "output_tail": [
+            "VTH-EC-02    PASS test_vth_ec_02_a_definition_of_done_item_with_no_command_is_rejected",
+            "VTH-EC-03    PASS test_vth_ec_03_a_malformed_verification_table_is_rejected_row_by_row",
+            "VTH-EC-04    PASS test_vth_ec_04_missing_hld_declarations_are_rejected",
+            "VTH-ST-01    PASS test_vth_st_01_an_identifier_owned_by_two_tasks_fails_the_plan",
+            "VTH-FR-04    PASS test_vth_fr_04_a_directory_outside_any_git_repository_exits_2",
+            "VTH-HP-02    PASS test_vth_hp_02_red_then_verify_records_passing_evidence",
+            "VTH-EC-05    PASS test_vth_ec_05_unset_needs_variable_blocks_without_running",
+            "VTH-ST-02    PASS test_vth_st_02_scope_rejects_outside_and_protected_changes",
+            "VTH-FR-01    PASS test_vth_fr_01_slow_row_and_stale_report_fail_closed",
+            "VTH-FR-05    PASS test_vth_fr_05_unparseable_task_exits_two_and_writes_no_evidence",
+            "VTH-HP-03    PASS test_vth_hp_03_matching_evidence_reaches_done",
+            "VTH-ST-03    PASS test_vth_st_03_done_without_evidence_is_refused",
+            "VTH-ST-04    PASS test_vth_st_04_edits_after_verification_are_refused",
+            "VTH-ST-05    PASS test_vth_st_05_red_that_did_not_precede_the_change_is_refused",
+            "VTH-ST-06    PASS test_vth_st_06_only_code_epics_are_gated",
+            "VTH-ST-07    PASS test_vth_st_07_covered_identifier_without_a_passing_case_is_refused",
+            "VTH-AR-02    PASS test_vth_ar_02_gate_from_checkout_without_evidence_writes_nothing",
+            "VTH-HP-04    PASS test_vth_hp_04_junit_directory_and_dart_reports_prove_every_identifier",
+            "VTH-EC-06    PASS test_vth_ec_06_misleading_coverage_is_rejected_with_its_reason",
+            "VTH-FR-02    PASS test_vth_fr_02_report_in_neither_format_exits_2_naming_the_file",
+            "VTH-HP-05    PASS test_vth_hp_05_a_clean_epic_passes_the_audit",
+            "VTH-HP-10    PASS test_vth_hp_10_disclosures_are_listed_without_failing_the_audit",
+            "VTH-ST-08    PASS test_vth_st_08_a_done_status_written_by_hand_fails_the_audit",
+            "VTH-ST-09    PASS test_vth_st_09_protected_changes_outside_tasks_fail_outside_devtool_and_are_disclosed_inside",
+            "VTH-AR-01    PASS test_vth_ar_01_a_moved_base_branch_changes_trees_but_not_the_verdict",
+            "VTH-FR-03    PASS test_vth_fr_03_an_unknown_base_reference_is_a_usage_error",
+            "VTH-HP-06    PASS test_vth_hp_06_dev_designer_states_the_task_contract",
+            "VTH-HP-07    PASS test_vth_hp_07_dev_implementation_states_recorder_and_gate",
+            "VTH-HP-08    PASS test_vth_hp_08_dev_lifecycle_and_handoff_state_the_rules",
+            "VTH-HP-09    PASS test_vth_hp_09_sdd_prompts_treat_evidence_as_proof",
+            "VTH-HP-13    PASS test_vth_hp_13_review_choice_is_stated",
+            "VTH-HP-11    PASS test_vth_hp_11_design_to_audit_every_step_exits_0",
+            "VTH-HP-12    PASS test_vth_hp_12_a_clean_review_round_is_recorded",
+            "VTH-EC-07    PASS test_vth_ec_07_minor_findings_alone_do_not_block",
+            "VTH-ST-10    PASS test_vth_st_10_blocking_findings_hold_phase_4_until_each_has_a_decision",
+            "VTH-ST-11    PASS test_vth_st_11_the_latest_completed_round_governs_check",
+            "VTH-FR-06    PASS test_vth_fr_06_a_missing_cli_or_a_dirty_tree_stops_the_review_before_it_runs",
+            "VTH-FR-07    PASS test_vth_fr_07_a_reviewer_that_modifies_the_tree_is_discarded",
+            "VTH-FR-08    PASS test_vth_fr_08_a_failing_silent_or_slow_cli_records_no_verdict",
+            "Result: 41/41 covered — PASS"
+          ],
+          "output_sha256": "a3020fc2e587be74fad7b1efa0372265ddc4d3dc7ac0b10a2de0507f0ef48808"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-C",
+          "command": "python3 skills/dev-implementation/resources/scripts/check_bdd_traceability.py plan --scenarios .devtool/epic/verifiable_task_handoff/bdd_scenarios.en.md --tasks .devtool/epic/verifiable_task_handoff/task_*.md",
+          "expect": "exit 0; contains \"Result: 41/41 covered — PASS\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-16T08:23:55Z",
+          "finished": "2026-10-16T08:23:55Z",
+          "output_tail": [
+            "VTH-EC-02    task_3_design_time_task_contract_check.md",
+            "VTH-EC-03    task_3_design_time_task_contract_check.md",
+            "VTH-EC-04    task_3_design_time_task_contract_check.md",
+            "VTH-ST-01    task_3_design_time_task_contract_check.md",
+            "VTH-FR-04    task_3_design_time_task_contract_check.md",
+            "VTH-HP-02    task_1_verification_table_parser_and_evidence_recorder.md",
+            "VTH-EC-05    task_1_verification_table_parser_and_evidence_recorder.md",
+            "VTH-ST-02    task_1_verification_table_parser_and_evidence_recorder.md",
+            "VTH-FR-01    task_1_verification_table_parser_and_evidence_recorder.md",
+            "VTH-FR-05    task_1_verification_table_parser_and_evidence_recorder.md",
+            "VTH-HP-03    task_4_done_gate_and_evidence_status.md",
+            "VTH-ST-03    task_4_done_gate_and_evidence_status.md",
+            "VTH-ST-04    task_4_done_gate_and_evidence_status.md",
+            "VTH-ST-05    task_4_done_gate_and_evidence_status.md",
+            "VTH-ST-06    task_4_done_gate_and_evidence_status.md",
+            "VTH-ST-07    task_4_done_gate_and_evidence_status.md",
+            "VTH-AR-02    task_4_done_gate_and_evidence_status.md",
+            "VTH-HP-04    task_2_test_result_reports_and_result_based_traceability.md",
+            "VTH-EC-06    task_2_test_result_reports_and_result_based_traceability.md",
+            "VTH-FR-02    task_2_test_result_reports_and_result_based_traceability.md",
+            "VTH-HP-05    task_5_gate_4_epic_audit.md",
+            "VTH-HP-10    task_5_gate_4_epic_audit.md",
+            "VTH-ST-08    task_5_gate_4_epic_audit.md",
+            "VTH-ST-09    task_5_gate_4_epic_audit.md",
+            "VTH-AR-01    task_5_gate_4_epic_audit.md",
+            "VTH-FR-03    task_5_gate_4_epic_audit.md",
+            "VTH-HP-06    task_7_skill_prompt_and_reference_text.md",
+            "VTH-HP-07    task_7_skill_prompt_and_reference_text.md",
+            "VTH-HP-08    task_7_skill_prompt_and_reference_text.md",
+            "VTH-HP-09    task_7_skill_prompt_and_reference_text.md",
+            "VTH-HP-13    task_7_skill_prompt_and_reference_text.md",
+            "VTH-HP-11    task_8_end_to_end_lifecycle_acceptance.md",
+            "VTH-HP-12    task_6_cross_model_review_runner.md",
+            "VTH-EC-07    task_6_cross_model_review_runner.md",
+            "VTH-ST-10    task_6_cross_model_review_runner.md",
+            "VTH-ST-11    task_6_cross_model_review_runner.md",
+            "VTH-FR-06    task_6_cross_model_review_runner.md",
+            "VTH-FR-07    task_6_cross_model_review_runner.md",
+            "VTH-FR-08    task_6_cross_model_review_runner.md",
+            "Result: 41/41 covered — PASS"
+          ],
+          "output_sha256": "7b3ae66c6f57ddc4d45ad89e202bc7268d0781cabba469c80fe52e2c52eaceca"
+        },
+        {
+          "id": "V6",
+          "phase": "TIER-C",
+          "command": "python3 skills/dev-implementation/resources/scripts/check_task_contract.py --hld .devtool/epic/verifiable_task_handoff/verifiable_task_handoff.en.md --tasks .devtool/epic/verifiable_task_handoff/task_*.md",
+          "expect": "exit 0; contains \"PASS\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-16T08:23:55Z",
+          "finished": "2026-10-16T08:23:56Z",
+          "output_tail": [
+            "Implicit protected paths: scripts/run_unittest_junit.py, scripts/verify.sh, skills/dev-implementation/resources/scripts/audit_epic.py, skills/dev-implementation/resources/scripts/check_bdd_traceability.py, skills/dev-implementation/resources/scripts/check_task_contract.py, skills/doc_quality_check/resources/scripts/check_document.py",
+            "Result: 0 problems — PASS"
+          ],
+          "output_sha256": "ec8f472238d12a69086a8684ec9c72326f33d2b9aeeb16837a6601cb9cd8e6aa"
+        },
+        {
+          "id": "V7",
+          "phase": "TIER-C",
+          "command": "python3 skills/dev-implementation/resources/scripts/audit_epic.py --epic-dir verifiable_task_handoff --base main",
+          "expect": "exit 0; contains \"Result: PASS\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-16T08:23:56Z",
+          "finished": "2026-10-16T08:23:57Z",
+          "output_tail": [
+            "### Evidence",
+            "- task_1_verification_table_parser_and_evidence_recorder: PASS",
+            "- task_2_test_result_reports_and_result_based_traceability: PASS",
+            "- task_3_design_time_task_contract_check: PASS",
+            "- task_4_done_gate_and_evidence_status: PASS",
+            "- task_5_gate_4_epic_audit: PASS",
+            "- task_6_cross_model_review_runner: PASS",
+            "- task_7_skill_prompt_and_reference_text: PASS",
+            "",
+            "### Legacy tasks",
+            "None",
+            "",
+            "### Protected paths",
+            "- 0365149 scripts/run_unittest_junit.py",
+            "- 0365149 scripts/verify.sh",
+            "- c16cca2 scripts/verify.sh",
+            "- c16cca2 skills/dev-implementation/resources/scripts/check_bdd_traceability.py",
+            "- 5163706 scripts/verify.sh",
+            "- 5163706 skills/dev-implementation/resources/scripts/check_bdd_traceability.py",
+            "- 5163706 skills/dev-implementation/resources/scripts/check_task_contract.py",
+            "- c227bb9 scripts/verify.sh",
+            "- 9211d13 scripts/verify.sh",
+            "- 9211d13 skills/dev-implementation/resources/scripts/audit_epic.py",
+            "- 0acafeb scripts/verify.sh",
+            "- 96be26a scripts/verify.sh",
+            "",
+            "### Grader amendments",
+            "None",
+            "",
+            "### Commits outside tasks",
+            "None",
+            "",
+            "### Gate 5 items",
+            "None",
+            "",
+            "Result: PASS"
+          ],
+          "output_sha256": "7153cf773652444e3ffb381df317a5a9674753a1f7b69e241a04fdb2c3b16378"
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "scripts/test_verifiable_handoff.py",
+            "scripts/verify.sh"
+          ],
+          "violations": []
+        }
+      ]
+    }
+  }
+}

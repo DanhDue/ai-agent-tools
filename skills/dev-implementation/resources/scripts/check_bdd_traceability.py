@@ -4,6 +4,7 @@
 Usage:
   check_bdd_traceability.py plan  --scenarios <bdd_scenarios.en.md> --tasks <task_*.md ...>
   check_bdd_traceability.py tests --scenarios <bdd_scenarios.en.md> --roots <dir ...> [--ids <ID ...>]
+                                  [--results <report file|dir|glob ...>]
 
 Exit codes: 0 all covered; 1 traceability failure; 2 usage error.
 """
@@ -14,6 +15,8 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+
+from result_reports import ReportError, load_reports, reference_pattern, verdicts
 
 ID_SHAPE = re.compile(r"[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-[0-9]+")
 SCENARIO_KEYWORDS = (
@@ -113,13 +116,10 @@ def check_plan(ids: list[str], task_paths: list[Path]) -> tuple[dict[str, list[s
                 problems.append(f"{path}: Covers names unknown identifier {identifier}")
             elif path.name not in coverage[identifier]:
                 coverage[identifier].append(path.name)
+    for identifier, owners in coverage.items():
+        if len(owners) > 1:
+            problems.append(f"{identifier} is on the Covers lines of {', '.join(owners[:-1])} and {owners[-1]}")
     return coverage, problems
-
-
-def reference_pattern(identifier: str) -> re.Pattern[str]:
-    """Match an identifier in any case, with - and _ interchangeable, not inside a longer token."""
-    body = "[-_]".join(re.escape(part) for part in identifier.split("-"))
-    return re.compile(r"(?<![A-Za-z0-9])" + body + r"(?![A-Za-z0-9])", re.IGNORECASE)
 
 
 def stale_pattern(ids: list[str]) -> re.Pattern[str]:
@@ -196,16 +196,41 @@ def report(coverage: dict[str, list[str]], problems: list[str], warnings: list[s
     return 1 if failed else 0
 
 
+def report_results(ids: list[str], selected: list[str], roots: list[Path], results: list[str],
+                   check_stale: bool, unknown: list[str]) -> int:
+    """Coverage proven by test results: each selected identifier needs a passed case."""
+    cases = load_reports(results, Path.cwd())
+    _, problems, warnings = check_tests(ids, [], roots, check_stale)
+    if check_stale:
+        stale, known = stale_pattern(ids), set(ids)
+        problems.extend(f"{case.name}: stale reference {token}" for case in cases
+                        for token in stale.findall(f"{case.name} {case.classname}") if token not in known)
+    judged = verdicts(selected, cases)
+    width = max((len(identifier) for identifier in judged), default=0)
+    for identifier, (passed, detail) in judged.items():
+        print(f"{identifier.ljust(width)}    {'PASS' if passed else 'FAIL'} {detail}")
+    for warning in warnings:
+        print(warning, file=sys.stderr)
+    problems = unknown + problems
+    for problem in problems:
+        print(problem)
+    covered = sum(1 for passed, _ in judged.values() if passed)
+    failed = bool(problems) or covered < len(judged)
+    print(f"Result: {covered}/{len(judged)} covered — {'FAIL' if failed else 'PASS'}")
+    return 1 if failed else 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     modes = parser.add_subparsers(dest="mode", required=True)
-    plan = modes.add_parser("plan", help="every scenario is assigned to at least one task")
+    plan = modes.add_parser("plan", help="every scenario is assigned to exactly one task")
     plan.add_argument("--scenarios", required=True, type=Path)
     plan.add_argument("--tasks", required=True, nargs="+", type=Path)
     tests = modes.add_parser("tests", help="every scenario has at least one integration test")
     tests.add_argument("--scenarios", required=True, type=Path)
     tests.add_argument("--roots", required=True, nargs="+")
     tests.add_argument("--ids", nargs="+")
+    tests.add_argument("--results", nargs="+")
     args = parser.parse_args(argv)
     try:
         ids, problems = load_scenarios(args.scenarios)
@@ -221,9 +246,12 @@ def main(argv: list[str] | None = None) -> int:
         unknown = [f"--ids names unknown identifier {identifier}"
                    for identifier in selected if identifier not in ids]
         known_selected = [identifier for identifier in selected if identifier in ids]
+        if args.results:
+            return report_results(ids, known_selected, roots, split_values(args.results),
+                                  not args.ids, unknown)
         coverage, problems, warnings = check_tests(ids, known_selected, roots, not args.ids)
         return report(coverage, unknown + problems, warnings)
-    except UsageError as error:
+    except (UsageError, ReportError) as error:
         print(f"error: {error}", file=sys.stderr)
         return 2
 

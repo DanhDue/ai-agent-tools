@@ -15,7 +15,7 @@
 ## 1. Meta Data
 
 - **Epic**: verifiable_task_handoff (directory `verifiable_task_handoff`)
-- **Status**: Planned
+- **Status**: Done
 - **Target Release**: d3nexus 1.9.0
 - **Platform**: Python — the kit repository: standard-library scripts tested with `unittest`, plus
   Markdown skills. `detect_project_type.sh` reports `unknown` for this repository.

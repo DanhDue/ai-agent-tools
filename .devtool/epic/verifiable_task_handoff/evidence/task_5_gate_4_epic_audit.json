@@ -1,0 +1,271 @@
+{
+  "schema": 1,
+  "task": "task_5_gate_4_epic_audit",
+  "runs": {
+    "red": {
+      "head": "c227bb996ee27c8dc995be1d825e7b1f1d362011",
+      "tree": "c794f78891de29f9988361d57fddb9934ae59db6",
+      "patch_id": "64fde3f72adf443482d16f5132f94e152caf6ba3",
+      "started": "2026-10-16T07:54:01Z",
+      "finished": "2026-10-16T07:54:01Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m unittest skills/dev-implementation/resources/scripts/test_audit_epic.py",
+          "expect": "exit 1; contains \"ModuleNotFoundError\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-16T07:54:01Z",
+          "finished": "2026-10-16T07:54:01Z",
+          "output_tail": [
+            "E",
+            "======================================================================",
+            "ERROR: test_audit_epic (unittest.loader._FailedTest.test_audit_epic)",
+            "----------------------------------------------------------------------",
+            "ImportError: Failed to import test module: test_audit_epic",
+            "Traceback (most recent call last):",
+            "  File \"/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py\", line 137, in loadTestsFromName",
+            "    module = __import__(module_name)",
+            "  File \"/Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/verifiable_task_handoff/skills/dev-implementation/resources/scripts/test_audit_epic.py\", line 19, in <module>",
+            "    from audit_epic import main",
+            "ModuleNotFoundError: No module named 'audit_epic'",
+            "",
+            "",
+            "----------------------------------------------------------------------",
+            "Ran 1 test in 0.000s",
+            "",
+            "FAILED (errors=1)"
+          ],
+          "output_sha256": "d06f062922f71418da40f71b160d966ca5ac046006312f8d71bf283943ec1517"
+        }
+      ]
+    },
+    "verify": {
+      "head": "c227bb996ee27c8dc995be1d825e7b1f1d362011",
+      "tree": "a49e9f5de90d87207576e747287ac14c42fff091",
+      "patch_id": "76906c4228220672d0efed6fbec5851b40dcc093",
+      "started": "2026-10-16T07:58:33Z",
+      "finished": "2026-10-16T07:59:33Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m unittest skills/dev-implementation/resources/scripts/test_audit_epic.py",
+          "expect": "exit 0; contains \"OK\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-16T07:58:33Z",
+          "finished": "2026-10-16T07:58:39Z",
+          "output_tail": [
+            "..........",
+            "----------------------------------------------------------------------",
+            "Ran 10 tests in 6.696s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "5b24dc362b032ed794e06faac0aa3552ff9d53d37c720600bb620bbc2405069f"
+        },
+        {
+          "id": "V3",
+          "phase": "TIER-B",
+          "command": "bash scripts/verify.sh",
+          "expect": "exit 0; contains \"PASS — safe to publish\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-16T07:58:39Z",
+          "finished": "2026-10-16T07:59:24Z",
+          "output_tail": [
+            "Ran 9 tests in 0.000s",
+            "",
+            "OK",
+            ".....",
+            "----------------------------------------------------------------------",
+            "Ran 5 tests in 0.000s",
+            "",
+            "OK",
+            ".........",
+            "----------------------------------------------------------------------",
+            "Ran 9 tests in 0.000s",
+            "",
+            "OK",
+            "......",
+            "----------------------------------------------------------------------",
+            "Ran 6 tests in 0.000s",
+            "",
+            "OK",
+            "......",
+            "----------------------------------------------------------------------",
+            "Ran 6 tests in 0.000s",
+            "",
+            "OK",
+            "......",
+            "----------------------------------------------------------------------",
+            "Ran 6 tests in 0.000s",
+            "",
+            "OK",
+            "..................",
+            "----------------------------------------------------------------------",
+            "Ran 18 tests in 0.011s",
+            "",
+            "OK",
+            "...............",
+            "----------------------------------------------------------------------",
+            "Ran 15 tests in 2.096s",
+            "",
+            "OK",
+            "",
+            "PASS — safe to publish"
+          ],
+          "output_sha256": "4f819060f805dfb3922ceb3a98b3f2bd8f92e1b76cc5ee5f5e36abcfbb2eff5e"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-C",
+          "command": "python3 scripts/run_unittest_junit.py --junitxml build/test-results/task_5.xml skills/dev-implementation/resources/scripts/test_audit_epic.py",
+          "expect": "exit 0; results build/test-results/task_5.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-16T07:59:24Z",
+          "finished": "2026-10-16T07:59:31Z",
+          "output_tail": [
+            "..........",
+            "----------------------------------------------------------------------",
+            "Ran 10 tests in 6.776s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "570d18031f58f6de54ed094776072a7edf75583c4367a6bc2b89c7d26613ee52",
+          "results": {
+            "path": "build/test-results/task_5.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 6,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_vth_ar_01_a_moved_base_branch_changes_trees_but_not_the_verdict",
+                  "classname": "test_audit_epic.AuditEpicTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_vth_fr_03_an_unknown_base_reference_is_a_usage_error",
+                  "classname": "test_audit_epic.AuditEpicTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_vth_hp_05_a_clean_epic_passes_the_audit",
+                  "classname": "test_audit_epic.AuditEpicTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_vth_hp_10_disclosures_are_listed_without_failing_the_audit",
+                  "classname": "test_audit_epic.AuditEpicTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_vth_st_08_a_done_status_written_by_hand_fails_the_audit",
+                  "classname": "test_audit_epic.AuditEpicTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_vth_st_09_protected_changes_outside_tasks_fail_outside_devtool_and_are_disclosed_inside",
+                  "classname": "test_audit_epic.AuditEpicTest",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-C",
+          "command": "python3 skills/dev-implementation/resources/scripts/check_bdd_traceability.py tests --scenarios .devtool/epic/verifiable_task_handoff/bdd_scenarios.en.md --roots skills/dev-implementation/resources/scripts/ --results build/test-results/task_5.xml --ids VTH-HP-05 VTH-HP-10 VTH-ST-08 VTH-ST-09 VTH-AR-01 VTH-FR-03",
+          "expect": "exit 0; contains \"Result: 6/6 covered — PASS\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-16T07:59:31Z",
+          "finished": "2026-10-16T07:59:31Z",
+          "output_tail": [
+            "VTH-HP-05    PASS test_vth_hp_05_a_clean_epic_passes_the_audit",
+            "VTH-HP-10    PASS test_vth_hp_10_disclosures_are_listed_without_failing_the_audit",
+            "VTH-ST-08    PASS test_vth_st_08_a_done_status_written_by_hand_fails_the_audit",
+            "VTH-ST-09    PASS test_vth_st_09_protected_changes_outside_tasks_fail_outside_devtool_and_are_disclosed_inside",
+            "VTH-AR-01    PASS test_vth_ar_01_a_moved_base_branch_changes_trees_but_not_the_verdict",
+            "VTH-FR-03    PASS test_vth_fr_03_an_unknown_base_reference_is_a_usage_error",
+            "Result: 6/6 covered — PASS"
+          ],
+          "output_sha256": "d2f3668166f5a2b67b8179ad597221442e9e372295b4de01accdcffac4a5386c"
+        },
+        {
+          "id": "V6",
+          "phase": "TIER-C",
+          "command": "python3 skills/dev-implementation/resources/scripts/audit_epic.py --epic-dir verifiable_task_handoff --base main",
+          "expect": "exit 0; contains \"Result: PASS\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-16T07:59:31Z",
+          "finished": "2026-10-16T07:59:32Z",
+          "output_tail": [
+            "### Evidence",
+            "- task_1_verification_table_parser_and_evidence_recorder: PASS",
+            "- task_2_test_result_reports_and_result_based_traceability: PASS",
+            "- task_3_design_time_task_contract_check: PASS",
+            "- task_4_done_gate_and_evidence_status: PASS",
+            "",
+            "### Legacy tasks",
+            "None",
+            "",
+            "### Protected paths",
+            "- 0365149 scripts/run_unittest_junit.py",
+            "- 0365149 scripts/verify.sh",
+            "- c16cca2 scripts/verify.sh",
+            "- c16cca2 skills/dev-implementation/resources/scripts/check_bdd_traceability.py",
+            "- 5163706 scripts/verify.sh",
+            "- 5163706 skills/dev-implementation/resources/scripts/check_bdd_traceability.py",
+            "- 5163706 skills/dev-implementation/resources/scripts/check_task_contract.py",
+            "- c227bb9 scripts/verify.sh",
+            "",
+            "### Grader amendments",
+            "None",
+            "",
+            "### Commits outside tasks",
+            "None",
+            "",
+            "### Gate 5 items",
+            "None",
+            "",
+            "Result: PASS"
+          ],
+          "output_sha256": "80436c63209812a446d992ca2d1d96d81a4faf78cb2bac00b92056fb5aa0025b"
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "scripts/verify.sh",
+            "skills/dev-implementation/resources/scripts/audit_epic.py",
+            "skills/dev-implementation/resources/scripts/test_audit_epic.py"
+          ],
+          "violations": []
+        }
+      ]
+    }
+  }
+}

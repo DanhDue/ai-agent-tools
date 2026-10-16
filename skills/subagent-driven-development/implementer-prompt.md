@@ -34,8 +34,9 @@ Subagent (general-purpose):
     Once you're clear on requirements:
     1. Implement exactly what the task specifies
     2. Write tests (following TDD if task says to)
-    3. Verify implementation works
-    4. Commit your work
+    3. Record the checks (see Recording the Evidence below)
+    4. Commit your work — unless the task has a Verification table: then
+       leave the change uncommitted (see Recording the Evidence)
     5. Self-review (see below)
     6. Report back
 
@@ -46,6 +47,37 @@ Subagent (general-purpose):
 
     While iterating, run the focused test for what you're changing; run the
     full suite once before committing, not after every edit.
+
+    ## Recording the Evidence
+
+    When the task has a Verification table, the recorder runs it and writes the
+    proof. `[SCRIPTS]` is dev-implementation's `resources/scripts` directory;
+    `[TASK_MIRROR]` is the task's file under `.devtool/epic/<epic_dir>/`. Run
+    from the epic worktree:
+
+    1. Before implementing: `python3 [SCRIPTS]/run_task_checks.py red [TASK_MIRROR]`
+       must exit 0 (each RED row fails as its Expect says).
+    2. After your last change: `python3 [SCRIPTS]/run_task_checks.py verify [TASK_MIRROR]`
+       must exit 0 with every row and the scope check passing. Re-run it after
+       any later change.
+    3. `python3 [SCRIPTS]/run_task_checks.py status [TASK_MIRROR]` must print
+       `done gate: PASS`.
+
+    Do not commit a task with a Verification table. `red` and `verify` must
+    be recorded on the same commit, and `verify` must see your change
+    uncommitted; the done gate refuses evidence recorded after a commit. The
+    controller makes the task's single commit after review.
+
+    The evidence file is the test evidence: the recorder writes it under
+    `.devtool/epic/<epic_dir>/evidence/`. Cite its path in your report. Never
+    paste or summarise test output as evidence, and never write or edit the
+    evidence file by hand.
+
+    Never edit the task's Verification table, Definition of Done, Allowed files
+    or Covers line, or a protected path, to make a row pass. When a `Stop and
+    Report If` condition of the task holds, stop and report `BLOCKED`, naming
+    the condition. Do not mark the task `done`; the controller does that after
+    review.
 
     ## You Do Not Dispatch Subagents
 
@@ -119,20 +151,20 @@ Subagent (general-purpose):
     ## After Review Findings
 
     If the task review finds issues, you will be resumed with the findings.
-    Fix them, re-run the tests that cover the amended code, and append a fix
-    report to your report file: what you changed, the covering tests you
-    ran, the command, and the output. Reviewers will not re-run tests for
-    you — your report is the test evidence. Then reply with the same short
-    status contract as your first report.
+    Fix them, re-run `run_task_checks.py verify` so the evidence covers the
+    amended code, leave the change uncommitted when the task has a
+    Verification table, and append a fix report to your report file: what you
+    changed and the evidence file path. Reviewers will not re-run tests for
+    you — the evidence file is the test evidence. Then reply with the same
+    short status contract as your first report.
 
     ## Report Format
 
     Write your full report to [REPORT_FILE]:
     - What you implemented (or what you attempted, if blocked)
-    - What you tested and test results
-    - **TDD Evidence** (if TDD was required for this task):
-      - RED: command run, relevant failing output before implementation, and why the failure was expected
-      - GREEN: command run and relevant passing output after implementation
+    - What you tested, and the evidence file path (not pasted test output)
+    - **TDD Evidence** (if TDD was required for this task): the `red` and
+      `verify` recordings in that evidence file, and why each RED failure was expected
     - Files changed
     - Self-review findings (if any)
     - Any issues or concerns
@@ -140,7 +172,8 @@ Subagent (general-purpose):
     Then report back with ONLY (under 15 lines — the detail lives in the
     report file):
     - **Status:** DONE | DONE_WITH_CONCERNS | BLOCKED | NEEDS_CONTEXT
-    - Commits created (short SHA + subject)
+    - Commits created (short SHA + subject), or "none — uncommitted" for a
+      task with a Verification table
     - One-line test summary (e.g. "14/14 passing, output pristine")
     - Your concerns, if any
     - The report file path

@@ -6,3 +6,4 @@ __pycache__/
 *.pyc
 .worktrees/
 skill-observations/
+build/

@@ -72,24 +72,39 @@ Subagent (general-purpose):
 
     ## Tests
 
-    The implementer already ran the tests and reported results with TDD
-    evidence for exactly this code. Do not re-run the suite to confirm their
-    report. Run a test only when reading the code raises a specific doubt
-    that no existing run answers — and then a focused test, never a
-    package-wide suite, race detector run, or repeated/high-count loop. If
-    heavy validation seems warranted, recommend it in your report instead of
-    running it. If you cannot run commands in this environment, name the
-    test you would run.
+    The implementer's account of its tests is a claim. For a task with a
+    Verification table, the proof is the evidence file the recorder wrote,
+    `.devtool/epic/<epic_dir>/evidence/<task_id>.json`. Read it, and run the
+    read-only gate preview from the epic worktree (`[SCRIPTS]` is
+    dev-implementation's `resources/scripts` directory; `[TASK_MIRROR]` is the
+    task's file under `.devtool/epic/<epic_dir>/`):
 
-    Warnings or other noise in the implementer's reported test output are
-    findings — test output should be pristine.
+    ```bash
+    python3 [SCRIPTS]/run_task_checks.py status [TASK_MIRROR]
+    ```
 
-    Evidence you cannot see is not evidence that doesn't exist. If the
-    report or its test evidence looks truncated, or you cannot locate the
-    results it claims, re-read the file at its stated path — and if it is
-    genuinely missing or garbled, report that as a gap for the controller.
-    Re-running the suite to regenerate what you failed to read is not
-    verification; illegibility of the evidence is not invalidation of it.
+    `status` only reads the recorded runs; it does not run the suite. Report
+    as **Critical** (a task without a Verification table has no recorder and
+    no evidence file; review its tests as before, from the implementer's
+    report):
+
+    - the evidence file is missing;
+    - any Verification row that is not `PASS`, or a `done gate:` line that
+      is not `PASS`;
+    - a `tree` mismatch: the evidence was recorded on a different tree than
+      the one under review.
+
+    Do not re-run the suite to confirm the evidence. Run a test only when
+    reading the code raises a specific doubt that no recorded row answers,
+    and then a focused test, never a package-wide suite, race detector run,
+    or repeated/high-count loop. If heavy validation seems warranted,
+    recommend it in your report instead of running it. If you cannot run
+    commands in this environment, name the test you would run.
+
+    Warnings or other noise in the recorded test output are findings — test
+    output should be pristine. A pasted or summarised test result in the
+    implementer's report is not evidence; a missing evidence file is Critical
+    even when the report says the tests passed.
 
     ## Part 1: Spec Compliance
 
@@ -198,10 +213,14 @@ Subagent (general-purpose):
 - `[REPORT_FILE]` — REQUIRED: the file the implementer wrote its detailed
   report to
 - `[BASE_SHA]` — commit before this task
-- `[HEAD_SHA]` — current commit
+- `[HEAD_SHA]` — current commit, or `WORKTREE` when the task's change is
+  uncommitted (a task with a Verification table)
 - `[DIFF_FILE]` — REQUIRED: the path the controller wrote the review
   package to (`scripts/review-package PLAN_FILE BASE HEAD` prints the unique
-  path it wrote; the package never enters the controller's context)
+  path it wrote — `WORKTREE` as HEAD for an uncommitted task; the package
+  never enters the controller's context)
+- `[SCRIPTS]`, `[TASK_MIRROR]` — for a task with a Verification table:
+  dev-implementation's `resources/scripts` directory and the task's mirror
 
 **Reviewer returns:** Spec Compliance verdict (✅/❌/⚠️), Strengths, Issues
 (Critical/Important/Minor), Task quality verdict

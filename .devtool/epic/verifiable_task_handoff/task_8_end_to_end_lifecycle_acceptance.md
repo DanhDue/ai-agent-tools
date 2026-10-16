@@ -1,20 +1,20 @@
 ---
 id: "task_8_end_to_end_lifecycle_acceptance"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "verifiable_task_handoff"
 dueDate: null
 created: "2026-10-16T06:53:44Z"
-modified: "2026-10-16T06:53:44Z"
-completedAt: null
+modified: "2026-10-16T08:25:24Z"
+completedAt: "2026-10-16T08:25:24Z"
 labels: ["tests", "acceptance"]
 order: "a8"
 ---
 
 # Task 8: End-to-end lifecycle acceptance
 
-Epic: [verifiable_task_handoff](../epic/verifiable_task_handoff/verifiable_task_handoff.en.md)
+Epic: [verifiable_task_handoff](verifiable_task_handoff.en.md)
 
 ## Requirement Analysis
 

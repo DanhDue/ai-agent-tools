@@ -51,7 +51,9 @@ flowchart TB
     diverged{"Divergence\nfrom the HLD?"}
     phase3["Phase 3: Doc Sync\n(direct edits, no skill)"]
     integrate["Phase 2 step 7: Integrate with develop\nintegrate_branch.py preflight, rebase, verify-tier"]
-    phase4["Phase 4: End of Epic Verification\ncheck_bdd_traceability.py tests, then\nquality_check (Platform 3-Tier + 4 Specialist Audits)"]
+    choice{"Review Choice:\nFinish or Cross-model review?"}
+    review["run_external_review.py run\n(review_results.md committed per round)"]
+    phase4["Phase 4: End of Epic Verification\naudit_epic.py, Integration results,\ncheck_bdd_traceability.py tests --results,\nthen quality_check (Platform 3-Tier + 4 Specialist Audits)"]
     checkpoint4{"Phase 4.1 Checkpoint:\nUser Kanban Review & Sign-Off?\n(All tasks held in done/)"}
     phase5["Phase 5: Finish Branch & Archival\nd3nexus:finishing-a-development-branch\n(Pre-finish Hook: sync_task_status archive-done)"]
     style phase4 fill:green
@@ -61,7 +63,7 @@ flowchart TB
     phase0 --> entry
     entry -- "row 3: fresh start" --> phase1a
     entry -- "rows 4-5: interrupted" --> resume
-    entry -- "row 6: tasks done" --> phase4
+    entry -- "row 6: tasks done" --> choice
     resume --> phase2
     phase1a --> checkpoint
     checkpoint -- "adjust order" --> phase1a
@@ -73,9 +75,14 @@ flowchart TB
     phase3 --> integrate
     integrate --> moretasks
     moretasks -- "yes, next task" --> phase2
-    moretasks -- "no, epic done" --> phase4
+    moretasks -- "no, epic done" --> choice
+    choice -- "Finish" --> phase4
+    choice -- "Cross-model review" --> review
+    review -- "no Critical or Important finding" --> phase4
+    review -- "findings to fix: Fix commits" --> phase4
+    review -- "CLI failed" --> choice
     phase4 --> checkpoint4
-    checkpoint4 -- "request changes" --> phase2
+    checkpoint4 -- "request changes: Fix commits, then Phase 4 in full" --> phase4
     checkpoint4 -- "confirmed" --> phase5
 ```
 
@@ -136,7 +143,7 @@ python3 "$SKILL_DIR"/resources/scripts/compute_execution_order.py <epic_slug> \
 | 3 | No epic branch locally or on a remote, no worktree, every task `todo` | Not started — packaged if `handoff.md` exists | Phase 1 as written: Gate 3, then a new worktree |
 | 4 | Epic branch exists, no worktree, some task not `done` | Interrupted, worktree removed | Resume Procedure |
 | 5 | Worktree exists, some task not `done` | Interrupted midway through Stage 3 | Resume Procedure |
-| 6 | Epic branch exists, every task `done` | Tasks finished | Recreate the worktree if it is missing (`git worktree add .worktrees/<epic_dir> epic/<epic_slug>`, no `-b`) and bootstrap it (Phase 1 step 5), run the Resume Procedure's preflight (step 2), then Phase 4 with a full run — a verdict from another session cannot be tied to this SHA |
+| 6 | Epic branch exists, every task `done` | Tasks finished | Recreate the worktree if it is missing (`git worktree add .worktrees/<epic_dir> epic/<epic_slug>`, no `-b`) and bootstrap it (Phase 1 step 5), run the Resume Procedure's preflight (step 2), then the Review Choice and Phase 4 with a full run — a verdict from another session cannot be tied to this SHA |
 | 7 | Anything else — for example the epic branch only on a remote (work done in another clone), or tasks `in-progress` or `done` with no epic branch | Inconsistent | Stop, report the signals, ask |
 
 #### Resume Procedure
@@ -146,7 +153,7 @@ For rows 4 and 5. Phase 1 step 4's `git worktree add -b` never runs here.
 1. Row 4 only: recreate the worktree from the existing branch, `git worktree add .worktrees/<epic_dir> epic/<epic_slug>` with no `-b`. This restores an epic already under way; it is not the new worktree that Gate 3 guards. For rows 4 and 5, check the bootstrap with Phase 1 step 5's platform checks and re-run it if they fail.
 2. In the worktree, run `python3 "$INTEGRATE" preflight --base develop`. A rebase in progress, or a base that diverged, is handled the way Phase 2 step 7 prescribes before anything else.
 3. Find the interrupted task: one at `in-progress` or `review`. If the worktree has uncommitted changes, collect `git status --short`; uncommitted changes with no interrupted task are presented the same way.
-4. **Gate 3 (resume).** Check the mirror scan's summary line against the number of task mirrors and read its Manual review advised section, as Phase 1 steps 1–2 do. Then run Phase 1 step 3's BDD mapping check, including its retrofit for an epic designed before scenario identifiers, and commit any retrofit on the epic branch, staging only the files it touched by path — both `bdd_scenarios` variants, both HLD variants and the task files — never `git add -A`, so the interrupted task's uncommitted work stays out of that commit. The interrupted task's own status fields may ride along in that commit; that is expected. Then, in one message, present the tasks already `done` with their commits (`git log --oneline develop..epic/<epic_slug>`); the remaining order — the flattened order with `done` tasks removed, which keeps every dependency satisfied; for uncommitted changes, a choice between keeping them and continuing the task or discarding them and restarting it, discarding only on that explicit answer; and the request for permission to fast-forward `develop`, asked again because it does not carry across sessions. Wait for confirmation.
+4. **Gate 3 (resume).** Check the mirror scan's summary line against the number of task mirrors and read its Manual review advised section, as Phase 1 steps 1–2 do. Then run Phase 1 step 3's BDD mapping check and task contract check, including the retrofit for an epic designed before scenario identifiers or the task contract, and commit any retrofit on the epic branch, staging only the files it touched by path — both `bdd_scenarios` variants, both HLD variants and the task files — never `git add -A`, so the interrupted task's uncommitted work stays out of that commit. The interrupted task's own status fields may ride along in that commit; that is expected. Then, in one message, present the tasks already `done` with their commits (`git log --oneline develop..epic/<epic_slug>`); the remaining order — the flattened order with `done` tasks removed, which keeps every dependency satisfied; for uncommitted changes, a choice between keeping them and continuing the task or discarding them and restarting it, discarding only on that explicit answer; and the request for permission to fast-forward `develop`, asked again because it does not carry across sessions. Wait for confirmation.
 5. If the overview Status begins with `Packaged`, run `python3 "$SKILL_DIR"/resources/scripts/sync_task_status.py epic <epic_dir> "In Progress"`.
 6. Enter Phase 2 at the interrupted task — a task at `review` re-enters at Phase 2 step 2 and is reviewed on its existing changes; a task at `in-progress` resumes implementation with the changes kept at Gate 3 (resume) — or at the first remaining task.
 
@@ -173,6 +180,16 @@ For rows 4 and 5. Phase 1 step 4's `git worktree add -b` never runs here.
    ```
 
    An epic designed before BDD traceability fails it. Add bracketed identifiers with a prefix no other epic uses to both `bdd_scenarios` variants, `Covers:` lines to the task files and their mirrors, and the `Integration test roots:` line to both HLD variants. Re-run the check until it exits 0, commit the result as `[EPIC_NAME] Add BDD scenario identifiers` before creating the worktree, and show the mapping in the checkpoint message.
+
+   Then check the task contract the same way:
+
+   ```bash
+   python3 "$SKILL_DIR"/resources/scripts/check_task_contract.py \
+     --hld .devtool/epic/<epic_dir>/<epic_dir>.en.md \
+     --tasks .devtool/epic/<epic_dir>/task_*.md
+   ```
+
+   It must exit 0 too: every task has Files, a Verification table the recorder can run, Definition of Done bullets that end in row references or `(Gate 5)`, and a `Stop and Report If` section (the template carries its five default bullets; the check requires the section, not the bullets), and the HLD declares `Protected paths:` and `Integration results:`. A failure of either check on an epic designed before this contract is a retrofit through dev-designer's "Updating an Existing Epic", never something you patch in the task files yourself: stop, name the failure, and send the developer back to `d3nexus:dev-designer`. Do not create the worktree until both checks exit 0 and the developer has confirmed the order.
 
 #### Phase 1 (continued) — Worktree Bootstrap, once the order is confirmed
 
@@ -339,28 +356,35 @@ For each task in the confirmed order, follow `d3nexus:subagent-driven-developmen
    >    - `[Tier C - Integration]` scenarios MUST be covered 100% by integration/E2E flow tests (`tests/e2e/`, `integration_test/`, `*FlowTest.kt`, etc.) executed by the Integration Persona.
    > 3. **No Fake Substitution**: Unit tests with mocks DO NOT substitute for Tier C integration tests of integration contracts, live database states, or browser lifecycles.
    > 4. **BDD Automation (Tier C, all platforms)**: For every identifier on the task's `Covers:` line, the Integration Persona writes at least one integration test under the HLD's `Integration test roots`, carrying the identifier in the test's name, description or tag (`test_py_hp_01_...`, `func test_PY_HP_01_...()`, `testWidgets('[PY-HP-01] ...')`, ``@Test fun `PY-HP-01 ...`()``).
-   > 5. **Gate to Done**: A task CANNOT be marked `done` (`sync_task_status.py task <id> done`) unless 100% of its BDD scenarios have passing automated tests and verified outputs, and — when the task has a `Covers:` line — this exits 0 when run in the epic worktree:
+   > 5. **Gate to Done**: A task is `done` only when the recorder says so. The implementer runs, from the epic worktree, with `<task mirror>` the task's file under `.devtool/epic/<epic_dir>/`:
+   >    ```bash
+   >    python3 "$SKILL_DIR"/resources/scripts/run_task_checks.py red <task mirror>     # before implementing
+   >    python3 "$SKILL_DIR"/resources/scripts/run_task_checks.py verify <task mirror>  # after the last change
+   >    python3 "$SKILL_DIR"/resources/scripts/run_task_checks.py status <task mirror>  # before asking for done
+   >    ```
+   >    `red` runs the `RED` rows and must exit 0 (each failing as its Expect says); `verify` runs every other row and must exit 0 with each row and the scope check passing; `status` is read-only and must print `done gate: PASS`. The recorder writes `.devtool/epic/<epic_dir>/evidence/<task_id>.json`; never write or edit that file by hand, and re-record after any later change made while the task is still `in-progress` or `review`. A task that is `done` is never reopened (see Fixes after the last task). `sync_task_status.py task <id> done` then refuses unless the evidence matches the tree and the Verification table. When the task has a `Covers:` line, the identifiers must also pass the traceability check (exit 0, run in the epic worktree):
    >    ```bash
    >    python3 "$SKILL_DIR"/resources/scripts/check_bdd_traceability.py tests \
    >      --scenarios .devtool/epic/<epic_dir>/bdd_scenarios.en.md \
    >      --roots <Integration test roots from the HLD> \
    >      --ids <identifiers on the task's Covers: line>
    >    ```
+   > 6. **Stop and Report**: A `Stop and Report If` condition in the task is reported as `BLOCKED`, naming it. Never edit the task's Verification table, Definition of Done, Allowed files or Covers line, or a protected path, to make a row pass.
 
 2. Once the implementer reports `DONE`, synchronize review status:
    ```bash
    python3 skills/dev-implementation/resources/scripts/sync_task_status.py task <task_id> review
    ```
 3. If review finds issues, cycle between `status: "in-progress"` and `status: "review"` through the fix loop using `sync_task_status.py`.
-4. Only once both reviews pass and the task's Gate to Done traceability check (`check_bdd_traceability.py tests --ids`, run in the epic worktree) exits 0, update status to `done`:
+4. Only once both reviews pass, `run_task_checks.py status <task mirror>` prints `done gate: PASS` and the task's Gate to Done traceability check (`check_bdd_traceability.py tests --ids`, run in the epic worktree) exits 0, update status to `done`. The script refuses unless the evidence matches, and it must run in the epic worktree:
    ```bash
    python3 skills/dev-implementation/resources/scripts/sync_task_status.py task <task_id> done
    ```
    This writes `status: "done"`, advances `modified:`, and sets `completedAt:` across all checkout roots.
-5. Make exactly one commit staging code and task file:
+5. Make exactly one commit staging the code, the task file and the task's evidence file, `.devtool/epic/<epic_dir>/evidence/<task_id>.json`:
    ```bash
    git status                                    # check nothing unrelated is pending
-   git add -A                                    # code changes + .devtool/features/
+   git add -A                                    # code changes + .devtool/features/ + the evidence file
    git commit -m "[EPIC_NAME] <task_title>" -m "- <subtask 1>
    - <subtask 2>"
    ```
@@ -426,25 +450,75 @@ Only when Phase 2 flags divergence:
    git commit -m "[EPIC_NAME] Sync HLD after <task_title>" -m "- <diagram or section updated>"
    ```
 
-### Phase 4 — End of Epic Verification (@quality_check)
+### Review Choice — after the last task
 
-Once every task is `done`, resolve the candidate commit SHA (`git rev-parse HEAD`) and, in the epic worktree with a clean working tree (`git status --porcelain` prints nothing, so the result belongs to that SHA), run the full BDD traceability check first:
+When the last task is `done` and its integration with `develop` (step 7) is green, ask the developer — every time, like the Handoff Choice, and wait for the answer:
+
+> All N tasks of `<epic_slug>` are done. How do you want to proceed?
+>
+> 1. **Finish** — Gate 4, Gate 5, then `finishing-a-development-branch`.
+> 2. **Cross-model review** — an independent model reviews the epic first, through the Claude CLI or the Codex CLI. You pick which; the repository's content is sent to that provider.
+
+List which of `claude` and `codex` are on `PATH` (`command -v claude codex`) in the same message. The developer picks the CLI, and optionally a model, every time; never pick one for them, because which provider still has credits is their knowledge. With neither on `PATH`, option 2 is unavailable: say why.
+
+Option 1 goes to Phase 4. Option 2 runs, in the epic worktree with a clean tree:
 
 ```bash
-python3 "$SKILL_DIR"/resources/scripts/check_bdd_traceability.py tests \
-  --scenarios .devtool/epic/<epic_dir>/bdd_scenarios.en.md \
-  --roots <Integration test roots from the HLD>
+python3 "$SKILL_DIR"/resources/scripts/run_external_review.py run \
+  --epic-dir <epic_dir> --base <base_ref> --cli claude|codex [--model <name>] [--timeout <seconds>]
 ```
 
-It must exit 0: every scenario in `bdd_scenarios.en.md` is covered by at least one integration test, and no test references a removed scenario. `--roots` and `--ids` take space- or comma-separated values, so the HLD's roots line and a task's `Covers:` line can be pasted as written. On exit 1 or 2, route back to Phase 2 and do not run `@quality_check` yet. If the failure is the scenario document itself — scenario lines without identifiers, from an epic designed before BDD traceability — apply the Phase 1 step 3 retrofit in the epic worktree, commit it on the epic branch as `[EPIC_NAME] Add BDD scenario identifiers`, add the missing integration tests, and re-run. Then run the provider-based **`@quality_check`** orchestrator on the same SHA before finishing the branch:
+The script gathers the audit and result facts, runs the chosen CLI read-only with the prompt in [`references/external-review-prompt.md`](references/external-review-prompt.md), and appends a `## Round N` section to `.devtool/epic/<epic_dir>/review_results.md`. The reviewer never writes the file. Because `run` needs a clean tree, **commit `review_results.md` after every round**, as `[EPIC_NAME] Record cross-model review round N`.
 
-1. Pass explicit normalized invocation inputs:
-   - `profile`: `"epic"`
-   - `base_ref`: `<base_ref>` (e.g. `main` or `develop`)
-   - `repository_sha`: Candidate commit SHA from `git rev-parse HEAD`
-2. `@quality_check` discovers all project-registered providers supporting `epic` from `.agents/quality/check_quality.json`, invokes them, validates result contracts, and synthesizes the unified executive quality report.
-3. Only an aggregated verdict of **PASS** bound to that exact SHA, on which the traceability check also exited 0, qualifies for Gate 4 `🟢 LGTM`.
-4. If `@quality_check` reports `FAIL` or `BLOCKED` (or SHA drift occurs), route back to Phase 2 to resolve blockers and defects before re-running verification in full.
+| Outcome | What happens |
+|---|---|
+| Completed, no Critical or Important finding | Commit `review_results.md`, then Phase 4 |
+| Completed with Critical or Important findings | Commit `review_results.md`. Fix them as Fix commits (see Fixes after the last task). Give each finding a Decision in the file: `fixed in <sha>`, or `dismissed: <reason>` written **only on the developer's explicit words**, never on your own judgement. Commit the decisions, then the developer chooses again: another round, or Finish |
+| No CLI, a CLI error or timeout (for example, out of credits), no `Verdict:` line, or a changed tree | `run` exits 2 and records the round with its status. Commit `review_results.md`; the developer chooses again and may pick the other CLI |
+
+### Fixes after the last task
+
+Once every task is `done`, a fix (a cross-model review finding, a Gate 4 failure, or a change the developer requests at Gate 5) is never made by reopening a task. Make it as its own commit on the epic branch, titled `[EPIC_NAME] Fix <what>`. Do not move a done task back, and do not re-record its evidence. `audit_epic.py` lists these commits under "Commits outside tasks", which the developer sees at Gate 5. After the fixes, run Phase 4 again in full on the new SHA.
+
+A Fix commit repairs what the tasks already promised. New behaviour the developer asks for at Gate 5 is not a fix: it goes through dev-designer's "Updating an Existing Epic" as new tasks, each with its own Verification table, evidence and commit.
+
+### Phase 4 — End of Epic Verification
+
+Once every task is `done` and the Review Choice is settled, resolve the candidate commit SHA (`git rev-parse HEAD`) and, in the epic worktree with a clean working tree (`git status --porcelain` prints nothing, so the result belongs to that SHA), run these in this order. Do not run the quality check until step 5; each step must pass before the next starts, and any failure is fixed as a Fix commit (see Fixes after the last task), after which Phase 4 starts again.
+
+1. **Review decisions**, only when `.devtool/epic/<epic_dir>/review_results.md` exists:
+
+   ```bash
+   python3 "$SKILL_DIR"/resources/scripts/run_external_review.py check --epic-dir <epic_dir>
+   ```
+
+   Exit 1 means the latest completed round has a Critical or Important finding without a Decision: return to the Review Choice flow above.
+2. **Gate 4 audit**, which checks each done task's evidence against its Verification table and discloses every change to a grader:
+
+   ```bash
+   python3 "$SKILL_DIR"/resources/scripts/audit_epic.py --epic-dir <epic_dir> --base <base_ref>
+   ```
+
+   It must exit 0. Keep its output: Phase 4.1 reports its disclosure sections.
+3. **The HLD's Integration results commands.** Run every `Integration results:` line of the HLD's Integration Test Plan, one per platform, so each writes its report (the path after ` -> `). A non-zero exit is fixed as a Fix commit.
+4. **Result-based traceability**: `check_bdd_traceability.py tests --results` over those reports proves each identifier by a passing test rather than by its name alone:
+
+   ```bash
+   python3 "$SKILL_DIR"/resources/scripts/check_bdd_traceability.py tests \
+     --scenarios .devtool/epic/<epic_dir>/bdd_scenarios.en.md \
+     --roots <Integration test roots from the HLD> \
+     --results <the reports the Integration results commands wrote>
+   ```
+
+   It must exit 0: every scenario in `bdd_scenarios.en.md` is covered by at least one integration test that passed, and no test references a removed scenario. `--roots` and `--ids` take space- or comma-separated values, so the HLD's roots line and a task's `Covers:` line can be pasted as written. On exit 1 or 2, fix it as a Fix commit. If the failure is the scenario document itself — scenario lines without identifiers, from an epic designed before BDD traceability — apply the Phase 1 step 3 retrofit in the epic worktree, commit it on the epic branch as `[EPIC_NAME] Add BDD scenario identifiers`, add the missing integration tests, and re-run.
+5. **Quality check.** Run the provider-based **`@quality_check`** orchestrator on the same SHA before finishing the branch:
+   - Pass explicit normalized invocation inputs:
+     - `profile`: `"epic"`
+     - `base_ref`: `<base_ref>` (e.g. `main` or `develop`)
+     - `repository_sha`: Candidate commit SHA from `git rev-parse HEAD`
+   - `@quality_check` discovers all project-registered providers supporting `epic` from `.agents/quality/check_quality.json`, invokes them, validates result contracts, and synthesizes the unified executive quality report.
+   - Only an aggregated verdict of **PASS** bound to that exact SHA, on which the audit and the traceability check also exited 0, qualifies for Gate 4 `🟢 LGTM`.
+   - If `@quality_check` reports `FAIL` or `BLOCKED` (or SHA drift occurs), fix the blockers and defects as Fix commits, then re-run Phase 4 in full.
 
 ### Phase 4.1 — Developer Kanban Review Checkpoint (🛑 MANDATORY STOP & WAIT — Gate 5)
 
@@ -455,6 +529,8 @@ Once `@quality_check` reports 🟢 LGTM and all tasks are completed:
    - List of all completed tasks in `.devtool/features/done/`.
    - The `@quality_check` verdict (3-Tier test results, 4 semantic audits, coverage matrix, Check 2 impact diff).
    - The BDD traceability matrix printed by `check_bdd_traceability.py tests`.
+   - The audit's disclosure sections, as `audit_epic.py` printed them: Evidence, Legacy tasks, Protected paths, Grader amendments, Commits outside tasks and Gate 5 items. The `(Gate 5)` items are the ones the developer judges at this review; no script marks them met.
+   - When `review_results.md` exists, a summary of the cross-model review rounds: each round's CLI, verdict, findings and Decisions.
 3. 🛑 **MANDATORY STOP & WAIT**:
    - The agent MUST STOP calling tools immediately.
    - Do NOT proceed to Phase 5 or invoke `finishing-a-development-branch` automatically.
@@ -463,7 +539,7 @@ Once `@quality_check` reports 🟢 LGTM and all tasks are completed:
      > All task cards are currently visible in the **DONE** column on your Kanban dashboard for visual inspection.
      > 
      > Please review the completed tasks and code changes. When you are ready to proceed with branch integration and task archival, reply to proceed."
-4. **Wait for Gate 5 Confirmation**: Only proceed to Phase 5 when the user explicitly responds with approval (e.g., "proceed", "looks good", "finish branch"). If the user requests adjustments or fixes, route back to Phase 2.
+4. **Wait for Gate 5 Confirmation**: Only proceed to Phase 5 when the user explicitly responds with approval (e.g., "proceed", "looks good", "finish branch"). If the user requests adjustments or fixes, make them as Fix commits (see Fixes after the last task) and re-run Phase 4 in full.
 
 ### Phase 5 — Branch Finishing
 
@@ -501,8 +577,8 @@ Only after the user explicitly approves Gate 5 at the Phase 4.1 Checkpoint:
 | Run each task | `subagent-driven-development` | `subagent-driven-development` | `subagent-driven-development` |
 | Integrate after each task | `integrate_branch.py` preflight, rebase, verify-tier | Same | Same |
 | Per-task TDD | `test-driven-development` (Dart/BLoC) | `test-driven-development` (Kotlin/Compose) | `test-driven-development` (Swift/SwiftUI) |
-| BDD traceability (per task with `--ids`, then full) | `check_bdd_traceability.py tests` | Same | Same |
-| End-of-epic verification | `@quality_check` (Flutter 3-Tier + 4 Audits) | `@quality_check` (Gradle 3-Tier + 4 Audits + cleanup-java) | `@quality_check` (iOS 3-Tier + 4 Audits) |
+| BDD traceability (per task through its evidence, then full) | Per task: the results digest `run_task_checks.py verify` records, which the done gate checks; end of epic: `check_bdd_traceability.py tests … --results` | Same | Same |
+| End-of-epic verification | `audit_epic.py`, then `@quality_check` (Flutter 3-Tier + 4 Audits) | `audit_epic.py`, then `@quality_check` (Gradle 3-Tier + 4 Audits + cleanup-java) | `audit_epic.py`, then `@quality_check` (iOS 3-Tier + 4 Audits) |
 | Finish epic branch | `d3nexus:finishing-a-development-branch` | Same | Same |
 
 ## Common Mistakes
@@ -534,6 +610,10 @@ Only after the user explicitly approves Gate 5 at the Phase 4.1 Checkpoint:
 - Merging to `develop` without passing `@quality_check` (🟢 LGTM).
 - Marking a task `done` while `check_bdd_traceability.py tests --ids <its Covers identifiers>` fails.
 - Running `@quality_check` for Gate 4 before the full traceability check exits 0, or on a commit that check did not see.
+- Ticking checkboxes or writing, editing or summarising evidence by hand instead of running `run_task_checks.py`.
+- Editing a task's Verification table, Definition of Done, Allowed files or a protected path to make it pass, instead of stopping to report.
+- Patching task files yourself when `check_task_contract.py` fails, instead of retrofitting through dev-designer.
+- Running the cross-model review without asking the Review Choice, picking the review CLI for the developer, or writing a `dismissed` decision without the developer's words.
 - Starting Phase 1 without running Entry-Point Detection.
 - Running `git worktree add -b` for an epic whose branch already exists.
 - Re-implementing a task already `done`.

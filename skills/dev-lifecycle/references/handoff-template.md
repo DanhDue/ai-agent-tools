@@ -51,3 +51,4 @@ Gate 3 is pending: present the execution order to me and wait for my confirmatio
 - This handoff does not pass Gate 3. The developer confirms the execution order.
 - Unless the design commit is `uncommitted`: if `git log <sha>..<base_branch> -- .devtool/epic/<epic_dir>` lists any commit besides the `Package epic for handoff` commit, the documents changed after packaging. The documents win, and this file may be stale. Comparing against the base branch keeps the epic branch's own task commits out of the check.
 - This file is a dated record. It is never updated after packaging.
+- Never edit a task's Verification table, Definition of Done, Allowed files or a protected path; stop and report.
