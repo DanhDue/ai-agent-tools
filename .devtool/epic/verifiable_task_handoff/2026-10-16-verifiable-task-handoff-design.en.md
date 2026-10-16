@@ -294,7 +294,7 @@ It reports problems as `task_34:V4: <problem>` and checks:
   of Done bullet references existing rows or `(Gate 5)`.
 - **Grounding.** An Allowed files path without `(new)` is tracked by git, and a glob matches at least
   one tracked file. A `(new)` path does not exist, and its parent directory exists or is itself
-  `(new)` somewhere in the epic. Read-only context paths exist. Every repository path token in a
+  `(new)` somewhere in the epic. Read-only context paths exist or are `(new)` in some task of the epic. Every repository path token in a
   Command exists or is `(new)` in some task of the epic. An executable not found on `PATH` is a
   warning, not a problem, because environments differ.
 - **Declarations.** The HLD has a `Protected paths:` line, at least one `Integration results:` line

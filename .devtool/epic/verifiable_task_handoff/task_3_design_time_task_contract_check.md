@@ -52,7 +52,7 @@ file, or a missing argument.
   tracked file. Bare directories are a problem.
 - With `--design` only: a `(new)` path does not exist yet, and its parent directory exists or its
   grandparent does (one new directory level).
-- Every Read-only context path exists.
+- Every Read-only context path exists, or is `(new)` in some task of the epic.
 - In every Command, each shell token containing `/` — the value part of `--name=value` included,
   tokens starting with `-` or containing `*` or `://` excluded — exists, is ignored by git (an output
   path), or is `(new)` in some task of the epic. An executable not on `PATH` is printed as a warning,

@@ -290,7 +290,7 @@ Script báo lỗi dạng `task_34:V4: <problem>` và kiểm:
   có thật hoặc `(Gate 5)`.
 - **Grounding.** Path trong Allowed files không có `(new)` phải được git track, và glob phải khớp ít
   nhất một file được track. Path `(new)` phải chưa tồn tại, và thư mục cha của nó tồn tại hoặc chính
-  nó là `(new)` ở đâu đó trong epic. Path trong Read-only context phải tồn tại. Mọi token là path repo
+  nó là `(new)` ở đâu đó trong epic. Path trong Read-only context phải tồn tại hoặc là `(new)` trong một task nào đó của epic. Mọi token là path repo
   trong Command phải tồn tại hoặc là `(new)` trong một task nào đó của epic. Executable không tìm thấy
   trên `PATH` chỉ là cảnh báo, không phải lỗi, vì môi trường mỗi máy khác nhau.
 - **Khai báo.** HLD có dòng `Protected paths:`, ít nhất một dòng `Integration results:` và mục
