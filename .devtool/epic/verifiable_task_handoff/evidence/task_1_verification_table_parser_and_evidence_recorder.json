@@ -1,0 +1,164 @@
+{
+  "schema": 1,
+  "task": "task_1_verification_table_parser_and_evidence_recorder",
+  "runs": {
+    "verify": {
+      "head": "6ac1d60e1f65242c2891647b19c360353950c230",
+      "tree": "3e898f0ffe6f3e04a041fb8e96f15c77795a2bf2",
+      "patch_id": "fb64af882742473cedf5c11e0b0d615f26232701",
+      "started": "2026-10-16T07:31:14Z",
+      "finished": "2026-10-16T07:32:02Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "GREEN",
+          "command": "python3 -m unittest skills/dev-implementation/resources/scripts/test_run_task_checks.py scripts/test_run_unittest_junit.py",
+          "expect": "exit 0; contains \"OK\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-16T07:31:14Z",
+          "finished": "2026-10-16T07:31:19Z",
+          "output_tail": [
+            ".....................................",
+            "----------------------------------------------------------------------",
+            "Ran 37 tests in 5.557s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "932840fcd9848bb81ff9242d44bf0940c193655c1cc6d17613b19e1dcb7e7555"
+        },
+        {
+          "id": "V2",
+          "phase": "TIER-B",
+          "command": "git check-ignore -q build/test-results/task_1.xml",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-16T07:31:19Z",
+          "finished": "2026-10-16T07:31:19Z",
+          "output_tail": [],
+          "output_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "id": "V3",
+          "phase": "TIER-B",
+          "command": "bash scripts/verify.sh",
+          "expect": "exit 0; contains \"PASS — safe to publish\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-16T07:31:19Z",
+          "finished": "2026-10-16T07:31:55Z",
+          "output_tail": [
+            "Ran 9 tests in 0.000s",
+            "",
+            "OK",
+            ".....",
+            "----------------------------------------------------------------------",
+            "Ran 5 tests in 0.000s",
+            "",
+            "OK",
+            ".........",
+            "----------------------------------------------------------------------",
+            "Ran 9 tests in 0.000s",
+            "",
+            "OK",
+            "......",
+            "----------------------------------------------------------------------",
+            "Ran 6 tests in 0.000s",
+            "",
+            "OK",
+            "......",
+            "----------------------------------------------------------------------",
+            "Ran 6 tests in 0.000s",
+            "",
+            "OK",
+            "......",
+            "----------------------------------------------------------------------",
+            "Ran 6 tests in 0.000s",
+            "",
+            "OK",
+            "..................",
+            "----------------------------------------------------------------------",
+            "Ran 18 tests in 0.012s",
+            "",
+            "OK",
+            "...............",
+            "----------------------------------------------------------------------",
+            "Ran 15 tests in 2.468s",
+            "",
+            "OK",
+            "",
+            "PASS — safe to publish"
+          ],
+          "output_sha256": "ccc043f5a439dfd713b0eb22fb0e3ea021bfc41b90759d2dee8764bfbaded1a1"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-C",
+          "command": "python3 scripts/run_unittest_junit.py --junitxml build/test-results/task_1.xml skills/dev-implementation/resources/scripts/test_run_task_checks.py",
+          "expect": "exit 0; results build/test-results/task_1.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-16T07:31:55Z",
+          "finished": "2026-10-16T07:32:01Z",
+          "output_tail": [
+            "................................",
+            "----------------------------------------------------------------------",
+            "Ran 32 tests in 5.910s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "0feaec78c672c932d837f3f748c9ba43a9275cf15fc528b54f06231b9d28d09b",
+          "results": {
+            "path": "build/test-results/task_1.xml",
+            "fresh": true
+          }
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-C",
+          "command": "python3 skills/dev-implementation/resources/scripts/check_bdd_traceability.py tests --scenarios .devtool/epic/verifiable_task_handoff/bdd_scenarios.en.md --roots skills/dev-implementation/resources/scripts/ --ids VTH-HP-02 VTH-EC-05 VTH-ST-02 VTH-FR-01 VTH-FR-05",
+          "expect": "exit 0; contains \"Result: 5/5 covered — PASS\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-16T07:32:01Z",
+          "finished": "2026-10-16T07:32:01Z",
+          "output_tail": [
+            "VTH-HP-02    skills/dev-implementation/resources/scripts/test_run_task_checks.py:223",
+            "VTH-EC-05    skills/dev-implementation/resources/scripts/test_run_task_checks.py:253",
+            "VTH-ST-02    skills/dev-implementation/resources/scripts/test_run_task_checks.py:272",
+            "VTH-FR-01    skills/dev-implementation/resources/scripts/test_run_task_checks.py:322",
+            "VTH-FR-05    skills/dev-implementation/resources/scripts/test_run_task_checks.py:395",
+            "Result: 5/5 covered — PASS"
+          ],
+          "output_sha256": "4d556aae648e922ab4aaf8c81de3ed4b3149fadd4a4e0a8ff458a91027a62309"
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            ".gitignore",
+            "scripts/run_unittest_junit.py",
+            "scripts/test_run_unittest_junit.py",
+            "scripts/verify.sh",
+            "skills/dev-implementation/resources/scripts/run_task_checks.py",
+            "skills/dev-implementation/resources/scripts/task_contract.py",
+            "skills/dev-implementation/resources/scripts/test_run_task_checks.py"
+          ],
+          "violations": []
+        }
+      ]
+    }
+  }
+}
