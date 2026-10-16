@@ -2,10 +2,12 @@
 
 - **Ngày**: 2026-10-16
 - **Trạng thái**: Đã duyệt
+- **Sửa đổi**: 2026-10-16, mục 12 (review chéo bằng model khác)
 - **Phạm vi**: `dev-designer`, `dev-implementation`, `dev-lifecycle` cùng handoff template, các
   prompt của `subagent-driven-development`, `check_bdd_traceability.py`, `sync_task_status.py`, module
-  dùng chung mới `task_contract.py`, các script mới `check_task_contract.py`, `run_task_checks.py` và
-  `audit_epic.py` cùng test của chúng, `scripts/verify.sh`
+  dùng chung mới `task_contract.py`, các script mới `check_task_contract.py`, `run_task_checks.py`,
+  `audit_epic.py` và `run_external_review.py` cùng test của chúng, một template prompt review,
+  `scripts/verify.sh`
 - **Bước tiếp theo**: `dev-designer` (cỡ epic)
 
 ## Mục lục
@@ -21,12 +23,13 @@
 - [9. Gate done](#9-gate-done)
 - [10. Truy vết dựa trên kết quả test](#10-truy-vết-dựa-trên-kết-quả-test)
 - [11. Audit ở Gate 4](#11-audit-ở-gate-4)
-- [12. Thay đổi skill và prompt](#12-thay-đổi-skill-và-prompt)
-- [13. Xử lý lỗi](#13-xử-lý-lỗi)
-- [14. Phát hành và retrofit](#14-phát-hành-và-retrofit)
-- [15. Kiểm thử](#15-kiểm-thử)
-- [16. Rủi ro và phụ thuộc](#16-rủi-ro-và-phụ-thuộc)
-- [17. Ngoài phạm vi](#17-ngoài-phạm-vi)
+- [12. Review chéo bằng model khác](#12-review-chéo-bằng-model-khác)
+- [13. Thay đổi skill và prompt](#13-thay-đổi-skill-và-prompt)
+- [14. Xử lý lỗi](#14-xử-lý-lỗi)
+- [15. Phát hành và retrofit](#15-phát-hành-và-retrofit)
+- [16. Kiểm thử](#16-kiểm-thử)
+- [17. Rủi ro và phụ thuộc](#17-rủi-ro-và-phụ-thuộc)
+- [18. Ngoài phạm vi](#18-ngoài-phạm-vi)
 
 ## 1. Bối cảnh
 
@@ -83,6 +86,8 @@ bại là những task file bắt model nhận tự chấm việc hoàn thành c
   thị cho developer ở Gate 5.
 - Traceability của scenario được chứng minh bằng kết quả test — đã chạy, không bị skip, đã pass —
   thay vì chuỗi identifier.
+- Trước Gate 4, developer có thể cho một model độc lập review epic đã xong, qua Claude CLI hoặc
+  Codex CLI, và các finding Critical, Important của nó chặn cho tới khi được giải quyết.
 
 ### Ngoài mục tiêu
 
@@ -102,6 +107,7 @@ bại là những task file bắt model nhận tự chấm việc hoàn thành c
 | Quyền sở hữu scenario identifier | Mỗi identifier nằm trên dòng `Covers:` của đúng một task; mỗi identifier vẫn cần ít nhất một test |
 | Dòng `BLOCKED` | Chặn `done`; không có waiver |
 | Phạm vi áp dụng | Mọi epic mới, không có strict mode; epic đang chạy được retrofit khi resume |
+| Review chéo bằng model khác | Tùy chọn, được hỏi mỗi lần mọi task đã xong và trước Phase 4; developer chọn Claude CLI hoặc Codex CLI ở mỗi lần; finding Critical và Important chặn trừ khi được sửa hoặc developer bác bỏ |
 
 ## 4. Tổng quan
 
@@ -116,6 +122,8 @@ flowchart TD
     REVIEW["Reviewer reads evidence and status"]
     DONE{"Done gate passes?"}
     COMMIT["One commit: code, task file, evidence"]
+    CHOICE{"Review choice"}
+    XREVIEW["run_external_review.py run"]
     GATE4{"Gate 4: audit, result traceability, quality_check pass?"}
     GATE5["Gate 5: developer reviews disclosures"]
     STOP["Stop and report to the developer"]
@@ -132,7 +140,11 @@ flowchart TD
     DONE -->|no| CODE
     DONE -->|yes| COMMIT
     COMMIT -->|"next task"| RED
-    COMMIT -->|"last task"| GATE4
+    COMMIT -->|"last task"| CHOICE
+    CHOICE -->|"1. finish"| GATE4
+    CHOICE -->|"2. cross-model review"| XREVIEW
+    XREVIEW -->|"Critical or Important"| CODE
+    XREVIEW -->|"clean or decided"| GATE4
     GATE4 -->|no| CODE
     GATE4 -->|yes| GATE5
     CODE -.->|"Stop and Report If"| STOP
@@ -304,7 +316,7 @@ nêu tên cả hai task. Nó vốn đã fail khi có identifier không task nào
 |---|---|
 | `dev-designer` Step 3, trước khi commit | `check_task_contract.py --design`, `plan` |
 | Preflight đóng gói của `dev-lifecycle` | `check_task_contract.py --design`, `plan` |
-| Gate 3 của `dev-implementation`, lúc bắt đầu và khi resume | `check_task_contract.py`, `plan`; fail nghĩa là phải retrofit (mục 14) |
+| Gate 3 của `dev-implementation`, lúc bắt đầu và khi resume | `check_task_contract.py`, `plan`; fail nghĩa là phải retrofit (mục 15) |
 
 ## 8. Recorder và evidence
 
@@ -455,7 +467,80 @@ python3 "$SCRIPTS"/audit_epic.py --epic-dir <epic_dir> --base <base_ref>
 Báo cáo được in ra và chép vào executive report của Phase 4.1. Nó không được commit, vì commit sẽ làm
 đổi SHA mà Gate 4 vừa chấm.
 
-## 12. Thay đổi skill và prompt
+## 12. Review chéo bằng model khác
+
+Khi mọi task của một epic code đã `done`, và trước Phase 4, dev-implementation hỏi — mỗi lần, giống
+Handoff Choice:
+
+> All N tasks of `<epic_slug>` are done. How do you want to proceed?
+>
+> 1. **Finish** — Gate 4, Gate 5, then `finishing-a-development-branch`.
+> 2. **Cross-model review** — an independent model reviews the epic first, through the Claude CLI or
+>    the Codex CLI. You pick which; the repository's content is sent to that provider.
+
+Câu hỏi liệt kê `claude` và `codex` cái nào đang có trên `PATH`. Developer chọn CLI, và có thể chọn
+model, ở mỗi lần; agent không bao giờ tự chọn, vì bên nào còn credit là điều chỉ developer biết. Khi
+không có cái nào trên `PATH`, option 2 không dùng được và câu hỏi nói rõ lý do.
+
+### run_external_review.py
+
+```bash
+python3 "$SCRIPTS"/run_external_review.py run --epic-dir <epic_dir> --base <base_ref> \
+  --cli claude|codex [--model <name>] [--timeout <seconds>]
+python3 "$SCRIPTS"/run_external_review.py check --epic-dir <epic_dir>
+```
+
+`run`:
+
+1. Đòi cây sạch, rồi ghi lại `HEAD` và `git status --porcelain`.
+2. Chạy `audit_epic.py` và `check_bdd_traceability.py tests --results` trên các báo cáo Integration
+   results của HLD, chỉ để lấy dữ kiện; đây không phải Gate 4.
+3. Dựng prompt từ `skills/dev-implementation/references/external-review-prompt.md`: SHA ứng viên,
+   base, path của spec, HLD, kịch bản BDD, các task mirror và evidence, output của audit và results,
+   cùng checklist bên dưới.
+4. Chạy CLI đã chọn ở chế độ không tương tác và chỉ đọc, prompt đưa qua stdin:
+   `claude -p --permission-mode plan [--model <name>]` hoặc
+   `codex exec --sandbox read-only [--model <name>] -`. Flag chính xác được kiểm với CLI đã cài lúc
+   implement.
+5. Kiểm lại `HEAD` và `git status --porcelain`. Có bất kỳ thay đổi nào thì round bị loại.
+6. Ghi thêm một round vào `.devtool/epic/<epic_dir>/review_results.md`. Script ghi file từ output
+   của CLI; reviewer không bao giờ ghi.
+
+Checklist mà reviewer phải phủ:
+
+- Evidence của từng task done so với bảng Verification của nó, và các dòng quá yếu so với mục
+  Definition of Done mà chúng chống lưng.
+- Test của mỗi định danh có thật sự kiểm scenario Gherkin của nó, hay chỉ pass cho có.
+- Từng mục hiển thị của audit — sửa grader, thay đổi protected path, commit ngoài task — và nó có lý
+  do hợp lệ không.
+- Code có tôn trọng spec, HLD và Decisions Already Made của từng task không.
+- Các mục `(Gate 5)`, nêu lại cho developer.
+
+Output bắt buộc là một dòng `Verdict: PASS` hoặc `Verdict: CHANGES REQUIRED`, và mỗi finding một
+dòng: `[Critical|Important|Minor] <artefact>:<location> — <problem>`.
+
+### review_results.md
+
+Mỗi lần chạy một mục `## Round N`, gồm ngày, SHA, base, CLI, model, trạng thái (`completed`,
+`no verdict` hoặc `discarded: tree modified`), verdict, bảng finding với các cột
+`# | Severity | Location | Problem | Decision`, và output thô trong một khối fence. Các round chỉ được
+nối thêm, không bao giờ viết lại; về sau chỉ cột Decision thay đổi.
+
+### Luồng sau mỗi round
+
+| Kết quả | Điều xảy ra |
+|---|---|
+| Hoàn tất, không có finding Critical hay Important | Commit `review_results.md` với tiêu đề `[<EPIC_NAME>] Record cross-model review round N`, rồi vào Phase 4 |
+| Hoàn tất với finding Critical hoặc Important | Quay về Phase 2 để sửa. Mỗi finding nhận một Decision: `fixed in <sha>`, hoặc `dismissed: <reason>` chỉ được ghi khi developer nói rõ. Sau đó developer chọn lại: thêm một round, hoặc Finish |
+| Không có CLI, CLI lỗi hoặc hết thời gian (ví dụ hết credit), thiếu dòng Verdict, hoặc cây bị đổi | `run` trả exit 2 và ghi round kèm trạng thái của nó; developer chọn lại, và có thể chọn CLI kia |
+
+### check
+
+Đầu Phase 4, khi có `review_results.md`, `check` trả exit 1 nếu round hoàn tất mới nhất còn finding
+Critical hoặc Important chưa có Decision. Sau đó Gate 4 chạy đầy đủ như cũ, và Phase 4.1 đưa tóm tắt
+các round vào báo cáo Gate 5.
+
+## 13. Thay đổi skill và prompt
 
 - **[dev-designer](../../../skills/dev-designer/SKILL.md).** Template task nhận mục 5; Integration
   Test Plan nhận các dòng của mục 6 và `## Verification Environment`; "at least one task" thành
@@ -466,11 +551,14 @@ Báo cáo được in ra và chép vào executive report của Phase 4.1. Nó kh
   Phase 2 thay "Gate to Done" bằng `red` trước implementation, `verify` sau đó, gate `done`, và file
   evidence trong commit của task. Phase 4 chạy theo thứ tự `audit_epic.py`, các lệnh Integration
   results, `tests --results`, rồi `quality_check`. Phase 4.1 thêm các mục hiển thị của audit vào báo
-  cáo.
+  cáo. Sau task cuối, nó hỏi Lựa chọn review (mục 12); Phase 4 bắt đầu bằng
+  `run_external_review.py check` khi có `review_results.md`, và Phase 4.1 tóm tắt các round review.
 - **[dev-lifecycle](../../../skills/dev-lifecycle/SKILL.md).** Tiêu chí máy của Gate 4 thêm audit và
   traceability dựa trên kết quả; preflight đóng gói thêm `check_task_contract.py --design`; Red Flags
   thêm việc tick checkbox hay tự viết evidence bằng tay, và việc sửa bảng Verification, Allowed files
-  hay protected path mà không dừng lại hỏi.
+  hay protected path mà không dừng lại hỏi. Sơ đồ sequence có thêm Lựa chọn review trước Gate 4;
+  Red Flags thêm việc chạy review mà không hỏi, chọn CLI thay developer, và ghi Decision `dismissed`
+  khi developer chưa nói rõ.
 - **[handoff-template.md](../../../skills/dev-lifecycle/references/handoff-template.md).** Rules for
   the Receiving Agent thêm: "Never edit a task's Verification table, Definition of Done, Allowed
   files or a protected path; stop and report."
@@ -483,7 +571,7 @@ Báo cáo được in ra và chép vào executive report của Phase 4.1. Nó kh
   Mục Tests đọc file evidence và chạy `run_task_checks.py status`. Thiếu file evidence, có dòng không
   `PASS`, hoặc `tree` lệch là lỗi Critical. Lời kể của implementer về test chỉ là claim.
 
-## 13. Xử lý lỗi
+## 14. Xử lý lỗi
 
 | Script | Exit 0 | Exit 1 | Exit 2 |
 |---|---|---|---|
@@ -493,11 +581,13 @@ Báo cáo được in ra và chép vào executive report của Phase 4.1. Nó kh
 | `sync_task_status.py task <id> done` | đã ghi status | bị từ chối, kèm điều kiện | lỗi cách gọi như hiện nay |
 | `check_bdd_traceability.py tests --results` | mọi identifier được chọn đều pass | liệt kê các fail | sai cách gọi, hoặc file kết quả không thuộc định dạng nào |
 | `audit_epic.py` | không mục nào fail | liệt kê các mục fail | sai cách gọi, hoặc `<base_ref>` không tồn tại |
+| `run_external_review.py run` | round hoàn tất, không có finding Critical hay Important | round hoàn tất có finding Critical hoặc Important | không có CLI, CLI lỗi hoặc hết thời gian, thiếu dòng Verdict, cây bị đổi, hoặc cây bẩn lúc bắt đầu; round được ghi khi CLI đã chạy |
+| `run_external_review.py check` | round hoàn tất mới nhất không còn finding chặn chưa có Decision | liệt kê các finding Critical hoặc Important chưa có Decision | sai cách gọi |
 
 Thông báo nêu task và dòng (`task_34:V4`), hoặc identifier và case, để một model nhận không có bối
 cảnh vẫn hành động được.
 
-## 14. Phát hành và retrofit
+## 15. Phát hành và retrofit
 
 - **Phát hành.** 1.9.0, kèm một mục CHANGELOG ghi rằng gate `done` từ chối task của các epic đang
   chạy cho tới khi chúng được retrofit — cùng tiền lệ với BDD traceability ở 1.8.0.
@@ -512,7 +602,7 @@ cảnh vẫn hành động được.
   script chưa tồn tại; mọi task sau khi recorder và gate được merge đều có gate. Gate 4 trong repo này
   vẫn dựa vào `scripts/verify.sh`, vì repo không có quality registry.
 
-## 15. Kiểm thử
+## 16. Kiểm thử
 
 - **Unit**, theo style `unittest` và `tempfile` đang dùng, mỗi script mới có một `test_*.py` bên cạnh:
   fixture JUnit lấy từ pytest, Gradle, node và swift; một fixture Dart NDJSON; repo git tạm cho
@@ -533,10 +623,12 @@ cảnh vẫn hành động được.
 - **Contract test.** `scripts/test_lifecycle_document_contract.py` thêm các cụm từ khóa của text skill
   mới, mỗi cụm gắn scenario identifier của nó.
 - `scripts/verify.sh` chạy mọi test mới.
+- **Review chéo** được test bằng các executable giả `claude` và `codex` trên một `PATH` tạm, in ra
+  review dựng sẵn, báo lỗi, treo, hoặc sửa một file. Không test nào gọi CLI thật.
 - **Model cấp thấp thật.** Đóng gói một epic fixture nhỏ và giao cho một model cấp thấp. Đây là mục
   `(Gate 5)`, không phải CI, vì kết quả không lặp lại giữa các lần chạy.
 
-## 16. Rủi ro và phụ thuộc
+## 17. Rủi ro và phụ thuộc
 
 - **Designer tốn công hơn.** Mỗi task cần các dòng với kỳ vọng chính xác. Giảm nhẹ: các dòng mẫu trong
   `references/verification-rows.md`.
@@ -551,8 +643,14 @@ cảnh vẫn hành động được.
 - **Rebase làm đổi patch** khi giải conflict; audit hiển thị điều này thay vì làm fail.
 - **Phụ thuộc** git có `patch-id --stable` và `check-ignore`, chỉ thư viện chuẩn của Python 3, và
   `bash` để chạy các dòng.
+- **Review thay đổi giữa các lần chạy.** Review của model là ý kiến thứ hai, không phải verdict; Gate 4
+  vẫn quyết định.
+- **Nội dung rời khỏi máy.** Option 2 gửi nội dung repo tới provider được chọn; Lựa chọn review nói
+  rõ điều này, và việc chọn nó là sự đồng ý của developer.
+- **Flag của CLI thay đổi** giữa các version. Cả hai lệnh gọi nằm ở một chỗ trong script, và được kiểm
+  với CLI đã cài lúc implement.
 
-## 17. Ngoài phạm vi
+## 18. Ngoài phạm vi
 
 - Test nghiệm thu do designer viết (hướng C).
 - Ký hoặc HMAC file evidence.
@@ -560,3 +658,4 @@ cảnh vẫn hành động được.
 - `dev-implementation` hiếm khi dispatch subagent.
 - Gate 4 báo `BLOCKED` trong repo này vì thiếu quality registry.
 - `develop` bị hardcode trong `dev-implementation` trong khi repo này dùng `main`.
+- Tự động chọn CLI review, hoặc review bằng hai model trong một round.

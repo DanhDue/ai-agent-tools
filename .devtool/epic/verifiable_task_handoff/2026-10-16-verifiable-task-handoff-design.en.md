@@ -2,10 +2,12 @@
 
 - **Date**: 2026-10-16
 - **Status**: Approved
+- **Amended**: 2026-10-16, section 12 (cross-model review)
 - **Scope**: `dev-designer`, `dev-implementation`, `dev-lifecycle` and its handoff template,
   `subagent-driven-development` prompts, `check_bdd_traceability.py`, `sync_task_status.py`, a new
-  shared module `task_contract.py`, new scripts `check_task_contract.py`, `run_task_checks.py` and
-  `audit_epic.py` with their tests, `scripts/verify.sh`
+  shared module `task_contract.py`, new scripts `check_task_contract.py`, `run_task_checks.py`,
+  `audit_epic.py` and `run_external_review.py` with their tests, a review prompt template,
+  `scripts/verify.sh`
 - **Next step**: `dev-designer` (epic-scale)
 
 ## Table of Contents
@@ -21,12 +23,13 @@
 - [9. Done Gate](#9-done-gate)
 - [10. Result-Based Traceability](#10-result-based-traceability)
 - [11. Gate 4 Audit](#11-gate-4-audit)
-- [12. Skill and Prompt Changes](#12-skill-and-prompt-changes)
-- [13. Error Handling](#13-error-handling)
-- [14. Rollout and Retrofit](#14-rollout-and-retrofit)
-- [15. Testing](#15-testing)
-- [16. Risks and Dependencies](#16-risks-and-dependencies)
-- [17. Out of Scope](#17-out-of-scope)
+- [12. Cross-Model Review](#12-cross-model-review)
+- [13. Skill and Prompt Changes](#13-skill-and-prompt-changes)
+- [14. Error Handling](#14-error-handling)
+- [15. Rollout and Retrofit](#15-rollout-and-retrofit)
+- [16. Testing](#16-testing)
+- [17. Risks and Dependencies](#17-risks-and-dependencies)
+- [18. Out of Scope](#18-out-of-scope)
 
 ## 1. Background
 
@@ -84,6 +87,8 @@ ones that failed asked the receiver to judge its own completion.
   developer at Gate 5.
 - Scenario traceability is proved by test results — run, not skipped, passed — instead of
   identifier strings.
+- Before Gate 4, the developer can have the finished epic reviewed by an independent model, through
+  the Claude CLI or the Codex CLI, and its Critical and Important findings block until resolved.
 
 ### Non-Goals
 
@@ -103,6 +108,7 @@ ones that failed asked the receiver to judge its own completion.
 | Ownership of scenario identifiers | Each identifier is on exactly one task's `Covers:` line; each identifier still needs at least one test |
 | `BLOCKED` rows | Block `done`; no waivers |
 | Applicability | Every new epic, no strict mode; epics in flight are retrofitted when resumed |
+| Cross-model review | Optional, offered every time all tasks are done and before Phase 4; the developer picks the Claude or Codex CLI each time; Critical and Important findings block unless fixed or dismissed by the developer |
 
 ## 4. Overview
 
@@ -117,6 +123,8 @@ flowchart TD
     REVIEW["Reviewer reads evidence and status"]
     DONE{"Done gate passes?"}
     COMMIT["One commit: code, task file, evidence"]
+    CHOICE{"Review choice"}
+    XREVIEW["run_external_review.py run"]
     GATE4{"Gate 4: audit, result traceability, quality_check pass?"}
     GATE5["Gate 5: developer reviews disclosures"]
     STOP["Stop and report to the developer"]
@@ -133,7 +141,11 @@ flowchart TD
     DONE -->|no| CODE
     DONE -->|yes| COMMIT
     COMMIT -->|"next task"| RED
-    COMMIT -->|"last task"| GATE4
+    COMMIT -->|"last task"| CHOICE
+    CHOICE -->|"1. finish"| GATE4
+    CHOICE -->|"2. cross-model review"| XREVIEW
+    XREVIEW -->|"Critical or Important"| CODE
+    XREVIEW -->|"clean or decided"| GATE4
     GATE4 -->|no| CODE
     GATE4 -->|yes| GATE5
     CODE -.->|"Stop and Report If"| STOP
@@ -309,7 +321,7 @@ covers.
 |---|---|
 | `dev-designer` Step 3, before committing | `check_task_contract.py --design`, `plan` |
 | `dev-lifecycle` packaging preflight | `check_task_contract.py --design`, `plan` |
-| `dev-implementation` Gate 3, fresh and on resume | `check_task_contract.py`, `plan`; failure means retrofit (section 14) |
+| `dev-implementation` Gate 3, fresh and on resume | `check_task_contract.py`, `plan`; failure means retrofit (section 15) |
 
 ## 8. Recorder and Evidence
 
@@ -462,7 +474,80 @@ python3 "$SCRIPTS"/audit_epic.py --epic-dir <epic_dir> --base <base_ref>
 The report is printed and copied into the Phase 4.1 executive report. It is not committed, because a
 commit would move the SHA that Gate 4 just judged.
 
-## 12. Skill and Prompt Changes
+## 12. Cross-Model Review
+
+When every task of a code epic is `done`, and before Phase 4, dev-implementation asks — every time,
+like the Handoff Choice:
+
+> All N tasks of `<epic_slug>` are done. How do you want to proceed?
+>
+> 1. **Finish** — Gate 4, Gate 5, then `finishing-a-development-branch`.
+> 2. **Cross-model review** — an independent model reviews the epic first, through the Claude CLI or
+>    the Codex CLI. You pick which; the repository's content is sent to that provider.
+
+The question lists which of `claude` and `codex` are on `PATH`. The developer picks the CLI, and
+optionally a model, every time; the agent never picks one, because which still has credits is the
+developer's knowledge. With neither on `PATH`, option 2 is unavailable and the question says why.
+
+### run_external_review.py
+
+```bash
+python3 "$SCRIPTS"/run_external_review.py run --epic-dir <epic_dir> --base <base_ref> \
+  --cli claude|codex [--model <name>] [--timeout <seconds>]
+python3 "$SCRIPTS"/run_external_review.py check --epic-dir <epic_dir>
+```
+
+`run`:
+
+1. Requires a clean tree, and records `HEAD` and `git status --porcelain`.
+2. Runs `audit_epic.py` and `check_bdd_traceability.py tests --results` over the HLD's Integration
+   results reports, for facts only; this is not Gate 4.
+3. Builds the prompt from `skills/dev-implementation/references/external-review-prompt.md`: the
+   candidate SHA, the base, the paths of the spec, HLD, BDD scenarios, task mirrors and evidence, the
+   audit and results output, and the checklist below.
+4. Runs the chosen CLI non-interactively and read-only, with the prompt on stdin:
+   `claude -p --permission-mode plan [--model <name>]` or
+   `codex exec --sandbox read-only [--model <name>] -`. The exact flags are confirmed against the
+   installed CLIs during implementation.
+5. Checks `HEAD` and `git status --porcelain` again. Any change discards the round.
+6. Appends a round to `.devtool/epic/<epic_dir>/review_results.md`. The script writes the file from
+   the CLI's output; the reviewer never writes.
+
+The checklist the reviewer must cover:
+
+- Each done task's evidence against its Verification table, and rows too weak for the Definition of
+  Done item they back.
+- Whether each identifier's test exercises its Gherkin scenario, or merely passes.
+- Each audit disclosure — grader amendments, protected path changes, commits outside tasks — and
+  whether it is justified.
+- Whether the code respects the spec, the HLD and each task's Decisions Already Made.
+- The `(Gate 5)` items, restated for the developer.
+
+The required output is one line `Verdict: PASS` or `Verdict: CHANGES REQUIRED`, and one line per
+finding: `[Critical|Important|Minor] <artefact>:<location> — <problem>`.
+
+### review_results.md
+
+One `## Round N` section per run, holding the date, SHA, base, CLI, model, status (`completed`,
+`no verdict` or `discarded: tree modified`), verdict, a findings table with the columns
+`# | Severity | Location | Problem | Decision`, and the raw output in a fenced block. Rounds are
+appended and never rewritten; only the Decision column changes later.
+
+### Flow After a Round
+
+| Outcome | What happens |
+|---|---|
+| Completed, no Critical or Important finding | Commit `review_results.md` as `[<EPIC_NAME>] Record cross-model review round N`, then Phase 4 |
+| Completed with Critical or Important findings | Return to Phase 2 and fix them. Each gets a Decision: `fixed in <sha>`, or `dismissed: <reason>` written only on the developer's explicit words. Then the developer chooses again: another round, or Finish |
+| No CLI, a CLI error or timeout (for example, credits exhausted), no Verdict line, or a changed tree | `run` exits 2 and records the round with its status; the developer chooses again, and may pick the other CLI |
+
+### check
+
+At the start of Phase 4, when `review_results.md` exists, `check` exits 1 if the latest completed
+round has a Critical or Important finding without a Decision. Gate 4 then runs in full as before, and
+Phase 4.1 adds a summary of the rounds to the Gate 5 report.
+
+## 13. Skill and Prompt Changes
 
 - **[dev-designer](../../../skills/dev-designer/SKILL.md).** The task template takes section 5; the
   Integration Test Plan takes section 6's lines and `## Verification Environment`; "at least one
@@ -473,11 +558,15 @@ commit would move the SHA that Gate 4 just judged.
   check. Phase 2 replaces its "Gate to Done" with `red` before implementation, `verify` after, the
   `done` gate, and the evidence file in the task commit. Phase 4 runs, in order, `audit_epic.py`, the
   Integration results commands, `tests --results`, then `quality_check`. Phase 4.1 adds the audit's
-  disclosure sections to its report.
+  disclosure sections to its report. After the last task it asks the Review Choice (section 12);
+  Phase 4 starts with `run_external_review.py check` when `review_results.md` exists, and Phase 4.1
+  summarises the review rounds.
 - **[dev-lifecycle](../../../skills/dev-lifecycle/SKILL.md).** Gate 4's machine criteria add the audit
   and result-based traceability; the packaging preflight adds `check_task_contract.py --design`; Red
   Flags add ticking checkboxes or writing evidence by hand, and changing a Verification table,
-  Allowed files or a protected path without stopping to ask.
+  Allowed files or a protected path without stopping to ask. The sequence diagram gains the Review
+  Choice before Gate 4; Red Flags add running the review without asking, picking the CLI for the
+  developer, and writing a `dismissed` decision without the developer's words.
 - **[handoff-template.md](../../../skills/dev-lifecycle/references/handoff-template.md).** Rules for
   the Receiving Agent adds: "Never edit a task's Verification table, Definition of Done, Allowed
   files or a protected path; stop and report."
@@ -490,7 +579,7 @@ commit would move the SHA that Gate 4 just judged.
   file, a row not `PASS`, or a `tree` mismatch is Critical. The implementer's account of its tests is
   a claim.
 
-## 13. Error Handling
+## 14. Error Handling
 
 | Script | Exit 0 | Exit 1 | Exit 2 |
 |---|---|---|---|
@@ -500,11 +589,13 @@ commit would move the SHA that Gate 4 just judged.
 | `sync_task_status.py task <id> done` | status written | refused, with conditions | unchanged usage errors |
 | `check_bdd_traceability.py tests --results` | every selected identifier passes | failures listed | usage, or a results file in neither format |
 | `audit_epic.py` | no failing section | failing sections listed | usage, or `<base_ref>` unknown |
+| `run_external_review.py run` | round completed, no Critical or Important finding | round completed with Critical or Important findings | no CLI, a CLI error or timeout, no Verdict line, a changed tree, or a dirty tree at start; the round is recorded when the CLI ran |
+| `run_external_review.py check` | the latest completed round has no undecided blocking finding | undecided Critical or Important findings listed | usage |
 
 Messages name the task and row (`task_34:V4`) or the identifier and case, so a receiver with no
 context can act on them.
 
-## 14. Rollout and Retrofit
+## 15. Rollout and Retrofit
 
 - **Release.** 1.9.0, with a CHANGELOG entry stating that the `done` gate refuses tasks of epics in
   flight until they are retrofitted — the same precedent as BDD traceability in 1.8.0.
@@ -520,7 +611,7 @@ context can act on them.
   Gate 4 in this repository still relies on `scripts/verify.sh`, since the repository has no quality
   registry.
 
-## 15. Testing
+## 16. Testing
 
 - **Unit**, in the existing `unittest` and `tempfile` style, one `test_*.py` beside each new script:
   JUnit fixtures from pytest, Gradle, node and swift; a Dart NDJSON fixture; temporary git
@@ -542,10 +633,12 @@ context can act on them.
 - **Contract test.** `scripts/test_lifecycle_document_contract.py` gains the key phrases of the new
   skill text, each tagged with its scenario identifier.
 - `scripts/verify.sh` runs every new test.
+- **Cross-model review** is tested with fake `claude` and `codex` executables on a temporary `PATH`,
+  which print a canned review, fail, hang or modify a file. No test calls a real CLI.
 - **A real lower-tier model.** Package a small fixture epic and hand it to a lower-tier model. This
   is a `(Gate 5)` item, not CI, because its outcome does not repeat run to run.
 
-## 16. Risks and Dependencies
+## 17. Risks and Dependencies
 
 - **Designer effort rises.** Every task needs rows with exact expectations. Mitigation: the example
   rows in `references/verification-rows.md`.
@@ -561,8 +654,13 @@ context can act on them.
   failing.
 - **Depends on** git with `patch-id --stable` and `check-ignore`, Python 3 standard library only, and
   `bash` for running rows.
+- **Reviews vary run to run.** A model review is a second opinion, not a verdict; Gate 4 still decides.
+- **Content leaves the machine.** Option 2 sends the repository's content to the chosen provider; the
+  Review Choice says so, and choosing it is the developer's consent.
+- **CLI flags drift** between versions. Both invocations live in one place in the script, and are
+  confirmed against the installed CLIs during implementation.
 
-## 17. Out of Scope
+## 18. Out of Scope
 
 - Designer-written acceptance tests (approach C).
 - Signing or HMAC of evidence files.
@@ -570,3 +668,4 @@ context can act on them.
 - `dev-implementation` rarely dispatching subagents.
 - Gate 4 reporting `BLOCKED` in this repository for want of a quality registry.
 - `develop` hardcoded in `dev-implementation` while this repository uses `main`.
+- Choosing the review CLI automatically, or reviewing with two models in one round.
