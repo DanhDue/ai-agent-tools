@@ -8,6 +8,40 @@ every installed machine on the old cached copy.
 
 ---
 
+## 1.9.0 — 2026-10-16
+
+Makes epic tasks verifiable when they are handed to another model: a task reaches `done` only through evidence a script recorded by running the task's declared commands, traceability is proved by test results rather than identifier strings, every grader change is disclosed at Gate 4, and the developer can have the finished epic reviewed by the Claude CLI or the Codex CLI before Gate 4.
+
+### Upgrade notes
+
+- **Epics in flight must be retrofitted.** For a code epic (an overview with an `Integration test roots:` line), `sync_task_status.py task <id> done` now refuses a task file without a `## Verification` section with "retrofit required". Retrofit the remaining tasks through dev-designer's Updating an Existing Epic before continuing. Document epics are unaffected.
+- **Run the done gate in the epic worktree.** It reads the evidence of the checkout it runs in and refuses from a checkout that lacks the task.
+- **Results reports must be git-ignored** (for example `build/`), and results paths are read per file: only reports written by the current run count.
+
+### Added
+
+- **Task contract** (`skills/dev-designer/`): task files gain `## Files` (`Allowed files:` with `(new)` markers, `Read-only context:`), a `## Verification` table (`ID | Phase | Command | Expect | Needs`, phases `RED`/`GREEN`/`TIER-B`/`TIER-C`, `RED: n/a — <reason>`), Definition of Done bullets that reference rows or `(Gate 5)`, `## Stop and Report If` and `## Decisions Already Made`. HLDs gain `Protected paths:`, `Integration results:` and a `## Verification Environment` section. New `references/verification-rows.md` gives example rows and report commands per platform.
+- **Design-time contract check** (`check_task_contract.py [--design]`): structure, grounding of paths and commands against the repository, and HLD declarations, run at dev-designer Step 3, the packaging preflight and Gate 3.
+- **Evidence recorder** (`run_task_checks.py red|verify|status`): runs a task's Verification rows, checks scope against Allowed files and protected paths, and writes `.devtool/epic/<epic_dir>/evidence/<task_id>.json` with a tree fingerprint and patch-id; `status` previews the done gate.
+- **Done gate** (`sync_task_status.py task <id> done`): refuses a code-epic task unless its recorded evidence matches the current table and tree, RED preceded the change, every covered identifier has a passing test case, and SCOPE passed.
+- **Result-based traceability** (`check_bdd_traceability.py tests --results`, `result_reports.py`): reads JUnit XML and the Dart JSON reporter; an identifier passes only with a passed, non-skipped test case named after it.
+- **Gate 4 audit** (`audit_epic.py`): checks every done task's committed evidence against its table and discloses protected-path changes, grader amendments, commits outside tasks and `(Gate 5)` items.
+- **Cross-model review** (`run_external_review.py run|check`, `references/external-review-prompt.md`): after the last task, dev-implementation offers a Review Choice; the developer picks the Claude CLI or the Codex CLI, the reviewer runs read-only, rounds are recorded in `review_results.md`, and Critical or Important findings block Phase 4 until each has a decision.
+- **Standard-library JUnit runner** (`scripts/run_unittest_junit.py`) for the kit's own `unittest` suites, and the epic's end-to-end and skill-text tests wired into `scripts/verify.sh`.
+
+### Changed
+
+- **One owner per identifier**: `check_bdd_traceability.py plan` fails an identifier named on more than one task's `Covers:` line.
+- **dev-implementation**: Phase 2 records `red` and `verify` and passes the done gate before the single task commit; fixes made after the last task land as `[<EPIC>] Fix …` commits disclosed by the audit; Phase 4 runs the review check, `audit_epic.py`, the Integration results commands, `tests --results`, then `quality_check`.
+- **dev-lifecycle and the handoff template**: Gate 4 criteria name the audit and result-based traceability; the packaging preflight runs the contract check; receiving agents never edit a task's grader sections.
+- **subagent-driven-development**: for a task with a Verification table, the evidence file is the test evidence, implementers leave the change uncommitted, reviewers run `run_task_checks.py status`, and `review-package` gains a `WORKTREE` mode for uncommitted diffs.
+
+### Fixed
+
+- **Done tasks reach `done/`** (`sync_task_status.py`): `task <id> done` moves each checkout's `.devtool/features/<task_id>.md` into `.devtool/features/done/`, and back when the status leaves done, so the finishing hook's `archive-done` finds them.
+
+---
+
 ## 1.8.1 — 2026-10-16
 
 Tightens BDD integration traceability and epic lifecycle reliability: prevents ignored files from masking missing test coverage, accepts prose in task `Covers:` lines, reports non-UTF-8 files as usage errors, discovers remote-only epic branches before fetching, and fixes handoff staleness checks and queued packaging.
