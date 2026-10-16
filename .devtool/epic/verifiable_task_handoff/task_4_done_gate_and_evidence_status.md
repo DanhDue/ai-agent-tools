@@ -14,7 +14,7 @@ order: "a4"
 
 # Task 4: Done gate and evidence status
 
-Epic: [verifiable_task_handoff](../epic/verifiable_task_handoff/verifiable_task_handoff.en.md)
+Epic: [verifiable_task_handoff](verifiable_task_handoff.en.md)
 
 ## Requirement Analysis
 

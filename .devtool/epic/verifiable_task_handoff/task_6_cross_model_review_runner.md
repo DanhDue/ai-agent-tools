@@ -14,7 +14,7 @@ order: "a6"
 
 # Task 6: Cross-model review runner
 
-Epic: [verifiable_task_handoff](../epic/verifiable_task_handoff/verifiable_task_handoff.en.md)
+Epic: [verifiable_task_handoff](verifiable_task_handoff.en.md)
 
 ## Requirement Analysis
 

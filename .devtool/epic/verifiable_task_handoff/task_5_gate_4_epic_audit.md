@@ -14,7 +14,7 @@ order: "a5"
 
 # Task 5: Gate 4 epic audit
 
-Epic: [verifiable_task_handoff](../epic/verifiable_task_handoff/verifiable_task_handoff.en.md)
+Epic: [verifiable_task_handoff](verifiable_task_handoff.en.md)
 
 ## Requirement Analysis
 

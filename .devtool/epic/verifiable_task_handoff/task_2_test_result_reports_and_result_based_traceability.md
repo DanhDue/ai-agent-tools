@@ -14,7 +14,7 @@ order: "a2"
 
 # Task 2: Test result reports and result-based traceability
 
-Epic: [verifiable_task_handoff](../epic/verifiable_task_handoff/verifiable_task_handoff.en.md)
+Epic: [verifiable_task_handoff](verifiable_task_handoff.en.md)
 
 ## Requirement Analysis
 

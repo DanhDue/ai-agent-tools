@@ -15,7 +15,7 @@
 ## 1. Meta Data
 
 - **Epic**: verifiable_task_handoff (thư mục `verifiable_task_handoff`)
-- **Trạng thái**: Planned
+- **Trạng thái**: Done
 - **Bản phát hành mục tiêu**: d3nexus 1.9.0
 - **Platform**: Python — chính repo của kit: script chỉ dùng thư viện chuẩn, test bằng `unittest`,
   cùng các skill Markdown. `detect_project_type.sh` báo `unknown` cho repo này.

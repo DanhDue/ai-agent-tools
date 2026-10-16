@@ -14,7 +14,7 @@ order: "a8"
 
 # Task 8: End-to-end lifecycle acceptance
 
-Epic: [verifiable_task_handoff](../epic/verifiable_task_handoff/verifiable_task_handoff.en.md)
+Epic: [verifiable_task_handoff](verifiable_task_handoff.en.md)
 
 ## Requirement Analysis
 

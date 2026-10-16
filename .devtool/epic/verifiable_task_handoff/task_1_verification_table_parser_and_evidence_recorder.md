@@ -14,7 +14,7 @@ order: "a1"
 
 # Task 1: Verification table parser and evidence recorder
 
-Epic: [verifiable_task_handoff](../epic/verifiable_task_handoff/verifiable_task_handoff.en.md)
+Epic: [verifiable_task_handoff](verifiable_task_handoff.en.md)
 
 ## Requirement Analysis
 
