@@ -26,6 +26,7 @@ ROW_ID = re.compile(r"V[0-9]+")
 CODE_SPAN = re.compile(r"`([^`]+)`")
 RED_NA = re.compile(r"^RED:\s*n/a\s*[—-]\s*(.+?)\s*$")
 ALLOWED_BULLET = re.compile(r"^- `([^`]+)`( \(new\))?\s*$")
+ENVIRONMENT_HEADING = re.compile(r"^## (?:\d+\.\s*)?Verification Environment\s*$")
 INTERPRETERS = {"python", "python3", "bash", "sh", "zsh", "node", "deno", "ruby", "perl"}
 CONTROL_TOKENS = {"&&", "||", ";", "|"}
 EXCLUDE_DEVTOOL = ":(exclude).devtool"
@@ -183,6 +184,58 @@ def parse_protected_paths(hld_text: str) -> list[str]:
         if line.startswith("Protected paths:"):
             return [entry.strip() for entry in line.split(":", 1)[1].split(",") if entry.strip()]
     return []
+
+
+def parse_read_only_context(task_text: str) -> list[str]:
+    """The first inline code span of each bullet under `Read-only context:` in `## Files`."""
+    paths: list[str] = []
+    listing = False
+    for line in (section(task_text, "Files") or "").splitlines():
+        if not listing:
+            listing = line.strip() == "Read-only context:"
+        elif line.startswith("- "):
+            span = CODE_SPAN.search(line)
+            if span:
+                paths.append(span.group(1))
+        elif line.strip():
+            break
+    return paths
+
+
+def dod_bullets(task_text: str) -> list[str]:
+    """Each `## Definition of Done` bullet as one line, wrapped continuation lines joined."""
+    bullets: list[str] = []
+    for line in (section(task_text, "Definition of Done") or "").splitlines():
+        if line.startswith("- "):
+            bullets.append(line[2:].strip())
+        elif line.strip() and bullets and line[0] in " \t":
+            bullets[-1] += " " + line.strip()
+    return bullets
+
+
+def parse_integration_results(hld_text: str) -> list[str]:
+    """The text after `Integration results:` on each such line, as written."""
+    return [line.split(":", 1)[1].strip() for line in hld_text.splitlines()
+            if line.startswith("Integration results:")]
+
+
+def verification_environment(hld_text: str) -> str | None:
+    """Body of the `## Verification Environment` section, numbered or not; None when the heading is absent."""
+    body: list[str] = []
+    found = False
+    fence: str | None = None
+    for line in hld_text.splitlines():
+        marker = FENCE.match(line)
+        if marker:
+            fence = marker.group(1) if fence is None else (None if marker.group(1)[0] == fence[0] else fence)
+        elif fence is None and line.startswith("## "):
+            if found:
+                break
+            found = bool(ENVIRONMENT_HEADING.match(line))
+            continue
+        if found:
+            body.append(line)
+    return "\n".join(body) if found else None
 
 
 def path_matches(pattern: str, path: str) -> bool:

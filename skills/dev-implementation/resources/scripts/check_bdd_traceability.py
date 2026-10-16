@@ -116,6 +116,9 @@ def check_plan(ids: list[str], task_paths: list[Path]) -> tuple[dict[str, list[s
                 problems.append(f"{path}: Covers names unknown identifier {identifier}")
             elif path.name not in coverage[identifier]:
                 coverage[identifier].append(path.name)
+    for identifier, owners in coverage.items():
+        if len(owners) > 1:
+            problems.append(f"{identifier} is on the Covers lines of {', '.join(owners[:-1])} and {owners[-1]}")
     return coverage, problems
 
 

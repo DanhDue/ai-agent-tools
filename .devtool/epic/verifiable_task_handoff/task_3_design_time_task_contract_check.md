@@ -1,13 +1,13 @@
 ---
 id: "task_3_design_time_task_contract_check"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "verifiable_task_handoff"
 dueDate: null
 created: "2026-10-16T06:53:44Z"
-modified: "2026-10-16T06:53:44Z"
-completedAt: null
+modified: "2026-10-16T07:44:01Z"
+completedAt: "2026-10-16T07:44:01Z"
 labels: ["scripts", "design-time"]
 order: "a3"
 ---

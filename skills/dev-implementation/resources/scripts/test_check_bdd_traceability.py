@@ -168,6 +168,15 @@ class PlanModeTest(TraceabilityCase):
         self.assertEqual(code, 2)
         self.assertIn("task file not found", err)
 
+    def test_vth_st_01_an_identifier_owned_by_two_tasks_fails_the_plan(self) -> None:
+        scenarios = self.scenarios("Scenario: [DEMO-HP-01] First")
+        first = self.write("epic/task_1_a.md", "Covers: DEMO-HP-01\n")
+        second = self.write("epic/task_2_b.md", "Covers: DEMO-HP-01\n")
+        code, out, _ = self.plan(scenarios, first, second)
+        self.assertEqual(code, 1)
+        self.assertIn("DEMO-HP-01 is on the Covers lines of task_1_a.md and task_2_b.md", out)
+        self.assertIn("Result: 1/1 covered — FAIL", out)
+
 
 class TestsModeTest(TraceabilityCase):
     def run_tests_mode(self, *extra: object, roots: tuple[str, ...] = ("tests/integration",)) -> tuple[int, str, str]:
