@@ -345,7 +345,7 @@ def sync_epic(roots: list[Path], epic_dir: str, new_status: str) -> tuple[list[P
     """
     matched: list[Path] = []
     written: list[Path] = []
-    status_re = re.compile(r"^(-\s*\*\*(?:Status|Trạng thái)\*\*:\s*).*$", re.M)
+    status_re = re.compile(r"^(-\s*\*\*(?:Status|Trạng thái)(?:\*\*:\s*|:\*\*\s*)).*$", re.M)
     for root in roots:
         epic_path = root / ".devtool" / "epic" / epic_dir
         if not epic_path.is_dir():

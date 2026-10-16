@@ -336,6 +336,22 @@ class SyncEpicTests(unittest.TestCase):
             self.assertIn("- **Status**: In Progress", en_doc.read_text())
             self.assertIn("- **Status**: In Progress", vi_doc.read_text())
 
+    def test_updates_a_status_line_with_the_colon_inside_the_bold(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            epic_dir = root / ".devtool" / "epic" / "logging_refactor"
+            epic_dir.mkdir(parents=True, exist_ok=True)
+            en_doc = epic_dir / "logging_refactor.en.md"
+            vi_doc = epic_dir / "logging_refactor.vi.md"
+            en_doc.write_text("# Epic: Logging Refactor\n\n- **Epic:** `logging_refactor`\n- **Status:** Planned\n")
+            vi_doc.write_text("# Epic: Tái cấu trúc\n\n- **Trạng thái:** Đã lên kế hoạch\n")
+
+            matched, written = sync_epic([root], "logging_refactor", "Done")
+            self.assertEqual(len(written), 2)
+            self.assertIn("- **Status:** Done", en_doc.read_text())
+            self.assertIn("- **Epic:** `logging_refactor`", en_doc.read_text())
+            self.assertIn("- **Trạng thái:** Done", vi_doc.read_text())
+
     def test_handles_vietnamese_meta_data_label(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
