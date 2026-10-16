@@ -15,6 +15,9 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
+from check_bdd_traceability import covers_of
+from result_reports import Case, verdicts
+
 PHASES = ("RED", "GREEN", "TIER-B", "TIER-C")
 HEADER = ["ID", "Phase", "Command", "Expect", "Needs"]
 NONE_CELL = ("—", "-")
@@ -363,3 +366,72 @@ def save_evidence(path: Path, data: dict) -> None:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+
+
+def is_code_epic(hld_path: Path) -> bool:
+    """True when the epic overview declares `Integration test roots:`, which makes it a code epic."""
+    try:
+        text = Path(hld_path).read_text(encoding="utf-8")
+    except OSError:
+        return False
+    return any(line.startswith("Integration test roots:") for line in text.splitlines())
+
+
+def row_problems(rows: list[Row], runs: dict) -> list[str]:
+    """Condition 2: each table row needs a PASS record carrying the same command and expect."""
+    problems: list[str] = []
+    for row in rows:
+        run = runs.get("red" if row.phase == "RED" else "verify") or {}
+        record = next((r for r in run.get("rows", []) if r["id"] == row.id), None)
+        if record is None or (record["outcome"] != "PASS" and record["outcome"] != "BLOCKED"):
+            problems.append(f"condition 2: row {row.id}: no PASS result in the evidence")
+        elif record["outcome"] == "BLOCKED":
+            continue
+        elif record["command"] != row.command:
+            problems.append(f"condition 2: row {row.id}: recorded command differs from the table")
+        elif record["expect"] != row.expect_text:
+            problems.append(f"condition 2: row {row.id}: recorded expect differs from the table")
+    return problems
+
+
+def evaluate_done_gate(task_file: Path) -> list[str]:
+    """One message per failed done-gate condition for a task mirror; empty when the gate passes."""
+    layout = epic_layout(task_file)
+    try:
+        rows, red_na = parse_verification(Path(task_file).read_text(encoding="utf-8"))
+    except ContractError as error:
+        return [f"condition 2: {error}"]
+    evidence = load_evidence(layout.evidence)
+    if evidence is None:
+        return [f"condition 1: evidence {layout.evidence} not found in this checkout — record it with "
+                "run_task_checks.py and run the done gate in the epic worktree"]
+    runs = evidence.get("runs", {})
+    needs_red = red_na is None and any(row.phase == "RED" for row in rows)
+    missing = [kind for kind in (("red",) if needs_red else ()) + ("verify",) if kind not in runs]
+    if missing:
+        return [f"condition 1: evidence {layout.evidence} has no {kind} run" for kind in missing]
+    problems = row_problems(rows, runs)
+    for kind, run in runs.items():
+        problems += [f"condition 3: {kind} row {r['id']} is BLOCKED ({r.get('reason')})"
+                     for r in run["rows"] if r["outcome"] == "BLOCKED"]
+    verify = runs["verify"]
+    if verify["tree"] != fingerprint(layout.root)[0]:
+        problems.append("condition 4: the verify run's tree differs from the current tree — "
+                        "files changed after verification")
+    if needs_red:
+        red = runs["red"]
+        if red["tree"] == verify["tree"]:
+            problems.append("condition 5: the red run's tree equals the verify run's tree — "
+                            "RED was not recorded before the change")
+        if red["finished"] > verify["started"]:
+            problems.append("condition 5: the red run finished after the verify run started")
+    cases = [Case(c["name"], c["classname"], c["status"]) for r in verify["rows"] if r["phase"] == "TIER-C"
+             for c in r.get("results", {}).get("digest", {}).get("cases", [])]
+    problems += [f"condition 6: {identifier}: {detail}"
+                 for identifier, (passed, detail) in verdicts(covers_of(Path(task_file)), cases).items()
+                 if not passed]
+    scope = next((r for r in verify["rows"] if r["id"] == "SCOPE"), None)
+    if scope is None or scope["outcome"] != "PASS":
+        detail = "; ".join(scope.get("violations", [])) if scope else "no SCOPE row"
+        problems.append(f"condition 7: SCOPE row is not PASS ({detail})")
+    return problems

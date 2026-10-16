@@ -1,0 +1,259 @@
+{
+  "schema": 1,
+  "task": "task_4_done_gate_and_evidence_status",
+  "runs": {
+    "red": {
+      "head": "9758728546bd9df6b77dfa05b9fe970d29a7e8d9",
+      "tree": "da70b72718df6a584fcb719dfba3b1a26d7d8d0a",
+      "patch_id": "7eb82eb12126634f96df6a9ef879682fed0f0673",
+      "started": "2026-10-16T07:45:47Z",
+      "finished": "2026-10-16T07:45:50Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m unittest -k vth skills/dev-implementation/resources/scripts/test_sync_task_status.py",
+          "expect": "exit 1; contains \"FAILED\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-16T07:45:47Z",
+          "finished": "2026-10-16T07:45:50Z",
+          "output_tail": [
+            "    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+            "  File \"/Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/verifiable_task_handoff/skills/dev-implementation/resources/scripts/test_sync_task_status.py\", line 588, in assert_refused",
+            "    self.assertEqual(result.returncode, 1, result.stderr)",
+            "    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+            "AssertionError: 0 != 1 : ",
+            "",
+            "======================================================================",
+            "FAIL: test_vth_st_06_only_code_epics_are_gated (skills.dev-implementation.resources.scripts.test_sync_task_status.DoneGateTests.test_vth_st_06_only_code_epics_are_gated)",
+            "----------------------------------------------------------------------",
+            "Traceback (most recent call last):",
+            "  File \"/Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/verifiable_task_handoff/skills/dev-implementation/resources/scripts/test_sync_task_status.py\", line 640, in test_vth_st_06_only_code_epics_are_gated",
+            "    self.refuse_leaves_copies(\"retrofit required:\", \"has no Verification section\")",
+            "    ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+            "  File \"/Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/verifiable_task_handoff/skills/dev-implementation/resources/scripts/test_sync_task_status.py\", line 595, in refuse_leaves_copies",
+            "    self.assert_refused(self.done(self.wt), *fragments)",
+            "    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+            "  File \"/Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/verifiable_task_handoff/skills/dev-implementation/resources/scripts/test_sync_task_status.py\", line 588, in assert_refused",
+            "    self.assertEqual(result.returncode, 1, result.stderr)",
+            "    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+            "AssertionError: 0 != 1 : ",
+            "",
+            "======================================================================",
+            "FAIL: test_vth_st_07_covered_identifier_without_a_passing_case_is_refused (skills.dev-implementation.resources.scripts.test_sync_task_status.DoneGateTests.test_vth_st_07_covered_identifier_without_a_passing_case_is_refused)",
+            "----------------------------------------------------------------------",
+            "Traceback (most recent call last):",
+            "  File \"/Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/verifiable_task_handoff/skills/dev-implementation/resources/scripts/test_sync_task_status.py\", line 656, in test_vth_st_07_covered_identifier_without_a_passing_case_is_refused",
+            "    self.refuse_leaves_copies(\"condition 6:\", \"DEMO-EC-01\")",
+            "    ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+            "  File \"/Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/verifiable_task_handoff/skills/dev-implementation/resources/scripts/test_sync_task_status.py\", line 595, in refuse_leaves_copies",
+            "    self.assert_refused(self.done(self.wt), *fragments)",
+            "    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+            "  File \"/Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/verifiable_task_handoff/skills/dev-implementation/resources/scripts/test_sync_task_status.py\", line 588, in assert_refused",
+            "    self.assertEqual(result.returncode, 1, result.stderr)",
+            "    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+            "AssertionError: 0 != 1 : ",
+            "",
+            "----------------------------------------------------------------------",
+            "Ran 7 tests in 2.384s",
+            "",
+            "FAILED (failures=7)"
+          ],
+          "output_sha256": "827ac66feb5bc683d5a1b650b0d295fa6a0fb10fcaf7b5517198f62bb5d7d3fe"
+        }
+      ]
+    },
+    "verify": {
+      "head": "9758728546bd9df6b77dfa05b9fe970d29a7e8d9",
+      "tree": "b32629cde9851fd87fb89a195096b0cf2fcd3554",
+      "patch_id": "30c5e81e3b6c3dcd40dc2b4d32ad4dff58a5082e",
+      "started": "2026-10-16T07:49:51Z",
+      "finished": "2026-10-16T07:50:42Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m unittest skills/dev-implementation/resources/scripts/test_sync_task_status.py skills/dev-implementation/resources/scripts/test_run_task_checks.py",
+          "expect": "exit 0; contains \"OK\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-16T07:49:51Z",
+          "finished": "2026-10-16T07:50:02Z",
+          "output_tail": [
+            ".....................................................................................",
+            "----------------------------------------------------------------------",
+            "Ran 85 tests in 10.399s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "40c81b1d0359ca068d68d63dc1d706fcd07da8083d399cdc07afb49602602a90"
+        },
+        {
+          "id": "V3",
+          "phase": "TIER-B",
+          "command": "bash scripts/verify.sh",
+          "expect": "exit 0; contains \"PASS — safe to publish\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-16T07:50:02Z",
+          "finished": "2026-10-16T07:50:37Z",
+          "output_tail": [
+            "Ran 9 tests in 0.000s",
+            "",
+            "OK",
+            ".....",
+            "----------------------------------------------------------------------",
+            "Ran 5 tests in 0.000s",
+            "",
+            "OK",
+            ".........",
+            "----------------------------------------------------------------------",
+            "Ran 9 tests in 0.000s",
+            "",
+            "OK",
+            "......",
+            "----------------------------------------------------------------------",
+            "Ran 6 tests in 0.000s",
+            "",
+            "OK",
+            "......",
+            "----------------------------------------------------------------------",
+            "Ran 6 tests in 0.000s",
+            "",
+            "OK",
+            "......",
+            "----------------------------------------------------------------------",
+            "Ran 6 tests in 0.000s",
+            "",
+            "OK",
+            "..................",
+            "----------------------------------------------------------------------",
+            "Ran 18 tests in 0.011s",
+            "",
+            "OK",
+            "...............",
+            "----------------------------------------------------------------------",
+            "Ran 15 tests in 1.947s",
+            "",
+            "OK",
+            "",
+            "PASS — safe to publish"
+          ],
+          "output_sha256": "ffc41b6579ff3da9b7e743b2497480dc258260ab149da923cf83ae4af7386988"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-C",
+          "command": "python3 scripts/run_unittest_junit.py --junitxml build/test-results/task_4.xml skills/dev-implementation/resources/scripts/test_sync_task_status.py",
+          "expect": "exit 0; results build/test-results/task_4.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-16T07:50:37Z",
+          "finished": "2026-10-16T07:50:41Z",
+          "output_tail": [
+            "...................................................",
+            "----------------------------------------------------------------------",
+            "Ran 51 tests in 3.708s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "09cb4608bb8e868b3fe8be48a3f4d72325dfb35d540e8314531f7576e68206f7",
+          "results": {
+            "path": "build/test-results/task_4.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 7,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_vth_ar_02_gate_from_checkout_without_evidence_writes_nothing",
+                  "classname": "test_sync_task_status.DoneGateTests",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_vth_hp_03_matching_evidence_reaches_done",
+                  "classname": "test_sync_task_status.DoneGateTests",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_vth_st_03_done_without_evidence_is_refused",
+                  "classname": "test_sync_task_status.DoneGateTests",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_vth_st_04_edits_after_verification_are_refused",
+                  "classname": "test_sync_task_status.DoneGateTests",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_vth_st_05_red_that_did_not_precede_the_change_is_refused",
+                  "classname": "test_sync_task_status.DoneGateTests",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_vth_st_06_only_code_epics_are_gated",
+                  "classname": "test_sync_task_status.DoneGateTests",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_vth_st_07_covered_identifier_without_a_passing_case_is_refused",
+                  "classname": "test_sync_task_status.DoneGateTests",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-C",
+          "command": "python3 skills/dev-implementation/resources/scripts/check_bdd_traceability.py tests --scenarios .devtool/epic/verifiable_task_handoff/bdd_scenarios.en.md --roots skills/dev-implementation/resources/scripts/ --results build/test-results/task_4.xml --ids VTH-HP-03 VTH-ST-03 VTH-ST-04 VTH-ST-05 VTH-ST-06 VTH-ST-07 VTH-AR-02",
+          "expect": "exit 0; contains \"Result: 7/7 covered — PASS\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-16T07:50:41Z",
+          "finished": "2026-10-16T07:50:41Z",
+          "output_tail": [
+            "VTH-HP-03    PASS test_vth_hp_03_matching_evidence_reaches_done",
+            "VTH-ST-03    PASS test_vth_st_03_done_without_evidence_is_refused",
+            "VTH-ST-04    PASS test_vth_st_04_edits_after_verification_are_refused",
+            "VTH-ST-05    PASS test_vth_st_05_red_that_did_not_precede_the_change_is_refused",
+            "VTH-ST-06    PASS test_vth_st_06_only_code_epics_are_gated",
+            "VTH-ST-07    PASS test_vth_st_07_covered_identifier_without_a_passing_case_is_refused",
+            "VTH-AR-02    PASS test_vth_ar_02_gate_from_checkout_without_evidence_writes_nothing",
+            "Result: 7/7 covered — PASS"
+          ],
+          "output_sha256": "7602aab0762fcc689073cd30e43c2ef5f5f6e167152acf9b4511640648f66410"
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "scripts/verify.sh",
+            "skills/dev-implementation/resources/scripts/run_task_checks.py",
+            "skills/dev-implementation/resources/scripts/sync_task_status.py",
+            "skills/dev-implementation/resources/scripts/task_contract.py",
+            "skills/dev-implementation/resources/scripts/test_run_task_checks.py",
+            "skills/dev-implementation/resources/scripts/test_sync_task_status.py"
+          ],
+          "violations": []
+        }
+      ]
+    }
+  }
+}

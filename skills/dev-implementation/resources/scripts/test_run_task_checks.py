@@ -427,6 +427,19 @@ class RecorderTest(RepoCase):
         self.assertEqual(self.run_cli("verify")[0], 2)
         self.assertEqual(self.run_cli("verify", self.root / "nope.md")[0], 2)
 
+    def test_status_is_read_only_and_reports_the_gate_verdict(self) -> None:
+        task = self.epic("| V1 | GREEN | `true` | exit 0 | — |\n", allowed="- `x` (new)")
+        code, out, _ = self.run_cli("status", task)
+        self.assertEqual(code, 1)
+        self.assertIn("done gate: FAIL", out)
+        self.assertIn("condition 1:", out)
+        self.assertFalse((self.root / EVIDENCE).exists())
+        self.assertEqual(self.run_cli("verify", task)[0], 0)
+        code, out, _ = self.run_cli("status", task)
+        self.assertEqual((code, "verify: head" in out, "V1 GREEN PASS" in out), (0, True, True))
+        self.assertIn("done gate: PASS", out)
+        self.assertEqual(self.run_cli("status")[0], 2)
+
 
 if __name__ == "__main__":
     unittest.main()

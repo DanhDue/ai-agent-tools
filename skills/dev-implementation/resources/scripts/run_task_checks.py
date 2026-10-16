@@ -4,8 +4,10 @@
 Usage:
   run_task_checks.py red    <task mirror> [--timeout 1800]
   run_task_checks.py verify <task mirror> [--timeout 1800]
+  run_task_checks.py status <task mirror>   (read-only: print the recorded runs and the done-gate verdict)
 
-Exit codes: 0 every row passed; 1 a row failed (evidence still written); 2 usage error or a task
+Exit codes: 0 every row passed (status: the done gate passes); 1 a row failed (evidence still written) or
+the done gate fails; 2 usage error or a task
 file the parser rejects (no evidence written).
 """
 from __future__ import annotations
@@ -22,7 +24,7 @@ from pathlib import Path
 
 from check_bdd_traceability import UsageError, load_scenarios
 from result_reports import ReportError, digest, load_reports
-from task_contract import (ContractError, Row, changed_paths, epic_layout, fingerprint, git_run,
+from task_contract import (ContractError, Row, changed_paths, epic_layout, evaluate_done_gate, fingerprint, git_run,
                            load_evidence, parse_allowed_files, parse_protected_paths,
                            parse_verification, path_matches, program_of, save_evidence)
 
@@ -179,16 +181,30 @@ def run(args: argparse.Namespace) -> int:
     return 0 if passed else 1
 
 
+def status(args: argparse.Namespace) -> int:
+    layout = epic_layout(args.task)
+    evidence = load_evidence(layout.evidence) or {}
+    for kind, run in evidence.get("runs", {}).items():
+        print(f"{kind}: head {run['head']} tree {run['tree']}")
+        for record in run["rows"]:
+            print(f"  {record['id']} {record['phase']} {record['outcome']}")
+    failures = evaluate_done_gate(args.task)
+    print("done gate: " + ("FAIL" if failures else "PASS"))
+    for failure in failures:
+        print(f"  {failure}")
+    return 1 if failures else 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("mode", choices=("red", "verify"))
+    parser.add_argument("mode", choices=("red", "verify", "status"))
     parser.add_argument("task", type=Path)
     parser.add_argument("--timeout", type=int, default=1800)
     args = parser.parse_args(argv)
     try:
         if not args.task.is_file():
             raise ContractError(f"task file not found: {args.task}")
-        return run(args)
+        return status(args) if args.mode == "status" else run(args)
     except ContractError as error:
         print(f"error: {error}", file=sys.stderr)
         return 2

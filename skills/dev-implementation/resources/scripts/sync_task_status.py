@@ -376,6 +376,44 @@ def archive_all_done_epics(roots: list[Path]) -> list[str]:
     return archived_dirs
 
 
+def code_epic_dir(root: Path, task_id: str) -> str | None:
+    """The epic directory of this checkout's copy of the task when that epic is a code epic, else None."""
+    from task_contract import is_code_epic
+
+    for features in (root / ".devtool" / "features", root / ".devtool" / "features" / "done"):
+        if (features / f"{task_id}.md").is_file():
+            slug = epic_of(features / f"{task_id}.md")
+            epic_dir = find_epic_dir_for_slug(root, slug) if slug else None
+            if epic_dir and is_code_epic(root / ".devtool" / "epic" / epic_dir / f"{epic_dir}.en.md"):
+                return epic_dir
+            return None
+    return None
+
+
+def done_gate_failures(task_id: str) -> list[str]:
+    """Messages refusing `task <id> done` for a code epic's task; empty when the gate does not apply or passes."""
+    from task_contract import ContractError, evaluate_done_gate, section
+
+    top = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True)
+    if top.returncode != 0:
+        return []
+    root = Path(top.stdout.strip())
+    epic_dir = code_epic_dir(root, task_id)
+    if epic_dir is None:
+        if (any(code_epic_dir(other, task_id) for other in checkout_roots() if other.resolve() != root.resolve())
+                and not task_targets(root, task_id)):
+            return ["run the done gate in the checkout that holds the task and its evidence (the epic worktree)"]
+        return []
+    mirror = root / ".devtool" / "epic" / epic_dir / f"{task_id}.md"
+    if not mirror.is_file() or section(mirror.read_text(encoding="utf-8"), "Verification") is None:
+        return [f"retrofit required: {mirror} has no Verification section — retrofit it through "
+                "dev-designer's Updating an Existing Epic"]
+    try:
+        return evaluate_done_gate(mirror)
+    except ContractError as error:
+        return [f"condition 1: {error}"]
+
+
 def main() -> None:
     import argparse
     import sys
@@ -411,6 +449,13 @@ def main() -> None:
                 f"Invalid status '{args.status}'. Expected one of: {', '.join(TASK_STATUSES)}\n"
             )
             sys.exit(2)
+
+        failures = done_gate_failures(args.task_id) if args.status == "done" else []
+        if failures:
+            sys.stderr.write(f"refused: {args.task_id} cannot be marked done\n")
+            for failure in failures:
+                sys.stderr.write(f"  {failure}\n")
+            sys.exit(1)
 
         roots = checkout_roots()
         written, notes = sync_task(roots, args.task_id, args.status)
