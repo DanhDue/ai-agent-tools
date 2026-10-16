@@ -184,6 +184,41 @@ class SyncTaskTests(unittest.TestCase):
                           task_id="task_1_setup")
         return [main, wt]
 
+    def test_done_moves_the_features_copy_into_done_in_every_checkout(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            roots = self._two_checkouts(tmp)
+            written, _ = sync_task(roots, "task_1_setup", "done")
+            for root in roots:
+                features = root / ".devtool" / "features"
+                moved = features / "done" / "task_1_setup.md"
+                mirror = root / ".devtool" / "epic" / "logging_refactor" / "task_1_setup.md"
+                self.assertFalse((features / "task_1_setup.md").exists())
+                self.assertIn('status: "done"', moved.read_text())
+                self.assertIn(moved, written)
+                self.assertIn('status: "done"', mirror.read_text())
+
+    def test_leaving_done_moves_the_features_copy_back(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            roots = self._two_checkouts(tmp)
+            sync_task(roots, "task_1_setup", "done")
+            sync_task(roots, "task_1_setup", "in-progress")
+            for root in roots:
+                features = root / ".devtool" / "features"
+                self.assertFalse((features / "done" / "task_1_setup.md").exists())
+                self.assertIn('status: "in-progress"', (features / "task_1_setup.md").read_text())
+
+    def test_done_replaces_a_stale_copy_already_in_done(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            roots = self._two_checkouts(tmp)
+            for root in roots:
+                make_task(root / ".devtool" / "features" / "done" / "task_1_setup.md",
+                          epic="logging-refactor", status="todo")
+            sync_task(roots, "task_1_setup", "done")
+            for root in roots:
+                features = root / ".devtool" / "features"
+                self.assertFalse((features / "task_1_setup.md").exists())
+                self.assertIn('status: "done"', (features / "done" / "task_1_setup.md").read_text())
+
     def test_writes_all_four_copies(self):
         with tempfile.TemporaryDirectory() as tmp:
             roots = self._two_checkouts(tmp)
@@ -208,7 +243,7 @@ class SyncTaskTests(unittest.TestCase):
             self.assertIn("completedAt: null",
                           (roots[0] / ".devtool/features/task_1_setup.md").read_text())
             sync_task(roots, "task_1_setup", "done")
-            text = (roots[0] / ".devtool/features/task_1_setup.md").read_text()
+            text = (roots[0] / ".devtool/features/done/task_1_setup.md").read_text()
             self.assertNotIn("completedAt: null", text)
             self.assertIn('completedAt: "20', text)
 
@@ -217,7 +252,7 @@ class SyncTaskTests(unittest.TestCase):
             roots = self._two_checkouts(tmp)
             sync_task(roots, "task_1_setup", "done")
             self.assertNotIn("completedAt: null",
-                             (roots[0] / ".devtool/features/task_1_setup.md").read_text())
+                             (roots[0] / ".devtool/features/done/task_1_setup.md").read_text())
             sync_task(roots, "task_1_setup", "in-progress")
             text = (roots[0] / ".devtool/features/task_1_setup.md").read_text()
             self.assertIn("completedAt: null", text)
@@ -503,6 +538,7 @@ TICKS = "`" * 3
 TASK_ID = "task_1_demo"
 MIRROR = f".devtool/epic/demo/{TASK_ID}.md"
 FEATURE = f".devtool/features/{TASK_ID}.md"
+DONE_FEATURE = f".devtool/features/done/{TASK_ID}.md"
 EVIDENCE = f".devtool/epic/demo/evidence/{TASK_ID}.json"
 TABLE = (
     "| ID | Phase | Command | Expect | Needs |\n|----|-------|---------|--------|-------|\n"
@@ -578,8 +614,12 @@ class DoneGateCase(unittest.TestCase):
         path.write_text(json.dumps(data), encoding="utf-8")
 
     def copies(self) -> dict[str, str]:
-        return {f"{root.name}/{rel}": (root / rel).read_text(encoding="utf-8")
-                for root in (self.main, self.wt) for rel in (MIRROR, FEATURE)}
+        copies = {}
+        for root in (self.main, self.wt):
+            feature = FEATURE if (root / FEATURE).exists() else DONE_FEATURE
+            for rel in (MIRROR, feature):
+                copies[f"{root.name}/{rel}"] = (root / rel).read_text(encoding="utf-8")
+        return copies
 
     def done(self, cwd: Path) -> subprocess.CompletedProcess:
         return run_py(SYNC, cwd, "task", TASK_ID, "done")
@@ -605,6 +645,9 @@ class DoneGateTests(DoneGateCase):
         self.assertIn("done gate: PASS", status.stdout)
         result = self.done(self.wt)
         self.assertEqual(result.returncode, 0, result.stderr)
+        for root in (self.main, self.wt):
+            self.assertFalse((root / FEATURE).exists())
+            self.assertTrue((root / DONE_FEATURE).exists())
         for text in self.copies().values():
             self.assertIn('status: "done"', text)
             self.assertNotIn('modified: "2026-01-01T00:00:00Z"', text)
@@ -641,7 +684,7 @@ class DoneGateTests(DoneGateCase):
         self.build(code_epic=False, verification=False)
         result = self.done(self.wt)
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn('status: "done"', (self.wt / FEATURE).read_text(encoding="utf-8"))
+        self.assertIn('status: "done"', (self.wt / DONE_FEATURE).read_text(encoding="utf-8"))
 
     def test_vth_st_07_covered_identifier_without_a_passing_case_is_refused(self):
         self.build()

@@ -146,9 +146,26 @@ def sync_task(roots: list[Path], task_id: str, new_status: str) -> tuple[list[Pa
                 if "completedAt" in fm and fm["completedAt"] != "null":
                     text = set_frontmatter_field(text, "completedAt", "null")
             path.write_text(text)
-            written.append(path)
+            written.append(board_location(root, path, new_status))
 
     return written, notes
+
+
+def board_location(root: Path, path: Path, status: str) -> Path:
+    """Move a features copy into features/done when it becomes done, and back when it leaves done.
+
+    Epic mirrors stay put. A copy already at the target is replaced by the one just written.
+    """
+    features = root / ".devtool" / "features"
+    if status == "done" and path.parent == features:
+        target = features / "done" / path.name
+    elif status != "done" and path.parent == features / "done":
+        target = features / path.name
+    else:
+        return path
+    target.parent.mkdir(parents=True, exist_ok=True)
+    path.replace(target)
+    return target
 
 
 def board_tally(roots: list[Path], epic_slug: str) -> dict[str, int]:
