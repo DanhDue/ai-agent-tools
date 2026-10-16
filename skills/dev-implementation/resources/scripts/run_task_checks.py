@@ -20,6 +20,8 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
+from check_bdd_traceability import UsageError, load_scenarios
+from result_reports import ReportError, digest, load_reports
 from task_contract import (ContractError, Row, changed_paths, epic_layout, fingerprint, git_run,
                            load_evidence, parse_allowed_files, parse_protected_paths,
                            parse_verification, path_matches, program_of, save_evidence)
@@ -65,7 +67,23 @@ def mismatch(row: Row, code: int, text: str) -> str | None:
     return None if missing is None else f'output lacks "{missing}"'
 
 
-def run_row(row: Row, root: Path, timeout: int) -> dict:
+def epic_scenario_ids(layout) -> list[str]:
+    try:
+        return load_scenarios(layout.epic_dir / "bdd_scenarios.en.md")[0]
+    except UsageError:
+        return []
+
+
+def attach_digest(results: dict, path: str, root: Path, scenario_ids: list[str]) -> str | None:
+    """Store the digest of a fresh report; None on success, else the row's failure reason."""
+    try:
+        results["digest"] = digest(load_reports([path], root), scenario_ids)
+    except ReportError:
+        return "results in neither format"
+    return None
+
+
+def run_row(row: Row, root: Path, timeout: int, scenario_ids: list[str]) -> dict:
     record = {"id": row.id, "phase": row.phase, "command": row.command, "expect": row.expect_text,
               "needs": list(row.needs), "exit": None, "outcome": "PASS", "reason": None,
               "started": utc_now(), "finished": None, "output_tail": [],
@@ -85,6 +103,8 @@ def run_row(row: Row, root: Path, timeout: int) -> dict:
             fresh = newest is not None and newest >= started
             record["results"] = {"path": row.expect.results, "fresh": fresh}
             reason = reason or (None if fresh else STALE)
+            if fresh:
+                reason = reason or attach_digest(record["results"], row.expect.results, root, scenario_ids)
         if reason:
             record.update(outcome="FAIL", reason=reason)
     record["finished"] = utc_now()
@@ -141,7 +161,8 @@ def run(args: argparse.Namespace) -> int:
     else:
         selected = [row for row in rows if row.phase in VERIFY_PHASES]
     started = utc_now()
-    records = [run_row(row, layout.root, args.timeout) for row in selected]
+    scenario_ids = epic_scenario_ids(layout)
+    records = [run_row(row, layout.root, args.timeout, scenario_ids) for row in selected]
     if args.mode == "verify":
         records.append(scope_row(layout, [entry.pattern for entry in allowed]))
     tree, patch_id = fingerprint(layout.root)

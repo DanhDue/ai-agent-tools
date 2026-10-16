@@ -339,8 +339,24 @@ class RecorderTest(RepoCase):
         task = self.epic(rows, allowed="- `out/**` (new)\n- `single.json` (new)")
         self.assertEqual(self.run_cli("verify", task)[0], 0)
         by_id = self.run_rows()
-        self.assertEqual(by_id["V1"]["results"], {"path": "out", "fresh": True})
-        self.assertEqual(by_id["V2"]["results"], {"path": "single.json", "fresh": True})
+        empty = {"totals": {"passed": 0, "failed": 0, "skipped": 0}, "cases": []}
+        self.assertEqual(by_id["V1"]["results"], {"path": "out", "fresh": True, "digest": empty})
+        self.assertEqual(by_id["V2"]["results"], {"path": "single.json", "fresh": True, "digest": empty})
+
+    def test_results_digest_covers_scenario_identifiers_and_bad_reports_fail(self) -> None:
+        report = ("<testsuite><testcase classname='a' name='test_demo_hp_01_x'/>"
+                  "<testcase name='other'/></testsuite>")
+        rows = (f"| V1 | TIER-C | `mkdir -p out && echo \"{report}\" > out/a.xml` | exit 0; results out | — |\n"
+                "| V2 | TIER-C | `echo plain > bad.xml` | exit 0; results bad.xml | — |\n")
+        task = self.epic(rows, allowed="- `out/**` (new)\n- `bad.xml` (new)")
+        self.write(f"{EPIC}/bdd_scenarios.en.md", f"{TICKS}gherkin\nScenario: [DEMO-HP-01] One\n{TICKS}\n")
+        self.assertEqual(self.run_cli("verify", task)[0], 1)
+        by_id = self.run_rows()
+        self.assertEqual(by_id["V1"]["results"]["digest"], {
+            "totals": {"passed": 1, "failed": 0, "skipped": 0},
+            "cases": [{"name": "test_demo_hp_01_x", "classname": "a", "status": "passed"}]})
+        self.assertEqual((by_id["V2"]["outcome"], by_id["V2"]["reason"]),
+                         ("FAIL", "results in neither format"))
 
     def test_missing_results_path_is_not_fresh(self) -> None:
         task = self.epic("| V1 | TIER-C | `true` | exit 0; results nowhere.xml | — |\n")

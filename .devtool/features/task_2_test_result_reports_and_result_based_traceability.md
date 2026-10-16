@@ -1,13 +1,13 @@
 ---
 id: "task_2_test_result_reports_and_result_based_traceability"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "verifiable_task_handoff"
 dueDate: null
 created: "2026-10-16T06:53:44Z"
-modified: "2026-10-16T06:53:44Z"
-completedAt: null
+modified: "2026-10-16T07:37:35Z"
+completedAt: "2026-10-16T07:37:35Z"
 labels: ["scripts", "traceability"]
 order: "a2"
 ---
