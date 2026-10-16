@@ -254,6 +254,7 @@ python3 -m unittest skills/dev-implementation/resources/scripts/test_run_externa
 python3 -m unittest skills/dev-implementation/resources/scripts/test_run_task_checks.py || FAILED=1
 python3 -m unittest skills/dev-implementation/resources/scripts/test_sync_task_status.py || FAILED=1
 python3 -m unittest scripts/test_run_unittest_junit.py || FAILED=1
+python3 -m unittest scripts/test_verifiable_handoff_text.py || FAILED=1
 
 echo
 note "== 12. Branch integration script behaves =="
