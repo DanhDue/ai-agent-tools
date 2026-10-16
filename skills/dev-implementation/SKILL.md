@@ -380,7 +380,7 @@ For each task in the confirmed order, follow `d3nexus:subagent-driven-developmen
    ```bash
    python3 skills/dev-implementation/resources/scripts/sync_task_status.py task <task_id> done
    ```
-   This writes `status: "done"`, advances `modified:`, and sets `completedAt:` across all checkout roots.
+   This writes `status: "done"`, advances `modified:`, and sets `completedAt:` across all checkout roots, and moves each checkout's `.devtool/features/<task_id>.md` into `.devtool/features/done/`; the epic mirror stays where it is. A later status other than `done` moves it back.
 5. Make exactly one commit staging the code, the task file and the task's evidence file, `.devtool/epic/<epic_dir>/evidence/<task_id>.json`:
    ```bash
    git status                                    # check nothing unrelated is pending
