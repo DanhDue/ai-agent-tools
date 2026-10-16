@@ -20,9 +20,12 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from check_bdd_traceability import COVERS_LINE, scenario_ids
-from task_contract import (EXCLUDE_DEVTOOL, ContractError, dod_bullets, git_run, parse_allowed_files,
-                           parse_protected_paths, parse_verification, path_matches, program_of, row_problems,
-                           section)
+from task_contract import (DIFF_PLAIN, DOD_REFERENCE, EXCLUDE_DEVTOOL, ContractError, dod_bullets, git_run,
+                           parse_allowed_files, parse_protected_paths, parse_verification, path_matches,
+                           program_of, row_problems, section)
+
+STATUS = re.compile(r"""^status:\s*["'`]?([\w-]+)["'`]?\s*(?:#.*)?$""", re.M)
+GRADER_LINES = ("Protected paths:", "Integration results:")
 
 
 @dataclass(frozen=True)
@@ -45,13 +48,21 @@ def show(root: Path, rev: str, path: str) -> str | None:
 
 
 def status_of(text: str) -> str | None:
+    """The frontmatter status, quoted or not, with any trailing comment dropped."""
     head = re.match(r"---\n(.*?)\n---", text, re.S)
-    found = re.search(r'^status:\s*"?([\w-]+)"?\s*$', head.group(1), re.M) if head else None
+    found = STATUS.search(head.group(1)) if head else None
     return found.group(1) if found else None
 
 
+def marked_done(root: Path, mirror: str, text: str) -> bool:
+    """True when the mirror or the task's features copy at HEAD says done."""
+    stem = Path(mirror).stem
+    copies = [text] + [show(root, "HEAD", f".devtool/features/{folder}{stem}.md") or "" for folder in ("", "done/")]
+    return any(status_of(copy) == "done" for copy in copies)
+
+
 def patch_id(root: Path, commit: str) -> str | None:
-    diff = git_run(root, "diff", f"{commit}^", commit, "--", ".", EXCLUDE_DEVTOOL)
+    diff = git_run(root, "diff", *DIFF_PLAIN, f"{commit}^", commit, "--", ".", EXCLUDE_DEVTOOL)
     found = git_run(root, "patch-id", "--stable", stdin=diff).decode().split() if diff else []
     return found[0] if found else None
 
@@ -160,7 +171,21 @@ def audit_amendments(root: Path, epic_path: str, base: str, texts: dict[str, str
     before, after = scenario_ids_at(root, base, scenarios), scenario_ids_at(root, "HEAD", scenarios)
     items += [f"scenario {i} added" for i in sorted(after - before)]
     items += [f"scenario {i} removed" for i in sorted(before - after)]
-    return items
+    return items + hld_amendments(root, epic_path, base)
+
+
+def hld_amendments(root: Path, epic_path: str, base: str) -> list[str]:
+    """The HLD's Protected paths: and Integration results: lines, diffed between <base> and HEAD."""
+    hld = f"{epic_path}/{Path(epic_path).name}.en.md"
+    lines = {rev: [line for line in (show(root, rev, hld) or "").splitlines() if line.startswith(GRADER_LINES)]
+             for rev in (base, "HEAD")}
+    if lines[base] == lines["HEAD"]:
+        return []
+    diff = difflib.unified_diff(lines[base], lines["HEAD"], f"{Path(hld).name} at base", f"{Path(hld).name} at HEAD",
+                                lineterm="", n=0)
+    since = git_lines(root, "log", "--format=%h %s", f"{base}..HEAD", "--", hld)
+    return ["\n  ".join([f"{Path(hld).name}: Protected paths or Integration results changed since base", *diff,
+                         *(f"changed by {entry}" for entry in since)])]
 
 
 def build_report(root: Path, epic_dir: str, base: str) -> tuple[list[tuple[str, list[str]]], bool]:
@@ -176,7 +201,7 @@ def build_report(root: Path, epic_dir: str, base: str) -> tuple[list[tuple[str, 
     legacy: list[str] = []
     failed = False
     for path, text in texts.items():
-        if status_of(text) != "done":
+        if not marked_done(root, path, text):
             continue
         if section(text, "Verification") is None:
             legacy.append(f"{Path(path).stem}: legacy — no evidence")
@@ -187,8 +212,8 @@ def build_report(root: Path, epic_dir: str, base: str) -> tuple[list[tuple[str, 
     protected, bad = audit_protected(root, epic_path, commits, texts)
     outside = [f"{c.short} {c.title}" for c in commits
                if c.sha not in task_commits and any(not p.startswith(".devtool/") for p in c.paths)]
-    gate5 = [f"{Path(path).stem}: {bullet}" for path, text in texts.items()
-             for bullet in dod_bullets(text) if bullet.endswith("(Gate 5)")]
+    gate5 = [f"{Path(path).stem}: {bullet}" for path, text in texts.items() for bullet in dod_bullets(text)
+             if (reference := DOD_REFERENCE.search(bullet)) and reference.group(1) == "Gate 5"]
     sections = [("Evidence", evidence), ("Legacy tasks", legacy), ("Protected paths", protected),
                 ("Grader amendments", audit_amendments(root, epic_path, base, texts)),
                 ("Commits outside tasks", outside), ("Gate 5 items", gate5)]

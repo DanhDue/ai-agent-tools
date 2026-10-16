@@ -67,7 +67,7 @@ digraph process {
         "Dispatch implementer subagent (./implementer-prompt.md)" [shape=box];
         "Implementer asks questions?" [shape=diamond];
         "Answer questions, provide context" [shape=box];
-        "Implementer implements, tests, commits, self-reviews" [shape=box];
+        "Implementer implements, tests, commits (or records verify, uncommitted), self-reviews" [shape=box];
         "Generate review package, dispatch task reviewer (./task-reviewer-prompt.md)" [shape=box];
         "Spec ✅ and quality approved?" [shape=diamond];
         "Finding conflicts with plan text?" [shape=diamond];
@@ -93,9 +93,9 @@ digraph process {
     "Setup: worktree, ledger check, read plan, pre-flight review" -> "Dispatch implementer subagent (./implementer-prompt.md)";
     "Dispatch implementer subagent (./implementer-prompt.md)" -> "Implementer asks questions?";
     "Implementer asks questions?" -> "Answer questions, provide context" [label="yes"];
-    "Answer questions, provide context" -> "Implementer implements, tests, commits, self-reviews";
-    "Implementer asks questions?" -> "Implementer implements, tests, commits, self-reviews" [label="no"];
-    "Implementer implements, tests, commits, self-reviews" -> "Generate review package, dispatch task reviewer (./task-reviewer-prompt.md)";
+    "Answer questions, provide context" -> "Implementer implements, tests, commits (or records verify, uncommitted), self-reviews";
+    "Implementer asks questions?" -> "Implementer implements, tests, commits (or records verify, uncommitted), self-reviews" [label="no"];
+    "Implementer implements, tests, commits (or records verify, uncommitted), self-reviews" -> "Generate review package, dispatch task reviewer (./task-reviewer-prompt.md)";
     "Generate review package, dispatch task reviewer (./task-reviewer-prompt.md)" -> "Spec ✅ and quality approved?";
     "Spec ✅ and quality approved?" -> "Append completion to ledger, mark todo complete" [label="yes"];
     "Spec ✅ and quality approved?" -> "Finding conflicts with plan text?" [label="no"];
@@ -248,6 +248,16 @@ child is noticed within minutes, not at the end of the session.
 Record BASE (`git rev-parse HEAD`) before dispatching — the review package
 and fix-round diffs need it.
 
+**A task with a Verification table** (an epic task run by
+d3nexus:dev-implementation) is never committed by the implementer. It runs
+`run_task_checks.py red` before implementing and `run_task_checks.py verify`
+after its last change and after every fix round, and leaves the change
+uncommitted: the done gate refuses evidence recorded after a commit. You
+build every review package from the uncommitted diff (`WORKTREE` in place of
+HEAD, below), and you make the task's single commit yourself, after
+`sync_task_status.py task <id> done` passes (dev-implementation Phase 2).
+A task without a Verification table keeps the commit flow described here.
+
 - **Task brief:** before dispatching an implementer, run this skill's
   `scripts/task-brief PLAN_FILE N` — it extracts the task's full text to a
   uniquely named file and prints the path. Compose the dispatch so the
@@ -257,7 +267,11 @@ and fix-round diffs need it.
   first — it is your requirements, with the exact values to use verbatim";
   (3) interfaces and decisions from earlier tasks that the brief cannot
   know; (4) your resolution of any ambiguity you noticed in the brief;
-  (5) the report-file path and report contract. Exact values (numbers,
+  (5) the report-file path and report contract. For a task with a
+  Verification table, also fill the templates' `[SCRIPTS]` (the absolute
+  path of dev-implementation's `resources/scripts` directory) and
+  `[TASK_MIRROR]` (the task's file under `.devtool/epic/<epic_dir>/`), in
+  the implementer and the task-reviewer dispatch alike. Exact values (numbers,
   magic strings, signatures, test cases) appear only in the brief. Never
   make a subagent read the whole plan file.
 - **Report file:** name the implementer's report file after the brief
@@ -287,7 +301,7 @@ Template: [implementer-prompt.md](implementer-prompt.md)
 
 Implementer subagents report one of four statuses. Handle each appropriately:
 
-**DONE:** Generate the review package (`scripts/review-package PLAN_FILE BASE HEAD`, from this skill's directory — it prints the unique file path it wrote; BASE is the commit you recorded before dispatching the implementer — never `HEAD~1`, which silently drops all but the last commit of a multi-commit task), then dispatch the task reviewer with the printed path.
+**DONE:** Generate the review package (`scripts/review-package PLAN_FILE BASE HEAD`, from this skill's directory — it prints the unique file path it wrote; BASE is the commit you recorded before dispatching the implementer — never `HEAD~1`, which silently drops all but the last commit of a multi-commit task; for a task with a Verification table, pass `WORKTREE` as HEAD), then dispatch the task reviewer with the printed path.
 
 **DONE_WITH_CONCERNS:** The implementer completed the work but flagged doubts. Read the concerns before proceeding. If the concerns are about correctness or scope, address them before review. If they're observations (e.g., "this file is getting large"), note them and proceed to review.
 
@@ -317,7 +331,11 @@ needed.
   `scripts/review-package PLAN_FILE BASE HEAD` and pass the reviewer the file path
   it prints (or, without bash: `git log --oneline`, `git diff --stat`,
   and `git diff -U10` for the range, redirected to one uniquely named
-  file). The output never enters your own context, and the reviewer sees
+  file). For a task with a Verification table the change is uncommitted:
+  run `scripts/review-package PLAN_FILE BASE WORKTREE`, which packages the
+  working tree against BASE through a temporary index (the real index is
+  never touched) and prints the tree id it packaged — keep that id for the
+  fix loop. The output never enters your own context, and the reviewer sees
   the commit list, stat summary, and full diff with context in one Read
   call. Use the BASE you recorded before dispatching the implementer —
   never `HEAD~1`, which silently truncates multi-commit tasks. Never
@@ -386,15 +404,19 @@ that survives three resumes usually means the implementer cannot see its
 own problem — fresh eyes and a capability bump in one move.
 
 **Every round, either way:** the implementer fixes, re-runs the tests
-covering the amended code, appends its fix report to the same report file,
-and returns the short contract. Before re-dispatching the reviewer, confirm
+covering the amended code (for a task with a Verification table, re-runs
+`run_task_checks.py verify` and leaves the change uncommitted), appends its
+fix report to the same report file, and returns the short contract. Before
+re-dispatching the reviewer, confirm
 the fix report contains the covering tests, the command run, and the
 output; dispatch the re-review once all three are present. Name the
 covering test files in the fix message — a one-line fix does not need the
 whole suite.
 
 **The re-review is scoped.** Run `scripts/review-package PLAN_FILE FIX_BASE HEAD`
-where FIX_BASE is the head the previous review saw, and dispatch
+where FIX_BASE is the head the previous review saw — for an uncommitted task,
+`scripts/review-package PLAN_FILE FIX_BASE WORKTREE` with FIX_BASE the tree id
+the previous package printed — and dispatch
 [re-review-prompt.md](re-review-prompt.md) with the findings list, the
 brief, the report file, and the printed diff path. The re-reviewer verdicts
 each finding ADDRESSED or NOT ADDRESSED and flags new breakage in the fix
@@ -404,6 +426,7 @@ minors — they never extend the loop.
 
 **After each round,** append to the ledger:
 `Task <N>: fix round <R>/5 (<X> addressed, <Y> open — <finding one-liners>; commits <a7>..<b7>)`
+— for an uncommitted task, name the packaged tree ids in place of the commits.
 
 Never fix findings yourself in the controller session — your context stays
 clean for coordination, and controller fixes skip review.
@@ -431,8 +454,10 @@ a silent discard is forbidden.
 ### 5. Complete the task
 
 When the review comes back clean — or every open finding is parked with a
-ruling at the cap — append the completion line to the ledger in the same
-message as your other bookkeeping:
+ruling at the cap — first, for a task with a Verification table, run
+`sync_task_status.py task <id> done` and, once it passes, make the task's
+single commit (dev-implementation Phase 2 steps 4–5). Then append the
+completion line to the ledger in the same message as your other bookkeeping:
 
 - `Task <N>: complete (commits <base7>..<head7>, review clean)`
 - `Task <N>: complete (commits <base7>..<head7>, <K> parked)` after a

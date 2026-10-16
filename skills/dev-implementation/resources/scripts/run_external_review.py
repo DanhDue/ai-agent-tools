@@ -6,8 +6,9 @@ Usage:
   run_external_review.py check --epic-dir <epic_dir>
 
 `run` exit codes: 0 a completed round without a Critical or Important finding; 1 a completed round with
-one; 2 every other outcome (the round is recorded whenever the CLI ran). `check` exit codes: 0 nothing
-undecided; 1 a Critical or Important finding of the latest completed round has no decision.
+one; 2 every other outcome, including CHANGES REQUIRED with no finding line (the round is recorded whenever
+the CLI ran). `check` exit codes: 0 nothing undecided; 1 a Critical or Important finding of the latest
+completed round has no decision, or a findings row cannot be read.
 """
 from __future__ import annotations
 
@@ -28,7 +29,11 @@ from task_contract import ContractError, git_run, parse_integration_results
 SCRIPTS = Path(__file__).resolve().parent
 PROMPT = SCRIPTS.parent.parent / "references" / "external-review-prompt.md"
 VERDICT = re.compile(r"^Verdict:\s*(PASS|CHANGES REQUIRED)\s*$")
-FINDING = re.compile(r"^\s*[-*]?\s*\[(Critical|Important|Minor)\]\s*(\S.*?)\s+—\s+(.+)$")
+# Tolerates list numbering, bullets and ** around the severity, and —, –, - or : between location and problem.
+FINDING = re.compile(r"^\s*(?:[-*+]|\d+[.)])?\s*\*{0,2}\[\*{0,2}(Critical|Important|Minor)\*{0,2}\]\*{0,2}\s*"
+                     r"(\S.*?)(?:\s+[—–-]|\s*:)\s+(\S.*)$")
+UNPARSED_BLOCKING = re.compile(r"\[\*{0,2}(Critical|Important)\*{0,2}\]", re.IGNORECASE)
+FINDING_ROW = re.compile(r"^\|\s*\d+\s*\|")
 BLOCKING = ("Critical", "Important")
 FENCE = re.compile(r"^(`{3,})")
 
@@ -124,14 +129,25 @@ def split_row(line: str) -> list[str]:
     return [c.strip().replace("\\|", "|") for c in re.split(r"(?<!\\)\|", line.strip())[1:-1]]
 
 
-def table_findings(lines: list[str]) -> list[list[str]]:
-    rows = []
-    for line in lines:
-        if FENCE.match(line):
-            break
-        if line.startswith("|") and len(cells := split_row(line)) == 5 and cells[0].isdigit():
-            rows.append(cells)
-    return rows
+def metadata(lines: list[str]) -> list[str]:
+    """A round's own lines: its fields and findings table, never its raw output."""
+    return lines[:lines.index("Raw output:")] if "Raw output:" in lines else lines
+
+
+def table_findings(lines: list[str]) -> list[tuple[str, list[str]]]:
+    """(line, cells) for every findings row, `| <number> |` onwards, well formed or not."""
+    return [(line, split_row(line)) for line in metadata(lines) if FINDING_ROW.match(line)]
+
+
+def parse_findings(out: str) -> list[tuple[str, str, str]]:
+    """Each finding line as (severity, location, problem); a blocking line in no known shape keeps its raw text."""
+    findings = []
+    for line in out.splitlines():
+        if (match := FINDING.match(line)):
+            findings.append(match.groups())
+        elif (blocking := UNPARSED_BLOCKING.search(line)):
+            findings.append((blocking.group(1).capitalize(), "unparsed", line.strip()))
+    return findings
 
 
 def render_round(number: int, meta: dict[str, str], findings: list[tuple[str, str, str]], output: str) -> str:
@@ -167,10 +183,10 @@ def run(args: argparse.Namespace) -> int:
     if head_of(root) != sha:
         changed.insert(0, "HEAD")
     verdicts = [m.group(1) for line in out.splitlines() if (m := VERDICT.match(line))]
-    findings = [m.groups() for line in out.splitlines() if (m := FINDING.match(line))]
+    findings = parse_findings(out)
     if changed:
         status = f"discarded: tree modified ({', '.join(line[3:] if line != 'HEAD' else line for line in changed)})"
-    elif code != 0 or not verdicts:
+    elif code != 0 or not verdicts or (verdicts[-1] == "CHANGES REQUIRED" and not findings):
         status = "no verdict"
     else:
         status = "completed"
@@ -193,10 +209,13 @@ def check(args: argparse.Namespace) -> int:
     if not path.exists():
         return 0
     completed = [(n, lines) for n, lines in rounds_in(path.read_text(encoding="utf-8"))
-                 if "- **Status**: completed" in lines]
-    undecided = [f"undecided: #{n} {sev} {loc}" for n, sev, loc, decision in
-                 ((c[0], c[1], c[2], c[4]) for c in (table_findings(completed[-1][1]) if completed else []))
-                 if sev in BLOCKING and not decision.startswith(("fixed in ", "dismissed: "))]
+                 if "- **Status**: completed" in metadata(lines)]
+    undecided = []
+    for line, cells in table_findings(completed[-1][1]) if completed else []:
+        if len(cells) != 5:
+            undecided.append(f"undecided: unreadable findings row: {line.strip()}")
+        elif cells[1] in BLOCKING and not cells[4].startswith(("fixed in ", "dismissed: ")):
+            undecided.append(f"undecided: #{cells[0]} {cells[1]} {cells[2]}")
     if undecided:
         print("\n".join(undecided))
     return 1 if undecided else 0

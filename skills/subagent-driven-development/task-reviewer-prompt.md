@@ -213,10 +213,14 @@ Subagent (general-purpose):
 - `[REPORT_FILE]` — REQUIRED: the file the implementer wrote its detailed
   report to
 - `[BASE_SHA]` — commit before this task
-- `[HEAD_SHA]` — current commit
+- `[HEAD_SHA]` — current commit, or `WORKTREE` when the task's change is
+  uncommitted (a task with a Verification table)
 - `[DIFF_FILE]` — REQUIRED: the path the controller wrote the review
   package to (`scripts/review-package PLAN_FILE BASE HEAD` prints the unique
-  path it wrote; the package never enters the controller's context)
+  path it wrote — `WORKTREE` as HEAD for an uncommitted task; the package
+  never enters the controller's context)
+- `[SCRIPTS]`, `[TASK_MIRROR]` — for a task with a Verification table:
+  dev-implementation's `resources/scripts` directory and the task's mirror
 
 **Reviewer returns:** Spec Compliance verdict (✅/❌/⚠️), Strengths, Issues
 (Critical/Important/Minor), Task quality verdict

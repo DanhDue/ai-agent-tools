@@ -685,6 +685,37 @@ class DoneGateTests(DoneGateCase):
         self.edit_evidence(break_rows)
         self.refuse_leaves_copies("condition 3:", "V3", "condition 7:")
 
+    def test_verify_recorded_after_committing_is_refused(self):
+        self.build()
+        self.record()
+        git(self.wt, "add", "-A")
+        git(self.wt, "commit", "-q", "-m", "[DEMO] Task 1 committed before the gate")
+        self.assertEqual(run_py(RECORDER, self.wt, "verify", str(self.wt / MIRROR)).returncode, 0)
+        self.refuse_leaves_copies("condition 4: verify saw no change outside .devtool — record verify before committing",
+                                  "condition 5: red and verify were recorded on different commits")
+
+    def test_red_and_verify_on_different_commits_is_refused(self):
+        self.build()
+        mirror = self.wt / MIRROR
+        self.assertEqual(run_py(RECORDER, self.wt, "red", str(mirror)).returncode, 0)
+        git(self.wt, "add", "-A")
+        git(self.wt, "commit", "-q", "-m", "[DEMO] Unrelated commit between red and verify")
+        (self.wt / "feature.txt").write_text("done\n", encoding="utf-8")
+        self.assertEqual(run_py(RECORDER, self.wt, "verify", str(mirror)).returncode, 0)
+        result = self.done(self.wt)
+        self.assert_refused(result, "condition 5: red and verify were recorded on different commits")
+        self.assertNotIn("condition 4:", result.stderr)
+
+    def test_failed_row_no_longer_in_the_table_is_refused(self):
+        self.build()
+        self.record()
+
+        def add_dropped_row(runs):
+            runs["verify"]["rows"].append({"id": "V9", "phase": "GREEN", "outcome": "FAIL", "reason": "exit 1"})
+
+        self.edit_evidence(add_dropped_row)
+        self.refuse_leaves_copies("condition 2: verify row V9 is FAIL and no longer in the table")
+
 
 if __name__ == "__main__":
     unittest.main()

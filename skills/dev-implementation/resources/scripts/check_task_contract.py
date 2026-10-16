@@ -22,7 +22,6 @@ import task_contract as tc
 from check_bdd_traceability import UsageError, covers_of, read_text
 
 SECTIONS = ("Files", "Verification", "Definition of Done", "Stop and Report If", "Decisions Already Made")
-DOD_REFERENCE = re.compile(r"\((V[0-9]+(?:,\s*V[0-9]+)*|Gate 5)\)\.?\s*$")
 ROW_PREFIX = re.compile(r"^Verification row [^:]+: ")
 STATUS = re.compile(r'^status:\s*"?([A-Za-z_-]+)"?\s*$', re.M)
 GLOB_CHARS = re.compile(r"[*?]")
@@ -96,7 +95,7 @@ def check_structure(check: Checker, stem: str, path: Path, text: str, rows: list
             check.problem(f"{stem}:Verification", "Covers line but no TIER-C row with results")
     ids = {row.id for row in rows}
     for bullet in tc.dod_bullets(text):
-        reference = DOD_REFERENCE.search(bullet)
+        reference = tc.DOD_REFERENCE.search(bullet)
         if not reference:
             check.problem(f"{stem}:Definition of Done", f"{bullet} ends with no (V<n>) or (Gate 5) reference")
             continue

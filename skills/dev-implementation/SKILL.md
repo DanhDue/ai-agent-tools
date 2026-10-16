@@ -189,7 +189,7 @@ For rows 4 and 5. Phase 1 step 4's `git worktree add -b` never runs here.
      --tasks .devtool/epic/<epic_dir>/task_*.md
    ```
 
-   It must exit 0 too: every task has Files, a Verification table the recorder can run, Definition of Done bullets that end in row references or `(Gate 5)`, and the five `Stop and Report If` bullets, and the HLD declares `Protected paths:` and `Integration results:`. A failure of either check on an epic designed before this contract is a retrofit through dev-designer's "Updating an Existing Epic", never something you patch in the task files yourself: stop, name the failure, and send the developer back to `d3nexus:dev-designer`. Do not create the worktree until both checks exit 0 and the developer has confirmed the order.
+   It must exit 0 too: every task has Files, a Verification table the recorder can run, Definition of Done bullets that end in row references or `(Gate 5)`, and a `Stop and Report If` section (the template carries its five default bullets; the check requires the section, not the bullets), and the HLD declares `Protected paths:` and `Integration results:`. A failure of either check on an epic designed before this contract is a retrofit through dev-designer's "Updating an Existing Epic", never something you patch in the task files yourself: stop, name the failure, and send the developer back to `d3nexus:dev-designer`. Do not create the worktree until both checks exit 0 and the developer has confirmed the order.
 
 #### Phase 1 (continued) — Worktree Bootstrap, once the order is confirmed
 
@@ -480,6 +480,8 @@ The script gathers the audit and result facts, runs the chosen CLI read-only wit
 
 Once every task is `done`, a fix (a cross-model review finding, a Gate 4 failure, or a change the developer requests at Gate 5) is never made by reopening a task. Make it as its own commit on the epic branch, titled `[EPIC_NAME] Fix <what>`. Do not move a done task back, and do not re-record its evidence. `audit_epic.py` lists these commits under "Commits outside tasks", which the developer sees at Gate 5. After the fixes, run Phase 4 again in full on the new SHA.
 
+A Fix commit repairs what the tasks already promised. New behaviour the developer asks for at Gate 5 is not a fix: it goes through dev-designer's "Updating an Existing Epic" as new tasks, each with its own Verification table, evidence and commit.
+
 ### Phase 4 — End of Epic Verification
 
 Once every task is `done` and the Review Choice is settled, resolve the candidate commit SHA (`git rev-parse HEAD`) and, in the epic worktree with a clean working tree (`git status --porcelain` prints nothing, so the result belongs to that SHA), run these in this order. Do not run the quality check until step 5; each step must pass before the next starts, and any failure is fixed as a Fix commit (see Fixes after the last task), after which Phase 4 starts again.
@@ -575,8 +577,8 @@ Only after the user explicitly approves Gate 5 at the Phase 4.1 Checkpoint:
 | Run each task | `subagent-driven-development` | `subagent-driven-development` | `subagent-driven-development` |
 | Integrate after each task | `integrate_branch.py` preflight, rebase, verify-tier | Same | Same |
 | Per-task TDD | `test-driven-development` (Dart/BLoC) | `test-driven-development` (Kotlin/Compose) | `test-driven-development` (Swift/SwiftUI) |
-| BDD traceability (per task with `--ids`, then full) | `check_bdd_traceability.py tests` | Same | Same |
-| End-of-epic verification | `audit_epic.py`, then `@quality_check` (Flutter 3-Tier + 4 Audits) | `@quality_check` (Gradle 3-Tier + 4 Audits + cleanup-java) | `@quality_check` (iOS 3-Tier + 4 Audits) |
+| BDD traceability (per task through its evidence, then full) | Per task: the results digest `run_task_checks.py verify` records, which the done gate checks; end of epic: `check_bdd_traceability.py tests … --results` | Same | Same |
+| End-of-epic verification | `audit_epic.py`, then `@quality_check` (Flutter 3-Tier + 4 Audits) | `audit_epic.py`, then `@quality_check` (Gradle 3-Tier + 4 Audits + cleanup-java) | `audit_epic.py`, then `@quality_check` (iOS 3-Tier + 4 Audits) |
 | Finish epic branch | `d3nexus:finishing-a-development-branch` | Same | Same |
 
 ## Common Mistakes

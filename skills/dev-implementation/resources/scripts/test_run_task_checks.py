@@ -202,6 +202,17 @@ class GitHelpersTest(RepoCase):
         self.assertEqual(git(self.root, "status", "--porcelain").count("??"), 2)
         self.assertEqual(git(self.root, "diff", "--cached", "--name-only"), "")
 
+    def test_fingerprint_ignores_devtool_in_the_worktree_and_in_head(self) -> None:
+        self.write("a.txt", "one\n")
+        self.write(f"{EPIC}/task_1_demo.md", "first\n")
+        self.commit()
+        clean = tc.fingerprint(self.root)
+        self.write(f"{EPIC}/task_1_demo.md", "second\n")
+        self.write(".devtool/features/task_1_demo.md", "new\n")
+        self.assertEqual(tc.fingerprint(self.root), clean)
+        self.commit()  # a new HEAD whose only difference is under .devtool/
+        self.assertEqual(tc.fingerprint(self.root), clean)
+
     def test_changed_paths_includes_both_sides_of_a_rename(self) -> None:
         self.write("old.txt", "x\n")
         self.write("keep.txt", "y\n")
@@ -358,6 +369,45 @@ class RecorderTest(RepoCase):
         self.assertEqual((by_id["V2"]["outcome"], by_id["V2"]["reason"]),
                          ("FAIL", "results in neither format"))
 
+    def test_an_old_report_beside_a_fresh_one_proves_nothing(self) -> None:
+        self.write("out/old.xml", "<testsuite><testcase name='test_demo_hp_01_old'/></testsuite>")
+        self.write("stale/old.xml", "<testsuite><testcase name='test_demo_hp_01_old'/></testsuite>")
+        for old in ("out/old.xml", "stale/old.xml"):
+            os.utime(self.root / old, (1_000_000, 1_000_000))
+        rows = ("| V1 | TIER-C | `echo \"<testsuite><testcase name='other'/></testsuite>\" > out/new.xml` "
+                "| exit 0; results out | — |\n"
+                "| V2 | TIER-C | `true` | exit 0; results stale | — |\n")
+        task = self.epic(rows, allowed="- `out/**`")
+        self.write(f"{EPIC}/bdd_scenarios.en.md", f"{TICKS}gherkin\nScenario: [DEMO-HP-01] One\n{TICKS}\n")
+        self.assertEqual(self.run_cli("verify", task)[0], 1)
+        by_id = self.run_rows()
+        self.assertEqual(by_id["V1"]["outcome"], "PASS")
+        self.assertEqual(by_id["V1"]["results"]["digest"]["cases"], [])
+        self.assertEqual((by_id["V2"]["outcome"], by_id["V2"]["reason"]), ("FAIL", "results not produced by this run"))
+
+    def test_scope_reads_hld_protection_from_head(self) -> None:
+        self.write("scripts/verify.sh", "echo ok\n")
+        task = self.epic("| V1 | GREEN | `true` | exit 0 | — |\n", protected="scripts/verify.sh",
+                         allowed="- `scripts/**`")
+        self.write(f"{EPIC}/demo.en.md", hld_text())  # the task drops its own protection
+        self.write("scripts/verify.sh", "echo weakened\n")
+        self.assertEqual(self.run_cli("verify", task)[0], 1)
+        self.assertEqual(self.run_rows()["SCOPE"]["violations"],
+                         ["protected path not named exactly in Allowed files: scripts/verify.sh"])
+
+    def test_scope_reads_task_rows_from_head_and_new_task_files_from_the_tree(self) -> None:
+        self.write("tools/grade.py", "print(1)\n")
+        self.write("tools/other.py", "print(1)\n")
+        task = self.epic("| V1 | GREEN | `python3 tools/grade.py` | exit 0 | — |\n", allowed="- `tools/**`")
+        self.write(TASK, task_text("| V1 | GREEN | `true` | exit 0 | — |\n", allowed="- `tools/**`"))
+        self.write(f"{EPIC}/task_2_new.md", task_text("| V1 | GREEN | `python3 tools/other.py` | exit 0 | — |\n"))
+        self.write("tools/grade.py", "print(2)\n")
+        self.write("tools/other.py", "print(2)\n")
+        self.assertEqual(self.run_cli("verify", task)[0], 1)
+        self.assertEqual(self.run_rows()["SCOPE"]["violations"],
+                         ["protected path not named exactly in Allowed files: tools/grade.py",
+                          "protected path not named exactly in Allowed files: tools/other.py"])
+
     def test_missing_results_path_is_not_fresh(self) -> None:
         task = self.epic("| V1 | TIER-C | `true` | exit 0; results nowhere.xml | — |\n")
         self.assertEqual(self.run_cli("verify", task)[0], 1)
@@ -434,6 +484,7 @@ class RecorderTest(RepoCase):
         self.assertIn("done gate: FAIL", out)
         self.assertIn("condition 1:", out)
         self.assertFalse((self.root / EVIDENCE).exists())
+        self.write("x", "change\n")
         self.assertEqual(self.run_cli("verify", task)[0], 0)
         code, out, _ = self.run_cli("status", task)
         self.assertEqual((code, "verify: head" in out, "V1 GREEN PASS" in out), (0, True, True))

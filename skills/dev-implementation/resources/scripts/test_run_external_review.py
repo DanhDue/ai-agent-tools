@@ -30,6 +30,11 @@ case "$FAKE_MODE" in
   blocking) echo "Verdict: CHANGES REQUIRED"
             echo "[Critical] demo.en.md:3 — evidence missing"
             echo "[Important] task_1_demo.md:9 — row too weak" ;;
+  formats) echo "Verdict: CHANGES REQUIRED"
+           echo "1. **[Critical]** demo.en.md:3 – evidence missing"
+           echo "* [Important] task_1_demo.md:9: row too weak"
+           echo "[Important] the audit output was never read" ;;
+  bare) echo "Verdict: CHANGES REQUIRED"; echo "Several things look wrong." ;;
   fail) echo "credit balance is too low"; exit 1 ;;
   silent) echo "I looked at everything." ;;
   slow) sleep 30 ;;
@@ -162,6 +167,40 @@ class RunExternalReviewTest(ReviewCase):
         self.results.write_text(body, encoding="utf-8")
         self.assertEqual(self.check(), (0, ""))
         self.assertEqual(self.text(), body)
+
+    def test_finding_lines_in_other_shapes_are_parsed_and_unparsed_blocking_lines_kept(self) -> None:
+        self.install("codex")
+        self.assertEqual(self.run_review(mode="formats")[0], 1)
+        text = self.text()
+        self.assertIn("| 1 | Critical | demo.en.md:3 | evidence missing |  |", text)
+        self.assertIn("| 2 | Important | task_1_demo.md:9 | row too weak |  |", text)
+        self.assertIn("| 3 | Important | unparsed | [Important] the audit output was never read |  |", text)
+        code, out = self.check()
+        self.assertEqual(code, 1)
+        self.assertEqual(out.count("undecided:"), 3)
+
+    def test_changes_required_without_a_finding_line_is_no_verdict(self) -> None:
+        self.install("codex")
+        self.assertEqual(self.run_review(mode="bare")[0], 2)
+        self.assertIn("- **Status**: no verdict", self.text())
+        self.assertEqual(self.check(), (0, ""))
+
+    def round_text(self, status: str, findings: str, raw: str) -> str:
+        return (f"## Round 1\n\n- **Status**: {status}\n- **Verdict**: none\n\n"
+                f"| # | Severity | Location | Problem | Decision |\n|---|---|---|---|---|\n{findings}\n"
+                f"Raw output:\n\n{TICKS}text\n{raw}\n{TICKS}\n")
+
+    def test_an_unreadable_findings_row_fails_closed(self) -> None:
+        self.results.write_text("# Cross-Model Review: demo\n\n" + self.round_text(
+            "completed", "| 1 | Minor | a:1 | split | by | pipes |  |", "Verdict: PASS"), encoding="utf-8")
+        code, out = self.check()
+        self.assertEqual(code, 1)
+        self.assertIn("undecided: unreadable findings row: | 1 | Minor | a:1 | split | by | pipes |  |", out)
+
+    def test_a_round_status_is_read_from_its_fields_not_its_raw_output(self) -> None:
+        self.results.write_text("# Cross-Model Review: demo\n\n" + self.round_text(
+            "no verdict", "| 1 | Critical | c:3 | worse |  |", "- **Status**: completed"), encoding="utf-8")
+        self.assertEqual(self.check(), (0, ""))
 
     def test_vth_fr_06_a_missing_cli_or_a_dirty_tree_stops_the_review_before_it_runs(self) -> None:
         code, _, err = self.run_review(cli="claude")

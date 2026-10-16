@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import os
+import re
 import signal
 import subprocess
 import sys
@@ -23,7 +24,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from check_bdd_traceability import UsageError, load_scenarios
-from result_reports import ReportError, digest, load_reports
+from result_reports import ReportError, digest, load_files, report_files
 from task_contract import (ContractError, Row, changed_paths, epic_layout, evaluate_done_gate, fingerprint, git_run,
                            load_evidence, parse_allowed_files, parse_protected_paths,
                            parse_verification, path_matches, program_of, save_evidence)
@@ -37,13 +38,13 @@ def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
-def newest_result_time(target: Path) -> float | None:
-    if target.is_file():
-        return target.stat().st_mtime
-    if target.is_dir():
-        times = [p.stat().st_mtime for pattern in ("*.xml", "*.json") for p in target.rglob(pattern)]
-        return max(times, default=None)
-    return None
+def fresh_reports(path: str, root: Path, since: float) -> list[Path]:
+    """The report files under a results path that were written at or after `since`; older ones never count."""
+    try:
+        files = report_files(path, root)
+    except ReportError:
+        return []
+    return [file for file in files if file.stat().st_mtime >= since]
 
 
 def run_command(command: str, root: Path, timeout: int) -> tuple[int | None, bytes]:
@@ -76,10 +77,10 @@ def epic_scenario_ids(layout) -> list[str]:
         return []
 
 
-def attach_digest(results: dict, path: str, root: Path, scenario_ids: list[str]) -> str | None:
-    """Store the digest of a fresh report; None on success, else the row's failure reason."""
+def attach_digest(results: dict, files: list[Path], scenario_ids: list[str]) -> str | None:
+    """Store the digest of the fresh reports; None on success, else the row's failure reason."""
     try:
-        results["digest"] = digest(load_reports([path], root), scenario_ids)
+        results["digest"] = digest(load_files(files), scenario_ids)
     except ReportError:
         return "results in neither format"
     return None
@@ -101,25 +102,36 @@ def run_row(row: Row, root: Path, timeout: int, scenario_ids: list[str]) -> dict
                       output_sha256=hashlib.sha256(output).hexdigest())
         reason = f"timeout after {timeout} s" if code is None else mismatch(row, code, text)
         if row.expect.results:
-            newest = newest_result_time(root / row.expect.results)
-            fresh = newest is not None and newest >= started
-            record["results"] = {"path": row.expect.results, "fresh": fresh}
-            reason = reason or (None if fresh else STALE)
-            if fresh:
-                reason = reason or attach_digest(record["results"], row.expect.results, root, scenario_ids)
+            files = fresh_reports(row.expect.results, root, started)
+            record["results"] = {"path": row.expect.results, "fresh": bool(files)}
+            reason = reason or (None if files else STALE)
+            if files:
+                reason = reason or attach_digest(record["results"], files, scenario_ids)
         if reason:
             record.update(outcome="FAIL", reason=reason)
     record["finished"] = utc_now()
     return record
 
 
+def committed_text(root: Path, path: Path) -> str | None:
+    """The file as HEAD has it, so a task cannot weaken its own protection; the working copy only when new."""
+    try:
+        return git_run(root, "show", f"HEAD:{path.relative_to(root).as_posix()}").decode("utf-8")
+    except ContractError:
+        return path.read_text(encoding="utf-8") if path.is_file() else None
+
+
 def protected_patterns(layout, root: Path) -> tuple[list[str], set[str]]:
-    """Explicit HLD patterns, and the tracked programs every parseable task row in the epic runs."""
-    explicit = parse_protected_paths(layout.hld.read_text(encoding="utf-8")) if layout.hld.is_file() else []
+    """Explicit HLD patterns, and the tracked programs every parseable task row in the epic runs, read from HEAD."""
+    hld = committed_text(root, layout.hld)
+    explicit = parse_protected_paths(hld) if hld else []
+    folder = layout.epic_dir.relative_to(root).as_posix()
+    committed = git_run(root, "ls-tree", "-z", "--name-only", "HEAD", "--", f"{folder}/").decode().split("\0")
+    names = {Path(p).name for p in committed if p} | {p.name for p in layout.epic_dir.glob("task_*.md")}
     programs: set[str] = set()
-    for sibling in sorted(layout.epic_dir.glob("task_*.md")):
+    for name in sorted(n for n in names if re.fullmatch(r"task_.*\.md", n)):
         try:
-            rows, _ = parse_verification(sibling.read_text(encoding="utf-8"))
+            rows, _ = parse_verification(committed_text(root, layout.epic_dir / name) or "")
         except ContractError:
             continue
         programs.update(p for p in (program_of(row.command, root) for row in rows) if p)

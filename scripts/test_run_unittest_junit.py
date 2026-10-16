@@ -48,6 +48,24 @@ class Fragile(unittest.TestCase):
         pass
 '''
 BROKEN = "import module_that_does_not_exist\n"
+SUBTESTS = '''import unittest
+
+
+class Cases(unittest.TestCase):
+    def test_demo_hp_01_every_value(self):
+        for value in (1, 2, 3):
+            with self.subTest(value=value):
+                self.assertEqual(value, 1)
+
+    def test_subtest_errors(self):
+        with self.subTest(step="boom"):
+            raise RuntimeError("boom")
+
+    def test_every_subtest_passes(self):
+        for value in (1, 1):
+            with self.subTest(value=value):
+                self.assertEqual(value, 1)
+'''
 
 
 class JunitRunnerCase(unittest.TestCase):
@@ -100,6 +118,20 @@ class JunitRunnerCase(unittest.TestCase):
         self.assertEqual(case.get("name"), "import")
         self.assertIsNotNone(case.find("error"))
         self.assertEqual(suite.get("errors"), "1")
+
+    def test_a_failing_subtest_fails_its_test_and_the_run(self) -> None:
+        code, root = self.run_runner(self.write("test_sub.py", SUBTESTS))
+        self.assertEqual(code, 1)
+        suite = root.find("testsuite")
+        cases = {case.get("name"): case for case in suite.findall("testcase")}
+        self.assertEqual(sorted(cases), ["test_demo_hp_01_every_value", "test_every_subtest_passes",
+                                         "test_subtest_errors"])
+        self.assertIsNotNone(cases["test_demo_hp_01_every_value"].find("failure"))
+        self.assertIn("value=3", cases["test_demo_hp_01_every_value"].find("failure").text)
+        self.assertIsNotNone(cases["test_subtest_errors"].find("error"))
+        self.assertEqual(len(cases["test_every_subtest_passes"]), 0)
+        self.assertEqual({key: suite.get(key) for key in ("tests", "failures", "errors")},
+                         {"tests": "3", "failures": "1", "errors": "1"})
 
     def test_setup_class_error_is_reported_as_an_error_case(self) -> None:
         code, root = self.run_runner(self.write("test_fragile.py", SETUP_ERROR))

@@ -223,7 +223,7 @@ def report_results(ids: list[str], selected: list[str], roots: list[Path], resul
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     modes = parser.add_subparsers(dest="mode", required=True)
-    plan = modes.add_parser("plan", help="every scenario is assigned to at least one task")
+    plan = modes.add_parser("plan", help="every scenario is assigned to exactly one task")
     plan.add_argument("--scenarios", required=True, type=Path)
     plan.add_argument("--tasks", required=True, nargs="+", type=Path)
     tests = modes.add_parser("tests", help="every scenario has at least one integration test")

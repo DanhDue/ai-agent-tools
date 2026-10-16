@@ -70,22 +70,25 @@ def report_files(path: str, root: Path) -> list[Path]:
     return [p for match in matches for p in report_files(str(match), root)]
 
 
-def load_reports(paths: list[str], root: Path) -> list[Case]:
+def load_files(files: list[Path]) -> list[Case]:
     cases: list[Case] = []
-    for path in paths:
-        for file in report_files(path, root):
-            text = file.read_text(encoding="utf-8", errors="replace")
-            lead = text.lstrip()[:1]
-            try:
-                if lead == "<":
-                    cases.extend(parse_junit(text))
-                elif lead == "{":
-                    cases.extend(parse_dart(text))
-                else:
-                    raise ReportError(f"{file} is neither JUnit XML nor Dart JSON")
-            except (ET.ParseError, ValueError, KeyError) as error:
-                raise ReportError(f"{file} is not a valid report: {error}") from None
+    for file in files:
+        text = file.read_text(encoding="utf-8", errors="replace")
+        lead = text.lstrip()[:1]
+        try:
+            if lead == "<":
+                cases.extend(parse_junit(text))
+            elif lead == "{":
+                cases.extend(parse_dart(text))
+            else:
+                raise ReportError(f"{file} is neither JUnit XML nor Dart JSON")
+        except (ET.ParseError, ValueError, KeyError) as error:
+            raise ReportError(f"{file} is not a valid report: {error}") from None
     return cases
+
+
+def load_reports(paths: list[str], root: Path) -> list[Case]:
+    return load_files([file for path in paths for file in report_files(path, root)])
 
 
 def belongs(case: Case, identifier: str) -> bool:

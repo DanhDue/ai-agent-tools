@@ -33,6 +33,8 @@ ENVIRONMENT_HEADING = re.compile(r"^## (?:\d+\.\s*)?Verification Environment\s*$
 INTERPRETERS = {"python", "python3", "bash", "sh", "zsh", "node", "deno", "ruby", "perl"}
 CONTROL_TOKENS = {"&&", "||", ";", "|"}
 EXCLUDE_DEVTOOL = ":(exclude).devtool"
+DIFF_PLAIN = ("--no-ext-diff", "--no-color")  # user diff settings must not change a patch id
+DOD_REFERENCE = re.compile(r"\((V[0-9]+(?:,\s*V[0-9]+)*|Gate 5)\)\.?\s*$")
 
 
 class ContractError(Exception):
@@ -329,13 +331,14 @@ def epic_layout(task_file: Path) -> EpicLayout:
 
 
 def fingerprint(root: Path) -> tuple[str, str | None]:
-    """Tree id and stable patch id of the worktree against HEAD, ignoring .devtool/."""
+    """Tree id of the worktree without .devtool/, and its stable patch id against HEAD outside .devtool/."""
     with tempfile.TemporaryDirectory() as scratch:
         env = {**os.environ, "GIT_INDEX_FILE": str(Path(scratch) / "index")}
         git_run(root, "read-tree", "HEAD", env=env)
+        git_run(root, "rm", "-r", "-q", "--cached", "--ignore-unmatch", "--", ".devtool", env=env)
         git_run(root, "add", "-A", "--", ".", EXCLUDE_DEVTOOL, env=env)
         tree = git_run(root, "write-tree", env=env).decode().strip()
-        diff = git_run(root, "diff", "--cached", "HEAD", "--", ".", EXCLUDE_DEVTOOL, env=env)
+        diff = git_run(root, "diff", *DIFF_PLAIN, "--cached", "HEAD", "--", ".", EXCLUDE_DEVTOOL, env=env)
         patch = git_run(root, "patch-id", "--stable", stdin=diff).decode().split() if diff else []
     return tree, patch[0] if patch else None
 
@@ -411,6 +414,10 @@ def evaluate_done_gate(task_file: Path) -> list[str]:
     if missing:
         return [f"condition 1: evidence {layout.evidence} has no {kind} run" for kind in missing]
     problems = row_problems(rows, runs)
+    ids = {row.id for row in rows} | {"SCOPE"}
+    problems += [f"condition 2: {kind} row {r['id']} is {r['outcome']} and no longer in the table"
+                 for kind, run in runs.items() for r in run["rows"]
+                 if r["id"] not in ids and r["outcome"] not in ("PASS", "BLOCKED")]
     for kind, run in runs.items():
         problems += [f"condition 3: {kind} row {r['id']} is BLOCKED ({r.get('reason')})"
                      for r in run["rows"] if r["outcome"] == "BLOCKED"]
@@ -418,8 +425,12 @@ def evaluate_done_gate(task_file: Path) -> list[str]:
     if verify["tree"] != fingerprint(layout.root)[0]:
         problems.append("condition 4: the verify run's tree differs from the current tree — "
                         "files changed after verification")
+    if verify.get("patch_id") is None:
+        problems.append("condition 4: verify saw no change outside .devtool — record verify before committing")
     if needs_red:
         red = runs["red"]
+        if red.get("head") != verify.get("head"):
+            problems.append("condition 5: red and verify were recorded on different commits")
         if red["tree"] == verify["tree"]:
             problems.append("condition 5: the red run's tree equals the verify run's tree — "
                             "RED was not recorded before the change")

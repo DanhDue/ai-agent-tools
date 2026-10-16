@@ -4,7 +4,7 @@
 Usage:
   run_unittest_junit.py --junitxml <path> <test file> [<test file> ...]
 
-Exit codes: 0 every test passed or was skipped; 1 otherwise.
+Exit codes: 0 every test and subtest passed or was skipped; 1 otherwise.
 """
 from __future__ import annotations
 
@@ -25,6 +25,7 @@ class RecordingResult(unittest.TextTestResult):
         super().__init__(*args, **kwargs)
         self.records: list[dict] = []
         self._started: dict[str, float] = {}
+        self._failed_subtests: dict[str, list[tuple[str, str]]] = {}
 
     def startTest(self, test) -> None:
         self._started[test.id()] = time.monotonic()
@@ -57,6 +58,21 @@ class RecordingResult(unittest.TextTestResult):
     def addUnexpectedSuccess(self, test) -> None:
         super().addUnexpectedSuccess(test)
         self._record(test, "failure", "unexpected success")
+
+    def addSubTest(self, test, subtest, err) -> None:
+        super().addSubTest(test, subtest, err)
+        if err is not None:
+            kind = "failure" if issubclass(err[0], test.failureException) else "error"
+            detail = f"{subtest}\n{self._exc_info_to_string(err, test)}"
+            self._failed_subtests.setdefault(test.id(), []).append((kind, detail))
+
+    def stopTest(self, test) -> None:
+        """A test whose subtest failed gets no other outcome from unittest; record it under the test's own name."""
+        failed = self._failed_subtests.pop(test.id(), [])
+        if failed and test.id() in self._started:
+            kind = "error" if any(k == "error" for k, _ in failed) else "failure"
+            self._record(test, kind, "\n".join(detail for _, detail in failed))
+        super().stopTest(test)
 
 
 def load_module(path: Path, index: int):
@@ -97,7 +113,7 @@ def suite_element(path: Path, index: int) -> tuple[ET.Element, bool]:
     suite.set("failures", str(counts["failure"]))
     suite.set("errors", str(counts["error"]))
     suite.set("skipped", str(counts["skipped"]))
-    return suite, counts["failure"] + counts["error"] == 0
+    return suite, result.wasSuccessful()
 
 
 def main(argv: list[str] | None = None) -> int:

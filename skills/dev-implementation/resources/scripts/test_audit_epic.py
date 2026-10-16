@@ -17,7 +17,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 import run_task_checks
-from audit_epic import main
+from audit_epic import main, status_of
 
 EPIC = ".devtool/epic/demo"
 TABLE_HEAD = "| ID | Phase | Command | Expect | Needs |\n|----|-------|---------|--------|-------|\n"
@@ -149,6 +149,45 @@ class AuditEpicTest(AuditCase):
         self.assertEqual(code, 1, report)
         self.assertIn("task_1_demo: missing evidence", self.section(report, "Evidence"))
         self.assertIn("Result: FAIL", report)
+
+    def test_status_is_read_whatever_its_quoting(self) -> None:
+        for line in ("status: done", 'status: "done"', "status: 'done'", "status: done  # by hand"):
+            with self.subTest(line=line):
+                self.assertEqual(status_of(f"---\nid: t\n{line}\n---\n"), "done")
+
+    def test_done_written_by_hand_only_in_the_features_copy_fails_the_audit(self) -> None:
+        for folder in ("", "done/"):
+            with self.subTest(folder=folder):
+                self.start_task(1)
+                self.write(f".devtool/features/{folder}task_1_demo.md",
+                           "---\nid: task_1_demo\nstatus: 'done'\n---\n\n# Task 1\n")
+                self.commit("Mark done by hand in the features copy")
+                code, report, _ = self.audit()
+                self.assertEqual(code, 1, report)
+                self.assertIn("task_1_demo: missing evidence", self.section(report, "Evidence"))
+                git(self.root, "reset", "-q", "--hard", "main")
+
+    def test_a_gate_5_item_ending_with_a_period_is_listed(self) -> None:
+        self.write(self.mirror(1), mirror_text(1, "in-progress", gate5=True).replace("(Gate 5)", "(Gate 5)."))
+        self.commit("[DEMO] Create task 1")
+        self.finish_task(1)
+        code, report, _ = self.audit()
+        self.assertEqual(code, 0, report)
+        self.assertIn("task_1_demo: the wording reads well (Gate 5).", self.section(report, "Gate 5 items"))
+
+    def test_hld_grader_line_changes_are_disclosed_without_failing(self) -> None:
+        self.start_task(1)
+        self.finish_task(1)
+        self.write(f"{EPIC}/demo.en.md", f"# Epic\n\nProtected paths: {EPIC}/bdd_scenarios.en.md\n"
+                                         "Integration results: true -> build/r.xml\n")
+        self.commit("Loosen the HLD")
+        code, report, _ = self.audit()
+        self.assertEqual(code, 0, report)
+        amendments = self.section(report, "Grader amendments")
+        self.assertIn(f"-Protected paths: scripts/verify.sh, {EPIC}/bdd_scenarios.en.md", amendments)
+        self.assertIn(f"+Protected paths: {EPIC}/bdd_scenarios.en.md", amendments)
+        self.assertIn("+Integration results: true -> build/r.xml", amendments)
+        self.assertIn("Loosen the HLD", amendments)
 
     def test_a_row_that_is_not_pass_fails_the_audit(self) -> None:
         self.start_task(1)

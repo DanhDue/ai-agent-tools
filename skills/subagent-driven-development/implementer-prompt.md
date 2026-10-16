@@ -35,7 +35,8 @@ Subagent (general-purpose):
     1. Implement exactly what the task specifies
     2. Write tests (following TDD if task says to)
     3. Record the checks (see Recording the Evidence below)
-    4. Commit your work
+    4. Commit your work — unless the task has a Verification table: then
+       leave the change uncommitted (see Recording the Evidence)
     5. Self-review (see below)
     6. Report back
 
@@ -61,6 +62,11 @@ Subagent (general-purpose):
        any later change.
     3. `python3 [SCRIPTS]/run_task_checks.py status [TASK_MIRROR]` must print
        `done gate: PASS`.
+
+    Do not commit a task with a Verification table. `red` and `verify` must
+    be recorded on the same commit, and `verify` must see your change
+    uncommitted; the done gate refuses evidence recorded after a commit. The
+    controller makes the task's single commit after review.
 
     The evidence file is the test evidence: the recorder writes it under
     `.devtool/epic/<epic_dir>/evidence/`. Cite its path in your report. Never
@@ -146,7 +152,8 @@ Subagent (general-purpose):
 
     If the task review finds issues, you will be resumed with the findings.
     Fix them, re-run `run_task_checks.py verify` so the evidence covers the
-    amended code, and append a fix report to your report file: what you
+    amended code, leave the change uncommitted when the task has a
+    Verification table, and append a fix report to your report file: what you
     changed and the evidence file path. Reviewers will not re-run tests for
     you — the evidence file is the test evidence. Then reply with the same
     short status contract as your first report.
@@ -165,7 +172,8 @@ Subagent (general-purpose):
     Then report back with ONLY (under 15 lines — the detail lives in the
     report file):
     - **Status:** DONE | DONE_WITH_CONCERNS | BLOCKED | NEEDS_CONTEXT
-    - Commits created (short SHA + subject)
+    - Commits created (short SHA + subject), or "none — uncommitted" for a
+      task with a Verification table
     - One-line test summary (e.g. "14/14 passing, output pristine")
     - Your concerns, if any
     - The report file path
