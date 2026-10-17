@@ -289,5 +289,28 @@ class RunExternalReviewTest(ReviewCase):
         self.assertIn("| 3 | Minor | demo.en.md:3 | numbered list |  |", text)
 
 
+
+    # [RWE-HP-03] Table cell sanitizes control characters
+    def test_rwe_hp_03_cell_sanitizes_control_characters(self) -> None:
+        from run_external_review import cell
+        raw = "line 1\r\nline 2 | line 3\r"
+        sanitized = cell(raw)
+        self.assertEqual(sanitized, r"line 1 line 2 \| line 3")
+        self.assertNotIn("\r", sanitized)
+        self.assertNotIn("\n", sanitized)
+
+    # [RWE-EC-03] Table findings row with multiple escaped pipes
+    def test_rwe_ec_03_cell_handles_escaped_pipes(self) -> None:
+        from run_external_review import render_round, table_findings
+        meta = {"Status": "completed", "Verdict": "PASS"}
+        findings = [("Minor", "src/file.py:10", "use a | b | c syntax")]
+        round_md = render_round(1, meta, findings, "Verdict: PASS\n")
+        rows = table_findings(round_md.splitlines())
+        self.assertEqual(len(rows), 1)
+        cells = rows[0][1]
+        self.assertEqual(len(cells), 5)
+        self.assertEqual(cells[2], "src/file.py:10")
+        self.assertEqual(cells[3], "use a | b | c syntax")
+
 if __name__ == '__main__':
     unittest.main()

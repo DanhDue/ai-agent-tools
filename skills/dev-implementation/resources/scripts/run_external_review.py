@@ -99,7 +99,8 @@ def cli_command(cli: str, model: str | None) -> list[str]:
 
 
 def cell(text: str) -> str:
-    return text.replace("|", "\\|")
+    cleaned = text.replace("\r", "").replace("\n", " ").strip()
+    return cleaned.replace("|", "\\|")
 
 
 def fence_for(text: str) -> str:
