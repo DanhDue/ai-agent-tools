@@ -35,6 +35,10 @@ FINDING = re.compile(r"^\s*(?:[-*+]|\d+[.)])?\s*\*{0,2}\[\*{0,2}(Critical|Import
 UNPARSED_BLOCKING = re.compile(r"^\s*(?:(?:[-*+]|\d+[.)])\s+.*?|\[\*{0,2})\b(Critical|Important)\b", re.IGNORECASE)
 FINDING_ROW = re.compile(r"^\|\s*\d+\s*\|")
 BLOCKING = ("Critical", "Important")
+
+
+class PreconditionFailedError(Exception):
+    """Raised when fact collection fails, preventing AI CLI invocation."""
 FENCE = re.compile(r"^(`{3,})")
 
 
@@ -67,18 +71,32 @@ def fact(label: str, code: int | None, out: str, err: str) -> str:
 
 def collect_facts(root: Path, epic_dir: str, base: str, hld_text: str, timeout: int) -> tuple[str, str]:
     audit = [sys.executable, str(SCRIPTS / "audit_epic.py"), "--epic-dir", epic_dir, "--base", base]
-    audit_output = fact("audit_epic.py", *execute(audit, root, timeout))
+    audit_code, audit_out, audit_err = execute(audit, root, timeout)
+    if audit_code is None:
+        raise PreconditionFailedError(f"audit_epic.py timed out after {timeout} seconds")
+    if audit_code != 0:
+        raise PreconditionFailedError(f"audit_epic.py failed with exit {audit_code}:\n{(audit_out + audit_err).rstrip()}")
+    audit_output = fact("audit_epic.py", audit_code, audit_out, audit_err)
     results, reports = [], []
     for line in parse_integration_results(hld_text):
         command, _, report = line.partition(" -> ")
-        results.append(fact(command.strip(), *execute(command.strip(), root, timeout, shell=True)))
+        cmd = command.strip()
+        cmd_code, cmd_out, cmd_err = execute(cmd, root, timeout, shell=True)
+        if cmd_code is None:
+            raise PreconditionFailedError(f"integration test '{cmd}' timed out after {timeout} seconds")
+
+        results.append(fact(cmd, cmd_code, cmd_out, cmd_err))
         reports.extend(report.split())
     roots = re.search(r"^Integration test roots:\s*(.+)$", hld_text, re.M)
     if roots and reports:
         check = [sys.executable, str(SCRIPTS / "check_bdd_traceability.py"), "tests", "--scenarios",
                  f".devtool/epic/{epic_dir}/bdd_scenarios.en.md", "--roots", roots.group(1).strip(),
                  "--results", *reports]
-        results.append(fact(shlex.join(check[1:]), *execute(check, root, timeout)))
+        chk_code, chk_out, chk_err = execute(check, root, timeout)
+        if chk_code is None:
+            raise PreconditionFailedError(f"check_bdd_traceability.py timed out after {timeout} seconds")
+
+        results.append(fact(shlex.join(check[1:]), chk_code, chk_out, chk_err))
     return audit_output, "\n".join(results) or "No Integration results declared.\n"
 
 
@@ -172,7 +190,12 @@ def run(args: argparse.Namespace) -> int:
         return 2
     sha = head_of(root)
     hld_text = (root / ".devtool" / "epic" / args.epic_dir / f"{args.epic_dir}.en.md").read_text(encoding="utf-8")
-    audit_output, results_output = collect_facts(root, args.epic_dir, args.base, hld_text, args.timeout)
+    try:
+        facts_timeout = getattr(args, "facts_timeout", 300)
+        audit_output, results_output = collect_facts(root, args.epic_dir, args.base, hld_text, facts_timeout)
+    except PreconditionFailedError as error:
+        print(f"precondition failed: {error}", file=sys.stderr)
+        return 2
     prompt = Template(PROMPT.read_text(encoding="utf-8")).substitute(
         sha=sha, base=args.base, epic_dir=f".devtool/epic/{args.epic_dir}", artefacts=artefact_lines(root, args.epic_dir),
         audit_output=audit_output.rstrip(), results_output=results_output.rstrip())
@@ -234,6 +257,7 @@ def main(argv: list[str] | None = None) -> int:
     runner.add_argument("--cli", required=True, choices=("claude", "codex"))
     runner.add_argument("--model")
     runner.add_argument("--timeout", type=int, default=1800)
+    runner.add_argument("--facts-timeout", type=int, default=300)
     checker = modes.add_parser("check", help="list undecided blocking findings of the latest completed round")
     checker.add_argument("--epic-dir", required=True)
     args = parser.parse_args(argv)

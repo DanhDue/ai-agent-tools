@@ -1,13 +1,13 @@
 ---
 id: "task_3_facts_timeout_isolation_and_fail_fast"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "review_workflow_enhancements"
 dueDate: null
 created: "2026-10-18T03:00:00Z"
-modified: "2026-10-18T03:00:00Z"
-completedAt: null
+modified: "2026-10-17T20:42:49Z"
+completedAt: "2026-10-17T20:42:49Z"
 labels: ["review", "tooling"]
 order: "a3"
 ---
@@ -34,8 +34,8 @@ Allowed files:
 
 | ID | Phase | Command | Expect | Needs |
 |----|-------|---------|--------|-------|
-| V1 | RED | `python3 -m unittest skills/dev-implementation/resources/scripts/test_run_external_review.py -k test_collect_facts_fail_fast` | exit non-zero | — |
-| V2 | GREEN | `python3 -m unittest skills/dev-implementation/resources/scripts/test_run_external_review.py -k test_collect_facts_fail_fast` | exit 0; contains "OK" | — |
+| V1 | RED | `python3 skills/dev-implementation/resources/scripts/test_run_external_review.py RunExternalReviewTest.test_rwe_fr_01_fail_fast_aborts_on_audit_failure` | exit non-zero | — |
+| V2 | GREEN | `python3 skills/dev-implementation/resources/scripts/test_run_external_review.py RunExternalReviewTest.test_rwe_fr_01_fail_fast_aborts_on_audit_failure` | exit 0; contains "OK" | — |
 | V3 | TIER-B | `python3 -m unittest discover -s skills/dev-implementation/resources/scripts` | exit 0 | — |
 | V4 | TIER-C | `python3 scripts/run_unittest_junit.py --junitxml build/test-results/unit.xml skills/dev-implementation/resources/scripts/test_run_external_review.py` | exit 0; results build/test-results/unit.xml | — |
 

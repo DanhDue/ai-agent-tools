@@ -312,5 +312,43 @@ class RunExternalReviewTest(ReviewCase):
         self.assertEqual(cells[2], "src/file.py:10")
         self.assertEqual(cells[3], "use a | b | c syntax")
 
+
+    # [RWE-HP-04] Clean facts collection proceeds to CLI execution
+    def test_rwe_hp_04_clean_facts_collection_proceeds_to_cli(self) -> None:
+        self.install("claude")
+        code, out, err = self.run_review(cli="claude", mode="pass")
+        self.assertEqual(code, 0)
+        self.assertTrue(self.results.exists())
+        self.assertIn("- **Status**: completed", self.text())
+
+    # [RWE-EC-04] Facts timeout separated from CLI timeout
+    def test_rwe_ec_04_facts_timeout_separated_from_cli_timeout(self) -> None:
+        self.install("codex")
+        code, out, err = self.run_review("--facts-timeout", "60", "--timeout", "1200", cli="codex", mode="pass")
+        self.assertEqual(code, 0)
+        self.assertIn("- **Status**: completed", self.text())
+
+    # [RWE-FR-01] Fail-fast aborts on audit failure
+    def test_rwe_fr_01_fail_fast_aborts_on_audit_failure(self) -> None:
+        self.install("claude")
+        # Mark task_1_demo done with a Verification section but without evidence to make audit_epic fail
+        self.write(f"{EPIC}/task_1_demo.md", '---\nid: "task_1_demo"\nstatus: "done"\n---\n\n# Task 1\n\n## Verification\n\n| ID | Phase | Command | Expect | Needs |\n|----|-------|---------|--------|-------|\n| V1 | GREEN | true | exit 0 | — |\n')
+        self.commit("Task 1 done without evidence")
+        code, out, err = self.run_review(cli="claude", mode="pass")
+        self.assertEqual(code, 2)
+        self.assertIn("precondition failed", err)
+        self.assertFalse(self.results.exists())
+
+    # [RWE-FR-02] Fail-fast aborts on test timeout
+    def test_rwe_fr_02_fail_fast_aborts_on_test_timeout(self) -> None:
+        self.install("claude")
+        # Change HLD to have a sleeping integration test
+        self.write(f"{EPIC}/demo.en.md", "# Demo\n\nIntegration test roots: scripts/\n\nIntegration results: sleep 5 -> build/demo.xml\n")
+        self.commit("HLD with slow test")
+        code, out, err = self.run_review("--facts-timeout", "1", cli="claude", mode="pass")
+        self.assertEqual(code, 2)
+        self.assertIn("precondition failed", err)
+        self.assertFalse(self.results.exists())
+
 if __name__ == '__main__':
     unittest.main()
