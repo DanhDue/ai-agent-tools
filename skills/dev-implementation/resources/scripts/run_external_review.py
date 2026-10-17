@@ -28,11 +28,11 @@ from task_contract import ContractError, git_run, parse_integration_results
 
 SCRIPTS = Path(__file__).resolve().parent
 PROMPT = SCRIPTS.parent.parent / "references" / "external-review-prompt.md"
-VERDICT = re.compile(r"^Verdict:\s*(PASS|CHANGES REQUIRED)\s*$")
+VERDICT = re.compile(r"^\s*(?:#+\s*)?\*{0,2}Verdict(?:\*{0,2}:|:\*{0,2})\s*\*{0,2}(PASS|CHANGES REQUIRED)\*{0,2}\s*$", re.IGNORECASE)
 # Tolerates list numbering, bullets and ** around the severity, and —, –, - or : between location and problem.
 FINDING = re.compile(r"^\s*(?:[-*+]|\d+[.)])?\s*\*{0,2}\[\*{0,2}(Critical|Important|Minor)\*{0,2}\]\*{0,2}\s*"
                      r"(\S.*?)(?:\s+[—–-]|\s*:)\s+(\S.*)$")
-UNPARSED_BLOCKING = re.compile(r"\[\*{0,2}(Critical|Important)\*{0,2}\]", re.IGNORECASE)
+UNPARSED_BLOCKING = re.compile(r"^\s*(?:(?:[-*+]|\d+[.)])\s+.*?|\[\*{0,2})\b(Critical|Important)\b", re.IGNORECASE)
 FINDING_ROW = re.compile(r"^\|\s*\d+\s*\|")
 BLOCKING = ("Critical", "Important")
 FENCE = re.compile(r"^(`{3,})")
@@ -139,13 +139,15 @@ def table_findings(lines: list[str]) -> list[tuple[str, list[str]]]:
     return [(line, split_row(line)) for line in metadata(lines) if FINDING_ROW.match(line)]
 
 
-def parse_findings(out: str) -> list[tuple[str, str, str]]:
-    """Each finding line as (severity, location, problem); a blocking line in no known shape keeps its raw text."""
+def parse_findings(out: str, verdict: str | None = None) -> list[tuple[str, str, str]]:
+    """Each finding line as (severity, location, problem); a blocking line in list format keeps its raw text."""
     findings = []
     for line in out.splitlines():
         if (match := FINDING.match(line)):
             findings.append(match.groups())
         elif (blocking := UNPARSED_BLOCKING.search(line)):
+            if verdict == "PASS" and not findings:
+                continue
             findings.append((blocking.group(1).capitalize(), "unparsed", line.strip()))
     return findings
 
@@ -182,8 +184,9 @@ def run(args: argparse.Namespace) -> int:
     changed = sorted(set(after) ^ set(before))
     if head_of(root) != sha:
         changed.insert(0, "HEAD")
-    verdicts = [m.group(1) for line in out.splitlines() if (m := VERDICT.match(line))]
-    findings = parse_findings(out)
+    verdicts = [m.group(1).upper() for line in out.splitlines() if (m := VERDICT.match(line))]
+    final_verdict = verdicts[-1] if verdicts else None
+    findings = parse_findings(out, final_verdict)
     if changed:
         status = f"discarded: tree modified ({', '.join(line[3:] if line != 'HEAD' else line for line in changed)})"
     elif code != 0 or not verdicts or (verdicts[-1] == "CHANGES REQUIRED" and not findings):

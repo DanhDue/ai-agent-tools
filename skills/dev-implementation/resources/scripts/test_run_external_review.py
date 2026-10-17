@@ -39,6 +39,18 @@ case "$FAKE_MODE" in
   silent) echo "I looked at everything." ;;
   slow) sleep 30 ;;
   modify) echo changed > DEMO-created.txt; echo "Verdict: PASS" ;;
+  bold_verdict) echo "**Verdict:** PASS" ;;
+  heading_verdict) echo "### Verdict: CHANGES REQUIRED"; echo "- [Critical] demo.en.md:1 — broken" ;;
+  prose_summary) echo "I reviewed everything and found 0 [Critical] or [Important] issues."; echo "Verdict: PASS" ;;
+  list_findings) echo "Verdict: CHANGES REQUIRED"
+                 echo "- [Critical] demo.en.md:1 — list bullet dash"
+                 echo "* [Important] demo.en.md:2 — list bullet star"
+                 echo "1. [Minor] demo.en.md:3 — numbered list" ;;
+
+  bold_verdict) echo "**Verdict:** PASS" ;;
+  heading_verdict) echo "### Verdict: CHANGES REQUIRED"; echo "- [Critical] demo.en.md:1 — broken" ;;
+  prose_summary) echo "I reviewed everything and found 0 [Critical] or [Important] issues."; echo "Verdict: PASS" ;;
+
 esac
 """
 HLD = ("# Demo\n\nIntegration test roots: scripts/\n\nIntegration results: true -> build/demo.xml\n")
@@ -235,3 +247,47 @@ class RunExternalReviewTest(ReviewCase):
         self.assertIn("I looked at everything.", text)
         self.assertIn("timed out after 1 seconds", text)
         self.assertEqual(self.check(), (0, ""))
+
+    # [RWE-HP-01] Resilient Verdict Parsing
+    def test_rwe_hp_01_resilient_verdict_parsing(self) -> None:
+        self.install("claude")
+        code, _, _ = self.run_review(cli="claude", mode="bold_verdict")
+        self.assertEqual(code, 0)
+        self.assertIn("- **Verdict**: PASS", self.text())
+        self.assertIn("- **Status**: completed", self.text())
+
+        self.commit("Record round 1")
+        code2, _, _ = self.run_review(cli="claude", mode="heading_verdict")
+        self.assertEqual(code2, 1)
+        self.assertIn("- **Verdict**: CHANGES REQUIRED", self.text())
+        self.assertIn("- **Status**: completed", self.text())
+
+    # [RWE-EC-02] Verdict Whitespace and Case
+    def test_rwe_ec_02_verdict_whitespace_and_case(self) -> None:
+        self.install("claude")
+        code, _, _ = self.run_review(cli="claude", mode="bold_verdict")
+        self.assertEqual(code, 0)
+        self.assertIn("- **Verdict**: PASS", self.text())
+
+    # [RWE-EC-01] Conversational Summary Does Not Trigger Unparsed Blocking
+    def test_rwe_ec_01_conversational_summary_does_not_trigger_unparsed_blocking(self) -> None:
+        self.install("codex")
+        code, _, _ = self.run_review(cli="codex", mode="prose_summary")
+        self.assertEqual(code, 0)
+        self.assertIn("- **Verdict**: PASS", self.text())
+        self.assertIn("- **Status**: completed", self.text())
+        self.assertNotIn("unparsed", self.text())
+
+    # [RWE-HP-02] Finding lines match list items
+    def test_rwe_hp_02_finding_lines_match_list_items(self) -> None:
+        self.install("claude")
+        code, _, _ = self.run_review(cli="claude", mode="list_findings")
+        self.assertEqual(code, 1)
+        text = self.text()
+        self.assertIn("| 1 | Critical | demo.en.md:1 | list bullet dash |  |", text)
+        self.assertIn("| 2 | Important | demo.en.md:2 | list bullet star |  |", text)
+        self.assertIn("| 3 | Minor | demo.en.md:3 | numbered list |  |", text)
+
+
+if __name__ == '__main__':
+    unittest.main()
