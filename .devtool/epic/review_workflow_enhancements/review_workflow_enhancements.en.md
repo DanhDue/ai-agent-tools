@@ -119,7 +119,8 @@ sequenceDiagram
     Runner->>Model: Execute CLI via stdin (read-only)
     Model-->>Runner: Raw review text
     Runner->>Runner: Parse robust VERDICT & FINDING
-    Runner->>Runner: Sanitize table cells (strip , 
+    Runner->>Runner: Sanitize table cells (strip 
+, 
 , escape |)
     Runner->>Results: Append Round N section with sanitized findings
     Runner-->>Dev: Exit code 0 (Pass), 1 (Findings to fix), 2 (Error)
@@ -139,7 +140,7 @@ sequenceDiagram
 
 Integration test roots: skills/dev-implementation/resources/scripts
 Protected paths: .agents/quality/**, .devtool/epic/review_workflow_enhancements/bdd_scenarios.en.md, .devtool/epic/review_workflow_enhancements/bdd_scenarios.vi.md
-Integration results: python3 -m unittest discover -s skills/dev-implementation/resources/scripts -> build/test-results/unit.xml
+Integration results: python3 scripts/run_unittest_junit.py --junitxml build/test-results/unit.xml skills/dev-implementation/resources/scripts/test_run_external_review.py -> build/test-results/unit.xml
 
 ## Verification Environment
 

@@ -119,7 +119,8 @@ sequenceDiagram
     Runner->>Model: Thực thi CLI qua stdin (read-only)
     Model-->>Runner: Nội dung review thô
     Runner->>Runner: Parse linh hoạt VERDICT & FINDING
-    Runner->>Runner: Sanitize các ô bảng (xóa , 
+    Runner->>Runner: Sanitize các ô bảng (xóa 
+, 
 , escape |)
     Runner->>Results: Ghi tiếp Round N vào review_results.md
     Runner-->>Dev: Exit code 0 (Pass), 1 (Có finding cần sửa), 2 (Lỗi)
@@ -139,7 +140,7 @@ sequenceDiagram
 
 Integration test roots: skills/dev-implementation/resources/scripts
 Protected paths: .agents/quality/**, .devtool/epic/review_workflow_enhancements/bdd_scenarios.en.md, .devtool/epic/review_workflow_enhancements/bdd_scenarios.vi.md
-Integration results: python3 -m unittest discover -s skills/dev-implementation/resources/scripts -> build/test-results/unit.xml
+Integration results: python3 scripts/run_unittest_junit.py --junitxml build/test-results/unit.xml skills/dev-implementation/resources/scripts/test_run_external_review.py -> build/test-results/unit.xml
 
 ## Môi trường Xác minh
 
