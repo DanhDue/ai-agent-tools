@@ -12,7 +12,7 @@
 
 - **Epic**: `review_workflow_enhancements`
 - **Status**: Draft
-- **Total Scenarios**: 12
+- **Total Scenarios**: 14
 
 ## Happy Paths
 
@@ -40,6 +40,12 @@ Feature: Review Workflow Enhancements
     Given an epic with passing audit, integration results, and traceability checks
     When collect_facts executes within facts timeout limits
     Then audit and test facts are gathered cleanly and passed into prompt substitution
+
+  Scenario: [RWE-HP-05] [Tier A - Unit] [Happy] Full diff inlined when under line limit
+    Given an epic candidate diff containing fewer than the line budget (e.g. 1500 lines)
+    When the runner prepares the review prompt
+    Then the complete git diff is inlined in the prompt
+    And the reviewer receives code changes directly without needing a separate git diff tool call
 ```
 
 ## Edge Cases & Boundaries
@@ -65,6 +71,12 @@ Feature: Review Workflow Enhancements
     Given a facts timeout configured to 300 seconds and a CLI timeout of 1800 seconds
     When collect_facts runs
     Then each fact command is bounded by the facts timeout without truncating the CLI timeout
+
+  Scenario: [RWE-EC-05] [Tier A - Unit] [Boundary] Fallback to diff stat when diff exceeds line limit
+    Given an epic candidate diff exceeding the configured line budget
+    When the runner prepares the review prompt
+    Then git diff stat summary is inlined instead of the full diff
+    And guidance instructing the model to inspect specific files is included
 ```
 
 ## State Transitions

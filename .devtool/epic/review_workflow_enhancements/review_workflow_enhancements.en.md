@@ -172,3 +172,8 @@ Integration results: python3 scripts/run_unittest_junit.py --junitxml build/test
 - [ ] **Task 5: Anti-Pattern Prevention in Test Quality Rules & Suite Regression**
   - Document artifact assertion anti-pattern guidelines.
   - Run full regression suite across all 213+ tests in `ai-agent-tools`.
+- [ ] **Task 5: Smart Hybrid Diff Inlining in Prompt**
+  - Compute candidate diff excluding lock files.
+  - Inline full diff when within limit (<=1,500 lines); fallback to diff --stat when larger.
+  - Update external-review-prompt.md template and run_external_review.py prompt builder.
+  - Add unit tests covering RWE-HP-05 and RWE-EC-05.
