@@ -17,7 +17,7 @@
 ## Metadata
 
 - **Epic Name**: `review_workflow_enhancements`
-- **Status**: Draft
+- **Status**: Done
 - **Target Release**: `v1.9.2`
 - **Platform**: `Python`
 - **Source Spec**: [2026-10-18-review-workflow-enhancements-design.vi.md](2026-10-18-review-workflow-enhancements-design.vi.md)
