@@ -194,7 +194,7 @@ def build_diff_section(root: Path, base: str, sha: str, max_lines: int = MAX_DIF
         diff_fence = fence_for(filtered_diff)
         return (
             stat_block
-            + f"The complete source diff ({line_count} lines, {byte_size // 1024} KB, locks, metadata & generated files excluded) "
+            + f"The complete source diff ({line_count} lines, {byte_size // 1024} KB, lock, generated, and noisy metadata/asset files excluded) "
             f"is inlined below. Do NOT run `git diff` again unless you need to inspect an excluded file:\n\n"
             f"{diff_fence}diff\n{filtered_diff}\n{diff_fence}"
         )
