@@ -465,10 +465,10 @@ Option 1 goes to Phase 4. Option 2 runs, in the epic worktree with a clean tree:
 
 ```bash
 python3 "$SKILL_DIR"/resources/scripts/run_external_review.py run \
-  --epic-dir <epic_dir> --base <base_ref> --cli claude|codex [--model <name>] [--timeout <seconds>]
+  --epic-dir <epic_dir> --base <base_ref> --cli claude|codex [--model <name>] [--timeout <seconds>] [--facts-timeout <seconds>]
 ```
 
-The script gathers the audit and result facts, runs the chosen CLI read-only with the prompt in [`references/external-review-prompt.md`](references/external-review-prompt.md), and appends a `## Round N` section to `.devtool/epic/<epic_dir>/review_results.md`. The reviewer never writes the file. Because `run` needs a clean tree, **commit `review_results.md` after every round**, as `[EPIC_NAME] Record cross-model review round N`.
+The script gathers audit and result facts with fail-fast validation, runs the chosen CLI read-only with the prompt in [`references/external-review-prompt.md`](references/external-review-prompt.md), and appends a `## Round N` section to `.devtool/epic/<epic_dir>/review_results.md`. The reviewer never writes the file. Because `run` needs a clean tree, **commit `review_results.md` after every round**, as `[EPIC_NAME] Record cross-model review round N`.
 
 | Outcome | What happens |
 |---|---|

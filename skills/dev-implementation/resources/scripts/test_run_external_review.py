@@ -350,5 +350,30 @@ class RunExternalReviewTest(ReviewCase):
         self.assertIn("precondition failed", err)
         self.assertFalse(self.results.exists())
 
+
+    # [RWE-ST-01] Round transitions to check pass after decisions
+    def test_rwe_st_01_round_transitions_to_check_pass_after_decisions(self) -> None:
+        self.install("claude")
+        self.assertEqual(self.run_review(cli="claude", mode="blocking")[0], 1)
+        # Record decisions for both findings
+        review_text = self.text()
+        review_text = review_text.replace("| 1 | Critical | demo.en.md:3 | evidence missing |  |",
+                                  "| 1 | Critical | demo.en.md:3 | evidence missing | fixed in abc1234 |")
+        review_text = review_text.replace("| 2 | Important | task_1_demo.md:9 | row too weak |  |",
+                                  "| 2 | Important | task_1_demo.md:9 | row too weak | dismissed: verified by V3 |")
+        self.results.write_text(review_text, encoding="utf-8")
+        code, out = self.check()
+        self.assertEqual(code, 0)
+        self.assertEqual(out, "")
+
+    # [RWE-ST-02] Undecided findings block check
+    def test_rwe_st_02_undecided_findings_block_check(self) -> None:
+        self.install("claude")
+        self.assertEqual(self.run_review(cli="claude", mode="blocking")[0], 1)
+        code, out = self.check()
+        self.assertEqual(code, 1)
+        self.assertIn("undecided: #1 Critical demo.en.md:3", out)
+        self.assertIn("undecided: #2 Important task_1_demo.md:9", out)
+
 if __name__ == '__main__':
     unittest.main()

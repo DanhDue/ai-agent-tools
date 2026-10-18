@@ -1,13 +1,13 @@
 ---
 id: "task_4_external_review_prompt_hierarchy_and_guidelines"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "review_workflow_enhancements"
 dueDate: null
 created: "2026-10-18T03:00:00Z"
-modified: "2026-10-18T03:00:00Z"
-completedAt: null
+modified: "2026-10-18T01:08:31Z"
+completedAt: "2026-10-18T01:08:31Z"
 labels: ["review", "tooling"]
 order: "a4"
 ---
@@ -30,6 +30,7 @@ Allowed files:
 - `skills/dev-implementation/references/external-review-prompt.md`
 - `skills/code-health-audit/SKILL.md`
 - `skills/dev-implementation/SKILL.md`
+- `skills/dev-implementation/resources/scripts/test_run_external_review.py`
 
 ## Verification
 

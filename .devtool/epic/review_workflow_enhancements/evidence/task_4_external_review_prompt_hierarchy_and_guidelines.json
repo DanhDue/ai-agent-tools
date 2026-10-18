@@ -1,0 +1,166 @@
+{
+  "schema": 1,
+  "task": "task_4_external_review_prompt_hierarchy_and_guidelines",
+  "runs": {
+    "verify": {
+      "head": "b508a7a8d70f581de0b8acea5c14364816c6add6",
+      "tree": "1fdbffb7b44756c6d65b738cdcce29be69d92af5",
+      "patch_id": "930e13d8a9a63cedb764a784d1ef040d0489a15b",
+      "started": "2026-10-17T20:46:37Z",
+      "finished": "2026-10-17T20:47:21Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "TIER-B",
+          "command": "python3 skills/dev-implementation/resources/scripts/run_external_review.py --help",
+          "expect": "exit 0; contains \"run\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-17T20:46:37Z",
+          "finished": "2026-10-17T20:46:37Z",
+          "output_tail": [
+            "usage: run_external_review.py [-h] {run,check} ...",
+            "",
+            "Cross-model review of a finished epic through the Claude CLI or the Codex CLI.",
+            "",
+            "positional arguments:",
+            "  {run,check}",
+            "    run        have the CLI review the epic and record a round",
+            "    check      list undecided blocking findings of the latest completed round",
+            "",
+            "options:",
+            "  -h, --help   show this help message and exit"
+          ],
+          "output_sha256": "b2fef7542898c5afece19d2390d77d5da13cd796c9170408af4b410efb777164"
+        },
+        {
+          "id": "V2",
+          "phase": "TIER-B",
+          "command": "python3 -m unittest discover -s skills/dev-implementation/resources/scripts",
+          "expect": "exit 0; contains \"OK\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-17T20:46:37Z",
+          "finished": "2026-10-17T20:47:09Z",
+          "output_tail": [
+            "...................................................................................sss...........................................................................................................................................",
+            "----------------------------------------------------------------------",
+            "Ran 225 tests in 32.637s",
+            "",
+            "OK (skipped=3)"
+          ],
+          "output_sha256": "9974905b33f296155cb20648fc3bb9cf612177ef14e5b8e7d58c16cf5e9191c4"
+        },
+        {
+          "id": "V3",
+          "phase": "TIER-C",
+          "command": "python3 scripts/run_unittest_junit.py --junitxml build/test-results/unit.xml skills/dev-implementation/resources/scripts/test_run_external_review.py",
+          "expect": "exit 0; results build/test-results/unit.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-17T20:47:09Z",
+          "finished": "2026-10-17T20:47:21Z",
+          "output_tail": [
+            ".......................",
+            "----------------------------------------------------------------------",
+            "Ran 23 tests in 11.303s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "f343c8b5fede1fa9ddc81a2b012c101505f0a23149446195be4e774d4056282a",
+          "results": {
+            "path": "build/test-results/unit.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 12,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_rwe_ec_01_conversational_summary_does_not_trigger_unparsed_blocking",
+                  "classname": "test_run_external_review.RunExternalReviewTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rwe_ec_02_verdict_whitespace_and_case",
+                  "classname": "test_run_external_review.RunExternalReviewTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rwe_ec_03_cell_handles_escaped_pipes",
+                  "classname": "test_run_external_review.RunExternalReviewTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rwe_ec_04_facts_timeout_separated_from_cli_timeout",
+                  "classname": "test_run_external_review.RunExternalReviewTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rwe_fr_01_fail_fast_aborts_on_audit_failure",
+                  "classname": "test_run_external_review.RunExternalReviewTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rwe_fr_02_fail_fast_aborts_on_test_timeout",
+                  "classname": "test_run_external_review.RunExternalReviewTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rwe_hp_01_resilient_verdict_parsing",
+                  "classname": "test_run_external_review.RunExternalReviewTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rwe_hp_02_finding_lines_match_list_items",
+                  "classname": "test_run_external_review.RunExternalReviewTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rwe_hp_03_cell_sanitizes_control_characters",
+                  "classname": "test_run_external_review.RunExternalReviewTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rwe_hp_04_clean_facts_collection_proceeds_to_cli",
+                  "classname": "test_run_external_review.RunExternalReviewTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rwe_st_01_round_transitions_to_check_pass_after_decisions",
+                  "classname": "test_run_external_review.RunExternalReviewTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rwe_st_02_undecided_findings_block_check",
+                  "classname": "test_run_external_review.RunExternalReviewTest",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "skills/code-health-audit/SKILL.md",
+            "skills/dev-implementation/SKILL.md",
+            "skills/dev-implementation/references/external-review-prompt.md",
+            "skills/dev-implementation/resources/scripts/test_run_external_review.py"
+          ],
+          "violations": []
+        }
+      ]
+    }
+  }
+}
