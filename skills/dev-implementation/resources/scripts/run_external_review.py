@@ -2,7 +2,7 @@
 """Cross-model review of a finished epic through the Claude CLI or the Codex CLI.
 
 Usage:
-  run_external_review.py run --epic-dir <epic_dir> --base <base_ref> --cli claude|codex [--model <name>] [--timeout 1800]
+  run_external_review.py run --epic-dir <epic_dir> --base <base_ref> --cli claude|codex [--model <name>] [--timeout 1800] [--facts-timeout 300] [--diff-limit 1500]
   run_external_review.py check --epic-dir <epic_dir>
 
 `run` exit codes: 0 a completed round without a Critical or Important finding; 1 a completed round with
@@ -28,27 +28,80 @@ from task_contract import ContractError, git_run, parse_integration_results
 
 SCRIPTS = Path(__file__).resolve().parent
 PROMPT = SCRIPTS.parent.parent / "references" / "external-review-prompt.md"
-VERDICT = re.compile(r"^\s*(?:#+\s*)?\*{0,2}Verdict(?:\*{0,2}:|:\*{0,2})\s*\*{0,2}(PASS|CHANGES REQUIRED)\*{0,2}\s*$", re.IGNORECASE)
+
+# Tolerates optional markdown headings, bullet prefixes, and bold markers around Verdict.
+VERDICT = re.compile(
+    r"^\s*(?:#+\s*|[-*+]\s*)?\*{0,2}Verdict(?:(?:\*{0,2}:)|(?::\*{0,2}))\s*\*{0,2}(PASS|CHANGES REQUIRED)\*{0,2}\s*$",
+    re.IGNORECASE,
+)
 # Tolerates list numbering, bullets and ** around the severity, and —, –, - or : between location and problem.
-FINDING = re.compile(r"^\s*(?:[-*+]|\d+[.)])?\s*\*{0,2}\[\*{0,2}(Critical|Important|Minor)\*{0,2}\]\*{0,2}\s*"
-                     r"(\S.*?)(?:\s+[—–-]|\s*:)\s+(\S.*)$")
-UNPARSED_BLOCKING = re.compile(r"^\s*(?:(?:[-*+]|\d+[.)])\s+.*?|\[\*{0,2})\b(Critical|Important)\b", re.IGNORECASE)
+FINDING = re.compile(
+    r"^\s*(?:[-*+]|\d+[.)])?\s*\*{0,2}\[\*{0,2}(Critical|Important|Minor)\*{0,2}\]\*{0,2}\s*"
+    r"(\S.*?)(?:\s+[—–-]|\s*:)\s+(\S.*)$",
+    re.IGNORECASE,
+)
+# Only catch unparsed blocking tags when they appear on a list-like or tag-leading line to avoid prose false positives.
+UNPARSED_BLOCKING = re.compile(
+    r"^\s*(?:(?:[-*+]|\d+[.)])\s+.*?|\[\*{0,2})\b(Critical|Important)\b",
+    re.IGNORECASE,
+)
 FINDING_ROW = re.compile(r"^\|\s*\d+\s*\|")
 BLOCKING = ("Critical", "Important")
+FENCE = re.compile(r"^(`{3,})")
+
 MAX_DIFF_LINES = 1500
 MAX_DIFF_BYTES = 60_000
 
 EXCLUDES = (
-    ":(exclude)*.lock", ":(exclude)*-lock.*", ":(exclude)*.generated.*",
-    ":(exclude)*.g.dart", ":(exclude)*.freezed.dart", ":(exclude)*.pbxproj",
-    ":(exclude)build/**", ":(exclude).devtool/**",
+    # 1. Common Locks, Build & Devtool
+    ":(exclude)*.lock",
+    ":(exclude)*-lock.*",
+    ":(exclude)*.lockfile",
+    ":(exclude)**/Package.resolved",
+    ":(exclude)build/**",
+    ":(exclude).devtool/**",
+    # 2. Flutter / Dart Codegen & FFI Bridge
+    ":(exclude)*.g.dart",
+    ":(exclude)*.freezed.dart",
+    ":(exclude)*.gr.dart",
+    ":(exclude)*.config.dart",
+    ":(exclude)*.mocks.dart",
+    ":(exclude)*.chopper.dart",
+    ":(exclude)*.pigeon.*",
+    ":(exclude)*frb_generated*",
+    ":(exclude)**/l10n/app_localizations*.dart",
+    # 3. iOS Native (Xcode metadata & assets)
+    ":(exclude)*.pbxproj",
+    ":(exclude)*.xcworkspacedata",
+    ":(exclude)*.xcscheme",
+    ":(exclude)*.storyboard",
+    ":(exclude)*.xib",
+    ":(exclude)**/*.xcassets/**",
+    ":(exclude)*.xcstrings",
+    # 4. Android Native (Gradle wrapper & Baseline profiles)
+    ":(exclude)gradlew",
+    ":(exclude)gradlew.bat",
+    ":(exclude)**/gradle/wrapper/**",
+    ":(exclude)**/baseline-prof.txt",
+    # 5. Rust & Python Generated / Snapshots
+    ":(exclude)*.generated.*",
+    ":(exclude)*_pb2.py",
+    ":(exclude)*_pb2_grpc.py",
+    ":(exclude)*_pb2.pyi",
+    ":(exclude)**/.sqlx/**",
+    ":(exclude)**/__snapshots__/**",
+    ":(exclude)*.snap",
+    ":(exclude)*.ambr",
+    # 6. Heavy Text Assets / Vector / Source Maps
+    ":(exclude)*.svg",
+    ":(exclude)*.min.js",
+    ":(exclude)*.min.css",
+    ":(exclude)*.map",
 )
-
 
 
 class PreconditionFailedError(Exception):
     """Raised when fact collection fails, preventing AI CLI invocation."""
-FENCE = re.compile(r"^(`{3,})")
 
 
 def status_lines(root: Path) -> list[str]:
@@ -95,7 +148,6 @@ def collect_facts(root: Path, epic_dir: str, base: str, hld_text: str, timeout: 
             raise PreconditionFailedError(f"integration test '{cmd}' timed out after {timeout} seconds")
         if cmd_code != 0:
             raise PreconditionFailedError(f"integration test '{cmd}' failed with exit {cmd_code}:\n{(cmd_out + cmd_err).rstrip()}")
-
         results.append(fact(cmd, cmd_code, cmd_out, cmd_err))
         reports.extend(report.split())
     roots = re.search(r"^Integration test roots:\s*(.+)$", hld_text, re.M)
@@ -106,7 +158,6 @@ def collect_facts(root: Path, epic_dir: str, base: str, hld_text: str, timeout: 
         chk_code, chk_out, chk_err = execute(check, root, timeout)
         if chk_code is None:
             raise PreconditionFailedError(f"check_bdd_traceability.py timed out after {timeout} seconds")
-
         results.append(fact(shlex.join(check[1:]), chk_code, chk_out, chk_err))
     return audit_output, "\n".join(results) or "No Integration results declared.\n"
 
@@ -120,6 +171,40 @@ def artefact_lines(root: Path, epic_dir: str) -> str:
     return "\n".join(f"- `.devtool/epic/{epic_dir}/{p}`" for p in paths)
 
 
+def build_diff_section(root: Path, base: str, sha: str, max_lines: int = MAX_DIFF_LINES, max_bytes: int = MAX_DIFF_BYTES) -> str:
+    """Hybrid inlining: always show full --stat; inline filtered diff if within size budget."""
+    full_stat = git_run(
+        root, "diff", "--stat", f"{base}...{sha}", "--", ".", ":(exclude).devtool/**"
+    ).decode("utf-8", "replace").strip()
+    filtered_diff = git_run(
+        root, "diff", f"{base}...{sha}", "--", ".", *EXCLUDES
+    ).decode("utf-8", "replace").strip()
+
+    stat_fence = fence_for(full_stat)
+    stat_block = f"Full file change summary (`git diff --stat`, including locks/codegen):\n\n{stat_fence}text\n{full_stat or '(no changes outside .devtool/)'}\n{stat_fence}\n\n"
+
+    if not filtered_diff:
+        return stat_block + "No non-excluded source code changes to inline."
+
+    line_count = len(filtered_diff.splitlines())
+    byte_size = len(filtered_diff.encode("utf-8"))
+
+    if line_count <= max_lines and byte_size <= max_bytes:
+        diff_fence = fence_for(filtered_diff)
+        return (
+            stat_block
+            + f"The complete source diff ({line_count} lines, {byte_size // 1024} KB, lock/generated files excluded) "
+            f"is inlined below. Do NOT run `git diff` again unless you need to inspect an excluded file:\n\n"
+            f"{diff_fence}diff\n{filtered_diff}\n{diff_fence}"
+        )
+
+    return (
+        stat_block
+        + f"The source diff is large ({line_count} lines, {byte_size // 1024} KB > inline budget). "
+        f"Do NOT run an unfiltered `git diff`; inspect specific target files via `git diff {base}...{sha} -- <path>` as needed."
+    )
+
+
 def cli_command(cli: str, model: str | None) -> list[str]:
     extra = ["--model", model] if model else []
     if cli == "claude":
@@ -128,8 +213,7 @@ def cli_command(cli: str, model: str | None) -> list[str]:
 
 
 def cell(text: str) -> str:
-    cleaned = text.replace("\r", "").replace("\n", " ").strip()
-    return cleaned.replace("|", "\\|")
+    return text.replace("|", "\\|").replace("\r", "").replace("\n", " ").strip()
 
 
 def fence_for(text: str) -> str:
@@ -167,30 +251,6 @@ def metadata(lines: list[str]) -> list[str]:
 def table_findings(lines: list[str]) -> list[tuple[str, list[str]]]:
     """(line, cells) for every findings row, `| <number> |` onwards, well formed or not."""
     return [(line, split_row(line)) for line in metadata(lines) if FINDING_ROW.match(line)]
-
-
-def build_diff_section(root: Path, base: str, sha: str, max_lines: int = MAX_DIFF_LINES, max_bytes: int = MAX_DIFF_BYTES) -> str:
-    """Hybrid inlining: inline full filtered diff if within budget, else inline --stat only."""
-    stat = git_run(root, "diff", "--stat", f"{base}...{sha}", "--", ".", *EXCLUDES).decode("utf-8", "replace").strip()
-    diff = git_run(root, "diff", f"{base}...{sha}", "--", ".", *EXCLUDES).decode("utf-8", "replace").strip()
-
-    line_count = len(diff.splitlines()) if diff else 0
-    byte_size = len(diff.encode("utf-8")) if diff else 0
-
-    if line_count <= max_lines and byte_size <= max_bytes:
-        fence = fence_for(diff)
-        return (
-            f"The complete code diff ({line_count} lines, {byte_size // 1024} KB, lock/generated files excluded) "
-            f"is inlined below. Do NOT run `git diff` again unless inspecting an excluded file:\n\n"
-            f"{fence}diff\n{diff}\n{fence}"
-        )
-
-    fence = fence_for(stat)
-    return (
-        f"The code diff is large ({line_count} lines, {byte_size // 1024} KB > budget). "
-        f"Only `git diff --stat` is inlined below; use `git diff {base}...{sha} -- <path>` on specific files as needed:\n\n"
-        f"{fence}text\n{stat}\n{fence}"
-    )
 
 
 def parse_findings(out: str, verdict: str | None = None) -> list[tuple[str, str, str]]:
@@ -234,8 +294,14 @@ def run(args: argparse.Namespace) -> int:
     diff_limit = getattr(args, "diff_limit", MAX_DIFF_LINES)
     diff_section = build_diff_section(root, args.base, sha, max_lines=diff_limit)
     prompt = Template(PROMPT.read_text(encoding="utf-8")).safe_substitute(
-        sha=sha, base=args.base, epic_dir=f".devtool/epic/{args.epic_dir}", artefacts=artefact_lines(root, args.epic_dir),
-        diff_section=diff_section, audit_output=audit_output.rstrip(), results_output=results_output.rstrip())
+        sha=sha,
+        base=args.base,
+        epic_dir=f".devtool/epic/{args.epic_dir}",
+        artefacts=artefact_lines(root, args.epic_dir),
+        audit_output=audit_output.rstrip(),
+        results_output=results_output.rstrip(),
+        diff_section=diff_section,
+    )
     before = status_lines(root)  # after the facts: running the test commands may write build output
     code, out, err = execute(cli_command(args.cli, args.model), root, args.timeout, prompt)
     after = status_lines(root)
@@ -256,12 +322,19 @@ def run(args: argparse.Namespace) -> int:
         status = "completed"
     path = root / ".devtool" / "epic" / args.epic_dir / "review_results.md"
     existing = path.read_text(encoding="utf-8") if path.exists() else f"# Cross-Model Review: {args.epic_dir}\n"
-    meta = {"Date": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "SHA": sha, "Base": args.base,
-            "CLI": args.cli, "Model": args.model or "default", "Status": status,
-            "Verdict": verdicts[-1] if verdicts else "none"}
-    text = existing.rstrip("\n") + "\n\n" + render_round(len(rounds_in(existing)) + 1, meta, findings, output)
+    round_num = len(rounds_in(existing)) + 1
+    meta = {
+        "Date": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "SHA": sha,
+        "Base": args.base,
+        "CLI": args.cli,
+        "Model": args.model or "default",
+        "Status": status,
+        "Verdict": verdicts[-1] if verdicts else "none",
+    }
+    text = existing.rstrip("\n") + "\n\n" + render_round(round_num, meta, findings, output)
     path.write_text(text, encoding="utf-8")
-    print(f"Round {len(rounds_in(existing)) + 1}: {status} ({path.relative_to(root)})")
+    print(f"Round {round_num}: {status} ({path.relative_to(root)})")
     if status != "completed":
         return 2
     return 1 if any(sev in BLOCKING for sev, _, _ in findings) else 0
@@ -295,7 +368,7 @@ def main(argv: list[str] | None = None) -> int:
     runner.add_argument("--model")
     runner.add_argument("--timeout", type=int, default=1800)
     runner.add_argument("--facts-timeout", type=int, default=300)
-    runner.add_argument("--diff-limit", type=int, default=1500)
+    runner.add_argument("--diff-limit", type=int, default=MAX_DIFF_LINES)
     checker = modes.add_parser("check", help="list undecided blocking findings of the latest completed round")
     checker.add_argument("--epic-dir", required=True)
     args = parser.parse_args(argv)

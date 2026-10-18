@@ -414,7 +414,7 @@ class RunExternalReviewTest(ReviewCase):
         self.assertEqual(code, 0)
         prompt = self.stdin.read_text(encoding="utf-8")
         self.assertIn("## Code Changes (Diff)", prompt)
-        self.assertIn("The complete code diff", prompt)
+        self.assertIn("The complete source diff", prompt)
         self.assertIn("Do NOT run `git diff` again", prompt)
         self.assertIn("```diff", prompt)
         self.assertIn("+def greet():", prompt)
@@ -428,9 +428,8 @@ class RunExternalReviewTest(ReviewCase):
         self.assertEqual(code, 0)
         prompt = self.stdin.read_text(encoding="utf-8")
         self.assertIn("## Code Changes (Diff)", prompt)
-        self.assertIn("The code diff is large", prompt)
-        self.assertIn("Only `git diff --stat` is inlined below", prompt)
-        self.assertIn("```text", prompt)
+        self.assertIn("The source diff is large", prompt)
+        self.assertIn("Full file change summary", prompt)
         self.assertIn("src/large.py", prompt)
 
 
