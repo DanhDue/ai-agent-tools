@@ -1,0 +1,186 @@
+{
+  "schema": 1,
+  "task": "task_3_facts_timeout_isolation_and_fail_fast",
+  "runs": {
+    "red": {
+      "head": "ba9af71d292958df808e5fbe201f90192bdd0308",
+      "tree": "a9ad08687aaec847d37de42aff2308655f4396b9",
+      "patch_id": "b810b5a74bd119be0fd88e52e4d184daed9fcce9",
+      "started": "2026-10-17T20:37:12Z",
+      "finished": "2026-10-17T20:37:13Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 skills/dev-implementation/resources/scripts/test_run_external_review.py RunExternalReviewTest.test_rwe_fr_01_fail_fast_aborts_on_audit_failure",
+          "expect": "exit non-zero",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-17T20:37:12Z",
+          "finished": "2026-10-17T20:37:13Z",
+          "output_tail": [
+            "F",
+            "======================================================================",
+            "FAIL: test_rwe_fr_01_fail_fast_aborts_on_audit_failure (__main__.RunExternalReviewTest.test_rwe_fr_01_fail_fast_aborts_on_audit_failure)",
+            "----------------------------------------------------------------------",
+            "Traceback (most recent call last):",
+            "  File \"/Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/review_workflow_enhancements/skills/dev-implementation/resources/scripts/test_run_external_review.py\", line 338, in test_rwe_fr_01_fail_fast_aborts_on_audit_failure",
+            "    self.assertEqual(code, 2)",
+            "    ~~~~~~~~~~~~~~~~^^^^^^^^^",
+            "AssertionError: 0 != 2",
+            "",
+            "----------------------------------------------------------------------",
+            "Ran 1 test in 0.509s",
+            "",
+            "FAILED (failures=1)"
+          ],
+          "output_sha256": "c2daa5e065df2b2634697ccb2b17d22da3233a1579d2b4159be3e3027764306d"
+        }
+      ]
+    },
+    "verify": {
+      "head": "ba9af71d292958df808e5fbe201f90192bdd0308",
+      "tree": "47a10365cfb558eee39ec60f288f26a40a9e340e",
+      "patch_id": "e0ad6dd4bd7f7fc44f6a75b4e8d29890bb8fe71a",
+      "started": "2026-10-17T20:41:45Z",
+      "finished": "2026-10-17T20:42:28Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 skills/dev-implementation/resources/scripts/test_run_external_review.py RunExternalReviewTest.test_rwe_fr_01_fail_fast_aborts_on_audit_failure",
+          "expect": "exit 0; contains \"OK\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-17T20:41:45Z",
+          "finished": "2026-10-17T20:41:46Z",
+          "output_tail": [
+            ".",
+            "----------------------------------------------------------------------",
+            "Ran 1 test in 0.309s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "8e93004b7df1ef3dc93c326ef0d884efa5074b91c1237a1d68946f088a16160c"
+        },
+        {
+          "id": "V3",
+          "phase": "TIER-B",
+          "command": "python3 -m unittest discover -s skills/dev-implementation/resources/scripts",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-17T20:41:46Z",
+          "finished": "2026-10-17T20:42:17Z",
+          "output_tail": [
+            "...................................................................................sss.........................................................................................................................................",
+            "----------------------------------------------------------------------",
+            "Ran 223 tests in 31.855s",
+            "",
+            "OK (skipped=3)"
+          ],
+          "output_sha256": "23cce615687dcdf7673e0cd15c53911632023c3580e457008d18789a9bc0608c"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-C",
+          "command": "python3 scripts/run_unittest_junit.py --junitxml build/test-results/unit.xml skills/dev-implementation/resources/scripts/test_run_external_review.py",
+          "expect": "exit 0; results build/test-results/unit.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-17T20:42:17Z",
+          "finished": "2026-10-17T20:42:28Z",
+          "output_tail": [
+            ".....................",
+            "----------------------------------------------------------------------",
+            "Ran 21 tests in 10.236s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "48bfe44bbd57dc47077ec1107500f9d147323c5389ffc1e20e05ea081bc250e7",
+          "results": {
+            "path": "build/test-results/unit.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 10,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_rwe_ec_01_conversational_summary_does_not_trigger_unparsed_blocking",
+                  "classname": "test_run_external_review.RunExternalReviewTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rwe_ec_02_verdict_whitespace_and_case",
+                  "classname": "test_run_external_review.RunExternalReviewTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rwe_ec_03_cell_handles_escaped_pipes",
+                  "classname": "test_run_external_review.RunExternalReviewTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rwe_ec_04_facts_timeout_separated_from_cli_timeout",
+                  "classname": "test_run_external_review.RunExternalReviewTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rwe_fr_01_fail_fast_aborts_on_audit_failure",
+                  "classname": "test_run_external_review.RunExternalReviewTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rwe_fr_02_fail_fast_aborts_on_test_timeout",
+                  "classname": "test_run_external_review.RunExternalReviewTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rwe_hp_01_resilient_verdict_parsing",
+                  "classname": "test_run_external_review.RunExternalReviewTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rwe_hp_02_finding_lines_match_list_items",
+                  "classname": "test_run_external_review.RunExternalReviewTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rwe_hp_03_cell_sanitizes_control_characters",
+                  "classname": "test_run_external_review.RunExternalReviewTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rwe_hp_04_clean_facts_collection_proceeds_to_cli",
+                  "classname": "test_run_external_review.RunExternalReviewTest",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "skills/dev-implementation/resources/scripts/run_external_review.py",
+            "skills/dev-implementation/resources/scripts/test_run_external_review.py"
+          ],
+          "violations": []
+        }
+      ]
+    }
+  }
+}

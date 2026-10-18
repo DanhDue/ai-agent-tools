@@ -12,7 +12,7 @@
 
 - **Epic**: `review_workflow_enhancements`
 - **Status**: Draft
-- **Tổng số Kịch bản**: 12
+- **Tổng số Kịch bản**: 14
 
 ## Happy Paths
 
@@ -40,7 +40,13 @@ Tính năng: Cải tiến Quy trình Review
     Cho một epic có audit, kết quả tích hợp và kiểm tra truy xuất đều đạt
     Khi collect_facts thực thi trong giới hạn timeout của facts
     Thì các fact về audit và test được thu thập sạch sẽ và đưa vào template prompt
-```
+
+  Kịch bản: [RWE-HP-05] [Tier A - Unit] [Happy] Nhúng toàn bộ diff khi dưới giới hạn dòng
+    Cho một diff của candidate epic chứa ít hơn giới hạn dòng (ví dụ 1500 dòng)
+    Khi runner chuẩn bị review prompt
+    Thì toàn bộ git diff được nhúng trực tiếp vào prompt
+    Và reviewer nhận được code changes ngay lập tức mà không cần gọi tool git diff riêng
+
 
 ## Edge Cases & Boundaries
 
@@ -65,7 +71,13 @@ Tính năng: Cải tiến Quy trình Review
     Cho timeout của facts được cấu hình là 300 giây và timeout của CLI là 1800 giây
     Khi collect_facts chạy
     Thì từng lệnh fact bị giới hạn bởi timeout của facts mà không làm cắt ngắn timeout của CLI
-```
+
+  Kịch bản: [RWE-EC-05] [Tier A - Unit] [Boundary] Dự phòng bằng diff stat khi diff vượt quá giới hạn
+    Cho một diff của candidate epic vượt quá giới hạn dòng được cấu hình
+    Khi runner chuẩn bị review prompt
+    Thì bản tóm tắt git diff stat được nhúng thay cho diff đầy đủ
+    Và chỉ dẫn model kiểm tra các file cụ thể được bổ sung kèm theo
+
 
 ## Chuyển đổi Trạng thái
 

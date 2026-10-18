@@ -1,0 +1,156 @@
+{
+  "schema": 1,
+  "task": "task_1_resilient_verdict_and_finding_parser",
+  "runs": {
+    "verify": {
+      "head": "d4e01ddabd1781bae71f808beda8fa3cedb31e1d",
+      "tree": "1c0bd67c9005809c84c4f1ea43f33509ad080e90",
+      "patch_id": "2c4fb14ce68e777e68790697189be474d6b233fa",
+      "started": "2026-10-17T20:32:27Z",
+      "finished": "2026-10-17T20:33:05Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 skills/dev-implementation/resources/scripts/test_run_external_review.py RunExternalReviewTest.test_rwe_hp_01_resilient_verdict_parsing",
+          "expect": "exit 0; contains \"OK\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-17T20:32:27Z",
+          "finished": "2026-10-17T20:32:28Z",
+          "output_tail": [
+            ".",
+            "----------------------------------------------------------------------",
+            "Ran 1 test in 0.731s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "33e1d116e19c9ccdd0bcbc9971b8d1293ea890feeb68784cddbf5fde498a86d6"
+        },
+        {
+          "id": "V3",
+          "phase": "TIER-B",
+          "command": "python3 -m unittest discover -s skills/dev-implementation/resources/scripts",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-17T20:32:28Z",
+          "finished": "2026-10-17T20:32:57Z",
+          "output_tail": [
+            "...................................................................................sss...................................................................................................................................",
+            "----------------------------------------------------------------------",
+            "Ran 217 tests in 28.888s",
+            "",
+            "OK (skipped=3)"
+          ],
+          "output_sha256": "e61615c5489cc437f6f2de46e824f6ec1f1cd4b8d2471ea79125e6d62d49ae25"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-C",
+          "command": "python3 scripts/run_unittest_junit.py --junitxml build/test-results/unit.xml skills/dev-implementation/resources/scripts/test_run_external_review.py",
+          "expect": "exit 0; results build/test-results/unit.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-17T20:32:57Z",
+          "finished": "2026-10-17T20:33:04Z",
+          "output_tail": [
+            "...............",
+            "----------------------------------------------------------------------",
+            "Ran 15 tests in 7.766s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "2169aebb6b722fcc4e57751595c9b4fa76f52aa69781bd3cf3be158d928f3fcd",
+          "results": {
+            "path": "build/test-results/unit.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 4,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_rwe_ec_01_conversational_summary_does_not_trigger_unparsed_blocking",
+                  "classname": "test_run_external_review.RunExternalReviewTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rwe_ec_02_verdict_whitespace_and_case",
+                  "classname": "test_run_external_review.RunExternalReviewTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rwe_hp_01_resilient_verdict_parsing",
+                  "classname": "test_run_external_review.RunExternalReviewTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rwe_hp_02_finding_lines_match_list_items",
+                  "classname": "test_run_external_review.RunExternalReviewTest",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "skills/dev-implementation/resources/scripts/run_external_review.py",
+            "skills/dev-implementation/resources/scripts/test_run_external_review.py"
+          ],
+          "violations": []
+        }
+      ]
+    },
+    "red": {
+      "head": "d4e01ddabd1781bae71f808beda8fa3cedb31e1d",
+      "tree": "5333336bb93f2a199fb4c863095c32f6bef7b37a",
+      "patch_id": "bb4b547b26dfa1691466e82afae268717ff21239",
+      "started": "2026-10-17T20:32:10Z",
+      "finished": "2026-10-17T20:32:11Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 skills/dev-implementation/resources/scripts/test_run_external_review.py RunExternalReviewTest.test_rwe_hp_01_resilient_verdict_parsing",
+          "expect": "exit non-zero",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-17T20:32:10Z",
+          "finished": "2026-10-17T20:32:11Z",
+          "output_tail": [
+            "F",
+            "======================================================================",
+            "FAIL: test_rwe_hp_01_resilient_verdict_parsing (__main__.RunExternalReviewTest.test_rwe_hp_01_resilient_verdict_parsing)",
+            "----------------------------------------------------------------------",
+            "Traceback (most recent call last):",
+            "  File \"/Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/review_workflow_enhancements/skills/dev-implementation/resources/scripts/test_run_external_review.py\", line 255, in test_rwe_hp_01_resilient_verdict_parsing",
+            "    self.assertEqual(code, 0)",
+            "    ~~~~~~~~~~~~~~~~^^^^^^^^^",
+            "AssertionError: 2 != 0",
+            "",
+            "----------------------------------------------------------------------",
+            "Ran 1 test in 0.754s",
+            "",
+            "FAILED (failures=1)"
+          ],
+          "output_sha256": "a13f8a38ce12b99ee7dcc72f9d5898999ed763718e503d5752f5ac9a0f95cc06"
+        }
+      ]
+    }
+  }
+}

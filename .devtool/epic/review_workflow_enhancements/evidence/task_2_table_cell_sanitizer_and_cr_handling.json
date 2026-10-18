@@ -1,0 +1,170 @@
+{
+  "schema": 1,
+  "task": "task_2_table_cell_sanitizer_and_cr_handling",
+  "runs": {
+    "red": {
+      "head": "aeb10a1ea36ba1b45d395a449f75f75959220277",
+      "tree": "3107c35680caf8ecc03e022728f2afbfeaee0e88",
+      "patch_id": "1b7441ac0900009f9b67ebacf2f502603ccf8d28",
+      "started": "2026-10-17T20:34:38Z",
+      "finished": "2026-10-17T20:34:39Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 skills/dev-implementation/resources/scripts/test_run_external_review.py RunExternalReviewTest.test_rwe_hp_03_cell_sanitizes_control_characters",
+          "expect": "exit non-zero",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-17T20:34:38Z",
+          "finished": "2026-10-17T20:34:39Z",
+          "output_tail": [
+            "F",
+            "======================================================================",
+            "FAIL: test_rwe_hp_03_cell_sanitizes_control_characters (__main__.RunExternalReviewTest.test_rwe_hp_03_cell_sanitizes_control_characters)",
+            "----------------------------------------------------------------------",
+            "Traceback (most recent call last):",
+            "  File \"/Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/review_workflow_enhancements/skills/dev-implementation/resources/scripts/test_run_external_review.py\", line 298, in test_rwe_hp_03_cell_sanitizes_control_characters",
+            "    self.assertEqual(sanitized, r\"line 1 line 2 \\| line 3\")",
+            "    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+            "AssertionError: 'line 1\\r\\nline 2 \\\\| line 3\\r' != 'line 1 line 2 \\\\| line 3'",
+            "+ line 1 line 2 \\| line 3",
+            "- line 1",
+            "- line 2 \\| line 3",
+            "",
+            "",
+            "----------------------------------------------------------------------",
+            "Ran 1 test in 0.088s",
+            "",
+            "FAILED (failures=1)"
+          ],
+          "output_sha256": "3c925584474d290cb73cfae45b4c6955aae1c4ebb4c939d2c1a63f99f51fb2fc"
+        }
+      ]
+    },
+    "verify": {
+      "head": "aeb10a1ea36ba1b45d395a449f75f75959220277",
+      "tree": "baa70403868d368217d3bd7e18d060c4bd9627e3",
+      "patch_id": "44d280f67d37ffec570953d66d9e9c1059487f2d",
+      "started": "2026-10-17T20:35:09Z",
+      "finished": "2026-10-17T20:35:47Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 skills/dev-implementation/resources/scripts/test_run_external_review.py RunExternalReviewTest.test_rwe_hp_03_cell_sanitizes_control_characters",
+          "expect": "exit 0; contains \"OK\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-17T20:35:09Z",
+          "finished": "2026-10-17T20:35:09Z",
+          "output_tail": [
+            ".",
+            "----------------------------------------------------------------------",
+            "Ran 1 test in 0.088s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "850014fd3070c55c603a22c4a9d43d66f8c32a0e184131ed005a562db09246a9"
+        },
+        {
+          "id": "V3",
+          "phase": "TIER-B",
+          "command": "python3 -m unittest discover -s skills/dev-implementation/resources/scripts",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-17T20:35:09Z",
+          "finished": "2026-10-17T20:35:39Z",
+          "output_tail": [
+            "...................................................................................sss.....................................................................................................................................",
+            "----------------------------------------------------------------------",
+            "Ran 219 tests in 29.257s",
+            "",
+            "OK (skipped=3)"
+          ],
+          "output_sha256": "8b0feb1860bdc2588c185fb11b1408a50e372420a2e61da84608ac76f819e6a8"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-C",
+          "command": "python3 scripts/run_unittest_junit.py --junitxml build/test-results/unit.xml skills/dev-implementation/resources/scripts/test_run_external_review.py",
+          "expect": "exit 0; results build/test-results/unit.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-17T20:35:39Z",
+          "finished": "2026-10-17T20:35:46Z",
+          "output_tail": [
+            ".................",
+            "----------------------------------------------------------------------",
+            "Ran 17 tests in 7.663s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "c6cf0d669a2e9005a1da0cbc88b75bbf7ab56aee6deb3bf14249c940cfc2cfeb",
+          "results": {
+            "path": "build/test-results/unit.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 6,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_rwe_ec_01_conversational_summary_does_not_trigger_unparsed_blocking",
+                  "classname": "test_run_external_review.RunExternalReviewTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rwe_ec_02_verdict_whitespace_and_case",
+                  "classname": "test_run_external_review.RunExternalReviewTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rwe_ec_03_cell_handles_escaped_pipes",
+                  "classname": "test_run_external_review.RunExternalReviewTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rwe_hp_01_resilient_verdict_parsing",
+                  "classname": "test_run_external_review.RunExternalReviewTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rwe_hp_02_finding_lines_match_list_items",
+                  "classname": "test_run_external_review.RunExternalReviewTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rwe_hp_03_cell_sanitizes_control_characters",
+                  "classname": "test_run_external_review.RunExternalReviewTest",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "skills/dev-implementation/resources/scripts/run_external_review.py",
+            "skills/dev-implementation/resources/scripts/test_run_external_review.py"
+          ],
+          "violations": []
+        }
+      ]
+    }
+  }
+}

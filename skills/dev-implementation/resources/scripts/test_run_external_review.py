@@ -39,6 +39,20 @@ case "$FAKE_MODE" in
   silent) echo "I looked at everything." ;;
   slow) sleep 30 ;;
   modify) echo changed > DEMO-created.txt; echo "Verdict: PASS" ;;
+  bold_verdict) echo "**Verdict:** PASS" ;;
+  heading_verdict) echo "### Verdict: CHANGES REQUIRED"; echo "- [Critical] demo.en.md:1 — broken" ;;
+  case_verdict) echo "   verdict:   pass   " ;;
+  prose_summary) echo "I reviewed everything and found 0 [Critical] or [Important] issues."; echo "Verdict: PASS" ;;
+  list_findings) echo "Verdict: CHANGES REQUIRED"
+                 echo "- [Critical] demo.en.md:1 — list bullet dash"
+                 echo "* [Important] demo.en.md:2 — list bullet star"
+                 echo "1. [Minor] demo.en.md:3 — numbered list" ;;
+
+  bold_verdict) echo "**Verdict:** PASS" ;;
+  heading_verdict) echo "### Verdict: CHANGES REQUIRED"; echo "- [Critical] demo.en.md:1 — broken" ;;
+  case_verdict) echo "   verdict:   pass   " ;;
+  prose_summary) echo "I reviewed everything and found 0 [Critical] or [Important] issues."; echo "Verdict: PASS" ;;
+
 esac
 """
 HLD = ("# Demo\n\nIntegration test roots: scripts/\n\nIntegration results: true -> build/demo.xml\n")
@@ -76,6 +90,9 @@ class ReviewCase(unittest.TestCase):
         self.write(f"{EPIC}/bdd_scenarios.en.md", SCENARIOS)
         self.write(f"{EPIC}/design.en.md", "# Spec\n")
         self.write(f"{EPIC}/task_1_demo.md", '---\nid: "task_1_demo"\nstatus: "done"\n---\n\n# Task 1\n')
+        xml = '<?xml version="1.0" encoding="UTF-8"?>\n<testsuites>\n  <testsuite name="demo" tests="1">\n    <testcase name="test_demo_hp_01" classname="test_demo"/>\n  </testsuite>\n</testsuites>\n'
+        self.write("build/demo.xml", xml)
+        self.write("scripts/test_demo.py", "# [DEMO-HP-01]\ndef test_demo_hp_01(): pass\n")
         self.commit("Epic")
         self.results = self.root / EPIC / "review_results.md"
         self.cwd = os.getcwd()
@@ -235,3 +252,228 @@ class RunExternalReviewTest(ReviewCase):
         self.assertIn("I looked at everything.", text)
         self.assertIn("timed out after 1 seconds", text)
         self.assertEqual(self.check(), (0, ""))
+
+    # [RWE-HP-01] Resilient Verdict Parsing
+    def test_rwe_hp_01_resilient_verdict_parsing(self) -> None:
+        self.install("claude")
+        code, _, _ = self.run_review(cli="claude", mode="bold_verdict")
+        self.assertEqual(code, 0)
+        self.assertIn("- **Verdict**: PASS", self.text())
+        self.assertIn("- **Status**: completed", self.text())
+
+        self.commit("Record round 1")
+        code2, _, _ = self.run_review(cli="claude", mode="heading_verdict")
+        self.assertEqual(code2, 1)
+        self.assertIn("- **Verdict**: CHANGES REQUIRED", self.text())
+        self.assertIn("- **Status**: completed", self.text())
+
+    # [RWE-EC-02] Verdict Whitespace and Case
+    def test_rwe_ec_02_verdict_whitespace_and_case(self) -> None:
+        self.install("claude")
+        code, _, _ = self.run_review(cli="claude", mode="case_verdict")
+        self.assertEqual(code, 0)
+        self.assertIn("- **Verdict**: PASS", self.text())
+        self.assertIn("- **Status**: completed", self.text())
+
+    # [RWE-EC-01] Conversational Summary Does Not Trigger Unparsed Blocking
+    def test_rwe_ec_01_conversational_summary_does_not_trigger_unparsed_blocking(self) -> None:
+        self.install("codex")
+        code, _, _ = self.run_review(cli="codex", mode="prose_summary")
+        self.assertEqual(code, 0)
+        self.assertIn("- **Verdict**: PASS", self.text())
+        self.assertIn("- **Status**: completed", self.text())
+        self.assertNotIn("unparsed", self.text())
+
+    # [RWE-HP-02] Finding lines match list items
+    def test_rwe_hp_02_finding_lines_match_list_items(self) -> None:
+        self.install("claude")
+        code, _, _ = self.run_review(cli="claude", mode="list_findings")
+        self.assertEqual(code, 1)
+        text = self.text()
+        self.assertIn("| 1 | Critical | demo.en.md:1 | list bullet dash |  |", text)
+        self.assertIn("| 2 | Important | demo.en.md:2 | list bullet star |  |", text)
+        self.assertIn("| 3 | Minor | demo.en.md:3 | numbered list |  |", text)
+
+
+
+    # [RWE-HP-03] Table cell sanitizes control characters
+    def test_rwe_hp_03_cell_sanitizes_control_characters(self) -> None:
+        from run_external_review import cell
+        raw = "line 1\r\nline 2 | line 3\r"
+        sanitized = cell(raw)
+        self.assertEqual(sanitized, r"line 1 line 2 \| line 3")
+        self.assertNotIn("\r", sanitized)
+        self.assertNotIn("\n", sanitized)
+
+    # [RWE-EC-03] Table findings row with multiple escaped pipes
+    def test_rwe_ec_03_cell_handles_escaped_pipes(self) -> None:
+        from run_external_review import render_round, table_findings
+        meta = {"Status": "completed", "Verdict": "PASS"}
+        findings = [("Minor", "src/file.py:10", "use a | b | c syntax")]
+        round_md = render_round(1, meta, findings, "Verdict: PASS\n")
+        rows = table_findings(round_md.splitlines())
+        self.assertEqual(len(rows), 1)
+        cells = rows[0][1]
+        self.assertEqual(len(cells), 5)
+        self.assertEqual(cells[2], "src/file.py:10")
+        self.assertEqual(cells[3], "use a | b | c syntax")
+
+
+    # [RWE-HP-04] Clean facts collection proceeds to CLI execution
+    def test_rwe_hp_04_clean_facts_collection_proceeds_to_cli(self) -> None:
+        self.install("claude")
+        code, out, err = self.run_review(cli="claude", mode="pass")
+        self.assertEqual(code, 0)
+        self.assertTrue(self.results.exists())
+        self.assertIn("- **Status**: completed", self.text())
+        prompt = self.stdin.read_text(encoding="utf-8")
+        self.assertIn("The audit of the epic branch, with its exit code:", prompt)
+        self.assertIn("$ audit_epic.py", prompt)
+        self.assertIn("The integration test commands and the result-based traceability check", prompt)
+        self.assertIn("$ true", prompt)
+
+    # [RWE-EC-04] Facts timeout separated from CLI timeout
+    def test_rwe_ec_04_facts_timeout_separated_from_cli_timeout(self) -> None:
+        self.install("codex")
+        with mock.patch("run_external_review.execute") as mock_exec:
+            mock_exec.side_effect = [
+                (0, "audit passed", ""),       # audit_epic.py
+                (0, "test passed", ""),        # integration test
+                (0, "trace passed", ""),       # check_bdd_traceability.py
+                (0, "Verdict: PASS\n", ""),    # codex CLI
+            ]
+            code, out, err = self.run_review("--facts-timeout", "45", "--timeout", "1200", cli="codex", mode="pass")
+            self.assertEqual(code, 0)
+            self.assertEqual(mock_exec.call_args_list[0][0][2], 45)
+            self.assertEqual(mock_exec.call_args_list[1][0][2], 45)
+            self.assertEqual(mock_exec.call_args_list[2][0][2], 45)
+            self.assertEqual(mock_exec.call_args_list[3][0][2], 1200)
+
+    # [RWE-FR-01] Fail-fast aborts on non-zero integration test exit
+    def test_rwe_fr_01_fail_fast_aborts_on_integration_test_failure(self) -> None:
+        self.install("claude")
+        self.write(f"{EPIC}/demo.en.md", "# Demo\n\nIntegration test roots: scripts/\n\nIntegration results: false -> build/demo.xml\n")
+        self.commit("HLD with failing test")
+        code, out, err = self.run_review(cli="claude", mode="pass")
+        self.assertEqual(code, 2)
+        self.assertIn("precondition failed", err)
+        self.assertIn("integration test 'false' failed with exit 1", err)
+        self.assertFalse(self.results.exists())
+
+    # [RWE-FR-01] Fail-fast aborts on audit failure
+    def test_rwe_fr_01_fail_fast_aborts_on_audit_failure(self) -> None:
+        self.install("claude")
+        # Mark task_1_demo done with a Verification section but without evidence to make audit_epic fail
+        self.write(f"{EPIC}/task_1_demo.md", '---\nid: "task_1_demo"\nstatus: "done"\n---\n\n# Task 1\n\n## Verification\n\n| ID | Phase | Command | Expect | Needs |\n|----|-------|---------|--------|-------|\n| V1 | GREEN | true | exit 0 | — |\n')
+        self.commit("Task 1 done without evidence")
+        code, out, err = self.run_review(cli="claude", mode="pass")
+        self.assertEqual(code, 2)
+        self.assertIn("precondition failed", err)
+        self.assertFalse(self.results.exists())
+
+    # [RWE-FR-02] Fail-fast aborts on test timeout
+    def test_rwe_fr_02_fail_fast_aborts_on_test_timeout(self) -> None:
+        self.install("claude")
+        # Change HLD to have a sleeping integration test
+        self.write(f"{EPIC}/demo.en.md", "# Demo\n\nIntegration test roots: scripts/\n\nIntegration results: sleep 5 -> build/demo.xml\n")
+        self.commit("HLD with slow test")
+        code, out, err = self.run_review("--facts-timeout", "1", cli="claude", mode="pass")
+        self.assertEqual(code, 2)
+        self.assertIn("precondition failed", err)
+        self.assertFalse(self.results.exists())
+
+
+    # [RWE-ST-01] Round transitions to check pass after decisions
+    def test_rwe_st_01_round_transitions_to_check_pass_after_decisions(self) -> None:
+        self.install("claude")
+        self.assertEqual(self.run_review(cli="claude", mode="blocking")[0], 1)
+        # Record decisions for both findings
+        review_text = self.text()
+        review_text = review_text.replace("| 1 | Critical | demo.en.md:3 | evidence missing |  |",
+                                  "| 1 | Critical | demo.en.md:3 | evidence missing | fixed in abc1234 |")
+        review_text = review_text.replace("| 2 | Important | task_1_demo.md:9 | row too weak |  |",
+                                  "| 2 | Important | task_1_demo.md:9 | row too weak | dismissed: verified by V3 |")
+        self.results.write_text(review_text, encoding="utf-8")
+        code, out = self.check()
+        self.assertEqual(code, 0)
+        self.assertEqual(out, "")
+
+    # [RWE-ST-02] Undecided findings block check
+    def test_rwe_st_02_undecided_findings_block_check(self) -> None:
+        self.install("claude")
+        self.assertEqual(self.run_review(cli="claude", mode="blocking")[0], 1)
+        code, out = self.check()
+        self.assertEqual(code, 1)
+        self.assertIn("undecided: #1 Critical demo.en.md:3", out)
+        self.assertIn("undecided: #2 Important task_1_demo.md:9", out)
+
+
+    # [RWE-HP-05] Full diff inlined when under line limit
+    def test_rwe_hp_05_inlined_code_diff(self) -> None:
+        self.install("claude")
+        self.write("src/core.py", "def greet():\n    return 'hello'\n")
+        self.commit("Add greet")
+        code, out, err = self.run_review(cli="claude", mode="pass")
+        self.assertEqual(code, 0)
+        prompt = self.stdin.read_text(encoding="utf-8")
+        self.assertIn("## Code Changes (Diff)", prompt)
+        self.assertIn("The complete source diff", prompt)
+        self.assertIn("Do NOT run `git diff` again", prompt)
+        self.assertIn("```diff", prompt)
+        self.assertIn("+def greet():", prompt)
+
+    # [RWE-EC-05] Fallback to diff stat when exceeding line limit
+    def test_rwe_ec_05_diff_stat_fallback_when_exceeding_limit(self) -> None:
+        self.install("codex")
+        self.write("src/large.py", "\n".join(f"x_{i} = {i}" for i in range(10)) + "\n")
+        self.commit("Add large file")
+        code, out, err = self.run_review("--diff-limit", "3", cli="codex", mode="pass")
+        self.assertEqual(code, 0)
+        prompt = self.stdin.read_text(encoding="utf-8")
+        self.assertIn("## Code Changes (Diff)", prompt)
+        self.assertIn("The source diff is large", prompt)
+        self.assertIn("Full file change summary", prompt)
+        self.assertIn("src/large.py", prompt)
+
+
+    # [RWE-HP-05] Diff with raw dollar variables is safely substituted without Template crash
+    def test_rwe_hp_05_diff_with_dollar_variables(self) -> None:
+        self.install("claude")
+        self.write("src/script.sh", "#!/bin/bash\necho \"$UNDEFINED_VAR\" > \"$OUTPUT_FILE\"\n")
+        self.commit("Add bash script with dollars")
+        code, out, err = self.run_review(cli="claude", mode="pass")
+        self.assertEqual(code, 0)
+        prompt = self.stdin.read_text(encoding="utf-8")
+        self.assertIn("$UNDEFINED_VAR", prompt)
+
+
+    # Test lowercase severity is capitalized and triggers blocking
+    def test_lowercase_severity_is_capitalized_and_blocks_run(self) -> None:
+        self.install("claude")
+        from run_external_review import parse_findings
+        out = "Verdict: CHANGES REQUIRED\n- [critical] demo.en.md:1 — broken\n"
+        findings = parse_findings(out)
+        self.assertEqual(len(findings), 1)
+        self.assertEqual(findings[0][0], "Critical")
+
+    # Test list text with important without brackets does not trigger unparsed blocking
+    def test_list_text_without_brackets_does_not_trigger_unparsed_blocking(self) -> None:
+        from run_external_review import parse_findings
+        out = "Verdict: PASS\n- Important context: this is good documentation\n"
+        findings = parse_findings(out, "PASS")
+        self.assertEqual(len(findings), 0)
+
+    # Test fail-fast on traceability check failure
+    def test_fail_fast_aborts_on_traceability_failure(self) -> None:
+        self.install("claude")
+        # Point to missing report in HLD
+        self.write(f"{EPIC}/demo.en.md", "# Demo\n\nIntegration test roots: scripts/\n\nIntegration results: true -> build/nonexistent.xml\n")
+        self.commit("HLD with missing report")
+        code, out, err = self.run_review(cli="claude", mode="pass")
+        self.assertEqual(code, 2)
+        self.assertIn("precondition failed", err)
+        self.assertIn("check_bdd_traceability.py failed", err)
+        self.assertFalse(self.results.exists())
+
+if __name__ == '__main__':
+    unittest.main()

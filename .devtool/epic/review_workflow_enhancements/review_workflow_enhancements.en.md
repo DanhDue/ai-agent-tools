@@ -17,7 +17,7 @@
 ## Meta Data
 
 - **Epic Name**: `review_workflow_enhancements`
-- **Status**: Draft
+- **Status**: Done
 - **Target Release**: `v1.9.2`
 - **Platform**: `Python`
 - **Source Spec**: [2026-10-18-review-workflow-enhancements-design.en.md](2026-10-18-review-workflow-enhancements-design.en.md)
@@ -119,9 +119,7 @@ sequenceDiagram
     Runner->>Model: Execute CLI via stdin (read-only)
     Model-->>Runner: Raw review text
     Runner->>Runner: Parse robust VERDICT & FINDING
-    Runner->>Runner: Sanitize table cells (strip 
-, 
-, escape |)
+    Runner->>Runner: Sanitize table cells (strip CR, LF, escape pipe)
     Runner->>Results: Append Round N section with sanitized findings
     Runner-->>Dev: Exit code 0 (Pass), 1 (Findings to fix), 2 (Error)
 ```
@@ -174,3 +172,8 @@ Integration results: python3 scripts/run_unittest_junit.py --junitxml build/test
 - [ ] **Task 5: Anti-Pattern Prevention in Test Quality Rules & Suite Regression**
   - Document artifact assertion anti-pattern guidelines.
   - Run full regression suite across all 213+ tests in `ai-agent-tools`.
+- [ ] **Task 5: Smart Hybrid Diff Inlining in Prompt**
+  - Compute candidate diff excluding lock files.
+  - Inline full diff when within limit (<=1,500 lines); fallback to diff --stat when larger.
+  - Update external-review-prompt.md template and run_external_review.py prompt builder.
+  - Add unit tests covering RWE-HP-05 and RWE-EC-05.

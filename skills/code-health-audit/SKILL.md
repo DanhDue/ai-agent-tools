@@ -35,8 +35,10 @@ description: Audits code changes for clean code standards, function sizing (<20 
    - [HLT-IOS-03: Strict Null-Safety (STRICT BAN on Force Unwraps `!` and `try!`)](#hlt-ios-03-strict-null-safety-strict-ban-on-force-unwraps--and-try)
    - [HLT-IOS-04: Intention-Revealing Naming & MVI Semantics](#hlt-ios-04-intention-revealing-naming--mvi-semantics)
    - [HLT-IOS-05: Idiomatic Swift, SwiftLint & SwiftFormat Adherence](#hlt-ios-05-idiomatic-swift-swiftlint--swiftformat-adherence)
-6. [Input Specifications](#-input-specifications)
-7. [Output Format](#-output-format)
+6. [Test Quality & Assertion Health Rules](#-test-quality--assertion-health-rules)
+   - [HLT-TEST-01: Artifact Assertion Loop Discipline](#hlt-test-01-artifact-assertion-loop-discipline-no-vacuous-false-pass)
+7. [Input Specifications](#-input-specifications)
+8. [Output Format](#-output-format)
 
 ---
 
@@ -369,6 +371,33 @@ logger.debug("User balance updated")
 ```
 
 ---
+
+---
+
+## 🧪 Test Quality & Assertion Health Rules
+
+### HLT-TEST-01: Artifact Assertion Loop Discipline (No Vacuous False-PASS)
+
+When testing generated build artifacts (e.g. `.wasm`, `.so`, `.a`, generated schemas, or TypeScript definitions), never iterate over candidate paths with assertions guarded only by `if path.exists()` unless verifying that at least one candidate was actually evaluated. Failing to assert the count permits tests to silently pass when build output paths change or artifacts are missing.
+
+```rust
+// ❌ BAD - Vacuous False-PASS: Passes cleanly if candidates were not generated!
+for path in &candidates {
+    if path.exists() {
+        assert!(size <= BUDGET);
+    }
+}
+
+// ✅ CORRECT - Explicit evaluation count assertion
+let mut found = 0;
+for path in &candidates {
+    if path.exists() {
+        found += 1;
+        assert!(size <= BUDGET, "Size exceeded for {path:?}");
+    }
+}
+assert!(found > 0, "No target artifact found at candidates: {candidates:?}");
+```
 
 ## 📥 Input Specifications
 

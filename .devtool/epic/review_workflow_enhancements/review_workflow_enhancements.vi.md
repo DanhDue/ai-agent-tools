@@ -17,7 +17,7 @@
 ## Metadata
 
 - **Epic Name**: `review_workflow_enhancements`
-- **Status**: Draft
+- **Status**: Done
 - **Target Release**: `v1.9.2`
 - **Platform**: `Python`
 - **Source Spec**: [2026-10-18-review-workflow-enhancements-design.vi.md](2026-10-18-review-workflow-enhancements-design.vi.md)
@@ -174,3 +174,8 @@ Integration results: python3 scripts/run_unittest_junit.py --junitxml build/test
 - [ ] **Task 5: Quy tắc Ngăn chặn Anti-Pattern Kiểm thử & Kiểm tra Hồi quy**
   - Tài liệu hóa quy tắc chống anti-pattern assertion artifact.
   - Chạy toàn bộ bộ test hồi quy gồm 213+ bài test trong `ai-agent-tools`.
+- [ ] **Task 5: Cơ chế Nhúng Diff Thông minh (Hybrid) vào Prompt**
+  - Tính toán candidate diff loại trừ các file lock và generated.
+  - Nhúng toàn bộ diff khi trong giới hạn (<=1.500 dòng); dự phòng bằng diff --stat khi vượt giới hạn.
+  - Cập nhật template external-review-prompt.md và bộ sinh prompt trong run_external_review.py.
+  - Thêm unit tests bao phủ RWE-HP-05 và RWE-EC-05.

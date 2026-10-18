@@ -266,6 +266,8 @@ For each task in the confirmed order, follow `d3nexus:subagent-driven-developmen
    ```
    This automatically updates `status: "in-progress"` and advances `modified:` in both the isolated worktree and the main workspace checkout without creating an untracked git commit.
 
+   **Test Quality & Assertion Health Rule**: When authoring tests that verify build artifacts (e.g. WASM binaries, shared libraries, generated schema files, or exported typings), never write candidate loops that assert conditions only inside `if path.exists()` without asserting evaluated counts. Always assert `found > 0` (e.g., `assert!(found > 0)` or `self.assertGreater(found, 0)`) to prevent vacuous false-PASS results when artifact paths change or outputs are missing.
+
    **CRITICAL TRI-PERSONA DISPATCH**: When dispatching the implementer subagent, inject the Tri-Persona instructions adapted to the detected platform, followed by the BDD-to-test traceability rule block after the platform blocks, the task's `Covers:` identifiers and the HLD's `Integration test roots`:
 
    ##### 💙 If Project Type is `flutter`:
@@ -465,10 +467,10 @@ Option 1 goes to Phase 4. Option 2 runs, in the epic worktree with a clean tree:
 
 ```bash
 python3 "$SKILL_DIR"/resources/scripts/run_external_review.py run \
-  --epic-dir <epic_dir> --base <base_ref> --cli claude|codex [--model <name>] [--timeout <seconds>]
+  --epic-dir <epic_dir> --base <base_ref> --cli claude|codex [--model <name>] [--timeout <seconds>] [--facts-timeout <seconds>]
 ```
 
-The script gathers the audit and result facts, runs the chosen CLI read-only with the prompt in [`references/external-review-prompt.md`](references/external-review-prompt.md), and appends a `## Round N` section to `.devtool/epic/<epic_dir>/review_results.md`. The reviewer never writes the file. Because `run` needs a clean tree, **commit `review_results.md` after every round**, as `[EPIC_NAME] Record cross-model review round N`.
+The script gathers audit and result facts with fail-fast validation, runs the chosen CLI read-only with the prompt in [`references/external-review-prompt.md`](references/external-review-prompt.md), and appends a `## Round N` section to `.devtool/epic/<epic_dir>/review_results.md`. The reviewer never writes the file. Because `run` needs a clean tree, **commit `review_results.md` after every round**, as `[EPIC_NAME] Record cross-model review round N`.
 
 | Outcome | What happens |
 |---|---|
