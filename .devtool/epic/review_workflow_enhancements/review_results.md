@@ -12,11 +12,11 @@
 
 | # | Severity | Location | Problem | Decision |
 |---|----------|----------|---------|----------|
-| 1 | Important | skills/dev-implementation/resources/scripts/run_external_review.py:84 | Non-zero integration-test and traceability exits are merely recorded; only timeouts raise a precondition failure, so the runner can still spend AI credits reviewing a failed build contrary to the epic’s fail-fast contract. |  |
-| 2 | Important | skills/dev-implementation/resources/scripts/test_run_external_review.py:266 | RWE-EC-02 uses the bold-verdict fixture instead of mixed case/whitespace, while RWE-HP-04 and RWE-EC-04 do not assert fact substitution or which timeout reaches facts versus the CLI; the reported 12/12 traceability therefore includes tests that merely pass by identifier. |  |
-| 3 | Important | .devtool/epic/review_workflow_enhancements/task_4_external_review_prompt_hierarchy_and_guidelines.md:22 | The task requires the artifact-loop rule in both code-health-audit and dev-implementation, but dev-implementation contains no such guidance; V1/V2 also do not inspect the new prompt or documentation requirements, so the omission passed its evidence. |  |
-| 4 | Minor | skills/code-health-audit/SKILL.md:13 | The new Test Quality section is absent from the skill’s table of contents, contrary to the repository requirement that skill ToC anchors remain synchronized. |  |
-| 5 | Minor | .devtool/epic/review_workflow_enhancements/review_workflow_enhancements.en.md:122 | The sequence diagram splits the intended `\r` and `\n` text into standalone Mermaid lines, leaving the diagram syntactically malformed. |  |
+| 1 | Important | skills/dev-implementation/resources/scripts/run_external_review.py:84 | Non-zero integration-test and traceability exits are merely recorded; only timeouts raise a precondition failure, so the runner can still spend AI credits reviewing a failed build contrary to the epic’s fail-fast contract. | fixed in 3cb1b21 |
+| 2 | Important | skills/dev-implementation/resources/scripts/test_run_external_review.py:266 | RWE-EC-02 uses the bold-verdict fixture instead of mixed case/whitespace, while RWE-HP-04 and RWE-EC-04 do not assert fact substitution or which timeout reaches facts versus the CLI; the reported 12/12 traceability therefore includes tests that merely pass by identifier. | fixed in 3cb1b21 |
+| 3 | Important | .devtool/epic/review_workflow_enhancements/task_4_external_review_prompt_hierarchy_and_guidelines.md:22 | The task requires the artifact-loop rule in both code-health-audit and dev-implementation, but dev-implementation contains no such guidance; V1/V2 also do not inspect the new prompt or documentation requirements, so the omission passed its evidence. | fixed in 3cb1b21 |
+| 4 | Minor | skills/code-health-audit/SKILL.md:13 | The new Test Quality section is absent from the skill’s table of contents, contrary to the repository requirement that skill ToC anchors remain synchronized. | fixed in 3cb1b21 |
+| 5 | Minor | .devtool/epic/review_workflow_enhancements/review_workflow_enhancements.en.md:122 | The sequence diagram splits the intended `\r` and `\n` text into standalone Mermaid lines, leaving the diagram syntactically malformed. | fixed in 3cb1b21 |
 
 Raw output:
 
