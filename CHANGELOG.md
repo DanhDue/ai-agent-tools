@@ -8,6 +8,23 @@ every installed machine on the old cached copy.
 
 ---
 
+## 1.11.0 — 2026-10-18
+
+Universalizes CRITICAL RULES across all AI Agent plugins and runtimes, restructures the Review Choice workflow into a strict post-Gate 4 verification loop, and enhances external review execution with live ANSI status streaming.
+
+### Added
+
+- **Universal Multi-Plugin Governance** (`rules/CRITICAL_RULES.md`): Extends mandatory critical rules to all AI Agent plugins, orchestrators, and subagents (Claude Code, Antigravity IDE, Cursor, Codex, Windsurf, OpenCode, and custom plugins) across projects and repositories.
+- **Mandatory Review Choice Rule**: Strictly forbids bypassing Review Choice or auto-selecting Finish. Mandates developer choice between Finish and Cross-model review before proceeding to branch completion.
+- **Live Status Streaming for Preconditions** (`skills/dev-implementation/resources/scripts/run_external_review.py`): Displays real-time ANSI status indicators and blocking step diagnostics while gathering audit and traceability facts.
+
+### Changed
+
+- **Looped Review Choice Workflow** (`skills/dev-lifecycle/SKILL.md`, `skills/dev-implementation/SKILL.md`): Moves Review Choice to evaluate after Gate 4 PASS (`Gate 4 PASS → Review Choice; Finish → Gate 5; Cross-model review → Gate 4 in full`). Every review round, decision, or Fix commit invalidates candidate SHA and requires a full Gate 4 rerun.
+- **Lifecycle Documentation & Diagrams Synchronized** (`docs/lifecycles.*`, `docs/choosing-a-lifecycle.*`, `templates/AGENTS.md`): Updates English and Vietnamese documentation, flowchart diagrams, and templates to reflect the 5 approval gates, Handoff Choice, and post-Gate 4 Review Choice loop.
+
+---
+
 ## 1.10.0 — 2026-10-18
 
 Hardens the cross-model review workflow against parsing failures and malformed table rows, adds a fail-fast precondition architecture to protect API credit budgets, introduces smart hybrid diff inlining with multi-stack exclusions, and adds test quality rules prohibiting vacuous false-PASS loops.
