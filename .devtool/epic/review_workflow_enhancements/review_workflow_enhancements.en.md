@@ -119,9 +119,7 @@ sequenceDiagram
     Runner->>Model: Execute CLI via stdin (read-only)
     Model-->>Runner: Raw review text
     Runner->>Runner: Parse robust VERDICT & FINDING
-    Runner->>Runner: Sanitize table cells (strip 
-, 
-, escape |)
+    Runner->>Runner: Sanitize table cells (strip CR, LF, escape pipe)
     Runner->>Results: Append Round N section with sanitized findings
     Runner-->>Dev: Exit code 0 (Pass), 1 (Findings to fix), 2 (Error)
 ```

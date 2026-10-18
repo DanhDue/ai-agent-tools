@@ -266,6 +266,8 @@ For each task in the confirmed order, follow `d3nexus:subagent-driven-developmen
    ```
    This automatically updates `status: "in-progress"` and advances `modified:` in both the isolated worktree and the main workspace checkout without creating an untracked git commit.
 
+   **Test Quality & Assertion Health Rule**: When authoring tests that verify build artifacts (e.g. WASM binaries, shared libraries, generated schema files, or exported typings), never write candidate loops that assert conditions only inside `if path.exists()` without asserting evaluated counts. Always assert `found > 0` (e.g., `assert!(found > 0)` or `self.assertGreater(found, 0)`) to prevent vacuous false-PASS results when artifact paths change or outputs are missing.
+
    **CRITICAL TRI-PERSONA DISPATCH**: When dispatching the implementer subagent, inject the Tri-Persona instructions adapted to the detected platform, followed by the BDD-to-test traceability rule block after the platform blocks, the task's `Covers:` identifiers and the HLD's `Integration test roots`:
 
    ##### 💙 If Project Type is `flutter`:

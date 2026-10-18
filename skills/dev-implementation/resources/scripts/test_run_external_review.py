@@ -41,6 +41,7 @@ case "$FAKE_MODE" in
   modify) echo changed > DEMO-created.txt; echo "Verdict: PASS" ;;
   bold_verdict) echo "**Verdict:** PASS" ;;
   heading_verdict) echo "### Verdict: CHANGES REQUIRED"; echo "- [Critical] demo.en.md:1 — broken" ;;
+  case_verdict) echo "   verdict:   pass   " ;;
   prose_summary) echo "I reviewed everything and found 0 [Critical] or [Important] issues."; echo "Verdict: PASS" ;;
   list_findings) echo "Verdict: CHANGES REQUIRED"
                  echo "- [Critical] demo.en.md:1 — list bullet dash"
@@ -49,6 +50,7 @@ case "$FAKE_MODE" in
 
   bold_verdict) echo "**Verdict:** PASS" ;;
   heading_verdict) echo "### Verdict: CHANGES REQUIRED"; echo "- [Critical] demo.en.md:1 — broken" ;;
+  case_verdict) echo "   verdict:   pass   " ;;
   prose_summary) echo "I reviewed everything and found 0 [Critical] or [Important] issues."; echo "Verdict: PASS" ;;
 
 esac
@@ -265,9 +267,10 @@ class RunExternalReviewTest(ReviewCase):
     # [RWE-EC-02] Verdict Whitespace and Case
     def test_rwe_ec_02_verdict_whitespace_and_case(self) -> None:
         self.install("claude")
-        code, _, _ = self.run_review(cli="claude", mode="bold_verdict")
+        code, _, _ = self.run_review(cli="claude", mode="case_verdict")
         self.assertEqual(code, 0)
         self.assertIn("- **Verdict**: PASS", self.text())
+        self.assertIn("- **Status**: completed", self.text())
 
     # [RWE-EC-01] Conversational Summary Does Not Trigger Unparsed Blocking
     def test_rwe_ec_01_conversational_summary_does_not_trigger_unparsed_blocking(self) -> None:
@@ -320,13 +323,39 @@ class RunExternalReviewTest(ReviewCase):
         self.assertEqual(code, 0)
         self.assertTrue(self.results.exists())
         self.assertIn("- **Status**: completed", self.text())
+        prompt = self.stdin.read_text(encoding="utf-8")
+        self.assertIn("The audit of the epic branch, with its exit code:", prompt)
+        self.assertIn("$ audit_epic.py", prompt)
+        self.assertIn("The integration test commands and the result-based traceability check", prompt)
+        self.assertIn("$ true", prompt)
 
     # [RWE-EC-04] Facts timeout separated from CLI timeout
     def test_rwe_ec_04_facts_timeout_separated_from_cli_timeout(self) -> None:
         self.install("codex")
-        code, out, err = self.run_review("--facts-timeout", "60", "--timeout", "1200", cli="codex", mode="pass")
-        self.assertEqual(code, 0)
-        self.assertIn("- **Status**: completed", self.text())
+        with mock.patch("run_external_review.execute") as mock_exec:
+            mock_exec.side_effect = [
+                (0, "audit passed", ""),       # audit_epic.py
+                (0, "test passed", ""),        # integration test
+                (0, "trace passed", ""),       # check_bdd_traceability.py
+                (0, "Verdict: PASS\n", ""),    # codex CLI
+            ]
+            code, out, err = self.run_review("--facts-timeout", "45", "--timeout", "1200", cli="codex", mode="pass")
+            self.assertEqual(code, 0)
+            self.assertEqual(mock_exec.call_args_list[0][0][2], 45)
+            self.assertEqual(mock_exec.call_args_list[1][0][2], 45)
+            self.assertEqual(mock_exec.call_args_list[2][0][2], 45)
+            self.assertEqual(mock_exec.call_args_list[3][0][2], 1200)
+
+    # [RWE-FR-01] Fail-fast aborts on non-zero integration test exit
+    def test_rwe_fr_01_fail_fast_aborts_on_integration_test_failure(self) -> None:
+        self.install("claude")
+        self.write(f"{EPIC}/demo.en.md", "# Demo\n\nIntegration test roots: scripts/\n\nIntegration results: false -> build/demo.xml\n")
+        self.commit("HLD with failing test")
+        code, out, err = self.run_review(cli="claude", mode="pass")
+        self.assertEqual(code, 2)
+        self.assertIn("precondition failed", err)
+        self.assertIn("integration test 'false' failed with exit 1", err)
+        self.assertFalse(self.results.exists())
 
     # [RWE-FR-01] Fail-fast aborts on audit failure
     def test_rwe_fr_01_fail_fast_aborts_on_audit_failure(self) -> None:

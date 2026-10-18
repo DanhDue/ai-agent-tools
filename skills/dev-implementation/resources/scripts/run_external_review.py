@@ -84,6 +84,8 @@ def collect_facts(root: Path, epic_dir: str, base: str, hld_text: str, timeout: 
         cmd_code, cmd_out, cmd_err = execute(cmd, root, timeout, shell=True)
         if cmd_code is None:
             raise PreconditionFailedError(f"integration test '{cmd}' timed out after {timeout} seconds")
+        if cmd_code != 0:
+            raise PreconditionFailedError(f"integration test '{cmd}' failed with exit {cmd_code}:\n{(cmd_out + cmd_err).rstrip()}")
 
         results.append(fact(cmd, cmd_code, cmd_out, cmd_err))
         reports.extend(report.split())
