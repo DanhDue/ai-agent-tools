@@ -8,6 +8,30 @@ every installed machine on the old cached copy.
 
 ---
 
+## 1.10.0 — 2026-10-18
+
+Hardens the cross-model review workflow against parsing failures and malformed table rows, adds a fail-fast precondition architecture to protect API credit budgets, introduces smart hybrid diff inlining with multi-stack exclusions, and adds test quality rules prohibiting vacuous false-PASS loops.
+
+### Added
+
+- **Smart Hybrid Diff Inlining** (`skills/dev-implementation/resources/scripts/run_external_review.py`, `skills/dev-implementation/references/external-review-prompt.md`): Automatically inlines the filtered code diff directly into the prompt when within budget (<=1,500 lines and <=60 KB), transforming common reviews into single-turn executions while preventing prompt blowout on large changes. Full file change statistics (`git diff --stat`) are always included for complete visibility.
+- **Multi-Stack Noise Excludes**: Comprehensive exclusion filters automatically omit noisy lock files, Flutter/Dart codegen (`*.g.dart`, `*.freezed.dart`), Android Gradle wrappers, Xcode metadata and assets (`*.pbxproj`, `*.xcassets`, `*.storyboard`, `*.xib`, `*.xcstrings`), Rust/Python generated protobufs/snapshots, and minified web assets from the inlined diff.
+- **Fail-Fast Precondition Gates**: `collect_facts` now immediately halts execution (exit code 2 with `PreconditionFailedError`) without invoking the AI CLI if `audit_epic.py` fails, if any integration test command exits non-zero or times out, or if `check_bdd_traceability.py` fails, preventing wasted AI credits on broken builds.
+- **Facts Timeout Isolation**: Added `--facts-timeout` parameter (default: 300s) separated completely from the AI reviewer CLI execution `--timeout` (default: 1800s).
+- **Test Quality & Assertion Health Rule (`HLT-TEST-01`)** (`skills/code-health-audit/SKILL.md`, `skills/dev-implementation/SKILL.md`): Prohibits candidate iteration loops on build artifacts (e.g. WASM binaries, shared libraries, generated schemas) that assert conditions only inside `if path.exists()` without validating evaluated counts (`assert!(found > 0)`).
+
+### Changed
+
+- **Resilient Verdict & Finding Parser**: `run_external_review.py` now tolerates Markdown bold markers (`**Verdict:** PASS`), headings (`### Verdict: CHANGES REQUIRED`), and case variations. Severity tags (`Critical`, `Important`) are normalized to Title Case for case-sensitive blocking checks. `UNPARSED_BLOCKING` strictly requires bracketed tags to avoid false positives on conversational list items.
+- **Table Cell Sanitization**: Strips Windows carriage returns (`\r`), converts internal newlines (`\n`) to spaces, and escapes pipe characters (`\|`) so each finding stays on exactly one table row, eliminating `unreadable findings row` failures.
+- **Prompt Hierarchy & Negative Constraints**: Instructs reviewers on task-level scope vs. Gate 4 workspace quality orchestrator, compiled language TDD RED semantics, and strictly forbids bracketed severity tags in prose above the final verdict block.
+
+### Fixed
+
+- **Template Dollar Sign Collisions**: Switched prompt generation to `Template.safe_substitute()` so diffs containing raw shell variables (`$VAR`) or regex patterns do not crash the runner.
+
+---
+
 ## 1.9.1 — 2026-10-16
 
 Lets epic status synchronization handle overview documents that write the colon inside the bold label.
