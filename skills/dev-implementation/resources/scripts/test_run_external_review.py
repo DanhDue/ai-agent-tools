@@ -90,6 +90,9 @@ class ReviewCase(unittest.TestCase):
         self.write(f"{EPIC}/bdd_scenarios.en.md", SCENARIOS)
         self.write(f"{EPIC}/design.en.md", "# Spec\n")
         self.write(f"{EPIC}/task_1_demo.md", '---\nid: "task_1_demo"\nstatus: "done"\n---\n\n# Task 1\n')
+        xml = '<?xml version="1.0" encoding="UTF-8"?>\n<testsuites>\n  <testsuite name="demo" tests="1">\n    <testcase name="test_demo_hp_01" classname="test_demo"/>\n  </testsuite>\n</testsuites>\n'
+        self.write("build/demo.xml", xml)
+        self.write("scripts/test_demo.py", "# [DEMO-HP-01]\ndef test_demo_hp_01(): pass\n")
         self.commit("Epic")
         self.results = self.root / EPIC / "review_results.md"
         self.cwd = os.getcwd()
@@ -442,6 +445,35 @@ class RunExternalReviewTest(ReviewCase):
         self.assertEqual(code, 0)
         prompt = self.stdin.read_text(encoding="utf-8")
         self.assertIn("$UNDEFINED_VAR", prompt)
+
+
+    # Test lowercase severity is capitalized and triggers blocking
+    def test_lowercase_severity_is_capitalized_and_blocks_run(self) -> None:
+        self.install("claude")
+        from run_external_review import parse_findings
+        out = "Verdict: CHANGES REQUIRED\n- [critical] demo.en.md:1 — broken\n"
+        findings = parse_findings(out)
+        self.assertEqual(len(findings), 1)
+        self.assertEqual(findings[0][0], "Critical")
+
+    # Test list text with important without brackets does not trigger unparsed blocking
+    def test_list_text_without_brackets_does_not_trigger_unparsed_blocking(self) -> None:
+        from run_external_review import parse_findings
+        out = "Verdict: PASS\n- Important context: this is good documentation\n"
+        findings = parse_findings(out, "PASS")
+        self.assertEqual(len(findings), 0)
+
+    # Test fail-fast on traceability check failure
+    def test_fail_fast_aborts_on_traceability_failure(self) -> None:
+        self.install("claude")
+        # Point to missing report in HLD
+        self.write(f"{EPIC}/demo.en.md", "# Demo\n\nIntegration test roots: scripts/\n\nIntegration results: true -> build/nonexistent.xml\n")
+        self.commit("HLD with missing report")
+        code, out, err = self.run_review(cli="claude", mode="pass")
+        self.assertEqual(code, 2)
+        self.assertIn("precondition failed", err)
+        self.assertIn("check_bdd_traceability.py failed", err)
+        self.assertFalse(self.results.exists())
 
 if __name__ == '__main__':
     unittest.main()

@@ -42,7 +42,7 @@ FINDING = re.compile(
 )
 # Only catch unparsed blocking tags when they appear on a list-like or tag-leading line to avoid prose false positives.
 UNPARSED_BLOCKING = re.compile(
-    r"^\s*(?:(?:[-*+]|\d+[.)])\s+.*?|\[\*{0,2})\b(Critical|Important)\b",
+    r"^\s*(?:[-*+]|\d+[.)])?\s*\*{0,2}\[\*{0,2}(Critical|Important)\*{0,2}\]",
     re.IGNORECASE,
 )
 FINDING_ROW = re.compile(r"^\|\s*\d+\s*\|")
@@ -70,20 +70,12 @@ EXCLUDES = (
     ":(exclude)*.pigeon.*",
     ":(exclude)*frb_generated*",
     ":(exclude)**/l10n/app_localizations*.dart",
-    # 3. iOS Native (Xcode metadata & assets)
-    ":(exclude)*.pbxproj",
-    ":(exclude)*.xcworkspacedata",
-    ":(exclude)*.xcscheme",
-    ":(exclude)*.storyboard",
-    ":(exclude)*.xib",
-    ":(exclude)**/*.xcassets/**",
-    ":(exclude)*.xcstrings",
-    # 4. Android Native (Gradle wrapper & Baseline profiles)
+    # 3. Android Native (Gradle wrapper & Baseline profiles)
     ":(exclude)gradlew",
     ":(exclude)gradlew.bat",
     ":(exclude)**/gradle/wrapper/**",
     ":(exclude)**/baseline-prof.txt",
-    # 5. Rust & Python Generated / Snapshots
+    # 4. Rust & Python Generated / Snapshots
     ":(exclude)*.generated.*",
     ":(exclude)*_pb2.py",
     ":(exclude)*_pb2_grpc.py",
@@ -92,8 +84,7 @@ EXCLUDES = (
     ":(exclude)**/__snapshots__/**",
     ":(exclude)*.snap",
     ":(exclude)*.ambr",
-    # 6. Heavy Text Assets / Vector / Source Maps
-    ":(exclude)*.svg",
+    # 5. Minified Web Assets & Source Maps
     ":(exclude)*.min.js",
     ":(exclude)*.min.css",
     ":(exclude)*.map",
@@ -158,6 +149,8 @@ def collect_facts(root: Path, epic_dir: str, base: str, hld_text: str, timeout: 
         chk_code, chk_out, chk_err = execute(check, root, timeout)
         if chk_code is None:
             raise PreconditionFailedError(f"check_bdd_traceability.py timed out after {timeout} seconds")
+        if chk_code != 0:
+            raise PreconditionFailedError(f"check_bdd_traceability.py failed with exit {chk_code}:\n{(chk_out + chk_err).rstrip()}")
         results.append(fact(shlex.join(check[1:]), chk_code, chk_out, chk_err))
     return audit_output, "\n".join(results) or "No Integration results declared.\n"
 
@@ -258,7 +251,8 @@ def parse_findings(out: str, verdict: str | None = None) -> list[tuple[str, str,
     findings = []
     for line in out.splitlines():
         if (match := FINDING.match(line)):
-            findings.append(match.groups())
+            sev, loc, problem = match.groups()
+            findings.append((sev.capitalize(), loc, problem))
         elif (blocking := UNPARSED_BLOCKING.search(line)):
             if verdict == "PASS" and not findings:
                 continue
