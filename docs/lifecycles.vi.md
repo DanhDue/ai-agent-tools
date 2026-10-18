@@ -78,14 +78,12 @@ flowchart TD
     S3 --> G3
     G3 -->|chưa, sắp xếp lại| G3
     G3 -->|rồi| EXEC
-    EXEC --> RC
-    RC -->|"1. Finish"| G4
-    RC -->|"2. Cross-model review"| XR
-    XR -->|"không có finding Critical hoặc Important"| G4
-    XR -->|"có finding cần sửa bằng Fix commit"| EXEC
-    XR -->|"CLI lỗi, chọn lại"| RC
+    EXEC --> G4
     G4 -->|"chưa, sửa bằng Fix commit"| EXEC
-    G4 -->|rồi| REVIEW
+    G4 -->|"rồi"| RC
+    RC -->|"1. Finish"| REVIEW
+    RC -->|"2. Cross-model review"| XR
+    XR -->|"đã ghi nhận round"| G4
     REVIEW --> G5
     G5 -->|"chưa, yêu cầu đổi bằng Fix commit"| EXEC
     G5 -->|rồi| S4
@@ -93,8 +91,8 @@ flowchart TD
 
 Vòng đời trải qua bốn giai đoạn (stage) và năm cổng phê duyệt (approval gate), cùng hai điểm lựa chọn rõ ràng:
 - **Routing & Handoff Choice**: Sau khi qua Cổng 1, công việc quy mô epic đi tới Stage 2 (`dev-designer`). Giữa Cổng 2 và Stage 3, nhà phát triển chọn **Package** (`handoff.md`, trạng thái `Packaged`, dừng để phiên sau hoặc LLM khác làm) hoặc **Continue** vào Stage 3 ngay.
-- **Thực thi độc lập & Review Choice**: Stage 3 thực thi từng task độc lập trong git worktree theo phương pháp TDD và tích hợp liên tục vào `develop`. Khi mọi task đã xong, agent **TUYỆT ĐỐI KHÔNG ĐƯỢC** nhảy thẳng vào Cổng 4; agent phải dừng lại và đưa ra **Review Choice** cho phép nhà phát triển chọn **Finish** hoặc chạy **Cross-model review** độc lập (qua Claude CLI hoặc Codex CLI).
-- **Nghiệm thu máy Cổng 4**: Cổng 4 là cổng máy duy nhất trên nhánh phát triển của kit này. Nó chỉ cấp 🟢 khi `audit_epic.py` exit 0, `check_bdd_traceability.py tests --results` exit 0, và `@quality_check` profile `epic` trả về PASS trên đúng commit SHA ứng viên.
+- **Thực thi độc lập**: Stage 3 thực thi từng task độc lập trong git worktree theo phương pháp TDD và tích hợp liên tục vào `develop`. Khi mọi task đã xong, agent chạy Cổng 4 trên SHA ứng viên.
+- **Vòng lặp Cổng 4 và Review Choice**: Cổng 4 là cổng máy duy nhất trên nhánh phát triển của kit này. Nó chỉ cấp 🟢 khi `audit_epic.py` exit 0, `check_bdd_traceability.py tests --results` exit 0, và `@quality_check` profile `epic` trả về PASS trên đúng commit SHA ứng viên. Mỗi lần PASS sẽ đưa ra **Review Choice**: **Finish** đi tới Cổng 5; **Cross-model review** ghi nhận round rồi quay lại chạy đầy đủ Cổng 4. Vòng lặp tiếp tục cho tới khi nhà phát triển chọn Finish.
 - **Ký duyệt Kanban Cổng 5**: Tất cả task hoàn tất được giữ lại ở `.devtool/features/done/` để nhà phát triển kiểm tra trực quan trên bảng Kanban trước khi Stage 4 rebase, verify theo tier, merge `--no-ff` vào `develop`, và lưu trữ task vào `.devtool/epic/<slug>/`.
 
 ## doc-lifecycle

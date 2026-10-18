@@ -63,7 +63,7 @@ flowchart TB
     phase0 --> entry
     entry -- "row 3: fresh start" --> phase1a
     entry -- "rows 4-5: interrupted" --> resume
-    entry -- "row 6: tasks done" --> choice
+    entry -- "row 6: tasks done" --> phase4
     resume --> phase2
     phase1a --> checkpoint
     checkpoint -- "adjust order" --> phase1a
@@ -75,13 +75,12 @@ flowchart TB
     phase3 --> integrate
     integrate --> moretasks
     moretasks -- "yes, next task" --> phase2
-    moretasks -- "no, epic done" --> choice
-    choice -- "Finish" --> phase4
+    moretasks -- "no, epic done" --> phase4
+    phase4 -- "PASS" --> choice
+    phase4 -- "FAIL or BLOCKED: Fix commits, rerun in full" --> phase4
+    choice -- "Finish" --> checkpoint4
     choice -- "Cross-model review" --> review
-    review -- "no Critical or Important finding" --> phase4
-    review -- "findings to fix: Fix commits" --> phase4
-    review -- "CLI failed" --> choice
-    phase4 --> checkpoint4
+    review -- "round recorded" --> phase4
     checkpoint4 -- "request changes: Fix commits, then Phase 4 in full" --> phase4
     checkpoint4 -- "confirmed" --> phase5
 ```
@@ -143,7 +142,7 @@ python3 "$SKILL_DIR"/resources/scripts/compute_execution_order.py <epic_slug> \
 | 3 | No epic branch locally or on a remote, no worktree, every task `todo` | Not started — packaged if `handoff.md` exists | Phase 1 as written: Gate 3, then a new worktree |
 | 4 | Epic branch exists, no worktree, some task not `done` | Interrupted, worktree removed | Resume Procedure |
 | 5 | Worktree exists, some task not `done` | Interrupted midway through Stage 3 | Resume Procedure |
-| 6 | Epic branch exists, every task `done` | Tasks finished | Recreate the worktree if it is missing (`git worktree add .worktrees/<epic_dir> epic/<epic_slug>`, no `-b`) and bootstrap it (Phase 1 step 5), run the Resume Procedure's preflight (step 2), then the Review Choice and Phase 4 with a full run — a verdict from another session cannot be tied to this SHA |
+| 6 | Epic branch exists, every task `done` | Tasks finished | Recreate the worktree if it is missing (`git worktree add .worktrees/<epic_dir> epic/<epic_slug>`, no `-b`) and bootstrap it (Phase 1 step 5), run the Resume Procedure's preflight (step 2), then Phase 4 in full; its PASS presents Review Choice — a verdict from another session cannot be tied to this SHA |
 | 7 | Anything else — for example the epic branch only on a remote (work done in another clone), or tasks `in-progress` or `done` with no epic branch | Inconsistent | Stop, report the signals, ask |
 
 #### Resume Procedure
@@ -452,38 +451,6 @@ Only when Phase 2 flags divergence:
    git commit -m "[EPIC_NAME] Sync HLD after <task_title>" -m "- <diagram or section updated>"
    ```
 
-### Review Choice — after the last task
-
-<HARD-GATE>
-You MUST NOT skip or auto-decide the Review Choice after the last task is complete.
-Present the choice between "Finish" and "Cross-model review" and wait for the developer's explicit instruction.
-Proceeding silently to Phase 4 without presenting this choice is a violation of the CRITICAL RULES.
-</HARD-GATE>
-
-When the last task is `done` and its integration with `develop` (step 7) is green, ask the developer — every time, like the Handoff Choice, and wait for the answer:
-
-> All N tasks of `<epic_slug>` are done. How do you want to proceed?
->
-> 1. **Finish** — Gate 4, Gate 5, then `finishing-a-development-branch`.
-> 2. **Cross-model review** — an independent model reviews the epic first, through the Claude CLI or the Codex CLI. You pick which; the repository's content is sent to that provider.
-
-List which of `claude` and `codex` are on `PATH` (`command -v claude codex`) in the same message. The developer picks the CLI, and optionally a model, every time; never pick one for them, because which provider still has credits is their knowledge. With neither on `PATH`, option 2 is unavailable: say why.
-
-Option 1 goes to Phase 4. Option 2 runs, in the epic worktree with a clean tree:
-
-```bash
-python3 "$SKILL_DIR"/resources/scripts/run_external_review.py run \
-  --epic-dir <epic_dir> --base <base_ref> --cli claude|codex [--model <name>] [--timeout <seconds>] [--facts-timeout <seconds>]
-```
-
-The script gathers audit and result facts with fail-fast validation, runs the chosen CLI read-only with the prompt in [`references/external-review-prompt.md`](references/external-review-prompt.md), and appends a `## Round N` section to `.devtool/epic/<epic_dir>/review_results.md`. The reviewer never writes the file. Because `run` needs a clean tree, **commit `review_results.md` after every round**, as `[EPIC_NAME] Record cross-model review round N`.
-
-| Outcome | What happens |
-|---|---|
-| Completed, no Critical or Important finding | Commit `review_results.md`, then Phase 4 |
-| Completed with Critical or Important findings | Commit `review_results.md`. Fix them as Fix commits (see Fixes after the last task). Give each finding a Decision in the file: `fixed in <sha>`, or `dismissed: <reason>` written **only on the developer's explicit words**, never on your own judgement. Commit the decisions, then the developer chooses again: another round, or Finish |
-| No CLI, a CLI error or timeout (for example, out of credits), no `Verdict:` line, or a changed tree | `run` exits 2 and records the round with its status. Commit `review_results.md`; the developer chooses again and may pick the other CLI |
-
 ### Fixes after the last task
 
 Once every task is `done`, a fix (a cross-model review finding, a Gate 4 failure, or a change the developer requests at Gate 5) is never made by reopening a task. Make it as its own commit on the epic branch, titled `[EPIC_NAME] Fix <what>`. Do not move a done task back, and do not re-record its evidence. `audit_epic.py` lists these commits under "Commits outside tasks", which the developer sees at Gate 5. After the fixes, run Phase 4 again in full on the new SHA.
@@ -492,7 +459,7 @@ A Fix commit repairs what the tasks already promised. New behaviour the develope
 
 ### Phase 4 — End of Epic Verification
 
-Once every task is `done` and the Review Choice is settled, resolve the candidate commit SHA (`git rev-parse HEAD`) and, in the epic worktree with a clean working tree (`git status --porcelain` prints nothing, so the result belongs to that SHA), run these in this order. Do not run the quality check until step 5; each step must pass before the next starts, and any failure is fixed as a Fix commit (see Fixes after the last task), after which Phase 4 starts again.
+Once every task is `done`, resolve the candidate commit SHA (`git rev-parse HEAD`) and, in the epic worktree with a clean working tree (`git status --porcelain` prints nothing, so the result belongs to that SHA), run these in this order. Do not run the quality check until step 5; each step must pass before the next starts, and any failure is fixed as a Fix commit (see Fixes after the last task), after which Phase 4 starts again.
 
 1. **Review decisions**, only when `.devtool/epic/<epic_dir>/review_results.md` exists:
 
@@ -500,7 +467,7 @@ Once every task is `done` and the Review Choice is settled, resolve the candidat
    python3 "$SKILL_DIR"/resources/scripts/run_external_review.py check --epic-dir <epic_dir>
    ```
 
-   Exit 1 means the latest completed round has a Critical or Important finding without a Decision: return to the Review Choice flow above.
+   Exit 1 means the latest completed round has a Critical or Important finding without a Decision: record the developer's decision or make the required Fix commit, then restart Phase 4 in full.
 2. **Gate 4 audit**, which checks each done task's evidence against its Verification table and discloses every change to a grader:
 
    ```bash
@@ -528,9 +495,44 @@ Once every task is `done` and the Review Choice is settled, resolve the candidat
    - Only an aggregated verdict of **PASS** bound to that exact SHA, on which the audit and the traceability check also exited 0, qualifies for Gate 4 `🟢 LGTM`.
    - If `@quality_check` reports `FAIL` or `BLOCKED` (or SHA drift occurs), fix the blockers and defects as Fix commits, then re-run Phase 4 in full.
 
+### Review Choice — after every Gate 4 PASS
+
+<HARD-GATE>
+You MUST NOT skip or auto-decide Review Choice after Gate 4 passes.
+Present the choice between "Finish" and "Cross-model review" and wait for the developer's explicit instruction.
+Cross-model review must return to Phase 4 in full; only the next Gate 4 PASS may present Review Choice again.
+</HARD-GATE>
+
+The loop invariant is **Gate 4 PASS → Review Choice; Finish → Gate 5; Cross-model review → Gate 4 in full**.
+After the initial Gate 4 PASS and after every later PASS, ask the developer and wait for the answer:
+
+> Gate 4 is 🟢 LGTM for `<candidate_sha>`. How do you want to proceed?
+>
+> 1. **Finish** — continue to Gate 5, then `finishing-a-development-branch`.
+> 2. **Cross-model review** — an independent model reviews the epic through the Claude CLI or the Codex CLI. You pick which; the repository's content is sent to that provider. After the round, Gate 4 runs again in full.
+
+List which of `claude` and `codex` are on `PATH` (`command -v claude codex`) in the same message. The developer picks the CLI, and optionally a model, every time; never pick one for them, because which provider still has credits is their knowledge. With neither on `PATH`, option 2 is unavailable: say why.
+
+Option 1 goes to Phase 4.1 / Gate 5. Option 2 runs, in the epic worktree with a clean tree:
+
+```bash
+python3 "$SKILL_DIR"/resources/scripts/run_external_review.py run \
+  --epic-dir <epic_dir> --base <base_ref> --cli claude|codex [--model <name>] [--timeout <seconds>] [--facts-timeout <seconds>]
+```
+
+The script gathers audit and result facts with fail-fast validation, runs the chosen CLI read-only with the prompt in [`references/external-review-prompt.md`](references/external-review-prompt.md), and appends a `## Round N` section to `.devtool/epic/<epic_dir>/review_results.md`. The reviewer never writes the file. Because `run` needs a clean tree, **commit `review_results.md` after every round**, as `[EPIC_NAME] Record cross-model review round N`.
+
+| Outcome | What happens |
+|---|---|
+| Completed, no Critical or Important finding | Commit `review_results.md`, then run Phase 4 / Gate 4 again in full. |
+| Completed with Critical or Important findings | Commit `review_results.md`. Fix accepted findings as Fix commits. Give every blocking finding a Decision: `fixed in <sha>`, or `dismissed: <reason>` written **only on the developer's explicit words**. Commit the decisions, then run Phase 4 / Gate 4 again in full. |
+| No CLI, a CLI error or timeout, no `Verdict:` line, or a changed tree | `run` exits 2 and records the round with its status. Commit `review_results.md`, then run Phase 4 / Gate 4 again in full; its PASS presents Review Choice and allows another provider selection. |
+
+Any review round or decision commit changes the candidate SHA, so the preceding Gate 4 PASS is stale. Never jump directly from a review outcome to Gate 5 or another Review Choice.
+
 ### Phase 4.1 — Developer Kanban Review Checkpoint (🛑 MANDATORY STOP & WAIT — Gate 5)
 
-Once `@quality_check` reports 🟢 LGTM and all tasks are completed:
+Once `@quality_check` reports 🟢 LGTM, all tasks are completed, and the developer selects **Finish** at Review Choice:
 1. **Preserve Kanban Visibility**: All completed `task_*.md` files MUST remain in `.devtool/features/done/`. Do NOT run archival or move them yet.
 2. **Present Executive Summary**: Output a clear summary to the user containing:
    - Epic slug and worktree path.
@@ -547,7 +549,7 @@ Once `@quality_check` reports 🟢 LGTM and all tasks are completed:
      > All task cards are currently visible in the **DONE** column on your Kanban dashboard for visual inspection.
      > 
      > Please review the completed tasks and code changes. When you are ready to proceed with branch integration and task archival, reply to proceed."
-4. **Wait for Gate 5 Confirmation**: Only proceed to Phase 5 when the user explicitly responds with approval (e.g., "proceed", "looks good", "finish branch"). If the user requests adjustments or fixes, make them as Fix commits (see Fixes after the last task) and re-run Phase 4 in full.
+4. **Wait for Gate 5 Confirmation**: Only proceed to Phase 5 when the user explicitly responds with approval (e.g., "proceed", "looks good", "finish branch"). If the user requests adjustments or fixes, make them as Fix commits (see Fixes after the last task), re-run Phase 4 in full, and present Review Choice again after its PASS.
 
 ### Phase 5 — Branch Finishing
 

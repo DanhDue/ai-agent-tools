@@ -324,6 +324,11 @@ class RunExternalReviewTest(ReviewCase):
         self.install("claude")
         code, out, err = self.run_review(cli="claude", mode="pass")
         self.assertEqual(code, 0)
+        self.assertIn("[Pre-check]", err)
+        self.assertIn("audit_epic.py", err)
+        self.assertIn("Integration: true", err)
+        self.assertIn("check_bdd_traceability.py", err)
+        self.assertEqual(err.count("PASS"), 3)
         self.assertTrue(self.results.exists())
         self.assertIn("- **Status**: completed", self.text())
         prompt = self.stdin.read_text(encoding="utf-8")
@@ -356,8 +361,11 @@ class RunExternalReviewTest(ReviewCase):
         self.commit("HLD with failing test")
         code, out, err = self.run_review(cli="claude", mode="pass")
         self.assertEqual(code, 2)
-        self.assertIn("precondition failed", err)
-        self.assertIn("integration test 'false' failed with exit 1", err)
+        self.assertIn("[PRECONDITION BLOCKED]", err)
+        self.assertIn("CLAUDE CLI WAS NOT INVOKED (0 CREDITS USED)", err)
+        self.assertIn("Failed Gate", err)
+        self.assertIn("Integration: false", err)
+        self.assertIn("failed with exit code 1", err)
         self.assertFalse(self.results.exists())
 
     # [RWE-FR-01] Fail-fast aborts on audit failure
@@ -368,7 +376,8 @@ class RunExternalReviewTest(ReviewCase):
         self.commit("Task 1 done without evidence")
         code, out, err = self.run_review(cli="claude", mode="pass")
         self.assertEqual(code, 2)
-        self.assertIn("precondition failed", err)
+        self.assertIn("[PRECONDITION BLOCKED]", err)
+        self.assertIn("audit_epic.py", err)
         self.assertFalse(self.results.exists())
 
     # [RWE-FR-02] Fail-fast aborts on test timeout
@@ -379,8 +388,24 @@ class RunExternalReviewTest(ReviewCase):
         self.commit("HLD with slow test")
         code, out, err = self.run_review("--facts-timeout", "1", cli="claude", mode="pass")
         self.assertEqual(code, 2)
-        self.assertIn("precondition failed", err)
+        self.assertIn("[PRECONDITION BLOCKED]", err)
+        self.assertIn("TIMEOUT (1s)", err)
+        self.assertIn("timed out after 1 seconds", err)
         self.assertFalse(self.results.exists())
+
+    def test_precheck_progress_prints_are_flushed_immediately(self) -> None:
+        from run_external_review import run_gate
+
+        with mock.patch("run_external_review.execute", return_value=(0, "ok", "")), \
+                mock.patch("builtins.print") as print_mock:
+            code, out, err = run_gate("demo gate", ["true"], self.root, 30)
+
+        self.assertEqual((code, out, err), (0, "ok", ""))
+        self.assertEqual(print_mock.call_count, 2)
+        for call in print_mock.call_args_list:
+            self.assertIs(call.kwargs["file"], sys.stderr)
+            self.assertTrue(call.kwargs["flush"])
+        self.assertEqual(print_mock.call_args_list[0].kwargs["end"], "")
 
 
     # [RWE-ST-01] Round transitions to check pass after decisions
@@ -471,8 +496,10 @@ class RunExternalReviewTest(ReviewCase):
         self.commit("HLD with missing report")
         code, out, err = self.run_review(cli="claude", mode="pass")
         self.assertEqual(code, 2)
-        self.assertIn("precondition failed", err)
-        self.assertIn("check_bdd_traceability.py failed", err)
+        self.assertIn("[PRECONDITION BLOCKED]", err)
+        self.assertIn("Failed Gate", err)
+        self.assertIn("check_bdd_traceability.py", err)
+        self.assertIn("failed with exit code 2", err)
         self.assertFalse(self.results.exists())
 
 if __name__ == '__main__':

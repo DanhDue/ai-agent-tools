@@ -34,7 +34,7 @@ trigger: always_on
 
 Every commit — written by a skill, a plugin, an agent, or by hand — uses a bracketed scope, a one-line title, and a bullet list of the subtasks actually done:
 
-```
+```text
 [EPIC_NAME] Task title
 
 - subtask title 01
@@ -73,13 +73,14 @@ git commit -m "[EPIC_NAME] Task title" -m "- subtask title 01
 > 3. For multi-step, multi-feature, or epic-level work, you **MUST** invoke the [Epic Lifecycle Skill](../skills/dev-lifecycle/SKILL.md) (`d3nexus:dev-lifecycle`), which orchestrates `dev-brainstorming` -> `dev-designer` -> `dev-implementation` -> `quality_check` -> `finishing-a-development-branch`.
 > 4. Only use native `implementation_plan.md` if the user explicitly instructs you to bypass d3nexus workflows.
 
-## 5. Mandatory Review Choice in Epic Lifecycle (No Skipping Review Choice)
+## 5. Mandatory Review Choice Loop in Epic Lifecycle
 
 > [!CRITICAL]
-> **NEVER skip or silently bypass the Review Choice between task completion and Gate 4 in `dev-lifecycle` / `dev-implementation` or any plugin-based orchestrator.**
-> When all tasks of an epic are complete (`Phase 3` finished) and before executing any Phase 4 / Gate 4 validation:
+> **NEVER skip or silently bypass the Review Choice after Gate 4 passes in `dev-lifecycle` / `dev-implementation` or any plugin-based orchestrator.**
+> When all tasks of an epic are complete, run Phase 4 / Gate 4 first. Only after Gate 4 returns PASS on the current SHA:
 > 1. The AI Agent **MUST** explicitly stop calling tools and present the **Review Choice** prompt to the developer:
->    - **Option 1: Finish** — proceed directly to Phase 4 (traceability check, epic audit, `@quality_check` profile `epic`), then Developer Kanban Review (Phase 4.1 / Gate 5), and Stage 4.
+>    - **Option 1: Finish** — proceed to Developer Kanban Review (Phase 4.1 / Gate 5), then Stage 4.
 >    - **Option 2: Cross-model review** — invoke an independent model review using `run_external_review.py run` (prompting the developer to select Claude CLI or Codex CLI based on `command -v claude codex`).
-> 2. The AI Agent **MUST NOT** auto-select an option, assume "Finish" by default, or run Phase 4 checks without waiting for the developer's explicit instruction.
-> 3. Running Phase 4 tools (`audit_epic.py`, `check_bdd_traceability.py`, or `@quality_check`) without explicit developer confirmation of the Review Choice is **STRICTLY PROHIBITED**.
+> 2. The AI Agent **MUST NOT** auto-select an option or assume "Finish" by default.
+> 3. **Cross-model review must return to a full Gate 4 run** after the round is recorded and all blocking findings have decisions and required Fix commits. Gate 4 PASS then presents Review Choice again. This loop repeats until the developer explicitly chooses Finish.
+> 4. A previous Gate 4 PASS cannot be reused after `review_results.md`, a finding decision, or a Fix commit changes the candidate SHA.

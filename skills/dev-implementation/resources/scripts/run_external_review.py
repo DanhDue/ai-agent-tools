@@ -52,6 +52,12 @@ FENCE = re.compile(r"^(`{3,})")
 MAX_DIFF_LINES = 1500
 MAX_DIFF_BYTES = 60_000
 
+RED = "\033[1;31m"
+GREEN = "\033[1;32m"
+YELLOW = "\033[1;33m"
+CYAN = "\033[1;36m"
+RESET = "\033[0m"
+
 EXCLUDES = (
     # 1. Common Locks, Build & Devtool
     ":(exclude)*.lock",
@@ -102,6 +108,29 @@ EXCLUDES = (
 class PreconditionFailedError(Exception):
     """Raised when fact collection fails, preventing AI CLI invocation."""
 
+    def __init__(self, gate: str, reason: str, details: str = "") -> None:
+        super().__init__(f"{gate}: {reason}")
+        self.gate = gate
+        self.reason = reason
+        self.details = details.strip()
+
+
+def print_gate_banner(error: PreconditionFailedError, cli: str) -> None:
+    """Print an unmistakable highlighted banner when a pre-check blocks AI invocation."""
+    bar = "=" * 74
+    lines = [
+        f"\n{RED}{bar}{RESET}",
+        f"{RED}🚨 [PRECONDITION BLOCKED] — {cli.upper()} CLI WAS NOT INVOKED (0 CREDITS USED){RESET}",
+        f"{RED}{bar}{RESET}",
+        f"{YELLOW}Failed Gate :{RESET} {error.gate}",
+        f"{YELLOW}Reason      :{RESET} {error.reason}",
+    ]
+    if error.details:
+        indented = "\n".join(f"  {line}" for line in error.details.splitlines()[-25:])
+        lines.append(f"{YELLOW}Details (last 25 lines):{RESET}\n{indented}")
+    lines.append(f"{RED}{bar}{RESET}\n")
+    print("\n".join(lines), file=sys.stderr, flush=True)
+
 
 def status_lines(root: Path) -> list[str]:
     return git_run(root, "status", "--porcelain").decode("utf-8", "replace").splitlines()
@@ -126,27 +155,35 @@ def execute(command: list[str] | str, root: Path, timeout: int, prompt: str | No
     return code, out.decode("utf-8", "replace"), err.decode("utf-8", "replace")
 
 
+def run_gate(label: str, command: list[str] | str, root: Path, timeout: int,
+             shell: bool = False) -> tuple[int, str, str]:
+    """Execute a pre-check gate with real-time terminal feedback."""
+    print(f"{CYAN}⏳ [Pre-check]{RESET} {label} ... ", end="", file=sys.stderr, flush=True)
+    code, out, err = execute(command, root, timeout, shell=shell)
+    combined = (out + err).rstrip()
+    if code is None:
+        print(f"{RED}❌ TIMEOUT ({timeout}s){RESET}", file=sys.stderr, flush=True)
+        raise PreconditionFailedError(label, f"timed out after {timeout} seconds", combined)
+    if code != 0:
+        print(f"{RED}❌ FAILED (exit {code}){RESET}", file=sys.stderr, flush=True)
+        raise PreconditionFailedError(label, f"failed with exit code {code}", combined)
+    print(f"{GREEN}✅ PASS{RESET}", file=sys.stderr, flush=True)
+    return code, out, err
+
+
 def fact(label: str, code: int | None, out: str, err: str) -> str:
     return f"$ {label}\nexit {code if code is not None else 'timeout'}\n{(out + err).rstrip()}\n"
 
 
 def collect_facts(root: Path, epic_dir: str, base: str, hld_text: str, timeout: int) -> tuple[str, str]:
     audit = [sys.executable, str(SCRIPTS / "audit_epic.py"), "--epic-dir", epic_dir, "--base", base]
-    audit_code, audit_out, audit_err = execute(audit, root, timeout)
-    if audit_code is None:
-        raise PreconditionFailedError(f"audit_epic.py timed out after {timeout} seconds")
-    if audit_code != 0:
-        raise PreconditionFailedError(f"audit_epic.py failed with exit {audit_code}:\n{(audit_out + audit_err).rstrip()}")
+    audit_code, audit_out, audit_err = run_gate("audit_epic.py", audit, root, timeout)
     audit_output = fact("audit_epic.py", audit_code, audit_out, audit_err)
     results, reports = [], []
     for line in parse_integration_results(hld_text):
         command, _, report = line.partition(" -> ")
         cmd = command.strip()
-        cmd_code, cmd_out, cmd_err = execute(cmd, root, timeout, shell=True)
-        if cmd_code is None:
-            raise PreconditionFailedError(f"integration test '{cmd}' timed out after {timeout} seconds")
-        if cmd_code != 0:
-            raise PreconditionFailedError(f"integration test '{cmd}' failed with exit {cmd_code}:\n{(cmd_out + cmd_err).rstrip()}")
+        cmd_code, cmd_out, cmd_err = run_gate(f"Integration: {cmd}", cmd, root, timeout, shell=True)
         results.append(fact(cmd, cmd_code, cmd_out, cmd_err))
         reports.extend(report.split())
     roots = re.search(r"^Integration test roots:\s*(.+)$", hld_text, re.M)
@@ -154,11 +191,7 @@ def collect_facts(root: Path, epic_dir: str, base: str, hld_text: str, timeout: 
         check = [sys.executable, str(SCRIPTS / "check_bdd_traceability.py"), "tests", "--scenarios",
                  f".devtool/epic/{epic_dir}/bdd_scenarios.en.md", "--roots", roots.group(1).strip(),
                  "--results", *reports]
-        chk_code, chk_out, chk_err = execute(check, root, timeout)
-        if chk_code is None:
-            raise PreconditionFailedError(f"check_bdd_traceability.py timed out after {timeout} seconds")
-        if chk_code != 0:
-            raise PreconditionFailedError(f"check_bdd_traceability.py failed with exit {chk_code}:\n{(chk_out + chk_err).rstrip()}")
+        chk_code, chk_out, chk_err = run_gate("check_bdd_traceability.py", check, root, timeout)
         results.append(fact(shlex.join(check[1:]), chk_code, chk_out, chk_err))
     return audit_output, "\n".join(results) or "No Integration results declared.\n"
 
@@ -291,7 +324,7 @@ def run(args: argparse.Namespace) -> int:
         facts_timeout = getattr(args, "facts_timeout", 300)
         audit_output, results_output = collect_facts(root, args.epic_dir, args.base, hld_text, facts_timeout)
     except PreconditionFailedError as error:
-        print(f"precondition failed: {error}", file=sys.stderr)
+        print_gate_banner(error, args.cli)
         return 2
     diff_limit = getattr(args, "diff_limit", MAX_DIFF_LINES)
     diff_section = build_diff_section(root, args.base, sha, max_lines=diff_limit)

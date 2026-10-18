@@ -89,6 +89,59 @@ class VerifiableHandoffText(unittest.TestCase):
         self.assert_present("skills/dev-lifecycle/SKILL.md",
                             ("picking the review CLI for the developer",))
 
+    def test_vth_st_14_review_choice_follows_gate_4_and_loops(self):
+        self.assert_present("rules/CRITICAL_RULES.md", (
+            "after Gate 4 passes",
+            "Cross-model review must return to a full Gate 4 run",
+        ))
+        for path in ("skills/dev-lifecycle/SKILL.md",
+                     "skills/dev-implementation/SKILL.md"):
+            self.assert_present(path, (
+                "Gate 4 PASS → Review Choice",
+                "Finish → Gate 5",
+                "Cross-model review → Gate 4 in full",
+            ))
+
+        lifecycle = read("skills/dev-lifecycle/SKILL.md")
+        self.assertIn('EXEC --> G4', lifecycle)
+        self.assertIn('G4 -->|"yes"| RC', lifecycle)
+        self.assertIn('RC -->|"1. Finish"| REVIEW', lifecycle)
+        self.assertIn('XR -->|"round recorded"| G4', lifecycle)
+
+        implementation = read("skills/dev-implementation/SKILL.md")
+        self.assertIn('moretasks -- "no, epic done" --> phase4', implementation)
+        self.assertIn('phase4 -- "PASS" --> choice', implementation)
+        self.assertIn('choice -- "Finish" --> checkpoint4', implementation)
+        self.assertIn('review -- "round recorded" --> phase4', implementation)
+
+        for path in ("rules/CRITICAL_RULES.md",
+                     "skills/dev-lifecycle/SKILL.md",
+                     "skills/dev-implementation/SKILL.md",
+                     "docs/lifecycles.en.md",
+                     "docs/choosing-a-lifecycle.en.md"):
+            self.assert_absent(path, (
+                "Review Choice before Gate 4",
+                "Review Choice is mandatory before Gate 4",
+                "Review Choice) before Gate 4",
+            ))
+
+        self.assert_present("docs/lifecycles.en.md", (
+            "Every PASS presents **Review Choice**",
+            "returns to a full Gate 4 run",
+        ))
+        self.assert_present("docs/lifecycles.vi.md", (
+            "Mỗi lần PASS sẽ đưa ra **Review Choice**",
+            "quay lại chạy đầy đủ Cổng 4",
+        ))
+        self.assert_present("docs/choosing-a-lifecycle.en.md", (
+            "after every Gate 4 PASS",
+            "loop continues until you choose Finish",
+        ))
+        self.assert_present("docs/choosing-a-lifecycle.vi.md", (
+            "sau mỗi lần Cổng 4 PASS",
+            "vòng lặp tiếp tục cho tới khi bạn chọn Finish",
+        ))
+
 
 if __name__ == "__main__":
     unittest.main()
