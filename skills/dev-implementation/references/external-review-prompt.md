@@ -28,7 +28,7 @@ The integration test commands and the result-based traceability check, with thei
 $results_output
 ```
 
-A failing command above is a fact to weigh, not a reason to stop.
+All commands above have passed their execution gates (exit 0); inspect their output details for coverage, warnings, or audit disclosures.
 
 ## Code Changes (Diff)
 
