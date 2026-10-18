@@ -28,7 +28,7 @@ mention Claude's `Skill` tool mean loading that skill through the available Code
 
 | Situation | Start here |
 |---|---|
-| Epic-scale work (multiple components, needs HLD + task breakdown) | `dev-lifecycle` skill — owns the 4 stages and 4 approval gates |
+| Epic-scale work (multiple components, needs HLD + task breakdown) | `dev-lifecycle` skill — owns the 4 stages and 5 approval gates |
 | Any new feature, component, or behaviour change | `dev-brainstorming` skill |
 | A bug, test failure, or unexpected behaviour | `systematic-debugging` skill |
 | Finished a workflow or skill | `quality_check` skill (mandatory — see CRITICAL_RULES) |

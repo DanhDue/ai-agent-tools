@@ -25,8 +25,8 @@ Mỗi lifecycle được định nghĩa bằng **thứ tồn tại khi nó kết
 |---|---|---|---|
 | **Mục đích** | Xây code đi vào build | Tạo ra tài liệu có người đọc | Quyết định nên xây gì, cho ai |
 | **Cho ra** | Một nhánh đã merge | Một tài liệu đã xuất bản | Một MVP backlog đã kiểm chứng |
-| **Số cổng** | 5 | 3 | 3 |
-| **Ai duyệt cổng** | 4 người, 1 máy | 2 người, 1 máy | 3 người |
+| **Số cổng** | 5 | 4 | 3 |
+| **Ai duyệt cổng** | 4 người, 1 máy | 3 người, 1 máy | 3 người |
 | **Artefact nằm ở** | `.devtool/epic/<slug>/` | `.devtool/epic/<slug>/`, thành phẩm ở `docs/` | `.devtool/product/<slug>/` |
 | **Xác minh bởi** | `quality_check` | `doc_quality_check` | chỉ bằng phán đoán người |
 
@@ -46,27 +46,56 @@ Việc đó dùng `dev-brainstorming` rồi `writing-plans`, tức là rời kh�
 
 ```mermaid
 flowchart TD
-    S1["Stage 1 — Khởi đầu<br/>(dev-brainstorming)"]
-    G1{"Cổng 1 — spec được duyệt"}
+    S1["Stage 1 — Khởi đầu &amp; Spec<br/>(dev-brainstorming)"]
+    G1{"Cổng 1<br/>Spec được duyệt?"}
     ROUTE{"Quy mô epic?"}
-    PLANS(["writing-plans<br/>(rời lifecycle này)"])
+    PLANS(["writing-plans<br/>(rời workflow này)"])
     S2["Stage 2 — Kiến trúc &amp; Task<br/>(dev-designer)"]
-    G2{"Cổng 2 — phân rã task"}
-    S3["Stage 3 — Thực thi<br/>(dev-implementation)"]
-    G3{"Cổng 3 — thứ tự thực thi"}
-    G4{"Cổng 4 — quality_check 🟢"}
-    G5{"Cổng 5 — ký duyệt Kanban"}
-    S4["Stage 4 — Hoàn tất nhánh<br/>(finishing-a-development-branch)"]
+    G2{"Cổng 2<br/>HLD &amp; phân rã task được duyệt?"}
+    HC{"Handoff choice<br/>package hay continue?"}
+    PKG(["Package epic<br/>handoff.md, status Packaged, dừng"])
+    S3["Stage 3 — Thực thi độc lập<br/>(dev-implementation)"]
+    G3{"Cổng 3<br/>Thứ tự thực thi đã xác nhận?"}
+    EXEC["Phase 2-3: TDD từng task<br/>mỗi task một commit, sync doc khi lệch,<br/>tích hợp vào develop sau mỗi task"]
+    RC{"Review Choice<br/>Finish hay Cross-model review?"}
+    XR["run_external_review.py run<br/>(commit review_results.md mỗi vòng)"]
+    G4{"Cổng 4<br/>audit + BDD traceability + quality_check 🟢 LGTM?"}
+    REVIEW["Phase 4.1: Developer Kanban Review<br/>(Mọi task giữ ở cột DONE để kiểm tra trực quan)"]
+    G5{"Cổng 5<br/>Người dùng ký duyệt &amp; cho phép finish?"}
+    S4["Stage 4 — Hoàn tất nhánh &amp; Lưu trữ<br/>(finishing-a-development-branch)"]
 
-    S1 --> G1 --> ROUTE
+    S1 --> G1
+    G1 -->|chưa, chỉnh sửa| S1
+    G1 -->|rồi| ROUTE
     ROUTE -->|không| PLANS
-    ROUTE -->|có| S2 --> G2 --> S3 --> G3 --> G4 --> G5 --> S4
+    ROUTE -->|có| S2
+    S2 --> G2
+    G2 -->|chưa, điều chỉnh phân rã| S2
+    G2 -->|rồi| HC
+    HC -->|"1. package"| PKG
+    HC -->|"2. continue"| S3
+    PKG -.->|"phiên sau hoặc LLM khác"| S3
+    S3 --> G3
+    G3 -->|chưa, sắp xếp lại| G3
+    G3 -->|rồi| EXEC
+    EXEC --> RC
+    RC -->|"1. Finish"| G4
+    RC -->|"2. Cross-model review"| XR
+    XR -->|"không có finding Critical hoặc Important"| G4
+    XR -->|"có finding cần sửa bằng Fix commit"| EXEC
+    XR -->|"CLI lỗi, chọn lại"| RC
+    G4 -->|"chưa, sửa bằng Fix commit"| EXEC
+    G4 -->|rồi| REVIEW
+    REVIEW --> G5
+    G5 -->|"chưa, yêu cầu đổi bằng Fix commit"| EXEC
+    G5 -->|rồi| S4
 ```
 
-Cổng 4 là cổng máy duy nhất trên nhánh phát triển của kit này.
-Nó cấp 🟢 dựa trên **một lần chạy đầy đủ** bộ 3-tier, bốn semantic audit,
-các ngưỡng reverse-coverage và bản diff tác động trước merge
-— không bao giờ dựa trên một lần chạy lại từng phần.
+Vòng đời trải qua bốn giai đoạn (stage) và năm cổng phê duyệt (approval gate), cùng hai điểm lựa chọn rõ ràng:
+- **Routing & Handoff Choice**: Sau khi qua Cổng 1, công việc quy mô epic đi tới Stage 2 (`dev-designer`). Giữa Cổng 2 và Stage 3, nhà phát triển chọn **Package** (`handoff.md`, trạng thái `Packaged`, dừng để phiên sau hoặc LLM khác làm) hoặc **Continue** vào Stage 3 ngay.
+- **Thực thi độc lập & Review Choice**: Stage 3 thực thi từng task độc lập trong git worktree theo phương pháp TDD và tích hợp liên tục vào `develop`. Khi mọi task đã xong, agent **TUYỆT ĐỐI KHÔNG ĐƯỢC** nhảy thẳng vào Cổng 4; agent phải dừng lại và đưa ra **Review Choice** cho phép nhà phát triển chọn **Finish** hoặc chạy **Cross-model review** độc lập (qua Claude CLI hoặc Codex CLI).
+- **Nghiệm thu máy Cổng 4**: Cổng 4 là cổng máy duy nhất trên nhánh phát triển của kit này. Nó chỉ cấp 🟢 khi `audit_epic.py` exit 0, `check_bdd_traceability.py tests --results` exit 0, và `@quality_check` profile `epic` trả về PASS trên đúng commit SHA ứng viên.
+- **Ký duyệt Kanban Cổng 5**: Tất cả task hoàn tất được giữ lại ở `.devtool/features/done/` để nhà phát triển kiểm tra trực quan trên bảng Kanban trước khi Stage 4 rebase, verify theo tier, merge `--no-ff` vào `develop`, và lưu trữ task vào `.devtool/epic/<slug>/`.
 
 ## doc-lifecycle
 

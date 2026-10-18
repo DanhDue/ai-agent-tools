@@ -42,7 +42,8 @@ Pick by how many reviewable pieces the work has.
 
 **Several independent components, or you would want an architecture diagram and a task board**
 — run `d3nexus:dev-lifecycle`. It takes you through five gates:
-spec, task breakdown, execution order, `quality_check`, and your own sign-off before the branch is finished.
+spec (Gate 1), task breakdown (Gate 2), execution order (Gate 3), `quality_check` with audit and BDD traceability (Gate 4), and your own Kanban sign-off (Gate 5) before the branch is finished.
+It also enforces two explicit choice points: the **Handoff Choice** (package or continue) after Stage 2, and the mandatory **Review Choice** (Finish or Cross-model review) before Gate 4.
 
 **One component, one plan** — run `d3nexus:dev-brainstorming`, then `d3nexus:writing-plans`.
 This leaves the epic lifecycle; its remaining gates do not apply. You still cross two:
@@ -63,8 +64,7 @@ Run `d3nexus:subagent-driven-development` (recommended) or `d3nexus:executing-pl
 > again and choose merge or PR.**
 
 The epic route needs none of this:
-`dev-implementation` drives the executor, holds `quality_check` at Gate 4 and your sign-off at Gate 5,
-and only then finishes the branch.
+`dev-implementation` drives the executor, enforces the mandatory Review Choice (Finish or Cross-model review) after all tasks finish, holds Gate 4 machine checks (`audit_epic.py`, BDD traceability, `quality_check`), requires your visual sign-off at Gate 5 on the Kanban board, and only then finishes the branch.
 
 ## If you are writing a document
 

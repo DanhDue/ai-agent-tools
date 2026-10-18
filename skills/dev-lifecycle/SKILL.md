@@ -77,6 +77,9 @@ The d3nexus workflow replaces the native planning mode entirely.
 Specs go to `docs/superpowers/specs/` (Stage 1) or `.devtool/epic/<epic_dir>/` (Stage 2+).
 Plans go through `writing-plans` skill (non-epic) or `dev-designer` task files (epic).
 If you find yourself about to write `implementation_plan.md`, STOP — you are bypassing a gate.
+
+Do NOT skip or auto-decide the Review Choice after the last task is complete.
+You MUST present the choice between "Finish" and "Cross-model review" and wait for the developer's explicit instruction before executing any Gate 4 check.
 </HARD-GATE>
 
 ## Document Contract
@@ -278,6 +281,9 @@ starts with `run_external_review.py check` when that file exists. Findings the d
 accept are `dismissed` only on the developer's explicit words. The mechanics are in
 `dev-implementation`'s Review Choice section.
 
+> [!CRITICAL]
+> **Mandatory Review Choice**: Once every task is `done`, the agent MUST stop calling tools and present the Review Choice. Silently skipping Review Choice, assuming "Finish", or running Phase 4 checks without the developer's explicit instruction is strictly prohibited.
+
 **Gate 4 Machine Acceptance Criteria:**
 Gate 4 grants `🟢 LGTM` only when `audit_epic.py` exits 0 — every done task's committed evidence matches its Verification table, and every change to a grader is disclosed — **and** result-based traceability, `check_bdd_traceability.py tests --results` over the HLD's Integration results reports, exits 0 — every scenario in `bdd_scenarios.en.md` proved by an integration test that passed, no test referencing a removed scenario — **and** the provider-based quality orchestrator (`@quality_check`) returns an aggregated verdict of **PASS**, both bound to the exact candidate commit SHA (`git rev-parse HEAD`), with `@quality_check` evaluating all registered providers declared in `.agents/quality/check_quality.json` with profile `epic` against `<base_ref>`.
 
@@ -328,6 +334,8 @@ the 🟢 verdict must come from a complete run.
 - Granting Gate 4 without a passing traceability check on the same SHA, or without a passing `audit_epic.py`.
 - Ticking checkboxes or writing evidence by hand instead of running `run_task_checks.py`.
 - Changing a Verification table, Allowed files or a protected path without stopping to ask.
+- Skipping the Review Choice after the last task is done, or proceeding to Phase 4 / Gate 4 without asking the developer to choose Finish or Cross-model review.
+- Auto-selecting or defaulting the Review Choice on the developer's behalf.
 - Running the cross-model review without asking the Review Choice.
 - Starting a cross-model review by picking the review CLI for the developer, instead of asking which of the Claude CLI and the Codex CLI to use.
 - Writing a `dismissed` decision in `review_results.md` without the developer's words.
@@ -352,6 +360,8 @@ the 🟢 verdict must come from a complete run.
 | "The user confirmed the scope, that's basically Gate 1" | Gate 1 is spec approval through `dev-brainstorming`, not a scope question. |
 | "I can combine research + spec into one step" | Stage 1 is `dev-brainstorming`'s job. Invoke the skill. |
 | "The developer obviously wants to continue" | The Handoff Choice is theirs. Ask it every time a new epic passes Gate 2. |
+| "All tasks are done, so I'll jump straight to Gate 4" | Review Choice is mandatory before Gate 4. You must ask the developer to choose Finish or Cross-model review. |
+| "The developer probably just wants to finish" | The developer chooses every time. Never assume Finish or pick on their behalf. |
 
 ## Stage Skills
 

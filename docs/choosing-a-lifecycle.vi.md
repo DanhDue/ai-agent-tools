@@ -46,7 +46,8 @@ Chọn theo số mảnh review được của công việc.
 
 **Nhiều thành phần độc lập, hoặc bạn sẽ muốn có sơ đồ kiến trúc và một bảng task** — chạy `d3nexus:dev-lifecycle`.
 Nó đưa bạn qua năm cổng:
-spec, phân rã task, thứ tự thực thi, `quality_check`, và chữ ký của chính bạn trước khi nhánh được hoàn tất.
+spec (Cổng 1), phân rã task (Cổng 2), thứ tự thực thi (Cổng 3), `quality_check` kèm audit và BDD traceability (Cổng 4), và chữ ký duyệt Kanban của chính bạn (Cổng 5) trước khi nhánh được hoàn tất.
+Nó cũng thực thi hai điểm lựa chọn rõ ràng: **Handoff Choice** (đóng gói hoặc tiếp tục) sau Stage 2, và **Review Choice** bắt buộc (Finish hoặc Cross-model review) trước Cổng 4.
 
 **Một thành phần, một plan** — chạy `d3nexus:dev-brainstorming`, rồi `d3nexus:writing-plans`.
 Cách này rời khỏi epic lifecycle; các cổng còn lại của nó không áp dụng. Bạn vẫn qua hai cổng:
@@ -67,7 +68,7 @@ Chạy `d3nexus:subagent-driven-development` (khuyến nghị) hoặc `d3nexus:e
 > `d3nexus:finishing-a-development-branch` và chọn merge hoặc PR.**
 
 Tuyến epic không cần gì trong số này:
-`dev-implementation` điều khiển executor, giữ `quality_check` ở Cổng 4 và chữ ký của bạn ở Cổng 5, rồi mới hoàn tất nhánh.
+`dev-implementation` điều khiển executor, thực thi Review Choice bắt buộc (Finish hoặc Cross-model review) sau khi hoàn tất các task, giữ các kiểm tra máy Cổng 4 (`audit_epic.py`, BDD traceability, `quality_check`), yêu cầu chữ ký duyệt trực quan của bạn ở Cổng 5 trên bảng Kanban, rồi mới hoàn tất nhánh.
 
 ## Nếu bạn viết tài liệu
 

@@ -454,6 +454,12 @@ Only when Phase 2 flags divergence:
 
 ### Review Choice — after the last task
 
+<HARD-GATE>
+You MUST NOT skip or auto-decide the Review Choice after the last task is complete.
+Present the choice between "Finish" and "Cross-model review" and wait for the developer's explicit instruction.
+Proceeding silently to Phase 4 without presenting this choice is a violation of the CRITICAL RULES.
+</HARD-GATE>
+
 When the last task is `done` and its integration with `develop` (step 7) is green, ask the developer — every time, like the Handoff Choice, and wait for the answer:
 
 > All N tasks of `<epic_slug>` are done. How do you want to proceed?

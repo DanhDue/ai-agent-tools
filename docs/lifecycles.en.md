@@ -22,8 +22,8 @@ Each lifecycle is defined by what exists when it ends.
 |---|---|---|---|
 | **Purpose** | Build code that ships | Produce a document someone reads | Decide what to build, and for whom |
 | **Produces** | A merged branch | A published document | A validated MVP backlog |
-| **Gates** | 5 | 3 | 3 |
-| **Gate approvers** | 4 human, 1 machine | 2 human, 1 machine | 3 human |
+| **Gates** | 5 | 4 | 3 |
+| **Gate approvers** | 4 human, 1 machine | 3 human, 1 machine | 3 human |
 | **Artefacts live in** | `.devtool/epic/<slug>/` | `.devtool/epic/<slug>/`, deliverable in `docs/` | `.devtool/product/<slug>/` |
 | **Verified by** | `quality_check` | `doc_quality_check` | human judgement only |
 
@@ -43,26 +43,56 @@ That work uses `dev-brainstorming` then `writing-plans`, which leaves this lifec
 
 ```mermaid
 flowchart TD
-    S1["Stage 1 — Inception<br/>(dev-brainstorming)"]
-    G1{"Gate 1 — spec approved"}
+    S1["Stage 1 — Inception &amp; Spec<br/>(dev-brainstorming)"]
+    G1{"Gate 1<br/>Spec approved?"}
     ROUTE{"Epic-scale?"}
-    PLANS(["writing-plans<br/>(leaves this lifecycle)"])
+    PLANS(["writing-plans<br/>(leaves this workflow)"])
     S2["Stage 2 — Architecture &amp; Tasks<br/>(dev-designer)"]
-    G2{"Gate 2 — task breakdown"}
-    S3["Stage 3 — Execution<br/>(dev-implementation)"]
-    G3{"Gate 3 — execution order"}
-    G4{"Gate 4 — quality_check 🟢"}
-    G5{"Gate 5 — Kanban sign-off"}
-    S4["Stage 4 — Finish branch<br/>(finishing-a-development-branch)"]
+    G2{"Gate 2<br/>HLD &amp; task breakdown approved?"}
+    HC{"Handoff choice<br/>package or continue?"}
+    PKG(["Package epic<br/>handoff.md, status Packaged, stop"])
+    S3["Stage 3 — Isolated Execution<br/>(dev-implementation)"]
+    G3{"Gate 3<br/>Execution order confirmed?"}
+    EXEC["Phase 2-3: task-by-task TDD<br/>one commit per task, doc sync on divergence,<br/>integrate with develop after each task"]
+    RC{"Review Choice<br/>Finish or Cross-model review?"}
+    XR["run_external_review.py run<br/>(review_results.md committed per round)"]
+    G4{"Gate 4<br/>audit + result-based traceability + quality_check 🟢 LGTM?"}
+    REVIEW["Phase 4.1: Developer Kanban Review<br/>(All tasks held in DONE column for visual inspection)"]
+    G5{"Gate 5<br/>User sign-off &amp; finish approved?"}
+    S4["Stage 4 — Finish Branch &amp; Archival<br/>(finishing-a-development-branch)"]
 
-    S1 --> G1 --> ROUTE
+    S1 --> G1
+    G1 -->|no, revise| S1
+    G1 -->|yes| ROUTE
     ROUTE -->|no| PLANS
-    ROUTE -->|yes| S2 --> G2 --> S3 --> G3 --> G4 --> G5 --> S4
+    ROUTE -->|yes| S2
+    S2 --> G2
+    G2 -->|no, adjust breakdown| S2
+    G2 -->|yes| HC
+    HC -->|"1. package"| PKG
+    HC -->|"2. continue"| S3
+    PKG -.->|"later session or another LLM"| S3
+    S3 --> G3
+    G3 -->|no, reorder| G3
+    G3 -->|yes| EXEC
+    EXEC --> RC
+    RC -->|"1. Finish"| G4
+    RC -->|"2. Cross-model review"| XR
+    XR -->|"no Critical or Important finding"| G4
+    XR -->|"findings to fix as Fix commits"| EXEC
+    XR -->|"CLI failed, pick again"| RC
+    G4 -->|"no, fix findings as Fix commits"| EXEC
+    G4 -->|yes| REVIEW
+    REVIEW --> G5
+    G5 -->|"no, changes as Fix commits"| EXEC
+    G5 -->|yes| S4
 ```
 
-Gate 4 is the only machine verdict in this kit's development path.
-It grants 🟢 on a complete run of the 3-tier suite, the four semantic audits,
-the reverse-coverage thresholds and the pre-merge impact diff — never on a partial re-run.
+The lifecycle proceeds through four stages and five approval gates, with two explicit human choice points:
+- **Routing & Handoff Choice**: Once Gate 1 passes, epic-scale work routes to Stage 2 (`dev-designer`). Between Gate 2 and Stage 3, the developer chooses whether to **Package** (`handoff.md`, status `Packaged`, stop for later session or another LLM) or **Continue** into Stage 3 immediately.
+- **Isolated Execution & Review Choice**: Stage 3 executes each task independently in an isolated worktree with TDD and continuous integration into `develop`. Once all tasks are complete, the agent **MUST NOT** proceed to Gate 4 directly; it must present the **Review Choice** allowing the developer to choose **Finish** or an independent **Cross-model review** (via Claude CLI or Codex CLI).
+- **Gate 4 Machine Acceptance**: Gate 4 is the only machine verdict in this kit's development path. It grants 🟢 only when `audit_epic.py` exits 0, `check_bdd_traceability.py tests --results` exits 0, and `@quality_check` profile `epic` returns PASS on the exact candidate commit SHA.
+- **Gate 5 Developer Kanban Review**: Completed tasks are retained in `.devtool/features/done/` for visual developer sign-off before Stage 4 rebases, verifies by tier, lands the branch with a `--no-ff` merge, and archives tasks into `.devtool/epic/<slug>/`.
 
 ## doc-lifecycle
 
