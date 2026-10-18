@@ -35,6 +35,15 @@ FINDING = re.compile(r"^\s*(?:[-*+]|\d+[.)])?\s*\*{0,2}\[\*{0,2}(Critical|Import
 UNPARSED_BLOCKING = re.compile(r"^\s*(?:(?:[-*+]|\d+[.)])\s+.*?|\[\*{0,2})\b(Critical|Important)\b", re.IGNORECASE)
 FINDING_ROW = re.compile(r"^\|\s*\d+\s*\|")
 BLOCKING = ("Critical", "Important")
+MAX_DIFF_LINES = 1500
+MAX_DIFF_BYTES = 60_000
+
+EXCLUDES = (
+    ":(exclude)*.lock", ":(exclude)*-lock.*", ":(exclude)*.generated.*",
+    ":(exclude)*.g.dart", ":(exclude)*.freezed.dart", ":(exclude)*.pbxproj",
+    ":(exclude)build/**", ":(exclude).devtool/**",
+)
+
 
 
 class PreconditionFailedError(Exception):
@@ -160,16 +169,28 @@ def table_findings(lines: list[str]) -> list[tuple[str, list[str]]]:
     return [(line, split_row(line)) for line in metadata(lines) if FINDING_ROW.match(line)]
 
 
-def code_changes_section(root: Path, base: str, sha: str, diff_limit: int = 1500) -> str:
-    diff_cmd = ["git", "diff", f"{base}...{sha}", "--", ".", ":(exclude)*.lock", ":(exclude)build/**"]
-    diff_text = subprocess.run(diff_cmd, cwd=root, capture_output=True, text=True).stdout.replace("\r", "").rstrip()
-    lines = diff_text.splitlines() if diff_text else []
-    if lines and len(lines) <= diff_limit:
-        return f"The full code diff ({len(lines)} lines) is inlined below for immediate review:\n\n```diff\n{diff_text}\n```"
-    stat_cmd = ["git", "diff", "--stat", f"{base}...{sha}", "--", ".", ":(exclude)*.lock", ":(exclude)build/**"]
-    stat_text = subprocess.run(stat_cmd, cwd=root, capture_output=True, text=True).stdout.rstrip()
-    reason = f"exceeds the inline budget of {diff_limit} lines" if lines else "is empty"
-    return f"The code diff {reason}; summary statistics are inlined below:\n\n```text\n{stat_text}\n```\n\nInspect specific files as needed using `git diff {base}...{sha}` or file reading tools."
+def build_diff_section(root: Path, base: str, sha: str, max_lines: int = MAX_DIFF_LINES, max_bytes: int = MAX_DIFF_BYTES) -> str:
+    """Hybrid inlining: inline full filtered diff if within budget, else inline --stat only."""
+    stat = git_run(root, "diff", "--stat", f"{base}...{sha}", "--", ".", *EXCLUDES).decode("utf-8", "replace").strip()
+    diff = git_run(root, "diff", f"{base}...{sha}", "--", ".", *EXCLUDES).decode("utf-8", "replace").strip()
+
+    line_count = len(diff.splitlines()) if diff else 0
+    byte_size = len(diff.encode("utf-8")) if diff else 0
+
+    if line_count <= max_lines and byte_size <= max_bytes:
+        fence = fence_for(diff)
+        return (
+            f"The complete code diff ({line_count} lines, {byte_size // 1024} KB, lock/generated files excluded) "
+            f"is inlined below. Do NOT run `git diff` again unless inspecting an excluded file:\n\n"
+            f"{fence}diff\n{diff}\n{fence}"
+        )
+
+    fence = fence_for(stat)
+    return (
+        f"The code diff is large ({line_count} lines, {byte_size // 1024} KB > budget). "
+        f"Only `git diff --stat` is inlined below; use `git diff {base}...{sha} -- <path>` on specific files as needed:\n\n"
+        f"{fence}text\n{stat}\n{fence}"
+    )
 
 
 def parse_findings(out: str, verdict: str | None = None) -> list[tuple[str, str, str]]:
@@ -210,11 +231,11 @@ def run(args: argparse.Namespace) -> int:
     except PreconditionFailedError as error:
         print(f"precondition failed: {error}", file=sys.stderr)
         return 2
-    diff_limit = getattr(args, "diff_limit", 1500)
-    code_changes = code_changes_section(root, args.base, sha, diff_limit)
-    prompt = Template(PROMPT.read_text(encoding="utf-8")).substitute(
+    diff_limit = getattr(args, "diff_limit", MAX_DIFF_LINES)
+    diff_section = build_diff_section(root, args.base, sha, max_lines=diff_limit)
+    prompt = Template(PROMPT.read_text(encoding="utf-8")).safe_substitute(
         sha=sha, base=args.base, epic_dir=f".devtool/epic/{args.epic_dir}", artefacts=artefact_lines(root, args.epic_dir),
-        code_changes=code_changes, audit_output=audit_output.rstrip(), results_output=results_output.rstrip())
+        diff_section=diff_section, audit_output=audit_output.rstrip(), results_output=results_output.rstrip())
     before = status_lines(root)  # after the facts: running the test commands may write build output
     code, out, err = execute(cli_command(args.cli, args.model), root, args.timeout, prompt)
     after = status_lines(root)

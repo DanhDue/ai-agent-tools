@@ -10,9 +10,9 @@ the git diff, and report.
 - Base the epic branched from: `$base`
 - Epic directory: `$epic_dir`
 
-## Code Changes
+## Code Changes (Diff)
 
-$code_changes
+$diff_section
 
 ## Artefacts
 

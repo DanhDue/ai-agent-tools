@@ -413,8 +413,9 @@ class RunExternalReviewTest(ReviewCase):
         code, out, err = self.run_review(cli="claude", mode="pass")
         self.assertEqual(code, 0)
         prompt = self.stdin.read_text(encoding="utf-8")
-        self.assertIn("## Code Changes", prompt)
-        self.assertIn("The full code diff", prompt)
+        self.assertIn("## Code Changes (Diff)", prompt)
+        self.assertIn("The complete code diff", prompt)
+        self.assertIn("Do NOT run `git diff` again", prompt)
         self.assertIn("```diff", prompt)
         self.assertIn("+def greet():", prompt)
 
@@ -426,10 +427,22 @@ class RunExternalReviewTest(ReviewCase):
         code, out, err = self.run_review("--diff-limit", "3", cli="codex", mode="pass")
         self.assertEqual(code, 0)
         prompt = self.stdin.read_text(encoding="utf-8")
-        self.assertIn("## Code Changes", prompt)
-        self.assertIn("exceeds the inline budget of 3 lines", prompt)
+        self.assertIn("## Code Changes (Diff)", prompt)
+        self.assertIn("The code diff is large", prompt)
+        self.assertIn("Only `git diff --stat` is inlined below", prompt)
         self.assertIn("```text", prompt)
         self.assertIn("src/large.py", prompt)
+
+
+    # [RWE-HP-05] Diff with raw dollar variables is safely substituted without Template crash
+    def test_rwe_hp_05_diff_with_dollar_variables(self) -> None:
+        self.install("claude")
+        self.write("src/script.sh", "#!/bin/bash\necho \"$UNDEFINED_VAR\" > \"$OUTPUT_FILE\"\n")
+        self.commit("Add bash script with dollars")
+        code, out, err = self.run_review(cli="claude", mode="pass")
+        self.assertEqual(code, 0)
+        prompt = self.stdin.read_text(encoding="utf-8")
+        self.assertIn("$UNDEFINED_VAR", prompt)
 
 if __name__ == '__main__':
     unittest.main()
