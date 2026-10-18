@@ -70,12 +70,20 @@ EXCLUDES = (
     ":(exclude)*.pigeon.*",
     ":(exclude)*frb_generated*",
     ":(exclude)**/l10n/app_localizations*.dart",
-    # 3. Android Native (Gradle wrapper & Baseline profiles)
+    # 3. iOS Native (Xcode metadata, assets & UI layout XML)
+    ":(exclude)*.pbxproj",
+    ":(exclude)*.xcworkspacedata",
+    ":(exclude)*.xcscheme",
+    ":(exclude)*.storyboard",
+    ":(exclude)*.xib",
+    ":(exclude)**/*.xcassets/**",
+    ":(exclude)*.xcstrings",
+    # 4. Android Native (Gradle wrapper & Baseline profiles)
     ":(exclude)gradlew",
     ":(exclude)gradlew.bat",
     ":(exclude)**/gradle/wrapper/**",
     ":(exclude)**/baseline-prof.txt",
-    # 4. Rust & Python Generated / Snapshots
+    # 5. Rust & Python Generated / Snapshots
     ":(exclude)*.generated.*",
     ":(exclude)*_pb2.py",
     ":(exclude)*_pb2_grpc.py",
@@ -84,7 +92,7 @@ EXCLUDES = (
     ":(exclude)**/__snapshots__/**",
     ":(exclude)*.snap",
     ":(exclude)*.ambr",
-    # 5. Minified Web Assets & Source Maps
+    # 6. Minified Web Assets & Source Maps
     ":(exclude)*.min.js",
     ":(exclude)*.min.css",
     ":(exclude)*.map",
@@ -186,7 +194,7 @@ def build_diff_section(root: Path, base: str, sha: str, max_lines: int = MAX_DIF
         diff_fence = fence_for(filtered_diff)
         return (
             stat_block
-            + f"The complete source diff ({line_count} lines, {byte_size // 1024} KB, lock/generated files excluded) "
+            + f"The complete source diff ({line_count} lines, {byte_size // 1024} KB, locks, metadata & generated files excluded) "
             f"is inlined below. Do NOT run `git diff` again unless you need to inspect an excluded file:\n\n"
             f"{diff_fence}diff\n{filtered_diff}\n{diff_fence}"
         )
