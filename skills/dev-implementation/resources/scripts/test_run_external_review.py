@@ -404,5 +404,32 @@ class RunExternalReviewTest(ReviewCase):
         self.assertIn("undecided: #1 Critical demo.en.md:3", out)
         self.assertIn("undecided: #2 Important task_1_demo.md:9", out)
 
+
+    # [RWE-HP-05] Full diff inlined when under line limit
+    def test_rwe_hp_05_inlined_code_diff(self) -> None:
+        self.install("claude")
+        self.write("src/core.py", "def greet():\n    return 'hello'\n")
+        self.commit("Add greet")
+        code, out, err = self.run_review(cli="claude", mode="pass")
+        self.assertEqual(code, 0)
+        prompt = self.stdin.read_text(encoding="utf-8")
+        self.assertIn("## Code Changes", prompt)
+        self.assertIn("The full code diff", prompt)
+        self.assertIn("```diff", prompt)
+        self.assertIn("+def greet():", prompt)
+
+    # [RWE-EC-05] Fallback to diff stat when exceeding line limit
+    def test_rwe_ec_05_diff_stat_fallback_when_exceeding_limit(self) -> None:
+        self.install("codex")
+        self.write("src/large.py", "\n".join(f"x_{i} = {i}" for i in range(10)) + "\n")
+        self.commit("Add large file")
+        code, out, err = self.run_review("--diff-limit", "3", cli="codex", mode="pass")
+        self.assertEqual(code, 0)
+        prompt = self.stdin.read_text(encoding="utf-8")
+        self.assertIn("## Code Changes", prompt)
+        self.assertIn("exceeds the inline budget of 3 lines", prompt)
+        self.assertIn("```text", prompt)
+        self.assertIn("src/large.py", prompt)
+
 if __name__ == '__main__':
     unittest.main()

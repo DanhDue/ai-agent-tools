@@ -160,6 +160,18 @@ def table_findings(lines: list[str]) -> list[tuple[str, list[str]]]:
     return [(line, split_row(line)) for line in metadata(lines) if FINDING_ROW.match(line)]
 
 
+def code_changes_section(root: Path, base: str, sha: str, diff_limit: int = 1500) -> str:
+    diff_cmd = ["git", "diff", f"{base}...{sha}", "--", ".", ":(exclude)*.lock", ":(exclude)build/**"]
+    diff_text = subprocess.run(diff_cmd, cwd=root, capture_output=True, text=True).stdout.replace("\r", "").rstrip()
+    lines = diff_text.splitlines() if diff_text else []
+    if lines and len(lines) <= diff_limit:
+        return f"The full code diff ({len(lines)} lines) is inlined below for immediate review:\n\n```diff\n{diff_text}\n```"
+    stat_cmd = ["git", "diff", "--stat", f"{base}...{sha}", "--", ".", ":(exclude)*.lock", ":(exclude)build/**"]
+    stat_text = subprocess.run(stat_cmd, cwd=root, capture_output=True, text=True).stdout.rstrip()
+    reason = f"exceeds the inline budget of {diff_limit} lines" if lines else "is empty"
+    return f"The code diff {reason}; summary statistics are inlined below:\n\n```text\n{stat_text}\n```\n\nInspect specific files as needed using `git diff {base}...{sha}` or file reading tools."
+
+
 def parse_findings(out: str, verdict: str | None = None) -> list[tuple[str, str, str]]:
     """Each finding line as (severity, location, problem); a blocking line in list format keeps its raw text."""
     findings = []
@@ -198,9 +210,11 @@ def run(args: argparse.Namespace) -> int:
     except PreconditionFailedError as error:
         print(f"precondition failed: {error}", file=sys.stderr)
         return 2
+    diff_limit = getattr(args, "diff_limit", 1500)
+    code_changes = code_changes_section(root, args.base, sha, diff_limit)
     prompt = Template(PROMPT.read_text(encoding="utf-8")).substitute(
         sha=sha, base=args.base, epic_dir=f".devtool/epic/{args.epic_dir}", artefacts=artefact_lines(root, args.epic_dir),
-        audit_output=audit_output.rstrip(), results_output=results_output.rstrip())
+        code_changes=code_changes, audit_output=audit_output.rstrip(), results_output=results_output.rstrip())
     before = status_lines(root)  # after the facts: running the test commands may write build output
     code, out, err = execute(cli_command(args.cli, args.model), root, args.timeout, prompt)
     after = status_lines(root)
@@ -260,6 +274,7 @@ def main(argv: list[str] | None = None) -> int:
     runner.add_argument("--model")
     runner.add_argument("--timeout", type=int, default=1800)
     runner.add_argument("--facts-timeout", type=int, default=300)
+    runner.add_argument("--diff-limit", type=int, default=1500)
     checker = modes.add_parser("check", help="list undecided blocking findings of the latest completed round")
     checker.add_argument("--epic-dir", required=True)
     args = parser.parse_args(argv)

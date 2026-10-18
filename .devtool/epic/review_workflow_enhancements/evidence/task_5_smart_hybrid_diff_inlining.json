@@ -1,0 +1,212 @@
+{
+  "schema": 1,
+  "task": "task_5_smart_hybrid_diff_inlining",
+  "runs": {
+    "red": {
+      "head": "30b907a32c6c112acdaad2985fe146a3d18ae9cb",
+      "tree": "08c8d496044b66ae67bc448c3f5c05ba28f04a54",
+      "patch_id": "7d02b53866912499b6ee6dfe056fc81b43611036",
+      "started": "2026-10-18T01:35:32Z",
+      "finished": "2026-10-18T01:35:33Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 skills/dev-implementation/resources/scripts/test_run_external_review.py RunExternalReviewTest.test_rwe_hp_05_inlined_code_diff",
+          "expect": "exit non-zero",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-18T01:35:32Z",
+          "finished": "2026-10-18T01:35:32Z",
+          "output_tail": [
+            "F",
+            "======================================================================",
+            "FAIL: test_rwe_hp_05_inlined_code_diff (__main__.RunExternalReviewTest.test_rwe_hp_05_inlined_code_diff)",
+            "----------------------------------------------------------------------",
+            "Traceback (most recent call last):",
+            "  File \"/Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/review_workflow_enhancements/skills/dev-implementation/resources/scripts/test_run_external_review.py\", line 414, in test_rwe_hp_05_inlined_code_diff",
+            "    self.assertIn(\"## Code Changes\", prompt)",
+            "    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+            "AssertionError: '## Code Changes' not found in \"# External Review Prompt\\n\\nYou are an independent reviewer of a finished epic. You are strictly read-only: do not modify, create or delete\\nany file, and do not run commands that write to the repository or alter git state. Read the artefacts, inspect\\nthe git diff, and report.\\n\\n## Candidate\\n\\n- Commit under review: `d80cd808dc930c1c5edd1b0f38004454a6d3963d`\\n- Base the epic branched from: `a0a9c937e4ee5a712cdc5837b9c9aaa1ba854d91`\\n- Epic directory: `.devtool/epic/demo`\\n- Code changes to inspect: run `git diff a0a9c937e4ee5a712cdc5837b9c9aaa1ba854d91...d80cd808dc930c1c5edd1b0f38004454a6d3963d` (and read source/test files as needed).\\n\\n## Artefacts\\n\\nRead these paths, relative to the repository root:\\n\\n- `.devtool/epic/demo/design.en.md`\\n- `.devtool/epic/demo/demo.en.md`\\n- `.devtool/epic/demo/bdd_scenarios.en.md`\\n- `.devtool/epic/demo/task_1_demo.md`\\n- `.devtool/epic/demo/evidence/`\\n\\n## Facts gathered for you\\n\\nThe audit of the epic branch, with its exit code:\\n\\n```text\\n$ audit_epic.py\\nexit 0\\n### Evidence\\nNone\\n\\n### Legacy tasks\\n- task_1_demo: legacy — no evidence\\n\\n### Protected paths\\nNone\\n\\n### Grader amendments\\n- scenario DEMO-HP-01 added\\n- demo.en.md: Protected paths or Integration results changed since base\\n  --- demo.en.md at base\\n  +++ demo.en.md at HEAD\\n  @@ -0,0 +1 @@\\n  +Integration results: true -> build/demo.xml\\n  changed by d80cd80 Epic\\n\\n### Commits outside tasks\\nNone\\n\\n### Gate 5 items\\nNone\\n\\nResult: PASS\\n```\\n\\nThe integration test commands and the result-based traceability check, with their exit codes:\\n\\n```text\\n$ true\\nexit 0\\n\\n\\n$ /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/review_workflow_enhancements/skills/dev-implementation/resources/scripts/check_bdd_traceability.py tests --scenarios .devtool/epic/demo/bdd_scenarios.en.md --roots scripts/ --results build/demo.xml\\nexit 2\\nerror: results path not found: build/demo.xml\\n```\\n\\nA failing command above is a fact to weigh, not a reason to stop.\\n\\n## Verification Hierarchy & Process Rules\\n\\nTo avoid false-positive findings, evaluate evidence against these architectural principles:\\n\\n1. **Task-Level vs. Gate 4 Workspace Scope**:\\n   - Each task's `Verification` table is strictly scoped to that individual task's deliverables (e.g. documentation, domain models, or specific adapters).\\n   - Tasks are NOT required to execute workspace-wide profiles. Full workspace capabilities (coverage thresholds, security advisories/deny, FFI/WASM release builds, database hygiene, and end-to-end acceptance) belong exclusively to the platform-neutral **Gate 4 Quality Orchestrator (`@quality_check`)** evaluated on the final candidate SHA. Do not report task evidence as defective solely because it does not run the entire workspace epic profile.\\n2. **Compiled Language TDD RED Semantics**:\\n   - In compiled languages (Rust, Go, C++, etc.), the initial TDD RED phase for a new component or function is legitimately satisfied by a compilation failure or missing test target. A non-zero exit code prior to implementation code being written demonstrates a valid RED state.\\n3. **Artifact Budget Assertions**:\\n   - Verify that test assertions checking generated build artifacts (such as WASM binary size or exported types) strictly verify that the target artifact actually exists (avoiding vacuous false-PASS loops).\\n4. **Contract Drift Inspection**:\\n   - Check whether code constants, default parameters, and enum variants match the published API reference documentation and cross-epic integration contracts without divergence.\\n\\n## Checklist\\n\\n- Each done task's evidence against its Verification table, and rows too weak for the Definition of\\n  Done item they back.\\n- Whether each identifier's test exercises its Gherkin scenario, or merely passes.\\n- Each audit disclosure — grader amendments, protected path changes, commits outside tasks — and\\n  whether it is justified.\\n- Whether the code respects the spec, the HLD, schema definitions, and each task's Decisions Already Made.\\n- The `(Gate 5)` items, restated for the developer.\\n\\n## Required output\\n\\nEnd your answer with these lines and nothing after them:\\n\\n- One line `Verdict: PASS` or `Verdict: CHANGES REQUIRED`.\\n- One line per finding: `[Critical|Important|Minor] <artefact>:<location> — <problem>`.\\n\\nFormatting rules:\\n- Format the verdict line exactly: `Verdict: PASS` or `Verdict: CHANGES REQUIRED` (do not add extra markdown headings or bold wrapping around the word Verdict).\\n- Use `Critical` for a defect that breaks the epic's core functionality or contract, `Important` for one that must be fixed before merge, and `Minor` for non-blocking polish. A review with no finding still ends with its verdict line.\\n\"",
+            "",
+            "----------------------------------------------------------------------",
+            "Ran 1 test in 0.498s",
+            "",
+            "FAILED (failures=1)"
+          ],
+          "output_sha256": "f3984ec9c7612d7b7c96d928ac87686e273fb2b0784856b63a0d2000f8d27a4a"
+        }
+      ]
+    },
+    "verify": {
+      "head": "30b907a32c6c112acdaad2985fe146a3d18ae9cb",
+      "tree": "2edb859495278f68fe88972d21d50e540f2baac3",
+      "patch_id": "09d3324a7fda336aecc5d87b786261b8bb51bf61",
+      "started": "2026-10-18T01:37:01Z",
+      "finished": "2026-10-18T01:37:49Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 skills/dev-implementation/resources/scripts/test_run_external_review.py RunExternalReviewTest.test_rwe_hp_05_inlined_code_diff",
+          "expect": "exit 0; contains \"OK\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-18T01:37:01Z",
+          "finished": "2026-10-18T01:37:02Z",
+          "output_tail": [
+            ".",
+            "----------------------------------------------------------------------",
+            "Ran 1 test in 0.483s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "d3885d6d0a683d4c86ebc7bd2dd548c5ced12286cf09a8098a1f2d3e70be3f9d"
+        },
+        {
+          "id": "V3",
+          "phase": "TIER-B",
+          "command": "python3 -m unittest discover -s skills/dev-implementation/resources/scripts",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-18T01:37:02Z",
+          "finished": "2026-10-18T01:37:36Z",
+          "output_tail": [
+            "...................................................................................sss..............................................................................................................................................",
+            "----------------------------------------------------------------------",
+            "Ran 228 tests in 33.909s",
+            "",
+            "OK (skipped=3)"
+          ],
+          "output_sha256": "a74561c5301026e470eaf34153f2d553d77db3caf1ab32ce51e069d1d4e514f5"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-C",
+          "command": "python3 scripts/run_unittest_junit.py --junitxml build/test-results/unit.xml skills/dev-implementation/resources/scripts/test_run_external_review.py",
+          "expect": "exit 0; results build/test-results/unit.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-18T01:37:36Z",
+          "finished": "2026-10-18T01:37:49Z",
+          "output_tail": [
+            "..........................",
+            "----------------------------------------------------------------------",
+            "Ran 26 tests in 12.745s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "4cd187922268783642aeae0ab0ed081d09bdad36b5c16211635fdb8c87ae0f0f",
+          "results": {
+            "path": "build/test-results/unit.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 15,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_rwe_ec_01_conversational_summary_does_not_trigger_unparsed_blocking",
+                  "classname": "test_run_external_review.RunExternalReviewTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rwe_ec_02_verdict_whitespace_and_case",
+                  "classname": "test_run_external_review.RunExternalReviewTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rwe_ec_03_cell_handles_escaped_pipes",
+                  "classname": "test_run_external_review.RunExternalReviewTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rwe_ec_04_facts_timeout_separated_from_cli_timeout",
+                  "classname": "test_run_external_review.RunExternalReviewTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rwe_ec_05_diff_stat_fallback_when_exceeding_limit",
+                  "classname": "test_run_external_review.RunExternalReviewTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rwe_fr_01_fail_fast_aborts_on_audit_failure",
+                  "classname": "test_run_external_review.RunExternalReviewTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rwe_fr_01_fail_fast_aborts_on_integration_test_failure",
+                  "classname": "test_run_external_review.RunExternalReviewTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rwe_fr_02_fail_fast_aborts_on_test_timeout",
+                  "classname": "test_run_external_review.RunExternalReviewTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rwe_hp_01_resilient_verdict_parsing",
+                  "classname": "test_run_external_review.RunExternalReviewTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rwe_hp_02_finding_lines_match_list_items",
+                  "classname": "test_run_external_review.RunExternalReviewTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rwe_hp_03_cell_sanitizes_control_characters",
+                  "classname": "test_run_external_review.RunExternalReviewTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rwe_hp_04_clean_facts_collection_proceeds_to_cli",
+                  "classname": "test_run_external_review.RunExternalReviewTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rwe_hp_05_inlined_code_diff",
+                  "classname": "test_run_external_review.RunExternalReviewTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rwe_st_01_round_transitions_to_check_pass_after_decisions",
+                  "classname": "test_run_external_review.RunExternalReviewTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rwe_st_02_undecided_findings_block_check",
+                  "classname": "test_run_external_review.RunExternalReviewTest",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "skills/dev-implementation/references/external-review-prompt.md",
+            "skills/dev-implementation/resources/scripts/run_external_review.py",
+            "skills/dev-implementation/resources/scripts/test_run_external_review.py"
+          ],
+          "violations": []
+        }
+      ]
+    }
+  }
+}

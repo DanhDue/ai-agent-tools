@@ -9,7 +9,10 @@ the git diff, and report.
 - Commit under review: `$sha`
 - Base the epic branched from: `$base`
 - Epic directory: `$epic_dir`
-- Code changes to inspect: run `git diff $base...$sha` (and read source/test files as needed).
+
+## Code Changes
+
+$code_changes
 
 ## Artefacts
 
