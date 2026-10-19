@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 """Verify that every lifecycle document producer exposes the shared contract."""
 
-import pathlib
-import sys
+from __future__ import annotations
 
+import pathlib
+import re
+import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 
-EXPECTED = {
+EXPECTED: dict[str, tuple[str, ...]] = {
     "skills/dev-brainstorming/SKILL.md": (
         "YYYY-MM-DD-<topic>-design.en.md",
         "YYYY-MM-DD-<topic>-design.vi.md",
@@ -96,7 +98,7 @@ EXPECTED = {
     ),
 }
 
-FORBIDDEN = {
+FORBIDDEN: dict[str, tuple[str, ...]] = {
     "skills/pr_review/SKILL.md": (
         "melos test",
         "./gradlew check",
@@ -106,25 +108,53 @@ FORBIDDEN = {
 }
 
 
-def main() -> int:
-    failures = []
-    for relative_path, required_tokens in EXPECTED.items():
-        text = (ROOT / relative_path).read_text()
-        for token in required_tokens:
-            if token not in text:
-                failures.append(f"{relative_path}: missing {token}")
-    for relative_path, forbidden_tokens in FORBIDDEN.items():
-        text = (ROOT / relative_path).read_text()
-        for token in forbidden_tokens:
-            if token in text:
-                failures.append(f"{relative_path}: contains forbidden token {token}")
-    if failures:
-        for failure in failures:
-            print(f"  FAIL {failure}")
-        return 1
-    print(f"  checked {len(EXPECTED)} lifecycle document contract surfaces")
-    return 0
+class LifecycleDocumentContractTest(unittest.TestCase):
+    def test_mvls_hp_04_implementation_skill_concise_and_orchestrated(self) -> None:
+        """[MVLS-HP-04] dev-implementation is <= 4500 words, has no diagram fences, and preserves orchestration."""
+        impl_path = ROOT / "skills/dev-implementation/SKILL.md"
+        text = impl_path.read_text(encoding="utf-8")
+        words = len(text.split())
+        self.assertLessEqual(words, 4500, f"SKILL.md exceeds word limit: {words} > 4500")
+        self.assertNotIn("```mermaid", text, "SKILL.md must not contain Mermaid diagram fences")
+        self.assertNotIn("```dot", text, "SKILL.md must not contain Graphviz DOT diagram fences")
+
+        for token in EXPECTED["skills/dev-implementation/SKILL.md"]:
+            self.assertIn(token, text, f"Missing required token: {token}")
+
+        self.assertIn("Bounded Context Injection", text)
+        self.assertIn("Decisions Already Made", text)
+        self.assertIn("strict spec fidelity", text.lower())
+
+        self.assertIn("No Reconstructed Logic", text)
+        self.assertIn("Immutable Real Artifacts", text)
+
+    def test_mvls_fr_04_gate_4_semantic_test_fakery_rejected(self) -> None:
+        """[MVLS-FR-04] Gate 4 rejects semantic test fakery without claiming universal mechanical coverage."""
+        impl_path = ROOT / "skills/dev-implementation/SKILL.md"
+        text = impl_path.read_text(encoding="utf-8")
+        self.assertIn("No Reconstructed Logic", text)
+        self.assertIn("Immutable Real Artifacts", text)
+        self.assertTrue(bool(re.search(r"reconstructed\s+logic.*FAIL", text, re.IGNORECASE | re.DOTALL)))
+        self.assertTrue(bool(re.search(r"synthetic.*artifact.*FAIL", text, re.IGNORECASE | re.DOTALL)))
+
+    def test_document_contract_expected_tokens(self) -> None:
+        for relative_path, required_tokens in EXPECTED.items():
+            path = ROOT / relative_path
+            if not path.exists():
+                continue
+            text = path.read_text(encoding="utf-8")
+            for token in required_tokens:
+                self.assertIn(token, text, f"{relative_path}: missing {token}")
+
+    def test_document_contract_forbidden_tokens(self) -> None:
+        for relative_path, forbidden_tokens in FORBIDDEN.items():
+            path = ROOT / relative_path
+            if not path.exists():
+                continue
+            text = path.read_text(encoding="utf-8")
+            for token in forbidden_tokens:
+                self.assertNotIn(token, text, f"{relative_path}: contains forbidden {token}")
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    unittest.main()
