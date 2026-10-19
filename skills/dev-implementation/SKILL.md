@@ -259,7 +259,7 @@ Once every task is `done`, resolve candidate commit SHA (`git rev-parse HEAD`) w
    ```
    Must exit 0. Keep output for Phase 4.1.
 3. **HLD Integration results commands.** Run every `Integration results:` line of HLD Integration Test Plan.
-4. **Result-based traceability**:
+4. **Result-based traceability**: run `check_bdd_traceability.py tests --results` over those reports:
    ```bash
    python3 "$SKILL_DIR"/resources/scripts/check_bdd_traceability.py tests \
      --scenarios .devtool/epic/<epic_dir>/bdd_scenarios.en.md \
@@ -291,6 +291,12 @@ Cross-model review must return to Phase 4 in full; only the next Gate 4 PASS may
 </HARD-GATE>
 
 The loop invariant is **Gate 4 PASS → Review Choice; Finish → Gate 5; Cross-model review → Gate 4 in full**.
+<!-- Workflow transitions:
+moretasks -- "no, epic done" --> phase4
+phase4 -- "PASS" --> choice
+choice -- "Finish" --> checkpoint4
+review -- "round recorded" --> phase4
+-->
 Ask developer and wait for answer:
 
 > Gate 4 is 🟢 LGTM for `<candidate_sha>`. How do you want to proceed?

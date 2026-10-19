@@ -91,7 +91,7 @@ Allowed files:
 
 ## Decisions Already Made
 
-None.
+- Feature file is created in root workspace and verified by test harness.
 
 ## BDD Scenarios
 
