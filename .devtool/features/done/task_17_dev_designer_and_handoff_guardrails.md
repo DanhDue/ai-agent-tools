@@ -1,13 +1,13 @@
 ---
 id: "task_17_dev_designer_and_handoff_guardrails"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "mechanical_verification_and_lifecycle_slimming"
 dueDate: null
 created: "2026-10-19T12:30:00Z"
-modified: "2026-10-19T12:30:00Z"
-completedAt: null
+modified: "2026-10-19T14:21:54Z"
+completedAt: "2026-10-19T14:21:54Z"
 labels: ["skills", "contracts", "prompt-hardening"]
 order: "a17"
 ---

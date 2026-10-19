@@ -36,6 +36,10 @@ EXPECTED: dict[str, tuple[str, ...]] = {
         "at least one automated integration test",
         "Handoff Choice",
         "`tests/integration/` and `tests/e2e/` (Python)",  # LF-HP-03
+        "exact node ID",
+        "should be truthy",
+        "returns non-empty",
+        "must not be empty or write `None`",
     ),
     "skills/writing-plans/SKILL.md": (
         "YYYY-MM-DD-<feature-name>.en.md",
@@ -90,6 +94,12 @@ EXPECTED: dict[str, tuple[str, ...]] = {
     ),
     "skills/dev-lifecycle/references/handoff-template.md": (
         "or `uncommitted` when `auto_commit` is false",  # LF-FR-04
+        "Execution Guardrails for Receiving LLM",
+        "Bounded context protocol",
+        "Strict spec fidelity",
+        "Zero test fakery",
+        "No contract repair by the executor",
+        "Apply the Execution Guardrails for Receiving LLM before presenting Gate 3",
     ),
     "skills/pr_review/SKILL.md": (
         '"profile": "pr"',
@@ -109,6 +119,36 @@ FORBIDDEN: dict[str, tuple[str, ...]] = {
 
 
 class LifecycleDocumentContractTest(unittest.TestCase):
+    def test_mvls_hp_06_dev_designer_and_handoff_guardrails(self) -> None:
+        """[MVLS-HP-06] dev-designer retains Decisions Already Made contracts, exact node IDs, weak assertion ban, and handoff-template retains 4 guardrails."""
+        designer_path = ROOT / "skills/dev-designer/SKILL.md"
+        designer_text = designer_path.read_text(encoding="utf-8")
+        self.assertIn("exact node ID", designer_text)
+        self.assertIn("Decisions Already Made", designer_text)
+        self.assertIn("should be truthy", designer_text)
+        self.assertIn("returns non-empty", designer_text)
+
+        handoff_path = ROOT / "skills/dev-lifecycle/references/handoff-template.md"
+        handoff_text = handoff_path.read_text(encoding="utf-8")
+        self.assertIn("Execution Guardrails for Receiving LLM", handoff_text)
+        self.assertIn("bounded context", handoff_text.lower())
+        self.assertIn("strict spec fidelity", handoff_text.lower())
+        self.assertIn("zero test fakery", handoff_text.lower())
+        self.assertIn("no contract repair", handoff_text.lower())
+        self.assertIn("Apply the Execution Guardrails for Receiving LLM before presenting Gate 3", handoff_text)
+
+    def test_mvls_ec_06_reject_missing_guardrails_or_designer_anchors(self) -> None:
+        """[MVLS-EC-06] Reject missing receiving-LLM guardrails or dev-designer anchors in lifecycle contract."""
+        designer_path = ROOT / "skills/dev-designer/SKILL.md"
+        designer_text = designer_path.read_text(encoding="utf-8")
+        self.assertTrue(bool(re.search(r"exact node ID.*path/test_file\.py::test_name", designer_text)))
+        self.assertTrue(bool(re.search(r"Decisions Already Made.*must not be empty or write `?None`?", designer_text)))
+
+        handoff_path = ROOT / "skills/dev-lifecycle/references/handoff-template.md"
+        handoff_text = handoff_path.read_text(encoding="utf-8")
+        for guardrail in ("bounded context", "strict spec fidelity", "zero test fakery", "no contract repair"):
+            self.assertIn(guardrail, handoff_text.lower())
+
     def test_mvls_hp_04_implementation_skill_concise_and_orchestrated(self) -> None:
         """[MVLS-HP-04] dev-implementation is <= 4500 words, has no diagram fences, and preserves orchestration."""
         impl_path = ROOT / "skills/dev-implementation/SKILL.md"
