@@ -4,6 +4,7 @@
 Run: python3 -m unittest skills/dev-implementation/resources/scripts/test_run_task_checks.py
 """
 import contextlib
+import importlib
 import io
 import json
 import os
@@ -12,10 +13,12 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from typing import Any
 from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).parent))
-import task_contract as tc
+tc: Any = importlib.import_module("task_contract")
+
 from run_task_checks import main
 
 TABLE_HEAD = "| ID | Phase | Command | Expect | Needs |\n|----|-------|---------|--------|-------|\n"
@@ -60,35 +63,37 @@ class RepoCase(unittest.TestCase):
         git(self.root, "add", "-A")
         git(self.root, "commit", "-q", "-m", "base")
 
-    def epic(self, rows: str, protected: str = "", **kwargs) -> Path:
+    def epic(self, rows: str, protected: str = "", **kwargs: Any) -> Path:
         self.write(f"{EPIC}/demo.en.md", hld_text(protected))
         self.write(f"{EPIC}/bdd_scenarios.en.md", "# Scenarios\n")
         task = self.write(TASK, task_text(rows, **kwargs))
         self.commit()
         return task
 
-    def run_cli(self, *argv: str) -> tuple[int, str, str]:
+    def run_cli(self, *argv: str | Path) -> tuple[int, str, str]:
         out, err = io.StringIO(), io.StringIO()
         with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
             try:
                 code = main([str(arg) for arg in argv])
             except SystemExit as exit_:
-                code = exit_.code
+                code = int(exit_.code) if exit_.code is not None else 0
         return code, out.getvalue(), err.getvalue()
 
-    def evidence(self) -> dict:
-        return json.loads((self.root / EVIDENCE).read_text(encoding="utf-8"))
+    def evidence(self) -> dict[str, Any]:
+        return json.loads((self.root / EVIDENCE).read_text(encoding="utf-8"))  # type: ignore[no-any-return]
 
-    def run_rows(self) -> dict:
+    def run_rows(self) -> dict[str, Any]:
         return {row["id"]: row for row in self.evidence()["runs"]["verify"]["rows"]}
 
 
 class ParserTest(unittest.TestCase):
     def test_section_stops_at_next_heading_and_ignores_fenced_headings(self) -> None:
         text = f"# T\n\n## A\n\none\n{TICKS}\n## not a heading\n{TICKS}\n\n## B\n\ntwo\n"
-        self.assertIn("one", tc.section(text, "A"))
-        self.assertIn("not a heading", tc.section(text, "A"))
-        self.assertNotIn("two", tc.section(text, "A"))
+        sec_a = tc.section(text, "A")
+        assert sec_a is not None
+        self.assertIn("one", sec_a)
+        self.assertIn("not a heading", sec_a)
+        self.assertNotIn("two", sec_a)
         self.assertIsNone(tc.section(text, "Missing"))
 
     def test_parse_expect_accepts_the_grammar(self) -> None:
@@ -490,6 +495,127 @@ class RecorderTest(RepoCase):
         self.assertEqual((code, "verify: head" in out, "V1 GREEN PASS" in out), (0, True, True))
         self.assertIn("done gate: PASS", out)
         self.assertEqual(self.run_cli("status")[0], 2)
+
+
+class PytestRedSemanticsTest(RepoCase):
+    REASON = ("Invalid pytest RED phase: must fail on a collected test (exit 1 or 2), "
+              "not missing file (exit 4) or zero selected tests (exit 5).")
+
+    def test_mvls_hp_01_collected_pytest_failure_is_valid_red(self) -> None:
+        """[MVLS-HP-01] Valid collected pytest failure qualifies as RED PASS."""
+        cmd = 'python3 -c \'import sys; sys.stdout.write("FAILED test_a.py::test_x - AssertionError\\n=== 1 failed in 0.05s ===\\n"); sys.exit(1)\''
+        runner = self.write("mock_pytest.sh", f"#!/bin/sh\n{cmd}\n")
+        runner.chmod(0o755)
+        task = self.epic(f"| V1 | RED | `{runner} -m pytest test_a.py` | exit non-zero | — |\n")
+        code, out, _ = self.run_cli("red", task)
+        self.assertEqual(code, 0)
+        self.assertIn("V1 RED PASS", out)
+        row = self.evidence()["runs"]["red"]["rows"][0]
+        self.assertEqual(row["outcome"], "PASS")
+        self.assertIsNone(row["reason"])
+
+    def test_mvls_ec_01_missing_pytest_file_fails_red(self) -> None:
+        """[MVLS-EC-01] Pytest exit 4 missing file fails RED with exact reason."""
+        cmd = 'python3 -c \'import sys; sys.stderr.write("ERROR: file or directory not found: test_missing.py\\n"); sys.exit(4)\''
+        runner = self.write("pytest", f"#!/bin/sh\n{cmd}\n")
+        runner.chmod(0o755)
+        task = self.epic(f"| V1 | RED | `{runner} test_missing.py` | exit non-zero | — |\n")
+        code, out, _ = self.run_cli("red", task)
+        self.assertEqual(code, 1)
+        self.assertIn("V1 RED FAIL", out)
+        self.assertIn(self.REASON, out)
+        row = self.evidence()["runs"]["red"]["rows"][0]
+        self.assertEqual(row["outcome"], "FAIL")
+        self.assertEqual(row["reason"], self.REASON)
+
+    def test_mvls_ec_02_empty_pytest_selection_fails_red(self) -> None:
+        """[MVLS-EC-02] Pytest exit 5 zero selected tests fails RED with exact reason."""
+        cmd = 'python3 -c \'import sys; sys.stdout.write("collected 5 items / 0 selected\\n=== 5 deselected in 0.01s ===\\n"); sys.exit(5)\''
+        runner = self.write("pytest", f"#!/bin/sh\n{cmd}\n")
+        runner.chmod(0o755)
+        task = self.epic(f"| V1 | RED | `{runner} -k unknown test_a.py` | exit non-zero | — |\n")
+        code, _out, _ = self.run_cli("red", task)
+        self.assertEqual(code, 1)
+        row = self.evidence()["runs"]["red"]["rows"][0]
+        self.assertEqual(row["outcome"], "FAIL")
+        self.assertEqual(row["reason"], self.REASON)
+
+    def test_mvls_ec_04_token_aware_pytest_classification(self) -> None:
+        """[MVLS-EC-04] Distinguish supported wrappers from unrelated text."""
+        # Unrelated text containing "pytest" should not be treated as a pytest invocation
+        task = self.epic("| V1 | RED | `echo pytest; exit 1` | exit non-zero | — |\n")
+        code, out, _ = self.run_cli("red", task)
+        self.assertEqual(code, 0)
+        self.assertIn("V1 RED PASS", out)
+        row = self.evidence()["runs"]["red"]["rows"][0]
+        self.assertEqual(row["outcome"], "PASS")
+
+    def test_mvls_st_01_invalid_red_recording_transitions_to_fail(self) -> None:
+        """[MVLS-ST-01] Ordinary expect accepts non-zero but invalid pytest transitions to FAIL."""
+        cmd = 'python3 -c \'import sys; sys.stdout.write("collected 0 items\\n"); sys.exit(5)\''
+        runner = self.write("pytest", f"#!/bin/sh\n{cmd}\n")
+        runner.chmod(0o755)
+        task = self.epic(f"| V1 | RED | `{runner} tests/` | exit non-zero | — |\n")
+        code, out, _ = self.run_cli("red", task)
+        self.assertEqual(code, 1)
+        self.assertIn("V1 RED FAIL", out)
+        self.assertIn(self.REASON, out)
+        row = self.evidence()["runs"]["red"]["rows"][0]
+        self.assertEqual(row["outcome"], "FAIL")
+        self.assertEqual(row["reason"], self.REASON)
+
+    def test_mvls_ar_01_independent_red_rows_do_not_leak_validation_state(self) -> None:
+        """[MVLS-AR-01] Valid and invalid RED rows in same task remain isolated."""
+        valid = 'python3 -c \'import sys; sys.stdout.write("=== 1 failed in 0.01s ===\\n"); sys.exit(1)\''
+        invalid = 'python3 -c \'import sys; sys.stdout.write("collected 0 items\\n"); sys.exit(5)\''
+        r1 = self.write("bin1/pytest", f"#!/bin/sh\n{valid}\n")
+        r2 = self.write("bin2/pytest", f"#!/bin/sh\n{invalid}\n")
+        r1.chmod(0o755)
+        r2.chmod(0o755)
+        rows = (f"| V1 | RED | `{r1} valid.py` | exit non-zero | — |\n"
+                f"| V2 | RED | `{r2} invalid.py` | exit non-zero | — |\n")
+        task = self.epic(rows)
+        code, _out, _ = self.run_cli("red", task)
+        self.assertEqual(code, 1)
+        by_id = {r["id"]: r for r in self.evidence()["runs"]["red"]["rows"]}
+        self.assertEqual(by_id["V1"]["outcome"], "PASS")
+        self.assertEqual(by_id["V2"]["outcome"], "FAIL")
+        self.assertEqual(by_id["V2"]["reason"], self.REASON)
+
+    def test_mvls_fr_01_wrapper_exit_rewriting_fails_red(self) -> None:
+        """[MVLS-FR-01] Wrapper rewriting exit code to 1 still fails on forbidden markers."""
+        cmd = 'python3 -c \'import sys; sys.stderr.write("ERROR: file or directory not found\\n"); sys.exit(4)\''
+        runner = self.write("pytest", f"#!/bin/sh\n{cmd}\n")
+        runner.chmod(0o755)
+        task = self.epic(f"| V1 | RED | `{runner} missing.py \\|\\| exit 1` | exit 1 | — |\n")
+        code, _out, _ = self.run_cli("red", task)
+        self.assertEqual(code, 1)
+        row = self.evidence()["runs"]["red"]["rows"][0]
+        self.assertEqual(row["outcome"], "FAIL")
+        self.assertEqual(row["reason"], self.REASON)
+
+    def test_mvls_fr_02_ambiguous_exit_1_without_failure_summary_fails_red(self) -> None:
+        """[MVLS-FR-02] Exit 1 without positive failed/error summary fails RED."""
+        cmd = 'python3 -c \'import sys; sys.stderr.write("syntax error or crash\\n"); sys.exit(1)\''
+        runner = self.write("pytest", f"#!/bin/sh\n{cmd}\n")
+        runner.chmod(0o755)
+        task = self.epic(f"| V1 | RED | `{runner} bad.py` | exit 1 | — |\n")
+        code, _out, _ = self.run_cli("red", task)
+        self.assertEqual(code, 1)
+        row = self.evidence()["runs"]["red"]["rows"][0]
+        self.assertEqual(row["outcome"], "FAIL")
+        self.assertEqual(row["reason"], self.REASON)
+
+    def test_mvls_fr_06_active_task_tampering_aborts_without_evidence(self) -> None:
+        """[MVLS-FR-06] Tampered active task core sections abort with TASK_TAMPERED_ERROR."""
+        task = self.epic("| V1 | RED | `false` | exit non-zero | — |\n")
+        # Create active features task and tamper with its Verification table
+        self.write(f".devtool/features/{Path(TASK).name}",
+                   task_text("| V1 | RED | `true` | exit 0 | — |\n"))
+        code, _out, err = self.run_cli("red", task)
+        self.assertEqual(code, 2)
+        self.assertIn("TASK_TAMPERED_ERROR", err)
+        self.assertFalse((self.root / EVIDENCE).exists())
 
 
 if __name__ == "__main__":

@@ -14,28 +14,170 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib
 import os
 import re
+import shlex
 import signal
 import subprocess
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any, cast
 
-from check_bdd_traceability import UsageError, load_scenarios
-from result_reports import ReportError, digest, load_files, report_files
-from task_contract import (ContractError, Row, changed_paths, epic_layout, evaluate_done_gate, fingerprint, git_run,
-                           load_evidence, parse_allowed_files, parse_protected_paths,
-                           parse_verification, path_matches, program_of, save_evidence)
+_tc: Any = importlib.import_module("task_contract")
+CONTROL_TOKENS: set[str] = _tc.CONTROL_TOKENS
+ContractError: type[Exception] = _tc.ContractError
+EpicLayout: Any = _tc.EpicLayout
+Row: Any = _tc.Row
+changed_paths: Any = _tc.changed_paths
+epic_layout: Any = _tc.epic_layout
+evaluate_done_gate: Any = _tc.evaluate_done_gate
+fingerprint: Any = _tc.fingerprint
+git_run: Any = _tc.git_run
+load_evidence: Any = _tc.load_evidence
+parse_allowed_files: Any = _tc.parse_allowed_files
+parse_protected_paths: Any = _tc.parse_protected_paths
+parse_verification: Any = _tc.parse_verification
+path_matches: Any = _tc.path_matches
+program_of: Any = _tc.program_of
+save_evidence: Any = _tc.save_evidence
+section: Any = _tc.section
+strip_wrappers: Any = _tc.strip_wrappers
+
+_rr: Any = importlib.import_module("result_reports")
+ReportError: type[Exception] = _rr.ReportError
+digest: Any = _rr.digest
+load_files: Any = _rr.load_files
+report_files: Any = _rr.report_files
+
+_cbt: Any = importlib.import_module("check_bdd_traceability")
+UsageError: type[Exception] = _cbt.UsageError
+load_scenarios: Any = _cbt.load_scenarios
 
 TAIL_LINES = 40
 VERIFY_PHASES = ("GREEN", "TIER-B", "TIER-C")
 STALE = "results not produced by this run"
 
+INVALID_PYTEST_RED_REASON = (
+    "Invalid pytest RED phase: must fail on a collected test (exit 1 or 2), "
+    "not missing file (exit 4) or zero selected tests (exit 5)."
+)
+
+FORBIDDEN_MARKERS = (
+    re.compile(r"ERROR:\s*file or directory not found", re.IGNORECASE),
+    re.compile(r"collected\s+0\s+items", re.IGNORECASE),
+    re.compile(r"/\s*0\s+selected\b", re.IGNORECASE),
+)
+POSITIVE_FAILURE_SUMMARY = re.compile(r"\b([1-9]\d*)\s+(?:failed|error|errors)\b", re.IGNORECASE)
+COVERS_LINE_RE = re.compile(r"^\s*(?:[-*]\s+)?\**Covers\**\s*:\**\s*(.*)$")
+ID_TOKEN_RE = re.compile(r"(?<![A-Za-z0-9-])[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-[0-9]+(?![A-Za-z0-9])")
+
+
+def is_pytest_command(command: str) -> bool:
+    try:
+        lexer = shlex.shlex(command, posix=True, punctuation_chars=True)
+        lexer.whitespace_split = True
+        tokens = list(lexer)
+    except ValueError:
+        return False
+    subcommands: list[list[str]] = []
+    current: list[str] = []
+    for token in tokens:
+        if token in CONTROL_TOKENS:
+            if current:
+                subcommands.append(current)
+                current = []
+        else:
+            current.append(token)
+    if current:
+        subcommands.append(current)
+
+    for sub in subcommands:
+        sub = strip_wrappers(sub)
+        if not sub:
+            continue
+        prog = Path(sub[0]).name
+        if prog == "pytest":
+            return True
+        if (
+            (prog in ("python", "python3") or prog.startswith("python3."))
+            and len(sub) >= 3
+            and sub[1] == "-m"
+            and sub[2] == "pytest"
+        ):
+            return True
+    return False
+
+
+def validate_pytest_red(command: str, exit_code: int | None, output_text: str) -> str | None:
+    """Evaluate whether a pytest RED execution is genuine.
+
+    Returns None if valid or not a pytest command.
+    Returns INVALID_PYTEST_RED_REASON if it is an invalid pytest RED run.
+    """
+    if not is_pytest_command(command):
+        return None
+    if exit_code not in (1, 2):
+        return INVALID_PYTEST_RED_REASON
+    for marker in FORBIDDEN_MARKERS:
+        if marker.search(output_text):
+            return INVALID_PYTEST_RED_REASON
+    if not POSITIVE_FAILURE_SUMMARY.search(output_text):
+        return INVALID_PYTEST_RED_REASON
+    return None
+
+
+def parse_covers(text: str) -> list[str]:
+    found: list[str] = []
+    for line in text.splitlines():
+        match = COVERS_LINE_RE.match(line)
+        if match:
+            found.extend(ID_TOKEN_RE.findall(match.group(1)))
+    return found
+
+
+def core_sections(text: str) -> tuple[str | None, str | None, str | None, list[str]]:
+    return (
+        section(text, "Files"),
+        section(text, "Verification"),
+        section(text, "Definition of Done"),
+        parse_covers(text),
+    )
+
+
+def check_task_tamper(task_path: Path | str, layout: EpicLayout) -> None:
+    path = Path(task_path)
+    features_task = layout.root / ".devtool" / "features" / path.name
+    if not features_task.is_file():
+        features_task = layout.root / ".devtool" / "features" / "done" / path.name
+
+    if not features_task.is_file():
+        return
+
+    active_text = features_task.read_text(encoding="utf-8")
+    active_core = core_sections(active_text)
+
+    mirror_text = path.read_text(encoding="utf-8")
+    mirror_core = core_sections(mirror_text)
+
+    if active_core != mirror_core:
+        raise ContractError(
+            f"TASK_TAMPERED_ERROR: active task '{features_task.name}' core sections altered from epic mirror"
+        )
+
+    head_text = committed_text(layout.root, path)
+    if head_text is not None:
+        head_core = core_sections(head_text)
+        if active_core != head_core or mirror_core != head_core:
+            raise ContractError(
+                f"TASK_TAMPERED_ERROR: task '{path.name}' core sections altered from HEAD"
+            )
+
 
 def utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+    return datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
 def fresh_reports(path: str, root: Path, since: float) -> list[Path]:
@@ -70,14 +212,14 @@ def mismatch(row: Row, code: int, text: str) -> str | None:
     return None if missing is None else f'output lacks "{missing}"'
 
 
-def epic_scenario_ids(layout) -> list[str]:
+def epic_scenario_ids(layout: EpicLayout) -> list[str]:
     try:
-        return load_scenarios(layout.epic_dir / "bdd_scenarios.en.md")[0]
+        return cast(list[str], load_scenarios(layout.epic_dir / "bdd_scenarios.en.md")[0])
     except UsageError:
         return []
 
 
-def attach_digest(results: dict, files: list[Path], scenario_ids: list[str]) -> str | None:
+def attach_digest(results: dict[str, Any], files: list[Path], scenario_ids: list[str]) -> str | None:
     """Store the digest of the fresh reports; None on success, else the row's failure reason."""
     try:
         results["digest"] = digest(load_files(files), scenario_ids)
@@ -86,11 +228,21 @@ def attach_digest(results: dict, files: list[Path], scenario_ids: list[str]) -> 
     return None
 
 
-def run_row(row: Row, root: Path, timeout: int, scenario_ids: list[str]) -> dict:
-    record = {"id": row.id, "phase": row.phase, "command": row.command, "expect": row.expect_text,
-              "needs": list(row.needs), "exit": None, "outcome": "PASS", "reason": None,
-              "started": utc_now(), "finished": None, "output_tail": [],
-              "output_sha256": hashlib.sha256(b"").hexdigest()}
+def run_row(row: Row, root: Path, timeout: int, scenario_ids: list[str]) -> dict[str, Any]:
+    record: dict[str, Any] = {
+        "id": row.id,
+        "phase": row.phase,
+        "command": row.command,
+        "expect": row.expect_text,
+        "needs": list(row.needs),
+        "exit": None,
+        "outcome": "PASS",
+        "reason": None,
+        "started": utc_now(),
+        "finished": None,
+        "output_tail": [],
+        "output_sha256": hashlib.sha256(b"").hexdigest(),
+    }
     unset = next((name for name in row.needs if not os.environ.get(name)), None)
     if unset:
         record.update(outcome="BLOCKED", reason=f"unset: {unset}")
@@ -101,6 +253,10 @@ def run_row(row: Row, root: Path, timeout: int, scenario_ids: list[str]) -> dict
         record.update(exit=code, output_tail=text.splitlines()[-TAIL_LINES:],
                       output_sha256=hashlib.sha256(output).hexdigest())
         reason = f"timeout after {timeout} s" if code is None else mismatch(row, code, text)
+        if row.phase == "RED":
+            pytest_err = validate_pytest_red(row.command, code, text)
+            if pytest_err:
+                reason = pytest_err
         if row.expect.results:
             files = fresh_reports(row.expect.results, root, started)
             record["results"] = {"path": row.expect.results, "fresh": bool(files)}
@@ -116,12 +272,14 @@ def run_row(row: Row, root: Path, timeout: int, scenario_ids: list[str]) -> dict
 def committed_text(root: Path, path: Path) -> str | None:
     """The file as HEAD has it, so a task cannot weaken its own protection; the working copy only when new."""
     try:
-        return git_run(root, "show", f"HEAD:{path.relative_to(root).as_posix()}").decode("utf-8")
-    except ContractError:
+        abs_path = path if path.is_absolute() else (root / path)
+        rel_posix = abs_path.resolve().relative_to(root.resolve()).as_posix()
+        return cast(str, git_run(root, "show", f"HEAD:{rel_posix}").decode("utf-8"))
+    except (ContractError, ValueError):
         return path.read_text(encoding="utf-8") if path.is_file() else None
 
 
-def protected_patterns(layout, root: Path) -> tuple[list[str], set[str]]:
+def protected_patterns(layout: EpicLayout, root: Path) -> tuple[list[str], set[str]]:
     """Explicit HLD patterns, and the tracked programs every parseable task row in the epic runs, read from HEAD."""
     hld = committed_text(root, layout.hld)
     explicit = parse_protected_paths(hld) if hld else []
@@ -138,7 +296,7 @@ def protected_patterns(layout, root: Path) -> tuple[list[str], set[str]]:
     return explicit, programs
 
 
-def scope_row(layout, allowed_patterns: list[str]) -> dict:
+def scope_row(layout: EpicLayout, allowed_patterns: list[str]) -> dict[str, Any]:
     explicit, programs = protected_patterns(layout, layout.root)
     changed: list[str] = []
     violations: list[str] = []
@@ -157,7 +315,7 @@ def scope_row(layout, allowed_patterns: list[str]) -> dict:
             "changed": changed, "violations": violations}
 
 
-def detail_of(record: dict) -> str:
+def detail_of(record: dict[str, Any]) -> str:
     if record["id"] == "SCOPE":
         return "; ".join(record["violations"]) or f"{len(record['changed'])} changed path(s) in scope"
     return record["reason"] or f"exit {record['exit']}"
@@ -165,6 +323,7 @@ def detail_of(record: dict) -> str:
 
 def run(args: argparse.Namespace) -> int:
     layout = epic_layout(args.task)
+    check_task_tamper(args.task, layout)
     task_text = Path(args.task).read_text(encoding="utf-8")
     rows, red_na = parse_verification(task_text)
     allowed = parse_allowed_files(task_text)

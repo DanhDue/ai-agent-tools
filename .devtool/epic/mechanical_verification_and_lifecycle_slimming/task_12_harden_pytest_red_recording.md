@@ -1,13 +1,13 @@
 ---
 id: "task_12_harden_pytest_red_recording"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "mechanical_verification_and_lifecycle_slimming"
 dueDate: null
 created: "2026-10-19T11:50:01Z"
-modified: "2026-10-19T11:50:01Z"
-completedAt: null
+modified: "2026-10-19T13:37:08Z"
+completedAt: "2026-10-19T13:37:08Z"
 labels: ["python", "verification", "security"]
 order: "a12"
 ---

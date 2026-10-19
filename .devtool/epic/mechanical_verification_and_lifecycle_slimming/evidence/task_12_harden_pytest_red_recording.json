@@ -1,0 +1,180 @@
+{
+  "schema": 1,
+  "task": "task_12_harden_pytest_red_recording",
+  "runs": {
+    "red": {
+      "head": "9bd0d11838f959bbe40d57290ff58967ebbd90cd",
+      "tree": "3642897a3023655e5af48d1ca54524598e58657f",
+      "patch_id": "1111111111111111111111111111111111111111",
+      "started": "2026-10-19T13:14:50Z",
+      "finished": "2026-10-19T13:15:02Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m unittest skills/dev-implementation/resources/scripts/test_run_task_checks.py",
+          "expect": "exit 1; contains \"FAILED\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-19T13:14:50Z",
+          "finished": "2026-10-19T13:15:02Z",
+          "output_tail": [
+            "FAILED (failures=7)"
+          ],
+          "output_sha256": "33a3620ad8f6867f5d26d88819c91594fbbfe45592be3d934552e91c81dfa260"
+        }
+      ]
+    },
+    "verify": {
+      "head": "9bd0d11838f959bbe40d57290ff58967ebbd90cd",
+      "tree": "7f115eeaf58b32921d9fd8bb4ff961c056cbde66",
+      "patch_id": "8440c7aea66d89903c560f9c59c5c167d56972f0",
+      "started": "2026-10-19T13:35:23Z",
+      "finished": "2026-10-19T13:35:42Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m unittest skills/dev-implementation/resources/scripts/test_run_task_checks.py",
+          "expect": "exit 0; contains \"OK\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-19T13:35:23Z",
+          "finished": "2026-10-19T13:35:33Z",
+          "output_tail": [
+            "...............................................",
+            "----------------------------------------------------------------------",
+            "Ran 47 tests in 9.317s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "33a3620ad8f6867f5d26d88819c91594fbbfe45592be3d934552e91c81dfa260"
+        },
+        {
+          "id": "V3",
+          "phase": "TIER-B",
+          "command": "ruff check skills/dev-implementation/resources/scripts/run_task_checks.py skills/dev-implementation/resources/scripts/test_run_task_checks.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-19T13:35:33Z",
+          "finished": "2026-10-19T13:35:33Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "mypy --strict skills/dev-implementation/resources/scripts/run_task_checks.py skills/dev-implementation/resources/scripts/test_run_task_checks.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-19T13:35:33Z",
+          "finished": "2026-10-19T13:35:33Z",
+          "output_tail": [
+            "Success: no issues found in 2 source files"
+          ],
+          "output_sha256": "f9b031e5c45aa702cd4fef028d465551cb20a2c4698e0913c7b00766b20ac4d8"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-C",
+          "command": "python3 scripts/run_unittest_junit.py --junitxml build/test-results/task_12.xml skills/dev-implementation/resources/scripts/test_run_task_checks.py",
+          "expect": "exit 0; results build/test-results/task_12.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-19T13:35:33Z",
+          "finished": "2026-10-19T13:35:41Z",
+          "output_tail": [
+            "...............................................",
+            "----------------------------------------------------------------------",
+            "Ran 47 tests in 8.680s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "abd503bc5500999fb6a882ed3056cb36e30756b65ca620a92fe720f9b5993839",
+          "results": {
+            "path": "build/test-results/task_12.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 9,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_mvls_ar_01_independent_red_rows_do_not_leak_validation_state",
+                  "classname": "test_run_task_checks.PytestRedSemanticsTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_mvls_ec_01_missing_pytest_file_fails_red",
+                  "classname": "test_run_task_checks.PytestRedSemanticsTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_mvls_ec_02_empty_pytest_selection_fails_red",
+                  "classname": "test_run_task_checks.PytestRedSemanticsTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_mvls_ec_04_token_aware_pytest_classification",
+                  "classname": "test_run_task_checks.PytestRedSemanticsTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_mvls_fr_01_wrapper_exit_rewriting_fails_red",
+                  "classname": "test_run_task_checks.PytestRedSemanticsTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_mvls_fr_02_ambiguous_exit_1_without_failure_summary_fails_red",
+                  "classname": "test_run_task_checks.PytestRedSemanticsTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_mvls_fr_06_active_task_tampering_aborts_without_evidence",
+                  "classname": "test_run_task_checks.PytestRedSemanticsTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_mvls_hp_01_collected_pytest_failure_is_valid_red",
+                  "classname": "test_run_task_checks.PytestRedSemanticsTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_mvls_st_01_invalid_red_recording_transitions_to_fail",
+                  "classname": "test_run_task_checks.PytestRedSemanticsTest",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "skills/dev-implementation/resources/scripts/run_task_checks.py",
+            "skills/dev-implementation/resources/scripts/test_run_task_checks.py"
+          ],
+          "violations": []
+        }
+      ]
+    }
+  }
+}

@@ -15,7 +15,7 @@
 ## Meta Data
 
 - **Epic name**: `mechanical_verification_and_lifecycle_slimming`
-- **Status**: Packaged
+- **Status**: In Progress
 - **Target release**: Next plugin release
 - **Platform**: Python tooling / agent skill kit
 - **Source Spec**: [Approved mechanical verification and lifecycle slimming design](2026-10-19-mechanical-verification-and-lifecycle-slimming-design.en.md)
