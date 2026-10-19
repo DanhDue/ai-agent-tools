@@ -1,7 +1,7 @@
 # Thiết kế gia cố xác minh cơ học và tinh gọn lifecycle
 
 - **Ngày**: 2026-10-19
-- **Trạng thái**: Bản nháp chờ duyệt Gate 1
+- **Trạng thái**: Đã duyệt tại Gate 1
 - **Phạm vi**: Xác minh cơ học trong `dev-implementation`, tinh gọn runtime skill, tài liệu
   lifecycle cho con người và regression coverage
 - **Bước tiếp theo sau khi duyệt**: `dev-designer` (phân rã task quy mô epic)

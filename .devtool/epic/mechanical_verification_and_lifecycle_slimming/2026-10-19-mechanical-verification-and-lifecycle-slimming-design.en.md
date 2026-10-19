@@ -1,7 +1,7 @@
 # Mechanical Verification and Lifecycle Slimming Design
 
 - **Date**: 2026-10-19
-- **Status**: Draft for Gate 1 review
+- **Status**: Approved at Gate 1
 - **Scope**: Mechanical verification in `dev-implementation`, runtime-skill slimming,
   human-facing lifecycle documentation, and regression coverage
 - **Next step after approval**: `dev-designer` (epic-scale task breakdown)
