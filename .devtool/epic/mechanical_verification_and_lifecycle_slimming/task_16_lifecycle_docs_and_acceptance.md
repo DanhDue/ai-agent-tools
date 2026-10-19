@@ -1,13 +1,13 @@
 ---
 id: "task_16_lifecycle_docs_and_acceptance"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "mechanical_verification_and_lifecycle_slimming"
 dueDate: null
 created: "2026-10-19T11:50:01Z"
-modified: "2026-10-19T11:50:01Z"
-completedAt: null
+modified: "2026-10-19T14:58:22Z"
+completedAt: "2026-10-19T14:58:22Z"
 labels: ["integration", "lifecycle", "acceptance"]
 order: "a16"
 ---

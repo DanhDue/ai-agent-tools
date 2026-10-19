@@ -325,6 +325,7 @@ Each task file MUST adhere to this exact structure:
    - `[Tier A - Unit]`: Scenarios covering class/function level logic, BLoCs/ViewModels, UseCases, Repositories, Parsers, and Guards. Must be covered 100% by unit tests.
    - `[Tier C - Integration]`: Scenarios covering end-to-end user navigation, Host App lifecycle, Tab switching, Auth Gating & Replay, and multi-component seams (including media playback synchronization, live database states, and web route transitions). Must be covered 100% by integration tests.
    - **Zero Uncovered Scenarios Rule**: Every authored BDD scenario across all 5 dimensions MUST map to at least one automated test case. Unit tests with mocks do NOT substitute for Tier C integration tests.
+   - **Grounded Assertions Mandate**: Under `### BDD SCENARIOS`, pin assertions to production observation points and exact inputs, outputs, boundary indices, attempt counts, timestamps, or canonical fixture anchors. Vague or weak assertions (`should be truthy`, `is valid`, `should work`, `returns non-empty`) are strictly forbidden and rejected by `check_task_contract.py --design`.
 
 9. **Verification**: A `## Verification` section holding one table and nothing else to tick. Each row is a command the recorder (`run_task_checks.py`) runs and the done gate checks; nothing is ticked by hand. Per-platform example rows, and the command that produces each platform's test report, are in [`references/verification-rows.md`](references/verification-rows.md).
 
@@ -350,6 +351,8 @@ Each task file MUST adhere to this exact structure:
 
      `results <path>` appears only on `TIER-C` rows, at most once per row, and names the JUnit or Dart JSON report the command writes. The path must be ignored by git.
    - **Needs** is `—` or a comma-separated list of environment variable names. An unset variable makes the row `BLOCKED` without running it.
+   - A RED row names a real test function or method that is written first and fails through the platform's native assertion mechanism.
+   - For pytest specifically, the command must use an exact node ID such as `path/test_file.py::test_name`, expect exit 1, and require positive collected-test failure output. Generic `-k` expressions without an exact node ID are rejected by `check_task_contract.py`. Other platforms use the repository's registered runner/provider command without imposing Python syntax on non-Python platforms.
    - A task with no new behaviour (a pure refactor, a config or tooling change) has no `RED` rows. Put the line `RED: n/a — <reason>` directly under the table instead, for example `RED: n/a — documentation only; no behaviour changes`.
    - The Tier A/B/C testing standard above decides which rows a task needs; the rows are the proof, not a checklist.
 
@@ -366,7 +369,7 @@ Each task file MUST adhere to this exact structure:
    - A variable named in the Needs column is unset.
    ```
 
-   Then add `## Decisions Already Made`: the choices from the spec or HLD that the task must not revisit, copied inline so the receiver does not have to find them. Write `None` when there are none.
+   Then add `## Decisions Already Made`: the choices from the spec or HLD that the task must not revisit, copied inline so the receiver does not have to find them. State exact production signatures, parameter defaults, canonical constants, and the caller-to-callee chain when those facts are established by the HLD or grounded repository symbols. Label grounded existing contracts with their source path and symbol. Label planned interfaces as new frozen contracts. Never invent a signature merely to fill the task; unresolved contract facts stop Gate 2 and return to design clarification. When a task has executable changes (RED or GREEN rows), this section must not be empty or write `None`. Only tasks with no executable behavior (such as pure documentation tasks) may write `None` when there are genuinely no frozen technical choices.
 10. **Definition of Done (DoD)**: Acceptance criteria (100% BDD scenario coverage across Tier A unit and Tier C integration tests with zero uncovered scenarios, passes Tier A/B/C verification, clean git status; for Web/UI deliverables: automated integration tests pass AND live browser verification artifacts are captured via `browser_subagent`). Every bullet ends with a parenthesised reference: the Verification rows that prove it, such as `(V2, V4)`, or `(Gate 5)` for an item only the developer can judge at Kanban review. The Gate 4 report lists `(Gate 5)` items; no script marks one met.
 11. **Dependencies & Blockers**: Link to blocking/blocked task files as markdown links, each `Blocked by` clause on one line (e.g. `Blocked by [Task 1](task_1_create_package.md)`).
 12. **References & Rollback**: Links to docs, APIs, and a rollback strategy if this specific task fails.

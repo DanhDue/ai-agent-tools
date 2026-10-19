@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import difflib
+import importlib
 import json
 import re
 import subprocess
@@ -18,13 +19,33 @@ import sys
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
-from check_bdd_traceability import COVERS_LINE, scenario_ids
-from task_contract import (DIFF_PLAIN, DOD_REFERENCE, EXCLUDE_DEVTOOL, ContractError, dod_bullets, git_run,
-                           parse_allowed_files, parse_protected_paths, parse_verification, path_matches,
-                           program_of, row_problems, section)
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+tc: Any = importlib.import_module("task_contract")
+cb: Any = importlib.import_module("check_bdd_traceability")
+rtc: Any = importlib.import_module("run_task_checks")
 
-STATUS = re.compile(r"""^status:\s*["'`]?([\w-]+)["'`]?\s*(?:#.*)?$""", re.M)
+COVERS_LINE: Any = cb.COVERS_LINE
+scenario_ids: Any = cb.scenario_ids
+
+DIFF_PLAIN: tuple[str, ...] = tc.DIFF_PLAIN
+DOD_REFERENCE: Any = tc.DOD_REFERENCE
+EXCLUDE_DEVTOOL: str = tc.EXCLUDE_DEVTOOL
+ContractError: type[Exception] = tc.ContractError
+dod_bullets: Any = tc.dod_bullets
+git_run: Any = tc.git_run
+parse_allowed_files: Any = tc.parse_allowed_files
+parse_protected_paths: Any = tc.parse_protected_paths
+parse_verification: Any = tc.parse_verification
+path_matches: Any = tc.path_matches
+program_of: Any = tc.program_of
+row_problems: Any = tc.row_problems
+section: Any = tc.section
+
+validate_pytest_red: Any = rtc.validate_pytest_red
+
+STATUS = re.compile(r"""^status:\s*["'`]?([\w-]+)["'`]?\s*(?:#.*)?$""", re.MULTILINE)
 GRADER_LINES = ("Protected paths:", "Integration results:")
 
 
@@ -37,21 +58,21 @@ class Commit:
 
 
 def git_lines(root: Path, *args: str) -> list[str]:
-    return git_run(root, *args).decode("utf-8", "replace").splitlines()
+    return [str(line) for line in git_run(root, *args).decode("utf-8", "replace").splitlines()]
 
 
 def show(root: Path, rev: str, path: str) -> str | None:
     try:
-        return git_run(root, "show", f"{rev}:{path}").decode("utf-8")
+        return str(git_run(root, "show", f"{rev}:{path}").decode("utf-8"))
     except ContractError:
         return None
 
 
 def status_of(text: str) -> str | None:
     """The frontmatter status, quoted or not, with any trailing comment dropped."""
-    head = re.match(r"---\n(.*?)\n---", text, re.S)
+    head = re.match(r"---\n(.*?)\n---", text, re.DOTALL)
     found = STATUS.search(head.group(1)) if head else None
-    return found.group(1) if found else None
+    return str(found.group(1)) if found else None
 
 
 def marked_done(root: Path, mirror: str, text: str) -> bool:
@@ -109,6 +130,18 @@ def audit_evidence(root: Path, epic_path: str, base: str, stem: str, text: str) 
         return [f"{stem}: malformed evidence"], True
     problems += [f"{stem}: row {record['id']} not PASS" for run in runs.values() for record in run["rows"]
                  if record["outcome"] != "PASS"]
+
+    # Re-audit pytest RED evidence semantics
+    if "red" in runs and isinstance(runs["red"].get("rows"), list):
+        for record in runs["red"]["rows"]:
+            cmd = record.get("command", "")
+            code = record.get("exit")
+            out_tail_val = record.get("output_tail", [])
+            out_tail = "\n".join(out_tail_val) if isinstance(out_tail_val, list) else str(out_tail_val)
+            err = validate_pytest_red(cmd, code, out_tail)
+            if err:
+                problems.append(f"{stem}: row {record['id']} {err}")
+
     commit = next(iter(git_lines(root, "log", "-1", "--format=%H", f"{base}..HEAD", "--", evidence_path)), None)
     if commit and patch_id(root, commit) != runs["verify"].get("patch_id"):
         return problems + [f"{stem}: patch changed after verify"], bool(problems)
@@ -200,7 +233,7 @@ def build_report(root: Path, epic_dir: str, base: str) -> tuple[list[tuple[str, 
     evidence: list[str] = []
     legacy: list[str] = []
     failed = False
-    for path, text in texts.items():
+    for path, text in sorted(texts.items()):
         if not marked_done(root, path, text):
             continue
         if section(text, "Verification") is None:
@@ -212,7 +245,7 @@ def build_report(root: Path, epic_dir: str, base: str) -> tuple[list[tuple[str, 
     protected, bad = audit_protected(root, epic_path, commits, texts)
     outside = [f"{c.short} {c.title}" for c in commits
                if c.sha not in task_commits and any(not p.startswith(".devtool/") for p in c.paths)]
-    gate5 = [f"{Path(path).stem}: {bullet}" for path, text in texts.items() for bullet in dod_bullets(text)
+    gate5 = [f"{Path(path).stem}: {bullet}" for path, text in sorted(texts.items()) for bullet in dod_bullets(text)
              if (reference := DOD_REFERENCE.search(bullet)) and reference.group(1) == "Gate 5"]
     sections = [("Evidence", evidence), ("Legacy tasks", legacy), ("Protected paths", protected),
                 ("Grader amendments", audit_amendments(root, epic_path, base, texts)),
@@ -226,12 +259,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--base", required=True)
     args = parser.parse_args(argv)
     try:
-        top = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True)
+        top = subprocess.run(["git", "rev-parse", "--show-toplevel"], check=False, capture_output=True, text=True)
         if top.returncode != 0:
             raise ContractError("not inside a git repository")
         root = Path(top.stdout.strip())
         base = subprocess.run(["git", "rev-parse", "--verify", "--quiet", f"{args.base}^{{commit}}"], cwd=root,
-                              capture_output=True, text=True)
+                              check=False, capture_output=True, text=True)
         if base.returncode != 0 or args.base.startswith("-"):
             raise ContractError(f"unknown base reference: {args.base}")
         sections, failed = build_report(root, args.epic_dir, base.stdout.strip())

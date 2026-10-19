@@ -6,6 +6,7 @@
 - [Identifiers](#identifiers)
 - [Read First](#read-first)
 - [Resume Prompt](#resume-prompt)
+- [Execution Guardrails for Receiving LLM](#execution-guardrails-for-receiving-llm)
 - [Open Notes](#open-notes)
 - [Rules for the Receiving Agent](#rules-for-the-receiving-agent)
 
@@ -37,9 +38,23 @@ These are usually different strings. Never derive one from the other.
 ```text
 Use the d3nexus:dev-implementation skill for the `<epic_slug>` epic.
 Read .devtool/epic/<epic_dir>/handoff.md first.
+Apply the Execution Guardrails for Receiving LLM before presenting Gate 3.
 Gates 1 and 2 are passed; do not re-run brainstorming or design.
 Gate 3 is pending: present the execution order to me and wait for my confirmation.
 ```
+
+## Execution Guardrails for Receiving LLM
+
+Fast executor models and receiving agents MUST adhere to these four hard guardrails throughout implementation:
+
+1. **Bounded context protocol**:
+   - Step 1: Read only the active task file (`.devtool/features/task_*.md`).
+   - Step 2: Read only the exact files declared in `Allowed files` and `Read-only context`.
+   - Step 3: Look up exact symbol definitions identified under `## Decisions Already Made`.
+   Undirected whole-repository searches (`grep`, `find`, `list_dir`) are forbidden unless an unresolved import explicitly requires symbol lookup.
+2. **Strict spec fidelity**: Frozen constants, defaults, retry counts, fallback conditions, signatures, and call paths under `## Decisions Already Made` and the HLD are hard contracts. Any mismatch causes STOP and report rather than an executor-side simplification.
+3. **Zero test fakery**: Tests import or invoke real production symbols and do not reconstruct retry loops, progress math, callback behavior, or configuration resolution.
+4. **No contract repair by the executor**: The receiver never edits Verification tables, Allowed files, Definition of Done, Covers lines, protected paths, or frozen contract facts.
 
 ## Open Notes
 

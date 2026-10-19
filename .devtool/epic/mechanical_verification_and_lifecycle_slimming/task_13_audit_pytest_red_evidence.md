@@ -1,13 +1,13 @@
 ---
 id: "task_13_audit_pytest_red_evidence"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "mechanical_verification_and_lifecycle_slimming"
 dueDate: null
 created: "2026-10-19T11:50:01Z"
-modified: "2026-10-19T11:50:01Z"
-completedAt: null
+modified: "2026-10-19T14:16:11Z"
+completedAt: "2026-10-19T14:16:11Z"
 labels: ["python", "audit", "verification"]
 order: "a13"
 ---

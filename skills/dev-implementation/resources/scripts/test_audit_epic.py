@@ -13,7 +13,9 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 sys.path.insert(0, str(Path(__file__).parent))
 import run_task_checks
@@ -79,7 +81,7 @@ class AuditCase(unittest.TestCase):
     def mirror(self, n: int) -> str:
         return f"{EPIC}/task_{n}_demo.md"
 
-    def start_task(self, n: int, **options) -> None:
+    def start_task(self, n: int, **options: Any) -> None:
         self.write(self.mirror(n), mirror_text(n, "in-progress", **options))
         self.commit(f"[DEMO] Create task {n}")
 
@@ -200,7 +202,7 @@ class AuditEpicTest(AuditCase):
         self.assertEqual(code, 1, report)
         self.assertIn("task_1_demo: row V1 not PASS", report)
 
-    def tamper(self, edit) -> None:
+    def tamper(self, edit: Callable[[str], str]) -> None:
         self.start_task(1)
         self.finish_task(1)
         path = self.root / f"{EPIC}/evidence/task_1_demo.json"
@@ -224,9 +226,12 @@ class AuditEpicTest(AuditCase):
         self.assertIn("row V1", report)
 
     def test_malformed_evidence_fails_without_a_traceback(self) -> None:
+        def make_bad(b: str) -> Callable[[str], str]:
+            return lambda _: b
+
         for bad in ("[]", '{"runs": {"verify": {}}}', '{"runs": {"verify": {"rows": [{"id": "V1"}]}}}', "{"):
             with self.subTest(bad=bad):
-                self.tamper(lambda text, bad=bad: bad)
+                self.tamper(make_bad(bad))
                 code, report, _ = self.audit()
                 self.assertEqual(code, 1, report)
                 self.assertIn("task_1_demo: malformed evidence", report)
@@ -272,6 +277,133 @@ class AuditEpicTest(AuditCase):
         self.assertEqual(code, 2)
         self.assertIn("no-such-ref", error)
         self.assertEqual(report, "")
+
+    def test_mvls_hp_02_audit_genuine_pytest_red_evidence(self) -> None:
+        """[MVLS-HP-02] Committed genuine pytest RED evidence passes semantic recomputation."""
+        self.write(self.mirror(1),
+                   mirror_text(1, "in-progress").replace(
+                       "| V1 | GREEN | `true` | exit 0 | — |\n\n",
+                       "| V1 | RED | `pytest tests/test_a.py::test_foo` | exit 1 | — |\n"
+                       "| V2 | GREEN | `true` | exit 0 | — |\n\n"
+                   ).replace("- the demo works (V1)\n", "- the demo works (V2)\n"))
+        self.commit("[DEMO] Task 1 with pytest RED")
+        self.write("feature_1.txt", "feature 1\n")
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(run_task_checks.main(["verify", str(self.root / self.mirror(1))]), 0)
+        evidence_path = self.root / f"{EPIC}/evidence/task_1_demo.json"
+        data = json.loads(evidence_path.read_text(encoding="utf-8"))
+        data["runs"]["red"] = {
+            "head": git(self.root, "rev-parse", "HEAD").strip(),
+            "tree": "some-tree",
+            "rows": [{
+                "id": "V1",
+                "phase": "RED",
+                "command": "pytest tests/test_a.py::test_foo",
+                "expect": "exit 1",
+                "needs": [],
+                "exit": 1,
+                "outcome": "PASS",
+                "reason": None,
+                "output_tail": [
+                    "FAILED tests/test_a.py::test_foo - AssertionError: expected False",
+                    "=== 1 failed in 0.05s ==="
+                ]
+            }]
+        }
+        evidence_path.write_text(json.dumps(data), encoding="utf-8")
+        self.mark_done(1)
+        self.commit("[DEMO] Task 1 done with valid pytest RED")
+        code, report, _ = self.audit()
+        self.assertEqual(code, 0, report)
+        self.assertIn("task_1_demo: PASS", report)
+        self.assertNotIn("invalid-pytest-RED", report)
+
+    def test_mvls_st_02_tampered_pytest_red_evidence_fails_gate_4(self) -> None:
+        """[MVLS-ST-02] Invalid pytest RED evidence marked outcome PASS fails Gate 4 semantic audit."""
+        self.write(self.mirror(1),
+                   mirror_text(1, "in-progress").replace(
+                       "| V1 | GREEN | `true` | exit 0 | — |\n\n",
+                       "| V1 | RED | `pytest tests/test_a.py::test_foo` | exit 1 | — |\n"
+                       "| V2 | GREEN | `true` | exit 0 | — |\n\n"
+                   ).replace("- the demo works (V1)\n", "- the demo works (V2)\n"))
+        self.commit("[DEMO] Task 1 with pytest RED")
+        self.write("feature_1.txt", "feature 1\n")
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(run_task_checks.main(["verify", str(self.root / self.mirror(1))]), 0)
+        evidence_path = self.root / f"{EPIC}/evidence/task_1_demo.json"
+        data = json.loads(evidence_path.read_text(encoding="utf-8"))
+        data["runs"]["red"] = {
+            "head": git(self.root, "rev-parse", "HEAD").strip(),
+            "tree": "some-tree",
+            "rows": [{
+                "id": "V1",
+                "phase": "RED",
+                "command": "pytest tests/test_a.py::test_foo",
+                "expect": "exit 1",
+                "needs": [],
+                "exit": 4,
+                "outcome": "PASS",
+                "reason": None,
+                "output_tail": [
+                    "ERROR: file or directory not found: tests/test_a.py::test_foo"
+                ]
+            }]
+        }
+        evidence_path.write_text(json.dumps(data), encoding="utf-8")
+        self.mark_done(1)
+        self.commit("[DEMO] Task 1 done with tampered pytest RED")
+        code, report, _ = self.audit()
+        self.assertEqual(code, 1, report)
+        evidence_sec = self.section(report, "Evidence")
+        self.assertIn("task_1_demo: row V1 Invalid pytest RED phase", evidence_sec)
+        self.assertIn("Result: FAIL", report)
+
+    def test_mvls_ar_02_multi_task_audit_is_deterministic(self) -> None:
+        """[MVLS-AR-02] Multi-task audit associates findings to correct tasks with FAIL precedence."""
+        self.write(self.mirror(1), mirror_text(1, "in-progress"))
+        self.commit("[DEMO] Task 1 start")
+        self.finish_task(1)
+
+        self.write(self.mirror(2),
+                   mirror_text(2, "in-progress").replace(
+                       "| V1 | GREEN | `true` | exit 0 | — |\n\n",
+                       "| V1 | RED | `pytest tests/test_b.py::test_bar` | exit 1 | — |\n"
+                       "| V2 | GREEN | `true` | exit 0 | — |\n\n"
+                   ).replace("- the demo works (V1)\n", "- the demo works (V2)\n"))
+        self.commit("[DEMO] Task 2 start")
+        self.write("feature_2.txt", "feature 2\n")
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(run_task_checks.main(["verify", str(self.root / self.mirror(2))]), 0)
+        evidence_path = self.root / f"{EPIC}/evidence/task_2_demo.json"
+        data = json.loads(evidence_path.read_text(encoding="utf-8"))
+        data["runs"]["red"] = {
+            "head": git(self.root, "rev-parse", "HEAD").strip(),
+            "tree": "some-tree",
+            "rows": [{
+                "id": "V1",
+                "phase": "RED",
+                "command": "pytest tests/test_b.py::test_bar",
+                "expect": "exit 1",
+                "needs": [],
+                "exit": 5,
+                "outcome": "PASS",
+                "reason": None,
+                "output_tail": [
+                    "collected 0 items"
+                ]
+            }]
+        }
+        evidence_path.write_text(json.dumps(data), encoding="utf-8")
+        self.mark_done(2)
+        self.commit("[DEMO] Task 2 done with tampered evidence")
+
+        for _ in range(2):
+            code, report, _ = self.audit()
+            self.assertEqual(code, 1, report)
+            evidence_sec = self.section(report, "Evidence")
+            self.assertIn("task_1_demo: PASS", evidence_sec)
+            self.assertIn("task_2_demo: row V1 Invalid pytest RED phase", evidence_sec)
+            self.assertIn("Result: FAIL", report)
 
 
 if __name__ == "__main__":

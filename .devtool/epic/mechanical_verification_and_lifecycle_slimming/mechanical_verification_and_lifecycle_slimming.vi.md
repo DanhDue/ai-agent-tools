@@ -15,7 +15,7 @@
 ## Siêu dữ liệu
 
 - **Tên epic**: `mechanical_verification_and_lifecycle_slimming`
-- **Trạng thái**: Packaged
+- **Trạng thái**: Done
 - **Bản phát hành mục tiêu**: Bản phát hành plugin kế tiếp
 - **Nền tảng**: Công cụ Python / bộ skill cho agent
 - **Đặc tả nguồn**: [Thiết kế siết chặt xác minh cơ học và tinh gọn vòng đời đã được duyệt](2026-10-19-mechanical-verification-and-lifecycle-slimming-design.vi.md)

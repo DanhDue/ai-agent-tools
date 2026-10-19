@@ -1,0 +1,189 @@
+{
+  "schema": 1,
+  "task": "task_13_audit_pytest_red_evidence",
+  "runs": {
+    "red": {
+      "head": "17708757c181e80bcc589e8148cf90a144e8a240",
+      "tree": "929ac09d618b4ab592e475d5ab7fd6cfcd2a6446",
+      "patch_id": "e329cedc5f5f1f1b328331a990c20e4b52e75530",
+      "started": "2026-10-19T14:08:15Z",
+      "finished": "2026-10-19T14:08:26Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m unittest skills/dev-implementation/resources/scripts/test_audit_epic.py",
+          "expect": "exit 1; contains \"FAILED\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-19T14:08:15Z",
+          "finished": "2026-10-19T14:08:26Z",
+          "output_tail": [
+            "",
+            "### Gate 5 items",
+            "None",
+            "",
+            "Result: PASS",
+            "",
+            "",
+            "======================================================================",
+            "FAIL: test_mvls_st_02_tampered_pytest_red_evidence_fails_gate_4 (skills.dev-implementation.resources.scripts.test_audit_epic.AuditEpicTest.test_mvls_st_02_tampered_pytest_red_evidence_fails_gate_4)",
+            "[MVLS-ST-02] Invalid pytest RED evidence marked outcome PASS fails Gate 4 semantic audit.",
+            "----------------------------------------------------------------------",
+            "Traceback (most recent call last):",
+            "  File \"/Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/mechanical_verification_and_lifecycle_slimming/skills/dev-implementation/resources/scripts/test_audit_epic.py\", line 351, in test_mvls_st_02_tampered_pytest_red_evidence_fails_gate_4",
+            "    self.assertEqual(code, 1, report)",
+            "    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^",
+            "AssertionError: 0 != 1 : ### Evidence",
+            "- task_1_demo: PASS",
+            "",
+            "### Legacy tasks",
+            "None",
+            "",
+            "### Protected paths",
+            "None",
+            "",
+            "### Grader amendments",
+            "None",
+            "",
+            "### Commits outside tasks",
+            "None",
+            "",
+            "### Gate 5 items",
+            "None",
+            "",
+            "Result: PASS",
+            "",
+            "",
+            "----------------------------------------------------------------------",
+            "Ran 17 tests in 10.807s",
+            "",
+            "FAILED (failures=2)"
+          ],
+          "output_sha256": "9be339e5fbe2fe1629c45c13796d94e1b21b329e2dca25b9988fdf5175a2f5e9"
+        }
+      ]
+    },
+    "verify": {
+      "head": "17708757c181e80bcc589e8148cf90a144e8a240",
+      "tree": "a4124e675422fc999d9355b001cd7e676acc0230",
+      "patch_id": "723f7acb463811df83217873ec27beb6266f7f9a",
+      "started": "2026-10-19T14:15:26Z",
+      "finished": "2026-10-19T14:15:51Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m unittest skills/dev-implementation/resources/scripts/test_audit_epic.py",
+          "expect": "exit 0; contains \"OK\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-19T14:15:26Z",
+          "finished": "2026-10-19T14:15:38Z",
+          "output_tail": [
+            ".................",
+            "----------------------------------------------------------------------",
+            "Ran 17 tests in 11.778s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "e804fe9f9407b8564dcdf12eb986a8562968848cbde124218143b84075f78806"
+        },
+        {
+          "id": "V3",
+          "phase": "TIER-B",
+          "command": "ruff check skills/dev-implementation/resources/scripts/audit_epic.py skills/dev-implementation/resources/scripts/test_audit_epic.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-19T14:15:38Z",
+          "finished": "2026-10-19T14:15:38Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "mypy --strict skills/dev-implementation/resources/scripts/audit_epic.py skills/dev-implementation/resources/scripts/test_audit_epic.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-19T14:15:38Z",
+          "finished": "2026-10-19T14:15:38Z",
+          "output_tail": [
+            "Success: no issues found in 2 source files"
+          ],
+          "output_sha256": "f9b031e5c45aa702cd4fef028d465551cb20a2c4698e0913c7b00766b20ac4d8"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-C",
+          "command": "python3 scripts/run_unittest_junit.py --junitxml build/test-results/task_13.xml skills/dev-implementation/resources/scripts/test_audit_epic.py",
+          "expect": "exit 0; results build/test-results/task_13.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-19T14:15:38Z",
+          "finished": "2026-10-19T14:15:50Z",
+          "output_tail": [
+            ".................",
+            "----------------------------------------------------------------------",
+            "Ran 17 tests in 11.708s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "ca952fdd2b7f8f59358f079fa90dc0b2b7e67a9e08234b51401149c1a3fd8546",
+          "results": {
+            "path": "build/test-results/task_13.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 3,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_mvls_ar_02_multi_task_audit_is_deterministic",
+                  "classname": "test_audit_epic.AuditEpicTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_mvls_hp_02_audit_genuine_pytest_red_evidence",
+                  "classname": "test_audit_epic.AuditEpicTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_mvls_st_02_tampered_pytest_red_evidence_fails_gate_4",
+                  "classname": "test_audit_epic.AuditEpicTest",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "skills/dev-implementation/resources/scripts/audit_epic.py",
+            "skills/dev-implementation/resources/scripts/test_audit_epic.py"
+          ],
+          "violations": []
+        }
+      ]
+    }
+  }
+}

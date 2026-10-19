@@ -92,6 +92,29 @@ The lifecycle proceeds through four stages and five approval gates, with two exp
 - **Gate 4 and Review Choice loop**: Gate 4 is the only machine verdict in this kit's development path. It grants 🟢 only when `audit_epic.py` exits 0, `check_bdd_traceability.py tests --results` exits 0, and `@quality_check` profile `epic` returns PASS on the exact candidate commit SHA. Every PASS presents **Review Choice**: **Finish** advances to Gate 5; **Cross-model review** records the round and returns to a full Gate 4 run. The loop repeats until the developer selects Finish.
 - **Gate 5 Developer Kanban Review**: Completed tasks are retained in `.devtool/features/done/` for visual developer sign-off before Stage 4 rebases, verifies by tier, lands the branch with a `--no-ff` merge, and archives tasks into `.devtool/epic/<slug>/`.
 
+### Interrupted and resume states
+
+When work stops or an epic is packaged, the lifecycle resumes deterministically across five operational states:
+
+```mermaid
+flowchart TD
+    FRESH["Fresh Epic<br/>(Stage 1 or Stage 2, no task files)"]
+    PKG["Packaged Epic<br/>(handoff.md present, status Packaged)"]
+    INTR["Interrupted Epic<br/>(task files exist, mid-Stage 3)"]
+    DONE_EPIC["Completed Epic<br/>(all tasks done, Gate 4 PASS)"]
+    INCON["Inconsistent State<br/>(documents modified after packaging)"]
+
+    FRESH -->|"Stage 1-2 completion"| PKG
+    FRESH -->|"Continue at Handoff Choice"| INTR
+    PKG -->|"Check git log since packaging"| INCON
+    PKG -->|"Resume at Stage 3 Gate 3"| INTR
+    INCON -->|"Documents win, reconcile staleness"| INTR
+    INTR -->|"Task-by-task TDD execution"| DONE_EPIC
+    DONE_EPIC -->|"Review Choice + Gate 5 sign-off"| MERGED["Stage 4: Landed Branch & Archival"]
+```
+
+These diagrams and explanations describe the lifecycle for humans; runtime skills (`dev-lifecycle`, `dev-implementation`) and scripts are the operational source of truth.
+
 ## doc-lifecycle
 
 **Purpose.** Orchestrate work whose deliverable is a document rather than code

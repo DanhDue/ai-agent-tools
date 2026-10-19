@@ -1,13 +1,13 @@
 ---
 id: "task_15_test_integrity_and_implementation_slimming"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "mechanical_verification_and_lifecycle_slimming"
 dueDate: null
 created: "2026-10-19T11:50:01Z"
-modified: "2026-10-19T11:50:01Z"
-completedAt: null
+modified: "2026-10-19T14:04:25Z"
+completedAt: "2026-10-19T14:04:25Z"
 labels: ["skill", "test-integrity", "documentation"]
 order: "a15"
 ---
