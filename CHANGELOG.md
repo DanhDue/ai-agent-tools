@@ -8,6 +8,26 @@ every installed machine on the old cached copy.
 
 ---
 
+## 1.12.0 — 2026-10-19
+
+Introduces mechanical task tamper protection, deterministic fast-model contract checks, bounded context injection, dynamic cross-model review recommendation at Gate 4, runtime skill slimming with diagram relocation to bilingual docs, and strict Python TIER-B verification.
+
+### Added
+
+- **Mechanical Task Tamper Guard** (`skills/dev-implementation/resources/scripts/run_task_checks.py`): Halts task execution and evidence collection (`TASK_TAMPERED_ERROR`) if active task files or their epic mirrors deviate in core sections (`Files`, `Verification`, `Definition of Done`, or `Covers`) from each other or committed `HEAD`.
+- **Deterministic Fast-Model Contract Checks** (`skills/dev-implementation/resources/scripts/check_task_contract.py`): Rejects pytest `-k` expressions without exact node IDs (`path/to/test.py::test_name`), bans weak assertion patterns in BDD scenarios (`should be truthy`, `returns non-empty`), and requires non-empty grounded decisions for executable tasks.
+- **Dynamic Cross-Model Review Recommendation** (`skills/dev-lifecycle/SKILL.md`): Dynamically prompts for Claude CLI or Codex CLI review at Gate 4 when fast executor models performed task execution.
+- **Bounded Context Injection Protocol** (`skills/dev-designer/SKILL.md`, `skills/dev-lifecycle/references/handoff-template.md`): Establishes strict receiving-LLM execution guardrails (Bounded context, Strict spec fidelity, Zero test fakery, No contract repair) and mandatorily enforces grounded decision anchors and TOC generation.
+- **Semantic Test Integrity Governance** (`skills/dev-implementation/SKILL.md`, `skills/dev-implementation/resources/scripts/audit_epic.py`): Gate 4 audit rejects reconstructed production logic in test fixtures, synthetic fixture substitutions, and wrapper exit code rewriting.
+
+### Changed
+
+- **Runtime Skill Slimming & Diagram Relocation** (`skills/dev-lifecycle/SKILL.md`, `skills/dev-implementation/SKILL.md`, `docs/lifecycles.*`): Slims `dev-lifecycle` below 2,500 words and `dev-implementation` below 4,500 words, removing all Mermaid fences from runtime skills while embedding synchronized bilingual state and resume diagrams in human-facing documentation.
+- **Python TIER-B Requirement Enforcement** (`skills/dev-implementation/resources/scripts/check_task_contract.py`): Requires Python tasks to accompany linting with type checking (`mypy`, `pyright`, `ty`) or registered quality provider suites.
+- **Pytest RED Recording Semantics** (`skills/dev-implementation/resources/scripts/run_task_checks.py`): Validates failure summaries to prevent exit 1 test selection or syntax failures from falsely recording as valid RED proof.
+
+---
+
 ## 1.11.0 — 2026-10-18
 
 Universalizes CRITICAL RULES across all AI Agent plugins and runtimes, restructures the Review Choice workflow into a strict post-Gate 4 verification loop, and enhances external review execution with live ANSI status streaming.
