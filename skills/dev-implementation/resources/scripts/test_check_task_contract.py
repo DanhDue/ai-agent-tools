@@ -5,12 +5,15 @@ Run: python3 -m unittest skills/dev-implementation/resources/scripts/test_check_
 """
 import contextlib
 import io
+import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from typing import Any
 
 sys.path.insert(0, str(Path(__file__).parent))
 from check_task_contract import main
@@ -19,22 +22,30 @@ EPIC = ".devtool/epic/demo"
 HEAD = "| ID | Phase | Command | Expect | Needs |\n|----|-------|---------|--------|-------|\n"
 RED = "| V1 | RED | `python3 tool.py red` | exit 1 | — |\n"
 GREEN = "| V2 | GREEN | `python3 tool.py green` | exit 0 | — |\n"
-TIER_C = "| V3 | TIER-C | `python3 tool.py int --out=build/out.xml` | exit 0; results build/out.xml | — |\n"
+TIER_B = ("| V3 | TIER-B | `ruff check tool.py` | exit 0 | — |\n"
+          "| V4 | TIER-B | `mypy --strict tool.py` | exit 0 | — |\n")
+TIER_C = "| V5 | TIER-C | `python3 tool.py int --out=build/out.xml` | exit 0; results build/out.xml | — |\n"
+DEFAULT_ROWS = RED + GREEN + TIER_B + TIER_C
 VERIFICATION_ENV = "## 6. Verification Environment\n\nTests run in temporary directories. Variable: DEMO_TOKEN.\n"
 HLD = ("# Epic\n\n## Integration Test Plan\n\nProtected paths: scripts/verify.sh\n\n"
        "Integration results: python3 tool.py all -> build/all.xml\n\n" + VERIFICATION_ENV)
 DONE_LINE = "- done (V1)\n"
 
 
-def task_text(rows: str = RED + GREEN + TIER_C, allowed: str = "- `tool.py`", dod: str = "- done (V2, V3)\n",
+def task_text(rows: str = DEFAULT_ROWS, allowed: str = "- `tool.py`", dod: str | None = None,
               covers: str = "", status: str = "todo", read_only: str = "- `README.md` — note",
-              after_table: str = "", skip: str = "") -> str:
+              after_table: str = "", skip: str = "", decisions: str = "- Grounded design decision.\n") -> str:
+    if dod is None:
+        row_ids = [m.group(1) for m in re.finditer(r"^\|\s*([^|]+?)\s*\|\s*[^|]+\s*\|", rows, re.MULTILINE)
+                   if m.group(1) not in ("ID", "") and not m.group(1).startswith("-")]
+        non_v1 = [r for r in row_ids if r != "V1"]
+        dod = f"- done ({', '.join(non_v1)})\n" if non_v1 else "- done (Gate 5)\n"
     sections = {
         "Files": f"Allowed files:\n{allowed}\n\nRead-only context:\n{read_only}\n",
         "Verification": f"{HEAD}{rows}\n{after_table}",
         "Definition of Done": dod,
         "Stop and Report If": "- A command does not match.\n",
-        "Decisions Already Made": "None.\n",
+        "Decisions Already Made": decisions,
     }
     body = "".join(f"## {title}\n\n{text}\n" for title, text in sections.items() if title != skip)
     return f'---\nstatus: "{status}"\n---\n# Task\n\n{covers}\n{body}'
@@ -70,16 +81,16 @@ class ContractCase(unittest.TestCase):
         git(self.root, "add", "-A")
         git(self.root, "commit", "-q", "-m", "base")
 
-    def task(self, name: str, **kwargs) -> Path:
+    def task(self, name: str, **kwargs: Any) -> Path:
         return self.write(f"{EPIC}/task_{name}.md", task_text(**kwargs))
 
-    def run_cli(self, *argv: str) -> tuple[int, str, str]:
+    def run_cli(self, *argv: str | Path) -> tuple[int, str, str]:
         out, err = io.StringIO(), io.StringIO()
         with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
             try:
                 code = main([str(arg) for arg in argv])
             except SystemExit as exit_:
-                code = exit_.code
+                code = int(exit_.code) if exit_.code is not None else 0
         return code, out.getvalue(), err.getvalue()
 
     def check(self, *tasks: Path, design: bool = False) -> tuple[int, str, str]:
@@ -92,14 +103,15 @@ class CompliantEpicTest(ContractCase):
     def test_vth_hp_01_a_compliant_epic_passes_and_prints_implicit_protected_paths(self) -> None:
         first = self.task("1_a", allowed="- `tool.py`\n- `src/made.py` (new)")
         second = self.task("2_b", allowed="- `README.md`", covers="Covers: DEMO-HP-01",
-                           rows=RED + GREEN + TIER_C.replace("tool.py int", "tool.py src/made.py"))
+                           rows=RED + GREEN + TIER_B + TIER_C.replace("tool.py int", "tool.py src/made.py"))
         code, out, _ = self.check(first, second, design=True)
         self.assertEqual(code, 0, out)
         self.assertIn("Implicit protected paths: tool.py", out)
         self.assertIn("Result: 0 problems — PASS", out)
 
     def test_no_tracked_program_prints_none(self) -> None:
-        task = self.task("1_a", rows=RED.replace("python3 tool.py red", "echo red") + GREEN.replace(
+        task = self.task("1_a", allowed="- `README.md`",
+                         rows=RED.replace("python3 tool.py red", "echo red") + GREEN.replace(
             "python3 tool.py green", "echo green") + TIER_C.replace("python3 tool.py", "echo"))
         code, out, _ = self.check(task)
         self.assertEqual(code, 0, out)
@@ -111,7 +123,7 @@ class CompliantEpicTest(ContractCase):
         self.assertEqual(code, 0, out)
 
     def test_missing_executable_warns_without_failing(self) -> None:
-        task = self.task("1_a", rows=RED + GREEN.replace("python3 tool.py green", "nosuch-demo-tool run") + TIER_C)
+        task = self.task("1_a", rows=RED + GREEN.replace("python3 tool.py green", "nosuch-demo-tool run") + TIER_B + TIER_C)
         code, out, err = self.check(task)
         self.assertEqual(code, 0, out)
         self.assertIn("task_1_a:V2", err)
@@ -125,6 +137,7 @@ class GroundingTest(ContractCase):
             "1_a", status=status, allowed="- `loose.py`\n- `README.md` (new)\n- `docs/*.md`\n- `src/`\n"
                                           "- `deep/er/est/x.py` (new)",
             read_only="- `docs/nope.md` — gone",
+            dod="- done (V2, V5)\n",
             rows=RED + GREEN.replace("tool.py green", "tool.py src/nowhere.py --out=src/also_gone.txt") + TIER_C)
 
     def test_vth_ec_01_paths_that_do_not_match_the_repository_are_named(self) -> None:
@@ -160,7 +173,7 @@ class GroundingTest(ContractCase):
 
     def test_command_token_is_new_in_another_task(self) -> None:
         owner = self.task("1_a", allowed="- `tool.py`\n- `src/made.py` (new)")
-        user = self.task("2_b", rows=RED + GREEN.replace("tool.py green", "tool.py src/made.py") + TIER_C)
+        user = self.task("2_b", rows=DEFAULT_ROWS.replace("tool.py green", "tool.py src/made.py"))
         code, out, _ = self.check(owner, user, design=True)
         self.assertEqual(code, 0, out)
 
@@ -195,7 +208,7 @@ class StructureTest(ContractCase):
             self.assertIn(expected, out)
 
     def test_red_n_a_with_a_reason_replaces_the_red_row(self) -> None:
-        task = self.task("1_a", rows=GREEN + TIER_C, after_table="RED: n/a — no new behaviour\n")
+        task = self.task("1_a", rows=GREEN + TIER_B + TIER_C, after_table="RED: n/a — no new behaviour\n")
         code, out, _ = self.check(task)
         self.assertEqual(code, 0, out)
 
@@ -226,10 +239,10 @@ class DeclarationTest(ContractCase):
     def test_vth_ec_04_needs_name_and_integration_report_path_are_checked(self) -> None:
         self.write(f"{EPIC}/demo.en.md", HLD.replace("-> build/all.xml", "-> out/all.xml")
                    + "Integration results: no arrow here\n")
-        task = self.task("1_a", rows=RED + GREEN + TIER_C.replace("| — |", "| UNNAMED_VAR |"))
+        task = self.task("1_a", rows=RED + GREEN + TIER_B + TIER_C.replace("| — |", "| UNNAMED_VAR |"))
         code, out, _ = self.check(task)
         self.assertEqual(code, 1)
-        self.assertIn("task_1_a:V3: Needs UNNAMED_VAR is not named in the Verification Environment section", out)
+        self.assertIn("task_1_a:V5: Needs UNNAMED_VAR is not named in the Verification Environment section", out)
         self.assertIn("demo.en.md: Integration results path out/all.xml is not ignored by git", out)
         self.assertIn("demo.en.md: Integration results line is not <command> -> <path>: no arrow here", out)
 
@@ -258,6 +271,145 @@ class UsageTest(ContractCase):
             code, _, err = self.run_cli("--hld", "hld.md", "--tasks", "task.md")
         self.assertEqual(code, 2)
         self.assertIn("git repository", err)
+
+
+class PythonTierBAndFastModelTest(ContractCase):
+    def test_mvls_hp_03_python_task_with_lint_and_type_check_passes(self) -> None:
+        """[MVLS-HP-03] Python task with ruff and mypy TIER-B rows passes."""
+        task = self.task("1_py", allowed="- `tool.py`",
+                         rows=RED + GREEN +
+                              "| V3 | TIER-B | `ruff check tool.py` | exit 0 | — |\n"
+                              "| V4 | TIER-B | `mypy --strict tool.py` | exit 0 | — |\n" + TIER_C,
+                         dod="- done (V2, V3, V4, V5)\n",
+                         decisions="- Use standard tooling.\n")
+        code, out, _ = self.check(task, design=True)
+        self.assertEqual(code, 0, out)
+        self.assertIn("Result: 0 problems — PASS", out)
+
+    def test_mvls_hp_03_registered_provider_commands_accepted(self) -> None:
+        """[MVLS-HP-03] Registered python-quality.json lint and type_check commands pass."""
+        manifest = json.dumps({
+            "schema_version": 1,
+            "capabilities": {
+                "lint": ["uv", "run", "ruff", "check", "."],
+                "type_check": ["uv", "run", "mypy", "--strict", "src"]
+            }
+        })
+        self.write(".agents/quality/python-quality.json", manifest)
+        task = self.task("1_py", allowed="- `tool.py`",
+                         rows=RED + GREEN +
+                              "| V3 | TIER-B | `uv run ruff check .` | exit 0 | — |\n"
+                              "| V4 | TIER-B | `uv run mypy --strict src` | exit 0 | — |\n" + TIER_C,
+                         dod="- done (V2, V3, V4, V5)\n",
+                         decisions="- Use uv runner.\n")
+        code, out, _ = self.check(task, design=True)
+        self.assertEqual(code, 0, out)
+        self.assertIn("Result: 0 problems — PASS", out)
+
+    def test_mvls_ec_03_polyglot_repo_non_python_task_skips_python_tier_b(self) -> None:
+        """[MVLS-EC-03] Non-Python task in repo with python quality manifest skips Python TIER-B."""
+        manifest = json.dumps({
+            "schema_version": 1,
+            "capabilities": {
+                "lint": ["uv", "run", "ruff", "check", "."],
+                "type_check": ["uv", "run", "mypy", "--strict", "src"]
+            }
+        })
+        self.write(".agents/quality/python-quality.json", manifest)
+        self.write("app/main.dart", "void main() {}\n")
+        self.commit()
+        task = self.task("1_dart", allowed="- `app/main.dart`",
+                         rows=RED.replace("python3 tool.py red", "dart test red") +
+                              GREEN.replace("python3 tool.py green", "dart test green") +
+                              TIER_C.replace("python3 tool.py int", "dart test int"),
+                         decisions="- Dart task decisions.\n")
+        code, out, _ = self.check(task, design=True)
+        self.assertEqual(code, 0, out)
+        self.assertNotIn("Python", out)
+        self.assertIn("Result: 0 problems — PASS", out)
+
+    def test_mvls_ec_07_rejects_pytest_k_without_node_id(self) -> None:
+        """[MVLS-EC-07] Generic pytest -k expression without exact node ID is rejected."""
+        self.write("tests/test_a.py", "# test\n")
+        self.commit()
+        task = self.task("1_k", allowed="- `tool.py`",
+                         rows="| V1 | RED | `pytest -k unknown tests/test_a.py` | exit 1 | — |\n" +
+                              GREEN +
+                              "| V3 | TIER-B | `ruff check tool.py` | exit 0 | — |\n"
+                              "| V4 | TIER-B | `mypy --strict tool.py` | exit 0 | — |\n" + TIER_C,
+                         dod="- done (V2, V3, V4, V5)\n",
+                         decisions="- Testing -k rejection.\n")
+        code, out, _ = self.check(task, design=True)
+        self.assertEqual(code, 1)
+        self.assertIn("pytest -k expression must use an exact node ID", out)
+
+    def test_mvls_ec_07_accepts_pytest_k_with_exact_node_id(self) -> None:
+        """[MVLS-EC-07] Pytest -k with exact node ID (path/file.py::test_name) is accepted."""
+        self.write("tests/test_a.py", "# test\n")
+        self.commit()
+        task = self.task("1_k", allowed="- `tool.py`",
+                         rows="| V1 | RED | `pytest -k tests/test_a.py::test_feature tests/test_a.py` | exit 1 | — |\n" +
+                              GREEN +
+                              "| V3 | TIER-B | `ruff check tool.py` | exit 0 | — |\n"
+                              "| V4 | TIER-B | `mypy --strict tool.py` | exit 0 | — |\n" + TIER_C,
+                         dod="- done (V2, V3, V4, V5)\n",
+                         decisions="- Exact node ID used.\n")
+        code, out, _ = self.check(task, design=True)
+        self.assertEqual(code, 0, out)
+        self.assertIn("Result: 0 problems — PASS", out)
+
+    def test_mvls_ec_07_rejects_weak_bdd_assertions(self) -> None:
+        """[MVLS-EC-07] Weak BDD assertions in scenarios are rejected."""
+        self.write(f"{EPIC}/bdd_scenarios.en.md",
+                   "# Scenarios\n\nScenario: Demo\n  Then the output should be truthy\n")
+        self.commit()
+        task = self.task("1_weak", allowed="- `tool.py`",
+                         rows=RED + GREEN +
+                              "| V3 | TIER-B | `ruff check tool.py` | exit 0 | — |\n"
+                              "| V4 | TIER-B | `mypy --strict tool.py` | exit 0 | — |\n" + TIER_C,
+                         dod="- done (V2, V3, V4, V5)\n",
+                         decisions="- Weak assertions test.\n")
+        code, out, _ = self.check(task, design=True)
+        self.assertEqual(code, 1)
+        self.assertIn("weak BDD assertion", out)
+
+    def test_mvls_ec_07_rejects_executable_task_with_empty_or_none_decisions(self) -> None:
+        """[MVLS-EC-07] Executable tasks must have grounded Decisions Already Made, not 'None.'."""
+        task = self.task("1_none", allowed="- `tool.py`",
+                         rows=RED + GREEN +
+                              "| V3 | TIER-B | `ruff check tool.py` | exit 0 | — |\n"
+                              "| V4 | TIER-B | `mypy --strict tool.py` | exit 0 | — |\n" + TIER_C,
+                         dod="- done (V2, V3, V4, V5)\n",
+                         decisions="None.\n")
+        code, out, _ = self.check(task, design=True)
+        self.assertEqual(code, 1)
+        self.assertIn("task_1_none:Decisions Already Made: executable task requires grounded facts, cannot be empty or 'None'", out)
+
+    def test_mvls_ec_07_accepts_executable_task_with_grounded_decisions(self) -> None:
+        """[MVLS-EC-07] Executable tasks with non-empty grounded decisions pass."""
+        task = self.task("1_grounded", allowed="- `tool.py`",
+                         rows=RED + GREEN +
+                              "| V3 | TIER-B | `ruff check tool.py` | exit 0 | — |\n"
+                              "| V4 | TIER-B | `mypy --strict tool.py` | exit 0 | — |\n" + TIER_C,
+                         dod="- done (V2, V3, V4, V5)\n",
+                         decisions="- Grounded facts and architectural choices recorded.\n")
+        code, out, _ = self.check(task, design=True)
+        self.assertEqual(code, 0, out)
+        self.assertIn("Result: 0 problems — PASS", out)
+
+    def test_mvls_fr_03_malformed_python_quality_manifest_fails(self) -> None:
+        """[MVLS-FR-03] Malformed python-quality.json reports manifest error and does not silently fall back."""
+        self.write(".agents/quality/python-quality.json", "{ malformed json content")
+        self.commit()
+        task = self.task("1_py", allowed="- `tool.py`",
+                         rows=RED + GREEN +
+                              "| V3 | TIER-B | `ruff check tool.py` | exit 0 | — |\n"
+                              "| V4 | TIER-B | `mypy --strict tool.py` | exit 0 | — |\n" + TIER_C,
+                         dod="- done (V2, V3, V4, V5)\n",
+                         decisions="- Testing malformed manifest.\n")
+        code, out, _ = self.check(task, design=True)
+        self.assertEqual(code, 1)
+        self.assertIn("python-quality.json", out)
 
 
 if __name__ == "__main__":

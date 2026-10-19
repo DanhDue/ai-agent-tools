@@ -1,0 +1,219 @@
+{
+  "schema": 1,
+  "task": "task_14_enforce_python_tier_b",
+  "runs": {
+    "verify": {
+      "head": "9e118748a58695777c432c52ecc619e8b5dea038",
+      "tree": "9b5f375f9481abb81e005786d2df1a1d563250d8",
+      "patch_id": "6c4539148dfb3076e38b2dc514c64166b67e94a8",
+      "started": "2026-10-19T13:57:27Z",
+      "finished": "2026-10-19T13:57:37Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m unittest skills/dev-implementation/resources/scripts/test_check_task_contract.py",
+          "expect": "exit 0; contains \"OK\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-19T13:57:27Z",
+          "finished": "2026-10-19T13:57:32Z",
+          "output_tail": [
+            "...........................",
+            "----------------------------------------------------------------------",
+            "Ran 27 tests in 4.610s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "1251ee114a8d0eb5ace01d0c631578e81c1c474287ffdb56e221e64e328433f5"
+        },
+        {
+          "id": "V3",
+          "phase": "TIER-B",
+          "command": "ruff check skills/dev-implementation/resources/scripts/check_task_contract.py skills/dev-implementation/resources/scripts/test_check_task_contract.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-19T13:57:32Z",
+          "finished": "2026-10-19T13:57:32Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "mypy --strict skills/dev-implementation/resources/scripts/check_task_contract.py skills/dev-implementation/resources/scripts/test_check_task_contract.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-19T13:57:32Z",
+          "finished": "2026-10-19T13:57:32Z",
+          "output_tail": [
+            "Success: no issues found in 2 source files"
+          ],
+          "output_sha256": "f9b031e5c45aa702cd4fef028d465551cb20a2c4698e0913c7b00766b20ac4d8"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-C",
+          "command": "python3 scripts/run_unittest_junit.py --junitxml build/test-results/task_14.xml skills/dev-implementation/resources/scripts/test_check_task_contract.py",
+          "expect": "exit 0; results build/test-results/task_14.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-19T13:57:32Z",
+          "finished": "2026-10-19T13:57:37Z",
+          "output_tail": [
+            "...........................",
+            "----------------------------------------------------------------------",
+            "Ran 27 tests in 4.759s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "6da5c0d4906c65c06af3e3eddd6e4d1bb4a5f5be7d87599f33e0e915136b449e",
+          "results": {
+            "path": "build/test-results/task_14.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 9,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_mvls_ec_03_polyglot_repo_non_python_task_skips_python_tier_b",
+                  "classname": "test_check_task_contract.PythonTierBAndFastModelTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_mvls_ec_07_accepts_executable_task_with_grounded_decisions",
+                  "classname": "test_check_task_contract.PythonTierBAndFastModelTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_mvls_ec_07_accepts_pytest_k_with_exact_node_id",
+                  "classname": "test_check_task_contract.PythonTierBAndFastModelTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_mvls_ec_07_rejects_executable_task_with_empty_or_none_decisions",
+                  "classname": "test_check_task_contract.PythonTierBAndFastModelTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_mvls_ec_07_rejects_pytest_k_without_node_id",
+                  "classname": "test_check_task_contract.PythonTierBAndFastModelTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_mvls_ec_07_rejects_weak_bdd_assertions",
+                  "classname": "test_check_task_contract.PythonTierBAndFastModelTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_mvls_fr_03_malformed_python_quality_manifest_fails",
+                  "classname": "test_check_task_contract.PythonTierBAndFastModelTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_mvls_hp_03_python_task_with_lint_and_type_check_passes",
+                  "classname": "test_check_task_contract.PythonTierBAndFastModelTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_mvls_hp_03_registered_provider_commands_accepted",
+                  "classname": "test_check_task_contract.PythonTierBAndFastModelTest",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "skills/dev-implementation/resources/scripts/check_task_contract.py",
+            "skills/dev-implementation/resources/scripts/test_check_task_contract.py"
+          ],
+          "violations": []
+        }
+      ]
+    },
+    "red": {
+      "head": "9e118748a58695777c432c52ecc619e8b5dea038",
+      "tree": "8c4f2cbdad8d7b4463fae8518cc0d09ed9cdb03b",
+      "patch_id": "a640c51c56d227556741c7871ecf40d1fe942698",
+      "started": "2026-10-19T13:56:59Z",
+      "finished": "2026-10-19T13:57:04Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m unittest skills/dev-implementation/resources/scripts/test_check_task_contract.py",
+          "expect": "exit 1; contains \"FAILED\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-19T13:56:59Z",
+          "finished": "2026-10-19T13:57:03Z",
+          "output_tail": [
+            "Traceback (most recent call last):",
+            "  File \"/Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/mechanical_verification_and_lifecycle_slimming/skills/dev-implementation/resources/scripts/test_check_task_contract.py\", line 385, in test_mvls_ec_07_rejects_executable_task_with_empty_or_none_decisions",
+            "    self.assertEqual(code, 1)",
+            "    ~~~~~~~~~~~~~~~~^^^^^^^^^",
+            "AssertionError: 0 != 1",
+            "",
+            "======================================================================",
+            "FAIL: test_mvls_ec_07_rejects_pytest_k_without_node_id (skills.dev-implementation.resources.scripts.test_check_task_contract.PythonTierBAndFastModelTest.test_mvls_ec_07_rejects_pytest_k_without_node_id)",
+            "[MVLS-EC-07] Generic pytest -k expression without exact node ID is rejected.",
+            "----------------------------------------------------------------------",
+            "Traceback (most recent call last):",
+            "  File \"/Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/mechanical_verification_and_lifecycle_slimming/skills/dev-implementation/resources/scripts/test_check_task_contract.py\", line 343, in test_mvls_ec_07_rejects_pytest_k_without_node_id",
+            "    self.assertEqual(code, 1)",
+            "    ~~~~~~~~~~~~~~~~^^^^^^^^^",
+            "AssertionError: 0 != 1",
+            "",
+            "======================================================================",
+            "FAIL: test_mvls_ec_07_rejects_weak_bdd_assertions (skills.dev-implementation.resources.scripts.test_check_task_contract.PythonTierBAndFastModelTest.test_mvls_ec_07_rejects_weak_bdd_assertions)",
+            "[MVLS-EC-07] Weak BDD assertions in scenarios are rejected.",
+            "----------------------------------------------------------------------",
+            "Traceback (most recent call last):",
+            "  File \"/Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/mechanical_verification_and_lifecycle_slimming/skills/dev-implementation/resources/scripts/test_check_task_contract.py\", line 373, in test_mvls_ec_07_rejects_weak_bdd_assertions",
+            "    self.assertEqual(code, 1)",
+            "    ~~~~~~~~~~~~~~~~^^^^^^^^^",
+            "AssertionError: 0 != 1",
+            "",
+            "======================================================================",
+            "FAIL: test_mvls_fr_03_malformed_python_quality_manifest_fails (skills.dev-implementation.resources.scripts.test_check_task_contract.PythonTierBAndFastModelTest.test_mvls_fr_03_malformed_python_quality_manifest_fails)",
+            "[MVLS-FR-03] Malformed python-quality.json reports manifest error and does not silently fall back.",
+            "----------------------------------------------------------------------",
+            "Traceback (most recent call last):",
+            "  File \"/Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/mechanical_verification_and_lifecycle_slimming/skills/dev-implementation/resources/scripts/test_check_task_contract.py\", line 411, in test_mvls_fr_03_malformed_python_quality_manifest_fails",
+            "    self.assertEqual(code, 1)",
+            "    ~~~~~~~~~~~~~~~~^^^^^^^^^",
+            "AssertionError: 0 != 1",
+            "",
+            "----------------------------------------------------------------------",
+            "Ran 27 tests in 4.393s",
+            "",
+            "FAILED (failures=5)"
+          ],
+          "output_sha256": "94290c9b361a15ce7c2760ee74c0f0ee8553a227dfd6feba81da9d9bd8d6306b"
+        }
+      ]
+    }
+  }
+}

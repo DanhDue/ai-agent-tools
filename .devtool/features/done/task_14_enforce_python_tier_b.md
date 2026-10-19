@@ -1,13 +1,13 @@
 ---
 id: "task_14_enforce_python_tier_b"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "mechanical_verification_and_lifecycle_slimming"
 dueDate: null
 created: "2026-10-19T11:50:01Z"
-modified: "2026-10-19T11:50:01Z"
-completedAt: null
+modified: "2026-10-19T13:58:10Z"
+completedAt: "2026-10-19T13:58:10Z"
 labels: ["python", "contracts", "governance"]
 order: "a14"
 ---

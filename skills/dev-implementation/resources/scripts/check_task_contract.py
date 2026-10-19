@@ -11,20 +11,28 @@ Python 3 standard library only.
 from __future__ import annotations
 
 import argparse
+import importlib
+import json
 import re
 import shlex
 import shutil
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
-import task_contract as tc
-from check_bdd_traceability import UsageError, covers_of, read_text
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+tc: Any = importlib.import_module("task_contract")
+cb: Any = importlib.import_module("check_bdd_traceability")
+UsageError: type[Exception] = cb.UsageError
+covers_of: Any = cb.covers_of
+read_text: Any = cb.read_text
 
 SECTIONS = ("Files", "Verification", "Definition of Done", "Stop and Report If", "Decisions Already Made")
 ROW_PREFIX = re.compile(r"^Verification row [^:]+: ")
-STATUS = re.compile(r'^status:\s*"?([A-Za-z_-]+)"?\s*$', re.M)
+STATUS = re.compile(r'^status:\s*"?([A-Za-z_-]+)"?\s*$', re.MULTILINE)
 GLOB_CHARS = re.compile(r"[*?]")
+WEAK_ASSERTION_RE = re.compile(r"\b(should be truthy|is valid|should work|returns non-empty)\b", re.IGNORECASE)
 
 
 class Checker:
@@ -32,11 +40,11 @@ class Checker:
         self.root = root
         self.problems: list[str] = []
         self.warnings: list[str] = []
-        listed = subprocess.run(["git", "ls-files", "-z"], cwd=root, capture_output=True, text=True).stdout
+        listed = subprocess.run(["git", "ls-files", "-z"], check=False, cwd=root, capture_output=True, text=True).stdout
         self.tracked = set(listed.split("\0")) - {""}
 
     def ignored(self, path: str) -> bool:
-        return subprocess.run(["git", "check-ignore", "-q", "--", path], cwd=self.root,
+        return subprocess.run(["git", "check-ignore", "-q", "--", path], check=False, cwd=self.root,
                               capture_output=True).returncode == 0
 
     def problem(self, where: str, text: str) -> None:
@@ -51,12 +59,12 @@ class Checker:
 
 def read_file(path: Path) -> str:
     try:
-        return read_text(path)
+        return str(read_text(path))
     except OSError as error:
         raise UsageError(f"cannot read {path}: {error.strerror or error}") from None
 
 
-def table_rows(check: Checker, stem: str, text: str) -> list[tc.Row]:
+def table_rows(check: Checker, stem: str, text: str) -> list[Any]:
     """Parse the Verification table row by row, reporting every bad row rather than the first."""
     body = tc.section(text, "Verification")
     if body is None:
@@ -65,7 +73,7 @@ def table_rows(check: Checker, stem: str, text: str) -> list[tc.Row]:
     if not table or tc.split_cells(table[0]) != tc.HEADER:
         check.problem(f"{stem}:Verification", "Verification header must be exactly: | " + " | ".join(tc.HEADER) + " |")
         return []
-    rows: list[tc.Row] = []
+    rows: list[Any] = []
     seen: set[str] = set()
     for line in table[2:]:
         cells = tc.split_cells(line)
@@ -81,14 +89,15 @@ def table_rows(check: Checker, stem: str, text: str) -> list[tc.Row]:
     return rows
 
 
-def check_structure(check: Checker, stem: str, path: Path, text: str, rows: list[tc.Row]) -> None:
+def check_structure(check: Checker, stem: str, path: Path, text: str, rows: list[Any]) -> None:
     for title in SECTIONS:
         if tc.section(text, title) is None:
             check.problem(f"{stem}:{title}", "section is missing")
     if tc.section(text, "Files") is not None and not tc.parse_allowed_files(text):
         check.problem(f"{stem}:Files", "Allowed files lists no entry")
-    if tc.section(text, "Verification") is not None:
-        reason = next((m.group(1) for m in map(tc.RED_NA.match, tc.section(text, "Verification").splitlines()) if m), None)
+    v_sec = tc.section(text, "Verification")
+    if v_sec is not None:
+        reason = next((m.group(1) for m in map(tc.RED_NA.match, v_sec.splitlines()) if m), None)
         if not any(row.phase == "RED" for row in rows) and not (reason and reason.strip()):
             check.problem(f"{stem}:Verification", "no RED row and no RED: n/a line with a reason")
         if covers_of(path) and not any(row.phase == "TIER-C" and row.expect.results for row in rows):
@@ -103,6 +112,13 @@ def check_structure(check: Checker, stem: str, path: Path, text: str, rows: list
         if missing:
             check.problem(f"{stem}:Definition of Done",
                           f"{bullet} references {', '.join(missing)}, which the table lacks")
+    has_executable = any(row.phase in ("RED", "GREEN") for row in rows)
+    if has_executable:
+        decisions = tc.section(text, "Decisions Already Made")
+        clean_decisions = decisions.strip().lower() if decisions else ""
+        if not decisions or not clean_decisions or clean_decisions in ("none", "none.", "n/a"):
+            check.problem(f"{stem}:Decisions Already Made",
+                          "executable task requires grounded facts, cannot be empty or 'None'")
 
 
 def check_allowed(check: Checker, stem: str, text: str, design: bool) -> None:
@@ -136,13 +152,14 @@ def command_paths(command: str) -> tuple[list[str], str | None]:
     for token in tokens:
         value = token.split("=", 1)[1] if token.startswith("-") and "=" in token else token
         if "/" in value and not value.startswith("-") and not re.search(r"[*$]|://", value):
-            paths.append(value[2:] if value.startswith("./") else value)
+            clean_path = value.split("::", 1)[0]
+            paths.append(clean_path.removeprefix("./"))
     program = tc.strip_wrappers([t for t in tokens if t not in tc.CONTROL_TOKENS])
     first = program[0] if program else None
     return paths, first if first and "/" not in first else None
 
 
-def check_grounding(check: Checker, stem: str, text: str, rows: list[tc.Row], created: set[str]) -> None:
+def check_grounding(check: Checker, stem: str, text: str, rows: list[Any], created: set[str]) -> None:
     for context in tc.parse_read_only_context(text):
         if not (check.root / context).exists() and context not in created:
             check.problem(f"{stem}:Files", f"Read-only context {context} does not exist and is not (new) in any task")
@@ -156,6 +173,119 @@ def check_grounding(check: Checker, stem: str, text: str, rows: list[tc.Row], cr
             check.warnings.append(f"warning: {stem}:{row.id}: executable {executable} not found on PATH")
 
 
+def check_pytest_k(check: Checker, stem: str, row: Any) -> None:
+    try:
+        tokens = shlex.split(row.command)
+    except ValueError:
+        tokens = row.command.split()
+    program = tc.strip_wrappers([t for t in tokens if t not in tc.CONTROL_TOKENS])
+    if not program or "pytest" not in program[0]:
+        return
+    for i, token in enumerate(tokens):
+        val: str | None = None
+        if token == "-k" and i + 1 < len(tokens):
+            val = tokens[i + 1]
+        elif token.startswith("-k="):
+            val = token.split("=", 1)[1]
+        elif token.startswith("-k") and len(token) > 2:
+            val = token[2:]
+        if val is not None and ("::" not in val or not val.split("::", 1)[0].endswith(".py")):
+            check.problem(f"{stem}:{row.id}",
+                          f"pytest -k expression must use an exact node ID (<file>::<test>), found: {val!r}")
+
+
+def is_python_task(text: str, rows: list[Any]) -> bool:
+    entries = tc.parse_allowed_files(text)
+    for entry in entries:
+        pat = entry.pattern.lower()
+        if pat.endswith(".py") or pat in ("pyproject.toml", "setup.py", "requirements.txt", "pipfile"):
+            return True
+    tier_b_rows = [r for r in rows if r.phase == "TIER-B"]
+    for row in tier_b_rows:
+        try:
+            tokens = shlex.split(row.command)
+        except ValueError:
+            tokens = row.command.split()
+        if "ruff" in tokens or any("ruff" in t for t in tokens):
+            return True
+    return False
+
+
+def check_python_tier_b(check: Checker, stem: str, rows: list[Any]) -> None:
+    tier_b_rows = [r for r in rows if r.phase == "TIER-B"]
+    manifest_path = check.root / ".agents" / "quality" / "python-quality.json"
+    if manifest_path.exists():
+        try:
+            data = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            check.problem(f"{stem}:Verification", "malformed .agents/quality/python-quality.json manifest")
+            return
+        if not isinstance(data, dict):
+            check.problem(f"{stem}:Verification", "invalid python-quality.json manifest: root must be an object")
+            return
+        capabilities = data.get("capabilities")
+        if not isinstance(capabilities, dict):
+            check.problem(f"{stem}:Verification", "invalid python-quality.json manifest: capabilities must be an object")
+            return
+        lint_cmd = capabilities.get("lint")
+        type_check_cmd = capabilities.get("type_check")
+        if not isinstance(lint_cmd, list) or not lint_cmd or not all(isinstance(x, str) for x in lint_cmd):
+            check.problem(f"{stem}:Verification", "invalid python-quality.json manifest: lint capability missing or invalid")
+            return
+        if not isinstance(type_check_cmd, list) or not type_check_cmd or not all(isinstance(x, str) for x in type_check_cmd):
+            check.problem(f"{stem}:Verification", "invalid python-quality.json manifest: type_check capability missing or invalid")
+            return
+
+        def matches_cap(cap: list[str], command: str) -> bool:
+            try:
+                row_toks = shlex.split(command)
+            except ValueError:
+                row_toks = command.split()
+            if row_toks == cap:
+                return True
+            if len(cap) > 1 and row_toks[:len(cap) - 1] == cap[:-1]:
+                return True
+            return bool(len(row_toks) >= len(cap) and row_toks[:len(cap)] == cap)
+
+        has_lint = any(matches_cap(lint_cmd, r.command) for r in tier_b_rows)
+        has_type = any(matches_cap(type_check_cmd, r.command) for r in tier_b_rows)
+        if not has_lint:
+            check.problem(f"{stem}:Verification", f"Python task missing registered lint capability ({' '.join(lint_cmd)})")
+        if not has_type:
+            check.problem(f"{stem}:Verification", f"Python task missing registered type_check capability ({' '.join(type_check_cmd)})")
+        return
+
+    # Fallback tooling: ruff + (mypy / pyright / ty)
+    has_ruff = False
+    has_type_checker = False
+    for r in tier_b_rows:
+        try:
+            tokens = shlex.split(r.command)
+        except ValueError:
+            tokens = r.command.split()
+        prog = tc.strip_wrappers([t for t in tokens if t not in tc.CONTROL_TOKENS])
+        first = prog[0] if prog else ""
+        if first == "ruff" or "ruff" in tokens:
+            has_ruff = True
+        if first in ("mypy", "pyright", "ty") or any(t in ("mypy", "pyright", "ty") for t in tokens):
+            has_type_checker = True
+
+    if not has_ruff or not has_type_checker:
+        missing_tools: list[str] = []
+        if not has_ruff:
+            missing_tools.append("lint (ruff)")
+        if not has_type_checker:
+            missing_tools.append("type-check (mypy/pyright/ty)")
+        check.problem(f"{stem}:Verification", f"Python task requires TIER-B direct {', '.join(missing_tools)}")
+
+
+def check_weak_bdd(check: Checker, source_name: str, text: str) -> None:
+    for line_num, line in enumerate(text.splitlines(), start=1):
+        m = WEAK_ASSERTION_RE.search(line)
+        if m:
+            check.problem(f"{source_name}:{line_num}", f"weak BDD assertion found: {m.group(0)!r}")
+
+
 def check_task(check: Checker, path: Path, text: str, design: bool, created: set[str]) -> None:
     stem = path.stem
     rows = table_rows(check, stem, text)
@@ -163,13 +293,18 @@ def check_task(check: Checker, path: Path, text: str, design: bool, created: set
     for row in rows:
         if row.expect.results and not check.ignored(row.expect.results):
             check.problem(f"{stem}:{row.id}", f"results path {row.expect.results} is not ignored by git")
+        check_pytest_k(check, stem, row)
+    check_weak_bdd(check, stem, text)
     status = STATUS.search(text.split("\n---", 1)[0]) if text.startswith("---") else None
     if design or not (status and status.group(1) == "done"):
+        if is_python_task(text, rows):
+            check_python_tier_b(check, stem, rows)
         check_allowed(check, stem, text, design)
         check_grounding(check, stem, text, rows, created)
 
 
-def check_hld(check: Checker, name: str, text: str, tasks: dict[Path, str]) -> None:
+def check_hld(check: Checker, hld_path: Path, text: str, tasks: dict[Path, str]) -> None:
+    name = hld_path.name
     if not tc.parse_protected_paths(text):
         check.problem(name, "no Protected paths: line")
     results = tc.parse_integration_results(text)
@@ -194,10 +329,16 @@ def check_hld(check: Checker, name: str, text: str, tasks: dict[Path, str]) -> N
             for need in row.needs:
                 if need not in environment:
                     check.problem(f"{path.stem}:{row.id}", f"Needs {need} is not named in the Verification Environment section")
+    for bdd_path in sorted(hld_path.parent.glob("bdd_scenarios*.md")):
+        try:
+            content = read_file(bdd_path)
+            check_weak_bdd(check, bdd_path.name, content)
+        except UsageError:
+            pass
 
 
 def repository_root() -> Path:
-    done = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True)
+    done = subprocess.run(["git", "rev-parse", "--show-toplevel"], check=False, capture_output=True, text=True)
     if done.returncode != 0:
         raise UsageError("not inside a git repository")
     return Path(done.stdout.strip())
@@ -216,7 +357,7 @@ def main(argv: list[str] | None = None) -> int:
         created = {entry.pattern for text in tasks.values() for entry in tc.parse_allowed_files(text) if entry.new}
         for path, text in tasks.items():
             check_task(check, path, text, args.design, created)
-        check_hld(check, args.hld.name, hld_text, tasks)
+        check_hld(check, args.hld, hld_text, tasks)
     except UsageError as error:
         print(f"error: {error}", file=sys.stderr)
         return 2
@@ -231,9 +372,10 @@ def main(argv: list[str] | None = None) -> int:
     return 1 if check.problems else 0
 
 
-def _rows(text: str) -> list[tc.Row]:
+def _rows(text: str) -> list[Any]:
     try:
-        return tc.parse_verification(text)[0]
+        parsed: tuple[list[Any], Any] = tc.parse_verification(text)
+        return list(parsed[0])
     except tc.ContractError:
         return []
 
