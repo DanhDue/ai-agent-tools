@@ -22,6 +22,11 @@ Epic: [mechanical_verification_and_lifecycle_slimming](../epic/mechanical_verifi
 were selected, or the process produced no positive failed/error summary. Supported direct and
 wrapped pytest commands are recognized from shell tokens, not substring matches. Recording an
 invalid pytest RED writes a FAIL outcome, prints the exact required reason, and exits non-zero.
+`run_task_checks.py` also implements the runtime task tamper-proof guard: before executing any command
+row, it validates the active task in `.devtool/features/` against the committed HEAD state or parent
+mirror in `.devtool/epic/<epic_dir>/task_*.md`. If core sections (`Files`, `Verification`,
+`Definition of Done`, or `Covers`) were altered, it aborts immediately with a `TASK_TAMPERED_ERROR`
+and commits no verification evidence.
 
 ## Files
 
@@ -44,7 +49,7 @@ Applicable skills: `d3nexus:test-driven-development`, `d3nexus:python-quality-ch
 
 ## Impact Analysis & Blast Radius
 
-- **Target files and symbols**: RED-row execution and evidence verdict logic in
+- **Target files and symbols**: RED-row execution, evidence verdict logic, and task contract tamper detection in
   `run_task_checks.py`; adjacent recorder tests.
 - **Downstream callers**: `audit_epic.py`, `scripts/test_verifiable_handoff.py`, task execution in
   `dev-implementation`, and any consumer of committed verification evidence.
@@ -54,7 +59,7 @@ Applicable skills: `d3nexus:test-driven-development`, `d3nexus:python-quality-ch
 
 ### BDD SCENARIOS
 
-Covers: MVLS-HP-01, MVLS-EC-01, MVLS-EC-02, MVLS-EC-04, MVLS-ST-01, MVLS-AR-01, MVLS-FR-01, MVLS-FR-02
+Covers: MVLS-HP-01, MVLS-EC-01, MVLS-EC-02, MVLS-EC-04, MVLS-ST-01, MVLS-AR-01, MVLS-FR-01, MVLS-FR-02, MVLS-FR-06
 
 ```gherkin
 Scenario: A collected pytest failure is valid
@@ -71,6 +76,11 @@ Scenario: Row evaluation is token-aware and isolated
   Given valid and invalid rows appear in either order
   When supported wrappers and unrelated `echo pytest` text are classified
   Then only direct pytest invocations are checked and no row inherits another row's output
+
+Scenario: Fail when active task core sections are tampered
+  Given an active task file in `.devtool/features/` with modified core sections
+  When `run_task_checks.py` validates task integrity before running verification commands
+  Then it aborts with a task tampered error and commits no evidence
 ```
 
 ## Verification
@@ -103,9 +113,10 @@ Scenario: Row evaluation is token-aware and isolated
 
 ## Definition of Done
 
-- All eight assigned BDD IDs appear in automated recorder tests and the JUnit report. (V2, V5)
+- All nine assigned BDD IDs appear in automated recorder tests and the JUnit report. (V2, V5)
 - Exit 4/5, every forbidden marker, exit rewriting, ambiguous exit 1, and valid exit 1/2 are covered. (V2)
 - Token-aware recognition accepts supported wrappers and rejects unrelated text. (V2)
+- Runtime task tamper-proof guard prevents execution and evidence recording when core task sections are modified. (V2)
 - Lint and strict type checking report zero issues. (V3, V4)
 - The implementation changes only Allowed files and is ready for task commit. (V2, V5)
 

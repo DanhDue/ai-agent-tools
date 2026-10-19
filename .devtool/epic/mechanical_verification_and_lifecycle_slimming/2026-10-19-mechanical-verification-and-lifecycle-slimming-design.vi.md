@@ -1,7 +1,7 @@
 # Thiết kế gia cố xác minh cơ học và tinh gọn lifecycle
 
 - **Ngày**: 2026-10-19
-- **Trạng thái**: Đã duyệt tại Gate 1
+- **Trạng thái**: Đã duyệt tại Gate 1; amendment executor-contract nhẹ đã duyệt ngày 2026-10-19
 - **Phạm vi**: Xác minh cơ học trong `dev-implementation`, tinh gọn runtime skill, tài liệu
   lifecycle cho con người và regression coverage
 - **Bước tiếp theo sau khi duyệt**: `dev-designer` (phân rã task quy mô epic)
@@ -21,6 +21,7 @@
 - [11. Xử lý lỗi](#11-xử-lý-lỗi)
 - [12. Rủi ro và phụ thuộc](#12-rủi-ro-và-phụ-thuộc)
 - [13. Cấu trúc bàn giao](#13-cấu-trúc-bàn-giao)
+- [14. Amendment contract executor nhẹ](#14-amendment-contract-executor-nhẹ)
 
 ## 1. Bối cảnh
 
@@ -91,6 +92,12 @@ kế được duyệt gồm:
 - `docs/lifecycles.en.md`
 - `docs/lifecycles.vi.md`
 - `scripts/test_lifecycle_document_contract.py`
+
+**Amendment contract executor nhẹ:**
+
+- `skills/dev-designer/SKILL.md`
+- `skills/dev-lifecycle/references/handoff-template.md`
+- Assertion chống drift bổ sung trong `scripts/test_lifecycle_document_contract.py`
 
 Epic này không sửa provider skill, provider schema, quality orchestrator chung hay lifecycle document
 không liên quan.
@@ -371,10 +378,110 @@ hợp với thay đổi code và skill.
 Đây là một epic có hai work package theo thứ tự:
 
 1. **Gia cố xác minh cơ học**: test trước, sau đó recorder, audit, task-contract validation và policy
-   test integrity ngắn gọn.
-2. **Tinh gọn lifecycle và loại bỏ tài liệu trùng lặp**: contract test trước, sau đó giảm runtime skill
-   và đồng bộ human documentation.
+   test integrity ngắn gọn (Task 12–14).
+2. **Tinh gọn lifecycle, gia cố prompt và loại bỏ tài liệu trùng lặp**: contract test trước, sau đó
+   giảm runtime skill, gia cố quy tắc sinh task và guardrail bàn giao (Task 17), cùng đồng bộ human
+   documentation và nghiệm thu (Task 15–16).
 
 Gia cố cơ học land trước để phần prose được giảm sau đó có thể trỏ tới enforcement chạy được. Hai
 package vẫn là hai task group và commit riêng. Gate 4 chỉ chạy sau khi cả hai hoàn tất và verify toàn
 bộ candidate SHA cuối cùng.
+
+## 14. Amendment contract executor nhẹ
+
+### 14.1 Mục đích và ranh giới
+
+Model executor nhanh cần task file và packaged handoff phơi bày các implementation fact đã khóa mà
+không cần khám phá rộng toàn repository. Amendment này đưa vào bốn cơ chế phối hợp nhằm gia cố prompt
+và runtime execution, chống lại các failure mode thường gặp của fast model (khám phá repo vô hạn,
+tự ý đơn giản hóa contract, assertion yếu và giả mạo task).
+
+Amendment là prompt hardening có anti-drift coverage và xác minh hợp đồng có tính xác định. Không được
+mô tả nó như một bộ phân tích ngữ nghĩa AST phổ quát trên mọi ngôn ngữ lập trình.
+
+### 14.2 Quy tắc sinh task và xác minh hợp đồng có tính xác định
+
+Với mọi task thay đổi executable behavior, `dev-designer` yêu cầu thông tin sau trong cấu trúc task
+hiện có, và `check_task_contract.py` thực thi kiểm tra một cách xác định:
+
+- Dưới `## Decisions Already Made`, nêu production signature, parameter default, canonical constant
+  và caller-to-callee chain chính xác khi các fact đó đã được HLD hoặc symbol trong repository xác lập.
+  Khi task có thay đổi executable (có hàng RED hoặc GREEN), section này không được để trống hoặc ghi
+  `None`.
+- Đánh dấu contract hiện có đã grounded bằng source path và symbol. Đánh dấu interface dự kiến là
+  new frozen contract. Không bịa signature chỉ để điền task; contract fact chưa giải quyết làm Gate 2
+  dừng và quay lại làm rõ thiết kế.
+- Dưới `### BDD SCENARIOS`, ghim assertion vào production observation point và input, output,
+  boundary index, attempt count, timestamp hoặc canonical fixture anchor chính xác. Các assertion mơ
+  hồ hoặc yếu (`should be truthy`, `is valid`, `should work`, `returns non-empty`) bị cấm và bị
+  `check_task_contract.py --design` từ chối.
+- RED row nêu test function hoặc method thật, được viết trước và thất bại qua assertion mechanism
+  native của nền tảng.
+- Riêng pytest, lệnh phải dùng exact node ID như `path/test_file.py::test_name`, expect exit 1 và yêu
+  cầu output lỗi dương từ test đã collect. Biểu thức `-k` chung chung không có node ID bị
+  `check_task_contract.py` từ chối.
+- Nền tảng khác dùng runner/provider command đã đăng ký của repository mà không áp đặt cú pháp Python
+  lên nền tảng không phải Python.
+- Task không có executable behavior mới có thể giữ `RED: n/a — <reason>`.
+
+### 14.3 Guardrail cho LLM tiếp nhận và giao thức nạp context có giới hạn
+
+Handoff template có thêm section cô đọng `Execution Guardrails for Receiving LLM`, và
+`dev-implementation` thiết lập giao thức nạp context có giới hạn 3 bước trong Phase 0:
+
+- **Giao thức context có giới hạn**:
+  1. Chỉ đọc duy nhất file task active (`.devtool/features/task_*.md`).
+  2. Chỉ đọc đúng các file được khai báo trong `Allowed files` và `Read-only context`.
+  3. Tra cứu chính xác symbol definition được xác định dưới `## Decisions Already Made`.
+  Cấm tìm kiếm toàn repository vô định hướng (`grep`, `find`, `list_dir`) trừ khi việc thiếu import
+  thực tế bắt buộc phải tra cứu symbol.
+- **Trung thành nghiêm ngặt với spec**: constant, default, retry count, fallback condition,
+  signature và call path đã khóa là hard contract. Bất kỳ sự lệch khớp nào đều dẫn đến STOP và
+  báo cáo thay vì executor tự đơn giản hóa.
+- **Không test giả**: test import hoặc gọi production symbol thật và không dựng lại retry loop,
+  progress math, callback behavior hay config resolution.
+- **Executor không sửa contract**: receiver không bao giờ sửa Verification, Allowed files, Definition
+  of Done, Covers, protected path hay frozen contract fact.
+
+Rendered Resume Prompt yêu cầu receiver áp dụng section này trước khi trình Gate 3.
+
+### 14.4 Chốt chặn chống giả mạo task tại runtime
+
+Nhằm ngăn chặn fast executor tự ý sửa đổi contract của task để pass kiểm tra một cách dễ dãi:
+
+- `run_task_checks.py` kiểm tra file task active trong `.devtool/features/` trước khi thực thi bất kỳ
+  hàng lệnh nào.
+- Script parse các section cốt lõi (`Files`, `Verification`, `Definition of Done`, và `Covers`) và
+  so sánh chúng với trạng thái đã commit tại HEAD hoặc bản mirror gốc trong
+  `.devtool/epic/<epic_dir>/task_*.md`.
+- Nếu phát hiện bất kỳ section contract cốt lõi nào bị sửa đổi trong quá trình thực thi,
+  `run_task_checks.py` lập tức dừng với lỗi `TASK_TAMPERED_ERROR` và không commit bằng chứng xác minh.
+
+### 14.5 Khuyến nghị cross-model review động tại Gate 4
+
+Trong `dev-lifecycle` và `dev-implementation`, prompt Review Choice trình bày sau khi Gate 4 PASS
+sẽ thích ứng theo mô hình thực thi:
+
+- Khi các task của epic được thực thi bởi một fast/lightweight model (ví dụ: Gemini Flash, Claude
+  Haiku, GPT-4o-mini), agent hiển thị khuyến nghị mạnh:
+  *"Các task được thực thi bởi fast executor model. Rất khuyến nghị chọn Option 2: Cross-model review (Claude CLI hoặc Codex CLI) để audit test integrity và các regression tiềm ẩn trước khi finish branch."*
+- Điều này kết hợp ưu thế về chi phí và tốc độ của fast executor trong lúc TDD từng task với sự
+  khắt khe độc lập của frontier model tại khâu nghiệm thu Gate 4.
+
+### 14.6 Xác minh và rollout
+
+Bốn cơ chế này được phân bổ trên các task của epic và được bảo đảm bởi test chống drift:
+
+- **Task 12**: Chốt chặn chống giả mạo task tại runtime trong `run_task_checks.py` (`MVLS-FR-06`).
+- **Task 14**: Kiểm tra xác định cho fast model trong `check_task_contract.py` (chặn `-k` không có
+  node ID và chặn assertion BDD yếu) (`MVLS-EC-07`).
+- **Task 15**: Giao thức nạp context có giới hạn và hướng dẫn cross-model review trong
+  `dev-implementation/SKILL.md` (`MVLS-HP-04`).
+- **Task 16**: Khuyến nghị cross-model review động trong `dev-lifecycle/SKILL.md` và
+  `docs/lifecycles.*.md` (`MVLS-HP-05`).
+- **Task 17**: Quy tắc sinh task trong `dev-designer/SKILL.md`, guardrail tiếp nhận trong
+  `handoff-template.md` và assertion chống drift trong `test_lifecycle_document_contract.py`
+  (`MVLS-HP-06`, `MVLS-EC-06`).
+
+Assertion trong repository tiếp tục là gate chống drift bền vững. File `handoff.md` đã package vẫn
+immutable. Các gói bàn giao tương lai sẽ nhận template mới.

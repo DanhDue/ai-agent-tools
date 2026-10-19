@@ -57,6 +57,13 @@ Then both contain the lifecycle and resume diagrams
 And both describe Gate 4, Review Choice, Gate 5, and the cross-model return to Gate 4
 And `dev-lifecycle/SKILL.md` remains at most 2,500 words
 
+Scenario: [MVLS-HP-06] [Tier C - Integration] Preserve task-generation rules and receiving-LLM guardrails
+
+Given `dev-designer/SKILL.md` and `handoff-template.md` are evaluated by the lifecycle document contract
+When contract assertions check task-generation rules and handoff templates
+Then `dev-designer` retains grounded Decisions Already Made contracts, exact node IDs, and prohibitions on weak assertions
+And `handoff-template.md` retains all four receiving-LLM guardrails and the Gate 3 resume prompt instruction
+
 ```
 
 ## Edge Cases and Boundaries
@@ -97,6 +104,20 @@ When the lifecycle document contract scans fenced blocks
 Then neither runtime skill contains Mermaid or Graphviz DOT diagrams
 And both lifecycle documents contain the expected human-facing Mermaid diagrams
 
+Scenario: [MVLS-EC-06] [Tier C - Integration] Reject missing receiving-LLM guardrails or dev-designer anchors in lifecycle contract
+
+Given `dev-designer/SKILL.md` lacks exact node ID rules or `handoff-template.md` drops a receiving-LLM guardrail
+When the lifecycle document contract test runs
+Then the test fails reporting the missing anchor
+And release verification cannot pass until the contract is restored
+
+Scenario: [MVLS-EC-07] [Tier C - Integration] Reject non-node-id pytest expressions, weak BDD assertions, or empty decisions
+
+Given a task contract undergoing design or implementation verification
+When `check_task_contract.py` checks pytest RED rows, BDD scenario assertions, or `Decisions Already Made`
+Then a generic `-k` pytest command without an exact node ID is rejected
+And weak assertions such as "should be truthy", "is valid", or "returns non-empty" are rejected
+And an empty or missing `Decisions Already Made` section on a task with executable changes is rejected
 ```
 
 ## State Transitions
@@ -182,4 +203,11 @@ Given slimming removes a required gate, recovery rule, review loop, or bilingual
 When repository and document contract tests run
 Then the affected test fails with the missing invariant
 And release verification cannot pass until the contract is restored
+
+Scenario: [MVLS-FR-06] [Tier C - Integration] Fail when active task core sections are tampered
+
+Given an active task file in `.devtool/features/` whose `Files`, `Verification`, `Definition of Done`, or `Covers` differs from HEAD or epic mirror
+When `run_task_checks.py` validates task integrity before running verification commands
+Then it aborts with a task tampered error
+And no verification evidence is committed
 ```

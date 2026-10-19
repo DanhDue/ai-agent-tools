@@ -20,7 +20,8 @@ Epic: [mechanical_verification_and_lifecycle_slimming](mechanical_verification_a
 
 This is the final Tier C task. Slim `dev-lifecycle/SKILL.md` to at most 2,500 words while preserving
 all five gates, resume/failure routing, Handoff Choice, Review Choice, and cross-model return to a
-fresh Gate 4. Keep lifecycle and resume diagrams in the synchronized human docs, strengthen the
+fresh Gate 4. Incorporate Mechanism 4: Dynamic Cross-Model Review Recommendation for fast executor
+models at Gate 4. Keep lifecycle and resume diagrams in the synchronized human docs, strengthen the
 anti-drift test, and run the complete epic and repository acceptance commands.
 
 ## Files
@@ -105,6 +106,7 @@ Scenario: Drift blocks release acceptance
 Blocked by [Task 13](task_13_audit_pytest_red_evidence.md).
 Blocked by [Task 14](task_14_enforce_python_tier_b.md).
 Blocked by [Task 15](task_15_test_integrity_and_implementation_slimming.md).
+Blocked by [Task 17](task_17_dev_designer_and_handoff_guardrails.md).
 
 ## References & Rollback
 

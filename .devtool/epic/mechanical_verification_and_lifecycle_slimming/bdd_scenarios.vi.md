@@ -57,6 +57,13 @@ Then cả hai chứa sơ đồ vòng đời và resume
 And cả hai mô tả Gate 4, Review Choice, Gate 5 và đường quay lại Gate 4 sau cross-model
 And `dev-lifecycle/SKILL.md` không vượt 2.500 từ
 
+Scenario: [MVLS-HP-06] [Tier C - Integration] Giữ vững quy tắc sinh task và guardrail cho LLM tiếp nhận
+
+Given `dev-designer/SKILL.md` và `handoff-template.md` được đánh giá bởi lifecycle document contract
+When các assertion hợp đồng kiểm tra quy tắc sinh task và handoff template
+Then `dev-designer` giữ vững contract grounded trong Decisions Already Made, exact node ID, và cấm assertion yếu
+And `handoff-template.md` giữ đủ bốn guardrail cho LLM tiếp nhận và hướng dẫn resume prompt trước Gate 3
+
 ```
 
 ## Ca biên và ranh giới
@@ -97,6 +104,20 @@ When hợp đồng tài liệu vòng đời quét fenced block
 Then không runtime skill nào chứa sơ đồ Mermaid hoặc Graphviz DOT
 And cả hai tài liệu vòng đời chứa sơ đồ Mermaid dành cho con người như mong đợi
 
+Scenario: [MVLS-EC-06] [Tier C - Integration] Từ chối thiếu guardrail cho LLM tiếp nhận hoặc thiếu anchor dev-designer trong lifecycle contract
+
+Given `dev-designer/SKILL.md` thiếu quy tắc exact node ID hoặc `handoff-template.md` thiếu guardrail cho LLM tiếp nhận
+When test lifecycle document contract chạy
+Then test thất bại và báo cáo anchor bị thiếu
+And xác minh phát hành không thể pass cho đến khi hợp đồng được khôi phục
+
+Scenario: [MVLS-EC-07] [Tier C - Integration] Từ chối biểu thức pytest không có node ID, assertion BDD yếu hoặc decisions trống
+
+Given một task contract đang trải qua kiểm tra design hoặc implementation
+When `check_task_contract.py` kiểm tra các hàng pytest RED, assertion kịch bản BDD hoặc `Decisions Already Made`
+Then lệnh pytest `-k` chung chung không có exact node ID bị từ chối
+And các assertion yếu như "should be truthy", "is valid" hoặc "returns non-empty" bị từ chối
+And section `Decisions Already Made` bị trống hoặc thiếu trên task có thay đổi executable bị từ chối
 ```
 
 ## Chuyển trạng thái
@@ -182,4 +203,11 @@ Given việc tinh gọn xóa một gate, quy tắc recovery, vòng review hoặc
 When test hợp đồng repository và tài liệu chạy
 Then test liên quan thất bại với invariant bị thiếu
 And xác minh release không thể qua cho đến khi hợp đồng được khôi phục
+
+Scenario: [MVLS-FR-06] [Tier C - Integration] Thất bại khi các section cốt lõi của task active bị giả mạo
+
+Given một file task active trong `.devtool/features/` có `Files`, `Verification`, `Definition of Done` hoặc `Covers` khác với HEAD hoặc bản mirror tại epic
+When `run_task_checks.py` xác thực tính toàn vẹn của task trước khi chạy các lệnh kiểm tra
+Then nó lập tức dừng với lỗi task tampered
+And không bằng chứng xác minh nào được commit
 ```

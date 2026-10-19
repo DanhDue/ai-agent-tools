@@ -22,6 +22,9 @@ Add the No Reconstructed Logic and Immutable Real Artifacts Gate 4 rules, then r
 duplicated platform personas, incomplete quick references, and repeated red flags from
 `dev-implementation/SKILL.md`. Preserve entry/resume, Gate 3, evidence, status, commit, integration,
 Gate 4, Review Choice, Gate 5, and finishing handoff in at most 4,500 words.
+Additionally, incorporate Mechanism 3: the 3-step Bounded Context Injection protocol in Phase 0
+(read active task, read Allowed files and Read-only context, look up exact symbols in Decisions
+Already Made; no undirected whole-repo searches) and strict spec fidelity instructions.
 
 ## Files
 
@@ -92,13 +95,13 @@ Scenario: Gate 4 rejects semantic test fakery
 ## Definition of Done
 
 - Both assigned BDD IDs appear in automated contract tests and the JUnit report. (V2, V5)
-- Both integrity rules and every retained workflow invariant are asserted. (V2)
+- Both integrity rules, bounded context injection protocol, and every retained workflow invariant are asserted. (V2)
 - No Mermaid or DOT fence remains and the skill is at most 4,500 words. (V2)
 - Lint and strict type checking report zero issues. (V3, V4)
 
 ## Dependencies & Blockers
 
-None. Blocks [Task 16](../epic/mechanical_verification_and_lifecycle_slimming/task_16_lifecycle_docs_and_acceptance.md).
+None. Blocks [Task 16](../epic/mechanical_verification_and_lifecycle_slimming/task_16_lifecycle_docs_and_acceptance.md), [Task 17](../epic/mechanical_verification_and_lifecycle_slimming/task_17_dev_designer_and_handoff_guardrails.md).
 
 ## References & Rollback
 

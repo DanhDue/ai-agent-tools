@@ -44,6 +44,8 @@ It does not claim universal mechanical source analysis for every supported langu
   `dev-implementation/SKILL.md` to at most 4,500 words without losing lifecycle invariants.
 - Keep lifecycle diagrams and explanations synchronized in `docs/lifecycles.en.md` and
   `docs/lifecycles.vi.md`.
+- Harden `dev-designer` task-generation rules and `handoff-template.md` receiving-LLM guardrails with
+  anti-drift assertions.
 - Provide regression tests for mechanical rules and for the runtime-skill/document boundary.
 
 ### Non-Goals
@@ -70,6 +72,8 @@ flowchart TD
     gate4_auditor --> red_validator
     gate4_auditor --> gate4_verdict["Gate 4 evidence verdict"]
     runtime_skills["Concise runtime skills"] --> lifecycle_contract["Lifecycle document contract tests"]
+    task_generation_rules["dev-designer task generation rules"] --> lifecycle_contract
+    handoff_guardrails["handoff-template receiving guardrails"] --> lifecycle_contract
     human_docs["Bilingual lifecycle documents and diagrams"] --> lifecycle_contract
     quality_providers["Registered language quality providers"] --> gate4_verdict
 ```
@@ -136,22 +140,33 @@ sequenceDiagram
 6. Test-integrity review remains semantic: tests call production symbols from Allowed files, and
    real repository artifacts are copied to temporary storage without changing scenario anchors.
 7. Runtime skills contain operational instructions only; human diagrams live in the lifecycle docs.
+8. Tasks with executable changes must state grounded facts under Decisions Already Made, use exact
+   node IDs for pytest RED without `-k` placeholders, and avoid weak assertions (`non-empty`,
+   `truthy`, `works`, `valid`). Handoffs carry the four receiving-LLM guardrails and the 3-step
+   bounded context injection protocol.
+9. `run_task_checks.py` validates task integrity against committed HEAD or the epic parent mirror before
+   running commands, aborting with a `TASK_TAMPERED_ERROR` if core sections are altered.
+10. Gate 4 provides a dynamic strong recommendation for cross-model review when tasks were executed by
+    a fast or lightweight model.
 
 ## Integration Test Plan and Boundary Matrix
 
 Integration test roots: skills/dev-implementation/resources/scripts/, scripts/
 
-Protected paths: .agents/quality/**, .devtool/epic/mechanical_verification_and_lifecycle_slimming/bdd_scenarios.en.md, .devtool/epic/mechanical_verification_and_lifecycle_slimming/bdd_scenarios.vi.md, skills/dev-implementation/resources/scripts/run_task_checks.py, skills/dev-implementation/resources/scripts/audit_epic.py, skills/dev-implementation/resources/scripts/check_task_contract.py, skills/dev-implementation/SKILL.md, skills/dev-lifecycle/SKILL.md, docs/lifecycles.en.md, docs/lifecycles.vi.md, scripts/test_lifecycle_document_contract.py
+Protected paths: .agents/quality/**, .devtool/epic/mechanical_verification_and_lifecycle_slimming/bdd_scenarios.en.md, .devtool/epic/mechanical_verification_and_lifecycle_slimming/bdd_scenarios.vi.md, skills/dev-implementation/resources/scripts/run_task_checks.py, skills/dev-implementation/resources/scripts/audit_epic.py, skills/dev-implementation/resources/scripts/check_task_contract.py, skills/dev-implementation/SKILL.md, skills/dev-lifecycle/SKILL.md, skills/dev-designer/SKILL.md, skills/dev-lifecycle/references/handoff-template.md, docs/lifecycles.en.md, docs/lifecycles.vi.md, scripts/test_lifecycle_document_contract.py
 
 Integration results: python3 scripts/run_unittest_junit.py --junitxml build/test-results/mechanical-verification-and-lifecycle-slimming.xml skills/dev-implementation/resources/scripts/test_run_task_checks.py skills/dev-implementation/resources/scripts/test_audit_epic.py skills/dev-implementation/resources/scripts/test_check_task_contract.py scripts/test_lifecycle_document_contract.py -> build/test-results/mechanical-verification-and-lifecycle-slimming.xml
 
 | Boundary | Real components | Isolation or fixture | Required assertions |
 |---|---|---|---|
 | RED recording | Task parser, shell runner, shared RED validator, evidence writer | Temporary task files; mocked subprocess results | Exit 4/5 and forbidden markers fail; valid exit 1/2 evidence passes |
+| Task tamper guard | Task parser, git HEAD/mirror comparer, check runner | Modified task files in `.devtool/features/` | Altered core sections abort with `TASK_TAMPERED_ERROR` before execution |
 | Gate 4 audit | Task rows, committed evidence, shared RED validator, audit report | Throwaway Git repository and candidate SHA | Tampered `PASS` is rejected; multiple rows remain deterministic |
 | Python TIER-B | Task parser, local language detection, capability manifest loader | Temporary task and manifest files | Linter and type checker both required; polyglot false positives avoided |
+| Fast-model contract checks | Task parser, regex assertion validator, contract checker | Temporary task files with weak assertions or generic `-k` | Rejects pytest `-k` without node ID, weak assertions, and empty decisions |
 | Test integrity | Gate 4/provider review contract | Purpose-built test fixtures | Reconstructed logic or changed artifact anchors produce a finding |
 | Skill slimming | Runtime skill text and lifecycle contract checker | Repository document fixtures | Required gates/recovery tokens remain; runtime diagram fences disappear |
+| Executor contract and handoff | `dev-designer` skill, handoff template, lifecycle contract tests | Skill and template file anchors | Anti-drift assertions verify task-generation rules, 4 handoff guardrails, and no weak assertions |
 | Human docs | English and Vietnamese lifecycle documents | Document checker and semantic token assertions | Both languages retain diagrams and Gate 4/Review Choice/Gate 5 invariants |
 | Full acceptance | All modified scripts, tests, skills, and docs | Current repository checkout | Targeted JUnit suite, `scripts/verify.sh`, and registered quality gate pass |
 
@@ -179,11 +194,11 @@ The canonical Gherkin definitions are in [BDD scenarios](bdd_scenarios.en.md), w
 
 | Dimension | Scenario IDs | Coverage intent |
 |---|---|---|
-| Happy Paths | MVLS-HP-01 through MVLS-HP-05 | Valid RED, audit, TIER-B, concise skills, and human docs |
-| Edge Cases and Boundaries | MVLS-EC-01 through MVLS-EC-05 | Missing/empty tests, polyglot detection, shell tokens, and diagram boundary |
+| Happy Paths | MVLS-HP-01 through MVLS-HP-06 | Valid RED, audit, TIER-B, concise skills, human docs, and executor contract |
+| Edge Cases and Boundaries | MVLS-EC-01 through MVLS-EC-07 | Missing/empty tests, polyglot detection, shell tokens, diagram boundary, missing contract anchors, and deterministic fast-model checks |
 | State Transitions | MVLS-ST-01 through MVLS-ST-03 | Evidence and documentation move only through valid states |
 | Async and Race Conditions | MVLS-AR-01 through MVLS-AR-02 | Independent rows and multi-task audits do not leak state |
-| Failures and Resilience | MVLS-FR-01 through MVLS-FR-05 | Wrapper tricks, ambiguous output, malformed manifests, test fakery, and doc drift |
+| Failures and Resilience | MVLS-FR-01 through MVLS-FR-06 | Wrapper tricks, ambiguous output, malformed manifests, test fakery, doc drift, and task tampering |
 
 ## Rollout Strategy and Mitigation
 
@@ -191,8 +206,8 @@ The canonical Gherkin definitions are in [BDD scenarios](bdd_scenarios.en.md), w
 2. Land task-contract enforcement independently so existing non-Python and polyglot tasks remain
    unaffected unless task-local evidence activates the Python rule.
 3. Add positive lifecycle contract assertions before deleting duplicated skill prose or diagrams.
-4. Slim `dev-implementation` first, then `dev-lifecycle`, updating both human documents in the same
-   task as the latter change.
+4. Slim `dev-implementation` first (Task 15), harden `dev-designer` task-generation rules and handoff
+   guardrails (Task 17), then slim `dev-lifecycle` and update human documents and acceptance (Task 16).
 5. Run the targeted JUnit suite, repository verification, document quality check, and registered
    quality gate against the final candidate SHA.
 
@@ -208,3 +223,4 @@ claim mechanical coverage for that platform.
 3. [Task 14: Enforce Python TIER-B Lint and Type Checking](task_14_enforce_python_tier_b.md)
 4. [Task 15: Add Test Integrity Rules and Slim Dev Implementation](task_15_test_integrity_and_implementation_slimming.md)
 5. [Task 16: Consolidate Lifecycle Docs and Run Acceptance](task_16_lifecycle_docs_and_acceptance.md)
+6. [Task 17: Harden Dev-Designer Task Contract and Handoff Guardrails](task_17_dev_designer_and_handoff_guardrails.md)

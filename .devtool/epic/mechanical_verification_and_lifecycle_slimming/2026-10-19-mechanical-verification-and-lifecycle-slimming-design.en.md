@@ -1,7 +1,7 @@
 # Mechanical Verification and Lifecycle Slimming Design
 
 - **Date**: 2026-10-19
-- **Status**: Approved at Gate 1
+- **Status**: Approved at Gate 1; lightweight executor-contract amendment approved 2026-10-19
 - **Scope**: Mechanical verification in `dev-implementation`, runtime-skill slimming,
   human-facing lifecycle documentation, and regression coverage
 - **Next step after approval**: `dev-designer` (epic-scale task breakdown)
@@ -21,6 +21,7 @@
 - [11. Error Handling](#11-error-handling)
 - [12. Risks and Dependencies](#12-risks-and-dependencies)
 - [13. Delivery Structure](#13-delivery-structure)
+- [14. Lightweight Executor Contract Amendment](#14-lightweight-executor-contract-amendment)
 
 ## 1. Background
 
@@ -91,6 +92,12 @@ design scope is:
 - `docs/lifecycles.en.md`
 - `docs/lifecycles.vi.md`
 - `scripts/test_lifecycle_document_contract.py`
+
+**Lightweight executor-contract amendment:**
+
+- `skills/dev-designer/SKILL.md`
+- `skills/dev-lifecycle/references/handoff-template.md`
+- Additional anti-drift assertions in `scripts/test_lifecycle_document_contract.py`
 
 No provider skill, provider schema, general quality orchestrator, or unrelated lifecycle document is
 modified by this epic.
@@ -378,10 +385,110 @@ quality gate appropriate to code and skill changes.
 This is one epic with two ordered work packages:
 
 1. **Mechanical verification hardening**: tests first, then recorder, audit, task-contract validation,
-   and concise test-integrity policy.
-2. **Lifecycle slimming and documentation deduplication**: contract tests first, then runtime-skill
-   reduction and synchronized human documentation.
+   and concise test-integrity policy (Tasks 12–14).
+2. **Lifecycle slimming, prompt hardening, and documentation deduplication**: contract tests first,
+   then runtime-skill reduction, task-generation and handoff guardrail hardening (Task 17), and
+   synchronized human documentation and acceptance (Tasks 15–16).
 
 Mechanical hardening lands first so later prose reduction can point to executable enforcement. The
 two packages remain separate task groups and commits. Gate 4 runs only after both are complete and
 verifies the final candidate SHA in full.
+
+## 14. Lightweight Executor Contract Amendment
+
+### 14.1 Purpose and boundary
+
+Fast executor models need task files and packaged handoffs that expose frozen implementation facts
+without requiring broad repository exploration. This amendment introduces four coordinated mechanisms
+to harden prompt and runtime execution against fast-model failure modes (unbounded repo exploration,
+contract simplification, weak assertions, and task tampering).
+
+The amendment is prompt hardening with anti-drift coverage and deterministic contract validation. It
+must not be described as building a universal AST semantic analyzer across all programming languages.
+
+### 14.2 Task-generation rules and deterministic contract validation
+
+For every task that changes executable behavior, `dev-designer` requires the following information
+inside the existing task structure, and `check_task_contract.py` enforces it deterministically:
+
+- Under `## Decisions Already Made`, state exact production signatures, parameter defaults,
+  canonical constants, and the caller-to-callee chain when those facts are established by the HLD
+  or grounded repository symbols. When a task has executable changes (RED or GREEN rows), this
+  section must not be empty or write `None`.
+- Label grounded existing contracts with their source path and symbol. Label planned interfaces as
+  new frozen contracts. Never invent a signature merely to fill the task; unresolved contract facts
+  stop Gate 2 and return to design clarification.
+- Under `### BDD SCENARIOS`, pin assertions to production observation points and exact inputs,
+  outputs, boundary indices, attempt counts, timestamps, or canonical fixture anchors. Vague or
+  weak assertions (`should be truthy`, `is valid`, `should work`, `returns non-empty`) are forbidden
+  and rejected by `check_task_contract.py --design`.
+- A RED row names a real test function or method that is written first and fails through the
+  platform's native assertion mechanism.
+- For pytest specifically, the command must use an exact node ID such as `path/test_file.py::test_name`,
+  expect exit 1, and require positive collected-test failure output. Generic `-k` expressions without
+  an exact node ID are rejected by `check_task_contract.py`.
+- Other platforms use the repository's registered runner/provider command without imposing Python
+  syntax on non-Python platforms.
+- A task with no new executable behavior may retain `RED: n/a — <reason>`.
+
+### 14.3 Receiving-LLM guardrails and bounded context injection protocol
+
+The handoff template gains a compact `Execution Guardrails for Receiving LLM` section, and
+`dev-implementation` establishes a 3-step Bounded Context Injection protocol in Phase 0:
+
+- **Bounded context protocol**:
+  1. Read only the active task file (`.devtool/features/task_*.md`).
+  2. Read only the exact files declared in `Allowed files` and `Read-only context`.
+  3. Look up exact symbol definitions identified under `## Decisions Already Made`.
+  Undirected whole-repository searches (`grep`, `find`, `list_dir`) are forbidden unless an
+  unresolved import explicitly requires symbol lookup.
+- **Strict spec fidelity**: frozen constants, defaults, retry counts, fallback conditions,
+  signatures, and call paths are hard contracts. Any mismatch causes STOP and report rather than an
+  executor-side simplification.
+- **Zero test fakery**: tests import or invoke real production symbols and do not reconstruct retry
+  loops, progress math, callback behavior, or configuration resolution.
+- **No contract repair by the executor**: the receiver never edits Verification, Allowed files,
+  Definition of Done, Covers, protected paths, or frozen contract facts.
+
+The rendered Resume Prompt tells the receiver to apply this section before presenting Gate 3.
+
+### 14.4 Runtime task tamper-proof guard
+
+To prevent fast executors from modifying task contracts to pass verification easily:
+
+- `run_task_checks.py` checks the active task file in `.devtool/features/` before executing any
+  command row.
+- It parses the core sections (`Files`, `Verification`, `Definition of Done`, and `Covers`) and
+  compares them against the committed HEAD state or the parent mirror in
+  `.devtool/epic/<epic_dir>/task_*.md`.
+- If any core contract section was altered during execution, `run_task_checks.py` aborts immediately
+  with a `TASK_TAMPERED_ERROR` and commits no verification evidence.
+
+### 14.5 Dynamic cross-model review recommendation at Gate 4
+
+In `dev-lifecycle` and `dev-implementation`, the Review Choice prompt presented after Gate 4 PASS
+adapts to the execution model:
+
+- When an epic's tasks were executed by a fast/lightweight model (e.g. Gemini Flash, Claude Haiku,
+  GPT-4o-mini), the agent displays a strong recommendation:
+  *"Tasks were executed by a fast executor model. Option 2: Cross-model review (Claude CLI or Codex CLI) is STRONGLY RECOMMENDED to audit test integrity and subtle regressions before finishing the branch."*
+- This couples the cost and speed advantages of fast executors during per-task TDD with the
+  adversarial rigor of frontier models at the Gate 4 sign-off.
+
+### 14.6 Validation and rollout
+
+These four mechanisms are distributed across the epic tasks and backed by anti-drift tests:
+
+- **Task 12**: Runtime task tamper-proof guard in `run_task_checks.py` (`MVLS-FR-06`).
+- **Task 14**: Deterministic fast-model checks in `check_task_contract.py` (prohibiting `-k` without
+  node IDs and weak BDD assertions) (`MVLS-EC-07`).
+- **Task 15**: Bounded context injection protocol and cross-model review guidance in
+  `dev-implementation/SKILL.md` (`MVLS-HP-04`).
+- **Task 16**: Dynamic cross-model review recommendation in `dev-lifecycle/SKILL.md` and
+  `docs/lifecycles.*.md` (`MVLS-HP-05`).
+- **Task 17**: Task-generation rules in `dev-designer/SKILL.md`, receiving-LLM guardrails in
+  `handoff-template.md`, and anti-drift assertions in `test_lifecycle_document_contract.py`
+  (`MVLS-HP-06`, `MVLS-EC-06`).
+
+Repository assertions remain the durable anti-drift gate. Existing packaged `handoff.md` files
+remain immutable. Future packages receive the new template.
