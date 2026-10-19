@@ -1,0 +1,402 @@
+{
+  "schema": 1,
+  "task": "task_16_lifecycle_docs_and_acceptance",
+  "runs": {
+    "red": {
+      "head": "3ac18ab6d325eed03fa74538352d86549d1df764",
+      "tree": "34ffeea36554bbaf458063897ed051489994e75a",
+      "patch_id": "3672e6ded3316786d8b3fb49937e2d1e2d84154b",
+      "started": "2026-10-19T14:25:45Z",
+      "finished": "2026-10-19T14:25:45Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m unittest scripts/test_lifecycle_document_contract.py",
+          "expect": "exit 1; contains \"FAILED\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-19T14:25:45Z",
+          "finished": "2026-10-19T14:25:45Z",
+          "output_tail": [
+            "..F....F.F",
+            "======================================================================",
+            "FAIL: test_mvls_ec_05_keep_diagrams_outside_runtime_skills (scripts.test_lifecycle_document_contract.LifecycleDocumentContractTest.test_mvls_ec_05_keep_diagrams_outside_runtime_skills)",
+            "[MVLS-EC-05] Neither runtime skill contains diagrams; both human docs contain Mermaid diagrams.",
+            "----------------------------------------------------------------------",
+            "Traceback (most recent call last):",
+            "  File \"/Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/mechanical_verification_and_lifecycle_slimming/scripts/test_lifecycle_document_contract.py\", line 173, in test_mvls_ec_05_keep_diagrams_outside_runtime_skills",
+            "    self.assertNotIn(\"```mermaid\", text, f\"{skill_rel} must not contain Mermaid diagram fences\")",
+            "    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+            "AssertionError: '```mermaid' unexpectedly found in '---\\nname: dev-lifecycle\\ndescription: Use this skill to orchestrate epic-scale work from idea to merged branch. It owns the sequence and the five approval gates connecting dev-brainstorming, dev-designer, dev-implementation, and quality_check — which skill runs next, what each stage must hand over, and what to do when a gate fails. Activate it when a request spans multiple components or needs an HLD plus a Kanban task breakdown, when routing an approved spec, or whenever it is unclear which epic stage the work is currently in.\\n---\\n\\n# Development Lifecycle\\n\\nThe orchestrator for epic-scale work. It owns **sequence and gates only** — each stage\\'s *how*\\nstays in that stage\\'s own skill. If you need to know how to run a stage, open its skill; if you\\nneed to know what runs next or what must be true before it does, stay here.\\n\\n**Announce at start:** \"I\\'m using the dev-lifecycle skill to orchestrate the `<epic_slug>` epic.\"\\n\\n**Every stage is entered by invoking its skill.** This file names what runs next; it does not\\nreplace it. Reading a stage\\'s description here and then doing that stage\\'s work yourself skips the\\ngate the stage owns.\\n\\n## When NOT to use this\\n\\n- Single-component feature, bugfix, or anything one implementation plan covers → `dev-brainstorming`\\n  then `writing-plans`. Do not open an epic for it.\\n- You are already mid-stage and know exactly which stage → go straight to that stage\\'s skill.\\n\\n## The Sequence\\n\\n```mermaid\\nflowchart TD\\n    S1[\"Stage 1 — Inception &amp; Spec<br/>(dev-brainstorming)\"]\\n    G1{\"Gate 1<br/>Spec approved?\"}\\n    ROUTE{\"Epic-scale?\"}\\n    PLANS([\"writing-plans<br/>(leaves this workflow)\"])\\n    S2[\"Stage 2 — Architecture &amp; Tasks<br/>(dev-designer)\"]\\n    G2{\"Gate 2<br/>HLD &amp; task breakdown approved?\"}\\n    HC{\"Handoff choice<br/>package or continue?\"}\\n    PKG([\"Package epic<br/>handoff.md, status Packaged, stop\"])\\n    S3[\"Stage 3 — Isolated Execution<br/>(dev-implementation)\"]\\n    G3{\"Gate 3<br/>Execution order confirmed?\"}\\n    EXEC[\"Phase 2-3: task-by-task TDD<br/>one commit per task, doc sync on divergence,<br/>integrate with develop after each task\"]\\n    RC{\"Review Choice<br/>Finish or Cross-model review?\"}\\n    XR[\"run_external_review.py run<br/>(review_results.md committed per round)\"]\\n    G4{\"Gate 4<br/>audit + result-based traceability + quality_check 🟢 LGTM?\"}\\n    REVIEW[\"Phase 4.1: Developer Kanban Review<br/>(All tasks held in DONE column for visual inspection)\"]\\n    G5{\"Gate 5<br/>User sign-off &amp; finish approved?\"}\\n    S4[\"Stage 4 — Finish Branch &amp; Archival<br/>(finishing-a-development-branch)\"]\\n\\n    S1 --> G1\\n    G1 -->|no, revise| S1\\n    G1 -->|yes| ROUTE\\n    ROUTE -->|no| PLANS\\n    ROUTE -->|yes| S2\\n    S2 --> G2\\n    G2 -->|no, adjust breakdown| S2\\n    G2 -->|yes| HC\\n    HC -->|\"1. package\"| PKG\\n    HC -->|\"2. continue\"| S3\\n    PKG -.->|\"later session or another LLM\"| S3\\n    S3 --> G3\\n    G3 -->|no, reorder| G3\\n    G3 -->|yes| EXEC\\n    EXEC --> G4\\n    G4 -->|\"no, fix findings as Fix commits\"| EXEC\\n    G4 -->|\"yes\"| RC\\n    RC -->|\"1. Finish\"| REVIEW\\n    RC -->|\"2. Cross-model review\"| XR\\n    XR -->|\"round recorded\"| G4\\n    REVIEW --> G5\\n    G5 -->|\"no, changes as Fix commits\"| EXEC\\n    G5 -->|yes| S4\\n\\n```\\n\\n<HARD-GATE>\\nDo NOT create `implementation_plan.md` or any Antigravity planning-mode artifact.\\nThe d3nexus workflow replaces the native planning mode entirely.\\nSpecs go to `docs/superpowers/specs/` (Stage 1) or `.devtool/epic/<epic_dir>/` (Stage 2+).\\nPlans go through `writing-plans` skill (non-epic) or `dev-designer` task files (epic).\\nIf you find yourself about to write `implementation_plan.md`, STOP — you are bypassing a gate.\\n\\nDo NOT skip or auto-decide the Review Choice after Gate 4 passes.\\nYou MUST present the choice between \"Finish\" and \"Cross-model review\" on every Gate 4 PASS.\\nCross-model review returns to a full Gate 4 run, which presents the choice again until the developer selects Finish.\\n</HARD-GATE>\\n\\n## Document Contract\\n\\nEvery durable design document produced by this lifecycle MUST be emitted as a synchronized English\\n`.en.md` and Vietnamese `.vi.md` pair. English is canonical; Vietnamese matches its structure and\\nfacts. Every variant MUST contain a linked table of contents covering every `##` section, regardless\\nof document length. This applies to specs, HLD/overview documents, BDD scenario documents, and\\nnon-epic implementation plans. `task_*.md` files and an epic\\'s `handoff.md` are the only exceptions and remain English-only;\\n`handoff.md` still carries a complete table of contents.\\n\\n### Markdown Formatting & Lint Standards\\n\\nEvery markdown document produced by this lifecycle MUST pass markdown lint standards:\\n- **Heading Hierarchy**: Exactly one top-level `# Title` (H1) at the start of the file. Heading levels MUST increment by one (no skipping levels from `#` to `###`). Space after `#` (`# Title`, not `#Title`). No trailing punctuation in headings (`.`, `:`, `,`, `;`).\\n- **Fenced Code Blocks**: Fenced code blocks MUST specify a language tag (e.g. ````bash`, ````markdown`, ````python`, ````mermaid`, ````dot`, ````json`). Bare fences without a language are prohibited.\\n- **Lists**: Consistent list markers (`-` for unordered lists), 2-space or 4-space nested indentation, and blank lines separating list blocks from surrounding paragraphs.\\n- **Links & Anchors**: Relative file links must resolve on disk; heading anchor fragments (`#anchor`) must match existing headings.\\n- **Formatting Hygiene**: No trailing whitespace at line ends, no hard tabs (use spaces), maximum 1 consecutive blank line, and ensure the file ends with a trailing newline.\\n\\n### Diagram Standards & Lint Rules (Mermaid & Graphviz DOT)\\n\\nAll diagrams included in any durable document (spec, HLD, BDD scenarios, implementation plan, or doc sync) MUST adhere strictly to the latest modern linting rules:\\n\\n1. **Mermaid Standards & Lint Rules**:\\n   - **`flowchart` over `graph`**: ALWAYS use `flowchart` syntax (e.g. `flowchart TD`, `flowchart LR`). NEVER use legacy `graph` syntax (e.g. `graph TD`, `graph LR`). `graph` is legacy Mermaid syntax; `flowchart` is the current keyword and enables per-subgraph `direction` control (e.g. `direction LR` inside a subgraph), richer node shapes, better rendering engines, and styling.\\n   - **Quote Node Labels**: Enclose any node label containing special characters, parentheses `()`, brackets `[]`, braces `{}`, colons `:`, slashes `/`, ampersands `&`, or punctuation in double quotes (e.g. `node1[\"Component (Core Logic)\"]`, `gate1{\"Gate 1: Spec Approved?\"}`, `db[(\"Storage (PostgreSQL)\")]`). Unquoted parentheses or colons break parser AST and trigger linter warnings.\\n   - **Alphanumeric Node IDs**: Use clean alphanumeric IDs with underscores (e.g. `AUTH_SVC`), never spaces, dashes, or dots in the ID itself. Avoid reserved keywords (`end`, `subgraph`, `graph`, `flowchart`).\\n   - **Edge Syntax & Quotes**: Use standard edges (`-->`, `-.->`, `==>`). Quote edge labels containing parentheses or punctuation (`A -->|\"yes (verified)\"| B`). Do not append trailing semicolons `;` on flowchart lines.\\n   - **Subgraphs**: Always specify explicit closing `end`, unique alphanumeric subgraph ID, and a quoted label: `subgraph ID [\"Label\"]` ... `end`.\\n   - **Sequence Diagrams**: Use modern `sequenceDiagram` with explicit participants (`actor U as User`, `participant S as Service`), valid arrows (`->>`, `-->>`, `-)`, `--))`), closed blocks (`alt`, `opt`, `loop`, `par`), and optional `autonumber`.\\n   - **State Diagrams**: Use `stateDiagram-v2` instead of legacy `stateDiagram`.\\n\\n2. **Graphviz (DOT) Standards & Lint Rules**:\\n   - Follow semantic node shapes (see `writing-skills/graphviz-conventions.dot`):\\n     - `[shape=diamond]` for decisions (questions ending in `?`).\\n     - `[shape=box]` for actions (imperative verbs: \"Write test\", \"Commit changes\").\\n     - `[shape=plaintext]` for shell commands or literal code (`git status`, `npm test`).\\n     - `[shape=ellipse]` for states or situations (\"Test failing\", \"Build complete\").\\n     - `[shape=octagon, style=filled, fillcolor=red, fontcolor=white]` for critical warnings (`STOP: ...`).\\n     - `[shape=doublecircle]` for entry/exit points (`Process starts`, `Process complete`).\\n   - **Statement Semicolons**: Every statement inside DOT must terminate with a semicolon `;`.\\n   - **Quotes**: Double-quote all multi-word or punctuation-containing node IDs and labels (`\"Process starts\"`, `label=\"Is test passing?\"`).\\n   - **Edges**: In `digraph`, edge operator MUST be `->` (NEVER `--`). Label branches explicitly (`[label=\"yes\"]`, `[label=\"no\"]`).\\n   - **Clusters**: Subgraphs intended to have a visual border MUST begin with `cluster_` (e.g. `subgraph cluster_phase1 { label=\"Phase 1\"; ... }`).\\n\\n## The Five Gates\\n\\nEvery gate is a **human approval** except Gate 4, which is a machine verdict. Never cross one\\non your own judgement.\\n\\n| Gate | Name | Approver | Enforced in | Handoff artefact |\\n|------|------|----------|-------------|------------------|\\n| **1** | Spec Approved | User | end of `dev-brainstorming` | `YYYY-MM-DD-<topic>-design.en.md` + `.vi.md` |\\n| **2** | HLD & Task Breakdown | User | `dev-designer` task-breakdown checkpoint | `<epic_dir>.en.md` + `.vi.md` + `bdd_scenarios.en.md` + `.vi.md` + `task_*.md` |\\n| **3** | Execution Order | User | `dev-implementation` Phase 1 checkpoint, or Gate 3 (resume) in its Resume Procedure | confirmed order + bootstrapped worktree |\\n| **4** | Quality LGTM & Check 2 | `audit_epic.py` + `check_bdd_traceability.py` + `quality_check` | `dev-implementation` Phase 4 | `audit_epic.py` report + 🟢 report + coverage matrix + BDD traceability matrix + merge-ready branch |\\n| **5** | Developer Kanban Sign-Off | User | `dev-implementation` Phase 4.1 checkpoint | User confirmation to proceed with branch finishing and archival |\\n\\n## Stages\\n\\n### Resuming an Epic\\n\\nA request to implement, continue or resume an epic whose `.devtool/epic/<epic_dir>/` already holds\\n`task_*.md` files is past Gate 2 — whether the epic was packaged (`handoff.md` present, Status\\n`Packaged`) or interrupted midway through Stage 3. Announce \"Gates 1 and 2 already passed; resuming\\nat Stage 3\", invoke `dev-implementation` with that epic name, and let its Entry-Point Detection\\nchoose where to start. Never redo Stage 1 or Stage 2 for it. New requirements for such an epic are\\nnot a resume: they go to dev-designer\\'s Updating an Existing Epic.\\n\\n### Stage 1 — Inception & Spec → `dev-brainstorming`\\n\\n**Invoke `d3nexus:dev-brainstorming`.** Do not write the spec yourself: Gate 1 is *its* user-approval\\nstep, and a spec that never passed through it has not cleared the gate.\\n\\n**Entry:** a raw idea or requirement.\\n**Exit (Gate 1):** the user has approved a written spec that passed self-review.\\n\\n**Routing decision, made here and nowhere else.** Once the spec is approved, choose:\\n\\n- **Epic-scale code** → `dev-designer`, which is Stage 2 of this lifecycle — multiple independent\\n  components/services, needs Kanban breakdown plus architecture/use-case/sequence diagrams, or the\\n  user called it an epic or large feature.\\n  → relocate both spec variants from `docs/superpowers/specs/` into\\n  `.devtool/epic/<epic_dir>/` (create the directory if needed), fix relative links inside both\\n  moved files, then go to Stage 2 passing the canonical `.en.md` path.\\n- **Everything else** → `writing-plans`. This leaves the epic lifecycle; the remaining gates do\\n  not apply. `writing-plans` still emits the required `.en.md`/`.vi.md` plan pair with complete\\n  tables of contents.\\n\\nWhen in doubt, ask the user rather than guessing.\\n\\nIf dev-brainstorming decomposed the request into several sub-project specs, **route each one\\nindependently**. Each spec keeps its own spec → design → implementation lineage and gets its own\\nepic directory. Never merge multiple specs into one epic.\\n\\n### Stage 2 — Architecture & Tasks → `dev-designer`\\n\\n**Entry:** a Gate 1 spec, already sitting in `.devtool/epic/<epic_dir>/`.\\n**Exit (Gate 2):** the user has confirmed the proposed task list and granularity.\\n\\nTreat the approved spec as the source of truth for scope and decisions already made — formalize\\nit, do not re-litigate it. Gate 2 is a lightweight confirmation of the *task split* only; the\\narchitecture was already approved at Gate 1.\\n\\n### Handoff Choice\\n\\nBetween Gate 2 and Stage 3 the developer decides when, and by whom, the epic is implemented. This\\nis a routing decision like Stage 1\\'s, not a sixth gate. Ask it once `dev-designer` Step 3 has\\ncommitted the task files of a new epic — or, with `auto_commit: false`, once they are written.\\nAfter dev-designer\\'s Updating an Existing Epic, ask it only when the epic has neither `handoff.md`\\nnor an epic branch; otherwise leave any `handoff.md` untouched — its staleness rule flags the\\nupdate — and continue through Resuming an Epic:\\n\\n> Gate 2 passed: the HLD, BDD scenarios and N task files for `<epic_slug>` are written. How do you\\n> want to proceed?\\n>\\n> 1. **Package** — write `handoff.md`, mark the epic `Packaged`, and stop, so the work can be\\n>    picked up later or by another LLM.\\n> 2. **Continue** — enter Stage 3 now (`dev-implementation`, starting with Gate 3: execution order).\\n\\nWhen the overview Status says the epic is queued behind another epic, say so in the question.\\n\\n**Continue** → invoke `dev-implementation`. **Package** → run the packaging procedure below, then\\nstop: no worktree and no Stage 3 in this session. Resolve the paths from this skill\\'s directory:\\n\\n```bash\\nSKILL_DIR=<absolute path of the directory containing this SKILL.md>\\nSCRIPTS=\"$SKILL_DIR/../dev-implementation/resources/scripts\"\\nCHECK_DOC=\"$SKILL_DIR/../doc_quality_check/resources/scripts/check_document.py\"\\n```\\n\\n1. **Preflight, read-only.** All of it must pass before anything is written:\\n\\n   ```bash\\n   python3 \"$SCRIPTS\"/compute_execution_order.py <epic_slug>\\n   ls .devtool/epic/<epic_dir>/task_*.md | wc -l\\n   python3 \"$SCRIPTS\"/check_bdd_traceability.py plan \\\\\\n     --scenarios .devtool/epic/<epic_dir>/bdd_scenarios.en.md \\\\\\n     --tasks .devtool/epic/<epic_dir>/task_*.md\\n   python3 \"$SCRIPTS\"/check_task_contract.py --design \\\\\\n     --hld .devtool/epic/<epic_dir>/<epic_dir>.en.md \\\\\\n     --tasks .devtool/epic/<epic_dir>/task_*.md\\n   ```\\n\\n   The scan summary\\'s matched count must equal the number of task mirrors, and the other scripts\\n   must exit 0. A smaller count means broken frontmatter or a wrong `epic:` value; exit 1 means a\\n   dependency cycle, a scenario no `Covers:` line names, or a task that breaks the contract (Files,\\n   Verification, Definition of Done, Stop and Report If). Fix it now — the receiving agent has no\\n   context to diagnose it.\\n2. Copy this skill\\'s `references/handoff-template.md` to `.devtool/epic/<epic_dir>/handoff.md`\\n   and fill every placeholder; `<N>` is the task count the preflight printed. The first column of its Identifiers table names the placeholders and\\n   stays as written; drop the source-spec line when the epic has no source spec. Write Open Notes from this\\n   session\\'s conversation: decisions, risks and doubts the documents do not record.\\n3. Lint it: `python3 \"$CHECK_DOC\" --require-toc .devtool/epic/<epic_dir>/handoff.md`.\\n4. Mark the epic packaged, then confirm both overview variants changed — the script reports the\\n   documents it found, not the documents it wrote:\\n\\n   ```bash\\n   python3 \"$SCRIPTS\"/sync_task_status.py epic <epic_dir> Packaged\\n   grep -n -E \\'^- \\\\*\\\\*(Status|Trạng thái)\\\\*\\\\*: Packaged\\' \\\\\\n     .devtool/epic/<epic_dir>/<epic_dir>.en.md .devtool/epic/<epic_dir>/<epic_dir>.vi.md\\n   ```\\n\\n   Two matching lines are required; with fewer, set the Status line by hand in both variants. If the\\n   Status read `Queued (backlog) — behind <epic>` before packaging, run the script with\\n   `\"Packaged (queued behind <epic>)\"` instead and copy that line into Open Notes; the `grep` still\\n   matches. Task\\n   statuses stay as they are, so a packaged epic still counts as active under dev-designer\\'s\\n   Concurrent-Epic Backlog Rule.\\n5. Commit, when `auto_commit` is `true` or absent: stage `handoff.md`, the overview pair and any task files fixed at step 1, then\\n   `git commit -m \"[<EPIC_NAME>] Package epic for handoff\"`, with no trailer. When `auto_commit` is\\n   `false`, skip it and warn that an agent in another clone will not see the package.\\n6. Offer to push, and push only on the developer\\'s explicit permission. Say that a receiver in\\n   another clone or on another machine needs the push.\\n7. Print the `handoff.md` path and its rendered Resume Prompt, then stop.\\n\\n### Stage 3 — Isolated Execution → `dev-implementation`\\n\\n**Entry:** Gate 2 passed, HLD and `task_*.md` files exist, and the developer chose Continue at\\nthe Handoff Choice — or a packaged or interrupted epic is being resumed (see\\n[Resuming an Epic](#resuming-an-epic)).\\n**Exit (Gate 5):** Gate 4 is 🟢 LGTM (the audit, result-based traceability and `quality_check`) AND the user explicitly reviews the completed tasks on the Kanban dashboard and approves finishing the branch (Gate 5).\\n\\nGate 3 sits inside this stage, at the end of Phase 1: present the computed execution order and\\nget confirmation **before** creating any worktree or dispatching any subagent.\\n\\nThen one worktree, one task at a time, one commit per task, docs kept truthful. On divergence\\nfrom the HLD, sync the epic docs before starting the next task. After every task, integrate the\\nbranch with `develop` — rebase, then re-verify by tier — before the next one starts.\\n\\n**Review Choice loop.** After the last task, `dev-implementation` runs Gate 4 first. On every PASS it\\nasks the developer whether to **Finish** (Gate 5, then Stage 4) or run a\\n**Cross-model review**: an independent model reviews the epic first, through the Claude CLI or the\\nCodex CLI, which the developer picks every time. The question lists which are on `PATH` and says the\\nrepository\\'s content goes to that provider. Option 2 runs `run_external_review.py run` and records\\neach round in `.devtool/epic/<epic_dir>/review_results.md`, committed after every round. Findings the developer does not\\naccept are `dismissed` only on the developer\\'s explicit words. The mechanics are in\\n`dev-implementation`\\'s Review Choice section.\\n\\nThe invariant is **Gate 4 PASS → Review Choice; Finish → Gate 5; Cross-model review → Gate 4 in full**.\\nAfter a review round is recorded and all blocking findings have decisions and required Fix commits,\\nPhase 4 starts again with `run_external_review.py check`. Its new PASS presents Review Choice again.\\nThe loop ends only when the developer explicitly selects Finish.\\n\\n> [!CRITICAL]\\n> **Mandatory Review Choice loop**: Once every task is `done`, run Gate 4. On PASS, the agent MUST stop calling tools and present Review Choice. Silently skipping the choice or assuming Finish is strictly prohibited. Cross-model review always returns to a full Gate 4 run before Review Choice is presented again.\\n\\n**Gate 4 Machine Acceptance Criteria:**\\nGate 4 grants `🟢 LGTM` only when `audit_epic.py` exits 0 — every done task\\'s committed evidence matches its Verification table, and every change to a grader is disclosed — **and** result-based traceability, `check_bdd_traceability.py tests --results` over the HLD\\'s Integration results reports, exits 0 — every scenario in `bdd_scenarios.en.md` proved by an integration test that passed, no test referencing a removed scenario — **and** the provider-based quality orchestrator (`@quality_check`) returns an aggregated verdict of **PASS**, both bound to the exact candidate commit SHA (`git rev-parse HEAD`), with `@quality_check` evaluating all registered providers declared in `.agents/quality/check_quality.json` with profile `epic` against `<base_ref>`.\\n\\nGate 4 conditions:\\n1. **Normalized Invocation Contract**: Invocation must explicitly pass `profile: \"epic\"`, target `base_ref`, and candidate `repository_sha`. Direct defaults or unprofiled executions are rejected.\\n2. **Deterministic Aggregation**: All registered providers supporting `epic` must execute or resolve cleanly. Precedence is strict: `FAIL > BLOCKED > PASS`. If any provider returns `FAIL` or `BLOCKED`, the overall verdict is `FAIL` or `BLOCKED`.\\n3. **No Partial or In-Progress Approvals**: `BLOCKED` cannot transition Gate 4 to approved. Parallel provider executions remain one lifecycle gate; the lifecycle waits for complete aggregate synthesis and never approves on the first provider to finish.\\n4. **Candidate Immutability**: A 🟢 verdict belongs strictly to the SHA on which the traceability check and quality check ran. If any subsequent commit or rebase mutates the branch after Gate 4, the prior verdict is stale and a fresh traceability check and epic quality run are required before landing.\\n\\nIf the audit or the traceability check exits non-zero, or `@quality_check` reports `FAIL` or `BLOCKED`, Gate 4 routes back to Stage 3 (`dev-implementation`) with the complete actionable defect and blocker report; the fixes land as `[EPIC_NAME] Fix <what>` commits on the epic branch, done tasks are not reopened, and Gate 4 is re-run in full.\\n\\nA 🟢 verdict belongs to the SHA it ran on. After Gate 4 passes, Review Choice either advances to\\nGate 5 on **Finish**, or runs a cross-model review and returns to Gate 4 in full. If `develop` moves\\nafter the final Gate 4 PASS, Stage 4 rebases the branch and re-verifies it by tier before landing.\\n\\n**Gate 5 Developer Kanban Review & Sign-Off:**\\nOnce Gate 4 passes and the developer selects **Finish** at Review Choice, all completed tasks MUST remain in `.devtool/features/done/`. The agent MUST STOP calling tools and present the final executive report to the user. The user visually reviews the Kanban board and approves proceeding to Stage 4. If the user requests adjustments or fixes, the changes land as Fix commits, Gate 4 is re-run in full, and its PASS presents Review Choice again before Gate 5 can recur.\\n\\n### Stage 4 — Finish Branch → `finishing-a-development-branch`\\n\\n**Entry:** Gate 5 passed (user confirmed).\\n**Exit:** epic branch rebased onto `develop`, re-verified by tier, landed with a `--no-ff` merge, and done tasks archived into `.devtool/epic/<epic_dir>/`.\\n\\n## When a Gate Fails\\n\\n| Gate | On failure, return to |\\n|------|----------------------|\\n| 1 | Stage 1 — revise the spec, re-run its self-review |\\n| 2 | Stage 2 — adjust the breakdown; only revisit Stage 1 if scope itself was wrong |\\n| 3 | Stage 3 Phase 1 — reorder by hand; prose notes in task files outrank the calculator |\\n| 4 | Stage 3 — fix findings in the worktree as `[EPIC_NAME] Fix <what>` commits (done tasks are not reopened), then re-run the traceability check and `quality_check` in full |\\n| 5 | Stage 3 — implement user-requested changes as `[EPIC_NAME] Fix <what>` commits (done tasks are not reopened), then re-run Gate 4 in full and present Review Choice again before Gate 5 can recur |\\n\\nNever advance on a partial pass, and never re-run only the previously failing check at Gate 4 —\\nthe 🟢 verdict must come from a complete run.\\n\\n## Red Flags\\n\\n- Writing to `implementation_plan.md` or any Antigravity native planning artifact.\\n- Skipping `dev-brainstorming` because \"the scope is already clear\".\\n- Routing an approved spec straight to an implementation skill, skipping Stage 2 for epic-scale work.\\n- Merging several sub-project specs into one epic directory.\\n- Creating a worktree or dispatching a subagent before Gate 3. Recreating the worktree of an epic branch that already exists (dev-implementation\\'s Resume Procedure) is not creating one.\\n- Invoking `dev-implementation` straight after `dev-designer` without asking the Handoff Choice.\\n- Packaging an epic without the preflight, or pushing the package without explicit permission.\\n- Treating a packaged epic\\'s Gate 3 as already passed.\\n- Redoing the design of an epic whose task files already exist; new requirements go to dev-designer\\'s Updating an Existing Epic.\\n- Merging to `develop` without a 🟢 from Gate 4.\\n- Granting Gate 4 without a passing traceability check on the same SHA, or without a passing `audit_epic.py`.\\n- Ticking checkboxes or writing evidence by hand instead of running `run_task_checks.py`.\\n- Changing a Verification table, Allowed files or a protected path without stopping to ask.\\n- Skipping the Review Choice after Gate 4 passes, or proceeding directly to Gate 5 without asking the developer to choose Finish or Cross-model review.\\n- Auto-selecting or defaulting the Review Choice on the developer\\'s behalf.\\n- Reusing a Gate 4 PASS after a cross-model review round, finding decision, or Fix commit changed the candidate SHA.\\n- Running the cross-model review without asking the Review Choice.\\n- Starting a cross-model review by picking the review CLI for the developer, instead of asking which of the Claude CLI and the Codex CLI to use.\\n- Writing a `dismissed` decision in `review_results.md` without the developer\\'s words.\\n- Merging to `develop` by hand instead of through `integrate_branch.py land`.\\n- Starting a task while the previous task\\'s integration with `develop` is red.\\n- Invoking `finishing-a-development-branch` without passing Gate 5 (explicit user sign-off after Kanban review).\\n- Archiving tasks from `.devtool/features/done/` prematurely before Gate 5 user review.\\n- Leaving a spec split across `docs/superpowers/specs/` and `.devtool/epic/<epic_dir>/`.\\n- Producing a durable design document without both language variants or without a complete table\\n  of contents.\\n- Using legacy Mermaid syntax (e.g. `graph TD`, `graph LR` instead of `flowchart TD`, `flowchart LR`), unquoted special characters/parentheses in node labels, or malformed Graphviz (DOT) diagrams.\\n- Translating `task_*.md`; task files remain English-only.\\n- Leaving completed `task_*.md` files in `.devtool/features/done/` or draft specs in `docs/superpowers/` after branch integration.\\n\\n## Rationalizations — STOP and Re-read This Skill\\n\\n| Excuse | Reality |\\n|--------|---------|\\n| \"I already have enough context to skip brainstorming\" | Context ≠ spec. Gate 1 requires a written, approved spec. |\\n| \"This is too simple for the full lifecycle\" | Simple work uses `dev-brainstorming` → `writing-plans`. You still start at Stage 1. |\\n| \"I\\'ll just write the implementation plan directly\" | `implementation_plan.md` is an Antigravity artifact. d3nexus uses `docs/superpowers/specs/` and `.devtool/`. |\\n| \"The user confirmed the scope, that\\'s basically Gate 1\" | Gate 1 is spec approval through `dev-brainstorming`, not a scope question. |\\n| \"I can combine research + spec into one step\" | Stage 1 is `dev-brainstorming`\\'s job. Invoke the skill. |\\n| \"The developer obviously wants to continue\" | The Handoff Choice is theirs. Ask it every time a new epic passes Gate 2. |\\n| \"Gate 4 passed once, so I can finish after the review\" | A review round or its decisions change the candidate SHA. Run Gate 4 in full and present Review Choice again. |\\n| \"The developer probably just wants to finish\" | The developer chooses every time. Never assume Finish or pick on their behalf. |\\n\\n## Stage Skills\\n\\n| Stage | Skill | Gate it enforces |\\n|-------|-------|------------------|\\n| 1 | `dev-brainstorming` | 1 |\\n| 2 | `dev-designer` | 2 |\\n| 3 | `dev-implementation` | 3, triggers 4, and enforces 5 |\\n| 3 (verification) | `quality_check` + `check_bdd_traceability.py` | 4 |\\n| 4 | `finishing-a-development-branch` | — |\\n' : skills/dev-lifecycle/SKILL.md must not contain Mermaid diagram fences",
+            "",
+            "======================================================================",
+            "FAIL: test_mvls_hp_05_lifecycle_docs_and_skill_word_limit (scripts.test_lifecycle_document_contract.LifecycleDocumentContractTest.test_mvls_hp_05_lifecycle_docs_and_skill_word_limit)",
+            "[MVLS-HP-05] dev-lifecycle is <= 2500 words and human docs contain lifecycle and resume diagrams.",
+            "----------------------------------------------------------------------",
+            "Traceback (most recent call last):",
+            "  File \"/Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/mechanical_verification_and_lifecycle_slimming/scripts/test_lifecycle_document_contract.py\", line 157, in test_mvls_hp_05_lifecycle_docs_and_skill_word_limit",
+            "    self.assertLessEqual(words, 2500, f\"SKILL.md exceeds word limit: {words} > 2500\")",
+            "    ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+            "AssertionError: 3990 not less than or equal to 2500 : SKILL.md exceeds word limit: 3990 > 2500",
+            "",
+            "======================================================================",
+            "FAIL: test_mvls_st_03_lifecycle_invariants (scripts.test_lifecycle_document_contract.LifecycleDocumentContractTest.test_mvls_st_03_lifecycle_invariants)",
+            "[MVLS-ST-03] Skill slimming keeps document contracts synchronized and preserves runtime invariants.",
+            "----------------------------------------------------------------------",
+            "Traceback (most recent call last):",
+            "  File \"/Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/mechanical_verification_and_lifecycle_slimming/scripts/test_lifecycle_document_contract.py\", line 186, in test_mvls_st_03_lifecycle_invariants",
+            "    self.assertIn(\"fast executor model\", skill_text.lower())",
+            "    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+            "AssertionError: 'fast executor model' not found in '---\\nname: dev-lifecycle\\ndescription: use this skill to orchestrate epic-scale work from idea to merged branch. it owns the sequence and the five approval gates connecting dev-brainstorming, dev-designer, dev-implementation, and quality_check — which skill runs next, what each stage must hand over, and what to do when a gate fails. activate it when a request spans multiple components or needs an hld plus a kanban task breakdown, when routing an approved spec, or whenever it is unclear which epic stage the work is currently in.\\n---\\n\\n# development lifecycle\\n\\nthe orchestrator for epic-scale work. it owns **sequence and gates only** — each stage\\'s *how*\\nstays in that stage\\'s own skill. if you need to know how to run a stage, open its skill; if you\\nneed to know what runs next or what must be true before it does, stay here.\\n\\n**announce at start:** \"i\\'m using the dev-lifecycle skill to orchestrate the `<epic_slug>` epic.\"\\n\\n**every stage is entered by invoking its skill.** this file names what runs next; it does not\\nreplace it. reading a stage\\'s description here and then doing that stage\\'s work yourself skips the\\ngate the stage owns.\\n\\n## when not to use this\\n\\n- single-component feature, bugfix, or anything one implementation plan covers → `dev-brainstorming`\\n  then `writing-plans`. do not open an epic for it.\\n- you are already mid-stage and know exactly which stage → go straight to that stage\\'s skill.\\n\\n## the sequence\\n\\n```mermaid\\nflowchart td\\n    s1[\"stage 1 — inception &amp; spec<br/>(dev-brainstorming)\"]\\n    g1{\"gate 1<br/>spec approved?\"}\\n    route{\"epic-scale?\"}\\n    plans([\"writing-plans<br/>(leaves this workflow)\"])\\n    s2[\"stage 2 — architecture &amp; tasks<br/>(dev-designer)\"]\\n    g2{\"gate 2<br/>hld &amp; task breakdown approved?\"}\\n    hc{\"handoff choice<br/>package or continue?\"}\\n    pkg([\"package epic<br/>handoff.md, status packaged, stop\"])\\n    s3[\"stage 3 — isolated execution<br/>(dev-implementation)\"]\\n    g3{\"gate 3<br/>execution order confirmed?\"}\\n    exec[\"phase 2-3: task-by-task tdd<br/>one commit per task, doc sync on divergence,<br/>integrate with develop after each task\"]\\n    rc{\"review choice<br/>finish or cross-model review?\"}\\n    xr[\"run_external_review.py run<br/>(review_results.md committed per round)\"]\\n    g4{\"gate 4<br/>audit + result-based traceability + quality_check 🟢 lgtm?\"}\\n    review[\"phase 4.1: developer kanban review<br/>(all tasks held in done column for visual inspection)\"]\\n    g5{\"gate 5<br/>user sign-off &amp; finish approved?\"}\\n    s4[\"stage 4 — finish branch &amp; archival<br/>(finishing-a-development-branch)\"]\\n\\n    s1 --> g1\\n    g1 -->|no, revise| s1\\n    g1 -->|yes| route\\n    route -->|no| plans\\n    route -->|yes| s2\\n    s2 --> g2\\n    g2 -->|no, adjust breakdown| s2\\n    g2 -->|yes| hc\\n    hc -->|\"1. package\"| pkg\\n    hc -->|\"2. continue\"| s3\\n    pkg -.->|\"later session or another llm\"| s3\\n    s3 --> g3\\n    g3 -->|no, reorder| g3\\n    g3 -->|yes| exec\\n    exec --> g4\\n    g4 -->|\"no, fix findings as fix commits\"| exec\\n    g4 -->|\"yes\"| rc\\n    rc -->|\"1. finish\"| review\\n    rc -->|\"2. cross-model review\"| xr\\n    xr -->|\"round recorded\"| g4\\n    review --> g5\\n    g5 -->|\"no, changes as fix commits\"| exec\\n    g5 -->|yes| s4\\n\\n```\\n\\n<hard-gate>\\ndo not create `implementation_plan.md` or any antigravity planning-mode artifact.\\nthe d3nexus workflow replaces the native planning mode entirely.\\nspecs go to `docs/superpowers/specs/` (stage 1) or `.devtool/epic/<epic_dir>/` (stage 2+).\\nplans go through `writing-plans` skill (non-epic) or `dev-designer` task files (epic).\\nif you find yourself about to write `implementation_plan.md`, stop — you are bypassing a gate.\\n\\ndo not skip or auto-decide the review choice after gate 4 passes.\\nyou must present the choice between \"finish\" and \"cross-model review\" on every gate 4 pass.\\ncross-model review returns to a full gate 4 run, which presents the choice again until the developer selects finish.\\n</hard-gate>\\n\\n## document contract\\n\\nevery durable design document produced by this lifecycle must be emitted as a synchronized english\\n`.en.md` and vietnamese `.vi.md` pair. english is canonical; vietnamese matches its structure and\\nfacts. every variant must contain a linked table of contents covering every `##` section, regardless\\nof document length. this applies to specs, hld/overview documents, bdd scenario documents, and\\nnon-epic implementation plans. `task_*.md` files and an epic\\'s `handoff.md` are the only exceptions and remain english-only;\\n`handoff.md` still carries a complete table of contents.\\n\\n### markdown formatting & lint standards\\n\\nevery markdown document produced by this lifecycle must pass markdown lint standards:\\n- **heading hierarchy**: exactly one top-level `# title` (h1) at the start of the file. heading levels must increment by one (no skipping levels from `#` to `###`). space after `#` (`# title`, not `#title`). no trailing punctuation in headings (`.`, `:`, `,`, `;`).\\n- **fenced code blocks**: fenced code blocks must specify a language tag (e.g. ````bash`, ````markdown`, ````python`, ````mermaid`, ````dot`, ````json`). bare fences without a language are prohibited.\\n- **lists**: consistent list markers (`-` for unordered lists), 2-space or 4-space nested indentation, and blank lines separating list blocks from surrounding paragraphs.\\n- **links & anchors**: relative file links must resolve on disk; heading anchor fragments (`#anchor`) must match existing headings.\\n- **formatting hygiene**: no trailing whitespace at line ends, no hard tabs (use spaces), maximum 1 consecutive blank line, and ensure the file ends with a trailing newline.\\n\\n### diagram standards & lint rules (mermaid & graphviz dot)\\n\\nall diagrams included in any durable document (spec, hld, bdd scenarios, implementation plan, or doc sync) must adhere strictly to the latest modern linting rules:\\n\\n1. **mermaid standards & lint rules**:\\n   - **`flowchart` over `graph`**: always use `flowchart` syntax (e.g. `flowchart td`, `flowchart lr`). never use legacy `graph` syntax (e.g. `graph td`, `graph lr`). `graph` is legacy mermaid syntax; `flowchart` is the current keyword and enables per-subgraph `direction` control (e.g. `direction lr` inside a subgraph), richer node shapes, better rendering engines, and styling.\\n   - **quote node labels**: enclose any node label containing special characters, parentheses `()`, brackets `[]`, braces `{}`, colons `:`, slashes `/`, ampersands `&`, or punctuation in double quotes (e.g. `node1[\"component (core logic)\"]`, `gate1{\"gate 1: spec approved?\"}`, `db[(\"storage (postgresql)\")]`). unquoted parentheses or colons break parser ast and trigger linter warnings.\\n   - **alphanumeric node ids**: use clean alphanumeric ids with underscores (e.g. `auth_svc`), never spaces, dashes, or dots in the id itself. avoid reserved keywords (`end`, `subgraph`, `graph`, `flowchart`).\\n   - **edge syntax & quotes**: use standard edges (`-->`, `-.->`, `==>`). quote edge labels containing parentheses or punctuation (`a -->|\"yes (verified)\"| b`). do not append trailing semicolons `;` on flowchart lines.\\n   - **subgraphs**: always specify explicit closing `end`, unique alphanumeric subgraph id, and a quoted label: `subgraph id [\"label\"]` ... `end`.\\n   - **sequence diagrams**: use modern `sequencediagram` with explicit participants (`actor u as user`, `participant s as service`), valid arrows (`->>`, `-->>`, `-)`, `--))`), closed blocks (`alt`, `opt`, `loop`, `par`), and optional `autonumber`.\\n   - **state diagrams**: use `statediagram-v2` instead of legacy `statediagram`.\\n\\n2. **graphviz (dot) standards & lint rules**:\\n   - follow semantic node shapes (see `writing-skills/graphviz-conventions.dot`):\\n     - `[shape=diamond]` for decisions (questions ending in `?`).\\n     - `[shape=box]` for actions (imperative verbs: \"write test\", \"commit changes\").\\n     - `[shape=plaintext]` for shell commands or literal code (`git status`, `npm test`).\\n     - `[shape=ellipse]` for states or situations (\"test failing\", \"build complete\").\\n     - `[shape=octagon, style=filled, fillcolor=red, fontcolor=white]` for critical warnings (`stop: ...`).\\n     - `[shape=doublecircle]` for entry/exit points (`process starts`, `process complete`).\\n   - **statement semicolons**: every statement inside dot must terminate with a semicolon `;`.\\n   - **quotes**: double-quote all multi-word or punctuation-containing node ids and labels (`\"process starts\"`, `label=\"is test passing?\"`).\\n   - **edges**: in `digraph`, edge operator must be `->` (never `--`). label branches explicitly (`[label=\"yes\"]`, `[label=\"no\"]`).\\n   - **clusters**: subgraphs intended to have a visual border must begin with `cluster_` (e.g. `subgraph cluster_phase1 { label=\"phase 1\"; ... }`).\\n\\n## the five gates\\n\\nevery gate is a **human approval** except gate 4, which is a machine verdict. never cross one\\non your own judgement.\\n\\n| gate | name | approver | enforced in | handoff artefact |\\n|------|------|----------|-------------|------------------|\\n| **1** | spec approved | user | end of `dev-brainstorming` | `yyyy-mm-dd-<topic>-design.en.md` + `.vi.md` |\\n| **2** | hld & task breakdown | user | `dev-designer` task-breakdown checkpoint | `<epic_dir>.en.md` + `.vi.md` + `bdd_scenarios.en.md` + `.vi.md` + `task_*.md` |\\n| **3** | execution order | user | `dev-implementation` phase 1 checkpoint, or gate 3 (resume) in its resume procedure | confirmed order + bootstrapped worktree |\\n| **4** | quality lgtm & check 2 | `audit_epic.py` + `check_bdd_traceability.py` + `quality_check` | `dev-implementation` phase 4 | `audit_epic.py` report + 🟢 report + coverage matrix + bdd traceability matrix + merge-ready branch |\\n| **5** | developer kanban sign-off | user | `dev-implementation` phase 4.1 checkpoint | user confirmation to proceed with branch finishing and archival |\\n\\n## stages\\n\\n### resuming an epic\\n\\na request to implement, continue or resume an epic whose `.devtool/epic/<epic_dir>/` already holds\\n`task_*.md` files is past gate 2 — whether the epic was packaged (`handoff.md` present, status\\n`packaged`) or interrupted midway through stage 3. announce \"gates 1 and 2 already passed; resuming\\nat stage 3\", invoke `dev-implementation` with that epic name, and let its entry-point detection\\nchoose where to start. never redo stage 1 or stage 2 for it. new requirements for such an epic are\\nnot a resume: they go to dev-designer\\'s updating an existing epic.\\n\\n### stage 1 — inception & spec → `dev-brainstorming`\\n\\n**invoke `d3nexus:dev-brainstorming`.** do not write the spec yourself: gate 1 is *its* user-approval\\nstep, and a spec that never passed through it has not cleared the gate.\\n\\n**entry:** a raw idea or requirement.\\n**exit (gate 1):** the user has approved a written spec that passed self-review.\\n\\n**routing decision, made here and nowhere else.** once the spec is approved, choose:\\n\\n- **epic-scale code** → `dev-designer`, which is stage 2 of this lifecycle — multiple independent\\n  components/services, needs kanban breakdown plus architecture/use-case/sequence diagrams, or the\\n  user called it an epic or large feature.\\n  → relocate both spec variants from `docs/superpowers/specs/` into\\n  `.devtool/epic/<epic_dir>/` (create the directory if needed), fix relative links inside both\\n  moved files, then go to stage 2 passing the canonical `.en.md` path.\\n- **everything else** → `writing-plans`. this leaves the epic lifecycle; the remaining gates do\\n  not apply. `writing-plans` still emits the required `.en.md`/`.vi.md` plan pair with complete\\n  tables of contents.\\n\\nwhen in doubt, ask the user rather than guessing.\\n\\nif dev-brainstorming decomposed the request into several sub-project specs, **route each one\\nindependently**. each spec keeps its own spec → design → implementation lineage and gets its own\\nepic directory. never merge multiple specs into one epic.\\n\\n### stage 2 — architecture & tasks → `dev-designer`\\n\\n**entry:** a gate 1 spec, already sitting in `.devtool/epic/<epic_dir>/`.\\n**exit (gate 2):** the user has confirmed the proposed task list and granularity.\\n\\ntreat the approved spec as the source of truth for scope and decisions already made — formalize\\nit, do not re-litigate it. gate 2 is a lightweight confirmation of the *task split* only; the\\narchitecture was already approved at gate 1.\\n\\n### handoff choice\\n\\nbetween gate 2 and stage 3 the developer decides when, and by whom, the epic is implemented. this\\nis a routing decision like stage 1\\'s, not a sixth gate. ask it once `dev-designer` step 3 has\\ncommitted the task files of a new epic — or, with `auto_commit: false`, once they are written.\\nafter dev-designer\\'s updating an existing epic, ask it only when the epic has neither `handoff.md`\\nnor an epic branch; otherwise leave any `handoff.md` untouched — its staleness rule flags the\\nupdate — and continue through resuming an epic:\\n\\n> gate 2 passed: the hld, bdd scenarios and n task files for `<epic_slug>` are written. how do you\\n> want to proceed?\\n>\\n> 1. **package** — write `handoff.md`, mark the epic `packaged`, and stop, so the work can be\\n>    picked up later or by another llm.\\n> 2. **continue** — enter stage 3 now (`dev-implementation`, starting with gate 3: execution order).\\n\\nwhen the overview status says the epic is queued behind another epic, say so in the question.\\n\\n**continue** → invoke `dev-implementation`. **package** → run the packaging procedure below, then\\nstop: no worktree and no stage 3 in this session. resolve the paths from this skill\\'s directory:\\n\\n```bash\\nskill_dir=<absolute path of the directory containing this skill.md>\\nscripts=\"$skill_dir/../dev-implementation/resources/scripts\"\\ncheck_doc=\"$skill_dir/../doc_quality_check/resources/scripts/check_document.py\"\\n```\\n\\n1. **preflight, read-only.** all of it must pass before anything is written:\\n\\n   ```bash\\n   python3 \"$scripts\"/compute_execution_order.py <epic_slug>\\n   ls .devtool/epic/<epic_dir>/task_*.md | wc -l\\n   python3 \"$scripts\"/check_bdd_traceability.py plan \\\\\\n     --scenarios .devtool/epic/<epic_dir>/bdd_scenarios.en.md \\\\\\n     --tasks .devtool/epic/<epic_dir>/task_*.md\\n   python3 \"$scripts\"/check_task_contract.py --design \\\\\\n     --hld .devtool/epic/<epic_dir>/<epic_dir>.en.md \\\\\\n     --tasks .devtool/epic/<epic_dir>/task_*.md\\n   ```\\n\\n   the scan summary\\'s matched count must equal the number of task mirrors, and the other scripts\\n   must exit 0. a smaller count means broken frontmatter or a wrong `epic:` value; exit 1 means a\\n   dependency cycle, a scenario no `covers:` line names, or a task that breaks the contract (files,\\n   verification, definition of done, stop and report if). fix it now — the receiving agent has no\\n   context to diagnose it.\\n2. copy this skill\\'s `references/handoff-template.md` to `.devtool/epic/<epic_dir>/handoff.md`\\n   and fill every placeholder; `<n>` is the task count the preflight printed. the first column of its identifiers table names the placeholders and\\n   stays as written; drop the source-spec line when the epic has no source spec. write open notes from this\\n   session\\'s conversation: decisions, risks and doubts the documents do not record.\\n3. lint it: `python3 \"$check_doc\" --require-toc .devtool/epic/<epic_dir>/handoff.md`.\\n4. mark the epic packaged, then confirm both overview variants changed — the script reports the\\n   documents it found, not the documents it wrote:\\n\\n   ```bash\\n   python3 \"$scripts\"/sync_task_status.py epic <epic_dir> packaged\\n   grep -n -e \\'^- \\\\*\\\\*(status|trạng thái)\\\\*\\\\*: packaged\\' \\\\\\n     .devtool/epic/<epic_dir>/<epic_dir>.en.md .devtool/epic/<epic_dir>/<epic_dir>.vi.md\\n   ```\\n\\n   two matching lines are required; with fewer, set the status line by hand in both variants. if the\\n   status read `queued (backlog) — behind <epic>` before packaging, run the script with\\n   `\"packaged (queued behind <epic>)\"` instead and copy that line into open notes; the `grep` still\\n   matches. task\\n   statuses stay as they are, so a packaged epic still counts as active under dev-designer\\'s\\n   concurrent-epic backlog rule.\\n5. commit, when `auto_commit` is `true` or absent: stage `handoff.md`, the overview pair and any task files fixed at step 1, then\\n   `git commit -m \"[<epic_name>] package epic for handoff\"`, with no trailer. when `auto_commit` is\\n   `false`, skip it and warn that an agent in another clone will not see the package.\\n6. offer to push, and push only on the developer\\'s explicit permission. say that a receiver in\\n   another clone or on another machine needs the push.\\n7. print the `handoff.md` path and its rendered resume prompt, then stop.\\n\\n### stage 3 — isolated execution → `dev-implementation`\\n\\n**entry:** gate 2 passed, hld and `task_*.md` files exist, and the developer chose continue at\\nthe handoff choice — or a packaged or interrupted epic is being resumed (see\\n[resuming an epic](#resuming-an-epic)).\\n**exit (gate 5):** gate 4 is 🟢 lgtm (the audit, result-based traceability and `quality_check`) and the user explicitly reviews the completed tasks on the kanban dashboard and approves finishing the branch (gate 5).\\n\\ngate 3 sits inside this stage, at the end of phase 1: present the computed execution order and\\nget confirmation **before** creating any worktree or dispatching any subagent.\\n\\nthen one worktree, one task at a time, one commit per task, docs kept truthful. on divergence\\nfrom the hld, sync the epic docs before starting the next task. after every task, integrate the\\nbranch with `develop` — rebase, then re-verify by tier — before the next one starts.\\n\\n**review choice loop.** after the last task, `dev-implementation` runs gate 4 first. on every pass it\\nasks the developer whether to **finish** (gate 5, then stage 4) or run a\\n**cross-model review**: an independent model reviews the epic first, through the claude cli or the\\ncodex cli, which the developer picks every time. the question lists which are on `path` and says the\\nrepository\\'s content goes to that provider. option 2 runs `run_external_review.py run` and records\\neach round in `.devtool/epic/<epic_dir>/review_results.md`, committed after every round. findings the developer does not\\naccept are `dismissed` only on the developer\\'s explicit words. the mechanics are in\\n`dev-implementation`\\'s review choice section.\\n\\nthe invariant is **gate 4 pass → review choice; finish → gate 5; cross-model review → gate 4 in full**.\\nafter a review round is recorded and all blocking findings have decisions and required fix commits,\\nphase 4 starts again with `run_external_review.py check`. its new pass presents review choice again.\\nthe loop ends only when the developer explicitly selects finish.\\n\\n> [!critical]\\n> **mandatory review choice loop**: once every task is `done`, run gate 4. on pass, the agent must stop calling tools and present review choice. silently skipping the choice or assuming finish is strictly prohibited. cross-model review always returns to a full gate 4 run before review choice is presented again.\\n\\n**gate 4 machine acceptance criteria:**\\ngate 4 grants `🟢 lgtm` only when `audit_epic.py` exits 0 — every done task\\'s committed evidence matches its verification table, and every change to a grader is disclosed — **and** result-based traceability, `check_bdd_traceability.py tests --results` over the hld\\'s integration results reports, exits 0 — every scenario in `bdd_scenarios.en.md` proved by an integration test that passed, no test referencing a removed scenario — **and** the provider-based quality orchestrator (`@quality_check`) returns an aggregated verdict of **pass**, both bound to the exact candidate commit sha (`git rev-parse head`), with `@quality_check` evaluating all registered providers declared in `.agents/quality/check_quality.json` with profile `epic` against `<base_ref>`.\\n\\ngate 4 conditions:\\n1. **normalized invocation contract**: invocation must explicitly pass `profile: \"epic\"`, target `base_ref`, and candidate `repository_sha`. direct defaults or unprofiled executions are rejected.\\n2. **deterministic aggregation**: all registered providers supporting `epic` must execute or resolve cleanly. precedence is strict: `fail > blocked > pass`. if any provider returns `fail` or `blocked`, the overall verdict is `fail` or `blocked`.\\n3. **no partial or in-progress approvals**: `blocked` cannot transition gate 4 to approved. parallel provider executions remain one lifecycle gate; the lifecycle waits for complete aggregate synthesis and never approves on the first provider to finish.\\n4. **candidate immutability**: a 🟢 verdict belongs strictly to the sha on which the traceability check and quality check ran. if any subsequent commit or rebase mutates the branch after gate 4, the prior verdict is stale and a fresh traceability check and epic quality run are required before landing.\\n\\nif the audit or the traceability check exits non-zero, or `@quality_check` reports `fail` or `blocked`, gate 4 routes back to stage 3 (`dev-implementation`) with the complete actionable defect and blocker report; the fixes land as `[epic_name] fix <what>` commits on the epic branch, done tasks are not reopened, and gate 4 is re-run in full.\\n\\na 🟢 verdict belongs to the sha it ran on. after gate 4 passes, review choice either advances to\\ngate 5 on **finish**, or runs a cross-model review and returns to gate 4 in full. if `develop` moves\\nafter the final gate 4 pass, stage 4 rebases the branch and re-verifies it by tier before landing.\\n\\n**gate 5 developer kanban review & sign-off:**\\nonce gate 4 passes and the developer selects **finish** at review choice, all completed tasks must remain in `.devtool/features/done/`. the agent must stop calling tools and present the final executive report to the user. the user visually reviews the kanban board and approves proceeding to stage 4. if the user requests adjustments or fixes, the changes land as fix commits, gate 4 is re-run in full, and its pass presents review choice again before gate 5 can recur.\\n\\n### stage 4 — finish branch → `finishing-a-development-branch`\\n\\n**entry:** gate 5 passed (user confirmed).\\n**exit:** epic branch rebased onto `develop`, re-verified by tier, landed with a `--no-ff` merge, and done tasks archived into `.devtool/epic/<epic_dir>/`.\\n\\n## when a gate fails\\n\\n| gate | on failure, return to |\\n|------|----------------------|\\n| 1 | stage 1 — revise the spec, re-run its self-review |\\n| 2 | stage 2 — adjust the breakdown; only revisit stage 1 if scope itself was wrong |\\n| 3 | stage 3 phase 1 — reorder by hand; prose notes in task files outrank the calculator |\\n| 4 | stage 3 — fix findings in the worktree as `[epic_name] fix <what>` commits (done tasks are not reopened), then re-run the traceability check and `quality_check` in full |\\n| 5 | stage 3 — implement user-requested changes as `[epic_name] fix <what>` commits (done tasks are not reopened), then re-run gate 4 in full and present review choice again before gate 5 can recur |\\n\\nnever advance on a partial pass, and never re-run only the previously failing check at gate 4 —\\nthe 🟢 verdict must come from a complete run.\\n\\n## red flags\\n\\n- writing to `implementation_plan.md` or any antigravity native planning artifact.\\n- skipping `dev-brainstorming` because \"the scope is already clear\".\\n- routing an approved spec straight to an implementation skill, skipping stage 2 for epic-scale work.\\n- merging several sub-project specs into one epic directory.\\n- creating a worktree or dispatching a subagent before gate 3. recreating the worktree of an epic branch that already exists (dev-implementation\\'s resume procedure) is not creating one.\\n- invoking `dev-implementation` straight after `dev-designer` without asking the handoff choice.\\n- packaging an epic without the preflight, or pushing the package without explicit permission.\\n- treating a packaged epic\\'s gate 3 as already passed.\\n- redoing the design of an epic whose task files already exist; new requirements go to dev-designer\\'s updating an existing epic.\\n- merging to `develop` without a 🟢 from gate 4.\\n- granting gate 4 without a passing traceability check on the same sha, or without a passing `audit_epic.py`.\\n- ticking checkboxes or writing evidence by hand instead of running `run_task_checks.py`.\\n- changing a verification table, allowed files or a protected path without stopping to ask.\\n- skipping the review choice after gate 4 passes, or proceeding directly to gate 5 without asking the developer to choose finish or cross-model review.\\n- auto-selecting or defaulting the review choice on the developer\\'s behalf.\\n- reusing a gate 4 pass after a cross-model review round, finding decision, or fix commit changed the candidate sha.\\n- running the cross-model review without asking the review choice.\\n- starting a cross-model review by picking the review cli for the developer, instead of asking which of the claude cli and the codex cli to use.\\n- writing a `dismissed` decision in `review_results.md` without the developer\\'s words.\\n- merging to `develop` by hand instead of through `integrate_branch.py land`.\\n- starting a task while the previous task\\'s integration with `develop` is red.\\n- invoking `finishing-a-development-branch` without passing gate 5 (explicit user sign-off after kanban review).\\n- archiving tasks from `.devtool/features/done/` prematurely before gate 5 user review.\\n- leaving a spec split across `docs/superpowers/specs/` and `.devtool/epic/<epic_dir>/`.\\n- producing a durable design document without both language variants or without a complete table\\n  of contents.\\n- using legacy mermaid syntax (e.g. `graph td`, `graph lr` instead of `flowchart td`, `flowchart lr`), unquoted special characters/parentheses in node labels, or malformed graphviz (dot) diagrams.\\n- translating `task_*.md`; task files remain english-only.\\n- leaving completed `task_*.md` files in `.devtool/features/done/` or draft specs in `docs/superpowers/` after branch integration.\\n\\n## rationalizations — stop and re-read this skill\\n\\n| excuse | reality |\\n|--------|---------|\\n| \"i already have enough context to skip brainstorming\" | context ≠ spec. gate 1 requires a written, approved spec. |\\n| \"this is too simple for the full lifecycle\" | simple work uses `dev-brainstorming` → `writing-plans`. you still start at stage 1. |\\n| \"i\\'ll just write the implementation plan directly\" | `implementation_plan.md` is an antigravity artifact. d3nexus uses `docs/superpowers/specs/` and `.devtool/`. |\\n| \"the user confirmed the scope, that\\'s basically gate 1\" | gate 1 is spec approval through `dev-brainstorming`, not a scope question. |\\n| \"i can combine research + spec into one step\" | stage 1 is `dev-brainstorming`\\'s job. invoke the skill. |\\n| \"the developer obviously wants to continue\" | the handoff choice is theirs. ask it every time a new epic passes gate 2. |\\n| \"gate 4 passed once, so i can finish after the review\" | a review round or its decisions change the candidate sha. run gate 4 in full and present review choice again. |\\n| \"the developer probably just wants to finish\" | the developer chooses every time. never assume finish or pick on their behalf. |\\n\\n## stage skills\\n\\n| stage | skill | gate it enforces |\\n|-------|-------|------------------|\\n| 1 | `dev-brainstorming` | 1 |\\n| 2 | `dev-designer` | 2 |\\n| 3 | `dev-implementation` | 3, triggers 4, and enforces 5 |\\n| 3 (verification) | `quality_check` + `check_bdd_traceability.py` | 4 |\\n| 4 | `finishing-a-development-branch` | — |\\n'",
+            "",
+            "----------------------------------------------------------------------",
+            "Ran 10 tests in 0.003s",
+            "",
+            "FAILED (failures=3)"
+          ],
+          "output_sha256": "afecb418bb386687316fef19cd07612da94361410ffb864183cf581c9a339a58"
+        }
+      ]
+    },
+    "verify": {
+      "head": "3ac18ab6d325eed03fa74538352d86549d1df764",
+      "tree": "2a160af98adb6c2055201a027ec1215988bf8406",
+      "patch_id": "40616c38c61c374cf771a0d1805c5e64c799fd74",
+      "started": "2026-10-19T14:53:47Z",
+      "finished": "2026-10-19T14:55:53Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m unittest scripts/test_lifecycle_document_contract.py",
+          "expect": "exit 0; contains \"OK\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-19T14:53:47Z",
+          "finished": "2026-10-19T14:53:47Z",
+          "output_tail": [
+            "..........",
+            "----------------------------------------------------------------------",
+            "Ran 10 tests in 0.005s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "8c4b1532288f3c2237a75b4778a19116380135ed2658033225c3d1a1a8446867"
+        },
+        {
+          "id": "V3",
+          "phase": "TIER-B",
+          "command": "ruff check skills/dev-implementation/resources/scripts/run_task_checks.py skills/dev-implementation/resources/scripts/audit_epic.py skills/dev-implementation/resources/scripts/check_task_contract.py scripts/test_lifecycle_document_contract.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-19T14:53:47Z",
+          "finished": "2026-10-19T14:53:47Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "mypy --strict skills/dev-implementation/resources/scripts/run_task_checks.py skills/dev-implementation/resources/scripts/audit_epic.py skills/dev-implementation/resources/scripts/check_task_contract.py scripts/test_lifecycle_document_contract.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-19T14:53:47Z",
+          "finished": "2026-10-19T14:53:47Z",
+          "output_tail": [
+            "Success: no issues found in 4 source files"
+          ],
+          "output_sha256": "71144743c83babea384888a735db0c4daba3d4d7b7942b6839984bd5c21b52bb"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-B",
+          "command": "python3 skills/doc_quality_check/resources/scripts/check_document.py --require-toc --require-bilingual docs/lifecycles.en.md docs/lifecycles.vi.md",
+          "expect": "exit 0; contains \"0 findings\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-19T14:53:47Z",
+          "finished": "2026-10-19T14:53:47Z",
+          "output_tail": [
+            "  checked 2 documents, 0 findings"
+          ],
+          "output_sha256": "780cb1e9162bb11390ccef16375e9bcefdab9280a7547d85e8e934a240b5843d"
+        },
+        {
+          "id": "V6",
+          "phase": "TIER-B",
+          "command": "scripts/verify.sh",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-19T14:53:47Z",
+          "finished": "2026-10-19T14:55:21Z",
+          "output_tail": [
+            "Ran 9 tests in 0.000s",
+            "",
+            "OK",
+            ".....",
+            "----------------------------------------------------------------------",
+            "Ran 5 tests in 0.000s",
+            "",
+            "OK",
+            ".........",
+            "----------------------------------------------------------------------",
+            "Ran 9 tests in 0.000s",
+            "",
+            "OK",
+            "......",
+            "----------------------------------------------------------------------",
+            "Ran 6 tests in 0.000s",
+            "",
+            "OK",
+            "......",
+            "----------------------------------------------------------------------",
+            "Ran 6 tests in 0.000s",
+            "",
+            "OK",
+            "......",
+            "----------------------------------------------------------------------",
+            "Ran 6 tests in 0.000s",
+            "",
+            "OK",
+            "..................",
+            "----------------------------------------------------------------------",
+            "Ran 18 tests in 0.012s",
+            "",
+            "OK",
+            "...............",
+            "----------------------------------------------------------------------",
+            "Ran 15 tests in 2.473s",
+            "",
+            "OK",
+            "",
+            "PASS — safe to publish"
+          ],
+          "output_sha256": "5d3b35a7fa3a29431da2d3d53b1f083482f9a7498b912cbe438f027669089c05"
+        },
+        {
+          "id": "V7",
+          "phase": "TIER-C",
+          "command": "python3 scripts/run_unittest_junit.py --junitxml build/test-results/mechanical-verification-and-lifecycle-slimming.xml skills/dev-implementation/resources/scripts/test_run_task_checks.py skills/dev-implementation/resources/scripts/test_audit_epic.py skills/dev-implementation/resources/scripts/test_check_task_contract.py scripts/test_lifecycle_document_contract.py",
+          "expect": "exit 0; results build/test-results/mechanical-verification-and-lifecycle-slimming.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-19T14:55:21Z",
+          "finished": "2026-10-19T14:55:52Z",
+          "output_tail": [
+            "...............................................",
+            "----------------------------------------------------------------------",
+            "Ran 47 tests in 12.134s",
+            "",
+            "OK",
+            ".................",
+            "----------------------------------------------------------------------",
+            "Ran 17 tests in 13.678s",
+            "",
+            "OK",
+            "...........................",
+            "----------------------------------------------------------------------",
+            "Ran 27 tests in 5.459s",
+            "",
+            "OK",
+            "..........",
+            "----------------------------------------------------------------------",
+            "Ran 10 tests in 0.005s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "638c10d6c912446c393e1e8c49177a24fa86a2699226a50b25ce10d2748ce089",
+          "results": {
+            "path": "build/test-results/mechanical-verification-and-lifecycle-slimming.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 29,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_mvls_ar_01_independent_red_rows_do_not_leak_validation_state",
+                  "classname": "test_run_task_checks.PytestRedSemanticsTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_mvls_ec_01_missing_pytest_file_fails_red",
+                  "classname": "test_run_task_checks.PytestRedSemanticsTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_mvls_ec_02_empty_pytest_selection_fails_red",
+                  "classname": "test_run_task_checks.PytestRedSemanticsTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_mvls_ec_04_token_aware_pytest_classification",
+                  "classname": "test_run_task_checks.PytestRedSemanticsTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_mvls_fr_01_wrapper_exit_rewriting_fails_red",
+                  "classname": "test_run_task_checks.PytestRedSemanticsTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_mvls_fr_02_ambiguous_exit_1_without_failure_summary_fails_red",
+                  "classname": "test_run_task_checks.PytestRedSemanticsTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_mvls_fr_06_active_task_tampering_aborts_without_evidence",
+                  "classname": "test_run_task_checks.PytestRedSemanticsTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_mvls_hp_01_collected_pytest_failure_is_valid_red",
+                  "classname": "test_run_task_checks.PytestRedSemanticsTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_mvls_st_01_invalid_red_recording_transitions_to_fail",
+                  "classname": "test_run_task_checks.PytestRedSemanticsTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_mvls_ar_02_multi_task_audit_is_deterministic",
+                  "classname": "test_audit_epic.AuditEpicTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_mvls_hp_02_audit_genuine_pytest_red_evidence",
+                  "classname": "test_audit_epic.AuditEpicTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_mvls_st_02_tampered_pytest_red_evidence_fails_gate_4",
+                  "classname": "test_audit_epic.AuditEpicTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_mvls_ec_03_polyglot_repo_non_python_task_skips_python_tier_b",
+                  "classname": "test_check_task_contract.PythonTierBAndFastModelTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_mvls_ec_07_accepts_executable_task_with_grounded_decisions",
+                  "classname": "test_check_task_contract.PythonTierBAndFastModelTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_mvls_ec_07_accepts_pytest_k_with_exact_node_id",
+                  "classname": "test_check_task_contract.PythonTierBAndFastModelTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_mvls_ec_07_rejects_executable_task_with_empty_or_none_decisions",
+                  "classname": "test_check_task_contract.PythonTierBAndFastModelTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_mvls_ec_07_rejects_pytest_k_without_node_id",
+                  "classname": "test_check_task_contract.PythonTierBAndFastModelTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_mvls_ec_07_rejects_weak_bdd_assertions",
+                  "classname": "test_check_task_contract.PythonTierBAndFastModelTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_mvls_fr_03_malformed_python_quality_manifest_fails",
+                  "classname": "test_check_task_contract.PythonTierBAndFastModelTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_mvls_hp_03_python_task_with_lint_and_type_check_passes",
+                  "classname": "test_check_task_contract.PythonTierBAndFastModelTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_mvls_hp_03_registered_provider_commands_accepted",
+                  "classname": "test_check_task_contract.PythonTierBAndFastModelTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_mvls_ec_05_keep_diagrams_outside_runtime_skills",
+                  "classname": "test_lifecycle_document_contract.LifecycleDocumentContractTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_mvls_ec_06_reject_missing_guardrails_or_designer_anchors",
+                  "classname": "test_lifecycle_document_contract.LifecycleDocumentContractTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_mvls_fr_04_gate_4_semantic_test_fakery_rejected",
+                  "classname": "test_lifecycle_document_contract.LifecycleDocumentContractTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_mvls_fr_05_fail_when_lifecycle_invariants_drift",
+                  "classname": "test_lifecycle_document_contract.LifecycleDocumentContractTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_mvls_hp_04_implementation_skill_concise_and_orchestrated",
+                  "classname": "test_lifecycle_document_contract.LifecycleDocumentContractTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_mvls_hp_05_lifecycle_docs_and_skill_word_limit",
+                  "classname": "test_lifecycle_document_contract.LifecycleDocumentContractTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_mvls_hp_06_dev_designer_and_handoff_guardrails",
+                  "classname": "test_lifecycle_document_contract.LifecycleDocumentContractTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_mvls_st_03_lifecycle_invariants",
+                  "classname": "test_lifecycle_document_contract.LifecycleDocumentContractTest",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "docs/lifecycles.en.md",
+            "docs/lifecycles.vi.md",
+            "scripts/test_lifecycle_document_contract.py",
+            "skills/dev-lifecycle/SKILL.md"
+          ],
+          "violations": []
+        }
+      ]
+    }
+  }
+}

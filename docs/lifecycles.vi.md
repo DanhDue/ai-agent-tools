@@ -95,6 +95,29 @@ Vòng đời trải qua bốn giai đoạn (stage) và năm cổng phê duyệt 
 - **Vòng lặp Cổng 4 và Review Choice**: Cổng 4 là cổng máy duy nhất trên nhánh phát triển của kit này. Nó chỉ cấp 🟢 khi `audit_epic.py` exit 0, `check_bdd_traceability.py tests --results` exit 0, và `@quality_check` profile `epic` trả về PASS trên đúng commit SHA ứng viên. Mỗi lần PASS sẽ đưa ra **Review Choice**: **Finish** đi tới Cổng 5; **Cross-model review** ghi nhận round rồi quay lại chạy đầy đủ Cổng 4. Vòng lặp tiếp tục cho tới khi nhà phát triển chọn Finish.
 - **Ký duyệt Kanban Cổng 5**: Tất cả task hoàn tất được giữ lại ở `.devtool/features/done/` để nhà phát triển kiểm tra trực quan trên bảng Kanban trước khi Stage 4 rebase, verify theo tier, merge `--no-ff` vào `develop`, và lưu trữ task vào `.devtool/epic/<slug>/`.
 
+### Trạng thái ngắt quãng và khôi phục (Resume)
+
+Khi công việc tạm dừng hoặc một epic được đóng gói, vòng đời khôi phục một cách tất định qua năm trạng thái vận hành:
+
+```mermaid
+flowchart TD
+    FRESH["Epic mới<br/>(Stage 1 hoặc Stage 2, chưa có task file)"]
+    PKG["Epic đã đóng gói<br/>(có handoff.md, trạng thái Packaged)"]
+    INTR["Epic bị ngắt quãng<br/>(đã có task file, đang dở Stage 3)"]
+    DONE_EPIC["Epic hoàn thành<br/>(mọi task done, Cổng 4 PASS)"]
+    INCON["Trạng thái không nhất quán<br/>(tài liệu bị sửa sau khi đóng gói)"]
+
+    FRESH -->|"Hoàn tất Stage 1-2"| PKG
+    FRESH -->|"Continue tại Handoff Choice"| INTR
+    PKG -->|"Kiểm tra git log từ khi đóng gói"| INCON
+    PKG -->|"Resume tại Stage 3 Cổng 3"| INTR
+    INCON -->|"Tài liệu thắng, xử lý lệch"| INTR
+    INTR -->|"TDD từng task"| DONE_EPIC
+    DONE_EPIC -->|"Review Choice + ký duyệt Cổng 5"| MERGED["Stage 4: Merge nhánh & Lưu trữ"]
+```
+
+Các sơ đồ và giải thích này mô tả vòng đời cho con người; các runtime skill (`dev-lifecycle`, `dev-implementation`) và script là nguồn sự thật vận hành.
+
 ## doc-lifecycle
 
 **Mục đích.** Điều phối công việc mà sản phẩm cuối là **tài liệu**, không phải code

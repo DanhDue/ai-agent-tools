@@ -149,6 +149,49 @@ class LifecycleDocumentContractTest(unittest.TestCase):
         for guardrail in ("bounded context", "strict spec fidelity", "zero test fakery", "no contract repair"):
             self.assertIn(guardrail, handoff_text.lower())
 
+    def test_mvls_hp_05_lifecycle_docs_and_skill_word_limit(self) -> None:
+        """[MVLS-HP-05] dev-lifecycle is <= 2500 words and human docs contain lifecycle and resume diagrams."""
+        skill_path = ROOT / "skills/dev-lifecycle/SKILL.md"
+        skill_text = skill_path.read_text(encoding="utf-8")
+        words = len(skill_text.split())
+        self.assertLessEqual(words, 2500, f"SKILL.md exceeds word limit: {words} > 2500")
+
+        for doc_name in ("docs/lifecycles.en.md", "docs/lifecycles.vi.md"):
+            doc_path = ROOT / doc_name
+            doc_text = doc_path.read_text(encoding="utf-8")
+            self.assertIn("```mermaid", doc_text)
+            self.assertIn("Gate 4" if "en" in doc_name else "Cổng 4", doc_text)
+            self.assertIn("Review Choice", doc_text)
+            self.assertIn("Gate 5" if "en" in doc_name else "Cổng 5", doc_text)
+            self.assertIn("Cross-model review", doc_text)
+            self.assertIn("Interrupted" if "en" in doc_name else "ngắt quãng", doc_text)
+
+    def test_mvls_ec_05_keep_diagrams_outside_runtime_skills(self) -> None:
+        """[MVLS-EC-05] Neither runtime skill contains diagrams; both human docs contain Mermaid diagrams."""
+        for skill_rel in ("skills/dev-lifecycle/SKILL.md", "skills/dev-implementation/SKILL.md"):
+            text = (ROOT / skill_rel).read_text(encoding="utf-8")
+            self.assertNotIn("```mermaid", text, f"{skill_rel} must not contain Mermaid diagram fences")
+            self.assertNotIn("```dot", text, f"{skill_rel} must not contain Graphviz DOT diagram fences")
+
+        for doc_rel in ("docs/lifecycles.en.md", "docs/lifecycles.vi.md"):
+            text = (ROOT / doc_rel).read_text(encoding="utf-8")
+            self.assertIn("```mermaid", text, f"{doc_rel} must contain Mermaid diagrams")
+
+    def test_mvls_st_03_lifecycle_invariants(self) -> None:
+        """[MVLS-ST-03] Skill slimming keeps document contracts synchronized and preserves runtime invariants."""
+        skill_text = (ROOT / "skills/dev-lifecycle/SKILL.md").read_text(encoding="utf-8")
+        for token in EXPECTED["skills/dev-lifecycle/SKILL.md"]:
+            self.assertIn(token, skill_text, f"dev-lifecycle/SKILL.md missing invariant: {token}")
+
+        self.assertIn("fast executor model", skill_text.lower())
+        self.assertIn("strongly recommended", skill_text.lower())
+
+    def test_mvls_fr_05_fail_when_lifecycle_invariants_drift(self) -> None:
+        """[MVLS-FR-05] Fail when lifecycle invariants drift or diagram rules are violated."""
+        skill_text = (ROOT / "skills/dev-lifecycle/SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("Mandatory Review Choice loop", skill_text)
+        self.assertIn("Gate 4 grants `🟢 LGTM`", skill_text)
+
     def test_mvls_hp_04_implementation_skill_concise_and_orchestrated(self) -> None:
         """[MVLS-HP-04] dev-implementation is <= 4500 words, has no diagram fences, and preserves orchestration."""
         impl_path = ROOT / "skills/dev-implementation/SKILL.md"
