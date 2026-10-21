@@ -5,6 +5,9 @@ Every Ollama call goes to a fake server on 127.0.0.1 inside the test; no test re
 
 Run: python3 -m unittest skills/dev-implementation/resources/scripts/test_local_review.py
 """
+import argparse
+import contextlib
+import io
 import json
 import os
 import re
@@ -21,6 +24,7 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).parent))
 import local_review
+import run_external_review
 from run_external_review import EXCLUDES
 from task_contract import section
 from test_run_external_review import ReviewCase, git
@@ -343,6 +347,80 @@ class PromptBaseTest(unittest.TestCase):
         self.assertEqual(len(local_review.platform_sections(["a/B.kt", "build.gradle.kts"])), 1)
         system = local_review.render_system(local_review.Slice("task_1_demo", "task", ("README.md", "web/x.ts"), ()))
         self.assertIn("No platform rules apply to this slice.", system)
+
+
+class RoundTest(EpicRepoCase):
+    def setUp(self) -> None:
+        super().setUp()
+        self.sha = git(self.root, "rev-parse", "HEAD")
+        self.results = self.root / EPIC / "review_results.md"
+        cwd = os.getcwd()
+        os.chdir(self.root)
+        self.addCleanup(os.chdir, cwd)
+
+    def record(self, *passes: run_external_review.Pass, cli: str = "ollama",
+               extra: dict[str, str] | None = None) -> int:
+        args = argparse.Namespace(epic_dir="demo", base=self.base, cli=cli, model="qwen38-reviewer", timeout=1800)
+        with contextlib.redirect_stdout(io.StringIO()):
+            return run_external_review.record_round(self.root, args, self.sha, list(passes), [], extra or {})
+
+    def check(self) -> tuple[int, str]:
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(io.StringIO()):
+            code = run_external_review.main(["check", "--epic-dir", "demo"])
+        return code, out.getvalue()
+
+    def text(self) -> str:
+        return self.results.read_text(encoding="utf-8")
+
+    def test_lmr_ec_08_a_draft_finding_in_analysis_is_not_a_finding(self) -> None:
+        out = "## Analysis\n- [Critical] a.py:1 — draft\nVerdict: PASS"
+        code = self.record(run_external_review.Pass("task_1_demo", 0, out, "", "a.py", (), "stop"))
+        self.assertEqual(code, 0)
+        self.assertNotIn("| 1 |", self.text())
+        self.assertIn("- **Status**: completed", self.text())
+        self.assertIn("- **Verdict**: PASS", self.text())
+
+    def test_lmr_ec_09_dropped_files_reach_the_round_metadata(self) -> None:
+        self.record(run_external_review.Pass("task_1_demo", 0, "Verdict: PASS", "", "", ("big.py",), "stop"),
+                    run_external_review.Pass("epic", 0, "Verdict: PASS", "", "", (), "stop"),
+                    extra={"Passes": "2", "Context": "65536"})
+        text = self.text()
+        self.assertIn("- **Omitted**: task_1_demo: big.py\n", text)
+        self.assertLess(text.index("- **Verdict**: PASS"), text.index("- **Passes**: 2"))
+        self.assertLess(text.index("- **Context**: 65536"), text.index("- **Omitted**"))
+        self.assertIn("### Pass 1: task_1_demo", text)
+        self.assertIn("### Pass 2: epic", text)
+
+    def test_lmr_st_01_a_blocking_local_finding_holds_check_until_decided(self) -> None:
+        out = "## Analysis\nfine\nVerdict: CHANGES REQUIRED\n[Important] lib/a.py:3 — missing guard"
+        code = self.record(run_external_review.Pass("task_1_demo", 0, out, "", "### lib/a.py\n+x", (), "stop"))
+        self.assertEqual(code, 1)
+        self.assertEqual(self.check(), (1, "undecided: #1 Important lib/a.py:3\n"))
+        self.results.write_text(self.text().replace("| missing guard |  |", "| missing guard | dismissed: false positive |"),
+                                encoding="utf-8")
+        self.assertEqual(self.check(), (0, ""))
+
+    def test_lmr_st_02_round_numbering_is_shared_across_reviewers(self) -> None:
+        claude = run_external_review.Pass("review", 0, "Verdict: CHANGES REQUIRED\n[Critical] x.py:1 — bad", "", "x.py")
+        self.assertEqual(self.record(claude, cli="claude"), 1)
+        self.assertEqual(self.check()[0], 1)
+        self.assertEqual(self.record(run_external_review.Pass("epic", 0, "Verdict: PASS", "", "", (), "stop")), 0)
+        self.assertIn("## Round 2\n\n- **Date**", self.text())
+        self.assertIn("- **CLI**: ollama", self.text().split("## Round 2")[1])
+        self.assertEqual(self.check(), (0, ""))
+
+    def test_lmr_fr_05_truncated_output_is_no_verdict(self) -> None:
+        code = self.record(run_external_review.Pass("task_1_demo", 0, "Verdict: PASS", "", "", (), "length"))
+        self.assertEqual(code, 2)
+        self.assertIn("- **Status**: no verdict", self.text())
+
+    def test_lmr_fr_06_a_blocking_finding_at_an_unseen_path_is_annotated(self) -> None:
+        out = "Verdict: CHANGES REQUIRED\n[Critical] ghost.py:9 — broken\n[Important] seen.py:2 — weak"
+        self.record(run_external_review.Pass("task_1_demo", 0, out, "", "### seen.py\n+y = 1", (), "stop"))
+        rows = [line for line in self.text().splitlines() if line.startswith(("| 1 |", "| 2 |"))]
+        self.assertEqual(rows, ["| 1 | Critical | ghost.py:9 | broken (location not shown to reviewer) |  |",
+                                "| 2 | Important | seen.py:2 | weak |  |"])
 
 
 class SharedRulesTest(ReviewCase):

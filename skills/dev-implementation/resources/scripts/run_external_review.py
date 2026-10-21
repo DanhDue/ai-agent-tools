@@ -20,6 +20,7 @@ import shutil
 import signal
 import subprocess
 import sys
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from string import Template
@@ -341,22 +342,75 @@ def run(args: argparse.Namespace) -> int:
     )
     before = status_lines(root)  # after the facts: running the test commands may write build output
     code, out, err = execute(cli_command(args.cli, args.model), root, args.timeout, prompt)
-    after = status_lines(root)
-    output = out + (f"\n--- stderr ---\n{err}" if err.strip() else "")
-    if code is None:
-        output += f"\n--- timed out after {args.timeout} seconds ---\n"
-    changed = sorted(set(after) ^ set(before))
+    changed = tree_changes(root, before, sha)
+    return record_round(root, args, sha, [Pass("review", code, out, err, prompt)], changed, {})
+
+
+@dataclass(frozen=True)
+class Pass:
+    label: str
+    code: int | None  # 0 transport success, None timeout, otherwise failure
+    out: str  # the text the parser reads
+    err: str
+    shown: str  # what the reviewer was shown
+    omitted: tuple[str, ...] = ()
+    done_reason: str | None = None
+
+
+def tree_changes(root: Path, before: list[str], sha: str) -> list[str]:
+    """Status lines that appeared or vanished since `before`, led by HEAD when it moved."""
+    changed = sorted(set(status_lines(root)) ^ set(before))
     if head_of(root) != sha:
         changed.insert(0, "HEAD")
-    verdicts = [m.group(1).upper() for line in out.splitlines() if (m := VERDICT.match(line))]
-    final_verdict = verdicts[-1] if verdicts else None
-    findings = parse_findings(out, final_verdict)
+    return changed
+
+
+def annotate(finding: tuple[str, str, str], shown: str) -> tuple[str, str, str]:
+    """Mark a blocking finding whose location path the reviewer was never shown; its severity stays."""
+    sev, loc, problem = finding
+    path = loc.split(":", 1)[0].strip().strip("`")
+    if sev in BLOCKING and loc != "unparsed" and path not in shown:
+        problem += " (location not shown to reviewer)"
+    return sev, loc, problem
+
+
+def pass_output(item: Pass, number: int, args: argparse.Namespace) -> str:
+    if args.cli == "ollama":
+        return f"### Pass {number}: {item.label}\n\n{item.out}" + (f"\n--- error ---\n{item.err}" if item.err.strip() else "")
+    output = item.out + (f"\n--- stderr ---\n{item.err}" if item.err.strip() else "")
+    if item.code is None:
+        output += f"\n--- timed out after {args.timeout} seconds ---\n"
+    return output
+
+
+def record_round(root: Path, args: argparse.Namespace, sha: str, passes: list[Pass],
+                 changed: list[str], extra: dict[str, str]) -> int:
+    """Append one round to review_results.md from every pass of a review; return the run's exit code."""
+    local = args.cli == "ollama"
+    verdicts: list[str | None] = []
+    findings: list[tuple[str, str, str]] = []
+    complete = True
+    for item in passes:
+        lines = item.out.splitlines()
+        marks = [(index, m.group(1).upper()) for index, line in enumerate(lines) if (m := VERDICT.match(line))]
+        verdict = marks[-1][1] if marks else None
+        if local:  # a draft line in the Analysis above the verdict block is never a finding
+            block = "\n".join(lines[marks[-1][0]:]) if marks else ""
+            found = [annotate(finding, item.shown) for finding in parse_findings(block, verdict)]
+        else:
+            found = parse_findings(item.out, verdict)
+        verdicts.append(verdict)
+        findings.extend(found)
+        complete = complete and item.code == 0 and verdict is not None \
+            and not (verdict == "CHANGES REQUIRED" and not found) and (not local or item.done_reason == "stop")
     if changed:
         status = f"discarded: tree modified ({', '.join(line[3:] if line != 'HEAD' else line for line in changed)})"
-    elif code != 0 or not verdicts or (verdicts[-1] == "CHANGES REQUIRED" and not findings):
-        status = "no verdict"
     else:
-        status = "completed"
+        status = "completed" if complete else "no verdict"
+    if "CHANGES REQUIRED" in verdicts:
+        verdict_text = "CHANGES REQUIRED"
+    else:
+        verdict_text = "PASS" if verdicts and None not in verdicts else "none"
     path = root / ".devtool" / "epic" / args.epic_dir / "review_results.md"
     existing = path.read_text(encoding="utf-8") if path.exists() else f"# Cross-Model Review: {args.epic_dir}\n"
     round_num = len(rounds_in(existing)) + 1
@@ -367,8 +421,12 @@ def run(args: argparse.Namespace) -> int:
         "CLI": args.cli,
         "Model": args.model or "default",
         "Status": status,
-        "Verdict": verdicts[-1] if verdicts else "none",
+        "Verdict": verdict_text,
+        **extra,
     }
+    if (omitted := "; ".join(f"{item.label}: {', '.join(item.omitted)}" for item in passes if item.omitted)):
+        meta["Omitted"] = omitted
+    output = "\n\n".join(pass_output(item, number, args) for number, item in enumerate(passes, 1))
     text = existing.rstrip("\n") + "\n\n" + render_round(round_num, meta, findings, output)
     path.write_text(text, encoding="utf-8")
     print(f"Round {round_num}: {status} ({path.relative_to(root)})")
