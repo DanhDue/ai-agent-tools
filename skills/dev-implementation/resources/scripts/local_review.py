@@ -166,8 +166,8 @@ class Slice:
     kind: str  # "task" or "epic"
     paths: tuple[str, ...]  # changed paths shown in this slice's diffs
     omitted: tuple[str, ...]  # names dropped by fit, in drop order
-    sections: tuple[str, ...] = ()
-    parts: tuple[Part, ...] = ()
+    _sections: tuple[str, ...] = ()  # private to this module: the headings render_user writes, in order
+    _parts: tuple[Part, ...] = ()  # private to this module: what fit may drop
 
 
 def estimate_tokens(text: str) -> int:
@@ -297,8 +297,8 @@ def build_slices(root: Path, epic_dir: str, base: str, sha: str, audit_output: s
 def render_user(slice_: Slice) -> str:
     """The user message: every section in order, then the names fit dropped under Not shown."""
     blocks: list[str] = []
-    for heading in slice_.sections:
-        bodies = [part.body for part in slice_.parts if part.section == heading]
+    for heading in slice_._sections:
+        bodies = [part.body for part in slice_._parts if part.section == heading]
         blocks.append(f"{heading}\n\n" + ("\n\n".join(bodies) or "Dropped to fit the context budget; see Not shown."))
     blocks.append("## Not shown\n\n" + ("\n".join(f"- {name}" for name in slice_.omitted) or "None."))
     return "\n\n".join(blocks) + "\n"
@@ -306,8 +306,8 @@ def render_user(slice_: Slice) -> str:
 
 def fit(slice_: Slice, budget_tokens: int) -> Slice:
     """Drop droppable parts, lowest rank first, until the user message fits the budget."""
-    droppable = sorted((part for part in slice_.parts if part.rank is not None), key=lambda part: part.rank or 0)
-    floor = replace(slice_, parts=tuple(part for part in slice_.parts if part.rank is None),
+    droppable = sorted((part for part in slice_._parts if part.rank is not None), key=lambda part: part.rank or 0)
+    floor = replace(slice_, _parts=tuple(part for part in slice_._parts if part.rank is None),
                     omitted=slice_.omitted + tuple(part.name for part in droppable))
     needed = estimate_tokens(render_user(floor))
     if needed > budget_tokens:
@@ -317,7 +317,7 @@ def fit(slice_: Slice, budget_tokens: int) -> Slice:
     for part in droppable:
         if estimate_tokens(render_user(fitted)) <= budget_tokens:
             break
-        fitted = replace(fitted, parts=tuple(kept for kept in fitted.parts if kept is not part),
+        fitted = replace(fitted, _parts=tuple(kept for kept in fitted._parts if kept is not part),
                          omitted=fitted.omitted + (part.name,))
     return fitted
 
