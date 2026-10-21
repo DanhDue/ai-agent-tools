@@ -1,14 +1,17 @@
 #!/usr/bin/env python3
-"""Cross-model review of a finished epic through the Claude CLI or the Codex CLI.
+"""Review of a finished epic through the Claude CLI, the Codex CLI, or a model served by a local Ollama.
 
 Usage:
   run_external_review.py run --epic-dir <epic_dir> --base <base_ref> --cli claude|codex [--model <name>] [--timeout 1800] [--facts-timeout 300] [--diff-limit 1500]
+  run_external_review.py run --epic-dir <epic_dir> --base <base_ref> --cli ollama --model <name> [--host <url>] [--num-ctx <tokens>] [--timeout 1800]
   run_external_review.py check --epic-dir <epic_dir>
+  run_external_review.py triage --epic-dir <epic_dir>
 
 `run` exit codes: 0 a completed round without a Critical or Important finding; 1 a completed round with
 one; 2 every other outcome, including CHANGES REQUIRED with no finding line (the round is recorded whenever
-the CLI ran). `check` exit codes: 0 nothing undecided; 1 a Critical or Important finding of the latest
-completed round has no decision, or a findings row cannot be read.
+the reviewer ran). `check` exit codes: 0 nothing undecided; 1 a Critical or Important finding of the latest
+completed round has no decision, or a findings row cannot be read. `triage` prints the latest round as a
+skeleton to fill before acting on it, with a comparison of every round; exit 0, or 2 with no round.
 """
 from __future__ import annotations
 
@@ -50,6 +53,10 @@ UNPARSED_BLOCKING = re.compile(
     re.IGNORECASE,
 )
 FINDING_ROW = re.compile(r"^\|\s*\d+\s*\|")
+META_LINE = re.compile(r"^- \*\*(.+?)\*\*: (.*)$")
+PASS_HEADER = re.compile(r"^### Pass (\d+): (.+)$")
+NEXT_STEPS = ("To be written after verifying every finding: Fix commits, decisions, a confirmation round, "
+              "then Gate 4 in full.")
 BLOCKING = ("Critical", "Important")
 FENCE = re.compile(r"^(`{3,})")
 
@@ -428,11 +435,15 @@ def tree_changes(root: Path, before: list[str], sha: str) -> list[str]:
     return changed
 
 
+def path_of(location: str) -> str:
+    """The file a finding points at: its location before the first colon, without backticks."""
+    return location.split(":", 1)[0].strip().strip("`")
+
+
 def annotate(finding: tuple[str, str, str], shown: str) -> tuple[str, str, str]:
     """Mark a blocking finding whose location path the reviewer was never shown; its severity stays."""
     sev, loc, problem = finding
-    path = loc.split(":", 1)[0].strip().strip("`")
-    if sev in BLOCKING and loc != "unparsed" and path not in shown:
+    if sev in BLOCKING and loc != "unparsed" and path_of(loc) not in shown:
         problem += " (location not shown to reviewer)"
     return sev, loc, problem
 
@@ -516,6 +527,104 @@ def check(args: argparse.Namespace) -> int:
     return 1 if undecided else 0
 
 
+def round_meta(lines: list[str]) -> dict[str, str]:
+    """A round's `- **Key**: value` fields."""
+    return {m.group(1): m.group(2) for line in metadata(lines) if (m := META_LINE.match(line))}
+
+
+def round_output(lines: list[str]) -> str:
+    """The fenced raw output of a round, without its fence."""
+    body = lines[lines.index("Raw output:") + 1:] if "Raw output:" in lines else []
+    fences = [(index, match.group(1)) for index, line in enumerate(body) if (match := FENCE.match(line))]
+    if not fences:
+        return ""
+    start, fence = fences[0]
+    end = next((i for i in range(start + 1, len(body)) if body[i].rstrip() == fence), len(body))
+    return "\n".join(body[start + 1:end])
+
+
+def round_passes(output: str) -> list[tuple[str, str, str]]:
+    """(pass, verdict, error) for each `### Pass` block, or one `review` pass when there is none."""
+    blocks: list[tuple[str, list[str]]] = []
+    for line in output.splitlines():
+        if (header := PASS_HEADER.match(line)):
+            blocks.append((f"{header.group(1)} {header.group(2)}", []))
+        elif blocks:
+            blocks[-1][1].append(line)
+    rows = []
+    for name, lines in blocks or [("review", output.splitlines())]:
+        verdicts = [m.group(1).upper() for line in lines if (m := VERDICT.match(line))]
+        after = lines[lines.index("--- error ---") + 1:] if "--- error ---" in lines else []
+        rows.append((name, verdicts[-1] if verdicts else "none", after[0].strip() if after else "—"))
+    return rows
+
+
+def finding_rows(lines: list[str]) -> list[list[str]]:
+    return [cells for _, cells in table_findings(lines) if len(cells) == 5]
+
+
+def comparison_row(number: int, lines: list[str]) -> str:
+    meta, rows = round_meta(lines), finding_rows(lines)
+    counts = [sum(cells[1] == severity for cells in rows) for severity in ("Critical", "Important", "Minor")]
+    fixed = sum(cells[4].startswith("fixed in ") for cells in rows)
+    dismissed = sum(cells[4].startswith("dismissed: ") for cells in rows)
+    undecided = sum(cells[1] in BLOCKING and not cells[4].startswith(("fixed in ", "dismissed: ")) for cells in rows)
+    values = [str(number), f"{meta.get('CLI', '?')} / {meta.get('Model', '?')}", meta.get("SHA", "?")[:7],
+              meta.get("Status", "?"), meta.get("Verdict", "?"), *map(str, [*counts, fixed, dismissed, undecided])]
+    return "| " + " | ".join(cell(value) for value in values) + " |"
+
+
+def since_lines(previous: list[list[str]], latest: list[list[str]]) -> list[str]:
+    """What became of the previous round's blocking or fixed findings, compared by file path."""
+    lines = []
+    for cells in previous:
+        fixed = cells[4].startswith("fixed in ")
+        if cells[1] not in BLOCKING and not fixed:
+            continue
+        again = [f"#{row[0]}" for row in latest if path_of(row[2]) == path_of(cells[2])]
+        if again:
+            lines.append(f"- {cells[2]}: re-reported at the same path ({', '.join(again)})"
+                         + (" — check the fix" if fixed else ""))
+        else:
+            lines.append(f"- {cells[2]}: not re-reported")
+    return lines or ["No blocking or fixed finding in the previous round."]
+
+
+def triage(args: argparse.Namespace) -> int:
+    """Print the latest round as a skeleton to fill, verify and present before any action on its findings."""
+    root = Path(git_run(Path.cwd(), "rev-parse", "--show-toplevel").decode().strip())
+    path = root / ".devtool" / "epic" / args.epic_dir / "review_results.md"
+    rounds = rounds_in(path.read_text(encoding="utf-8")) if path.exists() else []
+    if not rounds:
+        print(f"no review round recorded for {args.epic_dir}", file=sys.stderr)
+        return 2
+    number, lines = rounds[-1]
+    meta = round_meta(lines)
+    out = [f"# Review Triage: {args.epic_dir}, Round {number}", "",
+           *(f"- **{key}**: {meta.get(key, '?')}" for key in ("SHA", "CLI", "Model", "Status", "Verdict")), "",
+           "## Passes", "", "| Pass | Verdict | Error |", "|------|---------|-------|",
+           *(f"| {cell(name)} | {verdict} | {cell(error)} |" for name, verdict, error in round_passes(round_output(lines))),
+           "", "## Findings", ""]
+    latest = finding_rows(lines)
+    if latest:
+        out += ["| # | Severity | Location | Problem | Assessment | Evidence | Proposed action |",
+                "|---|----------|----------|---------|------------|----------|-----------------|",
+                *(f"| {cells[0]} | {cells[1]} | {cell(cells[2])} | {cell(cells[3])} | ? | ? | ? |" for cells in latest)]
+    else:
+        out.append("None.")
+    out += ["", "## Round Comparison", "",
+            "| Round | CLI / Model | SHA | Status | Verdict | Critical | Important | Minor | Fixed | Dismissed | Undecided |",
+            "|-------|-------------|-----|--------|---------|----------|-----------|-------|-------|-----------|-----------|",
+            *(comparison_row(n, round_lines) for n, round_lines in rounds), ""]
+    if len(rounds) > 1:
+        out += [f"## Since Round {rounds[-2][0]}", "", *since_lines(finding_rows(rounds[-2][1]), latest)]
+    else:
+        out += ["## Since the Previous Round", "", "No earlier round."]
+    out += ["", "## Next Steps", "", NEXT_STEPS]
+    print("\n".join(out))
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     modes = parser.add_subparsers(dest="mode", required=True)
@@ -531,9 +640,11 @@ def main(argv: list[str] | None = None) -> int:
     runner.add_argument("--diff-limit", type=int, default=MAX_DIFF_LINES)
     checker = modes.add_parser("check", help="list undecided blocking findings of the latest completed round")
     checker.add_argument("--epic-dir", required=True)
+    triager = modes.add_parser("triage", help="print the latest round as a skeleton to fill before acting on it")
+    triager.add_argument("--epic-dir", required=True)
     args = parser.parse_args(argv)
     try:
-        return run(args) if args.mode == "run" else check(args)
+        return {"run": run, "check": check, "triage": triage}[args.mode](args)
     except (ContractError, OSError) as error:
         print(f"error: {error}", file=sys.stderr)
         return 2

@@ -131,6 +131,8 @@ After all tasks are complete, run Gate 4. On every PASS, present Review Choice:
 - **Option 2: Cross-model review** -> Invoke `run_external_review.py run` (prompting for Claude CLI or Codex CLI). Record round in `.devtool/epic/<epic_dir>/review_results.md`. Check unresolved findings with `run_external_review.py check --epic-dir <epic_dir>`. Any dismissed finding requires explicit developer instruction. Return to a full Gate 4 run on the new commit.
 - **Option 3: Local model review** -> Run `ollama list`, ask which model, then invoke `run_external_review.py run --cli ollama --model <model>`. A model served by the local Ollama reviews each task commit, then the epic, and one round is recorded in the same `review_results.md` under the same `check` rules. Return to a full Gate 4 run on the new commit.
 
+Every review round, option 2 or 3, is triaged before anyone acts on it: present `run_external_review.py triage --epic-dir <epic_dir>` filled as dev-implementation's `references/review-triage.md` says, and wait for the developer's decision on each finding.
+
 When an epic's tasks were executed by a fast executor model (e.g. Gemini Flash, Claude Haiku, GPT-4o-mini), the agent presents a strong recommendation in the Review Choice prompt:
 *"Tasks were executed by a fast executor model. Option 2: Cross-model review (Claude CLI or Codex CLI) is STRONGLY RECOMMENDED to audit test integrity and subtle regressions before finishing the branch."* Local model review does not replace it.
 
@@ -193,6 +195,7 @@ Never advance on a partial pass or re-run isolated checks.
 - Reusing a Gate 4 PASS after review rounds, finding decisions, or Fix commits change SHA.
 - Never pick the review CLI for the developer; picking the review CLI for the developer instead of prompting for Claude CLI or Codex CLI is forbidden.
 - Picking the Ollama model for the developer instead of running `ollama list` and asking.
+- Acting on review findings before presenting the triage from `run_external_review.py triage`.
 - Writing `dismissed` decisions in `review_results.md` without explicit developer words.
 - Merging to `develop` manually instead of through `integrate_branch.py land`.
 - Starting a task while integration with `develop` is failing.

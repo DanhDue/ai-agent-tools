@@ -386,7 +386,9 @@ class PromptBaseTest(unittest.TestCase):
         self.assertIn("No platform rules apply to this slice.", system)
 
 
-class RoundTest(EpicRepoCase):
+class RoundCase(EpicRepoCase):
+    """Rounds recorded through the real record_round, then read back through the real check and triage."""
+
     def setUp(self) -> None:
         super().setUp()
         self.sha = git(self.root, "rev-parse", "HEAD")
@@ -410,6 +412,8 @@ class RoundTest(EpicRepoCase):
     def text(self) -> str:
         return self.results.read_text(encoding="utf-8")
 
+
+class RoundTest(RoundCase):
     def test_lmr_ec_08_a_draft_finding_in_analysis_is_not_a_finding(self) -> None:
         out = "## Analysis\n- [Critical] a.py:1 — draft\nVerdict: PASS"
         code = self.record(run_external_review.Pass("task_1_demo", 0, out, "", "a.py", (), "stop"))
@@ -458,6 +462,89 @@ class RoundTest(EpicRepoCase):
         rows = [line for line in self.text().splitlines() if line.startswith(("| 1 |", "| 2 |"))]
         self.assertEqual(rows, ["| 1 | Critical | ghost.py:9 | broken (location not shown to reviewer) |  |",
                                 "| 2 | Important | seen.py:2 | weak |  |"])
+
+
+class TriageTest(RoundCase):
+    def triage(self) -> tuple[int, str, str]:
+        out, err = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            code = run_external_review.main(["triage", "--epic-dir", "demo"])
+        return code, out.getvalue(), err.getvalue()
+
+    def decide(self, number: int, decision: str) -> None:
+        """Fill the empty Decision cell of finding `number` in the only round that has one open."""
+        lines = self.text().splitlines()
+        index = next(i for i, line in enumerate(lines) if line.startswith(f"| {number} |") and line.endswith("|  |"))
+        lines[index] = lines[index][:-len("|  |")] + f"| {decision} |"
+        self.results.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    @staticmethod
+    def section(text: str, heading: str) -> str:
+        return text.split(f"{heading}\n", 1)[1].split("\n## ", 1)[0]
+
+    def test_lmr_hp_08_triage_lists_every_finding_of_the_latest_round(self) -> None:
+        out = "Verdict: CHANGES REQUIRED\n[Important] a.py:3 — missing guard\n[Minor] b.py:5 — wording"
+        self.record(run_external_review.Pass("task_1_demo", 0, out, "", "a.py b.py", (), "stop"))
+        code, text, _ = self.triage()
+        self.assertEqual(code, 0)
+        self.assertTrue(text.startswith("# Review Triage: demo, Round 1\n"))
+        findings = self.section(text, "## Findings")
+        self.assertIn("| 1 | Important | a.py:3 | missing guard | ? | ? | ? |", findings)
+        self.assertIn("| 2 | Minor | b.py:5 | wording | ? | ? | ? |", findings)
+        self.assertTrue(text.rstrip().rsplit("\n## ", 1)[1].startswith("Next Steps\n"))
+
+    def test_lmr_hp_10_triage_compares_every_round(self) -> None:
+        claude = run_external_review.Pass("review", 0, "Verdict: CHANGES REQUIRED\n[Important] x.py:1 — bad", "", "x.py")
+        self.record(claude, cli="claude")
+        self.decide(1, "fixed in abc1234")
+        self.record(run_external_review.Pass("epic", 0, "Verdict: PASS\n[Minor] c.py:1 — nit", "", "c.py", (), "stop"))
+        _, text, _ = self.triage()
+        comparison = self.section(text, "## Round Comparison")
+        self.assertIn("| Round | CLI / Model | SHA | Status | Verdict | Critical | Important | Minor | Fixed | Dismissed "
+                      "| Undecided |", comparison)
+        short = self.sha[:7]
+        self.assertIn(f"| 1 | claude / qwen38-reviewer | {short} | completed | CHANGES REQUIRED | 0 | 1 | 0 | 1 | 0 | 0 |",
+                      comparison)
+        self.assertIn(f"| 2 | ollama / qwen38-reviewer | {short} | completed | PASS | 0 | 0 | 1 | 0 | 0 | 0 |", comparison)
+
+    def test_lmr_ec_10_triage_marks_passes_without_a_verdict(self) -> None:
+        self.record(run_external_review.Pass("task_1_demo", 0, "Verdict: PASS", "", "", (), "stop"),
+                    run_external_review.Pass("task_2_demo", 0, "## Analysis\nstill thinking", "", "", (), "stop"),
+                    run_external_review.Pass("task_3_demo", 1, "", "HTTP 500: boom", "", (), None))
+        _, text, _ = self.triage()
+        passes = self.section(text, "## Passes")
+        for row in ("| 1 task_1_demo | PASS | — |", "| 2 task_2_demo | none | — |", "| 3 task_3_demo | none | HTTP 500: boom |"):
+            self.assertIn(row, passes)
+
+    def test_lmr_ec_11_a_fixed_finding_reported_again_at_the_same_path_is_flagged(self) -> None:
+        out = "Verdict: CHANGES REQUIRED\n[Important] src/a.py:3 — missing guard\n[Important] src/b.py:9 — weak"
+        self.record(run_external_review.Pass("task_1_demo", 0, out, "", "src/a.py src/b.py", (), "stop"))
+        self.decide(1, "fixed in abc1234")
+        self.decide(2, "fixed in abc1234")
+        out = "Verdict: PASS\n[Minor] src/a.py:40 — still unguarded"
+        self.record(run_external_review.Pass("task_1_demo", 0, out, "", "src/a.py", (), "stop"))
+        _, text, _ = self.triage()
+        since = self.section(text, "## Since Round 1")
+        self.assertIn("- src/a.py:3: re-reported at the same path (#1) — check the fix", since)
+        self.assertIn("- src/b.py:9: not re-reported", since)
+
+    def test_lmr_st_04_triage_reads_the_latest_round_completed_or_not(self) -> None:
+        old = run_external_review.Pass("task_1_demo", 0, "Verdict: CHANGES REQUIRED\n[Important] old.py:1 — old", "",
+                                       "old.py", (), "stop")
+        self.record(old)
+        new = run_external_review.Pass("task_1_demo", 0, "Verdict: PASS\n[Minor] new.py:2 — new", "", "new.py", (), "length")
+        self.record(new)
+        _, text, _ = self.triage()
+        self.assertTrue(text.startswith("# Review Triage: demo, Round 2\n"))
+        self.assertIn("- **Status**: no verdict", text)
+        findings = self.section(text, "## Findings")
+        self.assertIn("new.py:2", findings)
+        self.assertNotIn("old.py:1", findings)
+
+    def test_lmr_fr_08_triage_without_a_review_round_stops(self) -> None:
+        code, out, err = self.triage()
+        self.assertEqual((code, out), (2, ""))
+        self.assertIn("no review round recorded for demo", err)
 
 
 class RunnerTest(ReviewCase):

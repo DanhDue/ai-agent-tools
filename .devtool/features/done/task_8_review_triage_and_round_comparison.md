@@ -1,13 +1,13 @@
 ---
 id: "task_8_review_triage_and_round_comparison"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "local_model_review"
 dueDate: null
 created: "2026-10-21T12:05:00Z"
-modified: "2026-10-21T12:05:00Z"
-completedAt: null
+modified: "2026-10-21T12:26:24Z"
+completedAt: "2026-10-21T12:26:24Z"
 labels: ["review", "workflow", "triage"]
 order: "a8"
 ---

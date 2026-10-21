@@ -251,6 +251,18 @@ class LifecycleDocumentContractTest(unittest.TestCase):
             self.assertIn(f'LR -->|"{label}"| G4', text, relative)
             self.assertNotRegex(text, r"LR -->\|[^|]*\| (REVIEW|G5)", relative)
 
+    def test_lmr_hp_09_the_workflow_requires_triage_before_acting_on_findings(self) -> None:
+        """[LMR-HP-09] Every review round is triaged with the developer before any fix or decision."""
+        for relative in ("skills/dev-implementation/SKILL.md", "skills/dev-lifecycle/SKILL.md", "rules/CRITICAL_RULES.md"):
+            text = (ROOT / relative).read_text(encoding="utf-8")
+            self.assertIn("run_external_review.py triage", text, relative)
+        implementation = (ROOT / "skills/dev-implementation/SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("references/review-triage.md", implementation)
+        self.assertIn("wait for the developer's decisions before any Fix commit", implementation)
+        lifecycle = (ROOT / "skills/dev-lifecycle/SKILL.md").read_text(encoding="utf-8")
+        red_flags = lifecycle.split("## Red Flags", 1)[1].split("\n## ", 1)[0]
+        self.assertIn("Acting on review findings before presenting the triage", red_flags)
+
     def test_document_contract_expected_tokens(self) -> None:
         for relative_path, required_tokens in EXPECTED.items():
             path = ROOT / relative_path
