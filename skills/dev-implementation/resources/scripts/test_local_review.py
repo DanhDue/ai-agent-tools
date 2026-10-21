@@ -188,6 +188,11 @@ class TransportTest(unittest.TestCase):
             text = log.read_text(encoding="utf-8")
         self.assertEqual(text, "thinking-marker \n\n--- answer ---\n\n## Analysis\nfine\nVerdict: PASS")
 
+    def test_the_timeout_counts_the_wait_before_the_first_chunk(self) -> None:
+        self.fake.delay, self.fake.chunk_delay = 2.0, 0.6  # headers after 2 s, then 4 chunks 0.6 s apart: 4.4 s
+        self.assertEqual(local_review.chat(self.fake.url, "m", "s", "u", {"num_predict": 10}, 3),
+                         local_review.Reply("", None, "timed out after 3 seconds"))
+
     def test_the_timeout_bounds_a_whole_streamed_pass(self) -> None:
         self.fake.chunk_delay = 0.6  # every chunk arrives within the socket timeout, the pass as a whole does not
         self.assertEqual(local_review.chat(self.fake.url, "m", "s", "u", {"num_predict": 10}, 1),

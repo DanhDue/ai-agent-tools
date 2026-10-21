@@ -130,10 +130,11 @@ def chat(host: str, model: str, system: str, user: str, options: dict[str, int],
     payload = {"model": model,
                "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
                "stream": True, "options": options}
+    deadline = time.monotonic() + timeout  # before the request: Ollama sends headers only after the prompt is processed
     sink = log.open("w", encoding="utf-8") if log else None
     try:
         with urllib.request.urlopen(json_request(f"{host}/api/chat", payload), timeout=timeout) as response:
-            return read_stream(response, time.monotonic() + timeout, timeout, sink)
+            return read_stream(response, deadline, timeout, sink)
     except urllib.error.HTTPError as error:
         with error:
             body = error.read().decode("utf-8", "replace")
