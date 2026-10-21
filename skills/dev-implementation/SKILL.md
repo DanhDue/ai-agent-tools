@@ -286,16 +286,18 @@ Gate 4 enforces strict semantic test integrity to prevent false-confidence passe
 
 <HARD-GATE>
 You MUST NOT skip or auto-decide Review Choice after Gate 4 passes.
-Present the choice between "Finish" and "Cross-model review" and wait for the developer's explicit instruction.
-Cross-model review must return to Phase 4 in full; only the next Gate 4 PASS may present Review Choice again.
+Present the choice between "Finish", "Cross-model review" and "Local model review" and wait for the developer's explicit instruction.
+Cross-model review and Local model review must return to Phase 4 in full; only the next Gate 4 PASS may present Review Choice again.
 </HARD-GATE>
 
-The loop invariant is **Gate 4 PASS → Review Choice; Finish → Gate 5; Cross-model review → Gate 4 in full**.
+The loop invariant is **Gate 4 PASS → Review Choice; Finish → Gate 5; Cross-model review → Gate 4 in full; Local model review → Gate 4 in full**.
 <!-- Workflow transitions:
 moretasks -- "no, epic done" --> phase4
 phase4 -- "PASS" --> choice
 choice -- "Finish" --> checkpoint4
 review -- "round recorded" --> phase4
+choice -- "Local model review" --> localreview
+localreview -- "round recorded" --> phase4
 -->
 Ask developer and wait for answer:
 
@@ -303,13 +305,21 @@ Ask developer and wait for answer:
 >
 > 1. **Finish** — continue to Gate 5, then `finishing-a-development-branch`.
 > 2. **Cross-model review** — an independent model reviews the epic through Claude CLI or Codex CLI (`command -v claude codex`).
+> 3. **Local model review** — a model served by your local Ollama reviews the epic task by task (`ollama list`).
 
 Option 1 goes to Phase 4.1 / Gate 5. Option 2 runs in epic worktree with clean tree:
 ```bash
 python3 "$SKILL_DIR"/resources/scripts/run_external_review.py run \
   --epic-dir <epic_dir> --base <base_ref> --cli claude|codex
 ```
-Commit `review_results.md` after every round (`[EPIC_NAME] Record cross-model review round N`). Fix accepted findings as Fix commits, give blocking findings a Decision, commit, then rerun Phase 4 / Gate 4 in full.
+Commit `review_results.md` after every round (`[EPIC_NAME] Record cross-model review round N`). After every round of option 2 or 3, run `python3 "$SKILL_DIR"/resources/scripts/run_external_review.py triage --epic-dir <epic_dir>`, fill it as [review-triage.md](references/review-triage.md) says, present it, and wait for the developer's decisions before any Fix commit or Decision cell. Then make the Fix commits, record the decisions, commit, and rerun Phase 4 / Gate 4 in full.
+
+Option 3 runs `ollama list` first and asks the developer which model to use; never pick it. Then, in the epic worktree with a clean tree:
+```bash
+python3 "$SKILL_DIR"/resources/scripts/run_external_review.py run \
+  --epic-dir <epic_dir> --base <base_ref> --cli ollama --model <model>
+```
+The model reviews each task commit, then the epic, and one round is recorded with the same `check` rules. Sampling and context come from the model's Modelfile; `--num-ctx` overrides the context and `--host` the server. Setup: [local-review-setup.md](references/local-review-setup.md). Commit each round as `[EPIC_NAME] Record local model review round N`, then handle findings as for option 2.
 
 ### Phase 4.1 — Developer Kanban Review Checkpoint (🛑 MANDATORY STOP & WAIT — Gate 5)
 

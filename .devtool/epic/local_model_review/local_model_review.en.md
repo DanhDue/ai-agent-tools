@@ -15,7 +15,7 @@
 ## Meta Data
 
 - **Epic name**: `local_model_review`
-- **Status**: Designing — Gate 2 pending
+- **Status**: Done
 - **Target release**: Next plugin release
 - **Platform**: Python tooling / agent skill kit
 - **Source Spec**: [Approved local model review design](2026-10-21-local-model-review-design.en.md)
@@ -41,11 +41,14 @@ HLD freezes the module contracts that implement them.
 - A prompt base that teaches the d3nexus workflow and loads the kit's own rules per touched language.
 - One round per run in the existing `review_results.md` format, governed by the existing `check`.
 - Verification rules shared by both prompts through `references/review-rules.md`.
+- After every review round, from any reviewer, `run_external_review.py triage` lays out its findings and compares
+  the rounds, and the developer decides before any fix.
 
 ### Non-Goals
 
 - Agentic local review, other local servers, model selection or tuning on the developer's behalf.
-- Parallel passes.
+- Parallel passes. Measured on 2026-10-21: Ollama served `qwen38-reviewer-fast` with one slot (`-np 1`) even with
+  `OLLAMA_NUM_PARALLEL=3` set, and 1, 2 and 3 concurrent requests all gave 11.5 tok/s in total.
 - Any behaviour change of the Claude CLI and Codex CLI paths beyond the shared rules file.
 
 ## Architecture and Technical Design
@@ -145,7 +148,7 @@ sequenceDiagram
     end
     loop each slice in commit order, epic last
         Runner->>Local: chat(system, user, chat_options)
-        Local->>Ollama: POST /api/chat, stream false
+        Local->>Ollama: POST /api/chat, stream true, chunks into the live log
         Ollama-->>Local: message.content, done_reason
         Local-->>Runner: Reply with the text after the last think tag
         Runner->>Runner: progress line, stop at the first failed pass
@@ -189,7 +192,8 @@ class Slice:
 def host_from_env() -> str
 def probe(host: str, model: str, timeout: int = 10) -> int | None
 def chat_options(model_ctx: int | None, flag_ctx: int | None, prompt_tokens: int) -> dict[str, int]
-def chat(host: str, model: str, system: str, user: str, options: dict[str, int], timeout: int) -> Reply
+def chat(host: str, model: str, system: str, user: str, options: dict[str, int], timeout: int,
+         log: Path | None = None) -> Reply
 def answer_text(content: str) -> str
 def estimate_tokens(text: str) -> int
 def build_slices(root: Path, epic_dir: str, base: str, sha: str, audit_output: str,
@@ -206,8 +210,9 @@ def render_system(slice_: Slice) -> str
 - `chat_options` returns `num_predict = effective - prompt_tokens` where
   `effective = flag_ctx or model_ctx or DEFAULT_NUM_CTX`, and adds `num_ctx = effective` only when
   `flag_ctx` is set or `model_ctx` is `None`. No sampling option is ever sent.
-- `chat` posts `{"model", "messages": [system, user], "stream": false, "options"}` and never sends
-  `think`. A timeout gives `error="timed out after <timeout> seconds"`; an HTTP error gives
+- `chat` posts `{"model", "messages": [system, user], "stream": true, "options"}` and never sends
+  `think`. As chunks arrive it writes their thinking, then `--- answer ---`, then the answer to
+  `log`; `timeout` bounds the whole pass, not only the wait for each chunk. A timeout gives `error="timed out after <timeout> seconds"`; an HTTP error gives
   `error="HTTP <code>: <first 500 characters of the body>"`.
 - `answer_text` returns the text after the last `</think>`, stripped, or the whole text without one.
 - `estimate_tokens` is `ceil(len(text.encode("utf-8")) / BYTES_PER_TOKEN)`.
@@ -248,6 +253,9 @@ def record_round(root: Path, args: argparse.Namespace, sha: str, passes: list[Pa
   and `--num-ctx` (default `None`) are new. `--timeout` is per pass for `ollama`.
 - The Claude CLI and Codex CLI run as one `Pass` labelled `review`, and `record_round` writes the
   same round, byte for byte, as today. The prompt gains `rules=RULES.read_text()`.
+- Each local pass streams into `<logs>/<n>-<label>.log`, where `<logs>` is
+  `build/local-review/<epic_dir>` when Git ignores it, else `git rev-parse --git-path local-review/<epic_dir>`.
+  Either place leaves `git status` untouched. The runner prints `Live logs: <logs>` before the first pass.
 - For `--cli ollama` only: findings are read from each pass's last `Verdict:` line onward; a
   Critical or Important finding whose location path does not occur in `Pass.shown` gets
   ` (location not shown to reviewer)` appended to its Problem; a pass completes only with
@@ -256,12 +264,29 @@ def record_round(root: Path, args: argparse.Namespace, sha: str, passes: list[Pa
   `Omitted` when any slice dropped a part.
 - The round verdict is `CHANGES REQUIRED` when any pass says so. Exit codes stay 0, 1 and 2.
 
+
+**Review triage** (Task 8, added after the first review rounds of this epic): `run_external_review.py triage --epic-dir <epic_dir>` prints, for the latest round whatever its status, a Markdown skeleton the agent fills before any action:
+
+- `# Review Triage: <epic_dir>, Round <n>` with the round's SHA, CLI, Model, Status and Verdict;
+- `## Passes`: one row per pass (`### Pass <n>: <label>` blocks, or a single `review` pass for the Claude CLI and
+  Codex CLI) with its last verdict or `none`, and the first line of its `--- error ---` text or `—`;
+- `## Findings`: the round's findings table, numbered as in `review_results.md`, with `?` in the Assessment,
+  Evidence and Proposed action columns;
+- `## Round Comparison`: one row per round with CLI / Model, SHA, Status, Verdict, the Critical, Important and Minor
+  counts, and the Fixed (`fixed in `), Dismissed (`dismissed: `) and Undecided (blocking, no decision) counts;
+- `## Since Round <n-1>`: each finding of the previous round that was blocking or fixed, marked `re-reported at the
+  same path (#k)` when the latest round reports a finding at the same file, with `check the fix` when it was fixed,
+  or `not re-reported`; paths are compared without line numbers, which move after fixes;
+- `## Next Steps`, left for the agent.
+
+It reads only; it exits 0, or 2 with `no review round recorded for <epic_dir>` when there is none. `references/review-triage.md` says how to fill it: verify every finding at the round's SHA, assess it Valid, Debatable, False positive or Not shown, propose `fix`, `dismiss: <reason>` or `none`, stop for the developer's decisions, and recommend a confirmation round after blocking fixes, whose triage measures the improvement.
+
 **References** (new unless noted): `review-rules.md` (the four existing Verification rules plus
 "No Reconstructed Logic" and "Immutable Real Artifacts"); `external-review-prompt.md` (modified,
 its rules section becomes `$rules`); `local-review-prompt.md`; `local-review-checklists.md`;
 `local-review-platforms.md` (Flutter, Android and iOS quote Blocker rules by their kit IDs from
 `architecture-audit`, `code-health-audit` and `security-audit`; Rust and Python quote the named
-policies of the two governance references); `local-review-setup.md`.
+policies of the two governance references); `local-review-setup.md`; `review-triage.md`.
 
 ### Impact Analysis
 
@@ -288,6 +313,7 @@ Integration results: python3 scripts/run_unittest_junit.py --junitxml build/test
 | Prompt base | `render_system`, `platform_sections`, the four reference files | Repository reference files | Sections by extension; every quoted rule exists in its source skill |
 | Round merging | `record_round`, `check` | Throwaway repository, constructed `Pass` lists | Status, verdict, last-verdict findings, annotation, metadata, numbering |
 | Runner wiring | `run --cli ollama` end to end | Throwaway epic repository and fake Ollama server | Order of checks, sequential passes, per-pass timeout, failure stops |
+| Review triage | `triage`, `rounds_in`, `table_findings` | Throwaway repository with recorded rounds | Every finding listed, per-pass summary, round comparison, recurrence at the same path |
 | Workflow text | Skills, rules, lifecycle documents | Repository documents | Three options and the `round recorded` return in every variant |
 | Full acceptance | All suites above | Current repository checkout | Integration results command, `scripts/verify.sh`, document checks |
 
@@ -311,11 +337,11 @@ The canonical Gherkin definitions are in [BDD scenarios](bdd_scenarios.en.md), w
 
 | Dimension | Scenario IDs | Coverage intent |
 |---|---|---|
-| Happy Paths | LMR-HP-01 through LMR-HP-07 | Three options, shared rules, a full local round, slice and system content, context options, grounded platform rules |
-| Edge Cases and Boundaries | LMR-EC-01 through LMR-EC-09 | Missing model, context defaults, oversized diffs, never-cut overflow, mixed languages, legacy tasks, inline thinking, draft findings, omitted metadata |
-| State Transitions | LMR-ST-01 through LMR-ST-03 | Decisions gate `check`, round numbering across CLIs, the loop back to Gate 4 |
+| Happy Paths | LMR-HP-01 through LMR-HP-10 | Three options, shared rules, a full local round, slice and system content, context options, grounded platform rules, triage and round comparison |
+| Edge Cases and Boundaries | LMR-EC-01 through LMR-EC-11 | Missing model, context defaults, oversized diffs, never-cut overflow, mixed languages, legacy tasks, inline thinking, draft findings, omitted metadata, passes without a verdict, fixes reported again |
+| State Transitions | LMR-ST-01 through LMR-ST-04 | Decisions gate `check`, round numbering across CLIs, the loop back to Gate 4, triage of the latest round |
 | Async and Race Conditions | LMR-AR-01 through LMR-AR-02 | Strict pass order and a per-pass timeout |
-| Failures and Resilience | LMR-FR-01 through LMR-FR-07 | Unreachable server, unknown model, HTTP errors, a failing pass, truncated output, unseen locations, budget stop |
+| Failures and Resilience | LMR-FR-01 through LMR-FR-08 | Unreachable server, unknown model, HTTP errors, a failing pass, truncated output, unseen locations, budget stop, triage without a round |
 
 ## Rollout Strategy and Mitigation
 
@@ -329,6 +355,8 @@ The canonical Gherkin definitions are in [BDD scenarios](bdd_scenarios.en.md), w
    `scripts/verify.sh` and the document checks on the candidate SHA.
 5. At this epic's own Review Choice, take option 3 with `qwen38-reviewer` and record the timing and
    findings. Ask the developer before loading the 29 GB model.
+6. Add Review Triage (Task 8) once those rounds show that findings need a structured synthesis before any fix,
+   then rerun Gate 4 in full.
 
 No feature flag is needed: option 3 is opt-in at every Review Choice. Each task reverts on its own.
 If the local path misbehaves after release, options 1 and 2 are unaffected because the Claude CLI
@@ -343,3 +371,4 @@ and Codex CLI rounds are byte-identical to today's.
 5. [Task 5: Record One Round From Many Passes](task_5_record_round_from_passes.md)
 6. [Task 6: Wire Local Model Review Into the Runner](task_6_wire_local_review_into_runner.md)
 7. [Task 7: Update the Review Choice Workflow and Run Acceptance](task_7_review_choice_workflow_and_acceptance.md)
+8. [Task 8: Triage Review Findings and Compare Rounds](task_8_review_triage_and_round_comparison.md)

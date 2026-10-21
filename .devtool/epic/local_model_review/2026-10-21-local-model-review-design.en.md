@@ -64,7 +64,7 @@ teaches the model the d3nexus workflow and the kit's own rules for the languages
 | # | Decision | Reason |
 |---|----------|--------|
 | D1 | Local model review is Review Choice **option 3**, separate from option 2 | It differs in kind (private, offline, weaker model). The fast-executor recommendation keeps pointing at option 2 |
-| D2 | Transport is Ollama's native `POST /api/chat` through `urllib`, `stream: false` | No new dependency; the model has no tools, so the review is read-only by construction |
+| D2 | Transport is Ollama's native `POST /api/chat` through `urllib`, `stream: false`. Amended in Stage 3: `stream: true`, so each pass writes a live log (see the HLD) | No new dependency; the model has no tools, so the review is read-only by construction |
 | D3 | One pass per task commit plus one epic pass, merged into one round | One commit per task makes the slice natural; each pass fits a 32K–64K context |
 | D4 | `--model` is required with `--cli ollama`; the agent runs `ollama list` and asks | The developer picks the reviewer, as with the CLI choice |
 | D5 | The model's Modelfile governs sampling and context | `num_ctx` is read from `/api/show` and sent only with `--num-ctx`, or as 32768 when the Modelfile sets none |

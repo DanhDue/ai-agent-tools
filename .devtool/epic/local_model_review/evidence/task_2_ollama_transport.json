@@ -1,0 +1,206 @@
+{
+  "schema": 1,
+  "task": "task_2_ollama_transport",
+  "runs": {
+    "red": {
+      "head": "e47f9189fc935ee2e6cb2327a7e717bbe49ede45",
+      "tree": "d03adae5435438a36e2737724e4d6baaffc61914",
+      "patch_id": "542a9a9dfd9e46708f4b48f7bf94b799019ddf0f",
+      "started": "2026-10-21T09:27:22Z",
+      "finished": "2026-10-21T09:27:46Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m unittest skills/dev-implementation/resources/scripts/test_local_review.py -k TransportTest",
+          "expect": "exit 1; contains \"FAILED\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-21T09:27:22Z",
+          "finished": "2026-10-21T09:27:45Z",
+          "output_tail": [
+            "======================================================================",
+            "ERROR: test_lmr_ec_07_inline_thinking_is_never_parsed (skills.dev-implementation.resources.scripts.test_local_review.TransportTest.test_lmr_ec_07_inline_thinking_is_never_parsed)",
+            "----------------------------------------------------------------------",
+            "Traceback (most recent call last):",
+            "  File \"/Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/local_model_review/skills/dev-implementation/resources/scripts/test_local_review.py\", line 109, in test_lmr_ec_07_inline_thinking_is_never_parsed",
+            "    self.assertEqual(local_review.answer_text(content), \"## Analysis\\nfine\\nVerdict: PASS\")",
+            "                     ^^^^^^^^^^^^^^^^^^^^^^^^",
+            "AttributeError: module 'local_review' has no attribute 'answer_text'",
+            "",
+            "======================================================================",
+            "ERROR: test_lmr_fr_01_probe_failures_name_their_cause (skills.dev-implementation.resources.scripts.test_local_review.TransportTest.test_lmr_fr_01_probe_failures_name_their_cause)",
+            "----------------------------------------------------------------------",
+            "Traceback (most recent call last):",
+            "  File \"/Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/local_model_review/skills/dev-implementation/resources/scripts/test_local_review.py\", line 117, in test_lmr_fr_01_probe_failures_name_their_cause",
+            "    with self.assertRaises(local_review.LocalReviewError) as caught:",
+            "                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+            "AttributeError: module 'local_review' has no attribute 'LocalReviewError'",
+            "",
+            "======================================================================",
+            "ERROR: test_lmr_fr_03_transport_failures_become_replies (skills.dev-implementation.resources.scripts.test_local_review.TransportTest.test_lmr_fr_03_transport_failures_become_replies)",
+            "----------------------------------------------------------------------",
+            "Traceback (most recent call last):",
+            "  File \"/Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/local_model_review/skills/dev-implementation/resources/scripts/test_local_review.py\", line 127, in test_lmr_fr_03_transport_failures_become_replies",
+            "    self.assertEqual(local_review.chat(self.fake.url, \"m\", \"s\", \"u\", {\"num_predict\": 10}, 5),",
+            "                     ^^^^^^^^^^^^^^^^^",
+            "AttributeError: module 'local_review' has no attribute 'chat'",
+            "",
+            "======================================================================",
+            "ERROR: test_lmr_hp_06_modelfile_governs_the_context (skills.dev-implementation.resources.scripts.test_local_review.TransportTest.test_lmr_hp_06_modelfile_governs_the_context)",
+            "----------------------------------------------------------------------",
+            "Traceback (most recent call last):",
+            "  File \"/Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/local_model_review/skills/dev-implementation/resources/scripts/test_local_review.py\", line 98, in test_lmr_hp_06_modelfile_governs_the_context",
+            "    self.assertEqual(local_review.probe(self.fake.url, \"qwen38-reviewer\"), 65536)",
+            "                     ^^^^^^^^^^^^^^^^^^",
+            "AttributeError: module 'local_review' has no attribute 'probe'",
+            "",
+            "----------------------------------------------------------------------",
+            "Ran 7 tests in 23.806s",
+            "",
+            "FAILED (errors=7)"
+          ],
+          "output_sha256": "28b46bbfa97290167dcef75543853790ae96272280bab25b590ef0bab870261b"
+        }
+      ]
+    },
+    "verify": {
+      "head": "e47f9189fc935ee2e6cb2327a7e717bbe49ede45",
+      "tree": "bcbf688e405d905751d3ae148f33d1d3d4903885",
+      "patch_id": "82261470373a896fc5dc40f5ca5a7c9189344d28",
+      "started": "2026-10-21T09:28:21Z",
+      "finished": "2026-10-21T09:28:31Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m unittest skills/dev-implementation/resources/scripts/test_local_review.py -k TransportTest",
+          "expect": "exit 0; contains \"OK\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-21T09:28:21Z",
+          "finished": "2026-10-21T09:28:26Z",
+          "output_tail": [
+            "...../opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/tempfile.py:484: ResourceWarning: Implicitly cleaning up <HTTPError 500: 'Internal Server Error'>",
+            "  _warnings.warn(self.warn_message, ResourceWarning)",
+            "..",
+            "----------------------------------------------------------------------",
+            "Ran 7 tests in 4.567s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "e9520b4e30fe8521c596e36575c82018adf2788cbb73a0f1e72f0e2c8034d153"
+        },
+        {
+          "id": "V3",
+          "phase": "TIER-B",
+          "command": "ruff check skills/dev-implementation/resources/scripts/local_review.py skills/dev-implementation/resources/scripts/test_local_review.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-21T09:28:26Z",
+          "finished": "2026-10-21T09:28:26Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "mypy --strict --follow-imports=silent skills/dev-implementation/resources/scripts/local_review.py skills/dev-implementation/resources/scripts/test_local_review.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-21T09:28:26Z",
+          "finished": "2026-10-21T09:28:26Z",
+          "output_tail": [
+            "Success: no issues found in 2 source files"
+          ],
+          "output_sha256": "f9b031e5c45aa702cd4fef028d465551cb20a2c4698e0913c7b00766b20ac4d8"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-C",
+          "command": "python3 scripts/run_unittest_junit.py --junitxml build/test-results/task_2.xml skills/dev-implementation/resources/scripts/test_local_review.py",
+          "expect": "exit 0; results build/test-results/task_2.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-21T09:28:26Z",
+          "finished": "2026-10-21T09:28:31Z",
+          "output_tail": [
+            "........",
+            "----------------------------------------------------------------------",
+            "Ran 8 tests in 4.708s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "da6ea690ebb303b017027c984fb4b0d5a40aeb0d415445bc3e5d8d65905798a2",
+          "results": {
+            "path": "build/test-results/task_2.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 6,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_lmr_hp_02_shared_rules_reach_the_external_prompt",
+                  "classname": "test_local_review.SharedRulesTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_lmr_ec_02_context_defaults_and_overrides",
+                  "classname": "test_local_review.TransportTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_lmr_ec_07_inline_thinking_is_never_parsed",
+                  "classname": "test_local_review.TransportTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_lmr_fr_01_probe_failures_name_their_cause",
+                  "classname": "test_local_review.TransportTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_lmr_fr_03_transport_failures_become_replies",
+                  "classname": "test_local_review.TransportTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_lmr_hp_06_modelfile_governs_the_context",
+                  "classname": "test_local_review.TransportTest",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "skills/dev-implementation/resources/scripts/local_review.py",
+            "skills/dev-implementation/resources/scripts/test_local_review.py"
+          ],
+          "violations": []
+        }
+      ]
+    }
+  }
+}

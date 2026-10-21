@@ -1,13 +1,13 @@
 ---
 id: "task_2_ollama_transport"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "local_model_review"
 dueDate: null
 created: "2026-10-21T09:10:00Z"
-modified: "2026-10-21T09:10:00Z"
-completedAt: null
+modified: "2026-10-21T09:28:37Z"
+completedAt: "2026-10-21T09:28:37Z"
 labels: ["review", "ollama", "transport"]
 order: "a2"
 ---

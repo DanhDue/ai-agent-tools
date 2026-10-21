@@ -47,7 +47,7 @@ Chọn theo số mảnh review được của công việc.
 **Nhiều thành phần độc lập, hoặc bạn sẽ muốn có sơ đồ kiến trúc và một bảng task** — chạy `d3nexus:dev-lifecycle`.
 Nó đưa bạn qua năm cổng:
 spec (Cổng 1), phân rã task (Cổng 2), thứ tự thực thi (Cổng 3), `quality_check` kèm audit và BDD traceability (Cổng 4), và chữ ký duyệt Kanban của chính bạn (Cổng 5) trước khi nhánh được hoàn tất.
-Nó cũng thực thi hai điểm lựa chọn rõ ràng: **Handoff Choice** (đóng gói hoặc tiếp tục) sau Stage 2, và **Review Choice** bắt buộc (Finish hoặc Cross-model review) sau mỗi lần Cổng 4 PASS. Cross-model review quay lại chạy đầy đủ Cổng 4, nên vòng lặp tiếp tục cho tới khi bạn chọn Finish.
+Nó cũng thực thi hai điểm lựa chọn rõ ràng: **Handoff Choice** (đóng gói hoặc tiếp tục) sau Stage 2, và **Review Choice** bắt buộc (Finish, Cross-model review hoặc Local model review) sau mỗi lần Cổng 4 PASS. Cả hai kiểu review đều quay lại chạy đầy đủ Cổng 4, nên vòng lặp tiếp tục cho tới khi bạn chọn Finish.
 
 **Một thành phần, một plan** — chạy `d3nexus:dev-brainstorming`, rồi `d3nexus:writing-plans`.
 Cách này rời khỏi epic lifecycle; các cổng còn lại của nó không áp dụng. Bạn vẫn qua hai cổng:
@@ -68,7 +68,7 @@ Chạy `d3nexus:subagent-driven-development` (khuyến nghị) hoặc `d3nexus:e
 > `d3nexus:finishing-a-development-branch` và chọn merge hoặc PR.**
 
 Tuyến epic không cần gì trong số này:
-`dev-implementation` điều khiển executor, giữ các kiểm tra máy Cổng 4 (`audit_epic.py`, BDD traceability, `quality_check`), đưa ra Review Choice bắt buộc (Finish hoặc Cross-model review) sau mỗi lần Cổng 4 PASS, bắt buộc chạy lại đầy đủ Cổng 4 sau mỗi round review, rồi mới yêu cầu chữ ký duyệt trực quan của bạn ở Cổng 5 và hoàn tất nhánh.
+`dev-implementation` điều khiển executor, giữ các kiểm tra máy Cổng 4 (`audit_epic.py`, BDD traceability, `quality_check`), đưa ra Review Choice bắt buộc (Finish, Cross-model review hoặc Local model review) sau mỗi lần Cổng 4 PASS, bắt buộc chạy lại đầy đủ Cổng 4 sau mỗi round review, rồi mới yêu cầu chữ ký duyệt trực quan của bạn ở Cổng 5 và hoàn tất nhánh.
 
 ## Nếu bạn viết tài liệu
 

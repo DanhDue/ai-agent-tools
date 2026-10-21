@@ -1,14 +1,17 @@
 #!/usr/bin/env python3
-"""Cross-model review of a finished epic through the Claude CLI or the Codex CLI.
+"""Review of a finished epic through the Claude CLI, the Codex CLI, or a model served by a local Ollama.
 
 Usage:
   run_external_review.py run --epic-dir <epic_dir> --base <base_ref> --cli claude|codex [--model <name>] [--timeout 1800] [--facts-timeout 300] [--diff-limit 1500]
+  run_external_review.py run --epic-dir <epic_dir> --base <base_ref> --cli ollama --model <name> [--host <url>] [--num-ctx <tokens>] [--timeout 1800]
   run_external_review.py check --epic-dir <epic_dir>
+  run_external_review.py triage --epic-dir <epic_dir>
 
 `run` exit codes: 0 a completed round without a Critical or Important finding; 1 a completed round with
 one; 2 every other outcome, including CHANGES REQUIRED with no finding line (the round is recorded whenever
-the CLI ran). `check` exit codes: 0 nothing undecided; 1 a Critical or Important finding of the latest
-completed round has no decision, or a findings row cannot be read.
+the reviewer ran). `check` exit codes: 0 nothing undecided; 1 a Critical or Important finding of the latest
+completed round has no decision, or a findings row cannot be read. `triage` prints the latest round as a
+skeleton to fill before acting on it, with a comparison of every round; exit 0, or 2 with no round.
 """
 from __future__ import annotations
 
@@ -20,14 +23,18 @@ import shutil
 import signal
 import subprocess
 import sys
-from datetime import datetime, timezone
+import time
+from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from string import Template
 
+import local_review
 from task_contract import ContractError, git_run, parse_integration_results
 
 SCRIPTS = Path(__file__).resolve().parent
 PROMPT = SCRIPTS.parent.parent / "references" / "external-review-prompt.md"
+RULES = SCRIPTS.parent.parent / "references" / "review-rules.md"
 
 # Tolerates optional markdown headings, bullet prefixes, and bold markers around Verdict.
 VERDICT = re.compile(
@@ -46,6 +53,10 @@ UNPARSED_BLOCKING = re.compile(
     re.IGNORECASE,
 )
 FINDING_ROW = re.compile(r"^\|\s*\d+\s*\|")
+META_LINE = re.compile(r"^- \*\*(.+?)\*\*: (.*)$")
+PASS_HEADER = re.compile(r"^### Pass (\d+): (.+)$")
+NEXT_STEPS = ("To be written after verifying every finding: Fix commits, decisions, a confirmation round, "
+              "then Gate 4 in full.")
 BLOCKING = ("Critical", "Important")
 FENCE = re.compile(r"^(`{3,})")
 
@@ -186,7 +197,7 @@ def collect_facts(root: Path, epic_dir: str, base: str, hld_text: str, timeout: 
         cmd_code, cmd_out, cmd_err = run_gate(f"Integration: {cmd}", cmd, root, timeout, shell=True)
         results.append(fact(cmd, cmd_code, cmd_out, cmd_err))
         reports.extend(report.split())
-    roots = re.search(r"^Integration test roots:\s*(.+)$", hld_text, re.M)
+    roots = re.search(r"^Integration test roots:\s*(.+)$", hld_text, re.MULTILINE)
     if roots and reports:
         check = [sys.executable, str(SCRIPTS / "check_bdd_traceability.py"), "tests", "--scenarios",
                  f".devtool/epic/{epic_dir}/bdd_scenarios.en.md", "--roots", roots.group(1).strip(),
@@ -311,7 +322,11 @@ def render_round(number: int, meta: dict[str, str], findings: list[tuple[str, st
 
 
 def run(args: argparse.Namespace) -> int:
-    if not shutil.which(args.cli):
+    if args.cli == "ollama":
+        if not args.model:
+            print("--cli ollama needs --model", file=sys.stderr)
+            return 2
+    elif not shutil.which(args.cli):
         print(f"{args.cli} not found on PATH", file=sys.stderr)
         return 2
     root = Path(git_run(Path.cwd(), "rev-parse", "--show-toplevel").decode().strip())
@@ -319,6 +334,13 @@ def run(args: argparse.Namespace) -> int:
         print("commit or stash your changes before a review", file=sys.stderr)
         return 2
     sha = head_of(root)
+    model_ctx = None
+    if args.cli == "ollama":
+        try:
+            model_ctx = local_review.probe(args.host, args.model)
+        except local_review.LocalReviewError as error:
+            print_gate_banner(PreconditionFailedError("Ollama probe", str(error)), args.cli)
+            return 2
     hld_text = (root / ".devtool" / "epic" / args.epic_dir / f"{args.epic_dir}.en.md").read_text(encoding="utf-8")
     try:
         facts_timeout = getattr(args, "facts_timeout", 300)
@@ -326,9 +348,12 @@ def run(args: argparse.Namespace) -> int:
     except PreconditionFailedError as error:
         print_gate_banner(error, args.cli)
         return 2
+    if args.cli == "ollama":
+        return run_local(root, args, sha, audit_output, results_output, model_ctx)
     diff_limit = getattr(args, "diff_limit", MAX_DIFF_LINES)
     diff_section = build_diff_section(root, args.base, sha, max_lines=diff_limit)
     prompt = Template(PROMPT.read_text(encoding="utf-8")).safe_substitute(
+        rules=RULES.read_text(encoding="utf-8").strip(),
         sha=sha,
         base=args.base,
         epic_dir=f".devtool/epic/{args.epic_dir}",
@@ -339,34 +364,143 @@ def run(args: argparse.Namespace) -> int:
     )
     before = status_lines(root)  # after the facts: running the test commands may write build output
     code, out, err = execute(cli_command(args.cli, args.model), root, args.timeout, prompt)
-    after = status_lines(root)
-    output = out + (f"\n--- stderr ---\n{err}" if err.strip() else "")
-    if code is None:
-        output += f"\n--- timed out after {args.timeout} seconds ---\n"
-    changed = sorted(set(after) ^ set(before))
+    changed = tree_changes(root, before, sha)
+    return record_round(root, args, sha, [Pass("review", code, out, err, prompt)], changed, {})
+
+
+def live_log_dir(root: Path, epic_dir: str) -> Path:
+    """Where each pass streams its output: build/local-review/<epic_dir> when Git ignores it, else the Git directory.
+
+    Either place leaves `git status` untouched, so the logs never trip the tree-modified check."""
+    visible = root / "build" / "local-review" / epic_dir
+    if subprocess.run(["git", "check-ignore", "-q", str(visible)], cwd=root, check=False).returncode == 0:
+        return visible
+    return root / git_run(root, "rev-parse", "--git-path", f"local-review/{epic_dir}").decode().strip()
+
+
+def run_local(root: Path, args: argparse.Namespace, sha: str, audit_output: str, results_output: str,
+              model_ctx: int | None) -> int:
+    """Fit every slice before the first call, then review them one at a time; the first failed pass ends the run."""
+    ctx = args.num_ctx or model_ctx or local_review.DEFAULT_NUM_CTX
+    planned: list[tuple[local_review.Slice, str]] = []
+    try:
+        for slice_ in local_review.build_slices(root, args.epic_dir, args.base, sha, audit_output, results_output,
+                                                EXCLUDES):
+            system = local_review.render_system(slice_)
+            budget = int(ctx * local_review.PROMPT_SHARE) - local_review.estimate_tokens(system)
+            planned.append((local_review.fit(slice_, budget), system))
+    except local_review.LocalReviewError as error:
+        print_gate_banner(PreconditionFailedError("Context budget", str(error)), args.cli)
+        return 2
+    logs = live_log_dir(root, args.epic_dir)
+    logs.mkdir(parents=True, exist_ok=True)
+    print(f"{CYAN}Live logs:{RESET} {logs}", file=sys.stderr, flush=True)
+    before = status_lines(root)
+    passes: list[Pass] = []
+    for number, (slice_, system) in enumerate(planned, 1):
+        user = local_review.render_user(slice_)
+        prompt_tokens = local_review.estimate_tokens(system) + local_review.estimate_tokens(user)
+        options = local_review.chat_options(model_ctx, args.num_ctx, prompt_tokens)
+        print(f"{CYAN}⏳ [Pass {number}/{len(planned)}]{RESET} {slice_.label} ... ", end="", file=sys.stderr, flush=True)
+        started = time.monotonic()
+        reply = local_review.chat(args.host, args.model, system, user, options, args.timeout,
+                                  logs / f"{number}-{slice_.label}.log")
+        code = 0 if reply.error is None else None if reply.error.startswith("timed out") else 1
+        passes.append(Pass(slice_.label, code, reply.content, reply.error or "", user, slice_.omitted,
+                           reply.done_reason))
+        if reply.error is not None or reply.done_reason != "stop":
+            print(f"{RED}❌ {reply.error or f'done_reason {reply.done_reason}'}{RESET}", file=sys.stderr, flush=True)
+            break
+        print(f"{GREEN}✅ {round(time.monotonic() - started)}s{RESET}", file=sys.stderr, flush=True)
+    changed = tree_changes(root, before, sha)
+    return record_round(root, args, sha, passes, changed, {"Passes": str(len(planned)), "Context": str(ctx)})
+
+
+@dataclass(frozen=True)
+class Pass:
+    label: str
+    code: int | None  # 0 transport success, None timeout, otherwise failure
+    out: str  # the text the parser reads
+    err: str
+    shown: str  # what the reviewer was shown
+    omitted: tuple[str, ...] = ()
+    done_reason: str | None = None
+
+
+def tree_changes(root: Path, before: list[str], sha: str) -> list[str]:
+    """Status lines that appeared or vanished since `before`, led by HEAD when it moved."""
+    changed = sorted(set(status_lines(root)) ^ set(before))
     if head_of(root) != sha:
         changed.insert(0, "HEAD")
-    verdicts = [m.group(1).upper() for line in out.splitlines() if (m := VERDICT.match(line))]
-    final_verdict = verdicts[-1] if verdicts else None
-    findings = parse_findings(out, final_verdict)
+    return changed
+
+
+def path_of(location: str) -> str:
+    """The file a finding points at: its location before the first colon, without backticks."""
+    return location.split(":", 1)[0].strip().strip("`")
+
+
+def annotate(finding: tuple[str, str, str], shown: str) -> tuple[str, str, str]:
+    """Mark a blocking finding whose location path the reviewer was never shown; its severity stays."""
+    sev, loc, problem = finding
+    if sev in BLOCKING and loc != "unparsed" and path_of(loc) not in shown:
+        problem += " (location not shown to reviewer)"
+    return sev, loc, problem
+
+
+def pass_output(item: Pass, number: int, args: argparse.Namespace) -> str:
+    if args.cli == "ollama":
+        return f"### Pass {number}: {item.label}\n\n{item.out}" + (f"\n--- error ---\n{item.err}" if item.err.strip() else "")
+    output = item.out + (f"\n--- stderr ---\n{item.err}" if item.err.strip() else "")
+    if item.code is None:
+        output += f"\n--- timed out after {args.timeout} seconds ---\n"
+    return output
+
+
+def record_round(root: Path, args: argparse.Namespace, sha: str, passes: list[Pass],
+                 changed: list[str], extra: dict[str, str]) -> int:
+    """Append one round to review_results.md from every pass of a review; return the run's exit code."""
+    local = args.cli == "ollama"
+    verdicts: list[str | None] = []
+    findings: list[tuple[str, str, str]] = []
+    complete = True
+    for item in passes:
+        lines = item.out.splitlines()
+        marks = [(index, m.group(1).upper()) for index, line in enumerate(lines) if (m := VERDICT.match(line))]
+        verdict = marks[-1][1] if marks else None
+        if local:  # a draft line in the Analysis above the verdict block is never a finding
+            block = "\n".join(lines[marks[-1][0]:]) if marks else ""
+            found = [annotate(finding, item.shown) for finding in parse_findings(block, verdict)]
+        else:
+            found = parse_findings(item.out, verdict)
+        verdicts.append(verdict)
+        findings.extend(found)
+        complete = complete and item.code == 0 and verdict is not None \
+            and not (verdict == "CHANGES REQUIRED" and not found) and (not local or item.done_reason == "stop")
     if changed:
         status = f"discarded: tree modified ({', '.join(line[3:] if line != 'HEAD' else line for line in changed)})"
-    elif code != 0 or not verdicts or (verdicts[-1] == "CHANGES REQUIRED" and not findings):
-        status = "no verdict"
     else:
-        status = "completed"
+        status = "completed" if complete else "no verdict"
+    if "CHANGES REQUIRED" in verdicts:
+        verdict_text = "CHANGES REQUIRED"
+    else:
+        verdict_text = "PASS" if verdicts and None not in verdicts else "none"
     path = root / ".devtool" / "epic" / args.epic_dir / "review_results.md"
     existing = path.read_text(encoding="utf-8") if path.exists() else f"# Cross-Model Review: {args.epic_dir}\n"
     round_num = len(rounds_in(existing)) + 1
     meta = {
-        "Date": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "Date": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "SHA": sha,
         "Base": args.base,
         "CLI": args.cli,
         "Model": args.model or "default",
         "Status": status,
-        "Verdict": verdicts[-1] if verdicts else "none",
+        "Verdict": verdict_text,
+        **extra,
     }
+    if (omitted := "; ".join(f"{item.label}: {', '.join(item.omitted)}" for item in passes if item.omitted)):
+        meta["Omitted"] = omitted
+    output = "\n\n".join(pass_output(item, number, args) for number, item in enumerate(passes, 1))
     text = existing.rstrip("\n") + "\n\n" + render_round(round_num, meta, findings, output)
     path.write_text(text, encoding="utf-8")
     print(f"Round {round_num}: {status} ({path.relative_to(root)})")
@@ -393,22 +527,124 @@ def check(args: argparse.Namespace) -> int:
     return 1 if undecided else 0
 
 
+def round_meta(lines: list[str]) -> dict[str, str]:
+    """A round's `- **Key**: value` fields."""
+    return {m.group(1): m.group(2) for line in metadata(lines) if (m := META_LINE.match(line))}
+
+
+def round_output(lines: list[str]) -> str:
+    """The fenced raw output of a round, without its fence."""
+    body = lines[lines.index("Raw output:") + 1:] if "Raw output:" in lines else []
+    fences = [(index, match.group(1)) for index, line in enumerate(body) if (match := FENCE.match(line))]
+    if not fences:
+        return ""
+    start, fence = fences[0]
+    end = next((i for i in range(start + 1, len(body)) if body[i].rstrip() == fence), len(body))
+    return "\n".join(body[start + 1:end])
+
+
+def round_passes(output: str) -> list[tuple[str, str, str]]:
+    """(pass, verdict, error) for each `### Pass` block, or one `review` pass when there is none."""
+    blocks: list[tuple[str, list[str]]] = []
+    for line in output.splitlines():
+        if (header := PASS_HEADER.match(line)):
+            blocks.append((f"{header.group(1)} {header.group(2)}", []))
+        elif blocks:
+            blocks[-1][1].append(line)
+    rows = []
+    for name, lines in blocks or [("review", output.splitlines())]:
+        verdicts = [m.group(1).upper() for line in lines if (m := VERDICT.match(line))]
+        after = lines[lines.index("--- error ---") + 1:] if "--- error ---" in lines else []
+        rows.append((name, verdicts[-1] if verdicts else "none", after[0].strip() if after else "—"))
+    return rows
+
+
+def finding_rows(lines: list[str]) -> list[list[str]]:
+    return [cells for _, cells in table_findings(lines) if len(cells) == 5]
+
+
+def comparison_row(number: int, lines: list[str]) -> str:
+    meta, rows = round_meta(lines), finding_rows(lines)
+    counts = [sum(cells[1] == severity for cells in rows) for severity in ("Critical", "Important", "Minor")]
+    fixed = sum(cells[4].startswith("fixed in ") for cells in rows)
+    dismissed = sum(cells[4].startswith("dismissed: ") for cells in rows)
+    undecided = sum(cells[1] in BLOCKING and not cells[4].startswith(("fixed in ", "dismissed: ")) for cells in rows)
+    values = [str(number), f"{meta.get('CLI', '?')} / {meta.get('Model', '?')}", meta.get("SHA", "?")[:7],
+              meta.get("Status", "?"), meta.get("Verdict", "?"), *map(str, [*counts, fixed, dismissed, undecided])]
+    return "| " + " | ".join(cell(value) for value in values) + " |"
+
+
+def since_lines(previous: list[list[str]], latest: list[list[str]]) -> list[str]:
+    """What became of the previous round's blocking or fixed findings, compared by file path."""
+    lines = []
+    for cells in previous:
+        fixed = cells[4].startswith("fixed in ")
+        if cells[1] not in BLOCKING and not fixed:
+            continue
+        again = [f"#{row[0]}" for row in latest if path_of(row[2]) == path_of(cells[2])]
+        if again:
+            lines.append(f"- {cells[2]}: re-reported at the same path ({', '.join(again)})"
+                         + (" — check the fix" if fixed else ""))
+        else:
+            lines.append(f"- {cells[2]}: not re-reported")
+    return lines or ["No blocking or fixed finding in the previous round."]
+
+
+def triage(args: argparse.Namespace) -> int:
+    """Print the latest round as a skeleton to fill, verify and present before any action on its findings."""
+    root = Path(git_run(Path.cwd(), "rev-parse", "--show-toplevel").decode().strip())
+    path = root / ".devtool" / "epic" / args.epic_dir / "review_results.md"
+    rounds = rounds_in(path.read_text(encoding="utf-8")) if path.exists() else []
+    if not rounds:
+        print(f"no review round recorded for {args.epic_dir}", file=sys.stderr)
+        return 2
+    number, lines = rounds[-1]
+    meta = round_meta(lines)
+    out = [f"# Review Triage: {args.epic_dir}, Round {number}", "",
+           *(f"- **{key}**: {meta.get(key, '?')}" for key in ("SHA", "CLI", "Model", "Status", "Verdict")), "",
+           "## Passes", "", "| Pass | Verdict | Error |", "|------|---------|-------|",
+           *(f"| {cell(name)} | {verdict} | {cell(error)} |" for name, verdict, error in round_passes(round_output(lines))),
+           "", "## Findings", ""]
+    latest = finding_rows(lines)
+    if latest:
+        out += ["| # | Severity | Location | Problem | Assessment | Evidence | Proposed action |",
+                "|---|----------|----------|---------|------------|----------|-----------------|",
+                *(f"| {cells[0]} | {cells[1]} | {cell(cells[2])} | {cell(cells[3])} | ? | ? | ? |" for cells in latest)]
+    else:
+        out.append("None.")
+    out += ["", "## Round Comparison", "",
+            "| Round | CLI / Model | SHA | Status | Verdict | Critical | Important | Minor | Fixed | Dismissed | Undecided |",
+            "|-------|-------------|-----|--------|---------|----------|-----------|-------|-------|-----------|-----------|",
+            *(comparison_row(n, round_lines) for n, round_lines in rounds), ""]
+    if len(rounds) > 1:
+        out += [f"## Since Round {rounds[-2][0]}", "", *since_lines(finding_rows(rounds[-2][1]), latest)]
+    else:
+        out += ["## Since the Previous Round", "", "No earlier round."]
+    out += ["", "## Next Steps", "", NEXT_STEPS]
+    print("\n".join(out))
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     modes = parser.add_subparsers(dest="mode", required=True)
     runner = modes.add_parser("run", help="have the CLI review the epic and record a round")
     runner.add_argument("--epic-dir", required=True)
     runner.add_argument("--base", required=True)
-    runner.add_argument("--cli", required=True, choices=("claude", "codex"))
+    runner.add_argument("--cli", required=True, choices=("claude", "codex", "ollama"))
     runner.add_argument("--model")
+    runner.add_argument("--host", default=local_review.host_from_env())
+    runner.add_argument("--num-ctx", type=int, default=None)
     runner.add_argument("--timeout", type=int, default=1800)
     runner.add_argument("--facts-timeout", type=int, default=300)
     runner.add_argument("--diff-limit", type=int, default=MAX_DIFF_LINES)
     checker = modes.add_parser("check", help="list undecided blocking findings of the latest completed round")
     checker.add_argument("--epic-dir", required=True)
+    triager = modes.add_parser("triage", help="print the latest round as a skeleton to fill before acting on it")
+    triager.add_argument("--epic-dir", required=True)
     args = parser.parse_args(argv)
     try:
-        return run(args) if args.mode == "run" else check(args)
+        return {"run": run, "check": check, "triage": triage}[args.mode](args)
     except (ContractError, OSError) as error:
         print(f"error: {error}", file=sys.stderr)
         return 2

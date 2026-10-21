@@ -66,7 +66,7 @@ pass đó chạm tới.
 | # | Quyết định | Lý do |
 |---|------------|-------|
 | D1 | Local model review là **option 3** của Review Choice, tách khỏi option 2 | Nó khác loại (riêng tư, offline, model yếu hơn). Khuyến nghị cho fast executor vẫn chỉ vào option 2 |
-| D2 | Kênh gọi là `POST /api/chat` gốc của Ollama qua `urllib`, `stream: false` | Không thêm dependency; model không có tool nên review read-only ngay từ thiết kế |
+| D2 | Kênh gọi là `POST /api/chat` gốc của Ollama qua `urllib`, `stream: false`. Sửa đổi ở Stage 3: `stream: true`, để mỗi pass ghi log trực tiếp (xem HLD) | Không thêm dependency; model không có tool nên review read-only ngay từ thiết kế |
 | D3 | Mỗi commit của task một pass, cộng một pass epic, gộp thành một round | Một commit cho mỗi task khiến việc cắt lát tự nhiên; mỗi pass vừa context 32K–64K |
 | D4 | `--model` bắt buộc khi dùng `--cli ollama`; agent chạy `ollama list` rồi hỏi | Developer chọn reviewer, giống việc chọn CLI |
 | D5 | Modelfile của model quyết định sampling và context | `num_ctx` đọc từ `/api/show` và chỉ được gửi khi có `--num-ctx`, hoặc gửi 32768 khi Modelfile không đặt |

@@ -24,7 +24,7 @@ The complete human-facing lifecycle and resume diagrams live in [lifecycles.en.m
 
 1. **Stage 1 (Inception & Spec)**: `dev-brainstorming` -> Gate 1 approval -> Route to `dev-designer` (epic) or `writing-plans` (non-epic).
 2. **Stage 2 (Architecture & Tasks)**: `dev-designer` -> Gate 2 approval -> Handoff Choice (Package or Continue).
-3. **Stage 3 (Isolated Execution)**: `dev-implementation` -> Gate 3 (order confirmation) -> Task-by-task TDD in worktree -> Gate 4 machine acceptance -> Review Choice loop (Finish or Cross-model review) -> Gate 5 Kanban review.
+3. **Stage 3 (Isolated Execution)**: `dev-implementation` -> Gate 3 (order confirmation) -> Task-by-task TDD in worktree -> Gate 4 machine acceptance -> Review Choice loop (Finish, Cross-model review or Local model review) -> Gate 5 Kanban review.
 4. **Stage 4 (Finish Branch & Archival)**: `finishing-a-development-branch` -> Rebase, verify by tier, `--no-ff` merge, archive tasks into `.devtool/epic/<slug>/`.
 
 <HARD-GATE>
@@ -35,8 +35,8 @@ Plans go through `writing-plans` skill (non-epic) or `dev-designer` task files (
 If you find yourself about to write `implementation_plan.md`, STOP — you are bypassing a gate.
 
 Do NOT skip or auto-decide the Review Choice after Gate 4 passes.
-You MUST present the choice between "Finish" and "Cross-model review" on every Gate 4 PASS.
-Cross-model review returns to a full Gate 4 run, which presents the choice again until the developer selects Finish.
+You MUST present the choice between "Finish", "Cross-model review" and "Local model review" on every Gate 4 PASS.
+Cross-model review returns to a full Gate 4 run, which presents the choice again until the developer selects Finish. Local model review does the same.
 </HARD-GATE>
 
 ## Document Contract
@@ -129,15 +129,18 @@ Between Gate 2 and Stage 3 the developer decides when, and by whom, the epic is 
 After all tasks are complete, run Gate 4. On every PASS, present Review Choice:
 - **Option 1: Finish** -> Proceed to Gate 5 (Developer Kanban Review), then Stage 4.
 - **Option 2: Cross-model review** -> Invoke `run_external_review.py run` (prompting for Claude CLI or Codex CLI). Record round in `.devtool/epic/<epic_dir>/review_results.md`. Check unresolved findings with `run_external_review.py check --epic-dir <epic_dir>`. Any dismissed finding requires explicit developer instruction. Return to a full Gate 4 run on the new commit.
+- **Option 3: Local model review** -> Run `ollama list`, ask which model, then invoke `run_external_review.py run --cli ollama --model <model>`. A model served by the local Ollama reviews each task commit, then the epic, and one round is recorded in the same `review_results.md` under the same `check` rules. Return to a full Gate 4 run on the new commit.
+
+Every review round, option 2 or 3, is triaged before anyone acts on it: present `run_external_review.py triage --epic-dir <epic_dir>` filled as dev-implementation's `references/review-triage.md` says, and wait for the developer's decision on each finding.
 
 When an epic's tasks were executed by a fast executor model (e.g. Gemini Flash, Claude Haiku, GPT-4o-mini), the agent presents a strong recommendation in the Review Choice prompt:
-*"Tasks were executed by a fast executor model. Option 2: Cross-model review (Claude CLI or Codex CLI) is STRONGLY RECOMMENDED to audit test integrity and subtle regressions before finishing the branch."*
+*"Tasks were executed by a fast executor model. Option 2: Cross-model review (Claude CLI or Codex CLI) is STRONGLY RECOMMENDED to audit test integrity and subtle regressions before finishing the branch."* Local model review does not replace it.
 
-The invariant is **Gate 4 PASS → Review Choice; Finish → Gate 5; Cross-model review → Gate 4 in full**. Loop repeats until developer selects Finish.
-The review choice loop follows these exact transitions: `EXEC --> G4`, `G4 -->|"yes"| RC`, `RC -->|"1. Finish"| REVIEW`, and `XR -->|"round recorded"| G4`.
+The invariant is **Gate 4 PASS → Review Choice; Finish → Gate 5; Cross-model review → Gate 4 in full; Local model review → Gate 4 in full**. Loop repeats until developer selects Finish.
+The review choice loop follows these exact transitions: `EXEC --> G4`, `G4 -->|"yes"| RC`, `RC -->|"1. Finish"| REVIEW`, `XR -->|"round recorded"| G4`, `RC -->|"3. Local model review"| LR`, and `LR -->|"round recorded"| G4`.
 
 > [!CRITICAL]
-> **Mandatory Review Choice loop**: Once every task is `done`, run Gate 4. On PASS, the agent MUST stop calling tools and present Review Choice. Silently skipping the choice or assuming Finish is strictly prohibited. Cross-model review always returns to a full Gate 4 run before Review Choice is presented again.
+> **Mandatory Review Choice loop**: Once every task is `done`, run Gate 4. On PASS, the agent MUST stop calling tools and present Review Choice. Silently skipping the choice or assuming Finish is strictly prohibited. Cross-model review and Local model review always return to a full Gate 4 run before Review Choice is presented again.
 
 **Gate 4 Machine Acceptance Criteria:**
 Gate 4 grants `🟢 LGTM` only when:
@@ -191,6 +194,8 @@ Never advance on a partial pass or re-run isolated checks.
 - Skipping Review Choice after Gate 4 PASS or auto-selecting Finish.
 - Reusing a Gate 4 PASS after review rounds, finding decisions, or Fix commits change SHA.
 - Never pick the review CLI for the developer; picking the review CLI for the developer instead of prompting for Claude CLI or Codex CLI is forbidden.
+- Picking the Ollama model for the developer instead of running `ollama list` and asking.
+- Acting on review findings before presenting the triage from `run_external_review.py triage`.
 - Writing `dismissed` decisions in `review_results.md` without explicit developer words.
 - Merging to `develop` manually instead of through `integrate_branch.py land`.
 - Starting a task while integration with `develop` is failing.

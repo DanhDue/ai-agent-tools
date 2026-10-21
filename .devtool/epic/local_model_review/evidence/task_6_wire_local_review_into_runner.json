@@ -1,0 +1,329 @@
+{
+  "schema": 1,
+  "task": "task_6_wire_local_review_into_runner",
+  "runs": {
+    "red": {
+      "head": "a8a8eef150bf8a355e7ea1d08bc12c293d86a352",
+      "tree": "ad907edc35dc18e0a0b5479a1abea1bd2cbf3523",
+      "patch_id": "743c6d64ac252f30f31e2be581cda1862f9e0246",
+      "started": "2026-10-21T09:38:48Z",
+      "finished": "2026-10-21T09:38:53Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m unittest skills/dev-implementation/resources/scripts/test_local_review.py -k RunnerTest",
+          "expect": "exit 1; contains \"FAILED\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-21T09:38:48Z",
+          "finished": "2026-10-21T09:38:53Z",
+          "output_tail": [
+            "  File \"/Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/local_model_review/skills/dev-implementation/resources/scripts/run_external_review.py\", line 469, in main",
+            "    args = parser.parse_args(argv)",
+            "  File \"/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/argparse.py\", line 2003, in parse_args",
+            "    args, argv = self.parse_known_args(args, namespace)",
+            "                 ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^",
+            "  File \"/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/argparse.py\", line 2013, in parse_known_args",
+            "    return self._parse_known_args2(args, namespace, intermixed=False)",
+            "           ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+            "  File \"/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/argparse.py\", line 2042, in _parse_known_args2",
+            "    namespace, args = self._parse_known_args(args, namespace, intermixed)",
+            "                      ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+            "  File \"/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/argparse.py\", line 2274, in _parse_known_args",
+            "    positionals_end_index = consume_positionals(start_index)",
+            "  File \"/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/argparse.py\", line 2249, in consume_positionals",
+            "    take_action(action, args)",
+            "    ~~~~~~~~~~~^^^^^^^^^^^^^^",
+            "  File \"/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/argparse.py\", line 2118, in take_action",
+            "    action(self, namespace, argument_values, option_string)",
+            "    ~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+            "  File \"/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/argparse.py\", line 1314, in __call__",
+            "    subnamespace, arg_strings = subparser.parse_known_args(arg_strings, None)",
+            "                                ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^",
+            "  File \"/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/argparse.py\", line 2013, in parse_known_args",
+            "    return self._parse_known_args2(args, namespace, intermixed=False)",
+            "           ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+            "  File \"/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/argparse.py\", line 2044, in _parse_known_args2",
+            "    self.error(str(err))",
+            "    ~~~~~~~~~~^^^^^^^^^^",
+            "  File \"/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/argparse.py\", line 2780, in error",
+            "    self.exit(2, _('%(prog)s: error: %(message)s\\n') % args)",
+            "    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+            "  File \"/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/argparse.py\", line 2767, in exit",
+            "    _sys.exit(status)",
+            "    ~~~~~~~~~^^^^^^^^",
+            "SystemExit: 2",
+            "",
+            "----------------------------------------------------------------------",
+            "Ran 7 tests in 4.455s",
+            "",
+            "FAILED (errors=7)"
+          ],
+          "output_sha256": "727e5690c68333841841121a382ceeded6a2ce60178167a53c6c37f9ab73027c"
+        }
+      ]
+    },
+    "verify": {
+      "head": "a8a8eef150bf8a355e7ea1d08bc12c293d86a352",
+      "tree": "0cc46d40ec42fc61017651f0f486ff66a631514c",
+      "patch_id": "4f611e5d03b1fe54bf19d7d591e7fa464bde5b7f",
+      "started": "2026-10-21T09:40:13Z",
+      "finished": "2026-10-21T09:41:15Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m unittest skills/dev-implementation/resources/scripts/test_local_review.py -k RunnerTest",
+          "expect": "exit 0; contains \"OK\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-21T09:40:13Z",
+          "finished": "2026-10-21T09:40:26Z",
+          "output_tail": [
+            ".......",
+            "----------------------------------------------------------------------",
+            "Ran 7 tests in 12.930s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "1343f6675375dd6257200a62a6118a0280cf94ed94afb7f66500541d24db1cef"
+        },
+        {
+          "id": "V3",
+          "phase": "GREEN",
+          "command": "python3 -m unittest skills/dev-implementation/resources/scripts/test_run_external_review.py",
+          "expect": "exit 0; contains \"OK\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-21T09:40:26Z",
+          "finished": "2026-10-21T09:40:40Z",
+          "output_tail": [
+            "...............................",
+            "----------------------------------------------------------------------",
+            "Ran 31 tests in 14.237s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "9db0022f1a2ffd8571618a8b96de475e19d7fbc8e077b37988217371bb9bd6da"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "ruff check skills/dev-implementation/resources/scripts/run_external_review.py skills/dev-implementation/resources/scripts/local_review.py skills/dev-implementation/resources/scripts/test_local_review.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-21T09:40:40Z",
+          "finished": "2026-10-21T09:40:40Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-B",
+          "command": "mypy --strict --follow-imports=silent skills/dev-implementation/resources/scripts/run_external_review.py skills/dev-implementation/resources/scripts/local_review.py skills/dev-implementation/resources/scripts/test_local_review.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-21T09:40:40Z",
+          "finished": "2026-10-21T09:40:40Z",
+          "output_tail": [
+            "Success: no issues found in 3 source files"
+          ],
+          "output_sha256": "8228fcc5ce46d42d01caf3cd941f4e9c5f2bcc372bb5b147a2f0572d2dd675a8"
+        },
+        {
+          "id": "V6",
+          "phase": "TIER-C",
+          "command": "python3 scripts/run_unittest_junit.py --junitxml build/test-results/task_6.xml skills/dev-implementation/resources/scripts/test_local_review.py skills/dev-implementation/resources/scripts/test_run_external_review.py",
+          "expect": "exit 0; results build/test-results/task_6.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-21T09:40:40Z",
+          "finished": "2026-10-21T09:41:14Z",
+          "output_tail": [
+            ".............................",
+            "----------------------------------------------------------------------",
+            "Ran 29 tests in 19.459s",
+            "",
+            "OK",
+            "...............................",
+            "----------------------------------------------------------------------",
+            "Ran 31 tests in 14.392s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "d3e7e4ad12912960ac4a041d4c458dd2805ac173d832f82e0c5b8ba58e51e5dd",
+          "results": {
+            "path": "build/test-results/task_6.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 26,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_lmr_ec_05_platform_sections_follow_the_touched_extensions",
+                  "classname": "test_local_review.PromptBaseTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_lmr_hp_05_the_system_message_fits_its_pass_type",
+                  "classname": "test_local_review.PromptBaseTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_lmr_hp_07_every_quoted_platform_rule_exists_in_the_kit",
+                  "classname": "test_local_review.PromptBaseTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_lmr_ec_08_a_draft_finding_in_analysis_is_not_a_finding",
+                  "classname": "test_local_review.RoundTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_lmr_ec_09_dropped_files_reach_the_round_metadata",
+                  "classname": "test_local_review.RoundTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_lmr_fr_05_truncated_output_is_no_verdict",
+                  "classname": "test_local_review.RoundTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_lmr_fr_06_a_blocking_finding_at_an_unseen_path_is_annotated",
+                  "classname": "test_local_review.RoundTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_lmr_st_01_a_blocking_local_finding_holds_check_until_decided",
+                  "classname": "test_local_review.RoundTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_lmr_st_02_round_numbering_is_shared_across_reviewers",
+                  "classname": "test_local_review.RoundTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_lmr_ar_01_passes_run_one_at_a_time_in_commit_order",
+                  "classname": "test_local_review.RunnerTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_lmr_ar_02_the_timeout_applies_to_each_pass",
+                  "classname": "test_local_review.RunnerTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_lmr_ec_01_local_review_without_a_model_stops_first",
+                  "classname": "test_local_review.RunnerTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_lmr_fr_02_an_unreachable_server_stops_the_run_before_facts",
+                  "classname": "test_local_review.RunnerTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_lmr_fr_04_a_failing_pass_stops_the_run_and_records_what_it_has",
+                  "classname": "test_local_review.RunnerTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_lmr_fr_07_a_slice_that_cannot_fit_stops_the_run_before_any_chat",
+                  "classname": "test_local_review.RunnerTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_lmr_hp_03_a_local_review_of_a_two_task_epic_records_one_round",
+                  "classname": "test_local_review.RunnerTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_lmr_hp_02_shared_rules_reach_the_external_prompt",
+                  "classname": "test_local_review.SharedRulesTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_lmr_ec_03_an_oversized_task_diff_drops_its_largest_file_first",
+                  "classname": "test_local_review.SliceTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_lmr_ec_04_never_cut_content_larger_than_the_budget",
+                  "classname": "test_local_review.SliceTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_lmr_ec_06_a_legacy_task_joins_the_epic_slice",
+                  "classname": "test_local_review.SliceTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_lmr_hp_04_a_task_slice_carries_everything_the_reviewer_may_judge",
+                  "classname": "test_local_review.SliceTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_lmr_ec_02_context_defaults_and_overrides",
+                  "classname": "test_local_review.TransportTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_lmr_ec_07_inline_thinking_is_never_parsed",
+                  "classname": "test_local_review.TransportTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_lmr_fr_01_probe_failures_name_their_cause",
+                  "classname": "test_local_review.TransportTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_lmr_fr_03_transport_failures_become_replies",
+                  "classname": "test_local_review.TransportTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_lmr_hp_06_modelfile_governs_the_context",
+                  "classname": "test_local_review.TransportTest",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "skills/dev-implementation/resources/scripts/run_external_review.py",
+            "skills/dev-implementation/resources/scripts/test_local_review.py"
+          ],
+          "violations": []
+        }
+      ]
+    }
+  }
+}
