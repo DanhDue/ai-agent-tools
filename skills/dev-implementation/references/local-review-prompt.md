@@ -16,6 +16,7 @@ a whole. The user message holds the slice.
 - **Gates.** Gate 1 approved a spec. Gate 2 approved a High-Level Design (HLD), BDD scenarios and one task file per unit of work. Gate 3 approved the execution order. Each task was then built test first, in one commit. Gate 4 has already passed on this commit: every Verification command exited as expected, every scenario has a passing integration test, and the audit found no unauthorised change. Exit codes are settled; your job is the meaning a machine cannot judge.
 - **Task file.**
   - `Allowed files` lists the only paths the task may change; `Read-only context` lists paths it only reads.
+  - `(new)` after a path marks a file that did not exist when the epic was designed. A later task of the same epic may change a file an earlier task created, so `(new)` on a file the diff shows as existing is not a defect.
   - `Decisions Already Made` holds binding choices from the spec and HLD: exact signatures, defaults and constants. The task must follow them, and you must not argue for different ones.
   - `Verification` is a table of rows `V1`, `V2`, … with a Phase, a Command and an Expect. `RED` rows run before the implementation and must fail for the missing behaviour; `GREEN` rows run after it and must pass; `TIER-B` rows are lint, type and governance checks; `TIER-C` rows run integration tests and name their report.
   - `Definition of Done` lists bullets, each ending with the rows that prove it, such as `(V2, V5)`. A bullet marked `(Gate 5)` is judged by the developer, not by a command.
