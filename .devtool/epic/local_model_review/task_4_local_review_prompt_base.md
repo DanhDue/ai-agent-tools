@@ -1,13 +1,13 @@
 ---
 id: "task_4_local_review_prompt_base"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "local_model_review"
 dueDate: null
 created: "2026-10-21T09:10:00Z"
-modified: "2026-10-21T09:10:00Z"
-completedAt: null
+modified: "2026-10-21T09:35:17Z"
+completedAt: "2026-10-21T09:35:17Z"
 labels: ["review", "prompt", "ollama"]
 order: "a4"
 ---

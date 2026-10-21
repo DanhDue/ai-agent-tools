@@ -12,19 +12,30 @@ import os
 import re
 import urllib.error
 import urllib.request
+from collections.abc import Iterable
 from dataclasses import dataclass, replace
 from pathlib import Path
+from string import Template
 from typing import Any
 
 from check_bdd_traceability import FENCE, LEADING_TAG, SCENARIO_LINE, covers_of
-from task_contract import git_run
+from task_contract import git_run, section
 
 DEFAULT_HOST = "http://localhost:11434"
 DEFAULT_NUM_CTX = 32768
 PROMPT_SHARE = 0.6
 BYTES_PER_TOKEN = 3
 TAIL_LINES = 15
+EXTENSIONS = {".dart": "Flutter", ".kt": "Android", ".kts": "Android",
+              ".swift": "iOS", ".rs": "Rust", ".py": "Python"}
+PLATFORM_ORDER = ("Flutter", "Android", "iOS", "Rust", "Python")
 DIFF_HEADER = re.compile(r"^diff --git a/.* b/(.*)$")
+
+REFERENCES = Path(__file__).resolve().parent.parent.parent / "references"
+PROMPT = REFERENCES / "local-review-prompt.md"
+CHECKLISTS = REFERENCES / "local-review-checklists.md"
+PLATFORMS = REFERENCES / "local-review-platforms.md"
+RULES = REFERENCES / "review-rules.md"
 
 
 class LocalReviewError(Exception):
@@ -277,3 +288,21 @@ def fit(slice_: Slice, budget_tokens: int) -> Slice:
         fitted = replace(fitted, parts=tuple(kept for kept in fitted.parts if kept is not part),
                          omitted=fitted.omitted + (part.name,))
     return fitted
+
+
+def platform_sections(paths: Iterable[str]) -> list[str]:
+    """The platform rule sections for the file extensions among the paths, each with its heading."""
+    present = {EXTENSIONS[suffix] for path in paths if (suffix := Path(path).suffix) in EXTENSIONS}
+    text = PLATFORMS.read_text(encoding="utf-8")
+    return [f"## {name}\n{section(text, name) or ''}".strip() for name in PLATFORM_ORDER if name in present]
+
+
+def render_system(slice_: Slice) -> str:
+    """The prompt base with the shared rules, this slice's platform rules and its pass checklist."""
+    checklist = "Task pass" if slice_.kind == "task" else "Epic pass"
+    checklists = CHECKLISTS.read_text(encoding="utf-8")
+    return Template(PROMPT.read_text(encoding="utf-8")).safe_substitute(
+        rules=RULES.read_text(encoding="utf-8").strip(),
+        platform_rules="\n\n".join(platform_sections(slice_.paths)) or "No platform rules apply to this slice.",
+        checklist=f"## {checklist}\n{section(checklists, checklist) or ''}".strip(),
+    )

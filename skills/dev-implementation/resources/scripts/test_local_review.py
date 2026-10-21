@@ -7,6 +7,7 @@ Run: python3 -m unittest skills/dev-implementation/resources/scripts/test_local_
 """
 import json
 import os
+import re
 import socket
 import sys
 import tempfile
@@ -21,6 +22,7 @@ from unittest import mock
 sys.path.insert(0, str(Path(__file__).parent))
 import local_review
 from run_external_review import EXCLUDES
+from task_contract import section
 from test_run_external_review import ReviewCase, git
 
 EPIC = ".devtool/epic/demo"
@@ -285,6 +287,62 @@ class SliceTest(EpicRepoCase):
         floor = local_review.fit(epic, full - 1600)
         self.assertEqual(floor.omitted, (f"{short} Legacy work", "2026-01-01-demo-design.en.md", "demo.en.md"))
         self.assertIn("audit-output", section_of(local_review.render_user(floor), "## Audit"))
+
+
+SKILLS = Path(__file__).resolve().parents[3]
+REFERENCES = SKILLS / "dev-implementation" / "references"
+RULE_ID = re.compile(r"`([A-Z]+(?:-[A-Z]+)*-\d{2})`")
+BOLD = re.compile(r"\*\*(.+?)\*\*")
+
+
+class PromptBaseTest(unittest.TestCase):
+    def platforms(self) -> str:
+        return (REFERENCES / "local-review-platforms.md").read_text(encoding="utf-8")
+
+    def test_lmr_hp_05_the_system_message_fits_its_pass_type(self) -> None:
+        task = local_review.Slice("task_1_demo", "task", ("lib/a.dart",), ())
+        system = local_review.render_system(task)
+        checklists = (REFERENCES / "local-review-checklists.md").read_text(encoding="utf-8")
+        for expected in ("Decisions Already Made", "No Reconstructed Logic", "Verdict: PASS",
+                         local_review.platform_sections(["lib/a.dart"])[0], "## Task pass",
+                         (section(checklists, "Task pass") or "missing").strip()):
+            self.assertIn(expected, system)
+        for placeholder in ("$rules", "$platform_rules", "$checklist"):
+            self.assertNotIn(placeholder, system)
+        epic = local_review.render_system(local_review.Slice("epic", "epic", (), ()))
+        self.assertIn("## Epic pass", epic)
+        self.assertIn((section(checklists, "Epic pass") or "missing").strip(), epic)
+        self.assertNotIn("## Task pass", epic)
+
+    def test_lmr_hp_07_every_quoted_platform_rule_exists_in_the_kit(self) -> None:
+        audits = {name: (SKILLS / name / "SKILL.md").read_text(encoding="utf-8")
+                  for name in ("architecture-audit", "code-health-audit", "security-audit")}
+        rows = [line for text in audits.values() for line in text.splitlines() if "Blocker" in line]
+        for platform, family in (("Flutter", "-FLUTTER-"), ("Android", None), ("iOS", "-IOS-")):
+            ids = RULE_ID.findall(section(self.platforms(), platform) or "")
+            self.assertGreater(len(ids), 0, platform)
+            for rule in ids:
+                self.assertTrue(any(f"**{rule}**" in row for row in rows), f"{rule} is not a Blocker row")
+                if family:
+                    self.assertIn(family, rule)
+                else:
+                    self.assertNotRegex(rule, "-(FLUTTER|IOS)-")
+        for platform, reference, count in (
+                ("Rust", "rust-quality-check/references/rust-architecture-governance.md", 5),
+                ("Python", "python-quality-check/references/python-architecture-governance.md", 4)):
+            names = BOLD.findall(section(self.platforms(), platform) or "")
+            self.assertEqual(len(names), count, platform)
+            source = (SKILLS / reference).read_text(encoding="utf-8")
+            for name in names:
+                self.assertIn(f"**{name}**", source)
+
+    def test_lmr_ec_05_platform_sections_follow_the_touched_extensions(self) -> None:
+        found = local_review.platform_sections(["app/lib/a.dart", "native/src/b.rs"])
+        self.assertEqual([text.splitlines()[0] for text in found], ["## Flutter", "## Rust"])
+        self.assertEqual(local_review.platform_sections(["README.md", "web/x.ts"]), [])
+        self.assertEqual(len(local_review.platform_sections(["a/B.kt", "build.gradle.kts"])), 1)
+        system = local_review.render_system(local_review.Slice("task_1_demo", "task", ("README.md", "web/x.ts"), ()))
+        self.assertIn("No platform rules apply to this slice.", system)
 
 
 class SharedRulesTest(ReviewCase):
