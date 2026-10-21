@@ -251,6 +251,7 @@ python3 -m unittest skills/dev-implementation/resources/scripts/test_check_bdd_t
 python3 -m unittest skills/dev-implementation/resources/scripts/test_check_task_contract.py || FAILED=1
 python3 -m unittest skills/dev-implementation/resources/scripts/test_result_reports.py || FAILED=1
 python3 -m unittest skills/dev-implementation/resources/scripts/test_run_external_review.py || FAILED=1
+python3 -m unittest skills/dev-implementation/resources/scripts/test_local_review.py || FAILED=1
 python3 -m unittest skills/dev-implementation/resources/scripts/test_run_task_checks.py || FAILED=1
 python3 -m unittest skills/dev-implementation/resources/scripts/test_sync_task_status.py || FAILED=1
 python3 -m unittest scripts/test_run_unittest_junit.py || FAILED=1

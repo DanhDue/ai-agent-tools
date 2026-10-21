@@ -220,6 +220,37 @@ class LifecycleDocumentContractTest(unittest.TestCase):
         self.assertTrue(bool(re.search(r"reconstructed\s+logic.*FAIL", text, re.IGNORECASE | re.DOTALL)))
         self.assertTrue(bool(re.search(r"synthetic.*artifact.*FAIL", text, re.IGNORECASE | re.DOTALL)))
 
+    def test_lmr_hp_01_review_choice_presents_three_options(self) -> None:
+        """[LMR-HP-01] Review Choice offers Finish, Cross-model review and Local model review everywhere it is stated."""
+        for relative in ("skills/dev-implementation/SKILL.md", "skills/dev-lifecycle/SKILL.md",
+                         "rules/CRITICAL_RULES.md", "docs/lifecycles.en.md", "docs/lifecycles.vi.md"):
+            text = (ROOT / relative).read_text(encoding="utf-8")
+            for option in ("Finish", "Cross-model review", "Local model review"):
+                self.assertIn(option, text, f"{relative} does not name {option}")
+        implementation = (ROOT / "skills/dev-implementation/SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("--cli ollama --model <model>", implementation)
+        self.assertIn("ollama list", implementation)
+        lifecycle = (ROOT / "skills/dev-lifecycle/SKILL.md").read_text(encoding="utf-8")
+        red_flags = lifecycle.split("## Red Flags", 1)[1].split("\n## ", 1)[0]
+        self.assertIn("Picking the Ollama model for the developer", red_flags)
+
+    def test_lmr_st_03_local_model_review_returns_to_gate_4(self) -> None:
+        """[LMR-ST-03] Local model review returns through its round-recorded edge to Gate 4 in full, never to Gate 5."""
+        implementation = (ROOT / "skills/dev-implementation/SKILL.md").read_text(encoding="utf-8")
+        self.assertIn('choice -- "Local model review" --> localreview', implementation)
+        self.assertIn('localreview -- "round recorded" --> phase4', implementation)
+        self.assertNotRegex(implementation, r"localreview -- [^\n]*--> checkpoint4")
+        lifecycle = (ROOT / "skills/dev-lifecycle/SKILL.md").read_text(encoding="utf-8")
+        for text in (implementation, lifecycle):
+            self.assertIn("Local model review → Gate 4 in full", text)
+        for relative, label in (("skills/dev-lifecycle/SKILL.md", "round recorded"),
+                                ("docs/lifecycles.en.md", "round recorded"),
+                                ("docs/lifecycles.vi.md", "đã ghi nhận round")):
+            text = (ROOT / relative).read_text(encoding="utf-8")
+            self.assertIn('RC -->|"3. Local model review"| LR', text, relative)
+            self.assertIn(f'LR -->|"{label}"| G4', text, relative)
+            self.assertNotRegex(text, r"LR -->\|[^|]*\| (REVIEW|G5)", relative)
+
     def test_document_contract_expected_tokens(self) -> None:
         for relative_path, required_tokens in EXPECTED.items():
             path = ROOT / relative_path

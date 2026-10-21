@@ -1,0 +1,429 @@
+{
+  "schema": 1,
+  "task": "task_7_review_choice_workflow_and_acceptance",
+  "runs": {
+    "red": {
+      "head": "dab0f313d35df46a6f427075ada91724f0217232",
+      "tree": "9879d2ae4fc681e0ebcbfa96a44806f9efe417d4",
+      "patch_id": "3b6523fd4452e837c30ef4c94ee57e9ba8c4beb3",
+      "started": "2026-10-21T09:42:06Z",
+      "finished": "2026-10-21T09:42:06Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m unittest scripts/test_lifecycle_document_contract.py -k lmr",
+          "expect": "exit 1; contains \"FAILED\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-21T09:42:06Z",
+          "finished": "2026-10-21T09:42:06Z",
+          "output_tail": [
+            "FF",
+            "======================================================================",
+            "FAIL: test_lmr_hp_01_review_choice_presents_three_options (scripts.test_lifecycle_document_contract.LifecycleDocumentContractTest.test_lmr_hp_01_review_choice_presents_three_options)",
+            "[LMR-HP-01] Review Choice offers Finish, Cross-model review and Local model review everywhere it is stated.",
+            "----------------------------------------------------------------------",
+            "Traceback (most recent call last):",
+            "  File \"/Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/local_model_review/scripts/test_lifecycle_document_contract.py\", line 229, in test_lmr_hp_01_review_choice_presents_three_options",
+            "    self.assertIn(option, text, f\"{relative} does not name {option}\")",
+            "    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+            "AssertionError: 'Local model review' not found in '---\\nname: dev-implementation\\ndescription: Use when an epic already has an approved HLD and Kanban task files (`.devtool/epic/<epic_dir>/` + `.devtool/features/task_*.md`) and you need to actually execute those tasks against the codebase, in the right order, inside an isolated worktree across Web Applications, Flutter, Android Native, iOS Native, Python, or Rust projects.\\n---\\n\\n# Development Implementation\\n\\n## Overview\\n\\nRuns an already-approved epic\\'s Kanban tasks end-to-end: reload the epic\\'s own docs for context, detect the platform (Flutter, Android Native, iOS Native, Web, Python, or Rust), compute a dependency-safe execution order, bootstrap one worktree that can actually build this project, then drive each task sequentially through `d3nexus:subagent-driven-development` with exactly one commit per task.\\n\\n**Core principle:** One worktree, one task at a time, one commit per task, docs stay truthful.\\n\\n**Announce at start:** \"I\\'m using the dev-implementation skill to implement the `<epic_slug>` epic.\"\\n\\n## Two Placeholders, Not One\\n\\nThis skill uses two distinct placeholders, and **they are usually different strings** — do not substitute one for the other:\\n\\n| Placeholder | What it is | Where it appears | Worked example |\\n|-------------|-----------|------------------|----------------|\\n| `<epic_dir>` | The epic\\'s directory name on disk | `.devtool/epic/<epic_dir>/<epic_dir>.en.md`, the worktree directory name | `logging_refactor` (underscores) |\\n| `<epic_slug>` | The epic\\'s frontmatter `epic:` value | The calculator\\'s CLI arg, matching `epic:` in `task_*.md`, the `epic/<epic_slug>` branch name, the `[EPIC_NAME]` commit prefix | `logging-refactor` (hyphens) |\\n\\nRead both values off disk at the start — never derive one from the other by guessing the separator.\\n\\n## When to Use\\n\\n- The epic has a `.devtool/epic/<epic_dir>/<epic_dir>.en.md` HLD and one or more `.devtool/features/task_*.md` files with `epic: \"<epic_slug>\"` in frontmatter, and a human has already approved that design.\\n- You are about to implement more than one task from that epic in this session.\\n- You are resuming an epic — packaged (`handoff.md` present, Status `Packaged`) or interrupted midway through Stage 3. Invoke this skill with the epic\\'s directory name or slug; Entry-Point Detection in Phase 0 decides where to start.\\n\\n**Don\\'t use when:** the epic/tasks don\\'t exist yet (use `d3nexus:dev-brainstorming` then `dev-designer` first), or you\\'re implementing a single one-off task with no epic context (just use `d3nexus:subagent-driven-development` directly).\\n\\n## Process\\n\\nThis skill is **Stage 3** of the Epic Lifecycle. The surrounding stages, the five approval gates, and what each stage hands over are owned by the [`dev-lifecycle`](../dev-lifecycle/SKILL.md) skill (with diagrams preserved in `docs/lifecycles.en.md`). Gate 3 (execution order confirmed) is enforced below, in Phase 1.\\n\\n### Phase 0 — Context Reload & Platform Detection (once, not per task)\\n\\n0. **Resolve the epic.** This skill takes one epic name, in either form:\\n   - If `.devtool/epic/<name>/` exists, `<epic_dir>` is `<name>`, and `<epic_slug>` is the `epic:` value of its task mirrors: `grep -h -m1 \\'^epic:\\' .devtool/epic/<name>/task_*.md`.\\n   - Otherwise `<name>` is a slug, and `<epic_dir>` is the directory holding the files `grep -l -F \\'epic: \"<name>\"\\' .devtool/epic/*/task_*.md` lists.\\n   - With no name, or no match, list the epic directories whose overview Status is not `Done` and ask which one. Never guess, even when only one is listed.\\n1. Read, in full:\\n   - `.devtool/epic/<epic_dir>/<epic_dir>.en.md` (the canonical HLD — never `.vi.md` for decisions, that\\'s a synced translation).\\n   - `.devtool/epic/<epic_dir>/bdd_scenarios.en.md` (the canonical behavioral contract across the 5 dimensions, if present; `.vi.md` is its synchronized translation).\\n   - Every `.devtool/features/task_*.md` whose frontmatter `epic:` matches `<epic_slug>`.\\n   - Any spec file(s) linked from the HLD\\'s Meta Data section.\\n   - `.devtool/epic/<epic_dir>/handoff.md`, when present — the packaging record. Use its Open Notes as context; it is never updated after packaging.\\n\\n#### Bounded Context Injection & Spec Fidelity\\n\\nBefore implementing any task, the executor MUST adhere strictly to the 3-step Bounded Context Injection protocol:\\n1. Read the active task file (`.devtool/features/task_*.md`).\\n2. Read the Allowed files and Read-only context listed in the task file.\\n3. Look up exact symbols and architectural choices declared in `Decisions Already Made`; do not perform undirected whole-repository searches.\\n\\n**Strict Spec Fidelity**: Implement strictly within the boundaries specified by the active task and its Allowed files. Do not add speculative abstractions, configurability, or adjacent refactoring not requested by the task specification.\\n\\n2. Resolve the three paths the rest of this skill uses. `SKILL_DIR` is the directory this `SKILL.md` was loaded from:\\n   ```bash\\n   SKILL_DIR=<absolute path of the directory containing this SKILL.md>\\n   REPO_ROOT=$(git rev-parse --show-toplevel)\\n   INTEGRATE=\"$SKILL_DIR/../finishing-a-development-branch/resources/scripts/integrate_branch.py\"\\n   ```\\n3. Detect the platform:\\n   ```bash\\n   PROJECT_TYPE=$(\"$SKILL_DIR\"/resources/scripts/detect_project_type.sh \"$REPO_ROOT\")\\n   echo \"Detected project type: $PROJECT_TYPE\"\\n   ```\\n   Supported platforms: `flutter`, `android`, `ios`, `web`, `python`, `rust`.\\n4. Run **Entry-Point Detection** before Phase 1. It decides whether Phase 1 starts fresh or the Resume Procedure takes over.\\n\\n#### Entry-Point Detection\\n\\nRead these signals, all read-only, from the main checkout:\\n\\n```bash\\ntest -f .devtool/epic/<epic_dir>/handoff.md && echo packaged-handoff\\ngrep -m1 -E \\'^- \\\\*\\\\*Status\\\\*\\\\*:\\' .devtool/epic/<epic_dir>/<epic_dir>.en.md\\ngit rev-parse --verify --quiet refs/heads/epic/<epic_slug>\\nfor remote in $(git remote); do git ls-remote --heads \"$remote\" \"epic/<epic_slug>\"; done\\ngit worktree list --porcelain | grep -E \\'^worktree .*/\\\\.worktrees/<epic_dir>$\\'\\npython3 \"$SKILL_DIR\"/resources/scripts/compute_execution_order.py <epic_slug> \\\\\\n  --features-dir .devtool/epic/<epic_dir>\\n```\\n\\n`git ls-remote` asks each remote directly, so an epic branch pushed from another clone shows before any fetch; if a remote cannot be reached, fall back to `git branch -r --list \\'*/epic/<epic_slug>\\'`. The last command reads the epic\\'s task mirrors (`sync_task_status.py` keeps them in step with `.devtool/features/` and `.devtool/features/done/`); its flattened order prints each task\\'s status as `[priority, status]`. Evaluate the rows top-down — first match wins — and announce it: \"Entry point: row N — <state>.\"\\n\\n| # | Signals | State | Entry point |\\n|---|---------|-------|-------------|\\n| 1 | Overview Status is `Done` | Finished, or Stage 4 interrupted | With no epic branch left, report finished and stop. With epic branch still present, Stage 4 was interrupted or its PR is still open: report and ask |\\n| 2 | No epic branch, and any task is `backlog` | Queued behind another epic | Stop. Flipping `backlog` to `todo` is developer\\'s call |\\n| 3 | No epic branch locally or on remote, no worktree, every task `todo` | Not started — packaged if `handoff.md` exists | Phase 1 as written: Gate 3, then new worktree |\\n| 4 | Epic branch exists, no worktree, some task not `done` | Interrupted, worktree removed | Resume Procedure |\\n| 5 | Worktree exists, some task not `done` | Interrupted midway through Stage 3 | Resume Procedure |\\n| 6 | Epic branch exists, every task `done` | Tasks finished | Recreate worktree if missing (`git worktree add .worktrees/<epic_dir> epic/<epic_slug>`, no `-b`) and bootstrap (Phase 1 step 5), run Resume Procedure preflight (step 2), then Phase 4 in full; its PASS presents Review Choice |\\n| 7 | Anything else — branch only on remote, or tasks `in-progress` or `done` with no epic branch | Inconsistent | Stop, report signals, ask |\\n\\n#### Resume Procedure\\n\\nFor rows 4 and 5. Phase 1 step 4\\'s `git worktree add -b` never runs here.\\n\\n1. Row 4 only: recreate worktree from existing branch, `git worktree add .worktrees/<epic_dir> epic/<epic_slug>` with no `-b`. For rows 4 and 5, check bootstrap with Phase 1 step 5\\'s platform checks and re-run if needed.\\n2. In the worktree, run `python3 \"$INTEGRATE\" preflight --base develop`. A rebase in progress, or diverged base, is handled per Phase 2 step 7 before anything else.\\n3. Find the interrupted task: one at `in-progress` or `review`. If worktree has uncommitted changes, collect `git status --short`.\\n4. **Gate 3 (resume).** Check mirror scan summary against task mirror count and read Manual review advised section. Run Phase 1 step 3\\'s BDD mapping check and task contract check, including retrofit if needed. Commit any retrofit on epic branch staging only touched files (both `bdd_scenarios`, both HLD variants, task files — never `git add -A`). The interrupted task\\'s own status fields may ride along in that commit; that is expected. Present tasks already `done` with commits (`git log --oneline develop..epic/<epic_slug>`), remaining order with `done` tasks removed, choice on uncommitted changes (keep or discard), and request permission to fast-forward `develop`. Wait for confirmation.\\n5. If overview Status begins with `Packaged`, run `python3 \"$SKILL_DIR\"/resources/scripts/sync_task_status.py epic <epic_dir> \"In Progress\"`.\\n6. Enter Phase 2 at the interrupted task — a task at `review` re-enters at Phase 2 step 2; a task at `in-progress` resumes implementation with kept changes — or at the first remaining task.\\n\\n### Phase 1 — Execution Plan\\n\\n1. Run:\\n   ```bash\\n   python3 \"$SKILL_DIR\"/resources/scripts/compute_execution_order.py <epic_slug>\\n   ```\\n   Check scan summary line (`Scanned N task_*.md files; M matched epic ...`). If `M` is smaller than expected, fix broken frontmatter before proceeding.\\n2. Read \"Manual review advised\" section (if any) and cross-check against Phase 0 context. Adjust flattened order by hand if a prose note should win.\\n3. **Checkpoint (Gate 3):** present the final order to user and get confirmation before touching git.\\n   In the same message, ask once for permission to fast-forward local `develop` from its upstream for the rest of this epic (Phase 1 step 4 and Phase 2 step 7).\\n\\n   Before presenting order, run BDD traceability plan check:\\n   ```bash\\n   python3 \"$SKILL_DIR\"/resources/scripts/check_bdd_traceability.py plan \\\\\\n     --scenarios .devtool/epic/<epic_dir>/bdd_scenarios.en.md \\\\\\n     --tasks .devtool/epic/<epic_dir>/task_*.md\\n   ```\\n   If needed, add bracketed identifiers to `bdd_scenarios.*.md`, `Covers:` lines to task files, and `Integration test roots:` to HLD. Commit as `[EPIC_NAME] Add BDD scenario identifiers`.\\n\\n   Then check task contract:\\n   ```bash\\n   python3 \"$SKILL_DIR\"/resources/scripts/check_task_contract.py \\\\\\n     --hld .devtool/epic/<epic_dir>/<epic_dir>.en.md \\\\\\n     --tasks .devtool/epic/<epic_dir>/task_*.md\\n   ```\\n   Do not create worktree until both checks exit 0 and developer has confirmed the order.\\n\\n#### Phase 1 (continued) — Worktree Bootstrap, once the order is confirmed\\n\\n4. Bring local `develop` up to date with upstream, then create one worktree for whole epic (`d3nexus:using-git-worktrees`):\\n   ```bash\\n   python3 \"$INTEGRATE\" sync-base --base develop\\n   git worktree add .worktrees/<epic_dir> -b epic/<epic_slug> develop\\n   ```\\n   If `sync-base` exits 3 (diverged or dirty file), stop and ask.\\n   If overview Status begins with `Packaged`, run `python3 \"$SKILL_DIR\"/resources/scripts/sync_task_status.py epic <epic_dir> \"In Progress\"`.\\n5. Bootstrap worktree using platform tooling (`bootstrap_worktree.sh`, Gradle sync, Tuist, npm/pnpm, uv sync, cargo check).\\n6. Never copy build caches (`.dart_tool/`, `/build/`, `.build/`, `android/**/.cxx/`) from another checkout into this worktree.\\n\\n### Phase 2 — Sequential Task Execution\\n\\nFor each task in confirmed order, follow `d3nexus:subagent-driven-development`.\\n\\n0. **Pre-Edit Verification (Impact & Conflict Check)**:\\n   ```bash\\n   python3 skills/impact-analysis/resources/scripts/check_code_impact.py \\\\\\n     --files <target_files> \\\\\\n     --symbols <target_symbols> \\\\\\n     --base-ref <base_ref>\\n   ```\\n   - If `🔴 DIVERGENCE DETECTED`: **HALT IMMEDIATELY**. Run step 7 (Integrate with develop) now, then rerun check.\\n   - If `⚠️ UNPROTECTED CODE (0% Coverage)`: Author baseline characterization unit tests first.\\n\\n1. **Live Dual-Workspace Kanban Status (In-Progress)**:\\n   ```bash\\n   python3 skills/dev-implementation/resources/scripts/sync_task_status.py task <task_id> in-progress\\n   ```\\n\\n   **Test Assertion Health Rule**: When authoring tests verifying build artifacts, never assert conditions only inside `if path.exists()` without asserting evaluated counts. Always assert `found > 0`.\\n\\n   **Tri-Persona Subagent Execution Model**:\\n   When dispatching implementer subagent, operate across the 3-Tier Testing Standard:\\n   1. **Expert QA (Red Team Persona)**: Authors BDD Scenarios in complete isolation from coding, purely from HLD and `bdd_scenarios.en.md`, applying 5 dimensions: Happy Paths, Edge Cases & Boundaries, State Transitions, Async / Race Conditions, Failures & Resilience. Categorizes scenarios into `[Tier A - Unit]` vs `[Tier C - Integration]`.\\n   2. **Principal Engineer (TDD Master Persona — Tier A)**: Implements unit logic, state emissions, and hermetic tests using platform tools (Dart/Flutter, Kotlin/Compose, Swift/SwiftUI, TypeScript/Web, Python/pytest, Rust/cargo). Enforces RED failing test first -> minimal GREEN code -> REFACTOR formatting, linter, strict types.\\n   3. **System Integration & E2E Engineer (Tier C Persona)**: Implements host integration flow tests (`integration_test/`, `*FlowTest.kt`, `App/Tests`, `tests/e2e/`, `tests/integration/`) connecting DI, navigation, and persistence contracts.\\n\\n   > [!CRITICAL]\\n   > ### 🎯 MANDATORY 100% BDD-TO-TEST TRACEABILITY RULE\\n   > 1. **100% Scenario Traceability**: Every single BDD scenario authored in Phase 1 MUST map directly to at least one concrete automated test function or test block.\\n   > 2. **Tier Separation**: `[Tier A - Unit]` covered 100% by unit tests; `[Tier C - Integration]` covered 100% by host integration flow tests. Mocks do NOT substitute for Tier C integration tests.\\n   > 3. **BDD Automation (Tier C, all platforms)**: For every identifier on task\\'s `Covers:` line, author at least one integration test under HLD\\'s `Integration test roots`, carrying the identifier in test name, description, or tag.\\n   > 4. **Gate to Done**:\\n   >    ```bash\\n   >    python3 \"$SKILL_DIR\"/resources/scripts/run_task_checks.py red <task mirror>     # before implementing (exits 0 on expected fail)\\n   >    python3 \"$SKILL_DIR\"/resources/scripts/run_task_checks.py verify <task mirror>  # after last change (exits 0 with all pass)\\n   >    python3 \"$SKILL_DIR\"/resources/scripts/run_task_checks.py status <task mirror>  # prints done gate: PASS\\n   >    ```\\n   >    Never edit `.devtool/epic/<epic_dir>/evidence/<task_id>.json` by hand. `sync_task_status.py task <id> done` refuses unless evidence matches tree and table.\\n   >    When task has `Covers:` line, run traceability check (exit 0):\\n   >    ```bash\\n   >    python3 \"$SKILL_DIR\"/resources/scripts/check_bdd_traceability.py tests \\\\\\n   >      --scenarios .devtool/epic/<epic_dir>/bdd_scenarios.en.md \\\\\\n   >      --roots <Integration test roots from the HLD> \\\\\\n   >      --ids <identifiers on the task\\'s Covers: line>\\n   >    ```\\n   > 5. **Stop and Report**: A `Stop and Report If` condition in task is reported as `BLOCKED`. Never edit Verification table, Definition of Done, Allowed files or Covers line, or protected path, to force a pass.\\n\\n2. When implementer reports `DONE`, synchronize review status:\\n   ```bash\\n   python3 skills/dev-implementation/resources/scripts/sync_task_status.py task <task_id> review\\n   ```\\n3. If review finds issues, cycle between `status: \"in-progress\"` and `status: \"review\"`.\\n4. When both reviews pass, `run_task_checks.py status <task mirror>` prints `done gate: PASS` and `check_bdd_traceability.py tests --ids` exits 0, update status to `done`:\\n   ```bash\\n   python3 skills/dev-implementation/resources/scripts/sync_task_status.py task <task_id> done\\n   ```\\n   This moves `.devtool/features/<task_id>.md` into `.devtool/features/done/`.\\n5. Make exactly one commit staging code, task file, and evidence file (`.devtool/epic/<epic_dir>/evidence/<task_id>.json`):\\n   ```bash\\n   git status                                    # check nothing unrelated is pending\\n   git add -A                                    # code changes + .devtool/features/ + evidence\\n   git commit -m \"[EPIC_NAME] <task_title>\" -m \"- <subtask 1>\\n   - <subtask 2>\"\\n   ```\\n   No trailers (no `Co-Authored-By`).\\n6. If implementation diverged from HLD, perform Phase 3 Doc Sync before next task.\\n7. **Integrate with develop.** Run in orchestrator from epic worktree after step 5 commit:\\n   ```bash\\n   python3 \"$INTEGRATE\" preflight --base develop\\n   ```\\n   - If clean or noop, rebase if needed:\\n     ```bash\\n     python3 \"$INTEGRATE\" rebase --base develop\\n     ```\\n   - Resolve conflicts with playbook; stop and ask on semantic conflicts.\\n   - Verify tier:\\n     ```bash\\n     python3 \"$INTEGRATE\" verify-tier --base develop\\n     ```\\n   - If verification is red, fix before next task starts, commit as `[EPIC_NAME] Fix integration with develop after <task_title>`.\\n\\n### Phase 3 — Doc Sync on Divergence\\n\\nOnly when Phase 2 flags divergence:\\n1. Update epic\\'s Mermaid diagrams in both `<epic_dir>.en.md` and `.vi.md`.\\n2. Update affected task file(s) prose.\\n3. Commit separately:\\n   ```bash\\n   git commit -m \"[EPIC_NAME] Sync HLD after <task_title>\" -m \"- <diagram or section updated>\"\\n   ```\\n\\n### Fixes after the last task\\n\\nOnce every task is `done`, a fix is never made by reopening a task. Make it as its own commit on the epic branch, titled `[EPIC_NAME] Fix <what>`. Do not move a done task back, and do not re-record its evidence. `audit_epic.py` lists these commits under \"Commits outside tasks\". After fixes, run Phase 4 again in full on the new SHA.\\n\\n### Phase 4 — End of Epic Verification\\n\\nOnce every task is `done`, resolve candidate commit SHA (`git rev-parse HEAD`) with a clean tree (`git status --porcelain` prints nothing):\\n\\n1. **Review decisions**, only when `.devtool/epic/<epic_dir>/review_results.md` exists:\\n   ```bash\\n   python3 \"$SKILL_DIR\"/resources/scripts/run_external_review.py check --epic-dir <epic_dir>\\n   ```\\n   Exit 1 means unresolved finding: record decision or make Fix commit, then restart Phase 4 in full.\\n2. **Gate 4 audit**:\\n   ```bash\\n   python3 \"$SKILL_DIR\"/resources/scripts/audit_epic.py --epic-dir <epic_dir> --base <base_ref>\\n   ```\\n   Must exit 0. Keep output for Phase 4.1.\\n3. **HLD Integration results commands.** Run every `Integration results:` line of HLD Integration Test Plan.\\n4. **Result-based traceability**: run `check_bdd_traceability.py tests --results` over those reports:\\n   ```bash\\n   python3 \"$SKILL_DIR\"/resources/scripts/check_bdd_traceability.py tests \\\\\\n     --scenarios .devtool/epic/<epic_dir>/bdd_scenarios.en.md \\\\\\n     --roots <Integration test roots from the HLD> \\\\\\n     --results <reports written by Integration results commands>\\n   ```\\n   Must exit 0: every scenario in `bdd_scenarios.en.md` is covered by at least one passing integration test. `--roots` and `--ids` accept space- or comma-separated values.\\n5. **Quality check.** Run `@quality_check` on the same SHA:\\n   - Inputs:\\n     - `profile`: `\"epic\"`\\n     - `base_ref`: `<base_ref>`\\n     - `repository_sha`: Candidate commit SHA from `git rev-parse HEAD`\\n   - Only an aggregated verdict of **PASS** bound to that exact SHA qualifies for Gate 4 `🟢 LGTM`.\\n\\n#### Semantic Test Integrity Governance (Gate 4 Rules)\\n\\nGate 4 enforces strict semantic test integrity to prevent false-confidence passes. Registered providers and auditors reject test fakery with **`FAIL`**:\\n1. **No Reconstructed Logic**: Tests MUST import and invoke production code directly from Allowed files. Tests MUST NOT reconstruct production logic (such as retry loops, progress tracking, mapping transformations, or configuration defaults) locally within test helpers or mock harnesses. If a test reconstructs production logic instead of invoking production symbols, the review reports FAIL.\\n2. **Immutable Real Artifacts**: Tests MUST execute against genuine, immutable repository artifacts, schemas, and fixtures. Tests MUST NOT substitute synthetic artifacts or mock data that alter scenario anchors or weaken contractual invariants. If a test substitutes synthetic artifacts that alter scenario anchors, the review reports FAIL.\\n\\n*(Note: These are Gate 4 semantic integrity requirements evaluated by specialist providers and audits; no universal cross-language mechanical coverage claim is made.)*\\n\\n### Review Choice — after every Gate 4 PASS\\n\\n<HARD-GATE>\\nYou MUST NOT skip or auto-decide Review Choice after Gate 4 passes.\\nPresent the choice between \"Finish\" and \"Cross-model review\" and wait for the developer\\'s explicit instruction.\\nCross-model review must return to Phase 4 in full; only the next Gate 4 PASS may present Review Choice again.\\n</HARD-GATE>\\n\\nThe loop invariant is **Gate 4 PASS → Review Choice; Finish → Gate 5; Cross-model review → Gate 4 in full**.\\n<!-- Workflow transitions:\\nmoretasks -- \"no, epic done\" --> phase4\\nphase4 -- \"PASS\" --> choice\\nchoice -- \"Finish\" --> checkpoint4\\nreview -- \"round recorded\" --> phase4\\n-->\\nAsk developer and wait for answer:\\n\\n> Gate 4 is 🟢 LGTM for `<candidate_sha>`. How do you want to proceed?\\n>\\n> 1. **Finish** — continue to Gate 5, then `finishing-a-development-branch`.\\n> 2. **Cross-model review** — an independent model reviews the epic through Claude CLI or Codex CLI (`command -v claude codex`).\\n\\nOption 1 goes to Phase 4.1 / Gate 5. Option 2 runs in epic worktree with clean tree:\\n```bash\\npython3 \"$SKILL_DIR\"/resources/scripts/run_external_review.py run \\\\\\n  --epic-dir <epic_dir> --base <base_ref> --cli claude|codex\\n```\\nCommit `review_results.md` after every round (`[EPIC_NAME] Record cross-model review round N`). Fix accepted findings as Fix commits, give blocking findings a Decision, commit, then rerun Phase 4 / Gate 4 in full.\\n\\n### Phase 4.1 — Developer Kanban Review Checkpoint (🛑 MANDATORY STOP & WAIT — Gate 5)\\n\\nOnce `@quality_check` reports 🟢 LGTM, all tasks completed, and developer selects **Finish** at Review Choice:\\n1. **Preserve Kanban Visibility**: All completed `task_*.md` files MUST remain in `.devtool/features/done/`.\\n2. **Present Executive Summary**: Output summary containing epic slug, worktree path, completed tasks, `@quality_check` verdict, BDD matrix, and audit disclosure sections (Evidence, Protected paths, Commits outside tasks, Gate 5 items).\\n3. 🛑 **MANDATORY STOP & WAIT**: Stop calling tools immediately. Prompt user explicitly:\\n   > \"All tasks for epic `<epic_slug>` are completed and `@quality_check` is **🟢 LGTM**.\\n   > All task cards are visible in the **DONE** column on your Kanban dashboard.\\n   > Please review completed tasks and code changes. Reply to proceed with branch integration.\"\\n4. **Wait for Gate 5 Confirmation**: Only proceed to Phase 5 when user explicitly approves.\\n\\n### Phase 5 — Branch Finishing\\n\\nOnly after user explicitly approves Gate 5:\\n1. Invoke `d3nexus:finishing-a-development-branch` on epic branch (base = `develop`).\\n   Pre-Finish Archival Hook executes automatically:\\n   ```bash\\n   python3 skills/dev-implementation/resources/scripts/sync_task_status.py archive-done\\n   ```\\n   This sets Epic Status to `Done`, moves completed `task_*.md` files into `.devtool/epic/<epic_dir>/`, updates links, and commits archival before merge or PR.\\n\\n## Integration\\n\\n**Required workflow skills:**\\n- **d3nexus:using-git-worktrees** — creates epic worktree (`develop` as base ref).\\n- **d3nexus:subagent-driven-development** — runs each task.\\n- **d3nexus:test-driven-development** — used by implementer subagent.\\n- **d3nexus:quality_check** — runs end-of-epic verification.\\n- **d3nexus:finishing-a-development-branch** — completes epic branch.\\n- **d3nexus:copy_secure_configurations** — copies configuration secrets.\\n' : skills/dev-implementation/SKILL.md does not name Local model review",
+            "",
+            "======================================================================",
+            "FAIL: test_lmr_st_03_local_model_review_returns_to_gate_4 (scripts.test_lifecycle_document_contract.LifecycleDocumentContractTest.test_lmr_st_03_local_model_review_returns_to_gate_4)",
+            "[LMR-ST-03] Local model review returns through its round-recorded edge to Gate 4 in full, never to Gate 5.",
+            "----------------------------------------------------------------------",
+            "Traceback (most recent call last):",
+            "  File \"/Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/local_model_review/scripts/test_lifecycle_document_contract.py\", line 240, in test_lmr_st_03_local_model_review_returns_to_gate_4",
+            "    self.assertIn('choice -- \"Local model review\" --> localreview', implementation)",
+            "    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+            "AssertionError: 'choice -- \"Local model review\" --> localreview' not found in '---\\nname: dev-implementation\\ndescription: Use when an epic already has an approved HLD and Kanban task files (`.devtool/epic/<epic_dir>/` + `.devtool/features/task_*.md`) and you need to actually execute those tasks against the codebase, in the right order, inside an isolated worktree across Web Applications, Flutter, Android Native, iOS Native, Python, or Rust projects.\\n---\\n\\n# Development Implementation\\n\\n## Overview\\n\\nRuns an already-approved epic\\'s Kanban tasks end-to-end: reload the epic\\'s own docs for context, detect the platform (Flutter, Android Native, iOS Native, Web, Python, or Rust), compute a dependency-safe execution order, bootstrap one worktree that can actually build this project, then drive each task sequentially through `d3nexus:subagent-driven-development` with exactly one commit per task.\\n\\n**Core principle:** One worktree, one task at a time, one commit per task, docs stay truthful.\\n\\n**Announce at start:** \"I\\'m using the dev-implementation skill to implement the `<epic_slug>` epic.\"\\n\\n## Two Placeholders, Not One\\n\\nThis skill uses two distinct placeholders, and **they are usually different strings** — do not substitute one for the other:\\n\\n| Placeholder | What it is | Where it appears | Worked example |\\n|-------------|-----------|------------------|----------------|\\n| `<epic_dir>` | The epic\\'s directory name on disk | `.devtool/epic/<epic_dir>/<epic_dir>.en.md`, the worktree directory name | `logging_refactor` (underscores) |\\n| `<epic_slug>` | The epic\\'s frontmatter `epic:` value | The calculator\\'s CLI arg, matching `epic:` in `task_*.md`, the `epic/<epic_slug>` branch name, the `[EPIC_NAME]` commit prefix | `logging-refactor` (hyphens) |\\n\\nRead both values off disk at the start — never derive one from the other by guessing the separator.\\n\\n## When to Use\\n\\n- The epic has a `.devtool/epic/<epic_dir>/<epic_dir>.en.md` HLD and one or more `.devtool/features/task_*.md` files with `epic: \"<epic_slug>\"` in frontmatter, and a human has already approved that design.\\n- You are about to implement more than one task from that epic in this session.\\n- You are resuming an epic — packaged (`handoff.md` present, Status `Packaged`) or interrupted midway through Stage 3. Invoke this skill with the epic\\'s directory name or slug; Entry-Point Detection in Phase 0 decides where to start.\\n\\n**Don\\'t use when:** the epic/tasks don\\'t exist yet (use `d3nexus:dev-brainstorming` then `dev-designer` first), or you\\'re implementing a single one-off task with no epic context (just use `d3nexus:subagent-driven-development` directly).\\n\\n## Process\\n\\nThis skill is **Stage 3** of the Epic Lifecycle. The surrounding stages, the five approval gates, and what each stage hands over are owned by the [`dev-lifecycle`](../dev-lifecycle/SKILL.md) skill (with diagrams preserved in `docs/lifecycles.en.md`). Gate 3 (execution order confirmed) is enforced below, in Phase 1.\\n\\n### Phase 0 — Context Reload & Platform Detection (once, not per task)\\n\\n0. **Resolve the epic.** This skill takes one epic name, in either form:\\n   - If `.devtool/epic/<name>/` exists, `<epic_dir>` is `<name>`, and `<epic_slug>` is the `epic:` value of its task mirrors: `grep -h -m1 \\'^epic:\\' .devtool/epic/<name>/task_*.md`.\\n   - Otherwise `<name>` is a slug, and `<epic_dir>` is the directory holding the files `grep -l -F \\'epic: \"<name>\"\\' .devtool/epic/*/task_*.md` lists.\\n   - With no name, or no match, list the epic directories whose overview Status is not `Done` and ask which one. Never guess, even when only one is listed.\\n1. Read, in full:\\n   - `.devtool/epic/<epic_dir>/<epic_dir>.en.md` (the canonical HLD — never `.vi.md` for decisions, that\\'s a synced translation).\\n   - `.devtool/epic/<epic_dir>/bdd_scenarios.en.md` (the canonical behavioral contract across the 5 dimensions, if present; `.vi.md` is its synchronized translation).\\n   - Every `.devtool/features/task_*.md` whose frontmatter `epic:` matches `<epic_slug>`.\\n   - Any spec file(s) linked from the HLD\\'s Meta Data section.\\n   - `.devtool/epic/<epic_dir>/handoff.md`, when present — the packaging record. Use its Open Notes as context; it is never updated after packaging.\\n\\n#### Bounded Context Injection & Spec Fidelity\\n\\nBefore implementing any task, the executor MUST adhere strictly to the 3-step Bounded Context Injection protocol:\\n1. Read the active task file (`.devtool/features/task_*.md`).\\n2. Read the Allowed files and Read-only context listed in the task file.\\n3. Look up exact symbols and architectural choices declared in `Decisions Already Made`; do not perform undirected whole-repository searches.\\n\\n**Strict Spec Fidelity**: Implement strictly within the boundaries specified by the active task and its Allowed files. Do not add speculative abstractions, configurability, or adjacent refactoring not requested by the task specification.\\n\\n2. Resolve the three paths the rest of this skill uses. `SKILL_DIR` is the directory this `SKILL.md` was loaded from:\\n   ```bash\\n   SKILL_DIR=<absolute path of the directory containing this SKILL.md>\\n   REPO_ROOT=$(git rev-parse --show-toplevel)\\n   INTEGRATE=\"$SKILL_DIR/../finishing-a-development-branch/resources/scripts/integrate_branch.py\"\\n   ```\\n3. Detect the platform:\\n   ```bash\\n   PROJECT_TYPE=$(\"$SKILL_DIR\"/resources/scripts/detect_project_type.sh \"$REPO_ROOT\")\\n   echo \"Detected project type: $PROJECT_TYPE\"\\n   ```\\n   Supported platforms: `flutter`, `android`, `ios`, `web`, `python`, `rust`.\\n4. Run **Entry-Point Detection** before Phase 1. It decides whether Phase 1 starts fresh or the Resume Procedure takes over.\\n\\n#### Entry-Point Detection\\n\\nRead these signals, all read-only, from the main checkout:\\n\\n```bash\\ntest -f .devtool/epic/<epic_dir>/handoff.md && echo packaged-handoff\\ngrep -m1 -E \\'^- \\\\*\\\\*Status\\\\*\\\\*:\\' .devtool/epic/<epic_dir>/<epic_dir>.en.md\\ngit rev-parse --verify --quiet refs/heads/epic/<epic_slug>\\nfor remote in $(git remote); do git ls-remote --heads \"$remote\" \"epic/<epic_slug>\"; done\\ngit worktree list --porcelain | grep -E \\'^worktree .*/\\\\.worktrees/<epic_dir>$\\'\\npython3 \"$SKILL_DIR\"/resources/scripts/compute_execution_order.py <epic_slug> \\\\\\n  --features-dir .devtool/epic/<epic_dir>\\n```\\n\\n`git ls-remote` asks each remote directly, so an epic branch pushed from another clone shows before any fetch; if a remote cannot be reached, fall back to `git branch -r --list \\'*/epic/<epic_slug>\\'`. The last command reads the epic\\'s task mirrors (`sync_task_status.py` keeps them in step with `.devtool/features/` and `.devtool/features/done/`); its flattened order prints each task\\'s status as `[priority, status]`. Evaluate the rows top-down — first match wins — and announce it: \"Entry point: row N — <state>.\"\\n\\n| # | Signals | State | Entry point |\\n|---|---------|-------|-------------|\\n| 1 | Overview Status is `Done` | Finished, or Stage 4 interrupted | With no epic branch left, report finished and stop. With epic branch still present, Stage 4 was interrupted or its PR is still open: report and ask |\\n| 2 | No epic branch, and any task is `backlog` | Queued behind another epic | Stop. Flipping `backlog` to `todo` is developer\\'s call |\\n| 3 | No epic branch locally or on remote, no worktree, every task `todo` | Not started — packaged if `handoff.md` exists | Phase 1 as written: Gate 3, then new worktree |\\n| 4 | Epic branch exists, no worktree, some task not `done` | Interrupted, worktree removed | Resume Procedure |\\n| 5 | Worktree exists, some task not `done` | Interrupted midway through Stage 3 | Resume Procedure |\\n| 6 | Epic branch exists, every task `done` | Tasks finished | Recreate worktree if missing (`git worktree add .worktrees/<epic_dir> epic/<epic_slug>`, no `-b`) and bootstrap (Phase 1 step 5), run Resume Procedure preflight (step 2), then Phase 4 in full; its PASS presents Review Choice |\\n| 7 | Anything else — branch only on remote, or tasks `in-progress` or `done` with no epic branch | Inconsistent | Stop, report signals, ask |\\n\\n#### Resume Procedure\\n\\nFor rows 4 and 5. Phase 1 step 4\\'s `git worktree add -b` never runs here.\\n\\n1. Row 4 only: recreate worktree from existing branch, `git worktree add .worktrees/<epic_dir> epic/<epic_slug>` with no `-b`. For rows 4 and 5, check bootstrap with Phase 1 step 5\\'s platform checks and re-run if needed.\\n2. In the worktree, run `python3 \"$INTEGRATE\" preflight --base develop`. A rebase in progress, or diverged base, is handled per Phase 2 step 7 before anything else.\\n3. Find the interrupted task: one at `in-progress` or `review`. If worktree has uncommitted changes, collect `git status --short`.\\n4. **Gate 3 (resume).** Check mirror scan summary against task mirror count and read Manual review advised section. Run Phase 1 step 3\\'s BDD mapping check and task contract check, including retrofit if needed. Commit any retrofit on epic branch staging only touched files (both `bdd_scenarios`, both HLD variants, task files — never `git add -A`). The interrupted task\\'s own status fields may ride along in that commit; that is expected. Present tasks already `done` with commits (`git log --oneline develop..epic/<epic_slug>`), remaining order with `done` tasks removed, choice on uncommitted changes (keep or discard), and request permission to fast-forward `develop`. Wait for confirmation.\\n5. If overview Status begins with `Packaged`, run `python3 \"$SKILL_DIR\"/resources/scripts/sync_task_status.py epic <epic_dir> \"In Progress\"`.\\n6. Enter Phase 2 at the interrupted task — a task at `review` re-enters at Phase 2 step 2; a task at `in-progress` resumes implementation with kept changes — or at the first remaining task.\\n\\n### Phase 1 — Execution Plan\\n\\n1. Run:\\n   ```bash\\n   python3 \"$SKILL_DIR\"/resources/scripts/compute_execution_order.py <epic_slug>\\n   ```\\n   Check scan summary line (`Scanned N task_*.md files; M matched epic ...`). If `M` is smaller than expected, fix broken frontmatter before proceeding.\\n2. Read \"Manual review advised\" section (if any) and cross-check against Phase 0 context. Adjust flattened order by hand if a prose note should win.\\n3. **Checkpoint (Gate 3):** present the final order to user and get confirmation before touching git.\\n   In the same message, ask once for permission to fast-forward local `develop` from its upstream for the rest of this epic (Phase 1 step 4 and Phase 2 step 7).\\n\\n   Before presenting order, run BDD traceability plan check:\\n   ```bash\\n   python3 \"$SKILL_DIR\"/resources/scripts/check_bdd_traceability.py plan \\\\\\n     --scenarios .devtool/epic/<epic_dir>/bdd_scenarios.en.md \\\\\\n     --tasks .devtool/epic/<epic_dir>/task_*.md\\n   ```\\n   If needed, add bracketed identifiers to `bdd_scenarios.*.md`, `Covers:` lines to task files, and `Integration test roots:` to HLD. Commit as `[EPIC_NAME] Add BDD scenario identifiers`.\\n\\n   Then check task contract:\\n   ```bash\\n   python3 \"$SKILL_DIR\"/resources/scripts/check_task_contract.py \\\\\\n     --hld .devtool/epic/<epic_dir>/<epic_dir>.en.md \\\\\\n     --tasks .devtool/epic/<epic_dir>/task_*.md\\n   ```\\n   Do not create worktree until both checks exit 0 and developer has confirmed the order.\\n\\n#### Phase 1 (continued) — Worktree Bootstrap, once the order is confirmed\\n\\n4. Bring local `develop` up to date with upstream, then create one worktree for whole epic (`d3nexus:using-git-worktrees`):\\n   ```bash\\n   python3 \"$INTEGRATE\" sync-base --base develop\\n   git worktree add .worktrees/<epic_dir> -b epic/<epic_slug> develop\\n   ```\\n   If `sync-base` exits 3 (diverged or dirty file), stop and ask.\\n   If overview Status begins with `Packaged`, run `python3 \"$SKILL_DIR\"/resources/scripts/sync_task_status.py epic <epic_dir> \"In Progress\"`.\\n5. Bootstrap worktree using platform tooling (`bootstrap_worktree.sh`, Gradle sync, Tuist, npm/pnpm, uv sync, cargo check).\\n6. Never copy build caches (`.dart_tool/`, `/build/`, `.build/`, `android/**/.cxx/`) from another checkout into this worktree.\\n\\n### Phase 2 — Sequential Task Execution\\n\\nFor each task in confirmed order, follow `d3nexus:subagent-driven-development`.\\n\\n0. **Pre-Edit Verification (Impact & Conflict Check)**:\\n   ```bash\\n   python3 skills/impact-analysis/resources/scripts/check_code_impact.py \\\\\\n     --files <target_files> \\\\\\n     --symbols <target_symbols> \\\\\\n     --base-ref <base_ref>\\n   ```\\n   - If `🔴 DIVERGENCE DETECTED`: **HALT IMMEDIATELY**. Run step 7 (Integrate with develop) now, then rerun check.\\n   - If `⚠️ UNPROTECTED CODE (0% Coverage)`: Author baseline characterization unit tests first.\\n\\n1. **Live Dual-Workspace Kanban Status (In-Progress)**:\\n   ```bash\\n   python3 skills/dev-implementation/resources/scripts/sync_task_status.py task <task_id> in-progress\\n   ```\\n\\n   **Test Assertion Health Rule**: When authoring tests verifying build artifacts, never assert conditions only inside `if path.exists()` without asserting evaluated counts. Always assert `found > 0`.\\n\\n   **Tri-Persona Subagent Execution Model**:\\n   When dispatching implementer subagent, operate across the 3-Tier Testing Standard:\\n   1. **Expert QA (Red Team Persona)**: Authors BDD Scenarios in complete isolation from coding, purely from HLD and `bdd_scenarios.en.md`, applying 5 dimensions: Happy Paths, Edge Cases & Boundaries, State Transitions, Async / Race Conditions, Failures & Resilience. Categorizes scenarios into `[Tier A - Unit]` vs `[Tier C - Integration]`.\\n   2. **Principal Engineer (TDD Master Persona — Tier A)**: Implements unit logic, state emissions, and hermetic tests using platform tools (Dart/Flutter, Kotlin/Compose, Swift/SwiftUI, TypeScript/Web, Python/pytest, Rust/cargo). Enforces RED failing test first -> minimal GREEN code -> REFACTOR formatting, linter, strict types.\\n   3. **System Integration & E2E Engineer (Tier C Persona)**: Implements host integration flow tests (`integration_test/`, `*FlowTest.kt`, `App/Tests`, `tests/e2e/`, `tests/integration/`) connecting DI, navigation, and persistence contracts.\\n\\n   > [!CRITICAL]\\n   > ### 🎯 MANDATORY 100% BDD-TO-TEST TRACEABILITY RULE\\n   > 1. **100% Scenario Traceability**: Every single BDD scenario authored in Phase 1 MUST map directly to at least one concrete automated test function or test block.\\n   > 2. **Tier Separation**: `[Tier A - Unit]` covered 100% by unit tests; `[Tier C - Integration]` covered 100% by host integration flow tests. Mocks do NOT substitute for Tier C integration tests.\\n   > 3. **BDD Automation (Tier C, all platforms)**: For every identifier on task\\'s `Covers:` line, author at least one integration test under HLD\\'s `Integration test roots`, carrying the identifier in test name, description, or tag.\\n   > 4. **Gate to Done**:\\n   >    ```bash\\n   >    python3 \"$SKILL_DIR\"/resources/scripts/run_task_checks.py red <task mirror>     # before implementing (exits 0 on expected fail)\\n   >    python3 \"$SKILL_DIR\"/resources/scripts/run_task_checks.py verify <task mirror>  # after last change (exits 0 with all pass)\\n   >    python3 \"$SKILL_DIR\"/resources/scripts/run_task_checks.py status <task mirror>  # prints done gate: PASS\\n   >    ```\\n   >    Never edit `.devtool/epic/<epic_dir>/evidence/<task_id>.json` by hand. `sync_task_status.py task <id> done` refuses unless evidence matches tree and table.\\n   >    When task has `Covers:` line, run traceability check (exit 0):\\n   >    ```bash\\n   >    python3 \"$SKILL_DIR\"/resources/scripts/check_bdd_traceability.py tests \\\\\\n   >      --scenarios .devtool/epic/<epic_dir>/bdd_scenarios.en.md \\\\\\n   >      --roots <Integration test roots from the HLD> \\\\\\n   >      --ids <identifiers on the task\\'s Covers: line>\\n   >    ```\\n   > 5. **Stop and Report**: A `Stop and Report If` condition in task is reported as `BLOCKED`. Never edit Verification table, Definition of Done, Allowed files or Covers line, or protected path, to force a pass.\\n\\n2. When implementer reports `DONE`, synchronize review status:\\n   ```bash\\n   python3 skills/dev-implementation/resources/scripts/sync_task_status.py task <task_id> review\\n   ```\\n3. If review finds issues, cycle between `status: \"in-progress\"` and `status: \"review\"`.\\n4. When both reviews pass, `run_task_checks.py status <task mirror>` prints `done gate: PASS` and `check_bdd_traceability.py tests --ids` exits 0, update status to `done`:\\n   ```bash\\n   python3 skills/dev-implementation/resources/scripts/sync_task_status.py task <task_id> done\\n   ```\\n   This moves `.devtool/features/<task_id>.md` into `.devtool/features/done/`.\\n5. Make exactly one commit staging code, task file, and evidence file (`.devtool/epic/<epic_dir>/evidence/<task_id>.json`):\\n   ```bash\\n   git status                                    # check nothing unrelated is pending\\n   git add -A                                    # code changes + .devtool/features/ + evidence\\n   git commit -m \"[EPIC_NAME] <task_title>\" -m \"- <subtask 1>\\n   - <subtask 2>\"\\n   ```\\n   No trailers (no `Co-Authored-By`).\\n6. If implementation diverged from HLD, perform Phase 3 Doc Sync before next task.\\n7. **Integrate with develop.** Run in orchestrator from epic worktree after step 5 commit:\\n   ```bash\\n   python3 \"$INTEGRATE\" preflight --base develop\\n   ```\\n   - If clean or noop, rebase if needed:\\n     ```bash\\n     python3 \"$INTEGRATE\" rebase --base develop\\n     ```\\n   - Resolve conflicts with playbook; stop and ask on semantic conflicts.\\n   - Verify tier:\\n     ```bash\\n     python3 \"$INTEGRATE\" verify-tier --base develop\\n     ```\\n   - If verification is red, fix before next task starts, commit as `[EPIC_NAME] Fix integration with develop after <task_title>`.\\n\\n### Phase 3 — Doc Sync on Divergence\\n\\nOnly when Phase 2 flags divergence:\\n1. Update epic\\'s Mermaid diagrams in both `<epic_dir>.en.md` and `.vi.md`.\\n2. Update affected task file(s) prose.\\n3. Commit separately:\\n   ```bash\\n   git commit -m \"[EPIC_NAME] Sync HLD after <task_title>\" -m \"- <diagram or section updated>\"\\n   ```\\n\\n### Fixes after the last task\\n\\nOnce every task is `done`, a fix is never made by reopening a task. Make it as its own commit on the epic branch, titled `[EPIC_NAME] Fix <what>`. Do not move a done task back, and do not re-record its evidence. `audit_epic.py` lists these commits under \"Commits outside tasks\". After fixes, run Phase 4 again in full on the new SHA.\\n\\n### Phase 4 — End of Epic Verification\\n\\nOnce every task is `done`, resolve candidate commit SHA (`git rev-parse HEAD`) with a clean tree (`git status --porcelain` prints nothing):\\n\\n1. **Review decisions**, only when `.devtool/epic/<epic_dir>/review_results.md` exists:\\n   ```bash\\n   python3 \"$SKILL_DIR\"/resources/scripts/run_external_review.py check --epic-dir <epic_dir>\\n   ```\\n   Exit 1 means unresolved finding: record decision or make Fix commit, then restart Phase 4 in full.\\n2. **Gate 4 audit**:\\n   ```bash\\n   python3 \"$SKILL_DIR\"/resources/scripts/audit_epic.py --epic-dir <epic_dir> --base <base_ref>\\n   ```\\n   Must exit 0. Keep output for Phase 4.1.\\n3. **HLD Integration results commands.** Run every `Integration results:` line of HLD Integration Test Plan.\\n4. **Result-based traceability**: run `check_bdd_traceability.py tests --results` over those reports:\\n   ```bash\\n   python3 \"$SKILL_DIR\"/resources/scripts/check_bdd_traceability.py tests \\\\\\n     --scenarios .devtool/epic/<epic_dir>/bdd_scenarios.en.md \\\\\\n     --roots <Integration test roots from the HLD> \\\\\\n     --results <reports written by Integration results commands>\\n   ```\\n   Must exit 0: every scenario in `bdd_scenarios.en.md` is covered by at least one passing integration test. `--roots` and `--ids` accept space- or comma-separated values.\\n5. **Quality check.** Run `@quality_check` on the same SHA:\\n   - Inputs:\\n     - `profile`: `\"epic\"`\\n     - `base_ref`: `<base_ref>`\\n     - `repository_sha`: Candidate commit SHA from `git rev-parse HEAD`\\n   - Only an aggregated verdict of **PASS** bound to that exact SHA qualifies for Gate 4 `🟢 LGTM`.\\n\\n#### Semantic Test Integrity Governance (Gate 4 Rules)\\n\\nGate 4 enforces strict semantic test integrity to prevent false-confidence passes. Registered providers and auditors reject test fakery with **`FAIL`**:\\n1. **No Reconstructed Logic**: Tests MUST import and invoke production code directly from Allowed files. Tests MUST NOT reconstruct production logic (such as retry loops, progress tracking, mapping transformations, or configuration defaults) locally within test helpers or mock harnesses. If a test reconstructs production logic instead of invoking production symbols, the review reports FAIL.\\n2. **Immutable Real Artifacts**: Tests MUST execute against genuine, immutable repository artifacts, schemas, and fixtures. Tests MUST NOT substitute synthetic artifacts or mock data that alter scenario anchors or weaken contractual invariants. If a test substitutes synthetic artifacts that alter scenario anchors, the review reports FAIL.\\n\\n*(Note: These are Gate 4 semantic integrity requirements evaluated by specialist providers and audits; no universal cross-language mechanical coverage claim is made.)*\\n\\n### Review Choice — after every Gate 4 PASS\\n\\n<HARD-GATE>\\nYou MUST NOT skip or auto-decide Review Choice after Gate 4 passes.\\nPresent the choice between \"Finish\" and \"Cross-model review\" and wait for the developer\\'s explicit instruction.\\nCross-model review must return to Phase 4 in full; only the next Gate 4 PASS may present Review Choice again.\\n</HARD-GATE>\\n\\nThe loop invariant is **Gate 4 PASS → Review Choice; Finish → Gate 5; Cross-model review → Gate 4 in full**.\\n<!-- Workflow transitions:\\nmoretasks -- \"no, epic done\" --> phase4\\nphase4 -- \"PASS\" --> choice\\nchoice -- \"Finish\" --> checkpoint4\\nreview -- \"round recorded\" --> phase4\\n-->\\nAsk developer and wait for answer:\\n\\n> Gate 4 is 🟢 LGTM for `<candidate_sha>`. How do you want to proceed?\\n>\\n> 1. **Finish** — continue to Gate 5, then `finishing-a-development-branch`.\\n> 2. **Cross-model review** — an independent model reviews the epic through Claude CLI or Codex CLI (`command -v claude codex`).\\n\\nOption 1 goes to Phase 4.1 / Gate 5. Option 2 runs in epic worktree with clean tree:\\n```bash\\npython3 \"$SKILL_DIR\"/resources/scripts/run_external_review.py run \\\\\\n  --epic-dir <epic_dir> --base <base_ref> --cli claude|codex\\n```\\nCommit `review_results.md` after every round (`[EPIC_NAME] Record cross-model review round N`). Fix accepted findings as Fix commits, give blocking findings a Decision, commit, then rerun Phase 4 / Gate 4 in full.\\n\\n### Phase 4.1 — Developer Kanban Review Checkpoint (🛑 MANDATORY STOP & WAIT — Gate 5)\\n\\nOnce `@quality_check` reports 🟢 LGTM, all tasks completed, and developer selects **Finish** at Review Choice:\\n1. **Preserve Kanban Visibility**: All completed `task_*.md` files MUST remain in `.devtool/features/done/`.\\n2. **Present Executive Summary**: Output summary containing epic slug, worktree path, completed tasks, `@quality_check` verdict, BDD matrix, and audit disclosure sections (Evidence, Protected paths, Commits outside tasks, Gate 5 items).\\n3. 🛑 **MANDATORY STOP & WAIT**: Stop calling tools immediately. Prompt user explicitly:\\n   > \"All tasks for epic `<epic_slug>` are completed and `@quality_check` is **🟢 LGTM**.\\n   > All task cards are visible in the **DONE** column on your Kanban dashboard.\\n   > Please review completed tasks and code changes. Reply to proceed with branch integration.\"\\n4. **Wait for Gate 5 Confirmation**: Only proceed to Phase 5 when user explicitly approves.\\n\\n### Phase 5 — Branch Finishing\\n\\nOnly after user explicitly approves Gate 5:\\n1. Invoke `d3nexus:finishing-a-development-branch` on epic branch (base = `develop`).\\n   Pre-Finish Archival Hook executes automatically:\\n   ```bash\\n   python3 skills/dev-implementation/resources/scripts/sync_task_status.py archive-done\\n   ```\\n   This sets Epic Status to `Done`, moves completed `task_*.md` files into `.devtool/epic/<epic_dir>/`, updates links, and commits archival before merge or PR.\\n\\n## Integration\\n\\n**Required workflow skills:**\\n- **d3nexus:using-git-worktrees** — creates epic worktree (`develop` as base ref).\\n- **d3nexus:subagent-driven-development** — runs each task.\\n- **d3nexus:test-driven-development** — used by implementer subagent.\\n- **d3nexus:quality_check** — runs end-of-epic verification.\\n- **d3nexus:finishing-a-development-branch** — completes epic branch.\\n- **d3nexus:copy_secure_configurations** — copies configuration secrets.\\n'",
+            "",
+            "----------------------------------------------------------------------",
+            "Ran 2 tests in 0.001s",
+            "",
+            "FAILED (failures=2)"
+          ],
+          "output_sha256": "b9f267b1535f07e5f012ad0ae50325abc2d70c2ed212adf4be352c158a9f4866"
+        }
+      ]
+    },
+    "verify": {
+      "head": "dab0f313d35df46a6f427075ada91724f0217232",
+      "tree": "25bea1fadbe8207c05b13b25ea352c7efbf332a4",
+      "patch_id": "d3c1b6ca799ffaa6db9c4b06ea584383588b734c",
+      "started": "2026-10-21T09:44:09Z",
+      "finished": "2026-10-21T09:46:13Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m unittest scripts/test_lifecycle_document_contract.py",
+          "expect": "exit 0; contains \"OK\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-21T09:44:09Z",
+          "finished": "2026-10-21T09:44:09Z",
+          "output_tail": [
+            "............",
+            "----------------------------------------------------------------------",
+            "Ran 12 tests in 0.003s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "ddbc5bf15c26bf2c15a86c04aa1c4eb9dbb31a4d245c800b95a5282be426a476"
+        },
+        {
+          "id": "V3",
+          "phase": "GREEN",
+          "command": "python3 -m unittest scripts/test_verifiable_handoff_text.py",
+          "expect": "exit 0; contains \"OK\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-21T09:44:09Z",
+          "finished": "2026-10-21T09:44:09Z",
+          "output_tail": [
+            "......",
+            "----------------------------------------------------------------------",
+            "Ran 6 tests in 0.001s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "c6b9b1f09add0403cc07e90bfdf272129b1ddfa2f8f7675ea8218862f2516371"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "ruff check scripts/test_lifecycle_document_contract.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-21T09:44:09Z",
+          "finished": "2026-10-21T09:44:09Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-B",
+          "command": "mypy --strict --follow-imports=silent scripts/test_lifecycle_document_contract.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-21T09:44:09Z",
+          "finished": "2026-10-21T09:44:09Z",
+          "output_tail": [
+            "Success: no issues found in 1 source file"
+          ],
+          "output_sha256": "5d4b6d285b77932e3d08212c3b4974d0a803f98ec60408ac6ccf6a063fa6c19e"
+        },
+        {
+          "id": "V6",
+          "phase": "TIER-B",
+          "command": "python3 skills/doc_quality_check/resources/scripts/check_document.py --require-bilingual docs/lifecycles.en.md docs/lifecycles.vi.md docs/choosing-a-lifecycle.en.md docs/choosing-a-lifecycle.vi.md",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-21T09:44:09Z",
+          "finished": "2026-10-21T09:44:09Z",
+          "output_tail": [
+            "  checked 4 documents, 0 findings"
+          ],
+          "output_sha256": "ae3333280a5c089e38490326d14e73199659c052e1af2c5cf17edba76a8b76d5"
+        },
+        {
+          "id": "V7",
+          "phase": "TIER-B",
+          "command": "python3 skills/doc_quality_check/resources/scripts/check_document.py skills/dev-implementation/references/local-review-setup.md",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-21T09:44:09Z",
+          "finished": "2026-10-21T09:44:09Z",
+          "output_tail": [
+            "  checked 1 documents, 0 findings"
+          ],
+          "output_sha256": "c4cf060f7a0df4e64bed481f0aa5478559f4bd2f03cd281710d8fdbf8b2ee714"
+        },
+        {
+          "id": "V8",
+          "phase": "TIER-B",
+          "command": "bash scripts/verify.sh",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-21T09:44:09Z",
+          "finished": "2026-10-21T09:45:38Z",
+          "output_tail": [
+            "Ran 9 tests in 0.000s",
+            "",
+            "OK",
+            ".....",
+            "----------------------------------------------------------------------",
+            "Ran 5 tests in 0.000s",
+            "",
+            "OK",
+            ".........",
+            "----------------------------------------------------------------------",
+            "Ran 9 tests in 0.000s",
+            "",
+            "OK",
+            "......",
+            "----------------------------------------------------------------------",
+            "Ran 6 tests in 0.000s",
+            "",
+            "OK",
+            "......",
+            "----------------------------------------------------------------------",
+            "Ran 6 tests in 0.000s",
+            "",
+            "OK",
+            "......",
+            "----------------------------------------------------------------------",
+            "Ran 6 tests in 0.000s",
+            "",
+            "OK",
+            "..................",
+            "----------------------------------------------------------------------",
+            "Ran 18 tests in 0.011s",
+            "",
+            "OK",
+            "...............",
+            "----------------------------------------------------------------------",
+            "Ran 15 tests in 1.811s",
+            "",
+            "OK",
+            "",
+            "PASS — safe to publish"
+          ],
+          "output_sha256": "3d0b9053b7ed40f5800d0ee3076942990a90af382538bfb772ab6224fe840483"
+        },
+        {
+          "id": "V9",
+          "phase": "TIER-C",
+          "command": "python3 scripts/run_unittest_junit.py --junitxml build/test-results/local-model-review.xml skills/dev-implementation/resources/scripts/test_local_review.py skills/dev-implementation/resources/scripts/test_run_external_review.py scripts/test_lifecycle_document_contract.py scripts/test_verifiable_handoff_text.py",
+          "expect": "exit 0; results build/test-results/local-model-review.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-21T09:45:38Z",
+          "finished": "2026-10-21T09:46:13Z",
+          "output_tail": [
+            ".............................",
+            "----------------------------------------------------------------------",
+            "Ran 29 tests in 18.902s",
+            "",
+            "OK",
+            "...............................",
+            "----------------------------------------------------------------------",
+            "Ran 31 tests in 15.561s",
+            "",
+            "OK",
+            "............",
+            "----------------------------------------------------------------------",
+            "Ran 12 tests in 0.003s",
+            "",
+            "OK",
+            "......",
+            "----------------------------------------------------------------------",
+            "Ran 6 tests in 0.001s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "06c2319e7985b8f2da4b4cf5152559177204a74c034d7b74b73928f824e87a8e",
+          "results": {
+            "path": "build/test-results/local-model-review.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 28,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_lmr_ec_05_platform_sections_follow_the_touched_extensions",
+                  "classname": "test_local_review.PromptBaseTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_lmr_hp_05_the_system_message_fits_its_pass_type",
+                  "classname": "test_local_review.PromptBaseTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_lmr_hp_07_every_quoted_platform_rule_exists_in_the_kit",
+                  "classname": "test_local_review.PromptBaseTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_lmr_ec_08_a_draft_finding_in_analysis_is_not_a_finding",
+                  "classname": "test_local_review.RoundTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_lmr_ec_09_dropped_files_reach_the_round_metadata",
+                  "classname": "test_local_review.RoundTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_lmr_fr_05_truncated_output_is_no_verdict",
+                  "classname": "test_local_review.RoundTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_lmr_fr_06_a_blocking_finding_at_an_unseen_path_is_annotated",
+                  "classname": "test_local_review.RoundTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_lmr_st_01_a_blocking_local_finding_holds_check_until_decided",
+                  "classname": "test_local_review.RoundTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_lmr_st_02_round_numbering_is_shared_across_reviewers",
+                  "classname": "test_local_review.RoundTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_lmr_ar_01_passes_run_one_at_a_time_in_commit_order",
+                  "classname": "test_local_review.RunnerTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_lmr_ar_02_the_timeout_applies_to_each_pass",
+                  "classname": "test_local_review.RunnerTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_lmr_ec_01_local_review_without_a_model_stops_first",
+                  "classname": "test_local_review.RunnerTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_lmr_fr_02_an_unreachable_server_stops_the_run_before_facts",
+                  "classname": "test_local_review.RunnerTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_lmr_fr_04_a_failing_pass_stops_the_run_and_records_what_it_has",
+                  "classname": "test_local_review.RunnerTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_lmr_fr_07_a_slice_that_cannot_fit_stops_the_run_before_any_chat",
+                  "classname": "test_local_review.RunnerTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_lmr_hp_03_a_local_review_of_a_two_task_epic_records_one_round",
+                  "classname": "test_local_review.RunnerTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_lmr_hp_02_shared_rules_reach_the_external_prompt",
+                  "classname": "test_local_review.SharedRulesTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_lmr_ec_03_an_oversized_task_diff_drops_its_largest_file_first",
+                  "classname": "test_local_review.SliceTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_lmr_ec_04_never_cut_content_larger_than_the_budget",
+                  "classname": "test_local_review.SliceTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_lmr_ec_06_a_legacy_task_joins_the_epic_slice",
+                  "classname": "test_local_review.SliceTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_lmr_hp_04_a_task_slice_carries_everything_the_reviewer_may_judge",
+                  "classname": "test_local_review.SliceTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_lmr_ec_02_context_defaults_and_overrides",
+                  "classname": "test_local_review.TransportTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_lmr_ec_07_inline_thinking_is_never_parsed",
+                  "classname": "test_local_review.TransportTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_lmr_fr_01_probe_failures_name_their_cause",
+                  "classname": "test_local_review.TransportTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_lmr_fr_03_transport_failures_become_replies",
+                  "classname": "test_local_review.TransportTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_lmr_hp_06_modelfile_governs_the_context",
+                  "classname": "test_local_review.TransportTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_lmr_hp_01_review_choice_presents_three_options",
+                  "classname": "test_lifecycle_document_contract.LifecycleDocumentContractTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_lmr_st_03_local_model_review_returns_to_gate_4",
+                  "classname": "test_lifecycle_document_contract.LifecycleDocumentContractTest",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "docs/choosing-a-lifecycle.en.md",
+            "docs/choosing-a-lifecycle.vi.md",
+            "docs/lifecycles.en.md",
+            "docs/lifecycles.vi.md",
+            "rules/CRITICAL_RULES.md",
+            "scripts/test_lifecycle_document_contract.py",
+            "scripts/verify.sh",
+            "skills/dev-implementation/SKILL.md",
+            "skills/dev-implementation/references/local-review-setup.md",
+            "skills/dev-lifecycle/SKILL.md"
+          ],
+          "violations": []
+        }
+      ]
+    }
+  }
+}

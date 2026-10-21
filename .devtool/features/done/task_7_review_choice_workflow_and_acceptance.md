@@ -1,13 +1,13 @@
 ---
 id: "task_7_review_choice_workflow_and_acceptance"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "local_model_review"
 dueDate: null
 created: "2026-10-21T09:10:00Z"
-modified: "2026-10-21T09:10:00Z"
-completedAt: null
+modified: "2026-10-21T09:46:19Z"
+completedAt: "2026-10-21T09:46:19Z"
 labels: ["workflow", "documentation", "acceptance"]
 order: "a7"
 ---

@@ -43,7 +43,7 @@ Pick by how many reviewable pieces the work has.
 **Several independent components, or you would want an architecture diagram and a task board**
 — run `d3nexus:dev-lifecycle`. It takes you through five gates:
 spec (Gate 1), task breakdown (Gate 2), execution order (Gate 3), `quality_check` with audit and BDD traceability (Gate 4), and your own Kanban sign-off (Gate 5) before the branch is finished.
-It also enforces two explicit choice points: the **Handoff Choice** (package or continue) after Stage 2, and the mandatory **Review Choice** (Finish or Cross-model review) after every Gate 4 PASS. Cross-model review returns to a full Gate 4 run, so the loop continues until you choose Finish.
+It also enforces two explicit choice points: the **Handoff Choice** (package or continue) after Stage 2, and the mandatory **Review Choice** (Finish, Cross-model review or Local model review) after every Gate 4 PASS. Either review returns to a full Gate 4 run, so the loop continues until you choose Finish.
 
 **One component, one plan** — run `d3nexus:dev-brainstorming`, then `d3nexus:writing-plans`.
 This leaves the epic lifecycle; its remaining gates do not apply. You still cross two:
@@ -64,7 +64,7 @@ Run `d3nexus:subagent-driven-development` (recommended) or `d3nexus:executing-pl
 > again and choose merge or PR.**
 
 The epic route needs none of this:
-`dev-implementation` drives the executor, holds Gate 4 machine checks (`audit_epic.py`, BDD traceability, `quality_check`), presents the mandatory Review Choice (Finish or Cross-model review) after every Gate 4 PASS, requires a full Gate 4 rerun after each review round, then requires your visual sign-off at Gate 5 before it finishes the branch.
+`dev-implementation` drives the executor, holds Gate 4 machine checks (`audit_epic.py`, BDD traceability, `quality_check`), presents the mandatory Review Choice (Finish, Cross-model review or Local model review) after every Gate 4 PASS, requires a full Gate 4 rerun after each review round, then requires your visual sign-off at Gate 5 before it finishes the branch.
 
 ## If you are writing a document
 
