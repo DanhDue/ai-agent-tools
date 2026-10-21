@@ -428,14 +428,14 @@ class RoundTest(RoundCase):
         self.assertIn("- **Verdict**: PASS", self.text())
 
     def test_lmr_ec_09_dropped_files_reach_the_round_metadata(self) -> None:
-        self.record(run_external_review.Pass("task_1_demo", 0, "Verdict: PASS", "", "", ("big.py",), "stop"),
+        self.record(run_external_review.Pass("task_1", 0, "Verdict: PASS", "", "", ("big.py",), "stop"),
                     run_external_review.Pass("epic", 0, "Verdict: PASS", "", "", (), "stop"),
                     extra={"Passes": "2", "Context": "65536"})
         text = self.text()
-        self.assertIn("- **Omitted**: task_1_demo: big.py\n", text)
+        self.assertIn("- **Omitted**: task_1: big.py\n", text)
         self.assertLess(text.index("- **Verdict**: PASS"), text.index("- **Passes**: 2"))
         self.assertLess(text.index("- **Context**: 65536"), text.index("- **Omitted**"))
-        self.assertIn("### Pass 1: task_1_demo", text)
+        self.assertIn("### Pass 1: task_1", text)
         self.assertIn("### Pass 2: epic", text)
 
     def test_lmr_st_01_a_blocking_local_finding_holds_check_until_decided(self) -> None:
