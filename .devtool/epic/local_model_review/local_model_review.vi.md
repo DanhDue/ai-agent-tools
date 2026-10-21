@@ -15,7 +15,7 @@
 ## Siêu dữ liệu
 
 - **Tên epic**: `local_model_review`
-- **Trạng thái**: In Progress
+- **Trạng thái**: Done
 - **Bản phát hành mục tiêu**: Bản plugin tiếp theo
 - **Nền tảng**: Python tooling / agent skill kit
 - **Spec nguồn**: [Thiết kế review bằng model local đã duyệt](2026-10-21-local-model-review-design.vi.md)
