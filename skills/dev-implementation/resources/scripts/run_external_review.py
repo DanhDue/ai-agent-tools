@@ -20,7 +20,7 @@ import shutil
 import signal
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from string import Template
 
@@ -28,6 +28,7 @@ from task_contract import ContractError, git_run, parse_integration_results
 
 SCRIPTS = Path(__file__).resolve().parent
 PROMPT = SCRIPTS.parent.parent / "references" / "external-review-prompt.md"
+RULES = SCRIPTS.parent.parent / "references" / "review-rules.md"
 
 # Tolerates optional markdown headings, bullet prefixes, and bold markers around Verdict.
 VERDICT = re.compile(
@@ -186,7 +187,7 @@ def collect_facts(root: Path, epic_dir: str, base: str, hld_text: str, timeout: 
         cmd_code, cmd_out, cmd_err = run_gate(f"Integration: {cmd}", cmd, root, timeout, shell=True)
         results.append(fact(cmd, cmd_code, cmd_out, cmd_err))
         reports.extend(report.split())
-    roots = re.search(r"^Integration test roots:\s*(.+)$", hld_text, re.M)
+    roots = re.search(r"^Integration test roots:\s*(.+)$", hld_text, re.MULTILINE)
     if roots and reports:
         check = [sys.executable, str(SCRIPTS / "check_bdd_traceability.py"), "tests", "--scenarios",
                  f".devtool/epic/{epic_dir}/bdd_scenarios.en.md", "--roots", roots.group(1).strip(),
@@ -329,6 +330,7 @@ def run(args: argparse.Namespace) -> int:
     diff_limit = getattr(args, "diff_limit", MAX_DIFF_LINES)
     diff_section = build_diff_section(root, args.base, sha, max_lines=diff_limit)
     prompt = Template(PROMPT.read_text(encoding="utf-8")).safe_substitute(
+        rules=RULES.read_text(encoding="utf-8").strip(),
         sha=sha,
         base=args.base,
         epic_dir=f".devtool/epic/{args.epic_dir}",
@@ -359,7 +361,7 @@ def run(args: argparse.Namespace) -> int:
     existing = path.read_text(encoding="utf-8") if path.exists() else f"# Cross-Model Review: {args.epic_dir}\n"
     round_num = len(rounds_in(existing)) + 1
     meta = {
-        "Date": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "Date": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "SHA": sha,
         "Base": args.base,
         "CLI": args.cli,

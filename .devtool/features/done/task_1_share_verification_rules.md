@@ -1,13 +1,13 @@
 ---
 id: "task_1_share_verification_rules"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "local_model_review"
 dueDate: null
 created: "2026-10-21T09:10:00Z"
-modified: "2026-10-21T09:10:00Z"
-completedAt: null
+modified: "2026-10-21T09:25:55Z"
+completedAt: "2026-10-21T09:25:55Z"
 labels: ["review", "prompt", "refactor"]
 order: "a1"
 ---

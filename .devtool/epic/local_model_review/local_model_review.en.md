@@ -15,7 +15,7 @@
 ## Meta Data
 
 - **Epic name**: `local_model_review`
-- **Status**: Designing — Gate 2 pending
+- **Status**: In Progress
 - **Target release**: Next plugin release
 - **Platform**: Python tooling / agent skill kit
 - **Source Spec**: [Approved local model review design](2026-10-21-local-model-review-design.en.md)

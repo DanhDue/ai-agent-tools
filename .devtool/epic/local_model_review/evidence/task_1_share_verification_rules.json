@@ -1,0 +1,175 @@
+{
+  "schema": 1,
+  "task": "task_1_share_verification_rules",
+  "runs": {
+    "red": {
+      "head": "6da44f29118666b6eac668f76f4f18ac7053524d",
+      "tree": "9c8a794a25ceebbce876d28f1d28a7cf2f78a96e",
+      "patch_id": "421c470831539f20233d989ab4164626a799cce8",
+      "started": "2026-10-21T09:24:22Z",
+      "finished": "2026-10-21T09:24:23Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m unittest skills/dev-implementation/resources/scripts/test_local_review.py -k test_lmr_hp_02",
+          "expect": "exit 1; contains \"FAILED\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-21T09:24:22Z",
+          "finished": "2026-10-21T09:24:23Z",
+          "output_tail": [
+            "F",
+            "======================================================================",
+            "FAIL: test_lmr_hp_02_shared_rules_reach_the_external_prompt (skills.dev-implementation.resources.scripts.test_local_review.SharedRulesTest.test_lmr_hp_02_shared_rules_reach_the_external_prompt)",
+            "----------------------------------------------------------------------",
+            "Traceback (most recent call last):",
+            "  File \"/Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/local_model_review/skills/dev-implementation/resources/scripts/test_local_review.py\", line 24, in test_lmr_hp_02_shared_rules_reach_the_external_prompt",
+            "    self.assertIn(title, prompt)",
+            "    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^",
+            "AssertionError: 'No Reconstructed Logic' not found in \"# External Review Prompt\\n\\nYou are an independent reviewer of a finished epic. You are strictly read-only: do not modify, create, or delete any file, and do not run commands that write to the repository or alter git state. Read the artefacts, inspect the provided code diff, and report.\\n\\n## Candidate\\n\\n- Commit under review: `e9367e7310e4bfe30dd6dd4a866907c58d904ea0`\\n- Base the epic branched from: `5f9c716163817a682c3b9e79626adc2e1d92e040`\\n- Epic directory: `.devtool/epic/demo`\\n\\n## Artefacts\\n\\nRead these paths, relative to the repository root:\\n\\n- `.devtool/epic/demo/design.en.md`\\n- `.devtool/epic/demo/demo.en.md`\\n- `.devtool/epic/demo/bdd_scenarios.en.md`\\n- `.devtool/epic/demo/task_1_demo.md`\\n- `.devtool/epic/demo/evidence/`\\n\\n## Facts gathered for you\\n\\nThe audit of the epic branch, with its exit code:\\n\\n```text\\n$ audit_epic.py\\nexit 0\\n### Evidence\\nNone\\n\\n### Legacy tasks\\n- task_1_demo: legacy — no evidence\\n\\n### Protected paths\\nNone\\n\\n### Grader amendments\\n- scenario DEMO-HP-01 added\\n- demo.en.md: Protected paths or Integration results changed since base\\n  --- demo.en.md at base\\n  +++ demo.en.md at HEAD\\n  @@ -0,0 +1 @@\\n  +Integration results: true -> build/demo.xml\\n  changed by e9367e7 Epic\\n\\n### Commits outside tasks\\n- e9367e7 Epic\\n\\n### Gate 5 items\\nNone\\n\\nResult: PASS\\n```\\n\\nThe integration test commands and the result-based traceability check, with their exit codes:\\n\\n```text\\n$ true\\nexit 0\\n\\n\\n$ /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/local_model_review/skills/dev-implementation/resources/scripts/check_bdd_traceability.py tests --scenarios .devtool/epic/demo/bdd_scenarios.en.md --roots scripts/ --results build/demo.xml\\nexit 0\\nDEMO-HP-01    PASS test_demo_hp_01\\nResult: 1/1 covered — PASS\\n```\\n\\nAll commands above have passed their execution gates (exit 0); inspect their output details for coverage, warnings, or audit disclosures.\\n\\n## Code Changes (Diff)\\n\\nFull file change summary (`git diff --stat`, including locks/codegen):\\n\\n```text\\nbuild/demo.xml       | 6 ++++++\\n scripts/test_demo.py | 2 ++\\n 2 files changed, 8 insertions(+)\\n```\\n\\nThe complete source diff (8 lines, 0 KB, lock, generated, and noisy metadata/asset files excluded) is inlined below. Do NOT run `git diff` again unless you need to inspect an excluded file:\\n\\n```diff\\ndiff --git a/scripts/test_demo.py b/scripts/test_demo.py\\nnew file mode 100644\\nindex 0000000..0c454e2\\n--- /dev/null\\n+++ b/scripts/test_demo.py\\n@@ -0,0 +1,2 @@\\n+# [DEMO-HP-01]\\n+def test_demo_hp_01(): pass\\n```\\n\\n## Verification Hierarchy & Process Rules\\n\\nTo avoid false-positive findings, evaluate evidence against these architectural principles:\\n\\n1. **Task-Level vs. Gate 4 Workspace Scope**:\\n   - Each task's `Verification` table is strictly scoped to that individual task's deliverables (e.g. documentation, domain models, or specific adapters).\\n   - Tasks are NOT required to execute workspace-wide profiles. Full workspace capabilities (coverage thresholds, security advisories/deny, FFI/WASM release builds, database hygiene, and end-to-end acceptance) belong exclusively to the platform-neutral **Gate 4 Quality Orchestrator (`@quality_check`)** evaluated on the final candidate SHA. Do not report task evidence as defective solely because it does not run the entire workspace epic profile.\\n2. **Compiled Language TDD RED Semantics**:\\n   - In compiled languages (Rust, Go, C++, etc.), the initial TDD RED phase for a new component or function is legitimately satisfied by a compilation failure or missing test target. A non-zero exit code prior to implementation code being written demonstrates a valid RED state.\\n3. **Artifact Budget Assertions**:\\n   - Verify that test assertions checking generated build artifacts (such as WASM binary size or exported types) strictly verify that the target artifact actually exists (avoiding vacuous false-PASS loops).\\n4. **Contract Drift Inspection**:\\n   - Check whether code constants, default parameters, and enum variants match the published API reference documentation and cross-epic integration contracts without divergence.\\n\\n## Checklist\\n\\n- Each done task's evidence against its Verification table, and rows too weak for the Definition of Done item they back.\\n- Whether each identifier's test genuinely exercises its Gherkin scenario, or merely passes superficially.\\n- Each audit disclosure — grader amendments, protected path changes, commits outside tasks — and whether it is justified.\\n- Whether the implementation respects the spec, the HLD, schema definitions, and each task's Decisions Already Made.\\n- The `(Gate 5)` items, restated clearly for the developer.\\n\\n## Required output\\n\\nDo NOT use the bracketed tags `[Critical]`, `[Important]`, or `[Minor]` anywhere in your prose or analysis above the final verdict block.\\n\\nEnd your answer with these exact lines and nothing after them (no markdown bolding `**`, no backticks, no bullet before `Verdict:`):\\n\\nVerdict: PASS\\n(or `Verdict: CHANGES REQUIRED`)\\n[Critical|Important|Minor] <artefact>:<location> — <problem>\\n\\nRules for Severity & Verdict:\\n- Use `Critical` for a defect that breaks the epic's goal, `Important` for one that must be fixed before merge, and `Minor` for anything else.\\n- Output `Verdict: CHANGES REQUIRED` if and only if there is at least one `Critical` or `Important` finding.\\n- If there are no findings (or only `Minor` findings), you MUST output `Verdict: PASS`.\\n- A review with no finding still ends with its `Verdict: PASS` line.\\n\"",
+            "",
+            "----------------------------------------------------------------------",
+            "Ran 1 test in 0.750s",
+            "",
+            "FAILED (failures=1)"
+          ],
+          "output_sha256": "f5600034b283982fdcccb854e89dec0c9c27d112999647bcf76b60a34b284b33"
+        }
+      ]
+    },
+    "verify": {
+      "head": "6da44f29118666b6eac668f76f4f18ac7053524d",
+      "tree": "7e42d0b91e9951028c554d49ac6ffe08476da2e7",
+      "patch_id": "82c8874d2d009035757bd3cb9182c180f7833813",
+      "started": "2026-10-21T09:25:28Z",
+      "finished": "2026-10-21T09:25:45Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m unittest skills/dev-implementation/resources/scripts/test_local_review.py -k test_lmr_hp_02",
+          "expect": "exit 0; contains \"OK\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-21T09:25:28Z",
+          "finished": "2026-10-21T09:25:28Z",
+          "output_tail": [
+            ".",
+            "----------------------------------------------------------------------",
+            "Ran 1 test in 0.557s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "7fa95e62e8d36c152e098709e1374a6c9b2c84b8984ae77f07f221ebb405a26f"
+        },
+        {
+          "id": "V3",
+          "phase": "GREEN",
+          "command": "python3 -m unittest skills/dev-implementation/resources/scripts/test_run_external_review.py",
+          "expect": "exit 0; contains \"OK\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-21T09:25:28Z",
+          "finished": "2026-10-21T09:25:43Z",
+          "output_tail": [
+            "...............................",
+            "----------------------------------------------------------------------",
+            "Ran 31 tests in 15.159s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "04fea2abc00a3ebb57ea51abc4864bb8d3b1264725cb52533b32eb6e7170549e"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "ruff check skills/dev-implementation/resources/scripts/run_external_review.py skills/dev-implementation/resources/scripts/test_local_review.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-21T09:25:43Z",
+          "finished": "2026-10-21T09:25:43Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-B",
+          "command": "mypy --strict --follow-imports=silent skills/dev-implementation/resources/scripts/run_external_review.py skills/dev-implementation/resources/scripts/test_local_review.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-21T09:25:43Z",
+          "finished": "2026-10-21T09:25:43Z",
+          "output_tail": [
+            "Success: no issues found in 2 source files"
+          ],
+          "output_sha256": "f9b031e5c45aa702cd4fef028d465551cb20a2c4698e0913c7b00766b20ac4d8"
+        },
+        {
+          "id": "V6",
+          "phase": "TIER-C",
+          "command": "python3 scripts/run_unittest_junit.py --junitxml build/test-results/task_1.xml skills/dev-implementation/resources/scripts/test_local_review.py",
+          "expect": "exit 0; results build/test-results/task_1.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-21T09:25:43Z",
+          "finished": "2026-10-21T09:25:44Z",
+          "output_tail": [
+            ".",
+            "----------------------------------------------------------------------",
+            "Ran 1 test in 0.516s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "992caf13b148a1b2cc82558f46d2deba9c7c3ebe50b0bc65614c1ae02c41d87a",
+          "results": {
+            "path": "build/test-results/task_1.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 1,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_lmr_hp_02_shared_rules_reach_the_external_prompt",
+                  "classname": "test_local_review.SharedRulesTest",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "skills/dev-implementation/references/external-review-prompt.md",
+            "skills/dev-implementation/references/review-rules.md",
+            "skills/dev-implementation/resources/scripts/run_external_review.py",
+            "skills/dev-implementation/resources/scripts/test_local_review.py"
+          ],
+          "violations": []
+        }
+      ]
+    }
+  }
+}
