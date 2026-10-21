@@ -145,7 +145,7 @@ sequenceDiagram
     end
     loop mỗi lát cắt theo thứ tự commit, epic cuối cùng
         Runner->>Local: chat(system, user, chat_options)
-        Local->>Ollama: POST /api/chat, stream false
+        Local->>Ollama: POST /api/chat, stream true, ghi chunk vào log trực tiếp
         Ollama-->>Local: message.content, done_reason
         Local-->>Runner: Reply với phần chữ sau thẻ think cuối cùng
         Runner->>Runner: dòng tiến độ, dừng ở pass lỗi đầu tiên
@@ -189,7 +189,8 @@ class Slice:
 def host_from_env() -> str
 def probe(host: str, model: str, timeout: int = 10) -> int | None
 def chat_options(model_ctx: int | None, flag_ctx: int | None, prompt_tokens: int) -> dict[str, int]
-def chat(host: str, model: str, system: str, user: str, options: dict[str, int], timeout: int) -> Reply
+def chat(host: str, model: str, system: str, user: str, options: dict[str, int], timeout: int,
+         log: Path | None = None) -> Reply
 def answer_text(content: str) -> str
 def estimate_tokens(text: str) -> int
 def build_slices(root: Path, epic_dir: str, base: str, sha: str, audit_output: str,
@@ -206,8 +207,9 @@ def render_system(slice_: Slice) -> str
 - `chat_options` trả về `num_predict = effective - prompt_tokens` với
   `effective = flag_ctx or model_ctx or DEFAULT_NUM_CTX`, và chỉ thêm `num_ctx = effective` khi có
   `flag_ctx` hoặc `model_ctx` là `None`. Không bao giờ gửi tham số sampling nào.
-- `chat` gửi `{"model", "messages": [system, user], "stream": false, "options"}` và không bao giờ gửi
-  `think`. Timeout cho `error="timed out after <timeout> seconds"`; lỗi HTTP cho
+- `chat` gửi `{"model", "messages": [system, user], "stream": true, "options"}` và không bao giờ gửi
+  `think`. Khi chunk tới, nó ghi phần thinking, rồi `--- answer ---`, rồi câu trả lời vào `log`;
+  `timeout` giới hạn cả pass, không chỉ thời gian chờ từng chunk. Timeout cho `error="timed out after <timeout> seconds"`; lỗi HTTP cho
   `error="HTTP <code>: <first 500 characters of the body>"`.
 - `answer_text` trả về phần chữ sau `</think>` cuối cùng, đã strip, hoặc toàn bộ chữ nếu không có.
 - `estimate_tokens` là `ceil(len(text.encode("utf-8")) / BYTES_PER_TOKEN)`.
@@ -248,6 +250,9 @@ def record_round(root: Path, args: argparse.Namespace, sha: str, passes: list[Pa
   `--num-ctx` (mặc định `None`) là mới. Với `ollama`, `--timeout` tính cho từng pass.
 - Claude CLI và Codex CLI chạy như một `Pass` nhãn `review`, và `record_round` ghi round giống hệt
   từng byte so với hiện nay. Prompt có thêm `rules=RULES.read_text()`.
+- Mỗi pass local stream vào `<logs>/<n>-<label>.log`, trong đó `<logs>` là
+  `build/local-review/<epic_dir>` khi Git ignore nó, nếu không thì là `git rev-parse --git-path local-review/<epic_dir>`.
+  Cả hai chỗ đều không làm đổi `git status`. Runner in `Live logs: <logs>` trước pass đầu tiên.
 - Chỉ với `--cli ollama`: finding được đọc từ dòng `Verdict:` cuối cùng của mỗi pass trở xuống;
   finding Critical hoặc Important có đường dẫn location không xuất hiện trong `Pass.shown` được nối
   ` (location not shown to reviewer)` vào ô Problem; một pass chỉ completed khi `code == 0`,

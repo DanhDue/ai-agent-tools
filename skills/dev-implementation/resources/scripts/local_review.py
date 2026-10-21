@@ -10,13 +10,14 @@ import json
 import math
 import os
 import re
+import time
 import urllib.error
 import urllib.request
 from collections.abc import Iterable
 from dataclasses import dataclass, replace
 from pathlib import Path
 from string import Template
-from typing import Any
+from typing import Any, TextIO
 
 from check_bdd_traceability import FENCE, LEADING_TAG, SCENARIO_LINE, covers_of
 from task_contract import git_run, section
@@ -54,10 +55,12 @@ def host_from_env() -> str:
     return (host if "://" in host else f"http://{host}").rstrip("/")
 
 
+def json_request(url: str, payload: dict[str, Any]) -> urllib.request.Request:
+    return urllib.request.Request(url, data=json.dumps(payload).encode(), headers={"Content-Type": "application/json"})
+
+
 def post(url: str, payload: dict[str, Any], timeout: int) -> Any:
-    request = urllib.request.Request(url, data=json.dumps(payload).encode(),
-                                     headers={"Content-Type": "application/json"})
-    with urllib.request.urlopen(request, timeout=timeout) as response:
+    with urllib.request.urlopen(json_request(url, payload), timeout=timeout) as response:
         return json.loads(response.read())
 
 
@@ -97,13 +100,40 @@ def answer_text(content: str) -> str:
     return content.rpartition("</think>")[2].strip()
 
 
-def chat(host: str, model: str, system: str, user: str, options: dict[str, int], timeout: int) -> Reply:
-    """One non-streaming /api/chat call; failures become a Reply with its error set, never an exception."""
+def read_stream(lines: Iterable[bytes], deadline: float, timeout: int, sink: TextIO | None) -> Reply:
+    """Collect a streamed answer, writing thinking and answer to the sink as they arrive."""
+    answer: list[str] = []
+    reason: str | None = None
+    for line in lines:
+        if not line.strip():
+            continue
+        if time.monotonic() > deadline:
+            return Reply("", None, f"timed out after {timeout} seconds")
+        data = json.loads(line)
+        if data.get("error"):
+            return Reply("", None, str(data["error"]))
+        message = data.get("message") or {}
+        thinking, text = str(message.get("thinking") or ""), str(message.get("content") or "")
+        if sink is not None:
+            sink.write(thinking + ("\n\n--- answer ---\n\n" if text and not answer else "") + text)
+            sink.flush()
+        if text:
+            answer.append(text)
+        if data.get("done"):
+            reason = data.get("done_reason")
+    return Reply(answer_text("".join(answer)), reason, None)
+
+
+def chat(host: str, model: str, system: str, user: str, options: dict[str, int], timeout: int,
+         log: Path | None = None) -> Reply:
+    """One streamed /api/chat call within `timeout` seconds; failures become a Reply with its error set."""
     payload = {"model": model,
                "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
-               "stream": False, "options": options}
+               "stream": True, "options": options}
+    sink = log.open("w", encoding="utf-8") if log else None
     try:
-        data = post(f"{host}/api/chat", payload, timeout)
+        with urllib.request.urlopen(json_request(f"{host}/api/chat", payload), timeout=timeout) as response:
+            return read_stream(response, time.monotonic() + timeout, timeout, sink)
     except urllib.error.HTTPError as error:
         with error:
             body = error.read().decode("utf-8", "replace")
@@ -116,8 +146,9 @@ def chat(host: str, model: str, system: str, user: str, options: dict[str, int],
         return Reply("", None, str(error))
     except (OSError, ValueError) as error:
         return Reply("", None, str(error))
-    message = data.get("message") or {}
-    return Reply(answer_text(str(message.get("content") or "")), data.get("done_reason"), None)
+    finally:
+        if sink is not None:
+            sink.close()
 
 
 @dataclass(frozen=True)

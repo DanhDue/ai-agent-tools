@@ -361,6 +361,16 @@ def run(args: argparse.Namespace) -> int:
     return record_round(root, args, sha, [Pass("review", code, out, err, prompt)], changed, {})
 
 
+def live_log_dir(root: Path, epic_dir: str) -> Path:
+    """Where each pass streams its output: build/local-review/<epic_dir> when Git ignores it, else the Git directory.
+
+    Either place leaves `git status` untouched, so the logs never trip the tree-modified check."""
+    visible = root / "build" / "local-review" / epic_dir
+    if subprocess.run(["git", "check-ignore", "-q", str(visible)], cwd=root, check=False).returncode == 0:
+        return visible
+    return root / git_run(root, "rev-parse", "--git-path", f"local-review/{epic_dir}").decode().strip()
+
+
 def run_local(root: Path, args: argparse.Namespace, sha: str, audit_output: str, results_output: str,
               model_ctx: int | None) -> int:
     """Fit every slice before the first call, then review them one at a time; the first failed pass ends the run."""
@@ -375,6 +385,9 @@ def run_local(root: Path, args: argparse.Namespace, sha: str, audit_output: str,
     except local_review.LocalReviewError as error:
         print_gate_banner(PreconditionFailedError("Context budget", str(error)), args.cli)
         return 2
+    logs = live_log_dir(root, args.epic_dir)
+    logs.mkdir(parents=True, exist_ok=True)
+    print(f"{CYAN}Live logs:{RESET} {logs}", file=sys.stderr, flush=True)
     before = status_lines(root)
     passes: list[Pass] = []
     for number, (slice_, system) in enumerate(planned, 1):
@@ -383,7 +396,8 @@ def run_local(root: Path, args: argparse.Namespace, sha: str, audit_output: str,
         options = local_review.chat_options(model_ctx, args.num_ctx, prompt_tokens)
         print(f"{CYAN}⏳ [Pass {number}/{len(planned)}]{RESET} {slice_.label} ... ", end="", file=sys.stderr, flush=True)
         started = time.monotonic()
-        reply = local_review.chat(args.host, args.model, system, user, options, args.timeout)
+        reply = local_review.chat(args.host, args.model, system, user, options, args.timeout,
+                                  logs / f"{number}-{slice_.label}.log")
         code = 0 if reply.error is None else None if reply.error.startswith("timed out") else 1
         passes.append(Pass(slice_.label, code, reply.content, reply.error or "", user, slice_.omitted,
                            reply.done_reason))

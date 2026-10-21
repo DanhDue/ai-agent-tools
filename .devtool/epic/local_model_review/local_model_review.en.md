@@ -145,7 +145,7 @@ sequenceDiagram
     end
     loop each slice in commit order, epic last
         Runner->>Local: chat(system, user, chat_options)
-        Local->>Ollama: POST /api/chat, stream false
+        Local->>Ollama: POST /api/chat, stream true, chunks into the live log
         Ollama-->>Local: message.content, done_reason
         Local-->>Runner: Reply with the text after the last think tag
         Runner->>Runner: progress line, stop at the first failed pass
@@ -189,7 +189,8 @@ class Slice:
 def host_from_env() -> str
 def probe(host: str, model: str, timeout: int = 10) -> int | None
 def chat_options(model_ctx: int | None, flag_ctx: int | None, prompt_tokens: int) -> dict[str, int]
-def chat(host: str, model: str, system: str, user: str, options: dict[str, int], timeout: int) -> Reply
+def chat(host: str, model: str, system: str, user: str, options: dict[str, int], timeout: int,
+         log: Path | None = None) -> Reply
 def answer_text(content: str) -> str
 def estimate_tokens(text: str) -> int
 def build_slices(root: Path, epic_dir: str, base: str, sha: str, audit_output: str,
@@ -206,8 +207,9 @@ def render_system(slice_: Slice) -> str
 - `chat_options` returns `num_predict = effective - prompt_tokens` where
   `effective = flag_ctx or model_ctx or DEFAULT_NUM_CTX`, and adds `num_ctx = effective` only when
   `flag_ctx` is set or `model_ctx` is `None`. No sampling option is ever sent.
-- `chat` posts `{"model", "messages": [system, user], "stream": false, "options"}` and never sends
-  `think`. A timeout gives `error="timed out after <timeout> seconds"`; an HTTP error gives
+- `chat` posts `{"model", "messages": [system, user], "stream": true, "options"}` and never sends
+  `think`. As chunks arrive it writes their thinking, then `--- answer ---`, then the answer to
+  `log`; `timeout` bounds the whole pass, not only the wait for each chunk. A timeout gives `error="timed out after <timeout> seconds"`; an HTTP error gives
   `error="HTTP <code>: <first 500 characters of the body>"`.
 - `answer_text` returns the text after the last `</think>`, stripped, or the whole text without one.
 - `estimate_tokens` is `ceil(len(text.encode("utf-8")) / BYTES_PER_TOKEN)`.
@@ -248,6 +250,9 @@ def record_round(root: Path, args: argparse.Namespace, sha: str, passes: list[Pa
   and `--num-ctx` (default `None`) are new. `--timeout` is per pass for `ollama`.
 - The Claude CLI and Codex CLI run as one `Pass` labelled `review`, and `record_round` writes the
   same round, byte for byte, as today. The prompt gains `rules=RULES.read_text()`.
+- Each local pass streams into `<logs>/<n>-<label>.log`, where `<logs>` is
+  `build/local-review/<epic_dir>` when Git ignores it, else `git rev-parse --git-path local-review/<epic_dir>`.
+  Either place leaves `git status` untouched. The runner prints `Live logs: <logs>` before the first pass.
 - For `--cli ollama` only: findings are read from each pass's last `Verdict:` line onward; a
   Critical or Important finding whose location path does not occur in `Pass.shown` gets
   ` (location not shown to reviewer)` appended to its Problem; a pass completes only with

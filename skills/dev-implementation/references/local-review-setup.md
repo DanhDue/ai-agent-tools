@@ -22,6 +22,20 @@ The developer picks the model from `ollama list`; the agent never picks it.
 - `--host` defaults to `$OLLAMA_HOST`, then `http://localhost:11434`. `--timeout` applies to each
   pass.
 
+## Watching a review
+
+The runner streams every pass and prints `Live logs: <directory>` before the first one. Each pass
+writes `<n>-<label>.log` there as the model produces it: its thinking first, then a
+`--- answer ---` line, then the analysis and verdict block. Open a file in the editor, or follow it:
+
+```bash
+tail -f build/local-review/<epic_dir>/1-<first task id>.log
+```
+
+The directory is `build/local-review/<epic_dir>` when Git ignores `build/`; otherwise it sits inside
+the Git directory, at `git rev-parse --git-path local-review/<epic_dir>`. Neither place changes
+`git status`, so watching never discards a round. Only the answer reaches `review_results.md`.
+
 ## A reviewer Modelfile
 
 The reference model used while designing this option, on a 64 GB Mac:
@@ -73,8 +87,22 @@ before the verdict block.
 
 ## Expect
 
-- Several minutes per pass at about 12 output tokens per second; a five-task epic takes 20 to 40
-  minutes.
+Measured with the Modelfile above on a 64 GB Mac mini M4 Pro, reviewing this kit's own
+`local_model_review` epic:
+
+| Pass | Prompt tokens | Prompt processing | Generated tokens | Pass time |
+|---|---|---|---|---|
+| task 1 | 8,113 | 80 s | 12,271 | 1,203 s |
+| task 2 | 7,040 | 63 s | 6,064 | 634 s |
+| task 3 | about 11,500 | 77 s | not recorded | 1,421 s |
+| task 4 | not recorded | not recorded | not recorded | 1,546 s |
+
+- Generation runs at about 11 tokens per second and thinking is most of what is generated, so a
+  pass takes 10 to 26 minutes and an eight-pass round several hours. A pass can exceed the default
+  `--timeout 1800`; raise it, or turn thinking off.
+- To turn thinking off, create a second model from the same Modelfile whose template ends with an
+  empty `<think>` and `</think>` pair after the assistant turn opens, as described above. The model
+  then writes only the `## Analysis` section and the verdict block.
 - Loading the model needs its full size in memory and may evict another loaded model.
 - More false positives than a frontier model. Critical and Important findings require a quote, a
   finding at a path the pass never showed is marked `(location not shown to reviewer)`, and every

@@ -47,6 +47,7 @@ class FakeOllama:
         self.show: tuple[int, dict[str, Any]] = (200, {"parameters": "temperature 0.2"})
         self.chat_replies: list[tuple[int, str, str]] = []  # (status, content or error body, done_reason)
         self.delay = 0.0
+        self.chunk_delay = 0.0
         self.requests: list[tuple[str, dict[str, Any], float, float]] = []  # (path, body, started, finished)
         fake = self
 
@@ -65,12 +66,33 @@ class FakeOllama:
                 else:
                     time.sleep(fake.delay)
                     status, text, reason = fake.chat_replies.pop(0) if fake.chat_replies else (200, "Verdict: PASS", "stop")
-                    if status == 200:
+                    if status != 200:
+                        self.reply(status, text)
+                    elif body.get("stream"):
+                        half = len(text) // 2
+                        self.stream([{"message": {"role": "assistant", "content": "", "thinking": "thinking-marker "},
+                                      "done": False},
+                                     {"message": {"role": "assistant", "content": text[:half]}, "done": False},
+                                     {"message": {"role": "assistant", "content": text[half:]}, "done": False},
+                                     {"message": {"role": "assistant", "content": ""}, "done": True,
+                                      "done_reason": reason}])
+                    else:
                         self.reply(200, {"message": {"role": "assistant", "content": text},
                                          "done": True, "done_reason": reason})
-                    else:
-                        self.reply(status, text)
                 fake.requests.append((self.path, body, started, time.monotonic()))
+
+            def stream(self, chunks: list[dict[str, Any]]) -> None:
+                """NDJSON chunks as Ollama streams them; the connection close ends the body."""
+                try:
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/x-ndjson")
+                    self.end_headers()
+                    for chunk in chunks:
+                        self.wfile.write(json.dumps(chunk).encode() + b"\n")
+                        self.wfile.flush()
+                        time.sleep(fake.chunk_delay)
+                except OSError:
+                    pass  # the client gave up first, as in a timeout test
 
             def reply(self, status: int, payload: Any) -> None:
                 data = payload.encode() if isinstance(payload, str) else json.dumps(payload).encode()
@@ -153,9 +175,23 @@ class TransportTest(unittest.TestCase):
         self.assertEqual(self.fake.chats(), [{
             "model": "qwen38-reviewer",
             "messages": [{"role": "system", "content": "SYSTEM"}, {"role": "user", "content": "USER"}],
-            "stream": False,
+            "stream": True,
             "options": {"num_predict": 7},
         }])
+
+    def test_chat_streams_the_thinking_and_the_answer_into_the_log(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            log = Path(directory) / "1-task_1_demo.log"
+            self.fake.chat_replies = [(200, "## Analysis\nfine\nVerdict: PASS", "stop")]
+            reply = local_review.chat(self.fake.url, "m", "s", "u", {"num_predict": 10}, 5, log)
+            self.assertEqual(reply, local_review.Reply("## Analysis\nfine\nVerdict: PASS", "stop", None))
+            text = log.read_text(encoding="utf-8")
+        self.assertEqual(text, "thinking-marker \n\n--- answer ---\n\n## Analysis\nfine\nVerdict: PASS")
+
+    def test_the_timeout_bounds_a_whole_streamed_pass(self) -> None:
+        self.fake.chunk_delay = 0.6  # every chunk arrives within the socket timeout, the pass as a whole does not
+        self.assertEqual(local_review.chat(self.fake.url, "m", "s", "u", {"num_predict": 10}, 1),
+                         local_review.Reply("", None, "timed out after 1 seconds"))
 
     def test_host_comes_from_ollama_host_or_the_default(self) -> None:
         with mock.patch.dict(os.environ, clear=True):
@@ -509,6 +545,29 @@ class RunnerTest(ReviewCase):
         self.assertIn("- **Status**: no verdict", text)
         self.assertIn("### Pass 1: task_1_demo", text)
         self.assertIn("HTTP 500: boom", text)
+
+    def test_each_pass_streams_into_its_own_live_log(self) -> None:
+        code, _, err = self.local()
+        self.assertEqual(code, 0)
+        logs = self.root / git(self.root, "rev-parse", "--git-path", "local-review/demo")
+        self.assertIn("Live logs:", err)
+        self.assertIn(str(logs), err)
+        self.assertEqual(sorted(path.name for path in logs.iterdir()),
+                         ["1-task_1_demo.log", "2-task_2_demo.log", "3-epic.log"])
+        for path in logs.iterdir():
+            self.assertTrue(path.read_text(encoding="utf-8").endswith("--- answer ---\n\nVerdict: PASS"), path.name)
+        self.assertIn("- **Status**: completed", self.text())
+
+    def test_live_logs_go_under_build_when_git_ignores_it(self) -> None:
+        self.write(".gitignore", "build/\n")
+        self.commit("Ignore build output")
+        code, _, err = self.local()
+        self.assertEqual(code, 0)
+        logs = self.root / "build" / "local-review" / "demo"
+        self.assertIn("Live logs:", err)
+        self.assertIn(str(logs), err)
+        self.assertEqual(len(list(logs.iterdir())), 3)
+        self.assertIn("- **Status**: completed", self.text())
 
     def test_lmr_fr_07_a_slice_that_cannot_fit_stops_the_run_before_any_chat(self) -> None:
         self.write(f"{EPIC}/task_1_demo.md", '---\nid: "task_1_demo"\nstatus: "done"\n---\n\n# Task 1\n' + "x" * 1900)
