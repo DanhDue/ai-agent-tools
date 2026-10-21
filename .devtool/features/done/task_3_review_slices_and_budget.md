@@ -1,13 +1,13 @@
 ---
 id: "task_3_review_slices_and_budget"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "local_model_review"
 dueDate: null
 created: "2026-10-21T09:10:00Z"
-modified: "2026-10-21T09:10:00Z"
-completedAt: null
+modified: "2026-10-21T09:32:15Z"
+completedAt: "2026-10-21T09:32:15Z"
 labels: ["review", "ollama", "context-budget"]
 order: "a3"
 ---
