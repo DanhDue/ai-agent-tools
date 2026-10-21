@@ -63,10 +63,12 @@ if git diff --cached --quiet; then
 else
   git commit -q -m "[RELEASE] Release $NEW" -m "- Publish the changes documented in CHANGELOG.md
 - Synchronize plugin manifests at $NEW"
-  echo "  committed Release $NEW"
+  git tag -a -f "v$NEW" -m "[RELEASE] Release $NEW"
+  git tag -a -f "d3nexus--v$NEW" -m "[RELEASE] Release $NEW"
+  echo "  committed and tagged Release $NEW"
 fi
-git push -q origin main
-echo "  pushed"
+git push -q origin main "v$NEW" "d3nexus--v$NEW"
+echo "  pushed main and tags"
 
 echo
 echo "== 4. Refresh this machine =="

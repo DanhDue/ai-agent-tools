@@ -8,6 +8,26 @@ every installed machine on the old cached copy.
 
 ---
 
+## 1.13.0 — 2026-10-21
+
+Introduces full offline Local Model Review powered by Ollama, dependency-aware diff slicing with token budget enforcement, shared platform review checklists, multi-pass aggregation and triage tooling, 3-option Review Choice at Gate 4, and resilient test result parsing.
+
+### Added
+
+- **Local Model Review via Ollama** (`skills/dev-implementation/resources/scripts/local_review.py`, `skills/dev-implementation/resources/scripts/run_external_review.py`): Delivers a 100% free, offline, private code review engine connecting directly to local Ollama models (`qwen2.5-coder:14b`, `deepseek-r1:14b`, `llama3.3:70b`, etc.) over streamed NDJSON HTTP transport with automatic endpoint health checks and timeout controls.
+- **Dependency-Aware Diff Slicing & Token Budgets** (`skills/dev-implementation/resources/scripts/local_review.py`): Intelligently chunks complex code diffs into bounded slices topologically ordered by dependency depth and constrained by configurable token budgets (`--token-budget`, `--pass-budget`), with graceful snippet markers (`[SNIP: remainder of file diff exceeds slice budget]`) to prevent context window blowouts.
+- **Shared Platform Review Checklists & Verification Rules** (`skills/dev-implementation/references/review-rules.md`, `skills/dev-implementation/references/local-review-*.md`): Centralizes universal verification standards across mobile (Flutter, Android, iOS), web, Python, and Rust stacks, shared seamlessly between external reviewers (Claude/Codex CLI) and local reviewers (Ollama).
+- **Multi-Pass Finding Aggregation & Deduplication** (`skills/dev-implementation/resources/scripts/local_review.py`): Executes concurrent or sequential review passes with live progress streaming, deduplicating matching findings across passes and producing structured markdown rounds in `review_results.md`.
+- **Review Triage & Round Comparison Subcommands** (`skills/dev-implementation/resources/scripts/run_external_review.py`): Adds `run_external_review.py triage` to classify findings (accept/reject/fix) and `run_external_review.py compare` to track resolution and regression deltas across successive review rounds.
+
+### Changed
+
+- **3-Option Review Choice at Gate 4** (`rules/CRITICAL_RULES.md`, `skills/dev-lifecycle/SKILL.md`, `skills/dev-implementation/SKILL.md`): Extends the post-Gate 4 review decision to offer three explicit paths: Option 1 (Finish to Gate 5), Option 2 (Local model review via Ollama), and Option 3 (Cross-model review via Claude CLI or Codex CLI). Any findings generating Fix commits mandate a full Gate 4 rerun before offering Review Choice again.
+- **Bilingual Lifecycle & Architecture Documentation** (`docs/lifecycles.*`, `docs/choosing-a-lifecycle.*`): Updates English and Vietnamese documentation, flowchart diagrams, and lifecycle guides to reflect the 3-option Review Choice workflow and local review capabilities.
+- **Resilient Test Result Parsing & Archive Slug Matching** (`skills/dev-implementation/resources/scripts/result_reports.py`, `skills/dev-implementation/resources/scripts/sync_task_status.py`): Protects Dart test event parsing from malformed JSON lines or non-dict payloads, and supports interchangeable hyphens and underscores in epic directory slugs during task archival.
+
+---
+
 ## 1.12.0 — 2026-10-19
 
 Introduces mechanical task tamper protection, deterministic fast-model contract checks, bounded context injection, dynamic cross-model review recommendation at Gate 4, runtime skill slimming with diagram relocation to bilingual docs, and strict Python TIER-B verification.
