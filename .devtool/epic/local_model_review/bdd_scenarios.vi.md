@@ -74,6 +74,29 @@ Given references/local-review-platforms.md
 When test thu thập ID luật của các section Flutter, Android và iOS cùng tên luật in đậm của các section Rust và Python
 Then mỗi ID xuất hiện trong một row đánh dấu "Blocker" của SKILL.md thuộc architecture-audit, code-health-audit hoặc security-audit
 And mỗi tên Rust xuất hiện trong rust-architecture-governance.md và mỗi tên Python trong python-architecture-governance.md
+
+Scenario: [LMR-HP-08] [Tier C - Integration] Triage liệt kê mọi finding của round mới nhất
+
+Given một round đã ghi có "[Important] a.py:3 — missing guard" và "[Minor] b.py:5 — wording"
+When run_external_review.py triage --epic-dir demo chạy
+Then nó exit 0 và in "# Review Triage: demo, Round 1"
+And bảng "## Findings" của nó có row 1 và 2 với severity, location và problem của round, và "?" ở Assessment, Evidence và Proposed action
+And nó kết thúc bằng một section "## Next Steps"
+
+Scenario: [LMR-HP-09] [Tier C - Integration] Workflow bắt buộc triage trước khi xử lý finding
+
+Given skills/dev-implementation/SKILL.md, skills/dev-lifecycle/SKILL.md và rules/CRITICAL_RULES.md
+When các contract test vòng đời đọc chúng
+Then mỗi file nêu "run_external_review.py triage"
+And dev-implementation link tới references/review-triage.md và chờ quyết định của developer trước mọi Fix commit
+And Red Flags của dev-lifecycle cấm xử lý finding review trước khi trình bày triage
+
+Scenario: [LMR-HP-10] [Tier C - Integration] Triage so sánh mọi round
+
+Given một Round 1 của claude có finding Important đã quyết "fixed in abc1234" và một Round 2 của ollama có một finding Minor
+When triage chạy
+Then bảng "## Round Comparison" có mỗi round một row với CLI / Model, Status, Verdict, Critical, Important, Minor, Fixed, Dismissed và Undecided
+And Round 1 hiện Important 1 và Fixed 1, còn Round 2 hiện Minor 1
 ```
 
 ## Ca biên và ranh giới
@@ -141,6 +164,20 @@ Scenario: [LMR-EC-09] [Tier C - Integration] File bị bỏ tới được metad
 Given một pass ollama "task_1" có omitted ("big.py",) và một pass epic không bỏ gì
 When record_round chạy
 Then round hiện "- **Omitted**: task_1: big.py"
+
+Scenario: [LMR-EC-10] [Tier C - Integration] Triage đánh dấu pass không có verdict
+
+Given một round ollama có pass 2 không có dòng verdict và pass 3 lỗi với "HTTP 500: boom"
+When triage chạy
+Then bảng "## Passes" hiện pass 2 với verdict "none" và pass 3 với error "HTTP 500: boom"
+
+Scenario: [LMR-EC-11] [Tier C - Integration] Finding đã sửa bị báo lại ở cùng đường dẫn được đánh dấu
+
+Given Round 1 có "[Important] src/a.py:3 — missing guard" và "[Important] src/b.py:9 — weak", cả hai đã quyết "fixed in abc1234"
+And Round 2 báo "[Minor] src/a.py:40 — still unguarded"
+When triage chạy
+Then "## Since Round 1" liệt kê src/a.py:3 là bị báo lại ở cùng đường dẫn, kèm "check the fix"
+And liệt kê src/b.py:9 là không bị báo lại
 ```
 
 ## Chuyển trạng thái
@@ -166,6 +203,12 @@ Given skills/dev-implementation/SKILL.md, skills/dev-lifecycle/SKILL.md, docs/li
 When các contract test vòng đời đọc chúng
 Then mỗi file định tuyến Local model review qua cạnh ghi nhận round ("round recorded", hoặc "đã ghi nhận round" trong tiếng Việt) quay về Phase 4 hoặc Gate 4 đầy đủ
 And không file nào định tuyến nó thẳng tới Gate 5
+
+Scenario: [LMR-ST-04] [Tier C - Integration] Triage đọc round mới nhất, completed hay không
+
+Given một Round 1 completed và một Round 2 "no verdict"
+When triage chạy
+Then nó in "Round 2" và chỉ các finding của Round 2 trong bảng Findings
 ```
 
 ## Bất đồng bộ và race condition
@@ -241,4 +284,10 @@ When run --cli ollama chạy
 Then nó exit 2 với thông báo nêu id task và "raise --num-ctx"
 And server giả nhận 0 request chat
 And không có review_results.md nào
+
+Scenario: [LMR-FR-08] [Tier C - Integration] Triage khi chưa có round review thì dừng
+
+Given một thư mục epic không có review_results.md
+When triage chạy
+Then nó exit 2 và in "no review round recorded for demo" ra stderr
 ```

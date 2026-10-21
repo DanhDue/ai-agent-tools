@@ -74,6 +74,29 @@ Given references/local-review-platforms.md
 When the test collects the rule IDs of the Flutter, Android and iOS sections and the bold rule names of the Rust and Python sections
 Then each ID occurs in a row marked "Blocker" of architecture-audit, code-health-audit or security-audit SKILL.md
 And each Rust name occurs in rust-architecture-governance.md and each Python name in python-architecture-governance.md
+
+Scenario: [LMR-HP-08] [Tier C - Integration] Triage lists every finding of the latest round
+
+Given a recorded round with "[Important] a.py:3 — missing guard" and "[Minor] b.py:5 — wording"
+When run_external_review.py triage --epic-dir demo runs
+Then it exits 0 and prints "# Review Triage: demo, Round 1"
+And its "## Findings" table has rows 1 and 2 with the round's severity, location and problem, and "?" in Assessment, Evidence and Proposed action
+And it ends with a "## Next Steps" section
+
+Scenario: [LMR-HP-09] [Tier C - Integration] The workflow requires triage before acting on findings
+
+Given skills/dev-implementation/SKILL.md, skills/dev-lifecycle/SKILL.md and rules/CRITICAL_RULES.md
+When the lifecycle contract tests read them
+Then each names "run_external_review.py triage"
+And dev-implementation links references/review-triage.md and waits for the developer's decisions before any Fix commit
+And dev-lifecycle's Red Flags forbid acting on review findings before presenting the triage
+
+Scenario: [LMR-HP-10] [Tier C - Integration] Triage compares every round
+
+Given a claude Round 1 whose Important finding is decided "fixed in abc1234" and an ollama Round 2 with one Minor finding
+When triage runs
+Then the "## Round Comparison" table has one row per round with CLI / Model, Status, Verdict, Critical, Important, Minor, Fixed, Dismissed and Undecided
+And Round 1 shows Important 1 and Fixed 1, and Round 2 shows Minor 1
 ```
 
 ## Edge Cases and Boundaries
@@ -141,6 +164,20 @@ Scenario: [LMR-EC-09] [Tier C - Integration] Dropped files reach the round metad
 Given an ollama pass "task_1" with omitted ("big.py",) and an epic pass with nothing omitted
 When record_round runs
 Then the round shows "- **Omitted**: task_1: big.py"
+
+Scenario: [LMR-EC-10] [Tier C - Integration] Triage marks passes without a verdict
+
+Given an ollama round whose pass 2 has no verdict line and whose pass 3 failed with "HTTP 500: boom"
+When triage runs
+Then the "## Passes" table shows pass 2 with verdict "none" and pass 3 with error "HTTP 500: boom"
+
+Scenario: [LMR-EC-11] [Tier C - Integration] A fixed finding reported again at the same path is flagged
+
+Given Round 1 with "[Important] src/a.py:3 — missing guard" and "[Important] src/b.py:9 — weak", both decided "fixed in abc1234"
+And Round 2 reports "[Minor] src/a.py:40 — still unguarded"
+When triage runs
+Then "## Since Round 1" lists src/a.py:3 as re-reported at the same path with "check the fix"
+And lists src/b.py:9 as not re-reported
 ```
 
 ## State Transitions
@@ -166,6 +203,12 @@ Given skills/dev-implementation/SKILL.md, skills/dev-lifecycle/SKILL.md, docs/li
 When the lifecycle contract tests read them
 Then each routes Local model review through its round-recorded edge ("round recorded", or "đã ghi nhận round" in Vietnamese) back to Phase 4 or Gate 4 in full
 And none routes it straight to Gate 5
+
+Scenario: [LMR-ST-04] [Tier C - Integration] Triage reads the latest round, completed or not
+
+Given a completed Round 1 and a "no verdict" Round 2
+When triage runs
+Then it prints "Round 2" and Round 2's findings only in its Findings table
 ```
 
 ## Async and Race Conditions
@@ -241,4 +284,10 @@ When run --cli ollama runs
 Then it exits 2 with a message naming the task id and "raise --num-ctx"
 And the fake server receives 0 chat requests
 And no review_results.md exists
+
+Scenario: [LMR-FR-08] [Tier C - Integration] Triage without a review round stops
+
+Given an epic directory without review_results.md
+When triage runs
+Then it exits 2 and prints "no review round recorded for demo" on stderr
 ```

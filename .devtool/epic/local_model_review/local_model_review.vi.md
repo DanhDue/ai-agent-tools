@@ -41,11 +41,14 @@ hiện thực chúng.
 - Một prompt base dạy workflow d3nexus và nạp luật của chính kit theo từng ngôn ngữ được chạm tới.
 - Mỗi lần chạy một round theo định dạng `review_results.md` hiện có, do `check` hiện có quản lý.
 - Luật Verification dùng chung cho cả hai prompt qua `references/review-rules.md`.
+- Sau mỗi round review, của bất kỳ reviewer nào, `run_external_review.py triage` trình bày các finding và so sánh
+  các round, và developer quyết trước mọi lần sửa.
 
 ### Ngoài phạm vi
 
 - Review local kiểu agentic, server local khác, chọn hay tinh chỉnh model thay developer.
-- Chạy các pass song song.
+- Chạy các pass song song. Đo ngày 2026-10-21: Ollama phục vụ `qwen38-reviewer-fast` với một slot (`-np 1`) dù đã đặt
+  `OLLAMA_NUM_PARALLEL=3`, và 1, 2, 3 request cùng lúc đều cho tổng 11,5 tok/s.
 - Mọi thay đổi hành vi của đường Claude CLI và Codex CLI ngoài file luật dùng chung.
 
 ## Kiến trúc và thiết kế kỹ thuật
@@ -262,12 +265,29 @@ def record_round(root: Path, args: argparse.Namespace, sha: str, passes: list[Pa
 - Verdict của round là `CHANGES REQUIRED` khi có bất kỳ pass nào nói vậy. Exit code giữ nguyên 0, 1
   và 2.
 
+
+**Review triage** (Task 8, thêm sau các round review đầu tiên của epic này): `run_external_review.py triage --epic-dir <epic_dir>` in ra, cho round mới nhất dù status là gì, một khung Markdown để agent điền trước mọi hành động:
+
+- `# Review Triage: <epic_dir>, Round <n>` với SHA, CLI, Model, Status và Verdict của round;
+- `## Passes`: mỗi pass một row (các khối `### Pass <n>: <label>`, hoặc một pass `review` duy nhất cho Claude CLI và
+  Codex CLI) với verdict cuối cùng hoặc `none`, và dòng đầu của phần `--- error ---` hoặc `—`;
+- `## Findings`: bảng finding của round, đánh số như trong `review_results.md`, với `?` ở các cột Assessment,
+  Evidence và Proposed action;
+- `## Round Comparison`: mỗi round một row với CLI / Model, SHA, Status, Verdict, số Critical, Important và Minor,
+  cùng số Fixed (`fixed in `), Dismissed (`dismissed: `) và Undecided (blocking, chưa quyết);
+- `## Since Round <n-1>`: mỗi finding của round trước từng là blocking hoặc đã sửa, được đánh dấu `re-reported at the
+  same path (#k)` khi round mới nhất báo một finding ở cùng file, kèm `check the fix` khi nó đã được sửa,
+  hoặc `not re-reported`; đường dẫn được so không kèm số dòng, vì số dòng đổi sau khi sửa;
+- `## Next Steps`, để agent viết.
+
+Lệnh chỉ đọc; nó exit 0, hoặc 2 với `no review round recorded for <epic_dir>` khi chưa có round nào. `references/review-triage.md` nói cách điền: kiểm chứng mọi finding tại SHA của round, đánh giá Valid, Debatable, False positive hoặc Not shown, đề xuất `fix`, `dismiss: <reason>` hoặc `none`, dừng chờ developer quyết, và khuyên chạy một round xác nhận sau khi sửa finding blocking; triage của round đó đo được cải thiện.
+
 **References** (mới trừ khi ghi khác): `review-rules.md` (bốn luật Verification hiện có cộng
 "No Reconstructed Logic" và "Immutable Real Artifacts"); `external-review-prompt.md` (sửa, section
 luật thành `$rules`); `local-review-prompt.md`; `local-review-checklists.md`;
 `local-review-platforms.md` (Flutter, Android và iOS trích luật mức Blocker theo ID của kit từ
 `architecture-audit`, `code-health-audit` và `security-audit`; Rust và Python trích các chính sách có
-tên của hai tài liệu governance); `local-review-setup.md`.
+tên của hai tài liệu governance); `local-review-setup.md`; `review-triage.md`.
 
 ### Phân tích ảnh hưởng
 
@@ -294,6 +314,7 @@ Integration results: python3 scripts/run_unittest_junit.py --junitxml build/test
 | Prompt base | `render_system`, `platform_sections`, bốn file reference | File reference trong repo | Section theo đuôi file; mọi luật được trích đều có trong skill nguồn |
 | Gộp round | `record_round`, `check` | Repo tạm, danh sách `Pass` dựng sẵn | Status, verdict, finding từ verdict cuối, chú thích, metadata, đánh số |
 | Nối runner | `run --cli ollama` đầu cuối | Repo epic tạm và server Ollama giả | Thứ tự kiểm tra, pass tuần tự, timeout theo pass, dừng khi lỗi |
+| Review triage | `triage`, `rounds_in`, `table_findings` | Repo tạm có các round đã ghi | Đủ mọi finding, tóm tắt từng pass, so sánh round, tái phát ở cùng đường dẫn |
 | Văn bản workflow | Skill, rule, tài liệu vòng đời | Tài liệu trong repo | Ba lựa chọn và đường quay về `round recorded` trong mọi biến thể |
 | Nghiệm thu đầy đủ | Mọi bộ test ở trên | Checkout hiện tại của repo | Lệnh Integration results, `scripts/verify.sh`, kiểm tra tài liệu |
 
@@ -317,11 +338,11 @@ Không test nào chạm tới model thật: mọi lần gọi Ollama đi tới s
 
 | Chiều | ID scenario | Mục đích phủ |
 |---|---|---|
-| Luồng thành công | LMR-HP-01 tới LMR-HP-07 | Ba lựa chọn, luật dùng chung, một round local đầy đủ, nội dung lát cắt và system, options context, luật nền tảng có nguồn |
-| Ca biên và ranh giới | LMR-EC-01 tới LMR-EC-09 | Thiếu model, mặc định context, diff quá lớn, phần không được cắt vượt ngân sách, nhiều ngôn ngữ, task legacy, thinking nằm trong content, finding nháp, metadata Omitted |
-| Chuyển trạng thái | LMR-ST-01 tới LMR-ST-03 | Quyết định chặn `check`, đánh số round giữa các CLI, vòng quay về Gate 4 |
+| Luồng thành công | LMR-HP-01 tới LMR-HP-10 | Ba lựa chọn, luật dùng chung, một round local đầy đủ, nội dung lát cắt và system, options context, luật nền tảng có nguồn, triage và so sánh round |
+| Ca biên và ranh giới | LMR-EC-01 tới LMR-EC-11 | Thiếu model, mặc định context, diff quá lớn, phần không được cắt vượt ngân sách, nhiều ngôn ngữ, task legacy, thinking nằm trong content, finding nháp, metadata Omitted, pass không có verdict, finding đã sửa bị báo lại |
+| Chuyển trạng thái | LMR-ST-01 tới LMR-ST-04 | Quyết định chặn `check`, đánh số round giữa các CLI, vòng quay về Gate 4, triage round mới nhất |
 | Bất đồng bộ và race condition | LMR-AR-01 tới LMR-AR-02 | Thứ tự pass chặt chẽ và timeout theo từng pass |
-| Lỗi và khả năng phục hồi | LMR-FR-01 tới LMR-FR-07 | Server không phản hồi, model không tồn tại, lỗi HTTP, pass lỗi, output bị cắt, location không được đưa vào, dừng vì ngân sách |
+| Lỗi và khả năng phục hồi | LMR-FR-01 tới LMR-FR-08 | Server không phản hồi, model không tồn tại, lỗi HTTP, pass lỗi, output bị cắt, location không được đưa vào, dừng vì ngân sách, triage khi chưa có round |
 
 ## Chiến lược triển khai và giảm thiểu
 
@@ -335,6 +356,8 @@ Không test nào chạm tới model thật: mọi lần gọi Ollama đi tới s
    kiểm tra tài liệu trên SHA ứng viên.
 5. Ở Review Choice của chính epic này, chọn option 3 với `qwen38-reviewer` và ghi lại thời gian chạy
    cùng các finding. Hỏi developer trước khi load model 29 GB.
+6. Thêm Review Triage (Task 8) khi các round đó cho thấy finding cần được tổng hợp có cấu trúc trước mọi lần sửa,
+   rồi chạy lại Gate 4 đầy đủ.
 
 Không cần feature flag: option 3 là tùy chọn ở mỗi Review Choice. Mỗi task revert được độc lập. Nếu
 đường local có vấn đề sau khi phát hành, option 1 và 2 không bị ảnh hưởng vì round của Claude CLI và
@@ -349,3 +372,4 @@ Codex CLI giống hệt từng byte so với hiện nay.
 5. [Task 5: Record One Round From Many Passes](task_5_record_round_from_passes.md)
 6. [Task 6: Wire Local Model Review Into the Runner](task_6_wire_local_review_into_runner.md)
 7. [Task 7: Update the Review Choice Workflow and Run Acceptance](task_7_review_choice_workflow_and_acceptance.md)
+8. [Task 8: Triage Review Findings and Compare Rounds](task_8_review_triage_and_round_comparison.md)
