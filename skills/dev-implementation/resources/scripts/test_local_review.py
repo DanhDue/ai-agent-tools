@@ -673,7 +673,8 @@ class SharedRulesTest(ReviewCase):
         code, _, _ = self.run_review(cli="claude")
         self.assertEqual(code, 0)
         prompt = self.stdin.read_text(encoding="utf-8")
-        for title in ("Task-Level vs. Gate 4 Workspace Scope", "No Reconstructed Logic",
+        for title in ("Task-Level vs. Gate 4 Workspace Scope", "Compiled Language TDD RED Semantics",
+                      "Artifact Budget Assertions", "Contract Drift Inspection", "No Reconstructed Logic",
                       "Immutable Real Artifacts"):
             self.assertIn(title, prompt)
         self.assertNotIn("$rules", prompt)
