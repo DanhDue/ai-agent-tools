@@ -1,13 +1,13 @@
 ---
 id: "task_6_wire_local_review_into_runner"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "local_model_review"
 dueDate: null
 created: "2026-10-21T09:10:00Z"
-modified: "2026-10-21T09:10:00Z"
-completedAt: null
+modified: "2026-10-21T09:41:22Z"
+completedAt: "2026-10-21T09:41:22Z"
 labels: ["review", "ollama", "cli"]
 order: "a6"
 ---

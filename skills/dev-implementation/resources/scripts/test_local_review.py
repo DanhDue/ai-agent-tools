@@ -8,6 +8,7 @@ Run: python3 -m unittest skills/dev-implementation/resources/scripts/test_local_
 import argparse
 import contextlib
 import io
+import itertools
 import json
 import os
 import re
@@ -421,6 +422,103 @@ class RoundTest(EpicRepoCase):
         rows = [line for line in self.text().splitlines() if line.startswith(("| 1 |", "| 2 |"))]
         self.assertEqual(rows, ["| 1 | Critical | ghost.py:9 | broken (location not shown to reviewer) |  |",
                                 "| 2 | Important | seen.py:2 | weak |  |"])
+
+
+class RunnerTest(ReviewCase):
+    """`run --cli ollama` end to end: real facts, slices and rounds, a fake Ollama server."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.fake = FakeOllama()
+        self.addCleanup(self.fake.close)
+        self.fake.show = (200, {"parameters": "num_ctx                        65536\ntemperature 0.2"})
+        for number in (1, 2):
+            task = f"task_{number}_demo"
+            self.write(f"{EPIC}/{task}.md", f'---\nid: "{task}"\nstatus: "done"\n---\n\n# Task {number}\n')
+            self.write(f"src/part_{number}.py", f"PART = {number}\n")
+            row = {"id": "V2", "phase": "GREEN", "command": "true", "expect": "exit 0", "exit": 0,
+                   "outcome": "PASS", "output_tail": []}
+            self.write(f"{EPIC}/evidence/{task}.json", json.dumps({"schema": 1, "runs": {"verify": {"rows": [row]}}}))
+            self.commit(f"Task {number}")
+
+    def local(self, *extra: str, model: str | None = "qwen38-reviewer") -> tuple[int, str, str]:
+        out, err = io.StringIO(), io.StringIO()
+        argv = ["run", "--epic-dir", "demo", "--base", self.base, "--cli", "ollama", "--host", self.fake.url, *extra]
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            code = run_external_review.main(argv + (["--model", model] if model else []))
+        return code, out.getvalue(), err.getvalue()
+
+    def users(self) -> list[str]:
+        return [str(body["messages"][1]["content"]) for body in self.fake.chats()]
+
+    def test_lmr_hp_03_a_local_review_of_a_two_task_epic_records_one_round(self) -> None:
+        code, _, _ = self.local()
+        self.assertEqual(code, 0)
+        self.assertEqual(len(self.fake.chats()), 3)
+        for body in self.fake.chats():
+            self.assertEqual(body["model"], "qwen38-reviewer")
+            self.assertNotIn("num_ctx", body["options"])
+            self.assertGreater(body["options"]["num_predict"], 0)
+        text = self.text()
+        for line in ("## Round 1", "- **CLI**: ollama", "- **Model**: qwen38-reviewer", "- **Passes**: 3",
+                     "- **Context**: 65536", "- **Status**: completed", "- **Verdict**: PASS"):
+            self.assertIn(line, text)
+
+    def test_lmr_ec_01_local_review_without_a_model_stops_first(self) -> None:
+        code, _, err = self.local(model=None)
+        self.assertEqual(code, 2)
+        self.assertIn("--cli ollama needs --model", err)
+        self.assertNotIn("[Pre-check] audit_epic.py", err)
+        self.assertFalse(self.results.exists())
+
+    def test_lmr_ar_01_passes_run_one_at_a_time_in_commit_order(self) -> None:
+        self.fake.delay = 0.2
+        code, _, err = self.local()
+        self.assertEqual(code, 0)
+        chats = [(started, finished) for path, _, started, finished in self.fake.requests if path == "/api/chat"]
+        self.assertEqual(len(chats), 3)
+        for (_, finished), (started, _) in itertools.pairwise(chats):
+            self.assertGreaterEqual(started, finished)
+        users = self.users()
+        self.assertIn('id: "task_1_demo"', users[0])
+        self.assertIn('id: "task_2_demo"', users[1])
+        self.assertTrue(users[2].startswith("## Spec"))
+        positions = [err.index(f"[Pass {number}/3]") for number in (1, 2, 3)]
+        self.assertEqual(positions, sorted(positions))
+
+    def test_lmr_ar_02_the_timeout_applies_to_each_pass(self) -> None:
+        self.fake.delay = 2
+        code, _, _ = self.local("--timeout", "3")
+        self.assertEqual(code, 0)
+        self.assertIn("- **Status**: completed", self.text())
+
+    def test_lmr_fr_02_an_unreachable_server_stops_the_run_before_facts(self) -> None:
+        code, _, err = self.local("--host", f"http://127.0.0.1:{closed_port()}", "--model", "m")
+        self.assertEqual(code, 2)
+        self.assertIn("WAS NOT INVOKED", err)
+        self.assertIn("Ollama server not reachable", err)
+        self.assertNotIn("[Pre-check] audit_epic.py", err)
+        self.assertFalse(self.results.exists())
+
+    def test_lmr_fr_04_a_failing_pass_stops_the_run_and_records_what_it_has(self) -> None:
+        self.fake.chat_replies = [(200, "Verdict: PASS", "stop"), (500, "boom", "")]
+        code, _, _ = self.local()
+        self.assertEqual(code, 2)
+        self.assertEqual(len(self.fake.chats()), 2)
+        text = self.text()
+        self.assertIn("- **Status**: no verdict", text)
+        self.assertIn("### Pass 1: task_1_demo", text)
+        self.assertIn("HTTP 500: boom", text)
+
+    def test_lmr_fr_07_a_slice_that_cannot_fit_stops_the_run_before_any_chat(self) -> None:
+        self.write(f"{EPIC}/task_1_demo.md", '---\nid: "task_1_demo"\nstatus: "done"\n---\n\n# Task 1\n' + "x" * 1900)
+        self.commit("Grow task 1")
+        code, _, err = self.local("--num-ctx", "1000")
+        self.assertEqual(code, 2)
+        self.assertIn("task_1_demo needs", err)
+        self.assertIn("raise --num-ctx", err)
+        self.assertEqual(self.fake.chats(), [])
+        self.assertFalse(self.results.exists())
 
 
 class SharedRulesTest(ReviewCase):

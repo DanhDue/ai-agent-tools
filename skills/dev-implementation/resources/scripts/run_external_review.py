@@ -20,11 +20,13 @@ import shutil
 import signal
 import subprocess
 import sys
+import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from string import Template
 
+import local_review
 from task_contract import ContractError, git_run, parse_integration_results
 
 SCRIPTS = Path(__file__).resolve().parent
@@ -313,7 +315,11 @@ def render_round(number: int, meta: dict[str, str], findings: list[tuple[str, st
 
 
 def run(args: argparse.Namespace) -> int:
-    if not shutil.which(args.cli):
+    if args.cli == "ollama":
+        if not args.model:
+            print("--cli ollama needs --model", file=sys.stderr)
+            return 2
+    elif not shutil.which(args.cli):
         print(f"{args.cli} not found on PATH", file=sys.stderr)
         return 2
     root = Path(git_run(Path.cwd(), "rev-parse", "--show-toplevel").decode().strip())
@@ -321,6 +327,13 @@ def run(args: argparse.Namespace) -> int:
         print("commit or stash your changes before a review", file=sys.stderr)
         return 2
     sha = head_of(root)
+    model_ctx = None
+    if args.cli == "ollama":
+        try:
+            model_ctx = local_review.probe(args.host, args.model)
+        except local_review.LocalReviewError as error:
+            print_gate_banner(PreconditionFailedError("Ollama probe", str(error)), args.cli)
+            return 2
     hld_text = (root / ".devtool" / "epic" / args.epic_dir / f"{args.epic_dir}.en.md").read_text(encoding="utf-8")
     try:
         facts_timeout = getattr(args, "facts_timeout", 300)
@@ -328,6 +341,8 @@ def run(args: argparse.Namespace) -> int:
     except PreconditionFailedError as error:
         print_gate_banner(error, args.cli)
         return 2
+    if args.cli == "ollama":
+        return run_local(root, args, sha, audit_output, results_output, model_ctx)
     diff_limit = getattr(args, "diff_limit", MAX_DIFF_LINES)
     diff_section = build_diff_section(root, args.base, sha, max_lines=diff_limit)
     prompt = Template(PROMPT.read_text(encoding="utf-8")).safe_substitute(
@@ -344,6 +359,40 @@ def run(args: argparse.Namespace) -> int:
     code, out, err = execute(cli_command(args.cli, args.model), root, args.timeout, prompt)
     changed = tree_changes(root, before, sha)
     return record_round(root, args, sha, [Pass("review", code, out, err, prompt)], changed, {})
+
+
+def run_local(root: Path, args: argparse.Namespace, sha: str, audit_output: str, results_output: str,
+              model_ctx: int | None) -> int:
+    """Fit every slice before the first call, then review them one at a time; the first failed pass ends the run."""
+    ctx = args.num_ctx or model_ctx or local_review.DEFAULT_NUM_CTX
+    planned: list[tuple[local_review.Slice, str]] = []
+    try:
+        for slice_ in local_review.build_slices(root, args.epic_dir, args.base, sha, audit_output, results_output,
+                                                EXCLUDES):
+            system = local_review.render_system(slice_)
+            budget = int(ctx * local_review.PROMPT_SHARE) - local_review.estimate_tokens(system)
+            planned.append((local_review.fit(slice_, budget), system))
+    except local_review.LocalReviewError as error:
+        print_gate_banner(PreconditionFailedError("Context budget", str(error)), args.cli)
+        return 2
+    before = status_lines(root)
+    passes: list[Pass] = []
+    for number, (slice_, system) in enumerate(planned, 1):
+        user = local_review.render_user(slice_)
+        prompt_tokens = local_review.estimate_tokens(system) + local_review.estimate_tokens(user)
+        options = local_review.chat_options(model_ctx, args.num_ctx, prompt_tokens)
+        print(f"{CYAN}⏳ [Pass {number}/{len(planned)}]{RESET} {slice_.label} ... ", end="", file=sys.stderr, flush=True)
+        started = time.monotonic()
+        reply = local_review.chat(args.host, args.model, system, user, options, args.timeout)
+        code = 0 if reply.error is None else None if reply.error.startswith("timed out") else 1
+        passes.append(Pass(slice_.label, code, reply.content, reply.error or "", user, slice_.omitted,
+                           reply.done_reason))
+        if reply.error is not None or reply.done_reason != "stop":
+            print(f"{RED}❌ {reply.error or f'done_reason {reply.done_reason}'}{RESET}", file=sys.stderr, flush=True)
+            break
+        print(f"{GREEN}✅ {round(time.monotonic() - started)}s{RESET}", file=sys.stderr, flush=True)
+    changed = tree_changes(root, before, sha)
+    return record_round(root, args, sha, passes, changed, {"Passes": str(len(planned)), "Context": str(ctx)})
 
 
 @dataclass(frozen=True)
@@ -459,8 +508,10 @@ def main(argv: list[str] | None = None) -> int:
     runner = modes.add_parser("run", help="have the CLI review the epic and record a round")
     runner.add_argument("--epic-dir", required=True)
     runner.add_argument("--base", required=True)
-    runner.add_argument("--cli", required=True, choices=("claude", "codex"))
+    runner.add_argument("--cli", required=True, choices=("claude", "codex", "ollama"))
     runner.add_argument("--model")
+    runner.add_argument("--host", default=local_review.host_from_env())
+    runner.add_argument("--num-ctx", type=int, default=None)
     runner.add_argument("--timeout", type=int, default=1800)
     runner.add_argument("--facts-timeout", type=int, default=300)
     runner.add_argument("--diff-limit", type=int, default=MAX_DIFF_LINES)
