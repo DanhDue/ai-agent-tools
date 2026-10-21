@@ -45,7 +45,17 @@ def parse_dart(text: str) -> list[Case]:
     for line in text.splitlines():
         if not line.strip():
             continue
-        event = json.loads(line)
+        try:
+            event = json.loads(line)
+        except Exception:
+            continue
+        if isinstance(event, list):
+            if event and isinstance(event[0], dict):
+                event = event[0]
+            else:
+                continue
+        if not isinstance(event, dict):
+            continue
         if event.get("type") == "testStart":
             names[event["test"]["id"]] = event["test"]["name"]
         elif event.get("type") == "testDone" and event.get("testID") in names:

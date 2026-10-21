@@ -297,7 +297,8 @@ def archive_epic_tasks(roots: list[Path], epic_dir: str) -> tuple[list[Path], li
             for task_file in sorted(fdir.glob("task_*.md")):
                 file_epic = epic_of(task_file)
                 target_slug = epic_slug or sanitize_slug(epic_dir)
-                if file_epic and file_epic != target_slug:
+                target_slugs = {target_slug, target_slug.replace("-", "_"), target_slug.replace("_", "-")}
+                if file_epic and file_epic not in target_slugs:
                     continue
                 dest_file = dest_dir / task_file.name
                 content = task_file.read_text()
