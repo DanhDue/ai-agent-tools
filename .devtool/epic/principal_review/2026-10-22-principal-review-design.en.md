@@ -1,7 +1,7 @@
 # Principal Review Design
 
 - **Date**: 2026-10-22
-- **Status**: Draft, awaiting Gate 1 review
+- **Status**: Approved (Gate 1)
 - **Scope**: `dev-lifecycle`, `dev-implementation` (scripts, references and Gate 3), `docs/lifecycles.*.md`,
   `scripts/test_lifecycle_document_contract.py`
 - **Next step**: `dev-designer` (epic `principal_review`)

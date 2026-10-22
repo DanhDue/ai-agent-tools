@@ -1,7 +1,7 @@
 # Thiết kế Principal Review
 
 - **Ngày**: 2026-10-22
-- **Trạng thái**: Bản nháp, chờ duyệt Gate 1
+- **Trạng thái**: Đã duyệt (Gate 1)
 - **Phạm vi**: `dev-lifecycle`, `dev-implementation` (script, references và Gate 3), `docs/lifecycles.*.md`,
   `scripts/test_lifecycle_document_contract.py`
 - **Bước tiếp theo**: `dev-designer` (epic `principal_review`)
