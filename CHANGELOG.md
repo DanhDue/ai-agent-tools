@@ -8,6 +8,26 @@ every installed machine on the old cached copy.
 
 ---
 
+## 1.14.0 — 2026-10-23
+
+Decouples external AI review into two standalone skills (`principal-review` and `cross-model-review`), adds ad-hoc document and branch diff review modes with live streaming triage, establishes Critical Rules banning autonomous review triggers and infinite loops, and refactors orchestrators to delegate to the new standalone review skills.
+
+### Added
+
+- **Standalone Principal Review Skill** (`skills/principal-review/`): Extracts design document verification into a reusable, modular skill (`d3nexus:principal-review`) equipped with prompt templates, severity classification rules (Critical, Important, Minor), and revision loop protocols.
+- **Standalone Cross-Model Review Skill** (`skills/cross-model-review/`): Extracts multi-model and local code review into an independent skill (`d3nexus:cross-model-review`) covering Claude CLI, Codex CLI, and local Ollama review passes, with dedicated triage protocols and setup guides.
+- **Ad-Hoc Review Modes** (`skills/dev-implementation/resources/scripts/run_external_review.py`): Adds `--document <path>` for standalone document reviews outside epics and `--diff-range <base..head>` for ad-hoc git diff reviews between branches or commits.
+- **Streaming Review & Live Triage Output** (`skills/dev-implementation/resources/scripts/run_external_review.py`): Streams raw model response tokens and dynamically extracts and renders live markdown triage tables as reviewer findings emerge.
+- **Critical Rules Against Autonomous Reviews & Infinite Loops** (`rules/CRITICAL_RULES.md`): Mandates strict human checkpointing by forbidding AI agents from autonomously triggering Principal or Cross-Model reviews, and strictly prohibiting infinite re-review chaining by requiring human self-review and explicit developer confirmation after fixing findings.
+
+### Changed
+
+- **Orchestrator Delegation Refactor** (`skills/dev-lifecycle/SKILL.md`, `skills/dev-implementation/SKILL.md`): Refactors Stage 2 Gate 2 and Stage 3 Gate 4 review phases to invoke `d3nexus:principal-review` and `d3nexus:cross-model-review` directly while preserving hard gate invariants and loop properties.
+- **Bilingual Lifecycle & Architecture Documentation** (`docs/lifecycles.en.md`, `docs/lifecycles.vi.md`): Updates Mermaid flowcharts, subgraphs, and bilingual text to document the standalone review skills at Stage 2 and Stage 3.
+- **Task Archival & Lifecycle Sync**: Finalizes the `split_review_skills` epic with 100% test coverage and 19/19 BDD scenario traceability, archiving completed tasks into the epic record.
+
+---
+
 ## 1.13.0 — 2026-10-21
 
 Introduces full offline Local Model Review powered by Ollama, dependency-aware diff slicing with token budget enforcement, shared platform review checklists, multi-pass aggregation and triage tooling, 3-option Review Choice at Gate 4, and resilient test result parsing.
