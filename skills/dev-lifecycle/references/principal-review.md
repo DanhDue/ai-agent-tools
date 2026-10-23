@@ -11,7 +11,7 @@ Principal Review is a cross-model review of an epic's architecture and task desi
    > 2. **Principal Review** — a cross-model review of the design against the source before implementation (Claude CLI or Codex CLI).
 
    Add the recommendation when it applies:
-   - When the epic design was authored by a fast model or when the developer requests review, cross-model review is strongly recommended before committing to implementation.
+   - When the epic was designed by a different or fast model (judged from the HLD's `Author` line or the developer's word), cross-model review is strongly recommended before committing to implementation. Recommend using each CLI's strongest reasoning model.
    - Never choose for the developer. Always wait for explicit selection.
 
 2. **Done**:
@@ -47,14 +47,14 @@ Principal Review is a cross-model review of an epic's architecture and task desi
    Fill the triage by verifying every finding against the source at the round's SHA, following the discipline in [review-triage.md](../../dev-implementation/references/review-triage.md). Stop calling tools and wait for the developer's decision on each finding.
 
 6. Apply each accepted finding as an in-place revision of the epic documents.
-   - Record the decisions in `.devtool/epic/<epic_dir>/principal_review.md` (e.g. `fixed in <sha>` or `dismissed: <developer's words>`).
+   - Commit the document revision first:
+     ```bash
+     git commit -m "[<EPIC_NAME>] Revise epic after Principal Review round <n>"
+     ```
+   - Record the decisions in `.devtool/epic/<epic_dir>/principal_review.md` using the SHA from the revision commit (e.g. `fixed in <sha>` or `dismissed: <developer's words>`).
    - Commit decisions:
      ```bash
      git commit -m "[<EPIC_NAME>] Record Principal Review decisions for round <n>"
-     ```
-   - Commit the document revision:
-     ```bash
-     git commit -m "[<EPIC_NAME>] Revise epic after Principal Review round <n>"
      ```
 
 7. Re-run the packaging procedure from step 1:
