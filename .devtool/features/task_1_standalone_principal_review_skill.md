@@ -56,7 +56,7 @@ Applicable skills: `d3nexus:test-driven-development`, `d3nexus:python-quality-ch
 
 - **Target Files & Symbols**:
   - `skills/dev-implementation/resources/scripts/run_external_review.py`: `run()`, `parse_args()`, `principal_artefact_lines()`
-  - `skills/dev-implementation/resources/scripts/test_run_external_review.py`: `TestPrincipalReviewDocMode`
+  - `skills/dev-implementation/resources/scripts/test_run_external_review.py`: new `TestPrincipalReviewDocMode`
 - **Downstream Callers**: `dev-lifecycle` (Task 3), direct user invocations (`/principal-review`).
 - **Cross-Platform Bridges**: none.
 - **Target Test Coverage Threshold**: 100% test pass on new test methods in `test_run_external_review.py`.

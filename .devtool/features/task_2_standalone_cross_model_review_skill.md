@@ -53,8 +53,8 @@ Applicable skills: `d3nexus:test-driven-development`, `d3nexus:python-quality-ch
 ## Impact Analysis & Blast Radius
 
 - **Target Files & Symbols**:
-  - `skills/dev-implementation/resources/scripts/run_external_review.py`: `run()`, `parse_args()`, `diff_range()`
-  - `skills/dev-implementation/resources/scripts/test_run_external_review.py`: `TestCrossModelReviewAdhoc`
+  - `skills/dev-implementation/resources/scripts/run_external_review.py`: `run()`, `parse_args()`, new `diff_range()`
+  - `skills/dev-implementation/resources/scripts/test_run_external_review.py`: new `TestCrossModelReviewAdhoc`
 - **Downstream Callers**: `dev-implementation` (Task 3), direct user invocations (`/cross-model-review`).
 - **Cross-Platform Bridges**: none.
 - **Target Test Coverage Threshold**: 100% test pass on new test methods in `test_run_external_review.py`.
@@ -87,7 +87,7 @@ Scenario: [SRS-HP-05] [Tier C - Integration] Local model review invocation throu
 Scenario: [SRS-EC-02] [Tier A - Unit] Cross-model review refuses execution on dirty working tree
   Given the repository working tree has unstaged or untracked changes
   When "cross-model-review" initiates runner execution
-  Then runner refuses execution with a clean tree precondition error
+  Then the runner refuses execution with a clean tree precondition error
   And reminds the user to commit or stash modifications before review
 
 Scenario: [SRS-EC-03] [Tier A - Unit] Missing external CLI tool triggers actionable guidance
@@ -112,13 +112,13 @@ Scenario: [SRS-AR-02] [Tier A - Unit] Sequential round numbering prevents collis
   Given an epic already has round 1 recorded in its review log
   When a subsequent review round completes
   Then the new round is strictly assigned round number 2
-  And lịch sử cùng các quyết định của các vòng trước được bảo toàn bất biến
+  And previous round history and decisions are immutably preserved
 
 Scenario: [SRS-FR-02] [Tier A - Unit] Triage parser isolates malformed model responses
-  Given một reviewer bên ngoài xuất ra văn bản thiếu các điểm mốc đánh giá hoặc mức độ nghiêm trọng hợp lệ
-  When "run_external_review.py triage" xử lý kết quả đầu ra của vòng review
-  Then bộ phân tích cách ly lỗi phân tích cú pháp thành một cảnh báo rõ ràng
-  And nhắc nhà phát triển kiểm tra log thô mà không làm đổ vỡ quy trình vòng đời
+  Given an external reviewer outputs text that omits valid verdict or severity anchors
+  When "run_external_review.py triage" processes the round output
+  Then the parser isolates the parse failure into a visible warning
+  And prompts the developer to inspect raw log without crashing the lifecycle
 ```
 
 ## Verification

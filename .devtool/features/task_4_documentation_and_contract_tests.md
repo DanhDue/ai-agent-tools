@@ -54,7 +54,7 @@ Applicable skills: `d3nexus:test-driven-development`, `d3nexus:doc_quality_check
 
 - **Target Files & Symbols**:
   - `docs/lifecycles.en.md`, `docs/lifecycles.vi.md`: updated Mermaid diagrams and lifecycle prose
-  - `scripts/test_lifecycle_document_contract.py`: `TestReviewSkillContracts`
+  - `scripts/test_lifecycle_document_contract.py`: new `TestReviewSkillContracts`
 - **Downstream Callers**: entire repository quality gates and publishing checks.
 - **Cross-Platform Bridges**: none.
 - **Target Test Coverage Threshold**: `./scripts/verify.sh` outputs `PASS — safe to publish`.

@@ -55,7 +55,7 @@ Applicable skills: `d3nexus:test-driven-development`, `d3nexus:python-quality-ch
 - **Target Files & Symbols**:
   - `skills/dev-lifecycle/SKILL.md`: `dev-lifecycle`
   - `skills/dev-implementation/SKILL.md`: `dev-implementation`
-  - `scripts/test_lifecycle_signals.py`: `TestReviewSkillDelegation`
+  - `scripts/test_lifecycle_signals.py`: new `TestReviewSkillDelegation`
 - **Downstream Callers**: developers and agents executing epic lifecycles.
 - **Cross-Platform Bridges**: none.
 - **Target Test Coverage Threshold**: all delegation test assertions pass.
