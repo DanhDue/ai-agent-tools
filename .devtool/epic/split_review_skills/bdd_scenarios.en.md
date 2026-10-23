@@ -7,6 +7,7 @@
 - [Use Case 3: State Transitions and Gate Invariants](#use-case-3-state-transitions-and-gate-invariants)
 - [Use Case 4: Asynchronous Resilience and Tool Fallbacks](#use-case-4-asynchronous-resilience-and-tool-fallbacks)
 - [Use Case 5: Failure Handling and Precondition Gates](#use-case-5-failure-handling-and-precondition-gates)
+- [Use Case 6: Lifecycle Documentation and Contract Assurance](#use-case-6-lifecycle-documentation-and-contract-assurance)
 
 ## Use Case 1: In-Lifecycle and Ad-Hoc Principal Review
 
@@ -150,4 +151,22 @@ Scenario: [SRS-FR-02] [Tier A - Unit] Triage parser isolates malformed model res
   When "run_external_review.py triage" processes the round output
   Then the parser isolates the parse failure into a visible warning
   And prompts the developer to inspect raw log without crashing the lifecycle
+```
+
+## Use Case 6: Lifecycle Documentation and Contract Assurance
+
+### Happy Paths
+
+```gherkin
+Scenario: [SRS-HP-06] [Tier C - Integration] Document contracts enforce new review skills exposure
+  Given the repository skill directory contains "principal-review" and "cross-model-review"
+  When "test_lifecycle_document_contract.py" evaluates all lifecycle producers
+  Then both skills expose expected contract keywords and YAML frontmatter
+  And "scripts/verify.sh" completes with zero contract regressions
+
+Scenario: [SRS-HP-07] [Tier C - Integration] Lifecycle diagrams reflect two standalone review stages
+  Given human-facing lifecycle documentation "docs/lifecycles.en.md" and "docs/lifecycles.vi.md"
+  When modern flowchart diagrams are inspected
+  Then Stage 2 displays explicit delegation to "principal-review"
+  And Stage 3 displays explicit delegation to "cross-model-review"
 ```

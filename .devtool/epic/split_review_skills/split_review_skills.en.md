@@ -157,7 +157,7 @@ sequenceDiagram
 
 Integration test roots: skills/dev-implementation/resources/scripts/, scripts/
 
-Protected paths: .agents/quality/**, .devtool/epic/split_review_skills/bdd_scenarios.en.md, .devtool/epic/split_review_skills/bdd_scenarios.vi.md, skills/principal-review/SKILL.md, skills/cross-model-review/SKILL.md
+Protected paths: .agents/quality/**, .devtool/epic/split_review_skills/bdd_scenarios.en.md, .devtool/epic/split_review_skills/bdd_scenarios.vi.md, skills/dev-implementation/resources/scripts/test_run_external_review.py, scripts/test_lifecycle_document_contract.py, scripts/test_lifecycle_signals.py, scripts/run_unittest_junit.py, scripts/verify.sh, skills/doc_quality_check/resources/scripts/check_document.py
 
 Integration results: python3 scripts/run_unittest_junit.py --junitxml build/test-results/split-review-skills.xml skills/dev-implementation/resources/scripts/test_run_external_review.py scripts/test_lifecycle_document_contract.py scripts/test_lifecycle_signals.py -> build/test-results/split-review-skills.xml
 
@@ -199,7 +199,7 @@ The canonical Gherkin definitions are in [BDD scenarios](bdd_scenarios.en.md), w
 
 ## Kanban Tasks Breakdown
 
-1. **Task 1: Standalone Principal Review Skill and References** (`task_1_standalone_principal_review_skill.md`)
-2. **Task 2: Standalone Cross-Model Review Skill and Ad-Hoc Diff Support** (`task_2_standalone_cross_model_review_skill.md`)
-3. **Task 3: Refactor Dev-Lifecycle and Dev-Implementation Orchestrators** (`task_3_orchestrators_delegation_refactor.md`)
-4. **Task 4: Update Lifecycle Documentation, Diagrams and Contract Tests** (`task_4_documentation_and_contract_tests.md`)
+1. [Task 1: Standalone Principal Review Skill and References](task_1_standalone_principal_review_skill.md)
+2. [Task 2: Standalone Cross-Model Review Skill and Ad-Hoc Diff Support](task_2_standalone_cross_model_review_skill.md)
+3. [Task 3: Refactor Dev-Lifecycle and Dev-Implementation Orchestrators](task_3_orchestrators_delegation_refactor.md)
+4. [Task 4: Update Lifecycle Documentation, Diagrams and Contract Tests](task_4_documentation_and_contract_tests.md)

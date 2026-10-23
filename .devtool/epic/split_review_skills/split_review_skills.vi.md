@@ -157,7 +157,7 @@ sequenceDiagram
 
 Integration test roots: skills/dev-implementation/resources/scripts/, scripts/
 
-Protected paths: .agents/quality/**, .devtool/epic/split_review_skills/bdd_scenarios.en.md, .devtool/epic/split_review_skills/bdd_scenarios.vi.md, skills/principal-review/SKILL.md, skills/cross-model-review/SKILL.md
+Protected paths: .agents/quality/**, .devtool/epic/split_review_skills/bdd_scenarios.en.md, .devtool/epic/split_review_skills/bdd_scenarios.vi.md, skills/dev-implementation/resources/scripts/test_run_external_review.py, scripts/test_lifecycle_document_contract.py, scripts/test_lifecycle_signals.py, scripts/run_unittest_junit.py, scripts/verify.sh, skills/doc_quality_check/resources/scripts/check_document.py
 
 Integration results: python3 scripts/run_unittest_junit.py --junitxml build/test-results/split-review-skills.xml skills/dev-implementation/resources/scripts/test_run_external_review.py scripts/test_lifecycle_document_contract.py scripts/test_lifecycle_signals.py -> build/test-results/split-review-skills.xml
 
@@ -199,7 +199,7 @@ Các định nghĩa Gherkin chuẩn nằm trong [Kịch bản BDD](bdd_scenarios
 
 ## Phân Rã Nhiệm Vụ Kanban
 
-1. **Nhiệm vụ 1: Standalone Principal Review Skill và Tài Liệu Tham Chiếu** (`task_1_standalone_principal_review_skill.md`)
-2. **Nhiệm vụ 2: Standalone Cross-Model Review Skill và Hỗ Trợ Diff Tùy Biến** (`task_2_standalone_cross_model_review_skill.md`)
-3. **Nhiệm vụ 3: Tái Cấu Trúc Chuyển Giao Orchestrator Dev-Lifecycle và Dev-Implementation** (`task_3_orchestrators_delegation_refactor.md`)
-4. **Nhiệm vụ 4: Cập Nhật Tài Liệu Vòng Đời, Sơ Đồ và Kiểm Thử Hợp Đồng** (`task_4_documentation_and_contract_tests.md`)
+1. [Nhiệm vụ 1: Standalone Principal Review Skill và Tài Liệu Tham Chiếu](task_1_standalone_principal_review_skill.md)
+2. [Nhiệm vụ 2: Standalone Cross-Model Review Skill và Hỗ Trợ Diff Tùy Biến](task_2_standalone_cross_model_review_skill.md)
+3. [Nhiệm vụ 3: Tái Cấu Trúc Chuyển Giao Orchestrator Dev-Lifecycle và Dev-Implementation](task_3_orchestrators_delegation_refactor.md)
+4. [Nhiệm vụ 4: Cập Nhật Tài Liệu Vòng Đời, Sơ Đồ và Kiểm Thử Hợp Đồng](task_4_documentation_and_contract_tests.md)

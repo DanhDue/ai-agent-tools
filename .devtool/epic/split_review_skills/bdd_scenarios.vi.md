@@ -7,6 +7,7 @@
 - [Use Case 3: Chuyển Đổi Trạng Thái và Bất Biến Của Gate](#use-case-3-chuyển-đổi-trạng-thái-và-bất-biến-của-gate)
 - [Use Case 4: Khả Năng Phục Hồi Bất Đồng Bộ và Dự Phòng Công Cụ](#use-case-4-khả-năng-phục-hồi-bất-đồng-bộ-và-dự-phòng-công-cụ)
 - [Use Case 5: Xử Lý Thất Bại và Cổng Tiền Điều Kiện](#use-case-5-xử-lý-thất-bại-và-cổng-tiền-điều-kiện)
+- [Use Case 6: Tài Liệu Vòng Đời và Đảm Bảo Hợp Đồng](#use-case-6-tài-liệu-vòng-đời-và-đảm-bảo-hợp-đồng)
 
 ## Use Case 1: Principal Review Trong Vòng Đời và Tùy Biến
 
@@ -150,4 +151,22 @@ Scenario: [SRS-FR-02] [Tier A - Unit] Triage parser isolates malformed model res
   When "run_external_review.py triage" xử lý kết quả đầu ra của vòng review
   Then bộ phân tích cách ly lỗi phân tích cú pháp thành một cảnh báo rõ ràng
   And nhắc nhà phát triển kiểm tra log thô mà không làm đổ vỡ quy trình vòng đời
+```
+
+## Use Case 6: Tài Liệu Vòng Đời và Đảm Bảo Hợp Đồng
+
+### Đường dẫn chuẩn (Happy Paths)
+
+```gherkin
+Scenario: [SRS-HP-06] [Tier C - Integration] Document contracts enforce new review skills exposure
+  Given thư mục skill của kho chứa chứa "principal-review" và "cross-model-review"
+  When "test_lifecycle_document_contract.py" kiểm tra tất cả các producer vòng đời
+  Then cả hai skills hiển thị các từ khóa hợp đồng và YAML frontmatter mong đợi
+  And "scripts/verify.sh" hoàn thành với 0 lỗi hồi quy hợp đồng
+
+Scenario: [SRS-HP-07] [Tier C - Integration] Lifecycle diagrams reflect two standalone review stages
+  Given tài liệu vòng đời dành cho con người "docs/lifecycles.en.md" và "docs/lifecycles.vi.md"
+  When các sơ đồ flowchart hiện đại được kiểm tra
+  Then Giai đoạn 2 hiển thị việc chuyển giao rõ ràng sang "principal-review"
+  And Giai đoạn 3 hiển thị việc chuyển giao rõ ràng sang "cross-model-review"
 ```
