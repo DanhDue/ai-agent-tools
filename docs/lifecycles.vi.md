@@ -55,14 +55,14 @@ flowchart TD
     HC{"Handoff choice<br/>package hay continue?"}
     PKG["Package epic<br/>handoff.md, status Packaged"]
     PRC{"Principal Review Choice<br/>Done hay Principal Review?"}
-    PR["run_external_review.py run --kind principal<br/>triage, decisions, chỉnh sửa"]
+    PR["principal-review<br/>(Rà soát kiến trúc Shift-Left)<br/>triage, decisions, chỉnh sửa"]
     PKGSTOP(["Dừng: handoff.md và Resume Prompt"])
     S3["Stage 3 — Thực thi độc lập<br/>(dev-implementation)"]
     G3{"Cổng 3<br/>Thứ tự thực thi đã xác nhận?"}
     EXEC["Phase 2-3: TDD từng task<br/>mỗi task một commit, sync doc khi lệch,<br/>tích hợp vào develop sau mỗi task"]
     RC{"Review Choice<br/>Finish, Cross-model review hay Local model review?"}
-    XR["run_external_review.py run<br/>(commit review_results.md mỗi vòng)"]
-    LR["run_external_review.py run --cli ollama<br/>(commit review_results.md mỗi vòng)"]
+    XR["cross-model-review<br/>(Shift-Right external CLI: Claude/Codex)"]
+    LR["cross-model-review (local)<br/>(Shift-Right local model: Ollama)"]
     G4{"Cổng 4<br/>audit + BDD traceability + quality_check 🟢 LGTM?"}
     REVIEW["Phase 4.1: Developer Kanban Review<br/>(Mọi task giữ ở cột DONE để kiểm tra trực quan)"]
     G5{"Cổng 5<br/>Người dùng ký duyệt &amp; cho phép finish?"}
@@ -102,9 +102,9 @@ flowchart TD
 Vòng đời trải qua bốn giai đoạn (stage) và năm cổng phê duyệt (approval gate), cùng hai điểm lựa chọn rõ ràng:
 - **Routing & Handoff Choice**: Sau khi qua Cổng 1, công việc quy mô epic đi tới Stage 2 (`dev-designer`). Giữa Cổng 2 và Stage 3, nhà phát triển chọn **Package** (`handoff.md`, trạng thái `Packaged`, dừng để phiên sau hoặc LLM khác làm) hoặc **Continue** vào Stage 3 ngay.
 
-Khi một epic được đóng gói, nhà phát triển đối diện với **Principal Review Choice**: hoặc kết thúc việc đóng gói (**Done**) hoặc chạy **Principal Review** (một đợt rà soát chéo giữa các mô hình đánh giá tài liệu thiết kế và độ sẵn sàng với mã nguồn thông qua Claude CLI hoặc Codex CLI). Các round được ghi nhận trong `principal_review.md`, được triage cùng nhà phát triển, chỉnh sửa tại chỗ, và đóng gói lại trước khi quay lại lựa chọn.
+Khi một epic được đóng gói, nhà phát triển đối diện với **Principal Review Choice**: hoặc kết thúc việc đóng gói (**Done**) hoặc gọi `principal-review` (một đợt rà soát chéo Shift-Left giữa các mô hình đánh giá tài liệu thiết kế, kịch bản BDD và task với mã nguồn thông qua Claude CLI hoặc Codex CLI). Các round được ghi nhận trong `principal_review.md`, được triage cùng nhà phát triển, chỉnh sửa tại chỗ, và đóng gói lại trước khi quay lại lựa chọn.
 - **Thực thi độc lập**: Stage 3 thực thi từng task độc lập trong git worktree theo phương pháp TDD và tích hợp liên tục vào `develop`. Khi mọi task đã xong, agent chạy Cổng 4 trên SHA ứng viên.
-- **Vòng lặp Cổng 4 và Review Choice**: Cổng 4 là cổng máy duy nhất trên nhánh phát triển của kit này. Nó chỉ cấp 🟢 khi `audit_epic.py` exit 0, `check_bdd_traceability.py tests --results` exit 0, và `@quality_check` profile `epic` trả về PASS trên đúng commit SHA ứng viên. Mỗi lần PASS sẽ đưa ra **Review Choice**: **Finish** đi tới Cổng 5; **Cross-model review** (Claude CLI hoặc Codex CLI) và **Local model review** (một model do Ollama phục vụ ở máy local, review từng task) đều ghi nhận một round rồi quay lại chạy đầy đủ Cổng 4. Mỗi round review được triage cùng nhà phát triển (`run_external_review.py triage`) trước mọi lần sửa. Vòng lặp tiếp tục cho tới khi nhà phát triển chọn Finish.
+- **Vòng lặp Cổng 4 và Review Choice**: Cổng 4 là cổng máy duy nhất trên nhánh phát triển của kit này. Nó chỉ cấp 🟢 khi `audit_epic.py` exit 0, `check_bdd_traceability.py tests --results` exit 0, và `@quality_check` profile `epic` trả về PASS trên đúng commit SHA ứng viên. Mỗi lần PASS sẽ đưa ra **Review Choice**: **Finish** đi tới Cổng 5; **Cross-model review** (Claude CLI hoặc Codex CLI) và **Local model review** (Ollama) kích hoạt `cross-model-review` (rà soát độc lập Shift-Right đối với mã nguồn, diff và tính toàn vẹn của test). Mỗi round review được ghi nhận vào `review_results.md` rồi quay lại chạy đầy đủ Cổng 4. Mỗi round review được triage cùng nhà phát triển (`run_external_review.py triage`) trước mọi lần sửa. Vòng lặp tiếp tục cho tới khi nhà phát triển chọn Finish.
 - **Ký duyệt Kanban Cổng 5**: Tất cả task hoàn tất được giữ lại ở `.devtool/features/done/` để nhà phát triển kiểm tra trực quan trên bảng Kanban trước khi Stage 4 rebase, verify theo tier, merge `--no-ff` vào `develop`, và lưu trữ task vào `.devtool/epic/<slug>/`.
 
 ### Trạng thái ngắt quãng và khôi phục (Resume)

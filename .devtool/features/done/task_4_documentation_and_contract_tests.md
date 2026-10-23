@@ -1,13 +1,13 @@
 ---
 id: "task_4_documentation_and_contract_tests"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "split_review_skills"
 dueDate: null
 created: "2026-10-23T11:40:00Z"
-modified: "2026-10-23T11:40:00Z"
-completedAt: null
+modified: "2026-10-23T13:08:26Z"
+completedAt: "2026-10-23T13:08:26Z"
 labels: ["documentation", "mermaid", "contract-tests", "verification"]
 order: "a4"
 ---
