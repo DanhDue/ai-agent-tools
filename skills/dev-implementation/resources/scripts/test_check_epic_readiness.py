@@ -516,8 +516,8 @@ class ReadinessCoreTest(unittest.TestCase):
             )
         )
 
-        # Add handoff.md with Design commit: `uncommitted`
-        handoff_content = """# Handoff: demo_epic
+        # Test missing Design commit in handoff
+        bad_handoff = """# Handoff: demo_epic
 
 ## Table of Contents
 
@@ -525,13 +525,12 @@ class ReadinessCoreTest(unittest.TestCase):
 
 ## Status
 
-- **Design commit**: `uncommitted`
+- **Base branch**: main
 """
-        (self.root / ".devtool" / "epic" / "demo_epic" / "handoff.md").write_text(handoff_content, encoding="utf-8")
-
-        code2, stdout2, _stderr2 = self.run_check("demo_epic")
-        self.assertEqual(code2, 0, f"Expected 0 after adding handoff, got {code2}.\nStdout:\n{stdout2}")
-        self.assertIn("R7 PASS", stdout2)
+        (self.root / ".devtool" / "epic" / "demo_epic" / "handoff.md").write_text(bad_handoff, encoding="utf-8")
+        code_bad, stdout_bad, _ = self.run_check("demo_epic")
+        self.assertEqual(code_bad, 1)
+        self.assertTrue(any("missing 'Design commit' line" in line for line in stdout_bad.splitlines()))
 
     def test_prv_fr_02_failing_preflight_subcheck_and_missing_dir(self) -> None:
         """PRV-FR-02: A failing preflight sub-check fails R1 by name; missing dir exits 2."""
@@ -560,6 +559,14 @@ Scenario: [DEMO-EC-09] [Tier C - Integration] Uncovered scenario
             any("check_bdd_traceability.py plan" in line for line in r1_fails),
             f"Expected R1 FAIL mentioning 'check_bdd_traceability.py plan', got:\n{stdout}",
         )
+
+        # Missing bilingual counterpart fails R1
+        unpaired = self.root / ".devtool" / "epic" / "demo_epic" / "unpaired-doc.en.md"
+        unpaired.write_text("# Unpaired\n\n## Table of Contents\n\n- [Section](#section)\n\n## Section\n\nText\n", encoding="utf-8")
+        code_unpaired, stdout_unpaired, _ = self.run_check("demo_epic")
+        self.assertEqual(code_unpaired, 1)
+        self.assertTrue(any("check_document.py" in line for line in stdout_unpaired.splitlines()))
+        unpaired.unlink()
 
         # Missing directory exits 2
         code2, _stdout2, stderr2 = self.run_check("nonexistent_epic_dir")

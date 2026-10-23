@@ -154,21 +154,14 @@ def check_preflight(ctx: Context) -> list[Finding]:
         findings.append(Finding("R1", "FAIL", f"check_task_contract.py --design: {last_line}"))
 
     # 4. check_document.py
-    en_files = sorted(epic_path.glob("*.en.md"))
-    bilingual_pairs: list[str] = []
-    for ef in en_files:
-        stem = ef.name[:-6]
-        vf = epic_path / f"{stem}.vi.md"
-        if vf.is_file():
-            bilingual_pairs.extend([str(ef), str(vf)])
-
-    if bilingual_pairs:
+    bilingual_files = sorted(set(epic_path.glob("*.en.md")) | set(epic_path.glob("*.vi.md")))
+    if bilingual_files:
         cmd_doc1 = [
             sys.executable,
             str(LINTER_PATH),
             "--require-toc",
             "--require-bilingual",
-            *bilingual_pairs,
+            *[str(f) for f in bilingual_files],
         ]
         res_doc1 = subprocess.run(cmd_doc1, check=False, cwd=ctx.root, capture_output=True, text=True)
         if res_doc1.returncode != 0:
@@ -593,6 +586,8 @@ def check_metadata(ctx: Context) -> list[Finding]:
                             f"handoff.md Design commit `{design_commit}` is not an ancestor of HEAD",
                         )
                     )
+        else:
+            findings.append(Finding("R7", "FAIL", "handoff.md is missing 'Design commit' line"))
 
     for task_path, task_text in ctx.tasks.items():
         epic_m = re.search(r'^epic:\s*"?([^"\n]+)"?', task_text, re.MULTILINE)
