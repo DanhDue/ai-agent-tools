@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import re
+import shlex
 import subprocess
 import sys
 from collections.abc import Callable
@@ -20,6 +21,7 @@ if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
 import check_bdd_traceability as cb
+import run_task_checks as rtc
 import sync_task_status as sts
 import task_contract as tc
 
@@ -386,13 +388,171 @@ def check_tier_tags(ctx: Context) -> list[Finding]:
 
 
 def check_grounding(ctx: Context) -> list[Finding]:
-    # Placeholder for Task 2
-    return []
+    findings: list[Finding] = []
+
+    # --- R5: Symbol Grounding ---
+    target_header_re = re.compile(
+        r"^\s*-\s*\*\*(?:Target Files & Symbols|Target files and symbols)\*\*:\s*(.*)$",
+        re.IGNORECASE,
+    )
+    sub_bullet_re = re.compile(r"^\s*-\s+`([^`]+)`:\s*(.*)$")
+    token_re = re.compile(r"`([^`]+)`")
+    ident_re = re.compile(r"^[A-Za-z_][\w.]*(?:\(\))?$")
+
+    for task_path, task_text in ctx.tasks.items():
+        impact_body = tc.section(task_text, "Impact Analysis & Blast Radius")
+        if not impact_body:
+            for heading in (
+                "Impact Analysis & Blast Radius",
+                "Impact analysis & blast radius",
+                "Impact Analysis and Blast Radius",
+            ):
+                impact_body = tc.section(task_text, heading)
+                if impact_body:
+                    break
+        if not impact_body:
+            continue
+
+        allowed_files = tc.parse_allowed_files(task_text)
+        new_patterns = {ap.pattern for ap in allowed_files if ap.new}
+
+        in_target_symbols = False
+        target_lines: list[str] = []
+        for line in impact_body.splitlines():
+            if target_header_re.match(line):
+                in_target_symbols = True
+                continue
+            if in_target_symbols:
+                if re.match(r"^\s*-\s+\*\*", line) or (line.startswith("- ") and not line.startswith("  - ")):
+                    break
+                target_lines.append(line)
+
+        for line in target_lines:
+            sub_m = sub_bullet_re.match(line)
+            if not sub_m:
+                continue
+            path_str = sub_m.group(1).strip()
+            rest = sub_m.group(2)
+
+            full_path = ctx.root / path_str
+            if not full_path.is_file() or path_str in new_patterns:
+                continue
+
+            try:
+                file_text = full_path.read_text(encoding="utf-8", errors="ignore")
+            except OSError:
+                continue
+
+            for span_m in token_re.finditer(rest):
+                token_raw = span_m.group(1).strip()
+                if not ident_re.match(token_raw):
+                    continue
+                prefix = rest[:span_m.start()]
+                if re.search(r"\bnew\s+$", prefix):
+                    continue
+
+                clean_name = token_raw.removesuffix("()")
+                name = clean_name.split(".")[-1]
+                if name not in file_text:
+                    findings.append(Finding("R5", "FAIL", f"{task_path.name}: {name} not in {path_str}"))
+
+    # --- R5b: Route Grounding (WARN) ---
+    route_re = re.compile(r"(?<![\w/])/api/[\w\-/{}.:]*[\w}]")
+    routes_to_check: list[str] = []
+    texts_to_scan = list(ctx.tasks.values()) + [ctx.hld_text]
+
+    for text in texts_to_scan:
+        for match in route_re.finditer(text):
+            r = match.group(0)
+            if "{" in r:
+                r = r.split("{", 1)[0]
+            r = r.rstrip("/")
+            if r and r not in routes_to_check:
+                routes_to_check.append(r)
+
+    if routes_to_check:
+        try:
+            ls_proc = subprocess.run(
+                ["git", "ls-files"],
+                check=False,
+                cwd=ctx.root,
+                capture_output=True,
+                text=True,
+            )
+            files_list = [
+                ctx.root / p
+                for p in ls_proc.stdout.splitlines()
+                if not p.startswith((".devtool/", "docs/")) and not p.endswith(".md")
+            ]
+        except OSError:
+            files_list = []
+
+        tracked_contents: list[str] = []
+        for f in files_list:
+            if f.is_file():
+                try:
+                    tracked_contents.append(f.read_text(encoding="utf-8", errors="ignore"))
+                except OSError:
+                    pass
+
+        for route in routes_to_check:
+            if not any(route in content for content in tracked_contents):
+                findings.append(Finding("R5b", "WARN", f"{route}: not found in tracked source"))
+
+    return findings
 
 
 def check_gate4_coverage(ctx: Context) -> list[Finding]:
-    # Placeholder for Task 2
-    return []
+    findings: list[Finding] = []
+
+    results_tokens_list: list[list[str]] = []
+    for cmd in ctx.results:
+        try:
+            results_tokens_list.append(shlex.split(cmd))
+        except ValueError:
+            results_tokens_list.append(cmd.split())
+
+    for task_path, task_text in ctx.tasks.items():
+        covers = cb.covers_of(task_path)
+        try:
+            rows, _ = tc.parse_verification(task_text)
+        except tc.ContractError:
+            continue
+
+        tier_c_rows = [r for r in rows if r.phase == "TIER-C"]
+        if covers and not tier_c_rows:
+            findings.append(Finding("R6", "FAIL", f"{task_path.name}: Covers without a TIER-C row"))
+            continue
+
+        for r in tier_c_rows:
+            try:
+                tokens = shlex.split(r.command)
+            except ValueError:
+                tokens = r.command.split()
+
+            for t in tokens:
+                if not any(t.startswith(root) for root in ctx.roots):
+                    continue
+
+                covered = False
+                for res_toks in results_tokens_list:
+                    if t in res_toks:
+                        covered = True
+                        break
+                    if any(rt.endswith("/") and t.startswith(rt) for rt in res_toks):
+                        covered = True
+                        break
+
+                if not covered:
+                    findings.append(
+                        Finding(
+                            "R6",
+                            "FAIL",
+                            f"{task_path.name}:{r.id}: {t} is in no Integration results command",
+                        )
+                    )
+
+    return findings
 
 
 def check_metadata(ctx: Context) -> list[Finding]:
@@ -463,8 +623,56 @@ def check_metadata(ctx: Context) -> list[Finding]:
 
 
 def check_baseline(ctx: Context) -> list[Finding]:
-    # Placeholder for Task 2
-    return []
+    if not ctx.baseline:
+        return []
+
+    status_proc = subprocess.run(
+        ["git", "status", "--porcelain"],
+        check=False,
+        cwd=ctx.root,
+        capture_output=True,
+        text=True,
+    )
+    if status_proc.stdout.strip():
+        return [Finding("R8", "WARN", "baseline skipped: dirty tree")]
+
+    findings: list[Finding] = []
+
+    new_paths: set[str] = set()
+    for t_text in ctx.tasks.values():
+        for ap in tc.parse_allowed_files(t_text):
+            if ap.new:
+                new_paths.add(ap.pattern)
+
+    for task_path, task_text in ctx.tasks.items():
+        try:
+            rows, _ = tc.parse_verification(task_text)
+        except tc.ContractError:
+            continue
+
+        for row in rows:
+            if row.phase not in ("GREEN", "TIER-B"):
+                continue
+
+            if any(np in row.command for np in new_paths):
+                continue
+
+            code, raw_output = rtc.run_command(row.command, ctx.root, ctx.row_timeout)
+            if code is None:
+                findings.append(
+                    Finding(
+                        "R8",
+                        "WARN",
+                        f"{task_path.stem}:{row.id} timeout after {ctx.row_timeout}s",
+                    )
+                )
+            else:
+                out_text = raw_output.decode("utf-8", errors="replace")
+                mis = rtc.mismatch(row, code, out_text)
+                if mis is not None:
+                    findings.append(Finding("R8", "WARN", f"{task_path.stem}:{row.id} {mis}"))
+
+    return findings
 
 
 CHECKS: tuple[tuple[str, Callable[[Context], list[Finding]]], ...] = (

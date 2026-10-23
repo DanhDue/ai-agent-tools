@@ -1,13 +1,13 @@
 ---
 id: "task_2_readiness_grounding_and_baseline"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "principal_review"
 dueDate: null
 created: "2026-10-22T09:10:00Z"
-modified: "2026-10-22T09:10:00Z"
-completedAt: null
+modified: "2026-10-23T09:48:05Z"
+completedAt: "2026-10-23T09:48:05Z"
 labels: ["readiness", "grounding", "gate-4"]
 order: "a2"
 ---

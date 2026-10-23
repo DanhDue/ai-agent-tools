@@ -11,6 +11,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from typing import Any
 
 SCRIPTS_DIR = Path(__file__).resolve().parent
 SCRIPT_PATH = SCRIPTS_DIR / "check_epic_readiness.py"
@@ -566,5 +567,188 @@ Scenario: [DEMO-EC-09] [Tier C - Integration] Uncovered scenario
         self.assertTrue(stderr2.strip() != "", "Expected stderr output for nonexistent dir")
 
 
+class ReadinessGroundingTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp_dir.cleanup)
+        self.root = Path(self.temp_dir.name).resolve()
+
+        git_cmd(self.root, "init", "-q")
+        git_cmd(self.root, "config", "user.email", "tester@example.com")
+        git_cmd(self.root, "config", "user.name", "Tester")
+
+        build_ready_epic(self.root)
+
+    def run_check(self, *args: str, cwd: Path | None = None) -> tuple[int, str, str]:
+        run_cwd = cwd or self.root
+        proc = subprocess.run(
+            [sys.executable, str(SCRIPT_PATH), *args],
+            check=False,
+            cwd=run_cwd,
+            capture_output=True,
+            text=True,
+        )
+        return proc.returncode, proc.stdout, proc.stderr
+
+    def update_task_both(self, task_name: str, updater: Any) -> None:
+        epic_file = self.root / ".devtool" / "epic" / "demo_epic" / task_name
+        feat_file = self.root / ".devtool" / "features" / task_name
+        text = epic_file.read_text(encoding="utf-8")
+        new_text = updater(text)
+        epic_file.write_text(new_text, encoding="utf-8")
+        feat_text = new_text.replace("](demo_epic.en.md)", "](../epic/demo_epic/demo_epic.en.md)")
+        feat_file.write_text(feat_text, encoding="utf-8")
+
+    def test_prv_ec_01_symbol_missing_from_file_fails_r5(self) -> None:
+        """PRV-EC-01: A symbol missing from its file fails R5."""
+        (self.root / "src").mkdir(parents=True, exist_ok=True)
+        (self.root / "src" / "app.py").write_text("def other():\n    pass\n", encoding="utf-8")
+
+        def modify_task(text: str) -> str:
+            text = text.replace(
+                "Allowed files:\n- `tool.py`",
+                "Allowed files:\n- `tool.py`\n- `src/app.py`",
+            )
+            text = text.replace(
+                "- **Target Files & Symbols**:\n  - `tool.py`: `run`",
+                "- **Target Files & Symbols**:\n  - `tool.py`: `run`\n  - `src/app.py`: `build_payload()`, new `render()`",
+            )
+            return text
+
+        self.update_task_both("task_2.md", modify_task)
+
+        code, stdout, _stderr = self.run_check("demo_epic")
+        self.assertEqual(code, 1, f"Expected 1, got {code}.\nStdout:\n{stdout}")
+        r5_fails = [line for line in stdout.splitlines() if line.startswith("R5 FAIL")]
+        self.assertTrue(r5_fails, f"Expected R5 FAIL in stdout:\n{stdout}")
+        self.assertTrue(
+            any("task_2" in line and "build_payload" in line and "src/app.py" in line for line in r5_fails),
+            f"Expected R5 FAIL containing task_2, build_payload, src/app.py. Got:\n{stdout}",
+        )
+        self.assertFalse(any("render" in line for line in stdout.splitlines() if line.startswith("R5")), f"Render should not be mentioned in R5:\n{stdout}")
+        self.assertTrue(stdout.strip().splitlines()[-1].endswith("— FAIL"))
+
+    def test_prv_ec_03_tier_c_test_outside_integration_results_fails_r6(self) -> None:
+        """PRV-EC-03: A TIER-C test outside every Integration results command fails R6."""
+        hld_path = self.root / ".devtool" / "epic" / "demo_epic" / "demo_epic.en.md"
+        hld_text = hld_path.read_text(encoding="utf-8")
+        hld_text = hld_text.replace(
+            "Integration results: python3 tool.py int -> build/test-results/int.xml",
+            "Integration results: python3 scripts/run_unittest_junit.py --junitxml build/test-results/int.xml tests/test_core.py",
+        )
+        hld_path.write_text(hld_text, encoding="utf-8")
+
+        def modify_task(text: str) -> str:
+            return text.replace(
+                "`python3 tool.py int`",
+                "`python3 scripts/run_unittest_junit.py --junitxml build/test-results/task_2.xml tests/test_extra.py`",
+            )
+
+        self.update_task_both("task_2.md", modify_task)
+
+        code, stdout, _stderr = self.run_check("demo_epic")
+        self.assertEqual(code, 1, f"Expected 1, got {code}.\nStdout:\n{stdout}")
+        r6_fails = [line for line in stdout.splitlines() if line.startswith("R6 FAIL")]
+        self.assertTrue(r6_fails, f"Expected R6 FAIL in stdout:\n{stdout}")
+        self.assertTrue(
+            any("task_2" in line and "tests/test_extra.py" in line for line in r6_fails),
+            f"Expected R6 FAIL containing task_2 and tests/test_extra.py. Got:\n{stdout}",
+        )
+
+    def test_prv_ec_06_route_not_found_warns_r5b(self) -> None:
+        """PRV-EC-06: A route found in no source file warns R5b without failing."""
+        (self.root / "tool.py").write_text(
+            'ENDPOINT = "/api/studio/extract/start"\ndef run():\n    pass\n',
+            encoding="utf-8",
+        )
+        git_cmd(self.root, "add", "tool.py")
+        git_cmd(self.root, "commit", "-m", "update tool.py with endpoint", "-q")
+
+        def modify_task(text: str) -> str:
+            return text.replace(
+                "Requirement text for task 1.",
+                "Requirement text for task 1 calling /api/tts/ocr-upload endpoint.",
+            )
+
+        self.update_task_both("task_1.md", modify_task)
+
+        code, stdout, _stderr = self.run_check("demo_epic")
+        self.assertEqual(code, 0, f"Expected 0, got {code}.\nStdout:\n{stdout}")
+        r5b_warns = [line for line in stdout.splitlines() if line.startswith("R5b WARN")]
+        self.assertTrue(r5b_warns, f"Expected R5b WARN in stdout:\n{stdout}")
+        self.assertTrue(
+            any("/api/tts/ocr-upload" in line for line in r5b_warns),
+            f"Expected R5b WARN containing /api/tts/ocr-upload. Got:\n{stdout}",
+        )
+        self.assertFalse(any("/api/studio/extract/start" in line for line in stdout.splitlines()))
+        self.assertEqual(stdout.strip().splitlines()[-1], "Result: 0 FAIL, 1 WARN — PASS")
+
+    def test_prv_fr_01_baseline_failures_and_timeouts_warn(self) -> None:
+        """PRV-FR-01: Baseline failures and timeouts warn and other rows still run."""
+        # Ensure clean git tree by committing existing files
+        git_cmd(self.root, "add", "-A")
+        git_cmd(self.root, "commit", "-m", "setup baseline clean tree", "-q")
+
+        # 1. Update task_1 with rows:
+        # V2 GREEN: python3 -c 'raise SystemExit(1)' expecting exit 0
+        # V3 TIER-B: sleep 5 expecting exit 0
+        # V4 GREEN: python3 -c 'print(1)' expecting exit 0
+        def modify_task_1(text: str) -> str:
+            text = text.replace(
+                "| V2 | GREEN | `python3 tool.py green` | exit 0 | — |",
+                "| V2 | GREEN | `python3 -c 'raise SystemExit(1)'` | exit 0 | — |\n| V3 | TIER-B | `sleep 5` | exit 0 | — |\n| V4 | GREEN | `python3 -c 'print(1)'` | exit 0 | — |",
+            )
+            text = text.replace(
+                "| V3 | TIER-B | `ruff check tool.py` | exit 0 | — |\n| V4 | TIER-B | `mypy tool.py` | exit 0 | — |",
+                "| V5 | TIER-B | `ruff check tool.py` | exit 0 | — |\n| V6 | TIER-B | `mypy tool.py` | exit 0 | — |",
+            )
+            text = text.replace(
+                "| V5 | TIER-C | `python3 tool.py int` | exit 0; results build/test-results/int.xml | — |",
+                "| V7 | TIER-C | `python3 tool.py int` | exit 0; results build/test-results/int.xml | — |",
+            )
+            return text
+
+        self.update_task_both("task_1.md", modify_task_1)
+
+        # 2. Update task_2 with a GREEN row whose command names a path marked (new)
+        def modify_task_2(text: str) -> str:
+            text = text.replace(
+                "Allowed files:\n- `tool.py`",
+                "Allowed files:\n- `tool.py`\n- `new_file.py` (new)",
+            )
+            text = text.replace(
+                "| V2 | GREEN | `python3 tool.py green2` | exit 0 | — |",
+                "| V2 | GREEN | `python3 new_file.py` | exit 0 | — |",
+            )
+            return text
+
+        self.update_task_both("task_2.md", modify_task_2)
+
+        # Commit these task files so the tree is clean for baseline run
+        git_cmd(self.root, "add", "-A")
+        git_cmd(self.root, "commit", "-m", "commit tasks for baseline", "-q")
+
+        code, stdout, _stderr = self.run_check("demo_epic", "--baseline", "--row-timeout", "2")
+        self.assertEqual(code, 0, f"Expected 0, got {code}.\nStdout:\n{stdout}")
+        r8_warns = [line for line in stdout.splitlines() if line.startswith("R8 WARN")]
+        self.assertTrue(any("task_1:V2" in line for line in r8_warns), f"Expected task_1:V2 in R8 WARN:\n{stdout}")
+        self.assertTrue(
+            any("task_1:V3" in line and "timeout" in line for line in r8_warns),
+            f"Expected task_1:V3 timeout in R8 WARN:\n{stdout}",
+        )
+        self.assertFalse(any("task_1:V4" in line for line in r8_warns), f"task_1:V4 should pass:\n{stdout}")
+        self.assertFalse(any("task_2" in line for line in r8_warns), f"task_2 should be skipped:\n{stdout}")
+
+        # When dirty tree:
+        (self.root / "README.md").write_text("# Dirty\n", encoding="utf-8")
+        code_dirty, stdout_dirty, _stderr_dirty = self.run_check("demo_epic", "--baseline", "--row-timeout", "2")
+        self.assertEqual(code_dirty, 0, f"Expected 0 for dirty tree, got {code_dirty}.\nStdout:\n{stdout_dirty}")
+        self.assertTrue(
+            any("R8 WARN baseline skipped: dirty tree" in line for line in stdout_dirty.splitlines()),
+            f"Expected 'R8 WARN baseline skipped: dirty tree', got:\n{stdout_dirty}",
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
+
