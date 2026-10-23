@@ -77,7 +77,9 @@ class ReviewCase(unittest.TestCase):
         self.root.mkdir()
         self.bin.mkdir()
         for tool in ("git", "bash", "cat", "sleep", "sh"):  # only what the run needs: never a real claude or codex
-            (self.bin / tool).symlink_to(shutil.which(tool))
+            tool_path = shutil.which(tool)
+            if tool_path is not None:
+                (self.bin / tool).symlink_to(tool_path)
         (self.bin / "python3").symlink_to(sys.executable)
         self.stdin, self.args = tmp / "stdin.txt", tmp / "args.txt"
         env = {"PATH": str(self.bin), "FAKE_STDIN": str(self.stdin), "FAKE_ARGS": str(self.args)}
@@ -326,7 +328,7 @@ class RunExternalReviewTest(ReviewCase):
     # [RWE-HP-04] Clean facts collection proceeds to CLI execution
     def test_rwe_hp_04_clean_facts_collection_proceeds_to_cli(self) -> None:
         self.install("claude")
-        code, out, err = self.run_review(cli="claude", mode="pass")
+        code, _out, err = self.run_review(cli="claude", mode="pass")
         self.assertEqual(code, 0)
         self.assertIn("[Pre-check]", err)
         self.assertIn("audit_epic.py", err)
@@ -351,7 +353,7 @@ class RunExternalReviewTest(ReviewCase):
                 (0, "trace passed", ""),       # check_bdd_traceability.py
                 (0, "Verdict: PASS\n", ""),    # codex CLI
             ]
-            code, out, err = self.run_review("--facts-timeout", "45", "--timeout", "1200", cli="codex", mode="pass")
+            code, _out, _err = self.run_review("--facts-timeout", "45", "--timeout", "1200", cli="codex", mode="pass")
             self.assertEqual(code, 0)
             self.assertEqual(mock_exec.call_args_list[0][0][2], 45)
             self.assertEqual(mock_exec.call_args_list[1][0][2], 45)
@@ -363,7 +365,7 @@ class RunExternalReviewTest(ReviewCase):
         self.install("claude")
         self.write(f"{EPIC}/demo.en.md", "# Demo\n\nIntegration test roots: scripts/\n\nIntegration results: false -> build/demo.xml\n")
         self.commit("HLD with failing test")
-        code, out, err = self.run_review(cli="claude", mode="pass")
+        code, _out, err = self.run_review(cli="claude", mode="pass")
         self.assertEqual(code, 2)
         self.assertIn("[PRECONDITION BLOCKED]", err)
         self.assertIn("CLAUDE CLI WAS NOT INVOKED (0 CREDITS USED)", err)
@@ -378,7 +380,7 @@ class RunExternalReviewTest(ReviewCase):
         # Mark task_1_demo done with a Verification section but without evidence to make audit_epic fail
         self.write(f"{EPIC}/task_1_demo.md", '---\nid: "task_1_demo"\nstatus: "done"\n---\n\n# Task 1\n\n## Verification\n\n| ID | Phase | Command | Expect | Needs |\n|----|-------|---------|--------|-------|\n| V1 | GREEN | true | exit 0 | — |\n')
         self.commit("Task 1 done without evidence")
-        code, out, err = self.run_review(cli="claude", mode="pass")
+        code, _out, err = self.run_review(cli="claude", mode="pass")
         self.assertEqual(code, 2)
         self.assertIn("[PRECONDITION BLOCKED]", err)
         self.assertIn("audit_epic.py", err)
@@ -390,7 +392,7 @@ class RunExternalReviewTest(ReviewCase):
         # Change HLD to have a sleeping integration test
         self.write(f"{EPIC}/demo.en.md", "# Demo\n\nIntegration test roots: scripts/\n\nIntegration results: sleep 5 -> build/demo.xml\n")
         self.commit("HLD with slow test")
-        code, out, err = self.run_review("--facts-timeout", "1", cli="claude", mode="pass")
+        code, _out, err = self.run_review("--facts-timeout", "1", cli="claude", mode="pass")
         self.assertEqual(code, 2)
         self.assertIn("[PRECONDITION BLOCKED]", err)
         self.assertIn("TIMEOUT (1s)", err)
@@ -442,7 +444,7 @@ class RunExternalReviewTest(ReviewCase):
         self.install("claude")
         self.write("src/core.py", "def greet():\n    return 'hello'\n")
         self.commit("Add greet")
-        code, out, err = self.run_review(cli="claude", mode="pass")
+        code, _out, _err = self.run_review(cli="claude", mode="pass")
         self.assertEqual(code, 0)
         prompt = self.stdin.read_text(encoding="utf-8")
         self.assertIn("## Code Changes (Diff)", prompt)
@@ -456,7 +458,7 @@ class RunExternalReviewTest(ReviewCase):
         self.install("codex")
         self.write("src/large.py", "\n".join(f"x_{i} = {i}" for i in range(10)) + "\n")
         self.commit("Add large file")
-        code, out, err = self.run_review("--diff-limit", "3", cli="codex", mode="pass")
+        code, _out, _err = self.run_review("--diff-limit", "3", cli="codex", mode="pass")
         self.assertEqual(code, 0)
         prompt = self.stdin.read_text(encoding="utf-8")
         self.assertIn("## Code Changes (Diff)", prompt)
@@ -470,7 +472,7 @@ class RunExternalReviewTest(ReviewCase):
         self.install("claude")
         self.write("src/script.sh", "#!/bin/bash\necho \"$UNDEFINED_VAR\" > \"$OUTPUT_FILE\"\n")
         self.commit("Add bash script with dollars")
-        code, out, err = self.run_review(cli="claude", mode="pass")
+        code, _out, _err = self.run_review(cli="claude", mode="pass")
         self.assertEqual(code, 0)
         prompt = self.stdin.read_text(encoding="utf-8")
         self.assertIn("$UNDEFINED_VAR", prompt)
@@ -498,7 +500,7 @@ class RunExternalReviewTest(ReviewCase):
         # Point to missing report in HLD
         self.write(f"{EPIC}/demo.en.md", "# Demo\n\nIntegration test roots: scripts/\n\nIntegration results: true -> build/nonexistent.xml\n")
         self.commit("HLD with missing report")
-        code, out, err = self.run_review(cli="claude", mode="pass")
+        code, _out, err = self.run_review(cli="claude", mode="pass")
         self.assertEqual(code, 2)
         self.assertIn("[PRECONDITION BLOCKED]", err)
         self.assertIn("Failed Gate", err)
@@ -520,8 +522,8 @@ class PrincipalReviewTest(ReviewCase):
             code = main(["run", "--kind", "principal", "--epic-dir", "demo_epic", "--base", "main", "--cli", cli, *extra])
         return code, out.getvalue(), err.getvalue()
 
-    def test_prv_hp_02_principal_round_recorded_in_principal_review_md(self) -> None:
-        """PRV-HP-02: A principal round is recorded in principal_review.md."""
+    def test_srs_hp_01_principal_round_recorded_in_principal_review_md(self) -> None:
+        """[SRS-HP-01] A principal round is recorded in principal_review.md."""
         self.install("claude")
         code, out, err = self.run_principal()
         self.assertEqual(code, 0, f"Expected 0, got {code}.\nOut:\n{out}\nErr:\n{err}")
@@ -554,8 +556,8 @@ class PrincipalReviewTest(ReviewCase):
         self.assertIn("task_2:Decisions Already Made", text)
         self.assertIn("Proposed: keep TrackPersistResult.", text)
 
-    def test_prv_st_01_decisions_move_check_from_1_to_0(self) -> None:
-        """PRV-ST-01: Decisions move check --kind principal from 1 to 0, independent of code rounds."""
+    def test_srs_st_01_decisions_move_check_from_1_to_0(self) -> None:
+        """[SRS-ST-01] Decisions move check --kind principal from 1 to 0, independent of code rounds."""
         self.install("claude")
         code, _, _ = self.run_principal(mode="principal_changes")
         self.assertEqual(code, 1)
@@ -662,8 +664,8 @@ class PrincipalReviewTest(ReviewCase):
             self.assertIn("## Round 2", text)
             self.assertTrue(text.index("## Round 1") < text.index("## Round 2"))
 
-    def test_prv_fr_03_readiness_fail_blocks_cli(self) -> None:
-        """PRV-FR-03: A readiness FAIL blocks the CLI and records nothing."""
+    def test_srs_fr_01_readiness_fail_blocks_cli(self) -> None:
+        """[SRS-FR-01] A readiness FAIL blocks the CLI and records nothing."""
         # Break readiness: make task_2 fail R5 by adding a missing symbol
         (self.root / "src").mkdir(parents=True, exist_ok=True)
         (self.root / "src" / "app.py").write_text("def other(): pass\n", encoding="utf-8")
@@ -682,7 +684,7 @@ class PrincipalReviewTest(ReviewCase):
         self.install("claude")
         counter = self.bin.parent / "fake_counter.txt"
         with mock.patch.dict(os.environ, {"FAKE_COUNTER": str(counter)}):
-            code, out, err = self.run_principal()
+            code, _out, err = self.run_principal()
             self.assertEqual(code, 2)
             self.assertIn("WAS NOT INVOKED", err)
             self.assertIn("check_epic_readiness.py", err)
@@ -702,5 +704,66 @@ class PrincipalReviewTest(ReviewCase):
         self.assertFalse(self.principal_results.exists())
 
 
+class TestPrincipalReviewDocMode(ReviewCase):
+    def setUp(self) -> None:
+        super().setUp()
+        self.doc_path = self.root / "docs" / "rfc" / "feature-architecture.md"
+        self.doc_path.parent.mkdir(parents=True, exist_ok=True)
+        self.doc_path.write_text(
+            "# RFC: Feature Architecture\n\n## Overview\nThis is a sample design document.\n\n"
+            "## Architecture\nDetails here.\n",
+            encoding="utf-8",
+        )
+        self.commit("Add RFC document")
+
+    def test_srs_ec_01_doc_mode_missing_document_refuses(self) -> None:
+        """[SRS-EC-01] Missing standalone document refuses without calling CLI."""
+        self.install("claude")
+        counter = self.bin.parent / "fake_counter.txt"
+        with mock.patch.dict(os.environ, {"FAKE_COUNTER": str(counter)}):
+            out, err = io.StringIO(), io.StringIO()
+            with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+                code = main(["run", "--kind", "principal", "--doc", "docs/rfc/missing-doc.md", "--base", "main", "--cli", "claude"])
+            self.assertEqual(code, 2)
+            self.assertIn("docs/rfc/missing-doc.md", err.getvalue())
+            self.assertFalse(counter.exists())
+
+    def test_srs_ec_04_doc_mode_broken_structure_refuses(self) -> None:
+        """[SRS-EC-04] Broken standalone document formatting refuses before CLI invocation."""
+        broken = self.root / "docs" / "rfc" / "broken.md"
+        broken.write_text("   \n\n", encoding="utf-8")
+        self.commit("Add broken document")
+
+        self.install("claude")
+        counter = self.bin.parent / "fake_counter.txt"
+        with mock.patch.dict(os.environ, {"FAKE_COUNTER": str(counter)}):
+            out, err = io.StringIO(), io.StringIO()
+            with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+                code = main(["run", "--kind", "principal", "--doc", "docs/rfc/broken.md", "--base", "main", "--cli", "claude"])
+            self.assertEqual(code, 2)
+            self.assertIn("docs/rfc/broken.md", err.getvalue())
+            self.assertFalse(counter.exists())
+
+    def test_srs_hp_02_doc_mode_successful_run_streams_triage_table(self) -> None:
+        """[SRS-HP-02] Ad-hoc principal review validates and streams triage table to stdout."""
+        self.install("claude")
+        out, err = io.StringIO(), io.StringIO()
+        with mock.patch.dict(os.environ, {"FAKE_MODE": "pass"}), \
+                contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            code = main(["run", "--kind", "principal", "--doc", "docs/rfc/feature-architecture.md", "--base", "main", "--cli", "claude"])
+        self.assertEqual(code, 0)
+        output = out.getvalue()
+        self.assertIn("Review Triage", output)
+        self.assertIn("Verdict", output)
+        self.assertIn("PASS", output)
+        prompt = self.stdin.read_text(encoding="utf-8")
+        self.assertIn("docs/rfc/feature-architecture.md", prompt)
+        self.assertIn("RFC: Feature Architecture", prompt)
+        # Verify no principal_review.md was created
+        self.assertFalse((self.root / ".devtool" / "epic" / "demo" / "principal_review.md").exists())
+        self.assertFalse((self.root / "principal_review.md").exists())
+
+
 if __name__ == '__main__':
     unittest.main()
+

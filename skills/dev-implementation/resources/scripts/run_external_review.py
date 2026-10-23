@@ -36,8 +36,21 @@ SCRIPTS = Path(__file__).resolve().parent
 PROMPT = SCRIPTS.parent.parent / "references" / "external-review-prompt.md"
 RULES = SCRIPTS.parent.parent / "references" / "review-rules.md"
 KINDS = ("code", "principal")
-PRINCIPAL_PROMPT = SCRIPTS.parent.parent / "references" / "principal-review-prompt.md"
-PRINCIPAL_RULES = SCRIPTS.parent.parent / "references" / "principal-review-rules.md"
+
+
+def principal_prompt_path() -> Path:
+    standalone = SCRIPTS.parent.parent.parent / "principal-review" / "references" / "principal-review-prompt.md"
+    if standalone.is_file():
+        return standalone
+    return SCRIPTS.parent.parent / "references" / "principal-review-prompt.md"
+
+
+def principal_rules_path() -> Path:
+    standalone = SCRIPTS.parent.parent.parent / "principal-review" / "references" / "principal-review-rules.md"
+    if standalone.is_file():
+        return standalone
+    return SCRIPTS.parent.parent / "references" / "principal-review-rules.md"
+
 
 
 def review_file(kind: str) -> tuple[str, str]:
@@ -368,7 +381,72 @@ def render_round(number: int, meta: dict[str, str], findings: list[tuple[str, st
     return f"## Round {number}\n\n{head}\n{table}\nRaw output:\n\n{fence}text\n{output.rstrip()}\n{fence}\n"
 
 
+def run_principal_doc(root: Path, args: argparse.Namespace, sha: str) -> int:
+    doc_path = root / args.doc if not Path(args.doc).is_absolute() else Path(args.doc)
+    if not doc_path.is_file():
+        print(f"error: document path not found: {args.doc}", file=sys.stderr)
+        return 2
+
+    content = doc_path.read_text(encoding="utf-8")
+    if not content.strip() or not re.search(r"^#+\s+\S+", content, re.MULTILINE):
+        print(f"error: document has invalid structure or missing headings: {args.doc}", file=sys.stderr)
+        return 2
+
+    base_sha = git_run(root, "rev-parse", "--verify", args.base).decode().strip()
+    artefacts = f"- `{args.doc}`\n\nDocument content:\n\n```markdown\n{content}\n```"
+    readiness_output = "N/A (Ad-hoc review of standalone document)"
+
+    prompt = Template(principal_prompt_path().read_text(encoding="utf-8")).safe_substitute(
+        rules=principal_rules_path().read_text(encoding="utf-8").strip(),
+        sha=sha,
+        base=args.base,
+        base_sha=base_sha,
+        epic_dir=args.doc,
+        artefacts=artefacts,
+        readiness_output=readiness_output,
+    )
+
+    before = status_lines(root)
+    code, out, _err = execute(cli_command(args.cli, args.model), root, args.timeout, prompt)
+    changed = tree_changes(root, before, sha)
+    if changed:
+        print(f"error: tree modified during review: {', '.join(changed)}", file=sys.stderr)
+        return 2
+
+    lines = out.splitlines()
+    marks = [(index, m.group(1).upper()) for index, line in enumerate(lines) if (m := VERDICT.match(line))]
+    verdict = marks[-1][1] if marks else None
+    findings = parse_findings(out, verdict)
+
+    triage_out = [
+        f"# Review Triage: {args.doc}", "",
+        f"- **SHA**: {sha[:7]}",
+        f"- **CLI**: {args.cli}",
+        f"- **Model**: {args.model or 'default'}",
+        f"- **Status**: {'completed' if code == 0 and verdict is not None else 'no verdict'}",
+        f"- **Verdict**: {verdict or 'none'}", "",
+        "## Findings", "",
+    ]
+    if findings:
+        triage_out += [
+            "| # | Severity | Location | Problem | Assessment | Evidence | Proposed action |",
+            "|---|----------|----------|---------|------------|----------|-----------------|",
+            *(f"| {i} | {sev} | {cell(loc)} | {cell(problem)} | ? | ? | ? |" for i, (sev, loc, problem) in enumerate(findings, 1)),
+        ]
+    else:
+        triage_out.append("None.")
+    triage_out += ["", "## Next Steps", "", NEXT_STEPS]
+    print("\n".join(triage_out))
+
+    if code != 0 or verdict is None:
+        return 2
+    return 1 if any(sev in BLOCKING for sev, _, _ in findings) else 0
+
+
 def run_principal(root: Path, args: argparse.Namespace, sha: str) -> int:
+    if getattr(args, "doc", None):
+        return run_principal_doc(root, args, sha)
+
     facts_timeout = getattr(args, "facts_timeout", 300)
     check_cmd = [sys.executable, str(SCRIPTS / "check_epic_readiness.py"), args.epic_dir]
     try:
@@ -380,8 +458,8 @@ def run_principal(root: Path, args: argparse.Namespace, sha: str) -> int:
     base_sha = git_run(root, "rev-parse", "--verify", args.base).decode().strip()
     readiness_output = out.rstrip()
 
-    prompt = Template(PRINCIPAL_PROMPT.read_text(encoding="utf-8")).safe_substitute(
-        rules=PRINCIPAL_RULES.read_text(encoding="utf-8").strip(),
+    prompt = Template(principal_prompt_path().read_text(encoding="utf-8")).safe_substitute(
+        rules=principal_rules_path().read_text(encoding="utf-8").strip(),
         sha=sha,
         base=args.base,
         base_sha=base_sha,
@@ -394,6 +472,7 @@ def run_principal(root: Path, args: argparse.Namespace, sha: str) -> int:
     code, out, err = execute(cli_command(args.cli, args.model), root, args.timeout, prompt)
     changed = tree_changes(root, before, sha)
     return record_round(root, args, sha, [Pass("principal", code, out, err, prompt)], changed, {"Kind": "principal"})
+
 
 
 def run(args: argparse.Namespace) -> int:
@@ -715,7 +794,8 @@ def main(argv: list[str] | None = None) -> int:
     modes = parser.add_subparsers(dest="mode", required=True)
     runner = modes.add_parser("run", help="have the CLI review the epic and record a round")
     runner.add_argument("--kind", choices=KINDS, default="code")
-    runner.add_argument("--epic-dir", required=True)
+    runner.add_argument("--epic-dir")
+    runner.add_argument("--doc")
     runner.add_argument("--base", required=True)
     runner.add_argument("--cli", required=True, choices=("claude", "codex", "ollama"))
     runner.add_argument("--model")
@@ -731,6 +811,19 @@ def main(argv: list[str] | None = None) -> int:
     triager.add_argument("--kind", choices=KINDS, default="code")
     triager.add_argument("--epic-dir", required=True)
     args = parser.parse_args(argv)
+
+    if args.mode == "run":
+        if args.doc:
+            if getattr(args, "kind", "code") != "principal":
+                print("error: --doc requires --kind principal", file=sys.stderr)
+                return 2
+            if args.epic_dir:
+                print("error: specify either --epic-dir or --doc, not both", file=sys.stderr)
+                return 2
+        elif not args.epic_dir:
+            print("error: one of --epic-dir or --doc is required", file=sys.stderr)
+            return 2
+
     try:
         return {"run": run, "check": check, "triage": triage}[args.mode](args)
     except (ContractError, OSError) as error:

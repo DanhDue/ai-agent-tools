@@ -1,0 +1,208 @@
+{
+  "schema": 1,
+  "task": "task_1_standalone_principal_review_skill",
+  "runs": {
+    "red": {
+      "head": "eafca6c562cd921a6db3bd9c23822f19a8cf951d",
+      "tree": "58aa39a44bb50806bde02fe53e4699184bbfba99",
+      "patch_id": "9a8a73b1d69ff1045cded0563cf31050db587bf6",
+      "started": "2026-10-23T12:26:43Z",
+      "finished": "2026-10-23T12:26:44Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m unittest skills/dev-implementation/resources/scripts/test_run_external_review.py -k TestPrincipalReviewDocMode",
+          "expect": "exit 1; contains \"FAILED\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-23T12:26:43Z",
+          "finished": "2026-10-23T12:26:44Z",
+          "output_tail": [
+            "  File \"/Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/split_review_skills/skills/dev-implementation/resources/scripts/run_external_review.py\", line 733, in main",
+            "    args = parser.parse_args(argv)",
+            "  File \"/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/argparse.py\", line 2003, in parse_args",
+            "    args, argv = self.parse_known_args(args, namespace)",
+            "                 ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^",
+            "  File \"/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/argparse.py\", line 2013, in parse_known_args",
+            "    return self._parse_known_args2(args, namespace, intermixed=False)",
+            "           ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+            "  File \"/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/argparse.py\", line 2042, in _parse_known_args2",
+            "    namespace, args = self._parse_known_args(args, namespace, intermixed)",
+            "                      ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+            "  File \"/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/argparse.py\", line 2274, in _parse_known_args",
+            "    positionals_end_index = consume_positionals(start_index)",
+            "  File \"/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/argparse.py\", line 2249, in consume_positionals",
+            "    take_action(action, args)",
+            "    ~~~~~~~~~~~^^^^^^^^^^^^^^",
+            "  File \"/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/argparse.py\", line 2118, in take_action",
+            "    action(self, namespace, argument_values, option_string)",
+            "    ~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+            "  File \"/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/argparse.py\", line 1314, in __call__",
+            "    subnamespace, arg_strings = subparser.parse_known_args(arg_strings, None)",
+            "                                ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^",
+            "  File \"/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/argparse.py\", line 2013, in parse_known_args",
+            "    return self._parse_known_args2(args, namespace, intermixed=False)",
+            "           ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+            "  File \"/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/argparse.py\", line 2044, in _parse_known_args2",
+            "    self.error(str(err))",
+            "    ~~~~~~~~~~^^^^^^^^^^",
+            "  File \"/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/argparse.py\", line 2780, in error",
+            "    self.exit(2, _('%(prog)s: error: %(message)s\\n') % args)",
+            "    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+            "  File \"/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/argparse.py\", line 2767, in exit",
+            "    _sys.exit(status)",
+            "    ~~~~~~~~~^^^^^^^^",
+            "SystemExit: 2",
+            "",
+            "----------------------------------------------------------------------",
+            "Ran 3 tests in 0.467s",
+            "",
+            "FAILED (errors=3)"
+          ],
+          "output_sha256": "a55ae4d44c37b288fa494b348d185e7e879f5ec5b9be1740e04e7dd5e7068358"
+        }
+      ]
+    },
+    "verify": {
+      "head": "eafca6c562cd921a6db3bd9c23822f19a8cf951d",
+      "tree": "975a8538581694f4930a83d4e2e7188d212af5a3",
+      "patch_id": "dc40f13854c2cdd049d2fcdbb0387cc6dfb9fd7c",
+      "started": "2026-10-23T12:37:01Z",
+      "finished": "2026-10-23T12:37:24Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m unittest skills/dev-implementation/resources/scripts/test_run_external_review.py -k TestPrincipalReviewDocMode",
+          "expect": "exit 0; contains \"OK\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-23T12:37:01Z",
+          "finished": "2026-10-23T12:37:02Z",
+          "output_tail": [
+            "...",
+            "----------------------------------------------------------------------",
+            "Ran 3 tests in 0.982s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "8e6ca5b693dfb3bb2e71d1486efb176ca066559fc6aafd75197ceec1fba71f00"
+        },
+        {
+          "id": "V3",
+          "phase": "TIER-B",
+          "command": "ruff check skills/dev-implementation/resources/scripts/run_external_review.py skills/dev-implementation/resources/scripts/test_run_external_review.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-23T12:37:02Z",
+          "finished": "2026-10-23T12:37:02Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "mypy --strict --follow-imports=silent skills/dev-implementation/resources/scripts/run_external_review.py skills/dev-implementation/resources/scripts/test_run_external_review.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-23T12:37:02Z",
+          "finished": "2026-10-23T12:37:02Z",
+          "output_tail": [
+            "Success: no issues found in 2 source files"
+          ],
+          "output_sha256": "f9b031e5c45aa702cd4fef028d465551cb20a2c4698e0913c7b00766b20ac4d8"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-C",
+          "command": "python3 scripts/run_unittest_junit.py --junitxml build/test-results/task_1.xml skills/dev-implementation/resources/scripts/test_run_external_review.py",
+          "expect": "exit 0; results build/test-results/task_1.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-23T12:37:02Z",
+          "finished": "2026-10-23T12:37:23Z",
+          "output_tail": [
+            ".........................................",
+            "----------------------------------------------------------------------",
+            "Ran 41 tests in 21.014s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "bfcdb13436d523e71ec39694d0fb6d8cb9359028d5d44e8692a9e9046c784180",
+          "results": {
+            "path": "build/test-results/task_1.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 6,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_srs_fr_01_readiness_fail_blocks_cli",
+                  "classname": "test_run_external_review.PrincipalReviewTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_srs_hp_01_principal_round_recorded_in_principal_review_md",
+                  "classname": "test_run_external_review.PrincipalReviewTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_srs_st_01_decisions_move_check_from_1_to_0",
+                  "classname": "test_run_external_review.PrincipalReviewTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_srs_ec_01_doc_mode_missing_document_refuses",
+                  "classname": "test_run_external_review.TestPrincipalReviewDocMode",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_srs_ec_04_doc_mode_broken_structure_refuses",
+                  "classname": "test_run_external_review.TestPrincipalReviewDocMode",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_srs_hp_02_doc_mode_successful_run_streams_triage_table",
+                  "classname": "test_run_external_review.TestPrincipalReviewDocMode",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "skills/dev-implementation/resources/scripts/run_external_review.py",
+            "skills/dev-implementation/resources/scripts/test_run_external_review.py",
+            "skills/principal-review/SKILL.md",
+            "skills/principal-review/references/document-triage.md",
+            "skills/principal-review/references/principal-review-prompt.md",
+            "skills/principal-review/references/principal-review-rules.md"
+          ],
+          "violations": []
+        }
+      ]
+    }
+  }
+}

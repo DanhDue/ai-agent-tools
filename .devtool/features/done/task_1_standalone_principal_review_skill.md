@@ -1,13 +1,13 @@
 ---
 id: "task_1_standalone_principal_review_skill"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "split_review_skills"
 dueDate: null
 created: "2026-10-23T11:40:00Z"
-modified: "2026-10-23T11:40:00Z"
-completedAt: null
+modified: "2026-10-23T12:37:54Z"
+completedAt: "2026-10-23T12:37:54Z"
 labels: ["skill", "principal-review", "document-review", "cli"]
 order: "a1"
 ---
