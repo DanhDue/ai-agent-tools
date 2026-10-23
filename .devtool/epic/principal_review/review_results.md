@@ -12,10 +12,10 @@
 
 | # | Severity | Location | Problem | Decision |
 |---|----------|----------|---------|----------|
-| 1 | Important | skills/dev-implementation/resources/scripts/check_epic_readiness.py:157-176 | R1 only sends already-complete language pairs to `--require-bilingual`; a missing `.en.md` or `.vi.md` counterpart is omitted entirely, allowing incomplete spec, HLD, or BDD artifacts to pass. |  |
-| 2 | Important | skills/dev-implementation/resources/scripts/check_epic_readiness.py:575-595 | R7 validates `Design commit` only when the line matches; a handoff with the field missing silently passes despite the published contract requiring `uncommitted` or an ancestor of HEAD. |  |
-| 3 | Important | skills/dev-lifecycle/references/principal-review.md:13-15 | The recommendation omits D2’s different-model trigger and required HLD `Author` grounding, and does not include the HLD’s promised recommendation to use each CLI’s strongest reasoning model. |  |
-| 4 | Important | skills/dev-lifecycle/references/principal-review.md:49-58 | The procedure records `fixed in <sha>` and commits decisions before the revision commit that would create that SHA, then requests a separate revision commit; the prescribed order cannot produce truthful decision metadata. |  |
+| 1 | Important | skills/dev-implementation/resources/scripts/check_epic_readiness.py:157-176 | R1 only sends already-complete language pairs to `--require-bilingual`; a missing `.en.md` or `.vi.md` counterpart is omitted entirely, allowing incomplete spec, HLD, or BDD artifacts to pass. | fixed in 81376fa |
+| 2 | Important | skills/dev-implementation/resources/scripts/check_epic_readiness.py:575-595 | R7 validates `Design commit` only when the line matches; a handoff with the field missing silently passes despite the published contract requiring `uncommitted` or an ancestor of HEAD. | fixed in 81376fa |
+| 3 | Important | skills/dev-lifecycle/references/principal-review.md:13-15 | The recommendation omits D2’s different-model trigger and required HLD `Author` grounding, and does not include the HLD’s promised recommendation to use each CLI’s strongest reasoning model. | fixed in 55af9ec |
+| 4 | Important | skills/dev-lifecycle/references/principal-review.md:49-58 | The procedure records `fixed in <sha>` and commits decisions before the revision commit that would create that SHA, then requests a separate revision commit; the prescribed order cannot produce truthful decision metadata. | fixed in 55af9ec |
 
 Raw output:
 
