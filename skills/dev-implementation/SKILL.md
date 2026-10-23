@@ -78,6 +78,7 @@ Read these signals, all read-only, from the main checkout:
 
 ```bash
 test -f .devtool/epic/<epic_dir>/handoff.md && echo packaged-handoff
+test -f .devtool/epic/<epic_dir>/principal_review.md && python3 "$SKILL_DIR"/resources/scripts/run_external_review.py check --kind principal --epic-dir <epic_dir>
 grep -m1 -E '^- \*\*Status\*\*:' .devtool/epic/<epic_dir>/<epic_dir>.en.md
 git rev-parse --verify --quiet refs/heads/epic/<epic_slug>
 for remote in $(git remote); do git ls-remote --heads "$remote" "epic/<epic_slug>"; done
@@ -105,7 +106,7 @@ For rows 4 and 5. Phase 1 step 4's `git worktree add -b` never runs here.
 1. Row 4 only: recreate worktree from existing branch, `git worktree add .worktrees/<epic_dir> epic/<epic_slug>` with no `-b`. For rows 4 and 5, check bootstrap with Phase 1 step 5's platform checks and re-run if needed.
 2. In the worktree, run `python3 "$INTEGRATE" preflight --base develop`. A rebase in progress, or diverged base, is handled per Phase 2 step 7 before anything else.
 3. Find the interrupted task: one at `in-progress` or `review`. If worktree has uncommitted changes, collect `git status --short`.
-4. **Gate 3 (resume).** Check mirror scan summary against task mirror count and read Manual review advised section. Run Phase 1 step 3's BDD mapping check and task contract check, including retrofit if needed. Commit any retrofit on epic branch staging only touched files (both `bdd_scenarios`, both HLD variants, task files — never `git add -A`). The interrupted task's own status fields may ride along in that commit; that is expected. Present tasks already `done` with commits (`git log --oneline develop..epic/<epic_slug>`), remaining order with `done` tasks removed, choice on uncommitted changes (keep or discard), and request permission to fast-forward `develop`. Wait for confirmation.
+4. **Gate 3 (resume).** Check mirror scan summary against task mirror count and read Manual review advised section. State the Principal Review status (`not run`, `round <n>: PASS`, or `round <n>: decided`), and stop with the triage if that check exits 1. Run Phase 1 step 3's BDD mapping check and task contract check, including retrofit if needed. Commit any retrofit on epic branch staging only touched files (both `bdd_scenarios`, both HLD variants, task files — never `git add -A`). The interrupted task's own status fields may ride along in that commit; that is expected. Present tasks already `done` with commits (`git log --oneline develop..epic/<epic_slug>`), remaining order with `done` tasks removed, choice on uncommitted changes (keep or discard), and request permission to fast-forward `develop`. Wait for confirmation.
 5. If overview Status begins with `Packaged`, run `python3 "$SKILL_DIR"/resources/scripts/sync_task_status.py epic <epic_dir> "In Progress"`.
 6. Enter Phase 2 at the interrupted task — a task at `review` re-enters at Phase 2 step 2; a task at `in-progress` resumes implementation with kept changes — or at the first remaining task.
 
@@ -118,7 +119,7 @@ For rows 4 and 5. Phase 1 step 4's `git worktree add -b` never runs here.
    Check scan summary line (`Scanned N task_*.md files; M matched epic ...`). If `M` is smaller than expected, fix broken frontmatter before proceeding.
 2. Read "Manual review advised" section (if any) and cross-check against Phase 0 context. Adjust flattened order by hand if a prose note should win.
 3. **Checkpoint (Gate 3):** present the final order to user and get confirmation before touching git.
-   In the same message, ask once for permission to fast-forward local `develop` from its upstream for the rest of this epic (Phase 1 step 4 and Phase 2 step 7).
+   In the same message, state the Principal Review status (`not run`, `round <n>: PASS`, or `round <n>: decided`; stop with the triage if that check exits 1), and ask once for permission to fast-forward local `develop` from its upstream for the rest of this epic (Phase 1 step 4 and Phase 2 step 7).
 
    Before presenting order, run BDD traceability plan check:
    ```bash

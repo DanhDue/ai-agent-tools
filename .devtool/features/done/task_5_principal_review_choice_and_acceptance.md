@@ -1,13 +1,13 @@
 ---
 id: "task_5_principal_review_choice_and_acceptance"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "principal_review"
 dueDate: null
 created: "2026-10-22T09:10:00Z"
-modified: "2026-10-22T09:10:00Z"
-completedAt: null
+modified: "2026-10-23T10:20:58Z"
+completedAt: "2026-10-23T10:20:58Z"
 labels: ["lifecycle", "docs", "acceptance"]
 order: "a5"
 ---

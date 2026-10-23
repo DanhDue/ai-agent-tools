@@ -99,11 +99,7 @@ Between Gate 2 and Stage 3 the developer decides when, and by whom, the epic is 
 
 **Continue** → invoke `dev-implementation`.
 **Package** → run packaging procedure:
-1. **Preflight, read-only.** Must exit 0:
-   - `python3 "$SCRIPTS"/compute_execution_order.py <epic_slug>`
-   - `ls .devtool/epic/<epic_dir>/task_*.md | wc -l` (scan matched count must equal task mirror count)
-   - `python3 "$SCRIPTS"/check_bdd_traceability.py plan --scenarios .devtool/epic/<epic_dir>/bdd_scenarios.en.md --tasks .devtool/epic/<epic_dir>/task_*.md`
-   - `python3 "$SCRIPTS"/check_task_contract.py --design --hld .devtool/epic/<epic_dir>/<epic_dir>.en.md --tasks .devtool/epic/<epic_dir>/task_*.md`
+1. **Preflight, read-only.** Must exit 0: `python3 "$SCRIPTS"/check_epic_readiness.py <epic_dir>` (runs `check_task_contract.py --design`). Its first line gives the task count.
 2. Copy `references/handoff-template.md` to `.devtool/epic/<epic_dir>/handoff.md` and fill every placeholder; `<N>` is the task count the preflight printed. Add conversation decisions and risks into Open Notes.
 3. Lint it: `python3 "$CHECK_DOC" --require-toc .devtool/epic/<epic_dir>/handoff.md`.
 4. Mark the epic packaged, then confirm both overview variants changed:
@@ -115,7 +111,8 @@ Between Gate 2 and Stage 3 the developer decides when, and by whom, the epic is 
    Two matching lines are required; with fewer, set the Status line by hand in both variants. If the Status read `Queued (backlog) — behind <epic>` before packaging, run the script with `"Packaged (queued behind <epic>)"` instead and copy that line into Open Notes; the `grep` still matches.
 5. Commit if `auto_commit: true`: `git commit -m "[<EPIC_NAME>] Package epic for handoff"`.
 6. Offer to push only with explicit permission.
-7. Print `handoff.md` path and rendered Resume Prompt, then stop.
+7. Print `handoff.md` path and rendered Resume Prompt.
+8. Present **Principal Review Choice** — follow [references/principal-review.md](references/principal-review.md).
 
 ### Stage 3 — Isolated Execution → `dev-implementation`
 
@@ -194,8 +191,10 @@ Never advance on a partial pass or re-run isolated checks.
 - Skipping Review Choice after Gate 4 PASS or auto-selecting Finish.
 - Reusing a Gate 4 PASS after review rounds, finding decisions, or Fix commits change SHA.
 - Never pick the review CLI for the developer; picking the review CLI for the developer instead of prompting for Claude CLI or Codex CLI is forbidden.
+- Picking the Principal Review CLI for the developer.
 - Picking the Ollama model for the developer instead of running `ollama list` and asking.
 - Acting on review findings before presenting the triage from `run_external_review.py triage`.
+- Acting on a Principal Review finding before triage.
 - Writing `dismissed` decisions in `review_results.md` without explicit developer words.
 - Merging to `develop` manually instead of through `integrate_branch.py land`.
 - Starting a task while integration with `develop` is failing.

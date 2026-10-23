@@ -50,7 +50,10 @@ flowchart TD
     S2["Stage 2 — Architecture &amp; Tasks<br/>(dev-designer)"]
     G2{"Gate 2<br/>HLD &amp; task breakdown approved?"}
     HC{"Handoff choice<br/>package or continue?"}
-    PKG(["Package epic<br/>handoff.md, status Packaged, stop"])
+    PKG["Package epic<br/>handoff.md, status Packaged"]
+    PRC{"Principal Review Choice<br/>Done or Principal Review?"}
+    PR["run_external_review.py run --kind principal<br/>triage, decisions, revision"]
+    PKGSTOP(["Stop: handoff.md and Resume Prompt"])
     S3["Stage 3 — Isolated Execution<br/>(dev-implementation)"]
     G3{"Gate 3<br/>Execution order confirmed?"}
     EXEC["Phase 2-3: task-by-task TDD<br/>one commit per task, doc sync on divergence,<br/>integrate with develop after each task"]
@@ -72,7 +75,11 @@ flowchart TD
     G2 -->|yes| HC
     HC -->|"1. package"| PKG
     HC -->|"2. continue"| S3
-    PKG -.->|"later session or another LLM"| S3
+    PKG --> PRC
+    PRC -->|"1. Done"| PKGSTOP
+    PRC -->|"2. Principal Review"| PR
+    PR -->|"revised and re-packaged"| PKG
+    PKGSTOP -.->|"later session or another LLM"| S3
     S3 --> G3
     G3 -->|no, reorder| G3
     G3 -->|yes| EXEC
@@ -91,6 +98,8 @@ flowchart TD
 
 The lifecycle proceeds through four stages and five approval gates, with two explicit human choice points:
 - **Routing & Handoff Choice**: Once Gate 1 passes, epic-scale work routes to Stage 2 (`dev-designer`). Between Gate 2 and Stage 3, the developer chooses whether to **Package** (`handoff.md`, status `Packaged`, stop for later session or another LLM) or **Continue** into Stage 3 immediately.
+
+When an epic is packaged, the developer faces **Principal Review Choice**: either conclude packaging (**Done**) or run **Principal Review** (a cross-model review of design documents and readiness against the source code via Claude CLI or Codex CLI). Rounds are recorded in `principal_review.md`, triaged with the developer, revised in place, and re-packaged before returning to the choice.
 - **Isolated Execution**: Stage 3 executes each task independently in an isolated worktree with TDD and continuous integration into `develop`. Once all tasks are complete, the agent runs Gate 4 on the candidate SHA.
 - **Gate 4 and Review Choice loop**: Gate 4 is the only machine verdict in this kit's development path. It grants 🟢 only when `audit_epic.py` exits 0, `check_bdd_traceability.py tests --results` exits 0, and `@quality_check` profile `epic` returns PASS on the exact candidate commit SHA. Every PASS presents **Review Choice**: **Finish** advances to Gate 5; **Cross-model review** (Claude CLI or Codex CLI) records the round and returns to a full Gate 4 run, and so does **Local model review** (a model served by a local Ollama, reviewed task by task). Every review round is triaged with the developer (`run_external_review.py triage`) before any fix. The loop repeats until the developer selects Finish.
 - **Gate 5 Developer Kanban Review**: Completed tasks are retained in `.devtool/features/done/` for visual developer sign-off before Stage 4 rebases, verifies by tier, lands the branch with a `--no-ff` merge, and archives tasks into `.devtool/epic/<slug>/`.

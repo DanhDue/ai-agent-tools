@@ -32,6 +32,7 @@ These are usually different strings. Never derive one from the other.
 1. `.devtool/epic/<epic_dir>/<epic_dir>.en.md` — the HLD. Its Kanban Tasks Breakdown lists the <N> tasks.
 2. `.devtool/epic/<epic_dir>/bdd_scenarios.en.md` — the behavioural contract.
 3. `.devtool/epic/<epic_dir>/<source spec>.en.md` — the approved source spec.
+4. `.devtool/epic/<epic_dir>/principal_review.md`, when present — Principal Review rounds and decisions.
 
 ## Resume Prompt
 
