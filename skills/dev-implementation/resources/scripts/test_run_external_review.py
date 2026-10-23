@@ -764,6 +764,123 @@ class TestPrincipalReviewDocMode(ReviewCase):
         self.assertFalse((self.root / "principal_review.md").exists())
 
 
+class TestCrossModelReviewAdhoc(ReviewCase):
+    def test_srs_hp_03_in_lifecycle_cross_model_review(self) -> None:
+        """[SRS-HP-03] In-lifecycle cross-model review evaluates diff against base and records round."""
+        self.install("claude")
+        code, _out, _err = self.run_review(cli="claude")
+        self.assertEqual(code, 0)
+        self.assertTrue(self.results.exists())
+        text = self.results.read_text(encoding="utf-8")
+        self.assertIn("## Round 1", text)
+        self.assertIn("- **CLI**: claude", text)
+        self.assertIn("- **Verdict**: PASS", text)
+
+    def test_srs_hp_04_adhoc_branch_diff_streams_triage(self) -> None:
+        """[SRS-HP-04] Ad-hoc cross-model review evaluates git branch diff and streams triage to stdout."""
+        self.install("claude")
+        self.write("src/service.py", "def process(): return True\n")
+        self.commit("Add service")
+        out, err = io.StringIO(), io.StringIO()
+        with mock.patch.dict(os.environ, {"FAKE_MODE": "pass"}), \
+                contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            code = main(["run", "--base", "main", "--cli", "claude"])
+        self.assertEqual(code, 0)
+        output = out.getvalue()
+        self.assertIn("Review Triage", output)
+        self.assertIn("Verdict", output)
+        self.assertIn("PASS", output)
+        # Ad-hoc does not write review_results.md
+        adhoc_results = self.root / "review_results.md"
+        self.assertFalse(adhoc_results.exists())
+
+    def test_srs_hp_05_local_model_review_invocation(self) -> None:
+        """[SRS-HP-05] Local model review invokes runner with --cli ollama and records round."""
+        with mock.patch("local_review.probe", return_value=32768), \
+                mock.patch("local_review.chat", return_value=mock.Mock(error=None, content="Verdict: PASS", done_reason="stop")):
+            out, err = io.StringIO(), io.StringIO()
+            with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+                code = main(["run", "--epic-dir", "demo", "--base", self.base, "--cli", "ollama", "--model", "qwen2.5-coder:32b"])
+            self.assertEqual(code, 0)
+            text = self.results.read_text(encoding="utf-8")
+            self.assertIn("## Round 1", text)
+            self.assertIn("- **CLI**: ollama", text)
+            self.assertIn("- **Model**: qwen2.5-coder:32b", text)
+
+    def test_srs_ec_02_cross_model_refuses_dirty_tree(self) -> None:
+        """[SRS-EC-02] Cross-model review refuses execution on dirty working tree."""
+        self.install("claude")
+        self.write("dirty_file.txt", "untracked content")
+        out, err = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            code = main(["run", "--base", "main", "--cli", "claude"])
+        self.assertEqual(code, 2)
+        self.assertIn("commit or stash your changes before a review", err.getvalue())
+
+    def test_srs_ec_03_missing_external_cli_guidance(self) -> None:
+        """[SRS-EC-03] Missing external CLI triggers error guidance without crashing."""
+        out, err = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            code = main(["run", "--epic-dir", "demo", "--base", self.base, "--cli", "claude"])
+        self.assertEqual(code, 2)
+        self.assertIn("claude not found on PATH", err.getvalue())
+
+    def test_srs_st_02_fix_loop_enforces_gate_4_reverification(self) -> None:
+        """[SRS-ST-02] Cross-model review check reports undecided blocking findings until decisions are recorded."""
+        self.install("claude")
+        code, _, _ = self.run_review(cli="claude", mode="blocking")
+        self.assertEqual(code, 1)
+        check_code, check_out = self.check()
+        self.assertEqual(check_code, 1)
+        self.assertIn("undecided: #1 Critical demo.en.md:3", check_out)
+
+        # Record decision
+        text = self.results.read_text(encoding="utf-8")
+        fixed = text.replace(
+            "| 1 | Critical | demo.en.md:3 | evidence missing |  |",
+            "| 1 | Critical | demo.en.md:3 | evidence missing | fixed in abc1234 |",
+        ).replace(
+            "| 2 | Important | task_1_demo.md:9 | row too weak |  |",
+            "| 2 | Important | task_1_demo.md:9 | row too weak | dismissed: not an issue |",
+        )
+        self.results.write_text(fixed, encoding="utf-8")
+        check_code_after, check_out_after = self.check()
+        self.assertEqual(check_code_after, 0)
+        self.assertEqual(check_out_after.strip(), "")
+
+    def test_srs_ar_01_streaming_timeout_clean_termination(self) -> None:
+        """[SRS-AR-01] Slow CLI triggers timeout, terminates process, and records timeout."""
+        self.install("claude")
+        code, _, _err = self.run_review("--timeout", "1", cli="claude", mode="slow")
+        self.assertEqual(code, 2)
+        self.assertTrue(self.results.exists())
+        text = self.results.read_text(encoding="utf-8")
+        self.assertIn("timed out after 1 seconds", text)
+        self.assertIn("- **Status**: no verdict", text)
+
+    def test_srs_ar_02_sequential_round_numbering(self) -> None:
+        """[SRS-AR-02] Sequential round numbering increments strictly without collision."""
+        self.install("claude")
+        self.run_review(cli="claude", mode="pass")
+        self.commit("Round 1 commit")
+        self.run_review(cli="claude", mode="pass")
+        text = self.results.read_text(encoding="utf-8")
+        self.assertIn("## Round 1", text)
+        self.assertIn("## Round 2", text)
+        self.assertTrue(text.index("## Round 1") < text.index("## Round 2"))
+
+    def test_srs_fr_02_triage_isolates_malformed_response(self) -> None:
+        """[SRS-FR-02] Triage isolates unparsed blocking lines gracefully."""
+        self.install("claude")
+        self.run_review(cli="claude", mode="formats")
+        out, err = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            code = main(["triage", "--epic-dir", "demo"])
+        self.assertEqual(code, 0)
+        self.assertIn("## Findings", out.getvalue())
+        self.assertIn("demo.en.md:3", out.getvalue())
+
+
 if __name__ == '__main__':
     unittest.main()
 

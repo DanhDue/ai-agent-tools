@@ -1,13 +1,13 @@
 ---
 id: "task_2_standalone_cross_model_review_skill"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "split_review_skills"
 dueDate: null
 created: "2026-10-23T11:40:00Z"
-modified: "2026-10-23T11:40:00Z"
-completedAt: null
+modified: "2026-10-23T12:51:17Z"
+completedAt: "2026-10-23T12:51:17Z"
 labels: ["skill", "cross-model-review", "code-review", "ollama", "cli"]
 order: "a2"
 ---
