@@ -15,7 +15,7 @@
 ## Siêu dữ liệu
 
 - **Tên epic**: `principal_review`
-- **Trạng thái**: Packaged
+- **Trạng thái**: In Progress
 - **Bản phát hành mục tiêu**: Bản phát hành plugin kế tiếp
 - **Nền tảng**: Công cụ Python / bộ kit skill cho agent
 - **Spec nguồn**: [Thiết kế Principal Review đã duyệt](2026-10-22-principal-review-design.vi.md)
