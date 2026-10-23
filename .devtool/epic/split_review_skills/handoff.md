@@ -13,7 +13,7 @@
 ## Status
 
 - **Packaged**: 2026-10-23
-- **Design commit**: `30aa0e7b742f89f84e7436c02e0edc6a7ae8e0eb`
+- **Design commit**: `478339bfe8c142e8362825f7736bd1eaf3681b1a`
 - **Base branch**: `main`
 - **Gates passed**: 1 (spec), 2 (HLD and task breakdown)
 - **Next**: Stage 3, `dev-implementation`. Gate 3 (execution order) still needs the developer's confirmation.
