@@ -23,8 +23,8 @@ compute_execution_order.py -- deliberately no PyYAML, so this stays stdlib-only.
 """
 import re
 import subprocess
-from datetime import datetime, timezone
 import sys
+from datetime import UTC, datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
@@ -36,7 +36,7 @@ FRONTMATTER_RE = re.compile(r"^---\n(.*?)\n---\n", re.DOTALL)
 
 def now_iso() -> str:
     """UTC, seconds precision, Zulu suffix -- e.g. 2026-09-14T10:23:45Z."""
-    return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+    return datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
 def set_frontmatter_field(text: str, key: str, value: str | None) -> str:
@@ -54,11 +54,11 @@ def set_frontmatter_field(text: str, key: str, value: str | None) -> str:
         new_line = f"{key}: null"
     else:
         new_line = f'{key}: "{value}"'
-    key_re = re.compile(rf"^{re.escape(key)}\s*:.*$", re.M)
+    key_re = re.compile(rf"^{re.escape(key)}\s*:.*$", re.MULTILINE)
     if key_re.search(block):
         new_block = key_re.sub(lambda _m: new_line, block, count=1)
     else:
-        status_re = re.compile(r"^status\s*:.*$", re.M)
+        status_re = re.compile(r"^status\s*:.*$", re.MULTILINE)
         if status_re.search(block):
             new_block = status_re.sub(lambda m: m.group(0) + "\n" + new_line, block, count=1)
         else:
@@ -77,6 +77,32 @@ def parse_worktree_list(output: str) -> list[Path]:
             if line.startswith("worktree ")]
 
 
+def parse_worktree_branches(output: str) -> list[tuple[Path, str | None]]:
+    """Extract (path, branch) pairs from `git worktree list --porcelain` output.
+
+    Branch is the full ref string (e.g. 'refs/heads/epic/name') or None if detached.
+    """
+    entries: list[tuple[Path, str | None]] = []
+    current_path: Path | None = None
+    current_branch: str | None = None
+
+    for line in output.splitlines():
+        if line.startswith("worktree "):
+            if current_path is not None:
+                entries.append((current_path, current_branch))
+            current_path = Path(line[len("worktree "):])
+            current_branch = None
+        elif line.startswith("branch "):
+            current_branch = line[len("branch "):]
+        elif line == "detached":
+            current_branch = None
+
+    if current_path is not None:
+        entries.append((current_path, current_branch))
+
+    return entries
+
+
 def checkout_roots() -> list[Path]:
     """Every checkout of this repo, main worktree first.
 
@@ -86,6 +112,36 @@ def checkout_roots() -> list[Path]:
     result = subprocess.run(["git", "worktree", "list", "--porcelain"],
                             capture_output=True, text=True, check=True)
     return parse_worktree_list(result.stdout)
+
+
+def epic_checkout_roots(epic_dir: str) -> list[Path]:
+    """Return the current checkout root plus every worktree on branch refs/heads/epic/<epic_slug>.
+
+    Current checkout is always first. Other worktrees are included only if their branch
+    matches this epic's slug.
+    """
+    top = subprocess.run(["git", "rev-parse", "--show-toplevel"],
+                         capture_output=True, text=True, check=True)
+    current_root = Path(top.stdout.strip())
+
+    wt_result = subprocess.run(["git", "worktree", "list", "--porcelain"],
+                               capture_output=True, text=True, check=True)
+    entries = parse_worktree_branches(wt_result.stdout)
+
+    slug = find_epic_slug(current_root, epic_dir) or epic_dir
+    target_branch = f"refs/heads/epic/{slug}"
+
+    roots: list[Path] = [current_root]
+    seen = {current_root.resolve()}
+
+    for path, branch in entries:
+        if branch == target_branch:
+            resolved = path.resolve()
+            if resolved not in seen:
+                seen.add(resolved)
+                roots.append(path)
+
+    return roots
 
 
 def task_targets(root: Path, task_id: str) -> list[Path]:
@@ -202,7 +258,7 @@ def find_epic_slug(root: Path, epic_dir: str) -> str | None:
     for ext in (".en.md", ".vi.md"):
         doc = epic_path / f"{epic_dir}{ext}"
         if doc.is_file():
-            match = re.search(r"^-\s*\*\*(?:Epic)\*\*:\s*(.+)$", doc.read_text(), re.M)
+            match = re.search(r"^-\s*\*\*(?:Epic)\*\*:\s*(.+)$", doc.read_text(), re.MULTILINE)
             if match:
                 slug = sanitize_slug(match.group(1))
                 if slug:
@@ -296,7 +352,7 @@ def archive_epic_tasks(roots: list[Path], epic_dir: str) -> tuple[list[Path], li
                 continue
             for task_file in sorted(fdir.glob("task_*.md")):
                 file_epic = epic_of(task_file)
-                target_slug = epic_slug or sanitize_slug(epic_dir)
+                target_slug = epic_slug or sanitize_slug(epic_dir) or epic_dir
                 target_slugs = {target_slug, target_slug.replace("-", "_"), target_slug.replace("_", "-")}
                 if file_epic and file_epic not in target_slugs:
                     continue
@@ -346,7 +402,7 @@ def sync_epic(roots: list[Path], epic_dir: str, new_status: str) -> tuple[list[P
     """
     matched: list[Path] = []
     written: list[Path] = []
-    status_re = re.compile(r"^(-\s*\*\*(?:Status|Trạng thái)(?:\*\*:\s*|:\*\*\s*)).*$", re.M)
+    status_re = re.compile(r"^(-\s*\*\*(?:Status|Trạng thái)(?:\*\*:\s*|:\*\*\s*)).*$", re.MULTILINE)
     for root in roots:
         epic_path = root / ".devtool" / "epic" / epic_dir
         if not epic_path.is_dir():
@@ -412,7 +468,7 @@ def done_gate_failures(task_id: str) -> list[str]:
     """Messages refusing `task <id> done` for a code epic's task; empty when the gate does not apply or passes."""
     from task_contract import ContractError, evaluate_done_gate, section
 
-    top = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True)
+    top = subprocess.run(["git", "rev-parse", "--show-toplevel"], check=False, capture_output=True, text=True)
     if top.returncode != 0:
         return []
     root = Path(top.stdout.strip())
@@ -424,8 +480,8 @@ def done_gate_failures(task_id: str) -> list[str]:
         return []
     mirror = root / ".devtool" / "epic" / epic_dir / f"{task_id}.md"
     if not mirror.is_file() or section(mirror.read_text(encoding="utf-8"), "Verification") is None:
-        return [f"retrofit required: {mirror} has no Verification section — retrofit it through "
-                "dev-designer's Updating an Existing Epic"]
+        return [(f"retrofit required: {mirror} has no Verification section — retrofit it through "
+                "dev-designer's Updating an Existing Epic")]
     try:
         return evaluate_done_gate(mirror)
     except ContractError as error:
@@ -454,7 +510,7 @@ def main() -> None:
     )
     archive_parser.add_argument("epic_dir", help="Epic directory name (e.g. logging_refactor)")
 
-    archive_done_parser = subparsers.add_parser(
+    subparsers.add_parser(
         "archive-done",
         help="Find all completed tasks in .devtool/features/done/ and archive them into their respective epic directories",
     )
@@ -496,7 +552,7 @@ def main() -> None:
             print(f"Updated {len(written)} copies of {args.task_id} -> '{args.status}'")
 
     elif args.command == "epic":
-        roots = checkout_roots()
+        roots = epic_checkout_roots(args.epic_dir)
         matched, written = sync_epic(roots, args.epic_dir, args.status)
         if not matched:
             sys.stderr.write(f"Warning: No epic docs found for '{args.epic_dir}'.\n")
@@ -513,9 +569,9 @@ def main() -> None:
 
     elif args.command == "archive-done":
         roots = checkout_roots()
-        archived = archive_all_done_epics(roots)
-        if archived:
-            print(f"Archived {len(archived)} epic(s) into .devtool/epic/: {', '.join(archived)}")
+        done_epics = archive_all_done_epics(roots)
+        if done_epics:
+            print(f"Archived {len(done_epics)} epic(s) into .devtool/epic/: {', '.join(done_epics)}")
         else:
             print("No completed tasks to archive.")
 

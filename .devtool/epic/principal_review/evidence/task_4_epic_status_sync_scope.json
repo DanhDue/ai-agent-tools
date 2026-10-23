@@ -1,0 +1,215 @@
+{
+  "schema": 1,
+  "task": "task_4_epic_status_sync_scope",
+  "runs": {
+    "red": {
+      "head": "019190e0b848c4a71c415ee85e7889fed1220722",
+      "tree": "20339d5bc0b18a6cf19819a01cfe87d8f58ad656",
+      "patch_id": "f86ed9d96c9d02eb5eb959c502cc798b7838ddf0",
+      "started": "2026-10-23T09:26:23Z",
+      "finished": "2026-10-23T09:26:24Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m unittest skills/dev-implementation/resources/scripts/test_sync_task_status.py -k EpicCheckoutRootsTests",
+          "expect": "exit 1; contains \"FAILED\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-23T09:26:23Z",
+          "finished": "2026-10-23T09:26:24Z",
+          "output_tail": [
+            "EF.",
+            "======================================================================",
+            "ERROR: test_parse_worktree_branches (skills.dev-implementation.resources.scripts.test_sync_task_status.EpicCheckoutRootsTests.test_parse_worktree_branches)",
+            "----------------------------------------------------------------------",
+            "Traceback (most recent call last):",
+            "  File \"/Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/principal_review/skills/dev-implementation/resources/scripts/test_sync_task_status.py\", line 831, in test_parse_worktree_branches",
+            "    from sync_task_status import parse_worktree_branches",
+            "ImportError: cannot import name 'parse_worktree_branches' from 'sync_task_status' (/Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/principal_review/skills/dev-implementation/resources/scripts/sync_task_status.py)",
+            "",
+            "======================================================================",
+            "FAIL: test_prv_fr_05_other_epics_untouched (skills.dev-implementation.resources.scripts.test_sync_task_status.EpicCheckoutRootsTests.test_prv_fr_05_other_epics_untouched)",
+            "PRV-FR-05: Another epic's worktree stays byte-identical and task sync still mirrors everywhere.",
+            "----------------------------------------------------------------------",
+            "Traceback (most recent call last):",
+            "  File \"/Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/principal_review/skills/dev-implementation/resources/scripts/test_sync_task_status.py\", line 855, in test_prv_fr_05_other_epics_untouched",
+            "    self.assertEqual(status_proc.stdout.strip(), \"\")",
+            "    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+            "AssertionError: 'M .devtool/epic/demo_epic/demo_epic.en.md[40 chars]i.md' != ''",
+            "- M .devtool/epic/demo_epic/demo_epic.en.md",
+            "-  M .devtool/epic/demo_epic/demo_epic.vi.md",
+            "",
+            "",
+            "----------------------------------------------------------------------",
+            "Ran 3 tests in 0.527s",
+            "",
+            "FAILED (failures=1, errors=1)"
+          ],
+          "output_sha256": "8b1691df35c277d114350e8d92df4f7608c2e51ee02bec1f3ac69486394d975d"
+        }
+      ]
+    },
+    "verify": {
+      "head": "019190e0b848c4a71c415ee85e7889fed1220722",
+      "tree": "65bd2abd688c7b2d9f49f7a52f1f0407f34d0149",
+      "patch_id": "5038a6d40a7ac29dc0d873aee22cd4bd7c40a9bf",
+      "started": "2026-10-23T09:33:07Z",
+      "finished": "2026-10-23T09:33:25Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m unittest skills/dev-implementation/resources/scripts/test_sync_task_status.py",
+          "expect": "exit 0; contains \"OK\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-23T09:33:07Z",
+          "finished": "2026-10-23T09:33:14Z",
+          "output_tail": [
+            ".............................................................",
+            "----------------------------------------------------------------------",
+            "Ran 61 tests in 7.309s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "8e8cb7e82b176e113d314c15d2135991de504bf01c87aa1359cdb81325718850"
+        },
+        {
+          "id": "V3",
+          "phase": "GREEN",
+          "command": "python3 -m unittest scripts/test_lifecycle_signals.py",
+          "expect": "exit 0; contains \"OK\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-23T09:33:14Z",
+          "finished": "2026-10-23T09:33:15Z",
+          "output_tail": [
+            "....",
+            "----------------------------------------------------------------------",
+            "Ran 4 tests in 0.584s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "79a1006b722177aa25a07f6a1494eab0156da1286eb280d1f536084d80a68eb1"
+        },
+        {
+          "id": "V4",
+          "phase": "GREEN",
+          "command": "python3 -m unittest scripts/test_verifiable_handoff.py",
+          "expect": "exit 0; contains \"OK\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-23T09:33:15Z",
+          "finished": "2026-10-23T09:33:16Z",
+          "output_tail": [
+            ".",
+            "----------------------------------------------------------------------",
+            "Ran 1 test in 1.068s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "8c7a311c40e79844e0a88903e2e5f3c33e62ca48f57798225e530ee19a786819"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-B",
+          "command": "ruff check skills/dev-implementation/resources/scripts/sync_task_status.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-23T09:33:16Z",
+          "finished": "2026-10-23T09:33:16Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V6",
+          "phase": "TIER-B",
+          "command": "mypy --strict --follow-imports=silent skills/dev-implementation/resources/scripts/sync_task_status.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-23T09:33:16Z",
+          "finished": "2026-10-23T09:33:16Z",
+          "output_tail": [
+            "Success: no issues found in 1 source file"
+          ],
+          "output_sha256": "5d4b6d285b77932e3d08212c3b4974d0a803f98ec60408ac6ccf6a063fa6c19e"
+        },
+        {
+          "id": "V7",
+          "phase": "TIER-C",
+          "command": "python3 scripts/run_unittest_junit.py --junitxml build/test-results/task_4.xml skills/dev-implementation/resources/scripts/test_sync_task_status.py scripts/test_lifecycle_signals.py",
+          "expect": "exit 0; results build/test-results/task_4.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-23T09:33:16Z",
+          "finished": "2026-10-23T09:33:25Z",
+          "output_tail": [
+            ".............................................................",
+            "----------------------------------------------------------------------",
+            "Ran 61 tests in 7.689s",
+            "",
+            "OK",
+            "....",
+            "----------------------------------------------------------------------",
+            "Ran 4 tests in 0.634s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "936f163370e0dc653a1b9a80b24d3a161c118db64cc92e92c262767322ad7f4c",
+          "results": {
+            "path": "build/test-results/task_4.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 2,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_prv_fr_05_other_epics_untouched",
+                  "classname": "test_sync_task_status.EpicCheckoutRootsTests",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_prv_hp_05_own_worktree_updated",
+                  "classname": "test_sync_task_status.EpicCheckoutRootsTests",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "skills/dev-implementation/resources/scripts/sync_task_status.py",
+            "skills/dev-implementation/resources/scripts/test_sync_task_status.py"
+          ],
+          "violations": []
+        }
+      ]
+    }
+  }
+}

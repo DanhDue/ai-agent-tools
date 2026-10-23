@@ -1,13 +1,13 @@
 ---
 id: "task_4_epic_status_sync_scope"
-status: "todo"
+status: "done"
 priority: "medium"
 assignee: null
 epic: "principal_review"
 dueDate: null
 created: "2026-10-22T09:10:00Z"
-modified: "2026-10-22T09:10:00Z"
-completedAt: null
+modified: "2026-10-23T09:33:45Z"
+completedAt: "2026-10-23T09:33:45Z"
 labels: ["kanban-sync", "worktree", "packaging"]
 order: "a4"
 ---
