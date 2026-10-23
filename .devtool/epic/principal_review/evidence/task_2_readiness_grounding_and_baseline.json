@@ -1,0 +1,219 @@
+{
+  "schema": 1,
+  "task": "task_2_readiness_grounding_and_baseline",
+  "runs": {
+    "verify": {
+      "head": "97fcbe454d8bad4e16c2657c9f314f1e75d4aa3b",
+      "tree": "864e1f15ec4670985964553aaf8d6d19a3e74495",
+      "patch_id": "609ed9a0ab685d521e0f977d02c0b80890460832",
+      "started": "2026-10-23T09:47:24Z",
+      "finished": "2026-10-23T09:47:44Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m unittest skills/dev-implementation/resources/scripts/test_check_epic_readiness.py",
+          "expect": "exit 0; contains \"OK\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-23T09:47:24Z",
+          "finished": "2026-10-23T09:47:34Z",
+          "output_tail": [
+            ".........",
+            "----------------------------------------------------------------------",
+            "Ran 9 tests in 9.418s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "51196be243dfa827bd71bed9c404ea5c1840a67dc66d5940556043260ed94a1c"
+        },
+        {
+          "id": "V3",
+          "phase": "TIER-B",
+          "command": "ruff check skills/dev-implementation/resources/scripts/check_epic_readiness.py skills/dev-implementation/resources/scripts/test_check_epic_readiness.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-23T09:47:34Z",
+          "finished": "2026-10-23T09:47:34Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "mypy --strict --follow-imports=silent skills/dev-implementation/resources/scripts/check_epic_readiness.py skills/dev-implementation/resources/scripts/test_check_epic_readiness.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-23T09:47:34Z",
+          "finished": "2026-10-23T09:47:34Z",
+          "output_tail": [
+            "Success: no issues found in 2 source files"
+          ],
+          "output_sha256": "f9b031e5c45aa702cd4fef028d465551cb20a2c4698e0913c7b00766b20ac4d8"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-C",
+          "command": "python3 scripts/run_unittest_junit.py --junitxml build/test-results/task_2.xml skills/dev-implementation/resources/scripts/test_check_epic_readiness.py",
+          "expect": "exit 0; results build/test-results/task_2.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-23T09:47:34Z",
+          "finished": "2026-10-23T09:47:43Z",
+          "output_tail": [
+            ".........",
+            "----------------------------------------------------------------------",
+            "Ran 9 tests in 9.153s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "1cfeec4392b3c06b5fc889627f7d9571fd6cc35ae6fa04dec3f8cb1ac3db83e3",
+          "results": {
+            "path": "build/test-results/task_2.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 9,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_prv_ec_02_tier_drift_fails_r3_and_tier_b_tag_fails_r4",
+                  "classname": "test_check_epic_readiness.ReadinessCoreTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_prv_ec_04_mirror_drift_fails_and_location_link_passes",
+                  "classname": "test_check_epic_readiness.ReadinessCoreTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_prv_ec_05_metadata_packaged_without_handoff_and_draft_spec",
+                  "classname": "test_check_epic_readiness.ReadinessCoreTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_prv_fr_02_failing_preflight_subcheck_and_missing_dir",
+                  "classname": "test_check_epic_readiness.ReadinessCoreTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_prv_hp_01_ready_fixture_epic_passes_every_check",
+                  "classname": "test_check_epic_readiness.ReadinessCoreTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_prv_ec_01_symbol_missing_from_file_fails_r5",
+                  "classname": "test_check_epic_readiness.ReadinessGroundingTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_prv_ec_03_tier_c_test_outside_integration_results_fails_r6",
+                  "classname": "test_check_epic_readiness.ReadinessGroundingTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_prv_ec_06_route_not_found_warns_r5b",
+                  "classname": "test_check_epic_readiness.ReadinessGroundingTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_prv_fr_01_baseline_failures_and_timeouts_warn",
+                  "classname": "test_check_epic_readiness.ReadinessGroundingTest",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "skills/dev-implementation/resources/scripts/check_epic_readiness.py",
+            "skills/dev-implementation/resources/scripts/test_check_epic_readiness.py"
+          ],
+          "violations": []
+        }
+      ]
+    },
+    "red": {
+      "head": "97fcbe454d8bad4e16c2657c9f314f1e75d4aa3b",
+      "tree": "eb8ae5e4e71abe59c489ae921a08bddc14541dcf",
+      "patch_id": "8033dfa2fb57a6a3703c5e3e6f63abfa9f56d6e2",
+      "started": "2026-10-23T09:47:05Z",
+      "finished": "2026-10-23T09:47:11Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m unittest skills/dev-implementation/resources/scripts/test_check_epic_readiness.py -k ReadinessGroundingTest",
+          "expect": "exit 1; contains \"FAILED\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-23T09:47:05Z",
+          "finished": "2026-10-23T09:47:11Z",
+          "output_tail": [
+            "    self.assertTrue(r5_fails, f\"Expected R5 FAIL in stdout:\\n{stdout}\")",
+            "    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+            "AssertionError: [] is not true : Expected R5 FAIL in stdout:",
+            "Epic: demo_epic (demo-epic), 2 tasks",
+            "R1 FAIL check_task_contract.py --design: Result: 1 problems — FAIL",
+            "R2 PASS",
+            "R3 PASS",
+            "R4 PASS",
+            "R5 PASS",
+            "R6 PASS",
+            "R7 PASS",
+            "R8 SKIP",
+            "Result: 1 FAIL, 0 WARN — FAIL",
+            "",
+            "",
+            "======================================================================",
+            "FAIL: test_prv_ec_06_route_not_found_warns_r5b (skills.dev-implementation.resources.scripts.test_check_epic_readiness.ReadinessGroundingTest.test_prv_ec_06_route_not_found_warns_r5b)",
+            "PRV-EC-06: A route found in no source file warns R5b without failing.",
+            "----------------------------------------------------------------------",
+            "Traceback (most recent call last):",
+            "  File \"/Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/principal_review/skills/dev-implementation/resources/scripts/test_check_epic_readiness.py\", line 678, in test_prv_ec_06_route_not_found_warns_r5b",
+            "    self.assertTrue(r5b_warns, f\"Expected R5b WARN in stdout:\\n{stdout}\")",
+            "    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+            "AssertionError: [] is not true : Expected R5b WARN in stdout:",
+            "Epic: demo_epic (demo-epic), 2 tasks",
+            "R1 PASS",
+            "R2 PASS",
+            "R3 PASS",
+            "R4 PASS",
+            "R5 PASS",
+            "R6 PASS",
+            "R7 PASS",
+            "R8 SKIP",
+            "Result: 0 FAIL, 0 WARN — PASS",
+            "",
+            "",
+            "----------------------------------------------------------------------",
+            "Ran 4 tests in 5.552s",
+            "",
+            "FAILED (failures=2)"
+          ],
+          "output_sha256": "58b5fc7e0f9e3bd95172f4d86d7532d64685e5b4f9b1b8ee884ce8502841f364"
+        }
+      ]
+    }
+  }
+}

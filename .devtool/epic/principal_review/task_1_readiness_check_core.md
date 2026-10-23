@@ -1,13 +1,13 @@
 ---
 id: "task_1_readiness_check_core"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "principal_review"
 dueDate: null
 created: "2026-10-22T09:10:00Z"
-modified: "2026-10-22T09:10:00Z"
-completedAt: null
+modified: "2026-10-23T09:22:42Z"
+completedAt: "2026-10-23T09:22:42Z"
 labels: ["readiness", "preflight", "cli"]
 order: "a1"
 ---

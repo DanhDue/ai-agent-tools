@@ -1,0 +1,227 @@
+{
+  "schema": 1,
+  "task": "task_3_principal_review_runner_mode",
+  "runs": {
+    "red": {
+      "head": "7b430362c9e26343544f1e28a8de72d7236b5bec",
+      "tree": "6c3fe3efd7bdec4f5546f0eeeeb086ed9250635e",
+      "patch_id": "8830d647dbf805010aff071a6350ce386826d1fc",
+      "started": "2026-10-23T10:01:08Z",
+      "finished": "2026-10-23T10:01:14Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m unittest skills/dev-implementation/resources/scripts/test_run_external_review.py -k PrincipalReviewTest",
+          "expect": "exit 1; contains \"FAILED\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-23T10:01:08Z",
+          "finished": "2026-10-23T10:01:13Z",
+          "output_tail": [
+            "...F...",
+            "======================================================================",
+            "FAIL: test_prv_hp_02_principal_round_recorded_in_principal_review_md (skills.dev-implementation.resources.scripts.test_run_external_review.PrincipalReviewTest.test_prv_hp_02_principal_round_recorded_in_principal_review_md)",
+            "PRV-HP-02: A principal round is recorded in principal_review.md.",
+            "----------------------------------------------------------------------",
+            "Traceback (most recent call last):",
+            "  File \"/Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/principal_review/skills/dev-implementation/resources/scripts/test_run_external_review.py\", line 525, in test_prv_hp_02_principal_round_recorded_in_principal_review_md",
+            "    self.fail(\"RED phase demonstration\")",
+            "    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+            "AssertionError: RED phase demonstration",
+            "",
+            "----------------------------------------------------------------------",
+            "Ran 7 tests in 5.194s",
+            "",
+            "FAILED (failures=1)"
+          ],
+          "output_sha256": "4d25dd65795c731a1a740fa7eafd7d931c8c085f7b3aa6f8ac017b1885c310c5"
+        }
+      ]
+    },
+    "verify": {
+      "head": "7b430362c9e26343544f1e28a8de72d7236b5bec",
+      "tree": "4d96d64d89df614aad083dc862cc81d54d621843",
+      "patch_id": "bc1e487941eda985ca7b607106d07f5f46ccc960",
+      "started": "2026-10-23T10:01:27Z",
+      "finished": "2026-10-23T10:03:19Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m unittest skills/dev-implementation/resources/scripts/test_run_external_review.py",
+          "expect": "exit 0; contains \"OK\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-23T10:01:27Z",
+          "finished": "2026-10-23T10:01:51Z",
+          "output_tail": [
+            "......................................",
+            "----------------------------------------------------------------------",
+            "Ran 38 tests in 23.051s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "6a246ebdcbe1c8cd90d77b4b9aad6afda99137b9a5d1277cc0389e4369ca660d"
+        },
+        {
+          "id": "V3",
+          "phase": "GREEN",
+          "command": "python3 -m unittest skills/dev-implementation/resources/scripts/test_local_review.py",
+          "expect": "exit 0; contains \"OK\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-23T10:01:51Z",
+          "finished": "2026-10-23T10:02:21Z",
+          "output_tail": [
+            "........................................",
+            "----------------------------------------------------------------------",
+            "Ran 40 tests in 30.332s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "ebdcd7cd567ae435eeac654525c1dda06027b25227ff5f31503f1cbb6f185d49"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "ruff check skills/dev-implementation/resources/scripts/run_external_review.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-23T10:02:21Z",
+          "finished": "2026-10-23T10:02:21Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-B",
+          "command": "mypy --strict --follow-imports=silent skills/dev-implementation/resources/scripts/run_external_review.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-23T10:02:21Z",
+          "finished": "2026-10-23T10:02:21Z",
+          "output_tail": [
+            "Success: no issues found in 1 source file"
+          ],
+          "output_sha256": "5d4b6d285b77932e3d08212c3b4974d0a803f98ec60408ac6ccf6a063fa6c19e"
+        },
+        {
+          "id": "V6",
+          "phase": "TIER-B",
+          "command": "python3 skills/doc_quality_check/resources/scripts/check_document.py skills/dev-implementation/references/principal-review-prompt.md skills/dev-implementation/references/principal-review-rules.md",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-23T10:02:21Z",
+          "finished": "2026-10-23T10:02:21Z",
+          "output_tail": [
+            "  checked 2 documents, 0 findings"
+          ],
+          "output_sha256": "780cb1e9162bb11390ccef16375e9bcefdab9280a7547d85e8e934a240b5843d"
+        },
+        {
+          "id": "V7",
+          "phase": "TIER-C",
+          "command": "python3 scripts/run_unittest_junit.py --junitxml build/test-results/task_3.xml skills/dev-implementation/resources/scripts/test_run_external_review.py skills/dev-implementation/resources/scripts/test_local_review.py",
+          "expect": "exit 0; results build/test-results/task_3.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-23T10:02:21Z",
+          "finished": "2026-10-23T10:03:19Z",
+          "output_tail": [
+            "......................................",
+            "----------------------------------------------------------------------",
+            "Ran 38 tests in 26.683s",
+            "",
+            "OK",
+            "........................................",
+            "----------------------------------------------------------------------",
+            "Ran 40 tests in 30.333s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "432b1676648fb2d9de5ba4fd4000a6c54eee4257a2313c88696a225b7123ac9d",
+          "results": {
+            "path": "build/test-results/task_3.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 7,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_prv_ar_01_second_round_before_commit_refused",
+                  "classname": "test_run_external_review.PrincipalReviewTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_prv_fr_03_readiness_fail_blocks_cli",
+                  "classname": "test_run_external_review.PrincipalReviewTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_prv_fr_04_ollama_rejected_before_precheck",
+                  "classname": "test_run_external_review.PrincipalReviewTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_prv_hp_02_principal_round_recorded_in_principal_review_md",
+                  "classname": "test_run_external_review.PrincipalReviewTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_prv_hp_03_findings_with_proposed_edits_become_table_rows",
+                  "classname": "test_run_external_review.PrincipalReviewTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_prv_st_01_decisions_move_check_from_1_to_0",
+                  "classname": "test_run_external_review.PrincipalReviewTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_prv_st_02_triage_reads_selected_file",
+                  "classname": "test_run_external_review.PrincipalReviewTest",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "skills/dev-implementation/references/principal-review-prompt.md",
+            "skills/dev-implementation/references/principal-review-rules.md",
+            "skills/dev-implementation/resources/scripts/run_external_review.py",
+            "skills/dev-implementation/resources/scripts/test_run_external_review.py"
+          ],
+          "violations": []
+        }
+      ]
+    }
+  }
+}

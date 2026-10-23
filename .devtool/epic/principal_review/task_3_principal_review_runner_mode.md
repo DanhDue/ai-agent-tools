@@ -1,13 +1,13 @@
 ---
 id: "task_3_principal_review_runner_mode"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "principal_review"
 dueDate: null
 created: "2026-10-22T09:10:00Z"
-modified: "2026-10-22T09:10:00Z"
-completedAt: null
+modified: "2026-10-23T10:03:37Z"
+completedAt: "2026-10-23T10:03:37Z"
 labels: ["review", "cli", "principal-review"]
 order: "a3"
 ---

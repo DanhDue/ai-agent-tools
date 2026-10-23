@@ -91,6 +91,9 @@ EXPECTED: dict[str, tuple[str, ...]] = {
         "Packaged",
         "a fresh traceability check and epic quality run",  # LF-ST-05
         "`<N>` is the task count the preflight printed",  # LF-HP-05
+        "check_epic_readiness.py <epic_dir>",
+        "Principal Review Choice",
+        "references/principal-review.md",
     ),
     "skills/dev-lifecycle/references/handoff-template.md": (
         "or `uncommitted` when `auto_commit` is false",  # LF-FR-04
@@ -282,5 +285,80 @@ class LifecycleDocumentContractTest(unittest.TestCase):
                 self.assertNotIn(token, text, f"{relative_path}: contains forbidden {token}")
 
 
+class PrincipalReviewWorkflowTest(unittest.TestCase):
+    def test_prv_hp_04_packaging_readiness_and_principal_review_choice(self) -> None:
+        """[PRV-HP-04] Packaging runs one readiness command and offers Principal Review Choice."""
+        skill_path = ROOT / "skills/dev-lifecycle/SKILL.md"
+        skill_text = skill_path.read_text(encoding="utf-8")
+        self.assertIn("check_epic_readiness.py <epic_dir>", skill_text)
+        self.assertIn("Principal Review Choice", skill_text)
+        self.assertIn("references/principal-review.md", skill_text)
+        self.assertNotIn(
+            "check_bdd_traceability.py plan --scenarios .devtool/epic/<epic_dir>/bdd_scenarios.en.md --tasks",
+            skill_text,
+        )
+        words = len(skill_text.split())
+        self.assertLessEqual(words, 2500, f"dev-lifecycle/SKILL.md exceeds word limit: {words} > 2500")
+        for token in EXPECTED["skills/dev-lifecycle/SKILL.md"]:
+            self.assertIn(token, skill_text)
+
+        ref_path = ROOT / "skills/dev-lifecycle/references/principal-review.md"
+        self.assertTrue(ref_path.is_file(), f"{ref_path} must exist")
+        ref_text = ref_path.read_text(encoding="utf-8")
+        self.assertIn("1. **Done**", ref_text)
+        self.assertIn("2. **Principal Review**", ref_text)
+        self.assertIn("Claude CLI", ref_text)
+        self.assertIn("Codex CLI", ref_text)
+        self.assertIn("Never choose for the developer", ref_text)
+        self.assertIn("strongly recommended", ref_text)
+
+    def test_prv_ec_07_handoff_template_reads_first_principal_review(self) -> None:
+        """[PRV-EC-07] Read First lists principal_review.md."""
+        template_path = ROOT / "skills/dev-lifecycle/references/handoff-template.md"
+        text = template_path.read_text(encoding="utf-8")
+        read_first = text.split("## Read First", 1)[1].split("## ", 1)[0]
+        self.assertIn("`.devtool/epic/<epic_dir>/principal_review.md`, when present", read_first)
+        self.assertIn("`git log <sha>..<base_branch> -- .devtool/epic/<epic_dir>`", text)
+
+    def test_prv_st_03_diagram_loop_returns_to_package_and_done_repackages(self) -> None:
+        """[PRV-ST-03] The loop returns to Package and Done re-packages after a round."""
+        for doc_name in ("docs/lifecycles.en.md", "docs/lifecycles.vi.md"):
+            doc_text = (ROOT / doc_name).read_text(encoding="utf-8")
+            self.assertIn("PKG --> PRC", doc_text)
+            self.assertIn('PRC -->|"2. Principal Review"| PR', doc_text)
+            self.assertIn('PR -->|"revised and re-packaged"| PKG', doc_text)
+            self.assertNotRegex(doc_text, r"PR\s*[-.=]+>[^\n]*(S3|G3)")
+
+        ref_path = ROOT / "skills/dev-lifecycle/references/principal-review.md"
+        ref_text = ref_path.read_text(encoding="utf-8")
+        self.assertIn("Record Principal Review round <n>", ref_text)
+        self.assertIn("Revise epic after Principal Review round <n>", ref_text)
+        self.assertIn("Package epic for handoff", ref_text)
+        self.assertIn("check --kind principal", ref_text)
+        self.assertIn("git log -1 --format=%s -- .devtool/epic/<epic_dir>", ref_text)
+
+    def test_prv_st_04_gate_3_stops_while_principal_finding_undecided(self) -> None:
+        """[PRV-ST-04] Gate 3 stops while a blocking principal finding is undecided."""
+        impl_path = ROOT / "skills/dev-implementation/SKILL.md"
+        text = impl_path.read_text(encoding="utf-8")
+        self.assertIn("run_external_review.py check --kind principal --epic-dir <epic_dir>", text)
+
+        phase1_section = text.split("### Phase 1", 1)[1].split("#### Phase 1 (continued)", 1)[0]
+        self.assertIn("Principal Review", phase1_section)
+        self.assertIn("not run", phase1_section)
+        self.assertIn("round <n>: PASS", phase1_section)
+        self.assertIn("round <n>: decided", phase1_section)
+
+        resume_section = text.split("#### Resume Procedure", 1)[1].split("### Phase 1", 1)[0]
+        self.assertIn("Principal Review", resume_section)
+        self.assertIn("not run", resume_section)
+        self.assertIn("round <n>: PASS", resume_section)
+        self.assertIn("round <n>: decided", resume_section)
+
+        words = len(text.split())
+        self.assertLessEqual(words, 4500, f"dev-implementation/SKILL.md exceeds word limit: {words} > 4500")
+
+
 if __name__ == "__main__":
     unittest.main()
+

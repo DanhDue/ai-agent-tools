@@ -776,5 +776,91 @@ class DoneGateTests(DoneGateCase):
         self.refuse_leaves_copies("condition 2: verify row V9 is FAIL and no longer in the table")
 
 
+class EpicCheckoutRootsTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self.directory.cleanup)
+        self.base = Path(self.directory.name).resolve()
+        self.main = self.base / "main"
+        self.wt_own = self.base / "wt_own"
+        self.wt_other = self.base / "wt_other"
+
+        self.main.mkdir()
+        git(self.main, "init", "-q", "-b", "main")
+        git(self.main, "config", "user.email", "demo@example.com")
+        git(self.main, "config", "user.name", "Demo")
+
+        (self.main / "README.md").write_text("# Main\n", encoding="utf-8")
+        (self.main / ".devtool" / "epic" / "demo_epic").mkdir(parents=True, exist_ok=True)
+        (self.main / ".devtool" / "features").mkdir(parents=True, exist_ok=True)
+
+        overview_en = "# Demo Epic\n\n- **Epic**: demo-epic\n- **Status**: Planned\n"
+        overview_vi = "# Demo Epic\n\n- **Epic**: demo-epic\n- **Trạng thái**: Planned\n"
+        (self.main / ".devtool" / "epic" / "demo_epic" / "demo_epic.en.md").write_text(overview_en, encoding="utf-8")
+        (self.main / ".devtool" / "epic" / "demo_epic" / "demo_epic.vi.md").write_text(overview_vi, encoding="utf-8")
+
+        task_content = '''---
+id: "task_1_demo"
+status: "todo"
+epic: "demo-epic"
+---
+# Task 1 Demo
+'''
+        (self.main / ".devtool" / "features" / "task_1_demo.md").write_text(task_content, encoding="utf-8")
+        (self.main / ".devtool" / "epic" / "demo_epic" / "task_1_demo.md").write_text(task_content, encoding="utf-8")
+
+        git(self.main, "add", "-A")
+        git(self.main, "commit", "-q", "-m", "initial commit")
+
+        git(self.main, "worktree", "add", "-q", "-b", "epic/demo-epic", str(self.wt_own))
+        git(self.main, "worktree", "add", "-q", "-b", "epic/other-epic", str(self.wt_other))
+
+    def test_parse_worktree_branches(self) -> None:
+        sample = f"""worktree {self.main}
+HEAD 1111111111111111111111111111111111111111
+branch refs/heads/main
+
+worktree {self.wt_own}
+HEAD 2222222222222222222222222222222222222222
+branch refs/heads/epic/demo-epic
+
+worktree {self.base / "wt_detached"}
+HEAD 3333333333333333333333333333333333333333
+detached
+"""
+        from sync_task_status import parse_worktree_branches
+        branches = parse_worktree_branches(sample)
+        self.assertEqual(len(branches), 3)
+        self.assertEqual(branches[0], (self.main, "refs/heads/main"))
+        self.assertEqual(branches[1], (self.wt_own, "refs/heads/epic/demo-epic"))
+        self.assertEqual(branches[2], (self.base / "wt_detached", None))
+
+    def test_prv_hp_05_own_worktree_updated(self) -> None:
+        """PRV-HP-05: epic updates the main checkout and the epic's own worktree."""
+        res = run_py(SYNC, self.main, "epic", "demo_epic", "Packaged")
+        self.assertEqual(res.returncode, 0, res.stderr)
+
+        for wt in (self.main, self.wt_own):
+            en_text = (wt / ".devtool" / "epic" / "demo_epic" / "demo_epic.en.md").read_text(encoding="utf-8")
+            vi_text = (wt / ".devtool" / "epic" / "demo_epic" / "demo_epic.vi.md").read_text(encoding="utf-8")
+            self.assertIn("- **Status**: Packaged", en_text)
+            self.assertIn("- **Trạng thái**: Packaged", vi_text)
+
+    def test_prv_fr_05_other_epics_untouched(self) -> None:
+        """PRV-FR-05: Another epic's worktree stays byte-identical and task sync still mirrors everywhere."""
+        res = run_py(SYNC, self.main, "epic", "demo_epic", "Packaged")
+        self.assertEqual(res.returncode, 0, res.stderr)
+
+        status_proc = subprocess.run(["git", "-C", str(self.wt_other), "status", "--porcelain"], capture_output=True, text=True)
+        self.assertEqual(status_proc.stdout.strip(), "")
+
+        res_task = run_py(SYNC, self.main, "task", "task_1_demo", "in-progress")
+        self.assertEqual(res_task.returncode, 0, res_task.stderr)
+
+        for root in (self.main, self.wt_own, self.wt_other):
+            task_file = root / ".devtool" / "features" / "task_1_demo.md"
+            self.assertIn('status: "in-progress"', task_file.read_text(encoding="utf-8"))
+
+
 if __name__ == "__main__":
     unittest.main()

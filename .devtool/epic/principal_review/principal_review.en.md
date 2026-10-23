@@ -15,7 +15,7 @@
 ## Meta Data
 
 - **Epic name**: `principal_review`
-- **Status**: Packaged
+- **Status**: Done
 - **Target release**: Next plugin release
 - **Platform**: Python tooling / agent skill kit
 - **Source Spec**: [Approved Principal Review design](2026-10-22-principal-review-design.en.md)

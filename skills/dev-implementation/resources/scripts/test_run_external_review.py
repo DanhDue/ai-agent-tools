@@ -17,11 +17,13 @@ from pathlib import Path
 from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).parent))
+import test_check_epic_readiness as tcer
 from run_external_review import main
 
 EPIC = ".devtool/epic/demo"
 TICKS = "`" * 3
 FAKE = """#!/bin/bash
+if [ -n "$FAKE_COUNTER" ]; then echo 1 >> "$FAKE_COUNTER"; fi
 cat > "$FAKE_STDIN"
 echo "$@" > "$FAKE_ARGS"
 case "$FAKE_MODE" in
@@ -30,6 +32,8 @@ case "$FAKE_MODE" in
   blocking) echo "Verdict: CHANGES REQUIRED"
             echo "[Critical] demo.en.md:3 — evidence missing"
             echo "[Important] task_1_demo.md:9 — row too weak" ;;
+  principal_changes) echo "Verdict: CHANGES REQUIRED"
+                     echo "[Important] task_2:Decisions Already Made — persist_track returns a dict. Proposed: keep TrackPersistResult." ;;
   formats) echo "Verdict: CHANGES REQUIRED"
            echo "1. **[Critical]** demo.en.md:3 – evidence missing"
            echo "* [Important] task_1_demo.md:9: row too weak"
@@ -501,6 +505,202 @@ class RunExternalReviewTest(ReviewCase):
         self.assertIn("check_bdd_traceability.py", err)
         self.assertIn("failed with exit code 2", err)
         self.assertFalse(self.results.exists())
+
+class PrincipalReviewTest(ReviewCase):
+    def setUp(self) -> None:
+        super().setUp()
+        tcer.build_ready_epic(self.root)
+        self.commit("Ready epic")
+        self.principal_results = self.root / ".devtool" / "epic" / "demo_epic" / "principal_review.md"
+
+    def run_principal(self, *extra: str, cli: str = "claude", mode: str = "pass") -> tuple[int, str, str]:
+        out, err = io.StringIO(), io.StringIO()
+        with mock.patch.dict(os.environ, {"FAKE_MODE": mode}), \
+                contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            code = main(["run", "--kind", "principal", "--epic-dir", "demo_epic", "--base", "main", "--cli", cli, *extra])
+        return code, out.getvalue(), err.getvalue()
+
+    def test_prv_hp_02_principal_round_recorded_in_principal_review_md(self) -> None:
+        """PRV-HP-02: A principal round is recorded in principal_review.md."""
+        self.install("claude")
+        code, out, err = self.run_principal()
+        self.assertEqual(code, 0, f"Expected 0, got {code}.\nOut:\n{out}\nErr:\n{err}")
+        prompt = self.stdin.read_text(encoding="utf-8")
+        self.assertIn("Principal Reviewer", prompt)
+        self.assertIn("Result: 0 FAIL, 0 WARN — PASS", prompt)
+        self.assertIn(".devtool/epic/demo_epic/demo_epic.en.md", prompt)
+        main_sha = git(self.root, "rev-parse", "main")
+        self.assertIn(main_sha, prompt)
+        self.assertNotIn("audit_epic.py", prompt)
+
+        self.assertTrue(self.principal_results.is_file(), "principal_review.md should exist")
+        text = self.principal_results.read_text(encoding="utf-8")
+        self.assertTrue(text.startswith("# Principal Review: demo_epic\n"))
+        self.assertIn("## Round 1", text)
+        self.assertIn("- **Kind**: principal", text)
+        self.assertIn("- **CLI**: claude", text)
+        self.assertIn("- **Status**: completed", text)
+        self.assertIn("- **Verdict**: PASS", text)
+        self.assertFalse((self.root / ".devtool" / "epic" / "demo_epic" / "review_results.md").exists())
+
+    def test_prv_hp_03_findings_with_proposed_edits_become_table_rows(self) -> None:
+        """PRV-HP-03: Findings with proposed edits become table rows and set exit code."""
+        self.install("codex")
+        code, out, err = self.run_principal(cli="codex", mode="principal_changes")
+        self.assertEqual(code, 1, f"Expected 1, got {code}.\nOut:\n{out}\nErr:\n{err}")
+        text = self.principal_results.read_text(encoding="utf-8")
+        self.assertIn("- **Verdict**: CHANGES REQUIRED", text)
+        self.assertIn("| Important |", text)
+        self.assertIn("task_2:Decisions Already Made", text)
+        self.assertIn("Proposed: keep TrackPersistResult.", text)
+
+    def test_prv_st_01_decisions_move_check_from_1_to_0(self) -> None:
+        """PRV-ST-01: Decisions move check --kind principal from 1 to 0, independent of code rounds."""
+        self.install("claude")
+        code, _, _ = self.run_principal(mode="principal_changes")
+        self.assertEqual(code, 1)
+
+        # Code review results with no findings (clean round)
+        code_rev_path = self.root / ".devtool" / "epic" / "demo_epic" / "review_results.md"
+        code_rev_path.write_text(
+            "# Cross-Model Review: demo_epic\n\n## Round 1\n\n- **Status**: completed\n- **Verdict**: PASS\n\n"
+            "| # | Severity | Location | Problem | Decision |\n|---|----------|----------|---------|----------|\n\n"
+            "Raw output:\n\n```text\nVerdict: PASS\n```\n",
+            encoding="utf-8",
+        )
+
+        # check --kind principal exits 1
+        out1 = io.StringIO()
+        with contextlib.redirect_stdout(out1):
+            c1 = main(["check", "--kind", "principal", "--epic-dir", "demo_epic"])
+        self.assertEqual(c1, 1)
+        self.assertIn("undecided: #1 Important", out1.getvalue())
+
+        # check without --kind exits 0
+        out_code = io.StringIO()
+        with contextlib.redirect_stdout(out_code):
+            c_code = main(["check", "--epic-dir", "demo_epic"])
+        self.assertEqual(c_code, 0)
+
+        # Update decision cell
+        pr_text = self.principal_results.read_text(encoding="utf-8")
+        pr_text = pr_text.replace("|  |\n", "| fixed in abc1234 |\n")
+        self.principal_results.write_text(pr_text, encoding="utf-8")
+
+        # check --kind principal now exits 0
+        out2 = io.StringIO()
+        with contextlib.redirect_stdout(out2):
+            c2 = main(["check", "--kind", "principal", "--epic-dir", "demo_epic"])
+        self.assertEqual(c2, 0)
+
+    def test_prv_st_02_triage_reads_selected_file(self) -> None:
+        """PRV-ST-02: triage reads the file --kind selects."""
+        # principal_review.md with 2 rounds
+        self.principal_results.write_text(
+            "# Principal Review: demo_epic\n\n"
+            "## Round 1\n\n- **Status**: completed\n- **Verdict**: PASS\n\n"
+            "| # | Severity | Location | Problem | Decision |\n|---|----------|----------|---------|----------|\n\n"
+            "Raw output:\n\n```text\nVerdict: PASS\n```\n\n"
+            "## Round 2\n\n- **Status**: completed\n- **Verdict**: PASS\n\n"
+            "| # | Severity | Location | Problem | Decision |\n|---|----------|----------|---------|----------|\n\n"
+            "Raw output:\n\n```text\nVerdict: PASS\n```\n",
+            encoding="utf-8",
+        )
+        # review_results.md with 1 round
+        code_rev_path = self.root / ".devtool" / "epic" / "demo_epic" / "review_results.md"
+        code_rev_path.write_text(
+            "# Cross-Model Review: demo_epic\n\n"
+            "## Round 1\n\n- **Status**: completed\n- **Verdict**: PASS\n\n"
+            "| # | Severity | Location | Problem | Decision |\n|---|----------|----------|---------|----------|\n\n"
+            "Raw output:\n\n```text\nVerdict: PASS\n```\n",
+            encoding="utf-8",
+        )
+
+        out_pr = io.StringIO()
+        with contextlib.redirect_stdout(out_pr):
+            c_pr = main(["triage", "--kind", "principal", "--epic-dir", "demo_epic"])
+        self.assertEqual(c_pr, 0)
+        self.assertTrue(out_pr.getvalue().startswith("# Review Triage: demo_epic, Round 2"))
+
+        out_code = io.StringIO()
+        with contextlib.redirect_stdout(out_code):
+            c_code = main(["triage", "--epic-dir", "demo_epic"])
+        self.assertEqual(c_code, 0)
+        self.assertIn("Round 1", out_code.getvalue())
+
+        err_missing = io.StringIO()
+        with contextlib.redirect_stderr(err_missing):
+            c_missing = main(["triage", "--kind", "principal", "--epic-dir", "nonexistent"])
+        self.assertEqual(c_missing, 2)
+        self.assertIn("no review round recorded for nonexistent", err_missing.getvalue())
+
+    def test_prv_ar_01_second_round_before_commit_refused(self) -> None:
+        """PRV-AR-01: A second round before the first is committed is refused and rounds number in order."""
+        self.install("claude")
+        counter = self.bin.parent / "fake_counter.txt"
+        with mock.patch.dict(os.environ, {"FAKE_COUNTER": str(counter)}):
+            code1, _, _ = self.run_principal()
+            self.assertEqual(code1, 0)
+            self.assertEqual(len(counter.read_text().splitlines()), 1)
+
+            # Round 1 is written but uncommitted
+            code2, _, err2 = self.run_principal()
+            self.assertEqual(code2, 2)
+            self.assertIn("commit or stash your changes before a review", err2)
+            self.assertEqual(len(counter.read_text().splitlines()), 1)
+
+            # Commit round 1
+            self.commit("Record round 1")
+
+            # Run again
+            code3, _, _ = self.run_principal()
+            self.assertEqual(code3, 0)
+            self.assertEqual(len(counter.read_text().splitlines()), 2)
+
+            text = self.principal_results.read_text(encoding="utf-8")
+            self.assertIn("## Round 1", text)
+            self.assertIn("## Round 2", text)
+            self.assertTrue(text.index("## Round 1") < text.index("## Round 2"))
+
+    def test_prv_fr_03_readiness_fail_blocks_cli(self) -> None:
+        """PRV-FR-03: A readiness FAIL blocks the CLI and records nothing."""
+        # Break readiness: make task_2 fail R5 by adding a missing symbol
+        (self.root / "src").mkdir(parents=True, exist_ok=True)
+        (self.root / "src" / "app.py").write_text("def other(): pass\n", encoding="utf-8")
+        task_2_path = self.root / ".devtool" / "epic" / "demo_epic" / "task_2.md"
+        t2_text = task_2_path.read_text(encoding="utf-8").replace(
+            "- **Target Files & Symbols**:\n  - `tool.py`: `run`",
+            "- **Target Files & Symbols**:\n  - `tool.py`: `run`\n  - `src/app.py`: `build_payload()`",
+        )
+        task_2_path.write_text(t2_text, encoding="utf-8")
+        (self.root / ".devtool" / "features" / "task_2.md").write_text(
+            t2_text.replace("](demo_epic.en.md)", "](../epic/demo_epic/demo_epic.en.md)"),
+            encoding="utf-8",
+        )
+        self.commit("Break R5 readiness")
+
+        self.install("claude")
+        counter = self.bin.parent / "fake_counter.txt"
+        with mock.patch.dict(os.environ, {"FAKE_COUNTER": str(counter)}):
+            code, out, err = self.run_principal()
+            self.assertEqual(code, 2)
+            self.assertIn("WAS NOT INVOKED", err)
+            self.assertIn("check_epic_readiness.py", err)
+            self.assertIn("R5 FAIL", err)
+            self.assertFalse(counter.exists())
+            self.assertFalse(self.principal_results.exists())
+
+    def test_prv_fr_04_ollama_rejected_before_precheck(self) -> None:
+        """PRV-FR-04: --kind principal --cli ollama is rejected before any work."""
+        (self.root / "dirty.txt").write_text("dirty\n", encoding="utf-8")
+        out, err = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            code = main(["run", "--kind", "principal", "--epic-dir", "demo_epic", "--base", "main", "--cli", "ollama", "--model", "m"])
+        self.assertEqual(code, 2)
+        self.assertIn("--kind principal supports --cli claude or codex", err.getvalue())
+        self.assertNotIn("[Pre-check]", err.getvalue())
+        self.assertFalse(self.principal_results.exists())
+
 
 if __name__ == '__main__':
     unittest.main()
