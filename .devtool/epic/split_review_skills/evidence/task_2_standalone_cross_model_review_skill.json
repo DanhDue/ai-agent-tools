@@ -1,0 +1,237 @@
+{
+  "schema": 1,
+  "task": "task_2_standalone_cross_model_review_skill",
+  "runs": {
+    "red": {
+      "head": "02a9f86004f88cfef1147516cbde38cad26f9c3c",
+      "tree": "05037887da95ba42866e99658af6b6138ebe572f",
+      "patch_id": "58e5f6e46a7a7ca26b2b369b6a78aae17d88563a",
+      "started": "2026-10-23T12:44:38Z",
+      "finished": "2026-10-23T12:44:43Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m unittest skills/dev-implementation/resources/scripts/test_run_external_review.py -k TestCrossModelReviewAdhoc",
+          "expect": "exit 1; contains \"FAILED\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-23T12:44:38Z",
+          "finished": "2026-10-23T12:44:43Z",
+          "output_tail": [
+            "..F...F..",
+            "======================================================================",
+            "FAIL: test_srs_ec_02_cross_model_refuses_dirty_tree (skills.dev-implementation.resources.scripts.test_run_external_review.TestCrossModelReviewAdhoc.test_srs_ec_02_cross_model_refuses_dirty_tree)",
+            "[SRS-EC-02] Cross-model review refuses execution on dirty working tree.",
+            "----------------------------------------------------------------------",
+            "Traceback (most recent call last):",
+            "  File \"/Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/split_review_skills/skills/dev-implementation/resources/scripts/test_run_external_review.py\", line 818, in test_srs_ec_02_cross_model_refuses_dirty_tree",
+            "    self.assertIn(\"commit or stash your changes before a review\", err.getvalue())",
+            "    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+            "AssertionError: 'commit or stash your changes before a review' not found in 'error: one of --epic-dir or --doc is required\\n'",
+            "",
+            "======================================================================",
+            "FAIL: test_srs_hp_04_adhoc_branch_diff_streams_triage (skills.dev-implementation.resources.scripts.test_run_external_review.TestCrossModelReviewAdhoc.test_srs_hp_04_adhoc_branch_diff_streams_triage)",
+            "[SRS-HP-04] Ad-hoc cross-model review evaluates git branch diff and streams triage to stdout.",
+            "----------------------------------------------------------------------",
+            "Traceback (most recent call last):",
+            "  File \"/Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/split_review_skills/skills/dev-implementation/resources/scripts/test_run_external_review.py\", line 788, in test_srs_hp_04_adhoc_branch_diff_streams_triage",
+            "    self.assertEqual(code, 0)",
+            "    ~~~~~~~~~~~~~~~~^^^^^^^^^",
+            "AssertionError: 2 != 0",
+            "",
+            "----------------------------------------------------------------------",
+            "Ran 9 tests in 4.915s",
+            "",
+            "FAILED (failures=2)"
+          ],
+          "output_sha256": "c91c2bb297391166489b6b45043c912f00c0eb7fe3e07cfc8adef6f52c1f6c48"
+        }
+      ]
+    },
+    "verify": {
+      "head": "02a9f86004f88cfef1147516cbde38cad26f9c3c",
+      "tree": "400ea2295221d78ebed217f1ac3e5758f0519f14",
+      "patch_id": "d78214536988a3953b9658a07ce069a6d0790875",
+      "started": "2026-10-23T12:50:12Z",
+      "finished": "2026-10-23T12:50:44Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m unittest skills/dev-implementation/resources/scripts/test_run_external_review.py -k TestCrossModelReviewAdhoc",
+          "expect": "exit 0; contains \"OK\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-23T12:50:12Z",
+          "finished": "2026-10-23T12:50:17Z",
+          "output_tail": [
+            ".........",
+            "----------------------------------------------------------------------",
+            "Ran 9 tests in 5.223s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "aa9fa575f2cb5d9475ffad11c8bd1654a2bf71a3e258f58dd0455283e8199785"
+        },
+        {
+          "id": "V3",
+          "phase": "TIER-B",
+          "command": "ruff check skills/dev-implementation/resources/scripts/run_external_review.py skills/dev-implementation/resources/scripts/test_run_external_review.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-23T12:50:17Z",
+          "finished": "2026-10-23T12:50:17Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "mypy --strict --follow-imports=silent skills/dev-implementation/resources/scripts/run_external_review.py skills/dev-implementation/resources/scripts/test_run_external_review.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-23T12:50:17Z",
+          "finished": "2026-10-23T12:50:17Z",
+          "output_tail": [
+            "Success: no issues found in 2 source files"
+          ],
+          "output_sha256": "f9b031e5c45aa702cd4fef028d465551cb20a2c4698e0913c7b00766b20ac4d8"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-C",
+          "command": "python3 scripts/run_unittest_junit.py --junitxml build/test-results/task_2.xml skills/dev-implementation/resources/scripts/test_run_external_review.py",
+          "expect": "exit 0; results build/test-results/task_2.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-23T12:50:17Z",
+          "finished": "2026-10-23T12:50:43Z",
+          "output_tail": [
+            "..................................................",
+            "----------------------------------------------------------------------",
+            "Ran 50 tests in 26.183s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "4c0082df7c6322334de910b06cf18b337e7c5a318c43079112c4132fbe47b870",
+          "results": {
+            "path": "build/test-results/task_2.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 15,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_srs_fr_01_readiness_fail_blocks_cli",
+                  "classname": "test_run_external_review.PrincipalReviewTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_srs_hp_01_principal_round_recorded_in_principal_review_md",
+                  "classname": "test_run_external_review.PrincipalReviewTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_srs_st_01_decisions_move_check_from_1_to_0",
+                  "classname": "test_run_external_review.PrincipalReviewTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_srs_ar_01_streaming_timeout_clean_termination",
+                  "classname": "test_run_external_review.TestCrossModelReviewAdhoc",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_srs_ar_02_sequential_round_numbering",
+                  "classname": "test_run_external_review.TestCrossModelReviewAdhoc",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_srs_ec_02_cross_model_refuses_dirty_tree",
+                  "classname": "test_run_external_review.TestCrossModelReviewAdhoc",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_srs_ec_03_missing_external_cli_guidance",
+                  "classname": "test_run_external_review.TestCrossModelReviewAdhoc",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_srs_fr_02_triage_isolates_malformed_response",
+                  "classname": "test_run_external_review.TestCrossModelReviewAdhoc",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_srs_hp_03_in_lifecycle_cross_model_review",
+                  "classname": "test_run_external_review.TestCrossModelReviewAdhoc",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_srs_hp_04_adhoc_branch_diff_streams_triage",
+                  "classname": "test_run_external_review.TestCrossModelReviewAdhoc",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_srs_hp_05_local_model_review_invocation",
+                  "classname": "test_run_external_review.TestCrossModelReviewAdhoc",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_srs_st_02_fix_loop_enforces_gate_4_reverification",
+                  "classname": "test_run_external_review.TestCrossModelReviewAdhoc",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_srs_ec_01_doc_mode_missing_document_refuses",
+                  "classname": "test_run_external_review.TestPrincipalReviewDocMode",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_srs_ec_04_doc_mode_broken_structure_refuses",
+                  "classname": "test_run_external_review.TestPrincipalReviewDocMode",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_srs_hp_02_doc_mode_successful_run_streams_triage_table",
+                  "classname": "test_run_external_review.TestPrincipalReviewDocMode",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "skills/cross-model-review/SKILL.md",
+            "skills/cross-model-review/references/local-review-setup.md",
+            "skills/cross-model-review/references/review-triage.md",
+            "skills/dev-implementation/resources/scripts/run_external_review.py",
+            "skills/dev-implementation/resources/scripts/test_run_external_review.py"
+          ],
+          "violations": []
+        }
+      ]
+    }
+  }
+}

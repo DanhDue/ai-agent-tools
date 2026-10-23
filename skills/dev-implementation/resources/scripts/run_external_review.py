@@ -35,9 +35,22 @@ from task_contract import ContractError, git_run, parse_integration_results
 SCRIPTS = Path(__file__).resolve().parent
 PROMPT = SCRIPTS.parent.parent / "references" / "external-review-prompt.md"
 RULES = SCRIPTS.parent.parent / "references" / "review-rules.md"
-KINDS = ("code", "principal")
-PRINCIPAL_PROMPT = SCRIPTS.parent.parent / "references" / "principal-review-prompt.md"
-PRINCIPAL_RULES = SCRIPTS.parent.parent / "references" / "principal-review-rules.md"
+KINDS = ("code", "principal", "epic")
+
+
+def principal_prompt_path() -> Path:
+    standalone = SCRIPTS.parent.parent.parent / "principal-review" / "references" / "principal-review-prompt.md"
+    if standalone.is_file():
+        return standalone
+    return SCRIPTS.parent.parent / "references" / "principal-review-prompt.md"
+
+
+def principal_rules_path() -> Path:
+    standalone = SCRIPTS.parent.parent.parent / "principal-review" / "references" / "principal-review-rules.md"
+    if standalone.is_file():
+        return standalone
+    return SCRIPTS.parent.parent / "references" / "principal-review-rules.md"
+
 
 
 def review_file(kind: str) -> tuple[str, str]:
@@ -297,6 +310,42 @@ def build_diff_section(root: Path, base: str, sha: str, max_lines: int = MAX_DIF
     )
 
 
+def diff_range(root: Path, base: str, commits: str | None = None) -> tuple[str, str]:
+    """Extract commit log and diff section for an arbitrary base and commit range."""
+    commit_spec = commits if commits else f"{base}...HEAD"
+    log = git_run(root, "log", "--oneline", commit_spec).decode("utf-8", "replace").strip()
+    full_stat = git_run(
+        root, "diff", "--stat", commit_spec, "--", "."
+    ).decode("utf-8", "replace").strip()
+    filtered_diff = git_run(
+        root, "diff", commit_spec, "--", ".", *EXCLUDES
+    ).decode("utf-8", "replace").strip()
+
+    stat_fence = fence_for(full_stat)
+    stat_block = f"Full file change summary (`git diff --stat`, including locks/codegen):\n\n{stat_fence}text\n{full_stat or '(no changes)'}\n{stat_fence}\n\n"
+
+    if not filtered_diff:
+        diff_section = stat_block + "No non-excluded source code changes to inline."
+    else:
+        line_count = len(filtered_diff.splitlines())
+        byte_size = len(filtered_diff.encode("utf-8"))
+        if line_count <= MAX_DIFF_LINES and byte_size <= MAX_DIFF_BYTES:
+            diff_fence = fence_for(filtered_diff)
+            diff_section = (
+                stat_block
+                + f"The complete source diff ({line_count} lines, {byte_size // 1024} KB, lock, generated, and noisy metadata/asset files excluded) "
+                f"is inlined below. Do NOT run `git diff` again unless you need to inspect an excluded file:\n\n"
+                f"{diff_fence}diff\n{filtered_diff}\n{diff_fence}"
+            )
+        else:
+            diff_section = (
+                stat_block
+                + f"The source diff is large ({line_count} lines, {byte_size // 1024} KB > inline budget). "
+                f"Do NOT run an unfiltered `git diff`; inspect specific target files via `git diff {commit_spec} -- <path>` as needed."
+            )
+    return log, diff_section
+
+
 def cli_command(cli: str, model: str | None) -> list[str]:
     extra = ["--model", model] if model else []
     if cli == "claude":
@@ -368,7 +417,72 @@ def render_round(number: int, meta: dict[str, str], findings: list[tuple[str, st
     return f"## Round {number}\n\n{head}\n{table}\nRaw output:\n\n{fence}text\n{output.rstrip()}\n{fence}\n"
 
 
+def run_principal_doc(root: Path, args: argparse.Namespace, sha: str) -> int:
+    doc_path = root / args.doc if not Path(args.doc).is_absolute() else Path(args.doc)
+    if not doc_path.is_file():
+        print(f"error: document path not found: {args.doc}", file=sys.stderr)
+        return 2
+
+    content = doc_path.read_text(encoding="utf-8")
+    if not content.strip() or not re.search(r"^#+\s+\S+", content, re.MULTILINE):
+        print(f"error: document has invalid structure or missing headings: {args.doc}", file=sys.stderr)
+        return 2
+
+    base_sha = git_run(root, "rev-parse", "--verify", args.base).decode().strip()
+    artefacts = f"- `{args.doc}`\n\nDocument content:\n\n```markdown\n{content}\n```"
+    readiness_output = "N/A (Ad-hoc review of standalone document)"
+
+    prompt = Template(principal_prompt_path().read_text(encoding="utf-8")).safe_substitute(
+        rules=principal_rules_path().read_text(encoding="utf-8").strip(),
+        sha=sha,
+        base=args.base,
+        base_sha=base_sha,
+        epic_dir=args.doc,
+        artefacts=artefacts,
+        readiness_output=readiness_output,
+    )
+
+    before = status_lines(root)
+    code, out, _err = execute(cli_command(args.cli, args.model), root, args.timeout, prompt)
+    changed = tree_changes(root, before, sha)
+    if changed:
+        print(f"error: tree modified during review: {', '.join(changed)}", file=sys.stderr)
+        return 2
+
+    lines = out.splitlines()
+    marks = [(index, m.group(1).upper()) for index, line in enumerate(lines) if (m := VERDICT.match(line))]
+    verdict = marks[-1][1] if marks else None
+    findings = parse_findings(out, verdict)
+
+    triage_out = [
+        f"# Review Triage: {args.doc}", "",
+        f"- **SHA**: {sha[:7]}",
+        f"- **CLI**: {args.cli}",
+        f"- **Model**: {args.model or 'default'}",
+        f"- **Status**: {'completed' if code == 0 and verdict is not None else 'no verdict'}",
+        f"- **Verdict**: {verdict or 'none'}", "",
+        "## Findings", "",
+    ]
+    if findings:
+        triage_out += [
+            "| # | Severity | Location | Problem | Assessment | Evidence | Proposed action |",
+            "|---|----------|----------|---------|------------|----------|-----------------|",
+            *(f"| {i} | {sev} | {cell(loc)} | {cell(problem)} | ? | ? | ? |" for i, (sev, loc, problem) in enumerate(findings, 1)),
+        ]
+    else:
+        triage_out.append("None.")
+    triage_out += ["", "## Next Steps", "", NEXT_STEPS]
+    print("\n".join(triage_out))
+
+    if code != 0 or verdict is None:
+        return 2
+    return 1 if any(sev in BLOCKING for sev, _, _ in findings) else 0
+
+
 def run_principal(root: Path, args: argparse.Namespace, sha: str) -> int:
+    if getattr(args, "doc", None):
+        return run_principal_doc(root, args, sha)
+
     facts_timeout = getattr(args, "facts_timeout", 300)
     check_cmd = [sys.executable, str(SCRIPTS / "check_epic_readiness.py"), args.epic_dir]
     try:
@@ -380,8 +494,8 @@ def run_principal(root: Path, args: argparse.Namespace, sha: str) -> int:
     base_sha = git_run(root, "rev-parse", "--verify", args.base).decode().strip()
     readiness_output = out.rstrip()
 
-    prompt = Template(PRINCIPAL_PROMPT.read_text(encoding="utf-8")).safe_substitute(
-        rules=PRINCIPAL_RULES.read_text(encoding="utf-8").strip(),
+    prompt = Template(principal_prompt_path().read_text(encoding="utf-8")).safe_substitute(
+        rules=principal_rules_path().read_text(encoding="utf-8").strip(),
         sha=sha,
         base=args.base,
         base_sha=base_sha,
@@ -396,8 +510,63 @@ def run_principal(root: Path, args: argparse.Namespace, sha: str) -> int:
     return record_round(root, args, sha, [Pass("principal", code, out, err, prompt)], changed, {"Kind": "principal"})
 
 
+def run_adhoc_code(root: Path, args: argparse.Namespace, sha: str) -> int:
+    commit_spec = getattr(args, "commits", None) or f"{args.base}...HEAD"
+    log, diff_section = diff_range(root, args.base, getattr(args, "commits", None))
+
+    prompt = Template(PROMPT.read_text(encoding="utf-8")).safe_substitute(
+        rules=RULES.read_text(encoding="utf-8").strip(),
+        sha=sha,
+        base=args.base,
+        epic_dir=f"Ad-hoc diff review ({commit_spec})",
+        artefacts=f"- Commit range: `{commit_spec}`",
+        audit_output=f"Commit log ({commit_spec}):\n{log or '(no commits)'}",
+        results_output="N/A (Ad-hoc review of branch diff)",
+        diff_section=diff_section,
+    )
+
+    before = status_lines(root)
+    code, out, _err = execute(cli_command(args.cli, args.model), root, args.timeout, prompt)
+    changed = tree_changes(root, before, sha)
+    if changed:
+        print(f"error: tree modified during review: {', '.join(changed)}", file=sys.stderr)
+        return 2
+
+    lines = out.splitlines()
+    marks = [(index, m.group(1).upper()) for index, line in enumerate(lines) if (m := VERDICT.match(line))]
+    verdict = marks[-1][1] if marks else None
+    findings = parse_findings(out, verdict)
+
+    triage_out = [
+        f"# Review Triage: {commit_spec}", "",
+        f"- **SHA**: {sha[:7]}",
+        f"- **Base**: {args.base}",
+        f"- **CLI**: {args.cli}",
+        f"- **Model**: {args.model or 'default'}",
+        f"- **Status**: {'completed' if code == 0 and verdict is not None else 'no verdict'}",
+        f"- **Verdict**: {verdict or 'none'}", "",
+        "## Findings", "",
+    ]
+    if findings:
+        triage_out += [
+            "| # | Severity | Location | Problem | Assessment | Evidence | Proposed action |",
+            "|---|----------|----------|---------|------------|----------|-----------------|",
+            *(f"| {i} | {sev} | {cell(loc)} | {cell(problem)} | ? | ? | ? |" for i, (sev, loc, problem) in enumerate(findings, 1)),
+        ]
+    else:
+        triage_out.append("None.")
+    triage_out += ["", "## Next Steps", "", NEXT_STEPS]
+    print("\n".join(triage_out))
+
+    if code != 0 or verdict is None:
+        return 2
+    return 1 if any(sev in BLOCKING for sev, _, _ in findings) else 0
+
+
+
 def run(args: argparse.Namespace) -> int:
-    if getattr(args, "kind", "code") == "principal" and args.cli == "ollama":
+    kind = getattr(args, "kind", "code")
+    if kind == "principal" and args.cli == "ollama":
         print("--kind principal supports --cli claude or codex", file=sys.stderr)
         return 2
 
@@ -414,8 +583,12 @@ def run(args: argparse.Namespace) -> int:
         return 2
     sha = head_of(root)
 
-    if getattr(args, "kind", "code") == "principal":
+    if kind == "principal":
         return run_principal(root, args, sha)
+
+    if not args.epic_dir:
+        return run_adhoc_code(root, args, sha)
+
     model_ctx = None
     if args.cli == "ollama":
         try:
@@ -715,7 +888,8 @@ def main(argv: list[str] | None = None) -> int:
     modes = parser.add_subparsers(dest="mode", required=True)
     runner = modes.add_parser("run", help="have the CLI review the epic and record a round")
     runner.add_argument("--kind", choices=KINDS, default="code")
-    runner.add_argument("--epic-dir", required=True)
+    runner.add_argument("--epic-dir")
+    runner.add_argument("--doc")
     runner.add_argument("--base", required=True)
     runner.add_argument("--cli", required=True, choices=("claude", "codex", "ollama"))
     runner.add_argument("--model")
@@ -724,6 +898,7 @@ def main(argv: list[str] | None = None) -> int:
     runner.add_argument("--timeout", type=int, default=1800)
     runner.add_argument("--facts-timeout", type=int, default=300)
     runner.add_argument("--diff-limit", type=int, default=MAX_DIFF_LINES)
+    runner.add_argument("--commits")
     checker = modes.add_parser("check", help="list undecided blocking findings of the latest completed round")
     checker.add_argument("--kind", choices=KINDS, default="code")
     checker.add_argument("--epic-dir", required=True)
@@ -731,6 +906,19 @@ def main(argv: list[str] | None = None) -> int:
     triager.add_argument("--kind", choices=KINDS, default="code")
     triager.add_argument("--epic-dir", required=True)
     args = parser.parse_args(argv)
+
+    if args.mode == "run":
+        if args.doc:
+            if getattr(args, "kind", "code") != "principal":
+                print("error: --doc requires --kind principal", file=sys.stderr)
+                return 2
+            if args.epic_dir:
+                print("error: specify either --epic-dir or --doc, not both", file=sys.stderr)
+                return 2
+        elif not args.epic_dir and getattr(args, "kind", "code") == "principal":
+            print("error: one of --epic-dir or --doc is required for principal review", file=sys.stderr)
+            return 2
+
     try:
         return {"run": run, "check": check, "triage": triage}[args.mode](args)
     except (ContractError, OSError) as error:

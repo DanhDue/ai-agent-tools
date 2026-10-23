@@ -15,7 +15,7 @@
 ## Meta Data
 
 - **Tên Epic**: `split_review_skills`
-- **Trạng thái**: Packaged
+- **Trạng thái**: Done
 - **Phiên bản mục tiêu**: Next plugin release
 - **Nền tảng**: Python tooling / agent skill kit
 - **Tài liệu Nguồn**: [Tài liệu thiết kế đã duyệt](2026-10-23-split-review-skills-design.vi.md)

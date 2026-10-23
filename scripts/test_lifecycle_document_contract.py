@@ -109,6 +109,25 @@ EXPECTED: dict[str, tuple[str, ...]] = {
         '"base_ref"',
         "Executive Report Format",
     ),
+    "skills/principal-review/SKILL.md": (
+        "name: principal-review",
+        "Two Modes of Operation",
+        "In-Lifecycle Mode",
+        "Ad-Hoc Mode",
+        "--kind principal",
+        "references/principal-review-prompt.md",
+        "references/principal-review-rules.md",
+        "references/document-triage.md",
+    ),
+    "skills/cross-model-review/SKILL.md": (
+        "name: cross-model-review",
+        "Two Modes of Operation",
+        "In-Lifecycle Mode",
+        "Ad-Hoc Mode",
+        "Clean Working Tree",
+        "references/review-triage.md",
+        "references/local-review-setup.md",
+    ),
 }
 
 FORBIDDEN: dict[str, tuple[str, ...]] = {
@@ -357,6 +376,25 @@ class PrincipalReviewWorkflowTest(unittest.TestCase):
 
         words = len(text.split())
         self.assertLessEqual(words, 4500, f"dev-implementation/SKILL.md exceeds word limit: {words} > 4500")
+
+
+class TestReviewSkillContracts(unittest.TestCase):
+    def test_srs_hp_06_review_skills_expose_contract_and_frontmatter(self) -> None:
+        """[SRS-HP-06] Document contracts enforce new review skills exposure."""
+        for skill_rel in ("skills/principal-review/SKILL.md", "skills/cross-model-review/SKILL.md"):
+            skill_path = ROOT / skill_rel
+            self.assertTrue(skill_path.is_file(), f"{skill_rel} must exist")
+            text = skill_path.read_text(encoding="utf-8")
+            self.assertTrue(text.startswith("---\n"), f"{skill_rel} must have YAML frontmatter")
+            for token in EXPECTED[skill_rel]:
+                self.assertIn(token, text, f"{skill_rel} missing expected contract token: {token}")
+
+    def test_srs_hp_07_lifecycle_diagrams_reflect_two_standalone_review_stages(self) -> None:
+        """[SRS-HP-07] Lifecycle diagrams reflect two standalone review stages."""
+        for doc_name in ("docs/lifecycles.en.md", "docs/lifecycles.vi.md"):
+            doc_text = (ROOT / doc_name).read_text(encoding="utf-8")
+            self.assertIn("principal-review", doc_text)
+            self.assertIn("cross-model-review", doc_text)
 
 
 if __name__ == "__main__":

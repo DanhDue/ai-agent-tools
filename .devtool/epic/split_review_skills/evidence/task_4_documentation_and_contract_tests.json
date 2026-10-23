@@ -1,0 +1,160 @@
+{
+  "schema": 1,
+  "task": "task_4_documentation_and_contract_tests",
+  "runs": {
+    "red": {
+      "head": "3d45f77b276c3275e28457deedd6c67bd7fe8425",
+      "tree": "135e3a7e86ef483732d5f96e568140a6806190c6",
+      "patch_id": "cee706ccbfa3c601e24444b45d0cb801f3ec8c89",
+      "started": "2026-10-23T13:04:57Z",
+      "finished": "2026-10-23T13:04:57Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m unittest scripts/test_lifecycle_document_contract.py -k TestReviewSkillContracts",
+          "expect": "exit 1; contains \"FAILED\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-23T13:04:57Z",
+          "finished": "2026-10-23T13:04:57Z",
+          "output_tail": [
+            ".F",
+            "======================================================================",
+            "FAIL: test_srs_hp_07_lifecycle_diagrams_reflect_two_standalone_review_stages (scripts.test_lifecycle_document_contract.TestReviewSkillContracts.test_srs_hp_07_lifecycle_diagrams_reflect_two_standalone_review_stages)",
+            "[SRS-HP-07] Lifecycle diagrams reflect two standalone review stages.",
+            "----------------------------------------------------------------------",
+            "Traceback (most recent call last):",
+            "  File \"/Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/split_review_skills/scripts/test_lifecycle_document_contract.py\", line 396, in test_srs_hp_07_lifecycle_diagrams_reflect_two_standalone_review_stages",
+            "    self.assertIn(\"principal-review\", doc_text)",
+            "    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+            "AssertionError: 'principal-review' not found in '# The three lifecycles\\n\\nReference for what each lifecycle in this kit is for, what it produces, and how it runs.\\n\\nThis page **describes**.\\nTo decide which one a specific piece of work belongs to, see [choosing-a-lifecycle.en.md](choosing-a-lifecycle.en.md).\\n\\n## Contents\\n\\n1. [At a glance](#at-a-glance)\\n2. [dev-lifecycle](#dev-lifecycle)\\n3. [doc-lifecycle](#doc-lifecycle)\\n4. [lean-product-lifecycle](#lean-product-lifecycle)\\n5. [What is not a lifecycle](#what-is-not-a-lifecycle)\\n6. [How they connect](#how-they-connect)\\n\\n## At a glance\\n\\nEach lifecycle is defined by what exists when it ends.\\n\\n| | `dev-lifecycle` | `doc-lifecycle` | `lean-product-lifecycle` |\\n|---|---|---|---|\\n| **Purpose** | Build code that ships | Produce a document someone reads | Decide what to build, and for whom |\\n| **Produces** | A merged branch | A published document | A validated MVP backlog |\\n| **Gates** | 5 | 4 | 3 |\\n| **Gate approvers** | 4 human, 1 machine | 3 human, 1 machine | 3 human |\\n| **Artefacts live in** | `.devtool/epic/<slug>/` | `.devtool/epic/<slug>/`, deliverable in `docs/` | `.devtool/product/<slug>/` |\\n| **Verified by** | `quality_check` | `doc_quality_check` | human judgement only |\\n\\nThe two quality gates share no tier, no audit and no tooling, and neither invokes the other.\\n\\n## dev-lifecycle\\n\\n**Purpose.** Orchestrate epic-scale code work from an idea to a merged branch.\\nIt owns sequence and gates only; each stage\\'s method lives in that stage\\'s own skill.\\n\\n**What it produces.** A merged branch, plus a High-Level Design in English and Vietnamese,\\na Gherkin BDD suite, and one task file per unit of work\\n— all archived into `.devtool/epic/<slug>/` when the epic closes.\\n\\n**When it does not apply.** A single component that one implementation plan covers.\\nThat work uses `dev-brainstorming` then `writing-plans`, which leaves this lifecycle and its remaining gates behind.\\n\\n```mermaid\\nflowchart TD\\n    S1[\"Stage 1 — Inception &amp; Spec<br/>(dev-brainstorming)\"]\\n    G1{\"Gate 1<br/>Spec approved?\"}\\n    ROUTE{\"Epic-scale?\"}\\n    PLANS([\"writing-plans<br/>(leaves this workflow)\"])\\n    S2[\"Stage 2 — Architecture &amp; Tasks<br/>(dev-designer)\"]\\n    G2{\"Gate 2<br/>HLD &amp; task breakdown approved?\"}\\n    HC{\"Handoff choice<br/>package or continue?\"}\\n    PKG[\"Package epic<br/>handoff.md, status Packaged\"]\\n    PRC{\"Principal Review Choice<br/>Done or Principal Review?\"}\\n    PR[\"run_external_review.py run --kind principal<br/>triage, decisions, revision\"]\\n    PKGSTOP([\"Stop: handoff.md and Resume Prompt\"])\\n    S3[\"Stage 3 — Isolated Execution<br/>(dev-implementation)\"]\\n    G3{\"Gate 3<br/>Execution order confirmed?\"}\\n    EXEC[\"Phase 2-3: task-by-task TDD<br/>one commit per task, doc sync on divergence,<br/>integrate with develop after each task\"]\\n    RC{\"Review Choice<br/>Finish, Cross-model review or Local model review?\"}\\n    XR[\"run_external_review.py run<br/>(review_results.md committed per round)\"]\\n    LR[\"run_external_review.py run --cli ollama<br/>(review_results.md committed per round)\"]\\n    G4{\"Gate 4<br/>audit + result-based traceability + quality_check 🟢 LGTM?\"}\\n    REVIEW[\"Phase 4.1: Developer Kanban Review<br/>(All tasks held in DONE column for visual inspection)\"]\\n    G5{\"Gate 5<br/>User sign-off &amp; finish approved?\"}\\n    S4[\"Stage 4 — Finish Branch &amp; Archival<br/>(finishing-a-development-branch)\"]\\n\\n    S1 --> G1\\n    G1 -->|no, revise| S1\\n    G1 -->|yes| ROUTE\\n    ROUTE -->|no| PLANS\\n    ROUTE -->|yes| S2\\n    S2 --> G2\\n    G2 -->|no, adjust breakdown| S2\\n    G2 -->|yes| HC\\n    HC -->|\"1. package\"| PKG\\n    HC -->|\"2. continue\"| S3\\n    PKG --> PRC\\n    PRC -->|\"1. Done\"| PKGSTOP\\n    PRC -->|\"2. Principal Review\"| PR\\n    PR -->|\"revised and re-packaged\"| PKG\\n    PKGSTOP -.->|\"later session or another LLM\"| S3\\n    S3 --> G3\\n    G3 -->|no, reorder| G3\\n    G3 -->|yes| EXEC\\n    EXEC --> G4\\n    G4 -->|\"no, fix findings as Fix commits\"| EXEC\\n    G4 -->|\"yes\"| RC\\n    RC -->|\"1. Finish\"| REVIEW\\n    RC -->|\"2. Cross-model review\"| XR\\n    XR -->|\"round recorded\"| G4\\n    RC -->|\"3. Local model review\"| LR\\n    LR -->|\"round recorded\"| G4\\n    REVIEW --> G5\\n    G5 -->|\"no, changes as Fix commits\"| EXEC\\n    G5 -->|yes| S4\\n```\\n\\nThe lifecycle proceeds through four stages and five approval gates, with two explicit human choice points:\\n- **Routing & Handoff Choice**: Once Gate 1 passes, epic-scale work routes to Stage 2 (`dev-designer`). Between Gate 2 and Stage 3, the developer chooses whether to **Package** (`handoff.md`, status `Packaged`, stop for later session or another LLM) or **Continue** into Stage 3 immediately.\\n\\nWhen an epic is packaged, the developer faces **Principal Review Choice**: either conclude packaging (**Done**) or run **Principal Review** (a cross-model review of design documents and readiness against the source code via Claude CLI or Codex CLI). Rounds are recorded in `principal_review.md`, triaged with the developer, revised in place, and re-packaged before returning to the choice.\\n- **Isolated Execution**: Stage 3 executes each task independently in an isolated worktree with TDD and continuous integration into `develop`. Once all tasks are complete, the agent runs Gate 4 on the candidate SHA.\\n- **Gate 4 and Review Choice loop**: Gate 4 is the only machine verdict in this kit\\'s development path. It grants 🟢 only when `audit_epic.py` exits 0, `check_bdd_traceability.py tests --results` exits 0, and `@quality_check` profile `epic` returns PASS on the exact candidate commit SHA. Every PASS presents **Review Choice**: **Finish** advances to Gate 5; **Cross-model review** (Claude CLI or Codex CLI) records the round and returns to a full Gate 4 run, and so does **Local model review** (a model served by a local Ollama, reviewed task by task). Every review round is triaged with the developer (`run_external_review.py triage`) before any fix. The loop repeats until the developer selects Finish.\\n- **Gate 5 Developer Kanban Review**: Completed tasks are retained in `.devtool/features/done/` for visual developer sign-off before Stage 4 rebases, verifies by tier, lands the branch with a `--no-ff` merge, and archives tasks into `.devtool/epic/<slug>/`.\\n\\n### Interrupted and resume states\\n\\nWhen work stops or an epic is packaged, the lifecycle resumes deterministically across five operational states:\\n\\n```mermaid\\nflowchart TD\\n    FRESH[\"Fresh Epic<br/>(Stage 1 or Stage 2, no task files)\"]\\n    PKG[\"Packaged Epic<br/>(handoff.md present, status Packaged)\"]\\n    INTR[\"Interrupted Epic<br/>(task files exist, mid-Stage 3)\"]\\n    DONE_EPIC[\"Completed Epic<br/>(all tasks done, Gate 4 PASS)\"]\\n    INCON[\"Inconsistent State<br/>(documents modified after packaging)\"]\\n\\n    FRESH -->|\"Stage 1-2 completion\"| PKG\\n    FRESH -->|\"Continue at Handoff Choice\"| INTR\\n    PKG -->|\"Check git log since packaging\"| INCON\\n    PKG -->|\"Resume at Stage 3 Gate 3\"| INTR\\n    INCON -->|\"Documents win, reconcile staleness\"| INTR\\n    INTR -->|\"Task-by-task TDD execution\"| DONE_EPIC\\n    DONE_EPIC -->|\"Review Choice + Gate 5 sign-off\"| MERGED[\"Stage 4: Landed Branch & Archival\"]\\n```\\n\\nThese diagrams and explanations describe the lifecycle for humans; runtime skills (`dev-lifecycle`, `dev-implementation`) and scripts are the operational source of truth.\\n\\n## doc-lifecycle\\n\\n**Purpose.** Orchestrate work whose deliverable is a document rather than code\\n— a runbook, a handbook, an onboarding guide, a set of reference pages.\\n\\n**What it produces.** The finished document, in the place it belongs: `docs/`, a README, a skill\\'s `references/`.\\nIts working artefacts — the brief, the outline, one task per section — stay in `.devtool/epic/<slug>/`.\\nA deliverable left inside `.devtool/` has not shipped.\\n\\n**Why four gates and not five.** Code and prose differ in four ways that change what verification can mean:\\nthe unit of work is a section rather than an independently testable deliverable;\\nverification is mechanical checks plus human judgement rather than a machine running tests;\\nthe governing constraint is the **audience** rather than the architecture;\\nand the cost of being wrong is low.\\nBecause the cost of being wrong is low, the gate count stays below the development side\\'s five.\\n\\nThe first of the four is inception, and it is **not optional**.\\nIt was once, and its skip condition asked whether the content was already known\\n— a question an agent answers yes to essentially always.\\nWhat makes a mandatory stage affordable is that its *depth* scales while its *existence* does not:\\na runbook still passes through Stage 0, and its spec is three sentences.\\nA runbook that costs five approvals does not get written through the lifecycle\\n— it gets written around it.\\n\\n**When it does not apply.** A typo, a broken link, a single Architecture Decision Record,\\nor any change a reviewer would not meaningfully gate.\\n\\n```mermaid\\nflowchart TD\\n    S0[\"Stage 0 — Inception<br/>(doc-brainstorming)\"]\\n    G1{\"Gate 1 — spec approved\"}\\n    S1[\"Stage 1 — Brief &amp; Outline<br/>(doc-designer)\"]\\n    G2{\"Gate 2 — brief &amp; outline\"}\\n    S2[\"Stage 2 — Drafting<br/>(doc-implementation)\"]\\n    G3{\"Gate 3 — doc_quality_check 🟢\"}\\n    G4{\"Gate 4 — sign-off\"}\\n    S3[\"Stage 3 — Finish branch<br/>(finishing-a-development-branch)\"]\\n\\n    S0 --> G1 --> S1 --> G2 --> S2 --> G3 --> G4 --> S3\\n```\\n\\nStage 0 is mandatory — its depth scales, its existence does not.\\nStage 1 establishes the audience, classifies the document into exactly one Diátaxis type,\\nand turns the outline into one task per section.\\n\\n## lean-product-lifecycle\\n\\n**Purpose.** Decide what to build and for whom, before any engineering begins.\\nIt implements Dan Olsen\\'s Lean Product Process and enforces problem-space discipline:\\nneeds are described as needs, not as the features someone already has in mind.\\n\\n**What it produces.** Three signed-off specifications in `.devtool/product/<slug>/` — `01_problem_space_spec.md`, `02_value_proposition_spec.md`, `03_mvp_feature_backlog.md`.\\nThe backlog is what engineering receives.\\n\\n**What it does not cover.** Steps 5 and 6 of Olsen\\'s process\\n— building an MVP prototype and testing it with customers — are not implemented in this release.\\nThe orchestrator says so at Gate 3 rather than implying the journey is complete.\\n\\n```mermaid\\nflowchart TD\\n    IN([\"A raw idea, or either brainstorming variant\\'s step-2 escape\"])\\n    S1[\"Stage 1 — Problem Space<br/>(lean-market-discovery)\"]\\n    G1{\"Gate 1 — problem space\"}\\n    S2[\"Stage 2 — Value Proposition<br/>(lean-value-strategy)\"]\\n    G2{\"Gate 2 — value proposition\"}\\n    S3[\"Stage 3 — MVP Feature Set<br/>(lean-mvp-scoping)\"]\\n    G3{\"Gate 3 — MVP backlog\"}\\n    OUT([\"Handoff to dev-designer\"])\\n\\n    IN --> S1 --> G1 --> S2 --> G2 --> S3 --> G3 --> OUT\\n    G1 -.->|\"re-segment\"| S1\\n    G2 -.->|\"needs were wrong\"| S1\\n    G3 -.->|\"scope bloated\"| S3\\n```\\n\\nThe dotted edges are the Tectonic Plates protocol: when a gate fails,\\nthe failing hypothesis is located on the five-layer Product-Market Fit Pyramid and re-validated from there upward,\\nrather than patched at the layer the work is standing on.\\n\\n## What is not a lifecycle\\n\\nFive things route work without being lifecycles themselves.\\n\\n| | What it is | Gates |\\n|---|---|---|\\n| `brainstorming` | The router. Asks whether the work is idea development, a document, or coding, then invokes the matching variant. Holds no process of its own | None — it routes and is finished |\\n| `dev-brainstorming` | Turns an idea for code work into an approved design spec. Exits to `dev-designer`, `writing-plans` or `lean-product-lifecycle` | A design approval and a spec review, both human |\\n| `doc-brainstorming` | Turns an idea or a document request into an approved content spec. Exits to `doc-designer`, `decision-records` or `lean-product-lifecycle` | A design approval and a spec review, both human |\\n| `writing-plans` + an executor | The small-code path. `writing-plans` produces the plan; `subagent-driven-development` or `executing-plans` carries it out | None of its own |\\n| `decision-records` | A single Architecture Decision Record or spike report, written and committed directly | None |\\n\\n## How they connect\\n\\n```mermaid\\nflowchart LR\\n    BS[\"brainstorming<br/>(router)\"]\\n    DEVB[\"dev-brainstorming\"]\\n    DOCB[\"doc-brainstorming\"]\\n    LEAN[\"lean-product-lifecycle\"]\\n    DEV[\"dev-lifecycle\"]\\n    DOC[\"doc-lifecycle\"]\\n    PLANS[\"writing-plans + executor\"]\\n\\n    BS -->|\"coding\"| DEVB\\n    BS -->|\"idea or document\"| DOCB\\n    DEVB -->|\"epic-scale\"| DEV\\n    DEVB -->|\"one plan\"| PLANS\\n    DOCB --> DOC\\n    DEVB -.->|\"problem space unvalidated\"| LEAN\\n    DOCB -.->|\"unevidenced product argument\"| LEAN\\n    LEAN -->|\"Gate 3 backlog\"| DEV\\n```\\n\\nTwo rules hold across every connection.\\n**The deliverable decides, not the amount of writing involved**\\n— if the work changes a file that ships in the build, it is development work.\\nAnd **two specs are never merged into one epic**:\\neach keeps its own spec → design → implementation lineage.\\n'",
+            "",
+            "----------------------------------------------------------------------",
+            "Ran 2 tests in 0.001s",
+            "",
+            "FAILED (failures=1)"
+          ],
+          "output_sha256": "fa3c06c79d122fe36f1268803cbc987928c8323c42d6a29dd3a81dc3e7921efd"
+        }
+      ]
+    },
+    "verify": {
+      "head": "3d45f77b276c3275e28457deedd6c67bd7fe8425",
+      "tree": "bb3f0c06932909a4732006f759147e7ebfbbcc16",
+      "patch_id": "9c838b6070f908d4b5b8b08f1d4fca6cf11dafbd",
+      "started": "2026-10-23T13:07:44Z",
+      "finished": "2026-10-23T13:07:45Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m unittest scripts/test_lifecycle_document_contract.py -k TestReviewSkillContracts",
+          "expect": "exit 0; contains \"OK\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-23T13:07:44Z",
+          "finished": "2026-10-23T13:07:44Z",
+          "output_tail": [
+            "..",
+            "----------------------------------------------------------------------",
+            "Ran 2 tests in 0.000s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "a6707d4eff38012da33ddc34bc6dc076a3b17151cfc9aef223c8790cbe64c3da"
+        },
+        {
+          "id": "V3",
+          "phase": "TIER-B",
+          "command": "ruff check scripts/test_lifecycle_document_contract.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-23T13:07:44Z",
+          "finished": "2026-10-23T13:07:44Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "mypy --strict --follow-imports=silent scripts/test_lifecycle_document_contract.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-23T13:07:44Z",
+          "finished": "2026-10-23T13:07:44Z",
+          "output_tail": [
+            "Success: no issues found in 1 source file"
+          ],
+          "output_sha256": "5d4b6d285b77932e3d08212c3b4974d0a803f98ec60408ac6ccf6a063fa6c19e"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-C",
+          "command": "python3 scripts/run_unittest_junit.py --junitxml build/test-results/task_4.xml scripts/test_lifecycle_document_contract.py",
+          "expect": "exit 0; results build/test-results/task_4.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-23T13:07:44Z",
+          "finished": "2026-10-23T13:07:44Z",
+          "output_tail": [
+            "...................",
+            "----------------------------------------------------------------------",
+            "Ran 19 tests in 0.004s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "2156b828ab1e4244256993eddce37def4171ccc6bae53a3ddd3647fbdca6ef8e",
+          "results": {
+            "path": "build/test-results/task_4.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 2,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_srs_hp_06_review_skills_expose_contract_and_frontmatter",
+                  "classname": "test_lifecycle_document_contract.TestReviewSkillContracts",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_srs_hp_07_lifecycle_diagrams_reflect_two_standalone_review_stages",
+                  "classname": "test_lifecycle_document_contract.TestReviewSkillContracts",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "docs/lifecycles.en.md",
+            "docs/lifecycles.vi.md",
+            "scripts/test_lifecycle_document_contract.py"
+          ],
+          "violations": []
+        }
+      ]
+    }
+  }
+}

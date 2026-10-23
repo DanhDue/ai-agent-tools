@@ -308,14 +308,14 @@ Ask developer and wait for answer:
 > 2. **Cross-model review** — an independent model reviews the epic through Claude CLI or Codex CLI (`command -v claude codex`).
 > 3. **Local model review** — a model served by your local Ollama reviews the epic task by task (`ollama list`).
 
-Option 1 goes to Phase 4.1 / Gate 5. Option 2 runs in epic worktree with clean tree:
+Option 1 goes to Phase 4.1 / Gate 5. Option 2 invokes `d3nexus:cross-model-review` in epic worktree with clean tree:
 ```bash
 python3 "$SKILL_DIR"/resources/scripts/run_external_review.py run \
   --epic-dir <epic_dir> --base <base_ref> --cli claude|codex
 ```
 Commit `review_results.md` after every round (`[EPIC_NAME] Record cross-model review round N`). After every round of option 2 or 3, run `python3 "$SKILL_DIR"/resources/scripts/run_external_review.py triage --epic-dir <epic_dir>`, fill it as [review-triage.md](references/review-triage.md) says, present it, and wait for the developer's decisions before any Fix commit or Decision cell. Then make the Fix commits, record the decisions, commit, and rerun Phase 4 / Gate 4 in full.
 
-Option 3 runs `ollama list` first and asks the developer which model to use; never pick it. Then, in the epic worktree with a clean tree:
+Option 3 invokes `d3nexus:cross-model-review` for local models (run `ollama list` first and ask the developer which model to use; never pick it). Then, in the epic worktree with a clean tree:
 ```bash
 python3 "$SKILL_DIR"/resources/scripts/run_external_review.py run \
   --epic-dir <epic_dir> --base <base_ref> --cli ollama --model <model>
