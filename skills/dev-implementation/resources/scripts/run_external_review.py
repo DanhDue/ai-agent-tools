@@ -35,6 +35,53 @@ from task_contract import ContractError, git_run, parse_integration_results
 SCRIPTS = Path(__file__).resolve().parent
 PROMPT = SCRIPTS.parent.parent / "references" / "external-review-prompt.md"
 RULES = SCRIPTS.parent.parent / "references" / "review-rules.md"
+KINDS = ("code", "principal")
+PRINCIPAL_PROMPT = SCRIPTS.parent.parent / "references" / "principal-review-prompt.md"
+PRINCIPAL_RULES = SCRIPTS.parent.parent / "references" / "principal-review-rules.md"
+
+
+def review_file(kind: str) -> tuple[str, str]:
+    if kind == "principal":
+        return ("principal_review.md", "Principal Review")
+    return ("review_results.md", "Cross-Model Review")
+
+
+def principal_artefact_lines(root: Path, epic_dir: str) -> str:
+    epic_path = root / ".devtool" / "epic" / epic_dir
+    lines: list[str] = []
+
+    # 1. *-design.en.md and *-design.vi.md
+    for f in sorted(epic_path.glob("*-design.en.md")):
+        lines.append(f"- `.devtool/epic/{epic_dir}/{f.name}`")
+    for f in sorted(epic_path.glob("*-design.vi.md")):
+        lines.append(f"- `.devtool/epic/{epic_dir}/{f.name}`")
+
+    # 2. <epic_dir>.en.md and <epic_dir>.vi.md
+    for ext in (".en.md", ".vi.md"):
+        doc = epic_path / f"{epic_dir}{ext}"
+        if doc.is_file():
+            line = f"- `.devtool/epic/{epic_dir}/{doc.name}`"
+            if line not in lines:
+                lines.append(line)
+
+    # 3. bdd_scenarios.en.md and bdd_scenarios.vi.md
+    for ext in (".en.md", ".vi.md"):
+        doc = epic_path / f"bdd_scenarios{ext}"
+        if doc.is_file():
+            line = f"- `.devtool/epic/{epic_dir}/{doc.name}`"
+            if line not in lines:
+                lines.append(line)
+
+    # 4. every task_*.md, sorted
+    for t in sorted(epic_path.glob("task_*.md")):
+        lines.append(f"- `.devtool/epic/{epic_dir}/{t.name}`")
+
+    # 5. handoff.md when present
+    handoff = epic_path / "handoff.md"
+    if handoff.is_file():
+        lines.append(f"- `.devtool/epic/{epic_dir}/handoff.md`")
+
+    return "\n".join(lines)
 
 # Tolerates optional markdown headings, bullet prefixes, and bold markers around Verdict.
 VERDICT = re.compile(
@@ -321,7 +368,39 @@ def render_round(number: int, meta: dict[str, str], findings: list[tuple[str, st
     return f"## Round {number}\n\n{head}\n{table}\nRaw output:\n\n{fence}text\n{output.rstrip()}\n{fence}\n"
 
 
+def run_principal(root: Path, args: argparse.Namespace, sha: str) -> int:
+    facts_timeout = getattr(args, "facts_timeout", 300)
+    check_cmd = [sys.executable, str(SCRIPTS / "check_epic_readiness.py"), args.epic_dir]
+    try:
+        _code, out, _err = run_gate("check_epic_readiness.py", check_cmd, root, facts_timeout)
+    except PreconditionFailedError as error:
+        print_gate_banner(error, args.cli)
+        return 2
+
+    base_sha = git_run(root, "rev-parse", "--verify", args.base).decode().strip()
+    readiness_output = out.rstrip()
+
+    prompt = Template(PRINCIPAL_PROMPT.read_text(encoding="utf-8")).safe_substitute(
+        rules=PRINCIPAL_RULES.read_text(encoding="utf-8").strip(),
+        sha=sha,
+        base=args.base,
+        base_sha=base_sha,
+        epic_dir=f".devtool/epic/{args.epic_dir}",
+        artefacts=principal_artefact_lines(root, args.epic_dir),
+        readiness_output=readiness_output,
+    )
+
+    before = status_lines(root)
+    code, out, err = execute(cli_command(args.cli, args.model), root, args.timeout, prompt)
+    changed = tree_changes(root, before, sha)
+    return record_round(root, args, sha, [Pass("principal", code, out, err, prompt)], changed, {"Kind": "principal"})
+
+
 def run(args: argparse.Namespace) -> int:
+    if getattr(args, "kind", "code") == "principal" and args.cli == "ollama":
+        print("--kind principal supports --cli claude or codex", file=sys.stderr)
+        return 2
+
     if args.cli == "ollama":
         if not args.model:
             print("--cli ollama needs --model", file=sys.stderr)
@@ -334,6 +413,9 @@ def run(args: argparse.Namespace) -> int:
         print("commit or stash your changes before a review", file=sys.stderr)
         return 2
     sha = head_of(root)
+
+    if getattr(args, "kind", "code") == "principal":
+        return run_principal(root, args, sha)
     model_ctx = None
     if args.cli == "ollama":
         try:
@@ -485,8 +567,9 @@ def record_round(root: Path, args: argparse.Namespace, sha: str, passes: list[Pa
         verdict_text = "CHANGES REQUIRED"
     else:
         verdict_text = "PASS" if verdicts and None not in verdicts else "none"
-    path = root / ".devtool" / "epic" / args.epic_dir / "review_results.md"
-    existing = path.read_text(encoding="utf-8") if path.exists() else f"# Cross-Model Review: {args.epic_dir}\n"
+    name, title = review_file(getattr(args, "kind", "code"))
+    path = root / ".devtool" / "epic" / args.epic_dir / name
+    existing = path.read_text(encoding="utf-8") if path.exists() else f"# {title}: {args.epic_dir}\n"
     round_num = len(rounds_in(existing)) + 1
     meta = {
         "Date": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -511,7 +594,8 @@ def record_round(root: Path, args: argparse.Namespace, sha: str, passes: list[Pa
 
 def check(args: argparse.Namespace) -> int:
     root = Path(git_run(Path.cwd(), "rev-parse", "--show-toplevel").decode().strip())
-    path = root / ".devtool" / "epic" / args.epic_dir / "review_results.md"
+    name, _ = review_file(getattr(args, "kind", "code"))
+    path = root / ".devtool" / "epic" / args.epic_dir / name
     if not path.exists():
         return 0
     completed = [(n, lines) for n, lines in rounds_in(path.read_text(encoding="utf-8"))
@@ -593,7 +677,8 @@ def since_lines(previous: list[list[str]], latest: list[list[str]]) -> list[str]
 def triage(args: argparse.Namespace) -> int:
     """Print the latest round as a skeleton to fill, verify and present before any action on its findings."""
     root = Path(git_run(Path.cwd(), "rev-parse", "--show-toplevel").decode().strip())
-    path = root / ".devtool" / "epic" / args.epic_dir / "review_results.md"
+    name, _ = review_file(getattr(args, "kind", "code"))
+    path = root / ".devtool" / "epic" / args.epic_dir / name
     rounds = rounds_in(path.read_text(encoding="utf-8")) if path.exists() else []
     if not rounds:
         print(f"no review round recorded for {args.epic_dir}", file=sys.stderr)
@@ -629,6 +714,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     modes = parser.add_subparsers(dest="mode", required=True)
     runner = modes.add_parser("run", help="have the CLI review the epic and record a round")
+    runner.add_argument("--kind", choices=KINDS, default="code")
     runner.add_argument("--epic-dir", required=True)
     runner.add_argument("--base", required=True)
     runner.add_argument("--cli", required=True, choices=("claude", "codex", "ollama"))
@@ -639,8 +725,10 @@ def main(argv: list[str] | None = None) -> int:
     runner.add_argument("--facts-timeout", type=int, default=300)
     runner.add_argument("--diff-limit", type=int, default=MAX_DIFF_LINES)
     checker = modes.add_parser("check", help="list undecided blocking findings of the latest completed round")
+    checker.add_argument("--kind", choices=KINDS, default="code")
     checker.add_argument("--epic-dir", required=True)
     triager = modes.add_parser("triage", help="print the latest round as a skeleton to fill before acting on it")
+    triager.add_argument("--kind", choices=KINDS, default="code")
     triager.add_argument("--epic-dir", required=True)
     args = parser.parse_args(argv)
     try:
