@@ -15,7 +15,7 @@
 ## Meta Data
 
 - **Epic name**: `split_review_skills`
-- **Status**: Packaged
+- **Status**: In Progress
 - **Target release**: Next plugin release
 - **Platform**: Python tooling / agent skill kit
 - **Source Spec**: [Approved Split Review Skills design](2026-10-23-split-review-skills-design.en.md)
