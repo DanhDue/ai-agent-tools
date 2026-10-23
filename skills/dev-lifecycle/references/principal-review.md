@@ -29,6 +29,7 @@ Principal Review is a cross-model review of an epic's architecture and task desi
 
 3. **Principal Review**:
    Ask the developer which CLI to use — Claude CLI or Codex CLI — and optionally which model. Never choose for the developer.
+   Invoke `d3nexus:principal-review`.
 
 4. Run the principal review:
    ```bash

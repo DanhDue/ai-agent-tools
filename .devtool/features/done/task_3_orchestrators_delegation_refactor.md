@@ -1,13 +1,13 @@
 ---
 id: "task_3_orchestrators_delegation_refactor"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "split_review_skills"
 dueDate: null
 created: "2026-10-23T11:40:00Z"
-modified: "2026-10-23T11:40:00Z"
-completedAt: null
+modified: "2026-10-23T13:00:58Z"
+completedAt: "2026-10-23T13:00:58Z"
 labels: ["orchestration", "dev-lifecycle", "dev-implementation", "delegation"]
 order: "a3"
 ---
