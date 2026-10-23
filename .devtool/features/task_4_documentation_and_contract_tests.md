@@ -27,7 +27,9 @@ Key deliverables:
    - Stage 2 flowchart showing `principal-review` call at Principal Review Choice.
    - Stage 3 flowchart showing `cross-model-review` call at Review Choice.
    - Synchronized bilingual prose explaining the shift-left vs shift-right rationale.
-2. Update `scripts/test_lifecycle_document_contract.py` with expected keywords for the new skills and updated orchestrator references.
+2. Update `scripts/test_lifecycle_document_contract.py`:
+   - Add expected contract keywords for `skills/principal-review/SKILL.md` and `skills/cross-model-review/SKILL.md`.
+   - Update `PrincipalReviewWorkflowTest` assertions (`test_prv_hp_04_packaging_readiness_and_principal_review_choice` and `test_prv_st_03_diagram_loop_returns_to_package_and_done_repackages`) to match the streamlined `skills/dev-lifecycle/references/principal-review.md` delegation content.
 3. Validate plugin manifests and execute `./scripts/verify.sh` until clean pass.
 
 ## Files
@@ -54,7 +56,7 @@ Applicable skills: `d3nexus:test-driven-development`, `d3nexus:doc_quality_check
 
 - **Target Files & Symbols**:
   - `docs/lifecycles.en.md`, `docs/lifecycles.vi.md`: updated Mermaid diagrams and lifecycle prose
-  - `scripts/test_lifecycle_document_contract.py`: new `TestReviewSkillContracts`
+  - `scripts/test_lifecycle_document_contract.py`: `PrincipalReviewWorkflowTest`, `test_prv_hp_04_packaging_readiness_and_principal_review_choice()`, `test_prv_st_03_diagram_loop_returns_to_package_and_done_repackages()`, new `TestReviewSkillContracts`
 - **Downstream Callers**: entire repository quality gates and publishing checks.
 - **Cross-Platform Bridges**: none.
 - **Target Test Coverage Threshold**: `./scripts/verify.sh` outputs `PASS — safe to publish`.

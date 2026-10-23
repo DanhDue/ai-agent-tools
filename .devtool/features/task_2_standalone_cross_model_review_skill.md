@@ -53,7 +53,7 @@ Applicable skills: `d3nexus:test-driven-development`, `d3nexus:python-quality-ch
 ## Impact Analysis & Blast Radius
 
 - **Target Files & Symbols**:
-  - `skills/dev-implementation/resources/scripts/run_external_review.py`: `run()`, `parse_args()`, new `diff_range()`
+  - `skills/dev-implementation/resources/scripts/run_external_review.py`: `run()`, `main()`, new `diff_range()`, `record_round()`, `check()`, `triage()`
   - `skills/dev-implementation/resources/scripts/test_run_external_review.py`: new `TestCrossModelReviewAdhoc`
 - **Downstream Callers**: `dev-implementation` (Task 3), direct user invocations (`/cross-model-review`).
 - **Cross-Platform Bridges**: none.
@@ -143,6 +143,7 @@ Scenario: [SRS-FR-02] [Tier A - Unit] Triage parser isolates malformed model res
 - Skill name is exactly `cross-model-review`.
 - The CLI runner engine `run_external_review.py` remains in `skills/dev-implementation/resources/scripts/`.
 - Local model review through Ollama and External model review through Claude/Codex CLI are both governed by this skill.
+- For ad-hoc review when `--epic-dir` is absent (e.g. `--base` and `--commits`), review output and findings table stream directly to stdout without requiring an epic directory or writing `review_results.md`; ephemeral pass logs go under `build/` (git-ignored).
 
 ## Definition of Done
 

@@ -183,7 +183,7 @@ The canonical Gherkin definitions are in [BDD scenarios](bdd_scenarios.en.md), w
 
 | Dimension | Scenario IDs | Coverage intent |
 |---|---|---|
-| Happy Paths | SRS-HP-01 through SRS-HP-05 | In-lifecycle and ad-hoc principal review, in-lifecycle and ad-hoc cross-model review, and local model review |
+| Happy Paths | SRS-HP-01 through SRS-HP-07 | In-lifecycle and ad-hoc principal review, in-lifecycle and ad-hoc cross-model review, local model review, and lifecycle contract assurance |
 | Edge Cases and Boundaries | SRS-EC-01 through SRS-EC-04 | Missing document, dirty git tree refusal, missing CLI guidance, broken doc formatting |
 | State Transitions | SRS-ST-01 through SRS-ST-04 | Document revision commit ordering, code fix Gate 4 loop, Gate 3 principal check, Gate 5 finish check |
 | Async and Resilience | SRS-AR-01, SRS-AR-02 | Process timeout termination and sequential review round numbering |

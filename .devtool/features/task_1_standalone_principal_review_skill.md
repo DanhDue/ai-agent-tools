@@ -55,7 +55,7 @@ Applicable skills: `d3nexus:test-driven-development`, `d3nexus:python-quality-ch
 ## Impact Analysis & Blast Radius
 
 - **Target Files & Symbols**:
-  - `skills/dev-implementation/resources/scripts/run_external_review.py`: `run()`, `parse_args()`, `principal_artefact_lines()`
+  - `skills/dev-implementation/resources/scripts/run_external_review.py`: `run()`, `main()`, `principal_artefact_lines()`, `record_round()`, `check()`, `triage()`
   - `skills/dev-implementation/resources/scripts/test_run_external_review.py`: new `TestPrincipalReviewDocMode`
 - **Downstream Callers**: `dev-lifecycle` (Task 3), direct user invocations (`/principal-review`).
 - **Cross-Platform Bridges**: none.
@@ -128,6 +128,7 @@ Scenario: [SRS-FR-01] [Tier C - Integration] Principal review runner halts on fa
 - Skill name is exactly `principal-review`.
 - The CLI runner engine `run_external_review.py` remains in `skills/dev-implementation/resources/scripts/` to preserve backward compatibility for import and invocation paths.
 - Frontmatter follows standard: name and description only.
+- For ad-hoc review when `--epic-dir` is absent (e.g. `--doc`), review output and findings table stream directly to stdout without requiring an epic directory or writing `principal_review.md`; ephemeral pass logs go under `build/` (git-ignored).
 
 ## Definition of Done
 

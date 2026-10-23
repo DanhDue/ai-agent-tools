@@ -183,7 +183,7 @@ Các định nghĩa Gherkin chuẩn nằm trong [Kịch bản BDD](bdd_scenarios
 
 | Chiều kiểm thử | Mã kịch bản | Mục đích độ phủ |
 |---|---|---|
-| Happy Paths | SRS-HP-01 đến SRS-HP-05 | Principal review và cross-model review trong vòng đời và tùy biến, cùng đánh giá mô hình cục bộ |
+| Happy Paths | SRS-HP-01 đến SRS-HP-07 | Principal review và cross-model review trong vòng đời và tùy biến, đánh giá mô hình cục bộ, và đảm bảo hợp đồng vòng đời |
 | Các trường hợp biên | SRS-EC-01 đến SRS-EC-04 | Thiếu tài liệu, từ chối cây git bẩn, thiếu hướng dẫn CLI, lỗi định dạng tài liệu |
 | Chuyển đổi trạng thái | SRS-ST-01 đến SRS-ST-04 | Thứ tự commit sửa tài liệu, vòng lặp sửa code Gate 4, kiểm tra principal Gate 3, kiểm tra finish Gate 5 |
 | Bất đồng bộ và Phục hồi | SRS-AR-01, SRS-AR-02 | Chấm dứt tiến trình khi timeout và đánh số thứ tự tuần tự các vòng review |
