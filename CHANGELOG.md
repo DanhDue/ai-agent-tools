@@ -8,6 +8,24 @@ every installed machine on the old cached copy.
 
 ---
 
+## 1.15.0 — 2026-10-25
+
+Adds support for the Antigravity CLI (`agy`) with `Gemini 4 Argon (Medium)` as an external review engine for both Principal Review (Shift-Left design verification) and Cross-Model Review (Shift-Right code verification).
+
+### Added
+
+- **Antigravity CLI (`agy`) Review Engine** (`skills/dev-implementation/resources/scripts/run_external_review.py`): Integrates `agy` into the review runner with sandboxed execution (`--sandbox --mode plan`), automatic stdin streaming, and default model configuration to `"Gemini 4 Argon (Medium)"`. Supports custom model overrides via `--model`.
+- **Review CLI Selection Coverage**: Expands CLI choices across `--kind principal` and `--kind code` to include `agy` alongside `claude`, `codex`, and `ollama`.
+- **Automated Test Suite for `agy` CLI** (`skills/dev-implementation/resources/scripts/test_run_external_review.py`): Adds unit tests verifying `agy` execution flags, sandboxing, model defaults, and output parsing in both code review and principal review modes.
+
+### Changed
+
+- **Principal Review Procedure & Choice Prompt** (`skills/dev-lifecycle/references/principal-review.md`, `skills/principal-review/SKILL.md`): Updates the packaging checkpoint prompt and documentation to offer Antigravity CLI (`agy --model "Gemini 4 Argon (Medium)"`) alongside Claude CLI and Codex CLI.
+- **Review Choice at Gate 4** (`skills/dev-implementation/SKILL.md`, `skills/dev-lifecycle/SKILL.md`, `skills/cross-model-review/SKILL.md`): Extends Gate 4 Review Choice Option 2 prompt (`command -v claude codex agy`) to include Antigravity CLI.
+- **Critical Rules & Lifecycle Documentation** (`rules/CRITICAL_RULES.md`, `docs/lifecycles.en.md`, `docs/lifecycles.vi.md`): Authorizes `agy` under Critical Rules 5 & 6 as an allowed review CLI, and updates bilingual architecture documentation and triage guides.
+
+---
+
 ## 1.14.0 — 2026-10-23
 
 Decouples external AI review into two standalone skills (`principal-review` and `cross-model-review`), adds ad-hoc document and branch diff review modes with live streaming triage, establishes Critical Rules banning autonomous review triggers and infinite loops, and refactors orchestrators to delegate to the new standalone review skills.
