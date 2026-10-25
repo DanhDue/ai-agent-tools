@@ -164,6 +164,25 @@ class RunExternalReviewTest(ReviewCase):
         self.assertIn("| 1 | Minor | README.md:1 | wording \\| unclear |  |", text)
         self.assertEqual(self.check()[0], 0)
 
+    def test_agy_review_round_is_recorded(self) -> None:
+        self.install("agy")
+        code, _, _ = self.run_review(cli="agy", mode="pass")
+        self.assertEqual(code, 0)
+        self.assertEqual(self.args.read_text().strip(), "--sandbox --mode plan --model Gemini 4 Argon (Medium)")
+        text = self.text()
+        self.assertIn("- **CLI**: agy", text)
+        self.assertIn("- **Model**: Gemini 4 Argon (Medium)", text)
+        self.assertEqual(self.check()[0], 0)
+
+    def test_agy_review_custom_model(self) -> None:
+        self.install("agy")
+        code, _, _ = self.run_review("--model", "gemini-4-argon-high", cli="agy", mode="pass")
+        self.assertEqual(code, 0)
+        self.assertEqual(self.args.read_text().split(), ["--sandbox", "--mode", "plan", "--model", "gemini-4-argon-high"])
+        text = self.text()
+        self.assertIn("- **CLI**: agy", text)
+        self.assertIn("- **Model**: gemini-4-argon-high", text)
+
     def test_vth_st_10_blocking_findings_hold_phase_4_until_each_has_a_decision(self) -> None:
         self.install("claude")
         self.assertEqual(self.run_review(cli="claude", mode="blocking")[0], 1)
@@ -556,6 +575,16 @@ class PrincipalReviewTest(ReviewCase):
         self.assertIn("task_2:Decisions Already Made", text)
         self.assertIn("Proposed: keep TrackPersistResult.", text)
 
+    def test_agy_principal_review_recorded(self) -> None:
+        self.install("agy")
+        code, out, err = self.run_principal(cli="agy", mode="pass")
+        self.assertEqual(code, 0, f"Expected 0, got {code}.\nOut:\n{out}\nErr:\n{err}")
+        self.assertEqual(self.args.read_text().strip(), "--sandbox --mode plan --model Gemini 4 Argon (Medium)")
+        text = self.principal_results.read_text(encoding="utf-8")
+        self.assertIn("- **CLI**: agy", text)
+        self.assertIn("- **Model**: Gemini 4 Argon (Medium)", text)
+        self.assertIn("- **Verdict**: PASS", text)
+
     def test_srs_st_01_decisions_move_check_from_1_to_0(self) -> None:
         """[SRS-ST-01] Decisions move check --kind principal from 1 to 0, independent of code rounds."""
         self.install("claude")
@@ -699,7 +728,7 @@ class PrincipalReviewTest(ReviewCase):
         with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
             code = main(["run", "--kind", "principal", "--epic-dir", "demo_epic", "--base", "main", "--cli", "ollama", "--model", "m"])
         self.assertEqual(code, 2)
-        self.assertIn("--kind principal supports --cli claude or codex", err.getvalue())
+        self.assertIn("--kind principal supports --cli claude, codex, or agy", err.getvalue())
         self.assertNotIn("[Pre-check]", err.getvalue())
         self.assertFalse(self.principal_results.exists())
 

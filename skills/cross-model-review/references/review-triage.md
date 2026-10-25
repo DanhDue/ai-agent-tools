@@ -1,6 +1,6 @@
 # Review Triage
 
-Every review round — Claude CLI, Codex CLI or a local Ollama model — is triaged with the developer before anyone acts on it. A reviewer's finding is a claim to check, not an instruction: some are real, some are false positives, and some only say that a file was not shown.
+Every review round — Claude CLI, Codex CLI, Antigravity CLI or a local Ollama model — is triaged with the developer before anyone acts on it. A reviewer's finding is a claim to check, not an instruction: some are real, some are false positives, and some only say that a file was not shown.
 
 ## Steps
 

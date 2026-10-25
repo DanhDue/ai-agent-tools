@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Review of a finished epic through the Claude CLI, the Codex CLI, or a model served by a local Ollama.
+"""Review of a finished epic through the Claude CLI, the Codex CLI, the Antigravity CLI (agy), or a model served by a local Ollama.
 
 Usage:
-  run_external_review.py run --epic-dir <epic_dir> --base <base_ref> --cli claude|codex [--model <name>] [--timeout 1800] [--facts-timeout 300] [--diff-limit 1500]
+  run_external_review.py run --epic-dir <epic_dir> --base <base_ref> --cli claude|codex|agy [--model <name>] [--timeout 1800] [--facts-timeout 300] [--diff-limit 1500]
   run_external_review.py run --epic-dir <epic_dir> --base <base_ref> --cli ollama --model <name> [--host <url>] [--num-ctx <tokens>] [--timeout 1800]
   run_external_review.py check --epic-dir <epic_dir>
   run_external_review.py triage --epic-dir <epic_dir>
@@ -346,10 +346,19 @@ def diff_range(root: Path, base: str, commits: str | None = None) -> tuple[str, 
     return log, diff_section
 
 
+def effective_model(cli: str, model: str | None) -> str:
+    if model:
+        return model
+    return "Gemini 4 Argon (Medium)" if cli == "agy" else "default"
+
+
 def cli_command(cli: str, model: str | None) -> list[str]:
     extra = ["--model", model] if model else []
     if cli == "claude":
         return ["claude", "-p", "--permission-mode", "plan", *extra]
+    if cli == "agy":
+        model_name = effective_model(cli, model)
+        return ["agy", "--sandbox", "--mode", "plan", "--model", model_name]
     return ["codex", "exec", "--sandbox", "read-only", *extra, "-"]
 
 
@@ -458,7 +467,7 @@ def run_principal_doc(root: Path, args: argparse.Namespace, sha: str) -> int:
         f"# Review Triage: {args.doc}", "",
         f"- **SHA**: {sha[:7]}",
         f"- **CLI**: {args.cli}",
-        f"- **Model**: {args.model or 'default'}",
+        f"- **Model**: {effective_model(args.cli, args.model)}",
         f"- **Status**: {'completed' if code == 0 and verdict is not None else 'no verdict'}",
         f"- **Verdict**: {verdict or 'none'}", "",
         "## Findings", "",
@@ -542,7 +551,7 @@ def run_adhoc_code(root: Path, args: argparse.Namespace, sha: str) -> int:
         f"- **SHA**: {sha[:7]}",
         f"- **Base**: {args.base}",
         f"- **CLI**: {args.cli}",
-        f"- **Model**: {args.model or 'default'}",
+        f"- **Model**: {effective_model(args.cli, args.model)}",
         f"- **Status**: {'completed' if code == 0 and verdict is not None else 'no verdict'}",
         f"- **Verdict**: {verdict or 'none'}", "",
         "## Findings", "",
@@ -567,7 +576,7 @@ def run_adhoc_code(root: Path, args: argparse.Namespace, sha: str) -> int:
 def run(args: argparse.Namespace) -> int:
     kind = getattr(args, "kind", "code")
     if kind == "principal" and args.cli == "ollama":
-        print("--kind principal supports --cli claude or codex", file=sys.stderr)
+        print("--kind principal supports --cli claude, codex, or agy", file=sys.stderr)
         return 2
 
     if args.cli == "ollama":
@@ -749,7 +758,7 @@ def record_round(root: Path, args: argparse.Namespace, sha: str, passes: list[Pa
         "SHA": sha,
         "Base": args.base,
         "CLI": args.cli,
-        "Model": args.model or "default",
+        "Model": effective_model(args.cli, args.model),
         "Status": status,
         "Verdict": verdict_text,
         **extra,
@@ -891,7 +900,7 @@ def main(argv: list[str] | None = None) -> int:
     runner.add_argument("--epic-dir")
     runner.add_argument("--doc")
     runner.add_argument("--base", required=True)
-    runner.add_argument("--cli", required=True, choices=("claude", "codex", "ollama"))
+    runner.add_argument("--cli", required=True, choices=("claude", "codex", "ollama", "agy"))
     runner.add_argument("--model")
     runner.add_argument("--host", default=local_review.host_from_env())
     runner.add_argument("--num-ctx", type=int, default=None)

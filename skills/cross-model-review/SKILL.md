@@ -1,13 +1,13 @@
 ---
 name: cross-model-review
-description: Reviews implemented code, commits, and diffs using external frontier models (Claude CLI, Codex CLI) or local Ollama models with evidence-grounded triage.
+description: Reviews implemented code, commits, and diffs using external frontier models (Claude CLI, Codex CLI, Antigravity CLI) or local Ollama models with evidence-grounded triage.
 ---
 
 # Cross-Model Review
 
 ## Overview
 
-Cross-Model Review conducts Shift-Right independent code reviews on implemented software commits and diffs using external frontier models (Claude CLI, Codex CLI) or local models (Ollama).
+Cross-Model Review conducts Shift-Right independent code reviews on implemented software commits and diffs using external frontier models (Claude CLI, Codex CLI, Antigravity CLI) or local models (Ollama).
 
 Operating on the principle of **Shift-Right Verification**, it catches code quality issues, missing test coverage, subtle concurrency regressions, architectural drift, and spec deviations before code is merged to main.
 
@@ -25,7 +25,7 @@ Invoked after all tasks of an epic are implemented and Gate 4 (machine acceptanc
   - External CLI:
     ```bash
     python3 skills/dev-implementation/resources/scripts/run_external_review.py run \
-      --epic-dir <epic_dir> --base <base_branch> --cli <claude|codex>
+      --epic-dir <epic_dir> --base <base_branch> --cli <claude|codex|agy>
     ```
   - Local Ollama:
     ```bash
@@ -38,12 +38,12 @@ Invoked after all tasks of an epic are implemented and Gate 4 (machine acceptanc
 
 Invoked on-demand to review a feature branch, pull request diff, or specific commit range without requiring an epic directory.
 
-- **Trigger**: Developer invokes `/cross-model-review --base <base> [--commits <range>] [--cli <claude|codex|ollama>] [--model <model>]`.
+- **Trigger**: Developer invokes `/cross-model-review --base <base> [--commits <range>] [--cli <claude|codex|ollama|agy>] [--model <model>]`.
 - **Scope**: Evaluates the commit range and diff against `--base` (or `--commits <range>`).
 - **Execution**:
   ```bash
   python3 skills/dev-implementation/resources/scripts/run_external_review.py run \
-    --base <base_branch> [--commits <range>] --cli <claude|codex> [--model <model>]
+    --base <base_branch> [--commits <range>] --cli <claude|codex|agy> [--model <model>]
   ```
 - **Streaming & Visibility**:
   - The review output and formatted triage table stream directly to stdout.
@@ -58,7 +58,7 @@ Invoked on-demand to review a feature branch, pull request diff, or specific com
      `commit or stash your changes before a review`.
 
 2. **Read-Only Sandbox**:
-   - CLI invocations operate under read-only sandboxes (`claude -p --permission-mode plan`, `codex exec --sandbox read-only`).
+   - CLI invocations operate under read-only sandboxes (`claude -p --permission-mode plan`, `codex exec --sandbox read-only`, or `agy --sandbox --mode plan`).
    - The runner verifies git status before and after execution; any file modifications made by a reviewer cause the round to be discarded immediately.
 
 3. **Process Supervision & Timeouts**:

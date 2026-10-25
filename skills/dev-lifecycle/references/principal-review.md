@@ -8,10 +8,10 @@ Principal Review is a cross-model review of an epic's architecture and task desi
 
    > Packaged.
    > 1. **Done** — stop here.
-   > 2. **Principal Review** — a cross-model review of the design against the source before implementation (Claude CLI or Codex CLI).
+   > 2. **Principal Review** — a cross-model review of the design against the source before implementation (Claude CLI, Codex CLI, or Antigravity CLI).
 
    Add the recommendation when it applies:
-   - When the epic was designed by a different or fast model (judged from the HLD's `Author` line or the developer's word), cross-model review is strongly recommended before committing to implementation. Recommend using each CLI's strongest reasoning model.
+   - When the epic was designed by a different or fast model (judged from the HLD's `Author` line or the developer's word), cross-model review is strongly recommended before committing to implementation. Recommend using each CLI's strongest reasoning model (for Antigravity CLI: `agy --model "Gemini 4 Argon (Medium)"`).
    - Never choose for the developer. Always wait for explicit selection.
 
 2. **Done**:
@@ -28,12 +28,12 @@ Principal Review is a cross-model review of an epic's architecture and task desi
      Then print the `handoff.md` path and the Resume Prompt, and stop.
 
 3. **Principal Review**:
-   Ask the developer which CLI to use — Claude CLI or Codex CLI — and optionally which model. Never choose for the developer.
+   Ask the developer which CLI to use — Claude CLI, Codex CLI, or Antigravity CLI (`agy --model "Gemini 4 Argon (Medium)"`) — and optionally which model. Never choose for the developer.
    Invoke `d3nexus:principal-review`.
 
 4. Run the principal review:
    ```bash
-   python3 "$SKILL_DIR"/resources/scripts/run_external_review.py run --kind principal --epic-dir <epic_dir> --base <base_branch> --cli <claude|codex>
+   python3 "$SKILL_DIR"/resources/scripts/run_external_review.py run --kind principal --epic-dir <epic_dir> --base <base_branch> --cli <claude|codex|agy>
    ```
    - A readiness FAIL prints the precondition banner: the CLI is never invoked. Fix the named failures as an epic revision, re-package, and return to step 1.
    - On success, the round is recorded in `.devtool/epic/<epic_dir>/principal_review.md`. Commit the recorded round:

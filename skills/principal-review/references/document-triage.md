@@ -1,6 +1,6 @@
 # Document Review Triage Protocol
 
-Every architectural and design document review round — whether executed via Claude CLI or Codex CLI — is triaged with the developer before anyone modifies documents or code. Review findings are claims to verify, not direct instructions.
+Every architectural and design document review round — whether executed via Claude CLI, Codex CLI, or Antigravity CLI — is triaged with the developer before anyone modifies documents or code. Review findings are claims to verify, not direct instructions.
 
 ## Triage Procedure
 

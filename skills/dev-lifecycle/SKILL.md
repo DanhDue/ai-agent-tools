@@ -125,13 +125,13 @@ Between Gate 2 and Stage 3 the developer decides when, and by whom, the epic is 
 **Review Choice loop**:
 After all tasks are complete, run Gate 4. On every PASS, present Review Choice:
 - **Option 1: Finish** -> Proceed to Gate 5 (Developer Kanban Review), then Stage 4.
-- **Option 2: Cross-model review** -> Invoke `d3nexus:cross-model-review` via `run_external_review.py run` (prompting for Claude CLI or Codex CLI). Record round in `.devtool/epic/<epic_dir>/review_results.md`. Check unresolved findings with `run_external_review.py check --epic-dir <epic_dir>`. Any dismissed finding requires explicit developer instruction. Return to a full Gate 4 run on the new commit.
+- **Option 2: Cross-model review** -> Invoke `d3nexus:cross-model-review` via `run_external_review.py run` (prompting for Claude CLI, Codex CLI, or Antigravity CLI). Record round in `.devtool/epic/<epic_dir>/review_results.md`. Check unresolved findings with `run_external_review.py check --epic-dir <epic_dir>`. Any dismissed finding requires explicit developer instruction. Return to a full Gate 4 run on the new commit.
 - **Option 3: Local model review** -> Invoke `d3nexus:cross-model-review` (run `ollama list`, ask which model, then invoke `run_external_review.py run --cli ollama --model <model>`). A model served by the local Ollama reviews each task commit, then the epic, and one round is recorded in the same `review_results.md` under the same `check` rules. Return to a full Gate 4 run on the new commit.
 
 Every review round, option 2 or 3, is triaged before anyone acts on it: present `run_external_review.py triage --epic-dir <epic_dir>` filled as dev-implementation's `references/review-triage.md` says, and wait for the developer's decision on each finding.
 
 When an epic's tasks were executed by a fast executor model (e.g. Gemini Flash, Claude Haiku, GPT-4o-mini), the agent presents a strong recommendation in the Review Choice prompt:
-*"Tasks were executed by a fast executor model. Option 2: Cross-model review (Claude CLI or Codex CLI) is STRONGLY RECOMMENDED to audit test integrity and subtle regressions before finishing the branch."* Local model review does not replace it.
+*"Tasks were executed by a fast executor model. Option 2: Cross-model review (Claude CLI, Codex CLI, or Antigravity CLI) is STRONGLY RECOMMENDED to audit test integrity and subtle regressions before finishing the branch."* Local model review does not replace it.
 
 The invariant is **Gate 4 PASS → Review Choice; Finish → Gate 5; Cross-model review → Gate 4 in full; Local model review → Gate 4 in full**. Loop repeats until developer selects Finish.
 The review choice loop follows these exact transitions: `EXEC --> G4`, `G4 -->|"yes"| RC`, `RC -->|"1. Finish"| REVIEW`, `XR -->|"round recorded"| G4`, `RC -->|"3. Local model review"| LR`, and `LR -->|"round recorded"| G4`.
@@ -190,7 +190,7 @@ Never advance on a partial pass or re-run isolated checks.
 - Changing Verification tables, Allowed files, or protected paths without stopping to ask.
 - Skipping Review Choice after Gate 4 PASS or auto-selecting Finish.
 - Reusing a Gate 4 PASS after review rounds, finding decisions, or Fix commits change SHA.
-- Never pick the review CLI for the developer; picking the review CLI for the developer instead of prompting for Claude CLI or Codex CLI is forbidden.
+- Never pick the review CLI for the developer; picking the review CLI for the developer instead of prompting for Claude CLI, Codex CLI, or Antigravity CLI is forbidden.
 - Picking the Principal Review CLI for the developer.
 - Picking the Ollama model for the developer instead of running `ollama list` and asking.
 - Acting on review findings before presenting the triage from `run_external_review.py triage`.
