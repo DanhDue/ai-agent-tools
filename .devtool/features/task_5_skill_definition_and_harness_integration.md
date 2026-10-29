@@ -24,7 +24,7 @@ Create the skill definition `skills/setup-shared-contracts/SKILL.md` and wire th
    - Comprehensive instructions guiding AI agents and human engineers on when and how to establish shared contracts.
    - Clear workflows for Hub Mode (`init-hub`), Satellite Mode (`link-satellite`), and Health Auditing (`verify`).
    - Grounded examples for multi-repo topologies (e.g. `D3Nexus` hub with `lyrics-sync` and `nexus` satellites).
-2. Wire `skills/setup-shared-contracts/resources/scripts/test_setup_contracts.py` into `scripts/verify.sh` in Section 11 so that repository validation exercises the new skill suite on every commit.
+2. Wire `skills/setup-shared-contracts/resources/scripts/test_setup_contracts.py` into `scripts/verify.sh` in Section 14 (`== 14. Shared contracts CLI engine is enforced ==`) so that repository validation exercises the new skill suite on every commit.
 3. Complete final end-to-end integration test `test_ssc_hp_03` verifying full end-to-end lifecycle pass (`[SSC-HP-03]`).
 
 ## Files
@@ -86,12 +86,12 @@ Scenario: [SSC-HP-03] [Tier C - Integration] Comprehensive Health Verification P
 - The work needs a change to this task's Verification table, Definition of Done, Allowed files or
   Covers line.
 - A variable named in the Needs column is unset.
-- `scripts/verify.sh` reports any failure across the 13 verification sections.
+- `scripts/verify.sh` reports any failure across the 14 verification sections.
 
 ## Decisions Already Made
 
 - Skill frontmatter has exactly `name` and `description` keys.
-- `scripts/verify.sh` Section 11 executes `python3 -m unittest skills/setup-shared-contracts/resources/scripts/test_setup_contracts.py`.
+- `scripts/verify.sh` Section 14 (`== 14. Shared contracts CLI engine is enforced ==`) executes `python3 -m unittest skills/setup-shared-contracts/resources/scripts/test_setup_contracts.py`.
 
 ## Definition of Done
 

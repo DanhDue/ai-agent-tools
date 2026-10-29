@@ -1,9 +1,9 @@
 # Thiết Kế Skill Thiết Lập Thư Mục Shared Contracts
 
 - **Ngày**: 2026-10-30
-- **Trạng thái**: Đang xem xét
+- **Trạng thái**: Đã phê duyệt
 - **Phạm vi**: Skill mới `skills/setup-shared-contracts/`, CLI engine `setup_contracts.py`, các template chuẩn hóa, bộ test hermetic, tích hợp vào `scripts/verify.sh`
-- **Bước tiếp theo**: `d3nexus:dev-designer` (Stage 2 — Thiết kế Kiến trúc & Phân rã Kanban Tasks)
+- **Bước tiếp theo**: `d3nexus:dev-implementation` (Stage 3 — Thực thi dựa trên Kiểm thử)
 
 ## Mục lục
 
@@ -73,9 +73,9 @@ skills/setup-shared-contracts/
         ├── api_contract.md.tmpl
         ├── architecture_and_flow.md.tmpl
         ├── gaps_and_rfcs.md.tmpl
-        ├── shared_contracts_readme.md.tmpl
-        ├── hub_contract_rules.md.tmpl
-        └── satellite_contract_rules.md.tmpl
+        ├── hub_readme.md.tmpl
+        ├── hub_rule.md.tmpl
+        └── satellite_rule.md.tmpl
 ```
 
 ## 5. Đặc tả Kỹ thuật CLI Engine
@@ -84,21 +84,21 @@ Script CLI `setup_contracts.py` hỗ trợ 3 lệnh chính:
 
 ### 5.1 Lệnh: `init-hub`
 ```bash
-python3 setup_contracts.py init-hub [--root <hub_root>] [--domain <domain_name>] [--force]
+python3 setup_contracts.py init-hub [--repo-root <hub_root>] [--domain <domain_name>] [--force]
 ```
 - **Xác thực**: Kiểm tra bảo đảm `shared-contracts` không phải là một symlink (Hub bắt buộc là thư mục vật lý).
 - **Hành động**:
   1. Tạo thư mục vật lý `<hub_root>/shared-contracts/`.
-  2. Tạo `<hub_root>/shared-contracts/README.md` từ template `shared_contracts_readme.md.tmpl`.
+  2. Tạo `<hub_root>/shared-contracts/README.md` từ template `hub_readme.md.tmpl`.
   3. Nếu có tham số `--domain`:
      - Tạo thư mục `<hub_root>/shared-contracts/<domain>/`.
      - Tạo 3 file `api_contract.md`, `architecture_and_flow.md`, và `gaps_and_rfcs.md` từ template mẫu.
      - Thêm domain vào bảng Outbound Symlink Mappings trong `README.md`.
-  4. Cài đặt `<hub_root>/.agents/rules/contract_rules.md` từ `hub_contract_rules.md.tmpl`.
+  4. Cài đặt `<hub_root>/.agents/rules/contract_rules.md` từ `hub_rule.md.tmpl`.
 
 ### 5.2 Lệnh: `link-satellite`
 ```bash
-python3 setup_contracts.py link-satellite --hub <path_to_hub> --domain <domain_name> [--root <sat_root>] [--force]
+python3 setup_contracts.py link-satellite --hub <path_to_hub> --domain <domain_name> [--satellite-root <sat_root>] [--force]
 ```
 - **Xác thực**:
   - Xác thực `<path_to_hub>` tồn tại và chứa thư mục `shared-contracts/<domain_name>/`.
@@ -107,12 +107,12 @@ python3 setup_contracts.py link-satellite --hub <path_to_hub> --domain <domain_n
   1. Tính toán đường dẫn tương đối: `rel_target = os.path.relpath(hub_domain_dir, sat_root)`.
   2. Tạo symbolic link: `<sat_root>/shared-contracts -> rel_target`.
   3. Kiểm tra symlink phân giải an toàn trên đĩa (không bị dangling link).
-  4. Cài đặt `<sat_root>/.agents/rules/contract_rules.md` từ `satellite_contract_rules.md.tmpl`.
+  4. Cài đặt `<sat_root>/.agents/rules/contract_rules.md` từ `satellite_rule.md.tmpl`.
   5. Thêm hoặc cập nhật ghi chú luật SSOT Contract vào `<sat_root>/AGENTS.md` nếu file tồn tại.
 
 ### 5.3 Lệnh: `verify`
 ```bash
-python3 setup_contracts.py verify [--root <path>]
+python3 setup_contracts.py verify [--repo-root <path>]
 ```
 - **Hành động**:
   - Tự động nhận diện `<path>` là Hub Mode hay Satellite Mode.
@@ -122,9 +122,9 @@ python3 setup_contracts.py verify [--root <path>]
 
 ## 6. Bộ Template Chuẩn hóa
 
-Mỗi template trong `resources/templates/` bao gồm các biến placeholder (ví dụ `{{DOMAIN_NAME}}`, `{{HUB_NAME}}`, `{{DATE}}`):
+Mỗi template trong `resources/templates/` sử dụng cú pháp `string.Template` chuẩn của Python với các biến định danh thay thế (ví dụ `$domain`, `$hub_repo`, `$timestamp`):
 
-1. **`shared_contracts_readme.md.tmpl`**:
+1. **`hub_readme.md.tmpl`**:
    - Định nghĩa tổng quan Star Topology và bảng Outbound Symlink Mappings.
    - Nhúng các điều luật bắt buộc cho AI Agents & Kỹ sư (Cấm thay đổi breaking đơn phương, Quy trình Contract-First, Sổ cái RFC).
 2. **`api_contract.md.tmpl`**:
@@ -135,9 +135,9 @@ Mỗi template trong `resources/templates/` bao gồm các biến placeholder (v
    - Ranh giới tính toán độc lập không trạng thái (stateless).
 4. **`gaps_and_rfcs.md.tmpl`**:
    - Bảng theo dõi RFC Ledger và mẫu ghi nhận các đề xuất/gaps mới.
-5. **`hub_contract_rules.md.tmpl`**:
+5. **`hub_rule.md.tmpl`**:
    - File rule cục bộ cho Hub repo thực thi quyền sở hữu SSOT, ưu tiên `task_01`, và phát hành Parallel Handoff.
-6. **`satellite_contract_rules.md.tmpl`**:
+6. **`satellite_rule.md.tmpl`**:
    - File rule cục bộ cho Satellite repo thực thi ranh giới Git chỉ đọc, cấm kết nối trực tiếp database, và quy trình Asynchronous RFC.
 
 ## 7. Chiến lược Kiểm thử và Xác minh

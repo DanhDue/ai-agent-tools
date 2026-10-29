@@ -1,9 +1,9 @@
 # Setup Shared Contracts Design
 
 - **Date**: 2026-10-30
-- **Status**: In Review
+- **Status**: Approved
 - **Scope**: New skill `skills/setup-shared-contracts/`, CLI engine `setup_contracts.py`, canonical templates, hermetic test suite, integration with `scripts/verify.sh`
-- **Next step**: `d3nexus:dev-designer` (Stage 2 — Architecture & Kanban Task Breakdown)
+- **Next step**: `d3nexus:dev-implementation` (Stage 3 — Test-Driven Implementation)
 
 ## Table of Contents
 
@@ -73,9 +73,9 @@ skills/setup-shared-contracts/
         ├── api_contract.md.tmpl
         ├── architecture_and_flow.md.tmpl
         ├── gaps_and_rfcs.md.tmpl
-        ├── shared_contracts_readme.md.tmpl
-        ├── hub_contract_rules.md.tmpl
-        └── satellite_contract_rules.md.tmpl
+        ├── hub_readme.md.tmpl
+        ├── hub_rule.md.tmpl
+        └── satellite_rule.md.tmpl
 ```
 
 ## 5. CLI Engine Specifications
@@ -84,21 +84,21 @@ The CLI script `setup_contracts.py` supports three primary commands:
 
 ### 5.1 Command: `init-hub`
 ```bash
-python3 setup_contracts.py init-hub [--root <hub_root>] [--domain <domain_name>] [--force]
+python3 setup_contracts.py init-hub [--repo-root <hub_root>] [--domain <domain_name>] [--force]
 ```
 - **Validation**: Verifies that `shared-contracts` is not an existing symlink (Hub must be physical).
 - **Actions**:
   1. Creates physical directory `<hub_root>/shared-contracts/`.
-  2. Renders `<hub_root>/shared-contracts/README.md` from `shared_contracts_readme.md.tmpl`.
+  2. Renders `<hub_root>/shared-contracts/README.md` from `hub_readme.md.tmpl`.
   3. If `--domain` is supplied:
      - Creates `<hub_root>/shared-contracts/<domain>/`.
      - Renders `api_contract.md`, `architecture_and_flow.md`, and `gaps_and_rfcs.md` from templates.
      - Appends the domain to the Outbound Symlink Mappings table in `README.md`.
-  4. Installs `<hub_root>/.agents/rules/contract_rules.md` from `hub_contract_rules.md.tmpl`.
+  4. Installs `<hub_root>/.agents/rules/contract_rules.md` from `hub_rule.md.tmpl`.
 
 ### 5.2 Command: `link-satellite`
 ```bash
-python3 setup_contracts.py link-satellite --hub <path_to_hub> --domain <domain_name> [--root <sat_root>] [--force]
+python3 setup_contracts.py link-satellite --hub <path_to_hub> --domain <domain_name> [--satellite-root <sat_root>] [--force]
 ```
 - **Validation**:
   - Validates that `<path_to_hub>` exists and contains `shared-contracts/<domain_name>/`.
@@ -107,12 +107,12 @@ python3 setup_contracts.py link-satellite --hub <path_to_hub> --domain <domain_n
   1. Computes the relative target path: `rel_target = os.path.relpath(hub_domain_dir, sat_root)`.
   2. Creates symbolic link: `<sat_root>/shared-contracts -> rel_target`.
   3. Asserts the symlink resolves cleanly on disk (no dangling symlink).
-  4. Installs `<sat_root>/.agents/rules/contract_rules.md` from `satellite_contract_rules.md.tmpl`.
+  4. Installs `<sat_root>/.agents/rules/contract_rules.md` from `satellite_rule.md.tmpl`.
   5. Appends or updates the SSOT Contract Rule reminder in `<sat_root>/AGENTS.md` if the file exists.
 
 ### 5.3 Command: `verify`
 ```bash
-python3 setup_contracts.py verify [--root <path>]
+python3 setup_contracts.py verify [--repo-root <path>]
 ```
 - **Actions**:
   - Automatically detects whether `<path>` is Hub Mode or Satellite Mode.
@@ -122,9 +122,9 @@ python3 setup_contracts.py verify [--root <path>]
 
 ## 6. Canonical Template Bundles
 
-Each template in `resources/templates/` includes parameter placeholders (e.g. `{{DOMAIN_NAME}}`, `{{HUB_NAME}}`, `{{DATE}}`):
+Each template in `resources/templates/` uses Python's standard `string.Template` syntax with identifier substitutions (e.g. `$domain`, `$hub_repo`, `$timestamp`):
 
-1. **`shared_contracts_readme.md.tmpl`**:
+1. **`hub_readme.md.tmpl`**:
    - Defines the Star Topology overview and Outbound Symlink table.
    - Embeds Mandatory Rules for AI Agents & Engineers (No Unilateral Breaking Changes, Contract-First Workflow, RFC Ledger).
 2. **`api_contract.md.tmpl`**:
@@ -135,9 +135,9 @@ Each template in `resources/templates/` includes parameter placeholders (e.g. `{
    - Stateless compute boundary rules.
 4. **`gaps_and_rfcs.md.tmpl`**:
    - RFC Ledger markdown table and template for logging new gaps/proposals.
-5. **`hub_contract_rules.md.tmpl`**:
+5. **`hub_rule.md.tmpl`**:
    - Local rule file for Hub repo enforcing SSOT ownership, `task_01` priority, and Parallel Handoff generation.
-6. **`satellite_contract_rules.md.tmpl`**:
+6. **`satellite_rule.md.tmpl`**:
    - Local rule file for Satellite repo enforcing Git read-only boundary, prohibition of direct DB connections, and Asynchronous RFC workflows.
 
 ## 7. Verification and Test Strategy
