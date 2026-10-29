@@ -99,7 +99,12 @@ Each document MUST contain the following sections:
      3. **State Transitions**: Valid and invalid state transitions (MVI Action -> State / Event).
      4. **Async / Race Conditions**: Rapid consecutive user interactions (debouncing, stream transformers, cancellation).
      5. **Failures & Storage/Network Resilience**: Timeouts, 4xx/5xx HTTP errors, offline states, corrupted storage/DB.
-6. **BDD Output in Epic Directory**:
+6. **Shared Contract Impact (Cross-Repo Contract Impact Analysis)**:
+   In multi-repo ecosystems (e.g. `D3Nexus` hub with `lyrics-sync` and `nexus` satellite repos connected via `shared-contracts/` symlinks), waiting until local implementation finishes to update inter-service contracts creates bottlenecks. During the HLD / Architecture design step (before finalizing the task breakdown at Gate 2), if the workspace contains a `shared-contracts/` directory (or interacts with external services, satellite repos, or FFI boundaries):
+   - **Contract & Ledger Audit**: Inspect `shared-contracts/<domain>/api_contract.md`, `architecture_and_flow.md`, and `gaps_and_rfcs.md` before finalizing technical designs.
+   - **Dedicated Overview Section**: Explicitly document any required schema additions, field rules, IPA/linguistic formatting rules, or protocol changes in a dedicated `## Shared Contract Impact` section inside the bilingual epic overview (`.devtool/epic/<epic_name>/<epic_name>.en.md` and `.vi.md`), linked in the Table of Contents. If no shared contract is affected, explicitly declare `None — self-contained feature`.
+   - **Non-Breaking Schema Guarantee**: Enforce backward compatibility across repository boundaries (optional new fields with safe defaults, non-breaking enum additions, or explicit fallback rules). Breaking schema changes without backward-compatible transition windows or fallback shims are strictly forbidden.
+7. **BDD Output in Epic Directory**:
    - In addition to embedding scenarios in the Epic Overview, generate a synchronized pair:
      - English, canonical: `.devtool/epic/<epic_name>/bdd_scenarios.en.md`
      - Vietnamese: `.devtool/epic/<epic_name>/bdd_scenarios.vi.md`
@@ -109,8 +114,8 @@ Each document MUST contain the following sections:
    - **Dual Value Purpose**:
      1. *Human Maintenance (Living Documentation)*: Enables any incoming developer to instantly comprehend the business intent, state transitions, boundary limits, and resilience rules without wading through implementation code.
      2. *Instant AI Agent Context Injection*: Provides a dense, unambiguous behavioral contract that can be loaded into an AI Agent's context window in one shot, eliminating hallucinations and ensuring rigorous compliance during implementation or bug fixes.
-7. **Rollout Strategy & Mitigation**: Describe how to deploy this safely (e.g., phased rollout, feature flags) and fallback plans.
-8. **Kanban Tasks Breakdown**: A list of links pointing to the individual task files created in Step 2.
+8. **Rollout Strategy & Mitigation**: Describe how to deploy this safely (e.g., phased rollout, feature flags) and fallback plans.
+9. **Kanban Tasks Breakdown**: A list of links pointing to the individual task files created in Step 2.
 
 **Canonical language**: Every durable design document uses an `.en.md` and `.vi.md` pair. The
 `.en.md` variant is the source of truth for tooling/agents — always write and update it first. The
@@ -133,6 +138,14 @@ Before generating any task file, list the proposed tasks as a short numbered sum
 
 Beside each proposed task, list the epic scenario identifiers it will cover (its future `Covers:` line, see Tier C — BDD Automation below), so the user approves the scenario-to-task mapping together with the split.
 
+#### Contract-First Prioritization (`task_01` Rule)
+When breaking the design into tasks at **Gate 2**:
+- If `shared-contracts/` is impacted, **`task_01` MUST always be the Contract & Ledger Update task** (updating `shared-contracts/<domain>/api_contract.md`, `architecture_and_flow.md`, and logging cross-repo requirements in `gaps_and_rfcs.md`), OR the skill must execute the contract update immediately upon Gate 2 confirmation before any local code tasks begin. Updating shared contracts FIRST unblocks satellite repos to develop in parallel rather than serializing work behind local implementation.
+- **Parallel Handoff Summary**: Once the contract update is drafted or confirmed at Gate 2, output a concise handoff prompt so the developer can immediately trigger AI Agents in satellite repos (e.g. `lyrics-sync`, `nexus`) to work in parallel while local implementation proceeds. The handoff summary MUST include:
+  1. Affected domain and canonical contract paths updated (e.g. `shared-contracts/<domain>/api_contract.md`).
+  2. Concrete payload additions, optional fields, IPA/linguistic rules, or protocol changes.
+  3. Actionable task prompts for satellite repo agents (e.g. updating consumer models, mocking endpoints, or adjusting downstream UI components).
+
 ### Concurrent-Epic Backlog Rule
 Before writing any task file, check `.devtool/features/*.md` (excluding the `done/` and `archived/` subfolders) for a task whose `epic:` frontmatter field names a *different* epic and whose `status` is `todo`, `in-progress`, or `review` — that means another epic is actively being worked on right now. If so:
 - Set every task this run generates for the new epic to `status: "backlog"` instead of the usual default `"todo"`, so it's queued rather than shown as ready-to-pick-up while the other epic is still active.
@@ -148,6 +161,14 @@ Break the Epic down into granular implementation tasks. **Crucially, each task m
 - **Creation**: Tasks are generated into `.devtool/features/task_<number>_<name>.md` and mirrored into `.devtool/epic/<epic_name>/task_<number>_<name>.md`.
 - **In-Flight**: As tasks complete during `dev-implementation`, `sync_task_status.py` moves them from `.devtool/features/` into `.devtool/features/done/`.
 - **Epic Completion Archival**: When all tasks of an epic finish and the epic status transitions to `Done` (`sync_task_status.py epic <epic_dir> Done`), all completed tasks and draft superpowers documents are archived permanently into `.devtool/epic/<epic_dir>/`. Relative markdown links are rewritten to point locally, and `.devtool/features/done/` is left clean with zero lingering task files.
+
+#### Mandatory Contract-First Task Structure (`task_01` when `shared-contracts/` is impacted)
+When `shared-contracts/` is affected, `task_01` is reserved strictly for contract and ledger synchronization before any local code tasks begin:
+- **Title**: `# Task 1: Update Shared Contracts and Cross-Repo Ledger (<domain>)`
+- **Files Allowed**: `shared-contracts/<domain>/api_contract.md`, `shared-contracts/<domain>/architecture_and_flow.md`, `shared-contracts/<domain>/gaps_and_rfcs.md`.
+- **Decisions Already Made**: Exact schema shapes, field types, default values, and Non-Breaking Schema Guarantees.
+- **Verification**: Markdown and lint checks verifying contract formatting, non-breaking backward compatibility, and schema consistency.
+- **Output**: Generates or confirms the Parallel Handoff Summary for satellite repositories.
 
 #### Mandatory 3-Tier Testing Standard in Task Breakdown
 Every Epic breakdown MUST explicitly structure and address all 3 testing tiers across the Tri-Persona system based on the target platform:
@@ -413,6 +434,8 @@ to package the epic or continue to Stage 3. This skill never invokes `dev-implem
 When new requirements arrive for an epic already in progress, append new task files continuing the sequence, and append links to the Epic Overview's Kanban Tasks Breakdown section (in both `.en.md` and `.vi.md`). Update the Mermaid diagrams if architecture changes. If the epic's `bdd_scenarios.en.md` predates scenario identifiers, retrofit the whole epic first — identifiers, `Covers:` lines and the `Integration test roots:` line, as dev-implementation Phase 1 step 3 describes — before running the Step 3 `plan` check.
 
 ## Red Flags - STOP and Start Over
+- Designing cross-service features or payload changes without checking `shared-contracts/` first.
+- Scheduling `shared-contracts/` updates at the end of the task list instead of `task_01` (blocking parallel execution in satellite repos).
 - Writing task files before the user has confirmed the task breakdown checkpoint.
 - Omitting the final Tier C (Acceptance & App Tests) task from the Epic breakdown.
 - Omitting Tier C integration tests that exercise analyzed use cases, edge cases, and boundary conditions.

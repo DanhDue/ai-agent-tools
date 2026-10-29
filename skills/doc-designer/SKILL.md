@@ -87,10 +87,18 @@ pre-written expectation a section is measured by.
 carries one, even when the outline is short, with a link to every `##` section. It is the same list
 the reader needs, so write it once. Gate 3 checks completeness in both languages.
 
+**Contract-First Synchronization for Reference Outlines**:
+When designing a **Reference** document (`Diátaxis mode: reference`) that defines cross-service formatting, payload contracts, or domain rules (such as collocation highlighting, IPA linguistic conventions, or API standards):
+- Check whether the reference rules affect any `shared-contracts/<domain>/` directory.
+- If they do, require the outline to include synchronizing the canonical contract (`shared-contracts/<domain>/api_contract.md`, `architecture_and_flow.md`, and `gaps_and_rfcs.md`) first so upstream/downstream services stay aligned with the new Reference Single Source of Truth (SSOT).
+
 ### Step 4 — Break the outline into tasks
 
 One task per section. Present the numbered list and ask the user to confirm the breakdown and
 granularity. **This checkpoint is Gate 2.** Write no task file before the user confirms.
+
+**Contract Synchronization Task Priority (`task_01` Rule)**:
+If the reference document affects `shared-contracts/<domain>/`, `task_01` in the task breakdown MUST be the contract synchronization task (updating `api_contract.md` and logging cross-repo requirements in `gaps_and_rfcs.md`) before detailed prose drafting tasks begin.
 
 ## The Overview Document
 
@@ -145,6 +153,7 @@ Flipping `backlog` to `todo` later is a human call, not this skill's.
 
 ## Red Flags
 
+- Outlining or tasking cross-service reference rules that affect `shared-contracts/` without prioritizing canonical contract synchronization first.
 - Producing an outline before the audience is established.
 - Declaring two types on one document, or declaring none.
 - Deleting out-of-type material instead of relocating and linking it.
