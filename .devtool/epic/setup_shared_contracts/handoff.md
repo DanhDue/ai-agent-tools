@@ -13,7 +13,7 @@
 ## Status
 
 - **Packaged**: 2026-10-30
-- **Design commit**: `c37225bb3a1ad300c203e059c6d5d963f269747e`
+- **Design commit**: `cd99c2778f8f109ec470eb301c921ae77e6d55a7`
 - **Base branch**: `main`
 - **Gates passed**: 1 (spec), 2 (HLD and task breakdown)
 - **Next**: Stage 3, `dev-implementation`. Gate 3 (execution order) still needs the developer's confirmation.
@@ -63,12 +63,12 @@ Fast executor models and receiving agents MUST adhere to these four hard guardra
 - Satellite repositories consume contracts via relative symbolic links (`os.path.relpath`) tracked as Git mode `120000`.
 - Satellite tasks must NEVER include `shared-contracts/` in `Files Allowed` because Git tracking boundaries reject staging files beyond symbolic links (`fatal: pathspec '...' is beyond a symbolic link`).
 - All templates use standard library `string.Template` safe substitutions (`$domain`, `$hub_repo`, `$timestamp`).
-- Hermetic unit tests in `test_setup_contracts.py` use temporary directories and are wired into `scripts/verify.sh` Section 11 in Task 5.
+- Hermetic unit tests in `test_setup_contracts.py` use temporary directories and are wired into `scripts/verify.sh` Section 14 in Task 5.
 
 ## Rules for the Receiving Agent
 
 - Do not re-run `dev-brainstorming` or `dev-designer`. Raise a wrong or missing document at Gate 3.
 - This handoff does not pass Gate 3. The developer confirms the execution order.
-- Unless the design commit is `uncommitted`: if `git log c37225b..main -- .devtool/epic/setup_shared_contracts` lists any commit besides the `Package epic for handoff` commit, the documents changed after packaging. The documents win, and this file may be stale. Comparing against the base branch keeps the epic branch's own task commits out of the check.
+- Unless the design commit is `uncommitted`: if `git log cd99c27..main -- .devtool/epic/setup_shared_contracts` lists any commit besides the `Package epic for handoff` commit, the documents changed after packaging. The documents win, and this file may be stale. Comparing against the base branch keeps the epic branch's own task commits out of the check.
 - This file is a dated record. It is never updated after packaging.
 - Never edit a task's Verification table, Definition of Done, Allowed files or a protected path; stop and report.
