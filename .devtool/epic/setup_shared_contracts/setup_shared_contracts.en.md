@@ -99,6 +99,12 @@ The CLI engine `setup_contracts.py` operates via three subcommands:
 
 ## Integration Test Plan and Boundary Matrix
 
+Integration test roots: skills/setup-shared-contracts/resources/scripts/, scripts/
+
+Protected paths: .agents/quality/**, .devtool/epic/setup_shared_contracts/bdd_scenarios.en.md, .devtool/epic/setup_shared_contracts/bdd_scenarios.vi.md, scripts/verify.sh
+
+Integration results: python3 scripts/run_unittest_junit.py --junitxml build/test-results/setup-shared-contracts.xml skills/setup-shared-contracts/resources/scripts/test_setup_contracts.py -> build/test-results/setup-shared-contracts.xml
+
 | Component | Test File | Test Case | Target Boundary |
 |---|---|---|---|
 | Hub Initialization | `test_setup_contracts.py` | `test_init_hub_fresh` | Creates directory structure, 3 canonical files, README, and Hub rules |
@@ -152,8 +158,8 @@ Full Gherkin scenarios covering all 5 dimensions live in `bdd_scenarios.en.md` a
 
 ## Kanban Tasks Breakdown
 
-- **Task 1: Canonical Template Bundles** (`task_1_canonical_template_bundles.md`) — Covers: `[SSC-HP-01]`, `[SSC-EC-01]`
-- **Task 2: CLI Engine Hub Initialization and Rules** (`task_2_cli_engine_hub_init.md`) — Covers: `[SSC-HP-01]`, `[SSC-ST-01]`, `[SSC-FR-01]`
-- **Task 3: CLI Engine Satellite Linking and Relative Symlinks** (`task_3_cli_engine_satellite_linking.md`) — Covers: `[SSC-HP-02]`, `[SSC-EC-02]`, `[SSC-ST-02]`, `[SSC-FR-02]`, `[SSC-FR-03]`
-- **Task 4: CLI Engine Verification and Integrity Audit** (`task_4_cli_engine_verification.md`) — Covers: `[SSC-HP-03]`, `[SSC-EC-03]`, `[SSC-AR-01]`, `[SSC-AR-02]`
-- **Task 5: Skill Definition and Verify Harness Integration** (`task_5_skill_definition_and_harness_integration.md`) — Covers: `[SSC-HP-01]`, `[SSC-HP-02]`, `[SSC-HP-03]`
+- [Task 1: Canonical Template Bundles](task_1_canonical_template_bundles.md) — Covers: `[SSC-HP-01]`, `[SSC-EC-01]`
+- [Task 2: CLI Engine Hub Initialization and Rules](task_2_cli_engine_hub_init.md) — Covers: `[SSC-HP-01]`, `[SSC-ST-01]`, `[SSC-FR-01]`
+- [Task 3: CLI Engine Satellite Linking and Relative Symlinks](task_3_cli_engine_satellite_linking.md) — Covers: `[SSC-HP-02]`, `[SSC-EC-02]`, `[SSC-ST-02]`, `[SSC-FR-02]`, `[SSC-FR-03]`
+- [Task 4: CLI Engine Verification and Integrity Audit](task_4_cli_engine_verification.md) — Covers: `[SSC-HP-03]`, `[SSC-EC-03]`, `[SSC-AR-01]`, `[SSC-AR-02]`
+- [Task 5: Skill Definition and Verify Harness Integration](task_5_skill_definition_and_harness_integration.md) — Covers: `[SSC-HP-01]`, `[SSC-HP-02]`, `[SSC-HP-03]`
