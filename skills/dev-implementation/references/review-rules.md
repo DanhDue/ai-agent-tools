@@ -9,6 +9,7 @@ To avoid false-positive findings, evaluate evidence against these architectural 
    - Verify that test assertions checking generated build artifacts (such as WASM binary size or exported types) strictly verify that the target artifact actually exists (avoiding vacuous false-PASS loops).
 4. **Contract Drift Inspection**:
    - Check whether code constants, default parameters, and enum variants match the published API reference documentation and cross-epic integration contracts without divergence.
+   - If `shared-contracts/` is touched (including directories linked via symlinks across repositories), verify that the `task_01` commit synchronizes the canonical contract files, preserves backward compatibility (Non-Breaking Schema Guarantee), and introduces no breaking wire changes for satellite consumers.
 5. **No Reconstructed Logic**:
    - Tests MUST import and invoke production code directly from Allowed files. Tests MUST NOT reconstruct production logic (such as retry loops, progress tracking, mapping transformations, or configuration defaults) locally within test helpers or mock harnesses.
    - A test that reconstructs production logic instead of invoking production symbols is a blocking finding; Gate 4 reports it as FAIL.

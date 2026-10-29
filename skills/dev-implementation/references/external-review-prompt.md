@@ -44,6 +44,7 @@ $rules
 - Whether each identifier's test genuinely exercises its Gherkin scenario, or merely passes superficially.
 - Each audit disclosure — grader amendments, protected path changes, commits outside tasks — and whether it is justified.
 - Whether the implementation respects the spec, the HLD, schema definitions, and each task's Decisions Already Made.
+- If `shared-contracts/` is impacted, inspect the `task_01` commit diff specifically: verify that contract and ledger changes match the HLD's `## Shared Contract Impact`, resolve symlinks properly, and strictly adhere to the Non-Breaking Schema Guarantee.
 - The `(Gate 5)` items, restated clearly for the developer.
 
 ## Required output

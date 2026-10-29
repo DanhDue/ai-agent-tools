@@ -37,7 +37,7 @@ $rules
 - **P4 (Blast radius)**: Blast radius: other writers and readers of the changed data, background jobs, callers outside Allowed files, migrations and backfill.
 - **P5 (Task split and Verification)**: Task split and Verification: dependency order, RED rows that can fail before implementation (the behaviour is not already there), GREEN rows that can pass at baseline, DoD references, Stop conditions.
 - **P6 (BDD quality)**: BDD quality: valid Gherkin, dimensions that match their scenarios, grounded assertions, tier tags.
-- **P7 (Gate 4 feasibility)**: Gate 4 feasibility: `Integration results:` covers every scenario; the Verification Environment declares every resource the rows need.
+- **P7 (Gate 4 feasibility & Shared Contracts)**: Gate 4 feasibility: `Integration results:` covers every scenario; the Verification Environment declares every resource the rows need. When `shared-contracts/` (or an external service/FFI boundary) is touched, inspect `shared-contracts/<domain>/` canonical files on disk (including resolving symlinks to target repositories if applicable). Verify that the HLD carries `## Shared Contract Impact`, guarantees backward compatibility, reserves `task_01` for contract synchronization, and outputs the Parallel Handoff Summary for satellite repos.
 - **P8 (Risks, rollout and rollback)**: Risks, rollout and rollback.
 
 ## Required output
