@@ -23,7 +23,7 @@ The subcommand must:
 1. Verify that the target Hub directory exists and contains `shared-contracts/<domain>/`. If either does not exist, refuse to create a dangling link and exit with non-zero exit code `1` (`[SSC-FR-02]`).
 2. Calculate the single-direction relative path from the Satellite workspace root to the Hub domain directory using `os.path.relpath(hub_domain_path, satellite_root)` (`[SSC-HP-02]`, `[SSC-EC-02]`).
 3. Check for existing paths at `shared-contracts`:
-   - If `shared-contracts/` is an existing physical directory and `--force` is omitted, abort with code `1` to prevent uncommitted file loss (`[SSC-FR-03]`).
+   - If `shared-contracts/` is an existing non-empty physical directory and `--force` is omitted, abort with code `1` to prevent uncommitted file loss (`[SSC-FR-03]`).
    - If `shared-contracts` is an existing symbolic link or `--force` is provided, update the link target atomically (`[SSC-ST-02]`).
 4. Generate the Satellite local rule `.agents/rules/contract_rules.md` from `satellite_rule.md.tmpl`.
 5. Check if `AGENTS.md` exists in the satellite; if present and not already referencing the contract rules, append the `@.agents/rules/contract_rules.md` reference.
@@ -124,7 +124,7 @@ Scenario: [SSC-FR-03] [Tier A - Unit] Refusing Overwrite of Existing Physical Di
 ## Decisions Already Made
 
 - All symlinks must be computed via `os.path.relpath`.
-- Existing physical directories must never be overwritten without explicit `--force`.
+- Existing non-empty physical directories must never be overwritten without explicit `--force`.
 - Subcommand syntax: `setup_contracts.py link-satellite --hub <path> --domain <name> [--satellite-root <path>] [--force]`.
 
 ## Definition of Done
@@ -132,7 +132,7 @@ Scenario: [SSC-FR-03] [Tier A - Unit] Refusing Overwrite of Existing Physical Di
 - `setup_contracts.py` implements `link-satellite` creating single-direction relative symlinks (V2, V3).
 - Force re-linking updates domain destinations cleanly (V4).
 - Missing hub or missing domain targets are rejected with code 1 (V5).
-- Existing physical directories are protected against accidental erasure (V6).
+- Existing non-empty physical directories are protected against accidental erasure (V6).
 - Linter and type checks pass cleanly (V7, V8).
 - JUnit report produced and integration tests pass (V9).
 - Task execution is verified and recorded in evidence (Gate 5).

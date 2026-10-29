@@ -159,7 +159,7 @@ Full Gherkin scenarios covering all 5 dimensions live in `bdd_scenarios.en.md` a
 ## Kanban Tasks Breakdown
 
 - [Task 1: Canonical Template Bundles](task_1_canonical_template_bundles.md) — Covers: `[SSC-HP-01]`, `[SSC-EC-01]`
-- [Task 2: CLI Engine Hub Initialization and Rules](task_2_cli_engine_hub_init.md) — Covers: `[SSC-HP-01]`, `[SSC-ST-01]`, `[SSC-FR-01]`
+- [Task 2: CLI Engine Hub Initialization and Rules](task_2_cli_engine_hub_init.md) — Covers: `[SSC-ST-01]`, `[SSC-FR-01]`
 - [Task 3: CLI Engine Satellite Linking and Relative Symlinks](task_3_cli_engine_satellite_linking.md) — Covers: `[SSC-HP-02]`, `[SSC-EC-02]`, `[SSC-ST-02]`, `[SSC-FR-02]`, `[SSC-FR-03]`
-- [Task 4: CLI Engine Verification and Integrity Audit](task_4_cli_engine_verification.md) — Covers: `[SSC-HP-03]`, `[SSC-EC-03]`, `[SSC-AR-01]`, `[SSC-AR-02]`
-- [Task 5: Skill Definition and Verify Harness Integration](task_5_skill_definition_and_harness_integration.md) — Covers: `[SSC-HP-01]`, `[SSC-HP-02]`, `[SSC-HP-03]`
+- [Task 4: CLI Engine Verification and Integrity Audit](task_4_cli_engine_verification.md) — Covers: `[SSC-EC-03]`, `[SSC-AR-01]`, `[SSC-AR-02]`
+- [Task 5: Skill Definition and Verify Harness Integration](task_5_skill_definition_and_harness_integration.md) — Covers: `[SSC-HP-03]`
