@@ -58,6 +58,8 @@ Before implementing any task, the executor MUST adhere strictly to the 3-step Bo
 
 **Strict Spec Fidelity**: Implement strictly within the boundaries specified by the active task and its Allowed files. Do not add speculative abstractions, configurability, or adjacent refactoring not requested by the task specification.
 
+**Symlink & Multi-Repo Boundary Invariant**: In Satellite repositories where `shared-contracts/` is a symbolic link (e.g. `lyrics-sync` or `nexus` linking to `D3Nexus`), the implementer MUST treat `shared-contracts/` as strictly read-only for git operations. Never attempt to stage files through the symlink (`git add shared-contracts/...`), which triggers `fatal: pathspec is beyond a symbolic link`. If an upstream contract modification is needed, stop and report `BLOCKED` with an Upstream Contract Handoff Summary rather than attempting cross-repo edits.
+
 2. Resolve the three paths the rest of this skill uses. `SKILL_DIR` is the directory this `SKILL.md` was loaded from:
    ```bash
    SKILL_DIR=<absolute path of the directory containing this SKILL.md>
@@ -172,8 +174,8 @@ For each task in confirmed order, follow `d3nexus:subagent-driven-development`.
 
    **Tri-Persona Subagent Execution Model**:
    When dispatching implementer subagent, operate across the 3-Tier Testing Standard:
-   1. **Expert QA (Red Team Persona)**: Authors BDD Scenarios in complete isolation from coding, purely from HLD and `bdd_scenarios.en.md`, applying 5 dimensions: Happy Paths, Edge Cases & Boundaries, State Transitions, Async / Race Conditions, Failures & Resilience. Categorizes scenarios into `[Tier A - Unit]` vs `[Tier C - Integration]`.
-   2. **Principal Engineer (TDD Master Persona — Tier A)**: Implements unit logic, state emissions, and hermetic tests using platform tools (Dart/Flutter, Kotlin/Compose, Swift/SwiftUI, TypeScript/Web, Python/pytest, Rust/cargo). Enforces RED failing test first -> minimal GREEN code -> REFACTOR formatting, linter, strict types.
+   1. **Expert QA (Red Team Persona)**: Authors BDD Scenarios in complete isolation from coding, purely from HLD and `bdd_scenarios.en.md`, applying 5 dimensions: Happy Paths, Edge Cases & Boundaries, State Transitions, Async / Race Conditions, Failures & Resilience. Categorizes scenarios into `[Tier A - Unit]` vs `[Tier C - Integration]`. In Satellite Mode, authors verification scenarios validating that local deserializers parse both legacy and updated upstream payloads safely.
+   2. **Principal Engineer (TDD Master Persona — Tier A)**: Implements unit logic, state emissions, and hermetic tests using platform tools (Dart/Flutter, Kotlin/Compose, Swift/SwiftUI, TypeScript/Web, Python/pytest, Rust/cargo). Enforces RED failing test first -> minimal GREEN code -> REFACTOR formatting, linter, strict types. In Satellite Mode, adapts consumer models, DTOs, and adapters within satellite-internal files without staging symlinked paths.
    3. **System Integration & E2E Engineer (Tier C Persona)**: Implements host integration flow tests (`integration_test/`, `*FlowTest.kt`, `App/Tests`, `tests/e2e/`, `tests/integration/`) connecting DI, navigation, and persistence contracts.
 
    > [!CRITICAL]
@@ -195,7 +197,7 @@ For each task in confirmed order, follow `d3nexus:subagent-driven-development`.
    >      --roots <Integration test roots from the HLD> \
    >      --ids <identifiers on the task's Covers: line>
    >    ```
-   > 5. **Stop and Report**: A `Stop and Report If` condition in task is reported as `BLOCKED`. Never edit Verification table, Definition of Done, Allowed files or Covers line, or protected path, to force a pass.
+   > 5. **Stop and Report**: A `Stop and Report If` condition in task is reported as `BLOCKED`. Never edit Verification table, Definition of Done, Allowed files or Covers line, or protected path, to force a pass. In Satellite Mode, report `BLOCKED` if an unmerged upstream contract change prevents local tests from passing.
 
 2. When implementer reports `DONE`, synchronize review status:
    ```bash
