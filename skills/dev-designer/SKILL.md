@@ -140,8 +140,8 @@ Beside each proposed task, list the epic scenario identifiers it will cover (its
 
 #### Contract-First Prioritization (`task_01` Rule)
 When breaking the design into tasks at **Gate 2**:
-- If `shared-contracts/` is impacted, **`task_01` MUST always be the Contract & Ledger Update task** (updating `shared-contracts/<domain>/api_contract.md`, `architecture_and_flow.md`, and logging cross-repo requirements in `gaps_and_rfcs.md`), OR the skill must execute the contract update immediately upon Gate 2 confirmation before any local code tasks begin. Updating shared contracts FIRST unblocks satellite repos to develop in parallel rather than serializing work behind local implementation.
-- **Parallel Handoff Summary**: Once the contract update is drafted or confirmed at Gate 2, output a concise handoff prompt so the developer can immediately trigger AI Agents in satellite repos (e.g. `lyrics-sync`, `nexus`) to work in parallel while local implementation proceeds. The handoff summary MUST include:
+- If `shared-contracts/` is impacted, **`task_01` MUST always be the Contract & Ledger Update task** (updating `shared-contracts/<domain>/api_contract.md`, `architecture_and_flow.md`, and logging cross-repo requirements in `gaps_and_rfcs.md`). Updating shared contracts FIRST in Stage 3 unblocks satellite repos to develop in parallel rather than serializing work behind local feature implementation.
+- **Parallel Handoff Summary**: Once `task_01` is drafted and confirmed at Gate 2, output a concise handoff prompt so the developer can immediately trigger AI Agents in satellite repos (e.g. `lyrics-sync`, `nexus`) to work in parallel while local implementation proceeds. The handoff summary MUST include:
   1. Affected domain and canonical contract paths updated (e.g. `shared-contracts/<domain>/api_contract.md`).
   2. Concrete payload additions, optional fields, IPA/linguistic rules, or protocol changes.
   3. Actionable task prompts for satellite repo agents (e.g. updating consumer models, mocking endpoints, or adjusting downstream UI components).
@@ -165,7 +165,7 @@ Break the Epic down into granular implementation tasks. **Crucially, each task m
 #### Mandatory Contract-First Task Structure (`task_01` when `shared-contracts/` is impacted)
 When `shared-contracts/` is affected, `task_01` is reserved strictly for contract and ledger synchronization before any local code tasks begin:
 - **Title**: `# Task 1: Update Shared Contracts and Cross-Repo Ledger (<domain>)`
-- **Files Allowed**: `shared-contracts/<domain>/api_contract.md`, `shared-contracts/<domain>/architecture_and_flow.md`, `shared-contracts/<domain>/gaps_and_rfcs.md`.
+- **Files Allowed**: `shared-contracts/<domain>/api_contract.md` (append `(new)` if creating for the first time), `shared-contracts/<domain>/architecture_and_flow.md` (append `(new)` if creating for the first time), `shared-contracts/<domain>/gaps_and_rfcs.md` (append `(new)` if creating for the first time).
 - **Decisions Already Made**: Exact schema shapes, field types, default values, and Non-Breaking Schema Guarantees.
 - **Verification**: Markdown and lint checks verifying contract formatting, non-breaking backward compatibility, and schema consistency.
 - **Output**: Generates or confirms the Parallel Handoff Summary for satellite repositories.
