@@ -55,3 +55,51 @@ Verdict: CHANGES REQUIRED
 [Important] 2026-10-30-setup-shared-contracts-design.en.md:§5 (CLI Engine Specifications) — root-override flag is named `--root` here but `--repo-root`/`--satellite-root` in Tasks 2-4's Decisions Already Made. Proposed: update §5.1-§5.3 to use `--repo-root` (init-hub, verify) and `--satellite-root` (link-satellite).
 [Minor] 2026-10-30-setup-shared-contracts-design.en.md:4,6 (header) — `Status: In Review` and the Stage-2 `Next step` are stale; Gates 1-2 have already passed per handoff.md. Proposed: set `Status: Approved` and update or remove the `Next step` line.
 ```
+
+## Round 2
+
+- **Date**: 2026-10-29T23:26:36Z
+- **SHA**: 83c186e28897c89069f4ff58c2b5a5c0ba5e5825
+- **Base**: main
+- **CLI**: claude
+- **Model**: default
+- **Status**: completed
+- **Verdict**: CHANGES REQUIRED
+- **Kind**: principal
+
+| # | Severity | Location | Problem | Decision |
+|---|----------|----------|---------|----------|
+| 1 | Important | task_3_cli_engine_satellite_linking.md:Requirement Analysis item 3 / Decisions Already Made | drops the "non-empty" qualifier that the approved design spec (§5.2) and SSC-FR-03's Given clause both require, creating a hard-contract contradiction that would trigger Stop-and-Report on an empty `shared-contracts/` directory. Proposed: add "non-empty" to Task 3's requirement text and decision line to match the design spec and BDD scenario, or remove it from both of those instead so all three artefacts agree. | fixed in 66beed2 |
+| 2 | Minor | setup_shared_contracts.en.md / setup_shared_contracts.vi.md:Kanban Tasks Breakdown | Task 2/4/5 Covers annotations list SSC-HP-01/02/03 scenarios that don't appear in those tasks' own Covers lines or Verification tables. Proposed: trim the HLD table's Covers lists to match each task's own Covers line exactly. | fixed in 66beed2 |
+
+Raw output:
+
+```text
+Confirmed, the mismatch mirrors identically in the Vietnamese file. I have what I need to write the review.
+
+## Principal Review — `setup_shared_contracts` (candidate `83c186e`)
+
+### Scope reviewed
+
+Design spec (EN/VI), HLD, BDD scenarios (EN/VI), all 5 task files, and `handoff.md`, cross-checked against the live tree at `83c186e`: `scripts/verify.sh` (confirmed Section 14 is the correct next slot, sections run through 13), `scripts/run_unittest_junit.py` (confirmed `--junitxml`/`files` CLI matches task usage), `skills/doc_quality_check/resources/scripts/check_document.py:261` (confirmed `"0 findings"` output format matches Task 5 V3), and `rules/CRITICAL_RULES.md:109-128` (Rule 7, confirmed the Hub/Satellite/symlink boundary language the templates encode). This epic already completed one Principal Review round (`principal_review.md`); all four round-1 findings (template filename/syntax drift, `verify.sh` Section 11 vs 14, `--root` vs `--repo-root`/`--satellite-root`, stale header) are verifiably fixed at this candidate — I checked each independently rather than trusting the "fixed" label.
+
+### What's solid
+
+- Design spec §5.1-§5.3 now uses `--repo-root`/`--satellite-root` consistently, matching Tasks 2-4's frozen decisions.
+- Template names/syntax (`hub_readme.md.tmpl`, `$domain`/`$hub_repo`/`$timestamp`) agree between the design spec and Task 1.
+- `scripts/verify.sh` currently ends at `== 13. ... ==`, so Task 5's new `== 14. ... ==` section is the correct next slot, not a collision.
+- Verification-table RED rows are grounded: I confirmed empirically that `python3 -m unittest <file> -k <name>` exits 1 and prints "FAILED" both when the named test fails and when the file doesn't exist yet, so the TDD RED/GREEN rows hold either way.
+- EN/VI scenario-ID sets are identical (`diff` of `[SSC-*]` tokens is empty).
+
+### Findings
+
+**1. Task 3 drops the "non-empty" qualifier that the approved design and the BDD scenario it covers both require.** The design spec (`2026-10-30-setup-shared-contracts-design.en.md:105`) specifies: "Aborts if `<sat_root>/shared-contracts` is a physical **non-empty** directory without `--force`." The scenario it implements, `SSC-FR-03` (`bdd_scenarios.en.md:113`, mirrored in `task_3_cli_engine_satellite_linking.md:92`), likewise scopes its Given clause to "an existing **non-empty** physical directory." But Task 3's own Requirement Analysis item 3 (`task_3_cli_engine_satellite_linking.md:26`) and its Decisions Already Made (`task_3_cli_engine_satellite_linking.md:127`, "Existing physical directories must never be overwritten without explicit `--force`") both generalize to *any* existing physical directory, dropping "non-empty." The handoff guardrails (`handoff.md:56`) make `## Decisions Already Made` a hard contract whose mismatch "causes STOP and report rather than an executor-side simplification" — so an implementer who hits an empty `shared-contracts/` directory has two authoritative-looking but contradictory instructions to resolve, exactly the Stop-and-Report condition this gate exists to clear before implementation.
+Proposed: Add "non-empty" to Task 3's Requirement Analysis item 3 and Decisions Already Made line so it matches the design spec and `SSC-FR-03`'s Given clause — or, if refusing even empty directories is the intended (stricter) behavior, drop "non-empty" from the design spec §5.2 and from `bdd_scenarios.en.md`/`.vi.md`'s `SSC-FR-03` instead, so all three artefacts agree on one condition.
+
+**2. The HLD's Kanban Tasks Breakdown overstates which scenarios Tasks 2, 4, and 5 cover.** `setup_shared_contracts.en.md:162,164-165` (identically in `.vi.md:162,164-165`) lists Task 2 as covering `[SSC-HP-01]`, Task 4 as covering `[SSC-HP-03]`, and Task 5 as covering `[SSC-HP-01]`, `[SSC-HP-02]`, `[SSC-HP-03]`. None of these HP-prefixed IDs appear in those tasks' own authoritative `Covers:` lines — Task 2's is `SSC-ST-01, SSC-FR-01` (`task_2_cli_engine_hub_init.md:63`), Task 4's is `SSC-EC-03, SSC-AR-01, SSC-AR-02` (`task_4_cli_engine_verification.md:67`), Task 5's is `SSC-HP-03` alone (`task_5_skill_definition_and_harness_integration.md:58`) — nor in any Verification-table row of those tasks. This doesn't change what gets built (each task file is self-consistent and is what an implementer actually follows), but it misrepresents scenario-to-task traceability to anyone reading the HLD summary.
+Proposed: Trim the HLD's Kanban Tasks Breakdown lines (both languages) to match each task's own `Covers:` line exactly: Task 2 → `[SSC-ST-01]`, `[SSC-FR-01]`; Task 4 → `[SSC-EC-03]`, `[SSC-AR-01]`, `[SSC-AR-02]`; Task 5 → `[SSC-HP-03]`.
+
+Verdict: CHANGES REQUIRED
+[Important] task_3_cli_engine_satellite_linking.md:Requirement Analysis item 3 / Decisions Already Made — drops the "non-empty" qualifier that the approved design spec (§5.2) and SSC-FR-03's Given clause both require, creating a hard-contract contradiction that would trigger Stop-and-Report on an empty `shared-contracts/` directory. Proposed: add "non-empty" to Task 3's requirement text and decision line to match the design spec and BDD scenario, or remove it from both of those instead so all three artefacts agree.
+[Minor] setup_shared_contracts.en.md / setup_shared_contracts.vi.md:Kanban Tasks Breakdown — Task 2/4/5 Covers annotations list SSC-HP-01/02/03 scenarios that don't appear in those tasks' own Covers lines or Verification tables. Proposed: trim the HLD table's Covers lists to match each task's own Covers line exactly.
+```
