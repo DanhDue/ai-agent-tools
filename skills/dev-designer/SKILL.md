@@ -101,6 +101,9 @@ Each document MUST contain the following sections:
      5. **Failures & Storage/Network Resilience**: Timeouts, 4xx/5xx HTTP errors, offline states, corrupted storage/DB.
 6. **Shared Contract Impact (Cross-Repo Contract Impact Analysis)**:
    In multi-repo ecosystems (e.g. `D3Nexus` hub with `lyrics-sync` and `nexus` satellite repos connected via `shared-contracts/` symlinks), waiting until local implementation finishes to update inter-service contracts creates bottlenecks. During the HLD / Architecture design step (before finalizing the task breakdown at Gate 2), if the workspace contains a `shared-contracts/` directory (or interacts with external services, satellite repos, or FFI boundaries):
+   - **Workspace Dual-Mode Detection**: Inspect whether `shared-contracts/` is a physical directory or a symbolic link:
+     - **Hub Mode (`shared-contracts/` is a physical directory)**: The current workspace is the canonical Contract Owner (Hub). The Lead acts under the **Contract Owner / System Architect Persona**, responsible for maintaining canonical SSOT contracts and broadcasting parallel handoffs.
+     - **Satellite Mode (`shared-contracts/` is a symbolic link)**: The current workspace is a Satellite Consumer or Producer (e.g. `lyrics-sync`, `nexus`). The Lead acts under the **Satellite Consumer Architect Persona**, responsible for specifying upstream contract requirements and ensuring internal adapters gracefully tolerate contract evolution without violating Git symlink boundaries.
    - **Contract & Ledger Audit**: Inspect `shared-contracts/<domain>/api_contract.md`, `architecture_and_flow.md`, and `gaps_and_rfcs.md` before finalizing technical designs.
    - **Dedicated Overview Section**: Explicitly document any required schema additions, field rules, IPA/linguistic formatting rules, or protocol changes in a dedicated `## Shared Contract Impact` section inside the bilingual epic overview (`.devtool/epic/<epic_name>/<epic_name>.en.md` and `.vi.md`), linked in the Table of Contents. If no shared contract is affected, explicitly declare `None — self-contained feature`.
    - **Non-Breaking Schema Guarantee**: Enforce backward compatibility across repository boundaries (optional new fields with safe defaults, non-breaking enum additions, or explicit fallback rules). Breaking schema changes without backward-compatible transition windows or fallback shims are strictly forbidden.
@@ -139,12 +142,22 @@ Before generating any task file, list the proposed tasks as a short numbered sum
 Beside each proposed task, list the epic scenario identifiers it will cover (its future `Covers:` line, see Tier C — BDD Automation below), so the user approves the scenario-to-task mapping together with the split.
 
 #### Contract-First Prioritization (`task_01` Rule)
-When breaking the design into tasks at **Gate 2**:
-- If `shared-contracts/` is impacted, **`task_01` MUST always be the Contract & Ledger Update task** (updating `shared-contracts/<domain>/api_contract.md`, `architecture_and_flow.md`, and logging cross-repo requirements in `gaps_and_rfcs.md`). Updating shared contracts FIRST in Stage 3 unblocks satellite repos to develop in parallel rather than serializing work behind local feature implementation.
-- **Parallel Handoff Summary**: Once `task_01` is drafted and confirmed at Gate 2, output a concise handoff prompt so the developer can immediately trigger AI Agents in satellite repos (e.g. `lyrics-sync`, `nexus`) to work in parallel while local implementation proceeds. The handoff summary MUST include:
-  1. Affected domain and canonical contract paths updated (e.g. `shared-contracts/<domain>/api_contract.md`).
-  2. Concrete payload additions, optional fields, IPA/linguistic rules, or protocol changes.
-  3. Actionable task prompts for satellite repo agents (e.g. updating consumer models, mocking endpoints, or adjusting downstream UI components).
+When breaking the design into tasks at **Gate 2**, evaluate whether `shared-contracts/` is impacted and check the detected workspace mode:
+
+- **Hub Mode (`shared-contracts/` is a physical directory)**:
+  - **Persona Roles**: The **Contract Owner / System Architect Persona** drafts canonical schema shapes, while the **QA Red Team Persona** authors verification scenarios enforcing backward compatibility.
+  - **`task_01` Rule**: **`task_01` MUST always be the Contract & Ledger Update task** (updating `shared-contracts/<domain>/api_contract.md`, `architecture_and_flow.md`, and logging cross-repo requirements in `gaps_and_rfcs.md`). Updating shared contracts FIRST in Stage 3 unblocks satellite repos to develop in parallel rather than serializing work behind local feature implementation.
+  - **Parallel Handoff Summary**: Once `task_01` is drafted and confirmed at Gate 2, output a concise handoff prompt so the developer can immediately trigger AI Agents in satellite repos (e.g. `lyrics-sync`, `nexus`) to work in parallel while local implementation proceeds. The handoff summary MUST include:
+    1. Affected domain and canonical contract paths updated (e.g. `shared-contracts/<domain>/api_contract.md`).
+    2. Concrete payload additions, optional fields, IPA/linguistic rules, or protocol changes.
+    3. Actionable task prompts for satellite repo agents (e.g. updating consumer models, mocking endpoints, or adjusting downstream UI components).
+
+- **Satellite Mode (`shared-contracts/` is a symbolic link, e.g. `lyrics-sync`)**:
+  - **Persona Roles**: The **Satellite Consumer Architect Persona** drafts the upstream contract delta and handoff prompt, while the **TDD Master Persona** implements consumer models and internal adapters.
+  - **Git Symlink Invariant**: A satellite repo NEVER includes `shared-contracts/...` in `Files Allowed` for git tasks, because git cannot commit paths beyond a symbolic link (`fatal: pathspec is beyond a symbolic link`).
+  - **Upstream Contract Handoff Summary**: At Gate 2, output a ready-to-run prompt for the AI Agent at the Hub repo (`D3Nexus`) to update and commit the canonical contract. If working in a shared local filesystem, also output the exact cross-repo commit command:
+    `git -C $(readlink -f shared-contracts)/.. add shared-contracts/<domain>/ && git -C $(readlink -f shared-contracts)/.. commit -m "[CONTRACT] <title>"`
+  - **`task_01` Rule**: **`task_01` MUST always be the Consumer DTOs & Adapter Synchronization task** (updating satellite-internal DTOs, serializers, mock fixtures, and BDD test stubs).
 
 ### Concurrent-Epic Backlog Rule
 Before writing any task file, check `.devtool/features/*.md` (excluding the `done/` and `archived/` subfolders) for a task whose `epic:` frontmatter field names a *different* epic and whose `status` is `todo`, `in-progress`, or `review` — that means another epic is actively being worked on right now. If so:
@@ -163,12 +176,23 @@ Break the Epic down into granular implementation tasks. **Crucially, each task m
 - **Epic Completion Archival**: When all tasks of an epic finish and the epic status transitions to `Done` (`sync_task_status.py epic <epic_dir> Done`), all completed tasks and draft superpowers documents are archived permanently into `.devtool/epic/<epic_dir>/`. Relative markdown links are rewritten to point locally, and `.devtool/features/done/` is left clean with zero lingering task files.
 
 #### Mandatory Contract-First Task Structure (`task_01` when `shared-contracts/` is impacted)
-When `shared-contracts/` is affected, `task_01` is reserved strictly for contract and ledger synchronization before any local code tasks begin:
-- **Title**: `# Task 1: Update Shared Contracts and Cross-Repo Ledger (<domain>)`
+When `shared-contracts/` is affected, `task_01` is reserved strictly for contract synchronization before local feature tasks begin, structured per the active mode and persona:
+
+##### Case A — Hub Mode (Physical Directory)
+- **Persona**: **Contract Owner / System Architect (Dev Persona)** + **QA Red Team (QA Persona)**.
+- **Title**: `# Task 1: Update Canonical Shared Contracts and Cross-Repo Ledger (<domain>)`
 - **Files Allowed**: `shared-contracts/<domain>/api_contract.md` (append `(new)` if creating for the first time), `shared-contracts/<domain>/architecture_and_flow.md` (append `(new)` if creating for the first time), `shared-contracts/<domain>/gaps_and_rfcs.md` (append `(new)` if creating for the first time).
 - **Decisions Already Made**: Exact schema shapes, field types, default values, and Non-Breaking Schema Guarantees.
-- **Verification**: Markdown and lint checks verifying contract formatting, non-breaking backward compatibility, and schema consistency.
-- **Output**: Generates or confirms the Parallel Handoff Summary for satellite repositories.
+- **Verification**: Markdown structure check (`check_document.py`), schema diff audit, and verification that Non-Breaking Schema Guarantees are preserved.
+- **Output**: Generates or confirms the **Parallel Handoff Summary** for satellite repositories.
+
+##### Case B — Satellite Mode (Symbolic Link)
+- **Persona**: **TDD Master (Dev Persona — Tier A)** + **QA Red Team (QA Persona)**.
+- **Title**: `# Task 1: Synchronize Consumer Models, Adapters, and Fixtures with Upstream Contract (<domain>)`
+- **Files Allowed**: Satellite-internal files only — DTOs, serializers, API clients, mock fixtures, and test files (e.g. `src/models/<domain>/*`, `src/adapters/*`, `test/fixtures/*`). **STRICTLY EXCLUDES `shared-contracts/`** (symlink target) to prevent git pathspec errors.
+- **Decisions Already Made**: Mapping rules from upstream payload shapes to internal domain models, fallback defaults for legacy payloads.
+- **Verification**: Unit and deserialization tests validating backward and forward compatibility against the upstream contract definition.
+- **Pre-requisite / Dependency**: Canonical contract updated in Hub repo (via Upstream Contract Handoff or local cross-repo commit).
 
 #### Mandatory 3-Tier Testing Standard in Task Breakdown
 Every Epic breakdown MUST explicitly structure and address all 3 testing tiers across the Tri-Persona system based on the target platform:
@@ -435,7 +459,9 @@ When new requirements arrive for an epic already in progress, append new task fi
 
 ## Red Flags - STOP and Start Over
 - Designing cross-service features or payload changes without checking `shared-contracts/` first.
-- Scheduling `shared-contracts/` updates at the end of the task list instead of `task_01` (blocking parallel execution in satellite repos).
+- In Hub Mode, scheduling `shared-contracts/` updates at the end of the task list instead of `task_01` (blocking parallel execution in satellite repos).
+- In Satellite Mode, placing `shared-contracts/...` inside `Files Allowed` of a task, causing `fatal: pathspec is beyond a symbolic link` in git.
+- In Satellite Mode, designing cross-service payload changes without emitting an Upstream Contract Handoff Summary to the Hub repo.
 - Writing task files before the user has confirmed the task breakdown checkpoint.
 - Omitting the final Tier C (Acceptance & App Tests) task from the Epic breakdown.
 - Omitting Tier C integration tests that exercise analyzed use cases, edge cases, and boundary conditions.

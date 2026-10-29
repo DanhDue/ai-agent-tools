@@ -98,7 +98,9 @@ One task per section. Present the numbered list and ask the user to confirm the 
 granularity. **This checkpoint is Gate 2.** Write no task file before the user confirms.
 
 **Contract Synchronization Task Priority (`task_01` Rule)**:
-If the reference document affects `shared-contracts/<domain>/`, `task_01` in the task breakdown MUST be the contract synchronization task (updating `shared-contracts/<domain>/api_contract.md` and `architecture_and_flow.md`, and logging cross-repo requirements in `gaps_and_rfcs.md`) before detailed prose drafting tasks begin.
+If the reference document affects `shared-contracts/<domain>/`:
+- In **Hub Mode** (`shared-contracts/` is a physical directory), `task_01` in the task breakdown MUST be the contract synchronization task (updating `shared-contracts/<domain>/api_contract.md`, `architecture_and_flow.md`, and logging cross-repo requirements in `gaps_and_rfcs.md`) before detailed prose drafting tasks begin.
+- In **Satellite Mode** (`shared-contracts/` is a symbolic link), emit an Upstream Contract Handoff Summary to the Hub repo; `task_01` synchronizes local reference fixtures or consumer documentation without including `shared-contracts/` in git task paths.
 
 ## The Overview Document
 
