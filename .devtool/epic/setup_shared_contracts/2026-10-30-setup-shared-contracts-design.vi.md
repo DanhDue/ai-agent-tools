@@ -172,3 +172,4 @@ Bộ kiểm thử trong `resources/scripts/test_setup_contracts.py` thực thi d
   *Biện pháp*: Script sử dụng độc quyền hàm `os.path.relpath()` để tính toán đường dẫn tương đối, bảo đảm tính di động tuyệt đối trên mọi máy.
 - **Rủi ro: Sai lệch so với CRITICAL_RULES.**
   *Biện pháp*: Các template tích hợp trực tiếp nội dung chính xác từ Rule 7 của `CRITICAL_RULES.md`.
+

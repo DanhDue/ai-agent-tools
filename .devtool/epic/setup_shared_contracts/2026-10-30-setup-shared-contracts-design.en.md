@@ -172,3 +172,4 @@ The test suite in `resources/scripts/test_setup_contracts.py` executes under Pyt
   *Mitigation*: The script exclusively uses `os.path.relpath()` to compute relative paths, ensuring full machine portability.
 - **Risk: Divergence from CRITICAL_RULES.**
   *Mitigation*: Templates directly incorporate the exact requirements from Rule 7 of `CRITICAL_RULES.md`.
+
