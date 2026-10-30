@@ -256,7 +256,7 @@ def cmd_link_satellite(
 
     # 2. Check existing path at target
     if shared_contracts_link.is_symlink() or os.path.islink(shared_contracts_link):
-        shared_contracts_link.unlink()
+        pass  # Will be atomically replaced via temporary sibling symlink
     elif shared_contracts_link.is_dir():
         has_entries = any(shared_contracts_link.iterdir())
         if has_entries and not force:
@@ -275,9 +275,19 @@ def cmd_link_satellite(
             return 1
         shared_contracts_link.unlink()
 
-    # 3. Compute relative target and create symlink
+    # 3. Compute relative target and create symlink atomically
     rel_target = os.path.relpath(hub_domain_dir, satellite_root_resolved)
-    os.symlink(rel_target, shared_contracts_link)
+    tmp_link = satellite_root_resolved / f".tmp_link_{uuid.uuid4().hex}"
+    try:
+        os.symlink(rel_target, tmp_link)
+        os.replace(tmp_link, shared_contracts_link)
+    except Exception:
+        if tmp_link.is_symlink() or os.path.islink(tmp_link) or tmp_link.exists():
+            try:
+                tmp_link.unlink()
+            except OSError:
+                pass
+        raise
 
     if not shared_contracts_link.exists():
         sys.stderr.write(
