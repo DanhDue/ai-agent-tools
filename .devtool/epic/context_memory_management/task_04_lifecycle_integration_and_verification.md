@@ -14,7 +14,7 @@ order: "a4"
 
 # Task 4: Dev-Lifecycle Context Hooks Integration and Release Verification Harness
 
-Epic: [context_memory_management](../epic/context_memory_management/context_memory_management.en.md)
+Epic: [context_memory_management](context_memory_management.en.md)
 
 ## Requirement Analysis
 

@@ -14,7 +14,7 @@ order: "a2"
 
 # Task 2: Multi-Profile Shell Environment, Shared Terminal History, and Aliases Synchronization
 
-Epic: [context_memory_management](../epic/context_memory_management/context_memory_management.en.md)
+Epic: [context_memory_management](context_memory_management.en.md)
 
 ## Requirement Analysis
 
@@ -135,3 +135,4 @@ Scenario: [CMM-FR-02] [Tier A - Unit] Graceful Fallback When D3Nexus Shared Cont
 - Spec: `.devtool/epic/context_memory_management/2026-10-30-context-memory-management-design.en.md`
 - HLD: `.devtool/epic/context_memory_management/context_memory_management.en.md`
 - Rollback: Revert changes to `scripts/resume_context.py` and `scripts/test_resume_context.py`.
+
