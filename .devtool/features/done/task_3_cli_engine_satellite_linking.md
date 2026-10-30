@@ -1,13 +1,13 @@
 ---
 id: "task_3_cli_engine_satellite_linking"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "setup_shared_contracts"
 dueDate: null
 created: "2026-10-30T05:35:00Z"
-modified: "2026-10-30T05:35:00Z"
-completedAt: null
+modified: "2026-10-30T07:06:57Z"
+completedAt: "2026-10-30T07:06:57Z"
 labels: ["contracts", "cli", "satellite", "symlink"]
 order: "a3"
 ---

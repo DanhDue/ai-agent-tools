@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import datetime
 import os
+import shutil
 import string
 import sys
 from pathlib import Path
@@ -115,6 +116,86 @@ def cmd_init_hub(repo_root: Path, domain: str | None = None, force: bool = False
     return 0
 
 
+def cmd_link_satellite(
+    hub: Path,
+    domain: str,
+    satellite_root: Path,
+    force: bool = False,
+) -> int:
+    """Link a satellite repository to a Hub domain contracts directory via relative symlink."""
+    # 1. Validate Hub directory and domain presence
+    hub_resolved = hub.resolve()
+    hub_domain_dir = hub_resolved / "shared-contracts" / domain
+    if not hub_domain_dir.is_dir():
+        sys.stderr.write(
+            f"ERROR [SSC-FR-02]: Target domain '{domain}' not found in Hub at '{hub_resolved}'.\n"
+            f"Expected directory: '{hub_domain_dir}'\n"
+        )
+        return 1
+
+    satellite_root_resolved = satellite_root.resolve()
+    shared_contracts_link = satellite_root_resolved / "shared-contracts"
+
+    # 2. Check existing path at target
+    if shared_contracts_link.is_symlink() or os.path.islink(shared_contracts_link):
+        shared_contracts_link.unlink()
+    elif shared_contracts_link.is_dir():
+        has_entries = any(shared_contracts_link.iterdir())
+        if has_entries and not force:
+            sys.stderr.write(
+                "ERROR [SSC-FR-03]: Target 'shared-contracts' is an existing non-empty physical directory.\n"
+                "Refusing overwrite without --force to prevent uncommitted file loss.\n"
+            )
+            return 1
+        shutil.rmtree(shared_contracts_link)
+    elif shared_contracts_link.exists():
+        if not force:
+            sys.stderr.write(
+                "ERROR [SSC-FR-03]: Target 'shared-contracts' exists and is not a symlink.\n"
+                "Refusing overwrite without --force.\n"
+            )
+            return 1
+        shared_contracts_link.unlink()
+
+    # 3. Compute relative target and create symlink
+    rel_target = os.path.relpath(hub_domain_dir, satellite_root_resolved)
+    os.symlink(rel_target, shared_contracts_link)
+
+    if not shared_contracts_link.exists():
+        sys.stderr.write(
+            f"ERROR: Created symbolic link is dangling: '{shared_contracts_link}' -> '{rel_target}'.\n"
+        )
+        return 1
+
+    # 4. Install Satellite local rule .agents/rules/contract_rules.md
+    rules_dir = satellite_root_resolved / ".agents" / "rules"
+    rules_dir.mkdir(parents=True, exist_ok=True)
+    contract_rules_path = rules_dir / "contract_rules.md"
+    template_vars = {
+        "hub_repo": hub_resolved.name or "D3Nexus",
+        "domain": domain,
+        "timestamp": _get_timestamp(),
+    }
+    rule_tmpl = _load_template("satellite_rule.md.tmpl")
+    contract_rules_path.write_text(rule_tmpl.substitute(template_vars), encoding="utf-8")
+
+    # 5. Check if AGENTS.md exists and append reference if needed
+    agents_md_path = satellite_root_resolved / "AGENTS.md"
+    if agents_md_path.is_file():
+        agents_content = agents_md_path.read_text(encoding="utf-8")
+        rule_reference = "@.agents/rules/contract_rules.md"
+        if rule_reference not in agents_content:
+            updated_content = agents_content.rstrip() + f"\n\n{rule_reference}\n"
+            agents_md_path.write_text(updated_content, encoding="utf-8")
+
+    sys.stdout.write(
+        f"SUCCESS: Satellite repository linked successfully.\n"
+        f"Symlink: '{shared_contracts_link}' -> '{rel_target}'\n"
+        f"Local Rule: '{contract_rules_path}'\n"
+    )
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Build the CLI argument parser."""
     parser = argparse.ArgumentParser(
@@ -146,6 +227,35 @@ def build_parser() -> argparse.ArgumentParser:
         help="Overwrite existing contract files if present.",
     )
 
+    # link-satellite
+    parser_link = subparsers.add_parser(
+        "link-satellite",
+        help="Link a satellite repository to Hub domain contracts via relative symlink.",
+    )
+    parser_link.add_argument(
+        "--hub",
+        type=Path,
+        required=True,
+        help="Path to the Hub repository root directory.",
+    )
+    parser_link.add_argument(
+        "--domain",
+        type=str,
+        required=True,
+        help="Domain name to link against (e.g. lyrics-sync).",
+    )
+    parser_link.add_argument(
+        "--satellite-root",
+        type=Path,
+        default=Path.cwd(),
+        help="Root directory of the Satellite repository (default: current directory).",
+    )
+    parser_link.add_argument(
+        "--force",
+        action="store_true",
+        help="Replace existing directory or symlink.",
+    )
+
     return parser
 
 
@@ -158,6 +268,13 @@ def main() -> int:
         return cmd_init_hub(
             repo_root=args.repo_root,
             domain=args.domain,
+            force=args.force,
+        )
+    if args.subcommand == "link-satellite":
+        return cmd_link_satellite(
+            hub=args.hub,
+            domain=args.domain,
+            satellite_root=args.satellite_root,
             force=args.force,
         )
 

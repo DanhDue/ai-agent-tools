@@ -1,0 +1,276 @@
+{
+  "schema": 1,
+  "task": "task_3_cli_engine_satellite_linking",
+  "runs": {
+    "red": {
+      "head": "ede64b38dd17c5fee98e778940213dffdf17dfbb",
+      "tree": "a3b540ae081fbef3c7fede6d48e69a3d55895607",
+      "patch_id": "e0e7803403305ddf67c0e2d085ea57e8df18b53d",
+      "started": "2026-10-30T07:05:09Z",
+      "finished": "2026-10-30T07:05:10Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m unittest skills/setup-shared-contracts/resources/scripts/test_setup_contracts.py -k test_ssc_hp_02",
+          "expect": "exit 1; contains \"FAILED\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-30T07:05:09Z",
+          "finished": "2026-10-30T07:05:10Z",
+          "output_tail": [
+            "F",
+            "======================================================================",
+            "FAIL: test_ssc_hp_02 (skills.setup-shared-contracts.resources.scripts.test_setup_contracts.TestSatelliteLinking.test_ssc_hp_02)",
+            "[SSC-HP-02] Fresh satellite repository relative symlinking.",
+            "----------------------------------------------------------------------",
+            "Traceback (most recent call last):",
+            "  File \"/Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/setup_shared_contracts/skills/setup-shared-contracts/resources/scripts/test_setup_contracts.py\", line 260, in test_ssc_hp_02",
+            "    self.assertEqual(proc.returncode, 0, f\"Link satellite failed: {proc.stderr}\")",
+            "    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+            "AssertionError: 2 != 0 : Link satellite failed: usage: setup_contracts.py [-h] {init-hub} ...",
+            "setup_contracts.py: error: argument subcommand: invalid choice: 'link-satellite' (choose from init-hub)",
+            "",
+            "",
+            "----------------------------------------------------------------------",
+            "Ran 1 test in 0.061s",
+            "",
+            "FAILED (failures=1)"
+          ],
+          "output_sha256": "e1465d8c02f28440c0d8eb51da879cb5a31b4814b0f6fa1375b73fbbdf222432"
+        }
+      ]
+    },
+    "verify": {
+      "head": "ede64b38dd17c5fee98e778940213dffdf17dfbb",
+      "tree": "8b5af5dd9c82fca44561a3bd3cacf9e5a76109dd",
+      "patch_id": "27011bfafe14d5f24117c274f3ad68833b66d674",
+      "started": "2026-10-30T07:06:32Z",
+      "finished": "2026-10-30T07:06:34Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m unittest skills/setup-shared-contracts/resources/scripts/test_setup_contracts.py -k test_ssc_hp_02",
+          "expect": "exit 0; contains \"OK\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-30T07:06:32Z",
+          "finished": "2026-10-30T07:06:33Z",
+          "output_tail": [
+            ".",
+            "----------------------------------------------------------------------",
+            "Ran 1 test in 0.060s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "b9aa554545c72b0f090c5a6663dc126560149a94e7203358f700378aeac7cbd2"
+        },
+        {
+          "id": "V3",
+          "phase": "GREEN",
+          "command": "python3 -m unittest skills/setup-shared-contracts/resources/scripts/test_setup_contracts.py -k test_ssc_ec_02",
+          "expect": "exit 0; contains \"OK\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-30T07:06:33Z",
+          "finished": "2026-10-30T07:06:33Z",
+          "output_tail": [
+            ".",
+            "----------------------------------------------------------------------",
+            "Ran 1 test in 0.060s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "b9aa554545c72b0f090c5a6663dc126560149a94e7203358f700378aeac7cbd2"
+        },
+        {
+          "id": "V4",
+          "phase": "GREEN",
+          "command": "python3 -m unittest skills/setup-shared-contracts/resources/scripts/test_setup_contracts.py -k test_ssc_st_02",
+          "expect": "exit 0; contains \"OK\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-30T07:06:33Z",
+          "finished": "2026-10-30T07:06:33Z",
+          "output_tail": [
+            ".",
+            "----------------------------------------------------------------------",
+            "Ran 1 test in 0.117s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "48ee2d524b0cd7509ac84440221c86765270e367e18d360f5c5f76cd017af403"
+        },
+        {
+          "id": "V5",
+          "phase": "GREEN",
+          "command": "python3 -m unittest skills/setup-shared-contracts/resources/scripts/test_setup_contracts.py -k test_ssc_fr_02",
+          "expect": "exit 0; contains \"OK\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-30T07:06:33Z",
+          "finished": "2026-10-30T07:06:33Z",
+          "output_tail": [
+            ".",
+            "----------------------------------------------------------------------",
+            "Ran 1 test in 0.059s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "8b32e06e12a00c7d93f7af96d4974eb6ab8cfb9054a6b175fc0081bde8b4a3ab"
+        },
+        {
+          "id": "V6",
+          "phase": "GREEN",
+          "command": "python3 -m unittest skills/setup-shared-contracts/resources/scripts/test_setup_contracts.py -k test_ssc_fr_03",
+          "expect": "exit 0; contains \"OK\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-30T07:06:33Z",
+          "finished": "2026-10-30T07:06:33Z",
+          "output_tail": [
+            ".",
+            "----------------------------------------------------------------------",
+            "Ran 1 test in 0.059s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "8b32e06e12a00c7d93f7af96d4974eb6ab8cfb9054a6b175fc0081bde8b4a3ab"
+        },
+        {
+          "id": "V7",
+          "phase": "TIER-B",
+          "command": "ruff check skills/setup-shared-contracts/resources/scripts/setup_contracts.py skills/setup-shared-contracts/resources/scripts/test_setup_contracts.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-30T07:06:33Z",
+          "finished": "2026-10-30T07:06:33Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V8",
+          "phase": "TIER-B",
+          "command": "mypy --strict --follow-imports=silent skills/setup-shared-contracts/resources/scripts/setup_contracts.py skills/setup-shared-contracts/resources/scripts/test_setup_contracts.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-30T07:06:33Z",
+          "finished": "2026-10-30T07:06:33Z",
+          "output_tail": [
+            "Success: no issues found in 2 source files"
+          ],
+          "output_sha256": "f9b031e5c45aa702cd4fef028d465551cb20a2c4698e0913c7b00766b20ac4d8"
+        },
+        {
+          "id": "V9",
+          "phase": "TIER-C",
+          "command": "python3 scripts/run_unittest_junit.py --junitxml build/test-results/task_3.xml skills/setup-shared-contracts/resources/scripts/test_setup_contracts.py",
+          "expect": "exit 0; results build/test-results/task_3.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-30T07:06:33Z",
+          "finished": "2026-10-30T07:06:34Z",
+          "output_tail": [
+            "...........",
+            "----------------------------------------------------------------------",
+            "Ran 11 tests in 0.447s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "538169511e82a43540758ce1d7e503a61ec88d801a570a484a66519c7ee7c516",
+          "results": {
+            "path": "build/test-results/task_3.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 9,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_ssc_ec_01",
+                  "classname": "test_setup_contracts.TestCanonicalTemplates",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ssc_hp_01",
+                  "classname": "test_setup_contracts.TestCanonicalTemplates",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ssc_fr_01",
+                  "classname": "test_setup_contracts.TestHubInitialization",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ssc_st_01",
+                  "classname": "test_setup_contracts.TestHubInitialization",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ssc_ec_02",
+                  "classname": "test_setup_contracts.TestSatelliteLinking",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ssc_fr_02",
+                  "classname": "test_setup_contracts.TestSatelliteLinking",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ssc_fr_03",
+                  "classname": "test_setup_contracts.TestSatelliteLinking",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ssc_hp_02",
+                  "classname": "test_setup_contracts.TestSatelliteLinking",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ssc_st_02",
+                  "classname": "test_setup_contracts.TestSatelliteLinking",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "skills/setup-shared-contracts/resources/scripts/setup_contracts.py",
+            "skills/setup-shared-contracts/resources/scripts/test_setup_contracts.py"
+          ],
+          "violations": []
+        }
+      ]
+    }
+  }
+}

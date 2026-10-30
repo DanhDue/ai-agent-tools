@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import os
 import string
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -159,7 +161,6 @@ class TestHubInitialization(unittest.TestCase):
 
     def test_ssc_st_01(self) -> None:
         """[SSC-ST-01] Adding subsequent domains updates topology README and preserves existing."""
-        import subprocess
 
         cli_path = Path(__file__).resolve().parent / "setup_contracts.py"
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -197,7 +198,6 @@ class TestHubInitialization(unittest.TestCase):
     def test_ssc_fr_01(self) -> None:
         """[SSC-FR-01] Refusing Hub initialization on existing symlink."""
         import os
-        import subprocess
 
         cli_path = Path(__file__).resolve().parent / "setup_contracts.py"
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -216,6 +216,244 @@ class TestHubInitialization(unittest.TestCase):
             )
             self.assertEqual(proc.returncode, 1)
             self.assertIn("symlink", (proc.stdout + proc.stderr).lower())
+
+
+class TestSatelliteLinking(unittest.TestCase):
+    """[SSC-HP-02], [SSC-EC-02], [SSC-ST-02], [SSC-FR-02], [SSC-FR-03] tests for link-satellite."""
+
+    def test_ssc_hp_02(self) -> None:
+        """[SSC-HP-02] Fresh satellite repository relative symlinking."""
+
+        cli_path = Path(__file__).resolve().parent / "setup_contracts.py"
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
+            hub_dir = tmp_path / "D3Nexus"
+            sat_dir = tmp_path / "lyrics-sync"
+            hub_dir.mkdir()
+            sat_dir.mkdir()
+
+            # Initialize hub first
+            subprocess.run(
+                ["python3", str(cli_path), "init-hub", "--domain", "lyrics-sync", "--repo-root", str(hub_dir)],
+                check=True,
+                capture_output=True,
+            )
+
+            # Link satellite
+            proc = subprocess.run(
+                [
+                    "python3",
+                    str(cli_path),
+                    "link-satellite",
+                    "--hub",
+                    str(hub_dir),
+                    "--domain",
+                    "lyrics-sync",
+                    "--satellite-root",
+                    str(sat_dir),
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(proc.returncode, 0, f"Link satellite failed: {proc.stderr}")
+
+            # Check symlink
+            symlink_path = sat_dir / "shared-contracts"
+            self.assertTrue(symlink_path.is_symlink())
+            link_target = os.readlink(symlink_path)
+            self.assertFalse(os.path.isabs(link_target), f"Symlink target must be relative, got: {link_target}")
+
+            # Check files resolve across symlink
+            self.assertTrue((symlink_path / "api_contract.md").is_file())
+            self.assertTrue((symlink_path / "architecture_and_flow.md").is_file())
+            self.assertTrue((symlink_path / "gaps_and_rfcs.md").is_file())
+
+            # Check satellite rule installed
+            rule_path = sat_dir / ".agents" / "rules" / "contract_rules.md"
+            self.assertTrue(rule_path.is_file())
+
+    def test_ssc_ec_02(self) -> None:
+        """[SSC-EC-02] Deep sibling hierarchy relative path calculation."""
+
+        cli_path = Path(__file__).resolve().parent / "setup_contracts.py"
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
+            hub_dir = tmp_path / "control-plane" / "hub"
+            sat_dir = tmp_path / "services" / "workers" / "audio" / "satellite"
+            hub_dir.mkdir(parents=True)
+            sat_dir.mkdir(parents=True)
+
+            subprocess.run(
+                ["python3", str(cli_path), "init-hub", "--domain", "audio-core", "--repo-root", str(hub_dir)],
+                check=True,
+                capture_output=True,
+            )
+
+            proc = subprocess.run(
+                [
+                    "python3",
+                    str(cli_path),
+                    "link-satellite",
+                    "--hub",
+                    str(hub_dir),
+                    "--domain",
+                    "audio-core",
+                    "--satellite-root",
+                    str(sat_dir),
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(proc.returncode, 0, f"Deep link failed: {proc.stderr}")
+
+            symlink_path = sat_dir / "shared-contracts"
+            self.assertTrue(symlink_path.is_symlink())
+            link_target = os.readlink(symlink_path)
+            self.assertFalse(os.path.isabs(link_target))
+            self.assertTrue((symlink_path / "api_contract.md").is_file())
+
+    def test_ssc_st_02(self) -> None:
+        """[SSC-ST-02] Switching linked domain on satellite with force."""
+
+        cli_path = Path(__file__).resolve().parent / "setup_contracts.py"
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
+            hub_dir = tmp_path / "Hub"
+            sat_dir = tmp_path / "Satellite"
+            hub_dir.mkdir()
+            sat_dir.mkdir()
+
+            # Initialize hub with alpha and beta
+            subprocess.run(
+                ["python3", str(cli_path), "init-hub", "--domain", "alpha", "--repo-root", str(hub_dir)],
+                check=True,
+                capture_output=True,
+            )
+            subprocess.run(
+                ["python3", str(cli_path), "init-hub", "--domain", "beta", "--repo-root", str(hub_dir)],
+                check=True,
+                capture_output=True,
+            )
+
+            # Link to alpha
+            subprocess.run(
+                [
+                    "python3",
+                    str(cli_path),
+                    "link-satellite",
+                    "--hub",
+                    str(hub_dir),
+                    "--domain",
+                    "alpha",
+                    "--satellite-root",
+                    str(sat_dir),
+                ],
+                check=True,
+                capture_output=True,
+            )
+            symlink_path = sat_dir / "shared-contracts"
+            self.assertIn("alpha", os.readlink(symlink_path))
+
+            # Re-link to beta with force
+            proc = subprocess.run(
+                [
+                    "python3",
+                    str(cli_path),
+                    "link-satellite",
+                    "--hub",
+                    str(hub_dir),
+                    "--domain",
+                    "beta",
+                    "--satellite-root",
+                    str(sat_dir),
+                    "--force",
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(proc.returncode, 0, f"Force relink failed: {proc.stderr}")
+            self.assertIn("beta", os.readlink(symlink_path))
+
+    def test_ssc_fr_02(self) -> None:
+        """[SSC-FR-02] Refusing satellite linking when target domain is missing."""
+
+        cli_path = Path(__file__).resolve().parent / "setup_contracts.py"
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
+            hub_dir = tmp_path / "Hub"
+            sat_dir = tmp_path / "Satellite"
+            hub_dir.mkdir()
+            sat_dir.mkdir()
+
+            subprocess.run(
+                ["python3", str(cli_path), "init-hub", "--domain", "existing-domain", "--repo-root", str(hub_dir)],
+                check=True,
+                capture_output=True,
+            )
+
+            proc = subprocess.run(
+                [
+                    "python3",
+                    str(cli_path),
+                    "link-satellite",
+                    "--hub",
+                    str(hub_dir),
+                    "--domain",
+                    "missing-domain",
+                    "--satellite-root",
+                    str(sat_dir),
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(proc.returncode, 1)
+            self.assertIn("missing-domain", (proc.stdout + proc.stderr).lower())
+
+    def test_ssc_fr_03(self) -> None:
+        """[SSC-FR-03] Refusing overwrite of existing non-empty physical directory without force."""
+
+        cli_path = Path(__file__).resolve().parent / "setup_contracts.py"
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
+            hub_dir = tmp_path / "Hub"
+            sat_dir = tmp_path / "Satellite"
+            hub_dir.mkdir()
+            sat_dir.mkdir()
+
+            subprocess.run(
+                ["python3", str(cli_path), "init-hub", "--domain", "target-domain", "--repo-root", str(hub_dir)],
+                check=True,
+                capture_output=True,
+            )
+
+            # Create non-empty physical shared-contracts in satellite
+            physical_dir = sat_dir / "shared-contracts"
+            physical_dir.mkdir()
+            (physical_dir / "uncommitted_work.txt").write_text("precious data", encoding="utf-8")
+
+            proc = subprocess.run(
+                [
+                    "python3",
+                    str(cli_path),
+                    "link-satellite",
+                    "--hub",
+                    str(hub_dir),
+                    "--domain",
+                    "target-domain",
+                    "--satellite-root",
+                    str(sat_dir),
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(proc.returncode, 1)
+            self.assertTrue(physical_dir.is_dir())
+            self.assertFalse(physical_dir.is_symlink())
 
 
 if __name__ == "__main__":
