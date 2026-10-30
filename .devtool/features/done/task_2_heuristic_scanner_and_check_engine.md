@@ -1,13 +1,13 @@
 ---
 id: "task_2_heuristic_scanner_and_check_engine"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "sync_shared_contracts"
 dueDate: null
 created: "2026-10-30T11:58:00Z"
-modified: "2026-10-30T12:23:00Z"
-completedAt: null
+modified: "2026-10-30T13:45:33Z"
+completedAt: "2026-10-30T13:45:33Z"
 labels: ["contracts", "scanner", "cli"]
 order: "a2"
 ---
