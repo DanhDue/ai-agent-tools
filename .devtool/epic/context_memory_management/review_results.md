@@ -85,3 +85,42 @@ Verdict: CHANGES REQUIRED
 [Important] skills/save-context/SKILL.md:56 — the documented `save-context --checkpoint <epic_slug> "<note>"` command (and the identical form in bdd_scenarios.en.md/.vi.md CMM-ST-02, context_memory_management.en.md/.vi.md, the source spec, and task_03's frozen Decisions Already Made) expands via the `save-context` alias to `resume_context.py --complete --checkpoint <slug> <note>`, which argparse rejects with exit 2 ("expected at least one argument") because `--checkpoint` immediately follows `--complete`'s nargs="+" with no value; the only working orders are `--checkpoint --complete <slug> <note>` or `--complete <slug> <note> --checkpoint` (the latter already correctly documented in docs/architecture/save_resume_rules.md:59), and the shipped test for CMM-ST-02 silently uses the working order instead of the documented one, so the breakage passed every gate.
 [Minor] scripts/resume_context.py:670 — `--json` is declared as part of the HLD's "6 CLI capabilities" Goals contract but `args.json` is never read anywhere in the implementation, so passing `--json` silently produces unchanged human-readable text instead of JSON; no task Verification row or BDD scenario exercises it.
 ```
+
+## Round 3
+
+- **Date**: 2026-10-30T18:49:37Z
+- **SHA**: 3fcfd373550e084d5728e140c1b5baba784b3aba
+- **Base**: main
+- **CLI**: claude
+- **Model**: default
+- **Status**: completed
+- **Verdict**: PASS
+
+| # | Severity | Location | Problem | Decision |
+|---|----------|----------|---------|----------|
+| 1 | Minor | scripts/test_resume_context.py:533 | test_cmm_hp_01_json_harvest_output is tagged [CMM-HP-01] even though --json/JSON serialization is not part of that scenario's Gherkin text, causing the BDD traceability report to credit CMM-HP-01 to this test instead of to its correctly-scoped sibling test_cmm_hp_01_multi_epic_state_log_and_complete_isolation (which still exists and passes, so this is a labeling inaccuracy rather than a coverage gap). | fixed in 5d9ef7c |
+
+Raw output:
+
+```text
+## External Review — context_memory_management (candidate `3fcfd37`)
+
+**Scope.** This is the review round following Cross-Model Review Round 2, which found one Important defect (the documented `save-context --checkpoint` command crashed argparse) and one Minor gap (`--json` was a dead flag). Both are recorded as `fixed in 4734183` in `review_results.md`. I independently re-derived both defects and verified the fix rather than trusting the decision table's claim.
+
+**Checkpoint-order fix verified.** `parse_args` (`scripts/resume_context.py:772-778`) now detects the exact token sequence `--complete --checkpoint` (produced by the documented `save-context --checkpoint <slug> "<note>"` alias expansion) and rewrites it to `--checkpoint --complete` before argparse sees it — the only way to avoid `--complete`'s `nargs="+"` swallowing zero arguments when `--checkpoint` immediately follows. I traced this against argparse's real behavior rather than taking the commit message at face value. `test_cmm_st_02_checkpoint_non_destructive_save` (`scripts/test_resume_context.py:452-461`) now exercises both the documented alias order and the already-working `--complete <slug> <note> --checkpoint` order, closing exactly the gap the reviewer found: previously the test silently used only the working order. `docs/architecture/save_resume_rules.md` and `skills/save-context/SKILL.md` already documented the correct user-facing command; the fix corrected the implementation to match the contract, not the other way around.
+
+**`--json` fix verified.** `main()` (`scripts/resume_context.py:869-871`) now reads `args.json` and dispatches to `harvest_json`/`collect_harvest_data`, which assembles the same six data categories the human-readable harvest prints. `scripts/resume_context.py` and `docs/architecture/resume_context.py` remain byte-identical (confirmed by direct diff), satisfying Task 1's non-divergence Stop condition.
+
+**No new defects from the fix commits.** I hand-traced the token-reordering logic against both working orders and the previously-broken order; all three behave correctly now, and no other call site depends on the old (broken) token layout. `5b1f43f`'s two test-assertion additions were also checked against their stated purpose: `test_cmm_fr_02_missing_contracts_and_git_fallback` now runs with `cwd=self.workspace` and a real non-git `lyrics-sync` directory inside the `REPOS` iteration path, genuinely exercising the "repo lacking `.git` is skipped cleanly" clause it previously missed; `test_cmm_ar_01_concurrent_flock` now asserts `assistant_state.md` contains both `Active Epic: epic-alpha` and `Active Epic: epic-beta`, closing the previously-unverified clause. Both are strengthening additions, not weakened substitutes.
+
+**Process disclosures re-checked.** Rule 8 in `rules/CRITICAL_RULES.md` is appended cleanly after the pre-existing, untouched Rule 7 — no heading collision. `scripts/verify.sh`'s Section 15 addition is explicitly authorized by Task 4's own Allowed files. The task_03 grader amendment is the Principal-Review-driven Rule 7→8 renumbering, traced to a real finding and a real fix commit, not a post-hoc contract rewrite. I re-ran the two lifecycle test suites Task 4's V5/V6 rows require (`test_lifecycle_document_contract.py`, `test_verifiable_handoff_text.py` + `test_lifecycle_signals.py`) myself: both pass cleanly (19 and 14 tests, exit 0), confirming no regression from the nine lifecycle-skill hook edits. Word ceilings hold (`dev-lifecycle` 2485/2500, `dev-implementation` 3663/4500), no Mermaid/DOT fences introduced. EN/VI scenario-ID sets in `bdd_scenarios.*.md` match exactly. `Shared Contract Impact: None` is accurate — no `shared-contracts/` path appears anywhere in the diff.
+
+**One mislabeling, not a coverage gap.** `scripts/test_resume_context.py:533` tags `test_cmm_hp_01_json_harvest_output` with `[CMM-HP-01]`, but CMM-HP-01's Gherkin text (harvest sections, multi-epic isolation, `--complete` archiving) never mentions `--json`; this is why the BDD traceability tool's report credits CMM-HP-01 to this test rather than to its correctly-scoped sibling `test_cmm_hp_01_multi_epic_state_log_and_complete_isolation`, which still exists, still runs under the same `-k test_cmm_hp_01` filter in Task 1's V1/V2 rows, and still genuinely covers the scenario.
+
+**Gate 5 items**, restated: Task 1 (Two-Tier Multi-Epic CLI Engine), Task 2 (Shell Environment Sync), Task 3 (resume-context/save-context skills + Rule 8), and Task 4 (Lifecycle Integration & Verification Harness) each have execution independently verified and recorded in `evidence/*.json` — confirmed by reading the Task 1 evidence directly (a genuine `FileNotFoundError`-driven RED failure before any GREEN pass, not a vacuous collection error).
+
+No Critical or Important defect survived independent verification.
+
+Verdict: PASS
+[Minor] scripts/test_resume_context.py:533 — test_cmm_hp_01_json_harvest_output is tagged [CMM-HP-01] even though --json/JSON serialization is not part of that scenario's Gherkin text, causing the BDD traceability report to credit CMM-HP-01 to this test instead of to its correctly-scoped sibling test_cmm_hp_01_multi_epic_state_log_and_complete_isolation (which still exists and passes, so this is a labeling inaccuracy rather than a coverage gap).
+```
