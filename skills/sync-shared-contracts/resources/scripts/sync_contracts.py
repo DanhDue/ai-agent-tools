@@ -531,6 +531,19 @@ def compute_semantic_delta(
     if cur_steps != base_steps:
         modified_steps = [f"Pipeline steps changed from {len(base_steps)} to {len(cur_steps)} step(s)"]
 
+    cur_rfcs: dict[str, dict[str, str]] = current_data.get("rfcs", {})
+    base_rfcs: dict[str, dict[str, str]] = baseline_snapshot.get("rfcs", {})
+    cur_rfc_ids = set(cur_rfcs.keys())
+    base_rfc_ids = set(base_rfcs.keys())
+    added_rfcs = sorted(cur_rfc_ids - base_rfc_ids)
+    removed_rfcs = sorted(base_rfc_ids - cur_rfc_ids)
+    modified_rfcs: list[str] = []
+    for rfc_id in sorted(cur_rfc_ids & base_rfc_ids):
+        cur_st = cur_rfcs[rfc_id].get("status")
+        base_st = base_rfcs[rfc_id].get("status")
+        if cur_st != base_st:
+            modified_rfcs.append(f"{rfc_id}: {base_st} -> {cur_st}")
+
     return {
         "added_endpoints": added_ep,
         "removed_endpoints": removed_ep,
@@ -538,6 +551,9 @@ def compute_semantic_delta(
         "removed_keys": removed_keys,
         "modified_field_types": modified_fields,
         "modified_pipeline_steps": modified_steps,
+        "added_rfcs": added_rfcs,
+        "removed_rfcs": removed_rfcs,
+        "modified_rfcs": modified_rfcs,
     }
 
 
@@ -662,6 +678,63 @@ def render_brief(
     )
 
 
+def evaluate_domain_sync(
+    dom_data: dict[str, Any],
+    snapshot_id: str,
+    file_hashes: dict[str, str],
+    api_data: dict[str, Any],
+    arch_data: dict[str, Any],
+    gaps_data: dict[str, Any],
+) -> dict[str, Any]:
+    """Evaluate synchronization drift between on-disk contracts and persisted watermark."""
+    prev_file_hashes = dom_data.get("file_hashes", {})
+    changed_files = [fn for fn in CANONICAL_FILES if prev_file_hashes.get(fn) != file_hashes.get(fn)]
+    files_changed = bool(changed_files)
+
+    baseline_snapshot = dom_data.get("baseline_snapshot", {})
+    current_contract_snapshot = {
+        "endpoints": api_data["endpoints"],
+        "headers": api_data["headers"],
+        "payload_keys": api_data["payload_keys"],
+        "payload_fields": api_data["payload_fields"],
+        "pipeline_steps": arch_data["pipeline_steps"],
+        "rfcs": gaps_data["rfcs"],
+    }
+    semantic_deltas = compute_semantic_delta(current_contract_snapshot, baseline_snapshot)
+
+    rfcs_dict = gaps_data.get("rfcs", {})
+    contract_active_rfcs = {
+        rfc_id for rfc_id, info in rfcs_dict.items()
+        if info.get("status") in {"ACTIONABLE_PENDING", "ACKNOWLEDGED_ACTIVE"}
+    }
+    acknowledged_rfcs = set(dom_data.get("acknowledged_rfcs", []))
+    pending_rfcs = sorted(contract_active_rfcs - acknowledged_rfcs)
+
+    has_drift = (
+        snapshot_id != dom_data.get("snapshot_id")
+        or files_changed
+        or bool(semantic_deltas["added_endpoints"])
+        or bool(semantic_deltas["removed_endpoints"])
+        or bool(semantic_deltas["added_keys"])
+        or bool(semantic_deltas["removed_keys"])
+        or bool(semantic_deltas["modified_field_types"])
+        or bool(semantic_deltas["modified_pipeline_steps"])
+        or bool(semantic_deltas["added_rfcs"])
+        or bool(semantic_deltas["removed_rfcs"])
+        or bool(semantic_deltas["modified_rfcs"])
+        or bool(pending_rfcs)
+    )
+
+    return {
+        "has_drift": has_drift,
+        "changed_files": changed_files,
+        "files_changed": files_changed,
+        "semantic_deltas": semantic_deltas,
+        "pending_rfcs": pending_rfcs,
+        "acknowledged_rfcs": acknowledged_rfcs,
+    }
+
+
 def cmd_check(args: argparse.Namespace) -> int:
     """Execute check subcommand."""
     repo_root = Path(args.repo_root or os.getcwd()).resolve()
@@ -740,28 +813,24 @@ def cmd_check(args: argparse.Namespace) -> int:
             print(f"Domain '{domain}' status: INITIAL_SYNC (domain absent from watermark)")
         return 1 if strict else 0
 
-    # Check file hash changes
-    prev_file_hashes = dom_data.get("file_hashes", {})
-    files_changed = any(prev_file_hashes.get(fn) != file_hashes.get(fn) for fn in CANONICAL_FILES)
-
-    # Semantic comparison against baseline_snapshot
-    baseline_snapshot = dom_data.get("baseline_snapshot", {})
-    current_contract_snapshot = {
-        "endpoints": api_data["endpoints"],
-        "headers": api_data["headers"],
-        "payload_keys": api_data["payload_keys"],
-        "payload_fields": api_data["payload_fields"],
-        "pipeline_steps": arch_data["pipeline_steps"],
-        "rfcs": gaps_data["rfcs"],
-    }
-    semantic_deltas = compute_semantic_delta(current_contract_snapshot, baseline_snapshot)
+    eval_res = evaluate_domain_sync(
+        dom_data=dom_data,
+        snapshot_id=snapshot_id,
+        file_hashes=file_hashes,
+        api_data=api_data,
+        arch_data=arch_data,
+        gaps_data=gaps_data,
+    )
+    files_changed = eval_res["files_changed"]
+    semantic_deltas = eval_res["semantic_deltas"]
+    pending_rfcs = eval_res["pending_rfcs"]
+    acknowledged_rfcs = eval_res["acknowledged_rfcs"]
+    has_drift = eval_res["has_drift"]
 
     # Scoped RFC check
     if target_rfcs:
         snapshot_matches = (snapshot_id == dom_data.get("snapshot_id"))
-        ack_list = dom_data.get("acknowledged_rfcs", [])
-        pending_list = dom_data.get("pending_rfcs", [])
-        rfcs_in_scope_valid = all((rfc in ack_list and rfc not in pending_list) for rfc in target_rfcs)
+        rfcs_in_scope_valid = all((rfc in acknowledged_rfcs and rfc not in pending_rfcs) for rfc in target_rfcs)
         scoped_in_sync = snapshot_matches and rfcs_in_scope_valid and not files_changed
 
         if as_json:
@@ -779,18 +848,6 @@ def cmd_check(args: argparse.Namespace) -> int:
         return 0 if scoped_in_sync else (1 if strict else 0)
 
     # Global check
-    pending_rfcs = dom_data.get("pending_rfcs", [])
-    has_drift = (
-        snapshot_id != dom_data.get("snapshot_id")
-        or files_changed
-        or bool(semantic_deltas["added_endpoints"])
-        or bool(semantic_deltas["removed_endpoints"])
-        or bool(semantic_deltas["added_keys"])
-        or bool(semantic_deltas["modified_field_types"])
-        or bool(semantic_deltas["modified_pipeline_steps"])
-        or bool(pending_rfcs)
-    )
-
     if as_json:
         out = {
             "status": "DRIFT_DETECTED" if has_drift else "IN_SYNC",
@@ -805,6 +862,24 @@ def cmd_check(args: argparse.Namespace) -> int:
         print(f"Domain '{domain}' status: {status_str}")
         if pending_rfcs:
             print(f"Pending RFCs: {', '.join(pending_rfcs)}")
+        if semantic_deltas["added_endpoints"]:
+            print(f"Added Endpoints: {', '.join(semantic_deltas['added_endpoints'])}")
+        if semantic_deltas["removed_endpoints"]:
+            print(f"Removed Endpoints: {', '.join(semantic_deltas['removed_endpoints'])}")
+        if semantic_deltas["added_keys"]:
+            print(f"Added Payload Keys: {', '.join(semantic_deltas['added_keys'])}")
+        if semantic_deltas["removed_keys"]:
+            print(f"Removed Payload Keys: {', '.join(semantic_deltas['removed_keys'])}")
+        if semantic_deltas["modified_field_types"]:
+            print(f"Modified Field Types: {', '.join(semantic_deltas['modified_field_types'])}")
+        if semantic_deltas["modified_pipeline_steps"]:
+            print(f"Modified Pipeline Steps: {', '.join(semantic_deltas['modified_pipeline_steps'])}")
+        if semantic_deltas["added_rfcs"]:
+            print(f"Added RFCs: {', '.join(semantic_deltas['added_rfcs'])}")
+        if semantic_deltas["removed_rfcs"]:
+            print(f"Removed RFCs: {', '.join(semantic_deltas['removed_rfcs'])}")
+        if semantic_deltas["modified_rfcs"]:
+            print(f"Modified RFCs: {', '.join(semantic_deltas['modified_rfcs'])}")
 
     return 1 if (strict and has_drift) else 0
 
@@ -834,6 +909,37 @@ def cmd_brief(args: argparse.Namespace) -> int:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1
 
+    sync_state = load_sync_state(repo_root)
+    dom_data = sync_state.get("domains", {}).get(domain)
+
+    if dom_data:
+        eval_res = evaluate_domain_sync(
+            dom_data=dom_data,
+            snapshot_id=snapshot_id,
+            file_hashes=file_hashes,
+            api_data=api_data,
+            arch_data=arch_data,
+            gaps_data=gaps_data,
+        )
+        sync_status = "DRIFT_DETECTED" if eval_res["has_drift"] else "IN_SYNC"
+        previous_version = dom_data.get("contract_version", "none")
+        changed_files = eval_res["changed_files"]
+        prev_commit = dom_data.get("hub_commit_sha", "HEAD")
+        curr_commit = get_git_commit_sha(contract_dir) or "HEAD"
+        if prev_commit and curr_commit and prev_commit not in {"HEAD", "uncommitted"} and curr_commit not in {"HEAD", "uncommitted"} and prev_commit != curr_commit:
+            hub_commit_range = f"{prev_commit[:7]}..{curr_commit[:7]}"
+        elif prev_commit and prev_commit not in {"HEAD", "uncommitted"}:
+            hub_commit_range = prev_commit[:7]
+        elif curr_commit and curr_commit not in {"HEAD", "uncommitted"}:
+            hub_commit_range = curr_commit[:7]
+        else:
+            hub_commit_range = "HEAD"
+    else:
+        sync_status = "INITIAL_SYNC"
+        previous_version = "none"
+        hub_commit_range = "HEAD"
+        changed_files = list(CANONICAL_FILES)
+
     heuristic_results = scan_target_codebase(
         repo_root=repo_root,
         endpoints=api_data["endpoints"],
@@ -846,12 +952,12 @@ def cmd_brief(args: argparse.Namespace) -> int:
         template_path=template_path,
         domain=domain,
         mode=topo["mode"],
-        sync_status="INITIAL_SYNC",
+        sync_status=sync_status,
         snapshot_id=snapshot_id,
-        previous_version="none",
+        previous_version=previous_version,
         current_version=api_data["version"],
-        hub_commit_range="HEAD",
-        changed_files=list(CANONICAL_FILES),
+        hub_commit_range=hub_commit_range,
+        changed_files=changed_files,
         endpoints=api_data["endpoints"],
         payload_keys=api_data["payload_keys"],
         payload_fields=api_data["payload_fields"],

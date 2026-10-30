@@ -5,6 +5,7 @@ from __future__ import annotations
 import io
 import json
 import os
+import re
 import sys
 import tempfile
 import unittest
@@ -16,9 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from sync_contracts import (
     CANONICAL_FILES,
     TopologyError,
-    compute_file_hash,
     compute_semantic_delta,
-    compute_snapshot_id,
     main,
     parse_api_contract,
     parse_architecture_and_flow,
@@ -235,6 +234,16 @@ X-Correlation-ID: uuid
         self.assertEqual(exit_code, 0)
         self.assertTrue(brief_out.is_file())
 
+        # Repeat brief CLI check on already-synced repository
+        main(["ack", "--repo-root", str(self.repo_root), "--domain", "lyrics-sync", "--all-rfcs"])
+        repeat_brief_out = self.repo_root / "repeat_brief.md"
+        repeat_exit = main(["brief", "--repo-root", str(self.repo_root), "--domain", "lyrics-sync", "--output", str(repeat_brief_out)])
+        self.assertEqual(repeat_exit, 0)
+        repeat_text = repeat_brief_out.read_text(encoding="utf-8")
+        self.assertIn("- **Sync Status**: `IN_SYNC`", repeat_text)
+        self.assertIn("- **Contract Version**: `1.2.0` -> `1.2.0`", repeat_text)
+        self.assertIn("- _None (all canonical files identical)_", repeat_text)
+
     def test_syc_ec_01_initial_sync_absent_watermark(self) -> None:
         """[SYC-EC-01] Initial Sync Detection When Watermark File Is Absent."""
         hub_domain = self.repo_root / "shared-contracts" / "lyrics-sync"
@@ -447,6 +456,17 @@ X-Correlation-ID: uuid
         hub_domain = self.repo_root / "shared-contracts" / "lyrics-sync"
         self._scaffold_table_contracts(hub_domain, "lyrics-sync")
 
+        # Initial baseline without RFC-002 so it can be added upstream
+        gaps_init = """# Gaps and RFCs Ledger: lyrics-sync
+
+## 2. Active RFC Ledger
+| RFC ID | Title | Proposing Repo | Status | Target Release | Breaking? |
+|---|---|---|---|---|---|
+| RFC-001 | Canonical baseline | Hub | Approved | 1.0.0 | No |
+| RFC-003 | Deprecated route | Hub | Rejected | 1.0.0 | Yes |
+"""
+        (hub_domain / "gaps_and_rfcs.md").write_text(gaps_init, encoding="utf-8")
+
         # Initial ack --all-rfcs -> IN_SYNC
         exit_code = main(["ack", "--repo-root", str(self.repo_root), "--domain", "lyrics-sync", "--all-rfcs"])
         self.assertEqual(exit_code, 0)
@@ -454,20 +474,55 @@ X-Correlation-ID: uuid
 
         # Hub updates api_contract.md and gaps_and_rfcs.md
         api_text = (hub_domain / "api_contract.md").read_text(encoding="utf-8")
-        api_text = api_text.replace("1.2.0", "1.3.0") + "\n| POST | /api/v1/lyrics-sync/tasks/{id}/cancel | X-Worker-Token | Cancel task |\n"
+        api_text = api_text.replace("1.2.0", "1.3.0")
+        cancel_row = "| POST | /api/v1/lyrics-sync/tasks/{id}/cancel | X-Worker-Token | Cancel task |\n"
+        api_text = api_text.replace(
+            "| GET | /api/v1/lyrics-sync/status | Public | Capability check |\n",
+            f"| GET | /api/v1/lyrics-sync/status | Public | Capability check |\n{cancel_row}",
+        )
         (hub_domain / "api_contract.md").write_text(api_text, encoding="utf-8")
 
         gaps_text = (hub_domain / "gaps_and_rfcs.md").read_text(encoding="utf-8")
-        gaps_text += "| RFC-004 | Live websocket sync | Satellite | Open | 1.3.0 | No |\n"
+        gaps_text += "| RFC-002 | Cancellation support | Satellite | Open | 1.3.0 | No |\n"
         (hub_domain / "gaps_and_rfcs.md").write_text(gaps_text, encoding="utf-8")
 
-        # check --strict reports DRIFT_DETECTED and exits 1
-        strict_exit = main(["check", "--repo-root", str(self.repo_root), "--domain", "lyrics-sync", "--strict"])
+        # check --strict in human text mode reports DRIFT_DETECTED, surfaces RFC-002 and cancel endpoint, exits 1
+        stdout_buf = io.StringIO()
+        with patch("sys.stdout", stdout_buf):
+            strict_exit = main(["check", "--repo-root", str(self.repo_root), "--domain", "lyrics-sync", "--strict"])
         self.assertEqual(strict_exit, 1)
+        check_out = stdout_buf.getvalue()
+        self.assertIn("DRIFT_DETECTED", check_out)
+        self.assertIn("/api/v1/lyrics-sync/tasks/{id}/cancel", check_out)
+        self.assertIn("RFC-002", check_out)
 
-        # Refresh snapshot ID
-        refreshed_hashes = {fn: compute_file_hash(hub_domain / fn) for fn in CANONICAL_FILES}
-        refreshed_snapshot_id = compute_snapshot_id(refreshed_hashes)
+        # check --strict in JSON mode surfaces pending_rfcs and delta additions
+        json_buf = io.StringIO()
+        with patch("sys.stdout", json_buf):
+            json_exit = main(["check", "--repo-root", str(self.repo_root), "--domain", "lyrics-sync", "--strict", "--json"])
+        self.assertEqual(json_exit, 1)
+        check_json = json.loads(json_buf.getvalue())
+        self.assertEqual(check_json["status"], "DRIFT_DETECTED")
+        self.assertIn("RFC-002", check_json["pending_rfcs"])
+        self.assertIn("RFC-002", check_json["deltas"]["added_rfcs"])
+        self.assertIn("POST /api/v1/lyrics-sync/tasks/{id}/cancel", check_json["deltas"]["added_endpoints"])
+
+        # Refresh snapshot via sync_contracts.py brief
+        brief_file = self.repo_root / "brief_refreshed.md"
+        brief_exit = main(["brief", "--repo-root", str(self.repo_root), "--domain", "lyrics-sync", "--output", str(brief_file)])
+        self.assertEqual(brief_exit, 0)
+        self.assertTrue(brief_file.is_file())
+        brief_text = brief_file.read_text(encoding="utf-8")
+        self.assertIn("- **Sync Status**: `DRIFT_DETECTED`", brief_text)
+        self.assertIn("- **Contract Version**: `1.2.0` -> `1.3.0`", brief_text)
+        self.assertIn("api_contract.md", brief_text)
+        self.assertIn("gaps_and_rfcs.md", brief_text)
+        self.assertIn("RFC-002", brief_text)
+
+        snapshot_match = re.search(r"-\s+\*\*Snapshot ID\*\*:\s+`([^`]+)`", brief_text)
+        self.assertIsNotNone(snapshot_match)
+        assert snapshot_match is not None
+        refreshed_snapshot_id = snapshot_match.group(1)
 
         # ack with refreshed snapshot ID and --all-rfcs
         ack_exit = main(["ack", "--repo-root", str(self.repo_root), "--domain", "lyrics-sync", "--snapshot", refreshed_snapshot_id, "--all-rfcs"])
