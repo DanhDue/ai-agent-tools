@@ -107,7 +107,7 @@ skills/sync-shared-contracts/
 
 ### 4.2 Sync Watermark Schema (`.agents/contract_sync.json`)
 
-The watermark file is stored inside the target repository at `.agents/contract_sync.json` and includes a normalized `baseline_snapshot` so semantic diffs work even without Git history or with uncommitted contract edits:
+The watermark file is stored inside the target repository at `.agents/contract_sync.json` and includes a normalized `baseline_snapshot` (with dotted `payload_fields` types and structured `rfcs` metadata) so semantic diffs work even without Git history or with uncommitted contract edits:
 
 ```json
 {
@@ -140,10 +140,26 @@ The watermark file is stored inside the target repository at `.agents/contract_s
           "GET /api/v1/lyrics-sync/status"
         ],
         "headers": ["Authorization", "X-Worker-Token", "X-Correlation-ID", "X-Client-Timestamp"],
-        "payload_keys": ["config", "domain", "error", "lease_duration_ms", "metrics", "output_data", "parameters", "payload", "status", "task_id"],
+        "payload_keys": ["config", "domain", "error", "execution_time_ms", "lease_duration_ms", "metrics", "output_data", "parameters", "payload", "status", "task_id"],
+        "payload_fields": {
+          "domain": "string",
+          "lease_duration_ms": "integer",
+          "metrics": "object",
+          "metrics.execution_time_ms": "integer",
+          "output_data": "object",
+          "payload": "object",
+          "payload.config": "object",
+          "payload.parameters": "object",
+          "status": "string",
+          "task_id": "string"
+        },
         "pipeline_steps": ["Lease Acquisition", "Input Validation", "Scratch Isolation", "Core Compute", "Heartbeat and Progress", "Terminal Result Delivery", "Scratch Teardown"],
         "rfcs": {
-          "RFC-001": "APPROVED"
+          "RFC-001": {
+            "status": "ACKNOWLEDGED_ACTIVE",
+            "raw_status": "APPROVED",
+            "title": "Initial Baseline"
+          }
         }
       }
     }
@@ -157,7 +173,7 @@ The script `sync_contracts.py` provides three subcommands:
 
 ### 5.1 Command: `check`
 ```bash
-python3 sync_contracts.py check [--repo-root <path>] [--domain <domain_name>] [--json] [--strict]
+python3 sync_contracts.py check [--repo-root <path>] [--domain <domain_name>] [--json] [--strict] [--rfc <RFC-ID> ...]
 ```
 - **Validation**:
   - Verifies `shared-contracts` exists and resolves cleanly (using direct path or worktree-aware primary repo fallback, bounded to 10 symlink hops, with all 3 canonical files present).
@@ -169,21 +185,22 @@ python3 sync_contracts.py check [--repo-root <path>] [--domain <domain_name>] [-
      - Extracts `Version` from either `- **Version**: \`X.Y.Z\`` or HTML comment metadata `Version: X.Y.Z`.
      - Extracts headers from markdown tables or `http` code blocks (`X-Worker-Token`, `Authorization`, `X-Correlation-ID`).
      - Extracts endpoints from `| Method | Endpoint | ... |` tables OR narrative `### ... (METHOD /path)` headings and `* **Method**:` / `* **Path**:` bullet pairs.
-     - Extracts JSON payload keys (along with their sample value types) from `json` code fences.
+     - Extracts both flat `payload_keys` (for heuristic codebase scanning) and dotted `payload_fields` (`{"payload.parameters": "object", "metrics.execution_time_ms": "integer", ...}`) from `json` code fences and field tables.
      - Extracts pipeline steps from numbered lists or `### Step N` headings in `architecture_and_flow.md`.
      - Extracts RFC and Gap entries from `| RFC ID | ... |` tables OR `### GAP-XX: Title` / `### RFC-XXX: Title` sections with `* **Status**: \`...\``, normalizing statuses into:
        - `ACTIONABLE_PENDING`: `OPEN`, `PROPOSED`, `DRAFT`, `IN REVIEW`, `IN_REVIEW`
        - `ACKNOWLEDGED_ACTIVE`: `ACCEPTED`, `APPROVED`, `IMPLEMENTED`
        - `INACTIVE`: `SUPERSEDED`, `REJECTED`
-  4. Compares current parsed structures against `baseline_snapshot` in `.agents/contract_sync.json` to compute added, removed, or modified endpoints, payload keys, pipeline steps, and RFCs even without Git history.
+  4. Compares current parsed structures against `baseline_snapshot` in `.agents/contract_sync.json` to compute added, removed, or type-modified `payload_fields` (e.g., `timeout_ms: integer -> string`), endpoints, pipeline steps, and RFCs even without Git history.
   5. Runs the Target Codebase Heuristic Scanner across `<repo_root>` to check whether extracted endpoints, headers, and payload keys appear in source code.
-  6. Determines overall sync status:
-     - `IN_SYNC`: `file_hashes` match `.agents/contract_sync.json`, `pending_rfcs` is empty, and all active RFCs are in `acknowledged_rfcs`.
+  6. Determines overall and scoped sync status:
+     - `IN_SYNC`: `file_hashes` match `.agents/contract_sync.json`, `pending_rfcs` is empty, and all active RFCs (`ACTIONABLE_PENDING` and `ACKNOWLEDGED_ACTIVE`) are in `acknowledged_rfcs`.
      - `INITIAL_SYNC`: no valid domain entry in `.agents/contract_sync.json`.
-     - `DRIFT_DETECTED`: `file_hashes` changed, semantic baseline differs, or unacknowledged `pending_rfcs` / new `ACKNOWLEDGED_ACTIVE` RFCs exist.
+     - `DRIFT_DETECTED`: `file_hashes` changed, semantic baseline differs, or unacknowledged RFCs exist in `pending_rfcs`.
+     - `scoped_in_sync`: when `--rfc <ID>` is passed to `check`, `scoped_in_sync` is `true` if `file_hashes` match `.agents/contract_sync.json`, every requested `<ID>` is in `acknowledged_rfcs` (and not in `pending_rfcs`), and no `missing_in_code` endpoints/keys remain.
 - **Exit Codes**:
-  - `0` when `IN_SYNC` (or when `DRIFT_DETECTED` / `INITIAL_SYNC` without `--strict`).
-  - `1` when topology/symlink/format errors occur, or when `--strict` is passed and status is not `IN_SYNC`.
+  - `0` when `IN_SYNC`, or when `--strict --rfc <ID>` is passed and `scoped_in_sync` is `true`, or in informational mode without `--strict`.
+  - `1` when topology/symlink/format errors occur, when `--strict` (without `--rfc`) is passed and global status is not `IN_SYNC`, or when `--strict --rfc <ID>` is passed and `scoped_in_sync` is `false`.
 
 ### 5.2 Command: `brief`
 ```bash
@@ -193,22 +210,23 @@ python3 sync_contracts.py brief [--repo-root <path>] [--domain <domain_name>] [-
   - Executes the full 3-layer delta analysis from `check`.
   - Renders `contract_delta_brief.md.tmpl` into a structured Markdown report containing:
     1. **Topology & Sync Metadata**: Mode (`hub` / `satellite`), Domain, Composite `snapshot_id`, Version transition (`previous -> current`), Hub commit range, and Changed files list.
-    2. **API & Schema Requirements**: Endpoints and JSON payload fields added, modified, or unchanged (computed against `baseline_snapshot` when available, or full baseline during `INITIAL_SYNC`), annotated with heuristic scan status (`FOUND_IN_CODE` vs `MISSING_IN_CODE`).
+    2. **API & Schema Requirements**: Endpoints and JSON payload fields added, removed, type-modified (`field: old_type -> new_type`), or unchanged (computed against `baseline_snapshot` when available, or full baseline during `INITIAL_SYNC`), annotated with heuristic scan status (`FOUND_IN_CODE` vs `MISSING_IN_CODE`).
     3. **Architecture & Pipeline Invariants**: Canonical pipeline steps, state machine transitions, and cancellation/isolation constraints.
     4. **Actionable RFCs & Gaps**: Normalized entries from `gaps_and_rfcs.md` (`ACTIONABLE_PENDING` and unacknowledged `ACKNOWLEDGED_ACTIVE` items).
-    5. **Lifecycle Execution Rules**: Mandatory instructions for `dev-brainstorming`, `dev-designer` (`task_01` rule and symlink boundary rules), and `dev-implementation` (`sync_contracts.py ack --snapshot <snapshot_id>` verification step).
+    5. **Lifecycle Execution Rules**: Mandatory instructions for `dev-brainstorming`, `dev-designer` (`task_01` rule, Hub `task_01` snapshot refresh rule, and Satellite symlink boundary rules), and `dev-implementation` (`sync_contracts.py ack --snapshot <snapshot_id> [--rfc <ID> ... | --all-rfcs]` verification step).
 
 ### 5.3 Command: `ack`
 ```bash
-python3 sync_contracts.py ack [--repo-root <path>] [--domain <domain_name>] [--snapshot <snapshot_id>] [--rfc <RFC-ID> ...]
+python3 sync_contracts.py ack [--repo-root <path>] [--domain <domain_name>] [--snapshot <snapshot_id>] [--rfc <RFC-ID> ...] [--all-rfcs]
 ```
 - **Actions**:
   - Computes the current file hashes and composite `snapshot_id`.
-  - **Snapshot Guard**: If `--snapshot <expected_id>` is supplied and does not match the current `snapshot_id` on disk, `ack` aborts with exit code `1` and an error message explaining that the shared contract changed since the brief was generated.
-  - **Scope-Bound RFC Tracking**:
-    - By default, `ACKNOWLEDGED_ACTIVE` entries (`ACCEPTED`, `APPROVED`, `IMPLEMENTED`) are added to `acknowledged_rfcs`.
-    - `ACTIONABLE_PENDING` entries (`OPEN`, `PROPOSED`, `DRAFT`, `IN_REVIEW`) remain in `pending_rfcs` unless explicitly acknowledged via `--rfc <ID>` (which moves `<ID>` into `acknowledged_rfcs`). If `pending_rfcs` is non-empty, subsequent `check --strict` runs continue to report `DRIFT_DETECTED` until remaining pending RFCs are resolved or explicitly acknowledged.
-  - Persists the updated `baseline_snapshot`, `file_hashes`, `snapshot_id`, `hub_commit_sha`, `acknowledged_rfcs`, `pending_rfcs`, and `acknowledged_endpoints` into `.agents/contract_sync.json` atomically using a temporary file and `os.replace()`.
+  - **Snapshot Guard**: If `--snapshot <expected_id>` is supplied and does not match the current `snapshot_id` on disk, `ack` aborts with exit code `1` and an error message (`SNAPSHOT_MISMATCH`) explaining that the shared contract changed since the brief was generated.
+  - **Explicit Scope-Bound RFC Tracking**:
+    - Any active RFC/Gap (`ACTIONABLE_PENDING` or `ACKNOWLEDGED_ACTIVE`) that was already in the prior watermark's `acknowledged_rfcs` remains acknowledged unless its definition/status changed in the contract.
+    - Newly introduced or previously unacknowledged active RFCs (whether `OPEN`, `PROPOSED`, `ACCEPTED`, `APPROVED`, or `IMPLEMENTED`) are placed in `pending_rfcs` by default and are moved into `acknowledged_rfcs` **only** when explicitly listed via `--rfc <ID>` (or when `--all-rfcs` is passed, or when the contract has zero active RFCs).
+    - If `pending_rfcs` remains non-empty after `ack`, global `check --strict` continues to report `DRIFT_DETECTED` (exit `1`), while scoped `check --strict --rfc <ID>` exits `0` (`scoped_in_sync: true`) for the completed RFC subset.
+  - Persists the updated `baseline_snapshot` (including `payload_fields` and `rfcs`), `file_hashes`, `snapshot_id`, `hub_commit_sha`, `acknowledged_rfcs`, `pending_rfcs`, and `acknowledged_endpoints` into `.agents/contract_sync.json` atomically using a temporary file and `os.replace()`.
 
 ## 6. Target Codebase Heuristic Scanner
 
@@ -228,14 +246,14 @@ When a developer invokes `/sync-shared-contracts` (or asks to check contract cha
    - If `shared-contracts` is missing or broken, direct the user to `d3nexus:setup-shared-contracts`.
    - If `IN_SYNC` and no `MISSING_IN_CODE` items or pending RFCs exist, report that the repository is fully synchronized and stop.
 2. **Step 2 — Scope Confirmation**:
-   - Present the generated **Contract Requirements Brief** (including its `snapshot_id`) to the developer and confirm which deltas/RFCs to target and the `<epic_slug>`.
+   - Present the generated **Contract Requirements Brief** (including its `snapshot_id`) to the developer and confirm which deltas/RFCs to target (`--rfc <ID>` subset or `--all-rfcs`) and the `<epic_slug>`.
 3. **Step 3 — Stage 1 (`dev-brainstorming`) & Stage 2 (`dev-designer`)**:
    - Enter `d3nexus:dev-lifecycle` using the confirmed Contract Requirements Brief as grounding context:
      - **Stage 1 (`dev-brainstorming`)**: Produce the bilingual spec pair (`docs/superpowers/specs/YYYY-MM-DD-<topic>-design.en.md` and `.vi.md`) anchored on the contract delta without re-asking questions already settled by the contract, then obtain Gate 1 approval.
      - **Stage 2 (`dev-designer`)**: Generate the bilingual HLD, 5-dimension BDD scenarios (`bdd_scenarios.en.md` / `.vi.md`), and Kanban task breakdown (`task_*.md`) for Gate 2:
-       - In **Hub Mode**: `task_01` updates the physical `shared-contracts/<domain>/` files (`api_contract.md`, `architecture_and_flow.md`, `gaps_and_rfcs.md`).
-       - In **Satellite Mode**: `task_01` updates internal consumer DTOs, API clients, and mock fixtures (never including `shared-contracts/` in `Files Allowed`).
-       - In **Both Modes**: The final task includes `.agents/contract_sync.json` in `Files Allowed` and runs `sync_contracts.py ack --snapshot <snapshot_id> [--rfc <ID> ...]` + `sync_contracts.py check --strict` so the sync watermark is verified and committed alongside the implementation.
+       - In **Hub Mode**: `task_01` updates the physical `shared-contracts/<domain>/` files (`api_contract.md`, `architecture_and_flow.md`, `gaps_and_rfcs.md`) and runs `sync_contracts.py brief --domain <domain>` (or `check --json`) at the end of `task_01` to record the refreshed post-`task_01` `snapshot_id`. The final Hub task binds `sync_contracts.py ack --snapshot <post_task_01_snapshot_id>` to that refreshed snapshot so any unexpected edit after `task_01` is rejected.
+       - In **Satellite Mode**: `task_01` updates internal consumer DTOs, API clients, and mock fixtures (never including `shared-contracts/` in `Files Allowed`), and the final Satellite task binds `sync_contracts.py ack --snapshot <brief_snapshot_id>` to the snapshot captured in Step 1.
+       - In **Both Modes**: The final task includes `.agents/contract_sync.json` in `Files Allowed`, runs `sync_contracts.py ack --snapshot <expected_snapshot_id> [--rfc <ID> ... | --all-rfcs]`, and verifies completion with `sync_contracts.py check --strict` (when all domain RFCs are in scope) or `sync_contracts.py check --strict --rfc <ID> ...` (when implementing a selected RFC subset while retaining global drift for remaining RFCs).
 4. **Step 4 — Stage 3 (`dev-implementation`)**:
    - Execute tasks in an isolated worktree (`.worktrees/<epic_dir>`) via TDD. `sync_contracts.py` automatically resolves the Satellite's relative `shared-contracts` symlink via the primary repository root while reading/writing `.agents/contract_sync.json` inside the worktree. Run Gate 4 (`quality_check` + `check_bdd_traceability.py` + `audit_epic.py`), and pass the Review Choice loop and Gate 5.
 5. **Step 5 — Stage 4 (`finishing-a-development-branch`)**:
@@ -244,10 +262,10 @@ When a developer invokes `/sync-shared-contracts` (or asks to check contract cha
 ## 8. Verification and Test Strategy
 
 The hermetic test suite in `skills/sync-shared-contracts/resources/scripts/test_sync_contracts.py` uses Python's standard `unittest` framework and `tempfile.TemporaryDirectory`:
-- **Test Dual-Format Markdown Contract Parser**: Verifies parsing of both `setup-shared-contracts` table contracts and live `D3Nexus/shared-contracts/lyrics-sync/` narrative contracts (HTML comment `Version`, heading/bullet `Method`/`Path` endpoints, `### GAP-XX` sections with `OPEN`/`PROPOSED`/`ACCEPTED` statuses), plus rejection of unsupported/empty files.
+- **Test Dual-Format Markdown Contract Parser**: Verifies parsing of both `setup-shared-contracts` table contracts and live `D3Nexus/shared-contracts/lyrics-sync/` narrative contracts (HTML comment `Version`, heading/bullet `Method`/`Path` endpoints, nested JSON `payload_fields` with types, `### GAP-XX` sections with `OPEN`/`PROPOSED`/`ACCEPTED` statuses), plus rejection of unsupported/empty files.
 - **Test Initial Sync, Dual-Mode, and Worktree Symlink Resolution**: Verifies `check` accurately detects Hub physical mode, Satellite symlink mode, and nested `.worktrees/<epic_dir>` Satellite checkouts without modifying the relative symlink.
 - **Test Target Codebase Heuristic Scanner**: Verifies detection of implemented vs missing endpoints and `snake_case` / `camelCase` DTO fields across mock source files.
-- **Test Snapshot-Bound Watermark Ack, Semantic Baseline Diff, and Incremental Drift**: Verifies `--snapshot` mismatch rejection, `pending_rfcs` retention vs `--rfc` acknowledgement, `baseline_snapshot` semantic diffing in Git-less or uncommitted setups, and `--strict` exit codes.
+- **Test Snapshot-Bound Watermark Ack, Scoped RFC Check, Hub Snapshot Refresh, and Semantic Field-Type Diff**: Verifies `--snapshot` mismatch rejection, Hub `task_01` snapshot refresh flow, explicit `--rfc` acknowledgement vs global `pending_rfcs` retention, `check --strict --rfc <ID>` scoped verification, and `baseline_snapshot` `payload_fields` type-change diffing in Git-less or uncommitted setups.
 - **Harness Integration**: Registered in `scripts/verify.sh` alongside `test_setup_contracts.py`.
 
 ## 9. Error Handling and Edge Cases
@@ -260,7 +278,7 @@ The hermetic test suite in `skills/sync-shared-contracts/resources/scripts/test_
 | `ack --snapshot <id>` does not match current contract files | `ack` | Exits `1` with `SNAPSHOT_MISMATCH` error preventing silent overwrite of concurrent Hub edits. |
 | `.agents/contract_sync.json` does not exist yet | `check` / `brief` | Reports status `INITIAL_SYNC`, parses full contract baseline, and classifies items via codebase heuristic scan. |
 | `.agents/contract_sync.json` contains malformed JSON | `check` / `ack` | Logs warning, treats state as unsynced during `check`, and overwrites cleanly on `ack`. |
-| Hub directory is not a Git repository or has uncommitted edits | `check` / `brief` / `ack` | Skips `git log` gracefully and computes semantic field/endpoint/RFC diffs against `baseline_snapshot` in `.agents/contract_sync.json`. |
+| Hub directory is not a Git repository or has uncommitted edits | `check` / `brief` / `ack` | Skips `git log` gracefully and computes semantic field/type/endpoint/RFC diffs against `baseline_snapshot` in `.agents/contract_sync.json`. |
 
 ## 10. Risks and Mitigations
 
@@ -269,4 +287,4 @@ The hermetic test suite in `skills/sync-shared-contracts/resources/scripts/test_
 - **Risk: Relative symlinks breaking inside `.worktrees/<epic_dir>` during Stage 3 (`dev-implementation`).**
   *Mitigation*: `resolve_topology()` detects git worktrees via `.git` / `git rev-parse --git-common-dir` and resolves relative symlink targets from the main repository root while keeping all writes local to the worktree.
 - **Risk: Prematurely acknowledging unimplemented RFCs or concurrent upstream edits.**
-  *Mitigation*: `ack` validates `--snapshot <snapshot_id>` and keeps `ACTIONABLE_PENDING` items in `pending_rfcs` unless explicitly acknowledged via `--rfc <ID>`.
+  *Mitigation*: `ack` validates `--snapshot <snapshot_id>` and keeps all newly discovered active RFCs in `pending_rfcs` unless explicitly acknowledged via `--rfc <ID>` or `--all-rfcs`, while `check --strict --rfc <ID>` verifies scoped completion without erasing global drift.

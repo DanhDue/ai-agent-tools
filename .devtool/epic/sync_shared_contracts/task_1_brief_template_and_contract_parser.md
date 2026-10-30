@@ -25,13 +25,13 @@ Create the canonical delta brief template `skills/sync-shared-contracts/resource
      - Extract `Version` from either `- **Version**: \`X.Y.Z\`` or HTML comment metadata (`Version: X.Y.Z`).
      - Extract authentication headers from markdown tables or `http` code blocks.
      - Extract endpoints from `| Method | Endpoint | Auth | Purpose |` tables OR narrative section headings (`### ... (METHOD /path)`) and bullet pairs (`* **Method**: POST`, `* **Path**: /api/v1/...`).
-     - Extract JSON payload schema keys from `json` code fences.
+     - Extract both flat `payload_keys` (for heuristic codebase scanning) and dotted `payload_fields` mapping field paths to normalized JSON types (`{"payload.parameters": "object", "metrics.execution_time_ms": "integer", ...}`) from `json` code fences and field tables.
      - Reject files with zero recognizable endpoints with exit code `1` (`UNSUPPORTED_CONTRACT_FORMAT`).
    - `architecture_and_flow.md`:
      - Extract numbered canonical pipeline steps (`1. **Step**: ...` or `### Step N`) and state machine transitions.
    - `gaps_and_rfcs.md`:
      - Extract RFC and Gap entries from `| RFC ID | Title | Proposing Repo | Status | Target Release | Breaking? |` tables OR narrative `### GAP-XX: Title` / `### RFC-XXX: Title` sections with `* **Status**: \`...\``.
-     - Normalize statuses into `ACTIONABLE_PENDING` (`OPEN`, `PROPOSED`, `DRAFT`, `IN REVIEW`, `IN_REVIEW`), `ACKNOWLEDGED_ACTIVE` (`ACCEPTED`, `APPROVED`, `IMPLEMENTED`), and `INACTIVE` (`SUPERSEDED`, `REJECTED`).
+     - Normalize statuses into `ACTIONABLE_PENDING` (`OPEN`, `PROPOSED`, `DRAFT`, `IN REVIEW`, `IN_REVIEW`), `ACKNOWLEDGED_ACTIVE` (`ACCEPTED`, `APPROVED`, `IMPLEMENTED`), and `INACTIVE` (`SUPERSEDED`, `REJECTED`), storing structured `rfcs` metadata (`status`, `raw_status`, `title`).
 3. Implement initial baseline detection (`INITIAL_SYNC`) when `.agents/contract_sync.json` does not exist yet (`[SYC-EC-01]`) and brief rendering (`[SYC-HP-01]`).
 4. Initialize `skills/sync-shared-contracts/resources/scripts/test_sync_contracts.py` covering `[SYC-HP-01]` (both table and narrative fixtures) and `[SYC-EC-01]`.
 

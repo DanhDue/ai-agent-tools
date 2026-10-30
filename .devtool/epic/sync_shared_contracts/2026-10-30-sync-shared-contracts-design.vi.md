@@ -107,7 +107,7 @@ skills/sync-shared-contracts/
 
 ### 4.2 Schema Mốc Đồng bộ (`.agents/contract_sync.json`)
 
-File trạng thái đồng bộ được lưu trực tiếp trong target repository tại `.agents/contract_sync.json` và bao gồm `baseline_snapshot` chuẩn hóa để tính toán semantic diff ngay cả khi không có lịch sử Git hoặc khi thay đổi chưa commit:
+File trạng thái đồng bộ được lưu trực tiếp trong target repository tại `.agents/contract_sync.json` và bao gồm `baseline_snapshot` chuẩn hóa (lưu cả kiểu dữ liệu theo đường dẫn lồng nhau trong `payload_fields` và metadata có cấu trúc trong `rfcs`) để tính toán semantic diff ngay cả khi không có lịch sử Git hoặc khi thay đổi chưa commit:
 
 ```json
 {
@@ -140,10 +140,26 @@ File trạng thái đồng bộ được lưu trực tiếp trong target reposit
           "GET /api/v1/lyrics-sync/status"
         ],
         "headers": ["Authorization", "X-Worker-Token", "X-Correlation-ID", "X-Client-Timestamp"],
-        "payload_keys": ["config", "domain", "error", "lease_duration_ms", "metrics", "output_data", "parameters", "payload", "status", "task_id"],
+        "payload_keys": ["config", "domain", "error", "execution_time_ms", "lease_duration_ms", "metrics", "output_data", "parameters", "payload", "status", "task_id"],
+        "payload_fields": {
+          "domain": "string",
+          "lease_duration_ms": "integer",
+          "metrics": "object",
+          "metrics.execution_time_ms": "integer",
+          "output_data": "object",
+          "payload": "object",
+          "payload.config": "object",
+          "payload.parameters": "object",
+          "status": "string",
+          "task_id": "string"
+        },
         "pipeline_steps": ["Lease Acquisition", "Input Validation", "Scratch Isolation", "Core Compute", "Heartbeat and Progress", "Terminal Result Delivery", "Scratch Teardown"],
         "rfcs": {
-          "RFC-001": "APPROVED"
+          "RFC-001": {
+            "status": "ACKNOWLEDGED_ACTIVE",
+            "raw_status": "APPROVED",
+            "title": "Initial Baseline"
+          }
         }
       }
     }
@@ -157,7 +173,7 @@ Script `sync_contracts.py` cung cấp 3 lệnh con (subcommands):
 
 ### 5.1 Lệnh: `check`
 ```bash
-python3 sync_contracts.py check [--repo-root <path>] [--domain <domain_name>] [--json] [--strict]
+python3 sync_contracts.py check [--repo-root <path>] [--domain <domain_name>] [--json] [--strict] [--rfc <RFC-ID> ...]
 ```
 - **Xác thực**:
   - Kiểm tra `shared-contracts` tồn tại và phân giải hợp lệ (hỗ trợ cả đường dẫn trực tiếp lẫn phân giải qua repo chính khi chạy trong git worktree, giới hạn 10 bước nhảy symlink, có đủ 3 file canonical).
@@ -169,21 +185,22 @@ python3 sync_contracts.py check [--repo-root <path>] [--domain <domain_name>] [-
      - Trích xuất `Version` từ dòng `- **Version**: \`X.Y.Z\`` hoặc từ khối HTML comment `Version: X.Y.Z`.
      - Trích xuất headers từ bảng Markdown hoặc khối code `http` (`X-Worker-Token`, `Authorization`, `X-Correlation-ID`).
      - Trích xuất endpoints từ bảng `| Method | Endpoint | ... |` HOẶC tiêu đề `### ... (METHOD /path)` kết hợp cặp bullet `* **Method**:` / `* **Path**:`.
-     - Trích xuất các khóa JSON payload từ các khối code `json`.
+     - Trích xuất đồng thời danh sách khóa phẳng `payload_keys` (cho bộ quét code heuristic) và từ điển `payload_fields` (`{"payload.parameters": "object", "metrics.execution_time_ms": "integer", ...}`) từ các khối code `json` và bảng schema.
      - Trích xuất các bước pipeline từ danh sách đánh số hoặc tiêu đề `### Step N` trong `architecture_and_flow.md`.
      - Trích xuất danh mục RFC và Gap từ bảng `| RFC ID | ... |` HOẶC các mục `### GAP-XX: Title` / `### RFC-XXX: Title` kèm dòng `* **Status**: \`...\``, chuẩn hóa trạng thái thành 3 nhóm:
        - `ACTIONABLE_PENDING`: `OPEN`, `PROPOSED`, `DRAFT`, `IN REVIEW`, `IN_REVIEW`
        - `ACKNOWLEDGED_ACTIVE`: `ACCEPTED`, `APPROVED`, `IMPLEMENTED`
        - `INACTIVE`: `SUPERSEDED`, `REJECTED`
-  4. So sánh cấu trúc vừa phân tích với `baseline_snapshot` trong `.agents/contract_sync.json` để xác định chính xác các endpoints, khóa payload, bước pipeline, và RFC mới thêm, bị xóa hoặc thay đổi ngay cả khi không có Git history.
+  4. So sánh cấu trúc vừa phân tích với `baseline_snapshot` trong `.agents/contract_sync.json` để xác định chính xác các endpoints, trường `payload_fields` mới thêm, bị xóa hoặc đổi kiểu dữ liệu (`timeout_ms: integer -> string`), bước pipeline, và RFC ngay cả khi không có Git history.
   5. Chạy bộ quét Target Codebase Heuristic Scanner trên `<repo_root>` để kiểm tra sự hiện diện của các endpoints, headers, và trường dữ liệu trong source code.
-  6. Kết luận trạng thái đồng bộ:
-     - `IN_SYNC`: `file_hashes` khớp với `.agents/contract_sync.json`, `pending_rfcs` rỗng, và mọi RFC active đều nằm trong `acknowledged_rfcs`.
+  6. Kết luận trạng thái đồng bộ toàn cục và theo phạm vi:
+     - `IN_SYNC`: `file_hashes` khớp với `.agents/contract_sync.json`, `pending_rfcs` rỗng, và mọi RFC active (`ACTIONABLE_PENDING` và `ACKNOWLEDGED_ACTIVE`) đều nằm trong `acknowledged_rfcs`.
      - `INITIAL_SYNC`: chưa có dữ liệu domain hợp lệ trong `.agents/contract_sync.json`.
-     - `DRIFT_DETECTED`: `file_hashes` thay đổi, khác biệt so với `baseline_snapshot`, hoặc còn tồn tại `pending_rfcs` / RFC active chưa được ack.
+     - `DRIFT_DETECTED`: `file_hashes` thay đổi, khác biệt so với `baseline_snapshot`, hoặc còn tồn tại RFC trong `pending_rfcs`.
+     - `scoped_in_sync`: khi truyền `--rfc <ID>` cho lệnh `check`, `scoped_in_sync` đạt `true` nếu `file_hashes` khớp với `.agents/contract_sync.json`, mọi `<ID>` được yêu cầu đều nằm trong `acknowledged_rfcs` (không còn trong `pending_rfcs`), và không còn endpoints/keys nào ở trạng thái `missing_in_code`.
 - **Mã thoát (Exit Codes)**:
-  - `0` khi ở trạng thái `IN_SYNC` (hoặc khi `DRIFT_DETECTED` / `INITIAL_SYNC` ở chế độ thông tin không có cờ `--strict`).
-  - `1` khi cấu trúc thư mục/symlink/định dạng file bị lỗi, hoặc khi truyền cờ `--strict` mà trạng thái khác `IN_SYNC`.
+  - `0` khi ở trạng thái `IN_SYNC`, hoặc khi truyền `--strict --rfc <ID>` mà `scoped_in_sync` đạt `true`, hoặc ở chế độ thông tin không có cờ `--strict`.
+  - `1` khi cấu trúc thư mục/symlink/định dạng file bị lỗi, khi truyền `--strict` (không kèm `--rfc`) mà trạng thái toàn cục khác `IN_SYNC`, hoặc khi truyền `--strict --rfc <ID>` mà `scoped_in_sync` là `false`.
 
 ### 5.2 Lệnh: `brief`
 ```bash
@@ -193,22 +210,23 @@ python3 sync_contracts.py brief [--repo-root <path>] [--domain <domain_name>] [-
   - Thực thi toàn bộ phân tích delta 3 tầng tương tự lệnh `check`.
   - Kết xuất từ template `contract_delta_brief.md.tmpl` ra báo cáo Markdown có cấu trúc gồm:
     1. **Topology & Sync Metadata**: Chế độ (`hub` / `satellite`), Domain, Mã `snapshot_id`, Chuyển đổi phiên bản (`cũ -> mới`), dải commit trên Hub, và danh sách các file thay đổi.
-    2. **API & Schema Requirements**: Các endpoints và trường JSON payload mới thêm, thay đổi hoặc giữ nguyên (đối chiếu với `baseline_snapshot` nếu có, hoặc toàn bộ baseline khi `INITIAL_SYNC`), kèm nhãn kết quả quét code (`FOUND_IN_CODE` vs `MISSING_IN_CODE`).
+    2. **API & Schema Requirements**: Các endpoints và trường JSON payload mới thêm, bị xóa, đổi kiểu dữ liệu (`field: old_type -> new_type`), hoặc giữ nguyên (đối chiếu với `baseline_snapshot` nếu có, hoặc toàn bộ baseline khi `INITIAL_SYNC`), kèm nhãn kết quả quét code (`FOUND_IN_CODE` vs `MISSING_IN_CODE`).
     3. **Architecture & Pipeline Invariants**: Các bước pipeline bắt buộc, chuyển đổi state machine, và ràng buộc cô lập/cancellation.
     4. **Actionable RFCs & Gaps**: Các mục RFC/Gap đã chuẩn hóa trạng thái (`ACTIONABLE_PENDING` và các mục `ACKNOWLEDGED_ACTIVE` chưa được ack).
-    5. **Lifecycle Execution Rules**: Chỉ dẫn bắt buộc cho `dev-brainstorming`, `dev-designer` (quy tắc `task_01` và ranh giới symlink), cùng `dev-implementation` (bước xác minh bằng `sync_contracts.py ack --snapshot <snapshot_id>`).
+    5. **Lifecycle Execution Rules**: Chỉ dẫn bắt buộc cho `dev-brainstorming`, `dev-designer` (quy tắc `task_01`, quy tắc làm mới `snapshot_id` sau `task_01` ở Hub, và ranh giới symlink ở Satellite), cùng `dev-implementation` (bước xác minh bằng `sync_contracts.py ack --snapshot <snapshot_id> [--rfc <ID> ... | --all-rfcs]`).
 
 ### 5.3 Lệnh: `ack`
 ```bash
-python3 sync_contracts.py ack [--repo-root <path>] [--domain <domain_name>] [--snapshot <snapshot_id>] [--rfc <RFC-ID> ...]
+python3 sync_contracts.py ack [--repo-root <path>] [--domain <domain_name>] [--snapshot <snapshot_id>] [--rfc <RFC-ID> ...] [--all-rfcs]
 ```
 - **Hành động**:
   - Tính toán mã băm 3 file hiện tại và mã tổng hợp `snapshot_id`.
-  - **Bảo vệ Snapshot (`--snapshot`)**: Nếu truyền `--snapshot <expected_id>` mà không khớp với `snapshot_id` hiện tại trên đĩa, lệnh `ack` dừng ngay với mã thoát `1` và báo lỗi rằng contract đã bị thay đổi kể từ lúc tạo brief.
-  - **Theo dõi RFC theo Phạm vi (Scope-Bound RFC Tracking)**:
-    - Mặc định, các mục thuộc nhóm `ACKNOWLEDGED_ACTIVE` (`ACCEPTED`, `APPROVED`, `IMPLEMENTED`) được đưa vào `acknowledged_rfcs`.
-    - Các mục thuộc nhóm `ACTIONABLE_PENDING` (`OPEN`, `PROPOSED`, `DRAFT`, `IN_REVIEW`) được giữ lại trong `pending_rfcs` trừ khi được chỉ định tường minh qua cờ `--rfc <ID>` (khi đó `<ID>` được chuyển sang `acknowledged_rfcs`). Nếu `pending_rfcs` chưa rỗng, lệnh `check --strict` tiếp theo sẽ tiếp tục báo `DRIFT_DETECTED` cho đến khi toàn bộ RFC tồn đọng được xử lý.
-  - Ghi nguyên tử `baseline_snapshot`, `file_hashes`, `snapshot_id`, `hub_commit_sha`, `acknowledged_rfcs`, `pending_rfcs`, và `acknowledged_endpoints` vào `.agents/contract_sync.json` thông qua file tạm và `os.replace()`.
+  - **Bảo vệ Snapshot (`--snapshot`)**: Nếu truyền `--snapshot <expected_id>` mà không khớp với `snapshot_id` hiện tại trên đĩa, lệnh `ack` dừng ngay với mã thoát `1` và báo lỗi (`SNAPSHOT_MISMATCH`) rằng contract đã bị thay đổi kể từ lúc tạo brief.
+  - **Theo dõi RFC Tường minh theo Phạm vi (Explicit Scope-Bound RFC Tracking)**:
+    - Mọi RFC/Gap thuộc diện active (`ACTIONABLE_PENDING` hoặc `ACKNOWLEDGED_ACTIVE`) đã nằm trong `acknowledged_rfcs` của mốc đồng bộ trước đó sẽ tiếp tục được giữ trong `acknowledged_rfcs` trừ khi định nghĩa/trạng thái của nó trong contract bị thay đổi.
+    - Các RFC active mới xuất hiện hoặc chưa từng được ack (dù mang trạng thái `OPEN`, `PROPOSED`, `ACCEPTED`, `APPROVED`, hay `IMPLEMENTED`) mặc định được đưa vào `pending_rfcs` và **chỉ** được chuyển sang `acknowledged_rfcs` khi được chỉ định tường minh qua cờ `--rfc <ID>` (hoặc khi truyền `--all-rfcs`, hoặc khi contract không có RFC nào).
+    - Nếu `pending_rfcs` vẫn còn phần tử sau khi chạy `ack`, lệnh toàn cục `check --strict` sẽ tiếp tục báo `DRIFT_DETECTED` (exit `1`), trong khi lệnh kiểm tra theo phạm vi `check --strict --rfc <ID>` trả về `0` (`scoped_in_sync: true`) cho tập con RFC vừa hoàn thành.
+  - Ghi nguyên tử `baseline_snapshot` (bao gồm `payload_fields` và `rfcs`), `file_hashes`, `snapshot_id`, `hub_commit_sha`, `acknowledged_rfcs`, `pending_rfcs`, và `acknowledged_endpoints` vào `.agents/contract_sync.json` thông qua file tạm và `os.replace()`.
 
 ## 6. Bộ Quét Heuristic trên Source Code Đích
 
@@ -228,14 +246,14 @@ Khi lập trình viên gọi `/sync-shared-contracts` (hoặc yêu cầu kiểm 
    - Nếu thiếu `shared-contracts` hoặc symlink bị đứt, hướng dẫn chạy `d3nexus:setup-shared-contracts`.
    - Nếu kết quả là `IN_SYNC` và không có mục nào `MISSING_IN_CODE` hay RFC chờ xử lý, thông báo repo đã đồng bộ hoàn toàn và kết thúc.
 2. **Bước 2 — Xác nhận Phạm vi (Scope Confirmation)**:
-   - Trình bày bản **Contract Requirements Brief** (kèm mã `snapshot_id`) cho lập trình viên để xác nhận các thay đổi/RFC sẽ thực hiện trong đợt này và thống nhất tên `<epic_slug>`.
+   - Trình bày bản **Contract Requirements Brief** (kèm mã `snapshot_id`) cho lập trình viên để xác nhận các thay đổi/RFC sẽ thực hiện trong đợt này (tập con `--rfc <ID>` hoặc `--all-rfcs`) và thống nhất tên `<epic_slug>`.
 3. **Bước 3 — Chuyển giao vào Stage 1 (`dev-brainstorming`) & Stage 2 (`dev-designer`)**:
    - Kích hoạt `d3nexus:dev-lifecycle` với đầu vào là bản **Contract Requirements Brief**:
      - **Stage 1 (`dev-brainstorming`)**: Soạn thảo cặp Design Spec song ngữ (`docs/superpowers/specs/YYYY-MM-DD-<topic>-design.en.md` và `.vi.md`) bám sát các thông số đã định nghĩa trong contract (không hỏi lại các thông tin đã được chốt trong contract), và xin phê duyệt Gate 1.
      - **Stage 2 (`dev-designer`)**: Tạo tài liệu HLD song ngữ, kịch bản BDD 5 chiều (`bdd_scenarios.en.md` / `.vi.md`), và tách các Kanban tasks (`task_*.md`) trình duyệt ở Gate 2:
-       - Ở **Hub Mode**: `task_01` cập nhật các file vật lý trong `shared-contracts/<domain>/` (`api_contract.md`, `architecture_and_flow.md`, `gaps_and_rfcs.md`).
-       - Ở **Satellite Mode**: `task_01` cập nhật các DTO nội bộ, API client, và mock fixtures (tuyệt đối không đưa `shared-contracts/` vào `Files Allowed`).
-       - Ở **Cả Hai Mode**: Task cuối cùng khai báo `.agents/contract_sync.json` trong `Files Allowed` và chạy lệnh `sync_contracts.py ack --snapshot <snapshot_id> [--rfc <ID> ...]` + `sync_contracts.py check --strict` để mốc đồng bộ được kiểm tra và commit cùng với code.
+       - Ở **Hub Mode**: `task_01` cập nhật các file vật lý trong `shared-contracts/<domain>/` (`api_contract.md`, `architecture_and_flow.md`, `gaps_and_rfcs.md`) và chạy `sync_contracts.py brief --domain <domain>` (hoặc `check --json`) ở cuối `task_01` để ghi nhận `snapshot_id` mới sau khi cập nhật contract. Task cuối của Hub ràng buộc `sync_contracts.py ack --snapshot <post_task_01_snapshot_id>` với mã snapshot vừa làm mới này để chặn mọi chỉnh sửa ngoài ý muốn phát sinh sau `task_01`.
+       - Ở **Satellite Mode**: `task_01` cập nhật các DTO nội bộ, API client, và mock fixtures (tuyệt đối không đưa `shared-contracts/` vào `Files Allowed`), và task cuối của Satellite ràng buộc `sync_contracts.py ack --snapshot <brief_snapshot_id>` với mã snapshot chụp ở Bước 1.
+       - Ở **Cả Hai Mode**: Task cuối cùng khai báo `.agents/contract_sync.json` trong `Files Allowed`, chạy lệnh `sync_contracts.py ack --snapshot <expected_snapshot_id> [--rfc <ID> ... | --all-rfcs]`, và xác minh hoàn tất bằng `sync_contracts.py check --strict` (khi thực hiện toàn bộ RFC của domain) hoặc `sync_contracts.py check --strict --rfc <ID> ...` (khi thực hiện một tập con RFC mà vẫn bảo toàn cảnh báo drift toàn cục cho các RFC còn lại).
 4. **Bước 4 — Thực thi tại Stage 3 (`dev-implementation`)**:
    - Thực thi từng task theo TDD trong git worktree cô lập (`.worktrees/<epic_dir>`). `sync_contracts.py` tự động phân giải relative symlink `shared-contracts` của Satellite qua thư mục gốc của repo chính trong khi vẫn đọc/ghi `.agents/contract_sync.json` ngay trong worktree. Vượt qua Gate 4 (`quality_check` + `check_bdd_traceability.py` + `audit_epic.py`), thực hiện vòng lặp Review Choice và duyệt Gate 5.
 5. **Bước 5 — Hoàn tất Nhánh tại Stage 4 (`finishing-a-development-branch`)**:
@@ -244,10 +262,10 @@ Khi lập trình viên gọi `/sync-shared-contracts` (hoặc yêu cầu kiểm 
 ## 8. Chiến lược Kiểm thử và Xác minh
 
 Bộ kiểm thử cô lập (hermetic) trong `skills/sync-shared-contracts/resources/scripts/test_sync_contracts.py` sử dụng `unittest` và `tempfile.TemporaryDirectory`:
-- **Kiểm thử Bộ Phân tích Markdown Kép (Dual-Format Parser)**: Xác minh phân tích chính xác cả định dạng bảng của `setup-shared-contracts` lẫn định dạng narrative thực tế của `D3Nexus/shared-contracts/lyrics-sync/` (`Version` trong HTML comment, endpoints dạng tiêu đề/bullet `Method`/`Path`, các mục `### GAP-XX` với trạng thái `OPEN`/`PROPOSED`/`ACCEPTED`), và từ chối các file sai định dạng.
+- **Kiểm thử Bộ Phân tích Markdown Kép (Dual-Format Parser)**: Xác minh phân tích chính xác cả định dạng bảng của `setup-shared-contracts` lẫn định dạng narrative thực tế của `D3Nexus/shared-contracts/lyrics-sync/` (`Version` trong HTML comment, endpoints dạng tiêu đề/bullet `Method`/`Path`, đường dẫn trường lồng nhau `payload_fields` kèm kiểu dữ liệu, các mục `### GAP-XX` với trạng thái `OPEN`/`PROPOSED`/`ACCEPTED`), và từ chối các file sai định dạng.
 - **Kiểm thử Initial Sync, Dual-Mode, và Phân giải Symlink trong Worktree**: Xác minh lệnh `check` hoạt động chính xác trên Hub physical mode, Satellite symlink mode, và bên trong worktree lồng `.worktrees/<epic_dir>` mà không sửa đổi symlink gốc.
 - **Kiểm thử Bộ Quét Heuristic trên Source Code**: Xác minh khả năng phân loại đúng các endpoints và trường DTO (`snake_case` / `camelCase`) đã có hoặc còn thiếu trên các file code giả lập.
-- **Kiểm thử Lệnh Ack theo Snapshot, Semantic Baseline Diff, và Incremental Drift**: Xác minh từ chối khi `--snapshot` lệch, giữ lại `pending_rfcs` so với `--rfc`, tính toán semantic diff qua `baseline_snapshot` khi không có Git hoặc có thay đổi chưa commit, và kiểm tra mã thoát `--strict`.
+- **Kiểm thử Lệnh Ack theo Snapshot, Kiểm tra RFC theo Phạm vi, Làm mới Snapshot ở Hub, và Semantic Field-Type Diff**: Xác minh từ chối khi `--snapshot` lệch, luồng làm mới snapshot sau `task_01` ở Hub, xác nhận tường minh `--rfc` so với việc giữ lại `pending_rfcs` toàn cục, kiểm tra hoàn tất theo phạm vi `check --strict --rfc <ID>`, và phát hiện đổi kiểu dữ liệu qua `payload_fields` trong `baseline_snapshot` khi không có Git hoặc có thay đổi chưa commit.
 - **Tích hợp vào Bộ Kiểm tra Phát hành**: Đăng ký chạy tự động trong `scripts/verify.sh` cùng với `test_setup_contracts.py`.
 
 ## 9. Xử lý Lỗi và các Trường hợp Biên
@@ -260,7 +278,7 @@ Bộ kiểm thử cô lập (hermetic) trong `skills/sync-shared-contracts/resou
 | Tham số `ack --snapshot <id>` không khớp với file hiện tại | `ack` | Thoát mã `1` với lỗi `SNAPSHOT_MISMATCH` ngăn chặn việc ghi đè nhầm khi Hub vừa cập nhật. |
 | Chưa có file `.agents/contract_sync.json` | `check` / `brief` | Báo trạng thái `INITIAL_SYNC`, phân tích toàn bộ contract hiện tại và phân loại qua bộ quét code heuristic. |
 | File `.agents/contract_sync.json` bị lỗi cú pháp JSON | `check` / `ack` | Ghi nhận cảnh báo, coi như chưa đồng bộ khi chạy `check`, và ghi đè lại file chuẩn khi chạy `ack`. |
-| Thư mục Hub không phải là Git repository hoặc có thay đổi chưa commit | `check` / `brief` / `ack` | Bỏ qua `git log` an toàn và tính toán semantic diff của từng trường/endpoint/RFC dựa trên `baseline_snapshot` trong `.agents/contract_sync.json`. |
+| Thư mục Hub không phải là Git repository hoặc có thay đổi chưa commit | `check` / `brief` / `ack` | Bỏ qua `git log` an toàn và tính toán semantic diff của từng trường/kiểu dữ liệu/endpoint/RFC dựa trên `baseline_snapshot` trong `.agents/contract_sync.json`. |
 
 ## 10. Rủi ro và Biện pháp Giảm thiểu
 
@@ -269,4 +287,4 @@ Bộ kiểm thử cô lập (hermetic) trong `skills/sync-shared-contracts/resou
 - **Rủi ro: Relative symlink bị lệch đường dẫn khi chạy bên trong `.worktrees/<epic_dir>` ở Stage 3 (`dev-implementation`).**
   *Biện pháp*: `resolve_topology()` tự động phát hiện git worktree qua `.git` / `git rev-parse --git-common-dir` và phân giải đích symlink từ thư mục gốc của repo chính trong khi mọi thao tác ghi vẫn cô lập trong worktree.
 - **Rủi ro: Đánh dấu đồng bộ nhầm các RFC chưa thực hiện hoặc các thay đổi mới phát sinh trên Hub.**
-  *Biện pháp*: Lệnh `ack` kiểm tra `--snapshot <snapshot_id>` và giữ các mục `ACTIONABLE_PENDING` trong `pending_rfcs` trừ khi được xác nhận tường minh qua `--rfc <ID>`.
+  *Biện pháp*: Lệnh `ack` kiểm tra `--snapshot <snapshot_id>` và giữ mọi RFC mới phát sinh trong `pending_rfcs` trừ khi được xác nhận tường minh qua `--rfc <ID>` hoặc `--all-rfcs`, trong khi `check --strict --rfc <ID>` cho phép kiểm tra hoàn tất theo đúng phạm vi đã chọn mà không xóa cảnh báo drift toàn cục.

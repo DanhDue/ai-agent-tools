@@ -21,12 +21,12 @@ Epic: [sync_shared_contracts](sync_shared_contracts.en.md)
 Create the skill definition `skills/sync-shared-contracts/SKILL.md` and wire the test suite into the repository verification script `scripts/verify.sh`.
 1. Author `skills/sync-shared-contracts/SKILL.md`:
    - YAML frontmatter strictly containing only `name: sync-shared-contracts` and `description`.
-   - Complete documentation of the 3-layer Hybrid Delta Engine (`check`, `brief`, `ack`), Dual-Format Markdown contract support (canonical tables and narrative `Method`/`Path` + `GAP-XX` sections), worktree-aware relative symlink resolution, and `.agents/contract_sync.json` (`snapshot_id`, `pending_rfcs`, `baseline_snapshot`) schema.
+   - Complete documentation of the 3-layer Hybrid Delta Engine (`check`, `brief`, `ack`), Dual-Format Markdown contract support (canonical tables and narrative `Method`/`Path` + `GAP-XX` sections), worktree-aware relative symlink resolution, and `.agents/contract_sync.json` (`snapshot_id`, `pending_rfcs`, `baseline_snapshot` with `payload_fields`) schema.
    - Detailed 5-step Orchestrated Bridge into `d3nexus:dev-lifecycle`:
      - Step 1: Preflight & Contract Delta Audit (`sync_contracts.py check` & `brief`).
-     - Step 2: Scope Confirmation with developer (recording the target `snapshot_id` and selected RFC/GAP IDs).
-     - Step 3: Stage 1 (`dev-brainstorming`) & Stage 2 (`dev-designer`) rules (Hub `task_01` canonical contract update vs Satellite `task_01` consumer DTO/adapter update, Satellite Git read-only symlink rule, and final task running `sync_contracts.py ack --snapshot <snapshot_id> [--rfc <ID> ...]`).
-     - Step 4: Stage 3 (`dev-implementation`) TDD execution inside `.worktrees/<epic_dir>` (where `sync_contracts.py` automatically resolves the Satellite's relative `shared-contracts` symlink via the primary repository root while writing `.agents/contract_sync.json` in the worktree) and `sync_contracts.py check --strict` verification.
+     - Step 2: Scope Confirmation with developer (recording the target `snapshot_id` and selected `--rfc <ID>` subset or `--all-rfcs`).
+     - Step 3: Stage 1 (`dev-brainstorming`) & Stage 2 (`dev-designer`) rules (Hub `task_01` canonical contract update + post-`task_01` `snapshot_id` refresh vs Satellite `task_01` consumer DTO/adapter update, Satellite Git read-only symlink rule, and final task running `sync_contracts.py ack --snapshot <expected_snapshot_id> [--rfc <ID> ... | --all-rfcs]`).
+     - Step 4: Stage 3 (`dev-implementation`) TDD execution inside `.worktrees/<epic_dir>` (where `sync_contracts.py` automatically resolves the Satellite's relative `shared-contracts` symlink via the primary repository root while writing `.agents/contract_sync.json` in the worktree) and completion verification via `sync_contracts.py check --strict` (global) or `sync_contracts.py check --strict --rfc <ID> ...` (scoped).
      - Step 5: Stage 4 (`finishing-a-development-branch`).
 2. Wire `skills/sync-shared-contracts/resources/scripts/test_sync_contracts.py` into `scripts/verify.sh` in Section 14 (`== 14. Shared contracts CLI engine is enforced ==`) alongside `test_setup_contracts.py`.
 3. Add final integration test `test_syc_hp_03_skill_and_verify_harness` in `test_sync_contracts.py` verifying `SKILL.md` frontmatter, links, and end-to-end CLI execution (`[SYC-HP-03]`).
@@ -86,7 +86,7 @@ Scenario: [SYC-HP-03] [Tier C - Integration] Skill Definition and Release Verify
 
 - A command, path, symbol or anchor named in this task does not match the repository.
 - A Verification row fails for a reason other than its Expect.
-- The work needs a change to a file outside Allowed files, or to a protected path.
+- The work needs a change to a file outside Allowed files, to an explicit protected path, or to `scripts/verify.sh` outside Section 14 (`== 14. Shared contracts CLI engine is enforced ==`).
 - The work needs a change to this task's Verification table, Definition of Done, Allowed files or
   Covers line.
 - A variable named in the Needs column is unset.

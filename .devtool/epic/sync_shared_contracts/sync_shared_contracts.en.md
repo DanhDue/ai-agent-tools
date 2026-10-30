@@ -40,11 +40,11 @@ This epic delivers the `sync-shared-contracts` skill and its standard-library Py
 - Build `skills/sync-shared-contracts/SKILL.md` to orchestrate contract delta auditing and the 4-stage `d3nexus:dev-lifecycle` bridge on target repositories.
 - Build `skills/sync-shared-contracts/resources/scripts/sync_contracts.py` implementing `check`, `brief`, and `ack` using Python's standard library.
 - Implement a 3-layer Hybrid Delta Engine:
-  1. Git commit history, SHA-256 file hash comparison, and persisted `baseline_snapshot` structural diffing against `.agents/contract_sync.json`.
+  1. Git commit history, SHA-256 file hash comparison, and persisted `baseline_snapshot` structural diffing (including nested `payload_fields` path/type mapping and `rfcs` metadata) against `.agents/contract_sync.json`.
   2. Dual-Format Structured Markdown parsing of `api_contract.md`, `architecture_and_flow.md`, and `gaps_and_rfcs.md` (supporting both `setup-shared-contracts` tables and live narrative sections, normalizing statuses into `ACTIONABLE_PENDING`, `ACKNOWLEDGED_ACTIVE`, and `INACTIVE`, and rejecting unsupported formats with exit `1`).
   3. Target Codebase Heuristic Scanner classifying endpoints, headers, and DTO fields (`snake_case` and `camelCase`) as `FOUND_IN_CODE` or `MISSING_IN_CODE`.
 - Implement **Worktree-Aware Symlink Resolution** so relative `shared-contracts` symlinks inside nested `.worktrees/<epic_dir>` checkouts resolve against the primary repository root while keeping scans and `.agents/contract_sync.json` writes local to the worktree.
-- Implement **Snapshot- and Scope-Bound Acknowledgement (`ack`)** verifying `--snapshot <snapshot_id>` and retaining `pending_rfcs` unless explicitly acknowledged via `--rfc <ID>`.
+- Implement **Snapshot- and Scope-Bound Acknowledgement (`ack`)** verifying `--snapshot <snapshot_id>` (including Hub `task_01` snapshot refresh) and keeping all newly discovered active RFCs in `pending_rfcs` unless explicitly acknowledged via `--rfc <ID>` or `--all-rfcs`, paired with scoped verification via `check --strict --rfc <ID>`.
 - Bundle `skills/sync-shared-contracts/resources/templates/contract_delta_brief.md.tmpl` to render actionable **Contract Requirements Briefs**.
 - Implement hermetic unit and integration tests in `test_sync_contracts.py` and register them in `scripts/verify.sh`.
 
@@ -123,9 +123,9 @@ sequenceDiagram
     CLI-->>Dev: Emit Contract Requirements Brief (snapshot_id, INITIAL_SYNC / DRIFT_DETECTED)
     Dev->>Life: Stage 1 (dev-brainstorming) -> Approve Gate 1 Spec
     Life->>Life: Stage 2 (dev-designer) -> Approve Gate 2 HLD & Tasks
-    Life->>CLI: Stage 3 final task runs sync_contracts.py ack --snapshot <id> [--rfc <ID>]
+    Life->>CLI: Stage 3 (Hub task_01 refreshes snapshot_id; final task runs ack --snapshot <id> [--rfc <ID> | --all-rfcs])
     CLI->>Code: Verify snapshot_id & atomically write .agents/contract_sync.json
-    Life->>CLI: Verify sync_contracts.py check --strict exits 0
+    Life->>CLI: Verify sync_contracts.py check --strict [--rfc <ID>] exits 0
     Life-->>Dev: Pass Gate 4 & Gate 5 -> Stage 4 Finish Branch
 ```
 
@@ -133,7 +133,7 @@ sequenceDiagram
 
 Integration test roots: skills/sync-shared-contracts/resources/scripts/, scripts/
 
-Protected paths: .agents/quality/**, .devtool/epic/sync_shared_contracts/bdd_scenarios.en.md, .devtool/epic/sync_shared_contracts/bdd_scenarios.vi.md, scripts/verify.sh
+Protected paths: .agents/quality/**, .devtool/epic/sync_shared_contracts/bdd_scenarios.en.md, .devtool/epic/sync_shared_contracts/bdd_scenarios.vi.md
 
 Integration results: python3 scripts/run_unittest_junit.py --junitxml build/test-results/sync-shared-contracts.xml skills/sync-shared-contracts/resources/scripts/test_sync_contracts.py -> build/test-results/sync-shared-contracts.xml
 
@@ -142,7 +142,7 @@ Integration results: python3 scripts/run_unittest_junit.py --junitxml build/test
 | Dual-Format Parser & Brief | `test_sync_contracts.py` | `test_syc_hp_01_parse_and_render_brief` | Parses both table and narrative (`GAP-XX` / `Method`/`Path`) contracts and renders brief |
 | Worktree & Dual-Mode Check | `test_sync_contracts.py` | `test_syc_hp_02_satellite_worktree_and_hub_check` | Resolves relative symlink inside `.worktrees/<epic_dir>` and verifies `IN_SYNC` |
 | Heuristic Codebase Scanner | `test_sync_contracts.py` | `test_syc_ec_02_heuristic_snake_and_camel_scan` | Matches static route prefixes, headers, and `snake_case`/`camelCase` keys |
-| Snapshot Ack & Baseline Diff | `test_sync_contracts.py` | `test_syc_st_01_ack_snapshot_and_incremental_drift` | Enforces `--snapshot` guard, `pending_rfcs` retention, and `baseline_snapshot` diffing |
+| Snapshot Ack, Scoped RFC & Baseline Diff | `test_sync_contracts.py` | `test_syc_st_01_ack_snapshot_and_incremental_drift` | Enforces `--snapshot` guard, scoped `--rfc` check, and `payload_fields` type diffing |
 | Skill & Harness Verification | `test_sync_contracts.py` | `test_syc_hp_03_skill_and_verify_harness` | Validates `SKILL.md` frontmatter, links, and `scripts/verify.sh` integration |
 
 ## Verification Environment
@@ -151,7 +151,7 @@ Integration results: python3 scripts/run_unittest_junit.py --junitxml build/test
 - **Isolation**: All tests execute inside isolated `tempfile.TemporaryDirectory()` workspaces with zero network access or live external repositories.
 - **Environment Variables (`Needs`)**: None (`—`).
 - **Test Command**: `python3 -m unittest skills/sync-shared-contracts/resources/scripts/test_sync_contracts.py`
-- **Release Gate**: `scripts/verify.sh` executes the test suite on every release verification run.
+- **Release Gate**: `scripts/verify.sh` executes the test suite on every release verification run (`scripts/verify.sh` is an implicit protected path that Task 4 is explicitly authorized to edit in Section 14 via its exact `Allowed files` entry while keeping all other harness sections untouched).
 
 ## Shared Contract Impact
 
@@ -162,16 +162,18 @@ Integration results: python3 scripts/run_unittest_junit.py --junitxml build/test
 Full Gherkin scenarios covering all 5 dimensions live in `bdd_scenarios.en.md` and `bdd_scenarios.vi.md`.
 
 - **Happy Paths**:
-  - `[SYC-HP-01]`: Dual-format structured parsing (canonical table format and live narrative `Method`/`Path` + `GAP-XX` format) and rendering of the Contract Requirements Brief.
+  - `[SYC-HP-01]`: Dual-format structured parsing (canonical table format and live narrative `Method`/`Path` + `GAP-XX` format, including nested `payload_fields` with types) and rendering of the Contract Requirements Brief.
   - `[SYC-HP-02]`: End-to-end Satellite synchronization (including nested `.worktrees/<epic_dir>` symlink resolution), acknowledgement (`ack`), and `--strict` verification pass.
   - `[SYC-HP-03]`: Skill definition validation and `scripts/verify.sh` harness execution.
 - **Edge Cases & Boundaries**:
   - `[SYC-EC-01]`: Initial sync (`INITIAL_SYNC`) when `.agents/contract_sync.json` does not exist yet.
   - `[SYC-EC-02]`: Heuristic codebase scanner matching parameterized routes (`/tasks/{id}/progress`) and `camelCase` DTO properties (`leaseDurationMs`).
-  - `[SYC-EC-03]`: Semantic baseline diffing (`baseline_snapshot`) when the Hub directory has no `.git` repository or has uncommitted edits modifying existing payload keys/endpoints.
+  - `[SYC-EC-03]`: Semantic baseline diffing (`baseline_snapshot` `payload_fields` and `endpoints`) when the Hub directory has no `.git` repository or has uncommitted edits changing an existing field's type (`integer -> string`).
+  - `[SYC-EC-04]`: Resolving a Satellite relative `shared-contracts` symlink from inside a nested `.worktrees/<epic_dir>` directory via the primary repository root.
 - **State Transitions**:
-  - `[SYC-ST-01]`: Transitioning from `INITIAL_SYNC` to `IN_SYNC` via `ack`, rejecting mismatched `--snapshot <id>`, and transitioning to `DRIFT_DETECTED` when `api_contract.md` or `gaps_and_rfcs.md` is updated in the Hub.
-  - `[SYC-ST-02]`: Retaining `ACTIONABLE_PENDING` items (`OPEN`, `PROPOSED`, `DRAFT`) in `pending_rfcs` until explicitly acknowledged via `ack --rfc <ID>`, while preserving sibling domain entries in `.agents/contract_sync.json`.
+  - `[SYC-ST-01]`: Transitioning from `INITIAL_SYNC` to `IN_SYNC` via `ack --all-rfcs` (including Hub `task_01` snapshot refresh), and transitioning to `DRIFT_DETECTED` when `api_contract.md` or `gaps_and_rfcs.md` is updated.
+  - `[SYC-ST-02]`: Retaining unselected active RFCs (`OPEN`, `PROPOSED`, `ACCEPTED`) in `pending_rfcs` until explicitly acknowledged via `ack --rfc <ID>`, verifying scoped completion via `check --strict --rfc <ID>` while global `check --strict` continues to report `DRIFT_DETECTED`, and preserving sibling domain entries in `.agents/contract_sync.json`.
+  - `[SYC-ST-03]`: Rejecting `ack --snapshot <stale_id>` with exit code `1` (`SNAPSHOT_MISMATCH`) when a contract file changes after the brief was generated.
 - **Async & Concurrency**:
   - `[SYC-AR-01]`: Atomic watermark file updates via temporary swap file (`os.replace`) leaving zero partial JSON files.
   - `[SYC-AR-02]`: Circular symbolic link protection when resolving `shared-contracts` targets.
@@ -192,6 +194,6 @@ Full Gherkin scenarios covering all 5 dimensions live in `bdd_scenarios.en.md` a
 ## Kanban Tasks Breakdown
 
 - [Task 1: Canonical Brief Template and Markdown Contract Parser](task_1_brief_template_and_contract_parser.md) — Covers: `[SYC-HP-01]`, `[SYC-EC-01]`
-- [Task 2: Target Codebase Heuristic Scanner and Dual-Mode Check Engine](task_2_heuristic_scanner_and_check_engine.md) — Covers: `[SYC-EC-02]`, `[SYC-EC-03]`, `[SYC-AR-02]`, `[SYC-FR-01]`, `[SYC-FR-02]`
-- [Task 3: Watermark Ack Command, Drift Detection, and Brief CLI Subcommands](task_3_watermark_ack_and_brief_cli.md) — Covers: `[SYC-HP-02]`, `[SYC-ST-01]`, `[SYC-ST-02]`, `[SYC-AR-01]`, `[SYC-FR-03]`
+- [Task 2: Target Codebase Heuristic Scanner and Dual-Mode Check Engine](task_2_heuristic_scanner_and_check_engine.md) — Covers: `[SYC-EC-02]`, `[SYC-EC-03]`, `[SYC-EC-04]`, `[SYC-AR-02]`, `[SYC-FR-01]`, `[SYC-FR-02]`
+- [Task 3: Watermark Ack Command, Drift Detection, and Brief CLI Subcommands](task_3_watermark_ack_and_brief_cli.md) — Covers: `[SYC-HP-02]`, `[SYC-ST-01]`, `[SYC-ST-02]`, `[SYC-ST-03]`, `[SYC-AR-01]`, `[SYC-FR-03]`
 - [Task 4: Skill Definition, Lifecycle Bridge Instructions, and Verify Harness Integration](task_4_skill_definition_and_verify_integration.md) — Covers: `[SYC-HP-03]`

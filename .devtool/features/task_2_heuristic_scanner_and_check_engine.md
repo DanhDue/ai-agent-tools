@@ -23,9 +23,9 @@ Implement the Target Codebase Heuristic Scanner, Worktree-Aware Dual-Mode topolo
    - Recursively scan source files in `<repo_root>` while skipping `.git`, `.worktrees`, `shared-contracts`, `.devtool`, `.agents`, `node_modules`, `build`, `dist`, `target`, `.dart_tool`, and `__pycache__`.
    - Normalize parameterized endpoints (e.g., `/api/v1/lyrics-sync/tasks/{id}/progress` -> static route segments `/api/v1/lyrics-sync/tasks` and `/progress`) and check both `snake_case` and `camelCase` DTO field names (`lease_duration_ms` / `leaseDurationMs`) to classify each item as `FOUND_IN_CODE` or `MISSING_IN_CODE`.
 2. **Semantic Baseline Diffing & Git-less Hub Fallback (`[SYC-EC-03]`)**:
-   - When the Hub directory has no `.git` repository or has uncommitted edits, skip `git log` errors and compare the parsed contract structure against `baseline_snapshot` in `.agents/contract_sync.json` to surface added, removed, or modified endpoints, payload keys, pipeline steps, and RFCs.
-3. **Worktree-Aware Symlink Resolution, Cycle Protection & Format Validation (`[SYC-AR-02]`, `[SYC-FR-01]`, `[SYC-FR-02]`)**:
-   - When `<repo_root>/shared-contracts` is a relative symlink that does not resolve directly from `<repo_root>` because `<repo_root>` is a nested git worktree (`.worktrees/<epic_dir>`), inspect `.git` / `git rev-parse --git-common-dir` to locate the primary repository checkout root and resolve the relative link from there while keeping codebase scanning and `.agents/contract_sync.json` local to `<repo_root>`.
+   - When the Hub directory has no `.git` repository or has uncommitted edits, skip `git log` errors and compare the parsed contract structure against `baseline_snapshot` (`endpoints`, `headers`, `payload_keys`, `payload_fields`, `pipeline_steps`, `rfcs`) in `.agents/contract_sync.json` to surface added, removed, or type-modified fields (`metrics.execution_time_ms: integer -> string`), endpoints, pipeline steps, and RFCs.
+3. **Worktree-Aware Symlink Resolution, Cycle Protection & Format Validation (`[SYC-EC-04]`, `[SYC-AR-02]`, `[SYC-FR-01]`, `[SYC-FR-02]`)**:
+   - When `<repo_root>/shared-contracts` is a relative symlink that does not resolve directly from `<repo_root>` because `<repo_root>` is a nested git worktree (`.worktrees/<epic_dir>`), inspect `.git` / `git rev-parse --git-common-dir` to locate the primary repository checkout root and resolve the relative link from there while keeping codebase scanning and `.agents/contract_sync.json` local to `<repo_root>` (`[SYC-EC-04]`).
    - Enforce a 10-hop maximum when traversing symbolic links (`[SYC-AR-02]`).
    - Exit with code `1` and clear diagnostics if `shared-contracts` is missing (`[SYC-FR-01]`), is a dangling symlink even after worktree fallback, lacks any of the 3 canonical contract files, or has an unrecognizable contract format (`UNSUPPORTED_CONTRACT_FORMAT`) (`[SYC-FR-02]`).
 
@@ -42,7 +42,7 @@ Read-only context:
 ## Design Rationale
 
 - Worktree-aware symlink resolution ensures Stage 3 (`dev-implementation`) tasks running inside `.worktrees/<epic_dir>` can execute `sync_contracts.py check`, `brief`, and `ack` without modifying the tracked relative symlink.
-- Comparing against `baseline_snapshot` provides exact semantic deltas even when Git history is absent or changes are uncommitted.
+- Comparing against `baseline_snapshot.payload_fields` provides exact semantic deltas (including field type changes on the same key) even when Git history is absent or changes are uncommitted.
 - Applicable skills: `d3nexus:test-driven-development`, `d3nexus:python-quality-check`, `d3nexus:verification-before-completion`.
 
 ## Impact Analysis & Blast Radius
@@ -56,7 +56,7 @@ Read-only context:
 
 ### BDD SCENARIOS
 
-Covers: SYC-EC-02, SYC-EC-03, SYC-AR-02, SYC-FR-01, SYC-FR-02
+Covers: SYC-EC-02, SYC-EC-03, SYC-EC-04, SYC-AR-02, SYC-FR-01, SYC-FR-02
 
 ```gherkin
 Scenario: [SYC-EC-02] [Tier A - Unit] Heuristic Codebase Scanner Matches Parameterized Routes and CamelCase DTO Fields
@@ -65,12 +65,18 @@ Scenario: [SYC-EC-02] [Tier A - Unit] Heuristic Codebase Scanner Matches Paramet
   Then endpoint "/api/v1/lyrics-sync/tasks/{id}/progress" and key "lease_duration_ms" are classified as "FOUND_IN_CODE"
   And unimplemented endpoint "/api/v1/lyrics-sync/status" is classified as "MISSING_IN_CODE"
 
-Scenario: [SYC-EC-03] [Tier A - Unit] Semantic Baseline Diffing When Hub Has No Git History or Uncommitted Changes
-  Given a Hub directory without a .git repository where a Satellite previously ran sync_contracts.py ack storing baseline_snapshot
-  When an uncommitted edit in the Hub modifies api_contract.md by adding payload key "retry_after_ms" and changing a pipeline step
+Scenario: [SYC-EC-03] [Tier A - Unit] Semantic Baseline Diffing When Hub Has No Git History or Field Types Change
+  Given a Hub directory without a .git repository where a Satellite previously ran sync_contracts.py ack storing baseline_snapshot with payload_fields
+  When an uncommitted edit in the Hub modifies api_contract.md by adding payload key "retry_after_ms", changing field "metrics.execution_time_ms" from integer to string, and changing a pipeline step
   And the engineer invokes sync_contracts.py check or brief
   Then the engine skips git rev-parse and git log without raising a subprocess error
-  And compares the current contract against baseline_snapshot to surface "retry_after_ms" and the modified pipeline step as semantic deltas
+  And compares the current contract against baseline_snapshot to surface "retry_after_ms", the modified field type "metrics.execution_time_ms: integer -> string", and the modified pipeline step as semantic deltas
+
+Scenario: [SYC-EC-04] [Tier A - Unit] Worktree-Aware Relative Symlink Resolution Inside Nested Epic Worktree
+  Given a Satellite repository whose root shared-contracts symlink points relatively to ../Hub/shared-contracts/lyrics-sync and a nested git worktree at .worktrees/sync_epic
+  When resolve_topology is invoked with repo_root set to the nested worktree .worktrees/sync_epic
+  Then the engine detects the primary repository root via the worktree .git metadata and resolves the relative symlink against the primary root
+  And returns the valid Hub contract directory without altering the tracked symlink inside the worktree
 
 Scenario: [SYC-AR-02] [Tier A - Unit] Circular Symlink Loop Protection During Topology Resolution
   Given a repository where shared-contracts is part of a circular symbolic link chain exceeding 10 hops
@@ -98,12 +104,13 @@ Scenario: [SYC-FR-02] [Tier A - Unit] Refusing Execution on Dangling Symlink, Mi
 | V1 | RED | `python3 -m unittest skills/sync-shared-contracts/resources/scripts/test_sync_contracts.py -k test_syc_ec_02` | exit 1; contains "FAILED" | — |
 | V2 | GREEN | `python3 -m unittest skills/sync-shared-contracts/resources/scripts/test_sync_contracts.py -k test_syc_ec_02` | exit 0; contains "OK" | — |
 | V3 | GREEN | `python3 -m unittest skills/sync-shared-contracts/resources/scripts/test_sync_contracts.py -k test_syc_ec_03` | exit 0; contains "OK" | — |
-| V4 | GREEN | `python3 -m unittest skills/sync-shared-contracts/resources/scripts/test_sync_contracts.py -k test_syc_ar_02` | exit 0; contains "OK" | — |
-| V5 | GREEN | `python3 -m unittest skills/sync-shared-contracts/resources/scripts/test_sync_contracts.py -k test_syc_fr_01` | exit 0; contains "OK" | — |
-| V6 | GREEN | `python3 -m unittest skills/sync-shared-contracts/resources/scripts/test_sync_contracts.py -k test_syc_fr_02` | exit 0; contains "OK" | — |
-| V7 | TIER-B | `ruff check skills/sync-shared-contracts/resources/scripts/sync_contracts.py skills/sync-shared-contracts/resources/scripts/test_sync_contracts.py` | exit 0 | — |
-| V8 | TIER-B | `mypy --strict --follow-imports=silent skills/sync-shared-contracts/resources/scripts/sync_contracts.py skills/sync-shared-contracts/resources/scripts/test_sync_contracts.py` | exit 0 | — |
-| V9 | TIER-C | `python3 scripts/run_unittest_junit.py --junitxml build/test-results/task_2.xml skills/sync-shared-contracts/resources/scripts/test_sync_contracts.py` | exit 0; results build/test-results/task_2.xml | — |
+| V4 | GREEN | `python3 -m unittest skills/sync-shared-contracts/resources/scripts/test_sync_contracts.py -k test_syc_ec_04` | exit 0; contains "OK" | — |
+| V5 | GREEN | `python3 -m unittest skills/sync-shared-contracts/resources/scripts/test_sync_contracts.py -k test_syc_ar_02` | exit 0; contains "OK" | — |
+| V6 | GREEN | `python3 -m unittest skills/sync-shared-contracts/resources/scripts/test_sync_contracts.py -k test_syc_fr_01` | exit 0; contains "OK" | — |
+| V7 | GREEN | `python3 -m unittest skills/sync-shared-contracts/resources/scripts/test_sync_contracts.py -k test_syc_fr_02` | exit 0; contains "OK" | — |
+| V8 | TIER-B | `ruff check skills/sync-shared-contracts/resources/scripts/sync_contracts.py skills/sync-shared-contracts/resources/scripts/test_sync_contracts.py` | exit 0 | — |
+| V9 | TIER-B | `mypy --strict --follow-imports=silent skills/sync-shared-contracts/resources/scripts/sync_contracts.py skills/sync-shared-contracts/resources/scripts/test_sync_contracts.py` | exit 0 | — |
+| V10 | TIER-C | `python3 scripts/run_unittest_junit.py --junitxml build/test-results/task_2.xml skills/sync-shared-contracts/resources/scripts/test_sync_contracts.py` | exit 0; results build/test-results/task_2.xml | — |
 
 ## Stop and Report If
 
@@ -124,10 +131,10 @@ Scenario: [SYC-FR-02] [Tier A - Unit] Refusing Execution on Dangling Symlink, Mi
 ## Definition of Done
 
 - Heuristic codebase scanner accurately classifies parameterized endpoints and `snake_case`/`camelCase` fields (V2).
-- Semantic baseline diffing (`baseline_snapshot`) works for Git-less Hub directories and uncommitted edits (V3).
-- Circular symlink chains (`> 10` hops), missing `shared-contracts`, dangling symlinks, and unsupported contract formats exit with code `1` and clear diagnostics (V4, V5, V6).
-- Ruff and Mypy strict checks pass (V7, V8).
-- JUnit report is generated and all covered scenarios pass (V9).
+- Semantic baseline diffing (`baseline_snapshot.payload_fields`) works for Git-less Hub directories and uncommitted field-type changes (V3).
+- Nested worktree relative symlink resolution (`resolve_topology`), circular symlink chains (`> 10` hops), missing `shared-contracts`, dangling symlinks, and unsupported contract formats pass unit verification (V4, V5, V6, V7).
+- Ruff and Mypy strict checks pass (V8, V9).
+- JUnit report is generated and all covered scenarios pass (V10).
 - Task execution is verified and recorded in evidence (Gate 5).
 
 ## Dependencies & Blockers

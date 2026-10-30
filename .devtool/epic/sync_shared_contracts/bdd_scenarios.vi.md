@@ -48,29 +48,40 @@ Scenario: [SYC-EC-02] [Tier A - Unit] Bộ quét Heuristic khớp các route có
   Then endpoint "/api/v1/lyrics-sync/tasks/{id}/progress" và khóa "lease_duration_ms" được phân loại là "FOUND_IN_CODE"
   And endpoint chưa được hiện thực hóa "/api/v1/lyrics-sync/status" được phân loại là "MISSING_IN_CODE"
 
-Scenario: [SYC-EC-03] [Tier A - Unit] So sánh Semantic Baseline khi thư mục Hub không có Git hoặc có thay đổi chưa commit
-  Given một thư mục Hub không có kho chứa .git nơi Satellite trước đó đã chạy sync_contracts.py ack lưu lại baseline_snapshot
-  When một chỉnh sửa chưa commit trên Hub cập nhật api_contract.md thêm khóa payload "retry_after_ms" và thay đổi một bước pipeline
+Scenario: [SYC-EC-03] [Tier A - Unit] So sánh Semantic Baseline khi thư mục Hub không có Git hoặc khi đổi kiểu dữ liệu trường
+  Given một thư mục Hub không có kho chứa .git nơi Satellite trước đó đã chạy sync_contracts.py ack lưu lại baseline_snapshot kèm payload_fields
+  When một chỉnh sửa chưa commit trên Hub cập nhật api_contract.md thêm khóa payload "retry_after_ms", đổi kiểu trường "metrics.execution_time_ms" từ integer sang string, và thay đổi một bước pipeline
   And kỹ sư thực thi sync_contracts.py check hoặc brief
   Then engine bỏ qua lệnh git rev-parse và git log mà không phát sinh lỗi tiến trình con
-  And đối chiếu contract hiện tại với baseline_snapshot để chỉ ra chính xác "retry_after_ms" và bước pipeline vừa thay đổi
+  And đối chiếu contract hiện tại với baseline_snapshot để chỉ ra chính xác "retry_after_ms", thay đổi kiểu dữ liệu "metrics.execution_time_ms: integer -> string", và bước pipeline vừa thay đổi
+
+Scenario: [SYC-EC-04] [Tier A - Unit] Phân giải Relative Symlink nhận biết Worktree bên trong Epic Worktree lồng nhau
+  Given một Satellite repository có symlink gốc shared-contracts trỏ tương đối tới ../Hub/shared-contracts/lyrics-sync và một git worktree lồng tại .worktrees/sync_epic
+  When hàm resolve_topology được gọi với repo_root trỏ vào worktree lồng .worktrees/sync_epic
+  Then engine phát hiện thư mục gốc của repo chính thông qua metadata .git của worktree và phân giải relative symlink dựa trên thư mục gốc đó
+  And trả về đúng thư mục contract trên Hub mà không làm thay đổi symlink được git theo dõi trong worktree
 ```
 
 ## Chiều 3: Chuyển đổi trạng thái
 
 ```gherkin
-Scenario: [SYC-ST-01] [Tier C - Integration] Ràng buộc Ack theo Snapshot và phát hiện thay đổi tăng dần sau khi cập nhật trên Hub
-  Given một Satellite repository đã chạy sync_contracts.py ack trước đó và đang ở trạng thái "IN_SYNC"
-  When Hub repository cập nhật api_contract.md lên phiên bản "1.1.0" với endpoint mới POST /api/v1/lyrics-sync/tasks/{id}/cancel và thêm RFC-002 vào gaps_and_rfcs.md
-  And kỹ sư chạy lệnh sync_contracts.py check --strict hoặc thử chạy sync_contracts.py ack --snapshot <old_snapshot_id>
-  Then lệnh sync_contracts.py check --strict báo "DRIFT_DETECTED", chỉ ra endpoint cancel mới cùng RFC-002, và kết thúc với exit code 1
-  And lệnh sync_contracts.py ack --snapshot <old_snapshot_id> dừng với exit code 1 kèm thông báo lỗi "SNAPSHOT_MISMATCH"
+Scenario: [SYC-ST-01] [Tier C - Integration] Làm mới Snapshot ở Hub và phát hiện thay đổi tăng dần sau khi cập nhật trên Hub
+  Given một Hub hoặc Satellite repository đã chạy sync_contracts.py ack --all-rfcs trước đó và đang ở trạng thái "IN_SYNC"
+  When task_01 trên Hub cập nhật api_contract.md lên phiên bản "1.1.0" với endpoint mới POST /api/v1/lyrics-sync/tasks/{id}/cancel và thêm RFC-002 vào gaps_and_rfcs.md
+  And kỹ sư chạy lệnh sync_contracts.py check --strict trước khi ack, sau đó làm mới snapshot_id qua sync_contracts.py brief và chạy sync_contracts.py ack --snapshot <refreshed_snapshot_id> --all-rfcs
+  Then lệnh sync_contracts.py check --strict trước khi ack báo "DRIFT_DETECTED", chỉ ra endpoint cancel mới cùng RFC-002, và kết thúc với exit code 1
+  And lệnh sync_contracts.py ack --snapshot <refreshed_snapshot_id> --all-rfcs thành công và lệnh check --strict tiếp theo kết thúc với exit code 0
 
-Scenario: [SYC-ST-02] [Tier C - Integration] Giữ lại Pending RFC theo phạm vi và bảo toàn Watermark đa domain
+Scenario: [SYC-ST-02] [Tier C - Integration] Chọn RFC tường minh theo phạm vi, kiểm tra Scoped Strict, và bảo toàn Watermark đa domain
   Given một Hub repository có hai domain lyrics-sync và nexus trong đó gaps_and_rfcs.md của nexus chứa GAP-01 ở trạng thái "OPEN" và GAP-03 ở trạng thái "ACCEPTED"
-  When kỹ sư thực thi sync_contracts.py ack --domain nexus không có cờ --rfc GAP-01, sau đó thực thi tiếp sync_contracts.py ack --domain nexus --rfc GAP-01
-  Then sau lần ack đầu tiên, file .agents/contract_sync.json giữ nguyên mục "lyrics-sync", đưa "GAP-03" vào acknowledged_rfcs, giữ "GAP-01" trong pending_rfcs, và check --strict kết thúc với exit code 1
-  And sau lần ack thứ hai có --rfc GAP-01, "GAP-01" được chuyển sang acknowledged_rfcs, pending_rfcs trở thành rỗng, và check --strict kết thúc với exit code 0
+  When kỹ sư thực thi sync_contracts.py ack --domain nexus --rfc GAP-03, chạy lệnh check --domain nexus --strict --rfc GAP-03 cùng lệnh toàn cục check --domain nexus --strict, sau đó thực thi tiếp sync_contracts.py ack --domain nexus --rfc GAP-01
+  Then sau lần ack đầu tiên, file .agents/contract_sync.json giữ nguyên mục "lyrics-sync", chỉ đưa "GAP-03" vào acknowledged_rfcs, giữ "GAP-01" trong pending_rfcs, lệnh theo phạm vi check --strict --rfc GAP-03 kết thúc với exit code 0, và lệnh toàn cục check --strict kết thúc với exit code 1
+  And sau lần ack thứ hai có --rfc GAP-01, "GAP-01" được chuyển sang acknowledged_rfcs, pending_rfcs trở thành rỗng, và lệnh toàn cục check --strict kết thúc với exit code 0
+
+Scenario: [SYC-ST-03] [Tier A - Unit] Từ chối khi Snapshot bị lệch do Contract thay đổi trước thời điểm Ack
+  Given một target repository nơi sync_contracts.py brief đã ghi nhận snapshot_id là "sha256:stale"
+  When một file contract canonical bị chỉnh sửa trên đĩa trước khi lệnh sync_contracts.py ack --snapshot sha256:stale được thực thi
+  Then lệnh sync_contracts.py ack dừng ngay với exit code 1 và in ra "SNAPSHOT_MISMATCH" mà không làm thay đổi file .agents/contract_sync.json
 ```
 
 ## Chiều 4: Bất đồng bộ và đồng thời đa repo
