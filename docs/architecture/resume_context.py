@@ -690,17 +690,17 @@ def update_zshrc_history_and_aliases(zshrc_path: Path) -> None:
 
 def update_zshrc_sync_items(zshrc_path: Path) -> None:
     content = zshrc_path.read_text(encoding="utf-8")
-    if "ag_run()" not in content:
+    m = re.search(r"sync_items=\((.*?)\)", content, re.DOTALL) if "ag_run()" in content else None
+    if not m:
         return
-    m = re.search(r"sync_items=\((.*?)\)", content)
-    if m:
-        items = m.group(1).split()
-        for needed in ["AllProjects", "Projects", ".zsh_history"]:
-            if needed not in items:
-                items.append(needed)
-        new_decl = f"sync_items=({' '.join(items)})"
-        content = content[:m.start()] + new_decl + content[m.end():]
-        zshrc_path.write_text(content, encoding="utf-8")
+    body = m.group(1)
+    tokens = [t for ln in body.splitlines() if not ln.strip().startswith("#") for t in ln.split()]
+    missing = [k for k in ("AllProjects", "Projects", ".zsh_history") if k not in tokens]
+    if not missing:
+        return
+    suffix = f"\n    {' '.join(missing)}\n  " if "\n" in body else f" {' '.join(missing)}"
+    new_decl = f"sync_items=({body.rstrip() if chr(10) in body else body.strip()}{suffix})"
+    zshrc_path.write_text(content[:m.start()] + new_decl + content[m.end():], encoding="utf-8")
 
 
 def merge_profile_history(prof_hist: Path, main_hist: Path, seen_cmds: set[str]) -> None:
@@ -708,7 +708,8 @@ def merge_profile_history(prof_hist: Path, main_hist: Path, seen_cmds: set[str])
         return
     if prof_hist.is_symlink():
         return
-    prof_lines = [l.strip() for l in prof_hist.read_text(encoding="utf-8").splitlines() if l.strip()]
+    raw_text = prof_hist.read_text(encoding="utf-8", errors="replace")
+    prof_lines = [l.strip() for l in raw_text.splitlines() if l.strip()]
     new_lines = [l for l in prof_lines if l not in seen_cmds]
     if new_lines:
         with main_hist.open("a", encoding="utf-8") as f:
@@ -751,7 +752,8 @@ def sync_shell_env(
 
     if not main_hist.exists():
         main_hist.write_text("", encoding="utf-8")
-    seen_cmds = {l.strip() for l in main_hist.read_text(encoding="utf-8").splitlines() if l.strip()}
+    main_text = main_hist.read_text(encoding="utf-8", errors="replace")
+    seen_cmds = {l.strip() for l in main_text.splitlines() if l.strip()}
 
     synced_profiles: list[str] = []
     profiles_dir = r_home / "antigravity_homes"

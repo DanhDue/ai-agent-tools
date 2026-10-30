@@ -327,13 +327,19 @@ export ZSH="$HOME/.oh-my-zsh"
 source $ZSH/oh-my-zsh.sh
 
 ag_run() {
-    sync_items=(Documents Desktop)
+    local sync_items=(
+      # Sessions & AI
+      Documents Desktop
+      # Web / Node
+      .npm
+    )
     echo "Running ag"
 }
 """
         zshrc_file.write_text(initial_zshrc, encoding="utf-8")
         sim_ws_root = simulated_home / "AllProjects"
         sim_ws_root.mkdir(parents=True, exist_ok=True)
+        (simulated_home / ".zsh_history").write_bytes(b": 1700000000:0;echo \x83\xa0\n")
 
         # Create two profile directories
         profiles_dir = simulated_home / "antigravity_homes"
@@ -341,7 +347,7 @@ ag_run() {
         p2 = profiles_dir / "profile_two"
         p1.mkdir(parents=True, exist_ok=True)
         p2.mkdir(parents=True, exist_ok=True)
-        (p1 / ".zsh_history").write_text("cmd_p1_1\ncmd_p1_2\n", encoding="utf-8")
+        (p1 / ".zsh_history").write_bytes(b"cmd_p1_1\ncmd_p1_2\n")
 
         # Run CLI --sync-zshrc
         res = self.run_cli([
@@ -374,9 +380,10 @@ ag_run() {
         self.assertEqual((p1 / ".zsh_history").resolve(), (simulated_home / ".zsh_history").resolve())
 
         # Check history merged
-        shared_history = (simulated_home / ".zsh_history").read_text(encoding="utf-8")
+        shared_history = (simulated_home / ".zsh_history").read_text(encoding="utf-8", errors="replace")
         self.assertIn("cmd_p1_1", shared_history)
         self.assertIn("cmd_p1_2", shared_history)
+        self.assertIn("# Sessions & AI", zshrc_content)
 
     def test_cmm_ar_02_idempotent_zsh_history_merge(self) -> None:
         """[CMM-AR-02] Idempotent Zsh History Merge Preserves Chronological Commands Without Duplicating Symlinks."""
