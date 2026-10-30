@@ -16,7 +16,7 @@
 ## Meta Data
 
 - **Epic name**: `context_memory_management`
-- **Status**: In Progress
+- **Status**: Done
 - **Target release**: Next plugin release (1.16.0)
 - **Platform**: Python tooling / agent skill kit
 - **Source Spec**: [Đặc tả Quản lý Bộ nhớ Ngữ cảnh đã duyệt](2026-10-30-context-memory-management-design.vi.md)
