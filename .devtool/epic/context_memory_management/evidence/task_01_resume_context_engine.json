@@ -1,0 +1,307 @@
+{
+  "schema": 1,
+  "task": "task_01_resume_context_engine",
+  "runs": {
+    "red": {
+      "head": "735b4873c3766d4e0a567046e86f0e706bb92e19",
+      "tree": "3ada7f36b8e1aeb505eff943c0b40bbc67816a24",
+      "patch_id": "c6edbb4f37f481ecf8630a829479e526b5580db3",
+      "started": "2026-10-30T17:18:04Z",
+      "finished": "2026-10-30T17:18:04Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m unittest scripts/test_resume_context.py -k test_cmm_hp_01",
+          "expect": "exit 1; contains \"FAILED\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-30T17:18:04Z",
+          "finished": "2026-10-30T17:18:04Z",
+          "output_tail": [
+            "F",
+            "======================================================================",
+            "FAIL: test_cmm_hp_01_multi_epic_state_log_and_complete_isolation (scripts.test_resume_context.TestResumeContext.test_cmm_hp_01_multi_epic_state_log_and_complete_isolation)",
+            "[CMM-HP-01] Two-Tier Context Harvesting, Multi-Epic Isolation, and Feature Compaction.",
+            "----------------------------------------------------------------------",
+            "Traceback (most recent call last):",
+            "  File \"/Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/context_memory_management/scripts/test_resume_context.py\", line 62, in test_cmm_hp_01_multi_epic_state_log_and_complete_isolation",
+            "    self.assertEqual(res.returncode, 0, f\"stdout: {res.stdout}, stderr: {res.stderr}\")",
+            "    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+            "AssertionError: 2 != 0 : stdout: , stderr: /opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/Resources/Python.app/Contents/MacOS/Python: can't open file '/Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/context_memory_management/scripts/resume_context.py': [Errno 2] No such file or directory",
+            "",
+            "",
+            "----------------------------------------------------------------------",
+            "Ran 1 test in 0.090s",
+            "",
+            "FAILED (failures=1)"
+          ],
+          "output_sha256": "357aa1f44fbb967a7b26db2d420198d892898222511ead35c24f7223a6e41ea7"
+        }
+      ]
+    },
+    "verify": {
+      "head": "735b4873c3766d4e0a567046e86f0e706bb92e19",
+      "tree": "7b7641a1d1b2fed3f57ced5a3938689c2e136b51",
+      "patch_id": "228d28a552706a5f9e86b21a7bb0ceaf87a086ba",
+      "started": "2026-10-30T17:22:57Z",
+      "finished": "2026-10-30T17:23:02Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m unittest scripts/test_resume_context.py -k test_cmm_hp_01",
+          "expect": "exit 0; contains \"OK\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-30T17:22:57Z",
+          "finished": "2026-10-30T17:22:57Z",
+          "output_tail": [
+            ".",
+            "----------------------------------------------------------------------",
+            "Ran 1 test in 0.424s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "451e539d27860f06667cbd8c0ab4e049f19c909a27551a5b40783158b1d6d932"
+        },
+        {
+          "id": "V3",
+          "phase": "GREEN",
+          "command": "python3 -m unittest scripts/test_resume_context.py -k test_cmm_ec_01",
+          "expect": "exit 0; contains \"OK\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-30T17:22:57Z",
+          "finished": "2026-10-30T17:22:57Z",
+          "output_tail": [
+            ".",
+            "----------------------------------------------------------------------",
+            "Ran 1 test in 0.138s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "ce74792a384c6f6abf412f35611b275b5baaca26a133f02157b337e353c98823"
+        },
+        {
+          "id": "V4",
+          "phase": "GREEN",
+          "command": "python3 -m unittest scripts/test_resume_context.py -k test_cmm_ec_02",
+          "expect": "exit 0; contains \"OK\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-30T17:22:57Z",
+          "finished": "2026-10-30T17:22:57Z",
+          "output_tail": [
+            ".",
+            "----------------------------------------------------------------------",
+            "Ran 1 test in 0.244s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "e6b0cd8f7dffeb73e3266e7fdaa58762e7c73282db31c8d3930a12ac5904f8b6"
+        },
+        {
+          "id": "V5",
+          "phase": "GREEN",
+          "command": "python3 -m unittest scripts/test_resume_context.py -k test_cmm_ec_03",
+          "expect": "exit 0; contains \"OK\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-30T17:22:57Z",
+          "finished": "2026-10-30T17:22:58Z",
+          "output_tail": [
+            ".",
+            "----------------------------------------------------------------------",
+            "Ran 1 test in 0.149s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "280e93b8dda473146a11b2c2442101a0b71ddc2211e7d3d5cad5befad6e1d457"
+        },
+        {
+          "id": "V6",
+          "phase": "GREEN",
+          "command": "python3 -m unittest scripts/test_resume_context.py -k test_cmm_st_01",
+          "expect": "exit 0; contains \"OK\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-30T17:22:58Z",
+          "finished": "2026-10-30T17:22:58Z",
+          "output_tail": [
+            ".",
+            "----------------------------------------------------------------------",
+            "Ran 1 test in 0.701s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "16b168346e128311be328830740c8e055b4e682d88b05b341cb7b316df34ef68"
+        },
+        {
+          "id": "V7",
+          "phase": "GREEN",
+          "command": "python3 -m unittest scripts/test_resume_context.py -k test_cmm_ar_01",
+          "expect": "exit 0; contains \"OK\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-30T17:22:58Z",
+          "finished": "2026-10-30T17:22:59Z",
+          "output_tail": [
+            ".",
+            "----------------------------------------------------------------------",
+            "Ran 1 test in 0.395s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "6975822c4957e2a02c7141ce31bd8b2006c12f286fdd2998954e5daf74e96c3a"
+        },
+        {
+          "id": "V8",
+          "phase": "GREEN",
+          "command": "python3 -m unittest scripts/test_resume_context.py -k test_cmm_fr_01",
+          "expect": "exit 0; contains \"OK\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-30T17:22:59Z",
+          "finished": "2026-10-30T17:22:59Z",
+          "output_tail": [
+            ".",
+            "----------------------------------------------------------------------",
+            "Ran 1 test in 0.151s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "077a58b5f5658f6b61967889bec19de26d68151155ccc586e49e96dbf3ddeed6"
+        },
+        {
+          "id": "V9",
+          "phase": "TIER-B",
+          "command": "ruff check scripts/resume_context.py docs/architecture/resume_context.py scripts/test_resume_context.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-30T17:22:59Z",
+          "finished": "2026-10-30T17:22:59Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V10",
+          "phase": "TIER-B",
+          "command": "mypy --strict --follow-imports=silent scripts/resume_context.py scripts/test_resume_context.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-30T17:22:59Z",
+          "finished": "2026-10-30T17:22:59Z",
+          "output_tail": [
+            "Success: no issues found in 2 source files"
+          ],
+          "output_sha256": "f9b031e5c45aa702cd4fef028d465551cb20a2c4698e0913c7b00766b20ac4d8"
+        },
+        {
+          "id": "V11",
+          "phase": "TIER-C",
+          "command": "python3 scripts/run_unittest_junit.py --junitxml build/test-results/task_01.xml scripts/test_resume_context.py",
+          "expect": "exit 0; results build/test-results/task_01.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-30T17:22:59Z",
+          "finished": "2026-10-30T17:23:01Z",
+          "output_tail": [
+            ".......",
+            "----------------------------------------------------------------------",
+            "Ran 7 tests in 2.145s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "251455997bf090f0e3a7055ea206b3e2dde5e0b05c7f669990f8b9c846f9e9fe",
+          "results": {
+            "path": "build/test-results/task_01.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 7,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_cmm_ar_01_concurrent_flock",
+                  "classname": "test_resume_context.TestResumeContext",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cmm_ec_01_snapshot_20_line_cap",
+                  "classname": "test_resume_context.TestResumeContext",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cmm_ec_02_worktree_routing",
+                  "classname": "test_resume_context.TestResumeContext",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cmm_ec_03_kanban_task_progress",
+                  "classname": "test_resume_context.TestResumeContext",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cmm_fr_01_legacy_migration",
+                  "classname": "test_resume_context.TestResumeContext",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cmm_hp_01_multi_epic_state_log_and_complete_isolation",
+                  "classname": "test_resume_context.TestResumeContext",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cmm_st_01_tri_role_banners_and_emit_prompts",
+                  "classname": "test_resume_context.TestResumeContext",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "docs/architecture/resume_context.py",
+            "docs/architecture/save_resume_rules.md",
+            "scripts/resume_context.py",
+            "scripts/test_resume_context.py"
+          ],
+          "violations": []
+        }
+      ]
+    }
+  }
+}
