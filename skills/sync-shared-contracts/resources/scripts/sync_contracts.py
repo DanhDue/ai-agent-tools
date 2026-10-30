@@ -12,7 +12,10 @@ import hashlib
 import json
 import os
 import re
+import subprocess
 import sys
+import tempfile
+from datetime import UTC, datetime
 from pathlib import Path
 from string import Template
 from typing import Any
@@ -67,6 +70,11 @@ class ContractFormatError(Exception):
 
 class TopologyError(Exception):
     """Raised when shared-contracts topology is missing, broken, or cyclic."""
+
+
+def utc_now_iso() -> str:
+    """Return current UTC timestamp in ISO-8601 format."""
+    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def to_camel_case(snake_str: str) -> str:
@@ -308,24 +316,38 @@ def compute_snapshot_id(file_hashes: dict[str, str]) -> str:
     return f"sha256:{digest}"
 
 
+def get_git_commit_sha(contract_dir: Path) -> str | None:
+    """Get latest git commit affecting contract_dir, or None if git history is unavailable."""
+    try:
+        proc = subprocess.run(
+            ["git", "log", "-1", "--format=%H", "--", "."],
+            cwd=contract_dir,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if proc.returncode == 0 and proc.stdout.strip():
+            return proc.stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        pass
+    return None
+
+
 def find_primary_repo_root(worktree_root: Path) -> Path | None:
     """Locate primary git checkout root when invoked inside a git worktree."""
     git_entry = worktree_root / ".git"
     if git_entry.is_file():
-        # Read gitdir line
         try:
             content = git_entry.read_text(encoding="utf-8").strip()
             m = re.match(r"^gitdir:\s*(.*)", content)
             if m:
                 gitdir = Path(m.group(1).strip())
-                # If gitdir is like /repo/.git/worktrees/<name>, primary root is /repo
                 if ".git" in gitdir.parts:
                     git_idx = gitdir.parts.index(".git")
                     return Path(*gitdir.parts[:git_idx])
         except OSError:
             pass
 
-    # Check if .worktrees is an ancestor directory
     for parent in [worktree_root] + list(worktree_root.parents):
         if parent.name == ".worktrees" and parent.parent.is_dir():
             return parent.parent
@@ -345,7 +367,6 @@ def resolve_topology(repo_root: Path, domain: str = "lyrics-sync") -> dict[str, 
 
     if shared_contracts.is_symlink():
         mode = "satellite"
-        # Check circular symlink chain
         curr = shared_contracts
         hops = 0
         visited: set[str] = set()
@@ -363,19 +384,16 @@ def resolve_topology(repo_root: Path, domain: str = "lyrics-sync") -> dict[str, 
                 raise TopologyError(f"Symbolic link loop detected: cycle at {resolved_path}")
             visited.add(str(resolved_path))
 
-            # Next hop if target is another symlink
             if resolved_path.is_symlink():
                 curr = resolved_path
             else:
                 break
 
-        # Check if direct resolution exists
         raw_target = os.readlink(shared_contracts)
         direct_target = (repo_root / raw_target).resolve()
         if direct_target.is_dir():
             contract_dir = direct_target
         else:
-            # Fallback: Worktree-Aware relative symlink resolution via primary repo root
             primary_root = find_primary_repo_root(repo_root)
             if primary_root:
                 fallback_target = (primary_root / raw_target).resolve()
@@ -386,7 +404,6 @@ def resolve_topology(repo_root: Path, domain: str = "lyrics-sync") -> dict[str, 
             else:
                 raise TopologyError(f"Dangling symlink: {shared_contracts} -> {raw_target} does not resolve")
     else:
-        # Hub physical directory
         mode = "hub"
         if (shared_contracts / domain).is_dir():
             contract_dir = (shared_contracts / domain).resolve()
@@ -396,13 +413,11 @@ def resolve_topology(repo_root: Path, domain: str = "lyrics-sync") -> dict[str, 
     if not contract_dir or not contract_dir.is_dir():
         raise TopologyError(f"Contract directory could not be resolved in {repo_root}")
 
-    # Validate 3 canonical contract files exist
     for fn in CANONICAL_FILES:
         fp = contract_dir / fn
         if not fp.is_file():
             raise TopologyError(f"Missing canonical contract file: {fn} in {contract_dir}")
 
-    # Validate recognizable contract format
     api_text = (contract_dir / "api_contract.md").read_text(encoding="utf-8")
     try:
         parse_api_contract(api_text)
@@ -424,16 +439,12 @@ def scan_target_codebase(
     payload_keys: list[str],
 ) -> dict[str, str]:
     """Scan target codebase source files to classify endpoints, headers, and keys as FOUND_IN_CODE or MISSING_IN_CODE."""
-    # Pre-parse endpoints to extract static route segments
-    # e.g. "POST /api/v1/lyrics-sync/tasks/{id}/progress" -> static segments ["/api/v1/lyrics-sync/tasks", "/progress"]
     endpoint_segments: dict[str, list[str]] = {}
     for ep in endpoints:
         path = ep.split()[1] if " " in ep else ep
-        # Split on param templates like {id}
         parts = [seg.strip("/") for seg in re.split(r"\{[^}]+\}", path) if seg.strip("/")]
         endpoint_segments[ep] = parts
 
-    # Build key variants (snake_case and camelCase)
     key_variants: dict[str, set[str]] = {}
     for k in payload_keys:
         variants = {k, to_camel_case(k)}
@@ -444,7 +455,6 @@ def scan_target_codebase(
     found_keys: set[str] = set()
 
     for root, dirs, files in os.walk(repo_root):
-        # Prune excluded directories in-place
         dirs[:] = [d for d in dirs if d not in EXCLUDED_DIRS]
 
         for file in files:
@@ -458,12 +468,10 @@ def scan_target_codebase(
             except OSError:
                 continue
 
-            # Check headers
             for h in headers:
                 if h in content:
                     found_headers.add(h)
 
-            # Check keys
             for orig_key, var_set in key_variants.items():
                 if orig_key not in found_keys:
                     for var in var_set:
@@ -471,7 +479,6 @@ def scan_target_codebase(
                             found_keys.add(orig_key)
                             break
 
-            # Check endpoint segments
             for seg_list in endpoint_segments.values():
                 for seg in seg_list:
                     if seg in content:
@@ -532,6 +539,52 @@ def compute_semantic_delta(
         "modified_field_types": modified_fields,
         "modified_pipeline_steps": modified_steps,
     }
+
+
+def load_sync_state(repo_root: Path) -> dict[str, Any]:
+    """Load sync state from .agents/contract_sync.json, or return fresh schema template on missing/corrupt."""
+    state_file = repo_root / ".agents" / "contract_sync.json"
+    if not state_file.is_file():
+        return {
+            "schema_version": 1,
+            "mode": "satellite",
+            "domains": {},
+        }
+    try:
+        content = state_file.read_text(encoding="utf-8")
+        data = json.loads(content)
+        if not isinstance(data, dict):
+            raise TypeError("Root JSON must be object")
+        return data
+    except (json.JSONDecodeError, OSError, TypeError):
+        print(f"Warning: malformed watermark file at {state_file}, falling back to initial state", file=sys.stderr)
+        return {
+            "schema_version": 1,
+            "mode": "satellite",
+            "domains": {},
+        }
+
+
+def save_sync_state_atomic(repo_root: Path, state_data: dict[str, Any]) -> None:
+    """Atomically write synchronization metadata into .agents/contract_sync.json using temporary file."""
+    agents_dir = repo_root / ".agents"
+    agents_dir.mkdir(parents=True, exist_ok=True)
+
+    target_file = agents_dir / "contract_sync.json"
+    json_bytes = (json.dumps(state_data, indent=2) + "\n").encode("utf-8")
+
+    fd, tmp_path_str = tempfile.mkstemp(dir=agents_dir, prefix="contract_sync_", suffix=".tmp")
+    tmp_path = Path(tmp_path_str)
+    try:
+        with os.fdopen(fd, "wb") as f:
+            f.write(json_bytes)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp_path, target_file)
+    except Exception:
+        if tmp_path.exists():
+            tmp_path.unlink()
+        raise
 
 
 def render_brief(
@@ -615,6 +668,7 @@ def cmd_check(args: argparse.Namespace) -> int:
     domain = args.domain or "lyrics-sync"
     strict = getattr(args, "strict", False)
     as_json = getattr(args, "json", False)
+    target_rfcs = getattr(args, "rfc", None) or []
 
     try:
         topo = resolve_topology(repo_root, domain)
@@ -646,7 +700,6 @@ def cmd_check(args: argparse.Namespace) -> int:
 
     watermark_path = repo_root / ".agents" / "contract_sync.json"
     if not watermark_path.is_file():
-        # INITIAL_SYNC state
         report: dict[str, Any] = {
             "status": "INITIAL_SYNC",
             "domain": domain,
@@ -681,7 +734,15 @@ def cmd_check(args: argparse.Namespace) -> int:
 
     dom_data = watermark.get("domains", {}).get(domain)
     if not dom_data:
+        if as_json:
+            print(json.dumps({"status": "INITIAL_SYNC", "domain": domain}))
+        else:
+            print(f"Domain '{domain}' status: INITIAL_SYNC (domain absent from watermark)")
         return 1 if strict else 0
+
+    # Check file hash changes
+    prev_file_hashes = dom_data.get("file_hashes", {})
+    files_changed = any(prev_file_hashes.get(fn) != file_hashes.get(fn) for fn in CANONICAL_FILES)
 
     # Semantic comparison against baseline_snapshot
     baseline_snapshot = dom_data.get("baseline_snapshot", {})
@@ -695,14 +756,39 @@ def cmd_check(args: argparse.Namespace) -> int:
     }
     semantic_deltas = compute_semantic_delta(current_contract_snapshot, baseline_snapshot)
 
+    # Scoped RFC check
+    if target_rfcs:
+        snapshot_matches = (snapshot_id == dom_data.get("snapshot_id"))
+        ack_list = dom_data.get("acknowledged_rfcs", [])
+        pending_list = dom_data.get("pending_rfcs", [])
+        rfcs_in_scope_valid = all((rfc in ack_list and rfc not in pending_list) for rfc in target_rfcs)
+        scoped_in_sync = snapshot_matches and rfcs_in_scope_valid and not files_changed
+
+        if as_json:
+            out_scoped = {
+                "status": "IN_SYNC" if scoped_in_sync else "DRIFT_DETECTED",
+                "scoped_in_sync": scoped_in_sync,
+                "domain": domain,
+                "snapshot_id": snapshot_id,
+                "target_rfcs": target_rfcs,
+            }
+            print(json.dumps(out_scoped, indent=2))
+        else:
+            status_str = "IN_SYNC" if scoped_in_sync else "DRIFT_DETECTED"
+            print(f"Domain '{domain}' scoped check for {target_rfcs}: {status_str}")
+        return 0 if scoped_in_sync else (1 if strict else 0)
+
+    # Global check
+    pending_rfcs = dom_data.get("pending_rfcs", [])
     has_drift = (
         snapshot_id != dom_data.get("snapshot_id")
+        or files_changed
         or bool(semantic_deltas["added_endpoints"])
         or bool(semantic_deltas["removed_endpoints"])
         or bool(semantic_deltas["added_keys"])
         or bool(semantic_deltas["modified_field_types"])
         or bool(semantic_deltas["modified_pipeline_steps"])
-        or bool(dom_data.get("pending_rfcs", []))
+        or bool(pending_rfcs)
     )
 
     if as_json:
@@ -711,11 +797,14 @@ def cmd_check(args: argparse.Namespace) -> int:
             "domain": domain,
             "snapshot_id": snapshot_id,
             "deltas": semantic_deltas,
+            "pending_rfcs": pending_rfcs,
         }
         print(json.dumps(out, indent=2))
     else:
         status_str = "DRIFT_DETECTED" if has_drift else "IN_SYNC"
         print(f"Domain '{domain}' status: {status_str}")
+        if pending_rfcs:
+            print(f"Pending RFCs: {', '.join(pending_rfcs)}")
 
     return 1 if (strict and has_drift) else 0
 
@@ -745,7 +834,6 @@ def cmd_brief(args: argparse.Namespace) -> int:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1
 
-    # Run heuristic scan across repo_root
     heuristic_results = scan_target_codebase(
         repo_root=repo_root,
         endpoints=api_data["endpoints"],
@@ -784,7 +872,87 @@ def cmd_brief(args: argparse.Namespace) -> int:
 
 
 def cmd_ack(args: argparse.Namespace) -> int:
-    """Execute ack subcommand (stub for Task 2, completed in Task 3)."""
+    """Execute ack subcommand recording snapshot-and-scope-bound synchronization state."""
+    repo_root = Path(args.repo_root or os.getcwd()).resolve()
+    domain = args.domain or "lyrics-sync"
+    expected_snapshot = getattr(args, "snapshot", None)
+    explicit_rfcs = set(getattr(args, "rfc", None) or [])
+    all_rfcs = getattr(args, "all_rfcs", False)
+
+    try:
+        topo = resolve_topology(repo_root, domain)
+    except TopologyError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 1
+
+    contract_dir = topo["contract_dir"]
+    file_hashes: dict[str, str] = {}
+    for fn in CANONICAL_FILES:
+        file_hashes[fn] = compute_file_hash(contract_dir / fn)
+    current_snapshot_id = compute_snapshot_id(file_hashes)
+
+    # Snapshot Guard check
+    if expected_snapshot and expected_snapshot != current_snapshot_id:
+        print(f"ERROR: SNAPSHOT_MISMATCH: expected {expected_snapshot}, got {current_snapshot_id}", file=sys.stderr)
+        return 1
+
+    try:
+        api_data = parse_api_contract((contract_dir / "api_contract.md").read_text(encoding="utf-8"))
+        arch_data = parse_architecture_and_flow((contract_dir / "architecture_and_flow.md").read_text(encoding="utf-8"))
+        gaps_data = parse_gaps_and_rfcs((contract_dir / "gaps_and_rfcs.md").read_text(encoding="utf-8"))
+    except ContractFormatError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 1
+
+    hub_commit = get_git_commit_sha(contract_dir) or "uncommitted"
+
+    # Load existing sync state to preserve other domains and prior RFCs
+    sync_state = load_sync_state(repo_root)
+    sync_state["schema_version"] = 1
+    sync_state["mode"] = topo["mode"]
+    domains: dict[str, Any] = sync_state.setdefault("domains", {})
+
+    prev_domain_data = domains.get(domain, {})
+    prev_ack_rfcs: set[str] = set(prev_domain_data.get("acknowledged_rfcs", []))
+
+    # Identify all active RFC items in contract
+    rfcs_dict = gaps_data.get("rfcs", {})
+    contract_active_rfcs: set[str] = {
+        rfc_id for rfc_id, info in rfcs_dict.items() if info.get("status") in {"ACTIONABLE_PENDING", "ACKNOWLEDGED_ACTIVE"}
+    }
+
+    if all_rfcs or not contract_active_rfcs:
+        acknowledged_rfcs = sorted(contract_active_rfcs | prev_ack_rfcs)
+        pending_rfcs: list[str] = []
+    else:
+        # Acknowledge previously acknowledged RFCs plus explicit selections
+        newly_acked = prev_ack_rfcs | explicit_rfcs
+        acknowledged_rfcs = sorted(contract_active_rfcs & newly_acked)
+        pending_rfcs = sorted(contract_active_rfcs - newly_acked)
+
+    baseline_snapshot = {
+        "endpoints": api_data["endpoints"],
+        "headers": api_data["headers"],
+        "payload_keys": api_data["payload_keys"],
+        "payload_fields": api_data["payload_fields"],
+        "pipeline_steps": arch_data["pipeline_steps"],
+        "rfcs": gaps_data["rfcs"],
+    }
+
+    domains[domain] = {
+        "snapshot_id": current_snapshot_id,
+        "hub_commit_sha": hub_commit,
+        "contract_version": api_data["version"],
+        "last_synced_at": utc_now_iso(),
+        "file_hashes": file_hashes,
+        "acknowledged_rfcs": acknowledged_rfcs,
+        "pending_rfcs": pending_rfcs,
+        "acknowledged_endpoints": api_data["endpoints"],
+        "baseline_snapshot": baseline_snapshot,
+    }
+
+    save_sync_state_atomic(repo_root, sync_state)
+    print(f"Watermark acknowledged for domain '{domain}' -> {current_snapshot_id}")
     return 0
 
 

@@ -16,7 +16,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from sync_contracts import (
     CANONICAL_FILES,
     TopologyError,
+    compute_file_hash,
     compute_semantic_delta,
+    compute_snapshot_id,
     main,
     parse_api_contract,
     parse_architecture_and_flow,
@@ -38,7 +40,6 @@ class TestSyncContracts(unittest.TestCase):
 
     def _scaffold_table_contracts(self, target_dir: Path, domain: str = "lyrics-sync") -> None:
         target_dir.mkdir(parents=True, exist_ok=True)
-        # 1. api_contract.md (table format)
         api_content = f"""# API Contract: {domain}
 
 - **Domain**: `{domain}`
@@ -76,7 +77,6 @@ class TestSyncContracts(unittest.TestCase):
 """
         (target_dir / "api_contract.md").write_text(api_content, encoding="utf-8")
 
-        # 2. architecture_and_flow.md
         arch_content = f"""# Architecture and Flow: {domain}
 
 ## 2. Seven Canonical Pipeline Steps
@@ -94,7 +94,6 @@ stateDiagram-v2
 """
         (target_dir / "architecture_and_flow.md").write_text(arch_content, encoding="utf-8")
 
-        # 3. gaps_and_rfcs.md (table format)
         gaps_content = f"""# Gaps and RFCs Ledger: {domain}
 
 ## 2. Active RFC Ledger
@@ -108,7 +107,6 @@ stateDiagram-v2
 
     def _scaffold_narrative_contracts(self, target_dir: Path, domain: str = "lyrics-sync") -> None:
         target_dir.mkdir(parents=True, exist_ok=True)
-        # 1. api_contract.md (narrative format with HTML comment version and bullet endpoints)
         api_content = f"""<!-- Version: 3.1.0 -->
 # Live Pilot API: {domain}
 
@@ -141,7 +139,6 @@ X-Correlation-ID: uuid
 """
         (target_dir / "api_contract.md").write_text(api_content, encoding="utf-8")
 
-        # 2. architecture_and_flow.md
         arch_content = f"""# Architecture: {domain}
 
 ### Step 1: Claim Lease
@@ -150,7 +147,6 @@ X-Correlation-ID: uuid
 """
         (target_dir / "architecture_and_flow.md").write_text(arch_content, encoding="utf-8")
 
-        # 3. gaps_and_rfcs.md (narrative format)
         gaps_content = f"""# Ledger: {domain}
 
 ### GAP-01: Auto-detection of BPM
@@ -263,7 +259,6 @@ X-Correlation-ID: uuid
 
     def test_syc_ec_02_heuristic_snake_and_camel_scan(self) -> None:
         """[SYC-EC-02] Heuristic Codebase Scanner Matches Parameterized Routes and CamelCase DTO Fields."""
-        # Create src/worker_client.ts
         src_dir = self.repo_root / "src"
         src_dir.mkdir(parents=True, exist_ok=True)
         worker_code = """
@@ -301,7 +296,6 @@ X-Correlation-ID: uuid
             "pipeline_steps": ["Lease Acquisition", "Input Validation"],
         }
 
-        # Current contract has new key "retry_after_ms", type change integer -> string, and changed pipeline steps
         current_data = {
             "endpoints": ["POST /api/v1/lyrics-sync/tasks/claim"],
             "headers": ["Authorization"],
@@ -321,31 +315,24 @@ X-Correlation-ID: uuid
 
     def test_syc_ec_04_worktree_aware_symlink_resolution(self) -> None:
         """[SYC-EC-04] Worktree-Aware Relative Symlink Resolution Inside Nested Epic Worktree."""
-        # Setup: primary repo satellite
         primary_satellite = self.repo_root / "primary_satellite"
         primary_satellite.mkdir(parents=True, exist_ok=True)
 
         hub_repo = self.repo_root / "Hub" / "shared-contracts" / "lyrics-sync"
         self._scaffold_table_contracts(hub_repo, "lyrics-sync")
 
-        # Relative symlink from primary satellite root to Hub
         rel_to_hub = os.path.relpath(hub_repo, primary_satellite)
         os.symlink(rel_to_hub, primary_satellite / "shared-contracts")
 
-        # Create nested worktree at .worktrees/sync_epic
         worktree_dir = primary_satellite / ".worktrees" / "sync_epic"
         worktree_dir.mkdir(parents=True, exist_ok=True)
-        # In git worktrees, shared-contracts is checked out with identical symlink bytes
         os.symlink(rel_to_hub, worktree_dir / "shared-contracts")
 
-        # Fake .git file in worktree pointing to primary
         (worktree_dir / ".git").write_text(f"gitdir: {primary_satellite}/.git/worktrees/sync_epic\n", encoding="utf-8")
 
-        # Resolve topology from inside worktree
         topo = resolve_topology(worktree_dir, "lyrics-sync")
         self.assertEqual(topo["mode"], "satellite")
         self.assertEqual(topo["contract_dir"].resolve(), hub_repo.resolve())
-        # Ensure tracked symlink inside worktree is not altered
         self.assertEqual(os.readlink(worktree_dir / "shared-contracts"), rel_to_hub)
 
     def test_syc_ar_02_circular_symlink_loop_protection(self) -> None:
@@ -370,21 +357,18 @@ X-Correlation-ID: uuid
 
     def test_syc_fr_02_refuse_on_dangling_or_unsupported_contract(self) -> None:
         """[SYC-FR-02] Refusing Execution on Dangling Symlink, Missing Canonical Files, or Unsupported Contract Format."""
-        # 1. Dangling symlink
         os.symlink("../non_existent_hub", self.repo_root / "shared-contracts")
         with self.assertRaises(TopologyError) as ctx:
             resolve_topology(self.repo_root, "lyrics-sync")
         self.assertIn("Dangling symlink", str(ctx.exception))
         os.unlink(self.repo_root / "shared-contracts")
 
-        # 2. Missing canonical files
         (self.repo_root / "shared-contracts").mkdir(parents=True, exist_ok=True)
         (self.repo_root / "shared-contracts" / "api_contract.md").write_text("# API\n", encoding="utf-8")
         with self.assertRaises(TopologyError) as ctx:
             resolve_topology(self.repo_root, "lyrics-sync")
         self.assertIn("Missing canonical contract file", str(ctx.exception))
 
-        # 3. Unsupported contract format (0 endpoints)
         (self.repo_root / "shared-contracts" / "architecture_and_flow.md").write_text("# Arch\n", encoding="utf-8")
         (self.repo_root / "shared-contracts" / "gaps_and_rfcs.md").write_text("# Gaps\n", encoding="utf-8")
         with self.assertRaises(TopologyError) as ctx:
@@ -396,6 +380,164 @@ X-Correlation-ID: uuid
         self.assertEqual(to_camel_case("lease_duration_ms"), "leaseDurationMs")
         self.assertEqual(to_camel_case("task_id"), "taskId")
         self.assertEqual(to_camel_case("status"), "status")
+
+    def test_syc_hp_02_satellite_worktree_and_hub_check(self) -> None:
+        """[SYC-HP-02] End-to-End Satellite and Nested Worktree Synchronization Pass."""
+        primary_satellite = self.repo_root / "satellite"
+        primary_satellite.mkdir(parents=True, exist_ok=True)
+
+        hub_repo = self.repo_root / "Hub" / "shared-contracts" / "lyrics-sync"
+        self._scaffold_table_contracts(hub_repo, "lyrics-sync")
+
+        rel_to_hub = os.path.relpath(hub_repo, primary_satellite)
+        os.symlink(rel_to_hub, primary_satellite / "shared-contracts")
+
+        # Create nested git worktree
+        worktree_dir = primary_satellite / ".worktrees" / "sync_epic"
+        worktree_dir.mkdir(parents=True, exist_ok=True)
+        os.symlink(rel_to_hub, worktree_dir / "shared-contracts")
+        (worktree_dir / ".git").write_text(f"gitdir: {primary_satellite}/.git/worktrees/sync_epic\n", encoding="utf-8")
+
+        # 1. Run ack --all-rfcs from inside worktree
+        ack_exit = main(["ack", "--repo-root", str(worktree_dir), "--domain", "lyrics-sync", "--all-rfcs"])
+        self.assertEqual(ack_exit, 0)
+
+        # Verify .agents/contract_sync.json is created in worktree
+        state_file = worktree_dir / ".agents" / "contract_sync.json"
+        self.assertTrue(state_file.is_file())
+        state = json.loads(state_file.read_text(encoding="utf-8"))
+        self.assertEqual(state["mode"], "satellite")
+        dom_entry = state["domains"]["lyrics-sync"]
+        self.assertTrue(dom_entry["snapshot_id"].startswith("sha256:"))
+        self.assertEqual(dom_entry["pending_rfcs"], [])
+        self.assertIn("RFC-001", dom_entry["acknowledged_rfcs"])
+        self.assertIn("lease_duration_ms", dom_entry["baseline_snapshot"]["payload_fields"])
+
+        # 2. Run check --strict from inside worktree
+        check_exit = main(["check", "--repo-root", str(worktree_dir), "--domain", "lyrics-sync", "--strict"])
+        self.assertEqual(check_exit, 0)
+
+        # Ensure tracked symlink in worktree was unchanged
+        self.assertEqual(os.readlink(worktree_dir / "shared-contracts"), rel_to_hub)
+
+    def test_syc_st_01_ack_snapshot_and_incremental_drift(self) -> None:
+        """[SYC-ST-01] Hub Snapshot Refresh and Incremental Drift Detection After Upstream Update."""
+        hub_domain = self.repo_root / "shared-contracts" / "lyrics-sync"
+        self._scaffold_table_contracts(hub_domain, "lyrics-sync")
+
+        # Initial ack --all-rfcs -> IN_SYNC
+        exit_code = main(["ack", "--repo-root", str(self.repo_root), "--domain", "lyrics-sync", "--all-rfcs"])
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(main(["check", "--repo-root", str(self.repo_root), "--domain", "lyrics-sync", "--strict"]), 0)
+
+        # Hub updates api_contract.md and gaps_and_rfcs.md
+        api_text = (hub_domain / "api_contract.md").read_text(encoding="utf-8")
+        api_text = api_text.replace("1.2.0", "1.3.0") + "\n| POST | /api/v1/lyrics-sync/tasks/{id}/cancel | X-Worker-Token | Cancel task |\n"
+        (hub_domain / "api_contract.md").write_text(api_text, encoding="utf-8")
+
+        gaps_text = (hub_domain / "gaps_and_rfcs.md").read_text(encoding="utf-8")
+        gaps_text += "| RFC-004 | Live websocket sync | Satellite | Open | 1.3.0 | No |\n"
+        (hub_domain / "gaps_and_rfcs.md").write_text(gaps_text, encoding="utf-8")
+
+        # check --strict reports DRIFT_DETECTED and exits 1
+        strict_exit = main(["check", "--repo-root", str(self.repo_root), "--domain", "lyrics-sync", "--strict"])
+        self.assertEqual(strict_exit, 1)
+
+        # Refresh snapshot ID
+        refreshed_hashes = {fn: compute_file_hash(hub_domain / fn) for fn in CANONICAL_FILES}
+        refreshed_snapshot_id = compute_snapshot_id(refreshed_hashes)
+
+        # ack with refreshed snapshot ID and --all-rfcs
+        ack_exit = main(["ack", "--repo-root", str(self.repo_root), "--domain", "lyrics-sync", "--snapshot", refreshed_snapshot_id, "--all-rfcs"])
+        self.assertEqual(ack_exit, 0)
+
+        # Subsequent check --strict passes with exit 0
+        self.assertEqual(main(["check", "--repo-root", str(self.repo_root), "--domain", "lyrics-sync", "--strict"]), 0)
+
+    def test_syc_st_02_explicit_scope_bound_rfc_selection(self) -> None:
+        """[SYC-ST-02] Explicit Scope-Bound RFC Selection, Scoped Strict Check, and Multi-Domain Watermark Preservation."""
+        hub_shared = self.repo_root / "shared-contracts"
+        self._scaffold_table_contracts(hub_shared / "lyrics-sync", "lyrics-sync")
+        self._scaffold_narrative_contracts(hub_shared / "nexus", "nexus")
+
+        # 1. Sync lyrics-sync first
+        main(["ack", "--repo-root", str(self.repo_root), "--domain", "lyrics-sync", "--all-rfcs"])
+
+        # 2. Ack nexus partially: only GAP-03 (while GAP-01 and GAP-02 remain in contract)
+        ack_exit = main(["ack", "--repo-root", str(self.repo_root), "--domain", "nexus", "--rfc", "GAP-03"])
+        self.assertEqual(ack_exit, 0)
+
+        state = json.loads((self.repo_root / ".agents" / "contract_sync.json").read_text(encoding="utf-8"))
+        # Preserves lyrics-sync entry
+        self.assertIn("lyrics-sync", state["domains"])
+        nexus_data = state["domains"]["nexus"]
+        self.assertIn("GAP-03", nexus_data["acknowledged_rfcs"])
+        self.assertIn("GAP-01", nexus_data["pending_rfcs"])
+
+        # Scoped check for GAP-03 exits 0
+        scoped_exit = main(["check", "--repo-root", str(self.repo_root), "--domain", "nexus", "--strict", "--rfc", "GAP-03"])
+        self.assertEqual(scoped_exit, 0)
+
+        # Global check for nexus reports drift and exits 1
+        global_exit = main(["check", "--repo-root", str(self.repo_root), "--domain", "nexus", "--strict"])
+        self.assertEqual(global_exit, 1)
+
+        # 3. Ack remaining RFCs
+        main(["ack", "--repo-root", str(self.repo_root), "--domain", "nexus", "--rfc", "GAP-01", "--rfc", "GAP-02"])
+        state_after = json.loads((self.repo_root / ".agents" / "contract_sync.json").read_text(encoding="utf-8"))
+        self.assertEqual(state_after["domains"]["nexus"]["pending_rfcs"], [])
+        self.assertEqual(main(["check", "--repo-root", str(self.repo_root), "--domain", "nexus", "--strict"]), 0)
+
+    def test_syc_st_03_snapshot_mismatch_rejection(self) -> None:
+        """[SYC-ST-03] Snapshot Mismatch Rejection When Contract Changes Before Ack."""
+        hub_domain = self.repo_root / "shared-contracts" / "lyrics-sync"
+        self._scaffold_table_contracts(hub_domain, "lyrics-sync")
+
+        stderr_buf = io.StringIO()
+        with patch("sys.stderr", stderr_buf):
+            exit_code = main(["ack", "--repo-root", str(self.repo_root), "--domain", "lyrics-sync", "--snapshot", "sha256:stale_mismatch_hash"])
+        self.assertEqual(exit_code, 1)
+        self.assertIn("SNAPSHOT_MISMATCH", stderr_buf.getvalue())
+        self.assertFalse((self.repo_root / ".agents" / "contract_sync.json").exists())
+
+    def test_syc_ar_01_atomic_watermark_update(self) -> None:
+        """[SYC-AR-01] Atomic Watermark File Update Prevents Partial JSON Reads."""
+        hub_domain = self.repo_root / "shared-contracts" / "lyrics-sync"
+        self._scaffold_table_contracts(hub_domain, "lyrics-sync")
+
+        exit_code = main(["ack", "--repo-root", str(self.repo_root), "--domain", "lyrics-sync", "--all-rfcs"])
+        self.assertEqual(exit_code, 0)
+
+        agents_dir = self.repo_root / ".agents"
+        self.assertTrue((agents_dir / "contract_sync.json").is_file())
+        # Check no temporary files left in .agents
+        tmp_files = list(agents_dir.glob("*.tmp"))
+        self.assertEqual(tmp_files, [])
+
+    def test_syc_fr_03_corrupted_watermark_recovery(self) -> None:
+        """[SYC-FR-03] Resilience Against Corrupted Watermark JSON File."""
+        hub_domain = self.repo_root / "shared-contracts" / "lyrics-sync"
+        self._scaffold_table_contracts(hub_domain, "lyrics-sync")
+
+        # Write corrupted JSON
+        agents_dir = self.repo_root / ".agents"
+        agents_dir.mkdir(parents=True, exist_ok=True)
+        (agents_dir / "contract_sync.json").write_text("{corrupt_json_payload...", encoding="utf-8")
+
+        # check logs warning and treats as INITIAL_SYNC without crashing
+        stderr_buf = io.StringIO()
+        with patch("sys.stderr", stderr_buf):
+            check_exit = main(["check", "--repo-root", str(self.repo_root), "--domain", "lyrics-sync"])
+        self.assertEqual(check_exit, 0)
+        self.assertIn("corrupted watermark JSON", stderr_buf.getvalue())
+
+        # ack overwrites cleanly with valid JSON
+        ack_exit = main(["ack", "--repo-root", str(self.repo_root), "--domain", "lyrics-sync", "--all-rfcs"])
+        self.assertEqual(ack_exit, 0)
+
+        clean_state = json.loads((agents_dir / "contract_sync.json").read_text(encoding="utf-8"))
+        self.assertEqual(clean_state["schema_version"], 1)
+        self.assertIn("lyrics-sync", clean_state["domains"])
 
 
 if __name__ == "__main__":

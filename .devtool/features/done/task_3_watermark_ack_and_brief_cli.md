@@ -1,13 +1,13 @@
 ---
 id: "task_3_watermark_ack_and_brief_cli"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "sync_shared_contracts"
 dueDate: null
 created: "2026-10-30T11:58:00Z"
-modified: "2026-10-30T12:23:00Z"
-completedAt: null
+modified: "2026-10-30T13:51:03Z"
+completedAt: "2026-10-30T13:51:03Z"
 labels: ["contracts", "watermark", "cli"]
 order: "a3"
 ---
