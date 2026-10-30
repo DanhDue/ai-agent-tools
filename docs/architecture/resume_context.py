@@ -15,9 +15,11 @@ Two-Tier Context Harvester, Multi-Epic Partitioning & Handoff Telemetry Tool.
 import argparse
 import contextlib
 import fcntl
+import json
 import os
 import re
 import subprocess
+import sys
 from collections.abc import Iterator
 from datetime import datetime
 from pathlib import Path
@@ -475,6 +477,110 @@ def scan_active_tasks(root: Path, epic_filter: str | None = None) -> None:
         print("  (No active todo/in-progress/review tasks found.)")
 
 
+def collect_harvest_data(root: Path, tail_lines: int = 15, epic_filter: str | None = None) -> dict[str, object]:
+    ledger_path = ensure_ledger(root)
+    ledger_text = ledger_path.read_text(encoding="utf-8").strip() if ledger_path.exists() else ""
+
+    candidates = [root / ".devtool"] + [root / r / ".devtool" for r in REPOS]
+    state_map: dict[str, str] = {}
+    for d_dir in candidates:
+        if not d_dir.exists():
+            continue
+        migrate_legacy_storage(d_dir)
+        state_dir = d_dir / "state"
+        if state_dir.exists():
+            for sf in sorted(state_dir.glob("*.md")):
+                text = sf.read_text(encoding="utf-8").strip()
+                if text:
+                    state_map[sf.stem] = text
+        elif (d_dir / "assistant_state.md").exists():
+            text = (d_dir / "assistant_state.md").read_text(encoding="utf-8").strip()
+            if text:
+                state_map["general"] = text
+
+    activity_entries: list[str] = []
+    for d_dir in candidates:
+        if not d_dir.exists():
+            continue
+        logs_dir = d_dir / "logs"
+        if logs_dir.exists():
+            for lf in sorted(logs_dir.glob("activity_*.log")):
+                lines = [l.strip() for l in read_tail(lf, tail_lines).splitlines() if l.strip()]
+                activity_entries.extend(lines)
+        elif (d_dir / "activity_stream.log").exists():
+            lines = [l.strip() for l in read_tail(d_dir / "activity_stream.log", tail_lines).splitlines() if l.strip()]
+            activity_entries.extend(lines)
+
+    git_status: dict[str, str] = {}
+    target_repos = [root] if (root / ".git").exists() else [root / r for r in REPOS]
+    for repo_path in target_repos:
+        if not (repo_path / ".git").exists():
+            continue
+        res = subprocess.run(
+            ["git", "-C", str(repo_path), "status", "-s", "-b"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        git_status[repo_path.name] = res.stdout.strip()
+
+    rfcs: list[str] = []
+    hub_contracts = root / "D3Nexus" / "shared-contracts"
+    if hub_contracts.exists():
+        for rfc_file in sorted(hub_contracts.glob("*/gaps_and_rfcs.md")):
+            lines = rfc_file.read_text(encoding="utf-8").splitlines()
+            open_items = [
+                line for line in lines
+                if "OPEN" in line or line.startswith(("## ", "### "))
+            ]
+            if open_items:
+                rfcs.extend(open_items[-10:])
+
+    task_candidates = [root] + [root / r for r in REPOS]
+    active_tasks_list: list[dict[str, object]] = []
+    seen_tasks: set[Path] = set()
+    for r_path in task_candidates:
+        if r_path in seen_tasks:
+            continue
+        seen_tasks.add(r_path)
+        features_dir = r_path / ".devtool" / "features"
+        if not features_dir.exists():
+            continue
+
+        repo_name = r_path.name
+        for tf in sorted(features_dir.glob("task_*.md")):
+            lines = tf.read_text(encoding="utf-8").splitlines()[:15]
+            epic_line = next((l for l in lines if l.startswith("epic:")), "")
+            epic_val = epic_line.replace("epic:", "").strip().strip('"').strip("'")
+            if epic_filter and epic_filter != epic_val and epic_filter not in epic_line:
+                continue
+            status_line = next((l for l in lines if "status:" in l.lower()), "status: unknown")
+            st_val = status_line.replace("status:", "").strip().strip('"').strip("'").lower()
+            if any(s in st_val for s in ["todo", "in-progress", "in_progress", "review", "backlog"]):
+                title_line = next((l for l in lines if l.startswith("# ")), tf.name)
+                active_tasks_list.append({
+                    "repo": repo_name,
+                    "task": tf.name,
+                    "status": st_val,
+                    "title": title_line.lstrip("# ").strip(),
+                    "epic": epic_val,
+                })
+
+    return {
+        "ledger": ledger_text,
+        "state": state_map,
+        "activity": activity_entries,
+        "git_status": git_status,
+        "rfcs": rfcs,
+        "active_tasks": active_tasks_list,
+    }
+
+
+def harvest_json(root: Path, tail_lines: int = 15, epic_filter: str | None = None) -> None:
+    data = collect_harvest_data(root, tail_lines=tail_lines, epic_filter=epic_filter)
+    print(json.dumps(data, indent=2))
+
+
 def emit_handoff_prompt(
     mode: str,
     epic_slug: str,
@@ -659,7 +765,18 @@ def sync_shell_env(
     return {"real_home": str(r_home), "workspace_root": str(ws_root), "synced_profiles": synced_profiles}
 
 
-def parse_args() -> argparse.Namespace:
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    raw_args = list(sys.argv[1:] if argv is None else argv)
+    normalized_args: list[str] = []
+    i = 0
+    while i < len(raw_args):
+        if raw_args[i] == "--complete" and i + 1 < len(raw_args) and raw_args[i + 1] == "--checkpoint":
+            normalized_args.extend(["--checkpoint", "--complete"])
+            i += 2
+        else:
+            normalized_args.append(raw_args[i])
+            i += 1
+
     parser = argparse.ArgumentParser(description="Two-Tier Context Harvester & Multi-Epic Memory Tool")
     parser.add_argument("--workspace-root", type=str, help="Workspace root containing repositories")
     parser.add_argument("--real-home", type=str, help="Real home directory for shell environment sync")
@@ -689,7 +806,7 @@ def parse_args() -> argparse.Namespace:
 
     parser.add_argument("--sync-zshrc", action="store_true", help="Synchronize shell environment and history")
 
-    return parser.parse_args()
+    return parser.parse_args(normalized_args)
 
 
 def main() -> None:
@@ -749,6 +866,10 @@ def main() -> None:
 
     # Default: Harvest context
     scan_root = target_root
+    if args.json:
+        harvest_json(scan_root, tail_lines=args.tail, epic_filter=args.epic)
+        return
+
     scan_project_ledger(scan_root)
     scan_assistant_state(scan_root)
     scan_activity_stream(scan_root, tail_lines=args.tail)

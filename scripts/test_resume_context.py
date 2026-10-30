@@ -447,8 +447,13 @@ ag_run() {
         ])
         self.assertEqual(res_log.returncode, 0, f"stderr: {res_log.stderr}")
 
-        # 2. Run --complete --checkpoint
+        # 2. Run --complete --checkpoint with both alias order and flag-at-end order
         custom_prompt = "Locked multi-epic storage model; next write task_01"
+        res_alias = self.run_cli([
+            "--complete", "--checkpoint", "context_memory_management", custom_prompt,
+        ])
+        self.assertEqual(res_alias.returncode, 0, f"stderr: {res_alias.stderr}")
+
         res_cp = self.run_cli([
             "--complete", "context_memory_management", custom_prompt,
             "--checkpoint",
@@ -524,6 +529,31 @@ ag_run() {
         verify_content = verify_sh.read_text(encoding="utf-8")
         self.assertIn("15. Context memory management", verify_content)
         self.assertIn("test_resume_context.py", verify_content)
+
+    def test_cmm_hp_01_json_harvest_output(self) -> None:
+        """[CMM-HP-01] Harvest Mode JSON Serialization via --json."""
+        # 1. Setup state and task
+        self.run_cli([
+            "--state", "--epic", "context_memory_management",
+            "--decisions", "JSON decision locked",
+            "--status", "in-progress",
+            "--next", "Next JSON step",
+        ])
+
+        # 2. Execute harvest with --json
+        res = self.run_cli(["--json"])
+        self.assertEqual(res.returncode, 0, f"stderr: {res.stderr}")
+
+        import json
+        payload = json.loads(res.stdout)
+        self.assertIn("ledger", payload)
+        self.assertIn("state", payload)
+        self.assertIn("activity", payload)
+        self.assertIn("git_status", payload)
+        self.assertIn("rfcs", payload)
+        self.assertIn("active_tasks", payload)
+        self.assertIn("context_memory_management", payload["state"])
+        self.assertIn("JSON decision locked", payload["state"]["context_memory_management"])
 
 
 if __name__ == "__main__":
