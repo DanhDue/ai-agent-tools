@@ -120,4 +120,3 @@ Scenario: [CMM-ST-02] [Tier A - Unit] Non-Destructive Checkpoint Save via --comp
 - Spec: `.devtool/epic/context_memory_management/2026-10-30-context-memory-management-design.en.md`
 - HLD: `.devtool/epic/context_memory_management/context_memory_management.en.md`
 - Rollback: Remove `skills/resume-context/`, `skills/save-context/`, and revert `rules/CRITICAL_RULES.md`.
-

@@ -162,4 +162,3 @@ Scenario: [CMM-FR-01] [Tier A - Unit] Automatic Migration of Legacy Flat assista
 - Baseline: `docs/architecture/resume_context.py` and `docs/architecture/save_resume_rules.md`
 - HLD: `.devtool/epic/context_memory_management/context_memory_management.en.md`
 - Rollback: Remove `scripts/resume_context.py` and `scripts/test_resume_context.py` and restore `docs/architecture/` files via `git checkout`.
-
