@@ -95,6 +95,7 @@ Every review round is triaged before taking action. A reviewer's finding is a cl
    - Make each fix in its own commit: `[<EPIC_NAME>] Fix <what>`.
    - Update each Decision cell in `review_results.md`: `fixed in <sha>` or `dismissed: <reason>` in developer's exact words.
    - Commit decisions: `[<EPIC_NAME>] Record review decisions for round <n>`.
+   - Record state via `python3 scripts/resume_context.py --state --epic <epic_slug>` and emit next prompt via `python3 scripts/resume_context.py --emit-prompt finish --epic <epic_slug>` (or `--emit-prompt implement` for fixes).
    - Re-run Gate 4 machine acceptance in full on the new candidate SHA.
    - Present Review Choice again only after Gate 4 returns PASS.
 

@@ -450,7 +450,7 @@ After the Epic Overview and all confirmed task files are written (or updated), c
   scope, one-line title, one bullet per task written. No `Co-Authored-By` or other trailer.
 - If `auto_commit: false`: skip staging and committing entirely.
 
-Then stop and return to the [Handoff Choice](../dev-lifecycle/SKILL.md#handoff-choice) in
+Then persist state via `python3 scripts/resume_context.py --state --epic <epic_slug>`, emit role handoff prompts (`python3 scripts/resume_context.py --emit-prompt principal-review --epic <epic_slug>` and `python3 scripts/resume_context.py --emit-prompt implement --epic <epic_slug>`), and return to the [Handoff Choice](../dev-lifecycle/SKILL.md#handoff-choice) in
 `dev-lifecycle`, which also says when the choice applies after an update: ask the developer whether
 to package the epic or continue to Stage 3. This skill never invokes `dev-implementation` itself.
 

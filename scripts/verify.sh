@@ -281,6 +281,10 @@ python3 -m unittest skills/setup-shared-contracts/resources/scripts/test_setup_c
 python3 -m unittest skills/sync-shared-contracts/resources/scripts/test_sync_contracts.py || FAILED=1
 
 echo
+note "== 15. Context memory management CLI and Tri-Role governance are enforced =="
+python3 -m unittest scripts/test_resume_context.py || FAILED=1
+
+echo
 if [ "$FAILED" -eq 0 ]; then
   echo "PASS — safe to publish"
 else

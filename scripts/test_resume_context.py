@@ -480,6 +480,42 @@ ag_run() {
         self.assertIn("name: save-context", save_skill.read_text(encoding="utf-8"))
         self.assertIn("## 8. Mandatory Two-Tier Project Memory & Tri-Role Persona Discipline", critical_rules.read_text(encoding="utf-8"))
 
+    def test_cmm_hp_03_skills_lifecycle_hooks_and_verify_harness(self) -> None:
+        """[CMM-HP-03] End-to-End Skill Definitions, Dev-Lifecycle Hooks, and Release Verification Harness."""
+        # 1. Frontmatter check on new skills
+        for skill_name in ["resume-context", "save-context"]:
+            skill_file = REPO_ROOT / "skills" / skill_name / "SKILL.md"
+            self.assertTrue(skill_file.exists())
+            content = skill_file.read_text(encoding="utf-8")
+            self.assertTrue(content.startswith("---\nname: " + skill_name + "\ndescription: "))
+
+        # 2. Check resume_context.py hooks in lifecycle skills
+        hooks_to_check = [
+            REPO_ROOT / "skills" / "dev-brainstorming" / "SKILL.md",
+            REPO_ROOT / "skills" / "dev-designer" / "SKILL.md",
+            REPO_ROOT / "skills" / "dev-lifecycle" / "SKILL.md",
+            REPO_ROOT / "skills" / "dev-lifecycle" / "references" / "handoff-template.md",
+            REPO_ROOT / "skills" / "dev-lifecycle" / "references" / "principal-review.md",
+            REPO_ROOT / "skills" / "principal-review" / "SKILL.md",
+            REPO_ROOT / "skills" / "dev-implementation" / "SKILL.md",
+            REPO_ROOT / "skills" / "cross-model-review" / "SKILL.md",
+            REPO_ROOT / "skills" / "finishing-a-development-branch" / "SKILL.md",
+        ]
+        for h_file in hooks_to_check:
+            self.assertTrue(h_file.exists(), f"File {h_file} does not exist")
+            self.assertIn("resume_context.py", h_file.read_text(encoding="utf-8"), f"Hook missing in {h_file.name}")
+
+        # 3. Check persona in handoff-template.md
+        handoff_tmpl = REPO_ROOT / "skills" / "dev-lifecycle" / "references" / "handoff-template.md"
+        self.assertIn("[PERSONA: AI PROGRAMMER — SENIOR TDD SOFTWARE ENGINEER]", handoff_tmpl.read_text(encoding="utf-8"))
+
+        # 4. Check Section 15 in verify.sh
+        verify_sh = REPO_ROOT / "scripts" / "verify.sh"
+        self.assertTrue(verify_sh.exists())
+        verify_content = verify_sh.read_text(encoding="utf-8")
+        self.assertIn("15. Context memory management", verify_content)
+        self.assertIn("test_resume_context.py", verify_content)
+
 
 if __name__ == "__main__":
     unittest.main()

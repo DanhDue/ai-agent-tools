@@ -48,6 +48,7 @@ This skill is **Stage 3** of the Epic Lifecycle. The surrounding stages, the fiv
    - Every `.devtool/features/task_*.md` whose frontmatter `epic:` matches `<epic_slug>`.
    - Any spec file(s) linked from the HLD's Meta Data section.
    - `.devtool/epic/<epic_dir>/handoff.md`, when present — the packaging record. Use its Open Notes as context; it is never updated after packaging.
+   - Restore architectural context: `python3 scripts/resume_context.py --role programmer --epic <epic_slug>`.
 
 #### Bounded Context Injection & Spec Fidelity
 
@@ -217,6 +218,11 @@ For each task in confirmed order, follow `d3nexus:subagent-driven-development`.
    - <subtask 2>"
    ```
    No trailers (no `Co-Authored-By`).
+   Log programmer activity and update state:
+   ```bash
+   python3 scripts/resume_context.py --log --epic <epic_slug> --task <task_id> --request "<summary>" --action "<tests>"
+   python3 scripts/resume_context.py --state --epic <epic_slug>
+   ```
 6. If implementation diverged from HLD, perform Phase 3 Doc Sync before next task.
 7. **Integrate with develop.** Run in orchestrator from epic worktree after step 5 commit:
    ```bash
@@ -302,6 +308,7 @@ review -- "round recorded" --> phase4
 choice -- "Local model review" --> localreview
 localreview -- "round recorded" --> phase4
 -->
+On Gate 4 PASS, run `python3 scripts/resume_context.py --state --epic <epic_slug>` and emit the prompt via `python3 scripts/resume_context.py --emit-prompt cross-review --epic <epic_slug>`.
 Ask developer and wait for answer:
 
 > Gate 4 is 🟢 LGTM for `<candidate_sha>`. How do you want to proceed?
