@@ -1,0 +1,190 @@
+{
+  "schema": 1,
+  "task": "task_1_brief_template_and_contract_parser",
+  "runs": {
+    "red": {
+      "head": "ba8ca903152f6f220e5d375b4f36b38bdafae69d",
+      "tree": "0151e01646e76cd6c0e29c90a860a9528d480e5e",
+      "patch_id": "cbd177ec822479e9f15689d9b86cc7d9fe9de8e8",
+      "started": "2026-10-30T13:37:13Z",
+      "finished": "2026-10-30T13:37:13Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m unittest skills/sync-shared-contracts/resources/scripts/test_sync_contracts.py -k test_syc_hp_01",
+          "expect": "exit 1; contains \"FAILED\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-30T13:37:13Z",
+          "finished": "2026-10-30T13:37:13Z",
+          "output_tail": [
+            "F",
+            "======================================================================",
+            "FAIL: test_syc_hp_01_parse_and_render_brief (skills.sync-shared-contracts.resources.scripts.test_sync_contracts.TestSyncContracts.test_syc_hp_01_parse_and_render_brief)",
+            "[SYC-HP-01] Dual-Format Contract Parsing and Requirements Brief Rendering.",
+            "----------------------------------------------------------------------",
+            "Traceback (most recent call last):",
+            "  File \"/Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/sync_shared_contracts/skills/sync-shared-contracts/resources/scripts/test_sync_contracts.py\", line 6, in test_syc_hp_01_parse_and_render_brief",
+            "    self.fail(\"TDD RED: Dual-format contract parser not yet implemented\")",
+            "    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+            "AssertionError: TDD RED: Dual-format contract parser not yet implemented",
+            "",
+            "----------------------------------------------------------------------",
+            "Ran 1 test in 0.000s",
+            "",
+            "FAILED (failures=1)"
+          ],
+          "output_sha256": "d01de3a603d2eba64efc667625315ad038e50766565c84bb2cee8aea70260624"
+        }
+      ]
+    },
+    "verify": {
+      "head": "ba8ca903152f6f220e5d375b4f36b38bdafae69d",
+      "tree": "bc30ec70669f8f1f9184c69f563eeda52c077d2f",
+      "patch_id": "9732550bbbe99d403878781d72f3c4a5c110c20e",
+      "started": "2026-10-30T13:40:48Z",
+      "finished": "2026-10-30T13:40:48Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m unittest skills/sync-shared-contracts/resources/scripts/test_sync_contracts.py -k test_syc_hp_01",
+          "expect": "exit 0; contains \"OK\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-30T13:40:48Z",
+          "finished": "2026-10-30T13:40:48Z",
+          "output_tail": [
+            ".",
+            "----------------------------------------------------------------------",
+            "Ran 1 test in 0.004s",
+            "",
+            "OK",
+            "Requirements brief written to /private/tmp/ag_duedd/tmp_3ate_ad/brief.md"
+          ],
+          "output_sha256": "7862f9c28d1b75c04132aee574edaf069ff60841b3bbce61b579a81dfcf41781"
+        },
+        {
+          "id": "V3",
+          "phase": "GREEN",
+          "command": "python3 -m unittest skills/sync-shared-contracts/resources/scripts/test_sync_contracts.py -k test_syc_ec_01",
+          "expect": "exit 0; contains \"OK\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-30T13:40:48Z",
+          "finished": "2026-10-30T13:40:48Z",
+          "output_tail": [
+            ".",
+            "----------------------------------------------------------------------",
+            "Ran 1 test in 0.004s",
+            "",
+            "OK",
+            "Domain 'lyrics-sync' status: INITIAL_SYNC (watermark absent)",
+            "Snapshot ID: sha256:8bfd68e874b767ad39456a13275301e498cc73327d42a03fe81c41316428f203",
+            "Contract Version: 1.2.0",
+            "Unsynced files: api_contract.md, architecture_and_flow.md, gaps_and_rfcs.md"
+          ],
+          "output_sha256": "391ef1773ad05f25ef2bf0eaedeaba421acc31d05bbb688826de8887f5c8cdee"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "ruff check skills/sync-shared-contracts/resources/scripts/sync_contracts.py skills/sync-shared-contracts/resources/scripts/test_sync_contracts.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-30T13:40:48Z",
+          "finished": "2026-10-30T13:40:48Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-B",
+          "command": "mypy --strict --follow-imports=silent skills/sync-shared-contracts/resources/scripts/sync_contracts.py skills/sync-shared-contracts/resources/scripts/test_sync_contracts.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-30T13:40:48Z",
+          "finished": "2026-10-30T13:40:48Z",
+          "output_tail": [
+            "Success: no issues found in 2 source files"
+          ],
+          "output_sha256": "f9b031e5c45aa702cd4fef028d465551cb20a2c4698e0913c7b00766b20ac4d8"
+        },
+        {
+          "id": "V6",
+          "phase": "TIER-C",
+          "command": "python3 scripts/run_unittest_junit.py --junitxml build/test-results/task_1.xml skills/sync-shared-contracts/resources/scripts/test_sync_contracts.py",
+          "expect": "exit 0; results build/test-results/task_1.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-30T13:40:48Z",
+          "finished": "2026-10-30T13:40:48Z",
+          "output_tail": [
+            "...",
+            "----------------------------------------------------------------------",
+            "Ran 3 tests in 0.006s",
+            "",
+            "OK",
+            "Domain 'lyrics-sync' status: INITIAL_SYNC (watermark absent)",
+            "Snapshot ID: sha256:8bfd68e874b767ad39456a13275301e498cc73327d42a03fe81c41316428f203",
+            "Contract Version: 1.2.0",
+            "Unsynced files: api_contract.md, architecture_and_flow.md, gaps_and_rfcs.md",
+            "Requirements brief written to /private/tmp/ag_duedd/tmpt5t3r3re/brief.md"
+          ],
+          "output_sha256": "fe34994580d48ee6783e9028e664b9753c2816a45889ea706ef8d00695a63c4f",
+          "results": {
+            "path": "build/test-results/task_1.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 2,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_syc_ec_01_initial_sync_absent_watermark",
+                  "classname": "test_sync_contracts.TestSyncContracts",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_syc_hp_01_parse_and_render_brief",
+                  "classname": "test_sync_contracts.TestSyncContracts",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "skills/sync-shared-contracts/resources/scripts/sync_contracts.py",
+            "skills/sync-shared-contracts/resources/scripts/test_sync_contracts.py",
+            "skills/sync-shared-contracts/resources/templates/contract_delta_brief.md.tmpl"
+          ],
+          "violations": []
+        }
+      ]
+    }
+  }
+}
