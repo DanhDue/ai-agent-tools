@@ -61,36 +61,62 @@ def atomic_write_text(target_path: Path, content: str) -> None:
 
 
 def resolve_symlink_safe(path: Path) -> tuple[Path, bool]:
-    """Resolve a symlink safely with cycle detection and depth boundaries."""
-    current = path
+    """Resolve a path and all intermediate symlink components with depth and cycle limits."""
+    try:
+        current = path.absolute() if not path.is_absolute() else path
+    except (OSError, RuntimeError):
+        return path, False
+
     visited: set[tuple[int, int] | str] = set()
     depth = 0
 
-    while current.is_symlink() or os.path.islink(current):
-        if depth >= MAX_SYMLINK_DEPTH:
-            return current, False
-        try:
-            st = os.lstat(current)
-            node_key: tuple[int, int] | str = (
-                (st.st_dev, st.st_ino) if st.st_ino != 0 else str(current.absolute())
-            )
-            if node_key in visited:
-                return current, False
-            visited.add(node_key)
+    while True:
+        parts = current.parts
+        if not parts:
+            break
 
-            raw_link = os.readlink(current)
-            if not os.path.isabs(raw_link):
-                next_path = current.parent / raw_link
-            else:
-                next_path = Path(raw_link)
-            current = Path(os.path.normpath(next_path))
-        except (OSError, RuntimeError):
-            return current, False
-        depth += 1
+        accum = Path(parts[0])
+        symlink_found = False
+
+        for i in range(1, len(parts)):
+            accum = accum / parts[i]
+            if accum.is_symlink() or os.path.islink(accum):
+                depth += 1
+                if depth > MAX_SYMLINK_DEPTH:
+                    return accum, False
+
+                try:
+                    st = os.lstat(accum)
+                    node_key: tuple[int, int] | str = (
+                        (st.st_dev, st.st_ino) if st.st_ino != 0 else str(accum)
+                    )
+                except (OSError, RuntimeError):
+                    return accum, False
+
+                if node_key in visited:
+                    return accum, False
+                visited.add(node_key)
+
+                try:
+                    raw_target = os.readlink(accum)
+                except (OSError, RuntimeError):
+                    return accum, False
+
+                remaining = parts[i + 1:]
+                if os.path.isabs(raw_target):
+                    new_path = Path(raw_target, *remaining)
+                else:
+                    new_path = Path(accum.parent, raw_target, *remaining)
+
+                current = Path(os.path.normpath(new_path))
+                symlink_found = True
+                break
+
+        if not symlink_found:
+            break
 
     try:
-        final_target = current.resolve()
-        return final_target, final_target.exists()
+        return current, current.exists()
     except (OSError, RuntimeError):
         return current, False
 

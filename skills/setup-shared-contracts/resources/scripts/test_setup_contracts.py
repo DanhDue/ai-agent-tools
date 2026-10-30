@@ -620,6 +620,31 @@ class TestVerificationEngine(unittest.TestCase):
             self.assertNotEqual(proc_chain.returncode, 0)
             self.assertIn("exceeds max depth (10 hops)", proc_chain.stderr)
 
+        # 3. Intermediate directory symlink chain (> 10 hops)
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
+            hub_target = tmp_path / "real_hub" / "shared-contracts" / "domain"
+            hub_target.mkdir(parents=True)
+
+            # Create 12 intermediate directory hops: alias_hub -> hop_dir_1 -> ... -> hop_dir_11 -> real_hub
+            prev_dir = "real_hub"
+            for hop_idx in range(11, -1, -1):
+                hop_name = "alias_hub" if hop_idx == 0 else f"hop_dir_{hop_idx}"
+                os.symlink(prev_dir, tmp_path / hop_name)
+                prev_dir = hop_name
+
+            # shared-contracts -> alias_hub/shared-contracts/domain
+            os.symlink("alias_hub/shared-contracts/domain", tmp_path / "shared-contracts")
+
+            proc_intermediate = subprocess.run(
+                ["python3", str(cli_path), "verify", "--repo-root", str(tmp_path)],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertNotEqual(proc_intermediate.returncode, 0)
+            self.assertIn("exceeds max depth (10 hops)", proc_intermediate.stderr)
+
     def test_ssc_hp_03(self) -> None:
         """[SSC-HP-03] Comprehensive health verification pass across Hub and Satellite."""
         skill_md = Path(__file__).resolve().parent.parent.parent / "SKILL.md"
