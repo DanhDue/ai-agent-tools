@@ -353,6 +353,15 @@ def cmd_verify(repo_root: Path) -> int:
         hub_rule = repo_root_resolved / ".agents" / "rules" / "contract_rules.md"
         if not hub_rule.is_file():
             errors.append(f"Missing Hub local contract rules: '{hub_rule}'")
+        else:
+            try:
+                hub_rule_text = hub_rule.read_text(encoding="utf-8")
+                if "single source of truth" not in hub_rule_text.lower():
+                    errors.append(
+                        f"Hub contract rule '{hub_rule}' missing Single Source of Truth (SSOT) constraints"
+                    )
+            except OSError as exc:
+                errors.append(f"Unable to read Hub contract rule '{hub_rule}': {exc}")
     else:
         mode = "Satellite"
         try:
@@ -383,6 +392,20 @@ def cmd_verify(repo_root: Path) -> int:
         sat_rule = repo_root_resolved / ".agents" / "rules" / "contract_rules.md"
         if not sat_rule.is_file():
             errors.append(f"Missing Satellite local contract rules: '{sat_rule}'")
+        else:
+            try:
+                sat_rule_text = sat_rule.read_text(encoding="utf-8")
+                required_markers = ("Satellite Consumer", "read-only", "NEVER stage")
+                missing_markers = [
+                    m for m in required_markers if m.lower() not in sat_rule_text.lower()
+                ]
+                if missing_markers:
+                    errors.append(
+                        f"Satellite contract rule '{sat_rule}' missing required Git read-only boundary constraints: "
+                        f"{', '.join(missing_markers)}"
+                    )
+            except OSError as exc:
+                errors.append(f"Unable to read Satellite contract rule '{sat_rule}': {exc}")
 
     if errors:
         sys.stderr.write(f"FAILED: Shared contracts verification found {len(errors)} error(s) ({mode} mode):\n")
