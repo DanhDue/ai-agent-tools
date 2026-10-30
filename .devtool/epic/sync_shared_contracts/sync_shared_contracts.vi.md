@@ -16,7 +16,7 @@
 ## Meta Data
 
 - **Tên Epic**: `sync_shared_contracts`
-- **Trạng thái**: In Progress
+- **Trạng thái**: Done
 - **Phiên bản đích**: Bản phát hành plugin tiếp theo (1.16.0)
 - **Nền tảng**: Python tooling / agent skill kit
 - **Spec gốc**: [Approved Sync Shared Contracts design](2026-10-30-sync-shared-contracts-design.vi.md)
