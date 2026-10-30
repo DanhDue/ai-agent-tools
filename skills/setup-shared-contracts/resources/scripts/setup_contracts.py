@@ -93,7 +93,8 @@ def resolve_symlink_safe(path: Path) -> tuple[Path, bool]:
 
 def _get_timestamp() -> str:
     """Return ISO-8601 UTC timestamp."""
-    return datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    utc_tz = getattr(datetime, "UTC", datetime.timezone.utc)  # noqa: UP017
+    return datetime.datetime.now(utc_tz).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def _load_template(name: str) -> string.Template:
@@ -147,7 +148,7 @@ def cmd_init_hub(repo_root: Path, domain: str | None = None, force: bool = False
     hub_repo_name = repo_root.resolve().name or "D3Nexus"
     timestamp = _get_timestamp()
     norm_domain = None
-    if domain:
+    if domain is not None:
         try:
             norm_domain = validate_domain(domain)
         except ValueError as exc:

@@ -2,12 +2,18 @@
 
 from __future__ import annotations
 
+import concurrent.futures
 import os
 import string
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
+
+# Enable direct import of setup_contracts module
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import setup_contracts
 
 TEMPLATES_DIR = (
     Path(__file__).resolve().parent.parent / "templates"
@@ -68,92 +74,124 @@ class TestCanonicalTemplates(unittest.TestCase):
             self.assertIn("2026-10-30T00:00:00Z", rendered)
 
     def test_ssc_hp_01(self) -> None:
-        """[SSC-HP-01] Validates template bundle rendering for fresh Hub initialization."""
-        params = {
-            "domain": "lyrics-sync",
-            "hub_repo": "D3Nexus",
-            "timestamp": "2026-10-30T05:35:00Z",
-        }
-
-        # 1. Render Hub Readme
-        readme_tmpl = string.Template(
-            (TEMPLATES_DIR / "hub_readme.md.tmpl").read_text(encoding="utf-8")
-        )
-        readme_rendered = readme_tmpl.substitute(params)
-        self.assertIn("# Shared Contracts Repository", readme_rendered)
-        self.assertIn("D3Nexus", readme_rendered)
-        self.assertIn("lyrics-sync", readme_rendered)
-        self.assertIn("flowchart TD", readme_rendered)
-        self.assertIn("Outbound Symlink Mappings", readme_rendered)
-
-        # 2. Render Domain Contracts (API, Architecture, Gaps)
-        api_tmpl = string.Template(
-            (TEMPLATES_DIR / "api_contract.md.tmpl").read_text(encoding="utf-8")
-        )
-        api_rendered = api_tmpl.substitute(params)
-        self.assertIn("# API Contract: lyrics-sync", api_rendered)
-        self.assertIn("X-Worker-Token", api_rendered)
-        self.assertIn("Non-Breaking Schema Guarantees", api_rendered)
-
-        arch_tmpl = string.Template(
-            (TEMPLATES_DIR / "architecture_and_flow.md.tmpl").read_text(encoding="utf-8")
-        )
-        arch_rendered = arch_tmpl.substitute(params)
-        self.assertIn("# Architecture and Flow: lyrics-sync", arch_rendered)
-        self.assertIn("Seven Canonical Pipeline Steps", arch_rendered)
-        self.assertIn("Cancellation Fencing", arch_rendered)
-        self.assertIn("Stateless Compute", arch_rendered)
-
-        gaps_tmpl = string.Template(
-            (TEMPLATES_DIR / "gaps_and_rfcs.md.tmpl").read_text(encoding="utf-8")
-        )
-        gaps_rendered = gaps_tmpl.substitute(params)
-        self.assertIn("# Gaps and RFCs Ledger: lyrics-sync", gaps_rendered)
-        self.assertIn("Active RFC Ledger", gaps_rendered)
-        self.assertIn("RFC Proposal Template", gaps_rendered)
-
-        # 3. Render Hub Rules
-        rule_tmpl = string.Template(
-            (TEMPLATES_DIR / "hub_rule.md.tmpl").read_text(encoding="utf-8")
-        )
-        rule_rendered = rule_tmpl.substitute(params)
-        self.assertIn("# Shared Contracts Rules (Hub Repository)", rule_rendered)
-        self.assertIn("Single Source of Truth", rule_rendered)
-        self.assertIn("task_01", rule_rendered)
-
-    def test_ssc_ec_01(self) -> None:
-        """[SSC-EC-01] Validates template rendering preserves custom edits and invariants."""
-        params = {
-            "domain": "custom-service",
-            "hub_repo": "MainHub",
-            "timestamp": "2026-10-30T12:00:00Z",
-        }
-
+        """[SSC-HP-01] Validates production Hub initialization and contract generation."""
+        cli_path = Path(__file__).resolve().parent / "setup_contracts.py"
         with tempfile.TemporaryDirectory() as tmp_dir:
             tmp_path = Path(tmp_dir)
-            domain_dir = tmp_path / "shared-contracts" / "custom-service"
-            domain_dir.mkdir(parents=True, exist_ok=True)
+            proc = subprocess.run(
+                [
+                    "python3",
+                    str(cli_path),
+                    "init-hub",
+                    "--domain",
+                    "lyrics-sync",
+                    "--repo-root",
+                    str(tmp_path),
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(proc.returncode, 0, f"init-hub failed: {proc.stderr}")
 
-            api_contract_file = domain_dir / "api_contract.md"
+            # 1. Physical shared-contracts/ directory exists
+            shared_contracts_dir = tmp_path / "shared-contracts"
+            self.assertTrue(shared_contracts_dir.is_dir())
+            self.assertFalse(shared_contracts_dir.is_symlink())
+
+            # 2. README.md contains Star Topology layout and outbound mappings
+            readme_file = shared_contracts_dir / "README.md"
+            self.assertTrue(readme_file.is_file())
+            readme_text = readme_file.read_text(encoding="utf-8")
+            self.assertIn("# Shared Contracts Repository", readme_text)
+            self.assertIn("lyrics-sync", readme_text)
+            self.assertIn("flowchart TD", readme_text)
+            self.assertIn("Outbound Symlink Mappings", readme_text)
+
+            # 3. Domain folder contains all 3 canonical files
+            domain_dir = shared_contracts_dir / "lyrics-sync"
+            self.assertTrue(domain_dir.is_dir())
+            for canonical in ("api_contract.md", "architecture_and_flow.md", "gaps_and_rfcs.md"):
+                c_file = domain_dir / canonical
+                self.assertTrue(c_file.is_file(), f"Missing canonical file: {canonical}")
+                self.assertGreater(len(c_file.read_text(encoding="utf-8")), 50)
+
+            # 4. Hub rule exists with SSOT ownership instructions
+            hub_rule = tmp_path / ".agents" / "rules" / "contract_rules.md"
+            self.assertTrue(hub_rule.is_file())
+            hub_rule_text = hub_rule.read_text(encoding="utf-8")
+            self.assertIn("Single Source of Truth", hub_rule_text)
+            self.assertIn("task_01", hub_rule_text)
+
+    def test_ssc_ec_01(self) -> None:
+        """[SSC-EC-01] Validates idempotent execution preserves custom edits without --force."""
+        cli_path = Path(__file__).resolve().parent / "setup_contracts.py"
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
+
+            # 1. Fresh initialization
+            proc1 = subprocess.run(
+                [
+                    "python3",
+                    str(cli_path),
+                    "init-hub",
+                    "--domain",
+                    "lyrics-sync",
+                    "--repo-root",
+                    str(tmp_path),
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(proc1.returncode, 0, f"Init failed: {proc1.stderr}")
+
+            # 2. Apply custom edits to api_contract.md
+            api_contract_file = tmp_path / "shared-contracts" / "lyrics-sync" / "api_contract.md"
             custom_content = (
-                "# API Contract: custom-service\n\n"
-                "## Custom Endpoint\n\n`POST /api/v1/custom-service/special`\n"
+                "# API Contract: lyrics-sync\n\n"
+                "## Custom Endpoint\n\n`POST /api/v1/lyrics-sync/special`\n"
             )
             api_contract_file.write_text(custom_content, encoding="utf-8")
 
-            # Check that existing content is preserved when checking presence
-            self.assertTrue(api_contract_file.exists())
+            # 3. Rerun init-hub without --force
+            proc2 = subprocess.run(
+                [
+                    "python3",
+                    str(cli_path),
+                    "init-hub",
+                    "--domain",
+                    "lyrics-sync",
+                    "--repo-root",
+                    str(tmp_path),
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(proc2.returncode, 0, f"Rerun init-hub failed: {proc2.stderr}")
+
+            # Custom edits must be strictly preserved
             self.assertEqual(api_contract_file.read_text(encoding="utf-8"), custom_content)
 
-            # Ensure satellite rule template preserves boundary guarantees
-            sat_rule_tmpl = string.Template(
-                (TEMPLATES_DIR / "satellite_rule.md.tmpl").read_text(encoding="utf-8")
+            # 4. Verify --force overwrites existing custom edits
+            proc3 = subprocess.run(
+                [
+                    "python3",
+                    str(cli_path),
+                    "init-hub",
+                    "--domain",
+                    "lyrics-sync",
+                    "--repo-root",
+                    str(tmp_path),
+                    "--force",
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
             )
-            sat_rendered = sat_rule_tmpl.substitute(params)
-            self.assertIn("# Shared Contracts Rules (Satellite Repository)", sat_rendered)
-            self.assertIn("120000", sat_rendered)
-            self.assertIn("Files Allowed", sat_rendered)
-            self.assertIn("Stateless Compute", sat_rendered)
+            self.assertEqual(proc3.returncode, 0, f"Force init-hub failed: {proc3.stderr}")
+            self.assertNotEqual(api_contract_file.read_text(encoding="utf-8"), custom_content)
 
 
 class TestHubInitialization(unittest.TestCase):
@@ -487,30 +525,51 @@ class TestVerificationEngine(unittest.TestCase):
             self.assertIn("lyrics-sync", readme_text)
 
     def test_ssc_ar_01(self) -> None:
-        """[SSC-AR-01] Atomic file creation prevents partial writes."""
-        cli_path = Path(__file__).resolve().parent / "setup_contracts.py"
+        """[SSC-AR-01] Atomic file creation prevents partial or torn writes under concurrency."""
         with tempfile.TemporaryDirectory() as tmp_dir:
             tmp_path = Path(tmp_dir)
-            proc = subprocess.run(
-                ["python3", str(cli_path), "init-hub", "--domain", "atomic-test", "--repo-root", str(tmp_path)],
-                check=False,
-                capture_output=True,
-                text=True,
-            )
-            self.assertEqual(proc.returncode, 0)
-            canonical = tmp_path / "shared-contracts" / "atomic-test" / "api_contract.md"
-            self.assertTrue(canonical.is_file())
-            self.assertGreater(len(canonical.read_text(encoding="utf-8")), 50)
+            target_file = tmp_path / "concurrent_atomic.txt"
+
+            errors: list[str] = []
+
+            def worker_writer(worker_id: int) -> None:
+                payload = f"WORKER_{worker_id}_PAYLOAD:" + ("X" * 1024) + f":END_{worker_id}\n"
+                for _ in range(40):
+                    setup_contracts.atomic_write_text(target_file, payload)
+
+            def worker_reader() -> None:
+                for _ in range(80):
+                    if target_file.exists():
+                        try:
+                            text = target_file.read_text(encoding="utf-8")
+                            if not text:
+                                errors.append("Observed zero-byte file during concurrent read")
+                            elif not (text.startswith("WORKER_") and text.endswith("\n")):
+                                errors.append(f"Observed torn or partial content: {text[:50]}")
+                        except FileNotFoundError:
+                            pass
+
+            with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+                writers = [executor.submit(worker_writer, i) for i in range(4)]
+                readers = [executor.submit(worker_reader) for _ in range(4)]
+                concurrent.futures.wait(writers + readers)
+
+            self.assertEqual(errors, [], f"Atomic write concurrency violations: {errors}")
+
+            # No temporary swap files (.tmp_*) should linger
+            temp_swap_files = list(tmp_path.glob(".tmp_*"))
+            self.assertEqual(temp_swap_files, [], f"Lingering swap files found: {temp_swap_files}")
 
     def test_ssc_ar_02(self) -> None:
-        """[SSC-AR-02] Circular symlink and loop protection halts cleanly."""
+        """[SSC-AR-02] Circular symlink and max depth (>10 hops) loop protection halts cleanly."""
         cli_path = Path(__file__).resolve().parent / "setup_contracts.py"
+
+        # 1. Circular symlink detection (A -> B -> A)
         with tempfile.TemporaryDirectory() as tmp_dir:
             tmp_path = Path(tmp_dir)
             link_a = tmp_path / "shared-contracts"
             link_b = tmp_path / "loop_target"
 
-            # Create circular reference: link_a -> loop_target -> shared-contracts
             os.symlink("loop_target", link_a)
             os.symlink("shared-contracts", link_b)
 
@@ -520,9 +579,31 @@ class TestVerificationEngine(unittest.TestCase):
                 capture_output=True,
                 text=True,
             )
-            # Must exit non-zero without unhandled RecursionError
             self.assertNotEqual(proc.returncode, 0)
+            self.assertIn("exceeds max depth (10 hops)", proc.stderr)
             self.assertNotIn("RecursionError", proc.stderr)
+
+        # 2. Excessive hop chain (> 10 hops)
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
+            hub_target = tmp_path / "hub_contracts"
+            hub_target.mkdir()
+
+            # Create 12 hops: hop_0 (shared-contracts) -> hop_1 -> ... -> hop_11 -> hub_target
+            prev_target = "hub_contracts"
+            for hop_idx in range(11, -1, -1):
+                hop_name = f"hop_{hop_idx}" if hop_idx > 0 else "shared-contracts"
+                os.symlink(prev_target, tmp_path / hop_name)
+                prev_target = hop_name
+
+            proc_chain = subprocess.run(
+                ["python3", str(cli_path), "verify", "--repo-root", str(tmp_path)],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertNotEqual(proc_chain.returncode, 0)
+            self.assertIn("exceeds max depth (10 hops)", proc_chain.stderr)
 
     def test_ssc_hp_03(self) -> None:
         """[SSC-HP-03] Comprehensive health verification pass across Hub and Satellite."""
@@ -582,6 +663,92 @@ class TestVerificationEngine(unittest.TestCase):
             self.assertEqual(proc_sat.returncode, 0, f"Satellite verify failed: {proc_sat.stderr}")
             self.assertIn("Satellite mode", proc_sat.stdout)
             self.assertIn("PASS", proc_sat.stdout)
+
+
+class TestGovernanceAndDefectFixes(unittest.TestCase):
+    """Tests covering security containment, governance rule constraints, and runtime compatibility."""
+
+    def test_domain_containment_and_validation_guards(self) -> None:
+        """Domain input must reject path traversal, slashes, and outside containment."""
+        cli_path = Path(__file__).resolve().parent / "setup_contracts.py"
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
+
+            invalid_domains = ["../escaped", "/absolute", "inv@lid", "sub/dir", "", "   "]
+            for bad_domain in invalid_domains:
+                proc = subprocess.run(
+                    [
+                        "python3",
+                        str(cli_path),
+                        "init-hub",
+                        "--domain",
+                        bad_domain,
+                        "--repo-root",
+                        str(tmp_path),
+                    ],
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                )
+                self.assertNotEqual(proc.returncode, 0, f"Domain '{bad_domain}' should be rejected")
+
+    def test_satellite_rule_governance_content(self) -> None:
+        """Satellite verification rejects empty rules or rules missing Git read-only restrictions."""
+        cli_path = Path(__file__).resolve().parent / "setup_contracts.py"
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
+            hub_dir = tmp_path / "Hub"
+            sat_dir = tmp_path / "Satellite"
+            hub_dir.mkdir()
+            sat_dir.mkdir()
+
+            # Initialize Hub & link Satellite
+            subprocess.run(
+                ["python3", str(cli_path), "init-hub", "--domain", "test-dom", "--repo-root", str(hub_dir)],
+                check=True,
+                capture_output=True,
+            )
+            subprocess.run(
+                [
+                    "python3",
+                    str(cli_path),
+                    "link-satellite",
+                    "--hub",
+                    str(hub_dir),
+                    "--domain",
+                    "test-dom",
+                    "--satellite-root",
+                    str(sat_dir),
+                ],
+                check=True,
+                capture_output=True,
+            )
+
+            # Corrupt satellite rule to be empty
+            sat_rule = sat_dir / ".agents" / "rules" / "contract_rules.md"
+            sat_rule.write_text("# Empty Rule\n", encoding="utf-8")
+
+            proc = subprocess.run(
+                ["python3", str(cli_path), "verify", "--repo-root", str(sat_dir)],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertNotEqual(proc.returncode, 0)
+            self.assertIn("missing required Git read-only boundary constraints", proc.stderr)
+
+    def test_satellite_template_rfc_path(self) -> None:
+        """Satellite rule template must reference shared-contracts/gaps_and_rfcs.md."""
+        sat_tmpl = TEMPLATES_DIR / "satellite_rule.md.tmpl"
+        content = sat_tmpl.read_text(encoding="utf-8")
+        self.assertIn("shared-contracts/gaps_and_rfcs.md", content)
+        self.assertNotIn("shared-contracts/$domain/gaps_and_rfcs.md", content)
+
+    def test_python310_utc_timestamp(self) -> None:
+        """_get_timestamp returns ISO-8601 UTC timestamp compatible with Python 3.10+."""
+        ts = setup_contracts._get_timestamp()
+        self.assertTrue(ts.endswith("Z"))
+        self.assertIn("T", ts)
 
 
 if __name__ == "__main__":
