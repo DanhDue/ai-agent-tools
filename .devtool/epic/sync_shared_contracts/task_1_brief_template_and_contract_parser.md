@@ -14,7 +14,7 @@ order: "a1"
 
 # Task 1: Canonical Brief Template and Markdown Contract Parser
 
-Epic: [sync_shared_contracts](../epic/sync_shared_contracts/sync_shared_contracts.en.md)
+Epic: [sync_shared_contracts](sync_shared_contracts.en.md)
 
 ## Requirement Analysis
 

@@ -14,7 +14,7 @@ order: "a3"
 
 # Task 3: Watermark Ack Command, Drift Detection, and Brief CLI Subcommands
 
-Epic: [sync_shared_contracts](../epic/sync_shared_contracts/sync_shared_contracts.en.md)
+Epic: [sync_shared_contracts](sync_shared_contracts.en.md)
 
 ## Requirement Analysis
 

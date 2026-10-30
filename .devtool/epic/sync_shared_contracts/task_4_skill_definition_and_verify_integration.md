@@ -14,7 +14,7 @@ order: "a4"
 
 # Task 4: Skill Definition, Lifecycle Bridge Instructions, and Verify Harness Integration
 
-Epic: [sync_shared_contracts](../epic/sync_shared_contracts/sync_shared_contracts.en.md)
+Epic: [sync_shared_contracts](sync_shared_contracts.en.md)
 
 ## Requirement Analysis
 

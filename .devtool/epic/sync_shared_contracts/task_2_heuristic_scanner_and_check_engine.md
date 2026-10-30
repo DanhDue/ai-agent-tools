@@ -14,7 +14,7 @@ order: "a2"
 
 # Task 2: Target Codebase Heuristic Scanner and Dual-Mode Check Engine
 
-Epic: [sync_shared_contracts](../epic/sync_shared_contracts/sync_shared_contracts.en.md)
+Epic: [sync_shared_contracts](sync_shared_contracts.en.md)
 
 ## Requirement Analysis
 
