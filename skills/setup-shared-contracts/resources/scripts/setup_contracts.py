@@ -10,6 +10,7 @@ import re
 import shutil
 import string
 import sys
+import uuid
 from pathlib import Path
 
 TEMPLATES_DIR = Path(__file__).resolve().parent.parent / "templates"
@@ -46,13 +47,16 @@ def validate_domain(domain: str) -> str:
 def atomic_write_text(target_path: Path, content: str) -> None:
     """Write content to target_path atomically using a temporary swap file."""
     target_path.parent.mkdir(parents=True, exist_ok=True)
-    tmp_path = target_path.parent / f".tmp_{target_path.name}_{os.getpid()}"
+    tmp_path = target_path.parent / f".tmp_{target_path.name}_{uuid.uuid4().hex}"
     try:
         tmp_path.write_text(content, encoding="utf-8")
         os.replace(tmp_path, target_path)
     except Exception:
         if tmp_path.exists():
-            tmp_path.unlink()
+            try:
+                tmp_path.unlink()
+            except OSError:
+                pass
         raise
 
 

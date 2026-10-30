@@ -532,12 +532,16 @@ class TestVerificationEngine(unittest.TestCase):
 
             errors: list[str] = []
 
-            def worker_writer(worker_id: int) -> None:
+            def worker_writer(worker_id: int) -> int:
                 payload = f"WORKER_{worker_id}_PAYLOAD:" + ("X" * 1024) + f":END_{worker_id}\n"
+                writes = 0
                 for _ in range(40):
                     setup_contracts.atomic_write_text(target_file, payload)
+                    writes += 1
+                return writes
 
-            def worker_reader() -> None:
+            def worker_reader() -> int:
+                reads = 0
                 for _ in range(80):
                     if target_file.exists():
                         try:
@@ -546,15 +550,26 @@ class TestVerificationEngine(unittest.TestCase):
                                 errors.append("Observed zero-byte file during concurrent read")
                             elif not (text.startswith("WORKER_") and text.endswith("\n")):
                                 errors.append(f"Observed torn or partial content: {text[:50]}")
+                            else:
+                                reads += 1
                         except FileNotFoundError:
                             pass
+                return reads
 
             with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
                 writers = [executor.submit(worker_writer, i) for i in range(4)]
                 readers = [executor.submit(worker_reader) for _ in range(4)]
-                concurrent.futures.wait(writers + readers)
+                # Explicitly collect future results so any worker exceptions are raised
+                write_results = [f.result() for f in writers]
+                read_results = [f.result() for f in readers]
 
             self.assertEqual(errors, [], f"Atomic write concurrency violations: {errors}")
+            self.assertEqual(sum(write_results), 160, "All writes must complete successfully")
+            self.assertGreater(sum(read_results), 0, "Concurrent reads must succeed")
+
+            # Check final file content integrity
+            final_text = target_file.read_text(encoding="utf-8")
+            self.assertTrue(final_text.startswith("WORKER_") and final_text.endswith("\n"))
 
             # No temporary swap files (.tmp_*) should linger
             temp_swap_files = list(tmp_path.glob(".tmp_*"))
