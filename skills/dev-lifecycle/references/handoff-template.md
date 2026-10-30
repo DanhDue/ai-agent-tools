@@ -37,8 +37,10 @@ These are usually different strings. Never derive one from the other.
 ## Resume Prompt
 
 ```text
+[PERSONA: AI PROGRAMMER — SENIOR TDD SOFTWARE ENGINEER]
 Use the d3nexus:dev-implementation skill for the `<epic_slug>` epic.
 Read .devtool/epic/<epic_dir>/handoff.md first.
+Run: python3 scripts/resume_context.py --role programmer --epic <epic_slug>
 Apply the Execution Guardrails for Receiving LLM before presenting Gate 3.
 Gates 1 and 2 are passed; do not re-run brainstorming or design.
 Gate 3 is pending: present the execution order to me and wait for my confirmation.

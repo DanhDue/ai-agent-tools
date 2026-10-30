@@ -228,6 +228,7 @@ Wait for the user's response. If they request changes, make them and re-run the 
 
 **Implementation:**
 
+- After Gate 1 approval, persist architectural decisions using `python3 scripts/resume_context.py --state --epic <topic_slug> --role assistant` (or `d3nexus:save-context`).
 - Apply the Routing After Approval rule above to pick the next skill: `dev-designer` (pass the spec's file path) for epic-scale work, or `writing-plans` for everything else.
 - Do NOT invoke any other skill — those two, plus the `lean-product-lifecycle` escape at step 2 and the correction exit to `doc-brainstorming`, are the only valid next steps.
 

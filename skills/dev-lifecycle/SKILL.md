@@ -111,7 +111,7 @@ Between Gate 2 and Stage 3 the developer decides when, and by whom, the epic is 
    Two matching lines are required; with fewer, set the Status line by hand in both variants. If the Status read `Queued (backlog) — behind <epic>` before packaging, run the script with `"Packaged (queued behind <epic>)"` instead and copy that line into Open Notes; the `grep` still matches.
 5. Commit if `auto_commit: true`: `git commit -m "[<EPIC_NAME>] Package epic for handoff"`.
 6. Offer to push only with explicit permission.
-7. Print `handoff.md` path and rendered Resume Prompt.
+7. Persist state (`resume_context.py --state --epic <epic_slug>`), emit prompts (`--emit-prompt principal-review` and `implement`), and print `handoff.md` path.
 8. Present **Principal Review Choice** — follow [references/principal-review.md](references/principal-review.md). When Option 2 ("Principal Review") is selected, invoke `d3nexus:principal-review`.
 
 ### Stage 3 — Isolated Execution → `dev-implementation`

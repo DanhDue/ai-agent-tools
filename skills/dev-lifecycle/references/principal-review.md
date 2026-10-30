@@ -25,7 +25,7 @@ Principal Review is a cross-model review of an epic's architecture and task desi
      git log -1 --format=%s -- .devtool/epic/<epic_dir>
      ```
      When the last commit touching the epic directory is not `[<EPIC_NAME>] Package epic for handoff`, re-run the packaging procedure from step 1 (readiness check, regenerated `handoff.md`, lint, status, and package commit).
-     Then print the `handoff.md` path and the Resume Prompt, and stop.
+     Then record state via `python3 scripts/resume_context.py --state --epic <epic_slug>`, emit the execution prompt via `python3 scripts/resume_context.py --emit-prompt implement --epic <epic_slug>`, print the `handoff.md` path and the Resume Prompt, and stop.
 
 3. **Principal Review**:
    Ask the developer which CLI to use — Claude CLI, Codex CLI, or Antigravity CLI (`agy --model "Gemini 4 Argon (Medium)"`) — and optionally which model. Never choose for the developer.

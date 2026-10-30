@@ -122,11 +122,15 @@ Before executing **Option 1 (Merge)** or **Option 2 (Push & PR)**, if the worksp
 
 ```bash
 SYNC_SCRIPT="$SKILL_DIR/../dev-implementation/resources/scripts/sync_task_status.py"
+RESUME_SCRIPT="scripts/resume_context.py"
 if ls .devtool/features/done/task_*.md 1>/dev/null 2>&1; then
   if [ ! -f "$SYNC_SCRIPT" ]; then
     echo "STOP: done tasks exist but $SYNC_SCRIPT is missing" >&2
   else
     python3 "$SYNC_SCRIPT" archive-done
+    if [ -f "$RESUME_SCRIPT" ]; then
+      python3 "$RESUME_SCRIPT" --complete "<epic_slug>" "<milestone_summary>"
+    fi
     git add .devtool/ docs/ 2>/dev/null || true
     git commit -m "[EPIC] Complete epic and archive done tasks" -m "- archive done tasks into .devtool/epic/<epic_dir>
 - update epic status to Done across English and Vietnamese HLDs
