@@ -8,6 +8,27 @@ every installed machine on the old cached copy.
 
 ---
 
+## 1.16.0 — 2026-10-31
+
+Delivers Two-Tier Project Memory (`scripts/resume_context.py`), Tri-Role Governance Model, multi-profile shell environment & shared history synchronization, new `resume-context` and `save-context` skills, Critical Rule 8 in `CRITICAL_RULES.md`, automatic context hooks across all 9 dev-lifecycle skills, and full JSON harvest export.
+
+### Added
+
+- **Two-Tier Context Engine** (`scripts/resume_context.py`, `docs/architecture/resume_context.py`): Delivers a zero-dependency Python CLI engine providing Tier 1 permanent project memory (`.devtool/PROJECT_LEDGER.md`) and Tier 2 active feature isolation (`.devtool/state/<epic_slug>.md` $\le 20$ lines and `.devtool/logs/activity_<epic_slug>.log`) protected by exclusive `fcntl.flock` concurrency locking (`.devtool/.memory.lock`). Automatically resolves primary repo root from git worktrees (`git rev-parse --git-common-dir`) and generates unified rollups into `.devtool/assistant_state.md` and `.devtool/activity_stream.log`.
+- **JSON Harvest Serialization** (`scripts/resume_context.py`): Adds `--json` capability to export comprehensive context telemetry in machine-readable JSON format, including ledger milestones, active state snapshots, recent programmer activity logs, git working tree status, open contract RFCs, and active Kanban tasks.
+- **Tri-Role Persona Governance Discipline**: Formalizes and enforces strict persona boundaries: Human Architect (Role 2.1 — Strategic decisions & approval gates), AI Assistant (Role 2.2 — Technical Advisor & Reviewer, strictly prohibited from editing production code), and AI Programmer (Role 2.3 — Senior TDD Software Engineer, executing Kanban tasks under strict TDD and bounded context boundaries). Deterministic handoff prompt emission via `--emit-prompt` covers 5 standard lifecycle scenarios (`principal-review`, `implement`, `cross-review`, `finish`, `assistant`).
+- **Standalone `resume-context` & `save-context` Skills** (`skills/resume-context/`, `skills/save-context/`): New core skills to restore context on startup, check environment health, persist real-time decisions and activity logs to disk, and save non-destructive checkpoints without premature feature archiving.
+- **Mandatory Memory & Persona Rule in Critical Rules** (`rules/CRITICAL_RULES.md`): Adds Section 8 establishing non-negotiable two-tier project memory hygiene, strict 20-line state ceiling, advisory file locking, and Tri-Role persona discipline across all agent runtimes.
+- **Multi-Profile Shell Environment & History Sync** (`scripts/resume_context.py --sync-zshrc`): Synchronizes `.zshrc` across Antigravity and user home directories (`~/.zshrc` and `antigravity_homes/*`), establishes real-time shared history (`HISTFILE="$REAL_HOME/.zsh_history"`, `SHARE_HISTORY`), creates symlinks (`Projects -> AllProjects`), and defines universal shell aliases (`alias resume` and `alias save-context`).
+- **Release Verification Harness Section 15** (`scripts/verify.sh`): Adds automated Section 15 verifying context memory management CLI capabilities, multi-epic concurrency locking, worktree routing, legacy migrations, and Tri-Role governance rules.
+
+### Changed
+
+- **Dev-Lifecycle Skills Context Integration**: Integrates automatic `resume_context.py` state/activity recording and handoff prompt hooks across 9 dev-lifecycle skills and templates (`dev-brainstorming`, `dev-designer`, `dev-lifecycle`, `dev-implementation`, `principal-review`, `cross-model-review`, `finishing-a-development-branch`, `handoff-template.md`, and `principal-review.md`).
+- **Dev-Implementation Pre-Finish Hook**: Extends Stage 4 Pre-Finish Hook to execute `python3 scripts/resume_context.py --complete <slug> "<milestone>"` to record permanent milestones and archive feature states upon branch landing.
+
+---
+
 ## 1.15.0 — 2026-10-25
 
 Adds support for the Antigravity CLI (`agy`) with `Gemini 4 Argon (Medium)` as an external review engine for both Principal Review (Shift-Left design verification) and Cross-Model Review (Shift-Right code verification).
