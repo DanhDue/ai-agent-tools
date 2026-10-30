@@ -13,7 +13,7 @@
 ## Status
 
 - **Packaged**: 2026-10-30
-- **Design commit**: `a8308db19b79f7897dc7a61e35e0aa5936c3807b` — `HEAD` before the packaging commit, or `uncommitted` when `auto_commit` is false
+- **Design commit**: `572f3fb7f83e51d96dac287991a2ff7605205c71` — `HEAD` before the packaging commit, or `uncommitted` when `auto_commit` is false
 - **Base branch**: `main`
 - **Gates passed**: 1 (spec), 2 (HLD and task breakdown)
 - **Next**: Stage 3, `dev-implementation`. Gate 3 (execution order) still needs the developer's confirmation.
@@ -59,14 +59,14 @@ Fast executor models and receiving agents MUST adhere to these four hard guardra
 
 ## Open Notes
 
-- **Dual-Mode & Worktree-Aware Architecture**: `sync-shared-contracts` complements `setup-shared-contracts` by handling Day-2 continuous contract delta detection (`check`), requirements brief generation (`brief`), and snapshot-bound/scope-bound watermark acknowledgement (`ack --snapshot <id> --rfc <id>`) in `.agents/contract_sync.json` across both Satellite (relative symlink, resolved via primary repo root when running inside `.worktrees/<epic_dir>`) and Hub (physical directory) repositories.
-- **3-Layer Hybrid Delta Engine & Normalized Baseline Snapshot**: Combines Git commit/SHA-256 file hash comparison, a normalized `baseline_snapshot` persisted in `.agents/contract_sync.json` for Git-less or dirty-Hub semantic comparison, dual-format Markdown parsing of the 3 canonical contract files (`api_contract.md`, `architecture_and_flow.md`, `gaps_and_rfcs.md` — supporting both `setup-shared-contracts` tables and live `lyrics-sync` narrative formats), and a lightweight Target Codebase Heuristic Scanner classifying endpoints, headers, and `snake_case`/`camelCase` DTO keys as `FOUND_IN_CODE` or `MISSING_IN_CODE`.
-- **Orchestrated `/dev-lifecycle` Bridge**: `SKILL.md` guides agents through a 5-step workflow feeding the `brief` report into Stage 1 (`dev-brainstorming`), Stage 2 (`dev-designer` — enforcing Hub `task_01` contract update vs Satellite `task_01` consumer DTO update and Satellite read-only symlink rule), Stage 3 (`dev-implementation` with `sync_contracts.py ack --snapshot <id> --rfc <id>` + `check --strict`), and Stage 4 (`finishing-a-development-branch`).
+- **Dual-Mode & Worktree-Aware Architecture**: `sync-shared-contracts` complements `setup-shared-contracts` by handling Day-2 continuous contract delta detection (`check`), requirements brief generation (`brief`), and snapshot-bound/scope-bound watermark acknowledgement (`ack --snapshot <id> [--rfc <id> ... | --all-rfcs]`) in `.agents/contract_sync.json` across both Satellite (relative symlink, resolved via primary repo root when running inside `.worktrees/<epic_dir>`) and Hub (physical directory) repositories.
+- **3-Layer Hybrid Delta Engine & Normalized Baseline Snapshot**: Combines Git commit/SHA-256 file hash comparison, a normalized `baseline_snapshot` (including dotted `payload_fields` path/type mapping and structured `rfcs` metadata) persisted in `.agents/contract_sync.json` for Git-less or dirty-Hub semantic comparison, dual-format Markdown parsing of the 3 canonical contract files (`api_contract.md`, `architecture_and_flow.md`, `gaps_and_rfcs.md` — supporting both `setup-shared-contracts` tables and live `lyrics-sync` narrative formats), and a lightweight Target Codebase Heuristic Scanner classifying endpoints, headers, and `snake_case`/`camelCase` DTO keys as `FOUND_IN_CODE` or `MISSING_IN_CODE`.
+- **Orchestrated `/dev-lifecycle` Bridge**: `SKILL.md` guides agents through a 5-step workflow feeding the `brief` report into Stage 1 (`dev-brainstorming`), Stage 2 (`dev-designer` — enforcing Hub `task_01` contract update + post-`task_01` snapshot refresh vs Satellite `task_01` consumer DTO update and Satellite read-only symlink rule), Stage 3 (`dev-implementation` with `sync_contracts.py ack --snapshot <id> [--rfc <id> ... | --all-rfcs]` + global `check --strict` or scoped `check --strict --rfc <id>`), and Stage 4 (`finishing-a-development-branch`).
 
 ## Rules for the Receiving Agent
 
 - Do not re-run `dev-brainstorming` or `dev-designer`. Raise a wrong or missing document at Gate 3.
 - This handoff does not pass Gate 3. The developer confirms the execution order.
-- Unless the design commit is `uncommitted`: if `git log a8308db19b79f7897dc7a61e35e0aa5936c3807b..main -- .devtool/epic/sync_shared_contracts` lists any commit besides the `Package epic for handoff` commit, the documents changed after packaging. The documents win, and this file may be stale. Comparing against the base branch keeps the epic branch's own task commits out of the check.
+- Unless the design commit is `uncommitted`: if `git log 572f3fb7f83e51d96dac287991a2ff7605205c71..main -- .devtool/epic/sync_shared_contracts` lists any commit besides the `Package epic for handoff` commit, the documents changed after packaging. The documents win, and this file may be stale. Comparing against the base branch keeps the epic branch's own task commits out of the check.
 - This file is a dated record. It is never updated after packaging.
-- Never edit a task's Verification table, Definition of Done, Allowed files or a protected path; stop and report.
+- Never edit a task's Verification table, Definition of Done, Allowed files or an explicit protected path (note: Task 4 is explicitly authorized to register `test_sync_contracts.py` in Section 14 of `scripts/verify.sh` via its exact `Allowed files` entry); stop and report.
