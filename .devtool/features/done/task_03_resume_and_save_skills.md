@@ -1,13 +1,13 @@
 ---
 id: "task_03_resume_and_save_skills"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "context_memory_management"
 dueDate: null
 created: "2026-10-30T16:05:00Z"
-modified: "2026-10-30T16:05:00Z"
-completedAt: null
+modified: "2026-10-30T17:30:17Z"
+completedAt: "2026-10-30T17:30:17Z"
 labels: ["skills", "rules", "persona", "governance"]
 order: "a3"
 ---

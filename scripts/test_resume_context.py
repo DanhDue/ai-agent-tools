@@ -426,6 +426,60 @@ ag_run() {
         self.assertIn("4. OPEN CONTRACT GAPS & RFCS", out)
         self.assertIn("5. ACTIVE TASKS", out)
 
+    def test_cmm_st_02_checkpoint_non_destructive_save(self) -> None:
+        """[CMM-ST-02] Non-Destructive Checkpoint Save via --complete --checkpoint With Custom Prompt."""
+        # 1. Existing entry in activity log
+        res_log = self.run_cli([
+            "--log", "--epic", "context_memory_management",
+            "--task", "task_01",
+            "--request", "Initial task",
+            "--action", "Initial code",
+            "--note", "Initial note",
+        ])
+        self.assertEqual(res_log.returncode, 0, f"stderr: {res_log.stderr}")
+
+        # 2. Run --complete --checkpoint
+        custom_prompt = "Locked multi-epic storage model; next write task_01"
+        res_cp = self.run_cli([
+            "--complete", "context_memory_management", custom_prompt,
+            "--checkpoint",
+        ])
+        self.assertEqual(res_cp.returncode, 0, f"stderr: {res_cp.stderr}")
+
+        # 3. State and log must be updated with custom prompt
+        state_file = self.repo_dir / ".devtool" / "state" / "context_memory_management.md"
+        log_file = self.repo_dir / ".devtool" / "logs" / "activity_context_memory_management.log"
+        self.assertTrue(state_file.exists())
+        self.assertTrue(log_file.exists())
+
+        state_content = state_file.read_text(encoding="utf-8")
+        log_content = log_file.read_text(encoding="utf-8")
+        self.assertIn(custom_prompt, state_content)
+        self.assertIn(custom_prompt, log_content)
+
+        # 4. PROJECT_LEDGER.md must NOT have milestone appended
+        ledger_file = self.repo_dir / ".devtool" / "PROJECT_LEDGER.md"
+        if ledger_file.exists():
+            self.assertNotIn("`context_memory_management`**: Locked", ledger_file.read_text(encoding="utf-8"))
+
+        # 5. Archive must NOT contain context_memory_management
+        archive_dir = self.repo_dir / ".devtool" / "archive"
+        if archive_dir.exists():
+            self.assertEqual(len(list(archive_dir.glob("*context_memory_management*"))), 0)
+
+        # 6. Validate skill and rule files
+        resume_skill = REPO_ROOT / "skills" / "resume-context" / "SKILL.md"
+        save_skill = REPO_ROOT / "skills" / "save-context" / "SKILL.md"
+        critical_rules = REPO_ROOT / "rules" / "CRITICAL_RULES.md"
+
+        self.assertTrue(resume_skill.exists(), "skills/resume-context/SKILL.md does not exist")
+        self.assertTrue(save_skill.exists(), "skills/save-context/SKILL.md does not exist")
+        self.assertTrue(critical_rules.exists(), "rules/CRITICAL_RULES.md does not exist")
+
+        self.assertIn("name: resume-context", resume_skill.read_text(encoding="utf-8"))
+        self.assertIn("name: save-context", save_skill.read_text(encoding="utf-8"))
+        self.assertIn("## 8. Mandatory Two-Tier Project Memory & Tri-Role Persona Discipline", critical_rules.read_text(encoding="utf-8"))
+
 
 if __name__ == "__main__":
     unittest.main()

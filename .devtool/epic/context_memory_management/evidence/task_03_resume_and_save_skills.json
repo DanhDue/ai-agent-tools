@@ -1,0 +1,222 @@
+{
+  "schema": 1,
+  "task": "task_03_resume_and_save_skills",
+  "runs": {
+    "red": {
+      "head": "f937aaf3c01bd90a70cb0e2b7a0b16a36cdbc5f9",
+      "tree": "23f244ad8221aea8bfb5a8cfb446927684fccfa6",
+      "patch_id": "25a4d3fef35967b0124ea0c5a4a4c5800878ac06",
+      "started": "2026-10-30T17:27:51Z",
+      "finished": "2026-10-30T17:27:51Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m unittest scripts/test_resume_context.py -k test_cmm_st_02",
+          "expect": "exit 1; contains \"FAILED\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-30T17:27:51Z",
+          "finished": "2026-10-30T17:27:51Z",
+          "output_tail": [
+            "F",
+            "======================================================================",
+            "FAIL: test_cmm_st_02_checkpoint_non_destructive_save (scripts.test_resume_context.TestResumeContext.test_cmm_st_02_checkpoint_non_destructive_save)",
+            "[CMM-ST-02] Non-Destructive Checkpoint Save via --complete --checkpoint With Custom Prompt.",
+            "----------------------------------------------------------------------",
+            "Traceback (most recent call last):",
+            "  File \"/Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/context_memory_management/scripts/test_resume_context.py\", line 475, in test_cmm_st_02_checkpoint_non_destructive_save",
+            "    self.assertTrue(resume_skill.exists(), \"skills/resume-context/SKILL.md does not exist\")",
+            "    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+            "AssertionError: False is not true : skills/resume-context/SKILL.md does not exist",
+            "",
+            "----------------------------------------------------------------------",
+            "Ran 1 test in 0.192s",
+            "",
+            "FAILED (failures=1)"
+          ],
+          "output_sha256": "82a60e2c5349bc543f657bbe2e90b21067dee7235954532aa49dcf80a9928619"
+        }
+      ]
+    },
+    "verify": {
+      "head": "f937aaf3c01bd90a70cb0e2b7a0b16a36cdbc5f9",
+      "tree": "a729282212f179847ec2543245cb55476128e71c",
+      "patch_id": "4dc220154f67e87ee0356eaba35226be4db1ae35",
+      "started": "2026-10-30T17:29:50Z",
+      "finished": "2026-10-30T17:29:53Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m unittest scripts/test_resume_context.py -k test_cmm_st_02",
+          "expect": "exit 0; contains \"OK\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-30T17:29:50Z",
+          "finished": "2026-10-30T17:29:50Z",
+          "output_tail": [
+            ".",
+            "----------------------------------------------------------------------",
+            "Ran 1 test in 0.190s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "bea978647b19fd843a9f21262ecfaac3c8b7fed8b6dd6f7dccc63bc04fbbe217"
+        },
+        {
+          "id": "V3",
+          "phase": "TIER-B",
+          "command": "python3 skills/doc_quality_check/resources/scripts/check_document.py skills/resume-context/SKILL.md skills/save-context/SKILL.md",
+          "expect": "exit 0; contains \"0 findings\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-30T17:29:50Z",
+          "finished": "2026-10-30T17:29:50Z",
+          "output_tail": [
+            "  checked 2 documents, 0 findings"
+          ],
+          "output_sha256": "780cb1e9162bb11390ccef16375e9bcefdab9280a7547d85e8e934a240b5843d"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "ruff check scripts/resume_context.py docs/architecture/resume_context.py scripts/test_resume_context.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-30T17:29:50Z",
+          "finished": "2026-10-30T17:29:50Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-B",
+          "command": "mypy --strict --follow-imports=silent scripts/resume_context.py scripts/test_resume_context.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-30T17:29:50Z",
+          "finished": "2026-10-30T17:29:50Z",
+          "output_tail": [
+            "Success: no issues found in 2 source files"
+          ],
+          "output_sha256": "f9b031e5c45aa702cd4fef028d465551cb20a2c4698e0913c7b00766b20ac4d8"
+        },
+        {
+          "id": "V6",
+          "phase": "TIER-C",
+          "command": "python3 scripts/run_unittest_junit.py --junitxml build/test-results/task_03.xml scripts/test_resume_context.py",
+          "expect": "exit 0; results build/test-results/task_03.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-30T17:29:50Z",
+          "finished": "2026-10-30T17:29:53Z",
+          "output_tail": [
+            "...........",
+            "----------------------------------------------------------------------",
+            "Ran 11 tests in 2.722s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "7ab6aa4006dc1bbb37e2fa1825f889ca4a1cf55e98a1adcd049e1b187f5b9b73",
+          "results": {
+            "path": "build/test-results/task_03.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 11,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_cmm_ar_01_concurrent_flock",
+                  "classname": "test_resume_context.TestResumeContext",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cmm_ar_02_idempotent_zsh_history_merge",
+                  "classname": "test_resume_context.TestResumeContext",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cmm_ec_01_snapshot_20_line_cap",
+                  "classname": "test_resume_context.TestResumeContext",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cmm_ec_02_worktree_routing",
+                  "classname": "test_resume_context.TestResumeContext",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cmm_ec_03_kanban_task_progress",
+                  "classname": "test_resume_context.TestResumeContext",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cmm_fr_01_legacy_migration",
+                  "classname": "test_resume_context.TestResumeContext",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cmm_fr_02_missing_contracts_and_git_fallback",
+                  "classname": "test_resume_context.TestResumeContext",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cmm_hp_01_multi_epic_state_log_and_complete_isolation",
+                  "classname": "test_resume_context.TestResumeContext",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cmm_hp_02_zshrc_symlinks_history_and_aliases",
+                  "classname": "test_resume_context.TestResumeContext",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cmm_st_01_tri_role_banners_and_emit_prompts",
+                  "classname": "test_resume_context.TestResumeContext",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cmm_st_02_checkpoint_non_destructive_save",
+                  "classname": "test_resume_context.TestResumeContext",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "rules/CRITICAL_RULES.md",
+            "scripts/test_resume_context.py",
+            "skills/resume-context/SKILL.md",
+            "skills/save-context/SKILL.md"
+          ],
+          "violations": []
+        }
+      ]
+    }
+  }
+}
