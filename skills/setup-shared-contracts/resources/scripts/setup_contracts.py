@@ -67,7 +67,7 @@ def resolve_symlink_safe(path: Path) -> tuple[Path, bool]:
 
 def _get_timestamp() -> str:
     """Return ISO-8601 UTC timestamp."""
-    return datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def _load_template(name: str) -> string.Template:
