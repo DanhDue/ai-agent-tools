@@ -790,6 +790,45 @@ class TestGovernanceAndDefectFixes(unittest.TestCase):
         self.assertTrue(ts.endswith("Z"))
         self.assertIn("T", ts)
 
+    def test_link_satellite_rejects_identical_hub_and_satellite_roots(self) -> None:
+        """link-satellite must reject identical Hub and Satellite roots to prevent Hub erasure."""
+        cli_path = Path(__file__).resolve().parent / "setup_contracts.py"
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
+
+            # Initialize Hub
+            subprocess.run(
+                ["python3", str(cli_path), "init-hub", "--domain", "alpha", "--repo-root", str(tmp_path)],
+                check=True,
+                capture_output=True,
+            )
+
+            # Attempt to link satellite pointing to self
+            proc = subprocess.run(
+                [
+                    "python3",
+                    str(cli_path),
+                    "link-satellite",
+                    "--hub",
+                    str(tmp_path),
+                    "--domain",
+                    "alpha",
+                    "--satellite-root",
+                    str(tmp_path),
+                    "--force",
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertNotEqual(proc.returncode, 0)
+            self.assertIn("must be distinct", proc.stderr)
+
+            # Assert Hub contracts were not deleted
+            hub_alpha = tmp_path / "shared-contracts" / "alpha"
+            self.assertTrue(hub_alpha.is_dir())
+            self.assertTrue((hub_alpha / "api_contract.md").is_file())
+
 
 if __name__ == "__main__":
     unittest.main()

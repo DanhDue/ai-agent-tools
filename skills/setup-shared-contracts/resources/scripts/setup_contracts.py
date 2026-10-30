@@ -280,7 +280,29 @@ def cmd_link_satellite(
     satellite_root_resolved = satellite_root.resolve()
     shared_contracts_link = satellite_root_resolved / "shared-contracts"
 
-    # 2. Check existing path at target
+    # 2. Pre-flight guard: prevent self-referential linking and Hub erasure
+    if satellite_root_resolved == hub_resolved:
+        sys.stderr.write(
+            f"ERROR: Satellite root and Hub root must be distinct repositories: '{satellite_root_resolved}'.\n"
+        )
+        return 1
+
+    if shared_contracts_link.exists() and not (
+        shared_contracts_link.is_symlink() or os.path.islink(shared_contracts_link)
+    ):
+        link_resolved = shared_contracts_link.resolve()
+        if (
+            link_resolved == shared_contracts_hub
+            or hub_domain_resolved == link_resolved
+            or hub_domain_resolved.is_relative_to(link_resolved)
+        ):
+            sys.stderr.write(
+                "ERROR: Target Satellite contracts path conflicts with or contains Hub contracts; "
+                "refusing overwrite to prevent Hub repository erasure.\n"
+            )
+            return 1
+
+    # 3. Check existing path at target
     if shared_contracts_link.is_symlink() or os.path.islink(shared_contracts_link):
         pass  # Will be atomically replaced via temporary sibling symlink
     elif shared_contracts_link.is_dir():
