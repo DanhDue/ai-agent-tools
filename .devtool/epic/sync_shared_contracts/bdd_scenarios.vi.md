@@ -11,19 +11,19 @@
 ## Chiều 1: Tuyến thực thi thành công
 
 ```gherkin
-Scenario: [SYC-HP-01] [Tier C - Integration] Phân tích cú pháp Contract có cấu trúc và kết xuất báo cáo Requirements Brief
-  Given một Hub repository đã khởi tạo với domain lyrics-sync chứa api_contract.md, architecture_and_flow.md, và gaps_and_rfcs.md
+Scenario: [SYC-HP-01] [Tier C - Integration] Phân tích cú pháp Contract kép và kết xuất báo cáo Requirements Brief
+  Given một Hub repository đã khởi tạo với domain lyrics-sync chứa các file hợp đồng dạng bảng canonical hoặc dạng narrative thực tế (Version trong HTML comment, bullets Method/Path, và các mục GAP-XX với trạng thái OPEN/PROPOSED/ACCEPTED)
   When kỹ sư thực thi lệnh sync_contracts.py brief --domain lyrics-sync
-  Then bộ phân tích trích xuất đúng phiên bản "1.0.0", 4 endpoints chuẩn, các authentication headers, các khóa JSON payload, 7 bước pipeline, và RFC-001
-  And báo cáo Markdown đầu ra chứa đầy đủ các phần Topology Metadata, API and Schema Requirements, Architecture Invariants, Actionable RFCs, và Lifecycle Execution Rules
+  Then bộ phân tích trích xuất đúng phiên bản contract, toàn bộ các endpoints, authentication headers, các khóa JSON payload, các bước pipeline, và các mục RFC/GAP đã chuẩn hóa trạng thái
+  And báo cáo Markdown đầu ra chứa đầy đủ các phần Topology Metadata (kèm snapshot_id), API and Schema Requirements, Architecture Invariants, Actionable RFCs, và Lifecycle Execution Rules
   And lệnh kết thúc với exit code 0
 
-Scenario: [SYC-HP-02] [Tier C - Integration] Đồng bộ Satellite toàn trình và vượt qua kiểm tra Strict
-  Given một Satellite repository được liên kết qua relative symlink shared-contracts tới ../Hub/shared-contracts/lyrics-sync
-  When kỹ sư thực thi sync_contracts.py ack sau đó chạy sync_contracts.py check --strict
-  Then file .agents/contract_sync.json được tạo trong Satellite repository với mode "satellite" và domain "lyrics-sync"
-  And các mã băm sha256 được ghi nhận khớp với cả 3 file canonical trong Hub
-  And lệnh sync_contracts.py check --strict xuất trạng thái "IN_SYNC" và kết thúc với exit code 0
+Scenario: [SYC-HP-02] [Tier C - Integration] Đồng bộ Satellite và Worktree lồng nhau toàn trình vượt qua kiểm tra Strict
+  Given một Satellite repository được liên kết qua relative symlink shared-contracts tới ../Hub/shared-contracts/lyrics-sync và một git worktree lồng tại .worktrees/sync_epic
+  When kỹ sư thực thi sync_contracts.py ack sau đó chạy sync_contracts.py check --strict từ thư mục gốc Satellite hoặc từ bên trong .worktrees/sync_epic
+  Then relative symlink shared-contracts phân giải thành công tới domain trên Hub mà không làm thay đổi nội dung symlink được git theo dõi
+  And file .agents/contract_sync.json được tạo trong checkout hiện hành với mode "satellite", domain "lyrics-sync", snapshot_id, và baseline_snapshot
+  And lệnh sync_contracts.py check --strict xuất trạng thái "IN_SYNC" khi không còn pending_rfcs và kết thúc với exit code 0
 
 Scenario: [SYC-HP-03] [Tier C - Integration] Xác thực định nghĩa Skill và thực thi bộ kiểm tra phát hành
   Given thư mục skill sync-shared-contracts đã hoàn thiện và được đăng ký trong scripts/verify.sh
@@ -48,29 +48,29 @@ Scenario: [SYC-EC-02] [Tier A - Unit] Bộ quét Heuristic khớp các route có
   Then endpoint "/api/v1/lyrics-sync/tasks/{id}/progress" và khóa "lease_duration_ms" được phân loại là "FOUND_IN_CODE"
   And endpoint chưa được hiện thực hóa "/api/v1/lyrics-sync/status" được phân loại là "MISSING_IN_CODE"
 
-Scenario: [SYC-EC-03] [Tier A - Unit] Tự động fallback an toàn khi thư mục Hub không có lịch sử Git
-  Given một thư mục Hub được tạo trên đĩa mà không có kho chứa .git
-  When kỹ sư thực thi sync_contracts.py check hoặc brief
+Scenario: [SYC-EC-03] [Tier A - Unit] So sánh Semantic Baseline khi thư mục Hub không có Git hoặc có thay đổi chưa commit
+  Given một thư mục Hub không có kho chứa .git nơi Satellite trước đó đã chạy sync_contracts.py ack lưu lại baseline_snapshot
+  When một chỉnh sửa chưa commit trên Hub cập nhật api_contract.md thêm khóa payload "retry_after_ms" và thay đổi một bước pipeline
+  And kỹ sư thực thi sync_contracts.py check hoặc brief
   Then engine bỏ qua lệnh git rev-parse và git log mà không phát sinh lỗi tiến trình con
-  And tính toán chính xác trạng thái đồng bộ dựa trên mã băm sha256 của file và trường Version trong contract
+  And đối chiếu contract hiện tại với baseline_snapshot để chỉ ra chính xác "retry_after_ms" và bước pipeline vừa thay đổi
 ```
 
 ## Chiều 3: Chuyển đổi trạng thái
 
 ```gherkin
-Scenario: [SYC-ST-01] [Tier C - Integration] Phát hiện thay đổi tăng dần sau khi cập nhật Contract trên Hub
+Scenario: [SYC-ST-01] [Tier C - Integration] Ràng buộc Ack theo Snapshot và phát hiện thay đổi tăng dần sau khi cập nhật trên Hub
   Given một Satellite repository đã chạy sync_contracts.py ack trước đó và đang ở trạng thái "IN_SYNC"
   When Hub repository cập nhật api_contract.md lên phiên bản "1.1.0" với endpoint mới POST /api/v1/lyrics-sync/tasks/{id}/cancel và thêm RFC-002 vào gaps_and_rfcs.md
-  And kỹ sư chạy lệnh sync_contracts.py check --strict trong Satellite repository
-  Then trạng thái chuyển từ "IN_SYNC" sang "DRIFT_DETECTED"
-  And báo cáo delta chỉ rõ api_contract.md và gaps_and_rfcs.md đã thay đổi, đánh dấu endpoint cancel mới là "MISSING_IN_CODE", và liệt kê RFC-002
-  And lệnh sync_contracts.py check --strict kết thúc với exit code 1
+  And kỹ sư chạy lệnh sync_contracts.py check --strict hoặc thử chạy sync_contracts.py ack --snapshot <old_snapshot_id>
+  Then lệnh sync_contracts.py check --strict báo "DRIFT_DETECTED", chỉ ra endpoint cancel mới cùng RFC-002, và kết thúc với exit code 1
+  And lệnh sync_contracts.py ack --snapshot <old_snapshot_id> dừng với exit code 1 kèm thông báo lỗi "SNAPSHOT_MISMATCH"
 
-Scenario: [SYC-ST-02] [Tier C - Integration] Bảo toàn Watermark đa domain và ghi nhận mã RFC chỉ định
-  Given một Hub repository có hai domain lyrics-sync và nexus trong đó lyrics-sync đã được lưu trong .agents/contract_sync.json
-  When kỹ sư thực thi sync_contracts.py ack --domain nexus --rfc RFC-005
-  Then file .agents/contract_sync.json giữ nguyên vẹn mục "lyrics-sync" hiện có
-  And ghi nhận thêm mục "nexus" mới có chứa "RFC-005" trong danh sách acknowledged_rfcs
+Scenario: [SYC-ST-02] [Tier C - Integration] Giữ lại Pending RFC theo phạm vi và bảo toàn Watermark đa domain
+  Given một Hub repository có hai domain lyrics-sync và nexus trong đó gaps_and_rfcs.md của nexus chứa GAP-01 ở trạng thái "OPEN" và GAP-03 ở trạng thái "ACCEPTED"
+  When kỹ sư thực thi sync_contracts.py ack --domain nexus không có cờ --rfc GAP-01, sau đó thực thi tiếp sync_contracts.py ack --domain nexus --rfc GAP-01
+  Then sau lần ack đầu tiên, file .agents/contract_sync.json giữ nguyên mục "lyrics-sync", đưa "GAP-03" vào acknowledged_rfcs, giữ "GAP-01" trong pending_rfcs, và check --strict kết thúc với exit code 1
+  And sau lần ack thứ hai có --rfc GAP-01, "GAP-01" được chuyển sang acknowledged_rfcs, pending_rfcs trở thành rỗng, và check --strict kết thúc với exit code 0
 ```
 
 ## Chiều 4: Bất đồng bộ và đồng thời đa repo
@@ -98,11 +98,11 @@ Scenario: [SYC-FR-01] [Tier A - Unit] Từ chối thực thi khi thiếu thư m�
   Then lệnh dừng ngay với exit code 1
   And in ra thông báo lỗi hướng dẫn người dùng khởi tạo hoặc liên kết contracts bằng setup_contracts.py
 
-Scenario: [SYC-FR-02] [Tier A - Unit] Từ chối thực thi khi Symlink bị đứt hoặc thiếu file Canonical
-  Given một Satellite repository có symlink shared-contracts trỏ tới đường dẫn Hub không tồn tại hoặc thiếu file architecture_and_flow.md
+Scenario: [SYC-FR-02] [Tier A - Unit] Từ chối thực thi khi Symlink bị đứt, thiếu file Canonical, hoặc định dạng Contract không hỗ trợ
+  Given một Satellite repository có symlink shared-contracts trỏ tới đường dẫn Hub không tồn tại, thiếu file architecture_and_flow.md, hoặc chứa file api_contract.md không có bất kỳ endpoint hợp lệ nào
   When kỹ sư thực thi lệnh sync_contracts.py check
   Then lệnh dừng ngay với exit code 1
-  And in ra thông báo chẩn đoán nêu rõ đường dẫn đích bị đứt hoặc tên file canonical bị thiếu
+  And in ra thông báo chẩn đoán nêu rõ đường dẫn đích bị đứt, tên file canonical bị thiếu, hoặc lỗi "UNSUPPORTED_CONTRACT_FORMAT"
 
 Scenario: [SYC-FR-03] [Tier A - Unit] Khả năng phục hồi khi file Watermark JSON bị hỏng
   Given một target repository có file .agents/contract_sync.json chứa nội dung JSON không hợp lệ "{corrupt"
@@ -110,4 +110,3 @@ Scenario: [SYC-FR-03] [Tier A - Unit] Khả năng phục hồi khi file Watermar
   Then lệnh sync_contracts.py check ghi nhận cảnh báo JSON lỗi và chuyển về trạng thái "INITIAL_SYNC" mà không bị văng lỗi
   And lệnh sync_contracts.py ack ghi đè sạch sẽ .agents/contract_sync.json bằng cấu trúc JSON schema_version 1 hợp lệ
 ```
-

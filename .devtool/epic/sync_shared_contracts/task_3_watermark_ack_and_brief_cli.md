@@ -6,7 +6,7 @@ assignee: null
 epic: "sync_shared_contracts"
 dueDate: null
 created: "2026-10-30T11:58:00Z"
-modified: "2026-10-30T11:58:00Z"
+modified: "2026-10-30T12:23:00Z"
 completedAt: null
 labels: ["contracts", "watermark", "cli"]
 order: "a3"
@@ -18,13 +18,16 @@ Epic: [sync_shared_contracts](sync_shared_contracts.en.md)
 
 ## Requirement Analysis
 
-Implement the `ack` subcommand, incremental drift detection (`IN_SYNC` vs `DRIFT_DETECTED`), multi-domain watermark preservation, atomic JSON writing, and corrupted watermark recovery in `skills/sync-shared-contracts/resources/scripts/sync_contracts.py`.
-1. **Watermark Ack Command (`[SYC-HP-02]`, `[SYC-ST-02]`, `[SYC-AR-01]`)**:
-   - Compute SHA-256 hashes for `api_contract.md`, `architecture_and_flow.md`, and `gaps_and_rfcs.md`, query the Hub git commit SHA, and collect acknowledged endpoints and RFC IDs (including `--rfc <RFC-ID>` arguments).
+Implement the snapshot-and-scope-bound `ack` subcommand, nested worktree synchronization verification, incremental drift detection (`IN_SYNC` vs `DRIFT_DETECTED`), multi-domain watermark preservation, atomic JSON writing, and corrupted watermark recovery in `skills/sync-shared-contracts/resources/scripts/sync_contracts.py`.
+1. **Snapshot- and Scope-Bound Watermark Ack Command (`[SYC-HP-02]`, `[SYC-ST-01]`, `[SYC-ST-02]`, `[SYC-AR-01]`)**:
+   - Compute SHA-256 hashes for `api_contract.md`, `architecture_and_flow.md`, and `gaps_and_rfcs.md`, composite `snapshot_id`, Hub git commit SHA, and normalized `baseline_snapshot` (`endpoints`, `headers`, `payload_keys`, `pipeline_steps`, `rfcs`).
+   - If `--snapshot <expected_id>` is passed and differs from the current `snapshot_id`, abort with exit code `1` (`SNAPSHOT_MISMATCH`) (`[SYC-ST-01]`).
+   - Record `ACKNOWLEDGED_ACTIVE` RFC/Gap items (`ACCEPTED`, `APPROVED`, `IMPLEMENTED`) in `acknowledged_rfcs`, while retaining `ACTIONABLE_PENDING` items (`OPEN`, `PROPOSED`, `DRAFT`, `IN_REVIEW`) in `pending_rfcs` unless explicitly passed via `--rfc <ID>` (`[SYC-ST-02]`).
    - Write `.agents/contract_sync.json` atomically using a temporary file in `.agents/` and `os.replace()`, preserving existing entries for other domains (`[SYC-ST-02]`, `[SYC-AR-01]`).
+   - Support running `ack` and `check --strict` from both the primary Satellite root and a nested `.worktrees/<epic_dir>` checkout (`[SYC-HP-02]`).
 2. **Incremental Drift Detection (`[SYC-ST-01]`)**:
-   - After `ack` is run, `check --strict` must report `IN_SYNC` and exit `0` (`[SYC-HP-02]`).
-   - When `api_contract.md`, `architecture_and_flow.md`, or `gaps_and_rfcs.md` changes in the Hub, `check` must transition to `DRIFT_DETECTED`, surface modified files, new endpoints, and new RFCs, and exit `1` when `--strict` is passed (`[SYC-ST-01]`).
+   - After `ack` is run (with no remaining `pending_rfcs`), `check --strict` reports `IN_SYNC` and exits `0` (`[SYC-HP-02]`).
+   - When `api_contract.md`, `architecture_and_flow.md`, or `gaps_and_rfcs.md` changes in the Hub, or when `pending_rfcs` is non-empty, `check` reports `DRIFT_DETECTED` and exits `1` when `--strict` is passed (`[SYC-ST-01]`, `[SYC-ST-02]`).
 3. **Corrupted Watermark Recovery (`[SYC-FR-03]`)**:
    - If `.agents/contract_sync.json` contains malformed JSON, `check` logs a warning to stderr and falls back to `INITIAL_SYNC` without crashing, while `ack` overwrites it with valid `schema_version: 1` JSON.
 
@@ -40,8 +43,8 @@ Read-only context:
 
 ## Design Rationale
 
+- Binding `ack` to `--snapshot <snapshot_id>` and retaining unacknowledged `pending_rfcs` prevents partial implementations from silently marking pending RFCs or concurrent upstream edits as synchronized.
 - Atomic file replacement (`tempfile.NamedTemporaryFile` in `.agents/` + `os.replace`) guarantees concurrent readers never observe truncated JSON.
-- Preserving sibling domain keys in `.agents/contract_sync.json` allows a multi-domain Hub or multi-service consumer to track each domain independently.
 - Applicable skills: `d3nexus:test-driven-development`, `d3nexus:python-quality-check`, `d3nexus:verification-before-completion`.
 
 ## Impact Analysis & Blast Radius
@@ -49,7 +52,7 @@ Read-only context:
 - **Target Files & Symbols**: `sync_contracts.py` (`cmd_ack`, `cmd_brief`, `load_sync_state`, `save_sync_state_atomic`, `evaluate_domain_drift`) and `test_sync_contracts.py`.
 - **Downstream Callers**: Task 4 (`SKILL.md` workflow and `scripts/verify.sh`).
 - **Cross-Platform Bridges**: None.
-- **Target Test Coverage Threshold**: 100% coverage of `ack`, `brief --output`, drift transitions, and malformed JSON recovery.
+- **Target Test Coverage Threshold**: 100% coverage of `ack`, `--snapshot` validation, `pending_rfcs` handling, worktree execution, and malformed JSON recovery.
 
 ## BDD Scenarios and Acceptance Criteria
 
@@ -58,26 +61,25 @@ Read-only context:
 Covers: SYC-HP-02, SYC-ST-01, SYC-ST-02, SYC-AR-01, SYC-FR-03
 
 ```gherkin
-Scenario: [SYC-HP-02] [Tier C - Integration] End-to-End Satellite Synchronization and Strict Check Pass
-  Given a Satellite repository linked via relative symlink shared-contracts to ../Hub/shared-contracts/lyrics-sync
-  When the engineer invokes sync_contracts.py ack followed by sync_contracts.py check --strict
-  Then the file .agents/contract_sync.json is created in the Satellite repository with mode "satellite" and domain "lyrics-sync"
-  And the recorded sha256 hashes match all 3 canonical files in the Hub
-  And sync_contracts.py check --strict outputs status "IN_SYNC" and exits with code 0
+Scenario: [SYC-HP-02] [Tier C - Integration] End-to-End Satellite and Nested Worktree Synchronization Pass
+  Given a Satellite repository linked via relative symlink shared-contracts to ../Hub/shared-contracts/lyrics-sync and a nested git worktree at .worktrees/sync_epic
+  When the engineer invokes sync_contracts.py ack followed by sync_contracts.py check --strict from either the Satellite root or .worktrees/sync_epic
+  Then the relative symlink shared-contracts resolves cleanly to the Hub domain without modifying the tracked symlink target
+  And the file .agents/contract_sync.json is written in the active checkout with mode "satellite", domain "lyrics-sync", snapshot_id, and baseline_snapshot
+  And sync_contracts.py check --strict outputs status "IN_SYNC" when no pending_rfcs remain and exits with code 0
 
-Scenario: [SYC-ST-01] [Tier C - Integration] Incremental Drift Detection After Upstream Hub Contract Update
+Scenario: [SYC-ST-01] [Tier C - Integration] Snapshot-Bound Ack and Incremental Drift Detection After Upstream Update
   Given a Satellite repository that previously ran sync_contracts.py ack and is in state "IN_SYNC"
   When the Hub repository updates api_contract.md to version "1.1.0" with a new endpoint POST /api/v1/lyrics-sync/tasks/{id}/cancel and logs RFC-002 in gaps_and_rfcs.md
-  And the engineer runs sync_contracts.py check --strict in the Satellite repository
-  Then the status transitions from "IN_SYNC" to "DRIFT_DETECTED"
-  And the delta report identifies api_contract.md and gaps_and_rfcs.md as modified, surfaces the new cancel endpoint as "MISSING_IN_CODE", and lists RFC-002
-  And sync_contracts.py check --strict exits with code 1
+  And the engineer runs sync_contracts.py check --strict or attempts sync_contracts.py ack --snapshot <old_snapshot_id>
+  Then sync_contracts.py check --strict reports "DRIFT_DETECTED", surfaces the new cancel endpoint and RFC-002, and exits with code 1
+  And sync_contracts.py ack --snapshot <old_snapshot_id> aborts with exit code 1 reporting "SNAPSHOT_MISMATCH"
 
-Scenario: [SYC-ST-02] [Tier C - Integration] Multi-Domain Watermark Preservation and Explicit RFC Acknowledgement
-  Given a Hub repository with domains lyrics-sync and nexus where lyrics-sync is already recorded in .agents/contract_sync.json
-  When the engineer invokes sync_contracts.py ack --domain nexus --rfc RFC-005
-  Then .agents/contract_sync.json retains the existing "lyrics-sync" entry unchanged
-  And records the new "nexus" entry containing "RFC-005" in acknowledged_rfcs
+Scenario: [SYC-ST-02] [Tier C - Integration] Scope-Bound Pending RFC Retention and Multi-Domain Watermark Preservation
+  Given a Hub repository with domains lyrics-sync and nexus where gaps_and_rfcs.md for nexus contains GAP-01 with status "OPEN" and GAP-03 with status "ACCEPTED"
+  When the engineer invokes sync_contracts.py ack --domain nexus without --rfc GAP-01, and then invokes sync_contracts.py ack --domain nexus --rfc GAP-01
+  Then after the first ack, .agents/contract_sync.json retains the existing "lyrics-sync" entry, places "GAP-03" in acknowledged_rfcs, keeps "GAP-01" in pending_rfcs, and check --strict exits with code 1
+  And after the second ack with --rfc GAP-01, "GAP-01" moves to acknowledged_rfcs, pending_rfcs becomes empty, and check --strict exits with code 0
 
 Scenario: [SYC-AR-01] [Tier A - Unit] Atomic Watermark File Update Prevents Partial JSON Reads
   Given an existing .agents/contract_sync.json file in the target repository
@@ -118,14 +120,15 @@ Scenario: [SYC-FR-03] [Tier A - Unit] Resilience Against Corrupted Watermark JSO
 
 ## Decisions Already Made
 
-- Watermark state is persisted at `<repo_root>/.agents/contract_sync.json` with `schema_version: 1`, `mode`, and per-domain objects containing `hub_commit_sha`, `contract_version`, `last_synced_at`, `file_hashes`, `acknowledged_rfcs`, and `acknowledged_endpoints`.
+- Watermark state is persisted at `<repo_root>/.agents/contract_sync.json` with `schema_version: 1`, `mode`, and per-domain objects containing `snapshot_id`, `hub_commit_sha`, `contract_version`, `last_synced_at`, `file_hashes`, `acknowledged_rfcs`, `pending_rfcs`, `acknowledged_endpoints`, and `baseline_snapshot`.
+- `ack --snapshot <id>` validates `snapshot_id` before writing and exits `1` (`SNAPSHOT_MISMATCH`) on mismatch.
 - `ack` uses atomic file replacement (`os.replace`) inside `.agents/`.
 
 ## Definition of Done
 
-- `sync_contracts.py ack` writes `.agents/contract_sync.json` atomically and `check --strict` passes with `IN_SYNC` (V2, V5).
-- Upstream contract edits transition status to `DRIFT_DETECTED` and fail `check --strict` with exit code `1` (V3).
-- Multi-domain watermark entries and explicit `--rfc` flags are preserved and recorded (V4).
+- `sync_contracts.py ack` writes `.agents/contract_sync.json` atomically (including from inside `.worktrees/<epic_dir>`) and `check --strict` passes with `IN_SYNC` when `pending_rfcs` is empty (V2, V5).
+- Upstream contract edits transition status to `DRIFT_DETECTED` and mismatched `--snapshot` flags fail `ack` with exit code `1` (V3).
+- `ACTIONABLE_PENDING` items remain in `pending_rfcs` until acknowledged via `--rfc <ID>`, and sibling domain entries are preserved (V4).
 - Corrupted `.agents/contract_sync.json` files are handled gracefully by `check` and repaired by `ack` (V6).
 - Ruff and Mypy strict checks pass (V7, V8).
 - JUnit report is generated and all covered scenarios pass (V9).
@@ -133,7 +136,7 @@ Scenario: [SYC-FR-03] [Tier A - Unit] Resilience Against Corrupted Watermark JSO
 
 ## Dependencies & Blockers
 
-- Blocked by [Task 2](task_2_heuristic_scanner_and_check_engine.md) — requires topology resolution and heuristic scanner in `sync_contracts.py`.
+- Blocked by [Task 2](task_2_heuristic_scanner_and_check_engine.md) — requires worktree-aware topology resolution and heuristic scanner in `sync_contracts.py`.
 
 ## References & Rollback
 

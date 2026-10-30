@@ -6,7 +6,7 @@ assignee: null
 epic: "sync_shared_contracts"
 dueDate: null
 created: "2026-10-30T11:58:00Z"
-modified: "2026-10-30T11:58:00Z"
+modified: "2026-10-30T12:23:00Z"
 completedAt: null
 labels: ["contracts", "scanner", "cli"]
 order: "a2"
@@ -18,15 +18,16 @@ Epic: [sync_shared_contracts](sync_shared_contracts.en.md)
 
 ## Requirement Analysis
 
-Implement the Target Codebase Heuristic Scanner, Dual-Mode topology resolver (Hub physical mode vs Satellite relative symlink mode), circular symlink protection, git-less Hub fallback, and error validation in `skills/sync-shared-contracts/resources/scripts/sync_contracts.py`.
+Implement the Target Codebase Heuristic Scanner, Worktree-Aware Dual-Mode topology resolver (Hub physical mode vs Satellite relative symlink mode), semantic baseline diffing (`baseline_snapshot`), circular symlink protection, and error validation in `skills/sync-shared-contracts/resources/scripts/sync_contracts.py`.
 1. **Heuristic Codebase Scanner (`[SYC-EC-02]`)**:
-   - Recursively scan source files in `<repo_root>` while skipping `.git`, `shared-contracts`, `.devtool`, `.agents`, `node_modules`, `build`, `dist`, `target`, `.dart_tool`, and `__pycache__`.
+   - Recursively scan source files in `<repo_root>` while skipping `.git`, `.worktrees`, `shared-contracts`, `.devtool`, `.agents`, `node_modules`, `build`, `dist`, `target`, `.dart_tool`, and `__pycache__`.
    - Normalize parameterized endpoints (e.g., `/api/v1/lyrics-sync/tasks/{id}/progress` -> static route segments `/api/v1/lyrics-sync/tasks` and `/progress`) and check both `snake_case` and `camelCase` DTO field names (`lease_duration_ms` / `leaseDurationMs`) to classify each item as `FOUND_IN_CODE` or `MISSING_IN_CODE`.
-2. **Git-less Hub Fallback (`[SYC-EC-03]`)**:
-   - When the Hub directory is not a Git repository, skip `git rev-parse` / `git log` cleanly without raising subprocess errors and rely on SHA-256 file hashes and `Version` metadata.
-3. **Symlink Cycle Protection & Topology Validation (`[SYC-AR-02]`, `[SYC-FR-01]`, `[SYC-FR-02]`)**:
+2. **Semantic Baseline Diffing & Git-less Hub Fallback (`[SYC-EC-03]`)**:
+   - When the Hub directory has no `.git` repository or has uncommitted edits, skip `git log` errors and compare the parsed contract structure against `baseline_snapshot` in `.agents/contract_sync.json` to surface added, removed, or modified endpoints, payload keys, pipeline steps, and RFCs.
+3. **Worktree-Aware Symlink Resolution, Cycle Protection & Format Validation (`[SYC-AR-02]`, `[SYC-FR-01]`, `[SYC-FR-02]`)**:
+   - When `<repo_root>/shared-contracts` is a relative symlink that does not resolve directly from `<repo_root>` because `<repo_root>` is a nested git worktree (`.worktrees/<epic_dir>`), inspect `.git` / `git rev-parse --git-common-dir` to locate the primary repository checkout root and resolve the relative link from there while keeping codebase scanning and `.agents/contract_sync.json` local to `<repo_root>`.
    - Enforce a 10-hop maximum when traversing symbolic links (`[SYC-AR-02]`).
-   - Exit with code `1` and remediation instructions if `shared-contracts` is missing (`[SYC-FR-01]`), is a dangling symlink, or lacks any of the 3 canonical contract files (`[SYC-FR-02]`).
+   - Exit with code `1` and clear diagnostics if `shared-contracts` is missing (`[SYC-FR-01]`), is a dangling symlink even after worktree fallback, lacks any of the 3 canonical contract files, or has an unrecognizable contract format (`UNSUPPORTED_CONTRACT_FORMAT`) (`[SYC-FR-02]`).
 
 ## Files
 
@@ -40,16 +41,16 @@ Read-only context:
 
 ## Design Rationale
 
-- Static route prefix extraction and `snake_case` -> `camelCase` conversion enable language-agnostic heuristic detection across Python, Rust, Dart/Flutter, Kotlin, Swift, and TypeScript repositories without heavy AST dependencies.
-- Hop-bounded symlink resolution mirrors `setup_contracts.py` safety invariants.
+- Worktree-aware symlink resolution ensures Stage 3 (`dev-implementation`) tasks running inside `.worktrees/<epic_dir>` can execute `sync_contracts.py check`, `brief`, and `ack` without modifying the tracked relative symlink.
+- Comparing against `baseline_snapshot` provides exact semantic deltas even when Git history is absent or changes are uncommitted.
 - Applicable skills: `d3nexus:test-driven-development`, `d3nexus:python-quality-check`, `d3nexus:verification-before-completion`.
 
 ## Impact Analysis & Blast Radius
 
-- **Target Files & Symbols**: `sync_contracts.py` (`scan_target_codebase`, `resolve_topology`, `to_camel_case`, `cmd_check`) and tests in `test_sync_contracts.py`.
+- **Target Files & Symbols**: `sync_contracts.py` (`scan_target_codebase`, `resolve_topology`, `compute_semantic_delta`, `to_camel_case`, `cmd_check`) and tests in `test_sync_contracts.py`.
 - **Downstream Callers**: `cmd_brief` and `cmd_ack` in Task 3.
 - **Cross-Platform Bridges**: None.
-- **Target Test Coverage Threshold**: 100% branch coverage on heuristic token matching, symlink loop detection, and missing/dangling path errors.
+- **Target Test Coverage Threshold**: 100% branch coverage on heuristic token matching, worktree symlink fallback, symlink loop detection, and format/path validation errors.
 
 ## BDD Scenarios and Acceptance Criteria
 
@@ -64,11 +65,12 @@ Scenario: [SYC-EC-02] [Tier A - Unit] Heuristic Codebase Scanner Matches Paramet
   Then endpoint "/api/v1/lyrics-sync/tasks/{id}/progress" and key "lease_duration_ms" are classified as "FOUND_IN_CODE"
   And unimplemented endpoint "/api/v1/lyrics-sync/status" is classified as "MISSING_IN_CODE"
 
-Scenario: [SYC-EC-03] [Tier A - Unit] Graceful Fallback When Hub Directory Has No Git History
-  Given a Hub directory that was created on disk without a .git repository
-  When the engineer invokes sync_contracts.py check or brief
+Scenario: [SYC-EC-03] [Tier A - Unit] Semantic Baseline Diffing When Hub Has No Git History or Uncommitted Changes
+  Given a Hub directory without a .git repository where a Satellite previously ran sync_contracts.py ack storing baseline_snapshot
+  When an uncommitted edit in the Hub modifies api_contract.md by adding payload key "retry_after_ms" and changing a pipeline step
+  And the engineer invokes sync_contracts.py check or brief
   Then the engine skips git rev-parse and git log without raising a subprocess error
-  And computes drift status accurately using sha256 file hashes and contract Version metadata
+  And compares the current contract against baseline_snapshot to surface "retry_after_ms" and the modified pipeline step as semantic deltas
 
 Scenario: [SYC-AR-02] [Tier A - Unit] Circular Symlink Loop Protection During Topology Resolution
   Given a repository where shared-contracts is part of a circular symbolic link chain exceeding 10 hops
@@ -82,11 +84,11 @@ Scenario: [SYC-FR-01] [Tier A - Unit] Refusing Execution When Shared Contracts D
   Then the command aborts with exit code 1
   And prints an error instructing the user to initialize or link contracts with setup_contracts.py
 
-Scenario: [SYC-FR-02] [Tier A - Unit] Refusing Execution on Dangling Symlink or Missing Canonical Files
-  Given a Satellite repository whose shared-contracts symlink points to a non-existent Hub path or a domain missing architecture_and_flow.md
+Scenario: [SYC-FR-02] [Tier A - Unit] Refusing Execution on Dangling Symlink, Missing Canonical Files, or Unsupported Contract Format
+  Given a Satellite repository whose shared-contracts symlink points to a non-existent Hub path, lacks architecture_and_flow.md, or contains an api_contract.md with zero recognizable endpoints
   When the engineer invokes sync_contracts.py check
   Then the command aborts with exit code 1
-  And prints a diagnostic message naming the broken target or missing canonical file
+  And prints a diagnostic message naming the broken target, missing canonical file, or "UNSUPPORTED_CONTRACT_FORMAT"
 ```
 
 ## Verification
@@ -115,15 +117,15 @@ Scenario: [SYC-FR-02] [Tier A - Unit] Refusing Execution on Dangling Symlink or 
 
 ## Decisions Already Made
 
-- Excluded directories during codebase scanning are `.git`, `shared-contracts`, `.devtool`, `.agents`, `node_modules`, `build`, `dist`, `target`, `.dart_tool`, and `__pycache__`.
-- Symlink resolution halts at `MAX_SYMLINK_HOPS = 10`.
-- Missing `shared-contracts`, dangling symlinks, or missing canonical files exit with code `1`.
+- Excluded directories during codebase scanning are `.git`, `.worktrees`, `shared-contracts`, `.devtool`, `.agents`, `node_modules`, `build`, `dist`, `target`, `.dart_tool`, and `__pycache__`.
+- Symlink resolution halts at `MAX_SYMLINK_HOPS = 10` and falls back to resolving relative links against the primary git repository root when invoked inside a git worktree.
+- Missing `shared-contracts`, dangling symlinks, missing canonical files, or unrecognizable contract files (`UNSUPPORTED_CONTRACT_FORMAT`) exit with code `1`.
 
 ## Definition of Done
 
 - Heuristic codebase scanner accurately classifies parameterized endpoints and `snake_case`/`camelCase` fields (V2).
-- Git-less Hub directories are handled cleanly without subprocess errors (V3).
-- Circular symlink chains (`> 10` hops), missing `shared-contracts`, and dangling symlinks exit with code `1` and clear diagnostics (V4, V5, V6).
+- Semantic baseline diffing (`baseline_snapshot`) works for Git-less Hub directories and uncommitted edits (V3).
+- Circular symlink chains (`> 10` hops), missing `shared-contracts`, dangling symlinks, and unsupported contract formats exit with code `1` and clear diagnostics (V4, V5, V6).
 - Ruff and Mypy strict checks pass (V7, V8).
 - JUnit report is generated and all covered scenarios pass (V9).
 - Task execution is verified and recorded in evidence (Gate 5).
