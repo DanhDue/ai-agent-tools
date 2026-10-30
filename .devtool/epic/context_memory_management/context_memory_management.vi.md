@@ -37,16 +37,16 @@ Dựa trên kiến trúc nền tảng trong `docs/architecture/save_resume_rules
 
 - Phát triển `docs/architecture/resume_context.py` thành `scripts/resume_context.py` (giữ đồng bộ cả `docs/architecture/resume_context.py` và `docs/architecture/save_resume_rules.md`) dưới dạng CLI engine bằng Python chuẩn không phụ thuộc thư viện ngoài.
 - Triển khai phân vùng Tier 2 đa Epic (`.devtool/state/<epic_slug>.md` $\le 20$ dòng và `.devtool/logs/activity_<epic_slug>.log`) có khóa `fcntl.flock`, tự động định tuyến từ git worktree về repo gốc, di trú dữ liệu cũ, và tự động tổng hợp ra `.devtool/assistant_state.md` cùng `.devtool/activity_stream.log`.
-- Hỗ trợ 5 nhóm tính năng CLI trong `scripts/resume_context.py`: thu hoạch ngữ cảnh mặc định (`--role assistant|programmer`, `--epic`, `--repo`, `--tail`, `--json`), `--state` (kèm `--prompt`), `--log`, `--complete` (kèm tùy chọn `--checkpoint`), `--emit-prompt` (`principal-review`, `implement`, `cross-review`, `finish`, `assistant`), và `--sync-zshrc`.
+- Hỗ trợ 6 nhóm tính năng CLI trong `scripts/resume_context.py`: thu hoạch ngữ cảnh mặc định (`--role assistant|programmer`, `--epic`, `--repo`, `--tail`, `--json`), `--state` (kèm `--prompt`), `--log`, `--complete` (kèm tùy chọn `--checkpoint`), `--emit-prompt` (`principal-review`, `implement`, `cross-review`, `finish`, `assistant`), và `--sync-zshrc`.
 - Đồng bộ `/Users/danhdueexoictif/.zshrc` và toàn bộ symlink trong `antigravity_homes/<profile>` (`AllProjects`, `Projects`, `.zsh_history`), cấu hình lịch sử zsh dùng chung theo thời gian thực (`HISTFILE="$REAL_HOME/.zsh_history"`, `SHARE_HISTORY`), và khai báo `alias resume` cùng `alias save-context`.
-- Xây dựng `skills/resume-context/SKILL.md` và `skills/save-context/SKILL.md`, bổ sung Rule 7 vào `rules/CRITICAL_RULES.md`, và tích hợp tự động lưu ngữ cảnh kèm sinh prompt vào `dev-brainstorming`, `dev-designer`, `dev-lifecycle`, `principal-review`, `dev-implementation`, `cross-model-review`, và `finishing-a-development-branch`.
+- Xây dựng `skills/resume-context/SKILL.md` và `skills/save-context/SKILL.md`, bổ sung Rule 8 vào `rules/CRITICAL_RULES.md`, và tích hợp tự động lưu ngữ cảnh kèm sinh prompt vào `dev-brainstorming`, `dev-designer`, `dev-lifecycle`, `principal-review`, `dev-implementation`, `cross-model-review`, và `finishing-a-development-branch`.
 - Xác minh toàn bộ hành vi bằng bộ kiểm thử đơn vị và tích hợp cô lập trong `scripts/test_resume_context.py` và đăng ký vào `scripts/verify.sh`.
 
 ### Phạm vi Ngoài Mục tiêu
 
-- Không thêm thư viện Python bên thứ ba ngoài thư viện chuẩn.
-- Không sửa đổi logic nghiệp vụ bên trong `D3Nexus`, `lyrics-sync`, hoặc `nexus`.
-- Không tự động đẩy code (`git push`) lên remote khi chưa có sự đồng ý của lập trình viên.
+- Không thêm thư viện Python bên thứ ba hoặc dịch vụ lưu trữ đám mây (mọi trạng thái đều lưu trên file cục bộ trong `.devtool/` bằng thư viện chuẩn Python).
+- Không sửa đổi logic nghiệp vụ của các repo vệ tinh (`D3Nexus`, `lyrics-sync`, `nexus`) trong phạm vi epic công cụ này.
+- Không thay thế lịch sử git, các file Kanban task (`.devtool/features/task_*.md`), hoặc tự động đẩy code (`git push`) lên remote khi chưa có sự đồng ý của lập trình viên.
 
 ## Kiến trúc và Thiết kế Kỹ thuật
 
@@ -151,10 +151,11 @@ Integration results: python3 scripts/run_unittest_junit.py --junitxml build/test
 |---|---|---|---|
 | Thu hoạch Hai Tầng & Cô lập Đa Epic | `scripts/test_resume_context.py` | `test_cmm_hp_01_multi_epic_state_log_and_complete_isolation` | Kiểm chứng `--state`, `--log`, kết xuất rollup, và `--complete` cô lập `epic-alpha` khỏi `epic-beta` |
 | Đồng bộ `.zshrc` & Lịch sử Terminal | `scripts/test_resume_context.py` | `test_cmm_hp_02_zshrc_symlinks_history_and_aliases` | Kiểm chứng cấu hình `.zshrc`, gộp/symlink `.zsh_history`, symlink `Projects`/`AllProjects`, và aliases |
-| Tích hợp Skills, Rules & Lifecycle | `scripts/test_resume_context.py` | `test_cmm_hp_03_skills_lifecycle_hooks_and_verify_harness` | Kiểm chứng `resume-context`, `save-context`, `CRITICAL_RULES.md`, các skills lifecycle, và `verify.sh` |
-| Giới hạn 20 Dòng & Định tuyến Worktree | `scripts/test_resume_context.py` | `test_cmm_ec_01_snapshot_20_line_cap_and_worktree_routing` | Đảm bảo giới hạn $\le 20$ dòng trên `state/<epic>.md` và định tuyến `.worktrees/<epic_dir>` về repo chính |
-| Prompts Ba Vai trò & Cờ Checkpoint | `scripts/test_resume_context.py` | `test_cmm_st_01_tri_role_banners_emit_prompts_and_checkpoint` | Kiểm chứng khung `AI ASSISTANT` vs `AI PROGRAMMER`, 5 chế độ `--emit-prompt`, và `--checkpoint` |
-| Khóa Đồng thời & Di trú Dữ liệu Cũ | `scripts/test_resume_context.py` | `test_cmm_ar_01_concurrent_flock_and_legacy_migration` | Kiểm chứng ghi song song dưới `fcntl.flock` và di trú file cũ `assistant_state.md` / `activity_stream.log` |
+| Tích hợp Skills, Rules & Lifecycle | `scripts/test_resume_context.py` | `test_cmm_hp_03_skills_lifecycle_hooks_and_verify_harness` | Kiểm chứng `resume-context`, `save-context`, `CRITICAL_RULES.md` Rule 8, các skills lifecycle, và `verify.sh` |
+| Giới hạn Tối đa 20 Dòng Snapshot | `scripts/test_resume_context.py` | `test_cmm_ec_01_snapshot_20_line_cap` | Đảm bảo giới hạn $\le 20$ dòng trên `state/<epic>.md` đồng thời giữ đủ 4 trường bắt buộc |
+| Định tuyến Worktree & Tiến độ Task | `scripts/test_resume_context.py` | `test_cmm_ec_02_worktree_routing` & `test_cmm_ec_03_kanban_task_progress` | Định tuyến `.worktrees/<epic_dir>` về repo chính và tính tỷ lệ `done/total` tasks |
+| Prompts Ba Vai trò & Cờ Checkpoint | `scripts/test_resume_context.py` | `test_cmm_st_01_tri_role_banners_and_emit_prompts` & `test_cmm_st_02_checkpoint_non_destructive_save` | Kiểm chứng khung `AI ASSISTANT` vs `AI PROGRAMMER`, 5 chế độ `--emit-prompt`, và `--checkpoint` |
+| Khóa Đồng thời & Di trú Dữ liệu Cũ | `scripts/test_resume_context.py` | `test_cmm_ar_01_concurrent_flock` & `test_cmm_fr_01_legacy_migration` | Kiểm chứng ghi song song dưới `fcntl.flock`, gộp lịch sử bất biến (`test_cmm_ar_02`), và di trú file cũ / thiếu thư mục (`test_cmm_fr_02`) |
 
 ## Môi trường Xác minh
 

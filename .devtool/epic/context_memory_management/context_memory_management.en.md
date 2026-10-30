@@ -37,16 +37,16 @@ Based on the baseline architecture defined in `docs/architecture/save_resume_rul
 
 - Evolve `docs/architecture/resume_context.py` into `scripts/resume_context.py` (keeping `docs/architecture/resume_context.py` and `docs/architecture/save_resume_rules.md` synchronized) as a zero-dependency Python CLI engine.
 - Implement Multi-Epic Tier 2 partitioning (`.devtool/state/<epic_slug>.md` $\le 20$ lines and `.devtool/logs/activity_<epic_slug>.log`) with `fcntl.flock` locking, git worktree-to-primary-repo routing, legacy file migration, and automatic rollup generation into `.devtool/assistant_state.md` and `.devtool/activity_stream.log`.
-- Support 5 CLI capabilities in `scripts/resume_context.py`: default context harvest (`--role assistant|programmer`, `--epic`, `--repo`, `--tail`, `--json`), `--state` (with `--prompt`), `--log`, `--complete` (with `--checkpoint` option), `--emit-prompt` (`principal-review`, `implement`, `cross-review`, `finish`, `assistant`), and `--sync-zshrc`.
+- Support 6 CLI capabilities in `scripts/resume_context.py`: default context harvest (`--role assistant|programmer`, `--epic`, `--repo`, `--tail`, `--json`), `--state` (with `--prompt`), `--log`, `--complete` (with `--checkpoint` option), `--emit-prompt` (`principal-review`, `implement`, `cross-review`, `finish`, `assistant`), and `--sync-zshrc`.
 - Synchronize `/Users/danhdueexoictif/.zshrc` and all `antigravity_homes/<profile>` symlinks (`AllProjects`, `Projects`, `.zsh_history`), configure shared real-time zsh history (`HISTFILE="$REAL_HOME/.zsh_history"`, `SHARE_HISTORY`), and define `alias resume` and `alias save-context`.
-- Author `skills/resume-context/SKILL.md` and `skills/save-context/SKILL.md`, add Rule 7 to `rules/CRITICAL_RULES.md`, and integrate automatic context saving and prompt emission into `dev-brainstorming`, `dev-designer`, `dev-lifecycle`, `principal-review`, `dev-implementation`, `cross-model-review`, and `finishing-a-development-branch`.
+- Author `skills/resume-context/SKILL.md` and `skills/save-context/SKILL.md`, add Rule 8 to `rules/CRITICAL_RULES.md`, and integrate automatic context saving and prompt emission into `dev-brainstorming`, `dev-designer`, `dev-lifecycle`, `principal-review`, `dev-implementation`, `cross-model-review`, and `finishing-a-development-branch`.
 - Verify all behaviors with hermetic unit and integration tests in `scripts/test_resume_context.py` wired into `scripts/verify.sh`.
 
 ### Non-Goals
 
-- Adding third-party Python dependencies outside the standard library.
-- Modifying application business logic inside `D3Nexus`, `lyrics-sync`, or `nexus`.
-- Auto-pushing git commits without explicit developer permission.
+- Adding third-party Python dependencies or cloud-hosted telemetry services (all state remains strictly file-backed in `.devtool/` using the Python standard library).
+- Modifying production application business logic in satellite repositories (`D3Nexus`, `lyrics-sync`, `nexus`) during this toolkit epic.
+- Replacing git version control history, Kanban task files (`.devtool/features/task_*.md`), or auto-pushing git commits without explicit developer permission.
 
 ## Architecture and Technical Design
 
@@ -151,10 +151,11 @@ Integration results: python3 scripts/run_unittest_junit.py --junitxml build/test
 |---|---|---|---|
 | Two-Tier Harvest & Multi-Epic Isolation | `scripts/test_resume_context.py` | `test_cmm_hp_01_multi_epic_state_log_and_complete_isolation` | Verifies `--state`, `--log`, rollup rendering, and `--complete` isolating `epic-alpha` from `epic-beta` |
 | Shell `.zshrc` & History Unification | `scripts/test_resume_context.py` | `test_cmm_hp_02_zshrc_symlinks_history_and_aliases` | Verifies `.zshrc` configuration, history merge/symlink, `Projects`/`AllProjects` links, and aliases |
-| Skills, Rules & Lifecycle Integration | `scripts/test_resume_context.py` | `test_cmm_hp_03_skills_lifecycle_hooks_and_verify_harness` | Verifies `resume-context`, `save-context`, `CRITICAL_RULES.md`, lifecycle skills, and `verify.sh` |
-| Snapshot Line Limit & Worktree Routing | `scripts/test_resume_context.py` | `test_cmm_ec_01_snapshot_20_line_cap_and_worktree_routing` | Enforces $\le 20$ lines on `state/<epic>.md` and resolves `.worktrees/<epic_dir>` to primary root |
-| Tri-Role Prompts & Checkpoint Flag | `scripts/test_resume_context.py` | `test_cmm_st_01_tri_role_banners_emit_prompts_and_checkpoint` | Verifies `AI ASSISTANT` vs `AI PROGRAMMER` banners, 5 `--emit-prompt` modes, and `--checkpoint` |
-| File Lock Concurrency & Legacy Migration | `scripts/test_resume_context.py` | `test_cmm_ar_01_concurrent_flock_and_legacy_migration` | Verifies parallel writes under `fcntl.flock` and migration of legacy `assistant_state.md` / `activity_stream.log` |
+| Skills, Rules & Lifecycle Integration | `scripts/test_resume_context.py` | `test_cmm_hp_03_skills_lifecycle_hooks_and_verify_harness` | Verifies `resume-context`, `save-context`, `CRITICAL_RULES.md` Rule 8, lifecycle skills, and `verify.sh` |
+| Snapshot Line Limit Cap | `scripts/test_resume_context.py` | `test_cmm_ec_01_snapshot_20_line_cap` | Enforces $\le 20$ lines on `state/<epic>.md` while preserving all 4 mandatory fields |
+| Worktree Routing & Task Progress | `scripts/test_resume_context.py` | `test_cmm_ec_02_worktree_routing` & `test_cmm_ec_03_kanban_task_progress` | Resolves `.worktrees/<epic_dir>` to primary root and calculates `done/total` task ratios |
+| Tri-Role Prompts & Checkpoint Flag | `scripts/test_resume_context.py` | `test_cmm_st_01_tri_role_banners_and_emit_prompts` & `test_cmm_st_02_checkpoint_non_destructive_save` | Verifies `AI ASSISTANT` vs `AI PROGRAMMER` banners, 5 `--emit-prompt` modes, and `--checkpoint` |
+| File Lock Concurrency & Legacy Migration | `scripts/test_resume_context.py` | `test_cmm_ar_01_concurrent_flock` & `test_cmm_fr_01_legacy_migration` | Verifies parallel writes under `fcntl.flock`, history merge idempotency (`test_cmm_ar_02`), and legacy file migration / missing directory fallback (`test_cmm_fr_02`) |
 
 ## Verification Environment
 

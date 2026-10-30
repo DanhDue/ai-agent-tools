@@ -33,9 +33,9 @@ Tài liệu đặc tả này định nghĩa CLI engine **Two-Tier Project Memory
 
 ### Phạm vi Ngoài Mục tiêu
 
-- Không sử dụng cơ sở dữ liệu ngoài hoặc dịch vụ lưu trữ đám mây (mọi trạng thái đều lưu trên file cục bộ trong `.devtool/`).
+- Không thêm thư viện Python bên thứ ba hoặc dịch vụ lưu trữ đám mây (mọi trạng thái đều lưu trên file cục bộ trong `.devtool/` bằng thư viện chuẩn Python).
 - Không sửa đổi logic nghiệp vụ của các repo vệ tinh (`D3Nexus`, `lyrics-sync`, `nexus`) trong phạm vi epic công cụ này.
-- Không thay thế lịch sử git hoặc các file Kanban task (`.devtool/features/task_*.md`).
+- Không thay thế lịch sử git, các file Kanban task (`.devtool/features/task_*.md`), hoặc tự động đẩy code (`git push`) lên remote khi chưa có sự đồng ý của lập trình viên.
 
 ## 3. Đồng nhất Môi trường và Shell Aliases
 
@@ -43,7 +43,7 @@ Tất cả các thư mục profile Antigravity (`/Users/danhdueexoictif/antigrav
 
 1. **Workspace Root và Symlink Dự án**:
    - Khai báo `export REAL_HOME="/Users/danhdueexoictif"` và `export WORKSPACE_ROOT="$REAL_HOME/AllProjects"` ở đầu `/Users/danhdueexoictif/.zshrc`.
-   - Duy trì symlink `/Users/danhdueexoictif/Projects -> /Users/danhdueexoictif/AllProjects` và bổ sung `AllProjects`, `Projects`, cùng `.zsh_history` vào mảng `sync_items` bên trong hàm `ag_run()`.
+   - Tạo mới và duy trì symlink `/Users/danhdueexoictif/Projects -> /Users/danhdueexoictif/AllProjects` và bổ sung `AllProjects`, `Projects`, cùng `.zsh_history` vào mảng `sync_items` bên trong hàm `ag_run()`.
 2. **Chia sẻ Lịch sử Terminal (`.zsh_history`) Xuyên suốt Mọi Tài khoản**:
    - Gộp các lệnh hiện có từ `.zsh_history` của từng profile vào `/Users/danhdueexoictif/.zsh_history` và tạo symlink `.zsh_history` tại mỗi profile trỏ về `$REAL_HOME/.zsh_history`.
    - Cấu hình biến lịch sử zsh ngay sau dòng `source $ZSH/oh-my-zsh.sh` để không bị Oh-My-Zsh ghi đè `HISTFILE`:
@@ -209,7 +209,7 @@ flowchart LR
   - Phase 4 (khi Gate 4 PASS) chạy `resume_context.py --state` và xuất `--emit-prompt cross-review` bên cạnh bảng Review Choice.
 - **`skills/cross-model-review/SKILL.md`**: Sau khi ghi nhận quyết định triage, chạy `resume_context.py --state` và xuất prompt bước tiếp theo (AI Programmer fix prompt hoặc Stage 4 finish).
 - **`skills/finishing-a-development-branch/SKILL.md` (Stage 4 `/finish`)**: Trong **Pre-Finish Hook** (cùng bước `sync_task_status.py archive-done`), thực thi `resume_context.py --complete "<epic_slug>" "<milestone_summary>"` để ghi cột mốc vĩnh viễn vào Tier 1 (`PROJECT_LEDGER.md`) và xoay vòng state/logs Tier 2 của epic đó vào `.devtool/archive/`.
-- **`rules/CRITICAL_RULES.md`**: Bổ sung Rule 7 bắt buộc tuân thủ Two-Tier Project Memory và kỷ luật phân quyền Ba Vai trò (Human Architect / AI Assistant / AI Programmer) trên mọi dự án và plugin.
+- **`rules/CRITICAL_RULES.md`**: Bổ sung Rule 8 (`## 8. Mandatory Two-Tier Project Memory & Tri-Role Persona Discipline`) bắt buộc tuân thủ Two-Tier Project Memory và kỷ luật phân quyền Ba Vai trò (Human Architect / AI Assistant / AI Programmer) trên mọi dự án và plugin.
 
 ## 8. Xử lý Lỗi, Đa luồng và Chiến lược Kiểm thử
 

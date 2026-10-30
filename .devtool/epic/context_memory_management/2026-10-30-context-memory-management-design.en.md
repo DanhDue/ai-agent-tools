@@ -33,9 +33,9 @@ This specification defines a unified **Two-Tier Project Memory** engine (`script
 
 ### Non-Goals
 
-- External database dependencies or cloud-hosted telemetry services (all state remains strictly file-backed and local to `.devtool/`).
-- Modifying production application logic in satellite repositories (`D3Nexus`, `lyrics-sync`, `nexus`) during this toolkit epic.
-- Replacing git version control history or Kanban task files (`.devtool/features/task_*.md`).
+- Adding third-party Python dependencies or cloud-hosted telemetry services (all state remains strictly file-backed in `.devtool/` using the Python standard library).
+- Modifying production application business logic in satellite repositories (`D3Nexus`, `lyrics-sync`, `nexus`) during this toolkit epic.
+- Replacing git version control history, Kanban task files (`.devtool/features/task_*.md`), or auto-pushing git commits without explicit developer permission.
 
 ## 3. Environment Unification and Shell Aliases
 
@@ -43,7 +43,7 @@ All Antigravity profile homes (`/Users/danhdueexoictif/antigravity_homes/<profil
 
 1. **Workspace Root and Project Symlinks**:
    - Define `export REAL_HOME="/Users/danhdueexoictif"` and `export WORKSPACE_ROOT="$REAL_HOME/AllProjects"` at the top of `/Users/danhdueexoictif/.zshrc`.
-   - Maintain `/Users/danhdueexoictif/Projects -> /Users/danhdueexoictif/AllProjects` and add `AllProjects`, `Projects`, and `.zsh_history` to the `sync_items` array inside `ag_run()`.
+   - Create and maintain `/Users/danhdueexoictif/Projects -> /Users/danhdueexoictif/AllProjects` and add `AllProjects`, `Projects`, and `.zsh_history` to the `sync_items` array inside `ag_run()`.
 2. **Shared Terminal History Across All Accounts**:
    - Merge existing profile `.zsh_history` entries into `/Users/danhdueexoictif/.zsh_history` and symlink each profile's `.zsh_history` to `$REAL_HOME/.zsh_history`.
    - Configure zsh history settings after `source $ZSH/oh-my-zsh.sh` so Oh-My-Zsh does not override `HISTFILE`:
@@ -209,7 +209,7 @@ flowchart LR
   - Phase 4 (Gate 4 PASS) runs `resume_context.py --state` and outputs `--emit-prompt cross-review` alongside the Review Choice prompt.
 - **`skills/cross-model-review/SKILL.md`**: After triage decisions are recorded, runs `resume_context.py --state` and emits the next prompt (AI Programmer fix prompt or Stage 4 finish).
 - **`skills/finishing-a-development-branch/SKILL.md` (Stage 4 `/finish`)**: In the **Pre-Finish Hook** (alongside `sync_task_status.py archive-done`), executes `resume_context.py --complete "<epic_slug>" "<milestone_summary>"` to record the permanent Tier 1 milestone in `PROJECT_LEDGER.md` and rotate the epic's Tier 2 state/logs into `.devtool/archive/`.
-- **`rules/CRITICAL_RULES.md`**: Adds Rule 7 enforcing Two-Tier Project Memory and Tri-Role Persona boundaries (Human Architect / AI Assistant / AI Programmer) across all projects and agent plugins.
+- **`rules/CRITICAL_RULES.md`**: Adds Rule 8 (`## 8. Mandatory Two-Tier Project Memory & Tri-Role Persona Discipline`) enforcing Two-Tier Project Memory and Tri-Role Persona boundaries (Human Architect / AI Assistant / AI Programmer) across all projects and agent plugins.
 
 ## 8. Error Handling, Concurrency, and Testing Strategy
 

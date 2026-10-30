@@ -26,7 +26,7 @@ Scenario: [CMM-HP-02] [Tier C - Integration] Đồng bộ Môi trường Zshrc �
   And mỗi thư mục profile đều có các symlink Projects, AllProjects, và .zsh_history trỏ về thư mục gốc sau khi đã gộp các dòng lịch sử lệnh riêng lẻ
 
 Scenario: [CMM-HP-03] [Tier C - Integration] Định nghĩa Skills, Điểm chạm Dev-Lifecycle và Bộ Kiểm thử Phát hành Toàn diện
-  Given hai skills resume-context và save-context đã hoàn thiện, Rule 7 trong CRITICAL_RULES.md, các điểm chạm trong chuỗi skills dev-lifecycle, và đăng ký trong scripts/verify.sh
+  Given hai skills resume-context và save-context đã hoàn thiện, Rule 8 trong CRITICAL_RULES.md, các điểm chạm trong chuỗi skills dev-lifecycle, và đăng ký trong scripts/verify.sh
   When kỹ sư chạy bộ kiểm thử xác minh cho context_memory_management
   Then skills/resume-context/SKILL.md và skills/save-context/SKILL.md vượt qua kiểm tra YAML frontmatter và liên kết tương đối
   And dev-brainstorming, dev-designer, dev-lifecycle, principal-review, dev-implementation, cross-model-review, và finishing-a-development-branch đều chứa các điểm chạm tích hợp resume_context.py bắt buộc
@@ -37,19 +37,19 @@ Scenario: [CMM-HP-03] [Tier C - Integration] Định nghĩa Skills, Điểm ch�
 
 ```gherkin
 Scenario: [CMM-EC-01] [Tier A - Unit] Kiểm soát Giới hạn Tối đa 20 Dòng trên Snapshot Trạng thái Từng Epic
-  Given một epic đang hoạt động tên là context-memory được gọi lệnh --state với phần quyết định và ghi chú custom prompt dài quá 25 dòng
-  When resume_context.py --state --epic context-memory ghi ra file .devtool/state/context-memory.md
-  Then file .devtool/state/context-memory.md được ghi ra có tối đa không quá 20 dòng
+  Given một epic đang hoạt động tên là context_memory_management được gọi lệnh --state với phần quyết định và ghi chú custom prompt dài quá 25 dòng
+  When resume_context.py --state --epic context_memory_management ghi ra file .devtool/state/context_memory_management.md
+  Then file .devtool/state/context_memory_management.md được ghi ra có tối đa không quá 20 dòng
   And bảo toàn đầy đủ cả 4 trường bắt buộc (Active Epic, Recent Decisions Locked, Repo/Task Status, Next Immediate Step)
 
 Scenario: [CMM-EC-02] [Tier A - Unit] Định tuyến Nhận biết Worktree từ Bên trong Thư mục .worktrees/<epic_dir>
-  Given một git repository có worktree lồng bên trong tại .worktrees/context_memory_management trên nhánh epic/context-memory-management
+  Given một git repository có worktree lồng bên trong tại .worktrees/context_memory_management trên nhánh epic/context_memory_management
   When một AI Programmer gọi lệnh resume_context.py --state hoặc --log từ bên trong .worktrees/context_memory_management mà không truyền --repo
   Then engine phân giải đúng thư mục gốc của repository chính thông qua git rev-parse --git-common-dir
   And ghi các file state và log vào thư mục .devtool/ của repository chính thay vì thư mục worktree tạm thời
 
 Scenario: [CMM-EC-03] [Tier A - Unit] Tính toán Tiến độ Kanban Task qua Thư mục Active và Thư mục Done
-  Given một repository có 2 tasks trong .devtool/features/ (trạng thái todo và in-progress) và 3 tasks đã hoàn thành trong .devtool/features/done/ (trạng thái done) thuộc epic context-memory-management
+  Given một repository có 2 tasks trong .devtool/features/ (trạng thái todo và in-progress) và 3 tasks đã hoàn thành trong .devtool/features/done/ (trạng thái done) thuộc epic context_memory_management
   When hàm scan_active_tasks thực thi trong quá trình thu hoạch của resume_context.py
   Then Phần 5 liệt kê các tasks đang ở trạng thái todo và in-progress đồng thời báo cáo tóm tắt tiến độ hoàn thành epic là "3/5 done"
 ```
@@ -58,17 +58,17 @@ Scenario: [CMM-EC-03] [Tier A - Unit] Tính toán Tiến độ Kanban Task qua T
 
 ```gherkin
 Scenario: [CMM-ST-01] [Tier C - Integration] Khung Quản trị Ba Vai trò và Xuất Prompt Bàn giao cho 4 Kịch bản
-  Given một epic đang hoạt động tên là context-memory-management trong .devtool/
+  Given một epic đang hoạt động tên là context_memory_management trong .devtool/
   When resume_context.py được gọi với --role assistant, --role programmer (hoặc bí danh implementer), và --emit-prompt cho principal-review, implement, cross-review, finish, và assistant
   Then --role assistant xuất ra khung "[PERSONA: AI ASSISTANT — TECHNICAL ADVISOR & CO-ARCHITECT]" kèm giới hạn cứng "NO IMPLEMENTATION"
   And --role programmer xuất ra khung "[PERSONA: AI PROGRAMMER — SENIOR TDD SOFTWARE ENGINEER]" bắt buộc tuân thủ TDD, Clean Code và ranh giới Allowed files
   And mỗi chế độ --emit-prompt xuất ra một khối prompt bàn giao hoàn chỉnh chứa persona mục tiêu, lệnh khởi động resume_context.py, và hướng dẫn chuyên biệt cho từng giai đoạn
 
 Scenario: [CMM-ST-02] [Tier A - Unit] Lưu Checkpoint Không Phá hủy qua --complete --checkpoint Kèm Custom Prompt
-  Given một epic đang chạy dở tên là context-memory-management đã có các dòng nhật ký trong .devtool/logs/activity_context-memory-management.log
-  When kỹ sư hoặc agent chạy lệnh save-context --checkpoint context-memory-management "Locked multi-epic storage model; next write task_01"
-  Then .devtool/state/context-memory-management.md và .devtool/logs/activity_context-memory-management.log được cập nhật kèm ghi chú custom prompt
-  And .devtool/PROJECT_LEDGER.md không bị thay đổi đồng thời .devtool/logs/activity_context-memory-management.log không bị di chuyển vào .devtool/archive/
+  Given một epic đang chạy dở tên là context_memory_management đã có các dòng nhật ký trong .devtool/logs/activity_context_memory_management.log
+  When kỹ sư hoặc agent chạy lệnh save-context --checkpoint context_memory_management "Locked multi-epic storage model; next write task_01"
+  Then .devtool/state/context_memory_management.md và .devtool/logs/activity_context_memory_management.log được cập nhật kèm ghi chú custom prompt
+  And .devtool/PROJECT_LEDGER.md không bị thay đổi đồng thời .devtool/logs/activity_context_memory_management.log không bị di chuyển vào .devtool/archive/
 ```
 
 ## Chiều 4: Bất đồng bộ và Đa luồng Đa Agent

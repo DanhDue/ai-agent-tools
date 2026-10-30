@@ -75,24 +75,24 @@ Scenario: [CMM-HP-01] [Tier C - Integration] Two-Tier Context Harvesting, Multi-
   And epic-alpha's state and activity log are moved into .devtool/archive/ while epic-beta's state (.devtool/state/epic-beta.md) and activity log (.devtool/logs/activity_epic-beta.log) remain active in .devtool/assistant_state.md and .devtool/activity_stream.log
 
 Scenario: [CMM-EC-01] [Tier A - Unit] Enforcing the 20-Line Ceiling on Per-Epic State Snapshots
-  Given an active epic context-memory where --state is invoked with multi-line decisions and custom prompt notes exceeding 25 lines
-  When resume_context.py --state --epic context-memory writes .devtool/state/context-memory.md
-  Then the written file .devtool/state/context-memory.md contains at most 20 lines
+  Given an active epic context_memory_management where --state is invoked with multi-line decisions and custom prompt notes exceeding 25 lines
+  When resume_context.py --state --epic context_memory_management writes .devtool/state/context_memory_management.md
+  Then the written file .devtool/state/context_memory_management.md contains at most 20 lines
   And preserves all 4 mandatory fields (Active Epic, Recent Decisions Locked, Repo/Task Status, Next Immediate Step)
 
 Scenario: [CMM-EC-02] [Tier A - Unit] Worktree-Aware Routing From Nested .worktrees/<epic_dir> Checkout
-  Given a git repository with a nested worktree at .worktrees/context_memory_management on branch epic/context-memory-management
+  Given a git repository with a nested worktree at .worktrees/context_memory_management on branch epic/context_memory_management
   When an AI Programmer invokes resume_context.py --state or --log from inside .worktrees/context_memory_management without passing --repo
   Then the engine resolves the primary repository root via git rev-parse --git-common-dir
   And writes the state and log files into the primary repository's .devtool/ directory rather than the ephemeral worktree
 
 Scenario: [CMM-EC-03] [Tier A - Unit] Kanban Task Progress Calculation Across Active and Done Directories
-  Given a repository with 2 tasks in .devtool/features/ (status todo and in-progress) and 3 completed tasks in .devtool/features/done/ (status done) for epic context-memory-management
+  Given a repository with 2 tasks in .devtool/features/ (status todo and in-progress) and 3 completed tasks in .devtool/features/done/ (status done) for epic context_memory_management
   When scan_active_tasks executes during a resume_context.py harvest
   Then Section 5 lists the active todo and in-progress tasks and reports the epic completion progress summary "3/5 done"
 
 Scenario: [CMM-ST-01] [Tier C - Integration] Tri-Role Persona Governance Banners and 4-Scenario Handoff Prompt Emission
-  Given an active epic context-memory-management in .devtool/
+  Given an active epic context_memory_management in .devtool/
   When resume_context.py is invoked with --role assistant, --role programmer (or alias implementer), and --emit-prompt for principal-review, implement, cross-review, finish, and assistant
   Then --role assistant outputs the "[PERSONA: AI ASSISTANT — TECHNICAL ADVISOR & CO-ARCHITECT]" banner with the "NO IMPLEMENTATION" restriction
   And --role programmer outputs the "[PERSONA: AI PROGRAMMER — SENIOR TDD SOFTWARE ENGINEER]" banner enforcing TDD, Clean Code, and Allowed files boundaries

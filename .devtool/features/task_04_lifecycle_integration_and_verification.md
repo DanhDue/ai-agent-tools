@@ -22,7 +22,7 @@ Integrate Two-Tier Project Memory (`save-context` / `resume_context.py`) and Tri
 1. **`skills/dev-brainstorming/SKILL.md` (Stage 1 — AI Assistant)**:
    - After Gate 1 spec approval, instruct the agent to persist architectural decisions via `resume_context.py --state --epic <topic_slug> --role assistant`.
 2. **`skills/dev-designer/SKILL.md`, `skills/dev-lifecycle/SKILL.md`, `skills/dev-lifecycle/references/handoff-template.md`, and `skills/dev-lifecycle/references/principal-review.md` (Stage 2 — AI Assistant to AI Programmer Handoff)**:
-   - In `dev-designer` (Step 3) and `dev-lifecycle` (`Handoff Choice` -> `Package`), persist state via `resume_context.py --state --epic <epic_slug>` and emit both `--emit-prompt principal-review` (Scenario 1 for AI Assistant) and `--emit-prompt implement` (Scenario 2 for AI Programmer).
+   - In `dev-designer` (Step 3) and `dev-lifecycle` (`Handoff Choice` -> `Package`), persist state via `resume_context.py --state --epic <epic_slug>` and emit both `--emit-prompt principal-review` (Scenario 1 for AI Assistant) and `--emit-prompt implement` (Scenario 2 for AI Programmer). Because `skills/dev-lifecycle/SKILL.md` is at 2476/2500 words, trim redundant prose in `skills/dev-lifecycle/SKILL.md` and keep only a concise pointer line in `SKILL.md` while placing the detailed hook instructions in `skills/dev-lifecycle/references/handoff-template.md` and `skills/dev-lifecycle/references/principal-review.md`.
    - Update `skills/dev-lifecycle/references/handoff-template.md` `## Resume Prompt` to assign `[PERSONA: AI PROGRAMMER — SENIOR TDD SOFTWARE ENGINEER]` and invoke `resume_context.py --role programmer --epic <epic_slug>` while preserving all existing lines required by `test_lifecycle_document_contract.py` and `test_verifiable_handoff_text.py`.
    - In `skills/dev-lifecycle/references/principal-review.md` and `skills/principal-review/SKILL.md`, after the Principal Review loop concludes, run `resume_context.py --state` and `--emit-prompt implement` (Scenario 2).
 3. **`skills/dev-implementation/SKILL.md` and `skills/cross-model-review/SKILL.md` (Stage 3 — AI Programmer & Cross-Model Review Assistant)**:
@@ -58,6 +58,7 @@ Read-only context:
 - `skills/save-context/SKILL.md` (new)
 - `scripts/test_lifecycle_document_contract.py` — lifecycle contract test suite
 - `scripts/test_verifiable_handoff_text.py` — handoff text test suite
+- `scripts/test_lifecycle_signals.py` — lifecycle signals test suite
 
 ## Design Rationale
 
@@ -79,7 +80,7 @@ Covers: CMM-HP-03
 
 ```gherkin
 Scenario: [CMM-HP-03] [Tier C - Integration] End-to-End Skill Definitions, Dev-Lifecycle Hooks, and Release Verification Harness
-  Given the completed resume-context and save-context skills, CRITICAL_RULES.md Rule 7, dev-lifecycle stage skill hooks, and scripts/verify.sh registration
+  Given the completed resume-context and save-context skills, CRITICAL_RULES.md Rule 8, dev-lifecycle stage skill hooks, and scripts/verify.sh registration
   When the engineer runs the verification suite for context_memory_management
   Then skills/resume-context/SKILL.md and skills/save-context/SKILL.md pass YAML frontmatter and relative link checks
   And dev-brainstorming, dev-designer, dev-lifecycle, principal-review, dev-implementation, cross-model-review, and finishing-a-development-branch contain the required resume_context.py integration hooks
@@ -111,7 +112,7 @@ Scenario: [CMM-HP-03] [Tier C - Integration] End-to-End Skill Definitions, Dev-L
 
 ## Decisions Already Made
 
-- Runtime skills `skills/dev-lifecycle/SKILL.md` and `skills/dev-implementation/SKILL.md` must never contain Mermaid or Graphviz DOT fences and must stay within their word-count ceilings ($\le 2500$ and $\le 4500$ words respectively).
+- Runtime skills `skills/dev-lifecycle/SKILL.md` and `skills/dev-implementation/SKILL.md` must never contain Mermaid or Graphviz DOT fences and must stay within their word-count ceilings ($\le 2500$ and $\le 4500$ words respectively); trim existing prose in `skills/dev-lifecycle/SKILL.md` as needed when adding the concise `resume_context.py` hook line so the total word count stays well below 2500.
 - `skills/dev-lifecycle/references/handoff-template.md` retains all 4 Execution Guardrails (`Bounded context protocol`, `Strict spec fidelity`, `Zero test fakery`, `No contract repair by the executor`) and adds the `[PERSONA: AI PROGRAMMER — SENIOR TDD SOFTWARE ENGINEER]` role header and `resume_context.py --role programmer --epic <epic_slug>` instruction in `## Resume Prompt`.
 - `skills/finishing-a-development-branch/SKILL.md` executes `resume_context.py --complete "<epic_slug>" "<milestone_summary>"` in its Pre-Finish Hook when archiving completed epic tasks.
 - `scripts/verify.sh` Section 15 executes `python3 -m unittest scripts/test_resume_context.py`.

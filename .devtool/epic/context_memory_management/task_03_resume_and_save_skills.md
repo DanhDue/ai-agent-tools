@@ -18,7 +18,7 @@ Epic: [context_memory_management](context_memory_management.en.md)
 
 ## Requirement Analysis
 
-Create the two new skills `skills/resume-context/SKILL.md` and `skills/save-context/SKILL.md`, update `rules/CRITICAL_RULES.md` with Rule 7, and verify non-destructive checkpoint saving (`[CMM-ST-02]`):
+Create the two new skills `skills/resume-context/SKILL.md` and `skills/save-context/SKILL.md`, update `rules/CRITICAL_RULES.md` with Rule 8, and verify non-destructive checkpoint saving (`[CMM-ST-02]`):
 1. Author `skills/resume-context/SKILL.md`:
    - YAML frontmatter containing strictly `name: resume-context` and `description`.
    - Instructions for running `scripts/resume_context.py` on session start or account switch (`resume` / `python3 $HOME/Projects/ai-agent-tools/scripts/resume_context.py`).
@@ -32,7 +32,7 @@ Create the two new skills `skills/resume-context/SKILL.md` and `skills/save-cont
    - Instructions for saving context with custom prompts (`--state --prompt "<custom_note>"`, `--log`, or `save-context --checkpoint <epic_slug> "<custom_note>"` for mid-flight saves, and `--complete <epic_slug> "<milestone_summary>"` on feature completion in `/finish`).
    - Instructions for emitting role-bound handoff prompts (`--emit-prompt principal-review|implement|cross-review|finish|assistant`) across all 4 operational scenarios.
 3. Update `rules/CRITICAL_RULES.md`:
-   - Add Section `## 7. Mandatory Two-Tier Project Memory & Tri-Role Persona Discipline` enforcing automatic context persistence across projects and strict separation between `AI Assistant` and `AI Programmer`.
+   - Add Section `## 8. Mandatory Two-Tier Project Memory & Tri-Role Persona Discipline` (preserving existing Sections 1–7) enforcing automatic context persistence across projects and strict separation between `AI Assistant` and `AI Programmer`.
 4. Add unit and integration tests in `scripts/test_resume_context.py` covering `CMM-ST-02` (`--complete --checkpoint` non-destructive save with custom prompt and skill/rule validation).
 
 ## Files
@@ -52,7 +52,7 @@ Read-only context:
 
 ## Design Rationale
 
-- Separating `resume-context` and `save-context` into dedicated skills with `d3nexus:` cross-references and Rule 7 in `rules/CRITICAL_RULES.md` guarantees that every agent session across all repositories respects Two-Tier Project Memory and the AI Assistant vs AI Programmer boundary.
+- Separating `resume-context` and `save-context` into dedicated skills with `d3nexus:` cross-references and Rule 8 in `rules/CRITICAL_RULES.md` guarantees that every agent session across all repositories respects Two-Tier Project Memory and the AI Assistant vs AI Programmer boundary.
 - Applicable skills: `d3nexus:writing-skills`, `d3nexus:test-driven-development`, `d3nexus:doc_quality_check`.
 
 ## Impact Analysis & Blast Radius
@@ -70,10 +70,10 @@ Covers: CMM-ST-02
 
 ```gherkin
 Scenario: [CMM-ST-02] [Tier A - Unit] Non-Destructive Checkpoint Save via --complete --checkpoint With Custom Prompt
-  Given an in-flight epic context-memory-management with existing entries in .devtool/logs/activity_context-memory-management.log
-  When the engineer or agent runs save-context --checkpoint context-memory-management "Locked multi-epic storage model; next write task_01"
-  Then .devtool/state/context-memory-management.md and .devtool/logs/activity_context-memory-management.log are updated with the custom prompt note
-  And .devtool/PROJECT_LEDGER.md is not modified and .devtool/logs/activity_context-memory-management.log is not moved to .devtool/archive/
+  Given an in-flight epic context_memory_management with existing entries in .devtool/logs/activity_context_memory_management.log
+  When the engineer or agent runs save-context --checkpoint context_memory_management "Locked multi-epic storage model; next write task_01"
+  Then .devtool/state/context_memory_management.md and .devtool/logs/activity_context_memory_management.log are updated with the custom prompt note
+  And .devtool/PROJECT_LEDGER.md is not modified and .devtool/logs/activity_context_memory_management.log is not moved to .devtool/archive/
 ```
 
 ## Verification
@@ -101,11 +101,11 @@ Scenario: [CMM-ST-02] [Tier A - Unit] Non-Destructive Checkpoint Save via --comp
 
 - `skills/resume-context/SKILL.md` and `skills/save-context/SKILL.md` frontmatter contains only `name` and `description`.
 - `save-context --checkpoint <epic_slug> "<custom_prompt>"` (i.e. `resume_context.py --complete --checkpoint <epic_slug> "<custom_prompt>"`) updates `.devtool/state/<epic_slug>.md` and `.devtool/logs/activity_<epic_slug>.log` without appending to `PROJECT_LEDGER.md` or moving logs to `.devtool/archive/`.
-- `rules/CRITICAL_RULES.md` preserves its YAML frontmatter (`---`) at line 1 and adds Section `## 7. Mandatory Two-Tier Project Memory & Tri-Role Persona Discipline`.
+- `rules/CRITICAL_RULES.md` preserves its YAML frontmatter (`---`) at line 1 and existing Sections 1–7, and adds Section `## 8. Mandatory Two-Tier Project Memory & Tri-Role Persona Discipline`.
 
 ## Definition of Done
 
-- `skills/resume-context/SKILL.md`, `skills/save-context/SKILL.md`, and `rules/CRITICAL_RULES.md` Rule 7 are authored and pass document checks (V3).
+- `skills/resume-context/SKILL.md`, `skills/save-context/SKILL.md`, and `rules/CRITICAL_RULES.md` Rule 8 are authored and pass document checks (V3).
 - `--complete --checkpoint` non-destructive checkpoint save passes unit and integration tests (V2).
 - Ruff linting and Mypy strict type checks pass cleanly (V4, V5).
 - JUnit XML report is generated and `CMM-ST-02` passes (V6).

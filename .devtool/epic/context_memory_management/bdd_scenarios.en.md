@@ -26,7 +26,7 @@ Scenario: [CMM-HP-02] [Tier C - Integration] Multi-Profile Zshrc Environment, Sh
   And each profile home contains symlinks for Projects, AllProjects, and .zsh_history pointing to the primary home after merging unique profile history lines
 
 Scenario: [CMM-HP-03] [Tier C - Integration] End-to-End Skill Definitions, Dev-Lifecycle Hooks, and Release Verification Harness
-  Given the completed resume-context and save-context skills, CRITICAL_RULES.md Rule 7, dev-lifecycle stage skill hooks, and scripts/verify.sh registration
+  Given the completed resume-context and save-context skills, CRITICAL_RULES.md Rule 8, dev-lifecycle stage skill hooks, and scripts/verify.sh registration
   When the engineer runs the verification suite for context_memory_management
   Then skills/resume-context/SKILL.md and skills/save-context/SKILL.md pass YAML frontmatter and relative link checks
   And dev-brainstorming, dev-designer, dev-lifecycle, principal-review, dev-implementation, cross-model-review, and finishing-a-development-branch contain the required resume_context.py integration hooks
@@ -37,19 +37,19 @@ Scenario: [CMM-HP-03] [Tier C - Integration] End-to-End Skill Definitions, Dev-L
 
 ```gherkin
 Scenario: [CMM-EC-01] [Tier A - Unit] Enforcing the 20-Line Ceiling on Per-Epic State Snapshots
-  Given an active epic context-memory where --state is invoked with multi-line decisions and custom prompt notes exceeding 25 lines
-  When resume_context.py --state --epic context-memory writes .devtool/state/context-memory.md
-  Then the written file .devtool/state/context-memory.md contains at most 20 lines
+  Given an active epic context_memory_management where --state is invoked with multi-line decisions and custom prompt notes exceeding 25 lines
+  When resume_context.py --state --epic context_memory_management writes .devtool/state/context_memory_management.md
+  Then the written file .devtool/state/context_memory_management.md contains at most 20 lines
   And preserves all 4 mandatory fields (Active Epic, Recent Decisions Locked, Repo/Task Status, Next Immediate Step)
 
 Scenario: [CMM-EC-02] [Tier A - Unit] Worktree-Aware Routing From Nested .worktrees/<epic_dir> Checkout
-  Given a git repository with a nested worktree at .worktrees/context_memory_management on branch epic/context-memory-management
+  Given a git repository with a nested worktree at .worktrees/context_memory_management on branch epic/context_memory_management
   When an AI Programmer invokes resume_context.py --state or --log from inside .worktrees/context_memory_management without passing --repo
   Then the engine resolves the primary repository root via git rev-parse --git-common-dir
   And writes the state and log files into the primary repository's .devtool/ directory rather than the ephemeral worktree
 
 Scenario: [CMM-EC-03] [Tier A - Unit] Kanban Task Progress Calculation Across Active and Done Directories
-  Given a repository with 2 tasks in .devtool/features/ (status todo and in-progress) and 3 completed tasks in .devtool/features/done/ (status done) for epic context-memory-management
+  Given a repository with 2 tasks in .devtool/features/ (status todo and in-progress) and 3 completed tasks in .devtool/features/done/ (status done) for epic context_memory_management
   When scan_active_tasks executes during a resume_context.py harvest
   Then Section 5 lists the active todo and in-progress tasks and reports the epic completion progress summary "3/5 done"
 ```
@@ -58,17 +58,17 @@ Scenario: [CMM-EC-03] [Tier A - Unit] Kanban Task Progress Calculation Across Ac
 
 ```gherkin
 Scenario: [CMM-ST-01] [Tier C - Integration] Tri-Role Persona Governance Banners and 4-Scenario Handoff Prompt Emission
-  Given an active epic context-memory-management in .devtool/
+  Given an active epic context_memory_management in .devtool/
   When resume_context.py is invoked with --role assistant, --role programmer (or alias implementer), and --emit-prompt for principal-review, implement, cross-review, finish, and assistant
   Then --role assistant outputs the "[PERSONA: AI ASSISTANT — TECHNICAL ADVISOR & CO-ARCHITECT]" banner with the "NO IMPLEMENTATION" restriction
   And --role programmer outputs the "[PERSONA: AI PROGRAMMER — SENIOR TDD SOFTWARE ENGINEER]" banner enforcing TDD, Clean Code, and Allowed files boundaries
   And each --emit-prompt mode outputs a self-contained handoff prompt containing the target role persona, startup resume_context.py command, and stage-specific instructions
 
 Scenario: [CMM-ST-02] [Tier A - Unit] Non-Destructive Checkpoint Save via --complete --checkpoint With Custom Prompt
-  Given an in-flight epic context-memory-management with existing entries in .devtool/logs/activity_context-memory-management.log
-  When the engineer or agent runs save-context --checkpoint context-memory-management "Locked multi-epic storage model; next write task_01"
-  Then .devtool/state/context-memory-management.md and .devtool/logs/activity_context-memory-management.log are updated with the custom prompt note
-  And .devtool/PROJECT_LEDGER.md is not modified and .devtool/logs/activity_context-memory-management.log is not moved to .devtool/archive/
+  Given an in-flight epic context_memory_management with existing entries in .devtool/logs/activity_context_memory_management.log
+  When the engineer or agent runs save-context --checkpoint context_memory_management "Locked multi-epic storage model; next write task_01"
+  Then .devtool/state/context_memory_management.md and .devtool/logs/activity_context_memory_management.log are updated with the custom prompt note
+  And .devtool/PROJECT_LEDGER.md is not modified and .devtool/logs/activity_context_memory_management.log is not moved to .devtool/archive/
 ```
 
 ## Dimension 4: Async and Multi-Agent Concurrency
