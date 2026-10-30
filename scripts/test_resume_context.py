@@ -310,6 +310,122 @@ class TestResumeContext(unittest.TestCase):
         self.assertIn("Legacy state info", migrated_state.read_text(encoding="utf-8"))
         self.assertIn("Legacy log line 1", migrated_log.read_text(encoding="utf-8"))
 
+    def test_cmm_hp_02_zshrc_symlinks_history_and_aliases(self) -> None:
+        """[CMM-HP-02] Multi-Profile Zshrc Environment, Shared Terminal History, and Alias Synchronization."""
+        simulated_home = self.workspace / "fake_home"
+        simulated_home.mkdir(parents=True, exist_ok=True)
+        zshrc_file = simulated_home / ".zshrc"
+        initial_zshrc = """# Sample .zshrc
+export ZSH="$HOME/.oh-my-zsh"
+source $ZSH/oh-my-zsh.sh
+
+ag_run() {
+    sync_items=(Documents Desktop)
+    echo "Running ag"
+}
+"""
+        zshrc_file.write_text(initial_zshrc, encoding="utf-8")
+        sim_ws_root = simulated_home / "AllProjects"
+        sim_ws_root.mkdir(parents=True, exist_ok=True)
+
+        # Create two profile directories
+        profiles_dir = simulated_home / "antigravity_homes"
+        p1 = profiles_dir / "profile_one"
+        p2 = profiles_dir / "profile_two"
+        p1.mkdir(parents=True, exist_ok=True)
+        p2.mkdir(parents=True, exist_ok=True)
+        (p1 / ".zsh_history").write_text("cmd_p1_1\ncmd_p1_2\n", encoding="utf-8")
+
+        # Run CLI --sync-zshrc
+        res = self.run_cli([
+            "--sync-zshrc",
+            "--real-home", str(simulated_home),
+            "--workspace-root", str(sim_ws_root),
+        ])
+        self.assertEqual(res.returncode, 0, f"stderr: {res.stderr}")
+
+        zshrc_content = zshrc_file.read_text(encoding="utf-8")
+        self.assertIn("REAL_HOME", zshrc_content)
+        self.assertIn("WORKSPACE_ROOT", zshrc_content)
+        self.assertIn('HISTFILE="$REAL_HOME/.zsh_history"', zshrc_content)
+        self.assertIn("SHARE_HISTORY", zshrc_content)
+        self.assertIn("INC_APPEND_HISTORY", zshrc_content)
+        self.assertIn("alias resume=", zshrc_content)
+        self.assertIn("alias save-context=", zshrc_content)
+        self.assertIn("AllProjects", zshrc_content)
+        self.assertIn("Projects", zshrc_content)
+        self.assertIn(".zsh_history", zshrc_content)
+
+        # Check symlinks
+        projects_link = simulated_home / "Projects"
+        self.assertTrue(projects_link.is_symlink())
+        self.assertEqual(projects_link.resolve(), sim_ws_root.resolve())
+
+        self.assertTrue((p1 / "Projects").is_symlink())
+        self.assertTrue((p1 / "AllProjects").is_symlink())
+        self.assertTrue((p1 / ".zsh_history").is_symlink())
+        self.assertEqual((p1 / ".zsh_history").resolve(), (simulated_home / ".zsh_history").resolve())
+
+        # Check history merged
+        shared_history = (simulated_home / ".zsh_history").read_text(encoding="utf-8")
+        self.assertIn("cmd_p1_1", shared_history)
+        self.assertIn("cmd_p1_2", shared_history)
+
+    def test_cmm_ar_02_idempotent_zsh_history_merge(self) -> None:
+        """[CMM-AR-02] Idempotent Zsh History Merge Preserves Chronological Commands Without Duplicating Symlinks."""
+        simulated_home = self.workspace / "fake_home_idempotent"
+        simulated_home.mkdir(parents=True, exist_ok=True)
+        zshrc_file = simulated_home / ".zshrc"
+        zshrc_file.write_text("# basic zshrc\n", encoding="utf-8")
+        sim_ws_root = simulated_home / "AllProjects"
+        sim_ws_root.mkdir(parents=True, exist_ok=True)
+
+        profiles_dir = simulated_home / "antigravity_homes"
+        p1 = profiles_dir / "p1"
+        p2 = profiles_dir / "p2"
+        p1.mkdir(parents=True, exist_ok=True)
+        p2.mkdir(parents=True, exist_ok=True)
+
+        # Setup real history and profile history with 3 unique commands
+        (simulated_home / ".zsh_history").write_text("cmd_existing_1\ncmd_existing_2\n", encoding="utf-8")
+        (p1 / ".zsh_history").symlink_to(simulated_home / ".zsh_history")
+        (p2 / ".zsh_history").write_text("cmd_p2_1\ncmd_p2_2\ncmd_p2_3\n", encoding="utf-8")
+
+        # Run sync_shell_env twice
+        for _ in range(2):
+            res = self.run_cli([
+                "--sync-zshrc",
+                "--real-home", str(simulated_home),
+                "--workspace-root", str(sim_ws_root),
+            ])
+            self.assertEqual(res.returncode, 0, f"stderr: {res.stderr}")
+
+        # The 3 unique commands must appear exactly once
+        shared_hist = (simulated_home / ".zsh_history").read_text(encoding="utf-8")
+        self.assertEqual(shared_hist.count("cmd_p2_1"), 1)
+        self.assertEqual(shared_hist.count("cmd_p2_2"), 1)
+        self.assertEqual(shared_hist.count("cmd_p2_3"), 1)
+        self.assertTrue((p1 / ".zsh_history").is_symlink())
+        self.assertTrue((p2 / ".zsh_history").is_symlink())
+
+    def test_cmm_fr_02_missing_contracts_and_git_fallback(self) -> None:
+        """[CMM-FR-02] Graceful Fallback When D3Nexus Shared Contracts or Repo Git Directory Is Absent."""
+        # Non-git directory in workspace
+        non_git_repo = self.workspace / "lyrics-sync"
+        non_git_repo.mkdir(parents=True, exist_ok=True)
+
+        harvest = self.run_cli([])
+        self.assertEqual(harvest.returncode, 0, f"stderr: {harvest.stderr}")
+        out = harvest.stdout
+        self.assertIn("(D3Nexus/shared-contracts not initialized yet.)", out)
+        # Verify all 6 sections printed
+        self.assertIn("0. PROJECT ARCHITECTURAL LEDGER", out)
+        self.assertIn("1. ACTIVE EPIC STATE", out)
+        self.assertIn("2. RECENT PROGRAMMER ACTIVITY", out)
+        self.assertIn("3. GIT WORKING TREE", out)
+        self.assertIn("4. OPEN CONTRACT GAPS & RFCS", out)
+        self.assertIn("5. ACTIVE TASKS", out)
+
 
 if __name__ == "__main__":
     unittest.main()

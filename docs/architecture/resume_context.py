@@ -16,6 +16,7 @@ import argparse
 import contextlib
 import fcntl
 import os
+import re
 import subprocess
 from collections.abc import Iterator
 from datetime import datetime
@@ -543,14 +544,125 @@ NHIỆM VỤ:
         print(f"Unknown prompt mode: {mode}")
 
 
-def sync_shell_env(workspace_root: Path) -> None:
-    # Stub for task 1, fully expanded in task 2
-    print(f"Shell environment sync initialized for workspace: {workspace_root}")
+def update_zshrc_env(zshrc_path: Path, r_home: Path, ws_root: Path) -> None:
+    if not zshrc_path.exists():
+        zshrc_path.write_text("", encoding="utf-8")
+    content = zshrc_path.read_text(encoding="utf-8")
+    lines_to_add: list[str] = []
+    if "REAL_HOME" not in content:
+        lines_to_add.append(f'export REAL_HOME="{r_home}"')
+    if "WORKSPACE_ROOT" not in content:
+        lines_to_add.append(f'export WORKSPACE_ROOT="{ws_root}"')
+    if lines_to_add:
+        zshrc_path.write_text("\n".join(lines_to_add) + "\n" + content, encoding="utf-8")
+
+
+def update_zshrc_history_and_aliases(zshrc_path: Path) -> None:
+    content = zshrc_path.read_text(encoding="utf-8")
+    if 'HISTFILE="$REAL_HOME/.zsh_history"' not in content:
+        hist_block = (
+            '\n# Shared real-time zsh history across accounts\n'
+            'export HISTFILE="$REAL_HOME/.zsh_history"\n'
+            'export HISTSIZE=50000\n'
+            'export SAVEHIST=50000\n'
+            'setopt INC_APPEND_HISTORY\n'
+            'setopt SHARE_HISTORY\n'
+            'setopt HIST_IGNORE_DUPS\n'
+        )
+        if "source $ZSH/oh-my-zsh.sh" in content:
+            parts = content.split("source $ZSH/oh-my-zsh.sh", 1)
+            content = parts[0] + "source $ZSH/oh-my-zsh.sh" + hist_block + parts[1]
+        else:
+            content += hist_block
+
+    if "alias resume=" not in content:
+        content += "\nalias resume='python3 $HOME/Projects/ai-agent-tools/scripts/resume_context.py'\n"
+    if "alias save-context=" not in content:
+        content += "alias save-context='python3 $HOME/Projects/ai-agent-tools/scripts/resume_context.py --complete'\n"
+    zshrc_path.write_text(content, encoding="utf-8")
+
+
+def update_zshrc_sync_items(zshrc_path: Path) -> None:
+    content = zshrc_path.read_text(encoding="utf-8")
+    if "ag_run()" not in content:
+        return
+    m = re.search(r"sync_items=\((.*?)\)", content)
+    if m:
+        items = m.group(1).split()
+        for needed in ["AllProjects", "Projects", ".zsh_history"]:
+            if needed not in items:
+                items.append(needed)
+        new_decl = f"sync_items=({' '.join(items)})"
+        content = content[:m.start()] + new_decl + content[m.end():]
+        zshrc_path.write_text(content, encoding="utf-8")
+
+
+def merge_profile_history(prof_hist: Path, main_hist: Path, seen_cmds: set[str]) -> None:
+    if not prof_hist.exists():
+        return
+    if prof_hist.is_symlink():
+        return
+    prof_lines = [l.strip() for l in prof_hist.read_text(encoding="utf-8").splitlines() if l.strip()]
+    new_lines = [l for l in prof_lines if l not in seen_cmds]
+    if new_lines:
+        with main_hist.open("a", encoding="utf-8") as f:
+            for nl in new_lines:
+                f.write(nl + "\n")
+                seen_cmds.add(nl)
+    prof_hist.unlink()
+    prof_hist.symlink_to(main_hist)
+
+
+def sync_profile_symlinks(prof: Path, main_hist: Path, ws_root: Path) -> None:
+    prof_hist = prof / ".zsh_history"
+    if not prof_hist.exists() and not prof_hist.is_symlink():
+        prof_hist.symlink_to(main_hist)
+    for name in ["Projects", "AllProjects"]:
+        p_link = prof / name
+        if not p_link.exists() and not p_link.is_symlink():
+            p_link.symlink_to(ws_root)
+        elif p_link.is_symlink() and p_link.resolve() != ws_root.resolve():
+            p_link.unlink()
+            p_link.symlink_to(ws_root)
+
+
+def sync_shell_env(
+    real_home: Path | None = None,
+    workspace_root: Path | None = None,
+) -> dict[str, object]:
+    r_home = real_home or Path("/Users/danhdueexoictif")
+    ws_root = workspace_root or Path("/Users/danhdueexoictif/AllProjects")
+    zshrc_path = r_home / ".zshrc"
+    main_hist = r_home / ".zsh_history"
+
+    update_zshrc_env(zshrc_path, r_home, ws_root)
+    update_zshrc_history_and_aliases(zshrc_path)
+    update_zshrc_sync_items(zshrc_path)
+
+    projects_link = r_home / "Projects"
+    if not projects_link.exists() and not projects_link.is_symlink():
+        projects_link.symlink_to(ws_root)
+
+    if not main_hist.exists():
+        main_hist.write_text("", encoding="utf-8")
+    seen_cmds = {l.strip() for l in main_hist.read_text(encoding="utf-8").splitlines() if l.strip()}
+
+    synced_profiles: list[str] = []
+    profiles_dir = r_home / "antigravity_homes"
+    if profiles_dir.exists():
+        for prof in sorted(profiles_dir.iterdir()):
+            if prof.is_dir():
+                merge_profile_history(prof / ".zsh_history", main_hist, seen_cmds)
+                sync_profile_symlinks(prof, main_hist, ws_root)
+                synced_profiles.append(prof.name)
+
+    return {"real_home": str(r_home), "workspace_root": str(ws_root), "synced_profiles": synced_profiles}
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Two-Tier Context Harvester & Multi-Epic Memory Tool")
     parser.add_argument("--workspace-root", type=str, help="Workspace root containing repositories")
+    parser.add_argument("--real-home", type=str, help="Real home directory for shell environment sync")
     parser.add_argument("--repo", type=str, help="Target repository name")
     parser.add_argument("--epic", type=str, help="Active epic slug")
     parser.add_argument("--role", type=str, choices=["assistant", "programmer", "implementer", "worker"], help="Active persona role")
@@ -595,7 +707,10 @@ def main() -> None:
         return
 
     if args.sync_zshrc:
-        sync_shell_env(workspace)
+        r_home = Path(args.real_home) if args.real_home else None
+        ws_root = Path(args.workspace_root) if args.workspace_root else None
+        res = sync_shell_env(real_home=r_home, workspace_root=ws_root)
+        print(f"Shell environment synchronized: {res}")
         return
 
     is_repo = (primary_repo / ".git").exists() or (primary_repo / ".devtool").exists()

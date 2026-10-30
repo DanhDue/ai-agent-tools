@@ -1,0 +1,251 @@
+{
+  "schema": 1,
+  "task": "task_02_zshrc_and_environment_sync",
+  "runs": {
+    "red": {
+      "head": "bbd635c75889759457f3198e2c0777ebe8a18cb1",
+      "tree": "772ed75861fb52686e5449303d29a8f1b04625e4",
+      "patch_id": "5a76b4eb2d72577cb6f77bf8ef6c3c7d063b0808",
+      "started": "2026-10-30T17:24:36Z",
+      "finished": "2026-10-30T17:24:37Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m unittest scripts/test_resume_context.py -k test_cmm_hp_02",
+          "expect": "exit 1; contains \"FAILED\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-30T17:24:36Z",
+          "finished": "2026-10-30T17:24:36Z",
+          "output_tail": [
+            "F",
+            "======================================================================",
+            "FAIL: test_cmm_hp_02_zshrc_symlinks_history_and_aliases (scripts.test_resume_context.TestResumeContext.test_cmm_hp_02_zshrc_symlinks_history_and_aliases)",
+            "[CMM-HP-02] Multi-Profile Zshrc Environment, Shared Terminal History, and Alias Synchronization.",
+            "----------------------------------------------------------------------",
+            "Traceback (most recent call last):",
+            "  File \"/Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/context_memory_management/scripts/test_resume_context.py\", line 345, in test_cmm_hp_02_zshrc_symlinks_history_and_aliases",
+            "    self.assertEqual(res.returncode, 0, f\"stderr: {res.stderr}\")",
+            "    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+            "AssertionError: 2 != 0 : stderr: usage: resume_context.py [-h] [--workspace-root WORKSPACE_ROOT] [--repo REPO]",
+            "                         [--epic EPIC]",
+            "                         [--role {assistant,programmer,implementer,worker}]",
+            "                         [--tail TAIL] [--json] [--state]",
+            "                         [--decisions DECISIONS] [--status STATUS]",
+            "                         [--next NEXT] [--prompt PROMPT] [--log] [--task TASK]",
+            "                         [--request REQUEST] [--action ACTION] [--note NOTE]",
+            "                         [--complete COMPLETE [COMPLETE ...]] [--checkpoint]",
+            "                         [--emit-prompt {principal-review,implement,cross-review,finish,assistant}]",
+            "                         [--epic-dir EPIC_DIR] [--sync-zshrc]",
+            "resume_context.py: error: unrecognized arguments: --real-home /tmp/ag_duedd/tmpn_6poo75/fake_home",
+            "",
+            "",
+            "----------------------------------------------------------------------",
+            "Ran 1 test in 0.145s",
+            "",
+            "FAILED (failures=1)"
+          ],
+          "output_sha256": "ddc539e05a5501b5f67ccb62b8b3f3eb8aff336f31f9ca9cb2a826bc8f57fc8b"
+        }
+      ]
+    },
+    "verify": {
+      "head": "bbd635c75889759457f3198e2c0777ebe8a18cb1",
+      "tree": "5fcf3d6eb4d05fefd7eb7f314ffd6ce79a4c36de",
+      "patch_id": "9d5b4ac0e71400cbf4aeab6ef33172d898cd9ff7",
+      "started": "2026-10-30T17:26:36Z",
+      "finished": "2026-10-30T17:26:40Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m unittest scripts/test_resume_context.py -k test_cmm_hp_02",
+          "expect": "exit 0; contains \"OK\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-30T17:26:36Z",
+          "finished": "2026-10-30T17:26:36Z",
+          "output_tail": [
+            ".",
+            "----------------------------------------------------------------------",
+            "Ran 1 test in 0.156s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "83daaab804948bc71e473e7e8bed9710508e89ef4b58dda0267ed7b5a560e519"
+        },
+        {
+          "id": "V3",
+          "phase": "GREEN",
+          "command": "python3 -m unittest scripts/test_resume_context.py -k test_cmm_ar_02",
+          "expect": "exit 0; contains \"OK\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-30T17:26:36Z",
+          "finished": "2026-10-30T17:26:37Z",
+          "output_tail": [
+            ".",
+            "----------------------------------------------------------------------",
+            "Ran 1 test in 0.258s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "acbb93df8f1dff9724237252f0843e44b481e969a7158edabc66dd8938fe381c"
+        },
+        {
+          "id": "V4",
+          "phase": "GREEN",
+          "command": "python3 -m unittest scripts/test_resume_context.py -k test_cmm_fr_02",
+          "expect": "exit 0; contains \"OK\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-30T17:26:37Z",
+          "finished": "2026-10-30T17:26:37Z",
+          "output_tail": [
+            ".",
+            "----------------------------------------------------------------------",
+            "Ran 1 test in 0.163s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "4770d8a76bd7bab0cd6634baad89f7499a146fa0e95b79e50ca96f71e4771a77"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-B",
+          "command": "ruff check scripts/resume_context.py docs/architecture/resume_context.py scripts/test_resume_context.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-30T17:26:37Z",
+          "finished": "2026-10-30T17:26:37Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V6",
+          "phase": "TIER-B",
+          "command": "mypy --strict --follow-imports=silent scripts/resume_context.py scripts/test_resume_context.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-30T17:26:37Z",
+          "finished": "2026-10-30T17:26:37Z",
+          "output_tail": [
+            "Success: no issues found in 2 source files"
+          ],
+          "output_sha256": "f9b031e5c45aa702cd4fef028d465551cb20a2c4698e0913c7b00766b20ac4d8"
+        },
+        {
+          "id": "V7",
+          "phase": "TIER-C",
+          "command": "python3 scripts/run_unittest_junit.py --junitxml build/test-results/task_02.xml scripts/test_resume_context.py",
+          "expect": "exit 0; results build/test-results/task_02.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-30T17:26:37Z",
+          "finished": "2026-10-30T17:26:40Z",
+          "output_tail": [
+            "..........",
+            "----------------------------------------------------------------------",
+            "Ran 10 tests in 2.624s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "fed11c9c9459e5206b5877b025c229b1c65af5899da0e21ff4a573961e521bca",
+          "results": {
+            "path": "build/test-results/task_02.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 10,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_cmm_ar_01_concurrent_flock",
+                  "classname": "test_resume_context.TestResumeContext",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cmm_ar_02_idempotent_zsh_history_merge",
+                  "classname": "test_resume_context.TestResumeContext",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cmm_ec_01_snapshot_20_line_cap",
+                  "classname": "test_resume_context.TestResumeContext",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cmm_ec_02_worktree_routing",
+                  "classname": "test_resume_context.TestResumeContext",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cmm_ec_03_kanban_task_progress",
+                  "classname": "test_resume_context.TestResumeContext",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cmm_fr_01_legacy_migration",
+                  "classname": "test_resume_context.TestResumeContext",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cmm_fr_02_missing_contracts_and_git_fallback",
+                  "classname": "test_resume_context.TestResumeContext",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cmm_hp_01_multi_epic_state_log_and_complete_isolation",
+                  "classname": "test_resume_context.TestResumeContext",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cmm_hp_02_zshrc_symlinks_history_and_aliases",
+                  "classname": "test_resume_context.TestResumeContext",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cmm_st_01_tri_role_banners_and_emit_prompts",
+                  "classname": "test_resume_context.TestResumeContext",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "docs/architecture/resume_context.py",
+            "scripts/resume_context.py",
+            "scripts/test_resume_context.py"
+          ],
+          "violations": []
+        }
+      ]
+    }
+  }
+}
