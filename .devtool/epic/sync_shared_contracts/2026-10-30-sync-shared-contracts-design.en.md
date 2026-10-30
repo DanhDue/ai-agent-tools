@@ -1,7 +1,7 @@
 # Sync Shared Contracts Design
 
 - **Date**: 2026-10-30
-- **Status**: Draft (Pending Gate 1 Approval)
+- **Status**: Approved
 - **Scope**: New skill `skills/sync-shared-contracts/`, CLI engine `sync_contracts.py`, canonical delta brief template, hermetic test suite `test_sync_contracts.py`, integration with `scripts/verify.sh`
 - **Next step**: `d3nexus:dev-designer` (Stage 2 — High-Level Design, BDD Scenarios, and Kanban Breakdown)
 
@@ -232,3 +232,4 @@ The hermetic test suite in `skills/sync-shared-contracts/resources/scripts/test_
   *Mitigation*: The scanner checks normalized route suffixes (stripping `{param}` placeholders) and checks both `snake_case` and `camelCase` field tokens, while treating heuristic results as advisory indicators alongside the authoritative `.agents/contract_sync.json` watermark.
 - **Risk: Satellite agents accidentally staging `shared-contracts/` when updating sync state.**
   *Mitigation*: Sync state is stored strictly inside `<repo_root>/.agents/contract_sync.json`, completely outside the `shared-contracts` symlink, and `brief` explicitly injects the `Files Allowed` prohibition reminder for `dev-designer`.
+

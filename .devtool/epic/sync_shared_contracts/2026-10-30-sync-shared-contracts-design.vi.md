@@ -1,7 +1,7 @@
 # Thiết Kế Skill Đồng Bộ Và Thực Thi Shared Contracts
 
 - **Ngày**: 2026-10-30
-- **Trạng thái**: Bản nháp (Chờ phê duyệt Gate 1)
+- **Trạng thái**: Đã phê duyệt
 - **Phạm vi**: Skill mới `skills/sync-shared-contracts/`, CLI engine `sync_contracts.py`, template báo cáo delta chuẩn hóa, bộ test hermetic `test_sync_contracts.py`, tích hợp vào `scripts/verify.sh`
 - **Bước tiếp theo**: `d3nexus:dev-designer` (Stage 2 — Thiết kế Mức cao HLD, Kịch bản BDD, và Phân rã Kanban Tasks)
 
@@ -232,3 +232,4 @@ Bộ kiểm thử cô lập (hermetic) trong `skills/sync-shared-contracts/resou
   *Biện pháp*: Bộ quét chuẩn hóa các đoạn đường dẫn tĩnh (loại bỏ `{param}`) và kiểm tra cả hai biến thể `snake_case` lẫn `camelCase`, đồng thời kết quả heuristic đóng vai trò chỉ báo bổ trợ bên cạnh mốc đồng bộ chính thức trong `.agents/contract_sync.json`.
 - **Rủi ro: Agent trên Satellite vô tình đưa `shared-contracts/` vào git staging khi lưu trạng thái đồng bộ.**
   *Biện pháp*: Trạng thái đồng bộ được lưu hoàn toàn tại `<repo_root>/.agents/contract_sync.json` (nằm ngoài symlink `shared-contracts`), và báo cáo `brief` luôn đính kèm quy tắc cấm đưa `shared-contracts/` vào `Files Allowed` cho `dev-designer`.
+
