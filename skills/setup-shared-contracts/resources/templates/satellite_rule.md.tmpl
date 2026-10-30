@@ -1,0 +1,29 @@
+# Shared Contracts Rules (Satellite Repository)
+
+- **Hub Repository**: `$hub_repo`
+- **Domain**: `$domain`
+- **Role**: Satellite Consumer
+- **Generated**: `$timestamp`
+
+> [!CRITICAL]
+> **This repository is a Satellite Consumer in the multi-repo ecosystem.**
+> All contracts reside in `shared-contracts/` via a relative symbolic link (Git mode `120000`).
+> AI Agents and human engineers operating in this workspace MUST strictly adhere to the following rules:
+
+## 1. Multi-Repo Git Boundary and Symlink Isolation
+
+- **Strict Read-Only Boundary**: `shared-contracts/` is a symbolic link pointing to `$hub_repo`. Within this repository, it MUST be treated as strictly read-only for git operations.
+- **Forbidden in Task Files**: AI Agents **MUST NOT** include `shared-contracts/` or `shared-contracts/**` in `Files Allowed` for any task in this repository (preventing `fatal: pathspec is beyond a symbolic link`).
+- **No Cross-Repo Staging**: NEVER stage (`git add`) or commit (`git commit`) files residing across the symlink boundary.
+- **No Cross-Repo Shell Escapes**: NEVER execute autonomous git commits in adjacent repositories (e.g. `git -C <target_repo>`) without explicit developer instruction.
+
+## 2. Stateless Compute Isolation (Worker Discipline)
+
+- **No Direct Database Access**: Direct database connection to the Hub control plane database (`DATABASE_URL`, PostgreSQL, SQLite) is **STRICTLY PROHIBITED**.
+- **API Transport Only**: All state transitions, lease claims, progress heartbeats, and terminal deliveries MUST occur via documented HTTP REST / SSE endpoints.
+- **Authentication**: All worker requests MUST present the canonical `X-Worker-Token` header.
+
+## 3. Asynchronous RFC Workflow
+
+- **No Unilateral Schema Mutations**: Satellite implementations must never invent ad-hoc fields or diverge from the contract.
+- **Proposing Changes**: When a new capability or payload field is required, log a formal proposal in `shared-contracts/$domain/gaps_and_rfcs.md` and wait for upstream Hub alignment.

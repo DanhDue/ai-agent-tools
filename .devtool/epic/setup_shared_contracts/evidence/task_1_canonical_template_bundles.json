@@ -1,0 +1,184 @@
+{
+  "schema": 1,
+  "task": "task_1_canonical_template_bundles",
+  "runs": {
+    "red": {
+      "head": "e7ad13a42a3b0b37263ccbc7f1d41a810ed34e77",
+      "tree": "baf3f37c00200d8266734ecf12e1703eb827b6ef",
+      "patch_id": null,
+      "started": "2026-10-30T06:57:03Z",
+      "finished": "2026-10-30T06:57:03Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m unittest skills/setup-shared-contracts/resources/scripts/test_setup_contracts.py -k test_ssc_hp_01",
+          "expect": "exit 1; contains \"FAILED\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-30T06:57:03Z",
+          "finished": "2026-10-30T06:57:03Z",
+          "output_tail": [
+            "E",
+            "======================================================================",
+            "ERROR: skills/setup-shared-contracts/resources/scripts/test_setup_contracts (unittest.loader._FailedTest.skills/setup-shared-contracts/resources/scripts/test_setup_contracts)",
+            "----------------------------------------------------------------------",
+            "ImportError: Failed to import test module: skills/setup-shared-contracts/resources/scripts/test_setup_contracts",
+            "Traceback (most recent call last):",
+            "  File \"/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/unittest/loader.py\", line 137, in loadTestsFromName",
+            "    module = __import__(module_name)",
+            "ModuleNotFoundError: No module named 'skills/setup-shared-contracts/resources/scripts/test_setup_contracts'",
+            "",
+            "",
+            "----------------------------------------------------------------------",
+            "Ran 1 test in 0.000s",
+            "",
+            "FAILED (errors=1)"
+          ],
+          "output_sha256": "3f91ba6092f37544a6a1d20d4023195c47aaa8abda5871f431a5093579c98729"
+        }
+      ]
+    },
+    "verify": {
+      "head": "e7ad13a42a3b0b37263ccbc7f1d41a810ed34e77",
+      "tree": "043cc1471c3aa2556a2ab973a651cf5ea00498f6",
+      "patch_id": "229636b68a24cb076c3edb0f171b0d7e33767889",
+      "started": "2026-10-30T07:00:08Z",
+      "finished": "2026-10-30T07:00:09Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m unittest skills/setup-shared-contracts/resources/scripts/test_setup_contracts.py -k test_ssc_hp_01",
+          "expect": "exit 0; contains \"OK\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-30T07:00:08Z",
+          "finished": "2026-10-30T07:00:08Z",
+          "output_tail": [
+            ".",
+            "----------------------------------------------------------------------",
+            "Ran 1 test in 0.000s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "fb184ea57734512b1f088f9181209901b9cd46df3eb7eaa2500ea9e48dde20b5"
+        },
+        {
+          "id": "V3",
+          "phase": "GREEN",
+          "command": "python3 -m unittest skills/setup-shared-contracts/resources/scripts/test_setup_contracts.py -k test_ssc_ec_01",
+          "expect": "exit 0; contains \"OK\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-30T07:00:08Z",
+          "finished": "2026-10-30T07:00:09Z",
+          "output_tail": [
+            ".",
+            "----------------------------------------------------------------------",
+            "Ran 1 test in 0.001s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "d10ffbd9f0faa72cd6837063279524e199b59fbc3d035051302a1e8dbc4b36ad"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "ruff check skills/setup-shared-contracts/resources/scripts/test_setup_contracts.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-30T07:00:09Z",
+          "finished": "2026-10-30T07:00:09Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-B",
+          "command": "mypy --strict --follow-imports=silent skills/setup-shared-contracts/resources/scripts/test_setup_contracts.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-30T07:00:09Z",
+          "finished": "2026-10-30T07:00:09Z",
+          "output_tail": [
+            "Success: no issues found in 1 source file"
+          ],
+          "output_sha256": "5d4b6d285b77932e3d08212c3b4974d0a803f98ec60408ac6ccf6a063fa6c19e"
+        },
+        {
+          "id": "V6",
+          "phase": "TIER-C",
+          "command": "python3 scripts/run_unittest_junit.py --junitxml build/test-results/task_1.xml skills/setup-shared-contracts/resources/scripts/test_setup_contracts.py",
+          "expect": "exit 0; results build/test-results/task_1.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-30T07:00:09Z",
+          "finished": "2026-10-30T07:00:09Z",
+          "output_tail": [
+            "....",
+            "----------------------------------------------------------------------",
+            "Ran 4 tests in 0.002s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "d094b1bd2c8318c96097f80c50da282add5b2972970a77046de8db6c8935f6ca",
+          "results": {
+            "path": "build/test-results/task_1.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 2,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_ssc_ec_01",
+                  "classname": "test_setup_contracts.TestCanonicalTemplates",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ssc_hp_01",
+                  "classname": "test_setup_contracts.TestCanonicalTemplates",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "skills/setup-shared-contracts/resources/scripts/test_setup_contracts.py",
+            "skills/setup-shared-contracts/resources/templates/api_contract.md.tmpl",
+            "skills/setup-shared-contracts/resources/templates/architecture_and_flow.md.tmpl",
+            "skills/setup-shared-contracts/resources/templates/gaps_and_rfcs.md.tmpl",
+            "skills/setup-shared-contracts/resources/templates/hub_readme.md.tmpl",
+            "skills/setup-shared-contracts/resources/templates/hub_rule.md.tmpl",
+            "skills/setup-shared-contracts/resources/templates/satellite_rule.md.tmpl"
+          ],
+          "violations": []
+        }
+      ]
+    }
+  }
+}

@@ -16,7 +16,7 @@
 ## Meta Data
 
 - **Epic name**: `setup_shared_contracts`
-- **Status**: Packaged
+- **Status**: In Progress
 - **Target release**: Next plugin release (1.16.0)
 - **Platform**: Python tooling / agent skill kit
 - **Source Spec**: [Approved Setup Shared Contracts design](2026-10-30-setup-shared-contracts-design.en.md)

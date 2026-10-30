@@ -1,13 +1,13 @@
 ---
 id: "task_1_canonical_template_bundles"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "setup_shared_contracts"
 dueDate: null
 created: "2026-10-30T05:35:00Z"
-modified: "2026-10-30T05:35:00Z"
-completedAt: null
+modified: "2026-10-30T07:00:51Z"
+completedAt: "2026-10-30T07:00:51Z"
 labels: ["contracts", "templates"]
 order: "a1"
 ---
