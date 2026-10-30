@@ -1,13 +1,13 @@
 ---
 id: "task_2_cli_engine_hub_init"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "setup_shared_contracts"
 dueDate: null
 created: "2026-10-30T05:35:00Z"
-modified: "2026-10-30T05:35:00Z"
-completedAt: null
+modified: "2026-10-30T07:04:16Z"
+completedAt: "2026-10-30T07:04:16Z"
 labels: ["contracts", "cli", "hub"]
 order: "a2"
 ---

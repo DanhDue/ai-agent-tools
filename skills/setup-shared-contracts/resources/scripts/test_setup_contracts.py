@@ -154,5 +154,69 @@ class TestCanonicalTemplates(unittest.TestCase):
             self.assertIn("Stateless Compute", sat_rendered)
 
 
+class TestHubInitialization(unittest.TestCase):
+    """[SSC-ST-01] and [SSC-FR-01] tests for setup_contracts.py init-hub."""
+
+    def test_ssc_st_01(self) -> None:
+        """[SSC-ST-01] Adding subsequent domains updates topology README and preserves existing."""
+        import subprocess
+
+        cli_path = Path(__file__).resolve().parent / "setup_contracts.py"
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
+
+            # 1. Initialize hub with first domain lyrics-sync
+            proc1 = subprocess.run(
+                ["python3", str(cli_path), "init-hub", "--domain", "lyrics-sync", "--repo-root", str(tmp_path)],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(proc1.returncode, 0, f"Init-hub 1 failed: {proc1.stderr}")
+
+            # 2. Add second domain nexus
+            proc2 = subprocess.run(
+                ["python3", str(cli_path), "init-hub", "--domain", "nexus", "--repo-root", str(tmp_path)],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(proc2.returncode, 0, f"Init-hub 2 failed: {proc2.stderr}")
+
+            # 3. Assert directory structures
+            readme_file = tmp_path / "shared-contracts" / "README.md"
+            self.assertTrue(readme_file.is_file())
+            readme_text = readme_file.read_text(encoding="utf-8")
+            self.assertIn("lyrics-sync", readme_text)
+            self.assertIn("nexus", readme_text)
+
+            nexus_dir = tmp_path / "shared-contracts" / "nexus"
+            for canonical in ("api_contract.md", "architecture_and_flow.md", "gaps_and_rfcs.md"):
+                self.assertTrue((nexus_dir / canonical).is_file(), f"Missing {canonical} in nexus domain")
+
+    def test_ssc_fr_01(self) -> None:
+        """[SSC-FR-01] Refusing Hub initialization on existing symlink."""
+        import os
+        import subprocess
+
+        cli_path = Path(__file__).resolve().parent / "setup_contracts.py"
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
+            target_dummy = tmp_path / "dummy_target"
+            target_dummy.mkdir()
+
+            symlink_path = tmp_path / "shared-contracts"
+            os.symlink(target_dummy, symlink_path)
+
+            proc = subprocess.run(
+                ["python3", str(cli_path), "init-hub", "--repo-root", str(tmp_path)],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(proc.returncode, 1)
+            self.assertIn("symlink", (proc.stdout + proc.stderr).lower())
+
+
 if __name__ == "__main__":
     unittest.main()
