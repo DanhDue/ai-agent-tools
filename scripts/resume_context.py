@@ -386,7 +386,8 @@ def scan_activity_stream(root: Path, tail_lines: int = 15) -> None:
 
 def scan_git_status(root: Path) -> None:
     print_section("3. GIT WORKING TREE STATUS ACROSS REPOS")
-    target_repos = [root] if (root / ".git").exists() else [root / r for r in REPOS]
+    ws_base = root.parent if root.name in REPOS else root
+    target_repos = [ws_base / r for r in REPOS] if ws_base != root or not (root / ".git").exists() else [root]
     for repo_path in target_repos:
         if not (repo_path / ".git").exists():
             continue
@@ -401,7 +402,8 @@ def scan_git_status(root: Path) -> None:
 
 def scan_open_rfcs(root: Path) -> None:
     print_section("4. OPEN CONTRACT GAPS & RFCS (shared-contracts/*/gaps_and_rfcs.md)")
-    hub_contracts = root / "D3Nexus" / "shared-contracts"
+    ws_base = root.parent if root.name in REPOS else root
+    hub_contracts = ws_base / "D3Nexus" / "shared-contracts"
     if not hub_contracts.exists():
         print("  (D3Nexus/shared-contracts not initialized yet.)")
         return
@@ -412,14 +414,15 @@ def scan_open_rfcs(root: Path) -> None:
             if "OPEN" in line or line.startswith(("## ", "### "))
         ]
         if open_items:
-            print(f"📄 {rfc_file.relative_to(root)}:")
+            print(f"📄 {rfc_file.relative_to(ws_base)}:")
             for item in open_items[-10:]:
                 print(f"  {item}")
 
 
 def scan_active_tasks(root: Path, epic_filter: str | None = None) -> None:
     print_section("5. ACTIVE TASKS (.devtool/features/task_*.md)")
-    candidates = [root] + [root / r for r in REPOS]
+    ws_base = root.parent if root.name in REPOS else root
+    candidates = [root] + [ws_base / r for r in REPOS]
     found = False
     seen_dirs: set[Path] = set()
 
@@ -511,8 +514,9 @@ def collect_harvest_data(root: Path, tail_lines: int = 15, epic_filter: str | No
             lines = [l.strip() for l in read_tail(d_dir / "activity_stream.log", tail_lines).splitlines() if l.strip()]
             activity_entries.extend(lines)
 
+    ws_base = root.parent if root.name in REPOS else root
     git_status: dict[str, str] = {}
-    target_repos = [root] if (root / ".git").exists() else [root / r for r in REPOS]
+    target_repos = [ws_base / r for r in REPOS] if ws_base != root or not (root / ".git").exists() else [root]
     for repo_path in target_repos:
         if not (repo_path / ".git").exists():
             continue
@@ -525,7 +529,7 @@ def collect_harvest_data(root: Path, tail_lines: int = 15, epic_filter: str | No
         git_status[repo_path.name] = res.stdout.strip()
 
     rfcs: list[str] = []
-    hub_contracts = root / "D3Nexus" / "shared-contracts"
+    hub_contracts = ws_base / "D3Nexus" / "shared-contracts"
     if hub_contracts.exists():
         for rfc_file in sorted(hub_contracts.glob("*/gaps_and_rfcs.md")):
             lines = rfc_file.read_text(encoding="utf-8").splitlines()
@@ -536,7 +540,7 @@ def collect_harvest_data(root: Path, tail_lines: int = 15, epic_filter: str | No
             if open_items:
                 rfcs.extend(open_items[-10:])
 
-    task_candidates = [root] + [root / r for r in REPOS]
+    task_candidates = [root] + [ws_base / r for r in REPOS]
     active_tasks_list: list[dict[str, object]] = []
     seen_tasks: set[Path] = set()
     for r_path in task_candidates:
