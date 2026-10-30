@@ -41,28 +41,36 @@ def atomic_write_text(target_path: Path, content: str) -> None:
 def resolve_symlink_safe(path: Path) -> tuple[Path, bool]:
     """Resolve a symlink safely with cycle detection and depth boundaries."""
     current = path
-    visited: set[str] = set()
+    visited: set[tuple[int, int] | str] = set()
     depth = 0
 
     while current.is_symlink() or os.path.islink(current):
         if depth >= MAX_SYMLINK_DEPTH:
             return current, False
         try:
-            raw_link = os.readlink(current)
-            resolved_key = f"{current.parent}:{raw_link}"
-            if resolved_key in visited:
+            st = os.lstat(current)
+            node_key: tuple[int, int] | str = (
+                (st.st_dev, st.st_ino) if st.st_ino != 0 else str(current.absolute())
+            )
+            if node_key in visited:
                 return current, False
-            visited.add(resolved_key)
+            visited.add(node_key)
 
+            raw_link = os.readlink(current)
             if not os.path.isabs(raw_link):
-                current = (current.parent / raw_link).resolve()
+                next_path = current.parent / raw_link
             else:
-                current = Path(raw_link).resolve()
-        except OSError:
+                next_path = Path(raw_link)
+            current = Path(os.path.normpath(next_path))
+        except (OSError, RuntimeError):
             return current, False
         depth += 1
 
-    return current, current.exists()
+    try:
+        final_target = current.resolve()
+        return final_target, final_target.exists()
+    except (OSError, RuntimeError):
+        return current, False
 
 
 def _get_timestamp() -> str:
