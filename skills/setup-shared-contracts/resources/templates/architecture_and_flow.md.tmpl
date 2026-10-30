@@ -1,0 +1,63 @@
+# Architecture and Flow: $domain
+
+- **Domain**: `$domain`
+- **Hub Repository**: `$hub_repo`
+- **Version**: `1.0.0`
+- **Last Updated**: `$timestamp`
+
+## 1. System Overview
+
+This document specifies the architectural topology, pipeline lifecycles, and state machine transitions for the `$domain` service domain.
+
+```mermaid
+flowchart TD
+    HUB["Hub Control Plane ($hub_repo)<br/>Database & State Authority"]
+    WORKER["Stateless Worker Satellite<br/>(e.g. lyrics-sync)"]
+    CLIENT["Client Applications<br/>(e.g. nexus)"]
+
+    HUB -->|1. Lease Acquisition| WORKER
+    WORKER -->|2. Heartbeat & Progress| HUB
+    WORKER -->|3. Terminal Delivery| HUB
+    CLIENT -->|Query State / SSE| HUB
+```
+
+## 2. Seven Canonical Pipeline Steps
+
+All compute workloads executed under `$domain` MUST implement the seven canonical lifecycle steps:
+
+1. **Lease Acquisition**: Worker claims task lease from Hub via authenticated HTTP endpoint.
+2. **Input Validation**: Worker verifies input payload schema, preconditions, and parameter sanity.
+3. **Scratch Isolation**: Worker allocates dedicated temporary workspace (e.g. `tmp/<task_id>/`).
+4. **Core Compute**: Worker executes primary algorithmic or transformation pipeline.
+5. **Heartbeat and Progress**: Worker emits periodic progress updates to prevent lease timeout.
+6. **Terminal Result Delivery**: Worker submits final artifact or status payload to Hub.
+7. **Scratch Teardown**: Worker unconditionally purges local temporary directory in `finally` block.
+
+## 3. State Machine Transitions
+
+```mermaid
+stateDiagram-v2
+    [*] --> Idle
+    Idle --> Leased: Claim Task
+    Leased --> Executing: Start Pipeline
+    Executing --> Executing: Heartbeat (< 5s)
+    Executing --> Delivering: Task Complete
+    Delivering --> Completed: ACK from Hub
+    Executing --> Cancelled: Cancel Signal (< 50ms)
+    Executing --> Failed: Unhandled Error
+    Completed --> [*]
+    Cancelled --> [*]
+    Failed --> [*]
+```
+
+## 4. Cancellation Fencing and Resource Cleanup
+
+- **Latency Guarantee**: When Hub issues a cancellation signal, worker compute MUST abort execution and release resources within **50 milliseconds**.
+- **Scratch Purge**: Temporary files, scratch memory, and child subprocesses must be terminated cleanly. No orphan files may persist across runs.
+
+## 5. Stateless Compute Boundary Discipline
+
+> [!CRITICAL]
+> **Satellite worker nodes operate as strictly stateless compute engines.**
+> - Direct database connections (`DATABASE_URL`, PostgreSQL, SQLite) to Hub databases are **STRICTLY PROHIBITED**.
+> - All state persistence, task queueing, and lease reconciliation are managed exclusively by the Hub Control Plane.

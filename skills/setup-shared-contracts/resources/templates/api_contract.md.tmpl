@@ -1,0 +1,90 @@
+# API Contract: $domain
+
+- **Domain**: `$domain`
+- **Hub Repository**: `$hub_repo`
+- **Version**: `1.0.0`
+- **Last Updated**: `$timestamp`
+
+## 1. Overview and Transports
+
+This document defines the wire-level API contract for the `$domain` service interface. All communicating services and clients MUST conform strictly to these schemas and invariants.
+
+- **Primary Transport**: HTTPS REST / SSE
+- **Content Type**: `application/json; charset=utf-8`
+- **Time Encoding**: ISO-8601 UTC (`YYYY-MM-DDTHH:MM:SSZ`)
+
+## 2. Authentication and Headers
+
+All requests across the service boundary MUST include standard authentication headers:
+
+| Header | Type | Required | Description |
+|---|---|---|---|
+| `Authorization` | String | Yes (Client) | Bearer token for client authentication |
+| `X-Worker-Token` | String | Yes (Worker) | Shared secret token for stateless compute worker tasks |
+| `X-Correlation-ID` | String | Yes | UUID tracking distributed request traces |
+| `X-Client-Timestamp` | String | No | ISO-8601 timestamp emitted by caller |
+
+## 3. Endpoints Matrix
+
+| Method | Endpoint | Auth | Purpose |
+|---|---|---|---|
+| `POST` | `/api/v1/$domain/tasks/claim` | `X-Worker-Token` | Worker acquires compute lease |
+| `POST` | `/api/v1/$domain/tasks/{id}/progress` | `X-Worker-Token` | Worker heartbeats and reports progress |
+| `POST` | `/api/v1/$domain/tasks/{id}/complete` | `X-Worker-Token` | Worker submits terminal result payload |
+| `GET` | `/api/v1/$domain/status` | Public / Token | Health check and schema capability discovery |
+
+## 4. Payload Schemas
+
+### 4.1 Task Claim Response Payload
+
+```json
+{
+  "task_id": "tsk_01HXYZ123456",
+  "domain": "$domain",
+  "lease_duration_ms": 30000,
+  "payload": {
+    "parameters": {},
+    "config": {}
+  }
+}
+```
+
+### 4.2 Terminal Result Delivery Payload
+
+```json
+{
+  "status": "COMPLETED",
+  "output_data": {},
+  "metrics": {
+    "execution_time_ms": 1250,
+    "memory_peak_mb": 45
+  }
+}
+```
+
+## 5. Non-Breaking Schema Guarantees
+
+1. **Safe Defaults**: All newly introduced request/response fields must be optional or provide explicit fallback defaults.
+2. **Permissive Parsing**: Clients and workers MUST ignore unknown keys in JSON payloads.
+3. **No Unilateral Renames**: Field names must never be changed without a documented transition phase logged in `gaps_and_rfcs.md`.
+
+## 6. Error Invariants
+
+All error responses adhere to the standard envelope:
+
+```json
+{
+  "error": {
+    "code": "TASK_LEASE_EXPIRED",
+    "message": "The compute lease for this task expired prior to completion.",
+    "retryable": true,
+    "details": {}
+  }
+}
+```
+
+## 7. Version Changelog
+
+| Version | Date | Author / Repo | Description |
+|---|---|---|---|
+| 1.0.0 | $timestamp | $hub_repo | Initial canonical API contract for $domain |

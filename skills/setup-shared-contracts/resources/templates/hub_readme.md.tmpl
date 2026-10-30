@@ -1,0 +1,56 @@
+# Shared Contracts Repository
+
+- **Hub Repository**: `$hub_repo`
+- **Generated**: `$timestamp`
+- **Topology**: Hub Single Source of Truth (SSOT)
+
+## Overview
+
+This directory (`shared-contracts/`) serves as the canonical Single Source of Truth (SSOT) for all inter-service and cross-repository contracts across the `$hub_repo` multi-repo ecosystem.
+
+Satellite repositories (such as worker nodes and mobile/client applications) consume these contracts through relative symbolic links (Git mode `120000`).
+
+```mermaid
+flowchart TD
+    HUB["Hub ($hub_repo)<br/>shared-contracts/ (Physical SSOT)"]
+    SAT1["Satellite: lyrics-sync<br/>shared-contracts (symlink)"]
+    SAT2["Satellite: nexus<br/>shared-contracts (symlink)"]
+
+    HUB -->|Relative Symlink| SAT1
+    HUB -->|Relative Symlink| SAT2
+```
+
+## Outbound Symlink Mappings
+
+| Domain | Target Path | Target Satellites | Status |
+|---|---|---|---|
+| $domain | shared-contracts/$domain | lyrics-sync, nexus | Active |
+
+## Mandatory Rules for AI Agents and Engineers
+
+1. **Hub is the Sole SSOT**:
+   - The physical files in this directory are the authoritative contract.
+   - Contract changes must be authored and committed directly within `$hub_repo`.
+   - Never stage files across symlinks from satellite repositories.
+
+2. **Contract-First Workflow**:
+   - When developing a feature spanning multiple repositories, contract changes must be committed first (`task_01`).
+   - Implementations in satellite repositories must reference the committed contract version.
+
+3. **No Unilateral Breaking Changes**:
+   - All schema, endpoint, and payload changes MUST guarantee backward compatibility.
+   - New fields must be optional or provide safe default values.
+   - Modifying or removing fields requires a formal migration window and an entry in `gaps_and_rfcs.md`.
+
+4. **Stateless Worker Boundary**:
+   - Worker nodes must operate strictly as stateless compute workers.
+   - Direct database access from worker nodes to the control plane is strictly forbidden.
+   - All state transitions and payload deliveries occur via documented REST / SSE endpoints.
+
+## Canonical Domain Structure
+
+Every domain directory (`shared-contracts/<domain>/`) contains exactly three canonical files:
+
+1. `api_contract.md`: REST / SSE endpoints, headers (`X-Worker-Token`), telemetry heartbeats, and payload schemas.
+2. `architecture_and_flow.md`: 7-step canonical pipeline, state machine transitions, cancellation fencing (< 50ms), and scratch cleanup.
+3. `gaps_and_rfcs.md`: Asynchronous change proposals, gap ledger, and cross-repo alignments.

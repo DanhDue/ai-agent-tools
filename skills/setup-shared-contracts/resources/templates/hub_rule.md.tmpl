@@ -1,0 +1,33 @@
+# Shared Contracts Rules (Hub Repository)
+
+- **Hub Repository**: `$hub_repo`
+- **Role**: Single Source of Truth (SSOT) Authority
+- **Generated**: `$timestamp`
+
+> [!CRITICAL]
+> **This repository (`$hub_repo`) is the Single Source of Truth (SSOT) for all shared contracts.**
+> AI Agents and human engineers operating in this workspace MUST follow these governance rules without exception:
+
+## 1. Single Source of Truth Ownership
+
+- The physical directory `shared-contracts/` in this repository is the authoritative source for all cross-repository contracts.
+- Satellite repositories mount these contracts via relative symbolic links.
+- All canonical changes, schemas, and rule updates must be committed directly within this Hub repository.
+
+## 2. Contract-First Governance (`task_01` Priority)
+
+- When implementing features spanning multiple repositories, contract modifications MUST be authored, verified, and committed first (reserved as `task_01` in the Hub epic).
+- Satellite repositories must never implement code based on uncommitted or speculative contract drafts.
+
+## 3. Backward Compatibility Mandate
+
+- Every schema alteration MUST preserve backward compatibility for active satellites and client applications.
+- Newly introduced payload fields must be optional or provide explicit, safe defaults.
+- Any breaking schema modification requires a formal transition window documented in `shared-contracts/<domain>/gaps_and_rfcs.md`.
+
+## 4. Parallel Handoff Generation
+
+- Upon completing contract updates in `shared-contracts/<domain>/`, the Hub epic MUST generate an Upstream Contract Handoff summary documenting:
+  1. Updated endpoints, headers, and schemas.
+  2. Integration test expectations for satellite workers and clients.
+  3. Safe rollout order.

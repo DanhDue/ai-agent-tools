@@ -1,0 +1,47 @@
+# Gaps and RFCs Ledger: $domain
+
+- **Domain**: `$domain`
+- **Hub Repository**: `$hub_repo`
+- **Version**: `1.0.0`
+- **Last Updated**: `$timestamp`
+
+## 1. Overview and Governance
+
+This document records architectural gaps, schema change proposals, and Request for Comments (RFCs) for the `$domain` service contracts.
+
+Cross-repository changes MUST be proposed, reviewed, and approved within this ledger before breaking implementation changes are made in any codebase.
+
+### Core Principles
+- **No Unilateral Drift**: Satellite nodes must never invent ad-hoc fields or diverging schemas.
+- **Backward Compatibility**: Every proposal must preserve compatibility with existing consumers.
+- **Asynchronous Alignment**: Use this ledger to coordinate between backend, worker, and frontend teams.
+
+## 2. Active RFC Ledger
+
+| RFC ID | Title | Proposing Repo | Status | Target Release | Breaking? |
+|---|---|---|---|---|---|
+| RFC-001 | Initial canonical contract baseline | $hub_repo | Approved | 1.0.0 | No |
+
+*Status values: `Draft` | `In Review` | `Approved` | `Implemented` | `Superseded` | `Rejected`*
+
+## 3. RFC Proposal Template
+
+When proposing a new contract enhancement, append a new section below using this structure:
+
+```markdown
+### RFC-XXX: [Descriptive Title]
+
+- **Date**: YYYY-MM-DD
+- **Author / Repo**: [Name / Repository]
+- **Status**: Draft
+- **Target Release**: [e.g. 1.1.0]
+
+#### Problem Statement
+Describe the missing capability, contract gap, or payload bottleneck.
+
+#### Proposed Schema Changes
+Detail new endpoints, headers, or JSON payload keys. State explicit defaults.
+
+#### Backward Compatibility Analysis
+Explain why this change will not break existing consumers or satellite nodes.
+```
