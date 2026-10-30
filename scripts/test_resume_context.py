@@ -290,6 +290,13 @@ class TestResumeContext(unittest.TestCase):
         self.assertEqual(len(alpha_lines), iterations // 2)
         self.assertEqual(len(beta_lines), iterations // 2)
 
+        # Check rollup assistant_state.md contains valid snapshots for both epics
+        rollup = self.repo_dir / ".devtool" / "assistant_state.md"
+        self.assertTrue(rollup.exists())
+        rollup_text = rollup.read_text(encoding="utf-8")
+        self.assertIn("Active Epic: epic-alpha", rollup_text)
+        self.assertIn("Active Epic: epic-beta", rollup_text)
+
     def test_cmm_fr_01_legacy_migration(self) -> None:
         """[CMM-FR-01] Automatic Migration of Legacy Flat assistant_state.md and activity_stream.log."""
         devtool_dir = self.repo_dir / ".devtool"
@@ -414,10 +421,12 @@ ag_run() {
         non_git_repo = self.workspace / "lyrics-sync"
         non_git_repo.mkdir(parents=True, exist_ok=True)
 
-        harvest = self.run_cli([])
+        harvest = self.run_cli(["--workspace-root", str(self.workspace)], cwd=self.workspace)
         self.assertEqual(harvest.returncode, 0, f"stderr: {harvest.stderr}")
         out = harvest.stdout
         self.assertIn("(D3Nexus/shared-contracts not initialized yet.)", out)
+        self.assertIn("🔹 ai-agent-tools:", out)
+        self.assertNotIn("🔹 lyrics-sync:", out)
         # Verify all 6 sections printed
         self.assertIn("0. PROJECT ARCHITECTURAL LEDGER", out)
         self.assertIn("1. ACTIVE EPIC STATE", out)

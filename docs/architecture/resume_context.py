@@ -487,59 +487,59 @@ def emit_handoff_prompt(
     if mode == "principal-review":
         banner = "[PERSONA: AI ASSISTANT — TECHNICAL ADVISOR & CO-ARCHITECT]"
         print(f"""{banner}
-Bạn đóng vai trò là AI Assistant (Vai trò 2.2 — Technical Advisor & Reviewer).
-Khởi động phiên làm việc:
+You are acting as the AI Assistant (Role 2.2 — Technical Advisor & Reviewer).
+Startup command:
 python3 scripts/resume_context.py --role assistant --epic {epic_slug}
 
-NHIỆM VỤ:
-1. Đọc kỹ HLD .devtool/epic/{target_dir}/{target_dir}.en.md và bdd_scenarios.en.md.
-2. Thực hiện Principal Review độc lập theo skill `d3nexus:principal-review`.
-3. KHÔNG chỉnh sửa mã nguồn sản phẩm (chỉ chỉnh sửa tài liệu đặc tả và Kanban tasks).{prompt_note}""")
+MANDATORY TASKS & RULES:
+1. Thoroughly review the HLD at .devtool/epic/{target_dir}/{target_dir}.en.md and bdd_scenarios.en.md.
+2. Conduct an independent Principal Review following the `d3nexus:principal-review` skill.
+3. DO NOT modify production source code or application test suites (only design documents and Kanban tasks).{prompt_note}""")
     elif mode == "implement":
         banner = "[PERSONA: AI PROGRAMMER — SENIOR TDD SOFTWARE ENGINEER]"
         print(f"""{banner}
-Bạn đóng vai trò là AI Programmer (Vai trò 2.3 — Senior TDD Software Engineer).
-Khởi động phiên làm việc:
+You are acting as the AI Programmer (Role 2.3 — Senior TDD Software Engineer).
+Startup command:
 python3 scripts/resume_context.py --role programmer --epic {epic_slug}
 
-NHIỆM VỤ:
-1. Kích hoạt skill `/dev-implementation` (`d3nexus:dev-implementation`) cho epic `{epic_slug}`.
-2. Đọc `.devtool/epic/{target_dir}/handoff.md` đầu tiên.
-3. Tuân thủ 4 Execution Guardrails (Bounded context protocol, Strict spec fidelity, Zero test fakery, No contract repair).
-4. Thực thi tuần tự từng Kanban task theo chu trình TDD (Red-Green-Refactor) trong git worktree.{prompt_note}""")
+MANDATORY TASKS & RULES:
+1. Activate `/dev-implementation` (`d3nexus:dev-implementation`) for the `{epic_slug}` epic.
+2. Read `.devtool/epic/{target_dir}/handoff.md` first.
+3. Strictly apply the 4 Execution Guardrails (Bounded context protocol, Strict spec fidelity, Zero test fakery, No contract repair).
+4. Sequentially execute each Kanban task following the TDD cycle (Red-Green-Refactor) in an isolated git worktree.{prompt_note}""")
     elif mode == "cross-review":
         banner = "[PERSONA: AI ASSISTANT — TECHNICAL ADVISOR & CO-ARCHITECT]"
         print(f"""{banner}
-Bạn đóng vai trò là AI Assistant (Vai trò 2.2 — Technical Advisor & Reviewer).
-Khởi động phiên làm việc:
+You are acting as the AI Assistant (Role 2.2 — Technical Advisor & Reviewer).
+Startup command:
 python3 scripts/resume_context.py --role assistant --epic {epic_slug}
 
-NHIỆM VỤ:
-1. Gate 4 đã PASS. Kích hoạt skill `d3nexus:cross-model-review`.
-2. Chạy rà soát độc lập bằng mô hình bên ngoài (`run_external_review.py run`).
-3. Phân loại và lập quyết định triage cùng Human Architect trước khi cho phép sửa lỗi hoặc hoàn tất.{prompt_note}""")
+MANDATORY TASKS & RULES:
+1. Gate 4 has PASSED. Activate `d3nexus:cross-model-review`.
+2. Run independent external model review (`run_external_review.py run`).
+3. Triage findings with the Human Architect before fixing defects or proceeding to finish.{prompt_note}""")
     elif mode == "finish":
         banner = "[PERSONA: AI PROGRAMMER — SENIOR TDD SOFTWARE ENGINEER]"
         print(f"""{banner}
-Bạn đóng vai trò là AI Programmer (Vai trò 2.3 — Senior TDD Software Engineer).
-Khởi động phiên làm việc:
+You are acting as the AI Programmer (Role 2.3 — Senior TDD Software Engineer).
+Startup command:
 python3 scripts/resume_context.py --role programmer --epic {epic_slug}
 
-NHIỆM VỤ:
-1. Kích hoạt skill `d3nexus:finishing-a-development-branch` cho epic `{epic_slug}`.
-2. Thực thi Pre-Finish Hook: `python3 scripts/resume_context.py --complete {epic_slug} "<milestone_summary>"`.
-3. Kiểm tra tích hợp nhánh phát triển và dọn dẹp worktree.{prompt_note}""")
+MANDATORY TASKS & RULES:
+1. Activate `d3nexus:finishing-a-development-branch` for the `{epic_slug}` epic.
+2. Execute Pre-Finish Hook: `python3 scripts/resume_context.py --complete {epic_slug} "<milestone_summary>"`.
+3. Verify branch integration and clean up the worktree.{prompt_note}""")
     elif mode == "assistant":
         banner = "[PERSONA: AI ASSISTANT — TECHNICAL ADVISOR & CO-ARCHITECT]"
         print(f"""{banner}
-Bạn đóng vai trò là AI Assistant (Vai trò 2.2 — Technical Advisor & Co-Architect).
-Khởi động phiên làm việc:
+You are acting as the AI Assistant (Role 2.2 — Technical Advisor & Co-Architect).
+Startup command:
 python3 scripts/resume_context.py --role assistant --epic {epic_slug}
 
-NHIỆM VỤ:
-1. Thảo luận kỹ thuật, phân tích nguyên nhân gốc rễ (RCA), đánh giá trade-off giải pháp.
-2. TUYỆT ĐỐI KHÔNG sửa mã nguồn sản phẩm trong chế độ này.
-3. Lưu lại kết luận sau thảo luận bằng `python3 scripts/resume_context.py --state --epic {epic_slug} --decisions "<conclusions>"`.{prompt_note}""")
+MANDATORY TASKS & RULES:
+1. Engage in technical discussion, root cause analysis (RCA), and solution trade-off evaluation.
+2. STRICTLY PROHIBITED from modifying production code in this mode.
+3. Persist discussion takeaways anytime via `python3 scripts/resume_context.py --state --epic {epic_slug} --decisions "<conclusions>"`.{prompt_note}""")
     else:
         print(f"Unknown prompt mode: {mode}")
 
