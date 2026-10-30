@@ -524,6 +524,65 @@ class TestVerificationEngine(unittest.TestCase):
             self.assertNotEqual(proc.returncode, 0)
             self.assertNotIn("RecursionError", proc.stderr)
 
+    def test_ssc_hp_03(self) -> None:
+        """[SSC-HP-03] Comprehensive health verification pass across Hub and Satellite."""
+        skill_md = Path(__file__).resolve().parent.parent.parent / "SKILL.md"
+        self.assertTrue(skill_md.is_file(), f"Skill definition missing: {skill_md}")
+
+        cli_path = Path(__file__).resolve().parent / "setup_contracts.py"
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
+            hub_dir = tmp_path / "Hub"
+            sat_dir = tmp_path / "Satellite"
+            hub_dir.mkdir()
+            sat_dir.mkdir()
+
+            # 1. Initialize Hub with domain lyrics-sync
+            subprocess.run(
+                ["python3", str(cli_path), "init-hub", "--domain", "lyrics-sync", "--repo-root", str(hub_dir)],
+                check=True,
+                capture_output=True,
+            )
+
+            # 2. Link Satellite to Hub
+            subprocess.run(
+                [
+                    "python3",
+                    str(cli_path),
+                    "link-satellite",
+                    "--hub",
+                    str(hub_dir),
+                    "--domain",
+                    "lyrics-sync",
+                    "--satellite-root",
+                    str(sat_dir),
+                ],
+                check=True,
+                capture_output=True,
+            )
+
+            # 3. Verify Hub
+            proc_hub = subprocess.run(
+                ["python3", str(cli_path), "verify", "--repo-root", str(hub_dir)],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(proc_hub.returncode, 0, f"Hub verify failed: {proc_hub.stderr}")
+            self.assertIn("Hub mode", proc_hub.stdout)
+            self.assertIn("PASS", proc_hub.stdout)
+
+            # 4. Verify Satellite
+            proc_sat = subprocess.run(
+                ["python3", str(cli_path), "verify", "--repo-root", str(sat_dir)],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(proc_sat.returncode, 0, f"Satellite verify failed: {proc_sat.stderr}")
+            self.assertIn("Satellite mode", proc_sat.stdout)
+            self.assertIn("PASS", proc_sat.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()

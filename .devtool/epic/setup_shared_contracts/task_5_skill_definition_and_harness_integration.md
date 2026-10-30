@@ -1,13 +1,13 @@
 ---
 id: "task_5_skill_definition_and_harness_integration"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "setup_shared_contracts"
 dueDate: null
 created: "2026-10-30T05:35:00Z"
-modified: "2026-10-30T05:35:00Z"
-completedAt: null
+modified: "2026-10-30T07:18:58Z"
+completedAt: "2026-10-30T07:18:58Z"
 labels: ["skill", "docs", "harness", "integration"]
 order: "a5"
 ---
