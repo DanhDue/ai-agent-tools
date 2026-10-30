@@ -20,7 +20,7 @@
 - **Diátaxis mode**: `how-to`
 - **Non-goals**: Không đi sâu vào mã nguồn cài đặt Python của `scripts/resume_context.py` (xem [save_resume_rules.md](architecture/save_resume_rules.md)) hoặc hướng dẫn viết unit test cho từng nền tảng
 - **Acceptance**: Trong vòng chưa đầy 30 giây tại bất kỳ điểm dừng nào của dự án hoặc sau khi đổi tài khoản, bạn chọn được đúng kịch bản, chạy đúng lệnh CLI hoặc copy-paste khối prompt chuẩn để triệu hồi đúng vai trò (`AI Assistant` hoặc `AI Programmer`), và lưu/khôi phục ngữ cảnh mà không bị vượt quyền hay đè mất trạng thái giữa các epics
-- **Source Spec**: [2026-10-31-context-memory-quick-guide-design.vi.md](superpowers/specs/2026-10-31-context-memory-quick-guide-design.vi.md)
+- **Source Spec**: [2026-10-31-context-memory-quick-guide-design.vi.md](../.devtool/epic/context_memory_management/2026-10-31-context-memory-quick-guide-design.vi.md)
 
 ## 1. Quản trị Ba Vai trò và Bảng Cheat-Sheet Lệnh 10 Giây
 

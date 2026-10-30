@@ -20,7 +20,7 @@
 - **Diátaxis mode**: `how-to`
 - **Non-goals**: Internal Python implementation of `scripts/resume_context.py` (see [save_resume_rules.md](architecture/save_resume_rules.md)) or platform-specific unit testing tutorials
 - **Acceptance**: Within 30 seconds at any project checkpoint or account switch, the developer selects the matching scenario, runs the exact CLI command or copy-paste prompt to summon the right persona (`AI Assistant` or `AI Programmer`), and saves or restores context without role violations or multi-epic state collisions
-- **Source Spec**: [2026-10-31-context-memory-quick-guide-design.en.md](superpowers/specs/2026-10-31-context-memory-quick-guide-design.en.md)
+- **Source Spec**: [2026-10-31-context-memory-quick-guide-design.en.md](../.devtool/epic/context_memory_management/2026-10-31-context-memory-quick-guide-design.en.md)
 
 ## 1. Tri-Role Governance and 10-Second Command Cheat-Sheet
 
