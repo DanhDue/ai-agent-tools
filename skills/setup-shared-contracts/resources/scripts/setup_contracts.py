@@ -12,6 +12,57 @@ import sys
 from pathlib import Path
 
 TEMPLATES_DIR = Path(__file__).resolve().parent.parent / "templates"
+MAX_SYMLINK_DEPTH = 10
+CANONICAL_CONTRACT_FILES = (
+    "api_contract.md",
+    "architecture_and_flow.md",
+    "gaps_and_rfcs.md",
+)
+
+
+def normalize_domain(domain: str) -> str:
+    """Normalize domain name by stripping whitespace and lowercasing."""
+    return domain.strip().lower()
+
+
+def atomic_write_text(target_path: Path, content: str) -> None:
+    """Write content to target_path atomically using a temporary swap file."""
+    target_path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = target_path.parent / f".tmp_{target_path.name}_{os.getpid()}"
+    try:
+        tmp_path.write_text(content, encoding="utf-8")
+        os.replace(tmp_path, target_path)
+    except Exception:
+        if tmp_path.exists():
+            tmp_path.unlink()
+        raise
+
+
+def resolve_symlink_safe(path: Path) -> tuple[Path, bool]:
+    """Resolve a symlink safely with cycle detection and depth boundaries."""
+    current = path
+    visited: set[str] = set()
+    depth = 0
+
+    while current.is_symlink() or os.path.islink(current):
+        if depth >= MAX_SYMLINK_DEPTH:
+            return current, False
+        try:
+            raw_link = os.readlink(current)
+            resolved_key = f"{current.parent}:{raw_link}"
+            if resolved_key in visited:
+                return current, False
+            visited.add(resolved_key)
+
+            if not os.path.isabs(raw_link):
+                current = (current.parent / raw_link).resolve()
+            else:
+                current = Path(raw_link).resolve()
+        except OSError:
+            return current, False
+        depth += 1
+
+    return current, current.exists()
 
 
 def _get_timestamp() -> str:
@@ -29,29 +80,29 @@ def _load_template(name: str) -> string.Template:
 
 def _update_readme_table(readme_path: Path, domain: str) -> None:
     """Ensure domain is registered in the Outbound Symlink Mappings table."""
+    normalized = normalize_domain(domain)
     content = readme_path.read_text(encoding="utf-8")
-    if f"| {domain} " in content or f"|{domain}|" in content:
+    if f"| {normalized} " in content or f"|{normalized}|" in content:
         return
 
     table_header = "| Domain | Target Path | Target Satellites | Status |"
     table_separator = "|---|---|---|---|"
-    new_row = f"| {domain} | shared-contracts/{domain} | {domain} | Active |"
+    new_row = f"| {normalized} | shared-contracts/{normalized} | {normalized} | Active |"
 
     if table_separator in content:
         parts = content.split(table_separator, 1)
         updated = f"{parts[0]}{table_separator}\n{new_row}{parts[1]}"
-        readme_path.write_text(updated, encoding="utf-8")
+        atomic_write_text(readme_path, updated)
     elif table_header in content:
         parts = content.split(table_header, 1)
         updated = f"{parts[0]}{table_header}\n{table_separator}\n{new_row}{parts[1]}"
-        readme_path.write_text(updated, encoding="utf-8")
+        atomic_write_text(readme_path, updated)
     else:
-        # Append table if missing
         table_block = (
             f"\n## Outbound Symlink Mappings\n\n"
             f"{table_header}\n{table_separator}\n{new_row}\n"
         )
-        readme_path.write_text(content + table_block, encoding="utf-8")
+        atomic_write_text(readme_path, content + table_block)
 
 
 def cmd_init_hub(repo_root: Path, domain: str | None = None, force: bool = False) -> int:
@@ -69,7 +120,8 @@ def cmd_init_hub(repo_root: Path, domain: str | None = None, force: bool = False
     shared_contracts_dir.mkdir(parents=True, exist_ok=True)
     hub_repo_name = repo_root.resolve().name or "D3Nexus"
     timestamp = _get_timestamp()
-    primary_domain = domain if domain else "general"
+    norm_domain = normalize_domain(domain) if domain else None
+    primary_domain = norm_domain if norm_domain else "general"
 
     template_vars = {
         "hub_repo": hub_repo_name,
@@ -81,13 +133,13 @@ def cmd_init_hub(repo_root: Path, domain: str | None = None, force: bool = False
     readme_path = shared_contracts_dir / "README.md"
     if not readme_path.exists() or force:
         tmpl = _load_template("hub_readme.md.tmpl")
-        readme_path.write_text(tmpl.substitute(template_vars), encoding="utf-8")
-    elif domain:
-        _update_readme_table(readme_path, domain)
+        atomic_write_text(readme_path, tmpl.substitute(template_vars))
+    elif norm_domain:
+        _update_readme_table(readme_path, norm_domain)
 
     # 3. Create domain subfolder with 3 canonical files
-    if domain:
-        domain_dir = shared_contracts_dir / domain
+    if norm_domain:
+        domain_dir = shared_contracts_dir / norm_domain
         domain_dir.mkdir(parents=True, exist_ok=True)
 
         canonical_files = (
@@ -99,7 +151,7 @@ def cmd_init_hub(repo_root: Path, domain: str | None = None, force: bool = False
             target_file = domain_dir / filename
             if not target_file.exists() or force:
                 tmpl = _load_template(tmpl_name)
-                target_file.write_text(tmpl.substitute(template_vars), encoding="utf-8")
+                atomic_write_text(target_file, tmpl.substitute(template_vars))
 
     # 4. Install Hub local rule .agents/rules/contract_rules.md
     rules_dir = repo_root / ".agents" / "rules"
@@ -107,7 +159,7 @@ def cmd_init_hub(repo_root: Path, domain: str | None = None, force: bool = False
     contract_rules_path = rules_dir / "contract_rules.md"
     if not contract_rules_path.exists() or force:
         rule_tmpl = _load_template("hub_rule.md.tmpl")
-        contract_rules_path.write_text(rule_tmpl.substitute(template_vars), encoding="utf-8")
+        atomic_write_text(contract_rules_path, rule_tmpl.substitute(template_vars))
 
     sys.stdout.write(
         f"SUCCESS: Hub repository initialized at '{shared_contracts_dir}'\n"
@@ -123,12 +175,13 @@ def cmd_link_satellite(
     force: bool = False,
 ) -> int:
     """Link a satellite repository to a Hub domain contracts directory via relative symlink."""
+    norm_domain = normalize_domain(domain)
     # 1. Validate Hub directory and domain presence
     hub_resolved = hub.resolve()
-    hub_domain_dir = hub_resolved / "shared-contracts" / domain
+    hub_domain_dir = hub_resolved / "shared-contracts" / norm_domain
     if not hub_domain_dir.is_dir():
         sys.stderr.write(
-            f"ERROR [SSC-FR-02]: Target domain '{domain}' not found in Hub at '{hub_resolved}'.\n"
+            f"ERROR [SSC-FR-02]: Target domain '{norm_domain}' not found in Hub at '{hub_resolved}'.\n"
             f"Expected directory: '{hub_domain_dir}'\n"
         )
         return 1
@@ -173,11 +226,11 @@ def cmd_link_satellite(
     contract_rules_path = rules_dir / "contract_rules.md"
     template_vars = {
         "hub_repo": hub_resolved.name or "D3Nexus",
-        "domain": domain,
+        "domain": norm_domain,
         "timestamp": _get_timestamp(),
     }
     rule_tmpl = _load_template("satellite_rule.md.tmpl")
-    contract_rules_path.write_text(rule_tmpl.substitute(template_vars), encoding="utf-8")
+    atomic_write_text(contract_rules_path, rule_tmpl.substitute(template_vars))
 
     # 5. Check if AGENTS.md exists and append reference if needed
     agents_md_path = satellite_root_resolved / "AGENTS.md"
@@ -186,12 +239,99 @@ def cmd_link_satellite(
         rule_reference = "@.agents/rules/contract_rules.md"
         if rule_reference not in agents_content:
             updated_content = agents_content.rstrip() + f"\n\n{rule_reference}\n"
-            agents_md_path.write_text(updated_content, encoding="utf-8")
+            atomic_write_text(agents_md_path, updated_content)
 
     sys.stdout.write(
         f"SUCCESS: Satellite repository linked successfully.\n"
         f"Symlink: '{shared_contracts_link}' -> '{rel_target}'\n"
         f"Local Rule: '{contract_rules_path}'\n"
+    )
+    return 0
+
+
+def cmd_verify(repo_root: Path) -> int:
+    """Audit shared contracts configuration in Hub or Satellite workspace."""
+    repo_root_resolved = repo_root.resolve()
+    shared_contracts_path = repo_root_resolved / "shared-contracts"
+
+    if (
+        not shared_contracts_path.exists()
+        and not shared_contracts_path.is_symlink()
+        and not os.path.islink(shared_contracts_path)
+    ):
+        sys.stderr.write(
+            f"ERROR: 'shared-contracts' does not exist in workspace: '{repo_root_resolved}'\n"
+            "Run 'setup_contracts.py init-hub' or 'setup_contracts.py link-satellite' first.\n"
+        )
+        return 1
+
+    errors: list[str] = []
+    is_satellite = shared_contracts_path.is_symlink() or os.path.islink(shared_contracts_path)
+
+    if not is_satellite:
+        mode = "Hub"
+        if not shared_contracts_path.is_dir():
+            errors.append(f"Hub 'shared-contracts' must be a physical directory: '{shared_contracts_path}'")
+
+        readme_file = shared_contracts_path / "README.md"
+        if not readme_file.is_file():
+            errors.append(f"Missing Hub topology README: '{readme_file}'")
+        else:
+            readme_text = readme_file.read_text(encoding="utf-8")
+            if "Outbound Symlink Mappings" not in readme_text:
+                errors.append(f"Hub README missing Outbound Symlink Mappings table: '{readme_file}'")
+
+        domain_dirs = [
+            d for d in shared_contracts_path.iterdir() if d.is_dir() and not d.name.startswith(".")
+        ]
+        for d in domain_dirs:
+            for canonical in CANONICAL_CONTRACT_FILES:
+                c_file = d / canonical
+                if not c_file.is_file():
+                    errors.append(f"Missing canonical file '{canonical}' in domain '{d.name}'")
+
+        hub_rule = repo_root_resolved / ".agents" / "rules" / "contract_rules.md"
+        if not hub_rule.is_file():
+            errors.append(f"Missing Hub local contract rules: '{hub_rule}'")
+    else:
+        mode = "Satellite"
+        try:
+            raw_link = os.readlink(shared_contracts_path)
+        except OSError as exc:
+            errors.append(f"Cannot read symbolic link: {exc}")
+            raw_link = ""
+
+        if os.path.isabs(raw_link):
+            errors.append(
+                f"Satellite symlink MUST be a relative path, but is absolute: '{raw_link}'"
+            )
+
+        resolved_target, is_valid = resolve_symlink_safe(shared_contracts_path)
+        if not is_valid:
+            errors.append(
+                f"Satellite symlink is broken, cyclical, or exceeds max depth (10 hops): "
+                f"'{shared_contracts_path}' -> '{raw_link}'"
+            )
+        else:
+            for canonical in CANONICAL_CONTRACT_FILES:
+                c_file = resolved_target / canonical
+                if not c_file.is_file():
+                    errors.append(
+                        f"Resolved satellite target missing canonical file '{canonical}' at '{c_file}'"
+                    )
+
+        sat_rule = repo_root_resolved / ".agents" / "rules" / "contract_rules.md"
+        if not sat_rule.is_file():
+            errors.append(f"Missing Satellite local contract rules: '{sat_rule}'")
+
+    if errors:
+        sys.stderr.write(f"FAILED: Shared contracts verification found {len(errors)} error(s) ({mode} mode):\n")
+        for err in errors:
+            sys.stderr.write(f"  - {err}\n")
+        return 1
+
+    sys.stdout.write(
+        f"PASS: Shared contracts verification succeeded for '{repo_root_resolved}' ({mode} mode)\n"
     )
     return 0
 
@@ -256,6 +396,18 @@ def build_parser() -> argparse.ArgumentParser:
         help="Replace existing directory or symlink.",
     )
 
+    # verify
+    parser_verify = subparsers.add_parser(
+        "verify",
+        help="Verify shared contracts setup and integrity in Hub or Satellite mode.",
+    )
+    parser_verify.add_argument(
+        "--repo-root",
+        type=Path,
+        default=Path.cwd(),
+        help="Root directory of the workspace (default: current directory).",
+    )
+
     return parser
 
 
@@ -276,6 +428,10 @@ def main() -> int:
             domain=args.domain,
             satellite_root=args.satellite_root,
             force=args.force,
+        )
+    if args.subcommand == "verify":
+        return cmd_verify(
+            repo_root=args.repo_root,
         )
 
     return 0

@@ -456,5 +456,74 @@ class TestSatelliteLinking(unittest.TestCase):
             self.assertFalse(physical_dir.is_symlink())
 
 
+class TestVerificationEngine(unittest.TestCase):
+    """[SSC-EC-03], [SSC-AR-01], [SSC-AR-02] tests for setup_contracts.py verify and robust IO."""
+
+    def test_ssc_ec_03(self) -> None:
+        """[SSC-EC-03] Domain name normalization and whitespace stripping."""
+        cli_path = Path(__file__).resolve().parent / "setup_contracts.py"
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
+            proc = subprocess.run(
+                [
+                    "python3",
+                    str(cli_path),
+                    "init-hub",
+                    "--domain",
+                    "  Lyrics-Sync  ",
+                    "--repo-root",
+                    str(tmp_path),
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(proc.returncode, 0, f"Init failed: {proc.stderr}")
+
+            # Normalized domain directory must be lowercase and stripped
+            normalized_dir = tmp_path / "shared-contracts" / "lyrics-sync"
+            self.assertTrue(normalized_dir.is_dir(), f"Normalized directory missing: {normalized_dir}")
+            readme_text = (tmp_path / "shared-contracts" / "README.md").read_text(encoding="utf-8")
+            self.assertIn("lyrics-sync", readme_text)
+
+    def test_ssc_ar_01(self) -> None:
+        """[SSC-AR-01] Atomic file creation prevents partial writes."""
+        cli_path = Path(__file__).resolve().parent / "setup_contracts.py"
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
+            proc = subprocess.run(
+                ["python3", str(cli_path), "init-hub", "--domain", "atomic-test", "--repo-root", str(tmp_path)],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(proc.returncode, 0)
+            canonical = tmp_path / "shared-contracts" / "atomic-test" / "api_contract.md"
+            self.assertTrue(canonical.is_file())
+            self.assertGreater(len(canonical.read_text(encoding="utf-8")), 50)
+
+    def test_ssc_ar_02(self) -> None:
+        """[SSC-AR-02] Circular symlink and loop protection halts cleanly."""
+        cli_path = Path(__file__).resolve().parent / "setup_contracts.py"
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
+            link_a = tmp_path / "shared-contracts"
+            link_b = tmp_path / "loop_target"
+
+            # Create circular reference: link_a -> loop_target -> shared-contracts
+            os.symlink("loop_target", link_a)
+            os.symlink("shared-contracts", link_b)
+
+            proc = subprocess.run(
+                ["python3", str(cli_path), "verify", "--repo-root", str(tmp_path)],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            # Must exit non-zero without unhandled RecursionError
+            self.assertNotEqual(proc.returncode, 0)
+            self.assertNotIn("RecursionError", proc.stderr)
+
+
 if __name__ == "__main__":
     unittest.main()

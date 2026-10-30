@@ -1,0 +1,249 @@
+{
+  "schema": 1,
+  "task": "task_4_cli_engine_verification",
+  "runs": {
+    "red": {
+      "head": "a3c848a78b447f6f286e3365c4b873838b7b9cca",
+      "tree": "33348db95365548be62fbc1e6fa0ebb9a9df99dc",
+      "patch_id": "7d3ddd1e4ae8820f99120eacdcb41ca2276e78d1",
+      "started": "2026-10-30T07:07:44Z",
+      "finished": "2026-10-30T07:07:44Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m unittest skills/setup-shared-contracts/resources/scripts/test_setup_contracts.py -k test_ssc_ec_03",
+          "expect": "exit 1; contains \"FAILED\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-30T07:07:44Z",
+          "finished": "2026-10-30T07:07:44Z",
+          "output_tail": [
+            "F",
+            "======================================================================",
+            "FAIL: test_ssc_ec_03 (skills.setup-shared-contracts.resources.scripts.test_setup_contracts.TestVerificationEngine.test_ssc_ec_03)",
+            "[SSC-EC-03] Domain name normalization and whitespace stripping.",
+            "----------------------------------------------------------------------",
+            "Traceback (most recent call last):",
+            "  File \"/Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/setup_shared_contracts/skills/setup-shared-contracts/resources/scripts/test_setup_contracts.py\", line 485, in test_ssc_ec_03",
+            "    self.assertTrue(normalized_dir.is_dir(), f\"Normalized directory missing: {normalized_dir}\")",
+            "    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+            "AssertionError: False is not true : Normalized directory missing: /tmp/ag_trananh/tmpk55ecude/shared-contracts/lyrics-sync",
+            "",
+            "----------------------------------------------------------------------",
+            "Ran 1 test in 0.031s",
+            "",
+            "FAILED (failures=1)"
+          ],
+          "output_sha256": "8e5acfd5d9dab1b063dbf250c22633a972105491c87642741bb120049bfe594c"
+        }
+      ]
+    },
+    "verify": {
+      "head": "a3c848a78b447f6f286e3365c4b873838b7b9cca",
+      "tree": "2c22b94b26c0a2e5d96630d71d65e92f28878b33",
+      "patch_id": "f58c306a63038ebcde4a7c8d6aad42547e66d699",
+      "started": "2026-10-30T07:09:31Z",
+      "finished": "2026-10-30T07:09:32Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m unittest skills/setup-shared-contracts/resources/scripts/test_setup_contracts.py -k test_ssc_ec_03",
+          "expect": "exit 0; contains \"OK\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-30T07:09:31Z",
+          "finished": "2026-10-30T07:09:31Z",
+          "output_tail": [
+            ".",
+            "----------------------------------------------------------------------",
+            "Ran 1 test in 0.039s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "50123f26e6d30940556cc448291d77c1880d497121f6c91559a6a7bdb8620941"
+        },
+        {
+          "id": "V3",
+          "phase": "GREEN",
+          "command": "python3 -m unittest skills/setup-shared-contracts/resources/scripts/test_setup_contracts.py -k test_ssc_ar_01",
+          "expect": "exit 0; contains \"OK\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-30T07:09:31Z",
+          "finished": "2026-10-30T07:09:31Z",
+          "output_tail": [
+            ".",
+            "----------------------------------------------------------------------",
+            "Ran 1 test in 0.041s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "e4e546ca7b81002d7c075340176048edded67482ed6cfb9c74f3b7c0e8b43862"
+        },
+        {
+          "id": "V4",
+          "phase": "GREEN",
+          "command": "python3 -m unittest skills/setup-shared-contracts/resources/scripts/test_setup_contracts.py -k test_ssc_ar_02",
+          "expect": "exit 0; contains \"OK\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-30T07:09:31Z",
+          "finished": "2026-10-30T07:09:31Z",
+          "output_tail": [
+            ".",
+            "----------------------------------------------------------------------",
+            "Ran 1 test in 0.034s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "3230caf5bcf7b75210d6ff84024c594754689765ada21013297a85b6f4fb1f1f"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-B",
+          "command": "ruff check skills/setup-shared-contracts/resources/scripts/setup_contracts.py skills/setup-shared-contracts/resources/scripts/test_setup_contracts.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-30T07:09:31Z",
+          "finished": "2026-10-30T07:09:31Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V6",
+          "phase": "TIER-B",
+          "command": "mypy --strict --follow-imports=silent skills/setup-shared-contracts/resources/scripts/setup_contracts.py skills/setup-shared-contracts/resources/scripts/test_setup_contracts.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-30T07:09:31Z",
+          "finished": "2026-10-30T07:09:31Z",
+          "output_tail": [
+            "Success: no issues found in 2 source files"
+          ],
+          "output_sha256": "f9b031e5c45aa702cd4fef028d465551cb20a2c4698e0913c7b00766b20ac4d8"
+        },
+        {
+          "id": "V7",
+          "phase": "TIER-C",
+          "command": "python3 scripts/run_unittest_junit.py --junitxml build/test-results/task_4.xml skills/setup-shared-contracts/resources/scripts/test_setup_contracts.py",
+          "expect": "exit 0; results build/test-results/task_4.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-30T07:09:31Z",
+          "finished": "2026-10-30T07:09:32Z",
+          "output_tail": [
+            "..............",
+            "----------------------------------------------------------------------",
+            "Ran 14 tests in 0.607s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "f80c2cd2996897d57425c57affd4d6679272ea76efe6b43b0f7aa48e9f29e8c2",
+          "results": {
+            "path": "build/test-results/task_4.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 12,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_ssc_ec_01",
+                  "classname": "test_setup_contracts.TestCanonicalTemplates",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ssc_hp_01",
+                  "classname": "test_setup_contracts.TestCanonicalTemplates",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ssc_fr_01",
+                  "classname": "test_setup_contracts.TestHubInitialization",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ssc_st_01",
+                  "classname": "test_setup_contracts.TestHubInitialization",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ssc_ec_02",
+                  "classname": "test_setup_contracts.TestSatelliteLinking",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ssc_fr_02",
+                  "classname": "test_setup_contracts.TestSatelliteLinking",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ssc_fr_03",
+                  "classname": "test_setup_contracts.TestSatelliteLinking",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ssc_hp_02",
+                  "classname": "test_setup_contracts.TestSatelliteLinking",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ssc_st_02",
+                  "classname": "test_setup_contracts.TestSatelliteLinking",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ssc_ar_01",
+                  "classname": "test_setup_contracts.TestVerificationEngine",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ssc_ar_02",
+                  "classname": "test_setup_contracts.TestVerificationEngine",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ssc_ec_03",
+                  "classname": "test_setup_contracts.TestVerificationEngine",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "skills/setup-shared-contracts/resources/scripts/setup_contracts.py",
+            "skills/setup-shared-contracts/resources/scripts/test_setup_contracts.py"
+          ],
+          "violations": []
+        }
+      ]
+    }
+  }
+}
