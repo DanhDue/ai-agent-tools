@@ -530,8 +530,8 @@ ag_run() {
         self.assertIn("15. Context memory management", verify_content)
         self.assertIn("test_resume_context.py", verify_content)
 
-    def test_cmm_hp_01_json_harvest_output(self) -> None:
-        """[CMM-HP-01] Harvest Mode JSON Serialization via --json."""
+    def test_harvest_json_output(self) -> None:
+        """Harvest Mode JSON Serialization via --json."""
         # 1. Setup state and task
         self.run_cli([
             "--state", "--epic", "context_memory_management",
