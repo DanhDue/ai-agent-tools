@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import datetime
 import os
+import re
 import shutil
 import string
 import sys
@@ -13,6 +14,7 @@ from pathlib import Path
 
 TEMPLATES_DIR = Path(__file__).resolve().parent.parent / "templates"
 MAX_SYMLINK_DEPTH = 10
+DOMAIN_REGEX = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
 CANONICAL_CONTRACT_FILES = (
     "api_contract.md",
     "architecture_and_flow.md",
@@ -23,6 +25,22 @@ CANONICAL_CONTRACT_FILES = (
 def normalize_domain(domain: str) -> str:
     """Normalize domain name by stripping whitespace and lowercasing."""
     return domain.strip().lower()
+
+
+def validate_domain(domain: str) -> str:
+    """Normalize and validate domain name for safe single-component path containment."""
+    normalized = normalize_domain(domain)
+    if not normalized:
+        raise ValueError("Domain name cannot be empty.")
+    if "/" in normalized or "\\" in normalized or ".." in normalized or normalized == ".":
+        raise ValueError(
+            f"Domain name '{domain}' cannot contain path separators or directory traversal."
+        )
+    if not DOMAIN_REGEX.match(normalized):
+        raise ValueError(
+            f"Domain name '{domain}' is invalid: must start with alphanumeric and contain only [a-z0-9_-]."
+        )
+    return normalized
 
 
 def atomic_write_text(target_path: Path, content: str) -> None:
@@ -128,7 +146,13 @@ def cmd_init_hub(repo_root: Path, domain: str | None = None, force: bool = False
     shared_contracts_dir.mkdir(parents=True, exist_ok=True)
     hub_repo_name = repo_root.resolve().name or "D3Nexus"
     timestamp = _get_timestamp()
-    norm_domain = normalize_domain(domain) if domain else None
+    norm_domain = None
+    if domain:
+        try:
+            norm_domain = validate_domain(domain)
+        except ValueError as exc:
+            sys.stderr.write(f"ERROR: {exc}\n")
+            return 1
     primary_domain = norm_domain if norm_domain else "general"
 
     template_vars = {
@@ -148,6 +172,20 @@ def cmd_init_hub(repo_root: Path, domain: str | None = None, force: bool = False
     # 3. Create domain subfolder with 3 canonical files
     if norm_domain:
         domain_dir = shared_contracts_dir / norm_domain
+        if domain_dir.is_symlink() or os.path.islink(domain_dir):
+            sys.stderr.write(
+                f"ERROR: Domain directory '{domain_dir}' is an existing symbolic link; "
+                "Hub domains must be physical directories.\n"
+            )
+            return 1
+
+        shared_contracts_resolved = shared_contracts_dir.resolve()
+        if domain_dir.exists() and not domain_dir.resolve().is_relative_to(shared_contracts_resolved):
+            sys.stderr.write(
+                f"ERROR: Domain directory '{domain_dir}' resolves outside '{shared_contracts_resolved}'.\n"
+            )
+            return 1
+
         domain_dir.mkdir(parents=True, exist_ok=True)
 
         canonical_files = (
@@ -183,14 +221,28 @@ def cmd_link_satellite(
     force: bool = False,
 ) -> int:
     """Link a satellite repository to a Hub domain contracts directory via relative symlink."""
-    norm_domain = normalize_domain(domain)
+    try:
+        norm_domain = validate_domain(domain)
+    except ValueError as exc:
+        sys.stderr.write(f"ERROR: {exc}\n")
+        return 1
+
     # 1. Validate Hub directory and domain presence
     hub_resolved = hub.resolve()
-    hub_domain_dir = hub_resolved / "shared-contracts" / norm_domain
+    shared_contracts_hub = (hub_resolved / "shared-contracts").resolve()
+    hub_domain_dir = shared_contracts_hub / norm_domain
+
     if not hub_domain_dir.is_dir():
         sys.stderr.write(
             f"ERROR [SSC-FR-02]: Target domain '{norm_domain}' not found in Hub at '{hub_resolved}'.\n"
             f"Expected directory: '{hub_domain_dir}'\n"
+        )
+        return 1
+
+    hub_domain_resolved = hub_domain_dir.resolve()
+    if not hub_domain_resolved.is_relative_to(shared_contracts_hub):
+        sys.stderr.write(
+            f"ERROR: Target domain '{norm_domain}' resolves outside Hub shared-contracts: '{hub_domain_resolved}'.\n"
         )
         return 1
 
