@@ -381,6 +381,28 @@ X-Correlation-ID: uuid
         self.assertEqual(to_camel_case("task_id"), "taskId")
         self.assertEqual(to_camel_case("status"), "status")
 
+    def test_syc_hp_03_skill_and_verify_harness(self) -> None:
+        """[SYC-HP-03] Skill Definition and Release Verify Harness Execution."""
+        # Find skill directory in current repo
+        skill_file = Path(__file__).resolve().parent.parent.parent / "SKILL.md"
+        self.assertTrue(skill_file.is_file(), f"SKILL.md not found at {skill_file}")
+
+        content = skill_file.read_text(encoding="utf-8")
+        # Validate frontmatter has exactly name and description
+        self.assertTrue(content.startswith("---\n"))
+        end_idx = content.find("\n---\n", 4)
+        self.assertNotEqual(end_idx, -1)
+        fm_lines = [line.strip() for line in content[4:end_idx].splitlines() if line.strip()]
+        fm_keys = [line.split(":")[0].strip() for line in fm_lines if ":" in line]
+        self.assertEqual(sorted(fm_keys), ["description", "name"])
+        self.assertIn("name: sync-shared-contracts", content)
+
+        # Validate scripts/verify.sh registers test_sync_contracts.py
+        verify_sh = Path(__file__).resolve().parents[4] / "scripts" / "verify.sh"
+        self.assertTrue(verify_sh.is_file(), f"verify.sh not found at {verify_sh}")
+        verify_content = verify_sh.read_text(encoding="utf-8")
+        self.assertIn("skills/sync-shared-contracts/resources/scripts/test_sync_contracts.py", verify_content)
+
     def test_syc_hp_02_satellite_worktree_and_hub_check(self) -> None:
         """[SYC-HP-02] End-to-End Satellite and Nested Worktree Synchronization Pass."""
         primary_satellite = self.repo_root / "satellite"

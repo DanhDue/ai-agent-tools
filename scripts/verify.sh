@@ -278,6 +278,7 @@ python3 -m unittest skills/quality_check/resources/scripts/test_quality_provider
 echo
 note "== 14. Shared contracts CLI engine is enforced =="
 python3 -m unittest skills/setup-shared-contracts/resources/scripts/test_setup_contracts.py || FAILED=1
+python3 -m unittest skills/sync-shared-contracts/resources/scripts/test_sync_contracts.py || FAILED=1
 
 echo
 if [ "$FAILED" -eq 0 ]; then

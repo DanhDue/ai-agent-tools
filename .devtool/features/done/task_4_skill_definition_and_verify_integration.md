@@ -1,13 +1,13 @@
 ---
 id: "task_4_skill_definition_and_verify_integration"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "sync_shared_contracts"
 dueDate: null
 created: "2026-10-30T11:58:00Z"
-modified: "2026-10-30T12:23:00Z"
-completedAt: null
+modified: "2026-10-30T14:01:53Z"
+completedAt: "2026-10-30T14:01:53Z"
 labels: ["skill", "docs", "harness", "integration"]
 order: "a4"
 ---
