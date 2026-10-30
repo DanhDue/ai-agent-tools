@@ -46,3 +46,42 @@ Verdict: PASS
 [Minor] scripts/test_resume_context.py:411 — test_cmm_fr_02_missing_contracts_and_git_fallback creates its non-git directory at `self.workspace/"lyrics-sync"`, but the harvest's scan root is `self.repo_dir` (which has its own `.git`), so `scan_git_status` takes the single-repo branch and never visits that directory — the scenario's "repo lacking a .git folder is skipped cleanly" clause isn't actually exercised, only the shared-contracts fallback clause is.
 [Minor] scripts/test_resume_context.py:248 — test_cmm_ar_01_concurrent_flock asserts only activity-log line counts after concurrent writes and never checks `.devtool/assistant_state.md`, despite CMM-AR-01's explicit "And .devtool/assistant_state.md contains valid snapshots for both epics" clause.
 ```
+
+## Round 2
+
+- **Date**: 2026-10-30T18:28:11Z
+- **SHA**: c3b5eafdbf55daeb2da18891744ac2ee999a1da4
+- **Base**: main
+- **CLI**: claude
+- **Model**: default
+- **Status**: completed
+- **Verdict**: CHANGES REQUIRED
+
+| # | Severity | Location | Problem | Decision |
+|---|----------|----------|---------|----------|
+| 1 | Important | skills/save-context/SKILL.md:56 | the documented `save-context --checkpoint <epic_slug> "<note>"` command (and the identical form in bdd_scenarios.en.md/.vi.md CMM-ST-02, context_memory_management.en.md/.vi.md, the source spec, and task_03's frozen Decisions Already Made) expands via the `save-context` alias to `resume_context.py --complete --checkpoint <slug> <note>`, which argparse rejects with exit 2 ("expected at least one argument") because `--checkpoint` immediately follows `--complete`'s nargs="+" with no value; the only working orders are `--checkpoint --complete <slug> <note>` or `--complete <slug> <note> --checkpoint` (the latter already correctly documented in docs/architecture/save_resume_rules.md:59), and the shipped test for CMM-ST-02 silently uses the working order instead of the documented one, so the breakage passed every gate. | fixed in 4734183 |
+| 2 | Minor | scripts/resume_context.py:670 | `--json` is declared as part of the HLD's "6 CLI capabilities" Goals contract but `args.json` is never read anywhere in the implementation, so passing `--json` silently produces unchanged human-readable text instead of JSON; no task Verification row or BDD scenario exercises it. | fixed in 4734183 |
+
+Raw output:
+
+```text
+Plan mode's exit tools (`ExitPlanMode`, `AskUserQuestion`) aren't available in this session, so I'll deliver the review directly as my response instead, per the actual review task's output contract.
+
+## Principal/External Review — context_memory_management (candidate `c3b5eaf`)
+
+**Scope checked:** all listed artefacts (spec EN/VI, handoff, principal_review rounds 1–2, HLD, BDD scenarios, all 4 task files, all 4 evidence JSON files), diffs of `scripts/resume_context.py`, `docs/architecture/resume_context.py`, `scripts/test_resume_context.py`, `rules/CRITICAL_RULES.md`, `scripts/verify.sh`, and all 9 lifecycle skill/reference files touched by Task 4, plus the disclosed out-of-task commit `5b1f43f`.
+
+**Task evidence vs Verification/DoD.** All four tasks' RED rows show genuine `AssertionError`/`FAILED` failures (not collection errors), GREEN/ruff/mypy/JUnit rows all pass at exit 0. `scripts/resume_context.py` and `docs/architecture/resume_context.py` are byte-identical (confirmed via direct diff), satisfying Task 1's hard "must not diverge" Stop condition. Task 4's 9 target lifecycle files each gained exactly one `resume_context.py` hook line; `skills/dev-lifecycle/SKILL.md` sits at 2485/2500 words (the ceiling Principal Review round 1 flagged as nearly exhausted) with no Mermaid/DOT fences in either lifecycle skill; `scripts/verify.sh` Section 15 matches Task 4's Decisions exactly; Rule 8 was appended to `rules/CRITICAL_RULES.md` without colliding with the existing Section 7.
+
+**Audit disclosures.** The task_03 grader amendment (Rule 7→8) traces directly to Principal Review round 1 finding #1, fixed in `988cacf` — justified. The protected-path change to `scripts/verify.sh` (`50f33c1`) is explicitly authorized by Task 4's Allowed files — justified. The out-of-task commit `5b1f43f` is a post-completion i18n fix (Vietnamese→English handoff prompt bodies, kept in sync across both `resume_context.py` mirrors) plus two test-assertion *additions* (strengthening, not weakening) — transparently disclosed, no scope creep. Shared Contract Impact is correctly declared `None` — no `shared-contracts/` path appears anywhere in the diff.
+
+**Finding 1 — the documented checkpoint-save command is broken.** The source spec, both HLD language variants, both BDD scenario language variants, task_03's own frozen "Decisions Already Made", and the shipped `skills/save-context/SKILL.md` all document the same invocation for CMM-ST-02: `save-context --checkpoint <epic_slug> "<note>"`. Since `save-context` is aliased (task_02's frozen contract) to `resume_context.py --complete`, this expands to `resume_context.py --complete --checkpoint <epic_slug> "<note>"`. I reproduced the exact `argparse` configuration (`--complete` with `nargs="+"`, `--checkpoint` as `store_true`) in isolation with no filesystem side effects: this token order makes argparse exit 2 ("expected at least one argument"), because `--checkpoint` is itself a recognized flag and stops `--complete`'s collection before any value is consumed. Only `--checkpoint --complete <slug> <note>` or `--complete <slug> <note> --checkpoint` work — and `docs/architecture/save_resume_rules.md:59` already documents the second, working order correctly, so the fix was known elsewhere in the same change but never propagated to the skill, BDD scenario, HLD, or spec. The shipped test `test_cmm_st_02_checkpoint_non_destructive_save` doesn't reproduce the scenario's own "When" clause — it calls the args in the working order instead of the documented one — so this breakage passed every gate undetected.
+
+**Finding 2 — `--json` is a dead flag.** The HLD's Goals section lists `--json` as part of its "6 CLI capabilities" contract. `argparse` declares it (`scripts/resume_context.py:670`) but `args.json` is never read anywhere in the implementation (confirmed by grep) — passing `--json` silently produces unchanged text output. No task's Verification row or BDD scenario references it, so no gate could have caught it; this is a gap against the HLD's aspirational list, not a frozen task contract.
+
+**Gate 5 items:** all four tasks — execution verified and recorded in evidence — PASS.
+
+Verdict: CHANGES REQUIRED
+[Important] skills/save-context/SKILL.md:56 — the documented `save-context --checkpoint <epic_slug> "<note>"` command (and the identical form in bdd_scenarios.en.md/.vi.md CMM-ST-02, context_memory_management.en.md/.vi.md, the source spec, and task_03's frozen Decisions Already Made) expands via the `save-context` alias to `resume_context.py --complete --checkpoint <slug> <note>`, which argparse rejects with exit 2 ("expected at least one argument") because `--checkpoint` immediately follows `--complete`'s nargs="+" with no value; the only working orders are `--checkpoint --complete <slug> <note>` or `--complete <slug> <note> --checkpoint` (the latter already correctly documented in docs/architecture/save_resume_rules.md:59), and the shipped test for CMM-ST-02 silently uses the working order instead of the documented one, so the breakage passed every gate.
+[Minor] scripts/resume_context.py:670 — `--json` is declared as part of the HLD's "6 CLI capabilities" Goals contract but `args.json` is never read anywhere in the implementation, so passing `--json` silently produces unchanged human-readable text instead of JSON; no task Verification row or BDD scenario exercises it.
+```
