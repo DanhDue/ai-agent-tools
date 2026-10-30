@@ -16,7 +16,7 @@
 ## Meta Data
 
 - **Epic name**: `sync_shared_contracts`
-- **Status**: Packaged
+- **Status**: In Progress
 - **Target release**: Next plugin release (1.16.0)
 - **Platform**: Python tooling / agent skill kit
 - **Source Spec**: [Approved Sync Shared Contracts design](2026-10-30-sync-shared-contracts-design.en.md)

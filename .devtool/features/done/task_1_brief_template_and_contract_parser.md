@@ -1,13 +1,13 @@
 ---
 id: "task_1_brief_template_and_contract_parser"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "sync_shared_contracts"
 dueDate: null
 created: "2026-10-30T11:58:00Z"
-modified: "2026-10-30T12:23:00Z"
-completedAt: null
+modified: "2026-10-30T13:41:16Z"
+completedAt: "2026-10-30T13:41:16Z"
 labels: ["contracts", "templates", "parser"]
 order: "a1"
 ---
