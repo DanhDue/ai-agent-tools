@@ -14,6 +14,7 @@
   - [4.1. Flexible Time Parser Specification](#41-flexible-time-parser-specification)
   - [4.2. macOS `launchd` Service Specification](#42-macos-launchd-service-specification)
   - [4.3. Linux `crontab` Fallback Specification](#43-linux-crontab-fallback-specification)
+  - [4.4. Safety Delay Buffer Specification (`--delay` / `--offset`)](#44-safety-delay-buffer-specification---delay----offset)
 - [5. CLI Command Specification](#5-cli-command-specification)
   - [5.1. On-Demand Execution (100% Backward Compatible)](#51-on-demand-execution-100-backward-compatible)
   - [5.2. Schedule Subcommand Specification](#52-schedule-subcommand-specification)
@@ -114,7 +115,7 @@ Invalid values (such as `25:00`, `-1h`, `abc`) raise a descriptive `ValueError` 
       <integer>{minute}</integer>
   </dict>
   ```
-- **Execution Target**: `/usr/bin/python3 <absolute_path_to_refresh_session.py> <target>`
+- **Execution Target**: `/usr/bin/python3 <absolute_path_to_refresh_session.py> <target> --delay {delay}`
 - **Standard Logs**:
   - Out: `~/.devtool/logs/refresh_session_daemon.log`
   - Err: `~/.devtool/logs/refresh_session_daemon.err`
@@ -128,8 +129,15 @@ Invalid values (such as `25:00`, `-1h`, `abc`) raise a descriptive `ValueError` 
 On Linux (`sys.platform.startswith("linux")`), the engine:
 - Reads `crontab -l`.
 - Strips any existing block demarcated by `# BEGIN d3nexus-refresh-session` and `# END d3nexus-refresh-session`.
-- Inserts `{minute} {hour} * * * /usr/bin/python3 <script_path> <target> >> ~/.devtool/logs/refresh_session_daemon.log 2>&1`.
+- Inserts `{minute} {hour} * * * /usr/bin/python3 <script_path> <target> --delay {delay} >> ~/.devtool/logs/refresh_session_daemon.log 2>&1`.
 - Pipes updated content to `crontab -`.
+
+### 4.4. Safety Delay Buffer Specification (`--delay` / `--offset`)
+
+- **Default Behavior**: When scheduled via `launchd` or `crontab`, the execution target receives `--delay 30` (with alias `--offset 30`).
+- **Rationale**: Cloud rate-limit resets (Anthropic / OpenAI) can experience 5–15s backend synchronization latency or minute-boundary clock skew. Firing immediately at `05:00:00` risks consuming quota from the previous rolling window. Waiting 30s guarantees that the server-side reset threshold has passed by a safe margin.
+- **On-Demand Behavior**: On-demand / manual execution (`python3 refresh_session.py [target]`) defaults to `--delay 0` (instant execution, zero waiting).
+- **Execution Hook**: If `delay > 0`, the script logs `Waiting {delay}s delay buffer after reset minute...` and sleeps for `delay` seconds before triggering any CLI pings.
 
 ---
 

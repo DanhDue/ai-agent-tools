@@ -14,6 +14,7 @@
   - [4.1. Đặc Tả Bộ Phân Tích Giờ Linh Hoạt](#41-đặc-tả-bộ-phân-tích-giờ-linh-hoạt)
   - [4.2. Đặc Tả Dịch Vụ macOS `launchd`](#42-đặc-tả-dịch-vụ-macos-launchd)
   - [4.3. Đặc Tả Dự Phòng Linux `crontab`](#43-đặc-tả-dự-phòng-linux-crontab)
+  - [4.4. Đặc Tả Bộ Đệm Trễ An Toàn (`--delay` / `--offset`)](#44-đặc-tả-bộ-đệm-trễ-an-toàn---delay----offset)
 - [5. Đặc Tả Giao Diện Dòng Lệnh CLI](#5-đặc-tả-giao-diện-dòng-lệnh-cli)
   - [5.1. Chạy Thủ Công Ngay Lập Tức (Tương Thích Ngược 100%)](#51-chạy-thủ-công-ngay-lập-tức-tương-thích-ngược-100)
   - [5.2. Đặc Tả Subcommand Lập Lịch (`schedule`)](#52-đặc-tả-subcommand-lập-lịch-schedule)
@@ -114,7 +115,7 @@ Các giá trị không hợp lệ (như `25:00`, `-1h`, `abc`) sẽ ném ngoại
       <integer>{minute}</integer>
   </dict>
   ```
-- **Lệnh Thực Thi**: `/usr/bin/python3 <đường_dẫn_tuyệt_đối_refresh_session.py> <target>`
+- **Lệnh Thực Thi**: `/usr/bin/python3 <đường_dẫn_tuyệt_đối_refresh_session.py> <target> --delay {delay}`
 - **Log Tiêu Chuẩn**:
   - Out: `~/.devtool/logs/refresh_session_daemon.log`
   - Err: `~/.devtool/logs/refresh_session_daemon.err`
@@ -128,8 +129,15 @@ Các giá trị không hợp lệ (như `25:00`, `-1h`, `abc`) sẽ ném ngoại
 Trên Linux (`sys.platform.startswith("linux")`), engine sẽ:
 - Đọc nội dung `crontab -l`.
 - Loại bỏ khối cấu hình cũ nằm giữa `# BEGIN d3nexus-refresh-session` và `# END d3nexus-refresh-session`.
-- Chèn dòng mới `{minute} {hour} * * * /usr/bin/python3 <đường_dẫn_script> <target> >> ~/.devtool/logs/refresh_session_daemon.log 2>&1`.
+- Chèn dòng mới `{minute} {hour} * * * /usr/bin/python3 <đường_dẫn_script> <target> --delay {delay} >> ~/.devtool/logs/refresh_session_daemon.log 2>&1`.
 - Ghi lại bằng lệnh `crontab -`.
+
+### 4.4. Đặc Tả Bộ Đệm Trễ An Toàn (`--delay` / `--offset`)
+
+- **Hành vi mặc định khi đặt lịch**: Khi thiết lập lịch qua `launchd` hoặc `crontab`, lệnh chạy tự động nhận cờ `--delay 30` (hỗ trợ alias `--offset 30`).
+- **Lý do kỹ thuật**: Hệ thống máy chủ rate-limit đám mây (Anthropic/OpenAI) có thể mất từ 5–15 giây để worker hoàn tất reset quota hoặc bị lệch pha đồng hồ vi mô. Nếu ping ngay tại `05:00:00`, request có nguy cơ bị tính vào phiên cũ. Chờ 30 giây đảm bảo 100% thời điểm ping thực tế rơi vào phiên mới (`05:00:30`).
+- **Hành vi khi chạy thủ công**: Khi chạy trực tiếp bằng tay (`python3 refresh_session.py [target]`), mặc định `--delay 0` để thực thi ngay lập tức.
+- **Hook thực thi**: Khi `delay > 0`, script in thông báo `Waiting {delay}s delay buffer after reset minute...` và ngủ đúng `delay` giây trước khi thực hiện ping CLI.
 
 ---
 
