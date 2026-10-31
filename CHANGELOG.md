@@ -8,6 +8,26 @@ every installed machine on the old cached copy.
 
 ---
 
+## 1.20.0 — 2026-11-01
+
+Adds daily scheduling automation (Shift-Left Quota Staggering) to the refresh-session engine via macOS launchd and Linux crontab daemons, flexible time parsing, and comprehensive bilingual quick guides.
+
+### Added
+
+- **Daily Scheduled Session Pre-Warming Engine** (`skills/refresh-session/resources/scripts/refresh_session.py`): Adds `schedule` subcommand supporting `--time`, `--target`, `--status`, `--uninstall` (`--remove`), and `--json`. Allows developers to schedule pre-warming daemons at custom hours (e.g. `05:00`, `5h`, `6am`) so rolling 5-hour quota windows reset ahead of deep work hours.
+- **Flexible Natural Time Parser** (`skills/refresh-session/resources/scripts/refresh_session.py`): Parses standard 24-hour time (`05:00`, `14:30`), short hour (`5h`, `6h`, `5`, `6`), and 12-hour AM/PM (`5am`, `5:30am`, `6pm`, `12pm`) formats into `(hour, minute)` with robust validation.
+- **Native OS Daemon Management** (`skills/refresh-session/resources/scripts/refresh_session.py`):
+  - macOS: Generates launchd agent plist (`~/Library/LaunchAgents/com.d3nexus.refresh-session.plist`) with absolute paths and injected `PATH` environment, and controls lifecycle via `launchctl load`/`unload`.
+  - Linux: Automates user crontab entries with idempotent comment block delimiters.
+- **Bilingual Refresh-Session Quick-Guides** (`docs/refresh-session-quick-guide.en.md`, `docs/refresh-session-quick-guide.vi.md`): Detailed quick-lookup cheat sheets covering all chat and CLI commands, Shift-Left Quota Staggering strategy, launchd troubleshooting, and logs inspection.
+- **Expanded Scheduling Unit Tests** (`skills/refresh-session/resources/scripts/test_refresh_session.py`): Adds 14 unit tests covering 24h, short hour, and AM/PM time parsing, plist generation, daemon install/status/uninstall workflows, and schedule CLI argument parsing (27 total unit tests).
+
+### Changed
+
+- **`refresh-session` Skill Documentation** (`skills/refresh-session/SKILL.md`): Documents natural language scheduling triggers, daily daemon configuration commands, flexible time format examples, and links to the bilingual quick guides while preserving 100% backward compatibility for on-demand pings.
+
+---
+
 ## 1.19.0 — 2026-11-01
 
 Adds the refresh-session skill and engine for pre-warming 5-hour rolling session windows with minimum token consumption and zero skill initialization, formalizes review triage standardization and sticky review preferences, and strengthens context memory and task observer resilience.

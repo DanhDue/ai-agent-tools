@@ -1,45 +1,43 @@
-# Release Notes: d3nexus v1.19.0
+# Release Notes: d3nexus v1.20.0
 
 **Release Date:** November 01, 2026  
-**Version:** `1.19.0`  
-**Git Tag:** `v1.19.0`, `d3nexus--v1.19.0`
+**Version:** `1.20.0`  
+**Git Tag:** `v1.20.0`, `d3nexus--v1.20.0`
 
 ---
 
 ## Executive Summary
 
-`v1.19.0` introduces the **Zero-Token Session Refresh Engine** (`refresh-session`), allowing developers to pre-warm rolling 5-hour quota windows for Claude Code CLI and OpenAI Codex CLI with minimal token footprint (~50 tokens on Claude, 1,645 tokens on Codex) and absolute isolation from skills, plugins, or MCP servers. This release also formalizes **Standardized Review Triage & Sticky Review Preferences** across external review workflows, and strengthens multi-repo context memory and task observation resilience.
+`v1.20.0` enhances the **Session Refresh Engine** (`refresh-session`) with **Automated Daily Scheduling (Shift-Left Quota Staggering)**. Developers can now schedule automatic early-morning session pre-warming (e.g. at 5:00 AM or 6:00 AM) using OS native daemons (`launchd` on macOS, `crontab` on Linux) with zero third-party dependencies. This ensures that the initial 5-hour rolling rate-limit window resets just as deep work begins (e.g. 8:00 AM – 10:00 AM), granting an unbroken 7-hour full-quota development block. This release also introduces comprehensive bilingual quick-guides and expands the automated unit test suite to 27 tests.
 
 ---
 
 ## Key Highlights
 
-### 1. Zero-Token Session Pre-Warming Engine (`skills/refresh-session/`)
-- **Minimal Token Consumption**: Designed specifically to pre-warm 5-hour rolling session windows without wasting quota:
-  - Claude Code (`claude`): Uses `haiku` model, `--safe-mode`, empty tools (`--tools ""`), and disabled slash commands, consuming only ~50 total tokens.
-  - OpenAI Codex (`codex`): Executes `gpt-6.1-sol` with `model_reasoning_effort=low`, bypassing local sandbox restrictions with `--ephemeral` and consuming only 1,645 base tokens.
-- **Hermetic Sandbox Isolation**: Runs CLI invocations in an ephemeral temporary directory (`tempfile.TemporaryDirectory()`) to prevent accidental loading of repository configs, skills, MCP servers, or project files.
-- **Unit Tested & Release Hardened**: Includes 13 isolated unit tests (`test_refresh_session.py`) testing execution pathways, flag constructions, and error handling.
+### 1. Daily Daemon Scheduling Engine (`skills/refresh-session/`)
+- **Native OS Automation**:
+  - **macOS `launchd`**: Generates and manages `~/Library/LaunchAgents/com.d3nexus.refresh-session.plist` with full runtime `PATH` injection (`/opt/homebrew/bin`, `~/.local/bin`, etc.) and dedicated log routing (`~/.devtool/logs/refresh_session_daemon.{log,err}`).
+  - **Linux `crontab`**: Seamlessly manages user cron jobs using idempotent demarcated blocks (`# BEGIN d3nexus-refresh-session`).
+- **Flexible Natural Time Parsing**: Accepts standard 24-hour time (`05:00`, `14:30`), short hours (`5h`, `6h`, `5`), and 12-hour AM/PM (`5am`, `5:30am`, `6pm`, `12pm`).
+- **Complete CLI & Natural Language Controls**:
+  - Install: `schedule --time <time> [--target <target>]`
+  - Status: `schedule --status [--json]`
+  - Uninstall: `schedule --uninstall` (or `--remove`)
+- **100% Backward Compatibility**: Instant on-demand pings (`/refresh-session [claude|codex|all]`) remain fully functional and unchanged.
 
-### 2. Standardized Review Triage & Sticky Review Preferences
-- **Unified 4-Bullet Triage Header**: Standardizes the review results header across all reviewers (Claude, Codex, Antigravity, Ollama) to strictly include `Candidate SHA`, `Reviewer`, `Thinking Level`, and `Verdict`.
-- **Sticky Preferences**: Remembers developer choices per provider (e.g. effort levels, selected models) in `.devtool/review_config.json` across sessions.
-- **Dynamic Claude Probing**: Safely probes Claude CLI for `--effort` and `--thinking` flag availability, gracefully falling back to supported options.
-- **Senior 5-Layer Reviewer Guidelines**: Embeds mandatory 5-layer reviewer verification instructions (Architecture, Clean Code, Security, Correctness, Testing) directly into external review runner prompts.
+### 2. Comprehensive Bilingual Quick Guides
+- **Vietnamese Guide**: [`docs/refresh-session-quick-guide.vi.md`](docs/refresh-session-quick-guide.vi.md)
+- **English Guide**: [`docs/refresh-session-quick-guide.en.md`](docs/refresh-session-quick-guide.en.md)
+- Includes full command lookup cheat-sheets, Shift-Left Quota Staggering timelines, macOS daemon verification tips, and structured JSON telemetry examples.
 
-### 3. Context Memory & Task Observer Resilience
-- **Status Check Sanitization**: Filters out ephemeral Tier 2 runtime state files from working tree status reports in `scripts/resume_context.py`.
-- **Nested Repo Path Resolution**: Ensures `.devtool` directories resolve correctly from any nested or sibling repository workspace.
-- **Task Observer Glob Safety**: Guards zsh session-start glob expressions against `no matches found` errors in non-standard shell environments.
-
-### 4. Release Verification Harness Section 16 (`scripts/verify.sh`)
-- Automated verification in Section 16 enforces the `refresh-session` CLI contract, verifying argument parsing, hermetic sandboxing, isolation flag compliance, and test suite execution.
+### 3. Expanded Unit Testing & Release Verification
+- **27 Unit Tests**: Comprehensive coverage in [`test_refresh_session.py`](skills/refresh-session/resources/scripts/test_refresh_session.py) verifying time parsing, plist generation, daemon lifecycle, argument parsing, sandboxed directory isolation, and error handling.
+- **Section 16 Invariant**: Full suite verified in [`scripts/verify.sh`](scripts/verify.sh) Section 16.
 
 ---
 
 ## Verifications & Quality Gates Passed
 
-- `skills/refresh-session/resources/scripts/test_refresh_session.py`: 🟢 **PASS** (13/13 tests green)
-- `skills/dev-implementation/resources/scripts/test_run_external_review.py`: 🟢 **PASS** (61/61 tests green)
-- `scripts/test_resume_context.py`: 🟢 **PASS** (14/14 tests green)
+- `skills/refresh-session/resources/scripts/test_refresh_session.py`: 🟢 **PASS** (27/27 tests green)
+- `ruff check`: 🟢 **PASS** (0 errors, 100% compliant)
 - `scripts/verify.sh`: 🟢 **PASS — safe to publish** (16/16 sections green)
