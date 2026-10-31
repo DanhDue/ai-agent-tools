@@ -121,16 +121,18 @@ was handled without its reference loaded, log an observation.
 
    ```bash
    d=skill-observations/observation-log                                # re-derive in EVERY call
-   n=$(ls skill-observations/observation-log/*.md 2>/dev/null | wc -l) # literal path: independent of $d
+   n=$(find "$d" -maxdepth 1 -name "*.md" 2>/dev/null | wc -l)         # independent count via find (zsh-safe)
    parsed=0
-   for f in "$d"/*.md; do
-     [ -e "$f" ] || continue
-     hdr=$(awk 'NR==1 && /^---[[:space:]]*$/ {fm=1; next}
-                fm && /^---[[:space:]]*$/ {exit}
-                fm' "$f")
-     [ -n "$hdr" ] && parsed=$(( parsed + 1 ))
-     printf '%s\n---\n' "$hdr"
-   done
+   if [ "$n" -gt 0 ]; then
+     for f in "$d"/*.md; do
+       [ -e "$f" ] || continue
+       hdr=$(awk 'NR==1 && /^---[[:space:]]*$/ {fm=1; next}
+                  fm && /^---[[:space:]]*$/ {exit}
+                  fm' "$f")
+       [ -n "$hdr" ] && parsed=$(( parsed + 1 ))
+       printf '%s\n---\n' "$hdr"
+     done
+   fi
    [ "$n" -gt 0 ] && [ "$parsed" -eq 0 ] && \
      { echo "SCAN COMMAND BROKEN — $n files present, 0 headers parsed"; exit 1; }
    ```
@@ -295,7 +297,7 @@ when the active directory is empty):
 d=skill-observations/observation-log
 hi=$( { ls "$d" "$d/archive" 2>/dev/null | grep -oE '^[0-9]+'; cat "$d/archive/.id-floor" 2>/dev/null; } \
      | sort -n | tail -1); : "${hi:=0}"
-[ "$hi" -eq 0 ] && [ -n "$(ls "$d"/*.md 2>/dev/null)" ] && { echo "ID COMMAND BROKEN — log is non-empty but no ids extracted"; exit 1; }
+[ "$hi" -eq 0 ] && [ -n "$(find "$d" -maxdepth 1 -name "*.md" 2>/dev/null)" ] && { echo "ID COMMAND BROKEN — log is non-empty but no ids extracted"; exit 1; }
 next_id=$(( hi + 1 )); echo "$next_id" > "$d/archive/.id-floor"
 ```
 
