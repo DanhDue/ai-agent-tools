@@ -104,9 +104,10 @@ Scenario: [RTS-FR-02] [Tier C - Integration] Unknown thinking level gracefully d
 
 ## Verification
 
+RED: n/a — retroactive formalization: implementation and test suite already verified.
+
 | ID | Phase | Command | Expect | Needs |
 |----|-------|---------|--------|-------|
-| V1 | RED | `python3 -m unittest skills/dev-implementation/resources/scripts/test_run_external_review.py -k test_default_config_resolution_and_persistence` | exit 1; contains "FAILED" | — |
 | V2 | GREEN | `python3 -m unittest skills/dev-implementation/resources/scripts/test_run_external_review.py -k test_default_config_resolution_and_persistence` | exit 0; contains "OK" | — |
 | V3 | GREEN | `python3 -m unittest skills/dev-implementation/resources/scripts/test_run_external_review.py -k test_codex_thinking_level_arguments` | exit 0; contains "OK" | — |
 | V4 | TIER-B | `ruff check skills/dev-implementation/resources/scripts/run_external_review.py skills/dev-implementation/resources/scripts/test_run_external_review.py` | exit 0 | — |

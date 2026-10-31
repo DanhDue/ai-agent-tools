@@ -66,9 +66,10 @@ Scenario: [RTS-FR-01] [Tier C - Integration] Tree change guard aborts if reviewe
 
 ## Verification
 
+RED: n/a — retroactive formalization: implementation and test suite already verified.
+
 | ID | Phase | Command | Expect | Needs |
 |----|-------|---------|--------|-------|
-| V1 | RED | `python3 -m unittest skills/dev-implementation/resources/scripts/test_run_external_review.py -k test_claude_thinking_level_arguments` | exit 1; contains "FAILED" | — |
 | V2 | GREEN | `python3 -m unittest skills/dev-implementation/resources/scripts/test_run_external_review.py -k test_claude_thinking_level_arguments` | exit 0; contains "OK" | — |
 | V3 | TIER-B | `ruff check skills/dev-implementation/resources/scripts/run_external_review.py` | exit 0 | — |
 | V4 | TIER-B | `mypy --strict --follow-imports=silent skills/dev-implementation/resources/scripts/run_external_review.py` | exit 0 | — |
