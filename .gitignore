@@ -7,4 +7,15 @@ __pycache__/
 .worktrees/
 skill-observations/
 build/
+
+# Devtool Tier-2 ephemeral runtime state, logs, locks, and local review preferences
+# (Keep .devtool/PROJECT_LEDGER.md, .devtool/epic/, .devtool/features/, .devtool/product/ tracked)
 .devtool/.memory.lock
+.devtool/assistant_state.md
+.devtool/activity_stream.log
+.devtool/state/
+.devtool/logs/
+.devtool/archive/
+.devtool/review_config.json
+.devtool/review_config.json.tmp
+.devtool/contract_brief_*.md

@@ -562,6 +562,31 @@ ag_run() {
         self.assertIn("context_memory_management", payload["state"])
         self.assertIn("JSON decision locked", payload["state"]["context_memory_management"])
 
+    def test_cmm_ec_04_explicit_same_repo_flag_does_not_nest_devtool(self) -> None:
+        """[CMM-EC-04] Passing --repo <current_repo> from inside that repo or its worktree never creates <repo>/<repo>/.devtool."""
+        res_state = self.run_cli([
+            "--state", "--repo", "ai-agent-tools", "--epic", "nested_bug_check",
+            "--decisions", "No nested repo folder",
+            "--status", "in-progress",
+            "--next", "Verify path",
+        ])
+        self.assertEqual(res_state.returncode, 0, f"stderr: {res_state.stderr}")
+
+        res_log = self.run_cli([
+            "--log", "--repo", "ai-agent-tools", "--epic", "nested_bug_check",
+            "--task", "task_01",
+            "--request", "Test log with explicit repo flag",
+            "--action", "Logged cleanly",
+        ])
+        self.assertEqual(res_log.returncode, 0, f"stderr: {res_log.stderr}")
+
+        self.assertFalse(
+            (self.repo_dir / "ai-agent-tools").exists(),
+            "Nested <repo>/<repo>/.devtool directory was erroneously created!",
+        )
+        self.assertTrue((self.repo_dir / ".devtool" / "state" / "nested_bug_check.md").exists())
+        self.assertTrue((self.repo_dir / ".devtool" / "logs" / "activity_nested_bug_check.log").exists())
+
 
 if __name__ == "__main__":
     unittest.main()

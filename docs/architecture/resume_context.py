@@ -245,6 +245,20 @@ def refresh_activity_stream_rollup(devtool_dir: Path) -> None:
     rollup.write_text("\n".join(recent) + ("\n" if recent else ""), encoding="utf-8")
 
 
+def resolve_target_devtool_dir(root: Path, repo: str | None = None) -> Path:
+    if not repo or repo == "workspace" or root.name == repo:
+        return root / ".devtool"
+    candidate = root / repo
+    if (candidate / ".git").exists() or (candidate / ".devtool").exists():
+        return candidate / ".devtool"
+    sibling = root.parent / repo
+    if root.name in REPOS and ((sibling / ".git").exists() or (sibling / ".devtool").exists()):
+        return sibling / ".devtool"
+    if not (root / ".git").exists():
+        return candidate / ".devtool"
+    return root / ".devtool"
+
+
 def write_epic_state(
     root: Path,
     epic_slug: str,
@@ -255,7 +269,7 @@ def write_epic_state(
     role: str = "programmer",
     repo: str | None = None,
 ) -> None:
-    devtool_dir = (root / repo / ".devtool") if repo else (root / ".devtool")
+    devtool_dir = resolve_target_devtool_dir(root, repo)
     with file_lock(devtool_dir):
         migrate_legacy_storage(devtool_dir)
         state_dir = devtool_dir / "state"
@@ -274,7 +288,7 @@ def append_activity_log(
     action: str,
     note: str = "None",
 ) -> None:
-    devtool_dir = (root / repo / ".devtool") if (repo and repo in REPOS and (root / repo).exists()) else (root / ".devtool")
+    devtool_dir = resolve_target_devtool_dir(root, repo)
     with file_lock(devtool_dir):
         migrate_legacy_storage(devtool_dir)
         logs_dir = devtool_dir / "logs"
