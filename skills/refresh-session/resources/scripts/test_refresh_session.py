@@ -319,7 +319,7 @@ class TestRefreshSession(unittest.TestCase):
         with redirect_stdout(out):
             code = refresh_session.main(["schedule", "--time", "05:00", "--target", "codex"])
         self.assertEqual(code, 0)
-        mock_install.assert_called_once_with(5, 0, target="codex")
+        mock_install.assert_called_once_with(5, 0, target="codex", delay=30)
 
     @patch("refresh_session.get_schedule_status", return_value={"installed": True, "loaded": True, "hour": 5, "minute": 0, "target": "all"})
     def test_main_schedule_status(self, mock_status: MagicMock) -> None:
@@ -356,6 +356,36 @@ class TestRefreshSession(unittest.TestCase):
             code = refresh_session.main(["schedule"])
         self.assertEqual(code, 1)
         self.assertIn("Usage:", err.getvalue())
+
+    def test_parse_arguments_delay_defaults(self) -> None:
+        """On-demand pings default to delay 0; schedule subcommand defaults to delay 30."""
+        args_ping = refresh_session.parse_args(["claude"])
+        self.assertEqual(args_ping.delay, 0)
+
+        args_sched = refresh_session.parse_args(["schedule", "--time", "05:00"])
+        self.assertEqual(args_sched.delay, 30)
+
+    def test_parse_arguments_delay_custom(self) -> None:
+        """Accepts custom --delay and --offset across root and schedule subparsers."""
+        args_delay = refresh_session.parse_args(["claude", "--delay", "45"])
+        self.assertEqual(args_delay.delay, 45)
+
+        args_offset = refresh_session.parse_args(["schedule", "--time", "05:00", "--offset", "15"])
+        self.assertEqual(args_offset.delay, 15)
+
+    def test_build_darwin_plist_with_delay(self) -> None:
+        """Builds launchd plist including --delay argument when delay > 0."""
+        plist = refresh_session.build_darwin_plist("/path/to/script.py", 5, 0, target="all", delay=30)
+        self.assertIn("<string>--delay</string>", plist)
+        self.assertIn("<string>30</string>", plist)
+
+    @patch("time.sleep")
+    @patch("refresh_session.ping_cli", return_value={"cli": "claude", "status": "PASS", "latency_ms": 10.0, "tokens": 1, "error": None})
+    def test_main_delay_sleep_invoked(self, mock_ping: MagicMock, mock_sleep: MagicMock) -> None:
+        """Invokes time.sleep when delay > 0 before pinging."""
+        code = refresh_session.main(["claude", "--delay", "30"])
+        self.assertEqual(code, 0)
+        mock_sleep.assert_called_once_with(30)
 
 
 if __name__ == "__main__":

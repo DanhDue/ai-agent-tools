@@ -83,8 +83,10 @@ def parse_flexible_time(time_str: str) -> tuple[int, int]:
     )
 
 
-def build_darwin_plist(script_path: str, hour: int, minute: int, target: str = "all") -> str:
-    """Generate launchd plist XML for macOS with absolute paths and full PATH environment."""
+def build_darwin_plist(
+    script_path: str, hour: int, minute: int, target: str = "all", delay: int = 30
+) -> str:
+    """Generate launchd plist XML for macOS with absolute paths, delay buffer, and full PATH environment."""
     resolved_script = str(Path(script_path).resolve())
     python_bin = sys.executable or "/usr/bin/python3"
     log_out = str((LOG_DIR / "refresh_session_daemon.log").resolve())
@@ -104,6 +106,12 @@ def build_darwin_plist(script_path: str, hour: int, minute: int, target: str = "
         if p not in env_path:
             env_path = f"{p}:{env_path}"
 
+    delay_xml = (
+        f"""\n        <string>--delay</string>\n        <string>{delay}</string>"""
+        if delay > 0
+        else ""
+    )
+
     return f"""<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -114,7 +122,7 @@ def build_darwin_plist(script_path: str, hour: int, minute: int, target: str = "
     <array>
         <string>{python_bin}</string>
         <string>{resolved_script}</string>
-        <string>{target}</string>
+        <string>{target}</string>{delay_xml}
     </array>
     <key>EnvironmentVariables</key>
     <dict>
@@ -138,16 +146,22 @@ def build_darwin_plist(script_path: str, hour: int, minute: int, target: str = "
 
 
 def install_schedule_darwin(
-    hour: int, minute: int, target: str = "all", script_path: str | None = None
+    hour: int,
+    minute: int,
+    target: str = "all",
+    delay: int = 30,
+    script_path: str | None = None,
 ) -> dict[str, Any]:
-    """Install launchd agent on macOS."""
+    """Install launchd agent on macOS with safety delay buffer."""
     if script_path is None:
         script_path = str(Path(__file__).resolve())
 
     DARWIN_PLIST_DIR.mkdir(parents=True, exist_ok=True)
     LOG_DIR.mkdir(parents=True, exist_ok=True)
 
-    plist_content = build_darwin_plist(script_path, hour=hour, minute=minute, target=target)
+    plist_content = build_darwin_plist(
+        script_path, hour=hour, minute=minute, target=target, delay=delay
+    )
     DARWIN_PLIST_PATH.write_text(plist_content)
 
     subprocess.run(
@@ -170,6 +184,7 @@ def install_schedule_darwin(
         "hour": hour,
         "minute": minute,
         "target": target,
+        "delay": delay,
         "plist_path": str(DARWIN_PLIST_PATH),
         "error": error_msg,
     }
@@ -184,6 +199,7 @@ def get_schedule_status_darwin() -> dict[str, Any]:
             "hour": None,
             "minute": None,
             "target": None,
+            "delay": None,
             "plist_path": str(DARWIN_PLIST_PATH),
         }
 
@@ -202,6 +218,11 @@ def get_schedule_status_darwin() -> dict[str, Any]:
     target_match = re.search(r"<string>(all|claude|codex)</string>", content)
     target = target_match.group(1) if target_match else "all"
 
+    delay_match = re.search(
+        r"<string>--(?:delay|offset)</string>\s*<string>(\d+)</string>", content
+    )
+    delay = int(delay_match.group(1)) if delay_match else (30 if "<key>Hour</key>" in content else 0)
+
     check_proc = subprocess.run(
         ["launchctl", "list"], capture_output=True, text=True, check=False
     )
@@ -213,6 +234,7 @@ def get_schedule_status_darwin() -> dict[str, Any]:
         "hour": hour,
         "minute": minute,
         "target": target,
+        "delay": delay,
         "plist_path": str(DARWIN_PLIST_PATH),
     }
 
@@ -234,16 +256,21 @@ def uninstall_schedule_darwin() -> dict[str, Any]:
 
 
 def install_schedule_linux(
-    hour: int, minute: int, target: str = "all", script_path: str | None = None
+    hour: int,
+    minute: int,
+    target: str = "all",
+    delay: int = 30,
+    script_path: str | None = None,
 ) -> dict[str, Any]:
-    """Install user crontab job on Linux."""
+    """Install user crontab job on Linux with safety delay buffer."""
     if script_path is None:
         script_path = str(Path(__file__).resolve())
     python_bin = sys.executable or "/usr/bin/python3"
     log_file = LOG_DIR / "refresh_session_daemon.log"
     LOG_DIR.mkdir(parents=True, exist_ok=True)
 
-    cron_line = f"{minute} {hour} * * * {python_bin} {script_path} {target} >> {log_file} 2>&1"
+    delay_arg = f" --delay {delay}" if delay > 0 else ""
+    cron_line = f"{minute} {hour} * * * {python_bin} {script_path} {target}{delay_arg} >> {log_file} 2>&1"
 
     cur_proc = subprocess.run(
         ["crontab", "-l"], capture_output=True, text=True, check=False
@@ -269,6 +296,7 @@ def install_schedule_linux(
         "hour": hour,
         "minute": minute,
         "target": target,
+        "delay": delay,
         "error": set_proc.stderr.strip() if set_proc.returncode != 0 else None,
     }
 
@@ -285,20 +313,26 @@ def get_schedule_status_linux() -> dict[str, Any]:
             "hour": None,
             "minute": None,
             "target": None,
+            "delay": None,
         }
 
-    pattern = rf"{re.escape(CRON_START_MARKER)}\n(\d+)\s+(\d+)\s+\*\s+\*\s+\*\s+.*?(all|claude|codex)?\s*>>"
+    pattern = (
+        rf"{re.escape(CRON_START_MARKER)}\n(\d+)\s+(\d+)\s+\*\s+\*\s+\*\s+"
+        rf".*?(all|claude|codex)?(?:\s+--(?:delay|offset)\s+(\d+))?\s*>>"
+    )
     match = re.search(pattern, cur_proc.stdout)
     if match:
         minute = int(match.group(1))
         hour = int(match.group(2))
         target = match.group(3) or "all"
+        delay = int(match.group(4)) if match.group(4) else 30
         return {
             "installed": True,
             "loaded": True,
             "hour": hour,
             "minute": minute,
             "target": target,
+            "delay": delay,
         }
     return {
         "installed": True,
@@ -306,6 +340,7 @@ def get_schedule_status_linux() -> dict[str, Any]:
         "hour": None,
         "minute": None,
         "target": "all",
+        "delay": 30,
     }
 
 
@@ -323,11 +358,13 @@ def uninstall_schedule_linux() -> dict[str, Any]:
     return {"success": True, "platform": "linux"}
 
 
-def install_schedule(hour: int, minute: int, target: str = "all") -> dict[str, Any]:
-    """Install daily schedule dispatching to darwin or linux."""
+def install_schedule(
+    hour: int, minute: int, target: str = "all", delay: int = 30
+) -> dict[str, Any]:
+    """Install daily schedule dispatching to darwin or linux with delay buffer."""
     if sys.platform == "darwin":
-        return install_schedule_darwin(hour, minute, target=target)
-    return install_schedule_linux(hour, minute, target=target)
+        return install_schedule_darwin(hour, minute, target=target, delay=delay)
+    return install_schedule_linux(hour, minute, target=target, delay=delay)
 
 
 def get_schedule_status() -> dict[str, Any]:
@@ -491,6 +528,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
             help="Target CLI to schedule: 'claude', 'codex', or 'all' (default: 'all')",
         )
         sched_parser.add_argument(
+            "--delay",
+            "--offset",
+            dest="delay",
+            type=int,
+            default=30,
+            help="Delay in seconds after the scheduled minute before pinging (default: 30)",
+        )
+        sched_parser.add_argument(
             "--status",
             action="store_true",
             help="Check active schedule status",
@@ -520,6 +565,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default="all",
         choices=SUPPORTED_TARGETS,
         help="Target CLI to ping: 'claude', 'codex', or 'all' (default: 'all')",
+    )
+    parser.add_argument(
+        "--delay",
+        "--offset",
+        dest="delay",
+        type=int,
+        default=0,
+        help="Seconds to delay before pinging (default: 0)",
     )
     parser.add_argument(
         "--timeout",
@@ -568,6 +621,9 @@ def main(argv: list[str] | None = None) -> int:
                     print(f"Scheduled daemon: ACTIVE ({loaded_str})")
                     print(f"  • Trigger time: {time_display} daily")
                     print(f"  • Target:       {target_display}")
+                    delay_val = status.get("delay")
+                    if delay_val is not None:
+                        print(f"  • Delay buffer: {delay_val}s")
                     if "plist_path" in status:
                         print(f"  • Config:       {status['plist_path']}")
                 else:
@@ -584,14 +640,14 @@ def main(argv: list[str] | None = None) -> int:
                     print(f"Error: {exc}", file=sys.stderr)
                 return 1
 
-            res = install_schedule(hour, minute, target=args.target)
+            res = install_schedule(hour, minute, target=args.target, delay=args.delay)
             if args.json:
                 print(json.dumps(res, indent=2))
             else:
                 if res.get("success"):
                     print(
                         f"Successfully scheduled daily refresh at {hour:02d}:{minute:02d} "
-                        f"for '{args.target}' ({res.get('platform')})."
+                        f"(delay: {args.delay}s) for '{args.target}' ({res.get('platform')})."
                     )
                     if "plist_path" in res:
                         print(f"  • Plist: {res['plist_path']}")
@@ -602,10 +658,15 @@ def main(argv: list[str] | None = None) -> int:
         # If none of the schedule flags provided, show error
         print(
             "Usage: refresh_session.py schedule (--time TIME | --status | --uninstall) "
-            "[--target TARGET] [--json]",
+            "[--target TARGET] [--delay SECONDS] [--json]",
             file=sys.stderr,
         )
         return 1
+
+    if args.delay > 0:
+        if not args.json:
+            print(f"Waiting {args.delay}s delay buffer after reset minute...")
+        time.sleep(args.delay)
 
     targets = ["claude", "codex"] if args.target == "all" else [args.target]
     results: list[dict[str, Any]] = []
