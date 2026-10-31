@@ -35,7 +35,7 @@ PRIORITY_RANK = {"high": 0, "medium": 1, "low": 2}
 # in the operating skill is the actual safety net for anything these markers miss.
 SOFT_NOTE_MARKERS = ("Recommended", "New dependency")
 FRONTMATTER_RE = re.compile(r"^---\n(.*?)\n---\n", re.DOTALL)
-SECTION_RE = re.compile(r"##\s*Dependencies\s*&\s*Blockers\s*\n(.*?)(\n##|\Z)", re.DOTALL)
+SECTION_RE = re.compile(r"##\s*Dependencies\s*(?:&|and)\s*Blockers\s*\n(.*?)(\n##|\Z)", re.DOTALL)
 LINK_RE = re.compile(r"\]\(([^)]+\.md)\)")
 TITLE_RE = re.compile(r"^#\s*Task\s*\d+:\s*(.+)$", re.MULTILINE)
 NUMBER_RE = re.compile(r"\d+")
@@ -78,7 +78,11 @@ def scan_tasks(features_dir: Path, epic: str) -> tuple[dict[str, dict], list[Pat
     scanned: list[Path] = []
     skipped: list[Path] = []
     target_epic = sanitize_slug(epic)
-    for path in sorted(Path(features_dir).glob("task_*.md")):
+    candidate_paths = list(Path(features_dir).glob("task_*.md"))
+    done_dir = Path(features_dir) / "done"
+    if done_dir.is_dir():
+        candidate_paths.extend(done_dir.glob("task_*.md"))
+    for path in sorted(candidate_paths):
         scanned.append(path)
         text = path.read_text()
         fm = parse_frontmatter(text)

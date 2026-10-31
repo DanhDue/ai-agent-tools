@@ -246,7 +246,7 @@ function broadcast(msg) {
 
 // ========== Activity Tracking ==========
 
-const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
+const IDLE_TIMEOUT_MS = Number(process.env.BRAINSTORM_IDLE_TIMEOUT_MS) || (4 * 60 * 60 * 1000); // 4 hours
 let lastActivity = Date.now();
 
 function touchActivity() {

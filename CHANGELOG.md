@@ -8,6 +8,25 @@ every installed machine on the old cached copy.
 
 ---
 
+## 1.17.0 — 2026-10-31
+
+Adds the Tri-Role Context Memory Quick-Guide, robust multi-line array parsing and metafied zsh history decoding in `--sync-zshrc`, automatic sibling workspace repository context harvesting in `resume_context.py`, and external review runner hardening across Antigravity and Claude CLIs.
+
+### Added
+
+- **Tri-Role Context Memory Quick-Guide** (`docs/context-memory-quick-guide.en.md`, `docs/context-memory-quick-guide.vi.md`): Comprehensive bilingual quick-guide detailing the Tri-Role operating model (Role 2.1 Human Architect, Role 2.2 AI Assistant, Role 2.3 AI Programmer), a 10-second command cheat-sheet, and 5 step-by-step workflow scenario playbooks (Principal Review, AI Programmer task execution, Cross-Model Review, Independent Technical Discussion, and Interrupted Session Resume).
+- **Updated Lifecycle State Diagrams** (`docs/lifecycles.en.md`, `docs/lifecycles.vi.md`): Synchronized Mermaid lifecycle and resume diagrams annotated with Tri-Role governance personas and context restoration checkpoints.
+- **Sibling Workspace Repository Auto-Harvest** (`scripts/resume_context.py`, `docs/architecture/resume_context.py`): Automatically discovers and scans sibling repositories (`ai-agent-tools`, `D3Nexus`, `lyrics-sync`, `nexus`) when executed from within any individual repository directory, displaying Git working tree status across all repos, open contract RFCs in `D3Nexus/shared-contracts/*/gaps_and_rfcs.md`, and active Kanban tasks.
+
+### Changed
+
+- **Multi-Line Array & Metafied Byte History Sync** (`scripts/resume_context.py`, `docs/architecture/resume_context.py`): Hardens `update_zshrc_sync_items` to cleanly parse multi-line `sync_items=(...)` arrays containing comment lines (`# ...`), and decodes `.zsh_history` with `errors="replace"` to handle non-UTF-8 metafied bytes (`0x83`) on macOS.
+- **External Review Runner Hardening** (`skills/dev-implementation/resources/scripts/run_external_review.py`): Tolerates severity tags without square brackets in reviewer output, strips backtick wrappers from integration results and roots in HLD files, adds `--dangerously-skip-permissions` to Antigravity CLI invocations, and supports optional `--developer-note` in Principal Review prompts.
+- **BDD Traceability & Task Execution Tooling** (`skills/dev-implementation/resources/scripts/check_bdd_traceability.py`, `skills/dev-implementation/resources/scripts/compute_execution_order.py`, `skills/dev-implementation/resources/scripts/result_reports.py`): Normalizes whitespace and comma separation in Covers declarations, supports both `&` and `and` in dependency headers while including completed tasks from `features/done/`, and improves Dart test event JSON stream detection.
+- **Brainstorming Server Idle Timeout** (`skills/dev-brainstorming/scripts/server.cjs`): Extends default idle timeout to 4 hours, configurable via `BRAINSTORM_IDLE_TIMEOUT_MS`.
+
+---
+
 ## 1.16.0 — 2026-10-31
 
 Delivers Two-Tier Project Memory (`scripts/resume_context.py`), Tri-Role Governance Model, multi-profile shell environment & shared history synchronization, new `resume-context` and `save-context` skills, Critical Rule 8 in `CRITICAL_RULES.md`, automatic context hooks across all 9 dev-lifecycle skills, and full JSON harvest export.

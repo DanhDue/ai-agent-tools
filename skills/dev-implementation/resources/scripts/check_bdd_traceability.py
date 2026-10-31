@@ -179,7 +179,7 @@ def check_tests(ids: list[str], selected: list[str], roots: list[Path],
 
 def split_values(values: list[str] | None) -> list[str]:
     """Accept space- or comma-separated values, as copied from an HLD or Covers: line."""
-    return [part.strip() for value in values or [] for part in value.split(",") if part.strip()]
+    return [item for value in values or [] for part in value.split(",") for item in part.split() if item]
 
 
 def report(coverage: dict[str, list[str]], problems: list[str], warnings: list[str]) -> int:

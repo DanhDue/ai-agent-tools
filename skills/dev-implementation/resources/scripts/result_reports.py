@@ -88,7 +88,7 @@ def load_files(files: list[Path]) -> list[Case]:
         try:
             if lead == "<":
                 cases.extend(parse_junit(text))
-            elif lead == "{":
+            elif lead == "{" or any(line.startswith("{") for line in text.splitlines()):
                 cases.extend(parse_dart(text))
             else:
                 raise ReportError(f"{file} is neither JUnit XML nor Dart JSON")

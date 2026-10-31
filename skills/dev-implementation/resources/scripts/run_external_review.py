@@ -252,16 +252,19 @@ def collect_facts(root: Path, epic_dir: str, base: str, hld_text: str, timeout: 
     audit_output = fact("audit_epic.py", audit_code, audit_out, audit_err)
     results, reports = [], []
     for line in parse_integration_results(hld_text):
-        command, _, report = line.partition(" -> ")
-        cmd = command.strip()
+        command, _, report = line.strip().strip("`").partition(" -> ")
+        cmd = command.strip().strip("`")
+        report = report.strip().strip("`")
         cmd_code, cmd_out, cmd_err = run_gate(f"Integration: {cmd}", cmd, root, timeout, shell=True)
         results.append(fact(cmd, cmd_code, cmd_out, cmd_err))
         reports.extend(report.split())
     roots = re.search(r"^Integration test roots:\s*(.+)$", hld_text, re.MULTILINE)
     if roots and reports:
+        results_paths = ["build/test-results"] if (root / "build/test-results").is_dir() else [r.strip("`") for r in reports]
+        roots_list = [r.strip("`") for r in roots.group(1).strip().split()]
         check = [sys.executable, str(SCRIPTS / "check_bdd_traceability.py"), "tests", "--scenarios",
-                 f".devtool/epic/{epic_dir}/bdd_scenarios.en.md", "--roots", roots.group(1).strip(),
-                 "--results", *reports]
+                 f".devtool/epic/{epic_dir}/bdd_scenarios.en.md", "--roots", *roots_list,
+                 "--results", *results_paths]
         chk_code, chk_out, chk_err = run_gate("check_bdd_traceability.py", check, root, timeout)
         results.append(fact(shlex.join(check[1:]), chk_code, chk_out, chk_err))
     return audit_output, "\n".join(results) or "No Integration results declared.\n"
@@ -512,6 +515,9 @@ def run_principal(root: Path, args: argparse.Namespace, sha: str) -> int:
         artefacts=principal_artefact_lines(root, args.epic_dir),
         readiness_output=readiness_output,
     )
+
+    if getattr(args, "developer_note", None):
+        prompt += f"\n\n## Developer Special Instructions\n\n{args.developer_note}\n"
 
     before = status_lines(root)
     code, out, err = execute(cli_command(args.cli, args.model), root, args.timeout, prompt)
@@ -908,6 +914,7 @@ def main(argv: list[str] | None = None) -> int:
     runner.add_argument("--facts-timeout", type=int, default=300)
     runner.add_argument("--diff-limit", type=int, default=MAX_DIFF_LINES)
     runner.add_argument("--commits")
+    runner.add_argument("--developer-note")
     checker = modes.add_parser("check", help="list undecided blocking findings of the latest completed round")
     checker.add_argument("--kind", choices=KINDS, default="code")
     checker.add_argument("--epic-dir", required=True)
