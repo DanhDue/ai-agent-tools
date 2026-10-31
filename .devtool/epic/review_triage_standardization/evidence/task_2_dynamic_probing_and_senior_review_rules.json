@@ -3,31 +3,31 @@
   "task": "task_2_dynamic_probing_and_senior_review_rules",
   "runs": {
     "verify": {
-      "head": "8ad1e37678d60b9ab64283955131c1c8eb824312",
-      "tree": "e4d2c02183efe5ea67d464ab276567d39500a24a",
+      "head": "5188023f87f1479cfcb5f36034e21bd563a27aa8",
+      "tree": "4471f6776fcccefc9714e96923231c417fa676ed",
       "patch_id": null,
-      "started": "2026-10-31T08:08:58Z",
-      "finished": "2026-10-31T08:09:31Z",
+      "started": "2026-10-31T08:44:14Z",
+      "finished": "2026-10-31T08:44:48Z",
       "rows": [
         {
           "id": "V2",
           "phase": "GREEN",
-          "command": "python3 -m unittest skills/dev-implementation/resources/scripts/test_run_external_review.py -k test_claude_thinking_level_arguments",
+          "command": "python3 -m unittest skills/dev-implementation/resources/scripts/test_run_external_review.py -k test_rts_hp_05",
           "expect": "exit 0; contains \"OK\"",
           "needs": [],
           "exit": 0,
           "outcome": "PASS",
           "reason": null,
-          "started": "2026-10-31T08:08:58Z",
-          "finished": "2026-10-31T08:08:59Z",
+          "started": "2026-10-31T08:44:14Z",
+          "finished": "2026-10-31T08:44:14Z",
           "output_tail": [
             ".",
             "----------------------------------------------------------------------",
-            "Ran 1 test in 0.563s",
+            "Ran 1 test in 0.520s",
             "",
             "OK"
           ],
-          "output_sha256": "cf7dbb52a700e5a58316a9c75d19f9e5f28d2b41efc499035b6fdf0dcf0570ee"
+          "output_sha256": "ce621c0891c4d56e70f11c7fee8f5e10358ebcab5b08197fedb9dd1c5d13de71"
         },
         {
           "id": "V3",
@@ -38,8 +38,8 @@
           "exit": 0,
           "outcome": "PASS",
           "reason": null,
-          "started": "2026-10-31T08:08:59Z",
-          "finished": "2026-10-31T08:08:59Z",
+          "started": "2026-10-31T08:44:14Z",
+          "finished": "2026-10-31T08:44:14Z",
           "output_tail": [
             "All checks passed!"
           ],
@@ -54,8 +54,8 @@
           "exit": 0,
           "outcome": "PASS",
           "reason": null,
-          "started": "2026-10-31T08:08:59Z",
-          "finished": "2026-10-31T08:08:59Z",
+          "started": "2026-10-31T08:44:14Z",
+          "finished": "2026-10-31T08:44:14Z",
           "output_tail": [
             "Success: no issues found in 1 source file"
           ],
@@ -70,26 +70,97 @@
           "exit": 0,
           "outcome": "PASS",
           "reason": null,
-          "started": "2026-10-31T08:08:59Z",
-          "finished": "2026-10-31T08:09:31Z",
+          "started": "2026-10-31T08:44:14Z",
+          "finished": "2026-10-31T08:44:47Z",
           "output_tail": [
-            ".........................................................",
+            "...................................................................",
             "----------------------------------------------------------------------",
-            "Ran 57 tests in 32.111s",
+            "Ran 67 tests in 32.984s",
             "",
             "OK"
           ],
-          "output_sha256": "23e4cf83e2ef6e78fa79579f583cf40798edc6ec3271c152b357e0e8c59d8a62",
+          "output_sha256": "9a9888381a611382300a2922fbf93a57f64bd9522b703831d701a0d66e10b9e4",
           "results": {
             "path": "build/test-results/run-external-review.xml",
             "fresh": true,
             "digest": {
               "totals": {
-                "passed": 0,
+                "passed": 14,
                 "failed": 0,
                 "skipped": 0
               },
-              "cases": []
+              "cases": [
+                {
+                  "name": "test_rts_ar_01_atomic_config_write",
+                  "classname": "test_run_external_review.TestReviewConfigAndHeader",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rts_ec_01_ollama_requires_model_without_previous_round",
+                  "classname": "test_run_external_review.TestReviewConfigAndHeader",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rts_ec_02_corrupted_config_falls_back_to_defaults",
+                  "classname": "test_run_external_review.TestReviewConfigAndHeader",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rts_ec_03_zero_findings_in_verdict",
+                  "classname": "test_run_external_review.TestReviewConfigAndHeader",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rts_fr_01_tree_changes_aborts_on_mutation",
+                  "classname": "test_run_external_review.TestReviewConfigAndHeader",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rts_fr_02_unknown_thinking_level_defaults_to_high",
+                  "classname": "test_run_external_review.TestReviewConfigAndHeader",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rts_hp_01_standardized_4_bullet_header_in_triage",
+                  "classname": "test_run_external_review.TestReviewConfigAndHeader",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rts_hp_02_canonical_defaults_auto_seeded",
+                  "classname": "test_run_external_review.TestReviewConfigAndHeader",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rts_hp_03_sticky_memory_updates_on_subsequent_runs",
+                  "classname": "test_run_external_review.TestReviewConfigAndHeader",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rts_hp_04_thinking_level_translates_to_cli_flags",
+                  "classname": "test_run_external_review.TestReviewConfigAndHeader",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rts_hp_05_claude_dangerously_skip_permissions",
+                  "classname": "test_run_external_review.TestReviewConfigAndHeader",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rts_hp_06_dynamic_probing_and_senior_rules_in_prompts",
+                  "classname": "test_run_external_review.TestReviewConfigAndHeader",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rts_st_01_provider_switching_preserves_distinct_memory",
+                  "classname": "test_run_external_review.TestReviewConfigAndHeader",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rts_st_02_incomplete_round_reflects_status",
+                  "classname": "test_run_external_review.TestReviewConfigAndHeader",
+                  "status": "passed"
+                }
+              ]
             }
           }
         },

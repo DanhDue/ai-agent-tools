@@ -3,51 +3,51 @@
   "task": "task_1_review_config_and_sticky_defaults",
   "runs": {
     "verify": {
-      "head": "8ad1e37678d60b9ab64283955131c1c8eb824312",
-      "tree": "e4d2c02183efe5ea67d464ab276567d39500a24a",
+      "head": "5188023f87f1479cfcb5f36034e21bd563a27aa8",
+      "tree": "4471f6776fcccefc9714e96923231c417fa676ed",
       "patch_id": null,
-      "started": "2026-10-31T08:08:24Z",
-      "finished": "2026-10-31T08:08:58Z",
+      "started": "2026-10-31T08:43:28Z",
+      "finished": "2026-10-31T08:44:04Z",
       "rows": [
         {
           "id": "V2",
           "phase": "GREEN",
-          "command": "python3 -m unittest skills/dev-implementation/resources/scripts/test_run_external_review.py -k test_default_config_resolution_and_persistence",
+          "command": "python3 -m unittest skills/dev-implementation/resources/scripts/test_run_external_review.py -k test_rts_hp_02",
           "expect": "exit 0; contains \"OK\"",
           "needs": [],
           "exit": 0,
           "outcome": "PASS",
           "reason": null,
-          "started": "2026-10-31T08:08:24Z",
-          "finished": "2026-10-31T08:08:25Z",
+          "started": "2026-10-31T08:43:28Z",
+          "finished": "2026-10-31T08:43:28Z",
           "output_tail": [
             ".",
             "----------------------------------------------------------------------",
-            "Ran 1 test in 0.854s",
+            "Ran 1 test in 0.296s",
             "",
             "OK"
           ],
-          "output_sha256": "0b7207e8641b0bf60d4746978d0ecc6e1d67310852989749bf4b27a8964d28ca"
+          "output_sha256": "8ababe95508d5c3df04878c2eed131949ae28b58af9361e726a72691976106c7"
         },
         {
           "id": "V3",
           "phase": "GREEN",
-          "command": "python3 -m unittest skills/dev-implementation/resources/scripts/test_run_external_review.py -k test_codex_thinking_level_arguments",
+          "command": "python3 -m unittest skills/dev-implementation/resources/scripts/test_run_external_review.py -k test_rts_hp_04",
           "expect": "exit 0; contains \"OK\"",
           "needs": [],
           "exit": 0,
           "outcome": "PASS",
           "reason": null,
-          "started": "2026-10-31T08:08:25Z",
-          "finished": "2026-10-31T08:08:26Z",
+          "started": "2026-10-31T08:43:28Z",
+          "finished": "2026-10-31T08:43:30Z",
           "output_tail": [
             ".",
             "----------------------------------------------------------------------",
-            "Ran 1 test in 0.503s",
+            "Ran 1 test in 1.313s",
             "",
             "OK"
           ],
-          "output_sha256": "b82d5588c65cf71f38c3389c843d204e9bb93ba4a9dee53a6c7976b933d45499"
+          "output_sha256": "3924952eabb4b2f8680f7f28fefff015b4f8a4cf1e08a3ff0474c6c46190349f"
         },
         {
           "id": "V4",
@@ -58,8 +58,8 @@
           "exit": 0,
           "outcome": "PASS",
           "reason": null,
-          "started": "2026-10-31T08:08:26Z",
-          "finished": "2026-10-31T08:08:26Z",
+          "started": "2026-10-31T08:43:30Z",
+          "finished": "2026-10-31T08:43:30Z",
           "output_tail": [
             "All checks passed!"
           ],
@@ -74,8 +74,8 @@
           "exit": 0,
           "outcome": "PASS",
           "reason": null,
-          "started": "2026-10-31T08:08:26Z",
-          "finished": "2026-10-31T08:08:26Z",
+          "started": "2026-10-31T08:43:30Z",
+          "finished": "2026-10-31T08:43:30Z",
           "output_tail": [
             "Success: no issues found in 2 source files"
           ],
@@ -90,26 +90,97 @@
           "exit": 0,
           "outcome": "PASS",
           "reason": null,
-          "started": "2026-10-31T08:08:26Z",
-          "finished": "2026-10-31T08:08:57Z",
+          "started": "2026-10-31T08:43:30Z",
+          "finished": "2026-10-31T08:44:04Z",
           "output_tail": [
-            ".........................................................",
+            "...................................................................",
             "----------------------------------------------------------------------",
-            "Ran 57 tests in 31.427s",
+            "Ran 67 tests in 34.066s",
             "",
             "OK"
           ],
-          "output_sha256": "08a1743c0f365760660c3f739e312034a854e1fdad46baa2cfc6fff57948612a",
+          "output_sha256": "7a48322e1e0271af9b392793bb5d857fbc347fdce75c2051379d48f1818483de",
           "results": {
             "path": "build/test-results/run-external-review.xml",
             "fresh": true,
             "digest": {
               "totals": {
-                "passed": 0,
+                "passed": 14,
                 "failed": 0,
                 "skipped": 0
               },
-              "cases": []
+              "cases": [
+                {
+                  "name": "test_rts_ar_01_atomic_config_write",
+                  "classname": "test_run_external_review.TestReviewConfigAndHeader",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rts_ec_01_ollama_requires_model_without_previous_round",
+                  "classname": "test_run_external_review.TestReviewConfigAndHeader",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rts_ec_02_corrupted_config_falls_back_to_defaults",
+                  "classname": "test_run_external_review.TestReviewConfigAndHeader",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rts_ec_03_zero_findings_in_verdict",
+                  "classname": "test_run_external_review.TestReviewConfigAndHeader",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rts_fr_01_tree_changes_aborts_on_mutation",
+                  "classname": "test_run_external_review.TestReviewConfigAndHeader",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rts_fr_02_unknown_thinking_level_defaults_to_high",
+                  "classname": "test_run_external_review.TestReviewConfigAndHeader",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rts_hp_01_standardized_4_bullet_header_in_triage",
+                  "classname": "test_run_external_review.TestReviewConfigAndHeader",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rts_hp_02_canonical_defaults_auto_seeded",
+                  "classname": "test_run_external_review.TestReviewConfigAndHeader",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rts_hp_03_sticky_memory_updates_on_subsequent_runs",
+                  "classname": "test_run_external_review.TestReviewConfigAndHeader",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rts_hp_04_thinking_level_translates_to_cli_flags",
+                  "classname": "test_run_external_review.TestReviewConfigAndHeader",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rts_hp_05_claude_dangerously_skip_permissions",
+                  "classname": "test_run_external_review.TestReviewConfigAndHeader",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rts_hp_06_dynamic_probing_and_senior_rules_in_prompts",
+                  "classname": "test_run_external_review.TestReviewConfigAndHeader",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rts_st_01_provider_switching_preserves_distinct_memory",
+                  "classname": "test_run_external_review.TestReviewConfigAndHeader",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rts_st_02_incomplete_round_reflects_status",
+                  "classname": "test_run_external_review.TestReviewConfigAndHeader",
+                  "status": "passed"
+                }
+              ]
             }
           }
         },
