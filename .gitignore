@@ -7,3 +7,4 @@ __pycache__/
 .worktrees/
 skill-observations/
 build/
+.devtool/.memory.lock
