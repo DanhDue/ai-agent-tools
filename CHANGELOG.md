@@ -8,6 +8,25 @@ every installed machine on the old cached copy.
 
 ---
 
+## 1.21.0 — 2026-11-01
+
+Adds a 30-second default safety delay buffer (offset) to scheduled pre-warming daemons in the refresh-session engine to guarantee complete cloud rate-limit rollover, updates CLI flags, and synchronizes bilingual quick-guides.
+
+### Added
+
+- **Safety Delay Buffer for Scheduled Daemons** (`skills/refresh-session/resources/scripts/refresh_session.py`):
+  - Adds `--delay` and `--offset` options to `refresh-session schedule`.
+  - Sets default delay buffer to 30 seconds for scheduled OS daemons (`--delay 30`), ensuring background pings wake at the reset minute (e.g. `05:00:00`) but sleep 30 seconds to execute safely at `05:00:30`, absorbing any cloud rate-limit worker clock skew or delayed quota bucket replenishment.
+  - Keeps on-demand manual pings immediate (`--delay 0`) for zero-latency manual refreshes.
+- **Delay Buffer Invariants & Unit Tests** (`skills/refresh-session/resources/scripts/test_refresh_session.py`): Adds 4 new unit tests verifying delay argument defaults (0 for ping, 30 for schedule), custom delay overrides, launchd plist argument generation with delay, and delay sleep execution (31 total unit tests).
+
+### Changed
+
+- **Native OS Daemon Integration** (`skills/refresh-session/resources/scripts/refresh_session.py`): Injects `--delay <sec>` into macOS launchd agent plists and Linux crontab commands, and displays delay buffer configuration in daemon status reports (`• Delay buffer: 30s`).
+- **Bilingual Quick Guides & Skill Documentation** (`skills/refresh-session/SKILL.md`, `docs/refresh-session-quick-guide.en.md`, `docs/refresh-session-quick-guide.vi.md`): Documents the 30-second safety delay buffer across natural language examples, cheat-sheet command tables, and underlying architecture sections.
+
+---
+
 ## 1.20.0 — 2026-11-01
 
 Adds daily scheduling automation (Shift-Left Quota Staggering) to the refresh-session engine via macOS launchd and Linux crontab daemons, flexible time parsing, and comprehensive bilingual quick guides.
