@@ -61,7 +61,7 @@ git add -A
 if git diff --cached --quiet; then
   echo "  nothing to commit"
 else
-  git commit -q -m "[RELEASE] Release $NEW" -m "- Publish the changes documented in CHANGELOG.md
+  git commit -q -m "[RELEASE] Release $NEW" -m "- Publish the changes documented in CHANGELOG.md and RELEASE_NOTES.md
 - Synchronize plugin manifests at $NEW"
   git tag -a -f "v$NEW" -m "[RELEASE] Release $NEW"
   git tag -a -f "d3nexus--v$NEW" -m "[RELEASE] Release $NEW"
@@ -77,10 +77,12 @@ if command -v claude >/dev/null 2>&1; then
   claude plugin update d3nexus@danhdue-agent-tools 2>/dev/null || true
 fi
 
-if [ -d "$HOME/.gemini/config/plugins/d3nexus/.git" ]; then
-  echo "  pulling updates into ~/.gemini/config/plugins/d3nexus"
-  git -C "$HOME/.gemini/config/plugins/d3nexus" pull -q origin main || true
-fi
+for plugin_dir in "$HOME/.gemini/config/plugins/d3nexus" /Users/danhdueexoictif/antigravity_homes/*/.gemini/config/plugins/d3nexus; do
+  if [ -d "$plugin_dir/.git" ]; then
+    echo "  pulling updates into $plugin_dir"
+    git -C "$plugin_dir" pull -q origin main || true
+  fi
+done
 
 if command -v codex >/dev/null 2>&1; then
   echo "  updating codex plugin"

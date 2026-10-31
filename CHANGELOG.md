@@ -8,6 +8,22 @@ every installed machine on the old cached copy.
 
 ---
 
+## 1.19.0 — 2026-11-01
+
+Adds the refresh-session skill and engine for pre-warming 5-hour rolling session windows with minimum token consumption and zero skill initialization, formalizes review triage standardization and sticky review preferences, and strengthens context memory and task observer resilience.
+
+### Added
+
+- **`refresh-session` skill and engine** (`skills/refresh-session/SKILL.md`, `skills/refresh-session/resources/scripts/refresh_session.py`, `skills/refresh-session/resources/scripts/test_refresh_session.py`): Pings Claude Code CLI (`claude`) and OpenAI Codex CLI (`codex`) inside an ephemeral isolated sandbox to pre-warm or refresh rolling 5-hour quota windows with near-zero tokens (~50 tokens on Claude, 1,645 tokens on Codex) and zero skill/plugin/MCP initialization.
+- **Release Verification Harness Section 16** (`scripts/verify.sh`): Adds automated Section 16 verifying the `refresh-session` CLI engine contracts, sandboxed temporary directory execution, isolation flags, and unit test suite.
+
+### Changed
+
+- **Review Triage Standardization & Sticky Preferences** (`skills/dev-implementation/resources/scripts/run_external_review.py`, `skills/dev-implementation/resources/scripts/test_run_external_review.py`): Enforces a unified 4-bullet triage header (`Candidate SHA`, `Reviewer`, `Thinking Level`, `Verdict`), persists sticky per-provider reviewer preferences in `.devtool/review_config.json`, implements dynamic Claude `--effort` / `--thinking` flag probing, and embeds senior 5-layer reviewer verification instructions.
+- **Context Memory & Task Observer Resilience** (`scripts/resume_context.py`, `skills/task-observer/SKILL.md`): Ignores volatile Tier 2 runtime state files in status checks, fixes nested repository `.devtool` path resolution, and guards zsh session-start glob expressions against `no matches found` errors.
+
+---
+
 ## 1.18.0 — 2026-10-31
 
 Reminds brainstorming sessions about shared-contract drift and lets Rust quality manifests call plugin scripts without machine-specific paths.

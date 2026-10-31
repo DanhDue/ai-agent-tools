@@ -1,50 +1,45 @@
-# Release Notes: d3nexus v1.17.0
+# Release Notes: d3nexus v1.19.0
 
-**Release Date:** October 31, 2026  
-**Version:** `1.17.0`  
-**Git Tag:** `v1.17.0`, `d3nexus--v1.17.0`
+**Release Date:** November 01, 2026  
+**Version:** `1.19.0`  
+**Git Tag:** `v1.19.0`, `d3nexus--v1.19.0`
 
 ---
 
 ## Executive Summary
 
-`v1.17.0` introduces the **Tri-Role Context Memory Quick-Guide** (`docs/context-memory-quick-guide.{en,vi}.md`), robust multi-line array parsing and non-UTF-8 metafied byte decoding for `--sync-zshrc`, automatic sibling workspace repository context harvesting in `resume_context.py`, and review runner hardening across Antigravity and Claude CLIs.
+`v1.19.0` introduces the **Zero-Token Session Refresh Engine** (`refresh-session`), allowing developers to pre-warm rolling 5-hour quota windows for Claude Code CLI and OpenAI Codex CLI with minimal token footprint (~50 tokens on Claude, 1,645 tokens on Codex) and absolute isolation from skills, plugins, or MCP servers. This release also formalizes **Standardized Review Triage & Sticky Review Preferences** across external review workflows, and strengthens multi-repo context memory and task observation resilience.
 
 ---
 
 ## Key Highlights
 
-### 1. Tri-Role Context Memory Quick-Guide (`docs/context-memory-quick-guide.*`)
-- **Tri-Role Operating Model**: Unifies and clarifies the boundaries among **Human Architect** (Role 2.1 — Strategic decisions & Gate 1–5 approvals), **AI Assistant** (Role 2.2 — Technical Advisor & Reviewer, strictly prohibited from editing production code), and **AI Programmer** (Role 2.3 — Senior TDD Software Engineer bound to approved specs and `Allowed files`).
-- **10-Second Command Cheat-Sheet**: Quick reference for session initialization, decision checkpoints, activity logging, handoff prompts, and feature completion.
-- **5 Scenario Playbooks**: Step-by-step interactive playbooks covering:
-  1. Handing off packaged specs to Principal Review.
-  2. Bounded context handoff to AI Programmer for `/dev-implementation`.
-  3. Gate 4 PASS handoff to AI Assistant for Cross-Model Review.
-  4. Independent technical brainstorming without code mutation.
-  5. Multi-account / interrupted session resumption.
-- **Updated Lifecycle Diagrams**: Synchronized bilingual Mermaid state and resume diagrams in `docs/lifecycles.{en,vi}.md` annotated with Tri-Role governance personas.
+### 1. Zero-Token Session Pre-Warming Engine (`skills/refresh-session/`)
+- **Minimal Token Consumption**: Designed specifically to pre-warm 5-hour rolling session windows without wasting quota:
+  - Claude Code (`claude`): Uses `haiku` model, `--safe-mode`, empty tools (`--tools ""`), and disabled slash commands, consuming only ~50 total tokens.
+  - OpenAI Codex (`codex`): Executes `gpt-6.1-sol` with `model_reasoning_effort=low`, bypassing local sandbox restrictions with `--ephemeral` and consuming only 1,645 base tokens.
+- **Hermetic Sandbox Isolation**: Runs CLI invocations in an ephemeral temporary directory (`tempfile.TemporaryDirectory()`) to prevent accidental loading of repository configs, skills, MCP servers, or project files.
+- **Unit Tested & Release Hardened**: Includes 13 isolated unit tests (`test_refresh_session.py`) testing execution pathways, flag constructions, and error handling.
 
-### 2. Multi-Profile Shell Environment & History Sync (`--sync-zshrc`)
-- **Multi-Line Array Parsing**: Hardens `update_zshrc_sync_items` with `re.DOTALL` to parse multi-line `sync_items=(...)` declarations containing inline comment lines (`# ...`) without comment corruption.
-- **Metafied Byte History Decoding**: Reads `.zsh_history` using `errors="replace"` to smoothly decode macOS zsh extended history metafied byte sequences (`0x83`).
-- **Live Host Execution**: Successfully applied and synchronized across `/Users/danhdueexoictif/.zshrc` and all 14 Antigravity profiles (`~/antigravity_homes/*`).
+### 2. Standardized Review Triage & Sticky Review Preferences
+- **Unified 4-Bullet Triage Header**: Standardizes the review results header across all reviewers (Claude, Codex, Antigravity, Ollama) to strictly include `Candidate SHA`, `Reviewer`, `Thinking Level`, and `Verdict`.
+- **Sticky Preferences**: Remembers developer choices per provider (e.g. effort levels, selected models) in `.devtool/review_config.json` across sessions.
+- **Dynamic Claude Probing**: Safely probes Claude CLI for `--effort` and `--thinking` flag availability, gracefully falling back to supported options.
+- **Senior 5-Layer Reviewer Guidelines**: Embeds mandatory 5-layer reviewer verification instructions (Architecture, Clean Code, Security, Correctness, Testing) directly into external review runner prompts.
 
-### 3. Sibling Workspace Repository Auto-Harvest
-- **Multi-Repo Auto-Discovery**: Automatically discovers sibling workspace repositories (`ai-agent-tools`, `D3Nexus`, `lyrics-sync`, `nexus`) when executed from within any individual repository directory.
-- **Cross-Repo Telemetry**: Aggregates Git working tree status across all 4 repositories, surfaces open contract RFCs from `D3Nexus/shared-contracts/*/gaps_and_rfcs.md`, and calculates active Kanban task progress across active and done directories.
+### 3. Context Memory & Task Observer Resilience
+- **Status Check Sanitization**: Filters out ephemeral Tier 2 runtime state files from working tree status reports in `scripts/resume_context.py`.
+- **Nested Repo Path Resolution**: Ensures `.devtool` directories resolve correctly from any nested or sibling repository workspace.
+- **Task Observer Glob Safety**: Guards zsh session-start glob expressions against `no matches found` errors in non-standard shell environments.
 
-### 4. Review Runner Hardening & Tooling Resilience
-- **`run_external_review.py`**: Trims backtick wrappers from integration results and roots in HLD files, and supports an optional `--developer-note` in Principal Review prompts.
-- **`compute_execution_order.py`**: Supports both `&` and `and` in dependency headers, and includes completed tasks from `features/done/`.
-- **`check_bdd_traceability.py`**: Normalizes whitespace and comma separation in Covers declarations.
-- **`result_reports.py`**: Robustly parses Dart test event JSON stream lines when opening braces appear after newlines.
-- **`server.cjs`**: Extends brainstorming server idle timeout to 4 hours via `BRAINSTORM_IDLE_TIMEOUT_MS`.
+### 4. Release Verification Harness Section 16 (`scripts/verify.sh`)
+- Automated verification in Section 16 enforces the `refresh-session` CLI contract, verifying argument parsing, hermetic sandboxing, isolation flag compliance, and test suite execution.
 
 ---
 
 ## Verifications & Quality Gates Passed
 
-- `scripts/test_resume_context.py`: 🟢 **PASS** (13/13 tests green)
-- `test_run_external_review.py`: 🟢 **PASS** (53/53 tests green)
-- `scripts/verify.sh`: 🟢 **PASS — safe to publish** (15/15 sections green)
+- `skills/refresh-session/resources/scripts/test_refresh_session.py`: 🟢 **PASS** (13/13 tests green)
+- `skills/dev-implementation/resources/scripts/test_run_external_review.py`: 🟢 **PASS** (61/61 tests green)
+- `scripts/test_resume_context.py`: 🟢 **PASS** (14/14 tests green)
+- `scripts/verify.sh`: 🟢 **PASS — safe to publish** (16/16 sections green)
