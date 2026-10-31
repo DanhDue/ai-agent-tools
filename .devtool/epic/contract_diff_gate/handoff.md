@@ -13,7 +13,7 @@
 ## Status
 
 - **Packaged**: 2026-10-31
-- **Design commit**: `b18bc53` — `HEAD` before the packaging commit, or `uncommitted` when `auto_commit` is false
+- **Design commit**: `fe938ea` — `HEAD` before the packaging commit, or `uncommitted` when `auto_commit` is false
 - **Base branch**: `main`
 - **Gates passed**: 1 (spec), 2 (HLD and task breakdown)
 - **Next**: Stage 3, `dev-implementation`. Gate 3 (execution order) still needs the developer's confirmation.
@@ -64,6 +64,7 @@ Fast executor models and receiving agents MUST adhere to these four hard guardra
 - **Repository boundary**: This epic modifies `ai-agent-tools` only. Downstream adoption in `D3Nexus`, `lyrics-sync`, and `nexus` (creating `.agents/contract_map.json`, auditing `brief`, running `ack`, and enabling `contract_diff`) will run in separate per-repository epics after plugin release `1.19.0`.
 - **Explicit scope exclusion**: Do NOT modify `skills/principal-review/` or `skills/cross-model-review/`; upgrading external review CLI harness flags was explicitly separated out of this epic by the developer.
 - **Principal Review Round 1 (`codex`)**: All 3 `Important` findings were verified and fixed in `4ed9835` (`git diff --no-ext-diff --no-renames --name-only -z M..HEAD` + `CDG-EC-05`, `union(M, HEAD)` baseline domain mapping with bootstrap + `CDG-ST-04`, and `Python 3.11+` minimum runtime in HLD `Verification Environment`).
+- **Principal Review Round 2 (`claude` / `opus`)**: All 8 findings (`1 Important`, `7 Minor`) were verified and fixed in `5f03dc0` (`path_matches` line 246 reference in Task 1, preconditions validated ahead of `M == HEAD`, `git ls-tree` baseline presence probing, active/pending `GAP-XX` status check, per-domain `domains` discharge proof output, governance-scoped `2 -> BLOCKED` provider mapping, Satellite single-linked-domain validation, and `CDG-ST-04` wording alignment).
 - **Quality provider reference layout**: Only `rust-quality-check` and `python-quality-check` maintain `references/{rust,python}-capability-contract.md`; `flutter-quality-check`, `android-quality-check`, and `ios-quality-check` document `{skills_dir}`, `{base_ref}`, and exit code `2 -> BLOCKED` directly inside their `SKILL.md` files.
 - **Supporting-file & lint hygiene**: `skills/setup-shared-contracts/SKILL.md` must explicitly mention `contract_map.json.tmpl` so `scripts/verify.sh` Check 8 passes, and Task 2 removes the 4 unused `# noqa: E402` comments in `test_validate_{android,flutter,ios,rust}_quality.py` so `ruff check` exits `0`.
 
@@ -71,6 +72,6 @@ Fast executor models and receiving agents MUST adhere to these four hard guardra
 
 - Do not re-run `dev-brainstorming` or `dev-designer`. Raise a wrong or missing document at Gate 3.
 - This handoff does not pass Gate 3. The developer confirms the execution order.
-- Unless the design commit is `uncommitted`: if `git log b18bc53..main -- .devtool/epic/contract_diff_gate` lists any commit besides the `Package epic for handoff` commit, the documents changed after packaging. The documents win, and this file may be stale. Comparing against the base branch keeps the epic branch's own task commits out of the check.
+- Unless the design commit is `uncommitted`: if `git log fe938ea..main -- .devtool/epic/contract_diff_gate` lists any commit besides the `Package epic for handoff` commit, the documents changed after packaging. The documents win, and this file may be stale. Comparing against the base branch keeps the epic branch's own task commits out of the check.
 - This file is a dated record. It is never updated after packaging.
 - Never edit a task's Verification table, Definition of Done, Allowed files or a protected path; stop and report.
