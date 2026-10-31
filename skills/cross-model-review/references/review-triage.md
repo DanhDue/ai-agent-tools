@@ -24,7 +24,16 @@ Every review round — Claude CLI, Codex CLI, Antigravity CLI or a local Ollama 
 
 6. Replace the Next Steps line with numbered actions: the Fix commits, the decisions to record, and, when blocking findings will be fixed, a confirmation round whose triage measures the improvement.
 
-7. Present the filled triage and stop. Wait until the developer decides each finding.
+7. Present the filled triage and stop. The triage presentation MUST begin with the standardized 4-bullet header block:
+   ```markdown
+   Cross-Model Review Triage: Round <N> (<CLI>)
+
+   • Candidate SHA: <commit_sha>
+   • Reviewer: <CLI> ( <model> )
+   • Thinking Level: <Light | Low | Medium | High | Extra High | None>
+   • Verdict: <VERDICT> (<count> <Severity> findings)
+   ```
+   Wait until the developer decides each finding.
 
 ## After the developer decides
 

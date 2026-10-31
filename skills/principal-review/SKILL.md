@@ -59,13 +59,22 @@ Invoked on-demand to review standalone design documents, architecture proposals,
    - For standalone docs, structural validation checks that the file exists and has valid headings.
 
 2. **External Model Review**:
-   - Executes with a read-only permissions profile (`claude -p --permission-mode plan`, `codex exec --sandbox read-only`, or `agy --sandbox --mode plan`).
+   - Executes with a read-only permissions profile (`claude -p --dangerously-skip-permissions`, `codex exec --sandbox read-only`, or `agy --sandbox --mode plan`).
    - The reviewer inspects active code at candidate SHA to verify groundedness (P1–P8 checklists).
 
 3. **Triage Findings**:
    - Follow [document-triage.md](references/document-triage.md).
    - Verify every finding against the codebase.
-   - Present the triage table to the developer and wait for decisions.
+   - Present the triage table to the developer and wait for decisions. The presentation MUST begin with the standardized 4-bullet header block:
+     ```markdown
+     Principal Review Triage: Round <N> (<CLI>)
+     *(or `Principal Review Triage: <doc_path> (<CLI>)`)*
+
+     • Candidate SHA: <commit_sha>
+     • Reviewer: <CLI> ( <model> )
+     • Thinking Level: <Light | Low | Medium | High | Extra High | None>
+     • Verdict: <VERDICT> (<count> <Severity> findings)
+     ```
 
 4. **Revision Loop & Commit Ordering**:
    - Apply document edits first and commit:

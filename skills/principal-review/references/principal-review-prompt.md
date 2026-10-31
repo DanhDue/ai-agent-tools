@@ -21,6 +21,13 @@ $readiness_output
 
 The readiness report is already proven: all facts above have passed their mechanical checks; do not restate them, spend your review on judgement, architecture, and source grounding.
 
+## Mandatory Dynamic Probing Rule
+
+Do not rely solely on static diff inspection. For any language processing logic, regex expressions, exception handlers (`try/except`), or ORM persistence code, you MUST execute active read-only terminal probes (e.g. `python3 -c "..."` or interactive read-only REPL commands) to verify:
+1. Local variables referenced in exception handlers are not unbound when exceptions occur early in a block.
+2. Edge-case lexical tokens and inflections are not deformed by tokenization or lemmatization.
+3. Database statement ordering in transaction flushes does not violate foreign keys or unique constraints.
+
 ## Rules
 
 $rules

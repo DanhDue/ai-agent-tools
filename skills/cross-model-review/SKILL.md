@@ -58,7 +58,7 @@ Invoked on-demand to review a feature branch, pull request diff, or specific com
      `commit or stash your changes before a review`.
 
 2. **Read-Only Sandbox**:
-   - CLI invocations operate under read-only sandboxes (`claude -p --permission-mode plan`, `codex exec --sandbox read-only`, or `agy --sandbox --mode plan`).
+   - CLI invocations operate under read-only sandboxes (`claude -p --dangerously-skip-permissions`, `codex exec --sandbox read-only`, or `agy --sandbox --mode plan`).
    - The runner verifies git status before and after execution; any file modifications made by a reviewer cause the round to be discarded immediately.
 
 3. **Process Supervision & Timeouts**:
@@ -89,7 +89,16 @@ Every review round is triaged before taking action. A reviewer's finding is a cl
    - **Proposed action**: `fix`, `dismiss: <reason>`, or `none` for Minor findings.
 
 4. **Present Triage and Wait**:
-   - Present the completed triage table to the developer and stop. Wait for the developer's explicit decision on each finding.
+   - Present the completed triage to the developer and stop. The triage presentation MUST begin with the standardized 4-bullet header block:
+     ```markdown
+     Cross-Model Review Triage: Round <N> (<CLI>)
+
+     • Candidate SHA: <commit_sha>
+     • Reviewer: <CLI> ( <model> )
+     • Thinking Level: <Light | Low | Medium | High | Extra High | None>
+     • Verdict: <VERDICT> (<count> <Severity> findings)
+     ```
+   - Wait for the developer's explicit decision on each finding.
 
 5. **Commit Fixes & Record Decisions**:
    - Make each fix in its own commit: `[<EPIC_NAME>] Fix <what>`.

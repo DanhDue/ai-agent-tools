@@ -22,7 +22,16 @@ Every architectural and design document review round — whether executed via Cl
    - **False Positive**: The code or configuration already accounts for the scenario, or the reviewer hallucinated non-existent code.
 
 4. **Present Triage & Wait for Developer Decision**:
-   - Present the filled triage table with Assessment, Evidence, and Proposed Action to the developer.
+   - Present the filled triage table with Assessment, Evidence, and Proposed Action to the developer. The presentation MUST begin with the standardized 4-bullet header block:
+     ```markdown
+     Principal Review Triage: Round <N> (<CLI>)
+     *(or `Principal Review Triage: <doc_path> (<CLI>)`)*
+
+     • Candidate SHA: <commit_sha>
+     • Reviewer: <CLI> ( <model> )
+     • Thinking Level: <Light | Low | Medium | High | Extra High | None>
+     • Verdict: <VERDICT> (<count> <Severity> findings)
+     ```
    - Stop calling tools and wait for the developer to confirm or reject each finding.
 
 ## Post-Triage Revision Loop

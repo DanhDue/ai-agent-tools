@@ -7,6 +7,7 @@ Run: python3 -m unittest skills/dev-implementation/resources/scripts/test_run_ex
 """
 import contextlib
 import io
+import json
 import os
 import shutil
 import subprocess
@@ -146,7 +147,7 @@ class RunExternalReviewTest(ReviewCase):
                          "Each done task's evidence against its Verification table",
                          "The `(Gate 5)` items", "Verdict: PASS"):
             self.assertIn(expected, prompt)
-        self.assertEqual(self.args.read_text().split(), ["exec", "--sandbox", "read-only", "--model", "gpt-test", "-"])
+        self.assertEqual(self.args.read_text().split(), ["exec", "--sandbox", "read-only", "-c", "model_reasoning_effort=high", "--model", "gpt-test", "-"])
         text = self.text()
         self.assertTrue(text.startswith("# Cross-Model Review: demo\n"))
         for expected in ("## Round 1", "- **Status**: completed", "- **CLI**: codex", "- **Model**: gpt-test",
@@ -158,9 +159,10 @@ class RunExternalReviewTest(ReviewCase):
         self.install("claude")
         code, _, _ = self.run_review(cli="claude", mode="minor")
         self.assertEqual(code, 0)
-        self.assertEqual(self.args.read_text().split(), ["-p", "--permission-mode", "plan"])
+        self.assertEqual(self.args.read_text().split(), ["-p", "--dangerously-skip-permissions", "--effort", "high", "--model", "Opus", "5.5"])
         text = self.text()
-        self.assertIn("- **Model**: default", text)
+        self.assertIn("- **Model**: Opus 5.5", text)
+        self.assertIn("- **Thinking**: high", text)
         self.assertIn("| 1 | Minor | README.md:1 | wording \\| unclear |  |", text)
         self.assertEqual(self.check()[0], 0)
 
@@ -908,6 +910,57 @@ class TestCrossModelReviewAdhoc(ReviewCase):
         self.assertEqual(code, 0)
         self.assertIn("## Findings", out.getvalue())
         self.assertIn("demo.en.md:3", out.getvalue())
+
+
+class TestReviewConfigAndHeader(ReviewCase):
+    def test_default_config_resolution_and_persistence(self) -> None:
+        """review_config.json is auto-generated with canonical defaults and updated stickily."""
+        self.install("claude")
+        code, _, _ = self.run_review(
+            "--thinking-level", "medium",
+            "--model", "custom-claude",
+            cli="claude",
+            mode="pass",
+        )
+        self.assertEqual(code, 0)
+        config_path = self.root / ".devtool" / "review_config.json"
+        self.assertTrue(config_path.exists())
+        config = json.loads(config_path.read_text(encoding="utf-8"))
+        self.assertEqual(config["last_used_provider"], "claude")
+        self.assertEqual(config["providers"]["claude"]["model"], "custom-claude")
+        self.assertEqual(config["providers"]["claude"]["thinking_level"], "medium")
+        self.assertEqual(config["providers"]["codex"]["model"], "gpt-6.1-sol")
+        self.assertEqual(config["providers"]["codex"]["thinking_level"], "high")
+
+    def test_codex_thinking_level_arguments(self) -> None:
+        """Codex maps thinking levels to -c model_reasoning_effort=..."""
+        self.install("codex")
+        self.run_review("--thinking-level", "low", cli="codex", mode="pass")
+        self.assertIn("-c model_reasoning_effort=low", self.args.read_text())
+
+    def test_claude_thinking_level_arguments(self) -> None:
+        """Claude maps thinking levels to --effort and uses --dangerously-skip-permissions."""
+        self.install("claude")
+        self.run_review("--thinking-level", "extra-high", cli="claude", mode="pass")
+        args = self.args.read_text().split()
+        self.assertIn("--dangerously-skip-permissions", args)
+        self.assertIn("--effort", args)
+        self.assertIn("xhigh", args)
+
+    def test_standardized_4_bullet_header_in_triage(self) -> None:
+        """Triage output strictly includes the 4 standardized bullet lines."""
+        self.install("codex")
+        self.run_review(cli="codex", mode="pass")
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            code = main(["triage", "--epic-dir", "demo"])
+        self.assertEqual(code, 0)
+        output = out.getvalue()
+        self.assertIn("# Review Triage: demo, Round 1", output)
+        self.assertIn("• Candidate SHA:", output)
+        self.assertIn("• Reviewer: Codex ( gpt-6.1-sol )", output)
+        self.assertIn("• Thinking Level: High", output)
+        self.assertIn("• Verdict: PASS (0 findings)", output)
 
 
 if __name__ == '__main__':

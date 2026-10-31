@@ -16,6 +16,7 @@ skeleton to fill before acting on it, with a comparison of every round; exit 0, 
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import re
 import shlex
@@ -28,6 +29,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from string import Template
+from typing import Any
 
 import local_review
 from task_contract import ContractError, git_run, parse_integration_results
@@ -36,6 +38,111 @@ SCRIPTS = Path(__file__).resolve().parent
 PROMPT = SCRIPTS.parent.parent / "references" / "external-review-prompt.md"
 RULES = SCRIPTS.parent.parent / "references" / "review-rules.md"
 KINDS = ("code", "principal", "epic")
+REVIEW_CONFIG_FILE = ".devtool/review_config.json"
+THINKING_LEVELS = ("none", "light", "low", "medium", "high", "extra-high")
+DEFAULT_REVIEW_CONFIG: dict[str, Any] = {
+    "last_used_provider": "codex",
+    "providers": {
+        "claude": {
+            "model": "Opus 5.5",
+            "thinking_level": "high",
+        },
+        "codex": {
+            "model": "gpt-6.1-sol",
+            "thinking_level": "high",
+        },
+        "agy": {
+            "model": "Gemini 4 Argon (Medium)",
+            "thinking_level": "medium",
+        },
+        "ollama": {
+            "model": "qwen38-fast:latest",
+            "thinking_level": "high",
+            "host": "http://localhost:11434",
+        },
+    },
+}
+
+
+def load_review_config(root: Path) -> dict[str, Any]:
+    path = root / REVIEW_CONFIG_FILE
+    if not path.is_file():
+        return json.loads(json.dumps(DEFAULT_REVIEW_CONFIG))
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(data, dict):
+            return json.loads(json.dumps(DEFAULT_REVIEW_CONFIG))
+        cfg = json.loads(json.dumps(DEFAULT_REVIEW_CONFIG))
+        if "last_used_provider" in data and isinstance(data["last_used_provider"], str):
+            cfg["last_used_provider"] = data["last_used_provider"]
+        if "providers" in data and isinstance(data["providers"], dict):
+            for p, pdata in data["providers"].items():
+                if isinstance(pdata, dict):
+                    cfg["providers"].setdefault(p, {})
+                    cfg["providers"][p].update(pdata)
+        return cfg
+    except Exception:
+        return json.loads(json.dumps(DEFAULT_REVIEW_CONFIG))
+
+
+def save_review_config(root: Path, config: dict[str, Any]) -> None:
+    path = root / REVIEW_CONFIG_FILE
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = path.with_suffix(".tmp")
+    tmp_path.write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
+    tmp_path.replace(path)
+
+
+def update_sticky_review_config(root: Path, cli: str, model: str | None, thinking_level: str | None) -> None:
+    try:
+        cfg = load_review_config(root)
+        cfg["last_used_provider"] = cli
+        if cli not in cfg.get("providers", {}):
+            cfg.setdefault("providers", {})[cli] = {}
+        if model:
+            cfg["providers"][cli]["model"] = model
+        if thinking_level:
+            cfg["providers"][cli]["thinking_level"] = thinking_level
+        save_review_config(root, cfg)
+    except Exception:
+        pass
+
+
+def resolve_review_settings(
+    root: Path,
+    epic_dir: str | None,
+    kind: str,
+    cli_arg: str | None,
+    model_arg: str | None,
+    thinking_arg: str | None,
+) -> tuple[str, str, str]:
+    config = load_review_config(root)
+    cli = cli_arg or config.get("last_used_provider") or "codex"
+
+    prev_model = None
+    prev_thinking = None
+    if epic_dir:
+        name, _ = review_file(kind)
+        path = root / ".devtool" / "epic" / epic_dir / name
+        if path.exists():
+            rounds = rounds_in(path.read_text(encoding="utf-8"))
+            if rounds:
+                last_meta = round_meta(rounds[-1][1])
+                if last_meta.get("CLI") == cli:
+                    prev_model = last_meta.get("Model")
+                    prev_thinking = last_meta.get("Thinking")
+
+    provider_cfg = config.get("providers", {}).get(cli, {})
+    default_model = DEFAULT_REVIEW_CONFIG["providers"].get(cli, {}).get("model", "default")
+    if cli == "ollama" and not model_arg and not prev_model:
+        model = None
+    else:
+        model = model_arg or prev_model or provider_cfg.get("model") or default_model
+
+    default_thinking = DEFAULT_REVIEW_CONFIG["providers"].get(cli, {}).get("thinking_level", "high")
+    thinking_level = thinking_arg or prev_thinking or provider_cfg.get("thinking_level") or default_thinking
+
+    return cli, model, thinking_level
 
 
 def principal_prompt_path() -> Path:
@@ -352,17 +459,89 @@ def diff_range(root: Path, base: str, commits: str | None = None) -> tuple[str, 
 def effective_model(cli: str, model: str | None) -> str:
     if model:
         return model
-    return "Gemini 4 Argon (Medium)" if cli == "agy" else "default"
+    return DEFAULT_REVIEW_CONFIG["providers"].get(cli, {}).get("model", "default")
 
 
-def cli_command(cli: str, model: str | None) -> list[str]:
+def effective_thinking_level(cli: str, thinking_level: str | None) -> str:
+    if thinking_level:
+        return thinking_level
+    return DEFAULT_REVIEW_CONFIG["providers"].get(cli, {}).get("thinking_level", "high")
+
+
+def cli_command(cli: str, model: str | None, thinking_level: str | None = None) -> list[str]:
     extra = ["--model", model] if model else []
     if cli == "claude":
-        return ["claude", "-p", "--permission-mode", "plan", *extra]
+        cmd = ["claude", "-p", "--dangerously-skip-permissions"]
+        if thinking_level and thinking_level != "none":
+            effort_map = {
+                "light": "low",
+                "low": "low",
+                "medium": "medium",
+                "high": "high",
+                "extra-high": "xhigh",
+            }
+            effort = effort_map.get(thinking_level.lower(), "high")
+            cmd.extend(["--effort", effort])
+        cmd.extend(extra)
+        return cmd
     if cli == "agy":
         model_name = effective_model(cli, model)
         return ["agy", "--sandbox", "--mode", "plan", "--model", model_name]
-    return ["codex", "exec", "--sandbox", "read-only", *extra, "-"]
+    # codex
+    cmd = ["codex", "exec", "--sandbox", "read-only"]
+    if thinking_level:
+        effort_map = {
+            "light": "low",
+            "low": "low",
+            "medium": "medium",
+            "high": "high",
+            "extra-high": "extra-high",
+            "none": "none",
+        }
+        effort = effort_map.get(thinking_level.lower(), thinking_level)
+        cmd.extend(["-c", f"model_reasoning_effort={effort}"])
+    cmd.extend([*extra, "-"])
+    return cmd
+
+
+def format_findings_summary(findings: list[tuple[str, str, str]] | list[list[str]]) -> str:
+    crits = sum(1 for f in findings if (f[0] if len(f) == 3 else f[1]) == "Critical")
+    importants = sum(1 for f in findings if (f[0] if len(f) == 3 else f[1]) == "Important")
+    minors = sum(1 for f in findings if (f[0] if len(f) == 3 else f[1]) == "Minor")
+    parts = []
+    if crits > 0:
+        parts.append(f"{crits} Critical")
+    if importants > 0:
+        parts.append(f"{importants} Important")
+    if not parts and minors > 0:
+        parts.append(f"{minors} Minor")
+    if not parts:
+        return "0 findings"
+    total = crits + importants + minors
+    return ", ".join(parts) + (" finding" if total == 1 else " findings")
+
+
+def format_triage_header(
+    title: str,
+    sha: str,
+    cli: str,
+    model: str,
+    thinking_level: str,
+    verdict: str,
+    findings: list[tuple[str, str, str]] | list[list[str]],
+) -> list[str]:
+    cli_display = {"claude": "Claude", "codex": "Codex", "agy": "agy", "ollama": "Ollama"}.get(cli, cli.capitalize())
+    thinking_display = thinking_level.replace("-", " ").title() if thinking_level else "High"
+    summary = format_findings_summary(findings)
+    verdict_display = verdict.upper() if verdict else "NONE"
+    return [
+        title,
+        "",
+        f"• Candidate SHA: {sha}",
+        f"• Reviewer: {cli_display} ( {model} )",
+        f"• Thinking Level: {thinking_display}",
+        f"• Verdict: {verdict_display} ({summary})",
+    ]
 
 
 def cell(text: str) -> str:
@@ -455,7 +634,7 @@ def run_principal_doc(root: Path, args: argparse.Namespace, sha: str) -> int:
     )
 
     before = status_lines(root)
-    code, out, _err = execute(cli_command(args.cli, args.model), root, args.timeout, prompt)
+    code, out, _err = execute(cli_command(args.cli, args.model, getattr(args, "thinking_level", None)), root, args.timeout, prompt)
     changed = tree_changes(root, before, sha)
     if changed:
         print(f"error: tree modified during review: {', '.join(changed)}", file=sys.stderr)
@@ -466,25 +645,30 @@ def run_principal_doc(root: Path, args: argparse.Namespace, sha: str) -> int:
     verdict = marks[-1][1] if marks else None
     findings = parse_findings(out, verdict)
 
-    triage_out = [
-        f"# Review Triage: {args.doc}", "",
-        f"- **SHA**: {sha[:7]}",
-        f"- **CLI**: {args.cli}",
-        f"- **Model**: {effective_model(args.cli, args.model)}",
-        f"- **Status**: {'completed' if code == 0 and verdict is not None else 'no verdict'}",
-        f"- **Verdict**: {verdict or 'none'}", "",
-        "## Findings", "",
-    ]
+    cli_display = {"claude": "Claude", "codex": "Codex", "agy": "agy", "ollama": "Ollama"}.get(args.cli, args.cli.capitalize())
+    triage_out = format_triage_header(
+        f"Principal Review Triage: {args.doc} ({cli_display})",
+        sha,
+        args.cli,
+        effective_model(args.cli, args.model),
+        effective_thinking_level(args.cli, getattr(args, "thinking_level", None)),
+        verdict or "none",
+        findings,
+    )
     if findings:
         triage_out += [
+            "",
+            "## Findings",
+            "",
             "| # | Severity | Location | Problem | Assessment | Evidence | Proposed action |",
             "|---|----------|----------|---------|------------|----------|-----------------|",
             *(f"| {i} | {sev} | {cell(loc)} | {cell(problem)} | ? | ? | ? |" for i, (sev, loc, problem) in enumerate(findings, 1)),
         ]
     else:
-        triage_out.append("None.")
+        triage_out += ["", "## Findings", "", "None."]
     triage_out += ["", "## Next Steps", "", NEXT_STEPS]
     print("\n".join(triage_out))
+    update_sticky_review_config(root, args.cli, args.model, getattr(args, "thinking_level", None))
 
     if code != 0 or verdict is None:
         return 2
@@ -520,7 +704,7 @@ def run_principal(root: Path, args: argparse.Namespace, sha: str) -> int:
         prompt += f"\n\n## Developer Special Instructions\n\n{args.developer_note}\n"
 
     before = status_lines(root)
-    code, out, err = execute(cli_command(args.cli, args.model), root, args.timeout, prompt)
+    code, out, err = execute(cli_command(args.cli, args.model, getattr(args, "thinking_level", None)), root, args.timeout, prompt)
     changed = tree_changes(root, before, sha)
     return record_round(root, args, sha, [Pass("principal", code, out, err, prompt)], changed, {"Kind": "principal"})
 
@@ -541,7 +725,7 @@ def run_adhoc_code(root: Path, args: argparse.Namespace, sha: str) -> int:
     )
 
     before = status_lines(root)
-    code, out, _err = execute(cli_command(args.cli, args.model), root, args.timeout, prompt)
+    code, out, _err = execute(cli_command(args.cli, args.model, getattr(args, "thinking_level", None)), root, args.timeout, prompt)
     changed = tree_changes(root, before, sha)
     if changed:
         print(f"error: tree modified during review: {', '.join(changed)}", file=sys.stderr)
@@ -552,26 +736,30 @@ def run_adhoc_code(root: Path, args: argparse.Namespace, sha: str) -> int:
     verdict = marks[-1][1] if marks else None
     findings = parse_findings(out, verdict)
 
-    triage_out = [
-        f"# Review Triage: {commit_spec}", "",
-        f"- **SHA**: {sha[:7]}",
-        f"- **Base**: {args.base}",
-        f"- **CLI**: {args.cli}",
-        f"- **Model**: {effective_model(args.cli, args.model)}",
-        f"- **Status**: {'completed' if code == 0 and verdict is not None else 'no verdict'}",
-        f"- **Verdict**: {verdict or 'none'}", "",
-        "## Findings", "",
-    ]
+    cli_display = {"claude": "Claude", "codex": "Codex", "agy": "agy", "ollama": "Ollama"}.get(args.cli, args.cli.capitalize())
+    triage_out = format_triage_header(
+        f"Cross-Model Review Triage: {commit_spec} ({cli_display})",
+        sha,
+        args.cli,
+        effective_model(args.cli, args.model),
+        effective_thinking_level(args.cli, getattr(args, "thinking_level", None)),
+        verdict or "none",
+        findings,
+    )
     if findings:
         triage_out += [
+            "",
+            "## Findings",
+            "",
             "| # | Severity | Location | Problem | Assessment | Evidence | Proposed action |",
             "|---|----------|----------|---------|------------|----------|-----------------|",
             *(f"| {i} | {sev} | {cell(loc)} | {cell(problem)} | ? | ? | ? |" for i, (sev, loc, problem) in enumerate(findings, 1)),
         ]
     else:
-        triage_out.append("None.")
+        triage_out += ["", "## Findings", "", "None."]
     triage_out += ["", "## Next Steps", "", NEXT_STEPS]
     print("\n".join(triage_out))
+    update_sticky_review_config(root, args.cli, args.model, getattr(args, "thinking_level", None))
 
     if code != 0 or verdict is None:
         return 2
@@ -581,6 +769,20 @@ def run_adhoc_code(root: Path, args: argparse.Namespace, sha: str) -> int:
 
 def run(args: argparse.Namespace) -> int:
     kind = getattr(args, "kind", "code")
+    root = Path(git_run(Path.cwd(), "rev-parse", "--show-toplevel").decode().strip())
+
+    cli, model, thinking_level = resolve_review_settings(
+        root=root,
+        epic_dir=getattr(args, "epic_dir", None),
+        kind=kind,
+        cli_arg=args.cli,
+        model_arg=args.model,
+        thinking_arg=getattr(args, "thinking_level", None),
+    )
+    args.cli = cli
+    args.model = model
+    args.thinking_level = thinking_level
+
     if kind == "principal" and args.cli == "ollama":
         print("--kind principal supports --cli claude, codex, or agy", file=sys.stderr)
         return 2
@@ -592,7 +794,6 @@ def run(args: argparse.Namespace) -> int:
     elif not shutil.which(args.cli):
         print(f"{args.cli} not found on PATH", file=sys.stderr)
         return 2
-    root = Path(git_run(Path.cwd(), "rev-parse", "--show-toplevel").decode().strip())
     if status_lines(root):
         print("commit or stash your changes before a review", file=sys.stderr)
         return 2
@@ -633,7 +834,7 @@ def run(args: argparse.Namespace) -> int:
         diff_section=diff_section,
     )
     before = status_lines(root)  # after the facts: running the test commands may write build output
-    code, out, err = execute(cli_command(args.cli, args.model), root, args.timeout, prompt)
+    code, out, err = execute(cli_command(args.cli, args.model, args.thinking_level), root, args.timeout, prompt)
     changed = tree_changes(root, before, sha)
     return record_round(root, args, sha, [Pass("review", code, out, err, prompt)], changed, {})
 
@@ -765,6 +966,7 @@ def record_round(root: Path, args: argparse.Namespace, sha: str, passes: list[Pa
         "Base": args.base,
         "CLI": args.cli,
         "Model": effective_model(args.cli, args.model),
+        "Thinking": effective_thinking_level(args.cli, getattr(args, "thinking_level", None)),
         "Status": status,
         "Verdict": verdict_text,
         **extra,
@@ -774,6 +976,7 @@ def record_round(root: Path, args: argparse.Namespace, sha: str, passes: list[Pa
     output = "\n\n".join(pass_output(item, number, args) for number, item in enumerate(passes, 1))
     text = existing.rstrip("\n") + "\n\n" + render_round(round_num, meta, findings, output)
     path.write_text(text, encoding="utf-8")
+    update_sticky_review_config(root, args.cli, getattr(args, "model", None), getattr(args, "thinking_level", None))
     print(f"Round {round_num}: {status} ({path.relative_to(root)})")
     if status != "completed":
         return 2
@@ -873,22 +1076,51 @@ def triage(args: argparse.Namespace) -> int:
         return 2
     number, lines = rounds[-1]
     meta = round_meta(lines)
-    out = [f"# Review Triage: {args.epic_dir}, Round {number}", "",
-           *(f"- **{key}**: {meta.get(key, '?')}" for key in ("SHA", "CLI", "Model", "Status", "Verdict")), "",
-           "## Passes", "", "| Pass | Verdict | Error |", "|------|---------|-------|",
-           *(f"| {cell(name)} | {verdict} | {cell(error)} |" for name, verdict, error in round_passes(round_output(lines))),
-           "", "## Findings", ""]
+    kind = getattr(args, "kind", "code")
+    cli = meta.get("CLI", "codex")
+    cli_display = {"claude": "Claude", "codex": "Codex", "agy": "agy", "ollama": "Ollama"}.get(cli, cli.capitalize())
+    title = f"# Review Triage: {args.epic_dir}, Round {number}"
     latest = finding_rows(lines)
+    header = format_triage_header(
+        title,
+        meta.get("SHA", "?"),
+        cli,
+        meta.get("Model", "?"),
+        meta.get("Thinking", "high"),
+        meta.get("Verdict", "none"),
+        latest,
+    )
+    if meta.get("Status") and meta.get("Status") != "completed":
+        header.append(f"- **Status**: {meta.get('Status')}")
+    out = [
+        *header,
+        "",
+        "## Passes",
+        "",
+        "| Pass | Verdict | Error |",
+        "|------|---------|-------|",
+        *(f"| {cell(name)} | {verdict} | {cell(error)} |" for name, verdict, error in round_passes(round_output(lines))),
+        "",
+        "## Findings",
+        "",
+    ]
     if latest:
-        out += ["| # | Severity | Location | Problem | Assessment | Evidence | Proposed action |",
-                "|---|----------|----------|---------|------------|----------|-----------------|",
-                *(f"| {cells[0]} | {cells[1]} | {cell(cells[2])} | {cell(cells[3])} | ? | ? | ? |" for cells in latest)]
+        out += [
+            "| # | Severity | Location | Problem | Assessment | Evidence | Proposed action |",
+            "|---|----------|----------|---------|------------|----------|-----------------|",
+            *(f"| {cells[0]} | {cells[1]} | {cell(cells[2])} | {cell(cells[3])} | ? | ? | ? |" for cells in latest),
+        ]
     else:
         out.append("None.")
-    out += ["", "## Round Comparison", "",
-            "| Round | CLI / Model | SHA | Status | Verdict | Critical | Important | Minor | Fixed | Dismissed | Undecided |",
-            "|-------|-------------|-----|--------|---------|----------|-----------|-------|-------|-----------|-----------|",
-            *(comparison_row(n, round_lines) for n, round_lines in rounds), ""]
+    out += [
+        "",
+        "## Round Comparison",
+        "",
+        "| Round | CLI / Model | SHA | Status | Verdict | Critical | Important | Minor | Fixed | Dismissed | Undecided |",
+        "|-------|-------------|-----|--------|---------|----------|-----------|-------|-------|-----------|-----------|",
+        *(comparison_row(n, round_lines) for n, round_lines in rounds),
+        "",
+    ]
     if len(rounds) > 1:
         out += [f"## Since Round {rounds[-2][0]}", "", *since_lines(finding_rows(rounds[-2][1]), latest)]
     else:
@@ -906,8 +1138,9 @@ def main(argv: list[str] | None = None) -> int:
     runner.add_argument("--epic-dir")
     runner.add_argument("--doc")
     runner.add_argument("--base", required=True)
-    runner.add_argument("--cli", required=True, choices=("claude", "codex", "ollama", "agy"))
+    runner.add_argument("--cli", choices=("claude", "codex", "ollama", "agy"), default=None)
     runner.add_argument("--model")
+    runner.add_argument("--thinking-level", choices=THINKING_LEVELS, default=None)
     runner.add_argument("--host", default=local_review.host_from_env())
     runner.add_argument("--num-ctx", type=int, default=None)
     runner.add_argument("--timeout", type=int, default=1800)
