@@ -84,7 +84,7 @@
   - `build_claude_command(prompt: str = "1", model: str = "haiku") -> list[str]`
   - `build_codex_command(prompt: str = "1", reasoning_effort: str = "low") -> list[str]`
   - `extract_tokens(output: str) -> int | None`
-  - `ping_cli(cli_name: str, timeout: int = 60) -> dict[str, Any]` executing in `tempfile.TemporaryDirectory()`
+  - `ping_cli(cli_name: str, timeout: int = 60) -> dict[str, Any]` executing in `tempfile.TemporaryDirectory()` returning standardized schema `{"cli": str, "status": "PASS" | "SKIPPED" | "FAIL", "latency_ms": float, "tokens": int | None, "error": str | None}`
   - `main(argv: list[str] | None = None) -> int` with `argparse`, formatted console summary, and JSON output support.
 
 - [ ] **Step 4: Run unit tests to confirm GREEN state**
@@ -130,9 +130,10 @@
     - Explanation of the isolation guarantees.
 
 - [ ] **Step 2: Wire into `scripts/verify.sh`**
-  Modify `scripts/verify.sh` under Section 11 (or Section 14) to include running `test_refresh_session.py`:
+  Add Section 16 to `scripts/verify.sh` right before Section 16/summary:
   ```bash
-  python3 -m unittest skills/refresh-session/resources/scripts/test_refresh_session.py
+  echo "== 16. Session refresh CLI engine and isolation contracts are enforced =="
+  python3 -m unittest skills/refresh-session/resources/scripts/test_refresh_session.py || FAILED=1
   ```
 
 - [ ] **Step 3: Run full verification harness**
@@ -163,3 +164,4 @@
 - [ ] **Final Repository Gate**:
   Run: `bash scripts/verify.sh`
   Ensure clean exit 0.
+

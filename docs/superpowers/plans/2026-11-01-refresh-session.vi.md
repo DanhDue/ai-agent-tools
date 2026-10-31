@@ -84,7 +84,7 @@
   - `build_claude_command(prompt: str = "1", model: str = "haiku") -> list[str]`
   - `build_codex_command(prompt: str = "1", reasoning_effort: str = "low") -> list[str]`
   - `extract_tokens(output: str) -> int | None`
-  - `ping_cli(cli_name: str, timeout: int = 60) -> dict[str, Any]` thực thi trong `tempfile.TemporaryDirectory()`
+  - `ping_cli(cli_name: str, timeout: int = 60) -> dict[str, Any]` thực thi trong `tempfile.TemporaryDirectory()` trả về cấu trúc chuẩn `{"cli": str, "status": "PASS" | "SKIPPED" | "FAIL", "latency_ms": float, "tokens": int | None, "error": str | None}`
   - `main(argv: list[str] | None = None) -> int` với `argparse`, tóm tắt console thân thiện và hỗ trợ JSON output.
 
 - [ ] **Bước 4: Chạy kiểm thử để xác nhận trạng thái GREEN**
@@ -130,9 +130,10 @@
     - Giải thích cam kết sandbox cô lập và triệt tiêu token.
 
 - [ ] **Bước 2: Đăng ký vào `scripts/verify.sh`**
-  Chỉnh sửa `scripts/verify.sh` tại mục 11 (hoặc mục 14) để thêm lệnh chạy test suite:
+  Thêm Mục 16 vào `scripts/verify.sh` ngay trước mục tổng kết:
   ```bash
-  python3 -m unittest skills/refresh-session/resources/scripts/test_refresh_session.py
+  echo "== 16. Session refresh CLI engine and isolation contracts are enforced =="
+  python3 -m unittest skills/refresh-session/resources/scripts/test_refresh_session.py || FAILED=1
   ```
 
 - [ ] **Bước 3: Chạy kịch bản kiểm định toàn trình**
@@ -163,3 +164,4 @@
 - [ ] **Cổng Kiểm tra Cuối cùng của Kho mã nguồn**:
   Chạy: `bash scripts/verify.sh`
   Đảm bảo mã thoát 0 sạch sẽ.
+
