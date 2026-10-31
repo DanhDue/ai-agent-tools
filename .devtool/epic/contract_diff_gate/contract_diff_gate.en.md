@@ -16,7 +16,7 @@
 ## Meta Data
 
 - **Epic name**: `contract_diff_gate`
-- **Status**: Draft
+- **Status**: Packaged
 - **Target release**: Next plugin release (1.19.0)
 - **Platform**: Python tooling / agent skill kit
 - **Source Spec**: [Approved Contract Diff Gate design](2026-10-31-contract-diff-gate-design.en.md)

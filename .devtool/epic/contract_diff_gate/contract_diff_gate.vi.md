@@ -16,7 +16,7 @@
 ## Meta Data
 
 - **Tên Epic**: `contract_diff_gate`
-- **Trạng thái**: Draft
+- **Trạng thái**: Packaged
 - **Phiên bản đích**: Bản phát hành plugin tiếp theo (1.19.0)
 - **Nền tảng**: Python tooling / agent skill kit
 - **Spec gốc**: [Thiết kế Contract Diff Gate đã duyệt](2026-10-31-contract-diff-gate-design.vi.md)
