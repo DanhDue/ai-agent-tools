@@ -39,9 +39,10 @@ You can invoke these commands either as IDE slash commands (`/refresh-session ..
 | `/refresh-session` *(or `/refresh-session all`)* | **Manual** | Pings both Claude Code and OpenAI Codex immediately. |
 | `/refresh-session claude` | **Manual** | Pings Claude Code only immediately. |
 | `/refresh-session codex` | **Manual** | Pings OpenAI Codex only immediately. |
-| `/refresh-session schedule <time>` | **Schedule** | Installs daily OS daemon for specified time (`5h`, `05:00`, `6am`, `06:30`). |
+| `/refresh-session schedule <time>` | **Schedule** | Installs daily OS daemon for specified time (`5h`, `05:00`, `6am`, `06:30`) with default 30s delay buffer. |
 | `/refresh-session schedule <time> --target <tgt>` | **Schedule** | Installs daily schedule for specific target (`claude`, `codex`, `all`). |
-| `/refresh-session schedule status` | **Inspect** | Checks whether the daily daemon is active and displays the next trigger time. |
+| `/refresh-session schedule <time> --delay <sec>` | **Schedule** | Installs daily schedule with custom delay buffer (`--offset <sec>`). |
+| `/refresh-session schedule status` | **Inspect** | Checks whether the daily daemon is active and displays trigger time & delay buffer. |
 | `/refresh-session schedule remove` *(or `uninstall`)* | **Uninstall** | Disables and deletes the scheduled OS daemon. |
 
 ---
@@ -55,12 +56,15 @@ python3 skills/refresh-session/resources/scripts/refresh_session.py claude
 python3 skills/refresh-session/resources/scripts/refresh_session.py codex
 python3 skills/refresh-session/resources/scripts/refresh_session.py all --json
 
-# === Daily Schedule Management ===
-# Set daily schedule to 5:00 AM
+# === Daily Schedule Management (30s delay buffer by default) ===
+# Set daily schedule to 5:00 AM (fires at 05:00:30)
 python3 skills/refresh-session/resources/scripts/refresh_session.py schedule --time 05:00
 
 # Set daily schedule to 6:00 AM for Claude only
 python3 skills/refresh-session/resources/scripts/refresh_session.py schedule --time 6h --target claude
+
+# Set daily schedule with custom 45-second delay buffer
+python3 skills/refresh-session/resources/scripts/refresh_session.py schedule --time 05:00 --delay 45
 
 # Check schedule status
 python3 skills/refresh-session/resources/scripts/refresh_session.py schedule --status
@@ -77,7 +81,7 @@ You can also speak naturally to your AI Agent:
 
 - *"Pre-warm sessions now"* $\rightarrow$ Runs `/refresh-session all`
 - *"Ping Claude now"* $\rightarrow$ Runs `/refresh-session claude`
-- *"Schedule refresh session at 5:00 AM every day"* $\rightarrow$ Runs `schedule --time 05:00`
+- *"Schedule refresh session at 5:00 AM every day"* $\rightarrow$ Runs `schedule --time 05:00` (applies 30s delay)
 - *"Schedule daily refresh at 6am"* $\rightarrow$ Runs `schedule --time 6am`
 - *"Check refresh session schedule status"* $\rightarrow$ Runs `schedule --status`
 - *"Turn off refresh session schedule"* $\rightarrow$ Runs `schedule --uninstall`
@@ -88,8 +92,10 @@ You can also speak naturally to your AI Agent:
 
 - **macOS Daemon**: `~/Library/LaunchAgents/com.d3nexus.refresh-session.plist` (managed via native `launchctl`).
 - **Linux Crontab**: User crontab entry wrapped in `# BEGIN d3nexus-refresh-session`.
+- **30-Second Safety Delay Buffer**: Automatically applied to scheduled runs (`--delay 30`). When the OS daemon wakes at `05:00:00`, the script sleeps 30 seconds to ensure remote cloud rate-limit reset workers have completed rolling over before pinging at `05:00:30`.
 - **Daemon Logs**:
   - Standard Output: `~/.devtool/logs/refresh_session_daemon.log`
   - Error Output: `~/.devtool/logs/refresh_session_daemon.err`
 - **Zero Token Overhead Guarantee**: Every execution runs inside an ephemeral sandbox outside any repository root, suppressing skills, plugins, hooks, and MCP servers.
+
 

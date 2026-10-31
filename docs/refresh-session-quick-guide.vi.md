@@ -39,9 +39,10 @@ Bạn có thể chạy các lệnh này dưới dạng Slash Command trong IDE (
 | `/refresh-session` *(hoặc `/refresh-session all`)* | **Thủ công** | Ping cả Claude Code và OpenAI Codex ngay lập tức. |
 | `/refresh-session claude` | **Thủ công** | Chỉ ping riêng Claude Code ngay lập tức. |
 | `/refresh-session codex` | **Thủ công** | Chỉ ping riêng OpenAI Codex ngay lập tức. |
-| `/refresh-session schedule <time>` | **Lập lịch** | Cài đặt daemon hệ điều hành chạy hàng ngày vào mốc giờ chỉ định (`5h`, `05:00`, `6am`, `06:30`). |
+| `/refresh-session schedule <time>` | **Lập lịch** | Cài đặt daemon hệ điều hành chạy hàng ngày vào mốc giờ chỉ định (`5h`, `05:00`, `6am`, `06:30`) với bộ đệm trễ mặc định 30s. |
 | `/refresh-session schedule <time> --target <tgt>` | **Lập lịch** | Lập lịch hàng ngày cho riêng một target (`claude`, `codex`, `all`). |
-| `/refresh-session schedule status` | **Kiểm tra** | Kiểm tra daemon có đang hoạt động không và hiển thị giờ chạy tiếp theo. |
+| `/refresh-session schedule <time> --delay <giây>` | **Lập lịch** | Lập lịch hàng ngày với bộ đệm trễ tùy chọn (`--offset <giây>`). |
+| `/refresh-session schedule status` | **Kiểm tra** | Kiểm tra daemon có đang hoạt động không và hiển thị mốc giờ cùng bộ đệm trễ. |
 | `/refresh-session schedule remove` *(hoặc `uninstall`)* | **Hủy lịch** | Tắt và xóa daemon hệ điều hành đã lập lịch. |
 
 ---
@@ -55,12 +56,15 @@ python3 skills/refresh-session/resources/scripts/refresh_session.py claude
 python3 skills/refresh-session/resources/scripts/refresh_session.py codex
 python3 skills/refresh-session/resources/scripts/refresh_session.py all --json
 
-# === Quản Lý Lịch Chạy Hàng Ngày ===
-# Cài lịch chạy lúc 5:00 AM mỗi ngày
+# === Quản Lý Lịch Chạy Hàng Ngày (Mặc định delay 30s) ===
+# Cài lịch chạy lúc 5:00 AM mỗi ngày (ping lúc 05:00:30)
 python3 skills/refresh-session/resources/scripts/refresh_session.py schedule --time 05:00
 
 # Cài lịch chạy lúc 6:00 AM riêng cho Claude
 python3 skills/refresh-session/resources/scripts/refresh_session.py schedule --time 6h --target claude
+
+# Cài lịch chạy với bộ đệm trễ tùy chọn 45 giây
+python3 skills/refresh-session/resources/scripts/refresh_session.py schedule --time 05:00 --delay 45
 
 # Kiểm tra trạng thái lịch
 python3 skills/refresh-session/resources/scripts/refresh_session.py schedule --status
@@ -77,7 +81,7 @@ Bạn cũng có thể ra lệnh tự nhiên cho AI Agent trong khung chat:
 
 - *"Pre-warm session ngay bây giờ"* $\rightarrow$ Chạy `/refresh-session all`
 - *"Ping Claude đi"* $\rightarrow$ Chạy `/refresh-session claude`
-- *"Lên lịch refresh session lúc 5h sáng mỗi ngày"* $\rightarrow$ Chạy `schedule --time 05:00`
+- *"Lên lịch refresh session lúc 5h sáng mỗi ngày"* $\rightarrow$ Chạy `schedule --time 05:00` (áp dụng delay 30s)
 - *"Hẹn giờ chạy refresh lúc 6am"* $\rightarrow$ Chạy `schedule --time 6am`
 - *"Kiểm tra lịch refresh session"* $\rightarrow$ Chạy `schedule --status`
 - *"Tắt lịch tự động refresh session"* $\rightarrow$ Chạy `schedule --uninstall`
@@ -88,6 +92,7 @@ Bạn cũng có thể ra lệnh tự nhiên cho AI Agent trong khung chat:
 
 - **macOS Daemon**: `~/Library/LaunchAgents/com.d3nexus.refresh-session.plist` (quản lý qua `launchctl` của macOS).
 - **Linux Crontab**: Dòng lệnh crontab của user được bọc trong `# BEGIN d3nexus-refresh-session`.
+- **Bộ Đệm Trễ An Toàn 30 Giây**: Tự động kích hoạt khi lên lịch (`--delay 30`). Khi daemon OS thức giấc lúc 05:00:00, script sẽ ngủ 30 giây để đảm bảo worker reset quota trên cloud hoàn tất chu kỳ trước khi gửi ping lúc 05:00:30.
 - **Đường Dẫn Log**:
   - Standard Output: `~/.devtool/logs/refresh_session_daemon.log`
   - Error Output: `~/.devtool/logs/refresh_session_daemon.err`

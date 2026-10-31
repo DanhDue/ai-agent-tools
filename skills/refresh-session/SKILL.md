@@ -44,8 +44,11 @@ Configure OS native daemons (`launchd` on macOS, `cron` on Linux) without third-
 |---|---|
 | "Setup refresh lúc 5h", "Hẹn giờ refresh 05:00" | `python3 skills/refresh-session/resources/scripts/refresh_session.py schedule --time 05:00` |
 | "Schedule Claude refresh at 6am" | `python3 skills/refresh-session/resources/scripts/refresh_session.py schedule --time 6am --target claude` |
+| "Hẹn giờ refresh 5h với delay 30s" | `python3 skills/refresh-session/resources/scripts/refresh_session.py schedule --time 5h --delay 30` |
 | "Kiểm tra lịch refresh session" | `python3 skills/refresh-session/resources/scripts/refresh_session.py schedule --status` |
 | "Hủy lịch refresh session", "Tắt auto refresh" | `python3 skills/refresh-session/resources/scripts/refresh_session.py schedule --uninstall` |
+
+Scheduled daemons automatically apply a **30-second safety delay buffer** (configurable via `--delay` or `--offset`) to guarantee remote cloud rate-limit workers have completed rolling over before pinging.
 
 Time input supports flexible formats:
 - 24-hour format: `05:00`, `5:00`, `14:30`, `09:15`
