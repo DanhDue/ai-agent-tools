@@ -35,8 +35,8 @@ This epic delivers `sync_contracts.py diff-check`, the `.agents/contract_map.jso
 
 ### Goals
 
-- Extend `skills/sync-shared-contracts/resources/scripts/sync_contracts.py` with the `diff-check` subcommand returning deterministic exit codes `0` (`PASS`), `1` (`FAIL`), and `2` (`BLOCKED`) across `merge-base(effective_base_ref, HEAD)..HEAD` using Python's standard library only.
-- Validate `.agents/contract_map.json` (`schema_version == 1`, `base_ref`, `domains` with `paths`/`exclude`, optional `waivers`) and compile repository-relative POSIX globs into full-path anchored regular expressions matching `task_contract.py` (`**/` matches zero or more directory levels; `*` and `?` never cross `/`).
+- Extend `skills/sync-shared-contracts/resources/scripts/sync_contracts.py` with the `diff-check` subcommand returning deterministic exit codes `0` (`PASS`), `1` (`FAIL`), and `2` (`BLOCKED`) across `merge-base(effective_base_ref, HEAD)..HEAD` via NUL-delimited `git diff --no-ext-diff --no-renames --name-only -z M..HEAD` using Python's standard library only.
+- Validate `.agents/contract_map.json` (`schema_version == 1`, `base_ref`, `domains` with `paths`/`exclude`, optional `waivers`), compile repository-relative POSIX globs into full-path anchored regular expressions matching `task_contract.py` (`**/` matches zero or more directory levels; `*` and `?` never cross `/`), and evaluate domain obligations across the union of baseline (`M:.agents/contract_map.json`, when present) and `HEAD` domain mappings (preserving each version's exclusions independently, failing when a deleted baseline domain has changed files, and bootstrapping cleanly when absent at `M`).
 - Enforce **Hub diff rules**: every changed file matched by `domains[D]` must be covered either by a canonical edit under `shared-contracts/<D>/` (`api_contract.md`, `architecture_and_flow.md`, or `gaps_and_rfcs.md`) in `M..HEAD`, or by a newly added path-matching waiver for domain `D`.
 - Enforce **Satellite diff rules**: every changed file matched by `domains[D]` must be covered either by an added/updated `domains[D]` entry in `.agents/contract_sync.json` within `M..HEAD` whose `HEAD` `snapshot_id` equals the live `shared-contracts` `snapshot_id`, or by a newly added path-matching waiver for domain `D` (verifying `W.gap` in `gaps_and_rfcs.md` when non-null).
 - Enforce **Immutable Historical Waivers**: compare `HEAD` waivers against `git show <M>:.agents/contract_map.json`; reject mutated historical waiver IDs (`1` `FAIL`), fail closed on malformed historical maps (`2` `BLOCKED`), allow removing obsolete waivers, and print all active newly added waivers in text and JSON output.
@@ -129,8 +129,8 @@ sequenceDiagram
     Note over Git,Gate: Stage 3 implementation commits task_01..task_N (including ack / new waivers)
     Gate->>CLI: Invoke diff-check --base-ref <effective_base_ref> [--json]
     CLI->>Git: Check clean tracked tree & resolve M = merge-base(base_ref, HEAD)
-    CLI->>Git: Read HEAD & M:.agents/contract_map.json + diff --name-only M..HEAD
-    CLI->>Git: Hub checks shared-contracts/<D>/* diff; Satellite checks M vs HEAD contract_sync.json + live snapshot_id
+    CLI->>Git: Read HEAD & M:.agents/contract_map.json + diff --no-ext-diff --no-renames --name-only -z M..HEAD
+    CLI->>Git: Match union(M, HEAD) domains; Hub checks shared-contracts/<D>/* diff; Satellite checks contract_sync.json + live snapshot_id
     CLI->>Git: Validate immutable old waivers, path-match new waivers, verify GAP-XX in gaps_and_rfcs.md
     CLI-->>Gate: Emit PASS (0), FAIL (1), or BLOCKED (2) + active_waivers report
     Gate-->>Dev: Render Gate 4 verdict & surface active_waivers for Gate 4 / Gate 5 review
@@ -146,8 +146,8 @@ Integration results: python3 scripts/run_unittest_junit.py --junitxml build/test
 
 | Component | Test File | Test Cases | Target Boundary |
 |---|---|---|---|
-| Anchored Glob & Map Schema | `test_sync_contracts.py` | `test_cdg_ec_01_*`, `test_cdg_fr_01_*` | Multi-level `**/` POSIX globs, excludes, and `contract_map.json` validation at `HEAD` and `merge-base` |
-| Hub & Satellite Diff Gate | `test_sync_contracts.py` | `test_cdg_hp_01_*`, `test_cdg_hp_02_*`, `test_cdg_ec_02_*`, `test_cdg_ec_03_*` | Temporary git repos testing `M..HEAD` diffs, canonical contract edits, and domain-scoped `ack` matching live `snapshot_id` |
+| Anchored Glob & Map Schema | `test_sync_contracts.py` | `test_cdg_ec_01_*`, `test_cdg_st_04_*`, `test_cdg_fr_01_*` | Multi-level `**/` POSIX globs, excludes, union(`M`, `HEAD`) domain mappings, bootstrap, and `contract_map.json` validation |
+| Hub & Satellite Diff Gate | `test_sync_contracts.py` | `test_cdg_hp_01_*`, `test_cdg_hp_02_*`, `test_cdg_ec_02_*`, `test_cdg_ec_03_*`, `test_cdg_ec_05_*` | Temporary git repos testing `--no-renames -z` `M..HEAD` diffs, renames/quoted paths, canonical contract edits, and domain `ack` |
 | Waiver Diff & GAP Audit | `test_sync_contracts.py` | `test_cdg_ec_04_*`, `test_cdg_st_01_*`, `test_cdg_st_02_*`, `test_cdg_st_03_*` | New path-scoped waivers, partial coverage failure, historical waiver immutability, and `GAP-XX` ledger lookup |
 | Worktree & Fail-Closed Guards | `test_sync_contracts.py` | `test_cdg_ar_01_*`, `test_cdg_ar_02_*`, `test_cdg_fr_02_*` | Nested `.worktrees/<epic>` symlink resolution, dirty tracked tree detection, broken symlinks, and bad `base_ref` |
 | Quality Providers & Schemas | `test_validate_*_quality.py` | `test_cdg_hp_03_*` | JSON schema and validator support for `contracts`, `contracts_<domain>`, `contract_diff`, `db_hygiene`, `{skills_dir}`, `{base_ref}` |
@@ -155,7 +155,7 @@ Integration results: python3 scripts/run_unittest_junit.py --junitxml build/test
 
 ## Verification Environment
 
-- **Runtime**: Python 3.10+ (Standard Library only: `argparse`, `hashlib`, `json`, `os`, `pathlib`, `re`, `subprocess`, `sys`, `tempfile`, `unittest`).
+- **Runtime**: Python 3.11+ (Standard Library only: `argparse`, `datetime`, `hashlib`, `json`, `os`, `pathlib`, `re`, `subprocess`, `sys`, `tempfile`, `unittest`).
 - **Isolation**: Every unit and integration test creates disposable git repositories and worktrees inside `tempfile.TemporaryDirectory()` with local `git config` settings; zero network calls, zero live database connections, and zero mutations to sibling repositories (`D3Nexus`, `lyrics-sync`, `nexus`).
 - **Environment Variables (`Needs`)**: None (`—`).
 - **Tooling & Lint**: `ruff check` and `mypy` for Python scripts, `check_document.py` for Markdown/Mermaid/TOC parity, and `bash scripts/verify.sh` for end-to-end plugin kit verification.
@@ -178,10 +178,12 @@ Full Gherkin scenarios across all 5 mandatory dimensions are maintained in `bdd_
   - `[CDG-EC-02]`: Empty diff (`merge-base == HEAD`) or unmapped-only file changes exit `0` (`PASS`).
   - `[CDG-EC-03]`: `--base-ref` CLI override precedence and repeatable `--domain` filter (exiting `2` `BLOCKED` on unknown domain).
   - `[CDG-EC-04]`: Newly added path-scoped waivers with `gap: null` or documented `GAP-XX` cover matching files, surface in `active_waivers`, and exit `0` (`PASS`).
+  - `[CDG-EC-05]`: NUL-delimited `--no-renames -z` diff detects renames out of mapped directories and filenames requiring Git C-quoting across both Hub and Satellite repositories.
 - **Dimension 3 — State Transitions**:
   - `[CDG-ST-01]`: Uncovered mapped file changes and partial waivers leaving a sibling mapped file uncovered transition verdict to `1` (`FAIL`).
   - `[CDG-ST-02]`: Historical waivers at `merge-base` do not mask new edits (`1` `FAIL`), mutating a historical waiver ID exits `1` (`FAIL`), and deleting an obsolete historical waiver exits `0` (`PASS`).
   - `[CDG-ST-03]`: Satellite `ack` touching only another domain `D2`, stale `snapshot_id` at `HEAD`, or waiver citing a nonexistent `GAP-999` exits `1` (`FAIL`).
+  - `[CDG-ST-04]`: Baseline-union domain mapping rejects self-exempting `exclude` additions, glob narrowing, and domain deletions when baseline-mapped files change (`1` `FAIL`), while allowing untouched domain retirement (`0` `PASS`) and first-time bootstrap when `M:.agents/contract_map.json` is absent.
 - **Dimension 4 — Async and Multi-Repo Concurrency**:
   - `[CDG-AR-01]`: Running `diff-check` inside a nested `.worktrees/<epic>` Satellite worktree resolves outbound relative symlinks via the primary repository root and exits `0` (`PASS`).
   - `[CDG-AR-02]`: Dirty tracked working tree (staged or unstaged tracked edits, ignoring untracked build outputs) fails closed with exit `2` (`BLOCKED`).
@@ -197,7 +199,7 @@ Full Gherkin scenarios across all 5 mandatory dimensions are maintained in `bdd_
 
 ## Kanban Tasks Breakdown
 
-- [Task 1: Implement Contract Map Validator, Anchored Glob Matcher, and sync_contracts.py diff-check Engine](task_1_contract_map_and_diff_check_cli.md) — Covers: `[CDG-HP-01]`, `[CDG-HP-02]`, `[CDG-EC-01]`, `[CDG-EC-02]`, `[CDG-EC-03]`, `[CDG-EC-04]`, `[CDG-ST-01]`, `[CDG-ST-02]`, `[CDG-ST-03]`, `[CDG-AR-01]`, `[CDG-AR-02]`, `[CDG-FR-01]`, `[CDG-FR-02]`
+- [Task 1: Implement Contract Map Validator, Anchored Glob Matcher, and sync_contracts.py diff-check Engine](task_1_contract_map_and_diff_check_cli.md) — Covers: `[CDG-HP-01]`, `[CDG-HP-02]`, `[CDG-EC-01]`, `[CDG-EC-02]`, `[CDG-EC-03]`, `[CDG-EC-04]`, `[CDG-EC-05]`, `[CDG-ST-01]`, `[CDG-ST-02]`, `[CDG-ST-03]`, `[CDG-ST-04]`, `[CDG-AR-01]`, `[CDG-AR-02]`, `[CDG-FR-01]`, `[CDG-FR-02]`
 - [Task 2: Align Quality Provider Schemas, {skills_dir} and {base_ref} Placeholders, and BLOCKED Exit Mapping](task_2_quality_providers_schemas_and_placeholders.md) — Covers: `[CDG-HP-03]`
 - [Task 3: Update Brainstorming, Designer, Shared-Contract Skill Docs, and Lifecycle Contract Suite](task_3_lifecycle_skills_docs_and_verify_harness.md) — Covers: `[CDG-HP-04]`
 

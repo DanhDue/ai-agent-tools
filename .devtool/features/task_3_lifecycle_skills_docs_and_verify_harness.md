@@ -30,7 +30,7 @@ Update the lifecycle and shared-contract skill instructions (`dev-brainstorming`
    - Require the **final task** (running before Gate 4) to include `.agents/contract_sync.json` (for `ack`) and, when waivers are planned, `.agents/contract_map.json` in `Allowed files` so the Gate 4 commit SHA stays immutable.
 3. **`skills/setup-shared-contracts/SKILL.md` & `skills/sync-shared-contracts/SKILL.md`**:
    - In `skills/setup-shared-contracts/SKILL.md`, document `resources/templates/contract_map.json.tmpl` (satisfying `scripts/verify.sh` Check 8 supporting-file reference check) and explain how target repositories configure `.agents/contract_map.json` globs manually rather than relying on guessed globs.
-   - In `skills/sync-shared-contracts/SKILL.md`, document `sync_contracts.py diff-check` (`--repo-root`, `--base-ref`, `--domain`, `--json`), exit codes `0`/`1`/`2`, `.agents/contract_map.json` schema, Hub vs Satellite diff rules, immutable waiver diff semantics, and `{skills_dir}` / `{base_ref}` Gate 4 wiring.
+   - In `skills/sync-shared-contracts/SKILL.md`, document `sync_contracts.py diff-check` (`--repo-root`, `--base-ref`, `--domain`, `--json`), exit codes `0`/`1`/`2`, `.agents/contract_map.json` schema, `--no-renames -z` diffing, baseline-union domain mapping + bootstrap rules, Hub vs Satellite diff rules, immutable waiver diff semantics, and `{skills_dir}` / `{base_ref}` Gate 4 wiring.
 4. **Contract Test Suite & Full Epic Integration (`scripts/test_lifecycle_document_contract.py`)**:
    - Extend `EXPECTED` / test methods (`test_cdg_hp_04_...`) in `scripts/test_lifecycle_document_contract.py` to enforce the new `dev-brainstorming`, `dev-designer`, `setup-shared-contracts`, and `sync-shared-contracts` document contracts.
    - Verify no diagram code fences exist in runtime `SKILL.md` files (`check_document.py` + `scripts/verify.sh`).
@@ -111,7 +111,7 @@ Scenario: [CDG-HP-04] [Tier C - Integration] Lifecycle Document Contracts, Templ
 - `dev-brainstorming/SKILL.md`, `dev-designer/SKILL.md`, `setup-shared-contracts/SKILL.md`, and `sync-shared-contracts/SKILL.md` are updated and pass `check_document.py` with zero findings (V5).
 - `scripts/test_lifecycle_document_contract.py` passes including `test_cdg_hp_04` and passes `ruff check` and `mypy` (V2, V3, V4).
 - `bash scripts/verify.sh` exits `0` with `"PASS — safe to publish"` across all 15 verification checks (V6).
-- Unified JUnit XML report `build/test-results/contract-diff-gate.xml` passes all 15 `CDG-*` scenarios across the epic (V7).
+- Unified JUnit XML report `build/test-results/contract-diff-gate.xml` passes all 17 `CDG-*` scenarios across the epic (V7).
 - Skill clarity and scope boundaries reviewed at Kanban sign-off (Gate 5).
 
 ## Dependencies & Blockers

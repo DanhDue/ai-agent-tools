@@ -67,6 +67,13 @@ Scenario: [CDG-EC-04] [Tier C - Integration] Newly Added Path-Scoped Waivers Wit
   When the engineer invokes sync_contracts.py diff-check --json and sync_contracts.py diff-check
   Then both invocations exit with code 0
   And active_waivers in JSON and stdout text explicitly list waiver id "W-001", domain "lyrics-sync", paths ["src/routes/tts.py"], reason, and gap value for Gate 4 and Gate 5 review
+
+Scenario: [CDG-EC-05] [Tier C - Integration] NUL-Delimited Rename-Out Detection and Git-Quoted Filename Matching Across Hub and Satellite
+  Given Hub and Satellite repositories mapping "src/api/dto/**" to domain "lyrics-sync"
+  When commits in M..HEAD either rename mapped file "src/api/dto/worker.py" to unmapped path "src/internal/worker.py" or modify filename "src/api/dto/worker v2 (draft).py" requiring Git C-quoting
+  And sync_contracts.py diff-check runs via git diff --no-ext-diff --no-renames --name-only -z M..HEAD first without coverage and then with a canonical contract edit (Hub) or fresh domain ack (Satellite)
+  Then the uncovered runs exit with code 1 reporting "src/api/dto/worker.py" and "src/api/dto/worker v2 (draft).py" in violations
+  And the covered Hub and Satellite runs exit with code 0 with status "PASS"
 ```
 
 ## Dimension 3: State Transitions
@@ -90,6 +97,12 @@ Scenario: [CDG-ST-03] [Tier C - Integration] Satellite Sibling-Domain Ack Isolat
   When the engineer invokes sync_contracts.py diff-check --json
   Then the JSON report contains status "FAIL" and records the uncovered path or missing "GAP-999" violation
   And the command exits with code 1
+
+Scenario: [CDG-ST-04] [Tier C - Integration] Baseline-Union Domain Mapping Prevents Self-Exemption While Allowing Bootstrap and Untouched Domain Retirement
+  Given a repository whose baseline M:.agents/contract_map.json maps "src/api/dto/**" to domain "lyrics-sync" alongside domain "legacy-domain"
+  When branch A modifies "src/api/dto/worker.py" while adding "src/api/dto/worker.py" to exclude or narrowing paths or deleting domain "lyrics-sync" at HEAD without coverage, branch B deletes untouched "legacy-domain" at HEAD, and bootstrap branch C introduces .agents/contract_map.json for the first time after M
+  Then sync_contracts.py diff-check on branch A exits with code 1 reporting "src/api/dto/worker.py" under domain "lyrics-sync" via baseline-union domain evaluation
+  And sync_contracts.py diff-check on branch B exits with code 0 and bootstrap branch C evaluates coverage obligations against HEAD domains without blocking on the absent baseline map
 ```
 
 ## Dimension 4: Async and Multi-Repo Concurrency

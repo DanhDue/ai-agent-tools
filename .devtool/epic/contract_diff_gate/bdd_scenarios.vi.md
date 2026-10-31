@@ -67,6 +67,13 @@ Scenario: [CDG-EC-04] [Tier C - Integration] Waiver mới theo đường dẫn v
   When kỹ sư thực thi sync_contracts.py diff-check --json và sync_contracts.py diff-check
   Then cả hai lệnh đều kết thúc với exit code 0
   And trường active_waivers trong JSON lẫn văn bản stdout đều in rõ id "W-001", domain "lyrics-sync", paths ["src/routes/tts.py"], reason, và giá trị gap để duyệt tại Gate 4 và Gate 5
+
+Scenario: [CDG-EC-05] [Tier C - Integration] Phát hiện đổi tên thoát khỏi vùng Map qua NUL-Delimited Diff và khớp tên file cần Git Quoting trên Hub và Satellite
+  Given các kho Hub và Satellite ánh xạ "src/api/dto/**" vào domain "lyrics-sync"
+  When các commit trong M..HEAD đổi tên file được map "src/api/dto/worker.py" sang đường dẫn ngoài map "src/internal/worker.py" hoặc sửa đổi tên file "src/api/dto/worker v2 (draft).py" vốn bị Git bọc C-quoting
+  And sync_contracts.py diff-check chạy qua git diff --no-ext-diff --no-renames --name-only -z M..HEAD lần đầu chưa có bao phủ và lần sau có sửa contract chuẩn (Hub) hoặc domain ack mới (Satellite)
+  Then các lần chạy chưa bao phủ kết thúc với exit code 1 ghi nhận "src/api/dto/worker.py" và "src/api/dto/worker v2 (draft).py" trong violations
+  And các lần chạy đã bao phủ trên Hub và Satellite kết thúc với exit code 0 kèm status "PASS"
 ```
 
 ## Chiều 3: Chuyển đổi trạng thái
@@ -90,6 +97,12 @@ Scenario: [CDG-ST-03] [Tier C - Integration] Cô lập Ack khác Domain trên Sa
   When kỹ sư thực thi lệnh sync_contracts.py diff-check --json
   Then báo cáo JSON chứa status "FAIL" và ghi nhận rõ đường dẫn vi phạm hoặc lỗi thiếu "GAP-999"
   And lệnh kết thúc với exit code 1
+
+Scenario: [CDG-ST-04] [Tier C - Integration] Đánh giá Hợp Domain Mapping giữa Baseline và HEAD chặn tự miễn trừ nhưng cho phép Bootstrap và gỡ Domain không chạm tới
+  Given một repository có file baseline M:.agents/contract_map.json ánh xạ "src/api/dto/**" vào domain "lyrics-sync" cùng với domain "legacy-domain"
+  When nhánh A sửa "src/api/dto/worker.py" đồng thời thêm "src/api/dto/worker.py" vào exclude hoặc thu hẹp paths hoặc xóa domain "lyrics-sync" tại HEAD mà không bao phủ, nhánh B xóa domain không có file đổi "legacy-domain" tại HEAD, và nhánh bootstrap C lần đầu tiên tạo .agents/contract_map.json sau commit M
+  Then lệnh sync_contracts.py diff-check trên nhánh A kết thúc với exit code 1 báo lỗi "src/api/dto/worker.py" thuộc domain "lyrics-sync" nhờ đánh giá hợp domain với baseline
+  And lệnh sync_contracts.py diff-check trên nhánh B kết thúc với exit code 0 còn nhánh bootstrap C đánh giá nghĩa vụ bao phủ theo domains tại HEAD mà không bị chặn do thiếu map ở baseline
 ```
 
 ## Chiều 4: Bất đồng bộ và đồng thời đa repo

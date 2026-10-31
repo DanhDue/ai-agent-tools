@@ -51,8 +51,8 @@ No shared-contract warnings (`ai-agent-tools` is the plugin kit repository and h
 
 | # | Decision |
 |---|---|
-| 1 | Detection evaluates committed git diffs across `merge-base(effective_base_ref, HEAD)..HEAD`. |
-| 2 | Each repository declares its own file-to-domain glob map in `.agents/contract_map.json`. |
+| 1 | Detection evaluates committed git diffs across `merge-base(effective_base_ref, HEAD)..HEAD` via `git diff --no-ext-diff --no-renames --name-only -z M..HEAD` so NUL-delimited unquoted paths preserve both source and destination on renames/moves and avoid Git C-quoting. |
+| 2 | Each repository declares its own file-to-domain glob map in `.agents/contract_map.json`; domain membership evaluates against the union of baseline (`M:.agents/contract_map.json`, when present) and `HEAD` domain mappings (each version applying its own `paths` and `exclude` independently) so map edits cannot self-exempt changed files. |
 | 3 | Exceptions are path-scoped waivers recorded in `.agents/contract_map.json`, printed in reports, and valid only when newly added in the diff under test. Modifying an existing waiver ID fails the gate. |
 | 4 | Satellite proof for domain `D` is a domain-level `ack` change in `.agents/contract_sync.json` within `M..HEAD` whose `HEAD` `snapshot_id` equals the live snapshot, or a new path-matching waiver (citing an existing `GAP-XX` when awaiting upstream contract changes). |
 | 5 | Implementation is a new `diff-check` subcommand in `sync_contracts.py` (Approach A) returning exit codes `0` (`PASS`), `1` (`FAIL`), and `2` (`BLOCKED`). |
@@ -80,7 +80,7 @@ Deterministic exit codes:
 | Exit Code | Status | Trigger Conditions |
 |---|---|---|
 | `0` | `PASS` | Clean tree, valid map, and either diff is empty (`merge-base == HEAD`), no mapped files changed, or all changed mapped files are covered by contract updates / fresh domain `ack` / valid new waivers. |
-| `1` | `FAIL` | Uncovered mapped file changes, stale `ack` snapshot in diff, mutated historical waiver ID, or waiver citing a nonexistent `GAP-XX`. |
+| `1` | `FAIL` | Uncovered mapped file changes (under `HEAD` or baseline `M` domain mappings), removing a baseline domain while its baseline-mapped files changed, stale `ack` snapshot in diff, mutated historical waiver ID, or waiver citing a nonexistent `GAP-XX`. |
 | `2` | `BLOCKED` | Missing or malformed `.agents/contract_map.json` (at `HEAD` or at `merge-base`), unknown `--domain` filter, dirty working tree (staged or unstaged tracked changes), unresolvable `base_ref`, or broken `shared-contracts` topology/symlink. |
 
 Quality providers (`rust-quality-check`, `python-quality-check`, `flutter-quality-check`, `android-quality-check`, `ios-quality-check`) map exit code `2` (or JSON `"status": "BLOCKED"`) to check status `BLOCKED`, exit code `1` to `FAIL`, and exit code `0` to `PASS`.
@@ -119,9 +119,9 @@ Validation and scaffolding rules:
 ### Hub Rules
 
 1. Working tree cleanliness is checked via `git status --porcelain --untracked-files=no`. Any modified/staged tracked file returns `2` (`BLOCKED`), matching SHA-bound Gate 4.
-2. Compute `M = git merge-base <effective_base_ref> HEAD`. If `M == HEAD`, no commits diverge from base; return `0` (`PASS`). Otherwise list changed files via `git diff --name-only M..HEAD`.
-3. For each evaluated domain `D`, collect changed files matching `domains[D]`. If none matched, domain `D` passes.
-4. Domain `D` passes as a whole if `git diff --name-only M..HEAD` includes at least one canonical file under `shared-contracts/<D>/` (`api_contract.md`, `architecture_and_flow.md`, or `gaps_and_rfcs.md`).
+2. Compute `M = git merge-base <effective_base_ref> HEAD`. If `M == HEAD`, no commits diverge from base; return `0` (`PASS`). Otherwise list changed files via `git diff --no-ext-diff --no-renames --name-only -z M..HEAD` and split NUL-delimited UTF-8 records (`surrogateescape`) so renames/moves emit both source and destination paths and filenames with spaces or non-ASCII bytes are never C-quoted.
+3. Evaluate domains across the union of `HEAD` and `M:.agents/contract_map.json` (when `--domain` is passed, every requested domain must exist in `HEAD`'s `domains`, else `2` `BLOCKED`; when `--domain` is omitted, evaluate `sorted(set(head_domains) | set(baseline_domains))`). A changed path `f` belongs to domain `D` if it matches `head_domains[D]` (`paths` minus `exclude`) **or** (when `M:.agents/contract_map.json` existed and defined `D`) `baseline_domains[D]` (`paths` minus `exclude`). If `M:.agents/contract_map.json` did not exist at `M` (initial bootstrap), only `head_domains` applies. If `D` existed at `M` and was removed from `HEAD`: return `1` (`FAIL`) when any changed file matched `baseline_domains[D]`, or pass `D` when zero changed files matched `baseline_domains[D]`.
+4. Domain `D` passes as a whole if the NUL-delimited `M..HEAD` changed-file set includes at least one canonical file under `shared-contracts/<D>/` (`api_contract.md`, `architecture_and_flow.md`, or `gaps_and_rfcs.md`).
 5. Otherwise, **every** changed mapped file `f` in domain `D` must match `paths` of at least one **newly added waiver** for domain `D` (see [Waiver Diff Semantics](#waiver-diff-semantics)). Any uncovered file `f` causes exit code `1` (`FAIL`), reporting `D` and `f`.
 6. `check --strict` continues to run as a sibling capability, so editing `shared-contracts/<D>/` in `task_01` without running `ack` in the final task still fails Gate 4.
 
@@ -129,7 +129,7 @@ Validation and scaffolding rules:
 
 In Satellite repositories, `shared-contracts/` is a read-only outbound symlink, so the gate never asks for edits under `shared-contracts/`.
 
-1. Cleanliness, `merge-base`, and topology resolution run first; a broken or circular symlink returns `2` (`BLOCKED`). If `M == HEAD`, return `0` (`PASS`).
+1. Cleanliness, `merge-base`, and topology resolution run first; a broken or circular symlink returns `2` (`BLOCKED`). If `M == HEAD`, return `0` (`PASS`). Changed paths are extracted via `git diff --no-ext-diff --no-renames --name-only -z M..HEAD` and matched against the union of `HEAD` and `M` domain mappings (preserving each version's own `paths` and `exclude` independently, with bootstrap fallback when `M:.agents/contract_map.json` is absent, and failing with `1` `FAIL` if a deleted baseline domain had baseline-mapped file changes).
 2. For each evaluated domain `D` with at least one changed mapped file in `M..HEAD`:
    - Compare `domains[D]` in `.agents/contract_sync.json` between commit `M` (`git show <M>:.agents/contract_sync.json`, or `{}` if absent at `M`) and `HEAD`. Domain `D` passes as a whole if `domains[D]` was added or updated in `M..HEAD` (including a refreshed `last_synced_at` when re-acknowledging an unchanged upstream snapshot) **and** `domains[D].snapshot_id` at `HEAD` equals the live `snapshot_id` computed from the resolved `shared-contracts` files. An acknowledgement affecting only another domain `D2` does not satisfy `D`.
    - Otherwise, **every** changed mapped file `f` in domain `D` must match `paths` of at least one **newly added valid waiver** for domain `D`.
@@ -141,9 +141,9 @@ In Satellite repositories, `shared-contracts/` is a read-only outbound symlink, 
 Waivers are scoped per epic diff and per file glob so historical waivers never silently mask future edits, and a waiver for one file never masks unrelated files in the same domain:
 
 1. **Historical baseline extraction**: Read `.agents/contract_map.json` at commit `M` using `git show <M>:.agents/contract_map.json`.
-   - If `.agents/contract_map.json` did not exist at `M`, `baseline_waivers` is empty (`{}`).
-   - If `.agents/contract_map.json` existed at `M` and parses with valid `waivers`, index `baseline_waivers` by `id`.
-   - If `.agents/contract_map.json` existed at `M` but contains malformed JSON or invalid `waivers` structure, return exit code `2` (`BLOCKED`, fail-closed).
+   - If `.agents/contract_map.json` did not exist at `M` (bootstrap), both `baseline_domains` and `baseline_waivers` are empty (`{}`).
+   - If `.agents/contract_map.json` existed at `M` and passes full `contract_map.json` validation (`schema_version == 1`, `domains`, `waivers`), extract `baseline_domains` (for union domain coverage) and index `baseline_waivers` by `id`.
+   - If `.agents/contract_map.json` existed at `M` but contains malformed JSON or fails `contract_map.json` schema validation, return exit code `2` (`BLOCKED`, fail-closed).
 2. **Immutability of historical waivers**: For any waiver `id` present in both `baseline_waivers` and `HEAD`, its canonical fields (`domain`, `paths`, `reason`, `gap`) must be identical. Mutating an existing waiver ID to widen `paths` or switch `domain` immediately triggers exit code `1` (`FAIL`). Removing obsolete historical waivers is permitted.
 3. **Newly added waivers**: Only waivers whose `id` is in `HEAD` and **not** in `baseline_waivers` are active for covering changed files in `M..HEAD`.
 4. **Path-level coverage**: A newly added waiver `W` covers changed file `f` in domain `D` if and only if `W.domain == D` and `f` matches at least one anchored glob in `W.paths`.
@@ -200,8 +200,8 @@ This epic modifies only `ai-agent-tools` and publishes a new plugin version firs
 
 Standard library `unittest` suite using temporary git repositories, wired into `scripts/verify.sh`:
 
-- **Hub**: mapped change + contract edit → `0` (`PASS`); mapped change alone → `1` (`FAIL`); mapped change + new path-matching waiver → `0` (`PASS`); partial waiver leaving sibling file uncovered → `1` (`FAIL`); old waiver at `merge-base` does not mask new edit → `1` (`FAIL`); mutating old waiver ID → `1` (`FAIL`); malformed `contract_map.json` at `merge-base` → `2` (`BLOCKED`); `merge-base == HEAD` → `0` (`PASS`); missing/invalid `contract_map.json` at `HEAD` → `2` (`BLOCKED`); dirty tracked tree → `2` (`BLOCKED`).
-- **Satellite**: mapped change + fresh domain `ack` matching live `snapshot_id` → `0` (`PASS`); `ack` touching only another domain `D2` → `1` (`FAIL`); stale `ack` snapshot → `1` (`FAIL`); new waiver with existing `GAP-XX` → `0` (`PASS`); new waiver with missing `GAP-XX` → `1` (`FAIL`); new waiver with `gap: null` → `0` (`PASS`) with waiver listed in report; dangling symlink → `2` (`BLOCKED`).
+- **Hub**: mapped change + contract edit → `0` (`PASS`); mapped change alone → `1` (`FAIL`); rename of mapped file outside mapped directory or filename requiring Git quoting (spaces/non-ASCII) without coverage → `1` (`FAIL`) and with contract edit → `0` (`PASS`); mapped change + new path-matching waiver → `0` (`PASS`); partial waiver leaving sibling file uncovered → `1` (`FAIL`); old waiver at `merge-base` does not mask new edit → `1` (`FAIL`); mutating old waiver ID → `1` (`FAIL`); narrowing `domains[D].paths`, adding changed path to `exclude`, or deleting `domains[D]` at `HEAD` while baseline-mapped file changed → `1` (`FAIL`); retiring untouched baseline domain → `0` (`PASS`); bootstrap when `M:.agents/contract_map.json` is absent → evaluates `HEAD` map cleanly; malformed `contract_map.json` at `merge-base` → `2` (`BLOCKED`); `merge-base == HEAD` → `0` (`PASS`); missing/invalid `contract_map.json` at `HEAD` → `2` (`BLOCKED`); dirty tracked tree → `2` (`BLOCKED`).
+- **Satellite**: mapped change + fresh domain `ack` matching live `snapshot_id` → `0` (`PASS`); rename of mapped file outside mapped directory or filename requiring Git quoting without `ack` → `1` (`FAIL`) and with fresh domain `ack` → `0` (`PASS`); `ack` touching only another domain `D2` → `1` (`FAIL`); stale `ack` snapshot → `1` (`FAIL`); new waiver with existing `GAP-XX` → `0` (`PASS`); new waiver with missing `GAP-XX` → `1` (`FAIL`); new waiver with `gap: null` → `0` (`PASS`) with waiver listed in report; dangling symlink → `2` (`BLOCKED`).
 - **Worktree, Globbing & CLI**: nested `.worktrees/<epic>` symlink resolution, anchored `**` glob matching on zero and multiple directory levels, `--base-ref` override precedence, unknown `--domain` returning `2` (`BLOCKED`), and `--json` output schema.
 - **Provider Schemas, Lifecycle & Docs**: unit tests in `test_validate_*_quality.py` inspecting `*-quality.schema.json` structure (via stdlib `json`) and validator acceptance for `contracts`, `contracts_<domain>`, `contract_diff`, and `db_hygiene`, plus `scripts/test_lifecycle_document_contract.py`, `check_document.py`, and `scripts/verify.sh`.
 

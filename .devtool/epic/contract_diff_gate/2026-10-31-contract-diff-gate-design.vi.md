@@ -51,8 +51,8 @@ Không có cảnh báo shared-contract (`ai-agent-tools` là repo bộ plugin ki
 
 | # | Quyết định |
 |---|---|
-| 1 | Phát hiện đánh giá diff git đã commit trên khoảng `merge-base(effective_base_ref, HEAD)..HEAD`. |
-| 2 | Mỗi repo tự khai báo map glob file → domain trong `.agents/contract_map.json`. |
+| 1 | Phát hiện đánh giá diff git đã commit trên khoảng `merge-base(effective_base_ref, HEAD)..HEAD` qua `git diff --no-ext-diff --no-renames --name-only -z M..HEAD` để các đường dẫn phân tách bởi NUL không bị Git bọc ngoặc kép C-escape và luôn giữ đủ cả đường dẫn nguồn lẫn đích khi đổi tên/di chuyển file. |
+| 2 | Mỗi repo tự khai báo map glob file → domain trong `.agents/contract_map.json`; nghĩa vụ bao phủ của domain được đánh giá trên hợp (union) của bản đồ baseline (`M:.agents/contract_map.json`, khi đã tồn tại) và bản đồ `HEAD` (mỗi phiên bản áp dụng độc lập `paths` và `exclude` của chính nó) để chỉnh sửa map không thể tự miễn trừ cho file thay đổi. |
 | 3 | Ngoại lệ là các waiver giới hạn theo đường dẫn (`paths`) ghi trong `.agents/contract_map.json`, in ra báo cáo, và chỉ hợp lệ khi mới được thêm trong diff đang kiểm tra. Sửa đổi một ID waiver cũ sẽ làm gate fail. |
 | 4 | Bằng chứng ở Satellite cho domain `D` là thay đổi `ack` cấp domain trong `.agents/contract_sync.json` thuộc `M..HEAD` có `snapshot_id` ở `HEAD` bằng đúng snapshot hiện hành, hoặc waiver mới khớp đường dẫn (trích dẫn `GAP-XX` có thật khi đang chờ Hub bổ sung contract). |
 | 5 | Cài đặt là subcommand `diff-check` mới trong `sync_contracts.py` (Hướng A) trả mã thoát `0` (`PASS`), `1` (`FAIL`) và `2` (`BLOCKED`). |
@@ -80,7 +80,7 @@ Bảng mã thoát tất định:
 | Mã thoát | Trạng thái | Điều kiện kích hoạt |
 |---|---|---|
 | `0` | `PASS` | Cây làm việc sạch, map hợp lệ, và diff rỗng (`merge-base == HEAD`), không có file được map thay đổi, hoặc mọi file được map thay đổi đều được bao phủ bởi cập nhật contract / `ack` mới cấp domain / waiver mới hợp lệ. |
-| `1` | `FAIL` | Có file được map thay đổi chưa được bao phủ, `ack` trong diff mang snapshot cũ, sửa đổi ID waiver lịch sử, hoặc waiver trích dẫn `GAP-XX` không tồn tại. |
+| `1` | `FAIL` | Có file được map thay đổi chưa được bao phủ (theo map ở `HEAD` hoặc ở baseline `M`), xóa domain có từ baseline trong khi file khớp map baseline của domain đó bị thay đổi, `ack` trong diff mang snapshot cũ, sửa đổi ID waiver lịch sử, hoặc waiver trích dẫn `GAP-XX` không tồn tại. |
 | `2` | `BLOCKED` | Thiếu hoặc sai định dạng `.agents/contract_map.json` (tại `HEAD` hoặc tại `merge-base`), bộ lọc `--domain` không xác định, cây làm việc bẩn (có file tracked đang staged/unstaged), không phân giải được `base_ref`, hoặc hỏng topology/symlink `shared-contracts`. |
 
 Các quality provider (`rust-quality-check`, `python-quality-check`, `flutter-quality-check`, `android-quality-check`, `ios-quality-check`) ánh xạ mã thoát `2` (hoặc JSON `"status": "BLOCKED"`) sang trạng thái check `BLOCKED`, mã thoát `1` sang `FAIL`, và mã thoát `0` sang `PASS`.
@@ -119,9 +119,9 @@ Quy tắc kiểm tra hợp lệ và khởi tạo mẫu:
 ### Quy tắc Hub
 
 1. Độ sạch của cây làm việc được kiểm tra qua `git status --porcelain --untracked-files=no`. Mọi file tracked đang sửa hoặc staged đều trả `2` (`BLOCKED`), khớp với Gate 4 gắn SHA.
-2. Tính `M = git merge-base <effective_base_ref> HEAD`. Nếu `M == HEAD`, không có commit nào rẽ nhánh khỏi base; trả `0` (`PASS`). Ngược lại lấy danh sách file đổi qua `git diff --name-only M..HEAD`.
-3. Với mỗi domain `D` được đánh giá, gom các file đổi khớp `domains[D]`. Nếu không có file nào khớp, domain `D` pass.
-4. Domain `D` pass toàn cục nếu `git diff --name-only M..HEAD` có ít nhất một file chuẩn dưới `shared-contracts/<D>/` (`api_contract.md`, `architecture_and_flow.md` hoặc `gaps_and_rfcs.md`).
+2. Tính `M = git merge-base <effective_base_ref> HEAD`. Nếu `M == HEAD`, không có commit nào rẽ nhánh khỏi base; trả `0` (`PASS`). Ngược lại lấy danh sách file đổi qua `git diff --no-ext-diff --no-renames --name-only -z M..HEAD` và tách theo ký tự NUL (`surrogateescape`) để khi đổi tên/di chuyển luôn xuất cả đường dẫn nguồn lẫn đích và tên file có khoảng trắng hay ký tự non-ASCII không bị Git bọc ngoặc kép C-escape.
+3. Đánh giá các domain trên hợp (union) của `HEAD` và `M:.agents/contract_map.json` (khi truyền `--domain`, mọi domain yêu cầu phải tồn tại trong `domains` của `HEAD`, nếu không trả `2` `BLOCKED`; khi bỏ trống `--domain`, đánh giá `sorted(set(head_domains) | set(baseline_domains))`). Một đường dẫn thay đổi `f` thuộc nghĩa vụ của domain `D` nếu khớp `head_domains[D]` (`paths` trừ `exclude`) **hoặc** (khi `M:.agents/contract_map.json` tồn tại và có khai báo `D`) khớp `baseline_domains[D]` (`paths` trừ `exclude`). Nếu `M:.agents/contract_map.json` chưa tồn tại tại `M` (khởi tạo bootstrap lần đầu), chỉ áp dụng `head_domains`. Nếu `D` từng có ở `M` nhưng bị xóa khỏi `HEAD`: trả `1` (`FAIL`) khi có ít nhất một file thay đổi khớp `baseline_domains[D]`, hoặc cho `D` pass khi không có file thay đổi nào khớp `baseline_domains[D]`.
+4. Domain `D` pass toàn cục nếu tập file thay đổi phân tách bởi NUL của `M..HEAD` có ít nhất một file chuẩn dưới `shared-contracts/<D>/` (`api_contract.md`, `architecture_and_flow.md` hoặc `gaps_and_rfcs.md`).
 5. Ngược lại, **mọi** file được map bị đổi `f` trong domain `D` phải khớp `paths` của ít nhất một **waiver mới thêm** cho domain `D` (xem [Ngữ nghĩa diff của Waiver](#ngữ-nghĩa-diff-của-waiver)). Bất kỳ file `f` nào chưa được bao phủ sẽ trả mã thoát `1` (`FAIL`), liệt kê `D` và `f`.
 6. `check --strict` vẫn chạy như một capability song hành, nên sửa `shared-contracts/<D>/` ở `task_01` mà quên chạy `ack` ở task cuối vẫn làm Gate 4 fail.
 
@@ -129,7 +129,7 @@ Quy tắc kiểm tra hợp lệ và khởi tạo mẫu:
 
 Ở các repo Satellite, `shared-contracts/` là outbound symlink chỉ đọc, nên gate không bao giờ yêu cầu sửa file dưới `shared-contracts/`.
 
-1. Kiểm tra cây sạch, `merge-base` và phân giải topology chạy trước; symlink đứt hoặc vòng lặp trả `2` (`BLOCKED`). Nếu `M == HEAD`, trả `0` (`PASS`).
+1. Kiểm tra cây sạch, `merge-base` và phân giải topology chạy trước; symlink đứt hoặc vòng lặp trả `2` (`BLOCKED`). Nếu `M == HEAD`, trả `0` (`PASS`). Tập đường dẫn thay đổi được trích xuất qua `git diff --no-ext-diff --no-renames --name-only -z M..HEAD` và đối chiếu với hợp (union) của domain mapping giữa `HEAD` và `M` (giữ độc lập `paths` và `exclude` của từng phiên bản, fallback bootstrap khi chưa có `M:.agents/contract_map.json`, và trả `1` `FAIL` nếu một domain ở baseline bị xóa trong khi có file khớp baseline của nó thay đổi).
 2. Với mỗi domain `D` được đánh giá có ít nhất một file được map bị đổi trong `M..HEAD`:
    - So sánh `domains[D]` trong `.agents/contract_sync.json` giữa commit `M` (`git show <M>:.agents/contract_sync.json`, hoặc `{}` nếu chưa có ở `M`) và `HEAD`. Domain `D` pass toàn cục nếu `domains[D]` mới được thêm hoặc cập nhật trong `M..HEAD` (kể cả cập nhật `last_synced_at` khi chạy lại `ack` trên một snapshot upstream không đổi) **và** `domains[D].snapshot_id` tại `HEAD` bằng đúng `snapshot_id` hiện hành tính từ các file `shared-contracts` đã phân giải. Một lệnh `ack` chỉ tác động tới domain khác `D2` sẽ không thỏa mãn `D`.
    - Ngược lại, **mọi** file được map bị đổi `f` trong domain `D` phải khớp `paths` của ít nhất một **waiver mới hợp lệ** cho domain `D`.
@@ -141,9 +141,9 @@ Quy tắc kiểm tra hợp lệ và khởi tạo mẫu:
 Waiver được giới hạn theo diff của từng epic và theo từng glob đường dẫn để waiver lịch sử không bao giờ âm thầm che các chỉnh sửa về sau, và waiver cho một file không vô tình che các file khác cùng domain:
 
 1. **Trích xuất baseline lịch sử**: Đọc `.agents/contract_map.json` tại commit `M` bằng `git show <M>:.agents/contract_map.json`.
-   - Nếu `.agents/contract_map.json` chưa tồn tại ở `M`, `baseline_waivers` rỗng (`{}`).
-   - Nếu `.agents/contract_map.json` đã tồn tại ở `M` và parse hợp lệ phần `waivers`, lập chỉ mục `baseline_waivers` theo `id`.
-   - Nếu `.agents/contract_map.json` đã tồn tại ở `M` nhưng bị lỗi cú pháp JSON hoặc sai cấu trúc `waivers`, trả mã thoát `2` (`BLOCKED`, fail-closed).
+   - Nếu `.agents/contract_map.json` chưa tồn tại ở `M` (bootstrap), cả `baseline_domains` lẫn `baseline_waivers` đều rỗng (`{}`).
+   - Nếu `.agents/contract_map.json` đã tồn tại ở `M` và vượt qua kiểm tra hợp lệ toàn phần (`schema_version == 1`, `domains`, `waivers`), trích xuất `baseline_domains` (phục vụ đánh giá hợp domain) và lập chỉ mục `baseline_waivers` theo `id`.
+   - Nếu `.agents/contract_map.json` đã tồn tại ở `M` nhưng bị lỗi cú pháp JSON hoặc sai schema `contract_map.json`, trả mã thoát `2` (`BLOCKED`, fail-closed).
 2. **Tính bất biến của waiver lịch sử**: Với mọi `id` có mặt ở cả `baseline_waivers` lẫn `HEAD`, các trường chuẩn (`domain`, `paths`, `reason`, `gap`) phải giống hệt nhau. Sửa đổi một ID waiver cũ để nới rộng `paths` hoặc đổi `domain` lập tức trả mã thoát `1` (`FAIL`). Việc xóa bỏ các waiver lịch sử không còn cần thiết được cho phép.
 3. **Waiver mới thêm**: Chỉ những waiver có `id` xuất hiện ở `HEAD` nhưng **không** có trong `baseline_waivers` mới có hiệu lực bao phủ file thay đổi trong `M..HEAD`.
 4. **Bao phủ cấp đường dẫn**: Một waiver mới `W` bao phủ file thay đổi `f` thuộc domain `D` khi và chỉ khi `W.domain == D` và `f` khớp ít nhất một glob có neo trong `W.paths`.
@@ -200,8 +200,8 @@ Epic này chỉ sửa đổi `ai-agent-tools` và phát hành phiên bản plugi
 
 Bộ test `unittest` thư viện chuẩn dùng các repo git tạm, đấu nối vào `scripts/verify.sh`:
 
-- **Hub**: đổi file được map + sửa contract → `0` (`PASS`); chỉ đổi file được map → `1` (`FAIL`); đổi file được map + waiver mới khớp đường dẫn → `0` (`PASS`); waiver chỉ che một phần để sót file cùng domain → `1` (`FAIL`); waiver cũ tại `merge-base` không che thay đổi mới → `1` (`FAIL`); sửa nội dung ID waiver cũ → `1` (`FAIL`); `contract_map.json` lỗi định dạng tại `merge-base` → `2` (`BLOCKED`); `merge-base == HEAD` → `0` (`PASS`); thiếu/sai `contract_map.json` tại `HEAD` → `2` (`BLOCKED`); cây tracked bẩn → `2` (`BLOCKED`).
-- **Satellite**: đổi file được map + `ack` mới cấp domain khớp `snapshot_id` hiện hành → `0` (`PASS`); `ack` chỉ chạm domain khác `D2` → `1` (`FAIL`); `ack` mang snapshot cũ → `1` (`FAIL`); waiver mới trích dẫn `GAP-XX` có thật → `0` (`PASS`); waiver mới trích dẫn `GAP-XX` không tồn tại → `1` (`FAIL`); waiver mới với `gap: null` → `0` (`PASS`) kèm hiển thị trong báo cáo; symlink đứt → `2` (`BLOCKED`).
+- **Hub**: đổi file được map + sửa contract → `0` (`PASS`); chỉ đổi file được map → `1` (`FAIL`); đổi tên file được map ra ngoài thư mục map hoặc tên file cần Git quoting (khoảng trắng/non-ASCII) khi chưa bao phủ → `1` (`FAIL`) và khi có sửa contract → `0` (`PASS`); đổi file được map + waiver mới khớp đường dẫn → `0` (`PASS`); waiver chỉ che một phần để sót file cùng domain → `1` (`FAIL`); waiver cũ tại `merge-base` không che thay đổi mới → `1` (`FAIL`); sửa nội dung ID waiver cũ → `1` (`FAIL`); thu hẹp `domains[D].paths`, thêm đường dẫn đổi vào `exclude` hoặc xóa `domains[D]` tại `HEAD` trong khi file khớp baseline bị đổi → `1` (`FAIL`); gỡ bỏ domain baseline không có file thay đổi → `0` (`PASS`); bootstrap khi chưa có `M:.agents/contract_map.json` → đánh giá theo map `HEAD`; `contract_map.json` lỗi định dạng tại `merge-base` → `2` (`BLOCKED`); `merge-base == HEAD` → `0` (`PASS`); thiếu/sai `contract_map.json` tại `HEAD` → `2` (`BLOCKED`); cây tracked bẩn → `2` (`BLOCKED`).
+- **Satellite**: đổi file được map + `ack` mới cấp domain khớp `snapshot_id` hiện hành → `0` (`PASS`); đổi tên file được map ra ngoài thư mục map hoặc tên file cần Git quoting khi thiếu `ack` → `1` (`FAIL`) và khi có `ack` mới cấp domain → `0` (`PASS`); `ack` chỉ chạm domain khác `D2` → `1` (`FAIL`); `ack` mang snapshot cũ → `1` (`FAIL`); waiver mới trích dẫn `GAP-XX` có thật → `0` (`PASS`); waiver mới trích dẫn `GAP-XX` không tồn tại → `1` (`FAIL`); waiver mới với `gap: null` → `0` (`PASS`) kèm hiển thị trong báo cáo; symlink đứt → `2` (`BLOCKED`).
 - **Worktree, Globbing & CLI**: phân giải symlink trong `.worktrees/<epic>`, khớp glob `**` có neo trên 0 và nhiều cấp thư mục, thứ tự ưu tiên `--base-ref`, `--domain` không xác định trả `2` (`BLOCKED`), và schema đầu ra `--json`.
 - **Schema Provider, Lifecycle & Tài liệu**: unit test trong `test_validate_*_quality.py` kiểm tra cấu trúc `*-quality.schema.json` (bằng stdlib `json`) và sự chấp nhận của validator đối với `contracts`, `contracts_<domain>`, `contract_diff` và `db_hygiene`, cùng `scripts/test_lifecycle_document_contract.py`, `check_document.py` và `scripts/verify.sh`.
 

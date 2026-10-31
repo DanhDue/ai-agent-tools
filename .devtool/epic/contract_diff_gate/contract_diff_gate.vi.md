@@ -35,8 +35,8 @@ Epic này bổ sung lệnh `sync_contracts.py diff-check`, mẫu tham chiếu `.
 
 ### Mục tiêu
 
-- Mở rộng `skills/sync-shared-contracts/resources/scripts/sync_contracts.py` với subcommand `diff-check` trả về mã thoát tất định `0` (`PASS`), `1` (`FAIL`) và `2` (`BLOCKED`) trên khoảng `merge-base(effective_base_ref, HEAD)..HEAD`, chỉ dùng thư viện chuẩn Python.
-- Kiểm tra tính hợp lệ của `.agents/contract_map.json` (`schema_version == 1`, `base_ref`, `domains` chứa `paths`/`exclude`, `waivers` tùy chọn) và biên dịch glob POSIX tương đối thành biểu thức chính quy neo toàn đường dẫn theo chuẩn `task_contract.py` (`**/` khớp 0 hoặc nhiều cấp thư mục; `*` và `?` không vượt qua `/`).
+- Mở rộng `skills/sync-shared-contracts/resources/scripts/sync_contracts.py` với subcommand `diff-check` trả về mã thoát tất định `0` (`PASS`), `1` (`FAIL`) và `2` (`BLOCKED`) trên khoảng `merge-base(effective_base_ref, HEAD)..HEAD` qua lệnh phân tách NUL `git diff --no-ext-diff --no-renames --name-only -z M..HEAD`, chỉ dùng thư viện chuẩn Python.
+- Kiểm tra tính hợp lệ của `.agents/contract_map.json` (`schema_version == 1`, `base_ref`, `domains` chứa `paths`/`exclude`, `waivers` tùy chọn), biên dịch glob POSIX tương đối thành biểu thức chính quy neo toàn đường dẫn theo chuẩn `task_contract.py` (`**/` khớp 0 hoặc nhiều cấp thư mục; `*` và `?` không vượt qua `/`), và đánh giá nghĩa vụ domain trên hợp (union) của bản đồ baseline (`M:.agents/contract_map.json`, khi đã tồn tại) và bản đồ `HEAD` (giữ độc lập `exclude` của từng phiên bản, trả `FAIL` khi xóa domain baseline có file thay đổi, và bootstrap sạch khi chưa có map ở `M`).
 - Thực thi **quy tắc diff tại Hub**: mọi file thay đổi khớp `domains[D]` phải được bao phủ bởi thay đổi trên ít nhất một file chuẩn dưới `shared-contracts/<D>/` (`api_contract.md`, `architecture_and_flow.md` hoặc `gaps_and_rfcs.md`) trong `M..HEAD`, hoặc bởi một waiver mới thêm có `paths` khớp file đó trong domain `D`.
 - Thực thi **quy tắc diff tại Satellite**: mọi file thay đổi khớp `domains[D]` phải được bao phủ bởi mục `domains[D]` mới thêm hoặc cập nhật trong `.agents/contract_sync.json` thuộc `M..HEAD` có `snapshot_id` ở `HEAD` bằng đúng `snapshot_id` hiện hành của `shared-contracts`, hoặc bởi một waiver mới thêm có `paths` khớp file đó trong domain `D` (kèm kiểm tra `W.gap` trong `gaps_and_rfcs.md` khi khác `null`).
 - Thực thi **tính bất biến của waiver lịch sử**: đối chiếu danh sách waiver ở `HEAD` với `git show <M>:.agents/contract_map.json`; từ chối hành vi sửa nội dung ID waiver cũ (`1` `FAIL`), dừng an toàn khi file map lịch sử lỗi cú pháp (`2` `BLOCKED`), cho phép xóa waiver cũ hết hiệu lực, và in đầy đủ các waiver mới đang kích hoạt ở cả đầu ra text lẫn JSON.
@@ -129,8 +129,8 @@ sequenceDiagram
     Note over Git,Gate: Stage 3 commit các task_01..task_N (gồm ack / waiver mới nếu có)
     Gate->>CLI: Gọi diff-check --base-ref <effective_base_ref> [--json]
     CLI->>Git: Kiểm tra cây tracked sạch & tìm M = merge-base(base_ref, HEAD)
-    CLI->>Git: Đọc HEAD & M:.agents/contract_map.json + diff --name-only M..HEAD
-    CLI->>Git: Hub kiểm tra diff shared-contracts/<D>/*; Satellite đối chiếu contract_sync.json M vs HEAD + live snapshot_id
+    CLI->>Git: Đọc HEAD & M:.agents/contract_map.json + diff --no-ext-diff --no-renames --name-only -z M..HEAD
+    CLI->>Git: Khớp domain theo union(M, HEAD); Hub kiểm tra diff shared-contracts/<D>/*; Satellite đối chiếu contract_sync.json + live snapshot_id
     CLI->>Git: Kiểm tra bất biến waiver cũ, khớp đường dẫn waiver mới, xác thực GAP-XX trong gaps_and_rfcs.md
     CLI-->>Gate: Trả về PASS (0), FAIL (1), hoặc BLOCKED (2) + báo cáo active_waivers
     Gate-->>Dev: Xuất kết quả Gate 4 & hiển thị active_waivers cho bước duyệt Gate 4 / Gate 5
@@ -146,8 +146,8 @@ Integration results: python3 scripts/run_unittest_junit.py --junitxml build/test
 
 | Thành phần | File Kiểm thử | Kịch bản Kiểm thử | Ranh giới Mục tiêu |
 |---|---|---|---|
-| Glob Có Neo & Schema Map | `test_sync_contracts.py` | `test_cdg_ec_01_*`, `test_cdg_fr_01_*` | Glob POSIX đa tầng `**/`, quy tắc `exclude`, và kiểm tra `contract_map.json` tại `HEAD` lẫn `merge-base` |
-| Cổng Diff Hub & Satellite | `test_sync_contracts.py` | `test_cdg_hp_01_*`, `test_cdg_hp_02_*`, `test_cdg_ec_02_*`, `test_cdg_ec_03_*` | Các repo git tạm kiểm thử diff `M..HEAD`, sửa file contract chuẩn và `ack` cấp domain khớp `snapshot_id` hiện hành |
+| Glob Có Neo & Schema Map | `test_sync_contracts.py` | `test_cdg_ec_01_*`, `test_cdg_st_04_*`, `test_cdg_fr_01_*` | Glob POSIX đa tầng `**/`, `exclude`, hợp domain `union(M, HEAD)`, bootstrap và kiểm tra `contract_map.json` |
+| Cổng Diff Hub & Satellite | `test_sync_contracts.py` | `test_cdg_hp_01_*`, `test_cdg_hp_02_*`, `test_cdg_ec_02_*`, `test_cdg_ec_03_*`, `test_cdg_ec_05_*` | Repo git tạm kiểm thử diff `--no-renames -z` `M..HEAD`, đổi tên/tên file quoting, sửa contract chuẩn và domain `ack` |
 | Diff Waiver & Kiểm toán GAP | `test_sync_contracts.py` | `test_cdg_ec_04_*`, `test_cdg_st_01_*`, `test_cdg_st_02_*`, `test_cdg_st_03_*` | Waiver mới theo đường dẫn, lỗi bao phủ thiếu file cùng domain, bất biến waiver lịch sử và tra cứu `GAP-XX` |
 | Worktree & Bảo vệ Fail-Closed | `test_sync_contracts.py` | `test_cdg_ar_01_*`, `test_cdg_ar_02_*`, `test_cdg_fr_02_*` | Phân giải symlink trong `.worktrees/<epic>`, phát hiện cây tracked bẩn, symlink đứt và `base_ref` không hợp lệ |
 | Quality Providers & Schemas | `test_validate_*_quality.py` | `test_cdg_hp_03_*` | Hỗ trợ JSON schema và validator cho `contracts`, `contracts_<domain>`, `contract_diff`, `db_hygiene`, `{skills_dir}`, `{base_ref}` |
@@ -155,7 +155,7 @@ Integration results: python3 scripts/run_unittest_junit.py --junitxml build/test
 
 ## Môi trường Xác minh
 
-- **Môi trường chạy**: Python 3.10+ (Chỉ dùng Thư viện Tiêu chuẩn: `argparse`, `hashlib`, `json`, `os`, `pathlib`, `re`, `subprocess`, `sys`, `tempfile`, `unittest`).
+- **Môi trường chạy**: Python 3.11+ (Chỉ dùng Thư viện Tiêu chuẩn: `argparse`, `datetime`, `hashlib`, `json`, `os`, `pathlib`, `re`, `subprocess`, `sys`, `tempfile`, `unittest`).
 - **Cô lập**: Mọi bài kiểm thử đơn vị và tích hợp đều khởi tạo các kho git và worktree tạm bên trong `tempfile.TemporaryDirectory()` với cấu hình `git config` cục bộ; không gọi mạng, không kết nối cơ sở dữ liệu thật và không chạm tới các repo lân cận (`D3Nexus`, `lyrics-sync`, `nexus`).
 - **Biến môi trường (`Needs`)**: Không yêu cầu (`—`).
 - **Công cụ & Kiểm chuẩn**: `ruff check` và `mypy` cho các script Python, `check_document.py` cho chuẩn Markdown/Mermaid/TOC song ngữ, và `bash scripts/verify.sh` cho kiểm định toàn bộ plugin kit.
@@ -178,10 +178,12 @@ Các kịch bản Gherkin đầy đủ trên cả 5 chiều bắt buộc đượ
   - `[CDG-EC-02]`: Diff rỗng (`merge-base == HEAD`) hoặc chỉ sửa các file nằm ngoài map trả mã thoát `0` (`PASS`).
   - `[CDG-EC-03]`: Thứ tự ưu tiên ghi đè `--base-ref` từ CLI và bộ lọc lặp `--domain` (trả `2` `BLOCKED` khi truyền domain lạ).
   - `[CDG-EC-04]`: Waiver mới khớp đường dẫn với `gap: null` hoặc `GAP-XX` có thật trong sổ cái bao phủ đúng file, xuất hiện trong `active_waivers` và trả mã thoát `0` (`PASS`).
+  - `[CDG-EC-05]`: Diff phân tách NUL `--no-renames -z` phát hiện việc đổi tên file thoát khỏi thư mục được map và khớp chính xác tên file bị Git bọc C-quoting trên cả Hub lẫn Satellite.
 - **Chiều 3 — Chuyển đổi trạng thái**:
   - `[CDG-ST-01]`: Thay đổi file được map không có bao phủ hoặc waiver chỉ khớp một phần để sót file cùng domain chuyển kết luận sang `1` (`FAIL`).
   - `[CDG-ST-02]`: Waiver lịch sử tại `merge-base` không che chỉnh sửa mới (`1` `FAIL`), sửa nội dung ID waiver cũ trả `1` (`FAIL`), và xóa waiver cũ không còn cần thiết trả `0` (`PASS`).
   - `[CDG-ST-03]`: Lệnh `ack` trên Satellite chỉ chạm domain khác `D2`, `snapshot_id` ở `HEAD` bị cũ, hoặc waiver trích dẫn `GAP-999` không tồn tại đều trả `1` (`FAIL`).
+  - `[CDG-ST-04]`: Đánh giá hợp domain mapping với baseline chặn việc tự miễn trừ bằng cách thêm `exclude`, thu hẹp `paths` hoặc xóa domain khi có file baseline thay đổi (`1` `FAIL`), nhưng cho phép gỡ domain không chạm tới (`0` `PASS`) và bootstrap lần đầu khi chưa có `M:.agents/contract_map.json`.
 - **Chiều 4 — Bất đồng bộ và đồng thời đa repo**:
   - `[CDG-AR-01]`: Chạy `diff-check` bên trong Satellite worktree lồng `.worktrees/<epic>` phân giải đúng outbound symlink tương đối qua repo gốc chính và trả `0` (`PASS`).
   - `[CDG-AR-02]`: Cây làm việc bẩn trên các file tracked (staged hoặc unstaged, bỏ qua file untracked) dừng an toàn với mã thoát `2` (`BLOCKED`).
@@ -197,7 +199,7 @@ Các kịch bản Gherkin đầy đủ trên cả 5 chiều bắt buộc đượ
 
 ## Phân rã Công việc Kanban
 
-- [Task 1: Implement Contract Map Validator, Anchored Glob Matcher, and sync_contracts.py diff-check Engine](task_1_contract_map_and_diff_check_cli.md) — Covers: `[CDG-HP-01]`, `[CDG-HP-02]`, `[CDG-EC-01]`, `[CDG-EC-02]`, `[CDG-EC-03]`, `[CDG-EC-04]`, `[CDG-ST-01]`, `[CDG-ST-02]`, `[CDG-ST-03]`, `[CDG-AR-01]`, `[CDG-AR-02]`, `[CDG-FR-01]`, `[CDG-FR-02]`
+- [Task 1: Implement Contract Map Validator, Anchored Glob Matcher, and sync_contracts.py diff-check Engine](task_1_contract_map_and_diff_check_cli.md) — Covers: `[CDG-HP-01]`, `[CDG-HP-02]`, `[CDG-EC-01]`, `[CDG-EC-02]`, `[CDG-EC-03]`, `[CDG-EC-04]`, `[CDG-EC-05]`, `[CDG-ST-01]`, `[CDG-ST-02]`, `[CDG-ST-03]`, `[CDG-ST-04]`, `[CDG-AR-01]`, `[CDG-AR-02]`, `[CDG-FR-01]`, `[CDG-FR-02]`
 - [Task 2: Align Quality Provider Schemas, {skills_dir} and {base_ref} Placeholders, and BLOCKED Exit Mapping](task_2_quality_providers_schemas_and_placeholders.md) — Covers: `[CDG-HP-03]`
 - [Task 3: Update Brainstorming, Designer, Shared-Contract Skill Docs, and Lifecycle Contract Suite](task_3_lifecycle_skills_docs_and_verify_harness.md) — Covers: `[CDG-HP-04]`
 
