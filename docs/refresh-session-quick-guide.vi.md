@@ -92,3 +92,4 @@ Bạn cũng có thể ra lệnh tự nhiên cho AI Agent trong khung chat:
   - Standard Output: `~/.devtool/logs/refresh_session_daemon.log`
   - Error Output: `~/.devtool/logs/refresh_session_daemon.err`
 - **Bảo Đảm Tiết Kiệm Token Tuyệt Đối**: Mọi lượt chạy đều được thực thi trong thư mục tạm cô lập nằm ngoài repository, vô hiệu hóa hoàn toàn skills, plugins, hooks và MCP servers.
+

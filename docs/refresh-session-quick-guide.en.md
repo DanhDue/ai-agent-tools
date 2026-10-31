@@ -92,3 +92,4 @@ You can also speak naturally to your AI Agent:
   - Standard Output: `~/.devtool/logs/refresh_session_daemon.log`
   - Error Output: `~/.devtool/logs/refresh_session_daemon.err`
 - **Zero Token Overhead Guarantee**: Every execution runs inside an ephemeral sandbox outside any repository root, suppressing skills, plugins, hooks, and MCP servers.
+

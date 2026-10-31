@@ -214,3 +214,4 @@ Kích hoạt qua ngôn ngữ tự nhiên:
 | Máy Mac đang Sleep lúc 05:00 AM | Dịch vụ `launchd` dùng `StartCalendarInterval` sẽ tự động kích hoạt ngay khi máy thức dậy hoặc vào chế độ Power Nap. |
 | Người dùng di chuyển thư mục dự án | Script giải quyết đường dẫn tuyệt đối chuẩn xác qua `pathlib.Path(__file__).resolve()` tại thời điểm cài đặt. |
 | Tồn đọng file plist cũ không đồng bộ | Bộ cài đặt luôn chủ động chạy `launchctl unload` trước khi ghi đè và load lại plist mới. |
+

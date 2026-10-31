@@ -214,3 +214,4 @@ Natural language triggers:
 | macOS sleeping at 05:00 AM | `launchd` `StartCalendarInterval` jobs run automatically when the machine wakes or enters Power Nap. |
 | User moves the repository directory | The installer resolves `pathlib.Path(__file__).resolve()` to record the absolute canonical path at install time. |
 | Lingering old plists | The installer explicitly runs `launchctl unload` prior to overwriting and reloading the plist. |
+
