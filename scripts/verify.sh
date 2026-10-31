@@ -285,6 +285,10 @@ note "== 15. Context memory management CLI and Tri-Role governance are enforced 
 python3 -m unittest scripts/test_resume_context.py || FAILED=1
 
 echo
+note "== 16. Session refresh CLI engine and isolation contracts are enforced =="
+python3 -m unittest skills/refresh-session/resources/scripts/test_refresh_session.py || FAILED=1
+
+echo
 if [ "$FAILED" -eq 0 ]; then
   echo "PASS — safe to publish"
 else
