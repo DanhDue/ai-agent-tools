@@ -186,6 +186,177 @@ class TestRefreshSession(unittest.TestCase):
         self.assertEqual(len(data["results"]), 1)
         self.assertEqual(data["results"][0]["cli"], "claude")
 
+    def test_parse_flexible_time_24h(self) -> None:
+        """Parses standard 24-hour time strings."""
+        self.assertEqual(refresh_session.parse_flexible_time("05:00"), (5, 0))
+        self.assertEqual(refresh_session.parse_flexible_time("5:00"), (5, 0))
+        self.assertEqual(refresh_session.parse_flexible_time("14:30"), (14, 30))
+        self.assertEqual(refresh_session.parse_flexible_time("9:15"), (9, 15))
+        self.assertEqual(refresh_session.parse_flexible_time("00:00"), (0, 0))
+        self.assertEqual(refresh_session.parse_flexible_time("23:59"), (23, 59))
+
+    def test_parse_flexible_time_short(self) -> None:
+        """Parses short hour formats like 5h, 6h, 5, 6."""
+        self.assertEqual(refresh_session.parse_flexible_time("5h"), (5, 0))
+        self.assertEqual(refresh_session.parse_flexible_time("6H"), (6, 0))
+        self.assertEqual(refresh_session.parse_flexible_time("14h"), (14, 0))
+        self.assertEqual(refresh_session.parse_flexible_time("5"), (5, 0))
+        self.assertEqual(refresh_session.parse_flexible_time("6"), (6, 0))
+
+    def test_parse_flexible_time_ampm(self) -> None:
+        """Parses 12-hour AM/PM formats."""
+        self.assertEqual(refresh_session.parse_flexible_time("5am"), (5, 0))
+        self.assertEqual(refresh_session.parse_flexible_time("5:30am"), (5, 30))
+        self.assertEqual(refresh_session.parse_flexible_time("6pm"), (18, 0))
+        self.assertEqual(refresh_session.parse_flexible_time("12pm"), (12, 0))
+        self.assertEqual(refresh_session.parse_flexible_time("12am"), (0, 0))
+
+    def test_parse_flexible_time_invalid(self) -> None:
+        """Rejects out of range or malformed time values."""
+        for invalid in ("25:00", "-1h", "abc", "", "5:65", "24:00", "13pm"):
+            with self.assertRaises(ValueError):
+                refresh_session.parse_flexible_time(invalid)
+
+    def test_build_darwin_plist(self) -> None:
+        """Generates launchd plist XML with correct paths, schedule, and environment."""
+        plist = refresh_session.build_darwin_plist(
+            script_path="/path/to/refresh_session.py",
+            hour=5,
+            minute=0,
+            target="all",
+        )
+        self.assertIn("<key>Label</key>", plist)
+        self.assertIn("<string>com.d3nexus.refresh-session</string>", plist)
+        self.assertIn("<key>Hour</key>", plist)
+        self.assertIn("<integer>5</integer>", plist)
+        self.assertIn("<key>Minute</key>", plist)
+        self.assertIn("<integer>0</integer>", plist)
+        self.assertIn("/path/to/refresh_session.py", plist)
+        self.assertIn("<key>EnvironmentVariables</key>", plist)
+        self.assertIn("<key>PATH</key>", plist)
+        self.assertIn("refresh_session_daemon.log", plist)
+
+    @patch("subprocess.run")
+    @patch("pathlib.Path.mkdir")
+    @patch("pathlib.Path.write_text")
+    def test_schedule_install_darwin(
+        self, mock_write: MagicMock, mock_mkdir: MagicMock, mock_run: MagicMock
+    ) -> None:
+        """Installs launchd plist and loads it via launchctl."""
+        mock_run.return_value = subprocess.CompletedProcess(args=[], returncode=0)
+        res = refresh_session.install_schedule_darwin(5, 0, target="all")
+        self.assertTrue(res["success"])
+        self.assertEqual(res["hour"], 5)
+        self.assertEqual(res["minute"], 0)
+        self.assertEqual(mock_run.call_count, 2)  # unload and load
+
+    @patch("pathlib.Path.exists", return_value=True)
+    @patch("pathlib.Path.read_text", return_value="<integer>5</integer><integer>30</integer>")
+    @patch("subprocess.run")
+    def test_schedule_status_darwin_active(
+        self, mock_run: MagicMock, mock_read: MagicMock, mock_exists: MagicMock
+    ) -> None:
+        """Reports active status when plist exists and daemon is loaded."""
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout="com.d3nexus.refresh-session\n"
+        )
+        status = refresh_session.get_schedule_status_darwin()
+        self.assertTrue(status["installed"])
+        self.assertTrue(status["loaded"])
+        self.assertEqual(status["hour"], 5)
+        self.assertEqual(status["minute"], 30)
+
+    @patch("pathlib.Path.exists", return_value=False)
+    @patch("subprocess.run")
+    def test_schedule_status_darwin_inactive(
+        self, mock_run: MagicMock, mock_exists: MagicMock
+    ) -> None:
+        """Reports inactive status when plist does not exist."""
+        mock_run.return_value = subprocess.CompletedProcess(args=[], returncode=1, stdout="")
+        status = refresh_session.get_schedule_status_darwin()
+        self.assertFalse(status["installed"])
+        self.assertFalse(status["loaded"])
+
+    @patch("pathlib.Path.exists", return_value=True)
+    @patch("pathlib.Path.unlink")
+    @patch("subprocess.run")
+    def test_schedule_uninstall_darwin(
+        self, mock_run: MagicMock, mock_unlink: MagicMock, mock_exists: MagicMock
+    ) -> None:
+        """Unloads launchd service and removes plist file."""
+        mock_run.return_value = subprocess.CompletedProcess(args=[], returncode=0)
+        res = refresh_session.uninstall_schedule_darwin()
+        self.assertTrue(res["success"])
+        mock_unlink.assert_called_once()
+        mock_run.assert_called_once()
+
+    def test_parse_arguments_schedule_subcommand(self) -> None:
+        """Parses schedule subcommand arguments including --time, --target, and --status."""
+        args_inst = refresh_session.parse_args(["schedule", "--time", "05:00", "--target", "claude"])
+        self.assertEqual(args_inst.command, "schedule")
+        self.assertEqual(args_inst.time, "05:00")
+        self.assertEqual(args_inst.target, "claude")
+
+        args_status = refresh_session.parse_args(["schedule", "--status"])
+        self.assertEqual(args_status.command, "schedule")
+        self.assertTrue(args_status.status)
+
+        args_uninst = refresh_session.parse_args(["schedule", "--uninstall"])
+        self.assertEqual(args_uninst.command, "schedule")
+        self.assertTrue(args_uninst.uninstall)
+
+        args_rem = refresh_session.parse_args(["schedule", "--remove"])
+        self.assertEqual(args_rem.command, "schedule")
+        self.assertTrue(args_rem.uninstall)
+
+    @patch("refresh_session.install_schedule", return_value={"success": True, "platform": "darwin"})
+    def test_main_schedule_install(self, mock_install: MagicMock) -> None:
+        """Main dispatches schedule install and returns exit code 0."""
+        import io
+        from contextlib import redirect_stdout
+
+        out = io.StringIO()
+        with redirect_stdout(out):
+            code = refresh_session.main(["schedule", "--time", "05:00", "--target", "codex"])
+        self.assertEqual(code, 0)
+        mock_install.assert_called_once_with(5, 0, target="codex")
+
+    @patch("refresh_session.get_schedule_status", return_value={"installed": True, "loaded": True, "hour": 5, "minute": 0, "target": "all"})
+    def test_main_schedule_status(self, mock_status: MagicMock) -> None:
+        """Main queries schedule status and outputs details."""
+        import io
+        from contextlib import redirect_stdout
+
+        out = io.StringIO()
+        with redirect_stdout(out):
+            code = refresh_session.main(["schedule", "--status"])
+        self.assertEqual(code, 0)
+        self.assertIn("ACTIVE", out.getvalue())
+        self.assertIn("05:00", out.getvalue())
+
+    @patch("refresh_session.uninstall_schedule", return_value={"success": True, "platform": "darwin"})
+    def test_main_schedule_uninstall(self, mock_uninst: MagicMock) -> None:
+        """Main dispatches uninstall and returns exit code 0."""
+        import io
+        from contextlib import redirect_stdout
+
+        out = io.StringIO()
+        with redirect_stdout(out):
+            code = refresh_session.main(["schedule", "--uninstall"])
+        self.assertEqual(code, 0)
+        mock_uninst.assert_called_once()
+
+    def test_main_schedule_no_args_error(self) -> None:
+        """Main exits with code 1 when schedule subcommand has no action flags."""
+        import io
+        from contextlib import redirect_stderr
+
+        err = io.StringIO()
+        with redirect_stderr(err):
+            code = refresh_session.main(["schedule"])
+        self.assertEqual(code, 1)
+        self.assertIn("Usage:", err.getvalue())
+
 
 if __name__ == "__main__":
     unittest.main()
