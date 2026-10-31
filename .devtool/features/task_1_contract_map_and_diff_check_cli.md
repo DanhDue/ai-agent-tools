@@ -28,14 +28,15 @@ Extend `skills/sync-shared-contracts/resources/scripts/sync_contracts.py` with t
    - Compile POSIX-normalized repository-relative globs into full-path anchored regular expressions matching `skills/dev-implementation/resources/scripts/task_contract.py` (`**/` matches zero or more directory segments; `*` and `?` never cross `/`). A path belongs to domain `D` iff it matches at least one `domains[D].paths` pattern and zero `domains[D].exclude` patterns.
    - Author `skills/setup-shared-contracts/resources/templates/contract_map.json.tmpl` with `schema_version: 1`, `base_ref`, example `domains`, and `waivers: []`.
 3. **Working Tree, Merge-Base, Union Domain Mapping, Hub & Satellite Rules, and Waiver Diffs**:
-   - Fail closed (`2` `BLOCKED`) if `.agents/contract_map.json` is missing or malformed at `HEAD`, if any `--domain` is absent from `HEAD`'s `domains`, if `git status --porcelain --untracked-files=no` is non-empty, if `git merge-base <effective_base_ref> HEAD` fails, if `M:.agents/contract_map.json` existed with malformed JSON or invalid schema (`domains`/`waivers`), or if `resolve_topology(repo_root, domain)` fails (`TopologyError` / `ContractFormatError`).
-   - If `M == HEAD`, emit `PASS` (`0`). Otherwise compute `git diff --no-ext-diff --no-renames --name-only -z M..HEAD` and split NUL-delimited UTF-8 records (`surrogateescape`) so renames/moves preserve both source and destination paths and filenames with spaces or non-ASCII characters are never C-quoted.
-   - Evaluate domain obligations against the **union** of `HEAD` and baseline (`git show <M>:.agents/contract_map.json`) domain mappings, applying each version's own `paths` and `exclude` independently: a changed path `f` belongs to domain `D` iff it matches `head_domains[D]` (`paths` minus `exclude`) OR (when `M:.agents/contract_map.json` existed and defined `D`) `baseline_domains[D]` (`paths` minus `exclude`). When `M:.agents/contract_map.json` did not exist at `M` (bootstrap), only `head_domains` applies. If `D` existed at `M` and was removed from `HEAD`: return `1` (`FAIL`) when any changed file matched `baseline_domains[D]`, or pass `D` when zero changed files matched `baseline_domains[D]`.
+   - Validate preconditions ahead of the `M == HEAD` short-circuit: fail closed (`2` `BLOCKED`) if `.agents/contract_map.json` is missing or malformed at `HEAD`, if any `--domain` is absent from `HEAD`'s `domains`, if `git status --porcelain --untracked-files=no` is non-empty, if `git merge-base <effective_base_ref> HEAD` fails, if `resolve_topology(repo_root, domain)` fails (`TopologyError` / `ContractFormatError`), or if `mode == "satellite"` and any domain in `HEAD`'s `domains` differs from the linked `contract_dir.name` (since `setup_contracts.py link-satellite` links a single Hub domain).
+   - Probe baseline file presence at `M` via `git ls-tree -r --name-only <M> -- <path>` before reading `git show <M>:<path>` (both for `.agents/contract_map.json` and `.agents/contract_sync.json`): exit `0` with empty stdout indicates genuine absence (bootstrap); any non-zero git exit from `ls-tree` or `show`, or malformed JSON / invalid schema in an existing `M:.agents/contract_map.json` or `M:.agents/contract_sync.json`, fails closed with `2` (`BLOCKED`).
+   - If `M == HEAD`, emit `PASS` (`0`) with per-domain `proof: "none"`. Otherwise compute `git diff --no-ext-diff --no-renames --name-only -z M..HEAD` and split NUL-delimited UTF-8 records (`surrogateescape`) so renames/moves preserve both source and destination paths and filenames with spaces or non-ASCII characters are never C-quoted (any non-zero git exit returns `2` `BLOCKED`).
+   - Evaluate domain obligations against the **union** of `HEAD` and baseline (`M:.agents/contract_map.json`) domain mappings, applying each version's own `paths` and `exclude` independently: a changed path `f` belongs to domain `D` iff it matches `head_domains[D]` (`paths` minus `exclude`) OR (when `M:.agents/contract_map.json` existed and defined `D`) `baseline_domains[D]` (`paths` minus `exclude`). When `M:.agents/contract_map.json` did not exist at `M` (bootstrap), only `head_domains` applies. If `D` existed at `M` and was removed from `HEAD`: return `1` (`FAIL`) when any changed file matched `baseline_domains[D]`, or pass `D` when zero changed files matched `baseline_domains[D]`.
    - Enforce historical waiver immutability: compare waivers in `HEAD` vs `M:.agents/contract_map.json`; mutating an existing waiver ID (`domain`, `paths`, `reason`, `gap`) returns `1` (`FAIL`); deleting obsolete waivers is allowed; only newly added waiver IDs cover changed files in `M..HEAD`.
-   - When an active newly added waiver has non-null `gap`, parse `<contract_dir>/gaps_and_rfcs.md` via `parse_gaps_and_rfcs` and verify `W.gap` exists in `rfcs`; missing `GAP` keys return `1` (`FAIL`).
-   - **Hub**: domain `D` with changed mapped files passes as a whole if `M..HEAD` touched any canonical file under `shared-contracts/<D>/` (`api_contract.md`, `architecture_and_flow.md`, `gaps_and_rfcs.md`); otherwise every changed mapped file `f` in `D` must match a newly added valid waiver for `D`.
-   - **Satellite**: domain `D` with changed mapped files passes as a whole if `domains[D]` in `.agents/contract_sync.json` was added or modified between `M` (`git show <M>:.agents/contract_sync.json`) and `HEAD` AND `domains[D].snapshot_id` at `HEAD` equals the live `snapshot_id` computed from resolved `shared-contracts`; otherwise every changed mapped file `f` in `D` must match a newly added valid waiver for `D`.
-   - Print active newly added waivers (`id`, `domain`, `paths`, `reason`, `gap`) in both human-readable output and `--json` (`active_waivers`).
+   - When an active newly added waiver has non-null `gap`, parse `<contract_dir>/gaps_and_rfcs.md` via `parse_gaps_and_rfcs` and verify `W.gap` exists in `rfcs` with normalized status `"ACTIONABLE_PENDING"` or `"ACKNOWLEDGED_ACTIVE"`; missing or `"INACTIVE"` (`SUPERSEDED`/`REJECTED`) `GAP` citations return `1` (`FAIL`).
+   - **Hub**: domain `D` with changed mapped files passes as a whole (`proof: "contract_edit"`) if `M..HEAD` touched any canonical file under `shared-contracts/<D>/` (`api_contract.md`, `architecture_and_flow.md`, `gaps_and_rfcs.md`); otherwise every changed mapped file `f` in `D` must match a newly added valid waiver for `D` (`proof: "waiver"`, else `proof: "uncovered"`).
+   - **Satellite**: domain `D` with changed mapped files passes as a whole (`proof: "ack"`) if `domains[D]` in `.agents/contract_sync.json` was added or modified between `M` (`M:.agents/contract_sync.json`) and `HEAD` AND `domains[D].snapshot_id` at `HEAD` equals the live `snapshot_id` computed from resolved `shared-contracts`; otherwise every changed mapped file `f` in `D` must match a newly added valid waiver for `D` (`proof: "waiver"`, else `proof: "uncovered"`).
+   - Print per-domain discharge summaries (`{"domain", "changed_files", "proof"}` in `domains`) and active newly added waivers (`id`, `domain`, `paths`, `reason`, `gap` in `active_waivers`) in both human-readable output and `--json`.
 
 ## Files
 
@@ -47,7 +48,7 @@ Allowed files:
 Read-only context:
 - `.devtool/epic/contract_diff_gate/contract_diff_gate.en.md` — HLD architecture and boundary matrix
 - `.devtool/epic/contract_diff_gate/2026-10-31-contract-diff-gate-design.en.md` — approved Gate 1 design specification
-- `skills/dev-implementation/resources/scripts/task_contract.py` — reference anchored POSIX glob semantics (`_glob_regex` / `path_matches`)
+- `skills/dev-implementation/resources/scripts/task_contract.py` — reference anchored POSIX glob semantics (`path_matches`, line 246)
 
 ## Design Rationale
 
@@ -128,15 +129,15 @@ Scenario: [CDG-ST-02] [Tier C - Integration] Historical Waiver Non-Masking, Muta
   And sync_contracts.py diff-check on branch B exits with code 1 reporting illegal mutation of historical waiver "W-OLD"
   And sync_contracts.py diff-check on branch C exits with code 0
 
-Scenario: [CDG-ST-03] [Tier C - Integration] Satellite Sibling-Domain Ack Isolation, Stale Snapshot Rejection, and Missing GAP-XX Failure
-  Given a Satellite repository with mapped changes in domain "lyrics-sync" where either .agents/contract_sync.json in M..HEAD updated only domain "nexus", or domains["lyrics-sync"].snapshot_id at HEAD differs from the live Hub snapshot_id, or a new waiver cites gap "GAP-999" absent from gaps_and_rfcs.md
+Scenario: [CDG-ST-03] [Tier C - Integration] Satellite Sibling-Domain Ack Isolation, Stale Snapshot Rejection, and Missing or INACTIVE GAP-XX Failure
+  Given a Satellite repository with mapped changes in domain "lyrics-sync" where either .agents/contract_sync.json in M..HEAD updated only domain "nexus", or domains["lyrics-sync"].snapshot_id at HEAD differs from the live Hub snapshot_id, or a new waiver cites gap "GAP-999" absent from gaps_and_rfcs.md or a gap whose normalized status is "INACTIVE" ("REJECTED" or "SUPERSEDED")
   When the engineer invokes sync_contracts.py diff-check --json
-  Then the JSON report contains status "FAIL" and records the uncovered path or missing "GAP-999" violation
+  Then the JSON report contains status "FAIL" and records the uncovered path or missing/inactive GAP violation
   And the command exits with code 1
 
 Scenario: [CDG-ST-04] [Tier C - Integration] Baseline-Union Domain Mapping Prevents Self-Exemption While Allowing Bootstrap and Untouched Domain Retirement
   Given a repository whose baseline M:.agents/contract_map.json maps "src/api/dto/**" to domain "lyrics-sync" alongside domain "legacy-domain"
-  When branch A modifies "src/api/dto/worker.py" while adding "src/api/dto/worker.py" to exclude or narrowing paths or deleting domain "lyrics-sync" at HEAD without coverage, branch B deletes untouched "legacy-domain" at HEAD, and bootstrap branch C introduces .agents/contract_map.json for the first time after M
+  When branch A modifies "src/api/dto/worker.py" while either adding "src/api/dto/worker.py" to exclude or narrowing paths without coverage, or deleting domain "lyrics-sync" at HEAD, branch B deletes untouched "legacy-domain" at HEAD, and bootstrap branch C introduces .agents/contract_map.json for the first time after M
   Then sync_contracts.py diff-check on branch A exits with code 1 reporting "src/api/dto/worker.py" under domain "lyrics-sync" via baseline-union domain evaluation
   And sync_contracts.py diff-check on branch B exits with code 0 and bootstrap branch C evaluates coverage obligations against HEAD domains without blocking on the absent baseline map
 
@@ -157,10 +158,10 @@ Scenario: [CDG-FR-01] [Tier A - Unit] Missing or Malformed Contract Map at HEAD 
   Then the JSON report contains status "BLOCKED" and a diagnostic message in blockers naming the missing file or schema defect
   And the command exits with code 2
 
-Scenario: [CDG-FR-02] [Tier A - Unit] Unresolvable Base-Ref or Broken Shared-Contracts Topology Fails Closed With BLOCKED
-  Given a repository where either effective_base_ref does not resolve to a git commit or shared-contracts is missing, a dangling symlink, or a 12-hop circular symlink loop
+Scenario: [CDG-FR-02] [Tier A - Unit] Unresolvable Base-Ref, Satellite Unlinked Domain, or Broken Shared-Contracts Topology Fails Closed With BLOCKED
+  Given a repository where effective_base_ref does not resolve to a git commit, a Satellite contract_map.json declares a domain other than its linked shared-contracts target, or shared-contracts is missing, a dangling symlink, or a 12-hop circular symlink loop
   When the engineer invokes sync_contracts.py diff-check --json
-  Then the JSON report contains status "BLOCKED" and records the git merge-base or topology error in blockers
+  Then the JSON report contains status "BLOCKED" and records the git merge-base, unlinked Satellite domain, or topology error in blockers
   And the command exits with code 2
 ```
 
@@ -189,9 +190,9 @@ Scenario: [CDG-FR-02] [Tier A - Unit] Unresolvable Base-Ref or Broken Shared-Con
 
 - Grounded existing contracts in `skills/sync-shared-contracts/resources/scripts/sync_contracts.py`: reuse `CANONICAL_FILES`, `TopologyError`, `ContractFormatError`, `resolve_topology(repo_root: Path, domain: str) -> dict[str, Any]`, `compute_file_hash(path: Path) -> str`, `compute_snapshot_id(file_hashes: dict[str, str]) -> str`, `parse_gaps_and_rfcs(content: str) -> dict[str, Any]`, and `main(argv: list[str] | None = None) -> int`.
 - New frozen CLI contract: `sync_contracts.py diff-check [--repo-root <path>] [--base-ref <ref>] [--domain <name>] [--json]` returning `0` (`PASS`), `1` (`FAIL`), or `2` (`BLOCKED`).
-- New frozen JSON output schema on `--json`: `{"status": "PASS" | "FAIL" | "BLOCKED", "mode": "hub" | "satellite" | None, "base_ref": str | None, "merge_base": str | None, "head_sha": str | None, "violations": list[dict[str, str]], "active_waivers": list[dict[str, Any]], "blockers": list[str]}`.
+- New frozen JSON output schema on `--json`: `{"status": "PASS" | "FAIL" | "BLOCKED", "mode": "hub" | "satellite" | None, "base_ref": str | None, "merge_base": str | None, "head_sha": str | None, "domains": list[dict[str, Any]], "violations": list[dict[str, str]], "active_waivers": list[dict[str, Any]], "blockers": list[str]}` where each entry in `"domains"` has shape `{"domain": str, "changed_files": list[str], "proof": "none" | "contract_edit" | "ack" | "waiver" | "uncovered"}`.
 - Anchored POSIX glob compiler converts `**/` to `(?:[^/]+/)*`, trailing `/**` to `(?:/.*)?`, standalone `**` to `.*`, `*` to `[^/]*`, and `?` to `[^/]`, anchored with `\A...\Z`.
-- Changed paths in `M..HEAD` are extracted strictly via `git diff --no-ext-diff --no-renames --name-only -z M..HEAD` (NUL-delimited UTF-8 `surrogateescape`), and domain membership evaluates against `union(M, HEAD)` domain mappings (applying each version's `paths` and `exclude` independently, with bootstrap fallback when `M:.agents/contract_map.json` is absent).
+- Baseline file presence at `M` (`.agents/contract_map.json` and `.agents/contract_sync.json`) is probed via `git ls-tree -r --name-only <M> -- <path>` before `git show <M>:<path>` so genuine bootstrap absence is distinguished from git failures (`2` `BLOCKED`). Changed paths in `M..HEAD` are extracted strictly via `git diff --no-ext-diff --no-renames --name-only -z M..HEAD` (NUL-delimited UTF-8 `surrogateescape`), and domain membership evaluates against `union(M, HEAD)` domain mappings (applying each version's `paths` and `exclude` independently, with bootstrap fallback when `M:.agents/contract_map.json` is absent).
 - Reference template `skills/setup-shared-contracts/resources/templates/contract_map.json.tmpl` parses as syntactically sound JSON documenting `schema_version: 1`, `base_ref`, `domains`, and `waivers: []`.
 
 ## Definition of Done

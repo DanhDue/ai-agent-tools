@@ -30,7 +30,7 @@ Scenario: [CDG-HP-03] [Tier C - Integration] Quality Provider Schemas, Placehold
   Given the updated *-quality.schema.json files and SKILL.md contracts across rust, python, flutter, android, and ios quality providers
   When the engineer runs the five test_validate_*_quality.py test suites
   Then every provider schema permits capabilities "contracts", "contract_diff", and pattern "^contracts_[a-z0-9_]+$" (and rust-quality.schema.json permits "db_hygiene")
-  And every provider validator accepts capability arrays using "{skills_dir}" and "{base_ref}" placeholders and documents exit code 2 mapping to status "BLOCKED"
+  And every provider validator accepts capability arrays using "{skills_dir}" and "{base_ref}" placeholders and documents exit code 2 mapping to status "BLOCKED" scoped to governance/contract capabilities ("contracts", "contracts_<domain>", and "contract_diff") while keeping nonzero -> "FAIL" for general capabilities
   And all five validator test suites exit with code 0
 
 Scenario: [CDG-HP-04] [Tier C - Integration] Lifecycle Document Contracts, Template Reference, and Verify Harness Pass
@@ -92,15 +92,15 @@ Scenario: [CDG-ST-02] [Tier C - Integration] Historical Waiver Non-Masking, Muta
   And sync_contracts.py diff-check on branch B exits with code 1 reporting illegal mutation of historical waiver "W-OLD"
   And sync_contracts.py diff-check on branch C exits with code 0
 
-Scenario: [CDG-ST-03] [Tier C - Integration] Satellite Sibling-Domain Ack Isolation, Stale Snapshot Rejection, and Missing GAP-XX Failure
-  Given a Satellite repository with mapped changes in domain "lyrics-sync" where either .agents/contract_sync.json in M..HEAD updated only domain "nexus", or domains["lyrics-sync"].snapshot_id at HEAD differs from the live Hub snapshot_id, or a new waiver cites gap "GAP-999" absent from gaps_and_rfcs.md
+Scenario: [CDG-ST-03] [Tier C - Integration] Satellite Sibling-Domain Ack Isolation, Stale Snapshot Rejection, and Missing or INACTIVE GAP-XX Failure
+  Given a Satellite repository with mapped changes in domain "lyrics-sync" where either .agents/contract_sync.json in M..HEAD updated only domain "nexus", or domains["lyrics-sync"].snapshot_id at HEAD differs from the live Hub snapshot_id, or a new waiver cites gap "GAP-999" absent from gaps_and_rfcs.md or a gap whose normalized status is "INACTIVE" ("REJECTED" or "SUPERSEDED")
   When the engineer invokes sync_contracts.py diff-check --json
-  Then the JSON report contains status "FAIL" and records the uncovered path or missing "GAP-999" violation
+  Then the JSON report contains status "FAIL" and records the uncovered path or missing/inactive GAP violation
   And the command exits with code 1
 
 Scenario: [CDG-ST-04] [Tier C - Integration] Baseline-Union Domain Mapping Prevents Self-Exemption While Allowing Bootstrap and Untouched Domain Retirement
   Given a repository whose baseline M:.agents/contract_map.json maps "src/api/dto/**" to domain "lyrics-sync" alongside domain "legacy-domain"
-  When branch A modifies "src/api/dto/worker.py" while adding "src/api/dto/worker.py" to exclude or narrowing paths or deleting domain "lyrics-sync" at HEAD without coverage, branch B deletes untouched "legacy-domain" at HEAD, and bootstrap branch C introduces .agents/contract_map.json for the first time after M
+  When branch A modifies "src/api/dto/worker.py" while either adding "src/api/dto/worker.py" to exclude or narrowing paths without coverage, or deleting domain "lyrics-sync" at HEAD, branch B deletes untouched "legacy-domain" at HEAD, and bootstrap branch C introduces .agents/contract_map.json for the first time after M
   Then sync_contracts.py diff-check on branch A exits with code 1 reporting "src/api/dto/worker.py" under domain "lyrics-sync" via baseline-union domain evaluation
   And sync_contracts.py diff-check on branch B exits with code 0 and bootstrap branch C evaluates coverage obligations against HEAD domains without blocking on the absent baseline map
 ```
@@ -129,10 +129,10 @@ Scenario: [CDG-FR-01] [Tier A - Unit] Missing or Malformed Contract Map at HEAD 
   Then the JSON report contains status "BLOCKED" and a diagnostic message in blockers naming the missing file or schema defect
   And the command exits with code 2
 
-Scenario: [CDG-FR-02] [Tier A - Unit] Unresolvable Base-Ref or Broken Shared-Contracts Topology Fails Closed With BLOCKED
-  Given a repository where either effective_base_ref does not resolve to a git commit or shared-contracts is missing, a dangling symlink, or a 12-hop circular symlink loop
+Scenario: [CDG-FR-02] [Tier A - Unit] Unresolvable Base-Ref, Satellite Unlinked Domain, or Broken Shared-Contracts Topology Fails Closed With BLOCKED
+  Given a repository where effective_base_ref does not resolve to a git commit, a Satellite contract_map.json declares a domain other than its linked shared-contracts target, or shared-contracts is missing, a dangling symlink, or a 12-hop circular symlink loop
   When the engineer invokes sync_contracts.py diff-check --json
-  Then the JSON report contains status "BLOCKED" and records the git merge-base or topology error in blockers
+  Then the JSON report contains status "BLOCKED" and records the git merge-base, unlinked Satellite domain, or topology error in blockers
   And the command exits with code 2
 ```
 

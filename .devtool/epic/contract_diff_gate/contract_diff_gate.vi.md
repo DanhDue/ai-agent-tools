@@ -38,11 +38,11 @@ Epic này bổ sung lệnh `sync_contracts.py diff-check`, mẫu tham chiếu `.
 - Mở rộng `skills/sync-shared-contracts/resources/scripts/sync_contracts.py` với subcommand `diff-check` trả về mã thoát tất định `0` (`PASS`), `1` (`FAIL`) và `2` (`BLOCKED`) trên khoảng `merge-base(effective_base_ref, HEAD)..HEAD` qua lệnh phân tách NUL `git diff --no-ext-diff --no-renames --name-only -z M..HEAD`, chỉ dùng thư viện chuẩn Python.
 - Kiểm tra tính hợp lệ của `.agents/contract_map.json` (`schema_version == 1`, `base_ref`, `domains` chứa `paths`/`exclude`, `waivers` tùy chọn), biên dịch glob POSIX tương đối thành biểu thức chính quy neo toàn đường dẫn theo chuẩn `task_contract.py` (`**/` khớp 0 hoặc nhiều cấp thư mục; `*` và `?` không vượt qua `/`), và đánh giá nghĩa vụ domain trên hợp (union) của bản đồ baseline (`M:.agents/contract_map.json`, khi đã tồn tại) và bản đồ `HEAD` (giữ độc lập `exclude` của từng phiên bản, trả `FAIL` khi xóa domain baseline có file thay đổi, và bootstrap sạch khi chưa có map ở `M`).
 - Thực thi **quy tắc diff tại Hub**: mọi file thay đổi khớp `domains[D]` phải được bao phủ bởi thay đổi trên ít nhất một file chuẩn dưới `shared-contracts/<D>/` (`api_contract.md`, `architecture_and_flow.md` hoặc `gaps_and_rfcs.md`) trong `M..HEAD`, hoặc bởi một waiver mới thêm có `paths` khớp file đó trong domain `D`.
-- Thực thi **quy tắc diff tại Satellite**: mọi file thay đổi khớp `domains[D]` phải được bao phủ bởi mục `domains[D]` mới thêm hoặc cập nhật trong `.agents/contract_sync.json` thuộc `M..HEAD` có `snapshot_id` ở `HEAD` bằng đúng `snapshot_id` hiện hành của `shared-contracts`, hoặc bởi một waiver mới thêm có `paths` khớp file đó trong domain `D` (kèm kiểm tra `W.gap` trong `gaps_and_rfcs.md` khi khác `null`).
-- Thực thi **tính bất biến của waiver lịch sử**: đối chiếu danh sách waiver ở `HEAD` với `git show <M>:.agents/contract_map.json`; từ chối hành vi sửa nội dung ID waiver cũ (`1` `FAIL`), dừng an toàn khi file map lịch sử lỗi cú pháp (`2` `BLOCKED`), cho phép xóa waiver cũ hết hiệu lực, và in đầy đủ các waiver mới đang kích hoạt ở cả đầu ra text lẫn JSON.
+- Thực thi **quy tắc diff tại Satellite**: xác thực mọi domain trong `contract_map.json` tại `HEAD` của Satellite khớp đúng mục tiêu `shared-contracts` đã liên kết (`2` `BLOCKED` nếu lệch), và yêu cầu mọi file thay đổi khớp `domains[D]` phải được bao phủ bởi mục `domains[D]` mới thêm hoặc cập nhật trong `.agents/contract_sync.json` thuộc `M..HEAD` có `snapshot_id` ở `HEAD` bằng đúng `snapshot_id` hiện hành của `shared-contracts`, hoặc bởi một waiver mới thêm có `paths` khớp file đó trong domain `D` (kèm kiểm tra `W.gap` trong `gaps_and_rfcs.md` có trạng thái `"ACTIONABLE_PENDING"` hoặc `"ACKNOWLEDGED_ACTIVE"` khi khác `null`).
+- Thực thi **tính bất biến của waiver lịch sử**: kiểm tra sự tồn tại baseline qua `git ls-tree -r --name-only <M> -- .agents/contract_map.json` trước khi gọi `git show <M>:.agents/contract_map.json`; từ chối hành vi sửa nội dung ID waiver cũ (`1` `FAIL`), dừng an toàn khi lỗi git hoặc file map lịch sử lỗi cú pháp (`2` `BLOCKED`), cho phép xóa waiver cũ hết hiệu lực, và in tóm tắt kết quả `domains` cùng đầy đủ các waiver mới đang kích hoạt ở cả đầu ra text lẫn JSON.
 - Cung cấp file mẫu `skills/setup-shared-contracts/resources/templates/contract_map.json.tmpl` và hướng dẫn cấu hình glob thủ công trong `skills/setup-shared-contracts/SKILL.md`.
 - Cập nhật `skills/dev-brainstorming/SKILL.md` (chỉ kiểm tra và cảnh báo ở chế độ đọc; bắt buộc con người quyết định từng cảnh báo và lưu vào `## Shared Contract Warnings` / `## Cảnh báo Shared Contract`) cùng `skills/dev-designer/SKILL.md` (đọc mục cảnh báo, giữ nguyên quy tắc Contract-First ở `task_01` của Hub, và đưa `.agents/contract_sync.json` cùng `.agents/contract_map.json` vào `Allowed files` của task cuối trước Gate 4).
-- Đồng bộ cả năm quality provider (`rust`, `python`, `flutter`, `android`, `ios`) cho `contracts`, `contracts_<domain>`, `contract_diff` (cộng thêm `db_hygiene` trong `rust-quality.schema.json`), phép thế `{skills_dir}` và `{base_ref}`, cùng quy tắc ánh xạ mã thoát `2` -> `BLOCKED`.
+- Đồng bộ cả năm quality provider (`rust`, `python`, `flutter`, `android`, `ios`) cho `contracts`, `contracts_<domain>`, `contract_diff` (cộng thêm `db_hygiene` trong `rust-quality.schema.json`), phép thế `{skills_dir}` và `{base_ref}`, cùng quy tắc ánh xạ mã thoát `2` -> `BLOCKED` giới hạn riêng cho các capability quản trị/contract (`contracts`, `contracts_<domain>`, `contract_diff`).
 
 ### Ngoài phạm vi
 
@@ -171,7 +171,7 @@ Các kịch bản Gherkin đầy đủ trên cả 5 chiều bắt buộc đượ
 - **Chiều 1 — Tuyến thực thi thành công**:
   - `[CDG-HP-01]`: Thay đổi file được map trên Hub đi kèm cập nhật `shared-contracts/<domain>/` trả mã thoát `0` (`PASS`).
   - `[CDG-HP-02]`: Thay đổi file được map trên Satellite đi kèm `ack` mới cấp domain khớp `snapshot_id` hiện hành trả mã thoát `0` (`PASS`).
-  - `[CDG-HP-03]`: Cả năm provider `*-quality-check` (schema, validator và tài liệu) chấp nhận `contracts`, `contracts_<domain>`, `contract_diff` (cộng `db_hygiene` trên Rust), `{skills_dir}`, `{base_ref}` và ánh xạ `2 -> BLOCKED`.
+  - `[CDG-HP-03]`: Cả năm provider `*-quality-check` (schema, validator và tài liệu) chấp nhận `contracts`, `contracts_<domain>`, `contract_diff` (cộng `db_hygiene` trên Rust), `{skills_dir}`, `{base_ref}` và ánh xạ `2 -> BLOCKED` giới hạn riêng cho các capability quản trị/contract (`contracts`, `contracts_<domain>`, `contract_diff`).
   - `[CDG-HP-04]`: Ràng buộc tài liệu lifecycle (`dev-brainstorming`, `dev-designer`, `setup-shared-contracts`, `sync-shared-contracts`) và `scripts/verify.sh` vượt qua kiểm tra toàn trình.
 - **Chiều 2 — Trường hợp biên và ranh giới**:
   - `[CDG-EC-01]`: Bộ biên dịch glob POSIX có neo khớp `**/` với 0 hoặc nhiều cấp thư mục, giữ `*`/`?` trong một phân đoạn và ưu tiên `exclude`.
@@ -182,14 +182,14 @@ Các kịch bản Gherkin đầy đủ trên cả 5 chiều bắt buộc đượ
 - **Chiều 3 — Chuyển đổi trạng thái**:
   - `[CDG-ST-01]`: Thay đổi file được map không có bao phủ hoặc waiver chỉ khớp một phần để sót file cùng domain chuyển kết luận sang `1` (`FAIL`).
   - `[CDG-ST-02]`: Waiver lịch sử tại `merge-base` không che chỉnh sửa mới (`1` `FAIL`), sửa nội dung ID waiver cũ trả `1` (`FAIL`), và xóa waiver cũ không còn cần thiết trả `0` (`PASS`).
-  - `[CDG-ST-03]`: Lệnh `ack` trên Satellite chỉ chạm domain khác `D2`, `snapshot_id` ở `HEAD` bị cũ, hoặc waiver trích dẫn `GAP-999` không tồn tại đều trả `1` (`FAIL`).
+  - `[CDG-ST-03]`: Lệnh `ack` trên Satellite chỉ chạm domain khác `D2`, `snapshot_id` ở `HEAD` bị cũ, hoặc waiver trích dẫn `GAP-999` không tồn tại hay `INACTIVE` (`REJECTED`/`SUPERSEDED`) đều trả `1` (`FAIL`).
   - `[CDG-ST-04]`: Đánh giá hợp domain mapping với baseline chặn việc tự miễn trừ bằng cách thêm `exclude`, thu hẹp `paths` hoặc xóa domain khi có file baseline thay đổi (`1` `FAIL`), nhưng cho phép gỡ domain không chạm tới (`0` `PASS`) và bootstrap lần đầu khi chưa có `M:.agents/contract_map.json`.
 - **Chiều 4 — Bất đồng bộ và đồng thời đa repo**:
   - `[CDG-AR-01]`: Chạy `diff-check` bên trong Satellite worktree lồng `.worktrees/<epic>` phân giải đúng outbound symlink tương đối qua repo gốc chính và trả `0` (`PASS`).
   - `[CDG-AR-02]`: Cây làm việc bẩn trên các file tracked (staged hoặc unstaged, bỏ qua file untracked) dừng an toàn với mã thoát `2` (`BLOCKED`).
 - **Chiều 5 — Lỗi và khả năng phục hồi lưu trữ**:
   - `[CDG-FR-01]`: Thiếu hoặc sai schema `.agents/contract_map.json` tại `HEAD` hoặc lỗi cú pháp JSON trong `M:.agents/contract_map.json` dừng an toàn với mã thoát `2` (`BLOCKED`).
-  - `[CDG-FR-02]`: Không phân giải được `base_ref` hoặc hỏng topology `shared-contracts` (thiếu, đứt symlink, vòng lặp symlink) dừng an toàn với mã thoát `2` (`BLOCKED`).
+  - `[CDG-FR-02]`: Không phân giải được `base_ref`, Satellite `contract_map.json` khai báo domain khác đích liên kết `shared-contracts`, hoặc hỏng topology `shared-contracts` (thiếu, đứt symlink, vòng lặp symlink) dừng an toàn với mã thoát `2` (`BLOCKED`).
 
 ## Chiến lược Triển khai và Giảm thiểu Rủi ro
 

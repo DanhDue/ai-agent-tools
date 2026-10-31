@@ -38,11 +38,11 @@ This epic delivers `sync_contracts.py diff-check`, the `.agents/contract_map.jso
 - Extend `skills/sync-shared-contracts/resources/scripts/sync_contracts.py` with the `diff-check` subcommand returning deterministic exit codes `0` (`PASS`), `1` (`FAIL`), and `2` (`BLOCKED`) across `merge-base(effective_base_ref, HEAD)..HEAD` via NUL-delimited `git diff --no-ext-diff --no-renames --name-only -z M..HEAD` using Python's standard library only.
 - Validate `.agents/contract_map.json` (`schema_version == 1`, `base_ref`, `domains` with `paths`/`exclude`, optional `waivers`), compile repository-relative POSIX globs into full-path anchored regular expressions matching `task_contract.py` (`**/` matches zero or more directory levels; `*` and `?` never cross `/`), and evaluate domain obligations across the union of baseline (`M:.agents/contract_map.json`, when present) and `HEAD` domain mappings (preserving each version's exclusions independently, failing when a deleted baseline domain has changed files, and bootstrapping cleanly when absent at `M`).
 - Enforce **Hub diff rules**: every changed file matched by `domains[D]` must be covered either by a canonical edit under `shared-contracts/<D>/` (`api_contract.md`, `architecture_and_flow.md`, or `gaps_and_rfcs.md`) in `M..HEAD`, or by a newly added path-matching waiver for domain `D`.
-- Enforce **Satellite diff rules**: every changed file matched by `domains[D]` must be covered either by an added/updated `domains[D]` entry in `.agents/contract_sync.json` within `M..HEAD` whose `HEAD` `snapshot_id` equals the live `shared-contracts` `snapshot_id`, or by a newly added path-matching waiver for domain `D` (verifying `W.gap` in `gaps_and_rfcs.md` when non-null).
-- Enforce **Immutable Historical Waivers**: compare `HEAD` waivers against `git show <M>:.agents/contract_map.json`; reject mutated historical waiver IDs (`1` `FAIL`), fail closed on malformed historical maps (`2` `BLOCKED`), allow removing obsolete waivers, and print all active newly added waivers in text and JSON output.
+- Enforce **Satellite diff rules**: validate that every domain in a Satellite's `HEAD` `contract_map.json` matches its single linked `shared-contracts` target (`2` `BLOCKED` otherwise), and require every changed file matched by `domains[D]` to be covered either by an added/updated `domains[D]` entry in `.agents/contract_sync.json` within `M..HEAD` whose `HEAD` `snapshot_id` equals the live `shared-contracts` `snapshot_id`, or by a newly added path-matching waiver for domain `D` (verifying `W.gap` in `gaps_and_rfcs.md` has active/pending status `"ACTIONABLE_PENDING"` or `"ACKNOWLEDGED_ACTIVE"` when non-null).
+- Enforce **Immutable Historical Waivers**: probe baseline presence via `git ls-tree -r --name-only <M> -- .agents/contract_map.json` before `git show <M>:.agents/contract_map.json`; reject mutated historical waiver IDs (`1` `FAIL`), fail closed on git errors or malformed historical maps (`2` `BLOCKED`), allow removing obsolete waivers, and print per-domain `domains` discharge proofs alongside all active newly added waivers in text and JSON output.
 - Ship `skills/setup-shared-contracts/resources/templates/contract_map.json.tmpl` and document manual glob setup in `skills/setup-shared-contracts/SKILL.md`.
 - Update `skills/dev-brainstorming/SKILL.md` (read-only check & warn only; mandatory human decision per warning persisted under `## Shared Contract Warnings` / `## Cảnh báo Shared Contract`) and `skills/dev-designer/SKILL.md` (consuming warnings, preserving Hub `task_01` Contract-First rule, and adding `.agents/contract_sync.json` and `.agents/contract_map.json` to the final task's `Allowed files` before Gate 4).
-- Align all five quality providers (`rust`, `python`, `flutter`, `android`, `ios`) for `contracts`, `contracts_<domain>`, `contract_diff` (plus `db_hygiene` in `rust-quality.schema.json`), `{skills_dir}` and `{base_ref}` placeholder expansion, and exit-code `2` -> `BLOCKED` mapping.
+- Align all five quality providers (`rust`, `python`, `flutter`, `android`, `ios`) for `contracts`, `contracts_<domain>`, `contract_diff` (plus `db_hygiene` in `rust-quality.schema.json`), `{skills_dir}` and `{base_ref}` placeholder expansion, and exit-code `2` -> `BLOCKED` mapping scoped specifically to governance/contract capabilities (`contracts`, `contracts_<domain>`, `contract_diff`).
 
 ### Non-Goals
 
@@ -171,7 +171,7 @@ Full Gherkin scenarios across all 5 mandatory dimensions are maintained in `bdd_
 - **Dimension 1 — Happy Paths**:
   - `[CDG-HP-01]`: Hub mapped file change covered by canonical `shared-contracts/<domain>/` update exits `0` (`PASS`).
   - `[CDG-HP-02]`: Satellite mapped file change covered by fresh domain-level `ack` matching live `snapshot_id` exits `0` (`PASS`).
-  - `[CDG-HP-03]`: All five `*-quality-check` provider schemas, validators, and docs accept `contracts`, `contracts_<domain>`, `contract_diff` (plus `db_hygiene` on Rust), `{skills_dir}`, `{base_ref}`, and `2 -> BLOCKED`.
+  - `[CDG-HP-03]`: All five `*-quality-check` provider schemas, validators, and docs accept `contracts`, `contracts_<domain>`, `contract_diff` (plus `db_hygiene` on Rust), `{skills_dir}`, `{base_ref}`, and governance-scoped `2 -> BLOCKED` mapping (`contracts`, `contracts_<domain>`, `contract_diff`).
   - `[CDG-HP-04]`: Lifecycle skill contracts (`dev-brainstorming`, `dev-designer`, `setup-shared-contracts`, `sync-shared-contracts`) and `scripts/verify.sh` pass end-to-end.
 - **Dimension 2 — Edge Cases and Boundaries**:
   - `[CDG-EC-01]`: Anchored POSIX glob compiler matches zero- and multi-directory `**/`, enforces single-segment `*`/`?`, and applies `exclude` precedence.
@@ -182,14 +182,14 @@ Full Gherkin scenarios across all 5 mandatory dimensions are maintained in `bdd_
 - **Dimension 3 — State Transitions**:
   - `[CDG-ST-01]`: Uncovered mapped file changes and partial waivers leaving a sibling mapped file uncovered transition verdict to `1` (`FAIL`).
   - `[CDG-ST-02]`: Historical waivers at `merge-base` do not mask new edits (`1` `FAIL`), mutating a historical waiver ID exits `1` (`FAIL`), and deleting an obsolete historical waiver exits `0` (`PASS`).
-  - `[CDG-ST-03]`: Satellite `ack` touching only another domain `D2`, stale `snapshot_id` at `HEAD`, or waiver citing a nonexistent `GAP-999` exits `1` (`FAIL`).
+  - `[CDG-ST-03]`: Satellite `ack` touching only another domain `D2`, stale `snapshot_id` at `HEAD`, or waiver citing a nonexistent `GAP-999` or `INACTIVE` (`REJECTED`/`SUPERSEDED`) gap exits `1` (`FAIL`).
   - `[CDG-ST-04]`: Baseline-union domain mapping rejects self-exempting `exclude` additions, glob narrowing, and domain deletions when baseline-mapped files change (`1` `FAIL`), while allowing untouched domain retirement (`0` `PASS`) and first-time bootstrap when `M:.agents/contract_map.json` is absent.
 - **Dimension 4 — Async and Multi-Repo Concurrency**:
   - `[CDG-AR-01]`: Running `diff-check` inside a nested `.worktrees/<epic>` Satellite worktree resolves outbound relative symlinks via the primary repository root and exits `0` (`PASS`).
   - `[CDG-AR-02]`: Dirty tracked working tree (staged or unstaged tracked edits, ignoring untracked build outputs) fails closed with exit `2` (`BLOCKED`).
 - **Dimension 5 — Failures and Storage Resilience**:
   - `[CDG-FR-01]`: Missing or schema-invalid `.agents/contract_map.json` at `HEAD` or corrupted JSON in `M:.agents/contract_map.json` fails closed with exit `2` (`BLOCKED`).
-  - `[CDG-FR-02]`: Unresolvable `base_ref` or missing/dangling/circular `shared-contracts` topology fails closed with exit `2` (`BLOCKED`).
+  - `[CDG-FR-02]`: Unresolvable `base_ref`, Satellite `contract_map.json` declaring an unlinked domain, or missing/dangling/circular `shared-contracts` topology fails closed with exit `2` (`BLOCKED`).
 
 ## Rollout Strategy and Mitigation
 

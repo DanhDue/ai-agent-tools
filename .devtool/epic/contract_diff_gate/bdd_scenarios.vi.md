@@ -30,7 +30,7 @@ Scenario: [CDG-HP-03] [Tier C - Integration] Xác minh Schema của 5 Quality Pr
   Given các file *-quality.schema.json và tài liệu SKILL.md đã cập nhật trên cả năm quality providers gồm rust, python, flutter, android, và ios
   When kỹ sư chạy cả năm bộ kiểm thử test_validate_*_quality.py
   Then mọi schema provider cho phép các capabilities "contracts", "contract_diff", cùng biểu thức "^contracts_[a-z0-9_]+$" (và rust-quality.schema.json cho phép thêm "db_hygiene")
-  And mọi validator chấp nhận mảng lệnh chứa placeholder "{skills_dir}" cùng "{base_ref}" và tài liệu hóa quy tắc ánh xạ exit code 2 sang trạng thái "BLOCKED"
+  And mọi validator chấp nhận mảng lệnh chứa placeholder "{skills_dir}" cùng "{base_ref}" và tài liệu hóa quy tắc ánh xạ exit code 2 sang trạng thái "BLOCKED" giới hạn riêng cho các capability quản trị/contract ("contracts", "contracts_<domain>", và "contract_diff") trong khi giữ nguyên mã thoát khác 0 -> "FAIL" cho các capability thông thường
   And cả năm bộ kiểm thử validator đều kết thúc với exit code 0
 
 Scenario: [CDG-HP-04] [Tier C - Integration] Xác minh Ràng buộc Tài liệu Lifecycle, Template Mẫu và Bộ kiểm tra Verify Harness
@@ -92,15 +92,15 @@ Scenario: [CDG-ST-02] [Tier C - Integration] Waiver lịch sử không che thay 
   And lệnh sync_contracts.py diff-check trên nhánh B kết thúc với exit code 1 báo lỗi sửa đổi trái phép waiver lịch sử "W-OLD"
   And lệnh sync_contracts.py diff-check trên nhánh C kết thúc với exit code 0
 
-Scenario: [CDG-ST-03] [Tier C - Integration] Cô lập Ack khác Domain trên Satellite, từ chối Snapshot cũ và báo lỗi thiếu GAP-XX
-  Given một Satellite repository có thay đổi file được map thuộc domain "lyrics-sync" trong đó hoặc .agents/contract_sync.json trong M..HEAD chỉ cập nhật domain lân cận "nexus", hoặc domains["lyrics-sync"].snapshot_id tại HEAD khác với snapshot_id hiện hành trên Hub, hoặc waiver mới trích dẫn gap "GAP-999" không có trong gaps_and_rfcs.md
+Scenario: [CDG-ST-03] [Tier C - Integration] Cô lập Ack khác Domain trên Satellite, từ chối Snapshot cũ và báo lỗi thiếu hoặc INACTIVE GAP-XX
+  Given một Satellite repository có thay đổi file được map thuộc domain "lyrics-sync" trong đó hoặc .agents/contract_sync.json trong M..HEAD chỉ cập nhật domain lân cận "nexus", hoặc domains["lyrics-sync"].snapshot_id tại HEAD khác với snapshot_id hiện hành trên Hub, hoặc waiver mới trích dẫn gap "GAP-999" không có trong gaps_and_rfcs.md hay một gap có trạng thái chuẩn hóa là "INACTIVE" ("REJECTED" hoặc "SUPERSEDED")
   When kỹ sư thực thi lệnh sync_contracts.py diff-check --json
-  Then báo cáo JSON chứa status "FAIL" và ghi nhận rõ đường dẫn vi phạm hoặc lỗi thiếu "GAP-999"
+  Then báo cáo JSON chứa status "FAIL" và ghi nhận rõ đường dẫn vi phạm hoặc lỗi thiếu/inactive GAP
   And lệnh kết thúc với exit code 1
 
 Scenario: [CDG-ST-04] [Tier C - Integration] Đánh giá Hợp Domain Mapping giữa Baseline và HEAD chặn tự miễn trừ nhưng cho phép Bootstrap và gỡ Domain không chạm tới
   Given một repository có file baseline M:.agents/contract_map.json ánh xạ "src/api/dto/**" vào domain "lyrics-sync" cùng với domain "legacy-domain"
-  When nhánh A sửa "src/api/dto/worker.py" đồng thời thêm "src/api/dto/worker.py" vào exclude hoặc thu hẹp paths hoặc xóa domain "lyrics-sync" tại HEAD mà không bao phủ, nhánh B xóa domain không có file đổi "legacy-domain" tại HEAD, và nhánh bootstrap C lần đầu tiên tạo .agents/contract_map.json sau commit M
+  When nhánh A sửa "src/api/dto/worker.py" đồng thời thêm "src/api/dto/worker.py" vào exclude hoặc thu hẹp paths mà không bao phủ, hoặc xóa domain "lyrics-sync" tại HEAD, nhánh B xóa domain không có file đổi "legacy-domain" tại HEAD, và nhánh bootstrap C lần đầu tiên tạo .agents/contract_map.json sau commit M
   Then lệnh sync_contracts.py diff-check trên nhánh A kết thúc với exit code 1 báo lỗi "src/api/dto/worker.py" thuộc domain "lyrics-sync" nhờ đánh giá hợp domain với baseline
   And lệnh sync_contracts.py diff-check trên nhánh B kết thúc với exit code 0 còn nhánh bootstrap C đánh giá nghĩa vụ bao phủ theo domains tại HEAD mà không bị chặn do thiếu map ở baseline
 ```
@@ -129,10 +129,10 @@ Scenario: [CDG-FR-01] [Tier A - Unit] Thiếu hoặc lỗi định dạng Contra
   Then báo cáo JSON chứa status "BLOCKED" kèm chẩn đoán chi tiết trong blockers nêu rõ file bị thiếu hoặc lỗi schema
   And lệnh kết thúc với exit code 2
 
-Scenario: [CDG-FR-02] [Tier A - Unit] Không phân giải được Base-Ref hoặc hỏng Topology Shared-Contracts dừng an toàn với BLOCKED
-  Given một repository mà effective_base_ref không phân giải được sang commit git hoặc đường dẫn shared-contracts bị thiếu, đứt symlink, hay rơi vào vòng lặp symlink 12 bước nhảy
+Scenario: [CDG-FR-02] [Tier A - Unit] Không phân giải được Base-Ref, Domain Satellite không liên kết hoặc hỏng Topology Shared-Contracts dừng an toàn với BLOCKED
+  Given một repository mà effective_base_ref không phân giải được sang commit git, contract_map.json của Satellite khai báo domain khác với mục tiêu shared-contracts đã liên kết, hoặc đường dẫn shared-contracts bị thiếu, đứt symlink, hay rơi vào vòng lặp symlink 12 bước nhảy
   When kỹ sư thực thi lệnh sync_contracts.py diff-check --json
-  Then báo cáo JSON chứa status "BLOCKED" và ghi nhận lỗi git merge-base hoặc lỗi topology vào blockers
+  Then báo cáo JSON chứa status "BLOCKED" và ghi nhận lỗi git merge-base, domain Satellite không liên kết, hoặc lỗi topology vào blockers
   And lệnh kết thúc với exit code 2
 ```
 

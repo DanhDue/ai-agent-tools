@@ -28,7 +28,7 @@ Update the JSON schemas, provider skill instructions, capability contract refere
    - Update `SKILL.md` in all five providers (`rust-quality-check`, `python-quality-check`, `flutter-quality-check`, `android-quality-check`, `ios-quality-check`) and `references/{rust,python}-capability-contract.md` in the two providers that maintain separate contract reference files:
      - Document `{skills_dir}/...` prefix substitution (resolving `{skills_dir}` to the parent `skills/` directory of the active quality provider skill).
      - Document `{base_ref}` argument placeholder substitution (expanding `{base_ref}` from `quality_check`'s normalized `base_ref` invocation parameter, falling back to `develop` or repository default only when `base_ref` was not supplied).
-     - Document exit-code `2` (or JSON `"status": "BLOCKED"`) -> check status `BLOCKED` mapping (`0` -> `PASS`, `1` -> `FAIL`, `2` -> `BLOCKED`) for governance/contract capabilities such as `contract_diff`.
+     - Document exit-code `2` (or JSON `"status": "BLOCKED"`) -> check status `BLOCKED` mapping (`0` -> `PASS`, `1` -> `FAIL`, `2` -> `BLOCKED`) scoped specifically to governance/contract capabilities (`contracts`, `contracts_<domain>`, and `contract_diff`), while all other capabilities retain nonzero -> `FAIL`.
 3. **Validator & Schema Unit Tests (`test_validate_*_quality.py`)**:
    - Add test cases covering `[CDG-HP-03]` across all five `test_validate_*_quality.py` suites verifying both `validate_*_config()` acceptance of `contracts`, `contracts_lyrics_sync`, `contract_diff` (with `{skills_dir}` and `{base_ref}` arguments), and `db_hygiene` (for Rust), and structural assertions on `*-quality.schema.json` (`contracts`, `contract_diff`, `patternProperties["^contracts_[a-z0-9_]+$"]`, and `db_hygiene`).
    - Clean up any unused `# noqa: E402` directives in `test_validate_*_quality.py` so `ruff check` exits `0`.
@@ -87,7 +87,7 @@ Scenario: [CDG-HP-03] [Tier C - Integration] Quality Provider Schemas, Placehold
   Given the updated *-quality.schema.json files and SKILL.md contracts across rust, python, flutter, android, and ios quality providers
   When the engineer runs the five test_validate_*_quality.py test suites
   Then every provider schema permits capabilities "contracts", "contract_diff", and pattern "^contracts_[a-z0-9_]+$" (and rust-quality.schema.json permits "db_hygiene")
-  And every provider validator accepts capability arrays using "{skills_dir}" and "{base_ref}" placeholders and documents exit code 2 mapping to status "BLOCKED"
+  And every provider validator accepts capability arrays using "{skills_dir}" and "{base_ref}" placeholders and documents exit code 2 mapping to status "BLOCKED" scoped to governance/contract capabilities ("contracts", "contracts_<domain>", and "contract_diff") while keeping nonzero -> "FAIL" for general capabilities
   And all five validator test suites exit with code 0
 ```
 
