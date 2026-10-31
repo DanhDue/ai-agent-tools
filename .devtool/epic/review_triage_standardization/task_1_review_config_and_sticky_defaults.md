@@ -108,8 +108,8 @@ RED: n/a — retroactive formalization: implementation and test suite already ve
 
 | ID | Phase | Command | Expect | Needs |
 |----|-------|---------|--------|-------|
-| V2 | GREEN | `python3 -m unittest skills/dev-implementation/resources/scripts/test_run_external_review.py -k test_default_config_resolution_and_persistence` | exit 0; contains "OK" | — |
-| V3 | GREEN | `python3 -m unittest skills/dev-implementation/resources/scripts/test_run_external_review.py -k test_codex_thinking_level_arguments` | exit 0; contains "OK" | — |
+| V2 | GREEN | `python3 -m unittest skills/dev-implementation/resources/scripts/test_run_external_review.py -k test_rts_hp_02` | exit 0; contains "OK" | — |
+| V3 | GREEN | `python3 -m unittest skills/dev-implementation/resources/scripts/test_run_external_review.py -k test_rts_hp_04` | exit 0; contains "OK" | — |
 | V4 | TIER-B | `ruff check skills/dev-implementation/resources/scripts/run_external_review.py skills/dev-implementation/resources/scripts/test_run_external_review.py` | exit 0 | — |
 | V5 | TIER-B | `mypy --strict --follow-imports=silent skills/dev-implementation/resources/scripts/run_external_review.py skills/dev-implementation/resources/scripts/test_run_external_review.py` | exit 0 | — |
 | V6 | TIER-C | `python3 scripts/run_unittest_junit.py --junitxml build/test-results/run-external-review.xml skills/dev-implementation/resources/scripts/test_run_external_review.py` | exit 0; results build/test-results/run-external-review.xml | — |

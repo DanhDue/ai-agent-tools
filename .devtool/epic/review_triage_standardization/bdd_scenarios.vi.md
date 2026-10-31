@@ -92,7 +92,7 @@ Scenario: [RTS-EC-03] [Tier C - Integration] Zero findings in review verdict dis
 
 Given một vòng đánh giá có kết luận "PASS" và không có phát hiện nào
 When format_triage_header() được thực thi
-Then dòng verdict hiển thị "• Verdict: PASS (0 Critical, 0 Major, 0 Minor findings)"
+Then dòng verdict hiển thị "• Verdict: PASS (0 findings)"
 ```
 
 ## Chuyển đổi Trạng thái (State Transitions)

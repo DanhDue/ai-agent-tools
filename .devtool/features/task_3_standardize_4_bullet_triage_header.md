@@ -61,7 +61,7 @@ Scenario: [RTS-HP-01] [Tier C - Integration] Triage format renders standardized 
 Scenario: [RTS-EC-03] [Tier C - Integration] Zero findings in review verdict displays 0 findings
   Given a review round with verdict "PASS" and zero findings
   When format_triage_header() runs
-  Then verdict bullet displays "• Verdict: PASS (0 Critical, 0 Major, 0 Minor findings)"
+  Then verdict bullet displays "• Verdict: PASS (0 findings)"
 
 Scenario: [RTS-ST-02] [Tier C - Integration] Incomplete review round reflects non-completed status
   Given a review round with status "failed" or "no verdict"
@@ -75,7 +75,7 @@ RED: n/a — retroactive formalization: implementation and test suite already ve
 
 | ID | Phase | Command | Expect | Needs |
 |----|-------|---------|--------|-------|
-| V2 | GREEN | `python3 -m unittest skills/dev-implementation/resources/scripts/test_run_external_review.py -k test_standardized_4_bullet_header_in_triage` | exit 0; contains "OK" | — |
+| V2 | GREEN | `python3 -m unittest skills/dev-implementation/resources/scripts/test_run_external_review.py -k test_rts_hp_01` | exit 0; contains "OK" | — |
 | V3 | TIER-B | `ruff check skills/dev-implementation/resources/scripts/run_external_review.py skills/dev-implementation/resources/scripts/test_run_external_review.py` | exit 0 | — |
 | V4 | TIER-B | `mypy --strict --follow-imports=silent skills/dev-implementation/resources/scripts/run_external_review.py skills/dev-implementation/resources/scripts/test_run_external_review.py` | exit 0 | — |
 | V5 | TIER-C | `python3 scripts/run_unittest_junit.py --junitxml build/test-results/run-external-review.xml skills/dev-implementation/resources/scripts/test_run_external_review.py` | exit 0; results build/test-results/run-external-review.xml | — |

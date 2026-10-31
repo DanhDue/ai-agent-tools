@@ -82,14 +82,14 @@ def load_review_config(root: Path) -> dict[str, Any]:
                     cfg["providers"].setdefault(p, {})
                     cfg["providers"][p].update(pdata)
         return cfg
-    except (json.JSONDecodeError, OSError):
+    except (json.JSONDecodeError, OSError, UnicodeDecodeError):
         return copy.deepcopy(DEFAULT_REVIEW_CONFIG)
 
 
 def save_review_config(root: Path, config: dict[str, Any]) -> None:
     path = root / REVIEW_CONFIG_FILE
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp_path = path.with_suffix(".tmp")
+    tmp_path = path.with_name(f"{path.name}.tmp")
     tmp_path.write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
     tmp_path.replace(path)
 
@@ -105,7 +105,7 @@ def update_sticky_review_config(root: Path, cli: str, model: str | None, thinkin
         if thinking_level:
             cfg["providers"][cli]["thinking_level"] = thinking_level
         save_review_config(root, cfg)
-    except (json.JSONDecodeError, OSError):
+    except (json.JSONDecodeError, OSError, UnicodeDecodeError):
         pass
 
 
@@ -142,6 +142,8 @@ def resolve_review_settings(
 
     default_thinking = DEFAULT_REVIEW_CONFIG["providers"].get(cli, {}).get("thinking_level", "high")
     thinking_level = thinking_arg or prev_thinking or provider_cfg.get("thinking_level") or default_thinking
+    if thinking_level not in THINKING_LEVELS:
+        thinking_level = default_thinking if default_thinking in THINKING_LEVELS else "high"
 
     return cli, model, thinking_level
 
@@ -464,7 +466,7 @@ def effective_model(cli: str, model: str | None) -> str:
 
 
 def effective_thinking_level(cli: str, thinking_level: str | None) -> str:
-    if thinking_level:
+    if thinking_level and thinking_level in THINKING_LEVELS:
         return thinking_level
     return str(DEFAULT_REVIEW_CONFIG["providers"].get(cli, {}).get("thinking_level", "high"))
 
@@ -978,8 +980,18 @@ def record_round(root: Path, args: argparse.Namespace, sha: str, passes: list[Pa
     text = existing.rstrip("\n") + "\n\n" + render_round(round_num, meta, findings, output)
     path.write_text(text, encoding="utf-8")
     update_sticky_review_config(root, args.cli, getattr(args, "model", None), getattr(args, "thinking_level", None))
-    print(f"Round {round_num}: {status} ({path.relative_to(root)})")
+    header = format_triage_header(
+        f"Round {round_num}: {status} ({path.relative_to(root)})",
+        sha,
+        args.cli,
+        effective_model(args.cli, getattr(args, "model", None)),
+        effective_thinking_level(args.cli, getattr(args, "thinking_level", None)),
+        verdict_text,
+        findings,
+    )
+    print("\n".join(header))
     if status != "completed":
+        print(f"- **Status**: {status}")
         return 2
     return 1 if any(sev in BLOCKING for sev, _, _ in findings) else 0
 

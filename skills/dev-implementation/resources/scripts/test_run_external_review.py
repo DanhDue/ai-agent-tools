@@ -19,7 +19,12 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).parent))
 import test_check_epic_readiness as tcer
-from run_external_review import format_triage_header, load_review_config, main, save_review_config
+from run_external_review import (
+    format_triage_header,
+    load_review_config,
+    main,
+    save_review_config,
+)
 
 EPIC = ".devtool/epic/demo"
 TICKS = "`" * 3
@@ -917,13 +922,14 @@ class TestReviewConfigAndHeader(ReviewCase):
         """[RTS-HP-01] Triage output strictly includes the 4 standardized bullet lines."""
         self.install("codex")
         self.run_review(cli="codex", mode="pass")
+        sha = git(self.root, "rev-parse", "HEAD")
         out = io.StringIO()
         with contextlib.redirect_stdout(out):
             code = main(["triage", "--epic-dir", "demo"])
         self.assertEqual(code, 0)
         output = out.getvalue()
-        self.assertIn("# Review Triage: demo, Round 1", output)
-        self.assertIn("• Candidate SHA:", output)
+        self.assertTrue(output.startswith("# Review Triage: demo, Round 1\n"))
+        self.assertIn(f"• Candidate SHA: {sha}", output)
         self.assertIn("• Reviewer: Codex ( gpt-6.1-sol )", output)
         self.assertIn("• Thinking Level: High", output)
         self.assertIn("• Verdict: PASS (0 findings)", output)
@@ -946,6 +952,9 @@ class TestReviewConfigAndHeader(ReviewCase):
 
     def test_rts_hp_03_sticky_memory_updates_on_subsequent_runs(self) -> None:
         """[RTS-HP-03] Sticky memory updates provider preferences upon execution."""
+        initial_cfg = {"last_used_provider": "codex", "providers": {"codex": {"model": "gpt-6.1-sol", "thinking_level": "high"}}}
+        save_review_config(self.root, initial_cfg)
+        self.commit("Save initial config")
         self.install("claude")
         code, _, _ = self.run_review(
             "--thinking-level", "medium",
@@ -984,7 +993,12 @@ class TestReviewConfigAndHeader(ReviewCase):
 
     def test_rts_hp_06_dynamic_probing_and_senior_rules_in_prompts(self) -> None:
         """[RTS-HP-06] Prompts contain Mandatory Dynamic Probing Rule and senior reviewer checklist."""
-        from run_external_review import PROMPT, RULES, principal_prompt_path, principal_rules_path
+        from run_external_review import (
+            PROMPT,
+            RULES,
+            principal_prompt_path,
+            principal_rules_path,
+        )
         ext_prompt = PROMPT.read_text(encoding="utf-8")
         ext_rules = RULES.read_text(encoding="utf-8")
         pr_prompt = principal_prompt_path().read_text(encoding="utf-8")
@@ -1006,10 +1020,13 @@ class TestReviewConfigAndHeader(ReviewCase):
         """[RTS-EC-02] Corrupted review_config.json falls back cleanly to defaults."""
         config_path = self.root / ".devtool" / "review_config.json"
         config_path.parent.mkdir(parents=True, exist_ok=True)
+        config_path.write_bytes(b"\xff\xfe\x00\x00")
+        cfg_utf8 = load_review_config(self.root)
+        self.assertEqual(cfg_utf8["last_used_provider"], "codex")
         config_path.write_text("{broken json...", encoding="utf-8")
-        cfg = load_review_config(self.root)
-        self.assertEqual(cfg["last_used_provider"], "codex")
-        self.assertEqual(cfg["providers"]["codex"]["model"], "gpt-6.1-sol")
+        cfg_json = load_review_config(self.root)
+        self.assertEqual(cfg_json["last_used_provider"], "codex")
+        self.assertEqual(cfg_json["providers"]["codex"]["model"], "gpt-6.1-sol")
 
     def test_rts_ec_03_zero_findings_in_verdict(self) -> None:
         """[RTS-EC-03] Zero findings in review verdict displays 0 findings."""
@@ -1018,18 +1035,21 @@ class TestReviewConfigAndHeader(ReviewCase):
 
     def test_rts_st_01_provider_switching_preserves_distinct_memory(self) -> None:
         """[RTS-ST-01] Switching providers preserves each provider's distinct preferences."""
+        save_review_config(self.root, {
+            "last_used_provider": "codex",
+            "providers": {
+                "claude": {"model": "saved-claude", "thinking_level": "low"},
+                "codex": {"model": "saved-codex", "thinking_level": "high"},
+            }
+        })
+        self.commit("Save config")
         self.install("claude")
         self.install("codex")
-        self.run_review("--model", "custom-claude", "--thinking-level", "low", cli="claude", mode="pass")
+        self.run_review(cli="codex", mode="pass")
+        self.assertIn("--model saved-codex", self.args.read_text())
         self.commit("Round 1")
-        self.run_review("--model", "custom-codex", "--thinking-level", "high", cli="codex", mode="pass")
-        self.commit("Round 2")
-        cfg = load_review_config(self.root)
-        self.assertEqual(cfg["last_used_provider"], "codex")
-        self.assertEqual(cfg["providers"]["claude"]["model"], "custom-claude")
-        self.assertEqual(cfg["providers"]["claude"]["thinking_level"], "low")
-        self.assertEqual(cfg["providers"]["codex"]["model"], "custom-codex")
-        self.assertEqual(cfg["providers"]["codex"]["thinking_level"], "high")
+        self.run_review(cli="claude", mode="pass")
+        self.assertIn("--model saved-claude", self.args.read_text())
 
     def test_rts_st_02_incomplete_round_reflects_status(self) -> None:
         """[RTS-ST-02] Incomplete review round appends - **Status** in triage."""
@@ -1047,24 +1067,23 @@ class TestReviewConfigAndHeader(ReviewCase):
         save_review_config(self.root, cfg)
         config_path = self.root / ".devtool" / "review_config.json"
         self.assertTrue(config_path.exists())
-        self.assertFalse(config_path.with_suffix(".tmp").exists())
+        self.assertFalse(config_path.with_name("review_config.json.tmp").exists())
         loaded = json.loads(config_path.read_text(encoding="utf-8"))
         self.assertEqual(loaded["last_used_provider"], "codex")
 
     def test_rts_fr_01_tree_changes_aborts_on_mutation(self) -> None:
         """[RTS-FR-01] tree_changes detects modified paths when reviewer mutates repo."""
-        from run_external_review import tree_changes, status_lines, head_of
-        before = status_lines(self.root)
-        sha = head_of(self.root)
-        (self.root / "mutated.txt").write_text("mutation", encoding="utf-8")
-        changed = tree_changes(self.root, before, sha)
-        self.assertTrue(any("mutated.txt" in c for c in changed))
+        self.install("codex")
+        code, _, _ = self.run_review(cli="codex", mode="modify")
+        self.assertEqual(code, 2)
 
     def test_rts_fr_02_unknown_thinking_level_defaults_to_high(self) -> None:
         """[RTS-FR-02] Unknown or None thinking level defaults safely to high."""
-        from run_external_review import effective_thinking_level
-        self.assertEqual(effective_thinking_level("codex", None), "high")
-        self.assertEqual(effective_thinking_level("codex", "custom"), "custom")
+        from run_external_review import resolve_review_settings
+        _, _, thinking_custom = resolve_review_settings(self.root, "demo", "code", "codex", "gpt-6.1-sol", "unknown-level")
+        self.assertEqual(thinking_custom, "high")
+        _, _, thinking_none = resolve_review_settings(self.root, "demo", "code", "codex", "gpt-6.1-sol", None)
+        self.assertEqual(thinking_none, "high")
 
 
 if __name__ == '__main__':

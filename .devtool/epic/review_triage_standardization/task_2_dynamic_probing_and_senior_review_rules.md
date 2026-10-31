@@ -70,7 +70,7 @@ RED: n/a — retroactive formalization: implementation and test suite already ve
 
 | ID | Phase | Command | Expect | Needs |
 |----|-------|---------|--------|-------|
-| V2 | GREEN | `python3 -m unittest skills/dev-implementation/resources/scripts/test_run_external_review.py -k test_claude_thinking_level_arguments` | exit 0; contains "OK" | — |
+| V2 | GREEN | `python3 -m unittest skills/dev-implementation/resources/scripts/test_run_external_review.py -k test_rts_hp_05` | exit 0; contains "OK" | — |
 | V3 | TIER-B | `ruff check skills/dev-implementation/resources/scripts/run_external_review.py` | exit 0 | — |
 | V4 | TIER-B | `mypy --strict --follow-imports=silent skills/dev-implementation/resources/scripts/run_external_review.py` | exit 0 | — |
 | V5 | TIER-C | `python3 scripts/run_unittest_junit.py --junitxml build/test-results/run-external-review.xml skills/dev-implementation/resources/scripts/test_run_external_review.py` | exit 0; results build/test-results/run-external-review.xml | — |

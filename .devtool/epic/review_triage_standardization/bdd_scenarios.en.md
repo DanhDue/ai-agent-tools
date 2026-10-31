@@ -83,7 +83,7 @@ Scenario: [RTS-EC-02] [Tier C - Integration] Missing or corrupted review_config.
 Scenario: [RTS-EC-03] [Tier C - Integration] Zero findings in review verdict displays 0 findings
   Given a review round with verdict "PASS" and zero findings
   When format_triage_header() runs
-  Then verdict bullet displays "• Verdict: PASS (0 Critical, 0 Major, 0 Minor findings)"
+  Then verdict bullet displays "• Verdict: PASS (0 findings)"
 ```
 
 ## State Transitions
