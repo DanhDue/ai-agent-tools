@@ -16,7 +16,7 @@
 ## Thông tin Meta
 
 - **Tên Epic**: `review_triage_standardization`
-- **Trạng thái**: Đang thực hiện (In Progress)
+- **Trạng thái**: Done
 - **Bản phát hành mục tiêu**: Bản phát hành plugin tiếp theo (1.18.0)
 - **Nền tảng**: Python tooling / bộ công cụ agent skill
 - **Tài liệu đặc tả nguồn**: [Đặc tả Thiết kế Tiêu đề Triage Đánh giá và Cấu hình Mặc định Provider](2026-10-31-review-triage-header-and-provider-defaults-design.vi.md)

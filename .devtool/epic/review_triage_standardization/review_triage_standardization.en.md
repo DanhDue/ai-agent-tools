@@ -16,7 +16,7 @@
 ## Meta Data
 
 - **Epic name**: `review_triage_standardization`
-- **Status**: In Progress
+- **Status**: Done
 - **Target release**: Next plugin release (1.18.0)
 - **Platform**: Python tooling / agent skill kit
 - **Source Spec**: [Approved Review Triage Header and Provider Defaults Design](2026-10-31-review-triage-header-and-provider-defaults-design.en.md)
