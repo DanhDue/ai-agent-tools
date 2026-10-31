@@ -1,0 +1,108 @@
+{
+  "schema": 1,
+  "task": "task_3_standardize_4_bullet_triage_header",
+  "runs": {
+    "verify": {
+      "head": "43815bacba1dd759b8eef40140e090681d97b47f",
+      "tree": "e4d2c02183efe5ea67d464ab276567d39500a24a",
+      "patch_id": "06988dc5c20fa6c2d1917b50383ac228aa2ee456",
+      "started": "2026-10-31T08:06:23Z",
+      "finished": "2026-10-31T08:06:56Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m unittest skills/dev-implementation/resources/scripts/test_run_external_review.py -k test_standardized_4_bullet_header_in_triage",
+          "expect": "exit 0; contains \"OK\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-31T08:06:23Z",
+          "finished": "2026-10-31T08:06:24Z",
+          "output_tail": [
+            ".",
+            "----------------------------------------------------------------------",
+            "Ran 1 test in 0.598s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "f19009471c89f2e2e26989012944de1c074639737e7c535be6a5aa0ff8cae930"
+        },
+        {
+          "id": "V3",
+          "phase": "TIER-B",
+          "command": "ruff check skills/dev-implementation/resources/scripts/run_external_review.py skills/dev-implementation/resources/scripts/test_run_external_review.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-31T08:06:24Z",
+          "finished": "2026-10-31T08:06:24Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "mypy --strict --follow-imports=silent skills/dev-implementation/resources/scripts/run_external_review.py skills/dev-implementation/resources/scripts/test_run_external_review.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-31T08:06:24Z",
+          "finished": "2026-10-31T08:06:24Z",
+          "output_tail": [
+            "Success: no issues found in 2 source files"
+          ],
+          "output_sha256": "f9b031e5c45aa702cd4fef028d465551cb20a2c4698e0913c7b00766b20ac4d8"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-C",
+          "command": "python3 scripts/run_unittest_junit.py --junitxml build/test-results/run-external-review.xml skills/dev-implementation/resources/scripts/test_run_external_review.py",
+          "expect": "exit 0; results build/test-results/run-external-review.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-10-31T08:06:24Z",
+          "finished": "2026-10-31T08:06:55Z",
+          "output_tail": [
+            ".........................................................",
+            "----------------------------------------------------------------------",
+            "Ran 57 tests in 31.319s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "c92cc265828e67a694df5dc983ddc5f1954e646e645ac74c6c0cd3bb1e0b51e9",
+          "results": {
+            "path": "build/test-results/run-external-review.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 0,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": []
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "skills/dev-implementation/resources/scripts/run_external_review.py"
+          ],
+          "violations": []
+        }
+      ]
+    }
+  }
+}

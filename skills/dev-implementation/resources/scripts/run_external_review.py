@@ -16,6 +16,7 @@ skeleton to fill before acting on it, with a comparison of every round; exit 0, 
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import os
 import re
@@ -67,12 +68,12 @@ DEFAULT_REVIEW_CONFIG: dict[str, Any] = {
 def load_review_config(root: Path) -> dict[str, Any]:
     path = root / REVIEW_CONFIG_FILE
     if not path.is_file():
-        return json.loads(json.dumps(DEFAULT_REVIEW_CONFIG))
+        return copy.deepcopy(DEFAULT_REVIEW_CONFIG)
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
         if not isinstance(data, dict):
-            return json.loads(json.dumps(DEFAULT_REVIEW_CONFIG))
-        cfg = json.loads(json.dumps(DEFAULT_REVIEW_CONFIG))
+            return copy.deepcopy(DEFAULT_REVIEW_CONFIG)
+        cfg: dict[str, Any] = copy.deepcopy(DEFAULT_REVIEW_CONFIG)
         if "last_used_provider" in data and isinstance(data["last_used_provider"], str):
             cfg["last_used_provider"] = data["last_used_provider"]
         if "providers" in data and isinstance(data["providers"], dict):
@@ -81,8 +82,8 @@ def load_review_config(root: Path) -> dict[str, Any]:
                     cfg["providers"].setdefault(p, {})
                     cfg["providers"][p].update(pdata)
         return cfg
-    except Exception:
-        return json.loads(json.dumps(DEFAULT_REVIEW_CONFIG))
+    except (json.JSONDecodeError, OSError):
+        return copy.deepcopy(DEFAULT_REVIEW_CONFIG)
 
 
 def save_review_config(root: Path, config: dict[str, Any]) -> None:
@@ -104,7 +105,7 @@ def update_sticky_review_config(root: Path, cli: str, model: str | None, thinkin
         if thinking_level:
             cfg["providers"][cli]["thinking_level"] = thinking_level
         save_review_config(root, cfg)
-    except Exception:
+    except (json.JSONDecodeError, OSError):
         pass
 
 
@@ -115,7 +116,7 @@ def resolve_review_settings(
     cli_arg: str | None,
     model_arg: str | None,
     thinking_arg: str | None,
-) -> tuple[str, str, str]:
+) -> tuple[str, str | None, str]:
     config = load_review_config(root)
     cli = cli_arg or config.get("last_used_provider") or "codex"
 
@@ -459,13 +460,13 @@ def diff_range(root: Path, base: str, commits: str | None = None) -> tuple[str, 
 def effective_model(cli: str, model: str | None) -> str:
     if model:
         return model
-    return DEFAULT_REVIEW_CONFIG["providers"].get(cli, {}).get("model", "default")
+    return str(DEFAULT_REVIEW_CONFIG["providers"].get(cli, {}).get("model", "default"))
 
 
 def effective_thinking_level(cli: str, thinking_level: str | None) -> str:
     if thinking_level:
         return thinking_level
-    return DEFAULT_REVIEW_CONFIG["providers"].get(cli, {}).get("thinking_level", "high")
+    return str(DEFAULT_REVIEW_CONFIG["providers"].get(cli, {}).get("thinking_level", "high"))
 
 
 def cli_command(cli: str, model: str | None, thinking_level: str | None = None) -> list[str]:
@@ -1076,9 +1077,7 @@ def triage(args: argparse.Namespace) -> int:
         return 2
     number, lines = rounds[-1]
     meta = round_meta(lines)
-    kind = getattr(args, "kind", "code")
     cli = meta.get("CLI", "codex")
-    cli_display = {"claude": "Claude", "codex": "Codex", "agy": "agy", "ollama": "Ollama"}.get(cli, cli.capitalize())
     title = f"# Review Triage: {args.epic_dir}, Round {number}"
     latest = finding_rows(lines)
     header = format_triage_header(
