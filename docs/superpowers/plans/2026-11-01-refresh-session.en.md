@@ -62,7 +62,7 @@
 - Create: `skills/refresh-session/resources/scripts/refresh_session.py`
 - Create: `skills/refresh-session/resources/scripts/test_refresh_session.py`
 
-- [ ] **Step 1: Write the failing unit tests (RED)**
+- [x] **Step 1: Write the failing unit tests (RED)**
   Create `skills/refresh-session/resources/scripts/test_refresh_session.py` with test cases:
   - `test_parse_arguments_default`: Verifies target defaults to `"all"`, timeout defaults to `60`, json is `False`.
   - `test_parse_arguments_targets`: Verifies `"claude"`, `"codex"`, and `"all"` target parsing.
@@ -75,11 +75,11 @@
   - `test_run_ping_timeout_mocked`: Mock `subprocess.TimeoutExpired`; verify timeout error reporting.
   - `test_main_json_output`: Verify `--json` outputs well-formed JSON report.
 
-- [ ] **Step 2: Run tests to confirm RED state**
+- [x] **Step 2: Run tests to confirm RED state**
   Run: `python3 -m unittest skills/refresh-session/resources/scripts/test_refresh_session.py`
   Expected: ModuleNotFoundError or failure because `refresh_session.py` does not exist yet.
 
-- [ ] **Step 3: Implement `refresh_session.py` (GREEN)**
+- [x] **Step 3: Implement `refresh_session.py` (GREEN)**
   Create `skills/refresh-session/resources/scripts/refresh_session.py`:
   - `build_claude_command(prompt: str = "1", model: str = "haiku") -> list[str]`
   - `build_codex_command(prompt: str = "1", reasoning_effort: str = "low") -> list[str]`
@@ -87,17 +87,17 @@
   - `ping_cli(cli_name: str, timeout: int = 60) -> dict[str, Any]` executing in `tempfile.TemporaryDirectory()` returning standardized schema `{"cli": str, "status": "PASS" | "SKIPPED" | "FAIL", "latency_ms": float, "tokens": int | None, "error": str | None}`
   - `main(argv: list[str] | None = None) -> int` with `argparse`, formatted console summary, and JSON output support.
 
-- [ ] **Step 4: Run unit tests to confirm GREEN state**
+- [x] **Step 4: Run unit tests to confirm GREEN state**
   Run: `python3 -m unittest skills/refresh-session/resources/scripts/test_refresh_session.py`
   Expected: All tests PASS.
 
-- [ ] **Step 5: Code hygiene and type check**
+- [x] **Step 5: Code hygiene and type check**
   Run:
   - `ruff check skills/refresh-session/resources/scripts/`
   - `mypy --strict --follow-imports=silent skills/refresh-session/resources/scripts/refresh_session.py skills/refresh-session/resources/scripts/test_refresh_session.py`
   Expected: Clean exit code 0.
 
-- [ ] **Step 6: Commit Task 1**
+- [x] **Step 6: Commit Task 1**
   Stage and commit:
   ```bash
   git add skills/refresh-session/resources/scripts/
@@ -114,7 +114,7 @@
 - Create: `skills/refresh-session/SKILL.md`
 - Modify: `scripts/verify.sh`
 
-- [ ] **Step 1: Create `skills/refresh-session/SKILL.md`**
+- [x] **Step 1: Create `skills/refresh-session/SKILL.md`**
   Author `skills/refresh-session/SKILL.md`:
   - Frontmatter:
     ```yaml
@@ -129,18 +129,18 @@
     - Instructions directing the agent to run `python3 skills/refresh-session/resources/scripts/refresh_session.py <target>`.
     - Explanation of the isolation guarantees.
 
-- [ ] **Step 2: Wire into `scripts/verify.sh`**
+- [x] **Step 2: Wire into `scripts/verify.sh`**
   Add Section 16 to `scripts/verify.sh` right before Section 16/summary:
   ```bash
   echo "== 16. Session refresh CLI engine and isolation contracts are enforced =="
   python3 -m unittest skills/refresh-session/resources/scripts/test_refresh_session.py || FAILED=1
   ```
 
-- [ ] **Step 3: Run full verification harness**
+- [x] **Step 3: Run full verification harness**
   Run: `bash scripts/verify.sh`
   Expected: All 15 verification gates pass with `PASS — safe to publish`.
 
-- [ ] **Step 4: Commit Task 2**
+- [x] **Step 4: Commit Task 2**
   Stage and commit:
   ```bash
   git add skills/refresh-session/SKILL.md scripts/verify.sh
@@ -152,16 +152,17 @@
 
 ## Final Verification
 
-- [ ] **Live CLI Execution Test**:
+- [x] **Live CLI Execution Test**:
   Run: `python3 skills/refresh-session/resources/scripts/refresh_session.py all`
   Verify both Claude and Codex respond successfully in isolated temporary directories.
-- [ ] **JSON Output Verification**:
+- [x] **JSON Output Verification**:
   Run: `python3 skills/refresh-session/resources/scripts/refresh_session.py all --json`
   Verify output parses as valid JSON with `status: "PASS"` and latency/token fields.
-- [ ] **Document Quality Check**:
+- [x] **Document Quality Check**:
   Run: `python3 skills/doc_quality_check/resources/scripts/check_document.py docs/superpowers/plans/2026-11-01-refresh-session.en.md docs/superpowers/plans/2026-11-01-refresh-session.vi.md`
   Verify 0 findings.
-- [ ] **Final Repository Gate**:
+- [x] **Final Repository Gate**:
   Run: `bash scripts/verify.sh`
+  Ensure clean exit 0.
   Ensure clean exit 0.
 

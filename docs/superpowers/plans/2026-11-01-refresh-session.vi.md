@@ -62,7 +62,7 @@
 - Tạo mới: `skills/refresh-session/resources/scripts/refresh_session.py`
 - Tạo mới: `skills/refresh-session/resources/scripts/test_refresh_session.py`
 
-- [ ] **Bước 1: Viết unit test thất bại (RED)**
+- [x] **Bước 1: Viết unit test thất bại (RED)**
   Tạo `skills/refresh-session/resources/scripts/test_refresh_session.py` với các ca kiểm thử:
   - `test_parse_arguments_default`: Kiểm tra target mặc định là `"all"`, timeout mặc định là `60`, json là `False`.
   - `test_parse_arguments_targets`: Kiểm tra phân tích đúng các target `"claude"`, `"codex"`, và `"all"`.
@@ -75,11 +75,11 @@
   - `test_run_ping_timeout_mocked`: Mock `subprocess.TimeoutExpired`; kiểm tra báo lỗi timeout rõ ràng.
   - `test_main_json_output`: Kiểm tra tùy chọn `--json` xuất ra chuỗi JSON đúng cấu trúc.
 
-- [ ] **Bước 2: Chạy kiểm thử để xác nhận trạng thái RED**
+- [x] **Bước 2: Chạy kiểm thử để xác nhận trạng thái RED**
   Chạy: `python3 -m unittest skills/refresh-session/resources/scripts/test_refresh_session.py`
   Kỳ vọng: Lỗi ModuleNotFoundError hoặc FAILED vì chưa tạo `refresh_session.py`.
 
-- [ ] **Bước 3: Hiện thực `refresh_session.py` (GREEN)**
+- [x] **Bước 3: Hiện thực `refresh_session.py` (GREEN)**
   Tạo `skills/refresh-session/resources/scripts/refresh_session.py`:
   - `build_claude_command(prompt: str = "1", model: str = "haiku") -> list[str]`
   - `build_codex_command(prompt: str = "1", reasoning_effort: str = "low") -> list[str]`
@@ -87,17 +87,17 @@
   - `ping_cli(cli_name: str, timeout: int = 60) -> dict[str, Any]` thực thi trong `tempfile.TemporaryDirectory()` trả về cấu trúc chuẩn `{"cli": str, "status": "PASS" | "SKIPPED" | "FAIL", "latency_ms": float, "tokens": int | None, "error": str | None}`
   - `main(argv: list[str] | None = None) -> int` với `argparse`, tóm tắt console thân thiện và hỗ trợ JSON output.
 
-- [ ] **Bước 4: Chạy kiểm thử để xác nhận trạng thái GREEN**
+- [x] **Bước 4: Chạy kiểm thử để xác nhận trạng thái GREEN**
   Chạy: `python3 -m unittest skills/refresh-session/resources/scripts/test_refresh_session.py`
   Kỳ vọng: Tất cả bài test đều PASS.
 
-- [ ] **Bước 5: Kiểm tra linting và typing**
+- [x] **Bước 5: Kiểm tra linting và typing**
   Chạy:
   - `ruff check skills/refresh-session/resources/scripts/`
   - `mypy --strict --follow-imports=silent skills/refresh-session/resources/scripts/refresh_session.py skills/refresh-session/resources/scripts/test_refresh_session.py`
   Kỳ vọng: Thoát mã 0 sạch sẽ.
 
-- [ ] **Bước 6: Commit Tác vụ 1**
+- [x] **Bước 6: Commit Tác vụ 1**
   Stage và commit:
   ```bash
   git add skills/refresh-session/resources/scripts/
@@ -114,7 +114,7 @@
 - Tạo mới: `skills/refresh-session/SKILL.md`
 - Chỉnh sửa: `scripts/verify.sh`
 
-- [ ] **Bước 1: Tạo `skills/refresh-session/SKILL.md`**
+- [x] **Bước 1: Tạo `skills/refresh-session/SKILL.md`**
   Soạn thảo `skills/refresh-session/SKILL.md`:
   - Frontmatter:
     ```yaml
@@ -129,18 +129,18 @@
     - Hướng dẫn AI agent gọi `python3 skills/refresh-session/resources/scripts/refresh_session.py <target>`.
     - Giải thích cam kết sandbox cô lập và triệt tiêu token.
 
-- [ ] **Bước 2: Đăng ký vào `scripts/verify.sh`**
+- [x] **Bước 2: Đăng ký vào `scripts/verify.sh`**
   Thêm Mục 16 vào `scripts/verify.sh` ngay trước mục tổng kết:
   ```bash
   echo "== 16. Session refresh CLI engine and isolation contracts are enforced =="
   python3 -m unittest skills/refresh-session/resources/scripts/test_refresh_session.py || FAILED=1
   ```
 
-- [ ] **Bước 3: Chạy kịch bản kiểm định toàn trình**
+- [x] **Bước 3: Chạy kịch bản kiểm định toàn trình**
   Chạy: `bash scripts/verify.sh`
   Kỳ vọng: Toàn bộ 15 cổng kiểm tra đều PASS (`PASS — safe to publish`).
 
-- [ ] **Bước 4: Commit Tác vụ 2**
+- [x] **Bước 4: Commit Tác vụ 2**
   Stage và commit:
   ```bash
   git add skills/refresh-session/SKILL.md scripts/verify.sh
@@ -152,16 +152,16 @@
 
 ## Xác thực Cuối cùng
 
-- [ ] **Kiểm thử Thực thi CLI Trực tiếp**:
+- [x] **Kiểm thử Thực thi CLI Trực tiếp**:
   Chạy: `python3 skills/refresh-session/resources/scripts/refresh_session.py all`
   Xác nhận cả Claude và Codex đều phản hồi thành công trong thư mục tạm rỗng.
-- [ ] **Kiểm thử Định dạng JSON**:
+- [x] **Kiểm thử Định dạng JSON**:
   Chạy: `python3 skills/refresh-session/resources/scripts/refresh_session.py all --json`
   Xác nhận JSON hợp lệ với `status: "PASS"`, cùng các trường độ trễ và token.
-- [ ] **Kiểm tra Chất lượng Tài liệu**:
+- [x] **Kiểm tra Chất lượng Tài liệu**:
   Chạy: `python3 skills/doc_quality_check/resources/scripts/check_document.py docs/superpowers/plans/2026-11-01-refresh-session.en.md docs/superpowers/plans/2026-11-01-refresh-session.vi.md`
   Xác nhận 0 findings.
-- [ ] **Cổng Kiểm tra Cuối cùng của Kho mã nguồn**:
+- [x] **Cổng Kiểm tra Cuối cùng của Kho mã nguồn**:
   Chạy: `bash scripts/verify.sh`
   Đảm bảo mã thoát 0 sạch sẽ.
 
