@@ -133,6 +133,7 @@ To ensure this is a true creative collaboration and not just a rigid interrogati
 **Understanding the idea:**
 
 - Check out the current project state first (files, docs, recent commits)
+- **Contract reminder:** if `shared-contracts/` exists (physical directory = Hub, symlink = Satellite), run the read-only `sync_contracts.py check --domain <domain>` and `brief` from `d3nexus:sync-shared-contracts` and tell the user any drift or `MISSING_IN_CODE` items. When the idea touches routes, DTOs, payloads, schemas or pipeline states, record it in the spec as a shared-contract impact so `dev-designer` plans the contract task. Never run `ack` here.
 - Before asking detailed questions, assess scope: if the request describes multiple independent subsystems (e.g., "build a platform with chat, file storage, billing, and analytics"), flag this immediately. Don't spend questions refining details of a project that needs to be decomposed first.
 - If the project is too large for a single spec, help the user **group features into Core Epics/Themes** (e.g., Identity, Payment Gateway, Core Wallet) instead of randomly splitting them. Ask: what are the independent pieces, how do they relate, and what order should they be built? Then brainstorm the first sub-project through the normal design flow. Each sub-project gets its own spec → plan → implementation cycle.
 - For appropriately-scoped projects, ask questions one at a time to refine the idea

@@ -8,6 +8,20 @@ every installed machine on the old cached copy.
 
 ---
 
+## 1.18.0 — 2026-10-31
+
+Reminds brainstorming sessions about shared-contract drift and lets Rust quality manifests call plugin scripts without machine-specific paths.
+
+### Added
+
+- **`{skills_dir}` placeholder** (`skills/rust-quality-check/SKILL.md`, `skills/rust-quality-check/references/rust-capability-contract.md`): Capability commands may start an argument with `{skills_dir}`, which the provider resolves to the installed plugin's `skills/` directory.
+
+### Changed
+
+- **Contract reminder in brainstorming** (`skills/dev-brainstorming/SKILL.md`): When `shared-contracts/` exists, run the read-only `check` and `brief` and record shared-contract impact in the spec. Never `ack` during brainstorming.
+
+---
+
 ## 1.17.0 — 2026-10-31
 
 Adds the Tri-Role Context Memory Quick-Guide, robust multi-line array parsing and metafied zsh history decoding in `--sync-zshrc`, automatic sibling workspace repository context harvesting in `resume_context.py`, and external review runner hardening across Antigravity and Claude CLIs.

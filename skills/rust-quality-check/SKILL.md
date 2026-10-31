@@ -42,6 +42,7 @@ python3 skills/rust-quality-check/resources/scripts/validate_rust_quality.py .ag
 
 Execute commands declared in `capabilities` for the target profile:
 1. Commands are executed as structured argument arrays (no shell interpolation).
+   An argument beginning with `{skills_dir}` is resolved to the directory containing this plugin's `skills/` folders (the parent of `rust-quality-check/`), so manifests can call sibling skill scripts without machine-specific paths.
 2. All commands run from the resolved repository root.
 3. If an executable is missing or cannot be spawned: record check status as `BLOCKED`.
 4. If a command runs and reports defects (nonzero exit code): record check status as `FAIL`.
