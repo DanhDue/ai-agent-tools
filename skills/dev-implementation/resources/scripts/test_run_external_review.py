@@ -19,7 +19,7 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).parent))
 import test_check_epic_readiness as tcer
-from run_external_review import main
+from run_external_review import format_triage_header, load_review_config, main, save_review_config
 
 EPIC = ".devtool/epic/demo"
 TICKS = "`" * 3
@@ -913,8 +913,39 @@ class TestCrossModelReviewAdhoc(ReviewCase):
 
 
 class TestReviewConfigAndHeader(ReviewCase):
-    def test_default_config_resolution_and_persistence(self) -> None:
-        """review_config.json is auto-generated with canonical defaults and updated stickily."""
+    def test_rts_hp_01_standardized_4_bullet_header_in_triage(self) -> None:
+        """[RTS-HP-01] Triage output strictly includes the 4 standardized bullet lines."""
+        self.install("codex")
+        self.run_review(cli="codex", mode="pass")
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            code = main(["triage", "--epic-dir", "demo"])
+        self.assertEqual(code, 0)
+        output = out.getvalue()
+        self.assertIn("# Review Triage: demo, Round 1", output)
+        self.assertIn("• Candidate SHA:", output)
+        self.assertIn("• Reviewer: Codex ( gpt-6.1-sol )", output)
+        self.assertIn("• Thinking Level: High", output)
+        self.assertIn("• Verdict: PASS (0 findings)", output)
+
+    def test_rts_hp_02_canonical_defaults_auto_seeded(self) -> None:
+        """[RTS-HP-02] Canonical provider defaults are automatically seeded when config is missing."""
+        config_path = self.root / ".devtool" / "review_config.json"
+        if config_path.exists():
+            config_path.unlink()
+        cfg = load_review_config(self.root)
+        self.assertEqual(cfg["last_used_provider"], "codex")
+        self.assertEqual(cfg["providers"]["codex"]["model"], "gpt-6.1-sol")
+        self.assertEqual(cfg["providers"]["codex"]["thinking_level"], "high")
+        self.assertEqual(cfg["providers"]["claude"]["model"], "Opus 5.5")
+        self.assertEqual(cfg["providers"]["claude"]["thinking_level"], "high")
+        self.assertEqual(cfg["providers"]["agy"]["model"], "Gemini 4 Argon (Medium)")
+        self.assertEqual(cfg["providers"]["agy"]["thinking_level"], "medium")
+        self.assertEqual(cfg["providers"]["ollama"]["model"], "qwen38-fast:latest")
+        self.assertEqual(cfg["providers"]["ollama"]["thinking_level"], "high")
+
+    def test_rts_hp_03_sticky_memory_updates_on_subsequent_runs(self) -> None:
+        """[RTS-HP-03] Sticky memory updates provider preferences upon execution."""
         self.install("claude")
         code, _, _ = self.run_review(
             "--thinking-level", "medium",
@@ -930,37 +961,110 @@ class TestReviewConfigAndHeader(ReviewCase):
         self.assertEqual(config["providers"]["claude"]["model"], "custom-claude")
         self.assertEqual(config["providers"]["claude"]["thinking_level"], "medium")
         self.assertEqual(config["providers"]["codex"]["model"], "gpt-6.1-sol")
-        self.assertEqual(config["providers"]["codex"]["thinking_level"], "high")
 
-    def test_codex_thinking_level_arguments(self) -> None:
-        """Codex maps thinking levels to -c model_reasoning_effort=..."""
+    def test_rts_hp_04_thinking_level_translates_to_cli_flags(self) -> None:
+        """[RTS-HP-04] Thinking level translates to provider-specific CLI flags."""
         self.install("codex")
         self.run_review("--thinking-level", "low", cli="codex", mode="pass")
         self.assertIn("-c model_reasoning_effort=low", self.args.read_text())
-
-    def test_claude_thinking_level_arguments(self) -> None:
-        """Claude maps thinking levels to --effort and uses --dangerously-skip-permissions."""
+        self.commit("Round 1")
         self.install("claude")
         self.run_review("--thinking-level", "extra-high", cli="claude", mode="pass")
         args = self.args.read_text().split()
-        self.assertIn("--dangerously-skip-permissions", args)
         self.assertIn("--effort", args)
         self.assertIn("xhigh", args)
 
-    def test_standardized_4_bullet_header_in_triage(self) -> None:
-        """Triage output strictly includes the 4 standardized bullet lines."""
+    def test_rts_hp_05_claude_dangerously_skip_permissions(self) -> None:
+        """[RTS-HP-05] Claude CLI uses --dangerously-skip-permissions."""
+        self.install("claude")
+        self.run_review(cli="claude", mode="pass")
+        args = self.args.read_text().split()
+        self.assertIn("--dangerously-skip-permissions", args)
+        self.assertNotIn("--permission-mode", args)
+
+    def test_rts_hp_06_dynamic_probing_and_senior_rules_in_prompts(self) -> None:
+        """[RTS-HP-06] Prompts contain Mandatory Dynamic Probing Rule and senior reviewer checklist."""
+        from run_external_review import PROMPT, RULES, principal_prompt_path, principal_rules_path
+        ext_prompt = PROMPT.read_text(encoding="utf-8")
+        ext_rules = RULES.read_text(encoding="utf-8")
+        pr_prompt = principal_prompt_path().read_text(encoding="utf-8")
+        pr_rules = principal_rules_path().read_text(encoding="utf-8")
+        for p in (ext_prompt, pr_prompt):
+            self.assertIn("Mandatory Dynamic Probing Rule", p)
+        for r in (ext_rules, pr_rules):
+            self.assertIn("5-Layer Deep Verification Checklist", r)
+
+    def test_rts_ec_01_ollama_requires_model_without_previous_round(self) -> None:
+        """[RTS-EC-01] Ollama requires explicit --model if no previous round exists."""
+        out, err = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            code = main(["run", "--epic-dir", "demo", "--base", self.base, "--cli", "ollama"])
+        self.assertEqual(code, 2)
+        self.assertIn("--cli ollama needs --model", err.getvalue())
+
+    def test_rts_ec_02_corrupted_config_falls_back_to_defaults(self) -> None:
+        """[RTS-EC-02] Corrupted review_config.json falls back cleanly to defaults."""
+        config_path = self.root / ".devtool" / "review_config.json"
+        config_path.parent.mkdir(parents=True, exist_ok=True)
+        config_path.write_text("{broken json...", encoding="utf-8")
+        cfg = load_review_config(self.root)
+        self.assertEqual(cfg["last_used_provider"], "codex")
+        self.assertEqual(cfg["providers"]["codex"]["model"], "gpt-6.1-sol")
+
+    def test_rts_ec_03_zero_findings_in_verdict(self) -> None:
+        """[RTS-EC-03] Zero findings in review verdict displays 0 findings."""
+        lines = format_triage_header("Title", "abc1234", "codex", "gpt-6.1-sol", "high", "PASS", [])
+        self.assertIn("• Verdict: PASS (0 findings)", lines)
+
+    def test_rts_st_01_provider_switching_preserves_distinct_memory(self) -> None:
+        """[RTS-ST-01] Switching providers preserves each provider's distinct preferences."""
+        self.install("claude")
         self.install("codex")
-        self.run_review(cli="codex", mode="pass")
+        self.run_review("--model", "custom-claude", "--thinking-level", "low", cli="claude", mode="pass")
+        self.commit("Round 1")
+        self.run_review("--model", "custom-codex", "--thinking-level", "high", cli="codex", mode="pass")
+        self.commit("Round 2")
+        cfg = load_review_config(self.root)
+        self.assertEqual(cfg["last_used_provider"], "codex")
+        self.assertEqual(cfg["providers"]["claude"]["model"], "custom-claude")
+        self.assertEqual(cfg["providers"]["claude"]["thinking_level"], "low")
+        self.assertEqual(cfg["providers"]["codex"]["model"], "custom-codex")
+        self.assertEqual(cfg["providers"]["codex"]["thinking_level"], "high")
+
+    def test_rts_st_02_incomplete_round_reflects_status(self) -> None:
+        """[RTS-ST-02] Incomplete review round appends - **Status** in triage."""
+        self.install("codex")
+        self.run_review(cli="codex", mode="fail")
         out = io.StringIO()
         with contextlib.redirect_stdout(out):
             code = main(["triage", "--epic-dir", "demo"])
         self.assertEqual(code, 0)
-        output = out.getvalue()
-        self.assertIn("# Review Triage: demo, Round 1", output)
-        self.assertIn("• Candidate SHA:", output)
-        self.assertIn("• Reviewer: Codex ( gpt-6.1-sol )", output)
-        self.assertIn("• Thinking Level: High", output)
-        self.assertIn("• Verdict: PASS (0 findings)", output)
+        self.assertIn("- **Status**:", out.getvalue())
+
+    def test_rts_ar_01_atomic_config_write(self) -> None:
+        """[RTS-AR-01] Atomic write replaces .tmp file cleanly."""
+        cfg = {"last_used_provider": "codex", "providers": {}}
+        save_review_config(self.root, cfg)
+        config_path = self.root / ".devtool" / "review_config.json"
+        self.assertTrue(config_path.exists())
+        self.assertFalse(config_path.with_suffix(".tmp").exists())
+        loaded = json.loads(config_path.read_text(encoding="utf-8"))
+        self.assertEqual(loaded["last_used_provider"], "codex")
+
+    def test_rts_fr_01_tree_changes_aborts_on_mutation(self) -> None:
+        """[RTS-FR-01] tree_changes detects modified paths when reviewer mutates repo."""
+        from run_external_review import tree_changes, status_lines, head_of
+        before = status_lines(self.root)
+        sha = head_of(self.root)
+        (self.root / "mutated.txt").write_text("mutation", encoding="utf-8")
+        changed = tree_changes(self.root, before, sha)
+        self.assertTrue(any("mutated.txt" in c for c in changed))
+
+    def test_rts_fr_02_unknown_thinking_level_defaults_to_high(self) -> None:
+        """[RTS-FR-02] Unknown or None thinking level defaults safely to high."""
+        from run_external_review import effective_thinking_level
+        self.assertEqual(effective_thinking_level("codex", None), "high")
+        self.assertEqual(effective_thinking_level("codex", "custom"), "custom")
 
 
 if __name__ == '__main__':

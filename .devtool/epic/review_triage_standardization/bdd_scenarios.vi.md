@@ -138,3 +138,4 @@ Given giá trị thinking level không hợp lệ hoặc chưa được xác đ�
 When giải quyết tham số cấu hình
 Then hàm resolve_review_settings() chọn mặc định an toàn là "high"
 ```
+

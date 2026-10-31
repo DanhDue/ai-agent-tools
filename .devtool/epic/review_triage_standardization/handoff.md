@@ -76,3 +76,4 @@ Fast executor models and receiving agents MUST adhere to these four hard guardra
 - Unless the design commit is `uncommitted`: if `git log 744f187..main -- .devtool/epic/review_triage_standardization` lists any commit besides the `Package epic for handoff` commit, the documents changed after packaging. The documents win, and this file may be stale. Comparing against the base branch keeps the epic branch's own task commits out of the check.
 - This file is a dated record. It is never updated after packaging.
 - Never edit a task's Verification table, Definition of Done, Allowed files or a protected path; stop and report.
+

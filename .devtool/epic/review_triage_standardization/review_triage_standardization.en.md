@@ -170,3 +170,4 @@ Scenario IDs use prefix `[RTS-` (`[RTS-HP-01]` through `[RTS-FR-02]`).
 - [Task 1: Review Config Persistence and Sticky Defaults](task_1_review_config_and_sticky_defaults.md)
 - [Task 2: Dynamic Probing Mandate and Senior Review Rules](task_2_dynamic_probing_and_senior_review_rules.md)
 - [Task 3: Standardize 4-Bullet Triage Header](task_3_standardize_4_bullet_triage_header.md)
+
