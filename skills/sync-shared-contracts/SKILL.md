@@ -109,15 +109,15 @@ The `diff-check` subcommand enforces contract governance during pull requests an
    - Both Modes: Or an active path-scoped waiver newly introduced in this diff.
 2. **CLI Arguments & Options**:
    - `--repo-root <path>`: Path to repository root (defaults to current working directory).
-   - `--base-ref <ref>`: Git reference for merge-base calculation (e.g. `main`, `develop`, `{base_ref}`). Defaults to `develop` if present, else `main`.
+   - `--base-ref <ref>`: Git reference for merge-base calculation (e.g. `main`, `develop`, `{base_ref}`). If omitted, falls back to the `base_ref` declared in `.agents/contract_map.json`.
    - `--domain <name>`: Optional repeatable filter to verify only specific domains. Passing an unknown domain exits `2` (`BLOCKED`).
    - `--json`: Emits machine-readable verification summary including per-domain `domains` proof records and `active_waivers`.
 3. **Exit Code Mapping**:
    - `0` (`PASS`): All mapped file changes are accompanied by contract changes, fresh `ack`, or valid waivers (or no mapped files changed).
    - `1` (`FAIL`): Unacknowledged mapped file changes, outdated `ack`, or invalid/stale waivers.
-   - `2` (`BLOCKED`): Missing/invalid `.agents/contract_map.json`, missing `shared-contracts/` directory or symlink, unresolved base ref, git command failure, or unknown `--domain` filter.
+   - `2` (`BLOCKED`): Dirty tracked working tree, missing/invalid `.agents/contract_map.json`, missing `shared-contracts/` directory or symlink, unresolved base ref, git command failure, or unknown `--domain` filter.
 4. **Git Diffing & Baseline Probing**:
-   - Diffing executes `git diff --no-renames -z <merge_base> HEAD` to parse exact file paths with NUL delimiters, preserving whitespace and paths requiring C-quoting.
+   - Diffing executes `git diff --no-ext-diff --no-renames --name-only -z <merge_base>..HEAD` to parse exact file paths with NUL delimiters, preserving whitespace and paths requiring C-quoting.
    - Baseline file presence is probed using `git ls-tree` at merge-base.
    - Baseline-union domain mapping merges domains from HEAD and merge-base maps; if a domain is new (bootstrap), empty-baseline rules apply cleanly.
 5. **Satellite Domain Isolation**:
@@ -134,7 +134,8 @@ The `diff-check` subcommand enforces contract governance during pull requests an
 
 ```json
 {
-  "version": 1,
+  "schema_version": 1,
+  "base_ref": "develop",
   "domains": {
     "lyrics-sync": {
       "paths": [
@@ -144,17 +145,18 @@ The `diff-check` subcommand enforces contract governance during pull requests an
       "exclude": [
         "src/models/lyrics/internal/**",
         "**/*.md"
-      ],
-      "waivers": [
-        {
-          "id": "W-2026-10-31-01",
-          "paths": ["src/models/lyrics/experimental/**"],
-          "gap": "GAP-01",
-          "reason": "Temporary experimental model pending upstream review"
-        }
       ]
     }
-  }
+  },
+  "waivers": [
+    {
+      "id": "W-2026-10-31-01",
+      "domain": "lyrics-sync",
+      "paths": ["src/models/lyrics/experimental/**"],
+      "gap": "GAP-01",
+      "reason": "Temporary experimental model pending upstream review"
+    }
+  ]
 }
 ```
 
