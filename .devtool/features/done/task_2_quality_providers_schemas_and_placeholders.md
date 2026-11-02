@@ -1,13 +1,13 @@
 ---
 id: "task_2_quality_providers_schemas_and_placeholders"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "contract_diff_gate"
 dueDate: null
 created: "2026-10-31T05:43:00Z"
-modified: "2026-10-31T05:43:00Z"
-completedAt: null
+modified: "2026-11-02T12:00:15Z"
+completedAt: "2026-11-02T12:00:15Z"
 labels: ["quality-check", "schemas", "providers"]
 order: "a2"
 ---

@@ -1,0 +1,225 @@
+{
+  "schema": 1,
+  "task": "task_2_quality_providers_schemas_and_placeholders",
+  "runs": {
+    "red": {
+      "head": "6484241fe6ff1a8b7a9e974f85c95804112ad7b5",
+      "tree": "1a26fa39d456a57ef3551d62ce2eb62223fd84a2",
+      "patch_id": "4bdcb15120de9812c251ffde2d63b365152ea4f9",
+      "started": "2026-11-02T11:49:25Z",
+      "finished": "2026-11-02T11:49:25Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m unittest skills/rust-quality-check/resources/scripts/test_validate_rust_quality.py -k test_cdg_hp_03",
+          "expect": "exit 1; contains \"FAILED\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-02T11:49:25Z",
+          "finished": "2026-11-02T11:49:25Z",
+          "output_tail": [
+            "F",
+            "======================================================================",
+            "FAIL: test_cdg_hp_03_capabilities_and_schema_support (skills.rust-quality-check.resources.scripts.test_validate_rust_quality.RustQualityConfigTests.test_cdg_hp_03_capabilities_and_schema_support)",
+            "[CDG-HP-03] Verify schema permits contracts, contract_diff, db_hygiene, and patternProperties.",
+            "----------------------------------------------------------------------",
+            "Traceback (most recent call last):",
+            "  File \"/Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/contract_diff_gate/skills/rust-quality-check/resources/scripts/test_validate_rust_quality.py\", line 76, in test_cdg_hp_03_capabilities_and_schema_support",
+            "    self.assertIn(\"contracts\", cap_props)",
+            "    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^",
+            "AssertionError: 'contracts' not found in {'format': {'type': 'array', 'minItems': 1, 'items': {'type': 'string'}}, 'check': {'type': 'array', 'minItems': 1, 'items': {'type': 'string'}}, 'clippy': {'type': 'array', 'minItems': 1, 'items': {'type': 'string'}}, 'test': {'type': 'array', 'minItems': 1, 'items': {'type': 'string'}}, 'coverage': {'type': 'object', 'additionalProperties': False, 'required': ['command', 'threshold'], 'properties': {'command': {'type': 'array', 'minItems': 1, 'items': {'type': 'string'}}, 'threshold': {'type': 'number', 'minimum': 0, 'maximum': 1}}}, 'architecture': {'type': 'array', 'minItems': 1, 'items': {'type': 'string'}}, 'deny': {'type': 'array', 'minItems': 1, 'items': {'type': 'string'}}, 'audit': {'type': 'array', 'minItems': 1, 'items': {'type': 'string'}}, 'semver': {'type': 'array', 'minItems': 1, 'items': {'type': 'string'}}, 'wasm': {'type': 'array', 'minItems': 1, 'items': {'type': 'string'}}, 'ffi': {'type': 'array', 'minItems': 1, 'items': {'type': 'string'}}, 'acceptance': {'type': 'array', 'minItems': 1, 'items': {'type': 'string'}}, 'docs': {'type': 'array', 'minItems': 1, 'items': {'type': 'string'}}}",
+            "",
+            "----------------------------------------------------------------------",
+            "Ran 1 test in 0.000s",
+            "",
+            "FAILED (failures=1)"
+          ],
+          "output_sha256": "3e67f58a5058e63032a60e2356e8fb8e0650fb28984689b412c40b8878646bc8"
+        }
+      ]
+    },
+    "verify": {
+      "head": "6484241fe6ff1a8b7a9e974f85c95804112ad7b5",
+      "tree": "e25307c423fc6390269f0dc0c168f9f279ac7c02",
+      "patch_id": "f2c824bf3bb3635c54b919370df45053ae89016a",
+      "started": "2026-11-02T11:59:34Z",
+      "finished": "2026-11-02T11:59:34Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m unittest skills/rust-quality-check/resources/scripts/test_validate_rust_quality.py skills/python-quality-check/resources/scripts/test_validate_python_quality.py skills/flutter-quality-check/resources/scripts/test_validate_flutter_quality.py skills/android-quality-check/resources/scripts/test_validate_android_quality.py skills/ios-quality-check/resources/scripts/test_validate_ios_quality.py",
+          "expect": "exit 0; contains \"OK\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-02T11:59:34Z",
+          "finished": "2026-11-02T11:59:34Z",
+          "output_tail": [
+            ".....................................",
+            "----------------------------------------------------------------------",
+            "Ran 37 tests in 0.001s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "ef5d8f26fb6f88cd9998d9e044e1a6d1636bacc17170882f4622fe5dae9e991e"
+        },
+        {
+          "id": "V3",
+          "phase": "TIER-B",
+          "command": "ruff check skills/rust-quality-check/resources/scripts/test_validate_rust_quality.py skills/python-quality-check/resources/scripts/test_validate_python_quality.py skills/flutter-quality-check/resources/scripts/test_validate_flutter_quality.py skills/android-quality-check/resources/scripts/test_validate_android_quality.py skills/ios-quality-check/resources/scripts/test_validate_ios_quality.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-02T11:59:34Z",
+          "finished": "2026-11-02T11:59:34Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "mypy --follow-imports=silent skills/rust-quality-check/resources/scripts/test_validate_rust_quality.py skills/python-quality-check/resources/scripts/test_validate_python_quality.py skills/flutter-quality-check/resources/scripts/test_validate_flutter_quality.py skills/android-quality-check/resources/scripts/test_validate_android_quality.py skills/ios-quality-check/resources/scripts/test_validate_ios_quality.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-02T11:59:34Z",
+          "finished": "2026-11-02T11:59:34Z",
+          "output_tail": [
+            "Success: no issues found in 5 source files"
+          ],
+          "output_sha256": "e317872697c2cbfdefa321527a6efe73290dff3a390b0fa8723b87092eccba6a"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-B",
+          "command": "python3 skills/doc_quality_check/resources/scripts/check_document.py skills/rust-quality-check/SKILL.md skills/rust-quality-check/references/rust-capability-contract.md skills/python-quality-check/SKILL.md skills/python-quality-check/references/python-capability-contract.md skills/flutter-quality-check/SKILL.md skills/android-quality-check/SKILL.md skills/ios-quality-check/SKILL.md",
+          "expect": "exit 0; contains \"0 findings\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-02T11:59:34Z",
+          "finished": "2026-11-02T11:59:34Z",
+          "output_tail": [
+            "  checked 7 documents, 0 findings"
+          ],
+          "output_sha256": "739d932c8006ed73a0379a2ae88b8910bf2ffd1e96580d3444f005f84b387e04"
+        },
+        {
+          "id": "V6",
+          "phase": "TIER-C",
+          "command": "python3 scripts/run_unittest_junit.py --junitxml build/test-results/task_2.xml skills/rust-quality-check/resources/scripts/test_validate_rust_quality.py skills/python-quality-check/resources/scripts/test_validate_python_quality.py skills/flutter-quality-check/resources/scripts/test_validate_flutter_quality.py skills/android-quality-check/resources/scripts/test_validate_android_quality.py skills/ios-quality-check/resources/scripts/test_validate_ios_quality.py",
+          "expect": "exit 0; results build/test-results/task_2.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-02T11:59:34Z",
+          "finished": "2026-11-02T11:59:34Z",
+          "output_tail": [
+            "......",
+            "----------------------------------------------------------------------",
+            "Ran 6 tests in 0.000s",
+            "",
+            "OK",
+            "..........",
+            "----------------------------------------------------------------------",
+            "Ran 10 tests in 0.000s",
+            "",
+            "OK",
+            ".......",
+            "----------------------------------------------------------------------",
+            "Ran 7 tests in 0.000s",
+            "",
+            "OK",
+            ".......",
+            "----------------------------------------------------------------------",
+            "Ran 7 tests in 0.000s",
+            "",
+            "OK",
+            ".......",
+            "----------------------------------------------------------------------",
+            "Ran 7 tests in 0.000s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "e56a782446573b4dcffe4c8392be8c7cfbcd11c8f39148dd628260a1b7c027b6",
+          "results": {
+            "path": "build/test-results/task_2.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 5,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_cdg_hp_03_capabilities_and_schema_support",
+                  "classname": "test_validate_rust_quality.RustQualityConfigTests",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cdg_hp_03_capabilities_and_schema_support",
+                  "classname": "test_validate_python_quality.PythonQualityConfigTests",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cdg_hp_03_capabilities_and_schema_support",
+                  "classname": "test_validate_flutter_quality.FlutterQualityConfigTests",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cdg_hp_03_capabilities_and_schema_support",
+                  "classname": "test_validate_android_quality.AndroidQualityConfigTests",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cdg_hp_03_capabilities_and_schema_support",
+                  "classname": "test_validate_ios_quality.IOSQualityConfigTests",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "skills/android-quality-check/SKILL.md",
+            "skills/android-quality-check/resources/schemas/android-quality.schema.json",
+            "skills/android-quality-check/resources/scripts/test_validate_android_quality.py",
+            "skills/flutter-quality-check/SKILL.md",
+            "skills/flutter-quality-check/resources/schemas/flutter-quality.schema.json",
+            "skills/flutter-quality-check/resources/scripts/test_validate_flutter_quality.py",
+            "skills/ios-quality-check/SKILL.md",
+            "skills/ios-quality-check/resources/schemas/ios-quality.schema.json",
+            "skills/ios-quality-check/resources/scripts/test_validate_ios_quality.py",
+            "skills/python-quality-check/SKILL.md",
+            "skills/python-quality-check/references/python-capability-contract.md",
+            "skills/python-quality-check/resources/schemas/python-quality.schema.json",
+            "skills/python-quality-check/resources/scripts/test_validate_python_quality.py",
+            "skills/rust-quality-check/SKILL.md",
+            "skills/rust-quality-check/references/rust-capability-contract.md",
+            "skills/rust-quality-check/resources/schemas/rust-quality.schema.json",
+            "skills/rust-quality-check/resources/scripts/test_validate_rust_quality.py"
+          ],
+          "violations": []
+        }
+      ]
+    }
+  }
+}

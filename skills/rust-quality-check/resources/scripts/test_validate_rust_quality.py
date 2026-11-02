@@ -10,7 +10,7 @@ from pathlib import Path
 SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPT_DIR))
 
-from validate_rust_quality import validate_rust_config  # noqa: E402
+from validate_rust_quality import validate_rust_config
 
 
 def valid_config() -> dict:
@@ -67,6 +67,25 @@ class RustQualityConfigTests(unittest.TestCase):
         self.assertEqual("object", schema["type"])
         self.assertEqual(False, schema["additionalProperties"])
         self.assertEqual(1, schema["properties"]["schema_version"]["const"])
+
+    def test_cdg_hp_03_capabilities_and_schema_support(self) -> None:
+        """[CDG-HP-03] Verify schema permits contracts, contract_diff, db_hygiene, and patternProperties."""
+        schema_path = SCRIPT_DIR.parent / "schemas/rust-quality.schema.json"
+        schema = json.loads(schema_path.read_text())
+        cap_props = schema["properties"]["capabilities"]["properties"]
+        self.assertIn("contracts", cap_props)
+        self.assertIn("contract_diff", cap_props)
+        self.assertIn("db_hygiene", cap_props)
+        pattern_props = schema["properties"]["capabilities"].get("patternProperties", {})
+        self.assertIn("^contracts_[a-z0-9_]+$", pattern_props)
+
+        cfg = valid_config()
+        cfg["capabilities"]["contracts"] = ["python3", "{skills_dir}/sync-shared-contracts/resources/scripts/sync_contracts.py", "check"]
+        cfg["capabilities"]["contracts_lyrics_sync"] = ["python3", "{skills_dir}/sync-shared-contracts/resources/scripts/sync_contracts.py", "check", "--domain", "lyrics-sync"]
+        cfg["capabilities"]["contract_diff"] = ["python3", "{skills_dir}/sync-shared-contracts/resources/scripts/sync_contracts.py", "diff-check", "--base-ref", "{base_ref}"]
+        cfg["capabilities"]["db_hygiene"] = ["cargo", "run", "-p", "xtask", "--", "db-hygiene"]
+        res = validate_rust_config(cfg, "epic")
+        self.assertEqual("PASS", res["status"])
 
 
 if __name__ == "__main__":
