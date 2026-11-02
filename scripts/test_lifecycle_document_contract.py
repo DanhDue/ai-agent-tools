@@ -15,6 +15,10 @@ EXPECTED: dict[str, tuple[str, ...]] = {
         "YYYY-MM-DD-<topic>-design.vi.md",
         "--require-toc",
         "--require-bilingual",
+        "## Shared Contract Warnings",
+        "## Cảnh báo Shared Contract",
+        "check and warn only",
+        "Silence is never consent",
     ),
     "skills/doc-brainstorming/SKILL.md": (
         "YYYY-MM-DD-<topic>-design.en.md",
@@ -40,6 +44,16 @@ EXPECTED: dict[str, tuple[str, ...]] = {
         "should be truthy",
         "returns non-empty",
         "must not be empty or write `None`",
+        "## Shared Contract Warnings",
+        "task_01",
+        ".agents/contract_sync.json",
+        ".agents/contract_map.json",
+    ),
+    "skills/setup-shared-contracts/SKILL.md": (
+        "contract_map.json.tmpl",
+    ),
+    "skills/sync-shared-contracts/SKILL.md": (
+        "diff-check",
     ),
     "skills/writing-plans/SKILL.md": (
         "YYYY-MM-DD-<feature-name>.en.md",
@@ -158,6 +172,30 @@ class LifecycleDocumentContractTest(unittest.TestCase):
         self.assertIn("zero test fakery", handoff_text.lower())
         self.assertIn("no contract repair", handoff_text.lower())
         self.assertIn("Apply the Execution Guardrails for Receiving LLM before presenting Gate 3", handoff_text)
+
+    def test_cdg_hp_04_contract_diff_gate_lifecycle_docs(self) -> None:
+        """[CDG-HP-04] Lifecycle document contracts enforce read-only brainstorming warnings, designer contract ordering, and diff-check template/CLI references."""
+        brainstorming_text = (ROOT / "skills/dev-brainstorming/SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("## Shared Contract Warnings", brainstorming_text)
+        self.assertIn("## Cảnh báo Shared Contract", brainstorming_text)
+        self.assertIn("check and warn only", brainstorming_text.lower())
+        self.assertIn("silence is never consent", brainstorming_text.lower())
+        self.assertIn("include in this epic", brainstorming_text)
+        self.assertIn("split into a named follow-up epic", brainstorming_text)
+        self.assertIn("ignore with explicit rationale", brainstorming_text)
+
+        designer_text = (ROOT / "skills/dev-designer/SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("## Shared Contract Warnings", designer_text)
+        self.assertIn("task_01", designer_text)
+        self.assertIn(".agents/contract_sync.json", designer_text)
+        self.assertIn(".agents/contract_map.json", designer_text)
+
+        setup_text = (ROOT / "skills/setup-shared-contracts/SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("contract_map.json.tmpl", setup_text)
+
+        sync_text = (ROOT / "skills/sync-shared-contracts/SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("diff-check", sync_text)
+        self.assertIn("--base-ref", sync_text)
 
     def test_mvls_ec_06_reject_missing_guardrails_or_designer_anchors(self) -> None:
         """[MVLS-EC-06] Reject missing receiving-LLM guardrails or dev-designer anchors in lifecycle contract."""

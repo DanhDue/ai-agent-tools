@@ -1,13 +1,13 @@
 ---
 id: "task_3_lifecycle_skills_docs_and_verify_harness"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "contract_diff_gate"
 dueDate: null
 created: "2026-10-31T05:43:00Z"
-modified: "2026-10-31T05:43:00Z"
-completedAt: null
+modified: "2026-11-02T12:13:38Z"
+completedAt: "2026-11-02T12:13:38Z"
 labels: ["lifecycle", "docs", "integration", "contracts"]
 order: "a3"
 ---

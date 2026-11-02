@@ -88,6 +88,19 @@ The engine auto-detects repository mode:
 - **Hub Mode**: Validates physical directory presence, `README.md`, domain subdirectories, 3 canonical files, and Hub rules.
 - **Satellite Mode**: Validates relative symlink format, symlink target resolution, canonical file accessibility, loop/cycle freedom (<= 10 hops), and Satellite rules.
 
+### 4. Contract Map Scaffolding Workflow
+
+To enforce contract diff gating across Git working trees, repositories define path mappings in `.agents/contract_map.json`:
+
+1. Copy the reference template from `resources/templates/contract_map.json.tmpl`:
+   ```bash
+   cp skills/setup-shared-contracts/resources/templates/contract_map.json.tmpl .agents/contract_map.json
+   ```
+2. Configure `.agents/contract_map.json` manually per repository:
+   - Define exact, explicit POSIX glob patterns under `paths` (e.g. `"src/models/lyrics/**"`, `"lib/features/player/**"`) mapping source code files to the appropriate domain (`lyrics-sync`, `nexus`). Never guess globs automatically — engineers know their module boundaries and file placements.
+   - Configure path exclusions under `exclude` (e.g. `tests/**`, `*.md`) to prevent false-positive contract diff triggers.
+   - Keep `waivers` empty by default; path-scoped waivers are introduced only alongside specific branch edits requiring a temporary gap exception.
+
 ## CLI Engine Reference
 
 The CLI engine `setup_contracts.py` supports the following syntax:

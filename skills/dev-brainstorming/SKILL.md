@@ -133,7 +133,15 @@ To ensure this is a true creative collaboration and not just a rigid interrogati
 **Understanding the idea:**
 
 - Check out the current project state first (files, docs, recent commits)
-- **Contract reminder:** if `shared-contracts/` exists (physical directory = Hub, symlink = Satellite), run the read-only `sync_contracts.py check --domain <domain>` and `brief` from `d3nexus:sync-shared-contracts` and tell the user any drift or `MISSING_IN_CODE` items. When the idea touches routes, DTOs, payloads, schemas or pipeline states, record it in the spec as a shared-contract impact so `dev-designer` plans the contract task. Never run `ack` here.
+- **Contract check and warn only protocol:** If `shared-contracts/` exists (physical directory = Hub, symlink = Satellite), run the read-only `sync_contracts.py check --domain <domain>` and `brief` from `d3nexus:sync-shared-contracts`. Apply a strict check and warn only rule:
+  - NEVER edit contract files, NEVER run `ack`, and NEVER modify application source code during brainstorming.
+  - Present contract warnings (active drift, `MISSING_IN_CODE` items, or user ideas touching routes, DTOs, payloads, schemas, or pipeline states) in a dedicated message to the user before presenting the design.
+  - Pause for an explicit human decision on **each** contract warning:
+    1. `include in this epic` — planned into this epic's scope;
+    2. `split into a named follow-up epic` — deferred to a distinct follow-up epic;
+    3. `ignore with explicit rationale` — recorded as intentionally skipped with reasoning.
+  - Silence is never consent: Gate 1 cannot pass while any warning lacks a user decision.
+  - Persist all decisions (or a one-line clean `snapshot_id` / absent-`shared-contracts/` confirmation note) under `## Shared Contract Warnings` in `.en.md` and `## Cảnh báo Shared Contract` in `.vi.md` so `dev-designer` consumes them during task decomposition.
 - Before asking detailed questions, assess scope: if the request describes multiple independent subsystems (e.g., "build a platform with chat, file storage, billing, and analytics"), flag this immediately. Don't spend questions refining details of a project that needs to be decomposed first.
 - If the project is too large for a single spec, help the user **group features into Core Epics/Themes** (e.g., Identity, Payment Gateway, Core Wallet) instead of randomly splitting them. Ask: what are the independent pieces, how do they relate, and what order should they be built? Then brainstorm the first sub-project through the normal design flow. Each sub-project gets its own spec → plan → implementation cycle.
 - For appropriately-scoped projects, ask questions one at a time to refine the idea
@@ -184,6 +192,7 @@ To ensure this is a true creative collaboration and not just a rigid interrogati
   - (User preferences for spec location override this default)
   - Both variants MUST contain a linked table of contents covering every `##` section and MUST stay
     identical in structure and facts. Write and update English first, then synchronize Vietnamese.
+  - Every spec MUST include the section `## Shared Contract Warnings` (in `.en.md`) and `## Cảnh báo Shared Contract` (in `.vi.md`) documenting user decisions on contract warnings, or noting clean snapshot state / absence of `shared-contracts/`.
   - **Markdown & Diagram Standards**: Both documents MUST adhere to markdown linting standards (single H1, no skipped heading levels, space after `#`, no trailing punctuation in headings, language tags on all fenced code blocks, clean formatting) and modern diagram standards:
     - **Mermaid**: Use `flowchart TD/LR` (NEVER legacy `graph TD/LR`), double-quote node labels containing special characters, parentheses `()`, brackets `[]`, braces `{}`, colons `:`, slashes `/`, ampersands `&` (e.g. `node1["Component (Core)"]`), use alphanumeric IDs, and avoid trailing semicolons.
     - **Graphviz (DOT)**: Semantic shapes (`diamond` for decisions `?`, `box` for actions, `plaintext` for commands, `ellipse` for states, `octagon` for warnings, `doublecircle` for start/complete), semicolons terminating every statement, and double-quoted multi-word labels.
