@@ -61,7 +61,7 @@ EXCLUDED_DIRS = {
 
 PENDING_STATUSES = {"OPEN", "PROPOSED", "DRAFT", "IN REVIEW", "IN_REVIEW"}
 ACTIVE_STATUSES = {"ACCEPTED", "APPROVED", "IMPLEMENTED"}
-INACTIVE_STATUSES = {"SUPERSEDED", "REJECTED"}
+INACTIVE_STATUSES = {"SUPERSEDED", "REJECTED", "INACTIVE"}
 
 
 class ContractFormatError(Exception):
@@ -1279,7 +1279,13 @@ def cmd_diff_check(args: argparse.Namespace) -> int:
 
     mode = topo["mode"]
 
-    if mode == "satellite":
+    if mode == "hub":
+        for d in head_domains:
+            try:
+                resolve_topology(repo_root, d)
+            except (TopologyError, ContractFormatError) as exc:
+                return emit_blocked([str(exc)], mode=mode, base_ref=effective_base_ref, merge_base=merge_base, head_sha=head_sha)
+    elif mode == "satellite":
         contract_dir = topo.get("contract_dir")
         linked_domain = contract_dir.name if contract_dir else ""
         for d in head_domains:
@@ -1381,6 +1387,8 @@ def cmd_diff_check(args: argparse.Namespace) -> int:
     for w in head_map_data.get("waivers") or []:
         head_waivers[w["id"]] = w
 
+    invalid_waiver_ids: set[str] = set()
+
     for wid, w_base in baseline_waivers.items():
         if wid in head_waivers:
             w_head = head_waivers[wid]
@@ -1390,10 +1398,11 @@ def cmd_diff_check(args: argparse.Namespace) -> int:
                 or w_head["reason"] != w_base["reason"]
                 or w_head.get("gap") != w_base.get("gap")
             ):
+                invalid_waiver_ids.add(wid)
                 violations.append({
-                    "file": ".agents/contract_map.json",
                     "domain": str(w_head.get("domain", "")),
-                    "message": f"Illegal mutation of historical waiver '{wid}'",
+                    "path": ".agents/contract_map.json",
+                    "reason": f"Illegal mutation of historical waiver '{wid}'",
                 })
 
     newly_added_waivers = [w for wid, w in head_waivers.items() if wid not in baseline_waivers]
@@ -1408,10 +1417,11 @@ def cmd_diff_check(args: argparse.Namespace) -> int:
                 contract_dir_opt = topo.get("contract_dir")
                 gaps_file = (contract_dir_opt / "gaps_and_rfcs.md") if contract_dir_opt else (repo_root / "shared-contracts" / "gaps_and_rfcs.md")
             if not gaps_file.is_file():
+                invalid_waiver_ids.add(w["id"])
                 violations.append({
-                    "file": ".agents/contract_map.json",
                     "domain": str(wdomain),
-                    "message": f"Waiver '{w['id']}' cites gap '{gap}' but {gaps_file} does not exist",
+                    "path": ".agents/contract_map.json",
+                    "reason": f"Waiver '{w['id']}' cites gap '{gap}' but {gaps_file} does not exist",
                 })
             else:
                 try:
@@ -1419,25 +1429,28 @@ def cmd_diff_check(args: argparse.Namespace) -> int:
                     gaps_parsed = parse_gaps_and_rfcs(gaps_content)
                     rfcs_dict = gaps_parsed.get("rfcs", {})
                     if gap not in rfcs_dict:
+                        invalid_waiver_ids.add(w["id"])
                         violations.append({
-                            "file": ".agents/contract_map.json",
                             "domain": str(wdomain),
-                            "message": f"Waiver '{w['id']}' cites non-existent gap '{gap}'",
+                            "path": ".agents/contract_map.json",
+                            "reason": f"Waiver '{w['id']}' cites non-existent gap '{gap}'",
                         })
                     else:
-                        raw_status = str(rfcs_dict[gap].get("status", ""))
-                        norm_status, _ = normalize_rfc_status(raw_status)
+                        norm_status = str(rfcs_dict[gap].get("status", ""))
+                        raw_status = str(rfcs_dict[gap].get("raw_status", norm_status))
                         if norm_status not in ("ACTIONABLE_PENDING", "ACKNOWLEDGED_ACTIVE"):
+                            invalid_waiver_ids.add(w["id"])
                             violations.append({
-                                "file": ".agents/contract_map.json",
                                 "domain": str(wdomain),
-                                "message": f"Waiver '{w['id']}' cites INACTIVE gap '{gap}' (status: {raw_status})",
+                                "path": ".agents/contract_map.json",
+                                "reason": f"Waiver '{w['id']}' cites INACTIVE gap '{gap}' (status: {raw_status})",
                             })
                 except (ContractFormatError, OSError) as exc:
+                    invalid_waiver_ids.add(w["id"])
                     violations.append({
-                        "file": ".agents/contract_map.json",
                         "domain": str(wdomain),
-                        "message": f"Failed to parse gaps_and_rfcs.md for waiver '{w['id']}': {exc}",
+                        "path": ".agents/contract_map.json",
+                        "reason": f"Failed to parse gaps_and_rfcs.md for waiver '{w['id']}': {exc}",
                     })
 
     # 9. Extract changed files via git diff --no-ext-diff --no-renames --name-only -z M..HEAD
@@ -1473,9 +1486,9 @@ def cmd_diff_check(args: argparse.Namespace) -> int:
             matching_changed = [f for f in changed_files if path_matches_domain(f, base_cfg)]
             if matching_changed:
                 violations.append({
-                    "file": ".agents/contract_map.json",
                     "domain": d,
-                    "message": f"Domain '{d}' was deleted at HEAD but has changed baseline-mapped files: {', '.join(matching_changed)}",
+                    "path": ".agents/contract_map.json",
+                    "reason": f"Domain '{d}' was deleted at HEAD but has changed baseline-mapped files: {', '.join(matching_changed)}",
                 })
 
     domains_report: list[dict[str, Any]] = []
@@ -1625,7 +1638,8 @@ def cmd_diff_check(args: argparse.Namespace) -> int:
                 if not covered_by_w:
                     uncovered.append(f)
 
-            if not uncovered:
+            has_invalid_waiver = any(w["id"] in invalid_waiver_ids for w in matched_waivers_for_d)
+            if not uncovered and not has_invalid_waiver:
                 domains_report.append({"domain": d, "changed_files": changed_mapped, "proof": "waiver"})
                 for w in matched_waivers_for_d:
                     w_item = {
@@ -1641,9 +1655,9 @@ def cmd_diff_check(args: argparse.Namespace) -> int:
                 domains_report.append({"domain": d, "changed_files": changed_mapped, "proof": "uncovered"})
                 for uf in uncovered:
                     violations.append({
-                        "file": uf,
                         "domain": d,
-                        "message": f"Mapped file '{uf}' changed in domain '{d}' without canonical contract edit, fresh ack, or active waiver",
+                        "path": uf,
+                        "reason": f"Mapped file '{uf}' changed in domain '{d}' without canonical contract edit, fresh ack, or active waiver",
                     })
 
     status = "FAIL" if violations else "PASS"
@@ -1676,7 +1690,7 @@ def cmd_diff_check(args: argparse.Namespace) -> int:
         if violations:
             print("Violations:")
             for v in violations:
-                print(f"  - [{v.get('domain', 'general')}] {v['file']}: {v['message']}")
+                print(f"  - [{v.get('domain', 'general')}] {v['path']}: {v['reason']}")
 
     return exit_code
 

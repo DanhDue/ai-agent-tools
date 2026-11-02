@@ -953,7 +953,7 @@ X-Correlation-ID: uuid
         self.assertEqual(exit_code, 1)
         report = json.loads(stdout_buf.getvalue())
         self.assertEqual(report["status"], "FAIL")
-        violation_files = [v["file"] for v in report["violations"]]
+        violation_files = [v["path"] for v in report["violations"]]
         self.assertIn("src/api/dto/worker.py", violation_files)
         self.assertIn("src/api/dto/worker v2 (draft).py", violation_files)
 
@@ -1016,7 +1016,7 @@ X-Correlation-ID: uuid
         self.assertEqual(exit_code, 1)
         report = json.loads(stdout_buf.getvalue())
         self.assertEqual(report["status"], "FAIL")
-        violation_files = [v["file"] for v in report["violations"]]
+        violation_files = [v["path"] for v in report["violations"]]
         self.assertIn("crates/a/dto/y.rs", violation_files)
         self.assertNotIn("crates/a/routes/x.rs", violation_files)
 
@@ -1080,7 +1080,7 @@ X-Correlation-ID: uuid
             exit_code_b = main(["diff-check", "--repo-root", str(self.repo_root), "--json"])
         self.assertEqual(exit_code_b, 1)
         report_b = json.loads(stdout_buf_b.getvalue())
-        self.assertTrue(any("Illegal mutation" in v["message"] for v in report_b["violations"]))
+        self.assertTrue(any("Illegal mutation" in v["reason"] for v in report_b["violations"]))
 
         subprocess.run(["git", "checkout", "-b", "branch-c", "develop"], cwd=self.repo_root, check=True, capture_output=True)
         contract_map["waivers"] = []
