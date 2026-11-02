@@ -141,3 +141,9 @@ python3 sync_contracts.py ack [--repo-root <path>] [--domain <name>] [--snapshot
 }
 ```
 
+## Quick-Guide
+
+- English Quick Guide: [docs/shared-contracts-quick-guide.en.md](../../docs/shared-contracts-quick-guide.en.md)
+- Vietnamese Quick Guide: [docs/shared-contracts-quick-guide.vi.md](../../docs/shared-contracts-quick-guide.vi.md)
+
+

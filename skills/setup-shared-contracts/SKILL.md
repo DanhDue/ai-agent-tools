@@ -109,3 +109,9 @@ python3 setup_contracts.py verify [--repo-root <path>]
 - **Stateless Worker Rule**: Worker satellites must not connect directly to Hub database engines; all state synchronization occurs over authenticated API endpoints.
 - **Non-Breaking Schema Guarantee**: Schema changes must provide safe defaults and maintain backward compatibility.
 
+## Quick-Guide
+
+- English Quick Guide: [docs/shared-contracts-quick-guide.en.md](../../docs/shared-contracts-quick-guide.en.md)
+- Vietnamese Quick Guide: [docs/shared-contracts-quick-guide.vi.md](../../docs/shared-contracts-quick-guide.vi.md)
+
+
