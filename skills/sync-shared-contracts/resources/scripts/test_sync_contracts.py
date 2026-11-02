@@ -6,6 +6,7 @@ import io
 import json
 import os
 import re
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -17,15 +18,19 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from sync_contracts import (
     CANONICAL_FILES,
     TopologyError,
+    compute_file_hash,
     compute_semantic_delta,
+    compute_snapshot_id,
     main,
     parse_api_contract,
     parse_architecture_and_flow,
     parse_gaps_and_rfcs,
+    path_matches_domain,
     render_brief,
     resolve_topology,
     scan_target_codebase,
     to_camel_case,
+    utc_now_iso,
 )
 
 
@@ -615,6 +620,858 @@ X-Correlation-ID: uuid
         clean_state = json.loads((agents_dir / "contract_sync.json").read_text(encoding="utf-8"))
         self.assertEqual(clean_state["schema_version"], 1)
         self.assertIn("lyrics-sync", clean_state["domains"])
+
+    def _init_git_repo(self, repo_dir: Path, branch: str = "develop") -> None:
+        subprocess.run(["git", "init", "-b", branch], cwd=repo_dir, check=True, capture_output=True)
+        subprocess.run(["git", "config", "user.name", "Test Runner"], cwd=repo_dir, check=True, capture_output=True)
+        subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=repo_dir, check=True, capture_output=True)
+
+    def _commit_all(self, repo_dir: Path, message: str) -> None:
+        subprocess.run(["git", "add", "."], cwd=repo_dir, check=True, capture_output=True)
+        subprocess.run(["git", "commit", "-m", message], cwd=repo_dir, check=True, capture_output=True)
+
+    def test_cdg_hp_01_hub_mapped_file_change_covered_by_contract_edit(self) -> None:
+        """[CDG-HP-01] Hub Mapped File Change Covered by Canonical Contract Edit."""
+        self._init_git_repo(self.repo_root, "develop")
+        hub_domain = self.repo_root / "shared-contracts" / "lyrics-sync"
+        self._scaffold_table_contracts(hub_domain, "lyrics-sync")
+        # Ensure GAP-08 is documented in gaps_and_rfcs.md
+        gaps_file = hub_domain / "gaps_and_rfcs.md"
+        gaps_content = gaps_file.read_text(encoding="utf-8") + "| GAP-08 | Telemetry metric | Satellite | Actionable Pending | 1.1.0 | No |\n"
+        gaps_file.write_text(gaps_content, encoding="utf-8")
+
+        agents_dir = self.repo_root / ".agents"
+        agents_dir.mkdir(parents=True, exist_ok=True)
+        contract_map = {
+            "schema_version": 1,
+            "base_ref": "develop",
+            "domains": {
+                "lyrics-sync": {
+                    "paths": ["crates/**/routes/**", "crates/**/dto/**"],
+                    "exclude": ["**/tests/**"],
+                }
+            },
+            "waivers": [],
+        }
+        (agents_dir / "contract_map.json").write_text(json.dumps(contract_map, indent=2), encoding="utf-8")
+        self._commit_all(self.repo_root, "Initial commit")
+
+        subprocess.run(["git", "checkout", "-b", "feat/worker-routes"], cwd=self.repo_root, check=True, capture_output=True)
+        worker_file = self.repo_root / "crates" / "api" / "routes" / "worker.rs"
+        worker_file.parent.mkdir(parents=True, exist_ok=True)
+        worker_file.write_text("// worker routes implementation", encoding="utf-8")
+
+        contract_file = hub_domain / "api_contract.md"
+        contract_file.write_text(contract_file.read_text(encoding="utf-8") + "\n<!-- edit -->\n", encoding="utf-8")
+
+        self._commit_all(self.repo_root, "Add worker route and update contract")
+
+        stdout_buf = io.StringIO()
+        with patch("sys.stdout", stdout_buf):
+            exit_code = main(["diff-check", "--repo-root", str(self.repo_root), "--base-ref", "develop", "--json"])
+
+        self.assertEqual(exit_code, 0)
+        report = json.loads(stdout_buf.getvalue())
+        self.assertEqual(report["status"], "PASS")
+        self.assertEqual(report["mode"], "hub")
+        self.assertEqual(report["violations"], [])
+        self.assertEqual(report["blockers"], [])
+
+    def test_cdg_hp_02_satellite_mapped_file_change_covered_by_fresh_ack(self) -> None:
+        """[CDG-HP-02] Satellite Mapped File Change Covered by Fresh Domain Ack Matching Live Snapshot."""
+        hub_dir = Path(tempfile.mkdtemp(dir=self.temp_dir.name, prefix="hub_hp02_"))
+        self._init_git_repo(hub_dir, "main")
+        hub_domain = hub_dir / "shared-contracts" / "lyrics-sync"
+        self._scaffold_table_contracts(hub_domain, "lyrics-sync")
+        self._commit_all(hub_dir, "Hub init")
+
+        sat_dir = Path(tempfile.mkdtemp(dir=self.temp_dir.name, prefix="sat_hp02_"))
+        self._init_git_repo(sat_dir, "develop")
+        rel_target = os.path.relpath(hub_domain, sat_dir)
+        os.symlink(rel_target, sat_dir / "shared-contracts")
+
+        sat_agents = sat_dir / ".agents"
+        sat_agents.mkdir(parents=True, exist_ok=True)
+        contract_map = {
+            "schema_version": 1,
+            "base_ref": "develop",
+            "domains": {
+                "lyrics-sync": {"paths": ["src/api/dto/**"]}
+            },
+            "waivers": [],
+        }
+        (sat_agents / "contract_map.json").write_text(json.dumps(contract_map, indent=2), encoding="utf-8")
+        main(["ack", "--repo-root", str(sat_dir), "--domain", "lyrics-sync", "--all-rfcs"])
+        # Set earlier last_synced_at on base commit to represent prior sync
+        sync_json = sat_agents / "contract_sync.json"
+        state = json.loads(sync_json.read_text(encoding="utf-8"))
+        state["domains"]["lyrics-sync"]["last_synced_at"] = "2026-10-01T00:00:00Z"
+        sync_json.write_text(json.dumps(state, indent=2), encoding="utf-8")
+        self._commit_all(sat_dir, "Base commit on develop")
+
+        subprocess.run(["git", "checkout", "-b", "feat/worker"], cwd=sat_dir, check=True, capture_output=True)
+        dto_file = sat_dir / "src" / "api" / "dto" / "worker.py"
+        dto_file.parent.mkdir(parents=True, exist_ok=True)
+        dto_file.write_text("# worker dto", encoding="utf-8")
+
+        hashes = {f: compute_file_hash(hub_domain / f) for f in CANONICAL_FILES}
+        live_snapshot = compute_snapshot_id(hashes)
+
+        ack_exit = main(["ack", "--repo-root", str(sat_dir), "--domain", "lyrics-sync", "--snapshot", live_snapshot, "--all-rfcs"])
+        self.assertEqual(ack_exit, 0)
+        self._commit_all(sat_dir, "Update dto and refresh ack")
+
+        stdout_buf = io.StringIO()
+        with patch("sys.stdout", stdout_buf):
+            exit_code = main(["diff-check", "--repo-root", str(sat_dir), "--json"])
+
+        self.assertEqual(exit_code, 0)
+        report = json.loads(stdout_buf.getvalue())
+        self.assertEqual(report["status"], "PASS")
+        self.assertEqual(report["mode"], "satellite")
+        self.assertEqual(report["violations"], [])
+        self.assertEqual(report["domains"][0]["proof"], "ack")
+
+    def test_cdg_ec_01_anchored_posix_glob_matching(self) -> None:
+        """[CDG-EC-01] Anchored Multi-Level POSIX Glob Matching and Exclude Precedence."""
+        domain_cfg = {
+            "paths": ["crates/**/routes/**", "src/*/dto/*.py"],
+            "exclude": ["**/tests/**"],
+        }
+        self.assertTrue(path_matches_domain("crates/routes/v1.rs", domain_cfg))
+        self.assertTrue(path_matches_domain("crates/core/http/routes/v1/tasks.rs", domain_cfg))
+        self.assertTrue(path_matches_domain("src/worker/dto/job.py", domain_cfg))
+        self.assertFalse(path_matches_domain("crates/api/routes/tests/mock.rs", domain_cfg))
+        self.assertFalse(path_matches_domain("other/crates/routes/v1.rs", domain_cfg))
+
+    def test_cdg_ec_02_empty_diff_or_unmapped_changes(self) -> None:
+        """[CDG-EC-02] Empty Diff at Merge-Base or Unmapped File Changes Pass Cleanly."""
+        self._init_git_repo(self.repo_root, "develop")
+        hub_domain = self.repo_root / "shared-contracts" / "lyrics-sync"
+        self._scaffold_table_contracts(hub_domain, "lyrics-sync")
+        # Ensure GAP-08 is documented in gaps_and_rfcs.md
+        gaps_file = hub_domain / "gaps_and_rfcs.md"
+        gaps_content = gaps_file.read_text(encoding="utf-8") + "| GAP-08 | Telemetry metric | Satellite | Actionable Pending | 1.1.0 | No |\n"
+        gaps_file.write_text(gaps_content, encoding="utf-8")
+        agents_dir = self.repo_root / ".agents"
+        agents_dir.mkdir(parents=True, exist_ok=True)
+        contract_map = {
+            "schema_version": 1,
+            "base_ref": "develop",
+            "domains": {
+                "lyrics-sync": {"paths": ["crates/**/routes/**"]}
+            },
+            "waivers": [],
+        }
+        (agents_dir / "contract_map.json").write_text(json.dumps(contract_map, indent=2), encoding="utf-8")
+        self._commit_all(self.repo_root, "Initial commit")
+
+        stdout_buf = io.StringIO()
+        with patch("sys.stdout", stdout_buf):
+            exit_code = main(["diff-check", "--repo-root", str(self.repo_root), "--json"])
+        self.assertEqual(exit_code, 0)
+        report = json.loads(stdout_buf.getvalue())
+        self.assertEqual(report["status"], "PASS")
+        self.assertEqual(report["violations"], [])
+        self.assertEqual(report["active_waivers"], [])
+
+        subprocess.run(["git", "checkout", "-b", "feat/docs"], cwd=self.repo_root, check=True, capture_output=True)
+        (self.repo_root / "README.md").write_text("# Documentation\n", encoding="utf-8")
+        self._commit_all(self.repo_root, "Update docs")
+
+        stdout_buf2 = io.StringIO()
+        with patch("sys.stdout", stdout_buf2):
+            exit_code2 = main(["diff-check", "--repo-root", str(self.repo_root), "--json"])
+        self.assertEqual(exit_code2, 0)
+        report2 = json.loads(stdout_buf2.getvalue())
+        self.assertEqual(report2["status"], "PASS")
+        self.assertEqual(report2["violations"], [])
+        self.assertEqual(report2["active_waivers"], [])
+        self.assertEqual(report2["domains"][0]["proof"], "none")
+
+    def test_cdg_ec_03_base_ref_override_and_domain_filter(self) -> None:
+        """[CDG-EC-03] Base-Ref CLI Override Precedence and Repeatable Domain Filter Validation."""
+        self._init_git_repo(self.repo_root, "main")
+        hub_domain = self.repo_root / "shared-contracts" / "lyrics-sync"
+        self._scaffold_table_contracts(hub_domain, "lyrics-sync")
+        nexus_domain = self.repo_root / "shared-contracts" / "nexus"
+        self._scaffold_table_contracts(nexus_domain, "nexus")
+
+        agents_dir = self.repo_root / ".agents"
+        agents_dir.mkdir(parents=True, exist_ok=True)
+        contract_map = {
+            "schema_version": 1,
+            "base_ref": "main",
+            "domains": {
+                "lyrics-sync": {"paths": ["crates/lyrics/**"]},
+                "nexus": {"paths": ["crates/nexus/**"]},
+            },
+            "waivers": [],
+        }
+        (agents_dir / "contract_map.json").write_text(json.dumps(contract_map, indent=2), encoding="utf-8")
+        self._commit_all(self.repo_root, "Main commit")
+
+        subprocess.run(["git", "checkout", "-b", "develop"], cwd=self.repo_root, check=True, capture_output=True)
+        subprocess.run(["git", "checkout", "-b", "feat/nexus-only"], cwd=self.repo_root, check=True, capture_output=True)
+        nexus_file = self.repo_root / "crates" / "nexus" / "a.rs"
+        nexus_file.parent.mkdir(parents=True, exist_ok=True)
+        nexus_file.write_text("// nexus", encoding="utf-8")
+        self._commit_all(self.repo_root, "Edit nexus")
+
+        stdout_buf = io.StringIO()
+        with patch("sys.stdout", stdout_buf):
+            exit_code = main(["diff-check", "--repo-root", str(self.repo_root), "--base-ref", "develop", "--domain", "lyrics-sync", "--json"])
+        self.assertEqual(exit_code, 0)
+        report = json.loads(stdout_buf.getvalue())
+        self.assertEqual(report["status"], "PASS")
+        self.assertEqual(len(report["domains"]), 1)
+        self.assertEqual(report["domains"][0]["domain"], "lyrics-sync")
+
+        stdout_buf2 = io.StringIO()
+        with patch("sys.stdout", stdout_buf2):
+            exit_code2 = main(["diff-check", "--repo-root", str(self.repo_root), "--domain", "nonexistent_domain", "--json"])
+        self.assertEqual(exit_code2, 2)
+        report2 = json.loads(stdout_buf2.getvalue())
+        self.assertEqual(report2["status"], "BLOCKED")
+        self.assertTrue(any("nonexistent_domain" in b for b in report2["blockers"]))
+
+    def test_cdg_ec_04_new_waiver_with_null_and_valid_gap(self) -> None:
+        """[CDG-EC-04] Newly Added Path-Scoped Waivers With Null Gap and Documented GAP-XX Pass With Audit Output."""
+        self._init_git_repo(self.repo_root, "develop")
+        hub_domain = self.repo_root / "shared-contracts" / "lyrics-sync"
+        self._scaffold_table_contracts(hub_domain, "lyrics-sync")
+        # Ensure GAP-08 is documented in gaps_and_rfcs.md
+        gaps_file = hub_domain / "gaps_and_rfcs.md"
+        gaps_content = gaps_file.read_text(encoding="utf-8") + "| GAP-08 | Telemetry metric | Satellite | Actionable Pending | 1.1.0 | No |\n"
+        gaps_file.write_text(gaps_content, encoding="utf-8")
+
+        agents_dir = self.repo_root / ".agents"
+        agents_dir.mkdir(parents=True, exist_ok=True)
+        contract_map = {
+            "schema_version": 1,
+            "base_ref": "develop",
+            "domains": {
+                "lyrics-sync": {"paths": ["src/routes/**"]}
+            },
+            "waivers": [],
+        }
+        (agents_dir / "contract_map.json").write_text(json.dumps(contract_map, indent=2), encoding="utf-8")
+        self._commit_all(self.repo_root, "Initial commit")
+
+        subprocess.run(["git", "checkout", "-b", "feat/waiver-null"], cwd=self.repo_root, check=True, capture_output=True)
+        tts_file = self.repo_root / "src" / "routes" / "tts.py"
+        tts_file.parent.mkdir(parents=True, exist_ok=True)
+        tts_file.write_text("# tts route", encoding="utf-8")
+
+        contract_map["waivers"] = [
+            {
+                "id": "W-001",
+                "domain": "lyrics-sync",
+                "paths": ["src/routes/tts.py"],
+                "reason": "Temporary exception while awaiting API contract freeze",
+                "gap": None,
+            }
+        ]
+        (agents_dir / "contract_map.json").write_text(json.dumps(contract_map, indent=2), encoding="utf-8")
+        self._commit_all(self.repo_root, "Waiver with null gap")
+
+        stdout_buf = io.StringIO()
+        with patch("sys.stdout", stdout_buf):
+            exit_code = main(["diff-check", "--repo-root", str(self.repo_root), "--json"])
+        self.assertEqual(exit_code, 0)
+        report = json.loads(stdout_buf.getvalue())
+        self.assertEqual(report["status"], "PASS")
+        self.assertEqual(len(report["active_waivers"]), 1)
+        self.assertEqual(report["active_waivers"][0]["id"], "W-001")
+        self.assertEqual(report["active_waivers"][0]["gap"], None)
+
+        stdout_buf_text = io.StringIO()
+        with patch("sys.stdout", stdout_buf_text):
+            exit_code_text = main(["diff-check", "--repo-root", str(self.repo_root)])
+        self.assertEqual(exit_code_text, 0)
+        self.assertIn("W-001", stdout_buf_text.getvalue())
+
+        subprocess.run(["git", "checkout", "-b", "feat/waiver-gap"], cwd=self.repo_root, check=True, capture_output=True)
+        contract_map["waivers"] = [
+            {
+                "id": "W-002",
+                "domain": "lyrics-sync",
+                "paths": ["src/routes/tts.py"],
+                "reason": "Waiting for GAP-08 implementation",
+                "gap": "GAP-08",
+            }
+        ]
+        (agents_dir / "contract_map.json").write_text(json.dumps(contract_map, indent=2), encoding="utf-8")
+        self._commit_all(self.repo_root, "Waiver with GAP-08")
+
+        stdout_buf2 = io.StringIO()
+        with patch("sys.stdout", stdout_buf2):
+            exit_code2 = main(["diff-check", "--repo-root", str(self.repo_root), "--json"])
+        self.assertEqual(exit_code2, 0)
+        report2 = json.loads(stdout_buf2.getvalue())
+        self.assertEqual(report2["status"], "PASS")
+        self.assertEqual(report2["active_waivers"][0]["gap"], "GAP-08")
+
+    def test_cdg_ec_05_nul_rename_out_and_git_quoted_filename(self) -> None:
+        """[CDG-EC-05] NUL-Delimited Rename-Out Detection and Git-Quoted Filename Matching Across Hub and Satellite."""
+        self._init_git_repo(self.repo_root, "develop")
+        hub_domain = self.repo_root / "shared-contracts" / "lyrics-sync"
+        self._scaffold_table_contracts(hub_domain, "lyrics-sync")
+        # Ensure GAP-08 is documented in gaps_and_rfcs.md
+        gaps_file = hub_domain / "gaps_and_rfcs.md"
+        gaps_content = gaps_file.read_text(encoding="utf-8") + "| GAP-08 | Telemetry metric | Satellite | Actionable Pending | 1.1.0 | No |\n"
+        gaps_file.write_text(gaps_content, encoding="utf-8")
+
+        agents_dir = self.repo_root / ".agents"
+        agents_dir.mkdir(parents=True, exist_ok=True)
+        contract_map = {
+            "schema_version": 1,
+            "base_ref": "develop",
+            "domains": {
+                "lyrics-sync": {"paths": ["src/api/dto/**"]}
+            },
+            "waivers": [],
+        }
+        (agents_dir / "contract_map.json").write_text(json.dumps(contract_map, indent=2), encoding="utf-8")
+        worker_file = self.repo_root / "src" / "api" / "dto" / "worker.py"
+        worker_file.parent.mkdir(parents=True, exist_ok=True)
+        worker_file.write_text("# worker", encoding="utf-8")
+        self._commit_all(self.repo_root, "Initial worker dto")
+
+        subprocess.run(["git", "checkout", "-b", "feat/rename-and-quoted"], cwd=self.repo_root, check=True, capture_output=True)
+        dest_internal = self.repo_root / "src" / "internal" / "worker.py"
+        dest_internal.parent.mkdir(parents=True, exist_ok=True)
+        subprocess.run(["git", "mv", "src/api/dto/worker.py", "src/internal/worker.py"], cwd=self.repo_root, check=True, capture_output=True)
+
+        quoted_file = self.repo_root / "src" / "api" / "dto" / "worker v2 (draft).py"
+        quoted_file.write_text("# draft", encoding="utf-8")
+        self._commit_all(self.repo_root, "Rename out and add quoted file")
+
+        stdout_buf = io.StringIO()
+        with patch("sys.stdout", stdout_buf):
+            exit_code = main(["diff-check", "--repo-root", str(self.repo_root), "--json"])
+        self.assertEqual(exit_code, 1)
+        report = json.loads(stdout_buf.getvalue())
+        self.assertEqual(report["status"], "FAIL")
+        violation_files = [v["file"] for v in report["violations"]]
+        self.assertIn("src/api/dto/worker.py", violation_files)
+        self.assertIn("src/api/dto/worker v2 (draft).py", violation_files)
+
+        (hub_domain / "api_contract.md").write_text((hub_domain / "api_contract.md").read_text(encoding="utf-8") + "\n<!-- edit -->\n", encoding="utf-8")
+        self._commit_all(self.repo_root, "Canonical contract edit")
+
+        stdout_buf2 = io.StringIO()
+        with patch("sys.stdout", stdout_buf2):
+            exit_code2 = main(["diff-check", "--repo-root", str(self.repo_root), "--json"])
+        self.assertEqual(exit_code2, 0)
+        report2 = json.loads(stdout_buf2.getvalue())
+        self.assertEqual(report2["status"], "PASS")
+
+    def test_cdg_st_01_uncovered_mapped_file_and_partial_waiver(self) -> None:
+        """[CDG-ST-01] Uncovered Mapped File Changes and Partial Waivers Transition Verdict to FAIL."""
+        self._init_git_repo(self.repo_root, "develop")
+        hub_domain = self.repo_root / "shared-contracts" / "lyrics-sync"
+        self._scaffold_table_contracts(hub_domain, "lyrics-sync")
+        # Ensure GAP-08 is documented in gaps_and_rfcs.md
+        gaps_file = hub_domain / "gaps_and_rfcs.md"
+        gaps_content = gaps_file.read_text(encoding="utf-8") + "| GAP-08 | Telemetry metric | Satellite | Actionable Pending | 1.1.0 | No |\n"
+        gaps_file.write_text(gaps_content, encoding="utf-8")
+
+        agents_dir = self.repo_root / ".agents"
+        agents_dir.mkdir(parents=True, exist_ok=True)
+        contract_map = {
+            "schema_version": 1,
+            "base_ref": "develop",
+            "domains": {
+                "lyrics-sync": {"paths": ["crates/**/routes/**", "crates/**/dto/**"]}
+            },
+            "waivers": [],
+        }
+        (agents_dir / "contract_map.json").write_text(json.dumps(contract_map, indent=2), encoding="utf-8")
+        self._commit_all(self.repo_root, "Initial commit")
+
+        subprocess.run(["git", "checkout", "-b", "feat/partial-waiver"], cwd=self.repo_root, check=True, capture_output=True)
+        f_x = self.repo_root / "crates" / "a" / "routes" / "x.rs"
+        f_y = self.repo_root / "crates" / "a" / "dto" / "y.rs"
+        f_x.parent.mkdir(parents=True, exist_ok=True)
+        f_y.parent.mkdir(parents=True, exist_ok=True)
+        f_x.write_text("// x", encoding="utf-8")
+        f_y.write_text("// y", encoding="utf-8")
+
+        contract_map["waivers"] = [
+            {
+                "id": "W-010",
+                "domain": "lyrics-sync",
+                "paths": ["crates/a/routes/x.rs"],
+                "reason": "Only covers x",
+                "gap": None,
+            }
+        ]
+        (agents_dir / "contract_map.json").write_text(json.dumps(contract_map, indent=2), encoding="utf-8")
+        self._commit_all(self.repo_root, "Partial waiver and edits")
+
+        stdout_buf = io.StringIO()
+        with patch("sys.stdout", stdout_buf):
+            exit_code = main(["diff-check", "--repo-root", str(self.repo_root), "--json"])
+        self.assertEqual(exit_code, 1)
+        report = json.loads(stdout_buf.getvalue())
+        self.assertEqual(report["status"], "FAIL")
+        violation_files = [v["file"] for v in report["violations"]]
+        self.assertIn("crates/a/dto/y.rs", violation_files)
+        self.assertNotIn("crates/a/routes/x.rs", violation_files)
+
+    def test_cdg_st_02_historical_waiver_non_masking_and_mutation(self) -> None:
+        """[CDG-ST-02] Historical Waiver Non-Masking, Mutation Rejection, and Obsolete Waiver Deletion."""
+        self._init_git_repo(self.repo_root, "develop")
+        hub_domain = self.repo_root / "shared-contracts" / "lyrics-sync"
+        self._scaffold_table_contracts(hub_domain, "lyrics-sync")
+        # Ensure GAP-08 is documented in gaps_and_rfcs.md
+        gaps_file = hub_domain / "gaps_and_rfcs.md"
+        gaps_content = gaps_file.read_text(encoding="utf-8") + "| GAP-08 | Telemetry metric | Satellite | Actionable Pending | 1.1.0 | No |\n"
+        gaps_file.write_text(gaps_content, encoding="utf-8")
+
+        agents_dir = self.repo_root / ".agents"
+        agents_dir.mkdir(parents=True, exist_ok=True)
+        contract_map = {
+            "schema_version": 1,
+            "base_ref": "develop",
+            "domains": {
+                "lyrics-sync": {"paths": ["crates/**/routes/**"]}
+            },
+            "waivers": [
+                {
+                    "id": "W-OLD",
+                    "domain": "lyrics-sync",
+                    "paths": ["crates/a/routes/x.rs"],
+                    "reason": "Historical waiver",
+                    "gap": None,
+                }
+            ],
+        }
+        (agents_dir / "contract_map.json").write_text(json.dumps(contract_map, indent=2), encoding="utf-8")
+        self._commit_all(self.repo_root, "Base with W-OLD")
+
+        subprocess.run(["git", "checkout", "-b", "branch-a", "develop"], cwd=self.repo_root, check=True, capture_output=True)
+        fx = self.repo_root / "crates" / "a" / "routes" / "x.rs"
+        fx.parent.mkdir(parents=True, exist_ok=True)
+        fx.write_text("// edit on branch a", encoding="utf-8")
+        self._commit_all(self.repo_root, "Branch A edit")
+
+        stdout_buf = io.StringIO()
+        with patch("sys.stdout", stdout_buf):
+            exit_code_a = main(["diff-check", "--repo-root", str(self.repo_root), "--json"])
+        self.assertEqual(exit_code_a, 1)
+
+        subprocess.run(["git", "checkout", "-b", "branch-b", "develop"], cwd=self.repo_root, check=True, capture_output=True)
+        contract_map["waivers"] = [
+            {
+                "id": "W-OLD",
+                "domain": "lyrics-sync",
+                "paths": ["crates/a/routes/x.rs"],
+                "reason": "Mutated reason",
+                "gap": None,
+            }
+        ]
+        (agents_dir / "contract_map.json").write_text(json.dumps(contract_map, indent=2), encoding="utf-8")
+        self._commit_all(self.repo_root, "Branch B mutate waiver")
+
+        stdout_buf_b = io.StringIO()
+        with patch("sys.stdout", stdout_buf_b):
+            exit_code_b = main(["diff-check", "--repo-root", str(self.repo_root), "--json"])
+        self.assertEqual(exit_code_b, 1)
+        report_b = json.loads(stdout_buf_b.getvalue())
+        self.assertTrue(any("Illegal mutation" in v["message"] for v in report_b["violations"]))
+
+        subprocess.run(["git", "checkout", "-b", "branch-c", "develop"], cwd=self.repo_root, check=True, capture_output=True)
+        contract_map["waivers"] = []
+        (agents_dir / "contract_map.json").write_text(json.dumps(contract_map, indent=2), encoding="utf-8")
+        self._commit_all(self.repo_root, "Branch C delete waiver")
+
+        stdout_buf_c = io.StringIO()
+        with patch("sys.stdout", stdout_buf_c):
+            exit_code_c = main(["diff-check", "--repo-root", str(self.repo_root), "--json"])
+        self.assertEqual(exit_code_c, 0)
+
+    def test_cdg_st_03_satellite_sibling_domain_and_stale_snapshot_or_inactive_gap(self) -> None:
+        """[CDG-ST-03] Satellite Sibling-Domain Ack Isolation, Stale Snapshot Rejection, and Missing or INACTIVE GAP-XX Failure."""
+        hub_dir = Path(tempfile.mkdtemp(dir=self.temp_dir.name, prefix="hub3_"))
+        self._init_git_repo(hub_dir, "main")
+        hub_lyrics = hub_dir / "shared-contracts" / "lyrics-sync"
+        self._scaffold_table_contracts(hub_lyrics, "lyrics-sync")
+        self._commit_all(hub_dir, "Hub init")
+
+        sat_dir = Path(tempfile.mkdtemp(dir=self.temp_dir.name, prefix="sat3_"))
+        self._init_git_repo(sat_dir, "develop")
+        rel_target = os.path.relpath(hub_lyrics, sat_dir)
+        os.symlink(rel_target, sat_dir / "shared-contracts")
+
+        sat_agents = sat_dir / ".agents"
+        sat_agents.mkdir(parents=True, exist_ok=True)
+        contract_map = {
+            "schema_version": 1,
+            "base_ref": "develop",
+            "domains": {
+                "lyrics-sync": {"paths": ["src/api/dto/**"]}
+            },
+            "waivers": [],
+        }
+        (sat_agents / "contract_map.json").write_text(json.dumps(contract_map, indent=2), encoding="utf-8")
+        main(["ack", "--repo-root", str(sat_dir), "--domain", "lyrics-sync", "--all-rfcs"])
+        self._commit_all(sat_dir, "Sat base")
+
+        subprocess.run(["git", "checkout", "-b", "feat/sibling", "develop"], cwd=sat_dir, check=True, capture_output=True)
+        f_dto = sat_dir / "src" / "api" / "dto" / "worker.py"
+        f_dto.parent.mkdir(parents=True, exist_ok=True)
+        f_dto.write_text("# worker", encoding="utf-8")
+
+        sync_state = json.loads((sat_agents / "contract_sync.json").read_text(encoding="utf-8"))
+        sync_state["domains"]["nexus"] = {"snapshot_id": "sha256:nexus", "last_synced_at": utc_now_iso()}
+        (sat_agents / "contract_sync.json").write_text(json.dumps(sync_state, indent=2), encoding="utf-8")
+        self._commit_all(sat_dir, "Update sibling domain only")
+
+        stdout_buf1 = io.StringIO()
+        with patch("sys.stdout", stdout_buf1):
+            exit_code1 = main(["diff-check", "--repo-root", str(sat_dir), "--json"])
+        self.assertEqual(exit_code1, 1)
+
+        subprocess.run(["git", "checkout", "-b", "feat/stale", "develop"], cwd=sat_dir, check=True, capture_output=True)
+        f_dto.parent.mkdir(parents=True, exist_ok=True)
+        f_dto.write_text("# worker stale", encoding="utf-8")
+        sync_state2 = json.loads((sat_agents / "contract_sync.json").read_text(encoding="utf-8"))
+        sync_state2["domains"]["lyrics-sync"]["snapshot_id"] = "sha256:stale_fake_hash"
+        sync_state2["domains"]["lyrics-sync"]["last_synced_at"] = utc_now_iso()
+        (sat_agents / "contract_sync.json").write_text(json.dumps(sync_state2, indent=2), encoding="utf-8")
+        self._commit_all(sat_dir, "Stale snapshot ack")
+
+        stdout_buf2 = io.StringIO()
+        with patch("sys.stdout", stdout_buf2):
+            exit_code2 = main(["diff-check", "--repo-root", str(sat_dir), "--json"])
+        self.assertEqual(exit_code2, 1)
+
+        subprocess.run(["git", "checkout", "-b", "feat/bad-gap", "develop"], cwd=sat_dir, check=True, capture_output=True)
+        contract_map["waivers"] = [
+            {
+                "id": "W-999",
+                "domain": "lyrics-sync",
+                "paths": ["src/api/dto/worker.py"],
+                "reason": "Missing gap",
+                "gap": "GAP-999",
+            }
+        ]
+        (sat_agents / "contract_map.json").write_text(json.dumps(contract_map, indent=2), encoding="utf-8")
+        self._commit_all(sat_dir, "Waiver with GAP-999")
+
+        stdout_buf3 = io.StringIO()
+        with patch("sys.stdout", stdout_buf3):
+            exit_code3 = main(["diff-check", "--repo-root", str(sat_dir), "--json"])
+        self.assertEqual(exit_code3, 1)
+
+    def test_cdg_st_04_baseline_union_domain_mapping(self) -> None:
+        """[CDG-ST-04] Baseline-Union Domain Mapping Prevents Self-Exemption While Allowing Bootstrap and Untouched Domain Retirement."""
+        self._init_git_repo(self.repo_root, "develop")
+        hub_lyrics = self.repo_root / "shared-contracts" / "lyrics-sync"
+        self._scaffold_table_contracts(hub_lyrics, "lyrics-sync")
+        hub_legacy = self.repo_root / "shared-contracts" / "legacy-domain"
+        self._scaffold_table_contracts(hub_legacy, "legacy-domain")
+
+        agents_dir = self.repo_root / ".agents"
+        agents_dir.mkdir(parents=True, exist_ok=True)
+        contract_map = {
+            "schema_version": 1,
+            "base_ref": "develop",
+            "domains": {
+                "lyrics-sync": {"paths": ["src/api/dto/**"]},
+                "legacy-domain": {"paths": ["crates/legacy/**"]},
+            },
+            "waivers": [],
+        }
+        (agents_dir / "contract_map.json").write_text(json.dumps(contract_map, indent=2), encoding="utf-8")
+        dto_file = self.repo_root / "src" / "api" / "dto" / "worker.py"
+        dto_file.parent.mkdir(parents=True, exist_ok=True)
+        dto_file.write_text("# worker", encoding="utf-8")
+        self._commit_all(self.repo_root, "Base with lyrics and legacy")
+
+        subprocess.run(["git", "checkout", "-b", "branch-a-excl", "develop"], cwd=self.repo_root, check=True, capture_output=True)
+        dto_file.write_text("# worker modified", encoding="utf-8")
+        map_a = {
+            "schema_version": 1,
+            "base_ref": "develop",
+            "domains": {
+                "lyrics-sync": {
+                    "paths": ["src/api/dto/**"],
+                    "exclude": ["src/api/dto/worker.py"],
+                },
+                "legacy-domain": {"paths": ["crates/legacy/**"]},
+            },
+            "waivers": [],
+        }
+        (agents_dir / "contract_map.json").write_text(json.dumps(map_a, indent=2), encoding="utf-8")
+        self._commit_all(self.repo_root, "Self-exempt via exclude")
+
+        stdout_buf_a = io.StringIO()
+        with patch("sys.stdout", stdout_buf_a):
+            exit_code_a = main(["diff-check", "--repo-root", str(self.repo_root), "--json"])
+        self.assertEqual(exit_code_a, 1)
+
+        subprocess.run(["git", "checkout", "-b", "branch-b-retire", "develop"], cwd=self.repo_root, check=True, capture_output=True)
+        map_b = {
+            "schema_version": 1,
+            "base_ref": "develop",
+            "domains": {
+                "lyrics-sync": {"paths": ["src/api/dto/**"]},
+            },
+            "waivers": [],
+        }
+        (agents_dir / "contract_map.json").write_text(json.dumps(map_b, indent=2), encoding="utf-8")
+        self._commit_all(self.repo_root, "Retire legacy domain")
+
+        stdout_buf_b = io.StringIO()
+        with patch("sys.stdout", stdout_buf_b):
+            exit_code_b = main(["diff-check", "--repo-root", str(self.repo_root), "--json"])
+        self.assertEqual(exit_code_b, 0)
+
+        boot_dir = Path(tempfile.mkdtemp(dir=self.temp_dir.name, prefix="boot_"))
+        self._init_git_repo(boot_dir, "develop")
+        boot_hub = boot_dir / "shared-contracts" / "lyrics-sync"
+        self._scaffold_table_contracts(boot_hub, "lyrics-sync")
+        self._commit_all(boot_dir, "M commit without contract_map")
+
+        subprocess.run(["git", "checkout", "-b", "feat/bootstrap"], cwd=boot_dir, check=True, capture_output=True)
+        boot_agents = boot_dir / ".agents"
+        boot_agents.mkdir(parents=True, exist_ok=True)
+        (boot_agents / "contract_map.json").write_text(json.dumps(map_b, indent=2), encoding="utf-8")
+        self._commit_all(boot_dir, "Introduce contract_map.json")
+
+        stdout_buf_c = io.StringIO()
+        with patch("sys.stdout", stdout_buf_c):
+            exit_code_c = main(["diff-check", "--repo-root", str(boot_dir), "--json"])
+        self.assertEqual(exit_code_c, 0)
+
+    def test_cdg_ar_01_nested_worktree_satellite_symlink(self) -> None:
+        """[CDG-AR-01] Nested Epic Worktree Symlink Resolution During Satellite Diff-Check."""
+        hub_dir = Path(tempfile.mkdtemp(dir=self.temp_dir.name, prefix="hub_ar01_"))
+        self._init_git_repo(hub_dir, "main")
+        hub_domain = hub_dir / "shared-contracts" / "lyrics-sync"
+        self._scaffold_table_contracts(hub_domain, "lyrics-sync")
+        self._commit_all(hub_dir, "Hub init")
+
+        sat_dir = Path(tempfile.mkdtemp(dir=self.temp_dir.name, prefix="sat_ar01_"))
+        self._init_git_repo(sat_dir, "develop")
+        rel_target = os.path.relpath(hub_domain, sat_dir)
+        os.symlink(rel_target, sat_dir / "shared-contracts")
+
+        sat_agents = sat_dir / ".agents"
+        sat_agents.mkdir(parents=True, exist_ok=True)
+        contract_map = {
+            "schema_version": 1,
+            "base_ref": "develop",
+            "domains": {
+                "lyrics-sync": {"paths": ["src/api/dto/**"]}
+            },
+            "waivers": [],
+        }
+        (sat_agents / "contract_map.json").write_text(json.dumps(contract_map, indent=2), encoding="utf-8")
+        main(["ack", "--repo-root", str(sat_dir), "--domain", "lyrics-sync", "--all-rfcs"])
+        sync_json = sat_agents / "contract_sync.json"
+        state = json.loads(sync_json.read_text(encoding="utf-8"))
+        state["domains"]["lyrics-sync"]["last_synced_at"] = "2026-10-01T00:00:00Z"
+        sync_json.write_text(json.dumps(state, indent=2), encoding="utf-8")
+        self._commit_all(sat_dir, "Sat base commit")
+
+        worktree_path = sat_dir / ".worktrees" / "cdg_epic"
+        worktree_path.parent.mkdir(parents=True, exist_ok=True)
+        subprocess.run(["git", "worktree", "add", str(worktree_path), "-b", "epic/cdg_epic", "develop"], cwd=sat_dir, check=True, capture_output=True)
+
+        wt_dto = worktree_path / "src" / "api" / "dto" / "worker.py"
+        wt_dto.parent.mkdir(parents=True, exist_ok=True)
+        wt_dto.write_text("# worker in worktree", encoding="utf-8")
+
+        hashes = {f: compute_file_hash(hub_domain / f) for f in CANONICAL_FILES}
+        live_snapshot = compute_snapshot_id(hashes)
+        main(["ack", "--repo-root", str(worktree_path), "--domain", "lyrics-sync", "--snapshot", live_snapshot, "--all-rfcs"])
+        self._commit_all(worktree_path, "Worktree commit")
+
+        stdout_buf = io.StringIO()
+        with patch("sys.stdout", stdout_buf):
+            exit_code = main(["diff-check", "--repo-root", str(worktree_path), "--json"])
+
+        self.assertEqual(exit_code, 0)
+        report = json.loads(stdout_buf.getvalue())
+        self.assertEqual(report["status"], "PASS")
+        self.assertEqual(report["mode"], "satellite")
+
+    def test_cdg_ar_02_dirty_tracked_working_tree_blocked(self) -> None:
+        """[CDG-AR-02] Dirty Tracked Working Tree Fails Closed With Exit Code 2."""
+        self._init_git_repo(self.repo_root, "develop")
+        hub_domain = self.repo_root / "shared-contracts" / "lyrics-sync"
+        self._scaffold_table_contracts(hub_domain, "lyrics-sync")
+        # Ensure GAP-08 is documented in gaps_and_rfcs.md
+        gaps_file = hub_domain / "gaps_and_rfcs.md"
+        gaps_content = gaps_file.read_text(encoding="utf-8") + "| GAP-08 | Telemetry metric | Satellite | Actionable Pending | 1.1.0 | No |\n"
+        gaps_file.write_text(gaps_content, encoding="utf-8")
+
+        agents_dir = self.repo_root / ".agents"
+        agents_dir.mkdir(parents=True, exist_ok=True)
+        contract_map = {
+            "schema_version": 1,
+            "base_ref": "develop",
+            "domains": {
+                "lyrics-sync": {"paths": ["src/**"]}
+            },
+            "waivers": [],
+        }
+        (agents_dir / "contract_map.json").write_text(json.dumps(contract_map, indent=2), encoding="utf-8")
+        tracked_file = self.repo_root / "src" / "tracked.py"
+        tracked_file.parent.mkdir(parents=True, exist_ok=True)
+        tracked_file.write_text("# tracked", encoding="utf-8")
+        self._commit_all(self.repo_root, "Initial commit")
+
+        build_file = self.repo_root / "build" / "out.txt"
+        build_file.parent.mkdir(parents=True, exist_ok=True)
+        build_file.write_text("build artifact", encoding="utf-8")
+
+        tracked_file.write_text("# dirty modification", encoding="utf-8")
+
+        stdout_buf = io.StringIO()
+        with patch("sys.stdout", stdout_buf):
+            exit_code = main(["diff-check", "--repo-root", str(self.repo_root), "--json"])
+
+        self.assertEqual(exit_code, 2)
+        report = json.loads(stdout_buf.getvalue())
+        self.assertEqual(report["status"], "BLOCKED")
+        self.assertTrue(any("tracked" in b for b in report["blockers"]))
+
+    def test_cdg_fr_01_missing_or_malformed_contract_map(self) -> None:
+        """[CDG-FR-01] Missing or Malformed Contract Map at HEAD or Merge-Base Fails Closed With BLOCKED."""
+        self._init_git_repo(self.repo_root, "develop")
+        hub_domain = self.repo_root / "shared-contracts" / "lyrics-sync"
+        self._scaffold_table_contracts(hub_domain, "lyrics-sync")
+        # Ensure GAP-08 is documented in gaps_and_rfcs.md
+        gaps_file = hub_domain / "gaps_and_rfcs.md"
+        gaps_content = gaps_file.read_text(encoding="utf-8") + "| GAP-08 | Telemetry metric | Satellite | Actionable Pending | 1.1.0 | No |\n"
+        gaps_file.write_text(gaps_content, encoding="utf-8")
+        self._commit_all(self.repo_root, "Initial commit without map")
+
+        stdout_buf1 = io.StringIO()
+        with patch("sys.stdout", stdout_buf1):
+            exit_code1 = main(["diff-check", "--repo-root", str(self.repo_root), "--json"])
+        self.assertEqual(exit_code1, 2)
+        report1 = json.loads(stdout_buf1.getvalue())
+        self.assertEqual(report1["status"], "BLOCKED")
+
+        agents_dir = self.repo_root / ".agents"
+        agents_dir.mkdir(parents=True, exist_ok=True)
+        bad_map = {
+            "schema_version": 1,
+            "base_ref": "develop",
+            "domains": {"lyrics-sync": {"paths": ["src/**"]}},
+            "waivers": [
+                {"id": "DUP", "domain": "lyrics-sync", "paths": ["a"], "reason": "r1"},
+                {"id": "DUP", "domain": "lyrics-sync", "paths": ["b"], "reason": "r2"},
+            ],
+        }
+        (agents_dir / "contract_map.json").write_text(json.dumps(bad_map), encoding="utf-8")
+        stdout_buf2 = io.StringIO()
+        with patch("sys.stdout", stdout_buf2):
+            exit_code2 = main(["diff-check", "--repo-root", str(self.repo_root), "--json"])
+        self.assertEqual(exit_code2, 2)
+        report2 = json.loads(stdout_buf2.getvalue())
+        self.assertEqual(report2["status"], "BLOCKED")
+
+        (agents_dir / "contract_map.json").write_text("{truncated_json...", encoding="utf-8")
+        self._commit_all(self.repo_root, "Corrupt map at M")
+
+        subprocess.run(["git", "checkout", "-b", "feat/corrupt-base"], cwd=self.repo_root, check=True, capture_output=True)
+        valid_map = {
+            "schema_version": 1,
+            "base_ref": "develop",
+            "domains": {"lyrics-sync": {"paths": ["src/**"]}},
+            "waivers": [],
+        }
+        (agents_dir / "contract_map.json").write_text(json.dumps(valid_map), encoding="utf-8")
+        (self.repo_root / "src" / "a.py").parent.mkdir(parents=True, exist_ok=True)
+        (self.repo_root / "src" / "a.py").write_text("# a", encoding="utf-8")
+        self._commit_all(self.repo_root, "Fix map at HEAD and add file")
+
+        stdout_buf3 = io.StringIO()
+        with patch("sys.stdout", stdout_buf3):
+            exit_code3 = main(["diff-check", "--repo-root", str(self.repo_root), "--json"])
+        self.assertEqual(exit_code3, 2)
+        report3 = json.loads(stdout_buf3.getvalue())
+        self.assertEqual(report3["status"], "BLOCKED")
+
+    def test_cdg_fr_02_unresolvable_base_ref_unlinked_domain_or_broken_topology(self) -> None:
+        """[CDG-FR-02] Unresolvable Base-Ref, Satellite Unlinked Domain, or Broken Shared-Contracts Topology Fails Closed With BLOCKED."""
+        self._init_git_repo(self.repo_root, "develop")
+        hub_domain = self.repo_root / "shared-contracts" / "lyrics-sync"
+        self._scaffold_table_contracts(hub_domain, "lyrics-sync")
+        # Ensure GAP-08 is documented in gaps_and_rfcs.md
+        gaps_file = hub_domain / "gaps_and_rfcs.md"
+        gaps_content = gaps_file.read_text(encoding="utf-8") + "| GAP-08 | Telemetry metric | Satellite | Actionable Pending | 1.1.0 | No |\n"
+        gaps_file.write_text(gaps_content, encoding="utf-8")
+
+        agents_dir = self.repo_root / ".agents"
+        agents_dir.mkdir(parents=True, exist_ok=True)
+        contract_map = {
+            "schema_version": 1,
+            "base_ref": "nonexistent_branch_12345",
+            "domains": {"lyrics-sync": {"paths": ["src/**"]}},
+            "waivers": [],
+        }
+        (agents_dir / "contract_map.json").write_text(json.dumps(contract_map, indent=2), encoding="utf-8")
+        self._commit_all(self.repo_root, "Bad base_ref commit")
+
+        stdout_buf1 = io.StringIO()
+        with patch("sys.stdout", stdout_buf1):
+            exit_code1 = main(["diff-check", "--repo-root", str(self.repo_root), "--json"])
+        self.assertEqual(exit_code1, 2)
+        report1 = json.loads(stdout_buf1.getvalue())
+        self.assertEqual(report1["status"], "BLOCKED")
+
+        sat_dir = Path(tempfile.mkdtemp(dir=self.temp_dir.name, prefix="sat_fr02_"))
+        self._init_git_repo(sat_dir, "develop")
+        rel_target = os.path.relpath(hub_domain, sat_dir)
+        os.symlink(rel_target, sat_dir / "shared-contracts")
+
+        sat_agents = sat_dir / ".agents"
+        sat_agents.mkdir(parents=True, exist_ok=True)
+        sat_bad_map = {
+            "schema_version": 1,
+            "base_ref": "develop",
+            "domains": {
+                "different_domain": {"paths": ["src/**"]}
+            },
+            "waivers": [],
+        }
+        (sat_agents / "contract_map.json").write_text(json.dumps(sat_bad_map), encoding="utf-8")
+        self._commit_all(sat_dir, "Satellite unlinked domain map")
+
+        stdout_buf2 = io.StringIO()
+        with patch("sys.stdout", stdout_buf2):
+            exit_code2 = main(["diff-check", "--repo-root", str(sat_dir), "--json"])
+        self.assertEqual(exit_code2, 2)
+        report2 = json.loads(stdout_buf2.getvalue())
+        self.assertEqual(report2["status"], "BLOCKED")
+
+        dangling_sat = Path(tempfile.mkdtemp(dir=self.temp_dir.name, prefix="dang_sat_"))
+        self._init_git_repo(dangling_sat, "develop")
+        os.symlink("../nonexistent_hub_target", dangling_sat / "shared-contracts")
+        dang_agents = dangling_sat / ".agents"
+        dang_agents.mkdir(parents=True, exist_ok=True)
+        (dang_agents / "contract_map.json").write_text(json.dumps({
+            "schema_version": 1,
+            "base_ref": "develop",
+            "domains": {"lyrics-sync": {"paths": ["src/**"]}},
+            "waivers": [],
+        }), encoding="utf-8")
+        self._commit_all(dangling_sat, "Dangling symlink init")
+
+        stdout_buf3 = io.StringIO()
+        with patch("sys.stdout", stdout_buf3):
+            exit_code3 = main(["diff-check", "--repo-root", str(dangling_sat), "--json"])
+        self.assertEqual(exit_code3, 2)
+        report3 = json.loads(stdout_buf3.getvalue())
+        self.assertEqual(report3["status"], "BLOCKED")
 
 
 if __name__ == "__main__":

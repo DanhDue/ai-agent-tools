@@ -98,6 +98,119 @@ def normalize_rfc_status(status_raw: str) -> tuple[str, str]:
     return "ACTIONABLE_PENDING", cleaned
 
 
+def compile_glob(pattern: str) -> re.Pattern[str]:
+    """Compile POSIX-normalized repository-relative glob into anchored regex."""
+    pattern = pattern.strip()
+    regex = ""
+    index = 0
+    length = len(pattern)
+    while index < length:
+        if pattern.startswith("/**", index) and index + 3 == length:
+            regex += r"(?:/.*)?"
+            index += 3
+        elif pattern.startswith("**/", index):
+            regex += r"(?:[^/]+/)*"
+            index += 3
+        elif pattern.startswith("**", index):
+            regex += r".*"
+            index += 2
+        elif pattern[index] == "*":
+            regex += r"[^/]*"
+            index += 1
+        elif pattern[index] == "?":
+            regex += r"[^/]"
+            index += 1
+        else:
+            regex += re.escape(pattern[index])
+            index += 1
+    return re.compile(rf"\A{regex}\Z")
+
+
+def path_matches_domain(path: str, domain_cfg: dict[str, Any]) -> bool:
+    """Check if normalized relative path belongs to domain config."""
+    normalized = path.replace("\\", "/").lstrip("/")
+    normalized = normalized.removeprefix("./")
+
+    for excl in domain_cfg.get("exclude") or []:
+        if compile_glob(excl).search(normalized):
+            return False
+
+    for inc in domain_cfg.get("paths") or []:
+        if compile_glob(inc).search(normalized):
+            return True
+
+    return False
+
+
+def validate_contract_map(data: Any) -> tuple[bool, str]:
+    """Validate .agents/contract_map.json schema structure."""
+    if not isinstance(data, dict):
+        return False, "Root of contract_map.json must be a JSON object"
+    if data.get("schema_version") != 1:
+        return False, f"Expected schema_version 1, got {data.get('schema_version')}"
+    base_ref = data.get("base_ref")
+    if not isinstance(base_ref, str) or not base_ref.strip():
+        return False, "base_ref must be a non-empty string"
+    domains = data.get("domains")
+    if not isinstance(domains, dict) or not domains:
+        return False, "domains must be a non-empty object"
+
+    for domain_name, domain_cfg in domains.items():
+        if not isinstance(domain_name, str) or not domain_name.strip():
+            return False, "Domain names must be non-empty strings"
+        if not isinstance(domain_cfg, dict):
+            return False, f"Domain configuration for '{domain_name}' must be an object"
+        paths = domain_cfg.get("paths")
+        if not isinstance(paths, list) or not paths:
+            return False, f"Domain '{domain_name}' must have a non-empty list of paths"
+        for p in paths:
+            if not isinstance(p, str) or not p.strip():
+                return False, f"Domain '{domain_name}' paths must be non-empty strings"
+        exclude = domain_cfg.get("exclude")
+        if exclude is not None:
+            if not isinstance(exclude, list):
+                return False, f"Domain '{domain_name}' exclude must be a list of strings"
+            for e in exclude:
+                if not isinstance(e, str) or not e.strip():
+                    return False, f"Domain '{domain_name}' exclude entries must be non-empty strings"
+
+    waivers = data.get("waivers")
+    if waivers is not None:
+        if not isinstance(waivers, list):
+            return False, "waivers must be a list of waiver objects"
+        waiver_ids: set[str] = set()
+        for idx, waiver in enumerate(waivers):
+            if not isinstance(waiver, dict):
+                return False, f"Waiver at index {idx} must be an object"
+            wid = waiver.get("id")
+            if not isinstance(wid, str) or not wid.strip():
+                return False, f"Waiver at index {idx} must have a non-empty string 'id'"
+            if wid in waiver_ids:
+                return False, f"Duplicate waiver id '{wid}' at index {idx}"
+            waiver_ids.add(wid)
+
+            wdomain = waiver.get("domain")
+            if not isinstance(wdomain, str) or wdomain not in domains:
+                return False, f"Waiver '{wid}' domain '{wdomain}' is not declared in domains"
+
+            wpaths = waiver.get("paths")
+            if not isinstance(wpaths, list) or not wpaths:
+                return False, f"Waiver '{wid}' must have a non-empty list of paths"
+            for wp in wpaths:
+                if not isinstance(wp, str) or not wp.strip():
+                    return False, f"Waiver '{wid}' paths must be non-empty strings"
+
+            wreason = waiver.get("reason")
+            if not isinstance(wreason, str) or not wreason.strip():
+                return False, f"Waiver '{wid}' must have a non-empty string 'reason'"
+
+            wgap = waiver.get("gap")
+            if wgap is not None and (not isinstance(wgap, str) or not wgap.strip()):
+                return False, f"Waiver '{wid}' gap must be null or a non-empty string"
+
+    return True, ""
+
+
 def extract_json_fields(data: Any, prefix: str = "") -> tuple[list[str], dict[str, str]]:
     """Extract flat keys and dotted field paths with normalized JSON types from parsed JSON."""
     flat_keys: set[str] = set()
@@ -1062,6 +1175,512 @@ def cmd_ack(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_diff_check(args: argparse.Namespace) -> int:
+    """Audit diff between merge-base and HEAD against .agents/contract_map.json."""
+    repo_root = Path(args.repo_root).resolve() if args.repo_root else Path.cwd().resolve()
+    is_json = bool(args.json)
+
+    def emit_blocked(
+        blockers: list[str],
+        mode: str | None = None,
+        base_ref: str | None = None,
+        merge_base: str | None = None,
+        head_sha: str | None = None,
+    ) -> int:
+        if is_json:
+            payload = {
+                "status": "BLOCKED",
+                "mode": mode,
+                "base_ref": base_ref,
+                "merge_base": merge_base,
+                "head_sha": head_sha,
+                "domains": [],
+                "violations": [],
+                "active_waivers": [],
+                "blockers": blockers,
+            }
+            print(json.dumps(payload, indent=2))
+        else:
+            print("Status: BLOCKED")
+            if mode:
+                print(f"Mode: {mode}")
+            print("Blockers:")
+            for b in blockers:
+                print(f"  - {b}")
+        return 2
+
+    # 1. Preconditions: Validate HEAD .agents/contract_map.json
+    map_file = repo_root / ".agents" / "contract_map.json"
+    if not map_file.is_file():
+        return emit_blocked(["Missing .agents/contract_map.json at HEAD"])
+
+    try:
+        head_map_data = json.loads(map_file.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError) as exc:
+        return emit_blocked([f"Malformed JSON in .agents/contract_map.json at HEAD: {exc}"])
+
+    valid_map, map_err = validate_contract_map(head_map_data)
+    if not valid_map:
+        return emit_blocked([f"Invalid .agents/contract_map.json schema at HEAD: {map_err}"])
+
+    head_domains: dict[str, Any] = head_map_data["domains"]
+
+    # 2. Preconditions: Validate --domain filters
+    if args.domain:
+        for d in args.domain:
+            if d not in head_domains:
+                return emit_blocked([f"Unknown domain filter '{d}' not in contract_map.json domains"])
+
+    # 3. Preconditions: Check tracked working-tree cleanliness
+    proc_status = subprocess.run(
+        ["git", "status", "--porcelain", "--untracked-files=no"],
+        check=False,
+        cwd=repo_root,
+        capture_output=True,
+    )
+    if proc_status.returncode != 0:
+        return emit_blocked([f"git status failed: {proc_status.stderr.decode(errors='replace').strip()}"])
+    if proc_status.stdout.strip():
+        dirty_lines = [line.strip() for line in proc_status.stdout.decode(errors='replace').splitlines() if line.strip()]
+        return emit_blocked([f"Working tree has tracked modifications: {', '.join(dirty_lines)}"])
+
+    # 4. Preconditions: Determine effective_base_ref and resolve merge-base
+    effective_base_ref: str = args.base_ref if args.base_ref else head_map_data["base_ref"]
+
+    proc_mb = subprocess.run(
+        ["git", "merge-base", effective_base_ref, "HEAD"],
+        check=False,
+        cwd=repo_root,
+        capture_output=True,
+    )
+    if proc_mb.returncode != 0:
+        return emit_blocked(
+            [f"Failed to find git merge-base for base-ref '{effective_base_ref}': {proc_mb.stderr.decode(errors='replace').strip()}"],
+            base_ref=effective_base_ref,
+        )
+    merge_base = proc_mb.stdout.decode().strip()
+
+    proc_head = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        check=False,
+        cwd=repo_root,
+        capture_output=True,
+    )
+    if proc_head.returncode != 0:
+        return emit_blocked([f"Failed to resolve git HEAD: {proc_head.stderr.decode(errors='replace').strip()}"])
+    head_sha = proc_head.stdout.decode().strip()
+
+    # 5. Preconditions: Topology resolution
+    first_domain = next(iter(head_domains))
+    try:
+        topo = resolve_topology(repo_root, first_domain)
+    except (TopologyError, ContractFormatError) as exc:
+        return emit_blocked([str(exc)], base_ref=effective_base_ref, merge_base=merge_base, head_sha=head_sha)
+
+    mode = topo["mode"]
+
+    if mode == "satellite":
+        contract_dir = topo.get("contract_dir")
+        linked_domain = contract_dir.name if contract_dir else ""
+        for d in head_domains:
+            if d != linked_domain:
+                return emit_blocked(
+                    [f"Satellite contract_map.json domain '{d}' does not match linked shared-contracts domain '{linked_domain}'"],
+                    mode=mode,
+                    base_ref=effective_base_ref,
+                    merge_base=merge_base,
+                    head_sha=head_sha,
+                )
+
+    # 6. Short-circuit PASS if M == HEAD
+    evaluated_domains = sorted(set(args.domain)) if args.domain else sorted(head_domains.keys())
+    if merge_base == head_sha:
+        early_report: list[dict[str, Any]] = [{"domain": d, "changed_files": [], "proof": "none"} for d in evaluated_domains]
+        if is_json:
+            payload = {
+                "status": "PASS",
+                "mode": mode,
+                "base_ref": effective_base_ref,
+                "merge_base": merge_base,
+                "head_sha": head_sha,
+                "domains": early_report,
+                "violations": [],
+                "active_waivers": [],
+                "blockers": [],
+            }
+            print(json.dumps(payload, indent=2))
+        else:
+            print("Status: PASS")
+            print(f"Mode: {mode}")
+            print(f"Base ref: {effective_base_ref}")
+            print("Domains:")
+            for item in early_report:
+                print(f"  - {item['domain']}: proof={item['proof']}")
+        return 0
+
+    # 7. Probe baseline contract_map.json at merge_base
+    proc_ls_map = subprocess.run(
+        ["git", "ls-tree", "-r", "--name-only", merge_base, "--", ".agents/contract_map.json"],
+        check=False,
+        cwd=repo_root,
+        capture_output=True,
+    )
+    if proc_ls_map.returncode != 0:
+        return emit_blocked(
+            [f"git ls-tree failed for baseline .agents/contract_map.json at {merge_base}: {proc_ls_map.stderr.decode(errors='replace').strip()}"],
+            mode=mode,
+            base_ref=effective_base_ref,
+            merge_base=merge_base,
+            head_sha=head_sha,
+        )
+
+    baseline_domains: dict[str, Any] = {}
+    baseline_waivers: dict[str, Any] = {}
+    if proc_ls_map.stdout.strip():
+        proc_show_map = subprocess.run(
+            ["git", "show", f"{merge_base}:.agents/contract_map.json"],
+            check=False,
+            cwd=repo_root,
+            capture_output=True,
+        )
+        if proc_show_map.returncode != 0:
+            return emit_blocked(
+                [f"git show failed for baseline .agents/contract_map.json at {merge_base}: {proc_show_map.stderr.decode(errors='replace').strip()}"],
+                mode=mode,
+                base_ref=effective_base_ref,
+                merge_base=merge_base,
+                head_sha=head_sha,
+            )
+        try:
+            base_map_data = json.loads(proc_show_map.stdout.decode("utf-8"))
+        except (json.JSONDecodeError, OSError) as exc:
+            return emit_blocked(
+                [f"Malformed JSON in baseline .agents/contract_map.json at {merge_base}: {exc}"],
+                mode=mode,
+                base_ref=effective_base_ref,
+                merge_base=merge_base,
+                head_sha=head_sha,
+            )
+        valid_base_map, base_map_err = validate_contract_map(base_map_data)
+        if not valid_base_map:
+            return emit_blocked(
+                [f"Invalid schema in baseline .agents/contract_map.json at {merge_base}: {base_map_err}"],
+                mode=mode,
+                base_ref=effective_base_ref,
+                merge_base=merge_base,
+                head_sha=head_sha,
+            )
+        baseline_domains = base_map_data["domains"]
+        for w in base_map_data.get("waivers") or []:
+            baseline_waivers[w["id"]] = w
+
+    violations: list[dict[str, str]] = []
+
+    # 8. Check historical waiver immutability
+    head_waivers: dict[str, Any] = {}
+    for w in head_map_data.get("waivers") or []:
+        head_waivers[w["id"]] = w
+
+    for wid, w_base in baseline_waivers.items():
+        if wid in head_waivers:
+            w_head = head_waivers[wid]
+            if (
+                w_head["domain"] != w_base["domain"]
+                or w_head["paths"] != w_base["paths"]
+                or w_head["reason"] != w_base["reason"]
+                or w_head.get("gap") != w_base.get("gap")
+            ):
+                violations.append({
+                    "file": ".agents/contract_map.json",
+                    "domain": str(w_head.get("domain", "")),
+                    "message": f"Illegal mutation of historical waiver '{wid}'",
+                })
+
+    newly_added_waivers = [w for wid, w in head_waivers.items() if wid not in baseline_waivers]
+
+    for w in newly_added_waivers:
+        gap = w.get("gap")
+        if gap is not None:
+            wdomain = w["domain"]
+            if mode == "hub":
+                gaps_file = repo_root / "shared-contracts" / wdomain / "gaps_and_rfcs.md"
+            else:
+                contract_dir_opt = topo.get("contract_dir")
+                gaps_file = (contract_dir_opt / "gaps_and_rfcs.md") if contract_dir_opt else (repo_root / "shared-contracts" / "gaps_and_rfcs.md")
+            if not gaps_file.is_file():
+                violations.append({
+                    "file": ".agents/contract_map.json",
+                    "domain": str(wdomain),
+                    "message": f"Waiver '{w['id']}' cites gap '{gap}' but {gaps_file} does not exist",
+                })
+            else:
+                try:
+                    gaps_content = gaps_file.read_text(encoding="utf-8")
+                    gaps_parsed = parse_gaps_and_rfcs(gaps_content)
+                    rfcs_dict = gaps_parsed.get("rfcs", {})
+                    if gap not in rfcs_dict:
+                        violations.append({
+                            "file": ".agents/contract_map.json",
+                            "domain": str(wdomain),
+                            "message": f"Waiver '{w['id']}' cites non-existent gap '{gap}'",
+                        })
+                    else:
+                        raw_status = str(rfcs_dict[gap].get("status", ""))
+                        norm_status, _ = normalize_rfc_status(raw_status)
+                        if norm_status not in ("ACTIONABLE_PENDING", "ACKNOWLEDGED_ACTIVE"):
+                            violations.append({
+                                "file": ".agents/contract_map.json",
+                                "domain": str(wdomain),
+                                "message": f"Waiver '{w['id']}' cites INACTIVE gap '{gap}' (status: {raw_status})",
+                            })
+                except (ContractFormatError, OSError) as exc:
+                    violations.append({
+                        "file": ".agents/contract_map.json",
+                        "domain": str(wdomain),
+                        "message": f"Failed to parse gaps_and_rfcs.md for waiver '{w['id']}': {exc}",
+                    })
+
+    # 9. Extract changed files via git diff --no-ext-diff --no-renames --name-only -z M..HEAD
+    proc_diff = subprocess.run(
+        ["git", "diff", "--no-ext-diff", "--no-renames", "--name-only", "-z", f"{merge_base}..HEAD"],
+        check=False,
+        cwd=repo_root,
+        capture_output=True,
+    )
+    if proc_diff.returncode != 0:
+        return emit_blocked(
+            [f"git diff failed: {proc_diff.stderr.decode(errors='replace').strip()}"],
+            mode=mode,
+            base_ref=effective_base_ref,
+            merge_base=merge_base,
+            head_sha=head_sha,
+        )
+
+    raw_diff = proc_diff.stdout.decode("utf-8", errors="surrogateescape")
+    changed_files = [f for f in raw_diff.split("\0") if f]
+
+    # 10. Evaluate domains across union(HEAD, baseline)
+    all_domains = sorted(set(head_domains) | set(baseline_domains))
+    if args.domain:
+        domains_to_evaluate = sorted(set(args.domain))
+    else:
+        domains_to_evaluate = all_domains
+
+    # Check deleted baseline domains
+    for d in sorted(set(baseline_domains) - set(head_domains)):
+        if d in domains_to_evaluate:
+            base_cfg = baseline_domains[d]
+            matching_changed = [f for f in changed_files if path_matches_domain(f, base_cfg)]
+            if matching_changed:
+                violations.append({
+                    "file": ".agents/contract_map.json",
+                    "domain": d,
+                    "message": f"Domain '{d}' was deleted at HEAD but has changed baseline-mapped files: {', '.join(matching_changed)}",
+                })
+
+    domains_report: list[dict[str, Any]] = []
+    active_waivers: list[dict[str, Any]] = []
+
+    for d in domains_to_evaluate:
+        if d not in head_domains:
+            continue
+
+        head_cfg = head_domains[d]
+        base_cfg = baseline_domains.get(d)
+        changed_mapped: list[str] = []
+        for f in changed_files:
+            matched = False
+            if path_matches_domain(f, head_cfg) or (base_cfg and path_matches_domain(f, base_cfg)):
+                matched = True
+            if matched:
+                changed_mapped.append(f)
+
+        if not changed_mapped:
+            domains_report.append({"domain": d, "changed_files": [], "proof": "none"})
+            continue
+
+        changed_mapped = sorted(set(changed_mapped))
+        domain_covered = False
+        domain_proof = "uncovered"
+
+        if mode == "hub":
+            prefix = f"shared-contracts/{d}/"
+            canonical_edits = [
+                f for f in changed_files
+                if f in (f"{prefix}api_contract.md", f"{prefix}architecture_and_flow.md", f"{prefix}gaps_and_rfcs.md")
+            ]
+            if canonical_edits:
+                domain_covered = True
+                domain_proof = "contract_edit"
+        elif mode == "satellite":
+            proc_ls_sync = subprocess.run(
+                ["git", "ls-tree", "-r", "--name-only", merge_base, "--", ".agents/contract_sync.json"],
+                check=False,
+                cwd=repo_root,
+                capture_output=True,
+            )
+            if proc_ls_sync.returncode != 0:
+                return emit_blocked(
+                    [f"git ls-tree failed for baseline contract_sync.json: {proc_ls_sync.stderr.decode(errors='replace').strip()}"],
+                    mode=mode,
+                    base_ref=effective_base_ref,
+                    merge_base=merge_base,
+                    head_sha=head_sha,
+                )
+            base_sync_domains: dict[str, Any] = {}
+            if proc_ls_sync.stdout.strip():
+                proc_show_sync = subprocess.run(
+                    ["git", "show", f"{merge_base}:.agents/contract_sync.json"],
+                    check=False,
+                    cwd=repo_root,
+                    capture_output=True,
+                )
+                if proc_show_sync.returncode != 0:
+                    return emit_blocked(
+                        [f"git show failed for baseline contract_sync.json: {proc_show_sync.stderr.decode(errors='replace').strip()}"],
+                        mode=mode,
+                        base_ref=effective_base_ref,
+                        merge_base=merge_base,
+                        head_sha=head_sha,
+                    )
+                try:
+                    base_sync_data = json.loads(proc_show_sync.stdout.decode("utf-8"))
+                    base_sync_domains = base_sync_data.get("domains") or {}
+                except (json.JSONDecodeError, OSError) as exc:
+                    return emit_blocked(
+                        [f"Malformed JSON in baseline contract_sync.json: {exc}"],
+                        mode=mode,
+                        base_ref=effective_base_ref,
+                        merge_base=merge_base,
+                        head_sha=head_sha,
+                    )
+
+            head_sync_file = repo_root / ".agents" / "contract_sync.json"
+            if head_sync_file.is_file():
+                try:
+                    head_sync_data = json.loads(head_sync_file.read_text(encoding="utf-8"))
+                    head_sync_domains = head_sync_data.get("domains") or {}
+                except (json.JSONDecodeError, OSError) as exc:
+                    return emit_blocked(
+                        [f"Malformed JSON in HEAD contract_sync.json: {exc}"],
+                        mode=mode,
+                        base_ref=effective_base_ref,
+                        merge_base=merge_base,
+                        head_sha=head_sha,
+                    )
+
+                contract_dir_opt = topo.get("contract_dir")
+                if not contract_dir_opt:
+                    return emit_blocked(
+                        ["Missing contract_dir in topology"],
+                        mode=mode,
+                        base_ref=effective_base_ref,
+                        merge_base=merge_base,
+                        head_sha=head_sha,
+                    )
+                try:
+                    f_hashes: dict[str, str] = {}
+                    for cname in CANONICAL_FILES:
+                        cpath = contract_dir_opt / cname
+                        if not cpath.is_file():
+                            raise ContractFormatError(f"Canonical file {cname} missing from {contract_dir_opt}")
+                        f_hashes[cname] = compute_file_hash(cpath)
+                    live_snapshot_id = compute_snapshot_id(f_hashes)
+                except (ContractFormatError, OSError) as exc:
+                    return emit_blocked(
+                        [f"Failed to compute live snapshot_id: {exc}"],
+                        mode=mode,
+                        base_ref=effective_base_ref,
+                        merge_base=merge_base,
+                        head_sha=head_sha,
+                    )
+
+                head_d_info = head_sync_domains.get(d)
+                base_d_info = base_sync_domains.get(d)
+
+                if head_d_info:
+                    was_added_or_updated = (base_d_info is None) or (head_d_info != base_d_info)
+                    snapshot_matched = head_d_info.get("snapshot_id") == live_snapshot_id
+                    if was_added_or_updated and snapshot_matched:
+                        domain_covered = True
+                        domain_proof = "ack"
+
+        if domain_covered:
+            domains_report.append({"domain": d, "changed_files": changed_mapped, "proof": domain_proof})
+        else:
+            uncovered: list[str] = []
+            matched_waivers_for_d: list[dict[str, Any]] = []
+            for f in changed_mapped:
+                covered_by_w = False
+                for w in newly_added_waivers:
+                    if w["domain"] == d:
+                        for wp in w["paths"]:
+                            if compile_glob(wp).search(f):
+                                covered_by_w = True
+                                if w not in matched_waivers_for_d:
+                                    matched_waivers_for_d.append(w)
+                                break
+                    if covered_by_w:
+                        break
+                if not covered_by_w:
+                    uncovered.append(f)
+
+            if not uncovered:
+                domains_report.append({"domain": d, "changed_files": changed_mapped, "proof": "waiver"})
+                for w in matched_waivers_for_d:
+                    w_item = {
+                        "id": w["id"],
+                        "domain": w["domain"],
+                        "paths": w["paths"],
+                        "reason": w["reason"],
+                        "gap": w.get("gap"),
+                    }
+                    if w_item not in active_waivers:
+                        active_waivers.append(w_item)
+            else:
+                domains_report.append({"domain": d, "changed_files": changed_mapped, "proof": "uncovered"})
+                for uf in uncovered:
+                    violations.append({
+                        "file": uf,
+                        "domain": d,
+                        "message": f"Mapped file '{uf}' changed in domain '{d}' without canonical contract edit, fresh ack, or active waiver",
+                    })
+
+    status = "FAIL" if violations else "PASS"
+    exit_code = 1 if violations else 0
+
+    if is_json:
+        payload = {
+            "status": status,
+            "mode": mode,
+            "base_ref": effective_base_ref,
+            "merge_base": merge_base,
+            "head_sha": head_sha,
+            "domains": domains_report,
+            "violations": violations,
+            "active_waivers": active_waivers,
+            "blockers": [],
+        }
+        print(json.dumps(payload, indent=2))
+    else:
+        print(f"Status: {status}")
+        print(f"Mode: {mode}")
+        print(f"Base ref: {effective_base_ref}")
+        print("Domains:")
+        for item in domains_report:
+            print(f"  - {item['domain']}: proof={item['proof']} ({len(item['changed_files'])} changed files)")
+        if active_waivers:
+            print("Active Waivers:")
+            for w in active_waivers:
+                print(f"  - [{w['id']}] {w['domain']} ({', '.join(w['paths'])}): {w['reason']} (gap: {w.get('gap')})")
+        if violations:
+            print("Violations:")
+            for v in violations:
+                print(f"  - [{v.get('domain', 'general')}] {v['file']}: {v['message']}")
+
+    return exit_code
+
+
 def main(argv: list[str] | None = None) -> int:
     """CLI main entrypoint."""
     parser = argparse.ArgumentParser(description="Sync Shared Contracts CLI")
@@ -1086,6 +1705,12 @@ def main(argv: list[str] | None = None) -> int:
     p_ack.add_argument("--rfc", action="append", help="RFC ID to acknowledge")
     p_ack.add_argument("--all-rfcs", action="store_true", help="Acknowledge all RFCs")
 
+    p_diff = subparsers.add_parser("diff-check", help="Audit diff between merge-base and HEAD against contract_map.json")
+    p_diff.add_argument("--repo-root", type=str, help="Repository root path")
+    p_diff.add_argument("--base-ref", type=str, help="Base git reference")
+    p_diff.add_argument("--domain", action="append", help="Contract domain filter")
+    p_diff.add_argument("--json", action="store_true", help="Emit JSON output")
+
     args = parser.parse_args(argv)
     if not args.command:
         parser.print_help()
@@ -1097,6 +1722,8 @@ def main(argv: list[str] | None = None) -> int:
         return cmd_brief(args)
     if args.command == "ack":
         return cmd_ack(args)
+    if args.command == "diff-check":
+        return cmd_diff_check(args)
 
     return 1
 

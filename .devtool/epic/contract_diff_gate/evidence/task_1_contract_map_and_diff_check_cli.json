@@ -1,0 +1,335 @@
+{
+  "schema": 1,
+  "task": "task_1_contract_map_and_diff_check_cli",
+  "runs": {
+    "red": {
+      "head": "678c88bb3358224790287ee6572e1c8cbdc97da9",
+      "tree": "086ca5d87e81c78e26567655c4b632d285d45614",
+      "patch_id": "5dc7a583a8de16f32d3f990130d8c2908fffcb0d",
+      "started": "2026-11-02T11:34:10Z",
+      "finished": "2026-11-02T11:34:10Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m unittest skills/sync-shared-contracts/resources/scripts/test_sync_contracts.py -k test_cdg_hp_01",
+          "expect": "exit 1; contains \"FAILED\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-02T11:34:10Z",
+          "finished": "2026-11-02T11:34:10Z",
+          "output_tail": [
+            "  File \"/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/argparse.py\", line 2249, in consume_positionals",
+            "    take_action(action, args)",
+            "    ~~~~~~~~~~~^^^^^^^^^^^^^^",
+            "  File \"/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/argparse.py\", line 2103, in take_action",
+            "    argument_values = self._get_values(action, argument_strings)",
+            "  File \"/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/argparse.py\", line 2629, in _get_values",
+            "    self._check_value(action, value[0])",
+            "    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^",
+            "  File \"/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/argparse.py\", line 2691, in _check_value",
+            "    raise ArgumentError(action, msg % args)",
+            "argparse.ArgumentError: argument command: invalid choice: 'diff-check' (choose from check, brief, ack)",
+            "",
+            "During handling of the above exception, another exception occurred:",
+            "",
+            "Traceback (most recent call last):",
+            "  File \"/Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/contract_diff_gate/skills/sync-shared-contracts/resources/scripts/test_sync_contracts.py\", line 665, in test_cdg_hp_01_hub_mapped_file_change_covered_by_contract_edit",
+            "    exit_code = main([\"diff-check\", \"--repo-root\", str(self.repo_root), \"--base-ref\", \"develop\", \"--json\"])",
+            "  File \"/Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/contract_diff_gate/skills/sync-shared-contracts/resources/scripts/sync_contracts.py\", line 1089, in main",
+            "    args = parser.parse_args(argv)",
+            "  File \"/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/argparse.py\", line 2003, in parse_args",
+            "    args, argv = self.parse_known_args(args, namespace)",
+            "                 ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^",
+            "  File \"/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/argparse.py\", line 2013, in parse_known_args",
+            "    return self._parse_known_args2(args, namespace, intermixed=False)",
+            "           ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+            "  File \"/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/argparse.py\", line 2044, in _parse_known_args2",
+            "    self.error(str(err))",
+            "    ~~~~~~~~~~^^^^^^^^^^",
+            "  File \"/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/argparse.py\", line 2780, in error",
+            "    self.exit(2, _('%(prog)s: error: %(message)s\\n') % args)",
+            "    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+            "  File \"/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/argparse.py\", line 2767, in exit",
+            "    _sys.exit(status)",
+            "    ~~~~~~~~~^^^^^^^^",
+            "SystemExit: 2",
+            "",
+            "----------------------------------------------------------------------",
+            "Ran 1 test in 0.096s",
+            "",
+            "FAILED (errors=1)"
+          ],
+          "output_sha256": "6015c70d173fb15ed5322e58db30d84137f0461f2009342805f3b1a3d642ba55"
+        }
+      ]
+    },
+    "verify": {
+      "head": "678c88bb3358224790287ee6572e1c8cbdc97da9",
+      "tree": "78b5ce71ae2ab68d43c3ac6aec3632683d5a5b59",
+      "patch_id": "576dff95aa4a209dcb894d00d78f93ea967b4bbe",
+      "started": "2026-11-02T11:47:12Z",
+      "finished": "2026-11-02T11:47:23Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m unittest skills/sync-shared-contracts/resources/scripts/test_sync_contracts.py -k test_cdg_",
+          "expect": "exit 0; contains \"OK\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-02T11:47:12Z",
+          "finished": "2026-11-02T11:47:16Z",
+          "output_tail": [
+            "...............",
+            "----------------------------------------------------------------------",
+            "Ran 15 tests in 3.452s",
+            "",
+            "OK",
+            "Watermark acknowledged for domain 'lyrics-sync' -> sha256:8bfd68e874b767ad39456a13275301e498cc73327d42a03fe81c41316428f203",
+            "Watermark acknowledged for domain 'lyrics-sync' -> sha256:8bfd68e874b767ad39456a13275301e498cc73327d42a03fe81c41316428f203",
+            "Watermark acknowledged for domain 'lyrics-sync' -> sha256:8bfd68e874b767ad39456a13275301e498cc73327d42a03fe81c41316428f203",
+            "Watermark acknowledged for domain 'lyrics-sync' -> sha256:8bfd68e874b767ad39456a13275301e498cc73327d42a03fe81c41316428f203",
+            "Watermark acknowledged for domain 'lyrics-sync' -> sha256:8bfd68e874b767ad39456a13275301e498cc73327d42a03fe81c41316428f203"
+          ],
+          "output_sha256": "bae41ddc774d8b8ae5ad7035fa52fe369eb9e26c8673d73c9f9155f469b383b3"
+        },
+        {
+          "id": "V3",
+          "phase": "GREEN",
+          "command": "python3 -m unittest skills/sync-shared-contracts/resources/scripts/test_sync_contracts.py",
+          "expect": "exit 0; contains \"OK\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-02T11:47:16Z",
+          "finished": "2026-11-02T11:47:19Z",
+          "output_tail": [
+            ".....................ERROR: shared-contracts not found in /private/tmp/ag_tess/tmpwpeypk29. Initialize or link contracts with setup_contracts.py",
+            "..Warning: malformed watermark file at /private/tmp/ag_tess/tmpfeoncmmh/.agents/contract_sync.json, falling back to initial state",
+            "........",
+            "----------------------------------------------------------------------",
+            "Ran 31 tests in 3.472s",
+            "",
+            "OK",
+            "Watermark acknowledged for domain 'lyrics-sync' -> sha256:8bfd68e874b767ad39456a13275301e498cc73327d42a03fe81c41316428f203",
+            "Watermark acknowledged for domain 'lyrics-sync' -> sha256:8bfd68e874b767ad39456a13275301e498cc73327d42a03fe81c41316428f203",
+            "Watermark acknowledged for domain 'lyrics-sync' -> sha256:8bfd68e874b767ad39456a13275301e498cc73327d42a03fe81c41316428f203",
+            "Watermark acknowledged for domain 'lyrics-sync' -> sha256:8bfd68e874b767ad39456a13275301e498cc73327d42a03fe81c41316428f203",
+            "Watermark acknowledged for domain 'lyrics-sync' -> sha256:8bfd68e874b767ad39456a13275301e498cc73327d42a03fe81c41316428f203",
+            "Watermark acknowledged for domain 'lyrics-sync' -> sha256:8bfd68e874b767ad39456a13275301e498cc73327d42a03fe81c41316428f203",
+            "Domain 'lyrics-sync' status: INITIAL_SYNC (watermark absent)",
+            "Snapshot ID: sha256:8bfd68e874b767ad39456a13275301e498cc73327d42a03fe81c41316428f203",
+            "Contract Version: 1.2.0",
+            "Unsynced files: api_contract.md, architecture_and_flow.md, gaps_and_rfcs.md",
+            "Watermark acknowledged for domain 'lyrics-sync' -> sha256:8bfd68e874b767ad39456a13275301e498cc73327d42a03fe81c41316428f203",
+            "Requirements brief written to /private/tmp/ag_tess/tmpwrcenmw3/brief.md",
+            "Watermark acknowledged for domain 'lyrics-sync' -> sha256:8bfd68e874b767ad39456a13275301e498cc73327d42a03fe81c41316428f203",
+            "Requirements brief written to /private/tmp/ag_tess/tmpwrcenmw3/repeat_brief.md",
+            "Watermark acknowledged for domain 'lyrics-sync' -> sha256:8bfd68e874b767ad39456a13275301e498cc73327d42a03fe81c41316428f203",
+            "Domain 'lyrics-sync' status: IN_SYNC",
+            "Watermark acknowledged for domain 'lyrics-sync' -> sha256:3edd9bf7390404e1f590a303a4cce9f6af47f51468211e19cb33b9008490b3e0",
+            "Domain 'lyrics-sync' status: IN_SYNC",
+            "Requirements brief written to /private/tmp/ag_tess/tmp9k6g9787/brief_refreshed.md",
+            "Watermark acknowledged for domain 'lyrics-sync' -> sha256:f477d182af7660569063045cd0d83f828d8c4e8cdf638fa8f7cfe55f11932f7a",
+            "Domain 'lyrics-sync' status: IN_SYNC",
+            "Watermark acknowledged for domain 'lyrics-sync' -> sha256:8bfd68e874b767ad39456a13275301e498cc73327d42a03fe81c41316428f203",
+            "Watermark acknowledged for domain 'nexus' -> sha256:a408ca396e08787d30287053fc3b2cb24b3168f83dba93d4e3224ecdba09bed6",
+            "Domain 'nexus' scoped check for ['GAP-03']: IN_SYNC",
+            "Domain 'nexus' status: DRIFT_DETECTED",
+            "Pending RFCs: GAP-01, GAP-02",
+            "Watermark acknowledged for domain 'nexus' -> sha256:a408ca396e08787d30287053fc3b2cb24b3168f83dba93d4e3224ecdba09bed6",
+            "Domain 'nexus' status: IN_SYNC"
+          ],
+          "output_sha256": "9167b058557f2dae09ea2c7a1d3d1a4dc6d0c7814094b7e388728c340607ba6d"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "ruff check skills/sync-shared-contracts/resources/scripts/sync_contracts.py skills/sync-shared-contracts/resources/scripts/test_sync_contracts.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-02T11:47:19Z",
+          "finished": "2026-11-02T11:47:19Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-B",
+          "command": "mypy --strict --follow-imports=silent skills/sync-shared-contracts/resources/scripts/sync_contracts.py skills/sync-shared-contracts/resources/scripts/test_sync_contracts.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-02T11:47:19Z",
+          "finished": "2026-11-02T11:47:19Z",
+          "output_tail": [
+            "Success: no issues found in 2 source files"
+          ],
+          "output_sha256": "f9b031e5c45aa702cd4fef028d465551cb20a2c4698e0913c7b00766b20ac4d8"
+        },
+        {
+          "id": "V6",
+          "phase": "TIER-C",
+          "command": "python3 scripts/run_unittest_junit.py --junitxml build/test-results/task_1.xml skills/sync-shared-contracts/resources/scripts/test_sync_contracts.py",
+          "expect": "exit 0; results build/test-results/task_1.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-02T11:47:19Z",
+          "finished": "2026-11-02T11:47:23Z",
+          "output_tail": [
+            ".....................ERROR: shared-contracts not found in /private/tmp/ag_tess/tmp7t2jsgdt. Initialize or link contracts with setup_contracts.py",
+            "..Warning: malformed watermark file at /private/tmp/ag_tess/tmpcl756b8w/.agents/contract_sync.json, falling back to initial state",
+            "........",
+            "----------------------------------------------------------------------",
+            "Ran 31 tests in 3.526s",
+            "",
+            "OK",
+            "Watermark acknowledged for domain 'lyrics-sync' -> sha256:8bfd68e874b767ad39456a13275301e498cc73327d42a03fe81c41316428f203",
+            "Watermark acknowledged for domain 'lyrics-sync' -> sha256:8bfd68e874b767ad39456a13275301e498cc73327d42a03fe81c41316428f203",
+            "Watermark acknowledged for domain 'lyrics-sync' -> sha256:8bfd68e874b767ad39456a13275301e498cc73327d42a03fe81c41316428f203",
+            "Watermark acknowledged for domain 'lyrics-sync' -> sha256:8bfd68e874b767ad39456a13275301e498cc73327d42a03fe81c41316428f203",
+            "Watermark acknowledged for domain 'lyrics-sync' -> sha256:8bfd68e874b767ad39456a13275301e498cc73327d42a03fe81c41316428f203",
+            "Watermark acknowledged for domain 'lyrics-sync' -> sha256:8bfd68e874b767ad39456a13275301e498cc73327d42a03fe81c41316428f203",
+            "Domain 'lyrics-sync' status: INITIAL_SYNC (watermark absent)",
+            "Snapshot ID: sha256:8bfd68e874b767ad39456a13275301e498cc73327d42a03fe81c41316428f203",
+            "Contract Version: 1.2.0",
+            "Unsynced files: api_contract.md, architecture_and_flow.md, gaps_and_rfcs.md",
+            "Watermark acknowledged for domain 'lyrics-sync' -> sha256:8bfd68e874b767ad39456a13275301e498cc73327d42a03fe81c41316428f203",
+            "Requirements brief written to /private/tmp/ag_tess/tmpqc3dil20/brief.md",
+            "Watermark acknowledged for domain 'lyrics-sync' -> sha256:8bfd68e874b767ad39456a13275301e498cc73327d42a03fe81c41316428f203",
+            "Requirements brief written to /private/tmp/ag_tess/tmpqc3dil20/repeat_brief.md",
+            "Watermark acknowledged for domain 'lyrics-sync' -> sha256:8bfd68e874b767ad39456a13275301e498cc73327d42a03fe81c41316428f203",
+            "Domain 'lyrics-sync' status: IN_SYNC",
+            "Watermark acknowledged for domain 'lyrics-sync' -> sha256:3edd9bf7390404e1f590a303a4cce9f6af47f51468211e19cb33b9008490b3e0",
+            "Domain 'lyrics-sync' status: IN_SYNC",
+            "Requirements brief written to /private/tmp/ag_tess/tmp2_nah0i9/brief_refreshed.md",
+            "Watermark acknowledged for domain 'lyrics-sync' -> sha256:f477d182af7660569063045cd0d83f828d8c4e8cdf638fa8f7cfe55f11932f7a",
+            "Domain 'lyrics-sync' status: IN_SYNC",
+            "Watermark acknowledged for domain 'lyrics-sync' -> sha256:8bfd68e874b767ad39456a13275301e498cc73327d42a03fe81c41316428f203",
+            "Watermark acknowledged for domain 'nexus' -> sha256:a408ca396e08787d30287053fc3b2cb24b3168f83dba93d4e3224ecdba09bed6",
+            "Domain 'nexus' scoped check for ['GAP-03']: IN_SYNC",
+            "Domain 'nexus' status: DRIFT_DETECTED",
+            "Pending RFCs: GAP-01, GAP-02",
+            "Watermark acknowledged for domain 'nexus' -> sha256:a408ca396e08787d30287053fc3b2cb24b3168f83dba93d4e3224ecdba09bed6",
+            "Domain 'nexus' status: IN_SYNC"
+          ],
+          "output_sha256": "94f5c1bd1a29666a79ac40cabfed9a9d331b99764686d0dc6cbf7510a6487073",
+          "results": {
+            "path": "build/test-results/task_1.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 15,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_cdg_ar_01_nested_worktree_satellite_symlink",
+                  "classname": "test_sync_contracts.TestSyncContracts",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cdg_ar_02_dirty_tracked_working_tree_blocked",
+                  "classname": "test_sync_contracts.TestSyncContracts",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cdg_ec_01_anchored_posix_glob_matching",
+                  "classname": "test_sync_contracts.TestSyncContracts",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cdg_ec_02_empty_diff_or_unmapped_changes",
+                  "classname": "test_sync_contracts.TestSyncContracts",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cdg_ec_03_base_ref_override_and_domain_filter",
+                  "classname": "test_sync_contracts.TestSyncContracts",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cdg_ec_04_new_waiver_with_null_and_valid_gap",
+                  "classname": "test_sync_contracts.TestSyncContracts",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cdg_ec_05_nul_rename_out_and_git_quoted_filename",
+                  "classname": "test_sync_contracts.TestSyncContracts",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cdg_fr_01_missing_or_malformed_contract_map",
+                  "classname": "test_sync_contracts.TestSyncContracts",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cdg_fr_02_unresolvable_base_ref_unlinked_domain_or_broken_topology",
+                  "classname": "test_sync_contracts.TestSyncContracts",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cdg_hp_01_hub_mapped_file_change_covered_by_contract_edit",
+                  "classname": "test_sync_contracts.TestSyncContracts",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cdg_hp_02_satellite_mapped_file_change_covered_by_fresh_ack",
+                  "classname": "test_sync_contracts.TestSyncContracts",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cdg_st_01_uncovered_mapped_file_and_partial_waiver",
+                  "classname": "test_sync_contracts.TestSyncContracts",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cdg_st_02_historical_waiver_non_masking_and_mutation",
+                  "classname": "test_sync_contracts.TestSyncContracts",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cdg_st_03_satellite_sibling_domain_and_stale_snapshot_or_inactive_gap",
+                  "classname": "test_sync_contracts.TestSyncContracts",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cdg_st_04_baseline_union_domain_mapping",
+                  "classname": "test_sync_contracts.TestSyncContracts",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "skills/setup-shared-contracts/resources/templates/contract_map.json.tmpl",
+            "skills/sync-shared-contracts/resources/scripts/sync_contracts.py",
+            "skills/sync-shared-contracts/resources/scripts/test_sync_contracts.py"
+          ],
+          "violations": []
+        }
+      ]
+    }
+  }
+}
