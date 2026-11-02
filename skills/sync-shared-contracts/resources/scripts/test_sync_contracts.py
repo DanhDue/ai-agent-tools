@@ -812,6 +812,10 @@ X-Correlation-ID: uuid
         self._commit_all(self.repo_root, "Main commit")
 
         subprocess.run(["git", "checkout", "-b", "develop"], cwd=self.repo_root, check=True, capture_output=True)
+        # Advance develop so merge-base(develop, HEAD) is distinct from merge-base(main, HEAD)
+        (self.repo_root / "develop_advance.txt").write_text("develop advance", encoding="utf-8")
+        self._commit_all(self.repo_root, "Advance develop")
+
         subprocess.run(["git", "checkout", "-b", "feat/nexus-only"], cwd=self.repo_root, check=True, capture_output=True)
         nexus_file = self.repo_root / "crates" / "nexus" / "a.rs"
         nexus_file.parent.mkdir(parents=True, exist_ok=True)
@@ -824,8 +828,18 @@ X-Correlation-ID: uuid
         self.assertEqual(exit_code, 0)
         report = json.loads(stdout_buf.getvalue())
         self.assertEqual(report["status"], "PASS")
+        self.assertEqual(report["base_ref"], "develop")
         self.assertEqual(len(report["domains"]), 1)
         self.assertEqual(report["domains"][0]["domain"], "lyrics-sync")
+
+        # Calling without --base-ref falls back to contract_map.json base_ref ("main") with distinct merge_base
+        stdout_buf_fb = io.StringIO()
+        with patch("sys.stdout", stdout_buf_fb):
+            exit_code_fb = main(["diff-check", "--repo-root", str(self.repo_root), "--domain", "lyrics-sync", "--json"])
+        self.assertEqual(exit_code_fb, 0)
+        report_fb = json.loads(stdout_buf_fb.getvalue())
+        self.assertEqual(report_fb["base_ref"], "main")
+        self.assertNotEqual(report["merge_base"], report_fb["merge_base"])
 
         stdout_buf2 = io.StringIO()
         with patch("sys.stdout", stdout_buf2):
@@ -966,6 +980,59 @@ X-Correlation-ID: uuid
         self.assertEqual(exit_code2, 0)
         report2 = json.loads(stdout_buf2.getvalue())
         self.assertEqual(report2["status"], "PASS")
+
+        # Satellite rename-out and C-quoted filename
+        sat_dir = Path(tempfile.mkdtemp(dir=self.temp_dir.name, prefix="sat_ec05_"))
+        self._init_git_repo(sat_dir, "develop")
+        rel_target = os.path.relpath(hub_domain, sat_dir)
+        os.symlink(rel_target, sat_dir / "shared-contracts")
+
+        sat_agents = sat_dir / ".agents"
+        sat_agents.mkdir(parents=True, exist_ok=True)
+        sat_map = {
+            "schema_version": 1,
+            "base_ref": "develop",
+            "domains": {
+                "lyrics-sync": {"paths": ["src/api/dto/**"]}
+            },
+            "waivers": [],
+        }
+        (sat_agents / "contract_map.json").write_text(json.dumps(sat_map, indent=2), encoding="utf-8")
+        sat_worker = sat_dir / "src" / "api" / "dto" / "worker.py"
+        sat_worker.parent.mkdir(parents=True, exist_ok=True)
+        sat_worker.write_text("# sat worker", encoding="utf-8")
+        main(["ack", "--repo-root", str(sat_dir), "--domain", "lyrics-sync", "--all-rfcs"])
+        self._commit_all(sat_dir, "Sat base with worker")
+
+        subprocess.run(["git", "checkout", "-b", "feat/sat-rename"], cwd=sat_dir, check=True, capture_output=True)
+        sat_dest = sat_dir / "src" / "internal" / "worker.py"
+        sat_dest.parent.mkdir(parents=True, exist_ok=True)
+        subprocess.run(["git", "mv", "src/api/dto/worker.py", "src/internal/worker.py"], cwd=sat_dir, check=True, capture_output=True)
+        sat_quoted = sat_dir / "src" / "api" / "dto" / "worker v2 (draft).py"
+        sat_quoted.write_text("# sat draft", encoding="utf-8")
+        self._commit_all(sat_dir, "Sat rename out and quoted file")
+
+        stdout_sat1 = io.StringIO()
+        with patch("sys.stdout", stdout_sat1):
+            exit_sat1 = main(["diff-check", "--repo-root", str(sat_dir), "--json"])
+        self.assertEqual(exit_sat1, 1)
+        sat_rep1 = json.loads(stdout_sat1.getvalue())
+        self.assertEqual(sat_rep1["status"], "FAIL")
+        sat_viols = [v["path"] for v in sat_rep1["violations"]]
+        self.assertIn("src/api/dto/worker.py", sat_viols)
+        self.assertIn("src/api/dto/worker v2 (draft).py", sat_viols)
+
+        # Update hub contracts so live snapshot changes, then fresh ack in satellite satisfies gate
+        (hub_domain / "api_contract.md").write_text((hub_domain / "api_contract.md").read_text(encoding="utf-8") + "\n<!-- satellite sync -->\n", encoding="utf-8")
+        main(["ack", "--repo-root", str(sat_dir), "--domain", "lyrics-sync", "--all-rfcs"])
+        self._commit_all(sat_dir, "Sat fresh ack")
+
+        stdout_sat2 = io.StringIO()
+        with patch("sys.stdout", stdout_sat2):
+            exit_sat2 = main(["diff-check", "--repo-root", str(sat_dir), "--json"])
+        self.assertEqual(exit_sat2, 0)
+        sat_rep2 = json.loads(stdout_sat2.getvalue())
+        self.assertEqual(sat_rep2["status"], "PASS")
 
     def test_cdg_st_01_uncovered_mapped_file_and_partial_waiver(self) -> None:
         """[CDG-ST-01] Uncovered Mapped File Changes and Partial Waivers Transition Verdict to FAIL."""
@@ -1116,13 +1183,14 @@ X-Correlation-ID: uuid
             "waivers": [],
         }
         (sat_agents / "contract_map.json").write_text(json.dumps(contract_map, indent=2), encoding="utf-8")
+        f_dto = sat_dir / "src" / "api" / "dto" / "worker.py"
+        f_dto.parent.mkdir(parents=True, exist_ok=True)
+        f_dto.write_text("# worker initial", encoding="utf-8")
         main(["ack", "--repo-root", str(sat_dir), "--domain", "lyrics-sync", "--all-rfcs"])
         self._commit_all(sat_dir, "Sat base")
 
         subprocess.run(["git", "checkout", "-b", "feat/sibling", "develop"], cwd=sat_dir, check=True, capture_output=True)
-        f_dto = sat_dir / "src" / "api" / "dto" / "worker.py"
-        f_dto.parent.mkdir(parents=True, exist_ok=True)
-        f_dto.write_text("# worker", encoding="utf-8")
+        f_dto.write_text("# worker modified sibling", encoding="utf-8")
 
         sync_state = json.loads((sat_agents / "contract_sync.json").read_text(encoding="utf-8"))
         sync_state["domains"]["nexus"] = {"snapshot_id": "sha256:nexus", "last_synced_at": utc_now_iso()}
@@ -1159,12 +1227,43 @@ X-Correlation-ID: uuid
             }
         ]
         (sat_agents / "contract_map.json").write_text(json.dumps(contract_map, indent=2), encoding="utf-8")
+        f_dto.write_text("# worker modified with bad gap waiver", encoding="utf-8")
         self._commit_all(sat_dir, "Waiver with GAP-999")
 
         stdout_buf3 = io.StringIO()
         with patch("sys.stdout", stdout_buf3):
             exit_code3 = main(["diff-check", "--repo-root", str(sat_dir), "--json"])
         self.assertEqual(exit_code3, 1)
+        report3 = json.loads(stdout_buf3.getvalue())
+        self.assertEqual(report3["status"], "FAIL")
+        self.assertTrue(any("cites non-existent gap 'GAP-999'" in v["reason"] for v in report3["violations"]))
+
+        # Also test waiver citing an INACTIVE gap
+        gaps_file = hub_lyrics / "gaps_and_rfcs.md"
+        gaps_content = gaps_file.read_text(encoding="utf-8") + "| GAP-10 | Rejected feature | Satellite | Rejected | 1.1.0 | No |\n"
+        gaps_file.write_text(gaps_content, encoding="utf-8")
+
+        subprocess.run(["git", "checkout", "-b", "feat/inactive-gap", "develop"], cwd=sat_dir, check=True, capture_output=True)
+        contract_map["waivers"] = [
+            {
+                "id": "W-10",
+                "domain": "lyrics-sync",
+                "paths": ["src/api/dto/worker.py"],
+                "reason": "Inactive gap waiver",
+                "gap": "GAP-10",
+            }
+        ]
+        (sat_agents / "contract_map.json").write_text(json.dumps(contract_map, indent=2), encoding="utf-8")
+        f_dto.write_text("# worker modified with inactive gap waiver", encoding="utf-8")
+        self._commit_all(sat_dir, "Waiver with GAP-10")
+
+        stdout_buf4 = io.StringIO()
+        with patch("sys.stdout", stdout_buf4):
+            exit_code4 = main(["diff-check", "--repo-root", str(sat_dir), "--json"])
+        self.assertEqual(exit_code4, 1)
+        report4 = json.loads(stdout_buf4.getvalue())
+        self.assertEqual(report4["status"], "FAIL")
+        self.assertTrue(any("cites INACTIVE gap 'GAP-10'" in v["reason"] for v in report4["violations"]))
 
     def test_cdg_st_04_baseline_union_domain_mapping(self) -> None:
         """[CDG-ST-04] Baseline-Union Domain Mapping Prevents Self-Exemption While Allowing Bootstrap and Untouched Domain Retirement."""
@@ -1371,12 +1470,14 @@ X-Correlation-ID: uuid
             ],
         }
         (agents_dir / "contract_map.json").write_text(json.dumps(bad_map), encoding="utf-8")
+        self._commit_all(self.repo_root, "Commit duplicate waiver map")
         stdout_buf2 = io.StringIO()
         with patch("sys.stdout", stdout_buf2):
             exit_code2 = main(["diff-check", "--repo-root", str(self.repo_root), "--json"])
         self.assertEqual(exit_code2, 2)
         report2 = json.loads(stdout_buf2.getvalue())
         self.assertEqual(report2["status"], "BLOCKED")
+        self.assertTrue(any("Duplicate waiver id 'DUP'" in b for b in report2["blockers"]))
 
         (agents_dir / "contract_map.json").write_text("{truncated_json...", encoding="utf-8")
         self._commit_all(self.repo_root, "Corrupt map at M")
