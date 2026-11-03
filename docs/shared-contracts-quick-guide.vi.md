@@ -19,6 +19,7 @@ Tài liệu hướng dẫn thực hành toàn diện về thiết lập ban đ�
   - [3.1 Khởi tạo Hub SSOT (`init-hub`)](#31-khởi-tạo-hub-ssot-init-hub)
   - [3.2 Liên kết Satellite qua Symlink Tương Đối (`link-satellite`)](#32-liên-kết-satellite-qua-symlink-tương-đối-link-satellite)
   - [3.3 Kiểm tra toàn vẹn cấu hình (`verify`)](#33-kiểm-tra-toàn-vẹn-cấu-hình-verify)
+  - [3.4 Tạo Domain Hợp Đồng Mới và Đăng Ký Mở Rộng](#34-tạo-domain-hợp-đồng-mới-và-đăng-ký-mở-rộng)
 - [4. Giám Sát và Đồng Bộ Liên Tục Day-2 với /sync-shared-contracts](#4-giám-sát-và-đồng-bộ-liên-tục-day-2-với-sync-shared-contracts)
   - [Động cơ So Lệch Lai 3 Lớp (3-Layer Hybrid Delta Engine)](#động-cơ-so-lệch-lai-3-lớp-3-layer-hybrid-delta-engine)
   - [Cơ Chế Phân Giải Symlink Tương Thích Worktree](#cơ-chế-phân-giải-symlink-tương-thích-worktree)
@@ -26,6 +27,7 @@ Tài liệu hướng dẫn thực hành toàn diện về thiết lập ban đ�
 - [5. Quy Trình 5 Bước Tích Hợp Vào dev-lifecycle](#5-quy-trình-5-bước-tích-hợp-vào-dev-lifecycle)
   - [Sơ Đồ Luồng 5 Bước Tích Hợp](#sơ-đồ-luồng-5-bước-tích-hợp)
   - [Chi Tiết Từng Bước Thực Thi](#chi-tiết-từng-bước-thực-thi)
+  - [Cơ Chế Tự Động Hóa Xác Nhận 1 Phím (Interactive One-Click Cross-Repo)](#cơ-chế-tự-động-hóa-xác-nhận-1-phím-interactive-one-click-cross-repo)
   - [Khác Biệt Nhiệm Vụ Giữa Hub Mode và Satellite Mode](#khác-biệt-nhiệm-vụ-giữa-hub-mode-và-satellite-mode)
 - [6. Hướng Dẫn Thực Hành Theo Từng Kịch Bản](#6-hướng-dẫn-thực-hành-theo-từng-kịch-bản)
   - [Kịch Bản 1: Khởi tạo hệ sinh thái Hub-Satellite từ đầu](#kịch-bản-1-khởi-tạo-hệ-sinh-thái-hub-satellite-từ-đầu)
@@ -33,6 +35,7 @@ Tài liệu hướng dẫn thực hành toàn diện về thiết lập ban đ�
   - [Kịch Bản 3: Satellite cập nhật code theo hợp đồng mới từ Hub](#kịch-bản-3-satellite-cập-nhật-code-theo-hợp-đồng-mới-từ-hub)
   - [Kịch Bản 4: Satellite đề xuất thay đổi không tương thích (RFC Ledger)](#kịch-bản-4-satellite-đề-xuất-thay-đổi-không-tương-thích-rfc-ledger)
   - [Kịch Bản 5: Đồng bộ có chọn lọc một phần RFC (`--rfc <ID>`)](#kịch-bản-5-đồng-bộ-có-chọn-lọc-một-phần-rfc---rfc-id)
+  - [Kịch Bản 6: Tự động hóa cập nhật contract qua xác nhận 1 phím](#kịch-bản-6-tự-động-hóa-cập-nhật-contract-qua-xác-nhận-1-phím)
 - [7. Xử Lý Sự Cố và Bẫy Thường Gặp (Troubleshooting & FAQs)](#7-xử-lý-sự-cố-và-bẫy-thường-gặp-troubleshooting--faqs)
 
 ---
@@ -219,6 +222,28 @@ python3 skills/setup-shared-contracts/resources/scripts/setup_contracts.py verif
 
 ---
 
+### 3.4 Tạo Domain Hợp Đồng Mới và Đăng Ký Mở Rộng
+
+Khi hệ thống phát sinh một domain dịch vụ hoặc worker chuyên biệt hoàn toàn mới (ví dụ: `audio-processor` hoặc `vocal-separation`):
+
+1. **Khởi tạo Domain mới tại Hub**:
+   ```bash
+   python3 skills/setup-shared-contracts/resources/scripts/setup_contracts.py init-hub --domain audio-processor
+   ```
+   - Tạo thư mục `shared-contracts/audio-processor/` với đủ bộ ba chuẩn tắc `api_contract.md`, `architecture_and_flow.md`, `gaps_and_rfcs.md`.
+   - Tự động bổ sung dòng tương ứng vào bảng `Outbound Symlink Mappings` trong `shared-contracts/README.md`.
+2. **Liên kết Satellite mới**:
+   ```bash
+   python3 skills/setup-shared-contracts/resources/scripts/setup_contracts.py link-satellite \
+     --hub ../D3Nexus \
+     --domain audio-processor
+   ```
+   - Thiết lập relative symlink chuẩn xác từ Satellite sang domain mới của Hub.
+3. **Thêm API mới trong Domain có sẵn**:
+   - Nếu domain đã tồn tại, chỉ cần khai báo bảng endpoint hoặc khối narrative kèm JSON payload schema trong `shared-contracts/<domain>/api_contract.md`. Động cơ `sync_contracts.py` sẽ tự động phân tích và trích xuất schema trường (`dotted payload fields`).
+
+---
+
 ## 4. Giám Sát và Đồng Bộ Liên Tục Day-2 với `/sync-shared-contracts`
 
 Day-2 là giai đoạn bảo đảm hợp đồng và mã nguồn thực tế luôn đồng bộ trong quá trình phát triển tính năng mới.
@@ -351,6 +376,44 @@ Chuyển sang vai trò `AI Programmer`, chạy `dev-implementation` trong git wo
 
 #### Bước 5: Đóng Nhánh & Lưu Trữ (Stage 4)
 Gọi skill `finishing-a-development-branch` để hòa trộn (merge) mã nguồn, nén nhật ký vào `.devtool/archive/` và cập nhật `.devtool/PROJECT_LEDGER.md`.
+
+---
+
+### Cơ Chế Tự Động Hóa Xác Nhận 1 Phím (Interactive One-Click Cross-Repo)
+
+Để loại bỏ hoàn toàn ma sát khi phải chuyển qua lại giữa 2 workspace, `/dev-designer` hỗ trợ cơ chế tự động hóa có kiểm soát:
+
+```text
+[Satellite: dev-designer]
+       │
+       ▼
+Ghi trực tiếp RFC/Contract qua Symlink vào ổ cứng Hub
+       │
+       ▼
+Chạy git diff & Hiển thị Checkpoint Xác Nhận (Y/N)
+       │
+       ├─► (Developer bấm Y)
+       ▼
+Tự động chạy: git -C <Hub> add & commit
+       │
+       ▼
+Tự động chạy: sync_contracts.py ack trên Satellite
+       │
+       ▼
+Vào thẳng dev-implementation mà không cần chuyển workspace!
+```
+
+1. **Soạn thảo trực tiếp qua Symlink**: Vì `shared-contracts/` trong Satellite là symlink trỏ thẳng vào thư mục vật lý của Hub, AI Assistant có thể ghi thẳng nội dung RFC vào `gaps_and_rfcs.md` hoặc thêm endpoint/field mới vào `api_contract.md`.
+2. **Trình bày Diff & Yêu cầu xác nhận**: Agent chạy lệnh kiểm tra:
+   ```bash
+   git -C $(readlink -f shared-contracts)/.. diff shared-contracts/<domain>/
+   ```
+   Sau đó hiển thị diff và dừng lại hỏi: *"Bạn có xác nhận commit thay đổi contract này sang Hub (D3Nexus) không? (Y/N)"*.
+3. **Thực thi commit chéo repo chuẩn mực**: Khi Developer xác nhận (tuân thủ Critical Rule 7.1), Agent chạy:
+   ```bash
+   git -C $(readlink -f shared-contracts)/.. add shared-contracts/<domain>/ && git -C $(readlink -f shared-contracts)/.. commit -m "[CONTRACT] <mô tả>"
+   ```
+4. **Cập nhật ngay dấu mốc Watermark**: Agent chạy ngay `sync_contracts.py ack` bên Satellite để ghi nhận `snapshot_id` mới vào `.agents/contract_sync.json`. Satellite có thể triển khai `task_01` (DTOs) ngay lập tức mà không gặp bất kỳ xung đột nào ở `task_final`.
 
 ---
 
@@ -505,6 +568,34 @@ Bảng dưới đây chỉ rõ sự khác nhau cốt tử giữa việc làm vi�
    # Kết quả: Domain 'lyrics-sync' scoped check for ['RFC-002']: IN_SYNC (Exit 0)
    ```
    *(Sổ cái `.agents/contract_sync.json` sẽ ghi nhận `RFC-002` vào `acknowledged_rfcs`, trong khi các RFC còn lại vẫn nằm trong `pending_rfcs` để làm tiếp ở các epic sau mà không gây lỗi gate).*
+
+---
+
+### Kịch Bản 6: Tự động hóa cập nhật contract qua xác nhận 1 phím
+
+**Tình huống**: Trong quá trình thực hiện một epic trên `lyrics-sync`, bạn cần thêm field `execution_time_ms: integer` vào API mà không muốn mất công mở thêm cửa sổ terminal/IDE để thao tác bên Hub.
+
+**Thao tác thực hiện trong 30 giây**:
+
+1. Tại `lyrics-sync`, kích hoạt `/dev-designer`.
+2. Agent phân tích yêu cầu, tự động ghi thông số field mới vào `shared-contracts/lyrics-sync/api_contract.md` (qua symlink).
+3. Tại Gate 2, Agent hiển thị diff và đưa ra câu hỏi xác nhận:
+   ```text
+   [Xác Nhận Commit Sang Hub (D3Nexus)]
+   - File: shared-contracts/lyrics-sync/api_contract.md (+ execution_time_ms: integer)
+   Bạn có đồng ý commit thay đổi này sang Hub không? (Y/N)
+   ```
+4. Bạn gõ `Y`.
+5. Agent tự động chạy lệnh commit sang Hub:
+   ```bash
+   git -C $(readlink -f shared-contracts)/.. add shared-contracts/lyrics-sync/
+   git -C $(readlink -f shared-contracts)/.. commit -m "[CONTRACT] Add execution_time_ms to lyrics-sync claim API"
+   ```
+6. Agent tự động chạy `sync_contracts.py ack` ghi nhận watermark mới ngay trên Satellite:
+   ```bash
+   python3 skills/sync-shared-contracts/resources/scripts/sync_contracts.py ack --domain lyrics-sync --snapshot <new_snapshot_id> --all-rfcs
+   ```
+7. Toàn bộ các tasks trong Stage 3 (`dev-implementation`) của Satellite tiếp tục triển khai bình thường và task cuối cùng kiểm tra `check --strict` sẽ PASS ngay lập tức.
 
 ---
 

@@ -19,6 +19,7 @@ A comprehensive practical guide for Day-0 initial setup with `/setup-shared-cont
   - [3.1 Initialize Hub SSOT (`init-hub`)](#31-initialize-hub-ssot-init-hub)
   - [3.2 Link Satellite via Relative Symlink (`link-satellite`)](#32-link-satellite-via-relative-symlink-link-satellite)
   - [3.3 Audit Configuration Integrity (`verify`)](#33-audit-configuration-integrity-verify)
+  - [3.4 Create Brand New Domain Contracts and Register Mappings](#34-create-brand-new-domain-contracts-and-register-mappings)
 - [4. Day-2 Continuous Monitoring & Synchronization with /sync-shared-contracts](#4-day-2-continuous-monitoring--synchronization-with-sync-shared-contracts)
   - [3-Layer Hybrid Delta Engine](#3-layer-hybrid-delta-engine)
   - [Worktree-Aware Topology Resolution](#worktree-aware-topology-resolution)
@@ -26,6 +27,7 @@ A comprehensive practical guide for Day-0 initial setup with `/setup-shared-cont
 - [5. The 5-Step Lifecycle Bridge into dev-lifecycle](#5-the-5-step-lifecycle-bridge-into-dev-lifecycle)
   - [Lifecycle Flowchart](#lifecycle-flowchart)
   - [Detailed Step Breakdown](#detailed-step-breakdown)
+  - [Interactive One-Click Cross-Repo Automation Mechanism](#interactive-one-click-cross-repo-automation-mechanism)
   - [Task Responsibilities: Hub Mode vs Satellite Mode](#task-responsibilities-hub-mode-vs-satellite-mode)
 - [6. Practical Scenarios & Walkthroughs](#6-practical-scenarios--walkthroughs)
   - [Scenario 1: Fresh Hub-Satellite Ecosystem Initialization](#scenario-1-fresh-hub-satellite-ecosystem-initialization)
@@ -33,6 +35,7 @@ A comprehensive practical guide for Day-0 initial setup with `/setup-shared-cont
   - [Scenario 3: Satellite Syncs Upstream Changes from Hub](#scenario-3-satellite-syncs-upstream-changes-from-hub)
   - [Scenario 4: Satellite Proposes Breaking Change (RFC Ledger)](#scenario-4-satellite-proposes-breaking-change-rfc-ledger)
   - [Scenario 5: Selective Scoped RFC Synchronization (`--rfc <ID>`)](#scenario-5-selective-scoped-rfc-synchronization---rfc-id)
+  - [Scenario 6: Automated Contract Evolution via One-Click Confirmation](#scenario-6-automated-contract-evolution-via-one-click-confirmation)
 - [7. Troubleshooting & Common Pitfalls](#7-troubleshooting--common-pitfalls)
 
 ---
@@ -219,6 +222,28 @@ python3 skills/setup-shared-contracts/resources/scripts/setup_contracts.py verif
 
 ---
 
+### 3.4 Create Brand New Domain Contracts and Register Mappings
+
+When the system introduces an entirely new service domain or specialized worker (e.g. `audio-processor` or `vocal-separation`):
+
+1. **Initialize New Domain at Hub**:
+   ```bash
+   python3 skills/setup-shared-contracts/resources/scripts/setup_contracts.py init-hub --domain audio-processor
+   ```
+   - Creates directory `shared-contracts/audio-processor/` populated with the 3 canonical templates `api_contract.md`, `architecture_and_flow.md`, `gaps_and_rfcs.md`.
+   - Automatically appends the new domain row to the `Outbound Symlink Mappings` table in `shared-contracts/README.md`.
+2. **Link New Satellite Workspace**:
+   ```bash
+   python3 skills/setup-shared-contracts/resources/scripts/setup_contracts.py link-satellite \
+     --hub ../D3Nexus \
+     --domain audio-processor
+   ```
+   - Configures the relative symbolic link from Satellite to the Hub domain directory.
+3. **Adding New APIs within an Existing Domain**:
+   - If the domain already exists, simply add the endpoint table row or narrative block with its JSON payload schema in `shared-contracts/<domain>/api_contract.md`. The `sync_contracts.py` engine automatically parses and extracts payload keys and dotted field types.
+
+---
+
 ## 4. Day-2 Continuous Monitoring & Synchronization with `/sync-shared-contracts`
 
 Day-2 guarantees that source code implementations stay strictly synchronized with contracts during continuous development.
@@ -351,6 +376,44 @@ Switch to the `AI Programmer` persona and execute `dev-implementation` inside an
 
 #### Step 5: Finish & Branch Integration (Stage 4)
 Invoke `finishing-a-development-branch` to merge code, archive logs into `.devtool/archive/`, and update `.devtool/PROJECT_LEDGER.md`.
+
+---
+
+### Interactive One-Click Cross-Repo Automation Mechanism
+
+To eliminate the friction of manually switching between Hub and Satellite workspaces, `/dev-designer` supports a controlled, semi-automated cross-repo workflow:
+
+```text
+[Satellite: dev-designer]
+       │
+       ▼
+Directly draft RFC/Contract changes via Symlink into Hub disk
+       │
+       ▼
+Inspect git diff & Present Confirmation Prompt (Y/N)
+       │
+       ├─► (Developer inputs 'Y')
+       ▼
+Automatically execute: git -C <Hub> add & commit
+       │
+       ▼
+Automatically execute: sync_contracts.py ack on Satellite
+       │
+       ▼
+Proceed directly to dev-implementation without switching workspaces!
+```
+
+1. **Direct Drafting via Symlink**: Because `shared-contracts/` in Satellite is a relative symlink pointing into Hub's physical tree, the AI Assistant can write proposed RFCs or schema updates directly into `gaps_and_rfcs.md` or `api_contract.md`.
+2. **Diff Presentation & Human Confirmation**: The agent runs:
+   ```bash
+   git -C $(readlink -f shared-contracts)/.. diff shared-contracts/<domain>/
+   ```
+   It presents the exact diff and halts with an explicit confirmation prompt: *"Do you confirm committing this contract change to the Hub repository? (Y/N)"*.
+3. **Execution of Cross-Repo Commit**: Upon developer confirmation (strictly adhering to Critical Rule 7.1), the agent runs:
+   ```bash
+   git -C $(readlink -f shared-contracts)/.. add shared-contracts/<domain>/ && git -C $(readlink -f shared-contracts)/.. commit -m "[CONTRACT] <title>"
+   ```
+4. **Immediate Watermark Synchronization**: The agent runs `sync_contracts.py ack` in the Satellite workspace to immediately record the new `snapshot_id` in `.agents/contract_sync.json`. Satellite can now proceed with `task_01` (DTOs) and feature tasks without being blocked at `task_final`.
 
 ---
 
@@ -505,6 +568,34 @@ The table below contrasts task breakdown requirements in `dev-designer` (Stage 2
    # Result: Domain 'lyrics-sync' scoped check for ['RFC-002']: IN_SYNC (Exit 0)
    ```
    *(Ledger `.agents/contract_sync.json` records `RFC-002` in `acknowledged_rfcs`, while remaining RFCs stay in `pending_rfcs` for future epics without failing quality gates).*
+
+---
+
+### Scenario 6: Automated Contract Evolution via One-Click Confirmation
+
+**Context**: During an epic on `lyrics-sync`, you need to add field `execution_time_ms: integer` to an API without opening extra terminal windows or switching workspaces to Hub.
+
+**Execution Walkthrough (Under 30 Seconds)**:
+
+1. In `lyrics-sync`, trigger `/dev-designer`.
+2. Agent designs the requirements and drafts the field additions into `shared-contracts/lyrics-sync/api_contract.md` (via symlink).
+3. At Gate 2, Agent presents the diff and halts with a confirmation prompt:
+   ```text
+   [Cross-Repo Commit Confirmation (D3Nexus)]
+   - File: shared-contracts/lyrics-sync/api_contract.md (+ execution_time_ms: integer)
+   Do you confirm committing this change to the Hub repository? (Y/N)
+   ```
+4. You enter `Y`.
+5. Agent automatically commits to Hub:
+   ```bash
+   git -C $(readlink -f shared-contracts)/.. add shared-contracts/lyrics-sync/
+   git -C $(readlink -f shared-contracts)/.. commit -m "[CONTRACT] Add execution_time_ms to lyrics-sync claim API"
+   ```
+6. Agent runs `sync_contracts.py ack` to record the new watermark on Satellite:
+   ```bash
+   python3 skills/sync-shared-contracts/resources/scripts/sync_contracts.py ack --domain lyrics-sync --snapshot <new_snapshot_id> --all-rfcs
+   ```
+7. All Stage 3 (`dev-implementation`) tasks on Satellite proceed normally, and `task_final` check (`check --strict`) will PASS immediately.
 
 ---
 

@@ -155,8 +155,14 @@ When breaking the design into tasks at **Gate 2**, evaluate whether `shared-cont
 - **Satellite Mode (`shared-contracts/` is a symbolic link, e.g. `lyrics-sync`)**:
   - **Persona Roles**: The **Satellite Consumer Architect Persona** drafts the upstream contract delta and handoff prompt, while the **TDD Master Persona** implements consumer models and internal adapters.
   - **Git Symlink Invariant**: A satellite repo NEVER includes `shared-contracts/...` in `Files Allowed` for git tasks, because git cannot commit paths beyond a symbolic link (`fatal: pathspec is beyond a symbolic link`).
-  - **Upstream Contract Handoff Summary**: At Gate 2, output a ready-to-run prompt for the AI Agent at the Hub repo (`D3Nexus`) to update and commit the canonical contract. If working in a shared local filesystem, also output the exact cross-repo commit command:
-    `git -C $(readlink -f shared-contracts)/.. add shared-contracts/<domain>/ && git -C $(readlink -f shared-contracts)/.. commit -m "[CONTRACT] <title>"`
+  - **Upstream Contract Handoff Summary & Automated Cross-Repo Flow**: At Gate 2, output a ready-to-run prompt for the AI Agent at the Hub repo (`D3Nexus`) to update and commit the canonical contract.
+    - **Interactive One-Click Cross-Repo Automation**: If working on a shared local filesystem, the agent can streamline this workflow without manual workspace switching:
+      1. Write the proposed RFC or contract additions directly through the symlink into the Hub's physical files (`shared-contracts/<domain>/gaps_and_rfcs.md` and `api_contract.md`).
+      2. Run `git -C $(readlink -f shared-contracts)/.. diff shared-contracts/<domain>/` and display the diff to the developer.
+      3. Halt and ask for explicit human confirmation: *"Do you confirm committing this contract change to the Hub repository? (Y/N)"*.
+      4. Upon explicit developer confirmation (satisfying Critical Rule 7.1), execute the cross-repo commit command:
+         `git -C $(readlink -f shared-contracts)/.. add shared-contracts/<domain>/ && git -C $(readlink -f shared-contracts)/.. commit -m "[CONTRACT] <title>"`
+      5. Run `python3 skills/sync-shared-contracts/resources/scripts/sync_contracts.py ack --domain <domain> --snapshot <new_snapshot_id>` in the Satellite workspace to immediately record the new baseline in `.agents/contract_sync.json`, seamlessly unblocking Stage 3 `dev-implementation` without cross-repo stalls.
   - **`task_01` Rule**: **`task_01` MUST always be the Consumer DTOs & Adapter Synchronization task** (updating satellite-internal DTOs, serializers, mock fixtures, and BDD test stubs).
 
 ### Concurrent-Epic Backlog Rule
