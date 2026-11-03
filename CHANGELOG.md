@@ -8,6 +8,36 @@ every installed machine on the old cached copy.
 
 ---
 
+## 1.22.0 — 2026-11-03
+
+Introduces contract diff gating across multi-repo Hub/Satellite topologies, adds diff-check engine and contract map validation to sync-shared-contracts, aligns quality check schemas across all 5 platforms, and publishes bilingual shared contracts quick-guides.
+
+### Added
+
+- **Contract Diff-Check Engine** (`skills/sync-shared-contracts/resources/scripts/sync_contracts.py`):
+  - Adds `diff-check` subcommand with `--contract-map`, `--base-ref`, `--hub-root`, `--format` (`text` / `json`), and `--strict` options.
+  - Implements contract map schema validation (`.agents/contracts/contract_map.json`) with strict rule semantics and path safety checks.
+  - Implements glob pattern matching (`rules[].include` and `exclude`) to detect modifications in contract-bound source files.
+  - Resolves multi-domain Hub topologies and validates satellite outbound symlinks.
+  - Enforces base-ref resolution precedence (CLI `--base-ref`, merge-base against upstream, `origin/develop`, `origin/main`, and `HEAD~1` fallback).
+  - Enforces gap waiver proof tracking: verifies whether contract drifts or contract-bound code modifications are documented with valid active RFC/Gap references in `gaps_and_rfcs.md`.
+  - Integrates interactive and programmatic contract synchronization workflows (`check`, `brief`, `ack`, `diff-check`).
+- **Standardized `contract_diff` Quality Provider Schemas** (`skills/*-quality-check/resources/schemas/`):
+  - Aligns and expands schema definitions across all 5 quality check platforms: Android (`android-quality.schema.json`), Flutter (`flutter-quality.schema.json`), iOS (`ios-quality.schema.json`), Python (`python-quality.schema.json`), and Rust (`rust-quality.schema.json`).
+  - Scaffolds contract diff capability placeholders and validation in quality provider test suites.
+- **Contract Map Template** (`skills/setup-shared-contracts/resources/templates/contract_map.json.tmpl`): Adds canonical starter template for repo-level contract mapping.
+- **Bilingual Shared Contracts Quick Guides** (`docs/shared-contracts-quick-guide.en.md`, `docs/shared-contracts-quick-guide.vi.md`): Detailed 626-line quick-lookup guides covering Hub & Satellite topologies, Canonical Contract Triad (`api_contract.md`, `architecture_and_flow.md`, `gaps_and_rfcs.md`), symlink configuration, drift detection (`diff-check`), gap lifecycles, and troubleshooting.
+- **Expanded Contract & Lifecycle Unit Tests** (`skills/sync-shared-contracts/resources/scripts/test_sync_contracts.py`, `scripts/test_lifecycle_document_contract.py`): Adds 958 lines of unit tests covering contract map validation, glob patterns, base ref resolution, gap waivers, satellite quoting, and multi-domain hub topologies, plus contract diff gate assertions.
+
+### Changed
+
+- **Lifecycle Skills Integration** (`skills/dev-brainstorming/SKILL.md`, `skills/dev-designer/SKILL.md`, `skills/sync-shared-contracts/SKILL.md`, `skills/setup-shared-contracts/SKILL.md`):
+  - Updates `dev-brainstorming` and `dev-designer` to enforce contract diff gating and contract-first sequencing (`task_01`).
+  - Updates `sync-shared-contracts` documentation with full `diff-check` CLI options, output formats, and CI integration.
+  - Refreshes capability contract reference specifications for Python and Rust.
+
+---
+
 ## 1.21.0 — 2026-11-01
 
 Adds a 30-second default safety delay buffer (offset) to scheduled pre-warming daemons in the refresh-session engine to guarantee complete cloud rate-limit rollover, updates CLI flags, and synchronizes bilingual quick-guides.
