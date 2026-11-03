@@ -94,6 +94,70 @@ python3 sync_contracts.py brief [--repo-root <path>] [--domain <name>] [--output
 
 # Acknowledge watermark state and update baseline snapshot atomically
 python3 sync_contracts.py ack [--repo-root <path>] [--domain <name>] [--snapshot <id>] [--rfc <ID> ...] [--all-rfcs]
+
+# Verify branch diff against shared contract mappings and waivers
+python3 sync_contracts.py diff-check [--repo-root <path>] [--base-ref <ref>] [--domain <name>] [--json]
+```
+
+## Contract Diff Gate (diff-check)
+
+The `diff-check` subcommand enforces contract governance during pull requests and Gate 4 quality checks:
+
+1. **Gate Invariant**: Any source file change within a domain's mapped surface area (`.agents/contract_map.json`) must be accompanied by:
+   - Hub Mode: A matching canonical contract change under `shared-contracts/<domain>/`.
+   - Satellite Mode: A fresh watermark acknowledgment (`ack`) in `.agents/contract_sync.json` matching the live `snapshot_id`.
+   - Both Modes: Or an active path-scoped waiver newly introduced in this diff.
+2. **CLI Arguments & Options**:
+   - `--repo-root <path>`: Path to repository root (defaults to current working directory).
+   - `--base-ref <ref>`: Git reference for merge-base calculation (e.g. `main`, `develop`, `{base_ref}`). If omitted, falls back to the `base_ref` declared in `.agents/contract_map.json`.
+   - `--domain <name>`: Optional repeatable filter to verify only specific domains. Passing an unknown domain exits `2` (`BLOCKED`).
+   - `--json`: Emits machine-readable verification summary including per-domain `domains` proof records and `active_waivers`.
+3. **Exit Code Mapping**:
+   - `0` (`PASS`): All mapped file changes are accompanied by contract changes, fresh `ack`, or valid waivers (or no mapped files changed).
+   - `1` (`FAIL`): Unacknowledged mapped file changes, outdated `ack`, or invalid/stale waivers.
+   - `2` (`BLOCKED`): Dirty tracked working tree, missing/invalid `.agents/contract_map.json`, missing `shared-contracts/` directory or symlink, unresolved base ref, git command failure, or unknown `--domain` filter.
+4. **Git Diffing & Baseline Probing**:
+   - Diffing executes `git diff --no-ext-diff --no-renames --name-only -z <merge_base>..HEAD` to parse exact file paths with NUL delimiters, preserving whitespace and paths requiring C-quoting.
+   - Baseline file presence is probed using `git ls-tree` at merge-base.
+   - Baseline-union domain mapping merges domains from HEAD and merge-base maps; if a domain is new (bootstrap), empty-baseline rules apply cleanly.
+5. **Satellite Domain Isolation**:
+   - On Satellite repositories, `shared-contracts` is a symlink bound to a single domain. `diff-check` verifies that `contract_map.json` only configures that linked domain.
+6. **Path-Scoped Waivers & RFC Status**:
+   - Waivers must be newly introduced in the branch diff; historical waivers present at `merge-base` cannot mask new file changes.
+   - Each waiver must set `gap: null` or reference a documented `GAP-XX` in `gaps_and_rfcs.md` with active/pending status (`ACTIONABLE_PENDING`).
+7. **Gate 4 Quality Check Wiring**:
+   - Configured in `.agents/quality/*-quality.json` across all five quality providers:
+     `["python3", "{skills_dir}/sync-shared-contracts/resources/scripts/sync_contracts.py", "diff-check", "--base-ref", "{base_ref}"]`
+   - Quality providers map exit code `2` to check status `BLOCKED` for `contract_diff`, while exit code `0` maps to `PASS` and `1` maps to `FAIL`.
+
+## Contract Map Schema (.agents/contract_map.json)
+
+```json
+{
+  "schema_version": 1,
+  "base_ref": "develop",
+  "domains": {
+    "lyrics-sync": {
+      "paths": [
+        "src/models/lyrics/**",
+        "src/adapters/lyrics/**"
+      ],
+      "exclude": [
+        "src/models/lyrics/internal/**",
+        "**/*.md"
+      ]
+    }
+  },
+  "waivers": [
+    {
+      "id": "W-2026-10-31-01",
+      "domain": "lyrics-sync",
+      "paths": ["src/models/lyrics/experimental/**"],
+      "gap": "GAP-01",
+      "reason": "Temporary experimental model pending upstream review"
+    }
+  ]
+}
 ```
 
 ## Watermark Schema (.agents/contract_sync.json)

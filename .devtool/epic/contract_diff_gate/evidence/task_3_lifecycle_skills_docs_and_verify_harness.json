@@ -1,0 +1,363 @@
+{
+  "schema": 1,
+  "task": "task_3_lifecycle_skills_docs_and_verify_harness",
+  "runs": {
+    "red": {
+      "head": "d9653b378763a65f44794ac65e0337bb81fc773b",
+      "tree": "0a71bb6bfe19dea46a1c5edd85dcdc8a3884a392",
+      "patch_id": "4929f4591fc2dd3b059de71f1f33c46aba72c2ec",
+      "started": "2026-11-02T12:01:50Z",
+      "finished": "2026-11-02T12:01:51Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m unittest scripts/test_lifecycle_document_contract.py -k test_cdg_hp_04",
+          "expect": "exit 1; contains \"FAILED\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-02T12:01:50Z",
+          "finished": "2026-11-02T12:01:50Z",
+          "output_tail": [
+            "F",
+            "======================================================================",
+            "FAIL: test_cdg_hp_04_contract_diff_gate_lifecycle_docs (scripts.test_lifecycle_document_contract.LifecycleDocumentContractTest.test_cdg_hp_04_contract_diff_gate_lifecycle_docs)",
+            "[CDG-HP-04] Lifecycle document contracts enforce read-only brainstorming warnings, designer contract ordering, and diff-check template/CLI references.",
+            "----------------------------------------------------------------------",
+            "Traceback (most recent call last):",
+            "  File \"/Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/contract_diff_gate/scripts/test_lifecycle_document_contract.py\", line 179, in test_cdg_hp_04_contract_diff_gate_lifecycle_docs",
+            "    self.assertIn(\"## Shared Contract Warnings\", brainstorming_text)",
+            "    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+            "AssertionError: '## Shared Contract Warnings' not found in '---\\nname: dev-brainstorming\\ndescription: \"Turns an idea for code work into an approved design spec through collaborative dialogue — clarifying questions, two or three alternatives, and a design the user approves section by section. Use it before creating features, building components, adding functionality or changing behaviour. When the deliverable is a document rather than code, use doc-brainstorming instead.\"\\n---\\n\\n# Brainstorming Code Work Into Designs\\n\\nHelp turn ideas for code work into fully formed designs and specs through natural collaborative\\ndialogue. The sibling skill for document deliverables is `doc-brainstorming`; the router that picks\\nbetween them is `brainstorming`.\\n\\nStart by understanding the current project context, then ask questions one at a time to refine the idea. Once you understand what you\\'re building, present the design and get user approval.\\n\\n<HARD-GATE>\\nDo NOT invoke any implementation skill, write any code, scaffold any project, create `implementation_plan.md`, or take any implementation action until you have presented a design and the user has approved it. This applies to EVERY project regardless of perceived simplicity.\\n\\nWriting `implementation_plan.md` IS bypassing this gate — d3nexus replaces the native planning mode.\\n</HARD-GATE>\\n\\n## Anti-Pattern: \"This Is Too Simple To Need A Design\"\\n\\nEvery project goes through this process. A todo list, a single-function utility, a config change — all of them. \"Simple\" projects are where unexamined assumptions cause the most wasted work. The design can be short (a few sentences for truly simple projects), but you MUST present it and get approval.\\n\\n## Checklist\\n\\nYou MUST create a task for each of these items and complete them in order:\\n\\n1. **Explore project context** — check files, docs, recent commits\\n2. **Check the problem space is settled** — if nobody has validated who the customer is or which\\n   need is underserved, stop here and route to `lean-product-lifecycle` (see Upstream Escape below)\\n3. **Offer visual companion** (if topic will involve visual questions) — this is its own message, not combined with a clarifying question. See the Visual Companion section below.\\n4. **Ask clarifying questions** — one at a time, understand purpose/constraints/success criteria\\n5. **Propose 2-3 approaches** — with trade-offs and your recommendation\\n6. **Present design** — in sections scaled to their complexity, get user approval after each section\\n7. **Write design docs** — save the English and Vietnamese pair to\\n   `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.en.md` and `.vi.md`, each with a complete\\n   table of contents, then commit them (relocated into `.devtool/epic/<epic_name>/` later if routed\\n   to dev-designer — see Routing After Approval)\\n8. **Spec self-review** — quick inline check for placeholders, contradictions, ambiguity, scope (see below)\\n9. **User reviews written spec** — ask user to review the spec file before proceeding\\n10. **Route to the next skill** — one of three routine exits, see Routing After Approval below\\n\\n## Process Flow\\n\\n```mermaid\\nflowchart TD\\n    A[\"Explore project context\"] --> A2{\"Problem space validated?\"}\\n    A2 -->|\"no — customer or need unknown\"| LP(((\"Route to lean-product-lifecycle\")))\\n    A2 -->|yes| B{\"Visual questions ahead?\"}\\n    B -->|yes| C[\"Offer Visual Companion<br>(own message, no other content)\"]\\n    B -->|no| D[\"Ask clarifying questions\"]\\n    C --> D\\n    D --> E[\"Propose 2-3 approaches\"]\\n    E --> F[\"Present design sections\"]\\n    F --> G{\"User approves design?\"}\\n    G -->|no, revise| F\\n    G -->|yes| H[\"Write design doc\"]\\n    H --> I[\"Spec self-review<br>(fix inline)\"]\\n    I --> J{\"User reviews spec?\"}\\n    J -->|changes requested| H\\n    J -->|approved| K{\"Scale?\"}\\n    K -->|\"epic-scale\"| L(((\"Invoke dev-designer skill\")))\\n    K -->|\"one plan\"| M(((\"Invoke writing-plans skill\")))\\n```\\n\\n**The terminal state is invoking exactly one of three skills: `dev-designer`, `writing-plans`, or `lean-product-lifecycle` — never two, and never any other skill.** Do NOT invoke frontend-design, mcp-builder, or any other implementation skill directly from dev-brainstorming.\\n\\n### Upstream Escape — when the problem space was never validated\\n\\n`lean-product-lifecycle` routes *down* here for small work, but historically there was no route back\\n*up*. A session that discovered nobody had validated the customer could only carry on downhill into a\\nspec — the Build Trap with better paperwork. This is that route.\\n\\n**Fire it at step 2, before the clarifying questions.** Those questions are Stage 1 of\\n`lean-market-discovery` asked less rigorously; asking them first makes the user answer the same\\nthings twice, which is exactly the friction that makes people stop using a gate.\\n\\nStop and recommend `lean-product-lifecycle` when **either** is true:\\n\\n- Nobody can name the target customer as a specific segment, only as \"users\" or \"the business\".\\n- The underserved need is asserted rather than evidenced — no interviews, no data, no ranking of\\n  importance against satisfaction.\\n\\nSay plainly what it costs and what it saves: a few days of discovery against building the wrong\\nthing. Then hand over whatever context this session already gathered, so Stage 1 does not start cold.\\n\\nIf the user decides to proceed anyway, that is their call — record the unvalidated assumption in the\\nspec\\'s risks section and continue.\\n\\n### Routing After Approval\\n\\nOnce the spec is approved (and has passed self-review), decide which skill picks it up next:\\n\\n- **Invoke `dev-designer`** when the approved spec describes epic-scale work: multiple independent components/services, a design that will need Kanban task breakdown and architecture/use-case/sequence diagrams, or the user explicitly called it an \"epic\" or large feature. Before invoking, relocate both spec files from `docs/superpowers/specs/` into `.devtool/epic/<epic_name>/` (creating the directory if `dev-designer` hasn\\'t run for this epic yet), fix any relative links inside the moved files, then pass the canonical `.en.md` path as input — this keeps the spec pair, the HLD, and the task files for one epic all in the same directory instead of split across `docs/` and `.devtool/`.\\n- **Invoke `writing-plans`** (as before) for everything else — a single-component feature, bugfix, or small enough scope that one implementation plan covers it without a separate HLD.\\n\\nThe deliverable decides, not the amount of writing involved. **If the work changes a file that ships in the build, it is code**, however much prose it also produces.\\n\\n### Correction — when this is the wrong variant\\n\\nThe `brainstorming` router decides which variant a session enters. This section covers the other\\ncase: the branch was chosen, and chosen wrongly.\\n\\nIf you discover mid-session that **nothing this work produces will ship in the build**, stop and\\nhand over to `doc-brainstorming`. Restart inception there; do not carry a half-written code-oriented\\nspec across as though it were approved.\\n\\nThis fires on a discovery, not on a decision. It is deliberately not an edge in the process flow\\nabove — \"is this actually a document?\" is the router\\'s question to ask at the start, not this\\nskill\\'s question to keep asking.\\n\\nIf brainstorming decomposed the original request into multiple sub-project specs, route **each spec independently** — do not merge multiple specs into a single dev-designer invocation. Each spec keeps its own spec → design → implementation lineage.\\n\\n### Complete End-to-End Epic Lifecycle\\n\\nRouting to `dev-designer` enters the governed Epic Lifecycle. The stage sequence, the five\\napproval gates, and the handoff artefact each stage owes the next are defined in one place —\\nthe **[`dev-lifecycle`](../dev-lifecycle/SKILL.md)** skill. Do not restate them here; this\\nskill owns Stage 1 and Gate 1 only.\\n\\n---\\n\\n## The Brainstorming Mindset\\n\\nTo ensure this is a true creative collaboration and not just a rigid interrogation, you MUST adopt the following mindset during the session:\\n- **No Early Judgment:** Never immediately reject a user\\'s idea as \"bad practice\". Postpone judgment, accept the idea, and analyze its trade-offs constructively.\\n- **The \"Yes, and...\" Principle:** Build on the user\\'s suggestions. Instead of just replacing their idea with yours, find ways to combine and refine them (e.g., \"That\\'s a great approach, AND we could make it even better by...\").\\n- **Encourage Wild Ideas:** When proposing your 2-3 approaches, do not just offer standard, safe boilerplate solutions. Always include at least one creative, unconventional, or \"out-of-the-box\" alternative to spark new perspectives.\\n- **Reverse Brainstorming:** Use negative/reverse thinking to uncover hidden flaws. Ask yourself or the user: \"How could this design fail catastrophically?\", \"What is the worst possible way to implement this?\", or \"How could a malicious user exploit this?\". Use these counter-weights to bulletproof the final design.\\n\\n## The Process\\n\\n**Understanding the idea:**\\n\\n- Check out the current project state first (files, docs, recent commits)\\n- **Contract reminder:** if `shared-contracts/` exists (physical directory = Hub, symlink = Satellite), run the read-only `sync_contracts.py check --domain <domain>` and `brief` from `d3nexus:sync-shared-contracts` and tell the user any drift or `MISSING_IN_CODE` items. When the idea touches routes, DTOs, payloads, schemas or pipeline states, record it in the spec as a shared-contract impact so `dev-designer` plans the contract task. Never run `ack` here.\\n- Before asking detailed questions, assess scope: if the request describes multiple independent subsystems (e.g., \"build a platform with chat, file storage, billing, and analytics\"), flag this immediately. Don\\'t spend questions refining details of a project that needs to be decomposed first.\\n- If the project is too large for a single spec, help the user **group features into Core Epics/Themes** (e.g., Identity, Payment Gateway, Core Wallet) instead of randomly splitting them. Ask: what are the independent pieces, how do they relate, and what order should they be built? Then brainstorm the first sub-project through the normal design flow. Each sub-project gets its own spec → plan → implementation cycle.\\n- For appropriately-scoped projects, ask questions one at a time to refine the idea\\n- Prefer multiple choice questions when possible, but open-ended is fine too\\n- Only one question per message - if a topic needs more exploration, break it into multiple questions\\n- Apply the **5W1H** framework to shape clarifying questions. Focus on understanding (purpose, constraints, success criteria):\\n  - **Who:** Who is the end user? Who will use or be affected by this?\\n  - **Why:** Why is this feature needed? What core pain point does it solve?\\n  - **What:** What is the expected final outcome? What are the technical or business constraints?\\n  - **Where/When:** Where does this live in the system? In what state is it triggered?\\n  - **How:** What are the acceptance criteria? How will we know if it is successful?\\n\\n**Exploring approaches:**\\n\\n- Propose 2-3 different approaches with trade-offs\\n- Present options conversationally with your recommendation and reasoning\\n- Lead with your recommended option and explain why\\n\\n**Presenting the design:**\\n\\n- Once you believe you understand what you\\'re building, present the design\\n- Scale each section to its complexity: a few sentences if straightforward, up to 200-300 words if nuanced\\n- Ask after each section whether it looks right so far\\n- Cover: architecture, components, data flow, error handling, testing\\n- **Dependency Mapping:** Explicitly list any assumptions, risks, and cross-feature/cross-team dependencies (e.g., \"Does this feature block another one? Does it rely on a third-party API being ready?\").\\n- Be ready to go back and clarify if something doesn\\'t make sense\\n\\n**Design for isolation and clarity — code deliverables:**\\n\\n- Break the system into smaller units that each have one clear purpose, communicate through well-defined interfaces, and can be understood and tested independently\\n- For each unit, you should be able to answer: what does it do, how do you use it, and what does it depend on?\\n- Can someone understand what a unit does without reading its internals? Can you change the internals without breaking consumers? If not, the boundaries need work.\\n- Smaller, well-bounded units are also easier for you to work with - you reason better about code you can hold in context at once, and your edits are more reliable when files are focused. When a file grows large, that\\'s often a signal that it\\'s doing too much.\\n\\n**Working in existing codebases:**\\n\\n- Explore the current structure before proposing changes. Follow existing patterns.\\n- Where existing code has problems that affect the work (e.g., a file that\\'s grown too large, unclear boundaries, tangled responsibilities), include targeted improvements as part of the design - the way a good developer improves code they\\'re working in.\\n- Don\\'t propose unrelated refactoring. Stay focused on what serves the current goal.\\n\\n## After the Design\\n\\n**Documentation:**\\n\\n- Write the validated design (spec) as a synchronized pair:\\n  - English, canonical: `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.en.md`\\n  - Vietnamese: `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.vi.md`\\n  - (User preferences for spec location override this default)\\n  - Both variants MUST contain a linked table of contents covering every `##` section and MUST stay\\n    identical in structure and facts. Write and update English first, then synchronize Vietnamese.\\n  - **Markdown & Diagram Standards**: Both documents MUST adhere to markdown linting standards (single H1, no skipped heading levels, space after `#`, no trailing punctuation in headings, language tags on all fenced code blocks, clean formatting) and modern diagram standards:\\n    - **Mermaid**: Use `flowchart TD/LR` (NEVER legacy `graph TD/LR`), double-quote node labels containing special characters, parentheses `()`, brackets `[]`, braces `{}`, colons `:`, slashes `/`, ampersands `&` (e.g. `node1[\"Component (Core)\"]`), use alphanumeric IDs, and avoid trailing semicolons.\\n    - **Graphviz (DOT)**: Semantic shapes (`diamond` for decisions `?`, `box` for actions, `plaintext` for commands, `ellipse` for states, `octagon` for warnings, `doublecircle` for start/complete), semicolons terminating every statement, and double-quoted multi-word labels.\\n  - If this spec is later routed to `dev-designer` (see Routing After Approval), neither file stays here — relocate the pair into the epic\\'s own directory so every doc for that epic lives in one place.\\n- Before user review, verify the pair mechanically:\\n  ```bash\\n  python3 skills/doc_quality_check/resources/scripts/check_document.py \\\\\\n    --require-toc --require-bilingual \\\\\\n    docs/superpowers/specs/YYYY-MM-DD-<topic>-design.en.md \\\\\\n    docs/superpowers/specs/YYYY-MM-DD-<topic>-design.vi.md\\n  ```\\n- Use elements-of-style:writing-clearly-and-concisely skill if available\\n- Commit the design document to git (if `auto_commit` is enabled):\\n  - Read `.agents/config.json` — check `auto_commit` setting\\n  - If `auto_commit: true` (default when absent): stage both language paths and commit with\\n    `git commit -m \"[<TOPIC>] Add design spec\"`; see\\n    [Commit Message Format](../../rules/CRITICAL_RULES.md#commit-message-format); no\\n    `Co-Authored-By` or other trailer\\n  - If `auto_commit: false`: skip commit and staging entirely. Print: \"Skipping commit (auto_commit: false in .agents/config.json). File is ready for manual commit.\"\\n\\n**Spec Self-Review:**\\nAfter writing the spec document, look at it with fresh eyes:\\n\\n1. **Placeholder scan:** Any `TBD`, `TODO`, incomplete sections, or vague requirements? Fix them.\\n2. **Internal consistency:** Do any sections contradict each other? Does the architecture match the\\n   feature descriptions?\\n3. **Scope check:** Is this focused enough for one implementation plan, or does it need\\n   decomposition?\\n4. **Ambiguity check:** Could any requirement be interpreted two different ways? If so, pick one and make it explicit.\\n5. **Take a Step Back (Helicopter View):** Review the entire system holistically. Are the component boundaries logical? Do any features belong in a different epic or module? Shuffle them now before implementation begins.\\n6. **Markdown & Diagram lint check:** Does the document strictly pass markdown lint rules (language-tagged code fences, clean headings, no trailing whitespace)? Do all Mermaid diagrams use modern `flowchart` syntax (no legacy `graph`), with all special-character labels quoted? Do DOT diagrams follow semantic shapes and statement semicolons?\\n\\nFix any issues inline. No need to re-review — just fix and move on.\\n\\n**User Review Gate:**\\nAfter the spec review loop passes, ask the user to review the written spec before proceeding:\\n\\n> \"Spec written and committed to `<english-path>` and `<vietnamese-path>`. Please review the pair\\n> and let me know if you want to make any changes before we start writing out the implementation\\n> plan.\"\\n\\nWait for the user\\'s response. If they request changes, make them and re-run the spec review loop. Only proceed once the user approves.\\n\\n**Implementation:**\\n\\n- After Gate 1 approval, persist architectural decisions using `python3 scripts/resume_context.py --state --epic <topic_slug> --role assistant` (or `d3nexus:save-context`).\\n- Apply the Routing After Approval rule above to pick the next skill: `dev-designer` (pass the spec\\'s file path) for epic-scale work, or `writing-plans` for everything else.\\n- Do NOT invoke any other skill — those two, plus the `lean-product-lifecycle` escape at step 2 and the correction exit to `doc-brainstorming`, are the only valid next steps.\\n\\n## Key Principles\\n\\n- **One question at a time** - Don\\'t overwhelm with multiple questions\\n- **Multiple choice preferred** - Easier to answer than open-ended when possible\\n- **YAGNI ruthlessly** - Remove unnecessary features from all designs\\n- **Explore alternatives** - Always propose 2-3 approaches before settling\\n- **Incremental validation** - Present design, get approval before moving on\\n- **Be flexible** - Go back and clarify when something doesn\\'t make sense\\n\\n## Visual Companion\\n\\nA browser-based companion for showing mockups, diagrams, and visual options during brainstorming. Available as a tool — not a mode. Accepting the companion means it\\'s available for questions that benefit from visual treatment; it does NOT mean every question goes through the browser.\\n\\n**Offering the companion:** When you anticipate that upcoming questions will involve visual content (mockups, layouts, diagrams), offer it once for consent:\\n> \"Some of what we\\'re working on might be easier to explain if I can show it to you in a web browser. I can put together mockups, diagrams, comparisons, and other visuals as we go. This feature is still new and can be token-intensive. Want to try it? (Requires opening a local URL)\"\\n\\n**This offer MUST be its own message.** Do not combine it with clarifying questions, context summaries, or any other content. The message should contain ONLY the offer above and nothing else. Wait for the user\\'s response before continuing. If they decline, proceed with text-only brainstorming.\\n\\n**Per-question decision:** Even after the user accepts, decide FOR EACH QUESTION whether to use the browser or the terminal. The test: **would the user understand this better by seeing it than reading it?**\\n\\n- **Use the browser** for content that IS visual — mockups, wireframes, layout comparisons, architecture diagrams, side-by-side visual designs\\n- **Use the terminal** for content that is text — requirements questions, conceptual choices, tradeoff lists, A/B/C/D text options, scope decisions\\n\\nA question about a UI topic is not automatically a visual question. \"What does personality mean in this context?\" is a conceptual question — use the terminal. \"Which wizard layout works better?\" is a visual question — use the browser.\\n\\nIf they agree to the companion, read the detailed guide before proceeding:\\n`skills/dev-brainstorming/visual-companion.md`\\n'",
+            "",
+            "----------------------------------------------------------------------",
+            "Ran 1 test in 0.000s",
+            "",
+            "FAILED (failures=1)"
+          ],
+          "output_sha256": "17ca8a026a203bda931ff74d77c4390e6b97ba0ccc2df45f2a2f26eced3d9793"
+        }
+      ]
+    },
+    "verify": {
+      "head": "d9653b378763a65f44794ac65e0337bb81fc773b",
+      "tree": "a3d06be8f8e9072cf675af5be6a4c65678eedda0",
+      "patch_id": "ccb883068d224250cd9ba86c3171f0c0f2516baa",
+      "started": "2026-11-02T12:10:59Z",
+      "finished": "2026-11-02T12:13:13Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m unittest scripts/test_lifecycle_document_contract.py",
+          "expect": "exit 0; contains \"OK\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-02T12:10:59Z",
+          "finished": "2026-11-02T12:11:00Z",
+          "output_tail": [
+            "....................",
+            "----------------------------------------------------------------------",
+            "Ran 20 tests in 0.004s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "781a5f40936b0215ef9836ba9f6f41c3e1ee7069efe7618068d56edcb2bf2a04"
+        },
+        {
+          "id": "V3",
+          "phase": "TIER-B",
+          "command": "ruff check scripts/test_lifecycle_document_contract.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-02T12:11:00Z",
+          "finished": "2026-11-02T12:11:00Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "mypy --follow-imports=silent scripts/test_lifecycle_document_contract.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-02T12:11:00Z",
+          "finished": "2026-11-02T12:11:00Z",
+          "output_tail": [
+            "Success: no issues found in 1 source file"
+          ],
+          "output_sha256": "5d4b6d285b77932e3d08212c3b4974d0a803f98ec60408ac6ccf6a063fa6c19e"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-B",
+          "command": "python3 skills/doc_quality_check/resources/scripts/check_document.py skills/dev-brainstorming/SKILL.md skills/dev-designer/SKILL.md skills/setup-shared-contracts/SKILL.md skills/sync-shared-contracts/SKILL.md",
+          "expect": "exit 0; contains \"0 findings\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-02T12:11:00Z",
+          "finished": "2026-11-02T12:11:00Z",
+          "output_tail": [
+            "  checked 4 documents, 0 findings"
+          ],
+          "output_sha256": "ae3333280a5c089e38490326d14e73199659c052e1af2c5cf17edba76a8b76d5"
+        },
+        {
+          "id": "V6",
+          "phase": "TIER-B",
+          "command": "bash scripts/verify.sh",
+          "expect": "exit 0; contains \"PASS — safe to publish\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-02T12:11:00Z",
+          "finished": "2026-11-02T12:13:09Z",
+          "output_tail": [
+            "Requirements brief written to /private/tmp/ag_tess/tmpc0udfe49/brief.md",
+            "Watermark acknowledged for domain 'lyrics-sync' -> sha256:8bfd68e874b767ad39456a13275301e498cc73327d42a03fe81c41316428f203",
+            "Requirements brief written to /private/tmp/ag_tess/tmpc0udfe49/repeat_brief.md",
+            "Watermark acknowledged for domain 'lyrics-sync' -> sha256:8bfd68e874b767ad39456a13275301e498cc73327d42a03fe81c41316428f203",
+            "Domain 'lyrics-sync' status: IN_SYNC",
+            "Watermark acknowledged for domain 'lyrics-sync' -> sha256:3edd9bf7390404e1f590a303a4cce9f6af47f51468211e19cb33b9008490b3e0",
+            "Domain 'lyrics-sync' status: IN_SYNC",
+            "Requirements brief written to /private/tmp/ag_tess/tmpuo06ztb8/brief_refreshed.md",
+            "Watermark acknowledged for domain 'lyrics-sync' -> sha256:f477d182af7660569063045cd0d83f828d8c4e8cdf638fa8f7cfe55f11932f7a",
+            "Domain 'lyrics-sync' status: IN_SYNC",
+            "Watermark acknowledged for domain 'lyrics-sync' -> sha256:8bfd68e874b767ad39456a13275301e498cc73327d42a03fe81c41316428f203",
+            "Watermark acknowledged for domain 'nexus' -> sha256:a408ca396e08787d30287053fc3b2cb24b3168f83dba93d4e3224ecdba09bed6",
+            "Domain 'nexus' scoped check for ['GAP-03']: IN_SYNC",
+            "Domain 'nexus' status: DRIFT_DETECTED",
+            "Pending RFCs: GAP-01, GAP-02",
+            "Watermark acknowledged for domain 'nexus' -> sha256:a408ca396e08787d30287053fc3b2cb24b3168f83dba93d4e3224ecdba09bed6",
+            "Domain 'nexus' status: IN_SYNC",
+            "",
+            "== 15. Context memory management CLI and Tri-Role governance are enforced ==",
+            "..............",
+            "----------------------------------------------------------------------",
+            "Ran 14 tests in 2.752s",
+            "",
+            "OK",
+            "",
+            "== 16. Session refresh CLI engine and isolation contracts are enforced ==",
+            "...............................",
+            "----------------------------------------------------------------------",
+            "Ran 31 tests in 0.006s",
+            "",
+            "OK",
+            "Waiting 30s delay buffer after reset minute...",
+            "Pinging Claude CLI in isolated sandbox...",
+            "",
+            "Session Refresh Summary:",
+            "  • Claude: PASS (10.0ms, 1 tokens)",
+            "",
+            "Session refresh complete. 5-hour rolling quota window is active.",
+            "",
+            "PASS — safe to publish"
+          ],
+          "output_sha256": "6c9247daf2ece32b00a0d16e9d7dd33bcc2ba98ea4eb1d306f538b39f282c450"
+        },
+        {
+          "id": "V7",
+          "phase": "TIER-C",
+          "command": "python3 scripts/run_unittest_junit.py --junitxml build/test-results/contract-diff-gate.xml skills/sync-shared-contracts/resources/scripts/test_sync_contracts.py skills/rust-quality-check/resources/scripts/test_validate_rust_quality.py skills/python-quality-check/resources/scripts/test_validate_python_quality.py skills/flutter-quality-check/resources/scripts/test_validate_flutter_quality.py skills/android-quality-check/resources/scripts/test_validate_android_quality.py skills/ios-quality-check/resources/scripts/test_validate_ios_quality.py scripts/test_lifecycle_document_contract.py",
+          "expect": "exit 0; results build/test-results/contract-diff-gate.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-02T12:13:09Z",
+          "finished": "2026-11-02T12:13:13Z",
+          "output_tail": [
+            "",
+            "OK",
+            ".......",
+            "----------------------------------------------------------------------",
+            "Ran 7 tests in 0.000s",
+            "",
+            "OK",
+            "....................",
+            "----------------------------------------------------------------------",
+            "Ran 20 tests in 0.006s",
+            "",
+            "OK",
+            "Watermark acknowledged for domain 'lyrics-sync' -> sha256:8bfd68e874b767ad39456a13275301e498cc73327d42a03fe81c41316428f203",
+            "Watermark acknowledged for domain 'lyrics-sync' -> sha256:8bfd68e874b767ad39456a13275301e498cc73327d42a03fe81c41316428f203",
+            "Watermark acknowledged for domain 'lyrics-sync' -> sha256:8bfd68e874b767ad39456a13275301e498cc73327d42a03fe81c41316428f203",
+            "Watermark acknowledged for domain 'lyrics-sync' -> sha256:8bfd68e874b767ad39456a13275301e498cc73327d42a03fe81c41316428f203",
+            "Watermark acknowledged for domain 'lyrics-sync' -> sha256:8bfd68e874b767ad39456a13275301e498cc73327d42a03fe81c41316428f203",
+            "Watermark acknowledged for domain 'lyrics-sync' -> sha256:8bfd68e874b767ad39456a13275301e498cc73327d42a03fe81c41316428f203",
+            "Domain 'lyrics-sync' status: INITIAL_SYNC (watermark absent)",
+            "Snapshot ID: sha256:8bfd68e874b767ad39456a13275301e498cc73327d42a03fe81c41316428f203",
+            "Contract Version: 1.2.0",
+            "Unsynced files: api_contract.md, architecture_and_flow.md, gaps_and_rfcs.md",
+            "Watermark acknowledged for domain 'lyrics-sync' -> sha256:8bfd68e874b767ad39456a13275301e498cc73327d42a03fe81c41316428f203",
+            "Requirements brief written to /private/tmp/ag_tess/tmprg13blea/brief.md",
+            "Watermark acknowledged for domain 'lyrics-sync' -> sha256:8bfd68e874b767ad39456a13275301e498cc73327d42a03fe81c41316428f203",
+            "Requirements brief written to /private/tmp/ag_tess/tmprg13blea/repeat_brief.md",
+            "Watermark acknowledged for domain 'lyrics-sync' -> sha256:8bfd68e874b767ad39456a13275301e498cc73327d42a03fe81c41316428f203",
+            "Domain 'lyrics-sync' status: IN_SYNC",
+            "Watermark acknowledged for domain 'lyrics-sync' -> sha256:3edd9bf7390404e1f590a303a4cce9f6af47f51468211e19cb33b9008490b3e0",
+            "Domain 'lyrics-sync' status: IN_SYNC",
+            "Requirements brief written to /private/tmp/ag_tess/tmp27o09pwo/brief_refreshed.md",
+            "Watermark acknowledged for domain 'lyrics-sync' -> sha256:f477d182af7660569063045cd0d83f828d8c4e8cdf638fa8f7cfe55f11932f7a",
+            "Domain 'lyrics-sync' status: IN_SYNC",
+            "Watermark acknowledged for domain 'lyrics-sync' -> sha256:8bfd68e874b767ad39456a13275301e498cc73327d42a03fe81c41316428f203",
+            "Watermark acknowledged for domain 'nexus' -> sha256:a408ca396e08787d30287053fc3b2cb24b3168f83dba93d4e3224ecdba09bed6",
+            "Domain 'nexus' scoped check for ['GAP-03']: IN_SYNC",
+            "Domain 'nexus' status: DRIFT_DETECTED",
+            "Pending RFCs: GAP-01, GAP-02",
+            "Watermark acknowledged for domain 'nexus' -> sha256:a408ca396e08787d30287053fc3b2cb24b3168f83dba93d4e3224ecdba09bed6",
+            "Domain 'nexus' status: IN_SYNC"
+          ],
+          "output_sha256": "71cfebc4895763e92c4fcf978c8e3352363336e1a284580de2f7aa666f4ac7c2",
+          "results": {
+            "path": "build/test-results/contract-diff-gate.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 21,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_cdg_ar_01_nested_worktree_satellite_symlink",
+                  "classname": "test_sync_contracts.TestSyncContracts",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cdg_ar_02_dirty_tracked_working_tree_blocked",
+                  "classname": "test_sync_contracts.TestSyncContracts",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cdg_ec_01_anchored_posix_glob_matching",
+                  "classname": "test_sync_contracts.TestSyncContracts",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cdg_ec_02_empty_diff_or_unmapped_changes",
+                  "classname": "test_sync_contracts.TestSyncContracts",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cdg_ec_03_base_ref_override_and_domain_filter",
+                  "classname": "test_sync_contracts.TestSyncContracts",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cdg_ec_04_new_waiver_with_null_and_valid_gap",
+                  "classname": "test_sync_contracts.TestSyncContracts",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cdg_ec_05_nul_rename_out_and_git_quoted_filename",
+                  "classname": "test_sync_contracts.TestSyncContracts",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cdg_fr_01_missing_or_malformed_contract_map",
+                  "classname": "test_sync_contracts.TestSyncContracts",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cdg_fr_02_unresolvable_base_ref_unlinked_domain_or_broken_topology",
+                  "classname": "test_sync_contracts.TestSyncContracts",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cdg_hp_01_hub_mapped_file_change_covered_by_contract_edit",
+                  "classname": "test_sync_contracts.TestSyncContracts",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cdg_hp_02_satellite_mapped_file_change_covered_by_fresh_ack",
+                  "classname": "test_sync_contracts.TestSyncContracts",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cdg_st_01_uncovered_mapped_file_and_partial_waiver",
+                  "classname": "test_sync_contracts.TestSyncContracts",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cdg_st_02_historical_waiver_non_masking_and_mutation",
+                  "classname": "test_sync_contracts.TestSyncContracts",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cdg_st_03_satellite_sibling_domain_and_stale_snapshot_or_inactive_gap",
+                  "classname": "test_sync_contracts.TestSyncContracts",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cdg_st_04_baseline_union_domain_mapping",
+                  "classname": "test_sync_contracts.TestSyncContracts",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cdg_hp_03_capabilities_and_schema_support",
+                  "classname": "test_validate_rust_quality.RustQualityConfigTests",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cdg_hp_03_capabilities_and_schema_support",
+                  "classname": "test_validate_python_quality.PythonQualityConfigTests",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cdg_hp_03_capabilities_and_schema_support",
+                  "classname": "test_validate_flutter_quality.FlutterQualityConfigTests",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cdg_hp_03_capabilities_and_schema_support",
+                  "classname": "test_validate_android_quality.AndroidQualityConfigTests",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cdg_hp_03_capabilities_and_schema_support",
+                  "classname": "test_validate_ios_quality.IOSQualityConfigTests",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cdg_hp_04_contract_diff_gate_lifecycle_docs",
+                  "classname": "test_lifecycle_document_contract.LifecycleDocumentContractTest",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "scripts/test_lifecycle_document_contract.py",
+            "skills/dev-brainstorming/SKILL.md",
+            "skills/dev-designer/SKILL.md",
+            "skills/setup-shared-contracts/SKILL.md",
+            "skills/sync-shared-contracts/SKILL.md"
+          ],
+          "violations": []
+        }
+      ]
+    }
+  }
+}

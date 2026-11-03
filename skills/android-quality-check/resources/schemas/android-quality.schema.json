@@ -71,6 +71,23 @@
           "type": "array",
           "minItems": 1,
           "items": { "type": "string" }
+        },
+        "contracts": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" }
+        },
+        "contract_diff": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" }
+        }
+      },
+      "patternProperties": {
+        "^contracts_[a-z0-9_]+$": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" }
         }
       }
     },

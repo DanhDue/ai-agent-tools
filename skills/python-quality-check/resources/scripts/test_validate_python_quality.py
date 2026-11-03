@@ -102,6 +102,23 @@ class PythonQualityConfigTests(unittest.TestCase):
         self.assertEqual(False, schema["additionalProperties"])
         self.assertEqual(1, schema["properties"]["schema_version"]["const"])
 
+    def test_cdg_hp_03_capabilities_and_schema_support(self) -> None:
+        """[CDG-HP-03] Verify schema permits contracts, contract_diff, and patternProperties."""
+        schema_path = SCRIPT_DIR.parent / "schemas/python-quality.schema.json"
+        schema = json.loads(schema_path.read_text())
+        cap_props = schema["properties"]["capabilities"]["properties"]
+        self.assertIn("contracts", cap_props)
+        self.assertIn("contract_diff", cap_props)
+        pattern_props = schema["properties"]["capabilities"].get("patternProperties", {})
+        self.assertIn("^contracts_[a-z0-9_]+$", pattern_props)
+
+        cfg = valid_config()
+        cfg["capabilities"]["contracts"] = ["python3", "{skills_dir}/sync-shared-contracts/resources/scripts/sync_contracts.py", "check"]
+        cfg["capabilities"]["contracts_lyrics_sync"] = ["python3", "{skills_dir}/sync-shared-contracts/resources/scripts/sync_contracts.py", "check", "--domain", "lyrics-sync"]
+        cfg["capabilities"]["contract_diff"] = ["python3", "{skills_dir}/sync-shared-contracts/resources/scripts/sync_contracts.py", "diff-check", "--base-ref", "{base_ref}"]
+        res = validate_python_config(cfg, "epic")
+        self.assertEqual("PASS", res["status"])
+
 
 if __name__ == "__main__":
     unittest.main()

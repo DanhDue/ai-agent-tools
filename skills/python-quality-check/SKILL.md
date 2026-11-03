@@ -42,9 +42,13 @@ python3 skills/python-quality-check/resources/scripts/validate_python_quality.py
 
 Execute commands declared in `capabilities` for the target profile:
 1. Commands are executed as structured argument arrays (no shell interpolation).
+   - An argument beginning with `{skills_dir}` is resolved to the directory containing this plugin's `skills/` folders (the parent of `python-quality-check/`), so manifests can call sibling skill scripts without machine-specific paths (e.g. `["python3", "{skills_dir}/sync-shared-contracts/resources/scripts/sync_contracts.py", "diff-check", "--base-ref", "{base_ref}"]`).
+   - An argument containing `{base_ref}` is substituted with the normalized `base_ref` invocation parameter from `quality_check` (falling back to `develop` or the repository default only when `base_ref` was not supplied).
 2. All commands run from the resolved repository root.
 3. If an executable is missing or cannot be spawned: record check status as `BLOCKED`.
-4. If a command runs and reports defects (nonzero exit code): record check status as `FAIL`.
+4. If a command runs and reports defects (nonzero exit code):
+   - For governance and contract capabilities (`contracts`, `contracts_<domain>`, and `contract_diff`): exit code `0` records `PASS`, exit code `2` (or JSON `"status": "BLOCKED"`) records `BLOCKED`, and any other nonzero exit code (such as `1`) records `FAIL`.
+   - For all other capabilities: nonzero exit code records `FAIL`.
 5. If a command succeeds (zero exit code): record check status as `PASS`.
 
 Independent commands (e.g. `format`, `lint`, `type_check`, `test`) may run concurrently.

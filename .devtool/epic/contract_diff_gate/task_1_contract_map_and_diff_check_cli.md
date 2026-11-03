@@ -1,13 +1,13 @@
 ---
 id: "task_1_contract_map_and_diff_check_cli"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "contract_diff_gate"
 dueDate: null
 created: "2026-10-31T05:43:00Z"
-modified: "2026-10-31T05:43:00Z"
-completedAt: null
+modified: "2026-11-02T11:48:15Z"
+completedAt: "2026-11-02T11:48:15Z"
 labels: ["contracts", "cli", "gate", "python"]
 order: "a1"
 ---
