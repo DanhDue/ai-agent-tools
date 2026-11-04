@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "providers": [
+    {
+      "id": "rust-core",
+      "skill": "d3nexus:rust-quality-check",
+      "required": true,
+      "profiles": ["pr", "epic", "release", "scheduled"]
+    },
+    {
+      "id": "learning-web",
+      "skill": "d3nexus:web-quality-check",
+      "required": true,
+      "profiles": ["pr", "epic", "release", "scheduled"]
+    }
+  ]
+}

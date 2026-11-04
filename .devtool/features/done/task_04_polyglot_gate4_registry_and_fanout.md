@@ -1,13 +1,13 @@
 ---
 id: "task_04_polyglot_gate4_registry_and_fanout"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "web-quality-check-and-integration-gate"
 dueDate: null
 created: "2026-11-04T22:52:00Z"
-modified: "2026-11-04T22:52:00Z"
-completedAt: null
+modified: "2026-11-04T21:11:57Z"
+completedAt: "2026-11-04T21:11:57Z"
 labels: ["orchestration", "quality-gate", "polyglot"]
 order: "a4"
 ---

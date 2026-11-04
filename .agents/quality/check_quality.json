@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "providers": [
+    {
+      "id": "agent-tools-python",
+      "skill": "d3nexus:python-quality-check",
+      "required": true,
+      "profiles": ["pr", "epic", "release", "scheduled"]
+    }
+  ]
+}

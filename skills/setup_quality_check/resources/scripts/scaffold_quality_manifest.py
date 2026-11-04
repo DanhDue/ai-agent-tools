@@ -140,6 +140,25 @@ PLATFORM_CONFIGS: Dict[str, Dict[str, Any]] = {
                 "epic": ["format", "lint", "type_check", "test", "coverage", "architecture"]
             }
         }
+    },
+    "web": {
+        "provider_id": "web-quality",
+        "skill": "d3nexus:web-quality-check",
+        "filename": "web-quality.json",
+        "manifest": {
+            "schema_version": 1,
+            "capabilities": {
+                "type_check": ["npm", "run", "check"],
+                "lint": ["npm", "run", "lint"],
+                "test_unit": ["npm", "run", "test:unit"],
+                "test_e2e": ["npx", "playwright", "test"],
+                "contracts": ["python3", "{skills_dir}/sync-shared-contracts/resources/scripts/sync_contracts.py", "diff-check", "--base-ref", "{base_ref}"]
+            },
+            "profiles": {
+                "pr": ["type_check", "lint", "test_unit"],
+                "epic": ["type_check", "lint", "test_unit", "test_e2e"]
+            }
+        }
     }
 }
 
@@ -147,7 +166,7 @@ PLATFORM_CONFIGS: Dict[str, Dict[str, Any]] = {
 def detect_platforms(repo_root: Path) -> List[str]:
     """
     Inspects repository root directory and returns detected platform names.
-    Supports Flutter, Android, iOS, Rust, and Python heuristics.
+    Supports Flutter, Android, iOS, Rust, Python, and Web heuristics.
     """
     detected = []
 
@@ -188,6 +207,18 @@ def detect_platforms(repo_root: Path) -> List[str]:
     ]
     if any((repo_root / marker).is_file() for marker in python_markers):
         detected.append("python")
+
+    # Web detection
+    web_markers = [
+        "package.json",
+        "astro.config.mjs",
+        "astro.config.ts",
+        "astro.config.js",
+        "playwright.config.ts",
+        "playwright.config.js",
+    ]
+    if any((repo_root / marker).is_file() for marker in web_markers):
+        detected.append("web")
 
     return sorted(list(set(detected)))
 
