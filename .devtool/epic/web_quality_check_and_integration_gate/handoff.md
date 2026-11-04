@@ -12,8 +12,8 @@
 
 ## Status
 
-- **Packaged**: 2026-11-04
-- **Design commit**: `19eb54a`
+- **Packaged**: 2026-11-05
+- **Design commit**: `fa7db71`
 - **Base branch**: `main`
 - **Gates passed**: 1 (spec), 2 (HLD and task breakdown)
 - **Next**: Stage 3, `dev-implementation`. Gate 3 (execution order) still needs the developer's confirmation.
@@ -69,6 +69,6 @@ Fast executor models and receiving agents MUST adhere to these four hard guardra
 
 - Do not re-run `dev-brainstorming` or `dev-designer`. Raise a wrong or missing document at Gate 3.
 - This handoff does not pass Gate 3. The developer confirms the execution order.
-- Unless the design commit is `uncommitted`: if `git log 19eb54a..main -- .devtool/epic/web_quality_check_and_integration_gate` lists any commit besides the `Package epic for handoff` commit, the documents changed after packaging. The documents win, and this file may be stale. Comparing against the base branch keeps the epic branch's own task commits out of the check.
+- Unless the design commit is `uncommitted`: if `git log fa7db71..main -- .devtool/epic/web_quality_check_and_integration_gate` lists any commit besides the `Package epic for handoff` commit, the documents changed after packaging. The documents win, and this file may be stale. Comparing against the base branch keeps the epic branch's own task commits out of the check.
 - This file is a dated record. It is never updated after packaging.
 - Never edit a task's Verification table, Definition of Done, Allowed files or a protected path; stop and report.
