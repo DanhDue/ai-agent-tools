@@ -19,7 +19,10 @@ def parse_bdd_scenarios(content: str) -> list[dict[str, Any]]:
 
     lines = content.splitlines()
     for line in lines:
-        header_match = re.match(r"^#{2,4}\s+Scenario:\s*(?:\[([^\]]+)\])?\s*(.*)$", line.strip())
+        stripped = line.strip()
+        if stripped.startswith("```"):
+            continue
+        header_match = re.match(r"^(?:#{1,4}\s+)?Scenario:\s*(?:\[([^\]]+)\])?\s*(.*)$", stripped)
         if header_match:
             if current_scenario:
                 scenarios.append(current_scenario)
