@@ -66,6 +66,13 @@ After harvesting context, present a concise 5–10 bullet summary to the develop
 5. **Contract Invariants & RFCs**: Status of relevant `shared-contracts/` boundaries.
 6. **Next Immediate Step**: Recommended action for this session.
 
+## Step 4: Window Title & Workspace Bar Synchronization
+
+Executing `resume_context.py` automatically synchronizes the IDE window title and workspace bar colors:
+- Synthesizes `"<ICON> [<REPO_NAME>] [@<account_id>] <Vietnamese Epic Name> - <Stage / Task>"` into `.vscode/settings.json`.
+- Enforces persistent top/bottom bar color parity (`inactiveBackground = activeBackground`), eliminating IDE dimming when windows lose focus.
+- You can also invoke `--sync-title` standalone with `--stage "<custom_stage>"` to re-sync title states without harvesting.
+
 ## Related Skills
 
 - [save-context](../save-context/SKILL.md): Persists state snapshots, activity logs, and handoff prompts.

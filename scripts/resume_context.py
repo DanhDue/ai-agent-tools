@@ -12,6 +12,8 @@ Two-Tier Context Harvester, Multi-Epic Partitioning & Handoff Telemetry Tool.
 - Prompt Mode (--emit-prompt <mode>): Emits deterministic handoff prompts across Tri-Role personas.
 """
 
+from __future__ import annotations
+
 import argparse
 import contextlib
 import fcntl
@@ -259,6 +261,142 @@ def resolve_target_devtool_dir(root: Path, repo: str | None = None) -> Path:
     return root / ".devtool"
 
 
+def sync_window_title(
+    root: Path,
+    epic_slug: str | None = None,
+    stage_override: str | None = None,
+    profile_override: str | None = None,
+) -> None:
+    vscode_dir = root / ".vscode"
+    settings_file = vscode_dir / "settings.json"
+    if not settings_file.exists():
+        return
+
+    repo_name = root.name
+    icon_map = {
+        "lyrics-sync": ("🔴", "LYRICS-SYNC"),
+        "D3Nexus": ("🟢", "D3NEXUS"),
+        "nexus": ("🔵", "NEXUS"),
+        "ai-agent-tools": ("🟠", "AGENT-TOOLS"),
+    }
+    icon, tag = icon_map.get(repo_name, ("📁", repo_name.upper()))
+
+    profile_name = profile_override or os.environ.get("ANTIGRAVITY_PROFILE", "")
+
+    existing_title = ""
+    try:
+        content = settings_file.read_text(encoding="utf-8")
+        settings_data = json.loads(content)
+        existing_title = settings_data.get("window.title", "")
+    except Exception:
+        settings_data = {}
+
+    if not profile_name:
+        primary = resolve_primary_repo_root()
+        # If running inside target repo, current environment HOME is authoritative
+        if root.resolve() == primary.resolve():
+            home_dir = os.environ.get("HOME", "")
+            if "antigravity_homes" in home_dir:
+                profile_name = Path(home_dir).name
+        else:
+            # Foreign repo: first check if an active agy process is attached to that repo
+            try:
+                ps_out = subprocess.check_output(["ps", "-eo", "command"], text=True)
+                for line in ps_out.splitlines():
+                    if "agy" in line and "--add-dir=" in line and (f"--add-dir={root}" in line or f"--add-dir={root.resolve()}" in line):
+                        m = re.search(r"antigravity_homes/([^/]+)/", line)
+                        if m:
+                            profile_name = m.group(1)
+                            break
+            except Exception:
+                pass
+
+            # If no agy process, preserve foreign repo's existing configured [@profile] tag
+            if not profile_name and existing_title:
+                m_existing = re.search(r"\[@([a-zA-Z0-9_\-\.]+)\]", existing_title)
+                if m_existing:
+                    profile_name = m_existing.group(1)
+
+            # Fallback to current HOME
+            if not profile_name:
+                home_dir = os.environ.get("HOME", "")
+                if "antigravity_homes" in home_dir:
+                    profile_name = Path(home_dir).name
+
+    if not profile_name:
+        profile_name = os.environ.get("USER", "")
+
+    profile_tag = f"[@{profile_name}]" if profile_name else ""
+
+    epic_title = ""
+    stage_text = stage_override or ""
+    if epic_slug and epic_slug != "general":
+        devtool_dir = root / ".devtool"
+        epic_dir = devtool_dir / "epic" / epic_slug
+        if epic_dir.exists():
+            for vi_file in epic_dir.glob("*.vi.md"):
+                try:
+                    for line in vi_file.read_text(encoding="utf-8").splitlines():
+                        if line.startswith("# "):
+                            raw = line.lstrip("#").strip()
+                            if raw.lower().startswith("epic:"):
+                                raw = raw[5:].strip()
+                            epic_title = raw
+                            break
+                    if epic_title:
+                        break
+                except Exception:
+                    pass
+
+        if not stage_text:
+            state_file = devtool_dir / "state" / f"{epic_slug}.md"
+            if state_file.exists():
+                try:
+                    lines = state_file.read_text(encoding="utf-8").splitlines()
+                    for i, l in enumerate(lines):
+                        if "## Repo/Task Status:" in l and i + 1 < len(lines):
+                            stage_text = lines[i + 1].lstrip("- ").strip()
+                            break
+                except Exception:
+                    pass
+
+    parts = [p for p in [icon, f"[{tag}]", profile_tag] if p]
+    prefix = " ".join(parts)
+    if epic_title:
+        title_str = f"{prefix} {epic_title}"
+        if stage_text:
+            title_str += f" - {stage_text}"
+    elif stage_text:
+        title_str = f"{prefix} {stage_text}"
+    else:
+        title_str = f"{prefix} ${{activeEditorMedium}}${{separator}}${{rootName}}"
+
+    try:
+        content = settings_file.read_text(encoding="utf-8")
+        settings = json.loads(content)
+        dirty = False
+        if settings.get("window.title") != title_str:
+            settings["window.title"] = title_str
+            dirty = True
+
+        colors = settings.get("workbench.colorCustomizations")
+        if isinstance(colors, dict):
+            # Enforce inactive background parity for titleBar and statusBar
+            title_active = colors.get("titleBar.activeBackground")
+            if title_active and colors.get("titleBar.inactiveBackground") != title_active:
+                colors["titleBar.inactiveBackground"] = title_active
+                dirty = True
+            status_active = colors.get("statusBar.background")
+            if status_active and colors.get("statusBar.inactiveBackground") != status_active:
+                colors["statusBar.inactiveBackground"] = status_active
+                dirty = True
+
+        if dirty:
+            settings_file.write_text(json.dumps(settings, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    except Exception:
+        pass
+
+
 def write_epic_state(
     root: Path,
     epic_slug: str,
@@ -277,6 +415,7 @@ def write_epic_state(
         content = enforce_state_line_limit(epic_slug, role, decisions, status, next_step, prompt)
         (state_dir / f"{epic_slug}.md").write_text(content + "\n", encoding="utf-8")
         render_assistant_state_rollup(devtool_dir)
+        sync_window_title(root, epic_slug=epic_slug, stage_override=status)
 
 
 def append_activity_log(
@@ -341,6 +480,7 @@ def complete_feature_and_rotate(
 
             render_assistant_state_rollup(devtool_dir)
             refresh_activity_stream_rollup(devtool_dir)
+    sync_window_title(root, epic_slug=epic_slug, stage_override="Completed")
 
 
 def scan_project_ledger(root: Path) -> None:
@@ -825,6 +965,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--epic-dir", type=str, help="Epic directory name for --emit-prompt")
 
     parser.add_argument("--sync-zshrc", action="store_true", help="Synchronize shell environment and history")
+    parser.add_argument("--sync-title", action="store_true", help="Synchronize window.title and bar colors in .vscode/settings.json")
+    parser.add_argument("--stage", type=str, default="", help="Stage or task override string for window title")
+    parser.add_argument("--profile", type=str, default="", help="Profile / account ID override for window title (e.g. duvthinh403, danhdue)")
 
     return parser.parse_args(normalized_args)
 
@@ -852,6 +995,11 @@ def main() -> None:
 
     is_repo = (primary_repo / ".git").exists() or (primary_repo / ".devtool").exists()
     target_root = primary_repo if is_repo else workspace
+
+    if args.sync_title:
+        sync_window_title(target_root, epic_slug=active_epic, stage_override=args.stage, profile_override=args.profile or None)
+        print(f"Window title and workspace bar colors synchronized for {target_root.name}")
+        return
 
     if args.complete:
         slug = args.complete[0]
@@ -896,6 +1044,7 @@ def main() -> None:
     scan_git_status(scan_root)
     scan_open_rfcs(scan_root)
     scan_active_tasks(scan_root, epic_filter=args.epic)
+    sync_window_title(target_root, epic_slug=active_epic, stage_override=args.stage or None, profile_override=args.profile or None)
 
 
 if __name__ == "__main__":

@@ -83,6 +83,7 @@ python3 scripts/resume_context.py --complete <epic_slug> "<milestone summary>"
   `- **[YYYY-MM-DD] \`<epic_slug>\`**: <milestone summary>`
 - Moves `.devtool/state/<epic_slug>.md` and `.devtool/logs/activity_<epic_slug>.log` into `.devtool/archive/`.
 - Re-renders `.devtool/assistant_state.md` and `.devtool/activity_stream.log` from remaining active epics.
+- Synchronizes the IDE window title to reflect feature completion: `<ICON> [<REPO>] [@<account_id>] <Vietnamese Epic Name> - Completed & Archived`.
 
 ## Concurrency Protection
 

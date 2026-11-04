@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from __future__ import annotations
 """
 Unit and integration tests for scripts/resume_context.py.
 Covers BDD scenarios:
@@ -22,6 +23,8 @@ from pathlib import Path
 # Target script under test
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT_PATH = REPO_ROOT / "scripts" / "resume_context.py"
+sys.path.insert(0, str(REPO_ROOT / "scripts"))
+from resume_context import sync_window_title
 
 
 class TestResumeContext(unittest.TestCase):
@@ -586,6 +589,85 @@ ag_run() {
         )
         self.assertTrue((self.repo_dir / ".devtool" / "state" / "nested_bug_check.md").exists())
         self.assertTrue((self.repo_dir / ".devtool" / "logs" / "activity_nested_bug_check.log").exists())
+
+    def test_sync_window_title_with_vietnamese_epic_and_colors(self) -> None:
+        """[CMM-TITLE-01] Verify sync_window_title formats title and enforces inactive bar color parity."""
+        import json
+
+        vscode_dir = self.repo_dir / ".vscode"
+        vscode_dir.mkdir(parents=True, exist_ok=True)
+        settings_file = vscode_dir / "settings.json"
+        initial_settings = {
+            "window.title": "old title",
+            "workbench.colorCustomizations": {
+                "titleBar.activeBackground": "#b45309",
+                "titleBar.inactiveBackground": "#222222",
+                "statusBar.background": "#b45309",
+            },
+        }
+        settings_file.write_text(json.dumps(initial_settings, indent=2), encoding="utf-8")
+
+        # Create mock epic with Vietnamese title
+        epic_dir = self.repo_dir / ".devtool" / "epic" / "ui_sync"
+        epic_dir.mkdir(parents=True, exist_ok=True)
+        (epic_dir / "ui_sync.vi.md").write_text("# Epic: Thiết Lập Đồng Bộ Giao Diện\n\nNội dung chi tiết", encoding="utf-8")
+
+        # Call sync_window_title
+        sync_window_title(self.repo_dir, epic_slug="ui_sync", stage_override="Stage 2: Design Approved")
+
+        updated = json.loads(settings_file.read_text(encoding="utf-8"))
+        self.assertIn("🟠 [AGENT-TOOLS]", updated["window.title"])
+        self.assertIn("Thiết Lập Đồng Bộ Giao Diện - Stage 2: Design Approved", updated["window.title"])
+        colors = updated["workbench.colorCustomizations"]
+        self.assertEqual(colors["titleBar.inactiveBackground"], "#b45309")
+        self.assertEqual(colors["statusBar.inactiveBackground"], "#b45309")
+
+    def test_sync_window_title_antigravity_home_profile(self) -> None:
+        """[CMM-TITLE-02] Verify profile tag extraction from antigravity_homes path."""
+        import json
+
+        vscode_dir = self.repo_dir / ".vscode"
+        vscode_dir.mkdir(parents=True, exist_ok=True)
+        settings_file = vscode_dir / "settings.json"
+        settings_file.write_text(json.dumps({"window.title": "old"}, indent=2), encoding="utf-8")
+
+        old_home = os.environ.get("HOME", "")
+        try:
+            os.environ["HOME"] = "/Users/test/antigravity_homes/tess"
+            sync_window_title(self.repo_dir, epic_slug=None)
+            updated = json.loads(settings_file.read_text(encoding="utf-8"))
+            self.assertIn("[@tess]", updated["window.title"])
+            self.assertIn("${activeEditorMedium}${separator}${rootName}", updated["window.title"])
+        finally:
+            os.environ["HOME"] = old_home
+
+    def test_sync_window_title_cli_flags(self) -> None:
+        """[CMM-TITLE-03] Verify CLI invocation with --sync-title and --stage."""
+        import json
+
+        vscode_dir = self.repo_dir / ".vscode"
+        vscode_dir.mkdir(parents=True, exist_ok=True)
+        settings_file = vscode_dir / "settings.json"
+        settings_file.write_text(json.dumps({"window.title": "initial"}, indent=2), encoding="utf-8")
+
+        res = self.run_cli(["--sync-title", "--stage", "Task 1/3: Test Suite Verification"])
+        self.assertEqual(res.returncode, 0, f"stderr: {res.stderr}")
+        updated = json.loads(settings_file.read_text(encoding="utf-8"))
+        self.assertIn("Task 1/3: Test Suite Verification", updated["window.title"])
+
+    def test_sync_window_title_profile_override(self) -> None:
+        """[CMM-TITLE-04] Verify explicit --profile flag overrides active environment profile."""
+        import json
+
+        vscode_dir = self.repo_dir / ".vscode"
+        vscode_dir.mkdir(parents=True, exist_ok=True)
+        settings_file = vscode_dir / "settings.json"
+        settings_file.write_text(json.dumps({"window.title": "initial"}, indent=2), encoding="utf-8")
+
+        res = self.run_cli(["--sync-title", "--profile", "duvthinh403"])
+        self.assertEqual(res.returncode, 0, f"stderr: {res.stderr}")
+        updated = json.loads(settings_file.read_text(encoding="utf-8"))
+        self.assertIn("[@duvthinh403]", updated["window.title"])
 
 
 if __name__ == "__main__":

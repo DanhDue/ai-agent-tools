@@ -1,0 +1,13 @@
+{
+  "window.title": "🟠 [AGENT-TOOLS] [@danhdue] ${activeEditorMedium}${separator}${rootName}",
+  "workbench.colorCustomizations": {
+    "titleBar.activeBackground": "#b45309",
+    "titleBar.activeForeground": "#ffffff",
+    "titleBar.inactiveBackground": "#b45309",
+    "titleBar.inactiveForeground": "#ffffffcc",
+    "statusBar.background": "#b45309",
+    "statusBar.foreground": "#ffffff",
+    "statusBar.inactiveBackground": "#b45309",
+    "statusBar.inactiveForeground": "#ffffffcc"
+  }
+}

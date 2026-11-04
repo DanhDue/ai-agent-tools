@@ -1,0 +1,40 @@
+{
+  "window.title": "📁 [REPO-NAME] [@account_id] ${activeEditorMedium}${separator}${rootName}",
+  "workbench.colorCustomizations": {
+    "titleBar.activeBackground": "#1e293b",
+    "titleBar.activeForeground": "#ffffff",
+    "titleBar.inactiveBackground": "#1e293b",
+    "titleBar.inactiveForeground": "#ffffffcc",
+    "statusBar.background": "#1e293b",
+    "statusBar.foreground": "#ffffff",
+    "statusBar.inactiveBackground": "#1e293b",
+    "statusBar.inactiveForeground": "#ffffffcc"
+  },
+  "agent.terminal.allowList": [
+    "fvm *",
+    "flutter *",
+    "dart *",
+    "pod *",
+    "gradle *",
+    "./gradlew *",
+    "tuist *",
+    "swift *",
+    "xcodebuild *",
+    "ls *",
+    "pwd",
+    "git *",
+    "mason *",
+    "melos *",
+    "fluttergen *",
+    "adb *",
+    "npx *",
+    "node *",
+    "cp *",
+    "mkdir *"
+  ],
+  "agent.terminal.denyList": [
+    "rm -rf *",
+    "git push --force",
+    "sudo *"
+  ]
+}
