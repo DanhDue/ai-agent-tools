@@ -10,6 +10,7 @@ import json
 import math
 import os
 import re
+import socket
 import time
 import urllib.error
 import urllib.request
@@ -139,10 +140,10 @@ def chat(host: str, model: str, system: str, user: str, options: dict[str, int],
         with error:
             body = error.read().decode("utf-8", "replace")
         return Reply("", None, f"HTTP {error.code}: {body[:500]}")
-    except TimeoutError:
+    except (TimeoutError, socket.timeout):
         return Reply("", None, f"timed out after {timeout} seconds")
     except urllib.error.URLError as error:
-        if isinstance(error.reason, TimeoutError):
+        if isinstance(error.reason, (TimeoutError, socket.timeout)):
             return Reply("", None, f"timed out after {timeout} seconds")
         return Reply("", None, str(error))
     except (OSError, ValueError) as error:

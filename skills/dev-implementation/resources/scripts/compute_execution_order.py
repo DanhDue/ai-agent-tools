@@ -21,6 +21,7 @@ It also prints a scan summary (how many `task_*.md` files were seen, how
 many matched the epic, how many were skipped) so a task file with broken
 or missing frontmatter is never silently dropped.
 """
+from __future__ import annotations
 import argparse
 import re
 import sys

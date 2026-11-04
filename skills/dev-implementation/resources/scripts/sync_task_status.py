@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from __future__ import annotations
 """Mirror one epic task's Kanban status across every checkout of this repo.
 
 `dev-implementation` runs an epic inside an isolated worktree, but the same
@@ -24,7 +25,12 @@ compute_execution_order.py -- deliberately no PyYAML, so this stays stdlib-only.
 import re
 import subprocess
 import sys
-from datetime import UTC, datetime
+from datetime import datetime, timezone
+
+try:
+    from datetime import UTC
+except ImportError:
+    UTC = timezone.utc  # type: ignore[attr-defined]
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))

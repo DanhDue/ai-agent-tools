@@ -8,6 +8,42 @@ every installed machine on the old cached copy.
 
 ---
 
+## 1.23.0 — 2026-11-04
+
+Introduces visual multi-epic workspace synchronization and persistent color customization, adds dynamic SQLite account & email ID extraction across 19 Antigravity profiles, guarantees multi-profile GUI isolation without cross-account title contamination, hardens Python 3.9 compatibility across all lifecycle tools and test suites, and publishes bilingual architecture specifications and implementation plans.
+
+### Added
+
+- **Visual Multi-Epic Workspace Synchronization Engine** (`scripts/resume_context.py`):
+  - Adds `sync_window_title` with support for `--sync-title`, `--stage`, and `--profile` CLI options.
+  - Implements repository color signatures: 🔴 `[LYRICS-SYNC]` (`#7f1d1d`), 🟢 `[D3NEXUS]` (`#065f46`), 🔵 `[NEXUS]` (`#0d47a1`), and 🟠 `[AGENT-TOOLS]` (`#b45309`).
+  - Enforces persistent inactive bar parity: synchronizes `titleBar.inactiveBackground` and `statusBar.inactiveBackground` to match active theme backgrounds, eliminating IDE dimming when windows lose focus.
+  - Formats window titles dynamically: `"<ICON> [<REPO_NAME>] [@<account_id>] <Vietnamese Epic Name> - <Stage / Task>"`.
+  - Integrates Vietnamese Epic titles parsed from `.devtool/epic/<slug>/*.vi.md` H1 headers.
+- **Dynamic SQLite Account & Email ID Extraction** (`scripts/resume_context.py`):
+  - Adds `extract_email_id_from_profile` inspecting `state.vscdb` (`google.google-antigravity` onboarding storage) in read-only URI mode (`file:...mode=ro`).
+  - Implements 4-tier account resolution precedence: CLI/environment override -> active process inspection (`ps -eo command`) -> `workspaceStorage` MRU timestamp matching -> `HOME` directory fallback.
+  - Supports all 19 Antigravity profiles seamlessly (`brother`, `buivantrong8901`, `d3molt`, `daddy`, `danhdue`, `duedd`, `duvthinh403`, `hau`, `hoangcongtam690`, `khe`, `mau`, `molt`, `mommy`, `ngocanh000690`, `nguyenhieu000690`, `peter`, `phungthuy8901`, `tess`, `trananh`).
+  - Adds comprehensive unit test `test_extract_email_id_from_profile` in `scripts/test_resume_context.py`.
+- **Multi-Profile GUI Isolation & Rule Governance** (`rules/CRITICAL_RULES.md`):
+  - Establishes Section 8.4 in `CRITICAL_RULES.md` mandating window title synchronization, active/inactive bar parity, and repository color signatures.
+  - Separates personal identity (`User/settings.json`) from workspace invariants (`.vscode/settings.json`), preventing cross-account title leakage when opening repositories directly from Antigravity IDE GUI (`File -> Open Folder`).
+  - Updates template settings in `templates/.vscode/settings.json` and canonical rule template `templates/.agents/rules/window_title_sync.md`.
+- **Bilingual Specifications & Plans** (`docs/superpowers/`):
+  - Publishes full bilingual High-Level Design (HLD) specifications: `docs/superpowers/specs/2026-11-04-visual-multi-epic-workspace-sync-design.en.md` and `docs/superpowers/specs/2026-11-04-visual-multi-epic-workspace-sync-design.vi.md`.
+  - Publishes full bilingual implementation plans: `docs/superpowers/plans/2026-11-04-visual-multi-epic-workspace-sync-plan.en.md` and `docs/superpowers/plans/2026-11-04-visual-multi-epic-workspace-sync-plan.vi.md`.
+
+### Changed
+
+- **Python 3.9 Compatibility Hardening**:
+  - Adds `from __future__ import annotations` across 29 test and CLI tool scripts to enable PEP 604 type unions (`type | None`) on macOS default Python 3.9.6.
+  - Adds backward-compatible UTC timezone fallbacks (`timezone.utc`) in `sync_task_status.py`, `run_task_checks.py`, `run_external_review.py`, and `sync_contracts.py`.
+  - Hardens symlink loop detection in `sync_contracts.py` to catch `RuntimeError` raised by Python 3.9 `Path.resolve()`.
+  - Resolves `socket.timeout` exception inheritance in `local_review.py` for Python 3.9.
+  - Replaces `itertools.pairwise` with `zip(chats, chats[1:])` in `test_local_review.py`.
+
+---
+
 ## 1.22.0 — 2026-11-03
 
 Introduces contract diff gating across multi-repo Hub/Satellite topologies, adds diff-check engine and contract map validation to sync-shared-contracts, aligns quality check schemas across all 5 platforms, and publishes bilingual shared contracts quick-guides.

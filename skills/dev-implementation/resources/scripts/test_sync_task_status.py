@@ -3,6 +3,7 @@
 
 Run: python3 skills/dev-implementation/resources/scripts/test_sync_task_status.py -v
 """
+from __future__ import annotations
 import json
 import subprocess
 import sys

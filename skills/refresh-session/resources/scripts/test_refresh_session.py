@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Unit tests for refresh_session.py engine and CLI commands."""
+from __future__ import annotations
 
 import json
 import subprocess

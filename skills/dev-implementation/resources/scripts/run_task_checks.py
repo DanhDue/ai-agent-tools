@@ -22,7 +22,12 @@ import signal
 import subprocess
 import sys
 import time
-from datetime import UTC, datetime
+from datetime import datetime, timezone
+
+try:
+    from datetime import UTC
+except ImportError:
+    UTC = timezone.utc  # type: ignore[attr-defined]
 from pathlib import Path
 from typing import Any, cast
 

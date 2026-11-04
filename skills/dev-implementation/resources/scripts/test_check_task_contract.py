@@ -3,6 +3,7 @@
 
 Run: python3 -m unittest skills/dev-implementation/resources/scripts/test_check_task_contract.py
 """
+from __future__ import annotations
 import contextlib
 import io
 import json

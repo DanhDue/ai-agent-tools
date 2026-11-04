@@ -3,6 +3,7 @@
 
 Run: python3 -m unittest skills/dev-implementation/resources/scripts/test_run_task_checks.py
 """
+from __future__ import annotations
 import contextlib
 import importlib
 import io

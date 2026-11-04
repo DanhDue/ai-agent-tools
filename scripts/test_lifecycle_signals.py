@@ -6,6 +6,7 @@ so a skill whose command stops working fails here rather than in a user's sessio
 
 Run: python3 -m unittest scripts/test_lifecycle_signals.py
 """
+from __future__ import annotations
 import re
 import subprocess
 import tempfile

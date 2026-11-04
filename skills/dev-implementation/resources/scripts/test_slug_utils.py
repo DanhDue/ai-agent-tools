@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Tests for slug_utils.py."""
+from __future__ import annotations
 import sys
 import unittest
 from pathlib import Path

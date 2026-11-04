@@ -183,3 +183,4 @@ flowchart TD
 
 4. **Kiểm tra Commit Git**:
    Commit cục bộ được tạo với 2 cờ `-m`, phạm vi trong ngoặc `[SETTINGS]`, không có dòng trailer attribution. Tuyệt đối không tự ý thực hiện `git push`.
+

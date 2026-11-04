@@ -3,6 +3,7 @@
 
 Run: python3 -m unittest scripts/test_verifiable_handoff_text.py
 """
+from __future__ import annotations
 import pathlib
 import re
 import unittest

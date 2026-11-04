@@ -4,6 +4,7 @@ Automated Scaffolding Engine for Quality Providers.
 Inspects project repository roots, detects project platforms (Flutter, Android, iOS, Rust),
 and generates standardized .agents/quality/ configurations adhering to canonical templates.
 """
+from __future__ import annotations
 
 import argparse
 import json

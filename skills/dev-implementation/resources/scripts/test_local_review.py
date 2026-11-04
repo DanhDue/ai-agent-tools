@@ -5,6 +5,7 @@ Every Ollama call goes to a fake server on 127.0.0.1 inside the test; no test re
 
 Run: python3 -m unittest skills/dev-implementation/resources/scripts/test_local_review.py
 """
+from __future__ import annotations
 import argparse
 import contextlib
 import io
@@ -605,7 +606,7 @@ class RunnerTest(ReviewCase):
         self.assertEqual(code, 0)
         chats = [(started, finished) for path, _, started, finished in self.fake.requests if path == "/api/chat"]
         self.assertEqual(len(chats), 3)
-        for (_, finished), (started, _) in itertools.pairwise(chats):
+        for (_, finished), (started, _) in zip(chats, chats[1:]):
             self.assertGreaterEqual(started, finished)
         users = self.users()
         self.assertIn('id: "task_1_demo"', users[0])

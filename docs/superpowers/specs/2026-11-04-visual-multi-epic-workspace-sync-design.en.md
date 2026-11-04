@@ -159,3 +159,4 @@ Ships a standardized markdown rule for new repositories and satellites to enforc
   - *Mitigation*: Gracefully falls back to `$USER` or omits `@<account_id>` if no profile is detected.
 - **Risk**: Inactive color settings overriding user themes.
   - *Mitigation*: Scoped strictly to project-level `.vscode/settings.json`; never touches global user settings.
+

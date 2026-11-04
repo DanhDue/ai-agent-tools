@@ -4,6 +4,7 @@ Unit and integration tests for scaffold_quality_manifest.py.
 Verifies platform detection, idempotent scaffolding, schema compliance,
 and polyglot multi-provider manifest generation.
 """
+from __future__ import annotations
 
 import json
 import tempfile

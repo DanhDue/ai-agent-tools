@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from __future__ import annotations
 """Integrate a development branch with its base: rebase it, measure the result, land it.
 
 `finishing-a-development-branch` and `dev-implementation` both rebase a branch onto

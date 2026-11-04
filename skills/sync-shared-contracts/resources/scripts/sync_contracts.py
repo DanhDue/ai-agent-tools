@@ -15,7 +15,12 @@ import re
 import subprocess
 import sys
 import tempfile
-from datetime import UTC, datetime
+from datetime import datetime, timezone
+
+try:
+    from datetime import UTC
+except ImportError:
+    UTC = timezone.utc  # type: ignore[attr-defined]
 from pathlib import Path
 from string import Template
 from typing import Any
@@ -492,7 +497,10 @@ def resolve_topology(repo_root: Path, domain: str = "lyrics-sync") -> dict[str, 
             except OSError as err:
                 raise TopologyError(f"Cannot read symlink {curr}: {err}") from err
 
-            resolved_path = (curr.parent / target_raw).resolve()
+            try:
+                resolved_path = (curr.parent / target_raw).resolve()
+            except RuntimeError as err:
+                raise TopologyError(f"Symbolic link loop detected: {err}") from err
             if str(resolved_path) in visited:
                 raise TopologyError(f"Symbolic link loop detected: cycle at {resolved_path}")
             visited.add(str(resolved_path))

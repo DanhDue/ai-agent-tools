@@ -1,4 +1,5 @@
 """Check frozen baseline evidence without regenerating or grading model replies."""
+from __future__ import annotations
 
 import argparse
 from datetime import datetime

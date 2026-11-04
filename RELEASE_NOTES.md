@@ -1,50 +1,56 @@
-# Release Notes: d3nexus v1.22.0
+# Release Notes: d3nexus v1.23.0
 
-**Release Date:** November 03, 2026  
-**Version:** `1.22.0`  
-**Git Tag:** `v1.22.0`, `d3nexus--v1.22.0`
+**Release Date:** November 04, 2026  
+**Version:** `1.23.0`  
+**Git Tag:** `v1.23.0`, `d3nexus--v1.23.0`
 
 ---
 
 ## Executive Summary
 
-`v1.22.0` introduces **Contract Diff Gating (`CONTRACT_DIFF_GATE`)** and comprehensive **Shared Contracts Workflow Automation** across multi-repository Hub/Satellite topologies (`ai-agent-tools`, `D3Nexus`, `lyrics-sync`, `nexus`). It adds the `diff-check` engine and contract map schema validation to `sync-shared-contracts`, unifies `contract_diff` quality provider schemas across all 5 supported platforms (Android, Flutter, iOS, Python, Rust), integrates contract diff gates into dev lifecycle skills, and publishes bilingual shared contracts quick-guides.
+`v1.23.0` introduces **Visual Multi-Epic Workspace Synchronization & Color Customization**, dynamic **SQLite Account & Email ID Extraction**, and **Multi-Profile GUI Isolation** across the entire developer ecosystem (`ai-agent-tools`, `D3Nexus`, `lyrics-sync`, `nexus`) and all 19 Antigravity profiles. It completely eliminates cross-account title contamination when opening repositories directly from the Antigravity IDE GUI (`File -> Open Folder`), enforces persistent active/inactive theme bar parity, establishes Section 8.4 in `CRITICAL_RULES.md`, and hardens Python 3.9 compatibility across all lifecycle CLI tools and test suites.
 
 ---
 
 ## Key Highlights
 
-### 1. Contract Diff-Check Engine (`sync-shared-contracts`)
-- **Deterministic Drift & Mapping Detection**: `sync_contracts.py diff-check` verifies whether contract-bound files have drifted relative to upstream base branches.
-- **Contract Map Schema Validation**: Validates `.agents/contracts/contract_map.json` against canonical schemas with regex validation and path confinement.
-- **Multi-Domain Hub & Satellite Symlink Isolation**: Resolves physical contract paths in Hub repositories and enforces read-only outbound symlinks in Satellite repositories.
-- **Base-Ref Precedence**: Implements robust base-ref resolution ordering (CLI `--base-ref` -> git merge-base -> `origin/develop` -> `origin/main` -> `HEAD~1`).
-- **Gap Waiver Tracking & Proof Verification**: Detects unacknowledged contract changes or contract-bound code modifications, verifying whether active RFCs/Gaps in `gaps_and_rfcs.md` cover the modifications.
-- **Interactive Automation**: Integrates interactive CLI prompts for contract sync, briefing, and diff checking.
+### 1. Visual Multi-Epic Workspace Synchronization Engine
+- **Dynamic Window Title**: Synchronizes window titles to `"<ICON> [<REPO_NAME>] [@<account_id>] <Vietnamese Epic Name> - <Stage / Task>"`.
+- **Repository Signature Colors**:
+  - 🔴 `[LYRICS-SYNC]`: `#7f1d1d` (Crimson Red)
+  - 🟢 `[D3NEXUS]`: `#065f46` (Emerald Green)
+  - 🔵 `[NEXUS]`: `#0d47a1` (Royal Blue)
+  - 🟠 `[AGENT-TOOLS]`: `#b45309` (Warm Amber)
+- **Persistent Inactive Bar Parity**: Configures `titleBar.inactiveBackground = titleBar.activeBackground` and `statusBar.inactiveBackground = statusBar.background` to eliminate IDE dimming when windows lose focus.
+- **Clean Activity Bar**: Preserves default dark background on the left activity toolbar to avoid peripheral visual clutter.
+- **Vietnamese Epic Titles**: Extracts epic names directly from H1 headers of `.devtool/epic/<slug>/*.vi.md`.
 
-### 2. Standardized Quality Provider Schemas Across 5 Platforms
-- **Unified `contract_diff` Capabilities**: Added standard `contract_diff` capability schemas to:
-  - Android (`android-quality.schema.json`)
-  - Flutter (`flutter-quality.schema.json`)
-  - iOS (`ios-quality.schema.json`)
-  - Python (`python-quality.schema.json`)
-  - Rust (`rust-quality.schema.json`)
-- **Capability Scaffolding**: Standardized placeholder execution and validation across quality provider contracts.
+### 2. Dynamic SQLite Account & Email ID Engine
+- **Direct SQLite Querying**: `extract_email_id_from_profile` in `scripts/resume_context.py` inspects `state.vscdb` (`google.google-antigravity` onboarding storage) in read-only URI mode (`file:...mode=ro`).
+- **4-Tier Account Resolution Hierarchy**:
+  1. CLI `--profile` or `AGY_PROFILE` / `ANTIGRAVITY_PROFILE` override.
+  2. Active process inspection (`ps -eo command`) matching `agy` or `Antigravity IDE` attached to target repo.
+  3. `workspaceStorage` MRU timestamp inspection across all profiles in `antigravity_homes`.
+  4. Active shell `HOME` environment fallback.
+- **All 19 Profiles Supported**: Full coverage for `brother`, `buivantrong8901`, `d3molt`, `daddy`, `danhdue`, `duedd`, `duvthinh403`, `hau`, `hoangcongtam690`, `khe`, `mau`, `molt`, `mommy`, `ngocanh000690`, `nguyenhieu000690`, `peter`, `phungthuy8901`, `tess`, and `trananh`.
 
-### 3. Lifecycle Integration & Shift-Left Invariants
-- **Dev Lifecycle Integration**: Updated `dev-brainstorming` and `dev-designer` to enforce contract diff gating and contract-first task sequencing (`task_01`).
-- **Bilingual Documentation**: Published comprehensive 626-line quick guides in English ([`docs/shared-contracts-quick-guide.en.md`](docs/shared-contracts-quick-guide.en.md)) and Vietnamese ([`docs/shared-contracts-quick-guide.vi.md`](docs/shared-contracts-quick-guide.vi.md)).
+### 3. Multi-Profile GUI Isolation & Governance
+- **Strict Separation of Concerns**: Workspace `.vscode/settings.json` houses project-wide invariants (`workbench.colorCustomizations`), while personal identity is isolated in `antigravity_homes/<account>/data/User/settings.json`.
+- **Zero GUI Contamination**: Opening any project directly from Antigravity IDE GUI (`File -> Open Folder`) reliably displays the current profile's identity without leaking previously active accounts.
+- **Plugin Rule Standard**: Rule codified into `rules/CRITICAL_RULES.md` (Section 8.4) and synced to installed plugins for all AI assistants (Claude, Codex, Antigravity).
 
-### 4. Comprehensive Testing & Verification
-- **Unit Test Coverage**: Added 958 lines of unit tests in [`test_sync_contracts.py`](skills/sync-shared-contracts/resources/scripts/test_sync_contracts.py) covering map validation, glob pattern matching, base-ref resolution, and gap waivers.
-- **Lifecycle Contract Tests**: Added contract diff gate test cases in [`scripts/test_lifecycle_document_contract.py`](scripts/test_lifecycle_document_contract.py).
-- **16/16 Verification Sections**: All suites passed in [`scripts/verify.sh`](scripts/verify.sh).
+### 4. Python 3.9 Compatibility Hardening
+- **PEP 604 Type Unions**: Added `from __future__ import annotations` across 29 test and CLI tool files, guaranteeing complete compatibility with macOS default `/usr/bin/python3` (Python 3.9.6).
+- **Timezone Fallbacks**: Added fallback to `timezone.utc` for `datetime.UTC`.
+- **Runtime Error & Symlink Loop Handling**: Handled `Path.resolve()` symlink loop exceptions in `sync_contracts.py`.
+- **Transport & Pairwise Fixes**: Replaced `itertools.pairwise` with `zip(chats, chats[1:])` and resolved `socket.timeout` error handling in `local_review.py`.
 
 ---
 
 ## Verifications & Quality Gates Passed
 
-- `skills/sync-shared-contracts/resources/scripts/test_sync_contracts.py`: 🟢 **PASS** (31/31 tests green)
-- Quality Provider Schema Suites (Android, Flutter, iOS, Python, Rust): 🟢 **PASS**
-- `scripts/test_lifecycle_document_contract.py`: 🟢 **PASS**
 - `scripts/verify.sh`: 🟢 **PASS — safe to publish** (16/16 sections green)
+- `scripts/test_resume_context.py`: 🟢 **PASS** (21/21 unit tests green)
+- `skills/dev-implementation/resources/scripts/test_local_review.py`: 🟢 **PASS** (40/40 unit tests green)
+- `skills/dev-implementation/resources/scripts/test_check_epic_readiness.py`: 🟢 **PASS** (9/9 unit tests green)
+- `skills/sync-shared-contracts/resources/scripts/test_sync_contracts.py`: 🟢 **PASS** (31/31 unit tests green)

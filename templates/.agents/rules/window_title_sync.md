@@ -44,3 +44,4 @@ In `.vscode/settings.json`, both `titleBar` and `statusBar` MUST configure match
 When updating `.vscode/settings.json`:
 - Surgically modify ONLY the `window.title` key and ensure inactive bar parity.
 - Preserve all existing developer configurations, settings, and terminal allowlists intact.
+

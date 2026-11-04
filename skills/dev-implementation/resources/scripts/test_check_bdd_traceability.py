@@ -3,6 +3,7 @@
 
 Run: python3 -m unittest skills/dev-implementation/resources/scripts/test_check_bdd_traceability.py
 """
+from __future__ import annotations
 import contextlib
 import io
 import subprocess

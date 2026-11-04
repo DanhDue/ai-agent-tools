@@ -20,6 +20,7 @@ import fcntl
 import json
 import os
 import re
+import sqlite3
 import subprocess
 import sys
 from collections.abc import Iterator
@@ -261,6 +262,27 @@ def resolve_target_devtool_dir(root: Path, repo: str | None = None) -> Path:
     return root / ".devtool"
 
 
+def extract_email_id_from_profile(profile_dir: Path) -> str | None:
+    db_path = profile_dir / "data" / "User" / "globalStorage" / "state.vscdb"
+    if not db_path.exists():
+        return None
+    try:
+        conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+        cursor = conn.cursor()
+        cursor.execute("SELECT value FROM ItemTable WHERE key = 'google.google-antigravity'")
+        row = cursor.fetchone()
+        conn.close()
+        if row and row[0]:
+            data = json.loads(row[0])
+            storage = data.get("antigravity-storage", {})
+            username = storage.get("agy.onboarding.lastLoginUsername")
+            if username:
+                return username.split("@")[0] if "@" in username else username
+    except Exception:
+        pass
+    return None
+
+
 def sync_window_title(
     root: Path,
     epic_slug: str | None = None,
@@ -269,19 +291,26 @@ def sync_window_title(
 ) -> None:
     vscode_dir = root / ".vscode"
     settings_file = vscode_dir / "settings.json"
+    vscode_dir.mkdir(parents=True, exist_ok=True)
     if not settings_file.exists():
-        return
+        settings_file.write_text("{}\n", encoding="utf-8")
 
     repo_name = root.name
-    icon_map = {
-        "lyrics-sync": ("🔴", "LYRICS-SYNC"),
-        "D3Nexus": ("🟢", "D3NEXUS"),
-        "nexus": ("🔵", "NEXUS"),
-        "ai-agent-tools": ("🟠", "AGENT-TOOLS"),
+    REPO_SIGNATURES = {
+        "lyrics-sync": ("🔴", "LYRICS-SYNC", "#7f1d1d"),
+        "D3Nexus": ("🟢", "D3NEXUS", "#065f46"),
+        "nexus": ("🔵", "NEXUS", "#0d47a1"),
+        "ai-agent-tools": ("🟠", "AGENT-TOOLS", "#b45309"),
     }
-    icon, tag = icon_map.get(repo_name, ("📁", repo_name.upper()))
+    icon, tag, theme_color = REPO_SIGNATURES.get(repo_name, ("📁", repo_name.upper(), None))
 
-    profile_name = profile_override or os.environ.get("ANTIGRAVITY_PROFILE", "")
+    account_id = (
+        profile_override
+        or os.environ.get("AGY_PROFILE", "")
+        or os.environ.get("ANTIGRAVITY_PROFILE", "")
+    )
+
+    homes_dir = Path("/Users/danhdueexoictif/antigravity_homes")
 
     existing_title = ""
     try:
@@ -291,42 +320,83 @@ def sync_window_title(
     except Exception:
         settings_data = {}
 
-    if not profile_name:
+    if not account_id:
         primary = resolve_primary_repo_root()
-        # If running inside target repo, current environment HOME is authoritative
+        # 1. If running inside target repo, current environment HOME is authoritative
         if root.resolve() == primary.resolve():
             home_dir = os.environ.get("HOME", "")
             if "antigravity_homes" in home_dir:
-                profile_name = Path(home_dir).name
-        else:
-            # Foreign repo: first check if an active agy process is attached to that repo
+                prof_dir = Path(home_dir)
+                account_id = extract_email_id_from_profile(prof_dir) or prof_dir.name
+
+        # 2. Foreign repo: first check if an active agy or Antigravity IDE process is attached to that repo
+        if not account_id:
             try:
                 ps_out = subprocess.check_output(["ps", "-eo", "command"], text=True)
                 for line in ps_out.splitlines():
-                    if "agy" in line and "--add-dir=" in line and (f"--add-dir={root}" in line or f"--add-dir={root.resolve()}" in line):
-                        m = re.search(r"antigravity_homes/([^/]+)/", line)
-                        if m:
-                            profile_name = m.group(1)
-                            break
+                    if ("agy" in line or "Antigravity IDE" in line) and "antigravity_homes" in line:
+                        if (
+                            f"--add-dir={root}" in line
+                            or f"--add-dir={root.resolve()}" in line
+                            or str(root.resolve()) in line
+                        ):
+                            m = re.search(r"antigravity_homes/([^/]+)/", line)
+                            if m:
+                                cand = m.group(1)
+                                if homes_dir.exists() and (homes_dir / cand).exists():
+                                    account_id = extract_email_id_from_profile(homes_dir / cand) or cand
+                                else:
+                                    account_id = cand
+                                break
             except Exception:
                 pass
 
-            # If no agy process, preserve foreign repo's existing configured [@profile] tag
-            if not profile_name and existing_title:
-                m_existing = re.search(r"\[@([a-zA-Z0-9_\-\.]+)\]", existing_title)
-                if m_existing:
-                    profile_name = m_existing.group(1)
+        # 3. Check workspaceStorage across all profiles under antigravity_homes
+        if not account_id and homes_dir.exists():
+            try:
+                target_uri = f"file://{root.resolve()}"
+                matching = []
+                for h in sorted(homes_dir.iterdir()):
+                    if not h.is_dir():
+                        continue
+                    ws_storage = h / "data" / "User" / "workspaceStorage"
+                    if not ws_storage.exists():
+                        continue
+                    entries = sorted(ws_storage.iterdir(), key=lambda x: x.stat().st_mtime, reverse=True)
+                    for ws_entry in entries:
+                        ws_json = ws_entry / "workspace.json"
+                        if ws_json.exists():
+                            try:
+                                ws_data = json.loads(ws_json.read_text(encoding="utf-8"))
+                                if ws_data.get("folder") == target_uri:
+                                    matching.append((ws_entry.stat().st_mtime, h))
+                                    break
+                            except Exception:
+                                pass
+                if matching:
+                    matching.sort(key=lambda x: x[0], reverse=True)
+                    best_h = matching[0][1]
+                    account_id = extract_email_id_from_profile(best_h) or best_h.name
+            except Exception:
+                pass
 
-            # Fallback to current HOME
-            if not profile_name:
-                home_dir = os.environ.get("HOME", "")
-                if "antigravity_homes" in home_dir:
-                    profile_name = Path(home_dir).name
+        # 4. If no process or workspaceStorage hit, check foreign repo's existing configured [@profile] tag
+        if not account_id and existing_title:
+            m_existing = re.search(r"\[@([a-zA-Z0-9_\-\.]+)\]", existing_title)
+            if m_existing:
+                account_id = m_existing.group(1)
 
-    if not profile_name:
-        profile_name = os.environ.get("USER", "")
+        # 5. Fallback to current HOME
+        if not account_id:
+            home_dir = os.environ.get("HOME", "")
+            if "antigravity_homes" in home_dir:
+                prof_dir = Path(home_dir)
+                account_id = extract_email_id_from_profile(prof_dir) or prof_dir.name
 
-    profile_tag = f"[@{profile_name}]" if profile_name else ""
+    if not account_id:
+        account_id = os.environ.get("USER", "")
+
+    profile_tag = f"[@{account_id}]" if account_id else ""
 
     epic_title = ""
     stage_text = stage_override or ""
@@ -379,17 +449,37 @@ def sync_window_title(
             settings["window.title"] = title_str
             dirty = True
 
-        colors = settings.get("workbench.colorCustomizations")
-        if isinstance(colors, dict):
-            # Enforce inactive background parity for titleBar and statusBar
-            title_active = colors.get("titleBar.activeBackground")
-            if title_active and colors.get("titleBar.inactiveBackground") != title_active:
-                colors["titleBar.inactiveBackground"] = title_active
+        if theme_color:
+            if "workbench.colorCustomizations" not in settings:
+                settings["workbench.colorCustomizations"] = {}
                 dirty = True
-            status_active = colors.get("statusBar.background")
-            if status_active and colors.get("statusBar.inactiveBackground") != status_active:
-                colors["statusBar.inactiveBackground"] = status_active
-                dirty = True
+            colors = settings["workbench.colorCustomizations"]
+            color_keys = {
+                "titleBar.activeBackground": theme_color,
+                "titleBar.inactiveBackground": theme_color,
+                "statusBar.background": theme_color,
+                "statusBar.inactiveBackground": theme_color,
+                "titleBar.activeForeground": "#ffffff",
+                "titleBar.inactiveForeground": "#ffffffcc",
+                "statusBar.foreground": "#ffffff",
+                "statusBar.inactiveForeground": "#ffffffcc",
+            }
+            for k, v in color_keys.items():
+                if colors.get(k) != v:
+                    colors[k] = v
+                    dirty = True
+        else:
+            colors = settings.get("workbench.colorCustomizations")
+            if isinstance(colors, dict):
+                # Enforce inactive background parity for titleBar and statusBar
+                title_active = colors.get("titleBar.activeBackground")
+                if title_active and colors.get("titleBar.inactiveBackground") != title_active:
+                    colors["titleBar.inactiveBackground"] = title_active
+                    dirty = True
+                status_active = colors.get("statusBar.background")
+                if status_active and colors.get("statusBar.inactiveBackground") != status_active:
+                    colors["statusBar.inactiveBackground"] = status_active
+                    dirty = True
 
         if dirty:
             settings_file.write_text(json.dumps(settings, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
@@ -968,6 +1058,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--sync-title", action="store_true", help="Synchronize window.title and bar colors in .vscode/settings.json")
     parser.add_argument("--stage", type=str, default="", help="Stage or task override string for window title")
     parser.add_argument("--profile", type=str, default="", help="Profile / account ID override for window title (e.g. duvthinh403, danhdue)")
+    parser.add_argument("--all-repos", action="store_true", help="Synchronize window.title and bar colors across all known repositories")
 
     return parser.parse_args(normalized_args)
 
@@ -994,9 +1085,31 @@ def main() -> None:
         return
 
     is_repo = (primary_repo / ".git").exists() or (primary_repo / ".devtool").exists()
-    target_root = primary_repo if is_repo else workspace
+    if args.workspace_root:
+        target_root = resolve_workspace_root(args.workspace_root)
+    elif args.repo:
+        primary_parent = primary_repo.parent
+        repo_candidate = primary_parent / args.repo
+        if repo_candidate.exists():
+            target_root = repo_candidate
+        elif (workspace / args.repo).exists():
+            target_root = workspace / args.repo
+        else:
+            target_root = primary_repo if is_repo else workspace
+    elif is_repo:
+        target_root = primary_repo
+    else:
+        target_root = workspace
 
     if args.sync_title:
+        if getattr(args, "all_repos", False):
+            base_dir = target_root.parent if (target_root.parent / "ai-agent-tools").exists() else Path("/Users/danhdueexoictif/AllProjects")
+            for rname in REPOS:
+                rpath = base_dir / rname
+                if rpath.exists():
+                    sync_window_title(rpath, epic_slug=active_epic, stage_override=args.stage, profile_override=args.profile or None)
+                    print(f"Window title and workspace bar colors synchronized for {rpath.name}")
+            return
         sync_window_title(target_root, epic_slug=active_epic, stage_override=args.stage, profile_override=args.profile or None)
         print(f"Window title and workspace bar colors synchronized for {target_root.name}")
         return

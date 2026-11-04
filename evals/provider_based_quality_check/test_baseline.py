@@ -1,4 +1,5 @@
 """Artifact-integrity tests; no model replies are regenerated or fabricated."""
+from __future__ import annotations
 
 import concurrent.futures
 import hashlib

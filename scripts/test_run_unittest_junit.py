@@ -3,6 +3,7 @@
 
 Run: python3 -m unittest scripts/test_run_unittest_junit.py
 """
+from __future__ import annotations
 import subprocess
 import sys
 import tempfile

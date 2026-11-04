@@ -3,6 +3,7 @@
 
 Run: python3 skills/impact-analysis/resources/scripts/test_check_code_impact.py -v
 """
+from __future__ import annotations
 import json
 import os
 import subprocess

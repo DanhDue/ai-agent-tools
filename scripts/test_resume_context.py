@@ -669,6 +669,90 @@ ag_run() {
         updated = json.loads(settings_file.read_text(encoding="utf-8"))
         self.assertIn("[@duvthinh403]", updated["window.title"])
 
+    def test_sync_window_title_workspace_root_targeting(self) -> None:
+        """[CMM-TITLE-05] Verify --workspace-root explicitly targets another repo and injects colors."""
+        import json
+
+        other_repo = self.workspace / "D3Nexus"
+        other_repo.mkdir(parents=True, exist_ok=True)
+        (other_repo / ".git").mkdir(parents=True, exist_ok=True)
+
+        res = self.run_cli(["--workspace-root", str(other_repo), "--sync-title", "--profile", "phungthuy8901"])
+        self.assertEqual(res.returncode, 0, f"stderr: {res.stderr}")
+
+        settings_file = other_repo / ".vscode" / "settings.json"
+        self.assertTrue(settings_file.exists())
+        data = json.loads(settings_file.read_text(encoding="utf-8"))
+        self.assertIn("🟢 [D3NEXUS]", data["window.title"])
+        self.assertIn("[@phungthuy8901]", data["window.title"])
+        colors = data["workbench.colorCustomizations"]
+        self.assertEqual(colors["titleBar.activeBackground"], "#065f46")
+        self.assertEqual(colors["titleBar.inactiveBackground"], "#065f46")
+        self.assertEqual(colors["statusBar.background"], "#065f46")
+        self.assertEqual(colors["statusBar.inactiveBackground"], "#065f46")
+
+    def test_sync_window_title_all_repos_iteration(self) -> None:
+        """[CMM-TITLE-06] Verify --all-repos synchronizes all repos under workspace root."""
+        import json
+
+        ws_dir = self.workspace / "AllReposTest"
+        ws_dir.mkdir(parents=True, exist_ok=True)
+        repo_names = ["lyrics-sync", "D3Nexus", "nexus", "ai-agent-tools"]
+        for rname in repo_names:
+            rdir = ws_dir / rname
+            rdir.mkdir(parents=True, exist_ok=True)
+            (rdir / ".git").mkdir(parents=True, exist_ok=True)
+
+        res = self.run_cli([
+            "--workspace-root", str(ws_dir / "ai-agent-tools"),
+            "--sync-title",
+            "--all-repos",
+            "--profile", "peter",
+        ])
+        self.assertEqual(res.returncode, 0, f"stderr: {res.stderr}")
+
+        expected_colors = {
+            "lyrics-sync": "#7f1d1d",
+            "D3Nexus": "#065f46",
+            "nexus": "#0d47a1",
+            "ai-agent-tools": "#b45309",
+        }
+        for rname, color in expected_colors.items():
+            s_file = ws_dir / rname / ".vscode" / "settings.json"
+            self.assertTrue(s_file.exists(), f"Settings missing for {rname}")
+            data = json.loads(s_file.read_text(encoding="utf-8"))
+            self.assertIn("[@peter]", data["window.title"])
+            colors = data["workbench.colorCustomizations"]
+            self.assertEqual(colors["titleBar.activeBackground"], color)
+            self.assertEqual(colors["titleBar.inactiveBackground"], color)
+
+
+    def test_extract_email_id_from_profile(self) -> None:
+        """[CMM-TITLE-07] Verify dynamic email ID extraction from profile's state.vscdb."""
+        import sqlite3
+        import json
+        from resume_context import extract_email_id_from_profile
+
+        mock_profile = self.workspace / "mock_profile"
+        storage_dir = mock_profile / "data" / "User" / "globalStorage"
+        storage_dir.mkdir(parents=True, exist_ok=True)
+        db_file = storage_dir / "state.vscdb"
+
+        conn = sqlite3.connect(str(db_file))
+        cursor = conn.cursor()
+        cursor.execute("CREATE TABLE ItemTable (key TEXT PRIMARY KEY, value TEXT)")
+        payload = json.dumps({
+            "antigravity-storage": {
+                "agy.onboarding.lastLoginUsername": "phungthuy8901@gmail.com"
+            }
+        })
+        cursor.execute("INSERT INTO ItemTable VALUES (?, ?)", ("google.google-antigravity", payload))
+        conn.commit()
+        conn.close()
+
+        email_id = extract_email_id_from_profile(mock_profile)
+        self.assertEqual(email_id, "phungthuy8901")
+
 
 if __name__ == "__main__":
     unittest.main()

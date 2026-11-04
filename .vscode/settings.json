@@ -1,5 +1,4 @@
 {
-  "window.title": "🟠 [AGENT-TOOLS] [@danhdue] ${activeEditorMedium}${separator}${rootName}",
   "workbench.colorCustomizations": {
     "titleBar.activeBackground": "#b45309",
     "titleBar.activeForeground": "#ffffff",

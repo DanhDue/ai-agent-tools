@@ -5,6 +5,7 @@ The fakes are the only claude and codex on PATH, so no test reaches a real CLI.
 
 Run: python3 -m unittest skills/dev-implementation/resources/scripts/test_run_external_review.py
 """
+from __future__ import annotations
 import contextlib
 import io
 import json

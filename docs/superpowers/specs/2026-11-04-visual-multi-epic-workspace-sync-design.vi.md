@@ -159,3 +159,4 @@ Cung cấp một file rule markdown chuẩn để các repo mới hoặc repo v�
   - *Biện pháp*: Tự động fallback về `$USER` hoặc bỏ qua token `@<account_id>` nếu không phát hiện profile.
 - **Rủi ro**: Cài đặt màu inactive ghi đè lên theme cá nhân của người dùng.
   - *Biện pháp*: Giới hạn tuyệt đối trong phạm vi `.vscode/settings.json` của từng project; không can thiệp vào User Settings toàn cục.
+

@@ -3,6 +3,7 @@
 
 Run: python3 .agents/skills/dev-implementation/resources/scripts/test_compute_execution_order.py -v
 """
+from __future__ import annotations
 import sys
 import tempfile
 import unittest

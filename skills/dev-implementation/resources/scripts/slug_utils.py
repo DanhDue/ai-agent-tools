@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from __future__ import annotations
 """Shared utilities for normalizing epic slugs and parsing YAML frontmatter.
 
 Used by sync_task_status.py and compute_execution_order.py to ensure consistent

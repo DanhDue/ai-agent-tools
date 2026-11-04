@@ -16,6 +16,7 @@ either contract.
 
 Exit 0 clean, 1 on any finding.
 """
+from __future__ import annotations
 
 import argparse
 import pathlib

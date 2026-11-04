@@ -6,6 +6,7 @@ runs as a subprocess in the order the skills tell an agent to run it.
 
 Run: python3 -m unittest scripts/test_verifiable_handoff.py
 """
+from __future__ import annotations
 import os
 import subprocess
 import sys

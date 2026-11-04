@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Regression tests for lifecycle document contracts."""
+from __future__ import annotations
 
 import importlib.util
 import pathlib

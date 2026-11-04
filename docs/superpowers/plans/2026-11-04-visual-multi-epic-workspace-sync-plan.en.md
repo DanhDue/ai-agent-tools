@@ -15,7 +15,7 @@
   - [Task 1: Add Unit Tests for Window Title and Inactive Bar Synchronization in `test_resume_context.py` (RED)](#task-1-add-unit-tests-for-window-title-and-inactive-bar-synchronization-in-test_resume_contextpy-red)
   - [Task 2: Refine Engine Implementation in `scripts/resume_context.py` (GREEN)](#task-2-refine-engine-implementation-in-scriptsresume_contextpy-green)
   - [Task 3: Update `rules/CRITICAL_RULES.md` and Create Scaffolding Templates](#task-3-update-rulescritical_rulesmd-and-create-scaffolding-templates)
-  - [Task 4: Update Skill Documentation Across the Epic Lifecycle](#task-4-update-skill-documentation-across-the-epic-lifecycle)
+  - [Task 4: Update Skill Documentation Across the Development Lifecycle](#task-4-update-skill-documentation-across-the-development-lifecycle)
   - [Task 5: End-to-End Test Suite Verification and Local Plugin Synchronization](#task-5-end-to-end-test-suite-verification-and-local-plugin-synchronization)
 - [4. Verification and Quality Gates](#4-verification-and-quality-gates)
 
@@ -129,7 +129,7 @@ flowchart TD
 
 ---
 
-### Task 4: Update Skill Documentation Across the Epic Lifecycle
+### Task 4: Update Skill Documentation Across the Development Lifecycle
 
 - **Files touched**:
   - `skills/resume-context/SKILL.md`
@@ -183,3 +183,4 @@ flowchart TD
 
 4. **Git Commit Check**:
    Local commit created with two `-m` flags, bracketed scope `[SETTINGS]`, and no trailer lines. Strictly no `git push`.
+

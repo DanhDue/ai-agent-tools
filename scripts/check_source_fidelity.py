@@ -12,6 +12,7 @@ catch its known regressions. Evidence, with the authors' own wording, lives in t
 
 Add a source by appending to SOURCES — never by forking this script.
 """
+from __future__ import annotations
 
 import pathlib
 import re

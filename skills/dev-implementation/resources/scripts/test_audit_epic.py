@@ -5,6 +5,7 @@ Evidence is recorded by the real recorder, so the patch ids the audit compares a
 
 Run: python3 -m unittest skills/dev-implementation/resources/scripts/test_audit_epic.py
 """
+from __future__ import annotations
 import contextlib
 import io
 import json
