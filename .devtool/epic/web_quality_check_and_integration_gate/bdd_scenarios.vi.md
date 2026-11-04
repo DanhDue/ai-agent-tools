@@ -33,10 +33,10 @@ Scenario: [WQG-HP-03] [Tier C - Integration] Playwright headless execution with 
   And bộ test hoàn thành thành công
 
 Scenario: [WQG-HP-04] [Tier A - Unit] Automated generation of 3-5 step manual smoke checklist
-  Given tất cả các task trong một epic đạt trạng thái done và Gate 4 trả về PASS
+  Given tất cả các task trong một epic đạt trạng thái done và Phase 4 thực thi
   When bộ sinh checklist phân tích các kịch bản BDD Happy Path chính
-  Then nó xuất ra file .devtool/epic/<epic_dir>/manual_smoke_checklist.md
-  And checklist chứa từ 3 đến 5 bước kiểm tra thực tế kèm URL và kết quả trực quan mong đợi
+  Then nó xuất ra file .devtool/epic/<epic_dir>/manual_smoke_checklist.md trước khi Gate 4 xác thực
+  And checklist chứa từ 3 đến 5 bước kiểm tra thực tế kèm Mục tiêu (URL hoặc Lệnh CLI), Hành động và Kết quả trực quan quan sát được
 ```
 
 ## Chiều 2: Edge Cases và Biên Giới hạn
@@ -67,10 +67,10 @@ Scenario: [WQG-ST-01] [Tier A - Unit] Transition from BLOCKED to PASS upon fixin
   Then validator chuyển đổi trạng thái sang PASS
 
 Scenario: [WQG-ST-02] [Tier C - Integration] Task status progression under Anti-Rationalization audit
-  Given một tác vụ Kanban bao phủ kịch bản [WQG-HP-01]
-  When Lập trình viên AI cố gắng đánh dấu task done chỉ với mock đơn vị
-  Then check_bdd_traceability.py và script đồng bộ trạng thái từ chối hoàn thành
-  And khi một bài test tích hợp Playwright headless thật được commit
+  Given một tác vụ Kanban bao phủ kịch bản Tier C [WQG-HP-01]
+  When bộ chạy xác thực đánh giá việc hoàn tất task khi thiếu bằng chứng tích hợp Tier C hoặc chỉ có mock đơn vị
+  Then task_contract.py và script đồng bộ trạng thái từ chối chuyển sang done do vi phạm điều kiện 6
+  And khi bằng chứng thực thi test tích hợp Playwright headless thật được cung cấp trong kết quả xác thực
   Then tác vụ chuyển đổi suôn sẻ sang trạng thái done
 ```
 

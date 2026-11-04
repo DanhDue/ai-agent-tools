@@ -26,6 +26,7 @@ Allowed files:
 - `skills/dev-designer/SKILL.md`
 - `skills/dev-implementation/SKILL.md`
 - `skills/test-driven-development/SKILL.md`
+- `skills/dev-implementation/resources/scripts/task_contract.py`
 - `tests/test_workflow_anti_rationalization.py` (new)
 
 Read-only context:
@@ -48,10 +49,10 @@ AI coding agents naturally seek the path of least resistance, often writing Unit
 Covers: [WQG-ST-02]
 
 #### Scenario: [WQG-ST-02] [Tier C - Integration] Task status progression under Anti-Rationalization audit
-Given a Kanban task covering scenario `[WQG-HP-01]`
-When the AI Programmer attempts to mark the task `done` with only unit mocks
-Then `check_bdd_traceability.py` and task status sync reject the completion
-And when a real Playwright headless integration test is committed
+Given a Kanban task covering Tier C scenario `[WQG-HP-01]`
+When the verification runner evaluates task completion with missing Tier C integration evidence or only unit mocks
+Then `task_contract.py` and task status sync reject the transition to `done` with condition 6 violation
+And when real Playwright headless integration test execution evidence is provided in the verification results
 Then the task transitions cleanly to status `done`.
 
 ## Verification
@@ -77,6 +78,7 @@ Then the task transitions cleanly to status `done`.
 - Frontmatter of `SKILL.md` files must remain strictly `name` and `description` only.
 - Anti-Rationalization tables placed in dedicated sections within each skill.
 - Subcutaneous testing guidelines formalized for Flutter and native mobile.
+- `task_contract.py` condition 6 enforces real Tier C test cases in verification results for Tier C scenarios, rejecting mock-only completion attempts.
 
 ## Definition of Done
 

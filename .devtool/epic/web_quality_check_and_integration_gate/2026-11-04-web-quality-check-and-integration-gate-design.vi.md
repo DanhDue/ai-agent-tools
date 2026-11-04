@@ -109,7 +109,8 @@ Nhạc trưởng Gate 4 gốc (`d3nexus:quality_check`) thực hiện kích ho�
 ## Nâng cấp Dev-Designer và Dev-Implementation
 
 1. **`dev-designer` (Stage 2)**:
-   - Khi phát hiện dự án Web, dòng `Integration results:` trong HLD bắt buộc phải trỏ tới kết quả của Playwright headless (`build/test-results/playwright.json`).
+   - Khi phát hiện dự án Web, dòng `Integration results:` trong HLD bắt buộc phải trỏ tới kết quả của Playwright headless dạng JUnit XML (`build/test-results/playwright.xml`) sinh qua cờ `--reporter=junit`, đảm bảo `result_reports.py` (chỉ hỗ trợ JUnit XML hoặc Dart JSON) đọc nạp thông suốt.
+   - Các bộ test Python bắt buộc phải bao gồm cờ `--junitxml=build/test-results/pytest.xml` trong lệnh thực thi.
    - Các kịch bản BDD cho Tier C phải bao gồm kỳ vọng tương tác DOM cụ thể và xác nhận qua wiremock.
 2. **`dev-implementation` (Stage 3)**:
    - Nhúng Bảng Chống Ngụy biện trực tiếp vào quá trình thực thi tác vụ.
@@ -142,4 +143,4 @@ Sau khi hoàn thành thành công tất cả tác vụ và Gate 4 trả về k�
 3. **Kiểm chứng Type-Checking cho Vanilla JS**:
    - Chạy `tsc --project jsconfig.json` trên thư mục `lyrics-sync/src/lyrics_sync/preview/static/` và xác nhận kết quả kiểm tra kiểu dữ liệu sạch sẽ.
 4. **Kiểm chứng Tự sinh Checklist Bấm tay**:
-   - Xác nhận rằng việc hoàn tất epic sẽ tạo ra file `.devtool/epic/<epic_dir>/manual_smoke_checklist.md` chứa 3–5 bước rõ ràng.
+   - Xác nhận rằng `generate_smoke_checklist.py` sinh và commit `.devtool/epic/<epic_dir>/manual_smoke_checklist.md` (3–5 bước) trong Phase 4 trước lượt chạy Gate 4 cuối cùng, bảo toàn trạng thái git sạch và tính toàn vẹn của candidate SHA đã được chứng nhận.

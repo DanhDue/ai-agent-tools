@@ -108,7 +108,8 @@ The root Gate 4 orchestrator (`d3nexus:quality_check`) executes multi-provider f
 ## Dev-Designer and Dev-Implementation Enhancements
 
 1. **`dev-designer` (Stage 2)**:
-   - When detecting a Web project, the HLD `Integration results:` line must target Playwright headless output (`build/test-results/playwright.json`).
+   - When detecting a Web project, the HLD `Integration results:` line must target Playwright headless JUnit XML output (`build/test-results/playwright.xml`) generated via `--reporter=junit`, ensuring seamless ingestion by `result_reports.py` (which requires JUnit XML or Dart JSON).
+   - Python test suites must include `--junitxml=build/test-results/pytest.xml` in their execution command.
    - BDD scenarios for Tier C must include concrete DOM interaction expectations and wiremock assertions.
 2. **`dev-implementation` (Stage 3)**:
    - Integrates the Anti-Rationalization Table into task execution.
@@ -141,4 +142,4 @@ Upon successful completion of all tasks and a passing Gate 4 machine verdict, `d
 3. **Vanilla JS Type-Checking Verification**:
    - Run `tsc --project jsconfig.json` against `lyrics-sync/src/lyrics_sync/preview/static/` and verify clean type validation.
 4. **Smoke Checklist Generation Verification**:
-   - Verify that completing an epic produces `.devtool/epic/<epic_dir>/manual_smoke_checklist.md` containing 3-5 structured steps.
+   - Verify that `generate_smoke_checklist.py` generates and commits `.devtool/epic/<epic_dir>/manual_smoke_checklist.md` (3-5 structured steps) during Phase 4 before the final Gate 4 validation run, preserving clean git status and certified candidate SHA integrity.

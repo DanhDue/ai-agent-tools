@@ -32,10 +32,10 @@ Scenario: [WQG-HP-03] [Tier C - Integration] Playwright headless execution with 
   And the test suite completes successfully
 
 Scenario: [WQG-HP-04] [Tier A - Unit] Automated generation of 3-5 step manual smoke checklist
-  Given all tasks in an epic reach status done and Gate 4 returns PASS
+  Given all tasks in an epic reach status done and Phase 4 executes
   When the smoke generator parses primary BDD Happy Path scenarios
-  Then it emits .devtool/epic/<epic_dir>/manual_smoke_checklist.md
-  And the checklist contains between 3 and 5 actionable verification steps with URLs and expected visual outcomes
+  Then it emits .devtool/epic/<epic_dir>/manual_smoke_checklist.md before Gate 4 validation
+  And the checklist contains between 3 and 5 actionable verification steps with Target (URL or CLI Command), Action, and Observable Outcome
 ```
 
 ## Dimension 2: Edge Cases and Boundaries
@@ -66,10 +66,10 @@ Scenario: [WQG-ST-01] [Tier A - Unit] Transition from BLOCKED to PASS upon fixin
   Then the validator transitions to status PASS
 
 Scenario: [WQG-ST-02] [Tier C - Integration] Task status progression under Anti-Rationalization audit
-  Given a Kanban task covering scenario [WQG-HP-01]
-  When the AI Programmer attempts to mark the task done with only unit mocks
-  Then check_bdd_traceability.py and task status sync reject the completion
-  And when a real Playwright headless integration test is committed
+  Given a Kanban task covering Tier C scenario [WQG-HP-01]
+  When the verification runner evaluates task completion with missing Tier C integration evidence or only unit mocks
+  Then task_contract.py and task status sync reject the transition to done with condition 6 violation
+  And when real Playwright headless integration test execution evidence is provided in the verification results
   Then the task transitions cleanly to status done
 ```
 

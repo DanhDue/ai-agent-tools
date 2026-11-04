@@ -105,9 +105,10 @@ sequenceDiagram
     Playwright->>Playwright: Verify DOM & assert Zero-Console-Error
     Playwright-->>Web: Test execution trace & evidence
     Web-->>Gate: Emit Provider Result Document (PASS)
-    Gate->>Gen: Extract primary BDD happy paths
-    Gen-->>Gate: Emit manual_smoke_checklist.md
-    Gate-->>Human: Report Gate 4 LGTM + 2-minute Smoke Checklist
+    Human->>Gen: Phase 4 smoke generator run & commit
+    Gen-->>Human: Commit manual_smoke_checklist.md
+    Human->>Gate: Execute final Gate 4 on candidate SHA
+    Gate-->>Human: Report Gate 4 LGTM + Review Choice
 ```
 
 ### Integration Test Plan and Boundary Matrix
@@ -115,7 +116,7 @@ sequenceDiagram
 ```text
 Integration test roots: tests/, skills/web-quality-check/tests/
 Protected paths: .agents/quality/**, .devtool/epic/web_quality_check_and_integration_gate/bdd_scenarios.en.md, .devtool/epic/web_quality_check_and_integration_gate/bdd_scenarios.vi.md
-Integration results: python3 -m pytest tests/ -> build/test-results/pytest.xml
+Integration results: python3 -m pytest tests/ --junitxml=build/test-results/pytest.xml -> build/test-results/pytest.xml
 ```
 
 | Boundary Seam | Testing Strategy | Verification Target |

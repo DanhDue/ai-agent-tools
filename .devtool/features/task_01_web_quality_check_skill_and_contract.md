@@ -96,7 +96,7 @@ Then it catches the spawn failure and emits status `BLOCKED` with actionable rem
 - Manifest file path: `.agents/quality/web-quality.json`.
 - Schema Version: `1`.
 - Standard profiles supported: `pr`, `epic`, `release`, `scheduled`.
-- Output structure: Standard Provider Result Contract v1 format with keys `provider_id`, `contract_version`, `status`, `summary`, `checks`, `repository_sha`.
+- Output structure: Standard Provider Result Contract v1 format matching `skills/quality_check/resources/schemas/provider-result.schema.json` with 13 required top-level keys: `provider_id`, `contract_version`, `profile`, `repository_sha`, `status`, `checks`, `coverage`, `evidence`, `started_head`, `finished_head`, `duration`, `blockers`, `warnings` (forbidden root `summary` omitted; additionalProperties false).
 
 ## Definition of Done
 

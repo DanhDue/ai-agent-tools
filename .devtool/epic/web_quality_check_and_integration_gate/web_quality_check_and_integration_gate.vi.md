@@ -106,9 +106,10 @@ sequenceDiagram
     Playwright->>Playwright: Render DOM & xác thực Zero-Console-Error
     Playwright-->>Web: Trả về trace & bằng chứng thực thi
     Web-->>Gate: Xuất Tài liệu Kết quả Provider (PASS)
-    Gate->>Gen: Trích xuất các luồng Happy Path chính
-    Gen-->>Gate: Xuất file manual_smoke_checklist.md
-    Gate-->>Human: Báo cáo Gate 4 LGTM + Checklist Bấm tay 2 phút
+    Human->>Gen: Phase 4 chạy bộ sinh checklist & commit
+    Gen-->>Human: Commit manual_smoke_checklist.md
+    Human->>Gate: Thực thi Gate 4 cuối cùng trên candidate SHA
+    Gate-->>Human: Báo cáo Gate 4 LGTM + Review Choice
 ```
 
 ### Kế hoạch Kiểm thử Tích hợp và Ma trận Ranh giới
@@ -116,7 +117,7 @@ sequenceDiagram
 ```text
 Integration test roots: tests/, skills/web-quality-check/tests/
 Protected paths: .agents/quality/**, .devtool/epic/web_quality_check_and_integration_gate/bdd_scenarios.en.md, .devtool/epic/web_quality_check_and_integration_gate/bdd_scenarios.vi.md
-Integration results: python3 -m pytest tests/ -> build/test-results/pytest.xml
+Integration results: python3 -m pytest tests/ --junitxml=build/test-results/pytest.xml -> build/test-results/pytest.xml
 ```
 
 | Mối ghép Ranh giới | Chiến lược Kiểm thử | Mục tiêu Kiểm chứng |

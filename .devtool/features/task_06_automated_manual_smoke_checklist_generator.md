@@ -18,7 +18,7 @@ Epic: [web_quality_check_and_integration_gate](../epic/web_quality_check_and_int
 
 ## Requirement Analysis
 
-Build the automated smoke checklist generator script `generate_smoke_checklist.py` and hook it into Phase 4 of `dev-implementation`. The script parses the canonical BDD Happy Path scenarios (`bdd_scenarios.en.md`), extracts 3 to 5 core user journey steps, and formats them into a clean markdown document at `.devtool/epic/<epic_dir>/manual_smoke_checklist.md`. This gives the human engineer an instant 2-minute manual sanity check checklist upon Gate 4 completion.
+Build the automated smoke checklist generator script `generate_smoke_checklist.py` and hook it into Phase 4 of `dev-implementation`. The script parses the canonical BDD Happy Path scenarios (`bdd_scenarios.en.md`), extracts 3 to 5 core user journey steps, and formats them into a clean markdown document at `.devtool/epic/<epic_dir>/manual_smoke_checklist.md` before the final Gate 4 validation run. This gives the human engineer an instant 2-minute manual sanity check checklist without dirtying the git working tree after Gate 4.
 
 ## Files
 
@@ -47,10 +47,10 @@ Even with 100% automated testing, human developers naturally want to perform a q
 Covers: [WQG-HP-04]
 
 #### Scenario: [WQG-HP-04] [Tier A - Unit] Automated generation of 3-5 step manual smoke checklist
-Given all tasks in an epic reach status `done` and Gate 4 returns `PASS`
+Given all tasks in an epic reach status `done` and Phase 4 executes
 When the smoke generator parses primary BDD Happy Path scenarios
-Then it emits `.devtool/epic/<epic_dir>/manual_smoke_checklist.md`
-And the checklist contains between 3 and 5 actionable verification steps with URLs and expected visual outcomes.
+Then it emits `.devtool/epic/<epic_dir>/manual_smoke_checklist.md` before Gate 4 validation
+And the checklist contains between 3 and 5 actionable verification steps with Target (URL or CLI Command), Action, and Observable Outcome.
 
 ## Verification
 
@@ -74,7 +74,9 @@ And the checklist contains between 3 and 5 actionable verification steps with UR
 
 - Output path: `.devtool/epic/<epic_dir>/manual_smoke_checklist.md`.
 - Maximum checklist length: 5 items.
-- Structure: Checklist table containing Step Number, Target Screen/URL, Action, and Observable Outcome.
+- Structure: Checklist table containing Step Number, Target (URL / CLI Command), Action, and Observable Outcome.
+- Smoke extraction logic: Extracts URL if present in scenario steps; if step specifies a CLI or tooling command (such as `d3nexus:web-quality-check`), extracts the command/entrypoint as Target; fallback to `CLI / Workspace Root` with parsed When/Then actions when URLs are absent.
+- Workflow timing: The generator executes and commits `manual_smoke_checklist.md` in Phase 4 before candidate SHA resolution and the final Gate 4 run, ensuring zero uncommitted files and maintaining candidate SHA stability.
 
 ## Definition of Done
 

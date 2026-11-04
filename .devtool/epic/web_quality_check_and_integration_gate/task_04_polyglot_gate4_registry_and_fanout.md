@@ -24,6 +24,8 @@ Extend project quality templates and verification tooling to support multi-provi
 
 Allowed files:
 - `skills/setup_quality_check/resources/templates/polyglot-check-quality.template.json` (new)
+- `skills/setup_quality_check/resources/templates/web-quality.template.json` (new)
+- `skills/setup_quality_check/resources/scripts/scaffold_quality_manifest.py`
 - `skills/quality_check/resources/scripts/verify_polyglot_registry.py` (new)
 - `tests/test_polyglot_gate4.py` (new)
 
@@ -75,6 +77,8 @@ And Gate 4 aggregates the final verdict based on `FAIL > BLOCKED > PASS` priorit
 - Aggregation precedence: `FAIL` trumps `BLOCKED`, which trumps `PASS`.
 - Output format: Unified executive markdown report listing every provider's status, executed checks, and SHA binding.
 - Manifest schema version: `1` with multiple objects in the `providers` array.
+- Scaffolder integration: `scaffold_quality_manifest.py` registers `web` in `PLATFORM_CONFIGS` (mapping to `web-quality.json` and `web-quality.template.json`) and detects web projects via `package.json`, `astro.config.*`, or `playwright.config.*`.
+- Consumer adoption handoffs: define exact check_quality.json configurations and watchdog attachment steps for `D3Nexus` (`rust-core` + `learning-web`) and `lyrics-sync` (`python-core` + `preview-ui`).
 
 ## Definition of Done
 
