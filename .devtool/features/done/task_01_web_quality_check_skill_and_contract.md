@@ -1,13 +1,13 @@
 ---
 id: "task_01_web_quality_check_skill_and_contract"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "web-quality-check-and-integration-gate"
 dueDate: null
 created: "2026-11-04T22:52:00Z"
-modified: "2026-11-04T22:52:00Z"
-completedAt: null
+modified: "2026-11-04T21:00:41Z"
+completedAt: "2026-11-04T21:00:41Z"
 labels: ["quality", "web", "provider"]
 order: "a1"
 ---

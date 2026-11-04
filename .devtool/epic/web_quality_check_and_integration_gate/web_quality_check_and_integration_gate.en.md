@@ -20,7 +20,7 @@
 
 - **Epic Name**: `web_quality_check_and_integration_gate`
 - **Epic Slug**: `web-quality-check-and-integration-gate`
-- **Status**: Packaged
+- **Status**: In Progress
 - **Target Release**: v1.2.0
 - **Platform**: Polyglot / Quality Architecture
 - **Source Spec**: [2026-11-04-web-quality-check-and-integration-gate-design.en.md](./2026-11-04-web-quality-check-and-integration-gate-design.en.md)
