@@ -1,0 +1,193 @@
+{
+  "schema": 1,
+  "task": "task_02_playwright_zero_error_watchdog",
+  "runs": {
+    "red": {
+      "head": "6e19643439229c29b74f69a921609a668dd34337",
+      "tree": "b14095219b6f186364e1ec4dcba98d010e34b5ce",
+      "patch_id": "7e03d6f606e7f5ce799fec0910979f7440da863c",
+      "started": "2026-11-04T21:01:44Z",
+      "finished": "2026-11-04T21:01:44Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m pytest tests/test_playwright_watchdog.py::test_watchdog_filters",
+          "expect": "exit 1; contains \"FAILED\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-04T21:01:44Z",
+          "finished": "2026-11-04T21:01:44Z",
+          "output_tail": [
+            "============================= test session starts ==============================",
+            "platform darwin -- Python 3.15.2, pytest-9.2.0, pluggy-1.7.0",
+            "rootdir: /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/web_quality_check_and_integration_gate",
+            "collected 1 item",
+            "",
+            "tests/test_playwright_watchdog.py F                                      [100%]",
+            "",
+            "=================================== FAILURES ===================================",
+            "____________________________ test_watchdog_filters _____________________________",
+            "",
+            "    def test_watchdog_filters():",
+            "        \"\"\"RED phase for Task 02.\"\"\"",
+            ">       assert False, \"RED phase: Playwright watchdog not implemented yet\"",
+            "E       AssertionError: RED phase: Playwright watchdog not implemented yet",
+            "E       assert False",
+            "",
+            "tests/test_playwright_watchdog.py:8: AssertionError",
+            "=========================== short test summary info ============================",
+            "FAILED tests/test_playwright_watchdog.py::test_watchdog_filters - AssertionEr...",
+            "============================== 1 failed in 0.02s ==============================="
+          ],
+          "output_sha256": "31456f97ff824a5be0c2e3b47cb9a3ff869e6cdc1ede3a717fb92baaeddeb73d"
+        }
+      ]
+    },
+    "verify": {
+      "head": "6e19643439229c29b74f69a921609a668dd34337",
+      "tree": "e2b561cad0b5249a21b12d2c6e0d29fa9173c73b",
+      "patch_id": "10741e5fcca7714854998045db7fe0565b6baf26",
+      "started": "2026-11-04T21:03:55Z",
+      "finished": "2026-11-04T21:03:55Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m pytest tests/test_playwright_watchdog.py::test_watchdog_filters",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-04T21:03:55Z",
+          "finished": "2026-11-04T21:03:55Z",
+          "output_tail": [
+            "============================= test session starts ==============================",
+            "platform darwin -- Python 3.15.2, pytest-9.2.0, pluggy-1.7.0",
+            "rootdir: /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/web_quality_check_and_integration_gate",
+            "collected 1 item",
+            "",
+            "tests/test_playwright_watchdog.py .                                      [100%]",
+            "",
+            "============================== 1 passed in 0.01s ==============================="
+          ],
+          "output_sha256": "c0d2ff632dbf4d4590c4f97af9820c7b65d8de765f3d9957139346855d573c3e"
+        },
+        {
+          "id": "V3",
+          "phase": "TIER-B",
+          "command": "ruff check tests/test_playwright_watchdog.py skills/web-quality-check",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-04T21:03:55Z",
+          "finished": "2026-11-04T21:03:55Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "mypy skills/web-quality-check/resources/scripts/run_playwright_harness.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-04T21:03:55Z",
+          "finished": "2026-11-04T21:03:55Z",
+          "output_tail": [
+            "Success: no issues found in 1 source file"
+          ],
+          "output_sha256": "5d4b6d285b77932e3d08212c3b4974d0a803f98ec60408ac6ccf6a063fa6c19e"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-C",
+          "command": "python3 -m pytest tests/test_playwright_watchdog.py -k \"test_WQG_HP_03 or test_WQG_EC_02 or test_WQG_EC_03 or test_WQG_AR_02 or test_WQG_FR_01 or test_WQG_FR_03\" --junitxml=build/test-results/task_02.xml",
+          "expect": "exit 0; results build/test-results/task_02.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-04T21:03:55Z",
+          "finished": "2026-11-04T21:03:55Z",
+          "output_tail": [
+            "============================= test session starts ==============================",
+            "platform darwin -- Python 3.15.2, pytest-9.2.0, pluggy-1.7.0",
+            "rootdir: /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/web_quality_check_and_integration_gate",
+            "collected 7 items / 1 deselected / 6 selected",
+            "",
+            "tests/test_playwright_watchdog.py ......                                 [100%]",
+            "",
+            "- generated xml file: /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/web_quality_check_and_integration_gate/build/test-results/task_02.xml -",
+            "======================= 6 passed, 1 deselected in 0.25s ========================"
+          ],
+          "output_sha256": "ac6d65d0e821208cff844c55c5b62942cc419205c2ce40b94d87031154a922f6",
+          "results": {
+            "path": "build/test-results/task_02.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 6,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_WQG_HP_03_playwright_headless_execution",
+                  "classname": "tests.test_playwright_watchdog",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_WQG_EC_02_allowlist_filtering",
+                  "classname": "tests.test_playwright_watchdog",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_WQG_EC_03_mutually_exclusive_state_leak_and_duplicate_text",
+                  "classname": "tests.test_playwright_watchdog",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_WQG_AR_02_webserver_lifecycle",
+                  "classname": "tests.test_playwright_watchdog",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_WQG_FR_01_uncaught_console_error",
+                  "classname": "tests.test_playwright_watchdog",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_WQG_FR_03_static_asset_trap_and_unstyled_geometry",
+                  "classname": "tests.test_playwright_watchdog",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "skills/web-quality-check/resources/scripts/run_playwright_harness.py",
+            "skills/web-quality-check/resources/templates/playwright-zero-error.fixture.ts",
+            "skills/web-quality-check/resources/templates/playwright_zero_error.py",
+            "tests/test_playwright_watchdog.py"
+          ],
+          "violations": []
+        }
+      ]
+    }
+  }
+}

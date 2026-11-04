@@ -1,13 +1,13 @@
 ---
 id: "task_02_playwright_zero_error_watchdog"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "web-quality-check-and-integration-gate"
 dueDate: null
 created: "2026-11-04T22:52:00Z"
-modified: "2026-11-04T22:52:00Z"
-completedAt: null
+modified: "2026-11-04T21:04:14Z"
+completedAt: "2026-11-04T21:04:14Z"
 labels: ["web", "playwright", "integration"]
 order: "a2"
 ---
