@@ -53,6 +53,13 @@ Scenario: [WQG-EC-02] [Tier A - Unit] Benign console warnings filtered by allowl
   When the Playwright test executes
   Then the Zero-Console-Error watchdog filters out matching allowlisted warnings
   And does not falsely fail the test suite
+
+Scenario: [WQG-EC-03] [Tier C - Integration] Mutually exclusive DOM state leak and duplicate text detection
+  Given a UI component with conditional state badges and tooltip accessibility spans
+  When Playwright executes with the Zero-Console-And-Layout-Defect Watchdog
+  Then it asserts that mutually exclusive elements (e.g. running spinner vs terminal failure badge, visible title vs hidden tooltip) are not simultaneously visible
+  And detects consecutive duplicate substring rendering inside card titles/subtitles caused by unstyled hidden spans
+  And fails Gate 4 if unstyled hidden spans leak into visible layout
 ```
 
 ## Dimension 3: State Transitions
@@ -102,4 +109,11 @@ Scenario: [WQG-FR-02] [Tier A - Unit] Missing node_modules or binary execution b
   Given an environment where playwright or astro binary is not found in PATH
   When web-quality-check attempts to spawn the process
   Then it catches the spawn failure and emits status BLOCKED with actionable remediation guidance
+
+Scenario: [WQG-FR-03] [Tier C - Integration] Immediate failure on 404 static stylesheet or unstyled computed geometry
+  Given an Astro or web page where a critical .css stylesheet returns HTTP status >= 400
+  Or a primary structural UI container renders with unstyled default computed styles (transparent background, zero border/padding, or zero dimensions)
+  When the Playwright test suite executes with assertVisualIntegrity
+  Then the Static Asset Network Trap and geometry watchdog immediately fail the test
+  And log the missing asset URL and unstyled element selectors as evidence
 ```

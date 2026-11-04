@@ -61,13 +61,16 @@ The architecture establishes three distinct testing tiers across mobile and web 
    - Invariant: Zero-Domain-Mock. Mocking domain UseCases or Repositories is strictly prohibited. Real DI containers and in-memory databases (SQLite `:memory:`, Room in-memory) are required.
    - Network Boundary: Network I/O is mocked at the HTTP wire socket using canonical JSON fixtures from `shared-contracts/`.
 3. **Tier C2 — Headless Browser Integration Testing (Web)**:
-   - Scope: Real DOM rendering, Custom Elements, Vanilla JS/TS controllers, user clicks, navigation, and visual popover placement.
-   - Invariant: Zero-Console-Error. Any `console.error` or uncaught page exception immediately fails the test.
+   - Scope: Real DOM rendering, Custom Elements, Vanilla JS/TS controllers, user clicks, navigation, visual popover placement, and layout integrity.
+   - Invariant: Zero-Console-And-Layout-Defect. Beyond catching uncaught page exceptions and `console.error`, it enforces three mandatory runtime checks:
+     1. **Static Asset Network Trap**: Listens to `page.on('response')` and immediately fails the test if any stylesheet (`.css`), script (`.js`), or font returns HTTP status `>= 400`.
+     2. **Computed Style & Geometry Assertion Helper (`assertVisualIntegrity`)**: Asserts that structural UI containers (cards, drawers, badges, progress bars) ported from Visual Companion mockups actually have computed styles applied (`window.getComputedStyle(el)` must not fall back to default unstyled `backgroundColor: rgba(0, 0, 0, 0)` + `borderWidth: 0px` + `padding: 0px`, and `getBoundingClientRect()` must have `width > 0` and `height > 0`).
+     3. **DOM State Leak & Duplicate Text Guard**: Asserts that mutually exclusive state elements (e.g. running spinner/prefix vs terminal `THẤT BẠI` / `HOÀN THÀNH` badges, or visible title vs hidden tooltip/a11y span) are not simultaneously visible (`display !== 'none'` and `visibility !== 'hidden'`), and detects consecutive duplicate substring rendering inside card titles/subtitles caused by unstyled hidden spans.
    - Network Boundary: Mocked at the browser socket via Playwright `page.route()` returning canonical contract JSON fixtures.
 
 ## Anti-Rationalization and Doubt-Driven Verification
 
-Drawing from the principles of `addyosmani/agent-skills`, all coding and testing workflows enforce four anti-rationalization rules:
+Drawing from the principles of `addyosmani/agent-skills`, all coding and testing workflows enforce five anti-rationalization rules:
 
 | Agent Rationalization | Enforced Counter-Rule |
 | :--- | :--- |
@@ -75,6 +78,7 @@ Drawing from the principles of `addyosmani/agent-skills`, all coding and testing
 | "This component is simple; hardcoding mock data in a stub is enough." | **REJECTED**: Method-level stubs bypass JSON deserialization and network interceptors. Wire-level fixtures from `shared-contracts/` are mandatory. |
 | "The red errors in the browser console are just harmless warnings." | **REJECTED**: The Zero-Console-Error rule fails Gate 4 on any browser console error or uncaught exception. |
 | "I cannot launch a mobile simulator, so I will write a unit test instead." | **REJECTED**: Mobile Tier C requires Subcutaneous Testing with real DI and in-memory persistence. Pure unit tests cannot be tagged as Tier C. |
+| "I ported the HTML structure and JS logic from the Visual Companion mockup, and the DOM selectors match in Playwright." | **REJECTED**: Porting HTML/JS without verifying computed CSS styles results in broken, unstyled layouts. Tier C2 tests for UI components MUST assert `getComputedStyle` and `getBoundingClientRect` properties (non-zero dimensions, layout display mode, and mutually exclusive state visibility) against the Visual Companion design. |
 
 Under Doubt-Driven Verification (`CLAIM -> EXTRACT -> DOUBT -> RECONCILE`), Gate 4 audits tests to confirm that Tier C tests actually exercise production code paths without mocking the primary system under test.
 

@@ -54,6 +54,13 @@ Scenario: [WQG-EC-02] [Tier A - Unit] Benign console warnings filtered by allowl
   When bài test Playwright thực thi
   Then bộ chặn Zero-Console-Error lọc bỏ các cảnh báo khớp trong danh sách cho phép
   And không đánh trượt nhầm bộ test
+
+Scenario: [WQG-EC-03] [Tier C - Integration] Mutually exclusive DOM state leak and duplicate text detection
+  Given một component giao diện có badge trạng thái điều kiện và thẻ span ẩn hỗ trợ accessibility/tooltip
+  When Playwright thực thi kèm Fixture Giám sát Zero-Console-And-Layout-Defect
+  Then nó xác thực các phần tử trạng thái loại trừ lẫn nhau (ví dụ: spinner đang chạy vs badge lỗi thất bại, tiêu đề hiển thị vs tooltip ẩn) không được cùng hiển thị đồng thời
+  And phát hiện chuỗi văn bản bị trùng lặp liên tiếp trong tiêu đề/phụ đề card do các thẻ span ẩn không có CSS
+  And đánh trượt Gate 4 nếu các phần tử span ẩn bị rò rỉ vào layout hiển thị
 ```
 
 ## Chiều 3: Chuyển đổi Trạng thái
@@ -103,4 +110,11 @@ Scenario: [WQG-FR-02] [Tier A - Unit] Missing node_modules or binary execution b
   Given một môi trường thiếu binary playwright hoặc astro trong PATH
   When web-quality-check cố gắng spawn tiến trình
   Then nó bắt lỗi spawn thất bại và xuất ra trạng thái BLOCKED kèm hướng dẫn khắc phục cụ thể
+
+Scenario: [WQG-FR-03] [Tier C - Integration] Immediate failure on 404 static stylesheet or unstyled computed geometry
+  Given một trang Astro hoặc web có stylesheet tĩnh .css trả về mã lỗi HTTP >= 400
+  Hoặc một container UI cấu trúc chính render với computed style mặc định unstyled (nền trong suốt, padding/border bằng 0, hoặc kích thước bằng 0)
+  When bộ test Playwright thực thi kèm assertVisualIntegrity
+  Then bộ bẫy tài nguyên tĩnh và giám sát hình học lập tức đánh trượt bài test
+  And ghi nhận URL tài nguyên bị thiếu và selector của phần tử unstyled làm bằng chứng
 ```

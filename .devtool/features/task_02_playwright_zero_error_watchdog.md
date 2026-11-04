@@ -12,13 +12,17 @@ labels: ["web", "playwright", "integration"]
 order: "a2"
 ---
 
-# Task 02: Playwright Zero-Console-Error Watchdog and Fixtures
+# Task 02: Playwright Zero-Console-And-Layout-Defect Watchdog and Fixtures
 
 Epic: [web_quality_check_and_integration_gate](../epic/web_quality_check_and_integration_gate/web_quality_check_and_integration_gate.en.md)
 
 ## Requirement Analysis
 
-Implement the Playwright Zero-Console-Error watchdog fixture and helper harness. The fixture intercepts all browser `console.error` and `pageerror` events, halting tests on uncaught runtime errors, while supporting a regex allowlist for benign vendor deprecation warnings. It also provides wire-level network mocking patterns using `page.route()` to consume canonical contract fixtures.
+Implement the Playwright Zero-Console-And-Layout-Defect watchdog fixture and helper harness. The fixture intercepts all browser `console.error` and `pageerror` events, halting tests on uncaught runtime errors, while supporting a regex allowlist for benign vendor deprecation warnings. To close the Visual Companion to Runtime CSS/Layout Gap, the fixture enforces three mandatory runtime checks:
+1. **Static Asset Network Trap**: Listen to `page.on('response')` and immediately FAIL the test if any stylesheet (`.css`), script (`.js`), or font returns HTTP status `>= 400`.
+2. **Computed Style & Geometry Assertion Helper (`assertVisualIntegrity`)**: Verify that structural UI containers (cards, drawers, badges, progress bars) ported from Visual Companion mockups have real computed styles applied (`window.getComputedStyle(el)` must not fall back to unstyled `backgroundColor: rgba(0, 0, 0, 0)` + `borderWidth: 0px` + `padding: 0px`, and `getBoundingClientRect()` must have `width > 0` and `height > 0`).
+3. **DOM State Leak & Duplicate Text Guard**: Assert that mutually exclusive state elements (e.g. running spinner vs terminal `THẤT BẠI` / `HOÀN THÀNH` badges, visible title vs hidden tooltip/a11y span) are not simultaneously visible (`display !== 'none'` and `visibility !== 'hidden'`), and detect consecutive duplicate substring rendering inside card titles/subtitles caused by unstyled hidden spans.
+The harness also provides wire-level network mocking patterns using `page.route()` to consume canonical contract fixtures.
 
 ## Files
 
@@ -44,7 +48,7 @@ Browser testing often produces silent failures where a missing DOM node or faile
 
 ### BDD SCENARIOS
 
-Covers: [WQG-HP-03], [WQG-EC-02], [WQG-AR-02], [WQG-FR-01]
+Covers: [WQG-HP-03], [WQG-EC-02], [WQG-EC-03], [WQG-AR-02], [WQG-FR-01], [WQG-FR-03]
 
 #### Scenario: [WQG-HP-03] [Tier C - Integration] Playwright headless execution with wiremock and Zero-Console-Error
 Given an Astro web page with client-side interactive controllers
@@ -60,6 +64,13 @@ When the Playwright test executes
 Then the Zero-Console-Error watchdog filters out matching allowlisted warnings
 And does not falsely fail the test suite.
 
+#### Scenario: [WQG-EC-03] [Tier C - Integration] Mutually exclusive DOM state leak and duplicate text detection
+Given a UI component with conditional state badges and tooltip accessibility spans
+When Playwright executes with the Zero-Console-And-Layout-Defect Watchdog
+Then it asserts that mutually exclusive elements (e.g. running spinner vs terminal failure badge, visible title vs hidden tooltip) are not simultaneously visible
+And detects consecutive duplicate substring rendering inside card titles/subtitles caused by unstyled hidden spans
+And fails Gate 4 if unstyled hidden spans leak into visible layout.
+
 #### Scenario: [WQG-AR-02] [Tier C - Integration] Playwright webServer lifecycle management
 Given Playwright configured with `webServer` command `npm run preview`
 When Playwright starts the test runner
@@ -72,6 +83,13 @@ When Playwright executes the test suite
 Then the Zero-Console-Error watchdog immediately halts and fails the test
 And logs the full console message, stack trace, and target URL as evidence.
 
+#### Scenario: [WQG-FR-03] [Tier C - Integration] Immediate failure on 404 static stylesheet or unstyled computed geometry
+Given an Astro or web page where a critical `.css` stylesheet returns HTTP status >= 400
+Or a primary structural UI container renders with unstyled default computed styles (transparent background, zero border/padding, or zero dimensions)
+When the Playwright test suite executes with `assertVisualIntegrity`
+Then the Static Asset Network Trap and geometry watchdog immediately fail the test
+And log the missing asset URL and unstyled element selectors as evidence.
+
 ## Verification
 
 | ID | Phase | Command | Expect | Needs |
@@ -80,7 +98,7 @@ And logs the full console message, stack trace, and target URL as evidence.
 | V2 | GREEN | `python3 -m pytest tests/test_playwright_watchdog.py::test_watchdog_filters` | exit 0; contains "passed" | — |
 | V3 | TIER-B | `ruff check tests/test_playwright_watchdog.py skills/web-quality-check` | exit 0 | — |
 | V4 | TIER-B | `mypy skills/web-quality-check/resources/scripts/run_playwright_harness.py` | exit 0 | — |
-| V5 | TIER-C | `python3 -m pytest tests/test_playwright_watchdog.py -k "test_WQG_HP_03 or test_WQG_EC_02 or test_WQG_AR_02 or test_WQG_FR_01" --junitxml=build/test-results/task_02.xml` | exit 0; results build/test-results/task_02.xml | — |
+| V5 | TIER-C | `python3 -m pytest tests/test_playwright_watchdog.py -k "test_WQG_HP_03 or test_WQG_EC_02 or test_WQG_EC_03 or test_WQG_AR_02 or test_WQG_FR_01 or test_WQG_FR_03" --junitxml=build/test-results/task_02.xml` | exit 0; results build/test-results/task_02.xml | — |
 
 ## Stop and Report If
 
@@ -94,6 +112,9 @@ And logs the full console message, stack trace, and target URL as evidence.
 
 - Target browser for Tier C runs: Chromium headless.
 - Console listener syntax: `page.on('console', msg => ...)` and `page.on('pageerror', err => ...)`.
+- Static Asset Network Trap: `page.on('response', resp => { if (['stylesheet', 'script', 'font'].includes(resp.request().resourceType()) && resp.status() >= 400) throw new Error(...); })`.
+- `assertVisualIntegrity(locator, options)`: evaluates `window.getComputedStyle(el)` verifying background/border/padding styling and `getBoundingClientRect()` with `width > 0 && height > 0`.
+- DOM State Leak guard: verifies that mutually exclusive badge/spinner locators are never simultaneously visible and flags consecutive duplicate text chunks.
 - Wire mocking pattern: `await page.route('**/api/**', route => route.fulfill({ json: fixture }))`.
 - Allowlist pattern: Array of regex strings in manifest config under `console_error_allowlist`.
 

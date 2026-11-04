@@ -18,7 +18,7 @@ Epic: [web_quality_check_and_integration_gate](web_quality_check_and_integration
 
 ## Requirement Analysis
 
-Incorporate Anti-Rationalization Tables and Doubt-Driven Verification principles (inspired by `addyosmani/agent-skills`) into core lifecycle and implementation skills: `dev-designer`, `dev-implementation`, and `test-driven-development`. Enforce Subcutaneous Testing for mobile, require real Playwright execution for web Tier C scenarios, and reject mock-substitution shortcuts during task execution.
+Incorporate Anti-Rationalization Tables and Doubt-Driven Verification principles (inspired by `addyosmani/agent-skills`) into core lifecycle and implementation skills: `dev-designer`, `dev-implementation`, and `test-driven-development`. Enforce Subcutaneous Testing for mobile, require real Playwright execution for web Tier C scenarios, reject mock-substitution shortcuts during task execution, and enforce the 5th anti-rationalization rule rejecting porting Visual Companion HTML/JS without verifying computed CSS styles and geometry assertions.
 
 ## Files
 
@@ -79,6 +79,7 @@ Then the task transitions cleanly to status `done`.
 - Anti-Rationalization tables placed in dedicated sections within each skill.
 - Subcutaneous testing guidelines formalized for Flutter and native mobile.
 - `task_contract.py` condition 6 enforces real Tier C test cases in verification results for Tier C scenarios, rejecting mock-only completion attempts.
+- 5th Anti-Rationalization rule: Rejects porting HTML/JS from Visual Companion mockups without computed CSS assertions; requires `getComputedStyle` and `getBoundingClientRect` verification (non-zero dimensions, layout display mode, and mutually exclusive state visibility) against the design.
 
 ## Definition of Done
 

@@ -122,9 +122,9 @@ Integration results: python3 -m pytest tests/ --junitxml=build/test-results/pyte
 | Boundary Seam | Testing Strategy | Verification Target |
 | :--- | :--- | :--- |
 | Provider Contract | Mock `quality_check` invocation payload | Verify status aggregation and schema conformance |
-| Astro Web / TypeScript | Headless Playwright + Wiremock fixture | Verify DOM elements, Custom Elements, and zero console errors |
+| Astro Web / TypeScript | Headless Playwright + Zero-Console-And-Layout-Defect Watchdog fixture | Verify DOM elements, Custom Elements, zero console errors, 404 static asset network trap, computed CSS styling (`assertVisualIntegrity`), and state leak / text duplication prevention |
 | Vanilla JS Preview | `tsc --project jsconfig.json` + Playwright | Verify type safety without `.ts` migration, and page crash prevention |
-| Task Workflow Engine | BDD traceability & Anti-Rationalization audit | Verify tasks rejecting fake Tier C mocks and requiring real integration runs |
+| Task Workflow Engine | BDD traceability & Anti-Rationalization audit | Verify tasks rejecting fake Tier C mocks, validating computed CSS against Visual Companion, and requiring real integration runs |
 
 ## Verification Environment
 
@@ -136,10 +136,10 @@ Integration results: python3 -m pytest tests/ --junitxml=build/test-results/pyte
 
 The suite covers all 5 dimensions under the `[WQG-]` prefix:
 1. **Happy Paths (`WQG-HP-xx`)**: Successful provider execution, Playwright headless pass, clean Vanilla JS type check, and smoke checklist generation.
-2. **Edge Cases (`WQG-EC-xx`)**: Missing capabilities, partial web configs, empty test suites, and third-party console warnings.
+2. **Edge Cases (`WQG-EC-xx`)**: Missing capabilities, partial web configs, empty test suites, third-party console warnings, and mutually exclusive DOM state leaks or duplicate text rendering (`WQG-EC-03`).
 3. **State Transitions (`WQG-ST-xx`)**: Dynamic transition from `BLOCKED` to `PASS` upon fixing configuration, and task status synchronization.
 4. **Async & Concurrency (`WQG-AR-xx`)**: Concurrent provider fan-out in Gate 4, non-blocking Playwright webServer startup.
-5. **Failures & Resilience (`WQG-FR-xx`)**: Console error detection triggering immediate failure, uncaught exception traps, and broken contract detection.
+5. **Failures & Resilience (`WQG-FR-xx`)**: Console error detection triggering immediate failure, uncaught exception traps, broken contract detection, and 404 stylesheet / unstyled computed geometry failure (`WQG-FR-03`).
 
 ## Shared Contract Impact
 
@@ -148,7 +148,7 @@ None — self-contained quality provider and workflow enhancement.
 ## Rollout Strategy and Mitigation
 
 - **Phase 1**: Author `web-quality-check` skill and validate its contract with unit and integration tests.
-- **Phase 2**: Add Playwright Zero-Console-Error watchdog and Vanilla JS `jsconfig.json` checker.
+- **Phase 2**: Add Playwright Zero-Console-And-Layout-Defect watchdog and Vanilla JS `jsconfig.json` checker.
 - **Phase 3**: Update `dev-designer`, `dev-implementation`, and `test-driven-development` with Anti-Rationalization Tables and Subcutaneous Testing guidelines.
 - **Phase 4**: Configure polyglot registries in `D3Nexus` and `lyrics-sync`, verifying Gate 4 multi-provider execution.
 

@@ -62,13 +62,16 @@ Kiến trúc thiết lập 3 phân tầng kiểm thử rõ ràng trên cả mobi
    - Bất biến: Zero-Domain-Mock. Nghiêm cấm mock UseCase hoặc Repository của domain. Bắt buộc dùng DI container thật và cơ sở dữ liệu in-memory (SQLite `:memory:`, Room in-memory).
    - Ranh giới mạng: Mock tại socket HTTP bằng các fixture JSON chuẩn từ `shared-contracts/`.
 3. **Tier C2 — Kiểm thử Tích hợp Trình duyệt Headless (Web)**:
-   - Phạm vi: Render DOM thật, Custom Elements, controller Vanilla JS/TS, thao tác click của người dùng, chuyển trang và định vị popover trực quan.
-   - Bất biến: Zero-Console-Error. Bất kỳ lỗi `console.error` hoặc ngoại lệ trang chưa xử lý nào đều khiến bài test trượt ngay lập tức.
+   - Phạm vi: Render DOM thật, Custom Elements, controller Vanilla JS/TS, thao tác click của người dùng, chuyển trang, định vị popover trực quan và tính toàn vẹn bố cục layout.
+   - Bất biến: Zero-Console-And-Layout-Defect. Bên cạnh việc bắt lỗi ngoại lệ trang và `console.error`, hệ thống thực thi 3 cơ chế kiểm tra runtime bắt buộc:
+     1. **Static Asset Network Trap**: Lắng nghe `page.on('response')` và đánh trượt bài test ngay lập tức nếu bất kỳ stylesheet (`.css`), script (`.js`) hoặc font nào trả về mã HTTP `>= 400`.
+     2. **Trình hỗ trợ Kiểm tra Kiểu và Hình học Tính toán (`assertVisualIntegrity`)**: Xác thực các container UI cấu trúc (card, drawer, badge, thanh tiến trình) mang từ Visual Companion mockup thực sự được áp dụng style tính toán (`window.getComputedStyle(el)` không được rơi về mặc định unstyled `backgroundColor: rgba(0, 0, 0, 0)` + `borderWidth: 0px` + `padding: 0px`, và `getBoundingClientRect()` phải có `width > 0` và `height > 0`).
+     3. **Bộ chặn Rò rỉ Trạng thái DOM và Trùng lặp Văn bản**: Xác nhận các phần tử trạng thái loại trừ lẫn nhau (ví dụ: spinner/tiền tố đang chạy vs badge terminal `THẤT BẠI` / `HOÀN THÀNH`, hoặc tiêu đề hiển thị vs tooltip/thẻ span ẩn hỗ trợ a11y) không được cùng hiển thị đồng thời (`display !== 'none'` và `visibility !== 'hidden'`), đồng thời phát hiện chuỗi văn bản bị trùng lặp liên tiếp trong tiêu đề card do các thẻ span ẩn không có CSS.
    - Ranh giới mạng: Chặn tại tầng socket trình duyệt thông qua `page.route()` của Playwright và trả về fixture JSON chuẩn từ hợp đồng.
 
 ## Chống Ngụy biện và Cơ chế Phản biện Nghi vấn
 
-Học hỏi từ các nguyên tắc của `addyosmani/agent-skills`, tất cả quy trình lập trình và kiểm thử đều thực thi 4 quy tắc chống ngụy biện:
+Học hỏi từ các nguyên tắc của `addyosmani/agent-skills`, tất cả quy trình lập trình và kiểm thử đều thực thi 5 quy tắc chống ngụy biện:
 
 | Lời bào chữa của Agent | Quy tắc Phản biện Bắt buộc |
 | :--- | :--- |
@@ -76,6 +79,7 @@ Học hỏi từ các nguyên tắc của `addyosmani/agent-skills`, tất cả 
 | "Component này đơn giản; mock cứng dữ liệu trong stub là đủ." | **BỊ TỪ CHỐI**: Stub cấp method bỏ qua việc kiểm tra giải mã JSON và interceptor mạng. Bắt buộc phải dùng fixture cấp mạng (wire-level) từ `shared-contracts/`. |
 | "Các lỗi đỏ trong console trình duyệt chỉ là cảnh báo vô hại." | **BỊ TỪ CHỐI**: Quy tắc Zero-Console-Error đánh trượt Gate 4 đối với bất kỳ lỗi console hoặc ngoại lệ chưa xử lý nào trong trình duyệt. |
 | "Tôi không bật được simulator điện thoại nên tôi sẽ viết unit test thay thế." | **BỊ TỪ CHỐI**: Tier C mobile bắt buộc phải dùng Kiểm thử Dưới da với DI thật và lưu trữ in-memory. Unit test thuần túy không được gắn mác Tier C. |
+| "Tôi đã mang cấu trúc HTML và logic JS từ Visual Companion mockup sang, và selector DOM khớp trong Playwright." | **BỊ TỪ CHỐI**: Mang HTML/JS mà không kiểm tra computed CSS style sẽ dẫn đến giao diện vỡ và không có style. Test Tier C2 cho UI component BẮT BUỘC phải assert các thuộc tính `getComputedStyle` và `getBoundingClientRect` (kích thước lớn hơn 0, chế độ hiển thị layout và khả năng hiển thị loại trừ lẫn nhau của các trạng thái) so với thiết kế Visual Companion. |
 
 Dưới Cơ chế Phản biện Nghi vấn (`CLAIM -> EXTRACT -> DOUBT -> RECONCILE`), Gate 4 sẽ rà soát để đảm bảo bài test Tier C thực sự kích hoạt luồng code production mà không mock hệ thống chính đang được kiểm thử.
 
