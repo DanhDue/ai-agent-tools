@@ -465,6 +465,24 @@ to package the epic or continue to Stage 3. This skill never invokes `dev-implem
 ### Updating an Existing Epic
 When new requirements arrive for an epic already in progress, append new task files continuing the sequence, and append links to the Epic Overview's Kanban Tasks Breakdown section (in both `.en.md` and `.vi.md`). Update the Mermaid diagrams if architecture changes. If the epic's `bdd_scenarios.en.md` predates scenario identifiers, retrofit the whole epic first — identifiers, `Covers:` lines and the `Integration test roots:` line, as dev-implementation Phase 1 step 3 describes — before running the Step 3 `plan` check.
 
+## Anti-Rationalization and Doubt-Driven Verification
+
+| Agent Rationalization | Enforced Counter-Rule |
+| :--- | :--- |
+| "A Node.js test is sufficient to prove this web UI feature works." | **REJECTED**: Node tests prove only pure data logic. 80% of web defects occur in DOM queries, event bubbling, and CSS rendering. Tier C requires headless Playwright execution with Zero-Console-And-Layout-Defect Watchdog. |
+| "This component is simple; hardcoding mock data in a stub is enough." | **REJECTED**: Method-level stubs bypass JSON deserialization and network interceptors. Wire-level fixtures from `shared-contracts/` are mandatory. |
+| "The red errors in the browser console are just harmless warnings." | **REJECTED**: The Zero-Console-Error rule fails Gate 4 on any browser console error or uncaught exception. |
+| "I cannot launch a mobile simulator, so I will write a unit test instead." | **REJECTED**: Mobile Tier C requires Subcutaneous Testing with real DI and in-memory persistence. Pure unit tests cannot be tagged as Tier C. |
+| "I ported the HTML structure and JS logic from the Visual Companion mockup, and the DOM selectors match in Playwright." | **REJECTED**: Porting HTML/JS without verifying computed CSS styles results in broken, unstyled layouts. Tier C2 tests for UI components MUST assert `getComputedStyle` and `getBoundingClientRect` properties (non-zero dimensions, layout display mode, and mutually exclusive state visibility, while respecting standard clipped `.sr-only` accessibility patterns) against the Visual Companion design. |
+
+### Doubt-Driven Verification Protocol
+
+Apply the 4-phase doubt protocol:
+1. **CLAIM**: State the architectural or test claim (e.g. "Scenario covered by Tier C test").
+2. **EXTRACT**: Inspect concrete evidence files (JUnit XML classnames, Playwright traces, network mocks).
+3. **DOUBT**: Scrutinize whether mocks bypass the real bug or fake integration runner provenance.
+4. **RECONCILE**: Verify against real production code paths, rejecting pure unit mocks for Tier C scenarios.
+
 ## Red Flags - STOP and Start Over
 - Designing cross-service features or payload changes without checking `shared-contracts/` first.
 - In Hub Mode, scheduling `shared-contracts/` updates at the end of the task list instead of `task_01` (blocking parallel execution in satellite repos).

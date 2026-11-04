@@ -412,6 +412,14 @@ class PythonTierBAndFastModelTest(ContractCase):
         self.assertEqual(code, 1)
         self.assertIn("python-quality.json", out)
 
+    def test_wqg_st_02_pure_unit_mock_rejected_for_tier_c_scenario(self) -> None:
+        """[WQG-ST-02] Pure unit mock claiming Tier C scenario fails condition 6."""
+        from result_reports import Case, verdicts
+        cases = [Case("test_demo_WQG_HP_01", "tests.unit.test_app.UnitTest", "passed")]
+        res = verdicts(["WQG-HP-01"], cases)
+        self.assertFalse(res["WQG-HP-01"][0])
+        self.assertIn("lacks integration runner provenance", res["WQG-HP-01"][1])
+
 
 if __name__ == "__main__":
     unittest.main()

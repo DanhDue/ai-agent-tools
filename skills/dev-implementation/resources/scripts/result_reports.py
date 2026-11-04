@@ -106,6 +106,24 @@ def belongs(case: Case, identifier: str) -> bool:
     return bool(pattern.search(case.name) or pattern.search(case.classname))
 
 
+UNIT_CLASSNAME_PATTERNS = [
+    re.compile(r"^tests?[\./]unit[\./]", re.IGNORECASE),
+    re.compile(r"\bUnitTests?\b", re.IGNORECASE),
+    re.compile(r"\bMockTest\b", re.IGNORECASE),
+    re.compile(r"^unit[\._]", re.IGNORECASE),
+]
+
+
+def is_pure_unit_mock(classname: str) -> bool:
+    """Detect if classname represents a pure unit mock test rather than an integration runner."""
+    return any(p.search(classname) for p in UNIT_CLASSNAME_PATTERNS)
+
+
+def is_tier_c_scenario(identifier: str) -> bool:
+    """Identify Tier C integration scenarios."""
+    return bool(re.search(r"WQG-(?:HP|FR|EC)-|Tier\s*C", identifier, re.IGNORECASE))
+
+
 def verdicts(ids: list[str], cases: list[Case]) -> dict[str, tuple[bool, str]]:
     result: dict[str, tuple[bool, str]] = {}
     for identifier in ids:
@@ -115,7 +133,19 @@ def verdicts(ids: list[str], cases: list[Case]) -> dict[str, tuple[bool, str]]:
         if failed:
             result[identifier] = (False, f"failed in {failed.name}")
         elif passed:
-            result[identifier] = (True, passed.name)
+            if is_tier_c_scenario(identifier):
+                valid_integration = [
+                    c for c in own if c.status == "passed" and not is_pure_unit_mock(c.classname)
+                ]
+                if not valid_integration:
+                    result[identifier] = (
+                        False,
+                        f"pure unit test class '{passed.classname}' lacks integration runner provenance for Tier C scenario",
+                    )
+                else:
+                    result[identifier] = (True, valid_integration[0].name)
+            else:
+                result[identifier] = (True, passed.name)
         elif own:
             result[identifier] = (False, "skipped")
         else:
