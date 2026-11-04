@@ -274,7 +274,18 @@ Once every task is `done`, a fix is never made by reopening a task. Make it as i
 
 ### Phase 4 — End of Epic Verification
 
-Once every task is `done`, resolve candidate commit SHA (`git rev-parse HEAD`) with a clean tree (`git status --porcelain` prints nothing):
+Once every task is `done`:
+
+0. **Manual Smoke Walkthrough Checklist Generation**:
+   Before Gate 4 validation, automatically generate and commit a structured 3–5 step manual smoke checklist from canonical BDD Happy Path scenarios:
+   ```bash
+   python3 "$SKILL_DIR"/resources/scripts/generate_smoke_checklist.py --epic-dir <epic_dir>
+   git add .devtool/epic/<epic_dir>/manual_smoke_checklist.md
+   git commit -m "[EPIC_NAME] Generate manual smoke walkthrough checklist"
+   ```
+   This gives the human engineer an immediate 2-minute sanity check walkthrough while keeping the working tree clean and preserving candidate SHA stability.
+
+Then resolve candidate commit SHA (`git rev-parse HEAD`) with a clean tree (`git status --porcelain` prints nothing):
 
 1. **Review decisions**, only when `.devtool/epic/<epic_dir>/review_results.md` exists:
    ```bash
