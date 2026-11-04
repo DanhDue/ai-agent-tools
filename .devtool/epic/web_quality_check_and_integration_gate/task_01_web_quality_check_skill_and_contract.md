@@ -18,7 +18,7 @@ Epic: [web_quality_check_and_integration_gate](web_quality_check_and_integration
 
 ## Requirement Analysis
 
-Author the `d3nexus:web-quality-check` provider skill implementing the canonical Provider Result Contract v1. The provider reads `.agents/quality/web-quality.json` from the repository root, executes configured capability commands without shell interpolation, validates outputs, and produces certified result documents bound to the commit SHA. Include the companion validator script `validate_web_quality.py`.
+Author the `d3nexus:web-quality-check` provider skill implementing the canonical Provider Result Contract v1. The provider reads `.agents/quality/web-quality.json` from the repository root, executes configured capability commands without shell interpolation, validates outputs, and produces certified result documents bound to the commit SHA. Include the companion validator script `validate_web_quality.py`. The provider enforces a strict capability profile matrix: profile `pr` requires `type_check`, `lint`, and `test_unit`; profiles `epic` and `release` require `type_check`, `lint`, `test_unit`, AND mandatory `test_e2e` with watchdog attachment. `validate_web_quality.py` and the provider emit status `BLOCKED` if `test_e2e` or watchdog execution evidence (Playwright JUnit XML artifact `build/test-results/playwright.xml` and watchdog trace log) is missing during `epic` or `release` profile verification.
 
 ## Files
 
@@ -96,6 +96,7 @@ Then it catches the spawn failure and emits status `BLOCKED` with actionable rem
 - Manifest file path: `.agents/quality/web-quality.json`.
 - Schema Version: `1`.
 - Standard profiles supported: `pr`, `epic`, `release`, `scheduled`.
+- Mandatory capabilities per profile: `pr` requires `type_check`, `lint`, and `test_unit`. Profiles `epic` and `release` strictly mandate `test_e2e` with Zero-Console-And-Layout-Defect watchdog execution. If `test_e2e` or watchdog evidence is absent during `epic`/`release`, the provider emits `BLOCKED`.
 - Output structure: Standard Provider Result Contract v1 format matching `skills/quality_check/resources/schemas/provider-result.schema.json` with 13 required top-level keys: `provider_id`, `contract_version`, `profile`, `repository_sha`, `status`, `checks`, `coverage`, `evidence`, `started_head`, `finished_head`, `duration`, `blockers`, `warnings` (forbidden root `summary` omitted; additionalProperties false).
 
 ## Definition of Done

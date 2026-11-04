@@ -18,7 +18,7 @@ Epic: [web_quality_check_and_integration_gate](web_quality_check_and_integration
 
 ## Requirement Analysis
 
-Extend project quality templates and verification tooling to support multi-provider polyglot registries in `.agents/quality/check_quality.json`. Enable concurrent fan-out and deterministic aggregation across disparate stacks: `rust-core` + `learning-web` for `D3Nexus`, and `python-core` + `preview-ui` for `lyrics-sync`.
+Extend project quality templates and verification tooling to support multi-provider polyglot registries in `.agents/quality/check_quality.json`. Enable concurrent fan-out and deterministic aggregation across disparate stacks: `rust-core` + `learning-web` for `D3Nexus`, and `python-core` + `preview-ui` for `lyrics-sync`. Scope creation of repository-local quality configuration for `ai-agent-tools` (`.agents/quality/check_quality.json` and `.agents/quality/python-quality.json`) using `python-quality-check` running `pytest` / `scripts/verify.sh`, ensuring Gate 4 returns certified `PASS` (not `BLOCKED`). Allocate the consumer adoption handoff artifact `.devtool/epic/web_quality_check_and_integration_gate/consumer_adoption_handoff.md` detailing multi-provider setups for `D3Nexus` and `lyrics-sync` to be adopted in downstream repo tasks under Rule 7 isolation.
 
 ## Files
 
@@ -27,6 +27,9 @@ Allowed files:
 - `skills/setup_quality_check/resources/templates/web-quality.template.json` (new)
 - `skills/setup_quality_check/resources/scripts/scaffold_quality_manifest.py`
 - `skills/quality_check/resources/scripts/verify_polyglot_registry.py` (new)
+- `.devtool/epic/web_quality_check_and_integration_gate/consumer_adoption_handoff.md` (new)
+- `.agents/quality/check_quality.json` (new)
+- `.agents/quality/python-quality.json` (new)
 - `tests/test_polyglot_gate4.py` (new)
 
 Read-only context:
@@ -78,7 +81,8 @@ And Gate 4 aggregates the final verdict based on `FAIL > BLOCKED > PASS` priorit
 - Output format: Unified executive markdown report listing every provider's status, executed checks, and SHA binding.
 - Manifest schema version: `1` with multiple objects in the `providers` array.
 - Scaffolder integration: `scaffold_quality_manifest.py` registers `web` in `PLATFORM_CONFIGS` (mapping to `web-quality.json` and `web-quality.template.json`) and detects web projects via `package.json`, `astro.config.*`, or `playwright.config.*`.
-- Consumer adoption handoffs: define exact check_quality.json configurations and watchdog attachment steps for `D3Nexus` (`rust-core` + `learning-web`) and `lyrics-sync` (`python-core` + `preview-ui`).
+- Kit quality manifest: `.agents/quality/check_quality.json` and `.agents/quality/python-quality.json` created for `ai-agent-tools` to enable self-testing via `python-quality-check`.
+- Consumer adoption handoffs: define exact check_quality.json configurations and watchdog attachment steps for `D3Nexus` (`rust-core` + `learning-web`) and `lyrics-sync` (`python-core` + `preview-ui`) inside `.devtool/epic/web_quality_check_and_integration_gate/consumer_adoption_handoff.md`.
 
 ## Definition of Done
 

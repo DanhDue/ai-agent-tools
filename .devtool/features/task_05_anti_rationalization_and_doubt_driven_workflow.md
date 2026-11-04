@@ -18,7 +18,7 @@ Epic: [web_quality_check_and_integration_gate](../epic/web_quality_check_and_int
 
 ## Requirement Analysis
 
-Incorporate Anti-Rationalization Tables and Doubt-Driven Verification principles (inspired by `addyosmani/agent-skills`) into core lifecycle and implementation skills: `dev-designer`, `dev-implementation`, and `test-driven-development`. Enforce Subcutaneous Testing for mobile, require real Playwright execution for web Tier C scenarios, reject mock-substitution shortcuts during task execution, and enforce the 5th anti-rationalization rule rejecting porting Visual Companion HTML/JS without verifying computed CSS styles and geometry assertions.
+Incorporate Anti-Rationalization Tables and Doubt-Driven Verification principles (inspired by `addyosmani/agent-skills`) into core lifecycle and implementation skills: `dev-designer`, `dev-implementation`, and `test-driven-development`. Enforce Subcutaneous Testing for mobile, require real Playwright execution for web Tier C scenarios, reject mock-substitution shortcuts during task execution, and enforce the 5th anti-rationalization rule rejecting porting Visual Companion HTML/JS without verifying computed CSS styles and geometry assertions. Enforce scenario-aware test runner provenance in `task_contract.py` condition 6 and `result_reports.py`: tests satisfying Tier C scenarios (`[WQG-HP-*]`, `[WQG-FR-*]`, `[WQG-EC-*]`) must demonstrate integration runner provenance in their JUnit XML `classname` (e.g. matching Playwright runner patterns or subcutaneous harness suites). Pure unit test classes (`tests/unit/.*` or unit mocks) claiming Tier C scenario names without integration runner provenance must be rejected at the done-gate with condition 6 violation.
 
 ## Files
 
@@ -27,6 +27,8 @@ Allowed files:
 - `skills/dev-implementation/SKILL.md`
 - `skills/test-driven-development/SKILL.md`
 - `skills/dev-implementation/resources/scripts/task_contract.py`
+- `skills/dev-implementation/resources/scripts/result_reports.py`
+- `skills/dev-implementation/resources/scripts/test_check_task_contract.py`
 - `tests/test_workflow_anti_rationalization.py` (new)
 
 Read-only context:
@@ -80,6 +82,8 @@ Then the task transitions cleanly to status `done`.
 - Subcutaneous testing guidelines formalized for Flutter and native mobile.
 - `task_contract.py` condition 6 enforces real Tier C test cases in verification results for Tier C scenarios, rejecting mock-only completion attempts.
 - 5th Anti-Rationalization rule: Rejects porting HTML/JS from Visual Companion mockups without computed CSS assertions; requires `getComputedStyle` and `getBoundingClientRect` verification (non-zero dimensions, layout display mode, and mutually exclusive state visibility) against the design.
+- Execution provenance verification: `result_reports.py` and `task_contract.py` condition 6 verify test runner provenance for Tier C scenarios via classname patterns/markers (Playwright integration test suite or subcutaneous runner). Unit-only mock suites attempting to claim Tier C coverage are rejected.
+- Rejection tests: `test_check_task_contract.py` adds regression tests asserting that unit-only test reports covering Tier C scenarios fail condition 6.
 
 ## Definition of Done
 

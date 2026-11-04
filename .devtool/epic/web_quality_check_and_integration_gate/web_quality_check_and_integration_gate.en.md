@@ -115,15 +115,15 @@ sequenceDiagram
 
 ```text
 Integration test roots: tests/, skills/web-quality-check/tests/
-Protected paths: .agents/quality/**, .devtool/epic/web_quality_check_and_integration_gate/bdd_scenarios.en.md, .devtool/epic/web_quality_check_and_integration_gate/bdd_scenarios.vi.md
+Protected paths: .agents/quality/** (except .agents/quality/check_quality.json and .agents/quality/python-quality.json scoped in Task 04), .devtool/epic/web_quality_check_and_integration_gate/bdd_scenarios.en.md, .devtool/epic/web_quality_check_and_integration_gate/bdd_scenarios.vi.md
 Integration results: python3 -m pytest tests/ --junitxml=build/test-results/pytest.xml -> build/test-results/pytest.xml
 ```
 
 | Boundary Seam | Testing Strategy | Verification Target |
 | :--- | :--- | :--- |
 | Provider Contract | Mock `quality_check` invocation payload | Verify status aggregation and schema conformance |
-| Astro Web / TypeScript | Headless Playwright + Zero-Console-And-Layout-Defect Watchdog fixture | Verify DOM elements, Custom Elements, zero console errors, 404 static asset network trap, computed CSS styling (`assertVisualIntegrity`), and state leak / text duplication prevention |
-| Vanilla JS Preview | `tsc --project jsconfig.json` + Playwright | Verify type safety without `.ts` migration, and page crash prevention |
+| Astro Web / TypeScript | Headless Playwright + Zero-Console-And-Layout-Defect Watchdog fixture (TS & Python) | Verify DOM elements, Custom Elements, zero console errors, 404 static asset network trap, computed CSS styling (`assertVisualIntegrity`), accessibility clipping awareness, and state leak / text duplication prevention |
+| Vanilla JS Preview | `tsc --project jsconfig.json` + Python/TS Playwright | Verify type safety without `.ts` migration, and page crash prevention |
 | Task Workflow Engine | BDD traceability & Anti-Rationalization audit | Verify tasks rejecting fake Tier C mocks, validating computed CSS against Visual Companion, and requiring real integration runs |
 
 ## Verification Environment
@@ -150,7 +150,7 @@ None — self-contained quality provider and workflow enhancement.
 - **Phase 1**: Author `web-quality-check` skill and validate its contract with unit and integration tests.
 - **Phase 2**: Add Playwright Zero-Console-And-Layout-Defect watchdog and Vanilla JS `jsconfig.json` checker.
 - **Phase 3**: Update `dev-designer`, `dev-implementation`, and `test-driven-development` with Anti-Rationalization Tables and Subcutaneous Testing guidelines.
-- **Phase 4**: Configure polyglot registries in `D3Nexus` and `lyrics-sync`, verifying Gate 4 multi-provider execution.
+- **Phase 4**: Configure quality check registry for `ai-agent-tools` (enabling self-verification via `python-quality-check`), and deliver `consumer_adoption_handoff.md` detailing exact configurations and watchdog attachments (TypeScript for `D3Nexus` and Python for `lyrics-sync`) to be executed under downstream consumer repository tasks.
 
 ## Kanban Tasks Breakdown
 

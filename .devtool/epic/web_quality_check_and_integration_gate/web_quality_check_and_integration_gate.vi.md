@@ -116,15 +116,15 @@ sequenceDiagram
 
 ```text
 Integration test roots: tests/, skills/web-quality-check/tests/
-Protected paths: .agents/quality/**, .devtool/epic/web_quality_check_and_integration_gate/bdd_scenarios.en.md, .devtool/epic/web_quality_check_and_integration_gate/bdd_scenarios.vi.md
+Protected paths: .agents/quality/** (ngoại trừ .agents/quality/check_quality.json và .agents/quality/python-quality.json thuộc Task 04), .devtool/epic/web_quality_check_and_integration_gate/bdd_scenarios.en.md, .devtool/epic/web_quality_check_and_integration_gate/bdd_scenarios.vi.md
 Integration results: python3 -m pytest tests/ --junitxml=build/test-results/pytest.xml -> build/test-results/pytest.xml
 ```
 
 | Mối ghép Ranh giới | Chiến lược Kiểm thử | Mục tiêu Kiểm chứng |
 | :--- | :--- | :--- |
 | Hợp đồng Provider | Payload giả lập gọi `quality_check` | Xác thực tổng hợp trạng thái và tuân thủ schema |
-| Astro Web / TypeScript | Playwright Headless + Fixture Giám sát Zero-Console-And-Layout-Defect | Xác thực phần tử DOM, Custom Elements, zero console error, bẫy tài nguyên tĩnh 404, CSS tính toán (`assertVisualIntegrity`) và ngăn ngừa rò rỉ trạng thái / trùng lặp văn bản |
-| Vanilla JS Preview | `tsc --project jsconfig.json` + Playwright | Xác thực an toàn kiểu dữ liệu không cần đuôi `.ts`, ngăn ngừa crash |
+| Astro Web / TypeScript | Playwright Headless + Fixture Giám sát Zero-Console-And-Layout-Defect (TS & Python) | Xác thực phần tử DOM, Custom Elements, zero console error, bẫy tài nguyên tĩnh 404, CSS tính toán (`assertVisualIntegrity`), tôn trọng clipping A11y và ngăn ngừa rò rỉ trạng thái / trùng lặp văn bản |
+| Vanilla JS Preview | `tsc --project jsconfig.json` + Python/TS Playwright | Xác thực an toàn kiểu dữ liệu không cần đuôi `.ts`, ngăn ngừa crash |
 | Luồng Workflow Tác vụ | Rà soát BDD traceability & Anti-Rationalization | Xác thực tác vụ từ chối mock ảo Tier C, kiểm tra CSS tính toán so với Visual Companion, và yêu cầu chạy test tích hợp thật |
 
 ## Môi trường Kiểm chứng
@@ -151,7 +151,7 @@ Không có — đây là bộ kỹ năng provider chất lượng và cải ti�
 - **Giai đoạn 1**: Xây dựng skill `web-quality-check` và kiểm chứng hợp đồng bằng unit và integration test.
 - **Giai đoạn 2**: Bổ sung bộ giám sát Zero-Console-And-Layout-Defect cho Playwright và bộ kiểm tra `jsconfig.json` cho Vanilla JS.
 - **Giai đoạn 3**: Cập nhật `dev-designer`, `dev-implementation` và `test-driven-development` với Bảng Chống Ngụy biện và hướng dẫn Kiểm thử Dưới da.
-- **Giai đoạn 4**: Cấu hình registry đa provider tại `D3Nexus` và `lyrics-sync`, kiểm chứng Gate 4 chạy đa nền tảng.
+- **Giai đoạn 4**: Cấu hình registry kiểm tra chất lượng cho `ai-agent-tools` (cho phép tự kiểm chứng qua `python-quality-check`), và cung cấp tài liệu `consumer_adoption_handoff.md` mô tả cấu hình chi tiết và tích hợp fixture giám sát (TypeScript cho `D3Nexus` và Python cho `lyrics-sync`) để thực thi trong các tác vụ repository consumer hạ nguồn.
 
 ## Phân rã Tác vụ Kanban
 

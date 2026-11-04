@@ -78,7 +78,7 @@ Drawing from the principles of `addyosmani/agent-skills`, all coding and testing
 | "This component is simple; hardcoding mock data in a stub is enough." | **REJECTED**: Method-level stubs bypass JSON deserialization and network interceptors. Wire-level fixtures from `shared-contracts/` are mandatory. |
 | "The red errors in the browser console are just harmless warnings." | **REJECTED**: The Zero-Console-Error rule fails Gate 4 on any browser console error or uncaught exception. |
 | "I cannot launch a mobile simulator, so I will write a unit test instead." | **REJECTED**: Mobile Tier C requires Subcutaneous Testing with real DI and in-memory persistence. Pure unit tests cannot be tagged as Tier C. |
-| "I ported the HTML structure and JS logic from the Visual Companion mockup, and the DOM selectors match in Playwright." | **REJECTED**: Porting HTML/JS without verifying computed CSS styles results in broken, unstyled layouts. Tier C2 tests for UI components MUST assert `getComputedStyle` and `getBoundingClientRect` properties (non-zero dimensions, layout display mode, and mutually exclusive state visibility) against the Visual Companion design. |
+| "I ported the HTML structure and JS logic from the Visual Companion mockup, and the DOM selectors match in Playwright." | **REJECTED**: Porting HTML/JS without verifying computed CSS styles results in broken, unstyled layouts. Tier C2 tests for UI components MUST assert `getComputedStyle` and `getBoundingClientRect` properties (non-zero dimensions, layout display mode, and mutually exclusive state visibility, while respecting standard clipped `.sr-only` accessibility patterns) against the Visual Companion design. |
 
 Under Doubt-Driven Verification (`CLAIM -> EXTRACT -> DOUBT -> RECONCILE`), Gate 4 audits tests to confirm that Tier C tests actually exercise production code paths without mocking the primary system under test.
 
@@ -92,22 +92,23 @@ A new skill `d3nexus:web-quality-check` is authored in `skills/web-quality-check
    - `type_check`: Runs `astro check` or `tsc --noEmit` for TypeScript projects, or `tsc --project jsconfig.json` for Vanilla JavaScript projects.
    - `lint`: Runs project linter (ESLint, Biome, or Astro linter).
    - `test_unit`: Executes fast in-memory unit tests (Tier A).
-   - `test_e2e`: Launches headless Playwright suites (Tier C2) with the Zero-Console-Error watchdog.
+   - `test_e2e`: Launches headless Playwright suites (Tier C2) with the Zero-Console-And-Layout-Defect watchdog (supporting TypeScript via `playwright-zero-error.fixture.ts` and Python via `playwright_zero_error.py`).
    - `contracts`: Runs cross-repo contract diff verification.
-4. **Validation Tooling**: Provides `validate_web_quality.py` to ensure schema conformance and executable presence before execution.
+4. **Mandatory Profile Matrix**:
+   - `pr`: Requires `type_check`, `lint`, and `test_unit`.
+   - `epic` & `release`: Strictly mandates `type_check`, `lint`, `test_unit`, AND `test_e2e` with watchdog execution evidence (`build/test-results/playwright.xml`). If `test_e2e` or evidence is absent, emits `BLOCKED`.
+5. **Validation Tooling**: Provides `validate_web_quality.py` to ensure schema conformance and executable presence before execution.
 
 ## Multi-Repo Registry and Polyglot Gate 4 Integration
 
-The root Gate 4 orchestrator (`d3nexus:quality_check`) executes multi-provider fan-out across repositories:
-
-- **`D3Nexus` (`.agents/quality/check_quality.json`)**:
-  - Provider 1: `rust-core` (`d3nexus:rust-quality-check`) for Rust core, WASM compilation, and system tests.
-  - Provider 2: `learning-web` (`d3nexus:web-quality-check`) for Astro templates, Vanilla TypeScript controllers, and Playwright suites.
-- **`lyrics-sync` (`.agents/quality/check_quality.json`)**:
-  - Provider 1: `python-core` (`d3nexus:python-quality-check`) for FastAPI endpoints, worker logic, and pytest suites.
-  - Provider 2: `preview-ui` (`d3nexus:web-quality-check`) for static Vanilla JS type checking and Chrome Playwright tests.
-- **`nexus` (`.agents/quality/check_quality.json`)**:
-  - Provider 1: `flutter-core` (`d3nexus:flutter-quality-check`) enforcing Subcutaneous Widget Testing with real DI and WireMock.
+The root Gate 4 orchestrator (`d3nexus:quality_check`) executes multi-provider fan-out across repositories. To maintain Multi-Repo Git Boundary Isolation (Rule 7), this epic within `ai-agent-tools` delivers:
+1. Reusable provider skill `web-quality-check` and scaffolder enhancements.
+2. Watchdog templates for both TypeScript (`playwright-zero-error.fixture.ts`) and Python (`playwright_zero_error.py`).
+3. Repository quality registration for `ai-agent-tools` (`.agents/quality/check_quality.json` and `.agents/quality/python-quality.json`) using `python-quality-check`.
+4. Consumer adoption handoff specification (`.devtool/epic/web_quality_check_and_integration_gate/consumer_adoption_handoff.md`), documenting configuration entries for downstream repositories:
+   - **`D3Nexus` (`.agents/quality/check_quality.json`)**: Provider 1: `rust-core` (`d3nexus:rust-quality-check`); Provider 2: `learning-web` (`d3nexus:web-quality-check`).
+   - **`lyrics-sync` (`.agents/quality/check_quality.json`)**: Provider 1: `python-core` (`d3nexus:python-quality-check`); Provider 2: `preview-ui` (`d3nexus:web-quality-check`).
+   - **`nexus` (`.agents/quality/check_quality.json`)**: Provider 1: `flutter-core` (`d3nexus:flutter-quality-check`).
 
 ## Dev-Designer and Dev-Implementation Enhancements
 
@@ -117,7 +118,7 @@ The root Gate 4 orchestrator (`d3nexus:quality_check`) executes multi-provider f
    - BDD scenarios for Tier C must include concrete DOM interaction expectations and wiremock assertions.
 2. **`dev-implementation` (Stage 3)**:
    - Integrates the Anti-Rationalization Table into task execution.
-   - Validates that tasks claiming Tier C scenario coverage execute real headless browser or subcutaneous tests.
+   - Enforces scenario-aware test runner provenance in `task_contract.py` condition 6 and `result_reports.py`: validates that tasks claiming Tier C scenario coverage execute real headless browser or subcutaneous tests, rejecting unit-only mock reports.
    - Halts and reports `BLOCKED` if test code mocks the component under test.
 
 ## Automated Smoke Walkthrough Generation

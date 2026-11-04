@@ -21,13 +21,14 @@ Epic: [web_quality_check_and_integration_gate](web_quality_check_and_integration
 Implement the Playwright Zero-Console-And-Layout-Defect watchdog fixture and helper harness. The fixture intercepts all browser `console.error` and `pageerror` events, halting tests on uncaught runtime errors, while supporting a regex allowlist for benign vendor deprecation warnings. To close the Visual Companion to Runtime CSS/Layout Gap, the fixture enforces three mandatory runtime checks:
 1. **Static Asset Network Trap**: Listen to `page.on('response')` and immediately FAIL the test if any stylesheet (`.css`), script (`.js`), or font returns HTTP status `>= 400`.
 2. **Computed Style & Geometry Assertion Helper (`assertVisualIntegrity`)**: Verify that structural UI containers (cards, drawers, badges, progress bars) ported from Visual Companion mockups have real computed styles applied (`window.getComputedStyle(el)` must not fall back to unstyled `backgroundColor: rgba(0, 0, 0, 0)` + `borderWidth: 0px` + `padding: 0px`, and `getBoundingClientRect()` must have `width > 0` and `height > 0`).
-3. **DOM State Leak & Duplicate Text Guard**: Assert that mutually exclusive state elements (e.g. running spinner vs terminal `THẤT BẠI` / `HOÀN THÀNH` badges, visible title vs hidden tooltip/a11y span) are not simultaneously visible (`display !== 'none'` and `visibility !== 'hidden'`), and detect consecutive duplicate substring rendering inside card titles/subtitles caused by unstyled hidden spans.
+3. **DOM State Leak & Duplicate Text Guard**: Refine visibility inspection to avoid false positives on accessible clipped elements. Intentionally clipped accessibility elements (e.g. `.sr-only`, `.visually-hidden`, `clip: rect(0, 0, 0, 0)`, `clip-path: inset(50%)`, or dimensions `width <= 1 && height <= 1` with `overflow: hidden`) are recognized as hidden by design and ignored. Element visibility is evaluated using `el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true })` and ancestor visibility inspection. Mutually exclusive state elements are checked via explicit selector groups (`exclusiveStateSelectors`, e.g. `[['[data-state="running"]', '[data-state="failed"]'], ['[data-state="running"]', '[data-state="completed"]']]`), failing if multiple selectors from any group are simultaneously visible. Detects unstyled hidden span leakage causing consecutive duplicate text in headings/labels.
 The harness also provides wire-level network mocking patterns using `page.route()` to consume canonical contract fixtures.
 
 ## Files
 
 Allowed files:
 - `skills/web-quality-check/resources/templates/playwright-zero-error.fixture.ts` (new)
+- `skills/web-quality-check/resources/templates/playwright_zero_error.py` (new)
 - `skills/web-quality-check/resources/scripts/run_playwright_harness.py` (new)
 - `tests/test_playwright_watchdog.py` (new)
 
@@ -114,9 +115,11 @@ And log the missing asset URL and unstyled element selectors as evidence.
 - Console listener syntax: `page.on('console', msg => ...)` and `page.on('pageerror', err => ...)`.
 - Static Asset Network Trap: `page.on('response', resp => { if (['stylesheet', 'script', 'font'].includes(resp.request().resourceType()) && resp.status() >= 400) throw new Error(...); })`.
 - `assertVisualIntegrity(locator, options)`: evaluates `window.getComputedStyle(el)` verifying background/border/padding styling and `getBoundingClientRect()` with `width > 0 && height > 0`.
-- DOM State Leak guard: verifies that mutually exclusive badge/spinner locators are never simultaneously visible and flags consecutive duplicate text chunks.
+- DOM State Leak guard: evaluates `el.checkVisibility()` and ancestor visibility; ignores intentionally clipped accessibility elements (`.sr-only`, `clip: rect(0,0,0,0)`, `clip-path`, `1px` bounding box); checks mutually exclusive state locators via `exclusiveStateSelectors`; flags consecutive duplicate text chunks.
 - Wire mocking pattern: `await page.route('**/api/**', route => route.fulfill({ json: fixture }))`.
 - Allowlist pattern: Array of regex strings in manifest config under `console_error_allowlist`.
+- Python companion helper: `skills/web-quality-check/resources/templates/playwright_zero_error.py` provides Python Playwright equivalents (`attach_zero_error_watchdog(page)` and `assert_visual_integrity(page, selector, ...)`) for Python-based test runners (such as `lyrics-sync`).
+- Positive accessibility fixtures: test suite includes positive fixtures verifying standard `.sr-only` accessibility patterns to prevent false positives.
 
 ## Definition of Done
 

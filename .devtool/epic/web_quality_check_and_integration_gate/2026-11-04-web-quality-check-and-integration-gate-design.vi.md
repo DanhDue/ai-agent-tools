@@ -79,7 +79,7 @@ Học hỏi từ các nguyên tắc của `addyosmani/agent-skills`, tất cả 
 | "Component này đơn giản; mock cứng dữ liệu trong stub là đủ." | **BỊ TỪ CHỐI**: Stub cấp method bỏ qua việc kiểm tra giải mã JSON và interceptor mạng. Bắt buộc phải dùng fixture cấp mạng (wire-level) từ `shared-contracts/`. |
 | "Các lỗi đỏ trong console trình duyệt chỉ là cảnh báo vô hại." | **BỊ TỪ CHỐI**: Quy tắc Zero-Console-Error đánh trượt Gate 4 đối với bất kỳ lỗi console hoặc ngoại lệ chưa xử lý nào trong trình duyệt. |
 | "Tôi không bật được simulator điện thoại nên tôi sẽ viết unit test thay thế." | **BỊ TỪ CHỐI**: Tier C mobile bắt buộc phải dùng Kiểm thử Dưới da với DI thật và lưu trữ in-memory. Unit test thuần túy không được gắn mác Tier C. |
-| "Tôi đã mang cấu trúc HTML và logic JS từ Visual Companion mockup sang, và selector DOM khớp trong Playwright." | **BỊ TỪ CHỐI**: Mang HTML/JS mà không kiểm tra computed CSS style sẽ dẫn đến giao diện vỡ và không có style. Test Tier C2 cho UI component BẮT BUỘC phải assert các thuộc tính `getComputedStyle` và `getBoundingClientRect` (kích thước lớn hơn 0, chế độ hiển thị layout và khả năng hiển thị loại trừ lẫn nhau của các trạng thái) so với thiết kế Visual Companion. |
+| "Tôi đã mang cấu trúc HTML và logic JS từ Visual Companion mockup sang, và selector DOM khớp trong Playwright." | **BỊ TỪ CHỐI**: Mang HTML/JS mà không kiểm tra computed CSS style sẽ dẫn đến giao diện vỡ và không có style. Test Tier C2 cho UI component BẮT BUỘC phải assert các thuộc tính `getComputedStyle` và `getBoundingClientRect` (kích thước lớn hơn 0, chế độ hiển thị layout và khả năng hiển thị loại trừ lẫn nhau của các trạng thái, tôn trọng chuẩn text `.sr-only` được ẩn bằng clipping) so với thiết kế Visual Companion. |
 
 Dưới Cơ chế Phản biện Nghi vấn (`CLAIM -> EXTRACT -> DOUBT -> RECONCILE`), Gate 4 sẽ rà soát để đảm bảo bài test Tier C thực sự kích hoạt luồng code production mà không mock hệ thống chính đang được kiểm thử.
 
@@ -93,22 +93,23 @@ Một kỹ năng mới `d3nexus:web-quality-check` được xây dựng tại th
    - `type_check`: Chạy `astro check` hoặc `tsc --noEmit` cho dự án TypeScript, hoặc `tsc --project jsconfig.json` cho dự án Vanilla JavaScript.
    - `lint`: Chạy linter của dự án (ESLint, Biome, hoặc Astro linter).
    - `test_unit`: Thực thi bộ unit test in-memory nhanh (Tier A).
-   - `test_e2e`: Khởi chạy bộ Playwright headless (Tier C2) tích hợp bộ giám sát Zero-Console-Error.
+   - `test_e2e`: Khởi chạy bộ Playwright headless (Tier C2) tích hợp bộ giám sát Zero-Console-And-Layout-Defect (hỗ trợ TypeScript qua `playwright-zero-error.fixture.ts` và Python qua `playwright_zero_error.py`).
    - `contracts`: Thực hiện kiểm tra chênh lệch hợp đồng đa repo.
-4. **Công cụ Xác thực**: Cung cấp script `validate_web_quality.py` để đảm bảo tính hợp lệ của schema và sự hiện diện của các binary thực thi trước khi chạy.
+4. **Ma trận Profile Bắt buộc**:
+   - `pr`: Yêu cầu `type_check`, `lint`, và `test_unit`.
+   - `epic` & `release`: Bắt buộc phải có `type_check`, `lint`, `test_unit`, VÀ `test_e2e` kèm bằng chứng thực thi watchdog (`build/test-results/playwright.xml`). Nếu thiếu `test_e2e` hoặc thiếu bằng chứng, trả về `BLOCKED`.
+5. **Công cụ Xác thực**: Cung cấp script `validate_web_quality.py` để đảm bảo tính hợp lệ của schema và sự hiện diện của các binary thực thi trước khi chạy.
 
 ## Tích hợp Registry Đa Repo và Gate 4 Đa Nền tảng
 
-Nhạc trưởng Gate 4 gốc (`d3nexus:quality_check`) thực hiện kích hoạt đa provider song song trên các kho lưu trữ:
-
-- **`D3Nexus` (`.agents/quality/check_quality.json`)**:
-  - Provider 1: `rust-core` (`d3nexus:rust-quality-check`) cho nhân Rust, biên dịch WASM và test hệ thống.
-  - Provider 2: `learning-web` (`d3nexus:web-quality-check`) cho template Astro, controller Vanilla TypeScript và bộ test Playwright.
-- **`lyrics-sync` (`.agents/quality/check_quality.json`)**:
-  - Provider 1: `python-core` (`d3nexus:python-quality-check`) cho endpoint FastAPI, logic worker và test pytest.
-  - Provider 2: `preview-ui` (`d3nexus:web-quality-check`) cho kiểm tra kiểu Vanilla JS tĩnh và test Playwright trên Chrome.
-- **`nexus` (`.agents/quality/check_quality.json`)**:
-  - Provider 1: `flutter-core` (`d3nexus:flutter-quality-check`) thực thi Kiểm thử Widget Dưới da với DI thật và WireMock.
+Nhạc trưởng Gate 4 gốc (`d3nexus:quality_check`) thực hiện kích hoạt đa provider song song trên các kho lưu trữ. Để tôn trọng Ranh giới Độc lập Multi-Repo (Quy tắc 7), epic này trong `ai-agent-tools` bàn giao:
+1. Bộ kỹ năng provider `web-quality-check` tái sử dụng và nâng cấp công cụ scaffolder.
+2. Template fixture giám sát cho cả TypeScript (`playwright-zero-error.fixture.ts`) và Python (`playwright_zero_error.py`).
+3. Đăng ký chất lượng cục bộ cho `ai-agent-tools` (`.agents/quality/check_quality.json` và `.agents/quality/python-quality.json`) sử dụng `python-quality-check`.
+4. Tài liệu bàn giao ứng dụng (`.devtool/epic/web_quality_check_and_integration_gate/consumer_adoption_handoff.md`), ghi nhận chi tiết các mục cấu hình cho các repo hạ nguồn:
+   - **`D3Nexus` (`.agents/quality/check_quality.json`)**: Provider 1: `rust-core` (`d3nexus:rust-quality-check`); Provider 2: `learning-web` (`d3nexus:web-quality-check`).
+   - **`lyrics-sync` (`.agents/quality/check_quality.json`)**: Provider 1: `python-core` (`d3nexus:python-quality-check`); Provider 2: `preview-ui` (`d3nexus:web-quality-check`).
+   - **`nexus` (`.agents/quality/check_quality.json`)**: Provider 1: `flutter-core` (`d3nexus:flutter-quality-check`).
 
 ## Nâng cấp Dev-Designer và Dev-Implementation
 
@@ -118,7 +119,7 @@ Nhạc trưởng Gate 4 gốc (`d3nexus:quality_check`) thực hiện kích ho�
    - Các kịch bản BDD cho Tier C phải bao gồm kỳ vọng tương tác DOM cụ thể và xác nhận qua wiremock.
 2. **`dev-implementation` (Stage 3)**:
    - Nhúng Bảng Chống Ngụy biện trực tiếp vào quá trình thực thi tác vụ.
-   - Xác thực rằng các tác vụ tuyên bố bao phủ kịch bản Tier C thực sự chạy test trình duyệt headless hoặc test dưới da thật.
+   - Kiểm tra provenance của test runner trong `task_contract.py` điều kiện 6 và `result_reports.py`: xác thực các tác vụ tuyên bố bao phủ kịch bản Tier C thực sự chạy test trình duyệt headless hoặc test dưới da thật, từ chối các báo cáo chỉ chứa unit mock.
    - Tạm dừng và báo cáo `BLOCKED` nếu code test mock chính component đang được kiểm thử.
 
 ## Tự động Sinh Kịch bản Smoke Test Bấm tay
