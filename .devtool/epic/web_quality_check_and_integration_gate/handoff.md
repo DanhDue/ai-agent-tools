@@ -13,7 +13,7 @@
 ## Status
 
 - **Packaged**: 2026-11-05
-- **Design commit**: `dfad265`
+- **Design commit**: `cbdc9b0`
 - **Base branch**: `main`
 - **Gates passed**: 1 (spec), 2 (HLD and task breakdown)
 - **Next**: Stage 3, `dev-implementation`. Gate 3 (execution order) still needs the developer's confirmation.
