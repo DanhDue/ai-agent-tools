@@ -9098,3 +9098,8713 @@ Verdict: CHANGES REQUIRED
 tokens used
 156,489
 ````
+
+## Round 2
+
+- **Date**: 2026-11-04T20:28:39Z
+- **SHA**: 46a3699238a95dc1dcda46b8ca93bc3515fc1dc2
+- **Base**: main
+- **CLI**: codex
+- **Model**: gpt-6.1-sol
+- **Thinking**: high
+- **Status**: completed
+- **Verdict**: CHANGES REQUIRED
+- **Kind**: principal
+
+| # | Severity | Location | Problem | Decision |
+|---|----------|----------|---------|----------|
+| 1 | Important | task_05_anti_rationalization_and_doubt_driven_workflow.md:Decisions Already Made | Condition 6 cannot establish the promised real-browser or mock-only distinction from its current evidence. [task_contract.py:439](/Users/danhdueexoictif/AllProjects/ai-agent-tools/skills/dev-implementation/resources/scripts/task_contract.py:439) consumes cases containing only name, classname, and status; [result_reports.py:126](/Users/danhdueexoictif/AllProjects/ai-agent-tools/skills/dev-implementation/resources/scripts/result_reports.py:126) discards other report metadata. An in-memory probe supplied matching passing cases labelled mock-only and received no done-gate problems. Task 05 defines neither additional execution evidence nor its production path into the gate. Proposed: specify scenario-aware execution provenance, its producer and validation rules, expand Allowed files for the recorder/parser changes, and add rejection tests for matching unit-only reports. | fixed in 1f8056b |
+| 2 | Important | task_01_web_quality_check_skill_and_contract.md:Decisions Already Made | The manifest contract never pins mandatory capabilities for an applicable web epic or requires evidence that its watchdog was attached. Listing test_e2e among available capabilities does not prevent certification using only unit tests. The existing generic validator checks declared selections rather than browser requirements ([validate_quality_contract.py:646](/Users/danhdueexoictif/AllProjects/ai-agent-tools/skills/quality_check/resources/scripts/validate_quality_contract.py:646)); a probe confirmed that an epic selecting only test_unit passes it. Proposed: define minimum epic/release capability requirements, require watchdog execution evidence for applicable browser suites, and specify BLOCKED behavior for omitted capabilities or absent execution evidence while retaining the reduced PR profile. | fixed in 1f8056b |
+| 3 | Important | task_02_playwright_zero_error_watchdog.md:Requirement Analysis, item 3 | The frozen visibility predicate treats clipped accessibility text and descendants of hidden containers as visible. The expression returned true for both cases in read-only probes. This affects actual consumer patterns: the current lyrics-sync checkout hides accessibility content using clipping ([style.css:89](/Users/danhdueexoictif/AllProjects/lyrics-sync/src/lyrics_sync/preview/static/style.css:89)), and D3Nexus uses the same technique ([AudioDropzone.astro:70](/Users/danhdueexoictif/AllProjects/D3Nexus/apps/learning-web/src/components/studio/AudioDropzone.astro:70)). The proposed guard can therefore reject correctly rendered interfaces. Proposed: define explicit per-component exclusion groups and a visibility contract accounting for ancestors and clipping; add positive accessibility fixtures alongside genuine leaked-span failures, and synchronize the bilingual spec and BDD expectations. | fixed in 1f8056b |
+| 4 | Important | task_04_polyglot_gate4_registry_and_fanout.md:Files / Dependencies & Blockers | The candidate repository has no .agents/quality/check_quality.json, while the prescribed final orchestrator explicitly blocks without it ([quality_check/SKILL.md:65](/Users/danhdueexoictif/AllProjects/ai-agent-tools/skills/quality_check/SKILL.md:65)). A read-only call through the existing pipeline helper returned BLOCKED for this checkout ([test_quality_provider_acceptance.py:123](/Users/danhdueexoictif/AllProjects/ai-agent-tools/skills/quality_check/resources/scripts/test_quality_provider_acceptance.py:123)). No task owns creating the required registration, and the HLD protects .agents/quality/**. Proposed: declare completed quality setup as an external prerequisite, or add an explicitly scoped setup task with exact manifest paths and real verification commands before final Gate 4. | fixed in 1f8056b |
+| 5 | Important | web_quality_check_and_integration_gate.en.md:Rollout Strategy and Mitigation, Phase 4 | The HLD promises configured consumer registries and verified execution, but Task 04 permits only kit templates/tooling and mentions adoption handoffs without allocating a handoff document. Consumer integration also spans different runners: the current lyrics-sync suite creates pages through Python Playwright ([e2e_full_screens_chrome_test.py:28](/Users/danhdueexoictif/AllProjects/lyrics-sync/tests/e2e_full_screens_chrome_test.py:28)), whereas Task 02 supplies a TypeScript fixture. Templates alone cannot establish adoption or attach that fixture to the Python suite. Proposed: reconcile both HLD languages around kit delivery versus consumer adoption, allocate concrete per-repository handoff artefacts, and specify the Python watchdog attachment approach plus separately owned consumer acceptance work. | fixed in 1f8056b |
+
+Raw output:
+
+````text
+Five issues need resolution before implementation. Read-only probes confirmed the evidence and visibility gaps below. Five existing parser/verdict tests passed; malformed-input probes produced controlled errors without unbound-variable failures. No files or Git state were changed.
+
+Artefact paths below are relative to `.devtool/epic/web_quality_check_and_integration_gate/`.
+
+Verdict: CHANGES REQUIRED
+[Important] task_05_anti_rationalization_and_doubt_driven_workflow.md:Decisions Already Made — Condition 6 cannot establish the promised real-browser or mock-only distinction from its current evidence. [task_contract.py:439](/Users/danhdueexoictif/AllProjects/ai-agent-tools/skills/dev-implementation/resources/scripts/task_contract.py:439) consumes cases containing only name, classname, and status; [result_reports.py:126](/Users/danhdueexoictif/AllProjects/ai-agent-tools/skills/dev-implementation/resources/scripts/result_reports.py:126) discards other report metadata. An in-memory probe supplied matching passing cases labelled mock-only and received no done-gate problems. Task 05 defines neither additional execution evidence nor its production path into the gate. Proposed: specify scenario-aware execution provenance, its producer and validation rules, expand Allowed files for the recorder/parser changes, and add rejection tests for matching unit-only reports.
+[Important] task_01_web_quality_check_skill_and_contract.md:Decisions Already Made — The manifest contract never pins mandatory capabilities for an applicable web epic or requires evidence that its watchdog was attached. Listing test_e2e among available capabilities does not prevent certification using only unit tests. The existing generic validator checks declared selections rather than browser requirements ([validate_quality_contract.py:646](/Users/danhdueexoictif/AllProjects/ai-agent-tools/skills/quality_check/resources/scripts/validate_quality_contract.py:646)); a probe confirmed that an epic selecting only test_unit passes it. Proposed: define minimum epic/release capability requirements, require watchdog execution evidence for applicable browser suites, and specify BLOCKED behavior for omitted capabilities or absent execution evidence while retaining the reduced PR profile.
+[Important] task_02_playwright_zero_error_watchdog.md:Requirement Analysis, item 3 — The frozen visibility predicate treats clipped accessibility text and descendants of hidden containers as visible. The expression returned true for both cases in read-only probes. This affects actual consumer patterns: the current lyrics-sync checkout hides accessibility content using clipping ([style.css:89](/Users/danhdueexoictif/AllProjects/lyrics-sync/src/lyrics_sync/preview/static/style.css:89)), and D3Nexus uses the same technique ([AudioDropzone.astro:70](/Users/danhdueexoictif/AllProjects/D3Nexus/apps/learning-web/src/components/studio/AudioDropzone.astro:70)). The proposed guard can therefore reject correctly rendered interfaces. Proposed: define explicit per-component exclusion groups and a visibility contract accounting for ancestors and clipping; add positive accessibility fixtures alongside genuine leaked-span failures, and synchronize the bilingual spec and BDD expectations.
+[Important] task_04_polyglot_gate4_registry_and_fanout.md:Files / Dependencies & Blockers — The candidate repository has no .agents/quality/check_quality.json, while the prescribed final orchestrator explicitly blocks without it ([quality_check/SKILL.md:65](/Users/danhdueexoictif/AllProjects/ai-agent-tools/skills/quality_check/SKILL.md:65)). A read-only call through the existing pipeline helper returned BLOCKED for this checkout ([test_quality_provider_acceptance.py:123](/Users/danhdueexoictif/AllProjects/ai-agent-tools/skills/quality_check/resources/scripts/test_quality_provider_acceptance.py:123)). No task owns creating the required registration, and the HLD protects .agents/quality/**. Proposed: declare completed quality setup as an external prerequisite, or add an explicitly scoped setup task with exact manifest paths and real verification commands before final Gate 4.
+[Important] web_quality_check_and_integration_gate.en.md:Rollout Strategy and Mitigation, Phase 4 — The HLD promises configured consumer registries and verified execution, but Task 04 permits only kit templates/tooling and mentions adoption handoffs without allocating a handoff document. Consumer integration also spans different runners: the current lyrics-sync suite creates pages through Python Playwright ([e2e_full_screens_chrome_test.py:28](/Users/danhdueexoictif/AllProjects/lyrics-sync/tests/e2e_full_screens_chrome_test.py:28)), whereas Task 02 supplies a TypeScript fixture. Templates alone cannot establish adoption or attach that fixture to the Python suite. Proposed: reconcile both HLD languages around kit delivery versus consumer adoption, allocate concrete per-repository handoff artefacts, and specify the Python watchdog attachment approach plus separately owned consumer acceptance work.
+
+
+
+--- stderr ---
+OpenAI Codex v0.162.1
+--------
+workdir: /Users/danhdueexoictif/AllProjects/ai-agent-tools
+model: gpt-6.1-sol
+provider: openai
+approval: never
+sandbox: read-only
+reasoning effort: high
+reasoning summaries: none
+session id: 01a1a83b-84ab-7ed1-9ef7-bccea09dd317
+--------
+user
+# Principal Review Prompt
+
+You are the Principal Reviewer who signs off this architectural design before implementation. You are strictly read-only: do not modify, create, or delete any file, and do not run commands that write to the repository or alter git state. Read the artefacts, inspect the source at `46a3699238a95dc1dcda46b8ca93bc3515fc1dc2`, and report.
+
+## Candidate
+
+- Commit under review: `46a3699238a95dc1dcda46b8ca93bc3515fc1dc2`
+- Base the branch diverged from: `main`
+- Base commit: `46a3699238a95dc1dcda46b8ca93bc3515fc1dc2`
+- Target path / Epic directory: `.devtool/epic/web_quality_check_and_integration_gate`
+
+## Artefacts
+
+Read these paths, relative to the repository root:
+
+- `.devtool/epic/web_quality_check_and_integration_gate/2026-11-04-web-quality-check-and-integration-gate-design.en.md`
+- `.devtool/epic/web_quality_check_and_integration_gate/2026-11-04-web-quality-check-and-integration-gate-design.vi.md`
+- `.devtool/epic/web_quality_check_and_integration_gate/web_quality_check_and_integration_gate.en.md`
+- `.devtool/epic/web_quality_check_and_integration_gate/web_quality_check_and_integration_gate.vi.md`
+- `.devtool/epic/web_quality_check_and_integration_gate/bdd_scenarios.en.md`
+- `.devtool/epic/web_quality_check_and_integration_gate/bdd_scenarios.vi.md`
+- `.devtool/epic/web_quality_check_and_integration_gate/task_01_web_quality_check_skill_and_contract.md`
+- `.devtool/epic/web_quality_check_and_integration_gate/task_02_playwright_zero_error_watchdog.md`
+- `.devtool/epic/web_quality_check_and_integration_gate/task_03_jsconfig_and_vanilla_js_type_checker.md`
+- `.devtool/epic/web_quality_check_and_integration_gate/task_04_polyglot_gate4_registry_and_fanout.md`
+- `.devtool/epic/web_quality_check_and_integration_gate/task_05_anti_rationalization_and_doubt_driven_workflow.md`
+- `.devtool/epic/web_quality_check_and_integration_gate/task_06_automated_manual_smoke_checklist_generator.md`
+- `.devtool/epic/web_quality_check_and_integration_gate/handoff.md`
+
+## Readiness facts
+
+Epic: web_quality_check_and_integration_gate (web-quality-check-and-integration-gate), 6 tasks
+R1 PASS
+R2 PASS
+R3 PASS
+R4 PASS
+R5 PASS
+R6 PASS
+R7 PASS
+R8 SKIP
+Result: 0 FAIL, 0 WARN — PASS
+
+The readiness report is already proven: all facts above have passed their mechanical checks; do not restate them, spend your review on judgement, architecture, and source grounding.
+
+## Mandatory Dynamic Probing Rule
+
+Do not rely solely on static diff inspection. For any language processing logic, regex expressions, exception handlers (`try/except`), or ORM persistence code, you MUST execute active read-only terminal probes (e.g. `python3 -c "..."` or interactive read-only REPL commands) to verify:
+1. Local variables referenced in exception handlers are not unbound when exceptions occur early in a block.
+2. Edge-case lexical tokens and inflections are not deformed by tokenization or lemmatization.
+3. Database statement ordering in transaction flushes does not violate foreign keys or unique constraints.
+
+## Rules
+
+# Principal Review Rules
+
+To avoid false-positive findings, evaluate design documents and epic artefacts against these principles:
+
+1. **Severities**:
+   - **Critical**: The epic or architecture cannot reach its goal or pass execution gates as designed (e.g. fatal architectural flaw, missing core contract).
+   - **Important**: A task or component would hit Stop-and-Report, ship incorrect behavior, or break module isolation during implementation.
+   - **Minor**: Wording, formatting, typo, and minor consistency adjustments.
+
+2. **Readiness Report Is Proven Fact**:
+   - The mechanical checks (R1–R8) in `check_epic_readiness.py` are already validated prior to review.
+   - Do not re-verify mechanically checked facts or restate them as findings; spend your review effort on judgement, architecture, and source grounding.
+
+3. **Grounding in Active Source**:
+   - Every claim about the repository source code must name the specific file and line number read.
+   - Grounding verifies that referenced symbols, functions, methods, and configurations actually exist at the candidate commit.
+
+4. **Actionable Findings**:
+   - Each finding must name the specific artefact (file path) and location (heading or section) to change.
+   - Each finding must conclude with a concrete `Proposed: <edit>` recommendation.
+
+5. **Shared Contracts & Symlink Resolution**:
+   - When reviewing design documents impacting inter-service or cross-repo communication, verify that `shared-contracts/` paths resolve on disk (following symlinks to target repositories if applicable).
+   - Flag any breaking schema change without backward-compatibility shims or transition windows as **Critical**.
+   - Flag any missing `## Shared Contract Impact` section or failure to prioritize contract updates in `task_01` as **Important**.
+
+6. **5-Layer Deep Verification Checklist**:
+   - **Unbound Variable in Fallback**: Verify that all variables referenced in `except` blocks are assigned or imported before the `try` block begins.
+   - **Part-of-Speech Ambiguity**: Verify that morphological transformation functions (lemmatizers, stemmers, token normalizers) disambiguate noun/adjective forms from verb-like gerunds and participles.
+   - **ORM Flush Semantics**: Verify SQLAlchemy Unit of Work execution ordering (Insert -> Update -> Delete). Forbid mutating ORM entities before flushing deleted records sharing the same unique key or index constraint.
+   - **Interactive Contract Boundary**: Verify that interactive token and span coverage on user interfaces conforms strictly to `architecture_and_flow.md`.
+   - **Fixture Schema Sanity**: Verify that test fixtures and mock records in RED tests satisfy database check constraints before reaching domain assertions.
+
+## Checklist
+
+- **P1 (Consistency)**: Consistency across spec, HLD, BDD, tasks, and documentation: decisions, field names, numbers, titles, statuses.
+- **P2 (Grounding)**: Grounding: every path, symbol, signature, return type, route, and constant in `Decisions Already Made` and `Impact Analysis` exists in source code as described.
+- **P3 (Pinned behaviour)**: Pinned behaviour: existing tests that pin a behaviour a task changes, especially when outside Allowed files.
+- **P4 (Blast radius)**: Blast radius: other writers and readers of changed data, background jobs, callers outside Allowed files, migrations and backfill.
+- **P5 (Task split and Verification)**: Task split and Verification: dependency order, RED rows that can fail before implementation, GREEN rows that pass at baseline, DoD references, Stop conditions.
+- **P6 (BDD quality)**: BDD quality: valid Gherkin, dimensions that match scenarios, grounded assertions, tier tags.
+- **P7 (Shared Contracts & Feasibility)**: Verification Environment, integration test feasibility, and cross-repo contract audit. When `shared-contracts/` (or an external service/FFI boundary) is touched, inspect `shared-contracts/<domain>/` canonical files (`api_contract.md`, `architecture_and_flow.md`, `gaps_and_rfcs.md`) on disk (including resolving symlinks to target repositories if applicable). Verify that the HLD contains a dedicated `## Shared Contract Impact` section, guarantees backward compatibility (optional fields, safe defaults, no breaking wire changes), reserves `task_01` for contract synchronization, and outputs the Parallel Handoff Summary for satellite repos.
+- **P8 (Risks, rollout and rollback)**: Risks, rollout and rollback.
+
+## Required output
+
+Do NOT use the bracketed tags `[Critical]`, `[Important]`, or `[Minor]` anywhere in your prose or analysis above the final verdict block.
+
+End your answer with these exact lines and nothing after them (no markdown bolding `**`, no backticks, no bullet before `Verdict:`):
+
+Verdict: PASS
+(or `Verdict: CHANGES REQUIRED`)
+[Critical|Important|Minor] <artefact>:<location> — <problem>. Proposed: <edit>
+
+Rules for Severity & Verdict:
+- Use `Critical` for a defect that breaks the design goal, `Important` for one that must be fixed before implementation, and `Minor` for anything else.
+- Output `Verdict: CHANGES REQUIRED` if and only if there is at least one `Critical` or `Important` finding.
+- If there are no findings (or only `Minor` findings), you MUST output `Verdict: PASS`.
+- A review with no finding still ends with its `Verdict: PASS` line.
+
+hook: SessionStart
+hook: SessionStart Completed
+codex
+I’m using `d3nexus:principal-review` to review the design against the pinned source, and `d3nexus:task-observer` for the review workflow. I’ll keep all inspection and dynamic probes read-only.
+
+exec
+/bin/zsh -lc 'cat /Users/danhdueexoictif/.codex/plugins/cache/danhdue-agent-tools/d3nexus/1.23.0/skills/task-observer/SKILL.md /Users/danhdueexoictif/.codex/plugins/cache/danhdue-agent-tools/d3nexus/1.23.0/skills/using-superpowers/references/codex-tools.md /Users/danhdueexoictif/.codex/plugins/cache/danhdue-agent-tools/d3nexus/1.23.0/skills/principal-review/SKILL.md' in /Users/danhdueexoictif/AllProjects/ai-agent-tools
+ succeeded in 0ms:
+---
+name: task-observer
+description: >
+  Monitors task execution for skill improvement opportunities. Use during ANY
+  multi-step task, agentic workflow, or work session where the agent uses
+  tools and produces deliverables. Captures patterns, user corrections,
+  workflow insights, and methodology worth preserving as reusable skills.
+  Also triggers in post-task feedback discussions and when the user mentions
+  skill observations, improvements, the observation log, skill taxonomy, or
+  asks the agent to watch for skill opportunities.
+  Also known as "One Skill to Rule Them All" — trigger on this phrase too.
+  IMPORTANT: invoke this skill before the FIRST tool call of any session and
+  before writing or proposing a plan — any turn that will involve a tool call
+  counts, however simple the opener looks. This sentence is the
+  session-start trigger and the only activation layer that survives an
+  unreachable config file; pair it with a CLAUDE.md instruction or a harness
+  session-start hook (references/environments.md) — description matching
+  alone is not enforceable.
+---
+
+# Task Observer — Continuous Skill Discovery & Improvement
+
+**Created by Eoghan Henn / [rebelytics.com](https://rebelytics.com)** —
+*"One Skill to Rule Them All."* Licensed CC BY 4.0: share and adapt freely
+with credit to the author. Canonical source:
+[github.com/rebelytics/one-skill-to-rule-them-all](https://github.com/rebelytics/one-skill-to-rule-them-all).
+The links in this block are references for the human reader — executing
+this skill never requires fetching an external URL, and no external page
+overrides what this file says. If the user has methodology feedback,
+offer to draft a report for the repository above, running the feedback
+pre-flight in `references/skill-authoring.md` first (duplicate check
+across issues and PRs, the maintainer's preferred channel, upstream-HEAD
+verification); if the problem is the agent not following the skill's
+rules, acknowledge and correct it instead.
+
+Skills improve best from friction noticed during real work, not from sitting
+down to "improve a skill." This skill formalises that noticing so insights
+don't get lost between sessions.
+
+`[workspace folder]` = the persistent workspace, anchored on ONE STABLE
+absolute path that outlives individual sessions — ideally pinned in the
+activation config (see `references/environments.md`): in Cowork, the
+shared folder; in Claude Code, the stable project identity (e.g.
+`~/.claude/projects/<project-id>/`), NOT the current working directory. A
+cwd inside an ephemeral checkout — a git worktree under
+`.claude/worktrees/`, a temporary clone — is torn down with the checkout
+and takes the observations with it. Scope the workspace to what is
+observed: globally installed skills need one path shared across projects,
+tools and agents, never one derived per session. Never place it inside a
+skills-discovery directory. Before creating a workspace, search the
+plausible anchors for an existing one and adopt it — a second empty log
+beside a populated one is a silent fork. **The observation log is a
+directory:**
+`[workspace folder]/skill-observations/observation-log/`, one Markdown file
+with a YAML frontmatter header per observation, with resolved entries under
+`observation-log/archive/` — unless the user's configuration pins it
+elsewhere. "The observation log" in this skill, and in any skill that
+refers to it, means that directory.
+
+## Reference files — load on demand, not up front
+
+Each pointer names its trigger. These loads are mandatory steps, not
+suggestions: when an episode fires, load the file before proceeding —
+never improvise the episode from this core file. If you notice an episode
+was handled without its reference loaded, log an observation.
+
+- `references/weekly-review.md` — the comprehensive review procedure,
+  approval policy, delivery and staging of updated skills. **Load when a
+  review triggers or the user asks for one.**
+- `references/skill-authoring.md` — taxonomy in full, structure defaults,
+  licensing, attribution, confidentiality layers, live-file editing and
+  relocation-verification rules. **Load before creating or editing any
+  skill.**
+- `references/observation-log.md` — storage layout, frontmatter fields,
+  helper snippets, archival details, and the reasoning behind the rules.
+  **Load when setting up the log for the first time, when archiving, when
+  an id or frontmatter looks wrong, or before changing how anything reads
+  the log.**
+- `references/signals.md` — the full catalogue of what is and isn't worth
+  logging. **Load when unsure whether something is an observation, or when
+  sorting many candidates.**
+- `references/environments.md` — activation and config setup, compaction
+  behaviour, bundle manifest, handoff-doc mode for storage-less
+  environments. **Load for setup questions, after compaction, or when
+  there is no filesystem.**
+- `references/migration.md` — the one-time scripted conversion of a
+  pre-3.0 single-file `log.md`. **Load only when the Session Start
+  Protocol detects a legacy log.** Fresh installs never read it.
+
+## Session Start Protocol
+
+1. **Storage.** If `skill-observations/observation-log/` (with its
+   `archive/` subdirectory) or
+   `skill-observations/cross-cutting-principles.md` don't exist,
+   create them (principles template: `references/skill-authoring.md`).
+   Create `skill-observations/last-review-date.txt` containing the literal
+   value `never` if it doesn't exist — never write a date into it at setup;
+   a date means a review actually ran. If a legacy single-file
+   `skill-observations/log.md` exists and `observation-log/` does not, this
+   is an upgrade from a pre-3.0 install: load `references/migration.md` and
+   run the scripted conversion before writing anything else. Before
+   creating or writing anything: if the resolved workspace folder sits
+   under an ephemeral path (e.g. `.claude/worktrees/`, a temporary clone),
+   warn the user and re-anchor on the stable project path first — state
+   written to an ephemeral checkout is lost at teardown.
+2. **Scan.** Read only the frontmatter of each file in `observation-log/`
+   — the header block between the first two `---` lines, never the bodies
+   — and build awareness from `status`, `skill`, `proposes_skill` and
+   `title`; also read the active principles. Hold them in awareness, don't
+   surface unprompted. Frontmatter-only is the whole point of the per-file
+   format: the scan stays cheap once hundreds of observations exist.
+
+   **An empty scan in a log known to be non-empty is a broken command
+   until proven otherwise**, never the finding "no relevant observations".
+   Count the files independently of the parse — a literal path, not the
+   variable the loop uses — and halt if files exist but nothing parsed.
+   Re-derive every path inside the same tool call: shell state does not
+   carry between calls in most harnesses, and a path variable that
+   silently resolves to empty turns a filter into a match-nothing glob
+   rather than an error.
+
+   ```bash
+   d=skill-observations/observation-log                                # re-derive in EVERY call
+   n=$(find "$d" -maxdepth 1 -name "*.md" 2>/dev/null | wc -l)         # independent count via find (zsh-safe)
+   parsed=0
+   if [ "$n" -gt 0 ]; then
+     for f in "$d"/*.md; do
+       [ -e "$f" ] || continue
+       hdr=$(awk 'NR==1 && /^---[[:space:]]*$/ {fm=1; next}
+                  fm && /^---[[:space:]]*$/ {exit}
+                  fm' "$f")
+       [ -n "$hdr" ] && parsed=$(( parsed + 1 ))
+       printf '%s\n---\n' "$hdr"
+     done
+   fi
+   [ "$n" -gt 0 ] && [ "$parsed" -eq 0 ] && \
+     { echo "SCAN COMMAND BROKEN — $n files present, 0 headers parsed"; exit 1; }
+   ```
+3. **Review trigger.** Read `skill-observations/last-review-date.txt`. The
+   value carries the truth: a date = when the last review actually ran;
+   `never` = no review has run yet. A missing file is abnormal (step 1
+   creates it) — recreate it with `never`, don't invent a date. If the
+   value is `never` or older than 7 days AND there are OPEN observations:
+   in an interactive session, offer the review in one line ("the
+   observation backlog hasn't been reviewed [in N days / yet] — run it now,
+   or carry on with your task?") and proceed with the user's task unless
+   they opt in; never gate their work on the review. Only a
+   scheduled/autonomous run loads `references/weekly-review.md` and runs
+   the review unprompted.
+4. **Activation.** Once per session: if no CLAUDE.md (or equivalent)
+   activation instruction for this skill exists, briefly suggest adding one
+   (see `references/environments.md`). Skip if already configured.
+5. **Concurrency.** There is no shared log file to guard: each observation
+   is its own file, so creating one never collides with or overwrites
+   another session's entry. Before changing the *status* of an existing
+   observation, re-read that one file first (a parallel review may have
+   resolved it).
+6. **Targets and staged work.** Resolve each distinct `skill:` value in
+   the scanned frontmatter against the installed skill set and mention, in
+   one line, any that no longer resolve — a deleted skill can accumulate
+   dozens of observations before a review discovers the target is gone.
+   If `skill-updates/PENDING.md` lists staged updates, say "N staged
+   updates awaiting review" in one line.
+7. **First run.** If the log is empty and the project has history
+   (handover or decision docs, commit history, test scripts, an existing
+   CLAUDE.md — which is largely a record of corrections nobody logged),
+   offer a one-off backfill pass over those artefacts. Backfilled entries
+   cite the durable artefact (file and section) in `session_context`
+   instead of a session, and the same-turn immediacy rule is satisfied by
+   one batched write. The pass is one-off; the scheduled review takes
+   over afterwards.
+
+## When to Observe
+
+Active for the entire task session — execution, post-task feedback, review
+discussion, meta-discussion about skills or methodology, and strategy
+conversations about how work should be done. **The observation mindset
+does not deactivate when the conversation shifts from doing the work to
+discussing it**; review-phase feedback is often the highest-signal input.
+Inactive only for casual conversation and quick factual questions with no
+tools or deliverables involved.
+
+## What to Watch For
+
+**New skill:** a reusable multi-step workflow, a methodology the user
+explains that no skill captures, a recurring task type, a process the user
+describes as "I always do it this way". **Improve a skill:** the agent
+violates a documented rule (the skill needs enforcement, not louder rules);
+a user correction reveals a missing rule or edge case; a better workflow or
+technique emerges than the skill recommends; a wrong assumption; new
+tooling obsoletes a step; a principle that applies to other skills too.
+**Simplify a skill:** a section never relevant across many sessions, a rule
+from a single unvalidated observation, contradictory rules, a rule the
+agent consistently fails to follow — convert to structural enforcement or
+remove. Full catalogue with examples: `references/signals.md`.
+
+**Do NOT log:** one-off corrections that don't generalise; preferences
+already captured in a skill; tool bugs unrelated to methodology;
+observations that would need proprietary client information to be useful
+in an open-source skill (unless an internal skill is the right home). The
+generalisability test, when unsure: would this still make sense in another
+project, and for another task using the same skill? Does it name a missing
+rule, step or principle rather than fix this task? Is it likely to recur?
+Mostly no → task context, not an observation. Before minting a
+`proposes_skill` name, check the existing candidates and reuse a fitting
+one — independently logged proposals for one skill rarely share a name.
+
+**Validate the target at write time.** A name in `skill:` must be a skill
+that exists now; if it doesn't, the observation proposes a skill instead.
+Checking is cheap at write time and expensive forty entries later.
+
+**Check the target's siblings at write time, and record that you did.**
+Libraries accumulate *families* — several skills implementing one
+methodology for different tools, one structure for different subjects, one
+companion pattern for different base skills. An insight found while using
+one member usually applies to the rest, but nothing in the workflow asks,
+so `skill:` collapses to a single entry and the family silently diverges.
+Before writing, resolve the target against the family registry
+(`skill-observations/skill-families.md`; spec, coherence models and the
+no-registry fallback in `references/observation-log.md`), and for each
+sibling either add it to `skill:` or state in the body why it does not
+apply. Fast test: **could this sentence survive having the tool's or
+subject's name removed?** If yes it belongs to every sibling — and a rule
+that declares itself generic inside one artefact ("this applies to any
+file-writing script, not just X") is the cheapest possible propagation
+signal, so treat that phrasing as an automatic multi-skill flag. Then
+record the outcome in the mandatory `siblings_checked:` frontmatter field,
+including the verdict "checked — instance-specific, no propagation": a
+one-entry `skill:` list is byte-identical whether the siblings were
+evaluated or never considered, and only the recorded field makes the
+*absence* of the judgement visible to a review or a drift audit.
+
+## How to Log
+
+Write the observation file **silently, within the same turn or the next** —
+never batch mentally for later; the act of writing is the enforcement
+mechanism.
+
+**Mandatory checkpoint after every 3rd completed todo item.** After marking
+the 3rd, 6th, 9th (etc.) item complete, you must **write to disk** — not
+merely ask yourself whether anything is pending. Either write any pending
+observation files, or, if genuinely none have accumulated, append a
+one-line `no observations` acknowledgement to
+`skill-observations/checkpoints.log`. The required action is a concrete
+write; a remembered "ask whether" is not enforcement. The count need not be
+precise; roughly every third completion is the rule. (Exception: where the
+workspace is a shared hosted document store in which every write is priced
+and invalidates other sessions' context, suppress the empty marker and
+keep only the check — see `references/environments.md`.)
+
+**A denied or failed write is not a read-only log.** Retry once before
+concluding the workspace is unwritable, and try a second tool that reaches
+the same path — a permission classifier can deny one interface while
+allowing another, and consecutive denials from a probabilistic gatekeeper
+are noise, not a wall. Report "failed N times", never "cannot be done",
+unless retries and alternate interfaces are actually exhausted; otherwise
+observations are silently lost for the rest of the session.
+
+**Deliverable-event flush.** Whenever you present or render a major
+deliverable — a file handed to the user, a deck or PDF render, a staged
+skill file — or complete a task/todo batch, write any pending observation
+files at that moment, before moving on. These checkpoints already involve a
+tool call; piggy-backing the flush onto them makes the write a side effect
+of work you were doing anyway. (Why both checkpoints are writes rather than
+questions: `references/observation-log.md`.)
+
+**Two gaps this pairing still leaves — both observed across full working days
+in which nothing was logged at all.**
+
+1. *A session can contain no todo items whatsoever.* The 3rd-completion
+   checkpoint is bound to ONE tool; work driven entirely through direct tool
+   calls and shell commands never trips it. It is armed only in sessions that
+   happen to use todos, so it is not a safety net that is always present. When
+   a session runs without them, the deliverable flush is the only enforcement
+   left and must be applied deliberately.
+2. *"Is this a major deliverable?" is a self-assessment, and self-assessment is
+   what fails under load.* Prefer triggers unmistakable in the tool record over
+   ones needing a judgement call. In particular, treat any **project-completing
+   command** — a deploy, release, publish, or push — as a flush point: it is a
+   concrete tool call, as hard a trigger as a completed todo, and it reliably
+   marks the end of a unit of work where insights have accumulated.
+
+The rule behind both: an enforcement trigger must hang on an event objectively
+visible in the tool record, never on the agent noticing that a moment qualifies.
+And a counter bound to a single tool is silently inert in every session that does
+not use it — such triggers always need a second, independent path.
+
+**Id and filename.** Each observation is `NNNN-short-slug.md` (zero-padded
+id + a kebab-case slug from the title). The id is the highest of three
+values, plus one: the highest numeric prefix in `observation-log/`, the
+highest in `observation-log/archive/`, and the number in
+`observation-log/archive/.id-floor` (the highest id ever issued — update it
+whenever you issue an id above it, so the counter can never restart from 1
+when the active directory is empty):
+
+```bash
+d=skill-observations/observation-log
+hi=$( { ls "$d" "$d/archive" 2>/dev/null | grep -oE '^[0-9]+'; cat "$d/archive/.id-floor" 2>/dev/null; } \
+     | sort -n | tail -1); : "${hi:=0}"
+[ "$hi" -eq 0 ] && [ -n "$(find "$d" -maxdepth 1 -name "*.md" 2>/dev/null)" ] && { echo "ID COMMAND BROKEN — log is non-empty but no ids extracted"; exit 1; }
+next_id=$(( hi + 1 )); echo "$next_id" > "$d/archive/.id-floor"
+```
+
+The guard line distinguishes "the log says zero" from "I could not read
+the log": a command that fails to empty rather than to error would
+otherwise propose id 1 in a populated log. A new file never touches another entry's bytes, so it cannot truncate,
+overwrite or renumber anyone else's work. If two parallel sessions pick the
+same id, two files share a number — harmless; the next review renumbers one
+and logs a meta-observation.
+
+**Batch writes: resolve each id at its own write time.** When logging more
+than one observation in a session that may overlap a scheduled review or
+another writer, run the id snippet before EACH file — never pre-compute a
+range and hardcode sequential numbers into a batch. A batch append is N
+separate races, not one; pre-baked numbers collapse N independent
+max-checks into a single stale read (observed: a hardcoded id collided
+with one a parallel review issued between the check and the write).
+
+**A structural probe that comes back empty where content existed before is
+a stop signal, not a create.** If the directory or file you logged to
+earlier in the session is suddenly missing, or the id check returns empty
+in a log you know is populated, HALT and re-probe the structure (is there
+an `observation-log/`? a `log.md.migrated`?) — a parallel session may have
+migrated or reorganised the storage. Never let an append silently recreate
+a missing target: that converts a migration signal into corruption
+(observed: a stale session recreated the retired `log.md` with a fresh
+"Observation 1" after the per-file migration renamed it).
+
+**File format.** YAML frontmatter (the metadata every scan reads) followed
+by the Issue → Improvement → Principle body. **The frontmatter is mandatory;
+always write `status: open` and a non-empty `siblings_checked:` at creation
+time** — an observation without a `status` field is treated as OPEN by
+reviews, never as nonexistent, and one without `siblings_checked:` counts
+as logged without a sibling check.
+
+```markdown
+---
+id: [N]
+title: [Short descriptive title]
+status: open            # open | actioned | declined | superseded | parked
+type: open-source       # open-source | internal
+skill: [list of existing skills this improves — always a list, even with
+       one entry; first entry is primary; may be empty]
+proposes_skill: [list of new skills this argues for, by working name;
+       may be empty — an observation can fill either list or both]
+siblings_checked: [MANDATORY, never blank: the family name and the members
+       evaluated, plus the verdict — e.g. "family-name: a, b — shared, both
+       added" or "family-name: a, b — instance-specific, no propagation";
+       the literal `none` only where the target belongs to no family]
+area: [which part of the skill or workflow]
+date: [YYYY-MM-DD]
+session_context: [what task was being worked on]
+parked_until:           # MANDATORY when status is parked, empty otherwise:
+                        #   one line naming the condition that unparks it
+resolved:               # date resolved; leave empty while OPEN
+resolution:             # what was done — set only when actioned/declined
+reference:              # optional: path to saved session-local evidence
+---
+
+**Issue:** [What happened — specific enough to understand weeks later
+without the original conversation.]
+
+**Suggested improvement:** [Concrete change. For existing skills, name the
+section or rule; for new skills, scope and key components.]
+
+**Principle:** [The generalisable takeaway — the most important field.]
+```
+
+**`parked` means decided, not pending.** Use it when an observation is sound
+but cannot be acted on until an external precondition is met — the scheduled
+task that produced it is disabled, the tool it describes is out of use, a
+dependency has not landed. A parked entry is OUT of the work queue: reviews
+must not re-escalate it, and the decision belongs in `status:`, not in a
+free-text note beside a `status: open` (a note nothing classifies on leaves
+the entry in the queue and it gets re-raised at every review). It is not
+resolved either, so it never archives — archival needs a resolved status plus
+a `resolved:` date. It stays in `observation-log/` indefinitely until either
+its `parked_until:` condition is met — set it back to `open` and queue it — or
+it is genuinely resolved. `parked_until:` is mandatory whenever status is
+`parked`: one line stating the condition, phrased so a later session can
+actually answer whether it has happened.
+
+**Context preservation:** if an observation depends on session-local data
+(uploads, API output), save that context into the workspace first and set
+`reference:` to its path — an observation whose evidence dies with the
+session is incomplete.
+
+**Confidentiality at logging time:** for `type: open-source` observations,
+the Issue/Improvement fields may reference specifics for context, but the
+Principle must be fully generalised — no client names, domains, or details
+traceable to a real project. Full confidentiality layers:
+`references/skill-authoring.md`.
+
+**Changing an existing observation:** re-read that one file, edit only the
+frontmatter fields you are changing (`status`, `parked_until`, `resolved`,
+`resolution`),
+never batch-rewrite the directory. Archival is a plain `mv` (below).
+
+## Referencing Observations
+
+Cite an observation by the `id` field in its frontmatter (= the `NNNN-`
+filename prefix). Never cite a `grep -n` line number as if it were the id —
+search-tool line numbers are positional metadata, not identifiers. A cited
+id must fall within the range that exists across `observation-log/`,
+`archive/` and `.id-floor`; a number far outside it is almost certainly a
+line number misread as an id.
+
+## Taxonomy (quick version)
+
+**Open-source** — client-agnostic, methodology-driven, useful to other
+practitioners. **Internal** — contains user/client/project specifics or
+personal preferences. Default to open-source when it could go either way,
+stripping specifics. The boundary is also a confidentiality boundary, and
+the two errors are not symmetric: over-classifying as internal costs only
+reach, under-classifying can leak — when genuinely uncertain, prefer
+internal and promote later. Full requirements (attribution, licensing,
+structure): `references/skill-authoring.md`.
+
+## Archival on Write
+
+On every write, first `mv` already-resolved files from `observation-log/`
+to `observation-log/archive/`. "Already resolved" is read from the file's
+own frontmatter: `status: actioned`, `declined` or `superseded` AND a
+`resolved:` date **before today**. Files resolved today stay until the next
+day, whichever session resolved them — the grace period lives in the file,
+never in session memory. A resolved file with no readable `resolved:` date
+gets today's date written to that field instead of being archived. One
+file per `mv`; no rewrite of anything else. Helper and rationale:
+`references/observation-log.md`.
+
+## Surfacing Protocol
+
+Default: at end of session, as a grouped summary — improvements grouped by
+skill, new-skill candidates listed separately; for each, one sentence plus
+suggested type; ask which to act on. Surface earlier when an observation
+needs user input to be complete, when a skill is actively producing wrong
+output, or when observations cluster on one skill.
+
+**Deferral wears a second disguise: not a promise, but an argument.** "Let's
+wait until this has seen a few days of real use", "we should gather more data
+first" — this reads as diligence, which is exactly why it goes unchallenged,
+including by the person saying it. It is not an announcement, so a rule about
+executing rather than announcing does not catch it. So before writing *any*
+"later" into a recommendation, name two things: **which specific observation
+would change the decision, and when it could realistically arrive.** If you
+cannot name one, the evidence is either already conclusive (act now) or waiting
+adds nothing (act now). Then ask what the delay costs — if a known-defective
+state stays live meanwhile, the burden of proof is on deferring, not on acting.
+A deferral is a decision and needs the same justification as acting; "more
+evidence would be better" is not one, because the question is whether more
+evidence could change the OUTCOME.
+
+**Default to log-and-defer.** Surfacing an observation is not an invitation
+to act on it: state that it is logged for the next review, and stop.
+Reserve in-session application strictly for the triggers under "Acting on
+Observations". Do NOT routinely offer a binary "apply now vs leave for next
+review" choice; for users who run regular reviews that offer is unwanted
+friction, and if a user has said they always defer, suppress it entirely.
+
+**Self-check before surfacing:** observations were logged throughout the
+whole session (including discussion phases); logged silently; each follows
+Issue → Improvement → Principle; each is typed; existing-skill items name
+the section; no open-source Principle contains client-identifying info;
+every observation file carries `status:` (`status: open` at write time) and
+a non-empty `siblings_checked:` — if any lacks one, do the sibling check
+now and record it rather than back-filling the field with `none`.
+
+## Acting on Observations
+
+Act only in three contexts: (1) the comprehensive review (load
+`references/weekly-review.md`); (2) an explicit user request ("update X
+skill", "act on observation #N"); (3) in-session correction when a skill is
+producing wrong output the user should know about. Otherwise: log, don't
+act.
+
+**Read the full body before resolving, dismissing, fixing, or citing.** A
+tracked item's title (observation, GitHub issue, ticket) is an index entry,
+not its content — it compresses away the failure story, the reporter's
+context, and often the proposed fix. Dismissal is the path with no
+downstream checkpoint: a resolved or cited item gets reviewed later, a
+dismissed one silently disappears. Harvest fix designs from issue bodies —
+reporters frequently include the correct solution, which also settles
+attribution. When a parallel agent logs a finding that appears to duplicate
+your own, diff the two bodies, not the titles: two entries about the same
+mechanism can carry opposite operational conclusions, and the second is
+often the refinement, not the echo. Apparent agreement suppresses
+verification more effectively than disagreement does, so this rule binds
+hardest exactly where it feels least necessary.
+
+When acting: small, clearly-additive, low-risk changes (a new rule, a
+clarification, a factual fix) may be applied without waiting for the next
+review — "directly" means *now*, not *in place*: the edit is still made on
+a staged copy based on a fresh read of the live file and handed to the user
+to install, in every environment and every context. Staging-only has no
+interactive exception; an exception the user has to remember is a gate
+that eventually gets left open. Substantial changes (restructuring, new
+capabilities, changed methodology) and all new-skill creation: load
+`references/skill-authoring.md` first and follow its editing and staging
+rules. A principle that applies to skills generally goes to the
+cross-cutting principles file (same reference).
+
+**Set the status in the same turn you act.** An observation acted on
+in-session must have its frontmatter updated — `status: actioned`,
+`resolved: YYYY-MM-DD`, `resolution: what was done` — before the turn
+ends. The work and the bookkeeping are two acts, and the second is the one
+that gets dropped; a stale `open` entry then invites redoing finished work
+over a section that has since moved on. The write is the enforcement,
+exactly as it is for logging.
+
+## Quick Reference
+
+| Question | Answer |
+|----------|--------|
+| When do I observe? | The whole session, including feedback and reflection phases |
+| How do I log? | Silently, immediately, as one file per observation named `NNNN-slug.md`; id = max(active, archive, `.id-floor`) + 1 |
+| When do I surface? | End of session, or earlier if needed |
+| Status field? | Mandatory `status: open` frontmatter on every new observation; reviews treat a missing status as OPEN, never as nonexistent. Five values: `open`, `actioned`, `declined`, `superseded`, `parked` — `parked` = decided but blocked on an external precondition, so it leaves the queue, requires `parked_until:`, and never archives |
+| Does the target skill have siblings? | Resolve it against `skill-observations/skill-families.md` BEFORE writing; add every sibling the insight applies to to `skill:`, and record the verdict in the mandatory `siblings_checked:` field — including "checked, no propagation" |
+| A scan or query came back empty? | Two possibilities, only one is a finding: guard every retrieval meant to prevent duplicate work with an independent existence check, and treat empty output over known content as a broken command |
+| Citing an observation number? | From the `id:` frontmatter field (= the `NNNN-` filename prefix); never a `grep -n` line number; sanity-check against the known id range |
+| Open-source or internal? | Default open-source; the boundary is confidential |
+| Small fix or substantial? | Additive → apply directly; restructuring/new skill → `references/skill-authoring.md` |
+| Changing an observation (status/archival)? | Re-read that one file, edit only its frontmatter, or `mv` it to `observation-log/archive/` — no shared-file rewrite |
+| Upgrading from a single-file `log.md`? | Scripted, once — `references/migration.md` |
+| Weekly review? | Trigger check at session start; procedure in `references/weekly-review.md` |
+| No filesystem? | Handoff-doc mode — `references/environments.md` |
+# Using d3nexus in Codex
+
+The plugin ships the same skills in all runtimes. When a skill uses a Claude Code tool name,
+perform the equivalent action using the tools exposed by the current Codex session.
+
+| Skill instruction | Codex action |
+|---|---|
+| Invoke `Skill` or `d3nexus:<name>` | Select the installed d3nexus skill, then read its `SKILL.md` and follow it. Resolve supporting paths relative to that skill's directory. |
+| `Read`, `Grep`, `Glob` | Use file tools or shell reads; prefer `rg` and `rg --files` for searches. |
+| `Edit`, `Write` | Use the available patch or file editing tool. |
+| `Bash` | Use the session's shell execution tool, respecting its permission boundaries. |
+| `TodoWrite` | Use an available plan/task tool, or maintain a short progress checklist if none exists. |
+| `Agent`, `Task`, parallel reviewers | Use subagents only when available and authorized. Otherwise perform independent steps sequentially and report the limitation. |
+
+Codex reads the consuming project's `AGENTS.md`. Claude's `@file` import syntax and Antigravity's
+Markdown `trigger: always_on` frontmatter are not substitutes for explicit reading instructions.
+Read the project's rule files when present; otherwise read the plugin's
+[critical rules](../../../rules/CRITICAL_RULES.md) and
+[coding guidelines](../../../rules/coding-guidelines.md).
+
+Keep `d3nexus:` cross-references in shared skill text. They identify the owning plugin; they do
+not imply that Codex has Claude's slash-command or `Skill` API. Use the skill picker or name the
+plugin and skill in a prompt when invocation syntax differs across Codex surfaces.
+
+Follow the current host's instruction hierarchy and honor the user's authorized scope. References
+to Antigravity's native planning artifact apply to that environment; do not invent unavailable
+tools or configuration in Codex. Platform build tools, credentials, and devices requested by a
+skill still need to exist in the consuming project.
+
+After reinstalling or upgrading the plugin, start a new thread to load the updated skill inventory.
+---
+name: principal-review
+description: Performs Shift-Left architectural and task design document reviews (HLD, BDD, Tasks, RFC) against source code before implementation begins.
+---
+
+# Principal Review
+
+## Overview
+
+Principal Review provides rigorous, cross-model architectural inspection of High-Level Designs (HLDs), BDD scenarios, Kanban task breakdowns, and standalone RFC documents against the active source codebase.
+
+Operating on the principle of **Shift-Left Quality Assurance**, it catches misunderstandings, missing contracts, scope regressions, and symbol drift before implementation starts, when resolving them in documents is an order of magnitude faster and cheaper than debugging in code.
+
+**Announce at start:** "I'm using the principal-review skill to conduct an architectural review."
+
+## Two Modes of Operation
+
+### 1. In-Lifecycle Mode (Stage 2 Handoff Choice)
+
+Invoked during the packaging phase of `dev-lifecycle` after all epic artefacts pass Gate 2 and mechanical readiness checks.
+
+- **Trigger**: Developer selects option 2 ("Principal Review") at the Handoff Choice prompt.
+- **Scope**: Evaluates all epic artefacts in `.devtool/epic/<epic_dir>/`:
+  - Architecture spec (`*-design.en.md`, `*-design.vi.md`)
+  - Canonical HLD (`<epic_dir>.en.md`, `<epic_dir>.vi.md`)
+  - BDD scenarios (`bdd_scenarios.en.md`, `bdd_scenarios.vi.md`)
+  - All Kanban tasks (`task_*.md`)
+  - Packaging record (`handoff.md`)
+- **Execution**:
+  ```bash
+  python3 skills/dev-implementation/resources/scripts/run_external_review.py run \
+    --kind principal --epic-dir <epic_dir> --base <base_branch> --cli <claude|codex|agy>
+  ```
+- **Persistence**: Results recorded in `.devtool/epic/<epic_dir>/principal_review.md`.
+
+### 2. Ad-Hoc Mode (Standalone Documents)
+
+Invoked on-demand to review standalone design documents, architecture proposals, or RFCs without requiring an epic directory.
+
+- **Trigger**: Developer invokes `/principal-review <path>` (e.g. `/principal-review docs/rfc/payment-service.md`).
+- **Scope**: Target markdown document and the active git repository context at `HEAD`.
+- **Pre-validation**:
+  1. The target file path must exist on disk.
+  2. The document must contain structural headings (e.g. `# Title`, `## Overview`).
+- **Execution**:
+  ```bash
+  python3 skills/dev-implementation/resources/scripts/run_external_review.py run \
+    --kind principal --doc <path> --base <base_branch> --cli <claude|codex|agy>
+  ```
+- **Streaming & Visibility**:
+  - The review output and triage table stream directly to stdout.
+  - Ephemeral review logs are saved under `build/` (git-ignored) for inspection.
+  - No epic directory is created or required.
+
+## The Review & Triage Loop
+
+1. **Pre-Check**:
+   - For epics, `check_epic_readiness.py` runs first. If any check fails (R1–R8), review halts immediately with a precondition banner without calling external model CLIs.
+   - For standalone docs, structural validation checks that the file exists and has valid headings.
+
+2. **External Model Review**:
+   - Executes with a read-only permissions profile (`claude -p --dangerously-skip-permissions`, `codex exec --sandbox read-only`, or `agy --sandbox --mode plan`).
+   - The reviewer inspects active code at candidate SHA to verify groundedness (P1–P8 checklists).
+
+3. **Triage Findings**:
+   - Follow [document-triage.md](references/document-triage.md).
+   - Verify every finding against the codebase.
+   - Present the triage table to the developer and wait for decisions. The presentation MUST begin with the standardized 4-bullet header block:
+     ```markdown
+     Principal Review Triage: Round <N> (<CLI>)
+     *(or `Principal Review Triage: <doc_path> (<CLI>)`)*
+
+     • Candidate SHA: <commit_sha>
+     • Reviewer: <CLI> ( <model> )
+     • Thinking Level: <Light | Low | Medium | High | Extra High | None>
+     • Verdict: <VERDICT> (<count> <Severity> findings)
+     ```
+
+4. **Revision Loop & Commit Ordering**:
+   - Apply document edits first and commit:
+     `git commit -m "[<EPIC_NAME>] Revise epic after Principal Review round <n>"`
+   - Record decisions with revision commit SHA in `principal_review.md`, then commit:
+     `git commit -m "[<EPIC_NAME>] Record Principal Review decisions for round <n>"`
+   - Re-run packaging to refresh handoff metadata, record state via `python3 scripts/resume_context.py --state --epic <epic_slug>`, emit the AI Programmer prompt via `python3 scripts/resume_context.py --emit-prompt implement --epic <epic_slug>`, and present the Principal Review Choice again.
+
+## Guidelines & Reference Documents
+
+- [Prompt Template](references/principal-review-prompt.md): The read-only instruction template sent to reviewer CLIs.
+- [Review Rules](references/principal-review-rules.md): Severity definitions (Critical, Important, Minor) and source grounding standards.
+- [Document Triage Protocol](references/document-triage.md): Step-by-step decision verification and revision loop enforcement.
+
+exec
+/bin/zsh -lc "rg -n 'principal|web_quality|quality.*contract|Gate 4' /Users/danhdueexoictif/antigravity_homes/peter/.codex/memories/MEMORY.md" in /Users/danhdueexoictif/AllProjects/ai-agent-tools
+ succeeded in 0ms:
+1:# Task Group: ai-agent-tools setup_shared_contracts principal contract review
+10:- rollout_summaries/2026-10-30T06-59-12-Elg4-principal_review_setup_shared_contracts_contract_drift.md (cwd=/Users/danhdueexoictif/AllProjects/ai-agent-tools, rollout_path=/Users/danhdueexoictif/.codex/sessions/2026/10/30/rollout-2026-10-30T13-59-12-01a18b9a-faa7-7f50-81b9-b3c8aa8e3a08.jsonl, updated_at=2026-10-29T23:08:05+00:00, thread_id=01a18b9a-faa7-7f50-81b9-b3c8aa8e3a08, `CHANGES REQUIRED`; later review verified these four findings were fixed)
+14:- setup_shared_contracts, principal-review, shared_contracts_readme.md.tmpl, string.Template, `{{DOMAIN_NAME}}`, --root, --repo-root, --satellite-root, scripts/verify.sh, Section 11, Section 14, contract drift
+20:- rollout_summaries/2026-10-30T06-59-12-zvna-principal_review_setup_shared_contracts_contract_contradicti.md (cwd=/Users/danhdueexoictif/AllProjects/ai-agent-tools, rollout_path=/Users/danhdueexoictif/.codex/sessions/2026/10/30/rollout-2026-10-30T13-59-12-01a18b9a-faa8-72e0-8192-3dd403258730.jsonl, updated_at=2026-10-29T23:26:36+00:00, thread_id=01a18b9a-faa8-72e0-8192-3dd403258730, `CHANGES REQUIRED`; current implementation-blocking finding)
+24:- setup_shared_contracts, principal-review, SSC-FR-03, shared-contracts, non-empty, symlink, Rule 7, `Covers:`, traceability, `python3 -m unittest`, CHANGES REQUIRED
+28:- When requesting a principal review, the user required a “strictly read-only review” with exact source file/line grounding, artefact-specific actionable findings, and an exact final verdict block -> do not edit files or Git state; cite concrete locations for each source claim. [Task 1][Task 2]
+32:- Related skill: skills/principal-contract-review/SKILL.md. [Task 1][Task 2]
+152:- Keep `Scenario:` entries inside parser-compatible fenced Gherkin blocks; otherwise BDD traceability fails. Record absent `ruff`, `mypy`, and `.agents/quality/check_quality.json` as Stage 3 blockers rather than weakening contracts or claiming a quality PASS. [Task 1]
+195:- Corrected execution graph is `521 -> 522 -> 527 -> 523 -> 528 -> 524 -> 529 -> 525 -> 526` (9 tasks, 7 layers, acyclic). Package validation: document quality `0 findings`, BDD `43/43 covered — PASS`, task contract `0 problems — PASS`, task mirrors byte-identical; commit `4cef42e`. Required quality commands remain `cargo run -p xtask -- pre-commit`, `cargo run -p xtask -- check-boundaries`, and `just acceptance`. [Task 2]
+203:# Task Group: ai-agent-tools Gate 4 Review Choice loop and external-review diagnostics
+208:## Task 1: Reposition Review Choice into a Gate 4 loop, success
+216:- Gate 4, Review Choice, Cross-model review, Gate 5, SHA-bound, rules/CRITICAL_RULES.md, test_verifiable_handoff_text.py, df9f67af7c1f7fecd3b4a9768c0863d035ed3088
+230:- The user explicitly corrected the lifecycle sequence: “Gate 4 => Review Choice”, then “Finish” or “Cross model review”, and “Sau bước này chạy lại Gate 4 ... Loop cho tới khi finish.” -> preserve this order for similar ai-agent-tools lifecycle work. [Task 1]
+235:- Enforced invariant: `Gate 4 PASS -> Review Choice; Finish -> Gate 5; Cross-model review -> Gate 4 in full`. A review round, decision, Fix commit, Gate 5-requested change, cross-model CLI failure, or timeout that changes/reassesses the candidate requires full Gate 4 before another Review Choice. Gate 4 is SHA-bound. [Task 1]
+236:- The policy update touched `rules/CRITICAL_RULES.md`, `skills/dev-lifecycle/SKILL.md`, `skills/dev-implementation/SKILL.md`, bilingual lifecycle docs, lifecycle-selection docs, and `scripts/test_verifiable_handoff_text.py`; commit `df9f67af7c1f7fecd3b4a9768c0863d035ed3088` is `[REVIEW_WORKFLOW] Loop review choice through Gate 4`. [Task 1]
+242:- A first regression failed because normative files still said Review Choice occurred before Gate 4. Do not make a flowchart-only edit: synchronize rules, both skills, diagrams, English/Vietnamese docs, lifecycle-selection docs, and negative assertions. [Task 1]
+347:- Package/preflight success is not production readiness: no implementation tests, live browser evidence, or Gate 4 quality profile ran. Before implementation, read the handoff, present execution order, and wait for explicit Gate 3 confirmation. [Task 2]
+349:# Task Group: D3Nexus design_system Gate 4 evidence review and lifecycle concurrency
+351:scope: Gate 4 review of a web-heavy epic: evidence completeness, fail-closed verdicts, stable-SHA reruns, and lifecycle race protection.
+354:## Task 1: Review design_system Gate 4 readiness, partial
+367:- The workflow was expected to stop at Gate 4 and not finish/merge automatically -> preserve strict gate separation; a passing subset is not approval for Gate 5. [Task 1]
+371:- Gate 4 requires BDD traceability plus the complete provider profile; precedence is `FAIL > BLOCKED > PASS`, so one `FAIL` prevents LGTM. [Task 1]
+373:- The registered quality plan currently contains only `rust-core`; for a web-heavy epic this is a governance coverage gap, though not an independent aggregate failure under the current contract. [Task 1]
+374:- Candidate identity can be invalidated while Gate 4 runs if another workflow archives tasks, merges the branch, deletes the worktree, or changes HEAD. A repository-scoped transition lease plus HEAD/worktree revalidation before each provider capability is the needed guard. [Task 1]
+381:- Manual web tests cannot establish Gate 4 PASS when the registered provider plan does not reconcile them; record that limitation, retain raw screenshots/video/command outputs before cleanup or merge, then rerun the whole profile. [Task 1]
+396:- lyrics_lexical_normalization, Gate 3, Gate 4, handoff.md, BDD traceability, database isolation, Gemini, DeepSeek, backfill, e1f4cfc, c1657ae, Dependencies & Blockers
+408:- Task 43 is the safety prerequisite: establish an isolated PostgreSQL namespace and prove the live catalog fingerprint remains unchanged before full pytest or coverage. Gate 4 needs the same immutable candidate SHA, complete registered `epic` profile, raw artifacts, BDD/test traceability, browser evidence at 390x844 and 1440x900, authorized provider provenance/canary evidence, and an independent catalog audit. [Task 1]
+535:- rust-quality-check, Gate-4, C1-C7, false-PASS, validate_quality_contract.py, aggregate_quality_results.py, check-boundaries, exit 0/1/75
+664:- vocab_learning_app, doc_quality_check, Diataxis, bilingual, Mermaid, contract-map, learner-journeys, 649024e, develop
+
+exec
+/bin/zsh -lc 'cat rules/CRITICAL_RULES.md rules/coding-guidelines.md' in /Users/danhdueexoictif/AllProjects/ai-agent-tools
+ succeeded in 0ms:
+---
+trigger: always_on
+---
+
+# Critical Rules
+
+> [!CRITICAL]
+> These rules are MANDATORY and MUST be strictly applied by ALL AI Agent Plugins, runtimes, orchestrators, and subagents (including Claude Code, Antigravity IDE, Cursor, Codex, Windsurf, OpenCode, and any custom/third-party plugins) in every interaction across this project and downstream repositories. Failure to follow these rules is a direct violation of the engineering standard.
+
+## Universal Scope & Plugin Applicability
+
+> [!IMPORTANT]
+> **Every AI Agent plugin operating in this environment MUST inherit and execute these rules.**
+> Regardless of which plugin, tool, extension, or agent framework initiated the session:
+> - Built-in or third-party plugins must NEVER override, circumvent, or weaken these rules.
+> - Subagents, background runners, and multi-agent teams spawned by any plugin inherit these exact constraints.
+> - If an AI agent or plugin has conflicting built-in behaviors (e.g. auto-pushing, autonomous planning artifacts, skipping human checkpoints), these Critical Rules take absolute precedence.
+
+## 1. Mandatory Quality Gates
+
+> [!IMPORTANT]
+> After completing any workflow or skill — regardless of which plugin or tool executed it — you **MUST** run the quality gate for the **kind of work you did**, and fix any issues it raises. This is critical to maintain the quality of the project.
+>
+> | Kind of work | Gate |
+> |---|---|
+> | Anything that changes a file shipping in the build | `@quality_check` |
+> | Anything whose deliverable is prose | `@doc_quality_check` |
+>
+> The two share no tier, no audit and no tooling. Running the wrong one produces a green light that means nothing — and `@doc_quality_check` refuses outright if the change touches shipped files.
+>
+> See: [Quality Check Skill](../skills/quality_check/SKILL.md) · [Document Quality Check Skill](../skills/doc_quality_check/SKILL.md)
+
+## 2. Commit Message Format (Universal Standard)
+
+Every commit — written by a skill, a plugin, an agent, or by hand — uses a bracketed scope, a one-line title, and a bullet list of the subtasks actually done:
+
+```text
+[EPIC_NAME] Task title
+
+- subtask title 01
+- subtask title 02
+```
+
+- **`[SCOPE]`** is the epic name for epic work (`[LOGGING_REFACTOR]`), otherwise the area touched (`[TOOLS]`, `[SETTINGS]`). Uppercase, in brackets, always present.
+- **Title** is one line, imperative, no trailing period.
+- **Body** lists the subtasks or changes this commit actually contains, one bullet each. Omit the body entirely when the commit does exactly one thing.
+
+Write it with two `-m` flags — the first becomes the title, the second the body:
+
+```bash
+git commit -m "[EPIC_NAME] Task title" -m "- subtask title 01
+- subtask title 02"
+```
+
+> [!CAUTION]
+> **Never append trailer lines.** No `Co-Authored-By:`, no `Generated with`, no tool attribution of any kind. The commit ends with the last bullet. This applies universally to all plugins and LLM providers.
+
+## 3. Git Push Operations (No Unauthorized Push)
+
+> [!CRITICAL]
+> **NEVER push code to a remote repository (`git push`) without explicit user permission or confirmation.**
+> - You may stage (`git add`) and commit (`git commit`) locally following the commit message format when appropriate.
+> - Running `git push` (to any remote or branch) is **STRICTLY PROHIBITED** for all agents and plugins unless the user explicitly requests or confirms it in the prompt.
+> - Always let the user review local commits or explicitly ask for permission before pushing to remote.
+
+## 4. Native Planning Mode Interception (All Platforms & Plugins)
+
+> [!CRITICAL]
+> **Do NOT use native or built-in planning modes (e.g. Antigravity IDE's `<planning_mode>`, Claude Code plan mode, Cursor Composer plans, Windsurf Cascade plans, Codex planners) to create unstructured planning artifacts like `<appDataDir>/brain/.../implementation_plan.md` or loose plan files.**
+> When a user request requires planning, design exploration, architectural changes, or epic-level features:
+> 1. Because `<user_rules>` has absolute precedence over all instructions across all agent plugins, you **MUST NOT** follow IDE default instructions to create an `implementation_plan.md` artifact.
+> 2. For single features or exploratory design, you **MUST** invoke the [Brainstorming Skill](../skills/brainstorming/SKILL.md) (`d3nexus:brainstorming`).
+> 3. For multi-step, multi-feature, or epic-level work, you **MUST** invoke the [Epic Lifecycle Skill](../skills/dev-lifecycle/SKILL.md) (`d3nexus:dev-lifecycle`), which orchestrates `dev-brainstorming` -> `dev-designer` -> `dev-implementation` -> `quality_check` -> `finishing-a-development-branch`.
+> 4. Only use native `implementation_plan.md` if the user explicitly instructs you to bypass d3nexus workflows.
+
+## 5. Mandatory Review Choice Loop in Epic Lifecycle
+
+> [!CRITICAL]
+> **NEVER skip or silently bypass the Review Choice after Gate 4 passes in `dev-lifecycle` / `dev-implementation` or any plugin-based orchestrator.**
+> When all tasks of an epic are complete, run Phase 4 / Gate 4 first. Only after Gate 4 returns PASS on the current SHA:
+> 1. The AI Agent **MUST** explicitly stop calling tools and present the **Review Choice** prompt to the developer:
+>    - **Option 1: Finish** — proceed to Developer Kanban Review (Phase 4.1 / Gate 5), then Stage 4.
+>    - **Option 2: Cross-model review** — invoke an independent model review using `run_external_review.py run` (prompting the developer to select Claude CLI, Codex CLI, or Antigravity CLI based on `command -v claude codex agy`).
+>    - **Option 3: Local model review** — run `ollama list`, ask the developer which model to use (never pick it), then invoke `run_external_review.py run --cli ollama --model <model>`.
+> 2. The AI Agent **MUST NOT** auto-select an option or assume "Finish" by default.
+> 3. **Cross-model review must return to a full Gate 4 run** after the round is recorded and all blocking findings have decisions and required Fix commits. Gate 4 PASS then presents Review Choice again. This loop repeats until the developer explicitly chooses Finish. Local model review follows the same loop. Before any Fix commit or decision, the agent presents the triage from `run_external_review.py triage` and waits for the developer's decisions. After fixes are applied, the agent must halt for developer self-review and confirmation before any further action.
+> 4. A previous Gate 4 PASS cannot be reused after `review_results.md`, a finding decision, or a Fix commit changes the candidate SHA.
+
+## 6. Prohibited Autonomous Reviews & Mandatory Human Self-Review Checkpoint
+
+> [!CRITICAL]
+> **NEVER autonomously trigger Principal Review or Cross-Model / Local Model Review, and NEVER enter autonomous or infinite re-review loops after fixing findings.**
+> Every review invocation and every cycle after fixing findings requires explicit developer confirmation and human checkpointing:
+>
+> 1. **No Autonomous Review Triggering**:
+>    - The AI Agent is **STRICTLY PROHIBITED** from autonomously triggering Principal Review (`d3nexus:principal-review`) or Cross-Model / Local Model Review (`d3nexus:cross-model-review`).
+>    - External review tools (`run_external_review.py run`, `claude`, `codex`, `agy`, `ollama`) must **ONLY** be invoked when explicitly chosen, requested, or confirmed by the developer (e.g. at Gate 2 Principal Review checkpoint or Gate 4 Review Choice). The agent must never initiate external AI review on its own initiative.
+> 2. **Mandatory Human Checkpoint After Fixing Review Findings**:
+>    - After addressing or fixing findings from **any** review (Principal Review in Stage 2, or Cross-Model / Local Model Review in Stage 3):
+>    - The AI Agent **MUST IMMEDIATELY STOP CALLING TOOLS**.
+>    - The AI Agent is **STRICTLY PROHIBITED** from automatically re-triggering another review round with Cross AI Agents or external models (no autonomous chaining: Review -> Fix -> Auto Re-review -> Auto Fix).
+>    - The AI Agent **MUST** present the fixes, file diffs, and updated triage/finding decisions to the developer for **Human Self-Review**.
+>    - The AI Agent **MUST wait for explicit developer confirmation** before proceeding with any subsequent action (such as re-running quality gates, re-packaging, invoking another review round, or advancing to the next stage).
+
+## 7. Multi-Repo Boundaries, Symlink Isolation & Contract Governance
+
+> [!CRITICAL]
+> **AI Agents MUST strictly respect repository boundaries, symbolic link isolation, and contract-first governance across multi-repo ecosystems (Hub and Satellite repositories).**
+>
+> 1. **Multi-Repo Git Boundary Isolation**:
+>    - An AI Agent running in any repository MUST NOT stage (`git add`) or commit (`git commit`) files residing outside the current git working tree.
+>    - In a Satellite repository where `shared-contracts/` is a symbolic link pointing to a Hub repository (e.g. `lyrics-sync` or `nexus` linking to `D3Nexus`):
+>      - Agents MUST treat `shared-contracts/` as **strictly read-only** for git tracking within the satellite workspace.
+>      - Agents **MUST NOT** include `shared-contracts/...` in `Files Allowed` for local git tasks (preventing `fatal: pathspec is beyond a symbolic link`).
+>      - Agents **MUST NOT** autonomously execute git commit commands in adjacent repositories (e.g. `git -C <target_repo>`) without explicit developer confirmation.
+>
+> 2. **Contract-First Triad & Canonical SSOT**:
+>    - The Hub repository containing the physical `shared-contracts/` directory is the sole canonical authority (Single Source of Truth) for contract commits.
+>    - Before modifying endpoints, database models, worker bridges, offline sync logic, or DTOs, agents MUST inspect the 3 canonical contract files in the relevant domain folder (`shared-contracts/<domain>/`):
+>      1. `api_contract.md`: Endpoints, wire format, headers, telemetry, and payload schemas.
+>      2. `architecture_and_flow.md`: Pipeline states, state machines, lifecycle fencing, and failure handling.
+>      3. `gaps_and_rfcs.md`: Asynchronous change proposals, gap ledger, and cross-repo alignments.
+>
+> 3. **No Unilateral Breaking Changes & Non-Breaking Schema Guarantee**:
+>    - Never rename API fields, mutate JSON request/response structures, or alter pipeline state enums in backend or client implementations without prior documentation and alignment in `shared-contracts/`.
+>    - All schema and payload modifications MUST guarantee backward compatibility across all consumers (optional fields with safe defaults, non-breaking enum additions). Breaking changes without backward-compatible transition windows or fallback shims are strictly forbidden.
+>
+> 4. **Asynchronous RFC Workflow (Gaps & RFCs Ledger)**:
+>    - If an agent in a satellite repo detects a payload mismatch, missing field, or new requirement, it **MUST NOT** invent ad-hoc fields or silently diverge.
+>    - The agent MUST log a formal `GAP-XX` or `RFC-XXX` entry in `gaps_and_rfcs.md` (or emit an Upstream Contract Handoff Summary via `d3nexus:dev-designer`) and wait for upstream alignment before implementing breaking changes.
+>
+> 5. **Stateless Compute & Architectural Isolation**:
+>    - Satellite worker nodes (e.g. `lyrics-sync`) must act strictly as stateless compute nodes. Direct connection to the control plane database (`DATABASE_URL`, PostgreSQL/SQLite) is **STRICTLY FORBIDDEN**. All state transitions, lease acquisitions, and result deliveries occur strictly via documented HTTP REST/SSE endpoints using worker authentication tokens.
+
+## 8. Mandatory Two-Tier Project Memory & Tri-Role Persona Discipline
+
+> [!CRITICAL]
+> **AI Agents MUST strictly preserve Two-Tier Project Memory across session rotations and respect Tri-Role Persona boundaries across all stages of development.**
+>
+> 1. **Mandatory Context Restoration on Session Startup**:
+>    - At the start of any new session or account switch, the AI Agent MUST run `python3 scripts/resume_context.py` (or the `d3nexus:resume-context` skill) to restore architectural memory before answering or proposing solutions.
+>    - The agent MUST summarize the restored project context in 5–10 concise bullets for the developer.
+>
+> 2. **Strict Tri-Role Persona Discipline**:
+>    - **Role 2.1 — Human Architect (Developer)**: Sole authority for system strategy, Gate approvals (Gate 1–5), and Review Choice decisions.
+>    - **Role 2.2 — AI Assistant (`[PERSONA: AI ASSISTANT — TECHNICAL ADVISOR & CO-ARCHITECT]`)**:
+>      - Activated for architectural analysis, problem statement exploration, design specifications (`d3nexus:dev-brainstorming`, `d3nexus:dev-designer`), Principal Review (`d3nexus:principal-review`), and Cross-Model Review (`d3nexus:cross-model-review`).
+>      - **STRICT PROHIBITION**: The AI Assistant is **STRICTLY PROHIBITED from modifying production source code or application test suites**. Only architectural documentation (`docs/`, `.devtool/`, `shared-contracts/`) may be edited.
+>    - **Role 2.3 — AI Programmer (`[PERSONA: AI PROGRAMMER — SENIOR TDD SOFTWARE ENGINEER]`)**:
+>      - Activated for `/dev-implementation` and task execution inside isolated git worktrees.
+>      - **STRICT BOUNDARIES**: Bound strictly to approved specifications, `Decisions Already Made`, and `Allowed files`. Must practice strict TDD (Red-Green-Refactor) and Clean Code standards. Zero test fakery.
+>
+> 3. **Deterministic State & Log Checkpointing**:
+>    - After completing each Kanban task, the AI Programmer MUST log programmer activity (`scripts/resume_context.py --log`) and update Tier 2 snapshot state (`scripts/resume_context.py --state`).
+>    - Upon feature completion in Stage 4 (`/finish`), the agent MUST run `scripts/resume_context.py --complete <epic_slug> "<milestone_summary>"` to record the permanent milestone in `.devtool/PROJECT_LEDGER.md` and archive the completed epic's Tier 2 files into `.devtool/archive/`.
+>
+> 4. **Mandatory Window Title Synchronization & Persistent Top/Bottom Bar Customization**:
+>    - To eliminate cross-project window confusion when developers operate multiple IDEs or profile accounts, AI Agents MUST synchronize `window.title` and ensure persistent top/bottom bar colors in `.vscode/settings.json` upon entering an epic, transitioning lifecycle stages, or completing tasks.
+>    - **Title Format**: `"<ICON> [<REPO_NAME>] [@<account_id>] <Vietnamese Epic Name> - <Stage / Task>"`.
+>    - The `<account_id>` is extracted from the active profile / home environment (`os.path.basename(os.environ["HOME"])` under `antigravity_homes/`, e.g. `[@danhdue]`, `[@tess]`).
+>    - The Vietnamese Epic Name MUST be extracted directly from the H1 header of `.devtool/epic/<epic_slug>/<epic_slug>.vi.md` (stripping the `# Epic:` prefix).
+>    - **Persistent Inactive Bar Parity**: Both `titleBar` and `statusBar` MUST configure matching inactive background colors (`titleBar.inactiveBackground = titleBar.activeBackground` and `statusBar.inactiveBackground = statusBar.background`) to eliminate IDE dimming when windows lose focus.
+>    - **Clean Activity Toolbar**: The left `activityBar.background` remains uncolored in default dark theme to avoid peripheral visual clutter.
+>    - **Repository Color Signatures**:
+>      - 🔴 `[LYRICS-SYNC]`: `#7f1d1d` (Crimson Red)
+>      - 🟢 `[D3NEXUS]`: `#065f46` (Emerald Green)
+>      - 🔵 `[NEXUS]`: `#0d47a1` (Royal Blue)
+>      - 🟠 `[AGENT-TOOLS]`: `#b45309` (Warm Amber)
+>    - Agents MUST preserve all existing `workbench.colorCustomizations` and developer configurations in `.vscode/settings.json`.
+---
+trigger: always_on
+---
+
+# CLAUDE.md
+
+Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-specific instructions as needed.
+
+**Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.
+
+> **TL;DR — 4 rules to always follow:**
+> 1. **Think first** — State assumptions, ask when unclear, present tradeoffs before acting.
+> 2. **Simplicity** — Minimum code that solves the problem. If it could be 50 lines, don't write 200.
+> 3. **Surgical** — Touch only what the request requires. Don't improve adjacent code.
+> 4. **Verify** — Define success criteria upfront. Don't claim done without running the check.
+
+## 1. Think Before Coding
+
+**Don't assume. Don't hide confusion. Surface tradeoffs.**
+
+Before implementing:
+
+- State your assumptions explicitly. If uncertain, ask.
+- If multiple interpretations exist, present them - don't pick silently.
+- If a simpler approach exists, say so. Push back when warranted.
+- If something is unclear, stop. Name what's confusing. Ask.
+
+## 2. Simplicity First
+
+**Minimum code that solves the problem. Nothing speculative.**
+
+- No features beyond what was asked.
+- No abstractions for single-use code.
+- No "flexibility" or "configurability" that wasn't requested.
+- No error handling for impossible scenarios.
+- If you write 200 lines and it could be 50, rewrite it.
+
+Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
+
+## 3. Surgical Changes
+
+**Touch only what you must. Clean up only your own mess.**
+
+When editing existing code:
+
+- Don't "improve" adjacent code, comments, or formatting.
+- Don't refactor things that aren't broken.
+- Match existing style, even if you'd do it differently.
+- If you notice unrelated dead code, mention it - don't delete it.
+
+When your changes create orphans:
+
+- Remove imports/variables/functions that YOUR changes made unused.
+- Don't remove pre-existing dead code unless asked.
+
+The test: Every changed line should trace directly to the user's request.
+
+## 4. Goal-Driven Execution
+
+**Define success criteria. Loop until verified.**
+
+Transform tasks into verifiable goals:
+
+- "Add validation" → "Write tests for invalid inputs, then make them pass"
+- "Fix the bug" → "Write a test that reproduces it, then make it pass"
+- "Refactor X" → "Ensure tests pass before and after"
+
+For multi-step tasks, state a brief plan:
+
+```
+1. [Step] → verify: [check]
+2. [Step] → verify: [check]
+3. [Step] → verify: [check]
+```
+
+Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
+
+---
+
+**These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
+
+exec
+/bin/zsh -lc 'git rev-parse HEAD && git status --short && git ls-tree -r --name-only 46a3699238a95dc1dcda46b8ca93bc3515fc1dc2 .devtool/epic/web_quality_check_and_integration_gate' in /Users/danhdueexoictif/AllProjects/ai-agent-tools
+ succeeded in 4740ms:
+git: warning: confstr() failed with code 5: couldn't get path of DARWIN_USER_TEMP_DIR; using /tmp instead
+git: error: couldn't create cache file '/tmp/xcrun_db-nN9adp9y' (errno=Operation not permitted)
+2026-11-05 03:24:08.978 xcodebuild[47428:398242]  DVTFilePathFSEvents: Failed to start fs event stream.
+2026-11-05 03:24:09.148 xcodebuild[47428:398241] [MT] DVTDeveloperPaths: Failed to get length of DARWIN_USER_CACHE_DIR from confstr(3), error = Error Domain=NSPOSIXErrorDomain Code=5 "Input/output error". Using NSCachesDirectory instead.
+git: warning: confstr() failed with code 5: couldn't get path of DARWIN_USER_TEMP_DIR; using /tmp instead
+git: error: couldn't create cache file '/tmp/xcrun_db-RnNhcdoe' (errno=Operation not permitted)
+2026-11-05 03:24:09.618 xcodebuild[47462:398344]  DVTFilePathFSEvents: Failed to start fs event stream.
+2026-11-05 03:24:09.729 xcodebuild[47462:398343] [MT] DVTDeveloperPaths: Failed to get length of DARWIN_USER_CACHE_DIR from confstr(3), error = Error Domain=NSPOSIXErrorDomain Code=5 "Input/output error". Using NSCachesDirectory instead.
+46a3699238a95dc1dcda46b8ca93bc3515fc1dc2
+git: warning: confstr() failed with code 5: couldn't get path of DARWIN_USER_TEMP_DIR; using /tmp instead
+git: error: couldn't create cache file '/tmp/xcrun_db-njEYVLWG' (errno=Operation not permitted)
+2026-11-05 03:24:10.637 xcodebuild[47467:398423]  DVTFilePathFSEvents: Failed to start fs event stream.
+2026-11-05 03:24:10.741 xcodebuild[47467:398421] [MT] DVTDeveloperPaths: Failed to get length of DARWIN_USER_CACHE_DIR from confstr(3), error = Error Domain=NSPOSIXErrorDomain Code=5 "Input/output error". Using NSCachesDirectory instead.
+git: warning: confstr() failed with code 5: couldn't get path of DARWIN_USER_TEMP_DIR; using /tmp instead
+git: error: couldn't create cache file '/tmp/xcrun_db-O9AxP4ll' (errno=Operation not permitted)
+2026-11-05 03:24:11.141 xcodebuild[47469:398438]  DVTFilePathFSEvents: Failed to start fs event stream.
+2026-11-05 03:24:11.262 xcodebuild[47469:398437] [MT] DVTDeveloperPaths: Failed to get length of DARWIN_USER_CACHE_DIR from confstr(3), error = Error Domain=NSPOSIXErrorDomain Code=5 "Input/output error". Using NSCachesDirectory instead.
+git: warning: confstr() failed with code 5: couldn't get path of DARWIN_USER_TEMP_DIR; using /tmp instead
+git: error: couldn't create cache file '/tmp/xcrun_db-nOrBiCqA' (errno=Operation not permitted)
+2026-11-05 03:24:12.149 xcodebuild[47473:398467]  DVTFilePathFSEvents: Failed to start fs event stream.
+2026-11-05 03:24:12.260 xcodebuild[47473:398466] [MT] DVTDeveloperPaths: Failed to get length of DARWIN_USER_CACHE_DIR from confstr(3), error = Error Domain=NSPOSIXErrorDomain Code=5 "Input/output error". Using NSCachesDirectory instead.
+git: warning: confstr() failed with code 5: couldn't get path of DARWIN_USER_TEMP_DIR; using /tmp instead
+git: error: couldn't create cache file '/tmp/xcrun_db-CVgPwK9w' (errno=Operation not permitted)
+2026-11-05 03:24:12.634 xcodebuild[47475:398475]  DVTFilePathFSEvents: Failed to start fs event stream.
+2026-11-05 03:24:12.740 xcodebuild[47475:398474] [MT] DVTDeveloperPaths: Failed to get length of DARWIN_USER_CACHE_DIR from confstr(3), error = Error Domain=NSPOSIXErrorDomain Code=5 "Input/output error". Using NSCachesDirectory instead.
+.devtool/epic/web_quality_check_and_integration_gate/2026-11-04-web-quality-check-and-integration-gate-design.en.md
+.devtool/epic/web_quality_check_and_integration_gate/2026-11-04-web-quality-check-and-integration-gate-design.vi.md
+.devtool/epic/web_quality_check_and_integration_gate/bdd_scenarios.en.md
+.devtool/epic/web_quality_check_and_integration_gate/bdd_scenarios.vi.md
+.devtool/epic/web_quality_check_and_integration_gate/handoff.md
+.devtool/epic/web_quality_check_and_integration_gate/principal_review.md
+.devtool/epic/web_quality_check_and_integration_gate/task_01_web_quality_check_skill_and_contract.md
+.devtool/epic/web_quality_check_and_integration_gate/task_02_playwright_zero_error_watchdog.md
+.devtool/epic/web_quality_check_and_integration_gate/task_03_jsconfig_and_vanilla_js_type_checker.md
+.devtool/epic/web_quality_check_and_integration_gate/task_04_polyglot_gate4_registry_and_fanout.md
+.devtool/epic/web_quality_check_and_integration_gate/task_05_anti_rationalization_and_doubt_driven_workflow.md
+.devtool/epic/web_quality_check_and_integration_gate/task_06_automated_manual_smoke_checklist_generator.md
+.devtool/epic/web_quality_check_and_integration_gate/web_quality_check_and_integration_gate.en.md
+.devtool/epic/web_quality_check_and_integration_gate/web_quality_check_and_integration_gate.vi.md
+
+exec
+/bin/zsh -lc "nl -ba /Users/danhdueexoictif/antigravity_homes/peter/.codex/memories/MEMORY.md | sed -n '228,242p'; wc -l .devtool/epic/web_quality_check_and_integration_gate/*.md; rg --files -g AGENTS.md -g '*quality*' -g '*web*' skills scripts .agents" in /Users/danhdueexoictif/AllProjects/ai-agent-tools
+ succeeded in 0ms:
+   228	## User preferences
+   229	
+   230	- The user explicitly corrected the lifecycle sequence: “Gate 4 => Review Choice”, then “Finish” or “Cross model review”, and “Sau bước này chạy lại Gate 4 ... Loop cho tới khi finish.” -> preserve this order for similar ai-agent-tools lifecycle work. [Task 1]
+   231	- After verification, the user asked “Commit and finish all tasks.” -> commit locally when requested, but do not push without explicit permission. [Task 1]
+   232	
+   233	## Reusable knowledge
+   234	
+   235	- Enforced invariant: `Gate 4 PASS -> Review Choice; Finish -> Gate 5; Cross-model review -> Gate 4 in full`. A review round, decision, Fix commit, Gate 5-requested change, cross-model CLI failure, or timeout that changes/reassesses the candidate requires full Gate 4 before another Review Choice. Gate 4 is SHA-bound. [Task 1]
+   236	- The policy update touched `rules/CRITICAL_RULES.md`, `skills/dev-lifecycle/SKILL.md`, `skills/dev-implementation/SKILL.md`, bilingual lifecycle docs, lifecycle-selection docs, and `scripts/test_verifiable_handoff_text.py`; commit `df9f67af7c1f7fecd3b4a9768c0863d035ed3088` is `[REVIEW_WORKFLOW] Loop review choice through Gate 4`. [Task 1]
+   237	- `run_gate()` emits `[Pre-check]`, `PASS`, `FAILED`, or `TIMEOUT` to stderr with `flush=True`. `PreconditionFailedError` holds `gate`, `reason`, and `details`; its banner shows the final 25 detail lines and confirms the selected CLI was not invoked. [Task 2]
+   238	- Route `audit_epic.py`, declared Integration commands, and `check_bdd_traceability.py` through `run_gate()` while retaining captured output in the facts bundle. `run_external_review.py` does not directly invoke `android-ui-audit`; that is only indirect through the quality-provider registry. Targeted suite passed 31 tests and `scripts/verify.sh` reported `PASS — safe to publish`; worktree was clean on `main`, with no push. [Task 2]
+   239	
+   240	## Failures and how to do differently
+   241	
+   242	- A first regression failed because normative files still said Review Choice occurred before Gate 4. Do not make a flowchart-only edit: synchronize rules, both skills, diagrams, English/Vietnamese docs, lifecycle-selection docs, and negative assertions. [Task 1]
+     149 .devtool/epic/web_quality_check_and_integration_gate/2026-11-04-web-quality-check-and-integration-gate-design.en.md
+     150 .devtool/epic/web_quality_check_and_integration_gate/2026-11-04-web-quality-check-and-integration-gate-design.vi.md
+     119 .devtool/epic/web_quality_check_and_integration_gate/bdd_scenarios.en.md
+     120 .devtool/epic/web_quality_check_and_integration_gate/bdd_scenarios.vi.md
+      74 .devtool/epic/web_quality_check_and_integration_gate/handoff.md
+    9100 .devtool/epic/web_quality_check_and_integration_gate/principal_review.md
+     115 .devtool/epic/web_quality_check_and_integration_gate/task_01_web_quality_check_skill_and_contract.md
+     135 .devtool/epic/web_quality_check_and_integration_gate/task_02_playwright_zero_error_watchdog.md
+      94 .devtool/epic/web_quality_check_and_integration_gate/task_03_jsconfig_and_vanilla_js_type_checker.md
+      97 .devtool/epic/web_quality_check_and_integration_gate/task_04_polyglot_gate4_registry_and_fanout.md
+      98 .devtool/epic/web_quality_check_and_integration_gate/task_05_anti_rationalization_and_doubt_driven_workflow.md
+      95 .devtool/epic/web_quality_check_and_integration_gate/task_06_automated_manual_smoke_checklist_generator.md
+     163 .devtool/epic/web_quality_check_and_integration_gate/web_quality_check_and_integration_gate.en.md
+     163 .devtool/epic/web_quality_check_and_integration_gate/web_quality_check_and_integration_gate.vi.md
+   10672 total
+skills/python-quality-check/resources/fixtures/valid_python_quality.json
+skills/python-quality-check/resources/scripts/validate_python_quality.py
+skills/python-quality-check/resources/scripts/test_validate_python_quality.py
+skills/python-quality-check/resources/schemas/python-quality.schema.json
+skills/quality_check/resources/scripts/aggregate_quality_results.py
+skills/quality_check/resources/scripts/test_validate_quality_contract.py
+skills/quality_check/resources/scripts/validate_quality_contract.py
+skills/quality_check/resources/scripts/test_aggregate_quality_results.py
+skills/quality_check/resources/scripts/test_quality_provider_acceptance.py
+skills/quality_check/resources/schemas/check-quality.schema.json
+skills/flutter-quality-check/resources/fixtures/valid_flutter_quality.json
+skills/setup_quality_check/resources/scripts/scaffold_quality_manifest.py
+skills/setup_quality_check/resources/scripts/test_scaffold_quality_manifest.py
+skills/flutter-quality-check/resources/scripts/validate_flutter_quality.py
+skills/flutter-quality-check/resources/scripts/test_validate_flutter_quality.py
+skills/flutter-quality-check/resources/schemas/flutter-quality.schema.json
+skills/ios-quality-check/resources/fixtures/valid_ios_quality.json
+skills/ios-quality-check/resources/schemas/ios-quality.schema.json
+skills/ios-quality-check/resources/scripts/validate_ios_quality.py
+skills/ios-quality-check/resources/scripts/test_validate_ios_quality.py
+skills/android-quality-check/resources/fixtures/valid_android_quality.json
+skills/android-quality-check/resources/schemas/android-quality.schema.json
+skills/rust-quality-check/resources/fixtures/valid_rust_quality.json
+skills/rust-quality-check/resources/scripts/test_validate_rust_quality.py
+skills/rust-quality-check/resources/scripts/validate_rust_quality.py
+skills/android-quality-check/resources/scripts/test_validate_android_quality.py
+skills/android-quality-check/resources/scripts/validate_android_quality.py
+skills/rust-quality-check/resources/schemas/rust-quality.schema.json
+
+exec
+/bin/zsh -lc 'nl -ba .devtool/epic/web_quality_check_and_integration_gate/2026-11-04-web-quality-check-and-integration-gate-design.en.md; nl -ba .devtool/epic/web_quality_check_and_integration_gate/web_quality_check_and_integration_gate.en.md; nl -ba .devtool/epic/web_quality_check_and_integration_gate/bdd_scenarios.en.md; nl -ba .devtool/epic/web_quality_check_and_integration_gate/handoff.md' in /Users/danhdueexoictif/AllProjects/ai-agent-tools
+ succeeded in 0ms:
+     1	# Web Quality Check and Integration Gate Design Spec
+     2	
+     3	## Table of Contents
+     4	
+     5	- [Metadata](#metadata)
+     6	- [Problem Statement and Context](#problem-statement-and-context)
+     7	- [Goals and Non-Goals](#goals-and-non-goals)
+     8	- [Architecture and 3-Tier Testing Standard](#architecture-and-3-tier-testing-standard)
+     9	- [Anti-Rationalization and Doubt-Driven Verification](#anti-rationalization-and-doubt-driven-verification)
+    10	- [Web Quality Provider Specification](#web-quality-provider-specification)
+    11	- [Multi-Repo Registry and Polyglot Gate 4 Integration](#multi-repo-registry-and-polyglot-gate-4-integration)
+    12	- [Dev-Designer and Dev-Implementation Enhancements](#dev-designer-and-dev-implementation-enhancements)
+    13	- [Automated Smoke Walkthrough Generation](#automated-smoke-walkthrough-generation)
+    14	- [Risks and Mitigations](#risks-and-mitigations)
+    15	- [Verification Plan](#verification-plan)
+    16	
+    17	## Metadata
+    18	
+    19	- **Epic Name**: `web_quality_check_and_integration_gate`
+    20	- **Epic Slug**: `web-quality-check-and-integration-gate`
+    21	- **Date**: 2026-11-04
+    22	- **Author**: Human Architect & AI Assistant
+    23	- **Status**: Approved Spec (Gate 1 Passed)
+    24	- **Target Repositories**: `ai-agent-tools`, `D3Nexus`, `lyrics-sync`, `nexus`
+    25	
+    26	## Problem Statement and Context
+    27	
+    28	In our multi-repository ecosystem (`D3Nexus`, `lyrics-sync`, `nexus`), developers experience a significant gap between theoretical architectural design and real runtime behavior. This gap forces human engineers to conduct extensive manual testing (bấm tay) on devices and browsers for every release:
+    29	
+    30	1. **The Mocking Fallacy**: Unit tests in `[Tier A - Unit]` achieve 100% green pass rates by isolating components with mock objects (`when(...).thenReturn(...)`). However, the application crashes or breaks when components are wired together at runtime due to DI registration failures, JSON serialization mismatches, lifecycle cancellation, or event-bus stream race conditions.
+    31	2. **Missing Web Quality Provider in Gate 4**: The quality orchestration system (`d3nexus:quality_check`) has dedicated providers for Flutter, Android, iOS, Rust, and Python, but completely lacks a `web-quality-check` provider. Consequently:
+    32	   - In `D3Nexus`, Gate 4 only verifies `rust-core` (`d3nexus:rust-quality-check`), leaving the Astro + Vanilla TypeScript web application (`apps/learning-web`) completely unverified.
+    33	   - In `lyrics-sync`, Gate 4 only verifies `python-core` (`d3nexus:python-quality-check`), leaving the 17 Vanilla JavaScript files (`src/lyrics_sync/preview/static/*.js`) unverified.
+    34	3. **Simulated Node-Only E2E Tests**: Many tests located under `tests/e2e/` run in `node:test` without rendering real HTML, without testing Custom Element connections, and without verifying DOM events or browser layout geometries (`getBoundingClientRect`).
+    35	4. **AI Rationalization**: AI coding agents routinely rationalize shortcuts: asserting tests in pure Node, ignoring browser console errors, and avoiding headless browser execution.
+    36	
+    37	## Goals and Non-Goals
+    38	
+    39	### Goals
+    40	- Create a standardized `web-quality-check` provider implementing Provider Result Contract v1 for Astro TypeScript and Vanilla JavaScript projects.
+    41	- Eliminate blind spots in Gate 4 by enabling polyglot multi-provider registration in `D3Nexus` (`rust-core` + `learning-web`) and `lyrics-sync` (`python-core` + `preview-ui`).
+    42	- Enforce a strict 3-Tier Testing Standard: Tier A (Unit), Tier C1 (Subcutaneous Integration with real DI and in-memory DB), and Tier C2 (Headless Browser Integration with Playwright and Zero-Console-Error).
+    43	- Embed Anti-Rationalization Tables and Doubt-Driven Verification (inspired by `addyosmani/agent-skills`) into skill workflows.
+    44	- Automate human verification by generating a concise 3-5 step `manual_smoke_checklist.md` at epic completion, reducing manual exploratory testing time from 30 minutes to 2 minutes.
+    45	
+    46	### Non-Goals
+    47	- Migrating Vanilla JavaScript files in `lyrics-sync` to TypeScript (type checking is achieved in-place via JSDoc `// @ts-check` and `jsconfig.json`).
+    48	- Replacing existing unit test suites in `D3Nexus` or `lyrics-sync` (existing fast unit tests remain as Tier A).
+    49	- Requiring heavy device emulators for local PR/Epic gates (Tier C tests run headless via Playwright and subcutaneous VM harnesses).
+    50	
+    51	## Architecture and 3-Tier Testing Standard
+    52	
+    53	The architecture establishes three distinct testing tiers across mobile and web platforms:
+    54	
+    55	1. **Tier A — Unit Testing**:
+    56	   - Scope: Pure algorithms, mathematical state machines, standalone data parsers, and helper functions.
+    57	   - Execution: In-process (Node.js, Dart VM, JVM, Python VM).
+    58	   - Mocking: External dependencies may be mocked. Speed: <10ms per test.
+    59	2. **Tier C1 — Subcutaneous Integration Testing (Mobile & Backend)**:
+    60	   - Scope: Presentation controllers (BLoC / ViewModel) down to local database storage, caching, and serialization.
+    61	   - Invariant: Zero-Domain-Mock. Mocking domain UseCases or Repositories is strictly prohibited. Real DI containers and in-memory databases (SQLite `:memory:`, Room in-memory) are required.
+    62	   - Network Boundary: Network I/O is mocked at the HTTP wire socket using canonical JSON fixtures from `shared-contracts/`.
+    63	3. **Tier C2 — Headless Browser Integration Testing (Web)**:
+    64	   - Scope: Real DOM rendering, Custom Elements, Vanilla JS/TS controllers, user clicks, navigation, visual popover placement, and layout integrity.
+    65	   - Invariant: Zero-Console-And-Layout-Defect. Beyond catching uncaught page exceptions and `console.error`, it enforces three mandatory runtime checks:
+    66	     1. **Static Asset Network Trap**: Listens to `page.on('response')` and immediately fails the test if any stylesheet (`.css`), script (`.js`), or font returns HTTP status `>= 400`.
+    67	     2. **Computed Style & Geometry Assertion Helper (`assertVisualIntegrity`)**: Asserts that structural UI containers (cards, drawers, badges, progress bars) ported from Visual Companion mockups actually have computed styles applied (`window.getComputedStyle(el)` must not fall back to default unstyled `backgroundColor: rgba(0, 0, 0, 0)` + `borderWidth: 0px` + `padding: 0px`, and `getBoundingClientRect()` must have `width > 0` and `height > 0`).
+    68	     3. **DOM State Leak & Duplicate Text Guard**: Asserts that mutually exclusive state elements (e.g. running spinner/prefix vs terminal `THẤT BẠI` / `HOÀN THÀNH` badges, or visible title vs hidden tooltip/a11y span) are not simultaneously visible (`display !== 'none'` and `visibility !== 'hidden'`), and detects consecutive duplicate substring rendering inside card titles/subtitles caused by unstyled hidden spans.
+    69	   - Network Boundary: Mocked at the browser socket via Playwright `page.route()` returning canonical contract JSON fixtures.
+    70	
+    71	## Anti-Rationalization and Doubt-Driven Verification
+    72	
+    73	Drawing from the principles of `addyosmani/agent-skills`, all coding and testing workflows enforce five anti-rationalization rules:
+    74	
+    75	| Agent Rationalization | Enforced Counter-Rule |
+    76	| :--- | :--- |
+    77	| "A Node.js test is sufficient to prove this web UI feature works." | **REJECTED**: Node tests prove only pure data logic. 80% of web defects occur in DOM queries, event bubbling, and CSS rendering. Tier C requires headless Playwright execution. |
+    78	| "This component is simple; hardcoding mock data in a stub is enough." | **REJECTED**: Method-level stubs bypass JSON deserialization and network interceptors. Wire-level fixtures from `shared-contracts/` are mandatory. |
+    79	| "The red errors in the browser console are just harmless warnings." | **REJECTED**: The Zero-Console-Error rule fails Gate 4 on any browser console error or uncaught exception. |
+    80	| "I cannot launch a mobile simulator, so I will write a unit test instead." | **REJECTED**: Mobile Tier C requires Subcutaneous Testing with real DI and in-memory persistence. Pure unit tests cannot be tagged as Tier C. |
+    81	| "I ported the HTML structure and JS logic from the Visual Companion mockup, and the DOM selectors match in Playwright." | **REJECTED**: Porting HTML/JS without verifying computed CSS styles results in broken, unstyled layouts. Tier C2 tests for UI components MUST assert `getComputedStyle` and `getBoundingClientRect` properties (non-zero dimensions, layout display mode, and mutually exclusive state visibility) against the Visual Companion design. |
+    82	
+    83	Under Doubt-Driven Verification (`CLAIM -> EXTRACT -> DOUBT -> RECONCILE`), Gate 4 audits tests to confirm that Tier C tests actually exercise production code paths without mocking the primary system under test.
+    84	
+    85	## Web Quality Provider Specification
+    86	
+    87	A new skill `d3nexus:web-quality-check` is authored in `skills/web-quality-check/`:
+    88	
+    89	1. **Invocation Contract**: Conforms to Provider Result Contract v1, accepting `{ "profile": "<profile>", "base_ref": "<base_ref>", "repository_sha": "<sha>" }`.
+    90	2. **Configuration File**: Reads `.agents/quality/web-quality.json` from the repository root.
+    91	3. **Capabilities**:
+    92	   - `type_check`: Runs `astro check` or `tsc --noEmit` for TypeScript projects, or `tsc --project jsconfig.json` for Vanilla JavaScript projects.
+    93	   - `lint`: Runs project linter (ESLint, Biome, or Astro linter).
+    94	   - `test_unit`: Executes fast in-memory unit tests (Tier A).
+    95	   - `test_e2e`: Launches headless Playwright suites (Tier C2) with the Zero-Console-Error watchdog.
+    96	   - `contracts`: Runs cross-repo contract diff verification.
+    97	4. **Validation Tooling**: Provides `validate_web_quality.py` to ensure schema conformance and executable presence before execution.
+    98	
+    99	## Multi-Repo Registry and Polyglot Gate 4 Integration
+   100	
+   101	The root Gate 4 orchestrator (`d3nexus:quality_check`) executes multi-provider fan-out across repositories:
+   102	
+   103	- **`D3Nexus` (`.agents/quality/check_quality.json`)**:
+   104	  - Provider 1: `rust-core` (`d3nexus:rust-quality-check`) for Rust core, WASM compilation, and system tests.
+   105	  - Provider 2: `learning-web` (`d3nexus:web-quality-check`) for Astro templates, Vanilla TypeScript controllers, and Playwright suites.
+   106	- **`lyrics-sync` (`.agents/quality/check_quality.json`)**:
+   107	  - Provider 1: `python-core` (`d3nexus:python-quality-check`) for FastAPI endpoints, worker logic, and pytest suites.
+   108	  - Provider 2: `preview-ui` (`d3nexus:web-quality-check`) for static Vanilla JS type checking and Chrome Playwright tests.
+   109	- **`nexus` (`.agents/quality/check_quality.json`)**:
+   110	  - Provider 1: `flutter-core` (`d3nexus:flutter-quality-check`) enforcing Subcutaneous Widget Testing with real DI and WireMock.
+   111	
+   112	## Dev-Designer and Dev-Implementation Enhancements
+   113	
+   114	1. **`dev-designer` (Stage 2)**:
+   115	   - When detecting a Web project, the HLD `Integration results:` line must target Playwright headless JUnit XML output (`build/test-results/playwright.xml`) generated via `--reporter=junit`, ensuring seamless ingestion by `result_reports.py` (which requires JUnit XML or Dart JSON).
+   116	   - Python test suites must include `--junitxml=build/test-results/pytest.xml` in their execution command.
+   117	   - BDD scenarios for Tier C must include concrete DOM interaction expectations and wiremock assertions.
+   118	2. **`dev-implementation` (Stage 3)**:
+   119	   - Integrates the Anti-Rationalization Table into task execution.
+   120	   - Validates that tasks claiming Tier C scenario coverage execute real headless browser or subcutaneous tests.
+   121	   - Halts and reports `BLOCKED` if test code mocks the component under test.
+   122	
+   123	## Automated Smoke Walkthrough Generation
+   124	
+   125	Upon successful completion of all tasks and a passing Gate 4 machine verdict, `dev-implementation` automatically generates a human-oriented verification artifact:
+   126	- Path: `.devtool/epic/<epic_dir>/manual_smoke_checklist.md`
+   127	- Content: 3 to 5 concise, actionable manual steps extracted directly from the primary BDD Happy Path scenarios (e.g. Target URL, user action, observable visual outcome).
+   128	- Benefit: Reduces developer exploratory testing from 30 minutes of unstructured wandering to a 2-minute deterministic confirmation.
+   129	
+   130	## Risks and Mitigations
+   131	
+   132	| Risk | Impact | Mitigation Strategy |
+   133	| :--- | :--- | :--- |
+   134	| Playwright installation overhead in CI / local dev | Slow Gate 4 runs | Use headless Chromium only; cache browser binaries; profile `pr` runs unit tests, profile `epic` runs Playwright. |
+   135	| Port conflicts when launching preview servers | Test flakiness | Playwright `webServer` configuration binds to dynamic or dedicated ports with healthcheck probes. |
+   136	| Existing legacy console warnings triggering Zero-Console-Error | False positive failures | Allow an explicit, documented allowlist of benign vendor warnings in `.agents/quality/web-quality.json`. |
+   137	
+   138	## Verification Plan
+   139	
+   140	1. **Provider Contract Verification**:
+   141	   - Run `validate_web_quality.py` against `.agents/quality/web-quality.json` sample configurations.
+   142	   - Execute `quality_check` with profile `epic` in `D3Nexus` and verify both `rust-core` and `learning-web` produce certified verdicts.
+   143	2. **Playwright Zero-Console-Error Verification**:
+   144	   - Inject an intentional `console.error` into a test page; confirm that Playwright and Gate 4 correctly report `FAIL`.
+   145	   - Resolve the error and confirm Gate 4 transitions to `PASS`.
+   146	3. **Vanilla JS Type-Checking Verification**:
+   147	   - Run `tsc --project jsconfig.json` against `lyrics-sync/src/lyrics_sync/preview/static/` and verify clean type validation.
+   148	4. **Smoke Checklist Generation Verification**:
+   149	   - Verify that `generate_smoke_checklist.py` generates and commits `.devtool/epic/<epic_dir>/manual_smoke_checklist.md` (3-5 structured steps) during Phase 4 before the final Gate 4 validation run, preserving clean git status and certified candidate SHA integrity.
+     1	# Epic: Web Quality Check Provider and Integration Quality Gate
+     2	
+     3	## Table of Contents
+     4	
+     5	- [Meta Data](#meta-data)
+     6	- [Background](#background)
+     7	- [Goals and Non-Goals](#goals-and-non-goals)
+     8	- [Architecture and Technical Design](#architecture-and-technical-design)
+     9	  - [High-Level Architecture](#high-level-architecture)
+    10	  - [Use Cases](#use-cases)
+    11	  - [Sequence Diagram](#sequence-diagram)
+    12	  - [Integration Test Plan and Boundary Matrix](#integration-test-plan-and-boundary-matrix)
+    13	  - [Comprehensive BDD Test Scenarios](#comprehensive-bdd-test-scenarios)
+    14	- [Verification Environment](#verification-environment)
+    15	- [Shared Contract Impact](#shared-contract-impact)
+    16	- [Rollout Strategy and Mitigation](#rollout-strategy-and-mitigation)
+    17	- [Kanban Tasks Breakdown](#kanban-tasks-breakdown)
+    18	
+    19	## Meta Data
+    20	
+    21	- **Epic Name**: `web_quality_check_and_integration_gate`
+    22	- **Epic Slug**: `web-quality-check-and-integration-gate`
+    23	- **Status**: Packaged
+    24	- **Target Release**: v1.2.0
+    25	- **Platform**: Polyglot / Quality Architecture
+    26	- **Source Spec**: [2026-11-04-web-quality-check-and-integration-gate-design.en.md](./2026-11-04-web-quality-check-and-integration-gate-design.en.md)
+    27	
+    28	## Background
+    29	
+    30	In our multi-repository ecosystem (`D3Nexus`, `lyrics-sync`, `nexus`), developers experience a significant gap between design specifications and actual runtime behavior. This gap forces human engineers to conduct extensive manual testing on devices and browsers for every release:
+    31	- Unit tests pass with 100% green mocks, but fail at runtime due to real DI registration errors, serialization bugs, and DOM event wiring defects.
+    32	- Gate 4 (`quality_check`) lacks a web provider, leaving `D3Nexus` (`apps/learning-web`) and `lyrics-sync` (17 Vanilla JS preview files) completely unverified.
+    33	- AI coding agents frequently rationalize shortcuts by avoiding headless browser tests and ignoring browser console errors.
+    34	
+    35	## Goals and Non-Goals
+    36	
+    37	### Goals
+    38	- Deliver the `web-quality-check` provider implementing Provider Result Contract v1 for Astro TypeScript and Vanilla JavaScript projects.
+    39	- Enable multi-provider polyglot quality orchestration at Gate 4 across `D3Nexus` and `lyrics-sync`.
+    40	- Enforce the 3-Tier Testing Standard (Tier A Unit, Tier C1 Subcutaneous Mobile/Backend, Tier C2 Headless Browser Web).
+    41	- Embed Anti-Rationalization Tables and Doubt-Driven Verification from `addyosmani/agent-skills` into skill workflows.
+    42	- Automatically generate a concise 3-5 step `manual_smoke_checklist.md` upon epic completion to reduce manual verification time from 30 minutes to 2 minutes.
+    43	
+    44	### Non-Goals
+    45	- Migrating Vanilla JS files in `lyrics-sync` to TypeScript (type checking is done in-place via JSDoc and `jsconfig.json`).
+    46	- Rewriting existing fast unit tests.
+    47	- Forcing full mobile emulators into local PR/Epic quality check gates.
+    48	
+    49	## Architecture and Technical Design
+    50	
+    51	### High-Level Architecture
+    52	
+    53	```mermaid
+    54	flowchart TD
+    55	    QC["Gate 4: quality_check (Platform-Neutral Orchestrator)"] --> REG["Load .agents/quality/check_quality.json"]
+    56	    REG --> FANOUT{"Fan-Out Selected Providers"}
+    57	    FANOUT --> P_RUST["rust-quality-check (D3Nexus Core)"]
+    58	    FANOUT --> P_PY["python-quality-check (lyrics-sync Backend)"]
+    59	    FANOUT --> P_FLUTTER["flutter-quality-check (nexus Mobile)"]
+    60	    FANOUT --> P_WEB["web-quality-check (NEW: Astro TS + Vanilla JS)"]
+    61	    
+    62	    subgraph WEB_PROVIDER["web-quality-check Capabilities"]
+    63	        direction TB
+    64	        CAP_TYPE["Type-Check (astro check / tsc --noEmit / jsconfig.json)"]
+    65	        CAP_LINT["Lint (ESLint / Biome / Astro linter)"]
+    66	        CAP_UNIT["Tier A Unit Tests (Node / Vitest)"]
+    67	        CAP_E2E["Tier C2 Headless Playwright + Zero-Console-Error Watchdog"]
+    68	    end
+    69	    
+    70	    P_WEB --> WEB_PROVIDER
+    71	    FANOUT --> AGG["Aggregate Provider Results (FAIL > BLOCKED > PASS)"]
+    72	    AGG --> SMOKE["Generate manual_smoke_checklist.md (3-5 Steps)"]
+    73	    SMOKE --> VERDICT["Gate 4 Certified Verdict"]
+    74	```
+    75	
+    76	### Use Cases
+    77	
+    78	```mermaid
+    79	flowchart LR
+    80	    DEV["Human Architect"] --> UC1["Configure Multi-Provider Quality Registry"]
+    81	    DEV --> UC2["Run Gate 4 Quality Verification"]
+    82	    DEV --> UC3["Review Automated Smoke Checklist (2-min verify)"]
+    83	    
+    84	    AGENT["AI Programmer"] --> UC4["Execute Task with Anti-Rationalization Guard"]
+    85	    AGENT --> UC5["Run Headless Playwright with Zero-Console-Error"]
+    86	    AGENT --> UC6["Validate Vanilla JS Types via JSDoc"]
+    87	```
+    88	
+    89	### Sequence Diagram
+    90	
+    91	```mermaid
+    92	sequenceDiagram
+    93	    autonumber
+    94	    actor Human as Human Architect
+    95	    participant Gate as quality_check (Gate 4)
+    96	    participant Web as web-quality-check
+    97	    participant Playwright as Headless Chromium
+    98	    participant Gen as Smoke Generator
+    99	
+   100	    Human->>Gate: Trigger @quality_check (profile: epic)
+   101	    Gate->>Gate: Read .agents/quality/check_quality.json
+   102	    Gate->>Web: Fan-out invocation with repository SHA
+   103	    Web->>Web: Run type-check & lint
+   104	    Web->>Playwright: Launch Playwright headless with wiremock
+   105	    Playwright->>Playwright: Verify DOM & assert Zero-Console-Error
+   106	    Playwright-->>Web: Test execution trace & evidence
+   107	    Web-->>Gate: Emit Provider Result Document (PASS)
+   108	    Human->>Gen: Phase 4 smoke generator run & commit
+   109	    Gen-->>Human: Commit manual_smoke_checklist.md
+   110	    Human->>Gate: Execute final Gate 4 on candidate SHA
+   111	    Gate-->>Human: Report Gate 4 LGTM + Review Choice
+   112	```
+   113	
+   114	### Integration Test Plan and Boundary Matrix
+   115	
+   116	```text
+   117	Integration test roots: tests/, skills/web-quality-check/tests/
+   118	Protected paths: .agents/quality/**, .devtool/epic/web_quality_check_and_integration_gate/bdd_scenarios.en.md, .devtool/epic/web_quality_check_and_integration_gate/bdd_scenarios.vi.md
+   119	Integration results: python3 -m pytest tests/ --junitxml=build/test-results/pytest.xml -> build/test-results/pytest.xml
+   120	```
+   121	
+   122	| Boundary Seam | Testing Strategy | Verification Target |
+   123	| :--- | :--- | :--- |
+   124	| Provider Contract | Mock `quality_check` invocation payload | Verify status aggregation and schema conformance |
+   125	| Astro Web / TypeScript | Headless Playwright + Zero-Console-And-Layout-Defect Watchdog fixture | Verify DOM elements, Custom Elements, zero console errors, 404 static asset network trap, computed CSS styling (`assertVisualIntegrity`), and state leak / text duplication prevention |
+   126	| Vanilla JS Preview | `tsc --project jsconfig.json` + Playwright | Verify type safety without `.ts` migration, and page crash prevention |
+   127	| Task Workflow Engine | BDD traceability & Anti-Rationalization audit | Verify tasks rejecting fake Tier C mocks, validating computed CSS against Visual Companion, and requiring real integration runs |
+   128	
+   129	## Verification Environment
+   130	
+   131	- Execution environment: Local macOS / Linux CLI with Node.js v20+, Python 3.11+, and Playwright Chromium browser installed.
+   132	- No live network dependencies: All external network calls in tests are intercepted at the socket boundary.
+   133	- File system isolation: Test runs operate in temporary isolated directories without mutating working git trees.
+   134	
+   135	### Comprehensive BDD Test Scenarios
+   136	
+   137	The suite covers all 5 dimensions under the `[WQG-]` prefix:
+   138	1. **Happy Paths (`WQG-HP-xx`)**: Successful provider execution, Playwright headless pass, clean Vanilla JS type check, and smoke checklist generation.
+   139	2. **Edge Cases (`WQG-EC-xx`)**: Missing capabilities, partial web configs, empty test suites, third-party console warnings, and mutually exclusive DOM state leaks or duplicate text rendering (`WQG-EC-03`).
+   140	3. **State Transitions (`WQG-ST-xx`)**: Dynamic transition from `BLOCKED` to `PASS` upon fixing configuration, and task status synchronization.
+   141	4. **Async & Concurrency (`WQG-AR-xx`)**: Concurrent provider fan-out in Gate 4, non-blocking Playwright webServer startup.
+   142	5. **Failures & Resilience (`WQG-FR-xx`)**: Console error detection triggering immediate failure, uncaught exception traps, broken contract detection, and 404 stylesheet / unstyled computed geometry failure (`WQG-FR-03`).
+   143	
+   144	## Shared Contract Impact
+   145	
+   146	None — self-contained quality provider and workflow enhancement.
+   147	
+   148	## Rollout Strategy and Mitigation
+   149	
+   150	- **Phase 1**: Author `web-quality-check` skill and validate its contract with unit and integration tests.
+   151	- **Phase 2**: Add Playwright Zero-Console-And-Layout-Defect watchdog and Vanilla JS `jsconfig.json` checker.
+   152	- **Phase 3**: Update `dev-designer`, `dev-implementation`, and `test-driven-development` with Anti-Rationalization Tables and Subcutaneous Testing guidelines.
+   153	- **Phase 4**: Configure polyglot registries in `D3Nexus` and `lyrics-sync`, verifying Gate 4 multi-provider execution.
+   154	
+   155	## Kanban Tasks Breakdown
+   156	
+   157	- [Task 01: Web Quality Check Skill and Provider Contract](./task_01_web_quality_check_skill_and_contract.md)
+   158	- [Task 02: Playwright Zero-Console-Error Watchdog and Fixtures](./task_02_playwright_zero_error_watchdog.md)
+   159	- [Task 03: Vanilla JS JSDoc Type-Checking Configuration](./task_03_jsconfig_and_vanilla_js_type_checker.md)
+   160	- [Task 04: Polyglot Gate 4 Registry and Multi-Provider Fan-Out](./task_04_polyglot_gate4_registry_and_fanout.md)
+   161	- [Task 05: Anti-Rationalization and Doubt-Driven Workflow Rules](./task_05_anti_rationalization_and_doubt_driven_workflow.md)
+   162	- [Task 06: Automated Manual Smoke Checklist Generator](./task_06_automated_manual_smoke_checklist_generator.md)
+   163	
+     1	# BDD Test Scenarios: Web Quality Check Provider and Integration Quality Gate
+     2	
+     3	## Table of Contents
+     4	
+     5	- [Dimension 1: Happy Paths](#dimension-1-happy-paths)
+     6	- [Dimension 2: Edge Cases and Boundaries](#dimension-2-edge-cases-and-boundaries)
+     7	- [Dimension 3: State Transitions](#dimension-3-state-transitions)
+     8	- [Dimension 4: Async and Concurrency](#dimension-4-async-and-concurrency)
+     9	- [Dimension 5: Failures and Resilience](#dimension-5-failures-and-resilience)
+    10	
+    11	## Dimension 1: Happy Paths
+    12	
+    13	```gherkin
+    14	Scenario: [WQG-HP-01] [Tier C - Integration] Web quality provider certification on Astro TypeScript repository
+    15	  Given a repository containing an Astro project with .agents/quality/web-quality.json
+    16	  When Gate 4 invokes d3nexus:web-quality-check with profile epic
+    17	  Then the provider executes type_check, lint, and test_e2e via Playwright headless
+    18	  And produces a validated Provider Result Document with status PASS bound to the commit SHA
+    19	
+    20	Scenario: [WQG-HP-02] [Tier C - Integration] Vanilla JavaScript type-checking via JSDoc configuration
+    21	  Given a repository containing Vanilla JavaScript files in preview/static/
+    22	  And a jsconfig.json configured with "checkJs": true
+    23	  When web-quality-check executes the type_check capability
+    24	  Then the TypeScript compiler validates all JavaScript files without emitting errors
+    25	  And passes without requiring any .ts file renaming
+    26	
+    27	Scenario: [WQG-HP-03] [Tier C - Integration] Playwright headless execution with wiremock and Zero-Console-Error
+    28	  Given an Astro web page with client-side interactive controllers
+    29	  And Playwright configured with the Zero-Console-Error watchdog fixture
+    30	  When the test simulates user navigation, button clicks, and network mocking via page.route()
+    31	  Then the page renders without emitting any console.error or uncaught exceptions
+    32	  And the test suite completes successfully
+    33	
+    34	Scenario: [WQG-HP-04] [Tier A - Unit] Automated generation of 3-5 step manual smoke checklist
+    35	  Given all tasks in an epic reach status done and Phase 4 executes
+    36	  When the smoke generator parses primary BDD Happy Path scenarios
+    37	  Then it emits .devtool/epic/<epic_dir>/manual_smoke_checklist.md before Gate 4 validation
+    38	  And the checklist contains between 3 and 5 actionable verification steps with Target (URL or CLI Command), Action, and Observable Outcome
+    39	```
+    40	
+    41	## Dimension 2: Edge Cases and Boundaries
+    42	
+    43	```gherkin
+    44	Scenario: [WQG-EC-01] [Tier A - Unit] Web quality manifest with empty or optional capabilities
+    45	  Given a repository where .agents/quality/web-quality.json configures only type_check and test_unit
+    46	  When web-quality-check is invoked with profile pr
+    47	  Then it resolves only the declared capabilities
+    48	  And successfully certifies the repository without erroring on missing optional capabilities
+    49	
+    50	Scenario: [WQG-EC-02] [Tier A - Unit] Benign console warnings filtered by allowlist
+    51	  Given a web page emitting known third-party library deprecation warnings
+    52	  And an allowlist regex configured in .agents/quality/web-quality.json
+    53	  When the Playwright test executes
+    54	  Then the Zero-Console-Error watchdog filters out matching allowlisted warnings
+    55	  And does not falsely fail the test suite
+    56	
+    57	Scenario: [WQG-EC-03] [Tier C - Integration] Mutually exclusive DOM state leak and duplicate text detection
+    58	  Given a UI component with conditional state badges and tooltip accessibility spans
+    59	  When Playwright executes with the Zero-Console-And-Layout-Defect Watchdog
+    60	  Then it asserts that mutually exclusive elements (e.g. running spinner vs terminal failure badge, visible title vs hidden tooltip) are not simultaneously visible
+    61	  And detects consecutive duplicate substring rendering inside card titles/subtitles caused by unstyled hidden spans
+    62	  And fails Gate 4 if unstyled hidden spans leak into visible layout
+    63	```
+    64	
+    65	## Dimension 3: State Transitions
+    66	
+    67	```gherkin
+    68	Scenario: [WQG-ST-01] [Tier A - Unit] Transition from BLOCKED to PASS upon fixing invalid configuration
+    69	  Given a repository with a malformed .agents/quality/web-quality.json
+    70	  When validate_web_quality.py evaluates the manifest
+    71	  Then it reports status BLOCKED with validation findings
+    72	  And when the developer corrects the JSON schema
+    73	  Then the validator transitions to status PASS
+    74	
+    75	Scenario: [WQG-ST-02] [Tier C - Integration] Task status progression under Anti-Rationalization audit
+    76	  Given a Kanban task covering Tier C scenario [WQG-HP-01]
+    77	  When the verification runner evaluates task completion with missing Tier C integration evidence or only unit mocks
+    78	  Then task_contract.py and task status sync reject the transition to done with condition 6 violation
+    79	  And when real Playwright headless integration test execution evidence is provided in the verification results
+    80	  Then the task transitions cleanly to status done
+    81	```
+    82	
+    83	## Dimension 4: Async and Concurrency
+    84	
+    85	```gherkin
+    86	Scenario: [WQG-AR-01] [Tier C - Integration] Concurrent multi-provider fan-out in Gate 4
+    87	  Given a polyglot repository (D3Nexus) with providers rust-core and learning-web
+    88	  When Gate 4 quality_check executes profile epic
+    89	  Then both providers execute concurrently without interfering with each other's outputs
+    90	  And Gate 4 aggregates the final verdict based on FAIL > BLOCKED > PASS priority
+    91	
+    92	Scenario: [WQG-AR-02] [Tier C - Integration] Playwright webServer lifecycle management
+    93	  Given Playwright configured with webServer command npm run preview
+    94	  When Playwright starts the test runner
+    95	  Then it awaits the server healthcheck port before dispatching browser tests
+    96	  And cleanly tears down the webServer process upon completion
+    97	```
+    98	
+    99	## Dimension 5: Failures and Resilience
+   100	
+   101	```gherkin
+   102	Scenario: [WQG-FR-01] [Tier C - Integration] Immediate test failure on uncaught JavaScript console error
+   103	  Given a web component with a runtime bug emitting console.error("Uncaught TypeError")
+   104	  When Playwright executes the test suite
+   105	  Then the Zero-Console-Error watchdog immediately halts and fails the test
+   106	  And logs the full console message, stack trace, and target URL as evidence
+   107	
+   108	Scenario: [WQG-FR-02] [Tier A - Unit] Missing node_modules or binary execution blocker
+   109	  Given an environment where playwright or astro binary is not found in PATH
+   110	  When web-quality-check attempts to spawn the process
+   111	  Then it catches the spawn failure and emits status BLOCKED with actionable remediation guidance
+   112	
+   113	Scenario: [WQG-FR-03] [Tier C - Integration] Immediate failure on 404 static stylesheet or unstyled computed geometry
+   114	  Given an Astro or web page where a critical .css stylesheet returns HTTP status >= 400
+   115	  Or a primary structural UI container renders with unstyled default computed styles (transparent background, zero border/padding, or zero dimensions)
+   116	  When the Playwright test suite executes with assertVisualIntegrity
+   117	  Then the Static Asset Network Trap and geometry watchdog immediately fail the test
+   118	  And log the missing asset URL and unstyled element selectors as evidence
+   119	```
+     1	# Handoff: web_quality_check_and_integration_gate
+     2	
+     3	## Table of Contents
+     4	
+     5	- [Status](#status)
+     6	- [Identifiers](#identifiers)
+     7	- [Read First](#read-first)
+     8	- [Resume Prompt](#resume-prompt)
+     9	- [Execution Guardrails for Receiving LLM](#execution-guardrails-for-receiving-llm)
+    10	- [Open Notes](#open-notes)
+    11	- [Rules for the Receiving Agent](#rules-for-the-receiving-agent)
+    12	
+    13	## Status
+    14	
+    15	- **Packaged**: 2026-11-05
+    16	- **Design commit**: `dfad265`
+    17	- **Base branch**: `main`
+    18	- **Gates passed**: 1 (spec), 2 (HLD and task breakdown)
+    19	- **Next**: Stage 3, `dev-implementation`. Gate 3 (execution order) still needs the developer's confirmation.
+    20	
+    21	## Identifiers
+    22	
+    23	| Placeholder | Value |
+    24	|-------------|-------|
+    25	| `<epic_dir>` | `web_quality_check_and_integration_gate` |
+    26	| `<epic_slug>` | `web-quality-check-and-integration-gate` |
+    27	
+    28	These are two distinct strings (underscores for directory, hyphens for slug). Never derive one from the other.
+    29	
+    30	## Read First
+    31	
+    32	1. `.devtool/epic/web_quality_check_and_integration_gate/web_quality_check_and_integration_gate.en.md` — the HLD. Its Kanban Tasks Breakdown lists the 6 tasks.
+    33	2. `.devtool/epic/web_quality_check_and_integration_gate/bdd_scenarios.en.md` — the behavioural contract covering all 12 scenarios.
+    34	3. `.devtool/epic/web_quality_check_and_integration_gate/2026-11-04-web-quality-check-and-integration-gate-design.en.md` — the approved source spec.
+    35	
+    36	## Resume Prompt
+    37	
+    38	```text
+    39	[PERSONA: AI PROGRAMMER — SENIOR TDD SOFTWARE ENGINEER]
+    40	Use the d3nexus:dev-implementation skill for the `web-quality-check-and-integration-gate` epic.
+    41	Read .devtool/epic/web_quality_check_and_integration_gate/handoff.md first.
+    42	Apply the Execution Guardrails for Receiving LLM before presenting Gate 3.
+    43	Gates 1 and 2 are passed; do not re-run brainstorming or design.
+    44	Gate 3 is pending: present the execution order to me and wait for my confirmation.
+    45	```
+    46	
+    47	## Execution Guardrails for Receiving LLM
+    48	
+    49	Fast executor models and receiving agents MUST adhere to these four hard guardrails throughout implementation:
+    50	
+    51	1. **Bounded context protocol**:
+    52	   - Step 1: Read only the active task file (`.devtool/features/task_*.md`).
+    53	   - Step 2: Read only the exact files declared in `Allowed files` and `Read-only context`.
+    54	   - Step 3: Look up exact symbol definitions identified under `## Decisions Already Made`.
+    55	   Undirected whole-repository searches (`grep`, `find`, `list_dir`) are forbidden unless an unresolved import explicitly requires symbol lookup.
+    56	2. **Strict spec fidelity**: Frozen constants, defaults, retry counts, fallback conditions, signatures, and call paths under `## Decisions Already Made` and the HLD are hard contracts. Any mismatch causes STOP and report rather than an executor-side simplification.
+    57	3. **Zero test fakery & Anti-Rationalization**: Tests must exercise real production symbols. In Tier C tests, mocking domain use cases or repositories is strictly forbidden. Web Tier C tests must run in headless Playwright with Zero-Console-Error assertion.
+    58	4. **No contract repair by the executor**: The receiver never edits Verification tables, Allowed files, Definition of Done, Covers lines, protected paths, or frozen contract facts.
+    59	
+    60	## Open Notes
+    61	
+    62	- **Polyglot Ecosystem Scope**: This epic implements the `web-quality-check` provider in `ai-agent-tools`, which unblocks full Gate 4 multi-provider verification across `D3Nexus` (`rust-core` + `learning-web`) and `lyrics-sync` (`python-core` + `preview-ui`), as well as formalizing Subcutaneous Testing guidelines for `nexus` (`flutter-core`).
+    63	- **Anti-Rationalization Integration**: Inspired by `addyosmani/agent-skills`, Anti-Rationalization tables and Doubt-Driven Verification rules are codified into `dev-designer`, `dev-implementation`, and `test-driven-development`.
+    64	- **Zero-Console-Error Watchdog**: Playwright fixtures intercept all `console.error` and `pageerror` events, halting tests on unhandled runtime exceptions while supporting an allowlist regex for benign third-party library deprecation warnings.
+    65	- **In-Place Vanilla JS Type-Checking**: Static JavaScript files in `lyrics-sync` are type-checked via `jsconfig.json` with JSDoc `// @ts-check` without requiring `.ts` file renaming.
+    66	- **Automated Smoke Walkthrough**: Task 06 provides `generate_smoke_checklist.py`, hooked into `dev-implementation` Phase 4, generating `.devtool/epic/<epic_dir>/manual_smoke_checklist.md` (3-5 steps, 2-minute sanity check) upon Gate 4 pass.
+    67	
+    68	## Rules for the Receiving Agent
+    69	
+    70	- Do not re-run `dev-brainstorming` or `dev-designer`. Raise a wrong or missing document at Gate 3.
+    71	- This handoff does not pass Gate 3. The developer confirms the execution order.
+    72	- Unless the design commit is `uncommitted`: if `git log dfad265..main -- .devtool/epic/web_quality_check_and_integration_gate` lists any commit besides the `Package epic for handoff` commit, the documents changed after packaging. The documents win, and this file may be stale. Comparing against the base branch keeps the epic branch's own task commits out of the check.
+    73	- This file is a dated record. It is never updated after packaging.
+    74	- Never edit a task's Verification table, Definition of Done, Allowed files or a protected path; stop and report.
+
+exec
+/bin/zsh -lc 'nl -ba .devtool/epic/web_quality_check_and_integration_gate/task_01_web_quality_check_skill_and_contract.md; nl -ba .devtool/epic/web_quality_check_and_integration_gate/task_02_playwright_zero_error_watchdog.md; nl -ba .devtool/epic/web_quality_check_and_integration_gate/task_03_jsconfig_and_vanilla_js_type_checker.md' in /Users/danhdueexoictif/AllProjects/ai-agent-tools
+ succeeded in 0ms:
+     1	---
+     2	id: "task_01_web_quality_check_skill_and_contract"
+     3	status: "todo"
+     4	priority: "high"
+     5	assignee: null
+     6	epic: "web-quality-check-and-integration-gate"
+     7	dueDate: null
+     8	created: "2026-11-04T22:52:00Z"
+     9	modified: "2026-11-04T22:52:00Z"
+    10	completedAt: null
+    11	labels: ["quality", "web", "provider"]
+    12	order: "a1"
+    13	---
+    14	
+    15	# Task 01: Web Quality Check Skill and Provider Contract
+    16	
+    17	Epic: [web_quality_check_and_integration_gate](web_quality_check_and_integration_gate.en.md)
+    18	
+    19	## Requirement Analysis
+    20	
+    21	Author the `d3nexus:web-quality-check` provider skill implementing the canonical Provider Result Contract v1. The provider reads `.agents/quality/web-quality.json` from the repository root, executes configured capability commands without shell interpolation, validates outputs, and produces certified result documents bound to the commit SHA. Include the companion validator script `validate_web_quality.py`.
+    22	
+    23	## Files
+    24	
+    25	Allowed files:
+    26	- `skills/web-quality-check/SKILL.md` (new)
+    27	- `skills/web-quality-check/resources/scripts/validate_web_quality.py` (new)
+    28	- `tests/test_web_quality_provider.py` (new)
+    29	
+    30	Read-only context:
+    31	- `skills/python-quality-check/SKILL.md` (canonical capability provider reference)
+    32	- `skills/quality_check/references/provider-result-contract.md` (schema definition for provider results)
+    33	
+    34	## Design Rationale
+    35	
+    36	The web quality assurance provider follows the identical architecture as `python-quality-check` and `rust-quality-check`:
+    37	1. It avoids hardcoded build commands and instead reads capabilities from `.agents/quality/web-quality.json`.
+    38	2. It supports argument placeholders: `{skills_dir}` for referencing sibling scripts and `{base_ref}` for Git diff baselines.
+    39	3. It emits deterministic verdicts: `FAIL` (nonzero exit in tests/linter), `BLOCKED` (missing configuration, invalid schema, or executable failure), and `PASS` (all capabilities exit 0).
+    40	
+    41	## Impact Analysis & Blast Radius
+    42	
+    43	- **Target Files & Symbols**: `skills/web-quality-check/SKILL.md`, `validate_web_quality.py` (`validate_manifest`, `run_capabilities`).
+    44	- **Downstream Callers**: `quality_check` orchestrator via registry invocation.
+    45	- **Cross-Platform Bridges**: None (Python CLI tool).
+    46	- **Target Test Coverage Threshold**: $\ge 90\%$ line coverage for `validate_web_quality.py`.
+    47	
+    48	### BDD SCENARIOS
+    49	
+    50	Covers: [WQG-HP-01], [WQG-EC-01], [WQG-ST-01], [WQG-FR-02]
+    51	
+    52	#### Scenario: [WQG-HP-01] [Tier C - Integration] Web quality provider certification on Astro TypeScript repository
+    53	Given a repository containing an Astro project with `.agents/quality/web-quality.json`
+    54	When Gate 4 invokes `d3nexus:web-quality-check` with profile `epic`
+    55	Then the provider executes `type_check`, `lint`, and `test_e2e` via Playwright headless
+    56	And produces a validated Provider Result Document with status `PASS` bound to the commit SHA.
+    57	
+    58	#### Scenario: [WQG-EC-01] [Tier A - Unit] Web quality manifest with empty or optional capabilities
+    59	Given a repository where `.agents/quality/web-quality.json` configures only `type_check` and `test_unit`
+    60	When `web-quality-check` is invoked with profile `pr`
+    61	Then it resolves only the declared capabilities
+    62	And successfully certifies the repository without erroring on missing optional capabilities.
+    63	
+    64	#### Scenario: [WQG-ST-01] [Tier A - Unit] Transition from BLOCKED to PASS upon fixing invalid configuration
+    65	Given a repository with a malformed `.agents/quality/web-quality.json`
+    66	When `validate_web_quality.py` evaluates the manifest
+    67	Then it reports status `BLOCKED` with validation findings
+    68	And when the developer corrects the JSON schema
+    69	Then the validator transitions to status `PASS`.
+    70	
+    71	#### Scenario: [WQG-FR-02] [Tier A - Unit] Missing node_modules or binary execution blocker
+    72	Given an environment where `playwright` or `astro` binary is not found in `PATH`
+    73	When `web-quality-check` attempts to spawn the process
+    74	Then it catches the spawn failure and emits status `BLOCKED` with actionable remediation guidance.
+    75	
+    76	## Verification
+    77	
+    78	| ID | Phase | Command | Expect | Needs |
+    79	|----|-------|---------|--------|-------|
+    80	| V1 | RED | `python3 -m pytest tests/test_web_quality_provider.py::test_contract_validation` | exit 1; contains "FAILED" | — |
+    81	| V2 | GREEN | `python3 -m pytest tests/test_web_quality_provider.py::test_contract_validation` | exit 0; contains "passed" | — |
+    82	| V3 | TIER-B | `ruff check skills/web-quality-check tests` | exit 0 | — |
+    83	| V4 | TIER-B | `mypy skills/web-quality-check/resources/scripts/validate_web_quality.py` | exit 0 | — |
+    84	| V5 | TIER-C | `python3 -m pytest tests/test_web_quality_provider.py -k "test_WQG_HP_01 or test_WQG_EC_01 or test_WQG_ST_01 or test_WQG_FR_02" --junitxml=build/test-results/task_01.xml` | exit 0; results build/test-results/task_01.xml | — |
+    85	
+    86	## Stop and Report If
+    87	
+    88	- A command, path, symbol or anchor named in this task does not match the repository.
+    89	- A Verification row fails for a reason other than its Expect.
+    90	- The work needs a change to a file outside Allowed files, or to a protected path.
+    91	- The work needs a change to this task's Verification table, Definition of Done, Allowed files or Covers line.
+    92	- A variable named in the Needs column is unset.
+    93	
+    94	## Decisions Already Made
+    95	
+    96	- Manifest file path: `.agents/quality/web-quality.json`.
+    97	- Schema Version: `1`.
+    98	- Standard profiles supported: `pr`, `epic`, `release`, `scheduled`.
+    99	- Output structure: Standard Provider Result Contract v1 format matching `skills/quality_check/resources/schemas/provider-result.schema.json` with 13 required top-level keys: `provider_id`, `contract_version`, `profile`, `repository_sha`, `status`, `checks`, `coverage`, `evidence`, `started_head`, `finished_head`, `duration`, `blockers`, `warnings` (forbidden root `summary` omitted; additionalProperties false).
+   100	
+   101	## Definition of Done
+   102	
+   103	- `SKILL.md` documents provider execution, profile resolution, and capabilities. (V2)
+   104	- `validate_web_quality.py` passes ruff linting and mypy strict typing. (V3, V4)
+   105	- 100% BDD scenarios ([WQG-HP-01], [WQG-EC-01], [WQG-ST-01], [WQG-FR-02]) automated and passing. (V5)
+   106	- Clean git status with changes restricted to Allowed files. (Gate 5)
+   107	
+   108	## Dependencies & Blockers
+   109	
+   110	- Blocked by: None (First task in execution order).
+   111	
+   112	## References & Rollback
+   113	
+   114	- Reference: `skills/quality_check/references/provider-result-contract.md`.
+   115	- Rollback: Revert changes in `skills/web-quality-check/` and `tests/test_web_quality_provider.py`.
+     1	---
+     2	id: "task_02_playwright_zero_error_watchdog"
+     3	status: "todo"
+     4	priority: "high"
+     5	assignee: null
+     6	epic: "web-quality-check-and-integration-gate"
+     7	dueDate: null
+     8	created: "2026-11-04T22:52:00Z"
+     9	modified: "2026-11-04T22:52:00Z"
+    10	completedAt: null
+    11	labels: ["web", "playwright", "integration"]
+    12	order: "a2"
+    13	---
+    14	
+    15	# Task 02: Playwright Zero-Console-And-Layout-Defect Watchdog and Fixtures
+    16	
+    17	Epic: [web_quality_check_and_integration_gate](web_quality_check_and_integration_gate.en.md)
+    18	
+    19	## Requirement Analysis
+    20	
+    21	Implement the Playwright Zero-Console-And-Layout-Defect watchdog fixture and helper harness. The fixture intercepts all browser `console.error` and `pageerror` events, halting tests on uncaught runtime errors, while supporting a regex allowlist for benign vendor deprecation warnings. To close the Visual Companion to Runtime CSS/Layout Gap, the fixture enforces three mandatory runtime checks:
+    22	1. **Static Asset Network Trap**: Listen to `page.on('response')` and immediately FAIL the test if any stylesheet (`.css`), script (`.js`), or font returns HTTP status `>= 400`.
+    23	2. **Computed Style & Geometry Assertion Helper (`assertVisualIntegrity`)**: Verify that structural UI containers (cards, drawers, badges, progress bars) ported from Visual Companion mockups have real computed styles applied (`window.getComputedStyle(el)` must not fall back to unstyled `backgroundColor: rgba(0, 0, 0, 0)` + `borderWidth: 0px` + `padding: 0px`, and `getBoundingClientRect()` must have `width > 0` and `height > 0`).
+    24	3. **DOM State Leak & Duplicate Text Guard**: Assert that mutually exclusive state elements (e.g. running spinner vs terminal `THẤT BẠI` / `HOÀN THÀNH` badges, visible title vs hidden tooltip/a11y span) are not simultaneously visible (`display !== 'none'` and `visibility !== 'hidden'`), and detect consecutive duplicate substring rendering inside card titles/subtitles caused by unstyled hidden spans.
+    25	The harness also provides wire-level network mocking patterns using `page.route()` to consume canonical contract fixtures.
+    26	
+    27	## Files
+    28	
+    29	Allowed files:
+    30	- `skills/web-quality-check/resources/templates/playwright-zero-error.fixture.ts` (new)
+    31	- `skills/web-quality-check/resources/scripts/run_playwright_harness.py` (new)
+    32	- `tests/test_playwright_watchdog.py` (new)
+    33	
+    34	Read-only context:
+    35	- `skills/web-quality-check/SKILL.md` (new in Task 01)
+    36	- `docs/refresh-session-quick-guide.en.md` (documentation guide)
+    37	
+    38	## Design Rationale
+    39	
+    40	Browser testing often produces silent failures where a missing DOM node or failed network request logs an uncaught exception to the DevTools console while the test runner completes without error. By enforcing Zero-Console-Error at the test fixture root, any unhandled JavaScript exception immediately fails the test suite. An explicit allowlist ensures known vendor warnings (e.g. deprecation notices from third-party analytics) do not cause false positives.
+    41	
+    42	## Impact Analysis & Blast Radius
+    43	
+    44	- **Target Files & Symbols**: `playwright-zero-error.fixture.ts`, `run_playwright_harness.py`.
+    45	- **Downstream Callers**: Web test suites across `D3Nexus` (`apps/learning-web`) and `lyrics-sync` (`tests/e2e_full_screens_chrome_test.py`).
+    46	- **Cross-Platform Bridges**: Browser DevTools Protocol (CDP) via Playwright.
+    47	- **Target Test Coverage Threshold**: $\ge 85\%$ for watchdog harness.
+    48	
+    49	### BDD SCENARIOS
+    50	
+    51	Covers: [WQG-HP-03], [WQG-EC-02], [WQG-EC-03], [WQG-AR-02], [WQG-FR-01], [WQG-FR-03]
+    52	
+    53	#### Scenario: [WQG-HP-03] [Tier C - Integration] Playwright headless execution with wiremock and Zero-Console-Error
+    54	Given an Astro web page with client-side interactive controllers
+    55	And Playwright configured with the Zero-Console-Error watchdog fixture
+    56	When the test simulates user navigation, button clicks, and network mocking via `page.route()`
+    57	Then the page renders without emitting any `console.error` or uncaught exceptions
+    58	And the test suite completes successfully.
+    59	
+    60	#### Scenario: [WQG-EC-02] [Tier A - Unit] Benign console warnings filtered by allowlist
+    61	Given a web page emitting known third-party library deprecation warnings
+    62	And an allowlist regex configured in `.agents/quality/web-quality.json`
+    63	When the Playwright test executes
+    64	Then the Zero-Console-Error watchdog filters out matching allowlisted warnings
+    65	And does not falsely fail the test suite.
+    66	
+    67	#### Scenario: [WQG-EC-03] [Tier C - Integration] Mutually exclusive DOM state leak and duplicate text detection
+    68	Given a UI component with conditional state badges and tooltip accessibility spans
+    69	When Playwright executes with the Zero-Console-And-Layout-Defect Watchdog
+    70	Then it asserts that mutually exclusive elements (e.g. running spinner vs terminal failure badge, visible title vs hidden tooltip) are not simultaneously visible
+    71	And detects consecutive duplicate substring rendering inside card titles/subtitles caused by unstyled hidden spans
+    72	And fails Gate 4 if unstyled hidden spans leak into visible layout.
+    73	
+    74	#### Scenario: [WQG-AR-02] [Tier C - Integration] Playwright webServer lifecycle management
+    75	Given Playwright configured with `webServer` command `npm run preview`
+    76	When Playwright starts the test runner
+    77	Then it awaits the server healthcheck port before dispatching browser tests
+    78	And cleanly tears down the webServer process upon completion.
+    79	
+    80	#### Scenario: [WQG-FR-01] [Tier C - Integration] Immediate test failure on uncaught JavaScript console error
+    81	Given a web component with a runtime bug emitting `console.error("Uncaught TypeError")`
+    82	When Playwright executes the test suite
+    83	Then the Zero-Console-Error watchdog immediately halts and fails the test
+    84	And logs the full console message, stack trace, and target URL as evidence.
+    85	
+    86	#### Scenario: [WQG-FR-03] [Tier C - Integration] Immediate failure on 404 static stylesheet or unstyled computed geometry
+    87	Given an Astro or web page where a critical `.css` stylesheet returns HTTP status >= 400
+    88	Or a primary structural UI container renders with unstyled default computed styles (transparent background, zero border/padding, or zero dimensions)
+    89	When the Playwright test suite executes with `assertVisualIntegrity`
+    90	Then the Static Asset Network Trap and geometry watchdog immediately fail the test
+    91	And log the missing asset URL and unstyled element selectors as evidence.
+    92	
+    93	## Verification
+    94	
+    95	| ID | Phase | Command | Expect | Needs |
+    96	|----|-------|---------|--------|-------|
+    97	| V1 | RED | `python3 -m pytest tests/test_playwright_watchdog.py::test_watchdog_filters` | exit 1; contains "FAILED" | — |
+    98	| V2 | GREEN | `python3 -m pytest tests/test_playwright_watchdog.py::test_watchdog_filters` | exit 0; contains "passed" | — |
+    99	| V3 | TIER-B | `ruff check tests/test_playwright_watchdog.py skills/web-quality-check` | exit 0 | — |
+   100	| V4 | TIER-B | `mypy skills/web-quality-check/resources/scripts/run_playwright_harness.py` | exit 0 | — |
+   101	| V5 | TIER-C | `python3 -m pytest tests/test_playwright_watchdog.py -k "test_WQG_HP_03 or test_WQG_EC_02 or test_WQG_EC_03 or test_WQG_AR_02 or test_WQG_FR_01 or test_WQG_FR_03" --junitxml=build/test-results/task_02.xml` | exit 0; results build/test-results/task_02.xml | — |
+   102	
+   103	## Stop and Report If
+   104	
+   105	- A command, path, symbol or anchor named in this task does not match the repository.
+   106	- A Verification row fails for a reason other than its Expect.
+   107	- The work needs a change to a file outside Allowed files, or to a protected path.
+   108	- The work needs a change to this task's Verification table, Definition of Done, Allowed files or Covers line.
+   109	- A variable named in the Needs column is unset.
+   110	
+   111	## Decisions Already Made
+   112	
+   113	- Target browser for Tier C runs: Chromium headless.
+   114	- Console listener syntax: `page.on('console', msg => ...)` and `page.on('pageerror', err => ...)`.
+   115	- Static Asset Network Trap: `page.on('response', resp => { if (['stylesheet', 'script', 'font'].includes(resp.request().resourceType()) && resp.status() >= 400) throw new Error(...); })`.
+   116	- `assertVisualIntegrity(locator, options)`: evaluates `window.getComputedStyle(el)` verifying background/border/padding styling and `getBoundingClientRect()` with `width > 0 && height > 0`.
+   117	- DOM State Leak guard: verifies that mutually exclusive badge/spinner locators are never simultaneously visible and flags consecutive duplicate text chunks.
+   118	- Wire mocking pattern: `await page.route('**/api/**', route => route.fulfill({ json: fixture }))`.
+   119	- Allowlist pattern: Array of regex strings in manifest config under `console_error_allowlist`.
+   120	
+   121	## Definition of Done
+   122	
+   123	- `playwright-zero-error.fixture.ts` template provides reusable test extension. (V2)
+   124	- Zero-Console-Error watchdog passes ruff and mypy. (V3, V4)
+   125	- Scenarios [WQG-HP-03], [WQG-EC-02], [WQG-AR-02], [WQG-FR-01] fully tested and passing. (V5)
+   126	- Clean git status with changes restricted to Allowed files. (Gate 5)
+   127	
+   128	## Dependencies & Blockers
+   129	
+   130	- Blocked by: [Task 01](task_01_web_quality_check_skill_and_contract.md).
+   131	
+   132	## References & Rollback
+   133	
+   134	- Reference: [Playwright Network Mocking Guide](https://playwright.dev/docs/mock).
+   135	- Rollback: Revert `playwright-zero-error.fixture.ts` and test additions.
+     1	---
+     2	id: "task_03_jsconfig_and_vanilla_js_type_checker"
+     3	status: "todo"
+     4	priority: "medium"
+     5	assignee: null
+     6	epic: "web-quality-check-and-integration-gate"
+     7	dueDate: null
+     8	created: "2026-11-04T22:52:00Z"
+     9	modified: "2026-11-04T22:52:00Z"
+    10	completedAt: null
+    11	labels: ["vanilla-js", "typecheck", "tooling"]
+    12	order: "a3"
+    13	---
+    14	
+    15	# Task 03: Vanilla JS JSDoc Type-Checking Configuration
+    16	
+    17	Epic: [web_quality_check_and_integration_gate](web_quality_check_and_integration_gate.en.md)
+    18	
+    19	## Requirement Analysis
+    20	
+    21	Provide in-place type checking tooling for static Vanilla JavaScript codebases (such as `lyrics-sync/src/lyrics_sync/preview/static/`) without migrating files to `.ts`. Supply a canonical `jsconfig.json` template enabling `checkJs` and strict type analysis via JSDoc annotations, accompanied by the `check_vanilla_js.py` execution wrapper for the `type_check` capability.
+    22	
+    23	## Files
+    24	
+    25	Allowed files:
+    26	- `skills/web-quality-check/resources/templates/jsconfig.template.json` (new)
+    27	- `skills/web-quality-check/resources/scripts/check_vanilla_js.py` (new)
+    28	- `tests/test_vanilla_js_checker.py` (new)
+    29	
+    30	Read-only context:
+    31	- `skills/web-quality-check/SKILL.md` (new in Task 01)
+    32	- `docs/refresh-session-quick-guide.en.md` (documentation guide)
+    33	
+    34	## Design Rationale
+    35	
+    36	Vanilla JavaScript codebases often suffer from silent runtime bugs due to misspelled variable names, missing function parameters, or null reference errors on DOM nodes. Migrating these files to TypeScript involves substantial build overhead. Using TypeScript's built-in `checkJs` mode via `jsconfig.json` provides compile-time safety and catches nullability bugs without changing runtime deployment semantics.
+    37	
+    38	## Impact Analysis & Blast Radius
+    39	
+    40	- **Target Files & Symbols**: `jsconfig.template.json`, `check_vanilla_js.py`.
+    41	- **Downstream Callers**: `web-quality-check` provider running `type_check` on static JavaScript files.
+    42	- **Cross-Platform Bridges**: None.
+    43	- **Target Test Coverage Threshold**: $\ge 85\%$ for `check_vanilla_js.py`.
+    44	
+    45	### BDD SCENARIOS
+    46	
+    47	Covers: [WQG-HP-02]
+    48	
+    49	#### Scenario: [WQG-HP-02] [Tier C - Integration] Vanilla JavaScript type-checking via JSDoc configuration
+    50	Given a repository containing Vanilla JavaScript files in `preview/static/`
+    51	And a `jsconfig.json` configured with `"checkJs": true`
+    52	When `web-quality-check` executes the `type_check` capability
+    53	Then the TypeScript compiler validates all JavaScript files without emitting errors
+    54	And passes without requiring any `.ts` file renaming.
+    55	
+    56	## Verification
+    57	
+    58	| ID | Phase | Command | Expect | Needs |
+    59	|----|-------|---------|--------|-------|
+    60	| V1 | RED | `python3 -m pytest tests/test_vanilla_js_checker.py::test_jsconfig_discovery` | exit 1; contains "FAILED" | — |
+    61	| V2 | GREEN | `python3 -m pytest tests/test_vanilla_js_checker.py::test_jsconfig_discovery` | exit 0; contains "passed" | — |
+    62	| V3 | TIER-B | `ruff check tests/test_vanilla_js_checker.py skills/web-quality-check` | exit 0 | — |
+    63	| V4 | TIER-B | `mypy skills/web-quality-check/resources/scripts/check_vanilla_js.py` | exit 0 | — |
+    64	| V5 | TIER-C | `python3 -m pytest tests/test_vanilla_js_checker.py -k "test_WQG_HP_02" --junitxml=build/test-results/task_03.xml` | exit 0; results build/test-results/task_03.xml | — |
+    65	
+    66	## Stop and Report If
+    67	
+    68	- A command, path, symbol or anchor named in this task does not match the repository.
+    69	- A Verification row fails for a reason other than its Expect.
+    70	- The work needs a change to a file outside Allowed files, or to a protected path.
+    71	- The work needs a change to this task's Verification table, Definition of Done, Allowed files or Covers line.
+    72	- A variable named in the Needs column is unset.
+    73	
+    74	## Decisions Already Made
+    75	
+    76	- Compiler configuration: `compilerOptions: { "checkJs": true, "noEmit": true, "target": "ES2022", "moduleResolution": "node" }`.
+    77	- Target files: `src/**/*.js` or configured include glob.
+    78	- Execution binary: `npx tsc --project <path_to_jsconfig>`.
+    79	
+    80	## Definition of Done
+    81	
+    82	- `jsconfig.template.json` provides a turn-key configuration for Vanilla JS type checking. (V2)
+    83	- `check_vanilla_js.py` passes ruff linting and mypy typing. (V3, V4)
+    84	- Scenario [WQG-HP-02] fully verified and passing. (V5)
+    85	- Clean git status with changes restricted to Allowed files. (Gate 5)
+    86	
+    87	## Dependencies & Blockers
+    88	
+    89	- Blocked by: [Task 01](task_01_web_quality_check_skill_and_contract.md).
+    90	
+    91	## References & Rollback
+    92	
+    93	- Reference: [TypeScript JSDoc Reference](https://www.typescriptlang.org/docs/handbook/jsdoc-supported-types.html).
+    94	- Rollback: Revert `jsconfig.template.json` and checker script.
+
+exec
+/bin/zsh -lc 'nl -ba .devtool/epic/web_quality_check_and_integration_gate/task_04_polyglot_gate4_registry_and_fanout.md; nl -ba .devtool/epic/web_quality_check_and_integration_gate/task_05_anti_rationalization_and_doubt_driven_workflow.md; nl -ba .devtool/epic/web_quality_check_and_integration_gate/task_06_automated_manual_smoke_checklist_generator.md' in /Users/danhdueexoictif/AllProjects/ai-agent-tools
+ succeeded in 0ms:
+     1	---
+     2	id: "task_04_polyglot_gate4_registry_and_fanout"
+     3	status: "todo"
+     4	priority: "high"
+     5	assignee: null
+     6	epic: "web-quality-check-and-integration-gate"
+     7	dueDate: null
+     8	created: "2026-11-04T22:52:00Z"
+     9	modified: "2026-11-04T22:52:00Z"
+    10	completedAt: null
+    11	labels: ["orchestration", "quality-gate", "polyglot"]
+    12	order: "a4"
+    13	---
+    14	
+    15	# Task 04: Polyglot Gate 4 Registry and Multi-Provider Fan-Out
+    16	
+    17	Epic: [web_quality_check_and_integration_gate](web_quality_check_and_integration_gate.en.md)
+    18	
+    19	## Requirement Analysis
+    20	
+    21	Extend project quality templates and verification tooling to support multi-provider polyglot registries in `.agents/quality/check_quality.json`. Enable concurrent fan-out and deterministic aggregation across disparate stacks: `rust-core` + `learning-web` for `D3Nexus`, and `python-core` + `preview-ui` for `lyrics-sync`.
+    22	
+    23	## Files
+    24	
+    25	Allowed files:
+    26	- `skills/setup_quality_check/resources/templates/polyglot-check-quality.template.json` (new)
+    27	- `skills/setup_quality_check/resources/templates/web-quality.template.json` (new)
+    28	- `skills/setup_quality_check/resources/scripts/scaffold_quality_manifest.py`
+    29	- `skills/quality_check/resources/scripts/verify_polyglot_registry.py` (new)
+    30	- `tests/test_polyglot_gate4.py` (new)
+    31	
+    32	Read-only context:
+    33	- `skills/quality_check/SKILL.md` (Gate 4 orchestrator)
+    34	- `skills/quality_check/resources/scripts/validate_quality_contract.py` (registry validator)
+    35	
+    36	## Design Rationale
+    37	
+    38	Modern systems are increasingly polyglot: a single repository may house a Rust/WASM core alongside an Astro frontend (`D3Nexus`), or a Python worker service alongside a Vanilla JavaScript player (`lyrics-sync`). Gate 4 must not be constrained to a single provider. It must concurrently dispatch checks across all registered providers, aggregate verdicts under `FAIL > BLOCKED > PASS`, and report a unified executive summary.
+    39	
+    40	## Impact Analysis & Blast Radius
+    41	
+    42	- **Target Files & Symbols**: `polyglot-check-quality.template.json`, `verify_polyglot_registry.py`.
+    43	- **Downstream Callers**: All polyglot repositories consuming `quality_check`.
+    44	- **Cross-Platform Bridges**: Multi-process fan-out.
+    45	- **Target Test Coverage Threshold**: $\ge 85\%$ for `verify_polyglot_registry.py`.
+    46	
+    47	### BDD SCENARIOS
+    48	
+    49	Covers: [WQG-AR-01]
+    50	
+    51	#### Scenario: [WQG-AR-01] [Tier C - Integration] Concurrent multi-provider fan-out in Gate 4
+    52	Given a polyglot repository (`D3Nexus`) with providers `rust-core` and `learning-web`
+    53	When Gate 4 `quality_check` executes profile `epic`
+    54	Then both providers execute concurrently without interfering with each other's outputs
+    55	And Gate 4 aggregates the final verdict based on `FAIL > BLOCKED > PASS` priority.
+    56	
+    57	## Verification
+    58	
+    59	| ID | Phase | Command | Expect | Needs |
+    60	|----|-------|---------|--------|-------|
+    61	| V1 | RED | `python3 -m pytest tests/test_polyglot_gate4.py::test_polyglot_fanout` | exit 1; contains "FAILED" | — |
+    62	| V2 | GREEN | `python3 -m pytest tests/test_polyglot_gate4.py::test_polyglot_fanout` | exit 0; contains "passed" | — |
+    63	| V3 | TIER-B | `ruff check tests/test_polyglot_gate4.py skills/quality_check` | exit 0 | — |
+    64	| V4 | TIER-B | `mypy skills/quality_check/resources/scripts/verify_polyglot_registry.py` | exit 0 | — |
+    65	| V5 | TIER-C | `python3 -m pytest tests/test_polyglot_gate4.py -k "test_WQG_AR_01" --junitxml=build/test-results/task_04.xml` | exit 0; results build/test-results/task_04.xml | — |
+    66	
+    67	## Stop and Report If
+    68	
+    69	- A command, path, symbol or anchor named in this task does not match the repository.
+    70	- A Verification row fails for a reason other than its Expect.
+    71	- The work needs a change to a file outside Allowed files, or to a protected path.
+    72	- The work needs a change to this task's Verification table, Definition of Done, Allowed files or Covers line.
+    73	- A variable named in the Needs column is unset.
+    74	
+    75	## Decisions Already Made
+    76	
+    77	- Aggregation precedence: `FAIL` trumps `BLOCKED`, which trumps `PASS`.
+    78	- Output format: Unified executive markdown report listing every provider's status, executed checks, and SHA binding.
+    79	- Manifest schema version: `1` with multiple objects in the `providers` array.
+    80	- Scaffolder integration: `scaffold_quality_manifest.py` registers `web` in `PLATFORM_CONFIGS` (mapping to `web-quality.json` and `web-quality.template.json`) and detects web projects via `package.json`, `astro.config.*`, or `playwright.config.*`.
+    81	- Consumer adoption handoffs: define exact check_quality.json configurations and watchdog attachment steps for `D3Nexus` (`rust-core` + `learning-web`) and `lyrics-sync` (`python-core` + `preview-ui`).
+    82	
+    83	## Definition of Done
+    84	
+    85	- `polyglot-check-quality.template.json` provides working configuration models for multi-provider repos. (V2)
+    86	- Multi-provider concurrency and verdict reduction verified with ruff and mypy. (V3, V4)
+    87	- Scenario [WQG-AR-01] fully tested and passing. (V5)
+    88	- Clean git status with changes restricted to Allowed files. (Gate 5)
+    89	
+    90	## Dependencies & Blockers
+    91	
+    92	- Blocked by: [Task 01](task_01_web_quality_check_skill_and_contract.md).
+    93	
+    94	## References & Rollback
+    95	
+    96	- Reference: `skills/quality_check/SKILL.md`.
+    97	- Rollback: Revert `polyglot-check-quality.template.json` and verification test.
+     1	---
+     2	id: "task_05_anti_rationalization_and_doubt_driven_workflow"
+     3	status: "todo"
+     4	priority: "high"
+     5	assignee: null
+     6	epic: "web-quality-check-and-integration-gate"
+     7	dueDate: null
+     8	created: "2026-11-04T22:52:00Z"
+     9	modified: "2026-11-04T22:52:00Z"
+    10	completedAt: null
+    11	labels: ["governance", "workflow", "anti-rationalization"]
+    12	order: "a5"
+    13	---
+    14	
+    15	# Task 05: Anti-Rationalization and Doubt-Driven Workflow Rules
+    16	
+    17	Epic: [web_quality_check_and_integration_gate](web_quality_check_and_integration_gate.en.md)
+    18	
+    19	## Requirement Analysis
+    20	
+    21	Incorporate Anti-Rationalization Tables and Doubt-Driven Verification principles (inspired by `addyosmani/agent-skills`) into core lifecycle and implementation skills: `dev-designer`, `dev-implementation`, and `test-driven-development`. Enforce Subcutaneous Testing for mobile, require real Playwright execution for web Tier C scenarios, reject mock-substitution shortcuts during task execution, and enforce the 5th anti-rationalization rule rejecting porting Visual Companion HTML/JS without verifying computed CSS styles and geometry assertions.
+    22	
+    23	## Files
+    24	
+    25	Allowed files:
+    26	- `skills/dev-designer/SKILL.md`
+    27	- `skills/dev-implementation/SKILL.md`
+    28	- `skills/test-driven-development/SKILL.md`
+    29	- `skills/dev-implementation/resources/scripts/task_contract.py`
+    30	- `tests/test_workflow_anti_rationalization.py` (new)
+    31	
+    32	Read-only context:
+    33	- `rules/CRITICAL_RULES.md` (mandatory quality gates)
+    34	- `.devtool/epic/web_quality_check_and_integration_gate/web_quality_check_and_integration_gate.en.md` (parent HLD)
+    35	
+    36	## Design Rationale
+    37	
+    38	AI coding agents naturally seek the path of least resistance, often writing Unit mocks while tagging them as Integration tests or skipping browser validation. Codifying explicit Anti-Rationalization Tables directly in the skill prompts provides an active behavioral counter-force, preventing agents from cutting corners before task completion.
+    39	
+    40	## Impact Analysis & Blast Radius
+    41	
+    42	- **Target Files & Symbols**: `dev-designer`, `dev-implementation`, `test-driven-development`.
+    43	- **Downstream Callers**: All developers and agents running epic lifecycles across mobile and web.
+    44	- **Cross-Platform Bridges**: None.
+    45	- **Target Test Coverage Threshold**: Document syntax and skill lint validation (0 errors).
+    46	
+    47	### BDD SCENARIOS
+    48	
+    49	Covers: [WQG-ST-02]
+    50	
+    51	#### Scenario: [WQG-ST-02] [Tier C - Integration] Task status progression under Anti-Rationalization audit
+    52	Given a Kanban task covering Tier C scenario `[WQG-HP-01]`
+    53	When the verification runner evaluates task completion with missing Tier C integration evidence or only unit mocks
+    54	Then `task_contract.py` and task status sync reject the transition to `done` with condition 6 violation
+    55	And when real Playwright headless integration test execution evidence is provided in the verification results
+    56	Then the task transitions cleanly to status `done`.
+    57	
+    58	## Verification
+    59	
+    60	| ID | Phase | Command | Expect | Needs |
+    61	|----|-------|---------|--------|-------|
+    62	| V1 | RED | `python3 -m pytest tests/test_workflow_anti_rationalization.py::test_anti_rationalization_content` | exit 1; contains "FAILED" | — |
+    63	| V2 | GREEN | `python3 -m pytest tests/test_workflow_anti_rationalization.py::test_anti_rationalization_content` | exit 0; contains "passed" | — |
+    64	| V3 | TIER-B | `ruff check tests/test_workflow_anti_rationalization.py` | exit 0 | — |
+    65	| V4 | TIER-B | `mypy tests/test_workflow_anti_rationalization.py` | exit 0 | — |
+    66	| V5 | TIER-C | `python3 -m pytest tests/test_workflow_anti_rationalization.py -k "test_WQG_ST_02" --junitxml=build/test-results/task_05.xml` | exit 0; results build/test-results/task_05.xml | — |
+    67	
+    68	## Stop and Report If
+    69	
+    70	- A command, path, symbol or anchor named in this task does not match the repository.
+    71	- A Verification row fails for a reason other than its Expect.
+    72	- The work needs a change to a file outside Allowed files, or to a protected path.
+    73	- The work needs a change to this task's Verification table, Definition of Done, Allowed files or Covers line.
+    74	- A variable named in the Needs column is unset.
+    75	
+    76	## Decisions Already Made
+    77	
+    78	- Frontmatter of `SKILL.md` files must remain strictly `name` and `description` only.
+    79	- Anti-Rationalization tables placed in dedicated sections within each skill.
+    80	- Subcutaneous testing guidelines formalized for Flutter and native mobile.
+    81	- `task_contract.py` condition 6 enforces real Tier C test cases in verification results for Tier C scenarios, rejecting mock-only completion attempts.
+    82	- 5th Anti-Rationalization rule: Rejects porting HTML/JS from Visual Companion mockups without computed CSS assertions; requires `getComputedStyle` and `getBoundingClientRect` verification (non-zero dimensions, layout display mode, and mutually exclusive state visibility) against the design.
+    83	
+    84	## Definition of Done
+    85	
+    86	- `dev-designer/SKILL.md` requires Playwright for Web and Subcutaneous tests for Mobile. (V2)
+    87	- Test suite passes ruff linting and mypy typing. (V3, V4)
+    88	- Scenario [WQG-ST-02] fully verified and passing. (V5)
+    89	- Clean git status with changes restricted to Allowed files. (Gate 5)
+    90	
+    91	## Dependencies & Blockers
+    92	
+    93	- Blocked by: [Task 01](task_01_web_quality_check_skill_and_contract.md).
+    94	
+    95	## References & Rollback
+    96	
+    97	- Reference: `addyosmani/agent-skills` Anti-Rationalization patterns.
+    98	- Rollback: Revert modifications to `skills/` files via git restore.
+     1	---
+     2	id: "task_06_automated_manual_smoke_checklist_generator"
+     3	status: "todo"
+     4	priority: "medium"
+     5	assignee: null
+     6	epic: "web-quality-check-and-integration-gate"
+     7	dueDate: null
+     8	created: "2026-11-04T22:52:00Z"
+     9	modified: "2026-11-04T22:52:00Z"
+    10	completedAt: null
+    11	labels: ["automation", "smoke-test", "workflow"]
+    12	order: "a6"
+    13	---
+    14	
+    15	# Task 06: Automated Manual Smoke Checklist Generator
+    16	
+    17	Epic: [web_quality_check_and_integration_gate](web_quality_check_and_integration_gate.en.md)
+    18	
+    19	## Requirement Analysis
+    20	
+    21	Build the automated smoke checklist generator script `generate_smoke_checklist.py` and hook it into Phase 4 of `dev-implementation`. The script parses the canonical BDD Happy Path scenarios (`bdd_scenarios.en.md`), extracts 3 to 5 core user journey steps, and formats them into a clean markdown document at `.devtool/epic/<epic_dir>/manual_smoke_checklist.md` before the final Gate 4 validation run. This gives the human engineer an instant 2-minute manual sanity check checklist without dirtying the git working tree after Gate 4.
+    22	
+    23	## Files
+    24	
+    25	Allowed files:
+    26	- `skills/dev-implementation/resources/scripts/generate_smoke_checklist.py` (new)
+    27	- `skills/dev-implementation/SKILL.md`
+    28	- `tests/test_smoke_checklist_generator.py` (new)
+    29	
+    30	Read-only context:
+    31	- `.devtool/epic/web_quality_check_and_integration_gate/bdd_scenarios.en.md` (source BDD contract)
+    32	- `skills/dev-implementation/SKILL.md` (Phase 4 integration point)
+    33	
+    34	## Design Rationale
+    35	
+    36	Even with 100% automated testing, human developers naturally want to perform a quick sanity check before release. Without structured guidance, this exploratory testing often takes 20-30 minutes of aimless clicking. Automatically generating a focused 3-5 step walkthrough directly from the approved BDD Happy Paths concentrates human verification into a rapid 2-minute validation loop.
+    37	
+    38	## Impact Analysis & Blast Radius
+    39	
+    40	- **Target Files & Symbols**: `generate_smoke_checklist.py`, `dev-implementation/SKILL.md`.
+    41	- **Downstream Callers**: `dev-implementation` Phase 4 upon Gate 4 pass.
+    42	- **Cross-Platform Bridges**: None.
+    43	- **Target Test Coverage Threshold**: $\ge 85\%$ for `generate_smoke_checklist.py`.
+    44	
+    45	### BDD SCENARIOS
+    46	
+    47	Covers: [WQG-HP-04]
+    48	
+    49	#### Scenario: [WQG-HP-04] [Tier A - Unit] Automated generation of 3-5 step manual smoke checklist
+    50	Given all tasks in an epic reach status `done` and Phase 4 executes
+    51	When the smoke generator parses primary BDD Happy Path scenarios
+    52	Then it emits `.devtool/epic/<epic_dir>/manual_smoke_checklist.md` before Gate 4 validation
+    53	And the checklist contains between 3 and 5 actionable verification steps with Target (URL or CLI Command), Action, and Observable Outcome.
+    54	
+    55	## Verification
+    56	
+    57	| ID | Phase | Command | Expect | Needs |
+    58	|----|-------|---------|--------|-------|
+    59	| V1 | RED | `python3 -m pytest tests/test_smoke_checklist_generator.py::test_smoke_checklist_generation` | exit 1; contains "FAILED" | — |
+    60	| V2 | GREEN | `python3 -m pytest tests/test_smoke_checklist_generator.py::test_smoke_checklist_generation` | exit 0; contains "passed" | — |
+    61	| V3 | TIER-B | `ruff check tests/test_smoke_checklist_generator.py skills/dev-implementation` | exit 0 | — |
+    62	| V4 | TIER-B | `mypy skills/dev-implementation/resources/scripts/generate_smoke_checklist.py` | exit 0 | — |
+    63	| V5 | TIER-C | `python3 -m pytest tests/test_smoke_checklist_generator.py -k "test_WQG_HP_04" --junitxml=build/test-results/task_06.xml` | exit 0; results build/test-results/task_06.xml | — |
+    64	
+    65	## Stop and Report If
+    66	
+    67	- A command, path, symbol or anchor named in this task does not match the repository.
+    68	- A Verification row fails for a reason other than its Expect.
+    69	- The work needs a change to a file outside Allowed files, or to a protected path.
+    70	- The work needs a change to this task's Verification table, Definition of Done, Allowed files or Covers line.
+    71	- A variable named in the Needs column is unset.
+    72	
+    73	## Decisions Already Made
+    74	
+    75	- Output path: `.devtool/epic/<epic_dir>/manual_smoke_checklist.md`.
+    76	- Maximum checklist length: 5 items.
+    77	- Structure: Checklist table containing Step Number, Target (URL / CLI Command), Action, and Observable Outcome.
+    78	- Smoke extraction logic: Extracts URL if present in scenario steps; if step specifies a CLI or tooling command (such as `d3nexus:web-quality-check`), extracts the command/entrypoint as Target; fallback to `CLI / Workspace Root` with parsed When/Then actions when URLs are absent.
+    79	- Workflow timing: The generator executes and commits `manual_smoke_checklist.md` in Phase 4 before candidate SHA resolution and the final Gate 4 run, ensuring zero uncommitted files and maintaining candidate SHA stability.
+    80	
+    81	## Definition of Done
+    82	
+    83	- `generate_smoke_checklist.py` extracts Happy Path steps and outputs valid markdown. (V2)
+    84	- Script passes ruff linting and mypy typing. (V3, V4)
+    85	- Scenario [WQG-HP-04] fully verified and passing. (V5)
+    86	- Clean git status with changes restricted to Allowed files. (Gate 5)
+    87	
+    88	## Dependencies & Blockers
+    89	
+    90	- Blocked by: [Task 01](task_01_web_quality_check_skill_and_contract.md), [Task 05](task_05_anti_rationalization_and_doubt_driven_workflow.md).
+    91	
+    92	## References & Rollback
+    93	
+    94	- Reference: `dev-implementation/SKILL.md` Phase 4 verification flow.
+    95	- Rollback: Revert `generate_smoke_checklist.py` and test file.
+
+codex
+The main review risk is whether the tasks can enforce the promised behavior within their allowed files. I’m tracing provider invocation, Tier C evidence, and the downstream adoption steps against the existing tooling.
+
+exec
+/bin/zsh -lc 'nl -ba skills/setup_quality_check/resources/scripts/scaffold_quality_manifest.py' in /Users/danhdueexoictif/AllProjects/ai-agent-tools
+ succeeded in 0ms:
+     1	#!/usr/bin/env python3
+     2	"""
+     3	Automated Scaffolding Engine for Quality Providers.
+     4	Inspects project repository roots, detects project platforms (Flutter, Android, iOS, Rust),
+     5	and generates standardized .agents/quality/ configurations adhering to canonical templates.
+     6	"""
+     7	from __future__ import annotations
+     8	
+     9	import argparse
+    10	import json
+    11	import sys
+    12	from pathlib import Path
+    13	from typing import Dict, List, Optional, Any
+    14	
+    15	
+    16	class ScaffoldError(Exception):
+    17	    """Raised when scaffolding fails due to safety or detection violations."""
+    18	    pass
+    19	
+    20	
+    21	PLATFORM_CONFIGS: Dict[str, Dict[str, Any]] = {
+    22	    "flutter": {
+    23	        "provider_id": "flutter-core",
+    24	        "skill": "d3nexus:flutter-quality-check",
+    25	        "filename": "flutter-quality.json",
+    26	        "manifest": {
+    27	            "schema_version": 1,
+    28	            "capabilities": {
+    29	                "format": ["./scripts/dartfmt.sh"],
+    30	                "analyze": ["fvm", "flutter", "analyze"],
+    31	                "boundaries": ["./scripts/check_module_boundaries.sh"],
+    32	                "license": ["./scripts/check_license_header.sh"],
+    33	                "test": ["melos", "run", "test"],
+    34	                "coverage": {
+    35	                    "command": ["./scripts/testWithCoverage.sh"],
+    36	                    "lcov_path": "coverage_report/lcov.info",
+    37	                    "threshold": 0.85
+    38	                },
+    39	                "acceptance": ["./scripts/acceptance_check.sh"]
+    40	            },
+    41	            "profiles": {
+    42	                "pr": ["format", "analyze", "test"],
+    43	                "epic": ["format", "analyze", "boundaries", "license", "test", "coverage"]
+    44	            }
+    45	        }
+    46	    },
+    47	    "android": {
+    48	        "provider_id": "android-core",
+    49	        "skill": "d3nexus:android-quality-check",
+    50	        "filename": "android-quality.json",
+    51	        "manifest": {
+    52	            "schema_version": 1,
+    53	            "capabilities": {
+    54	                "format": ["./gradlew", "spotlessCheck"],
+    55	                "lint": ["./gradlew", "detekt"],
+    56	                "bcv": ["./gradlew", "apiCheck"],
+    57	                "architecture": ["./gradlew", ":konsist-test:test"],
+    58	                "test": ["./gradlew", "testDebugUnitTest"],
+    59	                "coverage": {
+    60	                    "command": ["./gradlew", "jacocoTestReport"],
+    61	                    "report_path": "build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml",
+    62	                    "threshold": 0.85
+    63	                },
+    64	                "acceptance": ["./scripts/acceptance_check.sh"],
+    65	                "cleanup": ["pkill", "-9", "java"]
+    66	            },
+    67	            "profiles": {
+    68	                "pr": ["format", "lint", "test"],
+    69	                "epic": ["format", "lint", "bcv", "architecture", "test", "coverage", "cleanup"]
+    70	            }
+    71	        }
+    72	    },
+    73	    "ios": {
+    74	        "provider_id": "ios-core",
+    75	        "skill": "d3nexus:ios-quality-check",
+    76	        "filename": "ios-quality.json",
+    77	        "manifest": {
+    78	            "schema_version": 1,
+    79	            "capabilities": {
+    80	                "format": ["swiftformat", "--config", "quality/.swiftformat", "--lint", "."],
+    81	                "lint": ["swiftlint", "lint", "--config", "quality/.swiftlint.yml", "--strict"],
+    82	                "architecture": ["swift", "test", "--package-path", "ArchTests"],
+    83	                "boundaries": ["./scripts/check_module_boundaries.sh"],
+    84	                "test": ["swift", "test"],
+    85	                "coverage": {
+    86	                    "command": ["./scripts/check_coverage_thresholds.sh"],
+    87	                    "profdata_path": "default.profdata",
+    88	                    "threshold": 0.85
+    89	                },
+    90	                "acceptance": ["./scripts/acceptance_check.sh"]
+    91	            },
+    92	            "profiles": {
+    93	                "pr": ["format", "lint", "test"],
+    94	                "epic": ["format", "lint", "architecture", "boundaries", "test", "coverage"]
+    95	            }
+    96	        }
+    97	    },
+    98	    "rust": {
+    99	        "provider_id": "rust-core",
+   100	        "skill": "d3nexus:rust-quality-check",
+   101	        "filename": "rust-quality.json",
+   102	        "manifest": {
+   103	            "schema_version": 1,
+   104	            "capabilities": {
+   105	                "format": ["cargo", "fmt", "--all", "--", "--check"],
+   106	                "check": ["cargo", "check", "--all-targets"],
+   107	                "clippy": ["cargo", "clippy", "--all-targets", "--", "-D", "warnings"],
+   108	                "test": ["cargo", "test", "--workspace"],
+   109	                "coverage": {
+   110	                    "command": ["cargo", "llvm-cov", "--workspace", "--fail-under-lines", "80"],
+   111	                    "threshold": 0.8
+   112	                },
+   113	                "architecture": ["cargo", "run", "-p", "xtask", "--", "check-architecture"]
+   114	            },
+   115	            "profiles": {
+   116	                "pr": ["format", "check", "clippy", "test", "architecture"],
+   117	                "epic": ["format", "check", "clippy", "test", "coverage", "architecture"]
+   118	            }
+   119	        }
+   120	    },
+   121	    "python": {
+   122	        "provider_id": "python-core",
+   123	        "skill": "d3nexus:python-quality-check",
+   124	        "filename": "python-quality.json",
+   125	        "manifest": {
+   126	            "schema_version": 1,
+   127	            "capabilities": {
+   128	                "format": ["uv", "run", "ruff", "format", "--check", "."],
+   129	                "lint": ["uv", "run", "ruff", "check", "."],
+   130	                "type_check": ["uv", "run", "mypy", "--strict", "src"],
+   131	                "test": ["uv", "run", "pytest", "-m", "not slow and not acceptance and not live_llm"],
+   132	                "coverage": {
+   133	                    "command": ["uv", "run", "pytest", "--cov=src", "--cov-report=json:coverage.json"],
+   134	                    "threshold": 0.8
+   135	                },
+   136	                "architecture": ["uv", "run", "lint-imports"]
+   137	            },
+   138	            "profiles": {
+   139	                "pr": ["format", "lint", "type_check", "test"],
+   140	                "epic": ["format", "lint", "type_check", "test", "coverage", "architecture"]
+   141	            }
+   142	        }
+   143	    }
+   144	}
+   145	
+   146	
+   147	def detect_platforms(repo_root: Path) -> List[str]:
+   148	    """
+   149	    Inspects repository root directory and returns detected platform names.
+   150	    Supports Flutter, Android, iOS, Rust, and Python heuristics.
+   151	    """
+   152	    detected = []
+   153	
+   154	    # Flutter detection
+   155	    if (repo_root / "pubspec.yaml").is_file() or (repo_root / "melos.yaml").is_file():
+   156	        detected.append("flutter")
+   157	
+   158	    # Android detection
+   159	    android_markers = [
+   160	        "build.gradle.kts",
+   161	        "build.gradle",
+   162	        "settings.gradle.kts",
+   163	        "settings.gradle",
+   164	    ]
+   165	    if any((repo_root / marker).is_file() for marker in android_markers):
+   166	        detected.append("android")
+   167	
+   168	    # iOS detection
+   169	    ios_markers = [
+   170	        "Project.swift",
+   171	        "Tuist.swift",
+   172	        "Package.swift",
+   173	    ]
+   174	    if any((repo_root / marker).is_file() for marker in ios_markers):
+   175	        detected.append("ios")
+   176	
+   177	    # Rust detection
+   178	    if (repo_root / "Cargo.toml").is_file():
+   179	        detected.append("rust")
+   180	
+   181	    # Python detection
+   182	    python_markers = [
+   183	        "pyproject.toml",
+   184	        "uv.lock",
+   185	        "requirements.txt",
+   186	        "setup.py",
+   187	        "Pipfile",
+   188	    ]
+   189	    if any((repo_root / marker).is_file() for marker in python_markers):
+   190	        detected.append("python")
+   191	
+   192	    return sorted(list(set(detected)))
+   193	
+   194	
+   195	def build_registry_data(platforms: List[str]) -> Dict[str, Any]:
+   196	    """Builds standard check_quality.json structure for given platforms."""
+   197	    providers = []
+   198	    for p in platforms:
+   199	        cfg = PLATFORM_CONFIGS[p]
+   200	        providers.append({
+   201	            "id": cfg["provider_id"],
+   202	            "skill": cfg["skill"],
+   203	            "required": True,
+   204	            "profiles": ["pr", "epic"]
+   205	        })
+   206	
+   207	    return {
+   208	        "schema_version": 1,
+   209	        "providers": providers
+   210	    }
+   211	
+   212	
+   213	def scaffold_quality_manifests(
+   214	    repo_root: Path,
+   215	    output_dir: Optional[Path] = None,
+   216	    platforms: Optional[List[str]] = None,
+   217	    force: bool = False,
+   218	    dry_run: bool = False,
+   219	) -> Dict[str, Any]:
+   220	    """
+   221	    Scaffolds quality check registry and provider manifests into output_dir.
+   222	    Raises ScaffoldError on detection failures or overwrite conflicts.
+   223	    """
+   224	    repo_root = repo_root.resolve()
+   225	    if output_dir is None:
+   226	        target_dir = repo_root / ".agents" / "quality"
+   227	    else:
+   228	        target_dir = output_dir.resolve()
+   229	
+   230	    if platforms is None:
+   231	        detected = detect_platforms(repo_root)
+   232	    else:
+   233	        detected = sorted(list(set(platforms)))
+   234	        for p in detected:
+   235	            if p not in PLATFORM_CONFIGS:
+   236	                raise ScaffoldError(f"Unsupported platform specified: '{p}'. Allowed: {list(PLATFORM_CONFIGS.keys())}")
+   237	
+   238	    if not detected:
+   239	        raise ScaffoldError(
+   240	            f"No supported platform detected in repository root: {repo_root}. "
+   241	            f"Supported platforms: {list(PLATFORM_CONFIGS.keys())}"
+   242	        )
+   243	
+   244	    # Prepare file mappings
+   245	    target_files: Dict[Path, Dict[str, Any]] = {}
+   246	    reg_path = target_dir / "check_quality.json"
+   247	    target_files[reg_path] = build_registry_data(detected)
+   248	
+   249	    for p in detected:
+   250	        cfg = PLATFORM_CONFIGS[p]
+   251	        p_path = target_dir / cfg["filename"]
+   252	        target_files[p_path] = cfg["manifest"]
+   253	
+   254	    # Check for existing files if not force
+   255	    if not force:
+   256	        for fpath in target_files:
+   257	            if fpath.exists():
+   258	                raise ScaffoldError(
+   259	                    f"Configuration file already exists: {fpath}. Use --force to overwrite."
+   260	                )
+   261	
+   262	    if dry_run:
+   263	        return {
+   264	            "detected_platforms": detected,
+   265	            "output_directory": str(target_dir),
+   266	            "planned_files": [str(p) for p in target_files.keys()],
+   267	            "files": {str(p): data for p, data in target_files.items()},
+   268	        }
+   269	
+   270	    # Write files atomically
+   271	    target_dir.mkdir(parents=True, exist_ok=True)
+   272	    written = []
+   273	    for fpath, data in target_files.items():
+   274	        fpath.write_text(json.dumps(data, indent=2) + "\n")
+   275	        written.append(str(fpath))
+   276	
+   277	    return {
+   278	        "detected_platforms": detected,
+   279	        "output_directory": str(target_dir),
+   280	        "written_files": written,
+   281	    }
+   282	
+   283	
+   284	def main() -> int:
+   285	    parser = argparse.ArgumentParser(
+   286	        description="Scaffold standardized quality check configurations for repository platforms."
+   287	    )
+   288	    parser.add_argument(
+   289	        "--root",
+   290	        type=Path,
+   291	        default=Path("."),
+   292	        help="Repository root directory to inspect (default: current directory).",
+   293	    )
+   294	    parser.add_argument(
+   295	        "--output-dir",
+   296	        type=Path,
+   297	        default=None,
+   298	        help="Target directory for quality configs (default: <root>/.agents/quality).",
+   299	    )
+   300	    parser.add_argument(
+   301	        "--platform",
+   302	        type=str,
+   303	        default=None,
+   304	        help="Comma-separated platform override (e.g. flutter,android,ios,rust).",
+   305	    )
+   306	    parser.add_argument(
+   307	        "--force",
+   308	        action="store_true",
+   309	        help="Overwrite existing configuration files.",
+   310	    )
+   311	    parser.add_argument(
+   312	        "--dry-run",
+   313	        action="store_true",
+   314	        help="Print planned scaffolding without writing files to disk.",
+   315	    )
+   316	
+   317	    args = parser.parse_args()
+   318	
+   319	    platforms = None
+   320	    if args.platform:
+   321	        platforms = [p.strip().lower() for p in args.platform.split(",") if p.strip()]
+   322	
+   323	    try:
+   324	        result = scaffold_quality_manifests(
+   325	            repo_root=args.root,
+   326	            output_dir=args.output_dir,
+   327	            platforms=platforms,
+   328	            force=args.force,
+   329	            dry_run=args.dry_run,
+   330	        )
+   331	        print(f"Scaffolding completed successfully for platforms: {result['detected_platforms']}")
+   332	        if args.dry_run:
+   333	            print(f"Dry-run planned {len(result['planned_files'])} file(s):")
+   334	            for f in result["planned_files"]:
+   335	                print(f"  - {f}")
+   336	        else:
+   337	            print(f"Written {len(result['written_files'])} file(s) into {result['output_directory']}:")
+   338	            for f in result["written_files"]:
+   339	                print(f"  - {f}")
+   340	        return 0
+   341	    except ScaffoldError as err:
+   342	        print(f"Scaffolding error: {err}", file=sys.stderr)
+   343	        return 1
+   344	
+   345	
+   346	if __name__ == "__main__":
+   347	    sys.exit(main())
+
+exec
+/bin/zsh -lc 'nl -ba skills/quality_check/SKILL.md; nl -ba skills/quality_check/references/provider-result-contract.md' in /Users/danhdueexoictif/AllProjects/ai-agent-tools
+ succeeded in 0ms:
+     1	---
+     2	name: quality_check
+     3	description: Platform-neutral quality gatekeeper and orchestrator that discovers project-registered providers from .agents/quality/check_quality.json, validates versioned contracts, aggregates verdicts (FAIL > BLOCKED > PASS), and renders immutable SHA-bound executive reports.
+     4	---
+     5	
+     6	# Platform-Neutral Quality Check Orchestrator
+     7	
+     8	## Overview
+     9	
+    10	You are the Master Quality Orchestrator and Governance Gatekeeper. Your role is platform-neutral: you do not embed
+    11	ecosystem-specific compilers, testing tools, or heuristics. Instead, you act as the composition root for project quality,
+    12	discovering registered capability providers via dependency injection, fanning out execution across all selected providers,
+    13	validating versioned contracts, and synthesizing a single deterministic Gate 4 verdict bound to an immutable commit SHA.
+    14	
+    15	Execution is strictly read-only: quality certification verifies existing code and never mutates source files or applies
+    16	auto-fix scripts during verification.
+    17	
+    18	## Architecture and Execution Sequence
+    19	
+    20	```mermaid
+    21	flowchart TD
+    22	    CALLER["Caller supplies profile, base ref, and target SHA"] --> NORMALIZE["Step 0: Normalize request and verify repository SHA"]
+    23	    NORMALIZE --> REGISTRY["Step 1: Load .agents/quality/check_quality.json"]
+    24	    REGISTRY --> VALIDATE["Step 2: Validate registry and select providers"]
+    25	    VALIDATE --> FANOUT["Step 3: Fan out invocation across all selected providers"]
+    26	    FANOUT --> HEAD_CHECK["Step 4: Verify finished repository HEAD matches initial SHA"]
+    27	    HEAD_CHECK --> CONTRACT_CHECK["Step 5: Validate provider results and reconcile plan"]
+    28	    CONTRACT_CHECK --> REDUCE["Step 6: Aggregate statuses and render executive report"]
+    29	    REDUCE --> VERDICT{"Overall status"}
+    30	    VERDICT -->|"PASS"| LGTM["Render Gate 4 LGTM for verified SHA"]
+    31	    VERDICT -->|"FAIL"| REJECT_FAIL["Report product defects"]
+    32	    VERDICT -->|"BLOCKED"| REJECT_BLOCKED["Report infrastructure blockers"]
+    33	```
+    34	
+    35	## Step-by-Step Orchestration Workflow
+    36	
+    37	### Step 0: Input Normalization and Invocation Contract
+    38	
+    39	Normalize caller parameters:
+    40	- `profile`: Defaults to `pr` for direct interactive invocations. Formal lifecycle callers (`dev-implementation`, `dev-lifecycle`) must pass explicit profile (`epic`, `scheduled`, `release`).
+    41	- `base_ref`: Branch or ref used for blast radius, changed-file scope, and impact analysis (e.g. `main`, `develop`).
+    42	- `repository_sha`: The 40-character commit SHA to certify. If omitted, resolve immediately using `git rev-parse HEAD`.
+    43	
+    44	Construct the immutable invocation payload:
+    45	
+    46	```json
+    47	{
+    48	  "contract_version": 1,
+    49	  "profile": "<profile>",
+    50	  "base_ref": "<base_ref>",
+    51	  "repository_sha": "<sha>"
+    52	}
+    53	```
+    54	
+    55	Validate the invocation using [validate_quality_contract.py](resources/scripts/validate_quality_contract.py). If invocation parameters are invalid, halt immediately with status `BLOCKED`.
+    56	
+    57	### Step 1: Project Registry Loading
+    58	
+    59	Load the project quality manifest located at `.agents/quality/check_quality.json` from the repository root:
+    60	
+    61	```bash
+    62	python3 skills/quality_check/resources/scripts/validate_quality_contract.py registry .agents/quality/check_quality.json --profile "<profile>"
+    63	```
+    64	
+    65	Fail-closed rules:
+    66	- If `.agents/quality/check_quality.json` is missing or unreadable: halt with status `BLOCKED`. Never attempt fallback platform detection.
+    67	- If the registry contains unknown fields, unsupported schema versions, duplicate provider IDs, or empty provider lists: halt with status `BLOCKED`.
+    68	- If no provider matches the requested profile: return `BLOCKED` with finding `empty_selection`.
+    69	- If a selected provider's skill is unresolvable in the active environment: halt with status `BLOCKED`.
+    70	
+    71	### Step 2: Provider Invocation Fan-Out
+    72	
+    73	For every provider selected by the registry for the requested profile:
+    74	1. Provide the identical immutable invocation payload, adding the provider's `provider_id` and `required` flag.
+    75	2. Invoke the provider skill (e.g. `d3nexus:rust-quality-check`).
+    76	3. Providers execute read-only checks matching their declared profile capabilities.
+    77	4. Collect one structured result document per provider.
+    78	
+    79	Independent providers may run concurrently. Output ordering is never dependent on execution order.
+    80	
+    81	### Step 3: Stale-Evidence and Final HEAD Verification
+    82	
+    83	Before accepting provider evidence, verify current repository HEAD:
+    84	
+    85	```bash
+    86	git rev-parse HEAD
+    87	```
+    88	
+    89	If current HEAD differs from `repository_sha`, repository state drifted during execution. All collected evidence is rejected as stale, and the overall run returns `BLOCKED`.
+    90	
+    91	### Step 4: Result Contract Validation and Plan Reconciliation
+    92	
+    93	Reconcile collected provider results against the execution plan:
+    94	
+    95	```bash
+    96	python3 skills/quality_check/resources/scripts/validate_quality_contract.py reconcile "<plan_json>" --results "<result_files...>"
+    97	```
+    98	
+    99	Validation guarantees:
+   100	- Every result document matches [provider-result.schema.json](resources/schemas/provider-result.schema.json).
+   101	- Identity fields (`provider_id`, `profile`, `repository_sha`, `started_head`, `finished_head`) match the invocation.
+   102	- Missing results or duplicate results for a provider generate synthetic `BLOCKED` findings.
+   103	- Evidence references resolve cleanly to recorded evidence artifacts.
+   104	
+   105	### Step 5: Deterministic Aggregation and Executive Report
+   106	
+   107	Reduce validated results into a unified verdict:
+   108	
+   109	```bash
+   110	python3 skills/quality_check/resources/scripts/aggregate_quality_results.py "<plan_json>" "<result_files...>" --markdown
+   111	```
+   112	
+   113	Precedence policy:
+   114	$$\text{FAIL} > \text{BLOCKED} > \text{PASS}$$
+   115	
+   116	1. **FAIL**: If any provider reported `FAIL`, the overall verdict is `FAIL`. All defects and blockers remain visible.
+   117	2. **BLOCKED**: If no failure occurred, but any required provider reported `BLOCKED` or failed reconciliation, the overall verdict is `BLOCKED`.
+   118	3. **PASS**: Granted if and only if every required provider passed.
+   119	4. **NOT_APPLICABLE**: An optional provider may be neutral if supported by applicability evidence. A required provider with only `NOT_APPLICABLE` checks is converted to `BLOCKED`.
+   120	
+   121	### Step 6: Gate 4 Certification
+   122	
+   123	Only an aggregated verdict of **PASS** bound to the candidate commit SHA qualifies for Gate 4 `🟢 LGTM`. If the verdict is `FAIL` or `BLOCKED`, render the complete executive report detailing all blockers and warnings, and stop.
+   124	
+   125	## Reference Contracts and Resources
+   126	
+   127	- [Provider Registry Contract](references/provider-registry-contract.md): Format and rules for `.agents/quality/check_quality.json`.
+   128	- [Provider Result Contract](references/provider-result-contract.md): Schema and constraints for provider result documents.
+   129	- [Result Aggregation Contract](references/aggregation-contract.md): Deterministic precedence and status reduction model.
+   130	- [Executive Report Format](references/executive-report-format.md): Layout specification for pull request and Gate 4 reports.
+   131	- [Registry Schema](resources/schemas/check-quality.schema.json): Machine-readable JSON Schema for project registries.
+   132	- [Result Schema](resources/schemas/provider-result.schema.json): Machine-readable JSON Schema for provider results.
+   133	- [Contract Validator](resources/scripts/validate_quality_contract.py): Standard-library validator script and CLI.
+   134	- [Aggregation Engine](resources/scripts/aggregate_quality_results.py): Result aggregation and markdown report engine.
+   135	- [Acceptance Suite](resources/scripts/test_quality_provider_acceptance.py): End-to-end multi-provider acceptance test suite.
+     1	# Provider Result Contract
+     2	
+     3	## Overview
+     4	
+     5	Quality providers communicate findings and verification evidence through machine-readable result documents.
+     6	Each provider produces one structured result document bound to the immutable repository commit SHA being verified.
+     7	
+     8	The contract is validated mechanically using [provider-result.schema.json](../resources/schemas/provider-result.schema.json)
+     9	and the contract validator script [validate_quality_contract.py](../resources/scripts/validate_quality_contract.py).
+    10	
+    11	## Result Structure
+    12	
+    13	```json
+    14	{
+    15	  "provider_id": "rust-core",
+    16	  "contract_version": 1,
+    17	  "profile": "epic",
+    18	  "repository_sha": "5d8b7b0f1b7a9c6f7c8f6498e69c3d6f1e0a4123",
+    19	  "status": "PASS",
+    20	  "checks": [
+    21	    {
+    22	      "id": "cargo-check",
+    23	      "category": "compile",
+    24	      "status": "PASS",
+    25	      "source": "cargo check --all-targets",
+    26	      "duration": 12.4,
+    27	      "summary": "Compilation check succeeded with 0 warnings",
+    28	      "evidence_refs": ["check-log"]
+    29	    }
+    30	  ],
+    31	  "coverage": {
+    32	    "lines": {
+    33	      "measured": 0.88,
+    34	      "threshold": 0.85
+    35	    }
+    36	  },
+    37	  "evidence": [
+    38	    {
+    39	      "id": "check-log",
+    40	      "type": "command",
+    41	      "source": "cargo check",
+    42	      "location": "artifacts/cargo-check.log"
+    43	    }
+    44	  ],
+    45	  "started_head": "5d8b7b0f1b7a9c6f7c8f6498e69c3d6f1e0a4123",
+    46	  "finished_head": "5d8b7b0f1b7a9c6f7c8f6498e69c3d6f1e0a4123",
+    47	  "duration": 45.2,
+    48	  "blockers": [],
+    49	  "warnings": []
+    50	}
+    51	```
+    52	
+    53	## Schema Specification
+    54	
+    55	### Top-Level Fields
+    56	
+    57	- `provider_id` (string, required): Identifier matching the provider registration.
+    58	- `contract_version` (integer, required): Must be integer `1`.
+    59	- `profile` (string, required): Quality profile matching the invocation (`pr`, `epic`, `scheduled`, `release`).
+    60	- `repository_sha` (string, required): 40-character hexadecimal git commit SHA.
+    61	- `status` (string, required): Overall provider verdict: `PASS`, `FAIL`, `BLOCKED`, or `NOT_APPLICABLE`.
+    62	- `checks` (array of objects, required): Structured breakdown of individual checks performed.
+    63	- `coverage` (object, required): Measured code coverage and required thresholds.
+    64	- `evidence` (array of objects, required): Verifiable evidence records confirming executed checks.
+    65	- `started_head` (string, required): Git HEAD SHA at the start of provider execution.
+    66	- `finished_head` (string, required): Git HEAD SHA at the conclusion of provider execution.
+    67	- `duration` (number, required): Execution duration in seconds (must be non-negative).
+    68	- `blockers` (array, required): Actionable blocking issues requiring resolution.
+    69	- `warnings` (array, required): Non-blocking advisory findings.
+    70	
+    71	### Check Object Fields
+    72	
+    73	- `id` (string, required): Unique check identifier within the provider.
+    74	- `category` (string, required): Category classification (e.g. `lint`, `compile`, `unit-test`, `security`, `architecture`).
+    75	- `status` (string, required): Individual check verdict (`PASS`, `FAIL`, `BLOCKED`, `NOT_APPLICABLE`).
+    76	- `source` (string, required): Executed command or audit tool source.
+    77	- `duration` (number, required): Check duration in seconds.
+    78	- `summary` (string, required): Human-readable summary of the check result.
+    79	- `evidence_refs` (array of strings, required): List of evidence identifiers referenced by this check.
+    80	- `not_applicable_reason` (object, optional): Mandatory when status is `NOT_APPLICABLE`. Contains `code` and `detail`.
+    81	
+    82	### Evidence Object Fields
+    83	
+    84	- `id` (string, required): Evidence identifier referenced by checks.
+    85	- `type` (string, required): Evidence type (`command`, `applicability`, `audit`, `log`, `report`).
+    86	- `source` (string, required): Producing tool or command.
+    87	- `location` (string, required): File path or URL to evidence output.
+    88	- `digest` (string, optional): SHA256 cryptographic digest of the evidence content.
+    89	
+    90	## Contract Rules and Verification Boundaries
+    91	
+    92	1. **Identity and SHA Integrity**: `started_head`, `finished_head`, and `repository_sha` must match the requested SHA. Any divergence invalidates evidence as stale and produces `BLOCKED`.
+    93	2. **Evidence Resolution**: Every reference in `evidence_refs` must resolve to a valid entry in `evidence`.
+    94	3. **NOT_APPLICABLE Constraints**: `NOT_APPLICABLE` requires a structured reason (`profile_policy`, `scope_unmodified`, `capability_not_configured`, `target_absent`, `platform_not_applicable`) and evidence of type `applicability`. Missing tools, timeouts, or command errors produce `BLOCKED` or `FAIL`, never `NOT_APPLICABLE`.
+    95	4. **Deterministic Precedence**: `FAIL` > `BLOCKED` > `PASS`. Product defects outrank infrastructure blockage.
+
+exec
+/bin/zsh -lc 'nl -ba .devtool/epic/web_quality_check_and_integration_gate/2026-11-04-web-quality-check-and-integration-gate-design.vi.md; nl -ba .devtool/epic/web_quality_check_and_integration_gate/web_quality_check_and_integration_gate.vi.md; nl -ba .devtool/epic/web_quality_check_and_integration_gate/bdd_scenarios.vi.md; nl -ba .devtool/epic/web_quality_check_and_integration_gate/task_03_jsconfig_and_vanilla_js_type_checker.md' in /Users/danhdueexoictif/AllProjects/ai-agent-tools
+ succeeded in 0ms:
+     1	# Đặc tả Thiết kế Web Quality Check và Integration Gate
+     2	
+     3	## Mục lục
+     4	
+     5	- [Mục lục](#mục-lục)
+     6	- [Metadata](#metadata)
+     7	- [Bối cảnh và Vấn đề](#bối-cảnh-và-vấn-đề)
+     8	- [Mục tiêu và Giới hạn](#mục-tiêu-và-giới-hạn)
+     9	- [Kiến trúc và Chuẩn Kiểm thử 3 Lớp](#kiến-trúc-và-chuẩn-kiểm-thử-3-lớp)
+    10	- [Chống Ngụy biện và Cơ chế Phản biện Nghi vấn](#chống-ngụy-biện-và-cơ-chế-phản-biện-nghi-vấn)
+    11	- [Đặc tả Kỹ thuật Provider Web Quality](#đặc-tả-kỹ-thuật-provider-web-quality)
+    12	- [Tích hợp Registry Đa Repo và Gate 4 Đa Nền tảng](#tích-hợp-registry-đa-repo-và-gate-4-đa-nền-tảng)
+    13	- [Nâng cấp Dev-Designer và Dev-Implementation](#nâng-cấp-dev-designer-và-dev-implementation)
+    14	- [Tự động Sinh Kịch bản Smoke Test Bấm tay](#tự-động-sinh-kịch-bản-smoke-test-bấm-tay)
+    15	- [Rủi ro và Giải pháp Giảm thiểu](#rủi-ro-và-giải-pháp-giảm-thiểu)
+    16	- [Kế hoạch Kiểm chứng](#kế-hoạch-kiểm-chứng)
+    17	
+    18	## Metadata
+    19	
+    20	- **Tên Epic**: `web_quality_check_and_integration_gate`
+    21	- **Slug Epic**: `web-quality-check-and-integration-gate`
+    22	- **Ngày**: 2026-11-04
+    23	- **Tác giả**: Kiến trúc sư Con người & Trợ lý AI
+    24	- **Trạng thái**: Đã phê duyệt (Đã qua Gate 1)
+    25	- **Kho lưu trữ Mục tiêu**: `ai-agent-tools`, `D3Nexus`, `lyrics-sync`, `nexus`
+    26	
+    27	## Bối cảnh và Vấn đề
+    28	
+    29	Trong hệ sinh thái đa repo (`D3Nexus`, `lyrics-sync`, `nexus`), các kỹ sư thường xuyên đối mặt với khoảng cách lớn giữa thiết kế kiến trúc lý thuyết và hành vi thực tế khi chạy. Khoảng cách này buộc lập trình viên phải thực hiện quá nhiều thao tác kiểm thử thủ công (bấm tay) trên thiết bị và trình duyệt trước mỗi đợt release:
+    30	
+    31	1. **Cái bẫy của Mock (Mocking Fallacy)**: Các bài kiểm thử đơn vị `[Tier A - Unit]` đạt tỷ lệ pass 100% bằng cách cô lập các thành phần bằng đối tượng mock (`when(...).thenReturn(...)`). Tuy nhiên, ứng dụng bị crash hoặc vỡ khi các thành phần được ghép nối với nhau trong runtime thật do lỗi đăng ký DI, lệch chuẩn parse JSON, hủy vòng đời component, hoặc xung đột timing trên stream event-bus.
+    32	2. **Thiếu Provider Web Quality ở Gate 4**: Hệ thống điều phối chất lượng (`d3nexus:quality_check`) đã có sẵn provider chuyên biệt cho Flutter, Android, iOS, Rust và Python, nhưng hoàn toàn thiếu provider `web-quality-check`. Dẫn đến:
+    33	   - Tại `D3Nexus`, Gate 4 chỉ xác thực `rust-core` (`d3nexus:rust-quality-check`), bỏ quên hoàn toàn ứng dụng web Astro + Vanilla TypeScript (`apps/learning-web`).
+    34	   - Tại `lyrics-sync`, Gate 4 chỉ xác thực `python-core` (`d3nexus:python-quality-check`), bỏ quên hoàn toàn 17 file Vanilla JavaScript (`src/lyrics_sync/preview/static/*.js`).
+    35	3. **Bài kiểm thử E2E giả lập chỉ chạy trong Node**: Nhiều bài test nằm dưới thư mục `tests/e2e/` thực chất chỉ chạy bằng `node:test` mà không hề render HTML thật, không kiểm tra kết nối Custom Elements, và không xác thực sự kiện DOM hay tọa độ hiển thị thực tế (`getBoundingClientRect`).
+    36	4. **Sự ngụy biện của AI (AI Rationalization)**: Các AI coding agent thường xuyên tự tìm đường tắt: khẳng định test Node là đủ, bỏ qua lỗi console trình duyệt, và né tránh việc chạy trình duyệt headless.
+    37	
+    38	## Mục tiêu và Giới hạn
+    39	
+    40	### Mục tiêu
+    41	- Xây dựng provider chuẩn hóa `web-quality-check` tuân thủ Hợp đồng Kết quả Provider v1 cho các dự án Astro TypeScript và Vanilla JavaScript.
+    42	- Xóa bỏ điểm mù tại Gate 4 bằng cách kích hoạt đăng ký đa provider đồng thời trong `D3Nexus` (`rust-core` + `learning-web`) và `lyrics-sync` (`python-core` + `preview-ui`).
+    43	- Thực thi nghiêm ngặt Chuẩn Kiểm thử 3 Lớp: Tier A (Unit), Tier C1 (Tích hợp Dưới da với DI thật và In-memory DB), và Tier C2 (Tích hợp Trình duyệt Headless với Playwright và Zero-Console-Error).
+    44	- Đưa Bảng Chống Ngụy biện và Cơ chế Phản biện Nghi vấn (lấy cảm hứng từ `addyosmani/agent-skills`) vào các quy trình kỹ năng.
+    45	- Tự động hóa quá trình xác nhận của con người bằng cách tự sinh tài liệu hướng dẫn 3–5 bước `manual_smoke_checklist.md` sau khi hoàn tất epic, giảm thời gian bấm tay từ 30 phút xuống còn 2 phút.
+    46	
+    47	### Giới hạn
+    48	- Không migrate 17 file Vanilla JavaScript trong `lyrics-sync` sang TypeScript (việc kiểm tra kiểu dữ liệu được thực hiện tại chỗ thông qua JSDoc `// @ts-check` và `jsconfig.json`).
+    49	- Không thay thế bộ unit test hiện có trong `D3Nexus` hay `lyrics-sync` (các bài test nhanh này vẫn được giữ lại làm Tier A).
+    50	- Không yêu cầu bật emulator thiết bị nặng nề cho các cổng duyệt cục bộ PR/Epic (các bài test Tier C chạy headless qua Playwright và môi trường harness VM).
+    51	
+    52	## Kiến trúc và Chuẩn Kiểm thử 3 Lớp
+    53	
+    54	Kiến trúc thiết lập 3 phân tầng kiểm thử rõ ràng trên cả mobile và web:
+    55	
+    56	1. **Tier A — Kiểm thử Đơn vị (Unit Testing)**:
+    57	   - Phạm vi: Thuật toán thuần, state machine toán học, bộ parse dữ liệu độc lập, và hàm tiện ích.
+    58	   - Thực thi: Trong tiến trình (Node.js, Dart VM, JVM, Python VM).
+    59	   - Mock: Cho phép mock các dependency bên ngoài. Tốc độ: <10ms mỗi test.
+    60	2. **Tier C1 — Kiểm thử Tích hợp Dưới da (Mobile & Backend)**:
+    61	   - Phạm vi: Controller giao diện (BLoC / ViewModel) xuyên suốt xuống kho lưu trữ cục bộ, bộ nhớ đệm và tuần tự hóa dữ liệu.
+    62	   - Bất biến: Zero-Domain-Mock. Nghiêm cấm mock UseCase hoặc Repository của domain. Bắt buộc dùng DI container thật và cơ sở dữ liệu in-memory (SQLite `:memory:`, Room in-memory).
+    63	   - Ranh giới mạng: Mock tại socket HTTP bằng các fixture JSON chuẩn từ `shared-contracts/`.
+    64	3. **Tier C2 — Kiểm thử Tích hợp Trình duyệt Headless (Web)**:
+    65	   - Phạm vi: Render DOM thật, Custom Elements, controller Vanilla JS/TS, thao tác click của người dùng, chuyển trang, định vị popover trực quan và tính toàn vẹn bố cục layout.
+    66	   - Bất biến: Zero-Console-And-Layout-Defect. Bên cạnh việc bắt lỗi ngoại lệ trang và `console.error`, hệ thống thực thi 3 cơ chế kiểm tra runtime bắt buộc:
+    67	     1. **Static Asset Network Trap**: Lắng nghe `page.on('response')` và đánh trượt bài test ngay lập tức nếu bất kỳ stylesheet (`.css`), script (`.js`) hoặc font nào trả về mã HTTP `>= 400`.
+    68	     2. **Trình hỗ trợ Kiểm tra Kiểu và Hình học Tính toán (`assertVisualIntegrity`)**: Xác thực các container UI cấu trúc (card, drawer, badge, thanh tiến trình) mang từ Visual Companion mockup thực sự được áp dụng style tính toán (`window.getComputedStyle(el)` không được rơi về mặc định unstyled `backgroundColor: rgba(0, 0, 0, 0)` + `borderWidth: 0px` + `padding: 0px`, và `getBoundingClientRect()` phải có `width > 0` và `height > 0`).
+    69	     3. **Bộ chặn Rò rỉ Trạng thái DOM và Trùng lặp Văn bản**: Xác nhận các phần tử trạng thái loại trừ lẫn nhau (ví dụ: spinner/tiền tố đang chạy vs badge terminal `THẤT BẠI` / `HOÀN THÀNH`, hoặc tiêu đề hiển thị vs tooltip/thẻ span ẩn hỗ trợ a11y) không được cùng hiển thị đồng thời (`display !== 'none'` và `visibility !== 'hidden'`), đồng thời phát hiện chuỗi văn bản bị trùng lặp liên tiếp trong tiêu đề card do các thẻ span ẩn không có CSS.
+    70	   - Ranh giới mạng: Chặn tại tầng socket trình duyệt thông qua `page.route()` của Playwright và trả về fixture JSON chuẩn từ hợp đồng.
+    71	
+    72	## Chống Ngụy biện và Cơ chế Phản biện Nghi vấn
+    73	
+    74	Học hỏi từ các nguyên tắc của `addyosmani/agent-skills`, tất cả quy trình lập trình và kiểm thử đều thực thi 5 quy tắc chống ngụy biện:
+    75	
+    76	| Lời bào chữa của Agent | Quy tắc Phản biện Bắt buộc |
+    77	| :--- | :--- |
+    78	| "Một bài test Node.js là đủ để chứng minh tính năng web UI hoạt động." | **BỊ TỪ CHỐI**: Test Node chỉ chứng minh logic dữ liệu thuần. 80% lỗi web xảy ra ở truy vấn DOM, nổi bọt sự kiện và render CSS. Tier C bắt buộc phải chạy qua Playwright headless. |
+    79	| "Component này đơn giản; mock cứng dữ liệu trong stub là đủ." | **BỊ TỪ CHỐI**: Stub cấp method bỏ qua việc kiểm tra giải mã JSON và interceptor mạng. Bắt buộc phải dùng fixture cấp mạng (wire-level) từ `shared-contracts/`. |
+    80	| "Các lỗi đỏ trong console trình duyệt chỉ là cảnh báo vô hại." | **BỊ TỪ CHỐI**: Quy tắc Zero-Console-Error đánh trượt Gate 4 đối với bất kỳ lỗi console hoặc ngoại lệ chưa xử lý nào trong trình duyệt. |
+    81	| "Tôi không bật được simulator điện thoại nên tôi sẽ viết unit test thay thế." | **BỊ TỪ CHỐI**: Tier C mobile bắt buộc phải dùng Kiểm thử Dưới da với DI thật và lưu trữ in-memory. Unit test thuần túy không được gắn mác Tier C. |
+    82	| "Tôi đã mang cấu trúc HTML và logic JS từ Visual Companion mockup sang, và selector DOM khớp trong Playwright." | **BỊ TỪ CHỐI**: Mang HTML/JS mà không kiểm tra computed CSS style sẽ dẫn đến giao diện vỡ và không có style. Test Tier C2 cho UI component BẮT BUỘC phải assert các thuộc tính `getComputedStyle` và `getBoundingClientRect` (kích thước lớn hơn 0, chế độ hiển thị layout và khả năng hiển thị loại trừ lẫn nhau của các trạng thái) so với thiết kế Visual Companion. |
+    83	
+    84	Dưới Cơ chế Phản biện Nghi vấn (`CLAIM -> EXTRACT -> DOUBT -> RECONCILE`), Gate 4 sẽ rà soát để đảm bảo bài test Tier C thực sự kích hoạt luồng code production mà không mock hệ thống chính đang được kiểm thử.
+    85	
+    86	## Đặc tả Kỹ thuật Provider Web Quality
+    87	
+    88	Một kỹ năng mới `d3nexus:web-quality-check` được xây dựng tại thư mục `skills/web-quality-check/`:
+    89	
+    90	1. **Hợp đồng Gọi thực thi**: Tuân thủ Hợp đồng Kết quả Provider v1, nhận `{ "profile": "<profile>", "base_ref": "<base_ref>", "repository_sha": "<sha>" }`.
+    91	2. **File Cấu hình**: Đọc file `.agents/quality/web-quality.json` từ thư mục gốc của repository.
+    92	3. **Các Khả năng (Capabilities)**:
+    93	   - `type_check`: Chạy `astro check` hoặc `tsc --noEmit` cho dự án TypeScript, hoặc `tsc --project jsconfig.json` cho dự án Vanilla JavaScript.
+    94	   - `lint`: Chạy linter của dự án (ESLint, Biome, hoặc Astro linter).
+    95	   - `test_unit`: Thực thi bộ unit test in-memory nhanh (Tier A).
+    96	   - `test_e2e`: Khởi chạy bộ Playwright headless (Tier C2) tích hợp bộ giám sát Zero-Console-Error.
+    97	   - `contracts`: Thực hiện kiểm tra chênh lệch hợp đồng đa repo.
+    98	4. **Công cụ Xác thực**: Cung cấp script `validate_web_quality.py` để đảm bảo tính hợp lệ của schema và sự hiện diện của các binary thực thi trước khi chạy.
+    99	
+   100	## Tích hợp Registry Đa Repo và Gate 4 Đa Nền tảng
+   101	
+   102	Nhạc trưởng Gate 4 gốc (`d3nexus:quality_check`) thực hiện kích hoạt đa provider song song trên các kho lưu trữ:
+   103	
+   104	- **`D3Nexus` (`.agents/quality/check_quality.json`)**:
+   105	  - Provider 1: `rust-core` (`d3nexus:rust-quality-check`) cho nhân Rust, biên dịch WASM và test hệ thống.
+   106	  - Provider 2: `learning-web` (`d3nexus:web-quality-check`) cho template Astro, controller Vanilla TypeScript và bộ test Playwright.
+   107	- **`lyrics-sync` (`.agents/quality/check_quality.json`)**:
+   108	  - Provider 1: `python-core` (`d3nexus:python-quality-check`) cho endpoint FastAPI, logic worker và test pytest.
+   109	  - Provider 2: `preview-ui` (`d3nexus:web-quality-check`) cho kiểm tra kiểu Vanilla JS tĩnh và test Playwright trên Chrome.
+   110	- **`nexus` (`.agents/quality/check_quality.json`)**:
+   111	  - Provider 1: `flutter-core` (`d3nexus:flutter-quality-check`) thực thi Kiểm thử Widget Dưới da với DI thật và WireMock.
+   112	
+   113	## Nâng cấp Dev-Designer và Dev-Implementation
+   114	
+   115	1. **`dev-designer` (Stage 2)**:
+   116	   - Khi phát hiện dự án Web, dòng `Integration results:` trong HLD bắt buộc phải trỏ tới kết quả của Playwright headless dạng JUnit XML (`build/test-results/playwright.xml`) sinh qua cờ `--reporter=junit`, đảm bảo `result_reports.py` (chỉ hỗ trợ JUnit XML hoặc Dart JSON) đọc nạp thông suốt.
+   117	   - Các bộ test Python bắt buộc phải bao gồm cờ `--junitxml=build/test-results/pytest.xml` trong lệnh thực thi.
+   118	   - Các kịch bản BDD cho Tier C phải bao gồm kỳ vọng tương tác DOM cụ thể và xác nhận qua wiremock.
+   119	2. **`dev-implementation` (Stage 3)**:
+   120	   - Nhúng Bảng Chống Ngụy biện trực tiếp vào quá trình thực thi tác vụ.
+   121	   - Xác thực rằng các tác vụ tuyên bố bao phủ kịch bản Tier C thực sự chạy test trình duyệt headless hoặc test dưới da thật.
+   122	   - Tạm dừng và báo cáo `BLOCKED` nếu code test mock chính component đang được kiểm thử.
+   123	
+   124	## Tự động Sinh Kịch bản Smoke Test Bấm tay
+   125	
+   126	Sau khi hoàn thành thành công tất cả tác vụ và Gate 4 trả về kết quả máy PASS, `dev-implementation` sẽ tự động sinh ra một tài liệu hỗ trợ con người:
+   127	- Đường dẫn: `.devtool/epic/<epic_dir>/manual_smoke_checklist.md`
+   128	- Nội dung: 3 đến 5 bước thủ công ngắn gọn, rõ ràng được trích xuất trực tiếp từ các kịch bản BDD Happy Path chính (gồm URL mục tiêu, hành động của người dùng, kết quả trực quan quan sát được).
+   129	- Lợi ích: Rút ngắn thời gian kiểm thử tự do của lập trình viên từ 30 phút mò mẫm xuống còn đúng 2 phút xác nhận có định hướng.
+   130	
+   131	## Rủi ro và Giải pháp Giảm thiểu
+   132	
+   133	| Rủi ro | Tác động | Chiến lược Giảm thiểu |
+   134	| :--- | :--- | :--- |
+   135	| Chi phí cài đặt Playwright trong CI / máy cục bộ | Gate 4 chạy chậm | Chỉ sử dụng Chromium headless; cache binary trình duyệt; profile `pr` chỉ chạy unit test, profile `epic` mới chạy Playwright. |
+   136	| Xung đột port khi khởi chạy preview server | Test không ổn định (flaky) | Cấu hình `webServer` của Playwright bind vào port động hoặc cổng chuyên dụng có probe kiểm tra healthcheck. |
+   137	| Cảnh báo console cũ của thư viện kích hoạt Zero-Console-Error | Đánh trượt nhầm (false positive) | Cho phép cấu hình danh sách loại trừ (allowlist) cho các cảnh báo bên thứ ba vô hại đã biết trong `.agents/quality/web-quality.json`. |
+   138	
+   139	## Kế hoạch Kiểm chứng
+   140	
+   141	1. **Kiểm chứng Hợp đồng Provider**:
+   142	   - Chạy `validate_web_quality.py` đối với file cấu hình mẫu `.agents/quality/web-quality.json`.
+   143	   - Chạy `quality_check` với profile `epic` tại `D3Nexus` và kiểm tra cả `rust-core` lẫn `learning-web` đều xuất ra phán quyết được chứng thực.
+   144	2. **Kiểm chứng Zero-Console-Error của Playwright**:
+   145	   - Cố tình chèn 1 dòng `console.error` vào trang test; xác nhận Playwright và Gate 4 báo cáo chính xác trạng thái `FAIL`.
+   146	   - Sửa lỗi và xác nhận Gate 4 chuyển sang `PASS`.
+   147	3. **Kiểm chứng Type-Checking cho Vanilla JS**:
+   148	   - Chạy `tsc --project jsconfig.json` trên thư mục `lyrics-sync/src/lyrics_sync/preview/static/` và xác nhận kết quả kiểm tra kiểu dữ liệu sạch sẽ.
+   149	4. **Kiểm chứng Tự sinh Checklist Bấm tay**:
+   150	   - Xác nhận rằng `generate_smoke_checklist.py` sinh và commit `.devtool/epic/<epic_dir>/manual_smoke_checklist.md` (3–5 bước) trong Phase 4 trước lượt chạy Gate 4 cuối cùng, bảo toàn trạng thái git sạch và tính toàn vẹn của candidate SHA đã được chứng nhận.
+     1	# Epic: Web Quality Check Provider và Integration Quality Gate
+     2	
+     3	## Mục lục
+     4	
+     5	- [Mục lục](#mục-lục)
+     6	- [Meta Data](#meta-data)
+     7	- [Bối cảnh](#bối-cảnh)
+     8	- [Mục tiêu và Giới hạn](#mục-tiêu-và-giới-hạn)
+     9	- [Kiến trúc và Thiết kế Kỹ thuật](#kiến-trúc-và-thiết-kế-kỹ-thuật)
+    10	  - [Kiến trúc Tổng thể](#kiến-trúc-tổng-thể)
+    11	  - [Use Cases](#use-cases)
+    12	  - [Sequence Diagram](#sequence-diagram)
+    13	  - [Kế hoạch Kiểm thử Tích hợp và Ma trận Ranh giới](#kế-hoạch-kiểm-thử-tích-hợp-và-ma-trận-ranh-giới)
+    14	  - [Các Kịch bản BDD Toàn diện](#các-kịch-bản-bdd-toàn-diện)
+    15	- [Môi trường Kiểm chứng](#môi-trường-kiểm-chứng)
+    16	- [Tác động Hợp đồng Dùng chung](#tác-động-hợp-đồng-dùng-chung)
+    17	- [Chiến lược Triển khai và Giảm thiểu Rủi ro](#chiến-lược-triển-khai-và-giảm-thiểu-rủi-ro)
+    18	- [Phân rã Tác vụ Kanban](#phân-rã-tác-vụ-kanban)
+    19	
+    20	## Meta Data
+    21	
+    22	- **Tên Epic**: `web_quality_check_and_integration_gate`
+    23	- **Slug Epic**: `web-quality-check-and-integration-gate`
+    24	- **Trạng thái**: Packaged
+    25	- **Phiên bản Mục tiêu**: v1.2.0
+    26	- **Nền tảng**: Polyglot / Quality Architecture
+    27	- **Tài liệu Đặc tả Gốc**: [2026-11-04-web-quality-check-and-integration-gate-design.vi.md](./2026-11-04-web-quality-check-and-integration-gate-design.vi.md)
+    28	
+    29	## Bối cảnh
+    30	
+    31	Trong hệ sinh thái đa repo (`D3Nexus`, `lyrics-sync`, `nexus`), các kỹ sư đối mặt với khoảng cách lớn giữa thiết kế kiến trúc và hành vi thực tế khi chạy. Khoảng cách này buộc lập trình viên phải kiểm thử thủ công (bấm tay) rất nhiều trên thiết bị và trình duyệt trước mỗi đợt release:
+    32	- Unit test pass 100% xanh bằng mock, nhưng gãy khi chạy thật do lỗi đăng ký DI, lỗi giải mã JSON, và lỗi gắn sự kiện DOM.
+    33	- Gate 4 (`quality_check`) thiếu provider cho Web, bỏ quên hoàn toàn `D3Nexus` (`apps/learning-web`) và `lyrics-sync` (17 file Vanilla JS).
+    34	- AI coding agent thường xuyên tự tìm đường tắt, né tránh chạy trình duyệt headless và bỏ qua lỗi console.
+    35	
+    36	## Mục tiêu và Giới hạn
+    37	
+    38	### Mục tiêu
+    39	- Xây dựng provider `web-quality-check` tuân thủ Hợp đồng Kết quả Provider v1 cho các dự án Astro TypeScript và Vanilla JavaScript.
+    40	- Kích hoạt điều phối chất lượng đa nền tảng (polyglot) tại Gate 4 trên cả `D3Nexus` và `lyrics-sync`.
+    41	- Thực thi Chuẩn Kiểm thử 3 Lớp (Tier A Unit, Tier C1 Dưới da Mobile/Backend, Tier C2 Trình duyệt Headless Web).
+    42	- Đưa Bảng Chống Ngụy biện và Cơ chế Phản biện Nghi vấn từ `addyosmani/agent-skills` vào quy trình kỹ năng.
+    43	- Tự động sinh tài liệu 3–5 bước `manual_smoke_checklist.md` sau khi hoàn thành epic để rút ngắn thời gian bấm tay từ 30 phút xuống còn 2 phút.
+    44	
+    45	### Giới hạn
+    46	- Không chuyển đổi 17 file Vanilla JS trong `lyrics-sync` sang TypeScript (kiểm tra kiểu dữ liệu tại chỗ qua JSDoc và `jsconfig.json`).
+    47	- Không viết lại các unit test nhanh hiện có.
+    48	- Không ép buộc bật emulator thiết bị cho các cổng duyệt cục bộ PR/Epic.
+    49	
+    50	## Kiến trúc và Thiết kế Kỹ thuật
+    51	
+    52	### Kiến trúc Tổng thể
+    53	
+    54	```mermaid
+    55	flowchart TD
+    56	    QC["Gate 4: quality_check (Nhạc trưởng Trung lập)"] --> REG["Đọc .agents/quality/check_quality.json"]
+    57	    REG --> FANOUT{"Kích hoạt Song song các Provider"}
+    58	    FANOUT --> P_RUST["rust-quality-check (Nhân D3Nexus)"]
+    59	    FANOUT --> P_PY["python-quality-check (Backend lyrics-sync)"]
+    60	    FANOUT --> P_FLUTTER["flutter-quality-check (Mobile nexus)"]
+    61	    FANOUT --> P_WEB["web-quality-check (MỚI: Astro TS + Vanilla JS)"]
+    62	    
+    63	    subgraph WEB_PROVIDER["Các Khả năng của web-quality-check"]
+    64	        direction TB
+    65	        CAP_TYPE["Kiểm tra Kiểu (astro check / tsc --noEmit / jsconfig.json)"]
+    66	        CAP_LINT["Linter (ESLint / Biome / Astro linter)"]
+    67	        CAP_UNIT["Tier A Unit Tests (Node / Vitest)"]
+    68	        CAP_E2E["Tier C2 Headless Playwright + Bộ Chặn Zero-Console-Error"]
+    69	    end
+    70	    
+    71	    P_WEB --> WEB_PROVIDER
+    72	    FANOUT --> AGG["Tổng hợp Kết quả (FAIL > BLOCKED > PASS)"]
+    73	    AGG --> SMOKE["Tự sinh manual_smoke_checklist.md (3-5 Bước)"]
+    74	    SMOKE --> VERDICT["Chứng nhận Gate 4 Hợp lệ"]
+    75	```
+    76	
+    77	### Use Cases
+    78	
+    79	```mermaid
+    80	flowchart LR
+    81	    DEV["Kiến trúc sư Con người"] --> UC1["Cấu hình Registry Đa Provider"]
+    82	    DEV --> UC2["Kích hoạt Kiểm chuẩn Gate 4"]
+    83	    DEV --> UC3["Duyệt Checklist Bấm tay (2 phút xác nhận)"]
+    84	    
+    85	    AGENT["Lập trình viên AI"] --> UC4["Thực thi Task có Chặn Ngụy biện"]
+    86	    AGENT --> UC5["Chạy Playwright Headless Zero-Console-Error"]
+    87	    AGENT --> UC6["Kiểm tra Kiểu Vanilla JS qua JSDoc"]
+    88	```
+    89	
+    90	### Sequence Diagram
+    91	
+    92	```mermaid
+    93	sequenceDiagram
+    94	    autonumber
+    95	    actor Human as Kiến trúc sư Con người
+    96	    participant Gate as quality_check (Gate 4)
+    97	    participant Web as web-quality-check
+    98	    participant Playwright as Chromium Headless
+    99	    participant Gen as Bộ Sinh Checklist
+   100	
+   101	    Human->>Gate: Kích hoạt @quality_check (profile: epic)
+   102	    Gate->>Gate: Đọc .agents/quality/check_quality.json
+   103	    Gate->>Web: Gọi provider kèm commit SHA
+   104	    Web->>Web: Chạy kiểm tra kiểu & linter
+   105	    Web->>Playwright: Khởi chạy Playwright headless kèm wiremock
+   106	    Playwright->>Playwright: Render DOM & xác thực Zero-Console-Error
+   107	    Playwright-->>Web: Trả về trace & bằng chứng thực thi
+   108	    Web-->>Gate: Xuất Tài liệu Kết quả Provider (PASS)
+   109	    Human->>Gen: Phase 4 chạy bộ sinh checklist & commit
+   110	    Gen-->>Human: Commit manual_smoke_checklist.md
+   111	    Human->>Gate: Thực thi Gate 4 cuối cùng trên candidate SHA
+   112	    Gate-->>Human: Báo cáo Gate 4 LGTM + Review Choice
+   113	```
+   114	
+   115	### Kế hoạch Kiểm thử Tích hợp và Ma trận Ranh giới
+   116	
+   117	```text
+   118	Integration test roots: tests/, skills/web-quality-check/tests/
+   119	Protected paths: .agents/quality/**, .devtool/epic/web_quality_check_and_integration_gate/bdd_scenarios.en.md, .devtool/epic/web_quality_check_and_integration_gate/bdd_scenarios.vi.md
+   120	Integration results: python3 -m pytest tests/ --junitxml=build/test-results/pytest.xml -> build/test-results/pytest.xml
+   121	```
+   122	
+   123	| Mối ghép Ranh giới | Chiến lược Kiểm thử | Mục tiêu Kiểm chứng |
+   124	| :--- | :--- | :--- |
+   125	| Hợp đồng Provider | Payload giả lập gọi `quality_check` | Xác thực tổng hợp trạng thái và tuân thủ schema |
+   126	| Astro Web / TypeScript | Playwright Headless + Fixture Giám sát Zero-Console-And-Layout-Defect | Xác thực phần tử DOM, Custom Elements, zero console error, bẫy tài nguyên tĩnh 404, CSS tính toán (`assertVisualIntegrity`) và ngăn ngừa rò rỉ trạng thái / trùng lặp văn bản |
+   127	| Vanilla JS Preview | `tsc --project jsconfig.json` + Playwright | Xác thực an toàn kiểu dữ liệu không cần đuôi `.ts`, ngăn ngừa crash |
+   128	| Luồng Workflow Tác vụ | Rà soát BDD traceability & Anti-Rationalization | Xác thực tác vụ từ chối mock ảo Tier C, kiểm tra CSS tính toán so với Visual Companion, và yêu cầu chạy test tích hợp thật |
+   129	
+   130	## Môi trường Kiểm chứng
+   131	
+   132	- Môi trường thực thi: CLI cục bộ macOS / Linux có cài sẵn Node.js v20+, Python 3.11+, và trình duyệt Chromium Playwright.
+   133	- Không phụ thuộc mạng ngoài: Mọi lệnh gọi mạng bên ngoài trong test đều bị chặn tại socket.
+   134	- Cách ly hệ thống tệp: Các lượt chạy test diễn ra trong thư mục tạm độc lập, không làm biến đổi git working tree.
+   135	
+   136	### Các Kịch bản BDD Toàn diện
+   137	
+   138	Bộ test bao phủ đủ 5 chiều với tiền tố `[WQG-]`:
+   139	1. **Happy Paths (`WQG-HP-xx`)**: Thực thi provider thành công, Playwright headless pass, type check Vanilla JS sạch, và tự sinh checklist bấm tay.
+   140	2. **Edge Cases (`WQG-EC-xx`)**: Thiếu capability, cấu hình web bị khuyết, bộ test rỗng, cảnh báo console bên thứ ba, và rò rỉ trạng thái DOM loại trừ lẫn nhau hoặc trùng lặp văn bản (`WQG-EC-03`).
+   141	3. **Chuyển đổi Trạng thái (`WQG-ST-xx`)**: Chuyển trạng thái linh hoạt từ `BLOCKED` sang `PASS` khi sửa cấu hình, và đồng bộ trạng thái task.
+   142	4. **Bất đồng bộ & Đồng thời (`WQG-AR-xx`)**: Kích hoạt đa provider đồng thời trong Gate 4, khởi động webServer Playwright không gây nghẽn.
+   143	5. **Thất bại & Khả năng Phục hồi (`WQG-FR-xx`)**: Bắt lỗi console error gây fail ngay lập tức, bẫy ngoại lệ chưa xử lý, phát hiện hợp đồng bị gãy, và thất bại khi stylesheet 404 hoặc hình học computed unstyled (`WQG-FR-03`).
+   144	
+   145	## Tác động Hợp đồng Dùng chung
+   146	
+   147	Không có — đây là bộ kỹ năng provider chất lượng và cải tiến quy trình độc lập.
+   148	
+   149	## Chiến lược Triển khai và Giảm thiểu Rủi ro
+   150	
+   151	- **Giai đoạn 1**: Xây dựng skill `web-quality-check` và kiểm chứng hợp đồng bằng unit và integration test.
+   152	- **Giai đoạn 2**: Bổ sung bộ giám sát Zero-Console-And-Layout-Defect cho Playwright và bộ kiểm tra `jsconfig.json` cho Vanilla JS.
+   153	- **Giai đoạn 3**: Cập nhật `dev-designer`, `dev-implementation` và `test-driven-development` với Bảng Chống Ngụy biện và hướng dẫn Kiểm thử Dưới da.
+   154	- **Giai đoạn 4**: Cấu hình registry đa provider tại `D3Nexus` và `lyrics-sync`, kiểm chứng Gate 4 chạy đa nền tảng.
+   155	
+   156	## Phân rã Tác vụ Kanban
+   157	
+   158	- [Task 01: Web Quality Check Skill và Hợp đồng Provider](./task_01_web_quality_check_skill_and_contract.md)
+   159	- [Task 02: Bộ Giám sát Playwright Zero-Console-Error và Fixtures](./task_02_playwright_zero_error_watchdog.md)
+   160	- [Task 03: Cấu hình Kiểm tra Kiểu Vanilla JS qua JSDoc](./task_03_jsconfig_and_vanilla_js_type_checker.md)
+   161	- [Task 04: Registry Gate 4 Đa Nền tảng và Kích hoạt Song song](./task_04_polyglot_gate4_registry_and_fanout.md)
+   162	- [Task 05: Quy tắc Quy trình Chống Ngụy biện và Phản biện Nghi vấn](./task_05_anti_rationalization_and_doubt_driven_workflow.md)
+   163	- [Task 06: Bộ Tự động Sinh Kịch bản Smoke Test Bấm tay](./task_06_automated_manual_smoke_checklist_generator.md)
+     1	# Kịch bản Kiểm thử BDD: Web Quality Check Provider và Integration Quality Gate
+     2	
+     3	## Mục lục
+     4	
+     5	- [Mục lục](#mục-lục)
+     6	- [Chiều 1: Happy Paths](#chiều-1-happy-paths)
+     7	- [Chiều 2: Edge Cases và Biên Giới hạn](#chiều-2-edge-cases-và-biên-giới-hạn)
+     8	- [Chiều 3: Chuyển đổi Trạng thái](#chiều-3-chuyển-đổi-trạng-thái)
+     9	- [Chiều 4: Bất đồng bộ và Đồng thời](#chiều-4-bất-đồng-bộ-và-đồng-thời)
+    10	- [Chiều 5: Thất bại và Khả năng Phục hồi](#chiều-5-thất-bại-và-khả-năng-phục-hồi)
+    11	
+    12	## Chiều 1: Happy Paths
+    13	
+    14	```gherkin
+    15	Scenario: [WQG-HP-01] [Tier C - Integration] Web quality provider certification on Astro TypeScript repository
+    16	  Given một kho lưu trữ chứa dự án Astro có file .agents/quality/web-quality.json
+    17	  When Gate 4 gọi d3nexus:web-quality-check với profile epic
+    18	  Then provider thực thi type_check, lint, và test_e2e qua Playwright headless
+    19	  And xuất ra Tài liệu Kết quả Provider hợp lệ với trạng thái PASS gắn với commit SHA
+    20	
+    21	Scenario: [WQG-HP-02] [Tier C - Integration] Vanilla JavaScript type-checking via JSDoc configuration
+    22	  Given một kho lưu trữ chứa các file Vanilla JavaScript trong preview/static/
+    23	  And file jsconfig.json được cấu hình "checkJs": true
+    24	  When web-quality-check thực thi capability type_check
+    25	  Then trình biên dịch TypeScript kiểm tra toàn bộ file JavaScript mà không phát sinh lỗi
+    26	  And vượt qua mà không yêu cầu đổi tên bất kỳ file nào sang .ts
+    27	
+    28	Scenario: [WQG-HP-03] [Tier C - Integration] Playwright headless execution with wiremock and Zero-Console-Error
+    29	  Given một trang web Astro có các controller tương tác phía client
+    30	  And Playwright được cấu hình với fixture bộ chặn Zero-Console-Error
+    31	  When bài test giả lập điều hướng, click nút của người dùng và mock mạng qua page.route()
+    32	  Then trang web render mà không phát sinh bất kỳ lỗi console.error hay ngoại lệ chưa xử lý nào
+    33	  And bộ test hoàn thành thành công
+    34	
+    35	Scenario: [WQG-HP-04] [Tier A - Unit] Automated generation of 3-5 step manual smoke checklist
+    36	  Given tất cả các task trong một epic đạt trạng thái done và Phase 4 thực thi
+    37	  When bộ sinh checklist phân tích các kịch bản BDD Happy Path chính
+    38	  Then nó xuất ra file .devtool/epic/<epic_dir>/manual_smoke_checklist.md trước khi Gate 4 xác thực
+    39	  And checklist chứa từ 3 đến 5 bước kiểm tra thực tế kèm Mục tiêu (URL hoặc Lệnh CLI), Hành động và Kết quả trực quan quan sát được
+    40	```
+    41	
+    42	## Chiều 2: Edge Cases và Biên Giới hạn
+    43	
+    44	```gherkin
+    45	Scenario: [WQG-EC-01] [Tier A - Unit] Web quality manifest with empty or optional capabilities
+    46	  Given một kho lưu trữ có .agents/quality/web-quality.json chỉ cấu hình type_check và test_unit
+    47	  When web-quality-check được gọi với profile pr
+    48	  Then nó chỉ phân giải các capability đã được khai báo
+    49	  And chứng thực thành công kho lưu trữ mà không báo lỗi về các capability tùy chọn bị thiếu
+    50	
+    51	Scenario: [WQG-EC-02] [Tier A - Unit] Benign console warnings filtered by allowlist
+    52	  Given một trang web phát ra cảnh báo deprecation đã biết từ thư viện bên thứ ba
+    53	  And một biểu thức chính quy allowlist được cấu hình trong .agents/quality/web-quality.json
+    54	  When bài test Playwright thực thi
+    55	  Then bộ chặn Zero-Console-Error lọc bỏ các cảnh báo khớp trong danh sách cho phép
+    56	  And không đánh trượt nhầm bộ test
+    57	
+    58	Scenario: [WQG-EC-03] [Tier C - Integration] Mutually exclusive DOM state leak and duplicate text detection
+    59	  Given một component giao diện có badge trạng thái điều kiện và thẻ span ẩn hỗ trợ accessibility/tooltip
+    60	  When Playwright thực thi kèm Fixture Giám sát Zero-Console-And-Layout-Defect
+    61	  Then nó xác thực các phần tử trạng thái loại trừ lẫn nhau (ví dụ: spinner đang chạy vs badge lỗi thất bại, tiêu đề hiển thị vs tooltip ẩn) không được cùng hiển thị đồng thời
+    62	  And phát hiện chuỗi văn bản bị trùng lặp liên tiếp trong tiêu đề/phụ đề card do các thẻ span ẩn không có CSS
+    63	  And đánh trượt Gate 4 nếu các phần tử span ẩn bị rò rỉ vào layout hiển thị
+    64	```
+    65	
+    66	## Chiều 3: Chuyển đổi Trạng thái
+    67	
+    68	```gherkin
+    69	Scenario: [WQG-ST-01] [Tier A - Unit] Transition from BLOCKED to PASS upon fixing invalid configuration
+    70	  Given một kho lưu trữ có file .agents/quality/web-quality.json sai cú pháp
+    71	  When validate_web_quality.py đánh giá manifest
+    72	  Then nó báo cáo trạng thái BLOCKED kèm các phát hiện lỗi cấu hình
+    73	  And khi lập trình viên sửa đúng schema JSON
+    74	  Then validator chuyển đổi trạng thái sang PASS
+    75	
+    76	Scenario: [WQG-ST-02] [Tier C - Integration] Task status progression under Anti-Rationalization audit
+    77	  Given một tác vụ Kanban bao phủ kịch bản Tier C [WQG-HP-01]
+    78	  When bộ chạy xác thực đánh giá việc hoàn tất task khi thiếu bằng chứng tích hợp Tier C hoặc chỉ có mock đơn vị
+    79	  Then task_contract.py và script đồng bộ trạng thái từ chối chuyển sang done do vi phạm điều kiện 6
+    80	  And khi bằng chứng thực thi test tích hợp Playwright headless thật được cung cấp trong kết quả xác thực
+    81	  Then tác vụ chuyển đổi suôn sẻ sang trạng thái done
+    82	```
+    83	
+    84	## Chiều 4: Bất đồng bộ và Đồng thời
+    85	
+    86	```gherkin
+    87	Scenario: [WQG-AR-01] [Tier C - Integration] Concurrent multi-provider fan-out in Gate 4
+    88	  Given một kho lưu trữ đa nền tảng (D3Nexus) với 2 provider rust-core và learning-web
+    89	  When Gate 4 quality_check thực thi profile epic
+    90	  Then cả hai provider chạy đồng thời mà không can thiệp vào output của nhau
+    91	  And Gate 4 tổng hợp phán quyết cuối cùng theo độ ưu tiên FAIL > BLOCKED > PASS
+    92	
+    93	Scenario: [WQG-AR-02] [Tier C - Integration] Playwright webServer lifecycle management
+    94	  Given Playwright được cấu hình với lệnh webServer là npm run preview
+    95	  When Playwright khởi động test runner
+    96	  Then nó chờ đợi port healthcheck của server trước khi phát lệnh chạy trình duyệt
+    97	  And dọn dẹp sạch tiến trình webServer khi hoàn tất
+    98	```
+    99	
+   100	## Chiều 5: Thất bại và Khả năng Phục hồi
+   101	
+   102	```gherkin
+   103	Scenario: [WQG-FR-01] [Tier C - Integration] Immediate test failure on uncaught JavaScript console error
+   104	  Given một web component có lỗi runtime phát ra console.error("Uncaught TypeError")
+   105	  When Playwright thực thi bộ test
+   106	  Then bộ chặn Zero-Console-Error lập tức dừng lại và đánh trượt bài test
+   107	  And ghi lại toàn bộ thông báo console, stack trace và URL mục tiêu làm bằng chứng
+   108	
+   109	Scenario: [WQG-FR-02] [Tier A - Unit] Missing node_modules or binary execution blocker
+   110	  Given một môi trường thiếu binary playwright hoặc astro trong PATH
+   111	  When web-quality-check cố gắng spawn tiến trình
+   112	  Then nó bắt lỗi spawn thất bại và xuất ra trạng thái BLOCKED kèm hướng dẫn khắc phục cụ thể
+   113	
+   114	Scenario: [WQG-FR-03] [Tier C - Integration] Immediate failure on 404 static stylesheet or unstyled computed geometry
+   115	  Given một trang Astro hoặc web có stylesheet tĩnh .css trả về mã lỗi HTTP >= 400
+   116	  Hoặc một container UI cấu trúc chính render với computed style mặc định unstyled (nền trong suốt, padding/border bằng 0, hoặc kích thước bằng 0)
+   117	  When bộ test Playwright thực thi kèm assertVisualIntegrity
+   118	  Then bộ bẫy tài nguyên tĩnh và giám sát hình học lập tức đánh trượt bài test
+   119	  And ghi nhận URL tài nguyên bị thiếu và selector của phần tử unstyled làm bằng chứng
+   120	```
+     1	---
+     2	id: "task_03_jsconfig_and_vanilla_js_type_checker"
+     3	status: "todo"
+     4	priority: "medium"
+     5	assignee: null
+     6	epic: "web-quality-check-and-integration-gate"
+     7	dueDate: null
+     8	created: "2026-11-04T22:52:00Z"
+     9	modified: "2026-11-04T22:52:00Z"
+    10	completedAt: null
+    11	labels: ["vanilla-js", "typecheck", "tooling"]
+    12	order: "a3"
+    13	---
+    14	
+    15	# Task 03: Vanilla JS JSDoc Type-Checking Configuration
+    16	
+    17	Epic: [web_quality_check_and_integration_gate](web_quality_check_and_integration_gate.en.md)
+    18	
+    19	## Requirement Analysis
+    20	
+    21	Provide in-place type checking tooling for static Vanilla JavaScript codebases (such as `lyrics-sync/src/lyrics_sync/preview/static/`) without migrating files to `.ts`. Supply a canonical `jsconfig.json` template enabling `checkJs` and strict type analysis via JSDoc annotations, accompanied by the `check_vanilla_js.py` execution wrapper for the `type_check` capability.
+    22	
+    23	## Files
+    24	
+    25	Allowed files:
+    26	- `skills/web-quality-check/resources/templates/jsconfig.template.json` (new)
+    27	- `skills/web-quality-check/resources/scripts/check_vanilla_js.py` (new)
+    28	- `tests/test_vanilla_js_checker.py` (new)
+    29	
+    30	Read-only context:
+    31	- `skills/web-quality-check/SKILL.md` (new in Task 01)
+    32	- `docs/refresh-session-quick-guide.en.md` (documentation guide)
+    33	
+    34	## Design Rationale
+    35	
+    36	Vanilla JavaScript codebases often suffer from silent runtime bugs due to misspelled variable names, missing function parameters, or null reference errors on DOM nodes. Migrating these files to TypeScript involves substantial build overhead. Using TypeScript's built-in `checkJs` mode via `jsconfig.json` provides compile-time safety and catches nullability bugs without changing runtime deployment semantics.
+    37	
+    38	## Impact Analysis & Blast Radius
+    39	
+    40	- **Target Files & Symbols**: `jsconfig.template.json`, `check_vanilla_js.py`.
+    41	- **Downstream Callers**: `web-quality-check` provider running `type_check` on static JavaScript files.
+    42	- **Cross-Platform Bridges**: None.
+    43	- **Target Test Coverage Threshold**: $\ge 85\%$ for `check_vanilla_js.py`.
+    44	
+    45	### BDD SCENARIOS
+    46	
+    47	Covers: [WQG-HP-02]
+    48	
+    49	#### Scenario: [WQG-HP-02] [Tier C - Integration] Vanilla JavaScript type-checking via JSDoc configuration
+    50	Given a repository containing Vanilla JavaScript files in `preview/static/`
+    51	And a `jsconfig.json` configured with `"checkJs": true`
+    52	When `web-quality-check` executes the `type_check` capability
+    53	Then the TypeScript compiler validates all JavaScript files without emitting errors
+    54	And passes without requiring any `.ts` file renaming.
+    55	
+    56	## Verification
+    57	
+    58	| ID | Phase | Command | Expect | Needs |
+    59	|----|-------|---------|--------|-------|
+    60	| V1 | RED | `python3 -m pytest tests/test_vanilla_js_checker.py::test_jsconfig_discovery` | exit 1; contains "FAILED" | — |
+    61	| V2 | GREEN | `python3 -m pytest tests/test_vanilla_js_checker.py::test_jsconfig_discovery` | exit 0; contains "passed" | — |
+    62	| V3 | TIER-B | `ruff check tests/test_vanilla_js_checker.py skills/web-quality-check` | exit 0 | — |
+    63	| V4 | TIER-B | `mypy skills/web-quality-check/resources/scripts/check_vanilla_js.py` | exit 0 | — |
+    64	| V5 | TIER-C | `python3 -m pytest tests/test_vanilla_js_checker.py -k "test_WQG_HP_02" --junitxml=build/test-results/task_03.xml` | exit 0; results build/test-results/task_03.xml | — |
+    65	
+    66	## Stop and Report If
+    67	
+    68	- A command, path, symbol or anchor named in this task does not match the repository.
+    69	- A Verification row fails for a reason other than its Expect.
+    70	- The work needs a change to a file outside Allowed files, or to a protected path.
+    71	- The work needs a change to this task's Verification table, Definition of Done, Allowed files or Covers line.
+    72	- A variable named in the Needs column is unset.
+    73	
+    74	## Decisions Already Made
+    75	
+    76	- Compiler configuration: `compilerOptions: { "checkJs": true, "noEmit": true, "target": "ES2022", "moduleResolution": "node" }`.
+    77	- Target files: `src/**/*.js` or configured include glob.
+    78	- Execution binary: `npx tsc --project <path_to_jsconfig>`.
+    79	
+    80	## Definition of Done
+    81	
+    82	- `jsconfig.template.json` provides a turn-key configuration for Vanilla JS type checking. (V2)
+    83	- `check_vanilla_js.py` passes ruff linting and mypy typing. (V3, V4)
+    84	- Scenario [WQG-HP-02] fully verified and passing. (V5)
+    85	- Clean git status with changes restricted to Allowed files. (Gate 5)
+    86	
+    87	## Dependencies & Blockers
+    88	
+    89	- Blocked by: [Task 01](task_01_web_quality_check_skill_and_contract.md).
+    90	
+    91	## References & Rollback
+    92	
+    93	- Reference: [TypeScript JSDoc Reference](https://www.typescriptlang.org/docs/handbook/jsdoc-supported-types.html).
+    94	- Rollback: Revert `jsconfig.template.json` and checker script.
+
+exec
+/bin/zsh -lc "rg -n 'condition_6|condition 6|Tier C|tier.c|integration|except|try:' skills/dev-implementation/resources/scripts/task_contract.py; rg -n 'def |except|try:|junit|scenario|testcase' skills/dev-implementation/resources/scripts/result_reports.py; rg -n 'provider|fan.out|concurr|Thread|async|def main' skills/quality_check/resources/scripts/*.py" in /Users/danhdueexoictif/AllProjects/ai-agent-tools
+ succeeded in 0ms:
+140:    try:
+142:    except ContractError as error:
+221:def parse_integration_results(hld_text: str) -> list[str]:
+286:    try:
+290:    except ValueError:
+320:    try:
+322:    except (ContractError, OSError):
+362:    try:
+364:    except FileNotFoundError:
+376:    try:
+378:    except OSError:
+403:    try:
+405:    except ContractError as error:
+441:    problems += [f"condition 6: {identifier}: {detail}"
+27:def reference_pattern(identifier: str) -> re.Pattern[str]:
+33:def parse_junit(text: str) -> list[Case]:
+35:    for element in ET.fromstring(text).iter("testcase"):
+42:def parse_dart(text: str) -> list[Case]:
+48:        try:
+50:        except Exception:
+71:def report_files(path: str, root: Path) -> list[Path]:
+83:def load_files(files: list[Path]) -> list[Case]:
+88:        try:
+90:                cases.extend(parse_junit(text))
+95:        except (ET.ParseError, ValueError, KeyError) as error:
+100:def load_reports(paths: list[str], root: Path) -> list[Case]:
+104:def belongs(case: Case, identifier: str) -> bool:
+109:def verdicts(ids: list[str], cases: list[Case]) -> dict[str, tuple[bool, str]]:
+126:def digest(cases: list[Case], ids: list[str]) -> dict:
+skills/quality_check/resources/scripts/test_validate_quality_contract.py:1:"""Red-first contract tests for the provider quality boundary."""
+skills/quality_check/resources/scripts/test_validate_quality_contract.py:19:    validate_provider_result,
+skills/quality_check/resources/scripts/test_validate_quality_contract.py:27:def registry(*providers: dict, schema_version: int = 1) -> dict:
+skills/quality_check/resources/scripts/test_validate_quality_contract.py:28:    return {"schema_version": schema_version, "providers": list(providers)}
+skills/quality_check/resources/scripts/test_validate_quality_contract.py:31:def provider(provider_id: str, profiles: list[str] | None = None, **extra: object) -> dict:
+skills/quality_check/resources/scripts/test_validate_quality_contract.py:33:        "id": provider_id,
+skills/quality_check/resources/scripts/test_validate_quality_contract.py:34:        "skill": f"d3nexus:{provider_id}",
+skills/quality_check/resources/scripts/test_validate_quality_contract.py:48:        "provider_id": "alpha",
+skills/quality_check/resources/scripts/test_validate_quality_contract.py:57:        "provider_id": "alpha",
+skills/quality_check/resources/scripts/test_validate_quality_contract.py:76:    def test_valid_registry_selects_all_matching_providers_in_id_order(self) -> None:
+skills/quality_check/resources/scripts/test_validate_quality_contract.py:78:            registry(provider("zeta"), provider("alpha"), provider("pr-only", ["pr"])),
+skills/quality_check/resources/scripts/test_validate_quality_contract.py:83:        self.assertEqual(["alpha", "zeta"], [p["id"] for p in checked["providers"]])
+skills/quality_check/resources/scripts/test_validate_quality_contract.py:90:        self.assertEqual([], checked["providers"])
+skills/quality_check/resources/scripts/test_validate_quality_contract.py:98:            (registry(provider("alpha"), schema_version=2), "unsupported_version"),
+skills/quality_check/resources/scripts/test_validate_quality_contract.py:99:            (registry(provider("alpha"), provider("alpha")), "duplicate_id"),
+skills/quality_check/resources/scripts/test_validate_quality_contract.py:100:            (registry(provider("alpha", ["quick"])), "unsupported_profile"),
+skills/quality_check/resources/scripts/test_validate_quality_contract.py:101:            ({"schema_version": 1, "providers": []}, "empty_providers"),
+skills/quality_check/resources/scripts/test_validate_quality_contract.py:115:            registry(provider("alpha")),
+skills/quality_check/resources/scripts/test_validate_quality_contract.py:122:            registry(provider("alpha", ["pr"])),
+skills/quality_check/resources/scripts/test_validate_quality_contract.py:130:            registry(provider("zeta"), provider("alpha"), provider("alpha")),
+skills/quality_check/resources/scripts/test_validate_quality_contract.py:135:            registry(provider("alpha"), provider("zeta"), provider("alpha")),
+skills/quality_check/resources/scripts/test_validate_quality_contract.py:164:        checked = validate_provider_result(result(), invocation())
+skills/quality_check/resources/scripts/test_validate_quality_contract.py:172:            ({"provider_id": "beta"}, "provider_id_mismatch"),
+skills/quality_check/resources/scripts/test_validate_quality_contract.py:176:            checked = validate_provider_result(value, invocation())
+skills/quality_check/resources/scripts/test_validate_quality_contract.py:188:        checked = validate_provider_result(malformed, invocation())
+skills/quality_check/resources/scripts/test_validate_quality_contract.py:216:        checked = validate_provider_result(malformed, invocation())
+skills/quality_check/resources/scripts/test_validate_quality_contract.py:241:        checked = validate_provider_result(missing_reason, invocation())
+skills/quality_check/resources/scripts/test_validate_quality_contract.py:251:        checked = validate_provider_result(invalid, invocation())
+skills/quality_check/resources/scripts/test_validate_quality_contract.py:254:    def test_provider_pass_with_check_fail_or_blocked_is_contract_violation(self) -> None:
+skills/quality_check/resources/scripts/test_validate_quality_contract.py:265:        checked = validate_provider_result(res, invocation())
+skills/quality_check/resources/scripts/test_validate_quality_contract.py:269:    def test_provider_pass_with_sub_threshold_coverage_is_coverage_deficit(self) -> None:
+skills/quality_check/resources/scripts/test_validate_quality_contract.py:277:        checked = validate_provider_result(res, invocation())
+skills/quality_check/resources/scripts/test_validate_quality_contract.py:290:        self.assertEqual(["alpha", "beta"], [item["provider_id"] for item in checked["results"]])
+skills/quality_check/resources/scripts/test_validate_quality_contract.py:343:        for name in ("check-quality.schema.json", "provider-result.schema.json"):
+skills/quality_check/resources/scripts/test_validate_quality_contract.py:361:        self.assertEqual(2, len(checked_reg["providers"]))
+skills/quality_check/resources/scripts/test_validate_quality_contract.py:366:            provider_id="rust-core",
+skills/quality_check/resources/scripts/test_validate_quality_contract.py:369:        checked_res = validate_provider_result(valid_res, inv)
+skills/quality_check/resources/scripts/test_validate_quality_contract.py:378:            "docs/architecture/quality-provider-system.en.md",
+skills/quality_check/resources/scripts/test_validate_quality_contract.py:379:            "docs/architecture/quality-provider-system.vi.md",
+skills/quality_check/resources/scripts/test_validate_quality_contract.py:388:            # 1. Single provider registry
+skills/quality_check/resources/scripts/test_validate_quality_contract.py:400:            res_result = validate_provider_result(result_doc, res_inv["invocation"])
+skills/quality_check/resources/scripts/test_aggregate_quality_results.py:35:def make_provider_result(
+skills/quality_check/resources/scripts/test_aggregate_quality_results.py:36:    provider_id: str,
+skills/quality_check/resources/scripts/test_aggregate_quality_results.py:45:        "provider_id": provider_id,
+skills/quality_check/resources/scripts/test_aggregate_quality_results.py:51:        "checks": checks if checks is not None else [make_check(f"{provider_id}-chk-1", status)],
+skills/quality_check/resources/scripts/test_aggregate_quality_results.py:65:    def test_all_required_providers_pass_produces_pass(self) -> None:
+skills/quality_check/resources/scripts/test_aggregate_quality_results.py:66:        p1 = make_provider_result("alpha", "PASS", required=True)
+skills/quality_check/resources/scripts/test_aggregate_quality_results.py:67:        p2 = make_provider_result("beta", "PASS", required=True)
+skills/quality_check/resources/scripts/test_aggregate_quality_results.py:72:        self.assertIn("All required providers passed", res["decision_trace"])
+skills/quality_check/resources/scripts/test_aggregate_quality_results.py:73:        self.assertEqual(["alpha", "beta"], [p["provider_id"] for p in res["providers"]])
+skills/quality_check/resources/scripts/test_aggregate_quality_results.py:76:        p1 = make_provider_result("alpha", "FAIL", required=True, blockers=["Lint failure"])
+skills/quality_check/resources/scripts/test_aggregate_quality_results.py:77:        p2 = make_provider_result("beta", "BLOCKED", required=True, blockers=["Missing cargo tool"])
+skills/quality_check/resources/scripts/test_aggregate_quality_results.py:91:        p1 = make_provider_result("alpha", "NOT_APPLICABLE", required=True, checks=[na_check])
+skills/quality_check/resources/scripts/test_aggregate_quality_results.py:96:        self.assertIn("Required provider 'alpha' has only NOT_APPLICABLE checks", res["decision_trace"])
+skills/quality_check/resources/scripts/test_aggregate_quality_results.py:99:        p1 = make_provider_result("alpha", "PASS", required=True)
+skills/quality_check/resources/scripts/test_aggregate_quality_results.py:105:        p2 = make_provider_result("beta-optional", "NOT_APPLICABLE", required=False, checks=[na_check])
+skills/quality_check/resources/scripts/test_aggregate_quality_results.py:110:        self.assertIn("All required providers passed", res["decision_trace"])
+skills/quality_check/resources/scripts/test_aggregate_quality_results.py:113:        p1 = make_provider_result("alpha", "PASS")
+skills/quality_check/resources/scripts/test_aggregate_quality_results.py:114:        p2 = make_provider_result("zeta", "FAIL")
+skills/quality_check/resources/scripts/test_aggregate_quality_results.py:124:        p1 = make_provider_result("alpha", "PASS", warnings=["Deprecation warning"])
+skills/quality_check/resources/scripts/test_aggregate_quality_results.py:132:        p1 = make_provider_result("alpha", "PASS")
+skills/quality_check/resources/scripts/test_aggregate_quality_results.py:142:    def test_missing_required_provider_synthesizes_blocked_entry(self) -> None:
+skills/quality_check/resources/scripts/test_aggregate_quality_results.py:144:        p1 = make_provider_result("alpha", "PASS")
+skills/quality_check/resources/scripts/test_aggregate_quality_results.py:147:        self.assertEqual(["alpha", "android-core"], [p["provider_id"] for p in res["providers"]])
+skills/quality_check/resources/scripts/test_aggregate_quality_results.py:148:        android_p = [p for p in res["providers"] if p["provider_id"] == "android-core"][0]
+skills/quality_check/resources/scripts/test_aggregate_quality_results.py:150:        self.assertTrue(any("Missing result for provider 'android-core'" in b for b in res["blockers"]))
+skills/quality_check/resources/scripts/test_aggregate_quality_results.py:152:    def test_contradictory_provider_result_demoted_to_blocked(self) -> None:
+skills/quality_check/resources/scripts/test_aggregate_quality_results.py:153:        bad_pass = make_provider_result("alpha", "PASS", checks=[make_check("unit", "FAIL")])
+skills/quality_check/resources/scripts/test_aggregate_quality_results.py:157:        alpha_p = res["providers"][0]
+skills/quality_check/resources/scripts/test_quality_provider_acceptance.py:2:"""End-to-end acceptance tests for the provider-based quality system.
+skills/quality_check/resources/scripts/test_quality_provider_acceptance.py:4:Tests composite consumer repositories, multiple providers, Rust capability execution,
+skills/quality_check/resources/scripts/test_quality_provider_acceptance.py:5:formal lifecycle inputs, deterministic concurrency, status precedence (FAIL > BLOCKED > PASS),
+skills/quality_check/resources/scripts/test_quality_provider_acceptance.py:21:    validate_provider_result,
+skills/quality_check/resources/scripts/test_quality_provider_acceptance.py:42:def _make_provider_result(
+skills/quality_check/resources/scripts/test_quality_provider_acceptance.py:43:    provider_id: str,
+skills/quality_check/resources/scripts/test_quality_provider_acceptance.py:54:    """Construct a schema-valid provider result dict."""
+skills/quality_check/resources/scripts/test_quality_provider_acceptance.py:59:        "source": "cargo test" if "rust" in provider_id else "gradle check",
+skills/quality_check/resources/scripts/test_quality_provider_acceptance.py:79:            "location": f"target/quality/{provider_id}/{check_id}.log",
+skills/quality_check/resources/scripts/test_quality_provider_acceptance.py:90:                        "location": f"target/quality/{provider_id}/{ref}.log",
+skills/quality_check/resources/scripts/test_quality_provider_acceptance.py:95:        "provider_id": provider_id,
+skills/quality_check/resources/scripts/test_quality_provider_acceptance.py:119:    provider_results: list[dict],
+skills/quality_check/resources/scripts/test_quality_provider_acceptance.py:128:                "provider_id": "unregistered",
+skills/quality_check/resources/scripts/test_quality_provider_acceptance.py:147:                "provider_id": "invocation",
+skills/quality_check/resources/scripts/test_quality_provider_acceptance.py:168:                "provider_id": "registry",
+skills/quality_check/resources/scripts/test_quality_provider_acceptance.py:187:                "provider_id": "repository",
+skills/quality_check/resources/scripts/test_quality_provider_acceptance.py:205:                "provider_id": "repository",
+skills/quality_check/resources/scripts/test_quality_provider_acceptance.py:220:    for res in provider_results:
+skills/quality_check/resources/scripts/test_quality_provider_acceptance.py:222:        target_inv["provider_id"] = res.get("provider_id")
+skills/quality_check/resources/scripts/test_quality_provider_acceptance.py:223:        val_res = validate_provider_result(res, target_inv)
+skills/quality_check/resources/scripts/test_quality_provider_acceptance.py:235:    reconciled = reconcile_results(reg_res["providers"], validated_results)
+skills/quality_check/resources/scripts/test_quality_provider_acceptance.py:238:    agg = aggregate_results(reg_res["providers"], reconciled["results"], inv)
+skills/quality_check/resources/scripts/test_quality_provider_acceptance.py:273:            "providers": [
+skills/quality_check/resources/scripts/test_quality_provider_acceptance.py:293:        res_rust = _make_provider_result("rust-core", active_sha, "epic", "PASS")
+skills/quality_check/resources/scripts/test_quality_provider_acceptance.py:294:        res_mobile = _make_provider_result("mobile-client", active_sha, "epic", "PASS", check_id="app-test")
+skills/quality_check/resources/scripts/test_quality_provider_acceptance.py:320:            "providers": [
+skills/quality_check/resources/scripts/test_quality_provider_acceptance.py:330:        res_rust = _make_provider_result("rust-core", active_sha, "epic", "FAIL", check_status="FAIL")
+skills/quality_check/resources/scripts/test_quality_provider_acceptance.py:331:        res_mobile = _make_provider_result(
+skills/quality_check/resources/scripts/test_quality_provider_acceptance.py:384:    def test_concurrent_completion_is_reproducible_and_deterministic(self) -> None:
+skills/quality_check/resources/scripts/test_quality_provider_acceptance.py:389:            "providers": [
+skills/quality_check/resources/scripts/test_quality_provider_acceptance.py:390:                {"id": "provider-b", "skill": "d3nexus:rust-quality-check", "required": True, "profiles": ["epic"]},
+skills/quality_check/resources/scripts/test_quality_provider_acceptance.py:391:                {"id": "provider-a", "skill": "d3nexus:mobile-quality-check", "required": True, "profiles": ["epic"]},
+skills/quality_check/resources/scripts/test_quality_provider_acceptance.py:399:        res_a = _make_provider_result("provider-a", active_sha, "epic", "PASS", check_id="check-1")
+skills/quality_check/resources/scripts/test_quality_provider_acceptance.py:400:        res_b = _make_provider_result("provider-b", active_sha, "epic", "PASS", check_id="check-2")
+skills/quality_check/resources/scripts/test_quality_provider_acceptance.py:421:            "providers": [
+skills/quality_check/resources/scripts/test_quality_provider_acceptance.py:442:        res_rust = _make_provider_result("rust-core", initial_sha, "epic", "PASS")
+skills/quality_check/resources/scripts/test_quality_provider_acceptance.py:457:        res_rust2 = _make_provider_result("rust-core", new_sha, "epic", "PASS")
+skills/quality_check/resources/scripts/test_quality_provider_acceptance.py:468:            "providers": [
+skills/quality_check/resources/scripts/test_quality_provider_acceptance.py:477:        res_pr = _make_provider_result("rust-core", active_sha, profile="pr", status="PASS")
+skills/quality_check/resources/scripts/test_quality_provider_acceptance.py:494:            "providers": [
+skills/quality_check/resources/scripts/test_quality_provider_acceptance.py:515:        res_flutter = _make_provider_result(
+skills/quality_check/resources/scripts/test_quality_provider_acceptance.py:543:            "providers": [
+skills/quality_check/resources/scripts/test_quality_provider_acceptance.py:564:        res_android = _make_provider_result(
+skills/quality_check/resources/scripts/test_quality_provider_acceptance.py:592:            "providers": [
+skills/quality_check/resources/scripts/test_quality_provider_acceptance.py:613:        res_ios = _make_provider_result(
+skills/quality_check/resources/scripts/test_quality_provider_acceptance.py:641:            "providers": [
+skills/quality_check/resources/scripts/test_quality_provider_acceptance.py:652:        res_rust = _make_provider_result("rust-core", active_sha, "epic", "PASS", check_id="cargo-test")
+skills/quality_check/resources/scripts/test_quality_provider_acceptance.py:653:        res_android = _make_provider_result("android-core", active_sha, "epic", "PASS", check_id="gradle-test")
+skills/quality_check/resources/scripts/test_quality_provider_acceptance.py:654:        res_flutter = _make_provider_result("flutter-core", active_sha, "epic", "PASS", check_id="melos-test")
+skills/quality_check/resources/scripts/test_quality_provider_acceptance.py:675:            "providers": [
+skills/quality_check/resources/scripts/test_quality_provider_acceptance.py:685:        res_f1 = _make_provider_result(
+skills/quality_check/resources/scripts/test_quality_provider_acceptance.py:710:            "providers": [
+skills/quality_check/resources/scripts/test_quality_provider_acceptance.py:720:        res_f2 = _make_provider_result(
+skills/quality_check/resources/scripts/test_quality_provider_acceptance.py:747:            "providers": [
+skills/quality_check/resources/scripts/test_quality_provider_acceptance.py:756:        # Vulnerability F3: provider result bound to stale SHA
+skills/quality_check/resources/scripts/test_quality_provider_acceptance.py:757:        res_f3 = _make_provider_result(
+skills/quality_check/resources/scripts/test_quality_provider_acceptance.py:789:    def test_python_provider_passes_end_to_end(self) -> None:
+skills/quality_check/resources/scripts/test_quality_provider_acceptance.py:794:            "providers": [
+skills/quality_check/resources/scripts/test_quality_provider_acceptance.py:808:        res_python = _make_provider_result(
+skills/quality_check/resources/scripts/aggregate_quality_results.py:1:"""Deterministic result aggregation engine for the provider-based quality gate.
+skills/quality_check/resources/scripts/aggregate_quality_results.py:3:Aggregates validated provider results into a unified decision payload and renders
+skills/quality_check/resources/scripts/aggregate_quality_results.py:19:    """Deterministically aggregate provider results according to plan and status precedence."""
+skills/quality_check/resources/scripts/aggregate_quality_results.py:21:    normalized_providers: list[dict[str, Any]] = []
+skills/quality_check/resources/scripts/aggregate_quality_results.py:25:        p_id = p.get("provider_id", "")
+skills/quality_check/resources/scripts/aggregate_quality_results.py:39:        # Check for all-NOT_APPLICABLE checks on a required provider
+skills/quality_check/resources/scripts/aggregate_quality_results.py:43:            blocker_msg = f"Required provider '{p_id}' has only NOT_APPLICABLE checks"
+skills/quality_check/resources/scripts/aggregate_quality_results.py:53:                    blocker_msg = f"Contradictory result: provider reported PASS but check '{c.get('id')}' has status '{c.get('status')}'"
+skills/quality_check/resources/scripts/aggregate_quality_results.py:65:                                blocker_msg = f"Contradictory result: provider reported PASS but coverage '{k}' is below threshold ({meas} < {thresh})"
+skills/quality_check/resources/scripts/aggregate_quality_results.py:70:        normalized_providers.append(p)
+skills/quality_check/resources/scripts/aggregate_quality_results.py:72:    # Synthesize missing providers declared in plan
+skills/quality_check/resources/scripts/aggregate_quality_results.py:73:    seen_result_ids = {r.get("provider_id") for r in results if r.get("provider_id")}
+skills/quality_check/resources/scripts/aggregate_quality_results.py:79:                "provider_id": plan_id,
+skills/quality_check/resources/scripts/aggregate_quality_results.py:91:                "blockers": [f"Missing result for provider '{plan_id}'"],
+skills/quality_check/resources/scripts/aggregate_quality_results.py:94:            normalized_providers.append(synthetic)
+skills/quality_check/resources/scripts/aggregate_quality_results.py:96:    # Sort providers by provider_id
+skills/quality_check/resources/scripts/aggregate_quality_results.py:97:    normalized_providers.sort(key=lambda item: item.get("provider_id", ""))
+skills/quality_check/resources/scripts/aggregate_quality_results.py:100:    failing_providers = [p for p in normalized_providers if p.get("status") == "FAIL"]
+skills/quality_check/resources/scripts/aggregate_quality_results.py:101:    blocked_required = [p for p in normalized_providers if p.get("status") == "BLOCKED" and p.get("required", True)]
+skills/quality_check/resources/scripts/aggregate_quality_results.py:102:    all_required = [p for p in normalized_providers if p.get("required", True)]
+skills/quality_check/resources/scripts/aggregate_quality_results.py:109:    for p in normalized_providers:
+skills/quality_check/resources/scripts/aggregate_quality_results.py:111:            formatted_b = f"[{p.get('provider_id')}] {b}" if isinstance(b, str) else str(b)
+skills/quality_check/resources/scripts/aggregate_quality_results.py:116:            formatted_w = f"[{p.get('provider_id')}] {w}" if isinstance(w, str) else str(w)
+skills/quality_check/resources/scripts/aggregate_quality_results.py:123:                coverage_summary[f"{p.get('provider_id')}.{k}"] = v
+skills/quality_check/resources/scripts/aggregate_quality_results.py:128:    profile = invocation.get("profile") if invocation else (normalized_providers[0].get("profile") if normalized_providers else "pr")
+skills/quality_check/resources/scripts/aggregate_quality_results.py:129:    repo_sha = invocation.get("repository_sha") if invocation else (normalized_providers[0].get("repository_sha") if normalized_providers else "")
+skills/quality_check/resources/scripts/aggregate_quality_results.py:134:    if failing_providers:
+skills/quality_check/resources/scripts/aggregate_quality_results.py:136:        fail_ids = ", ".join(f"'{p.get('provider_id')}'" for p in failing_providers)
+skills/quality_check/resources/scripts/aggregate_quality_results.py:138:            blocked_ids = ", ".join(f"'{p.get('provider_id')}'" for p in blocked_required)
+skills/quality_check/resources/scripts/aggregate_quality_results.py:139:            decision_trace = f"FAIL outranks BLOCKED: provider(s) {fail_ids} failed while {blocked_ids} was blocked"
+skills/quality_check/resources/scripts/aggregate_quality_results.py:146:            p_id = p.get("provider_id", "")
+skills/quality_check/resources/scripts/aggregate_quality_results.py:148:            reasons.append(f"Required provider '{p_id}' has {first_b}")
+skills/quality_check/resources/scripts/aggregate_quality_results.py:152:        decision_trace = f"All required providers passed ({len(passed_required)}/{len(all_required)})"
+skills/quality_check/resources/scripts/aggregate_quality_results.py:155:        decision_trace = "No required providers passed or empty execution plan"
+skills/quality_check/resources/scripts/aggregate_quality_results.py:162:        "providers": normalized_providers,
+skills/quality_check/resources/scripts/aggregate_quality_results.py:175:    providers = payload.get("providers", [])
+skills/quality_check/resources/scripts/aggregate_quality_results.py:198:    for p in providers:
+skills/quality_check/resources/scripts/aggregate_quality_results.py:199:        p_id = p.get("provider_id", "")
+skills/quality_check/resources/scripts/aggregate_quality_results.py:244:def main() -> int:
+skills/quality_check/resources/scripts/aggregate_quality_results.py:248:    parser = argparse.ArgumentParser(description="Aggregate validated provider results into executive quality report.")
+skills/quality_check/resources/scripts/aggregate_quality_results.py:250:    parser.add_argument("result_files", nargs="+", help="Paths to provider result JSON files")
+skills/quality_check/resources/scripts/validate_quality_contract.py:3:Validates project quality registries, normalized invocations, provider results,
+skills/quality_check/resources/scripts/validate_quality_contract.py:4:and reconciles provider results against the execution plan according to the
+skills/quality_check/resources/scripts/validate_quality_contract.py:36:        key = (f.get("code", ""), f.get("provider_id", ""), f.get("field", ""), f.get("message", ""))
+skills/quality_check/resources/scripts/validate_quality_contract.py:43:            item.get("provider_id", ""),
+skills/quality_check/resources/scripts/validate_quality_contract.py:55:    """Validate project provider registry and select providers for the requested profile."""
+skills/quality_check/resources/scripts/validate_quality_contract.py:59:    allowed_top = {"schema_version", "providers"}
+skills/quality_check/resources/scripts/validate_quality_contract.py:64:    for req in ("schema_version", "providers"):
+skills/quality_check/resources/scripts/validate_quality_contract.py:77:    providers_raw = registry_data.get("providers")
+skills/quality_check/resources/scripts/validate_quality_contract.py:78:    if not isinstance(providers_raw, list):
+skills/quality_check/resources/scripts/validate_quality_contract.py:79:        if "providers" in registry_data:
+skills/quality_check/resources/scripts/validate_quality_contract.py:80:            findings.append(_finding("empty_providers", "Registry providers must be a non-empty list"))
+skills/quality_check/resources/scripts/validate_quality_contract.py:83:            "providers": [],
+skills/quality_check/resources/scripts/validate_quality_contract.py:87:    if len(providers_raw) == 0:
+skills/quality_check/resources/scripts/validate_quality_contract.py:88:        findings.append(_finding("empty_providers", "Registry providers list is empty"))
+skills/quality_check/resources/scripts/validate_quality_contract.py:90:    allowed_provider_fields = {"id", "skill", "required", "profiles"}
+skills/quality_check/resources/scripts/validate_quality_contract.py:92:    valid_providers: list[dict[str, Any]] = []
+skills/quality_check/resources/scripts/validate_quality_contract.py:94:    for idx, p in enumerate(providers_raw):
+skills/quality_check/resources/scripts/validate_quality_contract.py:96:            findings.append(_finding("malformed_provider", f"Provider at index {idx} must be an object"))
+skills/quality_check/resources/scripts/validate_quality_contract.py:100:        # Check unknown fields in provider
+skills/quality_check/resources/scripts/validate_quality_contract.py:102:            if k not in allowed_provider_fields:
+skills/quality_check/resources/scripts/validate_quality_contract.py:106:                        f"Unknown provider field '{k}'",
+skills/quality_check/resources/scripts/validate_quality_contract.py:107:                        provider_id=p_id or f"index_{idx}",
+skills/quality_check/resources/scripts/validate_quality_contract.py:118:                        f"Missing required provider field '{req}'",
+skills/quality_check/resources/scripts/validate_quality_contract.py:119:                        provider_id=p_id or f"index_{idx}",
+skills/quality_check/resources/scripts/validate_quality_contract.py:129:                        f"Duplicate provider id '{p_id}'",
+skills/quality_check/resources/scripts/validate_quality_contract.py:130:                        provider_id=p_id,
+skills/quality_check/resources/scripts/validate_quality_contract.py:143:                            f"Unsupported profile '{prof}' in provider '{p_id}'",
+skills/quality_check/resources/scripts/validate_quality_contract.py:144:                            provider_id=p_id,
+skills/quality_check/resources/scripts/validate_quality_contract.py:151:                    f"Profiles for provider '{p_id}' must be a list",
+skills/quality_check/resources/scripts/validate_quality_contract.py:152:                    provider_id=p_id,
+skills/quality_check/resources/scripts/validate_quality_contract.py:156:        valid_providers.append(p)
+skills/quality_check/resources/scripts/validate_quality_contract.py:158:    selected_providers: list[dict[str, Any]] = []
+skills/quality_check/resources/scripts/validate_quality_contract.py:160:        for p in valid_providers:
+skills/quality_check/resources/scripts/validate_quality_contract.py:171:                                provider_id=p_id,
+skills/quality_check/resources/scripts/validate_quality_contract.py:174:                selected_providers.append(p)
+skills/quality_check/resources/scripts/validate_quality_contract.py:183:    # Sort selected providers by id for deterministic ordering
+skills/quality_check/resources/scripts/validate_quality_contract.py:184:    selected_providers.sort(key=lambda item: item.get("id", ""))
+skills/quality_check/resources/scripts/validate_quality_contract.py:186:    if len(selected_providers) == 0 and len(providers_raw) > 0 and requested_profile in VALID_PROFILES:
+skills/quality_check/resources/scripts/validate_quality_contract.py:190:                f"No providers matched the requested profile '{requested_profile}'",
+skills/quality_check/resources/scripts/validate_quality_contract.py:197:        "providers": selected_providers if status == "PASS" else [],
+skills/quality_check/resources/scripts/validate_quality_contract.py:205:    allowed_fields = {"contract_version", "profile", "base_ref", "repository_sha", "provider_id", "required"}
+skills/quality_check/resources/scripts/validate_quality_contract.py:240:def validate_provider_result(
+skills/quality_check/resources/scripts/validate_quality_contract.py:244:    """Validate a provider result document against contract and invocation identity."""
+skills/quality_check/resources/scripts/validate_quality_contract.py:257:    exp_provider_id = invocation_data.get("provider_id")
+skills/quality_check/resources/scripts/validate_quality_contract.py:258:    if exp_provider_id and result_data.get("provider_id") != exp_provider_id:
+skills/quality_check/resources/scripts/validate_quality_contract.py:261:                "provider_id_mismatch",
+skills/quality_check/resources/scripts/validate_quality_contract.py:262:                f"Result provider_id '{result_data.get('provider_id')}' != invocation '{exp_provider_id}'",
+skills/quality_check/resources/scripts/validate_quality_contract.py:322:                            provider_id=result_data.get("provider_id"),
+skills/quality_check/resources/scripts/validate_quality_contract.py:381:                        provider_id=result_data.get("provider_id"),
+skills/quality_check/resources/scripts/validate_quality_contract.py:434:    provider_results: list[dict[str, Any]],
+skills/quality_check/resources/scripts/validate_quality_contract.py:437:    """Reconcile collected provider results against the execution plan."""
+skills/quality_check/resources/scripts/validate_quality_contract.py:441:        plan_entries = execution_plan.get("providers", execution_plan.get("plan", []))
+skills/quality_check/resources/scripts/validate_quality_contract.py:454:    for res in provider_results:
+skills/quality_check/resources/scripts/validate_quality_contract.py:455:        p_id = res.get("provider_id", "")
+skills/quality_check/resources/scripts/validate_quality_contract.py:467:                    provider_id=p_id,
+skills/quality_check/resources/scripts/validate_quality_contract.py:475:                    provider_id=p_id,
+skills/quality_check/resources/scripts/validate_quality_contract.py:488:                            provider_id=p_id,
+skills/quality_check/resources/scripts/validate_quality_contract.py:503:                                        provider_id=p_id,
+skills/quality_check/resources/scripts/validate_quality_contract.py:518:                    f"Missing result for provider '{p_id}'",
+skills/quality_check/resources/scripts/validate_quality_contract.py:519:                    provider_id=p_id,
+skills/quality_check/resources/scripts/validate_quality_contract.py:524:                    "provider_id": p_id,
+skills/quality_check/resources/scripts/validate_quality_contract.py:527:                    "blockers": [f"Missing result for provider '{p_id}'"],
+skills/quality_check/resources/scripts/validate_quality_contract.py:534:                    f"Duplicate results ({len(matching)}) received for provider '{p_id}'",
+skills/quality_check/resources/scripts/validate_quality_contract.py:535:                    provider_id=p_id,
+skills/quality_check/resources/scripts/validate_quality_contract.py:540:                    "provider_id": p_id,
+skills/quality_check/resources/scripts/validate_quality_contract.py:543:                    "blockers": [f"Duplicate results received for provider '{p_id}'"],
+skills/quality_check/resources/scripts/validate_quality_contract.py:549:    reconciled_results.sort(key=lambda item: item.get("provider_id", ""))
+skills/quality_check/resources/scripts/validate_quality_contract.py:675:def main() -> int:
+skills/quality_check/resources/scripts/validate_quality_contract.py:690:    res_parser = subparsers.add_parser("result", help="Validate provider result against invocation")
+skills/quality_check/resources/scripts/validate_quality_contract.py:694:    rec_parser = subparsers.add_parser("reconcile", help="Reconcile provider results with execution plan")
+skills/quality_check/resources/scripts/validate_quality_contract.py:696:    rec_parser.add_argument("--results", nargs="+", required=True, help="Paths to provider result JSONs")
+skills/quality_check/resources/scripts/validate_quality_contract.py:699:    cap_parser = subparsers.add_parser("capability", help="Validate provider capability manifest")
+skills/quality_check/resources/scripts/validate_quality_contract.py:720:        res = validate_provider_result(res_data, inv_data)
+
+exec
+/bin/zsh -lc "nl -ba skills/dev-implementation/resources/scripts/task_contract.py | sed -n '1,260p'" in /Users/danhdueexoictif/AllProjects/ai-agent-tools
+ succeeded in 0ms:
+     1	#!/usr/bin/env python3
+     2	"""Parse a task file's Verification contract, and fingerprint the worktree it is checked in.
+     3	
+     4	Shared by run_task_checks.py and the other scripts that read task files, so every one of them reads a
+     5	task identically. Python 3 standard library only.
+     6	"""
+     7	from __future__ import annotations
+     8	
+     9	import json
+    10	import os
+    11	import re
+    12	import shlex
+    13	import subprocess
+    14	import tempfile
+    15	from dataclasses import dataclass
+    16	from pathlib import Path
+    17	
+    18	from check_bdd_traceability import covers_of
+    19	from result_reports import Case, verdicts
+    20	
+    21	PHASES = ("RED", "GREEN", "TIER-B", "TIER-C")
+    22	HEADER = ["ID", "Phase", "Command", "Expect", "Needs"]
+    23	NONE_CELL = ("—", "-")
+    24	FENCE = re.compile(r"^\s*(`{3,}|~{3,})")
+    25	EXIT_CLAUSE = re.compile(r"exit (?:(\d+)|non-zero)")
+    26	CLAUSE = re.compile(r'; (?:contains "([^"]*)"|results (\S+))')
+    27	NEEDS_NAME = re.compile(r"[A-Z_][A-Z0-9_]*")
+    28	ROW_ID = re.compile(r"V[0-9]+")
+    29	CODE_SPAN = re.compile(r"`([^`]+)`")
+    30	RED_NA = re.compile(r"^RED:\s*n/a\s*[—-]\s*(.+?)\s*$")
+    31	ALLOWED_BULLET = re.compile(r"^- `([^`]+)`( \(new\))?\s*$")
+    32	ENVIRONMENT_HEADING = re.compile(r"^## (?:\d+\.\s*)?Verification Environment\s*$")
+    33	INTERPRETERS = {"python", "python3", "bash", "sh", "zsh", "node", "deno", "ruby", "perl"}
+    34	CONTROL_TOKENS = {"&&", "||", ";", "|"}
+    35	EXCLUDE_DEVTOOL = ":(exclude).devtool"
+    36	DIFF_PLAIN = ("--no-ext-diff", "--no-color")  # user diff settings must not change a patch id
+    37	DOD_REFERENCE = re.compile(r"\((V[0-9]+(?:,\s*V[0-9]+)*|Gate 5)\)\.?\s*$")
+    38	
+    39	
+    40	class ContractError(Exception):
+    41	    """A task file or HLD the parser cannot accept; the message names the row or section."""
+    42	
+    43	
+    44	@dataclass(frozen=True)
+    45	class Expect:
+    46	    exit_code: int | None
+    47	    nonzero: bool
+    48	    contains: tuple[str, ...]
+    49	    results: str | None
+    50	
+    51	
+    52	@dataclass(frozen=True)
+    53	class Row:
+    54	    id: str
+    55	    phase: str
+    56	    command: str
+    57	    expect_text: str
+    58	    expect: Expect
+    59	    needs: tuple[str, ...]
+    60	
+    61	
+    62	@dataclass(frozen=True)
+    63	class AllowedPath:
+    64	    pattern: str
+    65	    new: bool
+    66	
+    67	
+    68	@dataclass(frozen=True)
+    69	class EpicLayout:
+    70	    root: Path
+    71	    epic_dir: Path
+    72	    hld: Path
+    73	    scenarios: Path
+    74	    evidence: Path
+    75	
+    76	
+    77	def section(text: str, title: str) -> str | None:
+    78	    """Body under `## <title>` up to the next `## ` heading; fenced lines never count as headings."""
+    79	    body: list[str] = []
+    80	    found = False
+    81	    fence: str | None = None
+    82	    for line in text.splitlines():
+    83	        marker = FENCE.match(line)
+    84	        if marker:
+    85	            if fence is None:
+    86	                fence = marker.group(1)
+    87	            elif marker.group(1)[0] == fence[0] and len(marker.group(1)) >= len(fence):
+    88	                fence = None
+    89	        elif fence is None and line.startswith("## "):
+    90	            if found:
+    91	                break
+    92	            found = line[3:].strip() == title
+    93	            continue
+    94	        if found:
+    95	            body.append(line)
+    96	    return "\n".join(body) if found else None
+    97	
+    98	
+    99	def parse_expect(text: str) -> Expect:
+   100	    head = EXIT_CLAUSE.match(text)
+   101	    if not head:
+   102	        raise ContractError(f'Expect must start with "exit <n>" or "exit non-zero": {text!r}')
+   103	    position = head.end()
+   104	    contains: list[str] = []
+   105	    results: str | None = None
+   106	    while position < len(text):
+   107	        clause = CLAUSE.match(text, position)
+   108	        if not clause:
+   109	            raise ContractError(f"Expect has an unknown clause: {text!r}")
+   110	        if clause.group(1) is not None:
+   111	            contains.append(clause.group(1))
+   112	        elif results is not None:
+   113	            raise ContractError(f"Expect has more than one results clause: {text!r}")
+   114	        else:
+   115	            results = clause.group(2)
+   116	        position = clause.end()
+   117	    exit_code = int(head.group(1)) if head.group(1) is not None else None
+   118	    return Expect(exit_code, exit_code is None, tuple(contains), results)
+   119	
+   120	
+   121	def split_cells(line: str) -> list[str]:
+   122	    inner = line.strip()
+   123	    inner = inner[1:] if inner.startswith("|") else inner
+   124	    inner = inner[:-1] if inner.endswith("|") and not inner.endswith("\\|") else inner
+   125	    return [cell.strip() for cell in re.split(r"(?<!\\)\|", inner)]
+   126	
+   127	
+   128	def parse_row(cells: list[str], seen: set[str]) -> Row:
+   129	    row_id = cells[0]
+   130	    if not ROW_ID.fullmatch(row_id):
+   131	        raise ContractError(f"Verification row {row_id!r}: ID must look like V1")
+   132	    if row_id in seen:
+   133	        raise ContractError(f"Verification row {row_id}: duplicate ID")
+   134	    phase, command_cell, expect_text, needs_cell = cells[1:]
+   135	    if phase not in PHASES:
+   136	        raise ContractError(f"Verification row {row_id}: Phase must be one of {', '.join(PHASES)}")
+   137	    span = CODE_SPAN.fullmatch(command_cell)
+   138	    if not span:
+   139	        raise ContractError(f"Verification row {row_id}: Command must be exactly one inline code span")
+   140	    try:
+   141	        expect = parse_expect(expect_text)
+   142	    except ContractError as error:
+   143	        raise ContractError(f"Verification row {row_id}: {error}") from None
+   144	    needs: tuple[str, ...] = ()
+   145	    if needs_cell not in NONE_CELL:
+   146	        needs = tuple(name.strip() for name in needs_cell.split(","))
+   147	        if not all(NEEDS_NAME.fullmatch(name) for name in needs):
+   148	            raise ContractError(f"Verification row {row_id}: Needs must be — or names like TEST_DATABASE_URL")
+   149	    return Row(row_id, phase, span.group(1).replace("\\|", "|"), expect_text, expect, needs)
+   150	
+   151	
+   152	def parse_verification(task_text: str) -> tuple[list[Row], str | None]:
+   153	    body = section(task_text, "Verification")
+   154	    if body is None:
+   155	        raise ContractError("task has no ## Verification section")
+   156	    lines = body.splitlines()
+   157	    table = [line for line in lines if line.lstrip().startswith("|")]
+   158	    if not table or split_cells(table[0]) != HEADER:
+   159	        raise ContractError("Verification header must be exactly: " + "| " + " | ".join(HEADER) + " |")
+   160	    rows: list[Row] = []
+   161	    seen: set[str] = set()
+   162	    for line in table[2:]:
+   163	        cells = split_cells(line)
+   164	        if len(cells) != len(HEADER):
+   165	            raise ContractError(f"Verification row {cells[0]!r}: expected {len(HEADER)} cells, found {len(cells)}")
+   166	        rows.append(parse_row(cells, seen))
+   167	        seen.add(rows[-1].id)
+   168	    reason = next((m.group(1) for m in map(RED_NA.match, lines) if m), None)
+   169	    return rows, reason
+   170	
+   171	
+   172	def parse_allowed_files(task_text: str) -> list[AllowedPath]:
+   173	    body = section(task_text, "Files") or ""
+   174	    allowed: list[AllowedPath] = []
+   175	    listing = False
+   176	    for line in body.splitlines():
+   177	        if not listing:
+   178	            listing = line.strip() == "Allowed files:"
+   179	            continue
+   180	        bullet = ALLOWED_BULLET.match(line)
+   181	        if not bullet:
+   182	            break
+   183	        allowed.append(AllowedPath(bullet.group(1), bool(bullet.group(2))))
+   184	    return allowed
+   185	
+   186	
+   187	def parse_protected_paths(hld_text: str) -> list[str]:
+   188	    for line in hld_text.splitlines():
+   189	        if line.startswith("Protected paths:"):
+   190	            return [entry.strip() for entry in line.split(":", 1)[1].split(",") if entry.strip()]
+   191	    return []
+   192	
+   193	
+   194	def parse_read_only_context(task_text: str) -> list[str]:
+   195	    """The first inline code span of each bullet under `Read-only context:` in `## Files`."""
+   196	    paths: list[str] = []
+   197	    listing = False
+   198	    for line in (section(task_text, "Files") or "").splitlines():
+   199	        if not listing:
+   200	            listing = line.strip() == "Read-only context:"
+   201	        elif line.startswith("- "):
+   202	            span = CODE_SPAN.search(line)
+   203	            if span:
+   204	                paths.append(span.group(1))
+   205	        elif line.strip():
+   206	            break
+   207	    return paths
+   208	
+   209	
+   210	def dod_bullets(task_text: str) -> list[str]:
+   211	    """Each `## Definition of Done` bullet as one line, wrapped continuation lines joined."""
+   212	    bullets: list[str] = []
+   213	    for line in (section(task_text, "Definition of Done") or "").splitlines():
+   214	        if line.startswith("- "):
+   215	            bullets.append(line[2:].strip())
+   216	        elif line.strip() and bullets and line[0] in " \t":
+   217	            bullets[-1] += " " + line.strip()
+   218	    return bullets
+   219	
+   220	
+   221	def parse_integration_results(hld_text: str) -> list[str]:
+   222	    """The text after `Integration results:` on each such line, as written."""
+   223	    return [line.split(":", 1)[1].strip() for line in hld_text.splitlines()
+   224	            if line.startswith("Integration results:")]
+   225	
+   226	
+   227	def verification_environment(hld_text: str) -> str | None:
+   228	    """Body of the `## Verification Environment` section, numbered or not; None when the heading is absent."""
+   229	    body: list[str] = []
+   230	    found = False
+   231	    fence: str | None = None
+   232	    for line in hld_text.splitlines():
+   233	        marker = FENCE.match(line)
+   234	        if marker:
+   235	            fence = marker.group(1) if fence is None else (None if marker.group(1)[0] == fence[0] else fence)
+   236	        elif fence is None and line.startswith("## "):
+   237	            if found:
+   238	                break
+   239	            found = bool(ENVIRONMENT_HEADING.match(line))
+   240	            continue
+   241	        if found:
+   242	            body.append(line)
+   243	    return "\n".join(body) if found else None
+   244	
+   245	
+   246	def path_matches(pattern: str, path: str) -> bool:
+   247	    regex, index = "", 0
+   248	    while index < len(pattern):
+   249	        if pattern.startswith("**/", index):
+   250	            regex, index = regex + "(?:.*/)?", index + 3
+   251	        elif pattern.startswith("**", index):
+   252	            regex, index = regex + ".*", index + 2
+   253	        elif pattern[index] == "*":
+   254	            regex, index = regex + "[^/]*", index + 1
+   255	        elif pattern[index] == "?":
+   256	            regex, index = regex + "[^/]", index + 1
+   257	        else:
+   258	            regex, index = regex + re.escape(pattern[index]), index + 1
+   259	    return re.fullmatch(regex, path) is not None
+   260	
+
+exec
+/bin/zsh -lc "nl -ba skills/dev-implementation/resources/scripts/result_reports.py | sed -n '1,300p'; rg -n 'condition.6|tier_c|integration|evaluate' skills/dev-implementation/resources/scripts/sync_tasks.py skills/dev-implementation/resources/scripts/verify_task.py" in /Users/danhdueexoictif/AllProjects/ai-agent-tools
+ exited 2 in 0ms:
+     1	#!/usr/bin/env python3
+     2	"""Read JUnit XML and Dart JSON test reports, and decide which identifiers they prove.
+     3	
+     4	Imported by check_bdd_traceability.py and run_task_checks.py; it has no command line.
+     5	"""
+     6	from __future__ import annotations
+     7	
+     8	import glob
+     9	import json
+    10	import re
+    11	import xml.etree.ElementTree as ET
+    12	from dataclasses import dataclass
+    13	from pathlib import Path
+    14	
+    15	
+    16	class ReportError(Exception):
+    17	    """A report path that is missing, or a file in neither format."""
+    18	
+    19	
+    20	@dataclass(frozen=True)
+    21	class Case:
+    22	    name: str
+    23	    classname: str
+    24	    status: str  # "passed", "failed" or "skipped"
+    25	
+    26	
+    27	def reference_pattern(identifier: str) -> re.Pattern[str]:
+    28	    """Match an identifier in any case, with - and _ interchangeable, not inside a longer token."""
+    29	    body = "[-_]".join(re.escape(part) for part in identifier.split("-"))
+    30	    return re.compile(r"(?<![A-Za-z0-9])" + body + r"(?![A-Za-z0-9])", re.IGNORECASE)
+    31	
+    32	
+    33	def parse_junit(text: str) -> list[Case]:
+    34	    cases = []
+    35	    for element in ET.fromstring(text).iter("testcase"):
+    36	        tags = {child.tag for child in element}
+    37	        status = "failed" if tags & {"failure", "error"} else "skipped" if "skipped" in tags else "passed"
+    38	        cases.append(Case(element.get("name", ""), element.get("classname", ""), status))
+    39	    return cases
+    40	
+    41	
+    42	def parse_dart(text: str) -> list[Case]:
+    43	    names: dict[object, str] = {}
+    44	    cases = []
+    45	    for line in text.splitlines():
+    46	        if not line.strip():
+    47	            continue
+    48	        try:
+    49	            event = json.loads(line)
+    50	        except Exception:
+    51	            continue
+    52	        if isinstance(event, list):
+    53	            if event and isinstance(event[0], dict):
+    54	                event = event[0]
+    55	            else:
+    56	                continue
+    57	        if not isinstance(event, dict):
+    58	            continue
+    59	        if event.get("type") == "testStart":
+    60	            names[event["test"]["id"]] = event["test"]["name"]
+    61	        elif event.get("type") == "testDone" and event.get("testID") in names:
+    62	            name = names.pop(event["testID"])
+    63	            if event.get("hidden"):
+    64	                continue
+    65	            status = ("skipped" if event.get("skipped")
+    66	                      else "passed" if event.get("result") == "success" else "failed")
+    67	            cases.append(Case(name, "", status))
+    68	    return cases
+    69	
+    70	
+    71	def report_files(path: str, root: Path) -> list[Path]:
+    72	    target = root / path
+    73	    if target.is_dir():
+    74	        return sorted(p for pattern in ("*.xml", "*.json") for p in target.rglob(pattern))
+    75	    if target.is_file():
+    76	        return [target]
+    77	    matches = sorted(Path(match) for match in glob.glob(str(target), recursive=True))
+    78	    if not matches:
+    79	        raise ReportError(f"results path not found: {path}")
+    80	    return [p for match in matches for p in report_files(str(match), root)]
+    81	
+    82	
+    83	def load_files(files: list[Path]) -> list[Case]:
+    84	    cases: list[Case] = []
+    85	    for file in files:
+    86	        text = file.read_text(encoding="utf-8", errors="replace")
+    87	        lead = text.lstrip()[:1]
+    88	        try:
+    89	            if lead == "<":
+    90	                cases.extend(parse_junit(text))
+    91	            elif lead == "{" or any(line.startswith("{") for line in text.splitlines()):
+    92	                cases.extend(parse_dart(text))
+    93	            else:
+    94	                raise ReportError(f"{file} is neither JUnit XML nor Dart JSON")
+    95	        except (ET.ParseError, ValueError, KeyError) as error:
+    96	            raise ReportError(f"{file} is not a valid report: {error}") from None
+    97	    return cases
+    98	
+    99	
+   100	def load_reports(paths: list[str], root: Path) -> list[Case]:
+   101	    return load_files([file for path in paths for file in report_files(path, root)])
+   102	
+   103	
+   104	def belongs(case: Case, identifier: str) -> bool:
+   105	    pattern = reference_pattern(identifier)
+   106	    return bool(pattern.search(case.name) or pattern.search(case.classname))
+   107	
+   108	
+   109	def verdicts(ids: list[str], cases: list[Case]) -> dict[str, tuple[bool, str]]:
+   110	    result: dict[str, tuple[bool, str]] = {}
+   111	    for identifier in ids:
+   112	        own = [case for case in cases if belongs(case, identifier)]
+   113	        failed = next((c for c in own if c.status == "failed"), None)
+   114	        passed = next((c for c in own if c.status == "passed"), None)
+   115	        if failed:
+   116	            result[identifier] = (False, f"failed in {failed.name}")
+   117	        elif passed:
+   118	            result[identifier] = (True, passed.name)
+   119	        elif own:
+   120	            result[identifier] = (False, "skipped")
+   121	        else:
+   122	            result[identifier] = (False, "no test case in results")
+   123	    return result
+   124	
+   125	
+   126	def digest(cases: list[Case], ids: list[str]) -> dict:
+   127	    own = [case for case in cases if any(belongs(case, identifier) for identifier in ids)]
+   128	    totals = {status: sum(1 for c in own if c.status == status) for status in ("passed", "failed", "skipped")}
+   129	    return {"totals": totals,
+   130	            "cases": [{"name": c.name, "classname": c.classname, "status": c.status} for c in own]}
+rg: skills/dev-implementation/resources/scripts/sync_tasks.py: No such file or directory (os error 2)
+rg: skills/dev-implementation/resources/scripts/verify_task.py: No such file or directory (os error 2)
+
+exec
+/bin/zsh -lc "rg -n 'def |except|try:|PLATFORM_CONFIGS|template|detect|providers' skills/setup_quality_check/resources/scripts/scaffold_quality_manifest.py; rg --files tests; command -v -a python3 git node; rg --files skills/using-superpowers -g '*codex*'" in /Users/danhdueexoictif/AllProjects/ai-agent-tools
+ succeeded in 0ms:
+4:Inspects project repository roots, detects project platforms (Flutter, Android, iOS, Rust),
+5:and generates standardized .agents/quality/ configurations adhering to canonical templates.
+17:    """Raised when scaffolding fails due to safety or detection violations."""
+21:PLATFORM_CONFIGS: Dict[str, Dict[str, Any]] = {
+147:def detect_platforms(repo_root: Path) -> List[str]:
+149:    Inspects repository root directory and returns detected platform names.
+152:    detected = []
+154:    # Flutter detection
+156:        detected.append("flutter")
+158:    # Android detection
+166:        detected.append("android")
+168:    # iOS detection
+175:        detected.append("ios")
+177:    # Rust detection
+179:        detected.append("rust")
+181:    # Python detection
+190:        detected.append("python")
+192:    return sorted(list(set(detected)))
+195:def build_registry_data(platforms: List[str]) -> Dict[str, Any]:
+197:    providers = []
+199:        cfg = PLATFORM_CONFIGS[p]
+200:        providers.append({
+209:        "providers": providers
+213:def scaffold_quality_manifests(
+222:    Raises ScaffoldError on detection failures or overwrite conflicts.
+231:        detected = detect_platforms(repo_root)
+233:        detected = sorted(list(set(platforms)))
+234:        for p in detected:
+235:            if p not in PLATFORM_CONFIGS:
+236:                raise ScaffoldError(f"Unsupported platform specified: '{p}'. Allowed: {list(PLATFORM_CONFIGS.keys())}")
+238:    if not detected:
+240:            f"No supported platform detected in repository root: {repo_root}. "
+241:            f"Supported platforms: {list(PLATFORM_CONFIGS.keys())}"
+247:    target_files[reg_path] = build_registry_data(detected)
+249:    for p in detected:
+250:        cfg = PLATFORM_CONFIGS[p]
+264:            "detected_platforms": detected,
+278:        "detected_platforms": detected,
+284:def main() -> int:
+323:    try:
+331:        print(f"Scaffolding completed successfully for platforms: {result['detected_platforms']}")
+341:    except ScaffoldError as err:
+rg: tests: IO error for operation on tests: No such file or directory (os error 2)
+zsh:1: command not found: -v
+skills/using-superpowers/references/codex-tools.md
+
+exec
+/bin/zsh -lc "nl -ba skills/dev-implementation/resources/scripts/task_contract.py | sed -n '260,620p'" in /Users/danhdueexoictif/AllProjects/ai-agent-tools
+ succeeded in 0ms:
+   260	
+   261	
+   262	def git_run(root: Path, *args: str, env: dict[str, str] | None = None, stdin: bytes | None = None) -> bytes:
+   263	    done = subprocess.run(["git", *args], cwd=root, env=env, input=stdin, capture_output=True)
+   264	    if done.returncode != 0:
+   265	        raise ContractError(f"git {' '.join(args)} failed: {done.stderr.decode(errors='replace').strip()}")
+   266	    return done.stdout
+   267	
+   268	
+   269	def strip_wrappers(tokens: list[str]) -> list[str]:
+   270	    while tokens:
+   271	        if tokens[:2] in (["uv", "run"], ["poetry", "run"]):
+   272	            tokens = tokens[2:]
+   273	        elif tokens[0] in ("npx", "fvm"):
+   274	            tokens = tokens[1:]
+   275	        elif tokens[0] == "env":
+   276	            tokens = tokens[1:]
+   277	            while tokens and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*=.*", tokens[0]):
+   278	                tokens = tokens[1:]
+   279	        else:
+   280	            break
+   281	    return tokens
+   282	
+   283	
+   284	def program_of(command: str, root: Path) -> str | None:
+   285	    """The tracked file a command runs, or None when it runs something else."""
+   286	    try:
+   287	        lexer = shlex.shlex(command, posix=True, punctuation_chars=True)
+   288	        lexer.whitespace_split = True
+   289	        tokens = list(lexer)
+   290	    except ValueError:
+   291	        return None
+   292	    for index, token in enumerate(tokens):
+   293	        if token in CONTROL_TOKENS:
+   294	            tokens = tokens[:index]
+   295	            break
+   296	    tokens = strip_wrappers(tokens)
+   297	    if not tokens:
+   298	        return None
+   299	    candidate: str | None
+   300	    if tokens[0] in INTERPRETERS:
+   301	        candidate = None
+   302	        for argument in tokens[1:]:
+   303	            if argument in ("-m", "-c"):
+   304	                break
+   305	            if not argument.startswith("-"):
+   306	                candidate = argument
+   307	                break
+   308	    else:
+   309	        candidate = tokens[0]
+   310	    if not candidate:
+   311	        return None
+   312	    candidate = candidate[2:] if candidate.startswith("./") else candidate
+   313	    tracked = subprocess.run(["git", "ls-files", "--error-unmatch", "--", candidate], cwd=root,
+   314	                             capture_output=True).returncode == 0
+   315	    return candidate if tracked else None
+   316	
+   317	
+   318	def epic_layout(task_file: Path) -> EpicLayout:
+   319	    path = Path(task_file).resolve()
+   320	    try:
+   321	        top = git_run(path.parent, "rev-parse", "--show-toplevel").decode().strip()
+   322	    except (ContractError, OSError):
+   323	        raise ContractError(f"{task_file} is not inside a git repository") from None
+   324	    root = Path(top).resolve()
+   325	    parts = path.relative_to(root).parts if path.is_relative_to(root) else ()
+   326	    if not (len(parts) == 4 and parts[:2] == (".devtool", "epic") and re.fullmatch(r"task_.*\.md", parts[3])):
+   327	        raise ContractError("pass the task's mirror under .devtool/epic/<epic_dir>/")
+   328	    epic_dir = path.parent
+   329	    return EpicLayout(root, epic_dir, epic_dir / f"{epic_dir.name}.en.md",
+   330	                      epic_dir / "bdd_scenarios.en.md", epic_dir / "evidence" / f"{path.stem}.json")
+   331	
+   332	
+   333	def fingerprint(root: Path) -> tuple[str, str | None]:
+   334	    """Tree id of the worktree without .devtool/, and its stable patch id against HEAD outside .devtool/."""
+   335	    with tempfile.TemporaryDirectory() as scratch:
+   336	        env = {**os.environ, "GIT_INDEX_FILE": str(Path(scratch) / "index")}
+   337	        git_run(root, "read-tree", "HEAD", env=env)
+   338	        git_run(root, "rm", "-r", "-q", "--cached", "--ignore-unmatch", "--", ".devtool", env=env)
+   339	        git_run(root, "add", "-A", "--", ".", EXCLUDE_DEVTOOL, env=env)
+   340	        tree = git_run(root, "write-tree", env=env).decode().strip()
+   341	        diff = git_run(root, "diff", *DIFF_PLAIN, "--cached", "HEAD", "--", ".", EXCLUDE_DEVTOOL, env=env)
+   342	        patch = git_run(root, "patch-id", "--stable", stdin=diff).decode().split() if diff else []
+   343	    return tree, patch[0] if patch else None
+   344	
+   345	
+   346	def changed_paths(root: Path) -> list[str]:
+   347	    raw = git_run(root, "status", "--porcelain=v1", "-z", "--untracked-files=all")
+   348	    entries = raw.decode("utf-8", "surrogateescape").split("\0")
+   349	    paths: list[str] = []
+   350	    index = 0
+   351	    while index < len(entries) and entries[index]:
+   352	        status, path = entries[index][:2], entries[index][3:]
+   353	        paths.append(path)
+   354	        index += 1
+   355	        if "R" in status or "C" in status:
+   356	            paths.append(entries[index])
+   357	            index += 1
+   358	    return paths
+   359	
+   360	
+   361	def load_evidence(path: Path) -> dict | None:
+   362	    try:
+   363	        return json.loads(Path(path).read_text(encoding="utf-8"))
+   364	    except FileNotFoundError:
+   365	        return None
+   366	
+   367	
+   368	def save_evidence(path: Path, data: dict) -> None:
+   369	    path = Path(path)
+   370	    path.parent.mkdir(parents=True, exist_ok=True)
+   371	    path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+   372	
+   373	
+   374	def is_code_epic(hld_path: Path) -> bool:
+   375	    """True when the epic overview declares `Integration test roots:`, which makes it a code epic."""
+   376	    try:
+   377	        text = Path(hld_path).read_text(encoding="utf-8")
+   378	    except OSError:
+   379	        return False
+   380	    return any(line.startswith("Integration test roots:") for line in text.splitlines())
+   381	
+   382	
+   383	def row_problems(rows: list[Row], runs: dict) -> list[str]:
+   384	    """Condition 2: each table row needs a PASS record carrying the same command and expect."""
+   385	    problems: list[str] = []
+   386	    for row in rows:
+   387	        run = runs.get("red" if row.phase == "RED" else "verify") or {}
+   388	        record = next((r for r in run.get("rows", []) if r["id"] == row.id), None)
+   389	        if record is None or (record["outcome"] != "PASS" and record["outcome"] != "BLOCKED"):
+   390	            problems.append(f"condition 2: row {row.id}: no PASS result in the evidence")
+   391	        elif record["outcome"] == "BLOCKED":
+   392	            continue
+   393	        elif record["command"] != row.command:
+   394	            problems.append(f"condition 2: row {row.id}: recorded command differs from the table")
+   395	        elif record["expect"] != row.expect_text:
+   396	            problems.append(f"condition 2: row {row.id}: recorded expect differs from the table")
+   397	    return problems
+   398	
+   399	
+   400	def evaluate_done_gate(task_file: Path) -> list[str]:
+   401	    """One message per failed done-gate condition for a task mirror; empty when the gate passes."""
+   402	    layout = epic_layout(task_file)
+   403	    try:
+   404	        rows, red_na = parse_verification(Path(task_file).read_text(encoding="utf-8"))
+   405	    except ContractError as error:
+   406	        return [f"condition 2: {error}"]
+   407	    evidence = load_evidence(layout.evidence)
+   408	    if evidence is None:
+   409	        return [f"condition 1: evidence {layout.evidence} not found in this checkout — record it with "
+   410	                "run_task_checks.py and run the done gate in the epic worktree"]
+   411	    runs = evidence.get("runs", {})
+   412	    needs_red = red_na is None and any(row.phase == "RED" for row in rows)
+   413	    missing = [kind for kind in (("red",) if needs_red else ()) + ("verify",) if kind not in runs]
+   414	    if missing:
+   415	        return [f"condition 1: evidence {layout.evidence} has no {kind} run" for kind in missing]
+   416	    problems = row_problems(rows, runs)
+   417	    ids = {row.id for row in rows} | {"SCOPE"}
+   418	    problems += [f"condition 2: {kind} row {r['id']} is {r['outcome']} and no longer in the table"
+   419	                 for kind, run in runs.items() for r in run["rows"]
+   420	                 if r["id"] not in ids and r["outcome"] not in ("PASS", "BLOCKED")]
+   421	    for kind, run in runs.items():
+   422	        problems += [f"condition 3: {kind} row {r['id']} is BLOCKED ({r.get('reason')})"
+   423	                     for r in run["rows"] if r["outcome"] == "BLOCKED"]
+   424	    verify = runs["verify"]
+   425	    if verify["tree"] != fingerprint(layout.root)[0]:
+   426	        problems.append("condition 4: the verify run's tree differs from the current tree — "
+   427	                        "files changed after verification")
+   428	    if verify.get("patch_id") is None:
+   429	        problems.append("condition 4: verify saw no change outside .devtool — record verify before committing")
+   430	    if needs_red:
+   431	        red = runs["red"]
+   432	        if red.get("head") != verify.get("head"):
+   433	            problems.append("condition 5: red and verify were recorded on different commits")
+   434	        if red["tree"] == verify["tree"]:
+   435	            problems.append("condition 5: the red run's tree equals the verify run's tree — "
+   436	                            "RED was not recorded before the change")
+   437	        if red["finished"] > verify["started"]:
+   438	            problems.append("condition 5: the red run finished after the verify run started")
+   439	    cases = [Case(c["name"], c["classname"], c["status"]) for r in verify["rows"] if r["phase"] == "TIER-C"
+   440	             for c in r.get("results", {}).get("digest", {}).get("cases", [])]
+   441	    problems += [f"condition 6: {identifier}: {detail}"
+   442	                 for identifier, (passed, detail) in verdicts(covers_of(Path(task_file)), cases).items()
+   443	                 if not passed]
+   444	    scope = next((r for r in verify["rows"] if r["id"] == "SCOPE"), None)
+   445	    if scope is None or scope["outcome"] != "PASS":
+   446	        detail = "; ".join(scope.get("violations", [])) if scope else "no SCOPE row"
+   447	        problems.append(f"condition 7: SCOPE row is not PASS ({detail})")
+   448	    return problems
+
+exec
+/bin/zsh -lc "nl -ba skills/dev-implementation/resources/scripts/run_task_checks.py | sed -n '1,320p'" in /Users/danhdueexoictif/AllProjects/ai-agent-tools
+ succeeded in 0ms:
+     1	#!/usr/bin/env python3
+     2	"""Run a task's Verification rows and record the outcome as evidence.
+     3	
+     4	Usage:
+     5	  run_task_checks.py red    <task mirror> [--timeout 1800]
+     6	  run_task_checks.py verify <task mirror> [--timeout 1800]
+     7	  run_task_checks.py status <task mirror>   (read-only: print the recorded runs and the done-gate verdict)
+     8	
+     9	Exit codes: 0 every row passed (status: the done gate passes); 1 a row failed (evidence still written) or
+    10	the done gate fails; 2 usage error or a task
+    11	file the parser rejects (no evidence written).
+    12	"""
+    13	from __future__ import annotations
+    14	
+    15	import argparse
+    16	import hashlib
+    17	import importlib
+    18	import os
+    19	import re
+    20	import shlex
+    21	import signal
+    22	import subprocess
+    23	import sys
+    24	import time
+    25	from datetime import datetime, timezone
+    26	
+    27	try:
+    28	    from datetime import UTC
+    29	except ImportError:
+    30	    UTC = timezone.utc  # type: ignore[attr-defined]
+    31	from pathlib import Path
+    32	from typing import Any, cast
+    33	
+    34	_tc: Any = importlib.import_module("task_contract")
+    35	CONTROL_TOKENS: set[str] = _tc.CONTROL_TOKENS
+    36	ContractError: type[Exception] = _tc.ContractError
+    37	EpicLayout: Any = _tc.EpicLayout
+    38	Row: Any = _tc.Row
+    39	changed_paths: Any = _tc.changed_paths
+    40	epic_layout: Any = _tc.epic_layout
+    41	evaluate_done_gate: Any = _tc.evaluate_done_gate
+    42	fingerprint: Any = _tc.fingerprint
+    43	git_run: Any = _tc.git_run
+    44	load_evidence: Any = _tc.load_evidence
+    45	parse_allowed_files: Any = _tc.parse_allowed_files
+    46	parse_protected_paths: Any = _tc.parse_protected_paths
+    47	parse_verification: Any = _tc.parse_verification
+    48	path_matches: Any = _tc.path_matches
+    49	program_of: Any = _tc.program_of
+    50	save_evidence: Any = _tc.save_evidence
+    51	section: Any = _tc.section
+    52	strip_wrappers: Any = _tc.strip_wrappers
+    53	
+    54	_rr: Any = importlib.import_module("result_reports")
+    55	ReportError: type[Exception] = _rr.ReportError
+    56	digest: Any = _rr.digest
+    57	load_files: Any = _rr.load_files
+    58	report_files: Any = _rr.report_files
+    59	
+    60	_cbt: Any = importlib.import_module("check_bdd_traceability")
+    61	UsageError: type[Exception] = _cbt.UsageError
+    62	load_scenarios: Any = _cbt.load_scenarios
+    63	
+    64	TAIL_LINES = 40
+    65	VERIFY_PHASES = ("GREEN", "TIER-B", "TIER-C")
+    66	STALE = "results not produced by this run"
+    67	
+    68	INVALID_PYTEST_RED_REASON = (
+    69	    "Invalid pytest RED phase: must fail on a collected test (exit 1 or 2), "
+    70	    "not missing file (exit 4) or zero selected tests (exit 5)."
+    71	)
+    72	
+    73	FORBIDDEN_MARKERS = (
+    74	    re.compile(r"ERROR:\s*file or directory not found", re.IGNORECASE),
+    75	    re.compile(r"collected\s+0\s+items", re.IGNORECASE),
+    76	    re.compile(r"/\s*0\s+selected\b", re.IGNORECASE),
+    77	)
+    78	POSITIVE_FAILURE_SUMMARY = re.compile(r"\b([1-9]\d*)\s+(?:failed|error|errors)\b", re.IGNORECASE)
+    79	COVERS_LINE_RE = re.compile(r"^\s*(?:[-*]\s+)?\**Covers\**\s*:\**\s*(.*)$")
+    80	ID_TOKEN_RE = re.compile(r"(?<![A-Za-z0-9-])[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-[0-9]+(?![A-Za-z0-9])")
+    81	
+    82	
+    83	def is_pytest_command(command: str) -> bool:
+    84	    try:
+    85	        lexer = shlex.shlex(command, posix=True, punctuation_chars=True)
+    86	        lexer.whitespace_split = True
+    87	        tokens = list(lexer)
+    88	    except ValueError:
+    89	        return False
+    90	    subcommands: list[list[str]] = []
+    91	    current: list[str] = []
+    92	    for token in tokens:
+    93	        if token in CONTROL_TOKENS:
+    94	            if current:
+    95	                subcommands.append(current)
+    96	                current = []
+    97	        else:
+    98	            current.append(token)
+    99	    if current:
+   100	        subcommands.append(current)
+   101	
+   102	    for sub in subcommands:
+   103	        sub = strip_wrappers(sub)
+   104	        if not sub:
+   105	            continue
+   106	        prog = Path(sub[0]).name
+   107	        if prog == "pytest":
+   108	            return True
+   109	        if (
+   110	            (prog in ("python", "python3") or prog.startswith("python3."))
+   111	            and len(sub) >= 3
+   112	            and sub[1] == "-m"
+   113	            and sub[2] == "pytest"
+   114	        ):
+   115	            return True
+   116	    return False
+   117	
+   118	
+   119	def validate_pytest_red(command: str, exit_code: int | None, output_text: str) -> str | None:
+   120	    """Evaluate whether a pytest RED execution is genuine.
+   121	
+   122	    Returns None if valid or not a pytest command.
+   123	    Returns INVALID_PYTEST_RED_REASON if it is an invalid pytest RED run.
+   124	    """
+   125	    if not is_pytest_command(command):
+   126	        return None
+   127	    if exit_code not in (1, 2):
+   128	        return INVALID_PYTEST_RED_REASON
+   129	    for marker in FORBIDDEN_MARKERS:
+   130	        if marker.search(output_text):
+   131	            return INVALID_PYTEST_RED_REASON
+   132	    if not POSITIVE_FAILURE_SUMMARY.search(output_text):
+   133	        return INVALID_PYTEST_RED_REASON
+   134	    return None
+   135	
+   136	
+   137	def parse_covers(text: str) -> list[str]:
+   138	    found: list[str] = []
+   139	    for line in text.splitlines():
+   140	        match = COVERS_LINE_RE.match(line)
+   141	        if match:
+   142	            found.extend(ID_TOKEN_RE.findall(match.group(1)))
+   143	    return found
+   144	
+   145	
+   146	def core_sections(text: str) -> tuple[str | None, str | None, str | None, list[str]]:
+   147	    return (
+   148	        section(text, "Files"),
+   149	        section(text, "Verification"),
+   150	        section(text, "Definition of Done"),
+   151	        parse_covers(text),
+   152	    )
+   153	
+   154	
+   155	def check_task_tamper(task_path: Path | str, layout: EpicLayout) -> None:
+   156	    path = Path(task_path)
+   157	    features_task = layout.root / ".devtool" / "features" / path.name
+   158	    if not features_task.is_file():
+   159	        features_task = layout.root / ".devtool" / "features" / "done" / path.name
+   160	
+   161	    if not features_task.is_file():
+   162	        return
+   163	
+   164	    active_text = features_task.read_text(encoding="utf-8")
+   165	    active_core = core_sections(active_text)
+   166	
+   167	    mirror_text = path.read_text(encoding="utf-8")
+   168	    mirror_core = core_sections(mirror_text)
+   169	
+   170	    if active_core != mirror_core:
+   171	        raise ContractError(
+   172	            f"TASK_TAMPERED_ERROR: active task '{features_task.name}' core sections altered from epic mirror"
+   173	        )
+   174	
+   175	    head_text = committed_text(layout.root, path)
+   176	    if head_text is not None:
+   177	        head_core = core_sections(head_text)
+   178	        if active_core != head_core or mirror_core != head_core:
+   179	            raise ContractError(
+   180	                f"TASK_TAMPERED_ERROR: task '{path.name}' core sections altered from HEAD"
+   181	            )
+   182	
+   183	
+   184	def utc_now() -> str:
+   185	    return datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
+   186	
+   187	
+   188	def fresh_reports(path: str, root: Path, since: float) -> list[Path]:
+   189	    """The report files under a results path that were written at or after `since`; older ones never count."""
+   190	    try:
+   191	        files = report_files(path, root)
+   192	    except ReportError:
+   193	        return []
+   194	    return [file for file in files if file.stat().st_mtime >= since]
+   195	
+   196	
+   197	def run_command(command: str, root: Path, timeout: int) -> tuple[int | None, bytes]:
+   198	    """Run one row; the exit code is None when the process group had to be killed."""
+   199	    process = subprocess.Popen(["bash", "-o", "pipefail", "-c", command], cwd=root, start_new_session=True,
+   200	                               stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+   201	    try:
+   202	        output, _ = process.communicate(timeout=timeout)
+   203	        return process.returncode, output
+   204	    except subprocess.TimeoutExpired:
+   205	        os.killpg(process.pid, signal.SIGKILL)
+   206	        output, _ = process.communicate()
+   207	        return None, output
+   208	
+   209	
+   210	def mismatch(row: Row, code: int, text: str) -> str | None:
+   211	    expect = row.expect
+   212	    if expect.nonzero and code == 0:
+   213	        return "exit 0, expected non-zero"
+   214	    if expect.exit_code is not None and code != expect.exit_code:
+   215	        return f"exit {code}, expected {expect.exit_code}"
+   216	    missing = next((t for t in expect.contains if t not in text), None)
+   217	    return None if missing is None else f'output lacks "{missing}"'
+   218	
+   219	
+   220	def epic_scenario_ids(layout: EpicLayout) -> list[str]:
+   221	    try:
+   222	        return cast(list[str], load_scenarios(layout.epic_dir / "bdd_scenarios.en.md")[0])
+   223	    except UsageError:
+   224	        return []
+   225	
+   226	
+   227	def attach_digest(results: dict[str, Any], files: list[Path], scenario_ids: list[str]) -> str | None:
+   228	    """Store the digest of the fresh reports; None on success, else the row's failure reason."""
+   229	    try:
+   230	        results["digest"] = digest(load_files(files), scenario_ids)
+   231	    except ReportError:
+   232	        return "results in neither format"
+   233	    return None
+   234	
+   235	
+   236	def run_row(row: Row, root: Path, timeout: int, scenario_ids: list[str]) -> dict[str, Any]:
+   237	    record: dict[str, Any] = {
+   238	        "id": row.id,
+   239	        "phase": row.phase,
+   240	        "command": row.command,
+   241	        "expect": row.expect_text,
+   242	        "needs": list(row.needs),
+   243	        "exit": None,
+   244	        "outcome": "PASS",
+   245	        "reason": None,
+   246	        "started": utc_now(),
+   247	        "finished": None,
+   248	        "output_tail": [],
+   249	        "output_sha256": hashlib.sha256(b"").hexdigest(),
+   250	    }
+   251	    unset = next((name for name in row.needs if not os.environ.get(name)), None)
+   252	    if unset:
+   253	        record.update(outcome="BLOCKED", reason=f"unset: {unset}")
+   254	    else:
+   255	        started = time.time()
+   256	        code, output = run_command(row.command, root, timeout)
+   257	        text = output.decode("utf-8", "replace")
+   258	        record.update(exit=code, output_tail=text.splitlines()[-TAIL_LINES:],
+   259	                      output_sha256=hashlib.sha256(output).hexdigest())
+   260	        reason = f"timeout after {timeout} s" if code is None else mismatch(row, code, text)
+   261	        if row.phase == "RED":
+   262	            pytest_err = validate_pytest_red(row.command, code, text)
+   263	            if pytest_err:
+   264	                reason = pytest_err
+   265	        if row.expect.results:
+   266	            files = fresh_reports(row.expect.results, root, started)
+   267	            record["results"] = {"path": row.expect.results, "fresh": bool(files)}
+   268	            reason = reason or (None if files else STALE)
+   269	            if files:
+   270	                reason = reason or attach_digest(record["results"], files, scenario_ids)
+   271	        if reason:
+   272	            record.update(outcome="FAIL", reason=reason)
+   273	    record["finished"] = utc_now()
+   274	    return record
+   275	
+   276	
+   277	def committed_text(root: Path, path: Path) -> str | None:
+   278	    """The file as HEAD has it, so a task cannot weaken its own protection; the working copy only when new."""
+   279	    try:
+   280	        abs_path = path if path.is_absolute() else (root / path)
+   281	        rel_posix = abs_path.resolve().relative_to(root.resolve()).as_posix()
+   282	        return cast(str, git_run(root, "show", f"HEAD:{rel_posix}").decode("utf-8"))
+   283	    except (ContractError, ValueError):
+   284	        return path.read_text(encoding="utf-8") if path.is_file() else None
+   285	
+   286	
+   287	def protected_patterns(layout: EpicLayout, root: Path) -> tuple[list[str], set[str]]:
+   288	    """Explicit HLD patterns, and the tracked programs every parseable task row in the epic runs, read from HEAD."""
+   289	    hld = committed_text(root, layout.hld)
+   290	    explicit = parse_protected_paths(hld) if hld else []
+   291	    folder = layout.epic_dir.relative_to(root).as_posix()
+   292	    committed = git_run(root, "ls-tree", "-z", "--name-only", "HEAD", "--", f"{folder}/").decode().split("\0")
+   293	    names = {Path(p).name for p in committed if p} | {p.name for p in layout.epic_dir.glob("task_*.md")}
+   294	    programs: set[str] = set()
+   295	    for name in sorted(n for n in names if re.fullmatch(r"task_.*\.md", n)):
+   296	        try:
+   297	            rows, _ = parse_verification(committed_text(root, layout.epic_dir / name) or "")
+   298	        except ContractError:
+   299	            continue
+   300	        programs.update(p for p in (program_of(row.command, root) for row in rows) if p)
+   301	    return explicit, programs
+   302	
+   303	
+   304	def scope_row(layout: EpicLayout, allowed_patterns: list[str]) -> dict[str, Any]:
+   305	    explicit, programs = protected_patterns(layout, layout.root)
+   306	    changed: list[str] = []
+   307	    violations: list[str] = []
+   308	    exact = {p for p in allowed_patterns if not any(c in p for c in "*?")}
+   309	    for path in sorted(set(changed_paths(layout.root))):
+   310	        protected = path in programs or any(path_matches(pattern, path) for pattern in explicit)
+   311	        if path.startswith(".devtool/") and not protected:
+   312	            continue
+   313	        changed.append(path)
+   314	        if protected:
+   315	            if path not in exact:
+   316	                violations.append(f"protected path not named exactly in Allowed files: {path}")
+   317	        elif not any(path_matches(pattern, path) for pattern in allowed_patterns):
+   318	            violations.append(f"outside Allowed files: {path}")
+   319	    return {"id": "SCOPE", "phase": "SCOPE", "outcome": "FAIL" if violations else "PASS",
+   320	            "changed": changed, "violations": violations}
+
+exec
+/bin/zsh -lc "rg -n 'Tier C|condition 6|integration|task_contract|run_task|candidate|Phase 4|sync_task' skills/dev-implementation/SKILL.md scripts/sync* skills/dev-implementation/resources/scripts/test*.py; whence -a python3 git node; ls -ld shared-contracts /opt/homebrew/bin/git /usr/local/bin/git /Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts /Users/danhdueexoictif/AllProjects/lyrics-sync/shared-contracts /Users/danhdueexoictif/AllProjects/nexus/shared-contracts" in /Users/danhdueexoictif/AllProjects/ai-agent-tools
+ exited 1 in 0ms:
+zsh:1: no matches found: scripts/sync*
+/opt/homebrew/bin/python3
+/usr/bin/python3
+/opt/homebrew/bin/python3
+/usr/bin/git
+/opt/homebrew/bin/node
+/opt/homebrew/bin/node
+ls: /opt/homebrew/bin/git: No such file or directory
+ls: /usr/local/bin/git: No such file or directory
+ls: shared-contracts: No such file or directory
+drwxr-xr-x@ 5 danhdueexoictif  staff  160 Oct 29 18:22 /Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts
+lrwxr-xr-x@ 1 danhdueexoictif  staff   71 Oct 29 18:18 /Users/danhdueexoictif/AllProjects/lyrics-sync/shared-contracts -> /Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync
+lrwxr-xr-x@ 1 danhdueexoictif  staff   33 Oct 29 20:12 /Users/danhdueexoictif/AllProjects/nexus/shared-contracts -> ../D3Nexus/shared-contracts/nexus
+
+exec
+/bin/zsh -lc 'nl -ba .devtool/epic/web_quality_check_and_integration_gate/2026-11-04-web-quality-check-and-integration-gate-design.vi.md' in /Users/danhdueexoictif/AllProjects/ai-agent-tools
+ succeeded in 0ms:
+     1	# Đặc tả Thiết kế Web Quality Check và Integration Gate
+     2	
+     3	## Mục lục
+     4	
+     5	- [Mục lục](#mục-lục)
+     6	- [Metadata](#metadata)
+     7	- [Bối cảnh và Vấn đề](#bối-cảnh-và-vấn-đề)
+     8	- [Mục tiêu và Giới hạn](#mục-tiêu-và-giới-hạn)
+     9	- [Kiến trúc và Chuẩn Kiểm thử 3 Lớp](#kiến-trúc-và-chuẩn-kiểm-thử-3-lớp)
+    10	- [Chống Ngụy biện và Cơ chế Phản biện Nghi vấn](#chống-ngụy-biện-và-cơ-chế-phản-biện-nghi-vấn)
+    11	- [Đặc tả Kỹ thuật Provider Web Quality](#đặc-tả-kỹ-thuật-provider-web-quality)
+    12	- [Tích hợp Registry Đa Repo và Gate 4 Đa Nền tảng](#tích-hợp-registry-đa-repo-và-gate-4-đa-nền-tảng)
+    13	- [Nâng cấp Dev-Designer và Dev-Implementation](#nâng-cấp-dev-designer-và-dev-implementation)
+    14	- [Tự động Sinh Kịch bản Smoke Test Bấm tay](#tự-động-sinh-kịch-bản-smoke-test-bấm-tay)
+    15	- [Rủi ro và Giải pháp Giảm thiểu](#rủi-ro-và-giải-pháp-giảm-thiểu)
+    16	- [Kế hoạch Kiểm chứng](#kế-hoạch-kiểm-chứng)
+    17	
+    18	## Metadata
+    19	
+    20	- **Tên Epic**: `web_quality_check_and_integration_gate`
+    21	- **Slug Epic**: `web-quality-check-and-integration-gate`
+    22	- **Ngày**: 2026-11-04
+    23	- **Tác giả**: Kiến trúc sư Con người & Trợ lý AI
+    24	- **Trạng thái**: Đã phê duyệt (Đã qua Gate 1)
+    25	- **Kho lưu trữ Mục tiêu**: `ai-agent-tools`, `D3Nexus`, `lyrics-sync`, `nexus`
+    26	
+    27	## Bối cảnh và Vấn đề
+    28	
+    29	Trong hệ sinh thái đa repo (`D3Nexus`, `lyrics-sync`, `nexus`), các kỹ sư thường xuyên đối mặt với khoảng cách lớn giữa thiết kế kiến trúc lý thuyết và hành vi thực tế khi chạy. Khoảng cách này buộc lập trình viên phải thực hiện quá nhiều thao tác kiểm thử thủ công (bấm tay) trên thiết bị và trình duyệt trước mỗi đợt release:
+    30	
+    31	1. **Cái bẫy của Mock (Mocking Fallacy)**: Các bài kiểm thử đơn vị `[Tier A - Unit]` đạt tỷ lệ pass 100% bằng cách cô lập các thành phần bằng đối tượng mock (`when(...).thenReturn(...)`). Tuy nhiên, ứng dụng bị crash hoặc vỡ khi các thành phần được ghép nối với nhau trong runtime thật do lỗi đăng ký DI, lệch chuẩn parse JSON, hủy vòng đời component, hoặc xung đột timing trên stream event-bus.
+    32	2. **Thiếu Provider Web Quality ở Gate 4**: Hệ thống điều phối chất lượng (`d3nexus:quality_check`) đã có sẵn provider chuyên biệt cho Flutter, Android, iOS, Rust và Python, nhưng hoàn toàn thiếu provider `web-quality-check`. Dẫn đến:
+    33	   - Tại `D3Nexus`, Gate 4 chỉ xác thực `rust-core` (`d3nexus:rust-quality-check`), bỏ quên hoàn toàn ứng dụng web Astro + Vanilla TypeScript (`apps/learning-web`).
+    34	   - Tại `lyrics-sync`, Gate 4 chỉ xác thực `python-core` (`d3nexus:python-quality-check`), bỏ quên hoàn toàn 17 file Vanilla JavaScript (`src/lyrics_sync/preview/static/*.js`).
+    35	3. **Bài kiểm thử E2E giả lập chỉ chạy trong Node**: Nhiều bài test nằm dưới thư mục `tests/e2e/` thực chất chỉ chạy bằng `node:test` mà không hề render HTML thật, không kiểm tra kết nối Custom Elements, và không xác thực sự kiện DOM hay tọa độ hiển thị thực tế (`getBoundingClientRect`).
+    36	4. **Sự ngụy biện của AI (AI Rationalization)**: Các AI coding agent thường xuyên tự tìm đường tắt: khẳng định test Node là đủ, bỏ qua lỗi console trình duyệt, và né tránh việc chạy trình duyệt headless.
+    37	
+    38	## Mục tiêu và Giới hạn
+    39	
+    40	### Mục tiêu
+    41	- Xây dựng provider chuẩn hóa `web-quality-check` tuân thủ Hợp đồng Kết quả Provider v1 cho các dự án Astro TypeScript và Vanilla JavaScript.
+    42	- Xóa bỏ điểm mù tại Gate 4 bằng cách kích hoạt đăng ký đa provider đồng thời trong `D3Nexus` (`rust-core` + `learning-web`) và `lyrics-sync` (`python-core` + `preview-ui`).
+    43	- Thực thi nghiêm ngặt Chuẩn Kiểm thử 3 Lớp: Tier A (Unit), Tier C1 (Tích hợp Dưới da với DI thật và In-memory DB), và Tier C2 (Tích hợp Trình duyệt Headless với Playwright và Zero-Console-Error).
+    44	- Đưa Bảng Chống Ngụy biện và Cơ chế Phản biện Nghi vấn (lấy cảm hứng từ `addyosmani/agent-skills`) vào các quy trình kỹ năng.
+    45	- Tự động hóa quá trình xác nhận của con người bằng cách tự sinh tài liệu hướng dẫn 3–5 bước `manual_smoke_checklist.md` sau khi hoàn tất epic, giảm thời gian bấm tay từ 30 phút xuống còn 2 phút.
+    46	
+    47	### Giới hạn
+    48	- Không migrate 17 file Vanilla JavaScript trong `lyrics-sync` sang TypeScript (việc kiểm tra kiểu dữ liệu được thực hiện tại chỗ thông qua JSDoc `// @ts-check` và `jsconfig.json`).
+    49	- Không thay thế bộ unit test hiện có trong `D3Nexus` hay `lyrics-sync` (các bài test nhanh này vẫn được giữ lại làm Tier A).
+    50	- Không yêu cầu bật emulator thiết bị nặng nề cho các cổng duyệt cục bộ PR/Epic (các bài test Tier C chạy headless qua Playwright và môi trường harness VM).
+    51	
+    52	## Kiến trúc và Chuẩn Kiểm thử 3 Lớp
+    53	
+    54	Kiến trúc thiết lập 3 phân tầng kiểm thử rõ ràng trên cả mobile và web:
+    55	
+    56	1. **Tier A — Kiểm thử Đơn vị (Unit Testing)**:
+    57	   - Phạm vi: Thuật toán thuần, state machine toán học, bộ parse dữ liệu độc lập, và hàm tiện ích.
+    58	   - Thực thi: Trong tiến trình (Node.js, Dart VM, JVM, Python VM).
+    59	   - Mock: Cho phép mock các dependency bên ngoài. Tốc độ: <10ms mỗi test.
+    60	2. **Tier C1 — Kiểm thử Tích hợp Dưới da (Mobile & Backend)**:
+    61	   - Phạm vi: Controller giao diện (BLoC / ViewModel) xuyên suốt xuống kho lưu trữ cục bộ, bộ nhớ đệm và tuần tự hóa dữ liệu.
+    62	   - Bất biến: Zero-Domain-Mock. Nghiêm cấm mock UseCase hoặc Repository của domain. Bắt buộc dùng DI container thật và cơ sở dữ liệu in-memory (SQLite `:memory:`, Room in-memory).
+    63	   - Ranh giới mạng: Mock tại socket HTTP bằng các fixture JSON chuẩn từ `shared-contracts/`.
+    64	3. **Tier C2 — Kiểm thử Tích hợp Trình duyệt Headless (Web)**:
+    65	   - Phạm vi: Render DOM thật, Custom Elements, controller Vanilla JS/TS, thao tác click của người dùng, chuyển trang, định vị popover trực quan và tính toàn vẹn bố cục layout.
+    66	   - Bất biến: Zero-Console-And-Layout-Defect. Bên cạnh việc bắt lỗi ngoại lệ trang và `console.error`, hệ thống thực thi 3 cơ chế kiểm tra runtime bắt buộc:
+    67	     1. **Static Asset Network Trap**: Lắng nghe `page.on('response')` và đánh trượt bài test ngay lập tức nếu bất kỳ stylesheet (`.css`), script (`.js`) hoặc font nào trả về mã HTTP `>= 400`.
+    68	     2. **Trình hỗ trợ Kiểm tra Kiểu và Hình học Tính toán (`assertVisualIntegrity`)**: Xác thực các container UI cấu trúc (card, drawer, badge, thanh tiến trình) mang từ Visual Companion mockup thực sự được áp dụng style tính toán (`window.getComputedStyle(el)` không được rơi về mặc định unstyled `backgroundColor: rgba(0, 0, 0, 0)` + `borderWidth: 0px` + `padding: 0px`, và `getBoundingClientRect()` phải có `width > 0` và `height > 0`).
+    69	     3. **Bộ chặn Rò rỉ Trạng thái DOM và Trùng lặp Văn bản**: Xác nhận các phần tử trạng thái loại trừ lẫn nhau (ví dụ: spinner/tiền tố đang chạy vs badge terminal `THẤT BẠI` / `HOÀN THÀNH`, hoặc tiêu đề hiển thị vs tooltip/thẻ span ẩn hỗ trợ a11y) không được cùng hiển thị đồng thời (`display !== 'none'` và `visibility !== 'hidden'`), đồng thời phát hiện chuỗi văn bản bị trùng lặp liên tiếp trong tiêu đề card do các thẻ span ẩn không có CSS.
+    70	   - Ranh giới mạng: Chặn tại tầng socket trình duyệt thông qua `page.route()` của Playwright và trả về fixture JSON chuẩn từ hợp đồng.
+    71	
+    72	## Chống Ngụy biện và Cơ chế Phản biện Nghi vấn
+    73	
+    74	Học hỏi từ các nguyên tắc của `addyosmani/agent-skills`, tất cả quy trình lập trình và kiểm thử đều thực thi 5 quy tắc chống ngụy biện:
+    75	
+    76	| Lời bào chữa của Agent | Quy tắc Phản biện Bắt buộc |
+    77	| :--- | :--- |
+    78	| "Một bài test Node.js là đủ để chứng minh tính năng web UI hoạt động." | **BỊ TỪ CHỐI**: Test Node chỉ chứng minh logic dữ liệu thuần. 80% lỗi web xảy ra ở truy vấn DOM, nổi bọt sự kiện và render CSS. Tier C bắt buộc phải chạy qua Playwright headless. |
+    79	| "Component này đơn giản; mock cứng dữ liệu trong stub là đủ." | **BỊ TỪ CHỐI**: Stub cấp method bỏ qua việc kiểm tra giải mã JSON và interceptor mạng. Bắt buộc phải dùng fixture cấp mạng (wire-level) từ `shared-contracts/`. |
+    80	| "Các lỗi đỏ trong console trình duyệt chỉ là cảnh báo vô hại." | **BỊ TỪ CHỐI**: Quy tắc Zero-Console-Error đánh trượt Gate 4 đối với bất kỳ lỗi console hoặc ngoại lệ chưa xử lý nào trong trình duyệt. |
+    81	| "Tôi không bật được simulator điện thoại nên tôi sẽ viết unit test thay thế." | **BỊ TỪ CHỐI**: Tier C mobile bắt buộc phải dùng Kiểm thử Dưới da với DI thật và lưu trữ in-memory. Unit test thuần túy không được gắn mác Tier C. |
+    82	| "Tôi đã mang cấu trúc HTML và logic JS từ Visual Companion mockup sang, và selector DOM khớp trong Playwright." | **BỊ TỪ CHỐI**: Mang HTML/JS mà không kiểm tra computed CSS style sẽ dẫn đến giao diện vỡ và không có style. Test Tier C2 cho UI component BẮT BUỘC phải assert các thuộc tính `getComputedStyle` và `getBoundingClientRect` (kích thước lớn hơn 0, chế độ hiển thị layout và khả năng hiển thị loại trừ lẫn nhau của các trạng thái) so với thiết kế Visual Companion. |
+    83	
+    84	Dưới Cơ chế Phản biện Nghi vấn (`CLAIM -> EXTRACT -> DOUBT -> RECONCILE`), Gate 4 sẽ rà soát để đảm bảo bài test Tier C thực sự kích hoạt luồng code production mà không mock hệ thống chính đang được kiểm thử.
+    85	
+    86	## Đặc tả Kỹ thuật Provider Web Quality
+    87	
+    88	Một kỹ năng mới `d3nexus:web-quality-check` được xây dựng tại thư mục `skills/web-quality-check/`:
+    89	
+    90	1. **Hợp đồng Gọi thực thi**: Tuân thủ Hợp đồng Kết quả Provider v1, nhận `{ "profile": "<profile>", "base_ref": "<base_ref>", "repository_sha": "<sha>" }`.
+    91	2. **File Cấu hình**: Đọc file `.agents/quality/web-quality.json` từ thư mục gốc của repository.
+    92	3. **Các Khả năng (Capabilities)**:
+    93	   - `type_check`: Chạy `astro check` hoặc `tsc --noEmit` cho dự án TypeScript, hoặc `tsc --project jsconfig.json` cho dự án Vanilla JavaScript.
+    94	   - `lint`: Chạy linter của dự án (ESLint, Biome, hoặc Astro linter).
+    95	   - `test_unit`: Thực thi bộ unit test in-memory nhanh (Tier A).
+    96	   - `test_e2e`: Khởi chạy bộ Playwright headless (Tier C2) tích hợp bộ giám sát Zero-Console-Error.
+    97	   - `contracts`: Thực hiện kiểm tra chênh lệch hợp đồng đa repo.
+    98	4. **Công cụ Xác thực**: Cung cấp script `validate_web_quality.py` để đảm bảo tính hợp lệ của schema và sự hiện diện của các binary thực thi trước khi chạy.
+    99	
+   100	## Tích hợp Registry Đa Repo và Gate 4 Đa Nền tảng
+   101	
+   102	Nhạc trưởng Gate 4 gốc (`d3nexus:quality_check`) thực hiện kích hoạt đa provider song song trên các kho lưu trữ:
+   103	
+   104	- **`D3Nexus` (`.agents/quality/check_quality.json`)**:
+   105	  - Provider 1: `rust-core` (`d3nexus:rust-quality-check`) cho nhân Rust, biên dịch WASM và test hệ thống.
+   106	  - Provider 2: `learning-web` (`d3nexus:web-quality-check`) cho template Astro, controller Vanilla TypeScript và bộ test Playwright.
+   107	- **`lyrics-sync` (`.agents/quality/check_quality.json`)**:
+   108	  - Provider 1: `python-core` (`d3nexus:python-quality-check`) cho endpoint FastAPI, logic worker và test pytest.
+   109	  - Provider 2: `preview-ui` (`d3nexus:web-quality-check`) cho kiểm tra kiểu Vanilla JS tĩnh và test Playwright trên Chrome.
+   110	- **`nexus` (`.agents/quality/check_quality.json`)**:
+   111	  - Provider 1: `flutter-core` (`d3nexus:flutter-quality-check`) thực thi Kiểm thử Widget Dưới da với DI thật và WireMock.
+   112	
+   113	## Nâng cấp Dev-Designer và Dev-Implementation
+   114	
+   115	1. **`dev-designer` (Stage 2)**:
+   116	   - Khi phát hiện dự án Web, dòng `Integration results:` trong HLD bắt buộc phải trỏ tới kết quả của Playwright headless dạng JUnit XML (`build/test-results/playwright.xml`) sinh qua cờ `--reporter=junit`, đảm bảo `result_reports.py` (chỉ hỗ trợ JUnit XML hoặc Dart JSON) đọc nạp thông suốt.
+   117	   - Các bộ test Python bắt buộc phải bao gồm cờ `--junitxml=build/test-results/pytest.xml` trong lệnh thực thi.
+   118	   - Các kịch bản BDD cho Tier C phải bao gồm kỳ vọng tương tác DOM cụ thể và xác nhận qua wiremock.
+   119	2. **`dev-implementation` (Stage 3)**:
+   120	   - Nhúng Bảng Chống Ngụy biện trực tiếp vào quá trình thực thi tác vụ.
+   121	   - Xác thực rằng các tác vụ tuyên bố bao phủ kịch bản Tier C thực sự chạy test trình duyệt headless hoặc test dưới da thật.
+   122	   - Tạm dừng và báo cáo `BLOCKED` nếu code test mock chính component đang được kiểm thử.
+   123	
+   124	## Tự động Sinh Kịch bản Smoke Test Bấm tay
+   125	
+   126	Sau khi hoàn thành thành công tất cả tác vụ và Gate 4 trả về kết quả máy PASS, `dev-implementation` sẽ tự động sinh ra một tài liệu hỗ trợ con người:
+   127	- Đường dẫn: `.devtool/epic/<epic_dir>/manual_smoke_checklist.md`
+   128	- Nội dung: 3 đến 5 bước thủ công ngắn gọn, rõ ràng được trích xuất trực tiếp từ các kịch bản BDD Happy Path chính (gồm URL mục tiêu, hành động của người dùng, kết quả trực quan quan sát được).
+   129	- Lợi ích: Rút ngắn thời gian kiểm thử tự do của lập trình viên từ 30 phút mò mẫm xuống còn đúng 2 phút xác nhận có định hướng.
+   130	
+   131	## Rủi ro và Giải pháp Giảm thiểu
+   132	
+   133	| Rủi ro | Tác động | Chiến lược Giảm thiểu |
+   134	| :--- | :--- | :--- |
+   135	| Chi phí cài đặt Playwright trong CI / máy cục bộ | Gate 4 chạy chậm | Chỉ sử dụng Chromium headless; cache binary trình duyệt; profile `pr` chỉ chạy unit test, profile `epic` mới chạy Playwright. |
+   136	| Xung đột port khi khởi chạy preview server | Test không ổn định (flaky) | Cấu hình `webServer` của Playwright bind vào port động hoặc cổng chuyên dụng có probe kiểm tra healthcheck. |
+   137	| Cảnh báo console cũ của thư viện kích hoạt Zero-Console-Error | Đánh trượt nhầm (false positive) | Cho phép cấu hình danh sách loại trừ (allowlist) cho các cảnh báo bên thứ ba vô hại đã biết trong `.agents/quality/web-quality.json`. |
+   138	
+   139	## Kế hoạch Kiểm chứng
+   140	
+   141	1. **Kiểm chứng Hợp đồng Provider**:
+   142	   - Chạy `validate_web_quality.py` đối với file cấu hình mẫu `.agents/quality/web-quality.json`.
+   143	   - Chạy `quality_check` với profile `epic` tại `D3Nexus` và kiểm tra cả `rust-core` lẫn `learning-web` đều xuất ra phán quyết được chứng thực.
+   144	2. **Kiểm chứng Zero-Console-Error của Playwright**:
+   145	   - Cố tình chèn 1 dòng `console.error` vào trang test; xác nhận Playwright và Gate 4 báo cáo chính xác trạng thái `FAIL`.
+   146	   - Sửa lỗi và xác nhận Gate 4 chuyển sang `PASS`.
+   147	3. **Kiểm chứng Type-Checking cho Vanilla JS**:
+   148	   - Chạy `tsc --project jsconfig.json` trên thư mục `lyrics-sync/src/lyrics_sync/preview/static/` và xác nhận kết quả kiểm tra kiểu dữ liệu sạch sẽ.
+   149	4. **Kiểm chứng Tự sinh Checklist Bấm tay**:
+   150	   - Xác nhận rằng `generate_smoke_checklist.py` sinh và commit `.devtool/epic/<epic_dir>/manual_smoke_checklist.md` (3–5 bước) trong Phase 4 trước lượt chạy Gate 4 cuối cùng, bảo toàn trạng thái git sạch và tính toàn vẹn của candidate SHA đã được chứng nhận.
+
+exec
+/bin/zsh -lc "nl -ba .devtool/epic/web_quality_check_and_integration_gate/web_quality_check_and_integration_gate.vi.md | sed -n '1,114p'; nl -ba skills/setup_quality_check/resources/scripts/scaffold_quality_manifest.py | sed -n '130,350p'" in /Users/danhdueexoictif/AllProjects/ai-agent-tools
+ succeeded in 0ms:
+     1	# Epic: Web Quality Check Provider và Integration Quality Gate
+     2	
+     3	## Mục lục
+     4	
+     5	- [Mục lục](#mục-lục)
+     6	- [Meta Data](#meta-data)
+     7	- [Bối cảnh](#bối-cảnh)
+     8	- [Mục tiêu và Giới hạn](#mục-tiêu-và-giới-hạn)
+     9	- [Kiến trúc và Thiết kế Kỹ thuật](#kiến-trúc-và-thiết-kế-kỹ-thuật)
+    10	  - [Kiến trúc Tổng thể](#kiến-trúc-tổng-thể)
+    11	  - [Use Cases](#use-cases)
+    12	  - [Sequence Diagram](#sequence-diagram)
+    13	  - [Kế hoạch Kiểm thử Tích hợp và Ma trận Ranh giới](#kế-hoạch-kiểm-thử-tích-hợp-và-ma-trận-ranh-giới)
+    14	  - [Các Kịch bản BDD Toàn diện](#các-kịch-bản-bdd-toàn-diện)
+    15	- [Môi trường Kiểm chứng](#môi-trường-kiểm-chứng)
+    16	- [Tác động Hợp đồng Dùng chung](#tác-động-hợp-đồng-dùng-chung)
+    17	- [Chiến lược Triển khai và Giảm thiểu Rủi ro](#chiến-lược-triển-khai-và-giảm-thiểu-rủi-ro)
+    18	- [Phân rã Tác vụ Kanban](#phân-rã-tác-vụ-kanban)
+    19	
+    20	## Meta Data
+    21	
+    22	- **Tên Epic**: `web_quality_check_and_integration_gate`
+    23	- **Slug Epic**: `web-quality-check-and-integration-gate`
+    24	- **Trạng thái**: Packaged
+    25	- **Phiên bản Mục tiêu**: v1.2.0
+    26	- **Nền tảng**: Polyglot / Quality Architecture
+    27	- **Tài liệu Đặc tả Gốc**: [2026-11-04-web-quality-check-and-integration-gate-design.vi.md](./2026-11-04-web-quality-check-and-integration-gate-design.vi.md)
+    28	
+    29	## Bối cảnh
+    30	
+    31	Trong hệ sinh thái đa repo (`D3Nexus`, `lyrics-sync`, `nexus`), các kỹ sư đối mặt với khoảng cách lớn giữa thiết kế kiến trúc và hành vi thực tế khi chạy. Khoảng cách này buộc lập trình viên phải kiểm thử thủ công (bấm tay) rất nhiều trên thiết bị và trình duyệt trước mỗi đợt release:
+    32	- Unit test pass 100% xanh bằng mock, nhưng gãy khi chạy thật do lỗi đăng ký DI, lỗi giải mã JSON, và lỗi gắn sự kiện DOM.
+    33	- Gate 4 (`quality_check`) thiếu provider cho Web, bỏ quên hoàn toàn `D3Nexus` (`apps/learning-web`) và `lyrics-sync` (17 file Vanilla JS).
+    34	- AI coding agent thường xuyên tự tìm đường tắt, né tránh chạy trình duyệt headless và bỏ qua lỗi console.
+    35	
+    36	## Mục tiêu và Giới hạn
+    37	
+    38	### Mục tiêu
+    39	- Xây dựng provider `web-quality-check` tuân thủ Hợp đồng Kết quả Provider v1 cho các dự án Astro TypeScript và Vanilla JavaScript.
+    40	- Kích hoạt điều phối chất lượng đa nền tảng (polyglot) tại Gate 4 trên cả `D3Nexus` và `lyrics-sync`.
+    41	- Thực thi Chuẩn Kiểm thử 3 Lớp (Tier A Unit, Tier C1 Dưới da Mobile/Backend, Tier C2 Trình duyệt Headless Web).
+    42	- Đưa Bảng Chống Ngụy biện và Cơ chế Phản biện Nghi vấn từ `addyosmani/agent-skills` vào quy trình kỹ năng.
+    43	- Tự động sinh tài liệu 3–5 bước `manual_smoke_checklist.md` sau khi hoàn thành epic để rút ngắn thời gian bấm tay từ 30 phút xuống còn 2 phút.
+    44	
+    45	### Giới hạn
+    46	- Không chuyển đổi 17 file Vanilla JS trong `lyrics-sync` sang TypeScript (kiểm tra kiểu dữ liệu tại chỗ qua JSDoc và `jsconfig.json`).
+    47	- Không viết lại các unit test nhanh hiện có.
+    48	- Không ép buộc bật emulator thiết bị cho các cổng duyệt cục bộ PR/Epic.
+    49	
+    50	## Kiến trúc và Thiết kế Kỹ thuật
+    51	
+    52	### Kiến trúc Tổng thể
+    53	
+    54	```mermaid
+    55	flowchart TD
+    56	    QC["Gate 4: quality_check (Nhạc trưởng Trung lập)"] --> REG["Đọc .agents/quality/check_quality.json"]
+    57	    REG --> FANOUT{"Kích hoạt Song song các Provider"}
+    58	    FANOUT --> P_RUST["rust-quality-check (Nhân D3Nexus)"]
+    59	    FANOUT --> P_PY["python-quality-check (Backend lyrics-sync)"]
+    60	    FANOUT --> P_FLUTTER["flutter-quality-check (Mobile nexus)"]
+    61	    FANOUT --> P_WEB["web-quality-check (MỚI: Astro TS + Vanilla JS)"]
+    62	    
+    63	    subgraph WEB_PROVIDER["Các Khả năng của web-quality-check"]
+    64	        direction TB
+    65	        CAP_TYPE["Kiểm tra Kiểu (astro check / tsc --noEmit / jsconfig.json)"]
+    66	        CAP_LINT["Linter (ESLint / Biome / Astro linter)"]
+    67	        CAP_UNIT["Tier A Unit Tests (Node / Vitest)"]
+    68	        CAP_E2E["Tier C2 Headless Playwright + Bộ Chặn Zero-Console-Error"]
+    69	    end
+    70	    
+    71	    P_WEB --> WEB_PROVIDER
+    72	    FANOUT --> AGG["Tổng hợp Kết quả (FAIL > BLOCKED > PASS)"]
+    73	    AGG --> SMOKE["Tự sinh manual_smoke_checklist.md (3-5 Bước)"]
+    74	    SMOKE --> VERDICT["Chứng nhận Gate 4 Hợp lệ"]
+    75	```
+    76	
+    77	### Use Cases
+    78	
+    79	```mermaid
+    80	flowchart LR
+    81	    DEV["Kiến trúc sư Con người"] --> UC1["Cấu hình Registry Đa Provider"]
+    82	    DEV --> UC2["Kích hoạt Kiểm chuẩn Gate 4"]
+    83	    DEV --> UC3["Duyệt Checklist Bấm tay (2 phút xác nhận)"]
+    84	    
+    85	    AGENT["Lập trình viên AI"] --> UC4["Thực thi Task có Chặn Ngụy biện"]
+    86	    AGENT --> UC5["Chạy Playwright Headless Zero-Console-Error"]
+    87	    AGENT --> UC6["Kiểm tra Kiểu Vanilla JS qua JSDoc"]
+    88	```
+    89	
+    90	### Sequence Diagram
+    91	
+    92	```mermaid
+    93	sequenceDiagram
+    94	    autonumber
+    95	    actor Human as Kiến trúc sư Con người
+    96	    participant Gate as quality_check (Gate 4)
+    97	    participant Web as web-quality-check
+    98	    participant Playwright as Chromium Headless
+    99	    participant Gen as Bộ Sinh Checklist
+   100	
+   101	    Human->>Gate: Kích hoạt @quality_check (profile: epic)
+   102	    Gate->>Gate: Đọc .agents/quality/check_quality.json
+   103	    Gate->>Web: Gọi provider kèm commit SHA
+   104	    Web->>Web: Chạy kiểm tra kiểu & linter
+   105	    Web->>Playwright: Khởi chạy Playwright headless kèm wiremock
+   106	    Playwright->>Playwright: Render DOM & xác thực Zero-Console-Error
+   107	    Playwright-->>Web: Trả về trace & bằng chứng thực thi
+   108	    Web-->>Gate: Xuất Tài liệu Kết quả Provider (PASS)
+   109	    Human->>Gen: Phase 4 chạy bộ sinh checklist & commit
+   110	    Gen-->>Human: Commit manual_smoke_checklist.md
+   111	    Human->>Gate: Thực thi Gate 4 cuối cùng trên candidate SHA
+   112	    Gate-->>Human: Báo cáo Gate 4 LGTM + Review Choice
+   113	```
+   114	
+   130	                "type_check": ["uv", "run", "mypy", "--strict", "src"],
+   131	                "test": ["uv", "run", "pytest", "-m", "not slow and not acceptance and not live_llm"],
+   132	                "coverage": {
+   133	                    "command": ["uv", "run", "pytest", "--cov=src", "--cov-report=json:coverage.json"],
+   134	                    "threshold": 0.8
+   135	                },
+   136	                "architecture": ["uv", "run", "lint-imports"]
+   137	            },
+   138	            "profiles": {
+   139	                "pr": ["format", "lint", "type_check", "test"],
+   140	                "epic": ["format", "lint", "type_check", "test", "coverage", "architecture"]
+   141	            }
+   142	        }
+   143	    }
+   144	}
+   145	
+   146	
+   147	def detect_platforms(repo_root: Path) -> List[str]:
+   148	    """
+   149	    Inspects repository root directory and returns detected platform names.
+   150	    Supports Flutter, Android, iOS, Rust, and Python heuristics.
+   151	    """
+   152	    detected = []
+   153	
+   154	    # Flutter detection
+   155	    if (repo_root / "pubspec.yaml").is_file() or (repo_root / "melos.yaml").is_file():
+   156	        detected.append("flutter")
+   157	
+   158	    # Android detection
+   159	    android_markers = [
+   160	        "build.gradle.kts",
+   161	        "build.gradle",
+   162	        "settings.gradle.kts",
+   163	        "settings.gradle",
+   164	    ]
+   165	    if any((repo_root / marker).is_file() for marker in android_markers):
+   166	        detected.append("android")
+   167	
+   168	    # iOS detection
+   169	    ios_markers = [
+   170	        "Project.swift",
+   171	        "Tuist.swift",
+   172	        "Package.swift",
+   173	    ]
+   174	    if any((repo_root / marker).is_file() for marker in ios_markers):
+   175	        detected.append("ios")
+   176	
+   177	    # Rust detection
+   178	    if (repo_root / "Cargo.toml").is_file():
+   179	        detected.append("rust")
+   180	
+   181	    # Python detection
+   182	    python_markers = [
+   183	        "pyproject.toml",
+   184	        "uv.lock",
+   185	        "requirements.txt",
+   186	        "setup.py",
+   187	        "Pipfile",
+   188	    ]
+   189	    if any((repo_root / marker).is_file() for marker in python_markers):
+   190	        detected.append("python")
+   191	
+   192	    return sorted(list(set(detected)))
+   193	
+   194	
+   195	def build_registry_data(platforms: List[str]) -> Dict[str, Any]:
+   196	    """Builds standard check_quality.json structure for given platforms."""
+   197	    providers = []
+   198	    for p in platforms:
+   199	        cfg = PLATFORM_CONFIGS[p]
+   200	        providers.append({
+   201	            "id": cfg["provider_id"],
+   202	            "skill": cfg["skill"],
+   203	            "required": True,
+   204	            "profiles": ["pr", "epic"]
+   205	        })
+   206	
+   207	    return {
+   208	        "schema_version": 1,
+   209	        "providers": providers
+   210	    }
+   211	
+   212	
+   213	def scaffold_quality_manifests(
+   214	    repo_root: Path,
+   215	    output_dir: Optional[Path] = None,
+   216	    platforms: Optional[List[str]] = None,
+   217	    force: bool = False,
+   218	    dry_run: bool = False,
+   219	) -> Dict[str, Any]:
+   220	    """
+   221	    Scaffolds quality check registry and provider manifests into output_dir.
+   222	    Raises ScaffoldError on detection failures or overwrite conflicts.
+   223	    """
+   224	    repo_root = repo_root.resolve()
+   225	    if output_dir is None:
+   226	        target_dir = repo_root / ".agents" / "quality"
+   227	    else:
+   228	        target_dir = output_dir.resolve()
+   229	
+   230	    if platforms is None:
+   231	        detected = detect_platforms(repo_root)
+   232	    else:
+   233	        detected = sorted(list(set(platforms)))
+   234	        for p in detected:
+   235	            if p not in PLATFORM_CONFIGS:
+   236	                raise ScaffoldError(f"Unsupported platform specified: '{p}'. Allowed: {list(PLATFORM_CONFIGS.keys())}")
+   237	
+   238	    if not detected:
+   239	        raise ScaffoldError(
+   240	            f"No supported platform detected in repository root: {repo_root}. "
+   241	            f"Supported platforms: {list(PLATFORM_CONFIGS.keys())}"
+   242	        )
+   243	
+   244	    # Prepare file mappings
+   245	    target_files: Dict[Path, Dict[str, Any]] = {}
+   246	    reg_path = target_dir / "check_quality.json"
+   247	    target_files[reg_path] = build_registry_data(detected)
+   248	
+   249	    for p in detected:
+   250	        cfg = PLATFORM_CONFIGS[p]
+   251	        p_path = target_dir / cfg["filename"]
+   252	        target_files[p_path] = cfg["manifest"]
+   253	
+   254	    # Check for existing files if not force
+   255	    if not force:
+   256	        for fpath in target_files:
+   257	            if fpath.exists():
+   258	                raise ScaffoldError(
+   259	                    f"Configuration file already exists: {fpath}. Use --force to overwrite."
+   260	                )
+   261	
+   262	    if dry_run:
+   263	        return {
+   264	            "detected_platforms": detected,
+   265	            "output_directory": str(target_dir),
+   266	            "planned_files": [str(p) for p in target_files.keys()],
+   267	            "files": {str(p): data for p, data in target_files.items()},
+   268	        }
+   269	
+   270	    # Write files atomically
+   271	    target_dir.mkdir(parents=True, exist_ok=True)
+   272	    written = []
+   273	    for fpath, data in target_files.items():
+   274	        fpath.write_text(json.dumps(data, indent=2) + "\n")
+   275	        written.append(str(fpath))
+   276	
+   277	    return {
+   278	        "detected_platforms": detected,
+   279	        "output_directory": str(target_dir),
+   280	        "written_files": written,
+   281	    }
+   282	
+   283	
+   284	def main() -> int:
+   285	    parser = argparse.ArgumentParser(
+   286	        description="Scaffold standardized quality check configurations for repository platforms."
+   287	    )
+   288	    parser.add_argument(
+   289	        "--root",
+   290	        type=Path,
+   291	        default=Path("."),
+   292	        help="Repository root directory to inspect (default: current directory).",
+   293	    )
+   294	    parser.add_argument(
+   295	        "--output-dir",
+   296	        type=Path,
+   297	        default=None,
+   298	        help="Target directory for quality configs (default: <root>/.agents/quality).",
+   299	    )
+   300	    parser.add_argument(
+   301	        "--platform",
+   302	        type=str,
+   303	        default=None,
+   304	        help="Comma-separated platform override (e.g. flutter,android,ios,rust).",
+   305	    )
+   306	    parser.add_argument(
+   307	        "--force",
+   308	        action="store_true",
+   309	        help="Overwrite existing configuration files.",
+   310	    )
+   311	    parser.add_argument(
+   312	        "--dry-run",
+   313	        action="store_true",
+   314	        help="Print planned scaffolding without writing files to disk.",
+   315	    )
+   316	
+   317	    args = parser.parse_args()
+   318	
+   319	    platforms = None
+   320	    if args.platform:
+   321	        platforms = [p.strip().lower() for p in args.platform.split(",") if p.strip()]
+   322	
+   323	    try:
+   324	        result = scaffold_quality_manifests(
+   325	            repo_root=args.root,
+   326	            output_dir=args.output_dir,
+   327	            platforms=platforms,
+   328	            force=args.force,
+   329	            dry_run=args.dry_run,
+   330	        )
+   331	        print(f"Scaffolding completed successfully for platforms: {result['detected_platforms']}")
+   332	        if args.dry_run:
+   333	            print(f"Dry-run planned {len(result['planned_files'])} file(s):")
+   334	            for f in result["planned_files"]:
+   335	                print(f"  - {f}")
+   336	        else:
+   337	            print(f"Written {len(result['written_files'])} file(s) into {result['output_directory']}:")
+   338	            for f in result["written_files"]:
+   339	                print(f"  - {f}")
+   340	        return 0
+   341	    except ScaffoldError as err:
+   342	        print(f"Scaffolding error: {err}", file=sys.stderr)
+   343	        return 1
+   344	
+   345	
+   346	if __name__ == "__main__":
+   347	    sys.exit(main())
+
+exec
+/bin/zsh -lc "nl -ba skills/python-quality-check/SKILL.md | sed -n '1,240p'; rg -n 'except|try:|def run|timeout|command|cwd|profile' skills/python-quality-check/resources/scripts/validate_python_quality.py" in /Users/danhdueexoictif/AllProjects/ai-agent-tools
+ succeeded in 0ms:
+     1	---
+     2	name: python-quality-check
+     3	description: Read-only Python quality assurance provider implementing the common quality contract. Executes project-configured capabilities from .agents/quality/python-quality.json, enforces architecture policies via import-linter, and outputs structured results bound to repository SHA.
+     4	---
+     5	
+     6	# Python Quality Assurance Provider
+     7	
+     8	## Overview
+     9	
+    10	You are the Python Quality Provider (`d3nexus:python-quality-check`). When invoked by `quality_check`, you execute
+    11	read-only quality verification against the active repository according to the requested quality profile.
+    12	
+    13	You do not guess commands from file layouts. You load capabilities from `.agents/quality/python-quality.json`, execute
+    14	the project-declared command arrays, collect evidence, and output a validated result document adhering to the shared
+    15	[Provider Result Contract](../quality_check/references/provider-result-contract.md).
+    16	
+    17	## Workflow
+    18	
+    19	```mermaid
+    20	flowchart TD
+    21	    INVOKE["Invoked with normalized request payload"] --> LOAD["Step 1: Load .agents/quality/python-quality.json"]
+    22	    LOAD --> VALIDATE["Step 2: Validate capability configuration and profile completeness"]
+    23	    VALIDATE --> PLAN["Step 3: Resolve execution plan for requested profile"]
+    24	    PLAN --> EXEC["Step 4: Execute read-only commands without shell interpolation"]
+    25	    EXEC --> COLLECT["Step 5: Collect check records, coverage, and evidence files"]
+    26	    COLLECT --> RESULT["Step 6: Emit validated result document bound to repository SHA"]
+    27	```
+    28	
+    29	### Step 1: Configuration Loading and Validation
+    30	
+    31	Load the project capability manifest `.agents/quality/python-quality.json` from the repository root:
+    32	
+    33	```bash
+    34	python3 skills/python-quality-check/resources/scripts/validate_python_quality.py .agents/quality/python-quality.json --profile "<profile>"
+    35	```
+    36	
+    37	- If `.agents/quality/python-quality.json` is missing or invalid: emit status `BLOCKED`.
+    38	- If the requested profile is not configured: emit status `BLOCKED`.
+    39	- For profile `epic`: if the `architecture` (or `boundaries`) capability is missing: emit status `BLOCKED`.
+    40	
+    41	### Step 2: Read-Only Command Execution
+    42	
+    43	Execute commands declared in `capabilities` for the target profile:
+    44	1. Commands are executed as structured argument arrays (no shell interpolation).
+    45	   - An argument beginning with `{skills_dir}` is resolved to the directory containing this plugin's `skills/` folders (the parent of `python-quality-check/`), so manifests can call sibling skill scripts without machine-specific paths (e.g. `["python3", "{skills_dir}/sync-shared-contracts/resources/scripts/sync_contracts.py", "diff-check", "--base-ref", "{base_ref}"]`).
+    46	   - An argument containing `{base_ref}` is substituted with the normalized `base_ref` invocation parameter from `quality_check` (falling back to `develop` or the repository default only when `base_ref` was not supplied).
+    47	2. All commands run from the resolved repository root.
+    48	3. If an executable is missing or cannot be spawned: record check status as `BLOCKED`.
+    49	4. If a command runs and reports defects (nonzero exit code):
+    50	   - For governance and contract capabilities (`contracts`, `contracts_<domain>`, and `contract_diff`): exit code `0` records `PASS`, exit code `2` (or JSON `"status": "BLOCKED"`) records `BLOCKED`, and any other nonzero exit code (such as `1`) records `FAIL`.
+    51	   - For all other capabilities: nonzero exit code records `FAIL`.
+    52	5. If a command succeeds (zero exit code): record check status as `PASS`.
+    53	
+    54	Independent commands (e.g. `format`, `lint`, `type_check`, `test`) may run concurrently.
+    55	
+    56	### Step 3: Semantic Audits
+    57	
+    58	Execute specialist audits as configured:
+    59	- **Architecture Gate**: Authoritative `lint-imports` or AST-based check evaluates package boundaries, Clean Architecture layer inversion, and forbidden imports.
+    60	- **Coverage Gate**: Evaluates `pytest-cov` or project coverage wrapper against configured threshold.
+    61	- **Security Policy**: Evaluates `bandit` or `pip-audit` for scheduled and release profiles.
+    62	
+    63	### Step 4: Result Assembly and Contract Emission
+    64	
+    65	Assemble the result document matching [provider-result.schema.json](../quality_check/resources/schemas/provider-result.schema.json):
+    66	
+    67	- `provider_id`: `"python-core"` (or matching invocation identifier)
+    68	- `contract_version`: `1`
+    69	- `profile`: `<profile>`
+    70	- `repository_sha`: Verified commit SHA matching invocation
+    71	- `status`: Aggregated provider status (`FAIL` if any check failed, `BLOCKED` if any check blocked, else `PASS`)
+    72	- `started_head` and `finished_head`: Git SHA recorded before and after execution
+    73	- `checks`, `coverage`, `evidence`, `blockers`, `warnings`
+    74	
+    75	Return the result document to the orchestrator.
+    76	
+    77	## References & Resources
+    78	
+    79	- [Python Capability Contract](references/python-capability-contract.md): Format and rules for `.agents/quality/python-quality.json`.
+    80	- [Python Architecture Governance](references/python-architecture-governance.md): Architecture policies via `import-linter` and Clean Architecture boundaries.
+    81	- [Python Tool Mapping](references/python-tool-mapping.md): Mapping mobile quality concepts to Python ecosystem equivalents.
+    82	- [Capability Schema](resources/schemas/python-quality.schema.json): Machine-readable JSON Schema for Python capability manifests.
+    83	- [Capability Validator](resources/scripts/validate_python_quality.py): Script and CLI validator for Python capability files.
+    84	- [Valid Fixture](resources/fixtures/valid_python_quality.json): Reference valid capability configuration fixture.
+17:    requested_profile: str = "pr",
+19:    """Validate Python project capability manifest and check readiness for requested profile."""
+37:            cmd = cap_val.get("command")
+41:                        "invalid_command_format",
+42:                        f"Coverage command for '{cap_name}' must be an array of string arguments",
+49:                        "command_array_empty",
+50:                        f"Coverage command for '{cap_name}' is empty []",
+61:                        "invalid_command_format",
+62:                        f"Capability command for '{cap_name}' must be an array of string arguments, not a string or shell command",
+69:                        "command_array_empty",
+70:                        f"Capability command for '{cap_name}' is empty []",
+75:    profiles = config.get("profiles", {})
+76:    if not isinstance(profiles, dict):
+77:        findings.append(_finding("missing_profiles", "Missing or invalid 'profiles' object"))
+80:    profile_caps = profiles.get(requested_profile)
+81:    if profile_caps is None:
+84:                "profile_not_configured",
+85:                f"Requested profile '{requested_profile}' is not configured in profiles",
+88:    elif not isinstance(profile_caps, list):
+89:        findings.append(_finding("invalid_profile_format", f"Profile '{requested_profile}' must be an array of capability names"))
+91:        for cap in profile_caps:
+96:                        f"Profile '{requested_profile}' requires capability '{cap}', which is not defined in capabilities",
+101:        if requested_profile == "epic" and "architecture" not in capabilities and "boundaries" not in capabilities:
+105:                    "Epic profile requires an authoritative architecture or boundaries command in capabilities",
+122:    parser.add_argument("--profile", default="pr", help="Requested profile (pr, epic, scheduled, release)")
+126:    res = validate_python_config(data, args.profile)
+
+exec
+/bin/zsh -lc "rg -n 'condition 6|Tier C|Phase 4|candidate|sync_task|manual' skills/dev-implementation/SKILL.md; rg --files | rg 'sync.*task|test.*(contract|report|scaffold)|pyproject|package.json|playwright|verify.sh'; nl -ba scripts/verify.sh | tail -120; rg -n 'except|try:|def |contract_version' skills/quality_check/resources/scripts/validate_quality_contract.py" in /Users/danhdueexoictif/AllProjects/ai-agent-tools
+ succeeded in 0ms:
+93:`git ls-remote` asks each remote directly, so an epic branch pushed from another clone shows before any fetch; if a remote cannot be reached, fall back to `git branch -r --list '*/epic/<epic_slug>'`. The last command reads the epic's task mirrors (`sync_task_status.py` keeps them in step with `.devtool/features/` and `.devtool/features/done/`); its flattened order prints each task's status as `[priority, status]`. Evaluate the rows top-down — first match wins — and announce it: "Entry point: row N — <state>."
+102:| 6 | Epic branch exists, every task `done` | Tasks finished | Recreate worktree if missing (`git worktree add .worktrees/<epic_dir> epic/<epic_slug>`, no `-b`) and bootstrap (Phase 1 step 5), run Resume Procedure preflight (step 2), then Phase 4 in full; its PASS presents Review Choice |
+113:5. If overview Status begins with `Packaged`, run `python3 "$SKILL_DIR"/resources/scripts/sync_task_status.py epic <epic_dir> "In Progress"`.
+151:   If overview Status begins with `Packaged`, run `python3 "$SKILL_DIR"/resources/scripts/sync_task_status.py epic <epic_dir> "In Progress"`.
+171:   python3 skills/dev-implementation/resources/scripts/sync_task_status.py task <task_id> in-progress
+178:   1. **Expert QA (Red Team Persona)**: Authors BDD Scenarios in complete isolation from coding, purely from HLD and `bdd_scenarios.en.md`, applying 5 dimensions: Happy Paths, Edge Cases & Boundaries, State Transitions, Async / Race Conditions, Failures & Resilience. Categorizes scenarios into `[Tier A - Unit]` vs `[Tier C - Integration]`. In Satellite Mode, authors verification scenarios validating that local deserializers parse both legacy and updated upstream payloads safely.
+180:   3. **System Integration & E2E Engineer (Tier C Persona)**: Implements host integration flow tests (`integration_test/`, `*FlowTest.kt`, `App/Tests`, `tests/e2e/`, `tests/integration/`) connecting DI, navigation, and persistence contracts.
+185:   > 2. **Tier Separation**: `[Tier A - Unit]` covered 100% by unit tests; `[Tier C - Integration]` covered 100% by host integration flow tests. Mocks do NOT substitute for Tier C integration tests.
+186:   > 3. **BDD Automation (Tier C, all platforms)**: For every identifier on task's `Covers:` line, author at least one integration test under HLD's `Integration test roots`, carrying the identifier in test name, description, or tag.
+193:   >    Never edit `.devtool/epic/<epic_dir>/evidence/<task_id>.json` by hand. `sync_task_status.py task <id> done` refuses unless evidence matches tree and table.
+205:   python3 skills/dev-implementation/resources/scripts/sync_task_status.py task <task_id> review
+210:   python3 skills/dev-implementation/resources/scripts/sync_task_status.py task <task_id> done
+254:Once every task is `done`, a fix is never made by reopening a task. Make it as its own commit on the epic branch, titled `[EPIC_NAME] Fix <what>`. Do not move a done task back, and do not re-record its evidence. `audit_epic.py` lists these commits under "Commits outside tasks". After fixes, run Phase 4 again in full on the new SHA.
+256:### Phase 4 — End of Epic Verification
+258:Once every task is `done`, resolve candidate commit SHA (`git rev-parse HEAD`) with a clean tree (`git status --porcelain` prints nothing):
+264:   Exit 1 means unresolved finding: record decision or make Fix commit, then restart Phase 4 in full.
+269:   Must exit 0. Keep output for Phase 4.1.
+299:Cross-model review and Local model review must return to Phase 4 in full; only the next Gate 4 PASS may present Review Choice again.
+314:> Gate 4 is 🟢 LGTM for `<candidate_sha>`. How do you want to proceed?
+320:Option 1 goes to Phase 4.1 / Gate 5. Option 2 invokes `d3nexus:cross-model-review` in epic worktree with clean tree:
+325:Commit `review_results.md` after every round (`[EPIC_NAME] Record cross-model review round N`). After every round of option 2 or 3, run `python3 "$SKILL_DIR"/resources/scripts/run_external_review.py triage --epic-dir <epic_dir>`, fill it as [review-triage.md](references/review-triage.md) says, present it, and wait for the developer's decisions before any Fix commit or Decision cell. Then make the Fix commits, record the decisions, commit, and rerun Phase 4 / Gate 4 in full.
+334:### Phase 4.1 — Developer Kanban Review Checkpoint (🛑 MANDATORY STOP & WAIT — Gate 5)
+351:   python3 skills/dev-implementation/resources/scripts/sync_task_status.py archive-done
+skills/sync-shared-contracts/resources/scripts/test_sync_contracts.py
+skills/quality_check/resources/scripts/test_validate_quality_contract.py
+skills/setup_quality_check/resources/scripts/test_scaffold_quality_manifest.py
+skills/setup-shared-contracts/resources/scripts/test_setup_contracts.py
+scripts/test_lifecycle_document_contract.py
+scripts/verify.sh
+skills/dev-implementation/resources/scripts/sync_task_status.py
+skills/dev-implementation/resources/scripts/test_check_task_contract.py
+skills/dev-implementation/resources/scripts/test_result_reports.py
+skills/dev-implementation/resources/scripts/test_sync_task_status.py
+   179	        return False
+   180	    return not any(part.startswith(".") for part in p.parts)
+   181	
+   182	supporting = [p for p in root.glob("skills/*/**/*") if p.is_file() and is_skill_content(p)]
+   183	corpus = [p for p in root.rglob("*")
+   184	          if p.is_file() and ".git/" not in str(p) and "__pycache__" not in p.parts
+   185	          and p.suffix in {".md", ".py", ".sh", ".json", ".yaml", ".yml", ""}]
+   186	texts = {}
+   187	for c in corpus:
+   188	    try:
+   189	        texts[c] = c.read_text(errors="ignore")
+   190	    except OSError:
+   191	        pass
+   192	bad = 0
+   193	for f in sorted(supporting):
+   194	    name = f.name
+   195	    if any(other != f and name in body for other, body in texts.items()):
+   196	        continue
+   197	    print(f"  FAIL {f} is referenced by nothing")
+   198	    bad = 1
+   199	print(f"  checked {len(supporting)} supporting files")
+   200	sys.exit(bad)
+   201	PY
+   202	
+   203	note "== 9. The dev-* rename is complete =="
+   204	# The old names must survive only where they are history: archived epic records under .devtool/
+   205	# and the CHANGELOG entries that describe the rename itself.
+   206	# Driven from `git ls-files`, not a filesystem walk: a walk also reads gitignored scratch such as
+   207	# .superpowers/, which exists in a normal checkout and not in a worktree — so the same tree passed
+   208	# in one and failed in the other. The repository's own file list is the only deterministic input.
+   209	# This file is excluded because the check's pattern necessarily contains the names it looks for.
+   210	if hits=$(git ls-files \
+   211	          | grep -v -e '^\.devtool/' -e '^CHANGELOG\.md$' -e '^scripts/verify\.sh$' \
+   212	          | tr '\n' '\0' \
+   213	          | xargs -0 grep -n "epic-lifecycle\|epic-designer\|epic-implementation" 2>/dev/null) \
+   214	   && [ -n "$hits" ]; then
+   215	  printf '%s\n' "$hits" | head -5
+   216	  fail "live files still reference the pre-rename skill names"
+   217	else
+   218	  note "  ok   no live file names epic-lifecycle, epic-designer or epic-implementation"
+   219	fi
+   220	
+   221	echo
+   222	note "== 10. Orchestrators route to a variant, never the router =="
+   223	# Step 9's repo-wide sweep cannot be reused for this rename. `brainstorming` is an ordinary English
+   224	# word: it appears legitimately as "during brainstorming" in writing-plans, "not a full brainstorming
+   225	# dialogue" in dev-designer, as a deliberately preserved pre-1.2.0 path in
+   226	# doc_quality_check/references/document-reviewer-prompt.md, and in this file's own comments. A bare
+   227	# sweep would fail on all four. Scope it instead to the two orchestrators, and only to the two forms
+   228	# that actually denote the skill rather than the activity.
+   229	#
+   230	# What this guards: `brainstorming` is a router that resolves an ambiguous entry. A lifecycle stage
+   231	# naming it has not routed — it has moved the ambiguity one hop downstream. The precedent is real:
+   232	# epic-lifecycle never contained the word "invoke", so agents read a stage description and did that
+   233	# stage's work themselves, skipping the gate the stage owned.
+   234	if hits=$(git ls-files 'skills/dev-lifecycle/*' 'skills/doc-lifecycle/*' \
+   235	          | tr '\n' '\0' \
+   236	          | xargs -0 grep -n 'd3nexus:brainstorming\|`brainstorming`' 2>/dev/null) \
+   237	   && [ -n "$hits" ]; then
+   238	  printf '%s\n' "$hits" | head -5
+   239	  fail "an orchestrator stage names the brainstorming router instead of a variant"
+   240	else
+   241	  note "  ok   both orchestrators name a concrete brainstorming variant"
+   242	fi
+   243	
+   244	echo
+   245	note "== 11. Lifecycle document contracts are enforced =="
+   246	python3 -m unittest skills/doc_quality_check/resources/scripts/test_check_document.py || FAILED=1
+   247	python3 scripts/test_lifecycle_document_contract.py || FAILED=1
+   248	python3 -m unittest scripts/test_lifecycle_signals.py || FAILED=1
+   249	python3 -m unittest skills/dev-implementation/resources/scripts/test_audit_epic.py || FAILED=1
+   250	python3 -m unittest skills/dev-implementation/resources/scripts/test_check_bdd_traceability.py || FAILED=1
+   251	python3 -m unittest skills/dev-implementation/resources/scripts/test_check_epic_readiness.py || FAILED=1
+   252	python3 -m unittest skills/dev-implementation/resources/scripts/test_check_task_contract.py || FAILED=1
+   253	python3 -m unittest skills/dev-implementation/resources/scripts/test_result_reports.py || FAILED=1
+   254	python3 -m unittest skills/dev-implementation/resources/scripts/test_run_external_review.py || FAILED=1
+   255	python3 -m unittest skills/dev-implementation/resources/scripts/test_local_review.py || FAILED=1
+   256	python3 -m unittest skills/dev-implementation/resources/scripts/test_run_task_checks.py || FAILED=1
+   257	python3 -m unittest skills/dev-implementation/resources/scripts/test_sync_task_status.py || FAILED=1
+   258	python3 -m unittest scripts/test_run_unittest_junit.py || FAILED=1
+   259	python3 -m unittest scripts/test_verifiable_handoff_text.py || FAILED=1
+   260	python3 -m unittest scripts/test_verifiable_handoff.py || FAILED=1
+   261	
+   262	echo
+   263	note "== 12. Branch integration script behaves =="
+   264	python3 -m unittest skills/finishing-a-development-branch/resources/scripts/test_integrate_branch.py || FAILED=1
+   265	
+   266	echo
+   267	note "== 13. Quality provider contracts, schemas, aggregation, and platform capabilities are enforced =="
+   268	python3 -m unittest skills/quality_check/resources/scripts/test_validate_quality_contract.py || FAILED=1
+   269	python3 -m unittest skills/quality_check/resources/scripts/test_aggregate_quality_results.py || FAILED=1
+   270	python3 -m unittest skills/rust-quality-check/resources/scripts/test_validate_rust_quality.py || FAILED=1
+   271	python3 -m unittest skills/python-quality-check/resources/scripts/test_validate_python_quality.py || FAILED=1
+   272	python3 -m unittest skills/flutter-quality-check/resources/scripts/test_validate_flutter_quality.py || FAILED=1
+   273	python3 -m unittest skills/android-quality-check/resources/scripts/test_validate_android_quality.py || FAILED=1
+   274	python3 -m unittest skills/ios-quality-check/resources/scripts/test_validate_ios_quality.py || FAILED=1
+   275	python3 -m unittest skills/setup_quality_check/resources/scripts/test_scaffold_quality_manifest.py || FAILED=1
+   276	python3 -m unittest skills/quality_check/resources/scripts/test_quality_provider_acceptance.py || FAILED=1
+   277	
+   278	echo
+   279	note "== 14. Shared contracts CLI engine is enforced =="
+   280	python3 -m unittest skills/setup-shared-contracts/resources/scripts/test_setup_contracts.py || FAILED=1
+   281	python3 -m unittest skills/sync-shared-contracts/resources/scripts/test_sync_contracts.py || FAILED=1
+   282	
+   283	echo
+   284	note "== 15. Context memory management CLI and Tri-Role governance are enforced =="
+   285	python3 -m unittest scripts/test_resume_context.py || FAILED=1
+   286	
+   287	echo
+   288	note "== 16. Session refresh CLI engine and isolation contracts are enforced =="
+   289	python3 -m unittest skills/refresh-session/resources/scripts/test_refresh_session.py || FAILED=1
+   290	
+   291	echo
+   292	if [ "$FAILED" -eq 0 ]; then
+   293	  echo "PASS — safe to publish"
+   294	else
+   295	  echo "FAILED — fix the above before publishing"
+   296	fi
+   297	exit "$FAILED"
+   298	
+26:def _finding(code: str, message: str, **extra: Any) -> dict[str, Any]:
+32:def _sort_findings(findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
+50:def validate_registry(
+202:def normalize_invocation(invocation_data: dict[str, Any]) -> dict[str, Any]:
+205:    allowed_fields = {"contract_version", "profile", "base_ref", "repository_sha", "provider_id", "required"}
+211:    contract_version = invocation_data.get("contract_version", 1)
+212:    if contract_version != 1:
+216:                f"Unsupported contract_version '{contract_version}', expected 1",
+229:    norm["contract_version"] = 1
+240:def validate_provider_result(
+247:    contract_version = result_data.get("contract_version")
+248:    if contract_version != 1:
+252:                f"Unsupported contract_version '{contract_version}', expected 1",
+432:def reconcile_results(
+566:def validate_capability_manifest(
+665:def _load_json_arg(arg: str) -> Any:
+675:def main() -> int:
+
+exec
+/bin/zsh -lc "nl -ba skills/setup_quality_check/resources/scripts/scaffold_quality_manifest.py | sed -n '195,350p'; nl -ba skills/dev-implementation/SKILL.md | sed -n '256,302p'; nl -ba .agents/quality/check_quality.json; rg --files .agents; nl -ba scripts/test_verifiable_handoff_text.py | sed -n '1,220p'" in /Users/danhdueexoictif/AllProjects/ai-agent-tools
+ succeeded in 0ms:
+   195	def build_registry_data(platforms: List[str]) -> Dict[str, Any]:
+   196	    """Builds standard check_quality.json structure for given platforms."""
+   197	    providers = []
+   198	    for p in platforms:
+   199	        cfg = PLATFORM_CONFIGS[p]
+   200	        providers.append({
+   201	            "id": cfg["provider_id"],
+   202	            "skill": cfg["skill"],
+   203	            "required": True,
+   204	            "profiles": ["pr", "epic"]
+   205	        })
+   206	
+   207	    return {
+   208	        "schema_version": 1,
+   209	        "providers": providers
+   210	    }
+   211	
+   212	
+   213	def scaffold_quality_manifests(
+   214	    repo_root: Path,
+   215	    output_dir: Optional[Path] = None,
+   216	    platforms: Optional[List[str]] = None,
+   217	    force: bool = False,
+   218	    dry_run: bool = False,
+   219	) -> Dict[str, Any]:
+   220	    """
+   221	    Scaffolds quality check registry and provider manifests into output_dir.
+   222	    Raises ScaffoldError on detection failures or overwrite conflicts.
+   223	    """
+   224	    repo_root = repo_root.resolve()
+   225	    if output_dir is None:
+   226	        target_dir = repo_root / ".agents" / "quality"
+   227	    else:
+   228	        target_dir = output_dir.resolve()
+   229	
+   230	    if platforms is None:
+   231	        detected = detect_platforms(repo_root)
+   232	    else:
+   233	        detected = sorted(list(set(platforms)))
+   234	        for p in detected:
+   235	            if p not in PLATFORM_CONFIGS:
+   236	                raise ScaffoldError(f"Unsupported platform specified: '{p}'. Allowed: {list(PLATFORM_CONFIGS.keys())}")
+   237	
+   238	    if not detected:
+   239	        raise ScaffoldError(
+   240	            f"No supported platform detected in repository root: {repo_root}. "
+   241	            f"Supported platforms: {list(PLATFORM_CONFIGS.keys())}"
+   242	        )
+   243	
+   244	    # Prepare file mappings
+   245	    target_files: Dict[Path, Dict[str, Any]] = {}
+   246	    reg_path = target_dir / "check_quality.json"
+   247	    target_files[reg_path] = build_registry_data(detected)
+   248	
+   249	    for p in detected:
+   250	        cfg = PLATFORM_CONFIGS[p]
+   251	        p_path = target_dir / cfg["filename"]
+   252	        target_files[p_path] = cfg["manifest"]
+   253	
+   254	    # Check for existing files if not force
+   255	    if not force:
+   256	        for fpath in target_files:
+   257	            if fpath.exists():
+   258	                raise ScaffoldError(
+   259	                    f"Configuration file already exists: {fpath}. Use --force to overwrite."
+   260	                )
+   261	
+   262	    if dry_run:
+   263	        return {
+   264	            "detected_platforms": detected,
+   265	            "output_directory": str(target_dir),
+   266	            "planned_files": [str(p) for p in target_files.keys()],
+   267	            "files": {str(p): data for p, data in target_files.items()},
+   268	        }
+   269	
+   270	    # Write files atomically
+   271	    target_dir.mkdir(parents=True, exist_ok=True)
+   272	    written = []
+   273	    for fpath, data in target_files.items():
+   274	        fpath.write_text(json.dumps(data, indent=2) + "\n")
+   275	        written.append(str(fpath))
+   276	
+   277	    return {
+   278	        "detected_platforms": detected,
+   279	        "output_directory": str(target_dir),
+   280	        "written_files": written,
+   281	    }
+   282	
+   283	
+   284	def main() -> int:
+   285	    parser = argparse.ArgumentParser(
+   286	        description="Scaffold standardized quality check configurations for repository platforms."
+   287	    )
+   288	    parser.add_argument(
+   289	        "--root",
+   290	        type=Path,
+   291	        default=Path("."),
+   292	        help="Repository root directory to inspect (default: current directory).",
+   293	    )
+   294	    parser.add_argument(
+   295	        "--output-dir",
+   296	        type=Path,
+   297	        default=None,
+   298	        help="Target directory for quality configs (default: <root>/.agents/quality).",
+   299	    )
+   300	    parser.add_argument(
+   301	        "--platform",
+   302	        type=str,
+   303	        default=None,
+   304	        help="Comma-separated platform override (e.g. flutter,android,ios,rust).",
+   305	    )
+   306	    parser.add_argument(
+   307	        "--force",
+   308	        action="store_true",
+   309	        help="Overwrite existing configuration files.",
+   310	    )
+   311	    parser.add_argument(
+   312	        "--dry-run",
+   313	        action="store_true",
+   314	        help="Print planned scaffolding without writing files to disk.",
+   315	    )
+   316	
+   317	    args = parser.parse_args()
+   318	
+   319	    platforms = None
+   320	    if args.platform:
+   321	        platforms = [p.strip().lower() for p in args.platform.split(",") if p.strip()]
+   322	
+   323	    try:
+   324	        result = scaffold_quality_manifests(
+   325	            repo_root=args.root,
+   326	            output_dir=args.output_dir,
+   327	            platforms=platforms,
+   328	            force=args.force,
+   329	            dry_run=args.dry_run,
+   330	        )
+   331	        print(f"Scaffolding completed successfully for platforms: {result['detected_platforms']}")
+   332	        if args.dry_run:
+   333	            print(f"Dry-run planned {len(result['planned_files'])} file(s):")
+   334	            for f in result["planned_files"]:
+   335	                print(f"  - {f}")
+   336	        else:
+   337	            print(f"Written {len(result['written_files'])} file(s) into {result['output_directory']}:")
+   338	            for f in result["written_files"]:
+   339	                print(f"  - {f}")
+   340	        return 0
+   341	    except ScaffoldError as err:
+   342	        print(f"Scaffolding error: {err}", file=sys.stderr)
+   343	        return 1
+   344	
+   345	
+   346	if __name__ == "__main__":
+   347	    sys.exit(main())
+   256	### Phase 4 — End of Epic Verification
+   257	
+   258	Once every task is `done`, resolve candidate commit SHA (`git rev-parse HEAD`) with a clean tree (`git status --porcelain` prints nothing):
+   259	
+   260	1. **Review decisions**, only when `.devtool/epic/<epic_dir>/review_results.md` exists:
+   261	   ```bash
+   262	   python3 "$SKILL_DIR"/resources/scripts/run_external_review.py check --epic-dir <epic_dir>
+   263	   ```
+   264	   Exit 1 means unresolved finding: record decision or make Fix commit, then restart Phase 4 in full.
+   265	2. **Gate 4 audit**:
+   266	   ```bash
+   267	   python3 "$SKILL_DIR"/resources/scripts/audit_epic.py --epic-dir <epic_dir> --base <base_ref>
+   268	   ```
+   269	   Must exit 0. Keep output for Phase 4.1.
+   270	3. **HLD Integration results commands.** Run every `Integration results:` line of HLD Integration Test Plan.
+   271	4. **Result-based traceability**: run `check_bdd_traceability.py tests --results` over those reports:
+   272	   ```bash
+   273	   python3 "$SKILL_DIR"/resources/scripts/check_bdd_traceability.py tests \
+   274	     --scenarios .devtool/epic/<epic_dir>/bdd_scenarios.en.md \
+   275	     --roots <Integration test roots from the HLD> \
+   276	     --results <reports written by Integration results commands>
+   277	   ```
+   278	   Must exit 0: every scenario in `bdd_scenarios.en.md` is covered by at least one passing integration test. `--roots` and `--ids` accept space- or comma-separated values.
+   279	5. **Quality check.** Run `@quality_check` on the same SHA:
+   280	   - Inputs:
+   281	     - `profile`: `"epic"`
+   282	     - `base_ref`: `<base_ref>`
+   283	     - `repository_sha`: Candidate commit SHA from `git rev-parse HEAD`
+   284	   - Only an aggregated verdict of **PASS** bound to that exact SHA qualifies for Gate 4 `🟢 LGTM`.
+   285	
+   286	#### Semantic Test Integrity Governance (Gate 4 Rules)
+   287	
+   288	Gate 4 enforces strict semantic test integrity to prevent false-confidence passes. Registered providers and auditors reject test fakery with **`FAIL`**:
+   289	1. **No Reconstructed Logic**: Tests MUST import and invoke production code directly from Allowed files. Tests MUST NOT reconstruct production logic (such as retry loops, progress tracking, mapping transformations, or configuration defaults) locally within test helpers or mock harnesses. If a test reconstructs production logic instead of invoking production symbols, the review reports FAIL.
+   290	2. **Immutable Real Artifacts**: Tests MUST execute against genuine, immutable repository artifacts, schemas, and fixtures. Tests MUST NOT substitute synthetic artifacts or mock data that alter scenario anchors or weaken contractual invariants. If a test substitutes synthetic artifacts that alter scenario anchors, the review reports FAIL.
+   291	
+   292	*(Note: These are Gate 4 semantic integrity requirements evaluated by specialist providers and audits; no universal cross-language mechanical coverage claim is made.)*
+   293	
+   294	### Review Choice — after every Gate 4 PASS
+   295	
+   296	<HARD-GATE>
+   297	You MUST NOT skip or auto-decide Review Choice after Gate 4 passes.
+   298	Present the choice between "Finish", "Cross-model review" and "Local model review" and wait for the developer's explicit instruction.
+   299	Cross-model review and Local model review must return to Phase 4 in full; only the next Gate 4 PASS may present Review Choice again.
+   300	</HARD-GATE>
+   301	
+   302	The loop invariant is **Gate 4 PASS → Review Choice; Finish → Gate 5; Cross-model review → Gate 4 in full; Local model review → Gate 4 in full**.
+nl: .agents/quality/check_quality.json: No such file or directory
+.agents/rules/window_title_sync.md
+.agents/plugins/marketplace.json
+     1	#!/usr/bin/env python3
+     2	"""Lock the verifiable task handoff statements in the skills a receiving agent reads.
+     3	
+     4	Run: python3 -m unittest scripts/test_verifiable_handoff_text.py
+     5	"""
+     6	from __future__ import annotations
+     7	import pathlib
+     8	import re
+     9	import unittest
+    10	
+    11	ROOT = pathlib.Path(__file__).resolve().parents[1]
+    12	SDD = "skills/subagent-driven-development/"
+    13	
+    14	
+    15	def read(relative):
+    16	    return (ROOT / relative).read_text(encoding="utf-8")
+    17	
+    18	
+    19	class VerifiableHandoffText(unittest.TestCase):
+    20	    def assert_present(self, relative, phrases):
+    21	        text = read(relative)
+    22	        for phrase in phrases:
+    23	            self.assertIn(phrase, text, f"{relative} lacks {phrase!r}")
+    24	
+    25	    def assert_absent(self, relative, phrases):
+    26	        text = read(relative)
+    27	        for phrase in phrases:
+    28	            self.assertNotIn(phrase, text, f"{relative} still has {phrase!r}")
+    29	
+    30	    def test_vth_hp_06_dev_designer_states_the_task_contract(self):
+    31	        self.assert_present("skills/dev-designer/SKILL.md", (
+    32	            "Stop and Report If", "Decisions Already Made", "Allowed files:",
+    33	            "RED: n/a", "(Gate 5)", "exactly one task",
+    34	            "check_task_contract.py --design", "Protected paths:",
+    35	            "Integration results:", "Verification Environment",
+    36	            "references/verification-rows.md",
+    37	        ))
+    38	        self.assert_absent("skills/dev-designer/SKILL.md",
+    39	                           ("Test & Verification Checklist",))
+    40	        self.assert_present("skills/dev-designer/references/verification-rows.md", (
+    41	            "Python", "Android", "Web", "iOS", "Rust", "Flutter",
+    42	            "--junitxml", "--file-reporter json:", "--xunit-output", "nextest",
+    43	        ))
+    44	
+    45	    def test_vth_hp_07_dev_implementation_states_recorder_and_gate(self):
+    46	        path = "skills/dev-implementation/SKILL.md"
+    47	        self.assert_present(path, (
+    48	            "run_task_checks.py red", "run_task_checks.py verify",
+    49	            "run_task_checks.py status", "evidence/<task_id>.json",
+    50	            "check_task_contract.py",
+    51	        ))
+    52	        text = read(path)
+    53	        start = text.index("### Phase 4")
+    54	        end = text.index("### Phase 4.1")
+    55	        phase4 = text[start:end]
+    56	        positions = [phase4.index(p) for p in (
+    57	            "audit_epic.py", "Integration results", "tests --results",
+    58	            "@quality_check")]
+    59	        self.assertEqual(positions, sorted(positions))
+    60	        self.assertEqual(len(set(positions)), 4)
+    61	
+    62	    def test_vth_hp_08_dev_lifecycle_and_handoff_state_the_rules(self):
+    63	        self.assert_present("skills/dev-lifecycle/SKILL.md", (
+    64	            "audit_epic.py", "result-based traceability",
+    65	            "check_task_contract.py --design",
+    66	        ))
+    67	        self.assert_present("skills/dev-lifecycle/references/handoff-template.md", (
+    68	            "Never edit a task's Verification table",
+    69	        ))
+    70	
+    71	    def test_vth_hp_09_sdd_prompts_treat_evidence_as_proof(self):
+    72	        self.assert_present(SDD + "implementer-prompt.md", (
+    73	            "run_task_checks.py red", "run_task_checks.py verify",
+    74	            "the evidence file is the test evidence",
+    75	        ))
+    76	        self.assert_absent(SDD + "implementer-prompt.md",
+    77	                           ("your report is the test evidence",))
+    78	        self.assert_present(SDD + "task-reviewer-prompt.md", (
+    79	            "run_task_checks.py status", "Critical",
+    80	        ))
+    81	
+    82	    def test_vth_hp_13_review_choice_is_stated(self):
+    83	        for path in ("skills/dev-implementation/SKILL.md",
+    84	                     "skills/dev-lifecycle/SKILL.md"):
+    85	            self.assert_present(path, (
+    86	                "Review Choice", "Finish", "Cross-model review", "Claude CLI",
+    87	                "Codex CLI", "run_external_review.py run",
+    88	                "run_external_review.py check", "review_results.md",
+    89	            ))
+    90	        self.assert_present("skills/dev-lifecycle/SKILL.md",
+    91	                            ("picking the review CLI for the developer",))
+    92	
+    93	    def test_vth_st_14_review_choice_follows_gate_4_and_loops(self):
+    94	        self.assert_present("rules/CRITICAL_RULES.md", (
+    95	            "after Gate 4 passes",
+    96	            "Cross-model review must return to a full Gate 4 run",
+    97	        ))
+    98	        for path in ("skills/dev-lifecycle/SKILL.md",
+    99	                     "skills/dev-implementation/SKILL.md"):
+   100	            self.assert_present(path, (
+   101	                "Gate 4 PASS → Review Choice",
+   102	                "Finish → Gate 5",
+   103	                "Cross-model review → Gate 4 in full",
+   104	            ))
+   105	
+   106	        lifecycle = read("skills/dev-lifecycle/SKILL.md")
+   107	        self.assertIn('EXEC --> G4', lifecycle)
+   108	        self.assertIn('G4 -->|"yes"| RC', lifecycle)
+   109	        self.assertIn('RC -->|"1. Finish"| REVIEW', lifecycle)
+   110	        self.assertIn('XR -->|"round recorded"| G4', lifecycle)
+   111	
+   112	        implementation = read("skills/dev-implementation/SKILL.md")
+   113	        self.assertIn('moretasks -- "no, epic done" --> phase4', implementation)
+   114	        self.assertIn('phase4 -- "PASS" --> choice', implementation)
+   115	        self.assertIn('choice -- "Finish" --> checkpoint4', implementation)
+   116	        self.assertIn('review -- "round recorded" --> phase4', implementation)
+   117	
+   118	        for path in ("rules/CRITICAL_RULES.md",
+   119	                     "skills/dev-lifecycle/SKILL.md",
+   120	                     "skills/dev-implementation/SKILL.md",
+   121	                     "docs/lifecycles.en.md",
+   122	                     "docs/choosing-a-lifecycle.en.md"):
+   123	            self.assert_absent(path, (
+   124	                "Review Choice before Gate 4",
+   125	                "Review Choice is mandatory before Gate 4",
+   126	                "Review Choice) before Gate 4",
+   127	            ))
+   128	
+   129	        self.assert_present("docs/lifecycles.en.md", (
+   130	            "Every PASS presents **Review Choice**",
+   131	            "returns to a full Gate 4 run",
+   132	        ))
+   133	        self.assert_present("docs/lifecycles.vi.md", (
+   134	            "Mỗi lần PASS sẽ đưa ra **Review Choice**",
+   135	            "quay lại chạy đầy đủ Cổng 4",
+   136	        ))
+   137	        self.assert_present("docs/choosing-a-lifecycle.en.md", (
+   138	            "after every Gate 4 PASS",
+   139	            "loop continues until you choose Finish",
+   140	        ))
+   141	        self.assert_present("docs/choosing-a-lifecycle.vi.md", (
+   142	            "sau mỗi lần Cổng 4 PASS",
+   143	            "vòng lặp tiếp tục cho tới khi bạn chọn Finish",
+   144	        ))
+   145	
+   146	
+   147	if __name__ == "__main__":
+   148	    unittest.main()
+
+exec
+/bin/zsh -lc "ls -l /Applications/Xcode.app/Contents/Developer/usr/bin/git /Library/Developer/CommandLineTools/usr/bin/git; nl -ba skills/quality_check/resources/scripts/test_quality_provider_acceptance.py | sed -n '1,175p'; nl -ba skills/dev-implementation/resources/scripts/test_result_reports.py | sed -n '1,175p'; rg -n 'mock|patch|condition 6|Case|digest' skills/dev-implementation/resources/scripts/test_check_task_contract.py skills/dev-implementation/resources/scripts/test_sync_task_status.py" in /Users/danhdueexoictif/AllProjects/ai-agent-tools
+ succeeded in 0ms:
+-rwxr-xr-x  1 root  wheel  3838240 Oct 20 09:01 /Applications/Xcode.app/Contents/Developer/usr/bin/git
+-rwxr-xr-x  1 root  wheel  3838240 Oct 21 07:01 /Library/Developer/CommandLineTools/usr/bin/git
+     1	#!/usr/bin/env python3
+     2	"""End-to-end acceptance tests for the provider-based quality system.
+     3	
+     4	Tests composite consumer repositories, multiple providers, Rust capability execution,
+     5	formal lifecycle inputs, deterministic concurrency, status precedence (FAIL > BLOCKED > PASS),
+     6	missing registration, missing tools, corrupt results, SHA drift, and read-only invariants.
+     7	"""
+     8	
+     9	from __future__ import annotations
+    10	
+    11	import copy
+    12	import json
+    13	from pathlib import Path
+    14	import subprocess
+    15	import tempfile
+    16	import unittest
+    17	
+    18	from skills.quality_check.resources.scripts.validate_quality_contract import (
+    19	    validate_registry,
+    20	    normalize_invocation,
+    21	    validate_provider_result,
+    22	    reconcile_results,
+    23	    validate_capability_manifest,
+    24	)
+    25	from skills.quality_check.resources.scripts.aggregate_quality_results import (
+    26	    aggregate_results,
+    27	    render_executive_report,
+    28	)
+    29	
+    30	
+    31	def _init_git_repo(path: Path) -> str:
+    32	    """Initialize a git repo with a commit and return its HEAD SHA."""
+    33	    subprocess.run(["git", "init"], cwd=path, check=True, capture_output=True)
+    34	    subprocess.run(["git", "config", "user.email", "agent@example.com"], cwd=path, check=True, capture_output=True)
+    35	    subprocess.run(["git", "config", "user.name", "Agent Tools"], cwd=path, check=True, capture_output=True)
+    36	    (path / "README.md").write_text("# Test Repo\n")
+    37	    subprocess.run(["git", "add", "."], cwd=path, check=True, capture_output=True)
+    38	    subprocess.run(["git", "commit", "-m", "Initial commit"], cwd=path, check=True, capture_output=True)
+    39	    return subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=path).decode().strip()
+    40	
+    41	
+    42	def _make_provider_result(
+    43	    provider_id: str,
+    44	    sha: str,
+    45	    profile: str = "epic",
+    46	    status: str = "PASS",
+    47	    check_status: str = "PASS",
+    48	    check_id: str = "main-check",
+    49	    blockers: list[str] | None = None,
+    50	    coverage_measured: float = 0.88,
+    51	    coverage_threshold: float = 0.80,
+    52	    extra_checks: list[dict] | None = None,
+    53	) -> dict:
+    54	    """Construct a schema-valid provider result dict."""
+    55	    check_entry = {
+    56	        "id": check_id,
+    57	        "category": "tests",
+    58	        "status": check_status,
+    59	        "source": "cargo test" if "rust" in provider_id else "gradle check",
+    60	        "duration": 12.5,
+    61	        "summary": f"{check_id} completed with status {check_status}",
+    62	        "evidence_refs": [f"ev-{check_id}"],
+    63	    }
+    64	    if check_status == "NOT_APPLICABLE":
+    65	        check_entry["not_applicable_reason"] = {
+    66	            "code": "scope_unmodified",
+    67	            "detail": "No touched files in this module",
+    68	        }
+    69	
+    70	    checks = [check_entry]
+    71	    if extra_checks:
+    72	        checks.extend(extra_checks)
+    73	
+    74	    evidence_items = [
+    75	        {
+    76	            "id": f"ev-{check_id}",
+    77	            "type": "log",
+    78	            "source": "stdout",
+    79	            "location": f"target/quality/{provider_id}/{check_id}.log",
+    80	        }
+    81	    ]
+    82	    if extra_checks:
+    83	        for ec in extra_checks:
+    84	            for ref in ec.get("evidence_refs", []):
+    85	                evidence_items.append(
+    86	                    {
+    87	                        "id": ref,
+    88	                        "type": "log",
+    89	                        "source": "stdout",
+    90	                        "location": f"target/quality/{provider_id}/{ref}.log",
+    91	                    }
+    92	                )
+    93	
+    94	    return {
+    95	        "provider_id": provider_id,
+    96	        "contract_version": 1,
+    97	        "profile": profile,
+    98	        "repository_sha": sha,
+    99	        "status": status,
+   100	        "checks": checks,
+   101	        "coverage": {
+   102	            "line": {
+   103	                "measured": coverage_measured,
+   104	                "threshold": coverage_threshold,
+   105	            }
+   106	        },
+   107	        "evidence": evidence_items,
+   108	        "started_head": sha,
+   109	        "finished_head": sha,
+   110	        "duration": 25.0,
+   111	        "blockers": blockers or [],
+   112	        "warnings": [],
+   113	    }
+   114	
+   115	
+   116	def execute_quality_pipeline(
+   117	    repo_path: Path,
+   118	    raw_invocation: dict,
+   119	    provider_results: list[dict],
+   120	    available_skills: set[str],
+   121	) -> dict:
+   122	    """Simulate the complete quality_check orchestration kernel end-to-end."""
+   123	    registry_file = repo_path / ".agents" / "quality" / "check_quality.json"
+   124	    if not registry_file.exists():
+   125	        plan = [{"id": "unregistered", "required": True}]
+   126	        results = [
+   127	            {
+   128	                "provider_id": "unregistered",
+   129	                "status": "BLOCKED",
+   130	                "required": True,
+   131	                "blockers": ["Missing required project quality registry .agents/quality/check_quality.json"],
+   132	            }
+   133	        ]
+   134	        agg = aggregate_results(plan, results, raw_invocation)
+   135	        return {
+   136	            "status": "BLOCKED",
+   137	            "aggregation": agg,
+   138	            "report": render_executive_report(agg),
+   139	        }
+   140	
+   141	    # 1. Normalize invocation
+   142	    inv_res = normalize_invocation(raw_invocation)
+   143	    if inv_res["status"] != "PASS":
+   144	        plan = [{"id": "invocation", "required": True}]
+   145	        results = [
+   146	            {
+   147	                "provider_id": "invocation",
+   148	                "status": "BLOCKED",
+   149	                "required": True,
+   150	                "blockers": [f["message"] for f in inv_res["findings"]],
+   151	            }
+   152	        ]
+   153	        agg = aggregate_results(plan, results, raw_invocation)
+   154	        return {
+   155	            "status": "BLOCKED",
+   156	            "aggregation": agg,
+   157	            "report": render_executive_report(agg),
+   158	        }
+   159	    inv = inv_res["invocation"]
+   160	
+   161	    # 2. Validate registry
+   162	    reg_data = json.loads(registry_file.read_text())
+   163	    reg_res = validate_registry(reg_data, inv["profile"], available_skills)
+   164	    if reg_res["status"] != "PASS":
+   165	        plan = [{"id": "registry", "required": True}]
+   166	        results = [
+   167	            {
+   168	                "provider_id": "registry",
+   169	                "status": "BLOCKED",
+   170	                "required": True,
+   171	                "blockers": [f["message"] for f in reg_res["findings"]],
+   172	            }
+   173	        ]
+   174	        agg = aggregate_results(plan, results, inv)
+   175	        return {
+     1	#!/usr/bin/env python3
+     2	"""Tests for result_reports.py.
+     3	
+     4	Run: python3 -m unittest skills/dev-implementation/resources/scripts/test_result_reports.py
+     5	"""
+     6	from __future__ import annotations
+     7	import sys
+     8	import tempfile
+     9	import unittest
+    10	from pathlib import Path
+    11	
+    12	sys.path.insert(0, str(Path(__file__).parent))
+    13	from result_reports import (Case, ReportError, digest, load_reports, parse_dart, parse_junit,
+    14	                            reference_pattern, verdicts)
+    15	
+    16	JUNIT = """<testsuites><testsuite name="a">
+    17	<testcase classname="x.Y" name="passes"/>
+    18	<testcase classname="x.Y" name="fails"><failure message="m"/></testcase>
+    19	<testcase classname="x.Y" name="errors"><error message="m"/></testcase>
+    20	<testcase classname="x.Y" name="skips"><skipped/></testcase>
+    21	<testsuite name="nested"><testcase classname="z" name="deep"/></testsuite>
+    22	</testsuite></testsuites>"""
+    23	
+    24	DART = "\n".join([
+    25	    '{"type":"start"}',
+    26	    '{"type":"testStart","test":{"id":1,"name":"loading /tmp/x.dart"}}',
+    27	    '{"type":"testDone","testID":1,"result":"success","skipped":false,"hidden":true}',
+    28	    '{"type":"testStart","test":{"id":2,"name":"g ok"}}',
+    29	    '{"type":"testDone","testID":2,"result":"success","skipped":false,"hidden":false}',
+    30	    '{"type":"testStart","test":{"id":3,"name":"g bad"}}',
+    31	    '{"type":"testDone","testID":3,"result":"failure","skipped":false,"hidden":false}',
+    32	    '{"type":"testStart","test":{"id":4,"name":"g skip"}}',
+    33	    '{"type":"testDone","testID":4,"result":"success","skipped":true,"hidden":false}',
+    34	    '{"type":"done","success":false}',
+    35	])
+    36	
+    37	
+    38	def case(name: str, status: str = "passed", classname: str = "") -> Case:
+    39	    return Case(name, classname, status)
+    40	
+    41	
+    42	class ParserTest(unittest.TestCase):
+    43	    def test_junit_statuses_at_any_depth(self) -> None:
+    44	        got = {c.name: c.status for c in parse_junit(JUNIT)}
+    45	        self.assertEqual(got, {"passes": "passed", "fails": "failed", "errors": "failed",
+    46	                               "skips": "skipped", "deep": "passed"})
+    47	        self.assertEqual(parse_junit(JUNIT)[0].classname, "x.Y")
+    48	
+    49	    def test_dart_statuses_and_hidden_tests(self) -> None:
+    50	        got = {c.name: (c.status, c.classname) for c in parse_dart(DART)}
+    51	        self.assertEqual(got, {"g ok": ("passed", ""), "g bad": ("failed", ""), "g skip": ("skipped", "")})
+    52	
+    53	    def test_reference_pattern_matches_case_and_separators(self) -> None:
+    54	        pattern = reference_pattern("DEMO-HP-01")
+    55	        self.assertTrue(pattern.search("test_demo_hp_01_x"))
+    56	        self.assertFalse(pattern.search("demo_hp_011"))
+    57	
+    58	
+    59	class LoadTest(unittest.TestCase):
+    60	    def setUp(self) -> None:
+    61	        directory = tempfile.TemporaryDirectory()
+    62	        self.addCleanup(directory.cleanup)
+    63	        self.root = Path(directory.name)
+    64	
+    65	    def write(self, relative: str, text: str) -> None:
+    66	        path = self.root / relative
+    67	        path.parent.mkdir(parents=True, exist_ok=True)
+    68	        path.write_text(text, encoding="utf-8")
+    69	
+    70	    def test_file_directory_and_glob(self) -> None:
+    71	        self.write("one.xml", '<testsuite><testcase name="a"/></testsuite>')
+    72	        self.write("dir/sub/two.xml", '<testsuite><testcase name="b"/></testsuite>')
+    73	        self.write("dir/three.json", '{"type":"testStart","test":{"id":1,"name":"c"}}\n'
+    74	                   '{"type":"testDone","testID":1,"result":"success","skipped":false,"hidden":false}')
+    75	        self.write("dir/ignored.txt", "not a report")
+    76	        self.write("g/x1.xml", '<testsuite><testcase name="d"/></testsuite>')
+    77	        names = lambda paths: sorted(c.name for c in load_reports(paths, self.root))
+    78	        self.assertEqual(names(["one.xml"]), ["a"])
+    79	        self.assertEqual(names(["dir"]), ["b", "c"])
+    80	        self.assertEqual(names(["g/x*.xml"]), ["d"])
+    81	
+    82	    def test_missing_path_and_unknown_format_raise_naming_the_path(self) -> None:
+    83	        self.write("bad.xml", "  plain text")
+    84	        with self.assertRaisesRegex(ReportError, "nowhere"):
+    85	            load_reports(["nowhere.xml"], self.root)
+    86	        with self.assertRaisesRegex(ReportError, "bad.xml"):
+    87	            load_reports(["bad.xml"], self.root)
+    88	
+    89	
+    90	class VerdictTest(unittest.TestCase):
+    91	    def test_every_branch(self) -> None:
+    92	        cases = [case("demo_hp_01"), case("demo_hp_01_b", "failed"),
+    93	                 case("demo_ec_01", "skipped"), case("demo_st_01"), case("demo_st_01_b", "skipped"),
+    94	                 case("t", classname="DEMO-FR-01")]
+    95	        got = verdicts(["DEMO-HP-01", "DEMO-EC-01", "DEMO-ST-01", "DEMO-FR-01", "DEMO-LF-01"], cases)
+    96	        self.assertEqual(got["DEMO-HP-01"], (False, "failed in demo_hp_01_b"))
+    97	        self.assertEqual(got["DEMO-EC-01"], (False, "skipped"))
+    98	        self.assertEqual(got["DEMO-ST-01"], (True, "demo_st_01"))
+    99	        self.assertEqual(got["DEMO-FR-01"], (True, "t"))
+   100	        self.assertEqual(got["DEMO-LF-01"], (False, "no test case in results"))
+   101	
+   102	    def test_digest_lists_only_cases_of_the_identifiers(self) -> None:
+   103	        cases = [case("demo_hp_01"), case("demo_hp_01_b", "failed"), case("demo_ec_01", "skipped"),
+   104	                 case("other")]
+   105	        self.assertEqual(digest(cases, ["DEMO-HP-01", "DEMO-EC-01"]), {
+   106	            "totals": {"passed": 1, "failed": 1, "skipped": 1},
+   107	            "cases": [{"name": "demo_hp_01", "classname": "", "status": "passed"},
+   108	                      {"name": "demo_hp_01_b", "classname": "", "status": "failed"},
+   109	                      {"name": "demo_ec_01", "classname": "", "status": "skipped"}]})
+   110	
+   111	
+   112	if __name__ == "__main__":
+   113	    unittest.main()
+skills/dev-implementation/resources/scripts/test_check_task_contract.py:59:class ContractCase(unittest.TestCase):
+skills/dev-implementation/resources/scripts/test_check_task_contract.py:103:class CompliantEpicTest(ContractCase):
+skills/dev-implementation/resources/scripts/test_check_task_contract.py:134:class GroundingTest(ContractCase):
+skills/dev-implementation/resources/scripts/test_check_task_contract.py:182:class StructureTest(ContractCase):
+skills/dev-implementation/resources/scripts/test_check_task_contract.py:227:class DeclarationTest(ContractCase):
+skills/dev-implementation/resources/scripts/test_check_task_contract.py:256:class UsageTest(ContractCase):
+skills/dev-implementation/resources/scripts/test_check_task_contract.py:277:class PythonTierBAndFastModelTest(ContractCase):
+skills/dev-implementation/resources/scripts/test_sync_task_status.py:44:class SetFrontmatterFieldTests(unittest.TestCase):
+skills/dev-implementation/resources/scripts/test_sync_task_status.py:76:class NowIsoTests(unittest.TestCase):
+skills/dev-implementation/resources/scripts/test_sync_task_status.py:84:class ParseFrontmatterTests(unittest.TestCase):
+skills/dev-implementation/resources/scripts/test_sync_task_status.py:118:class ParseWorktreeListTests(unittest.TestCase):
+skills/dev-implementation/resources/scripts/test_sync_task_status.py:140:class TaskTargetsTests(unittest.TestCase):
+skills/dev-implementation/resources/scripts/test_sync_task_status.py:162:class ExpectedEpicTests(unittest.TestCase):
+skills/dev-implementation/resources/scripts/test_sync_task_status.py:180:class SyncTaskTests(unittest.TestCase):
+skills/dev-implementation/resources/scripts/test_sync_task_status.py:290:class BoardTallyTests(unittest.TestCase):
+skills/dev-implementation/resources/scripts/test_sync_task_status.py:323:class SyncEpicTests(unittest.TestCase):
+skills/dev-implementation/resources/scripts/test_sync_task_status.py:377:class LinkFixTests(unittest.TestCase):
+skills/dev-implementation/resources/scripts/test_sync_task_status.py:398:class ArchiveEpicTasksTests(unittest.TestCase):
+skills/dev-implementation/resources/scripts/test_sync_task_status.py:590:class DoneGateCase(unittest.TestCase):
+skills/dev-implementation/resources/scripts/test_sync_task_status.py:656:class DoneGateTests(DoneGateCase):
+skills/dev-implementation/resources/scripts/test_sync_task_status.py:712:            row["results"]["digest"]["cases"] = [
+skills/dev-implementation/resources/scripts/test_sync_task_status.py:713:                c for c in row["results"]["digest"]["cases"] if "demo_ec_01" not in c["name"]]
+skills/dev-implementation/resources/scripts/test_sync_task_status.py:716:        self.refuse_leaves_copies("condition 6:", "DEMO-EC-01")
+skills/dev-implementation/resources/scripts/test_sync_task_status.py:780:class EpicCheckoutRootsTests(unittest.TestCase):
+
+codex
+The current done gate checks scenario names and test outcomes, but its evidence format carries no browser or watchdog provenance. Task 05 promises stronger enforcement without defining how that evidence reaches the gate. I’m probing that boundary and checking the watchdog’s visibility rules against existing accessibility styles.
+
+exec
+/bin/zsh -lc "GIT_OPTIONAL_LOCKS=0 /Library/Developer/CommandLineTools/usr/bin/git rev-parse HEAD; GIT_OPTIONAL_LOCKS=0 /Library/Developer/CommandLineTools/usr/bin/git ls-tree -r --name-only 46a3699238a95dc1dcda46b8ca93bc3515fc1dc2 .agents; nl -ba /Users/danhdueexoictif/AllProjects/D3Nexus/.agents/quality/check_quality.json; nl -ba /Users/danhdueexoictif/AllProjects/lyrics-sync/.agents/quality/check_quality.json; rg --files /Users/danhdueexoictif/AllProjects/D3Nexus/apps/learning-web /Users/danhdueexoictif/AllProjects/lyrics-sync | rg '(playwright.config|package.json|e2e_full_screens_chrome_test.py|sr-only|jsconfig)' | head -50; rg -n 'sr-only|clip-path|clip:|visually-hidden' /Users/danhdueexoictif/AllProjects/lyrics-sync/src/lyrics_sync/preview/static /Users/danhdueexoictif/AllProjects/D3Nexus/apps/learning-web/src | head -55; rg --files /Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts | head -30" in /Users/danhdueexoictif/AllProjects/ai-agent-tools
+ succeeded in 0ms:
+46a3699238a95dc1dcda46b8ca93bc3515fc1dc2
+.agents/plugins/marketplace.json
+.agents/rules/window_title_sync.md
+     1	{
+     2	  "schema_version": 1,
+     3	  "providers": [
+     4	    {
+     5	      "id": "rust-core",
+     6	      "skill": "d3nexus:rust-quality-check",
+     7	      "required": true,
+     8	      "profiles": [
+     9	        "pr",
+    10	        "epic",
+    11	        "scheduled",
+    12	        "release"
+    13	      ]
+    14	    }
+    15	  ]
+    16	}
+     1	{
+     2	  "schema_version": 1,
+     3	  "providers": [
+     4	    {
+     5	      "id": "python-core",
+     6	      "skill": "d3nexus:python-quality-check",
+     7	      "required": true,
+     8	      "profiles": [
+     9	        "pr",
+    10	        "epic"
+    11	      ]
+    12	    }
+    13	  ]
+    14	}
+/Users/danhdueexoictif/AllProjects/D3Nexus/apps/learning-web/package.json
+/Users/danhdueexoictif/AllProjects/D3Nexus/apps/learning-web/playwright.config.ts
+/Users/danhdueexoictif/AllProjects/lyrics-sync/tests/e2e_full_screens_chrome_test.py
+/Users/danhdueexoictif/AllProjects/D3Nexus/apps/learning-web/src/pages/app/today.astro:369:                video_clip: { label: 'Video YouTube', icon: '🎬', badgeClass: 'badge-video', actionText: 'Xem lại' },
+/Users/danhdueexoictif/AllProjects/D3Nexus/apps/learning-web/src/pages/app/styleguide.astro:30:        -webkit-background-clip: text;
+/Users/danhdueexoictif/AllProjects/D3Nexus/apps/learning-web/src/pages/studio/fleet.astro:70:        -webkit-background-clip: text;
+/Users/danhdueexoictif/AllProjects/D3Nexus/apps/learning-web/src/pages/studio/align/curator.astro:102:        -webkit-background-clip: text;
+/Users/danhdueexoictif/AllProjects/D3Nexus/apps/learning-web/src/pages/studio/align.astro:71:        -webkit-background-clip: text;
+/Users/danhdueexoictif/AllProjects/lyrics-sync/src/lyrics_sync/preview/static/app.js:2578:      const headerH = header && !header.classList.contains("visually-hidden") ? header.offsetHeight : 0;
+/Users/danhdueexoictif/AllProjects/D3Nexus/apps/learning-web/src/components/vocab/other-contexts-wiring.ts:94:      const clip: ContextClip = {
+/Users/danhdueexoictif/AllProjects/lyrics-sync/src/lyrics_sync/preview/static/search.html:69:        <label for="search-sort-select" class="visually-hidden">Sort tracks</label>
+/Users/danhdueexoictif/AllProjects/D3Nexus/apps/learning-web/src/components/player/context-clip-previewer.ts:9:  toggle(clip: ContextClip): Promise<'playing' | 'stopped' | 'error'>;
+/Users/danhdueexoictif/AllProjects/D3Nexus/apps/learning-web/src/components/player/context-clip-previewer.ts:52:    async toggle(clip: ContextClip): Promise<'playing' | 'stopped' | 'error'> {
+/Users/danhdueexoictif/AllProjects/D3Nexus/apps/learning-web/src/components/today/RecentLessonsList.astro:64:  video_clip: { label: 'Video YouTube', icon: '🎬', badgeClass: 'badge-video', actionText: 'Xem lại' },
+/Users/danhdueexoictif/AllProjects/D3Nexus/apps/learning-web/src/styles/flashcard-card.css:936:  background-clip: padding-box, border-box;
+/Users/danhdueexoictif/AllProjects/D3Nexus/apps/learning-web/src/styles/flashcard-card.css:944:  background-clip: padding-box, border-box;
+/Users/danhdueexoictif/AllProjects/D3Nexus/apps/learning-web/src/styles/flashcard-card.css:952:  background-clip: padding-box, border-box;
+/Users/danhdueexoictif/AllProjects/D3Nexus/apps/learning-web/src/styles/flashcard-card.css:960:  background-clip: padding-box, border-box;
+/Users/danhdueexoictif/AllProjects/D3Nexus/apps/learning-web/src/styles/flashcard-card.css:968:  background-clip: padding-box, border-box;
+/Users/danhdueexoictif/AllProjects/D3Nexus/apps/learning-web/src/styles/flashcard-card.css:976:  background-clip: padding-box, border-box;
+/Users/danhdueexoictif/AllProjects/lyrics-sync/src/lyrics_sync/preview/static/style.css:89:.visually-hidden {
+/Users/danhdueexoictif/AllProjects/lyrics-sync/src/lyrics_sync/preview/static/style.css:96:  clip: rect(0, 0, 0, 0);
+/Users/danhdueexoictif/AllProjects/lyrics-sync/src/lyrics_sync/preview/static/style.css:1595:  -webkit-background-clip: text;
+/Users/danhdueexoictif/AllProjects/lyrics-sync/src/lyrics_sync/preview/static/style.css:3753:  -webkit-background-clip: text;
+/Users/danhdueexoictif/AllProjects/D3Nexus/apps/learning-web/src/components/player/lyrics-display.ts:135:      editBtn.innerHTML = '✏️ <span class="sr-only">Sửa dòng này</span>';
+/Users/danhdueexoictif/AllProjects/D3Nexus/apps/learning-web/src/components/studio/AudioDropzone.astro:17:      <input type="file" id="audio-file-input" accept=".mp3,.wav,.m4a,.flac" class="sr-only" />
+/Users/danhdueexoictif/AllProjects/D3Nexus/apps/learning-web/src/components/studio/AudioDropzone.astro:70:  .sr-only {
+/Users/danhdueexoictif/AllProjects/D3Nexus/apps/learning-web/src/components/studio/AudioDropzone.astro:77:    clip: rect(0, 0, 0, 0);
+/Users/danhdueexoictif/AllProjects/lyrics-sync/src/lyrics_sync/preview/static/index.html:198:  <h1 id="title" class="visually-hidden">lyrics-sync preview</h1>
+/Users/danhdueexoictif/AllProjects/lyrics-sync/src/lyrics_sync/preview/static/index.html:199:  <header id="header" class="visually-hidden" aria-hidden="true"></header>
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/architecture_and_flow.md
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/api_contract.md
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/gaps_and_rfcs.md
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/README.md
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/architecture_and_flow.md
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/api_contract.md
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/gaps_and_rfcs.md
+
+exec
+/bin/zsh -lc "nl -ba /Users/danhdueexoictif/AllProjects/D3Nexus/apps/learning-web/playwright.config.ts; nl -ba /Users/danhdueexoictif/AllProjects/D3Nexus/apps/learning-web/package.json; nl -ba /Users/danhdueexoictif/AllProjects/lyrics-sync/tests/e2e_full_screens_chrome_test.py | sed -n '1,130p'; nl -ba /Users/danhdueexoictif/AllProjects/lyrics-sync/src/lyrics_sync/preview/static/style.css | sed -n '84,105p'; nl -ba /Users/danhdueexoictif/AllProjects/D3Nexus/apps/learning-web/src/components/studio/AudioDropzone.astro | sed -n '68,85p'; wc -l /Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/{lyrics-sync,nexus}/*.md" in /Users/danhdueexoictif/AllProjects/ai-agent-tools
+ succeeded in 0ms:
+     1	import { defineConfig, devices } from '@playwright/test';
+     2	
+     3	const port = process.env.PLAYWRIGHT_PORT || 8385;
+     4	
+     5	export default defineConfig({
+     6	  testDir: './tests/e2e',
+     7	  testMatch: '**/*.spec.ts',
+     8	  outputDir: '../../build/browser-artifacts',
+     9	  fullyParallel: false,
+    10	  workers: 1,
+    11	  forbidOnly: !!process.env.CI,
+    12	  retries: 0,
+    13	  use: {
+    14	    baseURL: `http://127.0.0.1:${port}`,
+    15	    trace: 'on-first-retry',
+    16	  },
+    17	  projects: [
+    18	    {
+    19	      name: 'chromium',
+    20	      use: { ...devices['Desktop Chrome'] },
+    21	    },
+    22	  ],
+    23	  webServer: {
+    24	    command: `npm run build && node preview.mjs --port ${port}`,
+    25	    url: `http://127.0.0.1:${port}`,
+    26	    reuseExistingServer: !process.env.CI,
+    27	    timeout: 120 * 1000,
+    28	  },
+    29	});
+     1	{
+     2	  "name": "@d3nexus/learning-web",
+     3	  "version": "1.0.0",
+     4	  "type": "module",
+     5	  "description": "D3Nexus English Learning Web Application (Astro + Vanilla Custom Elements + Screen MVI + Rust WASM)",
+     6	  "scripts": {
+     7	    "dev": "astro dev",
+     8	    "start": "astro dev",
+     9	    "build": "astro build",
+    10	    "preview": "node preview.mjs",
+    11	    "test:guard": "node --experimental-strip-types --test tests/unit/design-system-guard.test.ts",
+    12	    "test": "node --experimental-strip-types --test tests/unit/*.test.ts tests/*.test.ts tests/e2e/*.test.ts"
+    13	  },
+    14	  "dependencies": {
+    15	    "@d3nexus/contracts": "file:../../packages/contracts",
+    16	    "astro": "^5.0.0"
+    17	  },
+    18	  "devDependencies": {
+    19	    "@playwright/test": "^1.64.1",
+    20	    "typescript": "^5.7.0"
+    21	  }
+    22	}
+     1	"""Automated Google Chrome E2E test suite for Preview Player, Flashcards, and Search.
+     2	
+     3	Validates all 3 requested screens with real user interactions on Google Chrome:
+     4	1. Preview Player Screen (playback, lines, speed controls, mute, scrubber, seeking, collocations)
+     5	2. Flashcards & Vocabulary Screen (navigation, search filter, CEFR filter, cards grid, drawer edit)
+     6	3. Catalog Search Screen (/search, suggestions dropdown, filter chips, sorting, cards grid, preview)
+     7	"""
+     8	
+     9	from __future__ import annotations
+    10	
+    11	import sys
+    12	import time
+    13	
+    14	import pytest
+    15	
+    16	pytest.importorskip("playwright", reason="playwright is required for browser E2E tests")
+    17	from playwright.sync_api import sync_playwright
+    18	
+    19	CHROME_PATH = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+    20	BASE_URL = "http://localhost:8768"
+    21	
+    22	
+    23	def run_tests() -> None:
+    24	    print(f"[Full Chrome E2E] Launching Google Chrome from: {CHROME_PATH}")
+    25	    errors: list[str] = []
+    26	    failed_requests: list[str] = []
+    27	
+    28	    with sync_playwright() as p:
+    29	        browser = p.chromium.launch(
+    30	            executable_path=CHROME_PATH,
+    31	            headless=True,
+    32	            args=["--no-sandbox", "--disable-gpu", "--disable-dev-shm-usage"],
+    33	        )
+    34	        page = browser.new_page()
+    35	
+    36	        # Capture browser console errors and failed responses
+    37	        page.on("console", lambda msg: print(f"  [Browser {msg.type}] {msg.text}"))
+    38	        page.on("pageerror", lambda err: errors.append(f"Uncaught Page Error: {err}"))
+    39	        page.on(
+    40	            "response",
+    41	            lambda r: (
+    42	                failed_requests.append(f"{r.status} {r.url}")
+    43	                if r.status >= 400 and not r.url.endswith("favicon.ico")
+    44	                else None
+    45	            ),
+    46	        )
+    47	
+    48	        # =========================================================================
+    49	        # 1. PREVIEW PLAYER SCREEN VERIFICATION
+    50	        # =========================================================================
+    51	        print("\n=======================================================")
+    52	        print("STAGE 1: Preview Player Screen Verification")
+    53	        print("=======================================================")
+    54	        print(f"[Preview Player] Navigating to {BASE_URL}...")
+    55	        page.goto(BASE_URL, wait_until="domcontentloaded", timeout=15000)
+    56	        assert page.title(), "Preview player failed to load"
+    57	        print("[Preview Player] Page loaded successfully!")
+    58	
+    59	        # 1a. Verify Active View is Karaoke/Preview
+    60	        tab_preview = page.locator("#tab-preview")
+    61	        assert tab_preview.is_visible(), "Tab Preview button not visible"
+    62	        karaoke_view = page.locator("#karaoke-view")
+    63	        assert karaoke_view.is_visible(), "Karaoke / Preview player view not visible"
+    64	
+    65	        # 1b. Verify Lines Container and Synced Lyrics
+    66	        lines_container = page.locator("#lines")
+    67	        assert lines_container.is_visible(), "Lyrics lines container not visible"
+    68	        page.wait_for_selector("#lines .line", timeout=6000)
+    69	        lines_count = page.locator("#lines .line").count()
+    70	        print(f"[Preview Player] Rendered lyrics lines: {lines_count}")
+    71	        assert lines_count > 0, "No lyrics lines rendered in preview player"
+    72	
+    73	        first_line = page.locator("#lines .line").first
+    74	        first_line_text = first_line.inner_text().strip()
+    75	        print(f"[Preview Player] First line text preview: '{first_line_text[:50]}...'")
+    76	
+    77	        # 1c. Test Playback Controls (Play / Pause toggle)
+    78	        play_pause_btn = page.locator("#play-pause")
+    79	        assert play_pause_btn.is_visible(), "Play/Pause button not visible"
+    80	        initial_play_icon = play_pause_btn.inner_text().strip()
+    81	        print(f"[Preview Player] Initial play button icon: '{initial_play_icon}'")
+    82	        play_pause_btn.click()
+    83	        time.sleep(0.5)
+    84	        after_click_icon = play_pause_btn.inner_text().strip()
+    85	        print(f"[Preview Player] Play button icon after click: '{after_click_icon}'")
+    86	        # Pause again
+    87	        play_pause_btn.click()
+    88	        time.sleep(0.3)
+    89	
+    90	        # 1d. Test Speed Stepper (Speed Up / Down)
+    91	        speed_readout = page.locator("#speed-readout")
+    92	        speed_up_btn = page.locator("#speed-up")
+    93	        speed_down_btn = page.locator("#speed-down")
+    94	        assert speed_readout.is_visible(), "Speed readout not visible"
+    95	        initial_speed = speed_readout.inner_text().strip()
+    96	        print(f"[Preview Player] Initial speed: {initial_speed}")
+    97	
+    98	        speed_up_btn.click()
+    99	        time.sleep(0.2)
+   100	        speed_after_up = speed_readout.inner_text().strip()
+   101	        print(f"[Preview Player] Speed after increase: {speed_after_up}")
+   102	        assert speed_after_up != initial_speed or "1.25" in speed_after_up, "Speed increase failed"
+   103	
+   104	        speed_down_btn.click()
+   105	        time.sleep(0.2)
+   106	        print(f"[Preview Player] Speed after decrease: {speed_readout.inner_text().strip()}")
+   107	
+   108	        # 1e. Test Mute Toggle
+   109	        mute_btn = page.locator("#dock-mute-btn")
+   110	        assert mute_btn.is_visible(), "Dock mute button not visible"
+   111	        mute_btn.click()
+   112	        time.sleep(0.2)
+   113	        print(f"[Preview Player] Mute button after click: {mute_btn.inner_text().strip()}")
+   114	        mute_btn.click()
+   115	        time.sleep(0.2)
+   116	
+   117	        # 1f. Test Sentence Gap Select
+   118	        gap_select = page.locator("#sentence-gap-select")
+   119	        assert gap_select.is_visible(), "Sentence gap select not visible"
+   120	        gap_select.select_option("3")
+   121	        time.sleep(0.2)
+   122	        assert gap_select.input_value() == "3", "Sentence gap selection failed"
+   123	        gap_select.select_option("0")
+   124	        print("[Preview Player] Sentence gap option selection verified.")
+   125	
+   126	        # 1g. Test Clicking a Line to Seek
+   127	        if lines_count >= 2:
+   128	            second_line = page.locator("#lines .line").nth(1)
+   129	            second_line.click()
+   130	            time.sleep(0.3)
+    84	.notice-warning {
+    85	  background: #4a2a00;
+    86	  color: #ffd699;
+    87	}
+    88	
+    89	.visually-hidden {
+    90	  position: absolute;
+    91	  width: 1px;
+    92	  height: 1px;
+    93	  padding: 0;
+    94	  margin: -1px;
+    95	  overflow: hidden;
+    96	  clip: rect(0, 0, 0, 0);
+    97	  white-space: nowrap;
+    98	  border: 0;
+    99	}
+   100	
+   101	.nav-status-group {
+   102	  display: flex;
+   103	  align-items: center;
+   104	  gap: 8px;
+   105	  margin-left: auto;
+    68	    color: var(--text-muted);
+    69	  }
+    70	  .sr-only {
+    71	    position: absolute;
+    72	    width: 1px;
+    73	    height: 1px;
+    74	    padding: 0;
+    75	    margin: -1px;
+    76	    overflow: hidden;
+    77	    clip: rect(0, 0, 0, 0);
+    78	    border: 0;
+    79	  }
+    80	  .selected-file-card {
+    81	    display: flex;
+    82	    align-items: center;
+    83	    background: var(--surface-raised);
+    84	    border: 1px solid var(--border);
+    85	    border-radius: var(--radius-md);
+     832 /Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/api_contract.md
+     352 /Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/architecture_and_flow.md
+     367 /Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/gaps_and_rfcs.md
+     734 /Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/api_contract.md
+     223 /Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/architecture_and_flow.md
+     215 /Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/gaps_and_rfcs.md
+    2723 total
+
+exec
+/bin/zsh -lc "python3 -B -c 'import sys
+from pathlib import Path
+from unittest.mock import patch
+sys.path.insert(0, str(Path(\"skills/dev-implementation/resources/scripts\").resolve()))
+import task_contract as tc
+import result_reports as rr
+root = Path.cwd()
+task = root / \".devtool/epic/web_quality_check_and_integration_gate/task_01_web_quality_check_skill_and_contract.md\"
+rows, _ = tc.parse_verification(task.read_text())
+ids = [\"WQG-HP-01\", \"WQG-EC-01\", \"WQG-ST-01\", \"WQG-FR-02\"]
+xml = \"<testsuite>\" + \"\".join('\\''<testcase name=\"test_'\\'' + i.replace(\"-\", \"_\") + '\\''_mock_only\" classname=\"unit_tests\"/>'\\'' for i in ids) + \"</testsuite>\"
+cases = rr.parse_junit(xml)
+records = [{\"id\": r.id, \"phase\": r.phase, \"command\": r.command, \"expect\": r.expect_text, \"outcome\": \"PASS\", \"results\": {\"digest\": rr.digest(cases, ids)}} for r in rows]
+evidence = {\"runs\": {\"red\": {\"rows\": [r for r in records if r[\"phase\"] == \"RED\"], \"head\": \"a\"*40, \"tree\":\"red-tree\", \"finished\": \"2026-11-05T01:00:00Z\"}, \"verify\": {\"rows\": [r for r in records if r[\"phase\"] "'!= "RED"] + [{"id":"SCOPE", "outcome":"PASS"}], "head":"a"*40, "tree":"verify-tree", "patch_id":"patch", "started": "2026-11-05T02:00:00Z"}}}
+layout = tc.EpicLayout(root, task.parent, task.parent/"web_quality_check_and_integration_gate.en.md", task.parent/"bdd_scenarios.en.md", task.parent/"evidence/probe.json")
+with patch.object(tc, "epic_layout", return_value=layout), patch.object(tc, "load_evidence", return_value=evidence), patch.object(tc, "fingerprint", return_value=("verify-tree","patch")):
+    print("Existing done gate with only named unit/mock cases:", tc.evaluate_done_gate(task))
+for name in ["test_WQG_HP_01", "test_wqg_hp_01_mock_only", "test_WQG_HP_011", "test_XWQG_HP_01"]:
+    print("Scenario token:", name, rr.belongs(rr.Case(name, "", "passed"), "WQG-HP-01"))
+for label, fn in [("early malformed Expect", lambda: tc.parse_row(["V1","RED","`python3 -m pytest`","invalid","—"], set())), ("malformed command quoting", lambda: tc.program_of('"'\\''python3 \"unterminated'\\'', root)), (\"malformed JUnit\", lambda: rr.load_files([type(\"ReadOnlyFile\", (), {\"read_text\": lambda self, **kw: \"<broken\", \"__str__\": lambda self:\"memory.xml\"})()]))]:
+    try:
+        print(label, fn())
+    except Exception as exc:
+        print(label, type(exc).__name__, str(exc))
+'" in /Users/danhdueexoictif/AllProjects/ai-agent-tools
+ exited 1 in 0ms:
+Traceback (most recent call last):
+  File "<string>", line 17, in <module>
+    print("Existing done gate with only named unit/mock cases:", tc.evaluate_done_gate(task))
+                                                                 ~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "/Users/danhdueexoictif/AllProjects/ai-agent-tools/skills/dev-implementation/resources/scripts/task_contract.py", line 439, in evaluate_done_gate
+    cases = [Case(c["name"], c["classname"], c["status"]) for r in verify["rows"] if r["phase"] == "TIER-C"
+                                                                                     ~^^^^^^^^^
+KeyError: 'phase'
+
+exec
+/bin/zsh -lc "python3 -B -c 'import sys
+from pathlib import Path
+from unittest.mock import patch
+sys.path.insert(0,str(Path(\"skills/dev-implementation/resources/scripts\").resolve()))
+import task_contract as tc
+import result_reports as rr
+root=Path.cwd()
+task=root/\".devtool/epic/web_quality_check_and_integration_gate/task_01_web_quality_check_skill_and_contract.md\"
+rows,_=tc.parse_verification(task.read_text())
+ids=[\"WQG-HP-01\",\"WQG-EC-01\",\"WQG-ST-01\",\"WQG-FR-02\"]
+cases=rr.parse_junit(\"<testsuite>\"+\"\".join('\\''<testcase name=\"test_'\\''+i.replace(\"-\",\"_\")+'\\''_mock_only\" classname=\"unit_tests\"/>'\\'' for i in ids)+\"</testsuite>\")
+records=[{\"id\":r.id,\"phase\":r.phase,\"command\":r.command,\"expect\":r.expect_text,\"outcome\":\"PASS\",\"results\":{\"digest\":rr.digest(cases,ids)}} for r in rows]
+evidence={\"runs\":{\"red\":{\"rows\":[r for r in records if r[\"phase\"]==\"RED\"],\"head\":\"a\"*40,\"tree\":\"red-tree\",\"finished\":\"2026-11-05T01:00:00Z\"},\"verify\":{\"rows\":[r for r in records if r[\"phase\"]"'!="RED"]+[{"id":"SCOPE","phase":"SCOPE","outcome":"PASS"}],"head":"a"*40,"tree":"verify-tree","patch_id":"patch","started":"2026-11-05T02:00:00Z"}}}
+layout=tc.EpicLayout(root,task.parent,task.parent/"web_quality_check_and_integration_gate.en.md",task.parent/"bdd_scenarios.en.md",task.parent/"evidence/probe.json")
+with patch.object(tc,"epic_layout",return_value=layout),patch.object(tc,"load_evidence",return_value=evidence),patch.object(tc,"fingerprint",return_value=("verify-tree","patch")):
+    print("Existing done gate with named unit/mock cases:",tc.evaluate_done_gate(task))
+for name in ["test_WQG_HP_01","test_wqg_hp_01_mock_only","test_WQG_HP_011","test_XWQG_HP_01"]:
+    print("Scenario token:"[REDACTED_SECRET]"","passed"),"WQG-HP-01"))
+for label,fn in [("early malformed Expect",lambda:tc.parse_row(["V1","RED","`python3 -m pytest`","invalid","—"],set())),("malformed command quoting",lambda:tc.program_of('"'\\''python3 \"unterminated'\\'',root)),(\"malformed JUnit\",lambda:rr.load_files([type(\"ReadOnlyFile\",(),{\"read_text\":lambda self,**kw:\"<broken\",\"__str__\":lambda self:\"memory.xml\"})()]))]:
+    try: print(label,fn())
+    except Exception as exc: print(label,type(exc).__name__,str(exc))
+'" in /Users/danhdueexoictif/AllProjects/ai-agent-tools
+ succeeded in 0ms:
+Existing done gate with named unit/mock cases: []
+Scenario token: test_WQG_HP_01 True
+Scenario token: test_wqg_hp_01_mock_only True
+Scenario token: test_WQG_HP_011 False
+Scenario token: test_XWQG_HP_01 False
+early malformed Expect ContractError Verification row V1: Expect must start with "exit <n>" or "exit non-zero": 'invalid'
+malformed command quoting None
+malformed JUnit ReportError memory.xml is not a valid report: unclosed token: line 1, column 0
+
+exec
+/bin/zsh -lc "python3 -B -c 'from pathlib import Path
+import importlib.util
+p=Path(\"skills/setup_quality_check/resources/scripts/scaffold_quality_manifest.py\")
+spec=importlib.util.spec_from_file_location(\"scaffold_probe\",p)
+m=importlib.util.module_from_spec(spec)
+spec.loader.exec_module(m)
+try: m.scaffold_quality_manifests(Path.cwd(),platforms=[\"unsupported\"],dry_run=True)
+except Exception as exc: print(\"Early scaffold exception:\",type(exc).__name__,str(exc))
+import json
+for repo in [\"D3Nexus\",\"lyrics-sync\",\"nexus\"]:
+    root=Path(\"/Users/danhdueexoictif/AllProjects\")/repo
+    contracts=root/\"shared-contracts\"
+    print(repo,\"contracts resolve:\",contracts.resolve(),\"exists:\",contracts.exists())
+print(\"Candidate repository quality registry exists:\",Path(\".agents/quality/check_quality.json\").exists())
+'" in /Users/danhdueexoictif/AllProjects/ai-agent-tools
+ succeeded in 0ms:
+Early scaffold exception: ScaffoldError Unsupported platform specified: 'unsupported'. Allowed: ['flutter', 'android', 'ios', 'rust', 'python']
+D3Nexus contracts resolve: /Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts exists: True
+lyrics-sync contracts resolve: /Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync exists: True
+nexus contracts resolve: /Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus exists: True
+Candidate repository quality registry exists: False
+
+exec
+/bin/zsh -lc "nl -ba skills/quality_check/resources/scripts/validate_quality_contract.py | sed -n '566,664p'; nl -ba skills/dev-designer/references/verification-rows.md | sed -n '1,160p'; nl -ba skills/python-quality-check/references/python-capability-contract.md | sed -n '1,170p'; rg -n 'test_.*(done|condition|gate)|tier.c|condition 6|digest' skills/dev-implementation/resources/scripts/test_run_task_checks.py | tail -35; nl -ba skills/dev-implementation/resources/scripts/sync_task_status.py | sed -n '245,292p'" in /Users/danhdueexoictif/AllProjects/ai-agent-tools
+ succeeded in 0ms:
+   566	def validate_capability_manifest(
+   567	    manifest_data: dict[str, Any],
+   568	    requested_profile: str = "pr",
+   569	) -> dict[str, Any]:
+   570	    """Validate capability manifest (.agents/quality/*-quality.json) against schema version 1."""
+   571	    findings: list[dict[str, Any]] = []
+   572	
+   573	    if manifest_data.get("schema_version") != 1:
+   574	        findings.append(
+   575	            _finding("unsupported_version", f"Unsupported schema_version '{manifest_data.get('schema_version')}', expected 1")
+   576	        )
+   577	
+   578	    capabilities = manifest_data.get("capabilities")
+   579	    if not isinstance(capabilities, dict):
+   580	        findings.append(_finding("missing_capabilities", "Missing or invalid 'capabilities' object"))
+   581	        return {"status": "BLOCKED", "findings": _sort_findings(findings)}
+   582	
+   583	    if len(capabilities) == 0:
+   584	        findings.append(_finding("empty_capabilities", "Capabilities object is empty"))
+   585	
+   586	    for cap_name, cap_val in capabilities.items():
+   587	        if cap_name == "coverage":
+   588	            if not isinstance(cap_val, dict):
+   589	                findings.append(_finding("invalid_coverage_config", "Coverage capability must be an object", capability=cap_name))
+   590	                continue
+   591	            cmd = cap_val.get("command")
+   592	            if not isinstance(cmd, list) or not all(isinstance(arg, str) for arg in cmd):
+   593	                findings.append(
+   594	                    _finding(
+   595	                        "invalid_command_format",
+   596	                        f"Coverage command for '{cap_name}' must be an array of string arguments",
+   597	                        capability=cap_name,
+   598	                    )
+   599	                )
+   600	            elif len(cmd) == 0:
+   601	                findings.append(
+   602	                    _finding(
+   603	                        "command_array_empty",
+   604	                        f"Coverage command for '{cap_name}' has an empty command array []",
+   605	                        capability=cap_name,
+   606	                    )
+   607	                )
+   608	            threshold = cap_val.get("threshold")
+   609	            if not isinstance(threshold, (int, float)) or threshold < 0 or threshold > 1.0:
+   610	                findings.append(_finding("invalid_coverage_threshold", "Coverage threshold must be between 0.0 and 1.0", capability=cap_name))
+   611	        else:
+   612	            if not isinstance(cap_val, list) or not all(isinstance(arg, str) for arg in cap_val):
+   613	                findings.append(
+   614	                    _finding(
+   615	                        "invalid_command_format",
+   616	                        f"Capability command for '{cap_name}' must be an array of string arguments",
+   617	                        capability=cap_name,
+   618	                    )
+   619	                )
+   620	            elif len(cap_val) == 0:
+   621	                findings.append(
+   622	                    _finding(
+   623	                        "command_array_empty",
+   624	                        f"Capability '{cap_name}' has an empty command array []",
+   625	                        capability=cap_name,
+   626	                    )
+   627	                )
+   628	
+   629	    profiles = manifest_data.get("profiles")
+   630	    if not isinstance(profiles, dict):
+   631	        findings.append(_finding("missing_profiles", "Missing or invalid 'profiles' object"))
+   632	        return {"status": "BLOCKED", "findings": _sort_findings(findings)}
+   633	
+   634	    profile_caps = profiles.get(requested_profile)
+   635	    if profile_caps is None:
+   636	        findings.append(
+   637	            _finding(
+   638	                "profile_not_configured",
+   639	                f"Requested profile '{requested_profile}' is not configured in profiles",
+   640	                profile=requested_profile,
+   641	            )
+   642	        )
+   643	    elif not isinstance(profile_caps, list):
+   644	        findings.append(_finding("invalid_profile_format", f"Profile '{requested_profile}' must be an array of capability names", profile=requested_profile))
+   645	    else:
+   646	        if len(profile_caps) == 0:
+   647	            findings.append(_finding("empty_profile_selection", f"Profile '{requested_profile}' has empty capability selection", profile=requested_profile))
+   648	        for cap in profile_caps:
+   649	            if cap not in capabilities:
+   650	                findings.append(
+   651	                    _finding(
+   652	                        "missing_capability_definition",
+   653	                        f"Profile '{requested_profile}' requires capability '{cap}', which is not defined in capabilities",
+   654	                        capability=cap,
+   655	                    )
+   656	                )
+   657	
+   658	    status = "BLOCKED" if findings else "PASS"
+   659	    return {
+   660	        "status": status,
+   661	        "findings": _sort_findings(findings),
+   662	    }
+   663	
+   664	
+     1	# Verification Rows by Platform
+     2	
+     3	Example rows for a task's `## Verification` table, one set per platform, and the command that
+     4	produces the test report a `TIER-C` row names after `results`. The table grammar is in
+     5	[`SKILL.md`](../SKILL.md); here are only the platform commands.
+     6	
+     7	## Table of Contents
+     8	
+     9	- [How to Read the Examples](#how-to-read-the-examples)
+    10	- [Python](#python)
+    11	- [Android](#android)
+    12	- [Web](#web)
+    13	- [iOS](#ios)
+    14	- [Rust](#rust)
+    15	- [Flutter](#flutter)
+    16	
+    17	## How to Read the Examples
+    18	
+    19	- `RED` rows run before implementation and must fail for the right reason, so their Expect names
+    20	  the failure (`exit 1; contains "ModuleNotFoundError"`). `GREEN` rows run the same command after
+    21	  implementation. `TIER-B` rows are tooling and governance checks. `TIER-C` rows run integration
+    22	  tests and name the report with `results <path>`.
+    23	- Replace the paths, package names and flags with the project's own. The rows show the shape, not
+    24	  the project's commands; use the commands the HLD's Integration Test Plan already names.
+    25	- The `results` path must be ignored by git (for example `build/` in `.gitignore`), because the
+    26	  report is rewritten on every run and is never committed.
+    27	- A report that records a test passing is what proves a scenario identifier. The test name, tag or
+    28	  description carries the identifier, and the framework writes it into the report.
+    29	
+    30	## Python
+    31	
+    32	| ID | Phase | Command | Expect | Needs |
+    33	|----|-------|---------|--------|-------|
+    34	| V1 | RED | `uv run pytest tests/unit/test_taxonomy.py` | exit 1; contains "ModuleNotFoundError" | — |
+    35	| V2 | GREEN | `uv run pytest tests/unit/test_taxonomy.py` | exit 0; contains "passed" | — |
+    36	| V3 | TIER-B | `uv run ruff check src tests` | exit 0 | — |
+    37	| V4 | TIER-C | `uv run pytest tests/integration/test_taxonomy_bdd.py --junitxml=build/test-results/task_3.xml` | exit 0; results build/test-results/task_3.xml | — |
+    38	
+    39	Report: `pytest --junitxml=<path>`.
+    40	
+    41	## Android
+    42	
+    43	| ID | Phase | Command | Expect | Needs |
+    44	|----|-------|---------|--------|-------|
+    45	| V1 | RED | `./gradlew :feature:cart:testDebugUnitTest --tests '*CartViewModelTest'` | exit 1; contains "FAILED" | — |
+    46	| V2 | GREEN | `./gradlew :feature:cart:testDebugUnitTest --tests '*CartViewModelTest'` | exit 0; contains "BUILD SUCCESSFUL" | — |
+    47	| V3 | TIER-B | `./gradlew spotlessCheck detekt :konsist-test:test apiCheck` | exit 0; contains "BUILD SUCCESSFUL" | — |
+    48	| V4 | TIER-C | `./gradlew :app:testDebugUnitTest --tests '*CartFlowTest'` | exit 0; results app/build/test-results/testDebugUnitTest | — |
+    49	
+    50	Report: Gradle writes JUnit XML under `build/test-results/<task>/`. Name that directory after
+    51	`results`; every `.xml` file inside it is read.
+    52	
+    53	## Web
+    54	
+    55	| ID | Phase | Command | Expect | Needs |
+    56	|----|-------|---------|--------|-------|
+    57	| V1 | RED | `npx vitest run src/cart/store.test.ts` | exit 1; contains "FAIL" | — |
+    58	| V2 | GREEN | `npx vitest run src/cart/store.test.ts` | exit 0; contains "passed" | — |
+    59	| V3 | TIER-B | `npx tsc --noEmit` | exit 0 | — |
+    60	| V4 | TIER-C | `PLAYWRIGHT_JUNIT_OUTPUT_FILE=build/test-results/e2e.xml npx playwright test tests/e2e/cart.spec.ts --reporter=junit` | exit 0; results build/test-results/e2e.xml | — |
+    61	
+    62	Report: choose the reporter that writes JUnit XML.
+    63	
+    64	- `node --test --test-reporter=junit --test-reporter-destination=<path>`
+    65	- `vitest --reporter=junit --outputFile=<path>`
+    66	- `playwright test --reporter=junit`, with the file set by the `PLAYWRIGHT_JUNIT_OUTPUT_FILE`
+    67	  environment variable or the `outputFile` option of the reporter in `playwright.config`.
+    68	
+    69	## iOS
+    70	
+    71	| ID | Phase | Command | Expect | Needs |
+    72	|----|-------|---------|--------|-------|
+    73	| V1 | RED | `swift test --package-path Packages/Cart --filter CartReducerTests` | exit 1; contains "error" | — |
+    74	| V2 | GREEN | `swift test --package-path Packages/Cart --filter CartReducerTests` | exit 0; contains "passed" | — |
+    75	| V3 | TIER-B | `swiftlint lint --strict --config quality/.swiftlint.yml` | exit 0 | — |
+    76	| V4 | TIER-C | `swift test --package-path Packages/Cart --filter CartFlowTests --xunit-output build/test-results/cart.xml` | exit 0; results build/test-results/cart.xml | — |
+    77	
+    78	Report: `swift test --xunit-output <path>`. XCTest results go to the named file. Swift Testing
+    79	writes its results to a second file beside it, so pass the directory after `results` when the
+    80	tests use Swift Testing. Converting an `.xcresult` bundle to JUnit is the project's job: add a
+    81	script to the repository and run it in the row's command; this kit does not read `.xcresult`.
+    82	
+    83	## Rust
+    84	
+    85	| ID | Phase | Command | Expect | Needs |
+    86	|----|-------|---------|--------|-------|
+    87	| V1 | RED | `cargo test -p cart --lib totals` | exit non-zero; contains "error" | — |
+    88	| V2 | GREEN | `cargo test -p cart --lib totals` | exit 0; contains "test result: ok" | — |
+    89	| V3 | TIER-B | `cargo clippy --all-targets -- -D warnings` | exit 0 | — |
+    90	| V4 | TIER-C | `cargo nextest run -p cart --test '*' --profile ci` | exit 0; results target/nextest/ci/junit.xml | — |
+    91	
+    92	Report: `cargo nextest` with a JUnit section in `.config/nextest.toml`:
+    93	
+    94	```toml
+    95	[profile.ci.junit]
+    96	path = "junit.xml"
+    97	```
+    98	
+    99	nextest writes the file to `target/nextest/<profile>/junit.xml`.
+   100	
+   101	## Flutter
+   102	
+   103	| ID | Phase | Command | Expect | Needs |
+   104	|----|-------|---------|--------|-------|
+   105	| V1 | RED | `fvm flutter test test/cart/cart_bloc_test.dart` | exit 1; contains "Some tests failed" | — |
+   106	| V2 | GREEN | `fvm flutter test test/cart/cart_bloc_test.dart` | exit 0; contains "All tests passed" | — |
+   107	| V3 | TIER-B | `fvm flutter analyze` | exit 0; contains "No issues found" | — |
+   108	| V4 | TIER-C | `fvm flutter test integration_test/cart_flow_test.dart --file-reporter json:build/test-results/cart.json` | exit 0; results build/test-results/cart.json | — |
+   109	
+   110	Report: `flutter test --file-reporter json:<path>`, which writes the Dart JSON test events that
+   111	`results` reads.
+     1	# Python Quality Capability Contract
+     2	
+     3	## Overview
+     4	
+     5	The Python quality provider is capability-driven and read-only. It avoids imposing a single global command list
+     6	onto diverse Python environments (e.g. `uv`, `poetry`, standard `venv`, `pipenv`). Instead, a participating repository defines
+     7	its available verification capabilities in `.agents/quality/python-quality.json`.
+     8	
+     9	The capability configuration is validated by [python-quality.schema.json](../resources/schemas/python-quality.schema.json)
+    10	and [validate_python_quality.py](../resources/scripts/validate_python_quality.py).
+    11	
+    12	## Manifest Location and Structure
+    13	
+    14	```json
+    15	{
+    16	  "schema_version": 1,
+    17	  "capabilities": {
+    18	    "format": ["uv", "run", "ruff", "format", "--check", "."],
+    19	    "lint": ["uv", "run", "ruff", "check", "."],
+    20	    "type_check": ["uv", "run", "mypy", "--strict", "src"],
+    21	    "test": ["uv", "run", "pytest", "-m", "not slow and not acceptance and not live_llm"],
+    22	    "coverage": {
+    23	      "command": ["uv", "run", "pytest", "--cov=src", "--cov-report=json:coverage.json"],
+    24	      "threshold": 0.80
+    25	    },
+    26	    "architecture": ["uv", "run", "lint-imports"],
+    27	    "schema": ["uv", "run", "python", "-m", "lyrics_sync.model", "--check-schema"],
+    28	    "acceptance": ["./scripts/run_e2e_acceptance.sh"]
+    29	  },
+    30	  "profiles": {
+    31	    "pr": ["format", "lint", "type_check", "test"],
+    32	    "epic": ["format", "lint", "type_check", "test", "coverage", "architecture", "acceptance"],
+    33	    "scheduled": ["format", "lint", "type_check", "test", "coverage", "architecture", "security"],
+    34	    "release": ["format", "lint", "type_check", "test", "coverage", "architecture", "acceptance", "docs"]
+    35	  }
+    36	}
+    37	```
+    38	
+    39	## Contract Rules and Security Controls
+    40	
+    41	1. **Structured Argument Arrays**: Every command must be an explicit array of string arguments. Bare strings, shell pipelines (`|`), or implicit shell interpolation are strictly prohibited to prevent command injection and ensure deterministic execution.
+    42	2. **Read-Only Execution**: Commands must verify code without mutating files. Formatting checks use `--check`, and linters report issues without writing in-place fixes.
+    43	3. **Fail-Closed Missing Capabilities**: If a profile requires a capability that is missing or fails to execute, the provider returns `BLOCKED`. Nonzero exit codes are mapped according to capability type (see Rule 7).
+    44	4. **Authoritative Architecture Requirement**: The `epic` profile requires an authoritative architecture governance command (`architecture` or `boundaries`, such as `lint-imports` or custom AST rules). Omission of this capability produces `BLOCKED`.
+    45	5. **Portable Plugin Paths**: Never hard-code a home directory or plugin cache path. An argument starting with `{skills_dir}` is resolved by the provider to the installed plugin's `skills/` directory, e.g. `["python3", "{skills_dir}/sync-shared-contracts/resources/scripts/sync_contracts.py", "check", "--strict"]`.
+    46	6. **Base Ref Placeholder**: An argument containing `{base_ref}` is expanded from `quality_check`'s normalized `base_ref` invocation parameter (falling back to `develop` or the repository default only when `base_ref` was not supplied), e.g. `["python3", "{skills_dir}/sync-shared-contracts/resources/scripts/sync_contracts.py", "diff-check", "--base-ref", "{base_ref}"]`.
+    47	7. **Exit Code 2 BLOCKED Mapping**: For governance and contract capabilities (`contracts`, `contracts_<domain>`, and `contract_diff`), exit code `0` maps to `PASS`, exit code `2` (or JSON `"status": "BLOCKED"`) maps to `BLOCKED`, and any other nonzero exit code (such as `1`) maps to `FAIL`. All other capabilities retain standard nonzero exit code -> `FAIL`.
+360:        self.assertEqual(by_id["V1"]["results"], {"path": "out", "fresh": True, "digest": empty})
+361:        self.assertEqual(by_id["V2"]["results"], {"path": "single.json", "fresh": True, "digest": empty})
+363:    def test_results_digest_covers_scenario_identifiers_and_bad_reports_fail(self) -> None:
+372:        self.assertEqual(by_id["V1"]["results"]["digest"], {
+391:        self.assertEqual(by_id["V1"]["results"]["digest"]["cases"], [])
+486:    def test_status_is_read_only_and_reports_the_gate_verdict(self) -> None:
+   245	                continue
+   246	            for path in sorted(features_dir.glob("task_*.md")):
+   247	                task_id = path.stem
+   248	                if task_id in seen_tasks:
+   249	                    continue
+   250	                fm = parse_frontmatter(path.read_text())
+   251	                if fm.get("epic") == epic_slug:
+   252	                    seen_tasks.add(task_id)
+   253	                    status = fm.get("status")
+   254	                    if status in tally:
+   255	                        tally[status] += 1
+   256	    return tally
+   257	
+   258	
+   259	def find_epic_slug(root: Path, epic_dir: str) -> str | None:
+   260	    """Find the epic slug from the epic's HLD overview or contained tasks."""
+   261	    epic_path = root / ".devtool" / "epic" / epic_dir
+   262	    if not epic_path.is_dir():
+   263	        return None
+   264	    for ext in (".en.md", ".vi.md"):
+   265	        doc = epic_path / f"{epic_dir}{ext}"
+   266	        if doc.is_file():
+   267	            match = re.search(r"^-\s*\*\*(?:Epic)\*\*:\s*(.+)$", doc.read_text(), re.MULTILINE)
+   268	            if match:
+   269	                slug = sanitize_slug(match.group(1))
+   270	                if slug:
+   271	                    return slug
+   272	    for task_file in sorted(epic_path.glob("task_*.md")):
+   273	        slug = epic_of(task_file)
+   274	        if slug:
+   275	            return slug
+   276	    return sanitize_slug(epic_dir)
+   277	
+   278	
+   279	def find_epic_dir_for_slug(root: Path, epic_slug: str) -> str | None:
+   280	    """Find the epic directory name matching the given epic slug."""
+   281	    epics_parent = root / ".devtool" / "epic"
+   282	    if not epics_parent.is_dir():
+   283	        return None
+   284	    for sub in sorted(epics_parent.iterdir()):
+   285	        if not sub.is_dir():
+   286	            continue
+   287	        slug = find_epic_slug(root, sub.name)
+   288	        if slug == epic_slug:
+   289	            return sub.name
+   290	    # Fallback to name heuristic: replace hyphens with underscores
+   291	    candidate = epic_slug.replace("-", "_")
+   292	    if (epics_parent / candidate).is_dir():
+
+exec
+/bin/zsh -lc "rg -n '"'^def |exit|BLOCKED|return 2|contract|--repo-root'"' skills/sync-shared-contracts/resources/scripts/sync_contracts.py | tail -80; nl -ba skills/quality_check/resources/scripts/test_validate_quality_contract.py | sed -n '1,80p'; rg -n '"'^#|fixture|json|pending|canonical|/api/'"' /Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/{api_contract,architecture_and_flow,gaps_and_rfcs}.md | head -100; rg -n '"'^#|fixture|json|pending|canonical|/api/'"' /Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/{api_contract,architecture_and_flow,gaps_and_rfcs}.md | head -70" in /Users/danhdueexoictif/AllProjects/ai-agent-tools
+ succeeded in 0ms:
+1022:        file_hashes[fn] = compute_file_hash(contract_dir / fn)
+1026:        api_data = parse_api_contract((contract_dir / "api_contract.md").read_text(encoding="utf-8"))
+1027:        arch_data = parse_architecture_and_flow((contract_dir / "architecture_and_flow.md").read_text(encoding="utf-8"))
+1028:        gaps_data = parse_gaps_and_rfcs((contract_dir / "gaps_and_rfcs.md").read_text(encoding="utf-8"))
+1046:        previous_version = dom_data.get("contract_version", "none")
+1049:        curr_commit = get_git_commit_sha(contract_dir) or "HEAD"
+1071:    template_path = Path(__file__).parent.parent / "templates" / "contract_delta_brief.md.tmpl"
+1101:def cmd_ack(args: argparse.Namespace) -> int:
+1115:    contract_dir = topo["contract_dir"]
+1118:        file_hashes[fn] = compute_file_hash(contract_dir / fn)
+1127:        api_data = parse_api_contract((contract_dir / "api_contract.md").read_text(encoding="utf-8"))
+1128:        arch_data = parse_architecture_and_flow((contract_dir / "architecture_and_flow.md").read_text(encoding="utf-8"))
+1129:        gaps_data = parse_gaps_and_rfcs((contract_dir / "gaps_and_rfcs.md").read_text(encoding="utf-8"))
+1134:    hub_commit = get_git_commit_sha(contract_dir) or "uncommitted"
+1145:    # Identify all active RFC items in contract
+1147:    contract_active_rfcs: set[str] = {
+1151:    if all_rfcs or not contract_active_rfcs:
+1152:        acknowledged_rfcs = sorted(contract_active_rfcs | prev_ack_rfcs)
+1157:        acknowledged_rfcs = sorted(contract_active_rfcs & newly_acked)
+1158:        pending_rfcs = sorted(contract_active_rfcs - newly_acked)
+1172:        "contract_version": api_data["version"],
+1186:def cmd_diff_check(args: argparse.Namespace) -> int:
+1187:    """Audit diff between merge-base and HEAD against .agents/contract_map.json."""
+1200:                "status": "BLOCKED",
+1212:            print("Status: BLOCKED")
+1218:        return 2
+1220:    # 1. Preconditions: Validate HEAD .agents/contract_map.json
+1221:    map_file = repo_root / ".agents" / "contract_map.json"
+1223:        return emit_blocked(["Missing .agents/contract_map.json at HEAD"])
+1228:        return emit_blocked([f"Malformed JSON in .agents/contract_map.json at HEAD: {exc}"])
+1230:    valid_map, map_err = validate_contract_map(head_map_data)
+1232:        return emit_blocked([f"Invalid .agents/contract_map.json schema at HEAD: {map_err}"])
+1240:                return emit_blocked([f"Unknown domain filter '{d}' not in contract_map.json domains"])
+1297:        contract_dir = topo.get("contract_dir")
+1298:        linked_domain = contract_dir.name if contract_dir else ""
+1302:                    [f"Satellite contract_map.json domain '{d}' does not match linked shared-contracts domain '{linked_domain}'"],
+1335:    # 7. Probe baseline contract_map.json at merge_base
+1337:        ["git", "ls-tree", "-r", "--name-only", merge_base, "--", ".agents/contract_map.json"],
+1344:            [f"git ls-tree failed for baseline .agents/contract_map.json at {merge_base}: {proc_ls_map.stderr.decode(errors='replace').strip()}"],
+1355:            ["git", "show", f"{merge_base}:.agents/contract_map.json"],
+1362:                [f"git show failed for baseline .agents/contract_map.json at {merge_base}: {proc_show_map.stderr.decode(errors='replace').strip()}"],
+1372:                [f"Malformed JSON in baseline .agents/contract_map.json at {merge_base}: {exc}"],
+1378:        valid_base_map, base_map_err = validate_contract_map(base_map_data)
+1381:                [f"Invalid schema in baseline .agents/contract_map.json at {merge_base}: {base_map_err}"],
+1412:                    "path": ".agents/contract_map.json",
+1423:                gaps_file = repo_root / "shared-contracts" / wdomain / "gaps_and_rfcs.md"
+1425:                contract_dir_opt = topo.get("contract_dir")
+1426:                gaps_file = (contract_dir_opt / "gaps_and_rfcs.md") if contract_dir_opt else (repo_root / "shared-contracts" / "gaps_and_rfcs.md")
+1431:                    "path": ".agents/contract_map.json",
+1443:                            "path": ".agents/contract_map.json",
+1453:                                "path": ".agents/contract_map.json",
+1460:                        "path": ".agents/contract_map.json",
+1498:                    "path": ".agents/contract_map.json",
+1528:            prefix = f"shared-contracts/{d}/"
+1531:                if f in (f"{prefix}api_contract.md", f"{prefix}architecture_and_flow.md", f"{prefix}gaps_and_rfcs.md")
+1535:                domain_proof = "contract_edit"
+1538:                ["git", "ls-tree", "-r", "--name-only", merge_base, "--", ".agents/contract_sync.json"],
+1545:                    [f"git ls-tree failed for baseline contract_sync.json: {proc_ls_sync.stderr.decode(errors='replace').strip()}"],
+1554:                    ["git", "show", f"{merge_base}:.agents/contract_sync.json"],
+1561:                        [f"git show failed for baseline contract_sync.json: {proc_show_sync.stderr.decode(errors='replace').strip()}"],
+1572:                        [f"Malformed JSON in baseline contract_sync.json: {exc}"],
+1579:            head_sync_file = repo_root / ".agents" / "contract_sync.json"
+1586:                        [f"Malformed JSON in HEAD contract_sync.json: {exc}"],
+1593:                contract_dir_opt = topo.get("contract_dir")
+1594:                if not contract_dir_opt:
+1596:                        ["Missing contract_dir in topology"],
+1605:                        cpath = contract_dir_opt / cname
+1607:                            raise ContractFormatError(f"Canonical file {cname} missing from {contract_dir_opt}")
+1668:                        "reason": f"Mapped file '{uf}' changed in domain '{d}' without canonical contract edit, fresh ack, or active waiver",
+1672:    exit_code = 1 if violations else 0
+1703:    return exit_code
+1706:def main(argv: list[str] | None = None) -> int:
+1711:    p_check = subparsers.add_parser("check", help="Check contract drift")
+1712:    p_check.add_argument("--repo-root", type=str, help="Repository root path")
+1719:    p_brief.add_argument("--repo-root", type=str, help="Repository root path")
+1723:    p_ack = subparsers.add_parser("ack", help="Acknowledge contract watermark")
+1724:    p_ack.add_argument("--repo-root", type=str, help="Repository root path")
+1730:    p_diff = subparsers.add_parser("diff-check", help="Audit diff between merge-base and HEAD against contract_map.json")
+1731:    p_diff.add_argument("--repo-root", type=str, help="Repository root path")
+1754:    sys.exit(main())
+     1	"""Red-first contract tests for the provider quality boundary."""
+     2	
+     3	from __future__ import annotations
+     4	
+     5	import copy
+     6	import json
+     7	import sys
+     8	import unittest
+     9	from pathlib import Path
+    10	
+    11	
+    12	SCRIPT_DIR = Path(__file__).resolve().parent
+    13	sys.path.insert(0, str(SCRIPT_DIR))
+    14	
+    15	from validate_quality_contract import (  # noqa: E402
+    16	    normalize_invocation,
+    17	    reconcile_results,
+    18	    validate_capability_manifest,
+    19	    validate_provider_result,
+    20	    validate_registry,
+    21	)
+    22	
+    23	
+    24	SHA = "a" * 40
+    25	
+    26	
+    27	def registry(*providers: dict, schema_version: int = 1) -> dict:
+    28	    return {"schema_version": schema_version, "providers": list(providers)}
+    29	
+    30	
+    31	def provider(provider_id: str, profiles: list[str] | None = None, **extra: object) -> dict:
+    32	    value = {
+    33	        "id": provider_id,
+    34	        "skill": f"d3nexus:{provider_id}",
+    35	        "required": True,
+    36	        "profiles": profiles or ["pr", "epic"],
+    37	    }
+    38	    value.update(extra)
+    39	    return value
+    40	
+    41	
+    42	def invocation(profile: str = "epic", **extra: object) -> dict:
+    43	    value = {
+    44	        "contract_version": 1,
+    45	        "profile": profile,
+    46	        "base_ref": "main",
+    47	        "repository_sha": SHA,
+    48	        "provider_id": "alpha",
+    49	        "required": True,
+    50	    }
+    51	    value.update(extra)
+    52	    return value
+    53	
+    54	
+    55	def result(status: str = "PASS", **extra: object) -> dict:
+    56	    value = {
+    57	        "provider_id": "alpha",
+    58	        "contract_version": 1,
+    59	        "profile": "epic",
+    60	        "repository_sha": SHA,
+    61	        "status": status,
+    62	        "checks": [],
+    63	        "coverage": {},
+    64	        "evidence": [],
+    65	        "started_head": SHA,
+    66	        "finished_head": SHA,
+    67	        "duration": 0.25,
+    68	        "blockers": [],
+    69	        "warnings": [],
+    70	    }
+    71	    value.update(extra)
+    72	    return value
+    73	
+    74	
+    75	class RegistryContractTests(unittest.TestCase):
+    76	    def test_valid_registry_selects_all_matching_providers_in_id_order(self) -> None:
+    77	        checked = validate_registry(
+    78	            registry(provider("zeta"), provider("alpha"), provider("pr-only", ["pr"])),
+    79	            "epic",
+    80	            available_skills={"d3nexus:alpha", "d3nexus:zeta"},
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/architecture_and_flow.md:1:# Architecture and System Flow Contract: D3Nexus ⇄ lyrics-sync
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/architecture_and_flow.md:12:## Table of Contents
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/architecture_and_flow.md:19:## 1. System Roles & Responsibilities
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/architecture_and_flow.md:57:### 1.1. Core Invariants
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/architecture_and_flow.md:61:   - **Primary Fast Channel**: Long-lived Server-Sent Events (SSE) connection (`GET /api/v1/align/tasks/{id}/stream` and `GET /api/v1/speech/jobs/{id}/events`) for sub-50ms operator cancellation and real-time telemetry.
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/architecture_and_flow.md:64:### 1.2. Worker Queue Task Execution Priorities
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/architecture_and_flow.md:74:#### Priority Scheduling Rules & Backward Compatibility
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/architecture_and_flow.md:75:1. **Priority Ordering**: Upgraded worker nodes and dispatcher queues prioritize pending tasks by priority weight descending (`Tier 1 (10) > Tier 2 (5) > Tier 3 (1)`).
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/architecture_and_flow.md:81:## 2. Pipeline 1: Align Studio Architecture & State Machine
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/architecture_and_flow.md:85:### 2.1. Canonical Step Definitions & Progress Mapping
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/architecture_and_flow.md:122:### 2.2. Step State Lifecycle
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/architecture_and_flow.md:127:               │ pending  │
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/architecture_and_flow.md:145:- **`pending`**: Step is queued, waiting for previous steps to complete.
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/architecture_and_flow.md:155:### 2.3. Overall Align Task State Machine
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/architecture_and_flow.md:161:         │ Worker claims task (POST /api/v1/align/worker/claim -> 200 OK)
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/architecture_and_flow.md:186:### 2.4. Lexical Mining & Dual Highlighting Presentation Contract
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/architecture_and_flow.md:188:During canonical step 5 (`lexical_enrichment`), `UnifiedLinguisticAnalyzer` extracts collocations, phrasal verbs, idioms, and sentence frames. To balance acoustic reading fluency during song playback with focused memorization during vocabulary study, the system partitions presentation responsibilities according to the **Dual Highlighting Paradigm**:
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/architecture_and_flow.md:203:## 3. Pipeline 2: TTS Studio Architecture & Worker Lifecycle
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/architecture_and_flow.md:207:### 3.1. Hybrid Execution Architecture (Cloud + Worker Fallback)
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/architecture_and_flow.md:231:              ▼ Worker polls: POST /api/v1/speech/worker/claim
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/architecture_and_flow.md:234:              ├─► Progressive Step Logging: POST /api/v1/speech/worker/jobs/{id}/step (SSE broadcast)
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/architecture_and_flow.md:236:              ├─► Worker Heartbeat + Telemetry: POST /api/v1/speech/worker/heartbeat (every 10s)
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/architecture_and_flow.md:238:              ├─► Unrecoverable Failure: POST /api/v1/speech/worker/jobs/{id}/fail (`Failed`, lease cleared)
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/architecture_and_flow.md:241:  POST /api/v1/speech/worker/complete (`Completed`)
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/architecture_and_flow.md:244:### 3.2. TTS Studio Canonical Step Definitions & Progress Mapping
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/architecture_and_flow.md:270:  7. artifact_export        (Progress: 100%) - Package audio.mp3, lyrics.json, lyrics_vi.json, SRT, LRC, script.json
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/architecture_and_flow.md:279:| **5** | `timestamp_alignment` | 80% | Align word boundaries into canonical lines and words adhering to `lyrics-sync/v1` schema | Align Timings |
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/architecture_and_flow.md:281:| **7** | `artifact_export` | 100% | Export final `audio.mp3`, `lyrics.json`, `lyrics_vi.json`, SRT, LRC, and script artifacts | Export Artifacts |
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/architecture_and_flow.md:283:### 3.3. Speech Job Lifecycle States
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/architecture_and_flow.md:294:### 3.4. Worker Failure Transition & Immediate Lease Reclamation
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/architecture_and_flow.md:296:When an unrecoverable runtime exception occurs on a satellite worker (e.g. `ERR_KOKORO_OOM`, CUDA/MPS driver panics, missing models), the worker immediately posts to `POST /api/v1/speech/worker/jobs/{id}/fail` with error code and diagnostics:
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/architecture_and_flow.md:299:3. **Telemetry & Client Broadcast**: An SSE failure event (`event: error`) is emitted over the active client stream (`/api/v1/speech/jobs/{id}/events`).
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/architecture_and_flow.md:303:## 4. Subprocess Isolation & Cancellation Fencing
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/architecture_and_flow.md:307:### 4.1. Process Isolation Architecture
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/architecture_and_flow.md:312:### 4.2. Cancellation Escalation Protocol
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/architecture_and_flow.md:324:## 5. Error Codes & Retry Conventions
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/architecture_and_flow.md:326:### 5.1. Standard Error Classifications
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/architecture_and_flow.md:344:### 5.2. Lease Reaper Policy (D3Nexus)
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/gaps_and_rfcs.md:1:# Gaps, Open Inquiries & RFCs: D3Nexus ⇄ lyrics-sync
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/gaps_and_rfcs.md:14:## Table of Contents
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/gaps_and_rfcs.md:23:## 1. Open Gaps & Alignment Questions (For D3Nexus Confirmation)
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/gaps_and_rfcs.md:25:### GAP-01: Axum Request Body Size Limit on Task Completion (`POST /complete`)
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/gaps_and_rfcs.md:33:  .route("/api/v1/align/worker/tasks/:id/complete", post(complete_task))
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/gaps_and_rfcs.md:40:### GAP-02: Mixed Timestamp Key Formats (`startMs` vs `start_ms`)
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/gaps_and_rfcs.md:42:  In `lyrics-sync/v1`, line and word timestamps use camelCase (`startMs`, `endMs`, `durationMs`) adhering to the committed JSON schema (`schema/lyrics-sync.v1.schema.json`). However, inside `all_collocations[].occurrences`, timestamps use snake_case (`start_ms`, `end_ms`).
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/gaps_and_rfcs.md:62:### GAP-03: Co-Located Media Path vs Remote Media URL Resolution
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/gaps_and_rfcs.md:74:### GAP-04: Worker Token Authentication for Fleet Monitoring (`GET /api/v1/align/fleet`)
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/gaps_and_rfcs.md:76:  Currently, `GET /api/v1/align/fleet` requires an authenticated web user cookie/session in D3Nexus, returning `HTTP 401 Unauthorized` when queried using `X-Worker-Token`.
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/gaps_and_rfcs.md:79:  Update the authentication middleware in D3Nexus for `/api/v1/align/fleet` to accept either:
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/gaps_and_rfcs.md:86:### GAP-05: Server Restart Orphaned Task Reclaim Hook
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/gaps_and_rfcs.md:95:### GAP-06: Fleet Status Missing Active Pipeline Step (`current_step` in `GET /api/v1/align/fleet`)
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/gaps_and_rfcs.md:97:  `lyrics-sync worker top` displays a dedicated `STEP` column to show the active canonical step (e.g. `media_ingest`, `vocal_separation`, `alignment_asr`, `semantic_resegment`, etc.).
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/gaps_and_rfcs.md:98:  However, `GET /api/v1/align/fleet` returns `WorkerInfo` records sourced from `media_align_workers`, which does not contain `current_step` or query the active step.
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/gaps_and_rfcs.md:101:  1. **`lyrics-sync` Client**: Enriched `worker top` to load `~/.lyrics_sync/worker_status.json` and merge `current_step` for matching local worker daemon instances.
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/gaps_and_rfcs.md:105:            status, current_task_id, metrics_json, last_heartbeat_at, registered_at,
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/gaps_and_rfcs.md:115:### GAP-07: Unified Multi-Pipeline Worker Capability Negotiation (Align Studio vs TTS Studio)
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/gaps_and_rfcs.md:117:  Currently, `lyrics-sync` claims align tasks via `POST /api/v1/align/worker/claim` with `capabilities: ["mps", "demucs_v4", "whisper_large_v3", ...]` and claims speech jobs via `POST /api/v1/speech/worker/claim`.
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/gaps_and_rfcs.md:120:  In `POST /api/v1/speech/worker/claim`, align the request payload schema with `POST /api/v1/align/worker/claim` by accepting an optional `capabilities: list[string]` field so the scheduler only routes Kokoro-targeted tasks to nodes with Apple Silicon MPS or CUDA acceleration enabled.
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/gaps_and_rfcs.md:127:## 2. Accepted RFCs & Architectural Decisions
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/gaps_and_rfcs.md:129:### RFC-001: 7-Step Canonical Pipeline & Subprocess Group Isolation
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/gaps_and_rfcs.md:133:  Consolidated pipeline into 7 canonical sequential steps:
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/gaps_and_rfcs.md:146:### RFC-002: Postel's Law Telemetry Deserialization (Defense-in-depth)
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/gaps_and_rfcs.md:158:## 3. D3Nexus Review & Feedback
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/gaps_and_rfcs.md:164:### 3.1. Feedback on Open Gaps (GAP-01 to GAP-05)
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/gaps_and_rfcs.md:166:#### GAP-01: Axum Request Body Size Limit on Task Completion (`POST /complete`)
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/gaps_and_rfcs.md:172:#### GAP-02: Mixed Timestamp Key Formats (`startMs` vs `start_ms`)
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/gaps_and_rfcs.md:176:  The root document is stored directly as raw canonical JSON (`jsonb`).
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/gaps_and_rfcs.md:180:#### GAP-03: Co-Located Media Path vs Remote Media URL Resolution
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/gaps_and_rfcs.md:185:#### GAP-04: Worker Token Authentication for Fleet Monitoring (`GET /api/v1/align/fleet`)
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/gaps_and_rfcs.md:191:#### GAP-05: Server Restart Orphaned Task Reclaim Hook
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/gaps_and_rfcs.md:199:### 3.2. Additional System Mismatches Identified by D3Nexus
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/gaps_and_rfcs.md:201:#### MISMATCH-01: Fleet Status Response Telemetry Key & Types (`metrics` vs `telemetry`, epoch ms vs ISO8601)
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/gaps_and_rfcs.md:212:#### MISMATCH-02: Task Completion Response Body (`{"status": "ok"}` vs `{"status": "completed"}`)
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/gaps_and_rfcs.md:222:#### MISMATCH-03: Task Failure Response Body (`{"status": "ok"}` vs `{"status": "failed"}`)
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/gaps_and_rfcs.md:232:#### MISMATCH-04: Operator Remote Cancellation Authentication for Worker CLI
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/gaps_and_rfcs.md:235:  `api_contract.md` states that worker CLI can invoke `POST /api/v1/align/tasks/{id}/cancel` with `{"reason": "..."}`.
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/gaps_and_rfcs.md:238:  Permit `X-Worker-Token` authentication on `POST /api/v1/align/tasks/{id}/cancel` in addition to creator/admin JWT.
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/gaps_and_rfcs.md:244:## 4. TTS Studio Gaps & Open Inquiries
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/gaps_and_rfcs.md:246:### GAP-08: Explicit Failure Reporting Endpoint for TTS Worker (`POST /api/v1/speech/worker/jobs/{id}/fail`)
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/gaps_and_rfcs.md:250:  Implement `POST /api/v1/speech/worker/jobs/:id/fail` accepting:
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/gaps_and_rfcs.md:251:  ```json
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/gaps_and_rfcs.md:264:### GAP-09: Telemetry & Memory Metrics in Speech Worker Heartbeat (`POST /api/v1/speech/worker/heartbeat`)
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/gaps_and_rfcs.md:268:  Update `POST /api/v1/speech/worker/heartbeat` request schema to accept optional `metrics: { ... }` adhering to Postel's Law (integers via `round(...)`).
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/gaps_and_rfcs.md:273:### GAP-10: TTS Worker Audio Artifact Delivery Standard (Local Path vs Multipart Upload)
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/gaps_and_rfcs.md:275:  `POST /api/v1/speech/worker/complete` includes `audio_url` and `output_uri`. When worker is co-located on the same machine, `output_uri` points to the local file. For remote workers, an upload mechanism (presigned S3/R2 URL or direct multipart upload `POST /api/v1/speech/worker/jobs/:id/audio`) is required before committing the job.
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/gaps_and_rfcs.md:284:## 5. Lexical & Collocation RFCs
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/gaps_and_rfcs.md:286:### RFC-003: Collocation Schema Alignment, IPA Expansion & Lexical Separation
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/gaps_and_rfcs.md:295:  | `phrase` | `string` | Base canonical headword | `"set off"` | `"let end"` |
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/gaps_and_rfcs.md:296:  | `canonical_phrase` | `string` | Formal dictionary entry with syntactic placeholder | `"set off sth"` | `"let sth end"` |
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/gaps_and_rfcs.md:312:  2. **`canonical_phrase` vs `usage_text` Separation**: Populate `canonical_phrase` with the dictionary template (e.g. `"set off sth"`, `"let sth end"`) and `usage_text` with the full sung chunk (e.g. `"set off a dream"`, `"let this moment end"`).
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/gaps_and_rfcs.md:314:  4. **Placeholder IPA Expansion**: When `canonical_phrase` contains placeholders, expand the IPA phonemes (`sth`/`something` $\rightarrow$ `ˈsʌmθɪŋ`, `sb`/`somebody` $\rightarrow$ `ˈsʌmbədi`, `one's` $\rightarrow$ `wʌnz`), generating e.g. `"lɛt ˈsʌmθɪŋ ɛnd"` rather than leaving placeholders untranscribed. Enforce positional integrity for medial placeholders (e.g. `let sth end` $\rightarrow$ `lɛt ˈsʌmθɪŋ ɛnd`, never appended to the end as `*lɛt ɛnd ˈsʌmθɪŋ`), support multiple placeholders (`give sth to sb` $\rightarrow$ `ɡɪv ˈsʌmθɪŋ tu ˈsʌmbədi`), and maintain idempotency.
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/gaps_and_rfcs.md:325:### RFC-004: Lyrics Report Worker Endpoint Protocol & Audio Slicing
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/gaps_and_rfcs.md:329:  Learner-submitted line overrides and transcript edits require isolated forced alignment without re-running full-song Demucs/Whisper pipelines. The worker fleet acts as a stateless compute cluster leasing pending overrides via `/api/v1/lyrics-report/worker/tasks/claim`, pulling audio slices via `/api/v1/lyrics/{slug}/lines/{line_index}/audio-slice`, and reporting word timings via `/complete`.
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/gaps_and_rfcs.md:337:### RFC-005: 3-Tier Worker Queue Task Execution Priority Hierarchy & Lease Dispatch
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/gaps_and_rfcs.md:351:### RFC-006: Context-First Align Studio Flow — Canonical Step Reorder & Locked Context Profile Payload
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/gaps_and_rfcs.md:356:  Align Studio lexical extraction currently runs on 8-line windows while simultaneously translating each chunk into Vietnamese. Splitting model attention across English linguistics and Vietnamese translation produces hallucinated chunks, over-extraction, and isolated chunk translations that clash with sentence-level pronouns and negation. The new flow locks the discourse profile once, extracts pure-English lexical candidates, filters them deterministically in Python, then translates subtitle lines and surviving chunks together in one top-down pass. Because lexical work now completes *before* the chunk translation it feeds, the canonical step sequence must follow the data dependency. `architecture_and_flow.md` §2 declares that sequence authoritative across both codebases, so `lyrics-sync` cannot reorder it unilaterally and raises this RFC instead.
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/gaps_and_rfcs.md:361:  4. **Completion Payload Additions (Non-Breaking)**: `POST /api/v1/align/worker/tasks/{id}/complete` gains two optional `meta` fields. `meta.context_profile` is an object carrying the locked discourse profile (`content_type`, `domains`, `sub_topic`, `translation_style`, `pronoun_pair`, `overall_cefr`, `topic_summary`, `key_glossary`). `meta.lexical_partial` is a boolean defaulting to `false`, set `true` only when one or more extraction batches failed, and blocking permanent certification downstream. Absent fields preserve today's behaviour exactly.
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/gaps_and_rfcs.md:362:  5. **Content Type Wire Alias (Non-Breaking)**: `content_type="music_video"` maps to the canonical `song`, alongside the existing legacy aliases (`film -> movie_tv`, `reading -> story`, `dialogue -> conversation`).
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/gaps_and_rfcs.md:365:  `D3Nexus/apps/align-worker` is live and is synchronized to the canonical 7-step sequence (`step1_ingest`, `step2_separate`, `step3_align`, `step4_resegment`, `step5_lexical`, `step6_translation`, `step7_export`) under epic `align_context_first_flow` (Task 670), serving as an in-tree reference runner for cross-repo integration and parity testing.
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/gaps_and_rfcs.md:367:  `lyrics-sync` reorders `CANONICAL_STEPS`, deduplicates its two internal declarations against a single source of truth, re-derives `STEP_PROGRESS_WEIGHTS` so Studio progress stays monotonic, and re-acknowledges the watermark in `.agents/contract_sync.json` with the new `contract_version` and `hub_commit_sha`.
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/architecture_and_flow.md:1:# Architecture and System Flow Contract: D3Nexus ⇄ nexus (Mobile App)
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/architecture_and_flow.md:12:## 1. System Roles & Responsibilities
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/architecture_and_flow.md:40:### 1.1. Core Architectural Invariants
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/architecture_and_flow.md:49:## 2. Package-First Modular Structure (`nexus`)
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/architecture_and_flow.md:73:## 3. Offline-First Synchronization & Conflict Resolution
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/architecture_and_flow.md:75:### 3.1. Local Outbox Mutation Pipeline
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/architecture_and_flow.md:100:### 3.2. Conflict Resolution Policy (Last-Write-Wins via HLC)
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/architecture_and_flow.md:109:## 4. Audio-Lyric 60fps Synchronization & 1-Tap Mining Flow
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/architecture_and_flow.md:111:### 4.1. High-Performance Playback & Highlighting Loop
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/architecture_and_flow.md:126:### 4.2. 1-Tap Collocation Mining Flow
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/architecture_and_flow.md:154:## 5. Security & Mobile Enclave Integration
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/architecture_and_flow.md:166:## 6. Native Platform & Rust Core FFI Boundaries
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/architecture_and_flow.md:187:### 6.1. Rust Core FFI Responsibilities (`flutter_rust_bridge`)
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/architecture_and_flow.md:193:### 6.2. Native OS Audio Pipeline (Kotlin / Swift)
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/architecture_and_flow.md:201:## 7. Personal Assistant SSE & Intent Streaming Flow
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/architecture_and_flow.md:210:  POST /api/v1/assistant/stream (Accept: text/event-stream)
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/api_contract.md:1:# API & Protocol Data Contract: D3Nexus ⇄ nexus (Mobile App)
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/api_contract.md:12:## 1. Authentication & Protocol Headers
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/api_contract.md:16:### 1.1. Common Client Request Headers
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/api_contract.md:24:Content-Type: application/json
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/api_contract.md:25:Accept: application/json
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/api_contract.md:36:### 1.2. Universal API Response Envelope (`BaseResponseObject<T>`)
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/api_contract.md:38:Every REST JSON response emitted by `/api/*` endpoints MUST conform to the universal `BaseResponseObject<T>` wire schema:
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/api_contract.md:40:```json
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/api_contract.md:49:#### Field Specifications
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/api_contract.md:55:#### Idempotency & Pass-Through Guarantees
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/api_contract.md:57:* **Streaming & Binary Bypass**: Server-Sent Events (`text/event-stream`), byte-range audio streaming (`audio/*`, HTTP 206), and non-API documentation or health check routes (`/healthz`, `/docs`, `/swagger-ui`, `/openapi.json`) are completely excluded from envelope wrapping.
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/api_contract.md:61:## 2. Authentication, Session & Device Security (`/api/v1/auth/...`)
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/api_contract.md:63:### 2.1. Account Registration (`POST /api/v1/auth/register`)
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/api_contract.md:67:* **Path**: `/api/v1/auth/register`
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/api_contract.md:69:  ```json
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/api_contract.md:78:    ```json
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/api_contract.md:96:### 2.2. Mobile Login (`POST /api/v1/auth/login`)
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/api_contract.md:100:* **Path**: `/api/v1/auth/login`
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/api_contract.md:102:  ```json
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/api_contract.md:114:### 2.3. Token Refresh (`POST /api/v1/auth/refresh`)
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/api_contract.md:118:* **Path**: `/api/v1/auth/refresh`
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/api_contract.md:120:  ```json
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/api_contract.md:127:    ```json
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/api_contract.md:139:### 2.4. Current User Profile (`GET /api/v1/auth/me`)
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/api_contract.md:143:* **Path**: `/api/v1/auth/me`
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/api_contract.md:147:    ```json
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/api_contract.md:161:### 2.5. Device Handshake & E2EE Public Key Registration (`POST /api/v1/auth/device/handshake`)
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/api_contract.md:165:* **Path**: `/api/v1/auth/device/handshake`
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/api_contract.md:168:  ```json
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/api_contract.md:185:    ```json
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/api_contract.md:196:### 2.6. Guest Session & Entitlement (`POST /api/v1/learning/guest/session`)
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/api_contract.md:200:* **Path**: `/api/v1/learning/guest/session`
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/api_contract.md:202:  ```json
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/api_contract.md:209:    ```json
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/api_contract.md:220:### 2.7. Guest Account Claim (`POST /api/v1/learning/guest/claim`)
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/api_contract.md:224:* **Path**: `/api/v1/learning/guest/claim`
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/api_contract.md:227:  ```json
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/api_contract.md:237:## 3. Today Dashboard, Daily Brief & Tasks (`/api/v1/today/...` & `/api/v1/learning/...`)
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/api_contract.md:239:### 3.1. Get Today Overview (`GET /api/v1/learning/today/overview`)
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/api_contract.md:243:* **Path**: `/api/v1/learning/today/overview`
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/api_contract.md:247:    ```json
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/api_contract.md:268:### 3.2. Today Daily Brief (`GET /api/v1/today/brief`)
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/api_contract.md:272:* **Path**: `/api/v1/today/brief`
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/api_contract.md:276:    ```json
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/api_contract.md:281:      "audio_brief_url": "/api/v1/learning/media/brief_20261029.mp3",
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/api_contract.md:298:### 3.3. Today Tasks List (`GET /api/v1/today/tasks`)
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/api_contract.md:302:* **Path**: `/api/v1/today/tasks`
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/api_contract.md:306:    ```json
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/api_contract.md:325:### 3.4. Toggle Task Completion (`POST /api/v1/today/tasks/{task_id}/toggle`)
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/api_contract.md:329:* **Path**: `/api/v1/today/tasks/{task_id}/toggle`
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/api_contract.md:332:  ```json
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/api_contract.md:343:### 3.5. Generate Session Study Plan (`POST /api/v1/learning/session/plan`)
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/api_contract.md:347:* **Path**: `/api/v1/learning/session/plan`
+/Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/api_contract.md:349:  ```json
+
+exec
+/bin/zsh -lc "nl -ba skills/sync-shared-contracts/resources/scripts/sync_contracts.py | sed -n '1186,1236p'; nl -ba skills/sync-shared-contracts/resources/scripts/sync_contracts.py | sed -n '1706,1754p'; rg -n 'BLOCKED|exit code|contracts' skills/rust-quality-check/SKILL.md; rg -n '"'^#|fixture|token|span|highlight|Response Envelope|Canonical'"' /Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/architecture_and_flow.md | head -25; nl -ba /Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/architecture_and_flow.md | sed -n '19,80p'; nl -ba /Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/architecture_and_flow.md | sed -n '109,154p'" in /Users/danhdueexoictif/AllProjects/ai-agent-tools
+ succeeded in 0ms:
+  1186	def cmd_diff_check(args: argparse.Namespace) -> int:
+  1187	    """Audit diff between merge-base and HEAD against .agents/contract_map.json."""
+  1188	    repo_root = Path(args.repo_root).resolve() if args.repo_root else Path.cwd().resolve()
+  1189	    is_json = bool(args.json)
+  1190	
+  1191	    def emit_blocked(
+  1192	        blockers: list[str],
+  1193	        mode: str | None = None,
+  1194	        base_ref: str | None = None,
+  1195	        merge_base: str | None = None,
+  1196	        head_sha: str | None = None,
+  1197	    ) -> int:
+  1198	        if is_json:
+  1199	            payload = {
+  1200	                "status": "BLOCKED",
+  1201	                "mode": mode,
+  1202	                "base_ref": base_ref,
+  1203	                "merge_base": merge_base,
+  1204	                "head_sha": head_sha,
+  1205	                "domains": [],
+  1206	                "violations": [],
+  1207	                "active_waivers": [],
+  1208	                "blockers": blockers,
+  1209	            }
+  1210	            print(json.dumps(payload, indent=2))
+  1211	        else:
+  1212	            print("Status: BLOCKED")
+  1213	            if mode:
+  1214	                print(f"Mode: {mode}")
+  1215	            print("Blockers:")
+  1216	            for b in blockers:
+  1217	                print(f"  - {b}")
+  1218	        return 2
+  1219	
+  1220	    # 1. Preconditions: Validate HEAD .agents/contract_map.json
+  1221	    map_file = repo_root / ".agents" / "contract_map.json"
+  1222	    if not map_file.is_file():
+  1223	        return emit_blocked(["Missing .agents/contract_map.json at HEAD"])
+  1224	
+  1225	    try:
+  1226	        head_map_data = json.loads(map_file.read_text(encoding="utf-8"))
+  1227	    except (json.JSONDecodeError, OSError) as exc:
+  1228	        return emit_blocked([f"Malformed JSON in .agents/contract_map.json at HEAD: {exc}"])
+  1229	
+  1230	    valid_map, map_err = validate_contract_map(head_map_data)
+  1231	    if not valid_map:
+  1232	        return emit_blocked([f"Invalid .agents/contract_map.json schema at HEAD: {map_err}"])
+  1233	
+  1234	    head_domains: dict[str, Any] = head_map_data["domains"]
+  1235	
+  1236	    # 2. Preconditions: Validate --domain filters
+  1706	def main(argv: list[str] | None = None) -> int:
+  1707	    """CLI main entrypoint."""
+  1708	    parser = argparse.ArgumentParser(description="Sync Shared Contracts CLI")
+  1709	    subparsers = parser.add_subparsers(dest="command")
+  1710	
+  1711	    p_check = subparsers.add_parser("check", help="Check contract drift")
+  1712	    p_check.add_argument("--repo-root", type=str, help="Repository root path")
+  1713	    p_check.add_argument("--domain", type=str, default="lyrics-sync", help="Contract domain name")
+  1714	    p_check.add_argument("--json", action="store_true", help="Emit JSON output")
+  1715	    p_check.add_argument("--strict", action="store_true", help="Exit 1 if drift detected")
+  1716	    p_check.add_argument("--rfc", action="append", help="Target RFC ID for scoped check")
+  1717	
+  1718	    p_brief = subparsers.add_parser("brief", help="Generate Contract Requirements Brief")
+  1719	    p_brief.add_argument("--repo-root", type=str, help="Repository root path")
+  1720	    p_brief.add_argument("--domain", type=str, default="lyrics-sync", help="Contract domain name")
+  1721	    p_brief.add_argument("--output", type=str, help="Output markdown path")
+  1722	
+  1723	    p_ack = subparsers.add_parser("ack", help="Acknowledge contract watermark")
+  1724	    p_ack.add_argument("--repo-root", type=str, help="Repository root path")
+  1725	    p_ack.add_argument("--domain", type=str, default="lyrics-sync", help="Contract domain name")
+  1726	    p_ack.add_argument("--snapshot", type=str, help="Expected snapshot ID")
+  1727	    p_ack.add_argument("--rfc", action="append", help="RFC ID to acknowledge")
+  1728	    p_ack.add_argument("--all-rfcs", action="store_true", help="Acknowledge all RFCs")
+  1729	
+  1730	    p_diff = subparsers.add_parser("diff-check", help="Audit diff between merge-base and HEAD against contract_map.json")
+  1731	    p_diff.add_argument("--repo-root", type=str, help="Repository root path")
+  1732	    p_diff.add_argument("--base-ref", type=str, help="Base git reference")
+  1733	    p_diff.add_argument("--domain", action="append", help="Contract domain filter")
+  1734	    p_diff.add_argument("--json", action="store_true", help="Emit JSON output")
+  1735	
+  1736	    args = parser.parse_args(argv)
+  1737	    if not args.command:
+  1738	        parser.print_help()
+  1739	        return 1
+  1740	
+  1741	    if args.command == "check":
+  1742	        return cmd_check(args)
+  1743	    if args.command == "brief":
+  1744	        return cmd_brief(args)
+  1745	    if args.command == "ack":
+  1746	        return cmd_ack(args)
+  1747	    if args.command == "diff-check":
+  1748	        return cmd_diff_check(args)
+  1749	
+  1750	    return 1
+  1751	
+  1752	
+  1753	if __name__ == "__main__":
+  1754	    sys.exit(main())
+37:- If `.agents/quality/rust-quality.json` is missing or invalid: emit status `BLOCKED`.
+38:- If the requested profile is not configured: emit status `BLOCKED`.
+39:- For profile `epic`: if the `architecture` capability is missing: emit status `BLOCKED`.
+45:   - An argument beginning with `{skills_dir}` is resolved to the directory containing this plugin's `skills/` folders (the parent of `rust-quality-check/`), so manifests can call sibling skill scripts without machine-specific paths (e.g. `["python3", "{skills_dir}/sync-shared-contracts/resources/scripts/sync_contracts.py", "diff-check", "--base-ref", "{base_ref}"]`).
+48:3. If an executable is missing or cannot be spawned: record check status as `BLOCKED`.
+49:4. If a command runs and reports defects (nonzero exit code):
+50:   - For governance and contract capabilities (`contracts`, `contracts_<domain>`, and `contract_diff`): exit code `0` records `PASS`, exit code `2` (or JSON `"status": "BLOCKED"`) records `BLOCKED`, and any other nonzero exit code (such as `1`) records `FAIL`.
+51:   - For all other capabilities: nonzero exit code records `FAIL`.
+52:5. If a command succeeds (zero exit code): record check status as `PASS`.
+71:- `status`: Aggregated provider status (`FAIL` if any check failed, `BLOCKED` if any check blocked, else `PASS`)
+1:# Architecture and System Flow Contract: D3Nexus ⇄ lyrics-sync
+8:Status: Canonical Single Source of Truth (SSOT)
+12:## Table of Contents
+19:## 1. System Roles & Responsibilities
+57:### 1.1. Core Invariants
+64:### 1.2. Worker Queue Task Execution Priorities
+74:#### Priority Scheduling Rules & Backward Compatibility
+81:## 2. Pipeline 1: Align Studio Architecture & State Machine
+83:Task processing for music, speech, and podcast alignment progresses through **3 Phases** encompassing **7 Canonical Steps**. This sequence is authoritative across both codebases (`src/lyrics_sync/worker/bridge.py::CANONICAL_STEPS` and D3Nexus backend/frontend).
+85:### 2.1. Canonical Step Definitions & Progress Mapping
+118:| **5** | `lexical_enrichment` | 75% | Mine formulaic sequences, collocations, CEFR tiers, IPA, and cloze highlight masks | Lexical Enrichment |
+122:### 2.2. Step State Lifecycle
+155:### 2.3. Overall Align Task State Machine
+186:### 2.4. Lexical Mining & Dual Highlighting Presentation Contract
+192:   - **Interaction**: Clicking any constituent token within the chunk opens the popover HUD for the corresponding collocation headword.
+194:   - **Scope**: Highlights ONLY the core dictionary tokens via `highlight_mask` (`<mark class="d3-target lexical-core">`), leaving variable syntactic arguments unhighlighted (`<span class="lexical-context">`).
+195:     - Example Continuous (`set off sth`): `You <mark class="d3-target lexical-core">set off</mark> <span class="lexical-context">a dream</span> in me`.
+196:     - Example Discontinuous (`let sth end`): `Can't <mark class="d3-target lexical-core">let</mark> <span class="lexical-context">this moment</span> <mark class="d3-target lexical-core">end</mark>`.
+203:## 3. Pipeline 2: TTS Studio Architecture & Worker Lifecycle
+207:### 3.1. Hybrid Execution Architecture (Cloud + Worker Fallback)
+244:### 3.2. TTS Studio Canonical Step Definitions & Progress Mapping
+246:Multi-speaker dialogue synthesis and learning material generation in `lyrics-sync` progresses through **3 Phases** encompassing **7 Canonical Steps**, matching the discipline of Align Studio:
+283:### 3.3. Speech Job Lifecycle States
+290:| **Claimed By Worker** | `ClaimedByWorker` | Leased by a worker node with active `lease_token`. |
+294:### 3.4. Worker Failure Transition & Immediate Lease Reclamation
+    19	## 1. System Roles & Responsibilities
+    20	
+    21	The system is partitioned into two decoupled, specialized sub-systems operating in a Producer-Consumer / Orchestrator-Worker relationship:
+    22	
+    23	```text
+    24	┌────────────────────────────────────────────────────────────────────────┐
+    25	│                        D3Nexus Control Plane                           │
+    26	│  - Task Queue & Lease Scheduling (SQLite / PostgreSQL)                 │
+    27	│  - Real-time State & SSE Broadcasting Hub (< 50ms)                     │
+    28	│  - Dual-Pipeline Dispatcher: Align Studio & TTS Studio Engine          │
+    29	│  - Cloud Quota Fallback Interceptor (HTTP 429 -> Local Worker Queue)   │
+    30	│  - End-User Interactive Web UI & Mobile API Hub                        │
+    31	│  - SOLE OWNER OF DATABASE PERSISTENCE                                  │
+    32	│    (Atomic transaction: tracks, lyrics catalog, flashcards, speech)    │
+    33	└───────────────────────────────────┬────────────────────────────────────┘
+    34	                                    │ HTTP REST (X-Worker-Token)
+    35	                                    │ + SSE Stream (< 50ms)
+    36	                                    ▼
+    37	┌────────────────────────────────────────────────────────────────────────┐
+    38	│                        lyrics-sync Worker Fleet                        │
+    39	│  - Pure Stateless Compute Node (macOS Apple Silicon MPS / Linux CUDA)  │
+    40	│                                                                        │
+    41	│  [Capability 1: Align Studio Pipeline]                                 │
+    42	│  - Demucs v4 Vocal Stem Isolation & Audio Resampling                   │
+    43	│  - Wav2Vec2 CTC Forced Alignment + Whisper ASR Fallback                │
+    44	│  - LLM Boundary Alignment, Contextual Translation & Lexical Mining     │
+    45	│                                                                        │
+    46	│  [Capability 2: TTS Studio Pipeline]                                   │
+    47	│  - High-Fidelity Neural Speech Synthesis (Kokoro-82M on MPS/CUDA)      │
+    48	│  - Cloud Quota Fallback Task Execution (Offline Mac Mini Worker)       │
+    49	│  - Multi-Speaker Dialogue Stitching & Word-Level Timing Extraction     │
+    50	│  - Bilingual Script Generation & CEFR Lexical Filtering                │
+    51	│                                                                        │
+    52	│  - Strictly FORBIDDEN from direct database connections                 │
+    53	│  - Automatic process-group fencing, memory purging & scratch cleanup   │
+    54	└────────────────────────────────────────────────────────────────────────┘
+    55	```
+    56	
+    57	### 1.1. Core Invariants
+    58	1. **Stateless Compute Boundary**: `lyrics-sync` workers operate strictly as compute daemons. Workers **MUST NOT** possess direct database credentials (`DATABASE_URL`, PostgreSQL connection strings) and **MUST NOT** execute direct writes to the D3Nexus database.
+    59	2. **Domain Ownership Boundary**: `D3Nexus` is the sole owner of persistent storage. Upon receiving completion payloads, D3Nexus atomically persists tracks, synchronized lyrics, vocabulary flashcards, and synthesized speech audio records.
+    60	3. **Dual-Layer Control Plane**:
+    61	   - **Primary Fast Channel**: Long-lived Server-Sent Events (SSE) connection (`GET /api/v1/align/tasks/{id}/stream` and `GET /api/v1/speech/jobs/{id}/events`) for sub-50ms operator cancellation and real-time telemetry.
+    62	   - **Heartbeat & Telemetry Channel**: Periodic bidirectional heartbeats sent every `10.0 seconds` for lease renewal, hardware telemetry reporting, and fencing.
+    63	
+    64	### 1.2. Worker Queue Task Execution Priorities
+    65	
+    66	To ensure responsive learner interaction while processing compute-intensive background workloads, compute task execution across the stateless worker fleet adheres to a 3-tier weighted priority hierarchy:
+    67	
+    68	| Priority Tier | Workload Kind | Example Operations | Typical Duration | Priority Weight | Dispatch SLA |
+    69	| :---: | :--- | :--- | :---: | :---: | :---: |
+    70	| **Tier 1 (High)** | `line_slice` | Line-edit CTC forced alignment on user lyric corrections | 3–8s | **10** | < 1s (near instant) |
+    71	| **Tier 2 (Medium)** | `tts_generation` | Kokoro-82M neural speech synthesis & bilingual script generation | 2–8s | **5** | < 5s |
+    72	| **Tier 3 (Batch)** | `media_ingest` / `full_track` | Demucs v4 HTDemucs 4-stem vocal separation & Whisper ASR | 20–60s | **1** | Best-effort FIFO |
+    73	
+    74	#### Priority Scheduling Rules & Backward Compatibility
+    75	1. **Priority Ordering**: Upgraded worker nodes and dispatcher queues prioritize pending tasks by priority weight descending (`Tier 1 (10) > Tier 2 (5) > Tier 3 (1)`).
+    76	2. **Starvation Prevention**: Long-running Tier 3 stem separation or Whisper batch transcription jobs must never starve Tier 1 student line corrections. Compute nodes allocate polling priority to Tier 1 task queues before acquiring batch jobs.
+    77	3. **Backward Compatibility Guarantee**: Existing worker nodes lacking priority-weighted polling logic continue claiming tasks via standard endpoints using their default FIFO/round-robin behavior without protocol errors.
+    78	
+    79	---
+    80	
+   109	## 4. Audio-Lyric 60fps Synchronization & 1-Tap Mining Flow
+   110	
+   111	### 4.1. High-Performance Playback & Highlighting Loop
+   112	
+   113	```text
+   114	 Native Audio Engine (just_audio / CoreAudio / AAudio)
+   115	                     │
+   116	                     ▼ Stream position tick (~10-20ms jitter)
+   117	   Interpolated Frame Clock (TickerProvider / SchedulerBinding)
+   118	                     │
+   119	                     ▼ Smoothed target timestamp: t_current
+   120	        Binary Search Active Line (lines[].startMs <= t <= lines[].endMs)
+   121	                     │
+   122	                     ▼ Find Active Word (words[].startMs <= t <= words[].endMs)
+   123	  Render Smooth Progress Gradient on Karaoke Canvas (60 - 120 fps)
+   124	```
+   125	
+   126	### 4.2. 1-Tap Collocation Mining Flow
+   127	
+   128	```text
+   129	 User Taps Word / Collocation Chip in Lyrics View
+   130	                     │
+   131	                     ▼
+   132	  Query Local Memory Map for `all_collocations` Match
+   133	  (Matches occurrence by line_id and character spans)
+   134	                     │
+   135	                     ▼
+   136	  Display Glassmorphic Bottom Popover / Sheet
+   137	  - Canonical phrase & spoken title
+   138	  - CEFR Badge & IPA pronunciation
+   139	  - Bilingual definition & grammatical pattern
+   140	  - Sentence context with {{highlight_mask}}
+   141	                     │
+   142	                     ▼ User Taps "Save to Kho" (1-Tap Action)
+   143	  Construct CardDraft -> Validate Bounds (Phrase <= 80, Sentence <= 500)
+   144	                     │
+   145	                     ▼
+   146	  Commit to Local Cache & Queue Outbox Entry
+   147	                     │
+   148	                     ▼
+   149	  Haptic Feedback (Light Impact) + Toast Confirmation
+   150	```
+   151	
+   152	---
+   153	
+   154	## 5. Security & Mobile Enclave Integration
+
+exec
+/bin/zsh -lc "nl -ba .devtool/epic/web_quality_check_and_integration_gate/web_quality_check_and_integration_gate.vi.md | sed -n '29,115p'; nl -ba /Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/api_contract.md | sed -n '1,55p'; nl -ba /Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/lyrics-sync/gaps_and_rfcs.md | sed -n '1,38p'; nl -ba /Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/api_contract.md | sed -n '1,60p'; nl -ba /Users/danhdueexoictif/AllProjects/D3Nexus/shared-contracts/nexus/gaps_and_rfcs.md | sed -n '1,32p'" in /Users/danhdueexoictif/AllProjects/ai-agent-tools
+ succeeded in 0ms:
+    29	## Bối cảnh
+    30	
+    31	Trong hệ sinh thái đa repo (`D3Nexus`, `lyrics-sync`, `nexus`), các kỹ sư đối mặt với khoảng cách lớn giữa thiết kế kiến trúc và hành vi thực tế khi chạy. Khoảng cách này buộc lập trình viên phải kiểm thử thủ công (bấm tay) rất nhiều trên thiết bị và trình duyệt trước mỗi đợt release:
+    32	- Unit test pass 100% xanh bằng mock, nhưng gãy khi chạy thật do lỗi đăng ký DI, lỗi giải mã JSON, và lỗi gắn sự kiện DOM.
+    33	- Gate 4 (`quality_check`) thiếu provider cho Web, bỏ quên hoàn toàn `D3Nexus` (`apps/learning-web`) và `lyrics-sync` (17 file Vanilla JS).
+    34	- AI coding agent thường xuyên tự tìm đường tắt, né tránh chạy trình duyệt headless và bỏ qua lỗi console.
+    35	
+    36	## Mục tiêu và Giới hạn
+    37	
+    38	### Mục tiêu
+    39	- Xây dựng provider `web-quality-check` tuân thủ Hợp đồng Kết quả Provider v1 cho các dự án Astro TypeScript và Vanilla JavaScript.
+    40	- Kích hoạt điều phối chất lượng đa nền tảng (polyglot) tại Gate 4 trên cả `D3Nexus` và `lyrics-sync`.
+    41	- Thực thi Chuẩn Kiểm thử 3 Lớp (Tier A Unit, Tier C1 Dưới da Mobile/Backend, Tier C2 Trình duyệt Headless Web).
+    42	- Đưa Bảng Chống Ngụy biện và Cơ chế Phản biện Nghi vấn từ `addyosmani/agent-skills` vào quy trình kỹ năng.
+    43	- Tự động sinh tài liệu 3–5 bước `manual_smoke_checklist.md` sau khi hoàn thành epic để rút ngắn thời gian bấm tay từ 30 phút xuống còn 2 phút.
+    44	
+    45	### Giới hạn
+    46	- Không chuyển đổi 17 file Vanilla JS trong `lyrics-sync` sang TypeScript (kiểm tra kiểu dữ liệu tại chỗ qua JSDoc và `jsconfig.json`).
+    47	- Không viết lại các unit test nhanh hiện có.
+    48	- Không ép buộc bật emulator thiết bị cho các cổng duyệt cục bộ PR/Epic.
+    49	
+    50	## Kiến trúc và Thiết kế Kỹ thuật
+    51	
+    52	### Kiến trúc Tổng thể
+    53	
+    54	```mermaid
+    55	flowchart TD
+    56	    QC["Gate 4: quality_check (Nhạc trưởng Trung lập)"] --> REG["Đọc .agents/quality/check_quality.json"]
+    57	    REG --> FANOUT{"Kích hoạt Song song các Provider"}
+    58	    FANOUT --> P_RUST["rust-quality-check (Nhân D3Nexus)"]
+    59	    FANOUT --> P_PY["python-quality-check (Backend lyrics-sync)"]
+    60	    FANOUT --> P_FLUTTER["flutter-quality-check (Mobile nexus)"]
+    61	    FANOUT --> P_WEB["web-quality-check (MỚI: Astro TS + Vanilla JS)"]
+    62	    
+    63	    subgraph WEB_PROVIDER["Các Khả năng của web-quality-check"]
+    64	        direction TB
+    65	        CAP_TYPE["Kiểm tra Kiểu (astro check / tsc --noEmit / jsconfig.json)"]
+    66	        CAP_LINT["Linter (ESLint / Biome / Astro linter)"]
+    67	        CAP_UNIT["Tier A Unit Tests (Node / Vitest)"]
+    68	        CAP_E2E["Tier C2 Headless Playwright + Bộ Chặn Zero-Console-Error"]
+    69	    end
+    70	    
+    71	    P_WEB --> WEB_PROVIDER
+    72	    FANOUT --> AGG["Tổng hợp Kết quả (FAIL > BLOCKED > PASS)"]
+    73	    AGG --> SMOKE["Tự sinh manual_smoke_checklist.md (3-5 Bước)"]
+    74	    SMOKE --> VERDICT["Chứng nhận Gate 4 Hợp lệ"]
+    75	```
+    76	
+    77	### Use Cases
+    78	
+    79	```mermaid
+    80	flowchart LR
+    81	    DEV["Kiến trúc sư Con người"] --> UC1["Cấu hình Registry Đa Provider"]
+    82	    DEV --> UC2["Kích hoạt Kiểm chuẩn Gate 4"]
+    83	    DEV --> UC3["Duyệt Checklist Bấm tay (2 phút xác nhận)"]
+    84	    
+    85	    AGENT["Lập trình viên AI"] --> UC4["Thực thi Task có Chặn Ngụy biện"]
+    86	    AGENT --> UC5["Chạy Playwright Headless Zero-Console-Error"]
+    87	    AGENT --> UC6["Kiểm tra Kiểu Vanilla JS qua JSDoc"]
+    88	```
+    89	
+    90	### Sequence Diagram
+    91	
+    92	```mermaid
+    93	sequenceDiagram
+    94	    autonumber
+    95	    actor Human as Kiến trúc sư Con người
+    96	    participant Gate as quality_check (Gate 4)
+    97	    participant Web as web-quality-check
+    98	    participant Playwright as Chromium Headless
+    99	    participant Gen as Bộ Sinh Checklist
+   100	
+   101	    Human->>Gate: Kích hoạt @quality_check (profile: epic)
+   102	    Gate->>Gate: Đọc .agents/quality/check_quality.json
+   103	    Gate->>Web: Gọi provider kèm commit SHA
+   104	    Web->>Web: Chạy kiểm tra kiểu & linter
+   105	    Web->>Playwright: Khởi chạy Playwright headless kèm wiremock
+   106	    Playwright->>Playwright: Render DOM & xác thực Zero-Console-Error
+   107	    Playwright-->>Web: Trả về trace & bằng chứng thực thi
+   108	    Web-->>Gate: Xuất Tài liệu Kết quả Provider (PASS)
+   109	    Human->>Gen: Phase 4 chạy bộ sinh checklist & commit
+   110	    Gen-->>Human: Commit manual_smoke_checklist.md
+   111	    Human->>Gate: Thực thi Gate 4 cuối cùng trên candidate SHA
+   112	    Gate-->>Human: Báo cáo Gate 4 LGTM + Review Choice
+   113	```
+   114	
+   115	### Kế hoạch Kiểm thử Tích hợp và Ma trận Ranh giới
+     1	# API & Protocol Data Contract: D3Nexus ⇄ lyrics-sync
+     2	
+     3	<!--
+     4	Meta Data:
+     5	Kind: document
+     6	Diátaxis mode: reference
+     7	Audience: D3Nexus Control Plane & lyrics-sync Worker Fleet Engineers and AI Agents
+     8	Status: Canonical Single Source of Truth (SSOT)
+     9	Version: 3.0.0
+    10	-->
+    11	
+    12	## Table of Contents
+    13	- [1. Authentication & Protocol Headers](#1-authentication--protocol-headers)
+    14	- [2. Align Studio Worker Endpoints (`/api/v1/align/...`)](#2-align-studio-worker-endpoints-apiv1align)
+    15	- [3. TTS Studio Worker Endpoints (`/api/v1/speech/...`)](#3-tts-studio-worker-endpoints-apiv1speech)
+    16	- [4. Lyrics Report Worker Endpoints (`/api/v1/lyrics-report/worker/...`)](#4-lyrics-report-worker-endpoints-apiv1lyrics-reportworker)
+    17	- [5. Field Naming & Serialization Conventions](#5-field-naming--serialization-conventions)
+    18	
+    19	## 1. Authentication & Protocol Headers
+    20	
+    21	All worker endpoints require the shared bearer authentication token header:
+    22	
+    23	```http
+    24	X-Worker-Token: <D3N_WORKER_SECRET_TOKEN>
+    25	Content-Type: application/json
+    26	Accept: application/json
+    27	```
+    28	
+    29	Alternatively, standard Authorization header is accepted:
+    30	```http
+    31	Authorization: Bearer <D3N_WORKER_SECRET_TOKEN>
+    32	```
+    33	
+    34	For Server-Sent Events (SSE) streaming:
+    35	```http
+    36	X-Worker-Token: <D3N_WORKER_SECRET_TOKEN>
+    37	Accept: text/event-stream
+    38	```
+    39	
+    40	---
+    41	
+    42	## 2. Align Studio Worker Endpoints (`/api/v1/align/...`)
+    43	
+    44	### 2.1. Claim Task (`POST /api/v1/align/worker/claim`)
+    45	Worker requests the next available task from the queue based on its hardware capabilities.
+    46	
+    47	* **Method**: `POST`
+    48	* **Path**: `/api/v1/align/worker/claim`
+    49	* **Request Payload**:
+    50	  ```json
+    51	  {
+    52	    "worker_id": "DanhDues-Mac-mini.local",
+    53	    "capabilities": ["mps", "demucs_v4", "whisper_large_v3", "lexical_enrichment"]
+    54	  }
+    55	  ```
+     1	# Gaps, Open Inquiries & RFCs: D3Nexus ⇄ lyrics-sync
+     2	
+     3	<!--
+     4	Meta Data:
+     5	Kind: document
+     6	Diátaxis mode: reference & collaboration log
+     7	Audience: D3Nexus Control Plane & lyrics-sync Worker Fleet Engineers and AI Agents
+     8	Status: Canonical Single Source of Truth (SSOT)
+     9	Version: 1.0.0
+    10	-->
+    11	
+    12	This document serves as the formal asynchronous Request For Change (RFC) and communication ledger between the AI Agents and engineers developing `lyrics-sync` and `D3Nexus`.
+    13	
+    14	## Table of Contents
+    15	- [1. Open Gaps & Alignment Questions (For D3Nexus Confirmation)](#1-open-gaps--alignment-questions-for-d3nexus-confirmation)
+    16	- [2. Accepted RFCs & Architectural Decisions](#2-accepted-rfcs--architectural-decisions)
+    17	- [3. D3Nexus Review & Feedback](#3-d3nexus-review--feedback)
+    18	- [4. TTS Studio Gaps & Open Inquiries](#4-tts-studio-gaps--open-inquiries)
+    19	- [5. Lexical & Collocation RFCs](#5-lexical--collocation-rfcs)
+    20	
+    21	---
+    22	
+    23	## 1. Open Gaps & Alignment Questions (For D3Nexus Confirmation)
+    24	
+    25	### GAP-01: Axum Request Body Size Limit on Task Completion (`POST /complete`)
+    26	* **Observation**:
+    27	  Full alignment payloads containing word-level timestamps (`Word`), bilingual sentence translations, and comprehensive 10-field lexical chunks (`all_collocations`) can range from `500 KB` to `5 MB` for long videos (e.g. 10-15 minute speeches or audio tracks). Axum's default `DefaultBodyLimit` is `2 MB`.
+    28	* **Current Behavior**:
+    29	  For standard 3-5 minute songs, payloads remain under 1MB. However, long-form content may be rejected with `HTTP 413 Payload Too Large`.
+    30	* **Proposed Action for D3Nexus**:
+    31	  Ensure the Axum router configures an explicit body limit for the completion endpoint in `apps/server/src/align/routes.rs`:
+    32	  ```rust
+    33	  .route("/api/v1/align/worker/tasks/:id/complete", post(complete_task))
+    34	  .layer(axum::extract::DefaultBodyLimit::max(10 * 1024 * 1024)) // 10 MB limit
+    35	  ```
+    36	* **Status**: `OPEN` (Awaiting D3Nexus confirmation).
+    37	
+    38	---
+     1	# API & Protocol Data Contract: D3Nexus ⇄ nexus (Mobile App)
+     2	
+     3	<!--
+     4	Meta Data:
+     5	Kind: document
+     6	Diátaxis mode: reference
+     7	Audience: D3Nexus Control Plane & nexus Mobile Application Engineers and AI Agents
+     8	Status: Canonical Single Source of Truth (SSOT)
+     9	Version: 1.1.0
+    10	-->
+    11	
+    12	## 1. Authentication & Protocol Headers
+    13	
+    14	The `nexus` mobile client communicates with the `D3Nexus` backend over HTTPS and Server-Sent Events (SSE).
+    15	
+    16	### 1.1. Common Client Request Headers
+    17	Every request issued by the mobile application MUST include standard telemetry and client-identification headers:
+    18	
+    19	```http
+    20	Authorization: Bearer <JWT_ACCESS_TOKEN>
+    21	X-Device-Id: <UUID_V4_DEVICE_ID>
+    22	X-Platform: <ios | android>
+    23	X-App-Version: <SEMVER_STRING>
+    24	Content-Type: application/json
+    25	Accept: application/json
+    26	```
+    27	
+    28	* `Authorization`: Standard OAuth2 Bearer token holding the short-lived access JWT (omitted only for unauthenticated guest session bootstrapping and login/registration).
+    29	* `X-Device-Id` (`string`, required): Persistent unique client device identifier stored in secure hardware enclave (`flutter_secure_storage` backed by iOS Keychain / Android KeyStore).
+    30	* `X-Platform` (`string`, required): Client operating system (`"ios"` or `"android"`).
+    31	* `X-App-Version` (`string`, required): Application semantic release version (e.g. `"1.2.0"`).
+    32	* `X-Guest-Session-Id` (`string`, optional): Transient guest session identifier for unauthenticated learners.
+    33	
+    34	---
+    35	
+    36	### 1.2. Universal API Response Envelope (`BaseResponseObject<T>`)
+    37	
+    38	Every REST JSON response emitted by `/api/*` endpoints MUST conform to the universal `BaseResponseObject<T>` wire schema:
+    39	
+    40	```json
+    41	{
+    42	  "success": true,
+    43	  "code": "0000",
+    44	  "message": "Success",
+    45	  "data": { ... }
+    46	}
+    47	```
+    48	
+    49	#### Field Specifications
+    50	* `success` (`boolean`, required): `true` for successful operations (HTTP status 2xx), `false` for client or server errors (HTTP status 4xx/5xx).
+    51	* `code` (`string`, required): Standardized machine-readable status or error code. `"0000"` indicates success; error codes follow UPPER_SNAKE_CASE (e.g. `"NOT_FOUND"`, `"EMPTY_SLUG_LIST"`, `"AUTH_INVALID_CREDENTIALS"`).
+    52	* `message` (`string`, required): Human-readable status description. Defaults to `"Success"` for successful operations, or a descriptive error explanation on failures.
+    53	* `data` (`T | null`, required): The actual payload data (JSON object, array, primitive, or `null`). For HTTP 204 No Content responses mapped to 200 OK or error responses, `data` is `null`.
+    54	
+    55	#### Idempotency & Pass-Through Guarantees
+    56	* **Idempotent Handling (Zero Double-Wrapping)**: If an outgoing response is already wrapped in `BaseResponseObject<T>` (containing `success`, `code`, and `data` keys), `AutoEnvelopeLayer` passes it through untouched without introducing nested envelopes.
+    57	* **Streaming & Binary Bypass**: Server-Sent Events (`text/event-stream`), byte-range audio streaming (`audio/*`, HTTP 206), and non-API documentation or health check routes (`/healthz`, `/docs`, `/swagger-ui`, `/openapi.json`) are completely excluded from envelope wrapping.
+    58	
+    59	---
+    60	
+     1	# Gaps, Open Inquiries & RFCs: D3Nexus ⇄ nexus (Mobile App)
+     2	
+     3	<!--
+     4	Meta Data:
+     5	Kind: document
+     6	Diátaxis mode: reference & collaboration log
+     7	Audience: D3Nexus Control Plane & nexus Mobile Application Engineers and AI Agents
+     8	Status: Canonical Single Source of Truth (SSOT)
+     9	Version: 1.1.0
+    10	-->
+    11	
+    12	This document serves as the formal asynchronous Request For Change (RFC) and communication ledger between the AI Agents and engineers developing `nexus` (Mobile Client) and `D3Nexus` (Control Plane).
+    13	
+    14	---
+    15	
+    16	## 1. Identified Gaps & Alignment Inquiries
+    17	
+    18	### GAP-NEX-01: HTTP 206 Partial Content (Byte-Range) Support for Audio Seeking
+    19	* **Observation**:
+    20	  Mobile audio playback engines (iOS `AVPlayer` and Android `ExoPlayer` / `Media3` used by `just_audio` in `packages/media_player`) require strict HTTP 206 byte-range handling. When scrubbing the playback timeline or resuming playback from a word index, the player dispatches `Range: bytes=START-END` or `Range: bytes=START-`.
+    21	* **Current Behavior**:
+    22	  `D3Nexus` serves media via `learning_media::media_streaming_router`. If the server returns HTTP 200 with the full file stream instead of HTTP 206 with `Content-Range: bytes START-END/TOTAL`, mobile players on iOS will fail seeking or buffer the entire file repeatedly.
+    23	* **Proposed Action for D3Nexus**:
+    24	  Verify and ensure that `apps/server` media streaming handlers explicitly handle `Range` headers, return `HTTP 206 Partial Content`, `Accept-Ranges: bytes`, and the accurate `Content-Range` header.
+    25	* **Status**: `OPEN` (Requires verification against `learning_media` router).
+    26	
+    27	---
+    28	
+    29	### GAP-NEX-02: Mixed Timestamp Serialization (`i64` Epoch ms vs ISO-8601 Strings)
+    30	* **Observation**:
+    31	  `nexus` client models (e.g. `outbox_entry.dart`) serialize mutation timestamps as ISO-8601 UTC strings (`2026-10-29T10:15:30.120Z`). Conversely, `D3Nexus` backend models in PostgreSQL and Axum handlers often serialize timestamps as `i64` integer epoch milliseconds (`1793130000000`).
+    32	* **Current Behavior**:
+
+exec
+/bin/zsh -lc 'python3 -B skills/sync-shared-contracts/resources/scripts/sync_contracts.py diff-check --base-ref main --json' in /Users/danhdueexoictif/AllProjects/ai-agent-tools
+ exited 2 in 0ms:
+{
+  "status": "BLOCKED",
+  "mode": null,
+  "base_ref": null,
+  "merge_base": null,
+  "head_sha": null,
+  "domains": [],
+  "violations": [],
+  "active_waivers": [],
+  "blockers": [
+    "Missing .agents/contract_map.json at HEAD"
+  ]
+}
+
+exec
+/bin/zsh -lc "node -e 'const visible = s => s.display "'!== '"'\\''none'\\'' && s.visibility "'!== '"'\\''hidden'\\'';
+for (const [label, s] of Object.entries({
+normal: {display:'\\''block'\\'',visibility:'\\''visible'\\''},
+srOnly: {display:'\\''block'\\'',visibility:'\\''visible'\\'',position:'\\''absolute'\\'',width:'\\''1px'\\'',height:'\\''1px'\\'',overflow:'\\''hidden'\\'',clip:'\\''rect(0px, 0px, 0px, 0px)'\\''},
+hiddenByAncestor: {display:'\\''block'\\'',visibility:'\\''visible'\\'',ancestorDisplay:'\\''none'\\''},
+opacityZero: {display:'\\''block'\\'',visibility:'\\''visible'\\'',opacity:'\\''0'\\''},
+collapsed: {display:'\\''table-row'\\'',visibility:'\\''collapse'\\''}
+})) console.log(label, '\\''frozen visibility predicate ='\\'', visible(s));
+'" in /Users/danhdueexoictif/AllProjects/ai-agent-tools
+ succeeded in 0ms:
+normal frozen visibility predicate = true
+srOnly frozen visibility predicate = true
+hiddenByAncestor frozen visibility predicate = true
+opacityZero frozen visibility predicate = true
+collapsed frozen visibility predicate = true
+
+exec
+/bin/zsh -lc "nl -ba /Users/danhdueexoictif/antigravity_homes/peter/.codex/memories/MEMORY.md | sed -n '203,220p'; nl -ba skills/dev-implementation/resources/scripts/test_sync_task_status.py | sed -n '650,726p'; nl -ba skills/quality_check/resources/scripts/validate_quality_contract.py | sed -n '240,290p'; nl -ba skills/quality_check/resources/scripts/aggregate_quality_results.py | sed -n '30,120p'; GIT_OPTIONAL_LOCKS=0 /Library/Developer/CommandLineTools/usr/bin/git status --porcelain=v1" in /Users/danhdueexoictif/AllProjects/ai-agent-tools
+ succeeded in 0ms:
+   203	# Task Group: ai-agent-tools Gate 4 Review Choice loop and external-review diagnostics
+   204	
+   205	scope: Verified lifecycle state-machine update and streamed external-review precondition reporting.
+   206	applies_to: cwd=/Users/danhdueexoictif/AllProjects/ai-agent-tools; reuse_rule=inspect current lifecycle rules/skills and candidate SHA before reuse; flow is repository policy, not a generic shortcut around gates.
+   207	
+   208	## Task 1: Reposition Review Choice into a Gate 4 loop, success
+   209	
+   210	### rollout_summary_files
+   211	
+   212	- rollout_summaries/2026-10-18T10-39-52-b3XU-gate4_review_choice_loop_and_external_review_streaming.md (cwd=/Users/danhdueexoictif/AllProjects/ai-agent-tools, rollout_path=/Users/danhdueexoictif/.codex/sessions/2026/10/18/rollout-2026-10-18T17-39-52-01a14e98-b2b9-7043-9d17-65dd8df4be46.jsonl, updated_at=2026-10-18T15:23:36+00:00, thread_id=01a14e98-b2b9-7043-9d17-65dd8df4be46, committed and fully verified)
+   213	
+   214	### keywords
+   215	
+   216	- Gate 4, Review Choice, Cross-model review, Gate 5, SHA-bound, rules/CRITICAL_RULES.md, test_verifiable_handoff_text.py, df9f67af7c1f7fecd3b4a9768c0863d035ed3088
+   217	
+   218	## Task 2: Add realtime ANSI pre-check output to external review, success
+   219	
+   220	### rollout_summary_files
+   650	    def refuse_leaves_copies(self, *fragments: str) -> None:
+   651	        before = self.copies()
+   652	        self.assert_refused(self.done(self.wt), *fragments)
+   653	        self.assertEqual(self.copies(), before)
+   654	
+   655	
+   656	class DoneGateTests(DoneGateCase):
+   657	    def test_vth_hp_03_matching_evidence_reaches_done(self):
+   658	        self.build()
+   659	        self.record()
+   660	        status = run_py(RECORDER, self.wt, "status", str(self.wt / MIRROR))
+   661	        self.assertEqual(status.returncode, 0, status.stdout)
+   662	        self.assertIn("done gate: PASS", status.stdout)
+   663	        result = self.done(self.wt)
+   664	        self.assertEqual(result.returncode, 0, result.stderr)
+   665	        for root in (self.main, self.wt):
+   666	            self.assertFalse((root / FEATURE).exists())
+   667	            self.assertTrue((root / DONE_FEATURE).exists())
+   668	        for text in self.copies().values():
+   669	            self.assertIn('status: "done"', text)
+   670	            self.assertNotIn('modified: "2026-01-01T00:00:00Z"', text)
+   671	            self.assertNotIn("completedAt: null", text)
+   672	
+   673	    def test_vth_st_03_done_without_evidence_is_refused(self):
+   674	        self.build()
+   675	        self.refuse_leaves_copies("condition 1:", "not found in this checkout",
+   676	                                  "run the done gate in the epic worktree")
+   677	
+   678	    def test_vth_st_04_edits_after_verification_are_refused(self):
+   679	        self.build()
+   680	        self.record()
+   681	        (self.wt / "feature.txt").write_text("changed\n", encoding="utf-8")
+   682	        self.refuse_leaves_copies("condition 4:")
+   683	        (self.wt / "feature.txt").write_text("done\n", encoding="utf-8")
+   684	        mirror = self.wt / MIRROR
+   685	        mirror.write_text(mirror.read_text(encoding="utf-8").replace(
+   686	            'exit 0; contains "OK"', 'exit 0; contains "OK!"'), encoding="utf-8")
+   687	        self.refuse_leaves_copies("condition 2:", "row V2: recorded expect differs from the table")
+   688	
+   689	    def test_vth_st_05_red_that_did_not_precede_the_change_is_refused(self):
+   690	        self.build()
+   691	        self.record()
+   692	        recorded = json.loads((self.wt / EVIDENCE).read_text(encoding="utf-8"))["runs"]["red"]["tree"]
+   693	        self.edit_evidence(lambda runs: runs["red"].update(tree=runs["verify"]["tree"]))
+   694	        self.refuse_leaves_copies("condition 5:", "RED was not recorded before the change")
+   695	        self.edit_evidence(lambda runs: runs["red"].update(tree=recorded, finished="2999-01-01T00:00:00Z"))
+   696	        self.refuse_leaves_copies("condition 5:", "finished after the verify run started")
+   697	
+   698	    def test_vth_st_06_only_code_epics_are_gated(self):
+   699	        self.build(verification=False)
+   700	        self.refuse_leaves_copies("retrofit required:", "has no Verification section")
+   701	        self.build(code_epic=False, verification=False)
+   702	        result = self.done(self.wt)
+   703	        self.assertEqual(result.returncode, 0, result.stderr)
+   704	        self.assertIn('status: "done"', (self.wt / DONE_FEATURE).read_text(encoding="utf-8"))
+   705	
+   706	    def test_vth_st_07_covered_identifier_without_a_passing_case_is_refused(self):
+   707	        self.build()
+   708	        self.record()
+   709	
+   710	        def drop_case(runs):
+   711	            row = next(r for r in runs["verify"]["rows"] if r["id"] == "V3")
+   712	            row["results"]["digest"]["cases"] = [
+   713	                c for c in row["results"]["digest"]["cases"] if "demo_ec_01" not in c["name"]]
+   714	
+   715	        self.edit_evidence(drop_case)
+   716	        self.refuse_leaves_copies("condition 6:", "DEMO-EC-01")
+   717	
+   718	    def test_vth_ar_02_gate_from_checkout_without_evidence_writes_nothing(self):
+   719	        self.build()
+   720	        self.record()
+   721	        before = self.copies()
+   722	        result = self.done(self.main)
+   723	        self.assert_refused(result, "condition 1:", "run the done gate in the epic worktree")
+   724	        self.assertEqual(self.copies(), before)
+   725	
+   726	    def test_done_from_a_checkout_lacking_the_task_is_refused(self):
+   240	def validate_provider_result(
+   241	    result_data: dict[str, Any],
+   242	    invocation_data: dict[str, Any],
+   243	) -> dict[str, Any]:
+   244	    """Validate a provider result document against contract and invocation identity."""
+   245	    findings: list[dict[str, Any]] = []
+   246	
+   247	    contract_version = result_data.get("contract_version")
+   248	    if contract_version != 1:
+   249	        findings.append(
+   250	            _finding(
+   251	                "unsupported_version",
+   252	                f"Unsupported contract_version '{contract_version}', expected 1",
+   253	            )
+   254	        )
+   255	
+   256	    # Identity matching against invocation
+   257	    exp_provider_id = invocation_data.get("provider_id")
+   258	    if exp_provider_id and result_data.get("provider_id") != exp_provider_id:
+   259	        findings.append(
+   260	            _finding(
+   261	                "provider_id_mismatch",
+   262	                f"Result provider_id '{result_data.get('provider_id')}' != invocation '{exp_provider_id}'",
+   263	            )
+   264	        )
+   265	
+   266	    exp_profile = invocation_data.get("profile")
+   267	    if exp_profile and result_data.get("profile") != exp_profile:
+   268	        findings.append(
+   269	            _finding(
+   270	                "profile_mismatch",
+   271	                f"Result profile '{result_data.get('profile')}' != invocation '{exp_profile}'",
+   272	            )
+   273	        )
+   274	
+   275	    exp_sha = invocation_data.get("repository_sha")
+   276	    if exp_sha:
+   277	        if result_data.get("repository_sha") != exp_sha:
+   278	            findings.append(
+   279	                _finding(
+   280	                    "repository_sha_mismatch",
+   281	                    f"Result repository_sha '{result_data.get('repository_sha')}' != invocation '{exp_sha}'",
+   282	                )
+   283	            )
+   284	        if result_data.get("started_head") != exp_sha or result_data.get("finished_head") != exp_sha:
+   285	            findings.append(
+   286	                _finding(
+   287	                    "sha_drift",
+   288	                    "Started head or finished head does not match repository_sha",
+   289	                )
+   290	            )
+    30	        # Sort checks by check id for determinism
+    31	        checks = p.get("checks", [])
+    32	        if isinstance(checks, list):
+    33	            p["checks"] = sorted(checks, key=lambda c: c.get("id", ""))
+    34	
+    35	        # Sort blockers and warnings
+    36	        p["blockers"] = sorted(p.get("blockers", []))
+    37	        p["warnings"] = sorted(p.get("warnings", []))
+    38	
+    39	        # Check for all-NOT_APPLICABLE checks on a required provider
+    40	        all_checks_na = len(checks) > 0 and all(c.get("status") == "NOT_APPLICABLE" for c in checks)
+    41	        if (p.get("status") == "NOT_APPLICABLE" or all_checks_na) and is_required:
+    42	            p["status"] = "BLOCKED"
+    43	            blocker_msg = f"Required provider '{p_id}' has only NOT_APPLICABLE checks"
+    44	            if blocker_msg not in p["blockers"]:
+    45	                p["blockers"].append(blocker_msg)
+    46	                p["blockers"].sort()
+    47	
+    48	        # Check for contradictory result (e.g. status PASS with failing check or sub-threshold coverage)
+    49	        if p.get("status") == "PASS":
+    50	            for c in checks:
+    51	                if c.get("status") in {"FAIL", "BLOCKED"}:
+    52	                    p["status"] = "BLOCKED"
+    53	                    blocker_msg = f"Contradictory result: provider reported PASS but check '{c.get('id')}' has status '{c.get('status')}'"
+    54	                    if blocker_msg not in p["blockers"]:
+    55	                        p["blockers"].append(blocker_msg)
+    56	            cov = p.get("coverage", {})
+    57	            if isinstance(cov, dict):
+    58	                for k, v in cov.items():
+    59	                    if isinstance(v, dict):
+    60	                        meas = v.get("measured")
+    61	                        thresh = v.get("threshold")
+    62	                        if thresh is not None and isinstance(meas, (int, float)) and isinstance(thresh, (int, float)):
+    63	                            if meas < thresh:
+    64	                                p["status"] = "BLOCKED"
+    65	                                blocker_msg = f"Contradictory result: provider reported PASS but coverage '{k}' is below threshold ({meas} < {thresh})"
+    66	                                if blocker_msg not in p["blockers"]:
+    67	                                    p["blockers"].append(blocker_msg)
+    68	            p["blockers"].sort()
+    69	
+    70	        normalized_providers.append(p)
+    71	
+    72	    # Synthesize missing providers declared in plan
+    73	    seen_result_ids = {r.get("provider_id") for r in results if r.get("provider_id")}
+    74	    for plan_item in plan:
+    75	        plan_id = plan_item.get("id")
+    76	        if plan_id and plan_id not in seen_result_ids:
+    77	            is_req = plan_item.get("required", True)
+    78	            synthetic = {
+    79	                "provider_id": plan_id,
+    80	                "contract_version": 1,
+    81	                "profile": invocation.get("profile") if invocation else (results[0].get("profile") if results else "pr"),
+    82	                "repository_sha": invocation.get("repository_sha") if invocation else (results[0].get("repository_sha") if results else ""),
+    83	                "status": "BLOCKED",
+    84	                "required": is_req,
+    85	                "checks": [],
+    86	                "coverage": {},
+    87	                "evidence": [],
+    88	                "started_head": "",
+    89	                "finished_head": "",
+    90	                "duration": 0.0,
+    91	                "blockers": [f"Missing result for provider '{plan_id}'"],
+    92	                "warnings": [],
+    93	            }
+    94	            normalized_providers.append(synthetic)
+    95	
+    96	    # Sort providers by provider_id
+    97	    normalized_providers.sort(key=lambda item: item.get("provider_id", ""))
+    98	
+    99	    # Evaluate precedence: FAIL > BLOCKED > PASS
+   100	    failing_providers = [p for p in normalized_providers if p.get("status") == "FAIL"]
+   101	    blocked_required = [p for p in normalized_providers if p.get("status") == "BLOCKED" and p.get("required", True)]
+   102	    all_required = [p for p in normalized_providers if p.get("required", True)]
+   103	    passed_required = [p for p in all_required if p.get("status") == "PASS"]
+   104	
+   105	    all_blockers: list[str] = []
+   106	    all_warnings: list[str] = []
+   107	    coverage_summary: dict[str, Any] = {}
+   108	
+   109	    for p in normalized_providers:
+   110	        for b in p.get("blockers", []):
+   111	            formatted_b = f"[{p.get('provider_id')}] {b}" if isinstance(b, str) else str(b)
+   112	            if formatted_b not in all_blockers:
+   113	                all_blockers.append(formatted_b)
+   114	
+   115	        for w in p.get("warnings", []):
+   116	            formatted_w = f"[{p.get('provider_id')}] {w}" if isinstance(w, str) else str(w)
+   117	            if formatted_w not in all_warnings:
+   118	                all_warnings.append(formatted_w)
+   119	
+   120	        cov = p.get("coverage", {})
+
+exec
+/bin/zsh -lc "nl -ba skills/quality_check/resources/scripts/validate_quality_contract.py | sed -n '290,431p'; nl -ba skills/quality_check/resources/scripts/aggregate_quality_results.py | sed -n '1,30p'; nl -ba skills/dev-implementation/resources/scripts/sync_task_status.py | sed -n '180,245p'; nl -ba skills/setup_quality_check/SKILL.md | sed -n '1,180p'" in /Users/danhdueexoictif/AllProjects/ai-agent-tools
+ succeeded in 0ms:
+   290	            )
+   291	
+   292	    duration = result_data.get("duration")
+   293	    if duration is not None:
+   294	        if not isinstance(duration, (int, float)) or duration < 0:
+   295	            findings.append(_finding("invalid_duration", f"Invalid duration '{duration}'"))
+   296	    else:
+   297	        findings.append(_finding("missing_field", "Missing duration in result", field="duration"))
+   298	
+   299	    status = result_data.get("status")
+   300	    if status not in VALID_STATUSES:
+   301	        findings.append(_finding("invalid_status", f"Invalid status '{status}'"))
+   302	
+   303	    # Validate coverage
+   304	    coverage = result_data.get("coverage")
+   305	    if isinstance(coverage, dict):
+   306	        for metric, cov in coverage.items():
+   307	            if not isinstance(cov, dict):
+   308	                findings.append(_finding("invalid_coverage", f"Coverage for '{metric}' must be object"))
+   309	                continue
+   310	            measured = cov.get("measured")
+   311	            threshold = cov.get("threshold")
+   312	            if not isinstance(measured, (int, float)) or measured < 0 or measured > 1.0:
+   313	                findings.append(_finding("invalid_coverage", f"Invalid measured coverage '{measured}' in '{metric}'"))
+   314	            if threshold is not None and (not isinstance(threshold, (int, float)) or threshold < 0 or threshold > 1.0):
+   315	                findings.append(_finding("invalid_coverage", f"Invalid threshold coverage '{threshold}' in '{metric}'"))
+   316	            if status == "PASS" and threshold is not None and isinstance(measured, (int, float)) and isinstance(threshold, (int, float)):
+   317	                if measured < threshold:
+   318	                    findings.append(
+   319	                        _finding(
+   320	                            "coverage_deficit",
+   321	                            f"Provider reported PASS but measured coverage {measured} is below threshold {threshold} in '{metric}'",
+   322	                            provider_id=result_data.get("provider_id"),
+   323	                            field=f"coverage.{metric}",
+   324	                        )
+   325	                    )
+   326	    elif coverage is not None:
+   327	        findings.append(_finding("invalid_coverage", "Coverage must be an object"))
+   328	
+   329	    # Validate evidence
+   330	    evidence = result_data.get("evidence")
+   331	    evidence_ids: set[str] = set()
+   332	    has_applicability_evidence = False
+   333	
+   334	    if isinstance(evidence, list):
+   335	        for idx, ev in enumerate(evidence):
+   336	            if not isinstance(ev, dict):
+   337	                findings.append(_finding("malformed_evidence", f"Evidence at index {idx} must be an object"))
+   338	                continue
+   339	            ev_id = ev.get("id")
+   340	            if ev_id:
+   341	                evidence_ids.add(ev_id)
+   342	            for req in ("id", "type", "source"):
+   343	                if req not in ev:
+   344	                    findings.append(_finding("malformed_evidence", f"Missing field '{req}' in evidence {ev_id or idx}"))
+   345	            if "location" not in ev and "digest" not in ev:
+   346	                findings.append(_finding("malformed_evidence", f"Evidence '{ev_id or idx}' missing location or digest"))
+   347	            if ev.get("type") == "applicability":
+   348	                has_applicability_evidence = True
+   349	    elif evidence is not None:
+   350	        findings.append(_finding("malformed_evidence", "Evidence must be a list"))
+   351	
+   352	    # Validate checks
+   353	    checks = result_data.get("checks")
+   354	    if isinstance(checks, list):
+   355	        for idx, chk in enumerate(checks):
+   356	            if not isinstance(chk, dict):
+   357	                findings.append(_finding("malformed_check", f"Check at index {idx} must be an object"))
+   358	                continue
+   359	            chk_id = chk.get("id") or f"check_{idx}"
+   360	            req_check_fields = ("id", "category", "status", "source", "duration", "summary", "evidence_refs")
+   361	            for req in req_check_fields:
+   362	                if req not in chk:
+   363	                    findings.append(
+   364	                        _finding(
+   365	                            "missing_field",
+   366	                            f"Missing required field '{req}' in check '{chk_id}'",
+   367	                            field=req,
+   368	                        )
+   369	                    )
+   370	
+   371	            chk_dur = chk.get("duration")
+   372	            if chk_dur is not None and (not isinstance(chk_dur, (int, float)) or chk_dur < 0):
+   373	                findings.append(_finding("invalid_duration", f"Invalid duration in check '{chk_id}'"))
+   374	
+   375	            chk_status = chk.get("status")
+   376	            if status == "PASS" and chk_status in {"FAIL", "BLOCKED"}:
+   377	                findings.append(
+   378	                    _finding(
+   379	                        "contract_violation",
+   380	                        f"Provider reported PASS but check '{chk_id}' has status '{chk_status}'",
+   381	                        provider_id=result_data.get("provider_id"),
+   382	                        field="status",
+   383	                    )
+   384	                )
+   385	            if chk_status == "NOT_APPLICABLE":
+   386	                reason = chk.get("not_applicable_reason")
+   387	                if not isinstance(reason, dict) or "code" not in reason or "detail" not in reason:
+   388	                    findings.append(
+   389	                        _finding(
+   390	                            "missing_not_applicable_reason",
+   391	                            f"Check '{chk_id}' missing structured not_applicable_reason",
+   392	                        )
+   393	                    )
+   394	                else:
+   395	                    code = reason.get("code")
+   396	                    if code not in VALID_NOT_APPLICABLE_CODES:
+   397	                        findings.append(
+   398	                            _finding(
+   399	                                "invalid_not_applicable_reason",
+   400	                                f"Invalid not_applicable_reason code '{code}' in check '{chk_id}'",
+   401	                            )
+   402	                        )
+   403	
+   404	            refs = chk.get("evidence_refs")
+   405	            if isinstance(refs, list):
+   406	                for ref in refs:
+   407	                    if ref not in evidence_ids:
+   408	                        findings.append(
+   409	                            _finding(
+   410	                                "unresolved_evidence_reference",
+   411	                                f"Evidence reference '{ref}' in check '{chk_id}' not found in evidence",
+   412	                            )
+   413	                        )
+   414	    elif checks is not None:
+   415	        findings.append(_finding("malformed_check", "Checks must be a list"))
+   416	
+   417	    if status == "NOT_APPLICABLE" and not has_applicability_evidence:
+   418	        findings.append(
+   419	            _finding(
+   420	                "missing_applicability_evidence",
+   421	                "Result status is NOT_APPLICABLE but no applicability evidence was provided",
+   422	            )
+   423	        )
+   424	
+   425	    out_status = "BLOCKED" if findings else "PASS"
+   426	    return {
+   427	        "status": out_status,
+   428	        "findings": _sort_findings(findings),
+   429	    }
+   430	
+   431	
+     1	"""Deterministic result aggregation engine for the provider-based quality gate.
+     2	
+     3	Aggregates validated provider results into a unified decision payload and renders
+     4	standard executive reports according to the reduction precedence FAIL > BLOCKED > PASS.
+     5	"""
+     6	
+     7	from __future__ import annotations
+     8	
+     9	import copy
+    10	import json
+    11	from typing import Any
+    12	
+    13	
+    14	def aggregate_results(
+    15	    plan: list[dict[str, Any]],
+    16	    results: list[dict[str, Any]],
+    17	    invocation: dict[str, Any] | None = None,
+    18	) -> dict[str, Any]:
+    19	    """Deterministically aggregate provider results according to plan and status precedence."""
+    20	    plan_by_id = {item.get("id"): item for item in plan}
+    21	    normalized_providers: list[dict[str, Any]] = []
+    22	
+    23	    for r in results:
+    24	        p = copy.deepcopy(r)
+    25	        p_id = p.get("provider_id", "")
+    26	        plan_item = plan_by_id.get(p_id, {})
+    27	        is_required = plan_item.get("required", p.get("required", True))
+    28	        p["required"] = is_required
+    29	
+    30	        # Sort checks by check id for determinism
+   180	                return epic_of(features)
+   181	        for epic_copy in sorted((root / ".devtool" / "epic").glob(f"*/{task_id}.md")):
+   182	            if epic_copy.is_file():
+   183	                return epic_of(epic_copy)
+   184	    return None
+   185	
+   186	
+   187	def sync_task(roots: list[Path], task_id: str, new_status: str) -> tuple[list[Path], list[str]]:
+   188	    """Synchronize a task's status across all checkout roots."""
+   189	    exp_epic = expected_epic(roots, task_id)
+   190	    written: list[Path] = []
+   191	    notes: list[str] = []
+   192	    now = now_iso()
+   193	
+   194	    for root in roots:
+   195	        targets = task_targets(root, task_id)
+   196	        for path in targets:
+   197	            file_epic = epic_of(path)
+   198	            if exp_epic and file_epic and file_epic != exp_epic:
+   199	                notes.append(f"Skipped {path}: belongs to epic '{file_epic}', expected '{exp_epic}'")
+   200	                continue
+   201	            text = path.read_text()
+   202	            text = set_frontmatter_field(text, "status", new_status)
+   203	            text = set_frontmatter_field(text, "modified", now)
+   204	            if new_status == "done":
+   205	                text = set_frontmatter_field(text, "completedAt", now)
+   206	            else:
+   207	                fm = parse_frontmatter(text)
+   208	                if "completedAt" in fm and fm["completedAt"] != "null":
+   209	                    text = set_frontmatter_field(text, "completedAt", "null")
+   210	            path.write_text(text)
+   211	            written.append(board_location(root, path, new_status))
+   212	
+   213	    return written, notes
+   214	
+   215	
+   216	def board_location(root: Path, path: Path, status: str) -> Path:
+   217	    """Move a features copy into features/done when it becomes done, and back when it leaves done.
+   218	
+   219	    Epic mirrors stay put. A copy already at the target is replaced by the one just written.
+   220	    """
+   221	    features = root / ".devtool" / "features"
+   222	    if status == "done" and path.parent == features:
+   223	        target = features / "done" / path.name
+   224	    elif status != "done" and path.parent == features / "done":
+   225	        target = features / path.name
+   226	    else:
+   227	        return path
+   228	    target.parent.mkdir(parents=True, exist_ok=True)
+   229	    path.replace(target)
+   230	    return target
+   231	
+   232	
+   233	def board_tally(roots: list[Path], epic_slug: str) -> dict[str, int]:
+   234	    """Tally task counts per status for the given epic, counting each task once."""
+   235	    tally = {status: 0 for status in TASK_STATUSES}
+   236	    seen_tasks: set[str] = set()
+   237	    for root in roots:
+   238	        search_dirs = [
+   239	            root / ".devtool" / "features",
+   240	            root / ".devtool" / "features" / "done",
+   241	        ]
+   242	        search_dirs.extend(sorted((root / ".devtool" / "epic").glob("*")))
+   243	        for features_dir in search_dirs:
+   244	            if not features_dir.is_dir():
+   245	                continue
+     1	---
+     2	name: setup_quality_check
+     3	description: Inspects repository structure, auto-detects platforms (Flutter, Android, iOS, Rust, or Polyglot), and scaffolds standardized quality provider configurations adhering to canonical templates.
+     4	---
+     5	
+     6	# Setup Quality Check
+     7	
+     8	Automated onboarding skill that bootstraps the d3nexus quality governance system for both Greenfield
+     9	(new projects) and Brownfield (legacy repositories before active maintenance or AI agent code generation).
+    10	
+    11	## Overview
+    12	
+    13	The quality governance model requires deterministic, SHA-bound quality verification before any feature branch
+    14	or PR is merged. Setting up quality checking ensures that:
+    15	- Every platform present in the repository is discovered and registered in `.agents/quality/check_quality.json`.
+    16	- Platform-specific quality manifests (`flutter-quality.json`, `android-quality.json`, `ios-quality.json`, `rust-quality.json`, `python-quality.json`) are populated with canonical, production-tested verification toolchains.
+    17	- Code generation agents and developers are constrained by automated quality gates from day one.
+    18	
+    19	## Platform Detection Heuristics
+    20	
+    21	The scaffolding engine inspects repository roots against the following marker files:
+    22	
+    23	| Platform | Markers Detected | Provider ID | Target Manifest | Canonical Toolchain |
+    24	|---|---|---|---|---|
+    25	| **Flutter** | `pubspec.yaml`, `melos.yaml` | `flutter-core` | `flutter-quality.json` | `dartfmt.sh`, `fvm flutter analyze`, `check_module_boundaries.sh`, `check_license_header.sh`, `melos run test`, `testWithCoverage.sh` |
+    26	| **Android** | `build.gradle.kts`, `build.gradle`, `settings.gradle.kts`, `settings.gradle` | `android-core` | `android-quality.json` | `spotlessCheck`, `detekt`, `apiCheck`, `:konsist-test:test`, `testDebugUnitTest`, `jacocoTestReport`, `pkill -9 java` |
+    27	| **iOS** | `Project.swift`, `Tuist.swift`, `Package.swift` | `ios-core` | `ios-quality.json` | `swiftformat`, `swiftlint`, `ArchTests` (K1-K10), `check_module_boundaries.sh`, `swift test`, `check_coverage_thresholds.sh` |
+    28	| **Rust** | `Cargo.toml` | `rust-core` | `rust-quality.json` | `cargo fmt`, `cargo check`, `cargo clippy`, `cargo test`, `cargo llvm-cov`, `xtask check-architecture` |
+    29	| **Python** | `pyproject.toml`, `uv.lock`, `requirements.txt`, `setup.py`, `Pipfile` | `python-core` | `python-quality.json` | `ruff format`, `ruff check`, `mypy --strict`, `pytest`, `pytest-cov`, `lint-imports` |
+    30	
+    31	In composite repositories (e.g. Flutter mobile host with Rust core, or native Android/iOS bridging modules), all detected platforms are registered in `.agents/quality/check_quality.json`.
+    32	
+    33	## Operational Workflow
+    34	
+    35	### Step 1: Dry-Run Inspection
+    36	
+    37	Inspect what platforms the tool detects and what files will be created:
+    38	
+    39	```bash
+    40	python3 skills/setup_quality_check/resources/scripts/scaffold_quality_manifest.py --dry-run
+    41	```
+    42	
+    43	### Step 2: Scaffold Configuration Files
+    44	
+    45	Execute scaffolding to generate the `.agents/quality/` directory:
+    46	
+    47	```bash
+    48	python3 skills/setup_quality_check/resources/scripts/scaffold_quality_manifest.py
+    49	```
+    50	
+    51	If configurations already exist and you want to reset them to canonical defaults:
+    52	
+    53	```bash
+    54	python3 skills/setup_quality_check/resources/scripts/scaffold_quality_manifest.py --force
+    55	```
+    56	
+    57	### Step 3: Run Baseline Quality Verification
+    58	
+    59	Run an initial check to certify that the repository passes the baseline PR profile:
+    60	
+    61	```bash
+    62	# Invoke quality_check skill
+    63	python3 skills/quality_check/resources/scripts/validate_quality_contract.py .agents/quality/check_quality.json
+    64	```
+    65	
+    66	## CLI Reference
+    67	
+    68	`scaffold_quality_manifest.py` accepts the following arguments:
+    69	
+    70	- `--root <DIR>`: Path to the target repository root (default: current directory `.`).
+    71	- `--output-dir <DIR>`: Explicit output directory for generated manifests (default: `<root>/.agents/quality`).
+    72	- `--platform <LIST>`: Override automatic detection with comma-separated platforms (`flutter`, `android`, `ios`, `rust`, `python`).
+    73	- `--force`: Overwrite existing quality manifests (fails safely by default to prevent accidental overwrite).
+    74	- `--dry-run`: Display detected platforms and planned file list without writing to disk.
+    75	
+    76	## Related Skills
+    77	
+    78	- [Quality Check](../quality_check/SKILL.md)
+    79	- [Flutter Quality Check](../flutter-quality-check/SKILL.md)
+    80	- [Android Quality Check](../android-quality-check/SKILL.md)
+    81	- [iOS Quality Check](../ios-quality-check/SKILL.md)
+    82	- [Rust Quality Check](../rust-quality-check/SKILL.md)
+    83	- [Python Quality Check](../python-quality-check/SKILL.md)
+
+codex
+The probes confirm two behavior gaps: the current done gate accepts passing mock-only cases with matching scenario names, and the proposed visibility predicate treats clipped accessibility text as visible. The kit also has no quality registry at the candidate commit, so its prescribed final Gate 4 would be blocked unless setup is added as a prerequisite.
+
+exec
+/bin/zsh -lc "python3 -B -c 'import sys,json
+from pathlib import Path
+sys.path.insert(0,str(Path(\"skills/quality_check/resources/scripts\").resolve()))
+from validate_quality_contract import validate_capability_manifest
+from test_quality_provider_acceptance import execute_quality_pipeline
+manifest={\"schema_version\":1,\"capabilities\":{\"test_unit\":[\"node\",\"--test\"]},\"profiles\":{\"epic\":[\"test_unit\"]}}
+print(\"Generic validator, epic with only units:\",json.dumps(validate_capability_manifest(manifest,\"epic\")))
+r=execute_quality_pipeline(Path.cwd(),{\"contract_version\":1,\"profile\":\"epic\",\"base_ref\":\"main\",\"repository_sha\":\"46a3699238a95dc1dcda46b8ca93bc3515fc1dc2\"},[],set())
+print(\"Candidate repository pipeline:\",r[\"status\"],r[\"aggregation\"].get(\"blockers\"))
+'" in /Users/danhdueexoictif/AllProjects/ai-agent-tools
+ succeeded in 0ms:
+Generic validator, epic with only units: {"status": "PASS", "findings": []}
+Candidate repository pipeline: BLOCKED ['[unregistered] Missing required project quality registry .agents/quality/check_quality.json']
+
+exec
+/bin/zsh -lc "python3 -B -m unittest skills/dev-implementation/resources/scripts/test_result_reports.py -k ParserTest; python3 -B -m unittest skills/dev-implementation/resources/scripts/test_result_reports.py -k VerdictTest; nl -ba skills/dev-implementation/resources/scripts/test_sync_task_status.py | sed -n '590,640p'; nl -ba skills/dev-implementation/resources/scripts/result_reports.py | sed -n '20,38p'" in /Users/danhdueexoictif/AllProjects/ai-agent-tools
+ succeeded in 0ms:
+...
+----------------------------------------------------------------------
+Ran 3 tests in 0.000s
+
+OK
+..
+----------------------------------------------------------------------
+Ran 2 tests in 0.001s
+
+OK
+   590	class DoneGateCase(unittest.TestCase):
+   591	    """A main checkout plus an epic worktree, with the two CLIs run as subprocesses."""
+   592	
+   593	    def build(self, code_epic: bool = True, verification: bool = True) -> None:
+   594	        directory = tempfile.TemporaryDirectory()
+   595	        self.addCleanup(directory.cleanup)
+   596	        base = Path(directory.name).resolve()
+   597	        self.main, self.wt = base / "main", base / "wt"
+   598	        self.main.mkdir()
+   599	        git(self.main, "init", "-q", "-b", "main")
+   600	        git(self.main, "config", "user.email", "demo@example.com")
+   601	        git(self.main, "config", "user.name", "Demo")
+   602	        overview = "# Demo\n\n- **Epic**: demo\n\n" + ("Integration test roots: tests\n" if code_epic else "")
+   603	        files = {
+   604	            ".gitignore": "build/\n",
+   605	            "check.sh": "[ -f feature.txt ] && echo OK\n",
+   606	            "report.sh": f"mkdir -p build && printf '%s' '{REPORT}' > build/r.xml\n",
+   607	            ".devtool/epic/demo/demo.en.md": overview,
+   608	            ".devtool/epic/demo/bdd_scenarios.en.md": (
+   609	                f"{TICKS}gherkin\nScenario: [DEMO-HP-01] One\nScenario: [DEMO-EC-01] Two\n{TICKS}\n"),
+   610	            MIRROR: task_file(verification),
+   611	            FEATURE: task_file(verification),
+   612	        }
+   613	        for relative, text in files.items():
+   614	            path = self.main / relative
+   615	            path.parent.mkdir(parents=True, exist_ok=True)
+   616	            path.write_text(text, encoding="utf-8")
+   617	        git(self.main, "add", "-A")
+   618	        git(self.main, "commit", "-q", "-m", "base")
+   619	        git(self.main, "worktree", "add", "-q", "-b", "epic/demo", str(self.wt))
+   620	
+   621	    def record(self) -> None:
+   622	        mirror = self.wt / MIRROR
+   623	        self.assertEqual(run_py(RECORDER, self.wt, "red", str(mirror)).returncode, 0)
+   624	        (self.wt / "feature.txt").write_text("done\n", encoding="utf-8")
+   625	        self.assertEqual(run_py(RECORDER, self.wt, "verify", str(mirror)).returncode, 0)
+   626	
+   627	    def edit_evidence(self, change) -> None:
+   628	        path = self.wt / EVIDENCE
+   629	        data = json.loads(path.read_text(encoding="utf-8"))
+   630	        change(data["runs"])
+   631	        path.write_text(json.dumps(data), encoding="utf-8")
+   632	
+   633	    def copies(self) -> dict[str, str]:
+   634	        copies = {}
+   635	        for root in (self.main, self.wt):
+   636	            feature = FEATURE if (root / FEATURE).exists() else DONE_FEATURE
+   637	            for rel in (MIRROR, feature):
+   638	                copies[f"{root.name}/{rel}"] = (root / rel).read_text(encoding="utf-8")
+   639	        return copies
+   640	
+    20	@dataclass(frozen=True)
+    21	class Case:
+    22	    name: str
+    23	    classname: str
+    24	    status: str  # "passed", "failed" or "skipped"
+    25	
+    26	
+    27	def reference_pattern(identifier: str) -> re.Pattern[str]:
+    28	    """Match an identifier in any case, with - and _ interchangeable, not inside a longer token."""
+    29	    body = "[-_]".join(re.escape(part) for part in identifier.split("-"))
+    30	    return re.compile(r"(?<![A-Za-z0-9])" + body + r"(?![A-Za-z0-9])", re.IGNORECASE)
+    31	
+    32	
+    33	def parse_junit(text: str) -> list[Case]:
+    34	    cases = []
+    35	    for element in ET.fromstring(text).iter("testcase"):
+    36	        tags = {child.tag for child in element}
+    37	        status = "failed" if tags & {"failure", "error"} else "skipped" if "skipped" in tags else "passed"
+    38	        cases.append(Case(element.get("name", ""), element.get("classname", ""), status))
+
+exec
+/bin/zsh -lc "rg -n 'def load_scenarios|tier|Scenario' skills/dev-implementation/resources/scripts/check_bdd_traceability.py | head -40; nl -ba skills/dev-implementation/resources/scripts/check_bdd_traceability.py | sed -n '25,115p'; nl -ba .devtool/epic/web_quality_check_and_integration_gate/task_05_anti_rationalization_and_doubt_driven_workflow.md | sed -n '75,89p'; nl -ba .devtool/epic/web_quality_check_and_integration_gate/task_04_polyglot_gate4_registry_and_fanout.md | sed -n '23,36p'; nl -ba .devtool/epic/web_quality_check_and_integration_gate/task_01_web_quality_check_skill_and_contract.md | sed -n '34,40p'" in /Users/danhdueexoictif/AllProjects/ai-agent-tools
+ succeeded in 0ms:
+23:    "Scenario Outline", "Scenario Template", "Scenario", "Example",
+77:def load_scenarios(path: Path) -> tuple[list[str], list[str]]:
+    25	)
+    26	SCENARIO_LINE = re.compile(
+    27	    r"^\s*(?:" + "|".join(re.escape(keyword) for keyword in SCENARIO_KEYWORDS) + r")\s*:\s*(.*)$"
+    28	)
+    29	LEADING_TAG = re.compile(r"^\[([^\]]*)\]")
+    30	FENCE = re.compile(r"^\s*(`{3,}|~{3,})\s*(\S*)")
+    31	COVERS_LINE = re.compile(r"^\s*(?:[-*]\s+)?\**Covers\**\s*:\**\s*(.*)$")
+    32	ID_TOKEN = re.compile(r"(?<![A-Za-z0-9-])" + ID_SHAPE.pattern + r"(?![A-Za-z0-9])")
+    33	
+    34	
+    35	class UsageError(Exception):
+    36	    """Missing input: exit 2."""
+    37	
+    38	
+    39	def read_text(path: Path) -> str:
+    40	    """Read a scenario document or task file; anything but UTF-8 is a usage error."""
+    41	    try:
+    42	        return path.read_text(encoding="utf-8")
+    43	    except UnicodeDecodeError:
+    44	        raise UsageError(f"{path} is not valid UTF-8") from None
+    45	
+    46	
+    47	def scenario_ids(path: Path) -> tuple[list[str], list[str]]:
+    48	    """Identifiers in document order, and the problems found, for one scenario document."""
+    49	    ids: list[str] = []
+    50	    problems: list[str] = []
+    51	    fence_marker: str | None = None
+    52	    in_gherkin = False
+    53	    for number, line in enumerate(read_text(path).splitlines(), start=1):
+    54	        fence = FENCE.match(line)
+    55	        if fence and fence_marker is None:
+    56	            fence_marker, in_gherkin = fence.group(1), fence.group(2).lower() == "gherkin"
+    57	            continue
+    58	        if (fence and fence.group(1)[0] == fence_marker[0]
+    59	                and len(fence.group(1)) >= len(fence_marker) and not fence.group(2)):
+    60	            fence_marker, in_gherkin = None, False
+    61	            continue
+    62	        match = SCENARIO_LINE.match(line) if in_gherkin else None
+    63	        if not match:
+    64	            continue
+    65	        tag = LEADING_TAG.match(match.group(1).strip())
+    66	        if not tag:
+    67	            problems.append(f"{path}:{number}: scenario has no identifier")
+    68	        elif not ID_SHAPE.fullmatch(tag.group(1)):
+    69	            problems.append(f"{path}:{number}: malformed identifier [{tag.group(1)}]")
+    70	        elif tag.group(1) in ids:
+    71	            problems.append(f"{path}:{number}: duplicate identifier {tag.group(1)}")
+    72	        else:
+    73	            ids.append(tag.group(1))
+    74	    return ids, problems
+    75	
+    76	
+    77	def load_scenarios(path: Path) -> tuple[list[str], list[str]]:
+    78	    """Validate the English document and, when present, its Vietnamese sibling."""
+    79	    if not path.is_file():
+    80	        raise UsageError(f"scenario document not found: {path}")
+    81	    ids, problems = scenario_ids(path)
+    82	    if not ids and not problems:
+    83	        problems.append(f"{path}: no scenarios found inside gherkin fences")
+    84	    if path.name.endswith(".en.md"):
+    85	        sibling = path.with_name(path.name[: -len(".en.md")] + ".vi.md")
+    86	        if sibling.is_file():
+    87	            vi_ids, vi_problems = scenario_ids(sibling)
+    88	            problems.extend(vi_problems)
+    89	            missing = sorted(set(ids) - set(vi_ids))
+    90	            extra = sorted(set(vi_ids) - set(ids))
+    91	            if missing:
+    92	                problems.append(f"{sibling}: missing identifiers {', '.join(missing)}")
+    93	            if extra:
+    94	                problems.append(f"{sibling}: identifiers not in {path.name}: {', '.join(extra)}")
+    95	    return ids, problems
+    96	
+    97	
+    98	def covers_of(path: Path) -> list[str]:
+    99	    """Identifiers named on every Covers: line of one task file."""
+   100	    found: list[str] = []
+   101	    for line in read_text(path).splitlines():
+   102	        match = COVERS_LINE.match(line)
+   103	        if match:
+   104	            found.extend(ID_TOKEN.findall(match.group(1)))
+   105	    return found
+   106	
+   107	
+   108	def check_plan(ids: list[str], task_paths: list[Path]) -> tuple[dict[str, list[str]], list[str]]:
+   109	    coverage: dict[str, list[str]] = {identifier: [] for identifier in ids}
+   110	    problems: list[str] = []
+   111	    for path in task_paths:
+   112	        if not path.is_file():
+   113	            raise UsageError(f"task file not found: {path}")
+   114	        for identifier in covers_of(path):
+   115	            if identifier not in coverage:
+    75	
+    76	## Decisions Already Made
+    77	
+    78	- Frontmatter of `SKILL.md` files must remain strictly `name` and `description` only.
+    79	- Anti-Rationalization tables placed in dedicated sections within each skill.
+    80	- Subcutaneous testing guidelines formalized for Flutter and native mobile.
+    81	- `task_contract.py` condition 6 enforces real Tier C test cases in verification results for Tier C scenarios, rejecting mock-only completion attempts.
+    82	- 5th Anti-Rationalization rule: Rejects porting HTML/JS from Visual Companion mockups without computed CSS assertions; requires `getComputedStyle` and `getBoundingClientRect` verification (non-zero dimensions, layout display mode, and mutually exclusive state visibility) against the design.
+    83	
+    84	## Definition of Done
+    85	
+    86	- `dev-designer/SKILL.md` requires Playwright for Web and Subcutaneous tests for Mobile. (V2)
+    87	- Test suite passes ruff linting and mypy typing. (V3, V4)
+    88	- Scenario [WQG-ST-02] fully verified and passing. (V5)
+    89	- Clean git status with changes restricted to Allowed files. (Gate 5)
+    23	## Files
+    24	
+    25	Allowed files:
+    26	- `skills/setup_quality_check/resources/templates/polyglot-check-quality.template.json` (new)
+    27	- `skills/setup_quality_check/resources/templates/web-quality.template.json` (new)
+    28	- `skills/setup_quality_check/resources/scripts/scaffold_quality_manifest.py`
+    29	- `skills/quality_check/resources/scripts/verify_polyglot_registry.py` (new)
+    30	- `tests/test_polyglot_gate4.py` (new)
+    31	
+    32	Read-only context:
+    33	- `skills/quality_check/SKILL.md` (Gate 4 orchestrator)
+    34	- `skills/quality_check/resources/scripts/validate_quality_contract.py` (registry validator)
+    35	
+    36	## Design Rationale
+    34	## Design Rationale
+    35	
+    36	The web quality assurance provider follows the identical architecture as `python-quality-check` and `rust-quality-check`:
+    37	1. It avoids hardcoded build commands and instead reads capabilities from `.agents/quality/web-quality.json`.
+    38	2. It supports argument placeholders: `{skills_dir}` for referencing sibling scripts and `{base_ref}` for Git diff baselines.
+    39	3. It emits deterministic verdicts: `FAIL` (nonzero exit in tests/linter), `BLOCKED` (missing configuration, invalid schema, or executable failure), and `PASS` (all capabilities exit 0).
+    40	
+
+exec
+/bin/zsh -lc "nl -ba .devtool/epic/web_quality_check_and_integration_gate/2026-11-04-web-quality-check-and-integration-gate-design.en.md | sed -n '85,149p'; nl -ba .devtool/epic/web_quality_check_and_integration_gate/task_02_playwright_zero_error_watchdog.md | sed -n '111,125p'; nl -ba .devtool/epic/web_quality_check_and_integration_gate/task_06_automated_manual_smoke_checklist_generator.md | sed -n '73,86p'; GIT_OPTIONAL_LOCKS=0 /Library/Developer/CommandLineTools/usr/bin/git diff --name-only 46a3699238a95dc1dcda46b8ca93bc3515fc1dc2" in /Users/danhdueexoictif/AllProjects/ai-agent-tools
+ succeeded in 0ms:
+    85	## Web Quality Provider Specification
+    86	
+    87	A new skill `d3nexus:web-quality-check` is authored in `skills/web-quality-check/`:
+    88	
+    89	1. **Invocation Contract**: Conforms to Provider Result Contract v1, accepting `{ "profile": "<profile>", "base_ref": "<base_ref>", "repository_sha": "<sha>" }`.
+    90	2. **Configuration File**: Reads `.agents/quality/web-quality.json` from the repository root.
+    91	3. **Capabilities**:
+    92	   - `type_check`: Runs `astro check` or `tsc --noEmit` for TypeScript projects, or `tsc --project jsconfig.json` for Vanilla JavaScript projects.
+    93	   - `lint`: Runs project linter (ESLint, Biome, or Astro linter).
+    94	   - `test_unit`: Executes fast in-memory unit tests (Tier A).
+    95	   - `test_e2e`: Launches headless Playwright suites (Tier C2) with the Zero-Console-Error watchdog.
+    96	   - `contracts`: Runs cross-repo contract diff verification.
+    97	4. **Validation Tooling**: Provides `validate_web_quality.py` to ensure schema conformance and executable presence before execution.
+    98	
+    99	## Multi-Repo Registry and Polyglot Gate 4 Integration
+   100	
+   101	The root Gate 4 orchestrator (`d3nexus:quality_check`) executes multi-provider fan-out across repositories:
+   102	
+   103	- **`D3Nexus` (`.agents/quality/check_quality.json`)**:
+   104	  - Provider 1: `rust-core` (`d3nexus:rust-quality-check`) for Rust core, WASM compilation, and system tests.
+   105	  - Provider 2: `learning-web` (`d3nexus:web-quality-check`) for Astro templates, Vanilla TypeScript controllers, and Playwright suites.
+   106	- **`lyrics-sync` (`.agents/quality/check_quality.json`)**:
+   107	  - Provider 1: `python-core` (`d3nexus:python-quality-check`) for FastAPI endpoints, worker logic, and pytest suites.
+   108	  - Provider 2: `preview-ui` (`d3nexus:web-quality-check`) for static Vanilla JS type checking and Chrome Playwright tests.
+   109	- **`nexus` (`.agents/quality/check_quality.json`)**:
+   110	  - Provider 1: `flutter-core` (`d3nexus:flutter-quality-check`) enforcing Subcutaneous Widget Testing with real DI and WireMock.
+   111	
+   112	## Dev-Designer and Dev-Implementation Enhancements
+   113	
+   114	1. **`dev-designer` (Stage 2)**:
+   115	   - When detecting a Web project, the HLD `Integration results:` line must target Playwright headless JUnit XML output (`build/test-results/playwright.xml`) generated via `--reporter=junit`, ensuring seamless ingestion by `result_reports.py` (which requires JUnit XML or Dart JSON).
+   116	   - Python test suites must include `--junitxml=build/test-results/pytest.xml` in their execution command.
+   117	   - BDD scenarios for Tier C must include concrete DOM interaction expectations and wiremock assertions.
+   118	2. **`dev-implementation` (Stage 3)**:
+   119	   - Integrates the Anti-Rationalization Table into task execution.
+   120	   - Validates that tasks claiming Tier C scenario coverage execute real headless browser or subcutaneous tests.
+   121	   - Halts and reports `BLOCKED` if test code mocks the component under test.
+   122	
+   123	## Automated Smoke Walkthrough Generation
+   124	
+   125	Upon successful completion of all tasks and a passing Gate 4 machine verdict, `dev-implementation` automatically generates a human-oriented verification artifact:
+   126	- Path: `.devtool/epic/<epic_dir>/manual_smoke_checklist.md`
+   127	- Content: 3 to 5 concise, actionable manual steps extracted directly from the primary BDD Happy Path scenarios (e.g. Target URL, user action, observable visual outcome).
+   128	- Benefit: Reduces developer exploratory testing from 30 minutes of unstructured wandering to a 2-minute deterministic confirmation.
+   129	
+   130	## Risks and Mitigations
+   131	
+   132	| Risk | Impact | Mitigation Strategy |
+   133	| :--- | :--- | :--- |
+   134	| Playwright installation overhead in CI / local dev | Slow Gate 4 runs | Use headless Chromium only; cache browser binaries; profile `pr` runs unit tests, profile `epic` runs Playwright. |
+   135	| Port conflicts when launching preview servers | Test flakiness | Playwright `webServer` configuration binds to dynamic or dedicated ports with healthcheck probes. |
+   136	| Existing legacy console warnings triggering Zero-Console-Error | False positive failures | Allow an explicit, documented allowlist of benign vendor warnings in `.agents/quality/web-quality.json`. |
+   137	
+   138	## Verification Plan
+   139	
+   140	1. **Provider Contract Verification**:
+   141	   - Run `validate_web_quality.py` against `.agents/quality/web-quality.json` sample configurations.
+   142	   - Execute `quality_check` with profile `epic` in `D3Nexus` and verify both `rust-core` and `learning-web` produce certified verdicts.
+   143	2. **Playwright Zero-Console-Error Verification**:
+   144	   - Inject an intentional `console.error` into a test page; confirm that Playwright and Gate 4 correctly report `FAIL`.
+   145	   - Resolve the error and confirm Gate 4 transitions to `PASS`.
+   146	3. **Vanilla JS Type-Checking Verification**:
+   147	   - Run `tsc --project jsconfig.json` against `lyrics-sync/src/lyrics_sync/preview/static/` and verify clean type validation.
+   148	4. **Smoke Checklist Generation Verification**:
+   149	   - Verify that `generate_smoke_checklist.py` generates and commits `.devtool/epic/<epic_dir>/manual_smoke_checklist.md` (3-5 structured steps) during Phase 4 before the final Gate 4 validation run, preserving clean git status and certified candidate SHA integrity.
+   111	## Decisions Already Made
+   112	
+   113	- Target browser for Tier C runs: Chromium headless.
+   114	- Console listener syntax: `page.on('console', msg => ...)` and `page.on('pageerror', err => ...)`.
+   115	- Static Asset Network Trap: `page.on('response', resp => { if (['stylesheet', 'script', 'font'].includes(resp.request().resourceType()) && resp.status() >= 400) throw new Error(...); })`.
+   116	- `assertVisualIntegrity(locator, options)`: evaluates `window.getComputedStyle(el)` verifying background/border/padding styling and `getBoundingClientRect()` with `width > 0 && height > 0`.
+   117	- DOM State Leak guard: verifies that mutually exclusive badge/spinner locators are never simultaneously visible and flags consecutive duplicate text chunks.
+   118	- Wire mocking pattern: `await page.route('**/api/**', route => route.fulfill({ json: fixture }))`.
+   119	- Allowlist pattern: Array of regex strings in manifest config under `console_error_allowlist`.
+   120	
+   121	## Definition of Done
+   122	
+   123	- `playwright-zero-error.fixture.ts` template provides reusable test extension. (V2)
+   124	- Zero-Console-Error watchdog passes ruff and mypy. (V3, V4)
+   125	- Scenarios [WQG-HP-03], [WQG-EC-02], [WQG-AR-02], [WQG-FR-01] fully tested and passing. (V5)
+    73	## Decisions Already Made
+    74	
+    75	- Output path: `.devtool/epic/<epic_dir>/manual_smoke_checklist.md`.
+    76	- Maximum checklist length: 5 items.
+    77	- Structure: Checklist table containing Step Number, Target (URL / CLI Command), Action, and Observable Outcome.
+    78	- Smoke extraction logic: Extracts URL if present in scenario steps; if step specifies a CLI or tooling command (such as `d3nexus:web-quality-check`), extracts the command/entrypoint as Target; fallback to `CLI / Workspace Root` with parsed When/Then actions when URLs are absent.
+    79	- Workflow timing: The generator executes and commits `manual_smoke_checklist.md` in Phase 4 before candidate SHA resolution and the final Gate 4 run, ensuring zero uncommitted files and maintaining candidate SHA stability.
+    80	
+    81	## Definition of Done
+    82	
+    83	- `generate_smoke_checklist.py` extracts Happy Path steps and outputs valid markdown. (V2)
+    84	- Script passes ruff linting and mypy typing. (V3, V4)
+    85	- Scenario [WQG-HP-04] fully verified and passing. (V5)
+    86	- Clean git status with changes restricted to Allowed files. (Gate 5)
+
+codex
+Five issues need resolution before implementation. Read-only probes confirmed the evidence and visibility gaps below. Five existing parser/verdict tests passed; malformed-input probes produced controlled errors without unbound-variable failures. No files or Git state were changed.
+
+Artefact paths below are relative to `.devtool/epic/web_quality_check_and_integration_gate/`.
+
+Verdict: CHANGES REQUIRED
+[Important] task_05_anti_rationalization_and_doubt_driven_workflow.md:Decisions Already Made — Condition 6 cannot establish the promised real-browser or mock-only distinction from its current evidence. [task_contract.py:439](/Users/danhdueexoictif/AllProjects/ai-agent-tools/skills/dev-implementation/resources/scripts/task_contract.py:439) consumes cases containing only name, classname, and status; [result_reports.py:126](/Users/danhdueexoictif/AllProjects/ai-agent-tools/skills/dev-implementation/resources/scripts/result_reports.py:126) discards other report metadata. An in-memory probe supplied matching passing cases labelled mock-only and received no done-gate problems. Task 05 defines neither additional execution evidence nor its production path into the gate. Proposed: specify scenario-aware execution provenance, its producer and validation rules, expand Allowed files for the recorder/parser changes, and add rejection tests for matching unit-only reports.
+[Important] task_01_web_quality_check_skill_and_contract.md:Decisions Already Made — The manifest contract never pins mandatory capabilities for an applicable web epic or requires evidence that its watchdog was attached. Listing test_e2e among available capabilities does not prevent certification using only unit tests. The existing generic validator checks declared selections rather than browser requirements ([validate_quality_contract.py:646](/Users/danhdueexoictif/AllProjects/ai-agent-tools/skills/quality_check/resources/scripts/validate_quality_contract.py:646)); a probe confirmed that an epic selecting only test_unit passes it. Proposed: define minimum epic/release capability requirements, require watchdog execution evidence for applicable browser suites, and specify BLOCKED behavior for omitted capabilities or absent execution evidence while retaining the reduced PR profile.
+[Important] task_02_playwright_zero_error_watchdog.md:Requirement Analysis, item 3 — The frozen visibility predicate treats clipped accessibility text and descendants of hidden containers as visible. The expression returned true for both cases in read-only probes. This affects actual consumer patterns: the current lyrics-sync checkout hides accessibility content using clipping ([style.css:89](/Users/danhdueexoictif/AllProjects/lyrics-sync/src/lyrics_sync/preview/static/style.css:89)), and D3Nexus uses the same technique ([AudioDropzone.astro:70](/Users/danhdueexoictif/AllProjects/D3Nexus/apps/learning-web/src/components/studio/AudioDropzone.astro:70)). The proposed guard can therefore reject correctly rendered interfaces. Proposed: define explicit per-component exclusion groups and a visibility contract accounting for ancestors and clipping; add positive accessibility fixtures alongside genuine leaked-span failures, and synchronize the bilingual spec and BDD expectations.
+[Important] task_04_polyglot_gate4_registry_and_fanout.md:Files / Dependencies & Blockers — The candidate repository has no .agents/quality/check_quality.json, while the prescribed final orchestrator explicitly blocks without it ([quality_check/SKILL.md:65](/Users/danhdueexoictif/AllProjects/ai-agent-tools/skills/quality_check/SKILL.md:65)). A read-only call through the existing pipeline helper returned BLOCKED for this checkout ([test_quality_provider_acceptance.py:123](/Users/danhdueexoictif/AllProjects/ai-agent-tools/skills/quality_check/resources/scripts/test_quality_provider_acceptance.py:123)). No task owns creating the required registration, and the HLD protects .agents/quality/**. Proposed: declare completed quality setup as an external prerequisite, or add an explicitly scoped setup task with exact manifest paths and real verification commands before final Gate 4.
+[Important] web_quality_check_and_integration_gate.en.md:Rollout Strategy and Mitigation, Phase 4 — The HLD promises configured consumer registries and verified execution, but Task 04 permits only kit templates/tooling and mentions adoption handoffs without allocating a handoff document. Consumer integration also spans different runners: the current lyrics-sync suite creates pages through Python Playwright ([e2e_full_screens_chrome_test.py:28](/Users/danhdueexoictif/AllProjects/lyrics-sync/tests/e2e_full_screens_chrome_test.py:28)), whereas Task 02 supplies a TypeScript fixture. Templates alone cannot establish adoption or attach that fixture to the Python suite. Proposed: reconcile both HLD languages around kit delivery versus consumer adoption, allocate concrete per-repository handoff artefacts, and specify the Python watchdog attachment approach plus separately owned consumer acceptance work.
+
+
+tokens used
+153,859
+````
