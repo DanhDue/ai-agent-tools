@@ -632,7 +632,11 @@ ag_run() {
         settings_file.write_text(json.dumps({"window.title": "old"}, indent=2), encoding="utf-8")
 
         old_home = os.environ.get("HOME", "")
+        old_agy = os.environ.get("AGY_PROFILE")
+        old_antigravity = os.environ.get("ANTIGRAVITY_PROFILE")
         try:
+            os.environ.pop("AGY_PROFILE", None)
+            os.environ.pop("ANTIGRAVITY_PROFILE", None)
             os.environ["HOME"] = "/Users/test/antigravity_homes/tess"
             sync_window_title(self.repo_dir, epic_slug=None)
             updated = json.loads(settings_file.read_text(encoding="utf-8"))
@@ -640,6 +644,14 @@ ag_run() {
             self.assertIn("${activeEditorMedium}${separator}${rootName}", updated["window.title"])
         finally:
             os.environ["HOME"] = old_home
+            if old_agy is not None:
+                os.environ["AGY_PROFILE"] = old_agy
+            else:
+                os.environ.pop("AGY_PROFILE", None)
+            if old_antigravity is not None:
+                os.environ["ANTIGRAVITY_PROFILE"] = old_antigravity
+            else:
+                os.environ.pop("ANTIGRAVITY_PROFILE", None)
 
     def test_sync_window_title_cli_flags(self) -> None:
         """[CMM-TITLE-03] Verify CLI invocation with --sync-title and --stage."""

@@ -403,6 +403,10 @@ def sync_window_title(
     if epic_slug and epic_slug != "general":
         devtool_dir = root / ".devtool"
         epic_dir = devtool_dir / "epic" / epic_slug
+        if not epic_dir.exists():
+            epic_dir = devtool_dir / "epic" / epic_slug.replace("-", "_")
+        if not epic_dir.exists():
+            epic_dir = devtool_dir / "epic" / epic_slug.replace("_", "-")
         if epic_dir.exists():
             for vi_file in epic_dir.glob("*.vi.md"):
                 try:
@@ -687,7 +691,9 @@ def scan_active_tasks(root: Path, epic_filter: str | None = None) -> None:
             lines = tf.read_text(encoding="utf-8").splitlines()[:15]
             if epic_filter:
                 epic_line = next((l for l in lines if l.startswith("epic:")), "")
-                if epic_filter not in epic_line:
+                normalized_filter = epic_filter.replace("_", "-")
+                normalized_epic_line = epic_line.replace("_", "-")
+                if normalized_filter not in normalized_epic_line:
                     continue
             status_line = next((l for l in lines if "status:" in l.lower()), "status: unknown")
             st_val = status_line.replace("status:", "").strip().strip('"').strip("'").lower()
@@ -705,7 +711,9 @@ def scan_active_tasks(root: Path, epic_filter: str | None = None) -> None:
                 lines = tf.read_text(encoding="utf-8").splitlines()[:15]
                 if epic_filter:
                     epic_line = next((l for l in lines if l.startswith("epic:")), "")
-                    if epic_filter not in epic_line:
+                    normalized_filter = epic_filter.replace("_", "-")
+                    normalized_epic_line = epic_line.replace("_", "-")
+                    if normalized_filter not in normalized_epic_line:
                         continue
                 done_count += 1
                 total_count += 1
