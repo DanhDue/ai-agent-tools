@@ -1,0 +1,145 @@
+# Đặc tả Thiết kế Web Quality Check và Integration Gate
+
+## Mục lục
+
+- [Mục lục](#mục-lục)
+- [Metadata](#metadata)
+- [Bối cảnh và Vấn đề](#bối-cảnh-và-vấn-đề)
+- [Mục tiêu và Giới hạn](#mục-tiêu-và-giới-hạn)
+- [Kiến trúc và Chuẩn Kiểm thử 3 Lớp](#kiến-trúc-và-chuẩn-kiểm-thử-3-lớp)
+- [Chống Ngụy biện và Cơ chế Phản biện Nghi vấn](#chống-ngụy-biện-và-cơ-chế-phản-biện-nghi-vấn)
+- [Đặc tả Kỹ thuật Provider Web Quality](#đặc-tả-kỹ-thuật-provider-web-quality)
+- [Tích hợp Registry Đa Repo và Gate 4 Đa Nền tảng](#tích-hợp-registry-đa-repo-và-gate-4-đa-nền-tảng)
+- [Nâng cấp Dev-Designer và Dev-Implementation](#nâng-cấp-dev-designer-và-dev-implementation)
+- [Tự động Sinh Kịch bản Smoke Test Bấm tay](#tự-động-sinh-kịch-bản-smoke-test-bấm-tay)
+- [Rủi ro và Giải pháp Giảm thiểu](#rủi-ro-và-giải-pháp-giảm-thiểu)
+- [Kế hoạch Kiểm chứng](#kế-hoạch-kiểm-chứng)
+
+## Metadata
+
+- **Tên Epic**: `web_quality_check_and_integration_gate`
+- **Slug Epic**: `web-quality-check-and-integration-gate`
+- **Ngày**: 2026-11-04
+- **Tác giả**: Kiến trúc sư Con người & Trợ lý AI
+- **Trạng thái**: Bản thảo Đặc tả (Stage 1 Inception)
+- **Kho lưu trữ Mục tiêu**: `ai-agent-tools`, `D3Nexus`, `lyrics-sync`, `nexus`
+
+## Bối cảnh và Vấn đề
+
+Trong hệ sinh thái đa repo (`D3Nexus`, `lyrics-sync`, `nexus`), các kỹ sư thường xuyên đối mặt với khoảng cách lớn giữa thiết kế kiến trúc lý thuyết và hành vi thực tế khi chạy. Khoảng cách này buộc lập trình viên phải thực hiện quá nhiều thao tác kiểm thử thủ công (bấm tay) trên thiết bị và trình duyệt trước mỗi đợt release:
+
+1. **Cái bẫy của Mock (Mocking Fallacy)**: Các bài kiểm thử đơn vị `[Tier A - Unit]` đạt tỷ lệ pass 100% bằng cách cô lập các thành phần bằng đối tượng mock (`when(...).thenReturn(...)`). Tuy nhiên, ứng dụng bị crash hoặc vỡ khi các thành phần được ghép nối với nhau trong runtime thật do lỗi đăng ký DI, lệch chuẩn parse JSON, hủy vòng đời component, hoặc xung đột timing trên stream event-bus.
+2. **Thiếu Provider Web Quality ở Gate 4**: Hệ thống điều phối chất lượng (`d3nexus:quality_check`) đã có sẵn provider chuyên biệt cho Flutter, Android, iOS, Rust và Python, nhưng hoàn toàn thiếu provider `web-quality-check`. Dẫn đến:
+   - Tại `D3Nexus`, Gate 4 chỉ xác thực `rust-core` (`d3nexus:rust-quality-check`), bỏ quên hoàn toàn ứng dụng web Astro + Vanilla TypeScript (`apps/learning-web`).
+   - Tại `lyrics-sync`, Gate 4 chỉ xác thực `python-core` (`d3nexus:python-quality-check`), bỏ quên hoàn toàn 17 file Vanilla JavaScript (`src/lyrics_sync/preview/static/*.js`).
+3. **Bài kiểm thử E2E giả lập chỉ chạy trong Node**: Nhiều bài test nằm dưới thư mục `tests/e2e/` thực chất chỉ chạy bằng `node:test` mà không hề render HTML thật, không kiểm tra kết nối Custom Elements, và không xác thực sự kiện DOM hay tọa độ hiển thị thực tế (`getBoundingClientRect`).
+4. **Sự ngụy biện của AI (AI Rationalization)**: Các AI coding agent thường xuyên tự tìm đường tắt: khẳng định test Node là đủ, bỏ qua lỗi console trình duyệt, và né tránh việc chạy trình duyệt headless.
+
+## Mục tiêu và Giới hạn
+
+### Mục tiêu
+- Xây dựng provider chuẩn hóa `web-quality-check` tuân thủ Hợp đồng Kết quả Provider v1 cho các dự án Astro TypeScript và Vanilla JavaScript.
+- Xóa bỏ điểm mù tại Gate 4 bằng cách kích hoạt đăng ký đa provider đồng thời trong `D3Nexus` (`rust-core` + `learning-web`) và `lyrics-sync` (`python-core` + `preview-ui`).
+- Thực thi nghiêm ngặt Chuẩn Kiểm thử 3 Lớp: Tier A (Unit), Tier C1 (Tích hợp Dưới da với DI thật và In-memory DB), và Tier C2 (Tích hợp Trình duyệt Headless với Playwright và Zero-Console-Error).
+- Đưa Bảng Chống Ngụy biện và Cơ chế Phản biện Nghi vấn (lấy cảm hứng từ `addyosmani/agent-skills`) vào các quy trình kỹ năng.
+- Tự động hóa quá trình xác nhận của con người bằng cách tự sinh tài liệu hướng dẫn 3–5 bước `manual_smoke_checklist.md` sau khi hoàn tất epic, giảm thời gian bấm tay từ 30 phút xuống còn 2 phút.
+
+### Giới hạn
+- Không migrate 17 file Vanilla JavaScript trong `lyrics-sync` sang TypeScript (việc kiểm tra kiểu dữ liệu được thực hiện tại chỗ thông qua JSDoc `// @ts-check` và `jsconfig.json`).
+- Không thay thế bộ unit test hiện có trong `D3Nexus` hay `lyrics-sync` (các bài test nhanh này vẫn được giữ lại làm Tier A).
+- Không yêu cầu bật emulator thiết bị nặng nề cho các cổng duyệt cục bộ PR/Epic (các bài test Tier C chạy headless qua Playwright và môi trường harness VM).
+
+## Kiến trúc và Chuẩn Kiểm thử 3 Lớp
+
+Kiến trúc thiết lập 3 phân tầng kiểm thử rõ ràng trên cả mobile và web:
+
+1. **Tier A — Kiểm thử Đơn vị (Unit Testing)**:
+   - Phạm vi: Thuật toán thuần, state machine toán học, bộ parse dữ liệu độc lập, và hàm tiện ích.
+   - Thực thi: Trong tiến trình (Node.js, Dart VM, JVM, Python VM).
+   - Mock: Cho phép mock các dependency bên ngoài. Tốc độ: <10ms mỗi test.
+2. **Tier C1 — Kiểm thử Tích hợp Dưới da (Mobile & Backend)**:
+   - Phạm vi: Controller giao diện (BLoC / ViewModel) xuyên suốt xuống kho lưu trữ cục bộ, bộ nhớ đệm và tuần tự hóa dữ liệu.
+   - Bất biến: Zero-Domain-Mock. Nghiêm cấm mock UseCase hoặc Repository của domain. Bắt buộc dùng DI container thật và cơ sở dữ liệu in-memory (SQLite `:memory:`, Room in-memory).
+   - Ranh giới mạng: Mock tại socket HTTP bằng các fixture JSON chuẩn từ `shared-contracts/`.
+3. **Tier C2 — Kiểm thử Tích hợp Trình duyệt Headless (Web)**:
+   - Phạm vi: Render DOM thật, Custom Elements, controller Vanilla JS/TS, thao tác click của người dùng, chuyển trang và định vị popover trực quan.
+   - Bất biến: Zero-Console-Error. Bất kỳ lỗi `console.error` hoặc ngoại lệ trang chưa xử lý nào đều khiến bài test trượt ngay lập tức.
+   - Ranh giới mạng: Chặn tại tầng socket trình duyệt thông qua `page.route()` của Playwright và trả về fixture JSON chuẩn từ hợp đồng.
+
+## Chống Ngụy biện và Cơ chế Phản biện Nghi vấn
+
+Học hỏi từ các nguyên tắc của `addyosmani/agent-skills`, tất cả quy trình lập trình và kiểm thử đều thực thi 4 quy tắc chống ngụy biện:
+
+| Lời bào chữa của Agent | Quy tắc Phản biện Bắt buộc |
+| :--- | :--- |
+| "Một bài test Node.js là đủ để chứng minh tính năng web UI hoạt động." | **BỊ TỪ CHỐI**: Test Node chỉ chứng minh logic dữ liệu thuần. 80% lỗi web xảy ra ở truy vấn DOM, nổi bọt sự kiện và render CSS. Tier C bắt buộc phải chạy qua Playwright headless. |
+| "Component này đơn giản; mock cứng dữ liệu trong stub là đủ." | **BỊ TỪ CHỐI**: Stub cấp method bỏ qua việc kiểm tra giải mã JSON và interceptor mạng. Bắt buộc phải dùng fixture cấp mạng (wire-level) từ `shared-contracts/`. |
+| "Các lỗi đỏ trong console trình duyệt chỉ là cảnh báo vô hại." | **BỊ TỪ CHỐI**: Quy tắc Zero-Console-Error đánh trượt Gate 4 đối với bất kỳ lỗi console hoặc ngoại lệ chưa xử lý nào trong trình duyệt. |
+| "Tôi không bật được simulator điện thoại nên tôi sẽ viết unit test thay thế." | **BỊ TỪ CHỐI**: Tier C mobile bắt buộc phải dùng Kiểm thử Dưới da với DI thật và lưu trữ in-memory. Unit test thuần túy không được gắn mác Tier C. |
+
+Dưới Cơ chế Phản biện Nghi vấn (`CLAIM -> EXTRACT -> DOUBT -> RECONCILE`), Gate 4 sẽ rà soát để đảm bảo bài test Tier C thực sự kích hoạt luồng code production mà không mock hệ thống chính đang được kiểm thử.
+
+## Đặc tả Kỹ thuật Provider Web Quality
+
+Một kỹ năng mới `d3nexus:web-quality-check` được xây dựng tại thư mục `skills/web-quality-check/`:
+
+1. **Hợp đồng Gọi thực thi**: Tuân thủ Hợp đồng Kết quả Provider v1, nhận `{ "profile": "<profile>", "base_ref": "<base_ref>", "repository_sha": "<sha>" }`.
+2. **File Cấu hình**: Đọc file `.agents/quality/web-quality.json` từ thư mục gốc của repository.
+3. **Các Khả năng (Capabilities)**:
+   - `type_check`: Chạy `astro check` hoặc `tsc --noEmit` cho dự án TypeScript, hoặc `tsc --project jsconfig.json` cho dự án Vanilla JavaScript.
+   - `lint`: Chạy linter của dự án (ESLint, Biome, hoặc Astro linter).
+   - `test_unit`: Thực thi bộ unit test in-memory nhanh (Tier A).
+   - `test_e2e`: Khởi chạy bộ Playwright headless (Tier C2) tích hợp bộ giám sát Zero-Console-Error.
+   - `contracts`: Thực hiện kiểm tra chênh lệch hợp đồng đa repo.
+4. **Công cụ Xác thực**: Cung cấp script `validate_web_quality.py` để đảm bảo tính hợp lệ của schema và sự hiện diện của các binary thực thi trước khi chạy.
+
+## Tích hợp Registry Đa Repo và Gate 4 Đa Nền tảng
+
+Nhạc trưởng Gate 4 gốc (`d3nexus:quality_check`) thực hiện kích hoạt đa provider song song trên các kho lưu trữ:
+
+- **`D3Nexus` (`.agents/quality/check_quality.json`)**:
+  - Provider 1: `rust-core` (`d3nexus:rust-quality-check`) cho nhân Rust, biên dịch WASM và test hệ thống.
+  - Provider 2: `learning-web` (`d3nexus:web-quality-check`) cho template Astro, controller Vanilla TypeScript và bộ test Playwright.
+- **`lyrics-sync` (`.agents/quality/check_quality.json`)**:
+  - Provider 1: `python-core` (`d3nexus:python-quality-check`) cho endpoint FastAPI, logic worker và test pytest.
+  - Provider 2: `preview-ui` (`d3nexus:web-quality-check`) cho kiểm tra kiểu Vanilla JS tĩnh và test Playwright trên Chrome.
+- **`nexus` (`.agents/quality/check_quality.json`)**:
+  - Provider 1: `flutter-core` (`d3nexus:flutter-quality-check`) thực thi Kiểm thử Widget Dưới da với DI thật và WireMock.
+
+## Nâng cấp Dev-Designer và Dev-Implementation
+
+1. **`dev-designer` (Stage 2)**:
+   - Khi phát hiện dự án Web, dòng `Integration results:` trong HLD bắt buộc phải trỏ tới kết quả của Playwright headless (`build/test-results/playwright.json`).
+   - Các kịch bản BDD cho Tier C phải bao gồm kỳ vọng tương tác DOM cụ thể và xác nhận qua wiremock.
+2. **`dev-implementation` (Stage 3)**:
+   - Nhúng Bảng Chống Ngụy biện trực tiếp vào quá trình thực thi tác vụ.
+   - Xác thực rằng các tác vụ tuyên bố bao phủ kịch bản Tier C thực sự chạy test trình duyệt headless hoặc test dưới da thật.
+   - Tạm dừng và báo cáo `BLOCKED` nếu code test mock chính component đang được kiểm thử.
+
+## Tự động Sinh Kịch bản Smoke Test Bấm tay
+
+Sau khi hoàn thành thành công tất cả tác vụ và Gate 4 trả về kết quả máy PASS, `dev-implementation` sẽ tự động sinh ra một tài liệu hỗ trợ con người:
+- Đường dẫn: `.devtool/epic/<epic_dir>/manual_smoke_checklist.md`
+- Nội dung: 3 đến 5 bước thủ công ngắn gọn, rõ ràng được trích xuất trực tiếp từ các kịch bản BDD Happy Path chính (gồm URL mục tiêu, hành động của người dùng, kết quả trực quan quan sát được).
+- Lợi ích: Rút ngắn thời gian kiểm thử tự do của lập trình viên từ 30 phút mò mẫm xuống còn đúng 2 phút xác nhận có định hướng.
+
+## Rủi ro và Giải pháp Giảm thiểu
+
+| Rủi ro | Tác động | Chiến lược Giảm thiểu |
+| :--- | :--- | :--- |
+| Chi phí cài đặt Playwright trong CI / máy cục bộ | Gate 4 chạy chậm | Chỉ sử dụng Chromium headless; cache binary trình duyệt; profile `pr` chỉ chạy unit test, profile `epic` mới chạy Playwright. |
+| Xung đột port khi khởi chạy preview server | Test không ổn định (flaky) | Cấu hình `webServer` của Playwright bind vào port động hoặc cổng chuyên dụng có probe kiểm tra healthcheck. |
+| Cảnh báo console cũ của thư viện kích hoạt Zero-Console-Error | Đánh trượt nhầm (false positive) | Cho phép cấu hình danh sách loại trừ (allowlist) cho các cảnh báo bên thứ ba vô hại đã biết trong `.agents/quality/web-quality.json`. |
+
+## Kế hoạch Kiểm chứng
+
+1. **Kiểm chứng Hợp đồng Provider**:
+   - Chạy `validate_web_quality.py` đối với file cấu hình mẫu `.agents/quality/web-quality.json`.
+   - Chạy `quality_check` với profile `epic` tại `D3Nexus` và kiểm tra cả `rust-core` lẫn `learning-web` đều xuất ra phán quyết được chứng thực.
+2. **Kiểm chứng Zero-Console-Error của Playwright**:
+   - Cố tình chèn 1 dòng `console.error` vào trang test; xác nhận Playwright và Gate 4 báo cáo chính xác trạng thái `FAIL`.
+   - Sửa lỗi và xác nhận Gate 4 chuyển sang `PASS`.
+3. **Kiểm chứng Type-Checking cho Vanilla JS**:
+   - Chạy `tsc --project jsconfig.json` trên thư mục `lyrics-sync/src/lyrics_sync/preview/static/` và xác nhận kết quả kiểm tra kiểu dữ liệu sạch sẽ.
+4. **Kiểm chứng Tự sinh Checklist Bấm tay**:
+   - Xác nhận rằng việc hoàn tất epic sẽ tạo ra file `.devtool/epic/<epic_dir>/manual_smoke_checklist.md` chứa 3–5 bước rõ ràng.

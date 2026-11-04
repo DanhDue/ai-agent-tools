@@ -8,5 +8,6 @@
     "statusBar.foreground": "#ffffff",
     "statusBar.inactiveBackground": "#b45309",
     "statusBar.inactiveForeground": "#ffffffcc"
-  }
+  },
+  "window.title": "🟠 [AGENT-TOOLS] [@danhdue] ${activeEditorMedium}${separator}${rootName}"
 }
