@@ -14,7 +14,7 @@ order: "a3"
 
 # Task 03: Vanilla JS JSDoc Type-Checking Configuration
 
-Epic: [web_quality_check_and_integration_gate](../epic/web_quality_check_and_integration_gate/web_quality_check_and_integration_gate.en.md)
+Epic: [web_quality_check_and_integration_gate](web_quality_check_and_integration_gate.en.md)
 
 ## Requirement Analysis
 

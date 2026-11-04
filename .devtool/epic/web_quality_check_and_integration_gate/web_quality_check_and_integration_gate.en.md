@@ -115,7 +115,7 @@ sequenceDiagram
 ```text
 Integration test roots: tests/, skills/web-quality-check/tests/
 Protected paths: .agents/quality/**, .devtool/epic/web_quality_check_and_integration_gate/bdd_scenarios.en.md, .devtool/epic/web_quality_check_and_integration_gate/bdd_scenarios.vi.md
-Integration results: python3 -m pytest tests/test_web_quality_provider.py -> build/test-results/pytest.xml
+Integration results: python3 -m pytest tests/ -> build/test-results/pytest.xml
 ```
 
 | Boundary Seam | Testing Strategy | Verification Target |

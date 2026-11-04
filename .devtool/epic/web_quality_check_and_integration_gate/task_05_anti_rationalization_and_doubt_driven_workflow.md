@@ -14,7 +14,7 @@ order: "a5"
 
 # Task 05: Anti-Rationalization and Doubt-Driven Workflow Rules
 
-Epic: [web_quality_check_and_integration_gate](../epic/web_quality_check_and_integration_gate/web_quality_check_and_integration_gate.en.md)
+Epic: [web_quality_check_and_integration_gate](web_quality_check_and_integration_gate.en.md)
 
 ## Requirement Analysis
 

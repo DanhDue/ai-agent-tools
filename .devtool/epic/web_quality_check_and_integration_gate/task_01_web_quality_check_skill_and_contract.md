@@ -14,7 +14,7 @@ order: "a1"
 
 # Task 01: Web Quality Check Skill and Provider Contract
 
-Epic: [web_quality_check_and_integration_gate](../epic/web_quality_check_and_integration_gate/web_quality_check_and_integration_gate.en.md)
+Epic: [web_quality_check_and_integration_gate](web_quality_check_and_integration_gate.en.md)
 
 ## Requirement Analysis
 

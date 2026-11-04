@@ -14,7 +14,7 @@ order: "a4"
 
 # Task 04: Polyglot Gate 4 Registry and Multi-Provider Fan-Out
 
-Epic: [web_quality_check_and_integration_gate](../epic/web_quality_check_and_integration_gate/web_quality_check_and_integration_gate.en.md)
+Epic: [web_quality_check_and_integration_gate](web_quality_check_and_integration_gate.en.md)
 
 ## Requirement Analysis
 

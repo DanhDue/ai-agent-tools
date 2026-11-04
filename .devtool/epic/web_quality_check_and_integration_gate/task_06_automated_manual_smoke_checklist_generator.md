@@ -14,7 +14,7 @@ order: "a6"
 
 # Task 06: Automated Manual Smoke Checklist Generator
 
-Epic: [web_quality_check_and_integration_gate](../epic/web_quality_check_and_integration_gate/web_quality_check_and_integration_gate.en.md)
+Epic: [web_quality_check_and_integration_gate](web_quality_check_and_integration_gate.en.md)
 
 ## Requirement Analysis
 
