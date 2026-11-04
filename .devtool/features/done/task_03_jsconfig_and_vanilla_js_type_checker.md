@@ -1,13 +1,13 @@
 ---
 id: "task_03_jsconfig_and_vanilla_js_type_checker"
-status: "todo"
+status: "done"
 priority: "medium"
 assignee: null
 epic: "web-quality-check-and-integration-gate"
 dueDate: null
 created: "2026-11-04T22:52:00Z"
-modified: "2026-11-04T22:52:00Z"
-completedAt: null
+modified: "2026-11-04T21:22:33Z"
+completedAt: "2026-11-04T21:22:33Z"
 labels: ["vanilla-js", "typecheck", "tooling"]
 order: "a3"
 ---
