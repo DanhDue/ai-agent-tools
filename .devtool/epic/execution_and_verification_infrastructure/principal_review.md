@@ -6037,3 +6037,7227 @@ Verdict: CHANGES REQUIRED
 tokens used
 151,028
 ````
+
+## Round 2
+
+- **Date**: 2026-11-05T20:50:01Z
+- **SHA**: e33d42bdab3d601348f2ab9433bb6a989795cb21
+- **Base**: main
+- **CLI**: codex
+- **Model**: gpt-6.1-sol
+- **Thinking**: high
+- **Status**: completed
+- **Verdict**: CHANGES REQUIRED
+- **Kind**: principal
+
+| # | Severity | Location | Problem | Decision |
+|---|----------|----------|---------|----------|
+| 1 | Important | task_04_task_replay_and_measure_phase.md:Decisions Already Made, line 111 | The evidence parser conflicts with the declared prerequisite. Epic 1 freezes `parse_evidence_files() -> list[AllowedPath]` and restricts evidence to `.devtool/epic/<epic>/evidence/` ([prerequisite contract](/Users/danhdueexoictif/AllProjects/ai-agent-tools/.devtool/epic/contract_and_authoring_ergonomics/task_01_evidence_files_contract.md:95)); Task 04 instead requires `list[str]`, while its BDD fixtures use `.devtool/evidence/bench.json`. Probes confirmed that the fixture path violates the prerequisite grammar and treating an AllowedPath as a filesystem path raises TypeError. Proposed: preserve the prerequisite API, use `entry.pattern`, and replace invalid evidence paths throughout both language versions and the task fixtures. |  |
+| 2 | Important | task_02_failure_baseline_and_comparison.md:Decisions Already Made, line 110 | The frozen pytest regex truncates parameter IDs containing ` - `. Actual pytest output for `test_x[hello - world]` and `test_x[hello - other]` is reduced by this regex to the same `test_x[hello` identifier. Consequently, replacing one failure with the other produces no detected regression and isolation reruns receive an invalid selector. The same regex appears in both design specifications, Section 2. Proposed: distinguish the reason delimiter from delimiters inside parameter IDs, preserve the complete collected identifier, and require a regression test comparing these two distinct failures. |  |
+| 3 | Important | task_02_failure_baseline_and_comparison.md:Decisions Already Made, lines 111–120 | Bare Node test names are neither unique failure identities nor executable positional selectors. An active TAP probe increased failures from two to three while the prescribed name set remained `{"suite", "same name"}`; a second probe showed `node --test "same name"` fails because Node treats that argument as a file. Defaulting reruns to pytest also cannot select Node tests. Proposed: define runner-specific identities and rerun selection, retaining Node file and full test identity; alternatively, explicitly reject unsupported or ambiguous Node reruns instead of claiming equivalent support. |  |
+| 4 | Important | task_03_live_integration_and_route_matching.md:Decisions Already Made, line 108 | Skipping the live subprocess does not complete the Gate 4 skip contract. Current [collect_facts()](/Users/danhdueexoictif/AllProjects/ai-agent-tools/skills/dev-implementation/resources/scripts/run_external_review.py:376) subsequently checks all scenarios and prefers the entire `build/test-results` directory. [Traceability verdicts](/Users/danhdueexoictif/AllProjects/ai-agent-tools/skills/dev-implementation/resources/scripts/result_reports.py:304) reject absent/skipped cases; probes confirmed this. The specification suggests `--allow-skipped-live`, but the [CLI](/Users/danhdueexoictif/AllProjects/ai-agent-tools/skills/dev-implementation/resources/scripts/check_bdd_traceability.py:229) rejects that flag and its file is outside Task 03’s Allowed files. Proposed: freeze one implementable, scenario-scoped exemption strategy, authorize its required files, consume only current executed reports, and test that unrelated missing or failed scenarios still block Gate 4. |  |
+| 5 | Important | task_04_task_replay_and_measure_phase.md:Design Rationale, line 42 | Replay runs GREEN/TIER-B/TIER-C without defining how MEASURE-generated evidence becomes available, although Section 5 requires those fast assertions to read measurement output. Meanwhile, Section 4 of both specifications says replay applies all edits before optionally executing RED; genuine RED assertions can then pass unexpectedly, contrary to the existing [RED validator](/Users/danhdueexoictif/AllProjects/ai-agent-tools/skills/dev-implementation/resources/scripts/run_task_checks.py:119). Proposed: specify one replay phase order, explicitly handle RED before implementation edits or exclude it, and require valid cached evidence or MEASURE execution before evidence-consuming assertions; cover an initially absent evidence file. |  |
+| 6 | Important | task_04_task_replay_and_measure_phase.md:Decisions Already Made, line 114 | The Gate 4 audit requires only a non-empty digest mapping, whereas Section 5 of both specifications requires comparison against every declared evidence file. A populated mapping remains populated after evidence is changed or deleted. Existing [fingerprinting excludes `.devtool/`](/Users/danhdueexoictif/AllProjects/ai-agent-tools/skills/dev-implementation/resources/scripts/task_contract.py:333), and [audit_evidence()](/Users/danhdueexoictif/AllProjects/ai-agent-tools/skills/dev-implementation/resources/scripts/audit_epic.py:145) validates a patch identifier rather than those artifact bytes, so neither supplies the missing protection. Proposed: require Gate 4 to verify each committed evidence file’s presence, non-empty content, and matching SHA-256; add mutation and deletion cases after task completion. |  |
+
+Raw output:
+
+````text
+Reviewed all eleven artefacts against `e33d42bdab3d601348f2ab9433bb6a989795cb21`. The checkout remains clean.
+
+Read-only probes reproduced pytest ID truncation, Node failure-identity collisions, and rejection of missing/skipped live results by current traceability logic. Sampled early-exception and timeout paths produced no unbound-variable errors. ORM persistence, morphological normalization, and interactive UI contracts are outside this epic’s scope.
+
+Artefact filenames below are relative to `.devtool/epic/execution_and_verification_infrastructure/`.
+
+Verdict: CHANGES REQUIRED
+[Important] task_04_task_replay_and_measure_phase.md:Decisions Already Made, line 111 — The evidence parser conflicts with the declared prerequisite. Epic 1 freezes `parse_evidence_files() -> list[AllowedPath]` and restricts evidence to `.devtool/epic/<epic>/evidence/` ([prerequisite contract](/Users/danhdueexoictif/AllProjects/ai-agent-tools/.devtool/epic/contract_and_authoring_ergonomics/task_01_evidence_files_contract.md:95)); Task 04 instead requires `list[str]`, while its BDD fixtures use `.devtool/evidence/bench.json`. Probes confirmed that the fixture path violates the prerequisite grammar and treating an AllowedPath as a filesystem path raises TypeError. Proposed: preserve the prerequisite API, use `entry.pattern`, and replace invalid evidence paths throughout both language versions and the task fixtures.
+[Important] task_02_failure_baseline_and_comparison.md:Decisions Already Made, line 110 — The frozen pytest regex truncates parameter IDs containing ` - `. Actual pytest output for `test_x[hello - world]` and `test_x[hello - other]` is reduced by this regex to the same `test_x[hello` identifier. Consequently, replacing one failure with the other produces no detected regression and isolation reruns receive an invalid selector. The same regex appears in both design specifications, Section 2. Proposed: distinguish the reason delimiter from delimiters inside parameter IDs, preserve the complete collected identifier, and require a regression test comparing these two distinct failures.
+[Important] task_02_failure_baseline_and_comparison.md:Decisions Already Made, lines 111–120 — Bare Node test names are neither unique failure identities nor executable positional selectors. An active TAP probe increased failures from two to three while the prescribed name set remained `{"suite", "same name"}`; a second probe showed `node --test "same name"` fails because Node treats that argument as a file. Defaulting reruns to pytest also cannot select Node tests. Proposed: define runner-specific identities and rerun selection, retaining Node file and full test identity; alternatively, explicitly reject unsupported or ambiguous Node reruns instead of claiming equivalent support.
+[Important] task_03_live_integration_and_route_matching.md:Decisions Already Made, line 108 — Skipping the live subprocess does not complete the Gate 4 skip contract. Current [collect_facts()](/Users/danhdueexoictif/AllProjects/ai-agent-tools/skills/dev-implementation/resources/scripts/run_external_review.py:376) subsequently checks all scenarios and prefers the entire `build/test-results` directory. [Traceability verdicts](/Users/danhdueexoictif/AllProjects/ai-agent-tools/skills/dev-implementation/resources/scripts/result_reports.py:304) reject absent/skipped cases; probes confirmed this. The specification suggests `--allow-skipped-live`, but the [CLI](/Users/danhdueexoictif/AllProjects/ai-agent-tools/skills/dev-implementation/resources/scripts/check_bdd_traceability.py:229) rejects that flag and its file is outside Task 03’s Allowed files. Proposed: freeze one implementable, scenario-scoped exemption strategy, authorize its required files, consume only current executed reports, and test that unrelated missing or failed scenarios still block Gate 4.
+[Important] task_04_task_replay_and_measure_phase.md:Design Rationale, line 42 — Replay runs GREEN/TIER-B/TIER-C without defining how MEASURE-generated evidence becomes available, although Section 5 requires those fast assertions to read measurement output. Meanwhile, Section 4 of both specifications says replay applies all edits before optionally executing RED; genuine RED assertions can then pass unexpectedly, contrary to the existing [RED validator](/Users/danhdueexoictif/AllProjects/ai-agent-tools/skills/dev-implementation/resources/scripts/run_task_checks.py:119). Proposed: specify one replay phase order, explicitly handle RED before implementation edits or exclude it, and require valid cached evidence or MEASURE execution before evidence-consuming assertions; cover an initially absent evidence file.
+[Important] task_04_task_replay_and_measure_phase.md:Decisions Already Made, line 114 — The Gate 4 audit requires only a non-empty digest mapping, whereas Section 5 of both specifications requires comparison against every declared evidence file. A populated mapping remains populated after evidence is changed or deleted. Existing [fingerprinting excludes `.devtool/`](/Users/danhdueexoictif/AllProjects/ai-agent-tools/skills/dev-implementation/resources/scripts/task_contract.py:333), and [audit_evidence()](/Users/danhdueexoictif/AllProjects/ai-agent-tools/skills/dev-implementation/resources/scripts/audit_epic.py:145) validates a patch identifier rather than those artifact bytes, so neither supplies the missing protection. Proposed: require Gate 4 to verify each committed evidence file’s presence, non-empty content, and matching SHA-256; add mutation and deletion cases after task completion.
+
+
+--- stderr ---
+OpenAI Codex v0.162.1
+--------
+workdir: /Users/danhdueexoictif/AllProjects/ai-agent-tools
+model: gpt-6.1-sol
+provider: openai
+approval: never
+sandbox: read-only
+reasoning effort: high
+reasoning summaries: none
+session id: 01a1ad76-3900-7861-b8b5-cf3dad187b28
+--------
+user
+# Principal Review Prompt
+
+You are the Principal Reviewer who signs off this architectural design before implementation. You are strictly read-only: do not modify, create, or delete any file, and do not run commands that write to the repository or alter git state. Read the artefacts, inspect the source at `e33d42bdab3d601348f2ab9433bb6a989795cb21`, and report.
+
+## Candidate
+
+- Commit under review: `e33d42bdab3d601348f2ab9433bb6a989795cb21`
+- Base the branch diverged from: `main`
+- Base commit: `e33d42bdab3d601348f2ab9433bb6a989795cb21`
+- Target path / Epic directory: `.devtool/epic/execution_and_verification_infrastructure`
+
+## Artefacts
+
+Read these paths, relative to the repository root:
+
+- `.devtool/epic/execution_and_verification_infrastructure/2026-11-06-execution-and-verification-infrastructure-design.en.md`
+- `.devtool/epic/execution_and_verification_infrastructure/2026-11-06-execution-and-verification-infrastructure-design.vi.md`
+- `.devtool/epic/execution_and_verification_infrastructure/execution_and_verification_infrastructure.en.md`
+- `.devtool/epic/execution_and_verification_infrastructure/execution_and_verification_infrastructure.vi.md`
+- `.devtool/epic/execution_and_verification_infrastructure/bdd_scenarios.en.md`
+- `.devtool/epic/execution_and_verification_infrastructure/bdd_scenarios.vi.md`
+- `.devtool/epic/execution_and_verification_infrastructure/task_01_polyglot_worktree_bootstrap.md`
+- `.devtool/epic/execution_and_verification_infrastructure/task_02_failure_baseline_and_comparison.md`
+- `.devtool/epic/execution_and_verification_infrastructure/task_03_live_integration_and_route_matching.md`
+- `.devtool/epic/execution_and_verification_infrastructure/task_04_task_replay_and_measure_phase.md`
+- `.devtool/epic/execution_and_verification_infrastructure/task_05_execution_infra_e2e_acceptance.md`
+
+## Readiness facts
+
+Epic: execution_and_verification_infrastructure (execution-and-verification-infrastructure), 5 tasks
+R1 PASS
+R2 PASS
+R3 PASS
+R4 PASS
+R5 PASS
+R6 PASS
+R7 PASS
+R8 SKIP
+Result: 0 FAIL, 0 WARN — PASS
+
+The readiness report is already proven: all facts above have passed their mechanical checks; do not restate them, spend your review on judgement, architecture, and source grounding.
+
+## Mandatory Dynamic Probing Rule
+
+Do not rely solely on static diff inspection. For any language processing logic, regex expressions, exception handlers (`try/except`), or ORM persistence code, you MUST execute active read-only terminal probes (e.g. `python3 -c "..."` or interactive read-only REPL commands) to verify:
+1. Local variables referenced in exception handlers are not unbound when exceptions occur early in a block.
+2. Edge-case lexical tokens and inflections are not deformed by tokenization or lemmatization.
+3. Database statement ordering in transaction flushes does not violate foreign keys or unique constraints.
+
+## Rules
+
+# Principal Review Rules
+
+To avoid false-positive findings, evaluate design documents and epic artefacts against these principles:
+
+1. **Severities**:
+   - **Critical**: The epic or architecture cannot reach its goal or pass execution gates as designed (e.g. fatal architectural flaw, missing core contract).
+   - **Important**: A task or component would hit Stop-and-Report, ship incorrect behavior, or break module isolation during implementation.
+   - **Minor**: Wording, formatting, typo, and minor consistency adjustments.
+
+2. **Readiness Report Is Proven Fact**:
+   - The mechanical checks (R1–R8) in `check_epic_readiness.py` are already validated prior to review.
+   - Do not re-verify mechanically checked facts or restate them as findings; spend your review effort on judgement, architecture, and source grounding.
+
+3. **Grounding in Active Source**:
+   - Every claim about the repository source code must name the specific file and line number read.
+   - Grounding verifies that referenced symbols, functions, methods, and configurations actually exist at the candidate commit.
+
+4. **Actionable Findings**:
+   - Each finding must name the specific artefact (file path) and location (heading or section) to change.
+   - Each finding must conclude with a concrete `Proposed: <edit>` recommendation.
+
+5. **Shared Contracts & Symlink Resolution**:
+   - When reviewing design documents impacting inter-service or cross-repo communication, verify that `shared-contracts/` paths resolve on disk (following symlinks to target repositories if applicable).
+   - Flag any breaking schema change without backward-compatibility shims or transition windows as **Critical**.
+   - Flag any missing `## Shared Contract Impact` section or failure to prioritize contract updates in `task_01` as **Important**.
+
+6. **5-Layer Deep Verification Checklist**:
+   - **Unbound Variable in Fallback**: Verify that all variables referenced in `except` blocks are assigned or imported before the `try` block begins.
+   - **Part-of-Speech Ambiguity**: Verify that morphological transformation functions (lemmatizers, stemmers, token normalizers) disambiguate noun/adjective forms from verb-like gerunds and participles.
+   - **ORM Flush Semantics**: Verify SQLAlchemy Unit of Work execution ordering (Insert -> Update -> Delete). Forbid mutating ORM entities before flushing deleted records sharing the same unique key or index constraint.
+   - **Interactive Contract Boundary**: Verify that interactive token and span coverage on user interfaces conforms strictly to `architecture_and_flow.md`.
+   - **Fixture Schema Sanity**: Verify that test fixtures and mock records in RED tests satisfy database check constraints before reaching domain assertions.
+
+## Checklist
+
+- **P1 (Consistency)**: Consistency across spec, HLD, BDD, tasks, and documentation: decisions, field names, numbers, titles, statuses.
+- **P2 (Grounding)**: Grounding: every path, symbol, signature, return type, route, and constant in `Decisions Already Made` and `Impact Analysis` exists in source code as described.
+- **P3 (Pinned behaviour)**: Pinned behaviour: existing tests that pin a behaviour a task changes, especially when outside Allowed files.
+- **P4 (Blast radius)**: Blast radius: other writers and readers of changed data, background jobs, callers outside Allowed files, migrations and backfill.
+- **P5 (Task split and Verification)**: Task split and Verification: dependency order, RED rows that can fail before implementation, GREEN rows that pass at baseline, DoD references, Stop conditions.
+- **P6 (BDD quality)**: BDD quality: valid Gherkin, dimensions that match scenarios, grounded assertions, tier tags.
+- **P7 (Shared Contracts & Feasibility)**: Verification Environment, integration test feasibility, and cross-repo contract audit. When `shared-contracts/` (or an external service/FFI boundary) is touched, inspect `shared-contracts/<domain>/` canonical files (`api_contract.md`, `architecture_and_flow.md`, `gaps_and_rfcs.md`) on disk (including resolving symlinks to target repositories if applicable). Verify that the HLD contains a dedicated `## Shared Contract Impact` section, guarantees backward compatibility (optional fields, safe defaults, no breaking wire changes), reserves `task_01` for contract synchronization, and outputs the Parallel Handoff Summary for satellite repos.
+- **P8 (Risks, rollout and rollback)**: Risks, rollout and rollback.
+
+## Required output
+
+Do NOT use the bracketed tags `[Critical]`, `[Important]`, or `[Minor]` anywhere in your prose or analysis above the final verdict block.
+
+End your answer with these exact lines and nothing after them (no markdown bolding `**`, no backticks, no bullet before `Verdict:`):
+
+Verdict: PASS
+(or `Verdict: CHANGES REQUIRED`)
+[Critical|Important|Minor] <artefact>:<location> — <problem>. Proposed: <edit>
+
+Rules for Severity & Verdict:
+- Use `Critical` for a defect that breaks the design goal, `Important` for one that must be fixed before implementation, and `Minor` for anything else.
+- Output `Verdict: CHANGES REQUIRED` if and only if there is at least one `Critical` or `Important` finding.
+- If there are no findings (or only `Minor` findings), you MUST output `Verdict: PASS`.
+- A review with no finding still ends with its `Verdict: PASS` line.
+
+hook: SessionStart
+hook: SessionStart Completed
+codex
+Tôi sẽ dùng `d3nexus:principal-review` để đối chiếu thiết kế với source tại commit đã chỉ định và chạy các probe chỉ đọc cần thiết. Tôi cũng áp dụng `d3nexus:task-observer`; toàn bộ review sẽ không ghi file hay thay đổi git state.
+
+exec
+/bin/zsh -lc 'cat /Users/danhdueexoictif/.codex/plugins/cache/danhdue-agent-tools/d3nexus/1.24.0/skills/task-observer/SKILL.md /Users/danhdueexoictif/.codex/plugins/cache/danhdue-agent-tools/d3nexus/1.24.0/skills/principal-review/SKILL.md /Users/danhdueexoictif/.codex/plugins/cache/danhdue-agent-tools/d3nexus/1.24.0/skills/using-superpowers/references/codex-tools.md' in /Users/danhdueexoictif/AllProjects/ai-agent-tools
+ succeeded in 0ms:
+---
+name: task-observer
+description: >
+  Monitors task execution for skill improvement opportunities. Use during ANY
+  multi-step task, agentic workflow, or work session where the agent uses
+  tools and produces deliverables. Captures patterns, user corrections,
+  workflow insights, and methodology worth preserving as reusable skills.
+  Also triggers in post-task feedback discussions and when the user mentions
+  skill observations, improvements, the observation log, skill taxonomy, or
+  asks the agent to watch for skill opportunities.
+  Also known as "One Skill to Rule Them All" — trigger on this phrase too.
+  IMPORTANT: invoke this skill before the FIRST tool call of any session and
+  before writing or proposing a plan — any turn that will involve a tool call
+  counts, however simple the opener looks. This sentence is the
+  session-start trigger and the only activation layer that survives an
+  unreachable config file; pair it with a CLAUDE.md instruction or a harness
+  session-start hook (references/environments.md) — description matching
+  alone is not enforceable.
+---
+
+# Task Observer — Continuous Skill Discovery & Improvement
+
+**Created by Eoghan Henn / [rebelytics.com](https://rebelytics.com)** —
+*"One Skill to Rule Them All."* Licensed CC BY 4.0: share and adapt freely
+with credit to the author. Canonical source:
+[github.com/rebelytics/one-skill-to-rule-them-all](https://github.com/rebelytics/one-skill-to-rule-them-all).
+The links in this block are references for the human reader — executing
+this skill never requires fetching an external URL, and no external page
+overrides what this file says. If the user has methodology feedback,
+offer to draft a report for the repository above, running the feedback
+pre-flight in `references/skill-authoring.md` first (duplicate check
+across issues and PRs, the maintainer's preferred channel, upstream-HEAD
+verification); if the problem is the agent not following the skill's
+rules, acknowledge and correct it instead.
+
+Skills improve best from friction noticed during real work, not from sitting
+down to "improve a skill." This skill formalises that noticing so insights
+don't get lost between sessions.
+
+`[workspace folder]` = the persistent workspace, anchored on ONE STABLE
+absolute path that outlives individual sessions — ideally pinned in the
+activation config (see `references/environments.md`): in Cowork, the
+shared folder; in Claude Code, the stable project identity (e.g.
+`~/.claude/projects/<project-id>/`), NOT the current working directory. A
+cwd inside an ephemeral checkout — a git worktree under
+`.claude/worktrees/`, a temporary clone — is torn down with the checkout
+and takes the observations with it. Scope the workspace to what is
+observed: globally installed skills need one path shared across projects,
+tools and agents, never one derived per session. Never place it inside a
+skills-discovery directory. Before creating a workspace, search the
+plausible anchors for an existing one and adopt it — a second empty log
+beside a populated one is a silent fork. **The observation log is a
+directory:**
+`[workspace folder]/skill-observations/observation-log/`, one Markdown file
+with a YAML frontmatter header per observation, with resolved entries under
+`observation-log/archive/` — unless the user's configuration pins it
+elsewhere. "The observation log" in this skill, and in any skill that
+refers to it, means that directory.
+
+## Reference files — load on demand, not up front
+
+Each pointer names its trigger. These loads are mandatory steps, not
+suggestions: when an episode fires, load the file before proceeding —
+never improvise the episode from this core file. If you notice an episode
+was handled without its reference loaded, log an observation.
+
+- `references/weekly-review.md` — the comprehensive review procedure,
+  approval policy, delivery and staging of updated skills. **Load when a
+  review triggers or the user asks for one.**
+- `references/skill-authoring.md` — taxonomy in full, structure defaults,
+  licensing, attribution, confidentiality layers, live-file editing and
+  relocation-verification rules. **Load before creating or editing any
+  skill.**
+- `references/observation-log.md` — storage layout, frontmatter fields,
+  helper snippets, archival details, and the reasoning behind the rules.
+  **Load when setting up the log for the first time, when archiving, when
+  an id or frontmatter looks wrong, or before changing how anything reads
+  the log.**
+- `references/signals.md` — the full catalogue of what is and isn't worth
+  logging. **Load when unsure whether something is an observation, or when
+  sorting many candidates.**
+- `references/environments.md` — activation and config setup, compaction
+  behaviour, bundle manifest, handoff-doc mode for storage-less
+  environments. **Load for setup questions, after compaction, or when
+  there is no filesystem.**
+- `references/migration.md` — the one-time scripted conversion of a
+  pre-3.0 single-file `log.md`. **Load only when the Session Start
+  Protocol detects a legacy log.** Fresh installs never read it.
+
+## Session Start Protocol
+
+1. **Storage.** If `skill-observations/observation-log/` (with its
+   `archive/` subdirectory) or
+   `skill-observations/cross-cutting-principles.md` don't exist,
+   create them (principles template: `references/skill-authoring.md`).
+   Create `skill-observations/last-review-date.txt` containing the literal
+   value `never` if it doesn't exist — never write a date into it at setup;
+   a date means a review actually ran. If a legacy single-file
+   `skill-observations/log.md` exists and `observation-log/` does not, this
+   is an upgrade from a pre-3.0 install: load `references/migration.md` and
+   run the scripted conversion before writing anything else. Before
+   creating or writing anything: if the resolved workspace folder sits
+   under an ephemeral path (e.g. `.claude/worktrees/`, a temporary clone),
+   warn the user and re-anchor on the stable project path first — state
+   written to an ephemeral checkout is lost at teardown.
+2. **Scan.** Read only the frontmatter of each file in `observation-log/`
+   — the header block between the first two `---` lines, never the bodies
+   — and build awareness from `status`, `skill`, `proposes_skill` and
+   `title`; also read the active principles. Hold them in awareness, don't
+   surface unprompted. Frontmatter-only is the whole point of the per-file
+   format: the scan stays cheap once hundreds of observations exist.
+
+   **An empty scan in a log known to be non-empty is a broken command
+   until proven otherwise**, never the finding "no relevant observations".
+   Count the files independently of the parse — a literal path, not the
+   variable the loop uses — and halt if files exist but nothing parsed.
+   Re-derive every path inside the same tool call: shell state does not
+   carry between calls in most harnesses, and a path variable that
+   silently resolves to empty turns a filter into a match-nothing glob
+   rather than an error.
+
+   ```bash
+   d=skill-observations/observation-log                                # re-derive in EVERY call
+   n=$(find "$d" -maxdepth 1 -name "*.md" 2>/dev/null | wc -l)         # independent count via find (zsh-safe)
+   parsed=0
+   if [ "$n" -gt 0 ]; then
+     for f in "$d"/*.md; do
+       [ -e "$f" ] || continue
+       hdr=$(awk 'NR==1 && /^---[[:space:]]*$/ {fm=1; next}
+                  fm && /^---[[:space:]]*$/ {exit}
+                  fm' "$f")
+       [ -n "$hdr" ] && parsed=$(( parsed + 1 ))
+       printf '%s\n---\n' "$hdr"
+     done
+   fi
+   [ "$n" -gt 0 ] && [ "$parsed" -eq 0 ] && \
+     { echo "SCAN COMMAND BROKEN — $n files present, 0 headers parsed"; exit 1; }
+   ```
+3. **Review trigger.** Read `skill-observations/last-review-date.txt`. The
+   value carries the truth: a date = when the last review actually ran;
+   `never` = no review has run yet. A missing file is abnormal (step 1
+   creates it) — recreate it with `never`, don't invent a date. If the
+   value is `never` or older than 7 days AND there are OPEN observations:
+   in an interactive session, offer the review in one line ("the
+   observation backlog hasn't been reviewed [in N days / yet] — run it now,
+   or carry on with your task?") and proceed with the user's task unless
+   they opt in; never gate their work on the review. Only a
+   scheduled/autonomous run loads `references/weekly-review.md` and runs
+   the review unprompted.
+4. **Activation.** Once per session: if no CLAUDE.md (or equivalent)
+   activation instruction for this skill exists, briefly suggest adding one
+   (see `references/environments.md`). Skip if already configured.
+5. **Concurrency.** There is no shared log file to guard: each observation
+   is its own file, so creating one never collides with or overwrites
+   another session's entry. Before changing the *status* of an existing
+   observation, re-read that one file first (a parallel review may have
+   resolved it).
+6. **Targets and staged work.** Resolve each distinct `skill:` value in
+   the scanned frontmatter against the installed skill set and mention, in
+   one line, any that no longer resolve — a deleted skill can accumulate
+   dozens of observations before a review discovers the target is gone.
+   If `skill-updates/PENDING.md` lists staged updates, say "N staged
+   updates awaiting review" in one line.
+7. **First run.** If the log is empty and the project has history
+   (handover or decision docs, commit history, test scripts, an existing
+   CLAUDE.md — which is largely a record of corrections nobody logged),
+   offer a one-off backfill pass over those artefacts. Backfilled entries
+   cite the durable artefact (file and section) in `session_context`
+   instead of a session, and the same-turn immediacy rule is satisfied by
+   one batched write. The pass is one-off; the scheduled review takes
+   over afterwards.
+
+## When to Observe
+
+Active for the entire task session — execution, post-task feedback, review
+discussion, meta-discussion about skills or methodology, and strategy
+conversations about how work should be done. **The observation mindset
+does not deactivate when the conversation shifts from doing the work to
+discussing it**; review-phase feedback is often the highest-signal input.
+Inactive only for casual conversation and quick factual questions with no
+tools or deliverables involved.
+
+## What to Watch For
+
+**New skill:** a reusable multi-step workflow, a methodology the user
+explains that no skill captures, a recurring task type, a process the user
+describes as "I always do it this way". **Improve a skill:** the agent
+violates a documented rule (the skill needs enforcement, not louder rules);
+a user correction reveals a missing rule or edge case; a better workflow or
+technique emerges than the skill recommends; a wrong assumption; new
+tooling obsoletes a step; a principle that applies to other skills too.
+**Simplify a skill:** a section never relevant across many sessions, a rule
+from a single unvalidated observation, contradictory rules, a rule the
+agent consistently fails to follow — convert to structural enforcement or
+remove. Full catalogue with examples: `references/signals.md`.
+
+**Do NOT log:** one-off corrections that don't generalise; preferences
+already captured in a skill; tool bugs unrelated to methodology;
+observations that would need proprietary client information to be useful
+in an open-source skill (unless an internal skill is the right home). The
+generalisability test, when unsure: would this still make sense in another
+project, and for another task using the same skill? Does it name a missing
+rule, step or principle rather than fix this task? Is it likely to recur?
+Mostly no → task context, not an observation. Before minting a
+`proposes_skill` name, check the existing candidates and reuse a fitting
+one — independently logged proposals for one skill rarely share a name.
+
+**Validate the target at write time.** A name in `skill:` must be a skill
+that exists now; if it doesn't, the observation proposes a skill instead.
+Checking is cheap at write time and expensive forty entries later.
+
+**Check the target's siblings at write time, and record that you did.**
+Libraries accumulate *families* — several skills implementing one
+methodology for different tools, one structure for different subjects, one
+companion pattern for different base skills. An insight found while using
+one member usually applies to the rest, but nothing in the workflow asks,
+so `skill:` collapses to a single entry and the family silently diverges.
+Before writing, resolve the target against the family registry
+(`skill-observations/skill-families.md`; spec, coherence models and the
+no-registry fallback in `references/observation-log.md`), and for each
+sibling either add it to `skill:` or state in the body why it does not
+apply. Fast test: **could this sentence survive having the tool's or
+subject's name removed?** If yes it belongs to every sibling — and a rule
+that declares itself generic inside one artefact ("this applies to any
+file-writing script, not just X") is the cheapest possible propagation
+signal, so treat that phrasing as an automatic multi-skill flag. Then
+record the outcome in the mandatory `siblings_checked:` frontmatter field,
+including the verdict "checked — instance-specific, no propagation": a
+one-entry `skill:` list is byte-identical whether the siblings were
+evaluated or never considered, and only the recorded field makes the
+*absence* of the judgement visible to a review or a drift audit.
+
+## How to Log
+
+Write the observation file **silently, within the same turn or the next** —
+never batch mentally for later; the act of writing is the enforcement
+mechanism.
+
+**Mandatory checkpoint after every 3rd completed todo item.** After marking
+the 3rd, 6th, 9th (etc.) item complete, you must **write to disk** — not
+merely ask yourself whether anything is pending. Either write any pending
+observation files, or, if genuinely none have accumulated, append a
+one-line `no observations` acknowledgement to
+`skill-observations/checkpoints.log`. The required action is a concrete
+write; a remembered "ask whether" is not enforcement. The count need not be
+precise; roughly every third completion is the rule. (Exception: where the
+workspace is a shared hosted document store in which every write is priced
+and invalidates other sessions' context, suppress the empty marker and
+keep only the check — see `references/environments.md`.)
+
+**A denied or failed write is not a read-only log.** Retry once before
+concluding the workspace is unwritable, and try a second tool that reaches
+the same path — a permission classifier can deny one interface while
+allowing another, and consecutive denials from a probabilistic gatekeeper
+are noise, not a wall. Report "failed N times", never "cannot be done",
+unless retries and alternate interfaces are actually exhausted; otherwise
+observations are silently lost for the rest of the session.
+
+**Deliverable-event flush.** Whenever you present or render a major
+deliverable — a file handed to the user, a deck or PDF render, a staged
+skill file — or complete a task/todo batch, write any pending observation
+files at that moment, before moving on. These checkpoints already involve a
+tool call; piggy-backing the flush onto them makes the write a side effect
+of work you were doing anyway. (Why both checkpoints are writes rather than
+questions: `references/observation-log.md`.)
+
+**Two gaps this pairing still leaves — both observed across full working days
+in which nothing was logged at all.**
+
+1. *A session can contain no todo items whatsoever.* The 3rd-completion
+   checkpoint is bound to ONE tool; work driven entirely through direct tool
+   calls and shell commands never trips it. It is armed only in sessions that
+   happen to use todos, so it is not a safety net that is always present. When
+   a session runs without them, the deliverable flush is the only enforcement
+   left and must be applied deliberately.
+2. *"Is this a major deliverable?" is a self-assessment, and self-assessment is
+   what fails under load.* Prefer triggers unmistakable in the tool record over
+   ones needing a judgement call. In particular, treat any **project-completing
+   command** — a deploy, release, publish, or push — as a flush point: it is a
+   concrete tool call, as hard a trigger as a completed todo, and it reliably
+   marks the end of a unit of work where insights have accumulated.
+
+The rule behind both: an enforcement trigger must hang on an event objectively
+visible in the tool record, never on the agent noticing that a moment qualifies.
+And a counter bound to a single tool is silently inert in every session that does
+not use it — such triggers always need a second, independent path.
+
+**Id and filename.** Each observation is `NNNN-short-slug.md` (zero-padded
+id + a kebab-case slug from the title). The id is the highest of three
+values, plus one: the highest numeric prefix in `observation-log/`, the
+highest in `observation-log/archive/`, and the number in
+`observation-log/archive/.id-floor` (the highest id ever issued — update it
+whenever you issue an id above it, so the counter can never restart from 1
+when the active directory is empty):
+
+```bash
+d=skill-observations/observation-log
+hi=$( { ls "$d" "$d/archive" 2>/dev/null | grep -oE '^[0-9]+'; cat "$d/archive/.id-floor" 2>/dev/null; } \
+     | sort -n | tail -1); : "${hi:=0}"
+[ "$hi" -eq 0 ] && [ -n "$(find "$d" -maxdepth 1 -name "*.md" 2>/dev/null)" ] && { echo "ID COMMAND BROKEN — log is non-empty but no ids extracted"; exit 1; }
+next_id=$(( hi + 1 )); echo "$next_id" > "$d/archive/.id-floor"
+```
+
+The guard line distinguishes "the log says zero" from "I could not read
+the log": a command that fails to empty rather than to error would
+otherwise propose id 1 in a populated log. A new file never touches another entry's bytes, so it cannot truncate,
+overwrite or renumber anyone else's work. If two parallel sessions pick the
+same id, two files share a number — harmless; the next review renumbers one
+and logs a meta-observation.
+
+**Batch writes: resolve each id at its own write time.** When logging more
+than one observation in a session that may overlap a scheduled review or
+another writer, run the id snippet before EACH file — never pre-compute a
+range and hardcode sequential numbers into a batch. A batch append is N
+separate races, not one; pre-baked numbers collapse N independent
+max-checks into a single stale read (observed: a hardcoded id collided
+with one a parallel review issued between the check and the write).
+
+**A structural probe that comes back empty where content existed before is
+a stop signal, not a create.** If the directory or file you logged to
+earlier in the session is suddenly missing, or the id check returns empty
+in a log you know is populated, HALT and re-probe the structure (is there
+an `observation-log/`? a `log.md.migrated`?) — a parallel session may have
+migrated or reorganised the storage. Never let an append silently recreate
+a missing target: that converts a migration signal into corruption
+(observed: a stale session recreated the retired `log.md` with a fresh
+"Observation 1" after the per-file migration renamed it).
+
+**File format.** YAML frontmatter (the metadata every scan reads) followed
+by the Issue → Improvement → Principle body. **The frontmatter is mandatory;
+always write `status: open` and a non-empty `siblings_checked:` at creation
+time** — an observation without a `status` field is treated as OPEN by
+reviews, never as nonexistent, and one without `siblings_checked:` counts
+as logged without a sibling check.
+
+```markdown
+---
+id: [N]
+title: [Short descriptive title]
+status: open            # open | actioned | declined | superseded | parked
+type: open-source       # open-source | internal
+skill: [list of existing skills this improves — always a list, even with
+       one entry; first entry is primary; may be empty]
+proposes_skill: [list of new skills this argues for, by working name;
+       may be empty — an observation can fill either list or both]
+siblings_checked: [MANDATORY, never blank: the family name and the members
+       evaluated, plus the verdict — e.g. "family-name: a, b — shared, both
+       added" or "family-name: a, b — instance-specific, no propagation";
+       the literal `none` only where the target belongs to no family]
+area: [which part of the skill or workflow]
+date: [YYYY-MM-DD]
+session_context: [what task was being worked on]
+parked_until:           # MANDATORY when status is parked, empty otherwise:
+                        #   one line naming the condition that unparks it
+resolved:               # date resolved; leave empty while OPEN
+resolution:             # what was done — set only when actioned/declined
+reference:              # optional: path to saved session-local evidence
+---
+
+**Issue:** [What happened — specific enough to understand weeks later
+without the original conversation.]
+
+**Suggested improvement:** [Concrete change. For existing skills, name the
+section or rule; for new skills, scope and key components.]
+
+**Principle:** [The generalisable takeaway — the most important field.]
+```
+
+**`parked` means decided, not pending.** Use it when an observation is sound
+but cannot be acted on until an external precondition is met — the scheduled
+task that produced it is disabled, the tool it describes is out of use, a
+dependency has not landed. A parked entry is OUT of the work queue: reviews
+must not re-escalate it, and the decision belongs in `status:`, not in a
+free-text note beside a `status: open` (a note nothing classifies on leaves
+the entry in the queue and it gets re-raised at every review). It is not
+resolved either, so it never archives — archival needs a resolved status plus
+a `resolved:` date. It stays in `observation-log/` indefinitely until either
+its `parked_until:` condition is met — set it back to `open` and queue it — or
+it is genuinely resolved. `parked_until:` is mandatory whenever status is
+`parked`: one line stating the condition, phrased so a later session can
+actually answer whether it has happened.
+
+**Context preservation:** if an observation depends on session-local data
+(uploads, API output), save that context into the workspace first and set
+`reference:` to its path — an observation whose evidence dies with the
+session is incomplete.
+
+**Confidentiality at logging time:** for `type: open-source` observations,
+the Issue/Improvement fields may reference specifics for context, but the
+Principle must be fully generalised — no client names, domains, or details
+traceable to a real project. Full confidentiality layers:
+`references/skill-authoring.md`.
+
+**Changing an existing observation:** re-read that one file, edit only the
+frontmatter fields you are changing (`status`, `parked_until`, `resolved`,
+`resolution`),
+never batch-rewrite the directory. Archival is a plain `mv` (below).
+
+## Referencing Observations
+
+Cite an observation by the `id` field in its frontmatter (= the `NNNN-`
+filename prefix). Never cite a `grep -n` line number as if it were the id —
+search-tool line numbers are positional metadata, not identifiers. A cited
+id must fall within the range that exists across `observation-log/`,
+`archive/` and `.id-floor`; a number far outside it is almost certainly a
+line number misread as an id.
+
+## Taxonomy (quick version)
+
+**Open-source** — client-agnostic, methodology-driven, useful to other
+practitioners. **Internal** — contains user/client/project specifics or
+personal preferences. Default to open-source when it could go either way,
+stripping specifics. The boundary is also a confidentiality boundary, and
+the two errors are not symmetric: over-classifying as internal costs only
+reach, under-classifying can leak — when genuinely uncertain, prefer
+internal and promote later. Full requirements (attribution, licensing,
+structure): `references/skill-authoring.md`.
+
+## Archival on Write
+
+On every write, first `mv` already-resolved files from `observation-log/`
+to `observation-log/archive/`. "Already resolved" is read from the file's
+own frontmatter: `status: actioned`, `declined` or `superseded` AND a
+`resolved:` date **before today**. Files resolved today stay until the next
+day, whichever session resolved them — the grace period lives in the file,
+never in session memory. A resolved file with no readable `resolved:` date
+gets today's date written to that field instead of being archived. One
+file per `mv`; no rewrite of anything else. Helper and rationale:
+`references/observation-log.md`.
+
+## Surfacing Protocol
+
+Default: at end of session, as a grouped summary — improvements grouped by
+skill, new-skill candidates listed separately; for each, one sentence plus
+suggested type; ask which to act on. Surface earlier when an observation
+needs user input to be complete, when a skill is actively producing wrong
+output, or when observations cluster on one skill.
+
+**Deferral wears a second disguise: not a promise, but an argument.** "Let's
+wait until this has seen a few days of real use", "we should gather more data
+first" — this reads as diligence, which is exactly why it goes unchallenged,
+including by the person saying it. It is not an announcement, so a rule about
+executing rather than announcing does not catch it. So before writing *any*
+"later" into a recommendation, name two things: **which specific observation
+would change the decision, and when it could realistically arrive.** If you
+cannot name one, the evidence is either already conclusive (act now) or waiting
+adds nothing (act now). Then ask what the delay costs — if a known-defective
+state stays live meanwhile, the burden of proof is on deferring, not on acting.
+A deferral is a decision and needs the same justification as acting; "more
+evidence would be better" is not one, because the question is whether more
+evidence could change the OUTCOME.
+
+**Default to log-and-defer.** Surfacing an observation is not an invitation
+to act on it: state that it is logged for the next review, and stop.
+Reserve in-session application strictly for the triggers under "Acting on
+Observations". Do NOT routinely offer a binary "apply now vs leave for next
+review" choice; for users who run regular reviews that offer is unwanted
+friction, and if a user has said they always defer, suppress it entirely.
+
+**Self-check before surfacing:** observations were logged throughout the
+whole session (including discussion phases); logged silently; each follows
+Issue → Improvement → Principle; each is typed; existing-skill items name
+the section; no open-source Principle contains client-identifying info;
+every observation file carries `status:` (`status: open` at write time) and
+a non-empty `siblings_checked:` — if any lacks one, do the sibling check
+now and record it rather than back-filling the field with `none`.
+
+## Acting on Observations
+
+Act only in three contexts: (1) the comprehensive review (load
+`references/weekly-review.md`); (2) an explicit user request ("update X
+skill", "act on observation #N"); (3) in-session correction when a skill is
+producing wrong output the user should know about. Otherwise: log, don't
+act.
+
+**Read the full body before resolving, dismissing, fixing, or citing.** A
+tracked item's title (observation, GitHub issue, ticket) is an index entry,
+not its content — it compresses away the failure story, the reporter's
+context, and often the proposed fix. Dismissal is the path with no
+downstream checkpoint: a resolved or cited item gets reviewed later, a
+dismissed one silently disappears. Harvest fix designs from issue bodies —
+reporters frequently include the correct solution, which also settles
+attribution. When a parallel agent logs a finding that appears to duplicate
+your own, diff the two bodies, not the titles: two entries about the same
+mechanism can carry opposite operational conclusions, and the second is
+often the refinement, not the echo. Apparent agreement suppresses
+verification more effectively than disagreement does, so this rule binds
+hardest exactly where it feels least necessary.
+
+When acting: small, clearly-additive, low-risk changes (a new rule, a
+clarification, a factual fix) may be applied without waiting for the next
+review — "directly" means *now*, not *in place*: the edit is still made on
+a staged copy based on a fresh read of the live file and handed to the user
+to install, in every environment and every context. Staging-only has no
+interactive exception; an exception the user has to remember is a gate
+that eventually gets left open. Substantial changes (restructuring, new
+capabilities, changed methodology) and all new-skill creation: load
+`references/skill-authoring.md` first and follow its editing and staging
+rules. A principle that applies to skills generally goes to the
+cross-cutting principles file (same reference).
+
+**Set the status in the same turn you act.** An observation acted on
+in-session must have its frontmatter updated — `status: actioned`,
+`resolved: YYYY-MM-DD`, `resolution: what was done` — before the turn
+ends. The work and the bookkeeping are two acts, and the second is the one
+that gets dropped; a stale `open` entry then invites redoing finished work
+over a section that has since moved on. The write is the enforcement,
+exactly as it is for logging.
+
+## Quick Reference
+
+| Question | Answer |
+|----------|--------|
+| When do I observe? | The whole session, including feedback and reflection phases |
+| How do I log? | Silently, immediately, as one file per observation named `NNNN-slug.md`; id = max(active, archive, `.id-floor`) + 1 |
+| When do I surface? | End of session, or earlier if needed |
+| Status field? | Mandatory `status: open` frontmatter on every new observation; reviews treat a missing status as OPEN, never as nonexistent. Five values: `open`, `actioned`, `declined`, `superseded`, `parked` — `parked` = decided but blocked on an external precondition, so it leaves the queue, requires `parked_until:`, and never archives |
+| Does the target skill have siblings? | Resolve it against `skill-observations/skill-families.md` BEFORE writing; add every sibling the insight applies to to `skill:`, and record the verdict in the mandatory `siblings_checked:` field — including "checked, no propagation" |
+| A scan or query came back empty? | Two possibilities, only one is a finding: guard every retrieval meant to prevent duplicate work with an independent existence check, and treat empty output over known content as a broken command |
+| Citing an observation number? | From the `id:` frontmatter field (= the `NNNN-` filename prefix); never a `grep -n` line number; sanity-check against the known id range |
+| Open-source or internal? | Default open-source; the boundary is confidential |
+| Small fix or substantial? | Additive → apply directly; restructuring/new skill → `references/skill-authoring.md` |
+| Changing an observation (status/archival)? | Re-read that one file, edit only its frontmatter, or `mv` it to `observation-log/archive/` — no shared-file rewrite |
+| Upgrading from a single-file `log.md`? | Scripted, once — `references/migration.md` |
+| Weekly review? | Trigger check at session start; procedure in `references/weekly-review.md` |
+| No filesystem? | Handoff-doc mode — `references/environments.md` |
+---
+name: principal-review
+description: Performs Shift-Left architectural and task design document reviews (HLD, BDD, Tasks, RFC) against source code before implementation begins.
+---
+
+# Principal Review
+
+## Overview
+
+Principal Review provides rigorous, cross-model architectural inspection of High-Level Designs (HLDs), BDD scenarios, Kanban task breakdowns, and standalone RFC documents against the active source codebase.
+
+Operating on the principle of **Shift-Left Quality Assurance**, it catches misunderstandings, missing contracts, scope regressions, and symbol drift before implementation starts, when resolving them in documents is an order of magnitude faster and cheaper than debugging in code.
+
+**Announce at start:** "I'm using the principal-review skill to conduct an architectural review."
+
+## Two Modes of Operation
+
+### 1. In-Lifecycle Mode (Stage 2 Handoff Choice)
+
+Invoked during the packaging phase of `dev-lifecycle` after all epic artefacts pass Gate 2 and mechanical readiness checks.
+
+- **Trigger**: Developer selects option 2 ("Principal Review") at the Handoff Choice prompt.
+- **Scope**: Evaluates all epic artefacts in `.devtool/epic/<epic_dir>/`:
+  - Architecture spec (`*-design.en.md`, `*-design.vi.md`)
+  - Canonical HLD (`<epic_dir>.en.md`, `<epic_dir>.vi.md`)
+  - BDD scenarios (`bdd_scenarios.en.md`, `bdd_scenarios.vi.md`)
+  - All Kanban tasks (`task_*.md`)
+  - Packaging record (`handoff.md`)
+- **Execution**:
+  ```bash
+  python3 skills/dev-implementation/resources/scripts/run_external_review.py run \
+    --kind principal --epic-dir <epic_dir> --base <base_branch> --cli <claude|codex|agy>
+  ```
+- **Persistence**: Results recorded in `.devtool/epic/<epic_dir>/principal_review.md`.
+
+### 2. Ad-Hoc Mode (Standalone Documents)
+
+Invoked on-demand to review standalone design documents, architecture proposals, or RFCs without requiring an epic directory.
+
+- **Trigger**: Developer invokes `/principal-review <path>` (e.g. `/principal-review docs/rfc/payment-service.md`).
+- **Scope**: Target markdown document and the active git repository context at `HEAD`.
+- **Pre-validation**:
+  1. The target file path must exist on disk.
+  2. The document must contain structural headings (e.g. `# Title`, `## Overview`).
+- **Execution**:
+  ```bash
+  python3 skills/dev-implementation/resources/scripts/run_external_review.py run \
+    --kind principal --doc <path> --base <base_branch> --cli <claude|codex|agy>
+  ```
+- **Streaming & Visibility**:
+  - The review output and triage table stream directly to stdout.
+  - Ephemeral review logs are saved under `build/` (git-ignored) for inspection.
+  - No epic directory is created or required.
+
+## The Review & Triage Loop
+
+1. **Pre-Check**:
+   - For epics, `check_epic_readiness.py` runs first. If any check fails (R1–R8), review halts immediately with a precondition banner without calling external model CLIs.
+   - For standalone docs, structural validation checks that the file exists and has valid headings.
+
+2. **External Model Review**:
+   - Executes with a read-only permissions profile (`claude -p --dangerously-skip-permissions`, `codex exec --sandbox read-only`, or `agy --sandbox --mode plan`).
+   - The reviewer inspects active code at candidate SHA to verify groundedness (P1–P8 checklists).
+
+3. **Triage Findings**:
+   - Follow [document-triage.md](references/document-triage.md).
+   - Verify every finding against the codebase.
+   - Present the triage table to the developer and wait for decisions. The presentation MUST begin with the standardized 4-bullet header block:
+     ```markdown
+     Principal Review Triage: Round <N> (<CLI>)
+     *(or `Principal Review Triage: <doc_path> (<CLI>)`)*
+
+     • Candidate SHA: <commit_sha>
+     • Reviewer: <CLI> ( <model> )
+     • Thinking Level: <Light | Low | Medium | High | Extra High | None>
+     • Verdict: <VERDICT> (<count> <Severity> findings)
+     ```
+
+4. **Revision Loop & Commit Ordering**:
+   - Apply document edits first and commit:
+     `git commit -m "[<EPIC_NAME>] Revise epic after Principal Review round <n>"`
+   - Record decisions with revision commit SHA in `principal_review.md`, then commit:
+     `git commit -m "[<EPIC_NAME>] Record Principal Review decisions for round <n>"`
+   - Re-run packaging to refresh handoff metadata, record state via `python3 scripts/resume_context.py --state --epic <epic_slug>`, emit the AI Programmer prompt via `python3 scripts/resume_context.py --emit-prompt implement --epic <epic_slug>`, and present the Principal Review Choice again.
+
+## Guidelines & Reference Documents
+
+- [Prompt Template](references/principal-review-prompt.md): The read-only instruction template sent to reviewer CLIs.
+- [Review Rules](references/principal-review-rules.md): Severity definitions (Critical, Important, Minor) and source grounding standards.
+- [Document Triage Protocol](references/document-triage.md): Step-by-step decision verification and revision loop enforcement.
+# Using d3nexus in Codex
+
+The plugin ships the same skills in all runtimes. When a skill uses a Claude Code tool name,
+perform the equivalent action using the tools exposed by the current Codex session.
+
+| Skill instruction | Codex action |
+|---|---|
+| Invoke `Skill` or `d3nexus:<name>` | Select the installed d3nexus skill, then read its `SKILL.md` and follow it. Resolve supporting paths relative to that skill's directory. |
+| `Read`, `Grep`, `Glob` | Use file tools or shell reads; prefer `rg` and `rg --files` for searches. |
+| `Edit`, `Write` | Use the available patch or file editing tool. |
+| `Bash` | Use the session's shell execution tool, respecting its permission boundaries. |
+| `TodoWrite` | Use an available plan/task tool, or maintain a short progress checklist if none exists. |
+| `Agent`, `Task`, parallel reviewers | Use subagents only when available and authorized. Otherwise perform independent steps sequentially and report the limitation. |
+
+Codex reads the consuming project's `AGENTS.md`. Claude's `@file` import syntax and Antigravity's
+Markdown `trigger: always_on` frontmatter are not substitutes for explicit reading instructions.
+Read the project's rule files when present; otherwise read the plugin's
+[critical rules](../../../rules/CRITICAL_RULES.md) and
+[coding guidelines](../../../rules/coding-guidelines.md).
+
+Keep `d3nexus:` cross-references in shared skill text. They identify the owning plugin; they do
+not imply that Codex has Claude's slash-command or `Skill` API. Use the skill picker or name the
+plugin and skill in a prompt when invocation syntax differs across Codex surfaces.
+
+Follow the current host's instruction hierarchy and honor the user's authorized scope. References
+to Antigravity's native planning artifact apply to that environment; do not invent unavailable
+tools or configuration in Codex. Platform build tools, credentials, and devices requested by a
+skill still need to exist in the consuming project.
+
+After reinstalling or upgrading the plugin, start a new thread to load the updated skill inventory.
+
+exec
+/bin/zsh -lc "rg -n 'principal|execution_and_verification|worktree|baseline|route' /Users/danhdueexoictif/antigravity_homes/phungthuy8901/.codex/memories/MEMORY.md" in /Users/danhdueexoictif/AllProjects/ai-agent-tools
+ succeeded in 0ms:
+1:# Task Group: ai-agent-tools setup_shared_contracts principal contract review
+10:- rollout_summaries/2026-10-30T06-59-12-Elg4-principal_review_setup_shared_contracts_contract_drift.md (cwd=/Users/danhdueexoictif/AllProjects/ai-agent-tools, rollout_path=/Users/danhdueexoictif/.codex/sessions/2026/10/30/rollout-2026-10-30T13-59-12-01a18b9a-faa7-7f50-81b9-b3c8aa8e3a08.jsonl, updated_at=2026-10-29T23:08:05+00:00, thread_id=01a18b9a-faa7-7f50-81b9-b3c8aa8e3a08, `CHANGES REQUIRED`; later review verified these four findings were fixed)
+14:- setup_shared_contracts, principal-review, shared_contracts_readme.md.tmpl, string.Template, `{{DOMAIN_NAME}}`, --root, --repo-root, --satellite-root, scripts/verify.sh, Section 11, Section 14, contract drift
+20:- rollout_summaries/2026-10-30T06-59-12-zvna-principal_review_setup_shared_contracts_contract_contradicti.md (cwd=/Users/danhdueexoictif/AllProjects/ai-agent-tools, rollout_path=/Users/danhdueexoictif/.codex/sessions/2026/10/30/rollout-2026-10-30T13-59-12-01a18b9a-faa8-72e0-8192-3dd403258730.jsonl, updated_at=2026-10-29T23:26:36+00:00, thread_id=01a18b9a-faa8-72e0-8192-3dd403258730, `CHANGES REQUIRED`; current implementation-blocking finding)
+24:- setup_shared_contracts, principal-review, SSC-FR-03, shared-contracts, non-empty, symlink, Rule 7, `Covers:`, traceability, `python3 -m unittest`, CHANGES REQUIRED
+28:- When requesting a principal review, the user required a “strictly read-only review” with exact source file/line grounding, artefact-specific actionable findings, and an exact final verdict block -> do not edit files or Git state; cite concrete locations for each source claim. [Task 1][Task 2]
+32:- Related skill: skills/principal-contract-review/SKILL.md. [Task 1][Task 2]
+69:- Corrected contract: one light-DOM `<floating-player-dock>` per production route; `SettingsPopover.astro` is the sole popover authority; selectors are canonical; seeking supports keyboard/pointer; styling is tokenized with reduced-motion fallback and no overflow at 380px. Acceptance needs real Playwright evidence at 900/640/570/500/420/380px. [Task 1]
+139:- When offered Package or Continue, the user chose `1` (Package) -> stop after validated packaging; do not create a worktree or enter Stage 3. [Task 1]
+185:- When the package was ready, the user said “Viết + sửa xong tài liệu handoff là được. Tôi sẽ triển khai sau.” -> stop after documentation/handoff; do not implement, create a worktree, or proceed to Gate 3 without explicit instruction. [Task 2]
+238:- Route `audit_epic.py`, declared Integration commands, and `check_bdd_traceability.py` through `run_gate()` while retaining captured output in the facts bundle. `run_external_review.py` does not directly invoke `android-ui-audit`; that is only indirect through the quality-provider registry. Targeted suite passed 31 tests and `scripts/verify.sh` reported `PASS — safe to publish`; worktree was clean on `main`, with no push. [Task 2]
+273:- rollout_summaries/2026-10-17T19-35-42-i0yr-package_contextual_flashcard_sharing_mobile_epic.md (cwd=/Users/danhdueexoictif/AllProjects/nexus, rollout_path=/Users/danhdueexoictif/.codex/sessions/2026/10/18/rollout-2026-10-18T02-35-42-01a14b5c-e73a-7331-b849-74b88e0dffd7.jsonl, updated_at=2026-10-18T01:35:42+00:00, thread_id=01a14b5c-e73a-7331-b849-74b88e0dffd7, docs package passed; Gate 3 pending; baseline auth test failure)
+282:- The user approved a separate public route and Public Share Snapshot -> make the public URL an opaque immutable snapshot, not a raw card/occurrence identifier. [Task 1]
+291:- Canonical public route is `/s/f/<opaque_share_id>` and only `Ready` snapshots are public. Continue internally with `/app/tracks/<slug>?line=<line>&t=<start_ms>&occurrence=<id>#preview`; preserve timestamp precedence and no autoplay. `apps/learning-web/src/core/navigation/url-params.ts` already parses `slug`, `line`, `t`, `colloc`, and preview hash. [Task 1]
+309:applies_to: cwd=/Users/danhdueexoictif/AllProjects/D3Nexus, with companion nexus handoff only for implementation ordering; reuse_rule=revalidate current handoffs/task state and obtain explicit Gate 3 confirmation before a worktree, task-state change, or code work.
+362:- design_system, Gate-4, quality_check, rust-quality-check, BDD traceability, test_p95_facets_latency, p95 latency 153 ms exceeded 150 ms budget, worktree concurrency, SHA-bound evidence, Task 485
+374:- Candidate identity can be invalidated while Gate 4 runs if another workflow archives tasks, merges the branch, deletes the worktree, or changes HEAD. A repository-scoped transition lease plus HEAD/worktree revalidation before each provider capability is the needed guard. [Task 1]
+380:- If concurrent worktree activity breaks a run, first determine whether the candidate SHA/worktree still exists; rerun on a stable SHA before attributing a product defect. [Task 1]
+386:applies_to: cwd=/Users/danhdueexoictif/AllProjects/lyrics-sync; reuse_rule=verify current Git history, branch, worktree list, isolation, credentials, and candidate SHA before executing; do not interpret this handoff as permission for paid/live/destructive actions.
+401:- The user asked whether this meant starting over and pointed out that the source code was already merged and the old worktree cleaned up -> inspect `git log`, current branch, and `git worktree list`; describe remediation against the merged baseline, never as a rewrite/restoration. [Task 1]
+406:- History: baseline implementation merged into `develop` at `fca3daa`; original epic archived at `483d046`; remediation Tasks 43–48 at `e1f4cfc`; packaged handoff at `c1657ae`. The deleted old epic branch/worktree must not be restored; create a remediation worktree only after Gate 3 approval. [Task 1]
+420:applies_to: cwd=/Users/danhdueexoictif/AllProjects/D3Nexus; reuse_rule=recheck current routes, tests, branch/upstream, and task state before implementation; do not treat this design package as implementation authorization.
+437:- When the user said "Dừng lại ở bước implementation để tôi duyệt trước khi tiến hành coding" and asked to package documents for another model, -> stop after the design gate: do not create a worktree, dispatch implementation, or edit source without renewed approval. [Task 1]
+442:- Existing auth routes are `POST /api/v1/auth/register`, token `/login`, `/refresh`, `/logout`, web cookie login/logout, and `GET /api/v1/auth/me`. Web uses secure HttpOnly `d3n_session`; mobile uses Bearer access plus rotating refresh tokens. [Task 1]
+445:- Canonical design artifacts live in `.devtool/epic/authentication_client_integration_rbac/`; Tasks 444–450 sequence contract freeze, backend RBAC, web core, modal/route, role-aware UX, mobile/OpenAPI parity, then end-to-end acceptance. BDD has 30 scenarios across happy path, boundaries, state transitions, races, and failures. [Task 1]
+510:applies_to: cwd=/Users/danhdueexoictif/AllProjects/D3Nexus including .worktrees/lyrics_preview_parity and .worktrees/lyrics_preview_repair; reuse_rule=re-check worktree/runtime/browser state.
+560:- integrate_branch.py guards sync/preflight/rebase/verify/land; resolve in feature worktree, merge verified SHA/tree --no-ff, never auto-rebase pushed branch. Release 1.5.0 pushed 8366138; reload session. [Task 1]
+566:scope: Shortcut design, gate handoff, Task 4 SSOT/browser acceptance, worktree configuration.
+567:applies_to: cwd=/Users/danhdueexoictif/AllProjects/lyrics-sync and .worktrees/preview_keyboard_shortcuts; reuse_rule=recheck overlap/environment.
+571:- rollout_summaries/2026-10-09T09-50-56-CTSe-preview_keyboard_shortcuts_task4_acceptance.md (cwd=/Users/danhdueexoictif/AllProjects/lyrics-sync/.worktrees/preview_keyboard_shortcuts, rollout_path=/Users/danhdueexoictif/.codex/sessions/2026/10/09/rollout-2026-10-09T16-50-56-01a12012-aa8f-7af0-b4f7-ea7f130c511e.jsonl, updated_at=2026-10-09T16:10:45+00:00, thread_id=01a12012-aa8f-7af0-b4f7-ea7f130c511e, Task 4 complete)
+576:- “Dừng lại ở đây. Bước implementations để tôi assign một agent khác.” -> stop at planning gate. Securely copy missing worktree configuration and continue acceptance. [Task 1]
+640:applies_to: cwd=/Users/danhdueexoictif/AllProjects/lyrics-sync; reuse_rule=inspect git/worktree/goal first.
+653:- Preserve other worktrees. goal:null cannot identify next task: ask, do not infer latest commit. [Task 1]
+
+exec
+/bin/zsh -lc 'pwd; git rev-parse HEAD; git status --short; cat rules/CRITICAL_RULES.md rules/coding-guidelines.md; rg --files .devtool/epic/execution_and_verification_infrastructure; git ls-tree -r --name-only e33d42bdab3d601348f2ab9433bb6a989795cb21 .devtool/epic/execution_and_verification_infrastructure' in /Users/danhdueexoictif/AllProjects/ai-agent-tools
+ succeeded in 4381ms:
+/Users/danhdueexoictif/AllProjects/ai-agent-tools
+git: warning: confstr() failed with code 5: couldn't get path of DARWIN_USER_TEMP_DIR; using /tmp instead
+git: error: couldn't create cache file '/tmp/xcrun_db-3xDHMkkq' (errno=Operation not permitted)
+2026-11-06 03:46:23.115 xcodebuild[65690:524632]  DVTFilePathFSEvents: Failed to start fs event stream.
+2026-11-06 03:46:23.224 xcodebuild[65690:524631] [MT] DVTDeveloperPaths: Failed to get length of DARWIN_USER_CACHE_DIR from confstr(3), error = Error Domain=NSPOSIXErrorDomain Code=5 "Input/output error". Using NSCachesDirectory instead.
+git: warning: confstr() failed with code 5: couldn't get path of DARWIN_USER_TEMP_DIR; using /tmp instead
+git: error: couldn't create cache file '/tmp/xcrun_db-hoher9mH' (errno=Operation not permitted)
+2026-11-06 03:46:23.608 xcodebuild[65692:524652]  DVTFilePathFSEvents: Failed to start fs event stream.
+2026-11-06 03:46:23.723 xcodebuild[65692:524650] [MT] DVTDeveloperPaths: Failed to get length of DARWIN_USER_CACHE_DIR from confstr(3), error = Error Domain=NSPOSIXErrorDomain Code=5 "Input/output error". Using NSCachesDirectory instead.
+e33d42bdab3d601348f2ab9433bb6a989795cb21
+git: warning: confstr() failed with code 5: couldn't get path of DARWIN_USER_TEMP_DIR; using /tmp instead
+git: error: couldn't create cache file '/tmp/xcrun_db-RfRvKnYO' (errno=Operation not permitted)
+2026-11-06 03:46:24.600 xcodebuild[65697:524672]  DVTFilePathFSEvents: Failed to start fs event stream.
+2026-11-06 03:46:24.715 xcodebuild[65697:524671] [MT] DVTDeveloperPaths: Failed to get length of DARWIN_USER_CACHE_DIR from confstr(3), error = Error Domain=NSPOSIXErrorDomain Code=5 "Input/output error". Using NSCachesDirectory instead.
+git: warning: confstr() failed with code 5: couldn't get path of DARWIN_USER_TEMP_DIR; using /tmp instead
+git: error: couldn't create cache file '/tmp/xcrun_db-iZqmumD3' (errno=Operation not permitted)
+2026-11-06 03:46:25.102 xcodebuild[65699:524682]  DVTFilePathFSEvents: Failed to start fs event stream.
+2026-11-06 03:46:25.213 xcodebuild[65699:524680] [MT] DVTDeveloperPaths: Failed to get length of DARWIN_USER_CACHE_DIR from confstr(3), error = Error Domain=NSPOSIXErrorDomain Code=5 "Input/output error". Using NSCachesDirectory instead.
+---
+trigger: always_on
+---
+
+# Critical Rules
+
+> [!CRITICAL]
+> These rules are MANDATORY and MUST be strictly applied by ALL AI Agent Plugins, runtimes, orchestrators, and subagents (including Claude Code, Antigravity IDE, Cursor, Codex, Windsurf, OpenCode, and any custom/third-party plugins) in every interaction across this project and downstream repositories. Failure to follow these rules is a direct violation of the engineering standard.
+
+## Universal Scope & Plugin Applicability
+
+> [!IMPORTANT]
+> **Every AI Agent plugin operating in this environment MUST inherit and execute these rules.**
+> Regardless of which plugin, tool, extension, or agent framework initiated the session:
+> - Built-in or third-party plugins must NEVER override, circumvent, or weaken these rules.
+> - Subagents, background runners, and multi-agent teams spawned by any plugin inherit these exact constraints.
+> - If an AI agent or plugin has conflicting built-in behaviors (e.g. auto-pushing, autonomous planning artifacts, skipping human checkpoints), these Critical Rules take absolute precedence.
+
+## 1. Mandatory Quality Gates
+
+> [!IMPORTANT]
+> After completing any workflow or skill — regardless of which plugin or tool executed it — you **MUST** run the quality gate for the **kind of work you did**, and fix any issues it raises. This is critical to maintain the quality of the project.
+>
+> | Kind of work | Gate |
+> |---|---|
+> | Anything that changes a file shipping in the build | `@quality_check` |
+> | Anything whose deliverable is prose | `@doc_quality_check` |
+>
+> The two share no tier, no audit and no tooling. Running the wrong one produces a green light that means nothing — and `@doc_quality_check` refuses outright if the change touches shipped files.
+>
+> See: [Quality Check Skill](../skills/quality_check/SKILL.md) · [Document Quality Check Skill](../skills/doc_quality_check/SKILL.md)
+
+## 2. Commit Message Format (Universal Standard)
+
+Every commit — written by a skill, a plugin, an agent, or by hand — uses a bracketed scope, a one-line title, and a bullet list of the subtasks actually done:
+
+```text
+[EPIC_NAME] Task title
+
+- subtask title 01
+- subtask title 02
+```
+
+- **`[SCOPE]`** is the epic name for epic work (`[LOGGING_REFACTOR]`), otherwise the area touched (`[TOOLS]`, `[SETTINGS]`). Uppercase, in brackets, always present.
+- **Title** is one line, imperative, no trailing period.
+- **Body** lists the subtasks or changes this commit actually contains, one bullet each. Omit the body entirely when the commit does exactly one thing.
+
+Write it with two `-m` flags — the first becomes the title, the second the body:
+
+```bash
+git commit -m "[EPIC_NAME] Task title" -m "- subtask title 01
+- subtask title 02"
+```
+
+> [!CAUTION]
+> **Never append trailer lines.** No `Co-Authored-By:`, no `Generated with`, no tool attribution of any kind. The commit ends with the last bullet. This applies universally to all plugins and LLM providers.
+
+## 3. Git Push Operations (No Unauthorized Push)
+
+> [!CRITICAL]
+> **NEVER push code to a remote repository (`git push`) without explicit user permission or confirmation.**
+> - You may stage (`git add`) and commit (`git commit`) locally following the commit message format when appropriate.
+> - Running `git push` (to any remote or branch) is **STRICTLY PROHIBITED** for all agents and plugins unless the user explicitly requests or confirms it in the prompt.
+> - Always let the user review local commits or explicitly ask for permission before pushing to remote.
+
+## 4. Native Planning Mode Interception (All Platforms & Plugins)
+
+> [!CRITICAL]
+> **Do NOT use native or built-in planning modes (e.g. Antigravity IDE's `<planning_mode>`, Claude Code plan mode, Cursor Composer plans, Windsurf Cascade plans, Codex planners) to create unstructured planning artifacts like `<appDataDir>/brain/.../implementation_plan.md` or loose plan files.**
+> When a user request requires planning, design exploration, architectural changes, or epic-level features:
+> 1. Because `<user_rules>` has absolute precedence over all instructions across all agent plugins, you **MUST NOT** follow IDE default instructions to create an `implementation_plan.md` artifact.
+> 2. For single features or exploratory design, you **MUST** invoke the [Brainstorming Skill](../skills/brainstorming/SKILL.md) (`d3nexus:brainstorming`).
+> 3. For multi-step, multi-feature, or epic-level work, you **MUST** invoke the [Epic Lifecycle Skill](../skills/dev-lifecycle/SKILL.md) (`d3nexus:dev-lifecycle`), which orchestrates `dev-brainstorming` -> `dev-designer` -> `dev-implementation` -> `quality_check` -> `finishing-a-development-branch`.
+> 4. Only use native `implementation_plan.md` if the user explicitly instructs you to bypass d3nexus workflows.
+
+## 5. Mandatory Review Choice Loop in Epic Lifecycle
+
+> [!CRITICAL]
+> **NEVER skip or silently bypass the Review Choice after Gate 4 passes in `dev-lifecycle` / `dev-implementation` or any plugin-based orchestrator.**
+> When all tasks of an epic are complete, run Phase 4 / Gate 4 first. Only after Gate 4 returns PASS on the current SHA:
+> 1. The AI Agent **MUST** explicitly stop calling tools and present the **Review Choice** prompt to the developer:
+>    - **Option 1: Finish** — proceed to Developer Kanban Review (Phase 4.1 / Gate 5), then Stage 4.
+>    - **Option 2: Cross-model review** — invoke an independent model review using `run_external_review.py run` (prompting the developer to select Claude CLI, Codex CLI, or Antigravity CLI based on `command -v claude codex agy`).
+>    - **Option 3: Local model review** — run `ollama list`, ask the developer which model to use (never pick it), then invoke `run_external_review.py run --cli ollama --model <model>`.
+> 2. The AI Agent **MUST NOT** auto-select an option or assume "Finish" by default.
+> 3. **Cross-model review must return to a full Gate 4 run** after the round is recorded and all blocking findings have decisions and required Fix commits. Gate 4 PASS then presents Review Choice again. This loop repeats until the developer explicitly chooses Finish. Local model review follows the same loop. Before any Fix commit or decision, the agent presents the triage from `run_external_review.py triage` and waits for the developer's decisions. After fixes are applied, the agent must halt for developer self-review and confirmation before any further action.
+> 4. A previous Gate 4 PASS cannot be reused after `review_results.md`, a finding decision, or a Fix commit changes the candidate SHA.
+
+## 6. Prohibited Autonomous Reviews & Mandatory Human Self-Review Checkpoint
+
+> [!CRITICAL]
+> **NEVER autonomously trigger Principal Review or Cross-Model / Local Model Review, and NEVER enter autonomous or infinite re-review loops after fixing findings.**
+> Every review invocation and every cycle after fixing findings requires explicit developer confirmation and human checkpointing:
+>
+> 1. **No Autonomous Review Triggering**:
+>    - The AI Agent is **STRICTLY PROHIBITED** from autonomously triggering Principal Review (`d3nexus:principal-review`) or Cross-Model / Local Model Review (`d3nexus:cross-model-review`).
+>    - External review tools (`run_external_review.py run`, `claude`, `codex`, `agy`, `ollama`) must **ONLY** be invoked when explicitly chosen, requested, or confirmed by the developer (e.g. at Gate 2 Principal Review checkpoint or Gate 4 Review Choice). The agent must never initiate external AI review on its own initiative.
+> 2. **Mandatory Human Checkpoint After Fixing Review Findings**:
+>    - After addressing or fixing findings from **any** review (Principal Review in Stage 2, or Cross-Model / Local Model Review in Stage 3):
+>    - The AI Agent **MUST IMMEDIATELY STOP CALLING TOOLS**.
+>    - The AI Agent is **STRICTLY PROHIBITED** from automatically re-triggering another review round with Cross AI Agents or external models (no autonomous chaining: Review -> Fix -> Auto Re-review -> Auto Fix).
+>    - The AI Agent **MUST** present the fixes, file diffs, and updated triage/finding decisions to the developer for **Human Self-Review**.
+>    - The AI Agent **MUST wait for explicit developer confirmation** before proceeding with any subsequent action (such as re-running quality gates, re-packaging, invoking another review round, or advancing to the next stage).
+
+## 7. Multi-Repo Boundaries, Symlink Isolation & Contract Governance
+
+> [!CRITICAL]
+> **AI Agents MUST strictly respect repository boundaries, symbolic link isolation, and contract-first governance across multi-repo ecosystems (Hub and Satellite repositories).**
+>
+> 1. **Multi-Repo Git Boundary Isolation**:
+>    - An AI Agent running in any repository MUST NOT stage (`git add`) or commit (`git commit`) files residing outside the current git working tree.
+>    - In a Satellite repository where `shared-contracts/` is a symbolic link pointing to a Hub repository (e.g. `lyrics-sync` or `nexus` linking to `D3Nexus`):
+>      - Agents MUST treat `shared-contracts/` as **strictly read-only** for git tracking within the satellite workspace.
+>      - Agents **MUST NOT** include `shared-contracts/...` in `Files Allowed` for local git tasks (preventing `fatal: pathspec is beyond a symbolic link`).
+>      - Agents **MUST NOT** autonomously execute git commit commands in adjacent repositories (e.g. `git -C <target_repo>`) without explicit developer confirmation.
+>
+> 2. **Contract-First Triad & Canonical SSOT**:
+>    - The Hub repository containing the physical `shared-contracts/` directory is the sole canonical authority (Single Source of Truth) for contract commits.
+>    - Before modifying endpoints, database models, worker bridges, offline sync logic, or DTOs, agents MUST inspect the 3 canonical contract files in the relevant domain folder (`shared-contracts/<domain>/`):
+>      1. `api_contract.md`: Endpoints, wire format, headers, telemetry, and payload schemas.
+>      2. `architecture_and_flow.md`: Pipeline states, state machines, lifecycle fencing, and failure handling.
+>      3. `gaps_and_rfcs.md`: Asynchronous change proposals, gap ledger, and cross-repo alignments.
+>
+> 3. **No Unilateral Breaking Changes & Non-Breaking Schema Guarantee**:
+>    - Never rename API fields, mutate JSON request/response structures, or alter pipeline state enums in backend or client implementations without prior documentation and alignment in `shared-contracts/`.
+>    - All schema and payload modifications MUST guarantee backward compatibility across all consumers (optional fields with safe defaults, non-breaking enum additions). Breaking changes without backward-compatible transition windows or fallback shims are strictly forbidden.
+>
+> 4. **Asynchronous RFC Workflow (Gaps & RFCs Ledger)**:
+>    - If an agent in a satellite repo detects a payload mismatch, missing field, or new requirement, it **MUST NOT** invent ad-hoc fields or silently diverge.
+>    - The agent MUST log a formal `GAP-XX` or `RFC-XXX` entry in `gaps_and_rfcs.md` (or emit an Upstream Contract Handoff Summary via `d3nexus:dev-designer`) and wait for upstream alignment before implementing breaking changes.
+>
+> 5. **Stateless Compute & Architectural Isolation**:
+>    - Satellite worker nodes (e.g. `lyrics-sync`) must act strictly as stateless compute nodes. Direct connection to the control plane database (`DATABASE_URL`, PostgreSQL/SQLite) is **STRICTLY FORBIDDEN**. All state transitions, lease acquisitions, and result deliveries occur strictly via documented HTTP REST/SSE endpoints using worker authentication tokens.
+
+## 8. Mandatory Two-Tier Project Memory & Tri-Role Persona Discipline
+
+> [!CRITICAL]
+> **AI Agents MUST strictly preserve Two-Tier Project Memory across session rotations and respect Tri-Role Persona boundaries across all stages of development.**
+>
+> 1. **Mandatory Context Restoration on Session Startup (Scoped to Development Lifecycle)**:
+>    - When starting substantive feature engineering, architectural design, or task execution in the development lifecycle (`d3nexus:dev-lifecycle`, `dev-brainstorming`, `dev-designer`, `dev-implementation`) or after an account profile switch for development, the AI Agent MUST run `python3 scripts/resume_context.py` (or the `d3nexus:resume-context` skill) to restore architectural memory before answering or proposing solutions.
+>    - The agent MUST summarize the restored project context in 5–10 concise bullets for the developer.
+>    - **Zero-Context & Fast-Execution Exemption**: Routine operational prompts, standalone utility skills, and fast-execution commands — specifically `/refresh-session` (pinging quota windows), `/setup_keybindings`, git status/diff inspections, or quick standalone queries — **MUST NOT** invoke `resume_context.py` or `resume-context`. They must execute their requested actions immediately without loading repository context.
+>    - **No Redundant Invocation**: Within an already-resumed active working session, the AI Agent MUST NOT repeatedly re-invoke `resume-context` on normal conversation turns.
+>
+> 2. **Strict Tri-Role Persona Discipline**:
+>    - **Role 2.1 — Human Architect (Developer)**: Sole authority for system strategy, Gate approvals (Gate 1–5), and Review Choice decisions.
+>    - **Role 2.2 — AI Assistant (`[PERSONA: AI ASSISTANT — TECHNICAL ADVISOR & CO-ARCHITECT]`)**:
+>      - Activated for architectural analysis, problem statement exploration, design specifications (`d3nexus:dev-brainstorming`, `d3nexus:dev-designer`), Principal Review (`d3nexus:principal-review`), and Cross-Model Review (`d3nexus:cross-model-review`).
+>      - **STRICT PROHIBITION**: The AI Assistant is **STRICTLY PROHIBITED from modifying production source code or application test suites**. Only architectural documentation (`docs/`, `.devtool/`, `shared-contracts/`) may be edited.
+>    - **Role 2.3 — AI Programmer (`[PERSONA: AI PROGRAMMER — SENIOR TDD SOFTWARE ENGINEER]`)**:
+>      - Activated for `/dev-implementation` and task execution inside isolated git worktrees.
+>      - **STRICT BOUNDARIES**: Bound strictly to approved specifications, `Decisions Already Made`, and `Allowed files`. Must practice strict TDD (Red-Green-Refactor) and Clean Code standards. Zero test fakery.
+>
+> 3. **Deterministic State & Log Checkpointing**:
+>    - After completing each Kanban task, the AI Programmer MUST log programmer activity (`scripts/resume_context.py --log`) and update Tier 2 snapshot state (`scripts/resume_context.py --state`).
+>    - Upon feature completion in Stage 4 (`/finish`), the agent MUST run `scripts/resume_context.py --complete <epic_slug> "<milestone_summary>"` to record the permanent milestone in `.devtool/PROJECT_LEDGER.md` and archive the completed epic's Tier 2 files into `.devtool/archive/`.
+>
+> 4. **Mandatory Window Title Synchronization & Persistent Top/Bottom Bar Customization**:
+>    - To eliminate cross-project window confusion when developers operate multiple IDEs or profile accounts, AI Agents MUST synchronize `window.title` and ensure persistent top/bottom bar colors in `.vscode/settings.json` upon entering an epic, transitioning lifecycle stages, or completing tasks.
+>    - **Title Format**: `"<ICON> [<REPO_NAME>] [@<account_id>] <Vietnamese Epic Name> - <Stage / Task>"`.
+>    - The `<account_id>` is extracted from the active profile / home environment (`os.path.basename(os.environ["HOME"])` under `antigravity_homes/`, e.g. `[@danhdue]`, `[@tess]`).
+>    - The Vietnamese Epic Name MUST be extracted directly from the H1 header of `.devtool/epic/<epic_slug>/<epic_slug>.vi.md` (stripping the `# Epic:` prefix).
+>    - **Persistent Inactive Bar Parity**: Both `titleBar` and `statusBar` MUST configure matching inactive background colors (`titleBar.inactiveBackground = titleBar.activeBackground` and `statusBar.inactiveBackground = statusBar.background`) to eliminate IDE dimming when windows lose focus.
+>    - **Clean Activity Toolbar**: The left `activityBar.background` remains uncolored in default dark theme to avoid peripheral visual clutter.
+>    - **Repository Color Signatures**:
+>      - 🔴 `[LYRICS-SYNC]`: `#7f1d1d` (Crimson Red)
+>      - 🟢 `[D3NEXUS]`: `#065f46` (Emerald Green)
+>      - 🔵 `[NEXUS]`: `#0d47a1` (Royal Blue)
+>      - 🟠 `[AGENT-TOOLS]`: `#b45309` (Warm Amber)
+>    - Agents MUST preserve all existing `workbench.colorCustomizations` and developer configurations in `.vscode/settings.json`.
+---
+trigger: always_on
+---
+
+# CLAUDE.md
+
+Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-specific instructions as needed.
+
+**Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.
+
+> **TL;DR — 4 rules to always follow:**
+> 1. **Think first** — State assumptions, ask when unclear, present tradeoffs before acting.
+> 2. **Simplicity** — Minimum code that solves the problem. If it could be 50 lines, don't write 200.
+> 3. **Surgical** — Touch only what the request requires. Don't improve adjacent code.
+> 4. **Verify** — Define success criteria upfront. Don't claim done without running the check.
+
+## 1. Think Before Coding
+
+**Don't assume. Don't hide confusion. Surface tradeoffs.**
+
+Before implementing:
+
+- State your assumptions explicitly. If uncertain, ask.
+- If multiple interpretations exist, present them - don't pick silently.
+- If a simpler approach exists, say so. Push back when warranted.
+- If something is unclear, stop. Name what's confusing. Ask.
+
+## 2. Simplicity First
+
+**Minimum code that solves the problem. Nothing speculative.**
+
+- No features beyond what was asked.
+- No abstractions for single-use code.
+- No "flexibility" or "configurability" that wasn't requested.
+- No error handling for impossible scenarios.
+- If you write 200 lines and it could be 50, rewrite it.
+
+Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
+
+## 3. Surgical Changes
+
+**Touch only what you must. Clean up only your own mess.**
+
+When editing existing code:
+
+- Don't "improve" adjacent code, comments, or formatting.
+- Don't refactor things that aren't broken.
+- Match existing style, even if you'd do it differently.
+- If you notice unrelated dead code, mention it - don't delete it.
+
+When your changes create orphans:
+
+- Remove imports/variables/functions that YOUR changes made unused.
+- Don't remove pre-existing dead code unless asked.
+
+The test: Every changed line should trace directly to the user's request.
+
+## 4. Goal-Driven Execution
+
+**Define success criteria. Loop until verified.**
+
+Transform tasks into verifiable goals:
+
+- "Add validation" → "Write tests for invalid inputs, then make them pass"
+- "Fix the bug" → "Write a test that reproduces it, then make it pass"
+- "Refactor X" → "Ensure tests pass before and after"
+
+For multi-step tasks, state a brief plan:
+
+```
+1. [Step] → verify: [check]
+2. [Step] → verify: [check]
+3. [Step] → verify: [check]
+```
+
+Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
+
+---
+
+**These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
+.devtool/epic/execution_and_verification_infrastructure/task_05_execution_infra_e2e_acceptance.md
+.devtool/epic/execution_and_verification_infrastructure/principal_review.md
+.devtool/epic/execution_and_verification_infrastructure/bdd_scenarios.vi.md
+.devtool/epic/execution_and_verification_infrastructure/execution_and_verification_infrastructure.en.md
+.devtool/epic/execution_and_verification_infrastructure/2026-11-06-execution-and-verification-infrastructure-design.vi.md
+.devtool/epic/execution_and_verification_infrastructure/task_03_live_integration_and_route_matching.md
+.devtool/epic/execution_and_verification_infrastructure/bdd_scenarios.en.md
+.devtool/epic/execution_and_verification_infrastructure/task_02_failure_baseline_and_comparison.md
+.devtool/epic/execution_and_verification_infrastructure/2026-11-06-execution-and-verification-infrastructure-design.en.md
+.devtool/epic/execution_and_verification_infrastructure/execution_and_verification_infrastructure.vi.md
+.devtool/epic/execution_and_verification_infrastructure/task_01_polyglot_worktree_bootstrap.md
+.devtool/epic/execution_and_verification_infrastructure/task_04_task_replay_and_measure_phase.md
+git: warning: confstr() failed with code 5: couldn't get path of DARWIN_USER_TEMP_DIR; using /tmp instead
+git: error: couldn't create cache file '/tmp/xcrun_db-YxaFWldO' (errno=Operation not permitted)
+2026-11-06 03:46:26.100 xcodebuild[65705:524732]  DVTFilePathFSEvents: Failed to start fs event stream.
+2026-11-06 03:46:26.233 xcodebuild[65705:524731] [MT] DVTDeveloperPaths: Failed to get length of DARWIN_USER_CACHE_DIR from confstr(3), error = Error Domain=NSPOSIXErrorDomain Code=5 "Input/output error". Using NSCachesDirectory instead.
+git: warning: confstr() failed with code 5: couldn't get path of DARWIN_USER_TEMP_DIR; using /tmp instead
+git: error: couldn't create cache file '/tmp/xcrun_db-djiXrX90' (errno=Operation not permitted)
+2026-11-06 03:46:26.626 xcodebuild[65716:524774]  DVTFilePathFSEvents: Failed to start fs event stream.
+2026-11-06 03:46:26.734 xcodebuild[65716:524772] [MT] DVTDeveloperPaths: Failed to get length of DARWIN_USER_CACHE_DIR from confstr(3), error = Error Domain=NSPOSIXErrorDomain Code=5 "Input/output error". Using NSCachesDirectory instead.
+.devtool/epic/execution_and_verification_infrastructure/2026-11-06-execution-and-verification-infrastructure-design.en.md
+.devtool/epic/execution_and_verification_infrastructure/2026-11-06-execution-and-verification-infrastructure-design.vi.md
+.devtool/epic/execution_and_verification_infrastructure/bdd_scenarios.en.md
+.devtool/epic/execution_and_verification_infrastructure/bdd_scenarios.vi.md
+.devtool/epic/execution_and_verification_infrastructure/execution_and_verification_infrastructure.en.md
+.devtool/epic/execution_and_verification_infrastructure/execution_and_verification_infrastructure.vi.md
+.devtool/epic/execution_and_verification_infrastructure/principal_review.md
+.devtool/epic/execution_and_verification_infrastructure/task_01_polyglot_worktree_bootstrap.md
+.devtool/epic/execution_and_verification_infrastructure/task_02_failure_baseline_and_comparison.md
+.devtool/epic/execution_and_verification_infrastructure/task_03_live_integration_and_route_matching.md
+.devtool/epic/execution_and_verification_infrastructure/task_04_task_replay_and_measure_phase.md
+.devtool/epic/execution_and_verification_infrastructure/task_05_execution_infra_e2e_acceptance.md
+
+exec
+/bin/zsh -lc 'nl -ba .devtool/epic/execution_and_verification_infrastructure/2026-11-06-execution-and-verification-infrastructure-design.en.md; nl -ba .devtool/epic/execution_and_verification_infrastructure/execution_and_verification_infrastructure.en.md; nl -ba .devtool/epic/execution_and_verification_infrastructure/bdd_scenarios.en.md' in /Users/danhdueexoictif/AllProjects/ai-agent-tools
+ succeeded in 0ms:
+     1	# Execution and Verification Infrastructure Design Specification
+     2	
+     3	- **Date**: 2026-11-06
+     4	- **Author**: AI Assistant (Co-Architect)
+     5	- **Status**: Approved
+     6	- **Epic**: `execution-and-verification-infrastructure`
+     7	- **Epic Directory**: `execution_and_verification_infrastructure`
+     8	- **Source Observations**: `#0006`, `#0007`, `#0010`, `#0011`, `#0017`, `#0018`
+     9	
+    10	## Table of Contents
+    11	
+    12	- [Overview and Problem Statement](#overview-and-problem-statement)
+    13	- [Goals and Non-Goals](#goals-and-non-goals)
+    14	- [Architecture and Component Design](#architecture-and-component-design)
+    15	  - [1. Worktree Bootstrap and Polyglot Toolchain Support](#1-worktree-bootstrap-and-polyglot-toolchain-support)
+    16	  - [2. Full-Suite Failure-Set Baseline and Regression Comparison](#2-full-suite-failure-set-baseline-and-regression-comparison)
+    17	  - [3. Opt-In Live Integration Results and Route Template Matching](#3-opt-in-live-integration-results-and-route-template-matching)
+    18	  - [4. Static Edit-Anchor Validation and Pre-Packaging Task Replay](#4-static-edit-anchor-validation-and-pre-packaging-task-replay)
+    19	  - [5. Long-Running Measurement Phase and Evidence-Gated Verification](#5-long-running-measurement-phase-and-evidence-gated-verification)
+    20	- [Error Handling and Edge Cases](#error-handling-and-edge-cases)
+    21	- [Testing and Verification Strategy](#testing-and-verification-strategy)
+    22	- [Shared Contract Warnings](#shared-contract-warnings)
+    23	- [Dependency Mapping and Roadmap Context](#dependency-mapping-and-roadmap-context)
+    24	
+    25	## Overview and Problem Statement
+    26	
+    27	Across multiple feature epics in `lyrics-sync` and `ai-agent-tools`, six recurring execution and verification infrastructure gaps were recorded in `skill-observations/observation-log/`:
+    28	
+    29	1. **Observation `#0006` (Worktree `.venv` missing optional extras)**: `check_task_contract.py --design` requires the registered capability command `uv run mypy --strict src` in every Python task, yet `bootstrap_worktree.sh` only executes bare `uv sync`. When modules import packages from optional dependency groups (such as `huggingface_hub` in `asr` or `soundfile` in `kokoro`), `mypy` and `pytest` fail in fresh worktrees unless each epic manually adds `uv sync --extra ...` to Task 1.
+    30	2. **Observation `#0007` (Hand-written bash pipelines for failure-set baselines)**: Every epic working against a repository with pre-existing unrelated test failures had to embed complex bash pipelines in Task 1 and the final task to record and compare failure sets. Those ad-hoc pipelines suffered from regex matches against captured log lines (`ERROR logger:file.py:123`), `pipefail` crashes on empty failure sets, missing `--continue-on-collection-errors`, dirty tracked files rewritten during test runs, and false-positive regressions caused by shared database state across tests.
+    31	3. **Observation `#0010` (No contract for opt-in live integration tests and R5b route template false positives)**: `R6` requires every Tier C test file to appear in an `Integration results:` command, and Gate 4 runs every `Integration results:` command unconditionally. Live integration tests requiring local LLM servers or hardware environment variables (`PLT_LIVE_OLLAMA_MODEL`) cannot be separated from hermetic CI tests without failing Gate 4 when the resource is absent. In addition, `R5b` in `check_epic_readiness.py` flags concrete route literals used in test assertions (`/api/align/stream/job_plt`) as missing when the backend defines parameterized route templates (`/api/align/stream/{job_id}`).
+    32	4. **Observation `#0011` (Pre-packaging task text replay)**: Prose edit instructions (`Replace in <path>:` / `With:`, `Insert in <path> after:` / `With:`, and embedded code blocks) can harbor wrapped anchors, line-length lint errors, or missing parent directories that static contract checks do not catch unless replayed against a scratch worktree before packaging.
+    33	5. **Observation `#0017` (Measurement tasks do not fit standard Verification rows)**: Multi-hour benchmark or LLM-judged evaluation tasks time out or re-run unnecessarily when forced into standard `GREEN`/`TIER-C` Verification rows.
+    34	6. **Observation `#0018` (Polyglot Python + JavaScript repositories lack secondary platform support)**: In repositories combining a Python backend (`pyproject.toml`) with a JavaScript frontend (`package.json`, `tests/js/**/*.test.mjs`), `detect_project_type.sh` returns only `python`, `bootstrap_worktree.sh` exits immediately after `uv sync` without installing Node dependencies, and `node --test --test-reporter=junit` exits with code 7 when the output directory (`build/test-results/`) does not yet exist.
+    35	
+    36	This epic (`execution_and_verification_infrastructure`, Epic 2 of 3) delivers first-class, stdlib-only scripts and contract extensions that eliminate all six classes of execution friction.
+    37	
+    38	## Goals and Non-Goals
+    39	
+    40	### Goals
+    41	
+    42	- Extend `.agents/quality/python-quality.json` (`python-quality.schema.json` and `validate_python_quality.py`) with an optional `"bootstrap"` command array and update `bootstrap_worktree.sh` to execute declared bootstrap commands and support polyglot Python + Web/Node repositories (`#0006`, `#0018`).
+    43	- Add `--all` to `detect_project_type.sh` to report all detected platforms in polyglot repositories while keeping default single-platform output backward-compatible (`#0018`).
+    44	- Auto-create parent directories for `--junitxml=<path>` and `--test-reporter-destination=<path>` targets in `run_task_checks.py` before command execution (`#0018`).
+    45	- Provide `record_failure_baseline.py` and `compare_failure_sets.py` supporting `pytest` and `node --test`, terminal-summary-only failure extraction, `--restore <path>` file restoration, and `--rerun-new` isolated re-verification (`#0007`).
+    46	- Support `Integration results (live, needs: VAR1, VAR2): <cmd> -> <report>` in `task_contract.py`, `check_task_contract.py`, `check_epic_readiness.py` (`R6`), `audit_epic.py`, and `run_external_review.py` (Gate 4), and upgrade `R5b` in `check_epic_readiness.py` to match concrete route literals against parameterized route templates (`#0010`).
+    47	- Provide `replay_task_text.py` with fast static anchor verification integrated into `check_epic_readiness.py` (`R5`) by default and full worktree execution replay via `check_epic_readiness.py --replay` (`#0011`).
+    48	- Add `MEASURE` phase support (`run_task_checks.py measure [--timeout 7200] [--resume]`) and document the **Measurement-to-Evidence** task pattern in `skills/dev-designer/SKILL.md` and `skills/dev-implementation/SKILL.md` (`#0017`).
+    49	
+    50	### Non-Goals
+    51	
+    52	- Cross-epic task dependency ordering, multi-epic board status transitions, and packaged epic amendment governance (`#0013, #0014, #0015, #0020`), which belong to **Epic 3 (`multi_epic_orchestration_and_governance`)**.
+    53	- Introducing third-party Python dependencies outside the Python 3.11+ standard library.
+    54	
+    55	## Architecture and Component Design
+    56	
+    57	```mermaid
+    58	flowchart TD
+    59	    subgraph BOOT["1. Worktree & Polyglot Bootstrap (#0006, #0018)"]
+    60	        PY_JSON[".agents/quality/python-quality.json (bootstrap)"]
+    61	        DETECT["detect_project_type.sh [--all]"]
+    62	        WT_SH["bootstrap_worktree.sh (Python + Rust + Web/Node)"]
+    63	    end
+    64	
+    65	    subgraph REGRESSION["2. Regression Baseline Tooling (#0007)"]
+    66	        REC_PY["record_failure_baseline.py"]
+    67	        CMP_PY["compare_failure_sets.py"]
+    68	    end
+    69	
+    70	    subgraph CONTRACT["3. Live Integration, R5b & MEASURE (#0010, #0017)"]
+    71	        TC_PY["task_contract.py (IntegrationResultSpec, MEASURE)"]
+    72	        RTC_PY["run_task_checks.py (measure mode, JUnit mkdir)"]
+    73	        CER_PY["check_epic_readiness.py (R5b templates, R6 live)"]
+    74	        RER_PY["run_external_review.py (Gate 4 live skip/run)"]
+    75	    end
+    76	
+    77	    subgraph REPLAY["4. Task Text Replay & Anchor Check (#0011)"]
+    78	        RPL_PY["replay_task_text.py"]
+    79	    end
+    80	
+    81	    PY_JSON --> WT_SH
+    82	    DETECT --> WT_SH
+    83	    TC_PY --> RTC_PY
+    84	    TC_PY --> CER_PY
+    85	    TC_PY --> RER_PY
+    86	    RPL_PY --> CER_PY
+    87	    RTC_PY --> REC_PY --> CMP_PY
+    88	```
+    89	
+    90	### 1. Worktree Bootstrap and Polyglot Toolchain Support
+    91	
+    92	- **Quality Manifest `"bootstrap"` Field (`#0006`)**:
+    93	  - In `skills/python-quality-check/resources/schemas/python-quality.schema.json` and `skills/python-quality-check/resources/scripts/validate_python_quality.py`:
+    94	    - Add optional top-level property `"bootstrap"`: an array of non-empty string argument arrays (e.g., `[["uv", "sync", "--extra", "asr"]]`).
+    95	    - `validate_python_config()` validates that if `"bootstrap"` is present, it is a non-empty list of non-empty `list[str]` command arrays; otherwise it emits `invalid_bootstrap_format`.
+    96	- **Polyglot & Manifest-Aware `bootstrap_worktree.sh` (`#0006`, `#0018`)**:
+    97	  - When `$WORKTREE_PATH/pyproject.toml` or `requirements.txt` exists:
+    98	    - If `$WORKTREE_PATH/.agents/quality/python-quality.json` defines `"bootstrap"`, parse and execute each declared command array inside `$WORKTREE_PATH`.
+    99	    - Otherwise fall back to `uv sync` (or `poetry install` / `pip install -r requirements.txt`).
+   100	  - Remove early `exit 0` statements after the Python and Rust blocks so that a polyglot repository containing both `pyproject.toml` and `package.json` (and not `pubspec.yaml`) runs both the Python bootstrap and the Web/Node bootstrap (`pnpm install` or `npm install`), exiting 0 after all detected non-Flutter toolchains are initialized.
+   101	- **Secondary Platform Detection in `detect_project_type.sh` and `scaffold_quality_manifest.py` (`#0018`)**:
+   102	  - `detect_project_type.sh [--all] [path_to_project_root]`:
+   103	    - Without `--all`: preserves exact existing single-line output (`flutter`, `ios`, `android`, `web`, `python`, `rust`, or `unknown`) so callers expecting a single string remain 100% compatible.
+   104	    - With `--all`: outputs every detected platform (space-separated on one line, e.g. `python web`), recognizing `web` when `package.json` is accompanied by web framework configs, `tests/js/`, or `static/` `.js` modules.
+   105	  - In `run_task_checks.py` (`run_command()`):
+   106	    - Before spawning a command, scan tokens for `--junitxml=<path>`, `--junitxml <path>`, or `--test-reporter-destination=<path>` and create ` (root / <path>).parent.mkdir(parents=True, exist_ok=True)` so `node --test` and `pytest` JUnit reporters never fail on a missing parent directory.
+   107	
+   108	### 2. Full-Suite Failure-Set Baseline and Regression Comparison
+   109	
+   110	- **`skills/dev-implementation/resources/scripts/record_failure_baseline.py` (`#0007`)**:
+   111	  - CLI signature:
+   112	    ```bash
+   113	    record_failure_baseline.py --output|--out <evidence_file> [--in <raw_output_file>] [--cmd <shell_cmd>] [--runner auto|pytest|node] [--restore <path> ...] [--cwd <dir>] [-- <command...>]
+   114	    ```
+   115	  - Behavior:
+   116	    1. Automatically injects `--continue-on-collection-errors` when the runner is `pytest` and the flag is absent, and ensures parent directories exist for `--output`/`--out` and any report path.
+   117	    2. Distinguishes valid test runner completions from launch, usage, internal, or unparseable failures:
+   118	       - A `pytest` run is valid only when exit code is `0` with a terminal `=== ... passed ... ===` footer or exit code is `1` or `2` with a terminal `=== short test summary info ===` block; exit codes `3` (internal error), `4` (usage error), `5` (no tests collected), `126`/`127`, or any non-zero exit lacking a terminal summary block fail with exit code `2` without writing a baseline file.
+   119	       - A `node --test` run is valid only when TAP/spec summary lines (`# tests` / `ℹ tests`) are present.
+   120	    3. Extracts canonical failure/error identifiers strictly from the terminal summary section, preserving spaces inside parameterized node IDs:
+   121	       - **Pytest**: parses lines after the final `=== short test summary info ===` header up to the terminal `=== ... ===` footer matching `^(?:FAILED|ERROR)\s+(.+?)(?:\s+-\s+.*)?$`, preserving full bracketed parameter strings (e.g., `tests/test_x.py::test_x[hello world]`) while stripping only the trailing ` - <reason>` suffix and ignoring any captured log output earlier in the stream.
+   122	       - **Node (`node --test`)**: parses failing test identifiers from TAP/spec summary lines (`✖ <name>` or `not ok ... - <name>`).
+   123	    4. Always restores any tracked files named via `--restore <path>` using `git checkout -- <path>` inside a `finally:` block so side-effecting or aborted tests leave a clean git working tree.
+   124	    5. Writes a deterministic, newline-terminated sorted list of unique failing test identifiers to `<evidence_file>` (writing a single `# 0 failures\n` header comment when 0 tests fail in a valid run so the file is non-empty).
+   125	- **`skills/dev-implementation/resources/scripts/compare_failure_sets.py` (`#0007`)**:
+   126	  - CLI signature:
+   127	    ```bash
+   128	    compare_failure_sets.py --baseline <evidence_file> [--current <file>] [--output|--out <report_file>] [--runner auto|pytest|node] [--rerun-new] [--allow-isolated-pass] [--rerun-cmd <cmd_prefix>] [--restore <path> ...] [--cwd <dir>] [-- <command...>]
+   129	    ```
+   130	  - Behavior:
+   131	    1. Reads `baseline_set` from `--baseline` (ignoring `#` comment lines).
+   132	    2. Obtains `current_set` either by reading `--current <file>` or by executing `<command...>` using `record_failure_baseline`'s validated extraction and `--restore` logic.
+   133	    3. Computes `new_failures = sorted(current_set - baseline_set)` and `fixed_failures = sorted(baseline_set - current_set)`.
+   134	    4. When `--rerun-new` is enabled and `new_failures` is non-empty: re-runs each candidate test identifier in isolation as a single positional argument (`[*rerun_cmd_argv, node_id]`, preserving spaces in parameterized IDs). Candidates that fail in isolation are classified as `PERSISTENT_FAILURE: <nodeid>`; candidates that pass in isolation are classified as `ISOLATED_PASS (state-pollution or transient): <nodeid>`. By default, both classifications cause exit code `1` so order-dependent state-pollution regressions are never silently masked; only when `--allow-isolated-pass` is explicitly passed are `ISOLATED_PASS` candidates exempted from failing the exit code.
+   135	    5. Writes a summary report (to stdout and optionally `--output`/`--out <report_file>`) and exits `0` if no blocking regressions remain, or exits `1` listing each regression.
+   136	
+   137	### 3. Opt-In Live Integration Results and Route Template Matching
+   138	
+   139	- **`Integration results (live, needs: VAR1, VAR2):` Contract (`#0010`)**:
+   140	  - In `skills/dev-implementation/resources/scripts/task_contract.py`:
+   141	    - Add frozen dataclass:
+   142	      ```python
+   143	      @dataclass(frozen=True)
+   144	      class IntegrationResultSpec:
+   145	          raw: str
+   146	          command: str
+   147	          report: str
+   148	          live: bool = False
+   149	          needs: tuple[str, ...] = ()
+   150	      ```
+   151	    - Add `parse_integration_result_specs(hld_text: str) -> list[IntegrationResultSpec]` recognizing both:
+   152	      - `Integration results: <command> -> <report>` (`live=False, needs=()`)
+   153	      - `Integration results (live, needs: VAR1, VAR2): <command> -> <report>` (`live=True, needs=("VAR1", "VAR2")`)
+   154	    - Update `parse_integration_results(hld_text: str) -> list[str]` to include the `<command> -> <report>` payload of both forms so `check_task_contract.py` (`check_hld`) and `check_epic_readiness.py` (`R6`) validate arrow syntax, git-ignored report paths, and Tier C test file coverage uniformly.
+   155	  - In `skills/dev-implementation/resources/scripts/audit_epic.py`:
+   156	    - Update `GRADER_LINES = ("Protected paths:", "Integration results:", "Integration results (live")`.
+   157	  - In `skills/dev-implementation/resources/scripts/run_external_review.py` (`collect_facts`):
+   158	    - Iterate over `parse_integration_result_specs(hld_text)`:
+   159	      - When `spec.live` is True and any variable in `spec.needs` is missing or empty in `os.environ`, append `$ <spec.command>\nSKIPPED (missing env: <missing_vars>)\n` to `results` without raising `PreconditionFailedError` and without adding `spec.report` to `reports`.
+   160	      - When all `spec.needs` variables are present (or `spec.live` is False), execute `run_gate` and include `spec.report` in `reports`.
+   161	      - When live specs were skipped, pass `--allow-skipped-live` (or filter scenario IDs covered exclusively by skipped live test files) to `check_bdd_traceability.py tests` so Gate 4 distinguishes "skipped because live resource env var is unset" from "failed".
+   162	- **Route Template Matching in `R5b` (`#0010`)**:
+   163	  - In `skills/dev-implementation/resources/scripts/check_epic_readiness.py` (`check_grounding`):
+   164	    - When a concrete route `/api/foo/bar/job_123` is not found as a literal substring in `tracked_contents`, extract parameterized route templates from `tracked_contents` matching `(?<![\w/])/api/[\w\-/{}<>:]*[\w}>]` that contain `{param}`, `<param>`, or `:param` segments.
+   165	    - Convert each template into a regex where `{[^}/]+}`, `<[^>/>]+>`, or `:[A-Za-z_][A-Za-z0-9_]*` matches `[^/\s"']+`. If the concrete route matches any compiled template regex, treat the route as grounded and do not emit `R5b WARN`.
+   166	
+   167	### 4. Static Edit-Anchor Validation and Pre-Packaging Task Replay
+   168	
+   169	- **`skills/dev-implementation/resources/scripts/replay_task_text.py` (`#0011`)**:
+   170	  - Formalizes deterministic markdown edit directives in task files:
+   171	    1. **Full-file write**: `<!-- @@FILE:<rel_path>@@ -->`, `Create `<rel_path>`:`, or `File: `<rel_path>`` immediately above a fenced code block writes the block's contents to `<rel_path>`.
+   172	    2. **Exact replacement**: `Replace in `<rel_path>`:` above a fenced code block (the `anchor`) followed by `With:` above a fenced code block (the `replacement`) replaces the unique occurrence of `anchor` in `<rel_path>`.
+   173	    3. **Anchored insertion**: `Insert in `<rel_path>` after:` (or `before:`) above a fenced code block (`anchor`) followed by `With:` above a fenced code block (`insertion`) inserts `insertion` immediately after (or before) the unique occurrence of `anchor` in `<rel_path>`.
+   174	  - Provides two entry modes:
+   175	    - **Static Anchor Check (`verify_task_edit_anchors(root: Path, task_path: Path, task_text: str, prior_modified: set[str] | None = None) -> list[str]`)**:
+   176	      - Called automatically during `R5` in `check_epic_readiness.py`.
+   177	      - For every `Replace in `<rel_path>`:` or `Insert in `<rel_path>` after|before:` targeting a file that already exists at `HEAD` (and was not previously rewritten by an earlier step in the same task or epic), verifies that the first fenced block (`anchor`) occurs verbatim in `(root / rel_path).read_text()`. Any missing or ambiguous (count != 1) anchor produces an `R5 FAIL` finding naming the task file and target path.
+   178	    - **Scratch-Worktree Execution Replay (`replay_task_text.py <task.md> [--worktree <dir>] [--run-rows]` and `check_epic_readiness.py <epic_dir> --replay`)**:
+   179	      - Applies all edit directives in `<task.md>` (or across all tasks of `<epic_dir>` in execution order inside a temporary `git worktree`) and optionally runs the task's `Verification` rows (`RED`, `GREEN`, `TIER-B`, `TIER-C`), cleaning up the temporary worktree on exit.
+   180	
+   181	### 5. Long-Running Measurement Phase and Evidence-Gated Verification
+   182	
+   183	- **`Phase: MEASURE` in `task_contract.py` and `run_task_checks.py` (`#0017`)**:
+   184	  - In `skills/dev-implementation/resources/scripts/task_contract.py`:
+   185	    - Update `PHASES = ("RED", "MEASURE", "GREEN", "TIER-B", "TIER-C")`.
+   186	    - In `evaluate_done_gate(task_file: Path)` and `audit_epic.py` (`audit_evidence`): if a task has one or more rows with `row.phase == "MEASURE"`, verify that `evidence.get("runs", {}).get("measure")` exists, its `tree` matches the current worktree `fingerprint(layout.root)[0]` (at Done Gate), all `MEASURE` rows in the current table match the recorded `id`, `command`, and `expect` (`row_problems`) with `"outcome": "PASS"`, and every file declared in `parse_evidence_files(task_text)` exists on disk with a SHA-256 digest matching `runs["measure"]["evidence_digests"]`.
+   187	  - In `skills/dev-implementation/resources/scripts/run_task_checks.py`:
+   188	    - Update CLI `mode` choices to `("red", "measure", "verify", "status")`.
+   189	    - When `mode == "measure"`:
+   190	      - Default `--timeout` is `7200` seconds (or unbounded when `--timeout 0` is passed) instead of `1800` seconds.
+   191	      - Record `"evidence_digests": {rel_path: sha256_hex}` in `evidence["runs"]["measure"]` for all declared `Evidence files:`.
+   192	      - Support `--resume`: if `--resume` is passed, `evidence.get("runs", {}).get("measure")` exists, its recorded `tree` matches `fingerprint(layout.root)[0]`, `row_problems(measure_rows, evidence["runs"])` is empty (all current `MEASURE` rows match `id`/`command`/`expect` and have `"outcome": "PASS"`), and every file in `parse_evidence_files(task_text)` exists, is non-empty on disk, and matches its recorded SHA-256 digest in `runs["measure"]["evidence_digests"]`, skip re-running the expensive command and print `MEASURE resumed (cached PASS)`.
+   193	  - Document the **Measurement-to-Evidence** pattern in `skills/dev-designer/SKILL.md` and `skills/dev-implementation/SKILL.md`:
+   194	    - Long-running benchmark generation runs in `MEASURE` (writing output to declared `Evidence files:`), mechanical acceptance assertions run as fast `GREEN`/`TIER-C` pytest rows reading that committed evidence file, and qualitative rubric fairness is listed as a `(Gate 5)` Definition of Done item.
+   195	
+   196	## Error Handling and Edge Cases
+   197	
+   198	- **Empty Failure Set in `record_failure_baseline.py`**: Writes `# 0 failures\n` so the file is non-empty on disk (satisfying `evaluate_done_gate()` condition 8) while parsing as an empty set `set()` in `compare_failure_sets.py`.
+   199	- **Collection Errors in `record_failure_baseline.py`**: Automatically passes `--continue-on-collection-errors` to `pytest` so collection errors are recorded as `ERROR <nodeid>` entries in the summary rather than aborting the run without a summary table.
+   200	- **Unset Live Environment Variables at Gate 4**: `run_external_review.py` logs `SKIPPED (missing env: ...)` for live integration lines without failing Gate 4, while still requiring all non-live `Integration results:` lines to pass.
+   201	- **Tasks Without Edit Directives**: `verify_task_edit_anchors()` and `replay_task_text.py` treat tasks without `Replace in` / `Insert in` directives as valid no-ops for anchor checking, preserving full backward compatibility.
+   202	
+   203	## Testing and Verification Strategy
+   204	
+   205	- **Tier A (Unit Tests)**:
+   206	  - `test_validate_python_quality.py`: Tests `"bootstrap"` schema validation (valid command arrays vs malformed strings/empty arrays).
+   207	  - `test_record_and_compare_baseline.py`: Tests terminal summary extraction (ignoring log lines matching `ERROR ...`), empty baseline handling, `--restore` file checkout, and `--rerun-new` transient failure filtering.
+   208	  - `test_check_epic_readiness.py` & `test_check_task_contract.py`: Tests `Integration results (live, needs: VAR):` parsing, `R6` coverage, `R5b` parameterized route template matching, and `R5` static edit-anchor verification.
+   209	  - `test_run_task_checks.py`: Tests `measure` mode execution, `--resume` short-circuiting, Done-Gate verification of `MEASURE` runs, and automatic parent directory creation for `--junitxml` / `--test-reporter-destination`.
+   210	- **Tier C1 (Subcutaneous End-to-End Integration)**:
+   211	  - `tests/test_execution_infra_acceptance.py`: End-to-end subcutaneous tests in temporary git repositories exercising polyglot worktree bootstrap, `record_failure_baseline.py` + `compare_failure_sets.py`, `replay_task_text.py`, `run_task_checks.py measure` + `verify`, and live integration result skipping when `needs:` env vars are unset.
+   212	- **Repository Quality Gate**:
+   213	  - `scripts/verify.sh`, `ruff check`, `mypy`, and `pytest` must pass with 0 errors.
+   214	
+   215	## Shared Contract Warnings
+   216	
+   217	- No `shared-contracts/` directory exists in `ai-agent-tools`. All changes are internal to the workflow plugin kit and preserve full backward compatibility for existing repositories and epics.
+   218	
+   219	## Dependency Mapping and Roadmap Context
+   220	
+   221	- **Depends on**: **Epic 1 (`contract_and_authoring_ergonomics`)** — builds on `Evidence files:`, `bin/d3nexus`, and `sync_task_status.py render`.
+   222	- **Blocks**: **Epic 3 (`multi_epic_orchestration_and_governance`)** — provides the execution and readiness foundation that Epic 3 extends for multi-epic dependencies (`#0013`, `#0014`) and packaged epic revisions (`#0015`, `#0020`).
+   223	
+     1	# Epic: Execution and Verification Infrastructure
+     2	
+     3	## Table of Contents
+     4	
+     5	- [Meta Data](#meta-data)
+     6	- [Background](#background)
+     7	- [Goals and Non-Goals](#goals-and-non-goals)
+     8	  - [Goals](#goals)
+     9	  - [Non-Goals](#non-goals)
+    10	- [Architecture and Technical Design](#architecture-and-technical-design)
+    11	  - [High-Level Architecture](#high-level-architecture)
+    12	  - [Use Cases](#use-cases)
+    13	  - [Sequence Diagram](#sequence-diagram)
+    14	  - [Integration Test Plan and Boundary Matrix](#integration-test-plan-and-boundary-matrix)
+    15	- [Verification Environment](#verification-environment)
+    16	  - [Comprehensive BDD Test Scenarios](#comprehensive-bdd-test-scenarios)
+    17	- [Shared Contract Impact](#shared-contract-impact)
+    18	- [Rollout Strategy and Mitigation](#rollout-strategy-and-mitigation)
+    19	- [Kanban Tasks Breakdown](#kanban-tasks-breakdown)
+    20	
+    21	## Meta Data
+    22	
+    23	- **Epic**: `execution-and-verification-infrastructure`
+    24	- **Status**: Queued (backlog) — behind `contract-and-authoring-ergonomics`
+    25	- **Target Release**: v1.25.0
+    26	- **Platform**: Python
+    27	- **Source Spec**: [2026-11-06-execution-and-verification-infrastructure-design.en.md](2026-11-06-execution-and-verification-infrastructure-design.en.md)
+    28	
+    29	## Background
+    30	
+    31	During Stage 2 and Stage 3 execution across `lyrics-sync` and `ai-agent-tools`, six infrastructure friction points were logged in `skill-observations/observation-log/`:
+    32	
+    33	1. **Observation `#0006`**: `bootstrap_worktree.sh` only runs bare `uv sync`, leaving worktree `.venv` environments missing optional extras (`--extra asr`) required by registered `mypy` and `pytest` capabilities.
+    34	2. **Observation `#0007`**: Recording and comparing full-suite failure baselines across tasks required brittle hand-written bash pipelines that matched captured log lines (`ERROR logger:file.py:123`), failed on empty failure sets under `pipefail`, lacked `--continue-on-collection-errors`, left modified tracked files behind, and reported false regressions from shared test DB state.
+    35	3. **Observation `#0010`**: `R6` requires every Tier C test file to appear in an `Integration results:` line, and Gate 4 runs every such line unconditionally, leaving no contract for opt-in live integration tests (`-m live_llm`) that require environment variables like `PLT_LIVE_OLLAMA_MODEL`. Furthermore, `R5b` flags concrete route literals (`http://localhost/api/align/stream/job_plt`) as ungrounded when the backend uses parameterized route templates (`http://localhost/api/align/stream/{job_id}`).
+    36	4. **Observation `#0011`**: Authoring defects inside task prose (`Replace in <path>:` / `With:`, `Insert in <path> after:` / `With:`, and code blocks) were only caught when manually replayed in a scratch worktree before packaging.
+    37	5. **Observation `#0017`**: Long-running measurement tasks (such as multi-hour local model benchmarks) do not fit standard 600s Verification rows and need a resumable `MEASURE` phase decoupled from fast evidence-checking `verify` rows.
+    38	6. **Observation `#0018`**: Polyglot repositories combining Python (`pyproject.toml`) and JavaScript (`package.json`, `tests/js/**/*.test.mjs`) only receive `python` detection from `detect_project_type.sh`, skip Node dependency installation in `bootstrap_worktree.sh`, and fail with exit code 7 when `node --test --test-reporter=junit` writes to a non-existent `build/test-results/` directory.
+    39	
+    40	## Goals and Non-Goals
+    41	
+    42	### Goals
+    43	
+    44	- Add optional `"bootstrap"` command array support to `.agents/quality/python-quality.json` (`python-quality.schema.json` and `validate_python_quality.py`), execute configured `"bootstrap"` commands in `bootstrap_worktree.sh`, and remove early exits so polyglot Python + Web/Node repositories bootstrap all present toolchains (`#0006`, `#0018`).
+    45	- Add `--all` to `detect_project_type.sh` to report all detected platforms in polyglot repositories while keeping default single-platform output unchanged (`#0018`).
+    46	- Auto-create parent directories for `--junitxml` and `--test-reporter-destination` paths in `run_task_checks.py` before executing Verification rows (`#0018`).
+    47	- Ship `record_failure_baseline.py` and `compare_failure_sets.py` supporting `pytest` and `node --test`, terminal-summary-only parsing, `--restore <path>` file checkout, and `--rerun-new` isolated re-verification (`#0007`).
+    48	- Support `Integration results (live, needs: VAR1, VAR2): <cmd> -> <report>` across `task_contract.py`, `check_task_contract.py`, `check_epic_readiness.py` (`R6`), `audit_epic.py`, and `run_external_review.py` (Gate 4), and upgrade `R5b` in `check_epic_readiness.py` to match concrete routes against parameterized route templates (`#0010`).
+    49	- Ship `replay_task_text.py`, integrate fast static edit-anchor verification into `check_epic_readiness.py` (`R5`), and add `--replay` scratch-worktree execution to `check_epic_readiness.py` (`#0011`).
+    50	- Support `Phase: MEASURE` (`run_task_checks.py measure [--timeout 7200] [--resume]`) and document the **Measurement-to-Evidence** pattern in `skills/dev-designer/SKILL.md` and `skills/dev-implementation/SKILL.md` (`#0017`).
+    51	
+    52	### Non-Goals
+    53	
+    54	- Cross-epic task dependency ordering, multi-epic board status transitions, and packaged epic amendment governance (`#0013, #0014, #0015, #0020`), which are addressed in **Epic 3 (`multi_epic_orchestration_and_governance`)**.
+    55	- Adding third-party runtime dependencies outside the Python 3.11+ standard library.
+    56	
+    57	## Architecture and Technical Design
+    58	
+    59	### High-Level Architecture
+    60	
+    61	```mermaid
+    62	flowchart TD
+    63	    subgraph BOOT["Worktree & Polyglot Bootstrap (#0006, #0018)"]
+    64	        PY_MANIFEST[".agents/quality/python-quality.json (bootstrap)"]
+    65	        DETECT_SH["detect_project_type.sh [--all]"]
+    66	        BOOT_SH["bootstrap_worktree.sh (Python + Rust + Web/Node)"]
+    67	    end
+    68	
+    69	    subgraph BASELINE["Failure-Set Baseline & Comparison (#0007)"]
+    70	        REC_BASE["record_failure_baseline.py"]
+    71	        CMP_BASE["compare_failure_sets.py"]
+    72	    end
+    73	
+    74	    subgraph READINESS["Readiness, Replay & Live Integration (#0010, #0011)"]
+    75	        REPLAY_PY["replay_task_text.py"]
+    76	        CER["check_epic_readiness.py (R5 anchors, R5b templates, R6 live, --replay)"]
+    77	        RER["run_external_review.py (Gate 4 live run or SKIPPED)"]
+    78	    end
+    79	
+    80	    subgraph RUNNER["Verification Runner & MEASURE Phase (#0017, #0018)"]
+    81	        TC["task_contract.py (IntegrationResultSpec, MEASURE)"]
+    82	        RTC["run_task_checks.py (measure --resume, JUnit parent mkdir)"]
+    83	    end
+    84	
+    85	    PY_MANIFEST --> BOOT_SH
+    86	    DETECT_SH --> BOOT_SH
+    87	    TC --> RTC
+    88	    TC --> CER
+    89	    TC --> RER
+    90	    REPLAY_PY --> CER
+    91	    RTC --> REC_BASE --> CMP_BASE
+    92	```
+    93	
+    94	### Use Cases
+    95	
+    96	```mermaid
+    97	flowchart LR
+    98	    DESIGNER["AI Assistant / Designer"] --> UC1["Validate Edit Anchors & Dry-Run Task Replay via check_epic_readiness.py"]
+    99	    DESIGNER --> UC2["Declare Opt-In Live Integration Results & Parameterized API Routes"]
+   100	
+   101	    PROGRAMMER["AI Programmer"] --> UC3["Bootstrap Polyglot Worktree with Declared Python Extras & Node Deps"]
+   102	    PROGRAMMER --> UC4["Record & Compare Full-Suite Failure Baselines via d3nexus CLI"]
+   103	    PROGRAMMER --> UC5["Run Long-Running MEASURE Phase with Resumable Evidence Verification"]
+   104	```
+   105	
+   106	### Sequence Diagram
+   107	
+   108	```mermaid
+   109	sequenceDiagram
+   110	    autonumber
+   111	    actor Designer as AI Assistant (dev-designer)
+   112	    participant Readiness as check_epic_readiness.py
+   113	    participant Replay as replay_task_text.py
+   114	    actor Programmer as AI Programmer (dev-implementation)
+   115	    participant Boot as bootstrap_worktree.py / .sh
+   116	    participant Runner as run_task_checks.py
+   117	    participant Baseline as record / compare_failure_sets.py
+   118	    participant Gate4 as run_external_review.py
+   119	
+   120	    Designer->>Readiness: Run check_epic_readiness.py <epic_dir> [--replay]
+   121	    Readiness->>Replay: Verify Replace/Insert anchors (R5) & optional worktree replay
+   122	    Readiness->>Readiness: Match R5b route literals against parameterized templates & R6 live results
+   123	    Readiness-->>Designer: 0 FAIL, 0 WARN — PASS
+   124	    Programmer->>Boot: Run bootstrap_worktree.sh <worktree>
+   125	    Boot->>Boot: Execute python-quality.json bootstrap commands + npm/pnpm install
+   126	    Programmer->>Runner: Run run_task_checks.py measure <task> --resume
+   127	    Runner->>Baseline: Execute d3nexus record-baseline / compare-baseline
+   128	    Runner-->>Programmer: MEASURE & VERIFY PASS (evidence written)
+   129	    Programmer->>Gate4: Run Gate 4 pre-checks
+   130	    Gate4->>Gate4: Run standard Integration results; run or SKIP live results based on Needs env
+   131	    Gate4-->>Programmer: Gate 4 PASS
+   132	```
+   133	
+   134	### Integration Test Plan and Boundary Matrix
+   135	
+   136	```text
+   137	Integration test roots: tests/, skills/dev-implementation/resources/scripts/, skills/python-quality-check/resources/scripts/
+   138	Protected paths: .agents/quality/**, .devtool/epic/execution_and_verification_infrastructure/bdd_scenarios.en.md, .devtool/epic/execution_and_verification_infrastructure/bdd_scenarios.vi.md
+   139	Integration results: python3 -m pytest tests/ skills/dev-implementation/resources/scripts/ skills/python-quality-check/resources/scripts/ --junitxml=build/test-results/pytest.xml -> build/test-results/pytest.xml
+   140	```
+   141	
+   142	| Boundary Seam | Testing Strategy | Verification Target |
+   143	| :--- | :--- | :--- |
+   144	| `validate_python_quality.py`, `detect_project_type.sh` & `bootstrap_worktree.sh` | Subprocess & schema validation tests in temporary polyglot repositories | Verify `"bootstrap"` array validation, `detect_project_type.sh --all` output (`python web`), and polyglot Python + Node worktree bootstrapping |
+   145	| `record_failure_baseline.py` & `compare_failure_sets.py` | Subcutaneous CLI tests with synthetic `pytest` and `node --test` outputs | Verify terminal-summary-only failure extraction (preserving spaces in parameterized node IDs, ignoring `ERROR` log lines, and rejecting runner usage/launch errors), `# 0 failures` non-empty output, `--restore` git checkout, and `--rerun-new` isolated-pass vs persistent failure classification (`--allow-isolated-pass`) |
+   146	| `task_contract.py`, `check_epic_readiness.py`, `audit_epic.py` & `run_external_review.py` | Integration tests across HLD `Integration results (live, needs: VAR):` and `R5b` route templates | Verify `IntegrationResultSpec` parsing, `R6` Tier C coverage, Gate 4 `SKIPPED` vs executed live commands, and `R5b` parameterized route template matching (`http://localhost/api/jobs/{job_id}`) |
+   147	| `replay_task_text.py` & `run_task_checks.py` (`MEASURE`) | Filesystem & worktree replay tests and `measure` mode lifecycle tests | Verify `Create`, `Replace in`, and `Insert in` directives, `R5` static anchor checks, `--replay` worktree execution, `measure --resume` tree/contract/SHA-256 digest validation, and JUnit parent directory auto-creation |
+   148	
+   149	## Verification Environment
+   150	
+   151	- Execution environment: Local macOS / Linux CLI with Python 3.11+, Git, Bash, `pytest`, `ruff`, and `mypy`.
+   152	- Isolation: All unit and integration tests run inside temporary directories / temporary Git repositories (`tmp_path` / `tempfile.TemporaryDirectory`) with no external network calls or live LLM servers required.
+   153	- Environment variables that `Needs` columns or live integration tests may reference in test fixtures: `EVI_LIVE_MODEL` (synthetic test variable used to test live integration run vs skip branches).
+   154	
+   155	### Comprehensive BDD Test Scenarios
+   156	
+   157	The suite covers all 5 dimensions under the `[EVI-]` prefix:
+   158	1. **Happy Paths (`EVI-HP-01` .. `EVI-HP-04`)**: Polyglot worktree bootstrap with `"bootstrap"` argument arrays and `detect_project_type.sh --all`; recording and comparing failure-set baselines via `record_failure_baseline.py` and `compare_failure_sets.py`; `Integration results (live, needs: VAR):` and `R5b` parameterized route template matching; and `replay_task_text.py` + `run_task_checks.py measure` execution.
+   159	2. **Edge Cases (`EVI-EC-01` .. `EVI-EC-03`)**: Zero-failure baseline producing non-empty `# 0 failures` file and ignoring captured `ERROR` log lines; automatic parent directory creation for `--junitxml` and `--test-reporter-destination`; and `R5b` matching multiple route parameter syntaxes (`{id}`, `<id>`, `:id`).
+   160	3. **State Transitions (`EVI-ST-01` .. `EVI-ST-02`)**: `--rerun-new` classifying isolated-pass vs persistent regressions and requiring explicit `--allow-isolated-pass` to ignore isolated passes; and `run_task_checks.py measure --resume` reusing cached `MEASURE` runs only when the worktree `tree`, row contracts, and `Evidence files:` SHA-256 digests match.
+   161	4. **Async & Concurrency (`EVI-AR-01` .. `EVI-AR-02`)**: Isolated temporary worktree creation and cleanup during `check_epic_readiness.py --replay` without polluting the main checkout; and `--restore <path>` restoring modified tracked files after baseline recording.
+   162	5. **Failures & Resilience (`EVI-FR-01` .. `EVI-FR-03`)**: Rejecting malformed `"bootstrap"` entries in `validate_python_quality.py`; `R5` failing when a `Replace in <path>:` anchor is missing or non-unique in the target file; and Done Gate failing when a task has `MEASURE` rows that are missing, failed, or stale relative to the current tree and evidence file digests.
+   163	
+   164	## Shared Contract Impact
+   165	
+   166	None — self-contained feature in `ai-agent-tools`.
+   167	
+   168	## Rollout Strategy and Mitigation
+   169	
+   170	- **Phase 1**: Implement `"bootstrap"` schema validation, `detect_project_type.sh --all`, polyglot `bootstrap_worktree.sh`, and JUnit parent directory auto-creation in `run_task_checks.py` (`Task 01`).
+   171	- **Phase 2**: Implement `record_failure_baseline.py` and `compare_failure_sets.py` (`Task 02`).
+   172	- **Phase 3**: Implement `IntegrationResultSpec` (`Integration results (live, needs: VAR):`) across `task_contract.py`, `check_task_contract.py`, `check_epic_readiness.py`, `audit_epic.py`, and `run_external_review.py`, plus `R5b` parameterized route template matching (`Task 03`).
+   173	- **Phase 4**: Implement `replay_task_text.py`, `R5` static anchor verification, `check_epic_readiness.py --replay`, and `Phase: MEASURE` in `task_contract.py` / `run_task_checks.py` (`Task 04`).
+   174	- **Phase 5**: Execute end-to-end subcutaneous integration and acceptance verification and update skill documentation (`Task 05`).
+   175	- **Rollback Plan**: All new scripts and flags are additive and backward-compatible; reverting the epic merge commit cleanly restores prior behavior.
+   176	
+   177	## Kanban Tasks Breakdown
+   178	
+   179	- [Task 01: Worktree Bootstrap Extras, Polyglot Detection, and JUnit Directory Creation](./task_01_polyglot_worktree_bootstrap.md)
+   180	- [Task 02: Failure-Set Baseline Recording and Regression Comparison CLI](./task_02_failure_baseline_and_comparison.md)
+   181	- [Task 03: Opt-In Live Integration Results and R5b Parameterized Route Matching](./task_03_live_integration_and_route_matching.md)
+   182	- [Task 04: Task Text Replay Engine, Static Anchor Verification, and MEASURE Phase](./task_04_task_replay_and_measure_phase.md)
+   183	- [Task 05: End-to-End Execution Infrastructure Acceptance Verification](./task_05_execution_infra_e2e_acceptance.md)
+   184	
+     1	# BDD Scenarios: Execution and Verification Infrastructure
+     2	
+     3	## Table of Contents
+     4	
+     5	- [1. Dimension 1 — Happy Paths](#1-dimension-1--happy-paths)
+     6	- [2. Dimension 2 — Edge Cases & Boundaries](#2-dimension-2--edge-cases--boundaries)
+     7	- [3. Dimension 3 — State Transitions](#3-dimension-3--state-transitions)
+     8	- [4. Dimension 4 — Async & Concurrency](#4-dimension-4--async--concurrency)
+     9	- [5. Dimension 5 — Failures & Resilience](#5-dimension-5--failures--resilience)
+    10	
+    11	---
+    12	
+    13	## 1. Dimension 1 — Happy Paths
+    14	
+    15	```gherkin
+    16	Feature: Execution and Verification Infrastructure — Happy Paths
+    17	
+    18	  Scenario: [EVI-HP-01] [Tier C - Integration] Worktree bootstrap executes python-quality.json bootstrap commands and installs polyglot dependencies
+    19	    Given a polyglot git repository containing both "pyproject.toml" and "package.json"
+    20	    And ".agents/quality/python-quality.json" defines "bootstrap" as [["pip", "install", "-e", ".[dev]"]]
+    21	    When "detect_project_type.sh --all" is executed on the repository
+    22	    Then it outputs "python web"
+    23	    And when "bootstrap_worktree.sh" runs on a worktree of the repository
+    24	    Then it executes both the Python bootstrap phase (including the "bootstrap" command arrays from ".agents/quality/python-quality.json") and the Web dependency installation phase
+    25	
+    26	  Scenario: [EVI-HP-02] [Tier C - Integration] Failure-set baseline recording and regression comparison pass when no new failures appear
+    27	    Given a pytest output stream containing 2 pre-existing failed test node IDs in the terminal "=== short test summary info ===" block
+    28	    When "record_failure_baseline.py --out baseline.txt" parses the output stream
+    29	    Then "baseline.txt" contains the 2 sorted failure node IDs
+    30	    And when "compare_failure_sets.py --baseline baseline.txt --current current.txt" runs with a current failure list containing a subset of those 2 node IDs
+    31	    Then it reports 0 new failures and exits with code 0
+    32	
+    33	  Scenario: [EVI-HP-03] [Tier C - Integration] Opt-in live integration results satisfy R6 coverage, skip cleanly when env is unset, and execute when env is set
+    34	    Given an epic HLD containing both "Integration results:" and "Integration results (live, needs: EVI_LIVE_MODEL):"
+    35	    And "bdd_scenarios.en.md" declares a "[Tier C - Integration]" scenario whose test file appears in the live integration command
+    36	    When "check_epic_readiness.py" evaluates R6 coverage for the epic
+    37	    Then R6 passes with 0 missing Tier C test files
+    38	    And when "collect_facts()" in "run_external_review.py" runs with "EVI_LIVE_MODEL" unset in the environment
+    39	    Then the live integration row is recorded as "SKIPPED (missing env: EVI_LIVE_MODEL)" without failing Gate 4
+    40	    And when "collect_facts()" in "run_external_review.py" runs with "EVI_LIVE_MODEL=1" set in the environment
+    41	    Then the live integration row is executed and its exit status is enforced
+    42	
+    43	  Scenario: [EVI-HP-04] [Tier C - Integration] Task text replay engine applies fenced directives in a scratch worktree and MEASURE phase executes and records evidence
+    44	    Given a task file containing "Create", "Replace in", and "Insert in" fenced code blocks, "Phase: MEASURE" rows, and "Evidence files: .devtool/evidence/bench.json"
+    45	    When "replay_task_text.py" replays the task inside a temporary git worktree
+    46	    Then all fenced directives apply cleanly and the task's Verification commands pass
+    47	    And when "run_task_checks.py measure" executes the task
+    48	    Then the "MEASURE" rows run, create ".devtool/evidence/bench.json", and record a passing "measure" entry in the task's evidence JSON
+    49	```
+    50	
+    51	---
+    52	
+    53	## 2. Dimension 2 — Edge Cases & Boundaries
+    54	
+    55	```gherkin
+    56	Feature: Execution and Verification Infrastructure — Edge Cases & Boundaries
+    57	
+    58	  Scenario: [EVI-EC-01] [Tier A - Unit] Failure-set parser ignores captured ERROR log lines before short test summary info and writes sentinel on zero failures
+    59	    Given a pytest output stream containing captured "ERROR logger:module.py:42" log lines in stdout before "=== short test summary info ==="
+    60	    When "record_failure_baseline.py" extracts failure IDs from the output stream
+    61	    Then it ignores the captured logger lines and extracts only "FAILED <nodeid>" and "ERROR <nodeid>" lines from the terminal summary block
+    62	    And when 0 tests fail or error in the terminal summary block
+    63	    Then "record_failure_baseline.py" writes "# 0 failures\n" to the output file so the file is non-empty
+    64	
+    65	  Scenario: [EVI-EC-02] [Tier A - Unit] Task runner automatically creates parent directories for JUnit XML output flags before executing Verification rows
+    66	    Given a task Verification row containing "--junitxml=.devtool/evidence/nested/junit/report.xml" where ".devtool/evidence/nested/junit" does not exist
+    67	    When "run_task_checks.py" executes the Verification row
+    68	    Then "ensure_output_dirs()" creates ".devtool/evidence/nested/junit" prior to invoking the subprocess so the test runner writes the XML report without error
+    69	
+    70	  Scenario: [EVI-EC-03] [Tier A - Unit] R5b route drift check matches concrete route literals against parameterized route templates without false-positive warnings
+    71	    Given a task file referencing a concrete route literal "http://localhost/api/align/stream/job_plt"
+    72	    And the target codebase defines the parameterized route "http://localhost/api/align/stream/{job_id}" (or "<job_id>" or ":job_id")
+    73	    When "check_epic_readiness.py" runs the R5b route drift check
+    74	    Then "route_matches_codebase()" matches the concrete route against the parameterized template and emits 0 R5b warnings
+    75	```
+    76	
+    77	---
+    78	
+    79	## 3. Dimension 3 — State Transitions
+    80	
+    81	```gherkin
+    82	Feature: Execution and Verification Infrastructure — State Transitions
+    83	
+    84	  Scenario: [EVI-ST-01] [Tier A - Unit] Failure-set comparison with --rerun-new classifies isolated-pass vs persistent failures and requires explicit opt-in to ignore isolated passes
+    85	    Given a baseline failure file with 0 failures and a current failure file with 2 candidate new failure node IDs (including a parameterized ID with spaces)
+    86	    When "compare_failure_sets.py --baseline baseline.txt --current current.txt --rerun-new" runs
+    87	    And the first candidate passes when re-run in isolation via "--rerun-cmd" while the second candidate fails
+    88	    Then the first candidate is classified as "ISOLATED_PASS" and the second as "PERSISTENT_FAILURE" and the command exits with code 1
+    89	    And when all candidates pass in isolation, "compare_failure_sets.py --rerun-new" still exits with code 1 unless "--allow-isolated-pass" is explicitly provided
+    90	
+    91	  Scenario: [EVI-ST-02] [Tier C - Integration] run_task_checks.py measure --resume reuses cached MEASURE runs only when tree, row contracts, and evidence file digests match
+    92	    Given a task file with "Phase: MEASURE" rows and "Evidence files: .devtool/evidence/bench.json"
+    93	    And a prior "run_task_checks.py measure" execution recorded "runs.measure.passed = true" with matching worktree tree, row commands/expectations, and ".devtool/evidence/bench.json" SHA-256 digest
+    94	    When "run_task_checks.py measure <task.md> --resume" is invoked on the unchanged tree and evidence file
+    95	    Then it skips re-executing the "MEASURE" subprocess commands and exits with code 0
+    96	    And when the worktree tree, row command, or ".devtool/evidence/bench.json" content is modified, "--resume" invalidates the cache and re-executes the "MEASURE" rows
+    97	```
+    98	
+    99	---
+   100	
+   101	## 4. Dimension 4 — Async & Concurrency
+   102	
+   103	```gherkin
+   104	Feature: Execution and Verification Infrastructure — Async & Concurrency
+   105	
+   106	  Scenario: [EVI-AR-01] [Tier C - Integration] check_epic_readiness.py --replay executes task text in an isolated scratch worktree and cleans up without mutating the main tree
+   107	    Given an epic whose tasks contain valid "Create", "Replace in", and "Insert in" directives
+   108	    When "check_epic_readiness.py <epic> --replay" is executed
+   109	    Then it creates a temporary git worktree, replays each task's fenced edits sequentially, runs the Verification commands, and removes the temporary worktree on completion
+   110	    And "git status --porcelain" on the main repository remains completely unchanged
+   111	
+   112	  Scenario: [EVI-AR-02] [Tier A - Unit] record_failure_baseline.py --restore restores tracked files dirtied as a side effect of test execution
+   113	    Given a test suite command that mutates a tracked file "config/sample.json" during execution
+   114	    When "record_failure_baseline.py --cmd '<test_cmd>' --out baseline.txt --restore config/sample.json" runs
+   115	    Then after the test command completes, "record_failure_baseline.py" executes "git checkout -- config/sample.json" so the tracked file is restored to its clean HEAD state
+   116	```
+   117	
+   118	---
+   119	
+   120	## 5. Dimension 5 — Failures & Resilience
+   121	
+   122	```gherkin
+   123	Feature: Execution and Verification Infrastructure — Failures & Resilience
+   124	
+   125	  Scenario: [EVI-FR-01] [Tier A - Unit] validate_python_quality.py rejects malformed bootstrap configurations with invalid_bootstrap_format
+   126	    Given a ".agents/quality/python-quality.json" file where "bootstrap" is not a non-empty list of non-empty string argument arrays
+   127	    When "validate_python_quality.py" validates the configuration
+   128	    Then it fails validation and emits an error with code "invalid_bootstrap_format"
+   129	
+   130	  Scenario: [EVI-FR-02] [Tier A - Unit] R5 static anchor verification fails when a Replace in or Insert in anchor is missing or ambiguous in the target file
+   131	    Given a task file containing a "Replace in <path>:" or "Insert in <path>:" directive whose anchor text occurs 0 times or 2+ times in "<path>"
+   132	    When "verify_task_edit_anchors()" in "check_epic_readiness.py" inspects the task
+   133	    Then R5 fails and reports the exact file path and missing or ambiguous anchor snippet
+   134	
+   135	  Scenario: [EVI-FR-03] [Tier A - Unit] evaluate_done_gate fails when a task contains MEASURE rows that are missing, failed, or stale relative to the current tree and evidence digests
+   136	    Given a task file containing at least one "Phase: MEASURE" Verification row
+   137	    And the task's evidence JSON either lacks "runs.measure", has "runs.measure.passed == false", or has a mismatched "tree", row contract, or evidence file SHA-256 digest
+   138	    When "evaluate_done_gate()" evaluates the task for transition to "done"
+   139	    Then it returns a non-empty failure list blocking the "done" transition until a fresh "run_task_checks.py measure" passes
+   140	```
+   141	
+
+exec
+/bin/zsh -lc "sed -n '167,300p' .devtool/epic/execution_and_verification_infrastructure/2026-11-06-execution-and-verification-infrastructure-design.en.md" in /Users/danhdueexoictif/AllProjects/ai-agent-tools
+ succeeded in 0ms:
+### 4. Static Edit-Anchor Validation and Pre-Packaging Task Replay
+
+- **`skills/dev-implementation/resources/scripts/replay_task_text.py` (`#0011`)**:
+  - Formalizes deterministic markdown edit directives in task files:
+    1. **Full-file write**: `<!-- @@FILE:<rel_path>@@ -->`, `Create `<rel_path>`:`, or `File: `<rel_path>`` immediately above a fenced code block writes the block's contents to `<rel_path>`.
+    2. **Exact replacement**: `Replace in `<rel_path>`:` above a fenced code block (the `anchor`) followed by `With:` above a fenced code block (the `replacement`) replaces the unique occurrence of `anchor` in `<rel_path>`.
+    3. **Anchored insertion**: `Insert in `<rel_path>` after:` (or `before:`) above a fenced code block (`anchor`) followed by `With:` above a fenced code block (`insertion`) inserts `insertion` immediately after (or before) the unique occurrence of `anchor` in `<rel_path>`.
+  - Provides two entry modes:
+    - **Static Anchor Check (`verify_task_edit_anchors(root: Path, task_path: Path, task_text: str, prior_modified: set[str] | None = None) -> list[str]`)**:
+      - Called automatically during `R5` in `check_epic_readiness.py`.
+      - For every `Replace in `<rel_path>`:` or `Insert in `<rel_path>` after|before:` targeting a file that already exists at `HEAD` (and was not previously rewritten by an earlier step in the same task or epic), verifies that the first fenced block (`anchor`) occurs verbatim in `(root / rel_path).read_text()`. Any missing or ambiguous (count != 1) anchor produces an `R5 FAIL` finding naming the task file and target path.
+    - **Scratch-Worktree Execution Replay (`replay_task_text.py <task.md> [--worktree <dir>] [--run-rows]` and `check_epic_readiness.py <epic_dir> --replay`)**:
+      - Applies all edit directives in `<task.md>` (or across all tasks of `<epic_dir>` in execution order inside a temporary `git worktree`) and optionally runs the task's `Verification` rows (`RED`, `GREEN`, `TIER-B`, `TIER-C`), cleaning up the temporary worktree on exit.
+
+### 5. Long-Running Measurement Phase and Evidence-Gated Verification
+
+- **`Phase: MEASURE` in `task_contract.py` and `run_task_checks.py` (`#0017`)**:
+  - In `skills/dev-implementation/resources/scripts/task_contract.py`:
+    - Update `PHASES = ("RED", "MEASURE", "GREEN", "TIER-B", "TIER-C")`.
+    - In `evaluate_done_gate(task_file: Path)` and `audit_epic.py` (`audit_evidence`): if a task has one or more rows with `row.phase == "MEASURE"`, verify that `evidence.get("runs", {}).get("measure")` exists, its `tree` matches the current worktree `fingerprint(layout.root)[0]` (at Done Gate), all `MEASURE` rows in the current table match the recorded `id`, `command`, and `expect` (`row_problems`) with `"outcome": "PASS"`, and every file declared in `parse_evidence_files(task_text)` exists on disk with a SHA-256 digest matching `runs["measure"]["evidence_digests"]`.
+  - In `skills/dev-implementation/resources/scripts/run_task_checks.py`:
+    - Update CLI `mode` choices to `("red", "measure", "verify", "status")`.
+    - When `mode == "measure"`:
+      - Default `--timeout` is `7200` seconds (or unbounded when `--timeout 0` is passed) instead of `1800` seconds.
+      - Record `"evidence_digests": {rel_path: sha256_hex}` in `evidence["runs"]["measure"]` for all declared `Evidence files:`.
+      - Support `--resume`: if `--resume` is passed, `evidence.get("runs", {}).get("measure")` exists, its recorded `tree` matches `fingerprint(layout.root)[0]`, `row_problems(measure_rows, evidence["runs"])` is empty (all current `MEASURE` rows match `id`/`command`/`expect` and have `"outcome": "PASS"`), and every file in `parse_evidence_files(task_text)` exists, is non-empty on disk, and matches its recorded SHA-256 digest in `runs["measure"]["evidence_digests"]`, skip re-running the expensive command and print `MEASURE resumed (cached PASS)`.
+  - Document the **Measurement-to-Evidence** pattern in `skills/dev-designer/SKILL.md` and `skills/dev-implementation/SKILL.md`:
+    - Long-running benchmark generation runs in `MEASURE` (writing output to declared `Evidence files:`), mechanical acceptance assertions run as fast `GREEN`/`TIER-C` pytest rows reading that committed evidence file, and qualitative rubric fairness is listed as a `(Gate 5)` Definition of Done item.
+
+## Error Handling and Edge Cases
+
+- **Empty Failure Set in `record_failure_baseline.py`**: Writes `# 0 failures\n` so the file is non-empty on disk (satisfying `evaluate_done_gate()` condition 8) while parsing as an empty set `set()` in `compare_failure_sets.py`.
+- **Collection Errors in `record_failure_baseline.py`**: Automatically passes `--continue-on-collection-errors` to `pytest` so collection errors are recorded as `ERROR <nodeid>` entries in the summary rather than aborting the run without a summary table.
+- **Unset Live Environment Variables at Gate 4**: `run_external_review.py` logs `SKIPPED (missing env: ...)` for live integration lines without failing Gate 4, while still requiring all non-live `Integration results:` lines to pass.
+- **Tasks Without Edit Directives**: `verify_task_edit_anchors()` and `replay_task_text.py` treat tasks without `Replace in` / `Insert in` directives as valid no-ops for anchor checking, preserving full backward compatibility.
+
+## Testing and Verification Strategy
+
+- **Tier A (Unit Tests)**:
+  - `test_validate_python_quality.py`: Tests `"bootstrap"` schema validation (valid command arrays vs malformed strings/empty arrays).
+  - `test_record_and_compare_baseline.py`: Tests terminal summary extraction (ignoring log lines matching `ERROR ...`), empty baseline handling, `--restore` file checkout, and `--rerun-new` transient failure filtering.
+  - `test_check_epic_readiness.py` & `test_check_task_contract.py`: Tests `Integration results (live, needs: VAR):` parsing, `R6` coverage, `R5b` parameterized route template matching, and `R5` static edit-anchor verification.
+  - `test_run_task_checks.py`: Tests `measure` mode execution, `--resume` short-circuiting, Done-Gate verification of `MEASURE` runs, and automatic parent directory creation for `--junitxml` / `--test-reporter-destination`.
+- **Tier C1 (Subcutaneous End-to-End Integration)**:
+  - `tests/test_execution_infra_acceptance.py`: End-to-end subcutaneous tests in temporary git repositories exercising polyglot worktree bootstrap, `record_failure_baseline.py` + `compare_failure_sets.py`, `replay_task_text.py`, `run_task_checks.py measure` + `verify`, and live integration result skipping when `needs:` env vars are unset.
+- **Repository Quality Gate**:
+  - `scripts/verify.sh`, `ruff check`, `mypy`, and `pytest` must pass with 0 errors.
+
+## Shared Contract Warnings
+
+- No `shared-contracts/` directory exists in `ai-agent-tools`. All changes are internal to the workflow plugin kit and preserve full backward compatibility for existing repositories and epics.
+
+## Dependency Mapping and Roadmap Context
+
+- **Depends on**: **Epic 1 (`contract_and_authoring_ergonomics`)** — builds on `Evidence files:`, `bin/d3nexus`, and `sync_task_status.py render`.
+- **Blocks**: **Epic 3 (`multi_epic_orchestration_and_governance`)** — provides the execution and readiness foundation that Epic 3 extends for multi-epic dependencies (`#0013`, `#0014`) and packaged epic revisions (`#0015`, `#0020`).
+
+
+exec
+/bin/zsh -lc 'nl -ba .devtool/epic/execution_and_verification_infrastructure/execution_and_verification_infrastructure.en.md | head -110' in /Users/danhdueexoictif/AllProjects/ai-agent-tools
+ succeeded in 0ms:
+     1	# Epic: Execution and Verification Infrastructure
+     2	
+     3	## Table of Contents
+     4	
+     5	- [Meta Data](#meta-data)
+     6	- [Background](#background)
+     7	- [Goals and Non-Goals](#goals-and-non-goals)
+     8	  - [Goals](#goals)
+     9	  - [Non-Goals](#non-goals)
+    10	- [Architecture and Technical Design](#architecture-and-technical-design)
+    11	  - [High-Level Architecture](#high-level-architecture)
+    12	  - [Use Cases](#use-cases)
+    13	  - [Sequence Diagram](#sequence-diagram)
+    14	  - [Integration Test Plan and Boundary Matrix](#integration-test-plan-and-boundary-matrix)
+    15	- [Verification Environment](#verification-environment)
+    16	  - [Comprehensive BDD Test Scenarios](#comprehensive-bdd-test-scenarios)
+    17	- [Shared Contract Impact](#shared-contract-impact)
+    18	- [Rollout Strategy and Mitigation](#rollout-strategy-and-mitigation)
+    19	- [Kanban Tasks Breakdown](#kanban-tasks-breakdown)
+    20	
+    21	## Meta Data
+    22	
+    23	- **Epic**: `execution-and-verification-infrastructure`
+    24	- **Status**: Queued (backlog) — behind `contract-and-authoring-ergonomics`
+    25	- **Target Release**: v1.25.0
+    26	- **Platform**: Python
+    27	- **Source Spec**: [2026-11-06-execution-and-verification-infrastructure-design.en.md](2026-11-06-execution-and-verification-infrastructure-design.en.md)
+    28	
+    29	## Background
+    30	
+    31	During Stage 2 and Stage 3 execution across `lyrics-sync` and `ai-agent-tools`, six infrastructure friction points were logged in `skill-observations/observation-log/`:
+    32	
+    33	1. **Observation `#0006`**: `bootstrap_worktree.sh` only runs bare `uv sync`, leaving worktree `.venv` environments missing optional extras (`--extra asr`) required by registered `mypy` and `pytest` capabilities.
+    34	2. **Observation `#0007`**: Recording and comparing full-suite failure baselines across tasks required brittle hand-written bash pipelines that matched captured log lines (`ERROR logger:file.py:123`), failed on empty failure sets under `pipefail`, lacked `--continue-on-collection-errors`, left modified tracked files behind, and reported false regressions from shared test DB state.
+    35	3. **Observation `#0010`**: `R6` requires every Tier C test file to appear in an `Integration results:` line, and Gate 4 runs every such line unconditionally, leaving no contract for opt-in live integration tests (`-m live_llm`) that require environment variables like `PLT_LIVE_OLLAMA_MODEL`. Furthermore, `R5b` flags concrete route literals (`http://localhost/api/align/stream/job_plt`) as ungrounded when the backend uses parameterized route templates (`http://localhost/api/align/stream/{job_id}`).
+    36	4. **Observation `#0011`**: Authoring defects inside task prose (`Replace in <path>:` / `With:`, `Insert in <path> after:` / `With:`, and code blocks) were only caught when manually replayed in a scratch worktree before packaging.
+    37	5. **Observation `#0017`**: Long-running measurement tasks (such as multi-hour local model benchmarks) do not fit standard 600s Verification rows and need a resumable `MEASURE` phase decoupled from fast evidence-checking `verify` rows.
+    38	6. **Observation `#0018`**: Polyglot repositories combining Python (`pyproject.toml`) and JavaScript (`package.json`, `tests/js/**/*.test.mjs`) only receive `python` detection from `detect_project_type.sh`, skip Node dependency installation in `bootstrap_worktree.sh`, and fail with exit code 7 when `node --test --test-reporter=junit` writes to a non-existent `build/test-results/` directory.
+    39	
+    40	## Goals and Non-Goals
+    41	
+    42	### Goals
+    43	
+    44	- Add optional `"bootstrap"` command array support to `.agents/quality/python-quality.json` (`python-quality.schema.json` and `validate_python_quality.py`), execute configured `"bootstrap"` commands in `bootstrap_worktree.sh`, and remove early exits so polyglot Python + Web/Node repositories bootstrap all present toolchains (`#0006`, `#0018`).
+    45	- Add `--all` to `detect_project_type.sh` to report all detected platforms in polyglot repositories while keeping default single-platform output unchanged (`#0018`).
+    46	- Auto-create parent directories for `--junitxml` and `--test-reporter-destination` paths in `run_task_checks.py` before executing Verification rows (`#0018`).
+    47	- Ship `record_failure_baseline.py` and `compare_failure_sets.py` supporting `pytest` and `node --test`, terminal-summary-only parsing, `--restore <path>` file checkout, and `--rerun-new` isolated re-verification (`#0007`).
+    48	- Support `Integration results (live, needs: VAR1, VAR2): <cmd> -> <report>` across `task_contract.py`, `check_task_contract.py`, `check_epic_readiness.py` (`R6`), `audit_epic.py`, and `run_external_review.py` (Gate 4), and upgrade `R5b` in `check_epic_readiness.py` to match concrete routes against parameterized route templates (`#0010`).
+    49	- Ship `replay_task_text.py`, integrate fast static edit-anchor verification into `check_epic_readiness.py` (`R5`), and add `--replay` scratch-worktree execution to `check_epic_readiness.py` (`#0011`).
+    50	- Support `Phase: MEASURE` (`run_task_checks.py measure [--timeout 7200] [--resume]`) and document the **Measurement-to-Evidence** pattern in `skills/dev-designer/SKILL.md` and `skills/dev-implementation/SKILL.md` (`#0017`).
+    51	
+    52	### Non-Goals
+    53	
+    54	- Cross-epic task dependency ordering, multi-epic board status transitions, and packaged epic amendment governance (`#0013, #0014, #0015, #0020`), which are addressed in **Epic 3 (`multi_epic_orchestration_and_governance`)**.
+    55	- Adding third-party runtime dependencies outside the Python 3.11+ standard library.
+    56	
+    57	## Architecture and Technical Design
+    58	
+    59	### High-Level Architecture
+    60	
+    61	```mermaid
+    62	flowchart TD
+    63	    subgraph BOOT["Worktree & Polyglot Bootstrap (#0006, #0018)"]
+    64	        PY_MANIFEST[".agents/quality/python-quality.json (bootstrap)"]
+    65	        DETECT_SH["detect_project_type.sh [--all]"]
+    66	        BOOT_SH["bootstrap_worktree.sh (Python + Rust + Web/Node)"]
+    67	    end
+    68	
+    69	    subgraph BASELINE["Failure-Set Baseline & Comparison (#0007)"]
+    70	        REC_BASE["record_failure_baseline.py"]
+    71	        CMP_BASE["compare_failure_sets.py"]
+    72	    end
+    73	
+    74	    subgraph READINESS["Readiness, Replay & Live Integration (#0010, #0011)"]
+    75	        REPLAY_PY["replay_task_text.py"]
+    76	        CER["check_epic_readiness.py (R5 anchors, R5b templates, R6 live, --replay)"]
+    77	        RER["run_external_review.py (Gate 4 live run or SKIPPED)"]
+    78	    end
+    79	
+    80	    subgraph RUNNER["Verification Runner & MEASURE Phase (#0017, #0018)"]
+    81	        TC["task_contract.py (IntegrationResultSpec, MEASURE)"]
+    82	        RTC["run_task_checks.py (measure --resume, JUnit parent mkdir)"]
+    83	    end
+    84	
+    85	    PY_MANIFEST --> BOOT_SH
+    86	    DETECT_SH --> BOOT_SH
+    87	    TC --> RTC
+    88	    TC --> CER
+    89	    TC --> RER
+    90	    REPLAY_PY --> CER
+    91	    RTC --> REC_BASE --> CMP_BASE
+    92	```
+    93	
+    94	### Use Cases
+    95	
+    96	```mermaid
+    97	flowchart LR
+    98	    DESIGNER["AI Assistant / Designer"] --> UC1["Validate Edit Anchors & Dry-Run Task Replay via check_epic_readiness.py"]
+    99	    DESIGNER --> UC2["Declare Opt-In Live Integration Results & Parameterized API Routes"]
+   100	
+   101	    PROGRAMMER["AI Programmer"] --> UC3["Bootstrap Polyglot Worktree with Declared Python Extras & Node Deps"]
+   102	    PROGRAMMER --> UC4["Record & Compare Full-Suite Failure Baselines via d3nexus CLI"]
+   103	    PROGRAMMER --> UC5["Run Long-Running MEASURE Phase with Resumable Evidence Verification"]
+   104	```
+   105	
+   106	### Sequence Diagram
+   107	
+   108	```mermaid
+   109	sequenceDiagram
+   110	    autonumber
+
+exec
+/bin/zsh -lc 'cat .devtool/epic/execution_and_verification_infrastructure/task_01_polyglot_worktree_bootstrap.md .devtool/epic/execution_and_verification_infrastructure/task_02_failure_baseline_and_comparison.md' in /Users/danhdueexoictif/AllProjects/ai-agent-tools
+ succeeded in 0ms:
+---
+id: "task_01_polyglot_worktree_bootstrap"
+status: "backlog"
+priority: "high"
+assignee: null
+epic: "execution-and-verification-infrastructure"
+dueDate: null
+created: "2026-11-06T03:20:00Z"
+modified: "2026-11-06T03:20:00Z"
+completedAt: null
+labels: ["infrastructure", "worktree", "polyglot"]
+order: "b1"
+---
+
+# Task 01: Worktree Bootstrap Extras, Polyglot Detection, and JUnit Directory Creation
+
+Epic: [execution_and_verification_infrastructure](execution_and_verification_infrastructure.en.md)
+
+## Requirement Analysis
+
+Resolve Observations #0006 and #0018:
+1. `bootstrap_worktree.sh` currently runs bare `uv sync` and exits immediately after the first detected toolchain (Python, Rust, or Web), leaving worktree virtual environments missing optional extras (`--extra asr`) declared by the repository and skipping Node dependency installation (`npm install` / `pnpm install`) in polyglot Python + Web repositories.
+2. `detect_project_type.sh` stops at the first matched platform and only detects `web` when a framework config file exists alongside `package.json`. Adding `--all` allows callers and bootstrap scripts to discover every platform present in a polyglot checkout (`python web`).
+3. `run_task_checks.py` invokes Verification row commands before ensuring parent directories exist for JUnit report flags (`--junitxml=<path>`, `--test-reporter-destination=<path>`), causing `node --test --test-reporter=junit` to fail with exit code 7 when `build/test-results/` has not been created yet.
+
+## Files
+
+Allowed files:
+- `skills/python-quality-check/resources/schemas/python-quality.schema.json`
+- `skills/python-quality-check/resources/scripts/validate_python_quality.py`
+- `skills/python-quality-check/resources/scripts/test_validate_python_quality.py`
+- `skills/dev-implementation/resources/scripts/detect_project_type.sh`
+- `skills/dev-implementation/resources/scripts/bootstrap_worktree.sh`
+- `skills/dev-implementation/resources/scripts/test_bootstrap_worktree_validation.sh`
+- `skills/dev-implementation/resources/scripts/run_task_checks.py`
+- `skills/dev-implementation/resources/scripts/test_run_task_checks.py`
+
+Read-only context:
+- `.agents/quality/python-quality.json` (project Python quality manifest)
+- `.devtool/epic/execution_and_verification_infrastructure/execution_and_verification_infrastructure.en.md` (HLD specification)
+
+## Design Rationale
+
+Applicable skills: `python-quality-check`, `using-git-worktrees`, `test-driven-development`.
+1. Adding an optional top-level `"bootstrap"` array of non-empty argument arrays (`list[list[str]]`, e.g., `[["uv", "sync", "--extra", "asr"]]` or `[["pip", "install", "-e", ".[dev]"]]`) to `python-quality.schema.json` and `validate_python_quality.py` lets repositories declare exact environment sync commands in `.agents/quality/python-quality.json` matching the existing capability command format while keeping existing manifests valid.
+2. Removing early `exit 0` from the Python, Rust, and Web blocks in `bootstrap_worktree.sh` and tracking `BOOTSTRAPPED=0` ensures polyglot repositories run every applicable toolchain bootstrap before exiting cleanly when no mobile (`secureFiles/`) toolchain is present.
+3. Adding `ensure_output_dirs(command: str, root: Path) -> None` in `run_task_checks.py` before `run_command()` guarantees parent directories for `--junitxml` and `--test-reporter-destination` exist for both `pytest` and `node --test`.
+
+## Impact Analysis & Blast Radius
+
+- **Target Files & Symbols**:
+  - `skills/python-quality-check/resources/scripts/validate_python_quality.py`: `validate_python_config`.
+  - `skills/dev-implementation/resources/scripts/run_task_checks.py`: `run_row` and new `ensure_output_dirs`.
+- **Downstream Callers**: `skills/using-git-worktrees/SKILL.md` and `skills/dev-implementation/SKILL.md`.
+- **Cross-Platform Bridges**: None.
+- **Target Test Coverage Threshold**: $\ge 90\%$ line coverage on modified validation and runner functions.
+
+### BDD SCENARIOS
+
+Covers: EVI-HP-01, EVI-EC-02, EVI-FR-01
+
+```gherkin
+  Scenario: [EVI-HP-01] [Tier C - Integration] Worktree bootstrap executes python-quality.json bootstrap commands and installs polyglot dependencies
+    Given a polyglot git repository containing both "pyproject.toml" and "package.json"
+    And ".agents/quality/python-quality.json" defines "bootstrap" as [["pip", "install", "-e", ".[dev]"]]
+    When "detect_project_type.sh --all" is executed on the repository
+    Then it outputs "python web"
+    And when "bootstrap_worktree.sh" runs on a worktree of the repository
+    Then it executes both the Python bootstrap phase (including the "bootstrap" command arrays from ".agents/quality/python-quality.json") and the Web dependency installation phase
+
+  Scenario: [EVI-EC-02] [Tier A - Unit] Task runner automatically creates parent directories for JUnit XML output flags before executing Verification rows
+    Given a task Verification row containing "--junitxml=.devtool/evidence/nested/junit/report.xml" where ".devtool/evidence/nested/junit" does not exist
+    When "run_task_checks.py" executes the Verification row
+    Then "ensure_output_dirs()" creates ".devtool/evidence/nested/junit" prior to invoking the subprocess so the test runner writes the XML report without error
+
+  Scenario: [EVI-FR-01] [Tier A - Unit] validate_python_quality.py rejects malformed bootstrap configurations with invalid_bootstrap_format
+    Given a ".agents/quality/python-quality.json" file where "bootstrap" is not a non-empty list of non-empty string argument arrays
+    When "validate_python_quality.py" validates the configuration
+    Then it fails validation and emits an error with code "invalid_bootstrap_format"
+```
+
+## Verification
+
+| ID | Phase | Command | Expect | Needs |
+|----|-------|---------|--------|-------|
+| V1 | RED | `python3 -m pytest skills/python-quality-check/resources/scripts/test_validate_python_quality.py::PythonQualityConfigTests::test_EVI_FR_01_invalid_bootstrap_format` | exit 1; contains "FAILED" | — |
+| V2 | GREEN | `python3 -m pytest skills/python-quality-check/resources/scripts/test_validate_python_quality.py skills/dev-implementation/resources/scripts/test_run_task_checks.py` | exit 0; contains "passed" | — |
+| V3 | TIER-B | `ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py skills/python-quality-check/resources/scripts/validate_python_quality.py skills/python-quality-check/resources/scripts/test_validate_python_quality.py skills/dev-implementation/resources/scripts/run_task_checks.py skills/dev-implementation/resources/scripts/test_run_task_checks.py` | exit 0 | — |
+| V4 | TIER-B | `mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py --follow-imports=silent skills/python-quality-check/resources/scripts/validate_python_quality.py skills/dev-implementation/resources/scripts/run_task_checks.py` | exit 0 | — |
+| V5 | TIER-C | `python3 -m pytest skills/python-quality-check/resources/scripts/test_validate_python_quality.py skills/dev-implementation/resources/scripts/test_run_task_checks.py --junitxml=build/test-results/task_01_polyglot.xml` | exit 0; results build/test-results/task_01_polyglot.xml | — |
+
+## Stop and Report If
+
+- A command, path, symbol or anchor named in this task does not match the repository.
+- A Verification row fails for a reason other than its Expect.
+- The work needs a change to a file outside Allowed files, or to a protected path.
+- The work needs a change to this task's Verification table, Definition of Done, Allowed files or
+  Covers line.
+- A variable named in the Needs column is unset.
+
+## Decisions Already Made
+
+- In `skills/python-quality-check/resources/schemas/python-quality.schema.json`, add optional property `"bootstrap"` under root `"properties"`:
+  `{"type": "array", "minItems": 1, "items": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}}`.
+- In `skills/python-quality-check/resources/scripts/validate_python_quality.py`, inside `validate_python_config()`, if `"bootstrap"` is in `config`, validate that `isinstance(bootstrap, list) and len(bootstrap) > 0 and all(isinstance(cmd, list) and len(cmd) > 0 and all(isinstance(arg, str) and bool(arg.strip()) for arg in cmd) for cmd in bootstrap)`; otherwise append `_finding("invalid_bootstrap_format", "Optional 'bootstrap' field must be a non-empty array of non-empty string argument arrays")`.
+- In `skills/dev-implementation/resources/scripts/detect_project_type.sh`, accept `--all` as either first or second argument. When `--all` is active, evaluate all platform checks in order (`flutter`, `ios`, `android`, `python`, `web`, `rust`, where `web` matches any repo with `$TARGET_DIR/package.json` when `--all` is passed or when framework configs / `tests/js` exist) and print space-separated detected types on one line (e.g., `python web`). Without `--all`, preserve existing single-platform output and order.
+- In `skills/dev-implementation/resources/scripts/bootstrap_worktree.sh`, execute Python, Rust, and Web blocks sequentially without early `exit 0`; in the Python block, if `.agents/quality/python-quality.json` defines a non-empty `"bootstrap"` array of argument arrays, execute each command array directly inside `$WORKTREE_PATH` via `python3` (`subprocess.run(cmd_argv, cwd=worktree_path, check=True)`), otherwise fall back to `uv sync` / `poetry install` / `pip install -r requirements.txt`. After the Web block, if `BOOTSTRAPPED=1` and no mobile project markers (`pubspec.yaml`, `melos.yaml`, `Project.swift`, `Workspace.swift`, `Tuist.swift`, `settings.gradle.kts`, `settings.gradle`, `build.gradle.kts`) exist in `$WORKTREE_PATH`, print `"Worktree bootstrap complete at $WORKTREE_PATH"` and `exit 0`.
+- In `skills/dev-implementation/resources/scripts/run_task_checks.py`, add `OUTPUT_DIR_FLAGS = ("--junitxml", "--junit-xml", "--test-reporter-destination")` and `ensure_output_dirs(command: str, root: Path) -> None`, called immediately before `run_command(row.command, root, timeout)` in `run_row()`.
+
+## Definition of Done
+
+- `python-quality.schema.json` and `validate_python_quality.py` accept valid `"bootstrap"` command arrays and reject malformed values with `invalid_bootstrap_format`. (V2, V5)
+- `detect_project_type.sh --all` outputs all detected platforms (`python web`) and `bootstrap_worktree.sh` runs both Python `"bootstrap"` commands and Web dependency installation in polyglot worktrees. (V2, V5)
+- `run_task_checks.py` creates missing parent directories for `--junitxml` and `--test-reporter-destination` before running Verification rows. (V2, V5)
+- `ruff` and `mypy` pass with zero errors. (V3, V4)
+- Clean git working tree with changes restricted to Allowed files. (Gate 5)
+
+## Dependencies & Blockers
+
+- None (Wave 1).
+
+## References & Rollback
+
+- Reference: [2026-11-06-execution-and-verification-infrastructure-design.en.md](2026-11-06-execution-and-verification-infrastructure-design.en.md).
+- Rollback: `git revert` the task commit to restore prior schema, bootstrap scripts, and runner behavior.
+---
+id: "task_02_failure_baseline_and_comparison"
+status: "backlog"
+priority: "high"
+assignee: null
+epic: "execution-and-verification-infrastructure"
+dueDate: null
+created: "2026-11-06T03:20:00Z"
+modified: "2026-11-06T03:20:00Z"
+completedAt: null
+labels: ["infrastructure", "testing", "baseline"]
+order: "b2"
+---
+
+# Task 02: Failure-Set Baseline Recording and Regression Comparison CLI
+
+Epic: [execution_and_verification_infrastructure](execution_and_verification_infrastructure.en.md)
+
+## Requirement Analysis
+
+Resolve Observation #0007: when an epic executes on a repository that has pre-existing full-suite test failures or when tasks verify that no new regressions were introduced across a test suite, hand-written bash pipelines in Verification rows repeatedly fail due to five failure modes:
+1. Matching captured application log lines (`ERROR logger:module.py:42`) instead of terminal `pytest` summary lines.
+2. Producing empty files (`0` bytes) when 0 tests fail (`grep` exits 1 under `pipefail`).
+3. Leaving tracked files dirtied by side-effecting tests.
+4. Reporting false-positive regressions caused by shared test state (e.g., shared SQLite/Postgres state across test modules) that pass when re-run in isolation.
+
+## Files
+
+Allowed files:
+- `skills/dev-implementation/resources/scripts/record_failure_baseline.py` (new)
+- `skills/dev-implementation/resources/scripts/compare_failure_sets.py` (new)
+- `skills/dev-implementation/resources/scripts/test_failure_baseline.py` (new)
+
+Read-only context:
+- `skills/dev-implementation/resources/scripts/run_task_checks.py` (subprocess execution conventions)
+- `.devtool/epic/execution_and_verification_infrastructure/execution_and_verification_infrastructure.en.md` (HLD specification)
+
+## Design Rationale
+
+Applicable skills: `python-quality-check`, `test-driven-development`.
+1. `record_failure_baseline.py` parses only the terminal `=== short test summary info ===` section of `pytest` output (or `# fail` / `not ok` / `✖` summary lines from `node --test`), extracting canonical `FAILED <nodeid>` and `ERROR <nodeid>` identifiers (preserving spaces inside parameterized `[...]` brackets) and sorting/deduplicating them. It distinguishes valid test completions (`exit 0` with summary footer or `exit 1`/`2` with short test summary info) from runner launch/usage/internal errors (`exit 3`, `4`, `5`, `127`, or non-zero exit without a summary block), failing with exit code `2` without writing a baseline on invalid runs. When 0 failures occur in a valid run, it writes `# 0 failures\n` so output files are always non-empty. When `--restore <path>` is passed, it runs `git checkout -- <path>` in a `finally:` block after the test command finishes.
+2. `compare_failure_sets.py` loads baseline and current failure sets (or executes `<command...>` directly), computes `new_failures = sorted(current - baseline)`, and when `--rerun-new` is passed, re-executes each candidate new failure node ID as a single positional argument (`[*rerun_cmd_argv, node_id]`). Candidates that pass in isolation are classified as `ISOLATED_PASS` while those that still fail are classified as `PERSISTENT_FAILURE`; both cause exit code `1` by default so order-dependent state-pollution regressions are never masked, unless `--allow-isolated-pass` is explicitly provided.
+
+## Impact Analysis & Blast Radius
+
+- **Target Files & Symbols**:
+  - `skills/dev-implementation/resources/scripts/record_failure_baseline.py`: new `extract_pytest_failures`, new `extract_node_failures`, new `record_baseline`, and new `main`.
+  - `skills/dev-implementation/resources/scripts/compare_failure_sets.py`: new `load_failure_set`, new `compare_failure_sets`, and new `main`.
+- **Downstream Callers**: Task Verification rows in `dev-designer` and `dev-implementation`.
+- **Cross-Platform Bridges**: None.
+- **Target Test Coverage Threshold**: $\ge 90\%$ line coverage on `record_failure_baseline.py` and `compare_failure_sets.py`.
+
+### BDD SCENARIOS
+
+Covers: EVI-HP-02, EVI-EC-01, EVI-ST-01, EVI-AR-02
+
+```gherkin
+  Scenario: [EVI-HP-02] [Tier C - Integration] Failure-set baseline recording and regression comparison pass when no new failures appear
+    Given a pytest output stream containing 2 pre-existing failed test node IDs in the terminal "=== short test summary info ===" block
+    When "record_failure_baseline.py --out baseline.txt" parses the output stream
+    Then "baseline.txt" contains the 2 sorted failure node IDs
+    And when "compare_failure_sets.py --baseline baseline.txt --current current.txt" runs with a current failure list containing a subset of those 2 node IDs
+    Then it reports 0 new failures and exits with code 0
+
+  Scenario: [EVI-EC-01] [Tier A - Unit] Failure-set parser ignores captured ERROR log lines before short test summary info and writes sentinel on zero failures
+    Given a pytest output stream containing captured "ERROR logger:module.py:42" log lines in stdout before "=== short test summary info ==="
+    When "record_failure_baseline.py" extracts failure IDs from the output stream
+    Then it ignores the captured logger lines and extracts only "FAILED <nodeid>" and "ERROR <nodeid>" lines from the terminal summary block
+    And when 0 tests fail or error in the terminal summary block
+    Then "record_failure_baseline.py" writes "# 0 failures\n" to the output file so the file is non-empty
+
+  Scenario: [EVI-ST-01] [Tier A - Unit] Failure-set comparison with --rerun-new classifies isolated-pass vs persistent failures and requires explicit opt-in to ignore isolated passes
+    Given a baseline failure file with 0 failures and a current failure file with 2 candidate new failure node IDs (including a parameterized ID with spaces)
+    When "compare_failure_sets.py --baseline baseline.txt --current current.txt --rerun-new" runs
+    And the first candidate passes when re-run in isolation via "--rerun-cmd" while the second candidate fails
+    Then the first candidate is classified as "ISOLATED_PASS" and the second as "PERSISTENT_FAILURE" and the command exits with code 1
+    And when all candidates pass in isolation, "compare_failure_sets.py --rerun-new" still exits with code 1 unless "--allow-isolated-pass" is explicitly provided
+
+  Scenario: [EVI-AR-02] [Tier A - Unit] record_failure_baseline.py --restore restores tracked files dirtied as a side effect of test execution
+    Given a test suite command that mutates a tracked file "config/sample.json" during execution
+    When "record_failure_baseline.py --cmd '<test_cmd>' --out baseline.txt --restore config/sample.json" runs
+    Then after the test command completes, "record_failure_baseline.py" executes "git checkout -- config/sample.json" so the tracked file is restored to its clean HEAD state
+```
+
+## Verification
+
+| ID | Phase | Command | Expect | Needs |
+|----|-------|---------|--------|-------|
+| V1 | RED | `python3 -m pytest skills/dev-implementation/resources/scripts/test_failure_baseline.py::test_EVI_HP_02_record_and_compare_baseline` | exit 1; contains "FAILED" | — |
+| V2 | GREEN | `python3 -m pytest skills/dev-implementation/resources/scripts/test_failure_baseline.py` | exit 0; contains "passed" | — |
+| V3 | TIER-B | `ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py skills/dev-implementation/resources/scripts/record_failure_baseline.py skills/dev-implementation/resources/scripts/compare_failure_sets.py skills/dev-implementation/resources/scripts/test_failure_baseline.py` | exit 0 | — |
+| V4 | TIER-B | `mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py --follow-imports=silent skills/dev-implementation/resources/scripts/record_failure_baseline.py skills/dev-implementation/resources/scripts/compare_failure_sets.py` | exit 0 | — |
+| V5 | TIER-C | `python3 -m pytest skills/dev-implementation/resources/scripts/test_failure_baseline.py --junitxml=build/test-results/task_02_baseline.xml` | exit 0; results build/test-results/task_02_baseline.xml | — |
+
+## Stop and Report If
+
+- A command, path, symbol or anchor named in this task does not match the repository.
+- A Verification row fails for a reason other than its Expect.
+- The work needs a change to a file outside Allowed files, or to a protected path.
+- The work needs a change to this task's Verification table, Definition of Done, Allowed files or
+  Covers line.
+- A variable named in the Needs column is unset.
+
+## Decisions Already Made
+
+- `record_failure_baseline.py` CLI interface:
+  `record_failure_baseline.py --output|--out <baseline_file> [--cmd <shell_cmd>] [--in <raw_output_file>] [--runner auto|pytest|node] [--restore <path> ...] [--cwd <dir>] [-- <command...>]`
+  - Accepts both `--output` and `--out` for the output file path, and either `--cmd <shell_cmd>`, `-- <command...>`, `--in <file>`, or stdin.
+  - When executing a command (`--cmd` or `-- <command...>`), automatically appends `--continue-on-collection-errors` for `pytest` if absent, and validates runner completion: for `pytest`, exit code `0` must include a terminal `=== ... ===` summary footer and exit code `1`/`2` must include `=== short test summary info ===` (rejecting exit codes `3`, `4`, `5`, `126`, `127`, or missing summary blocks with exit code `2` and no baseline file written); for `node`, output must include TAP/spec summary lines (`# tests` or `ℹ tests`).
+  - `extract_pytest_failures(output_text: str) -> list[str]` scans lines after the last `=== short test summary info ===` header up to the next `===...===` footer line, matching `^(?:FAILED|ERROR)\s+(.+?)(?:\s+-\s+.*)?$` so parameterized node IDs containing spaces (`tests/test_x.py::test_x[hello world]`) are preserved intact while stripping trailing ` - <reason>` suffixes.
+  - `extract_node_failures(output_text: str) -> list[str]` extracts failing test names from `node --test` summary lines (`not ok <n> - <name>` or `✖ <name>`).
+  - Writes sorted unique node IDs (one per line) to `--output`/`--out` (creating parent directories if needed), or `# 0 failures\n` when 0 tests fail in a valid run.
+  - Always restores any `--restore` paths via `git checkout -- <path>` inside a `finally:` block even when the runner fails.
+- `compare_failure_sets.py` CLI interface:
+  `compare_failure_sets.py --baseline <file> [--current <file>] [--output|--out <report_file>] [--runner auto|pytest|node] [--rerun-new] [--allow-isolated-pass] [--rerun-cmd <cmd_prefix>] [--restore <path> ...] [--cwd <dir>] [-- <command...>]`
+  - Reads `baseline_set` from `--baseline` and `current_set` either from `--current <file>` or by running `-- <command...>` via `record_failure_baseline`'s validated runner and `--restore` logic.
+  - Computes `new_failures = sorted(current_set - baseline_set)`.
+  - If `--rerun-new` is active and `new_failures` is non-empty, runs `[*shlex.split(rerun_cmd), node_id]` (`shell=False`, defaulting `--rerun-cmd` to `"python3 -m pytest"`) for each candidate so spaces in parameterized node IDs are passed as a single argument:
+    - Candidates exiting `0` are logged as `ISOLATED_PASS: <nodeid>`.
+    - Candidates exiting non-zero are logged as `PERSISTENT_FAILURE: <nodeid>`.
+    - Exits `0` only when `persistent_failures` is empty AND (`isolated_passes` is empty OR `--allow-isolated-pass` is set); otherwise exits `1`.
+- In `test_failure_baseline.py`, import `record_failure_baseline` and `compare_failure_sets` inside test functions or helper functions so `pytest` collection succeeds during the `RED` phase before the implementation files exist.
+
+## Definition of Done
+
+- `record_failure_baseline.py` extracts failure node IDs strictly from the terminal summary block, writes `# 0 failures\n` when empty, and restores `--restore` paths after execution. (V2, V5)
+- `compare_failure_sets.py` compares current vs baseline failure sets and filters transient shared-state failures with `--rerun-new`. (V2, V5)
+- `ruff` and `mypy` pass with zero errors. (V3, V4)
+- All 4 BDD scenarios (`EVI-HP-02`, `EVI-EC-01`, `EVI-ST-01`, `EVI-AR-02`) pass and emit JUnit XML results. (V5)
+- Clean git working tree with changes restricted to Allowed files. (Gate 5)
+
+## Dependencies & Blockers
+
+- None (Wave 1).
+
+## References & Rollback
+
+- Reference: [2026-11-06-execution-and-verification-infrastructure-design.en.md](2026-11-06-execution-and-verification-infrastructure-design.en.md).
+- Rollback: `git revert` the task commit to remove `record_failure_baseline.py`, `compare_failure_sets.py`, and `test_failure_baseline.py`.
+
+codex
+Tôi đã xác nhận HEAD đúng candidate và đang tập trung vào các hợp đồng dễ gây lỗi khi triển khai: định danh failure, quyền miễn trừ live tests, thứ tự replay RED/GREEN, và độ mới của evidence MEASURE. Tiếp theo tôi sẽ đối chiếu chúng với các parser và gate hiện có.
+
+exec
+/bin/zsh -lc 'cat .devtool/epic/execution_and_verification_infrastructure/task_03_live_integration_and_route_matching.md .devtool/epic/execution_and_verification_infrastructure/task_04_task_replay_and_measure_phase.md .devtool/epic/execution_and_verification_infrastructure/task_05_execution_infra_e2e_acceptance.md' in /Users/danhdueexoictif/AllProjects/ai-agent-tools
+ succeeded in 0ms:
+---
+id: "task_03_live_integration_and_route_matching"
+status: "backlog"
+priority: "high"
+assignee: null
+epic: "execution-and-verification-infrastructure"
+dueDate: null
+created: "2026-11-06T03:20:00Z"
+modified: "2026-11-06T03:20:00Z"
+completedAt: null
+labels: ["infrastructure", "readiness", "integration"]
+order: "b3"
+---
+
+# Task 03: Opt-In Live Integration Results and R5b Parameterized Route Matching
+
+Epic: [execution_and_verification_infrastructure](execution_and_verification_infrastructure.en.md)
+
+## Requirement Analysis
+
+Resolve Observation #0010:
+1. `check_epic_readiness.py` (`R6`) requires every Tier C test file in a task's `TIER-C` row to appear in an HLD `Integration results:` line, while `run_external_review.py` (`collect_facts()`) runs every `Integration results:` command unconditionally at Gate 4. Epics with opt-in live integration tests (such as `-m live_llm` tests requiring `PLT_LIVE_OLLAMA_MODEL` or `EVI_LIVE_MODEL`) have no way to declare conditional live integration commands that satisfy `R6` and skip cleanly at Gate 4 when the environment variable is unset.
+2. `check_epic_readiness.py` (`R5b`) extracts `/api/...` route strings from task files and checks for exact literal substring matches in tracked source files, emitting false-positive `R5b WARN` findings when a task uses a concrete route argument (such as `http://localhost/api/align/stream/job_plt`) while the backend defines a parameterized route template (`http://localhost/api/align/stream/{job_id}`, `<job_id>`, or `:job_id`).
+
+## Files
+
+Allowed files:
+- `skills/dev-implementation/resources/scripts/task_contract.py`
+- `skills/dev-implementation/resources/scripts/check_task_contract.py`
+- `skills/dev-implementation/resources/scripts/check_epic_readiness.py`
+- `skills/dev-implementation/resources/scripts/audit_epic.py`
+- `skills/dev-implementation/resources/scripts/run_external_review.py`
+- `skills/dev-implementation/resources/scripts/test_check_epic_readiness.py`
+- `skills/dev-implementation/resources/scripts/test_audit_epic.py`
+
+Read-only context:
+- `.devtool/epic/execution_and_verification_infrastructure/execution_and_verification_infrastructure.en.md` (HLD specification)
+
+## Design Rationale
+
+Applicable skills: `python-quality-check`, `test-driven-development`.
+1. Introducing `IntegrationResultSpec(command: str, report: str, live: bool = False, needs: tuple[str, ...] = ())` and `parse_integration_result_specs(hld_text: str) -> list[IntegrationResultSpec]` in `task_contract.py` allows HLDs to declare:
+   `Integration results (live, needs: VAR1, VAR2): <command> -> <report_path>`
+   By having `parse_integration_results(hld_text)` return `"<command> -> <report>"` for both standard and live lines, `check_epic_readiness.py` (`R6`) and `check_task_contract.py` automatically validate report gitignore rules and Tier C file coverage, while `collect_facts()` in `run_external_review.py` inspects `spec.live` and `spec.needs` to either execute the command (when all `needs` variables are set in `os.environ`) or record `SKIPPED (missing env: ...)` without failing Gate 4.
+2. Adding `route_matches_codebase(route: str, tracked_contents: list[str]) -> bool` in `check_epic_readiness.py` (`R5b`) preserves fast literal substring checks and adds template regex matching for `{param}`, `<param>`, and `:param` route placeholders in tracked source files.
+
+## Impact Analysis & Blast Radius
+
+- **Target Files & Symbols**:
+  - `skills/dev-implementation/resources/scripts/task_contract.py`: `parse_integration_results`, new `IntegrationResultSpec`, and new `parse_integration_result_specs`.
+  - `skills/dev-implementation/resources/scripts/check_task_contract.py`: `check_hld`.
+  - `skills/dev-implementation/resources/scripts/check_epic_readiness.py`: `check_grounding`, `check_gate4_coverage`, and new `route_matches_codebase`.
+  - `skills/dev-implementation/resources/scripts/audit_epic.py`: `GRADER_LINES`, `hld_amendments`.
+  - `skills/dev-implementation/resources/scripts/run_external_review.py`: `collect_facts`.
+- **Downstream Callers**: `check_epic_readiness.py`, `audit_epic.py`, `run_external_review.py`.
+- **Cross-Platform Bridges**: None.
+- **Target Test Coverage Threshold**: $\ge 90\%$ line coverage on new parsing, route matching, and Gate 4 live-skip functions.
+
+### BDD SCENARIOS
+
+Covers: EVI-HP-03, EVI-EC-03
+
+```gherkin
+  Scenario: [EVI-HP-03] [Tier C - Integration] Opt-in live integration results satisfy R6 coverage, skip cleanly when env is unset, and execute when env is set
+    Given an epic HLD containing both "Integration results:" and "Integration results (live, needs: EVI_LIVE_MODEL):"
+    And "bdd_scenarios.en.md" declares a "[Tier C - Integration]" scenario whose test file appears in the live integration command
+    When "check_epic_readiness.py" evaluates R6 coverage for the epic
+    Then R6 passes with 0 missing Tier C test files
+    And when "collect_facts()" in "run_external_review.py" runs with "EVI_LIVE_MODEL" unset in the environment
+    Then the live integration row is recorded as "SKIPPED (missing env: EVI_LIVE_MODEL)" without failing Gate 4
+    And when "collect_facts()" in "run_external_review.py" runs with "EVI_LIVE_MODEL=1" set in the environment
+    Then the live integration row is executed and its exit status is enforced
+
+  Scenario: [EVI-EC-03] [Tier A - Unit] R5b route drift check matches concrete route literals against parameterized route templates without false-positive warnings
+    Given a task file referencing a concrete route literal "http://localhost/api/align/stream/job_plt"
+    And the target codebase defines the parameterized route "http://localhost/api/align/stream/{job_id}" (or "<job_id>" or ":job_id")
+    When "check_epic_readiness.py" runs the R5b route drift check
+    Then "route_matches_codebase()" matches the concrete route against the parameterized template and emits 0 R5b warnings
+```
+
+## Verification
+
+| ID | Phase | Command | Expect | Needs |
+|----|-------|---------|--------|-------|
+| V1 | RED | `python3 -m pytest skills/dev-implementation/resources/scripts/test_check_epic_readiness.py::ReadinessGroundingTest::test_EVI_HP_03_live_integration_results_and_gate4` | exit 1; contains "FAILED" | — |
+| V2 | GREEN | `python3 -m pytest skills/dev-implementation/resources/scripts/test_check_epic_readiness.py skills/dev-implementation/resources/scripts/test_audit_epic.py` | exit 0; contains "passed" | — |
+| V3 | TIER-B | `ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py skills/dev-implementation/resources/scripts/task_contract.py skills/dev-implementation/resources/scripts/check_task_contract.py skills/dev-implementation/resources/scripts/check_epic_readiness.py skills/dev-implementation/resources/scripts/audit_epic.py skills/dev-implementation/resources/scripts/run_external_review.py skills/dev-implementation/resources/scripts/test_check_epic_readiness.py skills/dev-implementation/resources/scripts/test_audit_epic.py` | exit 0 | — |
+| V4 | TIER-B | `mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py --follow-imports=silent skills/dev-implementation/resources/scripts/task_contract.py skills/dev-implementation/resources/scripts/check_task_contract.py skills/dev-implementation/resources/scripts/check_epic_readiness.py skills/dev-implementation/resources/scripts/audit_epic.py skills/dev-implementation/resources/scripts/run_external_review.py` | exit 0 | — |
+| V5 | TIER-C | `python3 -m pytest skills/dev-implementation/resources/scripts/test_check_epic_readiness.py skills/dev-implementation/resources/scripts/test_audit_epic.py --junitxml=build/test-results/task_03_live_int.xml` | exit 0; results build/test-results/task_03_live_int.xml | — |
+
+## Stop and Report If
+
+- A command, path, symbol or anchor named in this task does not match the repository.
+- A Verification row fails for a reason other than its Expect.
+- The work needs a change to a file outside Allowed files, or to a protected path.
+- The work needs a change to this task's Verification table, Definition of Done, Allowed files or
+  Covers line.
+- A variable named in the Needs column is unset.
+
+## Decisions Already Made
+
+- In `skills/dev-implementation/resources/scripts/task_contract.py`:
+  - Define `@dataclass(frozen=True) class IntegrationResultSpec: command: str; report: str; live: bool = False; needs: tuple[str, ...] = ()` and `INTEGRATION_RESULTS_RE = re.compile(r"^Integration results(?:\s*\(live,\s*needs:\s*([^)]+)\))?:\s*(.+)$")`.
+  - `parse_integration_result_specs(hld_text: str) -> list[IntegrationResultSpec]` parses both `Integration results: <cmd> -> <report>` and `Integration results (live, needs: VAR1, VAR2): <cmd> -> <report>`.
+  - `parse_integration_results(hld_text: str) -> list[str]` returns the `<cmd> -> <report>` body for every matched line (both standard and live) so existing callers (`check_epic_readiness.py` `R6` and `check_task_contract.py`) include live integration commands seamlessly.
+- In `skills/dev-implementation/resources/scripts/check_task_contract.py`, `check_hld()` also checks `tc.parse_integration_result_specs(text)` and verifies that every variable in `spec.needs` is mentioned in `## Verification Environment`.
+- In `skills/dev-implementation/resources/scripts/audit_epic.py`, update `GRADER_LINES = ("Protected paths:", "Integration results:", "Integration results (live")` so `hld_amendments()` detects changes to live integration lines as well.
+- In `skills/dev-implementation/resources/scripts/run_external_review.py`, `collect_facts()` iterates over `parse_integration_result_specs(hld_text)`: when `spec.live` is True and any variable in `spec.needs` is unset or empty in `os.environ`, it appends `f"$ {spec.command}\nSKIPPED (missing env: {', '.join(missing)})\n"` to `results` without calling `run_gate()` and without adding `spec.report` to `reports`.
+- In `skills/dev-implementation/resources/scripts/check_epic_readiness.py`, `route_matches_codebase(route: str, tracked_contents: list[str]) -> bool` returns `True` if `route` appears literally in any tracked file or if `route` matches a parameterized route template in `tracked_contents` where `{param}`, `<param>`, or `:param` segments are replaced by `[^/\s"'\`]+`.
+
+## Definition of Done
+
+- `task_contract.py`, `check_task_contract.py`, `check_epic_readiness.py`, `audit_epic.py`, and `run_external_review.py` support `Integration results (live, needs: VAR):` (`EVI-HP-03`). (V2, V5)
+- `route_matches_codebase()` in `check_epic_readiness.py` matches concrete routes against `{id}`, `<id>`, and `:id` parameterized templates (`EVI-EC-03`). (V2, V5)
+- `ruff` and `mypy` pass with zero errors. (V3, V4)
+- Automated tests emit JUnit XML results covering `EVI-HP-03` and `EVI-EC-03`. (V5)
+- Clean git working tree with changes restricted to Allowed files. (Gate 5)
+
+## Dependencies & Blockers
+
+- None (Wave 1).
+
+## References & Rollback
+
+- Reference: [2026-11-06-execution-and-verification-infrastructure-design.en.md](2026-11-06-execution-and-verification-infrastructure-design.en.md).
+- Rollback: `git revert` the task commit to restore prior `Integration results:` and `R5b` behavior.
+---
+id: "task_04_task_replay_and_measure_phase"
+status: "backlog"
+priority: "high"
+assignee: null
+epic: "execution-and-verification-infrastructure"
+dueDate: null
+created: "2026-11-06T03:20:00Z"
+modified: "2026-11-06T03:20:00Z"
+completedAt: null
+labels: ["infrastructure", "replay", "measure"]
+order: "b4"
+---
+
+# Task 04: Task Text Replay Engine, Static Anchor Verification, and MEASURE Phase
+
+Epic: [execution_and_verification_infrastructure](execution_and_verification_infrastructure.en.md)
+
+## Requirement Analysis
+
+Resolve Observations #0011 and #0017:
+1. Authoring defects inside task prose (`Create <path>:`, `Replace in <path>:` / `With:`, and `Insert in <path> (after|before):` / `With:` code blocks) were previously discovered only by manually replaying task text in a scratch worktree before packaging. Integrating fast static edit-anchor verification (`verify_task_edit_anchors()`) into `check_epic_readiness.py` (`R5`) and providing `replay_task_text.py` (invoked by `check_epic_readiness.py --replay`) catches missing or ambiguous edit anchors automatically.
+2. Long-running measurement tasks (such as multi-hour local model benchmarks) do not fit standard 600s Verification rows and need a dedicated `Phase: MEASURE` (`run_task_checks.py measure <task.md> [--timeout 7200] [--resume]`) that executes measurement rows, supports `--resume` when `runs["measure"]` passed and all declared `Evidence files:` exist and are non-empty on disk, and enforces `MEASURE` completion at `evaluate_done_gate()` and `audit_epic.py`.
+
+## Files
+
+Allowed files:
+- `skills/dev-implementation/resources/scripts/replay_task_text.py` (new)
+- `skills/dev-implementation/resources/scripts/task_contract.py`
+- `skills/dev-implementation/resources/scripts/run_task_checks.py`
+- `skills/dev-implementation/resources/scripts/check_epic_readiness.py`
+- `skills/dev-implementation/resources/scripts/audit_epic.py`
+- `skills/dev-implementation/resources/scripts/test_replay_and_measure.py` (new)
+
+Read-only context:
+- `.devtool/epic/execution_and_verification_infrastructure/execution_and_verification_infrastructure.en.md` (HLD specification)
+
+## Design Rationale
+
+Applicable skills: `python-quality-check`, `test-driven-development`.
+1. `replay_task_text.py` parses structured fenced directives (`Create <path>:`, `Replace in <path>:` + `With:`, `Insert in <path> (after|before):` + `With:`) from task markdown. `verify_task_edit_anchors(root, task_path, task_text, prior_touched)` checks that every `Replace in` or `Insert in` anchor targeting a tracked file not yet created/modified by an earlier directive occurs **exactly once** (`count == 1`) in `root / <path>`, reporting missing (`0` matches) or ambiguous (`>= 2` matches) anchors in `check_epic_readiness.py` (`R5`).
+2. `replay_epic_in_worktree(root, epic_dir, timeout)` creates a detached temporary git worktree, applies each task's directives in topological order, runs the task's `GREEN`/`TIER-B`/`TIER-C` commands when present, and removes the temporary worktree in a `finally:` block so `check_epic_readiness.py <epic> --replay` never mutates the main repository.
+3. Adding `"MEASURE"` to `PHASES = ("RED", "MEASURE", "GREEN", "TIER-B", "TIER-C")` in `task_contract.py` and `mode = "measure"` (`--timeout 7200`, `--resume`) in `run_task_checks.py` separates heavy measurement runs from fast `verify` assertions on committed evidence files.
+
+## Impact Analysis & Blast Radius
+
+- **Target Files & Symbols**:
+  - `skills/dev-implementation/resources/scripts/replay_task_text.py`: new `parse_task_directives`, new `verify_task_edit_anchors`, new `apply_task_directives`, and new `replay_epic_in_worktree`.
+  - `skills/dev-implementation/resources/scripts/task_contract.py`: `PHASES`, `row_problems`, `evaluate_done_gate`, and new `parse_evidence_files`.
+  - `skills/dev-implementation/resources/scripts/run_task_checks.py`: `run`, `main`.
+  - `skills/dev-implementation/resources/scripts/check_epic_readiness.py`: `Context`, `check_grounding`, `check_baseline`, `run_checks`, `main`.
+  - `skills/dev-implementation/resources/scripts/audit_epic.py`: `audit_evidence`.
+- **Downstream Callers**: `check_epic_readiness.py`, `run_task_checks.py`, `audit_epic.py`.
+- **Cross-Platform Bridges**: None.
+- **Target Test Coverage Threshold**: $\ge 90\%$ line coverage on `replay_task_text.py` and `MEASURE` phase logic.
+
+### BDD SCENARIOS
+
+Covers: EVI-HP-04, EVI-ST-02, EVI-FR-02, EVI-FR-03
+
+```gherkin
+  Scenario: [EVI-HP-04] [Tier C - Integration] Task text replay engine applies fenced directives in a scratch worktree and MEASURE phase executes and records evidence
+    Given a task file containing "Create", "Replace in", and "Insert in" fenced code blocks, "Phase: MEASURE" rows, and "Evidence files: .devtool/evidence/bench.json"
+    When "replay_task_text.py" replays the task inside a temporary git worktree
+    Then all fenced directives apply cleanly and the task's Verification commands pass
+    And when "run_task_checks.py measure" executes the task
+    Then the "MEASURE" rows run, create ".devtool/evidence/bench.json", and record a passing "measure" entry in the task's evidence JSON
+
+  Scenario: [EVI-ST-02] [Tier C - Integration] run_task_checks.py measure --resume reuses cached MEASURE runs only when tree, row contracts, and evidence file digests match
+    Given a task file with "Phase: MEASURE" rows and "Evidence files: .devtool/evidence/bench.json"
+    And a prior "run_task_checks.py measure" execution recorded "runs.measure.passed = true" with matching worktree tree, row commands/expectations, and ".devtool/evidence/bench.json" SHA-256 digest
+    When "run_task_checks.py measure <task.md> --resume" is invoked on the unchanged tree and evidence file
+    Then it skips re-executing the "MEASURE" subprocess commands and exits with code 0
+    And when the worktree tree, row command, or ".devtool/evidence/bench.json" content is modified, "--resume" invalidates the cache and re-executes the "MEASURE" rows
+
+  Scenario: [EVI-FR-02] [Tier A - Unit] R5 static anchor verification fails when a Replace in or Insert in anchor is missing or ambiguous in the target file
+    Given a task file containing a "Replace in <path>:" or "Insert in <path>:" directive whose anchor text occurs 0 times or 2+ times in "<path>"
+    When "verify_task_edit_anchors()" in "check_epic_readiness.py" inspects the task
+    Then R5 fails and reports the exact file path and missing or ambiguous anchor snippet
+
+  Scenario: [EVI-FR-03] [Tier A - Unit] evaluate_done_gate fails when a task contains MEASURE rows that are missing, failed, or stale relative to the current tree and evidence digests
+    Given a task file containing at least one "Phase: MEASURE" Verification row
+    And the task's evidence JSON either lacks "runs.measure", has "runs.measure.passed == false", or has a mismatched "tree", row contract, or evidence file SHA-256 digest
+    When "evaluate_done_gate()" evaluates the task for transition to "done"
+    Then it returns a non-empty failure list blocking the "done" transition until a fresh "run_task_checks.py measure" passes
+```
+
+## Verification
+
+| ID | Phase | Command | Expect | Needs |
+|----|-------|---------|--------|-------|
+| V1 | RED | `python3 -m pytest skills/dev-implementation/resources/scripts/test_replay_and_measure.py::test_EVI_HP_04_replay_and_measure_phase` | exit 1; contains "FAILED" | — |
+| V2 | GREEN | `python3 -m pytest skills/dev-implementation/resources/scripts/test_replay_and_measure.py` | exit 0; contains "passed" | — |
+| V3 | TIER-B | `ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py skills/dev-implementation/resources/scripts/replay_task_text.py skills/dev-implementation/resources/scripts/task_contract.py skills/dev-implementation/resources/scripts/run_task_checks.py skills/dev-implementation/resources/scripts/check_epic_readiness.py skills/dev-implementation/resources/scripts/audit_epic.py skills/dev-implementation/resources/scripts/test_replay_and_measure.py` | exit 0 | — |
+| V4 | TIER-B | `mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py --follow-imports=silent skills/dev-implementation/resources/scripts/replay_task_text.py skills/dev-implementation/resources/scripts/task_contract.py skills/dev-implementation/resources/scripts/run_task_checks.py skills/dev-implementation/resources/scripts/check_epic_readiness.py skills/dev-implementation/resources/scripts/audit_epic.py` | exit 0 | — |
+| V5 | TIER-C | `python3 -m pytest skills/dev-implementation/resources/scripts/test_replay_and_measure.py --junitxml=build/test-results/task_04_replay_measure.xml` | exit 0; results build/test-results/task_04_replay_measure.xml | — |
+
+## Stop and Report If
+
+- A command, path, symbol or anchor named in this task does not match the repository.
+- A Verification row fails for a reason other than its Expect.
+- The work needs a change to a file outside Allowed files, or to a protected path.
+- The work needs a change to this task's Verification table, Definition of Done, Allowed files or
+  Covers line.
+- A variable named in the Needs column is unset.
+
+## Decisions Already Made
+
+- In `skills/dev-implementation/resources/scripts/task_contract.py`:
+  - `PHASES = ("RED", "MEASURE", "GREEN", "TIER-B", "TIER-C")`.
+  - `parse_evidence_files(task_text: str) -> list[str]` extracts inline code paths under `Evidence files:` in `## Files` (or inline `Evidence files: <path>` lines in the task body).
+  - `row_problems(rows: list[Row], runs: dict) -> list[str]` maps `row.phase == "RED"` to `runs.get("red")`, `row.phase == "MEASURE"` to `runs.get("measure")`, and all other phases to `runs.get("verify")`, verifying that every `MEASURE` row has a matching `PASS` record with identical `command` and `expect_text`.
+  - `evaluate_done_gate(task_file: Path) -> list[str]` checks `needs_measure = any(row.phase == "MEASURE" for row in rows)`: when `True`, requires `"measure"` in `runs`, verifies `runs["measure"].get("passed") is True`, verifies `runs["measure"].get("tree") == fingerprint(layout.root)[0]` (appending `"condition 4: the measure run's tree differs from the current tree"` on mismatch), and verifies that every file in `parse_evidence_files(task_text)` exists on disk and its SHA-256 digest matches `runs["measure"].get("evidence_digests", {}).get(rel_path)`.
+- In `skills/dev-implementation/resources/scripts/audit_epic.py`, `audit_evidence()` adds `(["measure"] if any(r.phase == "MEASURE" for r in rows) else [])` to `needed` and verifies `runs["measure"].get("passed") is True` and non-empty `evidence_digests` for declared `Evidence files:`.
+- In `skills/dev-implementation/resources/scripts/run_task_checks.py`:
+  - `main()` accepts `mode` in `("red", "measure", "verify", "status")`, `--timeout` (default `7200` when `mode == "measure"` and `--timeout` was not explicitly passed, else `1800`), and `--resume` (`action="store_true"`).
+  - In `run(args)`: when `args.mode == "measure"`, selects `measure_rows = [row for row in rows if row.phase == "MEASURE"]`. If `--resume` is set, loads existing `evidence = load_evidence(layout.evidence)`: if `m_run := evidence.get("runs", {}).get("measure")` has `m_run.get("passed") is True`, `m_run.get("tree") == fingerprint(layout.root)[0]`, `row_problems(measure_rows, {"measure": m_run})` is empty, and every path in `parse_evidence_files(task_text)` exists under `layout.root` with `stat().st_size > 0` and SHA-256 matching `m_run.get("evidence_digests", {}).get(rel_path)`, prints `"MEASURE resumed (cached PASS)"` and returns `0` without re-running subprocesses.
+  - When recording `evidence["runs"][args.mode]`, include `"passed": passed` and (for `mode == "measure"`) `"evidence_digests": {rel_path: sha256_hex}` alongside `"head"`, `"tree"`, `"patch_id"`, `"started"`, `"finished"`, and `"rows"`.
+- In `skills/dev-implementation/resources/scripts/replay_task_text.py`:
+  - CLI interface: `replay_task_text.py <task.md> [--worktree <dir>] [--run-rows] [--timeout 600]`.
+  - Support directives outside Gherkin fences:
+    - `Create `?(<path>)`?:` followed by a fenced code block.
+    - `Replace in `?(<path>)`?:` followed by a fenced code block (target anchor) and `With:` followed by a fenced code block (replacement).
+    - `Insert in `?(<path>)`? (after|before):` followed by a fenced code block (anchor) and `With:` followed by a fenced code block (inserted text).
+  - `verify_task_edit_anchors(root: Path, task_path: Path, task_text: str, prior_modified: set[str] | None = None) -> list[str]` checks every `Replace in` and `Insert in` directive: if `<path>` is not in `prior_modified`, reads `root / <path>` and verifies `content.count(anchor) == 1`; if `0`, appends `f"{task_path.name}: missing edit anchor in {path}: {anchor.splitlines()[0]!r}"`; if `>= 2`, appends `f"{task_path.name}: ambiguous edit anchor ({count} matches) in {path}: {anchor.splitlines()[0]!r}"`; then adds `<path>` to `prior_modified`.
+- In `skills/dev-implementation/resources/scripts/check_epic_readiness.py`:
+  - Call `replay_task_text.verify_task_edit_anchors` in `check_grounding(ctx)` (`R5`) across tasks in sorted order, emitting `Finding("R5", "FAIL", msg)` for any anchor error.
+  - Add `--replay` flag to `main()`, `Context`, `load_context()`, and `run_checks()`: when `ctx.replay` is True, `check_baseline(ctx)` calls `replay_task_text.replay_epic_in_worktree(ctx.root, ctx.epic_dir, timeout=ctx.row_timeout)` and emits `Finding("R8", "FAIL", msg)` on any replay failure.
+
+## Definition of Done
+
+- `replay_task_text.py` applies `Create`, `Replace in`, and `Insert in` directives in a scratch worktree and verifies anchors statically in `R5` (`EVI-HP-04`, `EVI-FR-02`). (V2, V5)
+- `task_contract.py`, `run_task_checks.py`, and `audit_epic.py` support `Phase: MEASURE`, `run_task_checks.py measure --resume`, and Done-Gate enforcement (`EVI-HP-04`, `EVI-ST-02`, `EVI-FR-03`). (V2, V5)
+- `ruff` and `mypy` pass with zero errors. (V3, V4)
+- Automated tests pass and write JUnit XML results. (V5)
+- Clean git working tree with changes restricted to Allowed files. (Gate 5)
+
+## Dependencies & Blockers
+
+- Blocked by [Task 01](task_01_polyglot_worktree_bootstrap.md)
+- Blocked by [Task 03](task_03_live_integration_and_route_matching.md)
+
+## References & Rollback
+
+- Reference: [2026-11-06-execution-and-verification-infrastructure-design.en.md](2026-11-06-execution-and-verification-infrastructure-design.en.md).
+- Rollback: `git revert` the task commit to remove `replay_task_text.py` and `MEASURE` phase changes.
+---
+id: "task_05_execution_infra_e2e_acceptance"
+status: "backlog"
+priority: "high"
+assignee: null
+epic: "execution-and-verification-infrastructure"
+dueDate: null
+created: "2026-11-06T03:20:00Z"
+modified: "2026-11-06T03:20:00Z"
+completedAt: null
+labels: ["acceptance", "integration", "docs"]
+order: "b5"
+---
+
+# Task 05: End-to-End Execution Infrastructure Acceptance Verification
+
+Epic: [execution_and_verification_infrastructure](execution_and_verification_infrastructure.en.md)
+
+## Requirement Analysis
+
+Provide the end-to-end subcutaneous acceptance test suite (`tests/test_execution_infra_acceptance.py`) verifying `check_epic_readiness.py --replay` isolated worktree execution and cleanup (`EVI-AR-01`) alongside all `[Tier C - Integration]` scenarios (`EVI-HP-01`, `EVI-HP-02`, `EVI-HP-03`, `EVI-HP-04`, `EVI-ST-02`, `EVI-AR-01`), and update `skills/dev-designer/SKILL.md` and `skills/dev-implementation/SKILL.md` to document:
+1. Optional `"bootstrap"` commands in `.agents/quality/python-quality.json` and polyglot worktree bootstrap (`#0006`, `#0018`).
+2. Failure-set baseline recording (`record_failure_baseline.py`) and regression comparison (`compare_failure_sets.py`) (`#0007`).
+3. Opt-in `Integration results (live, needs: VAR):` and parameterized route matching in `R5b` (`#0010`).
+4. Static edit-anchor checking (`R5`) and scratch-worktree replay (`check_epic_readiness.py --replay`) (`#0011`).
+5. `Phase: MEASURE` (`run_task_checks.py measure --resume`) and the **Measurement-to-Evidence** pattern (`#0017`).
+
+## Files
+
+Allowed files:
+- `tests/test_execution_infra_acceptance.py` (new)
+- `skills/dev-designer/SKILL.md`
+- `skills/dev-implementation/SKILL.md`
+
+Read-only context:
+- `skills/dev-implementation/resources/scripts/replay_task_text.py` (implemented in Task 04)
+- `skills/dev-implementation/resources/scripts/check_epic_readiness.py` (updated in Tasks 03–04)
+- `skills/dev-implementation/resources/scripts/run_task_checks.py` (updated in Tasks 01 and 04)
+- `.devtool/epic/execution_and_verification_infrastructure/execution_and_verification_infrastructure.en.md` (HLD specification)
+
+## Design Rationale
+
+Applicable skills: `python-quality-check`, `doc_quality_check`, `verification-before-completion`.
+Because Tasks 01–04 implement all underlying runtime behaviors, this final acceptance task uses `RED: n/a` and verifies the complete end-to-end integration across temporary Git repositories and worktrees while updating the skill documentation so future designers and programmers adopt these tools by default.
+
+## Impact Analysis & Blast Radius
+
+- **Target Files & Symbols**:
+  - `tests/test_execution_infra_acceptance.py`: new `test_EVI_AR_01_readiness_replay_isolated_worktree` and end-to-end Tier C acceptance tests.
+- **Downstream Callers**: `scripts/verify.sh` and Gate 4 `Integration results:`.
+- **Cross-Platform Bridges**: None.
+- **Target Test Coverage Threshold**: $100\%$ of `[Tier C - Integration]` scenarios (`EVI-HP-01`, `EVI-HP-02`, `EVI-HP-03`, `EVI-HP-04`, `EVI-ST-02`, `EVI-AR-01`) verified in JUnit XML output.
+
+### BDD SCENARIOS
+
+Covers: EVI-AR-01
+
+```gherkin
+  Scenario: [EVI-AR-01] [Tier C - Integration] check_epic_readiness.py --replay executes task text in an isolated scratch worktree and cleans up without mutating the main tree
+    Given an epic whose tasks contain valid "Create", "Replace in", and "Insert in" directives
+    When "check_epic_readiness.py <epic> --replay" is executed
+    Then it creates a temporary git worktree, replays each task's fenced edits sequentially, runs the Verification commands, and removes the temporary worktree on completion
+    And "git status --porcelain" on the main repository remains completely unchanged
+```
+
+## Verification
+
+RED: n/a — end-to-end acceptance test suite and skill documentation verifying behaviors already implemented in Tasks 01–04.
+
+| ID | Phase | Command | Expect | Needs |
+|----|-------|---------|--------|-------|
+| V1 | GREEN | `python3 -m pytest tests/test_execution_infra_acceptance.py` | exit 0; contains "passed" | — |
+| V2 | TIER-B | `ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py tests/test_execution_infra_acceptance.py` | exit 0 | — |
+| V3 | TIER-B | `mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py --follow-imports=silent tests/test_execution_infra_acceptance.py` | exit 0 | — |
+| V4 | TIER-B | `python3 skills/doc_quality_check/resources/scripts/check_document.py skills/dev-designer/SKILL.md skills/dev-implementation/SKILL.md` | exit 0; contains "0 findings" | — |
+| V5 | TIER-C | `python3 -m pytest tests/ skills/dev-implementation/resources/scripts/ skills/python-quality-check/resources/scripts/ --junitxml=build/test-results/pytest.xml` | exit 0; results build/test-results/pytest.xml | — |
+
+## Stop and Report If
+
+- A command, path, symbol or anchor named in this task does not match the repository.
+- A Verification row fails for a reason other than its Expect.
+- The work needs a change to a file outside Allowed files, or to a protected path.
+- The work needs a change to this task's Verification table, Definition of Done, Allowed files or
+  Covers line.
+- A variable named in the Needs column is unset.
+
+## Decisions Already Made
+
+- `tests/test_execution_infra_acceptance.py` tests `check_epic_readiness.py <epic> --replay` on a temporary Git repository containing a 2-task epic with `Create`, `Replace in`, and `Insert in` directives, asserting exit code `0`, `R8 PASS`, and `git status --porcelain == ""` + `len(git worktree list) == 1` after completion (`EVI-AR-01`).
+- `skills/dev-designer/SKILL.md` documents `Integration results (live, needs: VAR):`, `Phase: MEASURE` (**Measurement-to-Evidence** pattern), and `check_epic_readiness.py --replay`.
+- `skills/dev-implementation/SKILL.md` documents `run_task_checks.py measure <task.md> [--timeout 7200] [--resume]`, `record_failure_baseline.py`, and `compare_failure_sets.py`.
+
+## Definition of Done
+
+- `tests/test_execution_infra_acceptance.py` verifies `EVI-AR-01` (`check_epic_readiness.py --replay` isolated worktree execution and cleanup) and passes the full Tier C integration suite. (V1, V5)
+- `skills/dev-designer/SKILL.md` and `skills/dev-implementation/SKILL.md` document the new execution and verification infrastructure capabilities and pass `check_document.py`. (V4)
+- `ruff` and `mypy` pass with zero errors. (V2, V3)
+- Clean git working tree with changes restricted to Allowed files. (Gate 5)
+
+## Dependencies & Blockers
+
+- Blocked by [Task 01](task_01_polyglot_worktree_bootstrap.md)
+- Blocked by [Task 02](task_02_failure_baseline_and_comparison.md)
+- Blocked by [Task 03](task_03_live_integration_and_route_matching.md)
+- Blocked by [Task 04](task_04_task_replay_and_measure_phase.md)
+
+## References & Rollback
+
+- Reference: [2026-11-06-execution-and-verification-infrastructure-design.en.md](2026-11-06-execution-and-verification-infrastructure-design.en.md).
+- Rollback: `git revert` the task commit to remove `tests/test_execution_infra_acceptance.py` and doc updates.
+
+exec
+/bin/zsh -lc 'cat .devtool/epic/execution_and_verification_infrastructure/2026-11-06-execution-and-verification-infrastructure-design.vi.md .devtool/epic/execution_and_verification_infrastructure/execution_and_verification_infrastructure.vi.md .devtool/epic/execution_and_verification_infrastructure/bdd_scenarios.vi.md' in /Users/danhdueexoictif/AllProjects/ai-agent-tools
+ succeeded in 0ms:
+# Đặc tả Thiết kế Hạ tầng Thực thi và Xác minh (Execution and Verification Infrastructure)
+
+- **Date**: 2026-11-06
+- **Author**: AI Assistant (Co-Architect)
+- **Status**: Approved
+- **Epic**: `execution-and-verification-infrastructure`
+- **Epic Directory**: `execution_and_verification_infrastructure`
+- **Source Observations**: `#0006`, `#0007`, `#0010`, `#0011`, `#0017`, `#0018`
+
+## Mục lục
+
+- [Tổng quan và Phát biểu Bài toán](#tổng-quan-và-phát-biểu-bài-toán)
+- [Mục tiêu và Phạm vi Ngoài Mục tiêu](#mục-tiêu-và-phạm-vi-ngoài-mục-tiêu)
+- [Kiến trúc và Thiết kế Thành phần](#kiến-trúc-và-thiết-kế-thành-phần)
+  - [1. Bootstrap Worktree và Hỗ trợ Đa nền tảng Polyglot](#1-bootstrap-worktree-và-hỗ-trợ-đa-nền-tảng-polyglot)
+  - [2. Ghi nhận Baseline Lỗi Toàn cục và So sánh Hồi quy](#2-ghi-nhận-baseline-lỗi-toàn-cục-và-so-sánh-hồi-quy)
+  - [3. Kết quả Kiểm thử Tích hợp Live Tùy chọn và So khớp Mẫu Route](#3-kết-quả-kiểm-thử-tích-hợp-live-tùy-chọn-và-so-khớp-mẫu-route)
+  - [4. Kiểm tra Tĩnh Anchor Chỉnh sửa và Replay Văn bản Task Trước Đóng gói](#4-kiểm-tra-tĩnh-anchor-chỉnh-sửa-và-replay-văn-bản-task-trước-đóng-gói)
+  - [5. Pha Đo lường Dài hạn (MEASURE) và Xác minh Dựa trên Bằng chứng](#5-pha-đo-lường-dài-hạn-measure-và-xác-minh-dựa-trên-bằng-chứng)
+- [Xử lý Lỗi và Các Trường hợp Biên](#xử-lý-lỗi-và-các-trường-hợp-biên)
+- [Chiến lược Kiểm thử và Xác minh](#chiến-lược-kiểm-thử-và-xác-minh)
+- [Cảnh báo Shared Contract](#cảnh-báo-shared-contract)
+- [Ánh xạ Phụ thuộc và Bối cảnh Lộ trình](#ánh-xạ-phụ-thuộc-và-bối-cảnh-lộ-trình)
+
+## Tổng quan và Phát biểu Bài toán
+
+Qua nhiều epic thực tế trên `lyrics-sync` và `ai-agent-tools`, sáu điểm nghẽn lặp đi lặp lại về hạ tầng thực thi và xác minh đã được ghi nhận trong `skill-observations/observation-log/`:
+
+1. **Observation `#0006` (Môi trường `.venv` trong worktree thiếu các gói extras tùy chọn)**: `check_task_contract.py --design` yêu cầu mọi task Python phải có đúng dòng lệnh đã đăng ký `uv run mypy --strict src`, nhưng `bootstrap_worktree.sh` chỉ chạy `uv sync` mặc định. Khi mã nguồn import các thư viện thuộc nhóm phụ thuộc tùy chọn (như `huggingface_hub` trong `asr` hoặc `soundfile` trong `kokoro`), `mypy` và `pytest` đều thất bại trên worktree mới trừ khi từng epic phải chèn thủ công `uv sync --extra ...` vào Task 1.
+2. **Observation `#0007` (Các đoạn ống lệnh bash viết tay để chụp và so sánh tập lỗi baseline)**: Mọi epic làm việc trên repo có sẵn một số test lỗi không liên quan đều phải tự viết các chuỗi lệnh bash phức tạp ở Task 1 và task cuối để ghi nhận và đối chiếu tập lỗi. Các ống lệnh thủ công này liên tục gặp lỗi: biểu thức chính quy bắt nhầm dòng log (`ERROR logger:file.py:123`), lỗi `pipefail` khi tập lỗi rỗng, thiếu `--continue-on-collection-errors`, làm bẩn các file được git theo dõi khi chạy test, và báo lỗi hồi quy giả do trạng thái cơ sở dữ liệu dùng chung giữa các test.
+3. **Observation `#0010` (Thiếu hợp đồng cho kiểm thử tích hợp live cần biến môi trường và cảnh báo giả R5b trên route có tham số)**: Kiểm tra `R6` bắt buộc mọi file test Tier C phải xuất hiện trong một dòng `Integration results:`, và Gate 4 chạy toàn bộ các dòng này vô điều kiện. Các bài test tích hợp live cần máy chủ Ollama cục bộ hoặc biến môi trường (`PLT_LIVE_OLLAMA_MODEL`) không thể tách bạch khỏi test CI cô lập. Ngoài ra, `R5b` trong `check_epic_readiness.py` cảnh báo giả khi gặp đường dẫn cụ thể dùng làm dữ liệu test (`/api/align/stream/job_plt`) do route trong mã nguồn khai báo dưới dạng tham số (`/api/align/stream/{job_id}`).
+4. **Observation `#0011` (Replay văn bản task trước khi đóng gói)**: Các chỉ dẫn chỉnh sửa trong thân bài task (`Replace in <path>:` / `With:`, `Insert in <path> after:` / `With:`, và các khối code nhúng) có thể chứa anchor bị ngắt dòng, lỗi độ dài dòng E501 hoặc thiếu thư mục cha mà kiểm tra hợp đồng tĩnh không phát hiện được nếu không chạy thử (replay) từ chính văn bản task trước khi đóng gói.
+5. **Observation `#0017` (Các task đo lường dài hạn không phù hợp với dòng Verification thông thường)**: Các bài đo lường tốn nhiều giờ chạy model cục bộ hoặc chấm điểm theo rubric dễ bị quá thời gian chờ (timeout) hoặc phải chạy lại từ đầu nếu đặt trực tiếp vào dòng `GREEN`/`TIER-C`.
+6. **Observation `#0018` (Các dự án đa nền tảng Python + JavaScript thiếu hỗ trợ nền tảng phụ)**: Trong các kho mã nguồn kết hợp backend Python (`pyproject.toml`) với frontend JavaScript (`package.json`, `tests/js/**/*.test.mjs`), `detect_project_type.sh` chỉ trả về `python`, `bootstrap_worktree.sh` thoát ngay sau bước `uv sync` mà không cài đặt phụ thuộc Node, và trình xuất JUnit của `node --test` thoát mã 7 khi thư mục đích (`build/test-results/`) chưa tồn tại.
+
+Epic này (`execution_and_verification_infrastructure`, Epic 2 trên tổng số 3) xây dựng các công cụ chuẩn hóa chỉ dùng thư viện chuẩn Python và mở rộng hợp đồng kiểm tra nhằm giải quyết triệt để cả sáu vấn đề trên.
+
+## Mục tiêu và Phạm vi Ngoài Mục tiêu
+
+### Mục tiêu
+
+- Mở rộng `.agents/quality/python-quality.json` (`python-quality.schema.json` và `validate_python_quality.py`) với trường tùy chọn `"bootstrap"` và cập nhật `bootstrap_worktree.sh` để thực thi các lệnh bootstrap đã khai báo cũng như khởi tạo đầy đủ các dự án đa nền tảng Python + Web/Node (`#0006`, `#0018`).
+- Bổ sung cờ `--all` vào `detect_project_type.sh` để trả về tất cả các nền tảng phát hiện được trong dự án đa ngữ trong khi giữ nguyên đầu ra một nền tảng mặc định để tương thích ngược (`#0018`).
+- Tự động tạo thư mục cha cho các tham số `--junitxml=<path>` và `--test-reporter-destination=<path>` trong `run_task_checks.py` trước khi chạy lệnh (`#0018`).
+- Cung cấp `record_failure_baseline.py` và `compare_failure_sets.py` hỗ trợ `pytest` và `node --test`, chỉ trích xuất lỗi từ bảng tóm tắt cuối cùng, khôi phục file qua `--restore <path>`, và chạy lại cô lập các lỗi mới qua `--rerun-new` (`#0007`).
+- Hỗ trợ cú pháp `Integration results (live, needs: VAR1, VAR2): <cmd> -> <report>` trong `task_contract.py`, `check_task_contract.py`, `check_epic_readiness.py` (`R6`), `audit_epic.py`, và `run_external_review.py` (Gate 4), đồng thời nâng cấp `R5b` trong `check_epic_readiness.py` để so khớp đường dẫn cụ thể với mẫu route có tham số (`#0010`).
+- Cung cấp `replay_task_text.py` tích hợp kiểm tra tĩnh anchor mặc định vào `check_epic_readiness.py` (`R5`) và chế độ replay thực thi trên worktree tạm qua `check_epic_readiness.py --replay` (`#0011`).
+- Bổ sung pha `MEASURE` (`run_task_checks.py measure [--timeout 7200] [--resume]`) và tài liệu hóa mẫu thiết kế **Measurement-to-Evidence** trong `skills/dev-designer/SKILL.md` và `skills/dev-implementation/SKILL.md` (`#0017`).
+
+### Phạm vi Ngoài Mục tiêu
+
+- Thứ tự phụ thuộc task liên epic, đồng bộ trạng thái bảng Kanban khi có nhiều epic hoạt động cùng lúc, và quy trình sửa đổi epic đã đóng gói (`#0013, #0014, #0015, #0020`) — thuộc phạm vi của **Epic 3 (`multi_epic_orchestration_and_governance`)**.
+- Việc thêm bất kỳ thư viện bên thứ ba nào ngoài thư viện chuẩn Python 3.11+.
+
+## Kiến trúc và Thiết kế Thành phần
+
+```mermaid
+flowchart TD
+    subgraph BOOT["1. Bootstrap Worktree & Đa nền tảng (#0006, #0018)"]
+        PY_JSON[".agents/quality/python-quality.json (bootstrap)"]
+        DETECT["detect_project_type.sh [--all]"]
+        WT_SH["bootstrap_worktree.sh (Python + Rust + Web/Node)"]
+    end
+
+    subgraph REGRESSION["2. Công cụ Baseline Hồi quy (#0007)"]
+        REC_PY["record_failure_baseline.py"]
+        CMP_PY["compare_failure_sets.py"]
+    end
+
+    subgraph CONTRACT["3. Live Integration, R5b & MEASURE (#0010, #0017)"]
+        TC_PY["task_contract.py (IntegrationResultSpec, MEASURE)"]
+        RTC_PY["run_task_checks.py (measure mode, JUnit mkdir)"]
+        CER_PY["check_epic_readiness.py (R5b templates, R6 live)"]
+        RER_PY["run_external_review.py (Gate 4 live skip/run)"]
+    end
+
+    subgraph REPLAY["4. Replay Văn bản Task & Kiểm tra Anchor (#0011)"]
+        RPL_PY["replay_task_text.py"]
+    end
+
+    PY_JSON --> WT_SH
+    DETECT --> WT_SH
+    TC_PY --> RTC_PY
+    TC_PY --> CER_PY
+    TC_PY --> RER_PY
+    RPL_PY --> CER_PY
+    RTC_PY --> REC_PY --> CMP_PY
+```
+
+### 1. Bootstrap Worktree và Hỗ trợ Đa nền tảng Polyglot
+
+- **Trường `"bootstrap"` trong Quality Manifest (`#0006`)**:
+  - Trong `skills/python-quality-check/resources/schemas/python-quality.schema.json` và `skills/python-quality-check/resources/scripts/validate_python_quality.py`:
+    - Bổ sung thuộc tính tùy chọn cấp cao nhất `"bootstrap"`: mảng chứa các mảng chuỗi tham số lệnh không rỗng (ví dụ: `[["uv", "sync", "--extra", "asr"]]`).
+    - Hàm `validate_python_config()` kiểm tra nếu có `"bootstrap"` thì giá trị phải là danh sách không rỗng chứa các mảng chuỗi `list[str]` không rỗng; nếu sai định dạng sẽ trả về lỗi `invalid_bootstrap_format`.
+- **Nâng cấp `bootstrap_worktree.sh` Hỗ trợ Manifest và Đa nền tảng (`#0006`, `#0018`)**:
+  - Khi tồn tại `$WORKTREE_PATH/pyproject.toml` hoặc `requirements.txt`:
+    - Nếu `$WORKTREE_PATH/.agents/quality/python-quality.json` có khai báo `"bootstrap"`, đọc và thực thi lần lượt từng mảng lệnh đã khai báo bên trong `$WORKTREE_PATH`.
+    - Nếu không có `"bootstrap"`, chạy `uv sync` (hoặc `poetry install` / `pip install -r requirements.txt`) như mặc định.
+  - Loại bỏ lệnh `exit 0` sớm sau khối Python và Rust để một kho mã nguồn đa nền tảng vừa có `pyproject.toml` vừa có `package.json` (và không có `pubspec.yaml`) chạy tiếp bước cài đặt phụ thuộc Web/Node (`pnpm install` hoặc `npm install`), chỉ thoát `0` sau khi toàn bộ các toolchain phát hiện được đã khởi tạo xong.
+- **Phát hiện Nền tảng Phụ trong `detect_project_type.sh` và Tự tạo Thư mục JUnit (`#0018`)**:
+  - `detect_project_type.sh [--all] [path_to_project_root]`:
+    - Khi gọi không có `--all`: giữ nguyên đầu ra một dòng duy nhất (`flutter`, `ios`, `android`, `web`, `python`, `rust`, hoặc `unknown`) để tương thích ngược tuyệt đối.
+    - Khi gọi kèm `--all`: in ra tất cả các nền tảng phát hiện được (cách nhau bởi dấu cách trên một dòng, ví dụ `python web`), nhận diện `web` khi có `package.json` đi kèm cấu hình web framework, thư mục `tests/js/`, hoặc các module `.js` trong `static/`.
+  - Trong `run_task_checks.py` (`run_command()`):
+    - Trước khi khởi chạy lệnh, quét các token tìm `--junitxml=<path>`, `--junitxml <path>`, hoặc `--test-reporter-destination=<path>` và tự động gọi `(root / <path>).parent.mkdir(parents=True, exist_ok=True)` để trình xuất JUnit của `node --test` và `pytest` không bao giờ thất bại vì thiếu thư mục cha.
+
+### 2. Ghi nhận Baseline Lỗi Toàn cục và So sánh Hồi quy
+
+- **`skills/dev-implementation/resources/scripts/record_failure_baseline.py` (`#0007`)**:
+  - Cú pháp CLI:
+    ```bash
+    record_failure_baseline.py --output|--out <evidence_file> [--in <raw_output_file>] [--cmd <shell_cmd>] [--runner auto|pytest|node] [--restore <path> ...] [--cwd <dir>] [-- <command...>]
+    ```
+  - Hành vi:
+    1. Tự động chèn `--continue-on-collection-errors` khi runner là `pytest` và chưa có cờ này, đồng thời đảm bảo thư mục cha của `--output`/`--out` luôn tồn tại.
+    2. Phân biệt rõ lần chạy kiểm thử hợp lệ với lỗi khởi chạy, lỗi cú pháp tham số, hoặc lỗi nội bộ:
+       - Lần chạy `pytest` chỉ hợp lệ khi thoát mã `0` kèm dòng kết thúc `=== ... passed ... ===` hoặc thoát mã `1`/`2` kèm khối `=== short test summary info ===`; các mã thoát `3` (internal error), `4` (usage error), `5` (no tests collected), `126`/`127`, hoặc thoát khác `0` nhưng không có khối tóm tắt cuối sẽ thất bại với mã thoát `2` và không ghi baseline giả.
+       - Lần chạy `node --test` chỉ hợp lệ khi có dòng tóm tắt TAP/spec (`# tests` / `ℹ tests`).
+    3. Chỉ trích xuất mã định danh test lỗi từ đúng phần tóm tắt cuối cùng và giữ nguyên khoảng trắng bên trong tham số:
+       - **Pytest**: chỉ phân tích các dòng nằm sau tiêu đề `=== short test summary info ===` cuối cùng khớp mẫu `^(?:FAILED|ERROR)\s+(.+?)(?:\s+-\s+.*)?$`, bảo toàn đầy đủ chuỗi tham số trong ngoặc vuông (ví dụ `tests/test_x.py::test_x[hello world]`), chỉ cắt bỏ phần giải thích ` - <reason>` phía sau và bỏ qua hoàn toàn mọi dòng log in ra trong quá trình chạy test.
+       - **Node (`node --test`)**: trích xuất tên test thất bại từ các dòng tóm tắt TAP/spec (`✖ <name>` hoặc `not ok ... - <name>`).
+    4. Luôn khôi phục mọi file theo dõi bởi git được liệt kê qua `--restore <path>` bằng `git checkout -- <path>` trong khối `finally:` để giữ cây thư mục làm việc sạch.
+    5. Ghi danh sách các định danh test lỗi duy nhất đã sắp xếp vào `<evidence_file>` (luôn kèm dòng chú thích đầu file `# 0 failures\n` khi không có lỗi nào trong một lần chạy hợp lệ để file không bị rỗng).
+- **`skills/dev-implementation/resources/scripts/compare_failure_sets.py` (`#0007`)**:
+  - Cú pháp CLI:
+    ```bash
+    compare_failure_sets.py --baseline <evidence_file> [--current <file>] [--output|--out <report_file>] [--runner auto|pytest|node] [--rerun-new] [--allow-isolated-pass] [--rerun-cmd <cmd_prefix>] [--restore <path> ...] [--cwd <dir>] [-- <command...>]
+    ```
+  - Hành vi:
+    1. Đọc tập `baseline_set` từ `--baseline` (bỏ qua các dòng chú thích bắt đầu bằng `#`).
+    2. Thu thập `current_set` từ file `--current <file>` hoặc bằng cách chạy `<command...>` với cùng cơ chế trích xuất hợp lệ và `--restore` của `record_failure_baseline`.
+    3. Tính tập lỗi mới `new_failures = sorted(current_set - baseline_set)` và tập lỗi đã được sửa `fixed_failures = sorted(baseline_set - current_set)`.
+    4. Khi bật `--rerun-new` và `new_failures` khác rỗng: chạy lại từng test ID trong `new_failures` một cách độc lập như một đối số vị trí đơn lẻ (`[*rerun_cmd_argv, node_id]`). Các ứng viên vẫn thất bại khi chạy cô lập được phân loại là `PERSISTENT_FAILURE: <nodeid>`; các ứng viên đạt khi chạy cô lập được phân loại là `ISOLATED_PASS (state-pollution or transient): <nodeid>`. Mặc định, cả hai loại đều trả về mã thoát `1` để không bỏ lọt lỗi hồi quy làm bẩn trạng thái dùng chung; chỉ khi truyền tường minh cờ `--allow-isolated-pass` thì `ISOLATED_PASS` mới được miễn trừ khỏi mã thoát lỗi.
+    5. In báo cáo đối chiếu (ra stdout và tùy chọn ghi vào `--output`/`--out <report_file>`), thoát mã `0` nếu không còn lỗi chặn, hoặc thoát mã `1` kèm danh sách các lỗi hồi quy.
+
+### 3. Kết quả Kiểm thử Tích hợp Live Tùy chọn và So khớp Mẫu Route
+
+- **Hợp đồng `Integration results (live, needs: VAR1, VAR2):` (`#0010`)**:
+  - Trong `skills/dev-implementation/resources/scripts/task_contract.py`:
+    - Bổ sung dataclass bất biến:
+      ```python
+      @dataclass(frozen=True)
+      class IntegrationResultSpec:
+          raw: str
+          command: str
+          report: str
+          live: bool = False
+          needs: tuple[str, ...] = ()
+      ```
+    - Bổ sung hàm `parse_integration_result_specs(hld_text: str) -> list[IntegrationResultSpec]` nhận diện cả hai dạng:
+      - `Integration results: <command> -> <report>` (`live=False, needs=()`)
+      - `Integration results (live, needs: VAR1, VAR2): <command> -> <report>` (`live=True, needs=("VAR1", "VAR2")`)
+    - Cập nhật `parse_integration_results(hld_text: str) -> list[str]` trả về phần `<command> -> <report>` của cả hai dạng để `check_task_contract.py` (`check_hld`) và `check_epic_readiness.py` (`R6`) kiểm tra cú pháp mũi tên, đường dẫn báo cáo git-ignored và độ phủ file test Tier C đồng nhất.
+  - Trong `skills/dev-implementation/resources/scripts/audit_epic.py`:
+    - Cập nhật `GRADER_LINES = ("Protected paths:", "Integration results:", "Integration results (live")`.
+  - Trong `skills/dev-implementation/resources/scripts/run_external_review.py` (`collect_facts`):
+    - Duyệt qua `parse_integration_result_specs(hld_text)`:
+      - Nếu `spec.live` là True và bất kỳ biến môi trường nào trong `spec.needs` chưa được gán hoặc rỗng trong `os.environ`, ghi nhận `$ <spec.command>\nSKIPPED (missing env: <missing_vars>)\n` vào `results` mà không ném `PreconditionFailedError` và không thêm `spec.report` vào `reports`.
+      - Khi tất cả các biến trong `spec.needs` đều có mặt (hoặc `spec.live` là False), chạy `run_gate` và đưa `spec.report` vào `reports`.
+      - Khi có dòng live bị skip, truyền danh sách các file test live bị skip (hoặc cờ `--allow-skipped-live`) cho `check_bdd_traceability.py tests` để Gate 4 phân biệt rõ kịch bản bị bỏ qua do thiếu tài nguyên live với kịch bản thất bại.
+- **So khớp Mẫu Route Tham số trong `R5b` (`#0010`)**:
+  - Trong `skills/dev-implementation/resources/scripts/check_epic_readiness.py` (`check_grounding`):
+    - Khi một đường dẫn cụ thể `/api/foo/bar/job_123` không xuất hiện nguyên văn trong `tracked_contents`, quét các mẫu route có tham số trong `tracked_contents` khớp `(?<![\w/])/api/[\w\-/{}<>:]*[\w}>]` có chứa `{param}`, `<param>`, hoặc `:param`.
+    - Biên dịch từng mẫu route thành biểu thức chính quy trong đó `{[^}/]+}`, `<[^>/>]+>`, hoặc `:[A-Za-z_][A-Za-z0-9_]*` khớp với `[^/\s"']+`. Nếu đường dẫn cụ thể khớp với bất kỳ biểu thức mẫu nào, coi như đã được ground hợp lệ và không phát cảnh báo `R5b WARN`.
+
+### 4. Kiểm tra Tĩnh Anchor Chỉnh sửa và Replay Văn bản Task Trước Đóng gói
+
+- **`skills/dev-implementation/resources/scripts/replay_task_text.py` (`#0011`)**:
+  - Chuẩn hóa 3 dạng chỉ thị chỉnh sửa tất định trong văn bản task:
+    1. **Ghi toàn bộ file**: `<!-- @@FILE:<rel_path>@@ -->`, `Create `<rel_path>`:`, hoặc `File: `<rel_path>`` nằm ngay trên một khối code fence $\rightarrow$ ghi nội dung khối code vào `<rel_path>`.
+    2. **Thay thế chính xác**: `Replace in `<rel_path>`:` ngay trên khối code fence (`anchor`) theo sau bởi `With:` ngay trên khối code fence (`replacement`) $\rightarrow$ thay thế vị trí xuất hiện duy nhất của `anchor` trong `<rel_path>`.
+    3. **Chèn theo điểm neo**: `Insert in `<rel_path>` after:` (hoặc `before:`) ngay trên khối code fence (`anchor`) theo sau bởi `With:` ngay trên khối code fence (`insertion`) $\rightarrow$ chèn `insertion` ngay sau (hoặc trước) vị trí xuất hiện duy nhất của `anchor` trong `<rel_path>`.
+  - Cung cấp hai chế độ hoạt động:
+    - **Kiểm tra Tĩnh Anchor (`verify_task_edit_anchors(root: Path, task_path: Path, task_text: str, prior_modified: set[str] | None = None) -> list[str]`)**:
+      - Được gọi tự động trong bước `R5` của `check_epic_readiness.py`.
+      - Với mọi chỉ thị `Replace in `<rel_path>`:` hoặc `Insert in `<rel_path>` after|before:` nhắm tới file đã tồn tại ở `HEAD` (và chưa bị ghi đè bởi bước trước đó trong cùng task hoặc epic), kiểm tra khối `anchor` xuất hiện nguyên văn đúng 1 lần trong `(root / rel_path).read_text()`. Nếu không tìm thấy hoặc xuất hiện nhiều hơn 1 lần, báo lỗi `R5 FAIL` chỉ rõ tên task và đường dẫn file.
+    - **Replay Thực thi trên Worktree Tạm (`replay_task_text.py <task.md> [--worktree <dir>] [--run-rows]` và `check_epic_readiness.py <epic_dir> --replay`)**:
+      - Áp dụng tuần tự các chỉ thị chỉnh sửa trong `<task.md>` (hoặc toàn bộ các task của `<epic_dir>` theo thứ tự thực thi trên một `git worktree` tạm) và tùy chọn chạy các dòng `Verification` (`RED`, `GREEN`, `TIER-B`, `TIER-C`), tự động dọn dẹp worktree tạm khi kết thúc.
+
+### 5. Pha Đo lường Dài hạn (MEASURE) và Xác minh Dựa trên Bằng chứng
+
+- **Bổ sung `Phase: MEASURE` trong `task_contract.py` và `run_task_checks.py` (`#0017`)**:
+  - Trong `skills/dev-implementation/resources/scripts/task_contract.py`:
+    - Cập nhật `PHASES = ("RED", "MEASURE", "GREEN", "TIER-B", "TIER-C")`.
+    - Trong `evaluate_done_gate(task_file: Path)` và `audit_epic.py` (`audit_evidence`): nếu task có bất kỳ dòng nào mang `row.phase == "MEASURE"`, kiểm tra `evidence.get("runs", {}).get("measure")` đã tồn tại, `tree` khớp với `fingerprint(layout.root)[0]` hiện tại (tại Done Gate), mọi dòng `MEASURE` trong bảng hiện tại khớp `id`, `command`, `expect` (`row_problems`) với `"outcome": "PASS"`, và mọi file khai báo trong `parse_evidence_files(task_text)` tồn tại trên đĩa với mã băm SHA-256 khớp `runs["measure"]["evidence_digests"]`.
+  - Trong `skills/dev-implementation/resources/scripts/run_task_checks.py`:
+    - Mở rộng danh sách `mode` CLI thành `("red", "measure", "verify", "status")`.
+    - Khi chạy `mode == "measure"`:
+      - Giá trị `--timeout` mặc định là `7200` giây (hoặc không giới hạn khi truyền `--timeout 0`) thay vì `1800` giây.
+      - Ghi nhận `"evidence_digests": {rel_path: sha256_hex}` vào `evidence["runs"]["measure"]` cho toàn bộ `Evidence files:`.
+      - Hỗ trợ cờ `--resume`: nếu truyền `--resume`, bản ghi `evidence.get("runs", {}).get("measure")` tồn tại, `tree` đã ghi khớp `fingerprint(layout.root)[0]`, `row_problems(measure_rows, evidence["runs"])` rỗng (tất cả dòng `MEASURE` hiện tại khớp `id`/`command`/`expect` và có `"outcome": "PASS"`), và toàn bộ các file trong `parse_evidence_files(task_text)` tồn tại, khác rỗng trên đĩa, đồng thời khớp mã băm SHA-256 trong `runs["measure"]["evidence_digests"]`, bỏ qua việc chạy lại lệnh đo lường tốn thời gian và in `MEASURE resumed (cached PASS)`.
+  - Tài liệu hóa mẫu **Measurement-to-Evidence** trong `skills/dev-designer/SKILL.md` và `skills/dev-implementation/SKILL.md`:
+    - Lệnh chạy đo lường/benchmark dài hạn được đặt ở pha `MEASURE` (ghi kết quả vào `Evidence files:`), các kiểm tra nghiệm thu cơ học được viết thành test `pytest` chạy nhanh ở pha `GREEN`/`TIER-C` đọc từ file bằng chứng đó, và đánh giá định tính theo rubric được ghi nhận là mục `(Gate 5)` trong Definition of Done.
+
+## Xử lý Lỗi và Các Trường hợp Biên
+
+- **Tập Lỗi Rỗng trong `record_failure_baseline.py`**: Ghi dòng `# 0 failures\n` để file trên đĩa luôn khác rỗng (thỏa mãn điều kiện 8 của `evaluate_done_gate()`) trong khi `compare_failure_sets.py` vẫn đọc ra tập rỗng `set()`.
+- **Lỗi Collection trong `record_failure_baseline.py`**: Tự động truyền `--continue-on-collection-errors` cho `pytest` để các lỗi import/collection vẫn xuất hiện trong bảng tóm tắt dưới dạng `ERROR <nodeid>` thay vì dừng đột ngột trước khi in bảng tóm tắt.
+- **Biến Môi trường Live Chưa Được Gán tại Gate 4**: `run_external_review.py` ghi nhận `SKIPPED (missing env: ...)` cho các dòng tích hợp live mà không làm gãy Gate 4, đồng thời vẫn bắt buộc mọi dòng `Integration results:` thông thường phải vượt qua.
+- **Task Không Chứa Chỉ thị Chỉnh sửa**: `verify_task_edit_anchors()` và `replay_task_text.py` coi các task không có chỉ thị `Replace in` / `Insert in` là hợp lệ, đảm bảo tương thích ngược hoàn toàn với mọi epic trước đây.
+
+## Chiến lược Kiểm thử và Xác minh
+
+- **Tier A (Unit Tests)**:
+  - `test_validate_python_quality.py`: Kiểm thử xác thực trường `"bootstrap"` trong schema (mảng lệnh hợp lệ so với chuỗi hoặc mảng rỗng).
+  - `test_record_and_compare_baseline.py`: Kiểm thử trích xuất bảng tóm tắt cuối (bỏ qua các dòng log `ERROR ...`), xử lý baseline 0 lỗi, khôi phục file qua `--restore`, và lọc lỗi thoáng qua bằng `--rerun-new`.
+  - `test_check_epic_readiness.py` & `test_check_task_contract.py`: Kiểm thử phân tích `Integration results (live, needs: VAR):`, độ phủ `R6`, so khớp mẫu route có tham số trong `R5b`, và kiểm tra tĩnh anchor chỉnh sửa trong `R5`.
+  - `test_run_task_checks.py`: Kiểm thử thực thi mode `measure`, cơ chế `--resume`, kiểm tra Done Gate cho `MEASURE`, và tự động tạo thư mục cha cho `--junitxml` / `--test-reporter-destination`.
+- **Tier C1 (Subcutaneous End-to-End Integration)**:
+  - `tests/test_execution_infra_acceptance.py`: Kiểm thử tích hợp đầu-cuối trên các kho git tạm thời bao phủ bootstrap đa nền tảng, `record_failure_baseline.py` + `compare_failure_sets.py`, `replay_task_text.py`, `run_task_checks.py measure` + `verify`, và cơ chế skip kiểm thử tích hợp live khi thiếu biến môi trường `needs:`.
+- **Cổng Chất lượng Kho mã nguồn**:
+  - `scripts/verify.sh`, `ruff check`, `mypy`, và `pytest` phải vượt qua với 0 lỗi.
+
+## Cảnh báo Shared Contract
+
+- Không tồn tại thư mục `shared-contracts/` trong `ai-agent-tools`. Mọi thay đổi đều nằm gọn trong bộ công cụ workflow plugin và đảm bảo tương thích ngược hoàn toàn cho các kho mã nguồn cũng như các epic hiện có.
+
+## Ánh xạ Phụ thuộc và Bối cảnh Lộ trình
+
+- **Phụ thuộc vào**: **Epic 1 (`contract_and_authoring_ergonomics`)** — sử dụng trực tiếp `Evidence files:`, `bin/d3nexus`, và `sync_task_status.py render`.
+- **Mở đường cho**: **Epic 3 (`multi_epic_orchestration_and_governance`)** — cung cấp nền tảng thực thi và kiểm tra sẵn sàng để Epic 3 mở rộng cho bài toán phụ thuộc liên epic (`#0013`, `#0014`) và quản trị sửa đổi epic đã đóng gói (`#0015`, `#0020`).
+# Epic: Hạ tầng Thực thi và Xác minh (Execution and Verification Infrastructure)
+
+## Mục lục
+
+- [Thông tin Chung (Meta Data)](#thông-tin-chung-meta-data)
+- [Bối cảnh (Background)](#bối-cảnh-background)
+- [Mục tiêu và Phạm vi Ngoài Mục tiêu](#mục-tiêu-và-phạm-vi-ngoài-mục-tiêu)
+  - [Mục tiêu (Goals)](#mục-tiêu-goals)
+  - [Ngoài Mục tiêu (Non-Goals)](#ngoài-mục-tiêu-non-goals)
+- [Kiến trúc và Thiết kế Kỹ thuật](#kiến-trúc-và-thiết-kế-kỹ-thuật)
+  - [Kiến trúc Tổng thể (High-Level Architecture)](#kiến-trúc-tổng-thể-high-level-architecture)
+  - [Các Ca Sử dụng (Use Cases)](#các-ca-sử-dụng-use-cases)
+  - [Sơ đồ Tuần tự (Sequence Diagram)](#sơ-đồ-tuần-tự-sequence-diagram)
+  - [Kế hoạch Kiểm thử Tích hợp và Ma trận Ranh giới](#kế-hoạch-kiểm-thử-tích-hợp-và-ma-trận-ranh-giới)
+- [Môi trường Xác minh](#môi-trường-xác-minh)
+  - [Kịch bản Kiểm thử BDD Toàn diện](#kịch-bản-kiểm-thử-bdd-toàn-diện)
+- [Tác động Shared Contract](#tác-động-shared-contract)
+- [Chiến lược Triển khai và Giảm thiểu Rủi ro](#chiến-lược-triển-khai-và-giảm-thiểu-rủi-ro)
+- [Phân rã Kanban Tasks](#phân-rã-kanban-tasks)
+
+## Thông tin Chung (Meta Data)
+
+- **Epic**: `execution-and-verification-infrastructure`
+- **Status**: Queued (backlog) — behind `contract-and-authoring-ergonomics`
+- **Target Release**: v1.25.0
+- **Platform**: Python
+- **Source Spec**: [2026-11-06-execution-and-verification-infrastructure-design.vi.md](2026-11-06-execution-and-verification-infrastructure-design.vi.md)
+
+## Bối cảnh (Background)
+
+Trong quá trình thực thi Stage 2 và Stage 3 trên `lyrics-sync` và `ai-agent-tools`, sáu điểm nghẽn hạ tầng thực thi và xác minh đã được ghi nhận trong `skill-observations/observation-log/`:
+
+1. **Observation `#0006`**: `bootstrap_worktree.sh` chỉ chạy `uv sync` mặc định, khiến môi trường `.venv` trong worktree mới thiếu các gói phụ thuộc tùy chọn (`--extra asr`) cần thiết cho lệnh `mypy` và `pytest` đã đăng ký.
+2. **Observation `#0007`**: Việc ghi nhận và so sánh tập lỗi baseline toàn bộ bộ test giữa các task đòi hỏi các ống lệnh bash viết tay dễ vỡ: bắt nhầm dòng log (`ERROR logger:file.py:123`), lỗi `pipefail` khi tập lỗi rỗng, thiếu `--continue-on-collection-errors`, để lại file bẩn trên git, và báo lỗi hồi quy giả do trạng thái DB dùng chung.
+3. **Observation `#0010`**: Kiểm tra `R6` bắt buộc mọi file test Tier C phải xuất hiện trong một dòng `Integration results:`, và Gate 4 chạy mọi dòng này vô điều kiện, dẫn tới thiếu cơ chế cho các bài kiểm thử tích hợp live (`-m live_llm`) cần biến môi trường như `PLT_LIVE_OLLAMA_MODEL`. Đồng thời, `R5b` cảnh báo giả đối với các đường dẫn cụ thể (`http://localhost/api/align/stream/job_plt`) khi backend khai báo mẫu route có tham số (`http://localhost/api/align/stream/{job_id}`).
+4. **Observation `#0011`**: Các sai sót trong văn bản hướng dẫn chỉnh sửa của task (`Replace in <path>:` / `With:`, `Insert in <path> after:` / `With:`, và các khối code) chỉ được phát hiện khi chạy replay trên một worktree nháp trước khi đóng gói.
+5. **Observation `#0017`**: Các task đo lường dài hạn (như chạy benchmark LLM cục bộ hàng giờ) không phù hợp với giới hạn timeout 600 giây của dòng Verification thông thường và cần một pha `MEASURE` có khả năng tiếp tục (`--resume`), tách biệt khỏi bước `verify` kiểm tra bằng chứng nhanh.
+6. **Observation `#0018`**: Các kho mã nguồn đa nền tảng kết hợp Python (`pyproject.toml`) và JavaScript (`package.json`, `tests/js/**/*.test.mjs`) chỉ được `detect_project_type.sh` trả về `python`, bị bỏ qua bước cài đặt phụ thuộc Node trong `bootstrap_worktree.sh`, và gặp lỗi thoát mã 7 khi `node --test --test-reporter=junit` ghi vào thư mục `build/test-results/` chưa được tạo.
+
+## Mục tiêu và Phạm vi Ngoài Mục tiêu
+
+### Mục tiêu (Goals)
+
+- Bổ sung trường tùy chọn `"bootstrap"` vào `.agents/quality/python-quality.json` (`python-quality.schema.json` và `validate_python_quality.py`), thực thi các lệnh `"bootstrap"` trong `bootstrap_worktree.sh`, và bỏ lệnh thoát sớm để các repo đa nền tảng Python + Web/Node khởi tạo đầy đủ mọi toolchain (`#0006`, `#0018`).
+- Bổ sung cờ `--all` vào `detect_project_type.sh` để báo cáo tất cả các nền tảng phát hiện được trong repo đa ngữ mà vẫn giữ nguyên đầu ra mặc định một nền tảng (`#0018`).
+- Tự động tạo thư mục cha cho các đường dẫn `--junitxml` và `--test-reporter-destination` trong `run_task_checks.py` trước khi thực thi dòng lệnh Verification (`#0018`).
+- Cung cấp `record_failure_baseline.py` và `compare_failure_sets.py` hỗ trợ `pytest` và `node --test`, chỉ trích xuất lỗi từ phần tóm tắt cuối, khôi phục file qua `--restore <path>`, và chạy lại cô lập các lỗi mới qua `--rerun-new` (`#0007`).
+- Hỗ trợ `Integration results (live, needs: VAR1, VAR2): <cmd> -> <report>` trên `task_contract.py`, `check_task_contract.py`, `check_epic_readiness.py` (`R6`), `audit_epic.py`, và `run_external_review.py` (Gate 4), đồng thời nâng cấp `R5b` trong `check_epic_readiness.py` để so khớp đường dẫn cụ thể với mẫu route có tham số (`#0010`).
+- Cung cấp `replay_task_text.py`, tích hợp kiểm tra tĩnh anchor chỉnh sửa vào `check_epic_readiness.py` (`R5`), và bổ sung cờ `--replay` chạy thử trên worktree tạm vào `check_epic_readiness.py` (`#0011`).
+- Hỗ trợ `Phase: MEASURE` (`run_task_checks.py measure [--timeout 7200] [--resume]`) và tài liệu hóa mẫu thiết kế **Measurement-to-Evidence** trong `skills/dev-designer/SKILL.md` và `skills/dev-implementation/SKILL.md` (`#0017`).
+
+### Ngoài Mục tiêu (Non-Goals)
+
+- Thứ tự phụ thuộc task liên epic, chuyển trạng thái bảng Kanban đa epic, và quản trị sửa đổi epic đã đóng gói (`#0013, #0014, #0015, #0020`) — thuộc phạm vi của **Epic 3 (`multi_epic_orchestration_and_governance`)**.
+- Bổ sung bất kỳ thư viện bên thứ ba nào ngoài thư viện chuẩn Python 3.11+.
+
+## Kiến trúc và Thiết kế Kỹ thuật
+
+### Kiến trúc Tổng thể (High-Level Architecture)
+
+```mermaid
+flowchart TD
+    subgraph BOOT["Bootstrap Worktree & Đa nền tảng (#0006, #0018)"]
+        PY_MANIFEST[".agents/quality/python-quality.json (bootstrap)"]
+        DETECT_SH["detect_project_type.sh [--all]"]
+        BOOT_SH["bootstrap_worktree.sh (Python + Rust + Web/Node)"]
+    end
+
+    subgraph BASELINE["Ghi nhận & So sánh Tập Lỗi Baseline (#0007)"]
+        REC_BASE["record_failure_baseline.py"]
+        CMP_BASE["compare_failure_sets.py"]
+    end
+
+    subgraph READINESS["Kiểm tra Sẵn sàng, Replay & Live Integration (#0010, #0011)"]
+        REPLAY_PY["replay_task_text.py"]
+        CER["check_epic_readiness.py (R5 anchors, R5b templates, R6 live, --replay)"]
+        RER["run_external_review.py (Gate 4 live run hoặc SKIPPED)"]
+    end
+
+    subgraph RUNNER["Trình Chạy Verification & Pha MEASURE (#0017, #0018)"]
+        TC["task_contract.py (IntegrationResultSpec, MEASURE)"]
+        RTC["run_task_checks.py (measure --resume, JUnit parent mkdir)"]
+    end
+
+    PY_MANIFEST --> BOOT_SH
+    DETECT_SH --> BOOT_SH
+    TC --> RTC
+    TC --> CER
+    TC --> RER
+    REPLAY_PY --> CER
+    RTC --> REC_BASE --> CMP_BASE
+```
+
+### Các Ca Sử dụng (Use Cases)
+
+```mermaid
+flowchart LR
+    DESIGNER["AI Assistant / Designer"] --> UC1["Kiểm tra Anchor Tĩnh & Chạy Replay Task qua check_epic_readiness.py"]
+    DESIGNER --> UC2["Khai báo Live Integration Results Tùy chọn & Mẫu Route Có Tham số"]
+
+    PROGRAMMER["AI Programmer"] --> UC3["Bootstrap Worktree Đa nền tảng với Python Extras & Phụ thuộc Node"]
+    PROGRAMMER --> UC4["Ghi nhận & Đối chiếu Tập Lỗi Baseline qua CLI d3nexus"]
+    PROGRAMMER --> UC5["Thực thi Pha MEASURE Dài hạn với Xác minh Bằng chứng Có Thể Tiếp tục"]
+```
+
+### Sơ đồ Tuần tự (Sequence Diagram)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Designer as AI Assistant (dev-designer)
+    participant Readiness as check_epic_readiness.py
+    participant Replay as replay_task_text.py
+    actor Programmer as AI Programmer (dev-implementation)
+    participant Boot as bootstrap_worktree.py / .sh
+    participant Runner as run_task_checks.py
+    participant Baseline as record / compare_failure_sets.py
+    participant Gate4 as run_external_review.py
+
+    Designer->>Readiness: Chạy check_epic_readiness.py <epic_dir> [--replay]
+    Readiness->>Replay: Kiểm tra anchor Replace/Insert (R5) & replay trên worktree tạm (nếu bật)
+    Readiness->>Readiness: So khớp route cụ thể với mẫu tham số (R5b) & kiểm tra R6 live results
+    Readiness-->>Designer: 0 FAIL, 0 WARN — PASS
+    Programmer->>Boot: Chạy bootstrap_worktree.sh <worktree>
+    Boot->>Boot: Thực thi lệnh bootstrap trong python-quality.json + npm/pnpm install
+    Programmer->>Runner: Chạy run_task_checks.py measure <task> --resume
+    Runner->>Baseline: Thực thi d3nexus record-baseline / compare-baseline
+    Runner-->>Programmer: MEASURE & VERIFY PASS (đã ghi bằng chứng)
+    Programmer->>Gate4: Chạy kiểm tra Gate 4
+    Gate4->>Gate4: Chạy Integration results chuẩn; chạy hoặc SKIP dòng live tùy theo biến môi trường Needs
+    Gate4-->>Programmer: Gate 4 PASS
+```
+
+### Kế hoạch Kiểm thử Tích hợp và Ma trận Ranh giới
+
+```text
+Integration test roots: tests/, skills/dev-implementation/resources/scripts/, skills/python-quality-check/resources/scripts/
+Protected paths: .agents/quality/**, .devtool/epic/execution_and_verification_infrastructure/bdd_scenarios.en.md, .devtool/epic/execution_and_verification_infrastructure/bdd_scenarios.vi.md
+Integration results: python3 -m pytest tests/ skills/dev-implementation/resources/scripts/ skills/python-quality-check/resources/scripts/ --junitxml=build/test-results/pytest.xml -> build/test-results/pytest.xml
+```
+
+| Ranh giới Tích hợp | Chiến lược Kiểm thử | Mục tiêu Xác minh |
+| :--- | :--- | :--- |
+| `validate_python_quality.py`, `detect_project_type.sh` & `bootstrap_worktree.sh` | Kiểm thử tiến trình con & xác thực schema trên các repo đa nền tảng tạm | Xác minh kiểm tra mảng `"bootstrap"`, đầu ra `detect_project_type.sh --all` (`python web`), và khởi tạo worktree đa nền tảng Python + Node |
+| `record_failure_baseline.py` & `compare_failure_sets.py` | Kiểm thử CLI subcutaneous với đầu ra `pytest` và `node --test` giả lập | Xác minh chỉ trích xuất lỗi từ phần tóm tắt cuối (giữ nguyên khoảng trắng trong tham số node ID, bỏ qua dòng log `ERROR`, và từ chối lỗi khởi chạy/cú pháp của runner), sinh file `# 0 failures` khác rỗng, khôi phục file qua `--restore`, và phân loại `ISOLATED_PASS` so với `PERSISTENT_FAILURE` bằng `--rerun-new` (`--allow-isolated-pass`) |
+| `task_contract.py`, `check_epic_readiness.py`, `audit_epic.py` & `run_external_review.py` | Kiểm thử tích hợp cho `Integration results (live, needs: VAR):` và mẫu route `R5b` | Xác minh phân tích `IntegrationResultSpec`, độ phủ `R6`, trạng thái `SKIPPED` so với chạy thật ở Gate 4, và so khớp mẫu route có tham số (`http://localhost/api/jobs/{job_id}`) trong `R5b` |
+| `replay_task_text.py` & `run_task_checks.py` (`MEASURE`) | Kiểm thử replay trên hệ thống file/worktree và vòng đời mode `measure` | Xác minh chỉ thị `Create`, `Replace in`, `Insert in`, kiểm tra tĩnh anchor `R5`, chạy thử `--replay` trên worktree, kiểm tra `tree`/hợp đồng dòng/SHA-256 digest cho `measure --resume`, và tự tạo thư mục cha cho JUnit |
+
+## Môi trường Xác minh
+
+- Môi trường thực thi: Máy cục bộ macOS / Linux CLI cài đặt Python 3.11+, Git, Bash, `pytest`, `ruff` và `mypy`.
+- Cô lập: Toàn bộ kiểm thử unit và tích hợp chạy bên trong các thư mục / kho Git tạm thời (`tmp_path` / `tempfile.TemporaryDirectory`), hoàn toàn không cần kết nối mạng hay máy chủ LLM live.
+- Biến môi trường mà cột `Needs` hoặc dòng tích hợp live có thể tham chiếu trong fixture kiểm thử: `EVI_LIVE_MODEL` (biến môi trường giả lập dùng để kiểm thử nhánh chạy thật so với nhánh `SKIPPED`).
+
+### Kịch bản Kiểm thử BDD Toàn diện
+
+Bộ kịch bản bao phủ đầy đủ 5 chiều dưới tiền tố `[EVI-]`:
+1. **Happy Paths (`EVI-HP-01` .. `EVI-HP-04`)**: Khởi tạo worktree đa nền tảng với mảng đối số `"bootstrap"` và `detect_project_type.sh --all`; ghi nhận và đối chiếu baseline lỗi qua `record_failure_baseline.py` và `compare_failure_sets.py`; hỗ trợ `Integration results (live, needs: VAR):` và so khớp mẫu route có tham số trong `R5b`; thực thi `replay_task_text.py` và `run_task_checks.py measure`.
+2. **Edge Cases (`EVI-EC-01` .. `EVI-EC-03`)**: Baseline 0 lỗi vẫn tạo file `# 0 failures` khác rỗng và bỏ qua các dòng log `ERROR` in giữa chừng; tự động tạo thư mục cha cho `--junitxml` và `--test-reporter-destination`; và `R5b` khớp nhiều cú pháp tham số route (`{id}`, `<id>`, `:id`).
+3. **State Transitions (`EVI-ST-01` .. `EVI-ST-02`)**: `--rerun-new` phân loại lỗi đạt cô lập so với lỗi hồi quy bền vững và yêu cầu cờ `--allow-isolated-pass` tường minh để bỏ qua lỗi đạt cô lập; và `run_task_checks.py measure --resume` chỉ tái sử dụng bản ghi `MEASURE` khi `tree`, hợp đồng dòng và mã băm SHA-256 của `Evidence files:` khớp.
+4. **Async & Concurrency (`EVI-AR-01` .. `EVI-AR-02`)**: Tạo và dọn dẹp worktree tạm cô lập khi chạy `check_epic_readiness.py --replay` mà không làm bẩn cây làm việc chính; và `--restore <path>` khôi phục nguyên trạng các file theo dõi bởi git bị sửa đổi trong lúc chạy test.
+5. **Failures & Resilience (`EVI-FR-01` .. `EVI-FR-03`)**: Từ chối cấu hình `"bootstrap"` sai định dạng trong `validate_python_quality.py`; báo lỗi `R5 FAIL` khi anchor của `Replace in <path>:` không tồn tại hoặc xuất hiện nhiều lần; và chặn tại Done Gate khi task có dòng `MEASURE` bị thiếu, thất bại hoặc lỗi thời so với `tree` và mã băm bằng chứng hiện tại.
+
+## Tác động Shared Contract
+
+None — tính năng khép kín trong `ai-agent-tools`.
+
+## Chiến lược Triển khai và Giảm thiểu Rủi ro
+
+- **Giai đoạn 1**: Hiện thực hóa kiểm tra schema `"bootstrap"`, `detect_project_type.sh --all`, `bootstrap_worktree.sh` đa nền tảng, và tự tạo thư mục cha cho JUnit trong `run_task_checks.py` (`Task 01`).
+- **Giai đoạn 2**: Hiện thực hóa `record_failure_baseline.py` và `compare_failure_sets.py` (`Task 02`).
+- **Giai đoạn 3**: Hiện thực hóa `IntegrationResultSpec` (`Integration results (live, needs: VAR):`) trên `task_contract.py`, `check_task_contract.py`, `check_epic_readiness.py`, `audit_epic.py`, và `run_external_review.py`, cùng so khớp mẫu route có tham số trong `R5b` (`Task 03`).
+- **Giai đoạn 4**: Hiện thực hóa `replay_task_text.py`, kiểm tra tĩnh anchor `R5`, `check_epic_readiness.py --replay`, và `Phase: MEASURE` trong `task_contract.py` / `run_task_checks.py` (`Task 04`).
+- **Giai đoạn 5**: Thực thi kiểm thử tích hợp đầu-cuối (Tier C), nghiệm thu toàn diện và cập nhật tài liệu skill (`Task 05`).
+- **Kế hoạch Rollback**: Mọi script và cờ mới đều mang tính bổ sung và tương thích ngược; hoàn tác commit merge của epic sẽ khôi phục nguyên trạng hành vi trước đó.
+
+## Phân rã Kanban Tasks
+
+- [Task 01: Worktree Bootstrap Extras, Polyglot Detection, and JUnit Directory Creation](./task_01_polyglot_worktree_bootstrap.md)
+- [Task 02: Failure-Set Baseline Recording and Regression Comparison CLI](./task_02_failure_baseline_and_comparison.md)
+- [Task 03: Opt-In Live Integration Results and R5b Parameterized Route Matching](./task_03_live_integration_and_route_matching.md)
+- [Task 04: Task Text Replay Engine, Static Anchor Verification, and MEASURE Phase](./task_04_task_replay_and_measure_phase.md)
+- [Task 05: End-to-End Execution Infrastructure Acceptance Verification](./task_05_execution_infra_e2e_acceptance.md)
+
+# Kịch Bản BDD: Hạ Tầng Thực Thi và Xác Minh (Execution and Verification Infrastructure)
+
+## Mục Lục
+
+- [1. Chiều 1 — Luồng Thành Công (Happy Paths)](#1-chiều-1--luồng-thành-công-happy-paths)
+- [2. Chiều 2 — Trường Hợp Biên & Giới Hạn (Edge Cases & Boundaries)](#2-chiều-2--trường-hợp-biên--giới-hạn-edge-cases--boundaries)
+- [3. Chiều 3 — Chuyển Đổi Trạng Thái (State Transitions)](#3-chiều-3--chuyển-đổi-trạng-thái-state-transitions)
+- [4. Chiều 4 — Bất Đồng Bộ & Đồng Thời (Async & Concurrency)](#4-chiều-4--bất-đồng-bộ--đồng-thời-async--concurrency)
+- [5. Chiều 5 — Lỗi & Khả Năng Phục Hồi (Failures & Resilience)](#5-chiều-5--lỗi--khả-năng-phục-hồi-failures--resilience)
+
+---
+
+## 1. Chiều 1 — Luồng Thành Công (Happy Paths)
+
+```gherkin
+Feature: Execution and Verification Infrastructure — Happy Paths
+
+  Scenario: [EVI-HP-01] [Tier C - Integration] Worktree bootstrap thực thi các lệnh bootstrap trong python-quality.json và cài đặt phụ thuộc đa ngôn ngữ (polyglot)
+    Given một kho lưu trữ git đa ngôn ngữ chứa cả "pyproject.toml" và "package.json"
+    And ".agents/quality/python-quality.json" định nghĩa "bootstrap" là [["pip", "install", "-e", ".[dev]"]]
+    When "detect_project_type.sh --all" được thực thi trên kho lưu trữ
+    Then nó xuất ra "python web"
+    And khi "bootstrap_worktree.sh" chạy trên một worktree của kho lưu trữ
+    Then nó thực thi cả pha bootstrap Python (bao gồm các mảng lệnh "bootstrap" từ ".agents/quality/python-quality.json") và pha cài đặt phụ thuộc Web
+
+  Scenario: [EVI-HP-02] [Tier C - Integration] Ghi nhận baseline tập lỗi và so sánh hồi quy đạt khi không có lỗi mới xuất hiện
+    Given một luồng đầu ra pytest chứa 2 node ID kiểm thử thất bại có sẵn trong khối tóm tắt cuối "=== short test summary info ==="
+    When "record_failure_baseline.py --out baseline.txt" phân tích luồng đầu ra
+    Then "baseline.txt" chứa 2 node ID lỗi đã sắp xếp
+    And khi "compare_failure_sets.py --baseline baseline.txt --current current.txt" chạy với danh sách lỗi hiện tại là tập con của 2 node ID đó
+    Then nó báo cáo 0 lỗi mới và thoát với mã 0
+
+  Scenario: [EVI-HP-03] [Tier C - Integration] Bảng kết quả tích hợp live tùy chọn thỏa mãn độ phủ R6, bỏ qua sạch khi thiếu biến môi trường và thực thi khi biến môi trường được đặt
+    Given một HLD của epic chứa cả "Integration results:" và "Integration results (live, needs: EVI_LIVE_MODEL):"
+    And "bdd_scenarios.en.md" khai báo một kịch bản "[Tier C - Integration]" có tệp kiểm thử nằm trong lệnh tích hợp live
+    When "check_epic_readiness.py" đánh giá độ phủ R6 cho epic
+    Then R6 đạt với 0 tệp kiểm thử Tier C bị thiếu
+    And khi "collect_facts()" trong "run_external_review.py" chạy với "EVI_LIVE_MODEL" không được đặt trong môi trường
+    Then dòng tích hợp live được ghi nhận là "SKIPPED (missing env: EVI_LIVE_MODEL)" mà không làm trượt Gate 4
+    And khi "collect_facts()" trong "run_external_review.py" chạy với "EVI_LIVE_MODEL=1" được đặt trong môi trường
+    Then dòng tích hợp live được thực thi và mã thoát của nó được cưỡng chế
+
+  Scenario: [EVI-HP-04] [Tier C - Integration] Bộ phát lại văn bản task áp dụng các chỉ thị code block trong worktree nháp và pha MEASURE thực thi cùng ghi nhận bằng chứng
+    Given một tệp task chứa các khối mã "Create", "Replace in" và "Insert in", các dòng "Phase: MEASURE" và "Evidence files: .devtool/evidence/bench.json"
+    When "replay_task_text.py" phát lại task bên trong một git worktree tạm thời
+    Then tất cả các chỉ thị được áp dụng sạch sẽ và các lệnh Verification của task đều đạt
+    And khi "run_task_checks.py measure" thực thi task
+    Then các dòng "MEASURE" chạy, tạo ra ".devtool/evidence/bench.json" và ghi nhận mục "measure" đạt vào tệp JSON bằng chứng của task
+```
+
+---
+
+## 2. Chiều 2 — Trường Hợp Biên & Giới Hạn (Edge Cases & Boundaries)
+
+```gherkin
+Feature: Execution and Verification Infrastructure — Edge Cases & Boundaries
+
+  Scenario: [EVI-EC-01] [Tier A - Unit] Bộ phân tích tập lỗi bỏ qua các dòng log ERROR trước short test summary info và ghi dòng đánh dấu khi có 0 lỗi
+    Given một luồng đầu ra pytest chứa các dòng log "ERROR logger:module.py:42" trong stdout trước "=== short test summary info ==="
+    When "record_failure_baseline.py" trích xuất các ID lỗi từ luồng đầu ra
+    Then nó bỏ qua các dòng logger đã bắt và chỉ trích xuất các dòng "FAILED <nodeid>" và "ERROR <nodeid>" từ khối tóm tắt cuối
+    And khi có 0 kiểm thử thất bại hoặc lỗi trong khối tóm tắt cuối
+    Then "record_failure_baseline.py" ghi "# 0 failures\n" vào tệp đầu ra để tệp không bị rỗng
+
+  Scenario: [EVI-EC-02] [Tier A - Unit] Trình chạy task tự động tạo thư mục cha cho cờ đầu ra JUnit XML trước khi thực thi các dòng Verification
+    Given một dòng Verification của task chứa "--junitxml=.devtool/evidence/nested/junit/report.xml" trong đó ".devtool/evidence/nested/junit" chưa tồn tại
+    When "run_task_checks.py" thực thi dòng Verification
+    Then "ensure_output_dirs()" tạo ".devtool/evidence/nested/junit" trước khi gọi tiến trình con để trình chạy kiểm thử ghi báo cáo XML không gặp lỗi
+
+  Scenario: [EVI-EC-03] [Tier A - Unit] Kiểm tra trôi lệch route R5b khớp các chuỗi route cụ thể với mẫu route có tham số mà không cảnh báo sai
+    Given một tệp task tham chiếu đến chuỗi route cụ thể "http://localhost/api/align/stream/job_plt"
+    And codebase đích định nghĩa route có tham số "http://localhost/api/align/stream/{job_id}" (hoặc "<job_id>" hoặc ":job_id")
+    When "check_epic_readiness.py" chạy kiểm tra trôi lệch route R5b
+    Then "route_matches_codebase()" khớp route cụ thể với mẫu có tham số và phát ra 0 cảnh báo R5b
+```
+
+---
+
+## 3. Chiều 3 — Chuyển Đổi Trạng Thái (State Transitions)
+
+```gherkin
+Feature: Execution and Verification Infrastructure — State Transitions
+
+  Scenario: [EVI-ST-01] [Tier A - Unit] So sánh tập lỗi với --rerun-new phân loại lỗi đạt cô lập so với lỗi bền vững và yêu cầu cờ tường minh để bỏ qua lỗi đạt cô lập
+    Given một tệp baseline có 0 lỗi và một tệp lỗi hiện tại có 2 node ID lỗi mới tiềm năng (bao gồm ID có tham số chứa khoảng trắng)
+    When "compare_failure_sets.py --baseline baseline.txt --current current.txt --rerun-new" chạy
+    And ứng viên đầu tiên đạt khi được chạy lại cô lập qua "--rerun-cmd" trong khi ứng viên thứ hai thất bại
+    Then ứng viên đầu tiên được phân loại là "ISOLATED_PASS" và ứng viên thứ hai là "PERSISTENT_FAILURE" đồng thời lệnh thoát với mã 1
+    And khi tất cả ứng viên đều đạt khi chạy cô lập, "compare_failure_sets.py --rerun-new" vẫn thoát với mã 1 trừ khi "--allow-isolated-pass" được truyền tường minh
+
+  Scenario: [EVI-ST-02] [Tier C - Integration] run_task_checks.py measure --resume chỉ tái sử dụng kết quả MEASURE đã lưu khi tree, hợp đồng dòng và mã băm tệp bằng chứng khớp
+    Given một tệp task có các dòng "Phase: MEASURE" và "Evidence files: .devtool/evidence/bench.json"
+    And một lần chạy "run_task_checks.py measure" trước đó đã ghi nhận "runs.measure.passed = true" kèm worktree tree, lệnh/expect của dòng và mã băm SHA-256 của ".devtool/evidence/bench.json" khớp
+    When "run_task_checks.py measure <task.md> --resume" được gọi trên tree và tệp bằng chứng không thay đổi
+    Then nó bỏ qua việc thực thi lại các lệnh tiến trình con "MEASURE" và thoát với mã 0
+    And khi worktree tree, lệnh của dòng hoặc nội dung ".devtool/evidence/bench.json" bị sửa đổi, "--resume" hủy hiệu lực bộ nhớ đệm và thực thi lại các dòng "MEASURE"
+```
+
+---
+
+## 4. Chiều 4 — Bất Đồng Bộ & Đồng Thời (Async & Concurrency)
+
+```gherkin
+Feature: Execution and Verification Infrastructure — Async & Concurrency
+
+  Scenario: [EVI-AR-01] [Tier C - Integration] check_epic_readiness.py --replay thực thi văn bản task trong worktree nháp cô lập và dọn dẹp mà không làm thay đổi cây làm việc chính
+    Given một epic có các task chứa các chỉ thị "Create", "Replace in" và "Insert in" hợp lệ
+    When "check_epic_readiness.py <epic> --replay" được thực thi
+    Then nó tạo một git worktree tạm thời, phát lại tuần tự các chỉnh sửa của từng task, chạy các lệnh Verification và xóa worktree tạm thời khi hoàn tất
+    And "git status --porcelain" trên kho lưu trữ chính hoàn toàn không thay đổi
+
+  Scenario: [EVI-AR-02] [Tier A - Unit] record_failure_baseline.py --restore khôi phục các tệp được theo dõi bị làm bẩn do tác dụng phụ của quá trình chạy kiểm thử
+    Given một lệnh bộ kiểm thử làm thay đổi tệp được theo dõi "config/sample.json" trong quá trình thực thi
+    When "record_failure_baseline.py --cmd '<test_cmd>' --out baseline.txt --restore config/sample.json" chạy
+    Then sau khi lệnh kiểm thử hoàn tất, "record_failure_baseline.py" thực thi "git checkout -- config/sample.json" để tệp được theo dõi khôi phục về trạng thái HEAD sạch
+```
+
+---
+
+## 5. Chiều 5 — Lỗi & Khả Năng Phục Hồi (Failures & Resilience)
+
+```gherkin
+Feature: Execution and Verification Infrastructure — Failures & Resilience
+
+  Scenario: [EVI-FR-01] [Tier A - Unit] validate_python_quality.py từ chối các cấu hình bootstrap sai định dạng với mã invalid_bootstrap_format
+    Given một tệp ".agents/quality/python-quality.json" trong đó "bootstrap" không phải là một danh sách khác rỗng chứa các mảng đối số chuỗi khác rỗng
+    When "validate_python_quality.py" xác thực cấu hình
+    Then nó báo lỗi xác thực và phát ra lỗi với mã "invalid_bootstrap_format"
+
+  Scenario: [EVI-FR-02] [Tier A - Unit] Xác minh điểm neo tĩnh R5 thất bại khi điểm neo Replace in hoặc Insert in bị thiếu hoặc mơ hồ trong tệp đích
+    Given một tệp task chứa chỉ thị "Replace in <path>:" hoặc "Insert in <path>:" có đoạn văn bản điểm neo xuất hiện 0 lần hoặc từ 2 lần trở lên trong "<path>"
+    When "verify_task_edit_anchors()" trong "check_epic_readiness.py" kiểm tra task
+    Then R5 thất bại và báo cáo chính xác đường dẫn tệp cùng đoạn điểm neo bị thiếu hoặc mơ hồ
+
+  Scenario: [EVI-FR-03] [Tier A - Unit] evaluate_done_gate thất bại khi một task chứa các dòng MEASURE bị thiếu, thất bại hoặc lỗi thời so với tree và mã băm bằng chứng hiện tại
+    Given một tệp task chứa ít nhất một dòng Verification có "Phase: MEASURE"
+    And tệp JSON bằng chứng của task thiếu "runs.measure", có "runs.measure.passed == false", hoặc có "tree", hợp đồng dòng hay mã băm SHA-256 của tệp bằng chứng không khớp
+    When "evaluate_done_gate()" đánh giá task để chuyển sang trạng thái "done"
+    Then nó trả về danh sách lỗi khác rỗng chặn việc chuyển sang "done" cho đến khi một lần chạy "run_task_checks.py measure" mới đạt
+```
+
+
+exec
+/bin/zsh -lc "rg -n '"'^(class |def |PHASES|GRADER_LINES)|measure|Integration results|fingerprint|row_problems|except|allow-skipped-live'"' skills/dev-implementation/resources/scripts/{task_contract.py,run_task_checks.py,run_external_review.py,audit_epic.py,check_bdd_traceability.py}; cat skills/dev-implementation/resources/scripts/detect_project_type.sh skills/dev-implementation/resources/scripts/bootstrap_worktree.sh" in /Users/danhdueexoictif/AllProjects/ai-agent-tools
+ succeeded in 0ms:
+skills/dev-implementation/resources/scripts/audit_epic.py:43:row_problems: Any = tc.row_problems
+skills/dev-implementation/resources/scripts/audit_epic.py:49:GRADER_LINES = ("Protected paths:", "Integration results:")
+skills/dev-implementation/resources/scripts/audit_epic.py:53:class Commit:
+skills/dev-implementation/resources/scripts/audit_epic.py:60:def git_lines(root: Path, *args: str) -> list[str]:
+skills/dev-implementation/resources/scripts/audit_epic.py:64:def show(root: Path, rev: str, path: str) -> str | None:
+skills/dev-implementation/resources/scripts/audit_epic.py:67:    except ContractError:
+skills/dev-implementation/resources/scripts/audit_epic.py:71:def status_of(text: str) -> str | None:
+skills/dev-implementation/resources/scripts/audit_epic.py:78:def marked_done(root: Path, mirror: str, text: str) -> bool:
+skills/dev-implementation/resources/scripts/audit_epic.py:85:def patch_id(root: Path, commit: str) -> str | None:
+skills/dev-implementation/resources/scripts/audit_epic.py:91:def load_commits(root: Path, base: str) -> list[Commit]:
+skills/dev-implementation/resources/scripts/audit_epic.py:100:def well_formed(data: object) -> bool:
+skills/dev-implementation/resources/scripts/audit_epic.py:108:def audit_evidence(root: Path, epic_path: str, base: str, stem: str, text: str) -> tuple[list[str], bool]:
+skills/dev-implementation/resources/scripts/audit_epic.py:116:    except ValueError:
+skills/dev-implementation/resources/scripts/audit_epic.py:118:    except ContractError as error:
+skills/dev-implementation/resources/scripts/audit_epic.py:128:        problems = [f"{stem}: {p}" for p in row_problems(rows, runs)]
+skills/dev-implementation/resources/scripts/audit_epic.py:129:    except (KeyError, TypeError):
+skills/dev-implementation/resources/scripts/audit_epic.py:151:def audit_protected(root: Path, epic_path: str, commits: list[Commit], texts: dict[str, str]) -> tuple[list[str], bool]:
+skills/dev-implementation/resources/scripts/audit_epic.py:159:        except ContractError:
+skills/dev-implementation/resources/scripts/audit_epic.py:173:def grader_text(text: str) -> list[str]:
+skills/dev-implementation/resources/scripts/audit_epic.py:181:def scenario_ids_at(root: Path, rev: str, path: str) -> set[str]:
+skills/dev-implementation/resources/scripts/audit_epic.py:191:def audit_amendments(root: Path, epic_path: str, base: str, texts: dict[str, str]) -> list[str]:
+skills/dev-implementation/resources/scripts/audit_epic.py:210:def hld_amendments(root: Path, epic_path: str, base: str) -> list[str]:
+skills/dev-implementation/resources/scripts/audit_epic.py:211:    """The HLD's Protected paths: and Integration results: lines, diffed between <base> and HEAD."""
+skills/dev-implementation/resources/scripts/audit_epic.py:220:    return ["\n  ".join([f"{Path(hld).name}: Protected paths or Integration results changed since base", *diff,
+skills/dev-implementation/resources/scripts/audit_epic.py:224:def build_report(root: Path, epic_dir: str, base: str) -> tuple[list[tuple[str, list[str]]], bool]:
+skills/dev-implementation/resources/scripts/audit_epic.py:256:def main(argv: list[str] | None = None) -> int:
+skills/dev-implementation/resources/scripts/audit_epic.py:271:    except ContractError as error:
+skills/dev-implementation/resources/scripts/check_bdd_traceability.py:35:class UsageError(Exception):
+skills/dev-implementation/resources/scripts/check_bdd_traceability.py:39:def read_text(path: Path) -> str:
+skills/dev-implementation/resources/scripts/check_bdd_traceability.py:43:    except UnicodeDecodeError:
+skills/dev-implementation/resources/scripts/check_bdd_traceability.py:47:def scenario_ids(path: Path) -> tuple[list[str], list[str]]:
+skills/dev-implementation/resources/scripts/check_bdd_traceability.py:77:def load_scenarios(path: Path) -> tuple[list[str], list[str]]:
+skills/dev-implementation/resources/scripts/check_bdd_traceability.py:98:def covers_of(path: Path) -> list[str]:
+skills/dev-implementation/resources/scripts/check_bdd_traceability.py:108:def check_plan(ids: list[str], task_paths: list[Path]) -> tuple[dict[str, list[str]], list[str]]:
+skills/dev-implementation/resources/scripts/check_bdd_traceability.py:125:def stale_pattern(ids: list[str]) -> re.Pattern[str]:
+skills/dev-implementation/resources/scripts/check_bdd_traceability.py:133:def listed_files(root: Path) -> list[Path] | None:
+skills/dev-implementation/resources/scripts/check_bdd_traceability.py:138:    except (OSError, subprocess.CalledProcessError):
+skills/dev-implementation/resources/scripts/check_bdd_traceability.py:143:def integration_files(roots: list[Path]) -> tuple[list[Path], list[str]]:
+skills/dev-implementation/resources/scripts/check_bdd_traceability.py:157:def check_tests(ids: list[str], selected: list[str], roots: list[Path],
+skills/dev-implementation/resources/scripts/check_bdd_traceability.py:168:        except UnicodeDecodeError:
+skills/dev-implementation/resources/scripts/check_bdd_traceability.py:180:def split_values(values: list[str] | None) -> list[str]:
+skills/dev-implementation/resources/scripts/check_bdd_traceability.py:185:def report(coverage: dict[str, list[str]], problems: list[str], warnings: list[str]) -> int:
+skills/dev-implementation/resources/scripts/check_bdd_traceability.py:199:def report_results(ids: list[str], selected: list[str], roots: list[Path], results: list[str],
+skills/dev-implementation/resources/scripts/check_bdd_traceability.py:223:def main(argv: list[str] | None = None) -> int:
+skills/dev-implementation/resources/scripts/check_bdd_traceability.py:254:    except (UsageError, ReportError) as error:
+skills/dev-implementation/resources/scripts/run_external_review.py:34:except ImportError:
+skills/dev-implementation/resources/scripts/run_external_review.py:73:def load_review_config(root: Path) -> dict[str, Any]:
+skills/dev-implementation/resources/scripts/run_external_review.py:90:    except (json.JSONDecodeError, OSError, UnicodeDecodeError):
+skills/dev-implementation/resources/scripts/run_external_review.py:94:def save_review_config(root: Path, config: dict[str, Any]) -> None:
+skills/dev-implementation/resources/scripts/run_external_review.py:102:def update_sticky_review_config(root: Path, cli: str, model: str | None, thinking_level: str | None) -> None:
+skills/dev-implementation/resources/scripts/run_external_review.py:113:    except (json.JSONDecodeError, OSError, UnicodeDecodeError):
+skills/dev-implementation/resources/scripts/run_external_review.py:117:def resolve_review_settings(
+skills/dev-implementation/resources/scripts/run_external_review.py:156:def principal_prompt_path() -> Path:
+skills/dev-implementation/resources/scripts/run_external_review.py:163:def principal_rules_path() -> Path:
+skills/dev-implementation/resources/scripts/run_external_review.py:171:def review_file(kind: str) -> tuple[str, str]:
+skills/dev-implementation/resources/scripts/run_external_review.py:177:def principal_artefact_lines(root: Path, epic_dir: str) -> str:
+skills/dev-implementation/resources/scripts/run_external_review.py:294:class PreconditionFailedError(Exception):
+skills/dev-implementation/resources/scripts/run_external_review.py:304:def print_gate_banner(error: PreconditionFailedError, cli: str) -> None:
+skills/dev-implementation/resources/scripts/run_external_review.py:321:def status_lines(root: Path) -> list[str]:
+skills/dev-implementation/resources/scripts/run_external_review.py:325:def head_of(root: Path) -> str:
+skills/dev-implementation/resources/scripts/run_external_review.py:329:def execute(command: list[str] | str, root: Path, timeout: int, prompt: str | None = None,
+skills/dev-implementation/resources/scripts/run_external_review.py:337:    except subprocess.TimeoutExpired:
+skills/dev-implementation/resources/scripts/run_external_review.py:344:def run_gate(label: str, command: list[str] | str, root: Path, timeout: int,
+skills/dev-implementation/resources/scripts/run_external_review.py:360:def fact(label: str, code: int | None, out: str, err: str) -> str:
+skills/dev-implementation/resources/scripts/run_external_review.py:364:def collect_facts(root: Path, epic_dir: str, base: str, hld_text: str, timeout: int) -> tuple[str, str]:
+skills/dev-implementation/resources/scripts/run_external_review.py:385:    return audit_output, "\n".join(results) or "No Integration results declared.\n"
+skills/dev-implementation/resources/scripts/run_external_review.py:388:def artefact_lines(root: Path, epic_dir: str) -> str:
+skills/dev-implementation/resources/scripts/run_external_review.py:397:def build_diff_section(root: Path, base: str, sha: str, max_lines: int = MAX_DIFF_LINES, max_bytes: int = MAX_DIFF_BYTES) -> str:
+skills/dev-implementation/resources/scripts/run_external_review.py:431:def diff_range(root: Path, base: str, commits: str | None = None) -> tuple[str, str]:
+skills/dev-implementation/resources/scripts/run_external_review.py:467:def effective_model(cli: str, model: str | None) -> str:
+skills/dev-implementation/resources/scripts/run_external_review.py:473:def effective_thinking_level(cli: str, thinking_level: str | None) -> str:
+skills/dev-implementation/resources/scripts/run_external_review.py:479:def cli_command(cli: str, model: str | None, thinking_level: str | None = None) -> list[str]:
+skills/dev-implementation/resources/scripts/run_external_review.py:515:def format_findings_summary(findings: list[tuple[str, str, str]] | list[list[str]]) -> str:
+skills/dev-implementation/resources/scripts/run_external_review.py:532:def format_triage_header(
+skills/dev-implementation/resources/scripts/run_external_review.py:555:def cell(text: str) -> str:
+skills/dev-implementation/resources/scripts/run_external_review.py:559:def fence_for(text: str) -> str:
+skills/dev-implementation/resources/scripts/run_external_review.py:564:def rounds_in(text: str) -> list[tuple[int, list[str]]]:
+skills/dev-implementation/resources/scripts/run_external_review.py:582:def split_row(line: str) -> list[str]:
+skills/dev-implementation/resources/scripts/run_external_review.py:586:def metadata(lines: list[str]) -> list[str]:
+skills/dev-implementation/resources/scripts/run_external_review.py:591:def table_findings(lines: list[str]) -> list[tuple[str, list[str]]]:
+skills/dev-implementation/resources/scripts/run_external_review.py:596:def parse_findings(out: str, verdict: str | None = None) -> list[tuple[str, str, str]]:
+skills/dev-implementation/resources/scripts/run_external_review.py:610:def render_round(number: int, meta: dict[str, str], findings: list[tuple[str, str, str]], output: str) -> str:
+skills/dev-implementation/resources/scripts/run_external_review.py:619:def run_principal_doc(root: Path, args: argparse.Namespace, sha: str) -> int:
+skills/dev-implementation/resources/scripts/run_external_review.py:686:def run_principal(root: Path, args: argparse.Namespace, sha: str) -> int:
+skills/dev-implementation/resources/scripts/run_external_review.py:694:    except PreconditionFailedError as error:
+skills/dev-implementation/resources/scripts/run_external_review.py:720:def run_adhoc_code(root: Path, args: argparse.Namespace, sha: str) -> int:
+skills/dev-implementation/resources/scripts/run_external_review.py:778:def run(args: argparse.Namespace) -> int:
+skills/dev-implementation/resources/scripts/run_external_review.py:820:        except local_review.LocalReviewError as error:
+skills/dev-implementation/resources/scripts/run_external_review.py:827:    except PreconditionFailedError as error:
+skills/dev-implementation/resources/scripts/run_external_review.py:850:def live_log_dir(root: Path, epic_dir: str) -> Path:
+skills/dev-implementation/resources/scripts/run_external_review.py:860:def run_local(root: Path, args: argparse.Namespace, sha: str, audit_output: str, results_output: str,
+skills/dev-implementation/resources/scripts/run_external_review.py:871:    except local_review.LocalReviewError as error:
+skills/dev-implementation/resources/scripts/run_external_review.py:899:class Pass:
+skills/dev-implementation/resources/scripts/run_external_review.py:909:def tree_changes(root: Path, before: list[str], sha: str) -> list[str]:
+skills/dev-implementation/resources/scripts/run_external_review.py:917:def path_of(location: str) -> str:
+skills/dev-implementation/resources/scripts/run_external_review.py:922:def annotate(finding: tuple[str, str, str], shown: str) -> tuple[str, str, str]:
+skills/dev-implementation/resources/scripts/run_external_review.py:930:def pass_output(item: Pass, number: int, args: argparse.Namespace) -> str:
+skills/dev-implementation/resources/scripts/run_external_review.py:939:def record_round(root: Path, args: argparse.Namespace, sha: str, passes: list[Pass],
+skills/dev-implementation/resources/scripts/run_external_review.py:1004:def check(args: argparse.Namespace) -> int:
+skills/dev-implementation/resources/scripts/run_external_review.py:1023:def round_meta(lines: list[str]) -> dict[str, str]:
+skills/dev-implementation/resources/scripts/run_external_review.py:1028:def round_output(lines: list[str]) -> str:
+skills/dev-implementation/resources/scripts/run_external_review.py:1039:def round_passes(output: str) -> list[tuple[str, str, str]]:
+skills/dev-implementation/resources/scripts/run_external_review.py:1055:def finding_rows(lines: list[str]) -> list[list[str]]:
+skills/dev-implementation/resources/scripts/run_external_review.py:1059:def comparison_row(number: int, lines: list[str]) -> str:
+skills/dev-implementation/resources/scripts/run_external_review.py:1070:def since_lines(previous: list[list[str]], latest: list[list[str]]) -> list[str]:
+skills/dev-implementation/resources/scripts/run_external_review.py:1086:def triage(args: argparse.Namespace) -> int:
+skills/dev-implementation/resources/scripts/run_external_review.py:1149:def main(argv: list[str] | None = None) -> int:
+skills/dev-implementation/resources/scripts/run_external_review.py:1189:    except (ContractError, OSError) as error:
+skills/dev-implementation/resources/scripts/run_task_checks.py:29:except ImportError:
+skills/dev-implementation/resources/scripts/run_task_checks.py:42:fingerprint: Any = _tc.fingerprint
+skills/dev-implementation/resources/scripts/run_task_checks.py:83:def is_pytest_command(command: str) -> bool:
+skills/dev-implementation/resources/scripts/run_task_checks.py:88:    except ValueError:
+skills/dev-implementation/resources/scripts/run_task_checks.py:119:def validate_pytest_red(command: str, exit_code: int | None, output_text: str) -> str | None:
+skills/dev-implementation/resources/scripts/run_task_checks.py:137:def parse_covers(text: str) -> list[str]:
+skills/dev-implementation/resources/scripts/run_task_checks.py:146:def core_sections(text: str) -> tuple[str | None, str | None, str | None, list[str]]:
+skills/dev-implementation/resources/scripts/run_task_checks.py:155:def check_task_tamper(task_path: Path | str, layout: EpicLayout) -> None:
+skills/dev-implementation/resources/scripts/run_task_checks.py:184:def utc_now() -> str:
+skills/dev-implementation/resources/scripts/run_task_checks.py:188:def fresh_reports(path: str, root: Path, since: float) -> list[Path]:
+skills/dev-implementation/resources/scripts/run_task_checks.py:192:    except ReportError:
+skills/dev-implementation/resources/scripts/run_task_checks.py:197:def run_command(command: str, root: Path, timeout: int) -> tuple[int | None, bytes]:
+skills/dev-implementation/resources/scripts/run_task_checks.py:204:    except subprocess.TimeoutExpired:
+skills/dev-implementation/resources/scripts/run_task_checks.py:210:def mismatch(row: Row, code: int, text: str) -> str | None:
+skills/dev-implementation/resources/scripts/run_task_checks.py:220:def epic_scenario_ids(layout: EpicLayout) -> list[str]:
+skills/dev-implementation/resources/scripts/run_task_checks.py:223:    except UsageError:
+skills/dev-implementation/resources/scripts/run_task_checks.py:227:def attach_digest(results: dict[str, Any], files: list[Path], scenario_ids: list[str]) -> str | None:
+skills/dev-implementation/resources/scripts/run_task_checks.py:231:    except ReportError:
+skills/dev-implementation/resources/scripts/run_task_checks.py:236:def run_row(row: Row, root: Path, timeout: int, scenario_ids: list[str]) -> dict[str, Any]:
+skills/dev-implementation/resources/scripts/run_task_checks.py:277:def committed_text(root: Path, path: Path) -> str | None:
+skills/dev-implementation/resources/scripts/run_task_checks.py:283:    except (ContractError, ValueError):
+skills/dev-implementation/resources/scripts/run_task_checks.py:287:def protected_patterns(layout: EpicLayout, root: Path) -> tuple[list[str], set[str]]:
+skills/dev-implementation/resources/scripts/run_task_checks.py:298:        except ContractError:
+skills/dev-implementation/resources/scripts/run_task_checks.py:304:def scope_row(layout: EpicLayout, allowed_patterns: list[str]) -> dict[str, Any]:
+skills/dev-implementation/resources/scripts/run_task_checks.py:323:def detail_of(record: dict[str, Any]) -> str:
+skills/dev-implementation/resources/scripts/run_task_checks.py:329:def run(args: argparse.Namespace) -> int:
+skills/dev-implementation/resources/scripts/run_task_checks.py:346:    tree, patch_id = fingerprint(layout.root)
+skills/dev-implementation/resources/scripts/run_task_checks.py:360:def status(args: argparse.Namespace) -> int:
+skills/dev-implementation/resources/scripts/run_task_checks.py:374:def main(argv: list[str] | None = None) -> int:
+skills/dev-implementation/resources/scripts/run_task_checks.py:384:    except ContractError as error:
+skills/dev-implementation/resources/scripts/task_contract.py:2:"""Parse a task file's Verification contract, and fingerprint the worktree it is checked in.
+skills/dev-implementation/resources/scripts/task_contract.py:21:PHASES = ("RED", "GREEN", "TIER-B", "TIER-C")
+skills/dev-implementation/resources/scripts/task_contract.py:40:class ContractError(Exception):
+skills/dev-implementation/resources/scripts/task_contract.py:45:class Expect:
+skills/dev-implementation/resources/scripts/task_contract.py:53:class Row:
+skills/dev-implementation/resources/scripts/task_contract.py:63:class AllowedPath:
+skills/dev-implementation/resources/scripts/task_contract.py:69:class EpicLayout:
+skills/dev-implementation/resources/scripts/task_contract.py:77:def section(text: str, title: str) -> str | None:
+skills/dev-implementation/resources/scripts/task_contract.py:99:def parse_expect(text: str) -> Expect:
+skills/dev-implementation/resources/scripts/task_contract.py:121:def split_cells(line: str) -> list[str]:
+skills/dev-implementation/resources/scripts/task_contract.py:128:def parse_row(cells: list[str], seen: set[str]) -> Row:
+skills/dev-implementation/resources/scripts/task_contract.py:142:    except ContractError as error:
+skills/dev-implementation/resources/scripts/task_contract.py:152:def parse_verification(task_text: str) -> tuple[list[Row], str | None]:
+skills/dev-implementation/resources/scripts/task_contract.py:172:def parse_allowed_files(task_text: str) -> list[AllowedPath]:
+skills/dev-implementation/resources/scripts/task_contract.py:187:def parse_protected_paths(hld_text: str) -> list[str]:
+skills/dev-implementation/resources/scripts/task_contract.py:194:def parse_read_only_context(task_text: str) -> list[str]:
+skills/dev-implementation/resources/scripts/task_contract.py:210:def dod_bullets(task_text: str) -> list[str]:
+skills/dev-implementation/resources/scripts/task_contract.py:221:def parse_integration_results(hld_text: str) -> list[str]:
+skills/dev-implementation/resources/scripts/task_contract.py:222:    """The text after `Integration results:` on each such line, as written."""
+skills/dev-implementation/resources/scripts/task_contract.py:224:            if line.startswith("Integration results:")]
+skills/dev-implementation/resources/scripts/task_contract.py:227:def verification_environment(hld_text: str) -> str | None:
+skills/dev-implementation/resources/scripts/task_contract.py:246:def path_matches(pattern: str, path: str) -> bool:
+skills/dev-implementation/resources/scripts/task_contract.py:262:def git_run(root: Path, *args: str, env: dict[str, str] | None = None, stdin: bytes | None = None) -> bytes:
+skills/dev-implementation/resources/scripts/task_contract.py:269:def strip_wrappers(tokens: list[str]) -> list[str]:
+skills/dev-implementation/resources/scripts/task_contract.py:284:def program_of(command: str, root: Path) -> str | None:
+skills/dev-implementation/resources/scripts/task_contract.py:290:    except ValueError:
+skills/dev-implementation/resources/scripts/task_contract.py:318:def epic_layout(task_file: Path) -> EpicLayout:
+skills/dev-implementation/resources/scripts/task_contract.py:322:    except (ContractError, OSError):
+skills/dev-implementation/resources/scripts/task_contract.py:333:def fingerprint(root: Path) -> tuple[str, str | None]:
+skills/dev-implementation/resources/scripts/task_contract.py:346:def changed_paths(root: Path) -> list[str]:
+skills/dev-implementation/resources/scripts/task_contract.py:361:def load_evidence(path: Path) -> dict | None:
+skills/dev-implementation/resources/scripts/task_contract.py:364:    except FileNotFoundError:
+skills/dev-implementation/resources/scripts/task_contract.py:368:def save_evidence(path: Path, data: dict) -> None:
+skills/dev-implementation/resources/scripts/task_contract.py:374:def is_code_epic(hld_path: Path) -> bool:
+skills/dev-implementation/resources/scripts/task_contract.py:378:    except OSError:
+skills/dev-implementation/resources/scripts/task_contract.py:383:def row_problems(rows: list[Row], runs: dict) -> list[str]:
+skills/dev-implementation/resources/scripts/task_contract.py:400:def evaluate_done_gate(task_file: Path) -> list[str]:
+skills/dev-implementation/resources/scripts/task_contract.py:405:    except ContractError as error:
+skills/dev-implementation/resources/scripts/task_contract.py:416:    problems = row_problems(rows, runs)
+skills/dev-implementation/resources/scripts/task_contract.py:425:    if verify["tree"] != fingerprint(layout.root)[0]:
+#!/usr/bin/env bash
+# detect_project_type.sh
+# Detects whether a repository is a Flutter, Android Native, iOS Native, Web, Python, or Rust project.
+#
+# Usage:
+#   detect_project_type.sh [path_to_project_root]
+#
+# Output:
+#   "flutter", "android", "ios", "web", "python", "rust", or "unknown"
+# Exit code:
+#   0 if recognized ("flutter", "android", "ios", "web", "python", "rust"), 1 if "unknown"
+
+set -euo pipefail
+
+TARGET_DIR="${1:-.}"
+
+# Resolve absolute path
+TARGET_DIR="$(cd "$TARGET_DIR" && pwd)"
+
+# 1. Flutter Project Check
+if [ -f "$TARGET_DIR/pubspec.yaml" ] || [ -f "$TARGET_DIR/melos.yaml" ]; then
+  echo "flutter"
+  exit 0
+fi
+
+# Guard against subdirectories of a Flutter project
+if [ -f "$TARGET_DIR/../pubspec.yaml" ]; then
+  echo "unknown"
+  exit 1
+fi
+
+# 2. iOS Native Project Check (Tuist / Xcode)
+if [ -f "$TARGET_DIR/Project.swift" ] || [ -f "$TARGET_DIR/Workspace.swift" ] || [ -f "$TARGET_DIR/Tuist.swift" ]; then
+  echo "ios"
+  exit 0
+fi
+
+# Check for Xcode project/workspace bundles at the root
+shopt -s nullglob
+xcode_projects=("$TARGET_DIR"/*.xcodeproj "$TARGET_DIR"/*.xcworkspace)
+shopt -u nullglob
+
+if [ ${#xcode_projects[@]} -gt 0 ]; then
+  echo "ios"
+  exit 0
+fi
+
+# 3. Android Native Project Check (Gradle)
+if [ -f "$TARGET_DIR/settings.gradle.kts" ] || [ -f "$TARGET_DIR/settings.gradle" ] || [ -f "$TARGET_DIR/build.gradle.kts" ]; then
+  echo "android"
+  exit 0
+fi
+
+# 4. Web Project Check (Astro / Vite / Next.js / Nuxt / Svelte / Web package.json)
+if [ -f "$TARGET_DIR/package.json" ]; then
+  if [ -f "$TARGET_DIR/astro.config.mjs" ] || [ -f "$TARGET_DIR/astro.config.ts" ] ||      [ -f "$TARGET_DIR/vite.config.ts" ] || [ -f "$TARGET_DIR/vite.config.js" ] ||      [ -f "$TARGET_DIR/next.config.js" ] || [ -f "$TARGET_DIR/next.config.mjs" ] || [ -f "$TARGET_DIR/next.config.ts" ] ||      [ -f "$TARGET_DIR/nuxt.config.ts" ] || [ -f "$TARGET_DIR/svelte.config.js" ] ||      [ -d "$TARGET_DIR/apps/learning-web" ] || [ -d "$TARGET_DIR/apps/web" ]; then
+    echo "web"
+    exit 0
+  fi
+fi
+
+# 5. Python Project Check (pyproject.toml, setup.py, requirements.txt, Pipfile)
+if [ -f "$TARGET_DIR/pyproject.toml" ] || [ -f "$TARGET_DIR/setup.py" ] || [ -f "$TARGET_DIR/Pipfile" ] || [ -f "$TARGET_DIR/requirements.txt" ]; then
+  echo "python"
+  exit 0
+fi
+
+# 6. Rust Project Check (Cargo)
+if [ -f "$TARGET_DIR/Cargo.toml" ]; then
+  echo "rust"
+  exit 0
+fi
+
+echo "unknown"
+exit 1
+#!/usr/bin/env bash
+# Bootstrap a freshly created git worktree so it can actually build/run
+# this project. Run this after using-git-worktrees has created the
+# worktree. It can be run from ANY checkout of this repo (main checkout
+# or any worktree) -- REPO_ROOT below always resolves to the MAIN
+# checkout via the shared git common dir, never to whichever worktree
+# happens to be the current directory.
+#
+# This project uses Swift Package Manager, not CocoaPods, so there is no
+# `pod install` step -- SPM resolves automatically on the first iOS build.
+#
+# Usage: bootstrap_worktree.sh <worktree_path>
+set -euo pipefail
+
+if [ "$#" -ne 1 ]; then
+  echo "Usage: $0 <worktree_path>" >&2
+  exit 1
+fi
+
+WORKTREE_PATH="$1"
+# --git-common-dir points at the MAIN checkout's .git directory from every
+# worktree, so its parent is the main checkout. --show-toplevel would give
+# whichever worktree is the current directory instead -- and since
+# using-git-worktrees ends by cd-ing into the NEW worktree, that is the
+# common case and it has no secureFiles/ yet.
+REPO_ROOT="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")"
+
+if [ ! -d "$WORKTREE_PATH" ]; then
+  echo "Worktree path does not exist: $WORKTREE_PATH" >&2
+  exit 1
+fi
+
+if [ -f "$WORKTREE_PATH/pyproject.toml" ] || [ -f "$WORKTREE_PATH/requirements.txt" ]; then
+  echo "Detected Python project in worktree..."
+  if command -v uv &>/dev/null; then
+    echo "Running uv sync (fast dependency sync)..."
+    (cd "$WORKTREE_PATH" && uv sync)
+  elif command -v poetry &>/dev/null && [ -f "$WORKTREE_PATH/poetry.lock" ]; then
+    echo "Running poetry install..."
+    (cd "$WORKTREE_PATH" && poetry install)
+  elif [ -f "$WORKTREE_PATH/requirements.txt" ]; then
+    echo "Running pip install -r requirements.txt..."
+    (cd "$WORKTREE_PATH" && pip install -r requirements.txt)
+  fi
+  echo "Worktree bootstrap complete at $WORKTREE_PATH"
+  exit 0
+fi
+
+if [ -f "$WORKTREE_PATH/Cargo.toml" ] && [ ! -f "$WORKTREE_PATH/pubspec.yaml" ]; then
+  echo "Detected Rust project in worktree..."
+  echo "Running cargo check --workspace (warm up compilation cache)..."
+  (cd "$WORKTREE_PATH" && cargo check --workspace)
+  echo "Worktree bootstrap complete at $WORKTREE_PATH"
+  exit 0
+fi
+
+if [ -f "$WORKTREE_PATH/package.json" ] && [ ! -f "$WORKTREE_PATH/pubspec.yaml" ]; then
+  echo "Detected Web project in worktree..."
+  if command -v pnpm &>/dev/null && [ -f "$WORKTREE_PATH/pnpm-lock.yaml" ]; then
+    echo "Running pnpm install..."
+    (cd "$WORKTREE_PATH" && pnpm install)
+  elif command -v npm &>/dev/null; then
+    echo "Running npm install..."
+    (cd "$WORKTREE_PATH" && npm install)
+  fi
+  echo "Worktree bootstrap complete at $WORKTREE_PATH"
+  exit 0
+fi
+
+if [ ! -d "$REPO_ROOT/secureFiles" ]; then
+  echo "secureFiles/ not found at $REPO_ROOT/secureFiles" >&2
+  echo "secureFiles/ is gitignored, so it exists only where it was populated by hand --" >&2
+  echo "no worktree ever gets it from 'git worktree add'. Either the main checkout at" >&2
+  echo "$REPO_ROOT never had it set up, or this is not the checkout you expected." >&2
+  echo "Populate $REPO_ROOT/secureFiles (the check_secure_files skill documents what it" >&2
+  echo "must contain), then re-run this script." >&2
+  exit 1
+fi
+
+echo "Copying secureFiles/ into worktree (untracked, so 'git worktree add' does not bring it along)..."
+mkdir -p "$WORKTREE_PATH/secureFiles"
+cp -R "$REPO_ROOT/secureFiles/." "$WORKTREE_PATH/secureFiles/"
+
+echo "Placing platform config via copy_secure_configurations..."
+# copy_secure_configurations exits 0 even when files are missing -- it only
+# prints "⚠️  Missing ..." per file. Capture its output and fail loudly on
+# any warning, otherwise this script would report success for a worktree
+# that cannot actually build.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+COPY_SECURE_SCRIPT=""
+if [ -f "$WORKTREE_PATH/.agents/skills/copy_secure_configurations/resources/scripts/copy_secure_files.sh" ]; then
+  COPY_SECURE_SCRIPT="$WORKTREE_PATH/.agents/skills/copy_secure_configurations/resources/scripts/copy_secure_files.sh"
+elif [ -f "$SCRIPT_DIR/../../../copy_secure_configurations/resources/scripts/copy_secure_files.sh" ]; then
+  COPY_SECURE_SCRIPT="$SCRIPT_DIR/../../../copy_secure_configurations/resources/scripts/copy_secure_files.sh"
+else
+  echo "copy_secure_files.sh not found in worktree or plugin directory" >&2
+  exit 1
+fi
+
+SECURE_CONFIG_STATUS=0
+SECURE_CONFIG_OUTPUT="$(cd "$WORKTREE_PATH" && sh "$COPY_SECURE_SCRIPT" 2>&1)" || SECURE_CONFIG_STATUS=$?
+echo "$SECURE_CONFIG_OUTPUT"
+if [ "$SECURE_CONFIG_STATUS" -ne 0 ]; then
+  echo "copy_secure_configurations failed (exit $SECURE_CONFIG_STATUS)." >&2
+  exit 1
+fi
+if grep -q "⚠️" <<<"$SECURE_CONFIG_OUTPUT"; then
+  echo "" >&2
+  echo "copy_secure_configurations reported missing files (⚠️ above)." >&2
+  echo "The worktree would be only partially configured and builds for the affected" >&2
+  echo "flavors would fail. Fix $REPO_ROOT/secureFiles, delete" >&2
+  echo "$WORKTREE_PATH/secureFiles, and re-run this script." >&2
+  exit 1
+fi
+
+echo "Running melos bootstrap (fast: ~/.pub-cache is global and already warm)..."
+(cd "$WORKTREE_PATH" && melos bootstrap)
+
+echo "Worktree bootstrap complete at $WORKTREE_PATH"
+echo "Note: no 'pod install' needed (Swift Package Manager, not CocoaPods)."
+echo "The first iOS build here will resolve SPM packages automatically (one-time cost)."
+
+exec
+/bin/zsh -lc "nl -ba skills/dev-implementation/resources/scripts/task_contract.py | sed -n '260,455p'; nl -ba skills/dev-implementation/resources/scripts/run_task_checks.py | sed -n '185,390p'; nl -ba skills/dev-implementation/resources/scripts/audit_epic.py | sed -n '1,270p'" in /Users/danhdueexoictif/AllProjects/ai-agent-tools
+ succeeded in 0ms:
+   260	
+   261	
+   262	def git_run(root: Path, *args: str, env: dict[str, str] | None = None, stdin: bytes | None = None) -> bytes:
+   263	    done = subprocess.run(["git", *args], cwd=root, env=env, input=stdin, capture_output=True)
+   264	    if done.returncode != 0:
+   265	        raise ContractError(f"git {' '.join(args)} failed: {done.stderr.decode(errors='replace').strip()}")
+   266	    return done.stdout
+   267	
+   268	
+   269	def strip_wrappers(tokens: list[str]) -> list[str]:
+   270	    while tokens:
+   271	        if tokens[:2] in (["uv", "run"], ["poetry", "run"]):
+   272	            tokens = tokens[2:]
+   273	        elif tokens[0] in ("npx", "fvm"):
+   274	            tokens = tokens[1:]
+   275	        elif tokens[0] == "env":
+   276	            tokens = tokens[1:]
+   277	            while tokens and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*=.*", tokens[0]):
+   278	                tokens = tokens[1:]
+   279	        else:
+   280	            break
+   281	    return tokens
+   282	
+   283	
+   284	def program_of(command: str, root: Path) -> str | None:
+   285	    """The tracked file a command runs, or None when it runs something else."""
+   286	    try:
+   287	        lexer = shlex.shlex(command, posix=True, punctuation_chars=True)
+   288	        lexer.whitespace_split = True
+   289	        tokens = list(lexer)
+   290	    except ValueError:
+   291	        return None
+   292	    for index, token in enumerate(tokens):
+   293	        if token in CONTROL_TOKENS:
+   294	            tokens = tokens[:index]
+   295	            break
+   296	    tokens = strip_wrappers(tokens)
+   297	    if not tokens:
+   298	        return None
+   299	    candidate: str | None
+   300	    if tokens[0] in INTERPRETERS:
+   301	        candidate = None
+   302	        for argument in tokens[1:]:
+   303	            if argument in ("-m", "-c"):
+   304	                break
+   305	            if not argument.startswith("-"):
+   306	                candidate = argument
+   307	                break
+   308	    else:
+   309	        candidate = tokens[0]
+   310	    if not candidate:
+   311	        return None
+   312	    candidate = candidate[2:] if candidate.startswith("./") else candidate
+   313	    tracked = subprocess.run(["git", "ls-files", "--error-unmatch", "--", candidate], cwd=root,
+   314	                             capture_output=True).returncode == 0
+   315	    return candidate if tracked else None
+   316	
+   317	
+   318	def epic_layout(task_file: Path) -> EpicLayout:
+   319	    path = Path(task_file).resolve()
+   320	    try:
+   321	        top = git_run(path.parent, "rev-parse", "--show-toplevel").decode().strip()
+   322	    except (ContractError, OSError):
+   323	        raise ContractError(f"{task_file} is not inside a git repository") from None
+   324	    root = Path(top).resolve()
+   325	    parts = path.relative_to(root).parts if path.is_relative_to(root) else ()
+   326	    if not (len(parts) == 4 and parts[:2] == (".devtool", "epic") and re.fullmatch(r"task_.*\.md", parts[3])):
+   327	        raise ContractError("pass the task's mirror under .devtool/epic/<epic_dir>/")
+   328	    epic_dir = path.parent
+   329	    return EpicLayout(root, epic_dir, epic_dir / f"{epic_dir.name}.en.md",
+   330	                      epic_dir / "bdd_scenarios.en.md", epic_dir / "evidence" / f"{path.stem}.json")
+   331	
+   332	
+   333	def fingerprint(root: Path) -> tuple[str, str | None]:
+   334	    """Tree id of the worktree without .devtool/, and its stable patch id against HEAD outside .devtool/."""
+   335	    with tempfile.TemporaryDirectory() as scratch:
+   336	        env = {**os.environ, "GIT_INDEX_FILE": str(Path(scratch) / "index")}
+   337	        git_run(root, "read-tree", "HEAD", env=env)
+   338	        git_run(root, "rm", "-r", "-q", "--cached", "--ignore-unmatch", "--", ".devtool", env=env)
+   339	        git_run(root, "add", "-A", "--", ".", EXCLUDE_DEVTOOL, env=env)
+   340	        tree = git_run(root, "write-tree", env=env).decode().strip()
+   341	        diff = git_run(root, "diff", *DIFF_PLAIN, "--cached", "HEAD", "--", ".", EXCLUDE_DEVTOOL, env=env)
+   342	        patch = git_run(root, "patch-id", "--stable", stdin=diff).decode().split() if diff else []
+   343	    return tree, patch[0] if patch else None
+   344	
+   345	
+   346	def changed_paths(root: Path) -> list[str]:
+   347	    raw = git_run(root, "status", "--porcelain=v1", "-z", "--untracked-files=all")
+   348	    entries = raw.decode("utf-8", "surrogateescape").split("\0")
+   349	    paths: list[str] = []
+   350	    index = 0
+   351	    while index < len(entries) and entries[index]:
+   352	        status, path = entries[index][:2], entries[index][3:]
+   353	        paths.append(path)
+   354	        index += 1
+   355	        if "R" in status or "C" in status:
+   356	            paths.append(entries[index])
+   357	            index += 1
+   358	    return paths
+   359	
+   360	
+   361	def load_evidence(path: Path) -> dict | None:
+   362	    try:
+   363	        return json.loads(Path(path).read_text(encoding="utf-8"))
+   364	    except FileNotFoundError:
+   365	        return None
+   366	
+   367	
+   368	def save_evidence(path: Path, data: dict) -> None:
+   369	    path = Path(path)
+   370	    path.parent.mkdir(parents=True, exist_ok=True)
+   371	    path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+   372	
+   373	
+   374	def is_code_epic(hld_path: Path) -> bool:
+   375	    """True when the epic overview declares `Integration test roots:`, which makes it a code epic."""
+   376	    try:
+   377	        text = Path(hld_path).read_text(encoding="utf-8")
+   378	    except OSError:
+   379	        return False
+   380	    return any(line.startswith("Integration test roots:") for line in text.splitlines())
+   381	
+   382	
+   383	def row_problems(rows: list[Row], runs: dict) -> list[str]:
+   384	    """Condition 2: each table row needs a PASS record carrying the same command and expect."""
+   385	    problems: list[str] = []
+   386	    for row in rows:
+   387	        run = runs.get("red" if row.phase == "RED" else "verify") or {}
+   388	        record = next((r for r in run.get("rows", []) if r["id"] == row.id), None)
+   389	        if record is None or (record["outcome"] != "PASS" and record["outcome"] != "BLOCKED"):
+   390	            problems.append(f"condition 2: row {row.id}: no PASS result in the evidence")
+   391	        elif record["outcome"] == "BLOCKED":
+   392	            continue
+   393	        elif record["command"] != row.command:
+   394	            problems.append(f"condition 2: row {row.id}: recorded command differs from the table")
+   395	        elif record["expect"] != row.expect_text:
+   396	            problems.append(f"condition 2: row {row.id}: recorded expect differs from the table")
+   397	    return problems
+   398	
+   399	
+   400	def evaluate_done_gate(task_file: Path) -> list[str]:
+   401	    """One message per failed done-gate condition for a task mirror; empty when the gate passes."""
+   402	    layout = epic_layout(task_file)
+   403	    try:
+   404	        rows, red_na = parse_verification(Path(task_file).read_text(encoding="utf-8"))
+   405	    except ContractError as error:
+   406	        return [f"condition 2: {error}"]
+   407	    evidence = load_evidence(layout.evidence)
+   408	    if evidence is None:
+   409	        return [f"condition 1: evidence {layout.evidence} not found in this checkout — record it with "
+   410	                "run_task_checks.py and run the done gate in the epic worktree"]
+   411	    runs = evidence.get("runs", {})
+   412	    needs_red = red_na is None and any(row.phase == "RED" for row in rows)
+   413	    missing = [kind for kind in (("red",) if needs_red else ()) + ("verify",) if kind not in runs]
+   414	    if missing:
+   415	        return [f"condition 1: evidence {layout.evidence} has no {kind} run" for kind in missing]
+   416	    problems = row_problems(rows, runs)
+   417	    ids = {row.id for row in rows} | {"SCOPE"}
+   418	    problems += [f"condition 2: {kind} row {r['id']} is {r['outcome']} and no longer in the table"
+   419	                 for kind, run in runs.items() for r in run["rows"]
+   420	                 if r["id"] not in ids and r["outcome"] not in ("PASS", "BLOCKED")]
+   421	    for kind, run in runs.items():
+   422	        problems += [f"condition 3: {kind} row {r['id']} is BLOCKED ({r.get('reason')})"
+   423	                     for r in run["rows"] if r["outcome"] == "BLOCKED"]
+   424	    verify = runs["verify"]
+   425	    if verify["tree"] != fingerprint(layout.root)[0]:
+   426	        problems.append("condition 4: the verify run's tree differs from the current tree — "
+   427	                        "files changed after verification")
+   428	    if verify.get("patch_id") is None:
+   429	        problems.append("condition 4: verify saw no change outside .devtool — record verify before committing")
+   430	    if needs_red:
+   431	        red = runs["red"]
+   432	        if red.get("head") != verify.get("head"):
+   433	            problems.append("condition 5: red and verify were recorded on different commits")
+   434	        if red["tree"] == verify["tree"]:
+   435	            problems.append("condition 5: the red run's tree equals the verify run's tree — "
+   436	                            "RED was not recorded before the change")
+   437	        if red["finished"] > verify["started"]:
+   438	            problems.append("condition 5: the red run finished after the verify run started")
+   439	    cases = [Case(c["name"], c["classname"], c["status"]) for r in verify["rows"] if r["phase"] == "TIER-C"
+   440	             for c in r.get("results", {}).get("digest", {}).get("cases", [])]
+   441	    problems += [f"condition 6: {identifier}: {detail}"
+   442	                 for identifier, (passed, detail) in verdicts(covers_of(Path(task_file)), cases).items()
+   443	                 if not passed]
+   444	    scope = next((r for r in verify["rows"] if r["id"] == "SCOPE"), None)
+   445	    if scope is None or scope["outcome"] != "PASS":
+   446	        detail = "; ".join(scope.get("violations", [])) if scope else "no SCOPE row"
+   447	        problems.append(f"condition 7: SCOPE row is not PASS ({detail})")
+   448	    return problems
+   185	    return datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
+   186	
+   187	
+   188	def fresh_reports(path: str, root: Path, since: float) -> list[Path]:
+   189	    """The report files under a results path that were written at or after `since`; older ones never count."""
+   190	    try:
+   191	        files = report_files(path, root)
+   192	    except ReportError:
+   193	        return []
+   194	    return [file for file in files if file.stat().st_mtime >= since]
+   195	
+   196	
+   197	def run_command(command: str, root: Path, timeout: int) -> tuple[int | None, bytes]:
+   198	    """Run one row; the exit code is None when the process group had to be killed."""
+   199	    process = subprocess.Popen(["bash", "-o", "pipefail", "-c", command], cwd=root, start_new_session=True,
+   200	                               stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+   201	    try:
+   202	        output, _ = process.communicate(timeout=timeout)
+   203	        return process.returncode, output
+   204	    except subprocess.TimeoutExpired:
+   205	        os.killpg(process.pid, signal.SIGKILL)
+   206	        output, _ = process.communicate()
+   207	        return None, output
+   208	
+   209	
+   210	def mismatch(row: Row, code: int, text: str) -> str | None:
+   211	    expect = row.expect
+   212	    if expect.nonzero and code == 0:
+   213	        return "exit 0, expected non-zero"
+   214	    if expect.exit_code is not None and code != expect.exit_code:
+   215	        return f"exit {code}, expected {expect.exit_code}"
+   216	    missing = next((t for t in expect.contains if t not in text), None)
+   217	    return None if missing is None else f'output lacks "{missing}"'
+   218	
+   219	
+   220	def epic_scenario_ids(layout: EpicLayout) -> list[str]:
+   221	    try:
+   222	        return cast(list[str], load_scenarios(layout.epic_dir / "bdd_scenarios.en.md")[0])
+   223	    except UsageError:
+   224	        return []
+   225	
+   226	
+   227	def attach_digest(results: dict[str, Any], files: list[Path], scenario_ids: list[str]) -> str | None:
+   228	    """Store the digest of the fresh reports; None on success, else the row's failure reason."""
+   229	    try:
+   230	        results["digest"] = digest(load_files(files), scenario_ids)
+   231	    except ReportError:
+   232	        return "results in neither format"
+   233	    return None
+   234	
+   235	
+   236	def run_row(row: Row, root: Path, timeout: int, scenario_ids: list[str]) -> dict[str, Any]:
+   237	    record: dict[str, Any] = {
+   238	        "id": row.id,
+   239	        "phase": row.phase,
+   240	        "command": row.command,
+   241	        "expect": row.expect_text,
+   242	        "needs": list(row.needs),
+   243	        "exit": None,
+   244	        "outcome": "PASS",
+   245	        "reason": None,
+   246	        "started": utc_now(),
+   247	        "finished": None,
+   248	        "output_tail": [],
+   249	        "output_sha256": hashlib.sha256(b"").hexdigest(),
+   250	    }
+   251	    unset = next((name for name in row.needs if not os.environ.get(name)), None)
+   252	    if unset:
+   253	        record.update(outcome="BLOCKED", reason=f"unset: {unset}")
+   254	    else:
+   255	        started = time.time()
+   256	        code, output = run_command(row.command, root, timeout)
+   257	        text = output.decode("utf-8", "replace")
+   258	        record.update(exit=code, output_tail=text.splitlines()[-TAIL_LINES:],
+   259	                      output_sha256=hashlib.sha256(output).hexdigest())
+   260	        reason = f"timeout after {timeout} s" if code is None else mismatch(row, code, text)
+   261	        if row.phase == "RED":
+   262	            pytest_err = validate_pytest_red(row.command, code, text)
+   263	            if pytest_err:
+   264	                reason = pytest_err
+   265	        if row.expect.results:
+   266	            files = fresh_reports(row.expect.results, root, started)
+   267	            record["results"] = {"path": row.expect.results, "fresh": bool(files)}
+   268	            reason = reason or (None if files else STALE)
+   269	            if files:
+   270	                reason = reason or attach_digest(record["results"], files, scenario_ids)
+   271	        if reason:
+   272	            record.update(outcome="FAIL", reason=reason)
+   273	    record["finished"] = utc_now()
+   274	    return record
+   275	
+   276	
+   277	def committed_text(root: Path, path: Path) -> str | None:
+   278	    """The file as HEAD has it, so a task cannot weaken its own protection; the working copy only when new."""
+   279	    try:
+   280	        abs_path = path if path.is_absolute() else (root / path)
+   281	        rel_posix = abs_path.resolve().relative_to(root.resolve()).as_posix()
+   282	        return cast(str, git_run(root, "show", f"HEAD:{rel_posix}").decode("utf-8"))
+   283	    except (ContractError, ValueError):
+   284	        return path.read_text(encoding="utf-8") if path.is_file() else None
+   285	
+   286	
+   287	def protected_patterns(layout: EpicLayout, root: Path) -> tuple[list[str], set[str]]:
+   288	    """Explicit HLD patterns, and the tracked programs every parseable task row in the epic runs, read from HEAD."""
+   289	    hld = committed_text(root, layout.hld)
+   290	    explicit = parse_protected_paths(hld) if hld else []
+   291	    folder = layout.epic_dir.relative_to(root).as_posix()
+   292	    committed = git_run(root, "ls-tree", "-z", "--name-only", "HEAD", "--", f"{folder}/").decode().split("\0")
+   293	    names = {Path(p).name for p in committed if p} | {p.name for p in layout.epic_dir.glob("task_*.md")}
+   294	    programs: set[str] = set()
+   295	    for name in sorted(n for n in names if re.fullmatch(r"task_.*\.md", n)):
+   296	        try:
+   297	            rows, _ = parse_verification(committed_text(root, layout.epic_dir / name) or "")
+   298	        except ContractError:
+   299	            continue
+   300	        programs.update(p for p in (program_of(row.command, root) for row in rows) if p)
+   301	    return explicit, programs
+   302	
+   303	
+   304	def scope_row(layout: EpicLayout, allowed_patterns: list[str]) -> dict[str, Any]:
+   305	    explicit, programs = protected_patterns(layout, layout.root)
+   306	    changed: list[str] = []
+   307	    violations: list[str] = []
+   308	    exact = {p for p in allowed_patterns if not any(c in p for c in "*?")}
+   309	    for path in sorted(set(changed_paths(layout.root))):
+   310	        protected = path in programs or any(path_matches(pattern, path) for pattern in explicit)
+   311	        if path.startswith(".devtool/") and not protected:
+   312	            continue
+   313	        changed.append(path)
+   314	        if protected:
+   315	            if path not in exact:
+   316	                violations.append(f"protected path not named exactly in Allowed files: {path}")
+   317	        elif not any(path_matches(pattern, path) for pattern in allowed_patterns):
+   318	            violations.append(f"outside Allowed files: {path}")
+   319	    return {"id": "SCOPE", "phase": "SCOPE", "outcome": "FAIL" if violations else "PASS",
+   320	            "changed": changed, "violations": violations}
+   321	
+   322	
+   323	def detail_of(record: dict[str, Any]) -> str:
+   324	    if record["id"] == "SCOPE":
+   325	        return "; ".join(record["violations"]) or f"{len(record['changed'])} changed path(s) in scope"
+   326	    return record["reason"] or f"exit {record['exit']}"
+   327	
+   328	
+   329	def run(args: argparse.Namespace) -> int:
+   330	    layout = epic_layout(args.task)
+   331	    check_task_tamper(args.task, layout)
+   332	    task_text = Path(args.task).read_text(encoding="utf-8")
+   333	    rows, red_na = parse_verification(task_text)
+   334	    allowed = parse_allowed_files(task_text)
+   335	    if args.mode == "red":
+   336	        selected = [row for row in rows if row.phase == "RED"]
+   337	        if red_na is not None or not selected:
+   338	            raise ContractError("task has no RED rows to run (RED: n/a or no RED row)")
+   339	    else:
+   340	        selected = [row for row in rows if row.phase in VERIFY_PHASES]
+   341	    started = utc_now()
+   342	    scenario_ids = epic_scenario_ids(layout)
+   343	    records = [run_row(row, layout.root, args.timeout, scenario_ids) for row in selected]
+   344	    if args.mode == "verify":
+   345	        records.append(scope_row(layout, [entry.pattern for entry in allowed]))
+   346	    tree, patch_id = fingerprint(layout.root)
+   347	    head = git_run(layout.root, "rev-parse", "HEAD").decode().strip()
+   348	    evidence = load_evidence(layout.evidence) or {"schema": 1, "task": Path(args.task).stem, "runs": {}}
+   349	    evidence["runs"][args.mode] = {"head": head, "tree": tree, "patch_id": patch_id, "started": started,
+   350	                                   "finished": utc_now(), "rows": records}
+   351	    save_evidence(layout.evidence, evidence)
+   352	    for record in records:
+   353	        print(f"{record['id']} {record['phase']} {record['outcome']} {detail_of(record)}")
+   354	    passed = all(record["outcome"] == "PASS" for record in records)
+   355	    print(f"Result: {'PASS' if passed else 'FAIL'}")
+   356	    print(f"Evidence: {layout.evidence}")
+   357	    return 0 if passed else 1
+   358	
+   359	
+   360	def status(args: argparse.Namespace) -> int:
+   361	    layout = epic_layout(args.task)
+   362	    evidence = load_evidence(layout.evidence) or {}
+   363	    for kind, run in evidence.get("runs", {}).items():
+   364	        print(f"{kind}: head {run['head']} tree {run['tree']}")
+   365	        for record in run["rows"]:
+   366	            print(f"  {record['id']} {record['phase']} {record['outcome']}")
+   367	    failures = evaluate_done_gate(args.task)
+   368	    print("done gate: " + ("FAIL" if failures else "PASS"))
+   369	    for failure in failures:
+   370	        print(f"  {failure}")
+   371	    return 1 if failures else 0
+   372	
+   373	
+   374	def main(argv: list[str] | None = None) -> int:
+   375	    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+   376	    parser.add_argument("mode", choices=("red", "verify", "status"))
+   377	    parser.add_argument("task", type=Path)
+   378	    parser.add_argument("--timeout", type=int, default=1800)
+   379	    args = parser.parse_args(argv)
+   380	    try:
+   381	        if not args.task.is_file():
+   382	            raise ContractError(f"task file not found: {args.task}")
+   383	        return status(args) if args.mode == "status" else run(args)
+   384	    except ContractError as error:
+   385	        print(f"error: {error}", file=sys.stderr)
+   386	        return 2
+   387	
+   388	
+   389	if __name__ == "__main__":
+   390	    sys.exit(main())
+     1	#!/usr/bin/env python3
+     2	"""Gate 4 audit of an epic branch: check every done task's evidence and disclose every change to a grader.
+     3	
+     4	Usage:
+     5	  audit_epic.py --epic-dir <epic_dir> --base <base_ref>
+     6	
+     7	The report is printed, never written. Exit codes: 0 nothing fails; 1 missing evidence, a row that is not
+     8	PASS, or an unauthorised protected change outside .devtool/; 2 usage error (unknown base, no epic).
+     9	"""
+    10	from __future__ import annotations
+    11	
+    12	import argparse
+    13	import difflib
+    14	import importlib
+    15	import json
+    16	import re
+    17	import subprocess
+    18	import sys
+    19	import tempfile
+    20	from dataclasses import dataclass
+    21	from pathlib import Path
+    22	from typing import Any
+    23	
+    24	sys.path.insert(0, str(Path(__file__).resolve().parent))
+    25	tc: Any = importlib.import_module("task_contract")
+    26	cb: Any = importlib.import_module("check_bdd_traceability")
+    27	rtc: Any = importlib.import_module("run_task_checks")
+    28	
+    29	COVERS_LINE: Any = cb.COVERS_LINE
+    30	scenario_ids: Any = cb.scenario_ids
+    31	
+    32	DIFF_PLAIN: tuple[str, ...] = tc.DIFF_PLAIN
+    33	DOD_REFERENCE: Any = tc.DOD_REFERENCE
+    34	EXCLUDE_DEVTOOL: str = tc.EXCLUDE_DEVTOOL
+    35	ContractError: type[Exception] = tc.ContractError
+    36	dod_bullets: Any = tc.dod_bullets
+    37	git_run: Any = tc.git_run
+    38	parse_allowed_files: Any = tc.parse_allowed_files
+    39	parse_protected_paths: Any = tc.parse_protected_paths
+    40	parse_verification: Any = tc.parse_verification
+    41	path_matches: Any = tc.path_matches
+    42	program_of: Any = tc.program_of
+    43	row_problems: Any = tc.row_problems
+    44	section: Any = tc.section
+    45	
+    46	validate_pytest_red: Any = rtc.validate_pytest_red
+    47	
+    48	STATUS = re.compile(r"""^status:\s*["'`]?([\w-]+)["'`]?\s*(?:#.*)?$""", re.MULTILINE)
+    49	GRADER_LINES = ("Protected paths:", "Integration results:")
+    50	
+    51	
+    52	@dataclass(frozen=True)
+    53	class Commit:
+    54	    sha: str
+    55	    short: str
+    56	    title: str
+    57	    paths: tuple[str, ...]
+    58	
+    59	
+    60	def git_lines(root: Path, *args: str) -> list[str]:
+    61	    return [str(line) for line in git_run(root, *args).decode("utf-8", "replace").splitlines()]
+    62	
+    63	
+    64	def show(root: Path, rev: str, path: str) -> str | None:
+    65	    try:
+    66	        return str(git_run(root, "show", f"{rev}:{path}").decode("utf-8"))
+    67	    except ContractError:
+    68	        return None
+    69	
+    70	
+    71	def status_of(text: str) -> str | None:
+    72	    """The frontmatter status, quoted or not, with any trailing comment dropped."""
+    73	    head = re.match(r"---\n(.*?)\n---", text, re.DOTALL)
+    74	    found = STATUS.search(head.group(1)) if head else None
+    75	    return str(found.group(1)) if found else None
+    76	
+    77	
+    78	def marked_done(root: Path, mirror: str, text: str) -> bool:
+    79	    """True when the mirror or the task's features copy at HEAD says done."""
+    80	    stem = Path(mirror).stem
+    81	    copies = [text] + [show(root, "HEAD", f".devtool/features/{folder}{stem}.md") or "" for folder in ("", "done/")]
+    82	    return any(status_of(copy) == "done" for copy in copies)
+    83	
+    84	
+    85	def patch_id(root: Path, commit: str) -> str | None:
+    86	    diff = git_run(root, "diff", *DIFF_PLAIN, f"{commit}^", commit, "--", ".", EXCLUDE_DEVTOOL)
+    87	    found = git_run(root, "patch-id", "--stable", stdin=diff).decode().split() if diff else []
+    88	    return found[0] if found else None
+    89	
+    90	
+    91	def load_commits(root: Path, base: str) -> list[Commit]:
+    92	    commits: list[Commit] = []
+    93	    for line in git_lines(root, "log", "--reverse", "--format=%H%x09%h%x09%s", f"{base}..HEAD"):
+    94	        sha, short, title = line.split("\t", 2)
+    95	        paths = git_run(root, "diff-tree", "--no-commit-id", "--name-only", "-r", "-z", sha)
+    96	        commits.append(Commit(sha, short, title, tuple(p for p in paths.decode("utf-8", "replace").split("\0") if p)))
+    97	    return commits
+    98	
+    99	
+   100	def well_formed(data: object) -> bool:
+   101	    runs = data.get("runs") if isinstance(data, dict) else None
+   102	    return isinstance(runs, dict) and all(
+   103	        isinstance(run, dict) and isinstance(run.get("rows"), list)
+   104	        and all(isinstance(r, dict) and "id" in r and "outcome" in r for r in run["rows"])
+   105	        for run in runs.values())
+   106	
+   107	
+   108	def audit_evidence(root: Path, epic_path: str, base: str, stem: str, text: str) -> tuple[list[str], bool]:
+   109	    evidence_path = f"{epic_path}/evidence/{stem}.json"
+   110	    raw = show(root, "HEAD", evidence_path)
+   111	    if raw is None:
+   112	        return [f"{stem}: missing evidence"], True
+   113	    try:
+   114	        data = json.loads(raw)
+   115	        rows, red_na = parse_verification(text)
+   116	    except ValueError:
+   117	        return [f"{stem}: malformed evidence"], True
+   118	    except ContractError as error:
+   119	        return [f"{stem}: task table unreadable ({error})"], True
+   120	    if not well_formed(data):
+   121	        return [f"{stem}: malformed evidence"], True
+   122	    runs = data["runs"]
+   123	    needed = ["verify"] + (["red"] if red_na is None and any(r.phase == "RED" for r in rows) else [])
+   124	    absent = [f"{stem}: missing evidence ({kind} run)" for kind in needed if kind not in runs]
+   125	    if absent:
+   126	        return absent, True
+   127	    try:
+   128	        problems = [f"{stem}: {p}" for p in row_problems(rows, runs)]
+   129	    except (KeyError, TypeError):
+   130	        return [f"{stem}: malformed evidence"], True
+   131	    problems += [f"{stem}: row {record['id']} not PASS" for run in runs.values() for record in run["rows"]
+   132	                 if record["outcome"] != "PASS"]
+   133	
+   134	    # Re-audit pytest RED evidence semantics
+   135	    if "red" in runs and isinstance(runs["red"].get("rows"), list):
+   136	        for record in runs["red"]["rows"]:
+   137	            cmd = record.get("command", "")
+   138	            code = record.get("exit")
+   139	            out_tail_val = record.get("output_tail", [])
+   140	            out_tail = "\n".join(out_tail_val) if isinstance(out_tail_val, list) else str(out_tail_val)
+   141	            err = validate_pytest_red(cmd, code, out_tail)
+   142	            if err:
+   143	                problems.append(f"{stem}: row {record['id']} {err}")
+   144	
+   145	    commit = next(iter(git_lines(root, "log", "-1", "--format=%H", f"{base}..HEAD", "--", evidence_path)), None)
+   146	    if commit and patch_id(root, commit) != runs["verify"].get("patch_id"):
+   147	        return problems + [f"{stem}: patch changed after verify"], bool(problems)
+   148	    return problems or [f"{stem}: PASS"], bool(problems)
+   149	
+   150	
+   151	def audit_protected(root: Path, epic_path: str, commits: list[Commit], texts: dict[str, str]) -> tuple[list[str], bool]:
+   152	    explicit = parse_protected_paths(show(root, "HEAD", f"{epic_path}/{Path(epic_path).name}.en.md") or "")
+   153	    programs: set[str] = set()
+   154	    allowed: set[str] = set()
+   155	    for text in texts.values():
+   156	        allowed.update(entry.pattern for entry in parse_allowed_files(text))
+   157	        try:
+   158	            programs.update(p for p in (program_of(row.command, root) for row in parse_verification(text)[0]) if p)
+   159	        except ContractError:
+   160	            continue
+   161	    items: list[str] = []
+   162	    failed = False
+   163	    for commit in commits:
+   164	        for path in commit.paths:
+   165	            if path not in programs and not any(path_matches(pattern, path) for pattern in explicit):
+   166	                continue
+   167	            unauthorised = not path.startswith(".devtool/") and path not in allowed
+   168	            items.append(f"{commit.short} {path}" + (" — unauthorised" if unauthorised else ""))
+   169	            failed = failed or unauthorised
+   170	    return items, failed
+   171	
+   172	
+   173	def grader_text(text: str) -> list[str]:
+   174	    covers = [line for line in text.splitlines() if COVERS_LINE.match(line)]
+   175	    allowed = [f"`{entry.pattern}`" + (" (new)" if entry.new else "") for entry in parse_allowed_files(text)]
+   176	    return (["# Verification"] + (section(text, "Verification") or "").splitlines()
+   177	            + ["# Definition of Done"] + (section(text, "Definition of Done") or "").splitlines()
+   178	            + ["# Allowed files"] + allowed + ["# Covers"] + covers)
+   179	
+   180	
+   181	def scenario_ids_at(root: Path, rev: str, path: str) -> set[str]:
+   182	    text = show(root, rev, path)
+   183	    if text is None:
+   184	        return set()
+   185	    with tempfile.TemporaryDirectory() as scratch:
+   186	        copy = Path(scratch) / "scenarios.md"
+   187	        copy.write_text(text, encoding="utf-8")
+   188	        return set(scenario_ids(copy)[0])
+   189	
+   190	
+   191	def audit_amendments(root: Path, epic_path: str, base: str, texts: dict[str, str]) -> list[str]:
+   192	    items: list[str] = []
+   193	    for path, text in texts.items():
+   194	        created = git_lines(root, "log", "--diff-filter=A", "--format=%H", "--", path)
+   195	        original = show(root, created[-1], path) if created else None
+   196	        if original is None or grader_text(original) == grader_text(text):
+   197	            continue
+   198	        diff = difflib.unified_diff(grader_text(original), grader_text(text), f"{Path(path).stem} at creation",
+   199	                                    f"{Path(path).stem} at HEAD", lineterm="", n=1)
+   200	        since = git_lines(root, "log", "--format=%h %s", f"{created[-1]}..HEAD", "--", path)
+   201	        items.append("\n  ".join([f"{Path(path).stem}: amended since creation", *diff,
+   202	                                  *(f"changed by {entry}" for entry in since)]))
+   203	    scenarios = f"{epic_path}/bdd_scenarios.en.md"
+   204	    before, after = scenario_ids_at(root, base, scenarios), scenario_ids_at(root, "HEAD", scenarios)
+   205	    items += [f"scenario {i} added" for i in sorted(after - before)]
+   206	    items += [f"scenario {i} removed" for i in sorted(before - after)]
+   207	    return items + hld_amendments(root, epic_path, base)
+   208	
+   209	
+   210	def hld_amendments(root: Path, epic_path: str, base: str) -> list[str]:
+   211	    """The HLD's Protected paths: and Integration results: lines, diffed between <base> and HEAD."""
+   212	    hld = f"{epic_path}/{Path(epic_path).name}.en.md"
+   213	    lines = {rev: [line for line in (show(root, rev, hld) or "").splitlines() if line.startswith(GRADER_LINES)]
+   214	             for rev in (base, "HEAD")}
+   215	    if lines[base] == lines["HEAD"]:
+   216	        return []
+   217	    diff = difflib.unified_diff(lines[base], lines["HEAD"], f"{Path(hld).name} at base", f"{Path(hld).name} at HEAD",
+   218	                                lineterm="", n=0)
+   219	    since = git_lines(root, "log", "--format=%h %s", f"{base}..HEAD", "--", hld)
+   220	    return ["\n  ".join([f"{Path(hld).name}: Protected paths or Integration results changed since base", *diff,
+   221	                         *(f"changed by {entry}" for entry in since)])]
+   222	
+   223	
+   224	def build_report(root: Path, epic_dir: str, base: str) -> tuple[list[tuple[str, list[str]]], bool]:
+   225	    epic_path = f".devtool/epic/{epic_dir}"
+   226	    mirrors = [p for p in git_lines(root, "ls-tree", "--name-only", "HEAD", "--", f"{epic_path}/")
+   227	               if re.fullmatch(r"task_.*\.md", Path(p).name)]
+   228	    if not mirrors:
+   229	        raise ContractError(f"no task mirrors for epic {epic_dir} at HEAD under {epic_path}/")
+   230	    texts = {path: show(root, "HEAD", path) or "" for path in mirrors}
+   231	    commits = load_commits(root, base)
+   232	    task_commits = {c.sha for c in commits if any(p.startswith(f"{epic_path}/evidence/") for p in c.paths)}
+   233	    evidence: list[str] = []
+   234	    legacy: list[str] = []
+   235	    failed = False
+   236	    for path, text in sorted(texts.items()):
+   237	        if not marked_done(root, path, text):
+   238	            continue
+   239	        if section(text, "Verification") is None:
+   240	            legacy.append(f"{Path(path).stem}: legacy — no evidence")
+   241	        else:
+   242	            items, bad = audit_evidence(root, epic_path, base, Path(path).stem, text)
+   243	            evidence += items
+   244	            failed = failed or bad
+   245	    protected, bad = audit_protected(root, epic_path, commits, texts)
+   246	    outside = [f"{c.short} {c.title}" for c in commits
+   247	               if c.sha not in task_commits and any(not p.startswith(".devtool/") for p in c.paths)]
+   248	    gate5 = [f"{Path(path).stem}: {bullet}" for path, text in sorted(texts.items()) for bullet in dod_bullets(text)
+   249	             if (reference := DOD_REFERENCE.search(bullet)) and reference.group(1) == "Gate 5"]
+   250	    sections = [("Evidence", evidence), ("Legacy tasks", legacy), ("Protected paths", protected),
+   251	                ("Grader amendments", audit_amendments(root, epic_path, base, texts)),
+   252	                ("Commits outside tasks", outside), ("Gate 5 items", gate5)]
+   253	    return sections, failed or bad
+   254	
+   255	
+   256	def main(argv: list[str] | None = None) -> int:
+   257	    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+   258	    parser.add_argument("--epic-dir", required=True)
+   259	    parser.add_argument("--base", required=True)
+   260	    args = parser.parse_args(argv)
+   261	    try:
+   262	        top = subprocess.run(["git", "rev-parse", "--show-toplevel"], check=False, capture_output=True, text=True)
+   263	        if top.returncode != 0:
+   264	            raise ContractError("not inside a git repository")
+   265	        root = Path(top.stdout.strip())
+   266	        base = subprocess.run(["git", "rev-parse", "--verify", "--quiet", f"{args.base}^{{commit}}"], cwd=root,
+   267	                              check=False, capture_output=True, text=True)
+   268	        if base.returncode != 0 or args.base.startswith("-"):
+   269	            raise ContractError(f"unknown base reference: {args.base}")
+   270	        sections, failed = build_report(root, args.epic_dir, base.stdout.strip())
+
+exec
+/bin/zsh -lc "nl -ba skills/dev-implementation/resources/scripts/run_external_review.py | sed -n '160,345p'; nl -ba skills/dev-implementation/resources/scripts/check_bdd_traceability.py | sed -n '1,310p'; rg -n '"'^(class |def )|except|ROUTE|tracked_contents|R5b|Integration results|row_timeout|baseline'"' skills/dev-implementation/resources/scripts/check_epic_readiness.py" in /Users/danhdueexoictif/AllProjects/ai-agent-tools
+ succeeded in 0ms:
+   160	    return SCRIPTS.parent.parent / "references" / "principal-review-prompt.md"
+   161	
+   162	
+   163	def principal_rules_path() -> Path:
+   164	    standalone = SCRIPTS.parent.parent.parent / "principal-review" / "references" / "principal-review-rules.md"
+   165	    if standalone.is_file():
+   166	        return standalone
+   167	    return SCRIPTS.parent.parent / "references" / "principal-review-rules.md"
+   168	
+   169	
+   170	
+   171	def review_file(kind: str) -> tuple[str, str]:
+   172	    if kind == "principal":
+   173	        return ("principal_review.md", "Principal Review")
+   174	    return ("review_results.md", "Cross-Model Review")
+   175	
+   176	
+   177	def principal_artefact_lines(root: Path, epic_dir: str) -> str:
+   178	    epic_path = root / ".devtool" / "epic" / epic_dir
+   179	    lines: list[str] = []
+   180	
+   181	    # 1. *-design.en.md and *-design.vi.md
+   182	    for f in sorted(epic_path.glob("*-design.en.md")):
+   183	        lines.append(f"- `.devtool/epic/{epic_dir}/{f.name}`")
+   184	    for f in sorted(epic_path.glob("*-design.vi.md")):
+   185	        lines.append(f"- `.devtool/epic/{epic_dir}/{f.name}`")
+   186	
+   187	    # 2. <epic_dir>.en.md and <epic_dir>.vi.md
+   188	    for ext in (".en.md", ".vi.md"):
+   189	        doc = epic_path / f"{epic_dir}{ext}"
+   190	        if doc.is_file():
+   191	            line = f"- `.devtool/epic/{epic_dir}/{doc.name}`"
+   192	            if line not in lines:
+   193	                lines.append(line)
+   194	
+   195	    # 3. bdd_scenarios.en.md and bdd_scenarios.vi.md
+   196	    for ext in (".en.md", ".vi.md"):
+   197	        doc = epic_path / f"bdd_scenarios{ext}"
+   198	        if doc.is_file():
+   199	            line = f"- `.devtool/epic/{epic_dir}/{doc.name}`"
+   200	            if line not in lines:
+   201	                lines.append(line)
+   202	
+   203	    # 4. every task_*.md, sorted
+   204	    for t in sorted(epic_path.glob("task_*.md")):
+   205	        lines.append(f"- `.devtool/epic/{epic_dir}/{t.name}`")
+   206	
+   207	    # 5. handoff.md when present
+   208	    handoff = epic_path / "handoff.md"
+   209	    if handoff.is_file():
+   210	        lines.append(f"- `.devtool/epic/{epic_dir}/handoff.md`")
+   211	
+   212	    return "\n".join(lines)
+   213	
+   214	# Tolerates optional markdown headings, bullet prefixes, and bold markers around Verdict.
+   215	VERDICT = re.compile(
+   216	    r"^\s*(?:#+\s*|[-*+]\s*)?\*{0,2}Verdict(?:(?:\*{0,2}:)|(?::\*{0,2}))\s*\*{0,2}(PASS|CHANGES REQUIRED)\*{0,2}\s*$",
+   217	    re.IGNORECASE,
+   218	)
+   219	# Tolerates list numbering, bullets and ** around the severity, and —, –, - or : between location and problem.
+   220	FINDING = re.compile(
+   221	    r"^\s*(?:[-*+]|\d+[.)])?\s*\*{0,2}\[\*{0,2}(Critical|Important|Minor)\*{0,2}\]\*{0,2}\s*"
+   222	    r"(\S.*?)(?:\s+[—–-]|\s*:)\s+(\S.*)$",
+   223	    re.IGNORECASE,
+   224	)
+   225	# Only catch unparsed blocking tags when they appear on a list-like or tag-leading line to avoid prose false positives.
+   226	UNPARSED_BLOCKING = re.compile(
+   227	    r"^\s*(?:[-*+]|\d+[.)])?\s*\*{0,2}\[\*{0,2}(Critical|Important)\*{0,2}\]",
+   228	    re.IGNORECASE,
+   229	)
+   230	FINDING_ROW = re.compile(r"^\|\s*\d+\s*\|")
+   231	META_LINE = re.compile(r"^- \*\*(.+?)\*\*: (.*)$")
+   232	PASS_HEADER = re.compile(r"^### Pass (\d+): (.+)$")
+   233	NEXT_STEPS = ("To be written after verifying every finding: Fix commits, decisions, a confirmation round, "
+   234	              "then Gate 4 in full.")
+   235	BLOCKING = ("Critical", "Important")
+   236	FENCE = re.compile(r"^(`{3,})")
+   237	
+   238	MAX_DIFF_LINES = 1500
+   239	MAX_DIFF_BYTES = 60_000
+   240	
+   241	RED = "\033[1;31m"
+   242	GREEN = "\033[1;32m"
+   243	YELLOW = "\033[1;33m"
+   244	CYAN = "\033[1;36m"
+   245	RESET = "\033[0m"
+   246	
+   247	EXCLUDES = (
+   248	    # 1. Common Locks, Build & Devtool
+   249	    ":(exclude)*.lock",
+   250	    ":(exclude)*-lock.*",
+   251	    ":(exclude)*.lockfile",
+   252	    ":(exclude)**/Package.resolved",
+   253	    ":(exclude)build/**",
+   254	    ":(exclude).devtool/**",
+   255	    # 2. Flutter / Dart Codegen & FFI Bridge
+   256	    ":(exclude)*.g.dart",
+   257	    ":(exclude)*.freezed.dart",
+   258	    ":(exclude)*.gr.dart",
+   259	    ":(exclude)*.config.dart",
+   260	    ":(exclude)*.mocks.dart",
+   261	    ":(exclude)*.chopper.dart",
+   262	    ":(exclude)*.pigeon.*",
+   263	    ":(exclude)*frb_generated*",
+   264	    ":(exclude)**/l10n/app_localizations*.dart",
+   265	    # 3. iOS Native (Xcode metadata, assets & UI layout XML)
+   266	    ":(exclude)*.pbxproj",
+   267	    ":(exclude)*.xcworkspacedata",
+   268	    ":(exclude)*.xcscheme",
+   269	    ":(exclude)*.storyboard",
+   270	    ":(exclude)*.xib",
+   271	    ":(exclude)**/*.xcassets/**",
+   272	    ":(exclude)*.xcstrings",
+   273	    # 4. Android Native (Gradle wrapper & Baseline profiles)
+   274	    ":(exclude)gradlew",
+   275	    ":(exclude)gradlew.bat",
+   276	    ":(exclude)**/gradle/wrapper/**",
+   277	    ":(exclude)**/baseline-prof.txt",
+   278	    # 5. Rust & Python Generated / Snapshots
+   279	    ":(exclude)*.generated.*",
+   280	    ":(exclude)*_pb2.py",
+   281	    ":(exclude)*_pb2_grpc.py",
+   282	    ":(exclude)*_pb2.pyi",
+   283	    ":(exclude)**/.sqlx/**",
+   284	    ":(exclude)**/__snapshots__/**",
+   285	    ":(exclude)*.snap",
+   286	    ":(exclude)*.ambr",
+   287	    # 6. Minified Web Assets & Source Maps
+   288	    ":(exclude)*.min.js",
+   289	    ":(exclude)*.min.css",
+   290	    ":(exclude)*.map",
+   291	)
+   292	
+   293	
+   294	class PreconditionFailedError(Exception):
+   295	    """Raised when fact collection fails, preventing AI CLI invocation."""
+   296	
+   297	    def __init__(self, gate: str, reason: str, details: str = "") -> None:
+   298	        super().__init__(f"{gate}: {reason}")
+   299	        self.gate = gate
+   300	        self.reason = reason
+   301	        self.details = details.strip()
+   302	
+   303	
+   304	def print_gate_banner(error: PreconditionFailedError, cli: str) -> None:
+   305	    """Print an unmistakable highlighted banner when a pre-check blocks AI invocation."""
+   306	    bar = "=" * 74
+   307	    lines = [
+   308	        f"\n{RED}{bar}{RESET}",
+   309	        f"{RED}🚨 [PRECONDITION BLOCKED] — {cli.upper()} CLI WAS NOT INVOKED (0 CREDITS USED){RESET}",
+   310	        f"{RED}{bar}{RESET}",
+   311	        f"{YELLOW}Failed Gate :{RESET} {error.gate}",
+   312	        f"{YELLOW}Reason      :{RESET} {error.reason}",
+   313	    ]
+   314	    if error.details:
+   315	        indented = "\n".join(f"  {line}" for line in error.details.splitlines()[-25:])
+   316	        lines.append(f"{YELLOW}Details (last 25 lines):{RESET}\n{indented}")
+   317	    lines.append(f"{RED}{bar}{RESET}\n")
+   318	    print("\n".join(lines), file=sys.stderr, flush=True)
+   319	
+   320	
+   321	def status_lines(root: Path) -> list[str]:
+   322	    return git_run(root, "status", "--porcelain").decode("utf-8", "replace").splitlines()
+   323	
+   324	
+   325	def head_of(root: Path) -> str:
+   326	    return git_run(root, "rev-parse", "HEAD").decode().strip()
+   327	
+   328	
+   329	def execute(command: list[str] | str, root: Path, timeout: int, prompt: str | None = None,
+   330	            shell: bool = False) -> tuple[int | None, str, str]:
+   331	    """Run to completion in its own process group, so a timeout also ends the CLI's children."""
+   332	    process = subprocess.Popen(command, cwd=root, shell=shell, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+   333	                               stderr=subprocess.PIPE, start_new_session=True)
+   334	    try:
+   335	        out, err = process.communicate((prompt or "").encode(), timeout=timeout)
+   336	        code: int | None = process.returncode
+   337	    except subprocess.TimeoutExpired:
+   338	        os.killpg(process.pid, signal.SIGKILL)
+   339	        out, err = process.communicate()
+   340	        code = None
+   341	    return code, out.decode("utf-8", "replace"), err.decode("utf-8", "replace")
+   342	
+   343	
+   344	def run_gate(label: str, command: list[str] | str, root: Path, timeout: int,
+   345	             shell: bool = False) -> tuple[int, str, str]:
+     1	#!/usr/bin/env python3
+     2	"""Check that every epic BDD scenario is assigned to a task and covered by an integration test.
+     3	
+     4	Usage:
+     5	  check_bdd_traceability.py plan  --scenarios <bdd_scenarios.en.md> --tasks <task_*.md ...>
+     6	  check_bdd_traceability.py tests --scenarios <bdd_scenarios.en.md> --roots <dir ...> [--ids <ID ...>]
+     7	                                  [--results <report file|dir|glob ...>]
+     8	
+     9	Exit codes: 0 all covered; 1 traceability failure; 2 usage error.
+    10	"""
+    11	from __future__ import annotations
+    12	
+    13	import argparse
+    14	import re
+    15	import subprocess
+    16	import sys
+    17	from pathlib import Path
+    18	
+    19	from result_reports import ReportError, load_reports, reference_pattern, verdicts
+    20	
+    21	ID_SHAPE = re.compile(r"[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-[0-9]+")
+    22	SCENARIO_KEYWORDS = (
+    23	    "Scenario Outline", "Scenario Template", "Scenario", "Example",
+    24	    "Khung tình huống", "Khung kịch bản", "Tình huống", "Kịch bản",
+    25	)
+    26	SCENARIO_LINE = re.compile(
+    27	    r"^\s*(?:" + "|".join(re.escape(keyword) for keyword in SCENARIO_KEYWORDS) + r")\s*:\s*(.*)$"
+    28	)
+    29	LEADING_TAG = re.compile(r"^\[([^\]]*)\]")
+    30	FENCE = re.compile(r"^\s*(`{3,}|~{3,})\s*(\S*)")
+    31	COVERS_LINE = re.compile(r"^\s*(?:[-*]\s+)?\**Covers\**\s*:\**\s*(.*)$")
+    32	ID_TOKEN = re.compile(r"(?<![A-Za-z0-9-])" + ID_SHAPE.pattern + r"(?![A-Za-z0-9])")
+    33	
+    34	
+    35	class UsageError(Exception):
+    36	    """Missing input: exit 2."""
+    37	
+    38	
+    39	def read_text(path: Path) -> str:
+    40	    """Read a scenario document or task file; anything but UTF-8 is a usage error."""
+    41	    try:
+    42	        return path.read_text(encoding="utf-8")
+    43	    except UnicodeDecodeError:
+    44	        raise UsageError(f"{path} is not valid UTF-8") from None
+    45	
+    46	
+    47	def scenario_ids(path: Path) -> tuple[list[str], list[str]]:
+    48	    """Identifiers in document order, and the problems found, for one scenario document."""
+    49	    ids: list[str] = []
+    50	    problems: list[str] = []
+    51	    fence_marker: str | None = None
+    52	    in_gherkin = False
+    53	    for number, line in enumerate(read_text(path).splitlines(), start=1):
+    54	        fence = FENCE.match(line)
+    55	        if fence and fence_marker is None:
+    56	            fence_marker, in_gherkin = fence.group(1), fence.group(2).lower() == "gherkin"
+    57	            continue
+    58	        if (fence and fence.group(1)[0] == fence_marker[0]
+    59	                and len(fence.group(1)) >= len(fence_marker) and not fence.group(2)):
+    60	            fence_marker, in_gherkin = None, False
+    61	            continue
+    62	        match = SCENARIO_LINE.match(line) if in_gherkin else None
+    63	        if not match:
+    64	            continue
+    65	        tag = LEADING_TAG.match(match.group(1).strip())
+    66	        if not tag:
+    67	            problems.append(f"{path}:{number}: scenario has no identifier")
+    68	        elif not ID_SHAPE.fullmatch(tag.group(1)):
+    69	            problems.append(f"{path}:{number}: malformed identifier [{tag.group(1)}]")
+    70	        elif tag.group(1) in ids:
+    71	            problems.append(f"{path}:{number}: duplicate identifier {tag.group(1)}")
+    72	        else:
+    73	            ids.append(tag.group(1))
+    74	    return ids, problems
+    75	
+    76	
+    77	def load_scenarios(path: Path) -> tuple[list[str], list[str]]:
+    78	    """Validate the English document and, when present, its Vietnamese sibling."""
+    79	    if not path.is_file():
+    80	        raise UsageError(f"scenario document not found: {path}")
+    81	    ids, problems = scenario_ids(path)
+    82	    if not ids and not problems:
+    83	        problems.append(f"{path}: no scenarios found inside gherkin fences")
+    84	    if path.name.endswith(".en.md"):
+    85	        sibling = path.with_name(path.name[: -len(".en.md")] + ".vi.md")
+    86	        if sibling.is_file():
+    87	            vi_ids, vi_problems = scenario_ids(sibling)
+    88	            problems.extend(vi_problems)
+    89	            missing = sorted(set(ids) - set(vi_ids))
+    90	            extra = sorted(set(vi_ids) - set(ids))
+    91	            if missing:
+    92	                problems.append(f"{sibling}: missing identifiers {', '.join(missing)}")
+    93	            if extra:
+    94	                problems.append(f"{sibling}: identifiers not in {path.name}: {', '.join(extra)}")
+    95	    return ids, problems
+    96	
+    97	
+    98	def covers_of(path: Path) -> list[str]:
+    99	    """Identifiers named on every Covers: line of one task file."""
+   100	    found: list[str] = []
+   101	    for line in read_text(path).splitlines():
+   102	        match = COVERS_LINE.match(line)
+   103	        if match:
+   104	            found.extend(ID_TOKEN.findall(match.group(1)))
+   105	    return found
+   106	
+   107	
+   108	def check_plan(ids: list[str], task_paths: list[Path]) -> tuple[dict[str, list[str]], list[str]]:
+   109	    coverage: dict[str, list[str]] = {identifier: [] for identifier in ids}
+   110	    problems: list[str] = []
+   111	    for path in task_paths:
+   112	        if not path.is_file():
+   113	            raise UsageError(f"task file not found: {path}")
+   114	        for identifier in covers_of(path):
+   115	            if identifier not in coverage:
+   116	                problems.append(f"{path}: Covers names unknown identifier {identifier}")
+   117	            elif path.name not in coverage[identifier]:
+   118	                coverage[identifier].append(path.name)
+   119	    for identifier, owners in coverage.items():
+   120	        if len(owners) > 1:
+   121	            problems.append(f"{identifier} is on the Covers lines of {', '.join(owners[:-1])} and {owners[-1]}")
+   122	    return coverage, problems
+   123	
+   124	
+   125	def stale_pattern(ids: list[str]) -> re.Pattern[str]:
+   126	    """Uppercase hyphenated tokens shaped like this document's identifiers: same prefix, same segment count."""
+   127	    shapes = sorted({(identifier.split("-")[0], identifier.count("-")) for identifier in ids})
+   128	    alternatives = "|".join(re.escape(prefix) + "(?:-[A-Z0-9]+)" * (hyphens - 1) + "-[0-9]+"
+   129	                            for prefix, hyphens in shapes)
+   130	    return re.compile(r"(?<![A-Za-z0-9-])(?:" + alternatives + r")(?![A-Za-z0-9-])")
+   131	
+   132	
+   133	def listed_files(root: Path) -> list[Path] | None:
+   134	    """Files git lists under root — tracked, plus untracked but not ignored — or None outside git."""
+   135	    try:
+   136	        listed = subprocess.run(["git", "-C", str(root), "ls-files", "--cached", "--others",
+   137	                                 "--exclude-standard", "-z"], capture_output=True, check=True)
+   138	    except (OSError, subprocess.CalledProcessError):
+   139	        return None
+   140	    return [root / name for name in listed.stdout.decode("utf-8", "surrogateescape").split("\0") if name]
+   141	
+   142	
+   143	def integration_files(roots: list[Path]) -> tuple[list[Path], list[str]]:
+   144	    existing = [root for root in roots if root.is_dir()]
+   145	    warnings = [f"warning: integration test root not found, skipped: {root}"
+   146	                for root in roots if not root.is_dir()]
+   147	    if not existing:
+   148	        raise UsageError("none of the integration test roots exists: " + ", ".join(map(str, roots)))
+   149	    files: list[Path] = []
+   150	    for root in existing:
+   151	        listed = listed_files(root)
+   152	        candidates = sorted(listed) if listed is not None else sorted(root.rglob("*"))
+   153	        files.extend(path for path in candidates if path.is_file() and path.suffix.lower() != ".md")
+   154	    return files, warnings
+   155	
+   156	
+   157	def check_tests(ids: list[str], selected: list[str], roots: list[Path],
+   158	                check_stale: bool) -> tuple[dict[str, list[str]], list[str], list[str]]:
+   159	    patterns = {identifier: reference_pattern(identifier) for identifier in selected}
+   160	    coverage: dict[str, list[str]] = {identifier: [] for identifier in selected}
+   161	    stale = stale_pattern(ids)
+   162	    known = set(ids)
+   163	    problems: list[str] = []
+   164	    files, warnings = integration_files(roots)
+   165	    for path in files:
+   166	        try:
+   167	            lines = path.read_text(encoding="utf-8").splitlines()
+   168	        except UnicodeDecodeError:
+   169	            continue
+   170	        for number, line in enumerate(lines, start=1):
+   171	            for identifier, pattern in patterns.items():
+   172	                if pattern.search(line):
+   173	                    coverage[identifier].append(f"{path}:{number}")
+   174	            if check_stale:
+   175	                problems.extend(f"{path}:{number}: stale reference {token}"
+   176	                                for token in stale.findall(line) if token not in known)
+   177	    return coverage, problems, warnings
+   178	
+   179	
+   180	def split_values(values: list[str] | None) -> list[str]:
+   181	    """Accept space- or comma-separated values, as copied from an HLD or Covers: line."""
+   182	    return [item for value in values or [] for part in value.split(",") for item in part.split() if item]
+   183	
+   184	
+   185	def report(coverage: dict[str, list[str]], problems: list[str], warnings: list[str]) -> int:
+   186	    width = max((len(identifier) for identifier in coverage), default=0)
+   187	    for identifier, places in coverage.items():
+   188	        print(f"{identifier.ljust(width)}    {', '.join(places) if places else '(none)'}")
+   189	    for warning in warnings:
+   190	        print(warning, file=sys.stderr)
+   191	    for problem in problems:
+   192	        print(problem)
+   193	    covered = sum(1 for places in coverage.values() if places)
+   194	    failed = bool(problems) or covered < len(coverage)
+   195	    print(f"Result: {covered}/{len(coverage)} covered — {'FAIL' if failed else 'PASS'}")
+   196	    return 1 if failed else 0
+   197	
+   198	
+   199	def report_results(ids: list[str], selected: list[str], roots: list[Path], results: list[str],
+   200	                   check_stale: bool, unknown: list[str]) -> int:
+   201	    """Coverage proven by test results: each selected identifier needs a passed case."""
+   202	    cases = load_reports(results, Path.cwd())
+   203	    _, problems, warnings = check_tests(ids, [], roots, check_stale)
+   204	    if check_stale:
+   205	        stale, known = stale_pattern(ids), set(ids)
+   206	        problems.extend(f"{case.name}: stale reference {token}" for case in cases
+   207	                        for token in stale.findall(f"{case.name} {case.classname}") if token not in known)
+   208	    judged = verdicts(selected, cases)
+   209	    width = max((len(identifier) for identifier in judged), default=0)
+   210	    for identifier, (passed, detail) in judged.items():
+   211	        print(f"{identifier.ljust(width)}    {'PASS' if passed else 'FAIL'} {detail}")
+   212	    for warning in warnings:
+   213	        print(warning, file=sys.stderr)
+   214	    problems = unknown + problems
+   215	    for problem in problems:
+   216	        print(problem)
+   217	    covered = sum(1 for passed, _ in judged.values() if passed)
+   218	    failed = bool(problems) or covered < len(judged)
+   219	    print(f"Result: {covered}/{len(judged)} covered — {'FAIL' if failed else 'PASS'}")
+   220	    return 1 if failed else 0
+   221	
+   222	
+   223	def main(argv: list[str] | None = None) -> int:
+   224	    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+   225	    modes = parser.add_subparsers(dest="mode", required=True)
+   226	    plan = modes.add_parser("plan", help="every scenario is assigned to exactly one task")
+   227	    plan.add_argument("--scenarios", required=True, type=Path)
+   228	    plan.add_argument("--tasks", required=True, nargs="+", type=Path)
+   229	    tests = modes.add_parser("tests", help="every scenario has at least one integration test")
+   230	    tests.add_argument("--scenarios", required=True, type=Path)
+   231	    tests.add_argument("--roots", required=True, nargs="+")
+   232	    tests.add_argument("--ids", nargs="+")
+   233	    tests.add_argument("--results", nargs="+")
+   234	    args = parser.parse_args(argv)
+   235	    try:
+   236	        ids, problems = load_scenarios(args.scenarios)
+   237	        if problems:
+   238	            print("\n".join(problems))
+   239	            print("Result: scenario document invalid — FAIL")
+   240	            return 1
+   241	        if args.mode == "plan":
+   242	            coverage, problems = check_plan(ids, args.tasks)
+   243	            return report(coverage, problems, [])
+   244	        roots = [Path(value) for value in split_values(args.roots)]
+   245	        selected = split_values(args.ids) or ids
+   246	        unknown = [f"--ids names unknown identifier {identifier}"
+   247	                   for identifier in selected if identifier not in ids]
+   248	        known_selected = [identifier for identifier in selected if identifier in ids]
+   249	        if args.results:
+   250	            return report_results(ids, known_selected, roots, split_values(args.results),
+   251	                                  not args.ids, unknown)
+   252	        coverage, problems, warnings = check_tests(ids, known_selected, roots, not args.ids)
+   253	        return report(coverage, unknown + problems, warnings)
+   254	    except (UsageError, ReportError) as error:
+   255	        print(f"error: {error}", file=sys.stderr)
+   256	        return 2
+   257	
+   258	
+   259	if __name__ == "__main__":
+   260	    sys.exit(main())
+5:    check_epic_readiness.py <epic_dir> [--baseline] [--row-timeout 600]
+32:class Finding:
+33:    check: str     # "R1" ... "R8", "R5b", "R7b"
+39:class Context:
+47:    baseline: bool = False
+48:    row_timeout: int = 600
+51:def parse_integration_test_roots(hld_text: str) -> list[str]:
+59:def load_context(
+63:    baseline: bool = False,
+64:    row_timeout: int = 600,
+91:        baseline=baseline,
+92:        row_timeout=row_timeout,
+96:def get_last_non_empty_line(*outputs: str) -> str:
+102:def check_preflight(ctx: Context) -> list[Finding]:
+198:def check_task_mirrors(ctx: Context) -> list[Finding]:
+245:def extract_scenario_blocks(text: str) -> dict[str, list[str]]:
+306:def check_bdd_scenarios(ctx: Context) -> list[Finding]:
+338:def check_tier_tags(ctx: Context) -> list[Finding]:
+383:def check_grounding(ctx: Context) -> list[Finding]:
+436:            except OSError:
+452:    # --- R5b: Route Grounding (WARN) ---
+480:        except OSError:
+483:        tracked_contents: list[str] = []
+487:                    tracked_contents.append(f.read_text(encoding="utf-8", errors="ignore"))
+488:                except OSError:
+492:            if not any(route in content for content in tracked_contents):
+493:                findings.append(Finding("R5b", "WARN", f"{route}: not found in tracked source"))
+498:def check_gate4_coverage(ctx: Context) -> list[Finding]:
+505:        except ValueError:
+512:        except tc.ContractError:
+523:            except ValueError:
+544:                            f"{task_path.name}:{r.id}: {t} is in no Integration results command",
+551:def check_metadata(ctx: Context) -> list[Finding]:
+620:def check_baseline(ctx: Context) -> list[Finding]:
+621:    if not ctx.baseline:
+632:        return [Finding("R8", "WARN", "baseline skipped: dirty tree")]
+645:        except tc.ContractError:
+655:            code, raw_output = rtc.run_command(row.command, ctx.root, ctx.row_timeout)
+661:                        f"{task_path.stem}:{row.id} timeout after {ctx.row_timeout}s",
+681:    ("R8", check_baseline),
+685:def run_checks(
+688:    baseline: bool = False,
+689:    row_timeout: int = 600,
+699:        baseline=baseline,
+700:        row_timeout=row_timeout,
+708:def render_report(ctx: Context, findings: list[Finding]) -> str:
+724:            for f in by_check.get("R5b", []):
+730:    if not ctx.baseline:
+748:def main(argv: list[str] | None = None) -> int:
+752:        "--baseline",
+754:        help="Run baseline GREEN and TIER-B verification rows",
+760:        help="Timeout in seconds for each baseline row",
+773:    except (subprocess.CalledProcessError, OSError):
+787:    ctx = load_context(root, args.epic_dir, baseline=args.baseline, row_timeout=args.row_timeout)
+788:    findings = run_checks(ctx, baseline=args.baseline, row_timeout=args.row_timeout)
+
+exec
+/bin/zsh -lc "nl -ba skills/dev-implementation/resources/scripts/run_external_review.py | sed -n '344,450p'; nl -ba skills/dev-implementation/resources/scripts/result_reports.py | sed -n '1,280p'; nl -ba skills/dev-implementation/resources/scripts/check_epic_readiness.py | sed -n '383,550p'; nl -ba skills/doc_quality_check/resources/scripts/check_document.py | tail -90" in /Users/danhdueexoictif/AllProjects/ai-agent-tools
+ succeeded in 0ms:
+   344	def run_gate(label: str, command: list[str] | str, root: Path, timeout: int,
+   345	             shell: bool = False) -> tuple[int, str, str]:
+   346	    """Execute a pre-check gate with real-time terminal feedback."""
+   347	    print(f"{CYAN}⏳ [Pre-check]{RESET} {label} ... ", end="", file=sys.stderr, flush=True)
+   348	    code, out, err = execute(command, root, timeout, shell=shell)
+   349	    combined = (out + err).rstrip()
+   350	    if code is None:
+   351	        print(f"{RED}❌ TIMEOUT ({timeout}s){RESET}", file=sys.stderr, flush=True)
+   352	        raise PreconditionFailedError(label, f"timed out after {timeout} seconds", combined)
+   353	    if code != 0:
+   354	        print(f"{RED}❌ FAILED (exit {code}){RESET}", file=sys.stderr, flush=True)
+   355	        raise PreconditionFailedError(label, f"failed with exit code {code}", combined)
+   356	    print(f"{GREEN}✅ PASS{RESET}", file=sys.stderr, flush=True)
+   357	    return code, out, err
+   358	
+   359	
+   360	def fact(label: str, code: int | None, out: str, err: str) -> str:
+   361	    return f"$ {label}\nexit {code if code is not None else 'timeout'}\n{(out + err).rstrip()}\n"
+   362	
+   363	
+   364	def collect_facts(root: Path, epic_dir: str, base: str, hld_text: str, timeout: int) -> tuple[str, str]:
+   365	    audit = [sys.executable, str(SCRIPTS / "audit_epic.py"), "--epic-dir", epic_dir, "--base", base]
+   366	    audit_code, audit_out, audit_err = run_gate("audit_epic.py", audit, root, timeout)
+   367	    audit_output = fact("audit_epic.py", audit_code, audit_out, audit_err)
+   368	    results, reports = [], []
+   369	    for line in parse_integration_results(hld_text):
+   370	        command, _, report = line.strip().strip("`").partition(" -> ")
+   371	        cmd = command.strip().strip("`")
+   372	        report = report.strip().strip("`")
+   373	        cmd_code, cmd_out, cmd_err = run_gate(f"Integration: {cmd}", cmd, root, timeout, shell=True)
+   374	        results.append(fact(cmd, cmd_code, cmd_out, cmd_err))
+   375	        reports.extend(report.split())
+   376	    roots = re.search(r"^Integration test roots:\s*(.+)$", hld_text, re.MULTILINE)
+   377	    if roots and reports:
+   378	        results_paths = ["build/test-results"] if (root / "build/test-results").is_dir() else [r.strip("`") for r in reports]
+   379	        roots_list = [r.strip("`") for r in roots.group(1).strip().split()]
+   380	        check = [sys.executable, str(SCRIPTS / "check_bdd_traceability.py"), "tests", "--scenarios",
+   381	                 f".devtool/epic/{epic_dir}/bdd_scenarios.en.md", "--roots", *roots_list,
+   382	                 "--results", *results_paths]
+   383	        chk_code, chk_out, chk_err = run_gate("check_bdd_traceability.py", check, root, timeout)
+   384	        results.append(fact(shlex.join(check[1:]), chk_code, chk_out, chk_err))
+   385	    return audit_output, "\n".join(results) or "No Integration results declared.\n"
+   386	
+   387	
+   388	def artefact_lines(root: Path, epic_dir: str) -> str:
+   389	    folder = root / ".devtool" / "epic" / epic_dir
+   390	    names = sorted(p.name for p in folder.glob("*.md"))
+   391	    spec = [n for n in names if not n.startswith(("task_", "bdd_", epic_dir, "review_results"))]
+   392	    paths = (spec + [f"{epic_dir}.en.md", "bdd_scenarios.en.md"]
+   393	             + [n for n in names if n.startswith("task_")] + ["evidence/"])
+   394	    return "\n".join(f"- `.devtool/epic/{epic_dir}/{p}`" for p in paths)
+   395	
+   396	
+   397	def build_diff_section(root: Path, base: str, sha: str, max_lines: int = MAX_DIFF_LINES, max_bytes: int = MAX_DIFF_BYTES) -> str:
+   398	    """Hybrid inlining: always show full --stat; inline filtered diff if within size budget."""
+   399	    full_stat = git_run(
+   400	        root, "diff", "--stat", f"{base}...{sha}", "--", ".", ":(exclude).devtool/**"
+   401	    ).decode("utf-8", "replace").strip()
+   402	    filtered_diff = git_run(
+   403	        root, "diff", f"{base}...{sha}", "--", ".", *EXCLUDES
+   404	    ).decode("utf-8", "replace").strip()
+   405	
+   406	    stat_fence = fence_for(full_stat)
+   407	    stat_block = f"Full file change summary (`git diff --stat`, including locks/codegen):\n\n{stat_fence}text\n{full_stat or '(no changes outside .devtool/)'}\n{stat_fence}\n\n"
+   408	
+   409	    if not filtered_diff:
+   410	        return stat_block + "No non-excluded source code changes to inline."
+   411	
+   412	    line_count = len(filtered_diff.splitlines())
+   413	    byte_size = len(filtered_diff.encode("utf-8"))
+   414	
+   415	    if line_count <= max_lines and byte_size <= max_bytes:
+   416	        diff_fence = fence_for(filtered_diff)
+   417	        return (
+   418	            stat_block
+   419	            + f"The complete source diff ({line_count} lines, {byte_size // 1024} KB, lock, generated, and noisy metadata/asset files excluded) "
+   420	            f"is inlined below. Do NOT run `git diff` again unless you need to inspect an excluded file:\n\n"
+   421	            f"{diff_fence}diff\n{filtered_diff}\n{diff_fence}"
+   422	        )
+   423	
+   424	    return (
+   425	        stat_block
+   426	        + f"The source diff is large ({line_count} lines, {byte_size // 1024} KB > inline budget). "
+   427	        f"Do NOT run an unfiltered `git diff`; inspect specific target files via `git diff {base}...{sha} -- <path>` as needed."
+   428	    )
+   429	
+   430	
+   431	def diff_range(root: Path, base: str, commits: str | None = None) -> tuple[str, str]:
+   432	    """Extract commit log and diff section for an arbitrary base and commit range."""
+   433	    commit_spec = commits if commits else f"{base}...HEAD"
+   434	    log = git_run(root, "log", "--oneline", commit_spec).decode("utf-8", "replace").strip()
+   435	    full_stat = git_run(
+   436	        root, "diff", "--stat", commit_spec, "--", "."
+   437	    ).decode("utf-8", "replace").strip()
+   438	    filtered_diff = git_run(
+   439	        root, "diff", commit_spec, "--", ".", *EXCLUDES
+   440	    ).decode("utf-8", "replace").strip()
+   441	
+   442	    stat_fence = fence_for(full_stat)
+   443	    stat_block = f"Full file change summary (`git diff --stat`, including locks/codegen):\n\n{stat_fence}text\n{full_stat or '(no changes)'}\n{stat_fence}\n\n"
+   444	
+   445	    if not filtered_diff:
+   446	        diff_section = stat_block + "No non-excluded source code changes to inline."
+   447	    else:
+   448	        line_count = len(filtered_diff.splitlines())
+   449	        byte_size = len(filtered_diff.encode("utf-8"))
+   450	        if line_count <= MAX_DIFF_LINES and byte_size <= MAX_DIFF_BYTES:
+     1	#!/usr/bin/env python3
+     2	"""Read JUnit XML and Dart JSON test reports, and decide which identifiers they prove.
+     3	
+     4	Imported by check_bdd_traceability.py and run_task_checks.py; it has no command line.
+     5	"""
+     6	
+     7	from __future__ import annotations
+     8	
+     9	import glob
+    10	import json
+    11	import re
+    12	import xml.etree.ElementTree as ET
+    13	from dataclasses import dataclass
+    14	from pathlib import Path
+    15	
+    16	
+    17	class ReportError(Exception):
+    18	    """A report path that is missing, or a file in neither format."""
+    19	
+    20	
+    21	@dataclass(frozen=True)
+    22	class Case:
+    23	    name: str
+    24	    classname: str
+    25	    status: str  # "passed", "failed" or "skipped"
+    26	
+    27	
+    28	def reference_pattern(identifier: str) -> re.Pattern[str]:
+    29	    """Match an identifier in any case, with - and _ interchangeable, not inside a longer token."""
+    30	    body = "[-_]".join(re.escape(part) for part in identifier.split("-"))
+    31	    return re.compile(r"(?<![A-Za-z0-9])" + body + r"(?![A-Za-z0-9])", re.IGNORECASE)
+    32	
+    33	
+    34	def parse_junit(text: str) -> list[Case]:
+    35	    cases = []
+    36	    for element in ET.fromstring(text).iter("testcase"):
+    37	        tags = {child.tag for child in element}
+    38	        status = (
+    39	            "failed"
+    40	            if tags & {"failure", "error"}
+    41	            else "skipped"
+    42	            if "skipped" in tags
+    43	            else "passed"
+    44	        )
+    45	        cases.append(
+    46	            Case(element.get("name", ""), element.get("classname", ""), status)
+    47	        )
+    48	    return cases
+    49	
+    50	
+    51	def parse_dart(text: str) -> list[Case]:
+    52	    names: dict[object, tuple[str, str]] = {}
+    53	    cases = []
+    54	    for line in text.splitlines():
+    55	        if not line.strip():
+    56	            continue
+    57	        try:
+    58	            event = json.loads(line)
+    59	        except Exception:
+    60	            continue
+    61	        if isinstance(event, list):
+    62	            if event and isinstance(event[0], dict):
+    63	                event = event[0]
+    64	            else:
+    65	                continue
+    66	        if not isinstance(event, dict):
+    67	            continue
+    68	        if event.get("type") == "testStart":
+    69	            t_obj = event.get("test", {})
+    70	            t_name = t_obj.get("name", "")
+    71	            t_url = t_obj.get("url") or t_obj.get("root_url") or ""
+    72	            names[t_obj.get("id")] = (t_name, t_url)
+    73	        elif event.get("type") == "testDone" and event.get("testID") in names:
+    74	            name, url = names.pop(event["testID"])
+    75	            if event.get("hidden"):
+    76	                continue
+    77	            status = (
+    78	                "skipped"
+    79	                if event.get("skipped")
+    80	                else "passed"
+    81	                if event.get("result") == "success"
+    82	                else "failed"
+    83	            )
+    84	            cases.append(Case(name, url, status))
+    85	    return cases
+    86	
+    87	
+    88	def report_files(path: str, root: Path) -> list[Path]:
+    89	    target = root / path
+    90	    if target.is_dir():
+    91	        return sorted(
+    92	            p for pattern in ("*.xml", "*.json") for p in target.rglob(pattern)
+    93	        )
+    94	    if target.is_file():
+    95	        return [target]
+    96	    matches = sorted(Path(match) for match in glob.glob(str(target), recursive=True))
+    97	    if not matches:
+    98	        raise ReportError(f"results path not found: {path}")
+    99	    return [p for match in matches for p in report_files(str(match), root)]
+   100	
+   101	
+   102	def load_files(files: list[Path]) -> list[Case]:
+   103	    cases: list[Case] = []
+   104	    for file in files:
+   105	        text = file.read_text(encoding="utf-8", errors="replace")
+   106	        lead = text.lstrip()[:1]
+   107	        try:
+   108	            if lead == "<":
+   109	                cases.extend(parse_junit(text))
+   110	            elif lead == "{" or any(line.startswith("{") for line in text.splitlines()):
+   111	                cases.extend(parse_dart(text))
+   112	            else:
+   113	                raise ReportError(f"{file} is neither JUnit XML nor Dart JSON")
+   114	        except (ET.ParseError, ValueError, KeyError) as error:
+   115	            raise ReportError(f"{file} is not a valid report: {error}") from None
+   116	    return cases
+   117	
+   118	
+   119	def load_reports(paths: list[str], root: Path) -> list[Case]:
+   120	    return load_files([file for path in paths for file in report_files(path, root)])
+   121	
+   122	
+   123	def belongs(case: Case, identifier: str) -> bool:
+   124	    pattern = reference_pattern(identifier)
+   125	    return bool(pattern.search(case.name) or pattern.search(case.classname))
+   126	
+   127	
+   128	UNIT_CLASSNAME_PATTERNS = [
+   129	    re.compile(r"^tests?[\./]unit[\./]", re.IGNORECASE),
+   130	    re.compile(r"\bUnitTests?\b", re.IGNORECASE),
+   131	    re.compile(r"\bMockTest\b", re.IGNORECASE),
+   132	    re.compile(r"^unit[\._]", re.IGNORECASE),
+   133	    re.compile(r"\btest_web_quality_provider\b", re.IGNORECASE),
+   134	    re.compile(r"\bfake\b", re.IGNORECASE),
+   135	]
+   136	
+   137	INTEGRATION_POSITIVE_PATTERNS = [
+   138	    re.compile(r"(?:\b|[\./_-])integration(?:[\./_-]|\b)", re.IGNORECASE),
+   139	    re.compile(r"(?:\b|[\./_-])e2e(?:[\./_-]|\b)", re.IGNORECASE),
+   140	    re.compile(r"(?:\b|[\./_-])playwright(?:[\./_-]|\b)", re.IGNORECASE),
+   141	    re.compile(r"(?:\b|[\./_-])watchdog(?:[\./_-]|\b)", re.IGNORECASE),
+   142	    re.compile(r"(?:\b|[\./_-])wiremock(?:[\./_-]|\b)", re.IGNORECASE),
+   143	    re.compile(r"(?:\b|[\./_-])system(?:[\./_-]|\b)", re.IGNORECASE),
+   144	    re.compile(r"(?:\b|[\./_-])polyglot(?:[\./_-]|\b)", re.IGNORECASE),
+   145	    re.compile(r"(?:\b|[\./_-])harness(?:[\./_-]|\b)", re.IGNORECASE),
+   146	    re.compile(r"(?:\b|[\./_-])patrol(?:[\./_-]|\b)", re.IGNORECASE),
+   147	    re.compile(r"(?:\b|[\./_-])xcuitest(?:[\./_-]|\b)", re.IGNORECASE),
+   148	    re.compile(r"(?:\b|[\./_-])androidtest(?:[\./_-]|\b)", re.IGNORECASE),
+   149	    re.compile(r"(?:\b|[\./_-])connected(?:[\./_-]|\b)", re.IGNORECASE),
+   150	]
+   151	
+   152	_SCENARIO_TIER_CACHE: dict[str, str] = {}
+   153	
+   154	
+   155	def _discover_scenario_tiers() -> dict[str, str]:
+   156	    if _SCENARIO_TIER_CACHE:
+   157	        return _SCENARIO_TIER_CACHE
+   158	
+   159	    search_dirs: list[Path] = []
+   160	    local_epic = Path(".devtool/epic").resolve()
+   161	    if local_epic.is_dir():
+   162	        search_dirs.append(local_epic)
+   163	
+   164	    try:
+   165	        repo_epic = (
+   166	            Path(__file__).resolve().parent.parent.parent.parent.parent
+   167	            / ".devtool"
+   168	            / "epic"
+   169	        ).resolve()
+   170	        if repo_epic.is_dir() and repo_epic not in search_dirs:
+   171	            search_dirs.append(repo_epic)
+   172	    except (AttributeError, OSError):
+   173	        pass
+   174	
+   175	    for d in search_dirs:
+   176	        for bdd_file in d.glob("*/*bdd_scenarios*.md"):
+   177	            try:
+   178	                for line in bdd_file.read_text(encoding="utf-8").splitlines():
+   179	                    m = re.search(r"Scenario:\s*\[([^\]]+)\](?:\s*\[([^\]]+)\])?", line)
+   180	                    if m:
+   181	                        scen_id = m.group(1).strip()
+   182	                        tier_info = m.group(2).strip() if m.group(2) else ""
+   183	                        if scen_id not in _SCENARIO_TIER_CACHE or tier_info:
+   184	                            _SCENARIO_TIER_CACHE[scen_id] = tier_info
+   185	            except (OSError, UnicodeDecodeError):
+   186	                pass
+   187	    return _SCENARIO_TIER_CACHE
+   188	
+   189	
+   190	def is_pure_unit_mock(classname: str) -> bool:
+   191	    """Detect if classname represents a pure unit mock test rather than an integration runner."""
+   192	    if not classname or not classname.strip():
+   193	        return True
+   194	    return any(p.search(classname) for p in UNIT_CLASSNAME_PATTERNS)
+   195	
+   196	
+   197	SCENARIO_RUNNER_CONSTRAINTS: dict[str, list[re.Pattern]] = {
+   198	    "DEMO-HP-01": [
+   199	        re.compile(
+   200	            r"(?:\b|[\./_-])(?:demo|integration)(?:[\./_-]|\b)",
+   201	            re.IGNORECASE,
+   202	        )
+   203	    ],
+   204	    "WQG-HP-01": [
+   205	        re.compile(
+   206	            r"(?:\b|[\./_-])(?:web_quality_integration|playwright|e2e|integration)(?:[\./_-]|\b)",
+   207	            re.IGNORECASE,
+   208	        )
+   209	    ],
+   210	    "WQG-HP-02": [
+   211	        re.compile(
+   212	            r"(?:\b|[\./_-])(?:vanilla_js|tsc|typecheck|integration)(?:[\./_-]|\b)",
+   213	            re.IGNORECASE,
+   214	        )
+   215	    ],
+   216	    "WQG-HP-03": [
+   217	        re.compile(
+   218	            r"(?:\b|[\./_-])(?:playwright|watchdog|e2e|integration)(?:[\./_-]|\b)",
+   219	            re.IGNORECASE,
+   220	        )
+   221	    ],
+   222	    "WQG-EC-03": [
+   223	        re.compile(
+   224	            r"(?:\b|[\./_-])(?:playwright|watchdog|e2e|integration)(?:[\./_-]|\b)",
+   225	            re.IGNORECASE,
+   226	        )
+   227	    ],
+   228	    "WQG-ST-02": [
+   229	        re.compile(
+   230	            r"(?:\b|[\./_-])(?:anti_rationalization|integration)(?:[\./_-]|\b)",
+   231	            re.IGNORECASE,
+   232	        )
+   233	    ],
+   234	    "WQG-AR-01": [
+   235	        re.compile(
+   236	            r"(?:\b|[\./_-])(?:polyglot|integration)(?:[\./_-]|\b)", re.IGNORECASE
+   237	        )
+   238	    ],
+   239	    "WQG-AR-02": [
+   240	        re.compile(
+   241	            r"(?:\b|[\./_-])(?:playwright|watchdog|webserver|integration)(?:[\./_-]|\b)",
+   242	            re.IGNORECASE,
+   243	        )
+   244	    ],
+   245	    "WQG-FR-01": [
+   246	        re.compile(
+   247	            r"(?:\b|[\./_-])(?:playwright|watchdog|e2e|integration)(?:[\./_-]|\b)",
+   248	            re.IGNORECASE,
+   249	        )
+   250	    ],
+   251	    "WQG-FR-03": [
+   252	        re.compile(
+   253	            r"(?:\b|[\./_-])(?:playwright|watchdog|e2e|integration)(?:[\./_-]|\b)",
+   254	            re.IGNORECASE,
+   255	        )
+   256	    ],
+   257	}
+   258	
+   259	
+   260	def is_valid_integration_provenance(case: Case, scenario_id: str = "") -> bool:
+   261	    """Verify positive platform- and scenario-appropriate execution provenance for Tier C scenarios."""
+   262	    classname = (case.classname or "").strip()
+   263	    if not classname or is_pure_unit_mock(classname):
+   264	        return False
+   265	
+   266	    scen_key = scenario_id.strip().upper()
+   267	    for key, patterns in SCENARIO_RUNNER_CONSTRAINTS.items():
+   268	        if key in scen_key:
+   269	            return any(p.search(classname) for p in patterns)
+   270	
+   271	    return any(p.search(classname) for p in INTEGRATION_POSITIVE_PATTERNS)
+   272	
+   273	
+   274	def is_tier_c_scenario(identifier: str, metadata: dict[str, str] | None = None) -> bool:
+   275	    """Identify Tier C integration scenarios from metadata, explicit tags, or discovered scenarios."""
+   276	    if re.search(r"\bTier\s*C\b", identifier, re.IGNORECASE):
+   277	        return True
+   278	    if re.search(r"\bTier\s*[AB]\b", identifier, re.IGNORECASE):
+   279	        return False
+   280	
+   383	def check_grounding(ctx: Context) -> list[Finding]:
+   384	    findings: list[Finding] = []
+   385	
+   386	    # --- R5: Symbol Grounding ---
+   387	    target_header_re = re.compile(
+   388	        r"^\s*-\s*\*\*(?:Target Files & Symbols|Target files and symbols)\*\*:\s*(.*)$",
+   389	        re.IGNORECASE,
+   390	    )
+   391	    sub_bullet_re = re.compile(r"^\s*-\s+`([^`]+)`:\s*(.*)$")
+   392	    token_re = re.compile(r"`([^`]+)`")
+   393	    ident_re = re.compile(r"^[A-Za-z_][\w.]*(?:\(\))?$")
+   394	
+   395	    for task_path, task_text in ctx.tasks.items():
+   396	        impact_body = tc.section(task_text, "Impact Analysis & Blast Radius")
+   397	        if not impact_body:
+   398	            for heading in (
+   399	                "Impact Analysis & Blast Radius",
+   400	                "Impact analysis & blast radius",
+   401	                "Impact Analysis and Blast Radius",
+   402	            ):
+   403	                impact_body = tc.section(task_text, heading)
+   404	                if impact_body:
+   405	                    break
+   406	        if not impact_body:
+   407	            continue
+   408	
+   409	        allowed_files = tc.parse_allowed_files(task_text)
+   410	        new_patterns = {ap.pattern for ap in allowed_files if ap.new}
+   411	
+   412	        in_target_symbols = False
+   413	        target_lines: list[str] = []
+   414	        for line in impact_body.splitlines():
+   415	            if target_header_re.match(line):
+   416	                in_target_symbols = True
+   417	                continue
+   418	            if in_target_symbols:
+   419	                if re.match(r"^\s*-\s+\*\*", line) or (line.startswith("- ") and not line.startswith("  - ")):
+   420	                    break
+   421	                target_lines.append(line)
+   422	
+   423	        for line in target_lines:
+   424	            sub_m = sub_bullet_re.match(line)
+   425	            if not sub_m:
+   426	                continue
+   427	            path_str = sub_m.group(1).strip()
+   428	            rest = sub_m.group(2)
+   429	
+   430	            full_path = ctx.root / path_str
+   431	            if not full_path.is_file() or path_str in new_patterns:
+   432	                continue
+   433	
+   434	            try:
+   435	                file_text = full_path.read_text(encoding="utf-8", errors="ignore")
+   436	            except OSError:
+   437	                continue
+   438	
+   439	            for span_m in token_re.finditer(rest):
+   440	                token_raw = span_m.group(1).strip()
+   441	                if not ident_re.match(token_raw):
+   442	                    continue
+   443	                prefix = rest[:span_m.start()]
+   444	                if re.search(r"\bnew\s+$", prefix):
+   445	                    continue
+   446	
+   447	                clean_name = token_raw.removesuffix("()")
+   448	                name = clean_name.split(".")[-1]
+   449	                if name not in file_text:
+   450	                    findings.append(Finding("R5", "FAIL", f"{task_path.name}: {name} not in {path_str}"))
+   451	
+   452	    # --- R5b: Route Grounding (WARN) ---
+   453	    route_re = re.compile(r"(?<![\w/])/api/[\w\-/{}.:]*[\w}]")
+   454	    routes_to_check: list[str] = []
+   455	    texts_to_scan = list(ctx.tasks.values()) + [ctx.hld_text]
+   456	
+   457	    for text in texts_to_scan:
+   458	        for match in route_re.finditer(text):
+   459	            r = match.group(0)
+   460	            if "{" in r:
+   461	                r = r.split("{", 1)[0]
+   462	            r = r.rstrip("/")
+   463	            if r and r not in routes_to_check:
+   464	                routes_to_check.append(r)
+   465	
+   466	    if routes_to_check:
+   467	        try:
+   468	            ls_proc = subprocess.run(
+   469	                ["git", "ls-files"],
+   470	                check=False,
+   471	                cwd=ctx.root,
+   472	                capture_output=True,
+   473	                text=True,
+   474	            )
+   475	            files_list = [
+   476	                ctx.root / p
+   477	                for p in ls_proc.stdout.splitlines()
+   478	                if not p.startswith((".devtool/", "docs/")) and not p.endswith(".md")
+   479	            ]
+   480	        except OSError:
+   481	            files_list = []
+   482	
+   483	        tracked_contents: list[str] = []
+   484	        for f in files_list:
+   485	            if f.is_file():
+   486	                try:
+   487	                    tracked_contents.append(f.read_text(encoding="utf-8", errors="ignore"))
+   488	                except OSError:
+   489	                    pass
+   490	
+   491	        for route in routes_to_check:
+   492	            if not any(route in content for content in tracked_contents):
+   493	                findings.append(Finding("R5b", "WARN", f"{route}: not found in tracked source"))
+   494	
+   495	    return findings
+   496	
+   497	
+   498	def check_gate4_coverage(ctx: Context) -> list[Finding]:
+   499	    findings: list[Finding] = []
+   500	
+   501	    results_tokens_list: list[list[str]] = []
+   502	    for cmd in ctx.results:
+   503	        try:
+   504	            results_tokens_list.append(shlex.split(cmd))
+   505	        except ValueError:
+   506	            results_tokens_list.append(cmd.split())
+   507	
+   508	    for task_path, task_text in ctx.tasks.items():
+   509	        covers = cb.covers_of(task_path)
+   510	        try:
+   511	            rows, _ = tc.parse_verification(task_text)
+   512	        except tc.ContractError:
+   513	            continue
+   514	
+   515	        tier_c_rows = [r for r in rows if r.phase == "TIER-C"]
+   516	        if covers and not tier_c_rows:
+   517	            findings.append(Finding("R6", "FAIL", f"{task_path.name}: Covers without a TIER-C row"))
+   518	            continue
+   519	
+   520	        for r in tier_c_rows:
+   521	            try:
+   522	                tokens = shlex.split(r.command)
+   523	            except ValueError:
+   524	                tokens = r.command.split()
+   525	
+   526	            for t in tokens:
+   527	                if not any(t.startswith(root) for root in ctx.roots):
+   528	                    continue
+   529	
+   530	                covered = False
+   531	                for res_toks in results_tokens_list:
+   532	                    if t in res_toks:
+   533	                        covered = True
+   534	                        break
+   535	                    if any(rt.endswith("/") and t.startswith(rt) for rt in res_toks):
+   536	                        covered = True
+   537	                        break
+   538	
+   539	                if not covered:
+   540	                    findings.append(
+   541	                        Finding(
+   542	                            "R6",
+   543	                            "FAIL",
+   544	                            f"{task_path.name}:{r.id}: {t} is in no Integration results command",
+   545	                        )
+   546	                    )
+   547	
+   548	    return findings
+   549	
+   550	
+   178	                                 f"table of contents does not link section: {heading}"))
+   179	    return findings
+   180	
+   181	
+   182	def check_language_pairs(paths: list[pathlib.Path]) -> list:
+   183	    """Require every lifecycle document to have matching English and Vietnamese files."""
+   184	    findings = []
+   185	    normalized = {path.resolve() for path in paths}
+   186	    for path in paths:
+   187	        name = path.name
+   188	        if name.endswith(".en.md"):
+   189	            counterpart = path.with_name(name[:-6] + ".vi.md")
+   190	        elif name.endswith(".vi.md"):
+   191	            counterpart = path.with_name(name[:-6] + ".en.md")
+   192	        else:
+   193	            findings.append((path, 0,
+   194	                             "lifecycle document must use an .en.md or .vi.md language suffix"))
+   195	            continue
+   196	        if counterpart.resolve() not in normalized:
+   197	            state = "missing" if not counterpart.exists() else "not included in this check"
+   198	            findings.append((path, 0, f"language counterpart {state}: {counterpart.name}"))
+   199	            continue
+   200	        if name.endswith(".en.md"):
+   201	            english_structure = heading_structure(path)
+   202	            vietnamese_structure = heading_structure(counterpart)
+   203	            if english_structure != vietnamese_structure:
+   204	                findings.append((path, 0,
+   205	                                 "English/Vietnamese heading structure differs: "
+   206	                                 f"{english_structure} != {vietnamese_structure}"))
+   207	    return findings
+   208	
+   209	
+   210	def heading_structure(path: pathlib.Path) -> list[int]:
+   211	    """Return heading levels so translated pairs can be checked without comparing wording."""
+   212	    return [len(match.group(1))
+   213	            for line in path.read_text().splitlines()
+   214	            if (match := re.match(r"^(#{1,6})\s+", line))]
+   215	
+   216	
+   217	def refusal(changed: list) -> list:
+   218	    offenders = []
+   219	    for f in changed:
+   220	        p = pathlib.PurePosixPath(f)
+   221	        if SHIPPED_EXCEPTIONS.search(str(p)):
+   222	            continue
+   223	        if p.suffix in SHIPPED_SUFFIXES:
+   224	            offenders.append(f)
+   225	    return offenders
+   226	
+   227	
+   228	def main() -> int:
+   229	    ap = argparse.ArgumentParser()
+   230	    ap.add_argument("files", nargs="*")
+   231	    ap.add_argument("--changed-files", nargs="*", default=None)
+   232	    ap.add_argument("--require-toc", action="store_true",
+   233	                    help="require a complete table of contents (lifecycle deliverables)")
+   234	    ap.add_argument("--require-bilingual", action="store_true",
+   235	                    help="require matching .en.md and .vi.md lifecycle documents")
+   236	    args = ap.parse_args()
+   237	
+   238	    if args.changed_files is not None:
+   239	        offenders = refusal(args.changed_files)
+   240	        if offenders:
+   241	            print("  ABORT this is development work, not a document work item:")
+   242	            for f in offenders:
+   243	                print(f"    ships in the build: {f}")
+   244	            print("  Route it through dev-lifecycle. Kind: document cannot verify it.")
+   245	            return 1
+   246	        print(f"  ok   refusal rule: none of {len(args.changed_files)} changed files ship in the build")
+   247	        return 0
+   248	
+   249	    if not args.files:
+   250	        print("  FAIL no files given — check the invocation, not the content")
+   251	        return 1
+   252	
+   253	    findings = []
+   254	    paths = [pathlib.Path(f) for f in args.files]
+   255	    for path in paths:
+   256	        findings += check_file(path, require_toc=args.require_toc)
+   257	    if args.require_bilingual:
+   258	        findings += check_language_pairs(paths)
+   259	    for path, line, msg in findings:
+   260	        where = f"{path}:{line}" if line else str(path)
+   261	        print(f"  FAIL {where} — {msg}")
+   262	    print(f"  checked {len(args.files)} documents, {len(findings)} findings")
+   263	    return 1 if findings else 0
+   264	
+   265	
+   266	if __name__ == "__main__":
+   267	    sys.exit(main())
+
+exec
+/bin/zsh -lc "nl -ba bin/d3nexus | head -250; nl -ba skills/python-quality-check/resources/scripts/validate_python_quality.py | sed -n '1,265p'; cat .agents/quality/python-quality.json; rg -n 'bootstrap|detect_project_type|test_bootstrap|MEASURE|measure|Integration results|Evidence files|record-baseline|compare-baseline' skills/{dev-implementation,dev-designer,setup_quality_check,using-git-worktrees}/SKILL.md scripts/verify.sh skills/dev-implementation/resources/scripts/test_run_task_checks.py; rg --files | rg '(AGENTS.md|scaffold_quality|test.*(contract|external|traceability|detect)|test_bootstrap)'" in /Users/danhdueexoictif/AllProjects/ai-agent-tools
+ succeeded in 0ms:
+nl: bin/d3nexus: No such file or directory
+     1	"""Validator for Python quality capability configuration (.agents/quality/python-quality.json)."""
+     2	
+     3	from __future__ import annotations
+     4	
+     5	import json
+     6	from typing import Any
+     7	
+     8	
+     9	def _finding(code: str, message: str, **extra: Any) -> dict[str, Any]:
+    10	    f = {"code": code, "message": message}
+    11	    f.update(extra)
+    12	    return f
+    13	
+    14	
+    15	def validate_python_config(
+    16	    config: dict[str, Any],
+    17	    requested_profile: str = "pr",
+    18	) -> dict[str, Any]:
+    19	    """Validate Python project capability manifest and check readiness for requested profile."""
+    20	    findings: list[dict[str, Any]] = []
+    21	
+    22	    if config.get("schema_version") != 1:
+    23	        findings.append(
+    24	            _finding("unsupported_version", f"Unsupported schema_version '{config.get('schema_version')}', expected 1")
+    25	        )
+    26	
+    27	    capabilities = config.get("capabilities", {})
+    28	    if not isinstance(capabilities, dict):
+    29	        findings.append(_finding("missing_capabilities", "Missing or invalid 'capabilities' object"))
+    30	        return {"status": "BLOCKED", "findings": findings}
+    31	
+    32	    for cap_name, cap_val in capabilities.items():
+    33	        if cap_name == "coverage":
+    34	            if not isinstance(cap_val, dict):
+    35	                findings.append(_finding("invalid_coverage_config", "Coverage capability must be an object"))
+    36	                continue
+    37	            cmd = cap_val.get("command")
+    38	            if not isinstance(cmd, list) or not all(isinstance(arg, str) for arg in cmd):
+    39	                findings.append(
+    40	                    _finding(
+    41	                        "invalid_command_format",
+    42	                        f"Coverage command for '{cap_name}' must be an array of string arguments",
+    43	                        capability=cap_name,
+    44	                    )
+    45	                )
+    46	            elif len(cmd) == 0:
+    47	                findings.append(
+    48	                    _finding(
+    49	                        "command_array_empty",
+    50	                        f"Coverage command for '{cap_name}' is empty []",
+    51	                        capability=cap_name,
+    52	                    )
+    53	                )
+    54	            threshold = cap_val.get("threshold")
+    55	            if not isinstance(threshold, (int, float)) or threshold < 0 or threshold > 1.0:
+    56	                findings.append(_finding("invalid_coverage_threshold", "Coverage threshold must be between 0.0 and 1.0"))
+    57	        else:
+    58	            if not isinstance(cap_val, list) or not all(isinstance(arg, str) for arg in cap_val):
+    59	                findings.append(
+    60	                    _finding(
+    61	                        "invalid_command_format",
+    62	                        f"Capability command for '{cap_name}' must be an array of string arguments, not a string or shell command",
+    63	                        capability=cap_name,
+    64	                    )
+    65	                )
+    66	            elif len(cap_val) == 0:
+    67	                findings.append(
+    68	                    _finding(
+    69	                        "command_array_empty",
+    70	                        f"Capability command for '{cap_name}' is empty []",
+    71	                        capability=cap_name,
+    72	                    )
+    73	                )
+    74	
+    75	    profiles = config.get("profiles", {})
+    76	    if not isinstance(profiles, dict):
+    77	        findings.append(_finding("missing_profiles", "Missing or invalid 'profiles' object"))
+    78	        return {"status": "BLOCKED", "findings": findings}
+    79	
+    80	    profile_caps = profiles.get(requested_profile)
+    81	    if profile_caps is None:
+    82	        findings.append(
+    83	            _finding(
+    84	                "profile_not_configured",
+    85	                f"Requested profile '{requested_profile}' is not configured in profiles",
+    86	            )
+    87	        )
+    88	    elif not isinstance(profile_caps, list):
+    89	        findings.append(_finding("invalid_profile_format", f"Profile '{requested_profile}' must be an array of capability names"))
+    90	    else:
+    91	        for cap in profile_caps:
+    92	            if cap not in capabilities:
+    93	                findings.append(
+    94	                    _finding(
+    95	                        "missing_capability_definition",
+    96	                        f"Profile '{requested_profile}' requires capability '{cap}', which is not defined in capabilities",
+    97	                        capability=cap,
+    98	                    )
+    99	                )
+   100	
+   101	        if requested_profile == "epic" and "architecture" not in capabilities and "boundaries" not in capabilities:
+   102	            findings.append(
+   103	                _finding(
+   104	                    "missing_architecture_authority",
+   105	                    "Epic profile requires an authoritative architecture or boundaries command in capabilities",
+   106	                    capability="architecture",
+   107	                )
+   108	            )
+   109	
+   110	    return {
+   111	        "status": "BLOCKED" if findings else "PASS",
+   112	        "findings": sorted(findings, key=lambda f: (f.get("code", ""), f.get("capability", ""))),
+   113	    }
+   114	
+   115	
+   116	def main() -> int:
+   117	    import argparse
+   118	    from pathlib import Path
+   119	
+   120	    parser = argparse.ArgumentParser(description="Validate Python quality capability manifest.")
+   121	    parser.add_argument("config_file", help="Path to .agents/quality/python-quality.json")
+   122	    parser.add_argument("--profile", default="pr", help="Requested profile (pr, epic, scheduled, release)")
+   123	
+   124	    args = parser.parse_args()
+   125	    data = json.loads(Path(args.config_file).read_text())
+   126	    res = validate_python_config(data, args.profile)
+   127	    print(json.dumps(res, indent=2))
+   128	    return 0 if res["status"] == "PASS" else 1
+   129	
+   130	
+   131	if __name__ == "__main__":
+   132	    import sys
+   133	
+   134	    sys.exit(main())
+{
+  "schema_version": 1,
+  "capabilities": {
+    "format": ["ruff", "format", "--check", "skills/web-quality-check", "tests", "skills/dev-implementation/resources/scripts/generate_smoke_checklist.py"],
+    "lint": ["ruff", "check", "skills/web-quality-check", "tests", "skills/dev-implementation/resources/scripts/generate_smoke_checklist.py"],
+    "type_check": ["mypy", "skills/web-quality-check/resources/scripts/validate_web_quality.py", "skills/web-quality-check/resources/scripts/run_playwright_harness.py", "skills/quality_check/resources/scripts/verify_polyglot_registry.py", "skills/web-quality-check/resources/scripts/check_vanilla_js.py", "skills/dev-implementation/resources/scripts/generate_smoke_checklist.py"],
+    "test": ["python3", "-m", "pytest", "tests"],
+    "architecture": ["bash", "scripts/verify.sh"]
+  },
+  "profiles": {
+    "pr": ["lint", "test"],
+    "epic": ["format", "lint", "type_check", "test", "architecture"],
+    "release": ["format", "lint", "type_check", "test", "architecture"],
+    "scheduled": ["format", "lint", "type_check", "test", "architecture"]
+  }
+}
+skills/dev-implementation/resources/scripts/test_run_task_checks.py:459:        task = self.epic("| V1 | GREEN | `true` | exit 0 | — |\n", after_table="RED: n/a — bootstrap\n")
+skills/setup_quality_check/SKILL.md:8:Automated onboarding skill that bootstraps the d3nexus quality governance system for both Greenfield
+skills/dev-implementation/SKILL.md:10:Runs an already-approved epic's Kanban tasks end-to-end: reload the epic's own docs for context, detect the platform (Flutter, Android Native, iOS Native, Web, Python, or Rust), compute a dependency-safe execution order, bootstrap one worktree that can actually build this project, then drive each task sequentially through `d3nexus:subagent-driven-development` with exactly one commit per task.
+skills/dev-implementation/SKILL.md:72:   PROJECT_TYPE=$("$SKILL_DIR"/resources/scripts/detect_project_type.sh "$REPO_ROOT")
+skills/dev-implementation/SKILL.md:102:| 6 | Epic branch exists, every task `done` | Tasks finished | Recreate worktree if missing (`git worktree add .worktrees/<epic_dir> epic/<epic_slug>`, no `-b`) and bootstrap (Phase 1 step 5), run Resume Procedure preflight (step 2), then Phase 4 in full; its PASS presents Review Choice |
+skills/dev-implementation/SKILL.md:109:1. Row 4 only: recreate worktree from existing branch, `git worktree add .worktrees/<epic_dir> epic/<epic_slug>` with no `-b`. For rows 4 and 5, check bootstrap with Phase 1 step 5's platform checks and re-run if needed.
+skills/dev-implementation/SKILL.md:160:5. Bootstrap worktree using platform tooling (`bootstrap_worktree.sh`, Gradle sync, Tuist, npm/pnpm, uv sync, cargo check).
+skills/dev-implementation/SKILL.md:308:3. **HLD Integration results commands.** Run every `Integration results:` line of HLD Integration Test Plan.
+skills/dev-implementation/SKILL.md:314:     --results <reports written by Integration results commands>
+skills/dev-designer/SKILL.md:92:     Integration results: uv run pytest tests/integration tests/e2e --junitxml=build/test-results/py.xml -> build/test-results/py.xml
+skills/dev-designer/SKILL.md:94:     `Protected paths:` lists explicit paths and globs; the three shown are the minimum, and a tracked program that a Verification row runs is protected implicitly. Write one `Integration results:` line per platform, at least one: the command Gate 4 runs, then ` -> `, then the report it writes.
+skills/sync-shared-contracts/resources/scripts/test_sync_contracts.py
+skills/quality_check/resources/scripts/test_validate_quality_contract.py
+skills/setup_quality_check/resources/scripts/scaffold_quality_manifest.py
+skills/setup_quality_check/resources/scripts/test_scaffold_quality_manifest.py
+skills/setup-shared-contracts/resources/scripts/test_setup_contracts.py
+scripts/test_lifecycle_document_contract.py
+templates/AGENTS.md
+skills/dev-implementation/resources/scripts/test_check_bdd_traceability.py
+skills/dev-implementation/resources/scripts/test_bootstrap_worktree_validation.sh
+skills/dev-implementation/resources/scripts/test_run_external_review.py
+skills/dev-implementation/resources/scripts/test_check_task_contract.py
+
+exec
+/bin/zsh -lc "command -v python3 node pytest ruff mypy; nl -ba skills/dev-implementation/resources/scripts/result_reports.py | sed -n '280,340p'; nl -ba skills/dev-implementation/resources/scripts/check_epic_readiness.py | sed -n '620,790p'; nl -ba skills/dev-implementation/resources/scripts/test_bootstrap_worktree_validation.sh | head -210; nl -ba skills/dev-implementation/resources/scripts/test_run_external_review.py | sed -n '1,85p'; nl -ba skills/dev-implementation/resources/scripts/test_run_task_checks.py | sed -n '1,95p'; rg -n 'measure|Evidence files|parse_evidence|d3nexus|command' .devtool/epic/contract_and_authoring_ergonomics/task_*.md | head -70" in /Users/danhdueexoictif/AllProjects/ai-agent-tools
+ succeeded in 0ms:
+/opt/homebrew/bin/python3
+/opt/homebrew/bin/node
+/opt/homebrew/bin/pytest
+/Users/danhdueexoictif/.local/bin/ruff
+/Users/danhdueexoictif/.local/bin/mypy
+   280	
+   281	    if metadata and identifier in metadata:
+   282	        meta = metadata[identifier]
+   283	        if re.search(r"\bTier\s*C\b", meta, re.IGNORECASE):
+   284	            return True
+   285	        if re.search(r"\bTier\s*[AB]\b", meta, re.IGNORECASE):
+   286	            return False
+   287	
+   288	    tiers = _discover_scenario_tiers()
+   289	    if identifier in tiers:
+   290	        meta = tiers[identifier]
+   291	        if re.search(r"\bTier\s*C\b", meta, re.IGNORECASE):
+   292	            return True
+   293	        if re.search(r"\bTier\s*[AB]\b", meta, re.IGNORECASE):
+   294	            return False
+   295	
+   296	    # Granular fallback for known scenario identifiers when no scenario file is present on disk
+   297	    return bool(
+   298	        re.search(
+   299	            r"WQG-(?:HP-0[1-3]|FR-0[13]|EC-03|AR-0[12])\b", identifier, re.IGNORECASE
+   300	        )
+   301	    )
+   302	
+   303	
+   304	def verdicts(
+   305	    ids: list[str],
+   306	    cases: list[Case],
+   307	    scenario_metadata: dict[str, str] | None = None,
+   308	) -> dict[str, tuple[bool, str]]:
+   309	    result: dict[str, tuple[bool, str]] = {}
+   310	    for identifier in ids:
+   311	        own = [case for case in cases if belongs(case, identifier)]
+   312	        failed = next((c for c in own if c.status == "failed"), None)
+   313	        passed = next((c for c in own if c.status == "passed"), None)
+   314	        if failed:
+   315	            result[identifier] = (False, f"failed in {failed.name}")
+   316	        elif passed:
+   317	            if is_tier_c_scenario(identifier, scenario_metadata):
+   318	                valid_integration = [
+   319	                    c
+   320	                    for c in own
+   321	                    if c.status == "passed"
+   322	                    and is_valid_integration_provenance(c, identifier)
+   323	                ]
+   324	                if not valid_integration:
+   325	                    result[identifier] = (
+   326	                        False,
+   327	                        f"pure unit test class '{passed.classname}' lacks integration runner provenance for Tier C scenario",
+   328	                    )
+   329	                else:
+   330	                    result[identifier] = (True, valid_integration[0].name)
+   331	            else:
+   332	                result[identifier] = (True, passed.name)
+   333	        elif own:
+   334	            result[identifier] = (False, "skipped")
+   335	        else:
+   336	            result[identifier] = (False, "no test case in results")
+   337	    return result
+   338	
+   339	
+   340	def digest(cases: list[Case], ids: list[str]) -> dict:
+   620	def check_baseline(ctx: Context) -> list[Finding]:
+   621	    if not ctx.baseline:
+   622	        return []
+   623	
+   624	    status_proc = subprocess.run(
+   625	        ["git", "status", "--porcelain"],
+   626	        check=False,
+   627	        cwd=ctx.root,
+   628	        capture_output=True,
+   629	        text=True,
+   630	    )
+   631	    if status_proc.stdout.strip():
+   632	        return [Finding("R8", "WARN", "baseline skipped: dirty tree")]
+   633	
+   634	    findings: list[Finding] = []
+   635	
+   636	    new_paths: set[str] = set()
+   637	    for t_text in ctx.tasks.values():
+   638	        for ap in tc.parse_allowed_files(t_text):
+   639	            if ap.new:
+   640	                new_paths.add(ap.pattern)
+   641	
+   642	    for task_path, task_text in ctx.tasks.items():
+   643	        try:
+   644	            rows, _ = tc.parse_verification(task_text)
+   645	        except tc.ContractError:
+   646	            continue
+   647	
+   648	        for row in rows:
+   649	            if row.phase not in ("GREEN", "TIER-B"):
+   650	                continue
+   651	
+   652	            if any(np in row.command for np in new_paths):
+   653	                continue
+   654	
+   655	            code, raw_output = rtc.run_command(row.command, ctx.root, ctx.row_timeout)
+   656	            if code is None:
+   657	                findings.append(
+   658	                    Finding(
+   659	                        "R8",
+   660	                        "WARN",
+   661	                        f"{task_path.stem}:{row.id} timeout after {ctx.row_timeout}s",
+   662	                    )
+   663	                )
+   664	            else:
+   665	                out_text = raw_output.decode("utf-8", errors="replace")
+   666	                mis = rtc.mismatch(row, code, out_text)
+   667	                if mis is not None:
+   668	                    findings.append(Finding("R8", "WARN", f"{task_path.stem}:{row.id} {mis}"))
+   669	
+   670	    return findings
+   671	
+   672	
+   673	CHECKS: tuple[tuple[str, Callable[[Context], list[Finding]]], ...] = (
+   674	    ("R1", check_preflight),
+   675	    ("R2", check_task_mirrors),
+   676	    ("R3", check_bdd_scenarios),
+   677	    ("R4", check_tier_tags),
+   678	    ("R5", check_grounding),
+   679	    ("R6", check_gate4_coverage),
+   680	    ("R7", check_metadata),
+   681	    ("R8", check_baseline),
+   682	)
+   683	
+   684	
+   685	def run_checks(
+   686	    ctx: Context,
+   687	    *,
+   688	    baseline: bool = False,
+   689	    row_timeout: int = 600,
+   690	) -> list[Finding]:
+   691	    active_ctx = Context(
+   692	        root=ctx.root,
+   693	        epic_dir=ctx.epic_dir,
+   694	        epic_slug=ctx.epic_slug,
+   695	        hld_text=ctx.hld_text,
+   696	        tasks=ctx.tasks,
+   697	        results=ctx.results,
+   698	        roots=ctx.roots,
+   699	        baseline=baseline,
+   700	        row_timeout=row_timeout,
+   701	    )
+   702	    findings: list[Finding] = []
+   703	    for _check_id, check_fn in CHECKS:
+   704	        findings.extend(check_fn(active_ctx))
+   705	    return findings
+   706	
+   707	
+   708	def render_report(ctx: Context, findings: list[Finding]) -> str:
+   709	    lines: list[str] = [f"Epic: {ctx.epic_dir} ({ctx.epic_slug}), {len(ctx.tasks)} tasks"]
+   710	
+   711	    by_check: dict[str, list[Finding]] = {}
+   712	    for f in findings:
+   713	        by_check.setdefault(f.check, []).append(f)
+   714	
+   715	    for check_id in ("R1", "R2", "R3", "R4", "R5", "R6", "R7"):
+   716	        check_findings = by_check.get(check_id, [])
+   717	        has_fail = any(f.severity == "FAIL" for f in check_findings)
+   718	        if not has_fail:
+   719	            lines.append(f"{check_id} PASS")
+   720	        for f in check_findings:
+   721	            lines.append(f"{f.check} {f.severity} {f.message}")
+   722	
+   723	        if check_id == "R5":
+   724	            for f in by_check.get("R5b", []):
+   725	                lines.append(f"{f.check} {f.severity} {f.message}")
+   726	        elif check_id == "R7":
+   727	            for f in by_check.get("R7b", []):
+   728	                lines.append(f"{f.check} {f.severity} {f.message}")
+   729	
+   730	    if not ctx.baseline:
+   731	        lines.append("R8 SKIP")
+   732	    else:
+   733	        r8_findings = by_check.get("R8", [])
+   734	        has_fail = any(f.severity == "FAIL" for f in r8_findings)
+   735	        if not has_fail and not any(f.severity == "WARN" for f in r8_findings):
+   736	            lines.append("R8 PASS")
+   737	        for f in r8_findings:
+   738	            lines.append(f"{f.check} {f.severity} {f.message}")
+   739	
+   740	    fail_count = sum(1 for f in findings if f.severity == "FAIL")
+   741	    warn_count = sum(1 for f in findings if f.severity == "WARN")
+   742	    verdict = "PASS" if fail_count == 0 else "FAIL"
+   743	    lines.append(f"Result: {fail_count} FAIL, {warn_count} WARN — {verdict}")
+   744	
+   745	    return "\n".join(lines)
+   746	
+   747	
+   748	def main(argv: list[str] | None = None) -> int:
+   749	    parser = argparse.ArgumentParser(description="Check epic readiness before implementation or review.")
+   750	    parser.add_argument("epic_dir", help="Epic directory name under .devtool/epic/")
+   751	    parser.add_argument(
+   752	        "--baseline",
+   753	        action="store_true",
+   754	        help="Run baseline GREEN and TIER-B verification rows",
+   755	    )
+   756	    parser.add_argument(
+   757	        "--row-timeout",
+   758	        type=int,
+   759	        default=600,
+   760	        help="Timeout in seconds for each baseline row",
+   761	    )
+   762	
+   763	    args = parser.parse_args(argv)
+   764	
+   765	    try:
+   766	        root_str = subprocess.run(
+   767	            ["git", "rev-parse", "--show-toplevel"],
+   768	            check=True,
+   769	            capture_output=True,
+   770	            text=True,
+   771	        ).stdout.strip()
+   772	        root = Path(root_str).resolve()
+   773	    except (subprocess.CalledProcessError, OSError):
+   774	        sys.stderr.write("error: not in a git repository\n")
+   775	        return 2
+   776	
+   777	    epic_path = root / ".devtool" / "epic" / args.epic_dir
+   778	    if not epic_path.is_dir():
+   779	        sys.stderr.write(f"error: {epic_path} does not exist\n")
+   780	        return 2
+   781	
+   782	    hld_path = epic_path / f"{args.epic_dir}.en.md"
+   783	    if not hld_path.is_file():
+   784	        sys.stderr.write(f"error: {hld_path} does not exist\n")
+   785	        return 2
+   786	
+   787	    ctx = load_context(root, args.epic_dir, baseline=args.baseline, row_timeout=args.row_timeout)
+   788	    findings = run_checks(ctx, baseline=args.baseline, row_timeout=args.row_timeout)
+   789	    report = render_report(ctx, findings)
+   790	    print(report)
+     1	#!/usr/bin/env bash
+     2	# Validates bootstrap_worktree.sh's argument/precondition checks without
+     3	# actually running melos/copy_secure_configurations (those are exercised
+     4	# for real in Task 4's end-to-end dry run).
+     5	#
+     6	# Run: bash .agents/skills/dev-implementation/resources/scripts/test_bootstrap_worktree_validation.sh
+     7	set -uo pipefail
+     8	
+     9	SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    10	SCRIPT="$SCRIPT_DIR/bootstrap_worktree.sh"
+    11	FAILURES=0
+    12	
+    13	check() {
+    14	  local description="$1"
+    15	  local expected_substring="$2"
+    16	  shift 2
+    17	  local output
+    18	  output="$("$@" 2>&1)"
+    19	  local status=$?
+    20	  if [ "$status" -eq 0 ]; then
+    21	    echo "FAIL: $description -- expected non-zero exit, got 0"
+    22	    FAILURES=$((FAILURES + 1))
+    23	    return
+    24	  fi
+    25	  if ! grep -q "$expected_substring" <<<"$output"; then
+    26	    echo "FAIL: $description -- expected output to contain '$expected_substring', got: $output"
+    27	    FAILURES=$((FAILURES + 1))
+    28	    return
+    29	  fi
+    30	  echo "PASS: $description"
+    31	}
+    32	
+    33	# Runs the real script from inside a throwaway git repo that has no
+    34	# secureFiles/, so REPO_ROOT resolves there (via --git-common-dir) and the
+    35	# secureFiles/ precondition branch is exercised for real.
+    36	run_in_repo_without_secure_files() {
+    37	  local tmp_repo
+    38	  tmp_repo="$(mktemp -d "${TMPDIR:-/tmp}/bootstrap-worktree-test-XXXXXX")"
+    39	  git init --quiet "$tmp_repo" >/dev/null 2>&1
+    40	  mkdir -p "$tmp_repo/fake-worktree"
+    41	  (cd "$tmp_repo" && "$SCRIPT" "$tmp_repo/fake-worktree")
+    42	  local status=$?
+    43	  rm -rf "$tmp_repo"
+    44	  return $status
+    45	}
+    46	
+    47	check "no arguments" "Usage:" "$SCRIPT"
+    48	check "nonexistent worktree path" "does not exist" "$SCRIPT" "/tmp/definitely-does-not-exist-xyz-$$"
+    49	check "missing secureFiles/ at repo root" "secureFiles" run_in_repo_without_secure_files
+    50	
+    51	if [ "$FAILURES" -ne 0 ]; then
+    52	  echo "$FAILURES check(s) failed"
+    53	  exit 1
+    54	fi
+    55	echo "All checks passed"
+     1	#!/usr/bin/env python3
+     2	"""Tests for run_external_review.py, on throwaway git repositories with fake claude and codex executables.
+     3	
+     4	The fakes are the only claude and codex on PATH, so no test reaches a real CLI.
+     5	
+     6	Run: python3 -m unittest skills/dev-implementation/resources/scripts/test_run_external_review.py
+     7	"""
+     8	from __future__ import annotations
+     9	import contextlib
+    10	import io
+    11	import json
+    12	import os
+    13	import shutil
+    14	import subprocess
+    15	import sys
+    16	import tempfile
+    17	import unittest
+    18	from pathlib import Path
+    19	from unittest import mock
+    20	
+    21	sys.path.insert(0, str(Path(__file__).parent))
+    22	import test_check_epic_readiness as tcer
+    23	from run_external_review import (
+    24	    format_triage_header,
+    25	    load_review_config,
+    26	    main,
+    27	    save_review_config,
+    28	)
+    29	
+    30	EPIC = ".devtool/epic/demo"
+    31	TICKS = "`" * 3
+    32	FAKE = """#!/bin/bash
+    33	if [ -n "$FAKE_COUNTER" ]; then echo 1 >> "$FAKE_COUNTER"; fi
+    34	cat > "$FAKE_STDIN"
+    35	echo "$@" > "$FAKE_ARGS"
+    36	case "$FAKE_MODE" in
+    37	  pass) echo "Verdict: PASS" ;;
+    38	  minor) echo "Verdict: CHANGES REQUIRED"; echo "- [Minor] README.md:1 — wording | unclear" ;;
+    39	  blocking) echo "Verdict: CHANGES REQUIRED"
+    40	            echo "[Critical] demo.en.md:3 — evidence missing"
+    41	            echo "[Important] task_1_demo.md:9 — row too weak" ;;
+    42	  principal_changes) echo "Verdict: CHANGES REQUIRED"
+    43	                     echo "[Important] task_2:Decisions Already Made — persist_track returns a dict. Proposed: keep TrackPersistResult." ;;
+    44	  formats) echo "Verdict: CHANGES REQUIRED"
+    45	           echo "1. **[Critical]** demo.en.md:3 – evidence missing"
+    46	           echo "* [Important] task_1_demo.md:9: row too weak"
+    47	           echo "[Important] the audit output was never read" ;;
+    48	  bare) echo "Verdict: CHANGES REQUIRED"; echo "Several things look wrong." ;;
+    49	  fail) echo "credit balance is too low"; exit 1 ;;
+    50	  silent) echo "I looked at everything." ;;
+    51	  slow) sleep 30 ;;
+    52	  modify) echo changed > DEMO-created.txt; echo "Verdict: PASS" ;;
+    53	  bold_verdict) echo "**Verdict:** PASS" ;;
+    54	  heading_verdict) echo "### Verdict: CHANGES REQUIRED"; echo "- [Critical] demo.en.md:1 — broken" ;;
+    55	  case_verdict) echo "   verdict:   pass   " ;;
+    56	  prose_summary) echo "I reviewed everything and found 0 [Critical] or [Important] issues."; echo "Verdict: PASS" ;;
+    57	  list_findings) echo "Verdict: CHANGES REQUIRED"
+    58	                 echo "- [Critical] demo.en.md:1 — list bullet dash"
+    59	                 echo "* [Important] demo.en.md:2 — list bullet star"
+    60	                 echo "1. [Minor] demo.en.md:3 — numbered list" ;;
+    61	
+    62	  bold_verdict) echo "**Verdict:** PASS" ;;
+    63	  heading_verdict) echo "### Verdict: CHANGES REQUIRED"; echo "- [Critical] demo.en.md:1 — broken" ;;
+    64	  case_verdict) echo "   verdict:   pass   " ;;
+    65	  prose_summary) echo "I reviewed everything and found 0 [Critical] or [Important] issues."; echo "Verdict: PASS" ;;
+    66	
+    67	esac
+    68	"""
+    69	HLD = ("# Demo\n\nIntegration test roots: scripts/\n\nIntegration results: true -> build/demo.xml\n")
+    70	SCENARIOS = f"# Scenarios\n\n{TICKS}gherkin\nScenario: [DEMO-HP-01] [Tier C - Integration] Demo\n  Given a demo\n{TICKS}\n"
+    71	
+    72	
+    73	def git(root: Path, *args: str) -> str:
+    74	    return subprocess.run(["git", "-C", str(root), *args], capture_output=True, text=True,
+    75	                          check=True).stdout.strip()
+    76	
+    77	
+    78	class ReviewCase(unittest.TestCase):
+    79	    def setUp(self) -> None:
+    80	        directory = tempfile.TemporaryDirectory()
+    81	        self.addCleanup(directory.cleanup)
+    82	        tmp = Path(directory.name).resolve()
+    83	        self.root, self.bin = tmp / "repo", tmp / "bin"
+    84	        self.root.mkdir()
+    85	        self.bin.mkdir()
+     1	#!/usr/bin/env python3
+     2	"""Tests for task_contract.py and run_task_checks.py.
+     3	
+     4	Run: python3 -m unittest skills/dev-implementation/resources/scripts/test_run_task_checks.py
+     5	"""
+     6	from __future__ import annotations
+     7	import contextlib
+     8	import importlib
+     9	import io
+    10	import json
+    11	import os
+    12	import subprocess
+    13	import sys
+    14	import tempfile
+    15	import unittest
+    16	from pathlib import Path
+    17	from typing import Any
+    18	from unittest import mock
+    19	
+    20	sys.path.insert(0, str(Path(__file__).parent))
+    21	tc: Any = importlib.import_module("task_contract")
+    22	
+    23	from run_task_checks import main
+    24	
+    25	TABLE_HEAD = "| ID | Phase | Command | Expect | Needs |\n|----|-------|---------|--------|-------|\n"
+    26	EPIC = ".devtool/epic/demo"
+    27	TASK = f"{EPIC}/task_1_demo.md"
+    28	EVIDENCE = f"{EPIC}/evidence/task_1_demo.json"
+    29	TICKS = "`" * 3
+    30	
+    31	
+    32	def task_text(rows: str, allowed: str = "- `feature.txt` (new)", after_table: str = "",
+    33	              head: str = TABLE_HEAD) -> str:
+    34	    return (f"# Task 1\n\n## Files\n\nAllowed files:\n{allowed}\n\nRead-only context:\n- `x` - note\n\n"
+    35	            f"## Verification\n\n{head}{rows}\n{after_table}\n## Definition of Done\n\n- done (V1)\n")
+    36	
+    37	
+    38	def hld_text(protected: str = "") -> str:
+    39	    line = f"Protected paths: {protected}\n" if protected else ""
+    40	    return f"# Epic\n\n## Integration Test Plan\n\n{line}Integration test roots: tests\n"
+    41	
+    42	
+    43	def git(root: Path, *args: str) -> str:
+    44	    return subprocess.run(["git", "-C", str(root), *args], capture_output=True, text=True,
+    45	                          check=True).stdout
+    46	
+    47	
+    48	class RepoCase(unittest.TestCase):
+    49	    def setUp(self) -> None:
+    50	        directory = tempfile.TemporaryDirectory()
+    51	        self.addCleanup(directory.cleanup)
+    52	        self.root = Path(directory.name).resolve()
+    53	        git(self.root, "init", "-q")
+    54	        git(self.root, "config", "user.email", "demo@example.com")
+    55	        git(self.root, "config", "user.name", "Demo")
+    56	
+    57	    def write(self, relative: str, text: str) -> Path:
+    58	        path = self.root / relative
+    59	        path.parent.mkdir(parents=True, exist_ok=True)
+    60	        path.write_text(text, encoding="utf-8")
+    61	        return path
+    62	
+    63	    def commit(self) -> None:
+    64	        git(self.root, "add", "-A")
+    65	        git(self.root, "commit", "-q", "-m", "base")
+    66	
+    67	    def epic(self, rows: str, protected: str = "", **kwargs: Any) -> Path:
+    68	        self.write(f"{EPIC}/demo.en.md", hld_text(protected))
+    69	        self.write(f"{EPIC}/bdd_scenarios.en.md", "# Scenarios\n")
+    70	        task = self.write(TASK, task_text(rows, **kwargs))
+    71	        self.commit()
+    72	        return task
+    73	
+    74	    def run_cli(self, *argv: str | Path) -> tuple[int, str, str]:
+    75	        out, err = io.StringIO(), io.StringIO()
+    76	        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+    77	            try:
+    78	                code = main([str(arg) for arg in argv])
+    79	            except SystemExit as exit_:
+    80	                code = int(exit_.code) if exit_.code is not None else 0
+    81	        return code, out.getvalue(), err.getvalue()
+    82	
+    83	    def evidence(self) -> dict[str, Any]:
+    84	        return json.loads((self.root / EVIDENCE).read_text(encoding="utf-8"))  # type: ignore[no-any-return]
+    85	
+    86	    def run_rows(self) -> dict[str, Any]:
+    87	        return {row["id"]: row for row in self.evidence()["runs"]["verify"]["rows"]}
+    88	
+    89	
+    90	class ParserTest(unittest.TestCase):
+    91	    def test_section_stops_at_next_heading_and_ignores_fenced_headings(self) -> None:
+    92	        text = f"# T\n\n## A\n\none\n{TICKS}\n## not a heading\n{TICKS}\n\n## B\n\ntwo\n"
+    93	        sec_a = tc.section(text, "A")
+    94	        assert sec_a is not None
+    95	        self.assertIn("one", sec_a)
+.devtool/epic/contract_and_authoring_ergonomics/task_05_end_to_end_contract_acceptance.md:21:Every epic requires a final Tier C integration and acceptance task exercising the full end-to-end workflow across all component seams (`bin/d3nexus`, `sync_task_status.py render`, `check_task_contract.py --design`, `run_task_checks.py`, and `task_contract.py` Done-Gate evaluation) and verifying repository-wide quality gates (`scripts/verify.sh`).
+.devtool/epic/contract_and_authoring_ergonomics/task_05_end_to_end_contract_acceptance.md:32:- `bin/d3nexus` (created in Task 03) (new)
+.devtool/epic/contract_and_authoring_ergonomics/task_05_end_to_end_contract_acceptance.md:58:  Given a task declaring ".devtool/epic/sample_epic/evidence/summary.json (new)" under "Evidence files:"
+.devtool/epic/contract_and_authoring_ergonomics/task_05_end_to_end_contract_acceptance.md:89:- A command, path, symbol or anchor named in this task does not match the repository.
+.devtool/epic/contract_and_authoring_ergonomics/task_05_end_to_end_contract_acceptance.md:98:- `tests/test_task_contract_ergonomics_e2e.py` exercises the end-to-end flow using temporary git repositories (`tmp_path`), invoking `bin/d3nexus` (`sync-status render`, `check-contract --design`, `run-checks verify`) and asserting all 14 `[TCAE-*]` scenarios pass across the test suite.
+.devtool/epic/contract_and_authoring_ergonomics/task_04_verification_grammar_and_docs.md:24:3. Search patterns in `grep`, `rg`, `sed`, and `awk` containing `/` (such as `grep -E 'foo/bar' file.txt`) are misclassified by `command_paths()` as missing file paths.
+.devtool/epic/contract_and_authoring_ergonomics/task_04_verification_grammar_and_docs.md:50:  - `skills/dev-implementation/resources/scripts/check_task_contract.py`: `command_paths`, `check_grounding`, `main`.
+.devtool/epic/contract_and_authoring_ergonomics/task_04_verification_grammar_and_docs.md:53:- **Target Test Coverage Threshold**: $\ge 90\%$ line coverage on `command_paths` and grammar diagnostics in `check_task_contract.py`.
+.devtool/epic/contract_and_authoring_ergonomics/task_04_verification_grammar_and_docs.md:61:  Given a Verification row command using "env MODE=strict python3 scripts/tool.py \| grep -c ok"
+.devtool/epic/contract_and_authoring_ergonomics/task_04_verification_grammar_and_docs.md:63:  Then "task_contract.py" unescapes "\|" to "|" in the parsed command without raising a contract problem
+.devtool/epic/contract_and_authoring_ergonomics/task_04_verification_grammar_and_docs.md:67:  Given a Verification row command "grep -E 'foo/bar/baz' README.md" where "foo/bar/baz" is not a file on disk
+.devtool/epic/contract_and_authoring_ergonomics/task_04_verification_grammar_and_docs.md:68:  When "check_task_contract.py --design" inspects the command tokens
+.devtool/epic/contract_and_authoring_ergonomics/task_04_verification_grammar_and_docs.md:69:  Then "command_paths()" excludes the search pattern "foo/bar/baz" from path existence checks
+.devtool/epic/contract_and_authoring_ergonomics/task_04_verification_grammar_and_docs.md:92:- A command, path, symbol or anchor named in this task does not match the repository.
+.devtool/epic/contract_and_authoring_ergonomics/task_04_verification_grammar_and_docs.md:101:- In `skills/dev-implementation/resources/scripts/check_task_contract.py`, `command_paths(command: str)` splits subcommands on `tc.CONTROL_TOKENS` (`&&`, `||`, `;`, `|`). For any subcommand whose unwrapped program is `grep`, `egrep`, `fgrep`, `rg`, `sed`, or `awk`, the pattern argument (the token after `-e`/`--regexp` or the first non-flag positional argument when no `-e`/`-f` flag is present) is skipped before collecting path tokens.
+.devtool/epic/contract_and_authoring_ergonomics/task_04_verification_grammar_and_docs.md:102:- When the first token of a subcommand (before `env`) matches `^[A-Za-z_][A-Za-z0-9_]*=.*`, `check_grounding` records a problem: `"inline environment assignment '<token>' must be prefixed with 'env' (e.g. 'env <token> ...')"`.
+.devtool/epic/contract_and_authoring_ergonomics/task_04_verification_grammar_and_docs.md:104:- `skills/dev-designer/references/verification-row-grammar.md` includes a `## Table of Contents` and documents all 6 rules (`\|` unescaping, `env VAR=val`, grep pattern rules, `Evidence files:`, `d3nexus` / `$D3NEXUS_KIT`, and dynamic `max(4, max_inner_backtick_run + 1)` outer code fences).
+.devtool/epic/contract_and_authoring_ergonomics/task_04_verification_grammar_and_docs.md:108:- `command_paths()` excludes `grep`/`rg`/`sed`/`awk` pattern arguments from missing-path errors and reports bare `VAR=val` assignments and implicit protected path provenance. (V2)
+.devtool/epic/contract_and_authoring_ergonomics/task_04_verification_grammar_and_docs.md:116:- Blocked by [Task 03](task_03_portable_d3nexus_cli_and_env.md)
+.devtool/epic/contract_and_authoring_ergonomics/task_03_portable_d3nexus_cli_and_env.md:2:id: "task_03_portable_d3nexus_cli_and_env"
+.devtool/epic/contract_and_authoring_ergonomics/task_03_portable_d3nexus_cli_and_env.md:15:# Task 03: Portable d3nexus CLI and Zero-Setup Runtime Environment Injection
+.devtool/epic/contract_and_authoring_ergonomics/task_03_portable_d3nexus_cli_and_env.md:24:1. Create executable `bin/d3nexus` dispatching subcommands (`check-doc`, `check-contract`, `check-readiness`, `sync-status`, `run-checks`) to the kit's scripts relative to `Path(__file__).resolve().parent.parent`.
+.devtool/epic/contract_and_authoring_ergonomics/task_03_portable_d3nexus_cli_and_env.md:25:2. In `run_task_checks.py` (`run_command()`) and `check_epic_readiness.py`, automatically compute `KIT_ROOT = Path(__file__).resolve().parents[4]` and inject `D3NEXUS_KIT=str(KIT_ROOT)` and `PATH="<kit_root>/bin:$PATH"` into the child process environment without mutating `os.environ` of the parent process.
+.devtool/epic/contract_and_authoring_ergonomics/task_03_portable_d3nexus_cli_and_env.md:27:4. In `check_task_contract.py` and `task_contract.py`, reject any Verification row command containing hardcoded user home or plugin cache paths (`/Users/`, `/home/`, `~/`, `.claude/plugins/cache/`, `.gemini/config/plugins/`), recognize `d3nexus` as a built-in kit executable, and resolve `d3nexus <subcommand>` in `program_of(command, root)` to the dispatched kit script path when tracked in `root` so implicit checker protection is preserved.
+.devtool/epic/contract_and_authoring_ergonomics/task_03_portable_d3nexus_cli_and_env.md:32:- `bin/d3nexus` (new)
+.devtool/epic/contract_and_authoring_ergonomics/task_03_portable_d3nexus_cli_and_env.md:42:- `skills/doc_quality_check/resources/scripts/check_document.py` (target of `d3nexus check-doc`)
+.devtool/epic/contract_and_authoring_ergonomics/task_03_portable_d3nexus_cli_and_env.md:53:  - `skills/dev-implementation/resources/scripts/run_task_checks.py`: `run_command` and new `kit_env`.
+.devtool/epic/contract_and_authoring_ergonomics/task_03_portable_d3nexus_cli_and_env.md:54:  - `skills/dev-implementation/resources/scripts/check_task_contract.py`: `command_paths`, `check_grounding`, and new `check_portable_command`.
+.devtool/epic/contract_and_authoring_ergonomics/task_03_portable_d3nexus_cli_and_env.md:58:- **Target Test Coverage Threshold**: $\ge 90\%$ line coverage on `bin/d3nexus`, `kit_env`, and `check_portable_command`.
+.devtool/epic/contract_and_authoring_ergonomics/task_03_portable_d3nexus_cli_and_env.md:65:Scenario: [TCAE-HP-03] [Tier C - Integration] Zero-setup d3nexus CLI execution inside Verification rows
+.devtool/epic/contract_and_authoring_ergonomics/task_03_portable_d3nexus_cli_and_env.md:66:  Given a task Verification row invoking "d3nexus check-doc --require-toc .devtool/epic/sample_epic/sample_epic.en.md"
+.devtool/epic/contract_and_authoring_ergonomics/task_03_portable_d3nexus_cli_and_env.md:69:  And "d3nexus check-doc" dispatches to "check_document.py" and exits 0
+.devtool/epic/contract_and_authoring_ergonomics/task_03_portable_d3nexus_cli_and_env.md:73:  When each invocation executes a Verification row printing "$D3NEXUS_KIT" and "$(which d3nexus)"
+.devtool/epic/contract_and_authoring_ergonomics/task_03_portable_d3nexus_cli_and_env.md:81:| V1 | RED | `python3 -m pytest skills/dev-implementation/resources/scripts/test_run_task_checks.py::test_TCAE_HP_03_d3nexus_zero_setup_env` | exit 1; contains "FAILED" | — |
+.devtool/epic/contract_and_authoring_ergonomics/task_03_portable_d3nexus_cli_and_env.md:83:| V3 | TIER-B | `ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py bin/d3nexus skills/dev-implementation/resources/scripts/run_task_checks.py skills/dev-implementation/resources/scripts/check_task_contract.py skills/dev-implementation/resources/scripts/task_contract.py scripts/resume_context.py` | exit 0 | — |
+.devtool/epic/contract_and_authoring_ergonomics/task_03_portable_d3nexus_cli_and_env.md:89:- A command, path, symbol or anchor named in this task does not match the repository.
+.devtool/epic/contract_and_authoring_ergonomics/task_03_portable_d3nexus_cli_and_env.md:100:- `bin/d3nexus` is an executable Python 3 script (`0o755`) supporting subcommands:
+.devtool/epic/contract_and_authoring_ergonomics/task_03_portable_d3nexus_cli_and_env.md:106:- `NON_PORTABLE_PATH_RE` in `check_task_contract.py` matches `(?:/Users/|/home/|~/|\.claude/plugins/cache/|\.gemini/config/plugins/)` and reports `"non-portable path '<match>' in command; use 'd3nexus <subcommand>' or '$D3NEXUS_KIT/...'"`.
+.devtool/epic/contract_and_authoring_ergonomics/task_03_portable_d3nexus_cli_and_env.md:107:- In `skills/dev-implementation/resources/scripts/task_contract.py`, `program_of(command: str, root: Path)` resolves `d3nexus <subcommand>` (and `bin/d3nexus <subcommand>`) via `D3NEXUS_SUBCOMMANDS` to the dispatched script path (e.g. `skills/doc_quality_check/resources/scripts/check_document.py`) when that target is git-tracked in `root`, so `protected_patterns()` in `run_task_checks.py:300` and `check_task_contract.py` preserve implicit checker protection when rows invoke `d3nexus`.
+.devtool/epic/contract_and_authoring_ergonomics/task_03_portable_d3nexus_cli_and_env.md:111:- `bin/d3nexus` dispatches kit subcommands, is automatically placed on `PATH` with `D3NEXUS_KIT` by `run_task_checks.py` and `check_epic_readiness.py`, and preserves implicit checker protection in `program_of(command, root)`. (V2, V5)
+.devtool/epic/contract_and_authoring_ergonomics/task_03_portable_d3nexus_cli_and_env.md:124:- Rollback: `git revert` the task commit to remove `bin/d3nexus` and restore runtime scripts.
+.devtool/epic/contract_and_authoring_ergonomics/task_02_single_source_render_engine.md:74:Scenario: [TCAE-EC-01] [Tier A - Unit] Task without Evidence files or Covers line remains backward-compatible
+.devtool/epic/contract_and_authoring_ergonomics/task_02_single_source_render_engine.md:75:  Given a legacy task file that omits the "Evidence files:" subsection and omits the "Covers:" line
+.devtool/epic/contract_and_authoring_ergonomics/task_02_single_source_render_engine.md:106:- A command, path, symbol or anchor named in this task does not match the repository.
+.devtool/epic/contract_and_authoring_ergonomics/task_01_evidence_files_contract.md:23:This task introduces an optional `Evidence files:` subsection under `## Files` in `task_contract.py` and `check_task_contract.py`:
+.devtool/epic/contract_and_authoring_ergonomics/task_01_evidence_files_contract.md:24:1. `parse_evidence_files(task_text: str) -> list[AllowedPath]` parses `- `<path>` (new)` bullets under `Evidence files:` inside `## Files`.
+.devtool/epic/contract_and_authoring_ergonomics/task_01_evidence_files_contract.md:26:3. `Evidence files:` entries marked `(new)` are added to the `created` set in `check_task_contract.py` so `check_grounding()` accepts references to them in `Verification` rows and `Read-only context:`.
+.devtool/epic/contract_and_authoring_ergonomics/task_01_evidence_files_contract.md:27:4. `evaluate_done_gate(task_file: Path)` in `task_contract.py` verifies that every path declared in `parse_evidence_files(task_text)` exists as a non-empty file on disk after `verify` completes.
+.devtool/epic/contract_and_authoring_ergonomics/task_01_evidence_files_contract.md:44:Separating `Evidence files:` from `Allowed files:` preserves the invariant that `Allowed files:` tracks production/test code outside `.devtool/` (which `fingerprint()` and `SCOPE` evaluate with `:(exclude).devtool`), while giving `.devtool/epic/<epic_dir>/evidence/*` artifacts first-class contract grounding at design time and existence enforcement at the Done Gate.
+.devtool/epic/contract_and_authoring_ergonomics/task_01_evidence_files_contract.md:49:  - `skills/dev-implementation/resources/scripts/task_contract.py`: `parse_allowed_files`, `evaluate_done_gate`, and new `parse_evidence_files`.
+.devtool/epic/contract_and_authoring_ergonomics/task_01_evidence_files_contract.md:60:Scenario: [TCAE-HP-01] [Tier C - Integration] Evidence files declaration passes design contract and Done-Gate verification
+.devtool/epic/contract_and_authoring_ergonomics/task_01_evidence_files_contract.md:61:  Given a task declaring ".devtool/epic/sample_epic/evidence/baseline.txt (new)" under "Evidence files:" in "## Files"
+.devtool/epic/contract_and_authoring_ergonomics/task_01_evidence_files_contract.md:68:Scenario: [TCAE-FR-01] [Tier A - Unit] Reject invalid Evidence files path outside epic evidence directory, with path traversal, or colliding with runner task JSON records
+.devtool/epic/contract_and_authoring_ergonomics/task_01_evidence_files_contract.md:69:  Given a task listing ".devtool/epic/sample_epic/../secret.txt (new)", "src/output.json (new)", or ".devtool/epic/sample_epic/evidence/task_01_setup.json (new)" under "Evidence files:"
+.devtool/epic/contract_and_authoring_ergonomics/task_01_evidence_files_contract.md:71:  Then it exits 1 and reports that every "Evidence files:" entry must reside under ".devtool/epic/<epic_dir>/evidence/" without ".." segments and must not collide with reserved "task_*.json" runner records
+.devtool/epic/contract_and_authoring_ergonomics/task_01_evidence_files_contract.md:86:- A command, path, symbol or anchor named in this task does not match the repository.
+.devtool/epic/contract_and_authoring_ergonomics/task_01_evidence_files_contract.md:95:- Grounded existing symbol `parse_allowed_files(task_text: str) -> list[AllowedPath]` in `skills/dev-implementation/resources/scripts/task_contract.py`: add sibling frozen contract `parse_evidence_files(task_text: str) -> list[AllowedPath]` parsing `- `<path>` (new)` bullets under `Evidence files:` inside `## Files`.
+.devtool/epic/contract_and_authoring_ergonomics/task_01_evidence_files_contract.md:96:- Every `Evidence files:` path must match `^\.devtool/epic/[A-Za-z0-9_-]+/evidence/[A-Za-z0-9_.-]+$`, must not contain `..` or trailing `/`, and its filename must not match `^task_.*\.json$` (which is reserved for the runner's `layout.evidence` JSON record at `.devtool/epic/<epic_dir>/evidence/<task_stem>.json` in `task_contract.py:330` and `run_task_checks.py:348`).
+.devtool/epic/contract_and_authoring_ergonomics/task_01_evidence_files_contract.md:97:- In `skills/dev-implementation/resources/scripts/check_task_contract.py`, `main()` unions `{entry.pattern for text in tasks.values() for entry in tc.parse_evidence_files(text) if entry.new and not Path(entry.pattern).name.startswith("task_")}` into `created` so `check_grounding()` accepts valid evidence paths in `Verification` rows and `Read-only context:`.
+.devtool/epic/contract_and_authoring_ergonomics/task_01_evidence_files_contract.md:98:- In `skills/dev-implementation/resources/scripts/task_contract.py`, `evaluate_done_gate(task_file: Path)` checks every entry in `parse_evidence_files(task_text)` and appends `"condition 8: evidence file <path> declared in Evidence files was not created or is empty"` if the file is missing or has size 0.
+.devtool/epic/contract_and_authoring_ergonomics/task_01_evidence_files_contract.md:102:- `parse_evidence_files` and `check_evidence` validate `Evidence files:` entries and ground `(new)` evidence paths across tasks. (V2)
+.devtool/epic/contract_and_authoring_ergonomics/task_01_evidence_files_contract.md:103:- `evaluate_done_gate` enforces that declared `Evidence files:` exist and are non-empty on disk. (V2, V5)
+
+exec
+/bin/zsh -lc "sed -n '165,270p' .devtool/epic/execution_and_verification_infrastructure/2026-11-06-execution-and-verification-infrastructure-design.vi.md; cat .devtool/epic/execution_and_verification_infrastructure/bdd_scenarios.vi.md; sed -n '1,105p' .devtool/epic/execution_and_verification_infrastructure/execution_and_verification_infrastructure.vi.md" in /Users/danhdueexoictif/AllProjects/ai-agent-tools
+ succeeded in 0ms:
+    - Biên dịch từng mẫu route thành biểu thức chính quy trong đó `{[^}/]+}`, `<[^>/>]+>`, hoặc `:[A-Za-z_][A-Za-z0-9_]*` khớp với `[^/\s"']+`. Nếu đường dẫn cụ thể khớp với bất kỳ biểu thức mẫu nào, coi như đã được ground hợp lệ và không phát cảnh báo `R5b WARN`.
+
+### 4. Kiểm tra Tĩnh Anchor Chỉnh sửa và Replay Văn bản Task Trước Đóng gói
+
+- **`skills/dev-implementation/resources/scripts/replay_task_text.py` (`#0011`)**:
+  - Chuẩn hóa 3 dạng chỉ thị chỉnh sửa tất định trong văn bản task:
+    1. **Ghi toàn bộ file**: `<!-- @@FILE:<rel_path>@@ -->`, `Create `<rel_path>`:`, hoặc `File: `<rel_path>`` nằm ngay trên một khối code fence $\rightarrow$ ghi nội dung khối code vào `<rel_path>`.
+    2. **Thay thế chính xác**: `Replace in `<rel_path>`:` ngay trên khối code fence (`anchor`) theo sau bởi `With:` ngay trên khối code fence (`replacement`) $\rightarrow$ thay thế vị trí xuất hiện duy nhất của `anchor` trong `<rel_path>`.
+    3. **Chèn theo điểm neo**: `Insert in `<rel_path>` after:` (hoặc `before:`) ngay trên khối code fence (`anchor`) theo sau bởi `With:` ngay trên khối code fence (`insertion`) $\rightarrow$ chèn `insertion` ngay sau (hoặc trước) vị trí xuất hiện duy nhất của `anchor` trong `<rel_path>`.
+  - Cung cấp hai chế độ hoạt động:
+    - **Kiểm tra Tĩnh Anchor (`verify_task_edit_anchors(root: Path, task_path: Path, task_text: str, prior_modified: set[str] | None = None) -> list[str]`)**:
+      - Được gọi tự động trong bước `R5` của `check_epic_readiness.py`.
+      - Với mọi chỉ thị `Replace in `<rel_path>`:` hoặc `Insert in `<rel_path>` after|before:` nhắm tới file đã tồn tại ở `HEAD` (và chưa bị ghi đè bởi bước trước đó trong cùng task hoặc epic), kiểm tra khối `anchor` xuất hiện nguyên văn đúng 1 lần trong `(root / rel_path).read_text()`. Nếu không tìm thấy hoặc xuất hiện nhiều hơn 1 lần, báo lỗi `R5 FAIL` chỉ rõ tên task và đường dẫn file.
+    - **Replay Thực thi trên Worktree Tạm (`replay_task_text.py <task.md> [--worktree <dir>] [--run-rows]` và `check_epic_readiness.py <epic_dir> --replay`)**:
+      - Áp dụng tuần tự các chỉ thị chỉnh sửa trong `<task.md>` (hoặc toàn bộ các task của `<epic_dir>` theo thứ tự thực thi trên một `git worktree` tạm) và tùy chọn chạy các dòng `Verification` (`RED`, `GREEN`, `TIER-B`, `TIER-C`), tự động dọn dẹp worktree tạm khi kết thúc.
+
+### 5. Pha Đo lường Dài hạn (MEASURE) và Xác minh Dựa trên Bằng chứng
+
+- **Bổ sung `Phase: MEASURE` trong `task_contract.py` và `run_task_checks.py` (`#0017`)**:
+  - Trong `skills/dev-implementation/resources/scripts/task_contract.py`:
+    - Cập nhật `PHASES = ("RED", "MEASURE", "GREEN", "TIER-B", "TIER-C")`.
+    - Trong `evaluate_done_gate(task_file: Path)` và `audit_epic.py` (`audit_evidence`): nếu task có bất kỳ dòng nào mang `row.phase == "MEASURE"`, kiểm tra `evidence.get("runs", {}).get("measure")` đã tồn tại, `tree` khớp với `fingerprint(layout.root)[0]` hiện tại (tại Done Gate), mọi dòng `MEASURE` trong bảng hiện tại khớp `id`, `command`, `expect` (`row_problems`) với `"outcome": "PASS"`, và mọi file khai báo trong `parse_evidence_files(task_text)` tồn tại trên đĩa với mã băm SHA-256 khớp `runs["measure"]["evidence_digests"]`.
+  - Trong `skills/dev-implementation/resources/scripts/run_task_checks.py`:
+    - Mở rộng danh sách `mode` CLI thành `("red", "measure", "verify", "status")`.
+    - Khi chạy `mode == "measure"`:
+      - Giá trị `--timeout` mặc định là `7200` giây (hoặc không giới hạn khi truyền `--timeout 0`) thay vì `1800` giây.
+      - Ghi nhận `"evidence_digests": {rel_path: sha256_hex}` vào `evidence["runs"]["measure"]` cho toàn bộ `Evidence files:`.
+      - Hỗ trợ cờ `--resume`: nếu truyền `--resume`, bản ghi `evidence.get("runs", {}).get("measure")` tồn tại, `tree` đã ghi khớp `fingerprint(layout.root)[0]`, `row_problems(measure_rows, evidence["runs"])` rỗng (tất cả dòng `MEASURE` hiện tại khớp `id`/`command`/`expect` và có `"outcome": "PASS"`), và toàn bộ các file trong `parse_evidence_files(task_text)` tồn tại, khác rỗng trên đĩa, đồng thời khớp mã băm SHA-256 trong `runs["measure"]["evidence_digests"]`, bỏ qua việc chạy lại lệnh đo lường tốn thời gian và in `MEASURE resumed (cached PASS)`.
+  - Tài liệu hóa mẫu **Measurement-to-Evidence** trong `skills/dev-designer/SKILL.md` và `skills/dev-implementation/SKILL.md`:
+    - Lệnh chạy đo lường/benchmark dài hạn được đặt ở pha `MEASURE` (ghi kết quả vào `Evidence files:`), các kiểm tra nghiệm thu cơ học được viết thành test `pytest` chạy nhanh ở pha `GREEN`/`TIER-C` đọc từ file bằng chứng đó, và đánh giá định tính theo rubric được ghi nhận là mục `(Gate 5)` trong Definition of Done.
+
+## Xử lý Lỗi và Các Trường hợp Biên
+
+- **Tập Lỗi Rỗng trong `record_failure_baseline.py`**: Ghi dòng `# 0 failures\n` để file trên đĩa luôn khác rỗng (thỏa mãn điều kiện 8 của `evaluate_done_gate()`) trong khi `compare_failure_sets.py` vẫn đọc ra tập rỗng `set()`.
+- **Lỗi Collection trong `record_failure_baseline.py`**: Tự động truyền `--continue-on-collection-errors` cho `pytest` để các lỗi import/collection vẫn xuất hiện trong bảng tóm tắt dưới dạng `ERROR <nodeid>` thay vì dừng đột ngột trước khi in bảng tóm tắt.
+- **Biến Môi trường Live Chưa Được Gán tại Gate 4**: `run_external_review.py` ghi nhận `SKIPPED (missing env: ...)` cho các dòng tích hợp live mà không làm gãy Gate 4, đồng thời vẫn bắt buộc mọi dòng `Integration results:` thông thường phải vượt qua.
+- **Task Không Chứa Chỉ thị Chỉnh sửa**: `verify_task_edit_anchors()` và `replay_task_text.py` coi các task không có chỉ thị `Replace in` / `Insert in` là hợp lệ, đảm bảo tương thích ngược hoàn toàn với mọi epic trước đây.
+
+## Chiến lược Kiểm thử và Xác minh
+
+- **Tier A (Unit Tests)**:
+  - `test_validate_python_quality.py`: Kiểm thử xác thực trường `"bootstrap"` trong schema (mảng lệnh hợp lệ so với chuỗi hoặc mảng rỗng).
+  - `test_record_and_compare_baseline.py`: Kiểm thử trích xuất bảng tóm tắt cuối (bỏ qua các dòng log `ERROR ...`), xử lý baseline 0 lỗi, khôi phục file qua `--restore`, và lọc lỗi thoáng qua bằng `--rerun-new`.
+  - `test_check_epic_readiness.py` & `test_check_task_contract.py`: Kiểm thử phân tích `Integration results (live, needs: VAR):`, độ phủ `R6`, so khớp mẫu route có tham số trong `R5b`, và kiểm tra tĩnh anchor chỉnh sửa trong `R5`.
+  - `test_run_task_checks.py`: Kiểm thử thực thi mode `measure`, cơ chế `--resume`, kiểm tra Done Gate cho `MEASURE`, và tự động tạo thư mục cha cho `--junitxml` / `--test-reporter-destination`.
+- **Tier C1 (Subcutaneous End-to-End Integration)**:
+  - `tests/test_execution_infra_acceptance.py`: Kiểm thử tích hợp đầu-cuối trên các kho git tạm thời bao phủ bootstrap đa nền tảng, `record_failure_baseline.py` + `compare_failure_sets.py`, `replay_task_text.py`, `run_task_checks.py measure` + `verify`, và cơ chế skip kiểm thử tích hợp live khi thiếu biến môi trường `needs:`.
+- **Cổng Chất lượng Kho mã nguồn**:
+  - `scripts/verify.sh`, `ruff check`, `mypy`, và `pytest` phải vượt qua với 0 lỗi.
+
+## Cảnh báo Shared Contract
+
+- Không tồn tại thư mục `shared-contracts/` trong `ai-agent-tools`. Mọi thay đổi đều nằm gọn trong bộ công cụ workflow plugin và đảm bảo tương thích ngược hoàn toàn cho các kho mã nguồn cũng như các epic hiện có.
+
+## Ánh xạ Phụ thuộc và Bối cảnh Lộ trình
+
+- **Phụ thuộc vào**: **Epic 1 (`contract_and_authoring_ergonomics`)** — sử dụng trực tiếp `Evidence files:`, `bin/d3nexus`, và `sync_task_status.py render`.
+- **Mở đường cho**: **Epic 3 (`multi_epic_orchestration_and_governance`)** — cung cấp nền tảng thực thi và kiểm tra sẵn sàng để Epic 3 mở rộng cho bài toán phụ thuộc liên epic (`#0013`, `#0014`) và quản trị sửa đổi epic đã đóng gói (`#0015`, `#0020`).
+# Kịch Bản BDD: Hạ Tầng Thực Thi và Xác Minh (Execution and Verification Infrastructure)
+
+## Mục Lục
+
+- [1. Chiều 1 — Luồng Thành Công (Happy Paths)](#1-chiều-1--luồng-thành-công-happy-paths)
+- [2. Chiều 2 — Trường Hợp Biên & Giới Hạn (Edge Cases & Boundaries)](#2-chiều-2--trường-hợp-biên--giới-hạn-edge-cases--boundaries)
+- [3. Chiều 3 — Chuyển Đổi Trạng Thái (State Transitions)](#3-chiều-3--chuyển-đổi-trạng-thái-state-transitions)
+- [4. Chiều 4 — Bất Đồng Bộ & Đồng Thời (Async & Concurrency)](#4-chiều-4--bất-đồng-bộ--đồng-thời-async--concurrency)
+- [5. Chiều 5 — Lỗi & Khả Năng Phục Hồi (Failures & Resilience)](#5-chiều-5--lỗi--khả-năng-phục-hồi-failures--resilience)
+
+---
+
+## 1. Chiều 1 — Luồng Thành Công (Happy Paths)
+
+```gherkin
+Feature: Execution and Verification Infrastructure — Happy Paths
+
+  Scenario: [EVI-HP-01] [Tier C - Integration] Worktree bootstrap thực thi các lệnh bootstrap trong python-quality.json và cài đặt phụ thuộc đa ngôn ngữ (polyglot)
+    Given một kho lưu trữ git đa ngôn ngữ chứa cả "pyproject.toml" và "package.json"
+    And ".agents/quality/python-quality.json" định nghĩa "bootstrap" là [["pip", "install", "-e", ".[dev]"]]
+    When "detect_project_type.sh --all" được thực thi trên kho lưu trữ
+    Then nó xuất ra "python web"
+    And khi "bootstrap_worktree.sh" chạy trên một worktree của kho lưu trữ
+    Then nó thực thi cả pha bootstrap Python (bao gồm các mảng lệnh "bootstrap" từ ".agents/quality/python-quality.json") và pha cài đặt phụ thuộc Web
+
+  Scenario: [EVI-HP-02] [Tier C - Integration] Ghi nhận baseline tập lỗi và so sánh hồi quy đạt khi không có lỗi mới xuất hiện
+    Given một luồng đầu ra pytest chứa 2 node ID kiểm thử thất bại có sẵn trong khối tóm tắt cuối "=== short test summary info ==="
+    When "record_failure_baseline.py --out baseline.txt" phân tích luồng đầu ra
+    Then "baseline.txt" chứa 2 node ID lỗi đã sắp xếp
+    And khi "compare_failure_sets.py --baseline baseline.txt --current current.txt" chạy với danh sách lỗi hiện tại là tập con của 2 node ID đó
+    Then nó báo cáo 0 lỗi mới và thoát với mã 0
+
+  Scenario: [EVI-HP-03] [Tier C - Integration] Bảng kết quả tích hợp live tùy chọn thỏa mãn độ phủ R6, bỏ qua sạch khi thiếu biến môi trường và thực thi khi biến môi trường được đặt
+    Given một HLD của epic chứa cả "Integration results:" và "Integration results (live, needs: EVI_LIVE_MODEL):"
+    And "bdd_scenarios.en.md" khai báo một kịch bản "[Tier C - Integration]" có tệp kiểm thử nằm trong lệnh tích hợp live
+    When "check_epic_readiness.py" đánh giá độ phủ R6 cho epic
+    Then R6 đạt với 0 tệp kiểm thử Tier C bị thiếu
+    And khi "collect_facts()" trong "run_external_review.py" chạy với "EVI_LIVE_MODEL" không được đặt trong môi trường
+    Then dòng tích hợp live được ghi nhận là "SKIPPED (missing env: EVI_LIVE_MODEL)" mà không làm trượt Gate 4
+    And khi "collect_facts()" trong "run_external_review.py" chạy với "EVI_LIVE_MODEL=1" được đặt trong môi trường
+    Then dòng tích hợp live được thực thi và mã thoát của nó được cưỡng chế
+
+  Scenario: [EVI-HP-04] [Tier C - Integration] Bộ phát lại văn bản task áp dụng các chỉ thị code block trong worktree nháp và pha MEASURE thực thi cùng ghi nhận bằng chứng
+    Given một tệp task chứa các khối mã "Create", "Replace in" và "Insert in", các dòng "Phase: MEASURE" và "Evidence files: .devtool/evidence/bench.json"
+    When "replay_task_text.py" phát lại task bên trong một git worktree tạm thời
+    Then tất cả các chỉ thị được áp dụng sạch sẽ và các lệnh Verification của task đều đạt
+    And khi "run_task_checks.py measure" thực thi task
+    Then các dòng "MEASURE" chạy, tạo ra ".devtool/evidence/bench.json" và ghi nhận mục "measure" đạt vào tệp JSON bằng chứng của task
+```
+
+---
+
+## 2. Chiều 2 — Trường Hợp Biên & Giới Hạn (Edge Cases & Boundaries)
+
+```gherkin
+Feature: Execution and Verification Infrastructure — Edge Cases & Boundaries
+
+  Scenario: [EVI-EC-01] [Tier A - Unit] Bộ phân tích tập lỗi bỏ qua các dòng log ERROR trước short test summary info và ghi dòng đánh dấu khi có 0 lỗi
+    Given một luồng đầu ra pytest chứa các dòng log "ERROR logger:module.py:42" trong stdout trước "=== short test summary info ==="
+    When "record_failure_baseline.py" trích xuất các ID lỗi từ luồng đầu ra
+    Then nó bỏ qua các dòng logger đã bắt và chỉ trích xuất các dòng "FAILED <nodeid>" và "ERROR <nodeid>" từ khối tóm tắt cuối
+    And khi có 0 kiểm thử thất bại hoặc lỗi trong khối tóm tắt cuối
+    Then "record_failure_baseline.py" ghi "# 0 failures\n" vào tệp đầu ra để tệp không bị rỗng
+
+  Scenario: [EVI-EC-02] [Tier A - Unit] Trình chạy task tự động tạo thư mục cha cho cờ đầu ra JUnit XML trước khi thực thi các dòng Verification
+    Given một dòng Verification của task chứa "--junitxml=.devtool/evidence/nested/junit/report.xml" trong đó ".devtool/evidence/nested/junit" chưa tồn tại
+    When "run_task_checks.py" thực thi dòng Verification
+    Then "ensure_output_dirs()" tạo ".devtool/evidence/nested/junit" trước khi gọi tiến trình con để trình chạy kiểm thử ghi báo cáo XML không gặp lỗi
+
+  Scenario: [EVI-EC-03] [Tier A - Unit] Kiểm tra trôi lệch route R5b khớp các chuỗi route cụ thể với mẫu route có tham số mà không cảnh báo sai
+    Given một tệp task tham chiếu đến chuỗi route cụ thể "http://localhost/api/align/stream/job_plt"
+    And codebase đích định nghĩa route có tham số "http://localhost/api/align/stream/{job_id}" (hoặc "<job_id>" hoặc ":job_id")
+    When "check_epic_readiness.py" chạy kiểm tra trôi lệch route R5b
+    Then "route_matches_codebase()" khớp route cụ thể với mẫu có tham số và phát ra 0 cảnh báo R5b
+```
+
+---
+
+## 3. Chiều 3 — Chuyển Đổi Trạng Thái (State Transitions)
+
+```gherkin
+Feature: Execution and Verification Infrastructure — State Transitions
+
+  Scenario: [EVI-ST-01] [Tier A - Unit] So sánh tập lỗi với --rerun-new phân loại lỗi đạt cô lập so với lỗi bền vững và yêu cầu cờ tường minh để bỏ qua lỗi đạt cô lập
+    Given một tệp baseline có 0 lỗi và một tệp lỗi hiện tại có 2 node ID lỗi mới tiềm năng (bao gồm ID có tham số chứa khoảng trắng)
+    When "compare_failure_sets.py --baseline baseline.txt --current current.txt --rerun-new" chạy
+    And ứng viên đầu tiên đạt khi được chạy lại cô lập qua "--rerun-cmd" trong khi ứng viên thứ hai thất bại
+    Then ứng viên đầu tiên được phân loại là "ISOLATED_PASS" và ứng viên thứ hai là "PERSISTENT_FAILURE" đồng thời lệnh thoát với mã 1
+    And khi tất cả ứng viên đều đạt khi chạy cô lập, "compare_failure_sets.py --rerun-new" vẫn thoát với mã 1 trừ khi "--allow-isolated-pass" được truyền tường minh
+
+  Scenario: [EVI-ST-02] [Tier C - Integration] run_task_checks.py measure --resume chỉ tái sử dụng kết quả MEASURE đã lưu khi tree, hợp đồng dòng và mã băm tệp bằng chứng khớp
+    Given một tệp task có các dòng "Phase: MEASURE" và "Evidence files: .devtool/evidence/bench.json"
+    And một lần chạy "run_task_checks.py measure" trước đó đã ghi nhận "runs.measure.passed = true" kèm worktree tree, lệnh/expect của dòng và mã băm SHA-256 của ".devtool/evidence/bench.json" khớp
+    When "run_task_checks.py measure <task.md> --resume" được gọi trên tree và tệp bằng chứng không thay đổi
+    Then nó bỏ qua việc thực thi lại các lệnh tiến trình con "MEASURE" và thoát với mã 0
+    And khi worktree tree, lệnh của dòng hoặc nội dung ".devtool/evidence/bench.json" bị sửa đổi, "--resume" hủy hiệu lực bộ nhớ đệm và thực thi lại các dòng "MEASURE"
+```
+
+---
+
+## 4. Chiều 4 — Bất Đồng Bộ & Đồng Thời (Async & Concurrency)
+
+```gherkin
+Feature: Execution and Verification Infrastructure — Async & Concurrency
+
+  Scenario: [EVI-AR-01] [Tier C - Integration] check_epic_readiness.py --replay thực thi văn bản task trong worktree nháp cô lập và dọn dẹp mà không làm thay đổi cây làm việc chính
+    Given một epic có các task chứa các chỉ thị "Create", "Replace in" và "Insert in" hợp lệ
+    When "check_epic_readiness.py <epic> --replay" được thực thi
+    Then nó tạo một git worktree tạm thời, phát lại tuần tự các chỉnh sửa của từng task, chạy các lệnh Verification và xóa worktree tạm thời khi hoàn tất
+    And "git status --porcelain" trên kho lưu trữ chính hoàn toàn không thay đổi
+
+  Scenario: [EVI-AR-02] [Tier A - Unit] record_failure_baseline.py --restore khôi phục các tệp được theo dõi bị làm bẩn do tác dụng phụ của quá trình chạy kiểm thử
+    Given một lệnh bộ kiểm thử làm thay đổi tệp được theo dõi "config/sample.json" trong quá trình thực thi
+    When "record_failure_baseline.py --cmd '<test_cmd>' --out baseline.txt --restore config/sample.json" chạy
+    Then sau khi lệnh kiểm thử hoàn tất, "record_failure_baseline.py" thực thi "git checkout -- config/sample.json" để tệp được theo dõi khôi phục về trạng thái HEAD sạch
+```
+
+---
+
+## 5. Chiều 5 — Lỗi & Khả Năng Phục Hồi (Failures & Resilience)
+
+```gherkin
+Feature: Execution and Verification Infrastructure — Failures & Resilience
+
+  Scenario: [EVI-FR-01] [Tier A - Unit] validate_python_quality.py từ chối các cấu hình bootstrap sai định dạng với mã invalid_bootstrap_format
+    Given một tệp ".agents/quality/python-quality.json" trong đó "bootstrap" không phải là một danh sách khác rỗng chứa các mảng đối số chuỗi khác rỗng
+    When "validate_python_quality.py" xác thực cấu hình
+    Then nó báo lỗi xác thực và phát ra lỗi với mã "invalid_bootstrap_format"
+
+  Scenario: [EVI-FR-02] [Tier A - Unit] Xác minh điểm neo tĩnh R5 thất bại khi điểm neo Replace in hoặc Insert in bị thiếu hoặc mơ hồ trong tệp đích
+    Given một tệp task chứa chỉ thị "Replace in <path>:" hoặc "Insert in <path>:" có đoạn văn bản điểm neo xuất hiện 0 lần hoặc từ 2 lần trở lên trong "<path>"
+    When "verify_task_edit_anchors()" trong "check_epic_readiness.py" kiểm tra task
+    Then R5 thất bại và báo cáo chính xác đường dẫn tệp cùng đoạn điểm neo bị thiếu hoặc mơ hồ
+
+  Scenario: [EVI-FR-03] [Tier A - Unit] evaluate_done_gate thất bại khi một task chứa các dòng MEASURE bị thiếu, thất bại hoặc lỗi thời so với tree và mã băm bằng chứng hiện tại
+    Given một tệp task chứa ít nhất một dòng Verification có "Phase: MEASURE"
+    And tệp JSON bằng chứng của task thiếu "runs.measure", có "runs.measure.passed == false", hoặc có "tree", hợp đồng dòng hay mã băm SHA-256 của tệp bằng chứng không khớp
+    When "evaluate_done_gate()" đánh giá task để chuyển sang trạng thái "done"
+    Then nó trả về danh sách lỗi khác rỗng chặn việc chuyển sang "done" cho đến khi một lần chạy "run_task_checks.py measure" mới đạt
+```
+
+# Epic: Hạ tầng Thực thi và Xác minh (Execution and Verification Infrastructure)
+
+## Mục lục
+
+- [Thông tin Chung (Meta Data)](#thông-tin-chung-meta-data)
+- [Bối cảnh (Background)](#bối-cảnh-background)
+- [Mục tiêu và Phạm vi Ngoài Mục tiêu](#mục-tiêu-và-phạm-vi-ngoài-mục-tiêu)
+  - [Mục tiêu (Goals)](#mục-tiêu-goals)
+  - [Ngoài Mục tiêu (Non-Goals)](#ngoài-mục-tiêu-non-goals)
+- [Kiến trúc và Thiết kế Kỹ thuật](#kiến-trúc-và-thiết-kế-kỹ-thuật)
+  - [Kiến trúc Tổng thể (High-Level Architecture)](#kiến-trúc-tổng-thể-high-level-architecture)
+  - [Các Ca Sử dụng (Use Cases)](#các-ca-sử-dụng-use-cases)
+  - [Sơ đồ Tuần tự (Sequence Diagram)](#sơ-đồ-tuần-tự-sequence-diagram)
+  - [Kế hoạch Kiểm thử Tích hợp và Ma trận Ranh giới](#kế-hoạch-kiểm-thử-tích-hợp-và-ma-trận-ranh-giới)
+- [Môi trường Xác minh](#môi-trường-xác-minh)
+  - [Kịch bản Kiểm thử BDD Toàn diện](#kịch-bản-kiểm-thử-bdd-toàn-diện)
+- [Tác động Shared Contract](#tác-động-shared-contract)
+- [Chiến lược Triển khai và Giảm thiểu Rủi ro](#chiến-lược-triển-khai-và-giảm-thiểu-rủi-ro)
+- [Phân rã Kanban Tasks](#phân-rã-kanban-tasks)
+
+## Thông tin Chung (Meta Data)
+
+- **Epic**: `execution-and-verification-infrastructure`
+- **Status**: Queued (backlog) — behind `contract-and-authoring-ergonomics`
+- **Target Release**: v1.25.0
+- **Platform**: Python
+- **Source Spec**: [2026-11-06-execution-and-verification-infrastructure-design.vi.md](2026-11-06-execution-and-verification-infrastructure-design.vi.md)
+
+## Bối cảnh (Background)
+
+Trong quá trình thực thi Stage 2 và Stage 3 trên `lyrics-sync` và `ai-agent-tools`, sáu điểm nghẽn hạ tầng thực thi và xác minh đã được ghi nhận trong `skill-observations/observation-log/`:
+
+1. **Observation `#0006`**: `bootstrap_worktree.sh` chỉ chạy `uv sync` mặc định, khiến môi trường `.venv` trong worktree mới thiếu các gói phụ thuộc tùy chọn (`--extra asr`) cần thiết cho lệnh `mypy` và `pytest` đã đăng ký.
+2. **Observation `#0007`**: Việc ghi nhận và so sánh tập lỗi baseline toàn bộ bộ test giữa các task đòi hỏi các ống lệnh bash viết tay dễ vỡ: bắt nhầm dòng log (`ERROR logger:file.py:123`), lỗi `pipefail` khi tập lỗi rỗng, thiếu `--continue-on-collection-errors`, để lại file bẩn trên git, và báo lỗi hồi quy giả do trạng thái DB dùng chung.
+3. **Observation `#0010`**: Kiểm tra `R6` bắt buộc mọi file test Tier C phải xuất hiện trong một dòng `Integration results:`, và Gate 4 chạy mọi dòng này vô điều kiện, dẫn tới thiếu cơ chế cho các bài kiểm thử tích hợp live (`-m live_llm`) cần biến môi trường như `PLT_LIVE_OLLAMA_MODEL`. Đồng thời, `R5b` cảnh báo giả đối với các đường dẫn cụ thể (`http://localhost/api/align/stream/job_plt`) khi backend khai báo mẫu route có tham số (`http://localhost/api/align/stream/{job_id}`).
+4. **Observation `#0011`**: Các sai sót trong văn bản hướng dẫn chỉnh sửa của task (`Replace in <path>:` / `With:`, `Insert in <path> after:` / `With:`, và các khối code) chỉ được phát hiện khi chạy replay trên một worktree nháp trước khi đóng gói.
+5. **Observation `#0017`**: Các task đo lường dài hạn (như chạy benchmark LLM cục bộ hàng giờ) không phù hợp với giới hạn timeout 600 giây của dòng Verification thông thường và cần một pha `MEASURE` có khả năng tiếp tục (`--resume`), tách biệt khỏi bước `verify` kiểm tra bằng chứng nhanh.
+6. **Observation `#0018`**: Các kho mã nguồn đa nền tảng kết hợp Python (`pyproject.toml`) và JavaScript (`package.json`, `tests/js/**/*.test.mjs`) chỉ được `detect_project_type.sh` trả về `python`, bị bỏ qua bước cài đặt phụ thuộc Node trong `bootstrap_worktree.sh`, và gặp lỗi thoát mã 7 khi `node --test --test-reporter=junit` ghi vào thư mục `build/test-results/` chưa được tạo.
+
+## Mục tiêu và Phạm vi Ngoài Mục tiêu
+
+### Mục tiêu (Goals)
+
+- Bổ sung trường tùy chọn `"bootstrap"` vào `.agents/quality/python-quality.json` (`python-quality.schema.json` và `validate_python_quality.py`), thực thi các lệnh `"bootstrap"` trong `bootstrap_worktree.sh`, và bỏ lệnh thoát sớm để các repo đa nền tảng Python + Web/Node khởi tạo đầy đủ mọi toolchain (`#0006`, `#0018`).
+- Bổ sung cờ `--all` vào `detect_project_type.sh` để báo cáo tất cả các nền tảng phát hiện được trong repo đa ngữ mà vẫn giữ nguyên đầu ra mặc định một nền tảng (`#0018`).
+- Tự động tạo thư mục cha cho các đường dẫn `--junitxml` và `--test-reporter-destination` trong `run_task_checks.py` trước khi thực thi dòng lệnh Verification (`#0018`).
+- Cung cấp `record_failure_baseline.py` và `compare_failure_sets.py` hỗ trợ `pytest` và `node --test`, chỉ trích xuất lỗi từ phần tóm tắt cuối, khôi phục file qua `--restore <path>`, và chạy lại cô lập các lỗi mới qua `--rerun-new` (`#0007`).
+- Hỗ trợ `Integration results (live, needs: VAR1, VAR2): <cmd> -> <report>` trên `task_contract.py`, `check_task_contract.py`, `check_epic_readiness.py` (`R6`), `audit_epic.py`, và `run_external_review.py` (Gate 4), đồng thời nâng cấp `R5b` trong `check_epic_readiness.py` để so khớp đường dẫn cụ thể với mẫu route có tham số (`#0010`).
+- Cung cấp `replay_task_text.py`, tích hợp kiểm tra tĩnh anchor chỉnh sửa vào `check_epic_readiness.py` (`R5`), và bổ sung cờ `--replay` chạy thử trên worktree tạm vào `check_epic_readiness.py` (`#0011`).
+- Hỗ trợ `Phase: MEASURE` (`run_task_checks.py measure [--timeout 7200] [--resume]`) và tài liệu hóa mẫu thiết kế **Measurement-to-Evidence** trong `skills/dev-designer/SKILL.md` và `skills/dev-implementation/SKILL.md` (`#0017`).
+
+### Ngoài Mục tiêu (Non-Goals)
+
+- Thứ tự phụ thuộc task liên epic, chuyển trạng thái bảng Kanban đa epic, và quản trị sửa đổi epic đã đóng gói (`#0013, #0014, #0015, #0020`) — thuộc phạm vi của **Epic 3 (`multi_epic_orchestration_and_governance`)**.
+- Bổ sung bất kỳ thư viện bên thứ ba nào ngoài thư viện chuẩn Python 3.11+.
+
+## Kiến trúc và Thiết kế Kỹ thuật
+
+### Kiến trúc Tổng thể (High-Level Architecture)
+
+```mermaid
+flowchart TD
+    subgraph BOOT["Bootstrap Worktree & Đa nền tảng (#0006, #0018)"]
+        PY_MANIFEST[".agents/quality/python-quality.json (bootstrap)"]
+        DETECT_SH["detect_project_type.sh [--all]"]
+        BOOT_SH["bootstrap_worktree.sh (Python + Rust + Web/Node)"]
+    end
+
+    subgraph BASELINE["Ghi nhận & So sánh Tập Lỗi Baseline (#0007)"]
+        REC_BASE["record_failure_baseline.py"]
+        CMP_BASE["compare_failure_sets.py"]
+    end
+
+    subgraph READINESS["Kiểm tra Sẵn sàng, Replay & Live Integration (#0010, #0011)"]
+        REPLAY_PY["replay_task_text.py"]
+        CER["check_epic_readiness.py (R5 anchors, R5b templates, R6 live, --replay)"]
+        RER["run_external_review.py (Gate 4 live run hoặc SKIPPED)"]
+    end
+
+    subgraph RUNNER["Trình Chạy Verification & Pha MEASURE (#0017, #0018)"]
+        TC["task_contract.py (IntegrationResultSpec, MEASURE)"]
+        RTC["run_task_checks.py (measure --resume, JUnit parent mkdir)"]
+    end
+
+    PY_MANIFEST --> BOOT_SH
+    DETECT_SH --> BOOT_SH
+    TC --> RTC
+    TC --> CER
+    TC --> RER
+    REPLAY_PY --> CER
+    RTC --> REC_BASE --> CMP_BASE
+```
+
+### Các Ca Sử dụng (Use Cases)
+
+```mermaid
+flowchart LR
+    DESIGNER["AI Assistant / Designer"] --> UC1["Kiểm tra Anchor Tĩnh & Chạy Replay Task qua check_epic_readiness.py"]
+    DESIGNER --> UC2["Khai báo Live Integration Results Tùy chọn & Mẫu Route Có Tham số"]
+
+    PROGRAMMER["AI Programmer"] --> UC3["Bootstrap Worktree Đa nền tảng với Python Extras & Phụ thuộc Node"]
+    PROGRAMMER --> UC4["Ghi nhận & Đối chiếu Tập Lỗi Baseline qua CLI d3nexus"]
+    PROGRAMMER --> UC5["Thực thi Pha MEASURE Dài hạn với Xác minh Bằng chứng Có Thể Tiếp tục"]
+```
+
+
+codex
+Có hai điểm cần kiểm chứng kỹ: regex baseline có thể cắt mất một phần pytest ID chứa ` - `, và hợp đồng `Evidence files:` trong Task 04 khác với epic tiên quyết mà thiết kế dựa vào. Tôi sẽ chạy probe trong bộ nhớ để kiểm tra các trường hợp này và nhánh live-skip, không tạo fixture trên đĩa.
+
+exec
+/bin/zsh -lc "PYTHONDONTWRITEBYTECODE=1 python3 -B -c 'import pathlib, re, sys, subprocess
+from unittest import mock
+root=pathlib.Path.cwd(); scripts=root/'\\''skills/dev-implementation/resources/scripts'\\''; sys.path.insert(0,str(scripts))
+import task_contract as tc
+import run_task_checks as rtc
+import run_external_review as rer
+import result_reports as rr
+print('\\''PYTEST ID REGEX (exact task_02 pattern)'\\'')
+pattern=re.compile(r'\\''"'^(?:FAILED|ERROR)'"\\s+(.+?)(?:\\s+-\\s+.*)?"'$'"'\\'')
+for line in ['\\''FAILED tests/test_x.py::test_x[hello world] - AssertionError'\\'', '\\''FAILED tests/test_x.py::test_x[hello - world] - AssertionError'\\'', '\\''FAILED tests/test_x.py::test_x[hello - other] - AssertionError'\\'']:
+ print(repr(line), '\\''=>'\\'',repr(pattern.fullmatch(line).group(1)))
+print('\\''LIVE TRACEABILITY: source verdicts on absent/skipped live cases'\\'')
+for cases in [[],[rr.Case('\\''test_EVI_HP_03'\\'','\\''tests.integration.test_live'\\'','\\''skipped'\\'')]]:
+ print(rr.verdicts(['\\''EVI-HP-03'\\''],cases,{'\\''EVI-HP-03'\\'':'\\''Tier C - Integration'\\''}))
+with mock.patch.object(rer,'\\''run_gate'\\'', return_value=(0,'\\'''\\'','\\'''\\'')) as gate, mock.patch.object(pathlib.Path,'\\''is_dir'\\'', return_value=True):
+ rer.collect_facts(root,'\\''sample'\\'','\\''main'\\'','\\''Integration results: true -> build/hermetic.xml\\nIntegration test roots: tests/\\n'\\'',600)
+ print('\\''CURRENT TRACEABILITY ARGV:'\\'',gate.call_args.args[1])
+print('\\''EARLY EXCEPTION / FALLBACK PROBES'\\'')
+with mock.patch.object(rtc.subprocess,'\\''Popen'\\'',side_effect=FileNotFoundError('\\''synthetic launch failure'\\'')):
+ try: rtc.run_command('\\''absent'\\'',root,1)
+ except Exception as exc: print('\\''run_command early launch =>'\\'',type(exc).__name__,str(exc))
+with mock.patch.object(rer.subprocess,'\\''Popen'\\'',side_effect=FileNotFoundError('\\''synthetic launch failure'\\'')):
+ try: rer.execute(['\\''absent'\\''],root,1)
+ except Exception as exc: print('\\''execute early launch =>'\\'',type(exc).__name__,str(exc))
+with mock.patch.object(tc,'\\''git_run'\\'',side_effect=OSError('\\''synthetic early failure'\\'')):
+ try: tc.epic_layout(pathlib.Path('\\''.devtool/epic/demo/task_1.md'\\''))
+ except Exception as exc: print('\\''epic_layout fallback =>'\\'',type(exc).__name__,str(exc))
+process=mock.Mock(pid=999); process.communicate.side_effect=[subprocess.TimeoutExpired('\\''synthetic'\\'',1),(b'\\''timed out'\\'',None)]
+with mock.patch.object(rtc.subprocess,'\\''Popen'\\'',return_value=process),mock.patch.object(rtc.os,'\\''killpg'\\''):
+ print('\\''run_command timeout =>'\\'',rtc.run_command('\\''synthetic'\\'',root,1))
+print('\\''malformed shell token fallback =>'\\'', tc.program_of(\"python3 '\\''unterminated\",root))
+print('\\''invalid JSON event =>'\\'',rr.parse_dart('\\''not json\\n{\"type\":\"testDone\",\"testID\":1}'\\''))
+print('\\''PREDECESSOR EVIDENCE CONTRACT'\\'')
+p=re.compile(r'\\''"'^'"\\.devtool/epic/[A-Za-z0-9_-]+/evidence/[A-Za-z0-9_.-]+"'$'"'\\'')
+for path in ['\\''.devtool/evidence/bench.json'\\'','\\''.devtool/epic/sample/evidence/bench.json'\\'']:
+ print(path,'\\''valid:'\\'',bool(p.fullmatch(path)))
+try: root / tc.AllowedPath('\\''.devtool/epic/sample/evidence/bench.json'\\'',True)
+except Exception as exc: print('\\''AllowedPath used as str:'\\'',type(exc).__name__,str(exc))
+print('\\''NODE REAL TAP WITHOUT FILES'\\'')
+code=\"const {test}=require('\\''node:test'\\''); test('\\''suite A'\\'',async t=>{await t.test('\\''same name'\\'',()=>{throw Error('\\''A'\\'')})}); test('\\''suite B'\\'',async t=>{await t.test('\\''same name'\\'',()=>{throw Error('\\''B'\\'')})})\"
+p=subprocess.run(['\\''node'\\'','\\''--no-warnings'\\'','\\''-e'\\'',code],capture_output=True,text=True)
+print('\\''exit'\\'',p.returncode)
+for line in p.stdout.splitlines():
+ if '\\''not ok'\\'' in line or re.search(r'\\''"'^# (tests|fail|pass)'"'\\'',line): print(line)
+p=subprocess.run(['\\''node'\\'','\\''--test'\\'','\\''same name'\\''],capture_output=True,text=True)
+print('\\''positional name rerun:'\\'',p.returncode,(p.stdout+p.stderr).strip())
+'" in /Users/danhdueexoictif/AllProjects/ai-agent-tools
+ succeeded in 68ms:
+PYTEST ID REGEX (exact task_02 pattern)
+'FAILED tests/test_x.py::test_x[hello world] - AssertionError' => 'tests/test_x.py::test_x[hello world]'
+'FAILED tests/test_x.py::test_x[hello - world] - AssertionError' => 'tests/test_x.py::test_x[hello'
+'FAILED tests/test_x.py::test_x[hello - other] - AssertionError' => 'tests/test_x.py::test_x[hello'
+LIVE TRACEABILITY: source verdicts on absent/skipped live cases
+{'EVI-HP-03': (False, 'no test case in results')}
+{'EVI-HP-03': (False, 'skipped')}
+CURRENT TRACEABILITY ARGV: ['/opt/homebrew/opt/python@3.15/bin/python3.15', '/Users/danhdueexoictif/AllProjects/ai-agent-tools/skills/dev-implementation/resources/scripts/check_bdd_traceability.py', 'tests', '--scenarios', '.devtool/epic/sample/bdd_scenarios.en.md', '--roots', 'tests/', '--results', 'build/test-results']
+EARLY EXCEPTION / FALLBACK PROBES
+run_command early launch => FileNotFoundError synthetic launch failure
+execute early launch => FileNotFoundError synthetic launch failure
+epic_layout fallback => ContractError .devtool/epic/demo/task_1.md is not inside a git repository
+run_command timeout => (None, b'timed out')
+malformed shell token fallback => None
+invalid JSON event => []
+PREDECESSOR EVIDENCE CONTRACT
+.devtool/evidence/bench.json valid: False
+.devtool/epic/sample/evidence/bench.json valid: True
+AllowedPath used as str: TypeError unsupported operand type(s) for /: 'PosixPath' and 'AllowedPath'
+NODE REAL TAP WITHOUT FILES
+exit 1
+positional name rerun: 1 Could not find 'same name'
+
+exec
+/bin/zsh -lc "sed -n '106,195p' .devtool/epic/execution_and_verification_infrastructure/execution_and_verification_infrastructure.vi.md; nl -ba .devtool/epic/contract_and_authoring_ergonomics/task_01_evidence_files_contract.md | sed -n '89,103p'; nl -ba skills/dev-implementation/resources/scripts/task_contract.py | sed -n '45,77p'; nl -ba skills/dev-implementation/resources/scripts/check_task_contract.py | sed -n '545,655p'; rg -n 'def |except|Integration results|MEASURE|VERIFY_PHASES|PHASES' skills/dev-implementation/resources/scripts/check_task_contract.py scripts/verify.sh; ls -ld shared-contracts; nl -ba /Users/danhdueexoictif/antigravity_homes/phungthuy8901/.codex/memories/MEMORY.md | head -42" in /Users/danhdueexoictif/AllProjects/ai-agent-tools
+ succeeded in 0ms:
+### Sơ đồ Tuần tự (Sequence Diagram)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Designer as AI Assistant (dev-designer)
+    participant Readiness as check_epic_readiness.py
+    participant Replay as replay_task_text.py
+    actor Programmer as AI Programmer (dev-implementation)
+    participant Boot as bootstrap_worktree.py / .sh
+    participant Runner as run_task_checks.py
+    participant Baseline as record / compare_failure_sets.py
+    participant Gate4 as run_external_review.py
+
+    Designer->>Readiness: Chạy check_epic_readiness.py <epic_dir> [--replay]
+    Readiness->>Replay: Kiểm tra anchor Replace/Insert (R5) & replay trên worktree tạm (nếu bật)
+    Readiness->>Readiness: So khớp route cụ thể với mẫu tham số (R5b) & kiểm tra R6 live results
+    Readiness-->>Designer: 0 FAIL, 0 WARN — PASS
+    Programmer->>Boot: Chạy bootstrap_worktree.sh <worktree>
+    Boot->>Boot: Thực thi lệnh bootstrap trong python-quality.json + npm/pnpm install
+    Programmer->>Runner: Chạy run_task_checks.py measure <task> --resume
+    Runner->>Baseline: Thực thi d3nexus record-baseline / compare-baseline
+    Runner-->>Programmer: MEASURE & VERIFY PASS (đã ghi bằng chứng)
+    Programmer->>Gate4: Chạy kiểm tra Gate 4
+    Gate4->>Gate4: Chạy Integration results chuẩn; chạy hoặc SKIP dòng live tùy theo biến môi trường Needs
+    Gate4-->>Programmer: Gate 4 PASS
+```
+
+### Kế hoạch Kiểm thử Tích hợp và Ma trận Ranh giới
+
+```text
+Integration test roots: tests/, skills/dev-implementation/resources/scripts/, skills/python-quality-check/resources/scripts/
+Protected paths: .agents/quality/**, .devtool/epic/execution_and_verification_infrastructure/bdd_scenarios.en.md, .devtool/epic/execution_and_verification_infrastructure/bdd_scenarios.vi.md
+Integration results: python3 -m pytest tests/ skills/dev-implementation/resources/scripts/ skills/python-quality-check/resources/scripts/ --junitxml=build/test-results/pytest.xml -> build/test-results/pytest.xml
+```
+
+| Ranh giới Tích hợp | Chiến lược Kiểm thử | Mục tiêu Xác minh |
+| :--- | :--- | :--- |
+| `validate_python_quality.py`, `detect_project_type.sh` & `bootstrap_worktree.sh` | Kiểm thử tiến trình con & xác thực schema trên các repo đa nền tảng tạm | Xác minh kiểm tra mảng `"bootstrap"`, đầu ra `detect_project_type.sh --all` (`python web`), và khởi tạo worktree đa nền tảng Python + Node |
+| `record_failure_baseline.py` & `compare_failure_sets.py` | Kiểm thử CLI subcutaneous với đầu ra `pytest` và `node --test` giả lập | Xác minh chỉ trích xuất lỗi từ phần tóm tắt cuối (giữ nguyên khoảng trắng trong tham số node ID, bỏ qua dòng log `ERROR`, và từ chối lỗi khởi chạy/cú pháp của runner), sinh file `# 0 failures` khác rỗng, khôi phục file qua `--restore`, và phân loại `ISOLATED_PASS` so với `PERSISTENT_FAILURE` bằng `--rerun-new` (`--allow-isolated-pass`) |
+| `task_contract.py`, `check_epic_readiness.py`, `audit_epic.py` & `run_external_review.py` | Kiểm thử tích hợp cho `Integration results (live, needs: VAR):` và mẫu route `R5b` | Xác minh phân tích `IntegrationResultSpec`, độ phủ `R6`, trạng thái `SKIPPED` so với chạy thật ở Gate 4, và so khớp mẫu route có tham số (`http://localhost/api/jobs/{job_id}`) trong `R5b` |
+| `replay_task_text.py` & `run_task_checks.py` (`MEASURE`) | Kiểm thử replay trên hệ thống file/worktree và vòng đời mode `measure` | Xác minh chỉ thị `Create`, `Replace in`, `Insert in`, kiểm tra tĩnh anchor `R5`, chạy thử `--replay` trên worktree, kiểm tra `tree`/hợp đồng dòng/SHA-256 digest cho `measure --resume`, và tự tạo thư mục cha cho JUnit |
+
+## Môi trường Xác minh
+
+- Môi trường thực thi: Máy cục bộ macOS / Linux CLI cài đặt Python 3.11+, Git, Bash, `pytest`, `ruff` và `mypy`.
+- Cô lập: Toàn bộ kiểm thử unit và tích hợp chạy bên trong các thư mục / kho Git tạm thời (`tmp_path` / `tempfile.TemporaryDirectory`), hoàn toàn không cần kết nối mạng hay máy chủ LLM live.
+- Biến môi trường mà cột `Needs` hoặc dòng tích hợp live có thể tham chiếu trong fixture kiểm thử: `EVI_LIVE_MODEL` (biến môi trường giả lập dùng để kiểm thử nhánh chạy thật so với nhánh `SKIPPED`).
+
+### Kịch bản Kiểm thử BDD Toàn diện
+
+Bộ kịch bản bao phủ đầy đủ 5 chiều dưới tiền tố `[EVI-]`:
+1. **Happy Paths (`EVI-HP-01` .. `EVI-HP-04`)**: Khởi tạo worktree đa nền tảng với mảng đối số `"bootstrap"` và `detect_project_type.sh --all`; ghi nhận và đối chiếu baseline lỗi qua `record_failure_baseline.py` và `compare_failure_sets.py`; hỗ trợ `Integration results (live, needs: VAR):` và so khớp mẫu route có tham số trong `R5b`; thực thi `replay_task_text.py` và `run_task_checks.py measure`.
+2. **Edge Cases (`EVI-EC-01` .. `EVI-EC-03`)**: Baseline 0 lỗi vẫn tạo file `# 0 failures` khác rỗng và bỏ qua các dòng log `ERROR` in giữa chừng; tự động tạo thư mục cha cho `--junitxml` và `--test-reporter-destination`; và `R5b` khớp nhiều cú pháp tham số route (`{id}`, `<id>`, `:id`).
+3. **State Transitions (`EVI-ST-01` .. `EVI-ST-02`)**: `--rerun-new` phân loại lỗi đạt cô lập so với lỗi hồi quy bền vững và yêu cầu cờ `--allow-isolated-pass` tường minh để bỏ qua lỗi đạt cô lập; và `run_task_checks.py measure --resume` chỉ tái sử dụng bản ghi `MEASURE` khi `tree`, hợp đồng dòng và mã băm SHA-256 của `Evidence files:` khớp.
+4. **Async & Concurrency (`EVI-AR-01` .. `EVI-AR-02`)**: Tạo và dọn dẹp worktree tạm cô lập khi chạy `check_epic_readiness.py --replay` mà không làm bẩn cây làm việc chính; và `--restore <path>` khôi phục nguyên trạng các file theo dõi bởi git bị sửa đổi trong lúc chạy test.
+5. **Failures & Resilience (`EVI-FR-01` .. `EVI-FR-03`)**: Từ chối cấu hình `"bootstrap"` sai định dạng trong `validate_python_quality.py`; báo lỗi `R5 FAIL` khi anchor của `Replace in <path>:` không tồn tại hoặc xuất hiện nhiều lần; và chặn tại Done Gate khi task có dòng `MEASURE` bị thiếu, thất bại hoặc lỗi thời so với `tree` và mã băm bằng chứng hiện tại.
+
+## Tác động Shared Contract
+
+None — tính năng khép kín trong `ai-agent-tools`.
+
+## Chiến lược Triển khai và Giảm thiểu Rủi ro
+
+- **Giai đoạn 1**: Hiện thực hóa kiểm tra schema `"bootstrap"`, `detect_project_type.sh --all`, `bootstrap_worktree.sh` đa nền tảng, và tự tạo thư mục cha cho JUnit trong `run_task_checks.py` (`Task 01`).
+- **Giai đoạn 2**: Hiện thực hóa `record_failure_baseline.py` và `compare_failure_sets.py` (`Task 02`).
+- **Giai đoạn 3**: Hiện thực hóa `IntegrationResultSpec` (`Integration results (live, needs: VAR):`) trên `task_contract.py`, `check_task_contract.py`, `check_epic_readiness.py`, `audit_epic.py`, và `run_external_review.py`, cùng so khớp mẫu route có tham số trong `R5b` (`Task 03`).
+- **Giai đoạn 4**: Hiện thực hóa `replay_task_text.py`, kiểm tra tĩnh anchor `R5`, `check_epic_readiness.py --replay`, và `Phase: MEASURE` trong `task_contract.py` / `run_task_checks.py` (`Task 04`).
+- **Giai đoạn 5**: Thực thi kiểm thử tích hợp đầu-cuối (Tier C), nghiệm thu toàn diện và cập nhật tài liệu skill (`Task 05`).
+- **Kế hoạch Rollback**: Mọi script và cờ mới đều mang tính bổ sung và tương thích ngược; hoàn tác commit merge của epic sẽ khôi phục nguyên trạng hành vi trước đó.
+
+## Phân rã Kanban Tasks
+
+- [Task 01: Worktree Bootstrap Extras, Polyglot Detection, and JUnit Directory Creation](./task_01_polyglot_worktree_bootstrap.md)
+- [Task 02: Failure-Set Baseline Recording and Regression Comparison CLI](./task_02_failure_baseline_and_comparison.md)
+- [Task 03: Opt-In Live Integration Results and R5b Parameterized Route Matching](./task_03_live_integration_and_route_matching.md)
+- [Task 04: Task Text Replay Engine, Static Anchor Verification, and MEASURE Phase](./task_04_task_replay_and_measure_phase.md)
+- [Task 05: End-to-End Execution Infrastructure Acceptance Verification](./task_05_execution_infra_e2e_acceptance.md)
+
+    89	- The work needs a change to this task's Verification table, Definition of Done, Allowed files or
+    90	  Covers line.
+    91	- A variable named in the Needs column is unset.
+    92	
+    93	## Decisions Already Made
+    94	
+    95	- Grounded existing symbol `parse_allowed_files(task_text: str) -> list[AllowedPath]` in `skills/dev-implementation/resources/scripts/task_contract.py`: add sibling frozen contract `parse_evidence_files(task_text: str) -> list[AllowedPath]` parsing `- `<path>` (new)` bullets under `Evidence files:` inside `## Files`.
+    96	- Every `Evidence files:` path must match `^\.devtool/epic/[A-Za-z0-9_-]+/evidence/[A-Za-z0-9_.-]+$`, must not contain `..` or trailing `/`, and its filename must not match `^task_.*\.json$` (which is reserved for the runner's `layout.evidence` JSON record at `.devtool/epic/<epic_dir>/evidence/<task_stem>.json` in `task_contract.py:330` and `run_task_checks.py:348`).
+    97	- In `skills/dev-implementation/resources/scripts/check_task_contract.py`, `main()` unions `{entry.pattern for text in tasks.values() for entry in tc.parse_evidence_files(text) if entry.new and not Path(entry.pattern).name.startswith("task_")}` into `created` so `check_grounding()` accepts valid evidence paths in `Verification` rows and `Read-only context:`.
+    98	- In `skills/dev-implementation/resources/scripts/task_contract.py`, `evaluate_done_gate(task_file: Path)` checks every entry in `parse_evidence_files(task_text)` and appends `"condition 8: evidence file <path> declared in Evidence files was not created or is empty"` if the file is missing or has size 0.
+    99	
+   100	## Definition of Done
+   101	
+   102	- `parse_evidence_files` and `check_evidence` validate `Evidence files:` entries and ground `(new)` evidence paths across tasks. (V2)
+   103	- `evaluate_done_gate` enforces that declared `Evidence files:` exist and are non-empty on disk. (V2, V5)
+    45	class Expect:
+    46	    exit_code: int | None
+    47	    nonzero: bool
+    48	    contains: tuple[str, ...]
+    49	    results: str | None
+    50	
+    51	
+    52	@dataclass(frozen=True)
+    53	class Row:
+    54	    id: str
+    55	    phase: str
+    56	    command: str
+    57	    expect_text: str
+    58	    expect: Expect
+    59	    needs: tuple[str, ...]
+    60	
+    61	
+    62	@dataclass(frozen=True)
+    63	class AllowedPath:
+    64	    pattern: str
+    65	    new: bool
+    66	
+    67	
+    68	@dataclass(frozen=True)
+    69	class EpicLayout:
+    70	    root: Path
+    71	    epic_dir: Path
+    72	    hld: Path
+    73	    scenarios: Path
+    74	    evidence: Path
+    75	
+    76	
+    77	def section(text: str, title: str) -> str | None:
+scripts/verify.sh:48:except (AssertionError, KeyError, ValueError, OSError, TypeError) as error:
+scripts/verify.sh:83:def strip_fences(s):
+scripts/verify.sh:104:def anchor(h):
+scripts/verify.sh:173:def is_skill_content(p):
+scripts/verify.sh:190:    except OSError:
+skills/dev-implementation/resources/scripts/check_task_contract.py:39:    def __init__(self, root: Path) -> None:
+skills/dev-implementation/resources/scripts/check_task_contract.py:46:    def ignored(self, path: str) -> bool:
+skills/dev-implementation/resources/scripts/check_task_contract.py:50:    def problem(self, where: str, text: str) -> None:
+skills/dev-implementation/resources/scripts/check_task_contract.py:53:    def is_tracked(self, path: str) -> bool:
+skills/dev-implementation/resources/scripts/check_task_contract.py:56:    def matches_tracked(self, pattern: str) -> bool:
+skills/dev-implementation/resources/scripts/check_task_contract.py:60:def read_file(path: Path) -> str:
+skills/dev-implementation/resources/scripts/check_task_contract.py:63:    except OSError as error:
+skills/dev-implementation/resources/scripts/check_task_contract.py:67:def table_rows(check: Checker, stem: str, text: str) -> list[Any]:
+skills/dev-implementation/resources/scripts/check_task_contract.py:86:        except tc.ContractError as error:
+skills/dev-implementation/resources/scripts/check_task_contract.py:92:def check_structure(check: Checker, stem: str, path: Path, text: str, rows: list[Any]) -> None:
+skills/dev-implementation/resources/scripts/check_task_contract.py:124:def check_allowed(check: Checker, stem: str, text: str, design: bool) -> None:
+skills/dev-implementation/resources/scripts/check_task_contract.py:143:def command_paths(command: str) -> tuple[list[str], str | None]:
+skills/dev-implementation/resources/scripts/check_task_contract.py:149:    except ValueError:
+skills/dev-implementation/resources/scripts/check_task_contract.py:162:def check_grounding(check: Checker, stem: str, text: str, rows: list[Any], created: set[str]) -> None:
+skills/dev-implementation/resources/scripts/check_task_contract.py:176:def check_pytest_k(check: Checker, stem: str, row: Any) -> None:
+skills/dev-implementation/resources/scripts/check_task_contract.py:179:    except ValueError:
+skills/dev-implementation/resources/scripts/check_task_contract.py:197:def is_python_task(text: str, rows: list[Any]) -> bool:
+skills/dev-implementation/resources/scripts/check_task_contract.py:207:        except ValueError:
+skills/dev-implementation/resources/scripts/check_task_contract.py:214:def check_python_tier_b(check: Checker, stem: str, rows: list[Any]) -> None:
+skills/dev-implementation/resources/scripts/check_task_contract.py:220:        except (json.JSONDecodeError, OSError):
+skills/dev-implementation/resources/scripts/check_task_contract.py:239:        def matches_cap(cap: list[str], command: str) -> bool:
+skills/dev-implementation/resources/scripts/check_task_contract.py:242:            except ValueError:
+skills/dev-implementation/resources/scripts/check_task_contract.py:264:        except ValueError:
+skills/dev-implementation/resources/scripts/check_task_contract.py:282:def check_weak_bdd(check: Checker, source_name: str, text: str) -> None:
+skills/dev-implementation/resources/scripts/check_task_contract.py:289:def check_task(check: Checker, path: Path, text: str, design: bool, created: set[str]) -> None:
+skills/dev-implementation/resources/scripts/check_task_contract.py:306:def check_hld(check: Checker, hld_path: Path, text: str, tasks: dict[Path, str]) -> None:
+skills/dev-implementation/resources/scripts/check_task_contract.py:312:        check.problem(name, "no Integration results: line")
+skills/dev-implementation/resources/scripts/check_task_contract.py:316:            check.problem(name, f"Integration results line is not <command> -> <path>: {entry}")
+skills/dev-implementation/resources/scripts/check_task_contract.py:318:            check.problem(name, f"Integration results path {report.strip()} is not ignored by git")
+skills/dev-implementation/resources/scripts/check_task_contract.py:326:        except tc.ContractError:
+skills/dev-implementation/resources/scripts/check_task_contract.py:336:        except UsageError:
+skills/dev-implementation/resources/scripts/check_task_contract.py:340:def repository_root() -> Path:
+skills/dev-implementation/resources/scripts/check_task_contract.py:347:def main(argv: list[str] | None = None) -> int:
+skills/dev-implementation/resources/scripts/check_task_contract.py:361:    except UsageError as error:
+skills/dev-implementation/resources/scripts/check_task_contract.py:375:def _rows(text: str) -> list[Any]:
+skills/dev-implementation/resources/scripts/check_task_contract.py:379:    except tc.ContractError:
+ls: shared-contracts: No such file or directory
+     1	# Task Group: ai-agent-tools setup_shared_contracts principal contract review
+     2	
+     3	scope: Read-only, source-grounded architectural review of the Hub/Satellite shared-contract setup epic; use before implementation or when reconciling design, BDD, task, HLD, and verification contracts.
+     4	applies_to: cwd=/Users/danhdueexoictif/AllProjects/ai-agent-tools; reuse_rule=reinspect the candidate commit and all current epic artefacts; review findings are commit-specific, while the cross-contract comparison procedure is reusable.
+     5	
+     6	## Task 1: Review initial setup_shared_contracts architecture, partial
+     7	
+     8	### rollout_summary_files
+     9	
+    10	- rollout_summaries/2026-10-30T06-59-12-Elg4-principal_review_setup_shared_contracts_contract_drift.md (cwd=/Users/danhdueexoictif/AllProjects/ai-agent-tools, rollout_path=/Users/danhdueexoictif/.codex/sessions/2026/10/30/rollout-2026-10-30T13-59-12-01a18b9a-faa7-7f50-81b9-b3c8aa8e3a08.jsonl, updated_at=2026-10-29T23:08:05+00:00, thread_id=01a18b9a-faa7-7f50-81b9-b3c8aa8e3a08, `CHANGES REQUIRED`; later review verified these four findings were fixed)
+    11	
+    12	### keywords
+    13	
+    14	- setup_shared_contracts, principal-review, shared_contracts_readme.md.tmpl, string.Template, `{{DOMAIN_NAME}}`, --root, --repo-root, --satellite-root, scripts/verify.sh, Section 11, Section 14, contract drift
+    15	
+    16	## Task 2: Re-review setup_shared_contracts after corrections, partial
+    17	
+    18	### rollout_summary_files
+    19	
+    20	- rollout_summaries/2026-10-30T06-59-12-zvna-principal_review_setup_shared_contracts_contract_contradicti.md (cwd=/Users/danhdueexoictif/AllProjects/ai-agent-tools, rollout_path=/Users/danhdueexoictif/.codex/sessions/2026/10/30/rollout-2026-10-30T13-59-12-01a18b9a-faa8-72e0-8192-3dd403258730.jsonl, updated_at=2026-10-29T23:26:36+00:00, thread_id=01a18b9a-faa8-72e0-8192-3dd403258730, `CHANGES REQUIRED`; current implementation-blocking finding)
+    21	
+    22	### keywords
+    23	
+    24	- setup_shared_contracts, principal-review, SSC-FR-03, shared-contracts, non-empty, symlink, Rule 7, `Covers:`, traceability, `python3 -m unittest`, CHANGES REQUIRED
+    25	
+    26	## User preferences
+    27	
+    28	- When requesting a principal review, the user required a “strictly read-only review” with exact source file/line grounding, artefact-specific actionable findings, and an exact final verdict block -> do not edit files or Git state; cite concrete locations for each source claim. [Task 1][Task 2]
+    29	
+    30	## Reusable knowledge
+    31	
+    32	- Related skill: skills/principal-contract-review/SKILL.md. [Task 1][Task 2]
+    33	- Treat frozen design/task differences as public implementation contracts, not harmless wording: template filenames/substitution syntax and CLI root flags must agree before an executor starts. In the first review, Mustache `{{DOMAIN_NAME}}` templates conflicted with Python `string.Template` `$domain`/`$hub_repo`/`$timestamp`, which would leave placeholders unresolved; `--root`, `--repo-root`, and `--satellite-root` likewise needed a single contract. The later review verified those findings were fixed. [Task 1][Task 2]
+    34	- Check requested `scripts/verify.sh` integration against the surrounding responsibility, not its stated number. Section 11 was lifecycle/document tooling; with Sections 1–13 present, a dedicated Section 14 was the valid shared-contract test location, and the later review verified the wiring correction. [Task 1][Task 2]
+    35	- For Hub/Satellite shared contracts, Rule 7 makes the Hub physical directory the SSOT; satellites consume it through relative `shared-contracts/` symlinks and treat the linked tree as read-only for Git tracking. [Task 2]
+    36	- Task-local `Covers:` lines are the authoritative traceability source when an HLD Kanban summary diverges. Current correction target: Task 2 -> `SSC-ST-01`, `SSC-FR-01`; Task 4 -> `SSC-EC-03`, `SSC-AR-01`, `SSC-AR-02`; Task 5 -> `SSC-HP-03`. [Task 2]
+    37	- `python3 -m unittest <file> -k <name>` exits 1 and prints `FAILED` when the named test fails or the file is absent, so it supports specified RED rows. [Task 2]
+    38	
+    39	## Failures and how to do differently
+    40	
+    41	- Do not approve implementation because readiness checks pass: compare cross-document semantics and every frozen hard contract. In the current candidate, design spec line 105 and SSC-FR-03 allow an existing physical `shared-contracts/` directory when it is empty, while Task 3 rejects every physical directory. Align the “non-empty” qualifier across design, BDD Given clause, task requirement, Decisions Already Made, and handoff guardrails before implementation; otherwise strict-fidelity execution must Stop-and-Report. [Task 2]
+    42	- Do not let a summary overstate traceability. Reconcile HLD Kanban rows in both EN and VI to task-local `Covers:` lines before calling the package ready. [Task 2]
+
+exec
+/bin/zsh -lc "PYTHONDONTWRITEBYTECODE=1 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -B -c 'import pathlib,re,subprocess,os,sys
+print('\\''NODE TAP names are not file selectors'\\'')
+js=\"const {test}=require('\\''node:test'\\''); test('\\''suite A'\\'',async t=>{await t.test('\\''same name'\\'',()=>{throw Error('\\''A'\\'')})}); test('\\''suite B'\\'',async t=>{await t.test('\\''same name'\\'',()=>{throw Error('\\''B'\\'')})})\"
+p=subprocess.run(['\\''node'\\'','\\''--test-reporter=tap'\\'','\\''--no-warnings'\\'','\\''-e'\\'',js],capture_output=True,text=True)
+print('\\''exit:'\\'',p.returncode)
+print('\\''\\n'\\''.join(line for line in (p.stdout+p.stderr).splitlines() if '\\''not ok'\\'' in line or line.startswith(('\\''# tests'\\'','\\''# pass'\\'','\\''# fail'\\''))))
+print('\\''RAW NODE REPORT:'\\'',repr((p.stdout+p.stderr)[:850]))
+print('\\''ROUTE TEMPLATE EXTRACTION / MATCH PROBE'\\'')
+extract=re.compile(r'\\''(?<"'!['"\\w/])/api/[\\w\\-/{}<>:]*[\\w}>]'\\'')
+params=re.compile(r'\\''{["'^}/]+}|<[''^>/>]+>|:[A-Za-z_][A-Za-z0-9_]*'"'\\'')
+for content in ['\\''@get(\"/api/jobs/{job_id}\")'\\'','\\''@get(\"/api/jobs/<job_id>\")'\\'','\\''router.get(\"/api/jobs/:job_id\")'\\'']:
+ t=extract.search(content).group(0)
+ pieces=[]; end=0
+ for m in params.finditer(t):
+  pieces += [re.escape(t[end:m.start()]),r'\\''["'^/'"\\s\"\\x27]+'\\'']; end=m.end()
+ pieces.append(re.escape(t[end:])); compiled='\\'''\\''.join(pieces)
+ print(t, bool(re.fullmatch(compiled,'\\''/api/jobs/job_plt'\\'')),bool(re.fullmatch(compiled,'\\''/api/jobs/a/extra'\\'')))
+print('\\''PYTEST REAL IN-MEMORY ITEM; no cache or bytecode'\\'')
+import pytest
+class Item(pytest.Item):
+ def runtest(self):
+  raise AssertionError('\\''synthetic failure'\\'')
+ def repr_failure(self,excinfo,style=None):
+  return '\\''AssertionError: synthetic failure'\\''
+ def reportinfo(self):
+  return self.path,0,self.name
+class File(pytest.File):
+ def collect(self):
+  for name in ['\\''test_x[hello - world]'\\'','\\''test_x[hello - other]'\\'']:
+   yield Item.from_parent(self,name=name)
+class Plugin:
+ def pytest_collect_file(self,file_path,parent):
+  if file_path.name=='\\''README.md'\\'':
+   return File.from_parent(parent,path=file_path)
+code=pytest.main(['\\''README.md'\\'','\\''-p'\\'','\\''no:cacheprovider'\\'','\\''-o'\\'','\\''addopts='\\'','\\''--tb=no'\\'','\\''--color=no'\\'','\\''-r'\\'','\\''f'\\''],plugins=[Plugin()])
+print('\\''real pytest exit'\\'',code)
+'" in /Users/danhdueexoictif/AllProjects/ai-agent-tools
+ exited 1 in 47ms:
+Traceback (most recent call last):
+  File "<string>", line 35, in <module>
+    code=pytest.main(['README.md','-p','no:cacheprovider','-o','addopts=','--tb=no','--color=no','-r','f'],plugins=[Plugin()])
+  File "/opt/homebrew/lib/python3.15/site-packages/_pytest/config/__init__.py", line 231, in main
+    return _main(args=args, plugins=plugins, prog="pytest.main()")
+  File "/opt/homebrew/lib/python3.15/site-packages/_pytest/config/__init__.py", line 253, in _main
+    config = _prepareconfig(new_args, plugins, prog=prog)
+  File "/opt/homebrew/lib/python3.15/site-packages/_pytest/config/__init__.py", line 443, in _prepareconfig
+    config: Config = pluginmanager.hook.pytest_cmdline_parse(
+                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        pluginmanager=pluginmanager, args=args
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/opt/homebrew/lib/python3.15/site-packages/pluggy/_caller.py", line 197, in __call__
+    return self._hookexec(
+           ~~~~~~~~~~~~~~^
+        self.name, self._hookimpls.copy(), call_kwargs, firstresult
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/opt/homebrew/lib/python3.15/site-packages/pluggy/_manager.py", line 183, in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+           ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/lib/python3.15/site-packages/pluggy/_execution.py", line 195, in _multicall
+    raise exception
+  File "/opt/homebrew/lib/python3.15/site-packages/pluggy/_execution.py", line 167, in _multicall
+    teardown.throw(exception)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^
+  File "/opt/homebrew/lib/python3.15/site-packages/_pytest/helpconfig.py", line 126, in pytest_cmdline_parse
+    config = yield
+             ^^^^^
+  File "/opt/homebrew/lib/python3.15/site-packages/pluggy/_execution.py", line 147, in _multicall
+    res = hook_impl.function(*args)
+  File "/opt/homebrew/lib/python3.15/site-packages/_pytest/config/__init__.py", line 1397, in pytest_cmdline_parse
+    self.parse(args)
+    ~~~~~~~~~~^^^^^^
+  File "/opt/homebrew/lib/python3.15/site-packages/_pytest/config/__init__.py", line 1791, in parse
+    self.hook.pytest_load_initial_conftests(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        early_config=self, args=args, parser=self._parser
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/opt/homebrew/lib/python3.15/site-packages/pluggy/_caller.py", line 197, in __call__
+    return self._hookexec(
+           ~~~~~~~~~~~~~~^
+        self.name, self._hookimpls.copy(), call_kwargs, firstresult
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/opt/homebrew/lib/python3.15/site-packages/pluggy/_manager.py", line 183, in _hookexec
+    return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+           ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/lib/python3.15/site-packages/pluggy/_execution.py", line 195, in _multicall
+    raise exception
+  File "/opt/homebrew/lib/python3.15/site-packages/pluggy/_execution.py", line 167, in _multicall
+    teardown.throw(exception)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^
+  File "/opt/homebrew/lib/python3.15/site-packages/_pytest/warnings.py", line 114, in pytest_load_initial_conftests
+    return (yield)
+            ^^^^^
+  File "/opt/homebrew/lib/python3.15/site-packages/pluggy/_execution.py", line 141, in _multicall
+    next(function_gen)  # first yield
+    ~~~~^^^^^^^^^^^^^^
+  File "/opt/homebrew/lib/python3.15/site-packages/_pytest/capture.py", line 170, in pytest_load_initial_conftests
+    capman.start_global_capturing()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/opt/homebrew/lib/python3.15/site-packages/_pytest/capture.py", line 779, in start_global_capturing
+    self._global_capturing = _get_multicapture(self._method)
+                             ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^
+  File "/opt/homebrew/lib/python3.15/site-packages/_pytest/capture.py", line 720, in _get_multicapture
+    return MultiCapture(in_=FDCapture(0), out=FDCapture(1), err=FDCapture(2))
+                                              ~~~~~~~~~^^^
+  File "/opt/homebrew/lib/python3.15/site-packages/_pytest/capture.py", line 493, in __init__
+    TemporaryFile(buffering=0),
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.15/3.15.2/Frameworks/Python.framework/Versions/3.15/lib/python3.15/tempfile.py", line 706, in TemporaryFile
+    prefix, suffix, dir, output_type = _sanitize_params(prefix, suffix, dir)
+                                       ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.15/3.15.2/Frameworks/Python.framework/Versions/3.15/lib/python3.15/tempfile.py", line 128, in _sanitize_params
+    dir = gettempdir()
+  File "/opt/homebrew/Cellar/python@3.15/3.15.2/Frameworks/Python.framework/Versions/3.15/lib/python3.15/tempfile.py", line 366, in gettempdir
+    return _os.fsdecode(_gettempdir())
+                        ~~~~~~~~~~~^^
+  File "/opt/homebrew/Cellar/python@3.15/3.15.2/Frameworks/Python.framework/Versions/3.15/lib/python3.15/tempfile.py", line 359, in _gettempdir
+    tempdir = _get_default_tempdir()
+  File "/opt/homebrew/Cellar/python@3.15/3.15.2/Frameworks/Python.framework/Versions/3.15/lib/python3.15/tempfile.py", line 223, in _get_default_tempdir
+    raise FileNotFoundError(_errno.ENOENT,
+                            "No usable temporary directory found in %s" %
+                            dirlist)
+FileNotFoundError: [Errno 2] No usable temporary directory found in ['/tmp/ag_phungthuy8901', '/tmp', '/var/tmp', '/usr/tmp', '/Users/danhdueexoictif/AllProjects/ai-agent-tools']
+NODE TAP names are not file selectors
+exit: 1
+    not ok 1 - same name
+not ok 1 - suite A
+    not ok 1 - same name
+not ok 2 - suite B
+# tests 4
+# pass 0
+# fail 4
+RAW NODE REPORT: "TAP version 13\n# Subtest: suite A\n    # Subtest: same name\n    not ok 1 - same name\n      ---\n      duration_ms: 0.374375\n      type: 'test'\n      location: '[eval]:1:69'\n      failureType: 'testCodeFailure'\n      error: 'A'\n      code: 'ERR_TEST_FAILURE'\n      stack: |-\n        TestContext.<anonymous> ([eval]:1:97)\n        Test.runInAsyncScope (node:async_hooks:226:14)\n        Test.run (node:internal/test_runner/test:1118:25)\n        Test.start (node:internal/test_runner/test:1015:17)\n        TestContext.test (node:internal/test_runner/test:368:20)\n        TestContext.<anonymous> ([eval]:1:69)\n        Test.runInAsyncScope (node:async_hooks:226:14)\n        Test.run (node:internal/test_runner/test:1118:25)\n        Test.start (node:internal/test_runner/test:1015:17)\n        startSubtestAfterBootstrap (node:internal/test_runner/harness:358:1"
+ROUTE TEMPLATE EXTRACTION / MATCH PROBE
+/api/jobs/{job_id} True False
+/api/jobs/<job_id> True False
+/api/jobs/:job_id True False
+PYTEST REAL IN-MEMORY ITEM; no cache or bytecode
+
+exec
+/bin/zsh -lc "PYTHONDONTWRITEBYTECODE=1 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -B -c 'import pytest
+class Item(pytest.Item):
+ def runtest(self): raise AssertionError('\\''synthetic failure'\\'')
+ def repr_failure(self,excinfo,style=None): return '\\''AssertionError: synthetic failure'\\''
+ def reportinfo(self): return self.path,0,self.name
+class File(pytest.File):
+ def collect(self):
+  for name in ['\\''test_x[hello - world]'\\'','\\''test_x[hello - other]'\\'']:
+   yield Item.from_parent(self,name=name)
+class Plugin:
+ def pytest_collect_file(self,file_path,parent):
+  if file_path.name=='\\''README.md'\\'': return File.from_parent(parent,path=file_path)
+code=pytest.main(['\\''README.md'\\'','\\''-s'\\'','\\''--noconftest'\\'','\\''-p'\\'','\\''no:cacheprovider'\\'','\\''-o'\\'','\\''addopts='\\'','\\''--tb=no'\\'','\\''--color=no'\\'','\\''-r'\\'','\\''f'\\''],plugins=[Plugin()])
+print('\\''real pytest exit'\\'',code)
+'" in /Users/danhdueexoictif/AllProjects/ai-agent-tools
+ succeeded in 9ms:
+============================= test session starts ==============================
+platform darwin -- Python 3.15.2, pytest-9.2.0, pluggy-1.7.0
+rootdir: /Users/danhdueexoictif/AllProjects/ai-agent-tools
+collected 2 items
+
+README.md FF
+
+=========================== short test summary info ============================
+FAILED README.md::test_x[hello - world] - AssertionError: synthetic failure
+FAILED README.md::test_x[hello - other] - AssertionError: synthetic failure
+============================== 2 failed in 0.01s ===============================
+real pytest exit 1
+
+codex
+Probe xác nhận regex cắt hai pytest ID khác nhau thành cùng một ID, có thể che mất regression mới. Probe Node cũng cho thấy tên test có thể trùng giữa các suite và không dùng trực tiếp làm đối số file để rerun. Các nhánh lỗi sớm và timeout đã thử không phát sinh biến chưa được gán; không có ORM hay biến đổi hình thái từ trong phạm vi epic này.
+
+exec
+/bin/zsh -lc "nl -ba .devtool/epic/execution_and_verification_infrastructure/task_04_task_replay_and_measure_phase.md | sed -n '25,195p'; nl -ba .devtool/epic/execution_and_verification_infrastructure/task_02_failure_baseline_and_comparison.md | sed -n '110,160p'; nl -ba .devtool/epic/execution_and_verification_infrastructure/task_03_live_integration_and_route_matching.md | sed -n '110,145p'; nl -ba .devtool/epic/execution_and_verification_infrastructure/2026-11-06-execution-and-verification-infrastructure-design.en.md | sed -n '150,205p'; nl -ba skills/dev-implementation/resources/scripts/run_task_checks.py | sed -n '75,137p'; nl -ba skills/dev-implementation/resources/scripts/check_task_contract.py | sed -n '306,339p'" in /Users/danhdueexoictif/AllProjects/ai-agent-tools
+ succeeded in 0ms:
+    25	## Files
+    26	
+    27	Allowed files:
+    28	- `skills/dev-implementation/resources/scripts/replay_task_text.py` (new)
+    29	- `skills/dev-implementation/resources/scripts/task_contract.py`
+    30	- `skills/dev-implementation/resources/scripts/run_task_checks.py`
+    31	- `skills/dev-implementation/resources/scripts/check_epic_readiness.py`
+    32	- `skills/dev-implementation/resources/scripts/audit_epic.py`
+    33	- `skills/dev-implementation/resources/scripts/test_replay_and_measure.py` (new)
+    34	
+    35	Read-only context:
+    36	- `.devtool/epic/execution_and_verification_infrastructure/execution_and_verification_infrastructure.en.md` (HLD specification)
+    37	
+    38	## Design Rationale
+    39	
+    40	Applicable skills: `python-quality-check`, `test-driven-development`.
+    41	1. `replay_task_text.py` parses structured fenced directives (`Create <path>:`, `Replace in <path>:` + `With:`, `Insert in <path> (after|before):` + `With:`) from task markdown. `verify_task_edit_anchors(root, task_path, task_text, prior_touched)` checks that every `Replace in` or `Insert in` anchor targeting a tracked file not yet created/modified by an earlier directive occurs **exactly once** (`count == 1`) in `root / <path>`, reporting missing (`0` matches) or ambiguous (`>= 2` matches) anchors in `check_epic_readiness.py` (`R5`).
+    42	2. `replay_epic_in_worktree(root, epic_dir, timeout)` creates a detached temporary git worktree, applies each task's directives in topological order, runs the task's `GREEN`/`TIER-B`/`TIER-C` commands when present, and removes the temporary worktree in a `finally:` block so `check_epic_readiness.py <epic> --replay` never mutates the main repository.
+    43	3. Adding `"MEASURE"` to `PHASES = ("RED", "MEASURE", "GREEN", "TIER-B", "TIER-C")` in `task_contract.py` and `mode = "measure"` (`--timeout 7200`, `--resume`) in `run_task_checks.py` separates heavy measurement runs from fast `verify` assertions on committed evidence files.
+    44	
+    45	## Impact Analysis & Blast Radius
+    46	
+    47	- **Target Files & Symbols**:
+    48	  - `skills/dev-implementation/resources/scripts/replay_task_text.py`: new `parse_task_directives`, new `verify_task_edit_anchors`, new `apply_task_directives`, and new `replay_epic_in_worktree`.
+    49	  - `skills/dev-implementation/resources/scripts/task_contract.py`: `PHASES`, `row_problems`, `evaluate_done_gate`, and new `parse_evidence_files`.
+    50	  - `skills/dev-implementation/resources/scripts/run_task_checks.py`: `run`, `main`.
+    51	  - `skills/dev-implementation/resources/scripts/check_epic_readiness.py`: `Context`, `check_grounding`, `check_baseline`, `run_checks`, `main`.
+    52	  - `skills/dev-implementation/resources/scripts/audit_epic.py`: `audit_evidence`.
+    53	- **Downstream Callers**: `check_epic_readiness.py`, `run_task_checks.py`, `audit_epic.py`.
+    54	- **Cross-Platform Bridges**: None.
+    55	- **Target Test Coverage Threshold**: $\ge 90\%$ line coverage on `replay_task_text.py` and `MEASURE` phase logic.
+    56	
+    57	### BDD SCENARIOS
+    58	
+    59	Covers: EVI-HP-04, EVI-ST-02, EVI-FR-02, EVI-FR-03
+    60	
+    61	```gherkin
+    62	  Scenario: [EVI-HP-04] [Tier C - Integration] Task text replay engine applies fenced directives in a scratch worktree and MEASURE phase executes and records evidence
+    63	    Given a task file containing "Create", "Replace in", and "Insert in" fenced code blocks, "Phase: MEASURE" rows, and "Evidence files: .devtool/evidence/bench.json"
+    64	    When "replay_task_text.py" replays the task inside a temporary git worktree
+    65	    Then all fenced directives apply cleanly and the task's Verification commands pass
+    66	    And when "run_task_checks.py measure" executes the task
+    67	    Then the "MEASURE" rows run, create ".devtool/evidence/bench.json", and record a passing "measure" entry in the task's evidence JSON
+    68	
+    69	  Scenario: [EVI-ST-02] [Tier C - Integration] run_task_checks.py measure --resume reuses cached MEASURE runs only when tree, row contracts, and evidence file digests match
+    70	    Given a task file with "Phase: MEASURE" rows and "Evidence files: .devtool/evidence/bench.json"
+    71	    And a prior "run_task_checks.py measure" execution recorded "runs.measure.passed = true" with matching worktree tree, row commands/expectations, and ".devtool/evidence/bench.json" SHA-256 digest
+    72	    When "run_task_checks.py measure <task.md> --resume" is invoked on the unchanged tree and evidence file
+    73	    Then it skips re-executing the "MEASURE" subprocess commands and exits with code 0
+    74	    And when the worktree tree, row command, or ".devtool/evidence/bench.json" content is modified, "--resume" invalidates the cache and re-executes the "MEASURE" rows
+    75	
+    76	  Scenario: [EVI-FR-02] [Tier A - Unit] R5 static anchor verification fails when a Replace in or Insert in anchor is missing or ambiguous in the target file
+    77	    Given a task file containing a "Replace in <path>:" or "Insert in <path>:" directive whose anchor text occurs 0 times or 2+ times in "<path>"
+    78	    When "verify_task_edit_anchors()" in "check_epic_readiness.py" inspects the task
+    79	    Then R5 fails and reports the exact file path and missing or ambiguous anchor snippet
+    80	
+    81	  Scenario: [EVI-FR-03] [Tier A - Unit] evaluate_done_gate fails when a task contains MEASURE rows that are missing, failed, or stale relative to the current tree and evidence digests
+    82	    Given a task file containing at least one "Phase: MEASURE" Verification row
+    83	    And the task's evidence JSON either lacks "runs.measure", has "runs.measure.passed == false", or has a mismatched "tree", row contract, or evidence file SHA-256 digest
+    84	    When "evaluate_done_gate()" evaluates the task for transition to "done"
+    85	    Then it returns a non-empty failure list blocking the "done" transition until a fresh "run_task_checks.py measure" passes
+    86	```
+    87	
+    88	## Verification
+    89	
+    90	| ID | Phase | Command | Expect | Needs |
+    91	|----|-------|---------|--------|-------|
+    92	| V1 | RED | `python3 -m pytest skills/dev-implementation/resources/scripts/test_replay_and_measure.py::test_EVI_HP_04_replay_and_measure_phase` | exit 1; contains "FAILED" | — |
+    93	| V2 | GREEN | `python3 -m pytest skills/dev-implementation/resources/scripts/test_replay_and_measure.py` | exit 0; contains "passed" | — |
+    94	| V3 | TIER-B | `ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py skills/dev-implementation/resources/scripts/replay_task_text.py skills/dev-implementation/resources/scripts/task_contract.py skills/dev-implementation/resources/scripts/run_task_checks.py skills/dev-implementation/resources/scripts/check_epic_readiness.py skills/dev-implementation/resources/scripts/audit_epic.py skills/dev-implementation/resources/scripts/test_replay_and_measure.py` | exit 0 | — |
+    95	| V4 | TIER-B | `mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py --follow-imports=silent skills/dev-implementation/resources/scripts/replay_task_text.py skills/dev-implementation/resources/scripts/task_contract.py skills/dev-implementation/resources/scripts/run_task_checks.py skills/dev-implementation/resources/scripts/check_epic_readiness.py skills/dev-implementation/resources/scripts/audit_epic.py` | exit 0 | — |
+    96	| V5 | TIER-C | `python3 -m pytest skills/dev-implementation/resources/scripts/test_replay_and_measure.py --junitxml=build/test-results/task_04_replay_measure.xml` | exit 0; results build/test-results/task_04_replay_measure.xml | — |
+    97	
+    98	## Stop and Report If
+    99	
+   100	- A command, path, symbol or anchor named in this task does not match the repository.
+   101	- A Verification row fails for a reason other than its Expect.
+   102	- The work needs a change to a file outside Allowed files, or to a protected path.
+   103	- The work needs a change to this task's Verification table, Definition of Done, Allowed files or
+   104	  Covers line.
+   105	- A variable named in the Needs column is unset.
+   106	
+   107	## Decisions Already Made
+   108	
+   109	- In `skills/dev-implementation/resources/scripts/task_contract.py`:
+   110	  - `PHASES = ("RED", "MEASURE", "GREEN", "TIER-B", "TIER-C")`.
+   111	  - `parse_evidence_files(task_text: str) -> list[str]` extracts inline code paths under `Evidence files:` in `## Files` (or inline `Evidence files: <path>` lines in the task body).
+   112	  - `row_problems(rows: list[Row], runs: dict) -> list[str]` maps `row.phase == "RED"` to `runs.get("red")`, `row.phase == "MEASURE"` to `runs.get("measure")`, and all other phases to `runs.get("verify")`, verifying that every `MEASURE` row has a matching `PASS` record with identical `command` and `expect_text`.
+   113	  - `evaluate_done_gate(task_file: Path) -> list[str]` checks `needs_measure = any(row.phase == "MEASURE" for row in rows)`: when `True`, requires `"measure"` in `runs`, verifies `runs["measure"].get("passed") is True`, verifies `runs["measure"].get("tree") == fingerprint(layout.root)[0]` (appending `"condition 4: the measure run's tree differs from the current tree"` on mismatch), and verifies that every file in `parse_evidence_files(task_text)` exists on disk and its SHA-256 digest matches `runs["measure"].get("evidence_digests", {}).get(rel_path)`.
+   114	- In `skills/dev-implementation/resources/scripts/audit_epic.py`, `audit_evidence()` adds `(["measure"] if any(r.phase == "MEASURE" for r in rows) else [])` to `needed` and verifies `runs["measure"].get("passed") is True` and non-empty `evidence_digests` for declared `Evidence files:`.
+   115	- In `skills/dev-implementation/resources/scripts/run_task_checks.py`:
+   116	  - `main()` accepts `mode` in `("red", "measure", "verify", "status")`, `--timeout` (default `7200` when `mode == "measure"` and `--timeout` was not explicitly passed, else `1800`), and `--resume` (`action="store_true"`).
+   117	  - In `run(args)`: when `args.mode == "measure"`, selects `measure_rows = [row for row in rows if row.phase == "MEASURE"]`. If `--resume` is set, loads existing `evidence = load_evidence(layout.evidence)`: if `m_run := evidence.get("runs", {}).get("measure")` has `m_run.get("passed") is True`, `m_run.get("tree") == fingerprint(layout.root)[0]`, `row_problems(measure_rows, {"measure": m_run})` is empty, and every path in `parse_evidence_files(task_text)` exists under `layout.root` with `stat().st_size > 0` and SHA-256 matching `m_run.get("evidence_digests", {}).get(rel_path)`, prints `"MEASURE resumed (cached PASS)"` and returns `0` without re-running subprocesses.
+   118	  - When recording `evidence["runs"][args.mode]`, include `"passed": passed` and (for `mode == "measure"`) `"evidence_digests": {rel_path: sha256_hex}` alongside `"head"`, `"tree"`, `"patch_id"`, `"started"`, `"finished"`, and `"rows"`.
+   119	- In `skills/dev-implementation/resources/scripts/replay_task_text.py`:
+   120	  - CLI interface: `replay_task_text.py <task.md> [--worktree <dir>] [--run-rows] [--timeout 600]`.
+   121	  - Support directives outside Gherkin fences:
+   122	    - `Create `?(<path>)`?:` followed by a fenced code block.
+   123	    - `Replace in `?(<path>)`?:` followed by a fenced code block (target anchor) and `With:` followed by a fenced code block (replacement).
+   124	    - `Insert in `?(<path>)`? (after|before):` followed by a fenced code block (anchor) and `With:` followed by a fenced code block (inserted text).
+   125	  - `verify_task_edit_anchors(root: Path, task_path: Path, task_text: str, prior_modified: set[str] | None = None) -> list[str]` checks every `Replace in` and `Insert in` directive: if `<path>` is not in `prior_modified`, reads `root / <path>` and verifies `content.count(anchor) == 1`; if `0`, appends `f"{task_path.name}: missing edit anchor in {path}: {anchor.splitlines()[0]!r}"`; if `>= 2`, appends `f"{task_path.name}: ambiguous edit anchor ({count} matches) in {path}: {anchor.splitlines()[0]!r}"`; then adds `<path>` to `prior_modified`.
+   126	- In `skills/dev-implementation/resources/scripts/check_epic_readiness.py`:
+   127	  - Call `replay_task_text.verify_task_edit_anchors` in `check_grounding(ctx)` (`R5`) across tasks in sorted order, emitting `Finding("R5", "FAIL", msg)` for any anchor error.
+   128	  - Add `--replay` flag to `main()`, `Context`, `load_context()`, and `run_checks()`: when `ctx.replay` is True, `check_baseline(ctx)` calls `replay_task_text.replay_epic_in_worktree(ctx.root, ctx.epic_dir, timeout=ctx.row_timeout)` and emits `Finding("R8", "FAIL", msg)` on any replay failure.
+   129	
+   130	## Definition of Done
+   131	
+   132	- `replay_task_text.py` applies `Create`, `Replace in`, and `Insert in` directives in a scratch worktree and verifies anchors statically in `R5` (`EVI-HP-04`, `EVI-FR-02`). (V2, V5)
+   133	- `task_contract.py`, `run_task_checks.py`, and `audit_epic.py` support `Phase: MEASURE`, `run_task_checks.py measure --resume`, and Done-Gate enforcement (`EVI-HP-04`, `EVI-ST-02`, `EVI-FR-03`). (V2, V5)
+   134	- `ruff` and `mypy` pass with zero errors. (V3, V4)
+   135	- Automated tests pass and write JUnit XML results. (V5)
+   136	- Clean git working tree with changes restricted to Allowed files. (Gate 5)
+   137	
+   138	## Dependencies & Blockers
+   139	
+   140	- Blocked by [Task 01](task_01_polyglot_worktree_bootstrap.md)
+   141	- Blocked by [Task 03](task_03_live_integration_and_route_matching.md)
+   142	
+   143	## References & Rollback
+   144	
+   145	- Reference: [2026-11-06-execution-and-verification-infrastructure-design.en.md](2026-11-06-execution-and-verification-infrastructure-design.en.md).
+   146	- Rollback: `git revert` the task commit to remove `replay_task_text.py` and `MEASURE` phase changes.
+   110	  - `extract_pytest_failures(output_text: str) -> list[str]` scans lines after the last `=== short test summary info ===` header up to the next `===...===` footer line, matching `^(?:FAILED|ERROR)\s+(.+?)(?:\s+-\s+.*)?$` so parameterized node IDs containing spaces (`tests/test_x.py::test_x[hello world]`) are preserved intact while stripping trailing ` - <reason>` suffixes.
+   111	  - `extract_node_failures(output_text: str) -> list[str]` extracts failing test names from `node --test` summary lines (`not ok <n> - <name>` or `✖ <name>`).
+   112	  - Writes sorted unique node IDs (one per line) to `--output`/`--out` (creating parent directories if needed), or `# 0 failures\n` when 0 tests fail in a valid run.
+   113	  - Always restores any `--restore` paths via `git checkout -- <path>` inside a `finally:` block even when the runner fails.
+   114	- `compare_failure_sets.py` CLI interface:
+   115	  `compare_failure_sets.py --baseline <file> [--current <file>] [--output|--out <report_file>] [--runner auto|pytest|node] [--rerun-new] [--allow-isolated-pass] [--rerun-cmd <cmd_prefix>] [--restore <path> ...] [--cwd <dir>] [-- <command...>]`
+   116	  - Reads `baseline_set` from `--baseline` and `current_set` either from `--current <file>` or by running `-- <command...>` via `record_failure_baseline`'s validated runner and `--restore` logic.
+   117	  - Computes `new_failures = sorted(current_set - baseline_set)`.
+   118	  - If `--rerun-new` is active and `new_failures` is non-empty, runs `[*shlex.split(rerun_cmd), node_id]` (`shell=False`, defaulting `--rerun-cmd` to `"python3 -m pytest"`) for each candidate so spaces in parameterized node IDs are passed as a single argument:
+   119	    - Candidates exiting `0` are logged as `ISOLATED_PASS: <nodeid>`.
+   120	    - Candidates exiting non-zero are logged as `PERSISTENT_FAILURE: <nodeid>`.
+   121	    - Exits `0` only when `persistent_failures` is empty AND (`isolated_passes` is empty OR `--allow-isolated-pass` is set); otherwise exits `1`.
+   122	- In `test_failure_baseline.py`, import `record_failure_baseline` and `compare_failure_sets` inside test functions or helper functions so `pytest` collection succeeds during the `RED` phase before the implementation files exist.
+   123	
+   124	## Definition of Done
+   125	
+   126	- `record_failure_baseline.py` extracts failure node IDs strictly from the terminal summary block, writes `# 0 failures\n` when empty, and restores `--restore` paths after execution. (V2, V5)
+   127	- `compare_failure_sets.py` compares current vs baseline failure sets and filters transient shared-state failures with `--rerun-new`. (V2, V5)
+   128	- `ruff` and `mypy` pass with zero errors. (V3, V4)
+   129	- All 4 BDD scenarios (`EVI-HP-02`, `EVI-EC-01`, `EVI-ST-01`, `EVI-AR-02`) pass and emit JUnit XML results. (V5)
+   130	- Clean git working tree with changes restricted to Allowed files. (Gate 5)
+   131	
+   132	## Dependencies & Blockers
+   133	
+   134	- None (Wave 1).
+   135	
+   136	## References & Rollback
+   137	
+   138	- Reference: [2026-11-06-execution-and-verification-infrastructure-design.en.md](2026-11-06-execution-and-verification-infrastructure-design.en.md).
+   139	- Rollback: `git revert` the task commit to remove `record_failure_baseline.py`, `compare_failure_sets.py`, and `test_failure_baseline.py`.
+   110	
+   111	## Definition of Done
+   112	
+   113	- `task_contract.py`, `check_task_contract.py`, `check_epic_readiness.py`, `audit_epic.py`, and `run_external_review.py` support `Integration results (live, needs: VAR):` (`EVI-HP-03`). (V2, V5)
+   114	- `route_matches_codebase()` in `check_epic_readiness.py` matches concrete routes against `{id}`, `<id>`, and `:id` parameterized templates (`EVI-EC-03`). (V2, V5)
+   115	- `ruff` and `mypy` pass with zero errors. (V3, V4)
+   116	- Automated tests emit JUnit XML results covering `EVI-HP-03` and `EVI-EC-03`. (V5)
+   117	- Clean git working tree with changes restricted to Allowed files. (Gate 5)
+   118	
+   119	## Dependencies & Blockers
+   120	
+   121	- None (Wave 1).
+   122	
+   123	## References & Rollback
+   124	
+   125	- Reference: [2026-11-06-execution-and-verification-infrastructure-design.en.md](2026-11-06-execution-and-verification-infrastructure-design.en.md).
+   126	- Rollback: `git revert` the task commit to restore prior `Integration results:` and `R5b` behavior.
+   150	      ```
+   151	    - Add `parse_integration_result_specs(hld_text: str) -> list[IntegrationResultSpec]` recognizing both:
+   152	      - `Integration results: <command> -> <report>` (`live=False, needs=()`)
+   153	      - `Integration results (live, needs: VAR1, VAR2): <command> -> <report>` (`live=True, needs=("VAR1", "VAR2")`)
+   154	    - Update `parse_integration_results(hld_text: str) -> list[str]` to include the `<command> -> <report>` payload of both forms so `check_task_contract.py` (`check_hld`) and `check_epic_readiness.py` (`R6`) validate arrow syntax, git-ignored report paths, and Tier C test file coverage uniformly.
+   155	  - In `skills/dev-implementation/resources/scripts/audit_epic.py`:
+   156	    - Update `GRADER_LINES = ("Protected paths:", "Integration results:", "Integration results (live")`.
+   157	  - In `skills/dev-implementation/resources/scripts/run_external_review.py` (`collect_facts`):
+   158	    - Iterate over `parse_integration_result_specs(hld_text)`:
+   159	      - When `spec.live` is True and any variable in `spec.needs` is missing or empty in `os.environ`, append `$ <spec.command>\nSKIPPED (missing env: <missing_vars>)\n` to `results` without raising `PreconditionFailedError` and without adding `spec.report` to `reports`.
+   160	      - When all `spec.needs` variables are present (or `spec.live` is False), execute `run_gate` and include `spec.report` in `reports`.
+   161	      - When live specs were skipped, pass `--allow-skipped-live` (or filter scenario IDs covered exclusively by skipped live test files) to `check_bdd_traceability.py tests` so Gate 4 distinguishes "skipped because live resource env var is unset" from "failed".
+   162	- **Route Template Matching in `R5b` (`#0010`)**:
+   163	  - In `skills/dev-implementation/resources/scripts/check_epic_readiness.py` (`check_grounding`):
+   164	    - When a concrete route `/api/foo/bar/job_123` is not found as a literal substring in `tracked_contents`, extract parameterized route templates from `tracked_contents` matching `(?<![\w/])/api/[\w\-/{}<>:]*[\w}>]` that contain `{param}`, `<param>`, or `:param` segments.
+   165	    - Convert each template into a regex where `{[^}/]+}`, `<[^>/>]+>`, or `:[A-Za-z_][A-Za-z0-9_]*` matches `[^/\s"']+`. If the concrete route matches any compiled template regex, treat the route as grounded and do not emit `R5b WARN`.
+   166	
+   167	### 4. Static Edit-Anchor Validation and Pre-Packaging Task Replay
+   168	
+   169	- **`skills/dev-implementation/resources/scripts/replay_task_text.py` (`#0011`)**:
+   170	  - Formalizes deterministic markdown edit directives in task files:
+   171	    1. **Full-file write**: `<!-- @@FILE:<rel_path>@@ -->`, `Create `<rel_path>`:`, or `File: `<rel_path>`` immediately above a fenced code block writes the block's contents to `<rel_path>`.
+   172	    2. **Exact replacement**: `Replace in `<rel_path>`:` above a fenced code block (the `anchor`) followed by `With:` above a fenced code block (the `replacement`) replaces the unique occurrence of `anchor` in `<rel_path>`.
+   173	    3. **Anchored insertion**: `Insert in `<rel_path>` after:` (or `before:`) above a fenced code block (`anchor`) followed by `With:` above a fenced code block (`insertion`) inserts `insertion` immediately after (or before) the unique occurrence of `anchor` in `<rel_path>`.
+   174	  - Provides two entry modes:
+   175	    - **Static Anchor Check (`verify_task_edit_anchors(root: Path, task_path: Path, task_text: str, prior_modified: set[str] | None = None) -> list[str]`)**:
+   176	      - Called automatically during `R5` in `check_epic_readiness.py`.
+   177	      - For every `Replace in `<rel_path>`:` or `Insert in `<rel_path>` after|before:` targeting a file that already exists at `HEAD` (and was not previously rewritten by an earlier step in the same task or epic), verifies that the first fenced block (`anchor`) occurs verbatim in `(root / rel_path).read_text()`. Any missing or ambiguous (count != 1) anchor produces an `R5 FAIL` finding naming the task file and target path.
+   178	    - **Scratch-Worktree Execution Replay (`replay_task_text.py <task.md> [--worktree <dir>] [--run-rows]` and `check_epic_readiness.py <epic_dir> --replay`)**:
+   179	      - Applies all edit directives in `<task.md>` (or across all tasks of `<epic_dir>` in execution order inside a temporary `git worktree`) and optionally runs the task's `Verification` rows (`RED`, `GREEN`, `TIER-B`, `TIER-C`), cleaning up the temporary worktree on exit.
+   180	
+   181	### 5. Long-Running Measurement Phase and Evidence-Gated Verification
+   182	
+   183	- **`Phase: MEASURE` in `task_contract.py` and `run_task_checks.py` (`#0017`)**:
+   184	  - In `skills/dev-implementation/resources/scripts/task_contract.py`:
+   185	    - Update `PHASES = ("RED", "MEASURE", "GREEN", "TIER-B", "TIER-C")`.
+   186	    - In `evaluate_done_gate(task_file: Path)` and `audit_epic.py` (`audit_evidence`): if a task has one or more rows with `row.phase == "MEASURE"`, verify that `evidence.get("runs", {}).get("measure")` exists, its `tree` matches the current worktree `fingerprint(layout.root)[0]` (at Done Gate), all `MEASURE` rows in the current table match the recorded `id`, `command`, and `expect` (`row_problems`) with `"outcome": "PASS"`, and every file declared in `parse_evidence_files(task_text)` exists on disk with a SHA-256 digest matching `runs["measure"]["evidence_digests"]`.
+   187	  - In `skills/dev-implementation/resources/scripts/run_task_checks.py`:
+   188	    - Update CLI `mode` choices to `("red", "measure", "verify", "status")`.
+   189	    - When `mode == "measure"`:
+   190	      - Default `--timeout` is `7200` seconds (or unbounded when `--timeout 0` is passed) instead of `1800` seconds.
+   191	      - Record `"evidence_digests": {rel_path: sha256_hex}` in `evidence["runs"]["measure"]` for all declared `Evidence files:`.
+   192	      - Support `--resume`: if `--resume` is passed, `evidence.get("runs", {}).get("measure")` exists, its recorded `tree` matches `fingerprint(layout.root)[0]`, `row_problems(measure_rows, evidence["runs"])` is empty (all current `MEASURE` rows match `id`/`command`/`expect` and have `"outcome": "PASS"`), and every file in `parse_evidence_files(task_text)` exists, is non-empty on disk, and matches its recorded SHA-256 digest in `runs["measure"]["evidence_digests"]`, skip re-running the expensive command and print `MEASURE resumed (cached PASS)`.
+   193	  - Document the **Measurement-to-Evidence** pattern in `skills/dev-designer/SKILL.md` and `skills/dev-implementation/SKILL.md`:
+   194	    - Long-running benchmark generation runs in `MEASURE` (writing output to declared `Evidence files:`), mechanical acceptance assertions run as fast `GREEN`/`TIER-C` pytest rows reading that committed evidence file, and qualitative rubric fairness is listed as a `(Gate 5)` Definition of Done item.
+   195	
+   196	## Error Handling and Edge Cases
+   197	
+   198	- **Empty Failure Set in `record_failure_baseline.py`**: Writes `# 0 failures\n` so the file is non-empty on disk (satisfying `evaluate_done_gate()` condition 8) while parsing as an empty set `set()` in `compare_failure_sets.py`.
+   199	- **Collection Errors in `record_failure_baseline.py`**: Automatically passes `--continue-on-collection-errors` to `pytest` so collection errors are recorded as `ERROR <nodeid>` entries in the summary rather than aborting the run without a summary table.
+   200	- **Unset Live Environment Variables at Gate 4**: `run_external_review.py` logs `SKIPPED (missing env: ...)` for live integration lines without failing Gate 4, while still requiring all non-live `Integration results:` lines to pass.
+   201	- **Tasks Without Edit Directives**: `verify_task_edit_anchors()` and `replay_task_text.py` treat tasks without `Replace in` / `Insert in` directives as valid no-ops for anchor checking, preserving full backward compatibility.
+   202	
+   203	## Testing and Verification Strategy
+   204	
+   205	- **Tier A (Unit Tests)**:
+    75	    re.compile(r"collected\s+0\s+items", re.IGNORECASE),
+    76	    re.compile(r"/\s*0\s+selected\b", re.IGNORECASE),
+    77	)
+    78	POSITIVE_FAILURE_SUMMARY = re.compile(r"\b([1-9]\d*)\s+(?:failed|error|errors)\b", re.IGNORECASE)
+    79	COVERS_LINE_RE = re.compile(r"^\s*(?:[-*]\s+)?\**Covers\**\s*:\**\s*(.*)$")
+    80	ID_TOKEN_RE = re.compile(r"(?<![A-Za-z0-9-])[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-[0-9]+(?![A-Za-z0-9])")
+    81	
+    82	
+    83	def is_pytest_command(command: str) -> bool:
+    84	    try:
+    85	        lexer = shlex.shlex(command, posix=True, punctuation_chars=True)
+    86	        lexer.whitespace_split = True
+    87	        tokens = list(lexer)
+    88	    except ValueError:
+    89	        return False
+    90	    subcommands: list[list[str]] = []
+    91	    current: list[str] = []
+    92	    for token in tokens:
+    93	        if token in CONTROL_TOKENS:
+    94	            if current:
+    95	                subcommands.append(current)
+    96	                current = []
+    97	        else:
+    98	            current.append(token)
+    99	    if current:
+   100	        subcommands.append(current)
+   101	
+   102	    for sub in subcommands:
+   103	        sub = strip_wrappers(sub)
+   104	        if not sub:
+   105	            continue
+   106	        prog = Path(sub[0]).name
+   107	        if prog == "pytest":
+   108	            return True
+   109	        if (
+   110	            (prog in ("python", "python3") or prog.startswith("python3."))
+   111	            and len(sub) >= 3
+   112	            and sub[1] == "-m"
+   113	            and sub[2] == "pytest"
+   114	        ):
+   115	            return True
+   116	    return False
+   117	
+   118	
+   119	def validate_pytest_red(command: str, exit_code: int | None, output_text: str) -> str | None:
+   120	    """Evaluate whether a pytest RED execution is genuine.
+   121	
+   122	    Returns None if valid or not a pytest command.
+   123	    Returns INVALID_PYTEST_RED_REASON if it is an invalid pytest RED run.
+   124	    """
+   125	    if not is_pytest_command(command):
+   126	        return None
+   127	    if exit_code not in (1, 2):
+   128	        return INVALID_PYTEST_RED_REASON
+   129	    for marker in FORBIDDEN_MARKERS:
+   130	        if marker.search(output_text):
+   131	            return INVALID_PYTEST_RED_REASON
+   132	    if not POSITIVE_FAILURE_SUMMARY.search(output_text):
+   133	        return INVALID_PYTEST_RED_REASON
+   134	    return None
+   135	
+   136	
+   137	def parse_covers(text: str) -> list[str]:
+   306	def check_hld(check: Checker, hld_path: Path, text: str, tasks: dict[Path, str]) -> None:
+   307	    name = hld_path.name
+   308	    if not tc.parse_protected_paths(text):
+   309	        check.problem(name, "no Protected paths: line")
+   310	    results = tc.parse_integration_results(text)
+   311	    if not results:
+   312	        check.problem(name, "no Integration results: line")
+   313	    for entry in results:
+   314	        command, arrow, report = entry.rpartition(" -> ")
+   315	        if not arrow or not command.strip() or not report.strip():
+   316	            check.problem(name, f"Integration results line is not <command> -> <path>: {entry}")
+   317	        elif not check.ignored(report.strip()):
+   318	            check.problem(name, f"Integration results path {report.strip()} is not ignored by git")
+   319	    environment = tc.verification_environment(text)
+   320	    if environment is None or not environment.strip():
+   321	        check.problem(name, "## Verification Environment section is missing or empty")
+   322	        return
+   323	    for path, task_text in tasks.items():
+   324	        try:
+   325	            rows, _ = tc.parse_verification(task_text)
+   326	        except tc.ContractError:
+   327	            continue
+   328	        for row in rows:
+   329	            for need in row.needs:
+   330	                if need not in environment:
+   331	                    check.problem(f"{path.stem}:{row.id}", f"Needs {need} is not named in the Verification Environment section")
+   332	    for bdd_path in sorted(hld_path.parent.glob("bdd_scenarios*.md")):
+   333	        try:
+   334	            content = read_file(bdd_path)
+   335	            check_weak_bdd(check, bdd_path.name, content)
+   336	        except UsageError:
+   337	            pass
+   338	
+   339	
+
+exec
+/bin/zsh -lc "PYTHONDONTWRITEBYTECODE=1 python3 -B -c 'import re,subprocess,sys,pathlib,hashlib
+sys.path.insert(0,str(pathlib.Path('\\''skills/dev-implementation/resources/scripts'\\'').resolve()))
+import check_bdd_traceability as cb
+print('\\''NODE BASELINE VS REGRESSION: duplicate names in one suite'\\'')
+def probe(second_fails):
+ js=\"const {test}=require('\\''node:test'\\''); test('\\''suite'\\'',async t=>{await t.test('\\''same name'\\'',()=>{throw Error('\\''old'\\'')}); await t.test('\\''same name'\\'',()=>{\"+(\"throw Error('\\''new'\\'')\" if second_fails else \"\")+\"})})\"
+ done=subprocess.run(['\\''node'\\'','\\''--test-reporter=tap'\\'','\\''--no-warnings'\\'','\\''-e'\\'',js],capture_output=True,text=True)
+ ids={m.group(1) for line in done.stdout.splitlines() if (m:=re.search(r'\\''not ok \\d+ - (.+)'\\'',line))}
+ count=next((line for line in done.stdout.splitlines() if line.startswith('\\''# fail '\\'')),'\\''no summary'\\'')
+ return ids,count
+base=probe(False); current=probe(True)
+print('\\''baseline:'\\'',base,'\\''current:'\\'',current,'\\''new IDs:'\\'',current[0]-base[0])
+print('\\''TRACEABILITY NEW FLAG AVAILABILITY'\\'')
+try:
+ cb.main(['\\''tests'\\'','\\''--scenarios'\\'','\\''unused'\\'','\\''--roots'\\'','\\''tests'\\'','\\''--allow-skipped-live'\\''])
+except SystemExit as exc:
+ print('\\''proposed flag on current CLI exits:'\\'',exc.code)
+print('\\''MEASURE DIGEST PRESENCE VS MATCH'\\'')
+recorded={'\\''bench.json'\\'':hashlib.sha256(b'\\''accepted'\\'').hexdigest()}
+changed=b'\\''changed'\\''
+print('\\''nonempty mapping check:'\\'',bool(recorded),'\\''digest matches content:'\\'',recorded['\\''bench.json'\\'']==hashlib.sha256(changed).hexdigest())
+'" in /Users/danhdueexoictif/AllProjects/ai-agent-tools
+ succeeded in 50ms:
+usage: -c [-h] {plan,tests} ...
+-c: error: unrecognized arguments: --allow-skipped-live
+NODE BASELINE VS REGRESSION: duplicate names in one suite
+baseline: ({'suite', 'same name'}, '# fail 2') current: ({'suite', 'same name'}, '# fail 3') new IDs: set()
+TRACEABILITY NEW FLAG AVAILABILITY
+proposed flag on current CLI exits: 2
+MEASURE DIGEST PRESENCE VS MATCH
+nonempty mapping check: True digest matches content: False
+
+exec
+/bin/zsh -lc "nl -ba .devtool/epic/execution_and_verification_infrastructure/task_03_live_integration_and_route_matching.md | sed -n '95,110p'; nl -ba .devtool/epic/execution_and_verification_infrastructure/2026-11-06-execution-and-verification-infrastructure-design.en.md | tail -13; ls /Library/Developer/CommandLineTools/usr/bin/git /opt/homebrew/bin/git" in /Users/danhdueexoictif/AllProjects/ai-agent-tools
+ exited 1 in 0ms:
+    95	- The work needs a change to a file outside Allowed files, or to a protected path.
+    96	- The work needs a change to this task's Verification table, Definition of Done, Allowed files or
+    97	  Covers line.
+    98	- A variable named in the Needs column is unset.
+    99	
+   100	## Decisions Already Made
+   101	
+   102	- In `skills/dev-implementation/resources/scripts/task_contract.py`:
+   103	  - Define `@dataclass(frozen=True) class IntegrationResultSpec: command: str; report: str; live: bool = False; needs: tuple[str, ...] = ()` and `INTEGRATION_RESULTS_RE = re.compile(r"^Integration results(?:\s*\(live,\s*needs:\s*([^)]+)\))?:\s*(.+)$")`.
+   104	  - `parse_integration_result_specs(hld_text: str) -> list[IntegrationResultSpec]` parses both `Integration results: <cmd> -> <report>` and `Integration results (live, needs: VAR1, VAR2): <cmd> -> <report>`.
+   105	  - `parse_integration_results(hld_text: str) -> list[str]` returns the `<cmd> -> <report>` body for every matched line (both standard and live) so existing callers (`check_epic_readiness.py` `R6` and `check_task_contract.py`) include live integration commands seamlessly.
+   106	- In `skills/dev-implementation/resources/scripts/check_task_contract.py`, `check_hld()` also checks `tc.parse_integration_result_specs(text)` and verifies that every variable in `spec.needs` is mentioned in `## Verification Environment`.
+   107	- In `skills/dev-implementation/resources/scripts/audit_epic.py`, update `GRADER_LINES = ("Protected paths:", "Integration results:", "Integration results (live")` so `hld_amendments()` detects changes to live integration lines as well.
+   108	- In `skills/dev-implementation/resources/scripts/run_external_review.py`, `collect_facts()` iterates over `parse_integration_result_specs(hld_text)`: when `spec.live` is True and any variable in `spec.needs` is unset or empty in `os.environ`, it appends `f"$ {spec.command}\nSKIPPED (missing env: {', '.join(missing)})\n"` to `results` without calling `run_gate()` and without adding `spec.report` to `reports`.
+   109	- In `skills/dev-implementation/resources/scripts/check_epic_readiness.py`, `route_matches_codebase(route: str, tracked_contents: list[str]) -> bool` returns `True` if `route` appears literally in any tracked file or if `route` matches a parameterized route template in `tracked_contents` where `{param}`, `<param>`, or `:param` segments are replaced by `[^/\s"'\`]+`.
+   110	
+   211	  - `tests/test_execution_infra_acceptance.py`: End-to-end subcutaneous tests in temporary git repositories exercising polyglot worktree bootstrap, `record_failure_baseline.py` + `compare_failure_sets.py`, `replay_task_text.py`, `run_task_checks.py measure` + `verify`, and live integration result skipping when `needs:` env vars are unset.
+   212	- **Repository Quality Gate**:
+   213	  - `scripts/verify.sh`, `ruff check`, `mypy`, and `pytest` must pass with 0 errors.
+   214	
+   215	## Shared Contract Warnings
+   216	
+   217	- No `shared-contracts/` directory exists in `ai-agent-tools`. All changes are internal to the workflow plugin kit and preserve full backward compatibility for existing repositories and epics.
+   218	
+   219	## Dependency Mapping and Roadmap Context
+   220	
+   221	- **Depends on**: **Epic 1 (`contract_and_authoring_ergonomics`)** — builds on `Evidence files:`, `bin/d3nexus`, and `sync_task_status.py render`.
+   222	- **Blocks**: **Epic 3 (`multi_epic_orchestration_and_governance`)** — provides the execution and readiness foundation that Epic 3 extends for multi-epic dependencies (`#0013`, `#0014`) and packaged epic revisions (`#0015`, `#0020`).
+   223	
+ls: /opt/homebrew/bin/git: No such file or directory
+/Library/Developer/CommandLineTools/usr/bin/git
+
+exec
+/bin/zsh -lc "/Library/Developer/CommandLineTools/usr/bin/git --no-optional-locks status --porcelain=v1; /Library/Developer/CommandLineTools/usr/bin/git rev-parse HEAD; nl -ba .devtool/epic/execution_and_verification_infrastructure/2026-11-06-execution-and-verification-infrastructure-design.vi.md | sed -n '108,116p'; nl -ba skills/dev-implementation/resources/scripts/task_contract.py | sed -n '218,225p'" in /Users/danhdueexoictif/AllProjects/ai-agent-tools
+ succeeded in 0ms:
+e33d42bdab3d601348f2ab9433bb6a989795cb21
+   108	### 2. Ghi nhận Baseline Lỗi Toàn cục và So sánh Hồi quy
+   109	
+   110	- **`skills/dev-implementation/resources/scripts/record_failure_baseline.py` (`#0007`)**:
+   111	  - Cú pháp CLI:
+   112	    ```bash
+   113	    record_failure_baseline.py --output|--out <evidence_file> [--in <raw_output_file>] [--cmd <shell_cmd>] [--runner auto|pytest|node] [--restore <path> ...] [--cwd <dir>] [-- <command...>]
+   114	    ```
+   115	  - Hành vi:
+   116	    1. Tự động chèn `--continue-on-collection-errors` khi runner là `pytest` và chưa có cờ này, đồng thời đảm bảo thư mục cha của `--output`/`--out` luôn tồn tại.
+   218	    return bullets
+   219	
+   220	
+   221	def parse_integration_results(hld_text: str) -> list[str]:
+   222	    """The text after `Integration results:` on each such line, as written."""
+   223	    return [line.split(":", 1)[1].strip() for line in hld_text.splitlines()
+   224	            if line.startswith("Integration results:")]
+   225	
+
+codex
+Reviewed all eleven artefacts against `e33d42bdab3d601348f2ab9433bb6a989795cb21`. The checkout remains clean.
+
+Read-only probes reproduced pytest ID truncation, Node failure-identity collisions, and rejection of missing/skipped live results by current traceability logic. Sampled early-exception and timeout paths produced no unbound-variable errors. ORM persistence, morphological normalization, and interactive UI contracts are outside this epic’s scope.
+
+Artefact filenames below are relative to `.devtool/epic/execution_and_verification_infrastructure/`.
+
+Verdict: CHANGES REQUIRED
+[Important] task_04_task_replay_and_measure_phase.md:Decisions Already Made, line 111 — The evidence parser conflicts with the declared prerequisite. Epic 1 freezes `parse_evidence_files() -> list[AllowedPath]` and restricts evidence to `.devtool/epic/<epic>/evidence/` ([prerequisite contract](/Users/danhdueexoictif/AllProjects/ai-agent-tools/.devtool/epic/contract_and_authoring_ergonomics/task_01_evidence_files_contract.md:95)); Task 04 instead requires `list[str]`, while its BDD fixtures use `.devtool/evidence/bench.json`. Probes confirmed that the fixture path violates the prerequisite grammar and treating an AllowedPath as a filesystem path raises TypeError. Proposed: preserve the prerequisite API, use `entry.pattern`, and replace invalid evidence paths throughout both language versions and the task fixtures.
+[Important] task_02_failure_baseline_and_comparison.md:Decisions Already Made, line 110 — The frozen pytest regex truncates parameter IDs containing ` - `. Actual pytest output for `test_x[hello - world]` and `test_x[hello - other]` is reduced by this regex to the same `test_x[hello` identifier. Consequently, replacing one failure with the other produces no detected regression and isolation reruns receive an invalid selector. The same regex appears in both design specifications, Section 2. Proposed: distinguish the reason delimiter from delimiters inside parameter IDs, preserve the complete collected identifier, and require a regression test comparing these two distinct failures.
+[Important] task_02_failure_baseline_and_comparison.md:Decisions Already Made, lines 111–120 — Bare Node test names are neither unique failure identities nor executable positional selectors. An active TAP probe increased failures from two to three while the prescribed name set remained `{"suite", "same name"}`; a second probe showed `node --test "same name"` fails because Node treats that argument as a file. Defaulting reruns to pytest also cannot select Node tests. Proposed: define runner-specific identities and rerun selection, retaining Node file and full test identity; alternatively, explicitly reject unsupported or ambiguous Node reruns instead of claiming equivalent support.
+[Important] task_03_live_integration_and_route_matching.md:Decisions Already Made, line 108 — Skipping the live subprocess does not complete the Gate 4 skip contract. Current [collect_facts()](/Users/danhdueexoictif/AllProjects/ai-agent-tools/skills/dev-implementation/resources/scripts/run_external_review.py:376) subsequently checks all scenarios and prefers the entire `build/test-results` directory. [Traceability verdicts](/Users/danhdueexoictif/AllProjects/ai-agent-tools/skills/dev-implementation/resources/scripts/result_reports.py:304) reject absent/skipped cases; probes confirmed this. The specification suggests `--allow-skipped-live`, but the [CLI](/Users/danhdueexoictif/AllProjects/ai-agent-tools/skills/dev-implementation/resources/scripts/check_bdd_traceability.py:229) rejects that flag and its file is outside Task 03’s Allowed files. Proposed: freeze one implementable, scenario-scoped exemption strategy, authorize its required files, consume only current executed reports, and test that unrelated missing or failed scenarios still block Gate 4.
+[Important] task_04_task_replay_and_measure_phase.md:Design Rationale, line 42 — Replay runs GREEN/TIER-B/TIER-C without defining how MEASURE-generated evidence becomes available, although Section 5 requires those fast assertions to read measurement output. Meanwhile, Section 4 of both specifications says replay applies all edits before optionally executing RED; genuine RED assertions can then pass unexpectedly, contrary to the existing [RED validator](/Users/danhdueexoictif/AllProjects/ai-agent-tools/skills/dev-implementation/resources/scripts/run_task_checks.py:119). Proposed: specify one replay phase order, explicitly handle RED before implementation edits or exclude it, and require valid cached evidence or MEASURE execution before evidence-consuming assertions; cover an initially absent evidence file.
+[Important] task_04_task_replay_and_measure_phase.md:Decisions Already Made, line 114 — The Gate 4 audit requires only a non-empty digest mapping, whereas Section 5 of both specifications requires comparison against every declared evidence file. A populated mapping remains populated after evidence is changed or deleted. Existing [fingerprinting excludes `.devtool/`](/Users/danhdueexoictif/AllProjects/ai-agent-tools/skills/dev-implementation/resources/scripts/task_contract.py:333), and [audit_evidence()](/Users/danhdueexoictif/AllProjects/ai-agent-tools/skills/dev-implementation/resources/scripts/audit_epic.py:145) validates a patch identifier rather than those artifact bytes, so neither supplies the missing protection. Proposed: require Gate 4 to verify each committed evidence file’s presence, non-empty content, and matching SHA-256; add mutation and deletion cases after task completion.
+
+tokens used
+149,915
+````
