@@ -1,0 +1,36 @@
+---
+// Index page for Astro fixture
+const title = "Fixture Astro App";
+---
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{title}</title>
+    <link rel="stylesheet" href="/styles/main.css?v=1.0.0">
+</head>
+<body>
+    <header class="app-header">
+        <h1 class="header-title">Trang chủ</h1>
+    </header>
+    <main class="content-box">
+        <p>Astro integration fixture loaded successfully.</p>
+    </main>
+</body>
+</html>
+
+<style>
+.app-header {
+    padding: 16px;
+    background: #f8fafc;
+}
+.header-title {
+    font-size: 24px;
+    color: #0f172a;
+}
+.content-box {
+    margin: 24px auto;
+    max-width: 800px;
+}
+</style>

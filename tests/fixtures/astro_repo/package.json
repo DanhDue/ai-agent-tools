@@ -1,0 +1,12 @@
+{
+  "name": "fixture-astro-repo",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "check": "node scripts/check.js",
+    "lint": "node scripts/lint.js",
+    "test:unit": "node scripts/test_unit.js",
+    "test:e2e": "node scripts/test_e2e.js",
+    "ui:review": "node scripts/ui_review.js"
+  }
+}

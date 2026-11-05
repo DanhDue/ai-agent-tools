@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "capabilities": {
+    "lint": ["node", "scripts/lint.js"],
+    "test": ["node", "scripts/test_unit.js"],
+    "architecture": ["node", "scripts/lint.js"]
+  },
+  "profiles": {
+    "pr": ["lint", "test"],
+    "epic": ["lint", "test", "architecture"],
+    "release": ["lint", "test", "architecture"],
+    "scheduled": ["lint", "test", "architecture"]
+  }
+}

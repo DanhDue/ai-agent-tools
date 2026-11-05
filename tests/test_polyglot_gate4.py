@@ -120,25 +120,45 @@ def test_polyglot_fanout():
 
 def test_WQG_AR_01_concurrent_multiprovider_fanout():
     """Scenario: [WQG-AR-01] [Tier C - Integration] Concurrent multi-provider fan-out in Gate 4."""
-    registry = polyglot_d3nexus_registry()
-    provider_results = [
-        sample_provider_result("rust-core", "PASS"),
-        sample_provider_result("learning-web", "PASS"),
-    ]
+    import subprocess
 
+    fixture_dir = REPO_ROOT / "tests" / "fixtures" / "astro_repo"
+    registry_file = fixture_dir / ".agents" / "quality" / "check_quality.json"
+    registry = json.loads(registry_file.read_text(encoding="utf-8"))
+
+    fixture_sha = SAMPLE_SHA
+    try:
+        head_proc = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=str(fixture_dir),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if head_proc.returncode == 0 and head_proc.stdout.strip():
+            fixture_sha = head_proc.stdout.strip()
+    except (subprocess.SubprocessError, OSError):
+        pass
+
+    # Execute concurrent live fanout across declared providers in fixture repo
     exec_result = verify_polyglot_execution(
         registry_data=registry,
         requested_profile="epic",
-        repository_sha=SAMPLE_SHA,
-        provider_results=provider_results,
+        repository_sha=fixture_sha,
+        repo_root=fixture_dir,
+        execute=True,
     )
 
     assert exec_result["status"] == "PASS"
     assert exec_result["aggregated"]["status"] == "PASS"
     assert len(exec_result["aggregated"]["providers"]) == 2
     ids = [p["provider_id"] for p in exec_result["aggregated"]["providers"]]
-    assert "rust-core" in ids
     assert "learning-web" in ids
+    assert "agent-tools-python" in ids
+    # Verify outputs are isolated and both succeeded
+    for p in exec_result["aggregated"]["providers"]:
+        assert p["status"] == "PASS"
+        assert len(p["checks"]) > 0
 
 
 def test_scaffolding_detects_web_and_generates_manifest():

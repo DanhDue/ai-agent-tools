@@ -92,8 +92,8 @@ def test_contract_validation():
         assert len(res["checks"]) == 3
 
 
-def test_WQG_HP_01_astro_provider_certification():
-    """Scenario: [WQG-HP-01] [Tier C - Integration] Web quality provider certification on Astro TypeScript repository."""
+def test_run_capabilities_contract_validation_unit():
+    """Unit test for run_capabilities output conforming to Provider Result Contract v1."""
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp_path = Path(tmpdir)
         results_dir = tmp_path / "build" / "test-results"
