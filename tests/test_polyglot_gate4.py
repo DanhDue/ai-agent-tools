@@ -215,3 +215,38 @@ def test_verify_polyglot_registry_cli_execution():
             ]
         )
         assert code == 0
+
+
+def test_polyglot_sha_mismatch_and_drift_rejection():
+    """Verify that verify_polyglot_registry rejects mismatched requested SHA and Git HEAD drift."""
+    fixture_dir = REPO_ROOT / "tests" / "fixtures" / "astro_repo"
+    registry_file = fixture_dir / ".agents" / "quality" / "check_quality.json"
+    registry = json.loads(registry_file.read_text(encoding="utf-8"))
+
+    # 1. Executing live provider with incorrect all-a SHA against committed git repository fails
+    mismatch_sha = "a" * 40
+    exec_res = verify_polyglot_execution(
+        registry_data=registry,
+        requested_profile="epic",
+        repository_sha=mismatch_sha,
+        repo_root=fixture_dir,
+        execute=True,
+    )
+    assert exec_res["status"] == "FAIL"
+    assert any("mismatch" in str(b).lower() for b in exec_res["aggregated"]["blockers"])
+
+    # 2. Aggregating provider result where started_head != finished_head (drift) fails
+    drift_result = sample_provider_result("learning-web", "PASS")
+    drift_result["started_head"] = "1" * 40
+    drift_result["finished_head"] = "2" * 40
+    python_result = sample_provider_result("agent-tools-python", "PASS")
+    python_result["started_head"] = "1" * 40
+    python_result["finished_head"] = "1" * 40
+    agg_res = fanout_and_aggregate(
+        registry_data=registry,
+        requested_profile="epic",
+        repository_sha="1" * 40,
+        provider_results=[drift_result, python_result],
+    )
+    assert agg_res["status"] == "FAIL"
+    assert any("drift" in str(b).lower() for b in agg_res["aggregated"]["blockers"])

@@ -33,6 +33,23 @@ def _resolve_repo_root(path: Path) -> Path:
     return p.parents[2] if len(p.parents) >= 3 else p.parent
 
 
+def _get_git_head(repo_path: Path) -> str:
+    """Retrieve actual Git HEAD commit hash if repo_path is inside a git working tree."""
+    try:
+        res = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=str(repo_path),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if res.returncode == 0 and res.stdout.strip():
+            return res.stdout.strip()
+    except (subprocess.SubprocessError, OSError):
+        pass
+    return ""
+
+
 def _get_validator() -> Callable[..., dict[str, Any]]:
     mod = importlib.import_module("validate_quality_contract")
     val_fn: Callable[..., dict[str, Any]] = mod.validate_registry
@@ -51,6 +68,7 @@ def fanout_and_aggregate(
     repository_sha: str,
     base_ref: str = "main",
     provider_results: list[dict[str, Any]] | None = None,
+    repo_root: Path | None = None,
 ) -> dict[str, Any]:
     """Validate polyglot registry, select profile providers, and aggregate provider results."""
     val_fn = _get_validator()
@@ -64,6 +82,36 @@ def fanout_and_aggregate(
 
     plan = val["providers"]
     results = provider_results or []
+    findings: list[dict[str, Any]] = []
+
+    if repo_root is not None:
+        actual_head = _get_git_head(repo_root)
+        if actual_head and repository_sha and repository_sha != actual_head:
+            findings.append(
+                {
+                    "code": "repository_sha_mismatch",
+                    "message": f"Requested repository SHA '{repository_sha}' does not match actual Git HEAD '{actual_head}'",
+                }
+            )
+
+    for p in results:
+        p_sha = p.get("repository_sha", "")
+        p_started = p.get("started_head", "")
+        p_finished = p.get("finished_head", "")
+        if p_started and p_finished and p_started != p_finished:
+            findings.append(
+                {
+                    "code": "git_head_drift",
+                    "message": f"[{p.get('provider_id')}] Git HEAD drifted during execution from '{p_started}' to '{p_finished}'",
+                }
+            )
+        if repository_sha and p_sha and p_sha != repository_sha:
+            findings.append(
+                {
+                    "code": "repository_sha_mismatch",
+                    "message": f"[{p.get('provider_id')}] Provider SHA '{p_sha}' does not match requested repository SHA '{repository_sha}'",
+                }
+            )
 
     invocation = {
         "contract_version": 1,
@@ -74,9 +122,17 @@ def fanout_and_aggregate(
 
     agg_fn = _get_aggregator()
     aggregated = agg_fn(plan, results, invocation=invocation)
+
+    overall_status = aggregated.get("status", "PASS")
+    if findings:
+        overall_status = "FAIL"
+        for f in findings:
+            aggregated["status"] = "FAIL"
+            aggregated.setdefault("blockers", []).append(f["message"])
+
     return {
-        "status": aggregated.get("status", "PASS"),
-        "findings": [],
+        "status": overall_status,
+        "findings": findings,
         "plan": plan,
         "aggregated": aggregated,
     }
@@ -92,6 +148,9 @@ def execute_provider(
     root = repo_root or Path.cwd()
     p_id = provider_item.get("id", "")
     skill = provider_item.get("skill", "")
+
+    actual_started_head = _get_git_head(root)
+    head_recorded = actual_started_head or sha
 
     candidates = [
         root / ".agents" / "quality" / f"{p_id}.json",
@@ -115,8 +174,8 @@ def execute_provider(
             "checks": [],
             "coverage": {},
             "evidence": [],
-            "started_head": sha,
-            "finished_head": sha,
+            "started_head": head_recorded,
+            "finished_head": head_recorded,
             "duration": 0.0,
             "blockers": [f"Manifest file for provider '{p_id}' not found"],
             "warnings": [],
@@ -135,8 +194,8 @@ def execute_provider(
             "checks": [],
             "coverage": {},
             "evidence": [],
-            "started_head": sha,
-            "finished_head": sha,
+            "started_head": head_recorded,
+            "finished_head": head_recorded,
             "duration": 0.0,
             "blockers": [f"Failed to parse manifest '{manifest_path}': {e}"],
             "warnings": [],
@@ -188,7 +247,9 @@ def execute_provider(
             break
 
     if platform_name:
-        p_scripts = skills_dir / f"{platform_name}-quality-check" / "resources" / "scripts"
+        p_scripts = (
+            skills_dir / f"{platform_name}-quality-check" / "resources" / "scripts"
+        )
         if p_scripts.is_dir() and str(p_scripts) not in sys.path:
             sys.path.insert(0, str(p_scripts))
         try:
@@ -231,10 +292,12 @@ def execute_provider(
             "checks": [],
             "coverage": {},
             "evidence": [],
-            "started_head": sha,
-            "finished_head": sha,
+            "started_head": head_recorded,
+            "finished_head": head_recorded,
             "duration": 0.0,
-            "blockers": [f"Requested profile '{profile}' is not configured in profiles"],
+            "blockers": [
+                f"Requested profile '{profile}' is not configured in profiles"
+            ],
             "warnings": [],
         }
 
@@ -245,6 +308,15 @@ def execute_provider(
     overall_status = "PASS"
     log_dir = root / "build" / "quality" / p_id
     log_dir.mkdir(parents=True, exist_ok=True)
+
+    if actual_started_head and sha and sha != actual_started_head:
+        overall_status = "FAIL"
+        blockers.append(
+            {
+                "code": "repository_sha_mismatch",
+                "message": f"Requested repository SHA '{sha}' does not match actual Git HEAD '{actual_started_head}'",
+            }
+        )
 
     for cap_name in caps_to_run:
         cap_val = capabilities.get(cap_name)
@@ -291,29 +363,61 @@ def execute_provider(
         evidence_id = f"{cap_name}-evidence"
         log_file = log_dir / f"{cap_name}.log"
         rel_log_path = str(log_file.relative_to(root)) if log_file.is_file() else ""
-        checks.append({
-            "id": cap_name,
-            "category": "quality-check",
-            "status": c_status,
-            "source": " ".join(substituted_cmd),
-            "duration": cap_duration,
-            "summary": summary,
-            "evidence_refs": [evidence_id] if rel_log_path else [],
-        })
-        if rel_log_path:
-            evidence.append({
-                "id": evidence_id,
-                "type": "command",
+        checks.append(
+            {
+                "id": cap_name,
+                "category": "quality-check",
+                "status": c_status,
                 "source": " ".join(substituted_cmd),
-                "location": rel_log_path,
-            })
+                "duration": cap_duration,
+                "summary": summary,
+                "evidence_refs": [evidence_id] if rel_log_path else [],
+            }
+        )
+        if rel_log_path:
+            evidence.append(
+                {
+                    "id": evidence_id,
+                    "type": "command",
+                    "source": " ".join(substituted_cmd),
+                    "location": rel_log_path,
+                }
+            )
         if c_status == "FAIL":
             overall_status = "FAIL"
-            blockers.append({"code": "capability_failed", "capability": cap_name, "message": summary})
+            blockers.append(
+                {
+                    "code": "capability_failed",
+                    "capability": cap_name,
+                    "message": summary,
+                }
+            )
         elif c_status == "BLOCKED" and overall_status != "FAIL":
             overall_status = "BLOCKED"
-            blockers.append({"code": "capability_blocked", "capability": cap_name, "message": summary})
+            blockers.append(
+                {
+                    "code": "capability_blocked",
+                    "capability": cap_name,
+                    "message": summary,
+                }
+            )
 
+    actual_finished_head = _get_git_head(root)
+    if (
+        actual_started_head
+        and actual_finished_head
+        and actual_finished_head != actual_started_head
+    ):
+        overall_status = "FAIL"
+        blockers.append(
+            {
+                "code": "git_head_drift",
+                "message": f"Git HEAD changed during execution from '{actual_started_head}' to '{actual_finished_head}'",
+            }
+        )
+
+    started_head = actual_started_head or head_recorded
+    finished_head = actual_finished_head or head_recorded
     total_duration = round(time.time() - start_time, 3)
     return {
         "provider_id": p_id,
@@ -325,8 +429,8 @@ def execute_provider(
         "checks": checks,
         "coverage": {},
         "evidence": evidence,
-        "started_head": sha,
-        "finished_head": sha,
+        "started_head": started_head,
+        "finished_head": finished_head,
         "duration": total_duration,
         "blockers": blockers,
         "warnings": [],
@@ -375,17 +479,30 @@ def verify_polyglot_execution(
         repository_sha=repository_sha,
         base_ref=base_ref,
         provider_results=results,
+        repo_root=repo_root,
     )
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Verify polyglot quality registry and multi-provider results.")
+    parser = argparse.ArgumentParser(
+        description="Verify polyglot quality registry and multi-provider results."
+    )
     parser.add_argument("registry_file", help="Path to check_quality.json")
-    parser.add_argument("--profile", default="epic", help="Quality profile (pr, epic, release)")
-    parser.add_argument("--sha", default="", help="Commit SHA (defaults to git rev-parse HEAD)")
+    parser.add_argument(
+        "--profile", default="epic", help="Quality profile (pr, epic, release)"
+    )
+    parser.add_argument(
+        "--sha", default="", help="Commit SHA (defaults to git rev-parse HEAD)"
+    )
     parser.add_argument("--base-ref", default="main", help="Base reference for diffs")
-    parser.add_argument("--results", nargs="*", default=None, help="Paths to provider result JSON files")
-    parser.add_argument("--execute", action="store_true", help="Execute declared providers and aggregate live results")
+    parser.add_argument(
+        "--results", nargs="*", default=None, help="Paths to provider result JSON files"
+    )
+    parser.add_argument(
+        "--execute",
+        action="store_true",
+        help="Execute declared providers and aggregate live results",
+    )
 
     args = parser.parse_args(argv)
     reg_path = Path(args.registry_file).resolve()
@@ -412,7 +529,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.results:
         for r_file in args.results:
-            provider_results.append(json.loads(Path(r_file).read_text(encoding="utf-8")))
+            provider_results.append(
+                json.loads(Path(r_file).read_text(encoding="utf-8"))
+            )
     elif args.execute or not args.results:
         val_fn = _get_validator()
         val = val_fn(data, args.profile)
@@ -432,12 +551,14 @@ def main(argv: list[str] | None = None) -> int:
                 ]
                 provider_results = [f.result() for f in futures]
 
+    git_root = repo_root if (repo_root / ".git").exists() else None
     res = fanout_and_aggregate(
         registry_data=data,
         requested_profile=args.profile,
         repository_sha=sha,
         base_ref=args.base_ref,
         provider_results=provider_results,
+        repo_root=git_root,
     )
     print(json.dumps(res, indent=2))
     return 0 if res["status"] == "PASS" else 1
