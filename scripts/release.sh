@@ -77,12 +77,28 @@ if command -v claude >/dev/null 2>&1; then
   claude plugin update d3nexus@danhdue-agent-tools 2>/dev/null || true
 fi
 
-for plugin_dir in "$HOME/.gemini/config/plugins/d3nexus" /Users/danhdueexoictif/.gemini/config/plugins/d3nexus /Users/danhdueexoictif/antigravity_homes/*/.gemini/config/plugins/d3nexus; do
-  if [ -d "$plugin_dir/.git" ]; then
-    echo "  pulling updates into $plugin_dir"
-    git -C "$plugin_dir" pull -q origin main || true
-  fi
-done
+python3 - <<'PY'
+import os, glob, subprocess
+
+paths = [
+    os.path.expanduser("~/.gemini/config/plugins/d3nexus"),
+    "/Users/danhdueexoictif/.gemini/config/plugins/d3nexus",
+    *glob.glob("/Users/danhdueexoictif/antigravity_homes/*/.gemini/config/plugins/d3nexus"),
+]
+
+seen = set()
+for p in paths:
+    if not os.path.exists(p):
+        continue
+    real = os.path.realpath(p)
+    if real in seen:
+        continue
+    seen.add(real)
+    if os.path.isdir(os.path.join(real, ".git")):
+        print(f"  pulling updates into unique target: {real}")
+        subprocess.run(["git", "-C", real, "checkout", "--", "."], check=False)
+        subprocess.run(["git", "-C", real, "pull", "-q", "origin", "main"], check=False)
+PY
 
 if command -v codex >/dev/null 2>&1; then
   echo "  updating codex plugin"
