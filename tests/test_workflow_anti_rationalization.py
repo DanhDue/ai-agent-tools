@@ -51,7 +51,9 @@ def test_anti_rationalization_content():
         )
 
 
-def test_WQG_ST_02_task_status_progression_under_anti_rationalization_audit(tmp_path: Path):
+def test_WQG_ST_02_task_status_progression_under_anti_rationalization_audit(
+    tmp_path: Path,
+):
     """Scenario: [WQG-ST-02] Task status progression under Anti-Rationalization audit."""
     # 1. When only pure unit test mock report file on disk is loaded for Tier C scenario [WQG-HP-01]
     unit_report_file = tmp_path / "unit_results.xml"

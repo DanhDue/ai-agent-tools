@@ -64,7 +64,9 @@ def test_WQG_HP_01_web_quality_provider_certification_on_astro_repo():
         "base_ref": "main",
     }
     contract_check = validate_provider_result(res, invocation)
-    assert contract_check["status"] == "PASS", f"Contract validation failed: {contract_check}"
+    assert contract_check["status"] == "PASS", (
+        f"Contract validation failed: {contract_check}"
+    )
     assert res["status"] == "PASS"
     assert res["repository_sha"] == fixture_sha
 
@@ -79,9 +81,13 @@ def test_WQG_HP_01_web_quality_provider_certification_on_astro_repo():
     log_dir = FIXTURE_REPO / "build" / "quality" / "web"
     assert log_dir.is_dir()
     assert (log_dir / "type_check.log").is_file()
-    assert "ASTRO TypeScript checks completed" in (log_dir / "type_check.log").read_text(encoding="utf-8")
+    assert "ASTRO TypeScript checks completed" in (
+        log_dir / "type_check.log"
+    ).read_text(encoding="utf-8")
     assert (log_dir / "test_e2e.log").is_file()
-    assert "Playwright watchdog executed" in (log_dir / "test_e2e.log").read_text(encoding="utf-8")
+    assert "Playwright watchdog executed" in (log_dir / "test_e2e.log").read_text(
+        encoding="utf-8"
+    )
 
     # 4. Verify watchdog evidence artifact was generated and validated
     evidence_xml = FIXTURE_REPO / "build" / "test-results" / "playwright.xml"
