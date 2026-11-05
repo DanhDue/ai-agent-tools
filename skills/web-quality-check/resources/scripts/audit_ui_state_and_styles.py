@@ -252,6 +252,26 @@ def audit_orphaned_classes_and_styles(
         except (OSError, UnicodeDecodeError):
             continue
 
+    # Also collect declared CSS classes from component-scoped <style> blocks (*.astro, *.html, *.vue, etc.)
+    style_block_pattern = re.compile(
+        r"<style[^>]*>(.*?)</style>", re.DOTALL | re.IGNORECASE
+    )
+    component_files = []
+    for ext in ("*.astro", "*.html", "*.jinja", "*.vue", "*.svelte"):
+        component_files.extend(
+            f for f in repo_root.rglob(ext) if not _is_excluded(f, repo_root)
+        )
+
+    for comp in component_files:
+        try:
+            comp_text = comp.read_text(encoding="utf-8")
+            for sm in style_block_pattern.finditer(comp_text):
+                style_content = sm.group(1)
+                for m in class_def_pattern.finditer(style_content):
+                    defined_classes.add(m.group(1))
+        except (OSError, UnicodeDecodeError):
+            continue
+
     # 2. Check candidate templates and DOM builder scripts
     candidate_files = []
     if target_files:

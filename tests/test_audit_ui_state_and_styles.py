@@ -96,6 +96,37 @@ def test_orphaned_classes_and_unstyled_styles(tmp_path: Path) -> None:
     assert any(f.get("class") == "missing-nonexistent-class" for f in orphaned)
 
 
+def test_astro_component_scoped_styles_not_orphaned(tmp_path: Path) -> None:
+    """Invariant 2: Scoped <style> classes in Astro/HTML components must not be flagged as orphaned."""
+    # Global stylesheet with unrelated class
+    css_file = tmp_path / "global.css"
+    css_file.write_text(".global-header { margin: 0; }", encoding="utf-8")
+
+    # Astro component with scoped style definition
+    astro_file = tmp_path / "Card.astro"
+    astro_file.write_text(
+        """---
+// Frontmatter
+---
+<div class="scoped-card-box">
+    <p>Card Content</p>
+</div>
+
+<style>
+.scoped-card-box {
+    border-radius: 8px;
+    background: #fff;
+}
+</style>
+""",
+        encoding="utf-8",
+    )
+
+    findings = audit_orphaned_classes_and_styles(tmp_path)
+    orphaned = [f for f in findings if f["category"] == "orphaned_class"]
+    assert len(orphaned) == 0, f"Expected 0 orphaned classes, got: {orphaned}"
+
+
 def test_text_truncation_and_duplicate_phrases(tmp_path: Path) -> None:
     """Invariant 3: Guard against text clipping at start of flex rows and consecutive duplicate text."""
     bad_file = tmp_path / "page.html"
