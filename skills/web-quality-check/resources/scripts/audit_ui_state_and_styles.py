@@ -57,6 +57,29 @@ STANDARD_UTILITIES = {
 }
 
 
+def strip_comments_preserving_strings(code: str) -> str:
+    """Strip // and /* */ comments while preserving string literals (double, single, backtick)."""
+    pattern = re.compile(
+        r"""
+        (                               # Group 1: strings
+            "(?:\\.|[^"\\])*"
+          | '(?:\\.|[^'\\])*'
+          | `(?:\\.|[^`\\])*`
+        )
+      | (/\*.*?\*/)                     # Group 2: block comment
+      | (//[^\n]*)                      # Group 3: line comment
+    """,
+        re.VERBOSE | re.DOTALL,
+    )
+
+    def replacer(m: re.Match[str]) -> str:
+        if m.group(1):
+            return m.group(1)
+        return ""
+
+    return pattern.sub(replacer, code)
+
+
 def get_git_diff_files(repo_root: Path, base_ref: str = "main") -> list[str]:
     """Retrieve list of modified or added files compared to base_ref."""
     try:
@@ -465,9 +488,8 @@ def audit_ui_state_machine_consistency(
                         }
                     )
 
-        # Strip single-line and multi-line comments for logic checks
-        code_no_comments = re.sub(r"//.*", "", content)
-        code_no_comments = re.sub(r"/\*.*?\*/", "", code_no_comments, flags=re.DOTALL)
+        # Strip single-line and multi-line comments for logic checks, preserving string literals
+        code_no_comments = strip_comments_preserving_strings(content)
 
         # 2. SSE EventSource connection closure verification
         if "new EventSource(" in code_no_comments:

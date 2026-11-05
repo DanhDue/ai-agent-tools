@@ -231,3 +231,23 @@ def test_worktree_path_auditing(tmp_path: Path) -> None:
     orphans = [f for f in findings if f["category"] == "orphaned_class"]
     assert len(orphans) == 1
     assert orphans[0]["class"] == "missing-orphan-class"
+
+
+def test_url_containing_sse_source_and_comment_handling(tmp_path: Path) -> None:
+    """Verify that EventSource URLs with https:// and inline comments do not strip close() logic."""
+    app_js = tmp_path / "app.js"
+    app_js.write_text(
+        """
+        // Global comment at start
+        const source = new EventSource("https://example.test/events"); // connection opened
+        source.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            if (data.status === "COMPLETED" || data.status === "FAILED") {
+                source.close(); // clean terminal closure
+            }
+        };
+        """,
+        encoding="utf-8",
+    )
+    findings = audit_ui_state_machine_consistency(tmp_path)
+    assert len(findings) == 0, f"Expected 0 findings, got: {findings}"
