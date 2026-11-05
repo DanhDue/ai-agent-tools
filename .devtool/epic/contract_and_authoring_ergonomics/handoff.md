@@ -13,7 +13,7 @@
 ## Status
 
 - **Packaged**: 2026-11-06
-- **Design commit**: `766f78e` — `HEAD` before the packaging commit, or `uncommitted` when `auto_commit` is false
+- **Design commit**: `2a73432` — `HEAD` before the packaging commit, or `uncommitted` when `auto_commit` is false
 - **Base branch**: `main`
 - **Gates passed**: 1 (spec), 2 (HLD and task breakdown)
 - **Next**: Stage 3, `dev-implementation`. Gate 3 (execution order) still needs the developer's confirmation.
@@ -63,13 +63,13 @@ Fast executor models and receiving agents MUST adhere to these four hard guardra
 
 - **Three-Epic Optimization Roadmap**: This epic (`contract_and_authoring_ergonomics`) is Epic 1 of 3 addressing the 15 open observations in `skill-observations/observation-log/` (`#0008, #0009, #0012, #0016, #0019`). Epic 2 (`execution_and_verification_infrastructure` for `#0006, #0007, #0010, #0011, #0017, #0018`) and Epic 3 (`multi_epic_orchestration_and_governance` for `#0013, #0014, #0015, #0020`) follow sequentially.
 - **Zero-Setup `D3NEXUS_KIT` & `bin/d3nexus`**: `run_task_checks.py` and `check_epic_readiness.py` compute `KIT_ROOT = Path(__file__).resolve().parents[4]` dynamically at runtime and inject `D3NEXUS_KIT` and `PATH="<kit_root>/bin:$PATH"` into child subprocesses, requiring zero manual setup across machines or profiles.
-- **Mypy Import Narrowing**: Tasks 01–04 use `--follow-imports=silent` on `mypy` rows because `check_bdd_traceability.py` has an unnarrowed `Optional[str]` on `fence` in `scenario_ids()`; Task 05 narrows `fence` in `check_bdd_traceability.py` so `mypy` passes cleanly without `--follow-imports=silent`.
+- **Mypy Import Narrowing**: Tasks 01–04 use `--follow-imports=silent` on `mypy` rows because `check_bdd_traceability.py` has an unnarrowed `fence_marker: str | None` in `scenario_ids()`; Task 05 narrows `fence_marker` in `check_bdd_traceability.py` so `mypy` passes cleanly without `--follow-imports=silent`.
 - **Observation #0021**: Logged during Stage 2 when an epic directory starting with `task_` collided with `task_*.md` globs; Task 02 (`render_epic_tasks`) should match task files with `re.fullmatch(r"task_[0-9]+_.*\.md", path.name)` (or exclude `*.en.md`/`*.vi.md`).
 
 ## Rules for the Receiving Agent
 
 - Do not re-run `dev-brainstorming` or `dev-designer`. Raise a wrong or missing document at Gate 3.
 - This handoff does not pass Gate 3. The developer confirms the execution order.
-- Unless the design commit is `uncommitted`: if `git log 766f78e..main -- .devtool/epic/contract_and_authoring_ergonomics` lists any commit besides the `Package epic for handoff` commit, the documents changed after packaging. The documents win, and this file may be stale. Comparing against the base branch keeps the epic branch's own task commits out of the check.
+- Unless the design commit is `uncommitted`: if `git log 2a73432..main -- .devtool/epic/contract_and_authoring_ergonomics` lists any commit besides the `Package epic for handoff` commit, the documents changed after packaging. The documents win, and this file may be stale. Comparing against the base branch keeps the epic branch's own task commits out of the check.
 - This file is a dated record. It is never updated after packaging.
 - Never edit a task's Verification table, Definition of Done, Allowed files or a protected path; stop and report.
