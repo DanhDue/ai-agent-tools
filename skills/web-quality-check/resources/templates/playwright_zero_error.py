@@ -6,6 +6,9 @@ computed visual integrity assertions, and DOM state leak detection for Python Pl
 
 from __future__ import annotations
 
+import json
+import os
+from pathlib import Path
 import re
 from typing import Any
 
@@ -20,7 +23,24 @@ class PlaywrightZeroErrorWatchdog:
     """Watchdog that intercepts browser console errors, page crashes, and missing static assets."""
 
     def __init__(self, allowlist_patterns: list[str] | None = None) -> None:
-        patterns = allowlist_patterns if allowlist_patterns is not None else DEFAULT_ALLOWLIST
+        patterns = list(allowlist_patterns) if allowlist_patterns is not None else list(DEFAULT_ALLOWLIST)
+        manifest_path = Path(".agents/quality/web-quality.json")
+        if manifest_path.exists():
+            try:
+                data = json.loads(manifest_path.read_text(encoding="utf-8"))
+                if isinstance(data.get("console_error_allowlist"), list):
+                    for pat in data["console_error_allowlist"]:
+                        if pat not in patterns:
+                            patterns.append(pat)
+            except (json.JSONDecodeError, OSError):
+                pass
+        env_allowlist = os.environ.get("CONSOLE_ERROR_ALLOWLIST", "")
+        if env_allowlist:
+            for pat in env_allowlist.split(","):
+                p_strip = pat.strip()
+                if p_strip and p_strip not in patterns:
+                    patterns.append(p_strip)
+
         self.allowlist: list[re.Pattern[str]] = [re.compile(p, re.IGNORECASE) for p in patterns]
         self.captured_errors: list[str] = []
 
@@ -126,9 +146,16 @@ def assert_visual_integrity(
         (bw === '0px' || bw === '') &&
         (pad === '0px' || pad === '');
 
+      if (isUnstyledDefault) {
+        return {
+          ok: false,
+          error: `Element '${sel}' renders with unstyled default styles (transparent background, 0px border, 0px padding).`,
+        };
+      }
+
       return {
         ok: true,
-        isUnstyledDefault,
+        isUnstyledDefault: false,
         rect: { width: rect.width, height: rect.height },
         style: { bg, bw, pad, display: style.display }
       };
@@ -164,13 +191,25 @@ def assert_dom_state_integrity(
               style.clipPath.includes('inset(50%)') ||
               style.clipPath.includes('inset(100%)');
 
-            const isVisible =
+            let isVisible =
               !isClippedA11y &&
               style.display !== 'none' &&
               style.visibility !== 'hidden' &&
               parseFloat(style.opacity || '1') > 0 &&
               rect.width > 0 &&
               rect.height > 0;
+
+            if (isVisible) {
+              let curr = el.parentElement;
+              while (curr && curr !== document.documentElement) {
+                const s = window.getComputedStyle(curr);
+                if (s.display === 'none' || s.visibility === 'hidden' || parseFloat(s.opacity || '1') === 0) {
+                  isVisible = false;
+                  break;
+                }
+                curr = curr.parentElement;
+              }
+            }
 
             if (isVisible) {
               visibleSelectors.push(sel);
@@ -188,15 +227,25 @@ def assert_dom_state_integrity(
 
       const textNodes = container.querySelectorAll('h1, h2, h3, h4, h5, h6, [role="heading"], [data-card-title]');
       for (const el of Array.from(textNodes)) {
-        const text = (el.textContent || '').trim().replace(/\\s+/g, ' ');
-        const words = text.split(' ');
-        for (let i = 0; i < words.length - 1; i++) {
-          if (words[i].length >= 4 && words[i].toLowerCase() === words[i + 1].toLowerCase()) {
-            return {
-              ok: false,
-              error: `Consecutive duplicate word detected: "${words[i]}" in text "${text}" inside selector ${el.tagName.toLowerCase()}`
-            };
+        let isHeadingVisible = true;
+        let curr = el;
+        while (curr && curr !== document.documentElement) {
+          const s = window.getComputedStyle(curr);
+          if (s.display === 'none' || s.visibility === 'hidden' || parseFloat(s.opacity || '1') === 0) {
+            isHeadingVisible = false;
+            break;
           }
+          curr = curr.parentElement;
+        }
+        if (!isHeadingVisible) continue;
+
+        const text = (el.textContent || '').trim().replace(/\\s+/g, ' ');
+        const dupMatch = text.match(/(?:^|\\s)([A-Za-zÀ-ỹ0-9_]{2,}(?:\\s+[A-Za-zÀ-ỹ0-9_]{2,})*)\\s+\\1(?:$|\\s|[.,;])/i);
+        if (dupMatch) {
+          return {
+            ok: false,
+            error: `Consecutive duplicate phrase detected: "${dupMatch[1]}" in text "${text}" inside selector ${el.tagName.toLowerCase()}`
+          };
         }
       }
 

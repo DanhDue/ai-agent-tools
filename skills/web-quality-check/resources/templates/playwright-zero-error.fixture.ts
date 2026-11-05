@@ -77,6 +77,13 @@ export async function assertVisualIntegrity(
         (bw === '0px' || bw === '') &&
         (pad === '0px' || pad === '');
 
+      if (isUnstyledDefault) {
+        return {
+          ok: false,
+          error: `Element '${sel}' renders with unstyled default styles (transparent background, 0px border, 0px padding).`,
+        };
+      }
+
       return {
         ok: true,
         isUnstyledDefault,
@@ -119,13 +126,25 @@ export async function assertDomStateIntegrity(
               style.clipPath.includes('inset(50%)') ||
               style.clipPath.includes('inset(100%)');
 
-            const isVisible =
+            let isVisible =
               !isClippedA11y &&
               style.display !== 'none' &&
               style.visibility !== 'hidden' &&
               parseFloat(style.opacity || '1') > 0 &&
               rect.width > 0 &&
               rect.height > 0;
+
+            if (isVisible) {
+              let curr: Element | null = el.parentElement;
+              while (curr && curr !== document.documentElement) {
+                const s = window.getComputedStyle(curr);
+                if (s.display === 'none' || s.visibility === 'hidden' || parseFloat(s.opacity || '1') === 0) {
+                  isVisible = false;
+                  break;
+                }
+                curr = curr.parentElement;
+              }
+            }
 
             if (isVisible) {
               visibleSelectors.push(sel);
@@ -144,16 +163,26 @@ export async function assertDomStateIntegrity(
       // 2. Check consecutive duplicate substring rendering inside headings/titles
       const textNodes = container.querySelectorAll('h1, h2, h3, h4, h5, h6, [role="heading"], [data-card-title]');
       for (const el of Array.from(textNodes)) {
-        const text = (el.textContent || '').trim().replace(/\s+/g, ' ');
-        // Check for adjacent duplicate words/phrases of 4+ characters, e.g. "Tiến độ Tiến độ"
-        const words = text.split(' ');
-        for (let i = 0; i < words.length - 1; i++) {
-          if (words[i].length >= 4 && words[i].toLowerCase() === words[i + 1].toLowerCase()) {
-            return {
-              ok: false,
-              error: `Consecutive duplicate word detected: "${words[i]}" in text "${text}" inside selector ${el.tagName.toLowerCase()}`,
-            };
+        let isHeadingVisible = true;
+        let curr: Element | null = el;
+        while (curr && curr !== document.documentElement) {
+          const s = window.getComputedStyle(curr);
+          if (s.display === 'none' || s.visibility === 'hidden' || parseFloat(s.opacity || '1') === 0) {
+            isHeadingVisible = false;
+            break;
           }
+          curr = curr.parentElement;
+        }
+        if (!isHeadingVisible) continue;
+
+        const text = (el.textContent || '').trim().replace(/\s+/g, ' ');
+        // Check for adjacent duplicate words/phrases of 2+ characters, e.g. "Tiến độ Tiến độ"
+        const dupMatch = text.match(/(?:^|\s)([A-Za-zÀ-ỹ0-9_]{2,}(?:\s+[A-Za-zÀ-ỹ0-9_]{2,})*)\s+\1(?:$|\s|[.,;])/i);
+        if (dupMatch) {
+          return {
+            ok: false,
+            error: `Consecutive duplicate phrase detected: "${dupMatch[1]}" in text "${text}" inside selector ${el.tagName.toLowerCase()}`,
+          };
         }
       }
 
@@ -179,6 +208,26 @@ export const test = base.extend<{ watchdog: void }>({
         /Lit is in dev mode/i,
         /Download the React DevTools/i,
       ];
+
+      // Read custom allowlist patterns from manifest or env
+      try {
+        const fs = require('fs');
+        const path = require('path');
+        const manifestPath = path.resolve('.agents/quality/web-quality.json');
+        if (fs.existsSync(manifestPath)) {
+          const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
+          if (Array.isArray(manifest.console_error_allowlist)) {
+            for (const p of manifest.console_error_allowlist) {
+              allowlist.push(new RegExp(p, 'i'));
+            }
+          }
+        }
+      } catch (_) {}
+      if (process.env.CONSOLE_ERROR_ALLOWLIST) {
+        for (const p of process.env.CONSOLE_ERROR_ALLOWLIST.split(',')) {
+          if (p.trim()) allowlist.push(new RegExp(p.trim(), 'i'));
+        }
+      }
 
       // Console error listener
       page.on('console', (msg) => {
