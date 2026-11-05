@@ -185,41 +185,64 @@ def assert_dom_state_integrity(
     ({ groups, containerSel }) => {
       const container = document.querySelector(containerSel) || document.body;
 
+      function isElementClippedOrInvisible(element) {
+        let curr = element;
+        while (curr && curr !== document.documentElement) {
+          const s = window.getComputedStyle(curr);
+          if (s.display === 'none' || s.visibility === 'hidden' || s.visibility === 'collapse' || parseFloat(s.opacity || '1') === 0) {
+            return true;
+          }
+          if (s.clip && (s.clip.includes('rect(0px, 0px, 0px, 0px)') || s.clip.includes('rect(0, 0, 0, 0)') || s.clip.includes('rect(1px, 1px, 1px, 1px)'))) {
+            return true;
+          }
+          if (s.clipPath && (s.clipPath.includes('inset(50%)') || s.clipPath.includes('inset(100%)'))) {
+            return true;
+          }
+          if (typeof curr.getBoundingClientRect === 'function') {
+            const r = curr.getBoundingClientRect();
+            if (r.width === 0 && r.height === 0) {
+              return true;
+            }
+            if ((s.overflow === 'hidden' || s.overflowX === 'hidden' || s.overflowY === 'hidden') && (r.width <= 1 || r.height <= 1)) {
+              return true;
+            }
+          }
+          curr = curr.parentElement;
+        }
+        return false;
+      }
+
+      function isNodeVisible(element) {
+        if (!element) return false;
+        return !isElementClippedOrInvisible(element);
+      }
+
+      function getVisibleText(node) {
+        if (!node) return '';
+        if (node.nodeType === 3) {
+          return node.nodeValue || '';
+        }
+        if (node.nodeType === 1) {
+          const el = node;
+          if (isElementClippedOrInvisible(el)) {
+            return '';
+          }
+          let text = '';
+          const children = el.childNodes || [];
+          for (let i = 0; i < children.length; i++) {
+            text += getVisibleText(children[i]);
+          }
+          return text;
+        }
+        return '';
+      }
+
       for (const group of groups) {
         const visibleSelectors = [];
         for (const sel of group) {
           const els = container.querySelectorAll(sel);
           for (const el of Array.from(els)) {
-            const style = window.getComputedStyle(el);
-            const rect = el.getBoundingClientRect();
-            const isClippedA11y =
-              (rect.width <= 1 && rect.height <= 1 && style.overflow === 'hidden') ||
-              style.clip.includes('rect(0px, 0px, 0px, 0px)') ||
-              style.clip.includes('rect(0, 0, 0, 0)') ||
-              style.clipPath.includes('inset(50%)') ||
-              style.clipPath.includes('inset(100%)');
-
-            let isVisible =
-              !isClippedA11y &&
-              style.display !== 'none' &&
-              style.visibility !== 'hidden' &&
-              parseFloat(style.opacity || '1') > 0 &&
-              rect.width > 0 &&
-              rect.height > 0;
-
-            if (isVisible) {
-              let curr = el.parentElement;
-              while (curr && curr !== document.documentElement) {
-                const s = window.getComputedStyle(curr);
-                if (s.display === 'none' || s.visibility === 'hidden' || parseFloat(s.opacity || '1') === 0) {
-                  isVisible = false;
-                  break;
-                }
-                curr = curr.parentElement;
-              }
-            }
-
-            if (isVisible) {
+            if (isNodeVisible(el)) {
               visibleSelectors.push(sel);
               break;
             }
@@ -231,38 +254,6 @@ def assert_dom_state_integrity(
             error: `Mutually exclusive state elements are simultaneously visible: [${visibleSelectors.join(', ')}] in group [${group.join(', ')}]`
           };
         }
-      }
-
-      function isNodeVisible(element) {
-        let curr = element;
-        while (curr && curr !== document.documentElement) {
-          const s = window.getComputedStyle(curr);
-          if (s.display === 'none' || s.visibility === 'hidden' || parseFloat(s.opacity || '1') === 0) {
-            return false;
-          }
-          curr = curr.parentElement;
-        }
-        return true;
-      }
-
-      function getVisibleText(node) {
-        if (!node) return '';
-        if (node.nodeType === 3) {
-          return node.nodeValue || '';
-        }
-        if (node.nodeType === 1) {
-          const s = window.getComputedStyle(node);
-          if (s.display === 'none' || s.visibility === 'hidden' || parseFloat(s.opacity || '1') === 0) {
-            return '';
-          }
-          let text = '';
-          const children = node.childNodes || [];
-          for (let i = 0; i < children.length; i++) {
-            text += getVisibleText(children[i]);
-          }
-          return text;
-        }
-        return '';
       }
 
       const textNodes = container.querySelectorAll('h1, h2, h3, h4, h5, h6, [role="heading"], [data-card-title]');

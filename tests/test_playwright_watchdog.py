@@ -271,6 +271,30 @@ def test_WQG_EC_03_mutually_exclusive_state_leak_and_duplicate_text():
     )
     assert_dom_state_integrity(page_hidden_dup)
 
+    # 2c. Visible heading + clipped 1px .sr-only span repeating "Status" is NOT flagged as duplicate
+    page_sr_only_dup = MockPage(
+        dom_elements={
+            "h2": {
+                "tagName": "h2",
+                "textContent": "Status",
+                "style": {"display": "block", "visibility": "visible", "opacity": "1"},
+                "children": [
+                    {
+                        "sel": "span",
+                        "textContent": "Status",
+                        "style": {
+                            "position": "absolute",
+                            "overflow": "hidden",
+                            "clip": "rect(0px, 0px, 0px, 0px)",
+                        },
+                        "rect": {"width": 1, "height": 1},
+                    }
+                ],
+            }
+        }
+    )
+    assert_dom_state_integrity(page_sr_only_dup)
+
     # 3. Positive accessibility clipped elements (e.g. .sr-only) are accepted as valid
     page_a11y = MockPage(
         dom_elements={
@@ -289,6 +313,27 @@ def test_WQG_EC_03_mutually_exclusive_state_leak_and_duplicate_text():
     )
     assert_dom_state_integrity(
         page_a11y, exclusive_state_groups=[[".spinner", ".status-badge"]]
+    )
+
+    # 3b. Clipped ancestor with overflow: hidden & 1px size does not trigger mutually exclusive state failure
+    page_clipped_ancestor = MockPage(
+        dom_elements={
+            '[data-state="running"]': {
+                "style": {"display": "block", "visibility": "visible", "opacity": "1"},
+                "rect": {"width": 100, "height": 30},
+            },
+            '[data-state="failed"]': {
+                "style": {"display": "block", "visibility": "visible", "opacity": "1"},
+                "parentElement": {
+                    "style": {"overflow": "hidden"},
+                    "rect": {"width": 1, "height": 1},
+                },
+            },
+        }
+    )
+    assert_dom_state_integrity(
+        page_clipped_ancestor,
+        exclusive_state_groups=[['[data-state="running"]', '[data-state="failed"]']],
     )
 
 
