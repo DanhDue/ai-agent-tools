@@ -217,3 +217,4 @@ flowchart TD
 
 - **Depends on**: **Epic 1 (`contract_and_authoring_ergonomics`)** — builds on `Evidence files:`, `bin/d3nexus`, and `sync_task_status.py render`.
 - **Blocks**: **Epic 3 (`multi_epic_orchestration_and_governance`)** — provides the execution and readiness foundation that Epic 3 extends for multi-epic dependencies (`#0013`, `#0014`) and packaged epic revisions (`#0015`, `#0020`).
+
