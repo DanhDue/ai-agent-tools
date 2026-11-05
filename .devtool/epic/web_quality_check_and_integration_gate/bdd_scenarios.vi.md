@@ -43,7 +43,7 @@ Scenario: [WQG-HP-04] [Tier A - Unit] Automated generation of 3-5 step manual sm
 
 ```gherkin
 Scenario: [WQG-EC-01] [Tier A - Unit] Web quality manifest with empty or optional capabilities
-  Given một kho lưu trữ có .agents/quality/web-quality.json chỉ cấu hình type_check và test_unit
+  Given một kho lưu trữ có .agents/quality/web-quality.json chỉ cấu hình các capability bắt buộc cho pr (type_check, lint, test_unit) mà không có các capability tùy chọn (như test_e2e hay custom_audit)
   When web-quality-check được gọi với profile pr
   Then nó chỉ phân giải các capability đã được khai báo
   And chứng thực thành công kho lưu trữ mà không báo lỗi về các capability tùy chọn bị thiếu

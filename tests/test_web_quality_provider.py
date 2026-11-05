@@ -141,9 +141,18 @@ def test_WQG_HP_01_astro_provider_certification():
 
 def test_WQG_EC_01_optional_capabilities():
     """Scenario: [WQG-EC-01] [Tier A - Unit] Web quality manifest with empty or optional capabilities."""
-    manifest = valid_web_manifest()
-    # Add optional capability not in 'pr' profile
-    manifest["capabilities"]["custom_audit"] = ["echo", "audit"]
+    manifest = {
+        "schema_version": 1,
+        "capabilities": {
+            "type_check": ["npm", "run", "check"],
+            "lint": ["npm", "run", "lint"],
+            "test_unit": ["npm", "test"],
+            "custom_audit": ["echo", "audit"],
+        },
+        "profiles": {
+            "pr": ["type_check", "lint", "test_unit"],
+        },
+    }
     res = validate_manifest(manifest, requested_profile="pr")
     assert res["status"] == "PASS"
     assert res["findings"] == []
