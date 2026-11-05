@@ -6,6 +6,7 @@ import argparse
 import json
 import subprocess
 import time
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any
 
@@ -18,6 +19,22 @@ def _finding(code: str, message: str, **extra: Any) -> dict[str, Any]:
     f = {"code": code, "message": message}
     f.update(extra)
     return f
+
+
+def _get_git_head(repo_path: Path) -> str:
+    try:
+        res = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=str(repo_path),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if res.returncode == 0:
+            return res.stdout.strip()
+    except (subprocess.SubprocessError, OSError):
+        pass
+    return ""
 
 
 def validate_manifest(
@@ -235,6 +252,8 @@ def run_capabilities(
     if manifest_validation["status"] == "BLOCKED":
         duration = round(time.time() - start_time, 3)
         init_blockers: list[dict[str, Any]] = manifest_validation["findings"]
+        actual_head = _get_git_head(root_path)
+        head_to_use = actual_head or repository_sha
         return {
             "provider_id": provider_id,
             "contract_version": 1,
@@ -244,12 +263,25 @@ def run_capabilities(
             "checks": [],
             "coverage": {},
             "evidence": [],
-            "started_head": repository_sha,
-            "finished_head": repository_sha,
+            "started_head": head_to_use,
+            "finished_head": head_to_use,
             "duration": duration,
             "blockers": init_blockers,
             "warnings": [],
         }
+
+    actual_started_head = _get_git_head(root_path)
+    blockers: list[dict[str, Any]] = []
+    overall_status = "PASS"
+
+    if actual_started_head and repository_sha and repository_sha != actual_started_head:
+        blockers.append(
+            _finding(
+                "repository_sha_mismatch",
+                f"Requested repository SHA '{repository_sha}' does not match actual Git HEAD '{actual_started_head}'",
+            )
+        )
+        overall_status = "FAIL"
 
     capabilities = config.get("capabilities", {})
     profiles = config.get("profiles", {})
@@ -257,9 +289,10 @@ def run_capabilities(
 
     checks: list[dict[str, Any]] = []
     evidence: list[dict[str, Any]] = []
-    blockers: list[dict[str, Any]] = []
     warnings: list[dict[str, Any]] = []
-    overall_status = "PASS"
+
+    log_dir = root_path / "build" / "quality" / "web"
+    log_dir.mkdir(parents=True, exist_ok=True)
 
     for cap_name in caps_to_run:
         cap_val = capabilities.get(cap_name)
@@ -278,6 +311,7 @@ def run_capabilities(
         check_start = time.time()
         check_status = "PASS"
         summary = f"Capability '{cap_name}' passed"
+        log_file = log_dir / f"{cap_name}.log"
 
         try:
             res = subprocess.run(
@@ -288,6 +322,14 @@ def run_capabilities(
                 check=False,
             )
             check_duration = round(time.time() - check_start, 3)
+
+            log_content = (
+                f"$ {' '.join(substituted_cmd)}\n"
+                f"[exit_code: {res.returncode}]\n"
+                f"--- STDOUT ---\n{res.stdout}\n"
+                f"--- STDERR ---\n{res.stderr}\n"
+            )
+            log_file.write_text(log_content, encoding="utf-8")
 
             if "contract" in cap_name:
                 if res.returncode == 0:
@@ -310,6 +352,8 @@ def run_capabilities(
                 f"Binary execution blocker for '{cap_name}': executable not found or inaccessible in PATH. "
                 f"Remediation: ensure required tools (e.g. node, npm, astro, playwright) are installed. Details: {e}"
             )
+            log_content = f"$ {' '.join(substituted_cmd)}\nERROR: {summary}\n"
+            log_file.write_text(log_content, encoding="utf-8")
             blockers.append(
                 _finding(
                     "binary_execution_blocker",
@@ -320,6 +364,7 @@ def run_capabilities(
             )
 
         evidence_id = f"{cap_name}-evidence"
+        rel_log_path = str(log_file.relative_to(root_path))
         checks.append(
             {
                 "id": cap_name,
@@ -336,7 +381,7 @@ def run_capabilities(
                 "id": evidence_id,
                 "type": "command",
                 "source": " ".join(substituted_cmd),
-                "location": f"artifacts/{cap_name}.log",
+                "location": rel_log_path,
             }
         )
 
@@ -358,8 +403,78 @@ def run_capabilities(
             )
             if overall_status != "FAIL":
                 overall_status = "BLOCKED"
+        else:
+            try:
+                tree = ET.parse(evidence_file)
+                root_el = tree.getroot()
+                suites = [root_el] if root_el.tag == "testsuite" else list(root_el.findall(".//testsuite"))
+                if not suites and root_el.tag != "testsuites":
+                    suites = [root_el]
 
+                total_tests = 0
+                failures = 0
+                errors = 0
+                for s in suites:
+                    try:
+                        total_tests += int(s.attrib.get("tests", 0))
+                    except (ValueError, TypeError):
+                        pass
+                    try:
+                        failures += int(s.attrib.get("failures", 0))
+                    except (ValueError, TypeError):
+                        pass
+                    try:
+                        errors += int(s.attrib.get("errors", 0))
+                    except (ValueError, TypeError):
+                        pass
+
+                failures = max(failures, len(root_el.findall(".//failure")))
+                errors = max(errors, len(root_el.findall(".//error")))
+
+                if total_tests == 0:
+                    blockers.append(
+                        _finding(
+                            "empty_watchdog_evidence",
+                            f"Playwright XML evidence at '{evidence_file}' reports 0 executed tests",
+                            location=str(evidence_file),
+                        )
+                    )
+                    if overall_status != "FAIL":
+                        overall_status = "BLOCKED"
+                elif failures > 0 or errors > 0:
+                    blockers.append(
+                        _finding(
+                            "failed_watchdog_tests",
+                            f"Playwright XML evidence at '{evidence_file}' reports {failures} failure(s) and {errors} error(s)",
+                            location=str(evidence_file),
+                        )
+                    )
+                    overall_status = "FAIL"
+            except (ET.ParseError, OSError) as err:
+                blockers.append(
+                    _finding(
+                        "malformed_watchdog_evidence",
+                        f"Playwright XML artifact at '{evidence_file}' is malformed: {err}",
+                        location=str(evidence_file),
+                    )
+                )
+                if overall_status != "FAIL":
+                    overall_status = "BLOCKED"
+
+    actual_finished_head = _get_git_head(root_path)
+    if actual_started_head and actual_finished_head and actual_finished_head != actual_started_head:
+        blockers.append(
+            _finding(
+                "git_head_drift",
+                f"Git HEAD changed during execution from '{actual_started_head}' to '{actual_finished_head}'",
+            )
+        )
+        overall_status = "FAIL"
+
+    started_head = actual_started_head or repository_sha
+    finished_head = actual_finished_head or repository_sha
     total_duration = round(time.time() - start_time, 3)
+
     return {
         "provider_id": provider_id,
         "contract_version": 1,
@@ -369,8 +484,8 @@ def run_capabilities(
         "checks": checks,
         "coverage": {},
         "evidence": evidence,
-        "started_head": repository_sha,
-        "finished_head": repository_sha,
+        "started_head": started_head,
+        "finished_head": finished_head,
         "duration": total_duration,
         "blockers": blockers,
         "warnings": warnings,

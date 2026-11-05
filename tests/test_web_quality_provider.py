@@ -191,3 +191,56 @@ def test_WQG_FR_02_missing_binary_execution_blocker():
         blocker = res["blockers"][0]
         assert blocker["code"] == "binary_execution_blocker"
         assert "nonexistent_astro_binary_12345" in blocker["message"]
+
+
+def test_watchdog_xml_validation_and_real_logs():
+    """Verify watchdog XML failure detection and real log persistence."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp_path = Path(tmpdir)
+        results_dir = tmp_path / "build" / "test-results"
+        results_dir.mkdir(parents=True, exist_ok=True)
+
+        # 1. Failed tests in XML triggers FAIL
+        (results_dir / "playwright.xml").write_text(
+            "<testsuites><testsuite name='pw' tests='2' failures='1'><testcase name='t1'><failure message='err'/></testcase></testsuite></testsuites>"
+        )
+        manifest = {
+            "schema_version": 1,
+            "capabilities": {
+                "type_check": ["python3", "-c", "import sys; sys.exit(0)"],
+                "lint": ["python3", "-c", "import sys; sys.exit(0)"],
+                "test_unit": ["python3", "-c", "import sys; sys.exit(0)"],
+                "test_e2e": ["python3", "-c", "print('hello e2e')"],
+            },
+            "profiles": {
+                "epic": ["type_check", "lint", "test_unit", "test_e2e"],
+            },
+        }
+        res_fail = run_capabilities(
+            config=manifest,
+            profile="epic",
+            repository_sha=SAMPLE_SHA,
+            repo_root=tmp_path,
+            check_watchdog_evidence=True,
+        )
+        assert res_fail["status"] == "FAIL"
+        codes = [b["code"] for b in res_fail["blockers"]]
+        assert "failed_watchdog_tests" in codes
+
+        # Verify real log file was written
+        log_file = tmp_path / "build" / "quality" / "web" / "test_e2e.log"
+        assert log_file.is_file()
+        assert "hello e2e" in log_file.read_text()
+
+        # 2. Empty XML (0 tests) triggers BLOCKED
+        (results_dir / "playwright.xml").write_text("<testsuites><testsuite name='pw' tests='0'/></testsuites>")
+        res_empty = run_capabilities(
+            config=manifest,
+            profile="epic",
+            repository_sha=SAMPLE_SHA,
+            repo_root=tmp_path,
+            check_watchdog_evidence=True,
+        )
+        assert res_empty["status"] == "BLOCKED"
+        codes_empty = [b["code"] for b in res_empty["blockers"]]
+        assert "empty_watchdog_evidence" in codes_empty
