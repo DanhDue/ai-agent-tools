@@ -33,7 +33,9 @@ def wait_for_http(url: str, timeout: float = 15.0) -> bool:
     deadline = time.time() + timeout
     while time.time() < deadline:
         try:
-            req = urllib.request.Request(url, headers={"User-Agent": "Playwright-Harness-Healthcheck"})
+            req = urllib.request.Request(
+                url, headers={"User-Agent": "Playwright-Harness-Healthcheck"}
+            )
             with urllib.request.urlopen(req, timeout=1.0) as resp:
                 if resp.status < 400:
                     return True
@@ -72,7 +74,9 @@ def run_playwright_suite(
             if healthcheck_url:
                 healthy = wait_for_http(healthcheck_url, timeout=timeout)
             elif healthcheck_port:
-                healthy = wait_for_port(healthcheck_host, healthcheck_port, timeout=timeout)
+                healthy = wait_for_port(
+                    healthcheck_host, healthcheck_port, timeout=timeout
+                )
             else:
                 # Default quick stabilization delay if no healthcheck specified
                 time.sleep(1.0)
@@ -122,11 +126,21 @@ def run_playwright_suite(
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Run Playwright harness with webServer lifecycle.")
-    parser.add_argument("--test-cmd", nargs="+", required=True, help="Test execution command")
-    parser.add_argument("--web-server-cmd", nargs="*", default=None, help="WebServer start command")
-    parser.add_argument("--healthcheck-url", default=None, help="URL to wait for before running tests")
-    parser.add_argument("--healthcheck-port", type=int, default=None, help="TCP port to wait for")
+    parser = argparse.ArgumentParser(
+        description="Run Playwright harness with webServer lifecycle."
+    )
+    parser.add_argument(
+        "--test-cmd", nargs="+", required=True, help="Test execution command"
+    )
+    parser.add_argument(
+        "--web-server-cmd", nargs="*", default=None, help="WebServer start command"
+    )
+    parser.add_argument(
+        "--healthcheck-url", default=None, help="URL to wait for before running tests"
+    )
+    parser.add_argument(
+        "--healthcheck-port", type=int, default=None, help="TCP port to wait for"
+    )
     parser.add_argument("--cwd", default=".", help="Working directory")
 
     args = parser.parse_args()

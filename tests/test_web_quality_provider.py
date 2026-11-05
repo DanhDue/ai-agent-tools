@@ -32,7 +32,13 @@ def valid_web_manifest() -> dict:
             "lint": ["npm", "run", "lint"],
             "test_unit": ["npm", "run", "test:unit"],
             "test_e2e": ["npx", "playwright", "test"],
-            "contracts": ["python3", "{skills_dir}/sync-shared-contracts/resources/scripts/sync_contracts.py", "diff-check", "--base-ref", "{base_ref}"],
+            "contracts": [
+                "python3",
+                "{skills_dir}/sync-shared-contracts/resources/scripts/sync_contracts.py",
+                "diff-check",
+                "--base-ref",
+                "{base_ref}",
+            ],
         },
         "profiles": {
             "pr": ["type_check", "lint", "test_unit"],
@@ -79,7 +85,9 @@ def test_contract_validation():
             "base_ref": "main",
         }
         contract_check = validate_provider_result(res, invocation)
-        assert contract_check["status"] == "PASS", f"Provider result contract validation failed: {contract_check['findings']}"
+        assert contract_check["status"] == "PASS", (
+            f"Provider result contract validation failed: {contract_check['findings']}"
+        )
         assert res["status"] == "PASS"
         assert len(res["checks"]) == 3
 
@@ -91,7 +99,9 @@ def test_WQG_HP_01_astro_provider_certification():
         results_dir = tmp_path / "build" / "test-results"
         results_dir.mkdir(parents=True, exist_ok=True)
         # Write valid Playwright JUnit XML evidence
-        (results_dir / "playwright.xml").write_text("<testsuites><testsuite name='playwright' tests='5' failures='0'/></testsuites>")
+        (results_dir / "playwright.xml").write_text(
+            "<testsuites><testsuite name='playwright' tests='5' failures='0'/></testsuites>"
+        )
 
         manifest = {
             "schema_version": 1,
@@ -233,7 +243,9 @@ def test_watchdog_xml_validation_and_real_logs():
         assert "hello e2e" in log_file.read_text()
 
         # 2. Empty XML (0 tests) triggers BLOCKED
-        (results_dir / "playwright.xml").write_text("<testsuites><testsuite name='pw' tests='0'/></testsuites>")
+        (results_dir / "playwright.xml").write_text(
+            "<testsuites><testsuite name='pw' tests='0'/></testsuites>"
+        )
         res_empty = run_capabilities(
             config=manifest,
             profile="epic",

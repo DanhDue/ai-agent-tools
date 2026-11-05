@@ -6,7 +6,9 @@ import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-DEV_IMPL_SCRIPTS_DIR = REPO_ROOT / "skills" / "dev-implementation" / "resources" / "scripts"
+DEV_IMPL_SCRIPTS_DIR = (
+    REPO_ROOT / "skills" / "dev-implementation" / "resources" / "scripts"
+)
 
 if str(DEV_IMPL_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(DEV_IMPL_SCRIPTS_DIR))
@@ -147,7 +149,13 @@ def test_WQG_HP_04_automated_manual_smoke_checklist(tmp_path: Path) -> None:
     assert "| Step | Target (URL / CLI) | Action | Observable Outcome |" in content
 
     # Count table rows
-    table_rows = [line for line in content.splitlines() if line.startswith("| ") and not line.startswith("| Step") and not line.startswith("| :---")]
+    table_rows = [
+        line
+        for line in content.splitlines()
+        if line.startswith("| ")
+        and not line.startswith("| Step")
+        and not line.startswith("| :---")
+    ]
     assert 3 <= len(table_rows) <= 5
 
 
@@ -157,9 +165,13 @@ def test_main_cli_execution(tmp_path: Path) -> None:
     epic_dir.mkdir(parents=True)
     (epic_dir / "bdd_scenarios.en.md").write_text(SAMPLE_BDD_CONTENT, encoding="utf-8")
 
-    code = main([
-        "--epic-dir", "sample_epic",
-        "--workspace-root", str(tmp_path),
-    ])
+    code = main(
+        [
+            "--epic-dir",
+            "sample_epic",
+            "--workspace-root",
+            str(tmp_path),
+        ]
+    )
     assert code == 0
     assert (epic_dir / "manual_smoke_checklist.md").is_file()

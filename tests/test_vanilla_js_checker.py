@@ -80,7 +80,9 @@ def test_run_vanilla_js_typecheck_missing_config(tmp_path: Path) -> None:
 def test_run_vanilla_js_typecheck_invalid_config(tmp_path: Path) -> None:
     """Invalid jsconfig returns error."""
     cfg = tmp_path / "jsconfig.json"
-    cfg.write_text(json.dumps({"compilerOptions": {"checkJs": False}}), encoding="utf-8")
+    cfg.write_text(
+        json.dumps({"compilerOptions": {"checkJs": False}}), encoding="utf-8"
+    )
     res = run_vanilla_js_typecheck(project_dir=tmp_path)
     assert res["status"] == "FAIL"
     assert res["exit_code"] == 2

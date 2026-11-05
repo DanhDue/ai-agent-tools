@@ -39,13 +39,17 @@ def test_cache_bust_verification(tmp_path: Path) -> None:
     )
 
     # 1. When static file was modified but template was not touched (or missing ?v=)
-    findings = audit_cache_busting(tmp_path, modified_files=["static/app.js", "static/legacy.js"])
+    findings = audit_cache_busting(
+        tmp_path, modified_files=["static/app.js", "static/legacy.js"]
+    )
     assert len(findings) == 2
     categories = [f["category"] for f in findings]
     assert all(c == "cache_bust" for c in categories)
 
     # 2. When template was also updated in modified_files
-    findings_ok = audit_cache_busting(tmp_path, modified_files=["static/app.js", "index.html"])
+    findings_ok = audit_cache_busting(
+        tmp_path, modified_files=["static/app.js", "index.html"]
+    )
     # static/app.js is satisfied because index.html is in modified_files
     # static/legacy.js is not in modified_files, so only 0 findings for app.js
     assert not any(f.get("asset") == "static/app.js" for f in findings_ok)
@@ -140,7 +144,9 @@ const sse = new EventSource("/stream");
 def test_run_all_ui_reviews_clean(tmp_path: Path) -> None:
     """Verify clean project passes all UI review invariants."""
     clean_css = tmp_path / "style.css"
-    clean_css.write_text(".container { width: 100%; } .heading { font-size: 16px; }", encoding="utf-8")
+    clean_css.write_text(
+        ".container { width: 100%; } .heading { font-size: 16px; }", encoding="utf-8"
+    )
 
     clean_html = tmp_path / "index.html"
     clean_html.write_text(
@@ -182,12 +188,15 @@ def test_worktree_path_auditing(tmp_path: Path) -> None:
     """Verify that repositories located inside a parent path named .worktrees are not excluded."""
     nested_worktree = tmp_path / ".worktrees" / "feature-branch"
     nested_worktree.mkdir(parents=True)
-    (nested_worktree / "style.css").write_text(".existing-class { color: red; }", encoding="utf-8")
+    (nested_worktree / "style.css").write_text(
+        ".existing-class { color: red; }", encoding="utf-8"
+    )
     bad_page = nested_worktree / "view.html"
-    bad_page.write_text("<div class='missing-orphan-class'>Text</div>", encoding="utf-8")
+    bad_page.write_text(
+        "<div class='missing-orphan-class'>Text</div>", encoding="utf-8"
+    )
 
     findings = audit_orphaned_classes_and_styles(nested_worktree)
     orphans = [f for f in findings if f["category"] == "orphaned_class"]
     assert len(orphans) == 1
     assert orphans[0]["class"] == "missing-orphan-class"
-

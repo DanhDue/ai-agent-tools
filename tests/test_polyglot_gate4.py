@@ -183,5 +183,15 @@ def test_verify_polyglot_registry_cli_execution():
         res_data = sample_provider_result("learning-web", "PASS")
         res_file.write_text(json.dumps(res_data))
 
-        code = main([str(reg_file), "--profile", "epic", "--results", str(res_file), "--sha", SAMPLE_SHA])
+        code = main(
+            [
+                str(reg_file),
+                "--profile",
+                "epic",
+                "--results",
+                str(res_file),
+                "--sha",
+                SAMPLE_SHA,
+            ]
+        )
         assert code == 0

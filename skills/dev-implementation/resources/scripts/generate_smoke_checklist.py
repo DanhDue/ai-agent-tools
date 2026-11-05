@@ -26,7 +26,9 @@ def parse_bdd_scenarios(content: str) -> list[dict[str, Any]]:
         stripped = line.strip()
         if stripped.startswith("```"):
             continue
-        header_match = re.match(r"^(?:#{1,4}\s+)?Scenario:\s*(?:\[([^\]]+)\])?\s*(.*)$", stripped)
+        header_match = re.match(
+            r"^(?:#{1,4}\s+)?Scenario:\s*(?:\[([^\]]+)\])?\s*(.*)$", stripped
+        )
         if header_match:
             if current_scenario:
                 scenarios.append(current_scenario)
@@ -82,7 +84,11 @@ def extract_smoke_steps(
     max_steps: int = 5,
 ) -> list[dict[str, str]]:
     """Extract 3-5 concise, actionable manual smoke steps from primary BDD Happy Paths."""
-    happy_paths = [s for s in scenarios if "-HP-" in s.get("id", "") or "Happy Path" in s.get("title", "")]
+    happy_paths = [
+        s
+        for s in scenarios
+        if "-HP-" in s.get("id", "") or "Happy Path" in s.get("title", "")
+    ]
 
     if not happy_paths:
         # Fall back to any scenarios if no explicit HP exists
@@ -95,8 +101,14 @@ def extract_smoke_steps(
         thens = sc.get("then", [])
         ands = sc.get("and", [])
 
-        action = " ".join(whens) if whens else sc.get("title", "Execute scenario workflow")
-        outcome = " ".join(thens) if thens else (" ".join(ands) if ands else "Succeeds without errors")
+        action = (
+            " ".join(whens) if whens else sc.get("title", "Execute scenario workflow")
+        )
+        outcome = (
+            " ".join(thens)
+            if thens
+            else (" ".join(ands) if ands else "Succeeds without errors")
+        )
 
         # Determine target
         combined = f"{' '.join(sc.get('given', []))} {action}"
@@ -168,12 +180,16 @@ def generate_smoke_checklist(
     """Generate manual_smoke_checklist.md from BDD scenarios for the specified epic."""
     ws = Path(workspace_root).resolve() if workspace_root else Path.cwd().resolve()
     epic_path = Path(epic_dir)
-    resolved_epic_dir = epic_path if epic_path.is_absolute() else (ws / ".devtool" / "epic" / epic_path)
+    resolved_epic_dir = (
+        epic_path if epic_path.is_absolute() else (ws / ".devtool" / "epic" / epic_path)
+    )
 
     if not resolved_epic_dir.is_dir():
         raise FileNotFoundError(f"Epic directory not found at {resolved_epic_dir}")
 
-    source_bdd = Path(bdd_file) if bdd_file else (resolved_epic_dir / "bdd_scenarios.en.md")
+    source_bdd = (
+        Path(bdd_file) if bdd_file else (resolved_epic_dir / "bdd_scenarios.en.md")
+    )
     if not source_bdd.is_file():
         raise FileNotFoundError(f"BDD scenarios file not found at {source_bdd}")
 
@@ -183,7 +199,11 @@ def generate_smoke_checklist(
 
     rendered = render_smoke_checklist_markdown(resolved_epic_dir.name, steps)
 
-    dest = Path(output_path) if output_path else (resolved_epic_dir / "manual_smoke_checklist.md")
+    dest = (
+        Path(output_path)
+        if output_path
+        else (resolved_epic_dir / "manual_smoke_checklist.md")
+    )
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_text(rendered, encoding="utf-8")
 

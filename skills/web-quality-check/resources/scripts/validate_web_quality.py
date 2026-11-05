@@ -56,16 +56,25 @@ def validate_manifest(
 
     capabilities = config.get("capabilities", {})
     if not isinstance(capabilities, dict):
-        findings.append(_finding("missing_capabilities", "Missing or invalid 'capabilities' object"))
+        findings.append(
+            _finding("missing_capabilities", "Missing or invalid 'capabilities' object")
+        )
         return {"status": "BLOCKED", "findings": findings}
 
     for cap_name, cap_val in capabilities.items():
         if cap_name == "coverage":
             if not isinstance(cap_val, dict):
-                findings.append(_finding("invalid_coverage_config", "Coverage capability must be an object"))
+                findings.append(
+                    _finding(
+                        "invalid_coverage_config",
+                        "Coverage capability must be an object",
+                    )
+                )
                 continue
             cmd = cap_val.get("command")
-            if not isinstance(cmd, list) or not all(isinstance(arg, str) for arg in cmd):
+            if not isinstance(cmd, list) or not all(
+                isinstance(arg, str) for arg in cmd
+            ):
                 findings.append(
                     _finding(
                         "invalid_command_format",
@@ -82,7 +91,11 @@ def validate_manifest(
                     )
                 )
             threshold = cap_val.get("threshold")
-            if not isinstance(threshold, (int, float)) or threshold < 0 or threshold > 1.0:
+            if (
+                not isinstance(threshold, (int, float))
+                or threshold < 0
+                or threshold > 1.0
+            ):
                 findings.append(
                     _finding(
                         "invalid_coverage_threshold",
@@ -91,7 +104,9 @@ def validate_manifest(
                     )
                 )
         else:
-            if not isinstance(cap_val, list) or not all(isinstance(arg, str) for arg in cap_val):
+            if not isinstance(cap_val, list) or not all(
+                isinstance(arg, str) for arg in cap_val
+            ):
                 findings.append(
                     _finding(
                         "invalid_command_format",
@@ -110,7 +125,9 @@ def validate_manifest(
 
     profiles = config.get("profiles", {})
     if not isinstance(profiles, dict):
-        findings.append(_finding("missing_profiles", "Missing or invalid 'profiles' object"))
+        findings.append(
+            _finding("missing_profiles", "Missing or invalid 'profiles' object")
+        )
         return {"status": "BLOCKED", "findings": findings}
 
     profile_caps = profiles.get(requested_profile)
@@ -191,7 +208,9 @@ def validate_manifest(
 
     return {
         "status": "BLOCKED" if findings else "PASS",
-        "findings": sorted(findings, key=lambda f: (f.get("code", ""), f.get("capability", ""))),
+        "findings": sorted(
+            findings, key=lambda f: (f.get("code", ""), f.get("capability", ""))
+        ),
     }
 
 
@@ -407,7 +426,11 @@ def run_capabilities(
             try:
                 tree = ET.parse(evidence_file)
                 root_el = tree.getroot()
-                suites = [root_el] if root_el.tag == "testsuite" else list(root_el.findall(".//testsuite"))
+                suites = (
+                    [root_el]
+                    if root_el.tag == "testsuite"
+                    else list(root_el.findall(".//testsuite"))
+                )
                 if not suites and root_el.tag != "testsuites":
                     suites = [root_el]
 
@@ -462,7 +485,11 @@ def run_capabilities(
                     overall_status = "BLOCKED"
 
     actual_finished_head = _get_git_head(root_path)
-    if actual_started_head and actual_finished_head and actual_finished_head != actual_started_head:
+    if (
+        actual_started_head
+        and actual_finished_head
+        and actual_finished_head != actual_started_head
+    ):
         blockers.append(
             _finding(
                 "git_head_drift",
@@ -493,9 +520,15 @@ def run_capabilities(
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Validate Web quality capability manifest.")
+    parser = argparse.ArgumentParser(
+        description="Validate Web quality capability manifest."
+    )
     parser.add_argument("config_file", help="Path to .agents/quality/web-quality.json")
-    parser.add_argument("--profile", default="pr", help="Requested profile (pr, epic, scheduled, release)")
+    parser.add_argument(
+        "--profile",
+        default="pr",
+        help="Requested profile (pr, epic, scheduled, release)",
+    )
     parser.add_argument("--repo-root", default=".", help="Repository root directory")
 
     args = parser.parse_args()
@@ -504,7 +537,10 @@ def main() -> int:
         res = {
             "status": "BLOCKED",
             "findings": [
-                _finding("config_file_not_found", f"Capability manifest '{args.config_file}' not found")
+                _finding(
+                    "config_file_not_found",
+                    f"Capability manifest '{args.config_file}' not found",
+                )
             ],
         }
     else:

@@ -23,7 +23,11 @@ class PlaywrightZeroErrorWatchdog:
     """Watchdog that intercepts browser console errors, page crashes, and missing static assets."""
 
     def __init__(self, allowlist_patterns: list[str] | None = None) -> None:
-        patterns = list(allowlist_patterns) if allowlist_patterns is not None else list(DEFAULT_ALLOWLIST)
+        patterns = (
+            list(allowlist_patterns)
+            if allowlist_patterns is not None
+            else list(DEFAULT_ALLOWLIST)
+        )
         manifest_path = Path(".agents/quality/web-quality.json")
         if manifest_path.exists():
             try:
@@ -41,7 +45,9 @@ class PlaywrightZeroErrorWatchdog:
                 if p_strip and p_strip not in patterns:
                     patterns.append(p_strip)
 
-        self.allowlist: list[re.Pattern[str]] = [re.compile(p, re.IGNORECASE) for p in patterns]
+        self.allowlist: list[re.Pattern[str]] = [
+            re.compile(p, re.IGNORECASE) for p in patterns
+        ]
         self.captured_errors: list[str] = []
 
     def is_allowed(self, text: str) -> bool:
@@ -85,7 +91,9 @@ class PlaywrightZeroErrorWatchdog:
     def assert_zero_defects(self) -> None:
         """Assert no console errors, unhandled exceptions, or asset 404s were captured."""
         if self.captured_errors:
-            formatted = "\n".join(f"  {idx + 1}. {err}" for idx, err in enumerate(self.captured_errors))
+            formatted = "\n".join(
+                f"  {idx + 1}. {err}" for idx, err in enumerate(self.captured_errors)
+            )
             raise AssertionError(
                 f"Zero-Console-And-Layout-Defect Watchdog detected {len(self.captured_errors)} defect(s):\n{formatted}"
             )
@@ -252,6 +260,10 @@ def assert_dom_state_integrity(
       return { ok: true };
     }
     """
-    result = page.evaluate(script, {"groups": groups, "containerSel": container_selector})
+    result = page.evaluate(
+        script, {"groups": groups, "containerSel": container_selector}
+    )
     if not result.get("ok"):
-        raise AssertionError(f"assert_dom_state_integrity defect: {result.get('error')}")
+        raise AssertionError(
+            f"assert_dom_state_integrity defect: {result.get('error')}"
+        )

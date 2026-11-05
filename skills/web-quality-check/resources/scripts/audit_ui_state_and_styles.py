@@ -30,10 +30,30 @@ ACTIVE_PREFIXES = [
 
 # Standard CSS utility prefixes and keywords exempt from orphaned class alerts
 STANDARD_UTILITIES = {
-    "flex", "inline-flex", "grid", "block", "inline-block", "inline", "hidden",
-    "relative", "absolute", "fixed", "sticky",
-    "w-full", "h-full", "w-auto", "h-auto", "min-w-0", "max-w-full",
-    "container", "row", "col", "active", "disabled", "open", "selected",
+    "flex",
+    "inline-flex",
+    "grid",
+    "block",
+    "inline-block",
+    "inline",
+    "hidden",
+    "relative",
+    "absolute",
+    "fixed",
+    "sticky",
+    "w-full",
+    "h-full",
+    "w-auto",
+    "h-auto",
+    "min-w-0",
+    "max-w-full",
+    "container",
+    "row",
+    "col",
+    "active",
+    "disabled",
+    "open",
+    "selected",
 }
 
 
@@ -60,7 +80,9 @@ def get_git_diff_files(repo_root: Path, base_ref: str = "main") -> list[str]:
             check=False,
         )
         if diff_proc.returncode == 0:
-            lines = [line.strip() for line in diff_proc.stdout.splitlines() if line.strip()]
+            lines = [
+                line.strip() for line in diff_proc.stdout.splitlines() if line.strip()
+            ]
             if lines:
                 return lines
 
@@ -73,7 +95,9 @@ def get_git_diff_files(repo_root: Path, base_ref: str = "main") -> list[str]:
             check=False,
         )
         if diff_proc2.returncode == 0:
-            return [line.strip() for line in diff_proc2.stdout.splitlines() if line.strip()]
+            return [
+                line.strip() for line in diff_proc2.stdout.splitlines() if line.strip()
+            ]
 
     except (subprocess.SubprocessError, OSError):
         pass
@@ -85,7 +109,12 @@ def _is_excluded(p: Path, repo_root: Path) -> bool:
         rel_parts = p.relative_to(repo_root).parts
     except ValueError:
         rel_parts = p.parts
-    return "node_modules" in rel_parts or "build" in rel_parts or ".worktrees" in rel_parts or ".git" in rel_parts
+    return (
+        "node_modules" in rel_parts
+        or "build" in rel_parts
+        or ".worktrees" in rel_parts
+        or ".git" in rel_parts
+    )
 
 
 def _get_base_file_content(repo_root: Path, base_ref: str, rel_path: str) -> str | None:
@@ -114,15 +143,22 @@ def audit_cache_busting(
 
     # Find modified static .js or .css files
     static_mods = [
-        f for f in modified_files
-        if f.endswith((".js", ".css")) and not f.endswith((".test.js", ".spec.js", ".fixture.ts"))
+        f
+        for f in modified_files
+        if f.endswith((".js", ".css"))
+        and not f.endswith((".test.js", ".spec.js", ".fixture.ts"))
     ]
 
     if not static_mods:
         return findings
 
     # Template extensions to inspect
-    template_files = list(repo_root.rglob("*.html")) + list(repo_root.rglob("*.astro")) + list(repo_root.rglob("*.jinja")) + list(repo_root.rglob("*.jinja2"))
+    template_files = (
+        list(repo_root.rglob("*.html"))
+        + list(repo_root.rglob("*.astro"))
+        + list(repo_root.rglob("*.jinja"))
+        + list(repo_root.rglob("*.jinja2"))
+    )
     # Exclude build, node_modules, and nested worktrees
     template_files = [t for t in template_files if not _is_excluded(t, repo_root)]
 
@@ -135,7 +171,9 @@ def audit_cache_busting(
                 continue
 
             # Look for references to this static filename in script/link tags
-            pattern = re.compile(rf"""(?:src|href)=['"][^'"]*?{re.escape(static_filename)}(\?[^'"]*)?['"]""")
+            pattern = re.compile(
+                rf"""(?:src|href)=['"][^'"]*?{re.escape(static_filename)}(\?[^'"]*)?['"]"""
+            )
             matches = list(pattern.finditer(content))
             for match in matches:
                 query_string = match.group(1) or ""
@@ -144,16 +182,18 @@ def audit_cache_busting(
                 current_v = v_match.group(1) if v_match else ""
 
                 if not current_v:
-                    findings.append({
-                        "category": "cache_bust",
-                        "severity": "FAIL",
-                        "file": rel_tpl,
-                        "asset": static_rel,
-                        "message": (
-                            f"Static asset '{static_rel}' modified in git diff but referenced in template "
-                            f"'{rel_tpl}' without a version query parameter (?v=...)."
-                        ),
-                    })
+                    findings.append(
+                        {
+                            "category": "cache_bust",
+                            "severity": "FAIL",
+                            "file": rel_tpl,
+                            "asset": static_rel,
+                            "message": (
+                                f"Static asset '{static_rel}' modified in git diff but referenced in template "
+                                f"'{rel_tpl}' without a version query parameter (?v=...)."
+                            ),
+                        }
+                    )
                 else:
                     base_content = _get_base_file_content(repo_root, base_ref, rel_tpl)
                     if base_content is not None:
@@ -163,27 +203,31 @@ def audit_cache_busting(
                             base_v_m = re.search(r"[?&]v=([^&'\"]*)", base_q)
                             base_v = base_v_m.group(1) if base_v_m else ""
                             if current_v == base_v:
-                                findings.append({
-                                    "category": "cache_bust",
-                                    "severity": "FAIL",
-                                    "file": rel_tpl,
-                                    "asset": static_rel,
-                                    "message": (
-                                        f"Static asset '{static_rel}' was modified in git diff, but referencing template "
-                                        f"'{rel_tpl}' has unchanged cache-bust parameter '?v={current_v}' (identical to {base_ref})."
-                                    ),
-                                })
+                                findings.append(
+                                    {
+                                        "category": "cache_bust",
+                                        "severity": "FAIL",
+                                        "file": rel_tpl,
+                                        "asset": static_rel,
+                                        "message": (
+                                            f"Static asset '{static_rel}' was modified in git diff, but referencing template "
+                                            f"'{rel_tpl}' has unchanged cache-bust parameter '?v={current_v}' (identical to {base_ref})."
+                                        ),
+                                    }
+                                )
                     elif rel_tpl not in modified_files:
-                        findings.append({
-                            "category": "cache_bust",
-                            "severity": "FAIL",
-                            "file": rel_tpl,
-                            "asset": static_rel,
-                            "message": (
-                                f"Static asset '{static_rel}' was modified in git diff, but referencing template "
-                                f"'{rel_tpl}' was not updated with a new cache-bust version parameter."
-                            ),
-                        })
+                        findings.append(
+                            {
+                                "category": "cache_bust",
+                                "severity": "FAIL",
+                                "file": rel_tpl,
+                                "asset": static_rel,
+                                "message": (
+                                    f"Static asset '{static_rel}' was modified in git diff, but referencing template "
+                                    f"'{rel_tpl}' was not updated with a new cache-bust version parameter."
+                                ),
+                            }
+                        )
 
     return findings
 
@@ -196,10 +240,7 @@ def audit_orphaned_classes_and_styles(
     findings: list[dict[str, Any]] = []
 
     # 1. Collect all declared CSS classes from stylesheets
-    css_files = [
-        f for f in repo_root.rglob("*.css")
-        if not _is_excluded(f, repo_root)
-    ]
+    css_files = [f for f in repo_root.rglob("*.css") if not _is_excluded(f, repo_root)]
     defined_classes: set[str] = set()
     class_def_pattern = re.compile(r"\.([A-Za-z0-9_-]+)(?=[^\{]*\{)")
 
@@ -214,15 +255,14 @@ def audit_orphaned_classes_and_styles(
     # 2. Check candidate templates and DOM builder scripts
     candidate_files = []
     if target_files:
-        candidate_files = [repo_root / f for f in target_files if (repo_root / f).is_file()]
+        candidate_files = [
+            repo_root / f for f in target_files if (repo_root / f).is_file()
+        ]
     else:
         for ext in ("*.html", "*.astro", "*.jinja", "*.jsx", "*.tsx"):
             candidate_files.extend(repo_root.rglob(ext))
 
-    candidate_files = [
-        f for f in candidate_files
-        if not _is_excluded(f, repo_root)
-    ]
+    candidate_files = [f for f in candidate_files if not _is_excluded(f, repo_root)]
 
     class_ref_pattern = re.compile(r"""(?:class|className)=['"]([^'"]+)['"]""")
     unstyled_card_pattern = re.compile(
@@ -242,15 +282,17 @@ def audit_orphaned_classes_and_styles(
         unstyled_matches = unstyled_card_pattern.finditer(content)
         for um in unstyled_matches:
             comp_type = um.group(1)
-            findings.append({
-                "category": "unstyled_default",
-                "severity": "FAIL",
-                "file": rel_path,
-                "message": (
-                    f"Component '{comp_type}' in '{rel_path}' renders with unstyled default geometry "
-                    f"(transparent background, 0px border, or 0px padding)."
-                ),
-            })
+            findings.append(
+                {
+                    "category": "unstyled_default",
+                    "severity": "FAIL",
+                    "file": rel_path,
+                    "message": (
+                        f"Component '{comp_type}' in '{rel_path}' renders with unstyled default geometry "
+                        f"(transparent background, 0px border, or 0px padding)."
+                    ),
+                }
+            )
 
         # Check class references
         for cm in class_ref_pattern.finditer(content):
@@ -259,16 +301,20 @@ def audit_orphaned_classes_and_styles(
                 # Skip template interpolation tokens like ${...} or {{...}}
                 if "{" in cls or "$" in cls or "%" in cls:
                     continue
-                if cls in STANDARD_UTILITIES or cls.startswith(("w-", "h-", "m-", "p-", "text-", "bg-", "border-")):
+                if cls in STANDARD_UTILITIES or cls.startswith(
+                    ("w-", "h-", "m-", "p-", "text-", "bg-", "border-")
+                ):
                     continue
                 if defined_classes and cls not in defined_classes:
-                    findings.append({
-                        "category": "orphaned_class",
-                        "severity": "FAIL",
-                        "file": rel_path,
-                        "class": cls,
-                        "message": f"Referenced CSS class '{cls}' in '{rel_path}' is not defined in any loaded stylesheet.",
-                    })
+                    findings.append(
+                        {
+                            "category": "orphaned_class",
+                            "severity": "FAIL",
+                            "file": rel_path,
+                            "class": cls,
+                            "message": f"Referenced CSS class '{cls}' in '{rel_path}' is not defined in any loaded stylesheet.",
+                        }
+                    )
 
     return findings
 
@@ -282,15 +328,14 @@ def audit_text_truncation_and_overflow(
 
     candidate_files = []
     if target_files:
-        candidate_files = [repo_root / f for f in target_files if (repo_root / f).is_file()]
+        candidate_files = [
+            repo_root / f for f in target_files if (repo_root / f).is_file()
+        ]
     else:
         for ext in ("*.html", "*.astro", "*.jinja", "*.js", "*.ts", "*.jsx", "*.tsx"):
             candidate_files.extend(repo_root.rglob(ext))
 
-    candidate_files = [
-        f for f in candidate_files
-        if not _is_excluded(f, repo_root)
-    ]
+    candidate_files = [f for f in candidate_files if not _is_excluded(f, repo_root)]
 
     # Regex for consecutive duplicate word or phrase with token boundaries: "Tiến độ Tiến độ" or "Word Word"
     duplicate_phrase_pattern = re.compile(
@@ -314,15 +359,17 @@ def audit_text_truncation_and_overflow(
 
         # Check for left-clipping flex styles
         if left_clip_pattern.search(content):
-            findings.append({
-                "category": "text_clipping",
-                "severity": "FAIL",
-                "file": rel_path,
-                "message": (
-                    f"Flex row in '{rel_path}' pairs right-aligned justify-content with text-overflow: ellipsis, "
-                    f"risking start-of-string left-side clipping."
-                ),
-            })
+            findings.append(
+                {
+                    "category": "text_clipping",
+                    "severity": "FAIL",
+                    "file": rel_path,
+                    "message": (
+                        f"Flex row in '{rel_path}' pairs right-aligned justify-content with text-overflow: ellipsis, "
+                        f"risking start-of-string left-side clipping."
+                    ),
+                }
+            )
 
         # Check headings and titles for consecutive duplicate words/phrases
         lines = content.splitlines()
@@ -335,16 +382,18 @@ def audit_text_truncation_and_overflow(
                 phrase = dup_match.group(1)
                 # Filter benign repetitions like "1 1" or common code syntax
                 if len(phrase) >= 4 and not phrase.startswith(("//", "/*", "#")):
-                    findings.append({
-                        "category": "duplicate_text",
-                        "severity": "FAIL",
-                        "file": rel_path,
-                        "line": idx,
-                        "duplicate_phrase": phrase,
-                        "message": (
-                            f"Consecutive duplicate phrase '{phrase} {phrase}' detected in '{rel_path}:{idx}'."
-                        ),
-                    })
+                    findings.append(
+                        {
+                            "category": "duplicate_text",
+                            "severity": "FAIL",
+                            "file": rel_path,
+                            "line": idx,
+                            "duplicate_phrase": phrase,
+                            "message": (
+                                f"Consecutive duplicate phrase '{phrase} {phrase}' detected in '{rel_path}:{idx}'."
+                            ),
+                        }
+                    )
 
     return findings
 
@@ -358,13 +407,16 @@ def audit_ui_state_machine_consistency(
 
     candidate_files = []
     if target_files:
-        candidate_files = [repo_root / f for f in target_files if (repo_root / f).is_file()]
+        candidate_files = [
+            repo_root / f for f in target_files if (repo_root / f).is_file()
+        ]
     else:
         for ext in ("*.html", "*.astro", "*.jinja", "*.js", "*.ts"):
             candidate_files.extend(repo_root.rglob(ext))
 
     candidate_files = [
-        f for f in candidate_files
+        f
+        for f in candidate_files
         if not _is_excluded(f, repo_root) and "test_" not in f.name
     ]
 
@@ -381,15 +433,17 @@ def audit_ui_state_machine_consistency(
             for term in TERMINAL_STATES:
                 contradiction = f"{prefix} {term}"
                 if contradiction in content:
-                    findings.append({
-                        "category": "state_machine_contradiction",
-                        "severity": "FAIL",
-                        "file": rel_path,
-                        "message": (
-                            f"Contradictory state string '{contradiction}' found in '{rel_path}'. "
-                            f"Active running prefix cannot coexist with terminal state."
-                        ),
-                    })
+                    findings.append(
+                        {
+                            "category": "state_machine_contradiction",
+                            "severity": "FAIL",
+                            "file": rel_path,
+                            "message": (
+                                f"Contradictory state string '{contradiction}' found in '{rel_path}'. "
+                                f"Active running prefix cannot coexist with terminal state."
+                            ),
+                        }
+                    )
 
         # Strip single-line and multi-line comments for logic checks
         code_no_comments = re.sub(r"//.*", "", content)
@@ -398,31 +452,45 @@ def audit_ui_state_machine_consistency(
         # 2. SSE EventSource connection closure verification
         if "new EventSource(" in code_no_comments:
             # Must contain close() call on terminal state completion
-            has_close = bool(re.search(r"\.close\s*\(", code_no_comments) or "closeConnection" in code_no_comments)
-            handles_terminal = any(term in code_no_comments for term in ("FAILED", "COMPLETED", "done", "close"))
+            has_close = bool(
+                re.search(r"\.close\s*\(", code_no_comments)
+                or "closeConnection" in code_no_comments
+            )
+            handles_terminal = any(
+                term in code_no_comments
+                for term in ("FAILED", "COMPLETED", "done", "close")
+            )
             if not has_close or not handles_terminal:
-                findings.append({
-                    "category": "sse_leak",
-                    "severity": "FAIL",
-                    "file": rel_path,
-                    "message": (
-                        f"SSE EventSource initialized in '{rel_path}' lacks explicit .close() handling "
-                        f"upon reaching terminal task states, causing infinite reconnection attempts."
-                    ),
-                })
+                findings.append(
+                    {
+                        "category": "sse_leak",
+                        "severity": "FAIL",
+                        "file": rel_path,
+                        "message": (
+                            f"SSE EventSource initialized in '{rel_path}' lacks explicit .close() handling "
+                            f"upon reaching terminal task states, causing infinite reconnection attempts."
+                        ),
+                    }
+                )
 
         # 3. 100% progress display on FAILED job guard
         # Look for hardcoded or fall-through progress: 100% when error or failed
-        if re.search(r"""(?:status\s*===?\s*['"]FAILED['"][^;}]*progress\s*=\s*100)""", content, re.IGNORECASE):
-            findings.append({
-                "category": "invalid_progress_state",
-                "severity": "FAIL",
-                "file": rel_path,
-                "message": (
-                    f"Job status 'FAILED' sets progress to 100% in '{rel_path}'. "
-                    f"Failed jobs must preserve incomplete progress state."
-                ),
-            })
+        if re.search(
+            r"""(?:status\s*===?\s*['"]FAILED['"][^;}]*progress\s*=\s*100)""",
+            content,
+            re.IGNORECASE,
+        ):
+            findings.append(
+                {
+                    "category": "invalid_progress_state",
+                    "severity": "FAIL",
+                    "file": rel_path,
+                    "message": (
+                        f"Job status 'FAILED' sets progress to 100% in '{rel_path}'. "
+                        f"Failed jobs must preserve incomplete progress state."
+                    ),
+                }
+            )
 
     return findings
 
@@ -487,9 +555,13 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(res, indent=2))
     else:
         if res["status"] == "PASS":
-            print(f"UI Review: PASS ({res['total_findings']} findings across {res['modified_files_count']} modified files)")
+            print(
+                f"UI Review: PASS ({res['total_findings']} findings across {res['modified_files_count']} modified files)"
+            )
         else:
-            print(f"UI Review: FAIL ({res['total_findings']} findings)", file=sys.stderr)
+            print(
+                f"UI Review: FAIL ({res['total_findings']} findings)", file=sys.stderr
+            )
             for f in res["findings"]:
                 loc = f.get("file", "unknown")
                 msg = f.get("message", "")

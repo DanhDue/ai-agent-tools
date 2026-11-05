@@ -11,7 +11,9 @@ import sys
 from pathlib import Path
 from typing import Any
 
-TEMPLATE_PATH = Path(__file__).resolve().parent.parent / "templates" / "jsconfig.template.json"
+TEMPLATE_PATH = (
+    Path(__file__).resolve().parent.parent / "templates" / "jsconfig.template.json"
+)
 
 
 def find_jsconfig(start_dir: Path | str = ".") -> Path | None:
@@ -33,7 +35,9 @@ def validate_jsconfig_content(config_data: dict[str, Any]) -> list[str]:
         return errors
 
     if compiler_options.get("checkJs") is not True:
-        errors.append("compilerOptions.checkJs must be set to true for Vanilla JavaScript type checking")
+        errors.append(
+            "compilerOptions.checkJs must be set to true for Vanilla JavaScript type checking"
+        )
 
     return errors
 
@@ -92,7 +96,9 @@ def run_vanilla_js_typecheck(
 
     if jsconfig_path is not None:
         explicit = Path(jsconfig_path)
-        config_file = explicit if explicit.is_absolute() else (pdir / explicit).resolve()
+        config_file = (
+            explicit if explicit.is_absolute() else (pdir / explicit).resolve()
+        )
     else:
         config_file = find_jsconfig(pdir)
 
@@ -230,7 +236,10 @@ def main(argv: list[str] | None = None) -> int:
         if res["status"] == "PASS":
             print(f"Vanilla JS typecheck PASSED (jsconfig: {res.get('jsconfig')})")
         else:
-            print(f"Vanilla JS typecheck FAILED (exit {res.get('exit_code')}):", file=sys.stderr)
+            print(
+                f"Vanilla JS typecheck FAILED (exit {res.get('exit_code')}):",
+                file=sys.stderr,
+            )
             if res.get("stderr"):
                 print(res["stderr"], file=sys.stderr)
             if res.get("stdout"):

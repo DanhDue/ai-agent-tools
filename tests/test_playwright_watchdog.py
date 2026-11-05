@@ -65,15 +65,25 @@ class MockPage:
 def test_watchdog_filters():
     """GREEN phase test: Watchdog filters allowlisted console notices and flags unallowlisted errors."""
     page = MockPage()
-    watchdog = attach_zero_error_watchdog(page, allowlist_patterns=[r"\[vite\]", r"DeprecationWarning"])
+    watchdog = attach_zero_error_watchdog(
+        page, allowlist_patterns=[r"\[vite\]", r"DeprecationWarning"]
+    )
 
     # Allowed errors should not be captured
     page.emit("console", MockConsoleMessage("error", "[vite] hot reload connected"))
-    page.emit("console", MockConsoleMessage("error", "Third-party DeprecationWarning: feature deprecated"))
+    page.emit(
+        "console",
+        MockConsoleMessage(
+            "error", "Third-party DeprecationWarning: feature deprecated"
+        ),
+    )
     assert len(watchdog.captured_errors) == 0
 
     # Unallowlisted error must be captured
-    page.emit("console", MockConsoleMessage("error", "Uncaught ReferenceError: foo is not defined"))
+    page.emit(
+        "console",
+        MockConsoleMessage("error", "Uncaught ReferenceError: foo is not defined"),
+    )
     assert len(watchdog.captured_errors) == 1
     assert "Uncaught ReferenceError" in watchdog.captured_errors[0]
 
@@ -88,7 +98,9 @@ def test_WQG_HP_03_playwright_headless_execution():
 
     # Simulate normal page actions without errors
     page.emit("console", MockConsoleMessage("info", "Page initialized"))
-    page.emit("response", MockResponse(200, "http://localhost:3000/main.css", "stylesheet"))
+    page.emit(
+        "response", MockResponse(200, "http://localhost:3000/main.css", "stylesheet")
+    )
     page.emit("response", MockResponse(200, "http://localhost:3000/app.js", "script"))
 
     # Assert zero defects
@@ -102,8 +114,18 @@ def test_WQG_EC_02_allowlist_filtering():
     custom_allowlist = [r"React DevTools", r"analytics\.js deprecation"]
     watchdog = attach_zero_error_watchdog(page, allowlist_patterns=custom_allowlist)
 
-    page.emit("console", MockConsoleMessage("error", "Download the React DevTools for a better development experience"))
-    page.emit("console", MockConsoleMessage("error", "vendor: analytics.js deprecation warning: use v2 API"))
+    page.emit(
+        "console",
+        MockConsoleMessage(
+            "error", "Download the React DevTools for a better development experience"
+        ),
+    )
+    page.emit(
+        "console",
+        MockConsoleMessage(
+            "error", "vendor: analytics.js deprecation warning: use v2 API"
+        ),
+    )
     page.emit("pageerror", "React DevTools extension recommendation")
 
     # All should be filtered out
@@ -122,8 +144,16 @@ def test_WQG_EC_03_mutually_exclusive_state_leak_and_duplicate_text():
             "error": "Mutually exclusive state elements are simultaneously visible: ['[data-state=\"running\"]', '[data-state=\"failed\"]']",
         }
     )
-    with pytest.raises(AssertionError, match="Mutually exclusive state elements are simultaneously visible"):
-        assert_dom_state_integrity(page, exclusive_state_groups=[['[data-state="running"]', '[data-state="failed"]']])
+    with pytest.raises(
+        AssertionError,
+        match="Mutually exclusive state elements are simultaneously visible",
+    ):
+        assert_dom_state_integrity(
+            page,
+            exclusive_state_groups=[
+                ['[data-state="running"]', '[data-state="failed"]']
+            ],
+        )
 
     # 2. Duplicate text simulation: consecutive duplicate word detected
     page.eval_handlers.append(
@@ -137,14 +167,23 @@ def test_WQG_EC_03_mutually_exclusive_state_leak_and_duplicate_text():
 
     # 3. Positive accessibility clipped elements (e.g. .sr-only) are accepted as valid
     page.eval_handlers.append(lambda s, a: {"ok": True})
-    assert_dom_state_integrity(page, exclusive_state_groups=[['.spinner', '.status-badge']])
+    assert_dom_state_integrity(
+        page, exclusive_state_groups=[[".spinner", ".status-badge"]]
+    )
 
 
 def test_WQG_AR_02_webserver_lifecycle():
     """Scenario: [WQG-AR-02] [Tier C - Integration] Playwright webServer lifecycle management."""
     with tempfile.TemporaryDirectory() as tmpdir:
         # Launch python's built-in http.server on port 8942
-        web_server_cmd = [sys.executable, "-m", "http.server", "8942", "--bind", "127.0.0.1"]
+        web_server_cmd = [
+            sys.executable,
+            "-m",
+            "http.server",
+            "8942",
+            "--bind",
+            "127.0.0.1",
+        ]
         test_cmd = [sys.executable, "-c", "import sys; sys.exit(0)"]
 
         res = run_playwright_suite(
@@ -166,14 +205,23 @@ def test_WQG_FR_01_uncaught_console_error():
     page = MockPage()
     watchdog = attach_zero_error_watchdog(page)
 
-    page.emit("console", MockConsoleMessage("error", "Uncaught TypeError: Cannot read properties of undefined (reading 'map')"))
+    page.emit(
+        "console",
+        MockConsoleMessage(
+            "error",
+            "Uncaught TypeError: Cannot read properties of undefined (reading 'map')",
+        ),
+    )
     page.emit("pageerror", "RuntimeError: unhandled promise rejection at main.ts:42")
 
     assert len(watchdog.captured_errors) == 2
     assert "Uncaught TypeError" in watchdog.captured_errors[0]
     assert "RuntimeError" in watchdog.captured_errors[1]
 
-    with pytest.raises(AssertionError, match="Zero-Console-And-Layout-Defect Watchdog detected 2 defect"):
+    with pytest.raises(
+        AssertionError,
+        match="Zero-Console-And-Layout-Defect Watchdog detected 2 defect",
+    ):
         watchdog.assert_zero_defects()
 
 
@@ -183,7 +231,10 @@ def test_WQG_FR_03_static_asset_trap_and_unstyled_geometry():
     watchdog = attach_zero_error_watchdog(page)
 
     # 1. Static stylesheet returns HTTP 404
-    page.emit("response", MockResponse(404, "http://localhost:3000/styles/theme.css", "stylesheet"))
+    page.emit(
+        "response",
+        MockResponse(404, "http://localhost:3000/styles/theme.css", "stylesheet"),
+    )
     assert len(watchdog.captured_errors) == 1
     assert "[asset-404]" in watchdog.captured_errors[0]
     assert "theme.css" in watchdog.captured_errors[0]
