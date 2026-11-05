@@ -7,9 +7,11 @@ fan-out with deterministic aggregation (FAIL > BLOCKED > PASS).
 from __future__ import annotations
 
 import argparse
+import concurrent.futures
 import importlib
 import json
 import subprocess
+import time
 from pathlib import Path
 import sys
 from typing import Any
@@ -18,6 +20,17 @@ from collections.abc import Callable
 SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
+
+
+def _resolve_repo_root(path: Path) -> Path:
+    p = path.resolve()
+    for parent in [p] + list(p.parents):
+        if parent.name == ".agents":
+            return parent.parent
+    for parent in [p] + list(p.parents):
+        if (parent / ".git").exists():
+            return parent
+    return p.parents[2] if len(p.parents) >= 3 else p.parent
 
 
 def _get_validator() -> Callable[..., dict[str, Any]]:
@@ -129,29 +142,91 @@ def execute_provider(
             "warnings": [],
         }
 
-    try:
-        skills_dir = Path(__file__).resolve().parent.parent.parent
-        web_scripts = skills_dir / "web-quality-check" / "resources" / "scripts"
-        if str(web_scripts) not in sys.path:
-            sys.path.insert(0, str(web_scripts))
-        from validate_web_quality import run_capabilities
+    skills_dir = Path(__file__).resolve().parents[3]
 
-        return run_capabilities(
-            config=manifest_data,
-            profile=profile,
-            repository_sha=sha,
-            repo_root=root,
-            provider_id=p_id,
-            base_ref=base_ref,
-            check_watchdog_evidence=("web" in p_id or "web" in skill),
-        )
-    except Exception as exc:  # noqa: BLE001
+    # Web provider execution: dispatch to web-quality runner
+    if "web" in p_id or "web" in skill:
+        try:
+            web_scripts = skills_dir / "web-quality-check" / "resources" / "scripts"
+            if str(web_scripts) not in sys.path:
+                sys.path.insert(0, str(web_scripts))
+            from validate_web_quality import run_capabilities
+
+            return run_capabilities(
+                config=manifest_data,
+                profile=profile,
+                repository_sha=sha,
+                repo_root=root,
+                provider_id=p_id,
+                base_ref=base_ref,
+                skills_dir=skills_dir,
+                check_watchdog_evidence=True,
+            )
+        except Exception as exc:  # noqa: BLE001
+            return {
+                "provider_id": p_id,
+                "contract_version": 1,
+                "profile": profile,
+                "repository_sha": sha,
+                "status": "FAIL",
+                "required": provider_item.get("required", True),
+                "checks": [],
+                "coverage": {},
+                "evidence": [],
+                "started_head": sha,
+                "finished_head": sha,
+                "duration": 0.0,
+                "blockers": [f"Error executing provider '{p_id}': {exc}"],
+                "warnings": [],
+            }
+
+    # Non-web provider execution: validate using platform validator if available
+    platform_name = None
+    for p in ("python", "android", "flutter", "ios", "rust"):
+        if p in p_id or p in skill:
+            platform_name = p
+            break
+
+    if platform_name:
+        p_scripts = skills_dir / f"{platform_name}-quality-check" / "resources" / "scripts"
+        if p_scripts.is_dir() and str(p_scripts) not in sys.path:
+            sys.path.insert(0, str(p_scripts))
+        try:
+            mod = importlib.import_module(f"validate_{platform_name}_quality")
+            val_fn = getattr(mod, f"validate_{platform_name}_config", None)
+            if val_fn:
+                v_res = val_fn(manifest_data, profile)
+                if v_res.get("status") == "BLOCKED":
+                    return {
+                        "provider_id": p_id,
+                        "contract_version": 1,
+                        "profile": profile,
+                        "repository_sha": sha,
+                        "status": "BLOCKED",
+                        "required": provider_item.get("required", True),
+                        "checks": [],
+                        "coverage": {},
+                        "evidence": [],
+                        "started_head": sha,
+                        "finished_head": sha,
+                        "duration": 0.0,
+                        "blockers": v_res.get("findings", []),
+                        "warnings": [],
+                    }
+        except Exception:
+            pass
+
+    # Execute configured profile capabilities for non-web provider
+    start_time = time.time()
+    profiles = manifest_data.get("profiles", {})
+    caps_to_run = profiles.get(profile)
+    if caps_to_run is None:
         return {
             "provider_id": p_id,
             "contract_version": 1,
             "profile": profile,
             "repository_sha": sha,
-            "status": "FAIL",
+            "status": "BLOCKED",
             "required": provider_item.get("required", True),
             "checks": [],
             "coverage": {},
@@ -159,23 +234,147 @@ def execute_provider(
             "started_head": sha,
             "finished_head": sha,
             "duration": 0.0,
-            "blockers": [f"Error executing provider '{p_id}': {exc}"],
+            "blockers": [f"Requested profile '{profile}' is not configured in profiles"],
             "warnings": [],
         }
+
+    capabilities = manifest_data.get("capabilities", {})
+    checks: list[dict[str, Any]] = []
+    evidence: list[dict[str, Any]] = []
+    blockers: list[dict[str, Any]] = []
+    overall_status = "PASS"
+    log_dir = root / "build" / "quality" / p_id
+    log_dir.mkdir(parents=True, exist_ok=True)
+
+    for cap_name in caps_to_run:
+        cap_val = capabilities.get(cap_name)
+        if isinstance(cap_val, dict):
+            cmd = cap_val.get("command", [])
+        elif isinstance(cap_val, list):
+            cmd = cap_val
+        else:
+            cmd = []
+
+        if not cmd:
+            continue
+
+        substituted_cmd = [
+            arg.replace("{base_ref}", base_ref).replace("{skills_dir}", str(skills_dir))
+            for arg in cmd
+        ]
+        cap_start = time.time()
+        try:
+            proc = subprocess.run(
+                substituted_cmd,
+                cwd=str(root),
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            cap_duration = round(time.time() - cap_start, 3)
+            log_file = log_dir / f"{cap_name}.log"
+            log_file.write_text(
+                f"$ {' '.join(substituted_cmd)}\n\n--- STDOUT ---\n{proc.stdout}\n--- STDERR ---\n{proc.stderr}\n",
+                encoding="utf-8",
+            )
+            c_status = "PASS" if proc.returncode == 0 else "FAIL"
+            summary = (
+                f"{cap_name}: passed"
+                if c_status == "PASS"
+                else f"{cap_name}: failed with return code {proc.returncode}"
+            )
+        except OSError as exc:
+            cap_duration = round(time.time() - cap_start, 3)
+            c_status = "BLOCKED"
+            summary = f"{cap_name}: failed to execute: {exc}"
+
+        evidence_id = f"{cap_name}-evidence"
+        log_file = log_dir / f"{cap_name}.log"
+        rel_log_path = str(log_file.relative_to(root)) if log_file.is_file() else ""
+        checks.append({
+            "id": cap_name,
+            "category": "quality-check",
+            "status": c_status,
+            "source": " ".join(substituted_cmd),
+            "duration": cap_duration,
+            "summary": summary,
+            "evidence_refs": [evidence_id] if rel_log_path else [],
+        })
+        if rel_log_path:
+            evidence.append({
+                "id": evidence_id,
+                "type": "command",
+                "source": " ".join(substituted_cmd),
+                "location": rel_log_path,
+            })
+        if c_status == "FAIL":
+            overall_status = "FAIL"
+            blockers.append({"code": "capability_failed", "capability": cap_name, "message": summary})
+        elif c_status == "BLOCKED" and overall_status != "FAIL":
+            overall_status = "BLOCKED"
+            blockers.append({"code": "capability_blocked", "capability": cap_name, "message": summary})
+
+    total_duration = round(time.time() - start_time, 3)
+    return {
+        "provider_id": p_id,
+        "contract_version": 1,
+        "profile": profile,
+        "repository_sha": sha,
+        "status": overall_status,
+        "required": provider_item.get("required", True),
+        "checks": checks,
+        "coverage": {},
+        "evidence": evidence,
+        "started_head": sha,
+        "finished_head": sha,
+        "duration": total_duration,
+        "blockers": blockers,
+        "warnings": [],
+    }
 
 
 def verify_polyglot_execution(
     registry_data: dict[str, Any],
     requested_profile: str,
     repository_sha: str,
-    provider_results: list[dict[str, Any]],
+    provider_results: list[dict[str, Any]] | None = None,
+    repo_root: Path | None = None,
+    base_ref: str = "main",
+    execute: bool = False,
 ) -> dict[str, Any]:
     """Verify that multiple providers executed concurrently and resulted in a deterministic verdict."""
+    results = list(provider_results) if provider_results is not None else []
+    if execute or (provider_results is None):
+        val_fn = _get_validator()
+        val = val_fn(registry_data, requested_profile)
+        if val["status"] == "BLOCKED":
+            return {
+                "status": "BLOCKED",
+                "findings": val["findings"],
+                "aggregated": None,
+            }
+        plan_providers = val.get("providers", [])
+        workers = max(1, len(plan_providers))
+        with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as executor:
+            futures = [
+                executor.submit(
+                    execute_provider,
+                    provider_item=plan_item,
+                    profile=requested_profile,
+                    sha=repository_sha,
+                    base_ref=base_ref,
+                    repo_root=repo_root,
+                )
+                for plan_item in plan_providers
+            ]
+            results = [f.result() for f in futures]
+
     return fanout_and_aggregate(
         registry_data=registry_data,
         requested_profile=requested_profile,
         repository_sha=repository_sha,
-        provider_results=provider_results,
+        base_ref=base_ref,
+        provider_results=results,
     )
 
 
@@ -190,7 +389,7 @@ def main(argv: list[str] | None = None) -> int:
 
     args = parser.parse_args(argv)
     reg_path = Path(args.registry_file).resolve()
-    repo_root = reg_path.parent.parent
+    repo_root = _resolve_repo_root(reg_path)
     sha = args.sha
     if not sha or sha == "0" * 40:
         try:
@@ -218,15 +417,20 @@ def main(argv: list[str] | None = None) -> int:
         val_fn = _get_validator()
         val = val_fn(data, args.profile)
         if val["status"] != "BLOCKED":
-            for plan_item in val["providers"]:
-                p_res = execute_provider(
-                    provider_item=plan_item,
-                    profile=args.profile,
-                    sha=sha,
-                    base_ref=args.base_ref,
-                    repo_root=repo_root,
-                )
-                provider_results.append(p_res)
+            workers = max(1, len(val["providers"]))
+            with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as executor:
+                futures = [
+                    executor.submit(
+                        execute_provider,
+                        provider_item=plan_item,
+                        profile=args.profile,
+                        sha=sha,
+                        base_ref=args.base_ref,
+                        repo_root=repo_root,
+                    )
+                    for plan_item in val["providers"]
+                ]
+                provider_results = [f.result() for f in futures]
 
     res = fanout_and_aggregate(
         registry_data=data,
