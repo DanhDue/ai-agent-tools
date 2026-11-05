@@ -14,7 +14,7 @@ order: "b1"
 
 # Task 01: Worktree Bootstrap Extras, Polyglot Detection, and JUnit Directory Creation
 
-Epic: [execution_and_verification_infrastructure](../epic/execution_and_verification_infrastructure/execution_and_verification_infrastructure.en.md)
+Epic: [execution_and_verification_infrastructure](execution_and_verification_infrastructure.en.md)
 
 ## Requirement Analysis
 
@@ -121,5 +121,5 @@ Covers: EVI-HP-01, EVI-EC-02, EVI-FR-01
 
 ## References & Rollback
 
-- Reference: [2026-11-06-execution-and-verification-infrastructure-design.en.md](../epic/execution_and_verification_infrastructure/2026-11-06-execution-and-verification-infrastructure-design.en.md).
+- Reference: [2026-11-06-execution-and-verification-infrastructure-design.en.md](2026-11-06-execution-and-verification-infrastructure-design.en.md).
 - Rollback: `git revert` the task commit to restore prior schema, bootstrap scripts, and runner behavior.

@@ -41,11 +41,11 @@ Feature: Execution and Verification Infrastructure — Happy Paths
     Then dòng tích hợp live được thực thi và mã thoát của nó được cưỡng chế
 
   Scenario: [EVI-HP-04] [Tier C - Integration] Bộ phát lại văn bản task áp dụng các chỉ thị code block trong worktree nháp và pha MEASURE thực thi cùng ghi nhận bằng chứng
-    Given một tệp task chứa các khối mã "Create", "Replace in" và "Insert in", các dòng "Phase: MEASURE" và "Evidence files: .devtool/evidence/bench.json"
+    Given một tệp task chứa các khối mã "Create", "Replace in" và "Insert in", các dòng "Phase: MEASURE" và "Evidence files: .devtool/epic/sample_epic/evidence/bench.json"
     When "replay_task_text.py" phát lại task bên trong một git worktree tạm thời
-    Then tất cả các chỉ thị được áp dụng sạch sẽ và các lệnh Verification của task đều đạt
+    Then các chỉ thị test được áp dụng trước dòng "RED", chỉ thị sản phẩm áp dụng trước dòng "MEASURE" và tất cả lệnh Verification đều đạt
     And khi "run_task_checks.py measure" thực thi task
-    Then các dòng "MEASURE" chạy, tạo ra ".devtool/evidence/bench.json" và ghi nhận mục "measure" đạt vào tệp JSON bằng chứng của task
+    Then các dòng "MEASURE" chạy, tạo ra ".devtool/epic/sample_epic/evidence/bench.json" và ghi nhận mục "measure" đạt vào tệp JSON bằng chứng của task
 ```
 
 ---
@@ -89,11 +89,11 @@ Feature: Execution and Verification Infrastructure — State Transitions
     And khi tất cả ứng viên đều đạt khi chạy cô lập, "compare_failure_sets.py --rerun-new" vẫn thoát với mã 1 trừ khi "--allow-isolated-pass" được truyền tường minh
 
   Scenario: [EVI-ST-02] [Tier C - Integration] run_task_checks.py measure --resume chỉ tái sử dụng kết quả MEASURE đã lưu khi tree, hợp đồng dòng và mã băm tệp bằng chứng khớp
-    Given một tệp task có các dòng "Phase: MEASURE" và "Evidence files: .devtool/evidence/bench.json"
-    And một lần chạy "run_task_checks.py measure" trước đó đã ghi nhận "runs.measure.passed = true" kèm worktree tree, lệnh/expect của dòng và mã băm SHA-256 của ".devtool/evidence/bench.json" khớp
+    Given một tệp task có các dòng "Phase: MEASURE" và "Evidence files: .devtool/epic/sample_epic/evidence/bench.json"
+    And một lần chạy "run_task_checks.py measure" trước đó đã ghi nhận "runs.measure.passed = true" kèm worktree tree, lệnh/expect của dòng và mã băm SHA-256 của ".devtool/epic/sample_epic/evidence/bench.json" khớp
     When "run_task_checks.py measure <task.md> --resume" được gọi trên tree và tệp bằng chứng không thay đổi
     Then nó bỏ qua việc thực thi lại các lệnh tiến trình con "MEASURE" và thoát với mã 0
-    And khi worktree tree, lệnh của dòng hoặc nội dung ".devtool/evidence/bench.json" bị sửa đổi, "--resume" hủy hiệu lực bộ nhớ đệm và thực thi lại các dòng "MEASURE"
+    And khi worktree tree, lệnh của dòng hoặc nội dung ".devtool/epic/sample_epic/evidence/bench.json" bị sửa đổi, "--resume" hủy hiệu lực bộ nhớ đệm và thực thi lại các dòng "MEASURE"
 ```
 
 ---

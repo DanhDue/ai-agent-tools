@@ -41,11 +41,11 @@ Feature: Execution and Verification Infrastructure — Happy Paths
     Then the live integration row is executed and its exit status is enforced
 
   Scenario: [EVI-HP-04] [Tier C - Integration] Task text replay engine applies fenced directives in a scratch worktree and MEASURE phase executes and records evidence
-    Given a task file containing "Create", "Replace in", and "Insert in" fenced code blocks, "Phase: MEASURE" rows, and "Evidence files: .devtool/evidence/bench.json"
+    Given a task file containing "Create", "Replace in", and "Insert in" fenced code blocks, "Phase: MEASURE" rows, and "Evidence files: .devtool/epic/sample_epic/evidence/bench.json"
     When "replay_task_text.py" replays the task inside a temporary git worktree
-    Then all fenced directives apply cleanly and the task's Verification commands pass
+    Then test directives apply before "RED" rows, production directives apply before "MEASURE" rows, and all Verification commands pass
     And when "run_task_checks.py measure" executes the task
-    Then the "MEASURE" rows run, create ".devtool/evidence/bench.json", and record a passing "measure" entry in the task's evidence JSON
+    Then the "MEASURE" rows run, create ".devtool/epic/sample_epic/evidence/bench.json", and record a passing "measure" entry in the task's evidence JSON
 ```
 
 ---
@@ -89,11 +89,11 @@ Feature: Execution and Verification Infrastructure — State Transitions
     And when all candidates pass in isolation, "compare_failure_sets.py --rerun-new" still exits with code 1 unless "--allow-isolated-pass" is explicitly provided
 
   Scenario: [EVI-ST-02] [Tier C - Integration] run_task_checks.py measure --resume reuses cached MEASURE runs only when tree, row contracts, and evidence file digests match
-    Given a task file with "Phase: MEASURE" rows and "Evidence files: .devtool/evidence/bench.json"
-    And a prior "run_task_checks.py measure" execution recorded "runs.measure.passed = true" with matching worktree tree, row commands/expectations, and ".devtool/evidence/bench.json" SHA-256 digest
+    Given a task file with "Phase: MEASURE" rows and "Evidence files: .devtool/epic/sample_epic/evidence/bench.json"
+    And a prior "run_task_checks.py measure" execution recorded "runs.measure.passed = true" with matching worktree tree, row commands/expectations, and ".devtool/epic/sample_epic/evidence/bench.json" SHA-256 digest
     When "run_task_checks.py measure <task.md> --resume" is invoked on the unchanged tree and evidence file
     Then it skips re-executing the "MEASURE" subprocess commands and exits with code 0
-    And when the worktree tree, row command, or ".devtool/evidence/bench.json" content is modified, "--resume" invalidates the cache and re-executes the "MEASURE" rows
+    And when the worktree tree, row command, or ".devtool/epic/sample_epic/evidence/bench.json" content is modified, "--resume" invalidates the cache and re-executes the "MEASURE" rows
 ```
 
 ---

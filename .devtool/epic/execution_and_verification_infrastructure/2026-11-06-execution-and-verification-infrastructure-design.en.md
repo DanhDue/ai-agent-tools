@@ -117,9 +117,9 @@ flowchart TD
     2. Distinguishes valid test runner completions from launch, usage, internal, or unparseable failures:
        - A `pytest` run is valid only when exit code is `0` with a terminal `=== ... passed ... ===` footer or exit code is `1` or `2` with a terminal `=== short test summary info ===` block; exit codes `3` (internal error), `4` (usage error), `5` (no tests collected), `126`/`127`, or any non-zero exit lacking a terminal summary block fail with exit code `2` without writing a baseline file.
        - A `node --test` run is valid only when TAP/spec summary lines (`# tests` / `ℹ tests`) are present.
-    3. Extracts canonical failure/error identifiers strictly from the terminal summary section, preserving spaces inside parameterized node IDs:
-       - **Pytest**: parses lines after the final `=== short test summary info ===` header up to the terminal `=== ... ===` footer matching `^(?:FAILED|ERROR)\s+(.+?)(?:\s+-\s+.*)?$`, preserving full bracketed parameter strings (e.g., `tests/test_x.py::test_x[hello world]`) while stripping only the trailing ` - <reason>` suffix and ignoring any captured log output earlier in the stream.
-       - **Node (`node --test`)**: parses failing test identifiers from TAP/spec summary lines (`✖ <name>` or `not ok ... - <name>`).
+    3. Extracts canonical failure/error identifiers strictly from the terminal summary section, preserving spaces and ` - ` sequences inside parameterized node IDs:
+       - **Pytest**: parses lines after the final `=== short test summary info ===` header up to the terminal `=== ... ===` footer matching `^(?:FAILED|ERROR)\s+([^\[\s]+(?:\[[^\]]*\])?)(?:\s+-\s+.*)?$`, preserving full bracketed parameter strings (including spaces and ` - ` substrings inside `[...]`, e.g., `tests/test_x.py::test_x[hello - world]`) while stripping only the trailing ` - <reason>` suffix after `]` and ignoring any captured log output earlier in the stream.
+       - **Node (`node --test`)**: parses failing test identifiers from TAP/spec output as file-qualified identifiers `<file>::<test_name>` when a file header/subtest context is present (or `<test_name>` for single-stream TAP snippets) so tests with identical names in different files never collide.
     4. Always restores any tracked files named via `--restore <path>` using `git checkout -- <path>` inside a `finally:` block so side-effecting or aborted tests leave a clean git working tree.
     5. Writes a deterministic, newline-terminated sorted list of unique failing test identifiers to `<evidence_file>` (writing a single `# 0 failures\n` header comment when 0 tests fail in a valid run so the file is non-empty).
 - **`skills/dev-implementation/resources/scripts/compare_failure_sets.py` (`#0007`)**:
@@ -131,7 +131,10 @@ flowchart TD
     1. Reads `baseline_set` from `--baseline` (ignoring `#` comment lines).
     2. Obtains `current_set` either by reading `--current <file>` or by executing `<command...>` using `record_failure_baseline`'s validated extraction and `--restore` logic.
     3. Computes `new_failures = sorted(current_set - baseline_set)` and `fixed_failures = sorted(baseline_set - current_set)`.
-    4. When `--rerun-new` is enabled and `new_failures` is non-empty: re-runs each candidate test identifier in isolation as a single positional argument (`[*rerun_cmd_argv, node_id]`, preserving spaces in parameterized IDs). Candidates that fail in isolation are classified as `PERSISTENT_FAILURE: <nodeid>`; candidates that pass in isolation are classified as `ISOLATED_PASS (state-pollution or transient): <nodeid>`. By default, both classifications cause exit code `1` so order-dependent state-pollution regressions are never silently masked; only when `--allow-isolated-pass` is explicitly passed are `ISOLATED_PASS` candidates exempted from failing the exit code.
+    4. When `--rerun-new` is enabled and `new_failures` is non-empty:
+       - For `pytest` (default): re-runs each candidate node ID in isolation as a single positional argument (`[*rerun_cmd_argv, node_id]`, preserving spaces and ` - ` inside parameterized IDs).
+       - For `node` (`node --test`): requires a `<file>::<test_name>` qualified entry (exiting `2` if an unqualified entry lacks `<file>::`) and re-runs `[*rerun_cmd_argv, f"--test-name-pattern=^{re.escape(test_name)}$", file_path]`.
+       - Candidates that fail in isolation are classified as `PERSISTENT_FAILURE: <nodeid>`; candidates that pass in isolation are classified as `ISOLATED_PASS (state-pollution or transient): <nodeid>`. By default, both classifications cause exit code `1` so order-dependent state-pollution regressions are never silently masked; only when `--allow-isolated-pass` is explicitly passed are `ISOLATED_PASS` candidates exempted from failing the exit code.
     5. Writes a summary report (to stdout and optionally `--output`/`--out <report_file>`) and exits `0` if no blocking regressions remain, or exits `1` listing each regression.
 
 ### 3. Opt-In Live Integration Results and Route Template Matching
@@ -158,7 +161,7 @@ flowchart TD
     - Iterate over `parse_integration_result_specs(hld_text)`:
       - When `spec.live` is True and any variable in `spec.needs` is missing or empty in `os.environ`, append `$ <spec.command>\nSKIPPED (missing env: <missing_vars>)\n` to `results` without raising `PreconditionFailedError` and without adding `spec.report` to `reports`.
       - When all `spec.needs` variables are present (or `spec.live` is False), execute `run_gate` and include `spec.report` in `reports`.
-      - When live specs were skipped, pass `--allow-skipped-live` (or filter scenario IDs covered exclusively by skipped live test files) to `check_bdd_traceability.py tests` so Gate 4 distinguishes "skipped because live resource env var is unset" from "failed".
+      - Pass the exact list of executed `[r.strip("`") for r in reports]` to `check_bdd_traceability.py --results` (rather than the entire `build/test-results` directory, preventing stale XML pickup). Always run static `check_bdd_traceability.py tests` (without `--results`) across 100% of scenarios so skipped live scenarios must still have test functions in the codebase, and when one or more live specs were skipped, pass `--ids <non_skipped_scenario_ids>` to the `--results` invocation so non-skipped scenarios must pass in `reports` while skipped live scenarios do not fail Gate 4 for lacking a JUnit XML report.
 - **Route Template Matching in `R5b` (`#0010`)**:
   - In `skills/dev-implementation/resources/scripts/check_epic_readiness.py` (`check_grounding`):
     - When a concrete route `/api/foo/bar/job_123` is not found as a literal substring in `tracked_contents`, extract parameterized route templates from `tracked_contents` matching `(?<![\w/])/api/[\w\-/{}<>:]*[\w}>]` that contain `{param}`, `<param>`, or `:param` segments.
@@ -176,14 +179,18 @@ flowchart TD
       - Called automatically during `R5` in `check_epic_readiness.py`.
       - For every `Replace in `<rel_path>`:` or `Insert in `<rel_path>` after|before:` targeting a file that already exists at `HEAD` (and was not previously rewritten by an earlier step in the same task or epic), verifies that the first fenced block (`anchor`) occurs verbatim in `(root / rel_path).read_text()`. Any missing or ambiguous (count != 1) anchor produces an `R5 FAIL` finding naming the task file and target path.
     - **Scratch-Worktree Execution Replay (`replay_task_text.py <task.md> [--worktree <dir>] [--run-rows]` and `check_epic_readiness.py <epic_dir> --replay`)**:
-      - Applies all edit directives in `<task.md>` (or across all tasks of `<epic_dir>` in execution order inside a temporary `git worktree`) and optionally runs the task's `Verification` rows (`RED`, `GREEN`, `TIER-B`, `TIER-C`), cleaning up the temporary worktree on exit.
+      - Applies edit directives and runs Verification rows in strict phase order so TDD and measurement contracts hold:
+        1. Apply directives targeting test files (`test_*.py`, `*_test.*`, `tests/**`) first; if the task has `RED` rows (and not `RED: n/a`), execute `RED` rows and verify they fail for the expected assertion/import reason (`validate_pytest_red`).
+        2. Apply all remaining production file directives (`Create`, `Replace in`, `Insert in`).
+        3. Execute `MEASURE` rows first (generating any declared `Evidence files:`), followed by `GREEN`, `TIER-B`, and `TIER-C` rows, and clean up the temporary worktree on exit.
 
 ### 5. Long-Running Measurement Phase and Evidence-Gated Verification
 
 - **`Phase: MEASURE` in `task_contract.py` and `run_task_checks.py` (`#0017`)**:
   - In `skills/dev-implementation/resources/scripts/task_contract.py`:
     - Update `PHASES = ("RED", "MEASURE", "GREEN", "TIER-B", "TIER-C")`.
-    - In `evaluate_done_gate(task_file: Path)` and `audit_epic.py` (`audit_evidence`): if a task has one or more rows with `row.phase == "MEASURE"`, verify that `evidence.get("runs", {}).get("measure")` exists, its `tree` matches the current worktree `fingerprint(layout.root)[0]` (at Done Gate), all `MEASURE` rows in the current table match the recorded `id`, `command`, and `expect` (`row_problems`) with `"outcome": "PASS"`, and every file declared in `parse_evidence_files(task_text)` exists on disk with a SHA-256 digest matching `runs["measure"]["evidence_digests"]`.
+    - Reuse `parse_evidence_files(task_text: str) -> list[AllowedPath]` from Epic 1 (`entry.pattern` for each declared `.devtool/epic/<epic_dir>/evidence/<file>`).
+    - In `evaluate_done_gate(task_file: Path)` and `audit_epic.py` (`audit_evidence`): if a task has one or more rows with `row.phase == "MEASURE"`, verify that `evidence.get("runs", {}).get("measure")` exists, its `tree` matches the current worktree `fingerprint(layout.root)[0]` (at Done Gate), all `MEASURE` rows in the current table match the recorded `id`, `command`, and `expect` (`row_problems`) with `"outcome": "PASS"`, and every `entry.pattern` in `parse_evidence_files(task_text)` exists (on disk at Done Gate, and at `HEAD` via `git show HEAD:<entry.pattern>` in `audit_epic.py`), is non-empty, and has a SHA-256 digest matching `runs["measure"]["evidence_digests"][entry.pattern]`.
   - In `skills/dev-implementation/resources/scripts/run_task_checks.py`:
     - Update CLI `mode` choices to `("red", "measure", "verify", "status")`.
     - When `mode == "measure"`:

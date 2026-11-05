@@ -117,9 +117,9 @@ flowchart TD
     2. Phân biệt rõ lần chạy kiểm thử hợp lệ với lỗi khởi chạy, lỗi cú pháp tham số, hoặc lỗi nội bộ:
        - Lần chạy `pytest` chỉ hợp lệ khi thoát mã `0` kèm dòng kết thúc `=== ... passed ... ===` hoặc thoát mã `1`/`2` kèm khối `=== short test summary info ===`; các mã thoát `3` (internal error), `4` (usage error), `5` (no tests collected), `126`/`127`, hoặc thoát khác `0` nhưng không có khối tóm tắt cuối sẽ thất bại với mã thoát `2` và không ghi baseline giả.
        - Lần chạy `node --test` chỉ hợp lệ khi có dòng tóm tắt TAP/spec (`# tests` / `ℹ tests`).
-    3. Chỉ trích xuất mã định danh test lỗi từ đúng phần tóm tắt cuối cùng và giữ nguyên khoảng trắng bên trong tham số:
-       - **Pytest**: chỉ phân tích các dòng nằm sau tiêu đề `=== short test summary info ===` cuối cùng khớp mẫu `^(?:FAILED|ERROR)\s+(.+?)(?:\s+-\s+.*)?$`, bảo toàn đầy đủ chuỗi tham số trong ngoặc vuông (ví dụ `tests/test_x.py::test_x[hello world]`), chỉ cắt bỏ phần giải thích ` - <reason>` phía sau và bỏ qua hoàn toàn mọi dòng log in ra trong quá trình chạy test.
-       - **Node (`node --test`)**: trích xuất tên test thất bại từ các dòng tóm tắt TAP/spec (`✖ <name>` hoặc `not ok ... - <name>`).
+    3. Chỉ trích xuất mã định danh test lỗi từ đúng phần tóm tắt cuối cùng, giữ nguyên khoảng trắng và chuỗi ` - ` bên trong tham số:
+       - **Pytest**: chỉ phân tích các dòng nằm sau tiêu đề `=== short test summary info ===` cuối cùng khớp mẫu `^(?:FAILED|ERROR)\s+([^\[\s]+(?:\[[^\]]*\])?)(?:\s+-\s+.*)?$`, bảo toàn đầy đủ chuỗi tham số trong ngoặc vuông (bao gồm cả khoảng trắng và chuỗi ` - ` bên trong `[...]`, ví dụ `tests/test_x.py::test_x[hello - world]`), chỉ cắt bỏ phần giải thích ` - <reason>` sau dấu `]` và bỏ qua hoàn toàn mọi dòng log in ra trong quá trình chạy test.
+       - **Node (`node --test`)**: trích xuất định danh test thất bại kèm tên file `<file>::<test_name>` từ ngữ cảnh TAP/spec subtest (hoặc `<test_name>` cho đoạn TAP đơn lẻ) để các test trùng tên ở các file khác nhau không bị gộp nhầm.
     4. Luôn khôi phục mọi file theo dõi bởi git được liệt kê qua `--restore <path>` bằng `git checkout -- <path>` trong khối `finally:` để giữ cây thư mục làm việc sạch.
     5. Ghi danh sách các định danh test lỗi duy nhất đã sắp xếp vào `<evidence_file>` (luôn kèm dòng chú thích đầu file `# 0 failures\n` khi không có lỗi nào trong một lần chạy hợp lệ để file không bị rỗng).
 - **`skills/dev-implementation/resources/scripts/compare_failure_sets.py` (`#0007`)**:
@@ -131,7 +131,10 @@ flowchart TD
     1. Đọc tập `baseline_set` từ `--baseline` (bỏ qua các dòng chú thích bắt đầu bằng `#`).
     2. Thu thập `current_set` từ file `--current <file>` hoặc bằng cách chạy `<command...>` với cùng cơ chế trích xuất hợp lệ và `--restore` của `record_failure_baseline`.
     3. Tính tập lỗi mới `new_failures = sorted(current_set - baseline_set)` và tập lỗi đã được sửa `fixed_failures = sorted(baseline_set - current_set)`.
-    4. Khi bật `--rerun-new` và `new_failures` khác rỗng: chạy lại từng test ID trong `new_failures` một cách độc lập như một đối số vị trí đơn lẻ (`[*rerun_cmd_argv, node_id]`). Các ứng viên vẫn thất bại khi chạy cô lập được phân loại là `PERSISTENT_FAILURE: <nodeid>`; các ứng viên đạt khi chạy cô lập được phân loại là `ISOLATED_PASS (state-pollution or transient): <nodeid>`. Mặc định, cả hai loại đều trả về mã thoát `1` để không bỏ lọt lỗi hồi quy làm bẩn trạng thái dùng chung; chỉ khi truyền tường minh cờ `--allow-isolated-pass` thì `ISOLATED_PASS` mới được miễn trừ khỏi mã thoát lỗi.
+    4. Khi bật `--rerun-new` và `new_failures` khác rỗng:
+       - Với `pytest` (mặc định): chạy lại từng test ID trong `new_failures` một cách độc lập như một đối số vị trí đơn lẻ (`[*rerun_cmd_argv, node_id]`).
+       - Với `node` (`node --test`): yêu cầu định danh có kèm file `<file>::<test_name>` (thoát mã `2` nếu thiếu `<file>::`) và chạy `[*rerun_cmd_argv, f"--test-name-pattern=^{re.escape(test_name)}$", file_path]`.
+       - Các ứng viên vẫn thất bại khi chạy cô lập được phân loại là `PERSISTENT_FAILURE: <nodeid>`; các ứng viên đạt khi chạy cô lập được phân loại là `ISOLATED_PASS (state-pollution or transient): <nodeid>`. Mặc định, cả hai loại đều trả về mã thoát `1` để không bỏ lọt lỗi hồi quy làm bẩn trạng thái dùng chung; chỉ khi truyền tường minh cờ `--allow-isolated-pass` thì `ISOLATED_PASS` mới được miễn trừ khỏi mã thoát lỗi.
     5. In báo cáo đối chiếu (ra stdout và tùy chọn ghi vào `--output`/`--out <report_file>`), thoát mã `0` nếu không còn lỗi chặn, hoặc thoát mã `1` kèm danh sách các lỗi hồi quy.
 
 ### 3. Kết quả Kiểm thử Tích hợp Live Tùy chọn và So khớp Mẫu Route
@@ -158,7 +161,7 @@ flowchart TD
     - Duyệt qua `parse_integration_result_specs(hld_text)`:
       - Nếu `spec.live` là True và bất kỳ biến môi trường nào trong `spec.needs` chưa được gán hoặc rỗng trong `os.environ`, ghi nhận `$ <spec.command>\nSKIPPED (missing env: <missing_vars>)\n` vào `results` mà không ném `PreconditionFailedError` và không thêm `spec.report` vào `reports`.
       - Khi tất cả các biến trong `spec.needs` đều có mặt (hoặc `spec.live` là False), chạy `run_gate` và đưa `spec.report` vào `reports`.
-      - Khi có dòng live bị skip, truyền danh sách các file test live bị skip (hoặc cờ `--allow-skipped-live`) cho `check_bdd_traceability.py tests` để Gate 4 phân biệt rõ kịch bản bị bỏ qua do thiếu tài nguyên live với kịch bản thất bại.
+      - Truyền chính xác danh sách `[r.strip("`") for r in reports]` đã thực thi vào `check_bdd_traceability.py --results` (thay vì toàn bộ thư mục `build/test-results`, tránh đọc nhầm file XML cũ). Luôn chạy kiểm tra tĩnh `check_bdd_traceability.py tests` (không có `--results`) trên 100% kịch bản để mọi kịch bản live vẫn bắt buộc có hàm test trong mã nguồn, và khi có dòng live bị skip thì truyền `--ids <non_skipped_scenario_ids>` vào lệnh kiểm tra `--results` để các kịch bản không bị skip vẫn phải PASS trong `reports` còn kịch bản live bị skip không làm hỏng Gate 4.
 - **So khớp Mẫu Route Tham số trong `R5b` (`#0010`)**:
   - Trong `skills/dev-implementation/resources/scripts/check_epic_readiness.py` (`check_grounding`):
     - Khi một đường dẫn cụ thể `/api/foo/bar/job_123` không xuất hiện nguyên văn trong `tracked_contents`, quét các mẫu route có tham số trong `tracked_contents` khớp `(?<![\w/])/api/[\w\-/{}<>:]*[\w}>]` có chứa `{param}`, `<param>`, hoặc `:param`.
@@ -176,14 +179,18 @@ flowchart TD
       - Được gọi tự động trong bước `R5` của `check_epic_readiness.py`.
       - Với mọi chỉ thị `Replace in `<rel_path>`:` hoặc `Insert in `<rel_path>` after|before:` nhắm tới file đã tồn tại ở `HEAD` (và chưa bị ghi đè bởi bước trước đó trong cùng task hoặc epic), kiểm tra khối `anchor` xuất hiện nguyên văn đúng 1 lần trong `(root / rel_path).read_text()`. Nếu không tìm thấy hoặc xuất hiện nhiều hơn 1 lần, báo lỗi `R5 FAIL` chỉ rõ tên task và đường dẫn file.
     - **Replay Thực thi trên Worktree Tạm (`replay_task_text.py <task.md> [--worktree <dir>] [--run-rows]` và `check_epic_readiness.py <epic_dir> --replay`)**:
-      - Áp dụng tuần tự các chỉ thị chỉnh sửa trong `<task.md>` (hoặc toàn bộ các task của `<epic_dir>` theo thứ tự thực thi trên một `git worktree` tạm) và tùy chọn chạy các dòng `Verification` (`RED`, `GREEN`, `TIER-B`, `TIER-C`), tự động dọn dẹp worktree tạm khi kết thúc.
+      - Áp dụng chỉ thị chỉnh sửa và chạy các dòng Verification theo đúng thứ tự pha chuẩn để bảo toàn hợp đồng TDD và MEASURE:
+        1. Áp dụng trước các chỉ thị nhắm tới file kiểm thử (`test_*.py`, `*_test.*`, `tests/**`); nếu task có dòng `RED` (và không phải `RED: n/a`), chạy các dòng `RED` và xác nhận chúng thất bại đúng kỳ vọng (`validate_pytest_red`).
+        2. Áp dụng các chỉ thị chỉnh sửa mã nguồn sản phẩm còn lại (`Create`, `Replace in`, `Insert in`).
+        3. Chạy các dòng `MEASURE` trước (để sinh các file `Evidence files:` đã khai báo), sau đó chạy `GREEN`, `TIER-B`, `TIER-C`, và tự động dọn dẹp worktree tạm khi kết thúc.
 
 ### 5. Pha Đo lường Dài hạn (MEASURE) và Xác minh Dựa trên Bằng chứng
 
 - **Bổ sung `Phase: MEASURE` trong `task_contract.py` và `run_task_checks.py` (`#0017`)**:
   - Trong `skills/dev-implementation/resources/scripts/task_contract.py`:
     - Cập nhật `PHASES = ("RED", "MEASURE", "GREEN", "TIER-B", "TIER-C")`.
-    - Trong `evaluate_done_gate(task_file: Path)` và `audit_epic.py` (`audit_evidence`): nếu task có bất kỳ dòng nào mang `row.phase == "MEASURE"`, kiểm tra `evidence.get("runs", {}).get("measure")` đã tồn tại, `tree` khớp với `fingerprint(layout.root)[0]` hiện tại (tại Done Gate), mọi dòng `MEASURE` trong bảng hiện tại khớp `id`, `command`, `expect` (`row_problems`) với `"outcome": "PASS"`, và mọi file khai báo trong `parse_evidence_files(task_text)` tồn tại trên đĩa với mã băm SHA-256 khớp `runs["measure"]["evidence_digests"]`.
+    - Tái sử dụng `parse_evidence_files(task_text: str) -> list[AllowedPath]` từ Epic 1 (`entry.pattern` cho mỗi đường dẫn `.devtool/epic/<epic_dir>/evidence/<file>`).
+    - Trong `evaluate_done_gate(task_file: Path)` và `audit_epic.py` (`audit_evidence`): nếu task có bất kỳ dòng nào mang `row.phase == "MEASURE"`, kiểm tra `evidence.get("runs", {}).get("measure")` đã tồn tại, `tree` khớp với `fingerprint(layout.root)[0]` hiện tại (tại Done Gate), mọi dòng `MEASURE` trong bảng hiện tại khớp `id`, `command`, `expect` (`row_problems`) với `"outcome": "PASS"`, và mọi `entry.pattern` trong `parse_evidence_files(task_text)` tồn tại (trên đĩa tại Done Gate và tại `HEAD` qua `git show HEAD:<entry.pattern>` trong `audit_epic.py`), khác rỗng, đồng thời có mã băm SHA-256 khớp `runs["measure"]["evidence_digests"][entry.pattern]`.
   - Trong `skills/dev-implementation/resources/scripts/run_task_checks.py`:
     - Mở rộng danh sách `mode` CLI thành `("red", "measure", "verify", "status")`.
     - Khi chạy `mode == "measure"`:

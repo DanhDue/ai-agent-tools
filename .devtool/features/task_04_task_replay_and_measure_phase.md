@@ -14,7 +14,7 @@ order: "b4"
 
 # Task 04: Task Text Replay Engine, Static Anchor Verification, and MEASURE Phase
 
-Epic: [execution_and_verification_infrastructure](../epic/execution_and_verification_infrastructure/execution_and_verification_infrastructure.en.md)
+Epic: [execution_and_verification_infrastructure](execution_and_verification_infrastructure.en.md)
 
 ## Requirement Analysis
 
@@ -39,8 +39,8 @@ Read-only context:
 
 Applicable skills: `python-quality-check`, `test-driven-development`.
 1. `replay_task_text.py` parses structured fenced directives (`Create <path>:`, `Replace in <path>:` + `With:`, `Insert in <path> (after|before):` + `With:`) from task markdown. `verify_task_edit_anchors(root, task_path, task_text, prior_touched)` checks that every `Replace in` or `Insert in` anchor targeting a tracked file not yet created/modified by an earlier directive occurs **exactly once** (`count == 1`) in `root / <path>`, reporting missing (`0` matches) or ambiguous (`>= 2` matches) anchors in `check_epic_readiness.py` (`R5`).
-2. `replay_epic_in_worktree(root, epic_dir, timeout)` creates a detached temporary git worktree, applies each task's directives in topological order, runs the task's `GREEN`/`TIER-B`/`TIER-C` commands when present, and removes the temporary worktree in a `finally:` block so `check_epic_readiness.py <epic> --replay` never mutates the main repository.
-3. Adding `"MEASURE"` to `PHASES = ("RED", "MEASURE", "GREEN", "TIER-B", "TIER-C")` in `task_contract.py` and `mode = "measure"` (`--timeout 7200`, `--resume`) in `run_task_checks.py` separates heavy measurement runs from fast `verify` assertions on committed evidence files.
+2. `replay_epic_in_worktree(root, epic_dir, timeout)` creates a detached temporary git worktree and replays each task in topological order using a deterministic 3-step phase execution order: (a) apply directives targeting test files (`test_*.py`, `*_test.*`, `tests/**`) and, when the task has `RED` rows (and not `RED: n/a`), execute `RED` rows and verify they fail via `validate_pytest_red`; (b) apply all remaining production file directives (`Create`, `Replace in`, `Insert in`); (c) execute `MEASURE` rows first (generating declared `Evidence files:`), followed by `GREEN`, `TIER-B`, and `TIER-C` rows, removing the temporary worktree in a `finally:` block so `check_epic_readiness.py <epic> --replay` never mutates the main repository.
+3. Adding `"MEASURE"` to `PHASES = ("RED", "MEASURE", "GREEN", "TIER-B", "TIER-C")` in `task_contract.py` (using Epic 1's `parse_evidence_files(task_text: str) -> list[AllowedPath]`) and `mode = "measure"` (`--timeout 7200`, `--resume`) in `run_task_checks.py` separates heavy measurement runs from fast `verify` assertions on committed evidence files.
 
 ## Impact Analysis & Blast Radius
 
@@ -60,18 +60,18 @@ Covers: EVI-HP-04, EVI-ST-02, EVI-FR-02, EVI-FR-03
 
 ```gherkin
   Scenario: [EVI-HP-04] [Tier C - Integration] Task text replay engine applies fenced directives in a scratch worktree and MEASURE phase executes and records evidence
-    Given a task file containing "Create", "Replace in", and "Insert in" fenced code blocks, "Phase: MEASURE" rows, and "Evidence files: .devtool/evidence/bench.json"
+    Given a task file containing "Create", "Replace in", and "Insert in" fenced code blocks, "Phase: MEASURE" rows, and "Evidence files: .devtool/epic/sample_epic/evidence/bench.json"
     When "replay_task_text.py" replays the task inside a temporary git worktree
-    Then all fenced directives apply cleanly and the task's Verification commands pass
+    Then test directives apply before "RED" rows, production directives apply before "MEASURE" rows, and all Verification commands pass
     And when "run_task_checks.py measure" executes the task
-    Then the "MEASURE" rows run, create ".devtool/evidence/bench.json", and record a passing "measure" entry in the task's evidence JSON
+    Then the "MEASURE" rows run, create ".devtool/epic/sample_epic/evidence/bench.json", and record a passing "measure" entry in the task's evidence JSON
 
   Scenario: [EVI-ST-02] [Tier C - Integration] run_task_checks.py measure --resume reuses cached MEASURE runs only when tree, row contracts, and evidence file digests match
-    Given a task file with "Phase: MEASURE" rows and "Evidence files: .devtool/evidence/bench.json"
-    And a prior "run_task_checks.py measure" execution recorded "runs.measure.passed = true" with matching worktree tree, row commands/expectations, and ".devtool/evidence/bench.json" SHA-256 digest
+    Given a task file with "Phase: MEASURE" rows and "Evidence files: .devtool/epic/sample_epic/evidence/bench.json"
+    And a prior "run_task_checks.py measure" execution recorded "runs.measure.passed = true" with matching worktree tree, row commands/expectations, and ".devtool/epic/sample_epic/evidence/bench.json" SHA-256 digest
     When "run_task_checks.py measure <task.md> --resume" is invoked on the unchanged tree and evidence file
     Then it skips re-executing the "MEASURE" subprocess commands and exits with code 0
-    And when the worktree tree, row command, or ".devtool/evidence/bench.json" content is modified, "--resume" invalidates the cache and re-executes the "MEASURE" rows
+    And when the worktree tree, row command, or ".devtool/epic/sample_epic/evidence/bench.json" content is modified, "--resume" invalidates the cache and re-executes the "MEASURE" rows
 
   Scenario: [EVI-FR-02] [Tier A - Unit] R5 static anchor verification fails when a Replace in or Insert in anchor is missing or ambiguous in the target file
     Given a task file containing a "Replace in <path>:" or "Insert in <path>:" directive whose anchor text occurs 0 times or 2+ times in "<path>"
@@ -108,20 +108,24 @@ Covers: EVI-HP-04, EVI-ST-02, EVI-FR-02, EVI-FR-03
 
 - In `skills/dev-implementation/resources/scripts/task_contract.py`:
   - `PHASES = ("RED", "MEASURE", "GREEN", "TIER-B", "TIER-C")`.
-  - `parse_evidence_files(task_text: str) -> list[str]` extracts inline code paths under `Evidence files:` in `## Files` (or inline `Evidence files: <path>` lines in the task body).
+  - Reuse `parse_evidence_files(task_text: str) -> list[AllowedPath]` from Epic 1 (`[entry.pattern for entry in parse_evidence_files(task_text)]` where each path matches `.devtool/epic/<epic_dir>/evidence/<filename>`); if `parse_evidence_files` is not yet present when running standalone unit tests, ensure its return type is `list[AllowedPath]`.
   - `row_problems(rows: list[Row], runs: dict) -> list[str]` maps `row.phase == "RED"` to `runs.get("red")`, `row.phase == "MEASURE"` to `runs.get("measure")`, and all other phases to `runs.get("verify")`, verifying that every `MEASURE` row has a matching `PASS` record with identical `command` and `expect_text`.
-  - `evaluate_done_gate(task_file: Path) -> list[str]` checks `needs_measure = any(row.phase == "MEASURE" for row in rows)`: when `True`, requires `"measure"` in `runs`, verifies `runs["measure"].get("passed") is True`, verifies `runs["measure"].get("tree") == fingerprint(layout.root)[0]` (appending `"condition 4: the measure run's tree differs from the current tree"` on mismatch), and verifies that every file in `parse_evidence_files(task_text)` exists on disk and its SHA-256 digest matches `runs["measure"].get("evidence_digests", {}).get(rel_path)`.
-- In `skills/dev-implementation/resources/scripts/audit_epic.py`, `audit_evidence()` adds `(["measure"] if any(r.phase == "MEASURE" for r in rows) else [])` to `needed` and verifies `runs["measure"].get("passed") is True` and non-empty `evidence_digests` for declared `Evidence files:`.
+  - `evaluate_done_gate(task_file: Path) -> list[str]` checks `needs_measure = any(row.phase == "MEASURE" for row in rows)`: when `True`, requires `"measure"` in `runs`, verifies `runs["measure"].get("passed") is True`, verifies `runs["measure"].get("tree") == fingerprint(layout.root)[0]` (appending `"condition 4: the measure run's tree differs from the current tree"` on mismatch), and verifies that for every `entry` in `parse_evidence_files(task_text)`, `layout.root / entry.pattern` exists on disk, is non-empty, and its SHA-256 digest matches `runs["measure"].get("evidence_digests", {}).get(entry.pattern)`.
+- In `skills/dev-implementation/resources/scripts/audit_epic.py`, `audit_evidence()` adds `(["measure"] if any(r.phase == "MEASURE" for r in rows) else [])` to `needed` and, when `"measure"` is needed, verifies `runs["measure"].get("passed") is True` and for every `entry` in `parse_evidence_files(text)` reads the committed file bytes at `HEAD` (`show(root, "HEAD", entry.pattern)`), verifying the file exists at `HEAD`, is non-empty, and `hashlib.sha256(raw.encode("utf-8")).hexdigest() == runs["measure"].get("evidence_digests", {}).get(entry.pattern)` (reporting `f"{stem}: evidence file {entry.pattern} missing or digest mismatch"` on failure).
 - In `skills/dev-implementation/resources/scripts/run_task_checks.py`:
   - `main()` accepts `mode` in `("red", "measure", "verify", "status")`, `--timeout` (default `7200` when `mode == "measure"` and `--timeout` was not explicitly passed, else `1800`), and `--resume` (`action="store_true"`).
-  - In `run(args)`: when `args.mode == "measure"`, selects `measure_rows = [row for row in rows if row.phase == "MEASURE"]`. If `--resume` is set, loads existing `evidence = load_evidence(layout.evidence)`: if `m_run := evidence.get("runs", {}).get("measure")` has `m_run.get("passed") is True`, `m_run.get("tree") == fingerprint(layout.root)[0]`, `row_problems(measure_rows, {"measure": m_run})` is empty, and every path in `parse_evidence_files(task_text)` exists under `layout.root` with `stat().st_size > 0` and SHA-256 matching `m_run.get("evidence_digests", {}).get(rel_path)`, prints `"MEASURE resumed (cached PASS)"` and returns `0` without re-running subprocesses.
-  - When recording `evidence["runs"][args.mode]`, include `"passed": passed` and (for `mode == "measure"`) `"evidence_digests": {rel_path: sha256_hex}` alongside `"head"`, `"tree"`, `"patch_id"`, `"started"`, `"finished"`, and `"rows"`.
+  - In `run(args)`: when `args.mode == "measure"`, selects `measure_rows = [row for row in rows if row.phase == "MEASURE"]`. If `--resume` is set, loads existing `evidence = load_evidence(layout.evidence)`: if `m_run := evidence.get("runs", {}).get("measure")` has `m_run.get("passed") is True`, `m_run.get("tree") == fingerprint(layout.root)[0]`, `row_problems(measure_rows, {"measure": m_run})` is empty, and for every `entry` in `parse_evidence_files(task_text)`, `layout.root / entry.pattern` exists with `stat().st_size > 0` and SHA-256 matching `m_run.get("evidence_digests", {}).get(entry.pattern)`, prints `"MEASURE resumed (cached PASS)"` and returns `0` without re-running subprocesses.
+  - When recording `evidence["runs"][args.mode]`, include `"passed": passed` and (for `mode == "measure"`) `"evidence_digests": {entry.pattern: sha256_hex}` alongside `"head"`, `"tree"`, `"patch_id"`, `"started"`, `"finished"`, and `"rows"`.
 - In `skills/dev-implementation/resources/scripts/replay_task_text.py`:
   - CLI interface: `replay_task_text.py <task.md> [--worktree <dir>] [--run-rows] [--timeout 600]`.
   - Support directives outside Gherkin fences:
     - `Create `?(<path>)`?:` followed by a fenced code block.
     - `Replace in `?(<path>)`?:` followed by a fenced code block (target anchor) and `With:` followed by a fenced code block (replacement).
     - `Insert in `?(<path>)`? (after|before):` followed by a fenced code block (anchor) and `With:` followed by a fenced code block (inserted text).
+  - When `--run-rows` is active (including `replay_epic_in_worktree`), execute in deterministic phase order:
+    1. Apply directives targeting test files (`Path(d.path).name.startswith("test_")` or `Path(d.path).name.endswith("_test.py")` or `"tests" in Path(d.path).parts`); if the task has `RED` rows (and not `RED: n/a`), run `RED` rows and verify they fail for the expected reason via `validate_pytest_red`.
+    2. Apply remaining production file directives.
+    3. Run `MEASURE` rows first (if any), then `GREEN`, `TIER-B`, and `TIER-C` rows.
   - `verify_task_edit_anchors(root: Path, task_path: Path, task_text: str, prior_modified: set[str] | None = None) -> list[str]` checks every `Replace in` and `Insert in` directive: if `<path>` is not in `prior_modified`, reads `root / <path>` and verifies `content.count(anchor) == 1`; if `0`, appends `f"{task_path.name}: missing edit anchor in {path}: {anchor.splitlines()[0]!r}"`; if `>= 2`, appends `f"{task_path.name}: ambiguous edit anchor ({count} matches) in {path}: {anchor.splitlines()[0]!r}"`; then adds `<path>` to `prior_modified`.
 - In `skills/dev-implementation/resources/scripts/check_epic_readiness.py`:
   - Call `replay_task_text.verify_task_edit_anchors` in `check_grounding(ctx)` (`R5`) across tasks in sorted order, emitting `Finding("R5", "FAIL", msg)` for any anchor error.
@@ -137,10 +141,10 @@ Covers: EVI-HP-04, EVI-ST-02, EVI-FR-02, EVI-FR-03
 
 ## Dependencies & Blockers
 
-- Blocked by [Task 01](../epic/execution_and_verification_infrastructure/task_01_polyglot_worktree_bootstrap.md)
-- Blocked by [Task 03](../epic/execution_and_verification_infrastructure/task_03_live_integration_and_route_matching.md)
+- Blocked by [Task 01](task_01_polyglot_worktree_bootstrap.md)
+- Blocked by [Task 03](task_03_live_integration_and_route_matching.md)
 
 ## References & Rollback
 
-- Reference: [2026-11-06-execution-and-verification-infrastructure-design.en.md](../epic/execution_and_verification_infrastructure/2026-11-06-execution-and-verification-infrastructure-design.en.md).
+- Reference: [2026-11-06-execution-and-verification-infrastructure-design.en.md](2026-11-06-execution-and-verification-infrastructure-design.en.md).
 - Rollback: `git revert` the task commit to remove `replay_task_text.py` and `MEASURE` phase changes.
