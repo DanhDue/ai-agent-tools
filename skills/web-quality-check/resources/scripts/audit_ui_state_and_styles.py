@@ -80,7 +80,35 @@ def get_git_diff_files(repo_root: Path, base_ref: str = "main") -> list[str]:
     return []
 
 
-def audit_cache_busting(repo_root: Path, modified_files: list[str]) -> list[dict[str, Any]]:
+def _is_excluded(p: Path, repo_root: Path) -> bool:
+    try:
+        rel_parts = p.relative_to(repo_root).parts
+    except ValueError:
+        rel_parts = p.parts
+    return "node_modules" in rel_parts or "build" in rel_parts or ".worktrees" in rel_parts or ".git" in rel_parts
+
+
+def _get_base_file_content(repo_root: Path, base_ref: str, rel_path: str) -> str | None:
+    try:
+        res = subprocess.run(
+            ["git", "show", f"{base_ref}:{rel_path}"],
+            cwd=str(repo_root),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if res.returncode == 0:
+            return res.stdout
+    except (subprocess.SubprocessError, OSError):
+        pass
+    return None
+
+
+def audit_cache_busting(
+    repo_root: Path,
+    modified_files: list[str],
+    base_ref: str = "main",
+) -> list[dict[str, Any]]:
     """Invariant 1: Verify static asset changes update ?v= parameter in referencing templates."""
     findings: list[dict[str, Any]] = []
 
@@ -95,11 +123,8 @@ def audit_cache_busting(repo_root: Path, modified_files: list[str]) -> list[dict
 
     # Template extensions to inspect
     template_files = list(repo_root.rglob("*.html")) + list(repo_root.rglob("*.astro")) + list(repo_root.rglob("*.jinja")) + list(repo_root.rglob("*.jinja2"))
-    # Exclude build and node_modules
-    template_files = [
-        t for t in template_files
-        if "node_modules" not in t.parts and "build" not in t.parts and ".worktrees" not in t.parts
-    ]
+    # Exclude build, node_modules, and nested worktrees
+    template_files = [t for t in template_files if not _is_excluded(t, repo_root)]
 
     for static_rel in static_mods:
         static_filename = Path(static_rel).name
@@ -115,8 +140,10 @@ def audit_cache_busting(repo_root: Path, modified_files: list[str]) -> list[dict
             for match in matches:
                 query_string = match.group(1) or ""
                 rel_tpl = str(tpl.relative_to(repo_root))
+                v_match = re.search(r"[?&]v=([^&'\"]*)", query_string)
+                current_v = v_match.group(1) if v_match else ""
 
-                if not query_string or "v=" not in query_string:
+                if not current_v:
                     findings.append({
                         "category": "cache_bust",
                         "severity": "FAIL",
@@ -127,17 +154,36 @@ def audit_cache_busting(repo_root: Path, modified_files: list[str]) -> list[dict
                             f"'{rel_tpl}' without a version query parameter (?v=...)."
                         ),
                     })
-                elif rel_tpl not in modified_files:
-                    findings.append({
-                        "category": "cache_bust",
-                        "severity": "FAIL",
-                        "file": rel_tpl,
-                        "asset": static_rel,
-                        "message": (
-                            f"Static asset '{static_rel}' was modified in git diff, but referencing template "
-                            f"'{rel_tpl}' was not updated with a new cache-bust version parameter."
-                        ),
-                    })
+                else:
+                    base_content = _get_base_file_content(repo_root, base_ref, rel_tpl)
+                    if base_content is not None:
+                        base_match = pattern.search(base_content)
+                        if base_match:
+                            base_q = base_match.group(1) or ""
+                            base_v_m = re.search(r"[?&]v=([^&'\"]*)", base_q)
+                            base_v = base_v_m.group(1) if base_v_m else ""
+                            if current_v == base_v:
+                                findings.append({
+                                    "category": "cache_bust",
+                                    "severity": "FAIL",
+                                    "file": rel_tpl,
+                                    "asset": static_rel,
+                                    "message": (
+                                        f"Static asset '{static_rel}' was modified in git diff, but referencing template "
+                                        f"'{rel_tpl}' has unchanged cache-bust parameter '?v={current_v}' (identical to {base_ref})."
+                                    ),
+                                })
+                    elif rel_tpl not in modified_files:
+                        findings.append({
+                            "category": "cache_bust",
+                            "severity": "FAIL",
+                            "file": rel_tpl,
+                            "asset": static_rel,
+                            "message": (
+                                f"Static asset '{static_rel}' was modified in git diff, but referencing template "
+                                f"'{rel_tpl}' was not updated with a new cache-bust version parameter."
+                            ),
+                        })
 
     return findings
 
@@ -152,7 +198,7 @@ def audit_orphaned_classes_and_styles(
     # 1. Collect all declared CSS classes from stylesheets
     css_files = [
         f for f in repo_root.rglob("*.css")
-        if "node_modules" not in f.parts and "build" not in f.parts
+        if not _is_excluded(f, repo_root)
     ]
     defined_classes: set[str] = set()
     class_def_pattern = re.compile(r"\.([A-Za-z0-9_-]+)(?=[^\{]*\{)")
@@ -175,7 +221,7 @@ def audit_orphaned_classes_and_styles(
 
     candidate_files = [
         f for f in candidate_files
-        if "node_modules" not in f.parts and "build" not in f.parts and ".worktrees" not in f.parts
+        if not _is_excluded(f, repo_root)
     ]
 
     class_ref_pattern = re.compile(r"""(?:class|className)=['"]([^'"]+)['"]""")
@@ -243,12 +289,12 @@ def audit_text_truncation_and_overflow(
 
     candidate_files = [
         f for f in candidate_files
-        if "node_modules" not in f.parts and "build" not in f.parts and ".worktrees" not in f.parts
+        if not _is_excluded(f, repo_root)
     ]
 
-    # Regex for consecutive duplicate word or phrase: "Tiến độ Tiến độ" or "Word Word"
+    # Regex for consecutive duplicate word or phrase with token boundaries: "Tiến độ Tiến độ" or "Word Word"
     duplicate_phrase_pattern = re.compile(
-        r"""([A-Za-zÀ-ỹ0-9_]{2,}(?:\s+[A-Za-zÀ-ỹ0-9_]{2,})*)\s+\1""",
+        r"""(?:^|[\s"'>])([A-Za-zÀ-ỹ0-9_]{2,}(?:\s+[A-Za-zÀ-ỹ0-9_]{2,})*)\s+\1(?=$|[\s<"'\.,;!?:])""",
         re.IGNORECASE | re.UNICODE,
     )
 
@@ -319,7 +365,7 @@ def audit_ui_state_machine_consistency(
 
     candidate_files = [
         f for f in candidate_files
-        if "node_modules" not in f.parts and "build" not in f.parts and ".worktrees" not in f.parts and "test_" not in f.name
+        if not _is_excluded(f, repo_root) and "test_" not in f.name
     ]
 
     for cf in candidate_files:
@@ -392,7 +438,7 @@ def run_all_ui_reviews(
     all_findings: list[dict[str, Any]] = []
 
     # Invariant 1
-    all_findings.extend(audit_cache_busting(root, modified_files))
+    all_findings.extend(audit_cache_busting(root, modified_files, base_ref=base_ref))
 
     # Invariant 2
     all_findings.extend(audit_orphaned_classes_and_styles(root))

@@ -168,3 +168,26 @@ def test_cli_execution(tmp_path: Path) -> None:
     code = main(["--project-root", str(tmp_path), "--json"])
     assert code == 0
 
+
+def test_progress_progression_not_flagged_as_duplicate(tmp_path: Path) -> None:
+    """Verify substring overlap like 'Progress Progression' is not false-positived."""
+    page = tmp_path / "valid.html"
+    page.write_text("<h2>Progress Progression</h2>", encoding="utf-8")
+    findings = audit_text_truncation_and_overflow(tmp_path)
+    dups = [f for f in findings if f["category"] == "duplicate_text"]
+    assert len(dups) == 0
+
+
+def test_worktree_path_auditing(tmp_path: Path) -> None:
+    """Verify that repositories located inside a parent path named .worktrees are not excluded."""
+    nested_worktree = tmp_path / ".worktrees" / "feature-branch"
+    nested_worktree.mkdir(parents=True)
+    (nested_worktree / "style.css").write_text(".existing-class { color: red; }", encoding="utf-8")
+    bad_page = nested_worktree / "view.html"
+    bad_page.write_text("<div class='missing-orphan-class'>Text</div>", encoding="utf-8")
+
+    findings = audit_orphaned_classes_and_styles(nested_worktree)
+    orphans = [f for f in findings if f["category"] == "orphaned_class"]
+    assert len(orphans) == 1
+    assert orphans[0]["class"] == "missing-orphan-class"
+
