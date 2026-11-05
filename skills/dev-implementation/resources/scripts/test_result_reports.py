@@ -109,5 +109,32 @@ class VerdictTest(unittest.TestCase):
                       {"name": "demo_ec_01", "classname": "", "status": "skipped"}]})
 
 
+    def test_dart_url_provenance_preserved(self) -> None:
+        dart_lines = "\n".join([
+            '{"type":"testStart","test":{"id":10,"name":"integration run","url":"package:app/integration_test/app_test.dart"}}',
+            '{"type":"testDone","testID":10,"result":"success","skipped":false,"hidden":false}',
+        ])
+        cases = parse_dart(dart_lines)
+        self.assertEqual(len(cases), 1)
+        self.assertEqual(cases[0].classname, "package:app/integration_test/app_test.dart")
+        res = verdicts(["WQG-HP-01"], [case("test_WQG_HP_01", classname=cases[0].classname)])
+        self.assertTrue(res["WQG-HP-01"][0])
+
+    def test_tier_c_positive_integration_provenance_enforced(self) -> None:
+        # Rejects arbitrary fake runner
+        fake_res = verdicts(["WQG-HP-01"], [case("test_WQG_HP_01", classname="arbitrary.fake.runner")])
+        self.assertFalse(fake_res["WQG-HP-01"][0])
+        self.assertIn("lacks integration runner provenance", fake_res["WQG-HP-01"][1])
+
+        # Rejects mock-only test_web_quality_provider
+        mock_res = verdicts(["WQG-HP-01"], [case("test_WQG_HP_01", classname="tests.test_web_quality_provider")])
+        self.assertFalse(mock_res["WQG-HP-01"][0])
+        self.assertIn("lacks integration runner provenance", mock_res["WQG-HP-01"][1])
+
+        # Accepts positive playwright integration runner
+        playwright_res = verdicts(["WQG-HP-01"], [case("test_WQG_HP_01", classname="tests.test_playwright_e2e")])
+        self.assertTrue(playwright_res["WQG-HP-01"][0])
+
+
 if __name__ == "__main__":
     unittest.main()

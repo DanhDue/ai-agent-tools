@@ -40,7 +40,7 @@ def parse_junit(text: str) -> list[Case]:
 
 
 def parse_dart(text: str) -> list[Case]:
-    names: dict[object, str] = {}
+    names: dict[object, tuple[str, str]] = {}
     cases = []
     for line in text.splitlines():
         if not line.strip():
@@ -57,14 +57,17 @@ def parse_dart(text: str) -> list[Case]:
         if not isinstance(event, dict):
             continue
         if event.get("type") == "testStart":
-            names[event["test"]["id"]] = event["test"]["name"]
+            t_obj = event.get("test", {})
+            t_name = t_obj.get("name", "")
+            t_url = t_obj.get("url") or t_obj.get("root_url") or ""
+            names[t_obj.get("id")] = (t_name, t_url)
         elif event.get("type") == "testDone" and event.get("testID") in names:
-            name = names.pop(event["testID"])
+            name, url = names.pop(event["testID"])
             if event.get("hidden"):
                 continue
             status = ("skipped" if event.get("skipped")
                       else "passed" if event.get("result") == "success" else "failed")
-            cases.append(Case(name, "", status))
+            cases.append(Case(name, url, status))
     return cases
 
 
@@ -111,6 +114,25 @@ UNIT_CLASSNAME_PATTERNS = [
     re.compile(r"\bUnitTests?\b", re.IGNORECASE),
     re.compile(r"\bMockTest\b", re.IGNORECASE),
     re.compile(r"^unit[\._]", re.IGNORECASE),
+    re.compile(r"\btest_web_quality_provider\b", re.IGNORECASE),
+    re.compile(r"\bfake\b", re.IGNORECASE),
+]
+
+INTEGRATION_POSITIVE_PATTERNS = [
+    re.compile(r"(?:\b|[\./_-])integration(?:[\./_-]|\b)", re.IGNORECASE),
+    re.compile(r"(?:\b|[\./_-])e2e(?:[\./_-]|\b)", re.IGNORECASE),
+    re.compile(r"(?:\b|[\./_-])playwright(?:[\./_-]|\b)", re.IGNORECASE),
+    re.compile(r"(?:\b|[\./_-])watchdog(?:[\./_-]|\b)", re.IGNORECASE),
+    re.compile(r"(?:\b|[\./_-])wiremock(?:[\./_-]|\b)", re.IGNORECASE),
+    re.compile(r"(?:\b|[\./_-])system(?:[\./_-]|\b)", re.IGNORECASE),
+    re.compile(r"(?:\b|[\./_-])polyglot(?:[\./_-]|\b)", re.IGNORECASE),
+    re.compile(r"(?:\b|[\./_-])audit_ui(?:[\./_-]|\b)", re.IGNORECASE),
+    re.compile(r"(?:\b|[\./_-])harness(?:[\./_-]|\b)", re.IGNORECASE),
+    re.compile(r"(?:\b|[\./_-])patrol(?:[\./_-]|\b)", re.IGNORECASE),
+    re.compile(r"(?:\b|[\./_-])xcuitest(?:[\./_-]|\b)", re.IGNORECASE),
+    re.compile(r"(?:\b|[\./_-])androidtest(?:[\./_-]|\b)", re.IGNORECASE),
+    re.compile(r"(?:\b|[\./_-])connected(?:[\./_-]|\b)", re.IGNORECASE),
+    re.compile(r"(?:\b|[\./_-])contract(?:[\./_-]|\b)", re.IGNORECASE),
 ]
 
 _SCENARIO_TIER_CACHE: dict[str, str] = {}
@@ -158,6 +180,18 @@ def is_pure_unit_mock(classname: str) -> bool:
     return any(p.search(classname) for p in UNIT_CLASSNAME_PATTERNS)
 
 
+def is_valid_integration_provenance(case: Case) -> bool:
+    """Verify positive platform-appropriate execution provenance for Tier C scenarios."""
+    classname = (case.classname or "").strip()
+    name = (case.name or "").strip()
+    target = f"{classname} {name}"
+
+    if is_pure_unit_mock(classname):
+        return False
+
+    return any(p.search(target) for p in INTEGRATION_POSITIVE_PATTERNS)
+
+
 def is_tier_c_scenario(identifier: str, metadata: dict[str, str] | None = None) -> bool:
     """Identify Tier C integration scenarios from metadata, explicit tags, or discovered scenarios."""
     if re.search(r"\bTier\s*C\b", identifier, re.IGNORECASE):
@@ -202,7 +236,7 @@ def verdicts(
         elif passed:
             if is_tier_c_scenario(identifier, scenario_metadata):
                 valid_integration = [
-                    c for c in own if c.status == "passed" and not is_pure_unit_mock(c.classname)
+                    c for c in own if c.status == "passed" and is_valid_integration_provenance(c)
                 ]
                 if not valid_integration:
                     result[identifier] = (
