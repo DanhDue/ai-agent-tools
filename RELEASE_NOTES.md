@@ -1,56 +1,62 @@
-# Release Notes: d3nexus v1.23.0
+# Release Notes: d3nexus v1.24.0
 
-**Release Date:** November 04, 2026  
-**Version:** `1.23.0`  
-**Git Tag:** `v1.23.0`, `d3nexus--v1.23.0`
+**Release Date:** November 05, 2026  
+**Version:** `1.24.0`  
+**Git Tag:** `v1.24.0`, `d3nexus--v1.24.0`
 
 ---
 
 ## Executive Summary
 
-`v1.23.0` introduces **Visual Multi-Epic Workspace Synchronization & Color Customization**, dynamic **SQLite Account & Email ID Extraction**, and **Multi-Profile GUI Isolation** across the entire developer ecosystem (`ai-agent-tools`, `D3Nexus`, `lyrics-sync`, `nexus`) and all 19 Antigravity profiles. It completely eliminates cross-account title contamination when opening repositories directly from the Antigravity IDE GUI (`File -> Open Folder`), enforces persistent active/inactive theme bar parity, establishes Section 8.4 in `CRITICAL_RULES.md`, and hardens Python 3.9 compatibility across all lifecycle CLI tools and test suites.
+`v1.24.0` introduces the **Web Quality Assurance Provider and Integration Quality Gate**, establishing the `d3nexus:web-quality-check` skill and multi-provider polyglot quality orchestration at Gate 4 across our multi-repo ecosystem (`D3Nexus`, `lyrics-sync`, `nexus`). It delivers headless **Playwright Zero-Console-And-Layout-Defect Watchdogs** in TypeScript and Python, in-place **Vanilla JS JSDoc Type-Checking**, **Polyglot Gate 4 Registry Fan-Out**, **UI State and Styles Auditing**, automated **Manual Smoke Checklist Generation**, and codifies **Anti-Rationalization & Doubt-Driven Verification Rules** across developer skills. Additionally, it hardens **Worktree-Aware Window Title Synchronization** and formalizes **Zero-Context Fast-Execution Exemptions** in `CRITICAL_RULES.md`.
 
 ---
 
 ## Key Highlights
 
-### 1. Visual Multi-Epic Workspace Synchronization Engine
-- **Dynamic Window Title**: Synchronizes window titles to `"<ICON> [<REPO_NAME>] [@<account_id>] <Vietnamese Epic Name> - <Stage / Task>"`.
-- **Repository Signature Colors**:
-  - 🔴 `[LYRICS-SYNC]`: `#7f1d1d` (Crimson Red)
-  - 🟢 `[D3NEXUS]`: `#065f46` (Emerald Green)
-  - 🔵 `[NEXUS]`: `#0d47a1` (Royal Blue)
-  - 🟠 `[AGENT-TOOLS]`: `#b45309` (Warm Amber)
-- **Persistent Inactive Bar Parity**: Configures `titleBar.inactiveBackground = titleBar.activeBackground` and `statusBar.inactiveBackground = statusBar.background` to eliminate IDE dimming when windows lose focus.
-- **Clean Activity Bar**: Preserves default dark background on the left activity toolbar to avoid peripheral visual clutter.
-- **Vietnamese Epic Titles**: Extracts epic names directly from H1 headers of `.devtool/epic/<slug>/*.vi.md`.
+### 1. Web Quality Assurance Provider (`web-quality-check`)
+- **Common Quality Contract v1**: Implements `validate_web_quality.py` to run platform capabilities (`type_check`, `lint`, `test_unit`, `test_e2e`, `ui_review`, `contracts`) and validate results against schema specifications.
+- **Genuine Test & Artifact Validation**: Validates executed testcase counts, fresh execution timestamps against Git HEAD, and confirms watchdog attachment evidence from `build/test-results/`.
+- **Astro & Vanilla JS Support**: Native support for Astro TypeScript apps and Vanilla JavaScript static preview workflows.
 
-### 2. Dynamic SQLite Account & Email ID Engine
-- **Direct SQLite Querying**: `extract_email_id_from_profile` in `scripts/resume_context.py` inspects `state.vscdb` (`google.google-antigravity` onboarding storage) in read-only URI mode (`file:...mode=ro`).
-- **4-Tier Account Resolution Hierarchy**:
-  1. CLI `--profile` or `AGY_PROFILE` / `ANTIGRAVITY_PROFILE` override.
-  2. Active process inspection (`ps -eo command`) matching `agy` or `Antigravity IDE` attached to target repo.
-  3. `workspaceStorage` MRU timestamp inspection across all profiles in `antigravity_homes`.
-  4. Active shell `HOME` environment fallback.
-- **All 19 Profiles Supported**: Full coverage for `brother`, `buivantrong8901`, `d3molt`, `daddy`, `danhdue`, `duedd`, `duvthinh403`, `hau`, `hoangcongtam690`, `khe`, `mau`, `molt`, `mommy`, `ngocanh000690`, `nguyenhieu000690`, `peter`, `phungthuy8901`, `tess`, and `trananh`.
+### 2. Playwright Zero-Console-And-Layout-Defect Watchdogs
+- **Dual-Language Fixtures**: Ships `playwright-zero-error.fixture.ts` for TypeScript (Astro / Playwright test runner) and `playwright_zero_error.py` for Python test harnesses.
+- **4-Layer Watchdog Guardrails**:
+  1. *Console & Exception Interception*: Captures `console.error` and unhandled browser exceptions.
+  2. *Static Asset 404 Trap*: Intercepts broken stylesheets, scripts, and media resources.
+  3. *Visual Integrity & Computed Style Checks*: `assertVisualIntegrity` inspects CSS rules and computed layout geometry to detect unstyled components.
+  4. *DOM State Leak & Duplicate Text Detector*: Catches overlapping state leaks and consecutive duplicate phrases while respecting accessibility and visibility clipping.
 
-### 3. Multi-Profile GUI Isolation & Governance
-- **Strict Separation of Concerns**: Workspace `.vscode/settings.json` houses project-wide invariants (`workbench.colorCustomizations`), while personal identity is isolated in `antigravity_homes/<account>/data/User/settings.json`.
-- **Zero GUI Contamination**: Opening any project directly from Antigravity IDE GUI (`File -> Open Folder`) reliably displays the current profile's identity without leaking previously active accounts.
-- **Plugin Rule Standard**: Rule codified into `rules/CRITICAL_RULES.md` (Section 8.4) and synced to installed plugins for all AI assistants (Claude, Codex, Antigravity).
+### 3. Vanilla JS JSDoc Type-Checking Engine
+- **In-Place Type Safety**: Uses `tsc --project jsconfig.json --noEmit` via `check_vanilla_js.py` to type-check Vanilla JavaScript files without requiring `.ts` refactoring.
+- **Standard Template**: Provides `jsconfig.template.json` with DOM definitions, JSDoc type checking, and parameter type validation.
 
-### 4. Python 3.9 Compatibility Hardening
-- **PEP 604 Type Unions**: Added `from __future__ import annotations` across 29 test and CLI tool files, guaranteeing complete compatibility with macOS default `/usr/bin/python3` (Python 3.9.6).
-- **Timezone Fallbacks**: Added fallback to `timezone.utc` for `datetime.UTC`.
-- **Runtime Error & Symlink Loop Handling**: Handled `Path.resolve()` symlink loop exceptions in `sync_contracts.py`.
-- **Transport & Pairwise Fixes**: Replaced `itertools.pairwise` with `zip(chats, chats[1:])` and resolved `socket.timeout` error handling in `local_review.py`.
+### 4. Polyglot Gate 4 Multi-Provider Orchestration
+- **Concurrent Dispatch**: `verify_polyglot_registry.py` fans out across all providers configured in `.agents/quality/check_quality.json`.
+- **End-to-End Execution**: Added `--execute` runner flag with Git HEAD verification, SHA mismatch detection, and drift prevention.
+- **Polyglot Scaffolding**: Added templates for polyglot Gate 4 registries and web quality manifests in `setup_quality_check`.
+
+### 5. Anti-Rationalization Tables & Doubt-Driven Workflow Rules
+- **Anti-Rationalization Discipline**: Embedded strict rules in `SKILL.md` (`test-driven-development` and `dev-implementation`) that ban AI shortcuts, test fakery, and trivial mocks for integration tests.
+- **Provenance Verification**: `result_reports.py` validates Tier C runner provenance, classnames, and genuine execution logs.
+
+### 6. Automated Manual Smoke Checklist Generator
+- **2-Minute Walkthrough**: `generate_smoke_checklist.py` inspects deliverables, CLI entrypoints, and UI components to generate a targeted 3-5 step `manual_smoke_checklist.md` upon epic completion.
+
+### 7. UI State & Styles Audit Engine
+- **CSS & DOM Audit**: `audit_ui_state_and_styles.py` statically inspects CSS declarations, inline styles, word boundaries, and component styling isolation.
+
+### 8. Worktree-Aware Window Title Sync & Fast-Execution Exemption
+- **Worktree Isolation**: `scripts/resume_context.py` isolates window title synchronization to worktree contexts, avoiding clobbering primary repo window titles.
+- **Fast-Execution Rule**: Section 8.1 in `CRITICAL_RULES.md` exempts routine operational commands (`/refresh-session`, `/setup_keybindings`, git diff/status) from running heavyweight context restoration.
 
 ---
 
 ## Verifications & Quality Gates Passed
 
 - `scripts/verify.sh`: 🟢 **PASS — safe to publish** (16/16 sections green)
-- `scripts/test_resume_context.py`: 🟢 **PASS** (21/21 unit tests green)
-- `skills/dev-implementation/resources/scripts/test_local_review.py`: 🟢 **PASS** (40/40 unit tests green)
-- `skills/dev-implementation/resources/scripts/test_check_epic_readiness.py`: 🟢 **PASS** (9/9 unit tests green)
+- `pytest tests/`: 🟢 **PASS** (45/45 tests green)
+- `scripts/test_resume_context.py`: 🟢 **PASS** (22/22 unit tests green)
+- `skills/quality_check/resources/scripts/test_validate_quality_contract.py`: 🟢 **PASS** (13/13 unit tests green)
+- `skills/quality_check/resources/scripts/test_aggregate_quality_results.py`: 🟢 **PASS** (20/20 unit tests green)
 - `skills/sync-shared-contracts/resources/scripts/test_sync_contracts.py`: 🟢 **PASS** (31/31 unit tests green)

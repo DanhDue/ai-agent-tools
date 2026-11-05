@@ -8,6 +8,56 @@ every installed machine on the old cached copy.
 
 ---
 
+## 1.24.0 — 2026-11-05
+
+Introduces the Web Quality Assurance Provider and Integration Quality Gate, delivers Playwright zero-console-and-layout-defect watchdog fixtures for TypeScript and Python, adds in-place Vanilla JavaScript JSDoc type-checking, implements Polyglot Gate 4 registry fan-out, embeds anti-rationalization doubt-driven workflow rules, adds automated manual smoke checklist generation, introduces component UI state and styling audits, and supports worktree-isolated window title synchronization with zero-context tool exemptions.
+
+### Added
+
+- **Web Quality Assurance Provider & Contract** (`skills/web-quality-check/`, `skills/quality_check/`):
+  - Adds `d3nexus:web-quality-check` skill implementing Provider Result Contract v1 for Astro TypeScript and Vanilla JavaScript projects.
+  - Adds `skills/web-quality-check/resources/scripts/validate_web_quality.py` to validate web quality configurations, run platform capabilities, verify genuine XML test results (`build/test-results/`), enforce execution freshness against Git HEAD, and ensure watchdog attachment evidence.
+  - Adds `skills/web-quality-check/resources/scripts/run_playwright_harness.py` for headless browser test execution and artifact capture.
+  - Defines web quality capabilities (`type_check`, `lint`, `test_unit`, `test_e2e`, `ui_review`, `contracts`) and standard profiles (`pr`, `epic`, `release`, `scheduled`).
+- **Playwright Zero-Console-And-Layout-Defect Watchdog & Fixtures** (`skills/web-quality-check/resources/templates/`):
+  - Delivers `playwright-zero-error.fixture.ts` and `playwright_zero_error.py` test fixtures for TypeScript and Python environments.
+  - Implements 4-tier watchdog protection: console error interceptor (`console.error`, unhandled exceptions), 404 network failure trap (static assets, stylesheets, fonts), visual layout defect checker (`assertVisualIntegrity` inspecting unstyled defaults and CSS rule cascade), and consecutive duplicate text / DOM state leak detector.
+  - Adds accessibility and visibility clipping filters to prevent false positives on hidden or offscreen elements.
+- **Vanilla JS JSDoc Type-Checking Engine** (`skills/web-quality-check/resources/scripts/check_vanilla_js.py`):
+  - Provides in-place static type checking for Vanilla JavaScript files using TypeScript compiler (`tsc --project jsconfig.json --noEmit`) without migrating to `.ts`.
+  - Scaffolds `jsconfig.json` template (`skills/web-quality-check/resources/templates/jsconfig.template.json`) with `checkJs: true`, DOM lib types, and strict parameter inspection.
+- **Polyglot Gate 4 Registry & Multi-Provider Fan-Out** (`skills/quality_check/resources/scripts/verify_polyglot_registry.py`):
+  - Implements concurrent fan-out and dispatch across multiple registered providers in `.agents/quality/check_quality.json`.
+  - Adds `--execute` runner flag for end-to-end multi-provider quality gate runs.
+  - Enforces repository SHA binding, Git HEAD verification, and rejects stale evidence or SHA drift.
+  - Scaffolds polyglot templates (`polyglot-check-quality.template.json` and `web-quality.template.json`) in `skills/setup_quality_check/`.
+- **UI State & Styles Audit Engine** (`skills/web-quality-check/resources/scripts/audit_ui_state_and_styles.py`):
+  - Implements static and AST analysis of CSS and styling declarations across HTML, Astro, and CSS files.
+  - Detects component-scoped style definitions, inline CSS attributes, and visual styling adherence.
+  - Includes worktree path filtering, git base diff cache-busting, and strict word boundary matching.
+- **Automated Manual Smoke Checklist Generator** (`skills/dev-implementation/resources/scripts/generate_smoke_checklist.py`):
+  - Generates a concise 3-5 step `manual_smoke_checklist.md` upon epic completion, targeting extracted CLI and script entrypoints.
+  - Drastically compresses manual verification time for human architects from 30 minutes to 2 minutes.
+- **Anti-Rationalization & Doubt-Driven Workflow Rules** (`skills/test-driven-development/SKILL.md`, `skills/dev-implementation/SKILL.md`):
+  - Codifies strict Anti-Rationalization Tables banning test fakery, trivial unit mocks for Tier C integration tests, and ungrounded completion claims.
+  - Requires genuine integration test execution, real DOM logic assertions, and evidence-backed triage.
+- **Self-Verification Quality Manifest for `ai-agent-tools`** (`.agents/quality/check_quality.json`, `.agents/quality/python-quality.json`):
+  - Registers `agent-tools-python` quality provider executing `ruff format`, `ruff check`, `mypy`, `pytest tests`, and `verify.sh`.
+- **Worktree-Aware Window Title Sync & Fast-Execution Exemption** (`scripts/resume_context.py`, `rules/CRITICAL_RULES.md`):
+  - Updates `sync_window_title` to detect git worktree paths and isolate window title updates to current worktree context, preventing clobbering primary repository titles.
+  - Adds Section 8.1 Zero-Context and Fast-Execution Exemption in `CRITICAL_RULES.md` for routine operational commands (`/refresh-session`, `/setup_keybindings`, git status/diff inspections).
+
+### Changed
+
+- **Scenario Runner Constraints & Provenance Verification** (`skills/dev-implementation/resources/scripts/result_reports.py`):
+  - Recognizes compiler and audit workflow integration patterns in test report summaries.
+  - Extracts explicit Tier tags from scenario metadata and enforces positive integration evidence.
+  - Extracts Dart test URL provenance and enforces classname runner provenance for Tier C integration verification.
+- **Quality Check Provider Acceptance** (`skills/quality_check/resources/scripts/test_quality_provider_acceptance.py`):
+  - Updated to test multi-provider acceptance and contract compatibility across polyglot architectures.
+
+---
+
 ## 1.23.0 — 2026-11-04
 
 Introduces visual multi-epic workspace synchronization and persistent color customization, adds dynamic SQLite account & email ID extraction across 19 Antigravity profiles, guarantees multi-profile GUI isolation without cross-account title contamination, hardens Python 3.9 compatibility across all lifecycle tools and test suites, and publishes bilingual architecture specifications and implementation plans.
