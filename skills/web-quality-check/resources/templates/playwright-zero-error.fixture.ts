@@ -160,22 +160,45 @@ export async function assertDomStateIntegrity(
         }
       }
 
-      // 2. Check consecutive duplicate substring rendering inside headings/titles
-      const textNodes = container.querySelectorAll('h1, h2, h3, h4, h5, h6, [role="heading"], [data-card-title]');
-      for (const el of Array.from(textNodes)) {
-        let isHeadingVisible = true;
-        let curr: Element | null = el;
+      function isNodeVisible(element: Element): boolean {
+        let curr: Element | null = element;
         while (curr && curr !== document.documentElement) {
           const s = window.getComputedStyle(curr);
           if (s.display === 'none' || s.visibility === 'hidden' || parseFloat(s.opacity || '1') === 0) {
-            isHeadingVisible = false;
-            break;
+            return false;
           }
           curr = curr.parentElement;
         }
-        if (!isHeadingVisible) continue;
+        return true;
+      }
 
-        const text = (el.textContent || '').trim().replace(/\s+/g, ' ');
+      function getVisibleText(node: Node | null): string {
+        if (!node) return '';
+        if (node.nodeType === 3) {
+          return node.nodeValue || '';
+        }
+        if (node.nodeType === 1) {
+          const el = node as Element;
+          const s = window.getComputedStyle(el);
+          if (s.display === 'none' || s.visibility === 'hidden' || parseFloat(s.opacity || '1') === 0) {
+            return '';
+          }
+          let text = '';
+          const children = Array.from(el.childNodes);
+          for (const child of children) {
+            text += getVisibleText(child);
+          }
+          return text;
+        }
+        return '';
+      }
+
+      // 2. Check consecutive duplicate substring rendering inside headings/titles
+      const textNodes = container.querySelectorAll('h1, h2, h3, h4, h5, h6, [role="heading"], [data-card-title]');
+      for (const el of Array.from(textNodes)) {
+        if (!isNodeVisible(el)) continue;
+
+        const text = (getVisibleText(el) || '').trim().replace(/\s+/g, ' ');
         // Check for adjacent duplicate words/phrases of 2+ characters, e.g. "Tiến độ Tiến độ"
         const dupMatch = text.match(/(?:^|\s)([A-Za-zÀ-ỹ0-9_]{2,}(?:\s+[A-Za-zÀ-ỹ0-9_]{2,})*)\s+\1(?:$|\s|[.,;])/i);
         if (dupMatch) {

@@ -66,6 +66,7 @@ const arg = {json.dumps(arg)};
 
 class MockElement {{
   constructor(sel, spec) {{
+    this.nodeType = 1;
     this.tagName = spec.tagName || (sel.startsWith('h') ? sel : 'div');
     this.textContent = spec.textContent || '';
     this.style = Object.assign({{
@@ -81,6 +82,10 @@ class MockElement {{
     }}, spec.style || {{}});
     this.rect = Object.assign({{ width: 100, height: 100 }}, spec.rect || {{}});
     this.parentElement = spec.parentElement ? new MockElement('parent', spec.parentElement) : null;
+    this.childNodes = (spec.children || []).map(c => new MockElement(c.sel || 'span', c));
+    if (this.childNodes.length === 0 && this.textContent) {{
+      this.childNodes = [{{ nodeType: 3, nodeValue: this.textContent }}];
+    }}
   }}
   getBoundingClientRect() {{
     return this.rect;
@@ -246,6 +251,25 @@ def test_WQG_EC_03_mutually_exclusive_state_leak_and_duplicate_text():
     )
     with pytest.raises(AssertionError, match="Consecutive duplicate phrase detected"):
         assert_dom_state_integrity(page_dup)
+
+    # 2b. Hidden descendant repeating the phrase is filtered by visibility and does NOT raise
+    page_hidden_dup = MockPage(
+        dom_elements={
+            "h2": {
+                "tagName": "h2",
+                "textContent": "Tiến độ",
+                "style": {"display": "block", "visibility": "visible", "opacity": "1"},
+                "children": [
+                    {
+                        "sel": "span",
+                        "textContent": "Tiến độ",
+                        "style": {"display": "none"},
+                    }
+                ],
+            }
+        }
+    )
+    assert_dom_state_integrity(page_hidden_dup)
 
     # 3. Positive accessibility clipped elements (e.g. .sr-only) are accepted as valid
     page_a11y = MockPage(

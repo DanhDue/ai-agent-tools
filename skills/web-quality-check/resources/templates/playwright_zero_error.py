@@ -233,21 +233,43 @@ def assert_dom_state_integrity(
         }
       }
 
-      const textNodes = container.querySelectorAll('h1, h2, h3, h4, h5, h6, [role="heading"], [data-card-title]');
-      for (const el of Array.from(textNodes)) {
-        let isHeadingVisible = true;
-        let curr = el;
+      function isNodeVisible(element) {
+        let curr = element;
         while (curr && curr !== document.documentElement) {
           const s = window.getComputedStyle(curr);
           if (s.display === 'none' || s.visibility === 'hidden' || parseFloat(s.opacity || '1') === 0) {
-            isHeadingVisible = false;
-            break;
+            return false;
           }
           curr = curr.parentElement;
         }
-        if (!isHeadingVisible) continue;
+        return true;
+      }
 
-        const text = (el.textContent || '').trim().replace(/\\s+/g, ' ');
+      function getVisibleText(node) {
+        if (!node) return '';
+        if (node.nodeType === 3) {
+          return node.nodeValue || '';
+        }
+        if (node.nodeType === 1) {
+          const s = window.getComputedStyle(node);
+          if (s.display === 'none' || s.visibility === 'hidden' || parseFloat(s.opacity || '1') === 0) {
+            return '';
+          }
+          let text = '';
+          const children = node.childNodes || [];
+          for (let i = 0; i < children.length; i++) {
+            text += getVisibleText(children[i]);
+          }
+          return text;
+        }
+        return '';
+      }
+
+      const textNodes = container.querySelectorAll('h1, h2, h3, h4, h5, h6, [role="heading"], [data-card-title]');
+      for (const el of Array.from(textNodes)) {
+        if (!isNodeVisible(el)) continue;
+
+        const text = (getVisibleText(el) || '').trim().replace(/\\s+/g, ' ');
         const dupMatch = text.match(/(?:^|\\s)([A-Za-zÀ-ỹ0-9_]{2,}(?:\\s+[A-Za-zÀ-ỹ0-9_]{2,})*)\\s+\\1(?:$|\\s|[.,;])/i);
         if (dupMatch) {
           return {
