@@ -173,19 +173,48 @@ def test_watchdog_filters():
 
 def test_WQG_HP_03_playwright_headless_execution():
     """Scenario: [WQG-HP-03] [Tier C - Integration] Playwright headless execution with wiremock and Zero-Console-Error."""
-    page = MockPage()
-    watchdog = attach_zero_error_watchdog(page)
-
-    # Simulate normal page actions without errors
-    page.emit("console", MockConsoleMessage("info", "Page initialized"))
-    page.emit(
-        "response", MockResponse(200, "http://localhost:3000/main.css", "stylesheet")
+    # 1. Execute against genuine committed fixture
+    astro_fixture_dir = REPO_ROOT / "tests" / "fixtures" / "astro_repo"
+    e2e_script = astro_fixture_dir / "scripts" / "test_e2e.js"
+    res = subprocess.run(
+        ["node", str(e2e_script)],
+        cwd=astro_fixture_dir,
+        capture_output=True,
+        text=True,
+        check=False,
     )
-    page.emit("response", MockResponse(200, "http://localhost:3000/app.js", "script"))
+    assert res.returncode == 0, f"Fixture e2e run failed: {res.stderr}\n{res.stdout}"
+    assert "Playwright watchdog executed 3 browser tests" in res.stdout
 
-    # Assert zero defects
-    watchdog.assert_zero_defects()
-    assert len(watchdog.captured_errors) == 0
+    # 2. Verify emitted JUnit report and structured receipt
+    xml_path = astro_fixture_dir / "build" / "test-results" / "playwright.xml"
+    receipt_path = (
+        astro_fixture_dir / "build" / "test-results" / "watchdog-receipt.json"
+    )
+    assert xml_path.is_file(), "playwright.xml not created by e2e runner"
+    assert receipt_path.is_file(), "watchdog-receipt.json not created by e2e runner"
+
+    receipt_data = json.loads(receipt_path.read_text(encoding="utf-8"))
+    assert receipt_data.get("status") == "PASS"
+    assert receipt_data.get("captured_defects") == 0
+    assert receipt_data.get("runner") == "playwright-zero-error-watchdog"
+    assert "http://localhost:4321/" in receipt_data.get("inspected_urls", [])
+
+    # 3. Verify Python Watchdog with receipt emission
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp_receipt = Path(tmpdir) / "test-receipt.json"
+        page = MockPage()
+        watchdog = attach_zero_error_watchdog(page)
+        page.emit("console", MockConsoleMessage("info", "Page initialized"))
+        page.emit(
+            "response",
+            MockResponse(200, "http://localhost:3000/main.css", "stylesheet"),
+        )
+        watchdog.assert_zero_defects(receipt_path=tmp_receipt)
+        assert tmp_receipt.is_file()
+        rec = json.loads(tmp_receipt.read_text(encoding="utf-8"))
+        assert rec.get("status") == "PASS"
+        assert rec.get("captured_defects") == 0
 
 
 def test_WQG_EC_02_allowlist_filtering():
@@ -349,7 +378,14 @@ def test_WQG_AR_02_webserver_lifecycle():
             "--bind",
             "127.0.0.1",
         ]
-        test_cmd = [sys.executable, "-c", "import sys; sys.exit(0)"]
+        test_client_code = (
+            "import urllib.request, sys; "
+            "res = urllib.request.urlopen('http://127.0.0.1:8942/'); "
+            "assert res.status == 200, f'Bad status: {res.status}'; "
+            "data = res.read(); "
+            "assert data is not None"
+        )
+        test_cmd = [sys.executable, "-c", test_client_code]
 
         res = run_playwright_suite(
             test_command=test_cmd,

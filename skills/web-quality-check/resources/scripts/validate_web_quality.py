@@ -474,60 +474,62 @@ def run_capabilities(
                         if overall_status != "FAIL":
                             overall_status = "BLOCKED"
 
-                    # 3. Positive watchdog attachment & browser execution trace verification
-                    watchdog_evidence_found = False
-                    for tc in executed_testcases:
-                        tc_name = tc.attrib.get("name", "")
-                        tc_class = tc.attrib.get("classname", "")
-                        tc_text = "".join(tc.itertext())
-                        combined = f"{tc_name} {tc_class} {tc_text}".lower()
-                        if any(
-                            tok in combined
-                            for tok in (
-                                "playwright",
-                                "browser",
-                                "chromium",
-                                "firefox",
-                                "webkit",
-                                "watchdog",
-                                "zero_error",
-                                "zero-error",
-                                "zero-console",
-                            )
-                        ):
-                            watchdog_evidence_found = True
-                            break
+                    # 3. Positive watchdog structured receipt verification
+                    receipt_file = evidence_file.parent / "watchdog-receipt.json"
+                    receipt_data: dict[str, Any] | None = None
+                    if receipt_file.is_file():
+                        receipt_mtime = receipt_file.stat().st_mtime
+                        if receipt_mtime >= (start_time - 15.0):
+                            try:
+                                receipt_data = json.loads(
+                                    receipt_file.read_text(encoding="utf-8")
+                                )
+                            except (json.JSONDecodeError, OSError):
+                                pass
 
-                    if not watchdog_evidence_found:
-                        xml_full_text = "".join(root_el.itertext()).lower()
+                    if not receipt_data:
+                        # Check for embedded XML property: <property name="watchdog_receipt" value="..."/>
                         for prop in root_el.findall(".//property"):
-                            xml_full_text += f" {prop.attrib.get('name', '')} {prop.attrib.get('value', '')}".lower()
-                        if any(
-                            tok in xml_full_text
-                            for tok in (
-                                "playwright",
-                                "browser",
-                                "chromium",
-                                "firefox",
-                                "webkit",
-                                "watchdog",
-                                "zero_error",
-                                "zero-error",
-                                "zero-console",
-                            )
-                        ):
-                            watchdog_evidence_found = True
+                            if prop.attrib.get("name") in (
+                                "watchdog_receipt",
+                                "watchdog-receipt",
+                            ):
+                                try:
+                                    receipt_data = json.loads(
+                                        prop.attrib.get("value", "{}")
+                                    )
+                                    break
+                                except json.JSONDecodeError:
+                                    pass
 
-                    if not watchdog_evidence_found:
+                    if not receipt_data:
                         blockers.append(
                             _finding(
-                                "missing_watchdog_attachment",
-                                f"XML evidence at '{evidence_file}' lacks browser/watchdog execution traces or zero-error attachment evidence",
+                                "missing_watchdog_receipt",
+                                f"E2E test run at '{evidence_file}' lacks a valid, fresh structured watchdog receipt ('build/test-results/watchdog-receipt.json' or embedded <property name='watchdog_receipt'/>). Ordinary testcase names cannot establish watchdog attachment.",
                                 location=str(evidence_file),
                             )
                         )
                         if overall_status != "FAIL":
                             overall_status = "BLOCKED"
+                    else:
+                        status_val = str(receipt_data.get("status", "")).upper()
+                        defects = receipt_data.get(
+                            "captured_defects", len(receipt_data.get("errors", []))
+                        )
+                        if status_val != "PASS" or defects > 0:
+                            blockers.append(
+                                _finding(
+                                    "watchdog_defects_detected",
+                                    f"Watchdog receipt reports {defects} defect(s): {receipt_data.get('errors', [])}",
+                                    location=str(
+                                        receipt_file
+                                        if receipt_file.is_file()
+                                        else evidence_file
+                                    ),
+                                )
+                            )
+                            overall_status = "FAIL"
 
                 failures = 0
                 errors = 0

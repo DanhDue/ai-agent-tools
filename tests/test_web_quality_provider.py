@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import sys
 import tempfile
 from pathlib import Path
@@ -101,6 +102,17 @@ def test_run_capabilities_contract_validation_unit():
         # Write valid Playwright JUnit XML evidence with executed testcase and watchdog trace
         (results_dir / "playwright.xml").write_text(
             "<testsuites><testsuite name='playwright' tests='1' failures='0'><testcase classname='playwright.watchdog' name='test_zero_console_error'/></testsuite></testsuites>"
+        )
+        (results_dir / "watchdog-receipt.json").write_text(
+            json.dumps(
+                {
+                    "receipt_version": 1,
+                    "runner": "playwright-zero-error-watchdog",
+                    "status": "PASS",
+                    "captured_defects": 0,
+                    "errors": [],
+                }
+            )
         )
 
         manifest = {
@@ -223,6 +235,17 @@ def test_watchdog_xml_validation_and_real_logs():
         (results_dir / "playwright.xml").write_text(
             "<testsuites><testsuite name='playwright' tests='2' failures='1'><testcase classname='playwright.watchdog' name='t1'><failure message='err'/></testcase></testsuite></testsuites>"
         )
+        (results_dir / "watchdog-receipt.json").write_text(
+            json.dumps(
+                {
+                    "receipt_version": 1,
+                    "runner": "playwright-zero-error-watchdog",
+                    "status": "PASS",
+                    "captured_defects": 0,
+                    "errors": [],
+                }
+            )
+        )
         manifest = {
             "schema_version": 1,
             "capabilities": {
@@ -286,24 +309,35 @@ def test_watchdog_evidence_rejections():
             },
         }
 
-        # 1. Non-browser report (e.g. pytest without watchdog/browser traces)
+        # 1. Report without structured watchdog receipt (even if named 'browser_name_only') is BLOCKED
         (results_dir / "playwright.xml").write_text(
-            "<testsuites><testsuite name='pytest' tests='1'><testcase classname='tests.test_unit' name='test_one'/></testsuite></testsuites>"
+            "<testsuites><testsuite name='pytest' tests='1'><testcase classname='tests.test_unit' name='browser_name_only'/></testsuite></testsuites>"
         )
-        res_non_browser = run_capabilities(
+        res_no_receipt = run_capabilities(
             config=manifest,
             profile="epic",
             repository_sha=SAMPLE_SHA,
             repo_root=tmp_path,
             check_watchdog_evidence=True,
         )
-        assert res_non_browser["status"] == "BLOCKED"
-        codes = [b["code"] for b in res_non_browser["blockers"]]
-        assert "missing_watchdog_attachment" in codes
+        assert res_no_receipt["status"] == "BLOCKED"
+        codes = [b["code"] for b in res_no_receipt["blockers"]]
+        assert "missing_watchdog_receipt" in codes
 
-        # 2. Entirely skipped suite
+        # 2. Entirely skipped suite is BLOCKED
         (results_dir / "playwright.xml").write_text(
             "<testsuites><testsuite name='playwright' tests='1'><testcase classname='playwright.e2e' name='test_one'><skipped/></testcase></testsuite></testsuites>"
+        )
+        (results_dir / "watchdog-receipt.json").write_text(
+            json.dumps(
+                {
+                    "receipt_version": 1,
+                    "runner": "playwright-zero-error-watchdog",
+                    "status": "PASS",
+                    "captured_defects": 0,
+                    "errors": [],
+                }
+            )
         )
         res_skipped = run_capabilities(
             config=manifest,
@@ -316,9 +350,20 @@ def test_watchdog_evidence_rejections():
         codes = [b["code"] for b in res_skipped["blockers"]]
         assert "skipped_watchdog_suite" in codes
 
-        # 3. Valid executed browser testcase with watchdog attachment
+        # 3. Valid executed browser testcase with fresh structured watchdog receipt passes
         (results_dir / "playwright.xml").write_text(
             "<testsuites><testsuite name='playwright' tests='1'><testcase classname='playwright.watchdog' name='test_zero_console_errors'/></testsuite></testsuites>"
+        )
+        (results_dir / "watchdog-receipt.json").write_text(
+            json.dumps(
+                {
+                    "receipt_version": 1,
+                    "runner": "playwright-zero-error-watchdog",
+                    "status": "PASS",
+                    "captured_defects": 0,
+                    "errors": [],
+                }
+            )
         )
         res_valid = run_capabilities(
             config=manifest,
@@ -328,3 +373,28 @@ def test_watchdog_evidence_rejections():
             check_watchdog_evidence=True,
         )
         assert res_valid["status"] == "PASS"
+
+        # 4. Watchdog receipt reporting captured defects triggers FAIL
+        (results_dir / "watchdog-receipt.json").write_text(
+            json.dumps(
+                {
+                    "receipt_version": 1,
+                    "runner": "playwright-zero-error-watchdog",
+                    "status": "FAIL",
+                    "captured_defects": 1,
+                    "errors": [
+                        "[console.error] Uncaught TypeError: undefined is not a function"
+                    ],
+                }
+            )
+        )
+        res_defects = run_capabilities(
+            config=manifest,
+            profile="epic",
+            repository_sha=SAMPLE_SHA,
+            repo_root=tmp_path,
+            check_watchdog_evidence=True,
+        )
+        assert res_defects["status"] == "FAIL"
+        codes_defects = [b["code"] for b in res_defects["blockers"]]
+        assert "watchdog_defects_detected" in codes_defects

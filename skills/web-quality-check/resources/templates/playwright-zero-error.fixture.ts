@@ -275,6 +275,23 @@ export const test = base.extend<{ watchdog: void }>({
 
       await use();
 
+      // Emit structured watchdog receipt
+      try {
+        const fs = require('fs');
+        const path = require('path');
+        const target = process.env.WATCHDOG_RECEIPT_PATH || path.resolve('build', 'test-results', 'watchdog-receipt.json');
+        fs.mkdirSync(path.dirname(target), { recursive: true });
+        const receipt = {
+          receipt_version: 1,
+          timestamp: Date.now() / 1000,
+          runner: 'playwright-zero-error-watchdog',
+          captured_defects: capturedErrors.length,
+          errors: [...capturedErrors],
+          status: capturedErrors.length === 0 ? 'PASS' : 'FAIL',
+        };
+        fs.writeFileSync(target, JSON.stringify(receipt, null, 2), 'utf8');
+      } catch (_) {}
+
       if (capturedErrors.length > 0) {
         throw new Error(
           `Zero-Console-And-Layout-Defect Watchdog detected ${capturedErrors.length} defect(s):\n` +

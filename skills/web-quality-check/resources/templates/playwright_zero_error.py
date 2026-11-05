@@ -10,6 +10,7 @@ import json
 import os
 from pathlib import Path
 import re
+import time
 from typing import Any
 
 DEFAULT_ALLOWLIST: list[str] = [
@@ -88,8 +89,32 @@ class PlaywrightZeroErrorWatchdog:
         page.on("pageerror", self.handle_pageerror)
         page.on("response", self.handle_response)
 
-    def assert_zero_defects(self) -> None:
-        """Assert no console errors, unhandled exceptions, or asset 404s were captured."""
+    def write_receipt(self, receipt_path: Path | str | None = None) -> Path:
+        """Write structured watchdog receipt to build/test-results/watchdog-receipt.json."""
+        target = (
+            Path(receipt_path)
+            if receipt_path
+            else Path(
+                os.environ.get(
+                    "WATCHDOG_RECEIPT_PATH", "build/test-results/watchdog-receipt.json"
+                )
+            )
+        )
+        target.parent.mkdir(parents=True, exist_ok=True)
+        receipt_data = {
+            "receipt_version": 1,
+            "timestamp": time.time(),
+            "runner": "playwright-zero-error-watchdog",
+            "captured_defects": len(self.captured_errors),
+            "errors": list(self.captured_errors),
+            "status": "PASS" if not self.captured_errors else "FAIL",
+        }
+        target.write_text(json.dumps(receipt_data, indent=2), encoding="utf-8")
+        return target
+
+    def assert_zero_defects(self, receipt_path: Path | str | None = None) -> None:
+        """Assert no console errors, unhandled exceptions, or asset 404s were captured and emit receipt."""
+        self.write_receipt(receipt_path)
         if self.captured_errors:
             formatted = "\n".join(
                 f"  {idx + 1}. {err}" for idx, err in enumerate(self.captured_errors)

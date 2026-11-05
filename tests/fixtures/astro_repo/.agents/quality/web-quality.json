@@ -14,3 +14,4 @@
     "scheduled": ["type_check", "lint", "test_unit", "test_e2e", "ui_review"]
   }
 }
+

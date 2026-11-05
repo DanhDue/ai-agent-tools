@@ -92,8 +92,35 @@ def get_git_diff_files(repo_root: Path, base_ref: str = "main") -> list[str]:
             check=False,
         )
         if rev_check.returncode != 0:
-            # Fallback to HEAD~1 or empty if fresh repo
             return []
+
+        top_proc = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        top_level = (
+            Path(top_proc.stdout.strip()).resolve()
+            if top_proc.returncode == 0 and top_proc.stdout.strip()
+            else repo_root.resolve()
+        )
+
+        def normalize_diff_lines(lines: list[str]) -> list[str]:
+            res: list[str] = []
+            for line in lines:
+                p = Path(line.strip())
+                if top_level != repo_root.resolve():
+                    try:
+                        rel_from_top = repo_root.resolve().relative_to(top_level)
+                        if p.is_relative_to(rel_from_top):
+                            res.append(str(p.relative_to(rel_from_top)))
+                    except ValueError:
+                        pass
+                else:
+                    res.append(str(p))
+            return res
 
         diff_proc = subprocess.run(
             ["git", "diff", "--name-only", f"{base_ref}...HEAD"],
@@ -103,11 +130,11 @@ def get_git_diff_files(repo_root: Path, base_ref: str = "main") -> list[str]:
             check=False,
         )
         if diff_proc.returncode == 0:
-            lines = [
+            raw_lines = [
                 line.strip() for line in diff_proc.stdout.splitlines() if line.strip()
             ]
-            if lines:
-                return lines
+            if raw_lines:
+                return normalize_diff_lines(raw_lines)
 
         # Try 2-dot diff if 3-dot produced nothing or failed
         diff_proc2 = subprocess.run(
@@ -118,9 +145,10 @@ def get_git_diff_files(repo_root: Path, base_ref: str = "main") -> list[str]:
             check=False,
         )
         if diff_proc2.returncode == 0:
-            return [
+            raw_lines2 = [
                 line.strip() for line in diff_proc2.stdout.splitlines() if line.strip()
             ]
+            return normalize_diff_lines(raw_lines2)
 
     except (subprocess.SubprocessError, OSError):
         pass
