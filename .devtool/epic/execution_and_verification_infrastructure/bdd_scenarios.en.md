@@ -17,11 +17,11 @@ Feature: Execution and Verification Infrastructure — Happy Paths
 
   Scenario: [EVI-HP-01] [Tier C - Integration] Worktree bootstrap executes python-quality.json bootstrap commands and installs polyglot dependencies
     Given a polyglot git repository containing both "pyproject.toml" and "package.json"
-    And ".agents/quality/python-quality.json" defines "bootstrap" as ["pip install -e .[dev]"]
+    And ".agents/quality/python-quality.json" defines "bootstrap" as [["pip", "install", "-e", ".[dev]"]]
     When "detect_project_type.sh --all" is executed on the repository
     Then it outputs "python web"
     And when "bootstrap_worktree.sh" runs on a worktree of the repository
-    Then it executes both the Python bootstrap phase (including the "bootstrap" commands from ".agents/quality/python-quality.json") and the Web dependency installation phase
+    Then it executes both the Python bootstrap phase (including the "bootstrap" command arrays from ".agents/quality/python-quality.json") and the Web dependency installation phase
 
   Scenario: [EVI-HP-02] [Tier C - Integration] Failure-set baseline recording and regression comparison pass when no new failures appear
     Given a pytest output stream containing 2 pre-existing failed test node IDs in the terminal "=== short test summary info ===" block
@@ -81,19 +81,19 @@ Feature: Execution and Verification Infrastructure — Edge Cases & Boundaries
 ```gherkin
 Feature: Execution and Verification Infrastructure — State Transitions
 
-  Scenario: [EVI-ST-01] [Tier A - Unit] Failure-set comparison with --rerun-new filters out transient shared-state failures while failing on persistent regressions
-    Given a baseline failure file with 0 failures and a current failure file with 2 candidate new failure node IDs
+  Scenario: [EVI-ST-01] [Tier A - Unit] Failure-set comparison with --rerun-new classifies isolated-pass vs persistent failures and requires explicit opt-in to ignore isolated passes
+    Given a baseline failure file with 0 failures and a current failure file with 2 candidate new failure node IDs (including a parameterized ID with spaces)
     When "compare_failure_sets.py --baseline baseline.txt --current current.txt --rerun-new" runs
-    And the first candidate passes when re-run in isolation via "--rerun-cmd"
-    Then the first candidate is reported as a transient shared-state failure and ignored
-    And when the second candidate still fails when re-run in isolation
-    Then "compare_failure_sets.py" reports the persistent regression and exits with code 1
+    And the first candidate passes when re-run in isolation via "--rerun-cmd" while the second candidate fails
+    Then the first candidate is classified as "ISOLATED_PASS" and the second as "PERSISTENT_FAILURE" and the command exits with code 1
+    And when all candidates pass in isolation, "compare_failure_sets.py --rerun-new" still exits with code 1 unless "--allow-isolated-pass" is explicitly provided
 
-  Scenario: [EVI-ST-02] [Tier C - Integration] run_task_checks.py measure --resume skips re-running MEASURE rows when prior run passed and declared evidence files exist
+  Scenario: [EVI-ST-02] [Tier C - Integration] run_task_checks.py measure --resume reuses cached MEASURE runs only when tree, row contracts, and evidence file digests match
     Given a task file with "Phase: MEASURE" rows and "Evidence files: .devtool/evidence/bench.json"
-    And a prior "run_task_checks.py measure" execution recorded "runs.measure.passed = true" and created a non-empty ".devtool/evidence/bench.json"
-    When "run_task_checks.py measure <task.md> --resume" is invoked
+    And a prior "run_task_checks.py measure" execution recorded "runs.measure.passed = true" with matching worktree tree, row commands/expectations, and ".devtool/evidence/bench.json" SHA-256 digest
+    When "run_task_checks.py measure <task.md> --resume" is invoked on the unchanged tree and evidence file
     Then it skips re-executing the "MEASURE" subprocess commands and exits with code 0
+    And when the worktree tree, row command, or ".devtool/evidence/bench.json" content is modified, "--resume" invalidates the cache and re-executes the "MEASURE" rows
 ```
 
 ---
@@ -123,7 +123,7 @@ Feature: Execution and Verification Infrastructure — Async & Concurrency
 Feature: Execution and Verification Infrastructure — Failures & Resilience
 
   Scenario: [EVI-FR-01] [Tier A - Unit] validate_python_quality.py rejects malformed bootstrap configurations with invalid_bootstrap_format
-    Given a ".agents/quality/python-quality.json" file where "bootstrap" is not a non-empty list of non-empty strings
+    Given a ".agents/quality/python-quality.json" file where "bootstrap" is not a non-empty list of non-empty string argument arrays
     When "validate_python_quality.py" validates the configuration
     Then it fails validation and emits an error with code "invalid_bootstrap_format"
 
@@ -132,10 +132,10 @@ Feature: Execution and Verification Infrastructure — Failures & Resilience
     When "verify_task_edit_anchors()" in "check_epic_readiness.py" inspects the task
     Then R5 fails and reports the exact file path and missing or ambiguous anchor snippet
 
-  Scenario: [EVI-FR-03] [Tier A - Unit] evaluate_done_gate fails when a task contains MEASURE rows that have not been executed or did not pass
+  Scenario: [EVI-FR-03] [Tier A - Unit] evaluate_done_gate fails when a task contains MEASURE rows that are missing, failed, or stale relative to the current tree and evidence digests
     Given a task file containing at least one "Phase: MEASURE" Verification row
-    And the task's evidence JSON either lacks "runs.measure" or has "runs.measure.passed == false"
+    And the task's evidence JSON either lacks "runs.measure", has "runs.measure.passed == false", or has a mismatched "tree", row contract, or evidence file SHA-256 digest
     When "evaluate_done_gate()" evaluates the task for transition to "done"
-    Then it returns a non-empty failure list blocking the "done" transition until "run_task_checks.py measure" passes
+    Then it returns a non-empty failure list blocking the "done" transition until a fresh "run_task_checks.py measure" passes
 ```
 

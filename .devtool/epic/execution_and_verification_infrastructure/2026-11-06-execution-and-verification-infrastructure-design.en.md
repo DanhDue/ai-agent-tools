@@ -42,9 +42,9 @@ This epic (`execution_and_verification_infrastructure`, Epic 2 of 3) delivers fi
 - Extend `.agents/quality/python-quality.json` (`python-quality.schema.json` and `validate_python_quality.py`) with an optional `"bootstrap"` command array and update `bootstrap_worktree.sh` to execute declared bootstrap commands and support polyglot Python + Web/Node repositories (`#0006`, `#0018`).
 - Add `--all` to `detect_project_type.sh` to report all detected platforms in polyglot repositories while keeping default single-platform output backward-compatible (`#0018`).
 - Auto-create parent directories for `--junitxml=<path>` and `--test-reporter-destination=<path>` targets in `run_task_checks.py` before command execution (`#0018`).
-- Provide `record_failure_baseline.py` and `compare_failure_sets.py` (and `d3nexus record-baseline` / `d3nexus compare-baseline` subcommands) supporting `pytest` and `node --test`, terminal-summary-only failure extraction, `--restore <path>` file restoration, and `--rerun-new` isolated re-verification (`#0007`).
+- Provide `record_failure_baseline.py` and `compare_failure_sets.py` supporting `pytest` and `node --test`, terminal-summary-only failure extraction, `--restore <path>` file restoration, and `--rerun-new` isolated re-verification (`#0007`).
 - Support `Integration results (live, needs: VAR1, VAR2): <cmd> -> <report>` in `task_contract.py`, `check_task_contract.py`, `check_epic_readiness.py` (`R6`), `audit_epic.py`, and `run_external_review.py` (Gate 4), and upgrade `R5b` in `check_epic_readiness.py` to match concrete route literals against parameterized route templates (`#0010`).
-- Provide `replay_task_text.py` (`d3nexus replay-task`) with fast static anchor verification integrated into `check_epic_readiness.py` (`R5`) by default and full worktree execution replay via `check_epic_readiness.py --replay` (`#0011`).
+- Provide `replay_task_text.py` with fast static anchor verification integrated into `check_epic_readiness.py` (`R5`) by default and full worktree execution replay via `check_epic_readiness.py --replay` (`#0011`).
 - Add `MEASURE` phase support (`run_task_checks.py measure [--timeout 7200] [--resume]`) and document the **Measurement-to-Evidence** task pattern in `skills/dev-designer/SKILL.md` and `skills/dev-implementation/SKILL.md` (`#0017`).
 
 ### Non-Goals
@@ -63,8 +63,8 @@ flowchart TD
     end
 
     subgraph REGRESSION["2. Regression Baseline Tooling (#0007)"]
-        REC_PY["record_failure_baseline.py (d3nexus record-baseline)"]
-        CMP_PY["compare_failure_sets.py (d3nexus compare-baseline)"]
+        REC_PY["record_failure_baseline.py"]
+        CMP_PY["compare_failure_sets.py"]
     end
 
     subgraph CONTRACT["3. Live Integration, R5b & MEASURE (#0010, #0017)"]
@@ -75,7 +75,7 @@ flowchart TD
     end
 
     subgraph REPLAY["4. Task Text Replay & Anchor Check (#0011)"]
-        RPL_PY["replay_task_text.py (d3nexus replay-task)"]
+        RPL_PY["replay_task_text.py"]
     end
 
     PY_JSON --> WT_SH
@@ -107,30 +107,32 @@ flowchart TD
 
 ### 2. Full-Suite Failure-Set Baseline and Regression Comparison
 
-- **`skills/dev-implementation/resources/scripts/record_failure_baseline.py` (`d3nexus record-baseline`) (`#0007`)**:
+- **`skills/dev-implementation/resources/scripts/record_failure_baseline.py` (`#0007`)**:
   - CLI signature:
     ```bash
-    d3nexus record-baseline --output <evidence_file> [--runner auto|pytest|node] [--restore <path> ...] [--cwd <dir>] -- <command...>
+    record_failure_baseline.py --output|--out <evidence_file> [--in <raw_output_file>] [--cmd <shell_cmd>] [--runner auto|pytest|node] [--restore <path> ...] [--cwd <dir>] [-- <command...>]
     ```
   - Behavior:
-    1. Automatically injects `--continue-on-collection-errors` when the runner is `pytest` and the flag is absent, and ensures parent directories exist for `--output` and any report path.
-    2. Runs `<command...>` without failing the recorder itself when tests fail (exit codes 0, 1, or 2 from test runners are captured and parsed; only missing executables or internal errors exit non-zero).
-    3. Extracts canonical failure/error identifiers strictly from the terminal summary section:
-       - **Pytest**: parses lines after the final `=== short test summary info ===` header matching `^(?:FAILED|ERROR)\s+(\S+)`, stripping trailing ` - <reason>` suffixes while ignoring any captured log output earlier in the stream.
+    1. Automatically injects `--continue-on-collection-errors` when the runner is `pytest` and the flag is absent, and ensures parent directories exist for `--output`/`--out` and any report path.
+    2. Distinguishes valid test runner completions from launch, usage, internal, or unparseable failures:
+       - A `pytest` run is valid only when exit code is `0` with a terminal `=== ... passed ... ===` footer or exit code is `1` or `2` with a terminal `=== short test summary info ===` block; exit codes `3` (internal error), `4` (usage error), `5` (no tests collected), `126`/`127`, or any non-zero exit lacking a terminal summary block fail with exit code `2` without writing a baseline file.
+       - A `node --test` run is valid only when TAP/spec summary lines (`# tests` / `ℹ tests`) are present.
+    3. Extracts canonical failure/error identifiers strictly from the terminal summary section, preserving spaces inside parameterized node IDs:
+       - **Pytest**: parses lines after the final `=== short test summary info ===` header up to the terminal `=== ... ===` footer matching `^(?:FAILED|ERROR)\s+(.+?)(?:\s+-\s+.*)?$`, preserving full bracketed parameter strings (e.g., `tests/test_x.py::test_x[hello world]`) while stripping only the trailing ` - <reason>` suffix and ignoring any captured log output earlier in the stream.
        - **Node (`node --test`)**: parses failing test identifiers from TAP/spec summary lines (`✖ <name>` or `not ok ... - <name>`).
-    4. Restores any tracked files named via `--restore <path>` using `git checkout -- <path>` so side-effecting tests leave a clean git working tree.
-    5. Writes a deterministic, newline-terminated sorted list of unique failing test identifiers to `<evidence_file>` (writing a single `# 0 failures\n` header comment so the file is non-empty and satisfies `evaluate_done_gate()` condition 8 even when 0 tests fail).
-- **`skills/dev-implementation/resources/scripts/compare_failure_sets.py` (`d3nexus compare-baseline`) (`#0007`)**:
+    4. Always restores any tracked files named via `--restore <path>` using `git checkout -- <path>` inside a `finally:` block so side-effecting or aborted tests leave a clean git working tree.
+    5. Writes a deterministic, newline-terminated sorted list of unique failing test identifiers to `<evidence_file>` (writing a single `# 0 failures\n` header comment when 0 tests fail in a valid run so the file is non-empty).
+- **`skills/dev-implementation/resources/scripts/compare_failure_sets.py` (`#0007`)**:
   - CLI signature:
     ```bash
-    d3nexus compare-baseline --baseline <evidence_file> [--current <file>] [--output <report_file>] [--runner auto|pytest|node] [--rerun-new] [--restore <path> ...] [--cwd <dir>] [-- <command...>]
+    compare_failure_sets.py --baseline <evidence_file> [--current <file>] [--output|--out <report_file>] [--runner auto|pytest|node] [--rerun-new] [--allow-isolated-pass] [--rerun-cmd <cmd_prefix>] [--restore <path> ...] [--cwd <dir>] [-- <command...>]
     ```
   - Behavior:
     1. Reads `baseline_set` from `--baseline` (ignoring `#` comment lines).
-    2. Obtains `current_set` either by reading `--current <file>` or by executing `<command...>` using `record_failure_baseline`'s extraction and `--restore` logic.
+    2. Obtains `current_set` either by reading `--current <file>` or by executing `<command...>` using `record_failure_baseline`'s validated extraction and `--restore` logic.
     3. Computes `new_failures = sorted(current_set - baseline_set)` and `fixed_failures = sorted(baseline_set - current_set)`.
-    4. When `--rerun-new` is enabled and `new_failures` is non-empty: re-runs each candidate test identifier in isolation (using the same runner base command) and removes any test that passes in isolation (recording it under `transient_or_shared_state_filtered`).
-    5. Writes a summary report (to stdout and optionally `--output <report_file>`) and exits `0` if confirmed `new_failures` is empty, or exits `1` listing each confirmed regression.
+    4. When `--rerun-new` is enabled and `new_failures` is non-empty: re-runs each candidate test identifier in isolation as a single positional argument (`[*rerun_cmd_argv, node_id]`, preserving spaces in parameterized IDs). Candidates that fail in isolation are classified as `PERSISTENT_FAILURE: <nodeid>`; candidates that pass in isolation are classified as `ISOLATED_PASS (state-pollution or transient): <nodeid>`. By default, both classifications cause exit code `1` so order-dependent state-pollution regressions are never silently masked; only when `--allow-isolated-pass` is explicitly passed are `ISOLATED_PASS` candidates exempted from failing the exit code.
+    5. Writes a summary report (to stdout and optionally `--output`/`--out <report_file>`) and exits `0` if no blocking regressions remain, or exits `1` listing each regression.
 
 ### 3. Opt-In Live Integration Results and Route Template Matching
 
@@ -164,16 +166,16 @@ flowchart TD
 
 ### 4. Static Edit-Anchor Validation and Pre-Packaging Task Replay
 
-- **`skills/dev-implementation/resources/scripts/replay_task_text.py` (`d3nexus replay-task`) (`#0011`)**:
+- **`skills/dev-implementation/resources/scripts/replay_task_text.py` (`#0011`)**:
   - Formalizes deterministic markdown edit directives in task files:
     1. **Full-file write**: `<!-- @@FILE:<rel_path>@@ -->`, `Create `<rel_path>`:`, or `File: `<rel_path>`` immediately above a fenced code block writes the block's contents to `<rel_path>`.
     2. **Exact replacement**: `Replace in `<rel_path>`:` above a fenced code block (the `anchor`) followed by `With:` above a fenced code block (the `replacement`) replaces the unique occurrence of `anchor` in `<rel_path>`.
     3. **Anchored insertion**: `Insert in `<rel_path>` after:` (or `before:`) above a fenced code block (`anchor`) followed by `With:` above a fenced code block (`insertion`) inserts `insertion` immediately after (or before) the unique occurrence of `anchor` in `<rel_path>`.
   - Provides two entry modes:
-    - **Static Anchor Check (`verify_task_edit_anchors(root: Path, tasks: dict[Path, str]) -> list[str]`)**:
+    - **Static Anchor Check (`verify_task_edit_anchors(root: Path, task_path: Path, task_text: str, prior_modified: set[str] | None = None) -> list[str]`)**:
       - Called automatically during `R5` in `check_epic_readiness.py`.
-      - For every `Replace in `<rel_path>`:` or `Insert in `<rel_path>` after|before:` targeting a file that already exists at `HEAD` (and was not previously rewritten by an earlier step in the same task), verifies that the first fenced block (`anchor`) occurs verbatim in `(root / rel_path).read_text()`. Any missing or ambiguous (count != 1) anchor produces an `R5 FAIL` finding naming the task file and target path.
-    - **Scratch-Worktree Execution Replay (`d3nexus replay-task <task.md> [--worktree <dir>] [--run-rows]` and `check_epic_readiness.py <epic_dir> --replay`)**:
+      - For every `Replace in `<rel_path>`:` or `Insert in `<rel_path>` after|before:` targeting a file that already exists at `HEAD` (and was not previously rewritten by an earlier step in the same task or epic), verifies that the first fenced block (`anchor`) occurs verbatim in `(root / rel_path).read_text()`. Any missing or ambiguous (count != 1) anchor produces an `R5 FAIL` finding naming the task file and target path.
+    - **Scratch-Worktree Execution Replay (`replay_task_text.py <task.md> [--worktree <dir>] [--run-rows]` and `check_epic_readiness.py <epic_dir> --replay`)**:
       - Applies all edit directives in `<task.md>` (or across all tasks of `<epic_dir>` in execution order inside a temporary `git worktree`) and optionally runs the task's `Verification` rows (`RED`, `GREEN`, `TIER-B`, `TIER-C`), cleaning up the temporary worktree on exit.
 
 ### 5. Long-Running Measurement Phase and Evidence-Gated Verification
@@ -181,12 +183,13 @@ flowchart TD
 - **`Phase: MEASURE` in `task_contract.py` and `run_task_checks.py` (`#0017`)**:
   - In `skills/dev-implementation/resources/scripts/task_contract.py`:
     - Update `PHASES = ("RED", "MEASURE", "GREEN", "TIER-B", "TIER-C")`.
-    - In `evaluate_done_gate(task_file: Path)`: if a task has one or more rows with `row.phase == "MEASURE"`, verify that `evidence.get("runs", {}).get("measure")` exists, matches `HEAD` (or current tree), and all `MEASURE` rows recorded `"outcome": "PASS"`.
+    - In `evaluate_done_gate(task_file: Path)` and `audit_epic.py` (`audit_evidence`): if a task has one or more rows with `row.phase == "MEASURE"`, verify that `evidence.get("runs", {}).get("measure")` exists, its `tree` matches the current worktree `fingerprint(layout.root)[0]` (at Done Gate), all `MEASURE` rows in the current table match the recorded `id`, `command`, and `expect` (`row_problems`) with `"outcome": "PASS"`, and every file declared in `parse_evidence_files(task_text)` exists on disk with a SHA-256 digest matching `runs["measure"]["evidence_digests"]`.
   - In `skills/dev-implementation/resources/scripts/run_task_checks.py`:
     - Update CLI `mode` choices to `("red", "measure", "verify", "status")`.
     - When `mode == "measure"`:
-      - Default `--timeout` is `7200` seconds (or unbounded when `--timeout 0` is passed) instead of `600` seconds.
-      - Support `--resume`: if `--resume` is passed, `evidence.get("runs", {}).get("measure")` already has all `MEASURE` rows with `"outcome": "PASS"`, and every file declared in `parse_evidence_files(task_text)` exists and is non-empty on disk, skip re-running the expensive command and print `MEASURE RESUMED (existing evidence valid)`.
+      - Default `--timeout` is `7200` seconds (or unbounded when `--timeout 0` is passed) instead of `1800` seconds.
+      - Record `"evidence_digests": {rel_path: sha256_hex}` in `evidence["runs"]["measure"]` for all declared `Evidence files:`.
+      - Support `--resume`: if `--resume` is passed, `evidence.get("runs", {}).get("measure")` exists, its recorded `tree` matches `fingerprint(layout.root)[0]`, `row_problems(measure_rows, evidence["runs"])` is empty (all current `MEASURE` rows match `id`/`command`/`expect` and have `"outcome": "PASS"`), and every file in `parse_evidence_files(task_text)` exists, is non-empty on disk, and matches its recorded SHA-256 digest in `runs["measure"]["evidence_digests"]`, skip re-running the expensive command and print `MEASURE resumed (cached PASS)`.
   - Document the **Measurement-to-Evidence** pattern in `skills/dev-designer/SKILL.md` and `skills/dev-implementation/SKILL.md`:
     - Long-running benchmark generation runs in `MEASURE` (writing output to declared `Evidence files:`), mechanical acceptance assertions run as fast `GREEN`/`TIER-C` pytest rows reading that committed evidence file, and qualitative rubric fairness is listed as a `(Gate 5)` Definition of Done item.
 
@@ -205,7 +208,7 @@ flowchart TD
   - `test_check_epic_readiness.py` & `test_check_task_contract.py`: Tests `Integration results (live, needs: VAR):` parsing, `R6` coverage, `R5b` parameterized route template matching, and `R5` static edit-anchor verification.
   - `test_run_task_checks.py`: Tests `measure` mode execution, `--resume` short-circuiting, Done-Gate verification of `MEASURE` runs, and automatic parent directory creation for `--junitxml` / `--test-reporter-destination`.
 - **Tier C1 (Subcutaneous End-to-End Integration)**:
-  - `tests/test_execution_verification_infra_e2e.py`: End-to-end subcutaneous tests in temporary git repositories exercising polyglot worktree bootstrap, `d3nexus record-baseline` + `d3nexus compare-baseline`, `d3nexus replay-task`, `run_task_checks.py measure` + `verify`, and live integration result skipping when `needs:` env vars are unset.
+  - `tests/test_execution_infra_acceptance.py`: End-to-end subcutaneous tests in temporary git repositories exercising polyglot worktree bootstrap, `record_failure_baseline.py` + `compare_failure_sets.py`, `replay_task_text.py`, `run_task_checks.py measure` + `verify`, and live integration result skipping when `needs:` env vars are unset.
 - **Repository Quality Gate**:
   - `scripts/verify.sh`, `ruff check`, `mypy`, and `pytest` must pass with 0 errors.
 

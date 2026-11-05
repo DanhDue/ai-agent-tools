@@ -42,9 +42,9 @@ Epic này (`execution_and_verification_infrastructure`, Epic 2 trên tổng số
 - Mở rộng `.agents/quality/python-quality.json` (`python-quality.schema.json` và `validate_python_quality.py`) với trường tùy chọn `"bootstrap"` và cập nhật `bootstrap_worktree.sh` để thực thi các lệnh bootstrap đã khai báo cũng như khởi tạo đầy đủ các dự án đa nền tảng Python + Web/Node (`#0006`, `#0018`).
 - Bổ sung cờ `--all` vào `detect_project_type.sh` để trả về tất cả các nền tảng phát hiện được trong dự án đa ngữ trong khi giữ nguyên đầu ra một nền tảng mặc định để tương thích ngược (`#0018`).
 - Tự động tạo thư mục cha cho các tham số `--junitxml=<path>` và `--test-reporter-destination=<path>` trong `run_task_checks.py` trước khi chạy lệnh (`#0018`).
-- Cung cấp `record_failure_baseline.py` và `compare_failure_sets.py` (cùng hai lệnh con `d3nexus record-baseline` / `d3nexus compare-baseline`) hỗ trợ `pytest` và `node --test`, chỉ trích xuất lỗi từ bảng tóm tắt cuối cùng, khôi phục file qua `--restore <path>`, và chạy lại cô lập các lỗi mới qua `--rerun-new` (`#0007`).
+- Cung cấp `record_failure_baseline.py` và `compare_failure_sets.py` hỗ trợ `pytest` và `node --test`, chỉ trích xuất lỗi từ bảng tóm tắt cuối cùng, khôi phục file qua `--restore <path>`, và chạy lại cô lập các lỗi mới qua `--rerun-new` (`#0007`).
 - Hỗ trợ cú pháp `Integration results (live, needs: VAR1, VAR2): <cmd> -> <report>` trong `task_contract.py`, `check_task_contract.py`, `check_epic_readiness.py` (`R6`), `audit_epic.py`, và `run_external_review.py` (Gate 4), đồng thời nâng cấp `R5b` trong `check_epic_readiness.py` để so khớp đường dẫn cụ thể với mẫu route có tham số (`#0010`).
-- Cung cấp `replay_task_text.py` (`d3nexus replay-task`) tích hợp kiểm tra tĩnh anchor mặc định vào `check_epic_readiness.py` (`R5`) và chế độ replay thực thi trên worktree tạm qua `check_epic_readiness.py --replay` (`#0011`).
+- Cung cấp `replay_task_text.py` tích hợp kiểm tra tĩnh anchor mặc định vào `check_epic_readiness.py` (`R5`) và chế độ replay thực thi trên worktree tạm qua `check_epic_readiness.py --replay` (`#0011`).
 - Bổ sung pha `MEASURE` (`run_task_checks.py measure [--timeout 7200] [--resume]`) và tài liệu hóa mẫu thiết kế **Measurement-to-Evidence** trong `skills/dev-designer/SKILL.md` và `skills/dev-implementation/SKILL.md` (`#0017`).
 
 ### Phạm vi Ngoài Mục tiêu
@@ -63,8 +63,8 @@ flowchart TD
     end
 
     subgraph REGRESSION["2. Công cụ Baseline Hồi quy (#0007)"]
-        REC_PY["record_failure_baseline.py (d3nexus record-baseline)"]
-        CMP_PY["compare_failure_sets.py (d3nexus compare-baseline)"]
+        REC_PY["record_failure_baseline.py"]
+        CMP_PY["compare_failure_sets.py"]
     end
 
     subgraph CONTRACT["3. Live Integration, R5b & MEASURE (#0010, #0017)"]
@@ -75,7 +75,7 @@ flowchart TD
     end
 
     subgraph REPLAY["4. Replay Văn bản Task & Kiểm tra Anchor (#0011)"]
-        RPL_PY["replay_task_text.py (d3nexus replay-task)"]
+        RPL_PY["replay_task_text.py"]
     end
 
     PY_JSON --> WT_SH
@@ -107,30 +107,32 @@ flowchart TD
 
 ### 2. Ghi nhận Baseline Lỗi Toàn cục và So sánh Hồi quy
 
-- **`skills/dev-implementation/resources/scripts/record_failure_baseline.py` (`d3nexus record-baseline`) (`#0007`)**:
+- **`skills/dev-implementation/resources/scripts/record_failure_baseline.py` (`#0007`)**:
   - Cú pháp CLI:
     ```bash
-    d3nexus record-baseline --output <evidence_file> [--runner auto|pytest|node] [--restore <path> ...] [--cwd <dir>] -- <command...>
+    record_failure_baseline.py --output|--out <evidence_file> [--in <raw_output_file>] [--cmd <shell_cmd>] [--runner auto|pytest|node] [--restore <path> ...] [--cwd <dir>] [-- <command...>]
     ```
   - Hành vi:
-    1. Tự động chèn `--continue-on-collection-errors` khi runner là `pytest` và chưa có cờ này, đồng thời đảm bảo thư mục cha của `--output` luôn tồn tại.
-    2. Thực thi `<command...>` và thu thập đầu ra ngay cả khi có test thất bại (mã thoát 0, 1, 2 của trình chạy test đều được phân tích bình thường; chỉ thoát khác 0 khi thiếu trình thực thi hoặc lỗi nội bộ).
-    3. Chỉ trích xuất mã định danh test lỗi từ đúng phần tóm tắt cuối cùng:
-       - **Pytest**: chỉ phân tích các dòng nằm sau tiêu đề `=== short test summary info ===` cuối cùng khớp mẫu `^(?:FAILED|ERROR)\s+(\S+)`, cắt bỏ phần giải thích ` - <reason>` phía sau và bỏ qua hoàn toàn mọi dòng log in ra trong quá trình chạy test.
+    1. Tự động chèn `--continue-on-collection-errors` khi runner là `pytest` và chưa có cờ này, đồng thời đảm bảo thư mục cha của `--output`/`--out` luôn tồn tại.
+    2. Phân biệt rõ lần chạy kiểm thử hợp lệ với lỗi khởi chạy, lỗi cú pháp tham số, hoặc lỗi nội bộ:
+       - Lần chạy `pytest` chỉ hợp lệ khi thoát mã `0` kèm dòng kết thúc `=== ... passed ... ===` hoặc thoát mã `1`/`2` kèm khối `=== short test summary info ===`; các mã thoát `3` (internal error), `4` (usage error), `5` (no tests collected), `126`/`127`, hoặc thoát khác `0` nhưng không có khối tóm tắt cuối sẽ thất bại với mã thoát `2` và không ghi baseline giả.
+       - Lần chạy `node --test` chỉ hợp lệ khi có dòng tóm tắt TAP/spec (`# tests` / `ℹ tests`).
+    3. Chỉ trích xuất mã định danh test lỗi từ đúng phần tóm tắt cuối cùng và giữ nguyên khoảng trắng bên trong tham số:
+       - **Pytest**: chỉ phân tích các dòng nằm sau tiêu đề `=== short test summary info ===` cuối cùng khớp mẫu `^(?:FAILED|ERROR)\s+(.+?)(?:\s+-\s+.*)?$`, bảo toàn đầy đủ chuỗi tham số trong ngoặc vuông (ví dụ `tests/test_x.py::test_x[hello world]`), chỉ cắt bỏ phần giải thích ` - <reason>` phía sau và bỏ qua hoàn toàn mọi dòng log in ra trong quá trình chạy test.
        - **Node (`node --test`)**: trích xuất tên test thất bại từ các dòng tóm tắt TAP/spec (`✖ <name>` hoặc `not ok ... - <name>`).
-    4. Khôi phục mọi file theo dõi bởi git được liệt kê qua `--restore <path>` bằng `git checkout -- <path>` để giữ cây thư mục làm việc sạch.
-    5. Ghi danh sách các định danh test lỗi duy nhất đã sắp xếp vào `<evidence_file>` (luôn kèm dòng chú thích đầu file `# 0 failures\n` khi không có lỗi nào để file không bị rỗng và vượt qua điều kiện 8 của `evaluate_done_gate()`).
-- **`skills/dev-implementation/resources/scripts/compare_failure_sets.py` (`d3nexus compare-baseline`) (`#0007`)**:
+    4. Luôn khôi phục mọi file theo dõi bởi git được liệt kê qua `--restore <path>` bằng `git checkout -- <path>` trong khối `finally:` để giữ cây thư mục làm việc sạch.
+    5. Ghi danh sách các định danh test lỗi duy nhất đã sắp xếp vào `<evidence_file>` (luôn kèm dòng chú thích đầu file `# 0 failures\n` khi không có lỗi nào trong một lần chạy hợp lệ để file không bị rỗng).
+- **`skills/dev-implementation/resources/scripts/compare_failure_sets.py` (`#0007`)**:
   - Cú pháp CLI:
     ```bash
-    d3nexus compare-baseline --baseline <evidence_file> [--current <file>] [--output <report_file>] [--runner auto|pytest|node] [--rerun-new] [--restore <path> ...] [--cwd <dir>] [-- <command...>]
+    compare_failure_sets.py --baseline <evidence_file> [--current <file>] [--output|--out <report_file>] [--runner auto|pytest|node] [--rerun-new] [--allow-isolated-pass] [--rerun-cmd <cmd_prefix>] [--restore <path> ...] [--cwd <dir>] [-- <command...>]
     ```
   - Hành vi:
     1. Đọc tập `baseline_set` từ `--baseline` (bỏ qua các dòng chú thích bắt đầu bằng `#`).
-    2. Thu thập `current_set` từ file `--current <file>` hoặc bằng cách chạy `<command...>` với cùng cơ chế trích xuất và `--restore` của `record_failure_baseline`.
+    2. Thu thập `current_set` từ file `--current <file>` hoặc bằng cách chạy `<command...>` với cùng cơ chế trích xuất hợp lệ và `--restore` của `record_failure_baseline`.
     3. Tính tập lỗi mới `new_failures = sorted(current_set - baseline_set)` và tập lỗi đã được sửa `fixed_failures = sorted(baseline_set - current_set)`.
-    4. Khi bật `--rerun-new` và `new_failures` khác rỗng: chạy lại từng test ID trong `new_failures` một cách độc lập; những test vượt qua khi chạy cô lập sẽ được lọc bỏ (ghi nhận vào `transient_or_shared_state_filtered`).
-    5. In báo cáo đối chiếu (ra stdout và tùy chọn ghi vào `--output <report_file>`), thoát mã `0` nếu không có lỗi hồi quy mới nào sau khi lọc, hoặc thoát mã `1` kèm danh sách các lỗi hồi quy xác nhận.
+    4. Khi bật `--rerun-new` và `new_failures` khác rỗng: chạy lại từng test ID trong `new_failures` một cách độc lập như một đối số vị trí đơn lẻ (`[*rerun_cmd_argv, node_id]`). Các ứng viên vẫn thất bại khi chạy cô lập được phân loại là `PERSISTENT_FAILURE: <nodeid>`; các ứng viên đạt khi chạy cô lập được phân loại là `ISOLATED_PASS (state-pollution or transient): <nodeid>`. Mặc định, cả hai loại đều trả về mã thoát `1` để không bỏ lọt lỗi hồi quy làm bẩn trạng thái dùng chung; chỉ khi truyền tường minh cờ `--allow-isolated-pass` thì `ISOLATED_PASS` mới được miễn trừ khỏi mã thoát lỗi.
+    5. In báo cáo đối chiếu (ra stdout và tùy chọn ghi vào `--output`/`--out <report_file>`), thoát mã `0` nếu không còn lỗi chặn, hoặc thoát mã `1` kèm danh sách các lỗi hồi quy.
 
 ### 3. Kết quả Kiểm thử Tích hợp Live Tùy chọn và So khớp Mẫu Route
 
@@ -164,16 +166,16 @@ flowchart TD
 
 ### 4. Kiểm tra Tĩnh Anchor Chỉnh sửa và Replay Văn bản Task Trước Đóng gói
 
-- **`skills/dev-implementation/resources/scripts/replay_task_text.py` (`d3nexus replay-task`) (`#0011`)**:
+- **`skills/dev-implementation/resources/scripts/replay_task_text.py` (`#0011`)**:
   - Chuẩn hóa 3 dạng chỉ thị chỉnh sửa tất định trong văn bản task:
     1. **Ghi toàn bộ file**: `<!-- @@FILE:<rel_path>@@ -->`, `Create `<rel_path>`:`, hoặc `File: `<rel_path>`` nằm ngay trên một khối code fence $\rightarrow$ ghi nội dung khối code vào `<rel_path>`.
     2. **Thay thế chính xác**: `Replace in `<rel_path>`:` ngay trên khối code fence (`anchor`) theo sau bởi `With:` ngay trên khối code fence (`replacement`) $\rightarrow$ thay thế vị trí xuất hiện duy nhất của `anchor` trong `<rel_path>`.
     3. **Chèn theo điểm neo**: `Insert in `<rel_path>` after:` (hoặc `before:`) ngay trên khối code fence (`anchor`) theo sau bởi `With:` ngay trên khối code fence (`insertion`) $\rightarrow$ chèn `insertion` ngay sau (hoặc trước) vị trí xuất hiện duy nhất của `anchor` trong `<rel_path>`.
   - Cung cấp hai chế độ hoạt động:
-    - **Kiểm tra Tĩnh Anchor (`verify_task_edit_anchors(root: Path, tasks: dict[Path, str]) -> list[str]`)**:
+    - **Kiểm tra Tĩnh Anchor (`verify_task_edit_anchors(root: Path, task_path: Path, task_text: str, prior_modified: set[str] | None = None) -> list[str]`)**:
       - Được gọi tự động trong bước `R5` của `check_epic_readiness.py`.
-      - Với mọi chỉ thị `Replace in `<rel_path>`:` hoặc `Insert in `<rel_path>` after|before:` nhắm tới file đã tồn tại ở `HEAD` (và chưa bị ghi đè bởi bước trước đó trong cùng task), kiểm tra khối `anchor` xuất hiện nguyên văn đúng 1 lần trong `(root / rel_path).read_text()`. Nếu không tìm thấy hoặc xuất hiện nhiều hơn 1 lần, báo lỗi `R5 FAIL` chỉ rõ tên task và đường dẫn file.
-    - **Replay Thực thi trên Worktree Tạm (`d3nexus replay-task <task.md> [--worktree <dir>] [--run-rows]` và `check_epic_readiness.py <epic_dir> --replay`)**:
+      - Với mọi chỉ thị `Replace in `<rel_path>`:` hoặc `Insert in `<rel_path>` after|before:` nhắm tới file đã tồn tại ở `HEAD` (và chưa bị ghi đè bởi bước trước đó trong cùng task hoặc epic), kiểm tra khối `anchor` xuất hiện nguyên văn đúng 1 lần trong `(root / rel_path).read_text()`. Nếu không tìm thấy hoặc xuất hiện nhiều hơn 1 lần, báo lỗi `R5 FAIL` chỉ rõ tên task và đường dẫn file.
+    - **Replay Thực thi trên Worktree Tạm (`replay_task_text.py <task.md> [--worktree <dir>] [--run-rows]` và `check_epic_readiness.py <epic_dir> --replay`)**:
       - Áp dụng tuần tự các chỉ thị chỉnh sửa trong `<task.md>` (hoặc toàn bộ các task của `<epic_dir>` theo thứ tự thực thi trên một `git worktree` tạm) và tùy chọn chạy các dòng `Verification` (`RED`, `GREEN`, `TIER-B`, `TIER-C`), tự động dọn dẹp worktree tạm khi kết thúc.
 
 ### 5. Pha Đo lường Dài hạn (MEASURE) và Xác minh Dựa trên Bằng chứng
@@ -181,12 +183,13 @@ flowchart TD
 - **Bổ sung `Phase: MEASURE` trong `task_contract.py` và `run_task_checks.py` (`#0017`)**:
   - Trong `skills/dev-implementation/resources/scripts/task_contract.py`:
     - Cập nhật `PHASES = ("RED", "MEASURE", "GREEN", "TIER-B", "TIER-C")`.
-    - Trong `evaluate_done_gate(task_file: Path)`: nếu task có bất kỳ dòng nào mang `row.phase == "MEASURE"`, kiểm tra `evidence.get("runs", {}).get("measure")` đã tồn tại, khớp với `HEAD` (hoặc tree hiện tại), và mọi dòng `MEASURE` đều có `"outcome": "PASS"`.
+    - Trong `evaluate_done_gate(task_file: Path)` và `audit_epic.py` (`audit_evidence`): nếu task có bất kỳ dòng nào mang `row.phase == "MEASURE"`, kiểm tra `evidence.get("runs", {}).get("measure")` đã tồn tại, `tree` khớp với `fingerprint(layout.root)[0]` hiện tại (tại Done Gate), mọi dòng `MEASURE` trong bảng hiện tại khớp `id`, `command`, `expect` (`row_problems`) với `"outcome": "PASS"`, và mọi file khai báo trong `parse_evidence_files(task_text)` tồn tại trên đĩa với mã băm SHA-256 khớp `runs["measure"]["evidence_digests"]`.
   - Trong `skills/dev-implementation/resources/scripts/run_task_checks.py`:
     - Mở rộng danh sách `mode` CLI thành `("red", "measure", "verify", "status")`.
     - Khi chạy `mode == "measure"`:
-      - Giá trị `--timeout` mặc định là `7200` giây (hoặc không giới hạn khi truyền `--timeout 0`) thay vì `600` giây.
-      - Hỗ trợ cờ `--resume`: nếu truyền `--resume`, bản ghi `evidence.get("runs", {}).get("measure")` đã có tất cả các dòng `MEASURE` đạt `"outcome": "PASS"`, và toàn bộ các file khai báo trong `parse_evidence_files(task_text)` đã tồn tại và khác rỗng trên đĩa, bỏ qua việc chạy lại lệnh đo lường tốn thời gian và in `MEASURE RESUMED (existing evidence valid)`.
+      - Giá trị `--timeout` mặc định là `7200` giây (hoặc không giới hạn khi truyền `--timeout 0`) thay vì `1800` giây.
+      - Ghi nhận `"evidence_digests": {rel_path: sha256_hex}` vào `evidence["runs"]["measure"]` cho toàn bộ `Evidence files:`.
+      - Hỗ trợ cờ `--resume`: nếu truyền `--resume`, bản ghi `evidence.get("runs", {}).get("measure")` tồn tại, `tree` đã ghi khớp `fingerprint(layout.root)[0]`, `row_problems(measure_rows, evidence["runs"])` rỗng (tất cả dòng `MEASURE` hiện tại khớp `id`/`command`/`expect` và có `"outcome": "PASS"`), và toàn bộ các file trong `parse_evidence_files(task_text)` tồn tại, khác rỗng trên đĩa, đồng thời khớp mã băm SHA-256 trong `runs["measure"]["evidence_digests"]`, bỏ qua việc chạy lại lệnh đo lường tốn thời gian và in `MEASURE resumed (cached PASS)`.
   - Tài liệu hóa mẫu **Measurement-to-Evidence** trong `skills/dev-designer/SKILL.md` và `skills/dev-implementation/SKILL.md`:
     - Lệnh chạy đo lường/benchmark dài hạn được đặt ở pha `MEASURE` (ghi kết quả vào `Evidence files:`), các kiểm tra nghiệm thu cơ học được viết thành test `pytest` chạy nhanh ở pha `GREEN`/`TIER-C` đọc từ file bằng chứng đó, và đánh giá định tính theo rubric được ghi nhận là mục `(Gate 5)` trong Definition of Done.
 
@@ -205,7 +208,7 @@ flowchart TD
   - `test_check_epic_readiness.py` & `test_check_task_contract.py`: Kiểm thử phân tích `Integration results (live, needs: VAR):`, độ phủ `R6`, so khớp mẫu route có tham số trong `R5b`, và kiểm tra tĩnh anchor chỉnh sửa trong `R5`.
   - `test_run_task_checks.py`: Kiểm thử thực thi mode `measure`, cơ chế `--resume`, kiểm tra Done Gate cho `MEASURE`, và tự động tạo thư mục cha cho `--junitxml` / `--test-reporter-destination`.
 - **Tier C1 (Subcutaneous End-to-End Integration)**:
-  - `tests/test_execution_verification_infra_e2e.py`: Kiểm thử tích hợp đầu-cuối trên các kho git tạm thời bao phủ bootstrap đa nền tảng, `d3nexus record-baseline` + `d3nexus compare-baseline`, `d3nexus replay-task`, `run_task_checks.py measure` + `verify`, và cơ chế skip kiểm thử tích hợp live khi thiếu biến môi trường `needs:`.
+  - `tests/test_execution_infra_acceptance.py`: Kiểm thử tích hợp đầu-cuối trên các kho git tạm thời bao phủ bootstrap đa nền tảng, `record_failure_baseline.py` + `compare_failure_sets.py`, `replay_task_text.py`, `run_task_checks.py measure` + `verify`, và cơ chế skip kiểm thử tích hợp live khi thiếu biến môi trường `needs:`.
 - **Cổng Chất lượng Kho mã nguồn**:
   - `scripts/verify.sh`, `ruff check`, `mypy`, và `pytest` phải vượt qua với 0 lỗi.
 

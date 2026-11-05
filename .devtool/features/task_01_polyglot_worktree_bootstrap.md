@@ -42,7 +42,7 @@ Read-only context:
 ## Design Rationale
 
 Applicable skills: `python-quality-check`, `using-git-worktrees`, `test-driven-development`.
-1. Adding an optional top-level `"bootstrap"` array of non-empty command strings to `python-quality.schema.json` and `validate_python_quality.py` lets repositories declare exact environment sync commands (e.g., `["uv sync --extra asr"]` or `["pip install -e .[dev]"]`) in `.agents/quality/python-quality.json` while keeping existing manifests valid.
+1. Adding an optional top-level `"bootstrap"` array of non-empty argument arrays (`list[list[str]]`, e.g., `[["uv", "sync", "--extra", "asr"]]` or `[["pip", "install", "-e", ".[dev]"]]`) to `python-quality.schema.json` and `validate_python_quality.py` lets repositories declare exact environment sync commands in `.agents/quality/python-quality.json` matching the existing capability command format while keeping existing manifests valid.
 2. Removing early `exit 0` from the Python, Rust, and Web blocks in `bootstrap_worktree.sh` and tracking `BOOTSTRAPPED=0` ensures polyglot repositories run every applicable toolchain bootstrap before exiting cleanly when no mobile (`secureFiles/`) toolchain is present.
 3. Adding `ensure_output_dirs(command: str, root: Path) -> None` in `run_task_checks.py` before `run_command()` guarantees parent directories for `--junitxml` and `--test-reporter-destination` exist for both `pytest` and `node --test`.
 
@@ -62,11 +62,11 @@ Covers: EVI-HP-01, EVI-EC-02, EVI-FR-01
 ```gherkin
   Scenario: [EVI-HP-01] [Tier C - Integration] Worktree bootstrap executes python-quality.json bootstrap commands and installs polyglot dependencies
     Given a polyglot git repository containing both "pyproject.toml" and "package.json"
-    And ".agents/quality/python-quality.json" defines "bootstrap" as ["pip install -e .[dev]"]
+    And ".agents/quality/python-quality.json" defines "bootstrap" as [["pip", "install", "-e", ".[dev]"]]
     When "detect_project_type.sh --all" is executed on the repository
     Then it outputs "python web"
     And when "bootstrap_worktree.sh" runs on a worktree of the repository
-    Then it executes both the Python bootstrap phase (including the "bootstrap" commands from ".agents/quality/python-quality.json") and the Web dependency installation phase
+    Then it executes both the Python bootstrap phase (including the "bootstrap" command arrays from ".agents/quality/python-quality.json") and the Web dependency installation phase
 
   Scenario: [EVI-EC-02] [Tier A - Unit] Task runner automatically creates parent directories for JUnit XML output flags before executing Verification rows
     Given a task Verification row containing "--junitxml=.devtool/evidence/nested/junit/report.xml" where ".devtool/evidence/nested/junit" does not exist
@@ -74,7 +74,7 @@ Covers: EVI-HP-01, EVI-EC-02, EVI-FR-01
     Then "ensure_output_dirs()" creates ".devtool/evidence/nested/junit" prior to invoking the subprocess so the test runner writes the XML report without error
 
   Scenario: [EVI-FR-01] [Tier A - Unit] validate_python_quality.py rejects malformed bootstrap configurations with invalid_bootstrap_format
-    Given a ".agents/quality/python-quality.json" file where "bootstrap" is not a non-empty list of non-empty strings
+    Given a ".agents/quality/python-quality.json" file where "bootstrap" is not a non-empty list of non-empty string argument arrays
     When "validate_python_quality.py" validates the configuration
     Then it fails validation and emits an error with code "invalid_bootstrap_format"
 ```
@@ -83,7 +83,7 @@ Covers: EVI-HP-01, EVI-EC-02, EVI-FR-01
 
 | ID | Phase | Command | Expect | Needs |
 |----|-------|---------|--------|-------|
-| V1 | RED | `python3 -m pytest skills/python-quality-check/resources/scripts/test_validate_python_quality.py -k test_validate_python_quality.py::test_EVI_FR_01_invalid_bootstrap_format` | exit 1; contains "FAILED" | — |
+| V1 | RED | `python3 -m pytest skills/python-quality-check/resources/scripts/test_validate_python_quality.py::PythonQualityConfigTests::test_EVI_FR_01_invalid_bootstrap_format` | exit 1; contains "FAILED" | — |
 | V2 | GREEN | `python3 -m pytest skills/python-quality-check/resources/scripts/test_validate_python_quality.py skills/dev-implementation/resources/scripts/test_run_task_checks.py` | exit 0; contains "passed" | — |
 | V3 | TIER-B | `ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py skills/python-quality-check/resources/scripts/validate_python_quality.py skills/python-quality-check/resources/scripts/test_validate_python_quality.py skills/dev-implementation/resources/scripts/run_task_checks.py skills/dev-implementation/resources/scripts/test_run_task_checks.py` | exit 0 | — |
 | V4 | TIER-B | `mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py --follow-imports=silent skills/python-quality-check/resources/scripts/validate_python_quality.py skills/dev-implementation/resources/scripts/run_task_checks.py` | exit 0 | — |
@@ -101,10 +101,10 @@ Covers: EVI-HP-01, EVI-EC-02, EVI-FR-01
 ## Decisions Already Made
 
 - In `skills/python-quality-check/resources/schemas/python-quality.schema.json`, add optional property `"bootstrap"` under root `"properties"`:
-  `{"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}`.
-- In `skills/python-quality-check/resources/scripts/validate_python_quality.py`, inside `validate_python_config()`, if `"bootstrap"` is in `config`, validate that `isinstance(bootstrap, list) and len(bootstrap) > 0 and all(isinstance(cmd, str) and bool(cmd.strip()) for cmd in bootstrap)`; otherwise append `_finding("invalid_bootstrap_format", "Optional 'bootstrap' field must be a non-empty array of non-empty command strings")`.
+  `{"type": "array", "minItems": 1, "items": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}}`.
+- In `skills/python-quality-check/resources/scripts/validate_python_quality.py`, inside `validate_python_config()`, if `"bootstrap"` is in `config`, validate that `isinstance(bootstrap, list) and len(bootstrap) > 0 and all(isinstance(cmd, list) and len(cmd) > 0 and all(isinstance(arg, str) and bool(arg.strip()) for arg in cmd) for cmd in bootstrap)`; otherwise append `_finding("invalid_bootstrap_format", "Optional 'bootstrap' field must be a non-empty array of non-empty string argument arrays")`.
 - In `skills/dev-implementation/resources/scripts/detect_project_type.sh`, accept `--all` as either first or second argument. When `--all` is active, evaluate all platform checks in order (`flutter`, `ios`, `android`, `python`, `web`, `rust`, where `web` matches any repo with `$TARGET_DIR/package.json` when `--all` is passed or when framework configs / `tests/js` exist) and print space-separated detected types on one line (e.g., `python web`). Without `--all`, preserve existing single-platform output and order.
-- In `skills/dev-implementation/resources/scripts/bootstrap_worktree.sh`, execute Python, Rust, and Web blocks sequentially without early `exit 0`; in the Python block, if `.agents/quality/python-quality.json` defines a non-empty `"bootstrap"` array, execute each command in `$WORKTREE_PATH` via `bash -c`, otherwise fall back to `uv sync` / `poetry install` / `pip install -r requirements.txt`. After the Web block, if `BOOTSTRAPPED=1` and no mobile project markers (`pubspec.yaml`, `melos.yaml`, `Project.swift`, `Workspace.swift`, `Tuist.swift`, `settings.gradle.kts`, `settings.gradle`, `build.gradle.kts`) exist in `$WORKTREE_PATH`, print `"Worktree bootstrap complete at $WORKTREE_PATH"` and `exit 0`.
+- In `skills/dev-implementation/resources/scripts/bootstrap_worktree.sh`, execute Python, Rust, and Web blocks sequentially without early `exit 0`; in the Python block, if `.agents/quality/python-quality.json` defines a non-empty `"bootstrap"` array of argument arrays, execute each command array directly inside `$WORKTREE_PATH` via `python3` (`subprocess.run(cmd_argv, cwd=worktree_path, check=True)`), otherwise fall back to `uv sync` / `poetry install` / `pip install -r requirements.txt`. After the Web block, if `BOOTSTRAPPED=1` and no mobile project markers (`pubspec.yaml`, `melos.yaml`, `Project.swift`, `Workspace.swift`, `Tuist.swift`, `settings.gradle.kts`, `settings.gradle`, `build.gradle.kts`) exist in `$WORKTREE_PATH`, print `"Worktree bootstrap complete at $WORKTREE_PATH"` and `exit 0`.
 - In `skills/dev-implementation/resources/scripts/run_task_checks.py`, add `OUTPUT_DIR_FLAGS = ("--junitxml", "--junit-xml", "--test-reporter-destination")` and `ensure_output_dirs(command: str, root: Path) -> None`, called immediately before `run_command(row.command, root, timeout)` in `run_row()`.
 
 ## Definition of Done

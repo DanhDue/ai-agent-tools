@@ -142,9 +142,9 @@ Integration results: python3 -m pytest tests/ skills/dev-implementation/resource
 | Ranh giới Tích hợp | Chiến lược Kiểm thử | Mục tiêu Xác minh |
 | :--- | :--- | :--- |
 | `validate_python_quality.py`, `detect_project_type.sh` & `bootstrap_worktree.sh` | Kiểm thử tiến trình con & xác thực schema trên các repo đa nền tảng tạm | Xác minh kiểm tra mảng `"bootstrap"`, đầu ra `detect_project_type.sh --all` (`python web`), và khởi tạo worktree đa nền tảng Python + Node |
-| `record_failure_baseline.py` & `compare_failure_sets.py` | Kiểm thử CLI subcutaneous với đầu ra `pytest` và `node --test` giả lập | Xác minh chỉ trích xuất lỗi từ phần tóm tắt cuối (bỏ qua dòng log `ERROR`), sinh file `# 0 failures` khác rỗng, khôi phục file qua `--restore`, và lọc lỗi thoáng qua bằng `--rerun-new` |
+| `record_failure_baseline.py` & `compare_failure_sets.py` | Kiểm thử CLI subcutaneous với đầu ra `pytest` và `node --test` giả lập | Xác minh chỉ trích xuất lỗi từ phần tóm tắt cuối (giữ nguyên khoảng trắng trong tham số node ID, bỏ qua dòng log `ERROR`, và từ chối lỗi khởi chạy/cú pháp của runner), sinh file `# 0 failures` khác rỗng, khôi phục file qua `--restore`, và phân loại `ISOLATED_PASS` so với `PERSISTENT_FAILURE` bằng `--rerun-new` (`--allow-isolated-pass`) |
 | `task_contract.py`, `check_epic_readiness.py`, `audit_epic.py` & `run_external_review.py` | Kiểm thử tích hợp cho `Integration results (live, needs: VAR):` và mẫu route `R5b` | Xác minh phân tích `IntegrationResultSpec`, độ phủ `R6`, trạng thái `SKIPPED` so với chạy thật ở Gate 4, và so khớp mẫu route có tham số (`http://localhost/api/jobs/{job_id}`) trong `R5b` |
-| `replay_task_text.py` & `run_task_checks.py` (`MEASURE`) | Kiểm thử replay trên hệ thống file/worktree và vòng đời mode `measure` | Xác minh chỉ thị `Create`, `Replace in`, `Insert in`, kiểm tra tĩnh anchor `R5`, chạy thử `--replay` trên worktree, cơ chế `--resume` của `measure`, và tự tạo thư mục cha cho JUnit |
+| `replay_task_text.py` & `run_task_checks.py` (`MEASURE`) | Kiểm thử replay trên hệ thống file/worktree và vòng đời mode `measure` | Xác minh chỉ thị `Create`, `Replace in`, `Insert in`, kiểm tra tĩnh anchor `R5`, chạy thử `--replay` trên worktree, kiểm tra `tree`/hợp đồng dòng/SHA-256 digest cho `measure --resume`, và tự tạo thư mục cha cho JUnit |
 
 ## Môi trường Xác minh
 
@@ -155,11 +155,11 @@ Integration results: python3 -m pytest tests/ skills/dev-implementation/resource
 ### Kịch bản Kiểm thử BDD Toàn diện
 
 Bộ kịch bản bao phủ đầy đủ 5 chiều dưới tiền tố `[EVI-]`:
-1. **Happy Paths (`EVI-HP-01` .. `EVI-HP-04`)**: Khởi tạo worktree đa nền tảng với `"bootstrap"` extras và `detect_project_type.sh --all`; ghi nhận và đối chiếu baseline lỗi qua `d3nexus record-baseline` và `compare-baseline`; hỗ trợ `Integration results (live, needs: VAR):` và so khớp mẫu route có tham số trong `R5b`; thực thi `replay_task_text.py` và `run_task_checks.py measure`.
+1. **Happy Paths (`EVI-HP-01` .. `EVI-HP-04`)**: Khởi tạo worktree đa nền tảng với mảng đối số `"bootstrap"` và `detect_project_type.sh --all`; ghi nhận và đối chiếu baseline lỗi qua `record_failure_baseline.py` và `compare_failure_sets.py`; hỗ trợ `Integration results (live, needs: VAR):` và so khớp mẫu route có tham số trong `R5b`; thực thi `replay_task_text.py` và `run_task_checks.py measure`.
 2. **Edge Cases (`EVI-EC-01` .. `EVI-EC-03`)**: Baseline 0 lỗi vẫn tạo file `# 0 failures` khác rỗng và bỏ qua các dòng log `ERROR` in giữa chừng; tự động tạo thư mục cha cho `--junitxml` và `--test-reporter-destination`; và `R5b` khớp nhiều cú pháp tham số route (`{id}`, `<id>`, `:id`).
-3. **State Transitions (`EVI-ST-01` .. `EVI-ST-02`)**: `--rerun-new` lọc bỏ các lỗi thoáng qua do bẩn trạng thái dùng chung nhưng bắt đúng lỗi hồi quy thật; và `run_task_checks.py measure --resume` bỏ qua việc chạy lại khi bản ghi `MEASURE` và `Evidence files:` hợp lệ đã tồn tại.
+3. **State Transitions (`EVI-ST-01` .. `EVI-ST-02`)**: `--rerun-new` phân loại lỗi đạt cô lập so với lỗi hồi quy bền vững và yêu cầu cờ `--allow-isolated-pass` tường minh để bỏ qua lỗi đạt cô lập; và `run_task_checks.py measure --resume` chỉ tái sử dụng bản ghi `MEASURE` khi `tree`, hợp đồng dòng và mã băm SHA-256 của `Evidence files:` khớp.
 4. **Async & Concurrency (`EVI-AR-01` .. `EVI-AR-02`)**: Tạo và dọn dẹp worktree tạm cô lập khi chạy `check_epic_readiness.py --replay` mà không làm bẩn cây làm việc chính; và `--restore <path>` khôi phục nguyên trạng các file theo dõi bởi git bị sửa đổi trong lúc chạy test.
-5. **Failures & Resilience (`EVI-FR-01` .. `EVI-FR-03`)**: Từ chối cấu hình `"bootstrap"` sai định dạng trong `validate_python_quality.py`; báo lỗi `R5 FAIL` khi anchor của `Replace in <path>:` không tồn tại hoặc xuất hiện nhiều lần; và chặn tại Done Gate khi task có dòng `MEASURE` chưa chạy hoặc thất bại.
+5. **Failures & Resilience (`EVI-FR-01` .. `EVI-FR-03`)**: Từ chối cấu hình `"bootstrap"` sai định dạng trong `validate_python_quality.py`; báo lỗi `R5 FAIL` khi anchor của `Replace in <path>:` không tồn tại hoặc xuất hiện nhiều lần; và chặn tại Done Gate khi task có dòng `MEASURE` bị thiếu, thất bại hoặc lỗi thời so với `tree` và mã băm bằng chứng hiện tại.
 
 ## Tác động Shared Contract
 

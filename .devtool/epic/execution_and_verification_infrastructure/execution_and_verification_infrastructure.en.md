@@ -142,9 +142,9 @@ Integration results: python3 -m pytest tests/ skills/dev-implementation/resource
 | Boundary Seam | Testing Strategy | Verification Target |
 | :--- | :--- | :--- |
 | `validate_python_quality.py`, `detect_project_type.sh` & `bootstrap_worktree.sh` | Subprocess & schema validation tests in temporary polyglot repositories | Verify `"bootstrap"` array validation, `detect_project_type.sh --all` output (`python web`), and polyglot Python + Node worktree bootstrapping |
-| `record_failure_baseline.py` & `compare_failure_sets.py` | Subcutaneous CLI tests with synthetic `pytest` and `node --test` outputs | Verify terminal-summary-only failure extraction (ignoring `ERROR` log lines), `# 0 failures` non-empty output, `--restore` git checkout, and `--rerun-new` transient failure filtering |
+| `record_failure_baseline.py` & `compare_failure_sets.py` | Subcutaneous CLI tests with synthetic `pytest` and `node --test` outputs | Verify terminal-summary-only failure extraction (preserving spaces in parameterized node IDs, ignoring `ERROR` log lines, and rejecting runner usage/launch errors), `# 0 failures` non-empty output, `--restore` git checkout, and `--rerun-new` isolated-pass vs persistent failure classification (`--allow-isolated-pass`) |
 | `task_contract.py`, `check_epic_readiness.py`, `audit_epic.py` & `run_external_review.py` | Integration tests across HLD `Integration results (live, needs: VAR):` and `R5b` route templates | Verify `IntegrationResultSpec` parsing, `R6` Tier C coverage, Gate 4 `SKIPPED` vs executed live commands, and `R5b` parameterized route template matching (`http://localhost/api/jobs/{job_id}`) |
-| `replay_task_text.py` & `run_task_checks.py` (`MEASURE`) | Filesystem & worktree replay tests and `measure` mode lifecycle tests | Verify `Create`, `Replace in`, and `Insert in` directives, `R5` static anchor checks, `--replay` worktree execution, `measure --resume` caching, and JUnit parent directory auto-creation |
+| `replay_task_text.py` & `run_task_checks.py` (`MEASURE`) | Filesystem & worktree replay tests and `measure` mode lifecycle tests | Verify `Create`, `Replace in`, and `Insert in` directives, `R5` static anchor checks, `--replay` worktree execution, `measure --resume` tree/contract/SHA-256 digest validation, and JUnit parent directory auto-creation |
 
 ## Verification Environment
 
@@ -155,11 +155,11 @@ Integration results: python3 -m pytest tests/ skills/dev-implementation/resource
 ### Comprehensive BDD Test Scenarios
 
 The suite covers all 5 dimensions under the `[EVI-]` prefix:
-1. **Happy Paths (`EVI-HP-01` .. `EVI-HP-04`)**: Polyglot worktree bootstrap with `"bootstrap"` extras and `detect_project_type.sh --all`; recording and comparing failure-set baselines via `d3nexus record-baseline` and `compare-baseline`; `Integration results (live, needs: VAR):` and `R5b` parameterized route template matching; and `replay_task_text.py` + `run_task_checks.py measure` execution.
+1. **Happy Paths (`EVI-HP-01` .. `EVI-HP-04`)**: Polyglot worktree bootstrap with `"bootstrap"` argument arrays and `detect_project_type.sh --all`; recording and comparing failure-set baselines via `record_failure_baseline.py` and `compare_failure_sets.py`; `Integration results (live, needs: VAR):` and `R5b` parameterized route template matching; and `replay_task_text.py` + `run_task_checks.py measure` execution.
 2. **Edge Cases (`EVI-EC-01` .. `EVI-EC-03`)**: Zero-failure baseline producing non-empty `# 0 failures` file and ignoring captured `ERROR` log lines; automatic parent directory creation for `--junitxml` and `--test-reporter-destination`; and `R5b` matching multiple route parameter syntaxes (`{id}`, `<id>`, `:id`).
-3. **State Transitions (`EVI-ST-01` .. `EVI-ST-02`)**: `--rerun-new` filtering out transient shared-state failures while failing on persistent regressions; and `run_task_checks.py measure --resume` skipping re-execution when valid `MEASURE` run and `Evidence files:` already exist.
+3. **State Transitions (`EVI-ST-01` .. `EVI-ST-02`)**: `--rerun-new` classifying isolated-pass vs persistent regressions and requiring explicit `--allow-isolated-pass` to ignore isolated passes; and `run_task_checks.py measure --resume` reusing cached `MEASURE` runs only when the worktree `tree`, row contracts, and `Evidence files:` SHA-256 digests match.
 4. **Async & Concurrency (`EVI-AR-01` .. `EVI-AR-02`)**: Isolated temporary worktree creation and cleanup during `check_epic_readiness.py --replay` without polluting the main checkout; and `--restore <path>` restoring modified tracked files after baseline recording.
-5. **Failures & Resilience (`EVI-FR-01` .. `EVI-FR-03`)**: Rejecting malformed `"bootstrap"` entries in `validate_python_quality.py`; `R5` failing when a `Replace in <path>:` anchor is missing or non-unique in the target file; and Done Gate failing when a task has `MEASURE` rows that have not been executed or failed.
+5. **Failures & Resilience (`EVI-FR-01` .. `EVI-FR-03`)**: Rejecting malformed `"bootstrap"` entries in `validate_python_quality.py`; `R5` failing when a `Replace in <path>:` anchor is missing or non-unique in the target file; and Done Gate failing when a task has `MEASURE` rows that are missing, failed, or stale relative to the current tree and evidence file digests.
 
 ## Shared Contract Impact
 

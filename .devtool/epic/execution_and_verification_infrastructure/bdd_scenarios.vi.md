@@ -17,11 +17,11 @@ Feature: Execution and Verification Infrastructure — Happy Paths
 
   Scenario: [EVI-HP-01] [Tier C - Integration] Worktree bootstrap thực thi các lệnh bootstrap trong python-quality.json và cài đặt phụ thuộc đa ngôn ngữ (polyglot)
     Given một kho lưu trữ git đa ngôn ngữ chứa cả "pyproject.toml" và "package.json"
-    And ".agents/quality/python-quality.json" định nghĩa "bootstrap" là ["pip install -e .[dev]"]
+    And ".agents/quality/python-quality.json" định nghĩa "bootstrap" là [["pip", "install", "-e", ".[dev]"]]
     When "detect_project_type.sh --all" được thực thi trên kho lưu trữ
     Then nó xuất ra "python web"
     And khi "bootstrap_worktree.sh" chạy trên một worktree của kho lưu trữ
-    Then nó thực thi cả pha bootstrap Python (bao gồm các lệnh "bootstrap" từ ".agents/quality/python-quality.json") và pha cài đặt phụ thuộc Web
+    Then nó thực thi cả pha bootstrap Python (bao gồm các mảng lệnh "bootstrap" từ ".agents/quality/python-quality.json") và pha cài đặt phụ thuộc Web
 
   Scenario: [EVI-HP-02] [Tier C - Integration] Ghi nhận baseline tập lỗi và so sánh hồi quy đạt khi không có lỗi mới xuất hiện
     Given một luồng đầu ra pytest chứa 2 node ID kiểm thử thất bại có sẵn trong khối tóm tắt cuối "=== short test summary info ==="
@@ -81,19 +81,19 @@ Feature: Execution and Verification Infrastructure — Edge Cases & Boundaries
 ```gherkin
 Feature: Execution and Verification Infrastructure — State Transitions
 
-  Scenario: [EVI-ST-01] [Tier A - Unit] So sánh tập lỗi với --rerun-new lọc bỏ các lỗi trạng thái chia sẻ tạm thời nhưng báo lỗi với các hồi quy bền vững
-    Given một tệp baseline có 0 lỗi và một tệp lỗi hiện tại có 2 node ID lỗi mới tiềm năng
+  Scenario: [EVI-ST-01] [Tier A - Unit] So sánh tập lỗi với --rerun-new phân loại lỗi đạt cô lập so với lỗi bền vững và yêu cầu cờ tường minh để bỏ qua lỗi đạt cô lập
+    Given một tệp baseline có 0 lỗi và một tệp lỗi hiện tại có 2 node ID lỗi mới tiềm năng (bao gồm ID có tham số chứa khoảng trắng)
     When "compare_failure_sets.py --baseline baseline.txt --current current.txt --rerun-new" chạy
-    And ứng viên đầu tiên đạt khi được chạy lại cô lập qua "--rerun-cmd"
-    Then ứng viên đầu tiên được báo cáo là lỗi trạng thái chia sẻ tạm thời và được bỏ qua
-    And khi ứng viên thứ hai vẫn thất bại khi chạy lại cô lập
-    Then "compare_failure_sets.py" báo cáo lỗi hồi quy bền vững và thoát với mã 1
+    And ứng viên đầu tiên đạt khi được chạy lại cô lập qua "--rerun-cmd" trong khi ứng viên thứ hai thất bại
+    Then ứng viên đầu tiên được phân loại là "ISOLATED_PASS" và ứng viên thứ hai là "PERSISTENT_FAILURE" đồng thời lệnh thoát với mã 1
+    And khi tất cả ứng viên đều đạt khi chạy cô lập, "compare_failure_sets.py --rerun-new" vẫn thoát với mã 1 trừ khi "--allow-isolated-pass" được truyền tường minh
 
-  Scenario: [EVI-ST-02] [Tier C - Integration] run_task_checks.py measure --resume bỏ qua việc chạy lại các dòng MEASURE khi lần chạy trước đã đạt và các tệp bằng chứng tồn tại
+  Scenario: [EVI-ST-02] [Tier C - Integration] run_task_checks.py measure --resume chỉ tái sử dụng kết quả MEASURE đã lưu khi tree, hợp đồng dòng và mã băm tệp bằng chứng khớp
     Given một tệp task có các dòng "Phase: MEASURE" và "Evidence files: .devtool/evidence/bench.json"
-    And một lần chạy "run_task_checks.py measure" trước đó đã ghi nhận "runs.measure.passed = true" và tạo tệp ".devtool/evidence/bench.json" khác rỗng
-    When "run_task_checks.py measure <task.md> --resume" được gọi
+    And một lần chạy "run_task_checks.py measure" trước đó đã ghi nhận "runs.measure.passed = true" kèm worktree tree, lệnh/expect của dòng và mã băm SHA-256 của ".devtool/evidence/bench.json" khớp
+    When "run_task_checks.py measure <task.md> --resume" được gọi trên tree và tệp bằng chứng không thay đổi
     Then nó bỏ qua việc thực thi lại các lệnh tiến trình con "MEASURE" và thoát với mã 0
+    And khi worktree tree, lệnh của dòng hoặc nội dung ".devtool/evidence/bench.json" bị sửa đổi, "--resume" hủy hiệu lực bộ nhớ đệm và thực thi lại các dòng "MEASURE"
 ```
 
 ---
@@ -123,7 +123,7 @@ Feature: Execution and Verification Infrastructure — Async & Concurrency
 Feature: Execution and Verification Infrastructure — Failures & Resilience
 
   Scenario: [EVI-FR-01] [Tier A - Unit] validate_python_quality.py từ chối các cấu hình bootstrap sai định dạng với mã invalid_bootstrap_format
-    Given một tệp ".agents/quality/python-quality.json" trong đó "bootstrap" không phải là một danh sách khác rỗng chứa các chuỗi khác rỗng
+    Given một tệp ".agents/quality/python-quality.json" trong đó "bootstrap" không phải là một danh sách khác rỗng chứa các mảng đối số chuỗi khác rỗng
     When "validate_python_quality.py" xác thực cấu hình
     Then nó báo lỗi xác thực và phát ra lỗi với mã "invalid_bootstrap_format"
 
@@ -132,10 +132,10 @@ Feature: Execution and Verification Infrastructure — Failures & Resilience
     When "verify_task_edit_anchors()" trong "check_epic_readiness.py" kiểm tra task
     Then R5 thất bại và báo cáo chính xác đường dẫn tệp cùng đoạn điểm neo bị thiếu hoặc mơ hồ
 
-  Scenario: [EVI-FR-03] [Tier A - Unit] evaluate_done_gate thất bại khi một task chứa các dòng MEASURE chưa được thực thi hoặc chưa đạt
+  Scenario: [EVI-FR-03] [Tier A - Unit] evaluate_done_gate thất bại khi một task chứa các dòng MEASURE bị thiếu, thất bại hoặc lỗi thời so với tree và mã băm bằng chứng hiện tại
     Given một tệp task chứa ít nhất một dòng Verification có "Phase: MEASURE"
-    And tệp JSON bằng chứng của task thiếu "runs.measure" hoặc có "runs.measure.passed == false"
+    And tệp JSON bằng chứng của task thiếu "runs.measure", có "runs.measure.passed == false", hoặc có "tree", hợp đồng dòng hay mã băm SHA-256 của tệp bằng chứng không khớp
     When "evaluate_done_gate()" đánh giá task để chuyển sang trạng thái "done"
-    Then nó trả về danh sách lỗi khác rỗng chặn việc chuyển sang "done" cho đến khi "run_task_checks.py measure" đạt
+    Then nó trả về danh sách lỗi khác rỗng chặn việc chuyển sang "done" cho đến khi một lần chạy "run_task_checks.py measure" mới đạt
 ```
 

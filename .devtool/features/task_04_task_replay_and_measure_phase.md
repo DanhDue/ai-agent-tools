@@ -66,29 +66,30 @@ Covers: EVI-HP-04, EVI-ST-02, EVI-FR-02, EVI-FR-03
     And when "run_task_checks.py measure" executes the task
     Then the "MEASURE" rows run, create ".devtool/evidence/bench.json", and record a passing "measure" entry in the task's evidence JSON
 
-  Scenario: [EVI-ST-02] [Tier C - Integration] run_task_checks.py measure --resume skips re-running MEASURE rows when prior run passed and declared evidence files exist
+  Scenario: [EVI-ST-02] [Tier C - Integration] run_task_checks.py measure --resume reuses cached MEASURE runs only when tree, row contracts, and evidence file digests match
     Given a task file with "Phase: MEASURE" rows and "Evidence files: .devtool/evidence/bench.json"
-    And a prior "run_task_checks.py measure" execution recorded "runs.measure.passed = true" and created a non-empty ".devtool/evidence/bench.json"
-    When "run_task_checks.py measure <task.md> --resume" is invoked
+    And a prior "run_task_checks.py measure" execution recorded "runs.measure.passed = true" with matching worktree tree, row commands/expectations, and ".devtool/evidence/bench.json" SHA-256 digest
+    When "run_task_checks.py measure <task.md> --resume" is invoked on the unchanged tree and evidence file
     Then it skips re-executing the "MEASURE" subprocess commands and exits with code 0
+    And when the worktree tree, row command, or ".devtool/evidence/bench.json" content is modified, "--resume" invalidates the cache and re-executes the "MEASURE" rows
 
   Scenario: [EVI-FR-02] [Tier A - Unit] R5 static anchor verification fails when a Replace in or Insert in anchor is missing or ambiguous in the target file
     Given a task file containing a "Replace in <path>:" or "Insert in <path>:" directive whose anchor text occurs 0 times or 2+ times in "<path>"
     When "verify_task_edit_anchors()" in "check_epic_readiness.py" inspects the task
     Then R5 fails and reports the exact file path and missing or ambiguous anchor snippet
 
-  Scenario: [EVI-FR-03] [Tier A - Unit] evaluate_done_gate fails when a task contains MEASURE rows that have not been executed or did not pass
+  Scenario: [EVI-FR-03] [Tier A - Unit] evaluate_done_gate fails when a task contains MEASURE rows that are missing, failed, or stale relative to the current tree and evidence digests
     Given a task file containing at least one "Phase: MEASURE" Verification row
-    And the task's evidence JSON either lacks "runs.measure" or has "runs.measure.passed == false"
+    And the task's evidence JSON either lacks "runs.measure", has "runs.measure.passed == false", or has a mismatched "tree", row contract, or evidence file SHA-256 digest
     When "evaluate_done_gate()" evaluates the task for transition to "done"
-    Then it returns a non-empty failure list blocking the "done" transition until "run_task_checks.py measure" passes
+    Then it returns a non-empty failure list blocking the "done" transition until a fresh "run_task_checks.py measure" passes
 ```
 
 ## Verification
 
 | ID | Phase | Command | Expect | Needs |
 |----|-------|---------|--------|-------|
-| V1 | RED | `python3 -m pytest skills/dev-implementation/resources/scripts/test_replay_and_measure.py -k test_replay_and_measure.py::test_EVI_HP_04_replay_and_measure_phase` | exit 1; contains "FAILED" | — |
+| V1 | RED | `python3 -m pytest skills/dev-implementation/resources/scripts/test_replay_and_measure.py::test_EVI_HP_04_replay_and_measure_phase` | exit 1; contains "FAILED" | — |
 | V2 | GREEN | `python3 -m pytest skills/dev-implementation/resources/scripts/test_replay_and_measure.py` | exit 0; contains "passed" | — |
 | V3 | TIER-B | `ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py skills/dev-implementation/resources/scripts/replay_task_text.py skills/dev-implementation/resources/scripts/task_contract.py skills/dev-implementation/resources/scripts/run_task_checks.py skills/dev-implementation/resources/scripts/check_epic_readiness.py skills/dev-implementation/resources/scripts/audit_epic.py skills/dev-implementation/resources/scripts/test_replay_and_measure.py` | exit 0 | — |
 | V4 | TIER-B | `mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py --follow-imports=silent skills/dev-implementation/resources/scripts/replay_task_text.py skills/dev-implementation/resources/scripts/task_contract.py skills/dev-implementation/resources/scripts/run_task_checks.py skills/dev-implementation/resources/scripts/check_epic_readiness.py skills/dev-implementation/resources/scripts/audit_epic.py` | exit 0 | — |
@@ -107,15 +108,16 @@ Covers: EVI-HP-04, EVI-ST-02, EVI-FR-02, EVI-FR-03
 
 - In `skills/dev-implementation/resources/scripts/task_contract.py`:
   - `PHASES = ("RED", "MEASURE", "GREEN", "TIER-B", "TIER-C")`.
-  - `parse_evidence_files(task_text: str) -> list[str]` extracts inline code paths under `Evidence files:` in `## Files` (or Inline `Evidence files: <path>` lines in the task body) so `run_task_checks.py measure --resume` can verify that every declared evidence file exists and is non-empty (`stat().st_size > 0`).
-  - `row_problems(rows: list[Row], runs: dict) -> list[str]` maps `row.phase == "RED"` to `runs.get("red")`, `row.phase == "MEASURE"` to `runs.get("measure")`, and all other phases to `runs.get("verify")`.
-  - `evaluate_done_gate(task_file: Path) -> list[str]` checks `needs_measure = any(row.phase == "MEASURE" for row in rows)`: when `True`, requires `"measure"` in `runs` with `runs["measure"].get("passed", all(r.get("outcome") == "PASS" for r in runs["measure"].get("rows", [])))` true; otherwise appends `"condition 1: evidence ... has no measure run"` or `"condition 2: measure run did not pass"`.
-- In `skills/dev-implementation/resources/scripts/audit_epic.py`, `audit_evidence()` adds `(["measure"] if any(r.phase == "MEASURE" for r in rows) else [])` to `needed`.
+  - `parse_evidence_files(task_text: str) -> list[str]` extracts inline code paths under `Evidence files:` in `## Files` (or inline `Evidence files: <path>` lines in the task body).
+  - `row_problems(rows: list[Row], runs: dict) -> list[str]` maps `row.phase == "RED"` to `runs.get("red")`, `row.phase == "MEASURE"` to `runs.get("measure")`, and all other phases to `runs.get("verify")`, verifying that every `MEASURE` row has a matching `PASS` record with identical `command` and `expect_text`.
+  - `evaluate_done_gate(task_file: Path) -> list[str]` checks `needs_measure = any(row.phase == "MEASURE" for row in rows)`: when `True`, requires `"measure"` in `runs`, verifies `runs["measure"].get("passed") is True`, verifies `runs["measure"].get("tree") == fingerprint(layout.root)[0]` (appending `"condition 4: the measure run's tree differs from the current tree"` on mismatch), and verifies that every file in `parse_evidence_files(task_text)` exists on disk and its SHA-256 digest matches `runs["measure"].get("evidence_digests", {}).get(rel_path)`.
+- In `skills/dev-implementation/resources/scripts/audit_epic.py`, `audit_evidence()` adds `(["measure"] if any(r.phase == "MEASURE" for r in rows) else [])` to `needed` and verifies `runs["measure"].get("passed") is True` and non-empty `evidence_digests` for declared `Evidence files:`.
 - In `skills/dev-implementation/resources/scripts/run_task_checks.py`:
   - `main()` accepts `mode` in `("red", "measure", "verify", "status")`, `--timeout` (default `7200` when `mode == "measure"` and `--timeout` was not explicitly passed, else `1800`), and `--resume` (`action="store_true"`).
-  - In `run(args)`: when `args.mode == "measure"`, selects `[row for row in rows if row.phase == "MEASURE"]`. If `--resume` is set, loads existing `evidence = load_evidence(layout.evidence)`: if `m_run := evidence.get("runs", {}).get("measure")` has `m_run.get("passed") is True` (and all rows in `m_run.get("rows", [])` have `outcome == "PASS"`) and every path in `parse_evidence_files(task_text)` exists under `layout.root` with `stat().st_size > 0`, prints `"MEASURE resumed (cached PASS)"` and returns `0` without re-running subprocesses.
-  - When recording `evidence["runs"][args.mode]`, include `"passed": passed` alongside `"head"`, `"tree"`, `"patch_id"`, `"started"`, `"finished"`, and `"rows"`.
+  - In `run(args)`: when `args.mode == "measure"`, selects `measure_rows = [row for row in rows if row.phase == "MEASURE"]`. If `--resume` is set, loads existing `evidence = load_evidence(layout.evidence)`: if `m_run := evidence.get("runs", {}).get("measure")` has `m_run.get("passed") is True`, `m_run.get("tree") == fingerprint(layout.root)[0]`, `row_problems(measure_rows, {"measure": m_run})` is empty, and every path in `parse_evidence_files(task_text)` exists under `layout.root` with `stat().st_size > 0` and SHA-256 matching `m_run.get("evidence_digests", {}).get(rel_path)`, prints `"MEASURE resumed (cached PASS)"` and returns `0` without re-running subprocesses.
+  - When recording `evidence["runs"][args.mode]`, include `"passed": passed` and (for `mode == "measure"`) `"evidence_digests": {rel_path: sha256_hex}` alongside `"head"`, `"tree"`, `"patch_id"`, `"started"`, `"finished"`, and `"rows"`.
 - In `skills/dev-implementation/resources/scripts/replay_task_text.py`:
+  - CLI interface: `replay_task_text.py <task.md> [--worktree <dir>] [--run-rows] [--timeout 600]`.
   - Support directives outside Gherkin fences:
     - `Create `?(<path>)`?:` followed by a fenced code block.
     - `Replace in `?(<path>)`?:` followed by a fenced code block (target anchor) and `With:` followed by a fenced code block (replacement).

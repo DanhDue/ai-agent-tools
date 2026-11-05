@@ -38,13 +38,13 @@ Read-only context:
 ## Design Rationale
 
 Applicable skills: `python-quality-check`, `test-driven-development`.
-1. `record_failure_baseline.py` parses only the terminal `=== short test summary info ===` section of `pytest` output (or `# fail` / `not ok` summary lines from `node --test`), extracting canonical `FAILED <nodeid>` and `ERROR <nodeid>` identifiers and sorting/deduplicating them. When 0 failures occur, it writes `# 0 failures\n` so output files are always non-empty. When `--restore <path>` is passed, it runs `git checkout -- <path>` in a `finally:` block after the test command finishes.
-2. `compare_failure_sets.py` loads baseline and current failure sets (ignoring `#` comment lines), computes `new_failures = sorted(current - baseline)`, and when `--rerun-new` is passed with `--rerun-cmd "<cmd>"`, re-executes each candidate new failure node ID in isolation; candidates that pass in isolation are logged as transient shared-state failures and filtered out, while persistent failures cause exit code 1.
+1. `record_failure_baseline.py` parses only the terminal `=== short test summary info ===` section of `pytest` output (or `# fail` / `not ok` / `✖` summary lines from `node --test`), extracting canonical `FAILED <nodeid>` and `ERROR <nodeid>` identifiers (preserving spaces inside parameterized `[...]` brackets) and sorting/deduplicating them. It distinguishes valid test completions (`exit 0` with summary footer or `exit 1`/`2` with short test summary info) from runner launch/usage/internal errors (`exit 3`, `4`, `5`, `127`, or non-zero exit without a summary block), failing with exit code `2` without writing a baseline on invalid runs. When 0 failures occur in a valid run, it writes `# 0 failures\n` so output files are always non-empty. When `--restore <path>` is passed, it runs `git checkout -- <path>` in a `finally:` block after the test command finishes.
+2. `compare_failure_sets.py` loads baseline and current failure sets (or executes `<command...>` directly), computes `new_failures = sorted(current - baseline)`, and when `--rerun-new` is passed, re-executes each candidate new failure node ID as a single positional argument (`[*rerun_cmd_argv, node_id]`). Candidates that pass in isolation are classified as `ISOLATED_PASS` while those that still fail are classified as `PERSISTENT_FAILURE`; both cause exit code `1` by default so order-dependent state-pollution regressions are never masked, unless `--allow-isolated-pass` is explicitly provided.
 
 ## Impact Analysis & Blast Radius
 
 - **Target Files & Symbols**:
-  - `skills/dev-implementation/resources/scripts/record_failure_baseline.py`: new `extract_pytest_failures`, new `record_baseline`, and new `main`.
+  - `skills/dev-implementation/resources/scripts/record_failure_baseline.py`: new `extract_pytest_failures`, new `extract_node_failures`, new `record_baseline`, and new `main`.
   - `skills/dev-implementation/resources/scripts/compare_failure_sets.py`: new `load_failure_set`, new `compare_failure_sets`, and new `main`.
 - **Downstream Callers**: Task Verification rows in `dev-designer` and `dev-implementation`.
 - **Cross-Platform Bridges**: None.
@@ -69,13 +69,12 @@ Covers: EVI-HP-02, EVI-EC-01, EVI-ST-01, EVI-AR-02
     And when 0 tests fail or error in the terminal summary block
     Then "record_failure_baseline.py" writes "# 0 failures\n" to the output file so the file is non-empty
 
-  Scenario: [EVI-ST-01] [Tier A - Unit] Failure-set comparison with --rerun-new filters out transient shared-state failures while failing on persistent regressions
-    Given a baseline failure file with 0 failures and a current failure file with 2 candidate new failure node IDs
+  Scenario: [EVI-ST-01] [Tier A - Unit] Failure-set comparison with --rerun-new classifies isolated-pass vs persistent failures and requires explicit opt-in to ignore isolated passes
+    Given a baseline failure file with 0 failures and a current failure file with 2 candidate new failure node IDs (including a parameterized ID with spaces)
     When "compare_failure_sets.py --baseline baseline.txt --current current.txt --rerun-new" runs
-    And the first candidate passes when re-run in isolation via "--rerun-cmd"
-    Then the first candidate is reported as a transient shared-state failure and ignored
-    And when the second candidate still fails when re-run in isolation
-    Then "compare_failure_sets.py" reports the persistent regression and exits with code 1
+    And the first candidate passes when re-run in isolation via "--rerun-cmd" while the second candidate fails
+    Then the first candidate is classified as "ISOLATED_PASS" and the second as "PERSISTENT_FAILURE" and the command exits with code 1
+    And when all candidates pass in isolation, "compare_failure_sets.py --rerun-new" still exits with code 1 unless "--allow-isolated-pass" is explicitly provided
 
   Scenario: [EVI-AR-02] [Tier A - Unit] record_failure_baseline.py --restore restores tracked files dirtied as a side effect of test execution
     Given a test suite command that mutates a tracked file "config/sample.json" during execution
@@ -87,7 +86,7 @@ Covers: EVI-HP-02, EVI-EC-01, EVI-ST-01, EVI-AR-02
 
 | ID | Phase | Command | Expect | Needs |
 |----|-------|---------|--------|-------|
-| V1 | RED | `python3 -m pytest skills/dev-implementation/resources/scripts/test_failure_baseline.py -k test_failure_baseline.py::test_EVI_HP_02_record_and_compare_baseline` | exit 1; contains "FAILED" | — |
+| V1 | RED | `python3 -m pytest skills/dev-implementation/resources/scripts/test_failure_baseline.py::test_EVI_HP_02_record_and_compare_baseline` | exit 1; contains "FAILED" | — |
 | V2 | GREEN | `python3 -m pytest skills/dev-implementation/resources/scripts/test_failure_baseline.py` | exit 0; contains "passed" | — |
 | V3 | TIER-B | `ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py skills/dev-implementation/resources/scripts/record_failure_baseline.py skills/dev-implementation/resources/scripts/compare_failure_sets.py skills/dev-implementation/resources/scripts/test_failure_baseline.py` | exit 0 | — |
 | V4 | TIER-B | `mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py --follow-imports=silent skills/dev-implementation/resources/scripts/record_failure_baseline.py skills/dev-implementation/resources/scripts/compare_failure_sets.py` | exit 0 | — |
@@ -105,18 +104,21 @@ Covers: EVI-HP-02, EVI-EC-01, EVI-ST-01, EVI-AR-02
 ## Decisions Already Made
 
 - `record_failure_baseline.py` CLI interface:
-  `record_failure_baseline.py [--cmd <shell_cmd>] [--in <raw_output_file>] --out <baseline_file> [--restore <path> ...]`
-  - If `--cmd` is provided, runs the command via `subprocess.run(["bash", "-c", cmd], capture_output=True, text=True)` (ignoring non-zero test runner exit codes so failing suites still record their baseline).
-  - If `--in` is provided (or stdin when neither `--cmd` nor `--in` is given), reads raw test output text.
-  - `extract_pytest_failures(output_text: str) -> list[str]` scans lines after the last `=== short test summary info ===` header up to the next `===...===` footer line, matching `^(?:FAILED|ERROR)\s+(\S+)` and stripping trailing ` - <reason>` descriptions.
-  - Writes sorted unique node IDs (one per line) to `--out` (creating parent directories if needed), or `# 0 failures\n` when the list is empty.
-  - Always exits `0` when the output file is written and restores any `--restore` paths via `git checkout -- <path>`.
+  `record_failure_baseline.py --output|--out <baseline_file> [--cmd <shell_cmd>] [--in <raw_output_file>] [--runner auto|pytest|node] [--restore <path> ...] [--cwd <dir>] [-- <command...>]`
+  - Accepts both `--output` and `--out` for the output file path, and either `--cmd <shell_cmd>`, `-- <command...>`, `--in <file>`, or stdin.
+  - When executing a command (`--cmd` or `-- <command...>`), automatically appends `--continue-on-collection-errors` for `pytest` if absent, and validates runner completion: for `pytest`, exit code `0` must include a terminal `=== ... ===` summary footer and exit code `1`/`2` must include `=== short test summary info ===` (rejecting exit codes `3`, `4`, `5`, `126`, `127`, or missing summary blocks with exit code `2` and no baseline file written); for `node`, output must include TAP/spec summary lines (`# tests` or `ℹ tests`).
+  - `extract_pytest_failures(output_text: str) -> list[str]` scans lines after the last `=== short test summary info ===` header up to the next `===...===` footer line, matching `^(?:FAILED|ERROR)\s+(.+?)(?:\s+-\s+.*)?$` so parameterized node IDs containing spaces (`tests/test_x.py::test_x[hello world]`) are preserved intact while stripping trailing ` - <reason>` suffixes.
+  - `extract_node_failures(output_text: str) -> list[str]` extracts failing test names from `node --test` summary lines (`not ok <n> - <name>` or `✖ <name>`).
+  - Writes sorted unique node IDs (one per line) to `--output`/`--out` (creating parent directories if needed), or `# 0 failures\n` when 0 tests fail in a valid run.
+  - Always restores any `--restore` paths via `git checkout -- <path>` inside a `finally:` block even when the runner fails.
 - `compare_failure_sets.py` CLI interface:
-  `compare_failure_sets.py --baseline <file> --current <file> [--rerun-new] [--rerun-cmd <cmd_prefix>]`
-  - Reads both files, ignoring blank lines and lines starting with `#`.
+  `compare_failure_sets.py --baseline <file> [--current <file>] [--output|--out <report_file>] [--runner auto|pytest|node] [--rerun-new] [--allow-isolated-pass] [--rerun-cmd <cmd_prefix>] [--restore <path> ...] [--cwd <dir>] [-- <command...>]`
+  - Reads `baseline_set` from `--baseline` and `current_set` either from `--current <file>` or by running `-- <command...>` via `record_failure_baseline`'s validated runner and `--restore` logic.
   - Computes `new_failures = sorted(current_set - baseline_set)`.
-  - If `--rerun-new` is active and `new_failures` is non-empty, runs `<rerun_cmd> <nodeid>` (defaulting `--rerun-cmd` to `"python3 -m pytest"`) for each candidate; candidates exiting `0` are logged as `TRANSIENT: <nodeid>` and removed from `new_failures`.
-  - Exits `0` if `new_failures` is empty, or prints `NEW FAILURE: <nodeid>` for each remaining regression and exits `1`.
+  - If `--rerun-new` is active and `new_failures` is non-empty, runs `[*shlex.split(rerun_cmd), node_id]` (`shell=False`, defaulting `--rerun-cmd` to `"python3 -m pytest"`) for each candidate so spaces in parameterized node IDs are passed as a single argument:
+    - Candidates exiting `0` are logged as `ISOLATED_PASS: <nodeid>`.
+    - Candidates exiting non-zero are logged as `PERSISTENT_FAILURE: <nodeid>`.
+    - Exits `0` only when `persistent_failures` is empty AND (`isolated_passes` is empty OR `--allow-isolated-pass` is set); otherwise exits `1`.
 - In `test_failure_baseline.py`, import `record_failure_baseline` and `compare_failure_sets` inside test functions or helper functions so `pytest` collection succeeds during the `RED` phase before the implementation files exist.
 
 ## Definition of Done
