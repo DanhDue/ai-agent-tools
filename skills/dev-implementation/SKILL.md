@@ -149,6 +149,14 @@ For rows 4 and 5. Phase 1 step 4's `git worktree add -b` never runs here.
    ```
    If `sync-base` exits 3 (diverged or dirty file), stop and ask.
    If overview Status begins with `Packaged`, run `python3 "$SKILL_DIR"/resources/scripts/sync_task_status.py epic <epic_dir> "In Progress"`.
+
+   **Isolated IDE Window Launch**: Recommend or execute launching a separate Antigravity IDE window for this worktree to maintain isolated Git branches, separate title bars, and distinct user profiles:
+   ```bash
+   # Quick open via user profile alias (e.g. peter, danhdue, tess):
+   <profile_alias> .worktrees/<epic_dir>
+   # Or using antigravity launcher:
+   antigravity <profile> .worktrees/<epic_dir>
+   ```
 5. Bootstrap worktree using platform tooling (`bootstrap_worktree.sh`, Gradle sync, Tuist, npm/pnpm, uv sync, cargo check).
 6. Never copy build caches (`.dart_tool/`, `/build/`, `.build/`, `android/**/.cxx/`) from another checkout into this worktree.
 

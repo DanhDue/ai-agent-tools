@@ -80,6 +80,24 @@ def resolve_primary_repo_root(cwd: Path | None = None) -> Path:
         return target_cwd
 
 
+def resolve_current_worktree_root(cwd: Path | None = None) -> Path:
+    target_cwd = cwd or Path.cwd()
+    try:
+        res = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            cwd=target_cwd,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        top = Path(res.stdout.strip())
+        if not top.is_absolute():
+            top = (target_cwd / top).resolve()
+        return top
+    except (subprocess.CalledProcessError, FileNotFoundError, OSError):
+        return target_cwd
+
+
 def resolve_workspace_root(explicit_root: str | None = None) -> Path:
     if explicit_root:
         return Path(explicit_root).resolve()
@@ -322,8 +340,14 @@ def sync_window_title(
 
     if not account_id:
         primary = resolve_primary_repo_root()
-        # 1. If running inside target repo, current environment HOME is authoritative
-        if root.resolve() == primary.resolve():
+        current_wt = resolve_current_worktree_root()
+        # 1. If running inside target repo or its worktree, current environment HOME is authoritative
+        is_local = (
+            root.resolve() == primary.resolve()
+            or root.resolve() == current_wt.resolve()
+            or resolve_primary_repo_root(root).resolve() == primary.resolve()
+        )
+        if is_local:
             home_dir = os.environ.get("HOME", "")
             if "antigravity_homes" in home_dir:
                 prof_dir = Path(home_dir)
@@ -402,6 +426,9 @@ def sync_window_title(
     stage_text = stage_override or ""
     if epic_slug and epic_slug != "general":
         devtool_dir = root / ".devtool"
+        if not devtool_dir.exists():
+            primary = resolve_primary_repo_root(root)
+            devtool_dir = primary / ".devtool"
         epic_dir = devtool_dir / "epic" / epic_slug
         if not epic_dir.exists():
             epic_dir = devtool_dir / "epic" / epic_slug.replace("-", "_")
@@ -1075,22 +1102,8 @@ def main() -> None:
     args = parse_args()
     workspace = resolve_workspace_root(args.workspace_root)
     primary_repo = resolve_primary_repo_root()
-    active_epic = args.epic or resolve_current_epic_slug()
+    current_worktree = resolve_current_worktree_root()
     active_repo = args.repo or (primary_repo.name if primary_repo != workspace else "workspace")
-
-    if args.role:
-        print_role_banner(args.role)
-
-    if args.emit_prompt:
-        emit_handoff_prompt(args.emit_prompt, active_epic, args.epic_dir, args.prompt)
-        return
-
-    if args.sync_zshrc:
-        r_home = Path(args.real_home) if args.real_home else None
-        ws_root = Path(args.workspace_root) if args.workspace_root else None
-        res = sync_shell_env(real_home=r_home, workspace_root=ws_root)
-        print(f"Shell environment synchronized: {res}")
-        return
 
     is_repo = (primary_repo / ".git").exists() or (primary_repo / ".devtool").exists()
     if args.workspace_root:
@@ -1109,6 +1122,27 @@ def main() -> None:
     else:
         target_root = workspace
 
+    title_target = (
+        resolve_workspace_root(args.workspace_root)
+        if args.workspace_root
+        else (target_root if args.repo else current_worktree)
+    )
+    active_epic = args.epic or resolve_current_epic_slug(title_target)
+
+    if args.role:
+        print_role_banner(args.role)
+
+    if args.emit_prompt:
+        emit_handoff_prompt(args.emit_prompt, active_epic, args.epic_dir, args.prompt)
+        return
+
+    if args.sync_zshrc:
+        r_home = Path(args.real_home) if args.real_home else None
+        ws_root = Path(args.workspace_root) if args.workspace_root else None
+        res = sync_shell_env(real_home=r_home, workspace_root=ws_root)
+        print(f"Shell environment synchronized: {res}")
+        return
+
     if args.sync_title:
         if getattr(args, "all_repos", False):
             base_dir = target_root.parent if (target_root.parent / "ai-agent-tools").exists() else Path("/Users/danhdueexoictif/AllProjects")
@@ -1118,8 +1152,8 @@ def main() -> None:
                     sync_window_title(rpath, epic_slug=active_epic, stage_override=args.stage, profile_override=args.profile or None)
                     print(f"Window title and workspace bar colors synchronized for {rpath.name}")
             return
-        sync_window_title(target_root, epic_slug=active_epic, stage_override=args.stage, profile_override=args.profile or None)
-        print(f"Window title and workspace bar colors synchronized for {target_root.name}")
+        sync_window_title(title_target, epic_slug=active_epic, stage_override=args.stage, profile_override=args.profile or None)
+        print(f"Window title and workspace bar colors synchronized for {title_target.name}")
         return
 
     if args.complete:
@@ -1165,7 +1199,7 @@ def main() -> None:
     scan_git_status(scan_root)
     scan_open_rfcs(scan_root)
     scan_active_tasks(scan_root, epic_filter=args.epic)
-    sync_window_title(target_root, epic_slug=active_epic, stage_override=args.stage or None, profile_override=args.profile or None)
+    sync_window_title(title_target, epic_slug=active_epic, stage_override=args.stage or None, profile_override=args.profile or None)
 
 
 if __name__ == "__main__":

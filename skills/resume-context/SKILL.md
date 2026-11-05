@@ -15,10 +15,16 @@ Restores comprehensive project architectural context across multi-repository wor
 
 ## When to Use
 
-- At the start of every new conversation or work session.
-- After switching Antigravity account profiles or IDE windows.
+- At the start of a substantive development session or epic lifecycle workflow.
+- After switching Antigravity account profiles or IDE windows for development.
 - Before answering questions about system architecture, contract invariants, or open RFCs.
 - When transitioning between advisory/review and implementation roles.
+
+## When NOT to Use
+
+- Fast-execution or maintenance commands like `/refresh-session`, `/setup_keybindings`, or checking git status.
+- Ongoing turns within an active conversation where context has already been harvested.
+- Quick one-off utility questions that do not touch system architecture or active epic state.
 
 ## Step 1: Execute Context Harvester
 

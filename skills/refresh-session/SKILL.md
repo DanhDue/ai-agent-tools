@@ -76,3 +76,7 @@ The execution engine guarantees that no repository context or customizations are
    - `--skip-git-repo-check`: Allows running outside a git working tree.
    - `--ignore-user-config --ignore-rules`: Bypasses `config.toml` and `.rules` files.
    - `-c model_reasoning_effort=low`: Caps reasoning budget to `low`.
+
+## Zero-Context & Immediate Execution Guarantee
+
+Under no circumstances should `resume-context` or `scripts/resume_context.py` be invoked before or during this skill. Execute the ping engine directly to ensure minimum token consumption and immediate response without loading repository context.

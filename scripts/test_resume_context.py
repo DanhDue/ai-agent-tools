@@ -765,6 +765,46 @@ ag_run() {
         email_id = extract_email_id_from_profile(mock_profile)
         self.assertEqual(email_id, "phungthuy8901")
 
+    def test_sync_window_title_worktree_isolation(self) -> None:
+        """[CMM-TITLE-08] Verify sync_window_title inside worktree updates worktree settings without overwriting primary repo."""
+        import json
+
+        primary_vscode = self.repo_dir / ".vscode"
+        primary_vscode.mkdir(parents=True, exist_ok=True)
+        primary_settings = primary_vscode / "settings.json"
+        primary_settings.write_text(json.dumps({
+            "window.title": "🟠 [AGENT-TOOLS] [@danhdue] Primary Title",
+        }), encoding="utf-8")
+
+        # Create epic definition in primary .devtool
+        epic_dir = self.repo_dir / ".devtool" / "epic" / "isolated_epic"
+        epic_dir.mkdir(parents=True, exist_ok=True)
+        (epic_dir / "isolated_epic.vi.md").write_text("# Epic: Kiểm Thử Worktree Độc Lập\n", encoding="utf-8")
+
+        # Create git worktree
+        wt_dir = self.repo_dir / ".worktrees" / "isolated_epic"
+        subprocess.run(
+            ["git", "worktree", "add", str(wt_dir), "-b", "epic/isolated_epic", "main"],
+            cwd=self.repo_dir,
+            capture_output=True,
+            check=True,
+        )
+
+        # Run --sync-title from inside worktree
+        res = self.run_cli(["--sync-title", "--profile", "peter"], cwd=wt_dir)
+        self.assertEqual(res.returncode, 0, f"stderr: {res.stderr}")
+
+        # Assert worktree settings were created and contain isolated title
+        wt_settings = wt_dir / ".vscode" / "settings.json"
+        self.assertTrue(wt_settings.exists(), "Worktree .vscode/settings.json was not created")
+        wt_data = json.loads(wt_settings.read_text(encoding="utf-8"))
+        self.assertIn("[@peter]", wt_data["window.title"])
+        self.assertIn("Kiểm Thử Worktree Độc Lập", wt_data["window.title"])
+
+        # Assert primary repo settings were NOT overwritten
+        primary_data = json.loads(primary_settings.read_text(encoding="utf-8"))
+        self.assertEqual(primary_data["window.title"], "🟠 [AGENT-TOOLS] [@danhdue] Primary Title")
+
 
 if __name__ == "__main__":
     unittest.main()
