@@ -62,12 +62,16 @@ Execute commands declared in `capabilities` for the target profile:
 
 Independent commands (e.g. `type_check`, `lint`, `test_unit`) may run concurrently.
 
-### Step 3: Watchdog Verification
+### Step 3: UI Review and Watchdog Verification
 
-For `epic` and `release` profiles:
-- Web integration testing mandates headless Playwright execution with the Zero-Console-And-Layout-Defect watchdog fixture.
-- The provider verifies that `build/test-results/playwright.xml` exists and records zero console errors and zero layout leaks.
-- If watchdog evidence is missing or unverified, the provider reports status `BLOCKED`.
+For `epic`, `release`, and `scheduled` profiles:
+1. **Headless Playwright Execution**: Mandates headless Playwright test execution with the Zero-Console-And-Layout-Defect watchdog fixture. The provider verifies that `build/test-results/playwright.xml` exists and records zero console errors and zero layout leaks.
+2. **UI State and Styles Audit (`ui_review`)**: Executes `audit_ui_state_and_styles.py --base-ref {base_ref}` to enforce 4 concrete UI/UX invariants:
+   - **Cache-Bust Verification**: If git diff against `{base_ref}` modifies any static `.js` or `.css` file served by HTML templates, verifies that the cache-bust query parameter (`?v=...`) in referencing templates is updated.
+   - **Orphaned Class & Computed Style Check**: Verifies that all CSS classes referenced in modified HTML templates or JS DOM builders exist in loaded stylesheets, and no card/drawer/badge renders with unstyled default geometry.
+   - **Text Truncation & Overflow Guard**: Verifies in flex rows that left-aligned text is not clipped at start-of-string, and text is not rendered twice consecutively (e.g. "Tiến độ Tiến độ").
+   - **UI State Machine Consistency**: Asserts that terminal states (`FAILED` / `COMPLETED`) do not coexist with active running prefixes (`Đang chạy:`), a `FAILED` job with all steps in `PENDING` (`CHỜ`) does not display 100% progress, and Live SSE EventSource connections cleanly close on terminal states instead of looping in reconnection.
+
 
 ### Step 4: Result Assembly and Contract Emission
 

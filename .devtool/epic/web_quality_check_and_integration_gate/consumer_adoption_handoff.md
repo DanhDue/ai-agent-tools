@@ -127,15 +127,28 @@ Place at `.agents/quality/web-quality.json`:
   "schema_version": 1,
   "capabilities": {
     "type_check": ["npx", "tsc", "--project", "jsconfig.json"],
+    "lint": ["ruff", "check", "."],
     "test_unit": ["python3", "-m", "pytest", "tests/unit"],
     "test_e2e": ["python3", "-m", "pytest", "tests/e2e_full_screens_chrome_test.py"],
-    "contracts": ["python3", "{skills_dir}/sync-shared-contracts/resources/scripts/sync_contracts.py", "diff-check", "--base-ref", "{base_ref}"]
+    "ui_review": [
+      "python3",
+      "{skills_dir}/web-quality-check/resources/scripts/audit_ui_state_and_styles.py",
+      "--base-ref",
+      "{base_ref}"
+    ],
+    "contracts": [
+      "python3",
+      "{skills_dir}/sync-shared-contracts/resources/scripts/sync_contracts.py",
+      "diff-check",
+      "--base-ref",
+      "{base_ref}"
+    ]
   },
   "profiles": {
-    "pr": ["type_check", "test_unit"],
-    "epic": ["type_check", "test_unit", "test_e2e"],
-    "release": ["type_check", "test_unit", "test_e2e"],
-    "scheduled": ["type_check", "test_unit", "test_e2e"]
+    "pr": ["type_check", "lint", "test_unit", "contracts"],
+    "epic": ["type_check", "lint", "test_unit", "test_e2e", "ui_review", "contracts"],
+    "release": ["type_check", "lint", "test_unit", "test_e2e", "ui_review", "contracts"],
+    "scheduled": ["type_check", "lint", "test_unit", "test_e2e", "ui_review", "contracts"]
   }
 }
 ```
@@ -161,4 +174,4 @@ Place at `.agents/quality/web-quality.json`:
 1. Open workspace in the downstream repository (`D3Nexus` or `lyrics-sync`).
 2. Run `dev-implementation` or create a new quality setup branch `epic/polyglot-quality-gate`.
 3. Apply the registry and manifest files above.
-4. Run `python3 skills/quality_check/resources/scripts/run_quality_gate.py --profile epic` to verify Gate 4 returns certified `PASS`.
+4. Run `python3 skills/quality_check/resources/scripts/verify_polyglot_registry.py .agents/quality/check_quality.json --profile epic` to verify Gate 4 returns certified `PASS`.

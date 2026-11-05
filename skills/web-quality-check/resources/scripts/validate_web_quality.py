@@ -198,6 +198,8 @@ def _resolve_category(cap_name: str) -> str:
         return "e2e-test"
     if "contract" in cap_name:
         return "contract"
+    if "ui" in cap_name or "review" in cap_name:
+        return "ui-review"
     if "coverage" in cap_name:
         return "coverage"
     return "quality-check"

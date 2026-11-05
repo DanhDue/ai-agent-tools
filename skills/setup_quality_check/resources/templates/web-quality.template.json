@@ -5,12 +5,24 @@
     "lint": ["npm", "run", "lint"],
     "test_unit": ["npm", "run", "test:unit"],
     "test_e2e": ["npx", "playwright", "test"],
-    "contracts": ["python3", "{skills_dir}/sync-shared-contracts/resources/scripts/sync_contracts.py", "diff-check", "--base-ref", "{base_ref}"]
+    "ui_review": [
+      "python3",
+      "{skills_dir}/web-quality-check/resources/scripts/audit_ui_state_and_styles.py",
+      "--base-ref",
+      "{base_ref}"
+    ],
+    "contracts": [
+      "python3",
+      "{skills_dir}/sync-shared-contracts/resources/scripts/sync_contracts.py",
+      "diff-check",
+      "--base-ref",
+      "{base_ref}"
+    ]
   },
   "profiles": {
-    "pr": ["type_check", "lint", "test_unit"],
-    "epic": ["type_check", "lint", "test_unit", "test_e2e"],
-    "release": ["type_check", "lint", "test_unit", "test_e2e"],
-    "scheduled": ["type_check", "lint", "test_unit", "test_e2e"]
+    "pr": ["type_check", "lint", "test_unit", "contracts"],
+    "epic": ["type_check", "lint", "test_unit", "test_e2e", "ui_review", "contracts"],
+    "release": ["type_check", "lint", "test_unit", "test_e2e", "ui_review", "contracts"],
+    "scheduled": ["type_check", "lint", "test_unit", "test_e2e", "ui_review", "contracts"]
   }
 }
