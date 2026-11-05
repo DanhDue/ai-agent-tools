@@ -21,7 +21,7 @@
 
 - **Tên Epic**: `web_quality_check_and_integration_gate`
 - **Slug Epic**: `web-quality-check-and-integration-gate`
-- **Trạng thái**: In Progress
+- **Trạng thái**: Done
 - **Phiên bản Mục tiêu**: v1.2.0
 - **Nền tảng**: Polyglot / Quality Architecture
 - **Tài liệu Đặc tả Gốc**: [2026-11-04-web-quality-check-and-integration-gate-design.vi.md](./2026-11-04-web-quality-check-and-integration-gate-design.vi.md)
