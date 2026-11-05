@@ -424,6 +424,19 @@ def run_capabilities(
                 overall_status = "BLOCKED"
         else:
             try:
+                # 1. Freshness check: artifact must not be stale from an earlier run
+                file_mtime = evidence_file.stat().st_mtime
+                if file_mtime < (start_time - 15.0):
+                    blockers.append(
+                        _finding(
+                            "stale_watchdog_evidence",
+                            f"Playwright XML artifact at '{evidence_file}' is stale (mtime {file_mtime} < run start {start_time})",
+                            location=str(evidence_file),
+                        )
+                    )
+                    if overall_status != "FAIL":
+                        overall_status = "BLOCKED"
+
                 tree = ET.parse(evidence_file)
                 root_el = tree.getroot()
                 suites = (
@@ -434,14 +447,91 @@ def run_capabilities(
                 if not suites and root_el.tag != "testsuites":
                     suites = [root_el]
 
-                total_tests = 0
+                # 2. Executed test cases verification
+                testcases = list(root_el.findall(".//testcase"))
+                if not testcases:
+                    blockers.append(
+                        _finding(
+                            "empty_watchdog_evidence",
+                            f"Playwright XML evidence at '{evidence_file}' reports 0 testcase elements",
+                            location=str(evidence_file),
+                        )
+                    )
+                    if overall_status != "FAIL":
+                        overall_status = "BLOCKED"
+                else:
+                    executed_testcases = [
+                        tc for tc in testcases if tc.find("skipped") is None
+                    ]
+                    if not executed_testcases:
+                        blockers.append(
+                            _finding(
+                                "skipped_watchdog_suite",
+                                f"Playwright XML evidence at '{evidence_file}' has {len(testcases)} testcase(s) but all were skipped",
+                                location=str(evidence_file),
+                            )
+                        )
+                        if overall_status != "FAIL":
+                            overall_status = "BLOCKED"
+
+                    # 3. Positive watchdog attachment & browser execution trace verification
+                    watchdog_evidence_found = False
+                    for tc in executed_testcases:
+                        tc_name = tc.attrib.get("name", "")
+                        tc_class = tc.attrib.get("classname", "")
+                        tc_text = "".join(tc.itertext())
+                        combined = f"{tc_name} {tc_class} {tc_text}".lower()
+                        if any(
+                            tok in combined
+                            for tok in (
+                                "playwright",
+                                "browser",
+                                "chromium",
+                                "firefox",
+                                "webkit",
+                                "watchdog",
+                                "zero_error",
+                                "zero-error",
+                                "zero-console",
+                            )
+                        ):
+                            watchdog_evidence_found = True
+                            break
+
+                    if not watchdog_evidence_found:
+                        xml_full_text = "".join(root_el.itertext()).lower()
+                        for prop in root_el.findall(".//property"):
+                            xml_full_text += f" {prop.attrib.get('name', '')} {prop.attrib.get('value', '')}".lower()
+                        if any(
+                            tok in xml_full_text
+                            for tok in (
+                                "playwright",
+                                "browser",
+                                "chromium",
+                                "firefox",
+                                "webkit",
+                                "watchdog",
+                                "zero_error",
+                                "zero-error",
+                                "zero-console",
+                            )
+                        ):
+                            watchdog_evidence_found = True
+
+                    if not watchdog_evidence_found:
+                        blockers.append(
+                            _finding(
+                                "missing_watchdog_attachment",
+                                f"XML evidence at '{evidence_file}' lacks browser/watchdog execution traces or zero-error attachment evidence",
+                                location=str(evidence_file),
+                            )
+                        )
+                        if overall_status != "FAIL":
+                            overall_status = "BLOCKED"
+
                 failures = 0
                 errors = 0
                 for s in suites:
-                    try:
-                        total_tests += int(s.attrib.get("tests", 0))
-                    except (ValueError, TypeError):
-                        pass
                     try:
                         failures += int(s.attrib.get("failures", 0))
                     except (ValueError, TypeError):
@@ -454,17 +544,7 @@ def run_capabilities(
                 failures = max(failures, len(root_el.findall(".//failure")))
                 errors = max(errors, len(root_el.findall(".//error")))
 
-                if total_tests == 0:
-                    blockers.append(
-                        _finding(
-                            "empty_watchdog_evidence",
-                            f"Playwright XML evidence at '{evidence_file}' reports 0 executed tests",
-                            location=str(evidence_file),
-                        )
-                    )
-                    if overall_status != "FAIL":
-                        overall_status = "BLOCKED"
-                elif failures > 0 or errors > 0:
+                if failures > 0 or errors > 0:
                     blockers.append(
                         _finding(
                             "failed_watchdog_tests",

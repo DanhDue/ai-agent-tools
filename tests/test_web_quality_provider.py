@@ -98,9 +98,9 @@ def test_WQG_HP_01_astro_provider_certification():
         tmp_path = Path(tmpdir)
         results_dir = tmp_path / "build" / "test-results"
         results_dir.mkdir(parents=True, exist_ok=True)
-        # Write valid Playwright JUnit XML evidence
+        # Write valid Playwright JUnit XML evidence with executed testcase and watchdog trace
         (results_dir / "playwright.xml").write_text(
-            "<testsuites><testsuite name='playwright' tests='5' failures='0'/></testsuites>"
+            "<testsuites><testsuite name='playwright' tests='1' failures='0'><testcase classname='playwright.watchdog' name='test_zero_console_error'/></testsuite></testsuites>"
         )
 
         manifest = {
@@ -212,7 +212,7 @@ def test_watchdog_xml_validation_and_real_logs():
 
         # 1. Failed tests in XML triggers FAIL
         (results_dir / "playwright.xml").write_text(
-            "<testsuites><testsuite name='pw' tests='2' failures='1'><testcase name='t1'><failure message='err'/></testcase></testsuite></testsuites>"
+            "<testsuites><testsuite name='playwright' tests='2' failures='1'><testcase classname='playwright.watchdog' name='t1'><failure message='err'/></testcase></testsuite></testsuites>"
         )
         manifest = {
             "schema_version": 1,
@@ -256,3 +256,66 @@ def test_watchdog_xml_validation_and_real_logs():
         assert res_empty["status"] == "BLOCKED"
         codes_empty = [b["code"] for b in res_empty["blockers"]]
         assert "empty_watchdog_evidence" in codes_empty
+
+
+def test_watchdog_evidence_rejections():
+    """Verify watchdog rejection of stale, empty, skipped, and non-browser reports."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp_path = Path(tmpdir)
+        results_dir = tmp_path / "build" / "test-results"
+        results_dir.mkdir(parents=True, exist_ok=True)
+        manifest = {
+            "schema_version": 1,
+            "capabilities": {
+                "type_check": ["python3", "-c", "import sys; sys.exit(0)"],
+                "lint": ["python3", "-c", "import sys; sys.exit(0)"],
+                "test_unit": ["python3", "-c", "import sys; sys.exit(0)"],
+                "test_e2e": ["python3", "-c", "import sys; sys.exit(0)"],
+            },
+            "profiles": {
+                "epic": ["type_check", "lint", "test_unit", "test_e2e"],
+            },
+        }
+
+        # 1. Non-browser report (e.g. pytest without watchdog/browser traces)
+        (results_dir / "playwright.xml").write_text(
+            "<testsuites><testsuite name='pytest' tests='1'><testcase classname='tests.test_unit' name='test_one'/></testsuite></testsuites>"
+        )
+        res_non_browser = run_capabilities(
+            config=manifest,
+            profile="epic",
+            repository_sha=SAMPLE_SHA,
+            repo_root=tmp_path,
+            check_watchdog_evidence=True,
+        )
+        assert res_non_browser["status"] == "BLOCKED"
+        codes = [b["code"] for b in res_non_browser["blockers"]]
+        assert "missing_watchdog_attachment" in codes
+
+        # 2. Entirely skipped suite
+        (results_dir / "playwright.xml").write_text(
+            "<testsuites><testsuite name='playwright' tests='1'><testcase classname='playwright.e2e' name='test_one'><skipped/></testcase></testsuite></testsuites>"
+        )
+        res_skipped = run_capabilities(
+            config=manifest,
+            profile="epic",
+            repository_sha=SAMPLE_SHA,
+            repo_root=tmp_path,
+            check_watchdog_evidence=True,
+        )
+        assert res_skipped["status"] == "BLOCKED"
+        codes = [b["code"] for b in res_skipped["blockers"]]
+        assert "skipped_watchdog_suite" in codes
+
+        # 3. Valid executed browser testcase with watchdog attachment
+        (results_dir / "playwright.xml").write_text(
+            "<testsuites><testsuite name='playwright' tests='1'><testcase classname='playwright.watchdog' name='test_zero_console_errors'/></testsuite></testsuites>"
+        )
+        res_valid = run_capabilities(
+            config=manifest,
+            profile="epic",
+            repository_sha=SAMPLE_SHA,
+            repo_root=tmp_path,
+            check_watchdog_evidence=True,
+        )
+        assert res_valid["status"] == "PASS"
