@@ -37,7 +37,7 @@ Read-only context:
 Applicable skills: `python-quality-check`, `test-driven-development`.
 1. `check_epic_prerequisites(root: Path, epic_dir: str) -> list[str]` in `sync_task_status.py` reads `<epic_dir>.en.md`, resolves `prereq_dirs, errors = tc.resolve_prerequisite_epic_dirs(root, hld_text, epic_dir)`, and checks whether each prerequisite epic has `Status: Done` (or all its tasks in `status: "done"`), returning a list of unfinished prerequisite epic names or resolution errors.
 2. `check_epic_file_conflicts(root: Path, epic_dir: str) -> dict[str, list[str]]` collects all `Allowed files` patterns across `<epic_dir>`'s tasks and compares them against `Allowed files` patterns of all active (`status` in `("todo", "in-progress", "review")`) tasks in `.devtool/features/task_*.md` belonging to other epics using `tc.path_matches(pat_a, pat_b) or tc.path_matches(pat_b, pat_a)`, ignoring `done` and `backlog` tasks.
-3. `promote_epic_tasks(roots: list[Path], epic_dir: str, *, force: bool = False) -> tuple[list[Path], list[str]]` verifies `check_epic_prerequisites()` and `check_epic_file_conflicts()` on `roots[0]` (unless `force=True`), then transitions all `backlog` tasks of `<epic_dir>` across `roots` (`.devtool/epic/<epic_dir>/` and `.devtool/features/`) to `todo` and updates the HLD `Status` to `Packaged (ready for implementation)`.
+3. `promote_epic_tasks(roots: list[Path], epic_dir: str, *, force: bool = False) -> tuple[list[Path], list[str]]` verifies `check_epic_prerequisites()` and `check_epic_file_conflicts()` on `roots[0]` (unless `force=True`), then transitions all `backlog` tasks of `<epic_dir>` across `roots` (`.devtool/epic/<epic_dir>/` and `.devtool/features/`) to `todo`, leaving an existing `Packaged …` HLD `Status` untouched and only rewriting a `Queued (backlog)` HLD `Status` to `f"Packaged ({today_iso})"`.
 
 ## Impact Analysis & Blast Radius
 
@@ -105,7 +105,7 @@ Covers: MEO-HP-02, MEO-EC-02, MEO-ST-01
     - Returns `{other_epic_slug: sorted(overlapping_patterns)}` for all epics with at least one overlap.
   - `promote_epic_tasks(roots: list[Path], epic_dir: str, *, force: bool = False) -> tuple[list[Path], list[str]]`:
     - When `not force`: runs `prereq_blockers = check_epic_prerequisites(roots[0], epic_dir)` and `conflicts = check_epic_file_conflicts(roots[0], epic_dir)`. If either is non-empty, returns `([], [*prereq_blockers, *(f"conflict with {ep}: {', '.join(pats)}" for ep, pats in conflicts.items())])`.
-    - Finds all `task_*.md` in `roots[0] / ".devtool" / "epic" / epic_dir` whose `status` is `"backlog"`, calls `sync_task(roots, task_file.stem, "todo")` for each, and calls `sync_epic(roots, epic_dir, "Packaged (ready for implementation)")`.
+    - Finds all `task_*.md` in `roots[0] / ".devtool" / "epic" / epic_dir` whose `status` is `"backlog"`, calls `sync_task(roots, task_file.stem, "todo")` for each, and leaves an existing `Packaged …` HLD `Status` untouched while rewriting a `Queued (backlog)` HLD `Status` to `f"Packaged ({today_iso})"` via `sync_epic(roots, epic_dir, f"Packaged ({today_iso})")`.
   - Add 3 CLI subcommands in `main()`:
     - `check-prereqs <epic_dir>`: prints `"0 unfinished prerequisites"` and exits `0` when clean, else prints blockers to `stderr` and exits `1`.
     - `check-conflicts <epic_dir>`: prints `"0 conflicts — safe for concurrent execution"` and exits `0` when clean, else prints conflicts to `stderr` and exits `1`.
@@ -113,7 +113,7 @@ Covers: MEO-HP-02, MEO-EC-02, MEO-ST-01
 
 ## Definition of Done
 
-- `sync_task_status.py` implements `check_epic_prerequisites()`, `check_epic_file_conflicts()`, and `promote_epic_tasks()` (`MEO-HP-02`, `MEO-EC-02`, `MEO-ST-01`, `MEO-AR-02`). (V2, V5)
+- `sync_task_status.py` implements `check_epic_prerequisites()`, `check_epic_file_conflicts()`, and `promote_epic_tasks()` (`MEO-HP-02`, `MEO-EC-02`, `MEO-ST-01`). (V2, V5)
 - CLI subcommands `check-prereqs`, `check-conflicts`, and `promote [--force]` work as specified. (V2, V5)
 - `ruff` and `mypy` pass with zero errors. (V3, V4)
 - Automated tests pass and write JUnit XML results. (V5)

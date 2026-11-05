@@ -40,10 +40,10 @@ Trong quá trình phát triển nhiều epic nối tiếp và song song trên `l
 
 ### Mục tiêu (Goals)
 
-- Bổ sung hỗ trợ `- **Depends on epic**: <epic_slug_or_dir>[, ...]` vào `task_contract.py`, `check_task_contract.py`, `check_epic_readiness.py` (`R5`, `R7`), `replay_task_text.py`, và `sync_task_status.py check-prereqs <epic_dir>` (`#0013`).
+- Bổ sung hỗ trợ `- **Depends on epic**: <epic_slug_or_dir>[, ...]` vào `task_contract.py`, `check_task_contract.py`, `check_epic_readiness.py` (`R5`, `R7`, `replay_with_prerequisites`, `--replay-prereqs`), và `sync_task_status.py check-prereqs <epic_dir>` (`#0013`).
 - Bổ sung phân tích xung đột file giữa các epic (`sync_task_status.py check-conflicts <epic_dir>`) và lệnh chuyển trạng thái hàng loạt (`sync_task_status.py promote <epic_dir> [--force]`) (`#0014`).
-- Cung cấp `skills/dev-implementation/resources/scripts/package_epic.py` (`<epic_dir> [--revise --reason "<text>"]`) và hỗ trợ mục `## Spec Errata` (`[SE-NN]`) trong tài liệu HLD cùng kiểm tra `check_epic_readiness.py` (`R7`) (`#0015`).
-- Mở rộng `scripts/resume_context.py` với Sổ cái Phê duyệt Cổng được bảo vệ bằng khóa `fcntl.flock` (`--gate <1..5> --epic <slug> --approved "<scope>" [--deviations "<text>"]` và `--check-gate <1..5> --epic <slug>`), ghi vào `.devtool/state/gate_ledger.jsonl` và `.devtool/GATE_LEDGER.md` (`#0020`).
+- Cung cấp `skills/dev-implementation/resources/scripts/package_epic.py` (`<epic_dir> [--revise --reason "<text>"]`), cập nhật `skills/dev-lifecycle/references/handoff-template.md`, và hỗ trợ mục `## Spec Errata` (`[SE-NN]`) trong tài liệu HLD cùng kiểm tra `check_epic_readiness.py` (`R7`) (`#0015`).
+- Mở rộng `scripts/resume_context.py` với Sổ cái Phê duyệt Cổng được bảo vệ bằng khóa `fcntl.flock` (`--gate <1..5> --epic <slug> --approved "<scope>" [--deviations "<text>"]` và `--check-gate <1..5> --epic <slug>`), trong đó `.devtool/GATE_LEDGER.md` là bản ghi lâu dài Tier-1 được git track cùng cấp với `.devtool/PROJECT_LEDGER.md` còn `.devtool/state/gate_ledger.jsonl` là cache cục bộ (`#0020`).
 
 ### Ngoài Mục tiêu (Non-Goals)
 
@@ -60,7 +60,7 @@ flowchart TD
         HLD_DEP["HLD Meta Data: Depends on epic"]
         TC_DEP["task_contract.py (parse_depends_on_epics, collect_prerequisite_artifacts)"]
         CTC_CER["check_task_contract.py & check_epic_readiness.py (R5, R7)"]
-        RPL_CHAIN["replay_task_text.py (replay chuỗi epic tiên quyết)"]
+        RPL_CHAIN["check_epic_readiness.py (--replay-prereqs / replay_with_prerequisites)"]
     end
 
     subgraph BOARD["Kiểm tra Xung đột & Promote Hàng loạt (#0014)"]
@@ -162,11 +162,11 @@ None — tính năng khép kín trong `ai-agent-tools`.
 
 ## Chiến lược Triển khai và Giảm thiểu Rủi ro
 
-- **Giai đoạn 1**: Hiện thực hóa phân tích `Depends on epic:`, thu thập artifact tiên quyết, kiểm tra hợp đồng/grounding lúc thiết kế, và replay chuỗi tiên quyết trong `task_contract.py`, `check_task_contract.py`, `check_epic_readiness.py`, và `replay_task_text.py` (`Task 01`).
+- **Giai đoạn 1**: Hiện thực hóa phân tích `Depends on epic:`, thu thập artifact tiên quyết, kiểm tra hợp đồng/grounding lúc thiết kế, và replay chuỗi tiên quyết (`--replay-prereqs`) trong `task_contract.py`, `check_task_contract.py`, và `check_epic_readiness.py` (`Task 01`).
 - **Giai đoạn 2**: Hiện thực hóa `check-prereqs`, `check-conflicts`, và `promote [--force]` trong `sync_task_status.py` (`Task 02`).
-- **Giai đoạn 3**: Hiện thực hóa `package_epic.py` (`--revise --reason`) và kiểm tra `## Spec Errata` trong `task_contract.py` và `check_epic_readiness.py` (`Task 03`).
-- **Giai đoạn 4**: Hiện thực hóa Sổ cái Phê duyệt Cổng (`--gate`, `--check-gate`, `gate_ledger.jsonl`, `GATE_LEDGER.md`) trong `scripts/resume_context.py` (`Task 04`).
-- **Giai đoạn 5**: Thực thi kiểm thử tích hợp đầu-cuối (Tier C) và cập nhật tài liệu skill (`dev-lifecycle`, `dev-designer`, `dev-implementation`, `principal-review`, `save-context`) (`Task 05`).
+- **Giai đoạn 3**: Hiện thực hóa `package_epic.py` (`--revise --reason`), cập nhật `skills/dev-lifecycle/references/handoff-template.md`, và kiểm tra `## Spec Errata` trong `task_contract.py` và `check_epic_readiness.py` (`Task 03`).
+- **Giai đoạn 4**: Hiện thực hóa Sổ cái Phê duyệt Cổng (`--gate`, `--check-gate`, `.devtool/GATE_LEDGER.md` được git track và `gate_ledger.jsonl` cục bộ) trong `scripts/resume_context.py` và `.gitignore` (`Task 04`).
+- **Giai đoạn 5**: Thực thi kiểm thử tích hợp đầu-cuối (Tier C), đăng ký các bộ test mới vào `scripts/verify.sh`, và cập nhật tài liệu skill (`dev-lifecycle`, `dev-designer`, `dev-implementation`, `principal-review`, `save-context`) (`Task 05`).
 - **Kế hoạch Rollback**: Mọi lệnh con, trường metadata và script mới đều mang tính bổ sung và tương thích ngược; hoàn tác commit merge của epic sẽ khôi phục nguyên trạng hành vi trước đó.
 
 ## Phân rã Kanban Tasks

@@ -36,10 +36,10 @@ This epic (`multi_epic_orchestration_and_governance`, Epic 3 of 3) delivers firs
 
 ### Goals
 
-- Support `- **Depends on epic**: <epic_slug_or_dir>[, ...]` in HLD `## Meta Data` across `task_contract.py`, `check_task_contract.py`, `check_epic_readiness.py` (`R5`, `R7`), `replay_task_text.py`, and `sync_task_status.py check-prereqs <epic_dir>` (`#0013`).
+- Support `- **Depends on epic**: <epic_slug_or_dir>[, ...]` in HLD `## Meta Data` across `task_contract.py`, `check_task_contract.py`, `check_epic_readiness.py` (`R5`, `R7`, `replay_with_prerequisites`, `--replay-prereqs`), and `sync_task_status.py check-prereqs <epic_dir>` (`#0013`).
 - Provide conflict-aware concurrent epic analysis (`sync_task_status.py check-conflicts <epic_dir>`) comparing `Allowed files` sets across active epics and bulk promotion (`sync_task_status.py promote <epic_dir> [--force]`) (`#0014`).
-- Ship `skills/dev-implementation/resources/scripts/package_epic.py` (`package_epic.py <epic_dir> [--revise --reason "<text>"]`) and support `## Spec Errata` (`[SE-NN]`) in HLD documents and `check_epic_readiness.py` (`R7`) (`#0015`).
-- Extend `scripts/resume_context.py` with a structured, lock-protected Gate Approval Ledger (`--gate <1..5> --epic <slug> --approved "<scope>" [--deviations "<text>"]` and `--check-gate <1..5> --epic <slug>`) persisted in `.devtool/state/gate_ledger.jsonl` and rendered to `.devtool/GATE_LEDGER.md` (`#0020`).
+- Ship `skills/dev-implementation/resources/scripts/package_epic.py` (`package_epic.py <epic_dir> [--revise --reason "<text>"]`), update `skills/dev-lifecycle/references/handoff-template.md`, and support `## Spec Errata` (`[SE-NN]`) in HLD documents and `check_epic_readiness.py` (`R7`) (`#0015`).
+- Extend `scripts/resume_context.py` with a structured, lock-protected Gate Approval Ledger (`--gate <1..5> --epic <slug> --approved "<scope>" [--deviations "<text>"]` and `--check-gate <1..5> --epic <slug>`) where `.devtool/GATE_LEDGER.md` is the tracked permanent Tier-1 record alongside `.devtool/PROJECT_LEDGER.md` (with `!.devtool/GATE_LEDGER.md` in `.gitignore`) while `.devtool/state/gate_ledger.jsonl` stays ephemeral (`#0020`).
 
 ### Non-Goals
 
@@ -54,7 +54,7 @@ flowchart TD
         HLD_META["HLD Meta Data: Depends on epic"]
         TC_DEP["task_contract.py (parse_depends_on_epics, resolve_prereq_artifacts)"]
         CTC_DEP["check_task_contract.py & check_epic_readiness.py (R5, R7)"]
-        RPL_DEP["replay_task_text.py (prereq chain replay)"]
+        RPL_DEP["check_epic_readiness.py (--replay-prereqs / replay_with_prerequisites)"]
     end
 
     subgraph CONCURRENCY["2. Conflict Check & Bulk Promotion (#0014)"]
@@ -97,13 +97,13 @@ flowchart TD
 - **Design-Time Contract & Grounding Resolution (`#0013`)**:
   - In `skills/dev-implementation/resources/scripts/check_task_contract.py`:
     - When `args.hld` declares `Depends on epic:`, resolve `prereq_files` via `tc.collect_prerequisite_artifacts(check.root, prereq_dirs)[0]`.
-    - Merge `prereq_files` into `created` and allow non-`(new)` entries in `check_allowed()` when `pattern in prereq_files` so a dependent epic can modify or reference files created by an unmerged prerequisite epic without false failures.
+    - Merge `prereq_files` into `created` and allow non-`(new)` entries in `check_allowed()` when `any(tc.path_matches(p, pattern) or tc.path_matches(pattern, p) for p in prereq_files)` so a dependent epic can modify or reference files created by an unmerged prerequisite epic without false failures.
   - In `skills/dev-implementation/resources/scripts/check_epic_readiness.py`:
     - In `check_metadata(ctx)` (`R7`): call `tc.resolve_prerequisite_epic_dirs(ctx.root, ctx.hld_text)`. Emit `Finding("R7", "FAIL", f"Depends on epic '{missing}' does not exist under .devtool/epic/")` for any missing or cyclic prerequisite epic, and verify that `.en.md` and `.vi.md` declare identical prerequisite epic lists.
     - In `check_grounding(ctx)` (`R5`): for symbols in `Target Files & Symbols` on a path where either the file does not yet exist at `HEAD` (created in a prerequisite epic) or the symbol is not yet in `file_text` at `HEAD`, treat the symbol as grounded if `name in prereq_symbols.get(path_str, set())`.
 - **Prerequisite Replay Chain & Stage 3 Entry Check (`#0013`)**:
-  - In `skills/dev-implementation/resources/scripts/check_epic_readiness.py` (`replay_with_prerequisites(root: Path, epic_dir: str, row_timeout: int = 600) -> list[str]`):
-    - Resolves `prereq_dirs, missing = tc.resolve_prerequisite_epic_dirs(root, hld_text)`: for each prerequisite epic whose HLD `Status` is not `Done`, replays the prerequisite epic's tasks in topological order before replaying `<epic_dir>`'s own tasks inside the scratch worktree so the worktree contains all prerequisite code and fixtures.
+  - In `skills/dev-implementation/resources/scripts/check_epic_readiness.py` (`replay_with_prerequisites(root: Path, epic_dir: str, row_timeout: int = 600) -> list[str]` and CLI flag `--replay-prereqs` in `main()`):
+    - Resolves `prereq_dirs, missing = tc.resolve_prerequisite_epic_dirs(root, hld_text)`: imports `replay_epic_in_worktree` from `replay_task_text` (returning `["replay_task_text.py is unavailable; merge execution-and-verification-infrastructure first"]` if the module is absent), and for each prerequisite epic whose HLD `Status` is not `Done`, replays the prerequisite epic's tasks in topological order before replaying `<epic_dir>`'s own tasks inside the scratch worktree so the worktree contains all prerequisite code and fixtures.
   - In `skills/dev-implementation/resources/scripts/sync_task_status.py`:
     - Add `check_epic_prerequisites(root: Path, epic_dir: str) -> list[str]` and CLI subcommand `sync_task_status.py check-prereqs <epic_dir>`: checks each prerequisite epic in `resolve_prerequisite_epic_dirs(root, hld_text)` and verifies its HLD `Status` is `Done` (or all its tasks have `status: "done"`). Exits `0` if all prerequisites are complete, or exits `1` listing unfinished prerequisite epics.
 
@@ -120,28 +120,30 @@ flowchart TD
   - In `skills/dev-implementation/resources/scripts/sync_task_status.py`:
     - Add subcommand `promote <epic_dir> [--force]`:
       1. Unless `--force` is set, runs `check_epic_prerequisites(root, epic_dir)` and `check_epic_file_conflicts(root, epic_dir)`; if either reports blockers/conflicts, prints the blockers to `stderr` and exits `1`.
-      2. Transitions every task of `<epic_dir>` currently in `status: "backlog"` to `status: "todo"` across all checkouts (`sync_task(roots, task_id, "todo")`) and updates `<epic_dir>.{en,vi}.md` `Status` to `Packaged (ready for implementation)`.
+      2. Transitions every task of `<epic_dir>` currently in `status: "backlog"` to `status: "todo"` across all checkouts (`sync_task(roots, task_id, "todo")`), leaving an existing `Packaged …` HLD `Status` untouched and only rewriting a `Queued (backlog)` HLD `Status` to `f"Packaged ({today_iso})"`.
 
 ### 3. Packaged Epic Revision Workflow and HLD Spec Errata
 
-- **`skills/dev-implementation/resources/scripts/package_epic.py` (`#0015`)**:
+- **`skills/dev-implementation/resources/scripts/package_epic.py` and `skills/dev-lifecycle/references/handoff-template.md` (`#0015`)**:
   - CLI signature:
     ```bash
     package_epic.py <epic_dir> [--revise --reason "<summary>"] [--status "<hld_status>"]
     ```
+  - Template update (`skills/dev-lifecycle/references/handoff-template.md`):
+    - Replace line 71 (`"This file is a dated record. It is never updated after packaging."`) with `"This file is updated only by package_epic.py --revise, which records each re-anchoring under ## Revisions."` and add a `## Revisions` section plus its `- [Revisions](#revisions)` Table of Contents entry.
   - Behavior:
     1. Runs `check_epic_readiness.py <epic_dir>` first; if readiness fails, prints the readiness report and exits `1` without writing `handoff.md`.
     2. Resolves `design_commit = git rev-parse --short HEAD` and `base_branch` (`main` or `develop`).
     3. When `--revise` is NOT passed (initial packaging):
-       - Updates `<epic_dir>.{en,vi}.md` `Status` to `Packaged (<YYYY-MM-DD>)` (or `--status` / existing `Queued (backlog)` status if any task is `backlog`), commits the HLD status update if modified, re-reads `design_commit = git rev-parse --short HEAD`, and writes `.devtool/epic/<epic_dir>/handoff.md` with the required sections (`Status`, `Identifiers`, `Read First`, `Resume Prompt`, `Execution Guardrails for Receiving LLM`, `Open Notes`, `Rules for the Receiving Agent`).
+       - Updates `<epic_dir>.{en,vi}.md` `Status` to `Packaged (<YYYY-MM-DD>)` (or `--status` / existing `Queued (backlog)` status if any task is `backlog`) and writes `.devtool/epic/<epic_dir>/handoff.md` rendered from `skills/dev-lifecycle/references/handoff-template.md` on disk. The developer commits the HLD status update and `handoff.md` together as `[<EPIC_NAME>] Package epic for handoff`.
     4. When `--revise` IS passed (post-packaging revision):
        - Requires `--reason "<summary>"` (exiting `2` if `--reason` is missing or empty) and requires `.devtool/epic/<epic_dir>/handoff.md` to exist.
        - Extracts the previous `Design commit` (`<old_sha>`) from `handoff.md`.
        - Updates `- **Packaged**: <YYYY-MM-DD>`, `- **Design commit**: `<new_sha>``, and the staleness command `git log <new_sha>..<base_branch> -- .devtool/epic/<epic_dir>` in `handoff.md`.
-       - Inserts or appends `- **<YYYY-MM-DD> (`<old_sha>` -> `<new_sha>`)**: <reason>` under a `## Revisions` section (adding `- [Revisions](#revisions)` to the Table of Contents if not yet present), preserving existing `Open Notes`.
+       - Inserts or appends `- **<YYYY-MM-DD> (`<old_sha>` -> `<new_sha>`)**: <reason>` under `## Revisions` (adding `- [Revisions](#revisions)` to the Table of Contents if not yet present), preserving existing `Open Notes`.
 - **HLD `## Spec Errata` Contract (`#0015`)**:
   - In `skills/dev-implementation/resources/scripts/task_contract.py` and `check_epic_readiness.py`:
-    - Add `parse_spec_errata(hld_text: str) -> list[tuple[str, str]]` extracting bullets matching `^-\s*\*\*\[(SE-\d+)\]\s*([^*]+)\*\*:\s*(.+)$` from `## Spec Errata` (or `## Đính chính Đặc tả (Spec Errata)`).
+    - Freeze `SPEC_ERRATA_ITEM_RE = re.compile(r"^-\s*\*\*\[(SE-\d+)\]\s*([^*]+)\*\*:\s*(.+)$", re.MULTILINE)` and add `parse_spec_errata(hld_text: str) -> list[tuple[str, str]]` returning `(match.group(1), match.group(3))` tuples from `## Spec Errata` (or `## Đính chính Đặc tả (Spec Errata)`).
     - In `check_epic_readiness.py` (`check_metadata` / `R7`): if either `<epic_dir>.en.md` or `<epic_dir>.vi.md` contains a `Spec Errata` section, verify that both language files contain the section with the exact same list of `[SE-NN]` IDs and non-empty descriptions; otherwise emit `Finding("R7", "FAIL", "Spec Errata IDs differ between .en.md and .vi.md: ...")`.
 
 ### 4. Structured Gate Approval Ledger in Project Memory
@@ -154,11 +156,12 @@ flowchart TD
     - `--by "<approver>"`: Optional approver identifier (default `"developer"`).
     - `--check-gate <1|2|3|4|5>`: Query whether the specified gate is recorded for `--epic <epic_slug>`, printing the matching record and exiting `0` if found, or exiting `1` if missing.
   - Storage & Concurrency:
+    - `.devtool/GATE_LEDGER.md` is the tracked permanent Tier-1 record alongside `.devtool/PROJECT_LEDGER.md` (with an explicit `!.devtool/GATE_LEDGER.md` entry in `.gitignore`), while `.devtool/state/gate_ledger.jsonl` stays ephemeral in `.devtool/state/`.
     - Under `file_lock(devtool_dir)` (`fcntl.flock`), `record_gate_approval()` appends a JSON object line to `.devtool/state/gate_ledger.jsonl`:
       ```json
       {"timestamp": "2026-11-06T04:20:00Z", "epic": "multi-epic-orchestration-and-governance", "gate": 2, "commit": "e26d73b", "approved": "HLD and 5 Kanban tasks", "deviations": "SE-01", "by": "developer"}
       ```
-    - Automatically regenerates `.devtool/GATE_LEDGER.md` containing a Markdown table of all recorded gate approvals grouped by epic, and prints the active epic's recorded gate approvals during default `resume_context.py` context harvesting.
+    - Automatically regenerates `.devtool/GATE_LEDGER.md` containing a Markdown table of all recorded gate approvals grouped by epic, and prints the active epic's recorded gate approvals during default `resume_context.py` context harvesting (`scan_gate_ledger` reads `gate_ledger.jsonl` when present and falls back to parsing `.devtool/GATE_LEDGER.md` on fresh clones or worktrees).
 
 ## Error Handling and Edge Cases
 

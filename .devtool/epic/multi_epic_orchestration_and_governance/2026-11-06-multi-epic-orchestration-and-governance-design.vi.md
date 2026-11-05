@@ -36,10 +36,10 @@ Epic này (`multi_epic_orchestration_and_governance`, Epic 3 trên tổng số 3
 
 ### Mục tiêu
 
-- Hỗ trợ trường `- **Depends on epic**: <epic_slug_or_dir>[, ...]` trong `## Meta Data` của HLD xuyên suốt `task_contract.py`, `check_task_contract.py`, `check_epic_readiness.py` (`R5`, `R7`), `replay_task_text.py`, và `sync_task_status.py check-prereqs <epic_dir>` (`#0013`).
+- Hỗ trợ trường `- **Depends on epic**: <epic_slug_or_dir>[, ...]` trong `## Meta Data` của HLD xuyên suốt `task_contract.py`, `check_task_contract.py`, `check_epic_readiness.py` (`R5`, `R7`, `replay_with_prerequisites`, `--replay-prereqs`), và `sync_task_status.py check-prereqs <epic_dir>` (`#0013`).
 - Cung cấp công cụ phân tích xung đột file giữa các epic (`sync_task_status.py check-conflicts <epic_dir>`) và lệnh chuyển trạng thái hàng loạt từ `backlog` sang `todo` (`sync_task_status.py promote <epic_dir> [--force]`) (`#0014`).
-- Cung cấp `skills/dev-implementation/resources/scripts/package_epic.py` (`package_epic.py <epic_dir> [--revise --reason "<text>"]`) và hỗ trợ mục `## Spec Errata` (`[SE-NN]`) trong tài liệu HLD cùng kiểm tra đối xứng trong `check_epic_readiness.py` (`R7`) (`#0015`).
-- Mở rộng `scripts/resume_context.py` với Sổ cái Phê duyệt Cổng (`--gate <1..5> --epic <slug> --approved "<scope>" [--deviations "<text>"]` và `--check-gate <1..5> --epic <slug>`) được bảo vệ bằng khóa `fcntl.flock`, lưu trữ tại `.devtool/state/gate_ledger.jsonl` và kết xuất ra `.devtool/GATE_LEDGER.md` (`#0020`).
+- Cung cấp `skills/dev-implementation/resources/scripts/package_epic.py` (`package_epic.py <epic_dir> [--revise --reason "<text>"]`), cập nhật `skills/dev-lifecycle/references/handoff-template.md`, và hỗ trợ mục `## Spec Errata` (`[SE-NN]`) trong tài liệu HLD cùng kiểm tra đối xứng trong `check_epic_readiness.py` (`R7`) (`#0015`).
+- Mở rộng `scripts/resume_context.py` với Sổ cái Phê duyệt Cổng (`--gate <1..5> --epic <slug> --approved "<scope>" [--deviations "<text>"]` và `--check-gate <1..5> --epic <slug>`) được bảo vệ bằng khóa `fcntl.flock`, trong đó `.devtool/GATE_LEDGER.md` là bản ghi lâu dài Tier-1 được git track cùng cấp với `.devtool/PROJECT_LEDGER.md` (có dòng `!.devtool/GATE_LEDGER.md` trong `.gitignore`), còn `.devtool/state/gate_ledger.jsonl` là cache cục bộ (`#0020`).
 
 ### Phạm vi Ngoài Mục tiêu
 
@@ -54,7 +54,7 @@ flowchart TD
         HLD_META["HLD Meta Data: Depends on epic"]
         TC_DEP["task_contract.py (parse_depends_on_epics, resolve_prereq_artifacts)"]
         CTC_DEP["check_task_contract.py & check_epic_readiness.py (R5, R7)"]
-        RPL_DEP["replay_task_text.py (replay chuỗi epic tiên quyết)"]
+        RPL_DEP["check_epic_readiness.py (--replay-prereqs / replay_with_prerequisites)"]
     end
 
     subgraph CONCURRENCY["2. Kiểm tra Xung đột & Promote Hàng loạt (#0014)"]
@@ -97,13 +97,13 @@ flowchart TD
 - **Phân giải Hợp đồng và Grounding ở Thời điểm Thiết kế (`#0013`)**:
   - Trong `skills/dev-implementation/resources/scripts/check_task_contract.py`:
     - Khi `args.hld` có khai báo `Depends on epic:`, thu thập `prereq_files` qua `tc.collect_prerequisite_artifacts(check.root, prereq_dirs)[0]`.
-    - Hợp nhất `prereq_files` vào tập `created` và cho phép các mục không gắn `(new)` trong `check_allowed()` nếu `pattern in prereq_files`, giúp epic phụ thuộc có thể tham chiếu hoặc sửa đổi tiếp các file được tạo bởi epic tiên quyết chưa merge.
+    - Hợp nhất `prereq_files` vào tập `created` và cho phép các mục không gắn `(new)` trong `check_allowed()` nếu `any(tc.path_matches(p, pattern) or tc.path_matches(pattern, p) for p in prereq_files)`, giúp epic phụ thuộc có thể tham chiếu hoặc sửa đổi tiếp các file được tạo bởi epic tiên quyết chưa merge.
   - Trong `skills/dev-implementation/resources/scripts/check_epic_readiness.py`:
     - Trong `check_metadata(ctx)` (`R7`): gọi `tc.resolve_prerequisite_epic_dirs(ctx.root, ctx.hld_text)`. Phát lỗi `Finding("R7", "FAIL", ...)` nếu có epic tiên quyết không tồn tại hoặc tạo chu trình, đồng thời kiểm tra `.en.md` và `.vi.md` khai báo danh sách epic tiên quyết khớp nhau.
     - Trong `check_grounding(ctx)` (`R5`): với các symbol trong `Target Files & Symbols` thuộc file chưa tồn tại ở `HEAD` hoặc chưa có mặt trong `file_text` ở `HEAD`, coi là hợp lệ nếu `name in prereq_symbols.get(path_str, set())`.
 - **Replay Chuỗi Epic Tiên quyết & Kiểm tra Đầu vào Stage 3 (`#0013`)**:
-  - Trong `skills/dev-implementation/resources/scripts/check_epic_readiness.py` (`replay_with_prerequisites(root: Path, epic_dir: str, row_timeout: int = 600) -> list[str]`):
-    - Phân giải `prereq_dirs, missing = tc.resolve_prerequisite_epic_dirs(root, hld_text)`: với mọi epic tiên quyết chưa ở trạng thái `Done`, áp dụng tuần tự các task của epic tiên quyết đó theo thứ tự topo trước khi replay các task của `<epic_dir>` trên worktree tạm để worktree có sẵn mã nguồn nền tảng.
+  - Trong `skills/dev-implementation/resources/scripts/check_epic_readiness.py` (`replay_with_prerequisites(root: Path, epic_dir: str, row_timeout: int = 600) -> list[str]` và cờ CLI `--replay-prereqs` trong `main()`):
+    - Phân giải `prereq_dirs, missing = tc.resolve_prerequisite_epic_dirs(root, hld_text)`: import `replay_epic_in_worktree` từ `replay_task_text` (trả về lỗi `["replay_task_text.py is unavailable; merge execution-and-verification-infrastructure first"]` nếu module chưa có mặt), và với mọi epic tiên quyết chưa ở trạng thái `Done`, áp dụng tuần tự các task của epic tiên quyết đó theo thứ tự topo trước khi replay các task của `<epic_dir>` trên worktree tạm.
   - Trong `skills/dev-implementation/resources/scripts/sync_task_status.py`:
     - Bổ sung `check_epic_prerequisites(root: Path, epic_dir: str) -> list[str]` và lệnh CLI `sync_task_status.py check-prereqs <epic_dir>`: kiểm tra từng epic tiên quyết đã có `Status: Done` (hoặc toàn bộ task đã `done`) hay chưa. Thoát mã `0` nếu tất cả đã hoàn tất, hoặc thoát mã `1` kèm danh sách epic tiên quyết chưa xong.
 
@@ -120,20 +120,22 @@ flowchart TD
   - Trong `skills/dev-implementation/resources/scripts/sync_task_status.py`:
     - Bổ sung lệnh `promote <epic_dir> [--force]`:
       1. Trừ khi có `--force`, chạy `check_epic_prerequisites(root, epic_dir)` và `check_epic_file_conflicts(root, epic_dir)`; nếu có epic tiên quyết chưa hoàn tất hoặc có xung đột file với epic đang chạy, in lý do chặn ra `stderr` và thoát mã `1`.
-      2. Chuyển toàn bộ các task đang `backlog` của `<epic_dir>` sang `todo` trên mọi checkout (`sync_task(roots, task_id, "todo")`) và cập nhật `Status` trong `<epic_dir>.{en,vi}.md` thành `Packaged (ready for implementation)`.
+      2. Chuyển toàn bộ các task đang `backlog` của `<epic_dir>` sang `todo` trên mọi checkout (`sync_task(roots, task_id, "todo")`), giữ nguyên HLD `Status` nếu đã bắt đầu bằng `Packaged` và chỉ chuyển `Queued (backlog)` thành `f"Packaged ({today_iso})"`.
 
 ### 3. Quy trình Sửa đổi Epic Đã Đóng gói và Mục Spec Errata trong HLD
 
-- **`skills/dev-implementation/resources/scripts/package_epic.py` (`#0015`)**:
+- **`skills/dev-implementation/resources/scripts/package_epic.py` và `skills/dev-lifecycle/references/handoff-template.md` (`#0015`)**:
   - Cú pháp CLI:
     ```bash
     package_epic.py <epic_dir> [--revise --reason "<summary>"] [--status "<hld_status>"]
     ```
+  - Cập nhật template (`skills/dev-lifecycle/references/handoff-template.md`):
+    - Thay dòng 71 (`"This file is a dated record. It is never updated after packaging."`) bằng `"This file is updated only by package_epic.py --revise, which records each re-anchoring under ## Revisions."` và bổ sung mục `## Revisions` cùng mục lục `- [Revisions](#revisions)`.
   - Hành vi:
     1. Chạy `check_epic_readiness.py <epic_dir>` trước tiên; nếu không đạt, in báo cáo lỗi và thoát mã `1` mà không ghi `handoff.md`.
     2. Xác định `design_commit = git rev-parse --short HEAD` và nhánh gốc `base_branch` (`main` hoặc `develop`).
     3. Khi KHÔNG truyền `--revise` (đóng gói lần đầu):
-       - Cập nhật `Status` của `<epic_dir>.{en,vi}.md` thành `Packaged (<YYYY-MM-DD>)` (hoặc giữ `Queued (backlog)` nếu các task đang ở `backlog`), tạo `.devtool/epic/<epic_dir>/handoff.md` chuẩn gồm đầy đủ các mục bắt buộc.
+       - Cập nhật `Status` của `<epic_dir>.{en,vi}.md` thành `Packaged (<YYYY-MM-DD>)` (hoặc giữ `Queued (backlog)` nếu các task đang ở `backlog`), đọc template từ `skills/dev-lifecycle/references/handoff-template.md` và ghi `.devtool/epic/<epic_dir>/handoff.md`. Developer commit chung cập nhật HLD Status và `handoff.md` với message `[<EPIC_NAME>] Package epic for handoff`.
     4. Khi CÓ truyền `--revise` (sửa đổi sau khi đã đóng gói):
        - Bắt buộc phải có `--reason "<summary>"` (thoát mã `2` nếu thiếu hoặc rỗng) và file `.devtool/epic/<epic_dir>/handoff.md` phải đang tồn tại.
        - Đọc `Design commit` cũ (`<old_sha>`) từ `handoff.md`.
@@ -141,7 +143,7 @@ flowchart TD
        - Chèn hoặc nối thêm dòng `- **<YYYY-MM-DD> (`<old_sha>` -> `<new_sha>`)**: <reason>` vào mục `## Revisions` (tự động thêm `- [Revisions](#revisions)` vào Mục lục nếu chưa có), giữ nguyên nội dung `Open Notes`.
 - **Hợp đồng `## Spec Errata` trong HLD (`#0015`)**:
   - Trong `skills/dev-implementation/resources/scripts/task_contract.py` và `check_epic_readiness.py`:
-    - Bổ sung `parse_spec_errata(hld_text: str) -> list[tuple[str, str]]` trích xuất các dòng `- **[SE-NN] <Mục>**: <Mô tả>` từ mục `## Spec Errata` (hoặc `## Đính chính Đặc tả (Spec Errata)`).
+    - Cố định `SPEC_ERRATA_ITEM_RE = re.compile(r"^-\s*\*\*\[(SE-\d+)\]\s*([^*]+)\*\*:\s*(.+)$", re.MULTILINE)` và bổ sung `parse_spec_errata(hld_text: str) -> list[tuple[str, str]]` trả về `(match.group(1), match.group(3))` từ mục `## Spec Errata` (hoặc `## Đính chính Đặc tả (Spec Errata)`).
     - Trong `check_epic_readiness.py` (`check_metadata` / `R7`): nếu `.en.md` hoặc `.vi.md` có mục `Spec Errata`, kiểm tra cả hai bản ngôn ngữ đều có mục này với danh sách mã `[SE-NN]` trùng khớp hoàn toàn; nếu lệch sẽ báo `Finding("R7", "FAIL", "Spec Errata IDs differ between .en.md and .vi.md: ...")`.
 
 ### 4. Sổ cái Phê duyệt Cổng Có Cấu trúc trong Bộ nhớ Dự án
@@ -154,7 +156,8 @@ flowchart TD
     - `--by "<approver>"`: Định danh người phê duyệt (mặc định `"developer"`).
     - `--check-gate <1|2|3|4|5>`: Kiểm tra cổng `<n>` của `--epic <epic_slug>` đã được ghi nhận hay chưa (in bản ghi và thoát `0` nếu đã có, thoát `1` nếu chưa có).
   - Lưu trữ & Đồng thời:
-    - Dưới khóa `file_lock(devtool_dir)` (`fcntl.flock`), `record_gate_approval()` ghi nối tiếp một dòng JSON vào `.devtool/state/gate_ledger.jsonl` và tự động kết xuất bảng tổng hợp Markdown vào `.devtool/GATE_LEDGER.md`, đồng thời hiển thị các cổng đã duyệt của epic hiện hành khi chạy `resume_context.py` mặc định.
+    - `.devtool/GATE_LEDGER.md` là bản ghi lâu dài Tier-1 được git track cùng cấp với `.devtool/PROJECT_LEDGER.md` (có mục `!.devtool/GATE_LEDGER.md` trong `.gitignore`), còn `.devtool/state/gate_ledger.jsonl` là cache cục bộ.
+    - Dưới khóa `file_lock(devtool_dir)` (`fcntl.flock`), `record_gate_approval()` ghi nối tiếp một dòng JSON vào `.devtool/state/gate_ledger.jsonl` và tự động kết xuất bảng tổng hợp Markdown vào `.devtool/GATE_LEDGER.md`, đồng thời hiển thị các cổng đã duyệt của epic hiện hành khi chạy `resume_context.py` mặc định (`scan_gate_ledger` đọc `gate_ledger.jsonl` khi có mặt và fallback đọc bảng trong `.devtool/GATE_LEDGER.md` trên clone/worktree mới).
 
 ## Xử lý Lỗi và Các Trường hợp Biên
 

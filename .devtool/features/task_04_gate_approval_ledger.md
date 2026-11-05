@@ -24,6 +24,7 @@ Resolve Observation #0020: developer gate approvals (`Gate 1`–`Gate 5`) and th
 
 Allowed files:
 - `scripts/resume_context.py`
+- `.gitignore`
 - `tests/test_gate_approval_ledger.py` (new)
 
 Read-only context:
@@ -32,14 +33,14 @@ Read-only context:
 ## Design Rationale
 
 Applicable skills: `python-quality-check`, `test-driven-development`.
-1. `record_gate_approval(root: Path, epic_slug: str, gate: int, approved: str, *, deviations: str = "", by: str = "developer", repo: str | None = None) -> dict[str, object]` acquires `file_lock(devtool_dir)` (`fcntl.flock`), resolves the current short git commit SHA (`HEAD`), appends a JSON line to `.devtool/state/gate_ledger.jsonl`, and calls `render_gate_ledger_markdown(devtool_dir)` to write `.devtool/GATE_LEDGER.md`.
-2. `check_gate_approval(root: Path, epic_slug: str, gate: int, *, repo: str | None = None) -> dict[str, object] | None` reads `.devtool/state/gate_ledger.jsonl` and returns the most recent approval record matching `(epic_slug, gate)` (or `None` if unapproved), allowing `--check-gate <1..5>` to exit `0` when approved and `1` when missing.
-3. Default context harvesting (`main()` and `harvest_json()`) includes recorded gate approvals for the active epic so restored sessions immediately see which gates (`Gate 1`–`Gate 5`) have passed and with what scope/deviations.
+1. `record_gate_approval(root: Path, epic_slug: str, gate: int, approved: str, *, deviations: str = "", by: str = "developer", repo: str | None = None) -> dict[str, object]` acquires `file_lock(devtool_dir)` (`fcntl.flock`), resolves the current short git commit SHA (`HEAD`) with `cwd=root`, appends a JSON line to `.devtool/state/gate_ledger.jsonl`, and calls `render_gate_ledger_markdown(devtool_dir)` to write `.devtool/GATE_LEDGER.md` (the tracked permanent Tier-1 record alongside `.devtool/PROJECT_LEDGER.md`, while `.devtool/state/gate_ledger.jsonl` stays ephemeral).
+2. `check_gate_approval(root: Path, epic_slug: str, gate: int, *, repo: str | None = None) -> dict[str, object] | None` reads recorded gate approvals via `scan_gate_ledger` (reading `.devtool/state/gate_ledger.jsonl` when present and falling back to `.devtool/GATE_LEDGER.md` on fresh clones or worktrees) and returns the most recent approval record matching `(epic_slug, gate)` (or `None` if unapproved), allowing `--check-gate <1..5>` to exit `0` when approved and `1` when missing.
+3. Default context harvesting (`main()`, `collect_harvest_data()`, and `harvest_json()`) includes recorded gate approvals for the active epic so restored sessions immediately see which gates (`Gate 1`–`Gate 5`) have passed and with what scope/deviations.
 
 ## Impact Analysis & Blast Radius
 
 - **Target Files & Symbols**:
-  - `scripts/resume_context.py`: `parse_args`, `main`, `harvest_json`, new `record_gate_approval`, new `check_gate_approval`, new `render_gate_ledger_markdown`, and new `scan_gate_ledger`.
+  - `scripts/resume_context.py`: `parse_args`, `main`, `collect_harvest_data`, `harvest_json`, new `record_gate_approval`, new `check_gate_approval`, new `render_gate_ledger_markdown`, and new `scan_gate_ledger`.
 - **Downstream Callers**: `dev-lifecycle`, `dev-designer`, `dev-implementation`, and `save-context`.
 - **Cross-Platform Bridges**: None.
 - **Target Test Coverage Threshold**: $\ge 90\%$ line coverage on new gate ledger functions in `scripts/resume_context.py`.
@@ -91,6 +92,8 @@ Covers: MEO-HP-04, MEO-AR-01, MEO-FR-03
 
 ## Decisions Already Made
 
+- In `.gitignore`:
+  - `.devtool/GATE_LEDGER.md` is the tracked permanent Tier-1 record alongside `.devtool/PROJECT_LEDGER.md` while `.devtool/state/gate_ledger.jsonl` stays ephemeral in `.devtool/state/`. Add an explicit `!.devtool/GATE_LEDGER.md` entry in `.gitignore`.
 - In `scripts/resume_context.py`:
   - Add CLI flags to `parse_args()`:
     - `--gate`: `type=int, choices=[1, 2, 3, 4, 5], help="Record gate approval (1..5)"`
@@ -101,7 +104,8 @@ Covers: MEO-HP-04, MEO-AR-01, MEO-FR-03
   - When `args.gate is not None`:
     - Validate that `args.approved.strip()` is non-empty; if empty, print `"error: --approved must be non-empty when recording --gate"` to `stderr` and `sys.exit(2)`.
     - Call `record_gate_approval(target_root, active_epic, args.gate, args.approved.strip(), deviations=args.deviations.strip(), by=args.by.strip() or "developer", repo=args.repo)`.
-  - `record_gate_approval(...)` acquires `file_lock(devtool_dir)`, ensures `(devtool_dir / "state").mkdir(parents=True, exist_ok=True)`, resolves `commit_sha` via `git rev-parse --short HEAD` (fallback `"unknown"`), appends JSON line `{"timestamp": now_utc_iso, "epic": epic_slug, "gate": gate, "commit": commit_sha, "approved": approved, "deviations": deviations, "by": by}` to `devtool_dir / "state" / "gate_ledger.jsonl"`, and calls `render_gate_ledger_markdown(devtool_dir)` to write `devtool_dir / "GATE_LEDGER.md"` with a Markdown table `| Timestamp | Epic | Gate | Commit | Approved Scope | Deviations | By |`.
+  - `record_gate_approval(...)` acquires `file_lock(devtool_dir)`, ensures `(devtool_dir / "state").mkdir(parents=True, exist_ok=True)`, resolves `commit_sha` via `subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=root, check=False, capture_output=True, text=True)` (with `"unknown"` fallback), appends JSON line `{"timestamp": now_utc_iso, "epic": epic_slug, "gate": gate, "commit": commit_sha, "approved": approved, "deviations": deviations, "by": by}` to `devtool_dir / "state" / "gate_ledger.jsonl"`, and calls `render_gate_ledger_markdown(devtool_dir)` to write `devtool_dir / "GATE_LEDGER.md"` with a Markdown table `| Timestamp | Epic | Gate | Commit | Approved Scope | Deviations | By |`.
+  - `scan_gate_ledger(root: Path, epic_slug: str | None = None) -> list[dict[str, object]]` reads `devtool_dir / "state" / "gate_ledger.jsonl"` when present and falls back to parsing the Markdown table rows of `devtool_dir / "GATE_LEDGER.md"` when `gate_ledger.jsonl` is absent (e.g. on a fresh clone or worktree). `collect_harvest_data` adds a `"gate_approvals"` key from `scan_gate_ledger(root, epic_slug=epic_filter)`.
   - When `args.check_gate is not None`:
     - Call `rec = check_gate_approval(target_root, active_epic, args.check_gate, repo=args.repo)`: if `rec` is found, print `json.dumps(rec)` and `sys.exit(0)`; if `None`, print `f"Gate {args.check_gate} is not yet recorded for epic '{active_epic}'"` to `stderr` and `sys.exit(1)`.
 

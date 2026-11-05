@@ -28,6 +28,7 @@ Provide the end-to-end subcutaneous acceptance test suite (`tests/test_multi_epi
 
 Allowed files:
 - `tests/test_multi_epic_governance_acceptance.py` (new)
+- `scripts/verify.sh`
 - `skills/dev-lifecycle/SKILL.md`
 - `skills/dev-designer/SKILL.md`
 - `skills/dev-implementation/SKILL.md`
@@ -76,6 +77,7 @@ RED: n/a — end-to-end acceptance test suite and skill documentation verifying 
 | V3 | TIER-B | `mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py --follow-imports=silent tests/test_multi_epic_governance_acceptance.py` | exit 0 | — |
 | V4 | TIER-B | `python3 skills/doc_quality_check/resources/scripts/check_document.py skills/dev-lifecycle/SKILL.md skills/dev-designer/SKILL.md skills/dev-implementation/SKILL.md skills/principal-review/SKILL.md skills/save-context/SKILL.md` | exit 0; contains "0 findings" | — |
 | V5 | TIER-C | `python3 -m pytest tests/ skills/dev-implementation/resources/scripts/ --junitxml=build/test-results/pytest.xml` | exit 0; results build/test-results/pytest.xml | — |
+| V6 | TIER-B | `bash scripts/verify.sh` | exit 0; contains "PASS" | — |
 
 ## Stop and Report If
 
@@ -88,13 +90,20 @@ RED: n/a — end-to-end acceptance test suite and skill documentation verifying 
 
 ## Decisions Already Made
 
-- `tests/test_multi_epic_governance_acceptance.py` exercises `MEO-HP-01`..`MEO-HP-04` end-to-end in temporary Git repositories.
+- `tests/test_multi_epic_governance_acceptance.py` exercises `MEO-HP-01`..`MEO-HP-04` and `MEO-AR-02` end-to-end in temporary Git repositories.
+- In `scripts/verify.sh` step 11 (`== 11. Lifecycle document contracts are enforced ==`), register the three new `skills/dev-implementation/resources/scripts/` unit test suites:
+  - `python3 -m unittest skills/dev-implementation/resources/scripts/test_inter_epic_dependencies.py || FAILED=1`
+  - `python3 -m unittest skills/dev-implementation/resources/scripts/test_concurrent_epic_backlog.py || FAILED=1`
+  - `python3 -m unittest skills/dev-implementation/resources/scripts/test_package_and_revise_epic.py || FAILED=1`
+- In `skills/dev-implementation/SKILL.md` Phase 0 Entry-Point Detection, require running `python3 "$SKILL_DIR"/resources/scripts/sync_task_status.py check-prereqs <epic_dir>` and halting with the blocker list on exit `1` whenever the HLD declares `Depends on epic:`.
 - `skills/dev-lifecycle/SKILL.md`, `skills/dev-designer/SKILL.md`, `skills/dev-implementation/SKILL.md`, `skills/principal-review/SKILL.md`, and `skills/save-context/SKILL.md` document `Depends on epic:`, `sync_task_status.py check-prereqs / check-conflicts / promote`, `package_epic.py [--revise --reason]`, `## Spec Errata` (`[SE-NN]`), and `scripts/resume_context.py --gate / --check-gate`.
 
 ## Definition of Done
 
-- `tests/test_multi_epic_governance_acceptance.py` passes and verifies `MEO-HP-01`..`MEO-HP-04` in JUnit XML output. (V1, V5)
+- `tests/test_multi_epic_governance_acceptance.py` passes and verifies `MEO-HP-01`..`MEO-HP-04` and `MEO-AR-02` in JUnit XML output. (V1, V5)
+- `skills/dev-implementation/SKILL.md` Phase 0 Entry-Point Detection mandates running `sync_task_status.py check-prereqs <epic_dir>` and halting with the blocker list on exit `1` whenever the HLD declares `Depends on epic:`. (V4)
 - All 5 updated `SKILL.md` files pass `check_document.py` with 0 findings. (V4)
+- `scripts/verify.sh` step 11 registers `test_inter_epic_dependencies.py`, `test_concurrent_epic_backlog.py`, and `test_package_and_revise_epic.py` and `bash scripts/verify.sh` passes. (V6)
 - `ruff` and `mypy` pass with zero errors. (V2, V3)
 - Clean git working tree with changes restricted to Allowed files. (Gate 5)
 

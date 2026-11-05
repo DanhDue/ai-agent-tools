@@ -40,10 +40,10 @@ During multi-epic feature engineering across `lyrics-sync` and `ai-agent-tools`,
 
 ### Goals
 
-- Add `- **Depends on epic**: <epic_slug_or_dir>[, ...]` support to `task_contract.py`, `check_task_contract.py`, `check_epic_readiness.py` (`R5`, `R7`), `replay_task_text.py`, and `sync_task_status.py check-prereqs <epic_dir>` (`#0013`).
+- Add `- **Depends on epic**: <epic_slug_or_dir>[, ...]` support to `task_contract.py`, `check_task_contract.py`, `check_epic_readiness.py` (`R5`, `R7`, `replay_with_prerequisites`, `--replay-prereqs`), and `sync_task_status.py check-prereqs <epic_dir>` (`#0013`).
 - Add conflict-aware concurrent epic analysis (`sync_task_status.py check-conflicts <epic_dir>`) and bulk task promotion (`sync_task_status.py promote <epic_dir> [--force]`) (`#0014`).
-- Ship `skills/dev-implementation/resources/scripts/package_epic.py` (`<epic_dir> [--revise --reason "<text>"]`) and support `## Spec Errata` (`[SE-NN]`) in HLD documents and `check_epic_readiness.py` (`R7`) (`#0015`).
-- Extend `scripts/resume_context.py` with a lock-protected Gate Approval Ledger (`--gate <1..5> --epic <slug> --approved "<scope>" [--deviations "<text>"]` and `--check-gate <1..5> --epic <slug>`) writing `.devtool/state/gate_ledger.jsonl` and `.devtool/GATE_LEDGER.md` (`#0020`).
+- Ship `skills/dev-implementation/resources/scripts/package_epic.py` (`<epic_dir> [--revise --reason "<text>"]`), update `skills/dev-lifecycle/references/handoff-template.md`, and support `## Spec Errata` (`[SE-NN]`) in HLD documents and `check_epic_readiness.py` (`R7`) (`#0015`).
+- Extend `scripts/resume_context.py` with a lock-protected Gate Approval Ledger (`--gate <1..5> --epic <slug> --approved "<scope>" [--deviations "<text>"]` and `--check-gate <1..5> --epic <slug>`) where `.devtool/GATE_LEDGER.md` is the tracked permanent Tier-1 record alongside `.devtool/PROJECT_LEDGER.md` while `.devtool/state/gate_ledger.jsonl` stays ephemeral (`#0020`).
 
 ### Non-Goals
 
@@ -60,7 +60,7 @@ flowchart TD
         HLD_DEP["HLD Meta Data: Depends on epic"]
         TC_DEP["task_contract.py (parse_depends_on_epics, collect_prerequisite_artifacts)"]
         CTC_CER["check_task_contract.py & check_epic_readiness.py (R5, R7)"]
-        RPL_CHAIN["replay_task_text.py (prereq chain replay)"]
+        RPL_CHAIN["check_epic_readiness.py (--replay-prereqs / replay_with_prerequisites)"]
     end
 
     subgraph BOARD["Conflict Check & Bulk Promotion (#0014)"]
@@ -162,11 +162,11 @@ None — self-contained feature in `ai-agent-tools`.
 
 ## Rollout Strategy and Mitigation
 
-- **Phase 1**: Implement `Depends on epic:` parsing, artifact collection, design-time contract/grounding resolution, and prerequisite replay chain in `task_contract.py`, `check_task_contract.py`, `check_epic_readiness.py`, and `replay_task_text.py` (`Task 01`).
+- **Phase 1**: Implement `Depends on epic:` parsing, artifact collection, design-time contract/grounding resolution, and prerequisite replay chain (`--replay-prereqs`) in `task_contract.py`, `check_task_contract.py`, and `check_epic_readiness.py` (`Task 01`).
 - **Phase 2**: Implement `check-prereqs`, `check-conflicts`, and `promote [--force]` in `sync_task_status.py` (`Task 02`).
-- **Phase 3**: Implement `package_epic.py` (`--revise --reason`) and HLD `## Spec Errata` validation in `task_contract.py` and `check_epic_readiness.py` (`Task 03`).
-- **Phase 4**: Implement the Gate Approval Ledger (`--gate`, `--check-gate`, `gate_ledger.jsonl`, `GATE_LEDGER.md`) in `scripts/resume_context.py` (`Task 04`).
-- **Phase 5**: Execute end-to-end subcutaneous integration verification and update `dev-lifecycle`, `dev-designer`, `dev-implementation`, `principal-review`, and `save-context` skill documentation (`Task 05`).
+- **Phase 3**: Implement `package_epic.py` (`--revise --reason`), update `skills/dev-lifecycle/references/handoff-template.md`, and add HLD `## Spec Errata` validation in `task_contract.py` and `check_epic_readiness.py` (`Task 03`).
+- **Phase 4**: Implement the Gate Approval Ledger (`--gate`, `--check-gate`, tracked `.devtool/GATE_LEDGER.md`, and ephemeral `gate_ledger.jsonl`) in `scripts/resume_context.py` and `.gitignore` (`Task 04`).
+- **Phase 5**: Execute end-to-end subcutaneous integration verification, register the new suites in `scripts/verify.sh`, and update `dev-lifecycle`, `dev-designer`, `dev-implementation`, `principal-review`, and `save-context` skill documentation (`Task 05`).
 - **Rollback Plan**: All new subcommands, metadata fields, and scripts are additive and backward-compatible; reverting the epic merge commit cleanly restores prior behavior.
 
 ## Kanban Tasks Breakdown

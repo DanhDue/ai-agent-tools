@@ -28,17 +28,17 @@ Allowed files:
 - `skills/dev-implementation/resources/scripts/package_epic.py` (new)
 - `skills/dev-implementation/resources/scripts/task_contract.py`
 - `skills/dev-implementation/resources/scripts/check_epic_readiness.py`
+- `skills/dev-lifecycle/references/handoff-template.md`
 - `skills/dev-implementation/resources/scripts/test_package_and_revise_epic.py` (new)
 
 Read-only context:
-- `skills/dev-lifecycle/references/handoff-template.md` (canonical handoff structure)
 - `.devtool/epic/multi_epic_orchestration_and_governance/multi_epic_orchestration_and_governance.en.md` (HLD specification)
 
 ## Design Rationale
 
 Applicable skills: `python-quality-check`, `test-driven-development`.
 1. `parse_spec_errata(hld_text: str) -> list[tuple[str, str]]` in `task_contract.py` parses `- **[SE-01] <Section>**: <Description>` items from `## Spec Errata` (or `## Đính chính Đặc tả (Spec Errata)`). `check_epic_readiness.py` (`check_metadata()` `R7`) verifies that whenever either `.en.md` or `.vi.md` declares `Spec Errata`, both files declare the exact same `[SE-NN]` IDs in order, emitting `Finding("R7", "FAIL", ...)` on any mismatch.
-2. `package_epic.py <epic_dir> [--revise --reason "<text>"]` runs `check_epic_readiness.py <epic_dir>` first, resolves `HEAD` SHA, and either writes a fresh `.devtool/epic/<epic_dir>/handoff.md` (when `--revise` is not set) or updates `Design commit`, the staleness `git log <sha>..<base>` command, and the `## Revisions` section while preserving `## Open Notes` verbatim (when `--revise --reason "<text>"` is passed).
+2. `skills/dev-lifecycle/references/handoff-template.md` is updated so line 71 reads `"This file is updated only by package_epic.py --revise, which records each re-anchoring under ## Revisions."` and includes a `## Revisions` section plus its `- [Revisions](#revisions)` Table of Contents entry. `package_epic.py <epic_dir> [--revise --reason "<text>"]` runs `check_epic_readiness.py <epic_dir>` first, resolves `HEAD` SHA, and either renders a fresh `.devtool/epic/<epic_dir>/handoff.md` from `handoff-template.md` on disk (when `--revise` is not set) or updates `Design commit`, the staleness `git log <sha>..<base>` command, and the `## Revisions` section while preserving `## Open Notes` verbatim (when `--revise --reason "<text>"` is passed).
 
 ## Impact Analysis & Blast Radius
 
@@ -99,16 +99,18 @@ Covers: MEO-HP-03, MEO-ST-02, MEO-FR-02
 ## Decisions Already Made
 
 - In `skills/dev-implementation/resources/scripts/task_contract.py`:
-  - `SPEC_ERRATA_ITEM_RE = re.compile(r"^-\s*\*\*\[(SE-\d+)\]\s*([^*]*)\*\*:\s*(.+)$")`
-  - `parse_spec_errata(hld_text: str) -> list[tuple[str, str]]`: extracts `(errata_id, description)` tuples from `section(hld_text, "Spec Errata") or section(hld_text, "Đính chính Đặc tả (Spec Errata)")`. If the section exists and contains non-empty bullet lines that do not match `SPEC_ERRATA_ITEM_RE`, raises `ContractError("Spec Errata bullet must match '- **[SE-NN] <Section>**: <description>'")`.
+  - `SPEC_ERRATA_ITEM_RE = re.compile(r"^-\s*\*\*\[(SE-\d+)\]\s*([^*]+)\*\*:\s*(.+)$", re.MULTILINE)`
+  - `parse_spec_errata(hld_text: str) -> list[tuple[str, str]]`: extracts `(match.group(1), match.group(3))` tuples (`(errata_id, description)`) from `section(hld_text, "Spec Errata") or section(hld_text, "Đính chính Đặc tả (Spec Errata)")`. If the section exists and contains non-empty bullet lines that do not match `SPEC_ERRATA_ITEM_RE`, raises `ContractError("Spec Errata bullet must match '- **[SE-NN] <Section>**: <description>'")`.
 - In `skills/dev-implementation/resources/scripts/check_epic_readiness.py`:
-  - In `check_metadata(ctx)` (`R7`): parses `en_errata = tc.parse_spec_errata(ctx.hld_text)` and (when `<epic_dir>.vi.md` exists) `vi_errata = tc.parse_spec_errata(vi_text)` (catching `tc.ContractError` as `Finding("R7", "FAIL", str(err))`). If `[eid for eid, _ in en_errata] != [eid for eid, _ in vi_errata]`, appends `Finding("R7", "FAIL", f"Spec Errata IDs differ between .en.md and .vi.md: {[e for e, _ in en_errata]} vs {[e for e, _ in vi_errata]}")`.
+  - In `check_metadata(ctx)` (`R7`): initialize `en_errata: list[tuple[str, str]] = []` and `vi_errata: list[tuple[str, str]] = []` before the `try` block. Parse `en_errata = tc.parse_spec_errata(ctx.hld_text)` and (when `<epic_dir>.vi.md` exists) `vi_errata = tc.parse_spec_errata(vi_text)`; if `tc.ContractError` is raised, append `Finding("R7", "FAIL", str(err))` and `return findings` immediately. Skip the ID comparison entirely when `<epic_dir>.vi.md` is absent; when `<epic_dir>.vi.md` exists and `[eid for eid, _ in en_errata] != [eid for eid, _ in vi_errata]`, append `Finding("R7", "FAIL", f"Spec Errata IDs differ between .en.md and .vi.md: {[e for e, _ in en_errata]} vs {[e for e, _ in vi_errata]}")`.
+- In `skills/dev-lifecycle/references/handoff-template.md`:
+  - Replace line 71 (`- This file is a dated record. It is never updated after packaging.`) with `- This file is updated only by \`package_epic.py --revise\`, which records each re-anchoring under \`## Revisions\`.` and add a `## Revisions` section plus its `- [Revisions](#revisions)` Table of Contents entry.
 - In `skills/dev-implementation/resources/scripts/package_epic.py`:
   - CLI interface: `package_epic.py <epic_dir> [--revise] [--reason <text>] [--base-branch <branch>] [--open-note <note> ...]`.
   - Validates CLI usage first: if `--revise` is passed without a non-empty `--reason`, prints `"error: --reason is required when --revise is set"` to `stderr` and exits `2`. If `--revise` is passed when `.devtool/epic/<epic_dir>/handoff.md` does not exist, prints `"error: handoff.md does not exist; run without --revise first"` to `stderr` and exits `2`.
   - Runs `check_epic_readiness.py <epic_dir>` (before writing `handoff.md`): if readiness returns any `FAIL` finding, prints the readiness report and exits `1`.
   - Resolves `design_commit = subprocess.run(["git", "rev-parse", "--short", "HEAD"], ...).stdout.strip()`.
-  - When `--revise` is False: updates `<epic_dir>.{en,vi}.md` `Status` to `f"Packaged ({today_iso})"` if not already starting with `Packaged`, `In Progress`, or `Done`, and writes `.devtool/epic/<epic_dir>/handoff.md` with valid ToC and sections (`Status`, `Identifiers`, `Read First`, `Resume Prompt`, `Execution Guardrails for Receiving LLM`, `Open Notes`, `Rules for the Receiving Agent`).
+  - When `--revise` is False: updates `<epic_dir>.{en,vi}.md` `Status` to `f"Packaged ({today_iso})"` if not already starting with `Packaged`, `Queued`, `In Progress`, or `Done`, and `render_initial_handoff` reads `skills/dev-lifecycle/references/handoff-template.md` from disk (rather than embedding its text) to write `.devtool/epic/<epic_dir>/handoff.md` with valid ToC and sections (`Status`, `Identifiers`, `Read First`, `Resume Prompt`, `Execution Guardrails for Receiving LLM`, `Open Notes`, `Revisions`, `Rules for the Receiving Agent`).
   - When `--revise` is True: reads existing `handoff.md`, extracts old `Design commit` (`old_sha`), replaces `- **Packaged**: ...` with `today_iso`, replaces `- **Design commit**: `<old_sha>`` with `` `<design_commit>` ``, updates `git log <old_sha>..` to `git log <design_commit>..`, preserves `## Open Notes` verbatim, and inserts/appends `- **<today_iso> (`<old_sha>` -> `<design_commit>`)**: <reason>` under `## Revisions` (adding `- [Revisions](#revisions)` to `## Table of Contents` if absent).
 
 ## Definition of Done
