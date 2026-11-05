@@ -81,6 +81,12 @@ def test_extract_target_from_text() -> None:
     cmd_text = "Run `npm run test` in terminal"
     assert extract_target_from_text(cmd_text) == "`npm run test`"
 
+    bare_cli = "When python3 scripts/verify.sh runs"
+    assert extract_target_from_text(bare_cli) == "`python3 scripts/verify.sh`"
+
+    bare_skill = "When Gate 4 invokes d3nexus:web-quality-check with profile epic"
+    assert extract_target_from_text(bare_skill) == "`d3nexus:web-quality-check`"
+
     fallback_text = "Click the primary button"
     assert extract_target_from_text(fallback_text) == "CLI / Workspace Root"
 

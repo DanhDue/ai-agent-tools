@@ -10,6 +10,10 @@ from typing import Any
 
 URL_REGEX = re.compile(r"https?://[^\s)`'\"]+")
 COMMAND_REGEX = re.compile(r"`([^`]+)`")
+CLI_ENTRYPOINT_REGEX = re.compile(
+    r"\b(?:python3?|npx|npm|cargo|pytest|mypy|ruff|git)\s+[^\s,;`]+|\bd3nexus:[a-zA-Z0-9_-]+|\b[a-zA-Z0-9_-]+-quality-check\b",
+    re.IGNORECASE,
+)
 
 
 def parse_bdd_scenarios(content: str) -> list[dict[str, Any]]:
@@ -56,7 +60,7 @@ def parse_bdd_scenarios(content: str) -> list[dict[str, Any]]:
 
 
 def extract_target_from_text(text: str) -> str:
-    """Extract a URL or CLI command from text, or fallback to Workspace Root."""
+    """Extract a URL, backticked command, or bare CLI tooling entrypoint from text."""
     url_match = URL_REGEX.search(text)
     if url_match:
         return url_match.group(0)
@@ -64,6 +68,10 @@ def extract_target_from_text(text: str) -> str:
     cmd_match = COMMAND_REGEX.search(text)
     if cmd_match:
         return f"`{cmd_match.group(1)}`"
+
+    cli_match = CLI_ENTRYPOINT_REGEX.search(text)
+    if cli_match:
+        return f"`{cli_match.group(0)}`"
 
     return "CLI / Workspace Root"
 
