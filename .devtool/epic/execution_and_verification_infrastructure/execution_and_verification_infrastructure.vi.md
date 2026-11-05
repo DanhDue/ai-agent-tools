@@ -32,7 +32,7 @@ Trong quá trình thực thi Stage 2 và Stage 3 trên `lyrics-sync` và `ai-age
 
 1. **Observation `#0006`**: `bootstrap_worktree.sh` chỉ chạy `uv sync` mặc định, khiến môi trường `.venv` trong worktree mới thiếu các gói phụ thuộc tùy chọn (`--extra asr`) cần thiết cho lệnh `mypy` và `pytest` đã đăng ký.
 2. **Observation `#0007`**: Việc ghi nhận và so sánh tập lỗi baseline toàn bộ bộ test giữa các task đòi hỏi các ống lệnh bash viết tay dễ vỡ: bắt nhầm dòng log (`ERROR logger:file.py:123`), lỗi `pipefail` khi tập lỗi rỗng, thiếu `--continue-on-collection-errors`, để lại file bẩn trên git, và báo lỗi hồi quy giả do trạng thái DB dùng chung.
-3. **Observation `#0010`**: Kiểm tra `R6` bắt buộc mọi file test Tier C phải xuất hiện trong một dòng `Integration results:`, và Gate 4 chạy mọi dòng này vô điều kiện, dẫn tới thiếu cơ chế cho các bài kiểm thử tích hợp live (`-m live_llm`) cần biến môi trường như `PLT_LIVE_OLLAMA_MODEL`. Đồng thời, `R5b` cảnh báo giả đối với các đường dẫn cụ thể (`/api/align/stream/job_plt`) khi backend khai báo mẫu route có tham số (`/api/align/stream/{job_id}`).
+3. **Observation `#0010`**: Kiểm tra `R6` bắt buộc mọi file test Tier C phải xuất hiện trong một dòng `Integration results:`, và Gate 4 chạy mọi dòng này vô điều kiện, dẫn tới thiếu cơ chế cho các bài kiểm thử tích hợp live (`-m live_llm`) cần biến môi trường như `PLT_LIVE_OLLAMA_MODEL`. Đồng thời, `R5b` cảnh báo giả đối với các đường dẫn cụ thể (`http://localhost/api/align/stream/job_plt`) khi backend khai báo mẫu route có tham số (`http://localhost/api/align/stream/{job_id}`).
 4. **Observation `#0011`**: Các sai sót trong văn bản hướng dẫn chỉnh sửa của task (`Replace in <path>:` / `With:`, `Insert in <path> after:` / `With:`, và các khối code) chỉ được phát hiện khi chạy replay trên một worktree nháp trước khi đóng gói.
 5. **Observation `#0017`**: Các task đo lường dài hạn (như chạy benchmark LLM cục bộ hàng giờ) không phù hợp với giới hạn timeout 600 giây của dòng Verification thông thường và cần một pha `MEASURE` có khả năng tiếp tục (`--resume`), tách biệt khỏi bước `verify` kiểm tra bằng chứng nhanh.
 6. **Observation `#0018`**: Các kho mã nguồn đa nền tảng kết hợp Python (`pyproject.toml`) và JavaScript (`package.json`, `tests/js/**/*.test.mjs`) chỉ được `detect_project_type.sh` trả về `python`, bị bỏ qua bước cài đặt phụ thuộc Node trong `bootstrap_worktree.sh`, và gặp lỗi thoát mã 7 khi `node --test --test-reporter=junit` ghi vào thư mục `build/test-results/` chưa được tạo.
@@ -44,9 +44,9 @@ Trong quá trình thực thi Stage 2 và Stage 3 trên `lyrics-sync` và `ai-age
 - Bổ sung trường tùy chọn `"bootstrap"` vào `.agents/quality/python-quality.json` (`python-quality.schema.json` và `validate_python_quality.py`), thực thi các lệnh `"bootstrap"` trong `bootstrap_worktree.sh`, và bỏ lệnh thoát sớm để các repo đa nền tảng Python + Web/Node khởi tạo đầy đủ mọi toolchain (`#0006`, `#0018`).
 - Bổ sung cờ `--all` vào `detect_project_type.sh` để báo cáo tất cả các nền tảng phát hiện được trong repo đa ngữ mà vẫn giữ nguyên đầu ra mặc định một nền tảng (`#0018`).
 - Tự động tạo thư mục cha cho các đường dẫn `--junitxml` và `--test-reporter-destination` trong `run_task_checks.py` trước khi thực thi dòng lệnh Verification (`#0018`).
-- Cung cấp `record_failure_baseline.py` và `compare_failure_sets.py` (`d3nexus record-baseline` và `d3nexus compare-baseline`) hỗ trợ `pytest` và `node --test`, chỉ trích xuất lỗi từ phần tóm tắt cuối, khôi phục file qua `--restore <path>`, và chạy lại cô lập các lỗi mới qua `--rerun-new` (`#0007`).
+- Cung cấp `record_failure_baseline.py` và `compare_failure_sets.py` hỗ trợ `pytest` và `node --test`, chỉ trích xuất lỗi từ phần tóm tắt cuối, khôi phục file qua `--restore <path>`, và chạy lại cô lập các lỗi mới qua `--rerun-new` (`#0007`).
 - Hỗ trợ `Integration results (live, needs: VAR1, VAR2): <cmd> -> <report>` trên `task_contract.py`, `check_task_contract.py`, `check_epic_readiness.py` (`R6`), `audit_epic.py`, và `run_external_review.py` (Gate 4), đồng thời nâng cấp `R5b` trong `check_epic_readiness.py` để so khớp đường dẫn cụ thể với mẫu route có tham số (`#0010`).
-- Cung cấp `replay_task_text.py` (`d3nexus replay-task`), tích hợp kiểm tra tĩnh anchor chỉnh sửa vào `check_epic_readiness.py` (`R5`), và bổ sung cờ `--replay` chạy thử trên worktree tạm vào `check_epic_readiness.py` (`#0011`).
+- Cung cấp `replay_task_text.py`, tích hợp kiểm tra tĩnh anchor chỉnh sửa vào `check_epic_readiness.py` (`R5`), và bổ sung cờ `--replay` chạy thử trên worktree tạm vào `check_epic_readiness.py` (`#0011`).
 - Hỗ trợ `Phase: MEASURE` (`run_task_checks.py measure [--timeout 7200] [--resume]`) và tài liệu hóa mẫu thiết kế **Measurement-to-Evidence** trong `skills/dev-designer/SKILL.md` và `skills/dev-implementation/SKILL.md` (`#0017`).
 
 ### Ngoài Mục tiêu (Non-Goals)
@@ -67,12 +67,12 @@ flowchart TD
     end
 
     subgraph BASELINE["Ghi nhận & So sánh Tập Lỗi Baseline (#0007)"]
-        REC_BASE["record_failure_baseline.py (d3nexus record-baseline)"]
-        CMP_BASE["compare_failure_sets.py (d3nexus compare-baseline)"]
+        REC_BASE["record_failure_baseline.py"]
+        CMP_BASE["compare_failure_sets.py"]
     end
 
     subgraph READINESS["Kiểm tra Sẵn sàng, Replay & Live Integration (#0010, #0011)"]
-        REPLAY_PY["replay_task_text.py (d3nexus replay-task)"]
+        REPLAY_PY["replay_task_text.py"]
         CER["check_epic_readiness.py (R5 anchors, R5b templates, R6 live, --replay)"]
         RER["run_external_review.py (Gate 4 live run hoặc SKIPPED)"]
     end
@@ -143,7 +143,7 @@ Integration results: python3 -m pytest tests/ skills/dev-implementation/resource
 | :--- | :--- | :--- |
 | `validate_python_quality.py`, `detect_project_type.sh` & `bootstrap_worktree.sh` | Kiểm thử tiến trình con & xác thực schema trên các repo đa nền tảng tạm | Xác minh kiểm tra mảng `"bootstrap"`, đầu ra `detect_project_type.sh --all` (`python web`), và khởi tạo worktree đa nền tảng Python + Node |
 | `record_failure_baseline.py` & `compare_failure_sets.py` | Kiểm thử CLI subcutaneous với đầu ra `pytest` và `node --test` giả lập | Xác minh chỉ trích xuất lỗi từ phần tóm tắt cuối (bỏ qua dòng log `ERROR`), sinh file `# 0 failures` khác rỗng, khôi phục file qua `--restore`, và lọc lỗi thoáng qua bằng `--rerun-new` |
-| `task_contract.py`, `check_epic_readiness.py`, `audit_epic.py` & `run_external_review.py` | Kiểm thử tích hợp cho `Integration results (live, needs: VAR):` và mẫu route `R5b` | Xác minh phân tích `IntegrationResultSpec`, độ phủ `R6`, trạng thái `SKIPPED` so với chạy thật ở Gate 4, và so khớp mẫu route có tham số (`/api/jobs/{job_id}`) trong `R5b` |
+| `task_contract.py`, `check_epic_readiness.py`, `audit_epic.py` & `run_external_review.py` | Kiểm thử tích hợp cho `Integration results (live, needs: VAR):` và mẫu route `R5b` | Xác minh phân tích `IntegrationResultSpec`, độ phủ `R6`, trạng thái `SKIPPED` so với chạy thật ở Gate 4, và so khớp mẫu route có tham số (`http://localhost/api/jobs/{job_id}`) trong `R5b` |
 | `replay_task_text.py` & `run_task_checks.py` (`MEASURE`) | Kiểm thử replay trên hệ thống file/worktree và vòng đời mode `measure` | Xác minh chỉ thị `Create`, `Replace in`, `Insert in`, kiểm tra tĩnh anchor `R5`, chạy thử `--replay` trên worktree, cơ chế `--resume` của `measure`, và tự tạo thư mục cha cho JUnit |
 
 ## Môi trường Xác minh
@@ -168,10 +168,10 @@ None — tính năng khép kín trong `ai-agent-tools`.
 ## Chiến lược Triển khai và Giảm thiểu Rủi ro
 
 - **Giai đoạn 1**: Hiện thực hóa kiểm tra schema `"bootstrap"`, `detect_project_type.sh --all`, `bootstrap_worktree.sh` đa nền tảng, và tự tạo thư mục cha cho JUnit trong `run_task_checks.py` (`Task 01`).
-- **Giai đoạn 2**: Hiện thực hóa `record_failure_baseline.py` và `compare_failure_sets.py` cùng hai lệnh con `record-baseline` / `compare-baseline` trong `bin/d3nexus` (`Task 02`).
+- **Giai đoạn 2**: Hiện thực hóa `record_failure_baseline.py` và `compare_failure_sets.py` (`Task 02`).
 - **Giai đoạn 3**: Hiện thực hóa `IntegrationResultSpec` (`Integration results (live, needs: VAR):`) trên `task_contract.py`, `check_task_contract.py`, `check_epic_readiness.py`, `audit_epic.py`, và `run_external_review.py`, cùng so khớp mẫu route có tham số trong `R5b` (`Task 03`).
-- **Giai đoạn 4**: Hiện thực hóa `replay_task_text.py` (`d3nexus replay-task`), kiểm tra tĩnh anchor `R5`, `check_epic_readiness.py --replay`, `Phase: MEASURE` trong `task_contract.py` / `run_task_checks.py`, và cập nhật tài liệu skill (`Task 04`).
-- **Giai đoạn 5**: Thực thi kiểm thử tích hợp đầu-cuối (Tier C) và nghiệm thu toàn diện (`Task 05`).
+- **Giai đoạn 4**: Hiện thực hóa `replay_task_text.py`, kiểm tra tĩnh anchor `R5`, `check_epic_readiness.py --replay`, và `Phase: MEASURE` trong `task_contract.py` / `run_task_checks.py` (`Task 04`).
+- **Giai đoạn 5**: Thực thi kiểm thử tích hợp đầu-cuối (Tier C), nghiệm thu toàn diện và cập nhật tài liệu skill (`Task 05`).
 - **Kế hoạch Rollback**: Mọi script và cờ mới đều mang tính bổ sung và tương thích ngược; hoàn tác commit merge của epic sẽ khôi phục nguyên trạng hành vi trước đó.
 
 ## Phân rã Kanban Tasks
@@ -181,3 +181,4 @@ None — tính năng khép kín trong `ai-agent-tools`.
 - [Task 03: Opt-In Live Integration Results and R5b Parameterized Route Matching](./task_03_live_integration_and_route_matching.md)
 - [Task 04: Task Text Replay Engine, Static Anchor Verification, and MEASURE Phase](./task_04_task_replay_and_measure_phase.md)
 - [Task 05: End-to-End Execution Infrastructure Acceptance Verification](./task_05_execution_infra_e2e_acceptance.md)
+

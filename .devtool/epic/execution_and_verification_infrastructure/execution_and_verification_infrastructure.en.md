@@ -32,7 +32,7 @@ During Stage 2 and Stage 3 execution across `lyrics-sync` and `ai-agent-tools`, 
 
 1. **Observation `#0006`**: `bootstrap_worktree.sh` only runs bare `uv sync`, leaving worktree `.venv` environments missing optional extras (`--extra asr`) required by registered `mypy` and `pytest` capabilities.
 2. **Observation `#0007`**: Recording and comparing full-suite failure baselines across tasks required brittle hand-written bash pipelines that matched captured log lines (`ERROR logger:file.py:123`), failed on empty failure sets under `pipefail`, lacked `--continue-on-collection-errors`, left modified tracked files behind, and reported false regressions from shared test DB state.
-3. **Observation `#0010`**: `R6` requires every Tier C test file to appear in an `Integration results:` line, and Gate 4 runs every such line unconditionally, leaving no contract for opt-in live integration tests (`-m live_llm`) that require environment variables like `PLT_LIVE_OLLAMA_MODEL`. Furthermore, `R5b` flags concrete route literals (`/api/align/stream/job_plt`) as ungrounded when the backend uses parameterized route templates (`/api/align/stream/{job_id}`).
+3. **Observation `#0010`**: `R6` requires every Tier C test file to appear in an `Integration results:` line, and Gate 4 runs every such line unconditionally, leaving no contract for opt-in live integration tests (`-m live_llm`) that require environment variables like `PLT_LIVE_OLLAMA_MODEL`. Furthermore, `R5b` flags concrete route literals (`http://localhost/api/align/stream/job_plt`) as ungrounded when the backend uses parameterized route templates (`http://localhost/api/align/stream/{job_id}`).
 4. **Observation `#0011`**: Authoring defects inside task prose (`Replace in <path>:` / `With:`, `Insert in <path> after:` / `With:`, and code blocks) were only caught when manually replayed in a scratch worktree before packaging.
 5. **Observation `#0017`**: Long-running measurement tasks (such as multi-hour local model benchmarks) do not fit standard 600s Verification rows and need a resumable `MEASURE` phase decoupled from fast evidence-checking `verify` rows.
 6. **Observation `#0018`**: Polyglot repositories combining Python (`pyproject.toml`) and JavaScript (`package.json`, `tests/js/**/*.test.mjs`) only receive `python` detection from `detect_project_type.sh`, skip Node dependency installation in `bootstrap_worktree.sh`, and fail with exit code 7 when `node --test --test-reporter=junit` writes to a non-existent `build/test-results/` directory.
@@ -44,9 +44,9 @@ During Stage 2 and Stage 3 execution across `lyrics-sync` and `ai-agent-tools`, 
 - Add optional `"bootstrap"` command array support to `.agents/quality/python-quality.json` (`python-quality.schema.json` and `validate_python_quality.py`), execute configured `"bootstrap"` commands in `bootstrap_worktree.sh`, and remove early exits so polyglot Python + Web/Node repositories bootstrap all present toolchains (`#0006`, `#0018`).
 - Add `--all` to `detect_project_type.sh` to report all detected platforms in polyglot repositories while keeping default single-platform output unchanged (`#0018`).
 - Auto-create parent directories for `--junitxml` and `--test-reporter-destination` paths in `run_task_checks.py` before executing Verification rows (`#0018`).
-- Ship `record_failure_baseline.py` and `compare_failure_sets.py` (`d3nexus record-baseline` and `d3nexus compare-baseline`) supporting `pytest` and `node --test`, terminal-summary-only parsing, `--restore <path>` file checkout, and `--rerun-new` isolated re-verification (`#0007`).
+- Ship `record_failure_baseline.py` and `compare_failure_sets.py` supporting `pytest` and `node --test`, terminal-summary-only parsing, `--restore <path>` file checkout, and `--rerun-new` isolated re-verification (`#0007`).
 - Support `Integration results (live, needs: VAR1, VAR2): <cmd> -> <report>` across `task_contract.py`, `check_task_contract.py`, `check_epic_readiness.py` (`R6`), `audit_epic.py`, and `run_external_review.py` (Gate 4), and upgrade `R5b` in `check_epic_readiness.py` to match concrete routes against parameterized route templates (`#0010`).
-- Ship `replay_task_text.py` (`d3nexus replay-task`), integrate fast static edit-anchor verification into `check_epic_readiness.py` (`R5`), and add `--replay` scratch-worktree execution to `check_epic_readiness.py` (`#0011`).
+- Ship `replay_task_text.py`, integrate fast static edit-anchor verification into `check_epic_readiness.py` (`R5`), and add `--replay` scratch-worktree execution to `check_epic_readiness.py` (`#0011`).
 - Support `Phase: MEASURE` (`run_task_checks.py measure [--timeout 7200] [--resume]`) and document the **Measurement-to-Evidence** pattern in `skills/dev-designer/SKILL.md` and `skills/dev-implementation/SKILL.md` (`#0017`).
 
 ### Non-Goals
@@ -67,12 +67,12 @@ flowchart TD
     end
 
     subgraph BASELINE["Failure-Set Baseline & Comparison (#0007)"]
-        REC_BASE["record_failure_baseline.py (d3nexus record-baseline)"]
-        CMP_BASE["compare_failure_sets.py (d3nexus compare-baseline)"]
+        REC_BASE["record_failure_baseline.py"]
+        CMP_BASE["compare_failure_sets.py"]
     end
 
     subgraph READINESS["Readiness, Replay & Live Integration (#0010, #0011)"]
-        REPLAY_PY["replay_task_text.py (d3nexus replay-task)"]
+        REPLAY_PY["replay_task_text.py"]
         CER["check_epic_readiness.py (R5 anchors, R5b templates, R6 live, --replay)"]
         RER["run_external_review.py (Gate 4 live run or SKIPPED)"]
     end
@@ -143,7 +143,7 @@ Integration results: python3 -m pytest tests/ skills/dev-implementation/resource
 | :--- | :--- | :--- |
 | `validate_python_quality.py`, `detect_project_type.sh` & `bootstrap_worktree.sh` | Subprocess & schema validation tests in temporary polyglot repositories | Verify `"bootstrap"` array validation, `detect_project_type.sh --all` output (`python web`), and polyglot Python + Node worktree bootstrapping |
 | `record_failure_baseline.py` & `compare_failure_sets.py` | Subcutaneous CLI tests with synthetic `pytest` and `node --test` outputs | Verify terminal-summary-only failure extraction (ignoring `ERROR` log lines), `# 0 failures` non-empty output, `--restore` git checkout, and `--rerun-new` transient failure filtering |
-| `task_contract.py`, `check_epic_readiness.py`, `audit_epic.py` & `run_external_review.py` | Integration tests across HLD `Integration results (live, needs: VAR):` and `R5b` route templates | Verify `IntegrationResultSpec` parsing, `R6` Tier C coverage, Gate 4 `SKIPPED` vs executed live commands, and `R5b` parameterized route template matching (`/api/jobs/{job_id}`) |
+| `task_contract.py`, `check_epic_readiness.py`, `audit_epic.py` & `run_external_review.py` | Integration tests across HLD `Integration results (live, needs: VAR):` and `R5b` route templates | Verify `IntegrationResultSpec` parsing, `R6` Tier C coverage, Gate 4 `SKIPPED` vs executed live commands, and `R5b` parameterized route template matching (`http://localhost/api/jobs/{job_id}`) |
 | `replay_task_text.py` & `run_task_checks.py` (`MEASURE`) | Filesystem & worktree replay tests and `measure` mode lifecycle tests | Verify `Create`, `Replace in`, and `Insert in` directives, `R5` static anchor checks, `--replay` worktree execution, `measure --resume` caching, and JUnit parent directory auto-creation |
 
 ## Verification Environment
@@ -168,10 +168,10 @@ None — self-contained feature in `ai-agent-tools`.
 ## Rollout Strategy and Mitigation
 
 - **Phase 1**: Implement `"bootstrap"` schema validation, `detect_project_type.sh --all`, polyglot `bootstrap_worktree.sh`, and JUnit parent directory auto-creation in `run_task_checks.py` (`Task 01`).
-- **Phase 2**: Implement `record_failure_baseline.py` and `compare_failure_sets.py` and wire `record-baseline` / `compare-baseline` into `bin/d3nexus` (`Task 02`).
+- **Phase 2**: Implement `record_failure_baseline.py` and `compare_failure_sets.py` (`Task 02`).
 - **Phase 3**: Implement `IntegrationResultSpec` (`Integration results (live, needs: VAR):`) across `task_contract.py`, `check_task_contract.py`, `check_epic_readiness.py`, `audit_epic.py`, and `run_external_review.py`, plus `R5b` parameterized route template matching (`Task 03`).
-- **Phase 4**: Implement `replay_task_text.py` (`d3nexus replay-task`), `R5` static anchor verification, `check_epic_readiness.py --replay`, `Phase: MEASURE` in `task_contract.py` / `run_task_checks.py`, and skill documentation (`Task 04`).
-- **Phase 5**: Execute end-to-end subcutaneous integration and acceptance verification (`Task 05`).
+- **Phase 4**: Implement `replay_task_text.py`, `R5` static anchor verification, `check_epic_readiness.py --replay`, and `Phase: MEASURE` in `task_contract.py` / `run_task_checks.py` (`Task 04`).
+- **Phase 5**: Execute end-to-end subcutaneous integration and acceptance verification and update skill documentation (`Task 05`).
 - **Rollback Plan**: All new scripts and flags are additive and backward-compatible; reverting the epic merge commit cleanly restores prior behavior.
 
 ## Kanban Tasks Breakdown
@@ -181,3 +181,4 @@ None — self-contained feature in `ai-agent-tools`.
 - [Task 03: Opt-In Live Integration Results and R5b Parameterized Route Matching](./task_03_live_integration_and_route_matching.md)
 - [Task 04: Task Text Replay Engine, Static Anchor Verification, and MEASURE Phase](./task_04_task_replay_and_measure_phase.md)
 - [Task 05: End-to-End Execution Infrastructure Acceptance Verification](./task_05_execution_infra_e2e_acceptance.md)
+

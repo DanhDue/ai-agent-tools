@@ -31,13 +31,13 @@ Feature: Execution and Verification Infrastructure — Happy Paths
     Then it reports 0 new failures and exits with code 0
 
   Scenario: [EVI-HP-03] [Tier C - Integration] Opt-in live integration results satisfy R6 coverage, skip cleanly when env is unset, and execute when env is set
-    Given an epic HLD containing both "## Integration results:" and "## Integration results (live, needs: EVI_LIVE_MODEL):"
-    And "bdd_scenarios.en.md" declares a "[Tier C - Integration]" scenario mapped only in the live integration table
+    Given an epic HLD containing both "Integration results:" and "Integration results (live, needs: EVI_LIVE_MODEL):"
+    And "bdd_scenarios.en.md" declares a "[Tier C - Integration]" scenario whose test file appears in the live integration command
     When "check_epic_readiness.py" evaluates R6 coverage for the epic
-    Then R6 passes with 0 missing Tier C scenarios
-    And when "audit_epic.py" evaluates Gate 4 with "EVI_LIVE_MODEL" unset in the environment
-    Then the live integration row is reported as "SKIPPED (missing env: EVI_LIVE_MODEL)" and Gate 4 passes
-    And when "audit_epic.py" evaluates Gate 4 with "EVI_LIVE_MODEL=1" set in the environment
+    Then R6 passes with 0 missing Tier C test files
+    And when "collect_facts()" in "run_external_review.py" runs with "EVI_LIVE_MODEL" unset in the environment
+    Then the live integration row is recorded as "SKIPPED (missing env: EVI_LIVE_MODEL)" without failing Gate 4
+    And when "collect_facts()" in "run_external_review.py" runs with "EVI_LIVE_MODEL=1" set in the environment
     Then the live integration row is executed and its exit status is enforced
 
   Scenario: [EVI-HP-04] [Tier C - Integration] Task text replay engine applies fenced directives in a scratch worktree and MEASURE phase executes and records evidence
@@ -68,8 +68,8 @@ Feature: Execution and Verification Infrastructure — Edge Cases & Boundaries
     Then "ensure_output_dirs()" creates ".devtool/evidence/nested/junit" prior to invoking the subprocess so the test runner writes the XML report without error
 
   Scenario: [EVI-EC-03] [Tier A - Unit] R5b route drift check matches concrete route literals against parameterized route templates without false-positive warnings
-    Given a task file referencing the concrete route literal "/api/align/stream/job_plt"
-    And the target codebase defines the parameterized route "/api/align/stream/{job_id}" (or "<job_id>" or ":job_id")
+    Given a task file referencing a concrete route literal "http://localhost/api/align/stream/job_plt"
+    And the target codebase defines the parameterized route "http://localhost/api/align/stream/{job_id}" (or "<job_id>" or ":job_id")
     When "check_epic_readiness.py" runs the R5b route drift check
     Then "route_matches_codebase()" matches the concrete route against the parameterized template and emits 0 R5b warnings
 ```
@@ -138,3 +138,4 @@ Feature: Execution and Verification Infrastructure — Failures & Resilience
     When "evaluate_done_gate()" evaluates the task for transition to "done"
     Then it returns a non-empty failure list blocking the "done" transition until "run_task_checks.py measure" passes
 ```
+

@@ -31,13 +31,13 @@ Feature: Execution and Verification Infrastructure — Happy Paths
     Then nó báo cáo 0 lỗi mới và thoát với mã 0
 
   Scenario: [EVI-HP-03] [Tier C - Integration] Bảng kết quả tích hợp live tùy chọn thỏa mãn độ phủ R6, bỏ qua sạch khi thiếu biến môi trường và thực thi khi biến môi trường được đặt
-    Given một HLD của epic chứa cả "## Integration results:" và "## Integration results (live, needs: EVI_LIVE_MODEL):"
-    And "bdd_scenarios.en.md" khai báo một kịch bản "[Tier C - Integration]" chỉ được ánh xạ trong bảng tích hợp live
+    Given một HLD của epic chứa cả "Integration results:" và "Integration results (live, needs: EVI_LIVE_MODEL):"
+    And "bdd_scenarios.en.md" khai báo một kịch bản "[Tier C - Integration]" có tệp kiểm thử nằm trong lệnh tích hợp live
     When "check_epic_readiness.py" đánh giá độ phủ R6 cho epic
-    Then R6 đạt với 0 kịch bản Tier C bị thiếu
-    And khi "audit_epic.py" đánh giá Gate 4 với "EVI_LIVE_MODEL" không được đặt trong môi trường
-    Then dòng tích hợp live được báo cáo là "SKIPPED (missing env: EVI_LIVE_MODEL)" và Gate 4 đạt
-    And khi "audit_epic.py" đánh giá Gate 4 với "EVI_LIVE_MODEL=1" được đặt trong môi trường
+    Then R6 đạt với 0 tệp kiểm thử Tier C bị thiếu
+    And khi "collect_facts()" trong "run_external_review.py" chạy với "EVI_LIVE_MODEL" không được đặt trong môi trường
+    Then dòng tích hợp live được ghi nhận là "SKIPPED (missing env: EVI_LIVE_MODEL)" mà không làm trượt Gate 4
+    And khi "collect_facts()" trong "run_external_review.py" chạy với "EVI_LIVE_MODEL=1" được đặt trong môi trường
     Then dòng tích hợp live được thực thi và mã thoát của nó được cưỡng chế
 
   Scenario: [EVI-HP-04] [Tier C - Integration] Bộ phát lại văn bản task áp dụng các chỉ thị code block trong worktree nháp và pha MEASURE thực thi cùng ghi nhận bằng chứng
@@ -68,8 +68,8 @@ Feature: Execution and Verification Infrastructure — Edge Cases & Boundaries
     Then "ensure_output_dirs()" tạo ".devtool/evidence/nested/junit" trước khi gọi tiến trình con để trình chạy kiểm thử ghi báo cáo XML không gặp lỗi
 
   Scenario: [EVI-EC-03] [Tier A - Unit] Kiểm tra trôi lệch route R5b khớp các chuỗi route cụ thể với mẫu route có tham số mà không cảnh báo sai
-    Given một tệp task tham chiếu đến chuỗi route cụ thể "/api/align/stream/job_plt"
-    And codebase đích định nghĩa route có tham số "/api/align/stream/{job_id}" (hoặc "<job_id>" hoặc ":job_id")
+    Given một tệp task tham chiếu đến chuỗi route cụ thể "http://localhost/api/align/stream/job_plt"
+    And codebase đích định nghĩa route có tham số "http://localhost/api/align/stream/{job_id}" (hoặc "<job_id>" hoặc ":job_id")
     When "check_epic_readiness.py" chạy kiểm tra trôi lệch route R5b
     Then "route_matches_codebase()" khớp route cụ thể với mẫu có tham số và phát ra 0 cảnh báo R5b
 ```
@@ -138,3 +138,4 @@ Feature: Execution and Verification Infrastructure — Failures & Resilience
     When "evaluate_done_gate()" đánh giá task để chuyển sang trạng thái "done"
     Then nó trả về danh sách lỗi khác rỗng chặn việc chuyển sang "done" cho đến khi "run_task_checks.py measure" đạt
 ```
+
