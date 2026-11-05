@@ -122,10 +122,8 @@ console.log(total);
     # 3. Setup jsconfig.json
     scaffold_jsconfig(tmp_path)
 
-    # 4. Mock or execute type check
-    with patch("subprocess.run") as mock_run:
-        mock_run.return_value = MagicMock(returncode=0, stdout="No issues found", stderr="")
-        res = run_vanilla_js_typecheck(project_dir=tmp_path)
+    # 4. Genuine execution of type check against TypeScript compiler
+    res = run_vanilla_js_typecheck(project_dir=tmp_path)
 
     assert res["status"] == "PASS"
     assert res["exit_code"] == 0
@@ -135,19 +133,20 @@ console.log(total);
 
 def test_WQG_HP_02_type_error_detected(tmp_path: Path) -> None:
     """Verify that type errors in Vanilla JS are caught without .ts migration."""
+    static_dir = tmp_path / "preview" / "static"
+    static_dir.mkdir(parents=True)
+    bad_js = static_dir / "bad.js"
+    bad_js.write_text(
+        "/** @param {number} x */ function g(x) { return x * 2; }\ng('not-a-number');\n",
+        encoding="utf-8",
+    )
     scaffold_jsconfig(tmp_path)
-    with patch("subprocess.run") as mock_run:
-        mock_run.return_value = MagicMock(
-            returncode=1,
-            stdout="preview/static/player.js(10,5): error TS2322: Type 'string' is not assignable to type 'number'.",
-            stderr="",
-        )
-        res = run_vanilla_js_typecheck(project_dir=tmp_path)
+    res = run_vanilla_js_typecheck(project_dir=tmp_path)
 
     assert res["status"] == "FAIL"
-    assert res["exit_code"] == 1
-    assert len(res["diagnostics"]) == 1
-    assert res["diagnostics"][0]["code"] == "TS2322"
+    assert res["exit_code"] != 0
+    assert len(res["diagnostics"]) >= 1
+    assert any("TS2345" in d["code"] for d in res["diagnostics"])
 
 
 def test_cli_execution(tmp_path: Path) -> None:

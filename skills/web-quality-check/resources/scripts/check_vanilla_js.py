@@ -138,7 +138,7 @@ def run_vanilla_js_typecheck(
     elif shutil.which("tsc"):
         cmd = ["tsc", "--project", str(config_file)]
     elif shutil.which("npx"):
-        cmd = ["npx", "--yes", "typescript", "tsc", "--project", str(config_file)]
+        cmd = ["npx", "--yes", "-p", "typescript", "tsc", "--project", str(config_file)]
     else:
         return {
             "status": "FAIL",
