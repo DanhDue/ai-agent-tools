@@ -65,12 +65,12 @@ Scenario: [TCAE-EC-03] [Tier A - Unit] Search patterns containing slashes in gre
 ## Dimension 3: State Transitions
 
 ```gherkin
-Scenario: [TCAE-ST-01] [Tier A - Unit] Rendering cleans up orphan mirrors and preserves done board location
+Scenario: [TCAE-ST-01] [Tier A - Unit] Rendering and status transitions clean up orphan mirrors and maintain location-aware links across done, reopen, and archive
   Given ".devtool/features/task_99_obsolete.md" with frontmatter "epic: sample-epic" whose source file was deleted from ".devtool/epic/sample_epic/"
   And ".devtool/epic/sample_epic/task_01_done.md" with frontmatter "status: \"done\""
-  When "sync_task_status.py render sample_epic" executes
+  When "sync_task_status.py render sample_epic" and subsequent "done", reopen, and "archive-tasks" transitions execute
   Then ".devtool/features/task_99_obsolete.md" is removed from disk
-  And the mirror for "task_01_done.md" is written at ".devtool/features/done/task_01_done.md"
+  And mirrors in ".devtool/features/done/" use "../../epic/sample_epic/" links, reopened mirrors in ".devtool/features/" use "../epic/sample_epic/" links, and "archive-tasks" preserves canonical ".devtool/epic/sample_epic/" links
 
 Scenario: [TCAE-ST-02] [Tier C - Integration] Done Gate transitions from FAIL to PASS once declared Evidence file is written
   Given a task declaring ".devtool/epic/sample_epic/evidence/summary.json (new)" under "Evidence files:"
@@ -97,10 +97,10 @@ Scenario: [TCAE-AR-02] [Tier C - Integration] Deterministic idempotent re-render
 ## Dimension 5: Failures and Resilience
 
 ```gherkin
-Scenario: [TCAE-FR-01] [Tier A - Unit] Reject invalid Evidence files path outside epic evidence directory or with path traversal
-  Given a task listing ".devtool/epic/sample_epic/../secret.txt (new)" or "src/output.json (new)" under "Evidence files:"
+Scenario: [TCAE-FR-01] [Tier A - Unit] Reject invalid Evidence files path outside epic evidence directory, with path traversal, or colliding with runner task JSON records
+  Given a task listing ".devtool/epic/sample_epic/../secret.txt (new)", "src/output.json (new)", or ".devtool/epic/sample_epic/evidence/task_01_setup.json (new)" under "Evidence files:"
   When "check_task_contract.py --design" evaluates the task
-  Then it exits 1 and reports that every "Evidence files:" entry must reside under ".devtool/epic/<epic_dir>/evidence/" without ".." segments
+  Then it exits 1 and reports that every "Evidence files:" entry must reside under ".devtool/epic/<epic_dir>/evidence/" without ".." segments and must not collide with reserved "task_*.json" runner records
 
 Scenario: [TCAE-FR-02] [Tier A - Unit] Reject hardcoded user home or plugin cache paths and bare VAR=value in Verification rows
   Given a task with row V1 calling "/Users/alice/antigravity_homes/tess/.claude/plugins/cache/check_document.py"

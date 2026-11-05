@@ -111,6 +111,7 @@ In `task_contract.py` and `check_task_contract.py`:
 - **Parsing (`parse_evidence_files(task_text) -> list[AllowedPath]`)**:
   - Uses the same `- `<path>` (new)` bullet format as `parse_allowed_files()`.
   - Every entry must match `.devtool/epic/<epic_dir>/evidence/<filename>` (no `..` traversal, no directories, no paths outside `.devtool/epic/<epic_dir>/evidence/`).
+  - Filenames matching `^task_.*\.json$` (or any task's reserved `.devtool/epic/<epic_dir>/evidence/<task_stem>.json` runner record path assigned in `task_contract.py:330` and updated in `run_task_checks.py:348`) are reserved for the verification runner and rejected by `check_evidence()`.
 - **Design-Time Grounding (`check_task_contract.py`)**:
   - Paths marked `(new)` in `Evidence files:` are added to the `created` set across the epic's tasks so `check_grounding()` accepts references to those evidence paths in `Verification` rows and `Read-only context:`.
   - If `--design` is passed and an `Evidence files:` entry is marked `(new)` but already exists on disk, `check_task_contract.py` reports a problem (matching `Allowed files:` behavior).
@@ -136,7 +137,8 @@ In `sync_task_status.py`:
 - **Step 2.3 — Mirror Generation and Link Rewriting (`#0012`)**:
   - Canonicalizes intra-epic relative links in the epic task (`](./<file>.md)` -> `](<file>.md)`) and writes the rendered task back to `.devtool/epic/<epic_dir>/task_*.md`.
   - Generates the corresponding Kanban board mirror in `.devtool/features/task_*.md` (rewriting sibling epic links to `](../epic/<epic_dir>/<file>.md)`) or `.devtool/features/done/task_*.md` when frontmatter `status` is `"done"` (rewriting sibling epic links to `](../../epic/<epic_dir>/<file>.md)`).
-  - Removes stale `.devtool/features/task_*.md` files whose frontmatter `epic:` matches `<epic_slug>` but whose source file no longer exists in `.devtool/epic/<epic_dir>/`.
+  - Updates `board_location()` in `sync_task_status.py` so transitioning a mirror between `.devtool/features/` and `.devtool/features/done/` (`done` or reopen) rewrites `](../epic/<epic_dir>/` $\leftrightarrow$ `](../../epic/<epic_dir>/` in place, and updates `fix_task_markdown_links()` and `archive_epic_tasks()` to strip both `../epic/<epic_dir>/` and `../../epic/<epic_dir>/` while preserving canonical `.devtool/epic/<epic_dir>/task_*.md` content (updating only frontmatter fields on archive).
+  - Removes stale `.devtool/features/task_*.md` (and `features/done/task_*.md`) files whose frontmatter `epic:` matches `<epic_slug>` but whose source file no longer exists in `.devtool/epic/<epic_dir>/`.
 - **Step 2.4 — Shift-Left R2 & R3 Checks in `check_task_contract.py --design` and `check_epic_readiness.py`**:
   - When `--design` is active (or whenever `bdd_scenarios.en.md` exists alongside `--hld`), `check_task_contract.py` validates that each task's Gherkin scenario blocks match `bdd_scenarios.en.md` verbatim (R3) and that `.devtool/features/` (or `.devtool/features/done/`) mirrors match the normalized epic task file (R2) using shared location-aware link normalization with `check_epic_readiness.py`, printing a remediation hint (`run: d3nexus sync-status render <epic_dir>`).
 
@@ -158,6 +160,7 @@ In `sync_task_status.py`:
 - **Banning Non-Portable Absolute Paths in `check_task_contract.py` (`#0016`)**:
   - `check_task_contract.py` scans every Verification row command for machine- or profile-specific paths (`/Users/`, `/home/`, `~/`, `.claude/plugins/cache/`, `.gemini/config/plugins/`). Any match raises a contract problem instructing the author to use `d3nexus <subcommand>` or `$D3NEXUS_KIT/...`.
   - Recognizes `d3nexus` in `strip_wrappers()` / executable checks so `check_task_contract.py` never emits a false `executable d3nexus not found on PATH` warning even if the caller's interactive shell has not added `bin/` to `PATH`.
+  - Extends `program_of(command, root)` in `task_contract.py` so `d3nexus <subcommand>` (and `bin/d3nexus <subcommand>`) resolves to the dispatched kit script path when tracked in `root`, preserving implicit checker protection in `run_task_checks.py` and `check_task_contract.py`.
 
 ### 4. Verification Row Grammar Reference and Diagnostics
 

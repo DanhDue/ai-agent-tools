@@ -27,6 +27,7 @@ This task adds `sync_task_status.py render <epic_dir> [--source-root <dir>]` and
    - Reads `.devtool/epic/<epic_dir>/bdd_scenarios.en.md` and injects the verbatim Gherkin scenario blocks matching each task's `Covers:` line into the task's `### BDD SCENARIOS` section.
    - Expands `<!-- @@FILE:<relative_path>@@ -->` directives by replacing the immediately following fenced code block with the contents of `<source_root>/<relative_path>`, promoting the outer fence to `max(4, max_inner_backtick_run + 1)` backticks whenever the embedded file contains triple or longer backtick runs.
    - Canonicalizes intra-epic relative links (`](../epic/contract_and_authoring_ergonomics/./<sibling>.md)` $\rightarrow$ `](../epic/contract_and_authoring_ergonomics/<sibling>.md)`) in the epic task and generates `.devtool/features/task_*.md` (using `](../epic/contract_and_authoring_ergonomics/../epic/<epic_dir>/<sibling>.md)`) or `.devtool/features/done/task_*.md` when `status: "done"` (using `](../epic/contract_and_authoring_ergonomics/../../epic/<epic_dir>/<sibling>.md)`), removing orphan mirrors for the same epic slug.
+   - Updates `board_location()`, `fix_task_markdown_links()`, and `archive_epic_tasks()` in `sync_task_status.py` so status transitions (`done`, reopen, and `archive-tasks`) rewrite relative links between `../epic/<epic_dir>/`, `../../epic/<epic_dir>/`, and local `<sibling>.md` while preserving canonical `.devtool/epic/<epic_dir>/task_*.md` authority.
 2. `check_task_contract.py --design` validates R3 (task Gherkin blocks match `bdd_scenarios.en.md` verbatim) and R2 (when a `.devtool/features/` mirror exists, its location-normalized content matches the epic task), sharing the same location-aware R2 normalization rule with `check_epic_readiness.py`.
 
 ## Files
@@ -50,7 +51,7 @@ Placing `render` inside `sync_task_status.py` keeps all task-mirror and frontmat
 ## Impact Analysis & Blast Radius
 
 - **Target Files & Symbols**:
-  - `skills/dev-implementation/resources/scripts/sync_task_status.py`: `main`, `board_location`, and new `render_epic_tasks`.
+  - `skills/dev-implementation/resources/scripts/sync_task_status.py`: `main`, `board_location`, `fix_task_markdown_links`, `archive_epic_tasks`, and new `render_epic_tasks`.
   - `skills/dev-implementation/resources/scripts/check_task_contract.py`: `check_task`, `check_hld`, and new `check_r2_r3_parity`.
   - `skills/dev-implementation/resources/scripts/check_epic_readiness.py`: `check_task_mirrors`.
 - **Downstream Callers**: `skills/dev-implementation/resources/scripts/check_epic_readiness.py`.
@@ -82,12 +83,12 @@ Scenario: [TCAE-EC-02] [Tier A - Unit] Embedded file containing fenced code bloc
   When "sync_task_status.py render sample_epic" executes
   Then the rendered code block in both the epic task and the ".devtool/features/" mirror uses an outer fence of length max(4, max_inner_backtick_run + 1) backticks
 
-Scenario: [TCAE-ST-01] [Tier A - Unit] Rendering cleans up orphan mirrors and preserves done board location
+Scenario: [TCAE-ST-01] [Tier A - Unit] Rendering and status transitions clean up orphan mirrors and maintain location-aware links across done, reopen, and archive
   Given ".devtool/features/task_99_obsolete.md" with frontmatter "epic: sample-epic" whose source file was deleted from ".devtool/epic/sample_epic/"
   And ".devtool/epic/sample_epic/task_01_done.md" with frontmatter "status: \"done\""
-  When "sync_task_status.py render sample_epic" executes
+  When "sync_task_status.py render sample_epic" and subsequent "done", reopen, and "archive-tasks" transitions execute
   Then ".devtool/features/task_99_obsolete.md" is removed from disk
-  And the mirror for "task_01_done.md" is written at ".devtool/features/done/task_01_done.md"
+  And mirrors in ".devtool/features/done/" use "../../epic/sample_epic/" links, reopened mirrors in ".devtool/features/" use "../epic/sample_epic/" links, and "archive-tasks" preserves canonical ".devtool/epic/sample_epic/" links
 ```
 
 ## Verification
@@ -114,7 +115,11 @@ Scenario: [TCAE-ST-01] [Tier A - Unit] Rendering cleans up orphan mirrors and pr
 - CLI interface in `skills/dev-implementation/resources/scripts/sync_task_status.py`: `sync_task_status.py render <epic_dir> [--source-root <path>]`.
 - When rendering BDD scenarios: if a task has a `Covers:` line with scenario IDs, `render_epic_tasks` extracts the matching scenario blocks from `.devtool/epic/<epic_dir>/bdd_scenarios.en.md` and replaces the ` ```gherkin ... ``` ` block under `### BDD SCENARIOS` (or inserts one immediately after the `Covers:` line). If any covered ID is missing from `bdd_scenarios.en.md`, `render_epic_tasks` raises ValueError / exits 1 without writing partial mirrors.
 - When expanding `<!-- @@FILE:<rel_path>@@ -->`: `<rel_path>` must be relative without `..` segments; if the target file content contains any run of 3 or more backticks (`max_inner_backtick_run >= 3`), the outer code fence uses `max(4, max_inner_backtick_run + 1)` backticks so embedded 3- or 4-backtick fences never close the outer fence prematurely.
-- Mirror link rewriting and R2 normalization: `render_epic_tasks` first canonicalizes intra-epic links in the epic task (`](../epic/contract_and_authoring_ergonomics/./<target>)` $\rightarrow$ `](../epic/contract_and_authoring_ergonomics/<target>)` when `<target>` exists in `.devtool/epic/<epic_dir>/`), then rewrites them to `](../epic/contract_and_authoring_ergonomics/../epic/<epic_dir>/<target>)` when writing `.devtool/features/<task>.md` or `](../epic/contract_and_authoring_ergonomics/../../epic/<epic_dir>/<target>)` when writing `.devtool/features/done/<task>.md`. Both `check_task_mirrors` in `check_epic_readiness.py` and `check_r2_r3_parity` in `check_task_contract.py` normalize mirror links according to mirror location (`](../epic/contract_and_authoring_ergonomics/../../epic/<epic_dir>/` for `features/done/` and `](../epic/contract_and_authoring_ergonomics/../epic/<epic_dir>/` for `features/`) before comparing against `epic_text`.
+- Mirror link rewriting, lifecycle transitions, and R2 normalization:
+  - `render_epic_tasks` first canonicalizes intra-epic links in the epic task (`](../epic/contract_and_authoring_ergonomics/./<target>)` $\rightarrow$ `](../epic/contract_and_authoring_ergonomics/<target>)` when `<target>` exists in `.devtool/epic/<epic_dir>/`), then rewrites them to `](../epic/contract_and_authoring_ergonomics/../epic/<epic_dir>/<target>)` when writing `.devtool/features/<task>.md` or `](../epic/contract_and_authoring_ergonomics/../../epic/<epic_dir>/<target>)` when writing `.devtool/features/done/<task>.md`.
+  - `board_location(root, path, status)` in `sync_task_status.py` rewrites `](../epic/contract_and_authoring_ergonomics/../epic/` $\rightarrow$ `](../epic/contract_and_authoring_ergonomics/../../epic/` when moving a mirror from `features/` into `features/done/` and rewrites `](../epic/contract_and_authoring_ergonomics/../../epic/` $\rightarrow$ `](../epic/contract_and_authoring_ergonomics/../epic/` when moving a reopened mirror from `features/done/` back into `features/`.
+  - `fix_task_markdown_links(text, epic_dir)` in `sync_task_status.py` strips both `../epic/<epic_dir>/` and `../../epic/<epic_dir>/` (`r"\]\((?:\.\./)+epic/" + re.escape(epic_dir) + r"/([^)]+)\)"`), and `archive_epic_tasks(roots, epic_dir)` preserves canonical `.devtool/epic/<epic_dir>/task_*.md` content when it already exists (updating only frontmatter fields `status`, `modified`, `completedAt` from the mirror before unlinking the mirror) instead of overwriting the canonical epic task with a derived mirror.
+  - Both `check_task_mirrors` in `check_epic_readiness.py` and `check_r2_r3_parity` in `check_task_contract.py` normalize mirror links according to mirror location (`](../epic/contract_and_authoring_ergonomics/../../epic/<epic_dir>/` for `features/done/` and `](../epic/contract_and_authoring_ergonomics/../epic/<epic_dir>/` for `features/`) before comparing against `epic_text`.
 
 ## Definition of Done
 

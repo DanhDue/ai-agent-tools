@@ -139,9 +139,9 @@ Integration results: python3 -m pytest tests/ skills/dev-implementation/resource
 
 | Ranh giới Tích hợp | Chiến lược Kiểm thử | Mục tiêu Xác minh |
 | :--- | :--- | :--- |
-| `task_contract.py` & `check_task_contract.py` | Kiểm thử unit và subcutaneous CLI trên git repo tạm | Xác minh phân tích `Evidence files:`, grounding `(new)`, kiểm tra tồn tại file tại Done Gate, báo lỗi `VAR=val` thiếu `env`, loại trừ mẫu grep, và kiểm tra sớm R2/R3 |
-| `sync_task_status.py render` | Kiểm thử render trên hệ thống file thực giữa `.devtool/epic/<epic>/` và `.devtool/features/` | Xác minh chèn Gherkin nguyên văn từ `bdd_scenarios.en.md`, nhúng `@@FILE:path@@` kèm tự nâng độ dài fence theo `max(4, max_inner_backtick_run + 1)`, viết lại relative link theo vị trí (`../epic/` và `../../epic/`), và xóa mirror mồ côi |
-| `bin/d3nexus` & `run_task_checks.py` | Kiểm thử thực thi tiến trình con trên git repo tạm | Xác minh tự động tiêm `D3NEXUS_KIT` và `PATH`, điều phối lệnh con `d3nexus`, và từ chối đường dẫn cứng `/Users/...` hoặc plugin cache |
+| `task_contract.py` & `check_task_contract.py` | Kiểm thử unit và subcutaneous CLI trên git repo tạm | Xác minh phân tích `Evidence files:`, grounding `(new)`, từ chối xung đột tên file `task_*.json` của runner, kiểm tra tồn tại file tại Done Gate, báo lỗi `VAR=val` thiếu `env`, loại trừ mẫu grep, và kiểm tra sớm R2/R3 |
+| `sync_task_status.py render` | Kiểm thử render trên hệ thống file thực giữa `.devtool/epic/<epic>/` và `.devtool/features/` | Xác minh chèn Gherkin nguyên văn từ `bdd_scenarios.en.md`, nhúng `@@FILE:path@@` kèm tự nâng độ dài fence theo `max(4, max_inner_backtick_run + 1)`, viết lại relative link theo vị trí (`../epic/` và `../../epic/`) qua các bước `render`, `done`/reopen và `archive-tasks`, và xóa mirror mồ côi |
+| `bin/d3nexus` & `run_task_checks.py` | Kiểm thử thực thi tiến trình con trên git repo tạm | Xác minh tự động tiêm `D3NEXUS_KIT` và `PATH`, điều phối lệnh con `d3nexus`, bảo toàn implicit protected paths cho mục tiêu của `d3nexus`, và từ chối đường dẫn cứng `/Users/...` hoặc plugin cache |
 | Tài liệu Reviewer & Authoring | Kiểm tra lint và hợp đồng tài liệu qua `check_document.py` | Xác minh tính đồng bộ của `verification-row-grammar.md`, `dev-designer/SKILL.md` và `principal-review/SKILL.md` |
 
 ## Môi trường Xác minh
@@ -155,9 +155,9 @@ Integration results: python3 -m pytest tests/ skills/dev-implementation/resource
 Bộ kịch bản bao phủ đầy đủ 5 chiều dưới tiền tố `[TCAE-]`:
 1. **Happy Paths (`TCAE-HP-01` .. `TCAE-HP-04`)**: Khai báo và xác minh `Evidence files:` đánh dấu `(new)`, render BDD nguyên văn và bản mirror `.devtool/features/` từ một nguồn duy nhất, chạy lệnh `d3nexus` qua cơ chế tự tiêm biến môi trường, và kiểm tra ngữ pháp bảng Verification với `\|` và `env VAR=val`.
 2. **Edge Cases (`TCAE-EC-01` .. `TCAE-EC-03`)**: Task không có kịch bản (`Covers: none`), file nhúng có chứa khối code fence được tự động bọc bằng rào ngoài có độ dài động (`max(4, max_inner_backtick_run + 1)`), và biểu thức tìm kiếm `grep`/`rg`/`sed` chứa dấu `/` không bị báo lỗi nhầm là thiếu file.
-3. **State Transitions (`TCAE-ST-01` .. `TCAE-ST-02`)**: Dọn dẹp mirror mồ côi và đồng bộ vị trí `done/` khi chạy `render`, cùng chuyển đổi trạng thái Done Gate từ FAIL (khi thiếu file trong `Evidence files:`) sang PASS (sau khi lệnh verification tạo đủ file).
+3. **State Transitions (`TCAE-ST-01` .. `TCAE-ST-02`)**: Dọn dẹp mirror mồ côi và chuẩn hóa link theo vị trí khi chạy `render`, chuyển trạng thái `done`/reopen hoặc `archive-tasks`, cùng chuyển đổi trạng thái Done Gate từ FAIL (khi thiếu file trong `Evidence files:`) sang PASS (sau khi lệnh verification tạo đủ file).
 4. **Async & Concurrency (`TCAE-AR-01` .. `TCAE-AR-02`)**: Cô lập biến môi trường `D3NEXUS_KIT` / `PATH` giữa các worktree song song và đảm bảo tính tất định khi render nhiều task trên nhiều worktree.
-5. **Failures & Resilience (`TCAE-FR-01` .. `TCAE-FR-03`)**: Từ chối `Evidence files:` nằm ngoài `.devtool/epic/<epic>/evidence/` hoặc chứa `..`, từ chối đường dẫn cứng `/Users/...` hay `.claude/plugins/cache/...` và phép gán `VAR=val` thiếu `env`, đồng thời dừng `render` an toàn khi `Covers:` chứa mã scenario không tồn tại.
+5. **Failures & Resilience (`TCAE-FR-01` .. `TCAE-FR-03`)**: Từ chối `Evidence files:` nằm ngoài `.devtool/epic/<epic>/evidence/`, chứa `..` hoặc trùng với tên bản ghi `task_*.json` của runner; từ chối đường dẫn cứng `/Users/...` hay `.claude/plugins/cache/...` và phép gán `VAR=val` thiếu `env`; đồng thời dừng `render` an toàn khi `Covers:` chứa mã scenario không tồn tại.
 
 ## Tác động Shared Contract
 

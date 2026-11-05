@@ -111,6 +111,7 @@ Trong `task_contract.py` và `check_task_contract.py`:
 - **Phân tích cú pháp (`parse_evidence_files(task_text) -> list[AllowedPath]`)**:
   - Sử dụng cùng định dạng gạch đầu dòng `- `<path>` (new)` như `parse_allowed_files()`.
   - Mọi đường dẫn bắt buộc phải khớp khuôn mẫu `.devtool/epic/<epic_dir>/evidence/<filename>` (cấm chứa `..`, cấm chỉ định thư mục trần, cấm trỏ ra ngoài `.devtool/epic/<epic_dir>/evidence/`).
+  - Các tên file khớp `^task_.*\.json$` (hoặc đường dẫn `.devtool/epic/<epic_dir>/evidence/<task_stem>.json` được `task_contract.py:330` và `run_task_checks.py:348` dùng làm bản ghi kết quả chạy của runner) được bảo lưu riêng cho runner và bị `check_evidence()` từ chối nếu khai báo trong `Evidence files:`.
 - **Kiểm tra Grounding lúc Thiết kế (`check_task_contract.py`)**:
   - Các đường dẫn đánh dấu `(new)` trong `Evidence files:` được gộp vào tập `created` trên toàn epic để `check_grounding()` chấp nhận các tham chiếu tới chúng trong bảng `Verification` và `Read-only context:`.
   - Khi chạy với cờ `--design`, nếu một mục trong `Evidence files:` được đánh dấu `(new)` nhưng đã tồn tại sẵn trên đĩa, `check_task_contract.py` sẽ báo lỗi (giống hành vi của `Allowed files:`).
@@ -136,7 +137,8 @@ Trong `sync_task_status.py`:
 - **Bước 2.3 — Sinh Bản Mirror và Viết lại Liên kết (`#0012`)**:
   - Chuẩn hóa các liên kết nội bộ trong file task nguồn (`](./<file>.md)` -> `](<file>.md)`) và ghi nội dung đã render trở lại `.devtool/epic/<epic_dir>/task_*.md`.
   - Sinh bản mirror tương ứng trên bảng Kanban tại `.devtool/features/task_*.md` (viết lại liên kết thành `](../epic/<epic_dir>/<file>.md)`) hoặc `.devtool/features/done/task_*.md` nếu frontmatter `status` là `"done"` (viết lại liên kết theo vị trí thành `](../../epic/<epic_dir>/<file>.md)`).
-  - Dọn dẹp các file `.devtool/features/task_*.md` mồ côi có frontmatter `epic:` trùng với `<epic_slug>` nhưng file nguồn không còn tồn tại trong `.devtool/epic/<epic_dir>/`.
+  - Cập nhật `board_location()` trong `sync_task_status.py` để khi chuyển trạng thái mirror giữa `.devtool/features/` và `.devtool/features/done/` (`done` hoặc mở lại) sẽ tự động viết lại `](../epic/<epic_dir>/` $\leftrightarrow$ `](../../epic/<epic_dir>/`, đồng thời cập nhật `fix_task_markdown_links()` và `archive_epic_tasks()` để gỡ bỏ cả hai tiền tố `../epic/<epic_dir>/` lẫn `../../epic/<epic_dir>/` và bảo toàn nội dung chuẩn của `.devtool/epic/<epic_dir>/task_*.md` khi archive.
+  - Dọn dẹp các file `.devtool/features/task_*.md` (và `features/done/task_*.md`) mồ côi có frontmatter `epic:` trùng với `<epic_slug>` nhưng file nguồn không còn tồn tại trong `.devtool/epic/<epic_dir>/`.
 - **Bước 2.4 — Dịch chuyển Kiểm tra R2 & R3 sang Trái trong `check_task_contract.py --design` và `check_epic_readiness.py`**:
   - Khi bật cờ `--design` (hoặc khi có file `bdd_scenarios.en.md` đi kèm `--hld`), `check_task_contract.py` kiểm tra ngay các khối Gherkin trong task có khớp nguyên văn với `bdd_scenarios.en.md` (R3) và bản mirror trong `.devtool/features/` (hoặc `.devtool/features/done/`) có đồng nhất với bản gốc (R2) qua hàm chuẩn hóa link theo vị trí dùng chung với `check_epic_readiness.py`, đồng thời in gợi ý chạy `d3nexus sync-status render <epic_dir>`.
 
@@ -158,6 +160,7 @@ Trong `sync_task_status.py`:
 - **Chặn Đường dẫn Tuyệt đối Cá nhân trong `check_task_contract.py` (`#0016`)**:
   - `check_task_contract.py` quét mọi dòng lệnh Verification tìm các tiền tố đường dẫn gắn với máy hoặc profile cá nhân (`/Users/`, `/home/`, `~/`, `.claude/plugins/cache/`, `.gemini/config/plugins/`). Nếu phát hiện sẽ báo lỗi hợp đồng và hướng dẫn chuyển sang dùng `d3nexus <subcommand>` hoặc `$D3NEXUS_KIT/...`.
   - Nhận diện `d3nexus` trong `strip_wrappers()` và bộ kiểm tra file thực thi để không bao giờ cảnh báo giả `executable d3nexus not found on PATH`.
+  - Mở rộng `program_of(command, root)` trong `task_contract.py` để khi lệnh gọi `d3nexus <subcommand>` (hoặc `bin/d3nexus <subcommand>`), hàm phân giải về đường dẫn script đích tương ứng trong repo nếu được git track tại `root`, bảo toàn cơ chế bảo vệ `Implicit protected paths` trong `run_task_checks.py` và `check_task_contract.py`.
 
 ### 4. Tài liệu Quy chiếu Ngữ pháp Bảng Verification và Chẩn đoán Lỗi
 

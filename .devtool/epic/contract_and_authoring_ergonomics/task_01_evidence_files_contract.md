@@ -22,7 +22,7 @@ Resolve Observation #0008: task files cannot list `.devtool/` paths under `Allow
 
 This task introduces an optional `Evidence files:` subsection under `## Files` in `task_contract.py` and `check_task_contract.py`:
 1. `parse_evidence_files(task_text: str) -> list[AllowedPath]` parses `- `<path>` (new)` bullets under `Evidence files:` inside `## Files`.
-2. `check_evidence(check, stem, text, design)` in `check_task_contract.py` validates that every entry resides strictly under `.devtool/epic/<epic_dir>/evidence/<filename>` without `..` segments or bare directories, and when `--design` is passed, ensures `(new)` entries do not already exist on disk.
+2. `check_evidence(check, stem, text, design)` in `check_task_contract.py` validates that every entry resides strictly under `.devtool/epic/<epic_dir>/evidence/<filename>` without `..` segments or bare directories, does not collide with any reserved `task_*.json` runner evidence record (`layout.evidence` in `task_contract.py:330`), and when `--design` is passed, ensures `(new)` entries do not already exist on disk.
 3. `Evidence files:` entries marked `(new)` are added to the `created` set in `check_task_contract.py` so `check_grounding()` accepts references to them in `Verification` rows and `Read-only context:`.
 4. `evaluate_done_gate(task_file: Path)` in `task_contract.py` verifies that every path declared in `parse_evidence_files(task_text)` exists as a non-empty file on disk after `verify` completes.
 
@@ -65,10 +65,10 @@ Scenario: [TCAE-HP-01] [Tier C - Integration] Evidence files declaration passes 
   And when run_task_checks.py verify executes the row that writes ".devtool/epic/sample_epic/evidence/baseline.txt"
   Then evaluate_done_gate confirms the evidence file exists on disk and passes all Done-Gate conditions
 
-Scenario: [TCAE-FR-01] [Tier A - Unit] Reject invalid Evidence files path outside epic evidence directory or with path traversal
-  Given a task listing ".devtool/epic/sample_epic/../secret.txt (new)" or "src/output.json (new)" under "Evidence files:"
+Scenario: [TCAE-FR-01] [Tier A - Unit] Reject invalid Evidence files path outside epic evidence directory, with path traversal, or colliding with runner task JSON records
+  Given a task listing ".devtool/epic/sample_epic/../secret.txt (new)", "src/output.json (new)", or ".devtool/epic/sample_epic/evidence/task_01_setup.json (new)" under "Evidence files:"
   When "check_task_contract.py --design" evaluates the task
-  Then it exits 1 and reports that every "Evidence files:" entry must reside under ".devtool/epic/<epic_dir>/evidence/" without ".." segments
+  Then it exits 1 and reports that every "Evidence files:" entry must reside under ".devtool/epic/<epic_dir>/evidence/" without ".." segments and must not collide with reserved "task_*.json" runner records
 ```
 
 ## Verification
@@ -93,8 +93,8 @@ Scenario: [TCAE-FR-01] [Tier A - Unit] Reject invalid Evidence files path outsid
 ## Decisions Already Made
 
 - Grounded existing symbol `parse_allowed_files(task_text: str) -> list[AllowedPath]` in `skills/dev-implementation/resources/scripts/task_contract.py`: add sibling frozen contract `parse_evidence_files(task_text: str) -> list[AllowedPath]` parsing `- `<path>` (new)` bullets under `Evidence files:` inside `## Files`.
-- Every `Evidence files:` path must match `^\.devtool/epic/[A-Za-z0-9_-]+/evidence/[A-Za-z0-9_.-]+$` and must not contain `..` or trailing `/`.
-- In `skills/dev-implementation/resources/scripts/check_task_contract.py`, `main()` unions `{entry.pattern for text in tasks.values() for entry in tc.parse_evidence_files(text) if entry.new}` into `created` so `check_grounding()` accepts those paths in `Verification` rows and `Read-only context:`.
+- Every `Evidence files:` path must match `^\.devtool/epic/[A-Za-z0-9_-]+/evidence/[A-Za-z0-9_.-]+$`, must not contain `..` or trailing `/`, and its filename must not match `^task_.*\.json$` (which is reserved for the runner's `layout.evidence` JSON record at `.devtool/epic/<epic_dir>/evidence/<task_stem>.json` in `task_contract.py:330` and `run_task_checks.py:348`).
+- In `skills/dev-implementation/resources/scripts/check_task_contract.py`, `main()` unions `{entry.pattern for text in tasks.values() for entry in tc.parse_evidence_files(text) if entry.new and not Path(entry.pattern).name.startswith("task_")}` into `created` so `check_grounding()` accepts valid evidence paths in `Verification` rows and `Read-only context:`.
 - In `skills/dev-implementation/resources/scripts/task_contract.py`, `evaluate_done_gate(task_file: Path)` checks every entry in `parse_evidence_files(task_text)` and appends `"condition 8: evidence file <path> declared in Evidence files was not created or is empty"` if the file is missing or has size 0.
 
 ## Definition of Done

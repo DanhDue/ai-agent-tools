@@ -65,12 +65,12 @@ Scenario: [TCAE-EC-03] [Tier A - Unit] Biểu thức tìm kiếm chứa dấu g�
 ## Chiều 3: Chuyển đổi Trạng thái (State Transitions)
 
 ```gherkin
-Scenario: [TCAE-ST-01] [Tier A - Unit] Lệnh render dọn dẹp mirror mồ côi và bảo toàn vị trí trong thư mục done
+Scenario: [TCAE-ST-01] [Tier A - Unit] Lệnh render và các bước chuyển trạng thái dọn dẹp mirror mồ côi và duy trì link theo vị trí qua done, mở lại và archive
   Given file ".devtool/features/task_99_obsolete.md" có frontmatter "epic: sample-epic" nhưng file gốc đã bị xóa khỏi ".devtool/epic/sample_epic/"
   And file ".devtool/epic/sample_epic/task_01_done.md" có frontmatter "status: \"done\""
-  When thực thi lệnh "sync_task_status.py render sample_epic"
+  When thực thi lệnh "sync_task_status.py render sample_epic" cùng các bước chuyển trạng thái "done", mở lại và "archive-tasks"
   Then file ".devtool/features/task_99_obsolete.md" bị xóa khỏi đĩa
-  And bản mirror của "task_01_done.md" được ghi vào đúng ".devtool/features/done/task_01_done.md"
+  And bản mirror trong ".devtool/features/done/" dùng liên kết "../../epic/sample_epic/", bản mirror mở lại trong ".devtool/features/" dùng "../epic/sample_epic/", và "archive-tasks" bảo toàn liên kết chuẩn trong ".devtool/epic/sample_epic/"
 
 Scenario: [TCAE-ST-02] [Tier C - Integration] Done Gate chuyển từ FAIL sang PASS sau khi file trong Evidence files được tạo ra
   Given một task khai báo ".devtool/epic/sample_epic/evidence/summary.json (new)" dưới mục "Evidence files:"
@@ -97,10 +97,10 @@ Scenario: [TCAE-AR-02] [Tier C - Integration] Đảm bảo tính tất định v
 ## Chiều 5: Xử lý Lỗi và Phục hồi (Failures and Resilience)
 
 ```gherkin
-Scenario: [TCAE-FR-01] [Tier A - Unit] Từ chối đường dẫn Evidence files nằm ngoài thư mục evidence của epic hoặc chứa ký tự leo thư mục
-  Given một task liệt kê ".devtool/epic/sample_epic/../secret.txt (new)" hoặc "src/output.json (new)" dưới mục "Evidence files:"
+Scenario: [TCAE-FR-01] [Tier A - Unit] Từ chối đường dẫn Evidence files nằm ngoài thư mục evidence của epic, chứa ký tự leo thư mục hoặc trùng với bản ghi JSON của runner
+  Given một task liệt kê ".devtool/epic/sample_epic/../secret.txt (new)", "src/output.json (new)", hoặc ".devtool/epic/sample_epic/evidence/task_01_setup.json (new)" dưới mục "Evidence files:"
   When "check_task_contract.py --design" đánh giá task
-  Then công cụ thoát mã 1 và báo lỗi yêu cầu mọi mục trong "Evidence files:" phải nằm dưới ".devtool/epic/<epic_dir>/evidence/" và không chứa ".."
+  Then công cụ thoát mã 1 và báo lỗi yêu cầu mọi mục trong "Evidence files:" phải nằm dưới ".devtool/epic/<epic_dir>/evidence/", không chứa ".." và không trùng với tên bản ghi "task_*.json" được bảo lưu cho runner
 
 Scenario: [TCAE-FR-02] [Tier A - Unit] Từ chối đường dẫn tuyệt đối chứa thư mục cá nhân hoặc plugin cache và phép gán VAR=value thiếu env
   Given một task có dòng V1 gọi "/Users/alice/antigravity_homes/tess/.claude/plugins/cache/check_document.py"

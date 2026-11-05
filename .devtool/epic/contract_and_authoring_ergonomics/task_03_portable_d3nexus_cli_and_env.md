@@ -24,7 +24,7 @@ This task provides a zero-setup portable CLI entrypoint and bans hardcoded user/
 1. Create executable `bin/d3nexus` dispatching subcommands (`check-doc`, `check-contract`, `check-readiness`, `sync-status`, `run-checks`) to the kit's scripts relative to `Path(__file__).resolve().parent.parent`.
 2. In `run_task_checks.py` (`run_command()`) and `check_epic_readiness.py`, automatically compute `KIT_ROOT = Path(__file__).resolve().parents[4]` and inject `D3NEXUS_KIT=str(KIT_ROOT)` and `PATH="<kit_root>/bin:$PATH"` into the child process environment without mutating `os.environ` of the parent process.
 3. Update `scripts/resume_context.py` (`--sync-zshrc`) so interactive terminal shells also export `D3NEXUS_KIT` and prepend `<kit_root>/bin` to `PATH`.
-4. In `check_task_contract.py`, reject any Verification row command containing hardcoded user home or plugin cache paths (`/Users/`, `/home/`, `~/`, `.claude/plugins/cache/`, `.gemini/config/plugins/`) and recognize `d3nexus` as a built-in kit executable.
+4. In `check_task_contract.py` and `task_contract.py`, reject any Verification row command containing hardcoded user home or plugin cache paths (`/Users/`, `/home/`, `~/`, `.claude/plugins/cache/`, `.gemini/config/plugins/`), recognize `d3nexus` as a built-in kit executable, and resolve `d3nexus <subcommand>` in `program_of(command, root)` to the dispatched kit script path when tracked in `root` so implicit checker protection is preserved.
 
 ## Files
 
@@ -52,14 +52,14 @@ Deriving `KIT_ROOT` dynamically from `Path(__file__).resolve().parents[4]` insid
 - **Target Files & Symbols**:
   - `skills/dev-implementation/resources/scripts/run_task_checks.py`: `run_command` and new `kit_env`.
   - `skills/dev-implementation/resources/scripts/check_task_contract.py`: `command_paths`, `check_grounding`, and new `check_portable_command`.
-  - `skills/dev-implementation/resources/scripts/task_contract.py`: `strip_wrappers`.
+  - `skills/dev-implementation/resources/scripts/task_contract.py`: `strip_wrappers`, `program_of`.
 - **Downstream Callers**: `skills/dev-implementation/resources/scripts/check_epic_readiness.py`.
 - **Cross-Platform Bridges**: None.
 - **Target Test Coverage Threshold**: $\ge 90\%$ line coverage on `bin/d3nexus`, `kit_env`, and `check_portable_command`.
 
 ### BDD SCENARIOS
 
-Covers: TCAE-HP-03, TCAE-AR-01, TCAE-FR-02
+Covers: TCAE-HP-03, TCAE-AR-01
 
 ```gherkin
 Scenario: [TCAE-HP-03] [Tier C - Integration] Zero-setup d3nexus CLI execution inside Verification rows
@@ -72,12 +72,6 @@ Scenario: [TCAE-AR-01] [Tier A - Unit] Isolated subprocess environment injection
   Given two concurrent invocations of "run_task_checks.py" running in separate temporary git worktrees
   When each invocation executes a Verification row printing "$D3NEXUS_KIT" and "$(which d3nexus)"
   Then both subprocesses resolve the exact kit root path without mutating "os.environ" of the parent Python process
-
-Scenario: [TCAE-FR-02] [Tier A - Unit] Reject hardcoded user home or plugin cache paths and bare VAR=value in Verification rows
-  Given a task with row V1 calling "/Users/alice/antigravity_homes/tess/.claude/plugins/cache/check_document.py"
-  And row V2 calling "FOO=bar pytest tests/unit/test_sample.py::test_ok" without "env"
-  When "check_task_contract.py --design" evaluates the task
-  Then it exits 1 reporting a non-portable absolute path on V1 and an unprefixed inline environment assignment on V2
 ```
 
 ## Verification
@@ -110,13 +104,14 @@ Scenario: [TCAE-FR-02] [Tier A - Unit] Reject hardcoded user home or plugin cach
   - `sync-status` -> `skills/dev-implementation/resources/scripts/sync_task_status.py`
   - `run-checks` -> `skills/dev-implementation/resources/scripts/run_task_checks.py`
 - `NON_PORTABLE_PATH_RE` in `check_task_contract.py` matches `(?:/Users/|/home/|~/|\.claude/plugins/cache/|\.gemini/config/plugins/)` and reports `"non-portable path '<match>' in command; use 'd3nexus <subcommand>' or '$D3NEXUS_KIT/...'"`.
+- In `skills/dev-implementation/resources/scripts/task_contract.py`, `program_of(command: str, root: Path)` resolves `d3nexus <subcommand>` (and `bin/d3nexus <subcommand>`) via `D3NEXUS_SUBCOMMANDS` to the dispatched script path (e.g. `skills/doc_quality_check/resources/scripts/check_document.py`) when that target is git-tracked in `root`, so `protected_patterns()` in `run_task_checks.py:300` and `check_task_contract.py` preserve implicit checker protection when rows invoke `d3nexus`.
 
 ## Definition of Done
 
-- `bin/d3nexus` dispatches kit subcommands and is automatically placed on `PATH` with `D3NEXUS_KIT` by `run_task_checks.py` and `check_epic_readiness.py`. (V2, V5)
+- `bin/d3nexus` dispatches kit subcommands, is automatically placed on `PATH` with `D3NEXUS_KIT` by `run_task_checks.py` and `check_epic_readiness.py`, and preserves implicit checker protection in `program_of(command, root)`. (V2, V5)
 - `check_task_contract.py` rejects hardcoded user home and plugin cache paths in Verification rows. (V2)
 - `ruff` and `mypy` pass with zero errors. (V3, V4)
-- Automated tests for `TCAE-HP-03`, `TCAE-AR-01`, and `TCAE-FR-02` pass and write JUnit XML results. (V5)
+- Automated tests for `TCAE-HP-03`, `TCAE-AR-01`, and non-portable path rejection pass and write JUnit XML results. (V5)
 - Clean git working tree with changes restricted to Allowed files. (Gate 5)
 
 ## Dependencies & Blockers

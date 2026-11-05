@@ -54,7 +54,7 @@ Centralizing all Verification table grammar rules in `skills/dev-designer/refere
 
 ### BDD SCENARIOS
 
-Covers: TCAE-HP-04, TCAE-EC-03
+Covers: TCAE-HP-04, TCAE-EC-03, TCAE-FR-02
 
 ```gherkin
 Scenario: [TCAE-HP-04] [Tier A - Unit] Verification row grammar with escaped pipes, env assignments, and implicit protected path provenance
@@ -68,6 +68,12 @@ Scenario: [TCAE-EC-03] [Tier A - Unit] Search patterns containing slashes in gre
   When "check_task_contract.py --design" inspects the command tokens
   Then "command_paths()" excludes the search pattern "foo/bar/baz" from path existence checks
   And "check_task_contract.py" exits 0 without reporting "foo/bar/baz does not exist"
+
+Scenario: [TCAE-FR-02] [Tier A - Unit] Reject hardcoded user home or plugin cache paths and bare VAR=value in Verification rows
+  Given a task with row V1 calling "/Users/alice/antigravity_homes/tess/.claude/plugins/cache/check_document.py"
+  And row V2 calling "FOO=bar pytest tests/unit/test_sample.py::test_ok" without "env"
+  When "check_task_contract.py --design" evaluates the task
+  Then it exits 1 reporting a non-portable absolute path on V1 and an unprefixed inline environment assignment on V2
 ```
 
 ## Verification
@@ -102,7 +108,7 @@ Scenario: [TCAE-EC-03] [Tier A - Unit] Search patterns containing slashes in gre
 - `command_paths()` excludes `grep`/`rg`/`sed`/`awk` pattern arguments from missing-path errors and reports bare `VAR=val` assignments and implicit protected path provenance. (V2)
 - `skills/dev-designer/references/verification-row-grammar.md`, `skills/dev-designer/SKILL.md`, and `skills/principal-review/SKILL.md` are updated and pass document linting. (V5)
 - `ruff` and `mypy` pass with zero errors. (V3, V4)
-- Automated tests for `TCAE-HP-04` and `TCAE-EC-03` pass and write JUnit XML results. (V6)
+- Automated tests for `TCAE-HP-04`, `TCAE-EC-03`, and `TCAE-FR-02` pass and write JUnit XML results. (V6)
 - Clean git working tree with changes restricted to Allowed files. (Gate 5)
 
 ## Dependencies & Blockers

@@ -96,7 +96,7 @@ RED: n/a — end-to-end acceptance test suite verifying behaviors already implem
 ## Decisions Already Made
 
 - `tests/test_task_contract_ergonomics_e2e.py` exercises the end-to-end flow using temporary git repositories (`tmp_path`), invoking `bin/d3nexus` (`sync-status render`, `check-contract --design`, `run-checks verify`) and asserting all 14 `[TCAE-*]` scenarios pass across the test suite.
-- In `skills/dev-implementation/resources/scripts/check_bdd_traceability.py`, narrow `fence: str | None` before indexing `fence[0]` and `len(fence)` in `scenario_ids()` so `mypy` passes cleanly without `--follow-imports=silent`.
+- In `skills/dev-implementation/resources/scripts/check_bdd_traceability.py`, narrow `fence_marker: str | None` before indexing `fence_marker[0]` and `len(fence_marker)` in `scenario_ids()` so `mypy` passes cleanly without `--follow-imports=silent`.
 
 ## Definition of Done
 
