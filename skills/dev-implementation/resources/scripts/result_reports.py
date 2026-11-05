@@ -132,7 +132,6 @@ UNIT_CLASSNAME_PATTERNS = [
     re.compile(r"^unit[\._]", re.IGNORECASE),
     re.compile(r"\btest_web_quality_provider\b", re.IGNORECASE),
     re.compile(r"\bfake\b", re.IGNORECASE),
-    re.compile(r"\bdemo\b", re.IGNORECASE),
 ]
 
 INTEGRATION_POSITIVE_PATTERNS = [
@@ -196,6 +195,12 @@ def is_pure_unit_mock(classname: str) -> bool:
 
 
 SCENARIO_RUNNER_CONSTRAINTS: dict[str, list[re.Pattern]] = {
+    "DEMO-HP-01": [
+        re.compile(
+            r"(?:\b|[\./_-])(?:demo|integration)(?:[\./_-]|\b)",
+            re.IGNORECASE,
+        )
+    ],
     "WQG-HP-01": [
         re.compile(
             r"(?:\b|[\./_-])(?:web_quality_integration|playwright|e2e|integration)(?:[\./_-]|\b)",
