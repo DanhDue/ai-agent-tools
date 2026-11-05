@@ -20,11 +20,11 @@
 
 During multi-epic packaging and execution in satellite repositories (`lyrics-sync`), fifteen workflow observations (`#0006` through `#0020`) were recorded in `skill-observations/observation-log/`. To deliver focused, verifiable improvements through `dev-lifecycle`, the 15 observations are structured into a three-epic optimization roadmap:
 
-1. **Epic 1 (`task_contract_and_authoring_ergonomics`)**: Resolves observations `#0008`, `#0009`, `#0012`, `#0016`, and `#0019` by eliminating manual duplication in task authoring, allowing evidence path declarations under `.devtool/`, providing a zero-setup portable CLI entrypoint for kit tools, and formalizing Verification row grammar diagnostics.
+1. **Epic 1 (`contract_and_authoring_ergonomics`)**: Resolves observations `#0008`, `#0009`, `#0012`, `#0016`, and `#0019` by eliminating manual duplication in task authoring, allowing evidence path declarations under `.devtool/`, providing a zero-setup portable CLI entrypoint for kit tools, and formalizing Verification row grammar diagnostics.
 2. **Epic 2 (`execution_and_verification_infrastructure`)**: Resolves observations `#0006`, `#0007`, `#0010`, `#0011`, `#0017`, and `#0018` (worktree capability extras bootstrap, failure-set baseline scripts, opt-in live integration tests, design-time task replay, `MEASURE` phase pattern, and JS static module cache-bust checks).
 3. **Epic 3 (`multi_epic_orchestration_and_governance`)**: Resolves observations `#0013`, `#0014`, `#0015`, and `#0020` (`Depends on epic:` metadata, conflict-aware concurrent epic backlog detection, revising packaged epics with `Spec Errata`, and structured Gate Approval Ledger).
 
-This specification defines the complete design for **Epic 1 (`task_contract_and_authoring_ergonomics`)**.
+This specification defines the complete design for **Epic 1 (`contract_and_authoring_ergonomics`)**.
 
 ## Problem Statement and Observations Addressed
 
@@ -197,3 +197,4 @@ In `sync_task_status.py`:
 - **Blocks**:
   - **Epic 2 (`execution_and_verification_infrastructure`)**: Relies on `Evidence files:` (`#0008`), `bin/d3nexus` (`#0016`), and `sync_task_status.py render` (`#0012`) to store failure-set baselines (`.devtool/epic/<epic>/evidence/baseline_failures.txt`) and measurement evidence (`#0007`, `#0017`).
   - **Epic 3 (`multi_epic_orchestration_and_governance`)**: Extends `check_task_contract.py` and `sync_task_status.py` for cross-epic dependencies (`#0013`, `#0014`) and packaged epic revisions (`#0015`).
+

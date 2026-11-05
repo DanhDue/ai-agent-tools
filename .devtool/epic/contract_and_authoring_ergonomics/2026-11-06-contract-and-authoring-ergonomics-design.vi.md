@@ -20,11 +20,11 @@
 
 Trong quá trình đóng gói và thực thi nhiều epic trên các kho mã nguồn vệ tinh (`lyrics-sync`), 15 ghi nhận thực tế (`#0006` đến `#0020`) đã được lưu lại trong `skill-observations/observation-log/`. Để triển khai các cải tiến một cách bài bản và kiểm chứng được qua `dev-lifecycle`, 15 observations này được chia thành lộ trình tối ưu hóa gồm 3 Epics độc lập:
 
-1. **Epic 1 (`task_contract_and_authoring_ergonomics`)**: Giải quyết các observations `#0008`, `#0009`, `#0012`, `#0016` và `#0019` bằng cách loại bỏ việc nhân bản thủ công khi viết task, cho phép khai báo đường dẫn bằng chứng (`Evidence files:`) dưới `.devtool/`, cung cấp CLI khả chuyển tự động cấu hình cho các công cụ của kit, và chuẩn hóa chẩn đoán ngữ pháp bảng Verification.
+1. **Epic 1 (`contract_and_authoring_ergonomics`)**: Giải quyết các observations `#0008`, `#0009`, `#0012`, `#0016` và `#0019` bằng cách loại bỏ việc nhân bản thủ công khi viết task, cho phép khai báo đường dẫn bằng chứng (`Evidence files:`) dưới `.devtool/`, cung cấp CLI khả chuyển tự động cấu hình cho các công cụ của kit, và chuẩn hóa chẩn đoán ngữ pháp bảng Verification.
 2. **Epic 2 (`execution_and_verification_infrastructure`)**: Giải quyết các observations `#0006`, `#0007`, `#0010`, `#0011`, `#0017` và `#0018` (khởi tạo extras cho môi trường worktree, bộ công cụ ghi nhận và so sánh baseline hồi quy, kiểm thử tích hợp live opt-in, công cụ replay văn bản task trước khi đóng gói, mẫu thực thi `MEASURE`, và kiểm tra cache-bust cho mô-đun JS tĩnh).
 3. **Epic 3 (`multi_epic_orchestration_and_governance`)**: Giải quyết các observations `#0013`, `#0014`, `#0015` và `#0020` (khai báo `Depends on epic:`, xếp hàng `backlog` thông minh theo xung đột file thực tế, quy trình cập nhật epic đã đóng gói kèm `Spec Errata`, và sổ cái lưu vết phê duyệt Gate có cấu trúc).
 
-Tài liệu đặc tả này định nghĩa thiết kế chi tiết cho **Epic 1 (`task_contract_and_authoring_ergonomics`)**.
+Tài liệu đặc tả này định nghĩa thiết kế chi tiết cho **Epic 1 (`contract_and_authoring_ergonomics`)**.
 
 ## Phát biểu Bài toán và Các Observations được Giải quyết
 
@@ -197,3 +197,4 @@ Trong `sync_task_status.py`:
 - **Mở đường cho các Epic tiếp theo**:
   - **Epic 2 (`execution_and_verification_infrastructure`)**: Sử dụng trực tiếp `Evidence files:` (`#0008`), `bin/d3nexus` (`#0016`), và `sync_task_status.py render` (`#0012`) để lưu trữ tập baseline lỗi (`.devtool/epic/<epic>/evidence/baseline_failures.txt`) và bằng chứng đo lường (`#0007`, `#0017`).
   - **Epic 3 (`multi_epic_orchestration_and_governance`)**: Kế thừa và mở rộng `check_task_contract.py` cùng `sync_task_status.py` cho bài toán phụ thuộc liên epic (`#0013`, `#0014`) và đóng gói lại epic (`#0015`).
+
