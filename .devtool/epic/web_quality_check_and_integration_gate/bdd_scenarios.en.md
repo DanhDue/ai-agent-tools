@@ -42,7 +42,7 @@ Scenario: [WQG-HP-04] [Tier A - Unit] Automated generation of 3-5 step manual sm
 
 ```gherkin
 Scenario: [WQG-EC-01] [Tier A - Unit] Web quality manifest with empty or optional capabilities
-  Given a repository where .agents/quality/web-quality.json configures only type_check and test_unit
+  Given a repository where .agents/quality/web-quality.json configures mandatory pr capabilities (type_check, lint, test_unit) without optional capabilities (such as test_e2e or custom_audit)
   When web-quality-check is invoked with profile pr
   Then it resolves only the declared capabilities
   And successfully certifies the repository without erroring on missing optional capabilities

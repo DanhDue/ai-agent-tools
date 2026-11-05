@@ -179,6 +179,25 @@ For each task in confirmed order, follow `d3nexus:subagent-driven-development`.
    2. **Principal Engineer (TDD Master Persona — Tier A)**: Implements unit logic, state emissions, and hermetic tests using platform tools (Dart/Flutter, Kotlin/Compose, Swift/SwiftUI, TypeScript/Web, Python/pytest, Rust/cargo). Enforces RED failing test first -> minimal GREEN code -> REFACTOR formatting, linter, strict types. In Satellite Mode, adapts consumer models, DTOs, and adapters within satellite-internal files without staging symlinked paths.
    3. **System Integration & E2E Engineer (Tier C Persona)**: Implements host integration flow tests (`integration_test/`, `*FlowTest.kt`, `App/Tests`, `tests/e2e/`, `tests/integration/`) connecting DI, navigation, and persistence contracts.
 
+   #### Anti-Rationalization and Doubt-Driven Verification
+
+   During implementation, coding agents must actively guard against rationalizations that cut testing corners:
+
+   | Agent Rationalization | Enforced Counter-Rule |
+   | :--- | :--- |
+   | "A Node.js test is sufficient to prove this web UI feature works." | **REJECTED**: Node tests prove only pure data logic. 80% of web defects occur in DOM queries, event bubbling, and CSS rendering. Tier C requires headless Playwright execution with Zero-Console-And-Layout-Defect Watchdog. |
+   | "This component is simple; hardcoding mock data in a stub is enough." | **REJECTED**: Method-level stubs bypass JSON deserialization and network interceptors. Wire-level fixtures from `shared-contracts/` are mandatory. |
+   | "The red errors in the browser console are just harmless warnings." | **REJECTED**: The Zero-Console-Error rule fails Gate 4 on any browser console error or uncaught exception. |
+   | "I cannot launch a mobile simulator, so I will write a unit test instead." | **REJECTED**: Mobile Tier C requires Subcutaneous Testing with real DI and in-memory persistence. Pure unit tests cannot be tagged as Tier C. |
+   | "I ported the HTML structure and JS logic from the Visual Companion mockup, and the DOM selectors match in Playwright." | **REJECTED**: Porting HTML/JS without verifying computed CSS styles results in broken, unstyled layouts. Tier C2 tests for UI components MUST assert `getComputedStyle` and `getBoundingClientRect` properties (non-zero dimensions, layout display mode, and mutually exclusive state visibility, while respecting standard clipped `.sr-only` accessibility patterns) against the Visual Companion design. |
+
+   **Doubt-Driven Verification Protocol**:
+   Before claiming done on any task:
+   1. `CLAIM`: Identify the test assertions claiming Tier C coverage.
+   2. `EXTRACT`: Inspect test reports and runner provenance.
+   3. `DOUBT`: Ask whether mocks hide runtime DI/DOM integration failures.
+   4. `RECONCILE`: Run real headless Playwright or subcutaneous integration tests.
+
    > [!CRITICAL]
    > ### 🎯 MANDATORY 100% BDD-TO-TEST TRACEABILITY RULE
    > 1. **100% Scenario Traceability**: Every single BDD scenario authored in Phase 1 MUST map directly to at least one concrete automated test function or test block.
@@ -255,7 +274,18 @@ Once every task is `done`, a fix is never made by reopening a task. Make it as i
 
 ### Phase 4 — End of Epic Verification
 
-Once every task is `done`, resolve candidate commit SHA (`git rev-parse HEAD`) with a clean tree (`git status --porcelain` prints nothing):
+Once every task is `done`:
+
+0. **Manual Smoke Walkthrough Checklist Generation**:
+   Before Gate 4 validation, automatically generate and commit a structured 3–5 step manual smoke checklist from canonical BDD Happy Path scenarios:
+   ```bash
+   python3 "$SKILL_DIR"/resources/scripts/generate_smoke_checklist.py --epic-dir <epic_dir>
+   git add .devtool/epic/<epic_dir>/manual_smoke_checklist.md
+   git commit -m "[EPIC_NAME] Generate manual smoke walkthrough checklist"
+   ```
+   This gives the human engineer an immediate 2-minute sanity check walkthrough while keeping the working tree clean and preserving candidate SHA stability.
+
+Then resolve candidate commit SHA (`git rev-parse HEAD`) with a clean tree (`git status --porcelain` prints nothing):
 
 1. **Review decisions**, only when `.devtool/epic/<epic_dir>/review_results.md` exists:
    ```bash

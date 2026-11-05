@@ -1,0 +1,8 @@
+/* Global stylesheet for Astro fixture */
+body {
+    margin: 0;
+    font-family: system-ui, -apple-system, sans-serif;
+    color: #1e293b;
+    background-color: #ffffff;
+}
+

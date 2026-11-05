@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "capabilities": {
+    "format": ["ruff", "format", "--check", "skills/web-quality-check", "tests", "skills/dev-implementation/resources/scripts/generate_smoke_checklist.py"],
+    "lint": ["ruff", "check", "skills/web-quality-check", "tests", "skills/dev-implementation/resources/scripts/generate_smoke_checklist.py"],
+    "type_check": ["mypy", "skills/web-quality-check/resources/scripts/validate_web_quality.py", "skills/web-quality-check/resources/scripts/run_playwright_harness.py", "skills/quality_check/resources/scripts/verify_polyglot_registry.py", "skills/web-quality-check/resources/scripts/check_vanilla_js.py", "skills/dev-implementation/resources/scripts/generate_smoke_checklist.py"],
+    "test": ["python3", "-m", "pytest", "tests"],
+    "architecture": ["bash", "scripts/verify.sh"]
+  },
+  "profiles": {
+    "pr": ["lint", "test"],
+    "epic": ["format", "lint", "type_check", "test", "architecture"],
+    "release": ["format", "lint", "type_check", "test", "architecture"],
+    "scheduled": ["format", "lint", "type_check", "test", "architecture"]
+  }
+}

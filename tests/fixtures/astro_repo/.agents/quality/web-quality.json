@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "capabilities": {
+    "type_check": ["node", "scripts/check.js"],
+    "lint": ["node", "scripts/lint.js"],
+    "test_unit": ["node", "scripts/test_unit.js"],
+    "test_e2e": ["node", "scripts/test_e2e.js"],
+    "ui_review": ["node", "scripts/ui_review.js"]
+  },
+  "profiles": {
+    "pr": ["type_check", "lint", "test_unit"],
+    "epic": ["type_check", "lint", "test_unit", "test_e2e", "ui_review"],
+    "release": ["type_check", "lint", "test_unit", "test_e2e", "ui_review"],
+    "scheduled": ["type_check", "lint", "test_unit", "test_e2e", "ui_review"]
+  }
+}
+

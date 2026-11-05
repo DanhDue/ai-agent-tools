@@ -3,6 +3,7 @@
 
 Imported by check_bdd_traceability.py and run_task_checks.py; it has no command line.
 """
+
 from __future__ import annotations
 
 import glob
@@ -34,13 +35,21 @@ def parse_junit(text: str) -> list[Case]:
     cases = []
     for element in ET.fromstring(text).iter("testcase"):
         tags = {child.tag for child in element}
-        status = "failed" if tags & {"failure", "error"} else "skipped" if "skipped" in tags else "passed"
-        cases.append(Case(element.get("name", ""), element.get("classname", ""), status))
+        status = (
+            "failed"
+            if tags & {"failure", "error"}
+            else "skipped"
+            if "skipped" in tags
+            else "passed"
+        )
+        cases.append(
+            Case(element.get("name", ""), element.get("classname", ""), status)
+        )
     return cases
 
 
 def parse_dart(text: str) -> list[Case]:
-    names: dict[object, str] = {}
+    names: dict[object, tuple[str, str]] = {}
     cases = []
     for line in text.splitlines():
         if not line.strip():
@@ -57,21 +66,31 @@ def parse_dart(text: str) -> list[Case]:
         if not isinstance(event, dict):
             continue
         if event.get("type") == "testStart":
-            names[event["test"]["id"]] = event["test"]["name"]
+            t_obj = event.get("test", {})
+            t_name = t_obj.get("name", "")
+            t_url = t_obj.get("url") or t_obj.get("root_url") or ""
+            names[t_obj.get("id")] = (t_name, t_url)
         elif event.get("type") == "testDone" and event.get("testID") in names:
-            name = names.pop(event["testID"])
+            name, url = names.pop(event["testID"])
             if event.get("hidden"):
                 continue
-            status = ("skipped" if event.get("skipped")
-                      else "passed" if event.get("result") == "success" else "failed")
-            cases.append(Case(name, "", status))
+            status = (
+                "skipped"
+                if event.get("skipped")
+                else "passed"
+                if event.get("result") == "success"
+                else "failed"
+            )
+            cases.append(Case(name, url, status))
     return cases
 
 
 def report_files(path: str, root: Path) -> list[Path]:
     target = root / path
     if target.is_dir():
-        return sorted(p for pattern in ("*.xml", "*.json") for p in target.rglob(pattern))
+        return sorted(
+            p for pattern in ("*.xml", "*.json") for p in target.rglob(pattern)
+        )
     if target.is_file():
         return [target]
     matches = sorted(Path(match) for match in glob.glob(str(target), recursive=True))
@@ -106,7 +125,187 @@ def belongs(case: Case, identifier: str) -> bool:
     return bool(pattern.search(case.name) or pattern.search(case.classname))
 
 
-def verdicts(ids: list[str], cases: list[Case]) -> dict[str, tuple[bool, str]]:
+UNIT_CLASSNAME_PATTERNS = [
+    re.compile(r"^tests?[\./]unit[\./]", re.IGNORECASE),
+    re.compile(r"\bUnitTests?\b", re.IGNORECASE),
+    re.compile(r"\bMockTest\b", re.IGNORECASE),
+    re.compile(r"^unit[\._]", re.IGNORECASE),
+    re.compile(r"\btest_web_quality_provider\b", re.IGNORECASE),
+    re.compile(r"\bfake\b", re.IGNORECASE),
+]
+
+INTEGRATION_POSITIVE_PATTERNS = [
+    re.compile(r"(?:\b|[\./_-])integration(?:[\./_-]|\b)", re.IGNORECASE),
+    re.compile(r"(?:\b|[\./_-])e2e(?:[\./_-]|\b)", re.IGNORECASE),
+    re.compile(r"(?:\b|[\./_-])playwright(?:[\./_-]|\b)", re.IGNORECASE),
+    re.compile(r"(?:\b|[\./_-])watchdog(?:[\./_-]|\b)", re.IGNORECASE),
+    re.compile(r"(?:\b|[\./_-])wiremock(?:[\./_-]|\b)", re.IGNORECASE),
+    re.compile(r"(?:\b|[\./_-])system(?:[\./_-]|\b)", re.IGNORECASE),
+    re.compile(r"(?:\b|[\./_-])polyglot(?:[\./_-]|\b)", re.IGNORECASE),
+    re.compile(r"(?:\b|[\./_-])harness(?:[\./_-]|\b)", re.IGNORECASE),
+    re.compile(r"(?:\b|[\./_-])patrol(?:[\./_-]|\b)", re.IGNORECASE),
+    re.compile(r"(?:\b|[\./_-])xcuitest(?:[\./_-]|\b)", re.IGNORECASE),
+    re.compile(r"(?:\b|[\./_-])androidtest(?:[\./_-]|\b)", re.IGNORECASE),
+    re.compile(r"(?:\b|[\./_-])connected(?:[\./_-]|\b)", re.IGNORECASE),
+]
+
+_SCENARIO_TIER_CACHE: dict[str, str] = {}
+
+
+def _discover_scenario_tiers() -> dict[str, str]:
+    if _SCENARIO_TIER_CACHE:
+        return _SCENARIO_TIER_CACHE
+
+    search_dirs: list[Path] = []
+    local_epic = Path(".devtool/epic").resolve()
+    if local_epic.is_dir():
+        search_dirs.append(local_epic)
+
+    try:
+        repo_epic = (
+            Path(__file__).resolve().parent.parent.parent.parent.parent
+            / ".devtool"
+            / "epic"
+        ).resolve()
+        if repo_epic.is_dir() and repo_epic not in search_dirs:
+            search_dirs.append(repo_epic)
+    except (AttributeError, OSError):
+        pass
+
+    for d in search_dirs:
+        for bdd_file in d.glob("*/*bdd_scenarios*.md"):
+            try:
+                for line in bdd_file.read_text(encoding="utf-8").splitlines():
+                    m = re.search(r"Scenario:\s*\[([^\]]+)\](?:\s*\[([^\]]+)\])?", line)
+                    if m:
+                        scen_id = m.group(1).strip()
+                        tier_info = m.group(2).strip() if m.group(2) else ""
+                        if scen_id not in _SCENARIO_TIER_CACHE or tier_info:
+                            _SCENARIO_TIER_CACHE[scen_id] = tier_info
+            except (OSError, UnicodeDecodeError):
+                pass
+    return _SCENARIO_TIER_CACHE
+
+
+def is_pure_unit_mock(classname: str) -> bool:
+    """Detect if classname represents a pure unit mock test rather than an integration runner."""
+    if not classname or not classname.strip():
+        return True
+    return any(p.search(classname) for p in UNIT_CLASSNAME_PATTERNS)
+
+
+SCENARIO_RUNNER_CONSTRAINTS: dict[str, list[re.Pattern]] = {
+    "DEMO-HP-01": [
+        re.compile(
+            r"(?:\b|[\./_-])(?:demo|integration)(?:[\./_-]|\b)",
+            re.IGNORECASE,
+        )
+    ],
+    "WQG-HP-01": [
+        re.compile(
+            r"(?:\b|[\./_-])(?:web_quality_integration|playwright|e2e|integration)(?:[\./_-]|\b)",
+            re.IGNORECASE,
+        )
+    ],
+    "WQG-HP-02": [
+        re.compile(
+            r"(?:\b|[\./_-])(?:vanilla_js|tsc|typecheck|integration)(?:[\./_-]|\b)",
+            re.IGNORECASE,
+        )
+    ],
+    "WQG-HP-03": [
+        re.compile(
+            r"(?:\b|[\./_-])(?:playwright|watchdog|e2e|integration)(?:[\./_-]|\b)",
+            re.IGNORECASE,
+        )
+    ],
+    "WQG-EC-03": [
+        re.compile(
+            r"(?:\b|[\./_-])(?:playwright|watchdog|e2e|integration)(?:[\./_-]|\b)",
+            re.IGNORECASE,
+        )
+    ],
+    "WQG-ST-02": [
+        re.compile(
+            r"(?:\b|[\./_-])(?:anti_rationalization|integration)(?:[\./_-]|\b)",
+            re.IGNORECASE,
+        )
+    ],
+    "WQG-AR-01": [
+        re.compile(
+            r"(?:\b|[\./_-])(?:polyglot|integration)(?:[\./_-]|\b)", re.IGNORECASE
+        )
+    ],
+    "WQG-AR-02": [
+        re.compile(
+            r"(?:\b|[\./_-])(?:playwright|watchdog|webserver|integration)(?:[\./_-]|\b)",
+            re.IGNORECASE,
+        )
+    ],
+    "WQG-FR-01": [
+        re.compile(
+            r"(?:\b|[\./_-])(?:playwright|watchdog|e2e|integration)(?:[\./_-]|\b)",
+            re.IGNORECASE,
+        )
+    ],
+    "WQG-FR-03": [
+        re.compile(
+            r"(?:\b|[\./_-])(?:playwright|watchdog|e2e|integration)(?:[\./_-]|\b)",
+            re.IGNORECASE,
+        )
+    ],
+}
+
+
+def is_valid_integration_provenance(case: Case, scenario_id: str = "") -> bool:
+    """Verify positive platform- and scenario-appropriate execution provenance for Tier C scenarios."""
+    classname = (case.classname or "").strip()
+    if not classname or is_pure_unit_mock(classname):
+        return False
+
+    scen_key = scenario_id.strip().upper()
+    for key, patterns in SCENARIO_RUNNER_CONSTRAINTS.items():
+        if key in scen_key:
+            return any(p.search(classname) for p in patterns)
+
+    return any(p.search(classname) for p in INTEGRATION_POSITIVE_PATTERNS)
+
+
+def is_tier_c_scenario(identifier: str, metadata: dict[str, str] | None = None) -> bool:
+    """Identify Tier C integration scenarios from metadata, explicit tags, or discovered scenarios."""
+    if re.search(r"\bTier\s*C\b", identifier, re.IGNORECASE):
+        return True
+    if re.search(r"\bTier\s*[AB]\b", identifier, re.IGNORECASE):
+        return False
+
+    if metadata and identifier in metadata:
+        meta = metadata[identifier]
+        if re.search(r"\bTier\s*C\b", meta, re.IGNORECASE):
+            return True
+        if re.search(r"\bTier\s*[AB]\b", meta, re.IGNORECASE):
+            return False
+
+    tiers = _discover_scenario_tiers()
+    if identifier in tiers:
+        meta = tiers[identifier]
+        if re.search(r"\bTier\s*C\b", meta, re.IGNORECASE):
+            return True
+        if re.search(r"\bTier\s*[AB]\b", meta, re.IGNORECASE):
+            return False
+
+    # Granular fallback for known scenario identifiers when no scenario file is present on disk
+    return bool(
+        re.search(
+            r"WQG-(?:HP-0[1-3]|FR-0[13]|EC-03|AR-0[12])\b", identifier, re.IGNORECASE
+        )
+    )
+
+
+def verdicts(
+    ids: list[str],
+    cases: list[Case],
+    scenario_metadata: dict[str, str] | None = None,
+) -> dict[str, tuple[bool, str]]:
     result: dict[str, tuple[bool, str]] = {}
     for identifier in ids:
         own = [case for case in cases if belongs(case, identifier)]
@@ -115,7 +314,22 @@ def verdicts(ids: list[str], cases: list[Case]) -> dict[str, tuple[bool, str]]:
         if failed:
             result[identifier] = (False, f"failed in {failed.name}")
         elif passed:
-            result[identifier] = (True, passed.name)
+            if is_tier_c_scenario(identifier, scenario_metadata):
+                valid_integration = [
+                    c
+                    for c in own
+                    if c.status == "passed"
+                    and is_valid_integration_provenance(c, identifier)
+                ]
+                if not valid_integration:
+                    result[identifier] = (
+                        False,
+                        f"pure unit test class '{passed.classname}' lacks integration runner provenance for Tier C scenario",
+                    )
+                else:
+                    result[identifier] = (True, valid_integration[0].name)
+            else:
+                result[identifier] = (True, passed.name)
         elif own:
             result[identifier] = (False, "skipped")
         else:
@@ -124,7 +338,16 @@ def verdicts(ids: list[str], cases: list[Case]) -> dict[str, tuple[bool, str]]:
 
 
 def digest(cases: list[Case], ids: list[str]) -> dict:
-    own = [case for case in cases if any(belongs(case, identifier) for identifier in ids)]
-    totals = {status: sum(1 for c in own if c.status == status) for status in ("passed", "failed", "skipped")}
-    return {"totals": totals,
-            "cases": [{"name": c.name, "classname": c.classname, "status": c.status} for c in own]}
+    own = [
+        case for case in cases if any(belongs(case, identifier) for identifier in ids)
+    ]
+    totals = {
+        status: sum(1 for c in own if c.status == status)
+        for status in ("passed", "failed", "skipped")
+    }
+    return {
+        "totals": totals,
+        "cases": [
+            {"name": c.name, "classname": c.classname, "status": c.status} for c in own
+        ],
+    }

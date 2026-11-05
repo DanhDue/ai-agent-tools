@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "providers": [
+    {
+      "id": "learning-web",
+      "skill": "d3nexus:web-quality-check",
+      "required": true,
+      "profiles": ["pr", "epic", "release", "scheduled"]
+    },
+    {
+      "id": "agent-tools-python",
+      "skill": "d3nexus:python-quality-check",
+      "required": true,
+      "profiles": ["pr", "epic", "release", "scheduled"]
+    }
+  ]
+}
+

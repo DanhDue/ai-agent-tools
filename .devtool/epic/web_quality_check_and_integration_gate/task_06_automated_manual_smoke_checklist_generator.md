@@ -1,13 +1,13 @@
 ---
 id: "task_06_automated_manual_smoke_checklist_generator"
-status: "todo"
+status: "done"
 priority: "medium"
 assignee: null
 epic: "web-quality-check-and-integration-gate"
 dueDate: null
 created: "2026-11-04T22:52:00Z"
-modified: "2026-11-04T22:52:00Z"
-completedAt: null
+modified: "2026-11-04T21:25:57Z"
+completedAt: "2026-11-04T21:25:57Z"
 labels: ["automation", "smoke-test", "workflow"]
 order: "a6"
 ---
