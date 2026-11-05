@@ -14,10 +14,10 @@
 
 | # | Severity | Location | Problem | Decision |
 |---|----------|----------|---------|----------|
-| 1 | Important | task_02_single_source_render_engine.md:Decisions Already Made | Link rewriting breaks ./ link parity and done-directory targets. Proposed: use location-aware rewriting and shared normalization, with readiness changes allowed in Task 02. |  |
-| 2 | Important | task_01_evidence_files_contract.md:BDD SCENARIOS and Definition of Done | TCAE-EC-01 requires the renderer introduced by dependent Task 02. Proposed: move this scenario and its acceptance coverage to Task 02. |  |
-| 3 | Important | task_02_single_source_render_engine.md:Decisions Already Made | Fixed four-backtick wrapping breaks embedded files containing four-backtick fences. Proposed: select a delimiter longer than payload fence runs and synchronize specifications and tests. |  |
-| 4 | Important | task_05_end_to_end_contract_acceptance.md:Verification V1 | Mandatory RED failure conflicts with already-delivered evidence-transition behavior and the permitted changes. Proposed: replace V1 with justified RED: n/a acceptance-task handling. |  |
+| 1 | Important | task_02_single_source_render_engine.md:Decisions Already Made | Link rewriting breaks ./ link parity and done-directory targets. Proposed: use location-aware rewriting and shared normalization, with readiness changes allowed in Task 02. | fixed in 32fc4b0 |
+| 2 | Important | task_01_evidence_files_contract.md:BDD SCENARIOS and Definition of Done | TCAE-EC-01 requires the renderer introduced by dependent Task 02. Proposed: move this scenario and its acceptance coverage to Task 02. | fixed in 32fc4b0 |
+| 3 | Important | task_02_single_source_render_engine.md:Decisions Already Made | Fixed four-backtick wrapping breaks embedded files containing four-backtick fences. Proposed: select a delimiter longer than payload fence runs and synchronize specifications and tests. | fixed in 32fc4b0 |
+| 4 | Important | task_05_end_to_end_contract_acceptance.md:Verification V1 | Mandatory RED failure conflicts with already-delivered evidence-transition behavior and the permitted changes. Proposed: replace V1 with justified RED: n/a acceptance-task handling. | fixed in 32fc4b0 |
 
 Raw output:
 
