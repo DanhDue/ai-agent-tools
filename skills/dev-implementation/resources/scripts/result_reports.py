@@ -195,11 +195,73 @@ def is_pure_unit_mock(classname: str) -> bool:
     return any(p.search(classname) for p in UNIT_CLASSNAME_PATTERNS)
 
 
-def is_valid_integration_provenance(case: Case) -> bool:
-    """Verify positive platform-appropriate execution provenance for Tier C scenarios."""
+SCENARIO_RUNNER_CONSTRAINTS: dict[str, list[re.Pattern]] = {
+    "WQG-HP-01": [
+        re.compile(
+            r"(?:\b|[\./_-])(?:web_quality_integration|playwright|e2e|integration)(?:[\./_-]|\b)",
+            re.IGNORECASE,
+        )
+    ],
+    "WQG-HP-02": [
+        re.compile(
+            r"(?:\b|[\./_-])(?:vanilla_js|tsc|typecheck|integration)(?:[\./_-]|\b)",
+            re.IGNORECASE,
+        )
+    ],
+    "WQG-HP-03": [
+        re.compile(
+            r"(?:\b|[\./_-])(?:playwright|watchdog|e2e|integration)(?:[\./_-]|\b)",
+            re.IGNORECASE,
+        )
+    ],
+    "WQG-EC-03": [
+        re.compile(
+            r"(?:\b|[\./_-])(?:playwright|watchdog|e2e|integration)(?:[\./_-]|\b)",
+            re.IGNORECASE,
+        )
+    ],
+    "WQG-ST-02": [
+        re.compile(
+            r"(?:\b|[\./_-])(?:anti_rationalization|integration)(?:[\./_-]|\b)",
+            re.IGNORECASE,
+        )
+    ],
+    "WQG-AR-01": [
+        re.compile(
+            r"(?:\b|[\./_-])(?:polyglot|integration)(?:[\./_-]|\b)", re.IGNORECASE
+        )
+    ],
+    "WQG-AR-02": [
+        re.compile(
+            r"(?:\b|[\./_-])(?:playwright|watchdog|webserver|integration)(?:[\./_-]|\b)",
+            re.IGNORECASE,
+        )
+    ],
+    "WQG-FR-01": [
+        re.compile(
+            r"(?:\b|[\./_-])(?:playwright|watchdog|e2e|integration)(?:[\./_-]|\b)",
+            re.IGNORECASE,
+        )
+    ],
+    "WQG-FR-03": [
+        re.compile(
+            r"(?:\b|[\./_-])(?:playwright|watchdog|e2e|integration)(?:[\./_-]|\b)",
+            re.IGNORECASE,
+        )
+    ],
+}
+
+
+def is_valid_integration_provenance(case: Case, scenario_id: str = "") -> bool:
+    """Verify positive platform- and scenario-appropriate execution provenance for Tier C scenarios."""
     classname = (case.classname or "").strip()
     if not classname or is_pure_unit_mock(classname):
         return False
+
+    scen_key = scenario_id.strip().upper()
+    for key, patterns in SCENARIO_RUNNER_CONSTRAINTS.items():
+        if key in scen_key:
+            return any(p.search(classname) for p in patterns)
 
     return any(p.search(classname) for p in INTEGRATION_POSITIVE_PATTERNS)
 
@@ -251,7 +313,8 @@ def verdicts(
                 valid_integration = [
                     c
                     for c in own
-                    if c.status == "passed" and is_valid_integration_provenance(c)
+                    if c.status == "passed"
+                    and is_valid_integration_provenance(c, identifier)
                 ]
                 if not valid_integration:
                     result[identifier] = (
