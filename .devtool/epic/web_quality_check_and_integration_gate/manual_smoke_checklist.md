@@ -6,8 +6,8 @@
 
 | Step | Target (URL / CLI) | Action | Observable Outcome |
 | :---: | :--- | :--- | :--- |
-| 1 | CLI / Workspace Root | Gate 4 invokes d3nexus:web-quality-check with profile epic | the provider executes type_check, lint, and test_e2e via Playwright headless |
-| 2 | CLI / Workspace Root | web-quality-check executes the type_check capability | the TypeScript compiler validates all JavaScript files without emitting errors |
+| 1 | `d3nexus:web-quality-check` | Gate 4 invokes d3nexus:web-quality-check with profile epic | the provider executes type_check, lint, and test_e2e via Playwright headless |
+| 2 | `web-quality-check` | web-quality-check executes the type_check capability | the TypeScript compiler validates all JavaScript files without emitting errors |
 | 3 | CLI / Workspace Root | the test simulates user navigation, button clicks, and network mocking via page.route() | the page renders without emitting any console.error or uncaught exceptions |
 | 4 | CLI / Workspace Root | the smoke generator parses primary BDD Happy Path scenarios | it emits .devtool/epic/<epic_dir>/manual_smoke_checklist.md before Gate 4 validation |
 
