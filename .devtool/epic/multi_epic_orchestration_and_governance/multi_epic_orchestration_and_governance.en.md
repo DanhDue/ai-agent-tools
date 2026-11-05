@@ -21,7 +21,7 @@
 ## Meta Data
 
 - **Epic**: `multi-epic-orchestration-and-governance`
-- **Status**: Queued (backlog) — behind `contract-and-authoring-ergonomics` and `execution-and-verification-infrastructure`
+- **Status**: Packaged (queued behind `contract-and-authoring-ergonomics` and `execution-and-verification-infrastructure`)
 - **Depends on epic**: `contract-and-authoring-ergonomics`, `execution-and-verification-infrastructure`
 - **Target Release**: v1.26.0
 - **Platform**: Python
