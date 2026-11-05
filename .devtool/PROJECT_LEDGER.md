@@ -9,3 +9,4 @@
 - **[2026-10-31] `context_memory_management`**: Delivered Two-Tier Project Memory, Tri-Role Governance, Shell Environment Sync, and Dev-Lifecycle Context Hooks
 - **[2026-10-31] `context_memory_quick_guide`**: Published bilingual Context Memory & Tri-Role Workflow Quick-Guide (docs/context-memory-quick-guide.en.md & .vi.md) and updated lifecycle diagrams with Tri-Role personas
 - **[2026-10-31] `review_triage_standardization`**: Standardized review configuration with sticky defaults, dynamic probing mandates, senior 5-layer reviewer rules, and 4-bullet triage headers across review skills
+- **[2026-11-05] `web-quality-check-and-integration-gate`**: Web Quality Check and Integration Gate with Zero-Console Watchdog, UI Review, and Polyglot Gate 4 Fan-out
