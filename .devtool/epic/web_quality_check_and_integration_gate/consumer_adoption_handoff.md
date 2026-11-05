@@ -174,4 +174,4 @@ Place at `.agents/quality/web-quality.json`:
 1. Open workspace in the downstream repository (`D3Nexus` or `lyrics-sync`).
 2. Run `dev-implementation` or create a new quality setup branch `epic/polyglot-quality-gate`.
 3. Apply the registry and manifest files above.
-4. Run `python3 skills/quality_check/resources/scripts/verify_polyglot_registry.py .agents/quality/check_quality.json --profile epic` to verify Gate 4 returns certified `PASS`.
+4. Run `python3 skills/quality_check/resources/scripts/verify_polyglot_registry.py .agents/quality/check_quality.json --profile epic --execute` to verify Gate 4 returns certified `PASS`.

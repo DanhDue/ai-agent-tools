@@ -156,3 +156,32 @@ def test_scaffolding_detects_web_and_generates_manifest():
         web_provider = next((p for p in providers if p["id"] == "web-quality"), None)
         assert web_provider is not None
         assert web_provider["skill"] == "d3nexus:web-quality-check"
+
+
+def test_verify_polyglot_registry_cli_execution():
+    """Verify verify_polyglot_registry CLI accepts result files and execute flag."""
+    from verify_polyglot_registry import main
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp_path = Path(tmpdir)
+        reg_file = tmp_path / "check_quality.json"
+        res_file = tmp_path / "result.json"
+
+        registry = {
+            "schema_version": 1,
+            "providers": [
+                {
+                    "id": "learning-web",
+                    "skill": "d3nexus:web-quality-check",
+                    "required": True,
+                    "profiles": ["epic"],
+                }
+            ],
+        }
+        reg_file.write_text(json.dumps(registry))
+
+        res_data = sample_provider_result("learning-web", "PASS")
+        res_file.write_text(json.dumps(res_data))
+
+        code = main([str(reg_file), "--profile", "epic", "--results", str(res_file), "--sha", SAMPLE_SHA])
+        assert code == 0
