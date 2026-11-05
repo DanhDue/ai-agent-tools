@@ -113,18 +113,72 @@ UNIT_CLASSNAME_PATTERNS = [
     re.compile(r"^unit[\._]", re.IGNORECASE),
 ]
 
+_SCENARIO_TIER_CACHE: dict[str, str] = {}
+
+
+def _discover_scenario_tiers() -> dict[str, str]:
+    if _SCENARIO_TIER_CACHE:
+        return _SCENARIO_TIER_CACHE
+    devtool_epic = Path(".devtool/epic")
+    if not devtool_epic.is_dir():
+        try:
+            repo_root = Path(__file__).resolve().parent.parent.parent.parent.parent
+            candidate = repo_root / ".devtool" / "epic"
+            if candidate.is_dir():
+                devtool_epic = candidate
+        except (AttributeError, OSError):
+            pass
+    if devtool_epic.is_dir():
+        for bdd_file in devtool_epic.glob("*/*bdd_scenarios*.md"):
+            try:
+                for line in bdd_file.read_text(encoding="utf-8").splitlines():
+                    m = re.search(r"Scenario:\s*\[([^\]]+)\](?:\s*\[([^\]]+)\])?", line)
+                    if m:
+                        scen_id = m.group(1).strip()
+                        tier_info = m.group(2).strip() if m.group(2) else ""
+                        _SCENARIO_TIER_CACHE[scen_id] = tier_info
+            except (OSError, UnicodeDecodeError):
+                pass
+    return _SCENARIO_TIER_CACHE
+
 
 def is_pure_unit_mock(classname: str) -> bool:
     """Detect if classname represents a pure unit mock test rather than an integration runner."""
+    if not classname or not classname.strip():
+        return True
     return any(p.search(classname) for p in UNIT_CLASSNAME_PATTERNS)
 
 
-def is_tier_c_scenario(identifier: str) -> bool:
-    """Identify Tier C integration scenarios."""
-    return bool(re.search(r"WQG-(?:HP|FR|EC)-|Tier\s*C", identifier, re.IGNORECASE))
+def is_tier_c_scenario(identifier: str, metadata: dict[str, str] | None = None) -> bool:
+    """Identify Tier C integration scenarios from metadata, explicit tags, or discovered scenarios."""
+    if re.search(r"\bTier\s*C\b", identifier, re.IGNORECASE):
+        return True
+    if re.search(r"\bTier\s*[AB]\b", identifier, re.IGNORECASE):
+        return False
+
+    if metadata and identifier in metadata:
+        meta = metadata[identifier]
+        if re.search(r"\bTier\s*C\b", meta, re.IGNORECASE):
+            return True
+        if re.search(r"\bTier\s*[AB]\b", meta, re.IGNORECASE):
+            return False
+
+    tiers = _discover_scenario_tiers()
+    if identifier in tiers:
+        meta = tiers[identifier]
+        if re.search(r"\bTier\s*C\b", meta, re.IGNORECASE):
+            return True
+        if re.search(r"\bTier\s*[AB]\b", meta, re.IGNORECASE):
+            return False
+
+    return False
 
 
-def verdicts(ids: list[str], cases: list[Case]) -> dict[str, tuple[bool, str]]:
+def verdicts(
+    ids: list[str],
+    cases: list[Case],
+    scenario_metadata: dict[str, str] | None = None,
+) -> dict[str, tuple[bool, str]]:
     result: dict[str, tuple[bool, str]] = {}
     for identifier in ids:
         own = [case for case in cases if belongs(case, identifier)]
@@ -133,7 +187,7 @@ def verdicts(ids: list[str], cases: list[Case]) -> dict[str, tuple[bool, str]]:
         if failed:
             result[identifier] = (False, f"failed in {failed.name}")
         elif passed:
-            if is_tier_c_scenario(identifier):
+            if is_tier_c_scenario(identifier, scenario_metadata):
                 valid_integration = [
                     c for c in own if c.status == "passed" and not is_pure_unit_mock(c.classname)
                 ]
