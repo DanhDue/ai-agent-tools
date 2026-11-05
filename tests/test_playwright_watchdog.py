@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+import subprocess
 import sys
 import tempfile
-from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -44,9 +47,9 @@ class MockResponse:
 
 
 class MockPage:
-    def __init__(self) -> None:
+    def __init__(self, dom_elements: dict[str, dict[str, Any]] | None = None) -> None:
         self.listeners: dict[str, list] = {}
-        self.eval_handlers: list = []
+        self.dom_elements: dict[str, dict[str, Any]] = dom_elements or {}
 
     def on(self, event: str, callback) -> None:
         self.listeners.setdefault(event, []).append(callback)
@@ -56,10 +59,82 @@ class MockPage:
             cb(payload)
 
     def evaluate(self, script: str, arg: dict) -> dict:
-        if self.eval_handlers:
-            handler = self.eval_handlers.pop(0)
-            return handler(script, arg)
-        return {"ok": True}
+        runner_js = f"""
+const fn = ({script});
+const domSpec = {json.dumps(self.dom_elements)};
+const arg = {json.dumps(arg)};
+
+class MockElement {{
+  constructor(sel, spec) {{
+    this.tagName = spec.tagName || (sel.startsWith('h') ? sel : 'div');
+    this.textContent = spec.textContent || '';
+    this.style = Object.assign({{
+      display: 'block',
+      visibility: 'visible',
+      opacity: '1',
+      clip: '',
+      clipPath: '',
+      overflow: 'visible',
+      backgroundColor: 'rgb(255, 255, 255)',
+      borderWidth: '1px',
+      padding: '8px'
+    }}, spec.style || {{}});
+    this.rect = Object.assign({{ width: 100, height: 100 }}, spec.rect || {{}});
+    this.parentElement = spec.parentElement ? new MockElement('parent', spec.parentElement) : null;
+  }}
+  getBoundingClientRect() {{
+    return this.rect;
+  }}
+  querySelectorAll(sel) {{
+    const matches = [];
+    for (const [key, spec] of Object.entries(domSpec)) {{
+      if (key === sel || key.includes(sel) || (sel.includes('h1,') && ['h1','h2','h3','h4','h5','h6'].includes(key))) {{
+        matches.push(new MockElement(key, spec));
+      }}
+    }}
+    return matches;
+  }}
+}}
+
+const findMatches = (sel) => {{
+  const matches = [];
+  for (const [key, spec] of Object.entries(domSpec)) {{
+    if (key === sel || key.includes(sel) || (sel.includes('h1,') && ['h1','h2','h3','h4','h5','h6'].includes(key))) {{
+      matches.push(new MockElement(key, spec));
+    }}
+  }}
+  return matches;
+}};
+
+global.window = {{
+  getComputedStyle: (el) => el.style || {{}}
+}};
+global.document = {{
+  documentElement: {{}},
+  body: new MockElement('body', domSpec['body'] || {{}}),
+  querySelector: (sel) => {{
+    const m = findMatches(sel);
+    return m.length > 0 ? m[0] : null;
+  }},
+  querySelectorAll: (sel) => findMatches(sel)
+}};
+
+try {{
+  const res = fn(arg);
+  console.log(JSON.stringify(res));
+}} catch (e) {{
+  console.log(JSON.stringify({{ ok: false, error: e.message }}));
+}}
+"""
+        res = subprocess.run(
+            ["node", "-e", runner_js],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if res.returncode == 0 and res.stdout.strip():
+            return json.loads(res.stdout.strip())
+        return {"ok": False, "error": f"Node evaluation error: {res.stderr}"}
 
 
 def test_watchdog_filters():
@@ -135,13 +210,17 @@ def test_WQG_EC_02_allowlist_filtering():
 
 def test_WQG_EC_03_mutually_exclusive_state_leak_and_duplicate_text():
     """Scenario: [WQG-EC-03] [Tier C - Integration] Mutually exclusive DOM state leak and duplicate text detection."""
-    page = MockPage()
-
-    # 1. State leak simulation: mutually exclusive elements are simultaneously visible
-    page.eval_handlers.append(
-        lambda s, a: {
-            "ok": False,
-            "error": "Mutually exclusive state elements are simultaneously visible: ['[data-state=\"running\"]', '[data-state=\"failed\"]']",
+    # 1. State leak simulation: mutually exclusive elements are simultaneously visible in DOM
+    page_leak = MockPage(
+        dom_elements={
+            '[data-state="running"]': {
+                "style": {"display": "block", "visibility": "visible", "opacity": "1"},
+                "rect": {"width": 100, "height": 30},
+            },
+            '[data-state="failed"]': {
+                "style": {"display": "block", "visibility": "visible", "opacity": "1"},
+                "rect": {"width": 100, "height": 30},
+            },
         }
     )
     with pytest.raises(
@@ -149,26 +228,43 @@ def test_WQG_EC_03_mutually_exclusive_state_leak_and_duplicate_text():
         match="Mutually exclusive state elements are simultaneously visible",
     ):
         assert_dom_state_integrity(
-            page,
+            page_leak,
             exclusive_state_groups=[
                 ['[data-state="running"]', '[data-state="failed"]']
             ],
         )
 
-    # 2. Duplicate text simulation: consecutive duplicate word detected
-    page.eval_handlers.append(
-        lambda s, a: {
-            "ok": False,
-            "error": 'Consecutive duplicate word detected: "Tiến độ" in text "Tiến độ Tiến độ" inside selector h2',
+    # 2. Duplicate text simulation: consecutive duplicate phrase detected inside heading
+    page_dup = MockPage(
+        dom_elements={
+            "h2": {
+                "tagName": "h2",
+                "textContent": "Tiến độ Tiến độ",
+                "style": {"display": "block", "visibility": "visible", "opacity": "1"},
+            }
         }
     )
-    with pytest.raises(AssertionError, match="Consecutive duplicate word detected"):
-        assert_dom_state_integrity(page)
+    with pytest.raises(AssertionError, match="Consecutive duplicate phrase detected"):
+        assert_dom_state_integrity(page_dup)
 
     # 3. Positive accessibility clipped elements (e.g. .sr-only) are accepted as valid
-    page.eval_handlers.append(lambda s, a: {"ok": True})
+    page_a11y = MockPage(
+        dom_elements={
+            ".spinner": {
+                "style": {
+                    "overflow": "hidden",
+                    "clip": "rect(0px, 0px, 0px, 0px)",
+                },
+                "rect": {"width": 0, "height": 0},
+            },
+            ".status-badge": {
+                "style": {"display": "block", "visibility": "visible", "opacity": "1"},
+                "rect": {"width": 80, "height": 24},
+            },
+        }
+    )
     assert_dom_state_integrity(
-        page, exclusive_state_groups=[[".spinner", ".status-badge"]]
+        page_a11y, exclusive_state_groups=[[".spinner", ".status-badge"]]
     )
 
 
@@ -240,11 +336,32 @@ def test_WQG_FR_03_static_asset_trap_and_unstyled_geometry():
     assert "theme.css" in watchdog.captured_errors[0]
 
     # 2. Structural container renders with unstyled default geometry
-    page.eval_handlers.append(
-        lambda s, a: {
-            "ok": False,
-            "error": "Element '.card-container' has zero or negligible dimensions (0x0). Expected >= 1x1.",
+    page_unstyled = MockPage(
+        dom_elements={
+            ".card-container": {
+                "style": {
+                    "backgroundColor": "transparent",
+                    "borderWidth": "0px",
+                    "padding": "0px",
+                },
+                "rect": {"width": 100, "height": 100},
+            }
         }
     )
-    with pytest.raises(AssertionError, match="assert_visual_integrity defect"):
-        assert_visual_integrity(page, ".card-container")
+    with pytest.raises(AssertionError, match="renders with unstyled default styles"):
+        assert_visual_integrity(page_unstyled, ".card-container")
+
+    # 3. Styled container passes visual integrity
+    page_styled = MockPage(
+        dom_elements={
+            ".card-container": {
+                "style": {
+                    "backgroundColor": "rgb(255, 255, 255)",
+                    "borderWidth": "1px",
+                    "padding": "16px",
+                },
+                "rect": {"width": 200, "height": 120},
+            }
+        }
+    )
+    assert_visual_integrity(page_styled, ".card-container")
