@@ -102,8 +102,8 @@ flowchart TD
     - In `check_metadata(ctx)` (`R7`): call `tc.resolve_prerequisite_epic_dirs(ctx.root, ctx.hld_text)`. Emit `Finding("R7", "FAIL", f"Depends on epic '{missing}' does not exist under .devtool/epic/")` for any missing or cyclic prerequisite epic, and verify that `.en.md` and `.vi.md` declare identical prerequisite epic lists.
     - In `check_grounding(ctx)` (`R5`): for symbols in `Target Files & Symbols` on a path where either the file does not yet exist at `HEAD` (created in a prerequisite epic) or the symbol is not yet in `file_text` at `HEAD`, treat the symbol as grounded if `name in prereq_symbols.get(path_str, set())`.
 - **Prerequisite Replay Chain & Stage 3 Entry Check (`#0013`)**:
-  - In `skills/dev-implementation/resources/scripts/replay_task_text.py` (`replay_epic_in_worktree`):
-    - Before replaying `<epic_dir>`'s own tasks in the temporary worktree, inspect `resolve_prerequisite_epic_dirs(root, hld_text)`: for any prerequisite epic whose status is not `Done`, apply its task directives in topological order first so the temporary worktree contains the prerequisite code and fixtures.
+  - In `skills/dev-implementation/resources/scripts/check_epic_readiness.py` (`replay_with_prerequisites(root: Path, epic_dir: str, row_timeout: int = 600) -> list[str]`):
+    - Resolves `prereq_dirs, missing = tc.resolve_prerequisite_epic_dirs(root, hld_text)`: for each prerequisite epic whose HLD `Status` is not `Done`, replays the prerequisite epic's tasks in topological order before replaying `<epic_dir>`'s own tasks inside the scratch worktree so the worktree contains all prerequisite code and fixtures.
   - In `skills/dev-implementation/resources/scripts/sync_task_status.py`:
     - Add `check_epic_prerequisites(root: Path, epic_dir: str) -> list[str]` and CLI subcommand `sync_task_status.py check-prereqs <epic_dir>`: checks each prerequisite epic in `resolve_prerequisite_epic_dirs(root, hld_text)` and verifies its HLD `Status` is `Done` (or all its tasks have `status: "done"`). Exits `0` if all prerequisites are complete, or exits `1` listing unfinished prerequisite epics.
 
@@ -139,7 +139,6 @@ flowchart TD
        - Extracts the previous `Design commit` (`<old_sha>`) from `handoff.md`.
        - Updates `- **Packaged**: <YYYY-MM-DD>`, `- **Design commit**: `<new_sha>``, and the staleness command `git log <new_sha>..<base_branch> -- .devtool/epic/<epic_dir>` in `handoff.md`.
        - Inserts or appends `- **<YYYY-MM-DD> (`<old_sha>` -> `<new_sha>`)**: <reason>` under a `## Revisions` section (adding `- [Revisions](#revisions)` to the Table of Contents if not yet present), preserving existing `Open Notes`.
-    5. Expose `package-epic` and `revise-epic` subcommands in `bin/d3nexus` (extending Epic 1's dispatcher).
 - **HLD `## Spec Errata` Contract (`#0015`)**:
   - In `skills/dev-implementation/resources/scripts/task_contract.py` and `check_epic_readiness.py`:
     - Add `parse_spec_errata(hld_text: str) -> list[tuple[str, str]]` extracting bullets matching `^-\s*\*\*\[(SE-\d+)\]\s*([^*]+)\*\*:\s*(.+)$` from `## Spec Errata` (or `## Đính chính Đặc tả (Spec Errata)`).
@@ -190,3 +189,4 @@ flowchart TD
   - **Epic 1 (`contract_and_authoring_ergonomics`)** — uses `bin/d3nexus` and `task_contract.py` extensions.
   - **Epic 2 (`execution_and_verification_infrastructure`)** — extends `replay_task_text.py` (`replay_epic_in_worktree`) and `check_epic_readiness.py`.
 - **Completes**: The 3-Epic optimization roadmap addressing all 15 open observations in `skill-observations/observation-log/`.
+

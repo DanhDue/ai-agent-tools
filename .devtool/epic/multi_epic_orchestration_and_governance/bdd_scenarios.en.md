@@ -21,7 +21,7 @@ Feature: Multi-Epic Orchestration and Governance — Happy Paths
     And "epic_beta" tasks list "src/alpha_helper.py" in "Read-only context" and reference "compute_alpha" in "Target Files & Symbols"
     When "check_epic_readiness.py epic_beta" executes before "epic_alpha" is merged to HEAD
     Then R1, R5, and R7 pass with 0 failures because "src/alpha_helper.py" and "compute_alpha" resolve from "epic_alpha"
-    And when "replay_epic_in_worktree()" runs for "epic_beta"
+    And when "replay_with_prerequisites()" runs for "epic_beta"
     Then it replays "epic_alpha" tasks first in the temporary worktree followed by "epic_beta" tasks and exits 0
 
   Scenario: [MEO-HP-02] [Tier C - Integration] Conflict-aware check-conflicts and promote transition a disjoint epic from backlog to todo in one command
@@ -101,7 +101,7 @@ Feature: Multi-Epic Orchestration and Governance — Async & Concurrency
     Then ".devtool/state/gate_ledger.jsonl" contains 4 valid JSON lines with 0 interleaved or truncated records
     And ".devtool/GATE_LEDGER.md" contains all 4 gate approval rows
 
-  Scenario: [MEO-AR-02] [Tier A - Unit] sync_task_status.py promote synchronizes task status across epic directory and features mirrors in all checkouts
+  Scenario: [MEO-AR-02] [Tier C - Integration] sync_task_status.py promote synchronizes task status across epic directory and features mirrors in all checkouts
     Given a queued epic with 3 tasks in "backlog" mirrored in both ".devtool/epic/<epic_dir>/" and ".devtool/features/"
     When "sync_task_status.py promote <epic_dir>" executes
     Then all 6 task files across ".devtool/epic/<epic_dir>/" and ".devtool/features/" are updated atomically to "status: \"todo\"" with a refreshed "modified" timestamp
@@ -133,3 +133,4 @@ Feature: Multi-Epic Orchestration and Governance — Failures & Resilience
     And when "scripts/resume_context.py --gate 3 --epic sample-epic --approved ''" is executed with an empty approval scope
     Then it exits with code 2 without modifying ".devtool/state/gate_ledger.jsonl"
 ```
+

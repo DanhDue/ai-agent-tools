@@ -21,7 +21,7 @@ Feature: Multi-Epic Orchestration and Governance — Happy Paths
     And các task của "epic_beta" liệt kê "src/alpha_helper.py" trong "Read-only context" và tham chiếu "compute_alpha" trong "Target Files & Symbols"
     When "check_epic_readiness.py epic_beta" thực thi trước khi "epic_alpha" được merge vào HEAD
     Then R1, R5 và R7 đều đạt với 0 lỗi vì "src/alpha_helper.py" và "compute_alpha" được phân giải từ "epic_alpha"
-    And khi "replay_epic_in_worktree()" chạy cho "epic_beta"
+    And khi "replay_with_prerequisites()" chạy cho "epic_beta"
     Then nó phát lại các task của "epic_alpha" trước trong worktree tạm thời rồi tiếp nối bằng các task của "epic_beta" và thoát mã 0
 
   Scenario: [MEO-HP-02] [Tier C - Integration] Lệnh check-conflicts và promote chuyển trạng thái một epic không giao nhau từ backlog sang todo chỉ bằng một lệnh
@@ -101,7 +101,7 @@ Feature: Multi-Epic Orchestration and Governance — Async & Concurrency
     Then ".devtool/state/gate_ledger.jsonl" chứa đủ 4 dòng JSON hợp lệ mà không có bản ghi nào bị đan xen hay cắt cụt
     And ".devtool/GATE_LEDGER.md" chứa đủ 4 dòng phê duyệt cổng
 
-  Scenario: [MEO-AR-02] [Tier A - Unit] sync_task_status.py promote đồng bộ trạng thái task trên cả thư mục epic và bản sao features trong mọi checkout
+  Scenario: [MEO-AR-02] [Tier C - Integration] sync_task_status.py promote đồng bộ trạng thái task trên cả thư mục epic và bản sao features trong mọi checkout
     Given một epic đang xếp hàng có 3 task ở trạng thái "backlog" được nhân bản tại cả ".devtool/epic/<epic_dir>/" và ".devtool/features/"
     When "sync_task_status.py promote <epic_dir>" thực thi
     Then cả 6 tệp task trên ".devtool/epic/<epic_dir>/" và ".devtool/features/" đều được cập nhật nguyên tử sang "status: \"todo\"" kèm dấu thời gian "modified" mới
@@ -133,3 +133,4 @@ Feature: Multi-Epic Orchestration and Governance — Failures & Resilience
     And khi "scripts/resume_context.py --gate 3 --epic sample-epic --approved ''" được thực thi với chuỗi phạm vi rỗng
     Then nó thoát với mã 2 mà không làm thay đổi ".devtool/state/gate_ledger.jsonl"
 ```
+

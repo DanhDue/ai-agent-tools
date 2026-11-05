@@ -102,8 +102,8 @@ flowchart TD
     - Trong `check_metadata(ctx)` (`R7`): gọi `tc.resolve_prerequisite_epic_dirs(ctx.root, ctx.hld_text)`. Phát lỗi `Finding("R7", "FAIL", ...)` nếu có epic tiên quyết không tồn tại hoặc tạo chu trình, đồng thời kiểm tra `.en.md` và `.vi.md` khai báo danh sách epic tiên quyết khớp nhau.
     - Trong `check_grounding(ctx)` (`R5`): với các symbol trong `Target Files & Symbols` thuộc file chưa tồn tại ở `HEAD` hoặc chưa có mặt trong `file_text` ở `HEAD`, coi là hợp lệ nếu `name in prereq_symbols.get(path_str, set())`.
 - **Replay Chuỗi Epic Tiên quyết & Kiểm tra Đầu vào Stage 3 (`#0013`)**:
-  - Trong `skills/dev-implementation/resources/scripts/replay_task_text.py` (`replay_epic_in_worktree`):
-    - Trước khi replay các task của `<epic_dir>` trên worktree tạm, kiểm tra `resolve_prerequisite_epic_dirs(root, hld_text)`: với mọi epic tiên quyết chưa ở trạng thái `Done`, áp dụng tuần tự các chỉ thị chỉnh sửa của epic tiên quyết đó theo thứ tự topo để worktree tạm có sẵn mã nguồn nền tảng.
+  - Trong `skills/dev-implementation/resources/scripts/check_epic_readiness.py` (`replay_with_prerequisites(root: Path, epic_dir: str, row_timeout: int = 600) -> list[str]`):
+    - Phân giải `prereq_dirs, missing = tc.resolve_prerequisite_epic_dirs(root, hld_text)`: với mọi epic tiên quyết chưa ở trạng thái `Done`, áp dụng tuần tự các task của epic tiên quyết đó theo thứ tự topo trước khi replay các task của `<epic_dir>` trên worktree tạm để worktree có sẵn mã nguồn nền tảng.
   - Trong `skills/dev-implementation/resources/scripts/sync_task_status.py`:
     - Bổ sung `check_epic_prerequisites(root: Path, epic_dir: str) -> list[str]` và lệnh CLI `sync_task_status.py check-prereqs <epic_dir>`: kiểm tra từng epic tiên quyết đã có `Status: Done` (hoặc toàn bộ task đã `done`) hay chưa. Thoát mã `0` nếu tất cả đã hoàn tất, hoặc thoát mã `1` kèm danh sách epic tiên quyết chưa xong.
 
@@ -139,7 +139,6 @@ flowchart TD
        - Đọc `Design commit` cũ (`<old_sha>`) từ `handoff.md`.
        - Cập nhật `- **Packaged**: <YYYY-MM-DD>`, `- **Design commit**: `<new_sha>`` và lệnh kiểm tra lỗi thời `git log <new_sha>..<base_branch> -- .devtool/epic/<epic_dir>` trong `handoff.md`.
        - Chèn hoặc nối thêm dòng `- **<YYYY-MM-DD> (`<old_sha>` -> `<new_sha>`)**: <reason>` vào mục `## Revisions` (tự động thêm `- [Revisions](#revisions)` vào Mục lục nếu chưa có), giữ nguyên nội dung `Open Notes`.
-    5. Đăng ký hai lệnh `package-epic` và `revise-epic` vào `bin/d3nexus`.
 - **Hợp đồng `## Spec Errata` trong HLD (`#0015`)**:
   - Trong `skills/dev-implementation/resources/scripts/task_contract.py` và `check_epic_readiness.py`:
     - Bổ sung `parse_spec_errata(hld_text: str) -> list[tuple[str, str]]` trích xuất các dòng `- **[SE-NN] <Mục>**: <Mô tả>` từ mục `## Spec Errata` (hoặc `## Đính chính Đặc tả (Spec Errata)`).
@@ -186,3 +185,4 @@ flowchart TD
   - **Epic 1 (`contract_and_authoring_ergonomics`)** — sử dụng `bin/d3nexus` và các mở rộng trong `task_contract.py`.
   - **Epic 2 (`execution_and_verification_infrastructure`)** — mở rộng `replay_task_text.py` (`replay_epic_in_worktree`) và `check_epic_readiness.py`.
 - **Hoàn tất**: Lộ trình tối ưu hóa 3 Epic giải quyết toàn bộ 15 quan sát đang mở trong `skill-observations/observation-log/`.
+

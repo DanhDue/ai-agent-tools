@@ -136,7 +136,7 @@ Integration results: python3 -m pytest tests/ skills/dev-implementation/resource
 
 | Ranh giới Tích hợp | Chiến lược Kiểm thử | Mục tiêu Xác minh |
 | :--- | :--- | :--- |
-| `task_contract.py`, `check_task_contract.py`, `check_epic_readiness.py` & `replay_task_text.py` | Kiểm thử subcutaneous trên chuỗi 2 epic phụ thuộc nhau trong kho Git tạm | Xác minh `parse_depends_on_epics()`, `resolve_prerequisite_epic_dirs()` (phát hiện chu trình/epic thiếu), `collect_prerequisite_artifacts()` (`Read-only context` và symbol `R5`), và replay chuỗi tiên quyết trong `replay_epic_in_worktree()` |
+| `task_contract.py`, `check_task_contract.py` & `check_epic_readiness.py` | Kiểm thử subcutaneous trên chuỗi 2 epic phụ thuộc nhau trong kho Git tạm | Xác minh `parse_depends_on_epics()`, `resolve_prerequisite_epic_dirs()` (phát hiện chu trình/epic thiếu), `collect_prerequisite_artifacts()` (`Read-only context` và symbol `R5`), và replay chuỗi tiên quyết trong `replay_with_prerequisites()` |
 | `sync_task_status.py` (`check-prereqs`, `check-conflicts`, `promote`) | Kiểm thử CLI & unit trên bảng Kanban đa epic | Xác minh `check_epic_prerequisites()`, `check_epic_file_conflicts()` (tập file tách biệt so với giao nhau), và `promote <epic_dir> [--force]` chuyển hàng loạt `backlog` $\rightarrow$ `todo` |
 | `package_epic.py` & HLD `## Spec Errata` | Kiểm thử đóng gói và sửa đổi trên các epic tạm | Xác minh sinh `handoff.md` lần đầu, neo lại `Design commit` và ghi mục `## Revisions` khi chạy `--revise --reason`, cùng kiểm tra đối xứng `[SE-NN]` `Spec Errata` trong `R7` |
 | `scripts/resume_context.py` (`--gate`, `--check-gate`) | Kiểm thử sổ cái an toàn đồng thời trên thư mục `.devtool/` tạm | Xác minh ghi nối `.devtool/state/gate_ledger.jsonl` dưới khóa `fcntl.flock`, kết xuất bảng `.devtool/GATE_LEDGER.md`, và mã thoát của `--check-gate` (`0` so với `1`) |
@@ -171,8 +171,8 @@ None — tính năng khép kín trong `ai-agent-tools`.
 
 ## Phân rã Kanban Tasks
 
-- **Task 01: Inter-Epic Dependency Declarations, Readiness Resolution, and Prerequisite Replay (`task_01_inter_epic_dependencies.md`)**
-- **Task 02: Conflict-Aware Concurrent Epic Backlog and Bulk Task Promotion (`task_02_conflict_aware_epic_promotion.md`)**
-- **Task 03: Packaged Epic Revision Workflow and HLD Spec Errata Contract (`task_03_package_revise_and_spec_errata.md`)**
-- **Task 04: Structured Gate Approval Ledger in Project Memory (`task_04_gate_approval_ledger.md`)**
-- **Task 05: End-to-End Multi-Epic Governance Acceptance Verification (`task_05_multi_epic_governance_e2e_acceptance.md`)**
+- [Task 01: Inter-Epic Dependency Declarations, Readiness Resolution, and Prerequisite Replay](./task_01_inter_epic_dependencies.md)
+- [Task 02: Conflict-Aware Concurrent Epic Backlog and Bulk Task Promotion](./task_02_conflict_aware_epic_promotion.md)
+- [Task 03: Packaged Epic Revision Workflow and HLD Spec Errata Contract](./task_03_package_revise_and_spec_errata.md)
+- [Task 04: Structured Gate Approval Ledger in Project Memory](./task_04_gate_approval_ledger.md)
+- [Task 05: End-to-End Multi-Epic Governance Acceptance Verification](./task_05_multi_epic_governance_e2e_acceptance.md)

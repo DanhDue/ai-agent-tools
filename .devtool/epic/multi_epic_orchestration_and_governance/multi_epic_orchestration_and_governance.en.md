@@ -136,7 +136,7 @@ Integration results: python3 -m pytest tests/ skills/dev-implementation/resource
 
 | Boundary Seam | Testing Strategy | Verification Target |
 | :--- | :--- | :--- |
-| `task_contract.py`, `check_task_contract.py`, `check_epic_readiness.py` & `replay_task_text.py` | Subcutaneous tests across 2-epic dependency chains in temporary Git repos | Verify `parse_depends_on_epics()`, `resolve_prerequisite_epic_dirs()` (cycle/missing detection), `collect_prerequisite_artifacts()` (`Read-only context` and `R5` symbol grounding), and prerequisite replay chain in `replay_epic_in_worktree()` |
+| `task_contract.py`, `check_task_contract.py` & `check_epic_readiness.py` | Subcutaneous tests across 2-epic dependency chains in temporary Git repos | Verify `parse_depends_on_epics()`, `resolve_prerequisite_epic_dirs()` (cycle/missing detection), `collect_prerequisite_artifacts()` (`Read-only context` and `R5` symbol grounding), and prerequisite replay chain in `replay_with_prerequisites()` |
 | `sync_task_status.py` (`check-prereqs`, `check-conflicts`, `promote`) | CLI & unit tests across multi-epic Kanban boards | Verify `check_epic_prerequisites()`, `check_epic_file_conflicts()` (disjoint vs overlapping globs), and `promote <epic_dir> [--force]` bulk `backlog` $\rightarrow$ `todo` transition |
 | `package_epic.py` & HLD `## Spec Errata` | Subprocess packaging and revision tests on temporary epics | Verify initial `handoff.md` generation, `--revise --reason` `Design commit` re-anchoring and `## Revisions` log appending, and `R7` bilingual `[SE-NN]` `Spec Errata` validation |
 | `scripts/resume_context.py` (`--gate`, `--check-gate`) | Concurrency-safe ledger tests on temporary `.devtool/` directories | Verify `fcntl.flock`-guarded `.devtool/state/gate_ledger.jsonl` appends, `.devtool/GATE_LEDGER.md` table rendering, and `--check-gate` exit codes (`0` vs `1`) |
@@ -171,8 +171,8 @@ None — self-contained feature in `ai-agent-tools`.
 
 ## Kanban Tasks Breakdown
 
-- **Task 01: Inter-Epic Dependency Declarations, Readiness Resolution, and Prerequisite Replay (`task_01_inter_epic_dependencies.md`)**
-- **Task 02: Conflict-Aware Concurrent Epic Backlog and Bulk Task Promotion (`task_02_conflict_aware_epic_promotion.md`)**
-- **Task 03: Packaged Epic Revision Workflow and HLD Spec Errata Contract (`task_03_package_revise_and_spec_errata.md`)**
-- **Task 04: Structured Gate Approval Ledger in Project Memory (`task_04_gate_approval_ledger.md`)**
-- **Task 05: End-to-End Multi-Epic Governance Acceptance Verification (`task_05_multi_epic_governance_e2e_acceptance.md`)**
+- [Task 01: Inter-Epic Dependency Declarations, Readiness Resolution, and Prerequisite Replay](./task_01_inter_epic_dependencies.md)
+- [Task 02: Conflict-Aware Concurrent Epic Backlog and Bulk Task Promotion](./task_02_conflict_aware_epic_promotion.md)
+- [Task 03: Packaged Epic Revision Workflow and HLD Spec Errata Contract](./task_03_package_revise_and_spec_errata.md)
+- [Task 04: Structured Gate Approval Ledger in Project Memory](./task_04_gate_approval_ledger.md)
+- [Task 05: End-to-End Multi-Epic Governance Acceptance Verification](./task_05_multi_epic_governance_e2e_acceptance.md)
