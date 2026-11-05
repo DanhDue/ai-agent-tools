@@ -3,6 +3,7 @@
 
 Imported by check_bdd_traceability.py and run_task_checks.py; it has no command line.
 """
+
 from __future__ import annotations
 
 import glob
@@ -34,8 +35,16 @@ def parse_junit(text: str) -> list[Case]:
     cases = []
     for element in ET.fromstring(text).iter("testcase"):
         tags = {child.tag for child in element}
-        status = "failed" if tags & {"failure", "error"} else "skipped" if "skipped" in tags else "passed"
-        cases.append(Case(element.get("name", ""), element.get("classname", ""), status))
+        status = (
+            "failed"
+            if tags & {"failure", "error"}
+            else "skipped"
+            if "skipped" in tags
+            else "passed"
+        )
+        cases.append(
+            Case(element.get("name", ""), element.get("classname", ""), status)
+        )
     return cases
 
 
@@ -65,8 +74,13 @@ def parse_dart(text: str) -> list[Case]:
             name, url = names.pop(event["testID"])
             if event.get("hidden"):
                 continue
-            status = ("skipped" if event.get("skipped")
-                      else "passed" if event.get("result") == "success" else "failed")
+            status = (
+                "skipped"
+                if event.get("skipped")
+                else "passed"
+                if event.get("result") == "success"
+                else "failed"
+            )
             cases.append(Case(name, url, status))
     return cases
 
@@ -74,7 +88,9 @@ def parse_dart(text: str) -> list[Case]:
 def report_files(path: str, root: Path) -> list[Path]:
     target = root / path
     if target.is_dir():
-        return sorted(p for pattern in ("*.xml", "*.json") for p in target.rglob(pattern))
+        return sorted(
+            p for pattern in ("*.xml", "*.json") for p in target.rglob(pattern)
+        )
     if target.is_file():
         return [target]
     matches = sorted(Path(match) for match in glob.glob(str(target), recursive=True))
@@ -116,6 +132,7 @@ UNIT_CLASSNAME_PATTERNS = [
     re.compile(r"^unit[\._]", re.IGNORECASE),
     re.compile(r"\btest_web_quality_provider\b", re.IGNORECASE),
     re.compile(r"\bfake\b", re.IGNORECASE),
+    re.compile(r"\bdemo\b", re.IGNORECASE),
 ]
 
 INTEGRATION_POSITIVE_PATTERNS = [
@@ -126,17 +143,11 @@ INTEGRATION_POSITIVE_PATTERNS = [
     re.compile(r"(?:\b|[\./_-])wiremock(?:[\./_-]|\b)", re.IGNORECASE),
     re.compile(r"(?:\b|[\./_-])system(?:[\./_-]|\b)", re.IGNORECASE),
     re.compile(r"(?:\b|[\./_-])polyglot(?:[\./_-]|\b)", re.IGNORECASE),
-    re.compile(r"(?:\b|[\./_-])audit(?:[\./_-]|\b)", re.IGNORECASE),
-    re.compile(r"(?:\b|[\./_-])workflow(?:[\./_-]|\b)", re.IGNORECASE),
-    re.compile(r"(?:\b|[\./_-])checker(?:[\./_-]|\b)", re.IGNORECASE),
-    re.compile(r"(?:\b|[\./_-])compiler(?:[\./_-]|\b)", re.IGNORECASE),
     re.compile(r"(?:\b|[\./_-])harness(?:[\./_-]|\b)", re.IGNORECASE),
     re.compile(r"(?:\b|[\./_-])patrol(?:[\./_-]|\b)", re.IGNORECASE),
     re.compile(r"(?:\b|[\./_-])xcuitest(?:[\./_-]|\b)", re.IGNORECASE),
     re.compile(r"(?:\b|[\./_-])androidtest(?:[\./_-]|\b)", re.IGNORECASE),
     re.compile(r"(?:\b|[\./_-])connected(?:[\./_-]|\b)", re.IGNORECASE),
-    re.compile(r"(?:\b|[\./_-])contract(?:[\./_-]|\b)", re.IGNORECASE),
-    re.compile(r"(?:\b|[\./_-])demo(?:[\./_-]|\b)", re.IGNORECASE),
 ]
 
 _SCENARIO_TIER_CACHE: dict[str, str] = {}
@@ -187,13 +198,10 @@ def is_pure_unit_mock(classname: str) -> bool:
 def is_valid_integration_provenance(case: Case) -> bool:
     """Verify positive platform-appropriate execution provenance for Tier C scenarios."""
     classname = (case.classname or "").strip()
-    name = (case.name or "").strip()
-    target = f"{classname} {name}"
-
-    if is_pure_unit_mock(classname):
+    if not classname or is_pure_unit_mock(classname):
         return False
 
-    return any(p.search(target) for p in INTEGRATION_POSITIVE_PATTERNS)
+    return any(p.search(classname) for p in INTEGRATION_POSITIVE_PATTERNS)
 
 
 def is_tier_c_scenario(identifier: str, metadata: dict[str, str] | None = None) -> bool:
@@ -219,10 +227,11 @@ def is_tier_c_scenario(identifier: str, metadata: dict[str, str] | None = None) 
             return False
 
     # Granular fallback for known scenario identifiers when no scenario file is present on disk
-    if re.search(r"WQG-(?:HP-0[1-3]|FR-0[13]|EC-03|AR-0[12])\b", identifier, re.IGNORECASE):
-        return True
-
-    return False
+    return bool(
+        re.search(
+            r"WQG-(?:HP-0[1-3]|FR-0[13]|EC-03|AR-0[12])\b", identifier, re.IGNORECASE
+        )
+    )
 
 
 def verdicts(
@@ -240,7 +249,9 @@ def verdicts(
         elif passed:
             if is_tier_c_scenario(identifier, scenario_metadata):
                 valid_integration = [
-                    c for c in own if c.status == "passed" and is_valid_integration_provenance(c)
+                    c
+                    for c in own
+                    if c.status == "passed" and is_valid_integration_provenance(c)
                 ]
                 if not valid_integration:
                     result[identifier] = (
@@ -259,7 +270,16 @@ def verdicts(
 
 
 def digest(cases: list[Case], ids: list[str]) -> dict:
-    own = [case for case in cases if any(belongs(case, identifier) for identifier in ids)]
-    totals = {status: sum(1 for c in own if c.status == status) for status in ("passed", "failed", "skipped")}
-    return {"totals": totals,
-            "cases": [{"name": c.name, "classname": c.classname, "status": c.status} for c in own]}
+    own = [
+        case for case in cases if any(belongs(case, identifier) for identifier in ids)
+    ]
+    totals = {
+        status: sum(1 for c in own if c.status == status)
+        for status in ("passed", "failed", "skipped")
+    }
+    return {
+        "totals": totals,
+        "cases": [
+            {"name": c.name, "classname": c.classname, "status": c.status} for c in own
+        ],
+    }
