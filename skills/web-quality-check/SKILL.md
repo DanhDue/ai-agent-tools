@@ -11,7 +11,7 @@ description: Read-only Web quality assurance provider implementing the common qu
 - [Workflow](#workflow)
   - [Step 1: Configuration Loading and Validation](#step-1-configuration-loading-and-validation)
   - [Step 2: Read-Only Command Execution](#step-2-read-only-command-execution)
-  - [Step 3: Watchdog Verification](#step-3-watchdog-verification)
+  - [Step 3: UI Review and Watchdog Verification](#step-3-ui-review-and-watchdog-verification)
   - [Step 4: Result Assembly and Contract Emission](#step-4-result-assembly-and-contract-emission)
 - [Profile Capability Matrix](#profile-capability-matrix)
 - [References and Resources](#references-and-resources)
