@@ -140,7 +140,7 @@ Integration results: python3 -m pytest tests/ skills/dev-implementation/resource
 | Boundary Seam | Testing Strategy | Verification Target |
 | :--- | :--- | :--- |
 | `task_contract.py` & `check_task_contract.py` | Subcutaneous CLI & parser unit/integration tests on temporary git repositories | Verify `Evidence files:` parsing, `(new)` grounding, Done-Gate file existence check, bare `VAR=val` errors, grep pattern exclusion, and early R2/R3 enforcement |
-| `sync_task_status.py render` | Real filesystem rendering tests across `.devtool/epic/<epic>/` and `.devtool/features/` | Verify verbatim Gherkin injection from `bdd_scenarios.en.md`, `@@FILE:path@@` embedding with 4-backtick promotion, relative link rewriting, and orphan mirror cleanup |
+| `sync_task_status.py render` | Real filesystem rendering tests across `.devtool/epic/<epic>/` and `.devtool/features/` | Verify verbatim Gherkin injection from `bdd_scenarios.en.md`, `@@FILE:path@@` embedding with dynamic `max(4, max_inner_backtick_run + 1)` fence promotion, location-aware relative link rewriting (`../epic/` and `../../epic/`), and orphan mirror cleanup |
 | `bin/d3nexus` & `run_task_checks.py` | Subprocess execution tests in temporary git repositories | Verify zero-setup `D3NEXUS_KIT` and `PATH` injection, `d3nexus` subcommand dispatch, and rejection of hardcoded `/Users/...` or plugin cache paths |
 | Reviewer & Authoring Docs | Document lint and contract checks via `check_document.py` | Verify `verification-row-grammar.md`, `dev-designer/SKILL.md`, and `principal-review/SKILL.md` alignment |
 
@@ -154,7 +154,7 @@ Integration results: python3 -m pytest tests/ skills/dev-implementation/resource
 
 The suite covers all 5 dimensions under the `[TCAE-]` prefix:
 1. **Happy Paths (`TCAE-HP-01` .. `TCAE-HP-04`)**: Declaring and verifying `(new)` `Evidence files:`, rendering verbatim BDD and `.devtool/features/` mirrors from single-source epic tasks, executing `d3nexus` commands via zero-setup environment injection, and clean grammar validation with `\|` unescaping and `env VAR=val`.
-2. **Edge Cases (`TCAE-EC-01` .. `TCAE-EC-03`)**: Tasks without `Covers:` (`Covers: none`), embedded files containing triple-backtick fences automatically promoted to 4-backtick outer fences, and grep/rg/sed search patterns containing `/` excluded from missing-file path errors.
+2. **Edge Cases (`TCAE-EC-01` .. `TCAE-EC-03`)**: Tasks without `Covers:` (`Covers: none`), embedded files containing fenced code blocks automatically promoted to dynamic outer fences (`max(4, max_inner_backtick_run + 1)`), and grep/rg/sed search patterns containing `/` excluded from missing-file path errors.
 3. **State Transitions (`TCAE-ST-01` .. `TCAE-ST-02`)**: Orphan mirror cleanup and `done/` board location synchronization during `render`, and Done-Gate transition from FAIL (when a declared `Evidence files:` output is missing) to PASS (once created by verification).
 4. **Async & Concurrency (`TCAE-AR-01` .. `TCAE-AR-02`)**: Isolated `D3NEXUS_KIT` / `PATH` injection across parallel worktrees without environment leakage, and deterministic multi-task rendering across worktrees.
 5. **Failures & Resilience (`TCAE-FR-01` .. `TCAE-FR-03`)**: Rejecting `Evidence files:` outside `.devtool/epic/<epic>/evidence/` or with `..` traversal, rejecting hardcoded `/Users/...` or `.claude/plugins/cache/...` paths and bare `VAR=val` assignments, and aborting `render` cleanly when `Covers:` references an unknown scenario ID.

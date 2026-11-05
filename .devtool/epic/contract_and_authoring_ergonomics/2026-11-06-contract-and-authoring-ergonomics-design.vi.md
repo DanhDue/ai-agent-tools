@@ -132,13 +132,13 @@ Trong `sync_task_status.py`:
 - **Bước 2.2 — Nhúng Nội dung File đã Kiểm chứng (`#0012`)**:
   - Quét thân bài task tìm các chỉ thị có dạng `<!-- @@FILE:<relative_path>@@ -->` nằm ngay trước một khối code fence.
   - Phân giải `<relative_path>` tương đối theo `--source-root` (mặc định là thư mục gốc của repo). Từ chối mọi đường dẫn chứa `..` hoặc bắt đầu bằng `/`.
-  - Thay thế phần ruột của khối code fence bằng nội dung chính xác của file nguồn, đồng thời tự động nâng rào ngoài lên 4 dấu backtick (```` ````<lang> ````) nếu nội dung file nhúng có chứa 3 dấu backtick.
+  - Thay thế phần ruột của khối code fence bằng nội dung chính xác của file nguồn, đồng thời tự động nâng rào ngoài lên `max(4, max_inner_backtick_run + 1)` dấu backtick mỗi khi nội dung file nhúng có chứa code fence từ 3 dấu backtick trở lên.
 - **Bước 2.3 — Sinh Bản Mirror và Viết lại Liên kết (`#0012`)**:
-  - Ghi nội dung đã render trở lại `.devtool/epic/<epic_dir>/task_*.md`.
-  - Sinh bản mirror tương ứng trên bảng Kanban tại `.devtool/features/task_*.md` (hoặc `.devtool/features/done/task_*.md` nếu frontmatter `status` là `"done"`), tự động chuyển đổi các liên kết Markdown tương đối trỏ tới các file cùng thư mục epic (`](<file>.md)` hoặc `](./<file>.md)`) thành `](../epic/<epic_dir>/<file>.md)`.
+  - Chuẩn hóa các liên kết nội bộ trong file task nguồn (`](./<file>.md)` -> `](<file>.md)`) và ghi nội dung đã render trở lại `.devtool/epic/<epic_dir>/task_*.md`.
+  - Sinh bản mirror tương ứng trên bảng Kanban tại `.devtool/features/task_*.md` (viết lại liên kết thành `](../epic/<epic_dir>/<file>.md)`) hoặc `.devtool/features/done/task_*.md` nếu frontmatter `status` là `"done"` (viết lại liên kết theo vị trí thành `](../../epic/<epic_dir>/<file>.md)`).
   - Dọn dẹp các file `.devtool/features/task_*.md` mồ côi có frontmatter `epic:` trùng với `<epic_slug>` nhưng file nguồn không còn tồn tại trong `.devtool/epic/<epic_dir>/`.
-- **Bước 2.4 — Dịch chuyển Kiểm tra R2 & R3 sang Trái trong `check_task_contract.py --design`**:
-  - Khi bật cờ `--design` (hoặc khi có file `bdd_scenarios.en.md` đi kèm `--hld`), `check_task_contract.py` kiểm tra ngay các khối Gherkin trong task có khớp nguyên văn với `bdd_scenarios.en.md` (R3) và bản mirror `.devtool/features/<task>.md` có đồng nhất với bản gốc (R2) hay không, đồng thời in gợi ý chạy `d3nexus sync-status render <epic_dir>`.
+- **Bước 2.4 — Dịch chuyển Kiểm tra R2 & R3 sang Trái trong `check_task_contract.py --design` và `check_epic_readiness.py`**:
+  - Khi bật cờ `--design` (hoặc khi có file `bdd_scenarios.en.md` đi kèm `--hld`), `check_task_contract.py` kiểm tra ngay các khối Gherkin trong task có khớp nguyên văn với `bdd_scenarios.en.md` (R3) và bản mirror trong `.devtool/features/` (hoặc `.devtool/features/done/`) có đồng nhất với bản gốc (R2) qua hàm chuẩn hóa link theo vị trí dùng chung với `check_epic_readiness.py`, đồng thời in gợi ý chạy `d3nexus sync-status render <epic_dir>`.
 
 ### 3. Điểm vào CLI Khả chuyển Không cần Cài đặt (Zero-Setup)
 
@@ -166,7 +166,7 @@ Trong `sync_task_status.py`:
   2. **Loại trừ biểu thức mẫu tìm kiếm trong `command_paths()`**: Khi câu lệnh gọi `grep`, `egrep`, `fgrep`, `rg`, `sed`, hoặc `awk`, bỏ qua tham số biểu thức tìm kiếm (token đứng ngay sau `-e` / `--regexp`, hoặc tham số vị trí đầu tiên không phải cờ khi không dùng `-e` / `-f`) khỏi bước trích xuất đường dẫn file để các mẫu tìm kiếm có chứa dấu `/` không bị báo lỗi nhầm là thiếu file.
   3. **Hiển thị Nguồn gốc Implicit Protected Paths**: Khi `check_task_contract.py` in dòng `Implicit protected paths:`, hiển thị kèm tên task và mã dòng Verification đã kích hoạt đường dẫn đó (ví dụ: `scripts/verify.sh (task_1:V2)`).
 - **Tài liệu Quy chiếu Ngữ pháp Tập trung (`skills/dev-designer/references/verification-row-grammar.md`)**:
-  - Tài liệu hóa đầy đủ quy tắc tách ô bảng, quy tắc tự unescape `\|` thành `|` trước khi chạy, cách dùng `env VAR=value`, `d3nexus` / `$D3NEXUS_KIT`, `Evidence files:`, implicit protected paths, và cách dùng rào 4 dấu backtick cho các bước thực thi có chứa khối code lồng bên trong.
+  - Tài liệu hóa đầy đủ quy tắc tách ô bảng, quy tắc tự unescape `\|` thành `|` trước khi chạy, cách dùng `env VAR=value`, `d3nexus` / `$D3NEXUS_KIT`, `Evidence files:`, implicit protected paths, và cách dùng rào code ngoài có độ dài động (`max(4, max_inner_backtick_run + 1)`) cho các bước thực thi có chứa khối code lồng bên trong.
 - **Đồng bộ Quy tắc với Reviewer (`skills/principal-review/SKILL.md`)**:
   - Ghi rõ trong hướng dẫn của `principal-review` rằng ký tự `\|` trong ô bảng Markdown được `task_contract.py` tự động unescape thành `|` trước khi truyền cho shell, loại bỏ hoàn toàn lỗi bắt nhầm (false positive).
 
@@ -181,7 +181,7 @@ Trong `sync_task_status.py`:
 
 - **Tier A (Unit Tests)**:
   - `test_check_task_contract.py`: Kiểm thử phân tích `Evidence files:`, grounding cho đường dẫn evidence `(new)`, chặn đường dẫn tuyệt đối `/Users/...` và `.claude/plugins/cache/...`, chẩn đoán `VAR=val` thiếu `env`, bỏ qua mẫu `grep`/`rg` có chứa dấu `/`, và kiểm tra sớm R2/R3.
-  - `test_sync_task_status.py`: Kiểm thử lệnh con `render` cho việc chèn BDD nguyên văn từ `bdd_scenarios.en.md`, nhúng code `<!-- @@FILE:...@@ -->` (bao gồm tự động nâng lên 4 dấu backtick), viết lại liên kết tương đối trong `.devtool/features/`, và dọn dẹp mirror mồ côi.
+  - `test_sync_task_status.py`: Kiểm thử lệnh con `render` cho việc chèn BDD nguyên văn từ `bdd_scenarios.en.md`, nhúng code `<!-- @@FILE:...@@ -->` (bao gồm tự động nâng độ dài rào ngoài theo `max(4, max_inner_backtick_run + 1)`), viết lại liên kết tương đối theo vị trí trong `.devtool/features/` và `.devtool/features/done/`, và dọn dẹp mirror mồ côi.
   - `test_run_task_checks.py`: Kiểm thử việc tự động tiêm `D3NEXUS_KIT` và `PATH` khi chạy dòng Verification cũng như kiểm tra sự tồn tại của `Evidence files:` tại Done Gate.
 - **Tier C1 (Subcutaneous End-to-End Integration)**:
   - Kiểm thử tích hợp đầu-cuối trên một git repo tạm có đủ HLD, `bdd_scenarios.en.md`, và file nguồn `.devtool/epic/<epic>/task_1.md`; chạy lần lượt `bin/d3nexus sync-status render`, `bin/d3nexus check-contract --design`, và `bin/d3nexus run-checks verify` (bên trong có dòng lệnh gọi `d3nexus check-doc` và sinh file trong `Evidence files:`), xác nhận Done Gate trả về PASS.

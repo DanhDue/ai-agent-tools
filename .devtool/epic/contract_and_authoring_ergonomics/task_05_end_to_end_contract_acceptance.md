@@ -76,12 +76,13 @@ Scenario: [TCAE-FR-03] [Tier C - Integration] Render aborts cleanly when Covers 
 
 | ID | Phase | Command | Expect | Needs |
 |----|-------|---------|--------|-------|
-| V1 | RED | `python3 -m pytest tests/test_task_contract_ergonomics_e2e.py::test_TCAE_ST_02_done_gate_evidence_transition` | exit 1; contains "FAILED" | — |
-| V2 | GREEN | `python3 -m pytest tests/test_task_contract_ergonomics_e2e.py` | exit 0; contains "passed" | — |
-| V3 | TIER-B | `ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py skills/dev-implementation/resources/scripts/check_bdd_traceability.py` | exit 0 | — |
-| V4 | TIER-B | `mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py skills/dev-implementation/resources/scripts/check_bdd_traceability.py` | exit 0 | — |
-| V5 | TIER-B | `bash scripts/verify.sh` | exit 0; contains "OK" | — |
-| V6 | TIER-C | `python3 -m pytest tests/ skills/dev-implementation/resources/scripts/ --junitxml=build/test-results/pytest.xml` | exit 0; results build/test-results/pytest.xml | — |
+| V1 | GREEN | `python3 -m pytest tests/test_task_contract_ergonomics_e2e.py` | exit 0; contains "passed" | — |
+| V2 | TIER-B | `ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py skills/dev-implementation/resources/scripts/check_bdd_traceability.py` | exit 0 | — |
+| V3 | TIER-B | `mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py skills/dev-implementation/resources/scripts/check_bdd_traceability.py` | exit 0 | — |
+| V4 | TIER-B | `bash scripts/verify.sh` | exit 0; contains "OK" | — |
+| V5 | TIER-C | `python3 -m pytest tests/ skills/dev-implementation/resources/scripts/ --junitxml=build/test-results/pytest.xml` | exit 0; results build/test-results/pytest.xml | — |
+
+RED: n/a — end-to-end acceptance test suite verifying behaviors already implemented in Tasks 01–04.
 
 ## Stop and Report If
 
@@ -99,9 +100,9 @@ Scenario: [TCAE-FR-03] [Tier C - Integration] Render aborts cleanly when Covers 
 
 ## Definition of Done
 
-- End-to-end integration tests in `tests/test_task_contract_ergonomics_e2e.py` pass for `TCAE-ST-02`, `TCAE-AR-02`, and `TCAE-FR-03`. (V2, V6)
-- `ruff`, `mypy`, and `bash scripts/verify.sh` pass with zero errors. (V3, V4, V5)
-- Full test suite across `tests/` and `skills/dev-implementation/resources/scripts/` passes with 100% `[TCAE-*]` scenario traceability in `build/test-results/pytest.xml`. (V6)
+- End-to-end integration tests in `tests/test_task_contract_ergonomics_e2e.py` pass for `TCAE-ST-02`, `TCAE-AR-02`, and `TCAE-FR-03`. (V1, V5)
+- `ruff`, `mypy`, and `bash scripts/verify.sh` pass with zero errors. (V2, V3, V4)
+- Full test suite across `tests/` and `skills/dev-implementation/resources/scripts/` passes with 100% `[TCAE-*]` scenario traceability in `build/test-results/pytest.xml`. (V5)
 - Clean git working tree with changes restricted to Allowed files. (Gate 5)
 
 ## Dependencies & Blockers

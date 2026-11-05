@@ -54,7 +54,7 @@ Separating `Evidence files:` from `Allowed files:` preserves the invariant that 
 
 ### BDD SCENARIOS
 
-Covers: TCAE-HP-01, TCAE-EC-01, TCAE-FR-01
+Covers: TCAE-HP-01, TCAE-FR-01
 
 ```gherkin
 Scenario: [TCAE-HP-01] [Tier C - Integration] Evidence files declaration passes design contract and Done-Gate verification
@@ -64,12 +64,6 @@ Scenario: [TCAE-HP-01] [Tier C - Integration] Evidence files declaration passes 
   Then it exits 0 with 0 problems and grounds the new evidence path across the epic
   And when run_task_checks.py verify executes the row that writes ".devtool/epic/sample_epic/evidence/baseline.txt"
   Then evaluate_done_gate confirms the evidence file exists on disk and passes all Done-Gate conditions
-
-Scenario: [TCAE-EC-01] [Tier A - Unit] Task without Evidence files or Covers line remains backward-compatible
-  Given a legacy task file that omits the "Evidence files:" subsection and omits the "Covers:" line
-  When "sync_task_status.py render" and "check_task_contract.py --design" run on the epic
-  Then "sync_task_status.py render" generates the ".devtool/features/" mirror without modifying the task's BDD section
-  And "check_task_contract.py --design" exits 0 with 0 problems
 
 Scenario: [TCAE-FR-01] [Tier A - Unit] Reject invalid Evidence files path outside epic evidence directory or with path traversal
   Given a task listing ".devtool/epic/sample_epic/../secret.txt (new)" or "src/output.json (new)" under "Evidence files:"
@@ -108,7 +102,7 @@ Scenario: [TCAE-FR-01] [Tier A - Unit] Reject invalid Evidence files path outsid
 - `parse_evidence_files` and `check_evidence` validate `Evidence files:` entries and ground `(new)` evidence paths across tasks. (V2)
 - `evaluate_done_gate` enforces that declared `Evidence files:` exist and are non-empty on disk. (V2, V5)
 - `ruff` and `mypy` pass with zero errors on all modified files. (V3, V4)
-- Automated tests covering `TCAE-HP-01`, `TCAE-EC-01`, and `TCAE-FR-01` pass and write JUnit XML results. (V5)
+- Automated tests covering `TCAE-HP-01` and `TCAE-FR-01` pass and write JUnit XML results. (V5)
 - Clean git working tree with changes restricted to Allowed files. (Gate 5)
 
 ## Dependencies & Blockers

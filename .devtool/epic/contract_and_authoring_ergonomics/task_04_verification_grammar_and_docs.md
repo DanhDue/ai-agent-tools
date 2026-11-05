@@ -95,7 +95,7 @@ Scenario: [TCAE-EC-03] [Tier A - Unit] Search patterns containing slashes in gre
 - In `skills/dev-implementation/resources/scripts/check_task_contract.py`, `command_paths(command: str)` splits subcommands on `tc.CONTROL_TOKENS` (`&&`, `||`, `;`, `|`). For any subcommand whose unwrapped program is `grep`, `egrep`, `fgrep`, `rg`, `sed`, or `awk`, the pattern argument (the token after `-e`/`--regexp` or the first non-flag positional argument when no `-e`/`-f` flag is present) is skipped before collecting path tokens.
 - When the first token of a subcommand (before `env`) matches `^[A-Za-z_][A-Za-z0-9_]*=.*`, `check_grounding` records a problem: `"inline environment assignment '<token>' must be prefixed with 'env' (e.g. 'env <token> ...')"`.
 - `Implicit protected paths:` in `check_task_contract.py` formats each entry as `<path> (<task_stem>:<row_id>, ...)`.
-- `skills/dev-designer/references/verification-row-grammar.md` includes a `## Table of Contents` and documents all 6 rules (`\|` unescaping, `env VAR=val`, grep pattern rules, `Evidence files:`, `d3nexus` / `$D3NEXUS_KIT`, and 4-backtick outer code fences).
+- `skills/dev-designer/references/verification-row-grammar.md` includes a `## Table of Contents` and documents all 6 rules (`\|` unescaping, `env VAR=val`, grep pattern rules, `Evidence files:`, `d3nexus` / `$D3NEXUS_KIT`, and dynamic `max(4, max_inner_backtick_run + 1)` outer code fences).
 
 ## Definition of Done
 

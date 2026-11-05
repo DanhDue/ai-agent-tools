@@ -49,11 +49,11 @@ Scenario: [TCAE-EC-01] [Tier A - Unit] Task without Evidence files or Covers lin
   Then "sync_task_status.py render" generates the ".devtool/features/" mirror without modifying the task's BDD section
   And "check_task_contract.py --design" exits 0 with 0 problems
 
-Scenario: [TCAE-EC-02] [Tier A - Unit] Embedded file containing triple backticks promotes outer fence to four backticks
-  Given a source file "docs/snippet.md" containing a fenced code block delimited by three backticks
+Scenario: [TCAE-EC-02] [Tier A - Unit] Embedded file containing fenced code blocks promotes outer fence to max(4, max_inner_backtick_run + 1) backticks
+  Given a source file "docs/snippet.md" containing fenced code blocks delimited by three or four backticks
   And a task containing "<!-- @@FILE:docs/snippet.md@@ -->" immediately above a three-backtick code fence
   When "sync_task_status.py render sample_epic" executes
-  Then the rendered code block in both the epic task and the ".devtool/features/" mirror uses a four-backtick outer fence
+  Then the rendered code block in both the epic task and the ".devtool/features/" mirror uses an outer fence of length max(4, max_inner_backtick_run + 1) backticks
 
 Scenario: [TCAE-EC-03] [Tier A - Unit] Search patterns containing slashes in grep, rg, sed, and awk are not flagged as missing paths
   Given a Verification row command "grep -E 'foo/bar/baz' README.md" where "foo/bar/baz" is not a file on disk

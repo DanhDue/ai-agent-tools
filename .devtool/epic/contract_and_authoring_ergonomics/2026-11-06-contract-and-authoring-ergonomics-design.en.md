@@ -132,13 +132,13 @@ In `sync_task_status.py`:
 - **Step 2.2 — Verified File Embedding (`#0012`)**:
   - Scans the task body for directives of the form `<!-- @@FILE:<relative_path>@@ -->` immediately preceding a fenced code block.
   - Resolves `<relative_path>` against `--source-root` (defaulting to the repository root). Rejects any path with `..` or absolute prefix.
-  - Replaces the fenced block's interior with the exact file content, automatically using a 4-backtick outer fence (```` ````<lang> ````) if the embedded file contains triple backticks.
+  - Replaces the fenced block's interior with the exact file content, automatically promoting the outer fence to `max(4, max_inner_backtick_run + 1)` backticks whenever the embedded file contains triple (or longer) backtick fences.
 - **Step 2.3 — Mirror Generation and Link Rewriting (`#0012`)**:
-  - Writes the rendered task back to `.devtool/epic/<epic_dir>/task_*.md`.
-  - Generates the corresponding Kanban board mirror in `.devtool/features/task_*.md` (or `.devtool/features/done/task_*.md` when frontmatter `status` is `"done"`), rewriting relative Markdown links pointing to sibling epic files (`](<file>.md)` or `](./<file>.md)`) to `](../epic/<epic_dir>/<file>.md)`.
+  - Canonicalizes intra-epic relative links in the epic task (`](./<file>.md)` -> `](<file>.md)`) and writes the rendered task back to `.devtool/epic/<epic_dir>/task_*.md`.
+  - Generates the corresponding Kanban board mirror in `.devtool/features/task_*.md` (rewriting sibling epic links to `](../epic/<epic_dir>/<file>.md)`) or `.devtool/features/done/task_*.md` when frontmatter `status` is `"done"` (rewriting sibling epic links to `](../../epic/<epic_dir>/<file>.md)`).
   - Removes stale `.devtool/features/task_*.md` files whose frontmatter `epic:` matches `<epic_slug>` but whose source file no longer exists in `.devtool/epic/<epic_dir>/`.
-- **Step 2.4 — Shift-Left R2 & R3 Checks in `check_task_contract.py --design`**:
-  - When `--design` is active (or whenever `bdd_scenarios.en.md` exists alongside `--hld`), `check_task_contract.py` validates that each task's Gherkin scenario blocks match `bdd_scenarios.en.md` verbatim (R3) and that `.devtool/features/<task>.md` matches the normalized epic task file (R2), printing a remediation hint (`run: d3nexus sync-status render <epic_dir>`).
+- **Step 2.4 — Shift-Left R2 & R3 Checks in `check_task_contract.py --design` and `check_epic_readiness.py`**:
+  - When `--design` is active (or whenever `bdd_scenarios.en.md` exists alongside `--hld`), `check_task_contract.py` validates that each task's Gherkin scenario blocks match `bdd_scenarios.en.md` verbatim (R3) and that `.devtool/features/` (or `.devtool/features/done/`) mirrors match the normalized epic task file (R2) using shared location-aware link normalization with `check_epic_readiness.py`, printing a remediation hint (`run: d3nexus sync-status render <epic_dir>`).
 
 ### 3. Zero-Setup Portable Kit Entrypoint
 
@@ -166,7 +166,7 @@ In `sync_task_status.py`:
   2. **Search pattern exclusion in `command_paths()`**: When a subcommand invokes `grep`, `egrep`, `fgrep`, `rg`, `sed`, or `awk`, exclude the regex/pattern argument (either the token immediately following `-e` / `--regexp`, or the first non-option positional argument when `-e` / `-f` is absent) from path extraction so patterns containing `/` are not misclassified as missing file paths.
   3. **Implicit Protected Path Provenance**: When `check_task_contract.py` prints `Implicit protected paths:`, include the task and row IDs that triggered each path (e.g., `scripts/verify.sh (task_1:V2)`).
 - **Consolidated Grammar Reference (`skills/dev-designer/references/verification-row-grammar.md`)**:
-  - Documents cell splitting, `\|` unescaping (`parse_row` turns `\|` into `|` before execution), `env VAR=value`, `d3nexus` / `$D3NEXUS_KIT`, `Evidence files:`, implicit protected paths, and 4-backtick outer code fences for task steps containing nested code blocks.
+  - Documents cell splitting, `\|` unescaping (`parse_row` turns `\|` into `|` before execution), `env VAR=value`, `d3nexus` / `$D3NEXUS_KIT`, `Evidence files:`, implicit protected paths, and dynamic outer code fences (`max(4, max_inner_backtick_run + 1)`) for task steps containing nested code blocks.
 - **Reviewer Alignment (`skills/principal-review/SKILL.md`)**:
   - Explicitly instructs reviewers that `\|` inside Markdown table cells is unescaped to `|` by `task_contract.py` before shell execution, preventing false-positive review findings.
 
@@ -181,7 +181,7 @@ In `sync_task_status.py`:
 
 - **Tier A (Unit Tests)**:
   - `test_check_task_contract.py`: Tests for `Evidence files:` validation, `(new)` evidence path grounding, rejection of `/Users/...` and `.claude/plugins/cache/...` paths, bare `VAR=val` diagnostic, `grep`/`rg` pattern slash exclusion, and early R2/R3 checks.
-  - `test_sync_task_status.py`: Tests for `render` subcommand covering verbatim BDD injection from `bdd_scenarios.en.md`, `<!-- @@FILE:...@@ -->` code embedding (including automatic 4-backtick fence promotion), relative link rewriting in `.devtool/features/`, and orphan mirror cleanup.
+  - `test_sync_task_status.py`: Tests for `render` subcommand covering verbatim BDD injection from `bdd_scenarios.en.md`, `<!-- @@FILE:...@@ -->` code embedding (including dynamic `max(4, max_inner_backtick_run + 1)` fence promotion), location-aware relative link rewriting in `.devtool/features/` and `.devtool/features/done/`, and orphan mirror cleanup.
   - `test_run_task_checks.py`: Tests verifying `D3NEXUS_KIT` and `PATH` injection during row execution and Done-Gate verification of declared `Evidence files:`.
 - **Tier C1 (Subcutaneous End-to-End Integration)**:
   - End-to-end test creating a temporary git repository with an HLD, `bdd_scenarios.en.md`, and a single-source `.devtool/epic/<epic>/task_1.md`, running `bin/d3nexus sync-status render`, `bin/d3nexus check-contract --design`, and `bin/d3nexus run-checks verify` (executing `d3nexus check-doc` inside a Verification row and producing a declared evidence file), asserting a clean Done-Gate pass.

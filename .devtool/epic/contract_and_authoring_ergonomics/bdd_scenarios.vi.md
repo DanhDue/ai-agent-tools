@@ -49,11 +49,11 @@ Scenario: [TCAE-EC-01] [Tier A - Unit] Task không khai báo Evidence files ho�
   Then "sync_task_status.py render" vẫn sinh bản mirror ".devtool/features/" mà không làm thay đổi mục BDD của task
   And "check_task_contract.py --design" thoát mã 0 với 0 lỗi
 
-Scenario: [TCAE-EC-02] [Tier A - Unit] File nhúng chứa 3 dấu backtick tự động nâng rào ngoài lên 4 dấu backtick
-  Given một file nguồn "docs/snippet.md" có chứa một khối code fence được bao bởi 3 dấu backtick
+Scenario: [TCAE-EC-02] [Tier A - Unit] File nhúng chứa khối code fence tự động nâng độ dài rào ngoài lên max(4, max_inner_backtick_run + 1) dấu backtick
+  Given một file nguồn "docs/snippet.md" có chứa các khối code fence được bao bởi 3 hoặc 4 dấu backtick
   And một file task chứa chỉ thị "<!-- @@FILE:docs/snippet.md@@ -->" ngay phía trên khối code fence 3 dấu backtick
   When thực thi lệnh "sync_task_status.py render sample_epic"
-  Then khối code sau khi render trong cả file task của epic và bản mirror ".devtool/features/" đều sử dụng rào ngoài gồm 4 dấu backtick
+  Then khối code sau khi render trong cả file task của epic và bản mirror ".devtool/features/" đều sử dụng rào ngoài có độ dài max(4, max_inner_backtick_run + 1) dấu backtick
 
 Scenario: [TCAE-EC-03] [Tier A - Unit] Biểu thức tìm kiếm chứa dấu gạch chéo trong grep, rg, sed và awk không bị báo lỗi nhầm là thiếu file
   Given một dòng lệnh Verification viết "grep -E 'foo/bar/baz' README.md" trong đó "foo/bar/baz" không phải là file trên đĩa
