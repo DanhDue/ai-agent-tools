@@ -136,6 +136,7 @@ INTEGRATION_POSITIVE_PATTERNS = [
     re.compile(r"(?:\b|[\./_-])androidtest(?:[\./_-]|\b)", re.IGNORECASE),
     re.compile(r"(?:\b|[\./_-])connected(?:[\./_-]|\b)", re.IGNORECASE),
     re.compile(r"(?:\b|[\./_-])contract(?:[\./_-]|\b)", re.IGNORECASE),
+    re.compile(r"(?:\b|[\./_-])demo(?:[\./_-]|\b)", re.IGNORECASE),
 ]
 
 _SCENARIO_TIER_CACHE: dict[str, str] = {}
