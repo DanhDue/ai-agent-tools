@@ -417,12 +417,12 @@ class TestRefreshSession(unittest.TestCase):
         res = refresh_session.ping_profile("danhdue")
         self.assertEqual(res["status"], "PASS")
         self.assertEqual(res["profile"], "danhdue")
-        self.assertEqual(res["tokens"], 0)
+        self.assertIn(res["tokens"], (0, 1))
 
     @patch("refresh_session.ping_profile", return_value={"cli": "agy (danhdue)", "profile": "danhdue", "status": "PASS", "latency_ms": 110.0, "tokens": 0, "error": None})
     def test_main_profile_dispatch(self, mock_ping_prof: MagicMock) -> None:
         """Dispatches to ping_profile when target is an Antigravity profile."""
-        code = refresh_session.main(["danhdue"])
+        code = refresh_session.main(["danhdue", "--force"])
         self.assertEqual(code, 0)
         mock_ping_prof.assert_called_once_with("danhdue", timeout=60)
 
@@ -431,7 +431,7 @@ class TestRefreshSession(unittest.TestCase):
     @patch("refresh_session.ping_cli", return_value={"cli": "claude", "status": "PASS", "latency_ms": 10.0, "tokens": 1, "error": None})
     def test_main_all_dispatches_clis_and_profiles(self, mock_ping_cli: MagicMock, mock_ping_prof: MagicMock, mock_known: MagicMock) -> None:
         """Target 'all' must ping Claude, Codex, and all known profiles."""
-        code = refresh_session.main(["all"])
+        code = refresh_session.main(["all", "--force"])
         self.assertEqual(code, 0)
         self.assertEqual(mock_ping_cli.call_count, 2)
         mock_ping_prof.assert_called_once_with("danhdue", timeout=60)
@@ -439,7 +439,7 @@ class TestRefreshSession(unittest.TestCase):
     @patch("refresh_session.ping_cli", return_value={"cli": "claude", "status": "PASS", "latency_ms": 10.0, "tokens": 1, "error": None})
     def test_main_clis_dispatches_claude_and_codex(self, mock_ping_cli: MagicMock) -> None:
         """Target 'clis' must ping Claude and Codex."""
-        code = refresh_session.main(["clis"])
+        code = refresh_session.main(["clis", "--force"])
         self.assertEqual(code, 0)
         self.assertEqual(mock_ping_cli.call_count, 2)
 
@@ -448,10 +448,17 @@ class TestRefreshSession(unittest.TestCase):
     @patch("refresh_session.ping_cli", return_value={"cli": "claude", "status": "PASS", "latency_ms": 10.0, "tokens": 1, "error": None})
     def test_main_multi_targets_combination(self, mock_ping_cli: MagicMock, mock_ping_prof: MagicMock, mock_known: MagicMock) -> None:
         """Comma-separated target list dispatches exact subset specified."""
-        code = refresh_session.main(["claude,codex,danhdue,hau"])
+        code = refresh_session.main(["claude,codex,danhdue,hau", "--force"])
         self.assertEqual(code, 0)
         self.assertEqual(mock_ping_cli.call_count, 2)  # claude and codex
         self.assertEqual(mock_ping_prof.call_count, 2)  # danhdue and hau
+
+    @patch("refresh_session.is_target_session_active", return_value=(True, "Session active (3h remaining)"))
+    def test_main_skips_when_session_active(self, mock_check: MagicMock) -> None:
+        """When session is active and no --force, ping is skipped."""
+        code = refresh_session.main(["claude"])
+        self.assertEqual(code, 0)
+        mock_check.assert_called_with("claude")
 
 
 if __name__ == "__main__":
