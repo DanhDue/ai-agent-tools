@@ -1,13 +1,13 @@
 ---
 id: "task_05_execution_infra_e2e_acceptance"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "execution-and-verification-infrastructure"
 dueDate: null
 created: "2026-11-06T03:20:00Z"
-modified: "2026-11-06T12:57:55Z"
-completedAt: null
+modified: "2026-11-06T17:06:04Z"
+completedAt: "2026-11-06T17:06:04Z"
 labels: ["acceptance", "integration", "docs"]
 order: "b5"
 ---

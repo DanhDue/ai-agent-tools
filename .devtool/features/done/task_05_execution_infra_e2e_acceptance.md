@@ -1,20 +1,20 @@
 ---
 id: "task_05_execution_infra_e2e_acceptance"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "execution-and-verification-infrastructure"
 dueDate: null
 created: "2026-11-06T03:20:00Z"
-modified: "2026-11-06T12:57:55Z"
-completedAt: null
+modified: "2026-11-06T17:06:04Z"
+completedAt: "2026-11-06T17:06:04Z"
 labels: ["acceptance", "integration", "docs"]
 order: "b5"
 ---
 
 # Task 05: End-to-End Execution Infrastructure Acceptance Verification
 
-Epic: [execution_and_verification_infrastructure](../epic/execution_and_verification_infrastructure/execution_and_verification_infrastructure.en.md)
+Epic: [execution_and_verification_infrastructure](../../epic/execution_and_verification_infrastructure/execution_and_verification_infrastructure.en.md)
 
 ## Requirement Analysis
 
@@ -99,12 +99,12 @@ RED: n/a — end-to-end acceptance test suite and skill documentation verifying 
 
 ## Dependencies & Blockers
 
-- Blocked by [Task 01](../epic/execution_and_verification_infrastructure/task_01_polyglot_worktree_bootstrap.md)
-- Blocked by [Task 02](../epic/execution_and_verification_infrastructure/task_02_failure_baseline_and_comparison.md)
-- Blocked by [Task 03](../epic/execution_and_verification_infrastructure/task_03_live_integration_and_route_matching.md)
-- Blocked by [Task 04](../epic/execution_and_verification_infrastructure/task_04_task_replay_and_measure_phase.md)
+- Blocked by [Task 01](../../epic/execution_and_verification_infrastructure/task_01_polyglot_worktree_bootstrap.md)
+- Blocked by [Task 02](../../epic/execution_and_verification_infrastructure/task_02_failure_baseline_and_comparison.md)
+- Blocked by [Task 03](../../epic/execution_and_verification_infrastructure/task_03_live_integration_and_route_matching.md)
+- Blocked by [Task 04](../../epic/execution_and_verification_infrastructure/task_04_task_replay_and_measure_phase.md)
 
 ## References & Rollback
 
-- Reference: [2026-11-06-execution-and-verification-infrastructure-design.en.md](../epic/execution_and_verification_infrastructure/2026-11-06-execution-and-verification-infrastructure-design.en.md).
+- Reference: [2026-11-06-execution-and-verification-infrastructure-design.en.md](../../epic/execution_and_verification_infrastructure/2026-11-06-execution-and-verification-infrastructure-design.en.md).
 - Rollback: `git revert` the task commit to remove `tests/test_execution_infra_acceptance.py` and doc updates.

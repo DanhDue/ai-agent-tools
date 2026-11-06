@@ -39,7 +39,7 @@ If the original `dev-brainstorming` request was decomposed into multiple sub-pro
 
 When invoked, you MUST strictly follow this exact 3-step workflow to organize the user's requirements:
 
-### Step 0: Detect Target Platform
+### Step 0: Detect Target Platform & Polyglot Worktree Bootstrap
 Detect the active project platform architecture:
 - **Web Applications / Frontend**: Root or app package contains `package.json` with web frameworks (`astro.config.*`, `vite.config.*`, `next.config.*`, `nuxt.config.*`, `svelte.config.*`, `webpack.config.*`).
 - **Flutter**: Root contains `pubspec.yaml` or `melos.yaml`.
@@ -47,6 +47,8 @@ Detect the active project platform architecture:
 - **iOS Native**: Root contains `Project.swift`, `Tuist.swift`, or `Package.swift`.
 - **Python**: Root contains `pyproject.toml`, `setup.py`, `Pipfile`, or `requirements.txt`.
 - **Rust Core / Polyglot**: Root contains `Cargo.toml`.
+
+For polyglot repositories containing multiple project layers (e.g. Python backend + Web frontend + Rust core), `detect_project_type.sh --all` detects all active project types, and `bootstrap_worktree.sh` executes sequential bootstrap steps. In Python projects, `.agents/quality/python-quality.json` supports an optional `"bootstrap"` command list (e.g. `["uv sync", "uv run playwright install"]`) executed automatically during worktree creation.
 
 ### Step 1: Create the Epic Overview Document (HLD/RFC)
 Generate the Epic Overview documents inside a dedicated directory: `.devtool/epic/<epic_name>/`.
@@ -92,6 +94,11 @@ Each document MUST contain the following sections:
      Integration results: uv run pytest tests/integration tests/e2e --junitxml=build/test-results/py.xml -> build/test-results/py.xml
      ```
      `Protected paths:` lists explicit paths and globs; the three shown are the minimum, and a tracked program that a Verification row runs is protected implicitly. Write one `Integration results:` line per platform, at least one: the command Gate 4 runs, then ` -> `, then the report it writes.
+     For opt-in live integration suites (such as local LLM or live provider benchmarks requiring environment variables like `PLT_LIVE_OLLAMA_MODEL` or `EVI_LIVE_MODEL`), declare:
+     ```text
+     Integration results (live, needs: VAR1, VAR2): uv run pytest tests/integration/test_live.py --junitxml=build/test-results/live.xml -> build/test-results/live.xml
+     ```
+     This satisfies `R6` Tier C coverage checks in `check_epic_readiness.py` while `run_external_review.py` skips the live execution cleanly at Gate 4 when declared environment variables are unset without failing the gate.
    - **Verification Environment**: The HLD MUST also carry a `## Verification Environment` section: how tests are isolated from real data, which live resources are forbidden, and every variable a `Needs` column may name. When the project has a live data store, the first task carries a sentinel row proving tests cannot write to it.
    - **Comprehensive BDD Test Scenarios**: A detailed Gherkin suite (`Given - When - Then`) covering all Use Cases and Sequence Diagram flows across the **Mandatory 5-Dimension Boundary Matrix**:
      1. **Happy Paths**: Normal data flow and standard successful outcomes.
@@ -392,8 +399,9 @@ Each task file MUST adhere to this exact structure:
    ```
 
    - **Columns** are exactly `ID | Phase | Command | Expect | Needs`. IDs are `V1`, `V2`, … and unique within the task.
-   - **Phase** is `RED` (run before implementation), `GREEN`, `TIER-B` (tooling and governance) or `TIER-C` (integration and acceptance).
+   - **Phase** is `RED` (run before implementation), `MEASURE` (benchmarking and heavy evaluation generating declared evidence files), `GREEN`, `TIER-B` (tooling and governance) or `TIER-C` (integration and acceptance).
    - **Command** is one inline code span, run as `bash -o pipefail -c '<command>'` from the worktree root.
+   - **Measurement-to-Evidence Pattern**: Long-running measurement tasks (such as local model benchmarks or heavy perf evaluations) carry `Phase: MEASURE` Verification rows and declare `Evidence files:` in the task header (`Evidence files: - .devtool/epic/<epic_name>/evidence/<filename>.json`). The `MEASURE` phase executes before `GREEN` rows, writes non-empty evidence files to disk, and records SHA-256 digests in the task evidence JSON. `evaluate_done_gate()` and `audit_epic.py` enforce that `runs.measure.passed == true` and verify matching evidence file digests.
    - **Expect** follows this grammar; every `contains` text must appear in the combined stdout and stderr:
 
      ```text
@@ -444,9 +452,17 @@ Then check the task contract, which `plan` does not cover: the Files, Verificati
 python3 "$SKILL_DIR"/../dev-implementation/resources/scripts/check_task_contract.py --design \
   --hld .devtool/epic/<epic_name>/<epic_name>.en.md \
   --tasks .devtool/epic/<epic_name>/task_*.md
+
+python3 "$SKILL_DIR"/../dev-implementation/resources/scripts/check_epic_readiness.py <epic_name> --baseline
 ```
 
-It must exit 0 as well; fix what it names and run both checks again. Both must exit 0 before the commit. Pass the epic directory's task mirrors, never `.devtool/features/task_*.md`, which can hold other epics' tasks.
+To verify task text directives (`Create`, `Replace in`, `Insert in`) and all verification rows end-to-end inside an isolated scratch worktree without mutating the main tree, run:
+
+```bash
+python3 "$SKILL_DIR"/../dev-implementation/resources/scripts/check_epic_readiness.py <epic_name> --replay
+```
+
+It must exit 0 as well; fix what it names and run checks again. All checks must exit 0 before the commit. Pass the epic directory's task mirrors, never `.devtool/features/task_*.md`, which can hold other epics' tasks.
 
 After the Epic Overview and all confirmed task files are written (or updated), commit them to git:
 - Read `.agents/config.json` — check the `auto_commit` setting.

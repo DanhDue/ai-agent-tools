@@ -213,9 +213,10 @@ For each task in confirmed order, follow `d3nexus:subagent-driven-development`.
    > 3. **BDD Automation (Tier C, all platforms)**: For every identifier on task's `Covers:` line, author at least one integration test under HLD's `Integration test roots`, carrying the identifier in test name, description, or tag.
    > 4. **Gate to Done**:
    >    ```bash
-   >    python3 "$SKILL_DIR"/resources/scripts/run_task_checks.py red <task mirror>     # before implementing (exits 0 on expected fail)
-   >    python3 "$SKILL_DIR"/resources/scripts/run_task_checks.py verify <task mirror>  # after last change (exits 0 with all pass)
-   >    python3 "$SKILL_DIR"/resources/scripts/run_task_checks.py status <task mirror>  # prints done gate: PASS
+   >    python3 "$SKILL_DIR"/resources/scripts/run_task_checks.py red <task mirror>                       # before implementing (exits 0 on expected fail)
+   >    python3 "$SKILL_DIR"/resources/scripts/run_task_checks.py measure <task mirror> [--timeout 7200] [--resume] # for tasks with MEASURE rows
+   >    python3 "$SKILL_DIR"/resources/scripts/run_task_checks.py verify <task mirror>                    # after last change (exits 0 with all pass)
+   >    python3 "$SKILL_DIR"/resources/scripts/run_task_checks.py status <task mirror>                    # prints done gate: PASS
    >    ```
    >    Never edit `.devtool/epic/<epic_dir>/evidence/<task_id>.json` by hand. `sync_task_status.py task <id> done` refuses unless evidence matches tree and table.
    >    When task has `Covers:` line, run traceability check (exit 0):
@@ -224,6 +225,26 @@ For each task in confirmed order, follow `d3nexus:subagent-driven-development`.
    >      --scenarios .devtool/epic/<epic_dir>/bdd_scenarios.en.md \
    >      --roots <Integration test roots from the HLD> \
    >      --ids <identifiers on the task's Covers: line>
+   >    ```
+   >
+   >    **Failure-Set Baseline & Regression Comparison**:
+   >    When isolating pre-existing test failures before making changes or comparing regression deltas:
+   >    ```bash
+   >    python3 "$SKILL_DIR"/resources/scripts/record_failure_baseline.py \
+   >      --cmd "<test-command>" \
+   >      --out .devtool/epic/<epic_dir>/evidence/baseline.txt \
+   >      [--restore <path>]
+   >
+   >    python3 "$SKILL_DIR"/resources/scripts/compare_failure_sets.py \
+   >      --baseline .devtool/epic/<epic_dir>/evidence/baseline.txt \
+   >      --current .devtool/epic/<epic_dir>/evidence/current.txt \
+   >      [--rerun-new] [--allow-isolated-pass]
+   >    ```
+   >
+   >    **Task Text Replay**:
+   >    To replay structured directives (`Create`, `Replace in`, `Insert in`) and test verification rows:
+   >    ```bash
+   >    python3 "$SKILL_DIR"/resources/scripts/replay_task_text.py <task.md> [--worktree <dir>] [--run-rows]
    >    ```
    > 5. **Stop and Report**: A `Stop and Report If` condition in task is reported as `BLOCKED`. Never edit Verification table, Definition of Done, Allowed files or Covers line, or protected path, to force a pass. In Satellite Mode, report `BLOCKED` if an unmerged upstream contract change prevents local tests from passing.
 

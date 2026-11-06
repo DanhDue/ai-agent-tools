@@ -1,0 +1,261 @@
+{
+  "schema": 1,
+  "task": "task_05_execution_infra_e2e_acceptance",
+  "runs": {
+    "verify": {
+      "head": "27950988e8d7bacbc6911d4d701c322daaef5cd8",
+      "tree": "4ab9e6452fa6fc3670eab462de25349a20a61aa1",
+      "patch_id": "a94dc7ac4c486946a0efaeb5b09911dd1aa56280",
+      "started": "2026-11-06T17:03:23Z",
+      "finished": "2026-11-06T17:05:28Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "GREEN",
+          "command": "python3 -m pytest tests/test_execution_infra_acceptance.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-06T17:03:23Z",
+          "finished": "2026-11-06T17:03:26Z",
+          "output_tail": [
+            "============================= test session starts ==============================",
+            "platform darwin -- Python 3.15.2, pytest-9.2.0, pluggy-1.7.0",
+            "rootdir: /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/execution_and_verification_infrastructure",
+            "collected 2 items",
+            "",
+            "tests/test_execution_infra_acceptance.py ..                              [100%]",
+            "",
+            "============================== 2 passed in 2.06s ==============================="
+          ],
+          "output_sha256": "4b69e331df1fed79a1e36d5457b2b816ddb70510d9b4dc1feab7420f4f2a98d7"
+        },
+        {
+          "id": "V2",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py tests/test_execution_infra_acceptance.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-06T17:03:26Z",
+          "finished": "2026-11-06T17:03:26Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V3",
+          "phase": "TIER-B",
+          "command": "mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py tests/test_execution_infra_acceptance.py --follow-imports=silent",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-06T17:03:26Z",
+          "finished": "2026-11-06T17:03:26Z",
+          "output_tail": [
+            "Success: no issues found in 6 source files"
+          ],
+          "output_sha256": "ab35ee42183d4d6d3ba483825ab037d18a5a15622d03be01d82220b1564851ff"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "python3 skills/doc_quality_check/resources/scripts/check_document.py skills/dev-designer/SKILL.md skills/dev-implementation/SKILL.md",
+          "expect": "exit 0; contains \"0 findings\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-06T17:03:26Z",
+          "finished": "2026-11-06T17:03:26Z",
+          "output_tail": [
+            "  checked 2 documents, 0 findings"
+          ],
+          "output_sha256": "780cb1e9162bb11390ccef16375e9bcefdab9280a7547d85e8e934a240b5843d"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-C",
+          "command": "python3 -m pytest tests/ skills/dev-implementation/resources/scripts/ skills/python-quality-check/resources/scripts/ --junitxml=build/test-results/pytest.xml",
+          "expect": "exit 0; results build/test-results/pytest.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-06T17:03:26Z",
+          "finished": "2026-11-06T17:05:28Z",
+          "output_tail": [
+            "tests/test_execution_infra_acceptance.py ..                              [  2%]",
+            "tests/test_playwright_watchdog.py .......                                [  4%]",
+            "tests/test_polyglot_gate4.py .....                                       [  5%]",
+            "tests/test_smoke_checklist_generator.py .....                            [  6%]",
+            "tests/test_task_contract_ergonomics_e2e.py ....                          [  7%]",
+            "tests/test_vanilla_js_checker.py ........                                [  9%]",
+            "tests/test_web_quality_integration.py .                                  [  9%]",
+            "tests/test_web_quality_provider.py .......                               [ 10%]",
+            "tests/test_workflow_anti_rationalization.py ..                           [ 11%]",
+            "skills/dev-implementation/resources/scripts/test_audit_epic.py ......... [ 13%]",
+            "........                                                                 [ 15%]",
+            "skills/dev-implementation/resources/scripts/test_check_bdd_traceability.py . [ 15%]",
+            "......................................                                   [ 23%]",
+            "skills/dev-implementation/resources/scripts/test_check_epic_readiness.py . [ 23%]",
+            "...........                                                              [ 26%]",
+            "skills/dev-implementation/resources/scripts/test_check_task_contract.py . [ 26%]",
+            ".......................................                                  [ 35%]",
+            "skills/dev-implementation/resources/scripts/test_compute_execution_order.py . [ 35%]",
+            "..............sss                                                        [ 39%]",
+            "skills/dev-implementation/resources/scripts/test_failure_baseline.py ... [ 39%]",
+            ".....                                                                    [ 41%]",
+            "skills/dev-implementation/resources/scripts/test_local_review.py ....... [ 42%]",
+            ".................................                                        [ 49%]",
+            "skills/dev-implementation/resources/scripts/test_replay_and_measure.py . [ 50%]",
+            ".....                                                                    [ 51%]",
+            "skills/dev-implementation/resources/scripts/test_result_reports.py ..... [ 52%]",
+            "....                                                                     [ 53%]",
+            "skills/dev-implementation/resources/scripts/test_run_external_review.py . [ 53%]",
+            "..................................................................       [ 68%]",
+            "skills/dev-implementation/resources/scripts/test_run_task_checks.py .... [ 68%]",
+            ".................................................                        [ 79%]",
+            "skills/dev-implementation/resources/scripts/test_slug_utils.py ......... [ 81%]",
+            ".                                                                        [ 82%]",
+            "skills/dev-implementation/resources/scripts/test_sync_task_status.py ... [ 82%]",
+            "..................................................................       [ 97%]",
+            "skills/python-quality-check/resources/scripts/test_validate_python_quality.py . [ 97%]",
+            "...........                                                              [100%]",
+            "",
+            "- generated xml file: /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/execution_and_verification_infrastructure/build/test-results/pytest.xml -",
+            "================== 448 passed, 3 skipped in 121.85s (0:02:01) =================="
+          ],
+          "output_sha256": "5a4850bfd51b38984861b3208ad80abad4effcf5e3d9dc7a0a81560a97a0e663",
+          "results": {
+            "path": "build/test-results/pytest.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 19,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_EVI_AR_01_readiness_replay_isolated_worktree",
+                  "classname": "tests.test_execution_infra_acceptance",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_EVI_AR_01_integration_runner",
+                  "classname": "tests.test_execution_infra_acceptance.Test_Execution_Infra_Acceptance_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_EVI_EC_03_route_drift_matches_parameterized_templates",
+                  "classname": "skills.dev-implementation.resources.scripts.test_check_epic_readiness.ReadinessGroundingTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_EVI_HP_03_live_integration_results_and_gate4",
+                  "classname": "skills.dev-implementation.resources.scripts.test_check_epic_readiness.ReadinessGroundingTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_EVI_HP_03_live_integration_provenance",
+                  "classname": "skills.dev-implementation.resources.scripts.test_check_epic_readiness.Test_Check_Epic_Readiness_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_EVI_HP_02_record_and_compare_baseline",
+                  "classname": "skills.dev-implementation.resources.scripts.test_failure_baseline",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_EVI_HP_02_integration_baseline",
+                  "classname": "skills.dev-implementation.resources.scripts.test_failure_baseline.Test_Failure_Baseline_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_EVI_EC_01_ignore_captured_logs_and_sentinel_on_zero",
+                  "classname": "skills.dev-implementation.resources.scripts.test_failure_baseline",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_EVI_ST_01_rerun_new_classifies_isolated_pass_and_persistent_failure",
+                  "classname": "skills.dev-implementation.resources.scripts.test_failure_baseline",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_EVI_AR_02_restore_tracked_files_after_execution",
+                  "classname": "skills.dev-implementation.resources.scripts.test_failure_baseline",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_EVI_HP_04_replay_and_measure_phase",
+                  "classname": "skills.dev-implementation.resources.scripts.test_replay_and_measure",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_EVI_ST_02_measure_resume_and_invalidation",
+                  "classname": "skills.dev-implementation.resources.scripts.test_replay_and_measure",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_EVI_FR_02_anchor_verification_missing_or_ambiguous",
+                  "classname": "skills.dev-implementation.resources.scripts.test_replay_and_measure",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_EVI_FR_03_evaluate_done_gate_measure_enforcement",
+                  "classname": "skills.dev-implementation.resources.scripts.test_replay_and_measure",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_EVI_HP_04_integration_runner",
+                  "classname": "skills.dev-implementation.resources.scripts.test_replay_and_measure.Test_Replay_And_Measure_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_EVI_ST_02_integration_runner",
+                  "classname": "skills.dev-implementation.resources.scripts.test_replay_and_measure.Test_Replay_And_Measure_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_EVI_EC_02_ensure_output_dirs_creates_parent_directories",
+                  "classname": "skills.dev-implementation.resources.scripts.test_run_task_checks.D3Nexus_Cli_Integration_Test",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_EVI_HP_01_polyglot_worktree_bootstrap",
+                  "classname": "skills.dev-implementation.resources.scripts.test_run_task_checks.D3Nexus_Cli_Integration_Test",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_EVI_FR_01_invalid_bootstrap_format",
+                  "classname": "skills.python-quality-check.resources.scripts.test_validate_python_quality.PythonQualityConfigTests",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "skills/dev-designer/SKILL.md",
+            "skills/dev-implementation/SKILL.md",
+            "tests/test_execution_infra_acceptance.py"
+          ],
+          "violations": []
+        }
+      ],
+      "passed": true
+    }
+  }
+}
