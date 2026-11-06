@@ -205,6 +205,38 @@ def fresh_reports(path: str, root: Path, since: float) -> list[Path]:
     return [file for file in files if file.stat().st_mtime >= since]
 
 
+OUTPUT_DIR_FLAGS = ("--junitxml", "--junit-xml", "--test-reporter-destination")
+
+
+def ensure_output_dirs(command: str, root: Path) -> None:
+    try:
+        lexer = shlex.shlex(command, posix=True, punctuation_chars=True)
+        lexer.whitespace_split = True
+        tokens = list(lexer)
+    except ValueError:
+        tokens = command.split()
+
+    i = 0
+    while i < len(tokens):
+        token = tokens[i]
+        target_path_str: str | None = None
+        for flag in OUTPUT_DIR_FLAGS:
+            if token == flag:
+                if i + 1 < len(tokens):
+                    target_path_str = tokens[i + 1]
+                    i += 1
+                break
+            elif token.startswith(f"{flag}="):
+                target_path_str = token[len(flag) + 1:]
+                break
+        if target_path_str:
+            target_path = Path(target_path_str)
+            if not target_path.is_absolute():
+                target_path = root / target_path
+            target_path.parent.mkdir(parents=True, exist_ok=True)
+        i += 1
+
+
 def run_command(command: str, root: Path, timeout: int) -> tuple[int | None, bytes]:
     """Run one row; the exit code is None when the process group had to be killed."""
     process = subprocess.Popen(["bash", "-o", "pipefail", "-c", command], cwd=root, start_new_session=True,
@@ -263,6 +295,7 @@ def run_row(row: Row, root: Path, timeout: int, scenario_ids: list[str]) -> dict
     if unset:
         record.update(outcome="BLOCKED", reason=f"unset: {unset}")
     else:
+        ensure_output_dirs(row.command, root)
         started = time.time()
         code, output = run_command(row.command, root, timeout)
         text = output.decode("utf-8", "replace")

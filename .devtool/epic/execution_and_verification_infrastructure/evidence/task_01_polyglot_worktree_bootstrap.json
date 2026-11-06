@@ -1,0 +1,194 @@
+{
+  "schema": 1,
+  "task": "task_01_polyglot_worktree_bootstrap",
+  "runs": {
+    "red": {
+      "head": "de7cc60b7f4b09650189929493a0d01de0178e5c",
+      "tree": "0f27896d9479098ad45c23994ad92687f7cfd1ee",
+      "patch_id": "6ba0e927f59e1645b8815db99911953c7d43b6c4",
+      "started": "2026-11-06T13:35:39Z",
+      "finished": "2026-11-06T13:35:40Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m pytest skills/python-quality-check/resources/scripts/test_validate_python_quality.py::PythonQualityConfigTests::test_EVI_FR_01_invalid_bootstrap_format",
+          "expect": "exit 1; contains \"FAILED\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-06T13:35:39Z",
+          "finished": "2026-11-06T13:35:39Z",
+          "output_tail": [
+            "============================= test session starts ==============================",
+            "platform darwin -- Python 3.15.2, pytest-9.2.0, pluggy-1.7.0",
+            "rootdir: /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/execution_and_verification_infrastructure",
+            "collected 1 item",
+            "",
+            "skills/python-quality-check/resources/scripts/test_validate_python_quality.py F [100%]",
+            "",
+            "=================================== FAILURES ===================================",
+            "_______ PythonQualityConfigTests.test_EVI_FR_01_invalid_bootstrap_format _______",
+            "",
+            "self = <test_validate_python_quality.PythonQualityConfigTests testMethod=test_EVI_FR_01_invalid_bootstrap_format>",
+            "",
+            "    def test_EVI_FR_01_invalid_bootstrap_format(self) -> None:",
+            "        \"\"\"[EVI-FR-01] validate_python_quality rejects malformed bootstrap configurations.\"\"\"",
+            "        cfg = valid_config()",
+            "        cfg[\"bootstrap\"] = \"uv sync --extra asr\"",
+            "        res = validate_python_config(cfg, \"pr\")",
+            ">       self.assertEqual(\"BLOCKED\", res[\"status\"])",
+            "E       AssertionError: 'BLOCKED' != 'PASS'",
+            "E       - BLOCKED",
+            "E       + PASS",
+            "",
+            "skills/python-quality-check/resources/scripts/test_validate_python_quality.py:127: AssertionError",
+            "=========================== short test summary info ============================",
+            "FAILED skills/python-quality-check/resources/scripts/test_validate_python_quality.py::PythonQualityConfigTests::test_EVI_FR_01_invalid_bootstrap_format",
+            "============================== 1 failed in 0.02s ==============================="
+          ],
+          "output_sha256": "ec1e59d0e01f11a830dab8a1398cf78cee08df6d465c50503ec4baa9c268a2c5"
+        }
+      ]
+    },
+    "verify": {
+      "head": "de7cc60b7f4b09650189929493a0d01de0178e5c",
+      "tree": "d5930211e12e57844bf82aabed3b6c0c82db9590",
+      "patch_id": "ff8e91ba467f3254ee836f1402ca6ed75397aa14",
+      "started": "2026-11-06T13:38:36Z",
+      "finished": "2026-11-06T13:38:58Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m pytest skills/python-quality-check/resources/scripts/test_validate_python_quality.py skills/dev-implementation/resources/scripts/test_run_task_checks.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-06T13:38:36Z",
+          "finished": "2026-11-06T13:38:46Z",
+          "output_tail": [
+            "============================= test session starts ==============================",
+            "platform darwin -- Python 3.15.2, pytest-9.2.0, pluggy-1.7.0",
+            "rootdir: /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/execution_and_verification_infrastructure",
+            "collected 65 items",
+            "",
+            "skills/python-quality-check/resources/scripts/test_validate_python_quality.py . [  1%]",
+            "...........                                                              [ 18%]",
+            "skills/dev-implementation/resources/scripts/test_run_task_checks.py .... [ 24%]",
+            ".................................................                        [100%]",
+            "",
+            "============================= 65 passed in 10.33s =============================="
+          ],
+          "output_sha256": "3f03ee2b206aa24ab5252682cd8cd7c099b0dd0838f1b579bbb2e6fddec14943"
+        },
+        {
+          "id": "V3",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py skills/python-quality-check/resources/scripts/validate_python_quality.py skills/python-quality-check/resources/scripts/test_validate_python_quality.py skills/dev-implementation/resources/scripts/run_task_checks.py skills/dev-implementation/resources/scripts/test_run_task_checks.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-06T13:38:46Z",
+          "finished": "2026-11-06T13:38:46Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py skills/python-quality-check/resources/scripts/validate_python_quality.py skills/dev-implementation/resources/scripts/run_task_checks.py --follow-imports=silent",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-06T13:38:46Z",
+          "finished": "2026-11-06T13:38:46Z",
+          "output_tail": [
+            "Success: no issues found in 7 source files"
+          ],
+          "output_sha256": "050c52a2b0c61e8b681ef5c485e0bc03340b8d55148e0acef27d744c8be42033"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-C",
+          "command": "python3 -m pytest skills/python-quality-check/resources/scripts/test_validate_python_quality.py skills/dev-implementation/resources/scripts/test_run_task_checks.py --junitxml=build/test-results/task_01_polyglot.xml",
+          "expect": "exit 0; results build/test-results/task_01_polyglot.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-06T13:38:46Z",
+          "finished": "2026-11-06T13:38:57Z",
+          "output_tail": [
+            "============================= test session starts ==============================",
+            "platform darwin -- Python 3.15.2, pytest-9.2.0, pluggy-1.7.0",
+            "rootdir: /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/execution_and_verification_infrastructure",
+            "collected 65 items",
+            "",
+            "skills/python-quality-check/resources/scripts/test_validate_python_quality.py . [  1%]",
+            "...........                                                              [ 18%]",
+            "skills/dev-implementation/resources/scripts/test_run_task_checks.py .... [ 24%]",
+            ".................................................                        [100%]",
+            "",
+            "- generated xml file: /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/execution_and_verification_infrastructure/build/test-results/task_01_polyglot.xml -",
+            "============================= 65 passed in 11.01s =============================="
+          ],
+          "output_sha256": "f37d16529b363c60a0b832f6aa3b9d130df2c825af648ab3dd505a5fcc23a325",
+          "results": {
+            "path": "build/test-results/task_01_polyglot.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 3,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_EVI_FR_01_invalid_bootstrap_format",
+                  "classname": "skills.python-quality-check.resources.scripts.test_validate_python_quality.PythonQualityConfigTests",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_EVI_EC_02_ensure_output_dirs_creates_parent_directories",
+                  "classname": "skills.dev-implementation.resources.scripts.test_run_task_checks.D3Nexus_Cli_Integration_Test",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_EVI_HP_01_polyglot_worktree_bootstrap",
+                  "classname": "skills.dev-implementation.resources.scripts.test_run_task_checks.D3Nexus_Cli_Integration_Test",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "skills/dev-implementation/resources/scripts/bootstrap_worktree.sh",
+            "skills/dev-implementation/resources/scripts/detect_project_type.sh",
+            "skills/dev-implementation/resources/scripts/run_task_checks.py",
+            "skills/dev-implementation/resources/scripts/test_bootstrap_worktree_validation.sh",
+            "skills/dev-implementation/resources/scripts/test_run_task_checks.py",
+            "skills/python-quality-check/resources/schemas/python-quality.schema.json",
+            "skills/python-quality-check/resources/scripts/test_validate_python_quality.py",
+            "skills/python-quality-check/resources/scripts/validate_python_quality.py"
+          ],
+          "violations": []
+        }
+      ]
+    }
+  }
+}

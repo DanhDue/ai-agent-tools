@@ -690,6 +690,86 @@ class D3Nexus_Cli_Integration_Test(RepoCase):
         self.assertIn("V1 GREEN PASS", out)
         self.assertEqual(dict(os.environ), orig_env)
 
+    def test_EVI_EC_02_ensure_output_dirs_creates_parent_directories(self) -> None:
+        """[EVI-EC-02] Task runner automatically creates parent directories for JUnit XML output flags."""
+        from run_task_checks import ensure_output_dirs
+
+        nested_junit = self.root / ".devtool/evidence/nested/junit"
+        self.assertFalse(nested_junit.exists())
+
+        cmd = "python3 -m pytest tests/ --junitxml=.devtool/evidence/nested/junit/report.xml"
+        ensure_output_dirs(cmd, self.root)
+        self.assertTrue(nested_junit.is_dir())
+
+        nested_node = self.root / "build/test-results/node"
+        self.assertFalse(nested_node.exists())
+        cmd_node = "node --test --test-reporter-destination=build/test-results/node/report.xml"
+        ensure_output_dirs(cmd_node, self.root)
+        self.assertTrue(nested_node.is_dir())
+
+        # Integrated verification row execution creates dir before subprocess runs
+        nested_runner = self.root / ".devtool/evidence/runner/sub"
+        self.assertFalse(nested_runner.exists())
+        task2 = self.epic(
+            '| V1 | GREEN | `python3 -c "import pathlib; pathlib.Path(\'.devtool/evidence/runner/sub/report.xml\').write_text(\'ok\')" --junitxml=.devtool/evidence/runner/sub/report.xml` | exit 0 | — |\n',
+            allowed="- `.devtool/evidence/runner/sub/report.xml` (new)",
+        )
+        code2, out2, _ = self.run_cli("verify", task2)
+        self.assertEqual(code2, 0)
+        self.assertTrue(nested_runner.is_dir())
+        self.assertTrue((nested_runner / "report.xml").exists())
+
+    def test_EVI_HP_01_polyglot_worktree_bootstrap(self) -> None:
+        """[EVI-HP-01] Worktree bootstrap executes python-quality.json bootstrap commands and installs polyglot dependencies."""
+        from run_task_checks import KIT_ROOT
+
+        detect_script = KIT_ROOT / "skills/dev-implementation/resources/scripts/detect_project_type.sh"
+        bootstrap_script = KIT_ROOT / "skills/dev-implementation/resources/scripts/bootstrap_worktree.sh"
+
+        self.write("pyproject.toml", "[project]\nname = 'demo'\n")
+        self.write("package.json", '{"name": "demo"}\n')
+        manifest_content = json.dumps({
+            "schema_version": 1,
+            "bootstrap": [
+                ["python3", "-c", "import sys; print('CUSTOM_PYTHON_BOOTSTRAP_EXECUTED')"]
+            ],
+            "capabilities": {},
+            "profiles": {"pr": [], "epic": []}
+        })
+        self.write(".agents/quality/python-quality.json", manifest_content)
+
+        # 1. detect_project_type.sh --all outputs "python web"
+        res_detect = subprocess.run(
+            ["bash", str(detect_script), "--all", str(self.root)],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        self.assertEqual(res_detect.stdout.strip(), "python web")
+
+        # 2. bootstrap_worktree.sh executes python bootstrap commands and npm install
+        mock_bin = self.root / "mock_bin"
+        mock_bin.mkdir(parents=True, exist_ok=True)
+        mock_npm = mock_bin / "npm"
+        mock_npm.write_text("#!/usr/bin/env bash\necho 'MOCK_NPM_INSTALL_EXECUTED'\nexit 0\n", encoding="utf-8")
+        mock_npm.chmod(0o755)
+
+        test_env = dict(os.environ)
+        test_env["PATH"] = f"{mock_bin}{os.pathsep}{test_env.get('PATH', '')}"
+
+        res_boot = subprocess.run(
+            ["bash", str(bootstrap_script), str(self.root)],
+            capture_output=True,
+            text=True,
+            env=test_env,
+        )
+        self.assertEqual(res_boot.returncode, 0, f"Bootstrap failed: {res_boot.stderr}\n{res_boot.stdout}")
+        self.assertIn("CUSTOM_PYTHON_BOOTSTRAP_EXECUTED", res_boot.stdout)
+        self.assertIn("MOCK_NPM_INSTALL_EXECUTED", res_boot.stdout)
+        self.assertIn("Worktree bootstrap complete", res_boot.stdout)
+
+
+
 
 def test_TCAE_HP_03_d3nexus_zero_setup_env() -> None:
     test = D3Nexus_Cli_Integration_Test()
