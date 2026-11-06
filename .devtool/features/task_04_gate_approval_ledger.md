@@ -1,12 +1,12 @@
 ---
 id: "task_04_gate_approval_ledger"
-status: "backlog"
+status: "in-progress"
 priority: "high"
 assignee: null
 epic: "multi-epic-orchestration-and-governance"
 dueDate: null
 created: "2026-11-06T04:25:00Z"
-modified: "2026-11-06T04:25:00Z"
+modified: "2026-11-06T20:32:38Z"
 completedAt: null
 labels: ["governance", "memory", "gates"]
 order: "c4"
