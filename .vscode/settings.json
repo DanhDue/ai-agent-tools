@@ -9,5 +9,5 @@
     "statusBar.inactiveBackground": "#b45309",
     "statusBar.inactiveForeground": "#ffffffcc"
   },
-  "window.title": "🟠 [AGENT-TOOLS] [@phungthuy8901] Đặc tả Thiết kế Điều phối Đa Epic và Quản trị (Multi-Epic Orchestration and Governance) - Packaged (ready for Stage 3 dev-implementation); prerequisite epics 1 & 2 merged to main"
+  "window.title": "🟠 [AGENT-TOOLS] [@huynhminhtien0510] Completed audit-account-block skill, profile security remediation, and IDE launcher bug fixes. Committed locally to main (b95ed43)."
 }
