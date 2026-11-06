@@ -10,6 +10,7 @@ import argparse
 import os
 import re
 import shlex
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -310,10 +311,23 @@ def replay_epic_in_worktree(
         if res.returncode != 0:
             return 1, [f"Failed to create temporary git worktree: {res.stderr.strip()}"]
 
-        # Find task files
+        # Overlay/sync working-tree epic tasks into the temporary worktree
+        src_epic_dir = root / ".devtool" / "epic" / epic_dir
+        if not src_epic_dir.is_dir():
+            return 1, [f"Epic directory not found in root: {src_epic_dir}"]
+
         epic_tasks_dir = worktree_path / ".devtool" / "epic" / epic_dir
-        if not epic_tasks_dir.is_dir():
-            return 1, [f"Epic directory not found in worktree: {epic_tasks_dir}"]
+        epic_tasks_dir.mkdir(parents=True, exist_ok=True)
+        for p in src_epic_dir.iterdir():
+            if p.is_file():
+                shutil.copy2(p, epic_tasks_dir / p.name)
+
+        src_features_dir = root / ".devtool" / "features"
+        if src_features_dir.is_dir():
+            dest_features_dir = worktree_path / ".devtool" / "features"
+            dest_features_dir.mkdir(parents=True, exist_ok=True)
+            for p in src_features_dir.glob("task_*.md"):
+                shutil.copy2(p, dest_features_dir / p.name)
 
         task_files = sorted(epic_tasks_dir.glob("task_*.md"))
         errors: list[str] = []
