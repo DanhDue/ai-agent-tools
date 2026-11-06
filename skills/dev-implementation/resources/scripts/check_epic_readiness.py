@@ -380,6 +380,48 @@ def check_tier_tags(ctx: Context) -> list[Finding]:
     return findings
 
 
+ROUTE_TEMPLATE_TOKEN_RE = re.compile(r"\{[a-zA-Z0-9_]+\}|<[a-zA-Z0-9_]+>|:[a-zA-Z0-9_]+")
+ROUTE_IN_CONTENT_RE = re.compile(r"(?:https?://[^\s\"'`]+)?/api/[\w\-/{}.:<>=]+")
+
+
+def route_matches_codebase(route: str, tracked_contents: list[str]) -> bool:
+    """Return True if route appears literally in any tracked file or matches a route template."""
+    clean_route = route.rstrip("/")
+    for content in tracked_contents:
+        if clean_route in content:
+            return True
+
+    api_idx = clean_route.find("/api/")
+    route_path = clean_route[api_idx:] if api_idx != -1 else clean_route
+    for content in tracked_contents:
+        if route_path in content:
+            return True
+
+    for content in tracked_contents:
+        for m in ROUTE_IN_CONTENT_RE.finditer(content):
+            candidate = m.group(0).rstrip("/")
+            cand_api_idx = candidate.find("/api/")
+            candidate_path = candidate[cand_api_idx:] if cand_api_idx != -1 else candidate
+
+            for cand in (candidate, candidate_path):
+                if ROUTE_TEMPLATE_TOKEN_RE.search(candidate_path):
+                    parts: list[str] = []
+                    last = 0
+                    for pm in ROUTE_TEMPLATE_TOKEN_RE.finditer(cand):
+                        parts.append(re.escape(cand[last:pm.start()]))
+                        parts.append(r"[^/\s\"'`]+")
+                        last = pm.end()
+                    parts.append(re.escape(cand[last:]))
+                    pattern_str = "".join(parts)
+                    try:
+                        pat = re.compile(f"^{pattern_str}$")
+                        if pat.match(clean_route) or pat.match(route_path):
+                            return True
+                    except re.error:
+                        pass
+    return False
+
+
 def check_grounding(ctx: Context) -> list[Finding]:
     findings: list[Finding] = []
 
@@ -450,7 +492,7 @@ def check_grounding(ctx: Context) -> list[Finding]:
                     findings.append(Finding("R5", "FAIL", f"{task_path.name}: {name} not in {path_str}"))
 
     # --- R5b: Route Grounding (WARN) ---
-    route_re = re.compile(r"(?<![\w/])/api/[\w\-/{}.:]*[\w}]")
+    route_re = re.compile(r"(?:https?://[^\s\"'`]+)?/api/[\w\-/{}.:<>=]*[\w}>]")
     routes_to_check: list[str] = []
     texts_to_scan = list(ctx.tasks.values()) + [ctx.hld_text]
 
@@ -489,7 +531,7 @@ def check_grounding(ctx: Context) -> list[Finding]:
                     pass
 
         for route in routes_to_check:
-            if not any(route in content for content in tracked_contents):
+            if not route_matches_codebase(route, tracked_contents):
                 findings.append(Finding("R5b", "WARN", f"{route}: not found in tracked source"))
 
     return findings

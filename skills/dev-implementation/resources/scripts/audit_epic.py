@@ -46,7 +46,7 @@ section: Any = tc.section
 validate_pytest_red: Any = rtc.validate_pytest_red
 
 STATUS = re.compile(r"""^status:\s*["'`]?([\w-]+)["'`]?\s*(?:#.*)?$""", re.MULTILINE)
-GRADER_LINES = ("Protected paths:", "Integration results:")
+GRADER_LINES = ("Protected paths:", "Integration results:", "Integration results (live")
 
 
 @dataclass(frozen=True)

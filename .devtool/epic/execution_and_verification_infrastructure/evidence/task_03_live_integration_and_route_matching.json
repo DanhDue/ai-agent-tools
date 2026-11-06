@@ -1,0 +1,187 @@
+{
+  "schema": 1,
+  "task": "task_03_live_integration_and_route_matching",
+  "runs": {
+    "red": {
+      "head": "dc96dff0a070186fdd53d96c41d68642bcba799f",
+      "tree": "bc0304a115551086b1bbb633d59af8369ea5fbd1",
+      "patch_id": "5f6d5719166356578ac2229baec9e6bc59a921e1",
+      "started": "2026-11-06T13:55:15Z",
+      "finished": "2026-11-06T13:55:16Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m pytest skills/dev-implementation/resources/scripts/test_check_epic_readiness.py::ReadinessGroundingTest::test_EVI_HP_03_live_integration_results_and_gate4",
+          "expect": "exit 1; contains \"FAILED\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-06T13:55:15Z",
+          "finished": "2026-11-06T13:55:15Z",
+          "output_tail": [
+            "============================= test session starts ==============================",
+            "platform darwin -- Python 3.15.2, pytest-9.2.0, pluggy-1.7.0",
+            "rootdir: /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/execution_and_verification_infrastructure",
+            "collected 1 item",
+            "",
+            "skills/dev-implementation/resources/scripts/test_check_epic_readiness.py F [100%]",
+            "",
+            "=================================== FAILURES ===================================",
+            "___ ReadinessGroundingTest.test_EVI_HP_03_live_integration_results_and_gate4 ___",
+            "",
+            "self = <test_check_epic_readiness.ReadinessGroundingTest testMethod=test_EVI_HP_03_live_integration_results_and_gate4>",
+            "",
+            "    def test_EVI_HP_03_live_integration_results_and_gate4(self) -> None:",
+            "        \"\"\"[EVI-HP-03] Opt-in live integration results satisfy R6 and skip cleanly in Gate 4.\"\"\"",
+            ">       from task_contract import parse_integration_result_specs, parse_integration_results",
+            "E       ImportError: cannot import name 'parse_integration_result_specs' from 'task_contract' (/Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/execution_and_verification_infrastructure/skills/dev-implementation/resources/scripts/task_contract.py). Did you mean: 'parse_integration_results'?",
+            "",
+            "skills/dev-implementation/resources/scripts/test_check_epic_readiness.py:760: ImportError",
+            "=========================== short test summary info ============================",
+            "FAILED skills/dev-implementation/resources/scripts/test_check_epic_readiness.py::ReadinessGroundingTest::test_EVI_HP_03_live_integration_results_and_gate4",
+            "============================== 1 failed in 0.10s ==============================="
+          ],
+          "output_sha256": "0d4e6eecbe3d704a1e93d812ed1516e2e94f87993df26c8849ae033eb55a0943"
+        }
+      ]
+    },
+    "verify": {
+      "head": "dc96dff0a070186fdd53d96c41d68642bcba799f",
+      "tree": "29a9515d3bdac8fad51f4b857bd7ec752b19facc",
+      "patch_id": "a69eaaa189ade30bf060d1cfad50136c8cff39ac",
+      "started": "2026-11-06T14:11:52Z",
+      "finished": "2026-11-06T14:12:27Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m pytest skills/dev-implementation/resources/scripts/test_check_epic_readiness.py skills/dev-implementation/resources/scripts/test_audit_epic.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-06T14:11:52Z",
+          "finished": "2026-11-06T14:12:09Z",
+          "output_tail": [
+            "============================= test session starts ==============================",
+            "platform darwin -- Python 3.15.2, pytest-9.2.0, pluggy-1.7.0",
+            "rootdir: /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/execution_and_verification_infrastructure",
+            "collected 29 items",
+            "",
+            "skills/dev-implementation/resources/scripts/test_check_epic_readiness.py . [  3%]",
+            "...........                                                              [ 41%]",
+            "skills/dev-implementation/resources/scripts/test_audit_epic.py ......... [ 72%]",
+            "........                                                                 [100%]",
+            "",
+            "============================= 29 passed in 17.14s =============================="
+          ],
+          "output_sha256": "4d8dde3989a8566a1dc0d1f05e8c73d3cda946b0d3420909671620dfeb10064c"
+        },
+        {
+          "id": "V3",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py skills/dev-implementation/resources/scripts/task_contract.py skills/dev-implementation/resources/scripts/check_task_contract.py skills/dev-implementation/resources/scripts/check_epic_readiness.py skills/dev-implementation/resources/scripts/audit_epic.py skills/dev-implementation/resources/scripts/run_external_review.py skills/dev-implementation/resources/scripts/test_check_epic_readiness.py skills/dev-implementation/resources/scripts/test_audit_epic.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-06T14:12:09Z",
+          "finished": "2026-11-06T14:12:09Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py skills/dev-implementation/resources/scripts/task_contract.py skills/dev-implementation/resources/scripts/check_task_contract.py skills/dev-implementation/resources/scripts/check_epic_readiness.py skills/dev-implementation/resources/scripts/audit_epic.py skills/dev-implementation/resources/scripts/run_external_review.py --follow-imports=silent",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-06T14:12:09Z",
+          "finished": "2026-11-06T14:12:09Z",
+          "output_tail": [
+            "Success: no issues found in 10 source files"
+          ],
+          "output_sha256": "14fdf673bd175fe32ef42df34666481bb15e465313f7dbef32d0aea2ba76a26e"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-C",
+          "command": "python3 -m pytest skills/dev-implementation/resources/scripts/test_check_epic_readiness.py skills/dev-implementation/resources/scripts/test_audit_epic.py --junitxml=build/test-results/task_03_live_int.xml",
+          "expect": "exit 0; results build/test-results/task_03_live_int.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-06T14:12:09Z",
+          "finished": "2026-11-06T14:12:27Z",
+          "output_tail": [
+            "============================= test session starts ==============================",
+            "platform darwin -- Python 3.15.2, pytest-9.2.0, pluggy-1.7.0",
+            "rootdir: /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/execution_and_verification_infrastructure",
+            "collected 29 items",
+            "",
+            "skills/dev-implementation/resources/scripts/test_check_epic_readiness.py . [  3%]",
+            "...........                                                              [ 41%]",
+            "skills/dev-implementation/resources/scripts/test_audit_epic.py ......... [ 72%]",
+            "........                                                                 [100%]",
+            "",
+            "- generated xml file: /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/execution_and_verification_infrastructure/build/test-results/task_03_live_int.xml -",
+            "============================= 29 passed in 17.16s =============================="
+          ],
+          "output_sha256": "cefd34981ebf156efc8838eca2bdbc67b843e19c52f13313d55bd17c9b928647",
+          "results": {
+            "path": "build/test-results/task_03_live_int.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 3,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_EVI_EC_03_route_drift_matches_parameterized_templates",
+                  "classname": "skills.dev-implementation.resources.scripts.test_check_epic_readiness.ReadinessGroundingTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_EVI_HP_03_live_integration_results_and_gate4",
+                  "classname": "skills.dev-implementation.resources.scripts.test_check_epic_readiness.ReadinessGroundingTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_EVI_HP_03_live_integration_provenance",
+                  "classname": "skills.dev-implementation.resources.scripts.test_check_epic_readiness.Test_Check_Epic_Readiness_Integration",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "skills/dev-implementation/resources/scripts/audit_epic.py",
+            "skills/dev-implementation/resources/scripts/check_epic_readiness.py",
+            "skills/dev-implementation/resources/scripts/check_task_contract.py",
+            "skills/dev-implementation/resources/scripts/run_external_review.py",
+            "skills/dev-implementation/resources/scripts/task_contract.py",
+            "skills/dev-implementation/resources/scripts/test_check_epic_readiness.py"
+          ],
+          "violations": []
+        }
+      ]
+    }
+  }
+}

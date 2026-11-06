@@ -414,6 +414,14 @@ def check_hld(check: Checker, hld_path: Path, text: str, tasks: dict[Path, str])
     if environment is None or not environment.strip():
         check.problem(name, "## Verification Environment section is missing or empty")
         return
+    specs = tc.parse_integration_result_specs(text)
+    for spec in specs:
+        for need in spec.needs:
+            if need not in environment:
+                check.problem(
+                    name,
+                    f"Live integration needs variable '{need}' is not named in the Verification Environment section",
+                )
     for path, task_text in tasks.items():
         try:
             rows, _ = tc.parse_verification(task_text)

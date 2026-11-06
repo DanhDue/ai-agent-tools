@@ -236,10 +236,51 @@ def dod_bullets(task_text: str) -> list[str]:
     return bullets
 
 
+@dataclass(frozen=True)
+class IntegrationResultSpec:
+    command: str
+    report: str
+    live: bool = False
+    needs: tuple[str, ...] = ()
+
+
+INTEGRATION_RESULTS_RE = re.compile(
+    r"^Integration results(?:\s*\(live,\s*needs:\s*([^)]+)\))?:\s*(.+)$"
+)
+
+
+def parse_integration_result_specs(hld_text: str) -> list[IntegrationResultSpec]:
+    specs: list[IntegrationResultSpec] = []
+    for line in hld_text.splitlines():
+        line = line.strip()
+        match = INTEGRATION_RESULTS_RE.match(line)
+        if match:
+            needs_part = match.group(1)
+            body = match.group(2).strip()
+            if "->" in body:
+                cmd_part, report_part = body.split("->", 1)
+                cmd = cmd_part.strip()
+                report = report_part.strip()
+            else:
+                cmd = body
+                report = ""
+            if needs_part is not None:
+                needs = tuple(v.strip() for v in needs_part.split(",") if v.strip())
+                specs.append(IntegrationResultSpec(command=cmd, report=report, live=True, needs=needs))
+            else:
+                specs.append(IntegrationResultSpec(command=cmd, report=report, live=False, needs=()))
+    return specs
+
+
 def parse_integration_results(hld_text: str) -> list[str]:
     """The text after `Integration results:` on each such line, as written."""
-    return [line.split(":", 1)[1].strip() for line in hld_text.splitlines()
-            if line.startswith("Integration results:")]
+    results: list[str] = []
+    for line in hld_text.splitlines():
+        line = line.strip()
+        match = INTEGRATION_RESULTS_RE.match(line)
+        if match:
+            results.append(match.group(2).strip())
+    return results
 
 
 def verification_environment(hld_text: str) -> str | None:

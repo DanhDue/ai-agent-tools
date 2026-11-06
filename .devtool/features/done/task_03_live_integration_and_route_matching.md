@@ -1,20 +1,20 @@
 ---
 id: "task_03_live_integration_and_route_matching"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "execution-and-verification-infrastructure"
 dueDate: null
 created: "2026-11-06T03:20:00Z"
-modified: "2026-11-06T12:57:55Z"
-completedAt: null
+modified: "2026-11-06T14:12:39Z"
+completedAt: "2026-11-06T14:12:39Z"
 labels: ["infrastructure", "readiness", "integration"]
 order: "b3"
 ---
 
 # Task 03: Opt-In Live Integration Results and R5b Parameterized Route Matching
 
-Epic: [execution_and_verification_infrastructure](../epic/execution_and_verification_infrastructure/execution_and_verification_infrastructure.en.md)
+Epic: [execution_and_verification_infrastructure](../../epic/execution_and_verification_infrastructure/execution_and_verification_infrastructure.en.md)
 
 ## Requirement Analysis
 
@@ -125,5 +125,5 @@ Covers: EVI-HP-03, EVI-EC-03
 
 ## References & Rollback
 
-- Reference: [2026-11-06-execution-and-verification-infrastructure-design.en.md](../epic/execution_and_verification_infrastructure/2026-11-06-execution-and-verification-infrastructure-design.en.md).
+- Reference: [2026-11-06-execution-and-verification-infrastructure-design.en.md](../../epic/execution_and_verification_infrastructure/2026-11-06-execution-and-verification-infrastructure-design.en.md).
 - Rollback: `git revert` the task commit to restore prior `Integration results:` and `R5b` behavior.
