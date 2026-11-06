@@ -462,7 +462,7 @@ def collect_facts(root: Path, epic_dir: str, base: str, hld_text: str, timeout: 
                     res_code, res_out, res_err = run_gate("check_bdd_traceability.py tests (results)", check_results, root, timeout)
                     results.append(fact(shlex.join(check_results[1:]), res_code, res_out, res_err))
         elif reports:
-            results_paths = ["build/test-results"] if (root / "build/test-results").is_dir() else [r.strip("`") for r in reports]
+            results_paths = [r.strip("`") for r in reports]
             check = [
                 sys.executable,
                 str(SCRIPTS / "check_bdd_traceability.py"),
