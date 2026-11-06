@@ -43,16 +43,22 @@ try:
     with open(manifest_path, 'r', encoding='utf-8') as f:
         data = json.load(f)
     bootstrap = data.get('bootstrap')
-    if isinstance(bootstrap, list) and len(bootstrap) > 0:
+    if bootstrap is not None:
+        if not isinstance(bootstrap, list) or len(bootstrap) == 0:
+            print('Error: bootstrap must be a non-empty list of command arrays', file=sys.stderr)
+            sys.exit(2)
         for cmd in bootstrap:
+            if not isinstance(cmd, list) or not all(isinstance(x, str) for x in cmd):
+                print(f'Error: invalid bootstrap command format: {cmd}', file=sys.stderr)
+                sys.exit(2)
             print(f'Running configured bootstrap command: {cmd}')
             subprocess.run(cmd, cwd='$WORKTREE_PATH', check=True)
         sys.exit(0)
     sys.exit(1)
-except subprocess.CalledProcessError as e:
-    print(f'Error: configured bootstrap command failed: {e}', file=sys.stderr)
+except subprocess.CalledProcessError as err:
+    print(f'Error: configured bootstrap command failed: {err}', file=sys.stderr)
     sys.exit(2)
-except Exception as e:
+except Exception:
     sys.exit(1)
 "
     STATUS=$?
