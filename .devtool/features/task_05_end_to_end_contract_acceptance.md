@@ -28,6 +28,7 @@ Allowed files:
 - `tests/test_task_contract_ergonomics_e2e.py` (new)
 - `skills/dev-implementation/resources/scripts/check_bdd_traceability.py`
 - `skills/dev-implementation/resources/scripts/check_task_contract.py`
+- `skills/dev-implementation/resources/scripts/test_check_task_contract.py`
 - `scripts/test_verifiable_handoff.py`
 
 Read-only context:
