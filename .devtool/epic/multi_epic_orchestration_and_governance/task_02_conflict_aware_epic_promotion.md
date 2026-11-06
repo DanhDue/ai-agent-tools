@@ -1,13 +1,13 @@
 ---
 id: "task_02_conflict_aware_epic_promotion"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "multi-epic-orchestration-and-governance"
 dueDate: null
 created: "2026-11-06T04:25:00Z"
-modified: "2026-11-06T20:07:41Z"
-completedAt: null
+modified: "2026-11-06T20:50:29Z"
+completedAt: "2026-11-06T20:50:29Z"
 labels: ["orchestration", "kanban", "concurrency"]
 order: "c2"
 ---

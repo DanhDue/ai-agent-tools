@@ -1,12 +1,12 @@
 ---
 id: "task_05_multi_epic_governance_e2e_acceptance"
-status: "todo"
+status: "in-progress"
 priority: "high"
 assignee: null
 epic: "multi-epic-orchestration-and-governance"
 dueDate: null
 created: "2026-11-06T04:25:00Z"
-modified: "2026-11-06T20:07:41Z"
+modified: "2026-11-06T20:59:19Z"
 completedAt: null
 labels: ["acceptance", "integration", "docs"]
 order: "c5"

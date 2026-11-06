@@ -21,7 +21,7 @@
 ## Thông tin Chung (Meta Data)
 
 - **Epic**: `multi-epic-orchestration-and-governance`
-- **Status**: In Progress
+- **Status**: Done
 - **Depends on epic**: `contract-and-authoring-ergonomics`, `execution-and-verification-infrastructure`
 - **Target Release**: v1.26.0
 - **Platform**: Python
