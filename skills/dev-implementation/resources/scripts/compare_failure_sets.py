@@ -21,7 +21,6 @@ import shlex
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any
 
 from record_failure_baseline import (
     detect_runner,
@@ -168,7 +167,7 @@ def main(argv: list[str] | None = None) -> int:
 
         for candidate in new_failures:
             try:
-                cand_exit, cand_out = rerun_candidate(candidate, runner, rerun_cmd, cwd)
+                cand_exit, _ = rerun_candidate(candidate, runner, rerun_cmd, cwd)
             except ValueError as err:
                 print(f"error: {err}", file=sys.stderr)
                 return 2

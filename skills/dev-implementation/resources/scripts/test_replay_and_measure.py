@@ -7,6 +7,7 @@ import json
 import subprocess
 import sys
 from pathlib import Path
+from unittest import mock
 
 import pytest
 
@@ -198,9 +199,11 @@ Evidence files:
     args = argparse.Namespace(mode="measure", task=task_file, timeout=60, resume=False)
     assert run_task_checks.run(args) == 0
 
-    # Resume without modification -> cached PASS
+    # Resume without modification -> cached PASS (assert row execution was skipped)
     args_resume = argparse.Namespace(mode="measure", task=task_file, timeout=60, resume=True)
-    assert run_task_checks.run(args_resume) == 0
+    with mock.patch("run_task_checks.run_command") as mock_run_cmd:
+        assert run_task_checks.run(args_resume) == 0
+        mock_run_cmd.assert_not_called()
 
     # Invalidate by altering evidence file content
     bench_file = epic_dir / "evidence" / "bench.json"
@@ -372,6 +375,29 @@ Evidence files:
     evidence_path.write_text(json.dumps(ev_data), encoding="utf-8")
     failures_4 = task_contract.evaluate_done_gate(task_file)
     assert any("digest does not match measure run" in f for f in failures_4)
+
+
+def test_directive_file_aliases() -> None:
+    """Verify parse_task_directives parses 'File: <path>' and '<!-- @@FILE:...@@ -->' aliases."""
+    from replay_task_text import parse_task_directives
+
+    task_prose = (
+        "Some description\n\n"
+        "File: src/first.py:\n"
+        "```python\n"
+        "a = 1\n"
+        "```\n\n"
+        "<!-- @@FILE:src/second.py@@ -->\n"
+        "```python\n"
+        "b = 2\n"
+        "```\n"
+    )
+    directives = parse_task_directives(task_prose)
+    assert len(directives) == 2
+    assert directives[0].path == "src/first.py"
+    assert directives[0].content == "a = 1\n"
+    assert directives[1].path == "src/second.py"
+    assert directives[1].content == "b = 2\n"
 
 
 class Test_Replay_And_Measure_Integration:

@@ -54,7 +54,9 @@ class InsertDirective:
 
 Directive = CreateDirective | ReplaceDirective | InsertDirective
 
-CREATE_RE = re.compile(r"^Create\s+`?([^`:\s\n]+)`?\s*:\s*$")
+CREATE_RE = re.compile(
+    r"^(?:Create\s+`?([^`:\s\n]+)`?\s*:|File:\s*`?([^`:\s\n]+)`?\s*:?|<!--\s*@@FILE:\s*([^\s@]+)\s*@@\s*-->)\s*$"
+)
 REPLACE_RE = re.compile(r"^Replace\s+in\s+`?([^`:\s\n]+)`?\s*:\s*$")
 INSERT_RE = re.compile(r"^Insert\s+in\s+`?([^`:\s\n(]+)`?\s*(?:\((after|before)\)|(after|before))\s*:\s*$")
 WITH_RE = re.compile(r"^With\s*:\s*$")
@@ -114,7 +116,7 @@ def parse_task_directives(task_text: str) -> list[Directive]:
 
         m_create = CREATE_RE.match(line)
         if m_create:
-            path = m_create.group(1).strip()
+            path = (m_create.group(1) or m_create.group(2) or m_create.group(3)).strip()
             content, next_idx = _extract_fenced_block(lines, idx + 1)
             directives.append(CreateDirective(path=path, content=content))
             idx = next_idx
@@ -262,12 +264,15 @@ def replay_task(
     # 2. Apply prod directives
     apply_task_directives(root, prod_directives)
 
+    layout = epic_layout(task_path)
+    scenario_ids = epic_scenario_ids(layout)
+
     # 3. Execute MEASURE rows first
     measure_rows = [r for r in rows if r.phase == "MEASURE"]
     for r in measure_rows:
-        code, raw_output = run_command(r.command, root, timeout)
-        if code != (r.expect.exit_code if r.expect.exit_code is not None else 0):
-            return 1, [f"{task_path.name}:{r.id} MEASURE row failed with exit {code}"]
+        record = run_row(r, root, timeout, scenario_ids)
+        if record["outcome"] != "PASS":
+            return 1, [f"{task_path.name}:{r.id} MEASURE {record['outcome']} {detail_of(record)}"]
 
     # Verify declared Evidence files
     for entry in parse_evidence_files(task_text):
@@ -277,8 +282,6 @@ def replay_task(
 
     # 4. Execute GREEN, TIER-B, and TIER-C rows
     verify_rows = [r for r in rows if r.phase in ("GREEN", "TIER-B", "TIER-C")]
-    layout = epic_layout(task_path)
-    scenario_ids = epic_scenario_ids(layout)
     for r in verify_rows:
         record = run_row(r, root, timeout, scenario_ids)
         if record["outcome"] != "PASS":

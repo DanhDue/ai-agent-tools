@@ -243,8 +243,9 @@ def run_command(command: str, root: Path, timeout: int) -> tuple[int | None, byt
     """Run one row; the exit code is None when the process group had to be killed."""
     process = subprocess.Popen(["bash", "-o", "pipefail", "-c", command], cwd=root, start_new_session=True,
                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=kit_env())
+    effective_timeout = timeout if timeout > 0 else None
     try:
-        output, _ = process.communicate(timeout=timeout)
+        output, _ = process.communicate(timeout=effective_timeout)
         return process.returncode, output
     except subprocess.TimeoutExpired:
         os.killpg(process.pid, signal.SIGKILL)
