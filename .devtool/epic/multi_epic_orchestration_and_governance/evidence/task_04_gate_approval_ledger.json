@@ -1,0 +1,209 @@
+{
+  "schema": 1,
+  "task": "task_04_gate_approval_ledger",
+  "runs": {
+    "red": {
+      "head": "5fe89e8da5f0364b55506c1de5eb24e2d3393c65",
+      "tree": "d68e32553124536f20b8a7e8a5fd7e344749b560",
+      "patch_id": "62338baa7303c32a8090a05d7efef81619813110",
+      "started": "2026-11-06T20:33:04Z",
+      "finished": "2026-11-06T20:33:05Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m pytest tests/test_gate_approval_ledger.py::test_MEO_HP_04_record_and_check_gate_approval",
+          "expect": "exit 1; contains \"FAILED\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-06T20:33:04Z",
+          "finished": "2026-11-06T20:33:05Z",
+          "output_tail": [
+            "",
+            "    def test_MEO_HP_04_record_and_check_gate_approval(tmp_path: Path) -> None:",
+            "        \"\"\"[MEO-HP-04] [Tier C - Integration] Gate approval ledger records structured Gate 1-5 approvals and answers --check-gate queries.\"\"\"",
+            "        init_git_repo(tmp_path)",
+            "    ",
+            "        # 1. Record Gate 2 approval",
+            "        cmd_record = [",
+            "            sys.executable,",
+            "            str(RESUME_SCRIPT),",
+            "            \"--gate\",",
+            "            \"2\",",
+            "            \"--epic\",",
+            "            \"sample-epic\",",
+            "            \"--approved\",",
+            "            \"HLD and 5 Kanban tasks\",",
+            "            \"--deviations\",",
+            "            \"SE-01\",",
+            "        ]",
+            "        res_rec = subprocess.run(cmd_record, cwd=str(tmp_path), capture_output=True, text=True)",
+            ">       assert res_rec.returncode == 0, f\"Error: {res_rec.stderr}\"",
+            "E       AssertionError: Error: usage: resume_context.py [-h] [--workspace-root WORKSPACE_ROOT]",
+            "E                                  [--real-home REAL_HOME] [--repo REPO] [--epic EPIC]",
+            "E                                  [--role {assistant,programmer,implementer,worker}]",
+            "E                                  [--tail TAIL] [--json] [--state]",
+            "E                                  [--decisions DECISIONS] [--status STATUS]",
+            "E                                  [--next NEXT] [--prompt PROMPT] [--log] [--task TASK]",
+            "E                                  [--request REQUEST] [--action ACTION] [--note NOTE]",
+            "E                                  [--complete COMPLETE [COMPLETE ...]] [--checkpoint]",
+            "E                                  [--emit-prompt {principal-review,implement,cross-review,finish,assistant}]",
+            "E                                  [--epic-dir EPIC_DIR] [--sync-zshrc] [--sync-title]",
+            "E                                  [--stage STAGE] [--profile PROFILE] [--all-repos]",
+            "E         resume_context.py: error: unrecognized arguments: --gate 2 --approved HLD and 5 Kanban tasks --deviations SE-01",
+            "E         ",
+            "E       assert 2 == 0",
+            "E        +  where 2 = CompletedProcess(args=['/opt/homebrew/opt/python@3.15/bin/python3.15', '/Users/danhdueexoictif/AllProjects/ai-agent-to...s]\\nresume_context.py: error: unrecognized arguments: --gate 2 --approved HLD and 5 Kanban tasks --deviations SE-01\\n').returncode",
+            "",
+            "tests/test_gate_approval_ledger.py:73: AssertionError",
+            "=========================== short test summary info ============================",
+            "FAILED tests/test_gate_approval_ledger.py::test_MEO_HP_04_record_and_check_gate_approval",
+            "============================== 1 failed in 0.20s ==============================="
+          ],
+          "output_sha256": "22c34d9fea4cf39d535042c82bee09e17cdff2f37f74e8a63ae73c224673b665"
+        }
+      ],
+      "passed": true
+    },
+    "verify": {
+      "head": "5fe89e8da5f0364b55506c1de5eb24e2d3393c65",
+      "tree": "5edf0a909e569a62ffedf9074d8b645a9387b0e5",
+      "patch_id": "10330d8afc7861afeb0974017ab62e01469c4219",
+      "started": "2026-11-06T20:40:18Z",
+      "finished": "2026-11-06T20:40:20Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m pytest tests/test_gate_approval_ledger.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-06T20:40:18Z",
+          "finished": "2026-11-06T20:40:19Z",
+          "output_tail": [
+            "============================= test session starts ==============================",
+            "platform darwin -- Python 3.15.2, pytest-9.2.0, pluggy-1.7.0",
+            "rootdir: /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/multi_epic_orchestration_and_governance",
+            "collected 5 items",
+            "",
+            "tests/test_gate_approval_ledger.py .....                                 [100%]",
+            "",
+            "============================== 5 passed in 0.87s ==============================="
+          ],
+          "output_sha256": "0d522969d6298ac69fdbf95569fd379fb64ab320767fed5cc2ab071353e05008"
+        },
+        {
+          "id": "V3",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/resume_context.py tests/test_gate_approval_ledger.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-06T20:40:19Z",
+          "finished": "2026-11-06T20:40:19Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/resume_context.py tests/test_gate_approval_ledger.py --follow-imports=silent",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-06T20:40:19Z",
+          "finished": "2026-11-06T20:40:19Z",
+          "output_tail": [
+            "Success: no issues found in 7 source files"
+          ],
+          "output_sha256": "050c52a2b0c61e8b681ef5c485e0bc03340b8d55148e0acef27d744c8be42033"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-C",
+          "command": "python3 -m pytest tests/test_gate_approval_ledger.py --junitxml=build/test-results/task_04_gate_ledger.xml",
+          "expect": "exit 0; results build/test-results/task_04_gate_ledger.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-06T20:40:19Z",
+          "finished": "2026-11-06T20:40:20Z",
+          "output_tail": [
+            "============================= test session starts ==============================",
+            "platform darwin -- Python 3.15.2, pytest-9.2.0, pluggy-1.7.0",
+            "rootdir: /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/multi_epic_orchestration_and_governance",
+            "collected 5 items",
+            "",
+            "tests/test_gate_approval_ledger.py .....                                 [100%]",
+            "",
+            "- generated xml file: /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/multi_epic_orchestration_and_governance/build/test-results/task_04_gate_ledger.xml -",
+            "============================== 5 passed in 0.89s ==============================="
+          ],
+          "output_sha256": "4056a97648c94ecd39380d2ff49b6cfc8d9bd8e7c74dd96135eb26e2a88dc042",
+          "results": {
+            "path": "build/test-results/task_04_gate_ledger.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 5,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_MEO_HP_04_record_and_check_gate_approval",
+                  "classname": "tests.test_gate_approval_ledger",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_MEO_AR_01_concurrent_gate_approvals",
+                  "classname": "tests.test_gate_approval_ledger",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_MEO_FR_03_rejections_and_unapproved_gates",
+                  "classname": "tests.test_gate_approval_ledger",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_MEO_HP_04_fallback_to_markdown_and_harvest",
+                  "classname": "tests.test_gate_approval_ledger",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_MEO_HP_04_integration",
+                  "classname": "tests.test_gate_approval_ledger.Test_Integration",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            ".gitignore",
+            "scripts/resume_context.py",
+            "tests/test_gate_approval_ledger.py"
+          ],
+          "violations": []
+        }
+      ],
+      "passed": true
+    }
+  }
+}
