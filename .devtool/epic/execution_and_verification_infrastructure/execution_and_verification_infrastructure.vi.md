@@ -21,7 +21,7 @@
 ## Thông tin Chung (Meta Data)
 
 - **Epic**: `execution-and-verification-infrastructure`
-- **Status**: Packaged (queued behind `contract-and-authoring-ergonomics`)
+- **Status**: In Progress
 - **Target Release**: v1.25.0
 - **Platform**: Python
 - **Source Spec**: [2026-11-06-execution-and-verification-infrastructure-design.vi.md](2026-11-06-execution-and-verification-infrastructure-design.vi.md)

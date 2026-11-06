@@ -1,12 +1,12 @@
 ---
 id: "task_01_polyglot_worktree_bootstrap"
-status: "backlog"
+status: "in-progress"
 priority: "high"
 assignee: null
 epic: "execution-and-verification-infrastructure"
 dueDate: null
 created: "2026-11-06T03:20:00Z"
-modified: "2026-11-06T03:20:00Z"
+modified: "2026-11-06T12:59:36Z"
 completedAt: null
 labels: ["infrastructure", "worktree", "polyglot"]
 order: "b1"
@@ -14,7 +14,7 @@ order: "b1"
 
 # Task 01: Worktree Bootstrap Extras, Polyglot Detection, and JUnit Directory Creation
 
-Epic: [execution_and_verification_infrastructure](execution_and_verification_infrastructure.en.md)
+Epic: [execution_and_verification_infrastructure](../epic/execution_and_verification_infrastructure/execution_and_verification_infrastructure.en.md)
 
 ## Requirement Analysis
 
@@ -86,7 +86,7 @@ Covers: EVI-HP-01, EVI-EC-02, EVI-FR-01
 | V1 | RED | `python3 -m pytest skills/python-quality-check/resources/scripts/test_validate_python_quality.py::PythonQualityConfigTests::test_EVI_FR_01_invalid_bootstrap_format` | exit 1; contains "FAILED" | — |
 | V2 | GREEN | `python3 -m pytest skills/python-quality-check/resources/scripts/test_validate_python_quality.py skills/dev-implementation/resources/scripts/test_run_task_checks.py` | exit 0; contains "passed" | — |
 | V3 | TIER-B | `ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py skills/python-quality-check/resources/scripts/validate_python_quality.py skills/python-quality-check/resources/scripts/test_validate_python_quality.py skills/dev-implementation/resources/scripts/run_task_checks.py skills/dev-implementation/resources/scripts/test_run_task_checks.py` | exit 0 | — |
-| V4 | TIER-B | `mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py --follow-imports=silent skills/python-quality-check/resources/scripts/validate_python_quality.py skills/dev-implementation/resources/scripts/run_task_checks.py` | exit 0 | — |
+| V4 | TIER-B | `mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py skills/python-quality-check/resources/scripts/validate_python_quality.py skills/dev-implementation/resources/scripts/run_task_checks.py --follow-imports=silent` | exit 0 | — |
 | V5 | TIER-C | `python3 -m pytest skills/python-quality-check/resources/scripts/test_validate_python_quality.py skills/dev-implementation/resources/scripts/test_run_task_checks.py --junitxml=build/test-results/task_01_polyglot.xml` | exit 0; results build/test-results/task_01_polyglot.xml | — |
 
 ## Stop and Report If
@@ -121,5 +121,5 @@ Covers: EVI-HP-01, EVI-EC-02, EVI-FR-01
 
 ## References & Rollback
 
-- Reference: [2026-11-06-execution-and-verification-infrastructure-design.en.md](2026-11-06-execution-and-verification-infrastructure-design.en.md).
+- Reference: [2026-11-06-execution-and-verification-infrastructure-design.en.md](../epic/execution_and_verification_infrastructure/2026-11-06-execution-and-verification-infrastructure-design.en.md).
 - Rollback: `git revert` the task commit to restore prior schema, bootstrap scripts, and runner behavior.

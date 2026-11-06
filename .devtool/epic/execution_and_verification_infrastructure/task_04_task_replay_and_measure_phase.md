@@ -1,12 +1,12 @@
 ---
 id: "task_04_task_replay_and_measure_phase"
-status: "backlog"
+status: "todo"
 priority: "high"
 assignee: null
 epic: "execution-and-verification-infrastructure"
 dueDate: null
 created: "2026-11-06T03:20:00Z"
-modified: "2026-11-06T03:20:00Z"
+modified: "2026-11-06T12:57:55Z"
 completedAt: null
 labels: ["infrastructure", "replay", "measure"]
 order: "b4"
@@ -92,7 +92,7 @@ Covers: EVI-HP-04, EVI-ST-02, EVI-FR-02, EVI-FR-03
 | V1 | RED | `python3 -m pytest skills/dev-implementation/resources/scripts/test_replay_and_measure.py::test_EVI_HP_04_replay_and_measure_phase` | exit 1; contains "FAILED" | — |
 | V2 | GREEN | `python3 -m pytest skills/dev-implementation/resources/scripts/test_replay_and_measure.py` | exit 0; contains "passed" | — |
 | V3 | TIER-B | `ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py skills/dev-implementation/resources/scripts/replay_task_text.py skills/dev-implementation/resources/scripts/task_contract.py skills/dev-implementation/resources/scripts/run_task_checks.py skills/dev-implementation/resources/scripts/check_epic_readiness.py skills/dev-implementation/resources/scripts/audit_epic.py skills/dev-implementation/resources/scripts/test_replay_and_measure.py` | exit 0 | — |
-| V4 | TIER-B | `mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py --follow-imports=silent skills/dev-implementation/resources/scripts/replay_task_text.py skills/dev-implementation/resources/scripts/task_contract.py skills/dev-implementation/resources/scripts/run_task_checks.py skills/dev-implementation/resources/scripts/check_epic_readiness.py skills/dev-implementation/resources/scripts/audit_epic.py` | exit 0 | — |
+| V4 | TIER-B | `mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py skills/dev-implementation/resources/scripts/replay_task_text.py skills/dev-implementation/resources/scripts/task_contract.py skills/dev-implementation/resources/scripts/run_task_checks.py skills/dev-implementation/resources/scripts/check_epic_readiness.py skills/dev-implementation/resources/scripts/audit_epic.py --follow-imports=silent` | exit 0 | — |
 | V5 | TIER-C | `python3 -m pytest skills/dev-implementation/resources/scripts/test_replay_and_measure.py --junitxml=build/test-results/task_04_replay_measure.xml` | exit 0; results build/test-results/task_04_replay_measure.xml | — |
 
 ## Stop and Report If
