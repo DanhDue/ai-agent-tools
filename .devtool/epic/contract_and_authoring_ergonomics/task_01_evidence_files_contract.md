@@ -1,12 +1,12 @@
 ---
 id: "task_01_evidence_files_contract"
-status: "todo"
+status: "in-progress"
 priority: "high"
 assignee: null
 epic: "contract-and-authoring-ergonomics"
 dueDate: null
 created: "2026-11-06T01:50:00Z"
-modified: "2026-11-06T01:50:00Z"
+modified: "2026-11-05T22:43:32Z"
 completedAt: null
 labels: ["architecture", "contract", "python"]
 order: "a1"
@@ -78,7 +78,7 @@ Scenario: [TCAE-FR-01] [Tier A - Unit] Reject invalid Evidence files path outsid
 | V1 | RED | `python3 -m pytest skills/dev-implementation/resources/scripts/test_check_task_contract.py::test_TCAE_HP_01_evidence_files_grounding` | exit 1; contains "FAILED" | — |
 | V2 | GREEN | `python3 -m pytest skills/dev-implementation/resources/scripts/test_check_task_contract.py skills/dev-implementation/resources/scripts/test_run_task_checks.py` | exit 0; contains "passed" | — |
 | V3 | TIER-B | `ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py skills/dev-implementation/resources/scripts/task_contract.py skills/dev-implementation/resources/scripts/check_task_contract.py skills/dev-implementation/resources/scripts/test_check_task_contract.py skills/dev-implementation/resources/scripts/test_run_task_checks.py` | exit 0 | — |
-| V4 | TIER-B | `mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py --follow-imports=silent skills/dev-implementation/resources/scripts/task_contract.py skills/dev-implementation/resources/scripts/check_task_contract.py` | exit 0 | — |
+| V4 | TIER-B | `mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py skills/dev-implementation/resources/scripts/task_contract.py skills/dev-implementation/resources/scripts/check_task_contract.py --follow-imports=silent` | exit 0 | — |
 | V5 | TIER-C | `python3 -m pytest skills/dev-implementation/resources/scripts/test_check_task_contract.py skills/dev-implementation/resources/scripts/test_run_task_checks.py --junitxml=build/test-results/task_01.xml` | exit 0; results build/test-results/task_01.xml | — |
 
 ## Stop and Report If
