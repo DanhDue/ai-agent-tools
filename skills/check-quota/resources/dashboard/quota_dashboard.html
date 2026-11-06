@@ -123,9 +123,10 @@
           ✦
         </div>
         <div>
-          <div class="flex items-center gap-2">
+          <div class="flex items-center gap-2 flex-wrap">
             <h1 class="text-base sm:text-lg font-bold tracking-tight text-[var(--foreground)]">Antigravity Quota Dashboard</h1>
             <span id="profileCountBadge" class="text-xs px-2.5 py-0.5 rounded-full bg-sky-500/10 text-sky-400 border border-sky-500/20 font-mono font-medium">8 Profiles</span>
+            <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-mono font-semibold">✓ % CÒN LẠI (REMAINING)</span>
           </div>
           <div class="mt-1 flex items-center">
             <span id="serverStatusBadge" class="text-xs px-2.5 py-0.5 rounded-full font-medium transition-all"></span>
@@ -151,7 +152,9 @@
           onchange="filterProfiles()" 
           class="bg-[var(--background)] text-[var(--foreground)] border border-[var(--border)] text-xs rounded-lg px-2.5 py-1.5 font-medium outline-none cursor-pointer hover:border-sky-500/50 transition-colors"
         >
-          <option value="ALL">Tất cả trạng thái</option>
+          <option value="ALL">Tất cả mục (25)</option>
+          <option value="PROVIDERS">Chỉ AI Providers (Claude / Codex)</option>
+          <option value="PROFILES">Chỉ Antigravity Profiles (23)</option>
           <option value="ACTIVE">Chỉ ACTIVE</option>
           <option value="DISABLED">Chỉ BỊ KHÓA (APPEAL)</option>
           <option value="EXHAUSTED">Chỉ EXHAUSTED</option>
@@ -647,8 +650,8 @@
     "hasArgon": true,
     "gemini5h": {
       "name": "Gemini 3.8 / Pro 5H",
-      "fraction": 1,
-      "countdown": "⏱ 4h 59m",
+      "fraction": 0.9466104507446289,
+      "countdown": "⏱ 4h 43m",
       "unavailable": false
     },
     "claude5h": {
@@ -659,7 +662,7 @@
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
-      "fraction": 1,
+      "fraction": 0.9748963117599487,
       "countdown": "⏱ 6d 15h",
       "unavailable": false
     },
@@ -686,8 +689,8 @@
     "hasArgon": true,
     "gemini5h": {
       "name": "Gemini 3.8 / Pro 5H",
-      "fraction": 1,
-      "countdown": "⏱ 4h 59m",
+      "fraction": 0.9437299966812134,
+      "countdown": "⏱ 4h 43m",
       "unavailable": false
     },
     "claude5h": {
@@ -698,7 +701,7 @@
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
-      "fraction": 1,
+      "fraction": 0.9707933068275452,
       "countdown": "⏱ 6d 15h",
       "unavailable": false
     },
@@ -820,7 +823,7 @@
     "geminiWeekly": {
       "name": "Gemini Weekly",
       "fraction": 0.563136637210846,
-      "countdown": "⏱ 3d 8h",
+      "countdown": "⏱ 3d 7h",
       "unavailable": false
     },
     "claudeWeekly": {
@@ -847,7 +850,7 @@
     "gemini5h": {
       "name": "Gemini 3.8 / Pro 5H",
       "fraction": 0.997797429561615,
-      "countdown": "⏱ 3h 40m",
+      "countdown": "⏱ 3h 18m",
       "unavailable": false
     },
     "claude5h": {
@@ -870,7 +873,7 @@
     },
     "argonWeekly": {
       "name": "Gemini 4 Argon Weekly",
-      "fraction": 0.6144452095031738,
+      "fraction": 0.4957422614097595,
       "countdown": "⏱ 6d 15h",
       "unavailable": false,
       "tags": true
@@ -885,8 +888,8 @@
     "hasArgon": true,
     "gemini5h": {
       "name": "Gemini 3.8 / Pro 5H",
-      "fraction": 0.5281654000282288,
-      "countdown": "⏱ 3m",
+      "fraction": 0.9559929370880127,
+      "countdown": "⏱ 4h 41m",
       "unavailable": false
     },
     "claude5h": {
@@ -897,20 +900,20 @@
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
-      "fraction": 0.10957072675228119,
-      "countdown": "⏱ 4d 15h",
+      "fraction": 0.10287144780158997,
+      "countdown": "⏱ 4d 14h",
       "unavailable": false
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
       "fraction": 0.45513561367988586,
-      "countdown": "⏱ 4d 15h",
+      "countdown": "⏱ 4d 14h",
       "unavailable": false
     },
     "argonWeekly": {
       "name": "Gemini 4 Argon Weekly",
       "fraction": 0,
-      "countdown": "⏱ 4d 15h",
+      "countdown": "⏱ 4d 14h",
       "unavailable": false,
       "tags": true
     }
@@ -937,7 +940,7 @@
     "geminiWeekly": {
       "name": "Gemini Weekly",
       "fraction": 0.46859413385391235,
-      "countdown": "⏱ 1d 21h",
+      "countdown": "⏱ 1d 20h",
       "unavailable": false
     },
     "claudeWeekly": {
@@ -1002,8 +1005,8 @@
     "hasArgon": true,
     "gemini5h": {
       "name": "Gemini 3.8 / Pro 5H",
-      "fraction": 0.5929728746414185,
-      "countdown": "⏱ 2h 17m",
+      "fraction": 0.5464990735054016,
+      "countdown": "⏱ 1h 55m",
       "unavailable": false
     },
     "claude5h": {
@@ -1014,14 +1017,14 @@
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
-      "fraction": 0.7050973773002625,
+      "fraction": 0.6896077990531921,
       "countdown": "⏱ 6d 9h",
       "unavailable": false
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
       "fraction": 0.9871808290481567,
-      "countdown": "⏱ 6d 16h",
+      "countdown": "⏱ 6d 15h",
       "unavailable": false
     },
     "argonWeekly": {
@@ -1041,8 +1044,8 @@
     "hasArgon": true,
     "gemini5h": {
       "name": "Gemini 3.8 / Pro 5H",
-      "fraction": 0.5929728746414185,
-      "countdown": "⏱ 2h 17m",
+      "fraction": 0.5464990735054016,
+      "countdown": "⏱ 1h 55m",
       "unavailable": false
     },
     "claude5h": {
@@ -1053,14 +1056,14 @@
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
-      "fraction": 0.7050973773002625,
+      "fraction": 0.6896077990531921,
       "countdown": "⏱ 6d 9h",
       "unavailable": false
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
       "fraction": 0.9871808290481567,
-      "countdown": "⏱ 6d 16h",
+      "countdown": "⏱ 6d 15h",
       "unavailable": false
     },
     "argonWeekly": {
@@ -1284,7 +1287,7 @@
     "gemini5h": {
       "name": "Gemini 3.8 / Pro 5H",
       "fraction": 0.997797429561615,
-      "countdown": "⏱ 3h 40m",
+      "countdown": "⏱ 3h 18m",
       "unavailable": false
     },
     "claude5h": {
@@ -1307,7 +1310,7 @@
     },
     "argonWeekly": {
       "name": "Gemini 4 Argon Weekly",
-      "fraction": 0.6013918519020081,
+      "fraction": 0.4957422614097595,
       "countdown": "⏱ 6d 15h",
       "unavailable": false,
       "tags": true
@@ -1374,13 +1377,13 @@
     "geminiWeekly": {
       "name": "Gemini Weekly",
       "fraction": 0.6150436401367188,
-      "countdown": "⏱ 17h 52m",
+      "countdown": "⏱ 17h 30m",
       "unavailable": false
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
       "fraction": 0.9992480278015137,
-      "countdown": "⏱ 4d 15h",
+      "countdown": "⏱ 4d 14h",
       "unavailable": false
     },
     "argonWeekly": {
@@ -1400,8 +1403,8 @@
     "hasArgon": true,
     "gemini5h": {
       "name": "Gemini 3.8 / Pro 5H",
-      "fraction": 0.5290130376815796,
-      "countdown": "⏱ 3m",
+      "fraction": 0.9555066823959351,
+      "countdown": "⏱ 4h 41m",
       "unavailable": false
     },
     "claude5h": {
@@ -1412,20 +1415,20 @@
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
-      "fraction": 0.11190451681613922,
-      "countdown": "⏱ 4d 15h",
+      "fraction": 0.10273251682519913,
+      "countdown": "⏱ 4d 14h",
       "unavailable": false
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
       "fraction": 0.45513561367988586,
-      "countdown": "⏱ 4d 15h",
+      "countdown": "⏱ 4d 14h",
       "unavailable": false
     },
     "argonWeekly": {
       "name": "Gemini 4 Argon Weekly",
       "fraction": 0,
-      "countdown": "⏱ 4d 15h",
+      "countdown": "⏱ 4d 14h",
       "unavailable": false,
       "tags": true
     }
@@ -1546,6 +1549,118 @@
       "fraction": 0.0,
       "countdown": "⏱ Auth needed",
       "unavailable": true,
+      "tags": true
+    }
+  },
+  "claude": {
+    "profile": "claude",
+    "displayName": "Claude Code",
+    "isProvider": true,
+    "providerType": "claude",
+    "tier": "ANTHROPIC",
+    "priority": 100,
+    "email": "Anthropic Claude Pro / Team",
+    "status": "ACTIVE",
+    "isSessionActive": true,
+    "resetTime": "2026-11-06T22:19:59.660729+00:00",
+    "resetTimeLocal": "05:19:59",
+    "remainingCountdown": "⏱ 1h 47m (05:19:59)",
+    "hasArgon": true,
+    "gemini5h": {
+      "name": "Claude 5H Session Window",
+      "fraction": 0.31,
+      "countdown": "⏱ 1h 47m (05:19:59)",
+      "resetTime": "2026-11-06T22:19:59.660729+00:00",
+      "resetTimeLocal": "05:19:59",
+      "unavailable": false
+    },
+    "claude5h": {
+      "name": "Claude Session Tier",
+      "fraction": 1.0,
+      "countdown": "Unified Pro 5H",
+      "resetTime": "",
+      "resetTimeLocal": "",
+      "unavailable": false
+    },
+    "geminiWeekly": {
+      "name": "Claude 7D Weekly Remaining",
+      "fraction": 0.22,
+      "countdown": "⏱ 4d 3h (11/11 06:59)",
+      "resetTime": "2026-11-10T23:59:59.660747+00:00",
+      "resetTimeLocal": "11/11 06:59",
+      "unavailable": false
+    },
+    "claudeWeekly": {
+      "name": "Anthropic Rate Limit Scope",
+      "fraction": 1.0,
+      "countdown": "Normal Severity",
+      "resetTime": "",
+      "resetTimeLocal": "",
+      "unavailable": false
+    },
+    "argonWeekly": {
+      "name": "Anthropic Model Roster (Claude 3.7 Sonnet / Opus 3.5)",
+      "fraction": 1.0,
+      "countdown": "Sẵn sàng",
+      "resetTime": "",
+      "resetTimeLocal": "",
+      "unavailable": false,
+      "tags": true
+    }
+  },
+  "codex": {
+    "profile": "codex",
+    "displayName": "OpenAI Codex",
+    "isProvider": true,
+    "providerType": "codex",
+    "tier": "OPENAI",
+    "priority": 95,
+    "email": "OpenAI Codex CLI (ChatGPT Plus/Team)",
+    "status": "ACTIVE",
+    "isSessionActive": true,
+    "resetTime": "2026-11-07T01:32:21+00:00",
+    "resetTimeLocal": "08:32:21",
+    "remainingCountdown": "⏱ 4h 59m (08:32:21)",
+    "hasArgon": true,
+    "gemini5h": {
+      "name": "Codex 5H Session Window",
+      "fraction": 0.9981666666666666,
+      "countdown": "⏱ 4h 59m (08:32:21)",
+      "resetTime": "2026-11-07T01:32:21+00:00",
+      "resetTimeLocal": "08:32:21",
+      "unavailable": false
+    },
+    "claude5h": {
+      "name": "Codex Reasoning Effort",
+      "fraction": 1.0,
+      "countdown": "Low / Med / High",
+      "resetTime": "",
+      "resetTimeLocal": "",
+      "unavailable": false
+    },
+    "geminiWeekly": {
+      "name": "OpenAI Rate Limits (RPM / TPM)",
+      "fraction": 1.0,
+      "countdown": "Bình thường",
+      "resetTime": "",
+      "resetTimeLocal": "",
+      "unavailable": false
+    },
+    "claudeWeekly": {
+      "name": "OpenAI Auth Session",
+      "fraction": 1.0,
+      "countdown": "OAuth Active",
+      "resetTime": "",
+      "resetTimeLocal": "",
+      "unavailable": false
+    },
+    "argonWeekly": {
+      "name": "OpenAI Model Roster (gpt-4.5 / o3-mini)",
+      "fraction": 1.0,
+      "countdown": "Sẵn sàng",
+      "resetTime": "",
+      "resetTimeLocal": "",
+      "unavailable": false,
       "tags": true
     }
   }
@@ -1772,9 +1887,10 @@
                 ${checkboxHTML}
                 <span 
                   ondblclick="copyProfileNameToClipboard('${profile}')"
-                  class="text-sm sm:text-base font-bold font-mono text-sky-400 tracking-tight cursor-pointer hover:text-sky-300 transition-colors select-none"
+                  class="text-sm sm:text-base font-bold font-mono ${data.isProvider ? (profile === 'claude' ? 'text-amber-400' : 'text-emerald-400') : 'text-sky-400'} tracking-tight cursor-pointer hover:opacity-80 transition-colors select-none"
                   title="Nhấn đúp (Double-click) để sao chép '${profile}' vào clipboard"
-                >${profile}</span>
+                >${data.displayName || profile}</span>
+                ${!data.isProvider ? `
                 <button 
                   onclick="openProfileInfoModal('${profile}')" 
                   class="w-5 h-5 rounded-full bg-slate-800 hover:bg-sky-500/20 text-slate-400 hover:text-sky-300 border border-slate-700/80 flex items-center justify-center text-[11px] font-bold transition-all shadow-sm"
@@ -1782,9 +1898,26 @@
                 >
                   ℹ
                 </button>
-                ${getTierBadgeHTML(data.tier || 'PRO')}
-                ${getPriorityBadgeHTML(data.priority || 50)}
-                ${getArgonBadgeHTML(hasArgon)}
+                ` : ''}
+                ${data.isProvider ? (profile === 'claude' ? `
+                  <span class="pill-badge bg-amber-500/20 text-amber-300 border border-amber-500/40 font-mono font-bold text-[10px]">
+                    <span class="text-amber-400">✺</span> ANTHROPIC
+                  </span>
+                  <span class="pill-badge bg-purple-950/60 text-purple-300 border border-purple-800/60 font-mono text-[10px]">
+                    AI PROVIDER
+                  </span>
+                ` : `
+                  <span class="pill-badge bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-mono font-bold text-[10px]">
+                    <span class="text-emerald-400">✦</span> OPENAI
+                  </span>
+                  <span class="pill-badge bg-teal-950/60 text-teal-300 border border-teal-800/60 font-mono text-[10px]">
+                    AI PROVIDER
+                  </span>
+                `) : `
+                  ${getTierBadgeHTML(data.tier || 'PRO')}
+                  ${getPriorityBadgeHTML(data.priority || 50)}
+                  ${getArgonBadgeHTML(hasArgon)}
+                `}
                 ${getStatusBadgeHTML(data.status || 'ACTIVE')}
               </div>
 
@@ -1837,12 +1970,13 @@
                 <button 
                   onclick="triggerOpenCLI('${profile}')" 
                   id="btnOpenCLI-${profile}"
-                  title="Mở Terminal chạy CLI cho profile ${profile}"
+                  title="Mở Terminal chạy CLI cho ${profile}"
                   class="px-2.5 py-1.5 rounded-lg bg-teal-500/10 hover:bg-teal-500/20 text-teal-300 border border-teal-500/30 font-medium text-xs transition-colors flex items-center gap-1.5 shadow-sm"
                 >
                   <span>💻</span> <span>Mở CLI</span>
                 </button>
 
+                ${!data.isProvider ? `
                 <!-- Action 4: Mở Antigravity IDE (GUI) -->
                 <button 
                   onclick="triggerOpenIDE('${profile}')" 
@@ -1852,6 +1986,7 @@
                 >
                   <span>🖥️</span> <span>Mở IDE</span>
                 </button>
+                ` : ''}
 
                 <span id="actionStatus-${profile}" class="font-mono text-xs text-slate-400 ml-1.5 hidden sm:inline"></span>
               </div>
@@ -1988,8 +2123,10 @@
         return profiles.sort((a, b) => b.localeCompare(a));
       }
 
-      // DEFAULT (NAME_ASC)
-      return profiles.sort((a, b) => a.localeCompare(b));
+      // DEFAULT: Pin providers (claude, codex) at top, then satellite profiles
+      const providers = profiles.filter(p => p === "claude" || p === "codex" || PROFILES_DATA[p]?.isProvider).sort();
+      const satellites = profiles.filter(p => !providers.includes(p)).sort();
+      return [...providers, ...satellites];
     }
 
     function getProfileQuotaScore(profile) {
@@ -2090,8 +2227,12 @@
         const data = PROFILES_DATA[profile];
         if (!data) return;
         
-        if (search && !profile.toLowerCase().includes(search)) return;
-        if (statusFilter && statusFilter !== "ALL" && data.status !== statusFilter) return;
+        if (search && !profile.toLowerCase().includes(search) && !(data.displayName && data.displayName.toLowerCase().includes(search))) return;
+        if (statusFilter && statusFilter !== "ALL") {
+          if (statusFilter === "PROVIDERS" && !data.isProvider) return;
+          if (statusFilter === "PROFILES" && data.isProvider) return;
+          if (statusFilter !== "PROVIDERS" && statusFilter !== "PROFILES" && data.status !== statusFilter) return;
+        }
 
         matchingProfiles.push(profile);
       });
@@ -2134,7 +2275,17 @@
       }
 
       const countBadge = document.getElementById("profileCountBadge");
-      if (countBadge) countBadge.textContent = `${matchingProfiles.length} Profiles`;
+      if (countBadge) {
+        const provCount = matchingProfiles.filter(p => PROFILES_DATA[p]?.isProvider).length;
+        const profCount = matchingProfiles.length - provCount;
+        if (provCount > 0 && profCount > 0) {
+          countBadge.textContent = `${provCount} AI Providers • ${profCount} Profiles (${matchingProfiles.length} Tổng)`;
+        } else if (provCount > 0) {
+          countBadge.textContent = `${provCount} AI Providers`;
+        } else {
+          countBadge.textContent = `${profCount} Profiles`;
+        }
+      }
     }
 
     window.addEventListener("resize", () => {
@@ -2574,18 +2725,19 @@
       const data = PROFILES_DATA[profile];
       const statusEl = document.getElementById(`actionStatus-${profile}`);
       const btn = document.getElementById(`btnActivate-${profile}`);
+      const isForce = window.event?.altKey || window.event?.shiftKey || false;
       if (btn) {
         btn.disabled = true;
         btn.classList.add("opacity-60");
       }
       if (statusEl) {
         statusEl.classList.remove("hidden");
-        statusEl.innerHTML = `<span class="text-emerald-400 animate-pulse">🎯 Đang ping 1-token...</span>`;
+        statusEl.innerHTML = `<span class="text-emerald-400 animate-pulse">🎯 Đang ping kích hoạt${isForce ? ' (force)' : ''}...</span>`;
       }
 
       if (window.location.protocol.startsWith('http')) {
         try {
-          const res = await fetch(`/api/ping?profile=${encodeURIComponent(profile)}`);
+          const res = await fetch(`/api/ping?profile=${encodeURIComponent(profile)}${isForce ? '&force=1' : ''}`);
           const json = await res.json();
           if (json.isAppeal || json.status === "DISABLED") {
             if (json.data) {
@@ -2604,6 +2756,18 @@
               PROFILES_DATA[profile] = json.data;
               renderAllProfiles();
             }
+            return;
+          }
+          if (json.skipped) {
+            if (json.data) {
+              PROFILES_DATA[profile] = json.data;
+              renderAllProfiles();
+            }
+            if (statusEl) {
+              statusEl.innerHTML = `<span class="text-amber-400 font-bold">⏭️ Đang trong phiên</span>`;
+              setTimeout(() => { if (statusEl.textContent.includes("Đang trong phiên")) statusEl.textContent = ""; }, 5000);
+            }
+            showToast(`⏭️ ${json.message || `Phiên làm việc của ${profile} đang hoạt động, bỏ qua ping!`}`, "info");
             return;
           }
           if (json.success && json.data) {

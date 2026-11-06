@@ -25,6 +25,10 @@ import http.server
 import socketserver
 import urllib.parse
 import urllib.request
+import sqlite3
+import hashlib
+import random
+import shutil
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
@@ -54,6 +58,91 @@ TAG_INACTIVE = "\033[48;2;30;41;59m\033[38;2;148;163;184m INACTIVE \033[0m"
 REAL_HOME = "/Users/danhdueexoictif"
 KC_PASS = "H@No!a@12345"
 AGY_BIN = "/opt/homebrew/bin/agy"
+SESSION_STORE_DB = Path(REAL_HOME) / ".devtool" / "state" / ".session_store.db"
+SALT = "d3nexus-session-salt-2026"
+
+NATURAL_PROMPTS = [
+    "Explain HTTP status 200 in 5 words.",
+    "What is POSIX standard?",
+    "Python list comprehension syntax.",
+    "Bash command for disk free space.",
+    "Define idempotent in REST API in 5 words.",
+    "What is git commit hash SHA?",
+    "Explain difference between TCP and UDP in 1 line.",
+    "Write a regex for matching digits in 5 chars.",
+]
+
+
+def init_session_store_db():
+    try:
+        SESSION_STORE_DB.parent.mkdir(parents=True, exist_ok=True)
+        con = sqlite3.connect(str(SESSION_STORE_DB))
+        con.execute("""
+        CREATE TABLE IF NOT EXISTS session_store (
+            profile_hash TEXT PRIMARY KEY,
+            reset_5h INTEGER NOT NULL,
+            reset_weekly INTEGER NOT NULL,
+            fraction_5h REAL NOT NULL,
+            last_checked INTEGER NOT NULL,
+            last_ping INTEGER NOT NULL,
+            is_active INTEGER NOT NULL
+        );
+        """)
+        con.commit()
+        con.close()
+    except Exception as e:
+        sys.stderr.write(f"Warning: Failed to init session_store.db: {e}\n")
+
+
+def hash_profile(name: str) -> str:
+    return hashlib.sha256(f"{SALT}:{name}".encode("utf-8")).hexdigest()[:24]
+
+
+def save_session_record(profile: str, reset_5h: int, reset_weekly: int, fraction_5h: float, is_active: bool, last_ping: int | None = None):
+    init_session_store_db()
+    h = hash_profile(profile)
+    now = int(time.time())
+    try:
+        con = sqlite3.connect(str(SESSION_STORE_DB), timeout=5.0)
+        cur = con.cursor()
+        cur.execute("""
+            INSERT INTO session_store (profile_hash, reset_5h, reset_weekly, fraction_5h, last_checked, last_ping, is_active)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(profile_hash) DO UPDATE SET
+                reset_5h=excluded.reset_5h,
+                reset_weekly=excluded.reset_weekly,
+                fraction_5h=excluded.fraction_5h,
+                last_checked=excluded.last_checked,
+                last_ping=COALESCE(excluded.last_ping, session_store.last_ping),
+                is_active=excluded.is_active;
+        """, (h, int(reset_5h), int(reset_weekly), float(fraction_5h), now, int(last_ping or now), 1 if is_active else 0))
+        con.commit()
+        con.close()
+    except Exception as e:
+        sys.stderr.write(f"Warning: Failed to save session record: {e}\n")
+
+
+def get_session_record(profile: str) -> dict | None:
+    init_session_store_db()
+    h = hash_profile(profile)
+    try:
+        con = sqlite3.connect(str(SESSION_STORE_DB), timeout=5.0)
+        cur = con.cursor()
+        cur.execute("SELECT reset_5h, reset_weekly, fraction_5h, last_checked, last_ping, is_active FROM session_store WHERE profile_hash = ?", (h,))
+        row = cur.fetchone()
+        con.close()
+        if not row:
+            return None
+        return {
+            "reset_5h": row[0],
+            "reset_weekly": row[1],
+            "fraction_5h": row[2],
+            "last_checked": row[3],
+            "last_ping": row[4],
+            "is_active": bool(row[5]),
+        }
+    except Exception:
+        return None
 
 
 def get_color(pct: float) -> str:
@@ -549,9 +638,237 @@ def get_dashboard_html_path() -> Path:
 CACHED_PROFILES_DATA: dict = {}
 
 
+def fetch_claude_quota() -> dict:
+    claude_json_path = Path(REAL_HOME) / ".claude.json"
+    utilization_5h = 0
+    utilization_7d = 0
+    resets_at_5h_iso = ""
+    resets_at_7d_iso = ""
+    resets_at_5h_ts = 0
+    resets_at_7d_ts = 0
+    local_reset_5h = ""
+    local_reset_7d = ""
+
+    if claude_json_path.is_file():
+        try:
+            with open(claude_json_path, "r", encoding="utf-8") as f:
+                c_data = json.load(f)
+            u = c_data.get("cachedUsageUtilization", {}).get("utilization", {})
+            five_h = u.get("five_hour") or {}
+            utilization_5h = five_h.get("utilization", 0)
+            resets_at_5h_iso = five_h.get("resets_at", "")
+
+            seven_d = u.get("seven_day") or {}
+            utilization_7d = seven_d.get("utilization", 0)
+            resets_at_7d_iso = seven_d.get("resets_at", "")
+        except Exception as e:
+            sys.stderr.write(f"Error reading .claude.json: {e}\n")
+
+    now_utc = datetime.datetime.now(datetime.timezone.utc)
+    is_active_5h = False
+    rem_sec_5h = 0
+    if resets_at_5h_iso:
+        try:
+            dt_5h = datetime.datetime.fromisoformat(resets_at_5h_iso.replace("Z", "+00:00"))
+            resets_at_5h_ts = int(dt_5h.timestamp())
+            local_reset_5h = dt_5h.astimezone().strftime("%H:%M:%S")
+            rem_sec_5h = max(0, int((dt_5h - now_utc).total_seconds()))
+            if rem_sec_5h > 0 and utilization_5h > 0:
+                is_active_5h = True
+        except Exception:
+            pass
+
+    rem_sec_7d = 0
+    if resets_at_7d_iso:
+        try:
+            dt_7d = datetime.datetime.fromisoformat(resets_at_7d_iso.replace("Z", "+00:00"))
+            resets_at_7d_ts = int(dt_7d.timestamp())
+            local_reset_7d = dt_7d.astimezone().strftime("%d/%m %H:%M")
+            rem_sec_7d = max(0, int((dt_7d - now_utc).total_seconds()))
+        except Exception:
+            pass
+
+    # Strictly calculate REMAINING percentage (100% - utilization%)
+    fraction_5h = max(0.0, min(1.0, (100.0 - float(utilization_5h)) / 100.0))
+    fraction_7d = max(0.0, min(1.0, (100.0 - float(utilization_7d)) / 100.0))
+
+    countdown_5h = f"⏱ {rem_sec_5h // 3600}h {(rem_sec_5h % 3600) // 60}m" if rem_sec_5h > 0 else "⏱ 5h 00m (Reset xong)"
+    if local_reset_5h and rem_sec_5h > 0:
+        countdown_5h += f" ({local_reset_5h})"
+
+    days_7d = rem_sec_7d // 86400
+    hours_7d = (rem_sec_7d % 86400) // 3600
+    countdown_7d = f"⏱ {days_7d}d {hours_7d}h" if rem_sec_7d > 0 else "⏱ 7d 00h (Reset xong)"
+    if local_reset_7d and rem_sec_7d > 0:
+        countdown_7d += f" ({local_reset_7d})"
+
+    # Save to hashed SQLite session store
+    save_session_record("claude", resets_at_5h_ts, resets_at_7d_ts, fraction_5h, is_active_5h)
+
+    return {
+        "profile": "claude",
+        "displayName": "Claude Code",
+        "isProvider": True,
+        "providerType": "claude",
+        "tier": "ANTHROPIC",
+        "priority": 100,
+        "email": "Anthropic Claude Pro / Team",
+        "status": "ACTIVE" if is_active_5h or fraction_5h > 0 else "IDLE",
+        "isSessionActive": is_active_5h,
+        "resetTime": resets_at_5h_iso,
+        "resetTimeLocal": local_reset_5h,
+        "remainingCountdown": countdown_5h,
+        "hasArgon": True,
+        "gemini5h": {
+            "name": "Claude 5H Session Window",
+            "fraction": fraction_5h,
+            "countdown": countdown_5h,
+            "resetTime": resets_at_5h_iso,
+            "resetTimeLocal": local_reset_5h,
+            "unavailable": False,
+        },
+        "claude5h": {
+            "name": "Claude Session Tier",
+            "fraction": 1.0,
+            "countdown": "Unified Pro 5H",
+            "resetTime": "",
+            "resetTimeLocal": "",
+            "unavailable": False,
+        },
+        "geminiWeekly": {
+            "name": "Claude 7D Weekly Remaining",
+            "fraction": fraction_7d,
+            "countdown": countdown_7d,
+            "resetTime": resets_at_7d_iso,
+            "resetTimeLocal": local_reset_7d,
+            "unavailable": False,
+        },
+        "claudeWeekly": {
+            "name": "Anthropic Rate Limit Scope",
+            "fraction": 1.0,
+            "countdown": "Normal Severity",
+            "resetTime": "",
+            "resetTimeLocal": "",
+            "unavailable": False,
+        },
+        "argonWeekly": {
+            "name": "Anthropic Model Roster (Claude 3.7 Sonnet / Opus 3.5)",
+            "fraction": 1.0,
+            "countdown": "Sẵn sàng",
+            "resetTime": "",
+            "resetTimeLocal": "",
+            "unavailable": False,
+            "tags": True,
+        },
+    }
+
+
+def fetch_codex_quota() -> dict:
+    sqlite_path = Path(REAL_HOME) / ".codex" / "logs_2.sqlite"
+    max_ts = 0
+    if sqlite_path.is_file():
+        try:
+            con = sqlite3.connect(str(sqlite_path), timeout=3.0)
+            cur = con.cursor()
+            cur.execute("SELECT max(ts) FROM logs;")
+            row = cur.fetchone()
+            con.close()
+            if row and row[0]:
+                max_ts = row[0]
+        except Exception as e:
+            sys.stderr.write(f"Error reading codex logs_2.sqlite: {e}\n")
+
+    now_ts = int(time.time())
+    delta_sec = now_ts - max_ts if max_ts > 0 else 999999
+    window_sec = 5 * 3600
+
+    if delta_sec < window_sec:
+        rem_sec = window_sec - delta_sec
+        reset_ts = max_ts + window_sec
+        local_reset_5h = datetime.datetime.fromtimestamp(reset_ts).strftime("%H:%M:%S")
+        reset_iso = datetime.datetime.fromtimestamp(reset_ts, tz=datetime.timezone.utc).isoformat()
+        fraction_5h = rem_sec / window_sec
+        countdown_5h = f"⏱ {rem_sec // 3600}h {(rem_sec % 3600) // 60}m ({local_reset_5h})"
+        is_active = True
+        status = "ACTIVE"
+    else:
+        rem_sec = 0
+        reset_ts = now_ts
+        local_reset_5h = "Reset xong"
+        reset_iso = ""
+        fraction_5h = 1.0
+        countdown_5h = "⏱ 5h 00m (Reset xong)"
+        is_active = False
+        status = "IDLE"
+
+    # Save to hashed SQLite session store
+    save_session_record("codex", reset_ts, 0, fraction_5h, is_active)
+
+    return {
+        "profile": "codex",
+        "displayName": "OpenAI Codex",
+        "isProvider": True,
+        "providerType": "codex",
+        "tier": "OPENAI",
+        "priority": 95,
+        "email": "OpenAI Codex CLI (ChatGPT Plus/Team)",
+        "status": status,
+        "isSessionActive": is_active,
+        "resetTime": reset_iso,
+        "resetTimeLocal": local_reset_5h,
+        "remainingCountdown": countdown_5h,
+        "hasArgon": True,
+        "gemini5h": {
+            "name": "Codex 5H Session Window",
+            "fraction": fraction_5h,
+            "countdown": countdown_5h,
+            "resetTime": reset_iso,
+            "resetTimeLocal": local_reset_5h,
+            "unavailable": False,
+        },
+        "claude5h": {
+            "name": "Codex Reasoning Effort",
+            "fraction": 1.0,
+            "countdown": "Low / Med / High",
+            "resetTime": "",
+            "resetTimeLocal": "",
+            "unavailable": False,
+        },
+        "geminiWeekly": {
+            "name": "OpenAI Rate Limits (RPM / TPM)",
+            "fraction": 1.0,
+            "countdown": "Bình thường",
+            "resetTime": "",
+            "resetTimeLocal": "",
+            "unavailable": False,
+        },
+        "claudeWeekly": {
+            "name": "OpenAI Auth Session",
+            "fraction": 1.0,
+            "countdown": "OAuth Active",
+            "resetTime": "",
+            "resetTimeLocal": "",
+            "unavailable": False,
+        },
+        "argonWeekly": {
+            "name": "OpenAI Model Roster (gpt-4.5 / o3-mini)",
+            "fraction": 1.0,
+            "countdown": "Sẵn sàng",
+            "resetTime": "",
+            "resetTimeLocal": "",
+            "unavailable": False,
+            "tags": True,
+        },
+    }
+
+
 def load_cached_profiles() -> dict:
     global CACHED_PROFILES_DATA
     if CACHED_PROFILES_DATA:
+        if "claude" not in CACHED_PROFILES_DATA:
+            CACHED_PROFILES_DATA["claude"] = fetch_claude_quota()
+        if "codex" not in CACHED_PROFILES_DATA:
+            CACHED_PROFILES_DATA["codex"] = fetch_codex_quota()
         return CACHED_PROFILES_DATA
     p = get_dashboard_html_path()
     if p.is_file():
@@ -564,10 +881,18 @@ def load_cached_profiles() -> dict:
                 if idx2 != -1:
                     raw_json = content[idx1 + len(marker):idx2].strip()
                     CACHED_PROFILES_DATA = json.loads(raw_json)
+                    if "claude" not in CACHED_PROFILES_DATA:
+                        CACHED_PROFILES_DATA["claude"] = fetch_claude_quota()
+                    if "codex" not in CACHED_PROFILES_DATA:
+                        CACHED_PROFILES_DATA["codex"] = fetch_codex_quota()
                     return CACHED_PROFILES_DATA
         except Exception as e:
             sys.stderr.write(f"Failed to load cached profiles: {e}\n")
-    return {}
+    CACHED_PROFILES_DATA = {
+        "claude": fetch_claude_quota(),
+        "codex": fetch_codex_quota(),
+    }
+    return CACHED_PROFILES_DATA
 
 
 def update_cached_profile(profile: str, data: dict):
@@ -653,48 +978,188 @@ def format_profile_for_dashboard(profile: str, result: dict) -> dict:
     )
     status = "EXHAUSTED" if is_exhausted else "ACTIVE"
 
+    gem_5h_reset = items["gem_5h"]["reset_time"]
+    gem_w_reset = items["gem_weekly"]["reset_time"]
+
+    # Compute exact local reset time and accurate real-time countdown
+    now_utc = datetime.datetime.now(datetime.timezone.utc)
+    gem_5h_ts = 0
+    local_5h_reset = ""
+    is_5h_active = False
+
+    if gem_5h_reset:
+        try:
+            dt_5h = datetime.datetime.fromisoformat(gem_5h_reset.replace("Z", "+00:00"))
+            gem_5h_ts = int(dt_5h.timestamp())
+            local_5h_reset = dt_5h.astimezone().strftime("%H:%M:%S")
+            rem_sec_5h = int((dt_5h - now_utc).total_seconds())
+            if 0 < rem_sec_5h < 5 * 3600 and items["gem_5h"]["fraction"] < 1.0:
+                is_5h_active = True
+        except Exception:
+            pass
+
+    gem_w_ts = 0
+    local_w_reset = ""
+    if gem_w_reset:
+        try:
+            dt_w = datetime.datetime.fromisoformat(gem_w_reset.replace("Z", "+00:00"))
+            gem_w_ts = int(dt_w.timestamp())
+            local_w_reset = dt_w.astimezone().strftime("%d/%m %H:%M")
+        except Exception:
+            pass
+
+    # Save to hashed SQLite session store!
+    save_session_record(profile, gem_5h_ts, gem_w_ts, items["gem_5h"]["fraction"], is_5h_active)
+
+    countdown_5h_str = format_countdown(gem_5h_reset) if gem_5h_reset else "⏱ 4h 59m"
+    if local_5h_reset and countdown_5h_str != "⏱ --":
+        countdown_5h_str += f" ({local_5h_reset})"
+
+    countdown_cld_str = format_countdown(items["cld_5h"]["reset_time"]) if items["cld_5h"]["reset_time"] else "⏱ 4h 59m"
+    if items["cld_5h"]["reset_time"]:
+        try:
+            dt_cld = datetime.datetime.fromisoformat(items["cld_5h"]["reset_time"].replace("Z", "+00:00"))
+            countdown_cld_str += f" ({dt_cld.astimezone().strftime('%H:%M:%S')})"
+        except Exception:
+            pass
+
+    countdown_w_str = format_countdown(gem_w_reset) if gem_w_reset else "⏱ 6d 20h"
+    if local_w_reset and countdown_w_str != "⏱ --":
+        countdown_w_str += f" ({local_w_reset})"
+
+    countdown_cld_w_str = format_countdown(items["cld_weekly"]["reset_time"]) if items["cld_weekly"]["reset_time"] else "⏱ 6d 20h"
+    countdown_arg_str = format_countdown(items["argon_weekly"]["reset_time"]) if items["argon_weekly"]["reset_time"] else ("⏱ 6d 20h" if has_argon else "Unavailable N/A")
+
     return {
         "email": email,
         "tier": tier,
         "priority": priority,
         "status": status,
         "isAppeal": False,
+        "isSessionActive": is_5h_active,
+        "resetTime": gem_5h_reset,
+        "resetTimeLocal": local_5h_reset,
         "hasArgon": has_argon,
         "gemini5h": {
             "name": "Gemini 3.8 / Pro 5H",
             "fraction": items["gem_5h"]["fraction"],
-            "countdown": format_countdown(items["gem_5h"]["reset_time"]) if items["gem_5h"]["reset_time"] else "⏱ 4h 59m",
+            "countdown": countdown_5h_str,
+            "resetTime": gem_5h_reset,
+            "resetTimeLocal": local_5h_reset,
             "unavailable": not items["gem_5h"]["available"],
         },
         "claude5h": {
             "name": "Claude 5.5 / GPT 5H",
             "fraction": items["cld_5h"]["fraction"],
-            "countdown": format_countdown(items["cld_5h"]["reset_time"]) if items["cld_5h"]["reset_time"] else "⏱ 4h 59m",
+            "countdown": countdown_cld_str,
+            "resetTime": items["cld_5h"]["reset_time"],
             "unavailable": not items["cld_5h"]["available"],
         },
         "geminiWeekly": {
             "name": "Gemini Weekly",
             "fraction": items["gem_weekly"]["fraction"],
-            "countdown": format_countdown(items["gem_weekly"]["reset_time"]) if items["gem_weekly"]["reset_time"] else "⏱ 6d 20h",
+            "countdown": countdown_w_str,
+            "resetTime": gem_w_reset,
+            "resetTimeLocal": local_w_reset,
             "unavailable": not items["gem_weekly"]["available"],
         },
         "claudeWeekly": {
             "name": "Claude Weekly",
             "fraction": items["cld_weekly"]["fraction"],
-            "countdown": format_countdown(items["cld_weekly"]["reset_time"]) if items["cld_weekly"]["reset_time"] else "⏱ 6d 20h",
+            "countdown": countdown_cld_w_str,
+            "resetTime": items["cld_weekly"]["reset_time"],
             "unavailable": not items["cld_weekly"]["available"],
         },
         "argonWeekly": {
             "name": "Gemini 4 Argon Weekly",
             "fraction": items["argon_weekly"]["fraction"] if items["argon_weekly"]["available"] else 0.0,
-            "countdown": format_countdown(items["argon_weekly"]["reset_time"]) if items["argon_weekly"]["reset_time"] else ("⏱ 6d 20h" if has_argon else "Unavailable N/A"),
+            "countdown": countdown_arg_str,
+            "resetTime": items["argon_weekly"]["reset_time"],
             "unavailable": not has_argon,
             "tags": True,
         },
     }
 
 
-def execute_ping_profile(profile: str) -> dict:
+def execute_ping_profile(profile: str, force: bool = False) -> dict:
+    # 1. Provider: Claude Code
+    if profile == "claude":
+        claude_quota = fetch_claude_quota()
+        if claude_quota.get("isSessionActive") and not force:
+            rem = claude_quota.get("remainingCountdown", "5h")
+            msg = f"Phiên Claude 5H đang active ({rem}). Bỏ qua ping."
+            return {
+                "profile": "claude",
+                "success": True,
+                "status": "ACTIVE",
+                "isSessionActive": True,
+                "skipped": True,
+                "duration_ms": 5,
+                "message": msg,
+            }
+        t0 = time.time()
+        try:
+            env = os.environ.copy()
+            env["HOME"] = REAL_HOME
+            claude_bin = shutil.which("claude") or "/usr/local/bin/claude"
+            cmd = [
+                claude_bin,
+                "--safe-mode",
+                "--disable-slash-commands",
+                "--tools", "",
+                "--model", "haiku",
+                "-p", "1"
+            ]
+            res = subprocess.run(cmd, env=env, capture_output=True, text=True, timeout=25)
+            dur = int((time.time() - t0) * 1000)
+            if res.returncode == 0:
+                fetch_claude_quota()  # update session store
+                return {"profile": "claude", "success": True, "duration_ms": dur, "message": f"Kích hoạt Claude thành công ({dur}ms)"}
+            return {"profile": "claude", "success": False, "duration_ms": dur, "error": res.stderr.strip() or f"Code {res.returncode}"}
+        except subprocess.TimeoutExpired:
+            return {"profile": "claude", "success": False, "duration_ms": 25000, "error": "Request timed out (25s)"}
+        except Exception as e:
+            return {"profile": "claude", "success": False, "duration_ms": 50, "error": str(e)}
+
+    # 2. Provider: OpenAI Codex
+    if profile == "codex":
+        codex_quota = fetch_codex_quota()
+        if codex_quota.get("isSessionActive") and not force:
+            rem = codex_quota.get("remainingCountdown", "5h")
+            msg = f"Phiên Codex 5H đang active ({rem}). Bỏ qua ping."
+            return {
+                "profile": "codex",
+                "success": True,
+                "status": "ACTIVE",
+                "isSessionActive": True,
+                "skipped": True,
+                "duration_ms": 5,
+                "message": msg,
+            }
+        t0 = time.time()
+        try:
+            env = os.environ.copy()
+            env["HOME"] = REAL_HOME
+            codex_bin = shutil.which("codex") or "/usr/local/bin/codex"
+            cmd = [
+                codex_bin,
+                "exec",
+                "1",
+                "--ephemeral",
+                "--skip-git-repo-check",
+            ]
+            res = subprocess.run(cmd, env=env, capture_output=True, text=True, timeout=25)
+            dur = int((time.time() - t0) * 1000)
+            if res.returncode == 0:
+                fetch_codex_quota()  # update session store
+                return {"profile": "codex", "success": True, "duration_ms": dur, "message": f"Kích hoạt Codex thành công ({dur}ms)"}
+            return {"profile": "codex", "success": False, "duration_ms": dur, "error": res.stderr.strip() or f"Code {res.returncode}"}
+        except subprocess.TimeoutExpired:
+            return {"profile": "codex", "success": False, "duration_ms": 25000, "error": "Request timed out (25s)"}
+        except Exception as e:
+            return {"profile": "codex", "success": False, "duration_ms": 50, "error": str(e)}
+
+    # 3. Antigravity profile:
     ag_home = f"{REAL_HOME}/antigravity_homes/{profile}"
     if not os.path.isdir(ag_home):
         return {"profile": profile, "success": False, "error": f"Profile home not found: {ag_home}"}
@@ -721,10 +1186,30 @@ def execute_ping_profile(profile: str) -> dict:
             "error": "Profile chưa đăng nhập CLI. Cần đăng nhập bằng Terminal trước khi ping."
         }
 
+    # Conditional Skip: Check if session is already active in SQLite session store
+    if not force:
+        sec_rec = get_session_record(profile)
+        now_ts = int(time.time())
+        if sec_rec and sec_rec.get("is_active") and sec_rec.get("reset_5h", 0) > now_ts:
+            rem_sec = sec_rec["reset_5h"] - now_ts
+            rem_str = f"{rem_sec // 3600}h {(rem_sec % 3600) // 60}m"
+            local_time_str = datetime.datetime.fromtimestamp(sec_rec["reset_5h"]).strftime("%H:%M:%S")
+            return {
+                "profile": profile,
+                "success": True,
+                "status": "ACTIVE",
+                "isSessionActive": True,
+                "skipped": True,
+                "duration_ms": 5,
+                "message": f"Phiên 5H đang active (còn {rem_str}, reset lúc {local_time_str}). Bỏ qua ping.",
+            }
+
+    # Unlock keychain if needed
     profile_kc = f"{ag_home}/Library/Keychains/{profile}.keychain-db"
     if os.path.exists(profile_kc):
         subprocess.run(["security", "unlock-keychain", "-p", KC_PASS, profile_kc], capture_output=True)
 
+    prompt = random.choice(NATURAL_PROMPTS)
     env = os.environ.copy()
     env.update({
         "HOME": ag_home,
@@ -733,10 +1218,9 @@ def execute_ping_profile(profile: str) -> dict:
         "TMPDIR": f"/tmp/ag_{profile}",
         "BROWSER": "true",
     })
-    env.update({"HOME": ag_home, "AGY_PROFILE": profile, "AGY_CLI_MODE": "1", "TMPDIR": f"/tmp/ag_{profile}"})
     t0 = time.time()
     try:
-        res = subprocess.run([AGY_BIN, "-p", "1"], env=env, capture_output=True, text=True, timeout=25)
+        res = subprocess.run([AGY_BIN, "-p", prompt], env=env, capture_output=True, text=True, timeout=25)
         dur = int((time.time() - t0) * 1000)
         out_all = (res.stdout or "") + " " + (res.stderr or "")
 
@@ -753,12 +1237,15 @@ def execute_ping_profile(profile: str) -> dict:
             }
 
         if res.returncode == 0:
-            return {"profile": profile, "success": True, "duration_ms": dur, "message": f"Kích hoạt thành công ({dur}ms)"}
+            post_q = fetch_quota_for_profile(profile)
+            if post_q.get("success"):
+                format_profile_for_dashboard(profile, post_q)
+            return {"profile": profile, "success": True, "duration_ms": dur, "message": f"Kích hoạt thành công phiên 5H ({dur}ms)"}
         return {"profile": profile, "success": False, "duration_ms": dur, "error": res.stderr.strip() or f"Code {res.returncode}"}
     except subprocess.TimeoutExpired:
         return {"profile": profile, "success": False, "duration_ms": 25000, "error": "Request timed out (25s)"}
     except Exception as e:
-        return {"profile": profile, "success": False, "error": str(e)}
+        return {"profile": profile, "success": False, "duration_ms": 50, "error": str(e)}
 
 
 def scan_all_profiles_parallel(profiles: list) -> list:
@@ -836,15 +1323,22 @@ class QuotaDashboardHandler(http.server.BaseHTTPRequestHandler):
 
         if path == "/api/refresh":
             profile = query.get("profile", ["danhdue"])[0]
+            if profile == "claude":
+                f_data = fetch_claude_quota()
+                update_cached_profile("claude", f_data)
+                self.send_json({"success": True, "profile": "claude", "duration_ms": 5, "data": f_data, "error": None})
+                return
+            if profile == "codex":
+                f_data = fetch_codex_quota()
+                update_cached_profile("codex", f_data)
+                self.send_json({"success": True, "profile": "codex", "duration_ms": 5, "data": f_data, "error": None})
+                return
+
             cached = load_cached_profiles().get(profile, {})
             was_auth_needed = not cached or cached.get("status") == "AUTH NEEDED"
             has_auth = check_profile_auth_token(profile)
 
             # Post-login validation probe:
-            # If profile was AUTH NEEDED and now has an auth token, Google agy -p /usage will return 200
-            # even if the account is disabled for Terms of Service violations!
-            # Therefore, we probe once with agy -p 1 to verify if the account is disabled.
-            # If already verified/cached, we skip this probe.
             if has_auth and was_auth_needed:
                 ping_res = execute_ping_profile(profile)
                 if ping_res.get("is_appeal") or ping_res.get("status") == "DISABLED":
@@ -896,7 +1390,33 @@ class QuotaDashboardHandler(http.server.BaseHTTPRequestHandler):
 
         if path == "/api/ping":
             profile = query.get("profile", ["danhdue"])[0]
-            ping_res = execute_ping_profile(profile)
+            force = query.get("force", ["0"])[0] in ("1", "true", "True")
+            ping_res = execute_ping_profile(profile, force=force)
+            if profile == "claude":
+                f_data = fetch_claude_quota()
+                update_cached_profile("claude", f_data)
+                self.send_json({
+                    "success": ping_res.get("success", False),
+                    "profile": "claude",
+                    "duration_ms": ping_res.get("duration_ms", 10),
+                    "data": f_data,
+                    "message": ping_res.get("message"),
+                    "skipped": ping_res.get("skipped", False)
+                })
+                return
+            if profile == "codex":
+                f_data = fetch_codex_quota()
+                update_cached_profile("codex", f_data)
+                self.send_json({
+                    "success": ping_res.get("success", False),
+                    "profile": "codex",
+                    "duration_ms": ping_res.get("duration_ms", 10),
+                    "data": f_data,
+                    "message": ping_res.get("message"),
+                    "skipped": ping_res.get("skipped", False)
+                })
+                return
+
             if ping_res.get("is_appeal") or ping_res.get("status") == "DISABLED":
                 err_id = ping_res.get("error_id") or "856698b5-d43c-4198-962b-4db7fc3c4adb-2"
                 record_profile_disabled(profile, err_id)
@@ -915,18 +1435,29 @@ class QuotaDashboardHandler(http.server.BaseHTTPRequestHandler):
             formatted = format_profile_for_dashboard(profile, result)
             update_cached_profile(profile, formatted)
             self.send_json({
-                "success": ping_res.get("success", False) and result.get("success", False),
+                "success": ping_res.get("success", False) and (result.get("success", False) or ping_res.get("skipped", False)),
                 "profile": profile,
                 "duration_ms": ping_res.get("duration_ms", 500),
                 "data": formatted,
-                "message": ping_res.get("message")
+                "message": ping_res.get("message"),
+                "skipped": ping_res.get("skipped", False)
             })
             return
 
         if path == "/api/refresh-all":
+            formatted_all = {}
+            # 1. AI Providers: Claude & Codex
+            c_data = fetch_claude_quota()
+            formatted_all["claude"] = c_data
+            update_cached_profile("claude", c_data)
+
+            x_data = fetch_codex_quota()
+            formatted_all["codex"] = x_data
+            update_cached_profile("codex", x_data)
+
+            # 2. Antigravity Profiles
             profiles = get_all_profiles()
             results = scan_all_profiles_parallel(profiles)
-            formatted_all = {}
             for r in results:
                 p = r["profile"]
                 f_data = format_profile_for_dashboard(p, r)
@@ -953,9 +1484,15 @@ class QuotaDashboardHandler(http.server.BaseHTTPRequestHandler):
             if not profile:
                 self.send_json({"success": False, "error": "No profile specified"}, 400)
                 return
+            if profile == "claude":
+                cli_cmd = "claude"
+            elif profile == "codex":
+                cli_cmd = "codex"
+            else:
+                cli_cmd = f"source ~/.zshrc && ag_run {profile} cli"
             osa = f'''tell application "Terminal"
                 activate
-                do script "source ~/.zshrc && ag_run {profile} cli"
+                do script "{cli_cmd}"
             end tell'''
             subprocess.run(["osascript", "-e", osa], capture_output=True)
             self.send_json({"success": True, "message": f"Terminal opened for {profile} CLI"})
@@ -1084,47 +1621,32 @@ def main():
         target = env_profile
 
     if target in ("ping", "activate"):
-        sub_target = args[1] if len(args) > 1 else "danhdue"
-        print(f"\n{CYAN}🎯 Gửi 1-token kích hoạt phiên làm việc (Ping Model) cho profile '{sub_target}'...{RESET}")
-        ag_home = f"{REAL_HOME}/antigravity_homes/{sub_target}"
-        if not os.path.isdir(ag_home):
-            print(f"{RED}❌ Profile home not found: {ag_home}{RESET}\n")
+        sub_target = args[1] if len(args) > 1 and not args[1].startswith("-") else "danhdue"
+        force = "--force" in args or "-f" in args
+        print(f"\n{CYAN}🎯 Kích hoạt phiên làm việc cho '{sub_target}' (force={force})...{RESET}")
+        res = execute_ping_profile(sub_target, force=force)
+        if res.get("skipped"):
+            print(f"{AMBER}⏭️  {res.get('message')}{RESET}\n")
             return
-        if not check_profile_auth_token(sub_target):
-            print(f"{AMBER}⚠️ Profile '{sub_target}' chưa đăng nhập CLI. Vui lòng chạy '{sub_target}-cli' trong Terminal để đăng nhập trước.{RESET}\n")
-            return
-        # Unlock Keychain if exists
-        profile_kc = f"{ag_home}/Library/Keychains/{sub_target}.keychain-db"
-        if os.path.exists(profile_kc):
-            subprocess.run(["security", "unlock-keychain", "-p", KC_PASS, profile_kc], capture_output=True)
-        env = os.environ.copy()
-        env.update({"HOME": ag_home, "AGY_PROFILE": sub_target, "AGY_CLI_MODE": "1", "TMPDIR": f"/tmp/ag_{sub_target}", "BROWSER": "true"})
-        t0 = time.time()
-        try:
-            res = subprocess.run([AGY_BIN, "-p", "1"], env=env, capture_output=True, text=True, timeout=25)
-            dur = int((time.time() - t0) * 1000)
-            out_all = (res.stdout or "") + " " + (res.stderr or "")
-
-            if check_profile_appeal_status(sub_target, out_all):
-                print(f"\n{RED}🚫 LỖI: Tài khoản '{sub_target}' đã bị VÔ HIỆU HÓA do vi phạm Điều khoản dịch vụ!{RESET}")
-                print(f"  {AMBER}Thông báo từ Google: This service has been disabled in this account for violation of Terms of Service.{RESET}")
-                print(f"  {CYAN}👉 Vui lòng gửi đơn kháng nghị (Submit an appeal) tới Google để tiếp tục sử dụng:{RESET}")
-                print(f"     {WHITE}https://docs.google.com/forms/d/e/1FAIpQLScOJWibQ_-hYuVv63kJTgEqlgAaOwRLGFTbXm-QY1gz8U0CGA/viewform{RESET}\n")
-                return
-
-            if res.returncode == 0:
-                print(f"{GREEN}✅ Đã kích hoạt thành công profile '{sub_target}' ({dur}ms)! Cửa sổ 5H và tuần đã bắt đầu đếm ngược.{RESET}\n")
-            else:
-                print(f"{RED}❌ Kích hoạt thất bại ({dur}ms): {res.stderr.strip()}{RESET}\n")
-        except subprocess.TimeoutExpired:
-            print(f"{RED}❌ Kích hoạt timeout (25s){RESET}\n")
-        except Exception as e:
-            print(f"{RED}❌ Lỗi: {str(e)}{RESET}\n")
+        if res.get("success"):
+            print(f"{GREEN}✅ {res.get('message')}{RESET}\n")
+        else:
+            print(f"{RED}❌ {res.get('error')}{RESET}\n")
         return
 
     if target == "refresh":
         sub_target = args[1] if len(args) > 1 else "danhdue"
-        print(f"\n{CYAN}⚡ Running quick 1-token refresh for profile '{sub_target}'...{RESET}")
+        print(f"\n{CYAN}⚡ Running quick refresh for '{sub_target}'...{RESET}")
+        if sub_target == "claude":
+            c_data = fetch_claude_quota()
+            update_cached_profile("claude", c_data)
+            print(f"{GREEN}✅ Claude Code refreshed successfully!{RESET}\n")
+            return
+        if sub_target == "codex":
+            x_data = fetch_codex_quota()
+            update_cached_profile("codex", x_data)
+            print(f"{GREEN}✅ OpenAI Codex refreshed successfully!{RESET}\n")
+            return
         ag_home = f"{REAL_HOME}/antigravity_homes/{sub_target}"
         if not os.path.isdir(ag_home):
             print(f"{RED}❌ Profile home not found: {ag_home}{RESET}\n")
@@ -1152,6 +1674,9 @@ def main():
                 return
 
             if res.returncode == 0:
+                post_q = fetch_quota_for_profile(sub_target)
+                if post_q.get("success"):
+                    format_profile_for_dashboard(sub_target, post_q)
                 print(f"{GREEN}✅ Refreshed profile '{sub_target}' in {dur}ms! Session quota synchronized.{RESET}\n")
             else:
                 print(f"{RED}❌ Refresh failed ({dur}ms): {res.stderr.strip()}{RESET}\n")

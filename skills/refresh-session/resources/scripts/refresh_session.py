@@ -8,10 +8,14 @@ by executing strictly inside an ephemeral isolated temporary directory.
 from __future__ import annotations
 
 import argparse
+import datetime
+import hashlib
 import json
 import os
+import random
 import re
 import shutil
+import sqlite3
 import subprocess
 import sys
 import tempfile
@@ -21,6 +25,85 @@ from typing import Any
 
 REAL_HOME = "/Users/danhdueexoictif"
 KC_PASS = "H@No!a@12345"
+SESSION_STORE_DB = Path(REAL_HOME) / ".devtool" / "state" / ".session_store.db"
+SALT = "d3nexus-session-salt-2026"
+
+NATURAL_PROMPTS = [
+    "Explain HTTP status 200 in 5 words.",
+    "What is POSIX standard?",
+    "Python list comprehension syntax.",
+    "Bash command for disk free space.",
+    "Define idempotent in REST API in 5 words.",
+    "What is git commit hash SHA?",
+    "Explain difference between TCP and UDP in 1 line.",
+    "Write a regex for matching digits in 5 chars.",
+]
+
+
+def hash_profile(name: str) -> str:
+    return hashlib.sha256(f"{SALT}:{name}".encode("utf-8")).hexdigest()[:24]
+
+
+def is_target_session_active(target_name: str) -> tuple[bool, str]:
+    """Check if session is currently active. Returns (is_active, message)."""
+    now_ts = int(time.time())
+
+    # 1. Claude check
+    if target_name == "claude":
+        claude_json = Path(REAL_HOME) / ".claude.json"
+        if claude_json.is_file():
+            try:
+                with open(claude_json, "r", encoding="utf-8") as f:
+                    c = json.load(f)
+                five_h = c.get("cachedUsageUtilization", {}).get("utilization", {}).get("five_hour") or {}
+                resets_at = five_h.get("resets_at")
+                util = five_h.get("utilization", 0)
+                if resets_at and util > 0:
+                    dt = datetime.datetime.fromisoformat(resets_at.replace("Z", "+00:00"))
+                    now_utc = datetime.datetime.now(datetime.timezone.utc)
+                    rem = int((dt - now_utc).total_seconds())
+                    if rem > 0:
+                        loc = dt.astimezone().strftime("%H:%M:%S")
+                        return True, f"Session active ({rem // 3600}h {(rem % 3600) // 60}m remaining, reset at {loc})"
+            except Exception:
+                pass
+
+    # 2. Codex check
+    if target_name == "codex":
+        codex_sqlite = Path(REAL_HOME) / ".codex" / "logs_2.sqlite"
+        if codex_sqlite.is_file():
+            try:
+                con = sqlite3.connect(str(codex_sqlite), timeout=2.0)
+                cur = con.cursor()
+                cur.execute("SELECT max(ts) FROM logs;")
+                row = cur.fetchone()
+                con.close()
+                if row and row[0]:
+                    max_ts = row[0]
+                    delta = now_ts - max_ts
+                    if delta < 5 * 3600:
+                        rem = 5 * 3600 - delta
+                        loc = datetime.datetime.fromtimestamp(max_ts + 5 * 3600).strftime("%H:%M:%S")
+                        return True, f"Session active ({rem // 3600}h {(rem % 3600) // 60}m remaining, reset at {loc})"
+            except Exception:
+                pass
+
+    # 3. Check .session_store.db for Antigravity or any target
+    if SESSION_STORE_DB.is_file():
+        try:
+            con = sqlite3.connect(str(SESSION_STORE_DB), timeout=2.0)
+            cur = con.cursor()
+            cur.execute("SELECT reset_5h, is_active FROM session_store WHERE profile_hash = ?", (hash_profile(target_name),))
+            row = cur.fetchone()
+            con.close()
+            if row and row[1] and row[0] > now_ts:
+                rem = row[0] - now_ts
+                loc = datetime.datetime.fromtimestamp(row[0]).strftime("%H:%M:%S")
+                return True, f"Session active ({rem // 3600}h {(rem % 3600) // 60}m remaining, reset at {loc})"
+        except Exception:
+            pass
+
+    return False, ""
 
 
 def get_known_profiles() -> list[str]:
@@ -637,9 +720,10 @@ def ping_profile(profile_name: str, timeout: int = 25) -> dict[str, Any]:
     })
 
     start_time = time.perf_counter()
+    prompt = random.choice(NATURAL_PROMPTS)
     try:
         proc = subprocess.run(
-            [agy_bin, "--output-format", "json", "-p", "/usage"],
+            [agy_bin, "-p", prompt],
             env=env,
             capture_output=True,
             text=True,
@@ -650,7 +734,24 @@ def ping_profile(profile_name: str, timeout: int = 25) -> dict[str, Any]:
         result["latency_ms"] = round(elapsed_ms, 2)
         if proc.returncode == 0:
             result["status"] = "PASS"
-            result["tokens"] = 0
+            result["tokens"] = 1
+            # Update session store
+            try:
+                con = sqlite3.connect(str(SESSION_STORE_DB), timeout=2.0)
+                now_ts = int(time.time())
+                con.execute("""
+                    INSERT INTO session_store (profile_hash, reset_5h, reset_weekly, fraction_5h, last_checked, last_ping, is_active)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(profile_hash) DO UPDATE SET
+                        reset_5h=excluded.reset_5h,
+                        last_checked=excluded.last_checked,
+                        last_ping=excluded.last_ping,
+                        is_active=excluded.is_active;
+                """, (hash_profile(profile_name), now_ts + 18000, 0, 1.0, now_ts, now_ts, 1))
+                con.commit()
+                con.close()
+            except Exception:
+                pass
         else:
             err_msg = (proc.stderr or proc.stdout or "").strip()
             result["error"] = err_msg or f"Exited with return code {proc.returncode}"
@@ -750,23 +851,19 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="Emit structured JSON output",
     )
-    parsed = parser.parse_args(argv)
-    parsed.command = None
-    try:
-        raw_val = parsed.target if parsed.target else ["providers"]
-        parsed.target = validate_target(raw_val)
-    except argparse.ArgumentTypeError as exc:
-        parser.error(str(exc))
-    return parsed
-    parsed = parser.parse_args(argv)
-    try:
-        raw_val = parsed.target if parsed.target else ["providers"]
-        parsed.target = validate_target(raw_val)
-    except argparse.ArgumentTypeError as exc:
-        parser.error(str(exc))
-    return parsed
+    parser.add_argument(
+        "--force",
+        "-f",
+        action="store_true",
+        help="Force session pre-warm even if session is already active",
+    )
     parsed = parser.parse_args(argv)
     parsed.command = "refresh"
+    try:
+        raw_val = parsed.target if parsed.target else ["providers"]
+        parsed.target = validate_target(raw_val)
+    except argparse.ArgumentTypeError as exc:
+        parser.error(str(exc))
     return parsed
 
 
@@ -883,6 +980,20 @@ def main(argv: list[str] | None = None) -> int:
         if not args.json:
             display_name = target_name if kind == "profile" else target_name.title()
             print(f"Pinging {display_name} in isolated environment...")
+
+        if not getattr(args, "force", False):
+            is_active, active_msg = is_target_session_active(target_name)
+            if is_active:
+                results.append({
+                    "cli": f"agy ({target_name})" if kind == "profile" else target_name,
+                    "profile": target_name if kind == "profile" else None,
+                    "status": "SKIPPED",
+                    "latency_ms": 1.0,
+                    "tokens": 0,
+                    "error": active_msg,
+                })
+                continue
+
         if kind == "profile":
             res = ping_profile(target_name, timeout=args.timeout)
         else:
