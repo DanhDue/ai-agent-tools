@@ -86,7 +86,9 @@ class TaskContractErgonomics_Integration_E2E_Test(unittest.TestCase):
         # 2. Write non-empty JSON to evidence file: done gate transitions to PASS
         ev_file = self.root / ev_rel
         ev_file.parent.mkdir(parents=True, exist_ok=True)
-        ev_file.write_text(json.dumps({"status": "PASS", "records": 42}) + "\n", encoding="utf-8")
+        ev_file.write_text(
+            json.dumps({"status": "PASS", "records": 42}) + "\n", encoding="utf-8"
+        )
 
         failures_after = tc.evaluate_done_gate(task_path)
         self.assertEqual(failures_after, [])
@@ -97,7 +99,9 @@ class TaskContractErgonomics_Integration_E2E_Test(unittest.TestCase):
         epic_dir.mkdir(parents=True, exist_ok=True)
         embed_file = self.root / "docs" / "snippet.py"
         embed_file.parent.mkdir(parents=True, exist_ok=True)
-        embed_file.write_text("def hello() -> str:\n    return 'world'\n", encoding="utf-8")
+        embed_file.write_text(
+            "def hello() -> str:\n    return 'world'\n", encoding="utf-8"
+        )
 
         scenarios_text = (
             "# Scenarios\n\n"
@@ -111,7 +115,7 @@ class TaskContractErgonomics_Integration_E2E_Test(unittest.TestCase):
         (epic_dir / "bdd_scenarios.en.md").write_text(scenarios_text, encoding="utf-8")
 
         task1_canonical = (
-            "---\nstatus: \"todo\"\n---\n"
+            '---\nstatus: "todo"\n---\n'
             "# Task 01\n\n"
             "Covers: TCAE-01\n\n"
             "## Requirement Analysis\n\n"
@@ -129,7 +133,7 @@ class TaskContractErgonomics_Integration_E2E_Test(unittest.TestCase):
             "## Definition of Done\n\n- done (V1)\n"
         )
         task2_canonical = (
-            "---\nstatus: \"todo\"\n---\n"
+            '---\nstatus: "todo"\n---\n'
             "# Task 02\n\n"
             "Covers: TCAE-02\n\n"
             "## Requirement Analysis\n\n"
@@ -186,7 +190,7 @@ class TaskContractErgonomics_Integration_E2E_Test(unittest.TestCase):
 
         unknown_id = "TCAE" + "-HP-99"
         task_canonical = (
-            "---\nstatus: \"todo\"\n---\n"
+            '---\nstatus: "todo"\n---\n'
             "# Task 01\n\n"
             f"Covers: {unknown_id}\n\n"
             "## Files\n\nAllowed files:\n- `feature.txt`\n\n"
@@ -208,7 +212,12 @@ class TaskContractErgonomics_Integration_E2E_Test(unittest.TestCase):
 
         # When executed via CLI or subprocess
         res = subprocess.run(
-            [sys.executable, str(DEV_IMPL_SCRIPTS / "sync_task_status.py"), "render", "sample_epic"],
+            [
+                sys.executable,
+                str(DEV_IMPL_SCRIPTS / "sync_task_status.py"),
+                "render",
+                "sample_epic",
+            ],
             cwd=self.root,
             capture_output=True,
             text=True,
@@ -217,7 +226,9 @@ class TaskContractErgonomics_Integration_E2E_Test(unittest.TestCase):
         self.assertIn(unknown_id, res.stderr)
 
         # Existing features task remains untouched
-        self.assertEqual(existing_feature_task.read_text(encoding="utf-8"), "PREEXISTING_CONTENT\n")
+        self.assertEqual(
+            existing_feature_task.read_text(encoding="utf-8"), "PREEXISTING_CONTENT\n"
+        )
 
 
 if __name__ == "__main__":
