@@ -20,7 +20,7 @@
 
 - **Tên Epic**: `contract_and_authoring_ergonomics`
 - **Epic Slug**: `contract-and-authoring-ergonomics`
-- **Trạng thái**: Packaged
+- **Trạng thái**: Done
 - **Phiên bản Mục tiêu**: v1.25.0
 - **Nền tảng**: Python
 - **Tài liệu Spec Nguồn**: [2026-11-06-contract-and-authoring-ergonomics-design.vi.md](./2026-11-06-contract-and-authoring-ergonomics-design.vi.md)

@@ -1,13 +1,13 @@
 ---
 id: "task_04_verification_grammar_and_docs"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "contract-and-authoring-ergonomics"
 dueDate: null
 created: "2026-11-06T01:50:00Z"
-modified: "2026-11-06T01:50:00Z"
-completedAt: null
+modified: "2026-11-06T03:32:31Z"
+completedAt: "2026-11-06T03:32:31Z"
 labels: ["architecture", "grammar", "documentation"]
 order: "a4"
 ---
@@ -83,7 +83,7 @@ Scenario: [TCAE-FR-02] [Tier A - Unit] Reject hardcoded user home or plugin cach
 | V1 | RED | `python3 -m pytest skills/dev-implementation/resources/scripts/test_check_task_contract.py::test_TCAE_EC_03_grep_slash_pattern_excluded` | exit 1; contains "FAILED" | — |
 | V2 | GREEN | `python3 -m pytest skills/dev-implementation/resources/scripts/test_check_task_contract.py` | exit 0; contains "passed" | — |
 | V3 | TIER-B | `ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py skills/dev-implementation/resources/scripts/check_task_contract.py skills/dev-implementation/resources/scripts/test_check_task_contract.py` | exit 0 | — |
-| V4 | TIER-B | `mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py --follow-imports=silent skills/dev-implementation/resources/scripts/check_task_contract.py` | exit 0 | — |
+| V4 | TIER-B | `mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py skills/dev-implementation/resources/scripts/check_task_contract.py --follow-imports=silent` | exit 0 | — |
 | V5 | TIER-B | `python3 skills/doc_quality_check/resources/scripts/check_document.py --require-toc skills/dev-designer/references/verification-row-grammar.md` | exit 0; contains "0 findings" | — |
 | V6 | TIER-C | `python3 -m pytest skills/dev-implementation/resources/scripts/test_check_task_contract.py --junitxml=build/test-results/task_04.xml` | exit 0; results build/test-results/task_04.xml | — |
 

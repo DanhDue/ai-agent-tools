@@ -1,13 +1,13 @@
 ---
 id: "task_02_single_source_render_engine"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "contract-and-authoring-ergonomics"
 dueDate: null
 created: "2026-11-06T01:50:00Z"
-modified: "2026-11-06T01:50:00Z"
-completedAt: null
+modified: "2026-11-06T03:05:01Z"
+completedAt: "2026-11-06T03:05:01Z"
 labels: ["architecture", "authoring", "python"]
 order: "a2"
 ---
@@ -98,7 +98,7 @@ Scenario: [TCAE-ST-01] [Tier A - Unit] Rendering and status transitions clean up
 | V1 | RED | `python3 -m pytest skills/dev-implementation/resources/scripts/test_sync_task_status.py::test_TCAE_HP_02_render_single_source` | exit 1; contains "FAILED" | — |
 | V2 | GREEN | `python3 -m pytest skills/dev-implementation/resources/scripts/test_sync_task_status.py skills/dev-implementation/resources/scripts/test_check_task_contract.py` | exit 0; contains "passed" | — |
 | V3 | TIER-B | `ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py skills/dev-implementation/resources/scripts/sync_task_status.py skills/dev-implementation/resources/scripts/check_task_contract.py skills/dev-implementation/resources/scripts/check_epic_readiness.py skills/dev-implementation/resources/scripts/test_sync_task_status.py skills/dev-implementation/resources/scripts/test_check_task_contract.py` | exit 0 | — |
-| V4 | TIER-B | `mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py --follow-imports=silent skills/dev-implementation/resources/scripts/sync_task_status.py skills/dev-implementation/resources/scripts/check_task_contract.py skills/dev-implementation/resources/scripts/check_epic_readiness.py` | exit 0 | — |
+| V4 | TIER-B | `mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py skills/dev-implementation/resources/scripts/sync_task_status.py skills/dev-implementation/resources/scripts/check_task_contract.py skills/dev-implementation/resources/scripts/check_epic_readiness.py --follow-imports=silent` | exit 0 | — |
 | V5 | TIER-C | `python3 -m pytest skills/dev-implementation/resources/scripts/test_sync_task_status.py skills/dev-implementation/resources/scripts/test_check_task_contract.py --junitxml=build/test-results/task_02.xml` | exit 0; results build/test-results/task_02.xml | — |
 
 ## Stop and Report If

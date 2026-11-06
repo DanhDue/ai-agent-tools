@@ -48,6 +48,17 @@ parse_verification: Any = _tc.parse_verification
 path_matches: Any = _tc.path_matches
 program_of: Any = _tc.program_of
 save_evidence: Any = _tc.save_evidence
+
+KIT_ROOT = Path(__file__).resolve().parents[4]
+
+
+def kit_env() -> dict[str, str]:
+    env = dict(os.environ)
+    env["D3NEXUS_KIT"] = str(KIT_ROOT)
+    bin_dir = str(KIT_ROOT / "bin")
+    current_path = os.environ.get("PATH", "")
+    env["PATH"] = f"{bin_dir}{os.pathsep}{current_path}" if current_path else bin_dir
+    return env
 section: Any = _tc.section
 strip_wrappers: Any = _tc.strip_wrappers
 
@@ -197,7 +208,7 @@ def fresh_reports(path: str, root: Path, since: float) -> list[Path]:
 def run_command(command: str, root: Path, timeout: int) -> tuple[int | None, bytes]:
     """Run one row; the exit code is None when the process group had to be killed."""
     process = subprocess.Popen(["bash", "-o", "pipefail", "-c", command], cwd=root, start_new_session=True,
-                               stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+                               stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=kit_env())
     try:
         output, _ = process.communicate(timeout=timeout)
         return process.returncode, output

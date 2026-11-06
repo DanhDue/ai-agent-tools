@@ -106,7 +106,7 @@ def check_preflight(ctx: Context) -> list[Finding]:
 
     # 1. compute_execution_order.py <epic_slug>
     cmd1 = [sys.executable, str(SCRIPTS_DIR / "compute_execution_order.py"), ctx.epic_slug]
-    res1 = subprocess.run(cmd1, check=False, cwd=ctx.root, capture_output=True, text=True)
+    res1 = subprocess.run(cmd1, check=False, cwd=ctx.root, capture_output=True, text=True, env=rtc.kit_env())
     if res1.returncode != 0:
         last_line = get_last_non_empty_line(res1.stdout, res1.stderr)
         findings.append(Finding("R1", "FAIL", f"compute_execution_order.py: {last_line}"))
@@ -133,7 +133,7 @@ def check_preflight(ctx: Context) -> list[Finding]:
         "--tasks",
         *task_paths_str,
     ]
-    res2 = subprocess.run(cmd2, check=False, cwd=ctx.root, capture_output=True, text=True)
+    res2 = subprocess.run(cmd2, check=False, cwd=ctx.root, capture_output=True, text=True, env=rtc.kit_env())
     if res2.returncode != 0:
         last_line = get_last_non_empty_line(res2.stdout, res2.stderr)
         findings.append(Finding("R1", "FAIL", f"check_bdd_traceability.py plan: {last_line}"))
@@ -148,7 +148,7 @@ def check_preflight(ctx: Context) -> list[Finding]:
         "--tasks",
         *task_paths_str,
     ]
-    res3 = subprocess.run(cmd3, check=False, cwd=ctx.root, capture_output=True, text=True)
+    res3 = subprocess.run(cmd3, check=False, cwd=ctx.root, capture_output=True, text=True, env=rtc.kit_env())
     if res3.returncode != 0:
         last_line = get_last_non_empty_line(res3.stdout, res3.stderr)
         findings.append(Finding("R1", "FAIL", f"check_task_contract.py --design: {last_line}"))
@@ -163,7 +163,7 @@ def check_preflight(ctx: Context) -> list[Finding]:
             "--require-bilingual",
             *[str(f) for f in bilingual_files],
         ]
-        res_doc1 = subprocess.run(cmd_doc1, check=False, cwd=ctx.root, capture_output=True, text=True)
+        res_doc1 = subprocess.run(cmd_doc1, check=False, cwd=ctx.root, capture_output=True, text=True, env=rtc.kit_env())
         if res_doc1.returncode != 0:
             last_line = get_last_non_empty_line(res_doc1.stdout, res_doc1.stderr)
             findings.append(Finding("R1", "FAIL", f"check_document.py: {last_line}"))
@@ -176,7 +176,7 @@ def check_preflight(ctx: Context) -> list[Finding]:
             "--require-toc",
             str(handoff_file),
         ]
-        res_handoff = subprocess.run(cmd_handoff, check=False, cwd=ctx.root, capture_output=True, text=True)
+        res_handoff = subprocess.run(cmd_handoff, check=False, cwd=ctx.root, capture_output=True, text=True, env=rtc.kit_env())
         if res_handoff.returncode != 0:
             last_line = get_last_non_empty_line(res_handoff.stdout, res_handoff.stderr)
             findings.append(Finding("R1", "FAIL", f"check_document.py: {last_line}"))
@@ -187,7 +187,7 @@ def check_preflight(ctx: Context) -> list[Finding]:
             str(LINTER_PATH),
             *task_paths_str,
         ]
-        res_tasks = subprocess.run(cmd_tasks, check=False, cwd=ctx.root, capture_output=True, text=True)
+        res_tasks = subprocess.run(cmd_tasks, check=False, cwd=ctx.root, capture_output=True, text=True, env=rtc.kit_env())
         if res_tasks.returncode != 0:
             last_line = get_last_non_empty_line(res_tasks.stdout, res_tasks.stderr)
             findings.append(Finding("R1", "FAIL", f"check_document.py: {last_line}"))
@@ -199,7 +199,6 @@ def check_task_mirrors(ctx: Context) -> list[Finding]:
     findings: list[Finding] = []
     features_dir = ctx.root / ".devtool" / "features"
     done_dir = features_dir / "done"
-    link_pattern = f"](../epic/{ctx.epic_dir}/"
 
     for task_path, epic_text in ctx.tasks.items():
         name = task_path.name
@@ -211,7 +210,8 @@ def check_task_mirrors(ctx: Context) -> list[Finding]:
             continue
 
         mirror_text = mirror_path.read_text(encoding="utf-8")
-        norm_mirror = mirror_text.replace(link_pattern, "](")
+        prefix = f"](../../epic/{ctx.epic_dir}/" if mirror_path.parent == done_dir else f"](../epic/{ctx.epic_dir}/"
+        norm_mirror = mirror_text.replace(prefix, "](")
 
         if norm_mirror != epic_text:
             epic_lines = epic_text.splitlines()

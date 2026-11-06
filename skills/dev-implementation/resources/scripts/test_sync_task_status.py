@@ -3,6 +3,7 @@
 
 Run: python3 skills/dev-implementation/resources/scripts/test_sync_task_status.py -v
 """
+
 from __future__ import annotations
 import json
 import subprocess
@@ -13,14 +14,28 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 from sync_task_status import (
-    archive_all_done_epics, archive_epic_tasks, archive_superpowers_docs, board_tally, epic_of,
-    expected_epic, find_epic_slug, fix_epic_overview_links,
-    fix_task_markdown_links, now_iso, parse_frontmatter,
-    parse_worktree_list, set_frontmatter_field, sync_epic, sync_task, task_targets,
+    archive_all_done_epics,
+    archive_epic_tasks,
+    archive_superpowers_docs,
+    board_location,
+    board_tally,
+    epic_of,
+    expected_epic,
+    find_epic_slug,
+    fix_epic_overview_links,
+    fix_task_markdown_links,
+    now_iso,
+    parse_frontmatter,
+    parse_worktree_list,
+    rewrite_mirror_links,
+    set_frontmatter_field,
+    sync_epic,
+    sync_task,
+    task_targets,
 )
 
 
-TASK_TEXT = '''---
+TASK_TEXT = """---
 id: "task_1_setup"
 status: "todo"
 priority: "high"
@@ -38,7 +53,7 @@ order: "a1"
 
 ## Dependencies & Blockers
 - None.
-'''
+"""
 
 
 class SetFrontmatterFieldTests(unittest.TestCase):
@@ -49,8 +64,14 @@ class SetFrontmatterFieldTests(unittest.TestCase):
 
     def test_preserves_every_other_key(self):
         out = set_frontmatter_field(TASK_TEXT, "status", "done")
-        for line in ('id: "task_1_setup"', 'priority: "high"', 'assignee: null',
-                     'epic: "logging-refactor"', 'labels: ["architecture"]', 'order: "a1"'):
+        for line in (
+            'id: "task_1_setup"',
+            'priority: "high"',
+            "assignee: null",
+            'epic: "logging-refactor"',
+            'labels: ["architecture"]',
+            'order: "a1"',
+        ):
             self.assertIn(line, out)
 
     def test_preserves_body_byte_for_byte(self):
@@ -89,14 +110,14 @@ class ParseFrontmatterTests(unittest.TestCase):
         self.assertEqual(parse_frontmatter("# Nope\n"), {})
 
 
-WORKTREE_LIST = '''worktree /Users/dev/project
+WORKTREE_LIST = """worktree /Users/dev/project
 HEAD 1111111111111111111111111111111111111111
 branch refs/heads/develop
 
 worktree /Users/dev/project/.worktrees/logging_refactor
 HEAD 2222222222222222222222222222222222222222
 branch refs/heads/epic/logging-refactor
-'''
+"""
 
 
 def make_task(path: Path, *, epic: str, status: str = "todo") -> None:
@@ -109,10 +130,18 @@ def make_task(path: Path, *, epic: str, status: str = "todo") -> None:
     )
 
 
-def make_checkout(root: Path, *, epic_dir: str, epic: str, task_id: str, status: str = "todo") -> None:
+def make_checkout(
+    root: Path, *, epic_dir: str, epic: str, task_id: str, status: str = "todo"
+) -> None:
     """Create both copies of one task inside one checkout root."""
-    make_task(root / ".devtool" / "features" / f"{task_id}.md", epic=epic, status=status)
-    make_task(root / ".devtool" / "epic" / epic_dir / f"{task_id}.md", epic=epic, status=status)
+    make_task(
+        root / ".devtool" / "features" / f"{task_id}.md", epic=epic, status=status
+    )
+    make_task(
+        root / ".devtool" / "epic" / epic_dir / f"{task_id}.md",
+        epic=epic,
+        status=status,
+    )
 
 
 class ParseWorktreeListTests(unittest.TestCase):
@@ -120,32 +149,49 @@ class ParseWorktreeListTests(unittest.TestCase):
         roots = parse_worktree_list(WORKTREE_LIST)
         self.assertEqual(
             roots,
-            [Path("/Users/dev/project"), Path("/Users/dev/project/.worktrees/logging_refactor")],
+            [
+                Path("/Users/dev/project"),
+                Path("/Users/dev/project/.worktrees/logging_refactor"),
+            ],
         )
 
     def test_main_worktree_is_first(self):
-        self.assertEqual(parse_worktree_list(WORKTREE_LIST)[0], Path("/Users/dev/project"))
+        self.assertEqual(
+            parse_worktree_list(WORKTREE_LIST)[0], Path("/Users/dev/project")
+        )
 
     def test_single_checkout(self):
-        self.assertEqual(parse_worktree_list("worktree /solo\nHEAD abc\n"), [Path("/solo")])
+        self.assertEqual(
+            parse_worktree_list("worktree /solo\nHEAD abc\n"), [Path("/solo")]
+        )
 
     def test_empty_output(self):
         self.assertEqual(parse_worktree_list(""), [])
 
     def test_path_containing_spaces(self):
-        self.assertEqual(parse_worktree_list("worktree /Users/dev/My Project\n"),
-                         [Path("/Users/dev/My Project")])
+        self.assertEqual(
+            parse_worktree_list("worktree /Users/dev/My Project\n"),
+            [Path("/Users/dev/My Project")],
+        )
 
 
 class TaskTargetsTests(unittest.TestCase):
     def test_finds_both_copies(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            make_checkout(root, epic_dir="logging_refactor", epic="logging-refactor", task_id="task_1_setup")
+            make_checkout(
+                root,
+                epic_dir="logging_refactor",
+                epic="logging-refactor",
+                task_id="task_1_setup",
+            )
             found = task_targets(root, "task_1_setup")
             self.assertEqual(len(found), 2)
             self.assertIn(root / ".devtool" / "features" / "task_1_setup.md", found)
-            self.assertIn(root / ".devtool" / "epic" / "logging_refactor" / "task_1_setup.md", found)
+            self.assertIn(
+                root / ".devtool" / "epic" / "logging_refactor" / "task_1_setup.md",
+                found,
+            )
 
     def test_missing_task_returns_empty(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -154,8 +200,16 @@ class TaskTargetsTests(unittest.TestCase):
     def test_matches_same_task_id_under_two_epics(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            make_checkout(root, epic_dir="logging_refactor", epic="logging-refactor", task_id="task_1_setup")
-            make_task(root / ".devtool" / "epic" / "payments" / "task_1_setup.md", epic="payments")
+            make_checkout(
+                root,
+                epic_dir="logging_refactor",
+                epic="logging-refactor",
+                task_id="task_1_setup",
+            )
+            make_task(
+                root / ".devtool" / "epic" / "payments" / "task_1_setup.md",
+                epic="payments",
+            )
             self.assertEqual(len(task_targets(root, "task_1_setup")), 3)
 
 
@@ -163,7 +217,12 @@ class ExpectedEpicTests(unittest.TestCase):
     def test_reads_epic_from_features_copy(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            make_checkout(root, epic_dir="logging_refactor", epic="logging-refactor", task_id="task_1_setup")
+            make_checkout(
+                root,
+                epic_dir="logging_refactor",
+                epic="logging-refactor",
+                task_id="task_1_setup",
+            )
             self.assertEqual(expected_epic([root], "task_1_setup"), "logging-refactor")
 
     def test_returns_none_when_no_features_copy(self):
@@ -181,8 +240,12 @@ class SyncTaskTests(unittest.TestCase):
     def _two_checkouts(self, tmp: str) -> list[Path]:
         main, wt = Path(tmp) / "main", Path(tmp) / "wt"
         for root in (main, wt):
-            make_checkout(root, epic_dir="logging_refactor", epic="logging-refactor",
-                          task_id="task_1_setup")
+            make_checkout(
+                root,
+                epic_dir="logging_refactor",
+                epic="logging-refactor",
+                task_id="task_1_setup",
+            )
         return [main, wt]
 
     def test_done_moves_the_features_copy_into_done_in_every_checkout(self):
@@ -192,7 +255,9 @@ class SyncTaskTests(unittest.TestCase):
             for root in roots:
                 features = root / ".devtool" / "features"
                 moved = features / "done" / "task_1_setup.md"
-                mirror = root / ".devtool" / "epic" / "logging_refactor" / "task_1_setup.md"
+                mirror = (
+                    root / ".devtool" / "epic" / "logging_refactor" / "task_1_setup.md"
+                )
                 self.assertFalse((features / "task_1_setup.md").exists())
                 self.assertIn('status: "done"', moved.read_text())
                 self.assertIn(moved, written)
@@ -206,19 +271,27 @@ class SyncTaskTests(unittest.TestCase):
             for root in roots:
                 features = root / ".devtool" / "features"
                 self.assertFalse((features / "done" / "task_1_setup.md").exists())
-                self.assertIn('status: "in-progress"', (features / "task_1_setup.md").read_text())
+                self.assertIn(
+                    'status: "in-progress"', (features / "task_1_setup.md").read_text()
+                )
 
     def test_done_replaces_a_stale_copy_already_in_done(self):
         with tempfile.TemporaryDirectory() as tmp:
             roots = self._two_checkouts(tmp)
             for root in roots:
-                make_task(root / ".devtool" / "features" / "done" / "task_1_setup.md",
-                          epic="logging-refactor", status="todo")
+                make_task(
+                    root / ".devtool" / "features" / "done" / "task_1_setup.md",
+                    epic="logging-refactor",
+                    status="todo",
+                )
             sync_task(roots, "task_1_setup", "done")
             for root in roots:
                 features = root / ".devtool" / "features"
                 self.assertFalse((features / "task_1_setup.md").exists())
-                self.assertIn('status: "done"', (features / "done" / "task_1_setup.md").read_text())
+                self.assertIn(
+                    'status: "done"',
+                    (features / "done" / "task_1_setup.md").read_text(),
+                )
 
     def test_writes_all_four_copies(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -241,8 +314,10 @@ class SyncTaskTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             roots = self._two_checkouts(tmp)
             sync_task(roots, "task_1_setup", "review")
-            self.assertIn("completedAt: null",
-                          (roots[0] / ".devtool/features/task_1_setup.md").read_text())
+            self.assertIn(
+                "completedAt: null",
+                (roots[0] / ".devtool/features/task_1_setup.md").read_text(),
+            )
             sync_task(roots, "task_1_setup", "done")
             text = (roots[0] / ".devtool/features/done/task_1_setup.md").read_text()
             self.assertNotIn("completedAt: null", text)
@@ -252,8 +327,10 @@ class SyncTaskTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             roots = self._two_checkouts(tmp)
             sync_task(roots, "task_1_setup", "done")
-            self.assertNotIn("completedAt: null",
-                             (roots[0] / ".devtool/features/done/task_1_setup.md").read_text())
+            self.assertNotIn(
+                "completedAt: null",
+                (roots[0] / ".devtool/features/done/task_1_setup.md").read_text(),
+            )
             sync_task(roots, "task_1_setup", "in-progress")
             text = (roots[0] / ".devtool/features/task_1_setup.md").read_text()
             self.assertIn("completedAt: null", text)
@@ -261,8 +338,12 @@ class SyncTaskTests(unittest.TestCase):
     def test_skips_same_task_id_under_a_different_epic(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            make_checkout(root, epic_dir="logging_refactor", epic="logging-refactor",
-                          task_id="task_1_setup")
+            make_checkout(
+                root,
+                epic_dir="logging_refactor",
+                epic="logging-refactor",
+                task_id="task_1_setup",
+            )
             intruder = root / ".devtool" / "epic" / "payments" / "task_1_setup.md"
             make_task(intruder, epic="payments")
             written, notes = sync_task([root], "task_1_setup", "done")
@@ -275,8 +356,12 @@ class SyncTaskTests(unittest.TestCase):
     def test_checkout_missing_the_task_is_skipped_not_fatal(self):
         with tempfile.TemporaryDirectory() as tmp:
             main = Path(tmp) / "main"
-            make_checkout(main, epic_dir="logging_refactor", epic="logging-refactor",
-                          task_id="task_1_setup")
+            make_checkout(
+                main,
+                epic_dir="logging_refactor",
+                epic="logging-refactor",
+                task_id="task_1_setup",
+            )
             written, _ = sync_task([main, Path(tmp) / "empty"], "task_1_setup", "done")
             self.assertEqual(len(written), 2)
 
@@ -294,7 +379,9 @@ class BoardTallyTests(unittest.TestCase):
             features = root / ".devtool" / "features"
             make_task(features / "task_1_a.md", epic="logging-refactor", status="done")
             make_task(features / "task_2_b.md", epic="logging-refactor", status="done")
-            make_task(features / "task_3_c.md", epic="logging-refactor", status="in-progress")
+            make_task(
+                features / "task_3_c.md", epic="logging-refactor", status="in-progress"
+            )
             make_task(features / "task_4_d.md", epic="logging-refactor", status="todo")
             make_task(features / "task_5_e.md", epic="payments", status="todo")
             counts = board_tally([root], "logging-refactor")
@@ -308,15 +395,21 @@ class BoardTallyTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             roots = [Path(tmp) / "main", Path(tmp) / "wt"]
             for root in roots:
-                make_task(root / ".devtool" / "features" / "task_1_a.md",
-                          epic="logging-refactor", status="done")
+                make_task(
+                    root / ".devtool" / "features" / "task_1_a.md",
+                    epic="logging-refactor",
+                    status="done",
+                )
             self.assertEqual(board_tally(roots, "logging-refactor")["done"], 1)
 
     def test_unknown_status_value_is_ignored(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            make_task(root / ".devtool" / "features" / "task_1_a.md",
-                      epic="logging-refactor", status="blocked")
+            make_task(
+                root / ".devtool" / "features" / "task_1_a.md",
+                epic="logging-refactor",
+                status="blocked",
+            )
             self.assertEqual(sum(board_tally([root], "logging-refactor").values()), 0)
 
 
@@ -328,8 +421,12 @@ class SyncEpicTests(unittest.TestCase):
             epic_dir.mkdir(parents=True, exist_ok=True)
             en_doc = epic_dir / "logging_refactor.en.md"
             vi_doc = epic_dir / "logging_refactor.vi.md"
-            en_doc.write_text("# Epic: Logging Refactor\n\n## 1. Meta Data\n- **Status**: Planned\n")
-            vi_doc.write_text("# Epic: Tái cấu trúc Logging\n\n## 1. Meta Data\n- **Status**: Planned\n")
+            en_doc.write_text(
+                "# Epic: Logging Refactor\n\n## 1. Meta Data\n- **Status**: Planned\n"
+            )
+            vi_doc.write_text(
+                "# Epic: Tái cấu trúc Logging\n\n## 1. Meta Data\n- **Status**: Planned\n"
+            )
 
             matched, written = sync_epic([root], "logging_refactor", "In Progress")
             self.assertEqual(len(matched), 2)
@@ -344,8 +441,12 @@ class SyncEpicTests(unittest.TestCase):
             epic_dir.mkdir(parents=True, exist_ok=True)
             en_doc = epic_dir / "logging_refactor.en.md"
             vi_doc = epic_dir / "logging_refactor.vi.md"
-            en_doc.write_text("# Epic: Logging Refactor\n\n- **Epic:** `logging_refactor`\n- **Status:** Planned\n")
-            vi_doc.write_text("# Epic: Tái cấu trúc\n\n- **Trạng thái:** Đã lên kế hoạch\n")
+            en_doc.write_text(
+                "# Epic: Logging Refactor\n\n- **Epic:** `logging_refactor`\n- **Status:** Planned\n"
+            )
+            vi_doc.write_text(
+                "# Epic: Tái cấu trúc\n\n- **Trạng thái:** Đã lên kế hoạch\n"
+            )
 
             matched, written = sync_epic([root], "logging_refactor", "Done")
             self.assertEqual(len(written), 2)
@@ -359,7 +460,9 @@ class SyncEpicTests(unittest.TestCase):
             epic_dir = root / ".devtool" / "epic" / "logging_refactor"
             epic_dir.mkdir(parents=True, exist_ok=True)
             vi_doc = epic_dir / "logging_refactor.vi.md"
-            vi_doc.write_text("# Epic: Tái cấu trúc\n\n- **Trạng thái**: Đã lên kế hoạch\n")
+            vi_doc.write_text(
+                "# Epic: Tái cấu trúc\n\n- **Trạng thái**: Đã lên kế hoạch\n"
+            )
 
             matched, written = sync_epic([root], "logging_refactor", "Đang thực hiện")
             self.assertEqual(len(matched), 1)
@@ -382,7 +485,9 @@ class LinkFixTests(unittest.TestCase):
         )
         out = fix_task_markdown_links(text, "logging_refactor")
         self.assertIn("Epic: [logging-refactor](logging_refactor.en.md)", out)
-        self.assertIn("- **Blocks**: [Task 2](task_2_b.md), [Task 3](task_3_c.md).", out)
+        self.assertIn(
+            "- **Blocks**: [Task 2](task_2_b.md), [Task 3](task_3_c.md).", out
+        )
 
     def test_fix_epic_overview_links(self):
         text = (
@@ -467,7 +572,9 @@ class ArchiveEpicTasksTests(unittest.TestCase):
             plan_file = sp_plans / "2026-09-14-logging-refactor.md"
             plan_file.write_text("# Old plan\n")
 
-            moved = archive_superpowers_docs(root, "logging_refactor", "logging-refactor")
+            moved = archive_superpowers_docs(
+                root, "logging_refactor", "logging-refactor"
+            )
             self.assertEqual(len(moved), 1)
             self.assertTrue((epic_dir / "2026-09-14-logging-refactor.md").is_file())
             self.assertFalse(plan_file.exists())
@@ -546,8 +653,6 @@ class ArchiveEpicTasksTests(unittest.TestCase):
             self.assertEqual(archived, [])
 
 
-
-
 SCRIPTS = Path(__file__).parent
 SYNC = SCRIPTS / "sync_task_status.py"
 RECORDER = SCRIPTS / "run_task_checks.py"
@@ -563,28 +668,36 @@ TABLE = (
     '| V2 | GREEN | `bash check.sh` | exit 0; contains "OK" | — |\n'
     "| V3 | TIER-C | `bash report.sh` | exit 0; results build/r.xml | — |\n"
 )
-REPORT = ("<testsuite>"
-          '<testcase classname="Demo" name="test_demo_hp_01_one"/>'
-          '<testcase classname="Demo" name="test_demo_ec_01_two"/>'
-          "</testsuite>")
+REPORT = (
+    "<testsuite>"
+    '<testcase classname="Demo" name="test_demo_hp_01_one"/>'
+    '<testcase classname="Demo" name="test_demo_ec_01_two"/>'
+    "</testsuite>"
+)
 
 
 def task_file(verification: bool) -> str:
-    text = ('---\nid: "task_1_demo"\nstatus: "in-progress"\nepic: "demo"\ncreated: "2026-01-01T00:00:00Z"\n'
-            'modified: "2026-01-01T00:00:00Z"\ncompletedAt: null\n---\n\n# Task 1\n\n'
-            "## Files\n\nAllowed files:\n- `feature.txt` (new)\n\n"
-            "## BDD\n\nCovers: DEMO-HP-01, DEMO-EC-01\n\n")
+    text = (
+        '---\nid: "task_1_demo"\nstatus: "in-progress"\nepic: "demo"\ncreated: "2026-01-01T00:00:00Z"\n'
+        'modified: "2026-01-01T00:00:00Z"\ncompletedAt: null\n---\n\n# Task 1\n\n'
+        "## Files\n\nAllowed files:\n- `feature.txt` (new)\n\n"
+        "## BDD\n\nCovers: DEMO-HP-01, DEMO-EC-01\n\n"
+    )
     if verification:
         text += f"## Verification\n\n{TABLE}\n"
     return text + "## Definition of Done\n\n- done (V2)\n"
 
 
 def run_py(script: Path, cwd: Path, *argv: str) -> subprocess.CompletedProcess:
-    return subprocess.run([sys.executable, str(script), *argv], cwd=cwd, capture_output=True, text=True)
+    return subprocess.run(
+        [sys.executable, str(script), *argv], cwd=cwd, capture_output=True, text=True
+    )
 
 
 def git(cwd: Path, *argv: str) -> None:
-    subprocess.run(["git", "-C", str(cwd), *argv], capture_output=True, text=True, check=True)
+    subprocess.run(
+        ["git", "-C", str(cwd), *argv], capture_output=True, text=True, check=True
+    )
 
 
 class DoneGateCase(unittest.TestCase):
@@ -599,14 +712,17 @@ class DoneGateCase(unittest.TestCase):
         git(self.main, "init", "-q", "-b", "main")
         git(self.main, "config", "user.email", "demo@example.com")
         git(self.main, "config", "user.name", "Demo")
-        overview = "# Demo\n\n- **Epic**: demo\n\n" + ("Integration test roots: tests\n" if code_epic else "")
+        overview = "# Demo\n\n- **Epic**: demo\n\n" + (
+            "Integration test roots: tests\n" if code_epic else ""
+        )
         files = {
             ".gitignore": "build/\n",
             "check.sh": "[ -f feature.txt ] && echo OK\n",
             "report.sh": f"mkdir -p build && printf '%s' '{REPORT}' > build/r.xml\n",
             ".devtool/epic/demo/demo.en.md": overview,
             ".devtool/epic/demo/bdd_scenarios.en.md": (
-                f"{TICKS}gherkin\nScenario: [DEMO-HP-01] One\nScenario: [DEMO-EC-01] Two\n{TICKS}\n"),
+                f"{TICKS}gherkin\nScenario: [DEMO-HP-01] One\nScenario: [DEMO-EC-01] Two\n{TICKS}\n"
+            ),
             MIRROR: task_file(verification),
             FEATURE: task_file(verification),
         }
@@ -641,7 +757,9 @@ class DoneGateCase(unittest.TestCase):
     def done(self, cwd: Path) -> subprocess.CompletedProcess:
         return run_py(SYNC, cwd, "task", TASK_ID, "done")
 
-    def assert_refused(self, result: subprocess.CompletedProcess, *fragments: str) -> None:
+    def assert_refused(
+        self, result: subprocess.CompletedProcess, *fragments: str
+    ) -> None:
         self.assertEqual(result.returncode, 1, result.stderr)
         self.assertIn(f"refused: {TASK_ID} cannot be marked done", result.stderr)
         for fragment in fragments:
@@ -672,8 +790,11 @@ class DoneGateTests(DoneGateCase):
 
     def test_vth_st_03_done_without_evidence_is_refused(self):
         self.build()
-        self.refuse_leaves_copies("condition 1:", "not found in this checkout",
-                                  "run the done gate in the epic worktree")
+        self.refuse_leaves_copies(
+            "condition 1:",
+            "not found in this checkout",
+            "run the done gate in the epic worktree",
+        )
 
     def test_vth_st_04_edits_after_verification_are_refused(self):
         self.build()
@@ -682,18 +803,34 @@ class DoneGateTests(DoneGateCase):
         self.refuse_leaves_copies("condition 4:")
         (self.wt / "feature.txt").write_text("done\n", encoding="utf-8")
         mirror = self.wt / MIRROR
-        mirror.write_text(mirror.read_text(encoding="utf-8").replace(
-            'exit 0; contains "OK"', 'exit 0; contains "OK!"'), encoding="utf-8")
-        self.refuse_leaves_copies("condition 2:", "row V2: recorded expect differs from the table")
+        mirror.write_text(
+            mirror.read_text(encoding="utf-8").replace(
+                'exit 0; contains "OK"', 'exit 0; contains "OK!"'
+            ),
+            encoding="utf-8",
+        )
+        self.refuse_leaves_copies(
+            "condition 2:", "row V2: recorded expect differs from the table"
+        )
 
     def test_vth_st_05_red_that_did_not_precede_the_change_is_refused(self):
         self.build()
         self.record()
-        recorded = json.loads((self.wt / EVIDENCE).read_text(encoding="utf-8"))["runs"]["red"]["tree"]
+        recorded = json.loads((self.wt / EVIDENCE).read_text(encoding="utf-8"))["runs"][
+            "red"
+        ]["tree"]
         self.edit_evidence(lambda runs: runs["red"].update(tree=runs["verify"]["tree"]))
-        self.refuse_leaves_copies("condition 5:", "RED was not recorded before the change")
-        self.edit_evidence(lambda runs: runs["red"].update(tree=recorded, finished="2999-01-01T00:00:00Z"))
-        self.refuse_leaves_copies("condition 5:", "finished after the verify run started")
+        self.refuse_leaves_copies(
+            "condition 5:", "RED was not recorded before the change"
+        )
+        self.edit_evidence(
+            lambda runs: runs["red"].update(
+                tree=recorded, finished="2999-01-01T00:00:00Z"
+            )
+        )
+        self.refuse_leaves_copies(
+            "condition 5:", "finished after the verify run started"
+        )
 
     def test_vth_st_06_only_code_epics_are_gated(self):
         self.build(verification=False)
@@ -701,7 +838,9 @@ class DoneGateTests(DoneGateCase):
         self.build(code_epic=False, verification=False)
         result = self.done(self.wt)
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn('status: "done"', (self.wt / DONE_FEATURE).read_text(encoding="utf-8"))
+        self.assertIn(
+            'status: "done"', (self.wt / DONE_FEATURE).read_text(encoding="utf-8")
+        )
 
     def test_vth_st_07_covered_identifier_without_a_passing_case_is_refused(self):
         self.build()
@@ -710,7 +849,10 @@ class DoneGateTests(DoneGateCase):
         def drop_case(runs):
             row = next(r for r in runs["verify"]["rows"] if r["id"] == "V3")
             row["results"]["digest"]["cases"] = [
-                c for c in row["results"]["digest"]["cases"] if "demo_ec_01" not in c["name"]]
+                c
+                for c in row["results"]["digest"]["cases"]
+                if "demo_ec_01" not in c["name"]
+            ]
 
         self.edit_evidence(drop_case)
         self.refuse_leaves_copies("condition 6:", "DEMO-EC-01")
@@ -720,7 +862,9 @@ class DoneGateTests(DoneGateCase):
         self.record()
         before = self.copies()
         result = self.done(self.main)
-        self.assert_refused(result, "condition 1:", "run the done gate in the epic worktree")
+        self.assert_refused(
+            result, "condition 1:", "run the done gate in the epic worktree"
+        )
         self.assertEqual(self.copies(), before)
 
     def test_done_from_a_checkout_lacking_the_task_is_refused(self):
@@ -729,8 +873,11 @@ class DoneGateTests(DoneGateCase):
             (self.main / rel).unlink()
         before = (self.wt / FEATURE).read_text(encoding="utf-8")
         result = self.done(self.main)
-        self.assert_refused(result, "run the done gate in the checkout that holds the task and its evidence "
-                                    "(the epic worktree)")
+        self.assert_refused(
+            result,
+            "run the done gate in the checkout that holds the task and its evidence "
+            "(the epic worktree)",
+        )
         self.assertEqual((self.wt / FEATURE).read_text(encoding="utf-8"), before)
 
     def test_blocked_row_and_failed_scope_are_refused(self):
@@ -740,7 +887,9 @@ class DoneGateTests(DoneGateCase):
         def break_rows(runs):
             rows = {r["id"]: r for r in runs["verify"]["rows"]}
             rows["V3"].update(outcome="BLOCKED", reason="unset: X")
-            rows["SCOPE"].update(outcome="FAIL", violations=["outside Allowed files: x"])
+            rows["SCOPE"].update(
+                outcome="FAIL", violations=["outside Allowed files: x"]
+            )
 
         self.edit_evidence(break_rows)
         self.refuse_leaves_copies("condition 3:", "V3", "condition 7:")
@@ -750,20 +899,32 @@ class DoneGateTests(DoneGateCase):
         self.record()
         git(self.wt, "add", "-A")
         git(self.wt, "commit", "-q", "-m", "[DEMO] Task 1 committed before the gate")
-        self.assertEqual(run_py(RECORDER, self.wt, "verify", str(self.wt / MIRROR)).returncode, 0)
-        self.refuse_leaves_copies("condition 4: verify saw no change outside .devtool — record verify before committing",
-                                  "condition 5: red and verify were recorded on different commits")
+        self.assertEqual(
+            run_py(RECORDER, self.wt, "verify", str(self.wt / MIRROR)).returncode, 0
+        )
+        self.refuse_leaves_copies(
+            "condition 4: verify saw no change outside .devtool — record verify before committing",
+            "condition 5: red and verify were recorded on different commits",
+        )
 
     def test_red_and_verify_on_different_commits_is_refused(self):
         self.build()
         mirror = self.wt / MIRROR
         self.assertEqual(run_py(RECORDER, self.wt, "red", str(mirror)).returncode, 0)
         git(self.wt, "add", "-A")
-        git(self.wt, "commit", "-q", "-m", "[DEMO] Unrelated commit between red and verify")
+        git(
+            self.wt,
+            "commit",
+            "-q",
+            "-m",
+            "[DEMO] Unrelated commit between red and verify",
+        )
         (self.wt / "feature.txt").write_text("done\n", encoding="utf-8")
         self.assertEqual(run_py(RECORDER, self.wt, "verify", str(mirror)).returncode, 0)
         result = self.done(self.wt)
-        self.assert_refused(result, "condition 5: red and verify were recorded on different commits")
+        self.assert_refused(
+            result, "condition 5: red and verify were recorded on different commits"
+        )
         self.assertNotIn("condition 4:", result.stderr)
 
     def test_failed_row_no_longer_in_the_table_is_refused(self):
@@ -771,10 +932,14 @@ class DoneGateTests(DoneGateCase):
         self.record()
 
         def add_dropped_row(runs):
-            runs["verify"]["rows"].append({"id": "V9", "phase": "GREEN", "outcome": "FAIL", "reason": "exit 1"})
+            runs["verify"]["rows"].append(
+                {"id": "V9", "phase": "GREEN", "outcome": "FAIL", "reason": "exit 1"}
+            )
 
         self.edit_evidence(add_dropped_row)
-        self.refuse_leaves_copies("condition 2: verify row V9 is FAIL and no longer in the table")
+        self.refuse_leaves_copies(
+            "condition 2: verify row V9 is FAIL and no longer in the table"
+        )
 
 
 class EpicCheckoutRootsTests(unittest.TestCase):
@@ -792,29 +957,51 @@ class EpicCheckoutRootsTests(unittest.TestCase):
         git(self.main, "config", "user.name", "Demo")
 
         (self.main / "README.md").write_text("# Main\n", encoding="utf-8")
-        (self.main / ".devtool" / "epic" / "demo_epic").mkdir(parents=True, exist_ok=True)
+        (self.main / ".devtool" / "epic" / "demo_epic").mkdir(
+            parents=True, exist_ok=True
+        )
         (self.main / ".devtool" / "features").mkdir(parents=True, exist_ok=True)
 
         overview_en = "# Demo Epic\n\n- **Epic**: demo-epic\n- **Status**: Planned\n"
-        overview_vi = "# Demo Epic\n\n- **Epic**: demo-epic\n- **Trạng thái**: Planned\n"
-        (self.main / ".devtool" / "epic" / "demo_epic" / "demo_epic.en.md").write_text(overview_en, encoding="utf-8")
-        (self.main / ".devtool" / "epic" / "demo_epic" / "demo_epic.vi.md").write_text(overview_vi, encoding="utf-8")
+        overview_vi = (
+            "# Demo Epic\n\n- **Epic**: demo-epic\n- **Trạng thái**: Planned\n"
+        )
+        (self.main / ".devtool" / "epic" / "demo_epic" / "demo_epic.en.md").write_text(
+            overview_en, encoding="utf-8"
+        )
+        (self.main / ".devtool" / "epic" / "demo_epic" / "demo_epic.vi.md").write_text(
+            overview_vi, encoding="utf-8"
+        )
 
-        task_content = '''---
+        task_content = """---
 id: "task_1_demo"
 status: "todo"
 epic: "demo-epic"
 ---
 # Task 1 Demo
-'''
-        (self.main / ".devtool" / "features" / "task_1_demo.md").write_text(task_content, encoding="utf-8")
-        (self.main / ".devtool" / "epic" / "demo_epic" / "task_1_demo.md").write_text(task_content, encoding="utf-8")
+"""
+        (self.main / ".devtool" / "features" / "task_1_demo.md").write_text(
+            task_content, encoding="utf-8"
+        )
+        (self.main / ".devtool" / "epic" / "demo_epic" / "task_1_demo.md").write_text(
+            task_content, encoding="utf-8"
+        )
 
         git(self.main, "add", "-A")
         git(self.main, "commit", "-q", "-m", "initial commit")
 
-        git(self.main, "worktree", "add", "-q", "-b", "epic/demo-epic", str(self.wt_own))
-        git(self.main, "worktree", "add", "-q", "-b", "epic/other-epic", str(self.wt_other))
+        git(
+            self.main, "worktree", "add", "-q", "-b", "epic/demo-epic", str(self.wt_own)
+        )
+        git(
+            self.main,
+            "worktree",
+            "add",
+            "-q",
+            "-b",
+            "epic/other-epic",
+            str(self.wt_other),
+        )
 
     def test_parse_worktree_branches(self) -> None:
         sample = f"""worktree {self.main}
@@ -830,6 +1017,7 @@ HEAD 3333333333333333333333333333333333333333
 detached
 """
         from sync_task_status import parse_worktree_branches
+
         branches = parse_worktree_branches(sample)
         self.assertEqual(len(branches), 3)
         self.assertEqual(branches[0], (self.main, "refs/heads/main"))
@@ -842,8 +1030,12 @@ detached
         self.assertEqual(res.returncode, 0, res.stderr)
 
         for wt in (self.main, self.wt_own):
-            en_text = (wt / ".devtool" / "epic" / "demo_epic" / "demo_epic.en.md").read_text(encoding="utf-8")
-            vi_text = (wt / ".devtool" / "epic" / "demo_epic" / "demo_epic.vi.md").read_text(encoding="utf-8")
+            en_text = (
+                wt / ".devtool" / "epic" / "demo_epic" / "demo_epic.en.md"
+            ).read_text(encoding="utf-8")
+            vi_text = (
+                wt / ".devtool" / "epic" / "demo_epic" / "demo_epic.vi.md"
+            ).read_text(encoding="utf-8")
             self.assertIn("- **Status**: Packaged", en_text)
             self.assertIn("- **Trạng thái**: Packaged", vi_text)
 
@@ -852,7 +1044,11 @@ detached
         res = run_py(SYNC, self.main, "epic", "demo_epic", "Packaged")
         self.assertEqual(res.returncode, 0, res.stderr)
 
-        status_proc = subprocess.run(["git", "-C", str(self.wt_other), "status", "--porcelain"], capture_output=True, text=True)
+        status_proc = subprocess.run(
+            ["git", "-C", str(self.wt_other), "status", "--porcelain"],
+            capture_output=True,
+            text=True,
+        )
         self.assertEqual(status_proc.stdout.strip(), "")
 
         res_task = run_py(SYNC, self.main, "task", "task_1_demo", "in-progress")
@@ -860,7 +1056,527 @@ detached
 
         for root in (self.main, self.wt_own, self.wt_other):
             task_file = root / ".devtool" / "features" / "task_1_demo.md"
-            self.assertIn('status: "in-progress"', task_file.read_text(encoding="utf-8"))
+            self.assertIn(
+                'status: "in-progress"', task_file.read_text(encoding="utf-8")
+            )
+
+
+class SingleSourceRender_Integration_Test(unittest.TestCase):
+    def test_TCAE_HP_02_render_single_source(self) -> None:
+        test_TCAE_HP_02_render_single_source()
+
+    def test_TCAE_EC_01_legacy_task_backward_compatible(self) -> None:
+        """[TCAE-EC-01] Legacy task without Evidence files or Covers line remains backward-compatible."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp).resolve()
+            git(root, "init", "-q")
+            git(root, "config", "user.email", "demo@example.com")
+            git(root, "config", "user.name", "Demo")
+
+            epic_dir = root / ".devtool" / "epic" / "sample_epic"
+            epic_dir.mkdir(parents=True, exist_ok=True)
+            (epic_dir / "sample_epic.en.md").write_text(
+                "# Epic\n\nProtected paths: none\nIntegration results: none\n\n## Verification Environment\n\nenv\n",
+                encoding="utf-8",
+            )
+            (epic_dir / "sample_epic.vi.md").write_text("# Epic\n", encoding="utf-8")
+            (epic_dir / "bdd_scenarios.en.md").write_text(
+                "# Scenarios\n", encoding="utf-8"
+            )
+
+            (root / "tool.py").write_text("print('ok')\n", encoding="utf-8")
+            (root / "README.md").write_text("readme\n", encoding="utf-8")
+
+            # Legacy task without Evidence files and without Covers
+            task_content = """---
+id: "task_01_legacy"
+status: "todo"
+priority: "high"
+assignee: null
+epic: "sample-epic"
+dueDate: null
+created: "2026-11-06T01:50:00Z"
+modified: "2026-11-06T01:50:00Z"
+completedAt: null
+labels: ["architecture"]
+order: "a1"
+---
+
+# Task 01: Legacy
+
+Epic: [sample_epic](sample_epic.en.md)
+
+## Files
+
+Allowed files:
+- `tool.py`
+
+Read-only context:
+- `README.md`
+
+## Verification
+
+| ID | Phase | Command | Expect | Needs |
+|----|-------|---------|--------|-------|
+| V1 | RED | `false` | exit 1 | — |
+| V2 | GREEN | `true` | exit 0 | — |
+| V3 | TIER-B | `true` | exit 0 | — |
+| V4 | TIER-B | `true` | exit 0 | — |
+| V5 | TIER-C | `true` | exit 0 | — |
+
+## Definition of Done
+
+- done (V2, V3, V4, V5)
+
+## Stop and Report If
+
+- None
+
+## Decisions Already Made
+
+- Grounded decision.
+"""
+            task_path = epic_dir / "task_01_legacy.md"
+            task_path.write_text(task_content, encoding="utf-8")
+            git(root, "add", "-A")
+            git(root, "commit", "-q", "-m", "base")
+
+            res = run_py(SYNC, root, "render", "sample_epic")
+            self.assertEqual(res.returncode, 0, res.stderr)
+
+            # Mirror created in features/
+            mirror = root / ".devtool" / "features" / "task_01_legacy.md"
+            self.assertTrue(mirror.is_file())
+            # BDD section was not added or corrupted
+            self.assertNotIn("### BDD SCENARIOS", task_path.read_text(encoding="utf-8"))
+
+    def test_TCAE_EC_02_embedded_code_fence_promotion(self) -> None:
+        """[TCAE-EC-02] Embedded file containing code fence promotes outer fence to max(4, max_inner + 1)."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp).resolve()
+            git(root, "init", "-q")
+            git(root, "config", "user.email", "demo@example.com")
+            git(root, "config", "user.name", "Demo")
+
+            epic_dir = root / ".devtool" / "epic" / "sample_epic"
+            epic_dir.mkdir(parents=True, exist_ok=True)
+            (epic_dir / "sample_epic.en.md").write_text(
+                "# Epic\n\nProtected paths: none\nIntegration results: none\n\n## Verification Environment\n\nenv\n",
+                encoding="utf-8",
+            )
+            (epic_dir / "sample_epic.vi.md").write_text("# Epic\n", encoding="utf-8")
+
+            # Source snippet containing 3 backticks
+            docs_dir = root / "docs"
+            docs_dir.mkdir(parents=True, exist_ok=True)
+            (docs_dir / "snippet.md").write_text(
+                "Intro\n```bash\necho hello\n```\nOutro\n", encoding="utf-8"
+            )
+
+            task_content = """---
+id: "task_01_embed"
+status: "todo"
+priority: "high"
+assignee: null
+epic: "sample-epic"
+dueDate: null
+created: "2026-11-06T01:50:00Z"
+modified: "2026-11-06T01:50:00Z"
+completedAt: null
+labels: ["architecture"]
+order: "a1"
+---
+
+# Task 01: Embed
+
+Epic: [sample_epic](sample_epic.en.md)
+
+## Files
+
+Allowed files:
+- `docs/snippet.md`
+
+Read-only context:
+- `README.md`
+
+<!-- @@FILE:docs/snippet.md@@ -->
+```markdown
+# placeholder
+```
+
+## Verification
+
+| ID | Phase | Command | Expect | Needs |
+|----|-------|---------|--------|-------|
+| V1 | RED | `false` | exit 1 | — |
+| V2 | GREEN | `true` | exit 0 | — |
+| V3 | TIER-B | `true` | exit 0 | — |
+| V4 | TIER-B | `true` | exit 0 | — |
+| V5 | TIER-C | `true` | exit 0 | — |
+
+## Definition of Done
+
+- done (V2, V3, V4, V5)
+
+## Stop and Report If
+
+- None
+
+## Decisions Already Made
+
+- Grounded decision.
+"""
+            task_path = epic_dir / "task_01_embed.md"
+            task_path.write_text(task_content, encoding="utf-8")
+            (root / "README.md").write_text("readme\n", encoding="utf-8")
+            git(root, "add", "-A")
+            git(root, "commit", "-q", "-m", "base")
+
+            res = run_py(SYNC, root, "render", "sample_epic")
+            self.assertEqual(res.returncode, 0, res.stderr)
+
+            # Outer fence promoted to 4 backticks
+            epic_text = task_path.read_text(encoding="utf-8")
+            self.assertIn(
+                "````markdown\nIntro\n```bash\necho hello\n```\nOutro\n````", epic_text
+            )
+
+            mirror_text = (
+                root / ".devtool" / "features" / "task_01_embed.md"
+            ).read_text(encoding="utf-8")
+            self.assertIn(
+                "````markdown\nIntro\n```bash\necho hello\n```\nOutro\n````",
+                mirror_text,
+            )
+
+    def test_TCAE_ST_01_orphan_mirrors_and_location_aware_links(self) -> None:
+        """[TCAE-ST-01] Rendering cleans up orphan mirrors and maintains location-aware links."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp).resolve()
+            git(root, "init", "-q")
+            git(root, "config", "user.email", "demo@example.com")
+            git(root, "config", "user.name", "Demo")
+
+            epic_dir = root / ".devtool" / "epic" / "sample_epic"
+            epic_dir.mkdir(parents=True, exist_ok=True)
+            (epic_dir / "sample_epic.en.md").write_text(
+                "# Epic\n\nProtected paths: none\nIntegration results: none\n\n## Verification Environment\n\nenv\n",
+                encoding="utf-8",
+            )
+            (epic_dir / "sample_epic.vi.md").write_text("# Epic\n", encoding="utf-8")
+
+            # Create orphan mirror in features/
+            features_dir = root / ".devtool" / "features"
+            features_dir.mkdir(parents=True, exist_ok=True)
+            orphan = features_dir / "task_99_obsolete.md"
+            orphan.write_text(
+                '---\nid: "task_99_obsolete"\nepic: "sample-epic"\nstatus: "todo"\n---\n# Obsolete\n',
+                encoding="utf-8",
+            )
+
+            # Task 01 marked done
+            task_content = """---
+id: "task_01_done"
+status: "done"
+priority: "high"
+assignee: null
+epic: "sample-epic"
+dueDate: null
+created: "2026-11-06T01:50:00Z"
+modified: "2026-11-06T01:50:00Z"
+completedAt: "2026-11-06T02:00:00Z"
+labels: ["architecture"]
+order: "a1"
+---
+
+# Task 01: Done
+
+Epic: [sample_epic](sample_epic.en.md)
+
+## Files
+
+Allowed files:
+- `tool.py`
+
+Read-only context:
+- `README.md`
+
+## Verification
+
+| ID | Phase | Command | Expect | Needs |
+|----|-------|---------|--------|-------|
+| V1 | RED | `false` | exit 1 | — |
+| V2 | GREEN | `true` | exit 0 | — |
+| V3 | TIER-B | `true` | exit 0 | — |
+| V4 | TIER-B | `true` | exit 0 | — |
+| V5 | TIER-C | `true` | exit 0 | — |
+
+## Definition of Done
+
+- done (V2, V3, V4, V5)
+
+## Stop and Report If
+
+- None
+
+## Decisions Already Made
+
+- Grounded decision.
+"""
+            (epic_dir / "task_01_done.md").write_text(task_content, encoding="utf-8")
+            (root / "tool.py").write_text("print('ok')\n", encoding="utf-8")
+            (root / "README.md").write_text("readme\n", encoding="utf-8")
+            git(root, "add", "-A")
+            git(root, "commit", "-q", "-m", "base")
+
+            res = run_py(SYNC, root, "render", "sample_epic")
+            self.assertEqual(res.returncode, 0, res.stderr)
+
+            # 1. Orphan mirror is removed
+            self.assertFalse(orphan.exists())
+
+            # 2. Done task mirror placed in features/done/ with ../../epic/ links
+            done_mirror = features_dir / "done" / "task_01_done.md"
+            self.assertTrue(done_mirror.is_file())
+            self.assertIn(
+                "[sample_epic](../../epic/sample_epic/sample_epic.en.md)",
+                done_mirror.read_text(encoding="utf-8"),
+            )
+
+            # 3. Reopening task moves mirror back to features/ with ../epic/ links
+            res_reopen = run_py(SYNC, root, "task", "task_01_done", "in-progress")
+            self.assertEqual(res_reopen.returncode, 0, res_reopen.stderr)
+            reopened_mirror = features_dir / "task_01_done.md"
+            self.assertTrue(reopened_mirror.is_file())
+            self.assertFalse(done_mirror.exists())
+            self.assertIn(
+                "[sample_epic](../epic/sample_epic/sample_epic.en.md)",
+                reopened_mirror.read_text(encoding="utf-8"),
+            )
+
+            # 4. Mark done again and archive-epic exercises canonical preservation branch (Finding 5)
+            res_done = run_py(SYNC, root, "task", "task_01_done", "done")
+            self.assertEqual(res_done.returncode, 0, res_done.stderr)
+            self.assertTrue(done_mirror.is_file())
+
+            res_archive = run_py(SYNC, root, "archive-epic", "sample_epic")
+            self.assertEqual(res_archive.returncode, 0, res_archive.stderr)
+            self.assertFalse(done_mirror.exists())
+            self.assertFalse(reopened_mirror.exists())
+
+            canonical_task = epic_dir / "task_01_done.md"
+            self.assertTrue(canonical_task.is_file())
+            canonical_text = canonical_task.read_text(encoding="utf-8")
+            self.assertIn('status: "done"', canonical_text)
+            self.assertIn("Allowed files:\n- `tool.py`", canonical_text)
+            self.assertIn("[sample_epic](sample_epic.en.md)", canonical_text)
+            self.assertNotIn("../../epic/", canonical_text)
+            self.assertNotIn("../epic/", canonical_text)
+
+
+def test_TCAE_HP_02_render_single_source() -> None:
+    """[TCAE-HP-02] Single-source task rendering injects verbatim BDD, embeds code, and writes mirror."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp).resolve()
+        git(root, "init", "-q")
+        git(root, "config", "user.email", "demo@example.com")
+        git(root, "config", "user.name", "Demo")
+
+        epic_dir = root / ".devtool" / "epic" / "sample_epic"
+        epic_dir.mkdir(parents=True, exist_ok=True)
+        (epic_dir / "sample_epic.en.md").write_text(
+            "# Epic: Sample\n\nProtected paths: none\nIntegration results: none\n\n## Verification Environment\n\nenv\n",
+            encoding="utf-8",
+        )
+        (epic_dir / "sample_epic.vi.md").write_text(
+            "# Epic: Sample\n", encoding="utf-8"
+        )
+
+        bdd_content = """# Scenarios
+
+```gherkin
+Scenario: [TCAE-HP-01] [Tier C - Integration] Evidence files declaration passes design contract and Done-Gate verification
+  Given a task declaring evidence file
+  When check_task_contract runs
+  Then it passes
+```
+"""
+        (epic_dir / "bdd_scenarios.en.md").write_text(bdd_content, encoding="utf-8")
+
+        src_dir = root / "src"
+        src_dir.mkdir(parents=True, exist_ok=True)
+        (src_dir / "helper.py").write_text(
+            'def helper():\n    return "help"\n', encoding="utf-8"
+        )
+
+        task_content = """---
+id: "task_01_setup"
+status: "todo"
+priority: "high"
+assignee: null
+epic: "sample-epic"
+dueDate: null
+created: "2026-11-06T01:50:00Z"
+modified: "2026-11-06T01:50:00Z"
+completedAt: null
+labels: ["architecture"]
+order: "a1"
+---
+
+# Task 01: Setup
+
+Epic: [sample_epic](sample_epic.en.md)
+Sibling: [task_02](./task_02.md)
+
+## Files
+
+Allowed files:
+- `src/helper.py`
+
+Read-only context:
+- `README.md`
+
+<!-- @@FILE:src/helper.py@@ -->
+```python
+# old placeholder
+```
+
+### BDD SCENARIOS
+
+Covers: TCAE-HP-01
+
+```gherkin
+# placeholder
+```
+
+## Verification
+
+| ID | Phase | Command | Expect | Needs |
+|----|-------|---------|--------|-------|
+| V1 | RED | `false` | exit 1 | — |
+| V2 | GREEN | `true` | exit 0 | — |
+| V3 | TIER-B | `true` | exit 0 | — |
+| V4 | TIER-B | `true` | exit 0 | — |
+| V5 | TIER-C | `true` | exit 0 | — |
+
+## Definition of Done
+
+- done (V2, V3, V4, V5)
+
+## Stop and Report If
+
+- None
+
+## Decisions Already Made
+
+- Grounded decision.
+"""
+        task_path = epic_dir / "task_01_setup.md"
+        task_path.write_text(task_content, encoding="utf-8")
+        (root / "README.md").write_text("demo\n", encoding="utf-8")
+        git(root, "add", "-A")
+        git(root, "commit", "-q", "-m", "base")
+
+        # Invoke sync_task_status.py render sample_epic
+        res = run_py(SYNC, root, "render", "sample_epic")
+        assert res.returncode == 0, (
+            f"sync_task_status.py render failed: {res.stderr}\n{res.stdout}"
+        )
+
+        # 1. Epic task contains verbatim BDD
+        updated_epic_task = task_path.read_text(encoding="utf-8")
+        assert 'def helper():\n    return "help"' in updated_epic_task
+        assert "Scenario: [TCAE-HP-01]" in updated_epic_task
+        assert "Given a task declaring evidence file" in updated_epic_task
+        assert "[task_02](task_02.md)" in updated_epic_task
+
+        # 2. Features mirror is generated
+        features_task = root / ".devtool" / "features" / "task_01_setup.md"
+        assert features_task.is_file()
+        features_text = features_task.read_text(encoding="utf-8")
+        assert 'def helper():\n    return "help"' in features_text
+        assert "Scenario: [TCAE-HP-01]" in features_text
+        assert "[task_02](../epic/sample_epic/task_02.md)" in features_text
+        assert "[sample_epic](../epic/sample_epic/sample_epic.en.md)" in features_text
+
+
+def test_render_epic_tasks_avoids_hld_collision_observation_0021() -> None:
+    """Observation #0021: Epic directory named task_* must not treat overview as a task."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp).resolve()
+        git(root, "init", "-q")
+        epic_dir = root / ".devtool" / "epic" / "task_replay"
+        epic_dir.mkdir(parents=True, exist_ok=True)
+        hld_content = "# Epic: Task Replay\n\nProtected paths: none\nIntegration results: none\n\n## Verification Environment\n\nenv\n"
+        (epic_dir / "task_replay.en.md").write_text(hld_content, encoding="utf-8")
+        (epic_dir / "task_replay.vi.md").write_text(
+            "# Epic: Task Replay\n", encoding="utf-8"
+        )
+
+        task_content = """---
+id: "task_01_setup"
+status: "todo"
+epic: "task-replay"
+---
+
+# Task 01: Setup
+
+Epic: [task_replay](task_replay.en.md)
+"""
+        task_file = epic_dir / "task_01_setup.md"
+        task_file.write_text(task_content, encoding="utf-8")
+
+        res = run_py(SYNC, root, "render", "task_replay")
+        assert res.returncode == 0, res.stderr
+
+        # Overview doc was NOT rewritten as a task or mirrored into features
+        assert (epic_dir / "task_replay.en.md").read_text(
+            encoding="utf-8"
+        ) == hld_content
+        assert not (root / ".devtool" / "features" / "task_replay.en.md").exists()
+        assert (root / ".devtool" / "features" / "task_01_setup.md").is_file()
+
+
+def test_board_location_preserves_code_spans() -> None:
+    """Finding 2: board_location must not corrupt `](../epic/` inside backticks or code blocks."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp).resolve()
+        features_dir = root / ".devtool" / "features"
+        features_dir.mkdir(parents=True, exist_ok=True)
+        task_file = features_dir / "task_01_doc.md"
+        doc_content = (
+            "# Task\n\n"
+            "Real link: [doc](../epic/sample/doc.md)\n\n"
+            "Inline code: `](../epic/` and `[foo](../epic/bar)`\n\n"
+            "```markdown\n"
+            "```bash\n"
+            "echo '](../epic/'\n"
+            "```\n"
+            "```\n"
+        )
+        task_file.write_text(doc_content, encoding="utf-8")
+
+        moved = board_location(root, task_file, "done")
+        assert moved == features_dir / "done" / "task_01_doc.md"
+        done_text = moved.read_text(encoding="utf-8")
+        assert "Real link: [doc](../../epic/sample/doc.md)" in done_text
+        assert "Inline code: `](../epic/` and `[foo](../epic/bar)`" in done_text
+        assert "echo '](../epic/'" in done_text
+
+
+def test_rewrite_mirror_links_preserves_external_markdown_links() -> None:
+    """Finding 6: rewrite_mirror_links must not rewrite external markdown links like docs/guide.md."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp).resolve()
+        epic_path = root / ".devtool" / "epic" / "sample"
+        epic_path.mkdir(parents=True, exist_ok=True)
+        (epic_path / "sibling.md").write_text("# Sibling\n", encoding="utf-8")
+
+        text = "See [sibling](sibling.md) and [guide](docs/guide.md) and `[code](test.md)`."
+        rewritten = rewrite_mirror_links(text, "sample", False, epic_path)
+        assert "[sibling](../epic/sample/sibling.md)" in rewritten
+        assert "[guide](docs/guide.md)" in rewritten
+        assert "`[code](test.md)`" in rewritten
 
 
 if __name__ == "__main__":

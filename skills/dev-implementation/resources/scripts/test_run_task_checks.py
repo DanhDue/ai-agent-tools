@@ -30,8 +30,9 @@ TICKS = "`" * 3
 
 
 def task_text(rows: str, allowed: str = "- `feature.txt` (new)", after_table: str = "",
-              head: str = TABLE_HEAD) -> str:
-    return (f"# Task 1\n\n## Files\n\nAllowed files:\n{allowed}\n\nRead-only context:\n- `x` - note\n\n"
+              head: str = TABLE_HEAD, evidence: str = "") -> str:
+    ev_part = f"\nEvidence files:\n{evidence}\n" if evidence else ""
+    return (f"# Task 1\n\n## Files\n\nAllowed files:\n{allowed}\n{ev_part}\nRead-only context:\n- `x` - note\n\n"
             f"## Verification\n\n{head}{rows}\n{after_table}\n## Definition of Done\n\n- done (V1)\n")
 
 
@@ -497,6 +498,36 @@ class RecorderTest(RepoCase):
         self.assertIn("done gate: PASS", out)
         self.assertEqual(self.run_cli("status")[0], 2)
 
+    def test_TCAE_HP_01_done_gate_enforces_evidence_files(self) -> None:
+        """[TCAE-HP-01] Done gate condition 8 requires declared Evidence files to exist and be non-empty."""
+        ev_rel = f"{EPIC}/evidence/baseline.txt"
+        task = self.epic(
+            "| V1 | GREEN | `true` | exit 0 | — |\n",
+            allowed="- `feature.txt` (new)",
+            evidence=f"- `{ev_rel}` (new)",
+        )
+        self.write("feature.txt", "code\n")
+        self.assertEqual(self.run_cli("verify", task)[0], 0)
+
+        # 1. Baseline file does not exist yet -> status fails condition 8
+        code, out, _ = self.run_cli("status", task)
+        self.assertEqual(code, 1)
+        self.assertIn("done gate: FAIL", out)
+        self.assertIn(f"condition 8: evidence file {ev_rel} declared in Evidence files was not created or is empty", out)
+
+        # 2. Baseline file exists but is empty (0 bytes) -> still fails condition 8
+        self.write(ev_rel, "")
+        code, out, _ = self.run_cli("status", task)
+        self.assertEqual(code, 1)
+        self.assertIn("done gate: FAIL", out)
+        self.assertIn(f"condition 8: evidence file {ev_rel} declared in Evidence files was not created or is empty", out)
+
+        # 3. Baseline file exists and is non-empty -> passes done gate!
+        self.write(ev_rel, "evidence content\n")
+        code, out, _ = self.run_cli("status", task)
+        self.assertEqual(code, 0)
+        self.assertIn("done gate: PASS", out)
+
 
 class PytestRedSemanticsTest(RepoCase):
     REASON = ("Invalid pytest RED phase: must fail on a collected test (exit 1 or 2), "
@@ -617,6 +648,56 @@ class PytestRedSemanticsTest(RepoCase):
         self.assertEqual(code, 2)
         self.assertIn("TASK_TAMPERED_ERROR", err)
         self.assertFalse((self.root / EVIDENCE).exists())
+
+
+class D3Nexus_Cli_Integration_Test(RepoCase):
+    def test_TCAE_HP_03_d3nexus_zero_setup_env(self) -> None:
+        """[TCAE-HP-03] Zero-setup d3nexus CLI execution inside Verification rows."""
+        sample_doc = (
+            "# Sample Doc\n\n"
+            "## Table of Contents\n\n"
+            "- [Sample Doc](#sample-doc)\n"
+            "- [Overview](#overview)\n\n"
+            "## Overview\n\n"
+            "Content.\n"
+        )
+        doc = self.write(".devtool/epic/sample/sample.en.md", sample_doc)
+        task = self.epic(
+            f"| V1 | GREEN | `d3nexus check-doc --require-toc {doc}` | exit 0 | — |\n",
+            allowed="- `.devtool/epic/sample/sample.en.md` (new)",
+        )
+        code, out, _ = self.run_cli("verify", task)
+        self.assertEqual(code, 0)
+        self.assertIn("V1 GREEN PASS", out)
+
+    def test_TCAE_AR_01_concurrent_env_isolation(self) -> None:
+        """[TCAE-AR-01] Isolated subprocess environment injection without mutating parent os.environ."""
+        from run_task_checks import KIT_ROOT, kit_env
+
+        orig_env = dict(os.environ)
+        # 1. kit_env returns expected keys without modifying os.environ
+        child_env = kit_env()
+        self.assertEqual(child_env["D3NEXUS_KIT"], str(KIT_ROOT))
+        self.assertTrue(child_env["PATH"].startswith(f"{KIT_ROOT / 'bin'}{os.pathsep}"))
+        self.assertEqual(dict(os.environ), orig_env)
+
+        # 2. Subprocess execution sees D3NEXUS_KIT and which d3nexus, while parent env remains clean
+        task = self.epic(
+            '| V1 | GREEN | `test -n "$D3NEXUS_KIT" && which d3nexus` | exit 0 | — |\n'
+        )
+        code, out, _ = self.run_cli("verify", task)
+        self.assertEqual(code, 0)
+        self.assertIn("V1 GREEN PASS", out)
+        self.assertEqual(dict(os.environ), orig_env)
+
+
+def test_TCAE_HP_03_d3nexus_zero_setup_env() -> None:
+    test = D3Nexus_Cli_Integration_Test()
+    test.setUp()
+    try:
+        test.test_TCAE_HP_03_d3nexus_zero_setup_env()
+    finally:
+        test.tearDown()
 
 
 if __name__ == "__main__":

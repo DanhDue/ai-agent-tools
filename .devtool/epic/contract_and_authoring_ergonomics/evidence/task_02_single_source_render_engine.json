@@ -1,0 +1,240 @@
+{
+  "schema": 1,
+  "task": "task_02_single_source_render_engine",
+  "runs": {
+    "red": {
+      "head": "8a3b4a084a768874940be9fab0572d141017ae2e",
+      "tree": "9901f09437f85e85d0e3b3ccdc4d7af8beac7cfd",
+      "patch_id": "d4b2adcd7f1b6377c93929cc22fcea179dd41bf4",
+      "started": "2026-11-06T02:31:20Z",
+      "finished": "2026-11-06T02:31:21Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m pytest skills/dev-implementation/resources/scripts/test_sync_task_status.py::test_TCAE_HP_02_render_single_source",
+          "expect": "exit 1; contains \"FAILED\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-06T02:31:20Z",
+          "finished": "2026-11-06T02:31:21Z",
+          "output_tail": [
+            "    | ID | Phase | Command | Expect | Needs |",
+            "    |----|-------|---------|--------|-------|",
+            "    | V1 | RED | `false` | exit 1 | — |",
+            "    | V2 | GREEN | `true` | exit 0 | — |",
+            "    | V3 | TIER-B | `true` | exit 0 | — |",
+            "    | V4 | TIER-B | `true` | exit 0 | — |",
+            "    | V5 | TIER-C | `true` | exit 0 | — |",
+            "    ",
+            "    ## Definition of Done",
+            "    ",
+            "    - done (V2, V3, V4, V5)",
+            "    ",
+            "    ## Stop and Report If",
+            "    ",
+            "    - None",
+            "    ",
+            "    ## Decisions Already Made",
+            "    ",
+            "    - Grounded decision.",
+            "    \"\"\"",
+            "            task_path = epic_dir / \"task_01_setup.md\"",
+            "            task_path.write_text(task_content, encoding=\"utf-8\")",
+            "            (root / \"README.md\").write_text(\"demo\\n\", encoding=\"utf-8\")",
+            "            git(root, \"add\", \"-A\")",
+            "            git(root, \"commit\", \"-q\", \"-m\", \"base\")",
+            "    ",
+            "            # Invoke sync_task_status.py render sample_epic",
+            "            res = run_py(SYNC, root, \"render\", \"sample_epic\")",
+            ">           assert res.returncode == 0, f\"sync_task_status.py render failed: {res.stderr}\\n{res.stdout}\"",
+            "E           AssertionError: sync_task_status.py render failed: usage: sync_task_status.py [-h] {task,epic,archive-epic,archive-done} ...",
+            "E             sync_task_status.py: error: argument command: invalid choice: 'render' (choose from 'task', 'epic', 'archive-epic', 'archive-done')",
+            "E             ",
+            "E             ",
+            "E           assert 2 == 0",
+            "E            +  where 2 = CompletedProcess(args=['/opt/homebrew/opt/python@3.15/bin/python3.15', '/Users/danhdueexoictif/AllProjects/ai-agent-to....py: error: argument command: invalid choice: 'render' (choose from 'task', 'epic', 'archive-epic', 'archive-done')\\n\").returncode",
+            "",
+            "skills/dev-implementation/resources/scripts/test_sync_task_status.py:967: AssertionError",
+            "=========================== short test summary info ============================",
+            "FAILED skills/dev-implementation/resources/scripts/test_sync_task_status.py::test_TCAE_HP_02_render_single_source",
+            "============================== 1 failed in 0.12s ==============================="
+          ],
+          "output_sha256": "3d207276b70f49ce74b44b4c722c3200e416a57c656d5d8f1ca181933955305a"
+        }
+      ]
+    },
+    "verify": {
+      "head": "8a3b4a084a768874940be9fab0572d141017ae2e",
+      "tree": "9b2d0f9e5c3a9ddbe1b5ea4beced1b84e554f3f2",
+      "patch_id": "2c59cc51515e2afd6ae28c52de95f1c214379802",
+      "started": "2026-11-06T03:03:58Z",
+      "finished": "2026-11-06T03:04:21Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m pytest skills/dev-implementation/resources/scripts/test_sync_task_status.py skills/dev-implementation/resources/scripts/test_check_task_contract.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-06T03:03:58Z",
+          "finished": "2026-11-06T03:04:09Z",
+          "output_tail": [
+            "============================= test session starts ==============================",
+            "platform darwin -- Python 3.15.2, pytest-9.2.0, pluggy-1.7.0",
+            "rootdir: /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/contract_and_authoring_ergonomics",
+            "collected 99 items",
+            "",
+            "skills/dev-implementation/resources/scripts/test_sync_task_status.py ... [  3%]",
+            "...............................................................          [ 66%]",
+            "skills/dev-implementation/resources/scripts/test_check_task_contract.py . [ 67%]",
+            "................................                                         [100%]",
+            "",
+            "============================= 99 passed in 11.07s =============================="
+          ],
+          "output_sha256": "7ea3c52cdc8dd624e2a5ab2ff8198355287934f5f3bdcd82b0b0a812e671b635"
+        },
+        {
+          "id": "V3",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py skills/dev-implementation/resources/scripts/sync_task_status.py skills/dev-implementation/resources/scripts/check_task_contract.py skills/dev-implementation/resources/scripts/check_epic_readiness.py skills/dev-implementation/resources/scripts/test_sync_task_status.py skills/dev-implementation/resources/scripts/test_check_task_contract.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-06T03:04:09Z",
+          "finished": "2026-11-06T03:04:09Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py skills/dev-implementation/resources/scripts/sync_task_status.py skills/dev-implementation/resources/scripts/check_task_contract.py skills/dev-implementation/resources/scripts/check_epic_readiness.py --follow-imports=silent",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-06T03:04:09Z",
+          "finished": "2026-11-06T03:04:09Z",
+          "output_tail": [
+            "Success: no issues found in 8 source files"
+          ],
+          "output_sha256": "157a09cfcdfdfb5977479c5a1c08345149263a3e990a2ec976ef28aaeec9cae6"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-C",
+          "command": "python3 -m pytest skills/dev-implementation/resources/scripts/test_sync_task_status.py skills/dev-implementation/resources/scripts/test_check_task_contract.py --junitxml=build/test-results/task_02.xml",
+          "expect": "exit 0; results build/test-results/task_02.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-06T03:04:09Z",
+          "finished": "2026-11-06T03:04:20Z",
+          "output_tail": [
+            "============================= test session starts ==============================",
+            "platform darwin -- Python 3.15.2, pytest-9.2.0, pluggy-1.7.0",
+            "rootdir: /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/contract_and_authoring_ergonomics",
+            "collected 99 items",
+            "",
+            "skills/dev-implementation/resources/scripts/test_sync_task_status.py ... [  3%]",
+            "...............................................................          [ 66%]",
+            "skills/dev-implementation/resources/scripts/test_check_task_contract.py . [ 67%]",
+            "................................                                         [100%]",
+            "",
+            "- generated xml file: /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/contract_and_authoring_ergonomics/build/test-results/task_02.xml -",
+            "============================= 99 passed in 11.02s =============================="
+          ],
+          "output_sha256": "3ce4e913d7c5fdcba9003243ead28e8b3499d11df107362299acbb10f712b3ce",
+          "results": {
+            "path": "build/test-results/task_02.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 10,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_TCAE_EC_01_legacy_task_backward_compatible",
+                  "classname": "skills.dev-implementation.resources.scripts.test_sync_task_status.SingleSourceRender_Integration_Test",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_TCAE_EC_02_embedded_code_fence_promotion",
+                  "classname": "skills.dev-implementation.resources.scripts.test_sync_task_status.SingleSourceRender_Integration_Test",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_TCAE_HP_02_render_single_source",
+                  "classname": "skills.dev-implementation.resources.scripts.test_sync_task_status.SingleSourceRender_Integration_Test",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_TCAE_ST_01_orphan_mirrors_and_location_aware_links",
+                  "classname": "skills.dev-implementation.resources.scripts.test_sync_task_status.SingleSourceRender_Integration_Test",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_TCAE_HP_02_render_single_source",
+                  "classname": "skills.dev-implementation.resources.scripts.test_sync_task_status",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_TCAE_FR_01_reject_invalid_evidence_files",
+                  "classname": "skills.dev-implementation.resources.scripts.test_check_task_contract.Evidence_Integration_Test",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_TCAE_HP_01_evidence_files_grounding",
+                  "classname": "skills.dev-implementation.resources.scripts.test_check_task_contract.Evidence_Integration_Test",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_TCAE_HP_02_r2_mirror_parity_check",
+                  "classname": "skills.dev-implementation.resources.scripts.test_check_task_contract.Evidence_Integration_Test",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_TCAE_HP_02_r3_verbatim_bdd_parity_check",
+                  "classname": "skills.dev-implementation.resources.scripts.test_check_task_contract.Evidence_Integration_Test",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_TCAE_HP_01_evidence_files_grounding",
+                  "classname": "skills.dev-implementation.resources.scripts.test_check_task_contract",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "skills/dev-implementation/resources/scripts/check_epic_readiness.py",
+            "skills/dev-implementation/resources/scripts/check_task_contract.py",
+            "skills/dev-implementation/resources/scripts/sync_task_status.py",
+            "skills/dev-implementation/resources/scripts/test_check_task_contract.py",
+            "skills/dev-implementation/resources/scripts/test_sync_task_status.py"
+          ],
+          "violations": []
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,44 @@
+#!/usr/bin/env python3
+"""Portable entrypoint for d3nexus tools."""
+from __future__ import annotations
+
+import subprocess
+import sys
+from pathlib import Path
+
+KIT_ROOT = Path(__file__).resolve().parent.parent
+
+SUBCOMMANDS: dict[str, str] = {
+    "check-doc": "skills/doc_quality_check/resources/scripts/check_document.py",
+    "check-contract": "skills/dev-implementation/resources/scripts/check_task_contract.py",
+    "check-readiness": "skills/dev-implementation/resources/scripts/check_epic_readiness.py",
+    "sync-status": "skills/dev-implementation/resources/scripts/sync_task_status.py",
+    "run-checks": "skills/dev-implementation/resources/scripts/run_task_checks.py",
+}
+
+
+def main() -> int:
+    if len(sys.argv) < 2 or sys.argv[1] in ("-h", "--help"):
+        print("Usage: d3nexus <subcommand> [args...]")
+        print("Available subcommands: " + ", ".join(sorted(SUBCOMMANDS.keys())))
+        return 0 if len(sys.argv) >= 2 and sys.argv[1] in ("-h", "--help") else 2
+
+    subcmd = sys.argv[1]
+    rel_path = SUBCOMMANDS.get(subcmd)
+    if not rel_path:
+        sys.stderr.write(f"d3nexus: unknown subcommand '{subcmd}'\n")
+        sys.stderr.write("Available subcommands: " + ", ".join(sorted(SUBCOMMANDS.keys())) + "\n")
+        return 2
+
+    target = KIT_ROOT / rel_path
+    if not target.is_file():
+        sys.stderr.write(f"d3nexus: target script not found: {target}\n")
+        return 2
+
+    cmd = [sys.executable, str(target)] + sys.argv[2:]
+    res = subprocess.run(cmd)
+    return res.returncode
+
+
+if __name__ == "__main__":
+    sys.exit(main())

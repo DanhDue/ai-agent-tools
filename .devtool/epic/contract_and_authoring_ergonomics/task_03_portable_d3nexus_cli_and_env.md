@@ -1,13 +1,13 @@
 ---
 id: "task_03_portable_d3nexus_cli_and_env"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "contract-and-authoring-ergonomics"
 dueDate: null
 created: "2026-11-06T01:50:00Z"
-modified: "2026-11-06T01:50:00Z"
-completedAt: null
+modified: "2026-11-06T03:23:59Z"
+completedAt: "2026-11-06T03:23:59Z"
 labels: ["architecture", "portability", "cli"]
 order: "a3"
 ---
@@ -81,7 +81,7 @@ Scenario: [TCAE-AR-01] [Tier A - Unit] Isolated subprocess environment injection
 | V1 | RED | `python3 -m pytest skills/dev-implementation/resources/scripts/test_run_task_checks.py::test_TCAE_HP_03_d3nexus_zero_setup_env` | exit 1; contains "FAILED" | — |
 | V2 | GREEN | `python3 -m pytest skills/dev-implementation/resources/scripts/test_run_task_checks.py skills/dev-implementation/resources/scripts/test_check_task_contract.py` | exit 0; contains "passed" | — |
 | V3 | TIER-B | `ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py bin/d3nexus skills/dev-implementation/resources/scripts/run_task_checks.py skills/dev-implementation/resources/scripts/check_task_contract.py skills/dev-implementation/resources/scripts/task_contract.py scripts/resume_context.py` | exit 0 | — |
-| V4 | TIER-B | `mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py --follow-imports=silent skills/dev-implementation/resources/scripts/run_task_checks.py skills/dev-implementation/resources/scripts/check_task_contract.py skills/dev-implementation/resources/scripts/task_contract.py` | exit 0 | — |
+| V4 | TIER-B | `mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py skills/dev-implementation/resources/scripts/run_task_checks.py skills/dev-implementation/resources/scripts/check_task_contract.py skills/dev-implementation/resources/scripts/task_contract.py --follow-imports=silent` | exit 0 | — |
 | V5 | TIER-C | `python3 -m pytest skills/dev-implementation/resources/scripts/test_run_task_checks.py skills/dev-implementation/resources/scripts/test_check_task_contract.py --junitxml=build/test-results/task_03.xml` | exit 0; results build/test-results/task_03.xml | — |
 
 ## Stop and Report If

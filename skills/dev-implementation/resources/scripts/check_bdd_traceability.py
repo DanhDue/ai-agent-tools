@@ -55,8 +55,13 @@ def scenario_ids(path: Path) -> tuple[list[str], list[str]]:
         if fence and fence_marker is None:
             fence_marker, in_gherkin = fence.group(1), fence.group(2).lower() == "gherkin"
             continue
-        if (fence and fence.group(1)[0] == fence_marker[0]
-                and len(fence.group(1)) >= len(fence_marker) and not fence.group(2)):
+        if (
+            fence
+            and fence_marker is not None
+            and fence.group(1)[0] == fence_marker[0]
+            and len(fence.group(1)) >= len(fence_marker)
+            and not fence.group(2)
+        ):
             fence_marker, in_gherkin = None, False
             continue
         match = SCENARIO_LINE.match(line) if in_gherkin else None

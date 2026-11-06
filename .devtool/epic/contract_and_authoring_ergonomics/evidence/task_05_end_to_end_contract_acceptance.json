@@ -1,0 +1,310 @@
+{
+  "schema": 1,
+  "task": "task_05_end_to_end_contract_acceptance",
+  "runs": {
+    "verify": {
+      "head": "573a4fb8ea745c8c9efae7ba925f5568b27b087a",
+      "tree": "6d2375c0fcc3717bb15c82ebdf9fbecd70601042",
+      "patch_id": "94328eb31a6b6a5ec826c9e9e89aaf3ca515319f",
+      "started": "2026-11-06T04:33:53Z",
+      "finished": "2026-11-06T04:38:01Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "GREEN",
+          "command": "python3 -m pytest tests/test_task_contract_ergonomics_e2e.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-06T04:33:53Z",
+          "finished": "2026-11-06T04:33:54Z",
+          "output_tail": [
+            "============================= test session starts ==============================",
+            "platform darwin -- Python 3.15.2, pytest-9.2.0, pluggy-1.7.0",
+            "rootdir: /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/contract_and_authoring_ergonomics",
+            "collected 3 items",
+            "",
+            "tests/test_task_contract_ergonomics_e2e.py ...                           [100%]",
+            "",
+            "============================== 3 passed in 0.50s ==============================="
+          ],
+          "output_sha256": "1a83431a620f71b18ae7f72adbff846c6e4ac4066a347deb02f4482570cd0453"
+        },
+        {
+          "id": "V2",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py skills/dev-implementation/resources/scripts/check_bdd_traceability.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-06T04:33:54Z",
+          "finished": "2026-11-06T04:33:54Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V3",
+          "phase": "TIER-B",
+          "command": "mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py skills/dev-implementation/resources/scripts/check_bdd_traceability.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-06T04:33:54Z",
+          "finished": "2026-11-06T04:33:54Z",
+          "output_tail": [
+            "Success: no issues found in 6 source files"
+          ],
+          "output_sha256": "ab35ee42183d4d6d3ba483825ab037d18a5a15622d03be01d82220b1564851ff"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "bash scripts/verify.sh",
+          "expect": "exit 0; contains \"OK\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-06T04:33:54Z",
+          "finished": "2026-11-06T04:36:07Z",
+          "output_tail": [
+            "Requirements brief written to /private/tmp/ag_phungthuy8901/tmpgvfs582i/brief.md",
+            "Watermark acknowledged for domain 'lyrics-sync' -> sha256:8bfd68e874b767ad39456a13275301e498cc73327d42a03fe81c41316428f203",
+            "Requirements brief written to /private/tmp/ag_phungthuy8901/tmpgvfs582i/repeat_brief.md",
+            "Watermark acknowledged for domain 'lyrics-sync' -> sha256:8bfd68e874b767ad39456a13275301e498cc73327d42a03fe81c41316428f203",
+            "Domain 'lyrics-sync' status: IN_SYNC",
+            "Watermark acknowledged for domain 'lyrics-sync' -> sha256:3edd9bf7390404e1f590a303a4cce9f6af47f51468211e19cb33b9008490b3e0",
+            "Domain 'lyrics-sync' status: IN_SYNC",
+            "Requirements brief written to /private/tmp/ag_phungthuy8901/tmpjqi3unqu/brief_refreshed.md",
+            "Watermark acknowledged for domain 'lyrics-sync' -> sha256:f477d182af7660569063045cd0d83f828d8c4e8cdf638fa8f7cfe55f11932f7a",
+            "Domain 'lyrics-sync' status: IN_SYNC",
+            "Watermark acknowledged for domain 'lyrics-sync' -> sha256:8bfd68e874b767ad39456a13275301e498cc73327d42a03fe81c41316428f203",
+            "Watermark acknowledged for domain 'nexus' -> sha256:a408ca396e08787d30287053fc3b2cb24b3168f83dba93d4e3224ecdba09bed6",
+            "Domain 'nexus' scoped check for ['GAP-03']: IN_SYNC",
+            "Domain 'nexus' status: DRIFT_DETECTED",
+            "Pending RFCs: GAP-01, GAP-02",
+            "Watermark acknowledged for domain 'nexus' -> sha256:a408ca396e08787d30287053fc3b2cb24b3168f83dba93d4e3224ecdba09bed6",
+            "Domain 'nexus' status: IN_SYNC",
+            "",
+            "== 15. Context memory management CLI and Tri-Role governance are enforced ==",
+            "......................",
+            "----------------------------------------------------------------------",
+            "Ran 22 tests in 4.118s",
+            "",
+            "OK",
+            "",
+            "== 16. Session refresh CLI engine and isolation contracts are enforced ==",
+            "...............................",
+            "----------------------------------------------------------------------",
+            "Ran 31 tests in 0.006s",
+            "",
+            "OK",
+            "Waiting 30s delay buffer after reset minute...",
+            "Pinging Claude CLI in isolated sandbox...",
+            "",
+            "Session Refresh Summary:",
+            "  • Claude: PASS (10.0ms, 1 tokens)",
+            "",
+            "Session refresh complete. 5-hour rolling quota window is active.",
+            "",
+            "PASS — safe to publish"
+          ],
+          "output_sha256": "3080374d854347b27e873b762f7ce8668aa9e3812c47ba6e7ec9bfec9f16a628"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-C",
+          "command": "python3 -m pytest tests/ skills/dev-implementation/resources/scripts/ --junitxml=build/test-results/pytest.xml",
+          "expect": "exit 0; results build/test-results/pytest.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-06T04:36:07Z",
+          "finished": "2026-11-06T04:38:00Z",
+          "output_tail": [
+            "============================= test session starts ==============================",
+            "platform darwin -- Python 3.15.2, pytest-9.2.0, pluggy-1.7.0",
+            "rootdir: /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/contract_and_authoring_ergonomics",
+            "collected 414 items",
+            "",
+            "tests/test_audit_ui_state_and_styles.py ..........                       [  2%]",
+            "tests/test_playwright_watchdog.py .......                                [  4%]",
+            "tests/test_polyglot_gate4.py .....                                       [  5%]",
+            "tests/test_smoke_checklist_generator.py .....                            [  6%]",
+            "tests/test_task_contract_ergonomics_e2e.py ...                           [  7%]",
+            "tests/test_vanilla_js_checker.py ........                                [  9%]",
+            "tests/test_web_quality_integration.py .                                  [  9%]",
+            "tests/test_web_quality_provider.py .......                               [ 11%]",
+            "tests/test_workflow_anti_rationalization.py ..                           [ 11%]",
+            "skills/dev-implementation/resources/scripts/test_audit_epic.py ......... [ 13%]",
+            "........                                                                 [ 15%]",
+            "skills/dev-implementation/resources/scripts/test_check_bdd_traceability.py . [ 15%]",
+            "......................................                                   [ 25%]",
+            "skills/dev-implementation/resources/scripts/test_check_epic_readiness.py . [ 25%]",
+            "........                                                                 [ 27%]",
+            "skills/dev-implementation/resources/scripts/test_check_task_contract.py . [ 27%]",
+            ".......................................                                  [ 36%]",
+            "skills/dev-implementation/resources/scripts/test_compute_execution_order.py . [ 37%]",
+            "..............sss                                                        [ 41%]",
+            "skills/dev-implementation/resources/scripts/test_local_review.py ....... [ 42%]",
+            ".................................                                        [ 50%]",
+            "skills/dev-implementation/resources/scripts/test_result_reports.py ..... [ 52%]",
+            "....                                                                     [ 53%]",
+            "skills/dev-implementation/resources/scripts/test_run_external_review.py . [ 53%]",
+            "..................................................................       [ 69%]",
+            "skills/dev-implementation/resources/scripts/test_run_task_checks.py .... [ 70%]",
+            "...............................................                          [ 81%]",
+            "skills/dev-implementation/resources/scripts/test_slug_utils.py ......... [ 83%]",
+            ".                                                                        [ 84%]",
+            "skills/dev-implementation/resources/scripts/test_sync_task_status.py ... [ 84%]",
+            "...............................................................          [100%]",
+            "",
+            "- generated xml file: /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/contract_and_authoring_ergonomics/build/test-results/pytest.xml -",
+            "================== 411 passed, 3 skipped in 112.88s (0:01:52) =================="
+          ],
+          "output_sha256": "88994e44cd8cd317a8570db1ddb72495b9387bcd877e84252ed17bef14f7aafb",
+          "results": {
+            "path": "build/test-results/pytest.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 21,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_TCAE_AR_02_idempotent_render",
+                  "classname": "tests.test_task_contract_ergonomics_e2e.TaskContractErgonomics_Integration_E2E_Test",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_TCAE_FR_03_render_unknown_covers_aborts",
+                  "classname": "tests.test_task_contract_ergonomics_e2e.TaskContractErgonomics_Integration_E2E_Test",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_TCAE_ST_02_done_gate_evidence_transition",
+                  "classname": "tests.test_task_contract_ergonomics_e2e.TaskContractErgonomics_Integration_E2E_Test",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_TCAE_FR_01_reject_invalid_evidence_files",
+                  "classname": "skills.dev-implementation.resources.scripts.test_check_task_contract.Evidence_Integration_Test",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_TCAE_HP_01_evidence_files_grounding",
+                  "classname": "skills.dev-implementation.resources.scripts.test_check_task_contract.Evidence_Integration_Test",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_TCAE_HP_02_r2_mirror_parity_check",
+                  "classname": "skills.dev-implementation.resources.scripts.test_check_task_contract.Evidence_Integration_Test",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_TCAE_HP_02_r3_verbatim_bdd_parity_check",
+                  "classname": "skills.dev-implementation.resources.scripts.test_check_task_contract.Evidence_Integration_Test",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_TCAE_HP_01_evidence_files_grounding",
+                  "classname": "skills.dev-implementation.resources.scripts.test_check_task_contract",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_TCAE_EC_03_grep_slash_pattern_excluded",
+                  "classname": "skills.dev-implementation.resources.scripts.test_check_task_contract.SearchPatternGrepTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_TCAE_FR_02_reject_non_portable_and_bare_env",
+                  "classname": "skills.dev-implementation.resources.scripts.test_check_task_contract.SearchPatternGrepTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_TCAE_HP_04_escaped_pipe_and_implicit_protected_provenance",
+                  "classname": "skills.dev-implementation.resources.scripts.test_check_task_contract.SearchPatternGrepTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_TCAE_EC_03_grep_slash_pattern_excluded",
+                  "classname": "skills.dev-implementation.resources.scripts.test_check_task_contract",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_TCAE_HP_01_done_gate_enforces_evidence_files",
+                  "classname": "skills.dev-implementation.resources.scripts.test_run_task_checks.RecorderTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_TCAE_AR_01_concurrent_env_isolation",
+                  "classname": "skills.dev-implementation.resources.scripts.test_run_task_checks.D3Nexus_Cli_Integration_Test",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_TCAE_HP_03_d3nexus_zero_setup_env",
+                  "classname": "skills.dev-implementation.resources.scripts.test_run_task_checks.D3Nexus_Cli_Integration_Test",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_TCAE_HP_03_d3nexus_zero_setup_env",
+                  "classname": "skills.dev-implementation.resources.scripts.test_run_task_checks",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_TCAE_EC_01_legacy_task_backward_compatible",
+                  "classname": "skills.dev-implementation.resources.scripts.test_sync_task_status.SingleSourceRender_Integration_Test",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_TCAE_EC_02_embedded_code_fence_promotion",
+                  "classname": "skills.dev-implementation.resources.scripts.test_sync_task_status.SingleSourceRender_Integration_Test",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_TCAE_HP_02_render_single_source",
+                  "classname": "skills.dev-implementation.resources.scripts.test_sync_task_status.SingleSourceRender_Integration_Test",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_TCAE_ST_01_orphan_mirrors_and_location_aware_links",
+                  "classname": "skills.dev-implementation.resources.scripts.test_sync_task_status.SingleSourceRender_Integration_Test",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_TCAE_HP_02_render_single_source",
+                  "classname": "skills.dev-implementation.resources.scripts.test_sync_task_status",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "scripts/test_verifiable_handoff.py",
+            "skills/dev-implementation/resources/scripts/check_bdd_traceability.py",
+            "skills/dev-implementation/resources/scripts/check_task_contract.py",
+            "skills/dev-implementation/resources/scripts/test_check_task_contract.py",
+            "tests/test_task_contract_ergonomics_e2e.py"
+          ],
+          "violations": []
+        }
+      ]
+    }
+  }
+}

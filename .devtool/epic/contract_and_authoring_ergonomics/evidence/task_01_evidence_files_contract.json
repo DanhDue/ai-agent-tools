@@ -1,0 +1,209 @@
+{
+  "schema": 1,
+  "task": "task_01_evidence_files_contract",
+  "runs": {
+    "red": {
+      "head": "12071d23c6931d6f7270e0c238ba1dc000983c8d",
+      "tree": "3332926cf5fd45748d9b5c451f8e512bf6c6dea5",
+      "patch_id": "cef8962d2fec9c2bde11aaf56ecbba37344acfc6",
+      "started": "2026-11-06T01:32:12Z",
+      "finished": "2026-11-06T01:32:13Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m pytest skills/dev-implementation/resources/scripts/test_check_task_contract.py::test_TCAE_HP_01_evidence_files_grounding",
+          "expect": "exit 1; contains \"FAILED\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-06T01:32:12Z",
+          "finished": "2026-11-06T01:32:13Z",
+          "output_tail": [
+            "            (root / \".gitignore\").write_text(\"build/\\n\", encoding=\"utf-8\")",
+            "            (root / \"tool.py\").write_text(\"print('x')\\n\", encoding=\"utf-8\")",
+            "            (root / \"README.md\").write_text(\"demo\\n\", encoding=\"utf-8\")",
+            "            epic_dir = root / EPIC",
+            "            epic_dir.mkdir(parents=True, exist_ok=True)",
+            "            (epic_dir / \"demo.en.md\").write_text(HLD, encoding=\"utf-8\")",
+            "            evidence_file = \".devtool/epic/demo/evidence/baseline.txt\"",
+            "            task_content = task_text(",
+            "                allowed=\"- `tool.py`\",",
+            "                rows=RED",
+            "                + GREEN",
+            "                + \"| V3 | TIER-B | `ruff check tool.py` | exit 0 | — |\\n\"",
+            "                + \"| V4 | TIER-B | `mypy --strict tool.py` | exit 0 | — |\\n\"",
+            "                + f\"| V5 | TIER-C | `python3 tool.py int --evidence={evidence_file} --out=build/out.xml` | exit 0; results build/out.xml | — |\\n\",",
+            "                dod=\"- done (V2, V3, V4, V5)\\n\",",
+            "                decisions=\"- Testing evidence files contract.\\n\",",
+            "            )",
+            "            task_body = (",
+            "                \"Allowed files:\\n- `tool.py`\\n\\n\"",
+            "                f\"Evidence files:\\n- `{evidence_file}` (new)\\n\\n\"",
+            "                \"Read-only context:\\n- `README.md` — note\\n\"",
+            "            )",
+            "            task_content = task_content.replace(",
+            "                \"Allowed files:\\n- `tool.py`\\n\\nRead-only context:\\n- `README.md` — note\\n\",",
+            "                task_body,",
+            "            )",
+            "            task_path = epic_dir / \"task_1_evidence.md\"",
+            "            task_path.write_text(task_content, encoding=\"utf-8\")",
+            "            git(root, \"add\", \"-A\")",
+            "            git(root, \"commit\", \"-q\", \"-m\", \"base\")",
+            "    ",
+            "            import task_contract as tc",
+            ">           ev_entries = tc.parse_evidence_files(task_content)",
+            "                         ^^^^^^^^^^^^^^^^^^^^^^^",
+            "E           AttributeError: module 'task_contract' has no attribute 'parse_evidence_files'",
+            "",
+            "skills/dev-implementation/resources/scripts/test_check_task_contract.py:498: AttributeError",
+            "=========================== short test summary info ============================",
+            "FAILED skills/dev-implementation/resources/scripts/test_check_task_contract.py::test_TCAE_HP_01_evidence_files_grounding",
+            "============================== 1 failed in 0.10s ==============================="
+          ],
+          "output_sha256": "074b1788f977841aae8b508198e60bf072f01263896e7d942d8f4a1402c0164f"
+        }
+      ]
+    },
+    "verify": {
+      "head": "12071d23c6931d6f7270e0c238ba1dc000983c8d",
+      "tree": "4fbd0e12c93a7507476919796c5a562c32bd075e",
+      "patch_id": "2c6a1c7941704b2d25056e88c327bd3cc45a4e7c",
+      "started": "2026-11-06T01:41:24Z",
+      "finished": "2026-11-06T01:41:52Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m pytest skills/dev-implementation/resources/scripts/test_check_task_contract.py skills/dev-implementation/resources/scripts/test_run_task_checks.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-06T01:41:24Z",
+          "finished": "2026-11-06T01:41:38Z",
+          "output_tail": [
+            "============================= test session starts ==============================",
+            "platform darwin -- Python 3.15.2, pytest-9.2.0, pluggy-1.7.0",
+            "rootdir: /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/contract_and_authoring_ergonomics",
+            "collected 79 items",
+            "",
+            "skills/dev-implementation/resources/scripts/test_check_task_contract.py . [  1%]",
+            "..............................                                           [ 39%]",
+            "skills/dev-implementation/resources/scripts/test_run_task_checks.py .... [ 44%]",
+            "............................................                             [100%]",
+            "",
+            "============================= 79 passed in 14.15s =============================="
+          ],
+          "output_sha256": "5b15ad7452922538dc947079427c5db6a930e6a7c545c84bb5d8034caa8b1b2b"
+        },
+        {
+          "id": "V3",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py skills/dev-implementation/resources/scripts/task_contract.py skills/dev-implementation/resources/scripts/check_task_contract.py skills/dev-implementation/resources/scripts/test_check_task_contract.py skills/dev-implementation/resources/scripts/test_run_task_checks.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-06T01:41:38Z",
+          "finished": "2026-11-06T01:41:38Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py skills/dev-implementation/resources/scripts/task_contract.py skills/dev-implementation/resources/scripts/check_task_contract.py --follow-imports=silent",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-06T01:41:38Z",
+          "finished": "2026-11-06T01:41:38Z",
+          "output_tail": [
+            "Success: no issues found in 7 source files"
+          ],
+          "output_sha256": "050c52a2b0c61e8b681ef5c485e0bc03340b8d55148e0acef27d744c8be42033"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-C",
+          "command": "python3 -m pytest skills/dev-implementation/resources/scripts/test_check_task_contract.py skills/dev-implementation/resources/scripts/test_run_task_checks.py --junitxml=build/test-results/task_01.xml",
+          "expect": "exit 0; results build/test-results/task_01.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-06T01:41:38Z",
+          "finished": "2026-11-06T01:41:52Z",
+          "output_tail": [
+            "============================= test session starts ==============================",
+            "platform darwin -- Python 3.15.2, pytest-9.2.0, pluggy-1.7.0",
+            "rootdir: /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/contract_and_authoring_ergonomics",
+            "collected 79 items",
+            "",
+            "skills/dev-implementation/resources/scripts/test_check_task_contract.py . [  1%]",
+            "..............................                                           [ 39%]",
+            "skills/dev-implementation/resources/scripts/test_run_task_checks.py .... [ 44%]",
+            "............................................                             [100%]",
+            "",
+            "- generated xml file: /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/contract_and_authoring_ergonomics/build/test-results/task_01.xml -",
+            "============================= 79 passed in 13.18s =============================="
+          ],
+          "output_sha256": "7310c8113ee06712cada57520e4d69920fce70e10afac401457010fd361f487d",
+          "results": {
+            "path": "build/test-results/task_01.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 4,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_TCAE_FR_01_reject_invalid_evidence_files",
+                  "classname": "skills.dev-implementation.resources.scripts.test_check_task_contract.Evidence_Integration_Test",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_TCAE_HP_01_evidence_files_grounding",
+                  "classname": "skills.dev-implementation.resources.scripts.test_check_task_contract.Evidence_Integration_Test",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_TCAE_HP_01_evidence_files_grounding",
+                  "classname": "skills.dev-implementation.resources.scripts.test_check_task_contract",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_TCAE_HP_01_done_gate_enforces_evidence_files",
+                  "classname": "skills.dev-implementation.resources.scripts.test_run_task_checks.RecorderTest",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "skills/dev-implementation/resources/scripts/check_task_contract.py",
+            "skills/dev-implementation/resources/scripts/task_contract.py",
+            "skills/dev-implementation/resources/scripts/test_check_task_contract.py",
+            "skills/dev-implementation/resources/scripts/test_run_task_checks.py"
+          ],
+          "violations": []
+        }
+      ]
+    }
+  }
+}

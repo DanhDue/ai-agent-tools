@@ -35,14 +35,16 @@ DONE_LINE = "- done (V1)\n"
 
 def task_text(rows: str = DEFAULT_ROWS, allowed: str = "- `tool.py`", dod: str | None = None,
               covers: str = "", status: str = "todo", read_only: str = "- `README.md` — note",
-              after_table: str = "", skip: str = "", decisions: str = "- Grounded design decision.\n") -> str:
+              after_table: str = "", skip: str = "", decisions: str = "- Grounded design decision.\n",
+              evidence: str = "") -> str:
     if dod is None:
         row_ids = [m.group(1) for m in re.finditer(r"^\|\s*([^|]+?)\s*\|\s*[^|]+\s*\|", rows, re.MULTILINE)
                    if m.group(1) not in ("ID", "") and not m.group(1).startswith("-")]
         non_v1 = [r for r in row_ids if r != "V1"]
         dod = f"- done ({', '.join(non_v1)})\n" if non_v1 else "- done (Gate 5)\n"
+    ev_part = f"\nEvidence files:\n{evidence}\n" if evidence else ""
     sections = {
-        "Files": f"Allowed files:\n{allowed}\n\nRead-only context:\n{read_only}\n",
+        "Files": f"Allowed files:\n{allowed}\n{ev_part}\nRead-only context:\n{read_only}\n",
         "Verification": f"{HEAD}{rows}\n{after_table}",
         "Definition of Done": dod,
         "Stop and Report If": "- A command does not match.\n",
@@ -421,5 +423,230 @@ class PythonTierBAndFastModelTest(ContractCase):
         self.assertIn("lacks integration runner provenance", res["WQG-HP-01"][1])
 
 
+class Evidence_Integration_Test(ContractCase):
+    def test_TCAE_HP_01_evidence_files_grounding(self) -> None:
+        """Integration class version of TCAE-HP-01 for Tier C provenance."""
+        test_TCAE_HP_01_evidence_files_grounding()
+
+    def test_TCAE_FR_01_reject_invalid_evidence_files(self) -> None:
+        """[TCAE-FR-01] Reject Evidence files with traversal, outside directory, or reserved runner record."""
+        # 1. Path traversal
+        t1 = self.task("1_trav", evidence="- `.devtool/epic/demo/../secret.txt` (new)")
+        code, out, _ = self.check(t1, design=True)
+        self.assertEqual(code, 1)
+        self.assertIn("must reside under .devtool/epic/<epic_dir>/evidence/ without '..' segments", out)
+
+        # 2. Outside epic evidence
+        t2 = self.task("2_out", evidence="- `src/output.json` (new)")
+        code, out, _ = self.check(t2, design=True)
+        self.assertEqual(code, 1)
+        self.assertIn("must reside under .devtool/epic/<epic_dir>/evidence/ without '..' segments", out)
+
+        # 3. Collides with reserved runner task record
+        t3 = self.task("3_coll", evidence="- `.devtool/epic/demo/evidence/task_01_setup.json` (new)")
+        code, out, _ = self.check(t3, design=True)
+        self.assertEqual(code, 1)
+        self.assertIn("collides with reserved 'task_*.json' runner records", out)
+
+        # 4. Marked (new) but already exists at design time
+        self.write(f"{EPIC}/evidence/existing.txt", "pre-existing")
+        t4 = self.task("4_exist", evidence=f"- `{EPIC}/evidence/existing.txt` (new)")
+        code, out, _ = self.check(t4, design=True)
+        self.assertEqual(code, 1)
+        self.assertIn("marked (new) but already exists", out)
+
+    def test_TCAE_HP_02_r3_verbatim_bdd_parity_check(self) -> None:
+        """[TCAE-HP-02] check_task_contract --design reports R3 when task BDD differs from bdd_scenarios.en.md."""
+        bdd_content = "# Scenarios\n\n```gherkin\nScenario: [DEMO-HP-01] Valid scenario\n  Given a state\n  When action occurs\n  Then result happens\n```\n"
+        self.write(f"{EPIC}/bdd_scenarios.en.md", bdd_content)
+        self.commit()
+
+        # Task with mismatched BDD scenario
+        task = self.task(
+            "1_mismatch",
+            allowed="- `tool.py`",
+            covers="Covers: DEMO-HP-01\n\n```gherkin\nScenario: [DEMO-HP-01] Mismatched scenario\n  Given bad state\n```\n",
+            rows=RED + GREEN +
+                 "| V3 | TIER-B | `ruff check tool.py` | exit 0 | — |\n"
+                 "| V4 | TIER-B | `mypy --strict tool.py` | exit 0 | — |\n" + TIER_C,
+            dod="- done (V2, V3, V4, V5)\n",
+            decisions="- Testing R3 mismatch.\n",
+        )
+        code, out, _ = self.check(task, design=True)
+        self.assertEqual(code, 1)
+        self.assertIn("scenario DEMO-HP-01 differs from bdd_scenarios.en.md (R3)", out)
+
+    def test_TCAE_HP_02_r2_mirror_parity_check(self) -> None:
+        """[TCAE-HP-02] check_task_contract --design reports R2 when mirror differs from epic task."""
+        task = self.task("1_parity", allowed="- `tool.py`")
+        # Create a modified mirror in .devtool/features/
+        self.write(f".devtool/features/{task.name}", "# Different mirror content\n")
+        code, out, _ = self.check(task, design=True)
+        self.assertEqual(code, 1)
+        self.assertIn("features mirror content differs from epic task (R2)", out)
+
+
+def test_TCAE_HP_01_evidence_files_grounding() -> None:
+    """[TCAE-HP-01] Evidence files declaration grounds new evidence paths in design mode."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp).resolve()
+        git(root, "init", "-q")
+        git(root, "config", "user.email", "demo@example.com")
+        git(root, "config", "user.name", "Demo")
+        (root / ".gitignore").write_text("build/\n", encoding="utf-8")
+        (root / "tool.py").write_text("print('x')\n", encoding="utf-8")
+        (root / "README.md").write_text("demo\n", encoding="utf-8")
+        epic_dir = root / EPIC
+        epic_dir.mkdir(parents=True, exist_ok=True)
+        (epic_dir / "demo.en.md").write_text(HLD, encoding="utf-8")
+        evidence_file = ".devtool/epic/demo/evidence/baseline.txt"
+        task_content = task_text(
+            allowed="- `tool.py`",
+            rows=RED
+            + GREEN
+            + "| V3 | TIER-B | `ruff check tool.py` | exit 0 | — |\n"
+            + "| V4 | TIER-B | `mypy --strict tool.py` | exit 0 | — |\n"
+            + f"| V5 | TIER-C | `python3 tool.py int --evidence={evidence_file} --out=build/out.xml` | exit 0; results build/out.xml | — |\n",
+            dod="- done (V2, V3, V4, V5)\n",
+            decisions="- Testing evidence files contract.\n",
+        )
+        task_body = (
+            "Allowed files:\n- `tool.py`\n\n"
+            f"Evidence files:\n- `{evidence_file}` (new)\n\n"
+            "Read-only context:\n- `README.md` — note\n"
+        )
+        task_content = task_content.replace(
+            "Allowed files:\n- `tool.py`\n\nRead-only context:\n- `README.md` — note\n",
+            task_body,
+        )
+        task_path = epic_dir / "task_1_evidence.md"
+        task_path.write_text(task_content, encoding="utf-8")
+        git(root, "add", "-A")
+        git(root, "commit", "-q", "-m", "base")
+
+        import task_contract as tc
+        ev_entries = tc.parse_evidence_files(task_content)
+        assert len(ev_entries) == 1
+        assert ev_entries[0].pattern == evidence_file
+        assert ev_entries[0].new is True
+
+        cur = os.getcwd()
+        os.chdir(root)
+        try:
+            out, err = io.StringIO(), io.StringIO()
+            with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+                code = main(["--design", "--hld", f"{EPIC}/demo.en.md", "--tasks", str(task_path)])
+            assert code == 0, out.getvalue()
+            assert "Result: 0 problems — PASS" in out.getvalue()
+        finally:
+            os.chdir(cur)
+
+
+class PortableD3NexusCliTest(ContractCase):
+    def test_non_portable_path_rejected(self) -> None:
+        """Reject hardcoded user home or plugin cache paths in Verification rows."""
+        for bad_path, expected_match in [
+            ("/Users/alice/tools/check.py", "/Users/"),
+            ("/home/bob/scripts/check.sh", "/home/"),
+            ("~/my_tools/lint.py", "~/"),
+            (".claude/plugins/cache/check.py", ".claude/plugins/cache/"),
+            (".gemini/config/plugins/check.py", ".gemini/config/plugins/"),
+        ]:
+            task = self.task(
+                f"non_portable_{expected_match.strip('/.~')}",
+                allowed="- `tool.py`",
+                rows=f"| V1 | GREEN | `python3 {bad_path}` | exit 0 | — |\n",
+                dod="- done (V1)\n",
+            )
+            code, out, _ = self.check(task)
+            self.assertEqual(code, 1)
+            self.assertIn(
+                f"non-portable path '{expected_match}' in command; use 'd3nexus <subcommand>' or '$D3NEXUS_KIT/...'",
+                out,
+            )
+
+    def test_d3nexus_executable_recognized_without_warning(self) -> None:
+        """d3nexus is recognized as a built-in kit executable without PATH warnings."""
+        task = self.task(
+            "d3nexus_ok",
+            allowed="- `tool.py`",
+            rows="| V1 | GREEN | `d3nexus check-doc --require-toc README.md` | exit 0 | — |\n",
+            dod="- done (V1)\n",
+        )
+        code, out, _ = self.check(task)
+        self.assertNotIn("executable d3nexus not found on PATH", out)
+
+    def test_d3nexus_subcommand_resolves_implicit_checker(self) -> None:
+        """d3nexus <subcommand> resolves to tracked script preserving implicit checker protection."""
+        self.write("skills/doc_quality_check/resources/scripts/check_document.py", "# linter\n")
+        self.commit()
+        import task_contract as tc
+        resolved = tc.program_of("d3nexus check-doc --require-toc README.md", self.root)
+        self.assertEqual(resolved, "skills/doc_quality_check/resources/scripts/check_document.py")
+
+
+class SearchPatternGrepTest(ContractCase):
+    def test_TCAE_EC_03_grep_slash_pattern_excluded(self) -> None:
+        """[TCAE-EC-03] Search patterns containing slashes in grep, rg, sed, and awk are not flagged as missing paths."""
+        task = self.task(
+            "grep_slash",
+            allowed="- `tool.py`",
+            rows=RED
+            + "| V2 | GREEN | `grep -E 'foo/bar/baz' README.md` | exit 0 | — |\n"
+            + TIER_B
+            + TIER_C,
+        )
+        code, out, _ = self.check(task)
+        self.assertEqual(code, 0, out)
+        self.assertNotIn("foo/bar/baz does not exist", out)
+
+    def test_TCAE_HP_04_escaped_pipe_and_implicit_protected_provenance(self) -> None:
+        """[TCAE-HP-04] Verification row grammar with escaped pipes, env assignments, and implicit protected path provenance."""
+        self.write("scripts/tool.py", "print('ok')\n")
+        self.commit()
+        task = self.task(
+            "01_pipe",
+            allowed="- `tool.py`",
+            rows="| V1 | RED | `env MODE=strict python3 scripts/tool.py \\| grep -c ok` | exit 1; contains \"FAILED\" | — |\n"
+            + GREEN
+            + TIER_B
+            + TIER_C,
+        )
+        code, out, _ = self.check(task, design=True)
+        self.assertEqual(code, 0, out)
+        self.assertIn("Implicit protected paths: scripts/tool.py (task_01_pipe:V1), tool.py", out)
+
+    def test_TCAE_FR_02_reject_non_portable_and_bare_env(self) -> None:
+        """[TCAE-FR-02] Reject hardcoded user home or plugin cache paths and bare VAR=value in Verification rows."""
+        task = self.task(
+            "02_grammar_violations",
+            allowed="- `tool.py`",
+            rows="| V1 | RED | `python3 /Users/alice/antigravity_homes/tess/.claude/plugins/cache/check_document.py` | exit 1; contains \"FAILED\" | — |\n"
+            + "| V2 | GREEN | `FOO=bar pytest tests/unit/test_sample.py::test_ok` | exit 0 | — |\n"
+            + TIER_B
+            + TIER_C,
+        )
+        code, out, _ = self.check(task, design=True)
+        self.assertEqual(code, 1)
+        self.assertIn(
+            "task_02_grammar_violations:V1: non-portable path '/Users/' in command; use 'd3nexus <subcommand>' or '$D3NEXUS_KIT/...'",
+            out,
+        )
+        self.assertIn(
+            "task_02_grammar_violations:V2: inline environment assignment 'FOO=bar' must be prefixed with 'env' (e.g. 'env FOO=bar ...')",
+            out,
+        )
+
+
+def test_TCAE_EC_03_grep_slash_pattern_excluded() -> None:
+    test = SearchPatternGrepTest()
+    test.setUp()
+    try:
+        test.test_TCAE_EC_03_grep_slash_pattern_excluded()
+    finally:
+        test.doCleanups()
+
+
 if __name__ == "__main__":
     unittest.main()
+
