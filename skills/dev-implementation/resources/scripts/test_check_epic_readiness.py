@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any
 
 SCRIPTS_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(SCRIPTS_DIR))
 SCRIPT_PATH = SCRIPTS_DIR / "check_epic_readiness.py"
 
 # Try importing the module under test
