@@ -30,8 +30,9 @@ TICKS = "`" * 3
 
 
 def task_text(rows: str, allowed: str = "- `feature.txt` (new)", after_table: str = "",
-              head: str = TABLE_HEAD) -> str:
-    return (f"# Task 1\n\n## Files\n\nAllowed files:\n{allowed}\n\nRead-only context:\n- `x` - note\n\n"
+              head: str = TABLE_HEAD, evidence: str = "") -> str:
+    ev_part = f"\nEvidence files:\n{evidence}\n" if evidence else ""
+    return (f"# Task 1\n\n## Files\n\nAllowed files:\n{allowed}\n{ev_part}\nRead-only context:\n- `x` - note\n\n"
             f"## Verification\n\n{head}{rows}\n{after_table}\n## Definition of Done\n\n- done (V1)\n")
 
 
@@ -496,6 +497,36 @@ class RecorderTest(RepoCase):
         self.assertEqual((code, "verify: head" in out, "V1 GREEN PASS" in out), (0, True, True))
         self.assertIn("done gate: PASS", out)
         self.assertEqual(self.run_cli("status")[0], 2)
+
+    def test_TCAE_HP_01_done_gate_enforces_evidence_files(self) -> None:
+        """[TCAE-HP-01] Done gate condition 8 requires declared Evidence files to exist and be non-empty."""
+        ev_rel = f"{EPIC}/evidence/baseline.txt"
+        task = self.epic(
+            "| V1 | GREEN | `true` | exit 0 | — |\n",
+            allowed="- `feature.txt` (new)",
+            evidence=f"- `{ev_rel}` (new)",
+        )
+        self.write("feature.txt", "code\n")
+        self.assertEqual(self.run_cli("verify", task)[0], 0)
+
+        # 1. Baseline file does not exist yet -> status fails condition 8
+        code, out, _ = self.run_cli("status", task)
+        self.assertEqual(code, 1)
+        self.assertIn("done gate: FAIL", out)
+        self.assertIn(f"condition 8: evidence file {ev_rel} declared in Evidence files was not created or is empty", out)
+
+        # 2. Baseline file exists but is empty (0 bytes) -> still fails condition 8
+        self.write(ev_rel, "")
+        code, out, _ = self.run_cli("status", task)
+        self.assertEqual(code, 1)
+        self.assertIn("done gate: FAIL", out)
+        self.assertIn(f"condition 8: evidence file {ev_rel} declared in Evidence files was not created or is empty", out)
+
+        # 3. Baseline file exists and is non-empty -> passes done gate!
+        self.write(ev_rel, "evidence content\n")
+        code, out, _ = self.run_cli("status", task)
+        self.assertEqual(code, 0)
+        self.assertIn("done gate: PASS", out)
 
 
 class PytestRedSemanticsTest(RepoCase):

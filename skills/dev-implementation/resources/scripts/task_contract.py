@@ -29,6 +29,7 @@ ROW_ID = re.compile(r"V[0-9]+")
 CODE_SPAN = re.compile(r"`([^`]+)`")
 RED_NA = re.compile(r"^RED:\s*n/a\s*[—-]\s*(.+?)\s*$")
 ALLOWED_BULLET = re.compile(r"^- `([^`]+)`( \(new\))?\s*$")
+EVIDENCE_FILE_RE = re.compile(r"^\.devtool/epic/[A-Za-z0-9_-]+/evidence/[A-Za-z0-9_.-]+$")
 ENVIRONMENT_HEADING = re.compile(r"^## (?:\d+\.\s*)?Verification Environment\s*$")
 INTERPRETERS = {"python", "python3", "bash", "sh", "zsh", "node", "deno", "ruby", "perl"}
 CONTROL_TOKENS = {"&&", "||", ";", "|"}
@@ -182,6 +183,23 @@ def parse_allowed_files(task_text: str) -> list[AllowedPath]:
             break
         allowed.append(AllowedPath(bullet.group(1), bool(bullet.group(2))))
     return allowed
+
+
+def parse_evidence_files(task_text: str) -> list[AllowedPath]:
+    body = section(task_text, "Files") or ""
+    evidence: list[AllowedPath] = []
+    listing = False
+    for line in body.splitlines():
+        if not listing:
+            listing = line.strip() == "Evidence files:"
+            continue
+        bullet = ALLOWED_BULLET.match(line)
+        if not bullet:
+            if not line.strip() and not evidence:
+                continue
+            break
+        evidence.append(AllowedPath(bullet.group(1), bool(bullet.group(2))))
+    return evidence
 
 
 def parse_protected_paths(hld_text: str) -> list[str]:
@@ -400,8 +418,9 @@ def row_problems(rows: list[Row], runs: dict) -> list[str]:
 def evaluate_done_gate(task_file: Path) -> list[str]:
     """One message per failed done-gate condition for a task mirror; empty when the gate passes."""
     layout = epic_layout(task_file)
+    task_text = Path(task_file).read_text(encoding="utf-8")
     try:
-        rows, red_na = parse_verification(Path(task_file).read_text(encoding="utf-8"))
+        rows, red_na = parse_verification(task_text)
     except ContractError as error:
         return [f"condition 2: {error}"]
     evidence = load_evidence(layout.evidence)
@@ -445,4 +464,10 @@ def evaluate_done_gate(task_file: Path) -> list[str]:
     if scope is None or scope["outcome"] != "PASS":
         detail = "; ".join(scope.get("violations", [])) if scope else "no SCOPE row"
         problems.append(f"condition 7: SCOPE row is not PASS ({detail})")
+    for ev in parse_evidence_files(task_text):
+        ev_path = layout.root / ev.pattern
+        if not ev_path.is_file() or ev_path.stat().st_size == 0:
+            problems.append(
+                f"condition 8: evidence file {ev.pattern} declared in Evidence files was not created or is empty"
+            )
     return problems

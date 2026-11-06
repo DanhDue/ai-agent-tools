@@ -3,11 +3,11 @@
   "task": "task_01_evidence_files_contract",
   "runs": {
     "red": {
-      "head": "fd537622d03269d35f2af2c2fdf205109a2cbf9e",
-      "tree": "2508bceedd288dbbd5f17591be74478a59e69cd7",
-      "patch_id": "be64ebcca537dc13e030288e1ceb9803e64ba0d3",
-      "started": "2026-11-05T23:05:35Z",
-      "finished": "2026-11-05T23:05:35Z",
+      "head": "12071d23c6931d6f7270e0c238ba1dc000983c8d",
+      "tree": "3332926cf5fd45748d9b5c451f8e512bf6c6dea5",
+      "patch_id": "cef8962d2fec9c2bde11aaf56ecbba37344acfc6",
+      "started": "2026-11-06T01:32:12Z",
+      "finished": "2026-11-06T01:32:13Z",
       "rows": [
         {
           "id": "V1",
@@ -18,8 +18,8 @@
           "exit": 1,
           "outcome": "PASS",
           "reason": null,
-          "started": "2026-11-05T23:05:35Z",
-          "finished": "2026-11-05T23:05:35Z",
+          "started": "2026-11-06T01:32:12Z",
+          "finished": "2026-11-06T01:32:13Z",
           "output_tail": [
             "            (root / \".gitignore\").write_text(\"build/\\n\", encoding=\"utf-8\")",
             "            (root / \"tool.py\").write_text(\"print('x')\\n\", encoding=\"utf-8\")",
@@ -57,21 +57,21 @@
             "                         ^^^^^^^^^^^^^^^^^^^^^^^",
             "E           AttributeError: module 'task_contract' has no attribute 'parse_evidence_files'",
             "",
-            "skills/dev-implementation/resources/scripts/test_check_task_contract.py:467: AttributeError",
+            "skills/dev-implementation/resources/scripts/test_check_task_contract.py:498: AttributeError",
             "=========================== short test summary info ============================",
             "FAILED skills/dev-implementation/resources/scripts/test_check_task_contract.py::test_TCAE_HP_01_evidence_files_grounding",
-            "============================== 1 failed in 0.09s ==============================="
+            "============================== 1 failed in 0.10s ==============================="
           ],
-          "output_sha256": "714141ab899b0ac3e81a45c48ee0c3d1b8e900ac912a0d258062abaf9b0ed535"
+          "output_sha256": "074b1788f977841aae8b508198e60bf072f01263896e7d942d8f4a1402c0164f"
         }
       ]
     },
     "verify": {
-      "head": "fd537622d03269d35f2af2c2fdf205109a2cbf9e",
-      "tree": "979c4f34bb48ecaf09ed8775185478d17df7eeed",
-      "patch_id": "cc38802669e05dc4639b8152cb19eeb37880b342",
-      "started": "2026-11-06T00:25:05Z",
-      "finished": "2026-11-06T00:25:31Z",
+      "head": "12071d23c6931d6f7270e0c238ba1dc000983c8d",
+      "tree": "4fbd0e12c93a7507476919796c5a562c32bd075e",
+      "patch_id": "2c6a1c7941704b2d25056e88c327bd3cc45a4e7c",
+      "started": "2026-11-06T01:41:24Z",
+      "finished": "2026-11-06T01:41:52Z",
       "rows": [
         {
           "id": "V2",
@@ -82,8 +82,8 @@
           "exit": 0,
           "outcome": "PASS",
           "reason": null,
-          "started": "2026-11-06T00:25:05Z",
-          "finished": "2026-11-06T00:25:18Z",
+          "started": "2026-11-06T01:41:24Z",
+          "finished": "2026-11-06T01:41:38Z",
           "output_tail": [
             "============================= test session starts ==============================",
             "platform darwin -- Python 3.15.2, pytest-9.2.0, pluggy-1.7.0",
@@ -95,9 +95,9 @@
             "skills/dev-implementation/resources/scripts/test_run_task_checks.py .... [ 44%]",
             "............................................                             [100%]",
             "",
-            "============================= 79 passed in 13.41s =============================="
+            "============================= 79 passed in 14.15s =============================="
           ],
-          "output_sha256": "291d788a662ae1f700f5c44f8601bdc17fa2413a850c8aa09aaf5e77828c7593"
+          "output_sha256": "5b15ad7452922538dc947079427c5db6a930e6a7c545c84bb5d8034caa8b1b2b"
         },
         {
           "id": "V3",
@@ -108,8 +108,8 @@
           "exit": 0,
           "outcome": "PASS",
           "reason": null,
-          "started": "2026-11-06T00:25:18Z",
-          "finished": "2026-11-06T00:25:18Z",
+          "started": "2026-11-06T01:41:38Z",
+          "finished": "2026-11-06T01:41:38Z",
           "output_tail": [
             "All checks passed!"
           ],
@@ -118,20 +118,18 @@
         {
           "id": "V4",
           "phase": "TIER-B",
-          "command": "mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py --follow-imports=silent skills/dev-implementation/resources/scripts/task_contract.py skills/dev-implementation/resources/scripts/check_task_contract.py",
+          "command": "mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py skills/dev-implementation/resources/scripts/task_contract.py skills/dev-implementation/resources/scripts/check_task_contract.py --follow-imports=silent",
           "expect": "exit 0",
           "needs": [],
-          "exit": 2,
-          "outcome": "FAIL",
-          "reason": "exit 2, expected 0",
-          "started": "2026-11-06T00:25:18Z",
-          "finished": "2026-11-06T00:25:18Z",
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-06T01:41:38Z",
+          "finished": "2026-11-06T01:41:38Z",
           "output_tail": [
-            "usage: mypy [-h] [-v] [-V] [more options; see below]",
-            "            [-m MODULE] [-p PACKAGE] [-c PROGRAM_TEXT] [files ...]",
-            "mypy: error: unrecognized arguments: skills/dev-implementation/resources/scripts/task_contract.py skills/dev-implementation/resources/scripts/check_task_contract.py"
+            "Success: no issues found in 7 source files"
           ],
-          "output_sha256": "0357fefbb3608bd6a16a8073b12af447271d5ea4cd4fb6a3a7eb8b35fd38cb7f"
+          "output_sha256": "050c52a2b0c61e8b681ef5c485e0bc03340b8d55148e0acef27d744c8be42033"
         },
         {
           "id": "V5",
@@ -142,8 +140,8 @@
           "exit": 0,
           "outcome": "PASS",
           "reason": null,
-          "started": "2026-11-06T00:25:18Z",
-          "finished": "2026-11-06T00:25:31Z",
+          "started": "2026-11-06T01:41:38Z",
+          "finished": "2026-11-06T01:41:52Z",
           "output_tail": [
             "============================= test session starts ==============================",
             "platform darwin -- Python 3.15.2, pytest-9.2.0, pluggy-1.7.0",
@@ -156,9 +154,9 @@
             "............................................                             [100%]",
             "",
             "- generated xml file: /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/contract_and_authoring_ergonomics/build/test-results/task_01.xml -",
-            "============================= 79 passed in 12.06s =============================="
+            "============================= 79 passed in 13.18s =============================="
           ],
-          "output_sha256": "70f1b3995b35615698a6ae94f36ca97adfadb4d61180c81825722210d74c2a4b",
+          "output_sha256": "7310c8113ee06712cada57520e4d69920fce70e10afac401457010fd361f487d",
           "results": {
             "path": "build/test-results/task_01.xml",
             "fresh": true,
@@ -171,12 +169,12 @@
               "cases": [
                 {
                   "name": "test_TCAE_FR_01_reject_invalid_evidence_files",
-                  "classname": "skills.dev-implementation.resources.scripts.test_check_task_contract.EvidenceContractIntegrationTest",
+                  "classname": "skills.dev-implementation.resources.scripts.test_check_task_contract.Evidence_Integration_Test",
                   "status": "passed"
                 },
                 {
                   "name": "test_TCAE_HP_01_evidence_files_grounding",
-                  "classname": "skills.dev-implementation.resources.scripts.test_check_task_contract.EvidenceContractIntegrationTest",
+                  "classname": "skills.dev-implementation.resources.scripts.test_check_task_contract.Evidence_Integration_Test",
                   "status": "passed"
                 },
                 {

@@ -35,14 +35,16 @@ DONE_LINE = "- done (V1)\n"
 
 def task_text(rows: str = DEFAULT_ROWS, allowed: str = "- `tool.py`", dod: str | None = None,
               covers: str = "", status: str = "todo", read_only: str = "- `README.md` — note",
-              after_table: str = "", skip: str = "", decisions: str = "- Grounded design decision.\n") -> str:
+              after_table: str = "", skip: str = "", decisions: str = "- Grounded design decision.\n",
+              evidence: str = "") -> str:
     if dod is None:
         row_ids = [m.group(1) for m in re.finditer(r"^\|\s*([^|]+?)\s*\|\s*[^|]+\s*\|", rows, re.MULTILINE)
                    if m.group(1) not in ("ID", "") and not m.group(1).startswith("-")]
         non_v1 = [r for r in row_ids if r != "V1"]
         dod = f"- done ({', '.join(non_v1)})\n" if non_v1 else "- done (Gate 5)\n"
+    ev_part = f"\nEvidence files:\n{evidence}\n" if evidence else ""
     sections = {
-        "Files": f"Allowed files:\n{allowed}\n\nRead-only context:\n{read_only}\n",
+        "Files": f"Allowed files:\n{allowed}\n{ev_part}\nRead-only context:\n{read_only}\n",
         "Verification": f"{HEAD}{rows}\n{after_table}",
         "Definition of Done": dod,
         "Stop and Report If": "- A command does not match.\n",
@@ -421,5 +423,95 @@ class PythonTierBAndFastModelTest(ContractCase):
         self.assertIn("lacks integration runner provenance", res["WQG-HP-01"][1])
 
 
+class Evidence_Integration_Test(ContractCase):
+    def test_TCAE_HP_01_evidence_files_grounding(self) -> None:
+        """Integration class version of TCAE-HP-01 for Tier C provenance."""
+        test_TCAE_HP_01_evidence_files_grounding()
+
+    def test_TCAE_FR_01_reject_invalid_evidence_files(self) -> None:
+        """[TCAE-FR-01] Reject Evidence files with traversal, outside directory, or reserved runner record."""
+        # 1. Path traversal
+        t1 = self.task("1_trav", evidence="- `.devtool/epic/demo/../secret.txt` (new)")
+        code, out, _ = self.check(t1, design=True)
+        self.assertEqual(code, 1)
+        self.assertIn("must reside under .devtool/epic/<epic_dir>/evidence/ without '..' segments", out)
+
+        # 2. Outside epic evidence
+        t2 = self.task("2_out", evidence="- `src/output.json` (new)")
+        code, out, _ = self.check(t2, design=True)
+        self.assertEqual(code, 1)
+        self.assertIn("must reside under .devtool/epic/<epic_dir>/evidence/ without '..' segments", out)
+
+        # 3. Collides with reserved runner task record
+        t3 = self.task("3_coll", evidence="- `.devtool/epic/demo/evidence/task_01_setup.json` (new)")
+        code, out, _ = self.check(t3, design=True)
+        self.assertEqual(code, 1)
+        self.assertIn("collides with reserved 'task_*.json' runner records", out)
+
+        # 4. Marked (new) but already exists at design time
+        self.write(f"{EPIC}/evidence/existing.txt", "pre-existing")
+        t4 = self.task("4_exist", evidence=f"- `{EPIC}/evidence/existing.txt` (new)")
+        code, out, _ = self.check(t4, design=True)
+        self.assertEqual(code, 1)
+        self.assertIn("marked (new) but already exists", out)
+
+
+def test_TCAE_HP_01_evidence_files_grounding() -> None:
+    """[TCAE-HP-01] Evidence files declaration grounds new evidence paths in design mode."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp).resolve()
+        git(root, "init", "-q")
+        git(root, "config", "user.email", "demo@example.com")
+        git(root, "config", "user.name", "Demo")
+        (root / ".gitignore").write_text("build/\n", encoding="utf-8")
+        (root / "tool.py").write_text("print('x')\n", encoding="utf-8")
+        (root / "README.md").write_text("demo\n", encoding="utf-8")
+        epic_dir = root / EPIC
+        epic_dir.mkdir(parents=True, exist_ok=True)
+        (epic_dir / "demo.en.md").write_text(HLD, encoding="utf-8")
+        evidence_file = ".devtool/epic/demo/evidence/baseline.txt"
+        task_content = task_text(
+            allowed="- `tool.py`",
+            rows=RED
+            + GREEN
+            + "| V3 | TIER-B | `ruff check tool.py` | exit 0 | — |\n"
+            + "| V4 | TIER-B | `mypy --strict tool.py` | exit 0 | — |\n"
+            + f"| V5 | TIER-C | `python3 tool.py int --evidence={evidence_file} --out=build/out.xml` | exit 0; results build/out.xml | — |\n",
+            dod="- done (V2, V3, V4, V5)\n",
+            decisions="- Testing evidence files contract.\n",
+        )
+        task_body = (
+            "Allowed files:\n- `tool.py`\n\n"
+            f"Evidence files:\n- `{evidence_file}` (new)\n\n"
+            "Read-only context:\n- `README.md` — note\n"
+        )
+        task_content = task_content.replace(
+            "Allowed files:\n- `tool.py`\n\nRead-only context:\n- `README.md` — note\n",
+            task_body,
+        )
+        task_path = epic_dir / "task_1_evidence.md"
+        task_path.write_text(task_content, encoding="utf-8")
+        git(root, "add", "-A")
+        git(root, "commit", "-q", "-m", "base")
+
+        import task_contract as tc
+        ev_entries = tc.parse_evidence_files(task_content)
+        assert len(ev_entries) == 1
+        assert ev_entries[0].pattern == evidence_file
+        assert ev_entries[0].new is True
+
+        cur = os.getcwd()
+        os.chdir(root)
+        try:
+            out, err = io.StringIO(), io.StringIO()
+            with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+                code = main(["--design", "--hld", f"{EPIC}/demo.en.md", "--tasks", str(task_path)])
+            assert code == 0, out.getvalue()
+            assert "Result: 0 problems — PASS" in out.getvalue()
+        finally:
+            os.chdir(cur)
+
+
 if __name__ == "__main__":
     unittest.main()
+

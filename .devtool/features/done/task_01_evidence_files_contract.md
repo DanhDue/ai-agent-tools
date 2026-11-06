@@ -1,13 +1,13 @@
 ---
 id: "task_01_evidence_files_contract"
-status: "in-progress"
+status: "done"
 priority: "high"
 assignee: null
 epic: "contract-and-authoring-ergonomics"
 dueDate: null
 created: "2026-11-06T01:50:00Z"
-modified: "2026-11-05T22:43:32Z"
-completedAt: null
+modified: "2026-11-06T01:48:36Z"
+completedAt: "2026-11-06T01:48:36Z"
 labels: ["architecture", "contract", "python"]
 order: "a1"
 ---

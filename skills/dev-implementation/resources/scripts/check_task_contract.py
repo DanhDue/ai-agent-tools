@@ -33,6 +33,7 @@ ROW_PREFIX = re.compile(r"^Verification row [^:]+: ")
 STATUS = re.compile(r'^status:\s*"?([A-Za-z_-]+)"?\s*$', re.MULTILINE)
 GLOB_CHARS = re.compile(r"[*?]")
 WEAK_ASSERTION_RE = re.compile(r"\b(should be truthy|is valid|should work|returns non-empty)\b", re.IGNORECASE)
+RESERVED_RUNNER_EVIDENCE = re.compile(r"^task_.*\.json$")
 
 
 class Checker:
@@ -138,6 +139,30 @@ def check_allowed(check: Checker, stem: str, text: str, design: bool) -> None:
                 check.problem(f"{stem}:Files", f"{pattern} matches no tracked file")
         elif not check.is_tracked(pattern):
             check.problem(f"{stem}:Files", f"{pattern} is not tracked by git")
+
+
+def check_evidence(check: Checker, stem: str, text: str, design: bool) -> None:
+    for entry in tc.parse_evidence_files(text):
+        pattern = entry.pattern
+        parts = Path(pattern).parts
+        if (
+            pattern.endswith("/")
+            or ".." in parts
+            or not tc.EVIDENCE_FILE_RE.match(pattern)
+        ):
+            check.problem(
+                f"{stem}:Files",
+                f"Evidence file {pattern} must reside under .devtool/epic/<epic_dir>/evidence/ without '..' segments",
+            )
+            continue
+        if RESERVED_RUNNER_EVIDENCE.match(Path(pattern).name):
+            check.problem(
+                f"{stem}:Files",
+                f"Evidence file {pattern} collides with reserved 'task_*.json' runner records",
+            )
+            continue
+        if design and entry.new and (check.root / pattern).exists():
+            check.problem(f"{stem}:Files", f"Evidence file {pattern} is marked (new) but already exists")
 
 
 def command_paths(command: str) -> tuple[list[str], str | None]:
@@ -300,6 +325,7 @@ def check_task(check: Checker, path: Path, text: str, design: bool, created: set
         if is_python_task(text, rows):
             check_python_tier_b(check, stem, rows)
         check_allowed(check, stem, text, design)
+        check_evidence(check, stem, text, design)
         check_grounding(check, stem, text, rows, created)
 
 
@@ -355,6 +381,12 @@ def main(argv: list[str] | None = None) -> int:
         hld_text = read_file(args.hld)
         tasks = {path: read_file(path) for path in args.tasks}
         created = {entry.pattern for text in tasks.values() for entry in tc.parse_allowed_files(text) if entry.new}
+        created |= {
+            entry.pattern
+            for text in tasks.values()
+            for entry in tc.parse_evidence_files(text)
+            if entry.new and not Path(entry.pattern).name.startswith("task_")
+        }
         for path, text in tasks.items():
             check_task(check, path, text, args.design, created)
         check_hld(check, args.hld, hld_text, tasks)
