@@ -764,6 +764,124 @@ def fetch_claude_quota() -> dict:
 
 
 def fetch_codex_quota() -> dict:
+    # 1. Primary: Query real-time Plan limits from OpenAI backend API
+    auth_json_path = Path(REAL_HOME) / ".codex" / "auth.json"
+    if auth_json_path.is_file():
+        try:
+            with open(auth_json_path, "r", encoding="utf-8") as f:
+                auth = json.load(f)
+            tokens = auth.get("tokens", {})
+            token = tokens.get("access_token")
+            account_id = tokens.get("account_id")
+
+            if token:
+                headers = {
+                    "Authorization": f"Bearer {token}",
+                    "User-Agent": "codex/0.167.0",
+                    "Accept": "application/json",
+                }
+                if account_id:
+                    headers["ChatGPT-Account-ID"] = account_id
+
+                req = urllib.request.Request("https://chatgpt.com/backend-api/wham/usage", headers=headers)
+                with urllib.request.urlopen(req, timeout=4.0) as resp:
+                    api_data = json.loads(resp.read().decode())
+
+                rl = api_data.get("rate_limit", {})
+                pw = rl.get("primary_window", {})
+                sw = rl.get("secondary_window", {})
+
+                p_used = pw.get("used_percent", 0)
+                p_rem_sec = pw.get("reset_after_seconds", 0)
+                p_reset_ts = pw.get("reset_at", 0)
+
+                s_used = sw.get("used_percent", 0)
+                s_rem_sec = sw.get("reset_after_seconds", 0)
+                s_reset_ts = sw.get("reset_at", 0)
+
+                credits_count = api_data.get("rate_limit_reset_credits", {}).get("available_count", 0)
+
+                fraction_5h = max(0.0, min(1.0, (100.0 - float(p_used)) / 100.0))
+                fraction_7d = max(0.0, min(1.0, (100.0 - float(s_used)) / 100.0))
+
+                dt_5h = datetime.datetime.fromtimestamp(p_reset_ts) if p_reset_ts else None
+                local_reset_5h = dt_5h.strftime("%H:%M:%S") if dt_5h else ""
+                iso_reset_5h = dt_5h.astimezone(datetime.timezone.utc).isoformat() if dt_5h else ""
+
+                dt_7d = datetime.datetime.fromtimestamp(s_reset_ts) if s_reset_ts else None
+                local_reset_7d = dt_7d.strftime("%d/%m %H:%M") if dt_7d else ""
+                iso_reset_7d = dt_7d.astimezone(datetime.timezone.utc).isoformat() if dt_7d else ""
+
+                countdown_5h = f"⏱ {p_rem_sec // 3600}h {(p_rem_sec % 3600) // 60}m ({local_reset_5h})" if p_rem_sec > 0 else "⏱ 5h 00m (Reset xong)"
+                countdown_7d = f"⏱ {s_rem_sec // 86400}d {(s_rem_sec % 86400) // 3600}h ({local_reset_7d})" if s_rem_sec > 0 else "⏱ 7d 00h (Reset xong)"
+
+                is_active = p_rem_sec > 0 and p_used > 0
+                status = "ACTIVE" if rl.get("allowed", True) else "EXHAUSTED"
+
+                # Save to hashed SQLite session store
+                save_session_record("codex", p_reset_ts, s_reset_ts, fraction_5h, is_active)
+
+                return {
+                    "profile": "codex",
+                    "displayName": "OpenAI Codex",
+                    "isProvider": True,
+                    "providerType": "codex",
+                    "tier": "OPENAI",
+                    "priority": 95,
+                    "email": api_data.get("email") or "OpenAI Codex (ChatGPT Plus)",
+                    "status": status,
+                    "isSessionActive": is_active,
+                    "resetTime": iso_reset_5h,
+                    "resetTimeLocal": local_reset_5h,
+                    "remainingCountdown": countdown_5h,
+                    "hasArgon": True,
+                    "resetCredits": credits_count,
+                    "gemini5h": {
+                        "name": "Codex 5-Hour Limit",
+                        "fraction": fraction_5h,
+                        "countdown": countdown_5h,
+                        "resetTime": iso_reset_5h,
+                        "resetTimeLocal": local_reset_5h,
+                        "unavailable": False,
+                    },
+                    "claude5h": {
+                        "name": "Codex Reasoning Effort",
+                        "fraction": 1.0,
+                        "countdown": "Low / Med / High",
+                        "resetTime": "",
+                        "resetTimeLocal": "",
+                        "unavailable": False,
+                    },
+                    "geminiWeekly": {
+                        "name": "Codex Weekly Limit",
+                        "fraction": fraction_7d,
+                        "countdown": countdown_7d,
+                        "resetTime": iso_reset_7d,
+                        "resetTimeLocal": local_reset_7d,
+                        "unavailable": False,
+                    },
+                    "claudeWeekly": {
+                        "name": "OpenAI Reset Credits",
+                        "fraction": 1.0,
+                        "countdown": f"{credits_count} Available",
+                        "resetTime": "",
+                        "resetTimeLocal": "",
+                        "unavailable": False,
+                    },
+                    "argonWeekly": {
+                        "name": "OpenAI Model Roster (gpt-4.5 / o3-mini)",
+                        "fraction": 1.0,
+                        "countdown": "Sẵn sàng",
+                        "resetTime": "",
+                        "resetTimeLocal": "",
+                        "unavailable": False,
+                        "tags": True,
+                    },
+                }
+        except Exception as e:
+            sys.stderr.write(f"Warning: Failed to fetch online OpenAI Codex quota: {e}\n")
+
+    # 2. Fallback: local logs_2.sqlite
     sqlite_path = Path(REAL_HOME) / ".codex" / "logs_2.sqlite"
     max_ts = 0
     if sqlite_path.is_file():
