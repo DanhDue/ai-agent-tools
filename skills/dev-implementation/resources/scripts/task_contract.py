@@ -37,6 +37,9 @@ CONTROL_TOKENS = {"&&", "||", ";", "|"}
 EXCLUDE_DEVTOOL = ":(exclude).devtool"
 DIFF_PLAIN = ("--no-ext-diff", "--no-color")  # user diff settings must not change a patch id
 DOD_REFERENCE = re.compile(r"\((V[0-9]+(?:,\s*V[0-9]+)*|Gate 5)\)\.?\s*$")
+DEPENDS_ON_EPIC_RE = re.compile(
+    r"^-\s*\*\*(?:Depends on epic|Phụ thuộc vào epic)\*\*:\s*(.+)$", re.MULTILINE
+)
 
 
 class ContractError(Exception):
@@ -544,3 +547,171 @@ def evaluate_done_gate(task_file: Path) -> list[str]:
             if sha256 != measure_digests.get(ev.pattern):
                 problems.append(f"condition 8: evidence file {ev.pattern} digest does not match measure run")
     return problems
+
+
+def parse_depends_on_epics(hld_text: str) -> list[str]:
+    """Extract comma-separated dependency epic identifiers from HLD text."""
+    m = DEPENDS_ON_EPIC_RE.search(hld_text)
+    if not m:
+        return []
+    raw = m.group(1).strip()
+    tokens = [t.strip() for t in raw.split(",") if t.strip()]
+    result: list[str] = []
+    for token in tokens:
+        clean = token.strip("`").strip()
+        clean = re.sub(r"\s*\([^)]*\)", "", clean).strip()
+        if not clean:
+            continue
+        if clean.lower() in ("none", "none.", "n/a", "không", "-"):
+            continue
+        if clean not in result:
+            result.append(clean)
+    return result
+
+
+def resolve_prerequisite_epic_dirs(
+    root: Path, hld_text: str, current_epic_dir: str | None = None
+) -> tuple[list[str], list[str]]:
+    """Perform depth-first topological resolution of prerequisite epics across .devtool/epic/."""
+    import sync_task_status
+
+    ordered_dirs: list[str] = []
+    errors: list[str] = []
+    visited: set[str] = set()
+    visiting: list[str] = []
+
+    def _resolve_dir(ident: str) -> str | None:
+        if (root / ".devtool" / "epic" / ident).is_dir():
+            return ident
+        resolved = sync_task_status.find_epic_dir_for_slug(root, ident)
+        if resolved and (root / ".devtool" / "epic" / resolved).is_dir():
+            return resolved
+        return None
+
+    def _visit(dir_name: str, hld_content: str | None = None) -> None:
+        if dir_name in visiting:
+            cycle = [*visiting, dir_name]
+            errors.append(f"Depends on epic cycle detected: {' -> '.join(cycle)}")
+            return
+        if dir_name in visited:
+            return
+
+        visiting.append(dir_name)
+
+        if hld_content is None:
+            hld_file = root / ".devtool" / "epic" / dir_name / f"{dir_name}.en.md"
+            if hld_file.is_file():
+                try:
+                    content = hld_file.read_text(encoding="utf-8")
+                except OSError:
+                    content = ""
+            else:
+                content = ""
+        else:
+            content = hld_content
+
+        idents = parse_depends_on_epics(content)
+        for ident in idents:
+            resolved_dir = _resolve_dir(ident)
+            if not resolved_dir:
+                errors.append(
+                    f"Depends on epic '{ident}' does not exist under .devtool/epic/"
+                )
+            else:
+                _visit(resolved_dir)
+
+        visiting.pop()
+        visited.add(dir_name)
+        if dir_name != current_epic_dir and dir_name not in ordered_dirs:
+            ordered_dirs.append(dir_name)
+
+    if current_epic_dir:
+        visiting.append(current_epic_dir)
+        for ident in parse_depends_on_epics(hld_text):
+            resolved_dir = _resolve_dir(ident)
+            if not resolved_dir:
+                errors.append(
+                    f"Depends on epic '{ident}' does not exist under .devtool/epic/"
+                )
+            else:
+                _visit(resolved_dir)
+        visiting.pop()
+        visited.add(current_epic_dir)
+    else:
+        for ident in parse_depends_on_epics(hld_text):
+            resolved_dir = _resolve_dir(ident)
+            if not resolved_dir:
+                errors.append(
+                    f"Depends on epic '{ident}' does not exist under .devtool/epic/"
+                )
+            else:
+                _visit(resolved_dir)
+
+    return ordered_dirs, errors
+
+
+def collect_prerequisite_artifacts(
+    root: Path, prereq_dirs: list[str]
+) -> tuple[set[str], dict[str, set[str]]]:
+    """Scan task files in prerequisite epics and collect allowed files and new target symbols."""
+    prereq_files: set[str] = set()
+    prereq_symbols: dict[str, set[str]] = {}
+    target_header_re = re.compile(
+        r"^\s*-\s*\*\*(?:Target Files & Symbols|Target files and symbols)\*\*:\s*(.*)$",
+        re.IGNORECASE,
+    )
+    sub_bullet_re = re.compile(r"^\s*-\s+`([^`]+)`:\s*(.*)$")
+    new_sym_re = re.compile(r"\bnew\s+(?:`([^`]+)`|([A-Za-z_][\w.]*))")
+
+    for prereq_dir in prereq_dirs:
+        dir_path = root / ".devtool" / "epic" / prereq_dir
+        if not dir_path.is_dir():
+            continue
+        for task_path in sorted(dir_path.glob("task_*.md")):
+            try:
+                task_text = task_path.read_text(encoding="utf-8")
+            except OSError:
+                continue
+
+            for entry in parse_allowed_files(task_text):
+                prereq_files.add(entry.pattern)
+
+            impact_body = section(task_text, "Impact Analysis & Blast Radius")
+            if not impact_body:
+                for heading in (
+                    "Impact Analysis & Blast Radius",
+                    "Impact analysis & blast radius",
+                    "Impact Analysis and Blast Radius",
+                ):
+                    impact_body = section(task_text, heading)
+                    if impact_body:
+                        break
+            if not impact_body:
+                continue
+
+            in_target_symbols = False
+            target_lines: list[str] = []
+            for line in impact_body.splitlines():
+                if target_header_re.match(line):
+                    in_target_symbols = True
+                    continue
+                if in_target_symbols:
+                    if re.match(r"^\s*-\s+\*\*", line) or (
+                        line.startswith("- ") and not line.startswith("  - ")
+                    ):
+                        break
+                    target_lines.append(line)
+
+            for line in target_lines:
+                sub_m = sub_bullet_re.match(line)
+                if not sub_m:
+                    continue
+                path_str = sub_m.group(1).strip()
+                rest = sub_m.group(2)
+                for sym_m in new_sym_re.finditer(rest):
+                    token_raw = sym_m.group(1) or sym_m.group(2)
+                    clean_name = token_raw.removesuffix("()")
+                    name = clean_name.split(".")[-1]
+                    prereq_symbols.setdefault(path_str, set()).add(name)
+
+    return prereq_files, prereq_symbols

@@ -24,7 +24,11 @@ import check_bdd_traceability as cb
 import run_task_checks as rtc
 import sync_task_status as sts
 import task_contract as tc
-from replay_task_text import replay_epic_in_worktree, verify_task_edit_anchors
+try:
+    from replay_task_text import replay_epic_in_worktree, verify_task_edit_anchors
+except ImportError:
+    replay_epic_in_worktree = None  # type: ignore[assignment]
+    verify_task_edit_anchors = None  # type: ignore[assignment]
 
 LINTER_PATH = SCRIPTS_DIR.parents[2] / "doc_quality_check" / "resources" / "scripts" / "check_document.py"
 
@@ -433,11 +437,20 @@ def check_grounding(ctx: Context) -> list[Finding]:
     prior_modified: set[str] = set()
     for task_path in sorted(ctx.tasks.keys()):
         task_text = ctx.tasks[task_path]
-        anchor_errors = verify_task_edit_anchors(ctx.root, task_path, task_text, prior_modified)
-        for err in anchor_errors:
-            findings.append(Finding("R5", "FAIL", err))
+        if verify_task_edit_anchors is not None:
+            anchor_errors = verify_task_edit_anchors(
+                ctx.root, task_path, task_text, prior_modified
+            )
+            for err in anchor_errors:
+                findings.append(Finding("R5", "FAIL", err))
 
     # --- R5: Symbol Grounding ---
+    prereq_dirs, _ = tc.resolve_prerequisite_epic_dirs(
+        ctx.root, ctx.hld_text, ctx.epic_dir
+    )
+    prereq_files, prereq_symbols = tc.collect_prerequisite_artifacts(
+        ctx.root, prereq_dirs
+    )
     target_header_re = re.compile(
         r"^\s*-\s*\*\*(?:Target Files & Symbols|Target files and symbols)\*\*:\s*(.*)$",
         re.IGNORECASE,
@@ -470,7 +483,9 @@ def check_grounding(ctx: Context) -> list[Finding]:
                 in_target_symbols = True
                 continue
             if in_target_symbols:
-                if re.match(r"^\s*-\s+\*\*", line) or (line.startswith("- ") and not line.startswith("  - ")):
+                if re.match(r"^\s*-\s+\*\*", line) or (
+                    line.startswith("- ") and not line.startswith("  - ")
+                ):
                     break
                 target_lines.append(line)
 
@@ -482,13 +497,21 @@ def check_grounding(ctx: Context) -> list[Finding]:
             rest = sub_m.group(2)
 
             full_path = ctx.root / path_str
-            if not full_path.is_file() or path_str in new_patterns:
+            is_file = full_path.is_file()
+            in_new_patterns = path_str in new_patterns
+            in_prereq_files = any(tc.path_matches(p, path_str) for p in prereq_files)
+
+            if in_new_patterns:
+                continue
+            if not is_file and not in_prereq_files:
                 continue
 
-            try:
-                file_text = full_path.read_text(encoding="utf-8", errors="ignore")
-            except OSError:
-                continue
+            file_text = ""
+            if is_file:
+                try:
+                    file_text = full_path.read_text(encoding="utf-8", errors="ignore")
+                except OSError:
+                    continue
 
             for span_m in token_re.finditer(rest):
                 token_raw = span_m.group(1).strip()
@@ -500,8 +523,21 @@ def check_grounding(ctx: Context) -> list[Finding]:
 
                 clean_name = token_raw.removesuffix("()")
                 name = clean_name.split(".")[-1]
-                if name not in file_text:
-                    findings.append(Finding("R5", "FAIL", f"{task_path.name}: {name} not in {path_str}"))
+                if not is_file and in_prereq_files:
+                    if name not in prereq_symbols.get(path_str, set()):
+                        findings.append(
+                            Finding(
+                                "R5",
+                                "FAIL",
+                                f"{task_path.name}: {name} not in {path_str} (prerequisite symbol missing)",
+                            )
+                        )
+                elif is_file:
+                    if name not in file_text:
+                        if name not in prereq_symbols.get(path_str, set()):
+                            findings.append(
+                                Finding("R5", "FAIL", f"{task_path.name}: {name} not in {path_str}")
+                            )
 
     # --- R5b: Route Grounding (WARN) ---
     route_re = re.compile(r"(?:https?://[^\s\"'`]+)?/api/[\w\-/{}.:<>=]*[\w}>]")
@@ -607,6 +643,25 @@ def check_metadata(ctx: Context) -> list[Finding]:
     epic_path = ctx.root / ".devtool" / "epic" / ctx.epic_dir
     handoff_file = epic_path / "handoff.md"
     has_handoff = handoff_file.is_file()
+
+    prereq_dirs, prereq_errors = tc.resolve_prerequisite_epic_dirs(
+        ctx.root, ctx.hld_text, ctx.epic_dir
+    )
+    for err in prereq_errors:
+        findings.append(Finding("R7", "FAIL", err))
+
+    vi_file = ctx.root / ".devtool" / "epic" / ctx.epic_dir / f"{ctx.epic_dir}.vi.md"
+    if vi_file.is_file():
+        try:
+            vi_text = vi_file.read_text(encoding="utf-8")
+            if tc.parse_depends_on_epics(vi_text) != tc.parse_depends_on_epics(ctx.hld_text):
+                findings.append(
+                    Finding(
+                        "R7", "FAIL", "Depends on epic differs between .en.md and .vi.md"
+                    )
+                )
+        except OSError:
+            pass
 
     status_match = re.search(r"^- \*\*Status\*\*:\s*(.*)$", ctx.hld_text, re.MULTILINE)
     hld_status = status_match.group(1).strip() if status_match else ""
@@ -806,6 +861,63 @@ def render_report(ctx: Context, findings: list[Finding]) -> str:
     return "\n".join(lines)
 
 
+def _is_epic_done(root: Path, epic_dir: str) -> bool:
+    hld_file = root / ".devtool" / "epic" / epic_dir / f"{epic_dir}.en.md"
+    if hld_file.is_file():
+        try:
+            text = hld_file.read_text(encoding="utf-8")
+            m = re.search(r"^-\s*\*\*Status\*\*:\s*(.*)$", text, re.MULTILINE)
+            if m and m.group(1).strip().startswith("Done"):
+                return True
+        except OSError:
+            pass
+    tasks_dir = root / ".devtool" / "epic" / epic_dir
+    if tasks_dir.is_dir():
+        task_files = list(tasks_dir.glob("task_*.md"))
+        if task_files:
+            all_done = True
+            for tf in task_files:
+                try:
+                    t_text = tf.read_text(encoding="utf-8")
+                    st = re.search(r"^status:\s*\"?([^\s\"]+)\"?", t_text, re.MULTILINE)
+                    if not st or st.group(1).lower() != "done":
+                        all_done = False
+                        break
+                except OSError:
+                    all_done = False
+                    break
+            if all_done:
+                return True
+    return False
+
+
+def replay_with_prerequisites(
+    root: Path, epic_dir: str, row_timeout: int = 600
+) -> list[str]:
+    """Replay unfinished prerequisite epics in topological order before replaying epic_dir."""
+    hld_file = root / ".devtool" / "epic" / epic_dir / f"{epic_dir}.en.md"
+    hld_text = hld_file.read_text(encoding="utf-8") if hld_file.is_file() else ""
+    prereq_dirs, errors = tc.resolve_prerequisite_epic_dirs(root, hld_text, epic_dir)
+    if errors:
+        return errors
+
+    replay_fn = globals().get("replay_epic_in_worktree")
+    if replay_fn is None:
+        return [
+            "replay_task_text.py is unavailable; merge execution-and-verification-infrastructure first"
+        ]
+
+    active_prereqs = [d for d in prereq_dirs if not _is_epic_done(root, d)]
+    all_epics_to_replay = [*active_prereqs, epic_dir]
+
+    for d in all_epics_to_replay:
+        code, msgs = replay_fn(root, d, timeout=row_timeout)
+        if code != 0:
+            return msgs or [f"Replay of epic '{d}' failed with exit code {code}"]
+
+    return []
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Check epic readiness before implementation or review.")
     parser.add_argument("epic_dir", help="Epic directory name under .devtool/epic/")
@@ -818,6 +930,11 @@ def main(argv: list[str] | None = None) -> int:
         "--replay",
         action="store_true",
         help="Replay epic tasks in an isolated worktree and verify rows",
+    )
+    parser.add_argument(
+        "--replay-prereqs",
+        action="store_true",
+        help="Replay unfinished prerequisite epics in topological order before replaying epic",
     )
     parser.add_argument(
         "--row-timeout",
@@ -849,6 +966,16 @@ def main(argv: list[str] | None = None) -> int:
     if not hld_path.is_file():
         sys.stderr.write(f"error: {hld_path} does not exist\n")
         return 2
+
+    if args.replay_prereqs:
+        errs = replay_with_prerequisites(
+            root, args.epic_dir, row_timeout=args.row_timeout
+        )
+        if errs:
+            for err in errs:
+                sys.stderr.write(f"error: {err}\n")
+            return 1
+        return 0
 
     ctx = load_context(root, args.epic_dir, baseline=args.baseline, row_timeout=args.row_timeout, replay=args.replay)
     findings = run_checks(ctx, baseline=args.baseline, row_timeout=args.row_timeout, replay=args.replay)
