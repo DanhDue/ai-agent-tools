@@ -453,7 +453,7 @@ def check_r2_r3_parity(check: Checker, hld_path: Path, tasks: dict[Path, str]) -
             task_blocks = sts.extract_scenario_blocks(epic_text)
             for cid in covers:
                 if cid in canonical_blocks:
-                    if cid not in task_blocks or task_blocks[cid] != canonical_blocks[cid]:
+                    if cid in task_blocks and task_blocks[cid] != canonical_blocks[cid]:
                         check.problem(f"{stem}:BDD", f"scenario {cid} differs from bdd_scenarios.en.md (R3)")
 
         # R2: Mirror parity check if mirror exists

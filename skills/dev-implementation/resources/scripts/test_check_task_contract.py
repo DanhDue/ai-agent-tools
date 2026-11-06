@@ -644,7 +644,7 @@ def test_TCAE_EC_03_grep_slash_pattern_excluded() -> None:
     try:
         test.test_TCAE_EC_03_grep_slash_pattern_excluded()
     finally:
-        test.tearDown()
+        test.doCleanups()
 
 
 if __name__ == "__main__":

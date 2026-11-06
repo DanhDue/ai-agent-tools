@@ -1,13 +1,13 @@
 ---
 id: "task_05_end_to_end_contract_acceptance"
-status: "in-progress"
+status: "done"
 priority: "high"
 assignee: null
 epic: "contract-and-authoring-ergonomics"
 dueDate: null
 created: "2026-11-06T01:50:00Z"
-modified: "2026-11-06T03:34:36Z"
-completedAt: null
+modified: "2026-11-06T04:38:30Z"
+completedAt: "2026-11-06T04:38:30Z"
 labels: ["integration", "acceptance", "tier-c"]
 order: "a5"
 ---

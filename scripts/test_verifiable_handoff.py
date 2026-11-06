@@ -16,7 +16,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = ROOT / "skills/dev-implementation/resources/scripts"
-JUNIT = ROOT / "scripts/run_unittest_junit.py"
+JUNIT = "$D3NEXUS_KIT/scripts/run_unittest_junit.py"
 EPIC = ".devtool/epic/demo"
 TASK = "task_1_demo"
 TICKS = "`" * 3
@@ -128,7 +128,7 @@ class DesignToAuditTest(unittest.TestCase):
         git(self.root, "checkout", "-q", "-b", "epic/demo")
 
     def step(self, script: str, *args: str) -> str:
-        env = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1"}  # bytecode would be an untracked change outside Allowed files
+        env = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1", "D3NEXUS_KIT": str(ROOT)}  # bytecode would be an untracked change outside Allowed files
         done = subprocess.run([sys.executable, str(SCRIPTS / script), *args], cwd=self.root,
                               capture_output=True, text=True, env=env)
         self.assertEqual(done.returncode, 0, f"{script} {' '.join(args)}\n{done.stdout}\n{done.stderr}")

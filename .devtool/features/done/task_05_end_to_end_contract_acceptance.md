@@ -1,20 +1,20 @@
 ---
 id: "task_05_end_to_end_contract_acceptance"
-status: "in-progress"
+status: "done"
 priority: "high"
 assignee: null
 epic: "contract-and-authoring-ergonomics"
 dueDate: null
 created: "2026-11-06T01:50:00Z"
-modified: "2026-11-06T03:34:36Z"
-completedAt: null
+modified: "2026-11-06T04:38:30Z"
+completedAt: "2026-11-06T04:38:30Z"
 labels: ["integration", "acceptance", "tier-c"]
 order: "a5"
 ---
 
 # Task 05: End-to-End Integration and Acceptance Verification
 
-Epic: [contract_and_authoring_ergonomics](../epic/contract_and_authoring_ergonomics/contract_and_authoring_ergonomics.en.md)
+Epic: [contract_and_authoring_ergonomics](../../epic/contract_and_authoring_ergonomics/contract_and_authoring_ergonomics.en.md)
 
 ## Requirement Analysis
 
@@ -110,9 +110,9 @@ RED: n/a — end-to-end acceptance test suite verifying behaviors already implem
 
 ## Dependencies & Blockers
 
-- Blocked by [Task 04](../epic/contract_and_authoring_ergonomics/task_04_verification_grammar_and_docs.md)
+- Blocked by [Task 04](../../epic/contract_and_authoring_ergonomics/task_04_verification_grammar_and_docs.md)
 
 ## References & Rollback
 
-- Reference: [2026-11-06-contract-and-authoring-ergonomics-design.en.md](../epic/contract_and_authoring_ergonomics/2026-11-06-contract-and-authoring-ergonomics-design.en.md).
+- Reference: [2026-11-06-contract-and-authoring-ergonomics-design.en.md](../../epic/contract_and_authoring_ergonomics/2026-11-06-contract-and-authoring-ergonomics-design.en.md).
 - Rollback: `git revert` the task commit to remove `tests/test_task_contract_ergonomics_e2e.py`.
