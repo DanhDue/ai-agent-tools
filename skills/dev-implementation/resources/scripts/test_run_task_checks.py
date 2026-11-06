@@ -650,5 +650,55 @@ class PytestRedSemanticsTest(RepoCase):
         self.assertFalse((self.root / EVIDENCE).exists())
 
 
+class D3Nexus_Cli_Integration_Test(RepoCase):
+    def test_TCAE_HP_03_d3nexus_zero_setup_env(self) -> None:
+        """[TCAE-HP-03] Zero-setup d3nexus CLI execution inside Verification rows."""
+        sample_doc = (
+            "# Sample Doc\n\n"
+            "## Table of Contents\n\n"
+            "- [Sample Doc](#sample-doc)\n"
+            "- [Overview](#overview)\n\n"
+            "## Overview\n\n"
+            "Content.\n"
+        )
+        doc = self.write(".devtool/epic/sample/sample.en.md", sample_doc)
+        task = self.epic(
+            f"| V1 | GREEN | `d3nexus check-doc --require-toc {doc}` | exit 0 | — |\n",
+            allowed="- `.devtool/epic/sample/sample.en.md` (new)",
+        )
+        code, out, _ = self.run_cli("verify", task)
+        self.assertEqual(code, 0)
+        self.assertIn("V1 GREEN PASS", out)
+
+    def test_TCAE_AR_01_concurrent_env_isolation(self) -> None:
+        """[TCAE-AR-01] Isolated subprocess environment injection without mutating parent os.environ."""
+        from run_task_checks import KIT_ROOT, kit_env
+
+        orig_env = dict(os.environ)
+        # 1. kit_env returns expected keys without modifying os.environ
+        child_env = kit_env()
+        self.assertEqual(child_env["D3NEXUS_KIT"], str(KIT_ROOT))
+        self.assertTrue(child_env["PATH"].startswith(f"{KIT_ROOT / 'bin'}{os.pathsep}"))
+        self.assertEqual(dict(os.environ), orig_env)
+
+        # 2. Subprocess execution sees D3NEXUS_KIT and which d3nexus, while parent env remains clean
+        task = self.epic(
+            '| V1 | GREEN | `test -n "$D3NEXUS_KIT" && which d3nexus` | exit 0 | — |\n'
+        )
+        code, out, _ = self.run_cli("verify", task)
+        self.assertEqual(code, 0)
+        self.assertIn("V1 GREEN PASS", out)
+        self.assertEqual(dict(os.environ), orig_env)
+
+
+def test_TCAE_HP_03_d3nexus_zero_setup_env() -> None:
+    test = D3Nexus_Cli_Integration_Test()
+    test.setUp()
+    try:
+        test.test_TCAE_HP_03_d3nexus_zero_setup_env()
+    finally:
+        test.tearDown()
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -299,6 +299,15 @@ def strip_wrappers(tokens: list[str]) -> list[str]:
     return tokens
 
 
+D3NEXUS_SUBCOMMANDS: dict[str, str] = {
+    "check-doc": "skills/doc_quality_check/resources/scripts/check_document.py",
+    "check-contract": "skills/dev-implementation/resources/scripts/check_task_contract.py",
+    "check-readiness": "skills/dev-implementation/resources/scripts/check_epic_readiness.py",
+    "sync-status": "skills/dev-implementation/resources/scripts/sync_task_status.py",
+    "run-checks": "skills/dev-implementation/resources/scripts/run_task_checks.py",
+}
+
+
 def program_of(command: str, root: Path) -> str | None:
     """The tracked file a command runs, or None when it runs something else."""
     try:
@@ -315,13 +324,23 @@ def program_of(command: str, root: Path) -> str | None:
     if not tokens:
         return None
     candidate: str | None
-    if tokens[0] in INTERPRETERS:
+    first = tokens[0]
+    base_first = Path(first).name
+    if base_first == "d3nexus":
+        if len(tokens) > 1 and tokens[1] in D3NEXUS_SUBCOMMANDS:
+            candidate = D3NEXUS_SUBCOMMANDS[tokens[1]]
+        else:
+            candidate = first
+    elif tokens[0] in INTERPRETERS:
         candidate = None
-        for argument in tokens[1:]:
+        for i, argument in enumerate(tokens[1:], start=1):
             if argument in ("-m", "-c"):
                 break
             if not argument.startswith("-"):
-                candidate = argument
+                if Path(argument).name == "d3nexus" and i + 1 < len(tokens) and tokens[i + 1] in D3NEXUS_SUBCOMMANDS:
+                    candidate = D3NEXUS_SUBCOMMANDS[tokens[i + 1]]
+                else:
+                    candidate = argument
                 break
     else:
         candidate = tokens[0]

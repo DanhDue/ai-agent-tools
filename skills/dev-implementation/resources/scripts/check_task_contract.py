@@ -35,6 +35,7 @@ STATUS = re.compile(r'^status:\s*"?([A-Za-z_-]+)"?\s*$', re.MULTILINE)
 GLOB_CHARS = re.compile(r"[*?]")
 WEAK_ASSERTION_RE = re.compile(r"\b(should be truthy|is valid|should work|returns non-empty)\b", re.IGNORECASE)
 RESERVED_RUNNER_EVIDENCE = re.compile(r"^task_.*\.json$")
+NON_PORTABLE_PATH_RE = re.compile(r"(?:/Users/|/home/|~/|\.claude/plugins/cache/|\.gemini/config/plugins/)")
 
 
 class Checker:
@@ -195,8 +196,17 @@ def check_grounding(check: Checker, stem: str, text: str, rows: list[Any], creat
             if not (check.root / path).exists() and not check.ignored(path) and path not in created:
                 check.problem(f"{stem}:{row.id}",
                               f"{path} does not exist, is not ignored by git and is not (new) in any task")
-        if executable and shutil.which(executable) is None:
+        if executable and executable != "d3nexus" and shutil.which(executable) is None:
             check.warnings.append(f"warning: {stem}:{row.id}: executable {executable} not found on PATH")
+
+
+def check_portable_command(check: Checker, stem: str, row: Any) -> None:
+    m = NON_PORTABLE_PATH_RE.search(row.command)
+    if m:
+        check.problem(
+            f"{stem}:{row.id}",
+            f"non-portable path '{m.group(0)}' in command; use 'd3nexus <subcommand>' or '$D3NEXUS_KIT/...'",
+        )
 
 
 def check_pytest_k(check: Checker, stem: str, row: Any) -> None:
@@ -320,6 +330,7 @@ def check_task(check: Checker, path: Path, text: str, design: bool, created: set
         if row.expect.results and not check.ignored(row.expect.results):
             check.problem(f"{stem}:{row.id}", f"results path {row.expect.results} is not ignored by git")
         check_pytest_k(check, stem, row)
+        check_portable_command(check, stem, row)
     check_weak_bdd(check, stem, text)
     status = STATUS.search(text.split("\n---", 1)[0]) if text.startswith("---") else None
     if design or not (status and status.group(1) == "done"):

@@ -542,6 +542,49 @@ def test_TCAE_HP_01_evidence_files_grounding() -> None:
             os.chdir(cur)
 
 
+class PortableD3NexusCliTest(ContractCase):
+    def test_non_portable_path_rejected(self) -> None:
+        """Reject hardcoded user home or plugin cache paths in Verification rows."""
+        for bad_path, expected_match in [
+            ("/Users/alice/tools/check.py", "/Users/"),
+            ("/home/bob/scripts/check.sh", "/home/"),
+            ("~/my_tools/lint.py", "~/"),
+            (".claude/plugins/cache/check.py", ".claude/plugins/cache/"),
+            (".gemini/config/plugins/check.py", ".gemini/config/plugins/"),
+        ]:
+            task = self.task(
+                f"non_portable_{expected_match.strip('/.~')}",
+                allowed="- `tool.py`",
+                rows=f"| V1 | GREEN | `python3 {bad_path}` | exit 0 | — |\n",
+                dod="- done (V1)\n",
+            )
+            code, out, _ = self.check(task)
+            self.assertEqual(code, 1)
+            self.assertIn(
+                f"non-portable path '{expected_match}' in command; use 'd3nexus <subcommand>' or '$D3NEXUS_KIT/...'",
+                out,
+            )
+
+    def test_d3nexus_executable_recognized_without_warning(self) -> None:
+        """d3nexus is recognized as a built-in kit executable without PATH warnings."""
+        task = self.task(
+            "d3nexus_ok",
+            allowed="- `tool.py`",
+            rows="| V1 | GREEN | `d3nexus check-doc --require-toc README.md` | exit 0 | — |\n",
+            dod="- done (V1)\n",
+        )
+        code, out, _ = self.check(task)
+        self.assertNotIn("executable d3nexus not found on PATH", out)
+
+    def test_d3nexus_subcommand_resolves_implicit_checker(self) -> None:
+        """d3nexus <subcommand> resolves to tracked script preserving implicit checker protection."""
+        self.write("skills/doc_quality_check/resources/scripts/check_document.py", "# linter\n")
+        self.commit()
+        import task_contract as tc
+        resolved = tc.program_of("d3nexus check-doc --require-toc README.md", self.root)
+        self.assertEqual(resolved, "skills/doc_quality_check/resources/scripts/check_document.py")
+
+
 if __name__ == "__main__":
     unittest.main()
 

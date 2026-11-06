@@ -1,20 +1,20 @@
 ---
 id: "task_03_portable_d3nexus_cli_and_env"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "contract-and-authoring-ergonomics"
 dueDate: null
 created: "2026-11-06T01:50:00Z"
-modified: "2026-11-06T01:50:00Z"
-completedAt: null
+modified: "2026-11-06T03:23:59Z"
+completedAt: "2026-11-06T03:23:59Z"
 labels: ["architecture", "portability", "cli"]
 order: "a3"
 ---
 
 # Task 03: Portable d3nexus CLI and Zero-Setup Runtime Environment Injection
 
-Epic: [contract_and_authoring_ergonomics](../epic/contract_and_authoring_ergonomics/contract_and_authoring_ergonomics.en.md)
+Epic: [contract_and_authoring_ergonomics](../../epic/contract_and_authoring_ergonomics/contract_and_authoring_ergonomics.en.md)
 
 ## Requirement Analysis
 
@@ -116,9 +116,9 @@ Scenario: [TCAE-AR-01] [Tier A - Unit] Isolated subprocess environment injection
 
 ## Dependencies & Blockers
 
-- Blocked by [Task 02](../epic/contract_and_authoring_ergonomics/task_02_single_source_render_engine.md)
+- Blocked by [Task 02](../../epic/contract_and_authoring_ergonomics/task_02_single_source_render_engine.md)
 
 ## References & Rollback
 
-- Reference: [2026-11-06-contract-and-authoring-ergonomics-design.en.md](../epic/contract_and_authoring_ergonomics/2026-11-06-contract-and-authoring-ergonomics-design.en.md).
+- Reference: [2026-11-06-contract-and-authoring-ergonomics-design.en.md](../../epic/contract_and_authoring_ergonomics/2026-11-06-contract-and-authoring-ergonomics-design.en.md).
 - Rollback: `git revert` the task commit to remove `bin/d3nexus` and restore runtime scripts.

@@ -1,13 +1,13 @@
 ---
 id: "task_03_portable_d3nexus_cli_and_env"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "contract-and-authoring-ergonomics"
 dueDate: null
 created: "2026-11-06T01:50:00Z"
-modified: "2026-11-06T01:50:00Z"
-completedAt: null
+modified: "2026-11-06T03:23:59Z"
+completedAt: "2026-11-06T03:23:59Z"
 labels: ["architecture", "portability", "cli"]
 order: "a3"
 ---

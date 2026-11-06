@@ -296,7 +296,7 @@ def extract_email_id_from_profile(profile_dir: Path) -> str | None:
             username = storage.get("agy.onboarding.lastLoginUsername")
             if username:
                 return username.split("@")[0] if "@" in username else username
-    except Exception:
+    except Exception:  # noqa: S110
         pass
     return None
 
@@ -372,7 +372,7 @@ def sync_window_title(
                                 else:
                                     account_id = cand
                                 break
-            except Exception:
+            except Exception:  # noqa: S110
                 pass
 
         # 3. Check workspaceStorage across all profiles under antigravity_homes
@@ -395,13 +395,13 @@ def sync_window_title(
                                 if ws_data.get("folder") == target_uri:
                                     matching.append((ws_entry.stat().st_mtime, h))
                                     break
-                            except Exception:
+                            except Exception:  # noqa: S110
                                 pass
                 if matching:
                     matching.sort(key=lambda x: x[0], reverse=True)
                     best_h = matching[0][1]
                     account_id = extract_email_id_from_profile(best_h) or best_h.name
-            except Exception:
+            except Exception:  # noqa: S110
                 pass
 
         # 4. If no process or workspaceStorage hit, check foreign repo's existing configured [@profile] tag
@@ -446,7 +446,7 @@ def sync_window_title(
                             break
                     if epic_title:
                         break
-                except Exception:
+                except Exception:  # noqa: S110
                     pass
 
         if not stage_text:
@@ -458,7 +458,7 @@ def sync_window_title(
                         if "## Repo/Task Status:" in l and i + 1 < len(lines):
                             stage_text = lines[i + 1].lstrip("- ").strip()
                             break
-                except Exception:
+                except Exception:  # noqa: S110
                     pass
 
     parts = [p for p in [icon, f"[{tag}]", profile_tag] if p]
@@ -514,7 +514,7 @@ def sync_window_title(
 
         if dirty:
             settings_file.write_text(json.dumps(settings, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-    except Exception:
+    except Exception:  # noqa: S110
         pass
 
 
@@ -942,6 +942,11 @@ def update_zshrc_env(zshrc_path: Path, r_home: Path, ws_root: Path) -> None:
         lines_to_add.append(f'export REAL_HOME="{r_home}"')
     if "WORKSPACE_ROOT" not in content:
         lines_to_add.append(f'export WORKSPACE_ROOT="{ws_root}"')
+    kit_root = ws_root / "ai-agent-tools"
+    if "D3NEXUS_KIT" not in content:
+        lines_to_add.append(f'export D3NEXUS_KIT="{kit_root}"')
+    if 'PATH="$D3NEXUS_KIT/bin:$PATH"' not in content and 'export PATH="$D3NEXUS_KIT/bin:$PATH"' not in content:
+        lines_to_add.append('export PATH="$D3NEXUS_KIT/bin:$PATH"')
     if lines_to_add:
         zshrc_path.write_text("\n".join(lines_to_add) + "\n" + content, encoding="utf-8")
 
