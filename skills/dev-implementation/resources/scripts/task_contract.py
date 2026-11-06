@@ -40,6 +40,9 @@ DOD_REFERENCE = re.compile(r"\((V[0-9]+(?:,\s*V[0-9]+)*|Gate 5)\)\.?\s*$")
 DEPENDS_ON_EPIC_RE = re.compile(
     r"^-\s*\*\*(?:Depends on epic|Phụ thuộc vào epic)\*\*:\s*(.+)$", re.MULTILINE
 )
+SPEC_ERRATA_ITEM_RE = re.compile(
+    r"^-\s*\*\*\[(SE-\d+)\]\s*([^*]+)\*\*:\s*(.+)$", re.MULTILINE
+)
 
 
 class ContractError(Exception):
@@ -567,6 +570,28 @@ def parse_depends_on_epics(hld_text: str) -> list[str]:
         if clean not in result:
             result.append(clean)
     return result
+
+
+def parse_spec_errata(hld_text: str) -> list[tuple[str, str]]:
+    """Extract (errata_id, description) tuples from '## Spec Errata' section."""
+    sec_text = section(hld_text, "Spec Errata") or section(
+        hld_text, "Đính chính Đặc tả (Spec Errata)"
+    )
+    if not sec_text:
+        return []
+    items: list[tuple[str, str]] = []
+    for line in sec_text.splitlines():
+        s = line.strip()
+        if not s:
+            continue
+        if s.startswith("- "):
+            m = SPEC_ERRATA_ITEM_RE.match(s)
+            if not m:
+                raise ContractError(
+                    "Spec Errata bullet must match '- **[SE-NN] <Section>**: <description>'"
+                )
+            items.append((m.group(1), m.group(3).strip()))
+    return items
 
 
 def resolve_prerequisite_epic_dirs(

@@ -650,6 +650,14 @@ def check_metadata(ctx: Context) -> list[Finding]:
     for err in prereq_errors:
         findings.append(Finding("R7", "FAIL", err))
 
+    en_errata: list[tuple[str, str]] = []
+    vi_errata: list[tuple[str, str]] = []
+    try:
+        en_errata = tc.parse_spec_errata(ctx.hld_text)
+    except tc.ContractError as err:
+        findings.append(Finding("R7", "FAIL", str(err)))
+        return findings
+
     vi_file = ctx.root / ".devtool" / "epic" / ctx.epic_dir / f"{ctx.epic_dir}.vi.md"
     if vi_file.is_file():
         try:
@@ -658,6 +666,20 @@ def check_metadata(ctx: Context) -> list[Finding]:
                 findings.append(
                     Finding(
                         "R7", "FAIL", "Depends on epic differs between .en.md and .vi.md"
+                    )
+                )
+            try:
+                vi_errata = tc.parse_spec_errata(vi_text)
+            except tc.ContractError as err:
+                findings.append(Finding("R7", "FAIL", str(err)))
+                return findings
+
+            if [eid for eid, _ in en_errata] != [eid for eid, _ in vi_errata]:
+                findings.append(
+                    Finding(
+                        "R7",
+                        "FAIL",
+                        f"Spec Errata IDs differ between .en.md and .vi.md: {[e for e, _ in en_errata]} vs {[e for e, _ in vi_errata]}",
                     )
                 )
         except OSError:
