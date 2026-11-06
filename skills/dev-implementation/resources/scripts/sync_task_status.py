@@ -695,28 +695,34 @@ def render_epic_tasks(root: Path, epic_dir: str, source_root: Path | None = None
     epic_slug = find_epic_slug(root, epic_dir) or sanitize_slug(epic_dir) or epic_dir
     target_slugs = {epic_slug, epic_slug.replace("-", "_"), epic_slug.replace("_", "-"), sanitize_slug(epic_dir)}
 
-    written_mirrors: list[Path] = []
-
+    # Phase 1: Validate and render in-memory across all tasks.
+    # If any task fails validation (unknown scenario ID or missing embed file),
+    # the function raises before mutating any canonical or mirror task file on disk.
+    render_plan: list[tuple[Path, str, Path, Path, str]] = []
     for task_file in sorted(epic_path.glob("task_*.md")):
         task_text = task_file.read_text(encoding="utf-8")
         task_text = canonicalize_intra_epic_links(task_text, epic_path)
         task_text = expand_embedded_files(task_text, source_root)
         task_text = inject_bdd_scenarios(task_text, canonical_blocks)
-        task_file.write_text(task_text, encoding="utf-8")
 
         fm = parse_frontmatter(task_text)
-        is_done = (fm.get("status") == "done")
+        is_done = fm.get("status") == "done"
 
         mirror_dir = root / ".devtool" / "features" / "done" if is_done else root / ".devtool" / "features"
         other_dir = root / ".devtool" / "features" if is_done else root / ".devtool" / "features" / "done"
 
         mirror_path = mirror_dir / task_file.name
         other_path = other_dir / task_file.name
+        mirror_text = rewrite_mirror_links(task_text, epic_dir, is_done, epic_path)
+        render_plan.append((task_file, task_text, mirror_path, other_path, mirror_text))
+
+    # Phase 2: Atomic write to disk only after all tasks pass Phase 1 validation.
+    written_mirrors: list[Path] = []
+    for task_file, task_text, mirror_path, other_path, mirror_text in render_plan:
+        task_file.write_text(task_text, encoding="utf-8")
         if other_path.is_file():
             other_path.unlink()
-
-        mirror_dir.mkdir(parents=True, exist_ok=True)
-        mirror_text = rewrite_mirror_links(task_text, epic_dir, is_done, epic_path)
+        mirror_path.parent.mkdir(parents=True, exist_ok=True)
         mirror_path.write_text(mirror_text, encoding="utf-8")
         written_mirrors.append(mirror_path)
 

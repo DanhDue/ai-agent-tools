@@ -189,6 +189,19 @@ class TaskContractErgonomics_Integration_E2E_Test(unittest.TestCase):
         )
 
         unknown_id = "TCAE" + "-HP-99"
+        task_00_content = (
+            '---\nstatus: "todo"\n---\n'
+            "# Task 00\n\n"
+            "Covers: TCAE-HP-01\n\n"
+            "## Files\n\nAllowed files:\n- `valid.txt`\n\n"
+            "## Verification\n\n"
+            "| ID | Phase | Command | Expect | Needs |\n"
+            "|----|-------|---------|--------|-------|\n"
+            "| V1 | GREEN | `true` | exit 0 | — |\n\n"
+            "## Definition of Done\n\n- done (V1)\n"
+        )
+        (epic_dir / "task_00_valid.md").write_text(task_00_content, encoding="utf-8")
+
         task_canonical = (
             '---\nstatus: "todo"\n---\n'
             "# Task 01\n\n"
@@ -224,6 +237,13 @@ class TaskContractErgonomics_Integration_E2E_Test(unittest.TestCase):
         )
         self.assertEqual(res.returncode, 1)
         self.assertIn(unknown_id, res.stderr)
+
+        # Multi-task atomicity: prior valid task was NOT mutated on disk
+        self.assertEqual(
+            (epic_dir / "task_00_valid.md").read_text(encoding="utf-8"),
+            task_00_content,
+        )
+        self.assertFalse((features_dir / "task_00_valid.md").exists())
 
         # Existing features task remains untouched
         self.assertEqual(
