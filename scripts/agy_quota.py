@@ -1,0 +1,1193 @@
+#!/usr/bin/env python3
+"""
+Antigravity Quota Dashboard with Card-style Progress Bars.
+
+Color Rules:
+  >= 50%           : GREEN (#72bc82)
+  >= 10% and < 50% : AMBER (#f59e0b)
+  < 10%            : RED   (#ef4444)
+
+Usage:
+  agy-quota                 # Check current active profile
+  agy-quota <profile>       # Check specific profile (e.g. danhdue, mommy)
+  agy-quota all             # Check all profiles from ~/.zshrc
+  agy-quota all --table     # Compact table summary for all profiles
+"""
+
+import sys
+import os
+import re
+import json
+import time
+import datetime
+import subprocess
+import http.server
+import socketserver
+import urllib.parse
+import urllib.request
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from pathlib import Path
+
+# ANSI Colors & Styling
+GREEN       = "\033[38;2;114;188;130m"      # Soft Green (#72bc82)
+AMBER       = "\033[38;2;245;158;11m"       # Amber / Orange (#f59e0b)
+RED         = "\033[38;2;239;68;68m"        # Red (#ef4444)
+GRAY        = "\033[38;2;148;163;184m"      # Slate / Gray (#94a3b8)
+DIM         = "\033[38;2;100;116;139m"      # Slate-500 Dim (#64748b)
+BORDER      = "\033[38;2;51;65;85m"         # Border color (#334155)
+TRACK_GRAY  = "\033[38;2;30;41;59m"         # Deep Slate (#1e293b)
+WHITE       = "\033[1;37m"                  # Bold White
+CYAN        = "\033[38;2;56;189;248m"       # Cyan (#38bdf8)
+TIMER       = "\033[38;2;251;191;36m"       # Gold / Amber Timer (#fbbf24)
+RESET       = "\033[0m"
+BOLD        = "\033[1m"
+
+# Model & Status Badges
+TAG_PRO      = "\033[48;2;59;102;245m\033[1;37m ◆ PRO \033[0m"
+TAG_PRIORITY = "\033[48;2;24;27;38m\033[38;2;160;174;192m Priority: 50 \033[0m"
+TAG_ARGON    = "\033[48;2;38;25;56m\033[38;2;192;132;252m ✣ Argon \033[0m"
+TAG_HIGH     = "\033[48;2;76;29;149m\033[38;2;216;180;254m High \033[0m"
+TAG_MED      = "\033[48;2;30;58;138m\033[38;2;191;219;254m Med \033[0m"
+TAG_LOW      = "\033[48;2;15;23;42m\033[38;2;148;163;184m Low \033[0m"
+TAG_INACTIVE = "\033[48;2;30;41;59m\033[38;2;148;163;184m INACTIVE \033[0m"
+
+REAL_HOME = "/Users/danhdueexoictif"
+KC_PASS = "H@No!a@12345"
+AGY_BIN = "/opt/homebrew/bin/agy"
+
+
+def get_color(pct: float) -> str:
+    """Return ANSI color based on quota percentage."""
+    if pct >= 50.0:
+        return GREEN
+    elif pct >= 10.0:
+        return AMBER
+    else:
+        return RED
+
+
+def get_color_pair(pct: float) -> tuple:
+    """Return (active_fill_color, consumed_track_color) based on quota percentage."""
+    if pct >= 50.0:
+        return GREEN, "\033[38;2;22;101;52m"     # Deep Forest Green (#166534)
+    elif pct >= 10.0:
+        return AMBER, "\033[38;2;120;53;15m"     # Deep Amber (#78350f)
+    else:
+        return RED, "\033[38;2;127;29;29m"       # Deep Crimson (#7f1d1d)
+
+
+def str_vis_width(s: str) -> int:
+    """Compute visual terminal width ignoring ANSI escape codes."""
+    w = 0
+    in_esc = False
+    for ch in s:
+        if ch == "\033":
+            in_esc = True
+            continue
+        if in_esc:
+            if ch == "m":
+                in_esc = False
+            continue
+        if ch in ("⏱", "⏳"):
+            w += 2
+        else:
+            w += 1
+    return w
+
+
+def format_countdown(reset_time_str: str) -> str:
+    """Calculate remaining time to full reset from now."""
+    if not reset_time_str:
+        return "⏱ --"
+    try:
+        dt = datetime.datetime.fromisoformat(reset_time_str.replace("Z", "+00:00"))
+        now = datetime.datetime.now(datetime.timezone.utc)
+        diff = dt - now
+        total_seconds = max(0, int(diff.total_seconds()))
+        days = total_seconds // 86400
+        hours = (total_seconds % 86400) // 3600
+        minutes = (total_seconds % 3600) // 60
+        if days > 0:
+            return f"⏱ {days}d {hours}h"
+        elif hours > 0:
+            return f"⏱ {hours}h {minutes}m"
+        elif minutes > 0:
+            return f"⏱ {minutes}m"
+        else:
+            return "⏱ 0m"
+    except Exception:
+        return "⏱ --"
+
+
+def render_card(icon: str, icon_color: str, title: str, timer_str: str, fraction: float, width: int = 45, tags: str = None, available: bool = True) -> list:
+    """Render a card-style UI box with progress bar matching the reference image."""
+    inner_w = width - 2
+
+    # Top border
+    top = f"{BORDER}╭" + "─" * inner_w + f"╮{RESET}"
+    bot = f"{BORDER}╰" + "─" * inner_w + f"╯{RESET}"
+
+    if not available:
+        # Inactive / unavailable model: styled in slate gray with NO right text as requested
+        left_styled = f" {DIM}{icon}{RESET} {DIM}{title}{RESET} {TAG_INACTIVE}"
+        left_raw = f" {icon} {title}  INACTIVE "
+
+        sp = max(1, inner_w - str_vis_width(left_raw) - 1)
+        content = f"{BORDER}│{RESET}{left_styled}{' ' * sp}{BORDER}│{RESET}"
+        bar_w = inner_w - 4
+        bar_line = f"{BORDER}│{RESET}  [{BORDER}{'░' * bar_w}{RESET}]  {BORDER}│{RESET}"
+        return [top, content, bar_line, bot]
+
+    fraction = max(0.0, min(1.0, fraction))
+    pct = fraction * 100.0
+    color = get_color(pct)
+
+    # Left text (icon + title + tags)
+    left_styled = f" {icon_color}{icon}{RESET} {WHITE}{title}{RESET}"
+    left_raw = f" {icon} {title}"
+    if tags:
+        left_styled += f" {tags}"
+        left_raw += "  High   Med   Low "
+
+    pct_text = f"{color}{pct:5.1f}%{RESET}"
+    pct_raw = f"{pct:5.1f}%"
+
+    timer_styled = f"{TIMER}{timer_str}{RESET}"
+    timer_raw = timer_str
+
+    vis_used = str_vis_width(left_raw) + str_vis_width(timer_raw) + str_vis_width(pct_raw)
+    sp_total = max(2, inner_w - vis_used - 1)
+    sp1 = max(1, sp_total // 2)
+    sp2 = max(1, sp_total - sp1)
+
+    content = f"{BORDER}│{RESET}{left_styled}{' ' * sp1}{timer_styled}{' ' * sp2}{pct_text} {BORDER}│{RESET}"
+
+    # Progress bar line
+    bar_w = inner_w - 4
+    filled = int(round(fraction * bar_w))
+    empty = bar_w - filled
+    fill_color, track_color = get_color_pair(pct)
+    bar_line = f"{BORDER}│{RESET}  [{fill_color}{'█' * filled}{RESET}{track_color}{'░' * empty}{RESET}]  {BORDER}│{RESET}"
+
+    return [top, content, bar_line, bot]
+
+
+def get_all_profiles() -> list:
+    """Discover all actual Antigravity profile accounts directly from antigravity_homes directory."""
+    profiles = []
+    homes_dir = f"{REAL_HOME}/antigravity_homes"
+    if os.path.isdir(homes_dir):
+        for d in sorted(os.listdir(homes_dir)):
+            if not d.startswith(".") and os.path.isdir(os.path.join(homes_dir, d)):
+                profiles.append(d)
+
+    # Also check ~/.zshrc for aliases as fallback or aliases with distinct names
+    zshrc_path = os.path.expanduser("~/.zshrc")
+    if os.path.exists(zshrc_path):
+        try:
+            with open(zshrc_path, "r", encoding="utf-8", errors="ignore") as f:
+                for line in f:
+                    m = re.search(r"antigravity_homes/([a-zA-Z0-9_-]+)", line)
+                    if m:
+                        p = m.group(1)
+                        if p not in profiles and os.path.isdir(os.path.join(homes_dir, p)):
+                            profiles.append(p)
+                    m2 = re.match(r"^alias\s+([a-zA-Z0-9_-]+)='ag_run\s+([a-zA-Z0-9_-]+)'", line.strip())
+                    if m2:
+                        p2 = m2.group(2)
+                        if p2 not in profiles and os.path.isdir(os.path.join(homes_dir, p2)):
+                            profiles.append(p2)
+        except Exception:
+            pass
+
+    return sorted(list(set(profiles)))
+
+
+def get_profiles_from_zshrc() -> list:
+    """Backward compatibility alias to get_all_profiles()."""
+    return get_all_profiles()
+
+
+def record_profile_disabled(profile: str, error_id: str):
+    """Persist disabled/appeal status to disk in profile's .gemini/antigravity/tos_disabled.json."""
+    try:
+        marker_dir = os.path.join(REAL_HOME, "antigravity_homes", profile, ".gemini/antigravity")
+        os.makedirs(marker_dir, exist_ok=True)
+        marker_file = os.path.join(marker_dir, "tos_disabled.json")
+        with open(marker_file, "w") as f:
+            json.dump({
+                "profile": profile,
+                "error_id": error_id or "856698b5-d43c-4198-962b-4db7fc3c4adb-2",
+                "timestamp": time.time(),
+                "disabled_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                "reason": "Violation of Terms of Service (Submit an appeal)"
+            }, f, indent=2)
+    except Exception:
+        pass
+
+
+def check_profile_appeal_status(profile: str, out_text: str = "") -> str:
+    """Check if profile has been disabled for Terms of Service violation (submit an appeal).
+    Returns Error ID string if disabled, or empty string '' if not disabled.
+    """
+    if out_text:
+        low = out_text.lower()
+        if "submit an appeal" in low or "violation of terms of service" in low or "service has been disabled" in low:
+            m = re.search(r'([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:-\d+)?)', out_text)
+            err_id = m.group(1) if m else "856698b5-d43c-4198-962b-4db7fc3c4adb-2"
+            record_profile_disabled(profile, err_id)
+            return err_id
+
+    # Check marker file in profile directory
+    marker_file = os.path.join(REAL_HOME, "antigravity_homes", profile, ".gemini/antigravity", "tos_disabled.json")
+    if os.path.isfile(marker_file):
+        try:
+            with open(marker_file, "r") as f:
+                data = json.load(f)
+                return data.get("error_id") or "856698b5-d43c-4198-962b-4db7fc3c4adb-2"
+        except Exception:
+            pass
+
+    # Check cached profile data in dashboard HTML
+    if CACHED_PROFILES_DATA:
+        cached = CACHED_PROFILES_DATA.get(profile, {})
+        if cached.get("isAppeal") or cached.get("status") == "DISABLED":
+            return cached.get("errorId") or "856698b5-d43c-4198-962b-4db7fc3c4adb-2"
+
+    # Check all recent cli logs in ~/.gemini/antigravity/log/
+    log_dir = os.path.join(REAL_HOME, "antigravity_homes", profile, ".gemini/antigravity/log")
+    if os.path.isdir(log_dir):
+        import glob
+        logs = sorted(glob.glob(os.path.join(log_dir, "cli-*.log")), key=os.path.getmtime, reverse=True)
+        for log_file in logs:
+            try:
+                with open(log_file, "rb") as f:
+                    content = f.read().decode("utf-8", errors="ignore")
+                    low = content.lower()
+                    if "submit an appeal" in low or "violation of terms of service" in low or "service has been disabled" in low:
+                        m = re.search(r'([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:-\d+)?)', content)
+                        err_id = m.group(1) if m else "856698b5-d43c-4198-962b-4db7fc3c4adb-2"
+                        record_profile_disabled(profile, err_id)
+                        return err_id
+            except Exception:
+                pass
+    return ""
+
+
+def check_profile_auth_token(profile: str) -> bool:
+    """Check in ~8ms whether profile has an active gemini token in its keychain.
+    CRITICAL: If False, running agy will attempt to open the web browser for OAuth!
+    We MUST NOT execute agy when this returns False.
+    """
+    kc = os.path.join(REAL_HOME, "antigravity_homes", profile, "Library/Keychains", f"{profile}.keychain-db")
+    if not os.path.isfile(kc):
+        return False
+    subprocess.run(["security", "unlock-keychain", "-p", KC_PASS, kc], capture_output=True)
+    res = subprocess.run(["security", "find-generic-password", "-s", "gemini", "-a", "antigravity", kc], capture_output=True)
+    return res.returncode == 0
+
+
+def fetch_quota_for_profile(profile: str) -> dict:
+    """Execute agy --output-format json -p '/usage' for a given profile."""
+    ag_home = f"{REAL_HOME}/antigravity_homes/{profile}"
+    if not os.path.isdir(ag_home):
+        return {"profile": profile, "success": False, "error": f"Profile home not found: {ag_home}"}
+
+    # 1. Fast check if account was disabled for ToS violation (submit an appeal)
+    appeal_err_id = check_profile_appeal_status(profile)
+    if appeal_err_id:
+        return {
+            "profile": profile,
+            "success": False,
+            "status": "DISABLED",
+            "is_appeal": True,
+            "error_id": appeal_err_id,
+            "duration": 0.05,
+            "error": "Tài khoản bị vô hiệu hóa do vi phạm Điều khoản (Terms of Service / Submit an appeal)"
+        }
+
+    # 2. Fast check if account has CLI auth token in Keychain (PREVENTS agy FROM OPENING BROWSER!)
+    if not check_profile_auth_token(profile):
+        return {
+            "profile": profile,
+            "success": False,
+            "status": "AUTH NEEDED",
+            "is_appeal": False,
+            "duration": 0.05,
+            "error": "Profile chưa đăng nhập CLI. Cần đăng nhập bằng Terminal trước khi lấy Quota."
+        }
+
+    # 3. Unlock Keychain
+    profile_kc = f"{ag_home}/Library/Keychains/{profile}.keychain-db"
+    if os.path.exists(profile_kc):
+        subprocess.run(["security", "unlock-keychain", "-p", KC_PASS, profile_kc], capture_output=True)
+
+    # 4. Build isolated environment
+    env = os.environ.copy()
+    env.update({
+        "HOME": ag_home,
+        "AGY_PROFILE": profile,
+        "AGY_CLI_MODE": "1",
+        "TMPDIR": f"/tmp/ag_{profile}",
+        "BROWSER": "true",  # Safeguard against browser launch
+    })
+
+    cmd = [AGY_BIN, "--output-format", "json", "-p", "/usage"]
+    t0 = time.time()
+    try:
+        proc = subprocess.run(cmd, env=env, capture_output=True, text=True, timeout=25)
+        duration = time.time() - t0
+        all_out = (proc.stdout or "") + " " + (proc.stderr or "")
+
+        appeal_out_id = check_profile_appeal_status(profile, all_out)
+        if appeal_out_id:
+            return {
+                "profile": profile,
+                "success": False,
+                "status": "DISABLED",
+                "is_appeal": True,
+                "error_id": appeal_out_id,
+                "duration": duration,
+                "error": "Tài khoản bị vô hiệu hóa do vi phạm Điều khoản (Terms of Service / Submit an appeal)"
+            }
+
+        if proc.returncode != 0:
+            return {
+                "profile": profile,
+                "success": False,
+                "duration": duration,
+                "error": proc.stderr.strip() or f"Process exited with code {proc.returncode}"
+            }
+
+        stdout = proc.stdout.strip()
+        data = json.loads(stdout)
+        cmd_data = data.get("command", {}).get("data", {})
+        groups = cmd_data.get("groups", [])
+        return {
+            "profile": profile,
+            "success": True,
+            "duration": duration,
+            "groups": groups,
+        }
+    except subprocess.TimeoutExpired:
+        return {"profile": profile, "success": False, "duration": 25.0, "error": "Request timed out (25s)"}
+    except Exception as e:
+        return {"profile": profile, "success": False, "error": str(e)}
+
+
+def parse_quota_items(groups: list) -> dict:
+    """Extract standard buckets into a structured dictionary."""
+    items = {
+        "gem_5h": {"fraction": 1.0, "reset_time": "", "available": False},
+        "gem_weekly": {"fraction": 1.0, "reset_time": "", "available": False},
+        "cld_5h": {"fraction": 1.0, "reset_time": "", "available": False},
+        "cld_weekly": {"fraction": 1.0, "reset_time": "", "available": False},
+        "argon_5h": None,
+        "argon_weekly": {"fraction": 0.0, "reset_time": "", "available": False},
+    }
+
+    for g in groups:
+        g_name = g.get("name", "").lower()
+        if "gemini models" in g_name:
+            for b in g.get("buckets", []):
+                if b.get("window") == "5h":
+                    items["gem_5h"] = {"fraction": b.get("remaining_fraction", 1.0), "reset_time": b.get("reset_time", ""), "available": True}
+                elif b.get("window") == "weekly":
+                    items["gem_weekly"] = {"fraction": b.get("remaining_fraction", 1.0), "reset_time": b.get("reset_time", ""), "available": True}
+        elif "claude" in g_name:
+            for b in g.get("buckets", []):
+                if b.get("window") == "5h":
+                    items["cld_5h"] = {"fraction": b.get("remaining_fraction", 1.0), "reset_time": b.get("reset_time", ""), "available": True}
+                elif b.get("window") == "weekly":
+                    items["cld_weekly"] = {"fraction": b.get("remaining_fraction", 1.0), "reset_time": b.get("reset_time", ""), "available": True}
+        elif "argon" in g_name:
+            for b in g.get("buckets", []):
+                if b.get("window") == "5h":
+                    items["argon_5h"] = {"fraction": b.get("remaining_fraction", 1.0), "reset_time": b.get("reset_time", ""), "available": True}
+                elif b.get("window") == "weekly":
+                    items["argon_weekly"] = {"fraction": b.get("remaining_fraction", 1.0), "reset_time": b.get("reset_time", ""), "available": True}
+
+    return items
+
+
+def print_dashboard_cards(result: dict):
+    """Render the full Dashboard matching the user's reference image."""
+    profile = result["profile"]
+    if not result.get("success"):
+        if result.get("is_appeal") or result.get("status") == "DISABLED":
+            print(f"\n{BOLD}{RED}❌ PROFILE: {profile}{RESET}  \033[48;2;127;29;29m\033[1;37m 🚫 BỊ KHÓA (APPEAL NEEDED) \033[0m")
+            print(f"  {RED}Trạng thái: Tài khoản bị Google vô hiệu hóa do vi phạm Điều khoản dịch vụ!{RESET}")
+            print(f"  {AMBER}Chi tiết lỗi: This service has been disabled in this account for violation of Terms of Service.{RESET}")
+            print(f"  {CYAN}👉 Cần gửi đơn kháng nghị (Submit an appeal) tới Google để khôi phục tài khoản:{RESET}")
+            print(f"     {BOLD}{WHITE}https://docs.google.com/forms/d/e/1FAIpQLScOJWibQ_-hYuVv63kJTgEqlgAaOwRLGFTbXm-QY1gz8U0CGA/viewform{RESET}\n")
+            return
+
+        print(f"\n{BOLD}{RED}❌ PROFILE: {profile}{RESET}  \033[38;2;245;158;11m🔑 AUTH NEEDED\033[0m")
+        print(f"  {RED}Trạng thái: Chưa xác thực CLI ({result.get('error', 'Authentication or timeout')}){RESET}")
+        print(f"  {CYAN}👉 Để đăng nhập CLI cho profile này, hãy chạy lệnh:{RESET}")
+        print(f"     {BOLD}{WHITE}{profile}-cli{RESET}\n")
+        return
+
+    items = parse_quota_items(result.get("groups", []))
+
+    # Determine status tag based only on available buckets
+    avail_fractions = [
+        item["fraction"] for k, item in items.items()
+        if item and item.get("available")
+    ]
+    if not avail_fractions or min(avail_fractions) <= 0.0:
+        status_tag = f"\033[38;2;239;68;68m🔴 EXHAUSTED\033[0m"
+    else:
+        status_tag = f"\033[38;2;114;188;130m🟢 ACTIVE\033[0m"
+
+    has_argon = items["argon_weekly"].get("available", False)
+    argon_tag_str = f"  {TAG_ARGON}" if has_argon else ""
+
+    print(f"\n{BOLD}{WHITE}✦ Profile: {CYAN}{profile}{RESET}  {TAG_PRO}  {TAG_PRIORITY}{argon_tag_str}  {status_tag}")
+
+    # Row 1: Gemini 5H  &  Claude 5H
+    gem_5h_time = format_countdown(items["gem_5h"]["reset_time"])
+    cld_5h_time = format_countdown(items["cld_5h"]["reset_time"])
+    c1 = render_card("✦", CYAN, "Gemini 3.8 / Pro 5H", gem_5h_time, items["gem_5h"]["fraction"], width=45, available=items["gem_5h"]["available"])
+    c2 = render_card("✺", "\033[38;2;251;146;60m", "Claude 5.5 / GPT 5H", cld_5h_time, items["cld_5h"]["fraction"], width=45, available=items["cld_5h"]["available"])
+    for l1, l2 in zip(c1, c2):
+        print(l1 + "  " + l2)
+
+    # Row 2: Gemini Weekly  &  Claude Weekly
+    gem_w_time = format_countdown(items["gem_weekly"]["reset_time"])
+    cld_w_time = format_countdown(items["cld_weekly"]["reset_time"])
+    c3 = render_card("✦", CYAN, "Gemini Weekly", gem_w_time, items["gem_weekly"]["fraction"], width=45, available=items["gem_weekly"]["available"])
+    c4 = render_card("✺", "\033[38;2;251;146;60m", "Claude Weekly", cld_w_time, items["cld_weekly"]["fraction"], width=45, available=items["cld_weekly"]["available"])
+    for l3, l4 in zip(c3, c4):
+        print(l3 + "  " + l4)
+
+    # Row 3: Argon 5H (if present)
+    if items["argon_5h"] is not None:
+        arg_5h_time = format_countdown(items["argon_5h"]["reset_time"])
+        c5_5h = render_card("✦", CYAN, "Gemini 4 Argon 5H", arg_5h_time, items["argon_5h"]["fraction"], width=92, available=items["argon_5h"]["available"])
+        for l in c5_5h:
+            print(l)
+
+    # Row 4: Argon Weekly (Full width card with High/Med/Low tags or INACTIVE tag)
+    arg_w_time = format_countdown(items["argon_weekly"]["reset_time"])
+    tags_str = f"{TAG_HIGH} {TAG_MED} {TAG_LOW}" if items["argon_weekly"]["available"] else None
+    c5 = render_card("✦", CYAN, "Gemini 4 Argon Weekly", arg_w_time, items["argon_weekly"]["fraction"], width=92, tags=tags_str, available=items["argon_weekly"]["available"])
+    for l in c5:
+        print(l)
+
+    # Actions footer matching /refresh-session: Refresh nhanh, Kích hoạt & Lên lịch
+    print(f" {DIM}⚙️  Actions:{RESET}")
+    print(f"   \033[38;2;56;189;248m⚡ Refresh nhanh\033[0m : {DIM}check-quota refresh {profile}{RESET}")
+    print(f"   \033[38;2;114;188;130m🎯 Kích hoạt\033[0m     : {DIM}check-quota ping {profile}{RESET}")
+    print(f"   \033[38;2;192;132;252m⏰ Lên lịch\033[0m      : {DIM}/refresh-session schedule --time 07:00 --delay 30{RESET}\n")
+
+
+def render_mini_bar(item: dict, width: int = 14) -> str:
+    """Render a compact progress bar for tabular summary with unified consumed track color.
+    When inactive, renders a muted gray bar with no text as requested."""
+    if not item or not item.get("available", True):
+        return f"{GRAY}[{'░' * width}]{RESET}       "
+    fraction = max(0.0, min(1.0, item["fraction"]))
+    pct = fraction * 100.0
+    fill_color, track_color = get_color_pair(pct)
+    filled = int(round(fraction * width))
+    empty = width - filled
+    return f"[{fill_color}{'█' * filled}{RESET}{track_color}{'░' * empty}{RESET}] {fill_color}{pct:5.1f}%{RESET}"
+
+
+def print_all_summary(results: list):
+    """Print an executive multi-profile summary table strictly aligned to 122 chars."""
+    table_w = 122
+    print(f"\n{BOLD}{WHITE}{'=' * table_w}{RESET}")
+    print(f"{BOLD}{CYAN}                      ANTIGRAVITY ACCOUNTS QUOTA DASHBOARD (ALL PROFILES){RESET}")
+    print(f"{BOLD}{WHITE}{'=' * table_w}{RESET}")
+    print(f"{BOLD}{'Profile':<18} | {'Gemini Weekly':<23} | {'Gemini 5H':<23} | {'Claude Weekly':<23} | {'Argon Weekly':<23}{RESET}")
+    print(f"{DIM}{'-' * table_w}{RESET}")
+
+    cols_w = 23 * 4 + 3 * 3  # 101 chars across the 4 quota columns
+
+    for res in results:
+        profile = res["profile"]
+        if not res.get("success"):
+            if res.get("is_appeal") or res.get("status") == "DISABLED":
+                err_msg = "Vi phạm ToS / Cần kháng nghị (Submit Appeal)"
+                msg = f"  \033[38;2;239;68;68m🚫 DISABLED\033[0m - {RED}{err_msg}{RESET}"
+                pad = max(1, cols_w - str_vis_width(msg))
+                print(f"{BOLD}{profile:<18}{RESET} |{msg}{' ' * pad}|")
+                continue
+
+            err_msg = "Chưa đăng nhập CLI"
+            msg = f"  \033[38;2;245;158;11m🔑 AUTH NEEDED\033[0m - {RED}{err_msg}{RESET} {DIM}({profile}-cli){RESET}"
+            pad = max(1, cols_w - str_vis_width(msg))
+            print(f"{BOLD}{profile:<18}{RESET} |{msg}{' ' * pad}|")
+            continue
+
+        items = parse_quota_items(res.get("groups", []))
+        bar_gem_w = render_mini_bar(items["gem_weekly"])
+        bar_gem_5h = render_mini_bar(items["gem_5h"])
+        bar_cld_w = render_mini_bar(items["cld_weekly"])
+        bar_arg_w = render_mini_bar(items["argon_weekly"])
+
+        print(f"{BOLD}{profile:<18}{RESET} | {bar_gem_w} | {bar_gem_5h} | {bar_cld_w} | {bar_arg_w}")
+
+    print(f"{BOLD}{WHITE}{'=' * table_w}{RESET}\n")
+
+
+def get_dashboard_html_path() -> Path:
+    candidates = [
+        Path(__file__).resolve().parent.parent / "skills" / "check-quota" / "resources" / "dashboard" / "quota_dashboard.html",
+        Path("/Users/danhdueexoictif/AllProjects/ai-agent-tools/skills/check-quota/resources/dashboard/quota_dashboard.html"),
+        Path("/Users/danhdueexoictif/Projects/ai-agent-tools/skills/check-quota/resources/dashboard/quota_dashboard.html"),
+        Path("/Users/danhdueexoictif/antigravity_homes/huynhminhtien0510/.gemini/antigravity/brain/faba533a-ed61-4a6e-8b53-bfbf7926cccf/quota_dashboard.html"),
+    ]
+    for c in candidates:
+        if c.is_file():
+            return c
+    return candidates[0]
+
+
+CACHED_PROFILES_DATA: dict = {}
+
+
+def load_cached_profiles() -> dict:
+    global CACHED_PROFILES_DATA
+    if CACHED_PROFILES_DATA:
+        return CACHED_PROFILES_DATA
+    p = get_dashboard_html_path()
+    if p.is_file():
+        try:
+            content = p.read_text(encoding="utf-8")
+            marker = "const PROFILES_DATA ="
+            idx1 = content.find(marker)
+            if idx1 != -1:
+                idx2 = content.find(";", idx1)
+                if idx2 != -1:
+                    raw_json = content[idx1 + len(marker):idx2].strip()
+                    CACHED_PROFILES_DATA = json.loads(raw_json)
+                    return CACHED_PROFILES_DATA
+        except Exception as e:
+            sys.stderr.write(f"Failed to load cached profiles: {e}\n")
+    return {}
+
+
+def update_cached_profile(profile: str, data: dict):
+    global CACHED_PROFILES_DATA
+    if not CACHED_PROFILES_DATA:
+        load_cached_profiles()
+    CACHED_PROFILES_DATA[profile] = data
+    try:
+        p = get_dashboard_html_path()
+        if p.is_file():
+            content = p.read_text(encoding="utf-8")
+            marker = "const PROFILES_DATA ="
+            idx1 = content.find(marker)
+            if idx1 != -1:
+                idx2 = content.find(";", idx1)
+                if idx2 != -1:
+                    formatted_json = json.dumps(CACHED_PROFILES_DATA, indent=2, ensure_ascii=False)
+                    new_content = content[:idx1 + len(marker)] + " " + formatted_json + content[idx2:]
+                    p.write_text(new_content, encoding="utf-8")
+                    sync_copies = [
+                        Path("/Users/danhdueexoictif/antigravity_homes/huynhminhtien0510/.gemini/config/plugins/d3nexus/skills/check-quota/resources/dashboard/quota_dashboard.html"),
+                        Path("/Users/danhdueexoictif/antigravity_homes/huynhminhtien0510/.gemini/antigravity/brain/faba533a-ed61-4a6e-8b53-bfbf7926cccf/quota_dashboard.html"),
+                    ]
+                    for sc in sync_copies:
+                        if sc.is_file() and sc != p:
+                            try:
+                                sc.write_text(new_content, encoding="utf-8")
+                            except Exception:
+                                pass
+    except Exception as e:
+        sys.stderr.write(f"Failed to persist updated cache to HTML: {e}\n")
+
+
+def format_profile_for_dashboard(profile: str, result: dict) -> dict:
+    current = load_cached_profiles().get(profile, {})
+    email = current.get("email") or f"{profile}@gmail.com"
+    tier = current.get("tier", "PRO")
+    priority = current.get("priority", 50)
+
+    appeal_err_id = result.get("error_id") or check_profile_appeal_status(profile)
+    if result.get("is_appeal") or result.get("status") == "DISABLED" or appeal_err_id:
+        return {
+            "email": email,
+            "tier": tier,
+            "priority": priority,
+            "status": "DISABLED",
+            "isAppeal": True,
+            "appealReason": "This service has been disabled in this account for violation of Terms of Service. Please submit an appeal to continue using this product.",
+            "errorId": appeal_err_id or "856698b5-d43c-4198-962b-4db7fc3c4adb-2",
+            "hasArgon": current.get("hasArgon", True),
+            "gemini5h": {"name": "Gemini 3.8 / Pro 5H", "fraction": 0.0, "countdown": "⏱ Bị khóa", "unavailable": True},
+            "claude5h": {"name": "Claude 5.5 / GPT 5H", "fraction": 0.0, "countdown": "⏱ Bị khóa", "unavailable": True},
+            "geminiWeekly": {"name": "Gemini Weekly", "fraction": 0.0, "countdown": "⏱ Bị khóa", "unavailable": True},
+            "claudeWeekly": {"name": "Claude Weekly", "fraction": 0.0, "countdown": "⏱ Bị khóa", "unavailable": True},
+            "argonWeekly": {"name": "Gemini 4 Argon Weekly", "fraction": 0.0, "countdown": "⏱ Bị khóa", "unavailable": True, "tags": True},
+        }
+
+    if not result.get("success"):
+        return {
+            "email": email,
+            "tier": tier,
+            "priority": priority,
+            "status": "AUTH NEEDED",
+            "isAppeal": False,
+            "hasArgon": current.get("hasArgon", False),
+            "gemini5h": {"name": "Gemini 3.8 / Pro 5H", "fraction": 1.0, "countdown": "⏱ Auth needed", "unavailable": True},
+            "claude5h": {"name": "Claude 5.5 / GPT 5H", "fraction": 1.0, "countdown": "⏱ Auth needed", "unavailable": True},
+            "geminiWeekly": {"name": "Gemini Weekly", "fraction": 1.0, "countdown": "⏱ Auth needed", "unavailable": True},
+            "claudeWeekly": {"name": "Claude Weekly", "fraction": 1.0, "countdown": "⏱ Auth needed", "unavailable": True},
+            "argonWeekly": {"name": "Gemini 4 Argon Weekly", "fraction": 0.0, "countdown": "⏱ Auth needed", "unavailable": True, "tags": True},
+        }
+
+    groups = result.get("groups", [])
+    items = parse_quota_items(groups)
+
+    has_argon = items["argon_weekly"]["available"] or current.get("hasArgon", False)
+
+    is_exhausted = (
+        items["gem_5h"]["fraction"] == 0 and
+        items["cld_5h"]["fraction"] == 0 and
+        items["gem_weekly"]["fraction"] == 0 and
+        items["cld_weekly"]["fraction"] == 0
+    )
+    status = "EXHAUSTED" if is_exhausted else "ACTIVE"
+
+    return {
+        "email": email,
+        "tier": tier,
+        "priority": priority,
+        "status": status,
+        "isAppeal": False,
+        "hasArgon": has_argon,
+        "gemini5h": {
+            "name": "Gemini 3.8 / Pro 5H",
+            "fraction": items["gem_5h"]["fraction"],
+            "countdown": format_countdown(items["gem_5h"]["reset_time"]) if items["gem_5h"]["reset_time"] else "⏱ 4h 59m",
+            "unavailable": not items["gem_5h"]["available"],
+        },
+        "claude5h": {
+            "name": "Claude 5.5 / GPT 5H",
+            "fraction": items["cld_5h"]["fraction"],
+            "countdown": format_countdown(items["cld_5h"]["reset_time"]) if items["cld_5h"]["reset_time"] else "⏱ 4h 59m",
+            "unavailable": not items["cld_5h"]["available"],
+        },
+        "geminiWeekly": {
+            "name": "Gemini Weekly",
+            "fraction": items["gem_weekly"]["fraction"],
+            "countdown": format_countdown(items["gem_weekly"]["reset_time"]) if items["gem_weekly"]["reset_time"] else "⏱ 6d 20h",
+            "unavailable": not items["gem_weekly"]["available"],
+        },
+        "claudeWeekly": {
+            "name": "Claude Weekly",
+            "fraction": items["cld_weekly"]["fraction"],
+            "countdown": format_countdown(items["cld_weekly"]["reset_time"]) if items["cld_weekly"]["reset_time"] else "⏱ 6d 20h",
+            "unavailable": not items["cld_weekly"]["available"],
+        },
+        "argonWeekly": {
+            "name": "Gemini 4 Argon Weekly",
+            "fraction": items["argon_weekly"]["fraction"] if items["argon_weekly"]["available"] else 0.0,
+            "countdown": format_countdown(items["argon_weekly"]["reset_time"]) if items["argon_weekly"]["reset_time"] else ("⏱ 6d 20h" if has_argon else "Unavailable N/A"),
+            "unavailable": not has_argon,
+            "tags": True,
+        },
+    }
+
+
+def execute_ping_profile(profile: str) -> dict:
+    ag_home = f"{REAL_HOME}/antigravity_homes/{profile}"
+    if not os.path.isdir(ag_home):
+        return {"profile": profile, "success": False, "error": f"Profile home not found: {ag_home}"}
+
+    appeal_err_id = check_profile_appeal_status(profile)
+    if appeal_err_id:
+        return {
+            "profile": profile,
+            "success": False,
+            "status": "DISABLED",
+            "is_appeal": True,
+            "error_id": appeal_err_id,
+            "duration_ms": 50,
+            "error": "Tài khoản bị vô hiệu hóa do vi phạm Điều khoản (Terms of Service / Submit an appeal)"
+        }
+
+    if not check_profile_auth_token(profile):
+        return {
+            "profile": profile,
+            "success": False,
+            "status": "AUTH NEEDED",
+            "is_appeal": False,
+            "duration_ms": 50,
+            "error": "Profile chưa đăng nhập CLI. Cần đăng nhập bằng Terminal trước khi ping."
+        }
+
+    profile_kc = f"{ag_home}/Library/Keychains/{profile}.keychain-db"
+    if os.path.exists(profile_kc):
+        subprocess.run(["security", "unlock-keychain", "-p", KC_PASS, profile_kc], capture_output=True)
+
+    env = os.environ.copy()
+    env.update({
+        "HOME": ag_home,
+        "AGY_PROFILE": profile,
+        "AGY_CLI_MODE": "1",
+        "TMPDIR": f"/tmp/ag_{profile}",
+        "BROWSER": "true",
+    })
+    env.update({"HOME": ag_home, "AGY_PROFILE": profile, "AGY_CLI_MODE": "1", "TMPDIR": f"/tmp/ag_{profile}"})
+    t0 = time.time()
+    try:
+        res = subprocess.run([AGY_BIN, "-p", "1"], env=env, capture_output=True, text=True, timeout=25)
+        dur = int((time.time() - t0) * 1000)
+        out_all = (res.stdout or "") + " " + (res.stderr or "")
+
+        appeal_out_id = check_profile_appeal_status(profile, out_all)
+        if appeal_out_id:
+            return {
+                "profile": profile,
+                "success": False,
+                "status": "DISABLED",
+                "is_appeal": True,
+                "error_id": appeal_out_id,
+                "duration_ms": dur,
+                "error": "Tài khoản bị vô hiệu hóa do vi phạm Điều khoản (Terms of Service / Submit an appeal)"
+            }
+
+        if res.returncode == 0:
+            return {"profile": profile, "success": True, "duration_ms": dur, "message": f"Kích hoạt thành công ({dur}ms)"}
+        return {"profile": profile, "success": False, "duration_ms": dur, "error": res.stderr.strip() or f"Code {res.returncode}"}
+    except subprocess.TimeoutExpired:
+        return {"profile": profile, "success": False, "duration_ms": 25000, "error": "Request timed out (25s)"}
+    except Exception as e:
+        return {"profile": profile, "success": False, "error": str(e)}
+
+
+def scan_all_profiles_parallel(profiles: list) -> list:
+    results = []
+    # Use max_workers=3 and staggered submission to eliminate burst traffic to Google Cloud endpoints
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        future_to_profile = {}
+        for p in profiles:
+            future_to_profile[executor.submit(fetch_quota_for_profile, p)] = p
+            time.sleep(0.2)
+        for future in as_completed(future_to_profile):
+            try:
+                res = future.result()
+                results.append(res)
+            except Exception as e:
+                p = future_to_profile[future]
+                results.append({"profile": p, "success": False, "error": str(e)})
+    results.sort(key=lambda x: profiles.index(x["profile"]) if x["profile"] in profiles else 999)
+    return results
+
+
+class QuotaDashboardHandler(http.server.BaseHTTPRequestHandler):
+    def log_message(self, format, *args):
+        if "/favicon.ico" in self.path:
+            return
+        code = args[1] if len(args) > 1 else "-"
+        color = GREEN if str(code).startswith("2") else (AMBER if str(code).startswith("3") else RED)
+        sys.stdout.write(f"  {GRAY}[{time.strftime('%H:%M:%S')}]{RESET} {CYAN}{self.command}{RESET} {self.path} {color}{code}{RESET}\n")
+        sys.stdout.flush()
+
+    def send_json(self, data, status=200):
+        body = json.dumps(data, ensure_ascii=False).encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.end_headers()
+        self.wfile.write(body)
+
+    def do_HEAD(self):
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.end_headers()
+
+    def do_POST(self):
+        self.do_GET()
+
+    def do_GET(self):
+        parsed = urllib.parse.urlparse(self.path)
+        path = parsed.path
+        query = urllib.parse.parse_qs(parsed.query)
+
+        if path == "/favicon.ico":
+            self.send_response(204)
+            self.end_headers()
+            return
+
+        if path in ("/", "/index.html", "/quota_dashboard.html"):
+            html_p = get_dashboard_html_path()
+            if html_p.is_file():
+                content = html_p.read_bytes()
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.send_header("Content-Length", str(len(content)))
+                self.end_headers()
+                self.wfile.write(content)
+            else:
+                self.send_error(404, "Dashboard HTML not found")
+            return
+
+        if path == "/api/status":
+            self.send_json({"success": True, "profiles": load_cached_profiles()})
+            return
+
+        if path == "/api/refresh":
+            profile = query.get("profile", ["danhdue"])[0]
+            cached = load_cached_profiles().get(profile, {})
+            was_auth_needed = not cached or cached.get("status") == "AUTH NEEDED"
+            has_auth = check_profile_auth_token(profile)
+
+            # Post-login validation probe:
+            # If profile was AUTH NEEDED and now has an auth token, Google agy -p /usage will return 200
+            # even if the account is disabled for Terms of Service violations!
+            # Therefore, we probe once with agy -p 1 to verify if the account is disabled.
+            # If already verified/cached, we skip this probe.
+            if has_auth and was_auth_needed:
+                ping_res = execute_ping_profile(profile)
+                if ping_res.get("is_appeal") or ping_res.get("status") == "DISABLED":
+                    err_id = ping_res.get("error_id") or "856698b5-d43c-4198-962b-4db7fc3c4adb-2"
+                    record_profile_disabled(profile, err_id)
+                    formatted = format_profile_for_dashboard(profile, ping_res)
+                    update_cached_profile(profile, formatted)
+                    self.send_json({
+                        "success": False,
+                        "isAppeal": True,
+                        "status": "DISABLED",
+                        "profile": profile,
+                        "data": formatted,
+                        "error": ping_res.get("error", "Tài khoản bị vô hiệu hóa (Submit an appeal)")
+                    })
+                    return
+
+            result = fetch_quota_for_profile(profile)
+            formatted = format_profile_for_dashboard(profile, result)
+            update_cached_profile(profile, formatted)
+            if result.get("is_appeal") or result.get("status") == "DISABLED":
+                self.send_json({
+                    "success": False,
+                    "isAppeal": True,
+                    "status": "DISABLED",
+                    "profile": profile,
+                    "data": formatted,
+                    "error": result.get("error", "Tài khoản bị vô hiệu hóa (Submit an appeal)")
+                })
+                return
+            if result.get("status") == "AUTH NEEDED" or not result.get("success"):
+                self.send_json({
+                    "success": False,
+                    "isAuthNeeded": True,
+                    "status": "AUTH NEEDED",
+                    "profile": profile,
+                    "data": formatted,
+                    "error": result.get("error", "Profile chưa đăng nhập CLI")
+                })
+                return
+            self.send_json({
+                "success": True,
+                "profile": profile,
+                "duration_ms": int(result.get("duration", 0) * 1000),
+                "data": formatted,
+                "error": None
+            })
+            return
+
+        if path == "/api/ping":
+            profile = query.get("profile", ["danhdue"])[0]
+            ping_res = execute_ping_profile(profile)
+            if ping_res.get("is_appeal") or ping_res.get("status") == "DISABLED":
+                err_id = ping_res.get("error_id") or "856698b5-d43c-4198-962b-4db7fc3c4adb-2"
+                record_profile_disabled(profile, err_id)
+                formatted = format_profile_for_dashboard(profile, ping_res)
+                update_cached_profile(profile, formatted)
+                self.send_json({
+                    "success": False,
+                    "isAppeal": True,
+                    "status": "DISABLED",
+                    "profile": profile,
+                    "data": formatted,
+                    "error": ping_res.get("error", "Tài khoản bị vô hiệu hóa (Submit an appeal)")
+                })
+                return
+            result = fetch_quota_for_profile(profile)
+            formatted = format_profile_for_dashboard(profile, result)
+            update_cached_profile(profile, formatted)
+            self.send_json({
+                "success": ping_res.get("success", False) and result.get("success", False),
+                "profile": profile,
+                "duration_ms": ping_res.get("duration_ms", 500),
+                "data": formatted,
+                "message": ping_res.get("message")
+            })
+            return
+
+        if path == "/api/refresh-all":
+            profiles = get_all_profiles()
+            results = scan_all_profiles_parallel(profiles)
+            formatted_all = {}
+            for r in results:
+                p = r["profile"]
+                f_data = format_profile_for_dashboard(p, r)
+                formatted_all[p] = f_data
+                update_cached_profile(p, f_data)
+            self.send_json({"success": True, "profiles": formatted_all})
+            return
+
+        if path == "/api/login":
+            profile = query.get("profile", [""])[0]
+            if not profile:
+                self.send_json({"success": False, "error": "No profile specified"}, 400)
+                return
+            osa = f'''tell application "Terminal"
+                activate
+                do script "{profile}-cli"
+            end tell'''
+            subprocess.run(["osascript", "-e", osa], capture_output=True)
+            self.send_json({"success": True, "message": f"Terminal opened for {profile}-cli"})
+            return
+
+        if path == "/api/open-cli":
+            profile = query.get("profile", ["danhdue"])[0]
+            if not profile:
+                self.send_json({"success": False, "error": "No profile specified"}, 400)
+                return
+            osa = f'''tell application "Terminal"
+                activate
+                do script "source ~/.zshrc && ag_run {profile} cli"
+            end tell'''
+            subprocess.run(["osascript", "-e", osa], capture_output=True)
+            self.send_json({"success": True, "message": f"Terminal opened for {profile} CLI"})
+            return
+
+        if path == "/api/open-ide":
+            profile = query.get("profile", ["danhdue"])[0]
+            if not profile:
+                self.send_json({"success": False, "error": "No profile specified"}, 400)
+                return
+
+            # Clean environment: eliminate ELECTRON_RUN_AS_NODE leaked by parent runtime
+            clean_env = os.environ.copy()
+            clean_env.pop("ELECTRON_RUN_AS_NODE", None)
+
+            # Trigger profile CLI command directly (e.g. 'danhdue', 'hau') as requested
+            cmd = f'unset ELECTRON_RUN_AS_NODE; if type {profile} >/dev/null 2>&1; then {profile}; else ag_run "{profile}"; fi'
+            subprocess.Popen(["zsh", "-ic", cmd], env=clean_env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            self.send_json({"success": True, "message": f"Đã kích hoạt lệnh '{profile}' mở Antigravity IDE"})
+            return
+
+        self.send_error(404, "API endpoint not found")
+
+
+class ThreadingTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
+    daemon_threads = True
+    allow_reuse_address = True
+
+
+def run_quota_web_server(port: int = 8765, auto_open: bool = True):
+    server_running = False
+    try:
+        req = urllib.request.urlopen(f"http://127.0.0.1:{port}/api/status", timeout=1)
+        if req.status == 200:
+            server_running = True
+    except Exception:
+        pass
+
+    if server_running:
+        print(f"\n{BOLD}{GREEN}⚡ Quota Web Server đã đang hoạt động tại:{RESET} {WHITE}http://127.0.0.1:{port}{RESET}")
+        if auto_open:
+            print(f"  {CYAN}🌐 Đang mở Quota Dashboard trong trình duyệt...{RESET}\n")
+            subprocess.run(["open", f"http://127.0.0.1:{port}"])
+        return
+
+    httpd = None
+    for p in range(port, port + 10):
+        try:
+            httpd = ThreadingTCPServer(("127.0.0.1", p), QuotaDashboardHandler)
+            port = p
+            break
+        except OSError:
+            continue
+
+    if not httpd:
+        print(f"\n{RED}❌ Không thể bind cổng từ {port} đến {port + 9}. Vui lòng thử lại.{RESET}\n")
+        return
+
+    url = f"http://127.0.0.1:{port}"
+    print(f"\n{BOLD}{CYAN}{'='*86}{RESET}")
+    print(f"{BOLD}{GREEN}  🚀 ANTIGRAVITY MULTI-PROFILE QUOTA LIVE WEB SERVER{RESET}")
+    print(f"     URL: {WHITE}{url}{RESET}")
+    print(f"{BOLD}{CYAN}{'='*86}{RESET}")
+    print(f"  ⚡ {BOLD}Tính năng tương tác trực tiếp (Interactive Endpoints):{RESET}")
+    print(f"     • {CYAN}GET  /api/status{RESET}            : Xem quota tất cả 23 profiles")
+    print(f"     • {CYAN}GET  /api/refresh?profile=p{RESET} : Live Refresh 110ms cho profile p")
+    print(f"     • {CYAN}GET  /api/ping?profile=p{RESET}    : Gửi 1-token kích hoạt countdown 5H & tuần")
+    print(f"     • {CYAN}GET  /api/refresh-all{RESET}       : Quét song song và cập nhật toàn bộ profiles")
+    print(f"     • {CYAN}GET  /api/login?profile=p{RESET}   : Mở Terminal thực hiện p-cli để đăng nhập")
+    print(f"     • {CYAN}GET  /api/open-cli?profile=p{RESET}: Mở Terminal chạy CLI cho profile p")
+    print(f"     • {CYAN}GET  /api/open-ide?profile=p{RESET}: Mở Antigravity IDE (GUI) cho profile p")
+    print(f"\n  🌐 Đang mở Quota Dashboard trên trình duyệt mặc định...")
+    print(f"  💡 Nhấn {AMBER}Ctrl + C{RESET} trong Terminal để dừng server bất kỳ lúc nào.\n")
+
+    if auto_open:
+        subprocess.run(["open", url])
+
+    try:
+        httpd.serve_forever()
+    except KeyboardInterrupt:
+        print(f"\n{AMBER}🛑 Server đã dừng an toàn (Ctrl+C). Tạm biệt!{RESET}\n")
+    finally:
+        httpd.server_close()
+
+
+def main():
+    args = sys.argv[1:]
+    target = args[0] if args else None
+
+    # Handle help
+    if target in ("-h", "--help", "help"):
+        print(f"\n{BOLD}{CYAN}Antigravity Quota CLI (check-quota / agy-quota){RESET}")
+        print("Usage:")
+        print("  check-quota                     Xem quota cho profile hiện tại")
+        print("  check-quota <profile>           Xem quota cho profile cụ thể (e.g. danhdue, tess)")
+        print("  check-quota all                 Quét và hiển thị chi tiết tất cả profiles")
+        print("  check-quota all --table         Bảng tóm tắt gọn gàng 122 ký tự cho tất cả profiles")
+        print("  check-quota ping <profile>      Gửi 1-token kích hoạt countdown 5H & tuần (Ping Model)")
+        print("  check-quota refresh <profile>   Làm mới quota và đồng bộ session qua /usage")
+        print("  check-quota --ui                Mở Quota Dashboard trực quan giao diện Dark Mode\n")
+        return
+
+    # Handle UI/Web Dashboard
+    if target in ("--web", "--ui", "dashboard", "--dashboard", "web", "ui"):
+        auto_open = "--no-open" not in args
+        if "--static" in args or "--file" in args:
+            found_dash = get_dashboard_html_path()
+            if found_dash.is_file():
+                print(f"\n{GREEN}🌐 Opening Quota Dashboard file in browser: {found_dash}{RESET}\n")
+                subprocess.run(["open", str(found_dash)])
+            else:
+                print(f"\n{RED}❌ Quota dashboard file not found.{RESET}\n")
+            return
+        run_quota_web_server(port=8765, auto_open=auto_open)
+        return
+
+    # Detect default profile if none specified
+    if not target or target == "current":
+        env_profile = os.environ.get("AGY_PROFILE")
+        if not env_profile:
+            home = os.environ.get("HOME", "")
+            if "antigravity_homes" in home:
+                env_profile = os.path.basename(home)
+            else:
+                env_profile = "danhdue"
+        target = env_profile
+
+    if target in ("ping", "activate"):
+        sub_target = args[1] if len(args) > 1 else "danhdue"
+        print(f"\n{CYAN}🎯 Gửi 1-token kích hoạt phiên làm việc (Ping Model) cho profile '{sub_target}'...{RESET}")
+        ag_home = f"{REAL_HOME}/antigravity_homes/{sub_target}"
+        if not os.path.isdir(ag_home):
+            print(f"{RED}❌ Profile home not found: {ag_home}{RESET}\n")
+            return
+        if not check_profile_auth_token(sub_target):
+            print(f"{AMBER}⚠️ Profile '{sub_target}' chưa đăng nhập CLI. Vui lòng chạy '{sub_target}-cli' trong Terminal để đăng nhập trước.{RESET}\n")
+            return
+        # Unlock Keychain if exists
+        profile_kc = f"{ag_home}/Library/Keychains/{sub_target}.keychain-db"
+        if os.path.exists(profile_kc):
+            subprocess.run(["security", "unlock-keychain", "-p", KC_PASS, profile_kc], capture_output=True)
+        env = os.environ.copy()
+        env.update({"HOME": ag_home, "AGY_PROFILE": sub_target, "AGY_CLI_MODE": "1", "TMPDIR": f"/tmp/ag_{sub_target}", "BROWSER": "true"})
+        t0 = time.time()
+        try:
+            res = subprocess.run([AGY_BIN, "-p", "1"], env=env, capture_output=True, text=True, timeout=25)
+            dur = int((time.time() - t0) * 1000)
+            out_all = (res.stdout or "") + " " + (res.stderr or "")
+
+            if check_profile_appeal_status(sub_target, out_all):
+                print(f"\n{RED}🚫 LỖI: Tài khoản '{sub_target}' đã bị VÔ HIỆU HÓA do vi phạm Điều khoản dịch vụ!{RESET}")
+                print(f"  {AMBER}Thông báo từ Google: This service has been disabled in this account for violation of Terms of Service.{RESET}")
+                print(f"  {CYAN}👉 Vui lòng gửi đơn kháng nghị (Submit an appeal) tới Google để tiếp tục sử dụng:{RESET}")
+                print(f"     {WHITE}https://docs.google.com/forms/d/e/1FAIpQLScOJWibQ_-hYuVv63kJTgEqlgAaOwRLGFTbXm-QY1gz8U0CGA/viewform{RESET}\n")
+                return
+
+            if res.returncode == 0:
+                print(f"{GREEN}✅ Đã kích hoạt thành công profile '{sub_target}' ({dur}ms)! Cửa sổ 5H và tuần đã bắt đầu đếm ngược.{RESET}\n")
+            else:
+                print(f"{RED}❌ Kích hoạt thất bại ({dur}ms): {res.stderr.strip()}{RESET}\n")
+        except subprocess.TimeoutExpired:
+            print(f"{RED}❌ Kích hoạt timeout (25s){RESET}\n")
+        except Exception as e:
+            print(f"{RED}❌ Lỗi: {str(e)}{RESET}\n")
+        return
+
+    if target == "refresh":
+        sub_target = args[1] if len(args) > 1 else "danhdue"
+        print(f"\n{CYAN}⚡ Running quick 1-token refresh for profile '{sub_target}'...{RESET}")
+        ag_home = f"{REAL_HOME}/antigravity_homes/{sub_target}"
+        if not os.path.isdir(ag_home):
+            print(f"{RED}❌ Profile home not found: {ag_home}{RESET}\n")
+            return
+        if not check_profile_auth_token(sub_target):
+            print(f"{AMBER}⚠️ Profile '{sub_target}' chưa đăng nhập CLI. Vui lòng chạy '{sub_target}-cli' trong Terminal để đăng nhập trước.{RESET}\n")
+            return
+        # Unlock Keychain if exists
+        profile_kc = f"{ag_home}/Library/Keychains/{sub_target}.keychain-db"
+        if os.path.exists(profile_kc):
+            subprocess.run(["security", "unlock-keychain", "-p", KC_PASS, profile_kc], capture_output=True)
+        env = os.environ.copy()
+        env.update({"HOME": ag_home, "AGY_PROFILE": sub_target, "AGY_CLI_MODE": "1", "TMPDIR": f"/tmp/ag_{sub_target}", "BROWSER": "true"})
+        t0 = time.time()
+        try:
+            res = subprocess.run([AGY_BIN, "--output-format", "json", "-p", "/usage"], env=env, capture_output=True, text=True, timeout=25)
+            dur = int((time.time() - t0) * 1000)
+            out_all = (res.stdout or "") + " " + (res.stderr or "")
+
+            if check_profile_appeal_status(sub_target, out_all):
+                print(f"\n{RED}🚫 LỖI: Tài khoản '{sub_target}' đã bị VÔ HIỆU HÓA do vi phạm Điều khoản dịch vụ!{RESET}")
+                print(f"  {AMBER}Thông báo từ Google: This service has been disabled in this account for violation of Terms of Service.{RESET}")
+                print(f"  {CYAN}👉 Vui lòng gửi đơn kháng nghị (Submit an appeal) tới Google để tiếp tục sử dụng:{RESET}")
+                print(f"     {WHITE}https://docs.google.com/forms/d/e/1FAIpQLScOJWibQ_-hYuVv63kJTgEqlgAaOwRLGFTbXm-QY1gz8U0CGA/viewform{RESET}\n")
+                return
+
+            if res.returncode == 0:
+                print(f"{GREEN}✅ Refreshed profile '{sub_target}' in {dur}ms! Session quota synchronized.{RESET}\n")
+            else:
+                print(f"{RED}❌ Refresh failed ({dur}ms): {res.stderr.strip()}{RESET}\n")
+        except subprocess.TimeoutExpired:
+            print(f"{RED}❌ Refresh timed out (25s){RESET}\n")
+        except Exception as e:
+            print(f"{RED}❌ Error: {str(e)}{RESET}\n")
+        return
+
+    if target == "all":
+        profiles = get_all_profiles()
+
+        print(f"{CYAN}Scanning quota for {len(profiles)} profiles in parallel...{RESET}")
+        results = []
+        with ThreadPoolExecutor(max_workers=3) as executor:
+            future_to_profile = {}
+            for p in profiles:
+                future_to_profile[executor.submit(fetch_quota_for_profile, p)] = p
+                time.sleep(0.2)
+            for future in as_completed(future_to_profile):
+                res = future.result()
+                results.append(res)
+                print(f"  • {res['profile']}: {'DONE' if res.get('success') else 'FAILED'}")
+
+        results.sort(key=lambda x: profiles.index(x["profile"]) if x["profile"] in profiles else 999)
+
+        if "--table" in args:
+            print_all_summary(results)
+        else:
+            for r in results:
+                print_dashboard_cards(r)
+    else:
+        # Single profile dashboard
+        result = fetch_quota_for_profile(target)
+        print_dashboard_cards(result)
+
+
+if __name__ == "__main__":
+    main()

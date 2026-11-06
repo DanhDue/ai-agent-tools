@@ -36,7 +36,10 @@ You can invoke these commands either as IDE slash commands (`/refresh-session ..
 
 | Command | Mode | Action |
 |:---|:---:|:---|
-| `/refresh-session` *(or `/refresh-session all`)* | **Manual** | Pings both Claude Code and OpenAI Codex immediately. |
+| `/refresh-session` *(or `/refresh-session providers`)* | **Manual** | **Default**: Pings AI Providers (Claude Code & OpenAI Codex) immediately. |
+| `/refresh-session profiles` | **Manual** | Pings all 23 Antigravity profiles. |
+| `/refresh-session danhdue, claude, codex` | **Manual** | Pings only the specified profiles and providers. |
+| `/refresh-session all` | **Manual** | Pings all providers (Claude, Codex) AND all 23 Antigravity profiles. |
 | `/refresh-session claude` | **Manual** | Pings Claude Code only immediately. |
 | `/refresh-session codex` | **Manual** | Pings OpenAI Codex only immediately. |
 | `/refresh-session schedule <time>` | **Schedule** | Installs daily OS daemon for specified time (`5h`, `05:00`, `6am`, `06:30`) with default 30s delay buffer. |

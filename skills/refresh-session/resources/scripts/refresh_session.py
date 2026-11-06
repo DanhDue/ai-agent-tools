@@ -19,7 +19,51 @@ import time
 from pathlib import Path
 from typing import Any
 
-SUPPORTED_TARGETS = ("claude", "codex", "all")
+REAL_HOME = "/Users/danhdueexoictif"
+KC_PASS = "H@No!a@12345"
+
+
+def get_known_profiles() -> list[str]:
+    """Discover all Antigravity profile accounts from antigravity_homes or ~/.zshrc."""
+    profiles: list[str] = []
+    homes_dir = Path(REAL_HOME) / "antigravity_homes"
+    if homes_dir.is_dir():
+        for d in homes_dir.iterdir():
+            if d.is_dir() and not d.name.startswith("."):
+                profiles.append(d.name)
+    zshrc_path = Path(REAL_HOME) / ".zshrc"
+    if zshrc_path.is_file():
+        try:
+            content = zshrc_path.read_text(encoding="utf-8", errors="ignore")
+            for line in content.splitlines():
+                m = re.match(r"^alias\s+([a-zA-Z0-9_-]+)=.*antigravity_homes", line)
+                if m:
+                    p = m.group(1)
+                    if p not in profiles:
+                        profiles.append(p)
+        except Exception:
+            pass
+    return sorted(profiles)
+
+
+SUPPORTED_TARGETS = tuple(["claude", "codex", "all", "clis", "providers", "profiles"] + get_known_profiles())
+
+
+def validate_target(target_val: str | list[str]) -> str:
+    """Validate single target or comma/space-separated list of targets."""
+    if isinstance(target_val, list):
+        target_val = ",".join(target_val)
+    s = target_val.strip()
+    if not s:
+        return "providers"
+    tokens = [t.strip() for t in re.split(r"[\s,]+", s) if t.strip()]
+    known = set(SUPPORTED_TARGETS)
+    for t in tokens:
+        if t not in known:
+            raise argparse.ArgumentTypeError(
+                f"Unknown target '{t}'. Supported targets: {', '.join(sorted(known))}"
+            )
+    return ",".join(tokens)
 
 DARWIN_LABEL = "com.d3nexus.refresh-session"
 DARWIN_PLIST_DIR = Path.home() / "Library" / "LaunchAgents"
@@ -84,7 +128,7 @@ def parse_flexible_time(time_str: str) -> tuple[int, int]:
 
 
 def build_darwin_plist(
-    script_path: str, hour: int, minute: int, target: str = "all", delay: int = 30
+    script_path: str, hour: int, minute: int, target: str = "providers", delay: int = 30
 ) -> str:
     """Generate launchd plist XML for macOS with absolute paths, delay buffer, and full PATH environment."""
     resolved_script = str(Path(script_path).resolve())
@@ -148,7 +192,7 @@ def build_darwin_plist(
 def install_schedule_darwin(
     hour: int,
     minute: int,
-    target: str = "all",
+    target: str = "providers",
     delay: int = 30,
     script_path: str | None = None,
 ) -> dict[str, Any]:
@@ -215,8 +259,13 @@ def get_schedule_status_darwin() -> dict[str, Any]:
         hour = int(h_match.group(1)) if h_match else None
         minute = int(m_match.group(1)) if m_match else 0
 
-    target_match = re.search(r"<string>(all|claude|codex)</string>", content)
-    target = target_match.group(1) if target_match else "all"
+    args_block = re.search(r"<key>ProgramArguments</key>\s*<array>(.*?)</array>", content, re.DOTALL)
+    if args_block:
+        items = re.findall(r"<string>(.*?)</string>", args_block.group(1))
+        target = items[2] if len(items) >= 3 else "providers"
+    else:
+        target_match = re.search(r"<string>([a-zA-Z0-9_-]+)</string>", content)
+        target = target_match.group(1) if target_match else "providers"
 
     delay_match = re.search(
         r"<string>--(?:delay|offset)</string>\s*<string>(\d+)</string>", content
@@ -258,7 +307,7 @@ def uninstall_schedule_darwin() -> dict[str, Any]:
 def install_schedule_linux(
     hour: int,
     minute: int,
-    target: str = "all",
+    target: str = "providers",
     delay: int = 30,
     script_path: str | None = None,
 ) -> dict[str, Any]:
@@ -318,13 +367,13 @@ def get_schedule_status_linux() -> dict[str, Any]:
 
     pattern = (
         rf"{re.escape(CRON_START_MARKER)}\n(\d+)\s+(\d+)\s+\*\s+\*\s+\*\s+"
-        rf".*?(all|claude|codex)?(?:\s+--(?:delay|offset)\s+(\d+))?\s*>>"
+        rf".*?([a-zA-Z0-9_-]+)?(?:\s+--(?:delay|offset)\s+(\d+))?\s*>>"
     )
     match = re.search(pattern, cur_proc.stdout)
     if match:
         minute = int(match.group(1))
         hour = int(match.group(2))
-        target = match.group(3) or "all"
+        target = match.group(3) or "providers"
         delay = int(match.group(4)) if match.group(4) else 30
         return {
             "installed": True,
@@ -339,7 +388,7 @@ def get_schedule_status_linux() -> dict[str, Any]:
         "loaded": True,
         "hour": None,
         "minute": None,
-        "target": "all",
+        "target": "providers",
         "delay": 30,
     }
 
@@ -359,7 +408,7 @@ def uninstall_schedule_linux() -> dict[str, Any]:
 
 
 def install_schedule(
-    hour: int, minute: int, target: str = "all", delay: int = 30
+    hour: int, minute: int, target: str = "providers", delay: int = 30
 ) -> dict[str, Any]:
     """Install daily schedule dispatching to darwin or linux with delay buffer."""
     if sys.platform == "darwin":
@@ -506,6 +555,119 @@ def ping_cli(cli_name: str, timeout: int = 60) -> dict[str, Any]:
     return result
 
 
+def check_profile_auth_token(profile: str) -> bool:
+    """Check in ~8ms whether profile has an active gemini token in its keychain.
+    If False, running agy will attempt to open web browser for OAuth!
+    """
+    kc = os.path.join(REAL_HOME, "antigravity_homes", profile, "Library/Keychains", f"{profile}.keychain-db")
+    if not os.path.isfile(kc):
+        return False
+    subprocess.run(["security", "unlock-keychain", "-p", KC_PASS, kc], capture_output=True)
+    res = subprocess.run(["security", "find-generic-password", "-s", "gemini", "-a", "antigravity", kc], capture_output=True)
+    return res.returncode == 0
+
+
+def ping_profile(profile_name: str, timeout: int = 25) -> dict[str, Any]:
+    """Execute sandboxed minimal 1-token / usage ping for an Antigravity profile.
+
+    Sets isolated HOME, AGY_PROFILE, TMPDIR, and unlocks profile keychain.
+    """
+    result: dict[str, Any] = {
+        "cli": f"agy ({profile_name})",
+        "profile": profile_name,
+        "status": "FAIL",
+        "latency_ms": 0.0,
+        "tokens": 0,
+        "error": None,
+    }
+    ag_home = f"{REAL_HOME}/antigravity_homes/{profile_name}"
+    if not os.path.isdir(ag_home):
+        result["status"] = "SKIPPED"
+        result["error"] = f"Profile directory not found: {ag_home}"
+        return result
+
+    # Prevent agy from opening browser if profile has no CLI auth token
+    if not check_profile_auth_token(profile_name):
+        result["status"] = "SKIPPED"
+        result["error"] = "Profile is not authenticated in CLI keychain"
+        return result
+
+    # Fast skip if profile was disabled for Terms of Service violation (submit an appeal)
+    marker_file = os.path.join(ag_home, ".gemini/antigravity/tos_disabled.json")
+    if os.path.isfile(marker_file):
+        result["status"] = "SKIPPED"
+        result["error"] = "Profile is disabled for Terms of Service (Appeal needed)"
+        return result
+
+    log_dir = os.path.join(ag_home, ".gemini/antigravity/log")
+    if os.path.isdir(log_dir):
+        import glob
+        logs = sorted(glob.glob(os.path.join(log_dir, "cli-*.log")), key=os.path.getmtime, reverse=True)
+        for log_file in logs[:2]:
+            try:
+                with open(log_file, "rb") as f:
+                    content = f.read().decode("utf-8", errors="ignore").lower()
+                    if "submit an appeal" in content or "violation of terms of service" in content:
+                        result["status"] = "SKIPPED"
+                        result["error"] = "Profile is disabled for Terms of Service (Appeal needed)"
+                        return result
+            except Exception:
+                pass
+
+    profile_kc = f"{ag_home}/Library/Keychains/{profile_name}.keychain-db"
+    if os.path.exists(profile_kc):
+        subprocess.run(
+            ["security", "unlock-keychain", "-p", KC_PASS, profile_kc],
+            capture_output=True,
+            check=False,
+        )
+
+    agy_bin = shutil.which("agy") or "/opt/homebrew/bin/agy"
+    if not os.path.exists(agy_bin):
+        result["status"] = "SKIPPED"
+        result["error"] = "Antigravity CLI (agy) binary not found."
+        return result
+
+    env = os.environ.copy()
+    env.update({
+        "HOME": ag_home,
+        "AGY_PROFILE": profile_name,
+        "AGY_CLI_MODE": "1",
+        "TMPDIR": f"/tmp/ag_{profile_name}",
+    })
+
+    start_time = time.perf_counter()
+    try:
+        proc = subprocess.run(
+            [agy_bin, "--output-format", "json", "-p", "/usage"],
+            env=env,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=timeout,
+        )
+        elapsed_ms = (time.perf_counter() - start_time) * 1000.0
+        result["latency_ms"] = round(elapsed_ms, 2)
+        if proc.returncode == 0:
+            result["status"] = "PASS"
+            result["tokens"] = 0
+        else:
+            err_msg = (proc.stderr or proc.stdout or "").strip()
+            result["error"] = err_msg or f"Exited with return code {proc.returncode}"
+    except subprocess.TimeoutExpired:
+        elapsed_ms = (time.perf_counter() - start_time) * 1000.0
+        result["latency_ms"] = round(elapsed_ms, 2)
+        result["status"] = "FAIL"
+        result["error"] = f"Timed out after {timeout} seconds"
+    except Exception as exc:
+        elapsed_ms = (time.perf_counter() - start_time) * 1000.0
+        result["latency_ms"] = round(elapsed_ms, 2)
+        result["status"] = "FAIL"
+        result["error"] = str(exc)
+
+    return result
+
+
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     """Parse command line arguments."""
     if argv is None:
@@ -523,9 +685,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         )
         sched_parser.add_argument(
             "--target",
-            choices=SUPPORTED_TARGETS,
-            default="all",
-            help="Target CLI to schedule: 'claude', 'codex', or 'all' (default: 'all')",
+            type=validate_target,
+            default="providers",
+            help="Target to schedule: 'providers' (default - Claude & Codex), 'profiles', 'all', or comma-separated list (e.g. 'danhdue,claude,codex')",
         )
         sched_parser.add_argument(
             "--delay",
@@ -554,6 +716,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         )
         parsed = sched_parser.parse_args(argv[1:])
         parsed.command = "schedule"
+        try:
+            parsed.target = validate_target(parsed.target)
+        except argparse.ArgumentTypeError as exc:
+            sched_parser.error(str(exc))
         return parsed
 
     parser = argparse.ArgumentParser(
@@ -561,10 +727,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument(
         "target",
-        nargs="?",
-        default="all",
-        choices=SUPPORTED_TARGETS,
-        help="Target CLI to ping: 'claude', 'codex', or 'all' (default: 'all')",
+        nargs="*",
+        default=["providers"],
+        help="Target to ping: 'providers' (default - Claude & Codex), 'profiles', 'all', or comma/space-separated list (e.g. 'danhdue,claude,codex')",
     )
     parser.add_argument(
         "--delay",
@@ -585,6 +750,21 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="Emit structured JSON output",
     )
+    parsed = parser.parse_args(argv)
+    parsed.command = None
+    try:
+        raw_val = parsed.target if parsed.target else ["providers"]
+        parsed.target = validate_target(raw_val)
+    except argparse.ArgumentTypeError as exc:
+        parser.error(str(exc))
+    return parsed
+    parsed = parser.parse_args(argv)
+    try:
+        raw_val = parsed.target if parsed.target else ["providers"]
+        parsed.target = validate_target(raw_val)
+    except argparse.ArgumentTypeError as exc:
+        parser.error(str(exc))
+    return parsed
     parsed = parser.parse_args(argv)
     parsed.command = "refresh"
     return parsed
@@ -668,13 +848,45 @@ def main(argv: list[str] | None = None) -> int:
             print(f"Waiting {args.delay}s delay buffer after reset minute...")
         time.sleep(args.delay)
 
-    targets = ["claude", "codex"] if args.target == "all" else [args.target]
+    known_profiles = get_known_profiles()
+    raw_target_str = ",".join(args.target) if isinstance(args.target, list) else str(args.target)
+    validated_str = validate_target(raw_target_str)
+    raw_targets = [t.strip() for t in validated_str.split(",") if t.strip()]
+    targets_to_ping: list[tuple[str, str]] = []
+    seen: set[tuple[str, str]] = set()
+
+    def add_target(kind: str, name: str):
+        if (kind, name) not in seen:
+            seen.add((kind, name))
+            targets_to_ping.append((kind, name))
+
+    for t in raw_targets:
+        if t == "all":
+            add_target("cli", "claude")
+            add_target("cli", "codex")
+            for p in known_profiles:
+                add_target("profile", p)
+        elif t in ("providers", "clis"):
+            add_target("cli", "claude")
+            add_target("cli", "codex")
+        elif t == "profiles":
+            for p in known_profiles:
+                add_target("profile", p)
+        elif t in ("claude", "codex"):
+            add_target("cli", t)
+        elif t in known_profiles:
+            add_target("profile", t)
+
     results: list[dict[str, Any]] = []
 
-    for target in targets:
+    for kind, target_name in targets_to_ping:
         if not args.json:
-            print(f"Pinging {target.title()} CLI in isolated sandbox...")
-        res = ping_cli(target, timeout=args.timeout)
+            display_name = target_name if kind == "profile" else target_name.title()
+            print(f"Pinging {display_name} in isolated environment...")
+        if kind == "profile":
+            res = ping_profile(target_name, timeout=args.timeout)
+        else:
+            res = ping_cli(target_name, timeout=args.timeout)
         results.append(res)
 
     has_fail = any(r["status"] == "FAIL" for r in results)
@@ -689,17 +901,17 @@ def main(argv: list[str] | None = None) -> int:
     else:
         print("\nSession Refresh Summary:")
         for r in results:
-            cli_name = r["cli"].title()
+            name = r.get("profile") or r["cli"].title()
             status = r["status"]
             latency = f"{r['latency_ms']:.1f}ms"
             tokens = f"{r['tokens']} tokens" if r["tokens"] is not None else "minimal tokens"
 
             if status == "PASS":
-                print(f"  • {cli_name}: PASS ({latency}, {tokens})")
+                print(f"  • {name}: PASS ({latency}, {tokens})")
             elif status == "SKIPPED":
-                print(f"  • {cli_name}: SKIPPED ({r.get('error')})")
+                print(f"  • {name}: SKIPPED ({r.get('error')})")
             else:
-                print(f"  • {cli_name}: FAIL ({r.get('error')})")
+                print(f"  • {name}: FAIL ({r.get('error')})")
 
         if not has_fail:
             print("\nSession refresh complete. 5-hour rolling quota window is active.")

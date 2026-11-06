@@ -169,3 +169,31 @@ git commit -m "[EPIC_NAME] Task title" -m "- subtask title 01
 >      - 🔵 `[NEXUS]`: `#0d47a1` (Royal Blue)
 >      - 🟠 `[AGENT-TOOLS]`: `#b45309` (Warm Amber)
 >    - Agents MUST preserve all existing `workbench.colorCustomizations` and developer configurations in `.vscode/settings.json`.
+
+## 9. Shell Configuration (`.zshrc`) & Multi-Profile OS Boundary Safety
+
+> [!CRITICAL]
+> **Modifications to `~/.zshrc` or shell startup scripts MUST strictly follow Multi-Profile OS Safety rules to prevent breaking host OS system services (AirDrop, Apple ID, WiFi, Docker, Keychain) and profile isolation.**
+>
+> 1. **Mandatory Pre-Modification Backup & Syntax Verification**:
+>    - Before applying ANY edits to `~/.zshrc`, agents MUST create a timestamped backup: `cp ~/.zshrc ~/.zshrc.bak.$(date +%Y%m%d_%H%M%S)`.
+>    - After editing, agents MUST immediately verify syntax via `zsh -n ~/.zshrc` before concluding the turn.
+>    - Agents MUST check for existing functions, aliases, or environment blocks before appending to avoid duplicate definitions.
+>
+> 2. **Strict Host OS Keychain & Security Protection (Zero Global Mutating)**:
+>    - AI Agents are **STRICTLY PROHIBITED** from executing `security default-keychain` or `security list-keychains -s` globally in `~/.zshrc` or global shell commands.
+>    - The host macOS default keychain MUST ALWAYS remain `/Users/<user>/Library/Keychains/login.keychain-db` to prevent crippling macOS system daemons (especially `sharingd` for AirDrop, `identityservicesd`, `trustd`, and Wi-Fi credential lookups).
+>    - Profile keychain isolation is achieved EXCLUSIVELY via:
+>      - Per-profile plist: `~/antigravity_homes/<profile>/Library/Preferences/com.apple.security.plist` (automatically respected by macOS Security framework when `HOME=$ag_home`).
+>      - Scoped unlock inside subshells: `security unlock-keychain -p <pass> <profile.keychain-db>` within isolated scripts or `ag_run` subshells.
+>
+> 3. **Strict Subshell Scope for Profile Environments (No Global Environment Contamination)**:
+>    - AI Agents MUST **NEVER** export profile-specific environment variables (such as `export HOME=...`, `export AGY_PROFILE=...`, `export TMPDIR=/tmp/ag_...`) at the top-level of `~/.zshrc`.
+>    - Profile environments MUST ONLY be established within localized subshells spawned by `ag_run()` or dedicated profile CLI aliases (`{profile}-cli`).
+>    - Inside IDE terminals (`TERM_PROGRAM == "vscode"` and `-z "$AGY_CLI_MODE"`), `$HOME` MUST always remain `$REAL_HOME` (`/Users/<user>`) to guarantee unhindered access to OS services, local daemons (PostgreSQL, Docker daemon, Redis, MinIO), and host toolchains.
+>
+> 4. **Shared Toolchains, Libs & Symlink Architecture**:
+>    - An Antigravity profile (`antigravity_homes/<profile>`) exists solely to isolate user identity, credentials, OAuth tokens, and IDE session state.
+>    - All developer tools, shared libraries, package managers, and compilation caches (Homebrew, Android SDK, Gradle, FVM, Flutter, Rust/Cargo, Go, Python/UV, npm, Docker socket) MUST be shared from the host OS (`$REAL_HOME`) via symlinks, NEVER duplicated or severed.
+>    - Agents modifying profile provisioning scripts or symlinks MUST preserve symlinks to `$REAL_HOME` for all shared toolchains.
+

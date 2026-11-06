@@ -17,17 +17,28 @@ import refresh_session
 
 class TestRefreshSession(unittest.TestCase):
     def test_parse_arguments_default(self) -> None:
-        """Target defaults to 'all', timeout to 60, json to False."""
+        """Target defaults to 'providers' (Claude & Codex only), timeout to 60, json to False."""
         args = refresh_session.parse_args([])
-        self.assertEqual(args.target, "all")
+        self.assertEqual(args.target, "providers")
         self.assertEqual(args.timeout, 60)
         self.assertFalse(args.json)
 
     def test_parse_arguments_targets(self) -> None:
-        """Parses valid target arguments: claude, codex, and all."""
-        for target in ("claude", "codex", "all"):
+        """Parses valid target arguments: claude, codex, providers, and all."""
+        for target in ("claude", "codex", "providers", "all"):
             args = refresh_session.parse_args([target])
             self.assertEqual(args.target, target)
+
+    def test_parse_arguments_multi_targets(self) -> None:
+        """Parses comma-separated and space-separated target combinations."""
+        args = refresh_session.parse_args(["claude,codex,danhdue"])
+        self.assertEqual(args.target, "claude,codex,danhdue")
+
+        args_space = refresh_session.parse_args(["claude", "codex", "danhdue"])
+        self.assertEqual(args_space.target, "claude,codex,danhdue")
+
+        args_sched = refresh_session.parse_args(["schedule", "--time", "05:30", "--target", "claude,codex,danhdue,hau"])
+        self.assertEqual(args_sched.target, "claude,codex,danhdue,hau")
 
     def test_parse_arguments_options(self) -> None:
         """Parses optional --timeout and --json flags."""
@@ -387,6 +398,60 @@ class TestRefreshSession(unittest.TestCase):
         code = refresh_session.main(["claude", "--delay", "30"])
         self.assertEqual(code, 0)
         mock_sleep.assert_called_once_with(30)
+
+    def test_parse_arguments_profile_target(self) -> None:
+        """Accepts known profile names as targets."""
+        args = refresh_session.parse_args(["danhdue"])
+        self.assertEqual(args.target, "danhdue")
+
+    @patch("subprocess.run")
+    @patch("os.path.isdir", return_value=True)
+    @patch("shutil.which", return_value="/opt/homebrew/bin/agy")
+    def test_ping_profile_success(self, mock_which: MagicMock, mock_isdir: MagicMock, mock_run: MagicMock) -> None:
+        """Pings profile using agy and returns PASS when returncode is 0."""
+        mock_proc = MagicMock()
+        mock_proc.returncode = 0
+        mock_proc.stdout = '{"status": "ok"}'
+        mock_run.return_value = mock_proc
+
+        res = refresh_session.ping_profile("danhdue")
+        self.assertEqual(res["status"], "PASS")
+        self.assertEqual(res["profile"], "danhdue")
+        self.assertEqual(res["tokens"], 0)
+
+    @patch("refresh_session.ping_profile", return_value={"cli": "agy (danhdue)", "profile": "danhdue", "status": "PASS", "latency_ms": 110.0, "tokens": 0, "error": None})
+    def test_main_profile_dispatch(self, mock_ping_prof: MagicMock) -> None:
+        """Dispatches to ping_profile when target is an Antigravity profile."""
+        code = refresh_session.main(["danhdue"])
+        self.assertEqual(code, 0)
+        mock_ping_prof.assert_called_once_with("danhdue", timeout=60)
+
+    @patch("refresh_session.get_known_profiles", return_value=["danhdue"])
+    @patch("refresh_session.ping_profile", return_value={"cli": "agy (danhdue)", "profile": "danhdue", "status": "PASS", "latency_ms": 10.0, "tokens": 0, "error": None})
+    @patch("refresh_session.ping_cli", return_value={"cli": "claude", "status": "PASS", "latency_ms": 10.0, "tokens": 1, "error": None})
+    def test_main_all_dispatches_clis_and_profiles(self, mock_ping_cli: MagicMock, mock_ping_prof: MagicMock, mock_known: MagicMock) -> None:
+        """Target 'all' must ping Claude, Codex, and all known profiles."""
+        code = refresh_session.main(["all"])
+        self.assertEqual(code, 0)
+        self.assertEqual(mock_ping_cli.call_count, 2)
+        mock_ping_prof.assert_called_once_with("danhdue", timeout=60)
+
+    @patch("refresh_session.ping_cli", return_value={"cli": "claude", "status": "PASS", "latency_ms": 10.0, "tokens": 1, "error": None})
+    def test_main_clis_dispatches_claude_and_codex(self, mock_ping_cli: MagicMock) -> None:
+        """Target 'clis' must ping Claude and Codex."""
+        code = refresh_session.main(["clis"])
+        self.assertEqual(code, 0)
+        self.assertEqual(mock_ping_cli.call_count, 2)
+
+    @patch("refresh_session.get_known_profiles", return_value=["danhdue", "hau"])
+    @patch("refresh_session.ping_profile", return_value={"cli": "agy", "profile": "danhdue", "status": "PASS", "latency_ms": 10.0, "tokens": 0, "error": None})
+    @patch("refresh_session.ping_cli", return_value={"cli": "claude", "status": "PASS", "latency_ms": 10.0, "tokens": 1, "error": None})
+    def test_main_multi_targets_combination(self, mock_ping_cli: MagicMock, mock_ping_prof: MagicMock, mock_known: MagicMock) -> None:
+        """Comma-separated target list dispatches exact subset specified."""
+        code = refresh_session.main(["claude,codex,danhdue,hau"])
+        self.assertEqual(code, 0)
+        self.assertEqual(mock_ping_cli.call_count, 2)  # claude and codex
+        self.assertEqual(mock_ping_prof.call_count, 2)  # danhdue and hau
 
 
 if __name__ == "__main__":

@@ -20,14 +20,18 @@ Send a minimal 1-token ping to Claude Code CLI (`claude`) and OpenAI Codex CLI (
 
 | Invocation | Target |
 |---|---|
-| `/refresh-session` or `/refresh-session all` | Pings both Claude and Codex |
-| `/refresh-session claude` | Pings Claude Code only |
-| `/refresh-session codex` | Pings Codex CLI only |
+| `/refresh-session` hoặc `/refresh-session providers` | **Mặc định**: Chỉ làm mới các AI Providers (Claude Code CLI & OpenAI Codex CLI) |
+| `/refresh-session profiles` | Làm mới toàn bộ các tài khoản profile Antigravity |
+| `/refresh-session <danh_sách>` (VD: `danhdue, claude, codex`) | Làm mới cho đúng các profiles và providers được chỉ định |
+| `/refresh-session all` | Làm mới đồng thời Claude, Codex và toàn bộ profiles Antigravity |
+| `/refresh-session <profile>` (VD: `/refresh-session danhdue`) | Làm mới 1 profile Antigravity cụ thể |
+| `/refresh-session claude` | Chỉ làm mới riêng Claude Code CLI |
+| `/refresh-session codex` | Chỉ làm mới riêng OpenAI Codex CLI |
 
 Execute the bundled standalone engine:
 
 ```bash
-python3 skills/refresh-session/resources/scripts/refresh_session.py [claude|codex|all]
+python3 skills/refresh-session/resources/scripts/refresh_session.py [providers|profiles|all|claude|codex|danhdue,claude,...]
 ```
 
 To emit structured JSON report:

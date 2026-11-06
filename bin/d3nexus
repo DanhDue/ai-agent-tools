@@ -9,6 +9,8 @@ from pathlib import Path
 KIT_ROOT = Path(__file__).resolve().parent.parent
 
 SUBCOMMANDS: dict[str, str] = {
+    "audit-account-block": "skills/audit-account-block/resources/scripts/audit_account_block.py",
+    "check-quota": "scripts/agy_quota.py",
     "check-doc": "skills/doc_quality_check/resources/scripts/check_document.py",
     "check-contract": "skills/dev-implementation/resources/scripts/check_task_contract.py",
     "check-readiness": "skills/dev-implementation/resources/scripts/check_epic_readiness.py",

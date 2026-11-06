@@ -36,7 +36,10 @@ Bạn có thể chạy các lệnh này dưới dạng Slash Command trong IDE (
 
 | Cú Pháp Lệnh | Chế Độ | Hành Vi Thực Thi |
 |:---|:---:|:---|
-| `/refresh-session` *(hoặc `/refresh-session all`)* | **Thủ công** | Ping cả Claude Code và OpenAI Codex ngay lập tức. |
+| `/refresh-session` *(hoặc `/refresh-session providers`)* | **Thủ công** | **Mặc định**: Chỉ ping các AI Providers (Claude Code và OpenAI Codex) ngay lập tức. |
+| `/refresh-session profiles` | **Thủ công** | Ping toàn bộ tất cả 23 profiles Antigravity. |
+| `/refresh-session danhdue, claude, codex` | **Thủ công** | Chỉ ping đúng danh sách profiles và providers được chỉ định. |
+| `/refresh-session all` | **Thủ công** | Ping đồng thời cả Claude, Codex VÀ toàn bộ 23 profiles Antigravity. |
 | `/refresh-session claude` | **Thủ công** | Chỉ ping riêng Claude Code ngay lập tức. |
 | `/refresh-session codex` | **Thủ công** | Chỉ ping riêng OpenAI Codex ngay lập tức. |
 | `/refresh-session schedule <time>` | **Lập lịch** | Cài đặt daemon hệ điều hành chạy hàng ngày vào mốc giờ chỉ định (`5h`, `05:00`, `6am`, `06:30`) với bộ đệm trễ mặc định 30s. |
