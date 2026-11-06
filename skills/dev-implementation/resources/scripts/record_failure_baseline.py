@@ -20,22 +20,27 @@ import sys
 from pathlib import Path
 
 PYTEST_LINE_RE = re.compile(r"^(?:FAILED|ERROR)\s+([^\[\s]+(?:\[[^\]]*\])?)(?:\s+-\s+.*)?$")
-NODE_SPEC_FAIL_RE = re.compile(r"^[✖✕]\s+(.*?)\s+\((.*?)(?::\d+(?::\d+)?)?\)$")
+PYTEST_HEADER_RE = re.compile(r"^=+\s*short test summary info\s*=+$", re.MULTILINE)
+PYTEST_FOOTER_RE = re.compile(r"^=+\s*.*=+$", re.MULTILINE)
+
+NODE_SPEC_SUITE_RE = re.compile(r"^[▶►]\s+(.+)$")
+NODE_SPEC_FAIL_RE = re.compile(r"^[✖✕]\s+(.*?)(?:\s+\((.*?)\))?$")
+DURATION_RE = re.compile(r"^\d+(?:\.\d+)?(?:ms|s|m|h)$")
 NODE_TAP_SUBTEST_RE = re.compile(r"^\s*#\s*Subtest:\s*(.+)$")
 NODE_TAP_NOT_OK_RE = re.compile(r"^\s*not\s+ok\s+\d+\s+-\s+(.+?)(?:\s+#.*)?$")
 
 
 def extract_pytest_failures(output_text: str) -> list[str]:
     """Extract failed and errored node IDs strictly from pytest's terminal summary block."""
-    marker = "=== short test summary info ==="
-    idx = output_text.rfind(marker)
-    if idx == -1:
+    matches = list(PYTEST_HEADER_RE.finditer(output_text))
+    if not matches:
         return []
 
-    summary_text = output_text[idx + len(marker):]
-    footer_idx = summary_text.find("===")
-    if footer_idx != -1:
-        summary_text = summary_text[:footer_idx]
+    last_header = matches[-1]
+    summary_text = output_text[last_header.end():]
+    footer_match = PYTEST_FOOTER_RE.search(summary_text)
+    if footer_match:
+        summary_text = summary_text[:footer_match.start()]
 
     failures: set[str] = set()
     for line in summary_text.splitlines():
@@ -57,12 +62,26 @@ def extract_node_failures(output_text: str) -> list[str]:
     for line in output_text.splitlines():
         stripped = line.strip()
 
-        # Check spec reporter failure: ✖ test name (tests/test_foo.mjs:12:3)
+        # Check spec reporter suite line: ▶ tests/test_foo.mjs
+        suite_match = NODE_SPEC_SUITE_RE.match(stripped)
+        if suite_match:
+            candidate = suite_match.group(1).strip()
+            if candidate.endswith((".js", ".mjs", ".cjs", ".ts", ".mts")) or "/" in candidate:
+                current_file = candidate
+            continue
+
+        # Check spec reporter failure: ✖ test name (tests/test_foo.mjs:12:3) or ✖ test name (1.2ms)
         spec_match = NODE_SPEC_FAIL_RE.match(stripped)
         if spec_match:
             test_name = spec_match.group(1).strip()
-            file_path = spec_match.group(2).strip()
-            failures.add(f"{file_path}::{test_name}")
+            detail = (spec_match.group(2) or "").strip()
+            if detail and not DURATION_RE.match(detail):
+                file_path = detail.split(":")[0].strip()
+                failures.add(f"{file_path}::{test_name}")
+            elif current_file:
+                failures.add(f"{current_file}::{test_name}")
+            else:
+                failures.add(test_name)
             continue
 
         # Check TAP subtest file context

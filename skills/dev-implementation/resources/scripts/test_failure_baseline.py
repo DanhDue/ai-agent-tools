@@ -30,10 +30,10 @@ def test_EVI_HP_02_record_and_compare_baseline(tmp_path: Path) -> None:
     pytest_output = (
         "tests/test_a.py .F\n"
         "tests/test_b.py F.\n"
-        "=== short test summary info ===\n"
+        "=========================== short test summary info ============================\n"
         "FAILED tests/test_a.py::test_one - AssertionError: foo\n"
         "FAILED tests/test_b.py::test_two - AssertionError: bar\n"
-        "=== 2 failed, 2 passed in 0.12s ===\n"
+        "======================== 2 failed, 2 passed in 0.12s ==========================\n"
     )
     baseline_file = tmp_path / "baseline.txt"
     failures = extract_pytest_failures(pytest_output)
@@ -177,6 +177,23 @@ def test_EVI_AR_02_restore_tracked_files_after_execution(tmp_path: Path) -> None
     assert config_file.read_text(encoding="utf-8") == '{"clean": true}'
 
 
+def test_real_pytest_summary_padding_extraction() -> None:
+    """Verify extract_pytest_failures on real-world pytest output with 20+ '=' padding."""
+    real_out = (
+        "=================================== FAILURES ===================================\n"
+        "_ test_a _\n"
+        ">   assert False\n"
+        "E   assert False\n"
+        "tests/test_foo.py:10: AssertionError\n"
+        "=========================== short test summary info ============================\n"
+        "FAILED tests/test_foo.py::test_a - assert False\n"
+        "FAILED tests/test_bar.py::test_b[param-1] - assert False\n"
+        "======================== 2 failed, 10 passed in 1.23s ==========================\n"
+    )
+    failures = extract_pytest_failures(real_out)
+    assert failures == ["tests/test_bar.py::test_b[param-1]", "tests/test_foo.py::test_a"]
+
+
 def test_parameterized_ids_with_spaces_and_delimiter() -> None:
     """Verify regex preserves parameterized node IDs containing spaces and ' - ' delimiters."""
     output = (
@@ -194,15 +211,19 @@ def test_parameterized_ids_with_spaces_and_delimiter() -> None:
 
 def test_node_runner_failure_extraction() -> None:
     """Verify node failure extraction preserves file context in spec and TAP modes."""
-    # Spec reporter format
+    # Spec reporter format with duration and suite header
     spec_output = (
-        "✖ test one (tests/foo.test.mjs:10:5)\n"
-        "✖ test two (tests/bar.test.mjs:20:5)\n"
-        "ℹ tests 2\n"
-        "ℹ fail 2\n"
+        "▶ tests/foo.test.mjs\n"
+        "  ✖ test one (0.483083ms)\n"
+        "▶ tests/bar.test.mjs\n"
+        "  ✖ test two (1.25ms)\n"
+        "  ✖ test three (tests/bar.test.mjs:20:5)\n"
+        "ℹ tests 3\n"
+        "ℹ fail 3\n"
     )
     spec_failures = extract_node_failures(spec_output)
     assert spec_failures == [
+        "tests/bar.test.mjs::test three",
         "tests/bar.test.mjs::test two",
         "tests/foo.test.mjs::test one",
     ]
