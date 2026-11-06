@@ -20,7 +20,7 @@
 
 - **Epic Name**: `contract_and_authoring_ergonomics`
 - **Epic Slug**: `contract-and-authoring-ergonomics`
-- **Status**: In Progress
+- **Status**: Done
 - **Target Release**: v1.25.0
 - **Platform**: Python
 - **Source Spec**: [2026-11-06-contract-and-authoring-ergonomics-design.en.md](./2026-11-06-contract-and-authoring-ergonomics-design.en.md)
