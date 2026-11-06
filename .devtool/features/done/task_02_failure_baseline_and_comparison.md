@@ -1,20 +1,20 @@
 ---
 id: "task_02_failure_baseline_and_comparison"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "execution-and-verification-infrastructure"
 dueDate: null
 created: "2026-11-06T03:20:00Z"
-modified: "2026-11-06T12:57:55Z"
-completedAt: null
+modified: "2026-11-06T13:48:53Z"
+completedAt: "2026-11-06T13:48:53Z"
 labels: ["infrastructure", "testing", "baseline"]
 order: "b2"
 ---
 
 # Task 02: Failure-Set Baseline Recording and Regression Comparison CLI
 
-Epic: [execution_and_verification_infrastructure](../epic/execution_and_verification_infrastructure/execution_and_verification_infrastructure.en.md)
+Epic: [execution_and_verification_infrastructure](../../epic/execution_and_verification_infrastructure/execution_and_verification_infrastructure.en.md)
 
 ## Requirement Analysis
 
@@ -137,5 +137,5 @@ Covers: EVI-HP-02, EVI-EC-01, EVI-ST-01, EVI-AR-02
 
 ## References & Rollback
 
-- Reference: [2026-11-06-execution-and-verification-infrastructure-design.en.md](../epic/execution_and_verification_infrastructure/2026-11-06-execution-and-verification-infrastructure-design.en.md).
+- Reference: [2026-11-06-execution-and-verification-infrastructure-design.en.md](../../epic/execution_and_verification_infrastructure/2026-11-06-execution-and-verification-infrastructure-design.en.md).
 - Rollback: `git revert` the task commit to remove `record_failure_baseline.py`, `compare_failure_sets.py`, and `test_failure_baseline.py`.
