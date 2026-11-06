@@ -81,7 +81,9 @@ Invoked on-demand to review standalone design documents, architecture proposals,
      `git commit -m "[<EPIC_NAME>] Revise epic after Principal Review round <n>"`
    - Record decisions with revision commit SHA in `principal_review.md`, then commit:
      `git commit -m "[<EPIC_NAME>] Record Principal Review decisions for round <n>"`
-   - Re-run packaging to refresh handoff metadata, record state via `python3 scripts/resume_context.py --state --epic <epic_slug>`, emit the AI Programmer prompt via `python3 scripts/resume_context.py --emit-prompt implement --epic <epic_slug>`, and present the Principal Review Choice again.
+   - Re-anchor `handoff.md` via `python3 skills/dev-implementation/resources/scripts/package_epic.py <epic_dir> --revise --reason "Revise after Principal Review round <n>"`.
+   - Record Gate 2 approval in the Gate Approval Ledger via `python3 scripts/resume_context.py --gate 2 --epic <epic_slug> --approved "Revised after Principal Review round <n>"`.
+   - Record state via `python3 scripts/resume_context.py --state --epic <epic_slug>`, emit the AI Programmer prompt via `python3 scripts/resume_context.py --emit-prompt implement --epic <epic_slug>`, and present the Principal Review Choice again.
 
 ## Guidelines & Reference Documents
 

@@ -85,6 +85,22 @@ python3 scripts/resume_context.py --complete <epic_slug> "<milestone summary>"
 - Re-renders `.devtool/assistant_state.md` and `.devtool/activity_stream.log` from remaining active epics.
 - Synchronizes the IDE window title to reflect feature completion: `<ICON> [<REPO>] [@<account_id>] <Vietnamese Epic Name> - Completed & Archived`.
 
+### 6. Record & Query Gate Approval Ledger (`--gate` / `--check-gate`)
+
+Records or queries formal Gate approvals (Gate 1–5) in `.devtool/GATE_LEDGER.md` (permanent, tracked) and `.devtool/state/gate_ledger.jsonl` (ephemeral):
+
+```bash
+# Record Gate approval
+python3 scripts/resume_context.py --gate <1..5> \
+  --epic <epic_slug> \
+  --approved "<approved scope summary>" \
+  [--deviations "<approved deviations or None>"] \
+  [--by "<author or AI persona>"]
+
+# Query Gate approval
+python3 scripts/resume_context.py --check-gate <1..5> --epic <epic_slug>
+```
+
 ## Concurrency Protection
 
 All writes acquire an exclusive POSIX advisory lock via `fcntl.flock` on `.devtool/.memory.lock`. This guarantees that concurrent AI agents running in parallel across multiple epics or repositories do not interleave or corrupt disk state.
