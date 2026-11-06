@@ -48,7 +48,7 @@ Detect the active project platform architecture:
 - **Python**: Root contains `pyproject.toml`, `setup.py`, `Pipfile`, or `requirements.txt`.
 - **Rust Core / Polyglot**: Root contains `Cargo.toml`.
 
-For polyglot repositories containing multiple project layers (e.g. Python backend + Web frontend + Rust core), `detect_project_type.sh --all` detects all active project types, and `bootstrap_worktree.sh` executes sequential bootstrap steps. In Python projects, `.agents/quality/python-quality.json` supports an optional `"bootstrap"` command list (e.g. `["uv sync", "uv run playwright install"]`) executed automatically during worktree creation.
+For polyglot repositories containing multiple project layers (e.g. Python backend + Web frontend + Rust core), `detect_project_type.sh --all` detects all active project types, and `bootstrap_worktree.sh` executes sequential bootstrap steps. In Python projects, `.agents/quality/python-quality.json` supports an optional `"bootstrap"` command list (e.g. `[["uv", "sync"], ["uv", "run", "playwright", "install"]]`) executed automatically during worktree creation.
 
 ### Step 1: Create the Epic Overview Document (HLD/RFC)
 Generate the Epic Overview documents inside a dedicated directory: `.devtool/epic/<epic_name>/`.
