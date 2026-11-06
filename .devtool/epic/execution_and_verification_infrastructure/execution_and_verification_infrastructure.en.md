@@ -21,7 +21,7 @@
 ## Meta Data
 
 - **Epic**: `execution-and-verification-infrastructure`
-- **Status**: In Progress
+- **Status**: Done
 - **Target Release**: v1.25.0
 - **Platform**: Python
 - **Source Spec**: [2026-11-06-execution-and-verification-infrastructure-design.en.md](2026-11-06-execution-and-verification-infrastructure-design.en.md)
