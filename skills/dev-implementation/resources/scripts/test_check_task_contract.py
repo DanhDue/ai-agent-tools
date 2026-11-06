@@ -585,6 +585,68 @@ class PortableD3NexusCliTest(ContractCase):
         self.assertEqual(resolved, "skills/doc_quality_check/resources/scripts/check_document.py")
 
 
+class SearchPatternGrepTest(ContractCase):
+    def test_TCAE_EC_03_grep_slash_pattern_excluded(self) -> None:
+        """[TCAE-EC-03] Search patterns containing slashes in grep, rg, sed, and awk are not flagged as missing paths."""
+        task = self.task(
+            "grep_slash",
+            allowed="- `tool.py`",
+            rows=RED
+            + "| V2 | GREEN | `grep -E 'foo/bar/baz' README.md` | exit 0 | — |\n"
+            + TIER_B
+            + TIER_C,
+        )
+        code, out, _ = self.check(task)
+        self.assertEqual(code, 0, out)
+        self.assertNotIn("foo/bar/baz does not exist", out)
+
+    def test_TCAE_HP_04_escaped_pipe_and_implicit_protected_provenance(self) -> None:
+        """[TCAE-HP-04] Verification row grammar with escaped pipes, env assignments, and implicit protected path provenance."""
+        self.write("scripts/tool.py", "print('ok')\n")
+        self.commit()
+        task = self.task(
+            "01_pipe",
+            allowed="- `tool.py`",
+            rows="| V1 | RED | `env MODE=strict python3 scripts/tool.py \\| grep -c ok` | exit 1; contains \"FAILED\" | — |\n"
+            + GREEN
+            + TIER_B
+            + TIER_C,
+        )
+        code, out, _ = self.check(task, design=True)
+        self.assertEqual(code, 0, out)
+        self.assertIn("Implicit protected paths: scripts/tool.py (task_01_pipe:V1), tool.py", out)
+
+    def test_TCAE_FR_02_reject_non_portable_and_bare_env(self) -> None:
+        """[TCAE-FR-02] Reject hardcoded user home or plugin cache paths and bare VAR=value in Verification rows."""
+        task = self.task(
+            "02_grammar_violations",
+            allowed="- `tool.py`",
+            rows="| V1 | RED | `python3 /Users/alice/antigravity_homes/tess/.claude/plugins/cache/check_document.py` | exit 1; contains \"FAILED\" | — |\n"
+            + "| V2 | GREEN | `FOO=bar pytest tests/unit/test_sample.py::test_ok` | exit 0 | — |\n"
+            + TIER_B
+            + TIER_C,
+        )
+        code, out, _ = self.check(task, design=True)
+        self.assertEqual(code, 1)
+        self.assertIn(
+            "task_02_grammar_violations:V1: non-portable path '/Users/' in command; use 'd3nexus <subcommand>' or '$D3NEXUS_KIT/...'",
+            out,
+        )
+        self.assertIn(
+            "task_02_grammar_violations:V2: inline environment assignment 'FOO=bar' must be prefixed with 'env' (e.g. 'env FOO=bar ...')",
+            out,
+        )
+
+
+def test_TCAE_EC_03_grep_slash_pattern_excluded() -> None:
+    test = SearchPatternGrepTest()
+    test.setUp()
+    try:
+        test.test_TCAE_EC_03_grep_slash_pattern_excluded()
+    finally:
+        test.tearDown()
+
+
 if __name__ == "__main__":
     unittest.main()
 

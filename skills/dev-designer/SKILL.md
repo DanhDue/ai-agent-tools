@@ -380,7 +380,7 @@ Each task file MUST adhere to this exact structure:
    - **Zero Uncovered Scenarios Rule**: Every authored BDD scenario across all 5 dimensions MUST map to at least one automated test case. Unit tests with mocks do NOT substitute for Tier C integration tests.
    - **Grounded Assertions Mandate**: Under `### BDD SCENARIOS`, pin assertions to production observation points and exact inputs, outputs, boundary indices, attempt counts, timestamps, or canonical fixture anchors. Vague or weak assertions (`should be truthy`, `is valid`, `should work`, `returns non-empty`) are strictly forbidden and rejected by `check_task_contract.py --design`.
 
-9. **Verification**: A `## Verification` section holding one table and nothing else to tick. Each row is a command the recorder (`run_task_checks.py`) runs and the done gate checks; nothing is ticked by hand. Per-platform example rows, and the command that produces each platform's test report, are in [`references/verification-rows.md`](references/verification-rows.md).
+9. **Verification**: A `## Verification` section holding one table and nothing else to tick. Each row is a command the recorder (`run_task_checks.py`) runs and the done gate checks; nothing is ticked by hand. Per-platform example rows, and the command that produces each platform's test report, are in [`references/verification-rows.md`](references/verification-rows.md). Canonical table grammar rules, pipe escaping (`\|`), environment prefixing (`env VAR=val`), search pattern rules, and portable CLI usage are in [`references/verification-row-grammar.md`](references/verification-row-grammar.md).
 
    ```markdown
    | ID | Phase | Command | Expect | Needs |

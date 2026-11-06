@@ -1,13 +1,13 @@
 ---
 id: "task_04_verification_grammar_and_docs"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "contract-and-authoring-ergonomics"
 dueDate: null
 created: "2026-11-06T01:50:00Z"
-modified: "2026-11-06T01:50:00Z"
-completedAt: null
+modified: "2026-11-06T03:32:31Z"
+completedAt: "2026-11-06T03:32:31Z"
 labels: ["architecture", "grammar", "documentation"]
 order: "a4"
 ---

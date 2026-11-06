@@ -88,3 +88,4 @@ Invoked on-demand to review standalone design documents, architecture proposals,
 - [Prompt Template](references/principal-review-prompt.md): The read-only instruction template sent to reviewer CLIs.
 - [Review Rules](references/principal-review-rules.md): Severity definitions (Critical, Important, Minor) and source grounding standards.
 - [Document Triage Protocol](references/document-triage.md): Step-by-step decision verification and revision loop enforcement.
+- [Verification Row Grammar](../dev-designer/references/verification-row-grammar.md): Canonical Verification table grammar rules (including `\|` pipe escaping, `env VAR=val` prefixing, slash-containing search pattern rules, and portable CLI usage). Escaped pipes `\|` in table command cells are unescaped by `task_contract.py` and must not be flagged as syntax errors.

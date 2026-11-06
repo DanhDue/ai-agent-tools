@@ -1,0 +1,247 @@
+{
+  "schema": 1,
+  "task": "task_04_verification_grammar_and_docs",
+  "runs": {
+    "red": {
+      "head": "b10fcd3ec8a7d186b28703a38e52bf1522b31dc2",
+      "tree": "1e78de98ca05afd3e39c776637d62dd4b38d98e5",
+      "patch_id": "ac0b93bccc05ceabf146c73cb3fb11b1b6775b8d",
+      "started": "2026-11-06T03:25:14Z",
+      "finished": "2026-11-06T03:25:14Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m pytest skills/dev-implementation/resources/scripts/test_check_task_contract.py::test_TCAE_EC_03_grep_slash_pattern_excluded",
+          "expect": "exit 1; contains \"FAILED\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-06T03:25:14Z",
+          "finished": "2026-11-06T03:25:14Z",
+          "output_tail": [
+            "",
+            "skills/dev-implementation/resources/scripts/test_check_task_contract.py F [100%]",
+            "",
+            "=================================== FAILURES ===================================",
+            "_________________ test_TCAE_EC_03_grep_slash_pattern_excluded __________________",
+            "",
+            "    def test_TCAE_EC_03_grep_slash_pattern_excluded() -> None:",
+            "        test = SearchPatternGrepTest()",
+            "        test.setUp()",
+            "        try:",
+            ">           test.test_TCAE_EC_03_grep_slash_pattern_excluded()",
+            "",
+            "/Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/contract_and_authoring_ergonomics/skills/dev-implementation/resources/scripts/test_check_task_contract.py:606: ",
+            "_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ",
+            "/Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/contract_and_authoring_ergonomics/skills/dev-implementation/resources/scripts/test_check_task_contract.py:598: in test_TCAE_EC_03_grep_slash_pattern_excluded",
+            "    self.assertEqual(code, 0, out)",
+            "/opt/homebrew/Cellar/python@3.15/3.15.2/Frameworks/Python.framework/Versions/3.15/lib/python3.15/unittest/case.py:949: in assertEqual",
+            "    assertion_func(first, second, msg=msg)",
+            "_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ",
+            "",
+            "self = <test_check_task_contract.SearchPatternGrepTest testMethod=runTest>",
+            "first = 1, second = 0",
+            "msg = '1 != 0 : task_grep_slash:Verification: no RED row and no RED: n/a line with a reason\\ntask_grep_slash:Verification: P...exist, is not ignored by git and is not (new) in any task\\nImplicit protected paths: none\\nResult: 3 problems — FAIL\\n'",
+            "",
+            "    def _baseAssertEqual(self, first, second, msg=None):",
+            "        \"\"\"The default assertEqual implementation, not type specific.\"\"\"",
+            "        if not first == second:",
+            "            standardMsg = '%s != %s' % _common_shorten_repr(first, second)",
+            "            msg = self._formatMessage(msg, standardMsg)",
+            ">           raise self.failureException(msg)",
+            "E           AssertionError: 1 != 0 : task_grep_slash:Verification: no RED row and no RED: n/a line with a reason",
+            "E           task_grep_slash:Verification: Python task requires TIER-B direct lint (ruff), type-check (mypy/pyright/ty)",
+            "E           task_grep_slash:V1: foo/bar/baz does not exist, is not ignored by git and is not (new) in any task",
+            "E           Implicit protected paths: none",
+            "E           Result: 3 problems — FAIL",
+            "",
+            "/opt/homebrew/Cellar/python@3.15/3.15.2/Frameworks/Python.framework/Versions/3.15/lib/python3.15/unittest/case.py:942: AssertionError",
+            "=========================== short test summary info ============================",
+            "FAILED skills/dev-implementation/resources/scripts/test_check_task_contract.py::test_TCAE_EC_03_grep_slash_pattern_excluded",
+            "============================== 1 failed in 0.13s ==============================="
+          ],
+          "output_sha256": "695d601d8d0ba4b03f3764571a172c7eb7a0ecb1b6be03ee9eb0162417256920"
+        }
+      ]
+    },
+    "verify": {
+      "head": "b10fcd3ec8a7d186b28703a38e52bf1522b31dc2",
+      "tree": "3e76eefef390655ab41f720123020e51b4db2b94",
+      "patch_id": "a3fcd01a6c4080816bbe2f53a0ce370a8d54212c",
+      "started": "2026-11-06T03:31:31Z",
+      "finished": "2026-11-06T03:31:42Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m pytest skills/dev-implementation/resources/scripts/test_check_task_contract.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-06T03:31:31Z",
+          "finished": "2026-11-06T03:31:36Z",
+          "output_tail": [
+            "============================= test session starts ==============================",
+            "platform darwin -- Python 3.15.2, pytest-9.2.0, pluggy-1.7.0",
+            "rootdir: /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/contract_and_authoring_ergonomics",
+            "collected 40 items",
+            "",
+            "skills/dev-implementation/resources/scripts/test_check_task_contract.py . [  2%]",
+            ".......................................                                  [100%]",
+            "",
+            "============================== 40 passed in 5.45s =============================="
+          ],
+          "output_sha256": "5310c7a791cc14c284d18f95be3fcd5e2934b1935d2c8fde12fcd0f24cca52bc"
+        },
+        {
+          "id": "V3",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py skills/dev-implementation/resources/scripts/check_task_contract.py skills/dev-implementation/resources/scripts/test_check_task_contract.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-06T03:31:36Z",
+          "finished": "2026-11-06T03:31:36Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py skills/dev-implementation/resources/scripts/check_task_contract.py --follow-imports=silent",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-06T03:31:36Z",
+          "finished": "2026-11-06T03:31:36Z",
+          "output_tail": [
+            "Success: no issues found in 6 source files"
+          ],
+          "output_sha256": "ab35ee42183d4d6d3ba483825ab037d18a5a15622d03be01d82220b1564851ff"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-B",
+          "command": "python3 skills/doc_quality_check/resources/scripts/check_document.py --require-toc skills/dev-designer/references/verification-row-grammar.md",
+          "expect": "exit 0; contains \"0 findings\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-06T03:31:36Z",
+          "finished": "2026-11-06T03:31:36Z",
+          "output_tail": [
+            "  checked 1 documents, 0 findings"
+          ],
+          "output_sha256": "c4cf060f7a0df4e64bed481f0aa5478559f4bd2f03cd281710d8fdbf8b2ee714"
+        },
+        {
+          "id": "V6",
+          "phase": "TIER-C",
+          "command": "python3 -m pytest skills/dev-implementation/resources/scripts/test_check_task_contract.py --junitxml=build/test-results/task_04.xml",
+          "expect": "exit 0; results build/test-results/task_04.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-06T03:31:36Z",
+          "finished": "2026-11-06T03:31:42Z",
+          "output_tail": [
+            "============================= test session starts ==============================",
+            "platform darwin -- Python 3.15.2, pytest-9.2.0, pluggy-1.7.0",
+            "rootdir: /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/contract_and_authoring_ergonomics",
+            "collected 40 items",
+            "",
+            "skills/dev-implementation/resources/scripts/test_check_task_contract.py . [  2%]",
+            ".......................................                                  [100%]",
+            "",
+            "- generated xml file: /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/contract_and_authoring_ergonomics/build/test-results/task_04.xml -",
+            "============================== 40 passed in 5.56s =============================="
+          ],
+          "output_sha256": "52bfc0c0f2d19c4346e8581c074d34842ca7477780a34e2f76ea6f79028e2eae",
+          "results": {
+            "path": "build/test-results/task_04.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 9,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_TCAE_FR_01_reject_invalid_evidence_files",
+                  "classname": "skills.dev-implementation.resources.scripts.test_check_task_contract.Evidence_Integration_Test",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_TCAE_HP_01_evidence_files_grounding",
+                  "classname": "skills.dev-implementation.resources.scripts.test_check_task_contract.Evidence_Integration_Test",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_TCAE_HP_02_r2_mirror_parity_check",
+                  "classname": "skills.dev-implementation.resources.scripts.test_check_task_contract.Evidence_Integration_Test",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_TCAE_HP_02_r3_verbatim_bdd_parity_check",
+                  "classname": "skills.dev-implementation.resources.scripts.test_check_task_contract.Evidence_Integration_Test",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_TCAE_HP_01_evidence_files_grounding",
+                  "classname": "skills.dev-implementation.resources.scripts.test_check_task_contract",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_TCAE_EC_03_grep_slash_pattern_excluded",
+                  "classname": "skills.dev-implementation.resources.scripts.test_check_task_contract.SearchPatternGrepTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_TCAE_FR_02_reject_non_portable_and_bare_env",
+                  "classname": "skills.dev-implementation.resources.scripts.test_check_task_contract.SearchPatternGrepTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_TCAE_HP_04_escaped_pipe_and_implicit_protected_provenance",
+                  "classname": "skills.dev-implementation.resources.scripts.test_check_task_contract.SearchPatternGrepTest",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_TCAE_EC_03_grep_slash_pattern_excluded",
+                  "classname": "skills.dev-implementation.resources.scripts.test_check_task_contract",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "skills/dev-designer/SKILL.md",
+            "skills/dev-designer/references/verification-row-grammar.md",
+            "skills/dev-implementation/resources/scripts/check_task_contract.py",
+            "skills/dev-implementation/resources/scripts/test_check_task_contract.py",
+            "skills/principal-review/SKILL.md"
+          ],
+          "violations": []
+        }
+      ]
+    }
+  }
+}

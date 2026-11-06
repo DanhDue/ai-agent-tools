@@ -167,6 +167,24 @@ def check_evidence(check: Checker, stem: str, text: str, design: bool) -> None:
             check.problem(f"{stem}:Files", f"Evidence file {pattern} is marked (new) but already exists")
 
 
+SEARCH_PROGRAMS = {"grep", "egrep", "fgrep", "rg", "sed", "awk"}
+
+
+def _split_subcommands(tokens: list[str]) -> list[list[str]]:
+    subcommands: list[list[str]] = []
+    current: list[str] = []
+    for token in tokens:
+        if token in tc.CONTROL_TOKENS:
+            if current:
+                subcommands.append(current)
+                current = []
+        else:
+            current.append(token)
+    if current:
+        subcommands.append(current)
+    return subcommands
+
+
 def command_paths(command: str) -> tuple[list[str], str | None]:
     """Path-like tokens of a command, and its executable when that is a bare name."""
     try:
@@ -176,11 +194,37 @@ def command_paths(command: str) -> tuple[list[str], str | None]:
     except ValueError:
         return [], None
     paths: list[str] = []
-    for token in tokens:
-        value = token.split("=", 1)[1] if token.startswith("-") and "=" in token else token
-        if "/" in value and not value.startswith("-") and not re.search(r"[*$]|://", value):
-            clean_path = value.split("::", 1)[0]
-            paths.append(clean_path.removeprefix("./"))
+    subcommands = _split_subcommands(tokens)
+
+    for sub_tokens in subcommands:
+        unwrapped = tc.strip_wrappers(list(sub_tokens))
+        prog = Path(unwrapped[0]).name if unwrapped else ""
+
+        tokens_to_scan = list(sub_tokens)
+        if prog in SEARCH_PROGRAMS and len(unwrapped) > 1:
+            pattern_idx: int | None = None
+            for idx, tok in enumerate(sub_tokens):
+                if tok in ("-e", "--regexp") and idx + 1 < len(sub_tokens):
+                    pattern_idx = idx + 1
+                    break
+            if pattern_idx is None:
+                has_f = any(tok in ("-f", "--file") for tok in sub_tokens)
+                if not has_f:
+                    prog_idx = sub_tokens.index(unwrapped[0]) if unwrapped[0] in sub_tokens else 0
+                    for idx in range(prog_idx + 1, len(sub_tokens)):
+                        tok = sub_tokens[idx]
+                        if not tok.startswith("-"):
+                            pattern_idx = idx
+                            break
+            if pattern_idx is not None:
+                tokens_to_scan = [t for i, t in enumerate(sub_tokens) if i != pattern_idx]
+
+        for token in tokens_to_scan:
+            value = token.split("=", 1)[1] if token.startswith("-") and "=" in token else token
+            if "/" in value and not value.startswith("-") and not re.search(r"[*$]|://", value):
+                clean_path = value.split("::", 1)[0]
+                paths.append(clean_path.removeprefix("./"))
+
     program = tc.strip_wrappers([t for t in tokens if t not in tc.CONTROL_TOKENS])
     first = program[0] if program else None
     return paths, first if first and "/" not in first else None
@@ -191,12 +235,24 @@ def check_grounding(check: Checker, stem: str, text: str, rows: list[Any], creat
         if not (check.root / context).exists() and context not in created:
             check.problem(f"{stem}:Files", f"Read-only context {context} does not exist and is not (new) in any task")
     for row in rows:
+        try:
+            lexer = shlex.shlex(row.command, posix=True, punctuation_chars=True)
+            lexer.whitespace_split = True
+            cmd_tokens = list(lexer)
+        except ValueError:
+            cmd_tokens = []
+        for sub in _split_subcommands(cmd_tokens):
+            if sub and re.match(r"^[A-Za-z_][A-Za-z0-9_]*=.*", sub[0]):
+                check.problem(
+                    f"{stem}:{row.id}",
+                    f"inline environment assignment '{sub[0]}' must be prefixed with 'env' (e.g. 'env {sub[0]} ...')",
+                )
         paths, executable = command_paths(row.command)
         for path in paths:
             if not (check.root / path).exists() and not check.ignored(path) and path not in created:
                 check.problem(f"{stem}:{row.id}",
                               f"{path} does not exist, is not ignored by git and is not (new) in any task")
-        if executable and executable != "d3nexus" and shutil.which(executable) is None:
+        if executable and executable != "d3nexus" and "=" not in executable and shutil.which(executable) is None:
             check.warnings.append(f"warning: {stem}:{row.id}: executable {executable} not found on PATH")
 
 
@@ -445,13 +501,24 @@ def main(argv: list[str] | None = None) -> int:
     except UsageError as error:
         print(f"error: {error}", file=sys.stderr)
         return 2
-    programs = sorted({program for text in tasks.values() for row in _rows(text)
-                       if (program := tc.program_of(row.command, check.root))})
+    program_provenance: dict[str, list[str]] = {}
+    for path, text in tasks.items():
+        for row in _rows(text):
+            prog = tc.program_of(row.command, check.root)
+            if prog:
+                prov = f"{path.stem}:{row.id}"
+                if prov not in program_provenance.setdefault(prog, []):
+                    program_provenance[prog].append(prov)
+
+    formatted_programs = [
+        f"{prog} ({', '.join(program_provenance[prog])})"
+        for prog in sorted(program_provenance.keys())
+    ]
     for warning in check.warnings:
         print(warning, file=sys.stderr)
     for problem in check.problems:
         print(problem)
-    print(f"Implicit protected paths: {', '.join(programs) if programs else 'none'}")
+    print(f"Implicit protected paths: {', '.join(formatted_programs) if formatted_programs else 'none'}")
     print(f"Result: {len(check.problems)} problems — {'FAIL' if check.problems else 'PASS'}")
     return 1 if check.problems else 0
 

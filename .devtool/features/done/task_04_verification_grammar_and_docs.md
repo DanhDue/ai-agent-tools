@@ -1,20 +1,20 @@
 ---
 id: "task_04_verification_grammar_and_docs"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "contract-and-authoring-ergonomics"
 dueDate: null
 created: "2026-11-06T01:50:00Z"
-modified: "2026-11-06T01:50:00Z"
-completedAt: null
+modified: "2026-11-06T03:32:31Z"
+completedAt: "2026-11-06T03:32:31Z"
 labels: ["architecture", "grammar", "documentation"]
 order: "a4"
 ---
 
 # Task 04: Verification Row Grammar Diagnostics and Reference Documentation
 
-Epic: [contract_and_authoring_ergonomics](../epic/contract_and_authoring_ergonomics/contract_and_authoring_ergonomics.en.md)
+Epic: [contract_and_authoring_ergonomics](../../epic/contract_and_authoring_ergonomics/contract_and_authoring_ergonomics.en.md)
 
 ## Requirement Analysis
 
@@ -113,9 +113,9 @@ Scenario: [TCAE-FR-02] [Tier A - Unit] Reject hardcoded user home or plugin cach
 
 ## Dependencies & Blockers
 
-- Blocked by [Task 03](../epic/contract_and_authoring_ergonomics/task_03_portable_d3nexus_cli_and_env.md)
+- Blocked by [Task 03](../../epic/contract_and_authoring_ergonomics/task_03_portable_d3nexus_cli_and_env.md)
 
 ## References & Rollback
 
-- Reference: [2026-11-06-contract-and-authoring-ergonomics-design.en.md](../epic/contract_and_authoring_ergonomics/2026-11-06-contract-and-authoring-ergonomics-design.en.md).
+- Reference: [2026-11-06-contract-and-authoring-ergonomics-design.en.md](../../epic/contract_and_authoring_ergonomics/2026-11-06-contract-and-authoring-ergonomics-design.en.md).
 - Rollback: `git revert` the task commit to restore `check_task_contract.py` and skill documentation.
