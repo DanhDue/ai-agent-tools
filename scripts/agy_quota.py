@@ -819,7 +819,7 @@ def fetch_codex_quota() -> dict:
         "remainingCountdown": countdown_5h,
         "hasArgon": True,
         "gemini5h": {
-            "name": "Codex 5H Session Window",
+            "name": "Codex 5H Rolling Session",
             "fraction": fraction_5h,
             "countdown": countdown_5h,
             "resetTime": reset_iso,
@@ -835,9 +835,9 @@ def fetch_codex_quota() -> dict:
             "unavailable": False,
         },
         "geminiWeekly": {
-            "name": "OpenAI Rate Limits (RPM / TPM)",
+            "name": "OpenAI Weekly Limit (Chỉ trượt 5H Session)",
             "fraction": 1.0,
-            "countdown": "Bình thường",
+            "countdown": "Không áp dụng",
             "resetTime": "",
             "resetTimeLocal": "",
             "unavailable": False,
