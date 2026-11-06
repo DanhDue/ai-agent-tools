@@ -455,6 +455,36 @@ class Evidence_Integration_Test(ContractCase):
         self.assertEqual(code, 1)
         self.assertIn("marked (new) but already exists", out)
 
+    def test_TCAE_HP_02_r3_verbatim_bdd_parity_check(self) -> None:
+        """[TCAE-HP-02] check_task_contract --design reports R3 when task BDD differs from bdd_scenarios.en.md."""
+        bdd_content = "# Scenarios\n\n```gherkin\nScenario: [DEMO-HP-01] Valid scenario\n  Given a state\n  When action occurs\n  Then result happens\n```\n"
+        self.write(f"{EPIC}/bdd_scenarios.en.md", bdd_content)
+        self.commit()
+
+        # Task with mismatched BDD scenario
+        task = self.task(
+            "1_mismatch",
+            allowed="- `tool.py`",
+            covers="Covers: DEMO-HP-01\n\n```gherkin\nScenario: [DEMO-HP-01] Mismatched scenario\n  Given bad state\n```\n",
+            rows=RED + GREEN +
+                 "| V3 | TIER-B | `ruff check tool.py` | exit 0 | — |\n"
+                 "| V4 | TIER-B | `mypy --strict tool.py` | exit 0 | — |\n" + TIER_C,
+            dod="- done (V2, V3, V4, V5)\n",
+            decisions="- Testing R3 mismatch.\n",
+        )
+        code, out, _ = self.check(task, design=True)
+        self.assertEqual(code, 1)
+        self.assertIn("scenario DEMO-HP-01 differs from bdd_scenarios.en.md (R3)", out)
+
+    def test_TCAE_HP_02_r2_mirror_parity_check(self) -> None:
+        """[TCAE-HP-02] check_task_contract --design reports R2 when mirror differs from epic task."""
+        task = self.task("1_parity", allowed="- `tool.py`")
+        # Create a modified mirror in .devtool/features/
+        self.write(f".devtool/features/{task.name}", "# Different mirror content\n")
+        code, out, _ = self.check(task, design=True)
+        self.assertEqual(code, 1)
+        self.assertIn("features mirror content differs from epic task (R2)", out)
+
 
 def test_TCAE_HP_01_evidence_files_grounding() -> None:
     """[TCAE-HP-01] Evidence files declaration grounds new evidence paths in design mode."""

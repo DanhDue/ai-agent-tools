@@ -199,7 +199,6 @@ def check_task_mirrors(ctx: Context) -> list[Finding]:
     findings: list[Finding] = []
     features_dir = ctx.root / ".devtool" / "features"
     done_dir = features_dir / "done"
-    link_pattern = f"](../epic/{ctx.epic_dir}/"
 
     for task_path, epic_text in ctx.tasks.items():
         name = task_path.name
@@ -211,7 +210,8 @@ def check_task_mirrors(ctx: Context) -> list[Finding]:
             continue
 
         mirror_text = mirror_path.read_text(encoding="utf-8")
-        norm_mirror = mirror_text.replace(link_pattern, "](")
+        prefix = f"](../../epic/{ctx.epic_dir}/" if mirror_path.parent == done_dir else f"](../epic/{ctx.epic_dir}/"
+        norm_mirror = mirror_text.replace(prefix, "](")
 
         if norm_mirror != epic_text:
             epic_lines = epic_text.splitlines()

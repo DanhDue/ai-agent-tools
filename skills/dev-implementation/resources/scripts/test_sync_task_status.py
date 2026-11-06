@@ -863,5 +863,387 @@ detached
             self.assertIn('status: "in-progress"', task_file.read_text(encoding="utf-8"))
 
 
+class SingleSourceRender_Integration_Test(unittest.TestCase):
+    def test_TCAE_HP_02_render_single_source(self) -> None:
+        test_TCAE_HP_02_render_single_source()
+
+    def test_TCAE_EC_01_legacy_task_backward_compatible(self) -> None:
+        """[TCAE-EC-01] Legacy task without Evidence files or Covers line remains backward-compatible."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp).resolve()
+            git(root, "init", "-q")
+            git(root, "config", "user.email", "demo@example.com")
+            git(root, "config", "user.name", "Demo")
+
+            epic_dir = root / ".devtool" / "epic" / "sample_epic"
+            epic_dir.mkdir(parents=True, exist_ok=True)
+            (epic_dir / "sample_epic.en.md").write_text("# Epic\n\nProtected paths: none\nIntegration results: none\n\n## Verification Environment\n\nenv\n", encoding="utf-8")
+            (epic_dir / "sample_epic.vi.md").write_text("# Epic\n", encoding="utf-8")
+            (epic_dir / "bdd_scenarios.en.md").write_text("# Scenarios\n", encoding="utf-8")
+
+            (root / "tool.py").write_text("print('ok')\n", encoding="utf-8")
+            (root / "README.md").write_text("readme\n", encoding="utf-8")
+
+            # Legacy task without Evidence files and without Covers
+            task_content = """---
+id: "task_01_legacy"
+status: "todo"
+priority: "high"
+assignee: null
+epic: "sample-epic"
+dueDate: null
+created: "2026-11-06T01:50:00Z"
+modified: "2026-11-06T01:50:00Z"
+completedAt: null
+labels: ["architecture"]
+order: "a1"
+---
+
+# Task 01: Legacy
+
+Epic: [sample_epic](sample_epic.en.md)
+
+## Files
+
+Allowed files:
+- `tool.py`
+
+Read-only context:
+- `README.md`
+
+## Verification
+
+| ID | Phase | Command | Expect | Needs |
+|----|-------|---------|--------|-------|
+| V1 | RED | `false` | exit 1 | — |
+| V2 | GREEN | `true` | exit 0 | — |
+| V3 | TIER-B | `true` | exit 0 | — |
+| V4 | TIER-B | `true` | exit 0 | — |
+| V5 | TIER-C | `true` | exit 0 | — |
+
+## Definition of Done
+
+- done (V2, V3, V4, V5)
+
+## Stop and Report If
+
+- None
+
+## Decisions Already Made
+
+- Grounded decision.
+"""
+            task_path = epic_dir / "task_01_legacy.md"
+            task_path.write_text(task_content, encoding="utf-8")
+            git(root, "add", "-A")
+            git(root, "commit", "-q", "-m", "base")
+
+            res = run_py(SYNC, root, "render", "sample_epic")
+            self.assertEqual(res.returncode, 0, res.stderr)
+
+            # Mirror created in features/
+            mirror = root / ".devtool" / "features" / "task_01_legacy.md"
+            self.assertTrue(mirror.is_file())
+            # BDD section was not added or corrupted
+            self.assertNotIn("### BDD SCENARIOS", task_path.read_text(encoding="utf-8"))
+
+    def test_TCAE_EC_02_embedded_code_fence_promotion(self) -> None:
+        """[TCAE-EC-02] Embedded file containing code fence promotes outer fence to max(4, max_inner + 1)."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp).resolve()
+            git(root, "init", "-q")
+            git(root, "config", "user.email", "demo@example.com")
+            git(root, "config", "user.name", "Demo")
+
+            epic_dir = root / ".devtool" / "epic" / "sample_epic"
+            epic_dir.mkdir(parents=True, exist_ok=True)
+            (epic_dir / "sample_epic.en.md").write_text("# Epic\n\nProtected paths: none\nIntegration results: none\n\n## Verification Environment\n\nenv\n", encoding="utf-8")
+            (epic_dir / "sample_epic.vi.md").write_text("# Epic\n", encoding="utf-8")
+
+            # Source snippet containing 3 backticks
+            docs_dir = root / "docs"
+            docs_dir.mkdir(parents=True, exist_ok=True)
+            (docs_dir / "snippet.md").write_text("Intro\n```bash\necho hello\n```\nOutro\n", encoding="utf-8")
+
+            task_content = """---
+id: "task_01_embed"
+status: "todo"
+priority: "high"
+assignee: null
+epic: "sample-epic"
+dueDate: null
+created: "2026-11-06T01:50:00Z"
+modified: "2026-11-06T01:50:00Z"
+completedAt: null
+labels: ["architecture"]
+order: "a1"
+---
+
+# Task 01: Embed
+
+Epic: [sample_epic](sample_epic.en.md)
+
+## Files
+
+Allowed files:
+- `docs/snippet.md`
+
+Read-only context:
+- `README.md`
+
+<!-- @@FILE:docs/snippet.md@@ -->
+```markdown
+# placeholder
+```
+
+## Verification
+
+| ID | Phase | Command | Expect | Needs |
+|----|-------|---------|--------|-------|
+| V1 | RED | `false` | exit 1 | — |
+| V2 | GREEN | `true` | exit 0 | — |
+| V3 | TIER-B | `true` | exit 0 | — |
+| V4 | TIER-B | `true` | exit 0 | — |
+| V5 | TIER-C | `true` | exit 0 | — |
+
+## Definition of Done
+
+- done (V2, V3, V4, V5)
+
+## Stop and Report If
+
+- None
+
+## Decisions Already Made
+
+- Grounded decision.
+"""
+            task_path = epic_dir / "task_01_embed.md"
+            task_path.write_text(task_content, encoding="utf-8")
+            (root / "README.md").write_text("readme\n", encoding="utf-8")
+            git(root, "add", "-A")
+            git(root, "commit", "-q", "-m", "base")
+
+            res = run_py(SYNC, root, "render", "sample_epic")
+            self.assertEqual(res.returncode, 0, res.stderr)
+
+            # Outer fence promoted to 4 backticks
+            epic_text = task_path.read_text(encoding="utf-8")
+            self.assertIn("````markdown\nIntro\n```bash\necho hello\n```\nOutro\n````", epic_text)
+
+            mirror_text = (root / ".devtool" / "features" / "task_01_embed.md").read_text(encoding="utf-8")
+            self.assertIn("````markdown\nIntro\n```bash\necho hello\n```\nOutro\n````", mirror_text)
+
+    def test_TCAE_ST_01_orphan_mirrors_and_location_aware_links(self) -> None:
+        """[TCAE-ST-01] Rendering cleans up orphan mirrors and maintains location-aware links."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp).resolve()
+            git(root, "init", "-q")
+            git(root, "config", "user.email", "demo@example.com")
+            git(root, "config", "user.name", "Demo")
+
+            epic_dir = root / ".devtool" / "epic" / "sample_epic"
+            epic_dir.mkdir(parents=True, exist_ok=True)
+            (epic_dir / "sample_epic.en.md").write_text("# Epic\n\nProtected paths: none\nIntegration results: none\n\n## Verification Environment\n\nenv\n", encoding="utf-8")
+            (epic_dir / "sample_epic.vi.md").write_text("# Epic\n", encoding="utf-8")
+
+            # Create orphan mirror in features/
+            features_dir = root / ".devtool" / "features"
+            features_dir.mkdir(parents=True, exist_ok=True)
+            orphan = features_dir / "task_99_obsolete.md"
+            orphan.write_text('---\nid: "task_99_obsolete"\nepic: "sample-epic"\nstatus: "todo"\n---\n# Obsolete\n', encoding="utf-8")
+
+            # Task 01 marked done
+            task_content = """---
+id: "task_01_done"
+status: "done"
+priority: "high"
+assignee: null
+epic: "sample-epic"
+dueDate: null
+created: "2026-11-06T01:50:00Z"
+modified: "2026-11-06T01:50:00Z"
+completedAt: "2026-11-06T02:00:00Z"
+labels: ["architecture"]
+order: "a1"
+---
+
+# Task 01: Done
+
+Epic: [sample_epic](sample_epic.en.md)
+
+## Files
+
+Allowed files:
+- `tool.py`
+
+Read-only context:
+- `README.md`
+
+## Verification
+
+| ID | Phase | Command | Expect | Needs |
+|----|-------|---------|--------|-------|
+| V1 | RED | `false` | exit 1 | — |
+| V2 | GREEN | `true` | exit 0 | — |
+| V3 | TIER-B | `true` | exit 0 | — |
+| V4 | TIER-B | `true` | exit 0 | — |
+| V5 | TIER-C | `true` | exit 0 | — |
+
+## Definition of Done
+
+- done (V2, V3, V4, V5)
+
+## Stop and Report If
+
+- None
+
+## Decisions Already Made
+
+- Grounded decision.
+"""
+            (epic_dir / "task_01_done.md").write_text(task_content, encoding="utf-8")
+            (root / "tool.py").write_text("print('ok')\n", encoding="utf-8")
+            (root / "README.md").write_text("readme\n", encoding="utf-8")
+            git(root, "add", "-A")
+            git(root, "commit", "-q", "-m", "base")
+
+            res = run_py(SYNC, root, "render", "sample_epic")
+            self.assertEqual(res.returncode, 0, res.stderr)
+
+            # 1. Orphan mirror is removed
+            self.assertFalse(orphan.exists())
+
+            # 2. Done task mirror placed in features/done/ with ../../epic/ links
+            done_mirror = features_dir / "done" / "task_01_done.md"
+            self.assertTrue(done_mirror.is_file())
+            self.assertIn("[sample_epic](../../epic/sample_epic/sample_epic.en.md)", done_mirror.read_text(encoding="utf-8"))
+
+            # 3. Reopening task moves mirror back to features/ with ../epic/ links
+            res_reopen = run_py(SYNC, root, "task", "task_01_done", "in-progress")
+            self.assertEqual(res_reopen.returncode, 0, res_reopen.stderr)
+            reopened_mirror = features_dir / "task_01_done.md"
+            self.assertTrue(reopened_mirror.is_file())
+            self.assertFalse(done_mirror.exists())
+            self.assertIn("[sample_epic](../epic/sample_epic/sample_epic.en.md)", reopened_mirror.read_text(encoding="utf-8"))
+
+
+def test_TCAE_HP_02_render_single_source() -> None:
+    """[TCAE-HP-02] Single-source task rendering injects verbatim BDD, embeds code, and writes mirror."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp).resolve()
+        git(root, "init", "-q")
+        git(root, "config", "user.email", "demo@example.com")
+        git(root, "config", "user.name", "Demo")
+
+        epic_dir = root / ".devtool" / "epic" / "sample_epic"
+        epic_dir.mkdir(parents=True, exist_ok=True)
+        (epic_dir / "sample_epic.en.md").write_text("# Epic: Sample\n\nProtected paths: none\nIntegration results: none\n\n## Verification Environment\n\nenv\n", encoding="utf-8")
+        (epic_dir / "sample_epic.vi.md").write_text("# Epic: Sample\n", encoding="utf-8")
+        
+        bdd_content = """# Scenarios
+
+```gherkin
+Scenario: [TCAE-HP-01] [Tier C - Integration] Evidence files declaration passes design contract and Done-Gate verification
+  Given a task declaring evidence file
+  When check_task_contract runs
+  Then it passes
+```
+"""
+        (epic_dir / "bdd_scenarios.en.md").write_text(bdd_content, encoding="utf-8")
+
+        src_dir = root / "src"
+        src_dir.mkdir(parents=True, exist_ok=True)
+        (src_dir / "helper.py").write_text('def helper():\n    return "help"\n', encoding="utf-8")
+
+        task_content = """---
+id: "task_01_setup"
+status: "todo"
+priority: "high"
+assignee: null
+epic: "sample-epic"
+dueDate: null
+created: "2026-11-06T01:50:00Z"
+modified: "2026-11-06T01:50:00Z"
+completedAt: null
+labels: ["architecture"]
+order: "a1"
+---
+
+# Task 01: Setup
+
+Epic: [sample_epic](sample_epic.en.md)
+Sibling: [task_02](./task_02.md)
+
+## Files
+
+Allowed files:
+- `src/helper.py`
+
+Read-only context:
+- `README.md`
+
+<!-- @@FILE:src/helper.py@@ -->
+```python
+# old placeholder
+```
+
+### BDD SCENARIOS
+
+Covers: TCAE-HP-01
+
+```gherkin
+# placeholder
+```
+
+## Verification
+
+| ID | Phase | Command | Expect | Needs |
+|----|-------|---------|--------|-------|
+| V1 | RED | `false` | exit 1 | — |
+| V2 | GREEN | `true` | exit 0 | — |
+| V3 | TIER-B | `true` | exit 0 | — |
+| V4 | TIER-B | `true` | exit 0 | — |
+| V5 | TIER-C | `true` | exit 0 | — |
+
+## Definition of Done
+
+- done (V2, V3, V4, V5)
+
+## Stop and Report If
+
+- None
+
+## Decisions Already Made
+
+- Grounded decision.
+"""
+        task_path = epic_dir / "task_01_setup.md"
+        task_path.write_text(task_content, encoding="utf-8")
+        (root / "README.md").write_text("demo\n", encoding="utf-8")
+        git(root, "add", "-A")
+        git(root, "commit", "-q", "-m", "base")
+
+        # Invoke sync_task_status.py render sample_epic
+        res = run_py(SYNC, root, "render", "sample_epic")
+        assert res.returncode == 0, f"sync_task_status.py render failed: {res.stderr}\n{res.stdout}"
+
+        # 1. Epic task contains verbatim BDD
+        updated_epic_task = task_path.read_text(encoding="utf-8")
+        assert 'def helper():\n    return "help"' in updated_epic_task
+        assert "Scenario: [TCAE-HP-01]" in updated_epic_task
+        assert "Given a task declaring evidence file" in updated_epic_task
+        assert "[task_02](task_02.md)" in updated_epic_task
+
+        # 2. Features mirror is generated
+        features_task = root / ".devtool" / "features" / "task_01_setup.md"
+        assert features_task.is_file()
+        features_text = features_task.read_text(encoding="utf-8")
+        assert 'def helper():\n    return "help"' in features_text
+        assert "Scenario: [TCAE-HP-01]" in features_text
+        assert "[task_02](../epic/sample_epic/task_02.md)" in features_text
+        assert "[sample_epic](../epic/sample_epic/sample_epic.en.md)" in features_text
+
+
 if __name__ == "__main__":
     unittest.main()

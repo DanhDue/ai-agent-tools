@@ -219,14 +219,19 @@ def board_location(root: Path, path: Path, status: str) -> Path:
     Epic mirrors stay put. A copy already at the target is replaced by the one just written.
     """
     features = root / ".devtool" / "features"
+    content = path.read_text(encoding="utf-8")
     if status == "done" and path.parent == features:
         target = features / "done" / path.name
+        content = content.replace("](../epic/", "](../../epic/")
     elif status != "done" and path.parent == features / "done":
         target = features / path.name
+        content = content.replace("](../../epic/", "](../epic/")
     else:
         return path
     target.parent.mkdir(parents=True, exist_ok=True)
-    path.replace(target)
+    target.write_text(content, encoding="utf-8")
+    if path != target and path.exists():
+        path.unlink()
     return target
 
 
@@ -297,7 +302,7 @@ def find_epic_dir_for_slug(root: Path, epic_slug: str) -> str | None:
 
 def fix_task_markdown_links(text: str, epic_dir: str) -> str:
     """Rewrite task links when relocated into .devtool/epic/<epic_dir>/."""
-    text = re.sub(rf"\]\(\.\./epic/{re.escape(epic_dir)}/([^)]+)\)", r"](\1)", text)
+    text = re.sub(r"\]\((?:\.\./)+epic/" + re.escape(epic_dir) + r"/([^)]+)\)", r"](\1)", text)
     text = re.sub(r"\]\(\.\./\.\./features/(?:done/)?(task_[^)]+\.md)\)", r"](\1)", text)
     return text
 
@@ -363,9 +368,18 @@ def archive_epic_tasks(roots: list[Path], epic_dir: str) -> tuple[list[Path], li
                 if file_epic and file_epic not in target_slugs:
                     continue
                 dest_file = dest_dir / task_file.name
-                content = task_file.read_text()
-                content = fix_task_markdown_links(content, epic_dir)
-                dest_file.write_text(content)
+                if dest_file.exists():
+                    mirror_fm = parse_frontmatter(task_file.read_text(encoding="utf-8"))
+                    canonical_text = dest_file.read_text(encoding="utf-8")
+                    for field in ("status", "modified", "completedAt"):
+                        if field in mirror_fm:
+                            canonical_text = set_frontmatter_field(canonical_text, field, str(mirror_fm[field]))
+                    canonical_text = fix_task_markdown_links(canonical_text, epic_dir)
+                    dest_file.write_text(canonical_text, encoding="utf-8")
+                else:
+                    content = task_file.read_text(encoding="utf-8")
+                    content = fix_task_markdown_links(content, epic_dir)
+                    dest_file.write_text(content, encoding="utf-8")
                 archived.append(dest_file)
                 task_file.unlink()
                 cleaned.append(task_file)
@@ -494,6 +508,232 @@ def done_gate_failures(task_id: str) -> list[str]:
         return [f"condition 1: {error}"]
 
 
+SCENARIO_LINE = re.compile(r"^\s*Scenario(?:\s+Outline)?:\s*(.+)$")
+ID_SHAPE = re.compile(r"[A-Z0-9]+(?:-[A-Z0-9]+)+")
+FENCE = re.compile(r"^(`{3,}|~{3,})(.*)$")
+DIRECTIVE_RE = re.compile(
+    r"(<!--\s*@@FILE:([^@\s>]+)@@\s*-->)\s*\n+(```+)([a-zA-Z0-9_-]*)\n[\s\S]*?\n\3",
+    flags=re.MULTILINE,
+)
+
+
+def extract_scenario_blocks(text: str) -> dict[str, list[str]]:
+    """Extract individual Gherkin scenario lines keyed by scenario ID."""
+    blocks: dict[str, list[str]] = {}
+    in_gherkin = False
+    fence_marker: str | None = None
+    current_id: str | None = None
+    current_lines: list[str] = []
+
+    for line in text.splitlines():
+        fence_match = FENCE.match(line)
+        if fence_match and fence_marker is None:
+            fence_marker = fence_match.group(1)
+            in_gherkin = fence_match.group(2).lower() == "gherkin"
+            if not in_gherkin and current_id is not None:
+                blocks[current_id] = current_lines
+                current_id = None
+                current_lines = []
+            continue
+        if (
+            fence_match
+            and fence_marker
+            and fence_match.group(1)[0] == fence_marker[0]
+            and len(fence_match.group(1)) >= len(fence_marker)
+            and not fence_match.group(2)
+        ):
+            fence_marker = None
+            in_gherkin = False
+            if current_id is not None:
+                blocks[current_id] = current_lines
+                current_id = None
+                current_lines = []
+            continue
+
+        if not in_gherkin:
+            continue
+
+        sc_match = SCENARIO_LINE.match(line)
+        if sc_match:
+            if current_id is not None:
+                blocks[current_id] = current_lines
+                current_lines = []
+            rest = sc_match.group(1).strip()
+            id_match = ID_SHAPE.search(rest)
+            if id_match:
+                current_id = id_match.group(0)
+                current_lines = [line.rstrip()]
+            else:
+                current_id = None
+        elif current_id is not None:
+            if not line.strip():
+                blocks[current_id] = current_lines
+                current_id = None
+                current_lines = []
+            else:
+                current_lines.append(line.rstrip())
+
+    if current_id is not None:
+        blocks[current_id] = current_lines
+
+    return blocks
+
+
+def inject_bdd_scenarios(task_text: str, canonical_blocks: dict[str, list[str]]) -> str:
+    """Inject verbatim Gherkin scenario blocks matching Covers: into ### BDD SCENARIOS."""
+    covers: list[str] = []
+    for line in task_text.splitlines():
+        m = re.match(r"^Covers:\s*(.+)$", line.strip())
+        if m:
+            covers.extend(re.findall(r"[A-Z0-9]+(?:-[A-Z0-9]+)+", m.group(1)))
+    if not covers:
+        return task_text
+
+    missing = [c for c in covers if c not in canonical_blocks]
+    if missing:
+        raise ValueError(f"Covered scenario(s) missing from bdd_scenarios.en.md: {', '.join(missing)}")
+
+    scenario_blocks = ["\n".join(canonical_blocks[c]) for c in covers]
+    gherkin_block = "```gherkin\n" + "\n\n".join(scenario_blocks) + "\n```"
+
+    m_block = re.search(
+        r"(### BDD SCENARIOS[\s\S]*?^Covers:[^\n]*\n+)(```[a-zA-Z0-9_-]*\n[\s\S]*?\n```)",
+        task_text,
+        flags=re.MULTILINE,
+    )
+    if m_block:
+        start, end = m_block.span(2)
+        return task_text[:start] + gherkin_block + task_text[end:]
+
+    m_block2 = re.search(r"(^Covers:[^\n]*\n+)(```[a-zA-Z0-9_-]*\n[\s\S]*?\n```)", task_text, flags=re.MULTILINE)
+    if m_block2:
+        start, end = m_block2.span(2)
+        return task_text[:start] + gherkin_block + task_text[end:]
+
+    m_covers = re.search(r"(^Covers:[^\n]*)(\n|$)", task_text, flags=re.MULTILINE)
+    if m_covers:
+        end = m_covers.end()
+        return task_text[:end] + "\n\n" + gherkin_block + "\n" + task_text[end:]
+
+    return task_text
+
+
+def expand_embedded_files(text: str, source_root: Path) -> str:
+    """Expand <!-- @@FILE:<rel_path>@@ --> by replacing the following fenced code block with file contents."""
+    def replacer(m: re.Match[str]) -> str:
+        directive = m.group(1)
+        rel_path_str = m.group(2).strip()
+        lang = m.group(4) or ""
+
+        rel_path = Path(rel_path_str)
+        if rel_path_str.startswith("/") or ".." in rel_path.parts:
+            raise ValueError(f"Invalid embedded file path: {rel_path_str} (must be relative without '..')")
+
+        target = source_root / rel_path
+        if not target.is_file():
+            raise ValueError(f"Embedded file not found: {rel_path_str} (looked in {target})")
+
+        content = target.read_text(encoding="utf-8")
+        runs = [len(run.group(0)) for run in re.finditer(r"`+", content)]
+        max_inner = max(runs, default=0)
+        fence_len = max(4, max_inner + 1) if max_inner >= 3 else 3
+        fence_str = "`" * fence_len
+
+        return f"{directive}\n{fence_str}{lang}\n{content.rstrip(chr(10))}\n{fence_str}"
+
+    return DIRECTIVE_RE.sub(replacer, text)
+
+
+def canonicalize_intra_epic_links(text: str, epic_path: Path) -> str:
+    """Canonicalize [text](./sibling.md) -> [text](sibling.md) for files within epic_path."""
+    def replacer(m: re.Match[str]) -> str:
+        label = m.group(1)
+        target = m.group(2)
+        base_target = target.split("#", 1)[0].split("?", 1)[0]
+        if (epic_path / base_target).is_file() or (epic_path / f"{base_target}.md").is_file() or base_target.startswith("task_"):
+            return f"[{label}]({target})"
+        return m.group(0)
+
+    return re.sub(r"\[([^\]]+)\]\(\./([^)]+)\)", replacer, text)
+
+
+def rewrite_mirror_links(text: str, epic_dir: str, is_done: bool, epic_path: Path) -> str:
+    """Rewrite local intra-epic links to cross-directory links for features/ or features/done/ mirrors."""
+    prefix = f"../../epic/{epic_dir}/" if is_done else f"../epic/{epic_dir}/"
+    canonical = fix_task_markdown_links(text, epic_dir)
+
+    def replacer(m: re.Match[str]) -> str:
+        label = m.group(1)
+        target = m.group(2)
+        if target.startswith(("http://", "https://", "/", "#", "mailto:", "../", "./")):
+            return m.group(0)
+        base_target = target.split("#", 1)[0].split("?", 1)[0]
+        if (
+            (epic_path / base_target).is_file()
+            or (epic_path / f"{base_target}.md").is_file()
+            or base_target.startswith(("task_", epic_dir))
+            or base_target.endswith(".md")
+        ):
+            return f"[{label}]({prefix}{target})"
+        return m.group(0)
+
+    return re.sub(r"\[([^\]]+)\]\(([^)]+)\)", replacer, canonical)
+
+
+def render_epic_tasks(root: Path, epic_dir: str, source_root: Path | None = None) -> list[Path]:
+    """Single-source task render engine: injects BDD, embeds files, and generates features mirrors."""
+    epic_path = root / ".devtool" / "epic" / epic_dir
+    if not epic_path.is_dir():
+        raise ValueError(f"Epic directory not found: {epic_path}")
+
+    source_root = source_root or root
+    bdd_file = epic_path / "bdd_scenarios.en.md"
+    canonical_blocks: dict[str, list[str]] = {}
+    if bdd_file.is_file():
+        canonical_blocks = extract_scenario_blocks(bdd_file.read_text(encoding="utf-8"))
+
+    epic_slug = find_epic_slug(root, epic_dir) or sanitize_slug(epic_dir) or epic_dir
+    target_slugs = {epic_slug, epic_slug.replace("-", "_"), epic_slug.replace("_", "-"), sanitize_slug(epic_dir)}
+
+    written_mirrors: list[Path] = []
+
+    for task_file in sorted(epic_path.glob("task_*.md")):
+        task_text = task_file.read_text(encoding="utf-8")
+        task_text = canonicalize_intra_epic_links(task_text, epic_path)
+        task_text = expand_embedded_files(task_text, source_root)
+        task_text = inject_bdd_scenarios(task_text, canonical_blocks)
+        task_file.write_text(task_text, encoding="utf-8")
+
+        fm = parse_frontmatter(task_text)
+        is_done = (fm.get("status") == "done")
+
+        mirror_dir = root / ".devtool" / "features" / "done" if is_done else root / ".devtool" / "features"
+        other_dir = root / ".devtool" / "features" if is_done else root / ".devtool" / "features" / "done"
+
+        mirror_path = mirror_dir / task_file.name
+        other_path = other_dir / task_file.name
+        if other_path.is_file():
+            other_path.unlink()
+
+        mirror_dir.mkdir(parents=True, exist_ok=True)
+        mirror_text = rewrite_mirror_links(task_text, epic_dir, is_done, epic_path)
+        mirror_path.write_text(mirror_text, encoding="utf-8")
+        written_mirrors.append(mirror_path)
+
+    # Clean up orphan mirrors
+    for fdir in (root / ".devtool" / "features", root / ".devtool" / "features" / "done"):
+        if not fdir.is_dir():
+            continue
+        for mfile in sorted(fdir.glob("task_*.md")):
+            m_fm = parse_frontmatter(mfile.read_text(encoding="utf-8"))
+            m_epic = m_fm.get("epic")
+            if m_epic and m_epic in target_slugs:
+                if not (epic_path / mfile.name).is_file():
+                    mfile.unlink()
+
+    return written_mirrors
+
+
 def main() -> None:
     import argparse
     import sys
@@ -520,6 +760,12 @@ def main() -> None:
         "archive-done",
         help="Find all completed tasks in .devtool/features/done/ and archive them into their respective epic directories",
     )
+
+    render_parser = subparsers.add_parser(
+        "render", help="Render single-source epic tasks into features mirrors"
+    )
+    render_parser.add_argument("epic_dir", help="Epic directory name (e.g. logging_refactor)")
+    render_parser.add_argument("--source-root", type=Path, default=None, help="Root directory for embedded files")
 
     args = parser.parse_args()
 
@@ -580,6 +826,16 @@ def main() -> None:
             print(f"Archived {len(done_epics)} epic(s) into .devtool/epic/: {', '.join(done_epics)}")
         else:
             print("No completed tasks to archive.")
+
+    elif args.command == "render":
+        top = subprocess.run(["git", "rev-parse", "--show-toplevel"], check=False, capture_output=True, text=True)
+        root = Path(top.stdout.strip()) if top.returncode == 0 else Path.cwd()
+        try:
+            rendered = render_epic_tasks(root, args.epic_dir, args.source_root)
+            print(f"Rendered {len(rendered)} tasks for epic '{args.epic_dir}'")
+        except (ValueError, FileNotFoundError) as error:
+            sys.stderr.write(f"error: {error}\n")
+            sys.exit(1)
 
 
 

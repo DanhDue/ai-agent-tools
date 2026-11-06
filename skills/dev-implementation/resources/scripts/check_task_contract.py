@@ -24,6 +24,7 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 tc: Any = importlib.import_module("task_contract")
 cb: Any = importlib.import_module("check_bdd_traceability")
+sts: Any = importlib.import_module("sync_task_status")
 UsageError: type[Exception] = cb.UsageError
 covers_of: Any = cb.covers_of
 read_text: Any = cb.read_text
@@ -363,6 +364,44 @@ def check_hld(check: Checker, hld_path: Path, text: str, tasks: dict[Path, str])
             pass
 
 
+def check_r2_r3_parity(check: Checker, hld_path: Path, tasks: dict[Path, str]) -> None:
+    epic_dir = hld_path.parent.name
+    bdd_path = hld_path.parent / "bdd_scenarios.en.md"
+    canonical_blocks: dict[str, list[str]] = {}
+    if bdd_path.is_file():
+        try:
+            canonical_blocks = sts.extract_scenario_blocks(read_file(bdd_path))
+        except UsageError:
+            pass
+
+    for task_path, epic_text in tasks.items():
+        stem = task_path.stem
+        # R3: BDD verbatim check
+        covers: list[str] = []
+        for line in epic_text.splitlines():
+            m = re.match(r"^Covers:\s*(.+)$", line.strip())
+            if m:
+                covers.extend(re.findall(r"[A-Z0-9]+(?:-[A-Z0-9]+)+", m.group(1)))
+        if covers and canonical_blocks:
+            task_blocks = sts.extract_scenario_blocks(epic_text)
+            for cid in covers:
+                if cid in canonical_blocks:
+                    if cid not in task_blocks or task_blocks[cid] != canonical_blocks[cid]:
+                        check.problem(f"{stem}:BDD", f"scenario {cid} differs from bdd_scenarios.en.md (R3)")
+
+        # R2: Mirror parity check if mirror exists
+        features_dir = check.root / ".devtool" / "features"
+        done_dir = features_dir / "done"
+        mirror_path = features_dir / task_path.name
+        if not mirror_path.is_file():
+            mirror_path = done_dir / task_path.name
+        if mirror_path.is_file():
+            prefix = f"](../../epic/{epic_dir}/" if mirror_path.parent == done_dir else f"](../epic/{epic_dir}/"
+            norm_mirror = read_file(mirror_path).replace(prefix, "](")
+            if norm_mirror != epic_text:
+                check.problem(f"{stem}:Mirror", "features mirror content differs from epic task (R2)")
+
+
 def repository_root() -> Path:
     done = subprocess.run(["git", "rev-parse", "--show-toplevel"], check=False, capture_output=True, text=True)
     if done.returncode != 0:
@@ -390,6 +429,8 @@ def main(argv: list[str] | None = None) -> int:
         for path, text in tasks.items():
             check_task(check, path, text, args.design, created)
         check_hld(check, args.hld, hld_text, tasks)
+        if args.design:
+            check_r2_r3_parity(check, args.hld, tasks)
     except UsageError as error:
         print(f"error: {error}", file=sys.stderr)
         return 2

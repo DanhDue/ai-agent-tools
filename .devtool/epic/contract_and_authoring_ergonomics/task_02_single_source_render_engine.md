@@ -1,13 +1,13 @@
 ---
 id: "task_02_single_source_render_engine"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "contract-and-authoring-ergonomics"
 dueDate: null
 created: "2026-11-06T01:50:00Z"
-modified: "2026-11-06T01:50:00Z"
-completedAt: null
+modified: "2026-11-06T03:05:01Z"
+completedAt: "2026-11-06T03:05:01Z"
 labels: ["architecture", "authoring", "python"]
 order: "a2"
 ---
