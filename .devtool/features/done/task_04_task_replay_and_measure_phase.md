@@ -1,20 +1,20 @@
 ---
 id: "task_04_task_replay_and_measure_phase"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "execution-and-verification-infrastructure"
 dueDate: null
 created: "2026-11-06T03:20:00Z"
-modified: "2026-11-06T12:57:55Z"
-completedAt: null
+modified: "2026-11-06T14:40:26Z"
+completedAt: "2026-11-06T14:40:26Z"
 labels: ["infrastructure", "replay", "measure"]
 order: "b4"
 ---
 
 # Task 04: Task Text Replay Engine, Static Anchor Verification, and MEASURE Phase
 
-Epic: [execution_and_verification_infrastructure](../epic/execution_and_verification_infrastructure/execution_and_verification_infrastructure.en.md)
+Epic: [execution_and_verification_infrastructure](../../epic/execution_and_verification_infrastructure/execution_and_verification_infrastructure.en.md)
 
 ## Requirement Analysis
 
@@ -141,10 +141,10 @@ Covers: EVI-HP-04, EVI-ST-02, EVI-FR-02, EVI-FR-03
 
 ## Dependencies & Blockers
 
-- Blocked by [Task 01](../epic/execution_and_verification_infrastructure/task_01_polyglot_worktree_bootstrap.md)
-- Blocked by [Task 03](../epic/execution_and_verification_infrastructure/task_03_live_integration_and_route_matching.md)
+- Blocked by [Task 01](../../epic/execution_and_verification_infrastructure/task_01_polyglot_worktree_bootstrap.md)
+- Blocked by [Task 03](../../epic/execution_and_verification_infrastructure/task_03_live_integration_and_route_matching.md)
 
 ## References & Rollback
 
-- Reference: [2026-11-06-execution-and-verification-infrastructure-design.en.md](../epic/execution_and_verification_infrastructure/2026-11-06-execution-and-verification-infrastructure-design.en.md).
+- Reference: [2026-11-06-execution-and-verification-infrastructure-design.en.md](../../epic/execution_and_verification_infrastructure/2026-11-06-execution-and-verification-infrastructure-design.en.md).
 - Rollback: `git revert` the task commit to remove `replay_task_text.py` and `MEASURE` phase changes.

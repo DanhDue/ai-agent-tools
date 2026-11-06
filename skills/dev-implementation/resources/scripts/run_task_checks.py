@@ -43,10 +43,12 @@ fingerprint: Any = _tc.fingerprint
 git_run: Any = _tc.git_run
 load_evidence: Any = _tc.load_evidence
 parse_allowed_files: Any = _tc.parse_allowed_files
+parse_evidence_files: Any = _tc.parse_evidence_files
 parse_protected_paths: Any = _tc.parse_protected_paths
 parse_verification: Any = _tc.parse_verification
 path_matches: Any = _tc.path_matches
 program_of: Any = _tc.program_of
+row_problems: Any = _tc.row_problems
 save_evidence: Any = _tc.save_evidence
 
 KIT_ROOT = Path(__file__).resolve().parents[4]
@@ -380,6 +382,31 @@ def run(args: argparse.Namespace) -> int:
         selected = [row for row in rows if row.phase == "RED"]
         if red_na is not None or not selected:
             raise ContractError("task has no RED rows to run (RED: n/a or no RED row)")
+    elif args.mode == "measure":
+        selected = [row for row in rows if row.phase == "MEASURE"]
+        if not selected:
+            raise ContractError("task has no MEASURE rows to run")
+        if getattr(args, "resume", False):
+            evidence = load_evidence(layout.evidence) or {}
+            m_run = evidence.get("runs", {}).get("measure")
+            if m_run and m_run.get("passed") is True:
+                tree_match = m_run.get("tree") == fingerprint(layout.root)[0]
+                problems = row_problems(selected, {"measure": m_run})
+                evidence_entries = parse_evidence_files(task_text)
+                evidence_ok = True
+                m_digests = m_run.get("evidence_digests", {})
+                for entry in evidence_entries:
+                    ev_path = layout.root / entry.pattern
+                    if not ev_path.is_file() or ev_path.stat().st_size == 0:
+                        evidence_ok = False
+                        break
+                    sha = hashlib.sha256(ev_path.read_bytes()).hexdigest()
+                    if sha != m_digests.get(entry.pattern):
+                        evidence_ok = False
+                        break
+                if tree_match and not problems and evidence_ok:
+                    print("MEASURE resumed (cached PASS)")
+                    return 0
     else:
         selected = [row for row in rows if row.phase in VERIFY_PHASES]
     started = utc_now()
@@ -390,12 +417,27 @@ def run(args: argparse.Namespace) -> int:
     tree, patch_id = fingerprint(layout.root)
     head = git_run(layout.root, "rev-parse", "HEAD").decode().strip()
     evidence = load_evidence(layout.evidence) or {"schema": 1, "task": Path(args.task).stem, "runs": {}}
-    evidence["runs"][args.mode] = {"head": head, "tree": tree, "patch_id": patch_id, "started": started,
-                                   "finished": utc_now(), "rows": records}
+    passed = all(record["outcome"] == "PASS" for record in records)
+    run_entry: dict[str, Any] = {
+        "head": head,
+        "tree": tree,
+        "patch_id": patch_id,
+        "started": started,
+        "finished": utc_now(),
+        "rows": records,
+        "passed": passed,
+    }
+    if args.mode == "measure":
+        digests: dict[str, str] = {}
+        for entry in parse_evidence_files(task_text):
+            ev_path = layout.root / entry.pattern
+            if ev_path.is_file() and ev_path.stat().st_size > 0:
+                digests[entry.pattern] = hashlib.sha256(ev_path.read_bytes()).hexdigest()
+        run_entry["evidence_digests"] = digests
+    evidence["runs"][args.mode] = run_entry
     save_evidence(layout.evidence, evidence)
     for record in records:
         print(f"{record['id']} {record['phase']} {record['outcome']} {detail_of(record)}")
-    passed = all(record["outcome"] == "PASS" for record in records)
     print(f"Result: {'PASS' if passed else 'FAIL'}")
     print(f"Evidence: {layout.evidence}")
     return 0 if passed else 1
@@ -417,10 +459,13 @@ def status(args: argparse.Namespace) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("mode", choices=("red", "verify", "status"))
+    parser.add_argument("mode", choices=("red", "measure", "verify", "status"))
     parser.add_argument("task", type=Path)
-    parser.add_argument("--timeout", type=int, default=1800)
+    parser.add_argument("--timeout", type=int, default=None)
+    parser.add_argument("--resume", action="store_true")
     args = parser.parse_args(argv)
+    if args.timeout is None:
+        args.timeout = 7200 if args.mode == "measure" else 1800
     try:
         if not args.task.is_file():
             raise ContractError(f"task file not found: {args.task}")

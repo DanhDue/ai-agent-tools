@@ -1,13 +1,13 @@
 ---
 id: "task_04_task_replay_and_measure_phase"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "execution-and-verification-infrastructure"
 dueDate: null
 created: "2026-11-06T03:20:00Z"
-modified: "2026-11-06T12:57:55Z"
-completedAt: null
+modified: "2026-11-06T14:40:26Z"
+completedAt: "2026-11-06T14:40:26Z"
 labels: ["infrastructure", "replay", "measure"]
 order: "b4"
 ---

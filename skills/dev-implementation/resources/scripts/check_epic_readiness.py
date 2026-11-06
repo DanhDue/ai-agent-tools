@@ -24,6 +24,7 @@ import check_bdd_traceability as cb
 import run_task_checks as rtc
 import sync_task_status as sts
 import task_contract as tc
+from replay_task_text import replay_epic_in_worktree, verify_task_edit_anchors
 
 LINTER_PATH = SCRIPTS_DIR.parents[2] / "doc_quality_check" / "resources" / "scripts" / "check_document.py"
 
@@ -46,6 +47,7 @@ class Context:
     roots: list[str]
     baseline: bool = False
     row_timeout: int = 600
+    replay: bool = False
 
 
 def parse_integration_test_roots(hld_text: str) -> list[str]:
@@ -62,6 +64,7 @@ def load_context(
     *,
     baseline: bool = False,
     row_timeout: int = 600,
+    replay: bool = False,
 ) -> Context:
     epic_path = root / ".devtool" / "epic" / epic_dir
     hld_path = epic_path / f"{epic_dir}.en.md"
@@ -90,6 +93,7 @@ def load_context(
         roots=roots,
         baseline=baseline,
         row_timeout=row_timeout,
+        replay=replay,
     )
 
 
@@ -425,6 +429,14 @@ def route_matches_codebase(route: str, tracked_contents: list[str]) -> bool:
 def check_grounding(ctx: Context) -> list[Finding]:
     findings: list[Finding] = []
 
+    # --- R5: Static Anchor Verification ---
+    prior_modified: set[str] = set()
+    for task_path in sorted(ctx.tasks.keys()):
+        task_text = ctx.tasks[task_path]
+        anchor_errors = verify_task_edit_anchors(ctx.root, task_path, task_text, prior_modified)
+        for err in anchor_errors:
+            findings.append(Finding("R5", "FAIL", err))
+
     # --- R5: Symbol Grounding ---
     target_header_re = re.compile(
         r"^\s*-\s*\*\*(?:Target Files & Symbols|Target files and symbols)\*\*:\s*(.*)$",
@@ -660,6 +672,14 @@ def check_metadata(ctx: Context) -> list[Finding]:
 
 
 def check_baseline(ctx: Context) -> list[Finding]:
+    findings: list[Finding] = []
+    if ctx.replay:
+        replay_code, msgs = replay_epic_in_worktree(ctx.root, ctx.epic_dir, timeout=ctx.row_timeout)
+        if replay_code != 0:
+            for msg in msgs:
+                findings.append(Finding("R8", "FAIL", msg))
+        return findings
+
     if not ctx.baseline:
         return []
 
@@ -672,8 +692,6 @@ def check_baseline(ctx: Context) -> list[Finding]:
     )
     if status_proc.stdout.strip():
         return [Finding("R8", "WARN", "baseline skipped: dirty tree")]
-
-    findings: list[Finding] = []
 
     new_paths: set[str] = set()
     for t_text in ctx.tasks.values():
@@ -729,6 +747,7 @@ def run_checks(
     *,
     baseline: bool = False,
     row_timeout: int = 600,
+    replay: bool = False,
 ) -> list[Finding]:
     active_ctx = Context(
         root=ctx.root,
@@ -740,6 +759,7 @@ def run_checks(
         roots=ctx.roots,
         baseline=baseline,
         row_timeout=row_timeout,
+        replay=replay or ctx.replay,
     )
     findings: list[Finding] = []
     for _check_id, check_fn in CHECKS:
@@ -769,7 +789,7 @@ def render_report(ctx: Context, findings: list[Finding]) -> str:
             for f in by_check.get("R7b", []):
                 lines.append(f"{f.check} {f.severity} {f.message}")
 
-    if not ctx.baseline:
+    if not ctx.baseline and not ctx.replay:
         lines.append("R8 SKIP")
     else:
         r8_findings = by_check.get("R8", [])
@@ -794,6 +814,11 @@ def main(argv: list[str] | None = None) -> int:
         "--baseline",
         action="store_true",
         help="Run baseline GREEN and TIER-B verification rows",
+    )
+    parser.add_argument(
+        "--replay",
+        action="store_true",
+        help="Replay epic tasks in an isolated worktree and verify rows",
     )
     parser.add_argument(
         "--row-timeout",
@@ -826,8 +851,8 @@ def main(argv: list[str] | None = None) -> int:
         sys.stderr.write(f"error: {hld_path} does not exist\n")
         return 2
 
-    ctx = load_context(root, args.epic_dir, baseline=args.baseline, row_timeout=args.row_timeout)
-    findings = run_checks(ctx, baseline=args.baseline, row_timeout=args.row_timeout)
+    ctx = load_context(root, args.epic_dir, baseline=args.baseline, row_timeout=args.row_timeout, replay=args.replay)
+    findings = run_checks(ctx, baseline=args.baseline, row_timeout=args.row_timeout, replay=args.replay)
     report = render_report(ctx, findings)
     print(report)
 
