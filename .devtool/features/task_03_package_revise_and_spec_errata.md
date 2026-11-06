@@ -1,12 +1,12 @@
 ---
 id: "task_03_package_revise_and_spec_errata"
-status: "todo"
+status: "in-progress"
 priority: "high"
 assignee: null
 epic: "multi-epic-orchestration-and-governance"
 dueDate: null
 created: "2026-11-06T04:25:00Z"
-modified: "2026-11-06T20:07:41Z"
+modified: "2026-11-06T20:51:48Z"
 completedAt: null
 labels: ["packaging", "governance", "errata"]
 order: "c3"
