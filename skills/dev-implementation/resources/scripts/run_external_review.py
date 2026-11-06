@@ -38,7 +38,8 @@ from string import Template
 from typing import Any
 
 import local_review
-from task_contract import ContractError, git_run, parse_integration_results
+from check_bdd_traceability import load_scenarios
+from task_contract import ContractError, git_run, parse_integration_results, parse_integration_result_specs
 
 SCRIPTS = Path(__file__).resolve().parent
 PROMPT = SCRIPTS.parent.parent / "references" / "external-review-prompt.md"
@@ -366,22 +367,116 @@ def collect_facts(root: Path, epic_dir: str, base: str, hld_text: str, timeout: 
     audit_code, audit_out, audit_err = run_gate("audit_epic.py", audit, root, timeout)
     audit_output = fact("audit_epic.py", audit_code, audit_out, audit_err)
     results, reports = [], []
-    for line in parse_integration_results(hld_text):
-        command, _, report = line.strip().strip("`").partition(" -> ")
-        cmd = command.strip().strip("`")
-        report = report.strip().strip("`")
-        cmd_code, cmd_out, cmd_err = run_gate(f"Integration: {cmd}", cmd, root, timeout, shell=True)
-        results.append(fact(cmd, cmd_code, cmd_out, cmd_err))
-        reports.extend(report.split())
+    skipped_live_commands: list[str] = []
+
+    specs = parse_integration_result_specs(hld_text)
+    for spec in specs:
+        if spec.live:
+            missing = [v for v in spec.needs if not os.environ.get(v)]
+            if missing:
+                results.append(f"$ {spec.command}\nSKIPPED (missing env: {', '.join(missing)})\n")
+                skipped_live_commands.append(spec.command)
+                continue
+        cmd_code, cmd_out, cmd_err = run_gate(f"Integration: {spec.command}", spec.command, root, timeout, shell=True)
+        results.append(fact(spec.command, cmd_code, cmd_out, cmd_err))
+        if spec.report:
+            reports.extend(spec.report.split())
+
     roots = re.search(r"^Integration test roots:\s*(.+)$", hld_text, re.MULTILINE)
-    if roots and reports:
-        results_paths = ["build/test-results"] if (root / "build/test-results").is_dir() else [r.strip("`") for r in reports]
+    if roots:
         roots_list = [r.strip("`") for r in roots.group(1).strip().split()]
-        check = [sys.executable, str(SCRIPTS / "check_bdd_traceability.py"), "tests", "--scenarios",
-                 f".devtool/epic/{epic_dir}/bdd_scenarios.en.md", "--roots", *roots_list,
-                 "--results", *results_paths]
-        chk_code, chk_out, chk_err = run_gate("check_bdd_traceability.py", check, root, timeout)
-        results.append(fact(shlex.join(check[1:]), chk_code, chk_out, chk_err))
+        scenarios_file = root / ".devtool" / "epic" / epic_dir / "bdd_scenarios.en.md"
+
+        if skipped_live_commands:
+            # 1. Static check across 100% of scenarios without --results
+            check_static = [
+                sys.executable,
+                str(SCRIPTS / "check_bdd_traceability.py"),
+                "tests",
+                "--scenarios",
+                str(scenarios_file),
+                "--roots",
+                *roots_list,
+            ]
+            chk_code, chk_out, chk_err = run_gate("check_bdd_traceability.py tests (static)", check_static, root, timeout)
+            results.append(fact(shlex.join(check_static[1:]), chk_code, chk_out, chk_err))
+
+            # 2. Results check across executed reports
+            results_paths = [r.strip("`") for r in reports]
+            if results_paths:
+                all_ids: list[str] = []
+                if scenarios_file.is_file():
+                    try:
+                        all_ids, _ = load_scenarios(scenarios_file)
+                    except Exception:
+                        all_ids = []
+
+                skipped_test_files: set[str] = set()
+                for cmd in skipped_live_commands:
+                    for token in shlex.split(cmd):
+                        if any(token.endswith(ext) for ext in (".py", ".js", ".ts", ".mjs", ".dart", ".kt", ".swift")):
+                            skipped_test_files.add(Path(token).name)
+                            skipped_test_files.add(token)
+
+                files_in_roots: list[Path] = []
+                for r in roots_list:
+                    r_path = root / r
+                    if r_path.is_dir():
+                        for p in r_path.rglob("*"):
+                            if p.is_file() and any(p.name.endswith(ext) for ext in (".py", ".js", ".ts", ".mjs", ".dart", ".kt", ".swift")):
+                                files_in_roots.append(p)
+
+                non_skipped_ids: list[str] = []
+                for identifier in all_ids:
+                    pattern = re.compile(r"\b" + re.escape(identifier) + r"\b")
+                    mentioning_files: list[Path] = []
+                    for f in files_in_roots:
+                        try:
+                            content = f.read_text(encoding="utf-8", errors="ignore")
+                            if pattern.search(content):
+                                mentioning_files.append(f)
+                        except OSError:
+                            pass
+
+                    if mentioning_files and all(
+                        f.name in skipped_test_files or str(f.relative_to(root)) in skipped_test_files
+                        for f in mentioning_files
+                    ):
+                        continue
+                    non_skipped_ids.append(identifier)
+
+                if non_skipped_ids:
+                    check_results = [
+                        sys.executable,
+                        str(SCRIPTS / "check_bdd_traceability.py"),
+                        "tests",
+                        "--scenarios",
+                        str(scenarios_file),
+                        "--roots",
+                        *roots_list,
+                        "--ids",
+                        *non_skipped_ids,
+                        "--results",
+                        *results_paths,
+                    ]
+                    res_code, res_out, res_err = run_gate("check_bdd_traceability.py tests (results)", check_results, root, timeout)
+                    results.append(fact(shlex.join(check_results[1:]), res_code, res_out, res_err))
+        elif reports:
+            results_paths = [r.strip("`") for r in reports]
+            check = [
+                sys.executable,
+                str(SCRIPTS / "check_bdd_traceability.py"),
+                "tests",
+                "--scenarios",
+                str(scenarios_file),
+                "--roots",
+                *roots_list,
+                "--results",
+                *results_paths,
+            ]
+            chk_code, chk_out, chk_err = run_gate("check_bdd_traceability.py", check, root, timeout)
+            results.append(fact(shlex.join(check[1:]), chk_code, chk_out, chk_err))
+
     return audit_output, "\n".join(results) or "No Integration results declared.\n"
 
 

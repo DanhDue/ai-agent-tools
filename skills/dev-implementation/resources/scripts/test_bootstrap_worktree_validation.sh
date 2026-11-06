@@ -48,6 +48,61 @@ check "no arguments" "Usage:" "$SCRIPT"
 check "nonexistent worktree path" "does not exist" "$SCRIPT" "/tmp/definitely-does-not-exist-xyz-$$"
 check "missing secureFiles/ at repo root" "secureFiles" run_in_repo_without_secure_files
 
+run_polyglot_bootstrap() {
+  local tmp_repo
+  tmp_repo="$(mktemp -d "${TMPDIR:-/tmp}/bootstrap-polyglot-test-XXXXXX")"
+  git init --quiet "$tmp_repo" >/dev/null 2>&1
+  mkdir -p "$tmp_repo/worktree/.agents/quality"
+  touch "$tmp_repo/worktree/pyproject.toml" "$tmp_repo/worktree/package.json"
+  cat <<'JSON' > "$tmp_repo/worktree/.agents/quality/python-quality.json"
+{
+  "schema_version": 1,
+  "bootstrap": [
+    ["python3", "-c", "import sys; print('CUSTOM_PYTHON_BOOTSTRAP_EXECUTED')"]
+  ],
+  "capabilities": {},
+  "profiles": {"pr": [], "epic": []}
+}
+JSON
+  local mock_bin="$tmp_repo/mock-bin"
+  mkdir -p "$mock_bin"
+  cat <<'SH' > "$mock_bin/npm"
+#!/usr/bin/env bash
+echo "MOCK_NPM_INSTALL_EXECUTED"
+exit 0
+SH
+  chmod +x "$mock_bin/npm"
+
+  local output
+  output="$(PATH="$mock_bin:$PATH" "$SCRIPT" "$tmp_repo/worktree" 2>&1)"
+  local status=$?
+  rm -rf "$tmp_repo"
+  if [ "$status" -ne 0 ]; then
+    echo "FAIL: polyglot bootstrap exit $status: $output"
+    FAILURES=$((FAILURES + 1))
+    return
+  fi
+  if ! grep -q "CUSTOM_PYTHON_BOOTSTRAP_EXECUTED" <<<"$output"; then
+    echo "FAIL: polyglot output missing python bootstrap: $output"
+    FAILURES=$((FAILURES + 1))
+    return
+  fi
+  if ! grep -q "MOCK_NPM_INSTALL_EXECUTED" <<<"$output"; then
+    echo "FAIL: polyglot output missing npm install: $output"
+    FAILURES=$((FAILURES + 1))
+    return
+  fi
+  if ! grep -q "Worktree bootstrap complete" <<<"$output"; then
+    echo "FAIL: polyglot output missing complete message: $output"
+    FAILURES=$((FAILURES + 1))
+    return
+  fi
+  echo "PASS: EVI-HP-01 polyglot bootstrap executes python bootstrap commands and web dependency install"
+}
+
+run_polyglot_bootstrap
+
+
 if [ "$FAILURES" -ne 0 ]; then
   echo "$FAILURES check(s) failed"
   exit 1

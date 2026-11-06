@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any
 
 SCRIPTS_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(SCRIPTS_DIR))
 SCRIPT_PATH = SCRIPTS_DIR / "check_epic_readiness.py"
 
 # Try importing the module under test
@@ -754,6 +755,122 @@ class ReadinessGroundingTest(unittest.TestCase):
             any("R8 WARN baseline skipped: dirty tree" in line for line in stdout_dirty.splitlines()),
             f"Expected 'R8 WARN baseline skipped: dirty tree', got:\n{stdout_dirty}",
         )
+
+    def test_EVI_HP_03_live_integration_results_and_gate4(self) -> None:
+        """[EVI-HP-03] Opt-in live integration results satisfy R6 and skip cleanly in Gate 4."""
+        import os
+        from unittest import mock
+        from run_external_review import collect_facts
+        from task_contract import parse_integration_result_specs, parse_integration_results
+
+        # 1. Spec parsing
+        hld_text = (
+            "Integration results: python3 tool.py int -> build/test-results/int.xml\n"
+            "Integration results (live, needs: EVI_LIVE_MODEL, OTHER_VAR): python3 scripts/run_unittest_junit.py --junitxml build/test-results/live.xml tests/test_live.py -> build/test-results/live.xml\n"
+        )
+        specs = parse_integration_result_specs(hld_text)
+        self.assertEqual(len(specs), 2)
+        self.assertFalse(specs[0].live)
+        self.assertTrue(specs[1].live)
+        self.assertEqual(specs[1].needs, ("EVI_LIVE_MODEL", "OTHER_VAR"))
+        self.assertEqual(specs[1].report, "build/test-results/live.xml")
+
+        results = parse_integration_results(hld_text)
+        self.assertEqual(len(results), 2)
+        self.assertIn("python3 scripts/run_unittest_junit.py --junitxml build/test-results/live.xml tests/test_live.py -> build/test-results/live.xml", results)
+
+        # 2. R6 coverage check in check_epic_readiness.py
+        hld_path = self.root / ".devtool" / "epic" / "demo_epic" / "demo_epic.en.md"
+        updated_hld = hld_path.read_text(encoding="utf-8")
+        updated_hld = updated_hld.replace(
+            "Integration results: python3 tool.py int -> build/test-results/int.xml",
+            "Integration results: python3 tool.py int -> build/test-results/int.xml\nIntegration results (live, needs: EVI_LIVE_MODEL): python3 scripts/run_unittest_junit.py --junitxml build/test-results/live.xml tests/test_live.py\n",
+        )
+        updated_hld = updated_hld.replace(
+            "Tests run in temporary directories.",
+            "Tests run in temporary directories. Optional live model env: EVI_LIVE_MODEL.",
+        )
+        hld_path.write_text(updated_hld, encoding="utf-8")
+
+        def modify_task(text: str) -> str:
+            return text.replace(
+                "`python3 tool.py int`",
+                "`python3 scripts/run_unittest_junit.py --junitxml build/test-results/live.xml tests/test_live.py`",
+            )
+
+        self.update_task_both("task_2.md", modify_task)
+
+        code, stdout, _stderr = self.run_check("demo_epic")
+        r6_lines = [line for line in stdout.splitlines() if line.startswith("R6 ")]
+        self.assertTrue(any("R6 PASS" in line for line in r6_lines), f"Expected R6 PASS, got:\n{stdout}")
+
+        # 3. Gate 4 collect_facts: when EVI_LIVE_MODEL is unset, live command is skipped
+        env_without_live = {k: v for k, v in os.environ.items() if k != "EVI_LIVE_MODEL"}
+        with (
+            mock.patch.dict(os.environ, env_without_live, clear=True),
+            mock.patch("run_external_review.run_gate", return_value=(0, "ok", "")),
+        ):
+            _audit_out, facts_str = collect_facts(self.root, "demo_epic", "HEAD", updated_hld, timeout=10)
+            self.assertIn("SKIPPED (missing env: EVI_LIVE_MODEL)", facts_str)
+
+        # When EVI_LIVE_MODEL is set:
+        env_with_live = dict(env_without_live)
+        env_with_live["EVI_LIVE_MODEL"] = "1"
+        with (
+            mock.patch.dict(os.environ, env_with_live, clear=True),
+            mock.patch("run_external_review.run_gate", return_value=(0, "ok", "")) as mock_gate,
+        ):
+            _audit_out, facts_str = collect_facts(self.root, "demo_epic", "HEAD", updated_hld, timeout=10)
+            invoked_cmds = [call_args[0][0] for call_args in mock_gate.call_args_list]
+            self.assertTrue(any("Integration: python3 scripts/run_unittest_junit.py" in str(c) for c in invoked_cmds))
+
+    def test_EVI_EC_03_route_drift_matches_parameterized_templates(self) -> None:
+        """[EVI-EC-03] [Tier A - Unit] R5b route drift check matches concrete route literals against parameterized route templates without false-positive warnings."""
+        from check_epic_readiness import route_matches_codebase
+
+        # Unit level route_matches_codebase test with {}, <>, and : syntax
+        templates = [
+            'ENDPOINT = "http://localhost/api/align/stream/{job_id}"\n',
+            'USER_ROUTE = "/api/users/<user_id>/profile"\n',
+            'ITEM_ROUTE = "/api/items/:item_id"\n',
+        ]
+        self.assertTrue(route_matches_codebase("http://localhost/api/align/stream/job_plt", templates))
+        self.assertTrue(route_matches_codebase("/api/users/123/profile", templates))
+        self.assertTrue(route_matches_codebase("/api/items/abc-def", templates))
+        self.assertFalse(route_matches_codebase("/api/other/unmatched", templates))
+
+        # Integration with check_epic_readiness R5b check
+        (self.root / "tool.py").write_text(
+            'ENDPOINT = "http://localhost/api/align/stream/{job_id}"\ndef run():\n    pass\n',
+            encoding="utf-8",
+        )
+        git_cmd(self.root, "add", "tool.py")
+        git_cmd(self.root, "commit", "-m", "update tool.py with parameterized template", "-q")
+
+        def modify_task(text: str) -> str:
+            return text.replace(
+                "Requirement text for task 1.",
+                "Requirement text for task 1 calling http://localhost/api/align/stream/job_plt endpoint.",
+            )
+        self.update_task_both("task_1.md", modify_task)
+
+        code, stdout, _stderr = self.run_check("demo_epic")
+        self.assertEqual(code, 0, f"Expected 0, got {code}.\nStdout:\n{stdout}")
+        r5b_lines = [line for line in stdout.splitlines() if line.startswith("R5b")]
+        self.assertFalse(any("WARN" in line for line in r5b_lines), f"Expected 0 R5b warnings, got:\n{stdout}")
+
+
+class Test_Check_Epic_Readiness_Integration(unittest.TestCase):
+    def test_EVI_HP_03_live_integration_provenance(self) -> None:
+        """[EVI-HP-03] [Tier C - Integration] Opt-in live integration results satisfy R6 and skip cleanly in Gate 4."""
+        test_case = ReadinessGroundingTest()
+        test_case.setUp()
+        try:
+            test_case.test_EVI_HP_03_live_integration_results_and_gate4()
+        finally:
+            test_case.tearDown()
+            test_case.temp_dir.cleanup()
+
 
 
 if __name__ == "__main__":

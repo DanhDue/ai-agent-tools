@@ -6,6 +6,7 @@ task identically. Python 3 standard library only.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -18,7 +19,7 @@ from pathlib import Path
 from check_bdd_traceability import covers_of
 from result_reports import Case, verdicts
 
-PHASES = ("RED", "GREEN", "TIER-B", "TIER-C")
+PHASES = ("RED", "MEASURE", "GREEN", "TIER-B", "TIER-C")
 HEADER = ["ID", "Phase", "Command", "Expect", "Needs"]
 NONE_CELL = ("—", "-")
 FENCE = re.compile(r"^\s*(`{3,}|~{3,})")
@@ -236,10 +237,51 @@ def dod_bullets(task_text: str) -> list[str]:
     return bullets
 
 
+@dataclass(frozen=True)
+class IntegrationResultSpec:
+    command: str
+    report: str
+    live: bool = False
+    needs: tuple[str, ...] = ()
+
+
+INTEGRATION_RESULTS_RE = re.compile(
+    r"^Integration results(?:\s*\(live,\s*needs:\s*([^)]+)\))?:\s*(.+)$"
+)
+
+
+def parse_integration_result_specs(hld_text: str) -> list[IntegrationResultSpec]:
+    specs: list[IntegrationResultSpec] = []
+    for line in hld_text.splitlines():
+        line = line.strip()
+        match = INTEGRATION_RESULTS_RE.match(line)
+        if match:
+            needs_part = match.group(1)
+            body = match.group(2).strip()
+            if "->" in body:
+                cmd_part, report_part = body.split("->", 1)
+                cmd = cmd_part.strip()
+                report = report_part.strip()
+            else:
+                cmd = body
+                report = ""
+            if needs_part is not None:
+                needs = tuple(v.strip() for v in needs_part.split(",") if v.strip())
+                specs.append(IntegrationResultSpec(command=cmd, report=report, live=True, needs=needs))
+            else:
+                specs.append(IntegrationResultSpec(command=cmd, report=report, live=False, needs=()))
+    return specs
+
+
 def parse_integration_results(hld_text: str) -> list[str]:
     """The text after `Integration results:` on each such line, as written."""
-    return [line.split(":", 1)[1].strip() for line in hld_text.splitlines()
-            if line.startswith("Integration results:")]
+    results: list[str] = []
+    for line in hld_text.splitlines():
+        line = line.strip()
+        match = INTEGRATION_RESULTS_RE.match(line)
+        if match:
+            results.append(match.group(2).strip())
+    return results
 
 
 def verification_environment(hld_text: str) -> str | None:
@@ -421,7 +463,7 @@ def row_problems(rows: list[Row], runs: dict) -> list[str]:
     """Condition 2: each table row needs a PASS record carrying the same command and expect."""
     problems: list[str] = []
     for row in rows:
-        run = runs.get("red" if row.phase == "RED" else "verify") or {}
+        run = runs.get("red" if row.phase == "RED" else "measure" if row.phase == "MEASURE" else "verify") or {}
         record = next((r for r in run.get("rows", []) if r["id"] == row.id), None)
         if record is None or (record["outcome"] != "PASS" and record["outcome"] != "BLOCKED"):
             problems.append(f"condition 2: row {row.id}: no PASS result in the evidence")
@@ -448,7 +490,8 @@ def evaluate_done_gate(task_file: Path) -> list[str]:
                 "run_task_checks.py and run the done gate in the epic worktree"]
     runs = evidence.get("runs", {})
     needs_red = red_na is None and any(row.phase == "RED" for row in rows)
-    missing = [kind for kind in (("red",) if needs_red else ()) + ("verify",) if kind not in runs]
+    needs_measure = any(row.phase == "MEASURE" for row in rows)
+    missing = [kind for kind in (("red",) if needs_red else ()) + (("measure",) if needs_measure else ()) + ("verify",) if kind not in runs]
     if missing:
         return [f"condition 1: evidence {layout.evidence} has no {kind} run" for kind in missing]
     problems = row_problems(rows, runs)
@@ -465,6 +508,12 @@ def evaluate_done_gate(task_file: Path) -> list[str]:
                         "files changed after verification")
     if verify.get("patch_id") is None:
         problems.append("condition 4: verify saw no change outside .devtool — record verify before committing")
+    if needs_measure:
+        measure = runs["measure"]
+        if measure.get("passed") is not True:
+            problems.append("condition 2: measure run did not pass")
+        if measure.get("tree") != fingerprint(layout.root)[0]:
+            problems.append("condition 4: the measure run's tree differs from the current tree")
     if needs_red:
         red = runs["red"]
         if red.get("head") != verify.get("head"):
@@ -489,4 +538,9 @@ def evaluate_done_gate(task_file: Path) -> list[str]:
             problems.append(
                 f"condition 8: evidence file {ev.pattern} declared in Evidence files was not created or is empty"
             )
+        elif needs_measure:
+            measure_digests = runs.get("measure", {}).get("evidence_digests", {})
+            sha256 = hashlib.sha256(ev_path.read_bytes()).hexdigest()
+            if sha256 != measure_digests.get(ev.pattern):
+                problems.append(f"condition 8: evidence file {ev.pattern} digest does not match measure run")
     return problems

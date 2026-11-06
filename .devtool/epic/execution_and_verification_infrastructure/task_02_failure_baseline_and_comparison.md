@@ -1,13 +1,13 @@
 ---
 id: "task_02_failure_baseline_and_comparison"
-status: "backlog"
+status: "done"
 priority: "high"
 assignee: null
 epic: "execution-and-verification-infrastructure"
 dueDate: null
 created: "2026-11-06T03:20:00Z"
-modified: "2026-11-06T03:20:00Z"
-completedAt: null
+modified: "2026-11-06T13:48:53Z"
+completedAt: "2026-11-06T13:48:53Z"
 labels: ["infrastructure", "testing", "baseline"]
 order: "b2"
 ---
@@ -89,7 +89,7 @@ Covers: EVI-HP-02, EVI-EC-01, EVI-ST-01, EVI-AR-02
 | V1 | RED | `python3 -m pytest skills/dev-implementation/resources/scripts/test_failure_baseline.py::test_EVI_HP_02_record_and_compare_baseline` | exit 1; contains "FAILED" | — |
 | V2 | GREEN | `python3 -m pytest skills/dev-implementation/resources/scripts/test_failure_baseline.py` | exit 0; contains "passed" | — |
 | V3 | TIER-B | `ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py skills/dev-implementation/resources/scripts/record_failure_baseline.py skills/dev-implementation/resources/scripts/compare_failure_sets.py skills/dev-implementation/resources/scripts/test_failure_baseline.py` | exit 0 | — |
-| V4 | TIER-B | `mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py --follow-imports=silent skills/dev-implementation/resources/scripts/record_failure_baseline.py skills/dev-implementation/resources/scripts/compare_failure_sets.py` | exit 0 | — |
+| V4 | TIER-B | `mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py skills/dev-implementation/resources/scripts/record_failure_baseline.py skills/dev-implementation/resources/scripts/compare_failure_sets.py --follow-imports=silent` | exit 0 | — |
 | V5 | TIER-C | `python3 -m pytest skills/dev-implementation/resources/scripts/test_failure_baseline.py --junitxml=build/test-results/task_02_baseline.xml` | exit 0; results build/test-results/task_02_baseline.xml | — |
 
 ## Stop and Report If

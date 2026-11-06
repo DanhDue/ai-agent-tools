@@ -119,6 +119,23 @@ class PythonQualityConfigTests(unittest.TestCase):
         res = validate_python_config(cfg, "epic")
         self.assertEqual("PASS", res["status"])
 
+    def test_EVI_FR_01_invalid_bootstrap_format(self) -> None:
+        """[EVI-FR-01] validate_python_quality rejects malformed bootstrap configurations."""
+        cfg = valid_config()
+        cfg["bootstrap"] = "uv sync --extra asr"
+        res = validate_python_config(cfg, "pr")
+        self.assertEqual("BLOCKED", res["status"])
+        self.assertIn("invalid_bootstrap_format", [f["code"] for f in res["findings"]])
+
+    def test_valid_bootstrap_passes_validation(self) -> None:
+        cfg = valid_config()
+        cfg["bootstrap"] = [["uv", "sync", "--extra", "asr"], ["pip", "install", "-e", ".[dev]"]]
+        res = validate_python_config(cfg, "epic")
+        self.assertEqual("PASS", res["status"])
+        self.assertEqual([], res["findings"])
+
+
+
 
 if __name__ == "__main__":
     unittest.main()

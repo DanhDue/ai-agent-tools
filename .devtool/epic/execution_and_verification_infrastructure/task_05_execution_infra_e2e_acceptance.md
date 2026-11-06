@@ -1,13 +1,13 @@
 ---
 id: "task_05_execution_infra_e2e_acceptance"
-status: "backlog"
+status: "done"
 priority: "high"
 assignee: null
 epic: "execution-and-verification-infrastructure"
 dueDate: null
 created: "2026-11-06T03:20:00Z"
-modified: "2026-11-06T03:20:00Z"
-completedAt: null
+modified: "2026-11-06T17:06:04Z"
+completedAt: "2026-11-06T17:06:04Z"
 labels: ["acceptance", "integration", "docs"]
 order: "b5"
 ---
@@ -71,7 +71,7 @@ RED: n/a — end-to-end acceptance test suite and skill documentation verifying 
 |----|-------|---------|--------|-------|
 | V1 | GREEN | `python3 -m pytest tests/test_execution_infra_acceptance.py` | exit 0; contains "passed" | — |
 | V2 | TIER-B | `ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py tests/test_execution_infra_acceptance.py` | exit 0 | — |
-| V3 | TIER-B | `mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py --follow-imports=silent tests/test_execution_infra_acceptance.py` | exit 0 | — |
+| V3 | TIER-B | `mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py tests/test_execution_infra_acceptance.py --follow-imports=silent` | exit 0 | — |
 | V4 | TIER-B | `python3 skills/doc_quality_check/resources/scripts/check_document.py skills/dev-designer/SKILL.md skills/dev-implementation/SKILL.md` | exit 0; contains "0 findings" | — |
 | V5 | TIER-C | `python3 -m pytest tests/ skills/dev-implementation/resources/scripts/ skills/python-quality-check/resources/scripts/ --junitxml=build/test-results/pytest.xml` | exit 0; results build/test-results/pytest.xml | — |
 

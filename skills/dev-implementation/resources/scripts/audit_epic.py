@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import difflib
+import hashlib
 import importlib
 import json
 import re
@@ -46,7 +47,7 @@ section: Any = tc.section
 validate_pytest_red: Any = rtc.validate_pytest_red
 
 STATUS = re.compile(r"""^status:\s*["'`]?([\w-]+)["'`]?\s*(?:#.*)?$""", re.MULTILINE)
-GRADER_LINES = ("Protected paths:", "Integration results:")
+GRADER_LINES = ("Protected paths:", "Integration results:", "Integration results (live")
 
 
 @dataclass(frozen=True)
@@ -120,7 +121,11 @@ def audit_evidence(root: Path, epic_path: str, base: str, stem: str, text: str) 
     if not well_formed(data):
         return [f"{stem}: malformed evidence"], True
     runs = data["runs"]
-    needed = ["verify"] + (["red"] if red_na is None and any(r.phase == "RED" for r in rows) else [])
+    needed = (
+        ["verify"]
+        + (["red"] if red_na is None and any(r.phase == "RED" for r in rows) else [])
+        + (["measure"] if any(r.phase == "MEASURE" for r in rows) else [])
+    )
     absent = [f"{stem}: missing evidence ({kind} run)" for kind in needed if kind not in runs]
     if absent:
         return absent, True
@@ -130,6 +135,20 @@ def audit_evidence(root: Path, epic_path: str, base: str, stem: str, text: str) 
         return [f"{stem}: malformed evidence"], True
     problems += [f"{stem}: row {record['id']} not PASS" for run in runs.values() for record in run["rows"]
                  if record["outcome"] != "PASS"]
+
+    if any(r.phase == "MEASURE" for r in rows) and "measure" in runs:
+        m_run = runs["measure"]
+        if m_run.get("passed") is not True:
+            problems.append(f"{stem}: measure run did not pass")
+        evidence_digests = m_run.get("evidence_digests", {})
+        for entry in tc.parse_evidence_files(text):
+            raw = show(root, "HEAD", entry.pattern)
+            if raw is None or not raw.strip():
+                problems.append(f"{stem}: evidence file {entry.pattern} missing or digest mismatch")
+            else:
+                digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()
+                if digest != evidence_digests.get(entry.pattern):
+                    problems.append(f"{stem}: evidence file {entry.pattern} missing or digest mismatch")
 
     # Re-audit pytest RED evidence semantics
     if "red" in runs and isinstance(runs["red"].get("rows"), list):

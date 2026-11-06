@@ -30,28 +30,66 @@ if [ ! -d "$WORKTREE_PATH" ]; then
   exit 1
 fi
 
+BOOTSTRAPPED=0
+
 if [ -f "$WORKTREE_PATH/pyproject.toml" ] || [ -f "$WORKTREE_PATH/requirements.txt" ]; then
   echo "Detected Python project in worktree..."
-  if command -v uv &>/dev/null; then
-    echo "Running uv sync (fast dependency sync)..."
-    (cd "$WORKTREE_PATH" && uv sync)
-  elif command -v poetry &>/dev/null && [ -f "$WORKTREE_PATH/poetry.lock" ]; then
-    echo "Running poetry install..."
-    (cd "$WORKTREE_PATH" && poetry install)
-  elif [ -f "$WORKTREE_PATH/requirements.txt" ]; then
-    echo "Running pip install -r requirements.txt..."
-    (cd "$WORKTREE_PATH" && pip install -r requirements.txt)
+  EXECUTED_CUSTOM_BOOTSTRAP=0
+  if [ -f "$WORKTREE_PATH/.agents/quality/python-quality.json" ]; then
+    python3 -c "
+import json, subprocess, sys
+manifest_path = '$WORKTREE_PATH/.agents/quality/python-quality.json'
+try:
+    with open(manifest_path, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+    bootstrap = data.get('bootstrap')
+    if bootstrap is not None:
+        if not isinstance(bootstrap, list) or len(bootstrap) == 0:
+            print('Error: bootstrap must be a non-empty list of command arrays', file=sys.stderr)
+            sys.exit(2)
+        for cmd in bootstrap:
+            if not isinstance(cmd, list) or not all(isinstance(x, str) for x in cmd):
+                print(f'Error: invalid bootstrap command format: {cmd}', file=sys.stderr)
+                sys.exit(2)
+            print(f'Running configured bootstrap command: {cmd}')
+            subprocess.run(cmd, cwd='$WORKTREE_PATH', check=True)
+        sys.exit(0)
+    sys.exit(1)
+except subprocess.CalledProcessError as err:
+    print(f'Error: configured bootstrap command failed: {err}', file=sys.stderr)
+    sys.exit(2)
+except Exception:
+    sys.exit(1)
+"
+    STATUS=$?
+    if [ "$STATUS" -eq 0 ]; then
+      EXECUTED_CUSTOM_BOOTSTRAP=1
+    elif [ "$STATUS" -eq 2 ]; then
+      echo "Configured bootstrap failed. Aborting worktree bootstrap." >&2
+      exit 1
+    fi
   fi
-  echo "Worktree bootstrap complete at $WORKTREE_PATH"
-  exit 0
+
+  if [ "$EXECUTED_CUSTOM_BOOTSTRAP" -eq 0 ]; then
+    if command -v uv &>/dev/null; then
+      echo "Running uv sync (fast dependency sync)..."
+      (cd "$WORKTREE_PATH" && uv sync)
+    elif command -v poetry &>/dev/null && [ -f "$WORKTREE_PATH/poetry.lock" ]; then
+      echo "Running poetry install..."
+      (cd "$WORKTREE_PATH" && poetry install)
+    elif [ -f "$WORKTREE_PATH/requirements.txt" ]; then
+      echo "Running pip install -r requirements.txt..."
+      (cd "$WORKTREE_PATH" && pip install -r requirements.txt)
+    fi
+  fi
+  BOOTSTRAPPED=1
 fi
 
 if [ -f "$WORKTREE_PATH/Cargo.toml" ] && [ ! -f "$WORKTREE_PATH/pubspec.yaml" ]; then
   echo "Detected Rust project in worktree..."
   echo "Running cargo check --workspace (warm up compilation cache)..."
   (cd "$WORKTREE_PATH" && cargo check --workspace)
-  echo "Worktree bootstrap complete at $WORKTREE_PATH"
-  exit 0
+  BOOTSTRAPPED=1
 fi
 
 if [ -f "$WORKTREE_PATH/package.json" ] && [ ! -f "$WORKTREE_PATH/pubspec.yaml" ]; then
@@ -63,6 +101,17 @@ if [ -f "$WORKTREE_PATH/package.json" ] && [ ! -f "$WORKTREE_PATH/pubspec.yaml" 
     echo "Running npm install..."
     (cd "$WORKTREE_PATH" && npm install)
   fi
+  BOOTSTRAPPED=1
+fi
+
+has_mobile_markers() {
+  [ -f "$WORKTREE_PATH/pubspec.yaml" ] || [ -f "$WORKTREE_PATH/melos.yaml" ] || \
+  [ -f "$WORKTREE_PATH/Project.swift" ] || [ -f "$WORKTREE_PATH/Workspace.swift" ] || \
+  [ -f "$WORKTREE_PATH/Tuist.swift" ] || [ -f "$WORKTREE_PATH/settings.gradle.kts" ] || \
+  [ -f "$WORKTREE_PATH/settings.gradle" ] || [ -f "$WORKTREE_PATH/build.gradle.kts" ]
+}
+
+if [ "$BOOTSTRAPPED" -eq 1 ] && ! has_mobile_markers; then
   echo "Worktree bootstrap complete at $WORKTREE_PATH"
   exit 0
 fi

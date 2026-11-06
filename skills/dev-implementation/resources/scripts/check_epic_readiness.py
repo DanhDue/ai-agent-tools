@@ -24,6 +24,7 @@ import check_bdd_traceability as cb
 import run_task_checks as rtc
 import sync_task_status as sts
 import task_contract as tc
+from replay_task_text import replay_epic_in_worktree, verify_task_edit_anchors
 
 LINTER_PATH = SCRIPTS_DIR.parents[2] / "doc_quality_check" / "resources" / "scripts" / "check_document.py"
 
@@ -46,6 +47,7 @@ class Context:
     roots: list[str]
     baseline: bool = False
     row_timeout: int = 600
+    replay: bool = False
 
 
 def parse_integration_test_roots(hld_text: str) -> list[str]:
@@ -62,6 +64,7 @@ def load_context(
     *,
     baseline: bool = False,
     row_timeout: int = 600,
+    replay: bool = False,
 ) -> Context:
     epic_path = root / ".devtool" / "epic" / epic_dir
     hld_path = epic_path / f"{epic_dir}.en.md"
@@ -90,6 +93,7 @@ def load_context(
         roots=roots,
         baseline=baseline,
         row_timeout=row_timeout,
+        replay=replay,
     )
 
 
@@ -380,8 +384,58 @@ def check_tier_tags(ctx: Context) -> list[Finding]:
     return findings
 
 
+ROUTE_TEMPLATE_TOKEN_RE = re.compile(r"\{[a-zA-Z0-9_]+\}|<[a-zA-Z0-9_]+>|:[a-zA-Z0-9_]+")
+ROUTE_IN_CONTENT_RE = re.compile(r"(?:https?://[^\s\"'`]+)?/api/[\w\-/{}.:<>=]+")
+
+
+def route_matches_codebase(route: str, tracked_contents: list[str]) -> bool:
+    """Return True if route appears literally in any tracked file or matches a route template."""
+    clean_route = route.rstrip("/")
+    for content in tracked_contents:
+        if clean_route in content:
+            return True
+
+    api_idx = clean_route.find("/api/")
+    route_path = clean_route[api_idx:] if api_idx != -1 else clean_route
+    for content in tracked_contents:
+        if route_path in content:
+            return True
+
+    for content in tracked_contents:
+        for m in ROUTE_IN_CONTENT_RE.finditer(content):
+            candidate = m.group(0).rstrip("/")
+            cand_api_idx = candidate.find("/api/")
+            candidate_path = candidate[cand_api_idx:] if cand_api_idx != -1 else candidate
+
+            for cand in (candidate, candidate_path):
+                if ROUTE_TEMPLATE_TOKEN_RE.search(candidate_path):
+                    parts: list[str] = []
+                    last = 0
+                    for pm in ROUTE_TEMPLATE_TOKEN_RE.finditer(cand):
+                        parts.append(re.escape(cand[last:pm.start()]))
+                        parts.append(r"[^/\s\"'`]+")
+                        last = pm.end()
+                    parts.append(re.escape(cand[last:]))
+                    pattern_str = "".join(parts)
+                    try:
+                        pat = re.compile(f"^{pattern_str}$")
+                        if pat.match(clean_route) or pat.match(route_path):
+                            return True
+                    except re.error:
+                        pass
+    return False
+
+
 def check_grounding(ctx: Context) -> list[Finding]:
     findings: list[Finding] = []
+
+    # --- R5: Static Anchor Verification ---
+    prior_modified: set[str] = set()
+    for task_path in sorted(ctx.tasks.keys()):
+        task_text = ctx.tasks[task_path]
+        anchor_errors = verify_task_edit_anchors(ctx.root, task_path, task_text, prior_modified)
+        for err in anchor_errors:
+            findings.append(Finding("R5", "FAIL", err))
 
     # --- R5: Symbol Grounding ---
     target_header_re = re.compile(
@@ -450,7 +504,7 @@ def check_grounding(ctx: Context) -> list[Finding]:
                     findings.append(Finding("R5", "FAIL", f"{task_path.name}: {name} not in {path_str}"))
 
     # --- R5b: Route Grounding (WARN) ---
-    route_re = re.compile(r"(?<![\w/])/api/[\w\-/{}.:]*[\w}]")
+    route_re = re.compile(r"(?:https?://[^\s\"'`]+)?/api/[\w\-/{}.:<>=]*[\w}>]")
     routes_to_check: list[str] = []
     texts_to_scan = list(ctx.tasks.values()) + [ctx.hld_text]
 
@@ -489,7 +543,7 @@ def check_grounding(ctx: Context) -> list[Finding]:
                     pass
 
         for route in routes_to_check:
-            if not any(route in content for content in tracked_contents):
+            if not route_matches_codebase(route, tracked_contents):
                 findings.append(Finding("R5b", "WARN", f"{route}: not found in tracked source"))
 
     return findings
@@ -618,8 +672,15 @@ def check_metadata(ctx: Context) -> list[Finding]:
 
 
 def check_baseline(ctx: Context) -> list[Finding]:
+    findings: list[Finding] = []
+    if ctx.replay:
+        replay_code, msgs = replay_epic_in_worktree(ctx.root, ctx.epic_dir, timeout=ctx.row_timeout)
+        if replay_code != 0:
+            for msg in msgs:
+                findings.append(Finding("R8", "FAIL", msg))
+
     if not ctx.baseline:
-        return []
+        return findings
 
     status_proc = subprocess.run(
         ["git", "status", "--porcelain"],
@@ -630,8 +691,6 @@ def check_baseline(ctx: Context) -> list[Finding]:
     )
     if status_proc.stdout.strip():
         return [Finding("R8", "WARN", "baseline skipped: dirty tree")]
-
-    findings: list[Finding] = []
 
     new_paths: set[str] = set()
     for t_text in ctx.tasks.values():
@@ -687,6 +746,7 @@ def run_checks(
     *,
     baseline: bool = False,
     row_timeout: int = 600,
+    replay: bool = False,
 ) -> list[Finding]:
     active_ctx = Context(
         root=ctx.root,
@@ -698,6 +758,7 @@ def run_checks(
         roots=ctx.roots,
         baseline=baseline,
         row_timeout=row_timeout,
+        replay=replay or ctx.replay,
     )
     findings: list[Finding] = []
     for _check_id, check_fn in CHECKS:
@@ -727,7 +788,7 @@ def render_report(ctx: Context, findings: list[Finding]) -> str:
             for f in by_check.get("R7b", []):
                 lines.append(f"{f.check} {f.severity} {f.message}")
 
-    if not ctx.baseline:
+    if not ctx.baseline and not ctx.replay:
         lines.append("R8 SKIP")
     else:
         r8_findings = by_check.get("R8", [])
@@ -752,6 +813,11 @@ def main(argv: list[str] | None = None) -> int:
         "--baseline",
         action="store_true",
         help="Run baseline GREEN and TIER-B verification rows",
+    )
+    parser.add_argument(
+        "--replay",
+        action="store_true",
+        help="Replay epic tasks in an isolated worktree and verify rows",
     )
     parser.add_argument(
         "--row-timeout",
@@ -784,8 +850,8 @@ def main(argv: list[str] | None = None) -> int:
         sys.stderr.write(f"error: {hld_path} does not exist\n")
         return 2
 
-    ctx = load_context(root, args.epic_dir, baseline=args.baseline, row_timeout=args.row_timeout)
-    findings = run_checks(ctx, baseline=args.baseline, row_timeout=args.row_timeout)
+    ctx = load_context(root, args.epic_dir, baseline=args.baseline, row_timeout=args.row_timeout, replay=args.replay)
+    findings = run_checks(ctx, baseline=args.baseline, row_timeout=args.row_timeout, replay=args.replay)
     report = render_report(ctx, findings)
     print(report)
 

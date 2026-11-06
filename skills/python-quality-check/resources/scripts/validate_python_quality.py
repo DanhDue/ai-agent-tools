@@ -24,6 +24,25 @@ def validate_python_config(
             _finding("unsupported_version", f"Unsupported schema_version '{config.get('schema_version')}', expected 1")
         )
 
+    if "bootstrap" in config:
+        bootstrap = config["bootstrap"]
+        if not (
+            isinstance(bootstrap, list)
+            and len(bootstrap) > 0
+            and all(
+                isinstance(cmd, list)
+                and len(cmd) > 0
+                and all(isinstance(arg, str) and bool(arg.strip()) for arg in cmd)
+                for cmd in bootstrap
+            )
+        ):
+            findings.append(
+                _finding(
+                    "invalid_bootstrap_format",
+                    "Optional 'bootstrap' field must be a non-empty array of non-empty string argument arrays",
+                )
+            )
+
     capabilities = config.get("capabilities", {})
     if not isinstance(capabilities, dict):
         findings.append(_finding("missing_capabilities", "Missing or invalid 'capabilities' object"))
