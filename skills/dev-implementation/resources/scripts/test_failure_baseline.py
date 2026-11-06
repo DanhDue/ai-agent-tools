@@ -210,35 +210,51 @@ def test_parameterized_ids_with_spaces_and_delimiter() -> None:
 
 
 def test_node_runner_failure_extraction() -> None:
-    """Verify node failure extraction preserves file context in spec and TAP modes."""
-    # Spec reporter format with duration and suite header
-    spec_output = (
-        "▶ tests/foo.test.mjs\n"
-        "  ✖ test one (0.483083ms)\n"
-        "▶ tests/bar.test.mjs\n"
-        "  ✖ test two (1.25ms)\n"
-        "  ✖ test three (tests/bar.test.mjs:20:5)\n"
-        "ℹ tests 3\n"
-        "ℹ fail 3\n"
+    """Verify node failure extraction preserves file context in real spec and TAP modes."""
+    # Real node --test spec reporter summary format with '✖ failing tests:' and 'test at <file>:<line>'
+    real_spec_output = (
+        "✖ one (0.551417ms)\n"
+        "✖ one (0.516875ms)\n"
+        "ℹ tests 2\n"
+        "ℹ fail 2\n\n"
+        "✖ failing tests:\n\n"
+        "test at tests/test1.test.mjs:2:1\n"
+        "✖ one (0.551417ms)\n"
+        "  Error: boom1\n\n"
+        "test at tests/test2.test.mjs:2:1\n"
+        "✖ one (0.516875ms)\n"
+        "  Error: boom2\n"
     )
-    spec_failures = extract_node_failures(spec_output)
+    spec_failures = extract_node_failures(real_spec_output)
     assert spec_failures == [
-        "tests/bar.test.mjs::test three",
-        "tests/bar.test.mjs::test two",
-        "tests/foo.test.mjs::test one",
+        "tests/test1.test.mjs::one",
+        "tests/test2.test.mjs::one",
     ]
 
-    # TAP format with subtests
-    tap_output = (
-        "# Subtest: tests/foo.test.mjs\n"
-        "    # Subtest: unit test A\n"
-        "    not ok 1 - unit test A\n"
-        "not ok 1 - tests/foo.test.mjs\n"
-        "# tests 1\n"
-        "# fail 1\n"
+    # Real node --test TAP format with location: 'path:line:col'
+    real_tap_output = (
+        "TAP version 13\n"
+        "# Subtest: one\n"
+        "not ok 1 - one\n"
+        "  ---\n"
+        "  duration_ms: 0.586542\n"
+        "  location: 'tests/test1.test.mjs:2:1'\n"
+        "  ...\n"
+        "# Subtest: one\n"
+        "not ok 2 - one\n"
+        "  ---\n"
+        "  duration_ms: 0.545041\n"
+        "  location: 'tests/test2.test.mjs:2:1'\n"
+        "  ...\n"
+        "1..2\n"
+        "# tests 2\n"
+        "# fail 2\n"
     )
-    tap_failures = extract_node_failures(tap_output)
-    assert tap_failures == ["tests/foo.test.mjs::unit test A"]
+    tap_failures = extract_node_failures(real_tap_output)
+    assert tap_failures == [
+        "tests/test1.test.mjs::one",
+        "tests/test2.test.mjs::one",
+    ]
 
 
 def test_invalid_runner_launch_or_usage_errors(tmp_path: Path) -> None:

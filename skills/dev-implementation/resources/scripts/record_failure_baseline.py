@@ -24,10 +24,12 @@ PYTEST_HEADER_RE = re.compile(r"^=+\s*short test summary info\s*=+$", re.MULTILI
 PYTEST_FOOTER_RE = re.compile(r"^=+\s*.*=+$", re.MULTILINE)
 
 NODE_SPEC_SUITE_RE = re.compile(r"^[▶►]\s+(.+)$")
+NODE_SPEC_TEST_AT_RE = re.compile(r"^(?:test|suite)\s+at\s+(.+?)(?::\d+(?::\d+)?)?$")
 NODE_SPEC_FAIL_RE = re.compile(r"^[✖✕]\s+(.*?)(?:\s+\((.*?)\))?$")
 DURATION_RE = re.compile(r"^\d+(?:\.\d+)?(?:ms|s|m|h)$")
 NODE_TAP_SUBTEST_RE = re.compile(r"^\s*#\s*Subtest:\s*(.+)$")
 NODE_TAP_NOT_OK_RE = re.compile(r"^\s*not\s+ok\s+\d+\s+-\s+(.+?)(?:\s+#.*)?$")
+NODE_TAP_LOCATION_RE = re.compile(r"^\s*location:\s*['\"]?(.+?)(?::\d+(?::\d+)?)?['\"]?\s*$")
 
 
 def extract_pytest_failures(output_text: str) -> list[str]:
@@ -57,12 +59,53 @@ def extract_pytest_failures(output_text: str) -> list[str]:
 def extract_node_failures(output_text: str) -> list[str]:
     """Extract failed test identifiers from node --test output as <file>::<test_name>."""
     failures: set[str] = set()
-    current_file: str | None = None
 
+    # 1. Spec reporter with '✖ failing tests:' summary block
+    summary_idx = output_text.find("✖ failing tests:")
+    if summary_idx != -1:
+        summary_text = output_text[summary_idx + len("✖ failing tests:"):]
+        current_file = None
+        for line in summary_text.splitlines():
+            stripped = line.strip()
+            at_match = NODE_SPEC_TEST_AT_RE.match(stripped)
+            if at_match:
+                current_file = at_match.group(1).strip()
+                continue
+            fail_match = NODE_SPEC_FAIL_RE.match(stripped)
+            if fail_match:
+                test_name = fail_match.group(1).strip()
+                if test_name and test_name != "failing tests:":
+                    if current_file:
+                        failures.add(f"{current_file}::{test_name}")
+                    else:
+                        failures.add(test_name)
+                    current_file = None
+        if failures:
+            return sorted(failures)
+
+    # 2. TAP format with location: 'path:line:col'
+    if "TAP version" in output_text or "not ok" in output_text:
+        pending_test = None
+        for line in output_text.splitlines():
+            tap_match = NODE_TAP_NOT_OK_RE.match(line)
+            if tap_match:
+                pending_test = tap_match.group(1).strip()
+                continue
+            loc_match = NODE_TAP_LOCATION_RE.match(line)
+            if loc_match and pending_test:
+                file_path = loc_match.group(1).strip()
+                failures.add(f"{file_path}::{pending_test}")
+                pending_test = None
+        if failures:
+            return sorted(failures)
+
+    # 3. Fallback inline spec reporter
+    current_file = None
     for line in output_text.splitlines():
         stripped = line.strip()
+        if stripped in ("✖ failing tests:", "✖ failing tests"):
+            continue
 
-        # Check spec reporter suite line: ▶ tests/test_foo.mjs
         suite_match = NODE_SPEC_SUITE_RE.match(stripped)
         if suite_match:
             candidate = suite_match.group(1).strip()
@@ -70,41 +113,23 @@ def extract_node_failures(output_text: str) -> list[str]:
                 current_file = candidate
             continue
 
-        # Check spec reporter failure: ✖ test name (tests/test_foo.mjs:12:3) or ✖ test name (1.2ms)
+        at_match = NODE_SPEC_TEST_AT_RE.match(stripped)
+        if at_match:
+            current_file = at_match.group(1).strip()
+            continue
+
         spec_match = NODE_SPEC_FAIL_RE.match(stripped)
         if spec_match:
             test_name = spec_match.group(1).strip()
-            detail = (spec_match.group(2) or "").strip()
-            if detail and not DURATION_RE.match(detail):
-                file_path = detail.split(":")[0].strip()
-                failures.add(f"{file_path}::{test_name}")
-            elif current_file:
-                failures.add(f"{current_file}::{test_name}")
-            else:
-                failures.add(test_name)
-            continue
-
-        # Check TAP subtest file context
-        tap_subtest = NODE_TAP_SUBTEST_RE.match(line)
-        if tap_subtest:
-            candidate = tap_subtest.group(1).strip()
-            # If candidate looks like a file path
-            if candidate.endswith((".js", ".mjs", ".cjs", ".ts", ".mts")):
-                current_file = candidate
-            continue
-
-        # Check TAP not ok line
-        tap_not_ok = NODE_TAP_NOT_OK_RE.match(line)
-        if tap_not_ok:
-            test_name = tap_not_ok.group(1).strip()
-            # Ignore outer subtest completion line
-            if current_file and test_name == current_file:
-                current_file = None
-                continue
-            if current_file:
-                failures.add(f"{current_file}::{test_name}")
-            else:
-                failures.add(test_name)
+            if test_name and test_name != "failing tests:":
+                detail = (spec_match.group(2) or "").strip()
+                if detail and not DURATION_RE.match(detail):
+                    file_path = detail.split(":")[0].strip()
+                    failures.add(f"{file_path}::{test_name}")
+                elif current_file:
+                    failures.add(f"{current_file}::{test_name}")
+                else:
+                    failures.add(test_name)
 
     return sorted(failures)
 
