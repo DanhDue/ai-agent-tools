@@ -14,7 +14,7 @@ order: "a1"
 
 # Task 01: Evidence Files Contract and Done-Gate Verification
 
-Epic: [contract_and_authoring_ergonomics](../epic/contract_and_authoring_ergonomics/contract_and_authoring_ergonomics.en.md)
+Epic: [contract_and_authoring_ergonomics](../../epic/contract_and_authoring_ergonomics/contract_and_authoring_ergonomics.en.md)
 
 ## Requirement Analysis
 
@@ -111,5 +111,5 @@ Scenario: [TCAE-FR-01] [Tier A - Unit] Reject invalid Evidence files path outsid
 
 ## References & Rollback
 
-- Reference: [2026-11-06-contract-and-authoring-ergonomics-design.en.md](../epic/contract_and_authoring_ergonomics/2026-11-06-contract-and-authoring-ergonomics-design.en.md).
+- Reference: [2026-11-06-contract-and-authoring-ergonomics-design.en.md](../../epic/contract_and_authoring_ergonomics/2026-11-06-contract-and-authoring-ergonomics-design.en.md).
 - Rollback: `git revert` the task commit to restore `task_contract.py` and `check_task_contract.py`.

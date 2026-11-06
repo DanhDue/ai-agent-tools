@@ -52,7 +52,9 @@ def print_role_banner(role: str) -> None:
         print("=" * 65)
         print("🎭 [PERSONA: AI ASSISTANT — TECHNICAL ADVISOR & CO-ARCHITECT]")
         print("⛔ NO IMPLEMENTATION: Strictly prohibited from modifying production")
-        print("   source code or application tests. Only design docs and reviews allowed.")
+        print(
+            "   source code or application tests. Only design docs and reviews allowed."
+        )
         print("=" * 65)
     elif norm_role in ("programmer", "implementer", "worker"):
         print("=" * 65)
@@ -156,7 +158,9 @@ def migrate_legacy_storage(devtool_dir: Path) -> None:
         state_dir.mkdir(parents=True, exist_ok=True)
         gen_state = state_dir / "general.md"
         if not gen_state.exists():
-            gen_state.write_text(legacy_state.read_text(encoding="utf-8"), encoding="utf-8")
+            gen_state.write_text(
+                legacy_state.read_text(encoding="utf-8"), encoding="utf-8"
+            )
 
     if legacy_log.exists() and not logs_dir.exists():
         logs_dir.mkdir(parents=True, exist_ok=True)
@@ -273,7 +277,9 @@ def resolve_target_devtool_dir(root: Path, repo: str | None = None) -> Path:
     if (candidate / ".git").exists() or (candidate / ".devtool").exists():
         return candidate / ".devtool"
     sibling = root.parent / repo
-    if root.name in REPOS and ((sibling / ".git").exists() or (sibling / ".devtool").exists()):
+    if root.name in REPOS and (
+        (sibling / ".git").exists() or (sibling / ".devtool").exists()
+    ):
         return sibling / ".devtool"
     if not (root / ".git").exists():
         return candidate / ".devtool"
@@ -287,7 +293,9 @@ def extract_email_id_from_profile(profile_dir: Path) -> str | None:
     try:
         conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
         cursor = conn.cursor()
-        cursor.execute("SELECT value FROM ItemTable WHERE key = 'google.google-antigravity'")
+        cursor.execute(
+            "SELECT value FROM ItemTable WHERE key = 'google.google-antigravity'"
+        )
         row = cursor.fetchone()
         conn.close()
         if row and row[0]:
@@ -320,7 +328,9 @@ def sync_window_title(
         "nexus": ("🔵", "NEXUS", "#0d47a1"),
         "ai-agent-tools": ("🟠", "AGENT-TOOLS", "#b45309"),
     }
-    icon, tag, theme_color = REPO_SIGNATURES.get(repo_name, ("📁", repo_name.upper(), None))
+    icon, tag, theme_color = REPO_SIGNATURES.get(
+        repo_name, ("📁", repo_name.upper(), None)
+    )
 
     account_id = (
         profile_override
@@ -358,7 +368,9 @@ def sync_window_title(
             try:
                 ps_out = subprocess.check_output(["ps", "-eo", "command"], text=True)
                 for line in ps_out.splitlines():
-                    if ("agy" in line or "Antigravity IDE" in line) and "antigravity_homes" in line:
+                    if (
+                        "agy" in line or "Antigravity IDE" in line
+                    ) and "antigravity_homes" in line:
                         if (
                             f"--add-dir={root}" in line
                             or f"--add-dir={root.resolve()}" in line
@@ -368,7 +380,10 @@ def sync_window_title(
                             if m:
                                 cand = m.group(1)
                                 if homes_dir.exists() and (homes_dir / cand).exists():
-                                    account_id = extract_email_id_from_profile(homes_dir / cand) or cand
+                                    account_id = (
+                                        extract_email_id_from_profile(homes_dir / cand)
+                                        or cand
+                                    )
                                 else:
                                     account_id = cand
                                 break
@@ -386,12 +401,18 @@ def sync_window_title(
                     ws_storage = h / "data" / "User" / "workspaceStorage"
                     if not ws_storage.exists():
                         continue
-                    entries = sorted(ws_storage.iterdir(), key=lambda x: x.stat().st_mtime, reverse=True)
+                    entries = sorted(
+                        ws_storage.iterdir(),
+                        key=lambda x: x.stat().st_mtime,
+                        reverse=True,
+                    )
                     for ws_entry in entries:
                         ws_json = ws_entry / "workspace.json"
                         if ws_json.exists():
                             try:
-                                ws_data = json.loads(ws_json.read_text(encoding="utf-8"))
+                                ws_data = json.loads(
+                                    ws_json.read_text(encoding="utf-8")
+                                )
                                 if ws_data.get("folder") == target_uri:
                                     matching.append((ws_entry.stat().st_mtime, h))
                                     break
@@ -504,16 +525,25 @@ def sync_window_title(
             if isinstance(colors, dict):
                 # Enforce inactive background parity for titleBar and statusBar
                 title_active = colors.get("titleBar.activeBackground")
-                if title_active and colors.get("titleBar.inactiveBackground") != title_active:
+                if (
+                    title_active
+                    and colors.get("titleBar.inactiveBackground") != title_active
+                ):
                     colors["titleBar.inactiveBackground"] = title_active
                     dirty = True
                 status_active = colors.get("statusBar.background")
-                if status_active and colors.get("statusBar.inactiveBackground") != status_active:
+                if (
+                    status_active
+                    and colors.get("statusBar.inactiveBackground") != status_active
+                ):
                     colors["statusBar.inactiveBackground"] = status_active
                     dirty = True
 
         if dirty:
-            settings_file.write_text(json.dumps(settings, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+            settings_file.write_text(
+                json.dumps(settings, indent=2, ensure_ascii=False) + "\n",
+                encoding="utf-8",
+            )
     except Exception:  # noqa: S110
         pass
 
@@ -533,7 +563,9 @@ def write_epic_state(
         migrate_legacy_storage(devtool_dir)
         state_dir = devtool_dir / "state"
         state_dir.mkdir(parents=True, exist_ok=True)
-        content = enforce_state_line_limit(epic_slug, role, decisions, status, next_step, prompt)
+        content = enforce_state_line_limit(
+            epic_slug, role, decisions, status, next_step, prompt
+        )
         (state_dir / f"{epic_slug}.md").write_text(content + "\n", encoding="utf-8")
         render_assistant_state_rollup(devtool_dir)
         sync_window_title(root, epic_slug=epic_slug, stage_override=status)
@@ -568,8 +600,23 @@ def complete_feature_and_rotate(
     checkpoint: bool = False,
 ) -> None:
     if checkpoint:
-        write_epic_state(root, epic_slug, status="Checkpoint saved", next_step="Resume development", prompt=summary, repo=repo)
-        append_activity_log(root, epic_slug, repo or "workspace", "checkpoint", summary, "Saved context checkpoint", note="None")
+        write_epic_state(
+            root,
+            epic_slug,
+            status="Checkpoint saved",
+            next_step="Resume development",
+            prompt=summary,
+            repo=repo,
+        )
+        append_activity_log(
+            root,
+            epic_slug,
+            repo or "workspace",
+            "checkpoint",
+            summary,
+            "Saved context checkpoint",
+            note="None",
+        )
         return
 
     today = datetime.now().strftime("%Y-%m-%d")
@@ -579,7 +626,9 @@ def complete_feature_and_rotate(
     ledger_path = ensure_ledger(root)
     with ledger_path.open("a", encoding="utf-8") as f:
         f.write(milestone)
-    print(f"✅ Appended milestone to {ledger_path.relative_to(root)}:\n   {milestone.strip()}")
+    print(
+        f"✅ Appended milestone to {ledger_path.relative_to(root)}:\n   {milestone.strip()}"
+    )
 
     candidates = [root / ".devtool"] + [root / r / ".devtool" for r in REPOS]
     for devtool_dir in candidates:
@@ -648,12 +697,16 @@ def scan_activity_stream(root: Path, tail_lines: int = 15) -> None:
             for lf in sorted(logs_dir.glob("activity_*.log")):
                 text = read_tail(lf, tail_lines).strip()
                 if text:
-                    print(f"[{lf.relative_to(root)} - Last {tail_lines} entries]\n{text}\n")
+                    print(
+                        f"[{lf.relative_to(root)} - Last {tail_lines} entries]\n{text}\n"
+                    )
                     found = True
         elif (d_dir / "activity_stream.log").exists():
             text = read_tail(d_dir / "activity_stream.log", tail_lines).strip()
             if text:
-                print(f"[{d_dir.relative_to(root)}/activity_stream.log - Last {tail_lines} entries]\n{text}\n")
+                print(
+                    f"[{d_dir.relative_to(root)}/activity_stream.log - Last {tail_lines} entries]\n{text}\n"
+                )
                 found = True
     if not found:
         print("  (No activity_stream.log entries found yet.)")
@@ -662,7 +715,11 @@ def scan_activity_stream(root: Path, tail_lines: int = 15) -> None:
 def scan_git_status(root: Path) -> None:
     print_section("3. GIT WORKING TREE STATUS ACROSS REPOS")
     ws_base = root.parent if root.name in REPOS else root
-    target_repos = [ws_base / r for r in REPOS] if ws_base != root or not (root / ".git").exists() else [root]
+    target_repos = (
+        [ws_base / r for r in REPOS]
+        if ws_base != root or not (root / ".git").exists()
+        else [root]
+    )
     for repo_path in target_repos:
         if not (repo_path / ".git").exists():
             continue
@@ -685,8 +742,7 @@ def scan_open_rfcs(root: Path) -> None:
     for rfc_file in sorted(hub_contracts.glob("*/gaps_and_rfcs.md")):
         lines = rfc_file.read_text(encoding="utf-8").splitlines()
         open_items = [
-            line for line in lines
-            if "OPEN" in line or line.startswith(("## ", "### "))
+            line for line in lines if "OPEN" in line or line.startswith(("## ", "### "))
         ]
         if open_items:
             print(f"📄 {rfc_file.relative_to(ws_base)}:")
@@ -722,12 +778,19 @@ def scan_active_tasks(root: Path, epic_filter: str | None = None) -> None:
                 normalized_epic_line = epic_line.replace("_", "-")
                 if normalized_filter not in normalized_epic_line:
                     continue
-            status_line = next((l for l in lines if "status:" in l.lower()), "status: unknown")
-            st_val = status_line.replace("status:", "").strip().strip('"').strip("'").lower()
+            status_line = next(
+                (l for l in lines if "status:" in l.lower()), "status: unknown"
+            )
+            st_val = (
+                status_line.replace("status:", "").strip().strip('"').strip("'").lower()
+            )
             if st_val == "done":
                 done_count += 1
                 total_count += 1
-            elif any(s in st_val for s in ["todo", "in-progress", "in_progress", "review", "backlog"]):
+            elif any(
+                s in st_val
+                for s in ["todo", "in-progress", "in_progress", "review", "backlog"]
+            ):
                 total_count += 1
                 title_line = next((l for l in lines if l.startswith("# ")), tf.name)
                 active_tasks.append((tf.name, status_line.strip(), title_line.strip()))
@@ -759,9 +822,13 @@ def scan_active_tasks(root: Path, epic_filter: str | None = None) -> None:
         print("  (No active todo/in-progress/review tasks found.)")
 
 
-def collect_harvest_data(root: Path, tail_lines: int = 15, epic_filter: str | None = None) -> dict[str, object]:
+def collect_harvest_data(
+    root: Path, tail_lines: int = 15, epic_filter: str | None = None
+) -> dict[str, object]:
     ledger_path = ensure_ledger(root)
-    ledger_text = ledger_path.read_text(encoding="utf-8").strip() if ledger_path.exists() else ""
+    ledger_text = (
+        ledger_path.read_text(encoding="utf-8").strip() if ledger_path.exists() else ""
+    )
 
     candidates = [root / ".devtool"] + [root / r / ".devtool" for r in REPOS]
     state_map: dict[str, str] = {}
@@ -787,15 +854,29 @@ def collect_harvest_data(root: Path, tail_lines: int = 15, epic_filter: str | No
         logs_dir = d_dir / "logs"
         if logs_dir.exists():
             for lf in sorted(logs_dir.glob("activity_*.log")):
-                lines = [l.strip() for l in read_tail(lf, tail_lines).splitlines() if l.strip()]
+                lines = [
+                    l.strip()
+                    for l in read_tail(lf, tail_lines).splitlines()
+                    if l.strip()
+                ]
                 activity_entries.extend(lines)
         elif (d_dir / "activity_stream.log").exists():
-            lines = [l.strip() for l in read_tail(d_dir / "activity_stream.log", tail_lines).splitlines() if l.strip()]
+            lines = [
+                l.strip()
+                for l in read_tail(
+                    d_dir / "activity_stream.log", tail_lines
+                ).splitlines()
+                if l.strip()
+            ]
             activity_entries.extend(lines)
 
     ws_base = root.parent if root.name in REPOS else root
     git_status: dict[str, str] = {}
-    target_repos = [ws_base / r for r in REPOS] if ws_base != root or not (root / ".git").exists() else [root]
+    target_repos = (
+        [ws_base / r for r in REPOS]
+        if ws_base != root or not (root / ".git").exists()
+        else [root]
+    )
     for repo_path in target_repos:
         if not (repo_path / ".git").exists():
             continue
@@ -813,7 +894,8 @@ def collect_harvest_data(root: Path, tail_lines: int = 15, epic_filter: str | No
         for rfc_file in sorted(hub_contracts.glob("*/gaps_and_rfcs.md")):
             lines = rfc_file.read_text(encoding="utf-8").splitlines()
             open_items = [
-                line for line in lines
+                line
+                for line in lines
                 if "OPEN" in line or line.startswith(("## ", "### "))
             ]
             if open_items:
@@ -837,17 +919,26 @@ def collect_harvest_data(root: Path, tail_lines: int = 15, epic_filter: str | No
             epic_val = epic_line.replace("epic:", "").strip().strip('"').strip("'")
             if epic_filter and epic_filter != epic_val and epic_filter not in epic_line:
                 continue
-            status_line = next((l for l in lines if "status:" in l.lower()), "status: unknown")
-            st_val = status_line.replace("status:", "").strip().strip('"').strip("'").lower()
-            if any(s in st_val for s in ["todo", "in-progress", "in_progress", "review", "backlog"]):
+            status_line = next(
+                (l for l in lines if "status:" in l.lower()), "status: unknown"
+            )
+            st_val = (
+                status_line.replace("status:", "").strip().strip('"').strip("'").lower()
+            )
+            if any(
+                s in st_val
+                for s in ["todo", "in-progress", "in_progress", "review", "backlog"]
+            ):
                 title_line = next((l for l in lines if l.startswith("# ")), tf.name)
-                active_tasks_list.append({
-                    "repo": repo_name,
-                    "task": tf.name,
-                    "status": st_val,
-                    "title": title_line.lstrip("# ").strip(),
-                    "epic": epic_val,
-                })
+                active_tasks_list.append(
+                    {
+                        "repo": repo_name,
+                        "task": tf.name,
+                        "status": st_val,
+                        "title": title_line.lstrip("# ").strip(),
+                        "epic": epic_val,
+                    }
+                )
 
     return {
         "ledger": ledger_text,
@@ -859,7 +950,9 @@ def collect_harvest_data(root: Path, tail_lines: int = 15, epic_filter: str | No
     }
 
 
-def harvest_json(root: Path, tail_lines: int = 15, epic_filter: str | None = None) -> None:
+def harvest_json(
+    root: Path, tail_lines: int = 15, epic_filter: str | None = None
+) -> None:
     data = collect_harvest_data(root, tail_lines=tail_lines, epic_filter=epic_filter)
     print(json.dumps(data, indent=2))
 
@@ -942,26 +1035,39 @@ def update_zshrc_env(zshrc_path: Path, r_home: Path, ws_root: Path) -> None:
         lines_to_add.append(f'export REAL_HOME="{r_home}"')
     if "WORKSPACE_ROOT" not in content:
         lines_to_add.append(f'export WORKSPACE_ROOT="{ws_root}"')
-    kit_root = ws_root / "ai-agent-tools"
-    if "D3NEXUS_KIT" not in content:
+    kit_root = Path(__file__).resolve().parents[1]
+    m_kit = re.search(r'export\s+D3NEXUS_KIT="([^"]*)"', content)
+    if m_kit:
+        if m_kit.group(1) != str(kit_root):
+            content = (
+                content[: m_kit.start()]
+                + f'export D3NEXUS_KIT="{kit_root}"'
+                + content[m_kit.end() :]
+            )
+    else:
         lines_to_add.append(f'export D3NEXUS_KIT="{kit_root}"')
-    if 'PATH="$D3NEXUS_KIT/bin:$PATH"' not in content and 'export PATH="$D3NEXUS_KIT/bin:$PATH"' not in content:
+    if (
+        'PATH="$D3NEXUS_KIT/bin:$PATH"' not in content
+        and 'export PATH="$D3NEXUS_KIT/bin:$PATH"' not in content
+    ):
         lines_to_add.append('export PATH="$D3NEXUS_KIT/bin:$PATH"')
-    if lines_to_add:
-        zshrc_path.write_text("\n".join(lines_to_add) + "\n" + content, encoding="utf-8")
+    updated_kit = bool(m_kit and m_kit.group(1) != str(kit_root))
+    if lines_to_add or updated_kit:
+        prefix = ("\n".join(lines_to_add) + "\n") if lines_to_add else ""
+        zshrc_path.write_text(prefix + content, encoding="utf-8")
 
 
 def update_zshrc_history_and_aliases(zshrc_path: Path) -> None:
     content = zshrc_path.read_text(encoding="utf-8")
     if 'HISTFILE="$REAL_HOME/.zsh_history"' not in content:
         hist_block = (
-            '\n# Shared real-time zsh history across accounts\n'
+            "\n# Shared real-time zsh history across accounts\n"
             'export HISTFILE="$REAL_HOME/.zsh_history"\n'
-            'export HISTSIZE=50000\n'
-            'export SAVEHIST=50000\n'
-            'setopt INC_APPEND_HISTORY\n'
-            'setopt SHARE_HISTORY\n'
-            'setopt HIST_IGNORE_DUPS\n'
+            "export HISTSIZE=50000\n"
+            "export SAVEHIST=50000\n"
+            "setopt INC_APPEND_HISTORY\n"
+            "setopt SHARE_HISTORY\n"
+            "setopt HIST_IGNORE_DUPS\n"
         )
         if "source $ZSH/oh-my-zsh.sh" in content:
             parts = content.split("source $ZSH/oh-my-zsh.sh", 1)
@@ -978,20 +1084,39 @@ def update_zshrc_history_and_aliases(zshrc_path: Path) -> None:
 
 def update_zshrc_sync_items(zshrc_path: Path) -> None:
     content = zshrc_path.read_text(encoding="utf-8")
-    m = re.search(r"sync_items=\((.*?)\)", content, re.DOTALL) if "ag_run()" in content else None
+    m = (
+        re.search(r"sync_items=\((.*?)\)", content, re.DOTALL)
+        if "ag_run()" in content
+        else None
+    )
     if not m:
         return
     body = m.group(1)
-    tokens = [t for ln in body.splitlines() if not ln.strip().startswith("#") for t in ln.split()]
-    missing = [k for k in ("AllProjects", "Projects", ".zsh_history") if k not in tokens]
+    tokens = [
+        t
+        for ln in body.splitlines()
+        if not ln.strip().startswith("#")
+        for t in ln.split()
+    ]
+    missing = [
+        k for k in ("AllProjects", "Projects", ".zsh_history") if k not in tokens
+    ]
     if not missing:
         return
-    suffix = f"\n    {' '.join(missing)}\n  " if "\n" in body else f" {' '.join(missing)}"
-    new_decl = f"sync_items=({body.rstrip() if chr(10) in body else body.strip()}{suffix})"
-    zshrc_path.write_text(content[:m.start()] + new_decl + content[m.end():], encoding="utf-8")
+    suffix = (
+        f"\n    {' '.join(missing)}\n  " if "\n" in body else f" {' '.join(missing)}"
+    )
+    new_decl = (
+        f"sync_items=({body.rstrip() if chr(10) in body else body.strip()}{suffix})"
+    )
+    zshrc_path.write_text(
+        content[: m.start()] + new_decl + content[m.end() :], encoding="utf-8"
+    )
 
 
-def merge_profile_history(prof_hist: Path, main_hist: Path, seen_cmds: set[str]) -> None:
+def merge_profile_history(
+    prof_hist: Path, main_hist: Path, seen_cmds: set[str]
+) -> None:
     if not prof_hist.exists():
         return
     if prof_hist.is_symlink():
@@ -1052,7 +1177,11 @@ def sync_shell_env(
                 sync_profile_symlinks(prof, main_hist, ws_root)
                 synced_profiles.append(prof.name)
 
-    return {"real_home": str(r_home), "workspace_root": str(ws_root), "synced_profiles": synced_profiles}
+    return {
+        "real_home": str(r_home),
+        "workspace_root": str(ws_root),
+        "synced_profiles": synced_profiles,
+    }
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -1060,45 +1189,121 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     normalized_args: list[str] = []
     i = 0
     while i < len(raw_args):
-        if raw_args[i] == "--complete" and i + 1 < len(raw_args) and raw_args[i + 1] == "--checkpoint":
+        if (
+            raw_args[i] == "--complete"
+            and i + 1 < len(raw_args)
+            and raw_args[i + 1] == "--checkpoint"
+        ):
             normalized_args.extend(["--checkpoint", "--complete"])
             i += 2
         else:
             normalized_args.append(raw_args[i])
             i += 1
 
-    parser = argparse.ArgumentParser(description="Two-Tier Context Harvester & Multi-Epic Memory Tool")
-    parser.add_argument("--workspace-root", type=str, help="Workspace root containing repositories")
-    parser.add_argument("--real-home", type=str, help="Real home directory for shell environment sync")
+    parser = argparse.ArgumentParser(
+        description="Two-Tier Context Harvester & Multi-Epic Memory Tool"
+    )
+    parser.add_argument(
+        "--workspace-root", type=str, help="Workspace root containing repositories"
+    )
+    parser.add_argument(
+        "--real-home", type=str, help="Real home directory for shell environment sync"
+    )
     parser.add_argument("--repo", type=str, help="Target repository name")
     parser.add_argument("--epic", type=str, help="Active epic slug")
-    parser.add_argument("--role", type=str, choices=["assistant", "programmer", "implementer", "worker"], help="Active persona role")
-    parser.add_argument("--tail", type=int, default=15, help="Number of activity log lines to show")
-    parser.add_argument("--json", action="store_true", help="Output harvest in JSON format")
+    parser.add_argument(
+        "--role",
+        type=str,
+        choices=["assistant", "programmer", "implementer", "worker"],
+        help="Active persona role",
+    )
+    parser.add_argument(
+        "--tail", type=int, default=15, help="Number of activity log lines to show"
+    )
+    parser.add_argument(
+        "--json", action="store_true", help="Output harvest in JSON format"
+    )
 
-    parser.add_argument("--state", action="store_true", help="Record active epic state snapshot")
-    parser.add_argument("--decisions", type=str, default="", help="Decisions text for --state")
-    parser.add_argument("--status", type=str, default="", help="Status text for --state")
-    parser.add_argument("--next", type=str, default="", help="Next immediate step for --state")
-    parser.add_argument("--prompt", type=str, default="", help="Custom prompt or notes for --state")
+    parser.add_argument(
+        "--state", action="store_true", help="Record active epic state snapshot"
+    )
+    parser.add_argument(
+        "--decisions", type=str, default="", help="Decisions text for --state"
+    )
+    parser.add_argument(
+        "--status", type=str, default="", help="Status text for --state"
+    )
+    parser.add_argument(
+        "--next", type=str, default="", help="Next immediate step for --state"
+    )
+    parser.add_argument(
+        "--prompt", type=str, default="", help="Custom prompt or notes for --state"
+    )
 
-    parser.add_argument("--log", action="store_true", help="Record programmer activity entry")
+    parser.add_argument(
+        "--log", action="store_true", help="Record programmer activity entry"
+    )
     parser.add_argument("--task", type=str, default="general", help="Task ID for --log")
-    parser.add_argument("--request", type=str, default="", help="Request summary for --log")
+    parser.add_argument(
+        "--request", type=str, default="", help="Request summary for --log"
+    )
     parser.add_argument("--action", type=str, default="", help="Action taken for --log")
-    parser.add_argument("--note", type=str, default="None", help="Deviations or notes for --log")
+    parser.add_argument(
+        "--note", type=str, default="None", help="Deviations or notes for --log"
+    )
 
-    parser.add_argument("--complete", nargs="+", help="Complete feature: <slug> <summary>")
-    parser.add_argument("--checkpoint", action="store_true", help="Save checkpoint without archiving during --complete")
+    parser.add_argument(
+        "--complete", nargs="+", help="Complete feature: <slug> <summary>"
+    )
+    parser.add_argument(
+        "--checkpoint",
+        action="store_true",
+        help="Save checkpoint without archiving during --complete",
+    )
 
-    parser.add_argument("--emit-prompt", type=str, choices=["principal-review", "implement", "cross-review", "finish", "assistant"], help="Emit handoff prompt")
-    parser.add_argument("--epic-dir", type=str, help="Epic directory name for --emit-prompt")
+    parser.add_argument(
+        "--emit-prompt",
+        type=str,
+        choices=[
+            "principal-review",
+            "implement",
+            "cross-review",
+            "finish",
+            "assistant",
+        ],
+        help="Emit handoff prompt",
+    )
+    parser.add_argument(
+        "--epic-dir", type=str, help="Epic directory name for --emit-prompt"
+    )
 
-    parser.add_argument("--sync-zshrc", action="store_true", help="Synchronize shell environment and history")
-    parser.add_argument("--sync-title", action="store_true", help="Synchronize window.title and bar colors in .vscode/settings.json")
-    parser.add_argument("--stage", type=str, default="", help="Stage or task override string for window title")
-    parser.add_argument("--profile", type=str, default="", help="Profile / account ID override for window title (e.g. duvthinh403, danhdue)")
-    parser.add_argument("--all-repos", action="store_true", help="Synchronize window.title and bar colors across all known repositories")
+    parser.add_argument(
+        "--sync-zshrc",
+        action="store_true",
+        help="Synchronize shell environment and history",
+    )
+    parser.add_argument(
+        "--sync-title",
+        action="store_true",
+        help="Synchronize window.title and bar colors in .vscode/settings.json",
+    )
+    parser.add_argument(
+        "--stage",
+        type=str,
+        default="",
+        help="Stage or task override string for window title",
+    )
+    parser.add_argument(
+        "--profile",
+        type=str,
+        default="",
+        help="Profile / account ID override for window title (e.g. duvthinh403, danhdue)",
+    )
+    parser.add_argument(
+        "--all-repos",
+        action="store_true",
+        help="Synchronize window.title and bar colors across all known repositories",
+    )
 
     return parser.parse_args(normalized_args)
 
@@ -1108,7 +1313,9 @@ def main() -> None:
     workspace = resolve_workspace_root(args.workspace_root)
     primary_repo = resolve_primary_repo_root()
     current_worktree = resolve_current_worktree_root()
-    active_repo = args.repo or (primary_repo.name if primary_repo != workspace else "workspace")
+    active_repo = args.repo or (
+        primary_repo.name if primary_repo != workspace else "workspace"
+    )
 
     is_repo = (primary_repo / ".git").exists() or (primary_repo / ".devtool").exists()
     if args.workspace_root:
@@ -1150,21 +1357,45 @@ def main() -> None:
 
     if args.sync_title:
         if getattr(args, "all_repos", False):
-            base_dir = target_root.parent if (target_root.parent / "ai-agent-tools").exists() else Path("/Users/danhdueexoictif/AllProjects")
+            base_dir = (
+                target_root.parent
+                if (target_root.parent / "ai-agent-tools").exists()
+                else Path("/Users/danhdueexoictif/AllProjects")
+            )
             for rname in REPOS:
                 rpath = base_dir / rname
                 if rpath.exists():
-                    sync_window_title(rpath, epic_slug=active_epic, stage_override=args.stage, profile_override=args.profile or None)
-                    print(f"Window title and workspace bar colors synchronized for {rpath.name}")
+                    sync_window_title(
+                        rpath,
+                        epic_slug=active_epic,
+                        stage_override=args.stage,
+                        profile_override=args.profile or None,
+                    )
+                    print(
+                        f"Window title and workspace bar colors synchronized for {rpath.name}"
+                    )
             return
-        sync_window_title(title_target, epic_slug=active_epic, stage_override=args.stage, profile_override=args.profile or None)
-        print(f"Window title and workspace bar colors synchronized for {title_target.name}")
+        sync_window_title(
+            title_target,
+            epic_slug=active_epic,
+            stage_override=args.stage,
+            profile_override=args.profile or None,
+        )
+        print(
+            f"Window title and workspace bar colors synchronized for {title_target.name}"
+        )
         return
 
     if args.complete:
         slug = args.complete[0]
-        summary = " ".join(args.complete[1:]) if len(args.complete) > 1 else "Completed feature and verified contracts."
-        complete_feature_and_rotate(target_root, slug, summary, repo=args.repo, checkpoint=args.checkpoint)
+        summary = (
+            " ".join(args.complete[1:])
+            if len(args.complete) > 1
+            else "Completed feature and verified contracts."
+        )
+        complete_feature_and_rotate(
+            target_root, slug, summary, repo=args.repo, checkpoint=args.checkpoint
+        )
         return
 
     if args.state:
@@ -1204,7 +1435,12 @@ def main() -> None:
     scan_git_status(scan_root)
     scan_open_rfcs(scan_root)
     scan_active_tasks(scan_root, epic_filter=args.epic)
-    sync_window_title(title_target, epic_slug=active_epic, stage_override=args.stage or None, profile_override=args.profile or None)
+    sync_window_title(
+        title_target,
+        epic_slug=active_epic,
+        stage_override=args.stage or None,
+        profile_override=args.profile or None,
+    )
 
 
 if __name__ == "__main__":

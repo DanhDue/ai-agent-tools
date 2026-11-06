@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 from __future__ import annotations
+
 """Mirror one epic task's Kanban status across every checkout of this repo.
 
 `dev-implementation` runs an epic inside an isolated worktree, but the same
@@ -26,6 +27,7 @@ import re
 import subprocess
 import sys
 from datetime import datetime, timezone
+from collections.abc import Callable
 
 try:
     from datetime import UTC
@@ -34,10 +36,86 @@ except ImportError:
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
+from check_bdd_traceability import (
+    COVERS_LINE,
+    FENCE,
+    ID_SHAPE,
+    ID_TOKEN,
+    LEADING_TAG,
+    SCENARIO_LINE,
+)
 from slug_utils import parse_frontmatter, sanitize_slug
 
 TASK_STATUSES = ("backlog", "todo", "in-progress", "review", "done")
 FRONTMATTER_RE = re.compile(r"^---\n(.*?)\n---\n", re.DOTALL)
+TASK_FILE_PATTERN = re.compile(r"^task_[0-9]+.*\.md$")
+
+
+def is_task_file(path: Path) -> bool:
+    """Return True if path is a task file (e.g. task_01_name.md), excluding epic overview docs."""
+    return bool(TASK_FILE_PATTERN.match(path.name)) and not path.name.endswith(
+        (".en.md", ".vi.md")
+    )
+
+
+def task_files_in(directory: Path) -> list[Path]:
+    """List sorted task files in directory matching task_[0-9]+.*.md, ignoring overview docs."""
+    if not directory.is_dir():
+        return []
+    return [p for p in sorted(directory.glob("task_*.md")) if is_task_file(p)]
+
+
+def transform_outside_code(text: str, fn: Callable[[str], str]) -> str:
+    """Apply fn to text outside fenced code blocks and inline code spans."""
+    lines = text.splitlines(keepends=True)
+    out: list[str] = []
+    non_fence_chunk: list[str] = []
+    in_fence = False
+    fence_char = ""
+    fence_len = 0
+
+    fence_open_re = re.compile(r"^[ ]{0,3}(`{3,}|~{3,})")
+    fence_close_re = re.compile(r"^[ ]{0,3}(`{3,}|~{3,})\s*$")
+
+    def flush_non_fence() -> None:
+        if non_fence_chunk:
+            chunk = "".join(non_fence_chunk)
+            out.append(_transform_outside_inline_spans(chunk, fn))
+            non_fence_chunk.clear()
+
+    for line in lines:
+        if not in_fence:
+            m = fence_open_re.match(line)
+            if m:
+                flush_non_fence()
+                in_fence = True
+                fence_char = m.group(1)[0]
+                fence_len = len(m.group(1))
+                out.append(line)
+            else:
+                non_fence_chunk.append(line)
+        else:
+            m = fence_close_re.match(line)
+            if m and m.group(1)[0] == fence_char and len(m.group(1)) >= fence_len:
+                in_fence = False
+            out.append(line)
+
+    flush_non_fence()
+    return "".join(out)
+
+
+def _transform_outside_inline_spans(chunk: str, fn: Callable[[str], str]) -> str:
+    result: list[str] = []
+    last_end = 0
+    for m in re.finditer(r"(`+)([\s\S]*?)\1", chunk):
+        start, end = m.span()
+        if start > last_end:
+            result.append(fn(chunk[last_end:start]))
+        result.append(m.group(0))
+        last_end = end
+    if last_end < len(chunk):
+        result.append(fn(chunk[last_end:]))
+    return "".join(result)
 
 
 def now_iso() -> str:
@@ -66,10 +144,12 @@ def set_frontmatter_field(text: str, key: str, value: str | None) -> str:
     else:
         status_re = re.compile(r"^status\s*:.*$", re.MULTILINE)
         if status_re.search(block):
-            new_block = status_re.sub(lambda m: m.group(0) + "\n" + new_line, block, count=1)
+            new_block = status_re.sub(
+                lambda m: m.group(0) + "\n" + new_line, block, count=1
+            )
         else:
             new_block = block + "\n" + new_line
-    return text[:match.start(1)] + new_block + text[match.end(1):]
+    return text[: match.start(1)] + new_block + text[match.end(1) :]
 
 
 def parse_worktree_list(output: str) -> list[Path]:
@@ -79,8 +159,11 @@ def parse_worktree_list(output: str) -> list[Path]:
     ordering -- Phase 4's main-checkout restore uses roots[0]. Paths may
     contain spaces, so take everything after the first token.
     """
-    return [Path(line[len("worktree "):]) for line in output.splitlines()
-            if line.startswith("worktree ")]
+    return [
+        Path(line[len("worktree ") :])
+        for line in output.splitlines()
+        if line.startswith("worktree ")
+    ]
 
 
 def parse_worktree_branches(output: str) -> list[tuple[Path, str | None]]:
@@ -96,10 +179,10 @@ def parse_worktree_branches(output: str) -> list[tuple[Path, str | None]]:
         if line.startswith("worktree "):
             if current_path is not None:
                 entries.append((current_path, current_branch))
-            current_path = Path(line[len("worktree "):])
+            current_path = Path(line[len("worktree ") :])
             current_branch = None
         elif line.startswith("branch "):
-            current_branch = line[len("branch "):]
+            current_branch = line[len("branch ") :]
         elif line == "detached":
             current_branch = None
 
@@ -115,8 +198,12 @@ def checkout_roots() -> list[Path]:
     The only subprocess boundary in this module -- everything else is pure and
     directly testable, which is why the test suite needs no git fixtures.
     """
-    result = subprocess.run(["git", "worktree", "list", "--porcelain"],
-                            capture_output=True, text=True, check=True)
+    result = subprocess.run(
+        ["git", "worktree", "list", "--porcelain"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
     return parse_worktree_list(result.stdout)
 
 
@@ -126,12 +213,20 @@ def epic_checkout_roots(epic_dir: str) -> list[Path]:
     Current checkout is always first. Other worktrees are included only if their branch
     matches this epic's slug.
     """
-    top = subprocess.run(["git", "rev-parse", "--show-toplevel"],
-                         capture_output=True, text=True, check=True)
+    top = subprocess.run(
+        ["git", "rev-parse", "--show-toplevel"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
     current_root = Path(top.stdout.strip())
 
-    wt_result = subprocess.run(["git", "worktree", "list", "--porcelain"],
-                               capture_output=True, text=True, check=True)
+    wt_result = subprocess.run(
+        ["git", "worktree", "list", "--porcelain"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
     entries = parse_worktree_branches(wt_result.stdout)
 
     slug = find_epic_slug(current_root, epic_dir) or epic_dir
@@ -174,7 +269,10 @@ def expected_epic(roots: list[Path], task_id: str) -> str | None:
     `epic:` differs. Checked main-worktree-first; mirrors cannot disagree.
     """
     for root in roots:
-        for features_dir in (root / ".devtool" / "features", root / ".devtool" / "features" / "done"):
+        for features_dir in (
+            root / ".devtool" / "features",
+            root / ".devtool" / "features" / "done",
+        ):
             features = features_dir / f"{task_id}.md"
             if features.is_file():
                 return epic_of(features)
@@ -184,7 +282,9 @@ def expected_epic(roots: list[Path], task_id: str) -> str | None:
     return None
 
 
-def sync_task(roots: list[Path], task_id: str, new_status: str) -> tuple[list[Path], list[str]]:
+def sync_task(
+    roots: list[Path], task_id: str, new_status: str
+) -> tuple[list[Path], list[str]]:
     """Synchronize a task's status across all checkout roots."""
     exp_epic = expected_epic(roots, task_id)
     written: list[Path] = []
@@ -196,7 +296,9 @@ def sync_task(roots: list[Path], task_id: str, new_status: str) -> tuple[list[Pa
         for path in targets:
             file_epic = epic_of(path)
             if exp_epic and file_epic and file_epic != exp_epic:
-                notes.append(f"Skipped {path}: belongs to epic '{file_epic}', expected '{exp_epic}'")
+                notes.append(
+                    f"Skipped {path}: belongs to epic '{file_epic}', expected '{exp_epic}'"
+                )
                 continue
             text = path.read_text()
             text = set_frontmatter_field(text, "status", new_status)
@@ -222,10 +324,16 @@ def board_location(root: Path, path: Path, status: str) -> Path:
     content = path.read_text(encoding="utf-8")
     if status == "done" and path.parent == features:
         target = features / "done" / path.name
-        content = content.replace("](../epic/", "](../../epic/")
+        content = transform_outside_code(
+            content,
+            lambda t: re.sub(r"\]\(\.\./epic/", r"](../../epic/", t),
+        )
     elif status != "done" and path.parent == features / "done":
         target = features / path.name
-        content = content.replace("](../../epic/", "](../epic/")
+        content = transform_outside_code(
+            content,
+            lambda t: re.sub(r"\]\(\.\./\.\./epic/", r"](../epic/", t),
+        )
     else:
         return path
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -248,7 +356,7 @@ def board_tally(roots: list[Path], epic_slug: str) -> dict[str, int]:
         for features_dir in search_dirs:
             if not features_dir.is_dir():
                 continue
-            for path in sorted(features_dir.glob("task_*.md")):
+            for path in task_files_in(features_dir):
                 task_id = path.stem
                 if task_id in seen_tasks:
                     continue
@@ -269,12 +377,14 @@ def find_epic_slug(root: Path, epic_dir: str) -> str | None:
     for ext in (".en.md", ".vi.md"):
         doc = epic_path / f"{epic_dir}{ext}"
         if doc.is_file():
-            match = re.search(r"^-\s*\*\*(?:Epic)\*\*:\s*(.+)$", doc.read_text(), re.MULTILINE)
+            match = re.search(
+                r"^-\s*\*\*(?:Epic)\*\*:\s*(.+)$", doc.read_text(), re.MULTILINE
+            )
             if match:
                 slug = sanitize_slug(match.group(1))
                 if slug:
                     return slug
-    for task_file in sorted(epic_path.glob("task_*.md")):
+    for task_file in task_files_in(epic_path):
         slug = epic_of(task_file)
         if slug:
             return slug
@@ -299,20 +409,29 @@ def find_epic_dir_for_slug(root: Path, epic_slug: str) -> str | None:
     return None
 
 
-
 def fix_task_markdown_links(text: str, epic_dir: str) -> str:
     """Rewrite task links when relocated into .devtool/epic/<epic_dir>/."""
-    text = re.sub(r"\]\((?:\.\./)+epic/" + re.escape(epic_dir) + r"/([^)]+)\)", r"](\1)", text)
-    text = re.sub(r"\]\(\.\./\.\./features/(?:done/)?(task_[^)]+\.md)\)", r"](\1)", text)
-    return text
+
+    def _fix(t: str) -> str:
+        t = re.sub(
+            r"\]\((?:\.\./)+epic/" + re.escape(epic_dir) + r"/([^)]+)\)", r"](\1)", t
+        )
+        t = re.sub(r"\]\(\.\./\.\./features/(?:done/)?(task_[^)]+\.md)\)", r"](\1)", t)
+        return t
+
+    return transform_outside_code(text, _fix)
 
 
 def fix_epic_overview_links(text: str) -> str:
     """Rewrite Section 8 links in <epic_dir>.en.md / .vi.md to local task_*.md."""
-    return re.sub(r"\]\(\.\./\.\./features/(?:done/)?(task_[^)]+\.md)\)", r"](\1)", text)
+    return re.sub(
+        r"\]\(\.\./\.\./features/(?:done/)?(task_[^)]+\.md)\)", r"](\1)", text
+    )
 
 
-def archive_superpowers_docs(root: Path, epic_dir: str, epic_slug: str | None) -> list[Path]:
+def archive_superpowers_docs(
+    root: Path, epic_dir: str, epic_slug: str | None
+) -> list[Path]:
     """Relocate any specs or plans matching this epic from docs/superpowers/ to the epic dir."""
     moved: list[Path] = []
     dest_dir = root / ".devtool" / "epic" / epic_dir
@@ -343,7 +462,9 @@ def archive_superpowers_docs(root: Path, epic_dir: str, epic_slug: str | None) -
     return moved
 
 
-def archive_epic_tasks(roots: list[Path], epic_dir: str) -> tuple[list[Path], list[Path]]:
+def archive_epic_tasks(
+    roots: list[Path], epic_dir: str
+) -> tuple[list[Path], list[Path]]:
     """Move all done tasks of an epic from features/done into .devtool/epic/<epic_dir>/,
 
     clean up source files, rewrite links to local format, and retain .gitkeep.
@@ -358,13 +479,20 @@ def archive_epic_tasks(roots: list[Path], epic_dir: str) -> tuple[list[Path], li
         epic_slug = find_epic_slug(root, epic_dir)
 
         # 1. Relocate task files from features and features/done
-        for fdir in (root / ".devtool" / "features", root / ".devtool" / "features" / "done"):
+        for fdir in (
+            root / ".devtool" / "features",
+            root / ".devtool" / "features" / "done",
+        ):
             if not fdir.is_dir():
                 continue
-            for task_file in sorted(fdir.glob("task_*.md")):
+            for task_file in task_files_in(fdir):
                 file_epic = epic_of(task_file)
                 target_slug = epic_slug or sanitize_slug(epic_dir) or epic_dir
-                target_slugs = {target_slug, target_slug.replace("-", "_"), target_slug.replace("_", "-")}
+                target_slugs = {
+                    target_slug,
+                    target_slug.replace("-", "_"),
+                    target_slug.replace("_", "-"),
+                }
                 if file_epic and file_epic not in target_slugs:
                     continue
                 dest_file = dest_dir / task_file.name
@@ -373,7 +501,9 @@ def archive_epic_tasks(roots: list[Path], epic_dir: str) -> tuple[list[Path], li
                     canonical_text = dest_file.read_text(encoding="utf-8")
                     for field in ("status", "modified", "completedAt"):
                         if field in mirror_fm:
-                            canonical_text = set_frontmatter_field(canonical_text, field, str(mirror_fm[field]))
+                            canonical_text = set_frontmatter_field(
+                                canonical_text, field, str(mirror_fm[field])
+                            )
                     canonical_text = fix_task_markdown_links(canonical_text, epic_dir)
                     dest_file.write_text(canonical_text, encoding="utf-8")
                 else:
@@ -385,7 +515,7 @@ def archive_epic_tasks(roots: list[Path], epic_dir: str) -> tuple[list[Path], li
                 cleaned.append(task_file)
 
         # 2. Ensure existing tasks in dest_dir have clean links
-        for task_file in sorted(dest_dir.glob("task_*.md")):
+        for task_file in task_files_in(dest_dir):
             content = task_file.read_text()
             fixed = fix_task_markdown_links(content, epic_dir)
             if fixed != content:
@@ -415,14 +545,18 @@ def archive_epic_tasks(roots: list[Path], epic_dir: str) -> tuple[list[Path], li
     return archived, cleaned
 
 
-def sync_epic(roots: list[Path], epic_dir: str, new_status: str) -> tuple[list[Path], list[Path]]:
+def sync_epic(
+    roots: list[Path], epic_dir: str, new_status: str
+) -> tuple[list[Path], list[Path]]:
     """Update Status line in Meta Data for both .en.md and .vi.md across all checkouts.
 
     Returns (matched_docs, written_docs).
     """
     matched: list[Path] = []
     written: list[Path] = []
-    status_re = re.compile(r"^(-\s*\*\*(?:Status|Trạng thái)(?:\*\*:\s*|:\*\*\s*)).*$", re.MULTILINE)
+    status_re = re.compile(
+        r"^(-\s*\*\*(?:Status|Trạng thái)(?:\*\*:\s*|:\*\*\s*)).*$", re.MULTILINE
+    )
     for root in roots:
         epic_path = root / ".devtool" / "epic" / epic_dir
         if not epic_path.is_dir():
@@ -455,7 +589,7 @@ def archive_all_done_epics(roots: list[Path]) -> list[str]:
         done_dir = root / ".devtool" / "features" / "done"
         if not done_dir.is_dir():
             continue
-        for task_file in sorted(done_dir.glob("task_*.md")):
+        for task_file in task_files_in(done_dir):
             slug = epic_of(task_file)
             if slug:
                 epic_dir = find_epic_dir_for_slug(root, slug)
@@ -474,11 +608,16 @@ def code_epic_dir(root: Path, task_id: str) -> str | None:
     """The epic directory of this checkout's copy of the task when that epic is a code epic, else None."""
     from task_contract import is_code_epic
 
-    for features in (root / ".devtool" / "features", root / ".devtool" / "features" / "done"):
+    for features in (
+        root / ".devtool" / "features",
+        root / ".devtool" / "features" / "done",
+    ):
         if (features / f"{task_id}.md").is_file():
             slug = epic_of(features / f"{task_id}.md")
             epic_dir = find_epic_dir_for_slug(root, slug) if slug else None
-            if epic_dir and is_code_epic(root / ".devtool" / "epic" / epic_dir / f"{epic_dir}.en.md"):
+            if epic_dir and is_code_epic(
+                root / ".devtool" / "epic" / epic_dir / f"{epic_dir}.en.md"
+            ):
                 return epic_dir
             return None
     return None
@@ -488,29 +627,43 @@ def done_gate_failures(task_id: str) -> list[str]:
     """Messages refusing `task <id> done` for a code epic's task; empty when the gate does not apply or passes."""
     from task_contract import ContractError, evaluate_done_gate, section
 
-    top = subprocess.run(["git", "rev-parse", "--show-toplevel"], check=False, capture_output=True, text=True)
+    top = subprocess.run(
+        ["git", "rev-parse", "--show-toplevel"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
     if top.returncode != 0:
         return []
     root = Path(top.stdout.strip())
     epic_dir = code_epic_dir(root, task_id)
     if epic_dir is None:
-        if (any(code_epic_dir(other, task_id) for other in checkout_roots() if other.resolve() != root.resolve())
-                and not task_targets(root, task_id)):
-            return ["run the done gate in the checkout that holds the task and its evidence (the epic worktree)"]
+        if any(
+            code_epic_dir(other, task_id)
+            for other in checkout_roots()
+            if other.resolve() != root.resolve()
+        ) and not task_targets(root, task_id):
+            return [
+                "run the done gate in the checkout that holds the task and its evidence (the epic worktree)"
+            ]
         return []
     mirror = root / ".devtool" / "epic" / epic_dir / f"{task_id}.md"
-    if not mirror.is_file() or section(mirror.read_text(encoding="utf-8"), "Verification") is None:
-        return [(f"retrofit required: {mirror} has no Verification section — retrofit it through "
-                "dev-designer's Updating an Existing Epic")]
+    if (
+        not mirror.is_file()
+        or section(mirror.read_text(encoding="utf-8"), "Verification") is None
+    ):
+        return [
+            (
+                f"retrofit required: {mirror} has no Verification section — retrofit it through "
+                "dev-designer's Updating an Existing Epic"
+            )
+        ]
     try:
         return evaluate_done_gate(mirror)
     except ContractError as error:
         return [f"condition 1: {error}"]
 
 
-SCENARIO_LINE = re.compile(r"^\s*Scenario(?:\s+Outline)?:\s*(.+)$")
-ID_SHAPE = re.compile(r"[A-Z0-9]+(?:-[A-Z0-9]+)+")
-FENCE = re.compile(r"^(`{3,}|~{3,})(.*)$")
 DIRECTIVE_RE = re.compile(
     r"(<!--\s*@@FILE:([^@\s>]+)@@\s*-->)\s*\n+(```+)([a-zA-Z0-9_-]*)\n[\s\S]*?\n\3",
     flags=re.MULTILINE,
@@ -525,15 +678,23 @@ def extract_scenario_blocks(text: str) -> dict[str, list[str]]:
     current_id: str | None = None
     current_lines: list[str] = []
 
+    def flush() -> None:
+        nonlocal current_id, current_lines
+        if current_id is not None:
+            while current_lines and not current_lines[-1].strip():
+                current_lines.pop()
+            if current_lines:
+                blocks[current_id] = current_lines
+            current_id = None
+            current_lines = []
+
     for line in text.splitlines():
         fence_match = FENCE.match(line)
         if fence_match and fence_marker is None:
             fence_marker = fence_match.group(1)
             in_gherkin = fence_match.group(2).lower() == "gherkin"
-            if not in_gherkin and current_id is not None:
-                blocks[current_id] = current_lines
-                current_id = None
-                current_lines = []
+            if not in_gherkin:
+                flush()
             continue
         if (
             fence_match
@@ -544,10 +705,7 @@ def extract_scenario_blocks(text: str) -> dict[str, list[str]]:
         ):
             fence_marker = None
             in_gherkin = False
-            if current_id is not None:
-                blocks[current_id] = current_lines
-                current_id = None
-                current_lines = []
+            flush()
             continue
 
         if not in_gherkin:
@@ -555,27 +713,21 @@ def extract_scenario_blocks(text: str) -> dict[str, list[str]]:
 
         sc_match = SCENARIO_LINE.match(line)
         if sc_match:
-            if current_id is not None:
-                blocks[current_id] = current_lines
-                current_lines = []
+            flush()
             rest = sc_match.group(1).strip()
-            id_match = ID_SHAPE.search(rest)
-            if id_match:
-                current_id = id_match.group(0)
+            tag = LEADING_TAG.match(rest)
+            if tag and ID_SHAPE.fullmatch(tag.group(1)):
+                current_id = tag.group(1)
                 current_lines = [line.rstrip()]
             else:
-                current_id = None
+                id_match = ID_TOKEN.search(rest)
+                if id_match:
+                    current_id = id_match.group(0)
+                    current_lines = [line.rstrip()]
         elif current_id is not None:
-            if not line.strip():
-                blocks[current_id] = current_lines
-                current_id = None
-                current_lines = []
-            else:
-                current_lines.append(line.rstrip())
+            current_lines.append(line.rstrip())
 
-    if current_id is not None:
-        blocks[current_id] = current_lines
-
+    flush()
     return blocks
 
 
@@ -583,15 +735,17 @@ def inject_bdd_scenarios(task_text: str, canonical_blocks: dict[str, list[str]])
     """Inject verbatim Gherkin scenario blocks matching Covers: into ### BDD SCENARIOS."""
     covers: list[str] = []
     for line in task_text.splitlines():
-        m = re.match(r"^Covers:\s*(.+)$", line.strip())
+        m = COVERS_LINE.match(line)
         if m:
-            covers.extend(re.findall(r"[A-Z0-9]+(?:-[A-Z0-9]+)+", m.group(1)))
+            covers.extend(ID_TOKEN.findall(m.group(1)))
     if not covers:
         return task_text
 
     missing = [c for c in covers if c not in canonical_blocks]
     if missing:
-        raise ValueError(f"Covered scenario(s) missing from bdd_scenarios.en.md: {', '.join(missing)}")
+        raise ValueError(
+            f"Covered scenario(s) missing from bdd_scenarios.en.md: {', '.join(missing)}"
+        )
 
     scenario_blocks = ["\n".join(canonical_blocks[c]) for c in covers]
     gherkin_block = "```gherkin\n" + "\n\n".join(scenario_blocks) + "\n```"
@@ -605,7 +759,11 @@ def inject_bdd_scenarios(task_text: str, canonical_blocks: dict[str, list[str]])
         start, end = m_block.span(2)
         return task_text[:start] + gherkin_block + task_text[end:]
 
-    m_block2 = re.search(r"(^Covers:[^\n]*\n+)(```[a-zA-Z0-9_-]*\n[\s\S]*?\n```)", task_text, flags=re.MULTILINE)
+    m_block2 = re.search(
+        r"(^Covers:[^\n]*\n+)(```[a-zA-Z0-9_-]*\n[\s\S]*?\n```)",
+        task_text,
+        flags=re.MULTILINE,
+    )
     if m_block2:
         start, end = m_block2.span(2)
         return task_text[:start] + gherkin_block + task_text[end:]
@@ -620,6 +778,7 @@ def inject_bdd_scenarios(task_text: str, canonical_blocks: dict[str, list[str]])
 
 def expand_embedded_files(text: str, source_root: Path) -> str:
     """Expand <!-- @@FILE:<rel_path>@@ --> by replacing the following fenced code block with file contents."""
+
     def replacer(m: re.Match[str]) -> str:
         directive = m.group(1)
         rel_path_str = m.group(2).strip()
@@ -627,11 +786,15 @@ def expand_embedded_files(text: str, source_root: Path) -> str:
 
         rel_path = Path(rel_path_str)
         if rel_path_str.startswith("/") or ".." in rel_path.parts:
-            raise ValueError(f"Invalid embedded file path: {rel_path_str} (must be relative without '..')")
+            raise ValueError(
+                f"Invalid embedded file path: {rel_path_str} (must be relative without '..')"
+            )
 
         target = source_root / rel_path
         if not target.is_file():
-            raise ValueError(f"Embedded file not found: {rel_path_str} (looked in {target})")
+            raise ValueError(
+                f"Embedded file not found: {rel_path_str} (looked in {target})"
+            )
 
         content = target.read_text(encoding="utf-8")
         runs = [len(run.group(0)) for run in re.finditer(r"`+", content)]
@@ -646,18 +809,27 @@ def expand_embedded_files(text: str, source_root: Path) -> str:
 
 def canonicalize_intra_epic_links(text: str, epic_path: Path) -> str:
     """Canonicalize [text](./sibling.md) -> [text](sibling.md) for files within epic_path."""
+
     def replacer(m: re.Match[str]) -> str:
         label = m.group(1)
         target = m.group(2)
         base_target = target.split("#", 1)[0].split("?", 1)[0]
-        if (epic_path / base_target).is_file() or (epic_path / f"{base_target}.md").is_file() or base_target.startswith("task_"):
+        if (
+            (epic_path / base_target).is_file()
+            or (epic_path / f"{base_target}.md").is_file()
+            or base_target.startswith("task_")
+        ):
             return f"[{label}]({target})"
         return m.group(0)
 
-    return re.sub(r"\[([^\]]+)\]\(\./([^)]+)\)", replacer, text)
+    return transform_outside_code(
+        text, lambda t: re.sub(r"\[([^\]]+)\]\(\./([^)]+)\)", replacer, t)
+    )
 
 
-def rewrite_mirror_links(text: str, epic_dir: str, is_done: bool, epic_path: Path) -> str:
+def rewrite_mirror_links(
+    text: str, epic_dir: str, is_done: bool, epic_path: Path
+) -> str:
     """Rewrite local intra-epic links to cross-directory links for features/ or features/done/ mirrors."""
     prefix = f"../../epic/{epic_dir}/" if is_done else f"../epic/{epic_dir}/"
     canonical = fix_task_markdown_links(text, epic_dir)
@@ -671,16 +843,19 @@ def rewrite_mirror_links(text: str, epic_dir: str, is_done: bool, epic_path: Pat
         if (
             (epic_path / base_target).is_file()
             or (epic_path / f"{base_target}.md").is_file()
-            or base_target.startswith(("task_", epic_dir))
-            or base_target.endswith(".md")
+            or base_target.startswith("task_")
         ):
             return f"[{label}]({prefix}{target})"
         return m.group(0)
 
-    return re.sub(r"\[([^\]]+)\]\(([^)]+)\)", replacer, canonical)
+    return transform_outside_code(
+        canonical, lambda t: re.sub(r"\[([^\]]+)\]\(([^)]+)\)", replacer, t)
+    )
 
 
-def render_epic_tasks(root: Path, epic_dir: str, source_root: Path | None = None) -> list[Path]:
+def render_epic_tasks(
+    root: Path, epic_dir: str, source_root: Path | None = None
+) -> list[Path]:
     """Single-source task render engine: injects BDD, embeds files, and generates features mirrors."""
     epic_path = root / ".devtool" / "epic" / epic_dir
     if not epic_path.is_dir():
@@ -693,13 +868,18 @@ def render_epic_tasks(root: Path, epic_dir: str, source_root: Path | None = None
         canonical_blocks = extract_scenario_blocks(bdd_file.read_text(encoding="utf-8"))
 
     epic_slug = find_epic_slug(root, epic_dir) or sanitize_slug(epic_dir) or epic_dir
-    target_slugs = {epic_slug, epic_slug.replace("-", "_"), epic_slug.replace("_", "-"), sanitize_slug(epic_dir)}
+    target_slugs = {
+        epic_slug,
+        epic_slug.replace("-", "_"),
+        epic_slug.replace("_", "-"),
+        sanitize_slug(epic_dir),
+    }
 
     # Phase 1: Validate and render in-memory across all tasks.
     # If any task fails validation (unknown scenario ID or missing embed file),
     # the function raises before mutating any canonical or mirror task file on disk.
     render_plan: list[tuple[Path, str, Path, Path, str]] = []
-    for task_file in sorted(epic_path.glob("task_*.md")):
+    for task_file in task_files_in(epic_path):
         task_text = task_file.read_text(encoding="utf-8")
         task_text = canonicalize_intra_epic_links(task_text, epic_path)
         task_text = expand_embedded_files(task_text, source_root)
@@ -708,8 +888,16 @@ def render_epic_tasks(root: Path, epic_dir: str, source_root: Path | None = None
         fm = parse_frontmatter(task_text)
         is_done = fm.get("status") == "done"
 
-        mirror_dir = root / ".devtool" / "features" / "done" if is_done else root / ".devtool" / "features"
-        other_dir = root / ".devtool" / "features" if is_done else root / ".devtool" / "features" / "done"
+        mirror_dir = (
+            root / ".devtool" / "features" / "done"
+            if is_done
+            else root / ".devtool" / "features"
+        )
+        other_dir = (
+            root / ".devtool" / "features"
+            if is_done
+            else root / ".devtool" / "features" / "done"
+        )
 
         mirror_path = mirror_dir / task_file.name
         other_path = other_dir / task_file.name
@@ -727,10 +915,13 @@ def render_epic_tasks(root: Path, epic_dir: str, source_root: Path | None = None
         written_mirrors.append(mirror_path)
 
     # Clean up orphan mirrors
-    for fdir in (root / ".devtool" / "features", root / ".devtool" / "features" / "done"):
+    for fdir in (
+        root / ".devtool" / "features",
+        root / ".devtool" / "features" / "done",
+    ):
         if not fdir.is_dir():
             continue
-        for mfile in sorted(fdir.glob("task_*.md")):
+        for mfile in task_files_in(fdir):
             m_fm = parse_frontmatter(mfile.read_text(encoding="utf-8"))
             m_epic = m_fm.get("epic")
             if m_epic and m_epic in target_slugs:
@@ -754,13 +945,18 @@ def main() -> None:
     task_parser.add_argument("status", help=f"New status ({', '.join(TASK_STATUSES)})")
 
     epic_parser = subparsers.add_parser("epic", help="Sync epic overview status")
-    epic_parser.add_argument("epic_dir", help="Epic directory name (e.g. logging_refactor)")
+    epic_parser.add_argument(
+        "epic_dir", help="Epic directory name (e.g. logging_refactor)"
+    )
     epic_parser.add_argument("status", help="New status string (e.g. 'In Progress')")
 
     archive_parser = subparsers.add_parser(
-        "archive-epic", help="Archive done tasks of an epic into .devtool/epic/<epic_dir>/"
+        "archive-epic",
+        help="Archive done tasks of an epic into .devtool/epic/<epic_dir>/",
     )
-    archive_parser.add_argument("epic_dir", help="Epic directory name (e.g. logging_refactor)")
+    archive_parser.add_argument(
+        "epic_dir", help="Epic directory name (e.g. logging_refactor)"
+    )
 
     subparsers.add_parser(
         "archive-done",
@@ -770,8 +966,15 @@ def main() -> None:
     render_parser = subparsers.add_parser(
         "render", help="Render single-source epic tasks into features mirrors"
     )
-    render_parser.add_argument("epic_dir", help="Epic directory name (e.g. logging_refactor)")
-    render_parser.add_argument("--source-root", type=Path, default=None, help="Root directory for embedded files")
+    render_parser.add_argument(
+        "epic_dir", help="Epic directory name (e.g. logging_refactor)"
+    )
+    render_parser.add_argument(
+        "--source-root",
+        type=Path,
+        default=None,
+        help="Root directory for embedded files",
+    )
 
     args = parser.parse_args()
 
@@ -795,7 +998,9 @@ def main() -> None:
             sys.stderr.write(f"Note: {note}\n")
 
         if not written:
-            sys.stderr.write(f"Warning: No copies of task '{args.task_id}' found in any checkout.\n")
+            sys.stderr.write(
+                f"Warning: No copies of task '{args.task_id}' found in any checkout.\n"
+            )
             sys.exit(1)
 
         exp_epic = expected_epic(roots, args.task_id)
@@ -815,7 +1020,9 @@ def main() -> None:
         if not matched:
             sys.stderr.write(f"Warning: No epic docs found for '{args.epic_dir}'.\n")
             sys.exit(1)
-        print(f"Synchronized {len(matched)} epic docs for '{args.epic_dir}' -> '{args.status}'")
+        print(
+            f"Synchronized {len(matched)} epic docs for '{args.epic_dir}' -> '{args.status}'"
+        )
 
     elif args.command == "archive-epic":
         roots = checkout_roots()
@@ -829,12 +1036,19 @@ def main() -> None:
         roots = checkout_roots()
         done_epics = archive_all_done_epics(roots)
         if done_epics:
-            print(f"Archived {len(done_epics)} epic(s) into .devtool/epic/: {', '.join(done_epics)}")
+            print(
+                f"Archived {len(done_epics)} epic(s) into .devtool/epic/: {', '.join(done_epics)}"
+            )
         else:
             print("No completed tasks to archive.")
 
     elif args.command == "render":
-        top = subprocess.run(["git", "rev-parse", "--show-toplevel"], check=False, capture_output=True, text=True)
+        top = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
         root = Path(top.stdout.strip()) if top.returncode == 0 else Path.cwd()
         try:
             rendered = render_epic_tasks(root, args.epic_dir, args.source_root)
@@ -844,8 +1058,5 @@ def main() -> None:
             sys.exit(1)
 
 
-
 if __name__ == "__main__":
     main()
-
-

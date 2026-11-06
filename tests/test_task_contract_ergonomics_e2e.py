@@ -13,6 +13,7 @@ import unittest
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEV_IMPL_SCRIPTS = REPO_ROOT / "skills" / "dev-implementation" / "resources" / "scripts"
+D3NEXUS_BIN = REPO_ROOT / "bin" / "d3nexus"
 
 if str(DEV_IMPL_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(DEV_IMPL_SCRIPTS))
@@ -29,6 +30,15 @@ def _git(root: Path, *args: str) -> str:
         text=True,
         check=True,
     ).stdout
+
+
+def _run_d3nexus(cwd: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [sys.executable, str(D3NEXUS_BIN), *args],
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+    )
 
 
 class TaskContractErgonomics_Integration_E2E_Test(unittest.TestCase):
@@ -73,8 +83,8 @@ class TaskContractErgonomics_Integration_E2E_Test(unittest.TestCase):
 
         # 1. Evaluate before evidence file is written: done gate fails condition 8
         (self.root / "feature.txt").write_text("feature content\n", encoding="utf-8")
-        ret = run_task_checks_main(["verify", str(task_path)])
-        self.assertEqual(ret, 0)
+        res_verify = _run_d3nexus(self.root, "run-checks", "verify", str(task_path))
+        self.assertEqual(res_verify.returncode, 0, res_verify.stderr)
 
         failures = tc.evaluate_done_gate(task_path)
         self.assertTrue(len(failures) > 0)
@@ -92,6 +102,61 @@ class TaskContractErgonomics_Integration_E2E_Test(unittest.TestCase):
 
         failures_after = tc.evaluate_done_gate(task_path)
         self.assertEqual(failures_after, [])
+
+    def test_d3nexus_check_contract_design_with_evidence_files(self) -> None:
+        """Drive bin/d3nexus check-contract --design acceptance verification."""
+        (self.root / ".gitignore").write_text("build/\n", encoding="utf-8")
+        (self.root / "tool.py").write_text("print('ok')\n", encoding="utf-8")
+        (self.root / "README.md").write_text("readme\n", encoding="utf-8")
+
+        epic_dir = self.root / ".devtool" / "epic" / "sample_epic"
+        epic_dir.mkdir(parents=True, exist_ok=True)
+        hld = (
+            "# Sample Epic\n\n"
+            "## Integration Test Plan\n\n"
+            "Protected paths: scripts/verify.sh, tool.py\n\n"
+            "Integration results: python3 tool.py int -> build/out.xml\n\n"
+            "## 6. Verification Environment\n\n"
+            "Tests run in temporary directories. Variable: DEMO_TOKEN.\n"
+        )
+        (epic_dir / "sample_epic.en.md").write_text(hld, encoding="utf-8")
+        (epic_dir / "bdd_scenarios.en.md").write_text("# Scenarios\n", encoding="utf-8")
+
+        ev_rel = ".devtool/epic/sample_epic/evidence/summary.json"
+        task_text = (
+            '---\nstatus: "todo"\n---\n'
+            "# Task 1\n\n"
+            "## Files\n\n"
+            "Allowed files:\n- `tool.py`\n\n"
+            f"Evidence files:\n- `{ev_rel}` (new)\n\n"
+            "Read-only context:\n- `README.md` — note\n\n"
+            "## Verification\n\n"
+            "| ID | Phase | Command | Expect | Needs |\n"
+            "|----|-------|---------|--------|-------|\n"
+            "| V1 | RED | `python3 -c 'import sys; sys.exit(1)'` | exit 1 | — |\n"
+            "| V2 | GREEN | `python3 tool.py` | exit 0 | — |\n"
+            "| V3 | TIER-B | `ruff check tool.py` | exit 0 | — |\n"
+            "| V4 | TIER-B | `mypy --strict tool.py` | exit 0 | — |\n"
+            f"| V5 | TIER-C | `python3 tool.py int --evidence={ev_rel} --out=build/out.xml` | exit 0; results build/out.xml | — |\n\n"
+            "## Definition of Done\n\n- done (V2, V3, V4, V5)\n\n"
+            "## Stop and Report If\n\n- A command does not match.\n\n"
+            "## Decisions Already Made\n\n- Grounded design decision.\n"
+        )
+        task_path = epic_dir / "task_01_feature.md"
+        task_path.write_text(task_text, encoding="utf-8")
+        _git(self.root, "add", "-A")
+        _git(self.root, "commit", "-q", "-m", "base")
+
+        res_design = _run_d3nexus(
+            self.root,
+            "check-contract",
+            "--design",
+            "--hld",
+            str(epic_dir / "sample_epic.en.md"),
+            "--tasks",
+            str(task_path),
+        )
+        self.assertEqual(res_design.returncode, 0, res_design.stderr)
 
     def test_TCAE_AR_02_idempotent_render(self) -> None:
         """[TCAE-AR-02] Deterministic idempotent re-rendering across repeated render calls."""
@@ -151,8 +216,9 @@ class TaskContractErgonomics_Integration_E2E_Test(unittest.TestCase):
         _git(self.root, "add", "-A")
         _git(self.root, "commit", "-q", "-m", "base")
 
-        # First render
-        sts.render_epic_tasks(self.root, "sample_epic")
+        # First render via bin/d3nexus sync-status render
+        res_render1 = _run_d3nexus(self.root, "sync-status", "render", "sample_epic")
+        self.assertEqual(res_render1.returncode, 0, res_render1.stderr)
 
         features_dir = self.root / ".devtool" / "features"
         t1_first = (features_dir / "task_01_a.md").read_text(encoding="utf-8")
@@ -165,8 +231,9 @@ class TaskContractErgonomics_Integration_E2E_Test(unittest.TestCase):
         self.assertIn("Scenario: [TCAE-01] First scenario", t1_first)
         self.assertIn("Scenario: [TCAE-02] Second scenario", t2_first)
 
-        # Second render without edits
-        sts.render_epic_tasks(self.root, "sample_epic")
+        # Second render without edits via bin/d3nexus sync-status render
+        res_render2 = _run_d3nexus(self.root, "sync-status", "render", "sample_epic")
+        self.assertEqual(res_render2.returncode, 0, res_render2.stderr)
 
         t1_second = (features_dir / "task_01_a.md").read_text(encoding="utf-8")
         t2_second = (features_dir / "task_02_b.md").read_text(encoding="utf-8")
@@ -223,18 +290,8 @@ class TaskContractErgonomics_Integration_E2E_Test(unittest.TestCase):
         _git(self.root, "add", "-A")
         _git(self.root, "commit", "-q", "-m", "base")
 
-        # When executed via CLI or subprocess
-        res = subprocess.run(
-            [
-                sys.executable,
-                str(DEV_IMPL_SCRIPTS / "sync_task_status.py"),
-                "render",
-                "sample_epic",
-            ],
-            cwd=self.root,
-            capture_output=True,
-            text=True,
-        )
+        # When executed via bin/d3nexus sync-status render
+        res = _run_d3nexus(self.root, "sync-status", "render", "sample_epic")
         self.assertEqual(res.returncode, 1)
         self.assertIn(unknown_id, res.stderr)
 
