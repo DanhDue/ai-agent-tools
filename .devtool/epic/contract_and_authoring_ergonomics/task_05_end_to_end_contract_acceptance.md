@@ -1,12 +1,12 @@
 ---
 id: "task_05_end_to_end_contract_acceptance"
-status: "todo"
+status: "in-progress"
 priority: "high"
 assignee: null
 epic: "contract-and-authoring-ergonomics"
 dueDate: null
 created: "2026-11-06T01:50:00Z"
-modified: "2026-11-06T01:50:00Z"
+modified: "2026-11-06T03:34:36Z"
 completedAt: null
 labels: ["integration", "acceptance", "tier-c"]
 order: "a5"
@@ -27,6 +27,8 @@ This task creates `tests/test_task_contract_ergonomics_e2e.py` covering the rema
 Allowed files:
 - `tests/test_task_contract_ergonomics_e2e.py` (new)
 - `skills/dev-implementation/resources/scripts/check_bdd_traceability.py`
+- `skills/dev-implementation/resources/scripts/check_task_contract.py`
+- `scripts/test_verifiable_handoff.py`
 
 Read-only context:
 - `bin/d3nexus` (created in Task 03) (new)
