@@ -678,10 +678,9 @@ def check_baseline(ctx: Context) -> list[Finding]:
         if replay_code != 0:
             for msg in msgs:
                 findings.append(Finding("R8", "FAIL", msg))
-        return findings
 
     if not ctx.baseline:
-        return []
+        return findings
 
     status_proc = subprocess.run(
         ["git", "status", "--porcelain"],

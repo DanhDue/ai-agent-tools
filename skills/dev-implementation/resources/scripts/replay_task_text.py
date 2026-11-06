@@ -7,6 +7,7 @@ verifies edit anchors statically, and replays epics inside isolated git worktree
 from __future__ import annotations
 
 import argparse
+import contextlib
 import os
 import re
 import shlex
@@ -213,19 +214,36 @@ def verify_task_edit_anchors(
         first_line = anchor.splitlines()[0] if anchor.splitlines() else ""
 
         if path not in prior_modified:
-            target_file = root / path
-            if not target_file.is_file():
-                errors.append(f"{task_path.name}: missing edit anchor in {path}: {first_line!r}")
-            else:
+            content: str | None = None
+            with contextlib.suppress(OSError, subprocess.SubprocessError):
+                proc = subprocess.run(
+                    ["git", "show", f"HEAD:{path}"],
+                    cwd=root,
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
+                if proc.returncode == 0:
+                    content = proc.stdout
+
+            if content is None:
+                target_file = root / path
+                if not target_file.is_file():
+                    errors.append(f"{task_path.name}: missing edit anchor in {path}: {first_line!r}")
+                    prior_modified.add(path)
+                    continue
                 try:
                     content = target_file.read_text(encoding="utf-8", errors="ignore")
-                    count = content.count(anchor)
-                    if count == 0:
-                        errors.append(f"{task_path.name}: missing edit anchor in {path}: {first_line!r}")
-                    elif count >= 2:
-                        errors.append(f"{task_path.name}: ambiguous edit anchor ({count} matches) in {path}: {first_line!r}")
                 except OSError as err:
                     errors.append(f"{task_path.name}: cannot read {path}: {err}")
+                    prior_modified.add(path)
+                    continue
+
+            count = content.count(anchor)
+            if count == 0:
+                errors.append(f"{task_path.name}: missing edit anchor in {path}: {first_line!r}")
+            elif count >= 2:
+                errors.append(f"{task_path.name}: ambiguous edit anchor ({count} matches) in {path}: {first_line!r}")
         prior_modified.add(path)
 
     return errors
