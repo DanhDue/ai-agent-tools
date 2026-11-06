@@ -1,0 +1,205 @@
+{
+  "schema": 1,
+  "task": "task_02_conflict_aware_epic_promotion",
+  "runs": {
+    "red": {
+      "head": "f237e4289d1516a6b2b795f13e52848d01c954ae",
+      "tree": "294d9ac25e7766321b67581adc0fea5ab10dca38",
+      "patch_id": "b5f27d91b32b1eb529ff8bb6f3d9b1e651671ec2",
+      "started": "2026-11-06T20:48:34Z",
+      "finished": "2026-11-06T20:48:35Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m pytest skills/dev-implementation/resources/scripts/test_concurrent_epic_backlog.py::test_MEO_HP_02_check_conflicts_and_promote",
+          "expect": "exit 1; contains \"FAILED\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-06T20:48:34Z",
+          "finished": "2026-11-06T20:48:35Z",
+          "output_tail": [
+            "        setup_epic_with_task(",
+            "            tmp_path,",
+            "            \"epic_alpha\",",
+            "            \"epic-alpha\",",
+            "            \"task_01_alpha\",",
+            "            \"todo\",",
+            "            [\"src/alpha.py\"],",
+            "        )",
+            "    ",
+            "        # epic_gamma: queued epic with tasks in backlog touching src/gamma.py, depends on none",
+            "        setup_epic_with_task(",
+            "            tmp_path,",
+            "            \"epic_gamma\",",
+            "            \"epic-gamma\",",
+            "            \"task_01_gamma\",",
+            "            \"backlog\",",
+            "            [\"src/gamma.py\"],",
+            "            depends_on=\"none\",",
+            "            epic_status=\"Queued (backlog)\",",
+            "        )",
+            "    ",
+            "        # 1. check-conflicts CLI",
+            "        res_conflicts = subprocess.run(",
+            "            [sys.executable, str(SYNC_SCRIPT), \"check-conflicts\", \"epic_gamma\"],",
+            "            cwd=str(tmp_path),",
+            "            capture_output=True,",
+            "            text=True,",
+            "        )",
+            ">       assert res_conflicts.returncode == 0, f\"Stderr: {res_conflicts.stderr}\"",
+            "E       AssertionError: Stderr: usage: sync_task_status.py [-h]",
+            "E                                    {task,epic,archive-epic,archive-done,render} ...",
+            "E         sync_task_status.py: error: argument command: invalid choice: 'check-conflicts' (choose from 'task', 'epic', 'archive-epic', 'archive-done', 'render')",
+            "E         ",
+            "E       assert 2 == 0",
+            "E        +  where 2 = CompletedProcess(args=['/opt/homebrew/opt/python@3.15/bin/python3.15', '/Users/danhdueexoictif/AllProjects/ai-agent-to...t command: invalid choice: 'check-conflicts' (choose from 'task', 'epic', 'archive-epic', 'archive-done', 'render')\\n\").returncode",
+            "",
+            "skills/dev-implementation/resources/scripts/test_concurrent_epic_backlog.py:143: AssertionError",
+            "=========================== short test summary info ============================",
+            "FAILED skills/dev-implementation/resources/scripts/test_concurrent_epic_backlog.py::test_MEO_HP_02_check_conflicts_and_promote",
+            "============================== 1 failed in 0.14s ==============================="
+          ],
+          "output_sha256": "9fec7560476aa881a0e636851dd26a5526e033b4d491a156437dde6dbed543d7"
+        }
+      ],
+      "passed": true
+    },
+    "verify": {
+      "head": "f237e4289d1516a6b2b795f13e52848d01c954ae",
+      "tree": "cbc3b6ee9ceb3ef32a57dee1ad5550ed1e5ccbe6",
+      "patch_id": "c3cfb4b0b74618207391a633cec7ee4dea56dde0",
+      "started": "2026-11-06T20:50:13Z",
+      "finished": "2026-11-06T20:50:15Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m pytest skills/dev-implementation/resources/scripts/test_concurrent_epic_backlog.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-06T20:50:13Z",
+          "finished": "2026-11-06T20:50:14Z",
+          "output_tail": [
+            "============================= test session starts ==============================",
+            "platform darwin -- Python 3.15.2, pytest-9.2.0, pluggy-1.7.0",
+            "rootdir: /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/multi_epic_orchestration_and_governance",
+            "collected 4 items",
+            "",
+            "skills/dev-implementation/resources/scripts/test_concurrent_epic_backlog.py . [ 25%]",
+            "...                                                                      [100%]",
+            "",
+            "============================== 4 passed in 0.65s ==============================="
+          ],
+          "output_sha256": "1b15ca370d7c5e6809b6a6e30c3da075453fba8ac9412d10246ab281f8ecb36d"
+        },
+        {
+          "id": "V3",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py skills/dev-implementation/resources/scripts/sync_task_status.py skills/dev-implementation/resources/scripts/test_concurrent_epic_backlog.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-06T20:50:14Z",
+          "finished": "2026-11-06T20:50:14Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py skills/dev-implementation/resources/scripts/sync_task_status.py --follow-imports=silent",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-06T20:50:14Z",
+          "finished": "2026-11-06T20:50:14Z",
+          "output_tail": [
+            "Success: no issues found in 6 source files"
+          ],
+          "output_sha256": "ab35ee42183d4d6d3ba483825ab037d18a5a15622d03be01d82220b1564851ff"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-C",
+          "command": "python3 -m pytest skills/dev-implementation/resources/scripts/test_concurrent_epic_backlog.py --junitxml=build/test-results/task_02_epic_promotion.xml",
+          "expect": "exit 0; results build/test-results/task_02_epic_promotion.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-06T20:50:14Z",
+          "finished": "2026-11-06T20:50:15Z",
+          "output_tail": [
+            "============================= test session starts ==============================",
+            "platform darwin -- Python 3.15.2, pytest-9.2.0, pluggy-1.7.0",
+            "rootdir: /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/multi_epic_orchestration_and_governance",
+            "collected 4 items",
+            "",
+            "skills/dev-implementation/resources/scripts/test_concurrent_epic_backlog.py . [ 25%]",
+            "...                                                                      [100%]",
+            "",
+            "- generated xml file: /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/multi_epic_orchestration_and_governance/build/test-results/task_02_epic_promotion.xml -",
+            "============================== 4 passed in 0.65s ==============================="
+          ],
+          "output_sha256": "d5150565467343e5564daecfb9e010319be2c2a978e5174ccbfaa1c63bb0b1b2",
+          "results": {
+            "path": "build/test-results/task_02_epic_promotion.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 4,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_MEO_HP_02_check_conflicts_and_promote",
+                  "classname": "skills.dev-implementation.resources.scripts.test_concurrent_epic_backlog",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_MEO_EC_02_check_file_conflicts_glob_and_ignores_done",
+                  "classname": "skills.dev-implementation.resources.scripts.test_concurrent_epic_backlog",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_MEO_ST_01_promote_blocks_on_prereqs_unless_forced",
+                  "classname": "skills.dev-implementation.resources.scripts.test_concurrent_epic_backlog",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_MEO_HP_02_integration",
+                  "classname": "skills.dev-implementation.resources.scripts.test_concurrent_epic_backlog.Test_Integration",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "skills/dev-implementation/resources/scripts/sync_task_status.py",
+            "skills/dev-implementation/resources/scripts/test_concurrent_epic_backlog.py"
+          ],
+          "violations": []
+        }
+      ],
+      "passed": true
+    }
+  }
+}
