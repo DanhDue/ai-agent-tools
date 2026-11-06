@@ -36,7 +36,7 @@ if [ -f "$WORKTREE_PATH/pyproject.toml" ] || [ -f "$WORKTREE_PATH/requirements.t
   echo "Detected Python project in worktree..."
   EXECUTED_CUSTOM_BOOTSTRAP=0
   if [ -f "$WORKTREE_PATH/.agents/quality/python-quality.json" ]; then
-    if python3 -c "
+    python3 -c "
 import json, subprocess, sys
 manifest_path = '$WORKTREE_PATH/.agents/quality/python-quality.json'
 try:
@@ -49,10 +49,18 @@ try:
             subprocess.run(cmd, cwd='$WORKTREE_PATH', check=True)
         sys.exit(0)
     sys.exit(1)
+except subprocess.CalledProcessError as e:
+    print(f'Error: configured bootstrap command failed: {e}', file=sys.stderr)
+    sys.exit(2)
 except Exception as e:
     sys.exit(1)
-"; then
+"
+    STATUS=$?
+    if [ "$STATUS" -eq 0 ]; then
       EXECUTED_CUSTOM_BOOTSTRAP=1
+    elif [ "$STATUS" -eq 2 ]; then
+      echo "Configured bootstrap failed. Aborting worktree bootstrap." >&2
+      exit 1
     fi
   fi
 
