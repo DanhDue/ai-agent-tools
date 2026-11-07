@@ -706,35 +706,184 @@ def get_dashboard_html_path() -> Path:
 CACHED_PROFILES_DATA: dict = {}
 
 
-def fetch_claude_quota() -> dict:
-    claude_json_path = Path(REAL_HOME) / ".claude.json"
-    utilization_5h = 0
-    utilization_7d = 0
-    resets_at_5h_iso = ""
-    resets_at_7d_iso = ""
-    resets_at_5h_ts = 0
-    resets_at_7d_ts = 0
-    local_reset_5h = ""
-    local_reset_7d = ""
+def get_claude_oauth_token() -> tuple[str | None, str | None, bool]:
+    """Retrieve Claude Code OAuth access token.
 
+    Returns (token, email, is_logged_in).
+    Checks:
+    1. Environment variable CLAUDE_CODE_OAUTH_TOKEN
+    2. macOS Keychain item 'Claude Code-credentials'
+       - If access token is empty or expired but refresh token exists, auto-refreshes via platform.claude.com/v1/oauth/token
+    3. Plaintext fallback ~/.claude/.credentials.json
+    """
+    # 1. Environment variable
+    env_token = os.environ.get("CLAUDE_CODE_OAUTH_TOKEN")
+    if env_token and env_token.strip():
+        return env_token.strip(), None, True
+
+    # 2. macOS Keychain
+    try:
+        user = os.environ.get("USER", "danhdueexoictif")
+        cmd = ["security", "find-generic-password", "-s", "Claude Code-credentials", "-w"]
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=2.0)
+        if proc.returncode != 0:
+            proc = subprocess.run(
+                ["security", "find-generic-password", "-s", "Claude Code-credentials", "-a", user, "-w"],
+                capture_output=True, text=True, timeout=2.0
+            )
+
+        if proc.returncode == 0 and proc.stdout:
+            stdout_clean = proc.stdout.strip()
+            if stdout_clean.startswith("{") and stdout_clean.endswith("}"):
+                data = json.loads(stdout_clean)
+                oauth = data.get("claudeAiOauth", {})
+                access_token = (oauth.get("accessToken") or "").strip()
+                refresh_token = (oauth.get("refreshToken") or "").strip()
+                expires_at = oauth.get("expiresAt") or 0
+                now_ms = int(time.time() * 1000)
+
+                # Valid unexpired access token
+                if access_token and (expires_at == 0 or expires_at > now_ms + 60000):
+                    return access_token, None, True
+
+                # Expired or empty access token, but refresh token exists
+                if refresh_token:
+                    try:
+                        refresh_url = "https://platform.claude.com/v1/oauth/token"
+                        payload = json.dumps({
+                            "grant_type": "refresh_token",
+                            "refresh_token": refresh_token,
+                            "client_id": "9d1c250a-e61b-44d9-88ed-5944d1962f5e",
+                        }).encode("utf-8")
+                        req = urllib.request.Request(
+                            refresh_url,
+                            data=payload,
+                            headers={
+                                "Content-Type": "application/json",
+                                "User-Agent": "claude-cli/2.1.231",
+                                "Accept": "application/json",
+                            }
+                        )
+                        with urllib.request.urlopen(req, timeout=5.0) as r_resp:
+                            if r_resp.status == 200:
+                                r_data = json.loads(r_resp.read().decode("utf-8"))
+                                new_acc = r_data.get("access_token")
+                                new_ref = r_data.get("refresh_token") or refresh_token
+                                exp_in = r_data.get("expires_in", 3600)
+                                if new_acc:
+                                    data["claudeAiOauth"]["accessToken"] = new_acc
+                                    data["claudeAiOauth"]["refreshToken"] = new_ref
+                                    data["claudeAiOauth"]["expiresAt"] = now_ms + (exp_in * 1000)
+                                    try:
+                                        subprocess.run(
+                                            ["security", "add-generic-password", "-U", "-s", "Claude Code-credentials",
+                                             "-a", user, "-w", json.dumps(data)],
+                                            capture_output=True, timeout=2.0
+                                        )
+                                    except Exception:
+                                        pass
+                                    return new_acc, None, True
+                    except Exception as ref_err:
+                        sys.stderr.write(f"Warning: Claude token auto-refresh failed: {ref_err}\n")
+    except Exception as kc_err:
+        sys.stderr.write(f"Warning: Keychain read for Claude failed: {kc_err}\n")
+
+    # 3. Plaintext fallback credentials
+    cred_file = Path(REAL_HOME) / ".claude" / ".credentials.json"
+    if cred_file.is_file():
+        try:
+            with open(cred_file, "r", encoding="utf-8") as f:
+                c_json = json.load(f)
+            oauth = c_json.get("claudeAiOauth", {})
+            token = (oauth.get("accessToken") or "").strip()
+            if token:
+                return token, None, True
+        except Exception:
+            pass
+
+    return None, None, False
+
+
+def update_claude_json_cache(u: dict, account_uuid: str = ""):
+    """Synchronize freshly fetched live usage into ~/.claude.json cachedUsageUtilization."""
+    claude_json_path = Path(REAL_HOME) / ".claude.json"
     if claude_json_path.is_file():
         try:
             with open(claude_json_path, "r", encoding="utf-8") as f:
                 c_data = json.load(f)
-            u = c_data.get("cachedUsageUtilization", {}).get("utilization", {})
-            five_h = u.get("five_hour") or {}
-            utilization_5h = five_h.get("utilization", 0)
-            resets_at_5h_iso = five_h.get("resets_at", "")
+            if not account_uuid:
+                account_uuid = c_data.get("oauthAccount", {}).get("accountUuid", "")
+            c_data["cachedUsageUtilization"] = {
+                "fetchedAtMs": int(time.time() * 1000),
+                "accountUuid": account_uuid,
+                "utilization": u,
+            }
+            with open(claude_json_path, "w", encoding="utf-8") as f:
+                json.dump(c_data, f, indent=2)
+        except Exception as e:
+            sys.stderr.write(f"Warning: Failed to update .claude.json cache: {e}\n")
 
-            seven_d = u.get("seven_day") or {}
-            utilization_7d = seven_d.get("utilization", 0)
-            resets_at_7d_iso = seven_d.get("resets_at", "")
+
+def fetch_claude_quota() -> dict:
+    claude_json_path = Path(REAL_HOME) / ".claude.json"
+    email = "Anthropic Claude Pro / Team"
+    account_uuid = ""
+    c_data = {}
+    if claude_json_path.is_file():
+        try:
+            with open(claude_json_path, "r", encoding="utf-8") as f:
+                c_data = json.load(f)
+            oauth_acc = c_data.get("oauthAccount", {})
+            if oauth_acc.get("emailAddress"):
+                email = oauth_acc["emailAddress"]
+            account_uuid = oauth_acc.get("accountUuid", "")
         except Exception as e:
             sys.stderr.write(f"Error reading .claude.json: {e}\n")
+
+    token, token_email, is_logged_in = get_claude_oauth_token()
+    if token_email:
+        email = token_email
+
+    api_data = None
+    is_live = False
+
+    # 1. Primary: Query Anthropic Live API if token is available
+    if token:
+        try:
+            headers = {
+                "Authorization": f"Bearer {token}",
+                "User-Agent": "claude-cli/2.1.231",
+                "Accept": "application/json",
+                "Content-Type": "application/json",
+                "anthropic-beta": "claude-code-20250219",
+            }
+            req = urllib.request.Request("https://api.anthropic.com/api/oauth/usage", headers=headers)
+            with urllib.request.urlopen(req, timeout=4.0) as resp:
+                if resp.status == 200:
+                    raw_data = json.loads(resp.read().decode("utf-8"))
+                    api_data = raw_data.get("utilization", raw_data)
+                    is_live = True
+                    update_claude_json_cache(api_data, account_uuid)
+        except Exception as e:
+            sys.stderr.write(f"Warning: Failed to fetch live Claude quota from Anthropic API: {e}\n")
+
+    # 2. Fallback: cachedUsageUtilization from .claude.json
+    if not api_data:
+        api_data = c_data.get("cachedUsageUtilization", {}).get("utilization", {})
+
+    five_h = api_data.get("five_hour") or {}
+    utilization_5h = five_h.get("utilization", 0)
+    resets_at_5h_iso = five_h.get("resets_at", "")
+
+    seven_d = api_data.get("seven_day") or {}
+    utilization_7d = seven_d.get("utilization", 0)
+    resets_at_7d_iso = seven_d.get("resets_at", "")
 
     now_utc = datetime.datetime.now(datetime.timezone.utc)
     is_active_5h = False
     rem_sec_5h = 0
+    resets_at_5h_ts = 0
+    local_reset_5h = ""
     if resets_at_5h_iso:
         try:
             dt_5h = datetime.datetime.fromisoformat(resets_at_5h_iso.replace("Z", "+00:00"))
@@ -747,6 +896,8 @@ def fetch_claude_quota() -> dict:
             pass
 
     rem_sec_7d = 0
+    resets_at_7d_ts = 0
+    local_reset_7d = ""
     if resets_at_7d_iso:
         try:
             dt_7d = datetime.datetime.fromisoformat(resets_at_7d_iso.replace("Z", "+00:00"))
@@ -770,6 +921,20 @@ def fetch_claude_quota() -> dict:
     if local_reset_7d and rem_sec_7d > 0:
         countdown_7d += f" ({local_reset_7d})"
 
+    # Status handling
+    if not is_logged_in and not is_live:
+        status = "NEED_LOGIN"
+        email_display = f"{email} (Chưa đăng nhập CLI - Run 'claude auth login')"
+        countdown_5h_card = "Cần đăng nhập"
+    elif is_active_5h or fraction_5h > 0:
+        status = "ACTIVE"
+        email_display = email
+        countdown_5h_card = countdown_5h
+    else:
+        status = "IDLE"
+        email_display = email
+        countdown_5h_card = countdown_5h
+
     # Save to hashed SQLite session store
     save_session_record("claude", resets_at_5h_ts, resets_at_7d_ts, fraction_5h, is_active_5h)
 
@@ -780,12 +945,12 @@ def fetch_claude_quota() -> dict:
         "providerType": "claude",
         "tier": "ANTHROPIC",
         "priority": 100,
-        "email": "Anthropic Claude Pro / Team",
-        "status": "ACTIVE" if is_active_5h or fraction_5h > 0 else "IDLE",
+        "email": email_display,
+        "status": status,
         "isSessionActive": is_active_5h,
         "resetTime": resets_at_5h_iso,
         "resetTimeLocal": local_reset_5h,
-        "remainingCountdown": countdown_5h,
+        "remainingCountdown": countdown_5h_card,
         "hasArgon": True,
         "gemini5h": {
             "name": "Claude 5H Session Window",
@@ -794,11 +959,12 @@ def fetch_claude_quota() -> dict:
             "resetTime": resets_at_5h_iso,
             "resetTimeLocal": local_reset_5h,
             "unavailable": False,
+            "isLive": is_live,
         },
         "claude5h": {
             "name": "Claude Session Tier",
             "fraction": 1.0,
-            "countdown": "Unified Pro 5H",
+            "countdown": "Anthropic Live API" if is_live else "Local Cache",
             "resetTime": "",
             "resetTimeLocal": "",
             "unavailable": False,
@@ -1313,6 +1479,78 @@ def fetch_kiro_quota() -> dict:
             "unavailable": True,
         },
     }
+
+
+def print_claude_card(data: dict):
+    tier = data.get("tier", "ANTHROPIC")
+    email = data.get("email", "")
+    status = data.get("status", "ACTIVE")
+    g5h = data.get("gemini5h", {})
+    g7d = data.get("geminiWeekly", {})
+    frac_5h = g5h.get("fraction", 1.0)
+    frac_7d = g7d.get("fraction", 1.0)
+    cd_5h = g5h.get("countdown", "")
+    cd_7d = g7d.get("countdown", "")
+    is_live = g5h.get("isLive", False)
+
+    if status == "ACTIVE":
+        status_tag = f"\033[38;2;114;188;130m🟢 {status}\033[0m"
+    elif status in ("NEED_LOGIN", "AUTH NEEDED"):
+        status_tag = f"\033[38;2;245;158;11m🔑 NEED LOGIN\033[0m"
+    else:
+        status_tag = f"\033[38;2;239;68;68m🔴 {status}\033[0m"
+
+    tier_tag = f"\033[48;2;194;65;12m\033[1;38;2;254;215;170m ✺ {tier} \033[0m"
+    tag_priority = "\033[48;2;24;27;38m\033[38;2;160;174;192m Priority: 100 \033[0m"
+    api_source_tag = "\033[38;2;56;189;248m[Live API]\033[0m" if is_live else "\033[38;2;156;163;175m[Local Cache]\033[0m"
+
+    print(f"\n{BOLD}{WHITE}✦ Provider: \033[38;2;251;146;60m✺ Claude Code{RESET}  {tier_tag}  {tag_priority}  {api_source_tag}  {status_tag}")
+    if email:
+        print(f"  {DIM}Account: {email}{RESET}")
+
+    c1 = render_card("✺", "\033[38;2;251;146;60m", "Claude 5H Session Window", cd_5h, frac_5h, width=45)
+    c2 = render_card("✺", "\033[38;2;251;146;60m", "Claude 7D Weekly Remaining", cd_7d, frac_7d, width=45)
+    for l1, l2 in zip(c1, c2):
+        print(l1 + "  " + l2)
+
+    print(f" {DIM}⚙️  Actions:{RESET}")
+    print(f"   \033[38;2;56;189;248m⚡ Refresh nhanh\033[0m : {DIM}check-quota refresh claude{RESET}")
+    print(f"   \033[38;2;114;188;130m🎯 Đăng nhập CLI\033[0m : {DIM}claude auth login{RESET}\n")
+
+
+def print_codex_card(data: dict):
+    tier = data.get("tier", "OPENAI")
+    email = data.get("email", "")
+    status = data.get("status", "ACTIVE")
+    g5h = data.get("gemini5h", {})
+    g7d = data.get("geminiWeekly", {})
+    frac_5h = g5h.get("fraction", 1.0)
+    frac_7d = g7d.get("fraction", 1.0)
+    cd_5h = g5h.get("countdown", "")
+    cd_7d = g7d.get("countdown", "")
+
+    if status == "ACTIVE":
+        status_tag = f"\033[38;2;114;188;130m🟢 {status}\033[0m"
+    elif status in ("NEED_LOGIN", "AUTH NEEDED"):
+        status_tag = f"\033[38;2;245;158;11m🔑 NEED LOGIN\033[0m"
+    else:
+        status_tag = f"\033[38;2;239;68;68m🔴 {status}\033[0m"
+
+    tier_tag = f"\033[48;2;16;185;129m\033[1;38;2;209;250;229m 🟢 {tier} \033[0m"
+    tag_priority = "\033[48;2;24;27;38m\033[38;2;160;174;192m Priority: 95 \033[0m"
+
+    print(f"\n{BOLD}{WHITE}✦ Provider: \033[38;2;52;211;153m🟢 OpenAI Codex{RESET}  {tier_tag}  {tag_priority}  {status_tag}")
+    if email:
+        print(f"  {DIM}Account: {email}{RESET}")
+
+    c1 = render_card("✦", "\033[38;2;52;211;153m", "Codex 5-Hour Limit", cd_5h, frac_5h, width=45)
+    c2 = render_card("✦", "\033[38;2;52;211;153m", "Codex Weekly Limit", cd_7d, frac_7d, width=45)
+    for l1, l2 in zip(c1, c2):
+        print(l1 + "  " + l2)
+
+    print(f" {DIM}⚙️  Actions:{RESET}")
+    print(f"   \033[38;2;56;189;248m⚡ Refresh nhanh\033[0m : {DIM}check-quota refresh codex{RESET}")
+    print(f"   \033[38;2;114;188;130m🎯 Đăng nhập CLI\033[0m : {DIM}codex auth login{RESET}\n")
 
 
 def print_kiro_card(data: dict):
@@ -2687,6 +2925,12 @@ def main():
                     pass
             for r in results:
                 print_dashboard_cards(r)
+    elif target in ("claude", "anthropic"):
+        result = fetch_claude_quota()
+        print_claude_card(result)
+    elif target in ("codex", "openai"):
+        result = fetch_codex_quota()
+        print_codex_card(result)
     elif target == "kiro":
         result = fetch_kiro_quota()
         print_kiro_card(result)
