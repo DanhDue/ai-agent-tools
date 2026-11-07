@@ -224,6 +224,87 @@ def test_MEO_HP_04_fallback_to_markdown_and_harvest(tmp_path: Path) -> None:
     assert approvals[1]["gate"] == 2
 
 
+def test_record_gate_preserves_markdown_ledger_on_absent_state_and_escapes_pipes(tmp_path: Path) -> None:
+    """Recording a gate when state/ is absent preserves committed GATE_LEDGER.md entries and handles escaped pipes and dashes."""
+    init_git_repo(tmp_path)
+
+    # 1. Simulate a cloned repository where state/ is absent but GATE_LEDGER.md is committed
+    md_file = tmp_path / ".devtool" / "GATE_LEDGER.md"
+    md_content = (
+        "# Gate Approval Ledger (Permanent)\n\n"
+        "| Timestamp | Epic | Gate | Commit | Approved Scope | Deviations | By |\n"
+        "|---|---|---|---|---|---|---|\n"
+        "| 2026-11-06T12:00:00Z | sample-epic | 1 | abc1234 | HLD \\| 5 tasks \\| SE-01 approved | None | developer |\n"
+        "| 2026-11-06T14:00:00Z | sample-epic | 2 | def5678 | Execution order --- wave 1-3 | None | reviewer |\n"
+    )
+    md_file.write_text(md_content, encoding="utf-8")
+
+    # Verify query works on both entries before state/ exists
+    res_cg1 = subprocess.run(
+        [sys.executable, str(RESUME_SCRIPT), "--check-gate", "1", "--epic", "sample-epic"],
+        cwd=str(tmp_path),
+        capture_output=True,
+        text=True,
+    )
+    assert res_cg1.returncode == 0
+    data_g1 = json.loads(res_cg1.stdout.strip())
+    assert data_g1["approved"] == "HLD | 5 tasks | SE-01 approved"
+
+    res_cg2 = subprocess.run(
+        [sys.executable, str(RESUME_SCRIPT), "--check-gate", "2", "--epic", "sample-epic"],
+        cwd=str(tmp_path),
+        capture_output=True,
+        text=True,
+    )
+    assert res_cg2.returncode == 0
+    data_g2 = json.loads(res_cg2.stdout.strip())
+    assert data_g2["approved"] == "Execution order --- wave 1-3"
+
+    # 2. Record Gate 3 when state/ is completely absent
+    res_rec = subprocess.run(
+        [
+            sys.executable,
+            str(RESUME_SCRIPT),
+            "--gate",
+            "3",
+            "--epic",
+            "sample-epic",
+            "--approved",
+            "Task execution | wave 1-5 | complete",
+            "--deviations",
+            "none",
+        ],
+        cwd=str(tmp_path),
+        capture_output=True,
+        text=True,
+    )
+    assert res_rec.returncode == 0, f"Error: {res_rec.stderr}"
+
+    # 3. Verify that GATE_LEDGER.md retains Gates 1, 2, AND 3 (no truncation)
+    new_md = md_file.read_text(encoding="utf-8")
+    assert "HLD \\| 5 tasks \\| SE-01 approved" in new_md
+    assert "Execution order --- wave 1-3" in new_md
+    assert "Task execution \\| wave 1-5 \\| complete" in new_md
+
+    # Verify all 3 gates can be queried
+    for g_num in (1, 2, 3):
+        res_chk = subprocess.run(
+            [sys.executable, str(RESUME_SCRIPT), "--check-gate", str(g_num), "--epic", "sample-epic"],
+            cwd=str(tmp_path),
+            capture_output=True,
+            text=True,
+        )
+        assert res_chk.returncode == 0
+        chk_data = json.loads(res_chk.stdout.strip())
+        assert chk_data["gate"] == g_num
+
+    # Verify JSONL was hydrated and contains all 3 entries
+    jsonl_file = tmp_path / ".devtool" / "state" / "gate_ledger.jsonl"
+    assert jsonl_file.is_file()
+    lines = [l for l in jsonl_file.read_text(encoding="utf-8").splitlines() if l.strip()]
+    assert len(lines) == 3
+
+
 class Test_Integration:
     """[Tier C - Integration] Test suite with integration runner provenance."""
 

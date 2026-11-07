@@ -270,7 +270,98 @@ def refresh_activity_stream_rollup(devtool_dir: Path) -> None:
     rollup.write_text("\n".join(recent) + ("\n" if recent else ""), encoding="utf-8")
 
 
+def parse_markdown_gate_row(line_str: str) -> dict[str, object] | None:
+    line = line_str.strip()
+    if not line.startswith("|") or not line.endswith("|"):
+        return None
+    if re.match(r"^\|(?:\s*:?-+:?\s*\|)+$", line):
+        return None
+    inner = line[1:-1]
+    raw_cells = re.split(r"(?<!\\)\|", inner)
+    if len(raw_cells) < 7:
+        return None
+    cells = [c.strip().replace(r"\|", "|") for c in raw_cells]
+    if cells[0].lower() == "timestamp":
+        return None
+    try:
+        gate_num = int(cells[2])
+    except (ValueError, TypeError):
+        return None
+    return {
+        "timestamp": cells[0],
+        "epic": cells[1],
+        "gate": gate_num,
+        "commit": cells[3],
+        "approved": cells[4],
+        "deviations": cells[5],
+        "by": cells[6],
+    }
+
+
+def parse_gate_ledger_markdown(md_path: Path) -> list[dict[str, object]]:
+    entries: list[dict[str, object]] = []
+    if not md_path.exists():
+        return entries
+    for line in md_path.read_text(encoding="utf-8").splitlines():
+        parsed = parse_markdown_gate_row(line)
+        if parsed is not None:
+            entries.append(parsed)
+    return entries
+
+
+def hydrate_gate_ledger_jsonl_if_needed(devtool_dir: Path) -> None:
+    state_dir = devtool_dir / "state"
+    jsonl_path = state_dir / "gate_ledger.jsonl"
+    md_path = devtool_dir / "GATE_LEDGER.md"
+    if not md_path.exists():
+        return
+    existing_md_entries = parse_gate_ledger_markdown(md_path)
+    if not existing_md_entries:
+        return
+
+    jsonl_entries: list[dict[str, object]] = []
+    if jsonl_path.exists():
+        for line in jsonl_path.read_text(encoding="utf-8").splitlines():
+            line_str = line.strip()
+            if not line_str:
+                continue
+            try:
+                data = json.loads(line_str)
+                if isinstance(data, dict):
+                    jsonl_entries.append(data)
+            except Exception:
+                continue
+
+    if not jsonl_path.exists() or len(jsonl_entries) < len(existing_md_entries):
+        seen = {
+            (
+                str(e.get("timestamp")),
+                str(e.get("epic")),
+                str(e.get("gate")),
+                str(e.get("commit")),
+            )
+            for e in jsonl_entries
+        }
+        missing = [
+            e
+            for e in existing_md_entries
+            if (
+                str(e.get("timestamp")),
+                str(e.get("epic")),
+                str(e.get("gate")),
+                str(e.get("commit")),
+            )
+            not in seen
+        ]
+        if missing or not jsonl_path.exists():
+            state_dir.mkdir(parents=True, exist_ok=True)
+            with jsonl_path.open("a", encoding="utf-8") as f:
+                for entry in missing:
+                    f.write(json.dumps(entry) + "\n")
+
+
 def render_gate_ledger_markdown(devtool_dir: Path) -> Path:
+    hydrate_gate_ledger_jsonl_if_needed(devtool_dir)
     state_dir = devtool_dir / "state"
     jsonl_path = state_dir / "gate_ledger.jsonl"
     md_path = devtool_dir / "GATE_LEDGER.md"
@@ -295,13 +386,13 @@ def render_gate_ledger_markdown(devtool_dir: Path) -> Path:
         "|---|---|---|---|---|---|---|",
     ]
     for e in entries:
-        ts = str(e.get("timestamp", ""))
-        ep = str(e.get("epic", ""))
-        gt = str(e.get("gate", ""))
-        cm = str(e.get("commit", ""))
-        ap = str(e.get("approved", ""))
-        dev = str(e.get("deviations", ""))
-        by_user = str(e.get("by", ""))
+        ts = str(e.get("timestamp", "")).replace("|", r"\|")
+        ep = str(e.get("epic", "")).replace("|", r"\|")
+        gt = str(e.get("gate", "")).replace("|", r"\|")
+        cm = str(e.get("commit", "")).replace("|", r"\|")
+        ap = str(e.get("approved", "")).replace("|", r"\|")
+        dev = str(e.get("deviations", "")).replace("|", r"\|")
+        by_user = str(e.get("by", "")).replace("|", r"\|")
         lines.append(f"| {ts} | {ep} | {gt} | {cm} | {ap} | {dev} | {by_user} |")
 
     md_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -703,6 +794,7 @@ def record_gate_approval(
 ) -> dict[str, object]:
     devtool_dir = resolve_target_devtool_dir(root, repo)
     with file_lock(devtool_dir):
+        hydrate_gate_ledger_jsonl_if_needed(devtool_dir)
         state_dir = devtool_dir / "state"
         state_dir.mkdir(parents=True, exist_ok=True)
         res = subprocess.run(
@@ -738,6 +830,7 @@ def scan_gate_ledger(
     root: Path, epic_slug: str | None = None
 ) -> list[dict[str, object]]:
     devtool_dir = root if root.name == ".devtool" else root / ".devtool"
+    hydrate_gate_ledger_jsonl_if_needed(devtool_dir)
     jsonl_path = devtool_dir / "state" / "gate_ledger.jsonl"
     md_path = devtool_dir / "GATE_LEDGER.md"
     entries: list[dict[str, object]] = []
@@ -754,26 +847,7 @@ def scan_gate_ledger(
             except Exception:
                 continue
     elif md_path.exists():
-        for line in md_path.read_text(encoding="utf-8").splitlines():
-            line_str = line.strip()
-            if not line_str.startswith("|") or "Timestamp" in line_str or "---" in line_str:
-                continue
-            parts = [p.strip() for p in line_str.split("|")[1:-1]]
-            if len(parts) >= 7:
-                try:
-                    entries.append(
-                        {
-                            "timestamp": parts[0],
-                            "epic": parts[1],
-                            "gate": int(parts[2]),
-                            "commit": parts[3],
-                            "approved": parts[4],
-                            "deviations": parts[5],
-                            "by": parts[6],
-                        }
-                    )
-                except (ValueError, TypeError):
-                    continue
+        entries = parse_gate_ledger_markdown(md_path)
 
     if epic_slug:
         norm_filter = epic_slug.replace("_", "-")
