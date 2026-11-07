@@ -139,3 +139,4 @@ print(f'Keychain: {kc_email} | DB: {db_email} | Parity: {kc_email == db_email}')
 # Step 4: Test isolated CLI launch
 <profile>-cli models
 ```
+

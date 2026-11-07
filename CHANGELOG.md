@@ -8,6 +8,37 @@ every installed machine on the old cached copy.
 
 ---
 
+## 1.26.3 — 2026-11-08
+
+Integrates **Kiro CLI Quota Provider** (`check-quota kiro`), establishes **Local Profile Isolation & Remediation Rules** (preventing Attention Dilution / "Lost in the Middle" while protecting macOS host services and eliminating stale RAM process overwrites), delivers the **Dreamy Purple Theme & Mascot 👻** for Kiro, and adds **4-Category Account Filtering** in both the Web Dashboard and Terminal CLI.
+
+### Added
+
+- **Kiro CLI Quota Provider Integration** (`scripts/agy_quota.py`, `skills/check-quota/SKILL.md`, `tests/test_kiro_quota.py`):
+  - Integrates `kiro-cli` as the 3rd AI Agent Provider alongside Claude Code and OpenAI Codex.
+  - Automatically parses AWS CodeWhisperer `GetUsageLimits` tokens & Monthly Credits Pool (used, limit, remaining, countdown timer, model tier, and overages status).
+  - Adds dedicated CLI commands: `check-quota kiro`, `check-quota all --providers`, and interactive quota cards.
+  - Adds comprehensive unit test suite in `tests/test_kiro_quota.py` with 7 test cases covering parsing, color thresholds, offline fallback, and unauthenticated handling.
+- **Local Profile Isolation & Anti-Contamination Rules** (`.agents/rules/profile_isolation_rules.md`, `skills/audit-account-block/references/profile-isolation-and-remediation.md`, `rules/CRITICAL_RULES.md`):
+  - Implements localized, progressive-disclosure rule architecture to prevent Attention Dilution and "Lost in the Middle" during general engineering tasks.
+  - Enforces **Pre-Remediation Process Fencing**: checks and terminates resident Antigravity IDE / agy processes (`pkill -9 -f antigravity_homes/<profile>`) before modifying `state.vscdb`, preventing Electron in-memory RAM from continuously overwriting database repairs.
+  - Enforces **`signedOut` Token Elimination**: purges `antigravityUnifiedStateSync.oauthToken` from `ItemTable` in `state.vscdb` to prevent silent fallback to root/default identity.
+  - Documents **Atomic Launch Window**: temporary 2.5s search-list promotion of profile keychain during launch with automated rollback to `login.keychain-db`, preserving macOS host daemons (AirDrop, Apple ID, Wi-Fi, browser sessions).
+  - Outlaws unanchored shell wildcards (`antigravity)` $\rightarrow$ `*antigravity*) ;;`) to protect `.gemini/antigravity*` physical directories from accidental symlinking.
+- **Dreamy Purple Theme & Mascot 👻 for Kiro** (`skills/check-quota/resources/dashboard/quota_dashboard.html`, `scripts/agy_quota.py`):
+  - Dresses Kiro CLI in a dreamy purple theme (`#c084fc`, `text-purple-300`, glow effects) with Kiro's cute ghost mascot 👻 in title, badges (`👻 KIRO STUDENT`, `AI PROVIDER`), and monthly credits pool bar.
+  - Synchronizes purple ANSI styling and ghost icon across terminal CLI outputs.
+- **4-Category Account Filtering in Dashboard & CLI** (`skills/check-quota/resources/dashboard/quota_dashboard.html`, `scripts/agy_quota.py`):
+  - Categorizes all 26 accounts into 4 distinct groups: `3 Providers` (Claude, Codex, Kiro), `12 Active Profiles`, `4 Needed Login Profiles`, and `7 Blocked Profiles`.
+  - Streamlines header statistics badges to clean, concise counts without redundant name listings.
+  - Adds matching CLI filtering flags: `check-quota all --providers`, `--active`, `--login`, `--blocked`.
+
+### Fixed
+
+- **Profile Identity Bleed & Keychain Parity Remediation** (`scripts/remediate_profiles.py`, `~/.zshrc`):
+  - Upgrades `remediate_profiles.py` with automated process termination before database writes, Keychain-to-DB email parity reconciliation, and `signedOut` token purging across all 23 profiles.
+  - Corrects rogue symlink parsing in `.zshrc` preventing internal agent runtime state bleeding into root.
+
 ## 1.26.2 — 2026-11-07
 
 Ships **Detached Background Daemon Mode** for `check-quota --ui`, **Automated Argon 7D Activation with Reset Guard**, **Anti-Bot Jitter Pacing** across multi-model pings, resilient JSON cache persistence in `quota_dashboard.html`, and a comprehensive unit test suite in `tests/test_agy_quota.py`.

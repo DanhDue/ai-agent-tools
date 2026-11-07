@@ -1,42 +1,51 @@
-# Release Notes: d3nexus v1.26.2
+# Release Notes: d3nexus v1.26.3
 
-**Release Date:** November 07, 2026  
-**Version:** `1.26.2`  
-**Git Tag:** `v1.26.2`, `d3nexus--v1.26.2`
+**Release Date:** November 08, 2026  
+**Version:** `1.26.3`  
+**Git Tag:** `v1.26.3`, `d3nexus--v1.26.3`
 
 ---
 
 ## Executive Summary
 
-`v1.26.2` delivers **Detached Background Daemon Mode** for the Antigravity Multi-Profile Quota Dashboard (`check-quota --ui`), **Automated Argon 7D Weekly Activation with Under-7H Reset Guard**, **Anti-Bot Jitter Pacing** across multi-model pings, safe JSON extraction and atomic cache persistence in `quota_dashboard.html`, and a comprehensive unit test suite in `tests/test_agy_quota.py`.
+`v1.26.3` delivers full integration of **Kiro CLI Quota Provider** (`check-quota kiro`), establishes the **Local Profile Isolation & Remediation Rules** (preventing Attention Dilution / "Lost in the Middle" while protecting host macOS services and eliminating stale RAM process overwrites), brings the **Dreamy Purple Theme & Mascot 👻** for Kiro, and introduces **4-Category Account Filtering** with streamlined statistics across both the Web Dashboard and Terminal CLI.
 
 ---
 
 ## Key Highlights
 
-### 1. Detached Background Daemon Mode (`check-quota --ui`)
-- **Terminal Independence**: `check-quota --ui` (or `agy-quota ui`) spawns a detached background process (`start_new_session=True`) and returns terminal prompt control in `<0.2s`. Developers can safely close or exit the terminal while the web dashboard remains running on `http://127.0.0.1:8765`.
-- **Management Commands**:
-  - `check-quota --status`: Checks running state, active PID (`/tmp/agy_quota_server.pid`), URL, and log path (`/tmp/agy_quota_server.log`).
-  - `check-quota --stop`: Gracefully terminates background daemon and frees port 8765.
-  - `check-quota --ui -f`: Runs in traditional foreground mode for interactive debugging.
-- **Pipe Resilience**: Wraps `log_message` and `send_json` in `try...except` to prevent broken stdout pipes from terminating handler threads when terminals close.
+### 1. Kiro CLI Quota Provider Integration
+- **3rd Core AI Provider**: Integrates `kiro-cli` alongside Claude Code and OpenAI Codex in multi-profile quota management.
+- **AWS Token & Credits Extraction**: Directly parses AWS CodeWhisperer `GetUsageLimits` tokens, Monthly Credits Pool (used, limit, remaining, countdown timer, model tier, and overages).
+- **Commands**:
+  - `check-quota kiro`: Prints interactive terminal card with progress bar, remaining quota, and model details.
+  - `check-quota all --providers`: Displays summary across all 3 AI Providers (Claude, Codex, Kiro).
+- **Unit Test Suite**: 7 unit tests in `tests/test_kiro_quota.py` verifying response parsing, color thresholds, offline fallback, and unauthenticated state handling.
 
-### 2. Automated Argon 7D Activation & Under-7H Reset Guard
-- **Max 7D Trigger**: When pinging a profile with Argon enabled (`hasArgon: true`), if Argon weekly quota is at max 7D (`fraction >= 0.999` and not yet locked into a weekly cycle), the system automatically fires a 1-token prompt to `--model gemini-4-argon-low` to start the 7-day countdown.
-- **Reset Guard (< 7h)**: If Argon is already active and its reset time is under 7 hours (`is_argon_near_reset`), Argon pings are strictly skipped to conserve quota right before weekly renewal.
-- **Already Active Skip**: If Argon is already counting down mid-cycle, pings to Argon are skipped to prevent wasting tokens.
+### 2. Local Profile Isolation & Anti-Contamination Rules
+- **Anti-Attention Dilution Architecture**: Rules for profile remediation and OS Keychain boundaries are kept localized in `.agents/rules/profile_isolation_rules.md` and `skills/audit-account-block/references/profile-isolation-and-remediation.md` (progressive disclosure) to prevent context pollution and "Lost in the Middle" during regular coding tasks.
+- **Process Fencing (Zero Stale RAM Overwrites)**: Automatically checks and terminates resident Antigravity IDE / agy processes (`pkill -9 -f antigravity_homes/<profile>`) before modifying `state.vscdb`, eliminating stale Electron RAM from continually overwriting repaired database state.
+- **Stale `signedOut` Token Elimination**: Purges `antigravityUnifiedStateSync.oauthToken` in `ItemTable` to prevent silent fallback to the root/default profile.
+- **Atomic Launch Window**: Establishes safe launch isolation in `ag_run()` via temporary 2.5s search-list promotion of profile keychain followed by automated rollback to `login.keychain-db`, preserving macOS host daemons (AirDrop, Apple ID, Wi-Fi, browser cookies).
+- **Rogue Symlink Defense**: Outlaws unanchored wildcard `antigravity)` in favor of `*antigravity*) ;;`, preserving `.gemini/antigravity*` physical directory independence.
 
-### 3. Anti-Bot Jitter Pacing (1.8s – 3.5s)
-- **Natural Pacing**: When activating both Gemini and Argon in the same turn, an automated random jitter of **1.8s – 3.5s** (`random.uniform(1.8, 3.5)`) is enforced between calls.
-- **Distinct Prompts**: Successive prompts are pulled from `NATURAL_PROMPTS` ensuring non-identical payloads, eliminating Google WAF / anti-abuse 429 rate limits and Terms of Service suspensions.
+### 3. Dreamy Purple Theme & Mascot 👻 for Kiro
+- **Kiro Brand Identity**: Dresses Kiro CLI in a dreamy purple theme (`text-purple-300`, glow effects) with Kiro's cute ghost mascot 👻 in the title, tier badges (`👻 KIRO STUDENT`, `AI PROVIDER`), and monthly credits pool bar.
+- **ANSI Terminal Styling**: Synchronizes matching purple ANSI colors and mascot icon in terminal CLI outputs.
 
-### 4. Resilient JSON Cache Persistence
-- **Block Boundary Matching**: `load_cached_profiles()` and `update_cached_profile()` match `const PROFILES_DATA = ... \n};` instead of the first semicolon, eliminating truncation and preserving the entire dashboard HTML structure.
+### 4. 4-Category Account Filtering & Streamlined Statistics
+- **Clear Categorization**: Groups all 26 accounts into 4 distinct groups:
+  1. `3 Providers` (Claude, Codex, Kiro)
+  2. `12 Active Profiles`
+  3. `4 Needed Login Profiles`
+  4. `7 Blocked Profiles`
+- **Streamlined Badges**: Header buttons and badges show clean, concise counts without redundant name listings.
+- **Terminal CLI Flags**: Supports `--providers`, `--active`, `--login`, `--blocked` in `check-quota all`.
 
 ---
 
 ## Verifications & Quality Gates Passed
 
-- `bash scripts/verify.sh`: 🟢 **PASS — safe to publish** (Sections 1–16, all 39 test suites green)
+- `bash scripts/verify.sh`: 🟢 **PASS — safe to publish** (Sections 1–17, all 41 test suites green)
+- `tests/test_kiro_quota.py`: 🟢 **PASS** (7/7 unit tests passing)
 - `tests/test_agy_quota.py`: 🟢 **PASS** (9/9 unit tests passing)
