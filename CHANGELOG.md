@@ -8,6 +8,16 @@ every installed machine on the old cached copy.
 
 ---
 
+## 1.26.1 — 2026-11-07
+
+Documents sticky `.devtool/review_config.json` loading across `principal-review`, `cross-model-review`, and `dev-lifecycle`, and upgrades `load_review_config()` in `run_external_review.py` to automatically backfill newly added `DEFAULT_REVIEW_CONFIG` providers (such as `kiro`) onto untracked local `.devtool/review_config.json` files on disk.
+
+### Changed
+
+- **Sticky Provider Config Loading & Auto-Backfill** (`skills/principal-review/SKILL.md`, `skills/cross-model-review/SKILL.md`, `skills/dev-lifecycle/references/principal-review.md`, `skills/dev-implementation/resources/scripts/run_external_review.py`):
+  - Explicitly instructs agents in `principal-review` and `cross-model-review` to read `.devtool/review_config.json` before prompting for a reviewer CLI so `last_used_provider` and per-provider `model` + `thinking_level` (`claude`, `codex`, `agy`, `kiro`, `ollama`) are surfaced to the developer.
+  - Updates `load_review_config()` in `run_external_review.py` to detect missing default providers in existing untracked `.devtool/review_config.json` files and atomically persist the merged provider map back to disk.
+
 ## 1.26.0 — 2026-11-07
 
 Adds **Kiro CLI (`--cli kiro`)** as a first-class external reviewer across `principal-review`, `cross-model-review`, and `run_external_review.py`, establishes the **3-Tier Epic Documentation Architecture ("Prompt to Maintain" HLD vs Exhaustive Edge-Case BDD vs Self-Contained Task SSOT)** to reduce LLM token bloat while maximizing edge-case coverage, and completes `bin/d3nexus` subcommand & Gate Approval Ledger wiring across `/dev-lifecycle`.
