@@ -435,9 +435,13 @@ def check_grounding(ctx: Context) -> list[Finding]:
 
     # --- R5: Static Anchor Verification ---
     prior_modified: set[str] = set()
-    for task_path in sorted(ctx.tasks.keys()):
-        task_text = ctx.tasks[task_path]
-        if verify_task_edit_anchors is not None:
+    if verify_task_edit_anchors is None:
+        findings.append(
+            Finding("R5", "FAIL", "replay_task_text.verify_task_edit_anchors could not be imported")
+        )
+    else:
+        for task_path in sorted(ctx.tasks.keys()):
+            task_text = ctx.tasks[task_path]
             anchor_errors = verify_task_edit_anchors(
                 ctx.root, task_path, task_text, prior_modified
             )
@@ -751,10 +755,15 @@ def check_metadata(ctx: Context) -> list[Finding]:
 def check_baseline(ctx: Context) -> list[Finding]:
     findings: list[Finding] = []
     if ctx.replay:
-        replay_code, msgs = replay_epic_in_worktree(ctx.root, ctx.epic_dir, timeout=ctx.row_timeout)
-        if replay_code != 0:
-            for msg in msgs:
-                findings.append(Finding("R8", "FAIL", msg))
+        if replay_epic_in_worktree is None:
+            findings.append(
+                Finding("R8", "FAIL", "replay_task_text.replay_epic_in_worktree could not be imported")
+            )
+        else:
+            replay_code, msgs = replay_epic_in_worktree(ctx.root, ctx.epic_dir, timeout=ctx.row_timeout)
+            if replay_code != 0:
+                for msg in msgs:
+                    findings.append(Finding("R8", "FAIL", msg))
 
     if not ctx.baseline:
         return findings
