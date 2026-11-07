@@ -635,9 +635,26 @@ def render_mini_bar(item: dict, width: int = 14) -> str:
     return f"[{fill_color}{'█' * filled}{RESET}{track_color}{'░' * empty}{RESET}] {fill_color}{pct:5.1f}%{RESET}"
 
 
-def print_all_summary(results: list):
+def print_all_summary(results: list, show_providers: bool = True):
     """Print an executive multi-profile summary table strictly aligned to 122 chars."""
     table_w = 122
+    if show_providers:
+        print(f"\n{BOLD}{CYAN}=== AI AGENT PROVIDERS (CLAUDE, CODEX, KIRO) ==={RESET}")
+        try:
+            c_data = fetch_claude_quota()
+            print_claude_card(c_data)
+        except Exception:
+            pass
+        try:
+            o_data = fetch_codex_quota()
+            print_codex_card(o_data)
+        except Exception:
+            pass
+        try:
+            k_data = fetch_kiro_quota()
+            print_kiro_card(k_data)
+        except Exception:
+            pass
     print(f"\n{BOLD}{WHITE}{'=' * table_w}{RESET}")
     print(f"{BOLD}{CYAN}                      ANTIGRAVITY ACCOUNTS QUOTA DASHBOARD (ALL PROFILES){RESET}")
     print(f"{BOLD}{WHITE}{'=' * table_w}{RESET}")
@@ -2602,6 +2619,30 @@ def main():
         return
 
     if target == "all":
+        filter_providers = "--providers" in args
+        filter_active = "--active" in args
+        filter_login = "--login" in args or "--auth-needed" in args
+        filter_blocked = "--blocked" in args or "--disabled" in args
+
+        if filter_providers:
+            print(f"\n{BOLD}{CYAN}=== AI AGENT PROVIDERS (CLAUDE, CODEX, KIRO) ==={RESET}")
+            try:
+                c_data = fetch_claude_quota()
+                print_claude_card(c_data)
+            except Exception:
+                pass
+            try:
+                o_data = fetch_codex_quota()
+                print_codex_card(o_data)
+            except Exception:
+                pass
+            try:
+                k_data = fetch_kiro_quota()
+                print_kiro_card(k_data)
+            except Exception:
+                pass
+            return
+
         profiles = get_all_profiles()
 
         print(f"{CYAN}Scanning quota for {len(profiles)} profiles in parallel...{RESET}")
@@ -2618,9 +2659,32 @@ def main():
 
         results.sort(key=lambda x: profiles.index(x["profile"]) if x["profile"] in profiles else 999)
 
+        if filter_active:
+            results = [r for r in results if r.get("success")]
+        elif filter_login:
+            results = [r for r in results if not r.get("success") and not r.get("is_appeal") and r.get("status") != "DISABLED"]
+        elif filter_blocked:
+            results = [r for r in results if r.get("is_appeal") or r.get("status") == "DISABLED"]
+
         if "--table" in args:
-            print_all_summary(results)
+            print_all_summary(results, show_providers=(not filter_active and not filter_login and not filter_blocked))
         else:
+            if not filter_active and not filter_login and not filter_blocked:
+                try:
+                    c_data = fetch_claude_quota()
+                    print_claude_card(c_data)
+                except Exception:
+                    pass
+                try:
+                    o_data = fetch_codex_quota()
+                    print_codex_card(o_data)
+                except Exception:
+                    pass
+                try:
+                    k_data = fetch_kiro_quota()
+                    print_kiro_card(k_data)
+                except Exception:
+                    pass
             for r in results:
                 print_dashboard_cards(r)
     elif target == "kiro":

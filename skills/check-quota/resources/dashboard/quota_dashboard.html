@@ -149,8 +149,7 @@
             <h1 class="text-base sm:text-lg font-bold tracking-tight text-[var(--foreground)]">Antigravity Quota
               Dashboard</h1>
             <span id="profileCountBadge"
-              class="text-xs px-2.5 py-0.5 rounded-full bg-sky-500/10 text-sky-400 border border-sky-500/20 font-mono font-medium">8
-              Profiles</span>
+              class="text-xs px-2.5 py-0.5 rounded-full bg-sky-500/10 text-sky-400 border border-sky-500/20 font-mono font-medium">3 AI Providers • 23 Profiles (26 Tổng)</span>
             <span
               class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-mono font-semibold">✓
               % CÒN LẠI (REMAINING)</span>
@@ -160,25 +159,32 @@
 
             <!-- Account Status Statistics Badges (Click to Filter) -->
             <div class="flex items-center gap-1.5 flex-wrap">
-              <button type="button" onclick="setStatusFilter('ACTIVE')" id="statBtnActive"
-                class="text-[11px] px-2.5 py-0.5 rounded-full bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/40 font-mono font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm hover:scale-105 select-none"
-                title="Bấm để lọc: Xem các tài khoản đang hoạt động (Active)">
-                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                <span id="statActiveCount">13 Active</span>
+              <button type="button" onclick="setStatusFilter('PROVIDERS')" id="statBtnProviders"
+                class="text-[11px] px-2.5 py-0.5 rounded-full bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border border-purple-500/40 font-mono font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm hover:scale-105 select-none"
+                title="Bấm để lọc: Xem các AI Providers (Claude, Codex, Kiro)">
+                <span class="w-1.5 h-1.5 rounded-full bg-purple-400"></span>
+                <span id="statProvidersCount">3 Providers (Claude, Codex, Kiro)</span>
               </button>
 
-              <button type="button" onclick="setStatusFilter('DISABLED')" id="statBtnDisabled"
-                class="text-[11px] px-2.5 py-0.5 rounded-full bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/40 font-mono font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm hover:scale-105 select-none"
-                title="Bấm để lọc: Xem các tài khoản bị khóa (Appeal needed)">
-                <span class="w-1.5 h-1.5 rounded-full bg-rose-400"></span>
-                <span id="statDisabledCount">7 Bị khóa</span>
+              <button type="button" onclick="setStatusFilter('ACTIVE')" id="statBtnActive"
+                class="text-[11px] px-2.5 py-0.5 rounded-full bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/40 font-mono font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm hover:scale-105 select-none"
+                title="Bấm để lọc: Xem các tài khoản đang hoạt động (Active Profiles)">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                <span id="statActiveCount">13 Active Profiles</span>
               </button>
 
               <button type="button" onclick="setStatusFilter('AUTH NEEDED')" id="statBtnAuthNeeded"
                 class="text-[11px] px-2.5 py-0.5 rounded-full bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/40 font-mono font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm hover:scale-105 select-none"
-                title="Bấm để lọc: Xem các tài khoản cần đăng nhập CLI">
+                title="Bấm để lọc: Xem các tài khoản cần đăng nhập CLI (Needed Login Profiles)">
                 <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
-                <span id="statAuthNeededCount">4 Cần login</span>
+                <span id="statAuthNeededCount">4 Needed Login</span>
+              </button>
+
+              <button type="button" onclick="setStatusFilter('DISABLED')" id="statBtnDisabled"
+                class="text-[11px] px-2.5 py-0.5 rounded-full bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/40 font-mono font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm hover:scale-105 select-none"
+                title="Bấm để lọc: Xem các tài khoản bị khóa (Blocked Profiles / Appeal Needed)">
+                <span class="w-1.5 h-1.5 rounded-full bg-rose-400"></span>
+                <span id="statDisabledCount">7 Blocked Profiles</span>
               </button>
 
               <button type="button" id="statBtnExhausted" onclick="setStatusFilter('EXHAUSTED')"
@@ -211,13 +217,11 @@
 
         <select id="statusFilter" onchange="filterProfiles()"
           class="bg-[var(--background)] text-[var(--foreground)] border border-[var(--border)] text-xs rounded-lg px-2.5 py-1.5 font-medium outline-none cursor-pointer hover:border-sky-500/50 transition-colors">
-          <option value="ALL" id="optFilterAll">Tất cả mục (24)</option>
-          <option value="PROVIDERS" id="optFilterProviders">Chỉ AI Providers (2)</option>
-          <option value="PROFILES" id="optFilterProfiles">Chỉ Antigravity Profiles (22)</option>
-          <option value="ACTIVE" id="optFilterActive">Chỉ ACTIVE</option>
-          <option value="DISABLED" id="optFilterDisabled">Chỉ BỊ KHÓA (APPEAL)</option>
-          <option value="EXHAUSTED" id="optFilterExhausted">Chỉ EXHAUSTED</option>
-          <option value="AUTH NEEDED" id="optFilterAuthNeeded">Chỉ CẦN LOGIN</option>
+          <option value="ALL" id="optFilterAll">Tất cả mục (26)</option>
+          <option value="PROVIDERS" id="optFilterProviders">AI Providers (Claude, Codex, Kiro)</option>
+          <option value="ACTIVE" id="optFilterActive">Active Profiles</option>
+          <option value="AUTH NEEDED" id="optFilterAuthNeeded">Needed Login Profiles</option>
+          <option value="DISABLED" id="optFilterDisabled">Blocked Profiles (Appeal Needed)</option>
         </select>
 
         <!-- Sort / Re-order Dropdown -->
@@ -2386,22 +2390,52 @@
 
     function getOrderedProfiles() {
       let profiles = Object.keys(PROFILES_DATA);
+      const providerPriority = ["claude", "codex", "kiro"];
+
+      // Helper to sort providers strictly: claude -> codex -> kiro
+      function sortProviders(list) {
+        return list.slice().sort((a, b) => {
+          const idxA = providerPriority.indexOf(a);
+          const idxB = providerPriority.indexOf(b);
+          if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+          if (idxA !== -1) return -1;
+          if (idxB !== -1) return 1;
+          return a.localeCompare(b);
+        });
+      }
+
+      const providers = sortProviders(profiles.filter(p => providerPriority.includes(p) || PROFILES_DATA[p]?.isProvider));
+      const nonProviders = profiles.filter(p => !providers.includes(p));
 
       // If custom order exists and is applied
       if (currentSortOrder === "CUSTOM" && customProfileOrder.length > 0) {
         const set = new Set(profiles);
-        const sorted = customProfileOrder.filter(p => set.has(p));
+        let sorted = customProfileOrder.filter(p => set.has(p));
+        // Requirement: Pin / insert kiro right after codex
+        if (set.has("kiro")) {
+          const kiroIdx = sorted.indexOf("kiro");
+          if (kiroIdx !== -1) sorted.splice(kiroIdx, 1);
+          const codexIdx = sorted.indexOf("codex");
+          if (codexIdx !== -1) {
+            sorted.splice(codexIdx + 1, 0, "kiro");
+          } else {
+            const claudeIdx = sorted.indexOf("claude");
+            if (claudeIdx !== -1) sorted.splice(claudeIdx + 1, 0, "kiro");
+            else sorted.unshift("kiro");
+          }
+        }
         profiles.forEach(p => { if (!sorted.includes(p)) sorted.push(p); });
         return sorted;
       }
 
       if (currentSortOrder === "QUOTA_DESC") {
-        return profiles.sort((a, b) => getProfileQuotaScore(b) - getProfileQuotaScore(a));
+        const sortedSatellites = nonProviders.sort((a, b) => getProfileQuotaScore(b) - getProfileQuotaScore(a));
+        return [...providers, ...sortedSatellites];
       }
 
       if (currentSortOrder === "STATUS_ACTIVE") {
         const orderMap = { "ACTIVE": 0, "EXHAUSTED": 1, "AUTH NEEDED": 2, "DISABLED": 3 };
-        return profiles.sort((a, b) => {
+        const sortedSatellites = nonProviders.sort((a, b) => {
           const sa = PROFILES_DATA[a]?.status || "ACTIVE";
           const sb = PROFILES_DATA[b]?.status || "ACTIVE";
           const wa = orderMap[sa] ?? 9;
@@ -2409,34 +2443,37 @@
           if (wa !== wb) return wa - wb;
           return a.localeCompare(b);
         });
+        return [...providers, ...sortedSatellites];
       }
 
       if (currentSortOrder === "ARGON_FIRST") {
-        return profiles.sort((a, b) => {
+        const sortedSatellites = nonProviders.sort((a, b) => {
           const haA = PROFILES_DATA[a]?.hasArgon ? 1 : 0;
           const haB = PROFILES_DATA[b]?.hasArgon ? 1 : 0;
           if (haA !== haB) return haB - haA;
           return a.localeCompare(b);
         });
+        return [...providers, ...sortedSatellites];
       }
 
       if (currentSortOrder === "PRIORITY_DESC") {
-        return profiles.sort((a, b) => {
+        const sortedSatellites = nonProviders.sort((a, b) => {
           const pa = PROFILES_DATA[a]?.priority || 50;
           const pb = PROFILES_DATA[b]?.priority || 50;
           if (pa !== pb) return pb - pa;
           return a.localeCompare(b);
         });
+        return [...providers, ...sortedSatellites];
       }
 
       if (currentSortOrder === "NAME_DESC") {
-        return profiles.sort((a, b) => b.localeCompare(a));
+        const sortedSatellites = nonProviders.sort((a, b) => b.localeCompare(a));
+        return [...providers, ...sortedSatellites];
       }
 
-      // DEFAULT: Pin providers (claude, codex) at top, then satellite profiles
-      const providers = profiles.filter(p => p === "claude" || p === "codex" || PROFILES_DATA[p]?.isProvider).sort();
-      const satellites = profiles.filter(p => !providers.includes(p)).sort();
-      return [...providers, ...satellites];
+      // DEFAULT: Pin providers (claude -> codex -> kiro) at top, then satellite profiles A-Z
+      const sortedSatellites = nonProviders.sort((a, b) => a.localeCompare(b));
+      return [...providers, ...sortedSatellites];
     }
 
     function getProfileQuotaScore(profile) {
@@ -2520,15 +2557,17 @@
     }
 
     function updateStatisticBadges(active, disabled, authNeeded, exhausted, providers, profiles) {
+      const elProviders = document.getElementById("statProvidersCount");
       const elActive = document.getElementById("statActiveCount");
       const elDisabled = document.getElementById("statDisabledCount");
       const elAuth = document.getElementById("statAuthNeededCount");
       const elExhausted = document.getElementById("statExhaustedCount");
       const btnExhausted = document.getElementById("statBtnExhausted");
 
-      if (elActive) elActive.textContent = `${active} Active`;
-      if (elDisabled) elDisabled.textContent = `${disabled} Bị khóa`;
-      if (elAuth) elAuth.textContent = `${authNeeded} Cần login`;
+      if (elProviders) elProviders.textContent = `${providers || 3} Providers (Claude, Codex, Kiro)`;
+      if (elActive) elActive.textContent = `${active} Active Profiles`;
+      if (elDisabled) elDisabled.textContent = `${disabled} Blocked Profiles`;
+      if (elAuth) elAuth.textContent = `${authNeeded} Needed Login Profiles`;
       if (elExhausted) elExhausted.textContent = `${exhausted} Hết quota`;
       if (btnExhausted) {
         if (exhausted > 0) btnExhausted.classList.remove("hidden");
@@ -2538,7 +2577,6 @@
       // Update dropdown option labels
       const optAll = document.getElementById("optFilterAll");
       const optProv = document.getElementById("optFilterProviders");
-      const optProf = document.getElementById("optFilterProfiles");
       const optAct = document.getElementById("optFilterActive");
       const optDis = document.getElementById("optFilterDisabled");
       const optAuth = document.getElementById("optFilterAuthNeeded");
@@ -2546,32 +2584,36 @@
 
       const total = (providers || 0) + (profiles || 0);
       if (optAll) optAll.textContent = `Tất cả mục (${total})`;
-      if (optProv) optProv.textContent = `Chỉ AI Providers (${providers || 0})`;
-      if (optProf) optProf.textContent = `Chỉ Antigravity Profiles (${profiles || 0})`;
-      if (optAct) optAct.textContent = `Chỉ ACTIVE (${active})`;
-      if (optDis) optDis.textContent = `Chỉ BỊ KHÓA (${disabled})`;
-      if (optAuth) optAuth.textContent = `Chỉ CẦN LOGIN (${authNeeded})`;
-      if (optExh) optExh.textContent = `Chỉ HẾT QUOTA (${exhausted})`;
+      if (optProv) optProv.textContent = `AI Providers (Claude, Codex, Kiro) (${providers || 0})`;
+      if (optAct) optAct.textContent = `Active Profiles (${active})`;
+      if (optAuth) optAuth.textContent = `Needed Login Profiles (${authNeeded})`;
+      if (optDis) optDis.textContent = `Blocked Profiles (${disabled})`;
+      if (optExh) optExh.textContent = `Hết quota (${exhausted})`;
 
       // Highlight active filter pill
       const sel = document.getElementById("statusFilter");
       const curFilter = sel ? sel.value : "ALL";
 
+      const btnProv = document.getElementById("statBtnProviders");
       const btnA = document.getElementById("statBtnActive");
-      const btnD = document.getElementById("statBtnDisabled");
       const btnAuth = document.getElementById("statBtnAuthNeeded");
+      const btnD = document.getElementById("statBtnDisabled");
 
+      if (btnProv) {
+        if (curFilter === "PROVIDERS") btnProv.classList.add("ring-2", "ring-purple-400", "bg-purple-500/30");
+        else btnProv.classList.remove("ring-2", "ring-purple-400", "bg-purple-500/30");
+      }
       if (btnA) {
         if (curFilter === "ACTIVE") btnA.classList.add("ring-2", "ring-emerald-400", "bg-emerald-500/30");
         else btnA.classList.remove("ring-2", "ring-emerald-400", "bg-emerald-500/30");
       }
-      if (btnD) {
-        if (curFilter === "DISABLED") btnD.classList.add("ring-2", "ring-rose-400", "bg-rose-500/30");
-        else btnD.classList.remove("ring-2", "ring-rose-400", "bg-rose-500/30");
-      }
       if (btnAuth) {
         if (curFilter === "AUTH NEEDED") btnAuth.classList.add("ring-2", "ring-amber-400", "bg-amber-500/30");
         else btnAuth.classList.remove("ring-2", "ring-amber-400", "bg-amber-500/30");
+      }
+      if (btnD) {
+        if (curFilter === "DISABLED") btnD.classList.add("ring-2", "ring-rose-400", "bg-rose-500/30");
+        else btnD.classList.remove("ring-2", "ring-rose-400", "bg-rose-500/30");
       }
     }
 
@@ -2599,18 +2641,21 @@
         sortSelect.value = currentSortOrder;
       }
 
-      // Compute global statistics across all accounts
+      // Compute global statistics across all accounts:
+      // Separate AI Providers from Satellite Antigravity Profiles
       let sActive = 0, sDisabled = 0, sAuthNeeded = 0, sExhausted = 0, sProviders = 0, sProfiles = 0;
       Object.keys(PROFILES_DATA).forEach(p => {
         const d = PROFILES_DATA[p];
         if (!d) return;
-        if (d.isProvider) sProviders++;
-        else sProfiles++;
-
-        if (d.status === "DISABLED" || d.isAppeal) sDisabled++;
-        else if (d.status === "AUTH NEEDED") sAuthNeeded++;
-        else if (d.status === "EXHAUSTED") sExhausted++;
-        else sActive++;
+        if (d.isProvider) {
+          sProviders++;
+        } else {
+          sProfiles++;
+          if (d.status === "DISABLED" || d.isAppeal) sDisabled++;
+          else if (d.status === "AUTH NEEDED") sAuthNeeded++;
+          else if (d.status === "EXHAUSTED") sExhausted++;
+          else sActive++;
+        }
       });
       updateStatisticBadges(sActive, sDisabled, sAuthNeeded, sExhausted, sProviders, sProfiles);
 
@@ -2621,11 +2666,17 @@
 
         if (search && !profile.toLowerCase().includes(search) && !(data.displayName && data.displayName.toLowerCase().includes(search))) return;
         if (statusFilter && statusFilter !== "ALL") {
-          if (statusFilter === "PROVIDERS" && !data.isProvider) return;
-          if (statusFilter === "PROFILES" && data.isProvider) return;
-          if (statusFilter === "DISABLED" && !(data.status === "DISABLED" || data.isAppeal)) return;
-          if (statusFilter === "ACTIVE" && (data.status === "DISABLED" || data.isAppeal || data.status === "AUTH NEEDED" || data.status === "EXHAUSTED")) return;
-          if (statusFilter !== "PROVIDERS" && statusFilter !== "PROFILES" && statusFilter !== "DISABLED" && statusFilter !== "ACTIVE" && data.status !== statusFilter) return;
+          if (statusFilter === "PROVIDERS") {
+            if (!data.isProvider) return;
+          } else if (statusFilter === "ACTIVE") {
+            if (data.isProvider || data.status === "DISABLED" || data.isAppeal || data.status === "AUTH NEEDED" || data.status === "EXHAUSTED") return;
+          } else if (statusFilter === "AUTH NEEDED") {
+            if (data.isProvider || data.status !== "AUTH NEEDED") return;
+          } else if (statusFilter === "DISABLED") {
+            if (data.isProvider || !(data.status === "DISABLED" || data.isAppeal)) return;
+          } else if (statusFilter === "EXHAUSTED") {
+            if (data.status !== "EXHAUSTED") return;
+          }
         }
 
         matchingProfiles.push(profile);
@@ -2670,14 +2721,24 @@
 
       const countBadge = document.getElementById("profileCountBadge");
       if (countBadge) {
-        const provCount = matchingProfiles.filter(p => PROFILES_DATA[p]?.isProvider).length;
-        const profCount = matchingProfiles.length - provCount;
-        if (provCount > 0 && profCount > 0) {
-          countBadge.textContent = `${provCount} AI Providers • ${profCount} Profiles (${matchingProfiles.length} Tổng)`;
-        } else if (provCount > 0) {
-          countBadge.textContent = `${provCount} AI Providers`;
+        if (statusFilter === "PROVIDERS") {
+          countBadge.textContent = `${matchingProfiles.length} AI Providers (Claude, Codex, Kiro)`;
+        } else if (statusFilter === "ACTIVE") {
+          countBadge.textContent = `${matchingProfiles.length} Active Profiles`;
+        } else if (statusFilter === "AUTH NEEDED") {
+          countBadge.textContent = `${matchingProfiles.length} Needed Login Profiles`;
+        } else if (statusFilter === "DISABLED") {
+          countBadge.textContent = `${matchingProfiles.length} Blocked Profiles`;
         } else {
-          countBadge.textContent = `${profCount} Profiles`;
+          const provCount = matchingProfiles.filter(p => PROFILES_DATA[p]?.isProvider).length;
+          const profCount = matchingProfiles.length - provCount;
+          if (provCount > 0 && profCount > 0) {
+            countBadge.textContent = `${provCount} AI Providers • ${profCount} Profiles (${matchingProfiles.length} Tổng)`;
+          } else if (provCount > 0) {
+            countBadge.textContent = `${provCount} AI Providers`;
+          } else {
+            countBadge.textContent = `${profCount} Profiles`;
+          }
         }
       }
     }
