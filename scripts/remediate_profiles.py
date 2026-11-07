@@ -138,6 +138,14 @@ def remediate():
         if os.path.isfile(vscdb_path) and os.path.isfile(kc_path) and profile != "danhdue":
             try:
                 import base64, subprocess
+                # Terminate any stale resident IDE / agy processes for this profile
+                # to prevent Electron RAM from overwriting SQLite changes on exit
+                pids_proc = subprocess.run(["pgrep", "-f", f"antigravity_homes/{profile}"], capture_output=True, text=True)
+                pids = [p.strip() for p in pids_proc.stdout.splitlines() if p.strip()]
+                if pids:
+                    subprocess.run(["pkill", "-9", "-f", f"antigravity_homes/{profile}"], capture_output=True)
+                    print(f"  ✓ Terminated {len(pids)} stale resident processes for {profile} (PIDs: {', '.join(pids)})")
+
                 subprocess.run(["security", "unlock-keychain", "-p", "H@No!a@12345", kc_path], capture_output=True)
                 res = subprocess.run(["security", "find-generic-password", "-s", "gemini", "-a", "antigravity", "-g", kc_path], capture_output=True, text=True)
                 raw_err = res.stderr or ""

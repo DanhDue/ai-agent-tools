@@ -149,7 +149,7 @@
             <h1 class="text-base sm:text-lg font-bold tracking-tight text-[var(--foreground)]">Antigravity Quota
               Dashboard</h1>
             <span id="profileCountBadge"
-              class="text-xs px-2.5 py-0.5 rounded-full bg-sky-500/10 text-sky-400 border border-sky-500/20 font-mono font-medium">3 AI Providers • 23 Profiles (26 Tổng)</span>
+              class="text-xs px-2.5 py-0.5 rounded-full bg-sky-500/10 text-sky-400 border border-sky-500/20 font-mono font-medium">3 Providers • 23 Profiles (26 Tổng)</span>
             <span
               class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-mono font-semibold">✓
               % CÒN LẠI (REMAINING)</span>
@@ -163,7 +163,7 @@
                 class="text-[11px] px-2.5 py-0.5 rounded-full bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border border-purple-500/40 font-mono font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm hover:scale-105 select-none"
                 title="Bấm để lọc: Xem các AI Providers (Claude, Codex, Kiro)">
                 <span class="w-1.5 h-1.5 rounded-full bg-purple-400"></span>
-                <span id="statProvidersCount">3 Providers (Claude, Codex, 👻 Kiro)</span>
+                <span id="statProvidersCount">3 Providers</span>
               </button>
 
               <button type="button" onclick="setStatusFilter('ACTIVE')" id="statBtnActive"
@@ -218,7 +218,7 @@
         <select id="statusFilter" onchange="filterProfiles()"
           class="bg-[var(--background)] text-[var(--foreground)] border border-[var(--border)] text-xs rounded-lg px-2.5 py-1.5 font-medium outline-none cursor-pointer hover:border-sky-500/50 transition-colors">
           <option value="ALL" id="optFilterAll">Tất cả mục (26)</option>
-          <option value="PROVIDERS" id="optFilterProviders">AI Providers (Claude, Codex, 👻 Kiro)</option>
+          <option value="PROVIDERS" id="optFilterProviders">AI Providers</option>
           <option value="ACTIVE" id="optFilterActive">Active Profiles</option>
           <option value="AUTH NEEDED" id="optFilterAuthNeeded">Needed Login Profiles</option>
           <option value="DISABLED" id="optFilterDisabled">Blocked Profiles (Appeal Needed)</option>
@@ -2564,7 +2564,7 @@
       const elExhausted = document.getElementById("statExhaustedCount");
       const btnExhausted = document.getElementById("statBtnExhausted");
 
-      if (elProviders) elProviders.textContent = `${providers || 3} Providers (Claude, Codex, 👻 Kiro)`;
+      if (elProviders) elProviders.textContent = `${providers || 3} Providers`;
       if (elActive) elActive.textContent = `${active} Active Profiles`;
       if (elDisabled) elDisabled.textContent = `${disabled} Blocked Profiles`;
       if (elAuth) elAuth.textContent = `${authNeeded} Needed Login Profiles`;
@@ -2584,7 +2584,7 @@
 
       const total = (providers || 0) + (profiles || 0);
       if (optAll) optAll.textContent = `Tất cả mục (${total})`;
-      if (optProv) optProv.textContent = `AI Providers (Claude, Codex, 👻 Kiro) (${providers || 0})`;
+      if (optProv) optProv.textContent = `AI Providers (${providers || 0})`;
       if (optAct) optAct.textContent = `Active Profiles (${active})`;
       if (optAuth) optAuth.textContent = `Needed Login Profiles (${authNeeded})`;
       if (optDis) optDis.textContent = `Blocked Profiles (${disabled})`;
@@ -2722,7 +2722,7 @@
       const countBadge = document.getElementById("profileCountBadge");
       if (countBadge) {
         if (statusFilter === "PROVIDERS") {
-          countBadge.textContent = `${matchingProfiles.length} AI Providers (Claude, Codex, 👻 Kiro)`;
+          countBadge.textContent = `${matchingProfiles.length} Providers`;
         } else if (statusFilter === "ACTIVE") {
           countBadge.textContent = `${matchingProfiles.length} Active Profiles`;
         } else if (statusFilter === "AUTH NEEDED") {
@@ -2733,9 +2733,9 @@
           const provCount = matchingProfiles.filter(p => PROFILES_DATA[p]?.isProvider).length;
           const profCount = matchingProfiles.length - provCount;
           if (provCount > 0 && profCount > 0) {
-            countBadge.textContent = `${provCount} AI Providers • ${profCount} Profiles (${matchingProfiles.length} Tổng)`;
+            countBadge.textContent = `${provCount} Providers • ${profCount} Profiles (${matchingProfiles.length} Tổng)`;
           } else if (provCount > 0) {
-            countBadge.textContent = `${provCount} AI Providers`;
+            countBadge.textContent = `${provCount} Providers`;
           } else {
             countBadge.textContent = `${profCount} Profiles`;
           }

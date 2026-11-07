@@ -205,5 +205,6 @@ git commit -m "[EPIC_NAME] Task title" -m "- subtask title 01
 > 6. **Strict Antigravity Profile Identity & State Decoupling**:
 >    - **Independent Antigravity State**: All internal Antigravity runtime state (`.gemini/antigravity`, conversation summaries, and `data/User/globalStorage/state.vscdb`) MUST remain strictly independent per profile. Never symlink `.gemini/antigravity` or `state.vscdb` to `$REAL_HOME` or another profile.
 >    - **Identity Parity with Keychain**: The stored username in `data/User/globalStorage/state.vscdb` (`google.google-antigravity -> agy.onboarding.lastLoginUsername`) MUST match the profile's dedicated Keychain (`<profile>.keychain-db`).
+>    - **Process & Token Hygiene**: Always terminate resident Electron PIDs of a profile (`pkill -f antigravity_homes/<profile>`) before modifying its DB to prevent stale RAM overwrites, and purge `signedOut` OAuth flags. For the exhaustive local protocol, see `.agents/rules/profile_isolation_rules.md`.
 >    - **No Blind State Cloning**: Agents MUST NEVER clone `state.vscdb` from another profile without resetting `agy.onboarding.lastLoginUsername` to the target profile's email, and purging stale `comments`, `workspaceStorage`, and cross-profile paths from `extensions.user.cache`.
 

@@ -83,3 +83,10 @@ When creating or provisioning a new Antigravity profile:
 3. **Stagger Cron Jobs**: Add random sleep jitter (1–60s) before executing automated refresh tasks.
 4. **Use Scoped Keychain Unlock**: Always unlock `<profile>.keychain-db` locally without mutating macOS global default keychain (`login.keychain-db`).
 
+---
+
+## 6. Profile Isolation & Identity Parity Protocol
+
+To prevent profile identity bleed, stale RAM database overwrites, or breaking host macOS services (AirDrop, Apple ID, Keychain), all profile troubleshooting and remediation MUST follow the [Profile Isolation and Remediation Protocol](references/profile-isolation-and-remediation.md).
+
+
