@@ -187,6 +187,14 @@
                 <span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
                 <span id="statExhaustedCount">0 Hết quota</span>
               </button>
+
+              <!-- Last Sync Status Indicator (Nơi hiển thị status chung) -->
+              <div id="lastSyncIndicator"
+                class="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-800/80 border border-slate-700/80 text-[11px] text-slate-300 font-mono font-medium shadow-sm select-none"
+                title="Thời gian từ lần đồng bộ gần nhất. Khi đang mở tab, hệ thống KHÔNG tự động quét mà yêu cầu bấm 'Refresh tất cả' bằng tay. Hệ thống CHỈ tự động làm mới lúc khởi tạo (init/reload trang) nếu đã quá 30 phút.">
+                <span id="lastSyncDot" class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                <span id="lastSyncLabel">Đang đồng bộ...</span>
+              </div>
             </div>
           </div>
         </div>
@@ -230,14 +238,6 @@
           class="px-3 py-1.5 rounded-lg bg-sky-500 hover:bg-sky-600 text-white font-semibold text-xs transition-colors flex items-center gap-1.5 shadow-sm">
           <span>⚡</span> <span>Refresh tất cả</span>
         </button>
-
-        <!-- Last Sync Status Indicator (Chính sách 30 phút) -->
-        <div id="lastSyncIndicator"
-          class="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[var(--background)] border border-[var(--border)] text-xs text-slate-300 font-mono shadow-sm select-none"
-          title="Chính sách: Hệ thống tự động refresh sau mỗi 30 phút khi mở/reload trang. Bạn có thể bấm 'Refresh tất cả' để làm mới thủ công bất kỳ lúc nào.">
-          <span id="lastSyncDot" class="w-2 h-2 rounded-full bg-emerald-400"></span>
-          <span id="lastSyncLabel">Đang đồng bộ...</span>
-        </div>
 
         <!-- Button Lên lịch nhiều tài khoản: Bấm để hiện checkbox ở grid + bottom action bar -->
         <button onclick="toggleBatchSelectMode()" id="batchScheduleBtn"
@@ -745,44 +745,44 @@
     "status": "ACTIVE",
     "isAppeal": false,
     "isSessionActive": true,
-    "resetTime": "2026-11-07T01:01:42Z",
-    "resetTimeLocal": "08:01:42",
+    "resetTime": "2026-11-07T09:52:40Z",
+    "resetTimeLocal": "16:52:40",
     "hasArgon": true,
     "gemini5h": {
       "name": "Gemini 3.8 / Pro 5H",
-      "fraction": 0.7271350622177124,
-      "countdown": "⏱ 1h 10m (08:01:42)",
-      "resetTime": "2026-11-07T01:01:42Z",
-      "resetTimeLocal": "08:01:42",
+      "fraction": 0.9246697425842285,
+      "countdown": "⏱ 3h 44m (16:52:40)",
+      "resetTime": "2026-11-07T09:52:40Z",
+      "resetTimeLocal": "16:52:40",
       "unavailable": false
     },
     "claude5h": {
       "name": "Claude 5.5 / GPT 5H",
       "fraction": 1,
-      "countdown": "⏱ 4h 59m (11:51:21)",
-      "resetTime": "2026-11-07T04:51:21Z",
+      "countdown": "⏱ 4h 59m (18:08:25)",
+      "resetTime": "2026-11-07T11:08:25Z",
       "unavailable": false
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
-      "fraction": 0.9220385551452637,
-      "countdown": "⏱ 6d 11h (13/11 18:50)",
-      "resetTime": "2026-11-13T11:50:14Z",
-      "resetTimeLocal": "13/11 18:50",
+      "fraction": 0.9597671627998352,
+      "countdown": "⏱ 6d 17h (14/11 06:52)",
+      "resetTime": "2026-11-13T23:52:40Z",
+      "resetTimeLocal": "14/11 06:52",
       "unavailable": false
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
       "fraction": 1,
-      "countdown": "⏱ 6d 11h",
-      "resetTime": "2026-11-13T11:50:24Z",
+      "countdown": "⏱ 6d 23h",
+      "resetTime": "2026-11-14T06:08:25Z",
       "unavailable": false
     },
     "argonWeekly": {
       "name": "Gemini 4 Argon Weekly",
       "fraction": 1,
-      "countdown": "⏱ 6d 11h",
-      "resetTime": "2026-11-13T11:50:18Z",
+      "countdown": "⏱ 6d 23h",
+      "resetTime": "2026-11-14T06:08:25Z",
       "unavailable": false,
       "tags": true
     }
@@ -793,45 +793,45 @@
     "priority": 50,
     "status": "ACTIVE",
     "isAppeal": false,
-    "isSessionActive": false,
-    "resetTime": "2026-11-07T04:51:23Z",
-    "resetTimeLocal": "11:51:23",
+    "isSessionActive": true,
+    "resetTime": "2026-11-07T09:52:40Z",
+    "resetTimeLocal": "16:52:40",
     "hasArgon": true,
     "gemini5h": {
       "name": "Gemini 3.8 / Pro 5H",
-      "fraction": 1,
-      "countdown": "⏱ 4h 59m (11:51:23)",
-      "resetTime": "2026-11-07T04:51:23Z",
-      "resetTimeLocal": "11:51:23",
+      "fraction": 0.9282324910163879,
+      "countdown": "⏱ 3h 44m (16:52:40)",
+      "resetTime": "2026-11-07T09:52:40Z",
+      "resetTimeLocal": "16:52:40",
       "unavailable": false
     },
     "claude5h": {
       "name": "Claude 5.5 / GPT 5H",
       "fraction": 1,
-      "countdown": "⏱ 4h 59m (11:51:23)",
-      "resetTime": "2026-11-07T04:51:23Z",
+      "countdown": "⏱ 4h 59m (18:07:49)",
+      "resetTime": "2026-11-07T11:07:49Z",
       "unavailable": false
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
-      "fraction": 1,
-      "countdown": "⏱ 6d 23h (14/11 06:51)",
-      "resetTime": "2026-11-13T23:51:23Z",
-      "resetTimeLocal": "14/11 06:51",
+      "fraction": 0.9607850909233093,
+      "countdown": "⏱ 6d 17h (14/11 06:52)",
+      "resetTime": "2026-11-13T23:52:40Z",
+      "resetTimeLocal": "14/11 06:52",
       "unavailable": false
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
       "fraction": 1,
-      "countdown": "⏱ 6d 11h",
-      "resetTime": "2026-11-13T11:50:24Z",
+      "countdown": "⏱ 6d 23h",
+      "resetTime": "2026-11-14T06:07:49Z",
       "unavailable": false
     },
     "argonWeekly": {
       "name": "Gemini 4 Argon Weekly",
       "fraction": 1,
       "countdown": "⏱ 6d 23h",
-      "resetTime": "2026-11-13T23:51:23Z",
+      "resetTime": "2026-11-14T06:07:49Z",
       "unavailable": false,
       "tags": true
     }
@@ -925,44 +925,44 @@
     "status": "ACTIVE",
     "isAppeal": false,
     "isSessionActive": false,
-    "resetTime": "2026-11-07T04:51:24Z",
-    "resetTimeLocal": "11:51:24",
+    "resetTime": "2026-11-07T11:07:50Z",
+    "resetTimeLocal": "18:07:50",
     "hasArgon": true,
     "gemini5h": {
       "name": "Gemini 3.8 / Pro 5H",
       "fraction": 1,
-      "countdown": "⏱ 4h 59m (11:51:24)",
-      "resetTime": "2026-11-07T04:51:24Z",
-      "resetTimeLocal": "11:51:24",
+      "countdown": "⏱ 4h 59m (18:07:50)",
+      "resetTime": "2026-11-07T11:07:50Z",
+      "resetTimeLocal": "18:07:50",
       "unavailable": false
     },
     "claude5h": {
       "name": "Claude 5.5 / GPT 5H",
       "fraction": 1,
-      "countdown": "⏱ 4h 59m (11:51:24)",
-      "resetTime": "2026-11-07T04:51:24Z",
+      "countdown": "⏱ 4h 59m (18:07:50)",
+      "resetTime": "2026-11-07T11:07:50Z",
       "unavailable": false
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
       "fraction": 1,
-      "countdown": "⏱ 6d 23h (14/11 06:51)",
-      "resetTime": "2026-11-13T23:51:24Z",
-      "resetTimeLocal": "14/11 06:51",
+      "countdown": "⏱ 6d 23h (14/11 13:07)",
+      "resetTime": "2026-11-14T06:07:50Z",
+      "resetTimeLocal": "14/11 13:07",
       "unavailable": false
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
       "fraction": 0.9999427795410156,
-      "countdown": "⏱ 6d 2h",
+      "countdown": "⏱ 5d 20h",
       "resetTime": "2026-11-13T02:33:58Z",
       "unavailable": false
     },
     "argonWeekly": {
       "name": "Gemini 4 Argon Weekly",
-      "fraction": 1,
-      "countdown": "⏱ 6d 23h",
-      "resetTime": "2026-11-13T23:51:24Z",
+      "fraction": 0.821832537651062,
+      "countdown": "⏱ 6d 22h",
+      "resetTime": "2026-11-14T05:04:46Z",
       "unavailable": false,
       "tags": true
     }
@@ -973,45 +973,45 @@
     "priority": 50,
     "status": "ACTIVE",
     "isAppeal": false,
-    "isSessionActive": false,
-    "resetTime": "2026-11-07T04:36:46Z",
-    "resetTimeLocal": "11:36:46",
+    "isSessionActive": true,
+    "resetTime": "2026-11-07T09:52:38Z",
+    "resetTimeLocal": "16:52:38",
     "hasArgon": true,
     "gemini5h": {
       "name": "Gemini 3.8 / Pro 5H",
-      "fraction": 1,
-      "countdown": "⏱ 4h 45m (11:36:46)",
-      "resetTime": "2026-11-07T04:36:46Z",
-      "resetTimeLocal": "11:36:46",
+      "fraction": 0.847084105014801,
+      "countdown": "⏱ 3h 44m (16:52:38)",
+      "resetTime": "2026-11-07T09:52:38Z",
+      "resetTimeLocal": "16:52:38",
       "unavailable": false
     },
     "claude5h": {
       "name": "Claude 5.5 / GPT 5H",
       "fraction": 1,
-      "countdown": "⏱ 4h 59m (11:51:27)",
-      "resetTime": "2026-11-07T04:51:27Z",
+      "countdown": "⏱ 4h 59m (18:07:56)",
+      "resetTime": "2026-11-07T11:07:56Z",
       "unavailable": false
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
-      "fraction": 0.9773674607276917,
-      "countdown": "⏱ 6d 11h (13/11 18:50)",
-      "resetTime": "2026-11-13T11:50:14Z",
-      "resetTimeLocal": "13/11 18:50",
+      "fraction": 0.8198285102844238,
+      "countdown": "⏱ 6d 17h (14/11 06:52)",
+      "resetTime": "2026-11-13T23:52:38Z",
+      "resetTimeLocal": "14/11 06:52",
       "unavailable": false
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
       "fraction": 1,
-      "countdown": "⏱ 6d 11h",
-      "resetTime": "2026-11-13T11:50:27Z",
+      "countdown": "⏱ 6d 23h",
+      "resetTime": "2026-11-14T06:07:56Z",
       "unavailable": false
     },
     "argonWeekly": {
       "name": "Gemini 4 Argon Weekly",
-      "fraction": 0.4640498757362366,
-      "countdown": "⏱ 6d 11h",
-      "resetTime": "2026-11-13T11:20:00Z",
+      "fraction": 1,
+      "countdown": "⏱ 6d 23h",
+      "resetTime": "2026-11-14T06:07:56Z",
       "unavailable": false,
       "tags": true
     }
@@ -1023,36 +1023,36 @@
     "status": "ACTIVE",
     "isAppeal": false,
     "isSessionActive": false,
-    "resetTime": "2026-11-07T04:51:28Z",
-    "resetTimeLocal": "11:51:28",
+    "resetTime": "2026-11-07T11:07:55Z",
+    "resetTimeLocal": "18:07:55",
     "hasArgon": true,
     "gemini5h": {
       "name": "Gemini 3.8 / Pro 5H",
       "fraction": 1,
-      "countdown": "⏱ 4h 59m (11:51:28)",
-      "resetTime": "2026-11-07T04:51:28Z",
-      "resetTimeLocal": "11:51:28",
+      "countdown": "⏱ 4h 59m (18:07:55)",
+      "resetTime": "2026-11-07T11:07:55Z",
+      "resetTimeLocal": "18:07:55",
       "unavailable": false
     },
     "claude5h": {
       "name": "Claude 5.5 / GPT 5H",
       "fraction": 1,
-      "countdown": "⏱ 4h 59m (11:51:28)",
-      "resetTime": "2026-11-07T04:51:28Z",
+      "countdown": "⏱ 4h 59m (18:07:55)",
+      "resetTime": "2026-11-07T11:07:55Z",
       "unavailable": false
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
       "fraction": 1,
-      "countdown": "⏱ 6d 23h (14/11 06:51)",
-      "resetTime": "2026-11-13T23:51:28Z",
-      "resetTimeLocal": "14/11 06:51",
+      "countdown": "⏱ 6d 23h (14/11 13:07)",
+      "resetTime": "2026-11-14T06:07:55Z",
+      "resetTimeLocal": "14/11 13:07",
       "unavailable": false
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
       "fraction": 0.45513561367988586,
-      "countdown": "⏱ 4d 11h",
+      "countdown": "⏱ 4d 4h",
       "resetTime": "2026-11-11T11:01:11Z",
       "unavailable": false
     },
@@ -1060,7 +1060,7 @@
       "name": "Gemini 4 Argon Weekly",
       "fraction": 1,
       "countdown": "⏱ 6d 23h",
-      "resetTime": "2026-11-13T23:51:28Z",
+      "resetTime": "2026-11-14T06:07:55Z",
       "unavailable": false,
       "tags": true
     }
@@ -1072,44 +1072,44 @@
     "status": "ACTIVE",
     "isAppeal": false,
     "isSessionActive": false,
-    "resetTime": "2026-11-07T04:51:29Z",
-    "resetTimeLocal": "11:51:29",
+    "resetTime": "2026-11-07T11:07:57Z",
+    "resetTimeLocal": "18:07:57",
     "hasArgon": true,
     "gemini5h": {
       "name": "Gemini 3.8 / Pro 5H",
       "fraction": 1,
-      "countdown": "⏱ 4h 59m (11:51:29)",
-      "resetTime": "2026-11-07T04:51:29Z",
-      "resetTimeLocal": "11:51:29",
+      "countdown": "⏱ 4h 59m (18:07:57)",
+      "resetTime": "2026-11-07T11:07:57Z",
+      "resetTimeLocal": "18:07:57",
       "unavailable": false
     },
     "claude5h": {
       "name": "Claude 5.5 / GPT 5H",
       "fraction": 1,
-      "countdown": "⏱ 4h 59m (11:51:29)",
-      "resetTime": "2026-11-07T04:51:29Z",
+      "countdown": "⏱ 4h 59m (18:07:57)",
+      "resetTime": "2026-11-07T11:07:57Z",
       "unavailable": false
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
       "fraction": 1,
-      "countdown": "⏱ 6d 23h (14/11 06:51)",
-      "resetTime": "2026-11-13T23:51:29Z",
-      "resetTimeLocal": "14/11 06:51",
+      "countdown": "⏱ 6d 23h (14/11 13:07)",
+      "resetTime": "2026-11-14T06:07:57Z",
+      "resetTimeLocal": "14/11 13:07",
       "unavailable": false
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
       "fraction": 1,
-      "countdown": "⏱ 6d 11h",
-      "resetTime": "2026-11-13T11:50:18Z",
+      "countdown": "⏱ 6d 23h",
+      "resetTime": "2026-11-14T06:07:57Z",
       "unavailable": false
     },
     "argonWeekly": {
       "name": "Gemini 4 Argon Weekly",
       "fraction": 1,
       "countdown": "⏱ 6d 23h",
-      "resetTime": "2026-11-13T23:51:29Z",
+      "resetTime": "2026-11-14T06:07:57Z",
       "unavailable": false,
       "tags": true
     }
@@ -1159,37 +1159,37 @@
     "priority": 50,
     "status": "ACTIVE",
     "isAppeal": false,
-    "isSessionActive": false,
-    "resetTime": "2026-11-07T04:51:32Z",
-    "resetTimeLocal": "11:51:32",
+    "isSessionActive": true,
+    "resetTime": "2026-11-07T09:54:14Z",
+    "resetTimeLocal": "16:54:14",
     "hasArgon": true,
     "gemini5h": {
       "name": "Gemini 3.8 / Pro 5H",
-      "fraction": 1,
-      "countdown": "⏱ 4h 59m (11:51:32)",
-      "resetTime": "2026-11-07T04:51:32Z",
-      "resetTimeLocal": "11:51:32",
+      "fraction": 0.9678750038146973,
+      "countdown": "⏱ 3h 46m (16:54:14)",
+      "resetTime": "2026-11-07T09:54:14Z",
+      "resetTimeLocal": "16:54:14",
       "unavailable": false
     },
     "claude5h": {
       "name": "Claude 5.5 / GPT 5H",
       "fraction": 1,
-      "countdown": "⏱ 4h 59m (11:51:32)",
-      "resetTime": "2026-11-07T04:51:32Z",
+      "countdown": "⏱ 4h 59m (18:08:00)",
+      "resetTime": "2026-11-07T11:08:00Z",
       "unavailable": false
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
-      "fraction": 1,
-      "countdown": "⏱ 6d 23h (14/11 06:51)",
-      "resetTime": "2026-11-13T23:51:32Z",
-      "resetTimeLocal": "14/11 06:51",
+      "fraction": 0.9789276719093323,
+      "countdown": "⏱ 6d 17h (14/11 06:54)",
+      "resetTime": "2026-11-13T23:54:14Z",
+      "resetTimeLocal": "14/11 06:54",
       "unavailable": false
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
       "fraction": 0.9871808290481567,
-      "countdown": "⏱ 6d 12h",
+      "countdown": "⏱ 6d 6h",
       "resetTime": "2026-11-13T12:14:56Z",
       "unavailable": false
     },
@@ -1197,7 +1197,7 @@
       "name": "Gemini 4 Argon Weekly",
       "fraction": 1,
       "countdown": "⏱ 6d 23h",
-      "resetTime": "2026-11-13T23:51:32Z",
+      "resetTime": "2026-11-14T06:08:00Z",
       "unavailable": false,
       "tags": true
     }
@@ -1411,45 +1411,45 @@
     "priority": 50,
     "status": "ACTIVE",
     "isAppeal": false,
-    "isSessionActive": false,
-    "resetTime": "2026-11-07T04:36:46Z",
-    "resetTimeLocal": "11:36:46",
+    "isSessionActive": true,
+    "resetTime": "2026-11-07T09:52:38Z",
+    "resetTimeLocal": "16:52:38",
     "hasArgon": true,
     "gemini5h": {
       "name": "Gemini 3.8 / Pro 5H",
-      "fraction": 1,
-      "countdown": "⏱ 4h 45m (11:36:46)",
-      "resetTime": "2026-11-07T04:36:46Z",
-      "resetTimeLocal": "11:36:46",
+      "fraction": 0.8379132151603699,
+      "countdown": "⏱ 3h 44m (16:52:38)",
+      "resetTime": "2026-11-07T09:52:38Z",
+      "resetTimeLocal": "16:52:38",
       "unavailable": false
     },
     "claude5h": {
       "name": "Claude 5.5 / GPT 5H",
       "fraction": 1,
-      "countdown": "⏱ 4h 59m (11:51:33)",
-      "resetTime": "2026-11-07T04:51:33Z",
+      "countdown": "⏱ 4h 59m (18:08:02)",
+      "resetTime": "2026-11-07T11:08:02Z",
       "unavailable": false
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
-      "fraction": 0.9773674607276917,
-      "countdown": "⏱ 6d 11h (13/11 18:50)",
-      "resetTime": "2026-11-13T11:50:14Z",
-      "resetTimeLocal": "13/11 18:50",
+      "fraction": 0.8161587119102478,
+      "countdown": "⏱ 6d 17h (14/11 06:52)",
+      "resetTime": "2026-11-13T23:52:38Z",
+      "resetTimeLocal": "14/11 06:52",
       "unavailable": false
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
       "fraction": 1,
-      "countdown": "⏱ 6d 11h",
-      "resetTime": "2026-11-13T11:50:27Z",
+      "countdown": "⏱ 6d 23h",
+      "resetTime": "2026-11-14T06:08:02Z",
       "unavailable": false
     },
     "argonWeekly": {
       "name": "Gemini 4 Argon Weekly",
-      "fraction": 0.4640498757362366,
-      "countdown": "⏱ 6d 11h",
-      "resetTime": "2026-11-13T11:20:00Z",
+      "fraction": 1,
+      "countdown": "⏱ 6d 23h",
+      "resetTime": "2026-11-14T06:08:02Z",
       "unavailable": false,
       "tags": true
     }
@@ -1499,37 +1499,37 @@
     "priority": 50,
     "status": "ACTIVE",
     "isAppeal": false,
-    "isSessionActive": true,
-    "resetTime": "2026-11-07T03:31:31Z",
-    "resetTimeLocal": "10:31:31",
+    "isSessionActive": false,
+    "resetTime": "2026-11-07T11:08:03Z",
+    "resetTimeLocal": "18:08:03",
     "hasArgon": false,
     "gemini5h": {
       "name": "Gemini 3.8 / Pro 5H",
-      "fraction": 0.999212920665741,
-      "countdown": "⏱ 3h 39m (10:31:31)",
-      "resetTime": "2026-11-07T03:31:31Z",
-      "resetTimeLocal": "10:31:31",
+      "fraction": 1,
+      "countdown": "⏱ 4h 59m (18:08:03)",
+      "resetTime": "2026-11-07T11:08:03Z",
+      "resetTimeLocal": "18:08:03",
       "unavailable": false
     },
     "claude5h": {
       "name": "Claude 5.5 / GPT 5H",
       "fraction": 1,
-      "countdown": "⏱ 4h 59m (11:51:35)",
-      "resetTime": "2026-11-07T04:51:35Z",
+      "countdown": "⏱ 4h 59m (18:08:03)",
+      "resetTime": "2026-11-07T11:08:03Z",
       "unavailable": false
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
-      "fraction": 0.6148187518119812,
-      "countdown": "⏱ 13h 56m (07/11 20:48)",
-      "resetTime": "2026-11-07T13:48:32Z",
-      "resetTimeLocal": "07/11 20:48",
+      "fraction": 1,
+      "countdown": "⏱ 6d 23h (14/11 13:08)",
+      "resetTime": "2026-11-14T06:08:03Z",
+      "resetTimeLocal": "14/11 13:08",
       "unavailable": false
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
       "fraction": 0.9992480278015137,
-      "countdown": "⏱ 4d 11h",
+      "countdown": "⏱ 4d 4h",
       "resetTime": "2026-11-11T11:01:08Z",
       "unavailable": false
     },
@@ -1548,45 +1548,45 @@
     "priority": 50,
     "status": "ACTIVE",
     "isAppeal": false,
-    "isSessionActive": true,
-    "resetTime": "2026-11-07T00:59:38Z",
-    "resetTimeLocal": "07:59:38",
+    "isSessionActive": false,
+    "resetTime": "2026-11-07T11:08:09Z",
+    "resetTimeLocal": "18:08:09",
     "hasArgon": true,
     "gemini5h": {
       "name": "Gemini 3.8 / Pro 5H",
-      "fraction": 0.9288005828857422,
-      "countdown": "⏱ 1h 7m (07:59:38)",
-      "resetTime": "2026-11-07T00:59:38Z",
-      "resetTimeLocal": "07:59:38",
+      "fraction": 1,
+      "countdown": "⏱ 4h 59m (18:08:09)",
+      "resetTime": "2026-11-07T11:08:09Z",
+      "resetTimeLocal": "18:08:09",
       "unavailable": false
     },
     "claude5h": {
       "name": "Claude 5.5 / GPT 5H",
       "fraction": 1,
-      "countdown": "⏱ 4h 59m (11:51:38)",
-      "resetTime": "2026-11-07T04:51:38Z",
+      "countdown": "⏱ 4h 59m (18:08:09)",
+      "resetTime": "2026-11-07T11:08:09Z",
       "unavailable": false
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
-      "fraction": 0.09892953932285309,
-      "countdown": "⏱ 4d 11h (11/11 18:01)",
-      "resetTime": "2026-11-11T11:01:17Z",
-      "resetTimeLocal": "11/11 18:01",
+      "fraction": 1,
+      "countdown": "⏱ 6d 23h (14/11 13:08)",
+      "resetTime": "2026-11-14T06:08:09Z",
+      "resetTimeLocal": "14/11 13:08",
       "unavailable": false
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
       "fraction": 0.45513561367988586,
-      "countdown": "⏱ 4d 11h",
+      "countdown": "⏱ 4d 4h",
       "resetTime": "2026-11-11T11:01:11Z",
       "unavailable": false
     },
     "argonWeekly": {
       "name": "Gemini 4 Argon Weekly",
-      "fraction": 0,
-      "countdown": "⏱ 4d 11h",
-      "resetTime": "2026-11-11T11:01:08Z",
+      "fraction": 1,
+      "countdown": "⏱ 6d 23h",
+      "resetTime": "2026-11-14T06:08:09Z",
       "unavailable": false,
       "tags": true
     }
@@ -1597,38 +1597,38 @@
     "priority": 50,
     "status": "ACTIVE",
     "isAppeal": false,
-    "isSessionActive": true,
-    "resetTime": "2026-11-07T03:32:08Z",
-    "resetTimeLocal": "10:32:08",
+    "isSessionActive": false,
+    "resetTime": "2026-11-07T11:08:09Z",
+    "resetTimeLocal": "18:08:09",
     "hasArgon": false,
     "gemini5h": {
       "name": "Gemini 3.8 / Pro 5H",
-      "fraction": 0.9993595480918884,
-      "countdown": "⏱ 3h 40m (10:32:08)",
-      "resetTime": "2026-11-07T03:32:08Z",
-      "resetTimeLocal": "10:32:08",
+      "fraction": 1,
+      "countdown": "⏱ 4h 59m (18:08:09)",
+      "resetTime": "2026-11-07T11:08:09Z",
+      "resetTimeLocal": "18:08:09",
       "unavailable": false
     },
     "claude5h": {
       "name": "Claude 5.5 / GPT 5H",
       "fraction": 1,
-      "countdown": "⏱ 4h 59m (11:51:39)",
-      "resetTime": "2026-11-07T04:51:39Z",
+      "countdown": "⏱ 4h 59m (18:08:09)",
+      "resetTime": "2026-11-07T11:08:09Z",
       "unavailable": false
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
-      "fraction": 0.7194242477416992,
-      "countdown": "⏱ 1d 16h (08/11 23:50)",
-      "resetTime": "2026-11-08T16:50:55Z",
-      "resetTimeLocal": "08/11 23:50",
+      "fraction": 1,
+      "countdown": "⏱ 6d 23h (14/11 13:08)",
+      "resetTime": "2026-11-14T06:08:09Z",
+      "resetTimeLocal": "14/11 13:08",
       "unavailable": false
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
       "fraction": 1,
-      "countdown": "⏱ 6d 11h",
-      "resetTime": "2026-11-13T11:50:14Z",
+      "countdown": "⏱ 6d 23h",
+      "resetTime": "2026-11-14T06:08:09Z",
       "unavailable": false
     },
     "argonWeekly": {
@@ -1730,16 +1730,16 @@
     "email": "Anthropic Claude Pro / Team",
     "status": "ACTIVE",
     "isSessionActive": false,
-    "resetTime": "2026-11-06T22:19:59.660729+00:00",
-    "resetTimeLocal": "05:19:59",
+    "resetTime": null,
+    "resetTimeLocal": "",
     "remainingCountdown": "⏱ 5h 00m (Reset xong)",
     "hasArgon": true,
     "gemini5h": {
       "name": "Claude 5H Session Window",
-      "fraction": 0.31,
+      "fraction": 1.0,
       "countdown": "⏱ 5h 00m (Reset xong)",
-      "resetTime": "2026-11-06T22:19:59.660729+00:00",
-      "resetTimeLocal": "05:19:59",
+      "resetTime": null,
+      "resetTimeLocal": "",
       "unavailable": false
     },
     "claude5h": {
@@ -1752,9 +1752,9 @@
     },
     "geminiWeekly": {
       "name": "Claude 7D Weekly Remaining",
-      "fraction": 0.22,
-      "countdown": "⏱ 4d 0h (11/11 06:59)",
-      "resetTime": "2026-11-10T23:59:59.660747+00:00",
+      "fraction": 0.21,
+      "countdown": "⏱ 3d 17h (11/11 06:59)",
+      "resetTime": "2026-11-10T23:59:59.540239+00:00",
       "resetTimeLocal": "11/11 06:59",
       "unavailable": false
     },
@@ -1785,18 +1785,18 @@
     "priority": 95,
     "email": "danhdue@gmail.com",
     "status": "ACTIVE",
-    "isSessionActive": false,
-    "resetTime": "2026-11-07T05:05:20+00:00",
-    "resetTimeLocal": "12:05:20",
-    "remainingCountdown": "⏱ 4h 59m (12:05:20)",
+    "isSessionActive": true,
+    "resetTime": "2026-11-07T11:03:13+00:00",
+    "resetTimeLocal": "18:03:13",
+    "remainingCountdown": "⏱ 4h 55m (18:03:13)",
     "hasArgon": true,
     "resetCredits": 1,
     "gemini5h": {
       "name": "Codex 5-Hour Limit",
-      "fraction": 1.0,
-      "countdown": "⏱ 4h 59m (12:05:20)",
-      "resetTime": "2026-11-07T05:05:20+00:00",
-      "resetTimeLocal": "12:05:20",
+      "fraction": 0.72,
+      "countdown": "⏱ 4h 55m (18:03:13)",
+      "resetTime": "2026-11-07T11:03:13+00:00",
+      "resetTimeLocal": "18:03:13",
       "unavailable": false
     },
     "claude5h": {
@@ -1809,8 +1809,8 @@
     },
     "geminiWeekly": {
       "name": "Codex Weekly Limit",
-      "fraction": 0.3,
-      "countdown": "⏱ 3d 19h (11/11 02:49)",
+      "fraction": 0.21,
+      "countdown": "⏱ 3d 13h (11/11 02:49)",
       "resetTime": "2026-11-10T19:49:51+00:00",
       "resetTimeLocal": "11/11 02:49",
       "unavailable": false
@@ -2915,15 +2915,11 @@
       const mins = Math.floor(elapsed / 60);
 
       if (mins < 1) {
-        label.textContent = "Vừa đồng bộ xong";
-        if (dot) dot.className = "w-2 h-2 rounded-full bg-emerald-400";
-      } else if (mins < 30) {
-        const remainMins = 30 - mins;
-        label.textContent = `Đồng bộ ${mins}m trước (auto sau ${remainMins}m)`;
+        label.textContent = "Vừa đồng bộ";
         if (dot) dot.className = "w-2 h-2 rounded-full bg-emerald-400";
       } else {
-        label.textContent = `Đồng bộ ${mins}m trước (sẵn sàng)`;
-        if (dot) dot.className = "w-2 h-2 rounded-full bg-amber-400 animate-pulse";
+        label.textContent = `Đồng bộ ${mins}m trước`;
+        if (dot) dot.className = "w-2 h-2 rounded-full bg-slate-400";
       }
     }
 
@@ -2961,7 +2957,7 @@
           if (json.success) {
             if (json.skipped) {
               const mins = Math.floor((json.elapsed_seconds || 0) / 60);
-              showToast(`⚡ Đang dùng quota cache (${mins} phút trước). Tự động quét lại sau 30 phút hoặc bấm Refresh tất cả.`, "info");
+              showToast(`⚡ Đang hiển thị quota từ cache (${mins} phút trước). Bấm 'Refresh tất cả' để cập nhật thủ công.`, "info");
             } else {
               if (json.profiles) {
                 Object.assign(PROFILES_DATA, json.profiles);
