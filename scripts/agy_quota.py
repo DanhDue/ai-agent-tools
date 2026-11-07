@@ -2417,12 +2417,20 @@ class QuotaDashboardHandler(http.server.BaseHTTPRequestHandler):
             if not profile:
                 self.send_json({"success": False, "error": "No profile specified"}, 400)
                 return
+            if profile == "claude":
+                cli_cmd = "claude auth login"
+            elif profile == "codex":
+                cli_cmd = "codex auth login"
+            elif profile == "kiro":
+                cli_cmd = "kiro-cli login"
+            else:
+                cli_cmd = f"{profile}-cli"
             osa = f'''tell application "Terminal"
                 activate
-                do script "{profile}-cli"
+                do script "{cli_cmd}"
             end tell'''
             subprocess.run(["osascript", "-e", osa], capture_output=True)
-            self.send_json({"success": True, "message": f"Terminal opened for {profile}-cli"})
+            self.send_json({"success": True, "message": f"Terminal opened for {profile} login"})
             return
 
         if path == "/api/open-cli":
@@ -2434,6 +2442,8 @@ class QuotaDashboardHandler(http.server.BaseHTTPRequestHandler):
                 cli_cmd = "claude"
             elif profile == "codex":
                 cli_cmd = "codex"
+            elif profile == "kiro":
+                cli_cmd = "kiro-cli"
             else:
                 cli_cmd = f"source ~/.zshrc && ag_run {profile} cli"
             osa = f'''tell application "Terminal"

@@ -152,6 +152,33 @@ class TestKiroQuotaProvider(unittest.TestCase):
         self.assertAlmostEqual(res["creditsPool"]["remaining"], 950.0)
         self.assertAlmostEqual(res["creditsPool"]["fraction"], 0.95)
 
+    @patch("agy_quota.subprocess.run")
+    def test_open_cli_kiro_executes_kiro_cli(self, mock_run):
+        """Verify /api/open-cli opens kiro-cli in Terminal instead of agy."""
+        handler = MagicMock()
+        handler.path = "/api/open-cli?profile=kiro"
+        handler.send_json = MagicMock()
+        agy_quota.QuotaDashboardHandler.do_GET(handler)
+        self.assertEqual(mock_run.call_count, 1)
+        call_args = mock_run.call_args[0][0]
+        self.assertEqual(call_args[0], "osascript")
+        script_arg = call_args[2]
+        self.assertIn('do script "kiro-cli"', script_arg)
+        self.assertNotIn('ag_run', script_arg)
+
+    @patch("agy_quota.subprocess.run")
+    def test_login_kiro_executes_kiro_cli_login(self, mock_run):
+        """Verify /api/login executes kiro-cli login for Kiro profile."""
+        handler = MagicMock()
+        handler.path = "/api/login?profile=kiro"
+        handler.send_json = MagicMock()
+        agy_quota.QuotaDashboardHandler.do_GET(handler)
+        self.assertEqual(mock_run.call_count, 1)
+        call_args = mock_run.call_args[0][0]
+        self.assertEqual(call_args[0], "osascript")
+        script_arg = call_args[2]
+        self.assertIn('do script "kiro-cli login"', script_arg)
+
 
 if __name__ == "__main__":
     unittest.main()
