@@ -1,13 +1,16 @@
 <!DOCTYPE html>
 <html lang="en" class="dark">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Antigravity Multi-Profile Quota Dashboard</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>✦</text></svg>">
+  <link rel="icon"
+    href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>✦</text></svg>">
   <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
   <style>
-    :root, html.dark {
+    :root,
+    html.dark {
       color-scheme: dark;
       --background: #0b0f19;
       --card: #111827;
@@ -17,6 +20,7 @@
       --secondary: #1f2937;
       --accent: #38bdf8;
     }
+
     .pill-badge {
       font-size: 11px;
       line-height: 14px;
@@ -28,6 +32,7 @@
       align-items: center;
       gap: 4px;
     }
+
     .model-card-item {
       border-radius: 14px !important;
       overflow: hidden;
@@ -35,43 +40,51 @@
       background: rgba(15, 23, 42, 0.7) !important;
       transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
     }
+
     .model-card-item:hover {
       border-color: rgba(241, 245, 249, 0.9) !important;
       background: rgba(30, 41, 59, 0.95) !important;
       box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.7), 0 0 12px rgba(148, 163, 184, 0.25) !important;
       transform: translateY(-1.5px);
     }
+
     .model-card-item.unavailable {
       border: 1px solid rgba(100, 116, 139, 0.25) !important;
       background: rgba(15, 23, 42, 0.35) !important;
       opacity: 0.65;
     }
+
     .model-card-item.unavailable:hover {
       border-color: rgba(203, 213, 225, 0.75) !important;
       background: rgba(30, 41, 59, 0.65) !important;
       opacity: 0.95;
       transform: translateY(-1.5px);
     }
+
     .profile-card {
       border-radius: 20px !important;
       border: 1px solid rgba(148, 163, 184, 0.22) !important;
       background: rgba(15, 23, 42, 0.65) !important;
       transition: all 0.25s ease !important;
     }
+
     .profile-card:hover {
       border-color: rgba(148, 163, 184, 0.45) !important;
       box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.6) !important;
     }
+
     .profile-card.dragging {
       opacity: 0.45 !important;
       transform: scale(0.97) !important;
       border: 2px dashed #a855f7 !important;
     }
+
     .profile-card.drag-over {
       border: 2px solid #c084fc !important;
       box-shadow: 0 0 20px rgba(168, 85, 247, 0.4) !important;
       transform: scale(1.01) !important;
     }
+
     .drag-handle {
       cursor: grab;
       touch-action: none;
@@ -86,50 +99,103 @@
       color: #94a3b8;
       transition: all 0.2s ease;
     }
+
     .drag-handle:hover {
       background: rgba(168, 85, 247, 0.2);
       color: #d8b4fe !important;
       transform: scale(1.15);
     }
+
     .drag-handle:active {
       cursor: grabbing;
     }
+
     .progress-track {
       border-radius: 9999px !important;
       overflow: hidden;
       isolation: isolate;
     }
+
     .progress-fill {
       border-radius: 9999px !important;
     }
+
     .custom-scrollbar::-webkit-scrollbar {
       height: 6px;
       width: 6px;
     }
+
     .custom-scrollbar::-webkit-scrollbar-thumb {
       background: var(--border);
       border-radius: 9999px;
     }
   </style>
 </head>
+
 <body class="bg-[#0b0f19] text-[#f3f4f6] antialiased p-2 sm:p-4 select-none min-h-screen">
   <!-- Container Card -->
-  <div class="bg-[#111827] border border-[#1f2937] rounded-2xl p-4 sm:p-6 shadow-2xl max-w-7xl mx-auto backdrop-blur-md relative">
-    
+  <div
+    class="bg-[#111827] border border-[#1f2937] rounded-2xl p-4 sm:p-6 shadow-2xl max-w-7xl mx-auto backdrop-blur-md relative">
+
     <!-- Top Header & Filter Controls -->
     <div class="flex flex-wrap items-center justify-between gap-3 pb-4 mb-5 border-b border-[var(--border)]">
       <div class="flex items-center gap-3">
-        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-sky-500 to-indigo-600 flex items-center justify-center text-white shadow-lg font-bold text-lg">
+        <div
+          class="w-9 h-9 rounded-xl bg-gradient-to-tr from-sky-500 to-indigo-600 flex items-center justify-center text-white shadow-lg font-bold text-lg">
           ✦
         </div>
         <div>
           <div class="flex items-center gap-2 flex-wrap">
-            <h1 class="text-base sm:text-lg font-bold tracking-tight text-[var(--foreground)]">Antigravity Quota Dashboard</h1>
-            <span id="profileCountBadge" class="text-xs px-2.5 py-0.5 rounded-full bg-sky-500/10 text-sky-400 border border-sky-500/20 font-mono font-medium">8 Profiles</span>
-            <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-mono font-semibold">✓ % CÒN LẠI (REMAINING)</span>
+            <h1 class="text-base sm:text-lg font-bold tracking-tight text-[var(--foreground)]">Antigravity Quota
+              Dashboard</h1>
+            <span id="profileCountBadge"
+              class="text-xs px-2.5 py-0.5 rounded-full bg-sky-500/10 text-sky-400 border border-sky-500/20 font-mono font-medium">8
+              Profiles</span>
+            <span
+              class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-mono font-semibold">✓
+              % CÒN LẠI (REMAINING)</span>
           </div>
-          <div class="mt-1 flex items-center">
+          <div class="mt-1.5 flex items-center gap-2 flex-wrap">
             <span id="serverStatusBadge" class="text-xs px-2.5 py-0.5 rounded-full font-medium transition-all"></span>
+
+            <!-- Account Status Statistics Badges (Click to Filter) -->
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <button type="button" onclick="setStatusFilter('ACTIVE')" id="statBtnActive"
+                class="text-[11px] px-2.5 py-0.5 rounded-full bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/40 font-mono font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm hover:scale-105 select-none"
+                title="Bấm để lọc: Xem các tài khoản đang hoạt động (Active)">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                <span id="statActiveCount">13 Active</span>
+              </button>
+
+              <button type="button" onclick="setStatusFilter('DISABLED')" id="statBtnDisabled"
+                class="text-[11px] px-2.5 py-0.5 rounded-full bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/40 font-mono font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm hover:scale-105 select-none"
+                title="Bấm để lọc: Xem các tài khoản bị khóa (Appeal needed)">
+                <span class="w-1.5 h-1.5 rounded-full bg-rose-400"></span>
+                <span id="statDisabledCount">7 Bị khóa</span>
+              </button>
+
+              <button type="button" onclick="setStatusFilter('AUTH NEEDED')" id="statBtnAuthNeeded"
+                class="text-[11px] px-2.5 py-0.5 rounded-full bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/40 font-mono font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm hover:scale-105 select-none"
+                title="Bấm để lọc: Xem các tài khoản cần đăng nhập CLI">
+                <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+                <span id="statAuthNeededCount">4 Cần login</span>
+              </button>
+
+              <button type="button" id="statBtnExhausted" onclick="setStatusFilter('EXHAUSTED')"
+                class="hidden text-[11px] px-2.5 py-0.5 rounded-full bg-slate-500/15 hover:bg-slate-500/25 text-slate-300 border border-slate-500/40 font-mono font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm hover:scale-105 select-none"
+                title="Bấm để lọc: Xem các tài khoản hết hạn mức quota">
+                <span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                <span id="statExhaustedCount">0 Hết quota</span>
+              </button>
+
+              <!-- Last Sync Status Indicator (Nơi hiển thị status chung) -->
+              <div id="lastSyncIndicator"
+                class="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-800/80 border border-slate-700/80 text-[11px] text-slate-300 font-mono font-medium shadow-sm select-none"
+                title="Thời gian từ lần đồng bộ gần nhất. Khi đang mở tab, hệ thống KHÔNG tự động quét mà yêu cầu bấm 'Refresh tất cả' bằng tay. Hệ thống CHỈ tự động làm mới lúc khởi tạo (init/reload trang) nếu đã quá 30 phút.">
+                <span id="lastSyncDot" class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                <span id="lastSyncLabel">Đang đồng bộ...</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -137,37 +203,27 @@
       <!-- Search & Filters -->
       <div class="flex items-center gap-2 flex-wrap">
         <div class="relative">
-          <input 
-            type="text" 
-            id="searchInput" 
-            oninput="filterProfiles()" 
-            placeholder="Tìm profile..." 
-            class="bg-[var(--background)] text-[var(--foreground)] border border-[var(--border)] text-xs rounded-lg px-2.5 py-1.5 pl-7 font-medium outline-none focus:border-sky-500/60 transition-colors w-36 sm:w-44"
-          />
-          <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-[var(--muted-foreground)] pointer-events-none">🔍</span>
+          <input type="text" id="searchInput" oninput="filterProfiles()" placeholder="Tìm profile..."
+            class="bg-[var(--background)] text-[var(--foreground)] border border-[var(--border)] text-xs rounded-lg px-2.5 py-1.5 pl-7 font-medium outline-none focus:border-sky-500/60 transition-colors w-36 sm:w-44" />
+          <span
+            class="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-[var(--muted-foreground)] pointer-events-none">🔍</span>
         </div>
 
-        <select 
-          id="statusFilter" 
-          onchange="filterProfiles()" 
-          class="bg-[var(--background)] text-[var(--foreground)] border border-[var(--border)] text-xs rounded-lg px-2.5 py-1.5 font-medium outline-none cursor-pointer hover:border-sky-500/50 transition-colors"
-        >
-          <option value="ALL">Tất cả mục (25)</option>
-          <option value="PROVIDERS">Chỉ AI Providers (Claude / Codex)</option>
-          <option value="PROFILES">Chỉ Antigravity Profiles (23)</option>
-          <option value="ACTIVE">Chỉ ACTIVE</option>
-          <option value="DISABLED">Chỉ BỊ KHÓA (APPEAL)</option>
-          <option value="EXHAUSTED">Chỉ EXHAUSTED</option>
-          <option value="AUTH NEEDED">Chỉ AUTH NEEDED</option>
+        <select id="statusFilter" onchange="filterProfiles()"
+          class="bg-[var(--background)] text-[var(--foreground)] border border-[var(--border)] text-xs rounded-lg px-2.5 py-1.5 font-medium outline-none cursor-pointer hover:border-sky-500/50 transition-colors">
+          <option value="ALL" id="optFilterAll">Tất cả mục (24)</option>
+          <option value="PROVIDERS" id="optFilterProviders">Chỉ AI Providers (2)</option>
+          <option value="PROFILES" id="optFilterProfiles">Chỉ Antigravity Profiles (22)</option>
+          <option value="ACTIVE" id="optFilterActive">Chỉ ACTIVE</option>
+          <option value="DISABLED" id="optFilterDisabled">Chỉ BỊ KHÓA (APPEAL)</option>
+          <option value="EXHAUSTED" id="optFilterExhausted">Chỉ EXHAUSTED</option>
+          <option value="AUTH NEEDED" id="optFilterAuthNeeded">Chỉ CẦN LOGIN</option>
         </select>
 
         <!-- Sort / Re-order Dropdown -->
-        <select 
-          id="sortOrderSelect" 
-          onchange="changeSortOrder(this.value)" 
+        <select id="sortOrderSelect" onchange="changeSortOrder(this.value)"
           class="bg-[var(--background)] text-[var(--foreground)] border border-[var(--border)] text-xs rounded-lg px-2.5 py-1.5 font-medium outline-none cursor-pointer hover:border-purple-500/50 transition-colors"
-          title="Sắp xếp và thay đổi thứ tự tài khoản"
-        >
+          title="Sắp xếp và thay đổi thứ tự tài khoản">
           <option value="DEFAULT">🔀 Sắp xếp: Mặc định</option>
           <option value="QUOTA_DESC">⚡ Quota cao nhất</option>
           <option value="STATUS_ACTIVE">🟢 Trạng thái (Active lên đầu)</option>
@@ -178,20 +234,14 @@
           <option value="CUSTOM">✋ Thứ tự kéo thả (Custom)</option>
         </select>
 
-        <button 
-          onclick="triggerGlobalRefresh()" 
-          id="globalRefreshBtn"
-          class="px-3 py-1.5 rounded-lg bg-sky-500 hover:bg-sky-600 text-white font-semibold text-xs transition-colors flex items-center gap-1.5 shadow-sm"
-        >
+        <button onclick="triggerGlobalRefresh()" id="globalRefreshBtn"
+          class="px-3 py-1.5 rounded-lg bg-sky-500 hover:bg-sky-600 text-white font-semibold text-xs transition-colors flex items-center gap-1.5 shadow-sm">
           <span>⚡</span> <span>Refresh tất cả</span>
         </button>
 
         <!-- Button Lên lịch nhiều tài khoản: Bấm để hiện checkbox ở grid + bottom action bar -->
-        <button 
-          onclick="toggleBatchSelectMode()" 
-          id="batchScheduleBtn"
-          class="px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-semibold text-xs transition-colors flex items-center gap-1.5 shadow-sm"
-        >
+        <button onclick="toggleBatchSelectMode()" id="batchScheduleBtn"
+          class="px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-semibold text-xs transition-colors flex items-center gap-1.5 shadow-sm">
           <span>⏰</span> <span>Lên lịch nhiều tài khoản</span>
         </button>
       </div>
@@ -204,18 +254,21 @@
     </div>
 
     <!-- FLOATING/STICKY BOTTOM ACTION BAR FOR MULTI-ACCOUNT SCHEDULING -->
-    <div id="batchBottomBar" class="hidden sticky bottom-3 z-50 mt-5 bg-[var(--card)]/95 border border-purple-500/60 rounded-2xl p-3 sm:p-4 shadow-2xl backdrop-blur-md transition-all duration-300">
+    <div id="batchBottomBar"
+      class="hidden sticky bottom-3 z-50 mt-5 bg-[var(--card)]/95 border border-purple-500/60 rounded-2xl p-3 sm:p-4 shadow-2xl backdrop-blur-md transition-all duration-300">
       <div class="flex flex-wrap items-center justify-between gap-3 text-xs">
-        
+
         <!-- Left: Selection Info & Quick Toggle -->
         <div class="flex items-center gap-2.5">
-          <div class="w-8 h-8 rounded-xl bg-purple-500/20 text-purple-300 flex items-center justify-center font-bold text-base shadow-inner">
+          <div
+            class="w-8 h-8 rounded-xl bg-purple-500/20 text-purple-300 flex items-center justify-center font-bold text-base shadow-inner">
             ⏰
           </div>
           <div>
             <div class="font-bold text-[var(--foreground)] flex items-center gap-1.5">
               <span>Lên lịch hàng loạt:</span>
-              <span id="selectedCountBadge" class="px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 font-mono font-bold">8/8 profile</span>
+              <span id="selectedCountBadge"
+                class="px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 font-mono font-bold">8/8 profile</span>
             </div>
             <div class="flex items-center gap-2 text-[11px] text-[var(--muted-foreground)]">
               <button onclick="selectAllProfiles(true)" class="text-sky-400 hover:underline">Chọn tất cả</button>
@@ -234,62 +287,54 @@
 
           <!-- Quick click helpers (Gợi ý click nhanh, không chọn mặc định) -->
           <div class="flex items-center gap-1" id="bottomPresetGroup">
-            <button type="button" onclick="setBottomTime('05:00')" class="px-2 py-1 rounded-md bg-[var(--background)] border border-[var(--border)] hover:border-purple-500 font-mono text-[11px] text-[var(--foreground)] transition-colors">05:00</button>
-            <button type="button" onclick="setBottomTime('06:00')" class="px-2 py-1 rounded-md bg-[var(--background)] border border-[var(--border)] hover:border-purple-500 font-mono text-[11px] text-[var(--foreground)] transition-colors">06:00</button>
-            <button type="button" onclick="setBottomTime('07:00')" class="px-2 py-1 rounded-md bg-[var(--background)] border border-[var(--border)] hover:border-purple-500 font-mono text-[11px] text-[var(--foreground)] transition-colors">07:00</button>
-            <button type="button" onclick="setBottomTime('08:00')" class="px-2 py-1 rounded-md bg-[var(--background)] border border-[var(--border)] hover:border-purple-500 font-mono text-[11px] text-[var(--foreground)] transition-colors">08:00</button>
+            <button type="button" onclick="setBottomTime('05:00')"
+              class="px-2 py-1 rounded-md bg-[var(--background)] border border-[var(--border)] hover:border-purple-500 font-mono text-[11px] text-[var(--foreground)] transition-colors">05:00</button>
+            <button type="button" onclick="setBottomTime('06:00')"
+              class="px-2 py-1 rounded-md bg-[var(--background)] border border-[var(--border)] hover:border-purple-500 font-mono text-[11px] text-[var(--foreground)] transition-colors">06:00</button>
+            <button type="button" onclick="setBottomTime('07:00')"
+              class="px-2 py-1 rounded-md bg-[var(--background)] border border-[var(--border)] hover:border-purple-500 font-mono text-[11px] text-[var(--foreground)] transition-colors">07:00</button>
+            <button type="button" onclick="setBottomTime('08:00')"
+              class="px-2 py-1 rounded-md bg-[var(--background)] border border-[var(--border)] hover:border-purple-500 font-mono text-[11px] text-[var(--foreground)] transition-colors">08:00</button>
           </div>
 
           <!-- Nhập Giờ & Phút (Giờ: 0-24, nhập quá 24 set về 24; Phút: 0-60, nhập quá 60 set về 60) -->
-          <div class="flex items-center bg-[var(--background)] border border-purple-500/50 rounded-lg px-2 py-0.5 text-xs font-mono font-bold" title="Nhập giờ (0-24, quá 24 set về 24) và phút (0-60, quá 60 set về 60)">
-            <input 
-              type="number" 
-              id="bottomHour" 
-              min="0" 
-              max="24" 
-              placeholder="07" 
-              oninput="clampHour(this)"
-              class="w-7 bg-transparent text-[var(--foreground)] text-center outline-none focus:text-purple-300"
-            />
+          <div
+            class="flex items-center bg-[var(--background)] border border-purple-500/50 rounded-lg px-2 py-0.5 text-xs font-mono font-bold"
+            title="Nhập giờ (0-24, quá 24 set về 24) và phút (0-60, quá 60 set về 60)">
+            <input type="number" id="bottomHour" min="0" max="24" placeholder="07" oninput="clampHour(this)"
+              class="w-7 bg-transparent text-[var(--foreground)] text-center outline-none focus:text-purple-300" />
             <span class="text-purple-400 font-bold px-0.5">:</span>
-            <input 
-              type="number" 
-              id="bottomMin" 
-              min="0" 
-              max="60" 
-              placeholder="00" 
-              oninput="clampMinSec(this)"
-              class="w-7 bg-transparent text-[var(--foreground)] text-center outline-none focus:text-purple-300"
-            />
+            <input type="number" id="bottomMin" min="0" max="60" placeholder="00" oninput="clampMinSec(this)"
+              class="w-7 bg-transparent text-[var(--foreground)] text-center outline-none focus:text-purple-300" />
           </div>
-          
+
           <!-- Nhập Giây (Offset) - Mặc định 30s, bước nhảy 5s, min 0, max 60s; nhập quá 60 set về 60 -->
-          <div class="flex items-center gap-1 bg-[var(--background)] border border-purple-500/50 rounded-lg py-0.5 px-1.5 text-xs" title="Offset delay (bước 5s, min 0s, max 60s; nhập quá 60 set về 60)">
+          <div
+            class="flex items-center gap-1 bg-[var(--background)] border border-purple-500/50 rounded-lg py-0.5 px-1.5 text-xs"
+            title="Offset delay (bước 5s, min 0s, max 60s; nhập quá 60 set về 60)">
             <span class="text-[11px] text-purple-300 font-mono">Offset:</span>
-            <button type="button" onclick="stepOffset('bottomScheduleOffset', -5)" class="w-4 h-4 rounded bg-purple-950/80 hover:bg-purple-800 text-purple-300 flex items-center justify-center font-bold text-[10px] leading-none transition-colors" title="Giảm 5s">−</button>
+            <button type="button" onclick="stepOffset('bottomScheduleOffset', -5)"
+              class="w-4 h-4 rounded bg-purple-950/80 hover:bg-purple-800 text-purple-300 flex items-center justify-center font-bold text-[10px] leading-none transition-colors"
+              title="Giảm 5s">−</button>
             <span class="text-xs text-purple-400 font-mono">+</span>
-            <input 
-              type="number" 
-              id="bottomScheduleOffset" 
-              value="30" 
-              step="5"
-              min="0" 
-              max="60" 
-              placeholder="30"
+            <input type="number" id="bottomScheduleOffset" value="30" step="5" min="0" max="60" placeholder="30"
               oninput="clampMinSec(this)"
-              class="w-8 bg-transparent text-[var(--foreground)] text-center font-mono font-bold text-xs outline-none"
-            />
+              class="w-8 bg-transparent text-[var(--foreground)] text-center font-mono font-bold text-xs outline-none" />
             <span class="text-[11px] text-purple-300 font-mono">s</span>
-            <button type="button" onclick="stepOffset('bottomScheduleOffset', 5)" class="w-4 h-4 rounded bg-purple-950/80 hover:bg-purple-800 text-purple-300 flex items-center justify-center font-bold text-[10px] leading-none transition-colors" title="Tăng 5s">+</button>
+            <button type="button" onclick="stepOffset('bottomScheduleOffset', 5)"
+              class="w-4 h-4 rounded bg-purple-950/80 hover:bg-purple-800 text-purple-300 flex items-center justify-center font-bold text-[10px] leading-none transition-colors"
+              title="Tăng 5s">+</button>
           </div>
         </div>
 
         <!-- Right: Actions: Confirm (Thiết lập) & Cancel (Hủy) -->
         <div class="flex items-center gap-2">
-          <button onclick="exitBatchSelectMode()" class="px-3.5 py-1.5 rounded-lg border border-[var(--border)] hover:bg-[var(--secondary)] text-[var(--muted-foreground)] font-medium text-xs transition-colors">
+          <button onclick="exitBatchSelectMode()"
+            class="px-3.5 py-1.5 rounded-lg border border-[var(--border)] hover:bg-[var(--secondary)] text-[var(--muted-foreground)] font-medium text-xs transition-colors">
             Hủy
           </button>
-          <button onclick="confirmBatchScheduleFromBottomBar()" class="px-4 py-1.5 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs shadow-lg shadow-purple-600/30 flex items-center gap-1.5 transition-all">
+          <button onclick="confirmBatchScheduleFromBottomBar()"
+            class="px-4 py-1.5 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs shadow-lg shadow-purple-600/30 flex items-center gap-1.5 transition-all">
             <span>✓</span> <span id="confirmSetLabel">Thiết lập</span>
           </button>
         </div>
@@ -300,14 +345,17 @@
     <!-- TypeScript Contract Drawer -->
     <div class="mt-6 pt-3 border-t border-[var(--border)]">
       <details class="group">
-        <summary class="cursor-pointer text-xs font-semibold text-[var(--muted-foreground)] hover:text-sky-400 transition-colors flex items-center justify-between list-none">
+        <summary
+          class="cursor-pointer text-xs font-semibold text-[var(--muted-foreground)] hover:text-sky-400 transition-colors flex items-center justify-between list-none">
           <span class="flex items-center gap-1.5">
-            <span class="text-sky-400 font-mono">&lt;/&gt;</span> TypeScript Contract: 2-Column Dashboard Grid &amp; Profile Item Actions Spec
+            <span class="text-sky-400 font-mono">&lt;/&gt;</span> TypeScript Contract: 2-Column Dashboard Grid &amp;
+            Profile Item Actions Spec
           </span>
           <span class="group-open:rotate-180 transition-transform">▼</span>
         </summary>
-        <div class="mt-3 p-3 bg-[var(--background)] rounded-xl border border-[var(--border)] font-mono text-xs overflow-x-auto text-[var(--foreground)]">
-<pre><code class="text-slate-300"><span class="text-slate-500">// TypeScript Spec: In-Grid Selection &amp; Bottom Action Bar for Multi-Profile Scheduling</span>
+        <div
+          class="mt-3 p-3 bg-[var(--background)] rounded-xl border border-[var(--border)] font-mono text-xs overflow-x-auto text-[var(--foreground)]">
+          <pre><code class="text-slate-300"><span class="text-slate-500">// TypeScript Spec: In-Grid Selection &amp; Bottom Action Bar for Multi-Profile Scheduling</span>
 <span class="text-sky-400">export interface</span> <span class="text-amber-300">DashboardGrid</span> {
   <span class="text-emerald-400">layout</span>: <span class="text-emerald-300">'grid-cols-2'</span>;                     <span class="text-slate-500">// 2 profile cards per row</span>
   <span class="text-emerald-400">isBatchSelecting</span>: <span class="text-purple-400">boolean</span>;              <span class="text-slate-500">// Toggles in-grid checkboxes</span>
@@ -324,58 +372,80 @@
   </div>
 
   <!-- Single Profile Schedule Modal Dialog -->
-  <div id="scheduleModal" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+  <div id="scheduleModal"
+    class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
     <div class="bg-[var(--card)] border border-[var(--border)] rounded-2xl max-w-md w-full p-5 shadow-2xl space-y-4">
       <div class="flex items-center justify-between pb-3 border-b border-[var(--border)]">
         <div class="flex items-center gap-2">
           <span class="text-purple-400 text-lg">⏰</span>
           <h3 class="text-sm font-bold text-[var(--foreground)]">Lên lịch Auto-Refresh Daemon</h3>
         </div>
-        <button onclick="closeScheduleModal()" class="text-[var(--muted-foreground)] hover:text-[var(--foreground)] text-sm">✕</button>
+        <button onclick="closeScheduleModal()"
+          class="text-[var(--muted-foreground)] hover:text-[var(--foreground)] text-sm">✕</button>
       </div>
 
       <div class="text-xs space-y-3">
         <p class="text-[var(--muted-foreground)]">
-          Cấu hình daemon tự động pre-warm 5-hour rolling session window hàng ngày cho profile <span id="modalProfileName" class="font-bold font-mono text-sky-400">danhdue</span> theo chuẩn <code class="text-purple-300 font-mono">/refresh-session</code>.
+          Cấu hình daemon tự động pre-warm 5-hour rolling session window hàng ngày cho profile <span
+            id="modalProfileName" class="font-bold font-mono text-sky-400">danhdue</span> theo chuẩn <code
+            class="text-purple-300 font-mono">/refresh-session</code>.
         </p>
+
+        <!-- Active Schedule Banner: Hiển thị chi tiết khi tài khoản đã được lên lịch -->
+        <div id="modalActiveScheduleBanner"
+          class="hidden p-3 bg-purple-950/60 border border-purple-500/80 rounded-xl flex items-center justify-between gap-3 text-xs shadow-inner">
+          <div class="flex items-center gap-2.5 min-w-0">
+            <span class="text-purple-300 text-xl shrink-0 animate-pulse">⏰</span>
+            <div class="min-w-0">
+              <div class="font-bold text-purple-200 flex items-center gap-1.5">
+                <span>Đang có lịch kích hoạt tự động</span>
+                <span
+                  class="px-1.5 py-0.5 rounded-full bg-purple-500/30 text-purple-200 font-mono text-[9px] font-bold">ACTIVE</span>
+              </div>
+              <div class="text-purple-300/80 text-[11px] truncate mt-0.5">
+                Kích hoạt hàng ngày lúc <b id="activeSchedTimeDisplay"
+                  class="text-purple-100 font-mono text-xs font-bold">07:00</b> (delay: <b id="activeSchedDelayDisplay"
+                  class="text-purple-100 font-mono text-xs font-bold">+30s</b>)
+              </div>
+            </div>
+          </div>
+          <button type="button" onclick="cancelCurrentSchedule()"
+            class="px-2.5 py-1.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/50 text-xs font-semibold flex items-center gap-1 transition-all shrink-0 shadow-sm"
+            title="Hủy lịch hiện tại và cho phép đặt lịch mới">
+            <span>✕</span> <span>Hủy lịch</span>
+          </button>
+        </div>
 
         <div>
           <label class="block font-semibold mb-1 text-[var(--foreground)] flex items-center gap-1.5">
             <span class="text-amber-400">☀️</span> <span>Giờ kích hoạt đầu ngày (Morning Pre-warm):</span>
           </label>
           <div class="grid grid-cols-4 gap-2 mb-2" id="modalPresetGroup">
-            <button type="button" onclick="setScheduleTime('05:00')" class="px-2 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--background)] hover:border-purple-500 font-mono text-center">05:00</button>
-            <button type="button" onclick="setScheduleTime('06:00')" class="px-2 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--background)] hover:border-purple-500 font-mono text-center">06:00</button>
-            <button type="button" onclick="setScheduleTime('07:00')" class="px-2 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--background)] hover:border-purple-500 font-mono text-center">07:00</button>
-            <button type="button" onclick="setScheduleTime('08:00')" class="px-2 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--background)] hover:border-purple-500 font-mono text-center">08:00</button>
+            <button type="button" onclick="setScheduleTime('05:00')"
+              class="px-2 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--background)] hover:border-purple-500 font-mono text-center">05:00</button>
+            <button type="button" onclick="setScheduleTime('06:00')"
+              class="px-2 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--background)] hover:border-purple-500 font-mono text-center">06:00</button>
+            <button type="button" onclick="setScheduleTime('07:00')"
+              class="px-2 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--background)] hover:border-purple-500 font-mono text-center">07:00</button>
+            <button type="button" onclick="setScheduleTime('08:00')"
+              class="px-2 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--background)] hover:border-purple-500 font-mono text-center">08:00</button>
           </div>
-          
+
           <div class="grid grid-cols-2 gap-2.5">
             <div>
               <label class="block text-[11px] text-[var(--muted-foreground)] mb-1 flex items-center justify-between">
                 <span>Giờ &amp; Phút:</span>
                 <span class="text-purple-400 font-mono text-[10px]">(0-24h : 0-60m)</span>
               </label>
-              <div class="flex items-center justify-center bg-[var(--background)] border border-[var(--border)] rounded-lg px-2.5 py-1.5 font-mono text-xs font-bold focus-within:border-purple-500">
-                <input 
-                  type="number" 
-                  id="customHour" 
-                  min="0" 
-                  max="24" 
-                  placeholder="07" 
+              <div
+                class="flex items-center justify-center bg-[var(--background)] border border-[var(--border)] rounded-lg px-2.5 py-1.5 font-mono text-xs font-bold focus-within:border-purple-500">
+                <input type="number" id="customHour" min="0" max="24" placeholder="07"
                   oninput="clampHour(this); updateModalCmdPreview();"
-                  class="w-8 bg-transparent text-[var(--foreground)] text-center outline-none"
-                />
+                  class="w-8 bg-transparent text-[var(--foreground)] text-center outline-none" />
                 <span class="text-purple-400 font-bold px-1">:</span>
-                <input 
-                  type="number" 
-                  id="customMin" 
-                  min="0" 
-                  max="60" 
-                  placeholder="00" 
+                <input type="number" id="customMin" min="0" max="60" placeholder="00"
                   oninput="clampMinSec(this); updateModalCmdPreview();"
-                  class="w-8 bg-transparent text-[var(--foreground)] text-center outline-none"
-                />
+                  class="w-8 bg-transparent text-[var(--foreground)] text-center outline-none" />
               </div>
             </div>
             <div>
@@ -383,24 +453,21 @@
                 <span>Offset an toàn:</span>
                 <span class="text-purple-400 font-mono text-[10px]">(0 - 60s, bước 5s)</span>
               </label>
-              <div class="flex items-center justify-between bg-[var(--background)] border border-[var(--border)] rounded-lg px-2 py-1.5 focus-within:border-purple-500">
-                <button type="button" onclick="stepOffset('customScheduleOffset', -5)" class="w-5 h-5 rounded bg-purple-950/80 hover:bg-purple-800 text-purple-300 flex items-center justify-center font-bold text-xs transition-colors" title="Giảm 5s">−</button>
+              <div
+                class="flex items-center justify-between bg-[var(--background)] border border-[var(--border)] rounded-lg px-2 py-1.5 focus-within:border-purple-500">
+                <button type="button" onclick="stepOffset('customScheduleOffset', -5)"
+                  class="w-5 h-5 rounded bg-purple-950/80 hover:bg-purple-800 text-purple-300 flex items-center justify-center font-bold text-xs transition-colors"
+                  title="Giảm 5s">−</button>
                 <div class="flex items-center font-mono text-xs">
                   <span class="text-purple-400 mr-0.5">+</span>
-                  <input 
-                    type="number" 
-                    id="customScheduleOffset" 
-                    value="30" 
-                    step="5"
-                    min="0" 
-                    max="60"
-                    placeholder="30"
+                  <input type="number" id="customScheduleOffset" value="30" step="5" min="0" max="60" placeholder="30"
                     oninput="clampMinSec(this); updateModalCmdPreview();"
-                    class="w-9 bg-transparent text-[var(--foreground)] text-center font-mono font-bold text-xs outline-none"
-                  />
+                    class="w-9 bg-transparent text-[var(--foreground)] text-center font-mono font-bold text-xs outline-none" />
                   <span class="text-purple-300">giây</span>
                 </div>
-                <button type="button" onclick="stepOffset('customScheduleOffset', 5)" class="w-5 h-5 rounded bg-purple-950/80 hover:bg-purple-800 text-purple-300 flex items-center justify-center font-bold text-xs transition-colors" title="Tăng 5s">+</button>
+                <button type="button" onclick="stepOffset('customScheduleOffset', 5)"
+                  class="w-5 h-5 rounded bg-purple-950/80 hover:bg-purple-800 text-purple-300 flex items-center justify-center font-bold text-xs transition-colors"
+                  title="Tăng 5s">+</button>
               </div>
             </div>
           </div>
@@ -411,28 +478,43 @@
             <span>💡</span> <span>Chiến lược xoay vòng Quota 5h:</span>
           </div>
           <p class="text-[11px] text-[var(--muted-foreground)] leading-relaxed">
-            Kích hoạt lúc <b class="text-purple-300">07:00 sáng</b> (offset delay <span id="hintDelay" class="font-mono text-purple-400">30s</span>) ➔ Đến <b class="text-sky-300">10:00 vào làm việc</b> bạn có trọn vẹn 100% quota trong 2 giờ cuối ➔ Đến <b class="text-emerald-300">12:00 trưa</b> tự động reset 100% quota cho phiên chiều!
+            Kích hoạt lúc <b class="text-purple-300">07:00 sáng</b> (offset delay <span id="hintDelay"
+              class="font-mono text-purple-400">30s</span>) ➔ Đến <b class="text-sky-300">10:00 vào làm việc</b> bạn có
+            trọn vẹn 100% quota trong 2 giờ cuối ➔ Đến <b class="text-emerald-300">12:00 trưa</b> tự động reset 100%
+            quota cho phiên chiều!
           </p>
           <div class="text-[11px] font-mono text-slate-300 break-all bg-black/40 p-2 rounded">
-            python3 skills/refresh-session/resources/scripts/refresh_session.py schedule --time <span id="cmdPreviewTime" class="text-purple-300 font-bold">07:00</span> --delay <span id="cmdPreviewDelay" class="text-purple-300 font-bold">30</span>
+            python3 skills/refresh-session/resources/scripts/refresh_session.py schedule --time <span
+              id="cmdPreviewTime" class="text-purple-300 font-bold">07:00</span> --delay <span id="cmdPreviewDelay"
+              class="text-purple-300 font-bold">30</span>
           </div>
         </div>
       </div>
 
-      <div class="flex items-center justify-center gap-3 pt-3 border-t border-[var(--border)]">
-        <button onclick="closeScheduleModal()" class="px-4 py-2 rounded-xl border border-[var(--border)] hover:bg-[var(--secondary)] text-xs font-medium transition-colors">
-          Hủy
+      <div class="flex items-center justify-between gap-3 pt-3 border-t border-[var(--border)]">
+        <button type="button" id="btnModalCancelSched" onclick="cancelCurrentSchedule()"
+          class="hidden px-3 py-2 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-xs font-semibold transition-colors flex items-center gap-1.5 shadow-sm">
+          <span>✕</span> <span>Hủy lịch này</span>
         </button>
-        <button onclick="confirmSchedule()" class="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-semibold text-xs shadow-md shadow-purple-600/30 flex items-center gap-1.5 transition-all">
-          <span>✓</span> <span>Thiết lập</span>
-        </button>
+        <div class="flex items-center gap-2 ml-auto">
+          <button onclick="closeScheduleModal()"
+            class="px-4 py-2 rounded-xl border border-[var(--border)] hover:bg-[var(--secondary)] text-xs font-medium transition-colors">
+            Đóng
+          </button>
+          <button onclick="confirmSchedule()"
+            class="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-semibold text-xs shadow-md shadow-purple-600/30 flex items-center gap-1.5 transition-all">
+            <span>✓</span> <span id="btnModalConfirmLabel">Thiết lập</span>
+          </button>
+        </div>
       </div>
     </div>
   </div>
 
   <!-- Profile Login CLI Modal Dialog -->
-  <div id="loginModal" class="hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="bg-[var(--card)] border border-amber-500/40 rounded-2xl max-w-lg w-full p-5 sm:p-6 shadow-2xl space-y-4">
+  <div id="loginModal"
+    class="hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+    <div
+      class="bg-[var(--card)] border border-amber-500/40 rounded-2xl max-w-lg w-full p-5 sm:p-6 shadow-2xl space-y-4">
       <div class="flex items-center justify-between pb-3 border-b border-[var(--border)]">
         <div class="flex items-center gap-2">
           <span class="text-amber-400 text-xl">🔑</span>
@@ -440,12 +522,15 @@
             Đăng nhập CLI cho Profile: <span id="loginModalProfile" class="text-sky-400 font-mono"></span>
           </h3>
         </div>
-        <button onclick="closeLoginModal()" class="text-[var(--muted-foreground)] hover:text-[var(--foreground)] text-sm">✕</button>
+        <button onclick="closeLoginModal()"
+          class="text-[var(--muted-foreground)] hover:text-[var(--foreground)] text-sm">✕</button>
       </div>
 
       <div class="text-xs space-y-3">
         <p class="text-[var(--muted-foreground)] leading-relaxed">
-          Profile này đang lưu trữ độc lập tại <code class="text-purple-300 font-mono">~/antigravity_homes/<span id="loginHomeProfile"></span></code>. Hãy sao chép lệnh Terminal dưới đây để mở trình duyệt đăng nhập:
+          Profile này đang lưu trữ độc lập tại <code
+            class="text-purple-300 font-mono">~/antigravity_homes/<span id="loginHomeProfile"></span></code>. Hãy sao
+          chép lệnh Terminal dưới đây để mở trình duyệt đăng nhập:
         </p>
 
         <!-- Command Box with One-Click Copy -->
@@ -454,15 +539,13 @@
             <span class="text-[11px] font-semibold text-amber-400 flex items-center gap-1">
               <span>💻</span> <span>Lệnh Terminal (khuyên dùng):</span>
             </span>
-            <button 
-              onclick="copyLoginCmd()" 
-              id="btnCopyLoginCmd"
-              class="px-2.5 py-1 rounded-lg bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/30 font-medium text-[11px] flex items-center gap-1 transition-colors"
-            >
+            <button onclick="copyLoginCmd()" id="btnCopyLoginCmd"
+              class="px-2.5 py-1 rounded-lg bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/30 font-medium text-[11px] flex items-center gap-1 transition-colors">
               <span>📋</span> <span id="copyBtnText">Sao chép lệnh</span>
             </button>
           </div>
-          <div class="font-mono text-xs text-emerald-400 bg-black/60 p-2.5 rounded-lg border border-slate-800 break-all select-all flex items-center justify-between">
+          <div
+            class="font-mono text-xs text-emerald-400 bg-black/60 p-2.5 rounded-lg border border-slate-800 break-all select-all flex items-center justify-between">
             <code id="loginCmdText"><span id="loginCmdProfile"></span>-cli</code>
           </div>
         </div>
@@ -474,29 +557,38 @@
           </div>
           <ol class="list-decimal list-inside space-y-1.5 text-[11px] text-[var(--muted-foreground)] leading-relaxed">
             <li>Mở cửa sổ Terminal hoặc tab mới trên macOS.</li>
-            <li>Dán lệnh <code class="text-sky-300 font-mono" id="loginCmdInline">profile-cli</code> và nhấn <kbd class="px-1.5 py-0.5 bg-slate-800 border border-slate-700 rounded text-[10px] text-slate-300 font-mono">Enter</kbd>.</li>
+            <li>Dán lệnh <code class="text-sky-300 font-mono" id="loginCmdInline">profile-cli</code> và nhấn <kbd
+                class="px-1.5 py-0.5 bg-slate-800 border border-slate-700 rounded text-[10px] text-slate-300 font-mono">Enter</kbd>.
+            </li>
             <li>Trình duyệt mặc định sẽ mở ra để xác thực Google Account tương ứng với profile.</li>
-            <li>Sau khi thông báo <b class="text-emerald-400">Login successful</b> (Đăng nhập thành công) xuất hiện trong Terminal, quay lại Dashboard và bấm <b>⚡ Refresh nhanh</b>!</li>
+            <li>Sau khi thông báo <b class="text-emerald-400">Login successful</b> (Đăng nhập thành công) xuất hiện
+              trong Terminal, quay lại Dashboard và bấm <b>⚡ Refresh nhanh</b>!</li>
           </ol>
         </div>
 
         <!-- Alternative env command -->
         <details class="text-[11px] text-slate-400">
-          <summary class="cursor-pointer hover:text-slate-300 font-medium select-none">Xem lệnh trực tiếp qua env (không dùng alias -cli)</summary>
-          <div class="mt-2 p-2.5 bg-black/50 rounded-lg border border-slate-800 font-mono text-[10px] text-slate-300 break-all select-all">
-            HOME=/Users/danhdueexoictif/antigravity_homes/<span id="loginAltProfile"></span> AGY_PROFILE=<span id="loginAltProfile2"></span> agy
+          <summary class="cursor-pointer hover:text-slate-300 font-medium select-none">Xem lệnh trực tiếp qua env (không
+            dùng alias -cli)</summary>
+          <div
+            class="mt-2 p-2.5 bg-black/50 rounded-lg border border-slate-800 font-mono text-[10px] text-slate-300 break-all select-all">
+            HOME=/Users/danhdueexoictif/antigravity_homes/<span id="loginAltProfile"></span> AGY_PROFILE=<span
+              id="loginAltProfile2"></span> agy
           </div>
         </details>
       </div>
 
       <div class="flex items-center justify-center gap-2.5 pt-3 border-t border-[var(--border)] flex-wrap">
-        <button onclick="closeLoginModal()" class="px-3.5 py-2 rounded-xl border border-[var(--border)] hover:bg-[var(--secondary)] text-xs font-medium transition-colors">
+        <button onclick="closeLoginModal()"
+          class="px-3.5 py-2 rounded-xl border border-[var(--border)] hover:bg-[var(--secondary)] text-xs font-medium transition-colors">
           Đóng
         </button>
-        <button onclick="copyLoginCmd()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-medium flex items-center gap-1.5 transition-all">
+        <button onclick="copyLoginCmd()"
+          class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-medium flex items-center gap-1.5 transition-all">
           <span>📋</span> <span>Sao chép lệnh</span>
         </button>
-        <button onclick="launchTerminalLogin()" id="btnLaunchTerminalLogin" class="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-black font-semibold text-xs shadow-md shadow-amber-500/20 flex items-center gap-1.5 transition-all">
+        <button onclick="launchTerminalLogin()" id="btnLaunchTerminalLogin"
+          class="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-black font-semibold text-xs shadow-md shadow-amber-500/20 flex items-center gap-1.5 transition-all">
           <span>🚀</span> <span>Mở Terminal đăng nhập ngay</span>
         </button>
       </div>
@@ -504,8 +596,10 @@
   </div>
 
   <!-- Profile Info Modal Dialog (ℹ) -->
-  <div id="profileInfoModal" class="hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="bg-[var(--card)] border border-[var(--border)] rounded-2xl max-w-lg w-full p-5 sm:p-6 shadow-2xl space-y-4">
+  <div id="profileInfoModal"
+    class="hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+    <div
+      class="bg-[var(--card)] border border-[var(--border)] rounded-2xl max-w-lg w-full p-5 sm:p-6 shadow-2xl space-y-4">
       <div class="flex items-center justify-between pb-3 border-b border-[var(--border)]">
         <div class="flex items-center gap-2">
           <span class="text-sky-400 text-xl">ℹ️</span>
@@ -513,21 +607,20 @@
             Thông tin tài khoản: <span id="infoModalProfile" class="text-sky-400 font-mono"></span>
           </h3>
         </div>
-        <button onclick="closeProfileInfoModal()" class="text-[var(--muted-foreground)] hover:text-[var(--foreground)] text-sm">✕</button>
+        <button onclick="closeProfileInfoModal()"
+          class="text-[var(--muted-foreground)] hover:text-[var(--foreground)] text-sm">✕</button>
       </div>
 
       <div class="space-y-3 text-xs">
         <!-- Google Email row with 1-click copy -->
-        <div class="bg-[var(--background)] rounded-xl p-3 border border-[var(--border)] flex items-center justify-between">
+        <div
+          class="bg-[var(--background)] rounded-xl p-3 border border-[var(--border)] flex items-center justify-between">
           <div>
             <div class="text-[11px] text-[var(--muted-foreground)] font-medium">Tài khoản Google (Email)</div>
             <div id="infoModalEmail" class="text-sm font-semibold font-mono text-emerald-400 mt-0.5 select-all">--</div>
           </div>
-          <button 
-            onclick="copyInfoEmail()" 
-            id="btnCopyEmail"
-            class="px-2.5 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[11px] font-medium transition-colors flex items-center gap-1"
-          >
+          <button onclick="copyInfoEmail()" id="btnCopyEmail"
+            class="px-2.5 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[11px] font-medium transition-colors flex items-center gap-1">
             <span>📋</span> <span id="copyEmailText">Sao chép</span>
           </button>
         </div>
@@ -550,11 +643,8 @@
             <span class="text-[11px] font-semibold text-sky-400 flex items-center gap-1">
               <span>💻</span> <span>Lệnh CLI độc lập:</span>
             </span>
-            <button 
-              onclick="copyInfoCliCmd()" 
-              id="btnCopyCli"
-              class="px-2 py-1 rounded-md bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/30 text-[11px] font-medium transition-colors flex items-center gap-1"
-            >
+            <button onclick="copyInfoCliCmd()" id="btnCopyCli"
+              class="px-2 py-1 rounded-md bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/30 text-[11px] font-medium transition-colors flex items-center gap-1">
               <span>📋</span> <span id="copyCliText">Sao chép</span>
             </button>
           </div>
@@ -564,20 +654,23 @@
         </div>
 
         <!-- System Paths Info -->
-        <div class="bg-[var(--background)] rounded-xl p-3 border border-[var(--border)] space-y-2 text-[11px] font-mono">
+        <div
+          class="bg-[var(--background)] rounded-xl p-3 border border-[var(--border)] space-y-2 text-[11px] font-mono">
           <div>
             <div class="text-[var(--muted-foreground)]">Thư mục Home độc lập:</div>
             <div id="infoModalHomePath" class="text-purple-300 truncate select-all">~/antigravity_homes/--</div>
           </div>
           <div>
             <div class="text-[var(--muted-foreground)]">Keychain DB:</div>
-            <div id="infoModalKeychainPath" class="text-slate-300 truncate select-all">~/antigravity_homes/--/Library/Keychains/--.keychain-db</div>
+            <div id="infoModalKeychainPath" class="text-slate-300 truncate select-all">
+              ~/antigravity_homes/--/Library/Keychains/--.keychain-db</div>
           </div>
         </div>
       </div>
 
       <div class="pt-2 flex justify-end">
-        <button onclick="closeProfileInfoModal()" class="px-4 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition-colors">
+        <button onclick="closeProfileInfoModal()"
+          class="px-4 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition-colors">
           Đóng
         </button>
       </div>
@@ -585,7 +678,8 @@
   </div>
 
   <!-- Appeal Details Modal Dialog -->
-  <div id="appealDetailModal" class="hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+  <div id="appealDetailModal"
+    class="hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
     <div class="bg-[var(--card)] border border-rose-500/60 rounded-2xl max-w-lg w-full p-5 sm:p-6 shadow-2xl space-y-4">
       <div class="flex items-center justify-between pb-3 border-b border-rose-900/50">
         <div class="flex items-center gap-2">
@@ -602,8 +696,10 @@
           <div class="text-[11px] font-semibold text-rose-400 flex items-center gap-1">
             <span>⚠️</span> <span>Thông báo vi phạm từ Google Cloud Code / Antigravity:</span>
           </div>
-          <div class="font-mono text-xs text-rose-200 bg-black/60 p-2.5 rounded-lg border border-rose-900/80 leading-relaxed select-all">
-            This service has been disabled in this account for violation of Terms of Service. Please submit an appeal to continue using this product.
+          <div
+            class="font-mono text-xs text-rose-200 bg-black/60 p-2.5 rounded-lg border border-rose-900/80 leading-relaxed select-all">
+            This service has been disabled in this account for violation of Terms of Service. Please submit an appeal to
+            continue using this product.
           </div>
           <div class="text-[10px] text-rose-400/80 font-mono mt-1">
             Error ID: <span id="appealErrorId" class="text-rose-300">856698b5-d43c-4198-962b-4db7fc3c4adb-2</span>
@@ -613,21 +709,22 @@
         <div class="text-[var(--muted-foreground)] leading-relaxed space-y-1.5">
           <p class="font-medium text-slate-300">Hướng dẫn khắc phục:</p>
           <ul class="list-disc list-inside space-y-1 pl-1 text-[11px]">
-            <li>Google tạm thời khóa tính năng AI Agent / Antigravity trên tài khoản Gmail này do vi phạm chính sách sử dụng.</li>
+            <li>Google tạm thời khóa tính năng AI Agent / Antigravity trên tài khoản Gmail này do vi phạm chính sách sử
+              dụng.</li>
             <li>Các tài khoản profile khác trong hệ thống vẫn hoạt động hoàn toàn độc lập và bình thường.</li>
-            <li>Bạn có thể gửi đơn kháng nghị trực tiếp tới Google qua biểu mẫu chính thức dưới đây để yêu cầu xem xét mở khóa:</li>
+            <li>Bạn có thể gửi đơn kháng nghị trực tiếp tới Google qua biểu mẫu chính thức dưới đây để yêu cầu xem xét
+              mở khóa:</li>
           </ul>
         </div>
 
         <div class="pt-2 flex items-center justify-between gap-2">
-          <a 
-            href="https://docs.google.com/forms/d/e/1FAIpQLScOJWibQ_-hYuVv63kJTgEqlgAaOwRLGFTbXm-QY1gz8U0CGA/viewform" 
-            target="_blank" 
-            class="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-semibold text-xs flex items-center gap-1.5 transition-colors shadow-lg shadow-rose-900/40"
-          >
+          <a href="https://docs.google.com/forms/d/e/1FAIpQLScOJWibQ_-hYuVv63kJTgEqlgAaOwRLGFTbXm-QY1gz8U0CGA/viewform"
+            target="_blank"
+            class="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-semibold text-xs flex items-center gap-1.5 transition-colors shadow-lg shadow-rose-900/40">
             <span>📝</span> <span>Mở biểu mẫu kháng nghị Google (Appeal Form)</span> ↗
           </a>
-          <button onclick="closeAppealModal()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition-colors">
+          <button onclick="closeAppealModal()"
+            class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition-colors">
             Đóng
           </button>
         </div>
@@ -648,44 +745,44 @@
     "status": "ACTIVE",
     "isAppeal": false,
     "isSessionActive": true,
-    "resetTime": "2026-11-07T01:01:42Z",
-    "resetTimeLocal": "08:01:42",
+    "resetTime": "2026-11-07T09:52:40Z",
+    "resetTimeLocal": "16:52:40",
     "hasArgon": true,
     "gemini5h": {
       "name": "Gemini 3.8 / Pro 5H",
-      "fraction": 0.8621510863304138,
-      "countdown": "⏱ 4h 22m (08:01:42)",
-      "resetTime": "2026-11-07T01:01:42Z",
-      "resetTimeLocal": "08:01:42",
+      "fraction": 0.9246697425842285,
+      "countdown": "⏱ 3h 44m (16:52:40)",
+      "resetTime": "2026-11-07T09:52:40Z",
+      "resetTimeLocal": "16:52:40",
       "unavailable": false
     },
     "claude5h": {
       "name": "Claude 5.5 / GPT 5H",
       "fraction": 1,
-      "countdown": "⏱ 4h 59m (08:38:28)",
-      "resetTime": "2026-11-07T01:38:28Z",
+      "countdown": "⏱ 4h 59m (18:08:25)",
+      "resetTime": "2026-11-07T11:08:25Z",
       "unavailable": false
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
-      "fraction": 0.956056535243988,
-      "countdown": "⏱ 6d 15h (13/11 18:50)",
-      "resetTime": "2026-11-13T11:50:14Z",
-      "resetTimeLocal": "13/11 18:50",
+      "fraction": 0.9597671627998352,
+      "countdown": "⏱ 6d 17h (14/11 06:52)",
+      "resetTime": "2026-11-13T23:52:40Z",
+      "resetTimeLocal": "14/11 06:52",
       "unavailable": false
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
       "fraction": 1,
-      "countdown": "⏱ 6d 15h",
-      "resetTime": "2026-11-13T11:50:24Z",
+      "countdown": "⏱ 6d 23h",
+      "resetTime": "2026-11-14T06:08:25Z",
       "unavailable": false
     },
     "argonWeekly": {
       "name": "Gemini 4 Argon Weekly",
       "fraction": 1,
-      "countdown": "⏱ 6d 15h",
-      "resetTime": "2026-11-13T11:50:18Z",
+      "countdown": "⏱ 6d 23h",
+      "resetTime": "2026-11-14T06:08:25Z",
       "unavailable": false,
       "tags": true
     }
@@ -697,44 +794,44 @@
     "status": "ACTIVE",
     "isAppeal": false,
     "isSessionActive": true,
-    "resetTime": "2026-11-07T01:01:42Z",
-    "resetTimeLocal": "08:01:42",
+    "resetTime": "2026-11-07T09:52:40Z",
+    "resetTimeLocal": "16:52:40",
     "hasArgon": true,
     "gemini5h": {
       "name": "Gemini 3.8 / Pro 5H",
-      "fraction": 0.8621510863304138,
-      "countdown": "⏱ 4h 22m (08:01:42)",
-      "resetTime": "2026-11-07T01:01:42Z",
-      "resetTimeLocal": "08:01:42",
+      "fraction": 0.9282324910163879,
+      "countdown": "⏱ 3h 44m (16:52:40)",
+      "resetTime": "2026-11-07T09:52:40Z",
+      "resetTimeLocal": "16:52:40",
       "unavailable": false
     },
     "claude5h": {
       "name": "Claude 5.5 / GPT 5H",
       "fraction": 1,
-      "countdown": "⏱ 4h 59m (08:38:29)",
-      "resetTime": "2026-11-07T01:38:29Z",
+      "countdown": "⏱ 4h 59m (18:07:49)",
+      "resetTime": "2026-11-07T11:07:49Z",
       "unavailable": false
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
-      "fraction": 0.956056535243988,
-      "countdown": "⏱ 6d 15h (13/11 18:50)",
-      "resetTime": "2026-11-13T11:50:14Z",
-      "resetTimeLocal": "13/11 18:50",
+      "fraction": 0.9607850909233093,
+      "countdown": "⏱ 6d 17h (14/11 06:52)",
+      "resetTime": "2026-11-13T23:52:40Z",
+      "resetTimeLocal": "14/11 06:52",
       "unavailable": false
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
       "fraction": 1,
-      "countdown": "⏱ 6d 15h",
-      "resetTime": "2026-11-13T11:50:24Z",
+      "countdown": "⏱ 6d 23h",
+      "resetTime": "2026-11-14T06:07:49Z",
       "unavailable": false
     },
     "argonWeekly": {
       "name": "Gemini 4 Argon Weekly",
       "fraction": 1,
-      "countdown": "⏱ 6d 15h",
-      "resetTime": "2026-11-13T11:50:18Z",
+      "countdown": "⏱ 6d 23h",
+      "resetTime": "2026-11-14T06:07:49Z",
       "unavailable": false,
       "tags": true
     }
@@ -828,44 +925,44 @@
     "status": "ACTIVE",
     "isAppeal": false,
     "isSessionActive": false,
-    "resetTime": "2026-11-07T01:38:31Z",
-    "resetTimeLocal": "08:38:31",
+    "resetTime": "2026-11-07T11:07:50Z",
+    "resetTimeLocal": "18:07:50",
     "hasArgon": true,
     "gemini5h": {
       "name": "Gemini 3.8 / Pro 5H",
       "fraction": 1,
-      "countdown": "⏱ 4h 59m (08:38:31)",
-      "resetTime": "2026-11-07T01:38:31Z",
-      "resetTimeLocal": "08:38:31",
+      "countdown": "⏱ 4h 59m (18:07:50)",
+      "resetTime": "2026-11-07T11:07:50Z",
+      "resetTimeLocal": "18:07:50",
       "unavailable": false
     },
     "claude5h": {
       "name": "Claude 5.5 / GPT 5H",
       "fraction": 1,
-      "countdown": "⏱ 4h 59m (08:38:31)",
-      "resetTime": "2026-11-07T01:38:31Z",
+      "countdown": "⏱ 4h 59m (18:07:50)",
+      "resetTime": "2026-11-07T11:07:50Z",
       "unavailable": false
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
-      "fraction": 0.563136637210846,
-      "countdown": "⏱ 3d 7h (10/11 11:17)",
-      "resetTime": "2026-11-10T04:17:30Z",
-      "resetTimeLocal": "10/11 11:17",
+      "fraction": 1,
+      "countdown": "⏱ 6d 23h (14/11 13:07)",
+      "resetTime": "2026-11-14T06:07:50Z",
+      "resetTimeLocal": "14/11 13:07",
       "unavailable": false
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
       "fraction": 0.9999427795410156,
-      "countdown": "⏱ 6d 5h",
+      "countdown": "⏱ 5d 20h",
       "resetTime": "2026-11-13T02:33:58Z",
       "unavailable": false
     },
     "argonWeekly": {
       "name": "Gemini 4 Argon Weekly",
-      "fraction": 0.044314801692962646,
-      "countdown": "⏱ 6d 5h",
-      "resetTime": "2026-11-13T02:33:45Z",
+      "fraction": 0.821832537651062,
+      "countdown": "⏱ 6d 22h",
+      "resetTime": "2026-11-14T05:04:46Z",
       "unavailable": false,
       "tags": true
     }
@@ -877,44 +974,44 @@
     "status": "ACTIVE",
     "isAppeal": false,
     "isSessionActive": true,
-    "resetTime": "2026-11-06T23:36:46Z",
-    "resetTimeLocal": "06:36:46",
+    "resetTime": "2026-11-07T09:52:38Z",
+    "resetTimeLocal": "16:52:38",
     "hasArgon": true,
     "gemini5h": {
       "name": "Gemini 3.8 / Pro 5H",
-      "fraction": 0.997797429561615,
-      "countdown": "⏱ 2h 58m (06:36:46)",
-      "resetTime": "2026-11-06T23:36:46Z",
-      "resetTimeLocal": "06:36:46",
+      "fraction": 0.847084105014801,
+      "countdown": "⏱ 3h 44m (16:52:38)",
+      "resetTime": "2026-11-07T09:52:38Z",
+      "resetTimeLocal": "16:52:38",
       "unavailable": false
     },
     "claude5h": {
       "name": "Claude 5.5 / GPT 5H",
       "fraction": 1,
-      "countdown": "⏱ 4h 59m (08:38:33)",
-      "resetTime": "2026-11-07T01:38:33Z",
+      "countdown": "⏱ 4h 59m (18:07:56)",
+      "resetTime": "2026-11-07T11:07:56Z",
       "unavailable": false
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
-      "fraction": 0.9973992109298706,
-      "countdown": "⏱ 6d 15h (13/11 18:50)",
-      "resetTime": "2026-11-13T11:50:14Z",
-      "resetTimeLocal": "13/11 18:50",
+      "fraction": 0.8198285102844238,
+      "countdown": "⏱ 6d 17h (14/11 06:52)",
+      "resetTime": "2026-11-13T23:52:38Z",
+      "resetTimeLocal": "14/11 06:52",
       "unavailable": false
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
       "fraction": 1,
-      "countdown": "⏱ 6d 15h",
-      "resetTime": "2026-11-13T11:50:27Z",
+      "countdown": "⏱ 6d 23h",
+      "resetTime": "2026-11-14T06:07:56Z",
       "unavailable": false
     },
     "argonWeekly": {
       "name": "Gemini 4 Argon Weekly",
-      "fraction": 0.4510611891746521,
-      "countdown": "⏱ 6d 14h",
-      "resetTime": "2026-11-13T11:20:00Z",
+      "fraction": 1,
+      "countdown": "⏱ 6d 23h",
+      "resetTime": "2026-11-14T06:07:56Z",
       "unavailable": false,
       "tags": true
     }
@@ -925,45 +1022,45 @@
     "priority": 40,
     "status": "ACTIVE",
     "isAppeal": false,
-    "isSessionActive": true,
-    "resetTime": "2026-11-07T00:59:38Z",
-    "resetTimeLocal": "07:59:38",
+    "isSessionActive": false,
+    "resetTime": "2026-11-07T11:07:55Z",
+    "resetTimeLocal": "18:07:55",
     "hasArgon": true,
     "gemini5h": {
       "name": "Gemini 3.8 / Pro 5H",
-      "fraction": 0.9242349863052368,
-      "countdown": "⏱ 4h 20m (07:59:38)",
-      "resetTime": "2026-11-07T00:59:38Z",
-      "resetTimeLocal": "07:59:38",
+      "fraction": 1,
+      "countdown": "⏱ 4h 59m (18:07:55)",
+      "resetTime": "2026-11-07T11:07:55Z",
+      "resetTimeLocal": "18:07:55",
       "unavailable": false
     },
     "claude5h": {
       "name": "Claude 5.5 / GPT 5H",
       "fraction": 1,
-      "countdown": "⏱ 4h 59m (08:38:33)",
-      "resetTime": "2026-11-07T01:38:33Z",
+      "countdown": "⏱ 4h 59m (18:07:55)",
+      "resetTime": "2026-11-07T11:07:55Z",
       "unavailable": false
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
-      "fraction": 0.0909634679555893,
-      "countdown": "⏱ 4d 14h (11/11 18:01)",
-      "resetTime": "2026-11-11T11:01:17Z",
-      "resetTimeLocal": "11/11 18:01",
+      "fraction": 1,
+      "countdown": "⏱ 6d 23h (14/11 13:07)",
+      "resetTime": "2026-11-14T06:07:55Z",
+      "resetTimeLocal": "14/11 13:07",
       "unavailable": false
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
       "fraction": 0.45513561367988586,
-      "countdown": "⏱ 4d 14h",
+      "countdown": "⏱ 4d 4h",
       "resetTime": "2026-11-11T11:01:11Z",
       "unavailable": false
     },
     "argonWeekly": {
       "name": "Gemini 4 Argon Weekly",
-      "fraction": 0,
-      "countdown": "⏱ 4d 14h",
-      "resetTime": "2026-11-11T11:01:08Z",
+      "fraction": 1,
+      "countdown": "⏱ 6d 23h",
+      "resetTime": "2026-11-14T06:07:55Z",
       "unavailable": false,
       "tags": true
     }
@@ -975,44 +1072,44 @@
     "status": "ACTIVE",
     "isAppeal": false,
     "isSessionActive": false,
-    "resetTime": "2026-11-07T01:38:35Z",
-    "resetTimeLocal": "08:38:35",
+    "resetTime": "2026-11-07T11:07:57Z",
+    "resetTimeLocal": "18:07:57",
     "hasArgon": true,
     "gemini5h": {
       "name": "Gemini 3.8 / Pro 5H",
       "fraction": 1,
-      "countdown": "⏱ 4h 59m (08:38:35)",
-      "resetTime": "2026-11-07T01:38:35Z",
-      "resetTimeLocal": "08:38:35",
+      "countdown": "⏱ 4h 59m (18:07:57)",
+      "resetTime": "2026-11-07T11:07:57Z",
+      "resetTimeLocal": "18:07:57",
       "unavailable": false
     },
     "claude5h": {
       "name": "Claude 5.5 / GPT 5H",
       "fraction": 1,
-      "countdown": "⏱ 4h 59m (08:38:35)",
-      "resetTime": "2026-11-07T01:38:35Z",
+      "countdown": "⏱ 4h 59m (18:07:57)",
+      "resetTime": "2026-11-07T11:07:57Z",
       "unavailable": false
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
-      "fraction": 0.46859413385391235,
-      "countdown": "⏱ 1d 20h (09/11 00:02)",
-      "resetTime": "2026-11-08T17:02:14Z",
-      "resetTimeLocal": "09/11 00:02",
+      "fraction": 1,
+      "countdown": "⏱ 6d 23h (14/11 13:07)",
+      "resetTime": "2026-11-14T06:07:57Z",
+      "resetTimeLocal": "14/11 13:07",
       "unavailable": false
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
       "fraction": 1,
-      "countdown": "⏱ 6d 15h",
-      "resetTime": "2026-11-13T11:50:18Z",
+      "countdown": "⏱ 6d 23h",
+      "resetTime": "2026-11-14T06:07:57Z",
       "unavailable": false
     },
     "argonWeekly": {
       "name": "Gemini 4 Argon Weekly",
-      "fraction": 0.9999167919158936,
-      "countdown": "⏱ 6d 5h",
-      "resetTime": "2026-11-13T02:33:45Z",
+      "fraction": 1,
+      "countdown": "⏱ 6d 23h",
+      "resetTime": "2026-11-14T06:07:57Z",
       "unavailable": false,
       "tags": true
     }
@@ -1063,93 +1160,44 @@
     "status": "ACTIVE",
     "isAppeal": false,
     "isSessionActive": true,
-    "resetTime": "2026-11-06T22:14:04Z",
-    "resetTimeLocal": "05:14:04",
+    "resetTime": "2026-11-07T09:54:14Z",
+    "resetTimeLocal": "16:54:14",
     "hasArgon": true,
     "gemini5h": {
       "name": "Gemini 3.8 / Pro 5H",
-      "fraction": 0.4762691855430603,
-      "countdown": "⏱ 1h 35m (05:14:04)",
-      "resetTime": "2026-11-06T22:14:04Z",
-      "resetTimeLocal": "05:14:04",
+      "fraction": 0.9678750038146973,
+      "countdown": "⏱ 3h 46m (16:54:14)",
+      "resetTime": "2026-11-07T09:54:14Z",
+      "resetTimeLocal": "16:54:14",
       "unavailable": false
     },
     "claude5h": {
       "name": "Claude 5.5 / GPT 5H",
       "fraction": 1,
-      "countdown": "⏱ 4h 59m (08:38:36)",
-      "resetTime": "2026-11-07T01:38:36Z",
+      "countdown": "⏱ 4h 59m (18:08:00)",
+      "resetTime": "2026-11-07T11:08:00Z",
       "unavailable": false
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
-      "fraction": 0.6709274649620056,
-      "countdown": "⏱ 6d 8h (13/11 12:30)",
-      "resetTime": "2026-11-13T05:30:55Z",
-      "resetTimeLocal": "13/11 12:30",
+      "fraction": 0.9789276719093323,
+      "countdown": "⏱ 6d 17h (14/11 06:54)",
+      "resetTime": "2026-11-13T23:54:14Z",
+      "resetTimeLocal": "14/11 06:54",
       "unavailable": false
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
       "fraction": 0.9871808290481567,
-      "countdown": "⏱ 6d 15h",
+      "countdown": "⏱ 6d 6h",
       "resetTime": "2026-11-13T12:14:56Z",
       "unavailable": false
     },
     "argonWeekly": {
       "name": "Gemini 4 Argon Weekly",
-      "fraction": 0.9903575778007507,
-      "countdown": "⏱ 6d 8h",
-      "resetTime": "2026-11-13T05:27:18Z",
-      "unavailable": false,
-      "tags": true
-    }
-  },
-  "huynhminhtien0510v": {
-    "email": "huynhminhtien0510v@gmail.com",
-    "tier": "PRO",
-    "priority": 50,
-    "status": "ACTIVE",
-    "isAppeal": false,
-    "isSessionActive": true,
-    "resetTime": "2026-11-06T22:14:04Z",
-    "resetTimeLocal": "05:14:04",
-    "hasArgon": true,
-    "gemini5h": {
-      "name": "Gemini 3.8 / Pro 5H",
-      "fraction": 0.4762691855430603,
-      "countdown": "⏱ 1h 35m (05:14:04)",
-      "resetTime": "2026-11-06T22:14:04Z",
-      "resetTimeLocal": "05:14:04",
-      "unavailable": false
-    },
-    "claude5h": {
-      "name": "Claude 5.5 / GPT 5H",
       "fraction": 1,
-      "countdown": "⏱ 4h 59m (08:38:38)",
-      "resetTime": "2026-11-07T01:38:38Z",
-      "unavailable": false
-    },
-    "geminiWeekly": {
-      "name": "Gemini Weekly",
-      "fraction": 0.6709274649620056,
-      "countdown": "⏱ 6d 8h (13/11 12:30)",
-      "resetTime": "2026-11-13T05:30:55Z",
-      "resetTimeLocal": "13/11 12:30",
-      "unavailable": false
-    },
-    "claudeWeekly": {
-      "name": "Claude Weekly",
-      "fraction": 0.9871808290481567,
-      "countdown": "⏱ 6d 15h",
-      "resetTime": "2026-11-13T12:14:56Z",
-      "unavailable": false
-    },
-    "argonWeekly": {
-      "name": "Gemini 4 Argon Weekly",
-      "fraction": 0.9903575778007507,
-      "countdown": "⏱ 6d 8h",
-      "resetTime": "2026-11-13T05:27:18Z",
+      "countdown": "⏱ 6d 23h",
+      "resetTime": "2026-11-14T06:08:00Z",
       "unavailable": false,
       "tags": true
     }
@@ -1364,44 +1412,44 @@
     "status": "ACTIVE",
     "isAppeal": false,
     "isSessionActive": true,
-    "resetTime": "2026-11-06T23:36:46Z",
-    "resetTimeLocal": "06:36:46",
+    "resetTime": "2026-11-07T09:52:38Z",
+    "resetTimeLocal": "16:52:38",
     "hasArgon": true,
     "gemini5h": {
       "name": "Gemini 3.8 / Pro 5H",
-      "fraction": 0.997797429561615,
-      "countdown": "⏱ 2h 58m (06:36:46)",
-      "resetTime": "2026-11-06T23:36:46Z",
-      "resetTimeLocal": "06:36:46",
+      "fraction": 0.8379132151603699,
+      "countdown": "⏱ 3h 44m (16:52:38)",
+      "resetTime": "2026-11-07T09:52:38Z",
+      "resetTimeLocal": "16:52:38",
       "unavailable": false
     },
     "claude5h": {
       "name": "Claude 5.5 / GPT 5H",
       "fraction": 1,
-      "countdown": "⏱ 4h 59m (08:38:39)",
-      "resetTime": "2026-11-07T01:38:39Z",
+      "countdown": "⏱ 4h 59m (18:08:02)",
+      "resetTime": "2026-11-07T11:08:02Z",
       "unavailable": false
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
-      "fraction": 0.9973992109298706,
-      "countdown": "⏱ 6d 15h (13/11 18:50)",
-      "resetTime": "2026-11-13T11:50:14Z",
-      "resetTimeLocal": "13/11 18:50",
+      "fraction": 0.8161587119102478,
+      "countdown": "⏱ 6d 17h (14/11 06:52)",
+      "resetTime": "2026-11-13T23:52:38Z",
+      "resetTimeLocal": "14/11 06:52",
       "unavailable": false
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
       "fraction": 1,
-      "countdown": "⏱ 6d 15h",
-      "resetTime": "2026-11-13T11:50:27Z",
+      "countdown": "⏱ 6d 23h",
+      "resetTime": "2026-11-14T06:08:02Z",
       "unavailable": false
     },
     "argonWeekly": {
       "name": "Gemini 4 Argon Weekly",
-      "fraction": 0.4551845192909241,
-      "countdown": "⏱ 6d 14h",
-      "resetTime": "2026-11-13T11:20:00Z",
+      "fraction": 1,
+      "countdown": "⏱ 6d 23h",
+      "resetTime": "2026-11-14T06:08:02Z",
       "unavailable": false,
       "tags": true
     }
@@ -1452,36 +1500,36 @@
     "status": "ACTIVE",
     "isAppeal": false,
     "isSessionActive": false,
-    "resetTime": "2026-11-07T01:38:41Z",
-    "resetTimeLocal": "08:38:41",
+    "resetTime": "2026-11-07T11:08:03Z",
+    "resetTimeLocal": "18:08:03",
     "hasArgon": false,
     "gemini5h": {
       "name": "Gemini 3.8 / Pro 5H",
       "fraction": 1,
-      "countdown": "⏱ 4h 59m (08:38:41)",
-      "resetTime": "2026-11-07T01:38:41Z",
-      "resetTimeLocal": "08:38:41",
+      "countdown": "⏱ 4h 59m (18:08:03)",
+      "resetTime": "2026-11-07T11:08:03Z",
+      "resetTimeLocal": "18:08:03",
       "unavailable": false
     },
     "claude5h": {
       "name": "Claude 5.5 / GPT 5H",
       "fraction": 1,
-      "countdown": "⏱ 4h 59m (08:38:41)",
-      "resetTime": "2026-11-07T01:38:41Z",
+      "countdown": "⏱ 4h 59m (18:08:03)",
+      "resetTime": "2026-11-07T11:08:03Z",
       "unavailable": false
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
-      "fraction": 0.6150436401367188,
-      "countdown": "⏱ 17h 9m (07/11 20:48)",
-      "resetTime": "2026-11-07T13:48:32Z",
-      "resetTimeLocal": "07/11 20:48",
+      "fraction": 1,
+      "countdown": "⏱ 6d 23h (14/11 13:08)",
+      "resetTime": "2026-11-14T06:08:03Z",
+      "resetTimeLocal": "14/11 13:08",
       "unavailable": false
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
       "fraction": 0.9992480278015137,
-      "countdown": "⏱ 4d 14h",
+      "countdown": "⏱ 4d 4h",
       "resetTime": "2026-11-11T11:01:08Z",
       "unavailable": false
     },
@@ -1500,45 +1548,45 @@
     "priority": 50,
     "status": "ACTIVE",
     "isAppeal": false,
-    "isSessionActive": true,
-    "resetTime": "2026-11-07T00:59:38Z",
-    "resetTimeLocal": "07:59:38",
+    "isSessionActive": false,
+    "resetTime": "2026-11-07T11:08:09Z",
+    "resetTimeLocal": "18:08:09",
     "hasArgon": true,
     "gemini5h": {
       "name": "Gemini 3.8 / Pro 5H",
-      "fraction": 0.9242349863052368,
-      "countdown": "⏱ 4h 20m (07:59:38)",
-      "resetTime": "2026-11-07T00:59:38Z",
-      "resetTimeLocal": "07:59:38",
+      "fraction": 1,
+      "countdown": "⏱ 4h 59m (18:08:09)",
+      "resetTime": "2026-11-07T11:08:09Z",
+      "resetTimeLocal": "18:08:09",
       "unavailable": false
     },
     "claude5h": {
       "name": "Claude 5.5 / GPT 5H",
       "fraction": 1,
-      "countdown": "⏱ 4h 59m (08:38:42)",
-      "resetTime": "2026-11-07T01:38:42Z",
+      "countdown": "⏱ 4h 59m (18:08:09)",
+      "resetTime": "2026-11-07T11:08:09Z",
       "unavailable": false
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
-      "fraction": 0.0909634679555893,
-      "countdown": "⏱ 4d 14h (11/11 18:01)",
-      "resetTime": "2026-11-11T11:01:17Z",
-      "resetTimeLocal": "11/11 18:01",
+      "fraction": 1,
+      "countdown": "⏱ 6d 23h (14/11 13:08)",
+      "resetTime": "2026-11-14T06:08:09Z",
+      "resetTimeLocal": "14/11 13:08",
       "unavailable": false
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
       "fraction": 0.45513561367988586,
-      "countdown": "⏱ 4d 14h",
+      "countdown": "⏱ 4d 4h",
       "resetTime": "2026-11-11T11:01:11Z",
       "unavailable": false
     },
     "argonWeekly": {
       "name": "Gemini 4 Argon Weekly",
-      "fraction": 0,
-      "countdown": "⏱ 4d 14h",
-      "resetTime": "2026-11-11T11:01:08Z",
+      "fraction": 1,
+      "countdown": "⏱ 6d 23h",
+      "resetTime": "2026-11-14T06:08:09Z",
       "unavailable": false,
       "tags": true
     }
@@ -1550,37 +1598,37 @@
     "status": "ACTIVE",
     "isAppeal": false,
     "isSessionActive": false,
-    "resetTime": "2026-11-07T01:38:44Z",
-    "resetTimeLocal": "08:38:44",
+    "resetTime": "2026-11-07T11:08:09Z",
+    "resetTimeLocal": "18:08:09",
     "hasArgon": false,
     "gemini5h": {
       "name": "Gemini 3.8 / Pro 5H",
       "fraction": 1,
-      "countdown": "⏱ 4h 59m (08:38:44)",
-      "resetTime": "2026-11-07T01:38:44Z",
-      "resetTimeLocal": "08:38:44",
+      "countdown": "⏱ 4h 59m (18:08:09)",
+      "resetTime": "2026-11-07T11:08:09Z",
+      "resetTimeLocal": "18:08:09",
       "unavailable": false
     },
     "claude5h": {
       "name": "Claude 5.5 / GPT 5H",
       "fraction": 1,
-      "countdown": "⏱ 4h 59m (08:38:44)",
-      "resetTime": "2026-11-07T01:38:44Z",
+      "countdown": "⏱ 4h 59m (18:08:09)",
+      "resetTime": "2026-11-07T11:08:09Z",
       "unavailable": false
     },
     "geminiWeekly": {
       "name": "Gemini Weekly",
-      "fraction": 0.7196071743965149,
-      "countdown": "⏱ 1d 20h (08/11 23:50)",
-      "resetTime": "2026-11-08T16:50:55Z",
-      "resetTimeLocal": "08/11 23:50",
+      "fraction": 1,
+      "countdown": "⏱ 6d 23h (14/11 13:08)",
+      "resetTime": "2026-11-14T06:08:09Z",
+      "resetTimeLocal": "14/11 13:08",
       "unavailable": false
     },
     "claudeWeekly": {
       "name": "Claude Weekly",
       "fraction": 1,
-      "countdown": "⏱ 6d 15h",
-      "resetTime": "2026-11-13T11:50:14Z",
+      "countdown": "⏱ 6d 23h",
+      "resetTime": "2026-11-14T06:08:09Z",
       "unavailable": false
     },
     "argonWeekly": {
@@ -1681,17 +1729,17 @@
     "priority": 100,
     "email": "Anthropic Claude Pro / Team",
     "status": "ACTIVE",
-    "isSessionActive": true,
-    "resetTime": "2026-11-06T22:19:59.660729+00:00",
-    "resetTimeLocal": "05:19:59",
-    "remainingCountdown": "⏱ 1h 41m (05:19:59)",
+    "isSessionActive": false,
+    "resetTime": null,
+    "resetTimeLocal": "",
+    "remainingCountdown": "⏱ 5h 00m (Reset xong)",
     "hasArgon": true,
     "gemini5h": {
       "name": "Claude 5H Session Window",
-      "fraction": 0.31,
-      "countdown": "⏱ 1h 41m (05:19:59)",
-      "resetTime": "2026-11-06T22:19:59.660729+00:00",
-      "resetTimeLocal": "05:19:59",
+      "fraction": 1.0,
+      "countdown": "⏱ 5h 00m (Reset xong)",
+      "resetTime": null,
+      "resetTimeLocal": "",
       "unavailable": false
     },
     "claude5h": {
@@ -1704,9 +1752,9 @@
     },
     "geminiWeekly": {
       "name": "Claude 7D Weekly Remaining",
-      "fraction": 0.22,
-      "countdown": "⏱ 4d 3h (11/11 06:59)",
-      "resetTime": "2026-11-10T23:59:59.660747+00:00",
+      "fraction": 0.21,
+      "countdown": "⏱ 3d 17h (11/11 06:59)",
+      "resetTime": "2026-11-10T23:59:59.540239+00:00",
       "resetTimeLocal": "11/11 06:59",
       "unavailable": false
     },
@@ -1735,19 +1783,20 @@
     "providerType": "codex",
     "tier": "OPENAI",
     "priority": 95,
-    "email": "OpenAI Codex CLI (ChatGPT Plus/Team)",
+    "email": "danhdue@gmail.com",
     "status": "ACTIVE",
     "isSessionActive": true,
-    "resetTime": "2026-11-07T01:37:58+00:00",
-    "resetTimeLocal": "08:37:58",
-    "remainingCountdown": "⏱ 4h 59m (08:37:58)",
+    "resetTime": "2026-11-07T11:03:13+00:00",
+    "resetTimeLocal": "18:03:13",
+    "remainingCountdown": "⏱ 4h 55m (18:03:13)",
     "hasArgon": true,
+    "resetCredits": 1,
     "gemini5h": {
-      "name": "Codex 5H Rolling Session",
-      "fraction": 0.9985555555555555,
-      "countdown": "⏱ 4h 59m (08:37:58)",
-      "resetTime": "2026-11-07T01:37:58+00:00",
-      "resetTimeLocal": "08:37:58",
+      "name": "Codex 5-Hour Limit",
+      "fraction": 0.72,
+      "countdown": "⏱ 4h 55m (18:03:13)",
+      "resetTime": "2026-11-07T11:03:13+00:00",
+      "resetTimeLocal": "18:03:13",
       "unavailable": false
     },
     "claude5h": {
@@ -1759,17 +1808,17 @@
       "unavailable": false
     },
     "geminiWeekly": {
-      "name": "OpenAI Weekly Limit (Chỉ trượt 5H Session)",
-      "fraction": 1.0,
-      "countdown": "Không áp dụng",
-      "resetTime": "",
-      "resetTimeLocal": "",
+      "name": "Codex Weekly Limit",
+      "fraction": 0.21,
+      "countdown": "⏱ 3d 13h (11/11 02:49)",
+      "resetTime": "2026-11-10T19:49:51+00:00",
+      "resetTimeLocal": "11/11 02:49",
       "unavailable": false
     },
     "claudeWeekly": {
-      "name": "OpenAI Auth Session",
+      "name": "OpenAI Reset Credits",
       "fraction": 1.0,
-      "countdown": "OAuth Active",
+      "countdown": "1 Available",
       "resetTime": "",
       "resetTimeLocal": "",
       "unavailable": false
@@ -2030,9 +2079,14 @@
                   <span class="pill-badge bg-white/10 text-white border border-white/30 font-mono font-bold text-[10px] shadow-sm">
                     <span class="text-white">✱</span> OPENAI
                   </span>
-                  <span class="pill-badge bg-zinc-800/90 text-zinc-300 border border-zinc-700 font-mono text-[10px]">
+                  <span class="pill-badge bg-purple-950/60 text-purple-300 border border-purple-800/60 font-mono text-[10px]">
                     AI PROVIDER
                   </span>
+                  ${data.resetCredits ? `
+                  <span class="pill-badge bg-purple-950/80 text-purple-200 border border-purple-700/80 font-mono text-[10px]" title="Có ${data.resetCredits} vé Full Reset khả dụng (Hạn đến 02/12)">
+                    🎟️ ${data.resetCredits} RESET CREDIT
+                  </span>
+                  ` : ''}
                 `) : `
                   ${getTierBadgeHTML(data.tier || 'PRO')}
                   ${getPriorityBadgeHTML(data.priority || 50)}
@@ -2061,7 +2115,7 @@
                   onclick="triggerQuickRefresh('${profile}')" 
                   id="btnRefresh-${profile}"
                   title="Kiểm tra quota và đồng bộ session qua ${profile}-cli"
-                  class="px-2.5 py-1.5 rounded-lg ${profile === 'codex' ? 'bg-zinc-800 hover:bg-zinc-700 text-zinc-100 border border-zinc-600' : 'bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/30'} font-medium text-xs transition-colors flex items-center gap-1.5 shadow-sm"
+                  class="px-2.5 py-1.5 rounded-lg bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/30 font-medium text-xs transition-colors flex items-center gap-1.5 shadow-sm"
                 >
                   <span>⚡</span> <span>Refresh nhanh</span>
                 </button>
@@ -2071,19 +2125,37 @@
                   onclick="triggerActivateQuota('${profile}')" 
                   id="btnActivate-${profile}"
                   title="Gửi 1 token kích hoạt đếm ngược 5H & Weekly qua ${profile}-cli"
-                  class="px-2.5 py-1.5 rounded-lg ${profile === 'codex' ? 'bg-white/15 hover:bg-white/25 text-white border border-white/40' : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'} font-medium text-xs transition-colors flex items-center gap-1.5 shadow-sm"
+                  class="px-2.5 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-medium text-xs transition-colors flex items-center gap-1.5 shadow-sm"
                 >
                   <span>🎯</span> <span>Kích hoạt</span>
                 </button>
 
                 <!-- Action 2: Lên lịch -->
-                <button 
-                  onclick="openScheduleModal('${profile}')" 
-                  title="Cấu hình lịch tự động qua refresh-session daemon"
-                  class="px-2.5 py-1.5 rounded-lg ${profile === 'codex' ? 'bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700' : 'bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 border border-purple-500/30'} font-medium text-xs transition-colors flex items-center gap-1.5 shadow-sm"
-                >
-                  <span>⏰</span> <span>Lên lịch</span>
-                </button>
+                ${(() => {
+            const sched = getProfileSchedule(profile);
+            if (sched) {
+              return `
+                    <button 
+                      onclick="openScheduleModal('${profile}')" 
+                      id="btnSchedule-${profile}"
+                      title="Đã lên lịch lúc ${sched.time} (+${sched.delay}s). Bấm để xem chi tiết hoặc hủy lịch."
+                      class="px-2.5 py-1.5 rounded-lg bg-purple-600/35 hover:bg-purple-600/50 text-purple-100 border border-purple-400 font-bold text-xs transition-all flex items-center gap-1.5 shadow-[0_0_12px_rgba(168,85,247,0.4)] ring-1 ring-purple-400/60"
+                    >
+                      <span class="animate-pulse">⏰</span> <span>${sched.time} (+${sched.delay}s)</span>
+                    </button>
+                    `;
+            }
+            return `
+                  <button 
+                    onclick="openScheduleModal('${profile}')" 
+                    id="btnSchedule-${profile}"
+                    title="Cấu hình lịch tự động qua refresh-session daemon"
+                    class="px-2.5 py-1.5 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 border border-purple-500/30 font-medium text-xs transition-colors flex items-center gap-1.5 shadow-sm"
+                  >
+                    <span>⏰</span> <span>Lên lịch</span>
+                  </button>
+                  `;
+          })()}
                 ` : ''}
 
                 <!-- Action 3: Mở CLI -->
@@ -2091,7 +2163,7 @@
                   onclick="triggerOpenCLI('${profile}')" 
                   id="btnOpenCLI-${profile}"
                   title="Mở Terminal chạy CLI cho ${profile}"
-                  class="px-2.5 py-1.5 rounded-lg ${profile === 'codex' ? 'bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700' : 'bg-teal-500/10 hover:bg-teal-500/20 text-teal-300 border border-teal-500/30'} font-medium text-xs transition-colors flex items-center gap-1.5 shadow-sm"
+                  class="px-2.5 py-1.5 rounded-lg bg-teal-500/10 hover:bg-teal-500/20 text-teal-300 border border-teal-500/30 font-medium text-xs transition-colors flex items-center gap-1.5 shadow-sm"
                 >
                   <span>💻</span> <span>Mở CLI</span>
                 </button>
@@ -2152,10 +2224,10 @@
                 ${renderDetailModelCard("✺", "text-amber-400", data.geminiWeekly.name, data.geminiWeekly.countdown, data.geminiWeekly.fraction, false, data.geminiWeekly.unavailable)}
               </div>
               ` : (profile === 'codex' ? `
-              <!-- Codex Provider: Quota thực tế (5H Rolling Session) & OpenAI Weekly Limit (N/A) -->
+              <!-- Codex Provider: Quota thực tế từ OpenAI Plan limits (5H Limit & Weekly Limit) -->
               <div class="space-y-2.5">
                 ${renderDetailModelCard("✱", "text-white", data.gemini5h.name, data.gemini5h.countdown, data.gemini5h.fraction, false, data.gemini5h.unavailable)}
-                ${renderDetailModelCard("✱", "text-zinc-400", data.geminiWeekly.name, data.geminiWeekly.countdown, data.geminiWeekly.fraction, false, data.geminiWeekly.unavailable)}
+                ${renderDetailModelCard("✱", "text-white", data.geminiWeekly.name, data.geminiWeekly.countdown, data.geminiWeekly.fraction, false, data.geminiWeekly.unavailable)}
               </div>
               ` : `
               <!-- Row 1: Gemini 5H (Col 1) & Claude 5H (Col 2) -->
@@ -2206,7 +2278,7 @@
     try {
       const saved = localStorage.getItem("antigravity_custom_profile_order");
       if (saved) customProfileOrder = JSON.parse(saved);
-    } catch (e) {}
+    } catch (e) { }
 
     function getOrderedProfiles() {
       let profiles = Object.keys(PROFILES_DATA);
@@ -2332,6 +2404,73 @@
       showToast(`✋ Đã chuyển '${draggedProfile}' đến vị trí mới!`, "info");
     }
 
+    function setStatusFilter(filterVal) {
+      const sel = document.getElementById("statusFilter");
+      if (!sel) return;
+      if (sel.value === filterVal) {
+        sel.value = "ALL";
+      } else {
+        sel.value = filterVal;
+      }
+      filterProfiles();
+    }
+
+    function updateStatisticBadges(active, disabled, authNeeded, exhausted, providers, profiles) {
+      const elActive = document.getElementById("statActiveCount");
+      const elDisabled = document.getElementById("statDisabledCount");
+      const elAuth = document.getElementById("statAuthNeededCount");
+      const elExhausted = document.getElementById("statExhaustedCount");
+      const btnExhausted = document.getElementById("statBtnExhausted");
+
+      if (elActive) elActive.textContent = `${active} Active`;
+      if (elDisabled) elDisabled.textContent = `${disabled} Bị khóa`;
+      if (elAuth) elAuth.textContent = `${authNeeded} Cần login`;
+      if (elExhausted) elExhausted.textContent = `${exhausted} Hết quota`;
+      if (btnExhausted) {
+        if (exhausted > 0) btnExhausted.classList.remove("hidden");
+        else btnExhausted.classList.add("hidden");
+      }
+
+      // Update dropdown option labels
+      const optAll = document.getElementById("optFilterAll");
+      const optProv = document.getElementById("optFilterProviders");
+      const optProf = document.getElementById("optFilterProfiles");
+      const optAct = document.getElementById("optFilterActive");
+      const optDis = document.getElementById("optFilterDisabled");
+      const optAuth = document.getElementById("optFilterAuthNeeded");
+      const optExh = document.getElementById("optFilterExhausted");
+
+      const total = (providers || 0) + (profiles || 0);
+      if (optAll) optAll.textContent = `Tất cả mục (${total})`;
+      if (optProv) optProv.textContent = `Chỉ AI Providers (${providers || 0})`;
+      if (optProf) optProf.textContent = `Chỉ Antigravity Profiles (${profiles || 0})`;
+      if (optAct) optAct.textContent = `Chỉ ACTIVE (${active})`;
+      if (optDis) optDis.textContent = `Chỉ BỊ KHÓA (${disabled})`;
+      if (optAuth) optAuth.textContent = `Chỉ CẦN LOGIN (${authNeeded})`;
+      if (optExh) optExh.textContent = `Chỉ HẾT QUOTA (${exhausted})`;
+
+      // Highlight active filter pill
+      const sel = document.getElementById("statusFilter");
+      const curFilter = sel ? sel.value : "ALL";
+
+      const btnA = document.getElementById("statBtnActive");
+      const btnD = document.getElementById("statBtnDisabled");
+      const btnAuth = document.getElementById("statBtnAuthNeeded");
+
+      if (btnA) {
+        if (curFilter === "ACTIVE") btnA.classList.add("ring-2", "ring-emerald-400", "bg-emerald-500/30");
+        else btnA.classList.remove("ring-2", "ring-emerald-400", "bg-emerald-500/30");
+      }
+      if (btnD) {
+        if (curFilter === "DISABLED") btnD.classList.add("ring-2", "ring-rose-400", "bg-rose-500/30");
+        else btnD.classList.remove("ring-2", "ring-rose-400", "bg-rose-500/30");
+      }
+      if (btnAuth) {
+        if (curFilter === "AUTH NEEDED") btnAuth.classList.add("ring-2", "ring-amber-400", "bg-amber-500/30");
+        else btnAuth.classList.remove("ring-2", "ring-amber-400", "bg-amber-500/30");
+      }
+    }
+
     function changeSortOrder(val) {
       currentSortOrder = val;
       localStorage.setItem("antigravity_sort_order", val);
@@ -2356,16 +2495,33 @@
         sortSelect.value = currentSortOrder;
       }
 
+      // Compute global statistics across all accounts
+      let sActive = 0, sDisabled = 0, sAuthNeeded = 0, sExhausted = 0, sProviders = 0, sProfiles = 0;
+      Object.keys(PROFILES_DATA).forEach(p => {
+        const d = PROFILES_DATA[p];
+        if (!d) return;
+        if (d.isProvider) sProviders++;
+        else sProfiles++;
+
+        if (d.status === "DISABLED" || d.isAppeal) sDisabled++;
+        else if (d.status === "AUTH NEEDED") sAuthNeeded++;
+        else if (d.status === "EXHAUSTED") sExhausted++;
+        else sActive++;
+      });
+      updateStatisticBadges(sActive, sDisabled, sAuthNeeded, sExhausted, sProviders, sProfiles);
+
       const matchingProfiles = [];
       getOrderedProfiles().forEach(profile => {
         const data = PROFILES_DATA[profile];
         if (!data) return;
-        
+
         if (search && !profile.toLowerCase().includes(search) && !(data.displayName && data.displayName.toLowerCase().includes(search))) return;
         if (statusFilter && statusFilter !== "ALL") {
           if (statusFilter === "PROVIDERS" && !data.isProvider) return;
           if (statusFilter === "PROFILES" && data.isProvider) return;
-          if (statusFilter !== "PROVIDERS" && statusFilter !== "PROFILES" && data.status !== statusFilter) return;
+          if (statusFilter === "DISABLED" && !(data.status === "DISABLED" || data.isAppeal)) return;
+          if (statusFilter === "ACTIVE" && (data.status === "DISABLED" || data.isAppeal || data.status === "AUTH NEEDED" || data.status === "EXHAUSTED")) return;
+          if (statusFilter !== "PROVIDERS" && statusFilter !== "PROFILES" && statusFilter !== "DISABLED" && statusFilter !== "ACTIVE" && data.status !== statusFilter) return;
         }
 
         matchingProfiles.push(profile);
@@ -2595,6 +2751,7 @@
       offsetVal = Math.max(0, Math.min(60, offsetVal));
 
       selectedBatchProfiles.forEach(profile => {
+        saveScheduledProfile(profile, timeStr, offsetVal);
         const statusEl = document.getElementById(`actionStatus-${profile}`);
         if (statusEl) {
           statusEl.classList.remove("hidden");
@@ -2602,6 +2759,7 @@
         }
       });
 
+      showToast(`⏰ Đã lưu lịch cho ${selectedBatchProfiles.size} tài khoản lúc ${timeStr} (+${offsetVal}s)!`, "success");
       exitBatchSelectMode();
     }
 
@@ -2735,6 +2893,50 @@
       }
     }
 
+    let lastSyncEpoch = 0;
+    function updateLastSyncTimeDisplay(epochSec) {
+      if (epochSec && epochSec > 0) {
+        lastSyncEpoch = epochSec;
+      }
+      const label = document.getElementById("lastSyncLabel");
+      const dot = document.getElementById("lastSyncDot");
+      const ind = document.getElementById("lastSyncIndicator");
+      if (!label) return;
+      if (ind) ind.classList.remove("hidden");
+
+      if (!lastSyncEpoch || lastSyncEpoch <= 0) {
+        label.textContent = "Chưa có lịch sử đồng bộ";
+        if (dot) dot.className = "w-2 h-2 rounded-full bg-slate-500";
+        return;
+      }
+
+      const nowSec = Math.floor(Date.now() / 1000);
+      const elapsed = Math.max(0, nowSec - lastSyncEpoch);
+      const mins = Math.floor(elapsed / 60);
+
+      if (mins < 1) {
+        label.textContent = "Vừa đồng bộ";
+        if (dot) dot.className = "w-2 h-2 rounded-full bg-emerald-400";
+      } else {
+        label.textContent = `Đồng bộ ${mins}m trước`;
+        if (dot) dot.className = "w-2 h-2 rounded-full bg-slate-400";
+      }
+    }
+
+    // Tự động cập nhật nhãn thời gian đồng bộ mỗi 30 giây
+    setInterval(() => updateLastSyncTimeDisplay(), 30000);
+
+    // Tự động kiểm tra và tắt highlight các lịch đã qua giờ mỗi 10 giây
+    setInterval(() => {
+      const rawBefore = localStorage.getItem("antigravity_scheduled_profiles");
+      if (!rawBefore) return;
+      const cleaned = cleanupExpiredSchedules();
+      const rawAfter = JSON.stringify(cleaned);
+      if (rawBefore !== rawAfter) {
+        renderAllProfiles();
+      }
+    }, 10000);
+
     async function triggerGlobalRefresh(isAutoInit = false) {
       const btn = document.getElementById("globalRefreshBtn");
       if (btn) {
@@ -2745,16 +2947,28 @@
       if (window.location.protocol.startsWith('http')) {
         try {
           if (isAutoInit) {
-            showToast("⚡ Đang tự động quét & đồng bộ live quota 23 profiles...", "info");
+            showToast("⚡ Đang tự động quét & đồng bộ live quota các profiles...", "info");
           } else {
-            showToast("🔄 Đang quét song song và đồng bộ live quota 23 profiles...", "info");
+            showToast("🔄 Đang quét song song và đồng bộ live quota các profiles...", "info");
           }
-          const res = await fetch('/api/refresh-all');
+          const url = isAutoInit ? '/api/refresh-all?auto=1' : '/api/refresh-all?manual=1';
+          const res = await fetch(url);
           const json = await res.json();
-          if (json.success && json.profiles) {
-            Object.assign(PROFILES_DATA, json.profiles);
-            renderAllProfiles();
-            showToast("✅ Đã đồng bộ live quota tất cả 23 profiles thành công!", "success");
+          if (json.success) {
+            if (json.skipped) {
+              const mins = Math.floor((json.elapsed_seconds || 0) / 60);
+              showToast(`⚡ Đang hiển thị quota từ cache (${mins} phút trước). Bấm 'Refresh tất cả' để cập nhật thủ công.`, "info");
+            } else {
+              if (json.profiles) {
+                Object.assign(PROFILES_DATA, json.profiles);
+                renderAllProfiles();
+              }
+              localStorage.setItem("last_global_refresh_time", Date.now().toString());
+              showToast("✅ Đã đồng bộ live quota tất cả profiles thành công!", "success");
+            }
+            if (json.last_refresh_all) {
+              updateLastSyncTimeDisplay(json.last_refresh_all);
+            }
           } else {
             showToast("❌ Không thể đồng bộ toàn bộ accounts", "error");
           }
@@ -2780,20 +2994,159 @@
     }
 
     /**
+     * Schedule State Persistence & Expiration Helpers (localStorage)
+     */
+    function getScheduleTargetTime(sched) {
+      if (!sched || !sched.time) return null;
+      const parts = sched.time.split(":");
+      if (parts.length < 2) return null;
+      const hours = parseInt(parts[0], 10);
+      const minutes = parseInt(parts[1], 10);
+      const delaySec = parseInt(sched.delay || 0, 10);
+
+      if (sched.updatedAt) {
+        const updatedTs = parseInt(sched.updatedAt, 10);
+        const target = new Date(updatedTs);
+        target.setHours(hours, minutes, delaySec, 0);
+        // Nếu giờ đặt nhỏ hơn thời điểm tạo lịch hơn 10s, nghĩa là đặt cho ngày tiếp theo
+        if (target.getTime() < updatedTs - 10000) {
+          target.setDate(target.getDate() + 1);
+        }
+        return target.getTime();
+      }
+
+      // Fallback nếu không có updatedAt: so sánh với hôm nay
+      const targetToday = new Date();
+      targetToday.setHours(hours, minutes, delaySec, 0);
+      return targetToday.getTime();
+    }
+
+    function isScheduleExpired(sched) {
+      const targetTs = getScheduleTargetTime(sched);
+      if (!targetTs) return false;
+      return Date.now() >= targetTs;
+    }
+
+    function cleanupExpiredSchedules() {
+      try {
+        const raw = localStorage.getItem("antigravity_scheduled_profiles");
+        if (!raw) return {};
+        const all = JSON.parse(raw);
+        let changed = false;
+        Object.keys(all).forEach(p => {
+          if (isScheduleExpired(all[p])) {
+            delete all[p];
+            changed = true;
+          }
+        });
+        if (changed) {
+          localStorage.setItem("antigravity_scheduled_profiles", JSON.stringify(all));
+        }
+        return all;
+      } catch (e) {
+        return {};
+      }
+    }
+
+    function getScheduledProfiles(filterExpired = true) {
+      try {
+        const raw = localStorage.getItem("antigravity_scheduled_profiles");
+        const all = raw ? JSON.parse(raw) : {};
+        if (!filterExpired) return all;
+
+        let changed = false;
+        Object.keys(all).forEach(p => {
+          if (isScheduleExpired(all[p])) {
+            delete all[p];
+            changed = true;
+          }
+        });
+        if (changed) {
+          localStorage.setItem("antigravity_scheduled_profiles", JSON.stringify(all));
+        }
+        return all;
+      } catch (e) {
+        return {};
+      }
+    }
+
+    function getProfileSchedule(profile) {
+      const all = getScheduledProfiles(true);
+      return all[profile] || null;
+    }
+
+    function saveScheduledProfile(profile, timeStr, delaySec) {
+      const all = getScheduledProfiles(false);
+      all[profile] = {
+        time: timeStr,
+        delay: delaySec,
+        updatedAt: Date.now()
+      };
+      localStorage.setItem("antigravity_scheduled_profiles", JSON.stringify(all));
+      renderAllProfiles();
+    }
+
+    function removeScheduledProfile(profile) {
+      const all = getScheduledProfiles(false);
+      if (all[profile]) {
+        delete all[profile];
+        localStorage.setItem("antigravity_scheduled_profiles", JSON.stringify(all));
+        renderAllProfiles();
+      }
+    }
+
+    /**
      * Single Profile Schedule Modal
      */
     function openScheduleModal(profile) {
       activeModalProfile = profile;
       document.getElementById("modalProfileName").textContent = profile;
-      document.getElementById("customHour").value = "";
-      document.getElementById("customMin").value = "";
-      document.getElementById("customScheduleOffset").value = "30";
+
+      const sched = getProfileSchedule(profile);
+      const banner = document.getElementById("modalActiveScheduleBanner");
+      const btnCancelFooter = document.getElementById("btnModalCancelSched");
+      const btnConfirmLabel = document.getElementById("btnModalConfirmLabel");
+
+      if (sched) {
+        if (banner) {
+          banner.classList.remove("hidden");
+          const timeDisp = document.getElementById("activeSchedTimeDisplay");
+          const delayDisp = document.getElementById("activeSchedDelayDisplay");
+          if (timeDisp) timeDisp.textContent = sched.time;
+          if (delayDisp) delayDisp.textContent = `+${sched.delay}s`;
+        }
+        if (btnCancelFooter) btnCancelFooter.classList.remove("hidden");
+        if (btnConfirmLabel) btnConfirmLabel.textContent = "Cập nhật lịch mới";
+
+        // Pre-fill existing schedule inputs
+        const parts = sched.time.split(":");
+        document.getElementById("customHour").value = parts[0] || "07";
+        document.getElementById("customMin").value = parts[1] || "00";
+        document.getElementById("customScheduleOffset").value = sched.delay !== undefined ? sched.delay : "30";
+      } else {
+        if (banner) banner.classList.add("hidden");
+        if (btnCancelFooter) btnCancelFooter.classList.add("hidden");
+        if (btnConfirmLabel) btnConfirmLabel.textContent = "Thiết lập";
+
+        document.getElementById("customHour").value = "";
+        document.getElementById("customMin").value = "";
+        document.getElementById("customScheduleOffset").value = "30";
+      }
+
       updateModalCmdPreview();
       document.getElementById("scheduleModal").classList.remove("hidden");
     }
 
     function closeScheduleModal() {
       document.getElementById("scheduleModal").classList.add("hidden");
+    }
+
+    function cancelCurrentSchedule() {
+      if (!activeModalProfile) return;
+      const p = activeModalProfile;
+      removeScheduledProfile(p);
+      closeScheduleModal();
+      showToast(`✕ Đã hủy lịch tự động cho ${p}. Bạn có thể đặt lại lịch mới bất cứ lúc nào.`, "info");
     }
 
     function setScheduleTime(timeStr) {
@@ -2843,13 +3196,10 @@
       if (isNaN(offsetVal)) offsetVal = 30;
       offsetVal = Math.max(0, Math.min(60, offsetVal));
 
-      const statusEl = document.getElementById(`actionStatus-${activeModalProfile}`);
+      saveScheduledProfile(activeModalProfile, timeStr, offsetVal);
       closeScheduleModal();
 
-      if (statusEl) {
-        statusEl.classList.remove("hidden");
-        statusEl.innerHTML = `<span class="text-purple-400 font-mono">⏰ Đã đặt ${timeStr} (+${offsetVal}s)</span>`;
-      }
+      showToast(`⏰ Đã lưu lịch tự động cho ${activeModalProfile} lúc ${timeStr} (+${offsetVal}s)!`, "success");
     }
 
     /**
@@ -2963,7 +3313,7 @@
       const data = PROFILES_DATA[profile] || {};
       document.getElementById("infoModalProfile").textContent = profile;
       document.getElementById("infoModalEmail").textContent = data.email || `${profile}@gmail.com`;
-      
+
       const statusEl = document.getElementById("infoModalStatus");
       if (data.status === "DISABLED" || data.isAppeal) {
         statusEl.innerHTML = `<span class="text-rose-400 font-bold flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span> 🚫 Bị khóa (Appeal Needed)</span>`;
@@ -3038,7 +3388,7 @@
       if (homeProfile) homeProfile.textContent = profile;
       if (alt1) alt1.textContent = profile;
       if (alt2) alt2.textContent = profile;
-      
+
       const copyBtn = document.getElementById("copyBtnText");
       if (copyBtn) copyBtn.textContent = "Sao chép lệnh";
 
@@ -3100,9 +3450,9 @@
       const container = document.getElementById("toastContainer");
       if (!container) return;
       const toast = document.createElement("div");
-      toast.className = "pointer-events-auto px-4 py-2.5 rounded-xl shadow-xl text-xs font-medium flex items-center gap-2 border transition-all duration-300 transform translate-y-2 opacity-0 " + 
-        (type === "success" 
-          ? "bg-slate-900 text-emerald-300 border-emerald-500/40 shadow-emerald-950/50" 
+      toast.className = "pointer-events-auto px-4 py-2.5 rounded-xl shadow-xl text-xs font-medium flex items-center gap-2 border transition-all duration-300 transform translate-y-2 opacity-0 " +
+        (type === "success"
+          ? "bg-slate-900 text-emerald-300 border-emerald-500/40 shadow-emerald-950/50"
           : "bg-slate-900 text-amber-300 border-amber-500/40 shadow-amber-950/50");
       toast.innerHTML = `<span>${type === "success" ? "✓" : "ℹ"}</span> <span>${msg}</span>`;
       container.appendChild(toast);
@@ -3150,20 +3500,38 @@
     async function syncServerProfilesData() {
       updateServerStatusBadge();
       if (!window.location.protocol.startsWith("http")) return;
+      let serverStatus = null;
       try {
         const res = await fetch("/api/status");
-        const json = await res.json();
-        if (json.success && json.profiles && Object.keys(json.profiles).length > 0) {
-          Object.assign(PROFILES_DATA, json.profiles);
-          renderAllProfiles();
+        serverStatus = await res.json();
+        if (serverStatus.success) {
+          if (serverStatus.profiles && Object.keys(serverStatus.profiles).length > 0) {
+            Object.assign(PROFILES_DATA, serverStatus.profiles);
+            renderAllProfiles();
+          }
+          if (serverStatus.last_refresh_all) {
+            updateLastSyncTimeDisplay(serverStatus.last_refresh_all);
+          }
         }
       } catch (e) {
         console.warn("Could not sync from server:", e);
       }
 
-      // Automatically trigger live refresh on startup (Stale-While-Revalidate)
+      // 30-Minute Throttling Policy for Init & Hard Reload (Cmd + Shift + R)
       if (!window.location.search.includes("no-auto-refresh=1")) {
-        setTimeout(() => triggerGlobalRefresh(true), 300);
+        const now = Date.now();
+        const localLast = parseInt(localStorage.getItem("last_global_refresh_time") || "0", 10);
+        const localCanAuto = (now - localLast) >= 30 * 60 * 1000;
+        const serverCanAuto = serverStatus ? Boolean(serverStatus.can_auto_refresh) : localCanAuto;
+
+        if (serverCanAuto && localCanAuto) {
+          setTimeout(() => triggerGlobalRefresh(true), 300);
+        } else {
+          const minsAgo = serverStatus && serverStatus.elapsed_seconds != null
+            ? Math.floor(serverStatus.elapsed_seconds / 60)
+            : Math.floor((now - localLast) / 60000);
+          console.log(`[Auto-Refresh Policy] Skipped on init/reload: Last sync was ${minsAgo}m ago (< 30m). Only manual refresh allowed.`);
+        }
       }
     }
 
@@ -3172,8 +3540,16 @@
     if (selSort) {
       selSort.value = currentSortOrder;
     }
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get("demo_sched") === "1") {
+      saveScheduledProfile("brother", "07:00", 30);
+      saveScheduledProfile("codex", "06:30", 15);
+    }
     renderAllProfiles();
     syncServerProfilesData();
+    if (urlParams.get("open_sched")) {
+      setTimeout(() => openScheduleModal(urlParams.get("open_sched")), 250);
+    }
     if (window.location.search.includes("batch=1")) {
       toggleBatchSelectMode();
     }
@@ -3199,4 +3575,5 @@
     }
   </script>
 </body>
+
 </html>
