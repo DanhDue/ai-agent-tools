@@ -216,6 +216,7 @@ def package_epic(
     reason: str = "",
     base_branch: str | None = None,
     open_notes: list[str] | None = None,
+    force: bool = False,
 ) -> Path:
     epic_path = root / ".devtool" / "epic" / epic_dir
     if not epic_path.is_dir():
@@ -224,6 +225,12 @@ def package_epic(
     handoff_file = epic_path / "handoff.md"
     if revise and not handoff_file.is_file():
         raise ValueError("handoff.md does not exist; run without --revise first")
+    if not revise and handoff_file.is_file() and not force:
+        raise ValueError(
+            f"handoff.md already exists for epic '{epic_dir}'. "
+            "Use --revise --reason \"<text>\" to update an existing handoff record, "
+            "or --force to overwrite."
+        )
 
     # 1. Run check_epic_readiness.py
     readiness_proc = subprocess.run(
@@ -310,6 +317,11 @@ def main() -> None:
     parser.add_argument(
         "--open-note", action="append", help="Custom notes to add under ## Open Notes"
     )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Overwrite existing handoff.md without --revise",
+    )
 
     args = parser.parse_args()
 
@@ -322,6 +334,12 @@ def main() -> None:
     if args.revise and not handoff_file.is_file():
         sys.stderr.write("error: handoff.md does not exist; run without --revise first\n")
         sys.exit(2)
+    if not args.revise and handoff_file.is_file() and not args.force:
+        sys.stderr.write(
+            f"error: handoff.md already exists for epic '{args.epic_dir}'. "
+            "Use --revise --reason \"<text>\" to update, or --force to overwrite.\n"
+        )
+        sys.exit(1)
 
     try:
         out = package_epic(
@@ -331,6 +349,7 @@ def main() -> None:
             reason=args.reason.strip(),
             base_branch=args.base_branch,
             open_notes=args.open_note,
+            force=args.force,
         )
         action = "Revised" if args.revise else "Packaged"
         print(f"{action} epic '{args.epic_dir}' -> {out}")

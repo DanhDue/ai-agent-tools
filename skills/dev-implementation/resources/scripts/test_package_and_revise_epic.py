@@ -233,6 +233,46 @@ def test_MEO_FR_02_spec_errata_asymmetry_and_missing_reason(tmp_path: Path) -> N
     assert "error: --reason is required when --revise is set" in res_no_reason.stderr
 
 
+def test_package_epic_refuses_overwrite_without_revise(tmp_path: Path) -> None:
+    """package_epic.py refuses to overwrite existing handoff.md without --revise or --force."""
+    init_git_repo(tmp_path)
+    epic_path = setup_valid_epic(tmp_path, "demo_epic")
+
+    git_cmd(tmp_path, "add", ".")
+    git_cmd(tmp_path, "commit", "-m", "Add sample epic")
+
+    # Initial packaging succeeds
+    res_pkg = subprocess.run(
+        [sys.executable, str(PACKAGE_SCRIPT), "demo_epic"],
+        cwd=str(tmp_path),
+        capture_output=True,
+        text=True,
+    )
+    assert res_pkg.returncode == 0
+
+    handoff_file = epic_path / "handoff.md"
+    assert handoff_file.is_file()
+
+    # Re-running without --revise or --force fails with code 1
+    res_repeat = subprocess.run(
+        [sys.executable, str(PACKAGE_SCRIPT), "demo_epic"],
+        cwd=str(tmp_path),
+        capture_output=True,
+        text=True,
+    )
+    assert res_repeat.returncode == 1
+    assert "already exists for epic" in res_repeat.stderr
+
+    # Re-running with --force succeeds
+    res_force = subprocess.run(
+        [sys.executable, str(PACKAGE_SCRIPT), "demo_epic", "--force"],
+        cwd=str(tmp_path),
+        capture_output=True,
+        text=True,
+    )
+    assert res_force.returncode == 0
+
+
 class Test_Integration:
     """[Tier C - Integration] Test suite with integration runner provenance."""
 
