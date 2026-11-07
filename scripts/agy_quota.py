@@ -1718,12 +1718,18 @@ class QuotaDashboardHandler(http.server.BaseHTTPRequestHandler):
                 self.send_json({"success": False, "error": "No profile specified"}, 400)
                 return
 
-            # Clean environment: eliminate ELECTRON_RUN_AS_NODE leaked by parent runtime
+            # Clean environment: eliminate leaked parent runtime variables
             clean_env = os.environ.copy()
+            clean_env["HOME"] = REAL_HOME
+            clean_env.pop("AGY_PROFILE", None)
+            clean_env.pop("AGY_CLI_MODE", None)
             clean_env.pop("ELECTRON_RUN_AS_NODE", None)
+            for k in list(clean_env.keys()):
+                if k.startswith("VSCODE_"):
+                    clean_env.pop(k, None)
 
             # Trigger profile CLI command directly (e.g. 'danhdue', 'hau') as requested
-            cmd = f'unset ELECTRON_RUN_AS_NODE; if type {profile} >/dev/null 2>&1; then {profile}; else ag_run "{profile}"; fi'
+            cmd = f'unset ELECTRON_RUN_AS_NODE VSCODE_GIT_IPC_HANDLE VSCODE_IPC_HOOK_CLI; if type {profile} >/dev/null 2>&1; then {profile}; else ag_run "{profile}"; fi'
             subprocess.Popen(["zsh", "-ic", cmd], env=clean_env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             self.send_json({"success": True, "message": f"Đã kích hoạt lệnh '{profile}' mở Antigravity IDE"})
             return

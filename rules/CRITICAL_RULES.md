@@ -193,7 +193,17 @@ git commit -m "[EPIC_NAME] Task title" -m "- subtask title 01
 >    - Inside IDE terminals (`TERM_PROGRAM == "vscode"` and `-z "$AGY_CLI_MODE"`), `$HOME` MUST always remain `$REAL_HOME` (`/Users/<user>`) to guarantee unhindered access to OS services, local daemons (PostgreSQL, Docker daemon, Redis, MinIO), and host toolchains.
 >
 > 4. **Shared Toolchains, Libs & Symlink Architecture**:
->    - An Antigravity profile (`antigravity_homes/<profile>`) exists solely to isolate user identity, credentials, OAuth tokens, and IDE session state.
->    - All developer tools, shared libraries, package managers, and compilation caches (Homebrew, Android SDK, Gradle, FVM, Flutter, Rust/Cargo, Go, Python/UV, npm, Docker socket) MUST be shared from the host OS (`$REAL_HOME`) via symlinks, NEVER duplicated or severed.
->    - Agents modifying profile provisioning scripts or symlinks MUST preserve symlinks to `$REAL_HOME` for all shared toolchains.
+>    - **Profile Scope & Boundary**: An Antigravity profile (`antigravity_homes/<profile>`) exists solely to isolate Antigravity user identity, credentials, OAuth tokens, and IDE session state.
+>    - **Mandatory Shared Development Infrastructure**: All programming toolchains, developer tools, shared libraries, package managers, and compilation caches (Homebrew, Android SDK, Gradle, FVM, Flutter, Rust/Cargo, Go, Python/UV, npm, Docker socket, Caches) MUST be shared from the host OS (`$REAL_HOME`) via symlinks, NEVER duplicated, isolated, or severed.
+>    - Agents modifying profile provisioning scripts or symlinks MUST strictly preserve symlinks to `$REAL_HOME` for all shared toolchains and libraries.
+>
+> 5. **Parent Process & IPC Handle Stripping in Launchers (`ag_run`)**:
+>    - When launching Antigravity IDE instances (`open -n -a "Antigravity IDE"`), agents MUST explicitly strip parent process IPC handles, socket variables, and leaked runtime environment states:
+>      `env -u ELECTRON_RUN_AS_NODE -u VSCODE_GIT_IPC_HANDLE -u VSCODE_IPC_HOOK_CLI HOME="$ag_home" AGY_PROFILE="$profile" TMPDIR="/tmp/ag_$profile" open ...`
+>    - This eliminates socket collisions, channel crossover, and environment leaks when launching a new profile from within an existing IDE terminal or background automation daemon.
+>
+> 6. **Strict Antigravity Profile Identity & State Decoupling**:
+>    - **Independent Antigravity State**: All internal Antigravity runtime state (`.gemini/antigravity`, conversation summaries, and `data/User/globalStorage/state.vscdb`) MUST remain strictly independent per profile. Never symlink `.gemini/antigravity` or `state.vscdb` to `$REAL_HOME` or another profile.
+>    - **Identity Parity with Keychain**: The stored username in `data/User/globalStorage/state.vscdb` (`google.google-antigravity -> agy.onboarding.lastLoginUsername`) MUST match the profile's dedicated Keychain (`<profile>.keychain-db`).
+>    - **No Blind State Cloning**: Agents MUST NEVER clone `state.vscdb` from another profile without resetting `agy.onboarding.lastLoginUsername` to the target profile's email, and purging stale `comments`, `workspaceStorage`, and cross-profile paths from `extensions.user.cache`.
 
