@@ -58,7 +58,8 @@ Invoked on-demand to review standalone design documents, architecture proposals,
    - For epics, `check_epic_readiness.py` runs first. If any check fails (R1–R8), review halts immediately with a precondition banner without calling external model CLIs.
    - For standalone docs, structural validation checks that the file exists and has valid headings.
 
-2. **External Model Review**:
+2. **Provider Configuration (`.devtool/review_config.json`) & External Model Review**:
+   - **Load Sticky Provider Config**: Read `.devtool/review_config.json` (auto-seeded from `DEFAULT_REVIEW_CONFIG` in `run_external_review.py` when absent) to inspect `last_used_provider` and each provider's default `model` and `thinking_level` (`claude`, `codex`, `agy`, `kiro`, `ollama`). When prompting the developer to choose a reviewer CLI, surface the configured `model` and `thinking_level` for each available CLI and highlight `last_used_provider`. Passing `--cli`, `--model`, or `--thinking-level` to `run_external_review.py run` automatically persists the updated sticky preferences back to `.devtool/review_config.json`.
    - Executes with a read-only permissions profile (`claude -p --dangerously-skip-permissions`, `codex exec --sandbox read-only`, `agy --sandbox --mode plan`, or `kiro-cli chat --no-interactive --trust-all-tools --wrap never`).
    - The reviewer inspects active code at candidate SHA to verify groundedness (P1–P8 checklists).
 

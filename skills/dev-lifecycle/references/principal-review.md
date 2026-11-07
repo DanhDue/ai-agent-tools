@@ -28,7 +28,7 @@ Principal Review is a cross-model review of an epic's architecture and task desi
      If the developer chose `/dev-implementation`, invoke `d3nexus:dev-implementation`; if they chose **Done**, print the `handoff.md` path and the Resume Prompt, and stop.
 
 3. **Principal Review**:
-   Ask the developer which CLI to use — Claude CLI, Codex CLI, Antigravity CLI (`agy --model "Gemini 4 Argon (Medium)"`), or Kiro CLI (`kiro-cli`) — and optionally which model. Never choose for the developer.
+   Read `.devtool/review_config.json` (if present; otherwise `run_external_review.py` seeds defaults from `DEFAULT_REVIEW_CONFIG`) to display `last_used_provider` and each provider's configured `model` and `thinking_level`. Ask the developer which CLI to use — Claude CLI, Codex CLI, Antigravity CLI (`agy --model "Gemini 4 Argon (Medium)"`), or Kiro CLI (`kiro-cli`) — and optionally which model. Never choose for the developer.
    Invoke `d3nexus:principal-review`.
 
 4. Run the principal review:

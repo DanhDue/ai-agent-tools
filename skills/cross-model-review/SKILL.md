@@ -57,7 +57,8 @@ Invoked on-demand to review a feature branch, pull request diff, or specific com
    - If unstaged or untracked changes exist, execution halts immediately with:
      `commit or stash your changes before a review`.
 
-2. **Read-Only Sandbox**:
+2. **Provider Configuration (`.devtool/review_config.json`) & Read-Only Sandbox**:
+   - **Load Sticky Provider Config**: Read `.devtool/review_config.json` (auto-seeded from `DEFAULT_REVIEW_CONFIG` in `run_external_review.py` when absent) to inspect `last_used_provider` and each provider's configured `model` and `thinking_level` (`claude`, `codex`, `agy`, `kiro`, `ollama`). When presenting the reviewer selection to the developer, show the configured `model` and `thinking_level` from `.devtool/review_config.json` and highlight `last_used_provider`. Invoking `run_external_review.py run` automatically updates `.devtool/review_config.json` with the chosen provider, model, and thinking level.
    - CLI invocations operate under read-only sandboxes (`claude -p --dangerously-skip-permissions`, `codex exec --sandbox read-only`, `agy --sandbox --mode plan`, or `kiro-cli chat --no-interactive --trust-all-tools --wrap never`).
    - The runner verifies git status before and after execution; any file modifications made by a reviewer cause the round to be discarded immediately.
 

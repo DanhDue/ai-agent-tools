@@ -75,6 +75,19 @@ DEFAULT_REVIEW_CONFIG: dict[str, Any] = {
 }
 
 
+def _is_git_tracked(root: Path, rel_path: str) -> bool:
+    try:
+        res = subprocess.run(
+            ["git", "ls-files", "--error-unmatch", rel_path],
+            cwd=root,
+            capture_output=True,
+            check=False,
+        )
+        return res.returncode == 0
+    except OSError:
+        return False
+
+
 def load_review_config(root: Path) -> dict[str, Any]:
     path = root / REVIEW_CONFIG_FILE
     if not path.is_file():
@@ -86,11 +99,17 @@ def load_review_config(root: Path) -> dict[str, Any]:
         cfg: dict[str, Any] = copy.deepcopy(DEFAULT_REVIEW_CONFIG)
         if "last_used_provider" in data and isinstance(data["last_used_provider"], str):
             cfg["last_used_provider"] = data["last_used_provider"]
-        if "providers" in data and isinstance(data["providers"], dict):
-            for p, pdata in data["providers"].items():
+        existing_providers = data.get("providers")
+        missing_default_provider = not isinstance(existing_providers, dict) or any(
+            p not in existing_providers for p in DEFAULT_REVIEW_CONFIG["providers"]
+        )
+        if isinstance(existing_providers, dict):
+            for p, pdata in existing_providers.items():
                 if isinstance(pdata, dict):
                     cfg["providers"].setdefault(p, {})
                     cfg["providers"][p].update(pdata)
+        if missing_default_provider and not _is_git_tracked(root, REVIEW_CONFIG_FILE):
+            save_review_config(root, cfg)
         return cfg
     except (json.JSONDecodeError, OSError, UnicodeDecodeError):
         return copy.deepcopy(DEFAULT_REVIEW_CONFIG)
