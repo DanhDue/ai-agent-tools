@@ -127,7 +127,7 @@ flowchart TD
 - **`skills/dev-implementation/resources/scripts/package_epic.py` và `skills/dev-lifecycle/references/handoff-template.md` (`#0015`)**:
   - Cú pháp CLI:
     ```bash
-    package_epic.py <epic_dir> [--revise --reason "<summary>"] [--status "<hld_status>"]
+    package_epic.py <epic_dir> [--revise --reason "<summary>"] [--force]
     ```
   - Cập nhật template (`skills/dev-lifecycle/references/handoff-template.md`):
     - Thay dòng 71 (`"This file is a dated record. It is never updated after packaging."`) bằng `"This file is updated only by package_epic.py --revise, which records each re-anchoring under ## Revisions."` và bổ sung mục `## Revisions` cùng mục lục `- [Revisions](#revisions)`.
@@ -136,6 +136,7 @@ flowchart TD
     2. Xác định `design_commit = git rev-parse --short HEAD` và nhánh gốc `base_branch` (`main` hoặc `develop`).
     3. Khi KHÔNG truyền `--revise` (đóng gói lần đầu):
        - Cập nhật `Status` của `<epic_dir>.{en,vi}.md` thành `Packaged (<YYYY-MM-DD>)` (hoặc giữ `Queued (backlog)` nếu các task đang ở `backlog`), đọc template từ `skills/dev-lifecycle/references/handoff-template.md` và ghi `.devtool/epic/<epic_dir>/handoff.md`. Developer commit chung cập nhật HLD Status và `handoff.md` với message `[<EPIC_NAME>] Package epic for handoff`.
+       - Nếu `handoff.md` đã tồn tại từ trước, từ chối ghi đè với mã thoát `1` trừ khi truyền `--force`.
     4. Khi CÓ truyền `--revise` (sửa đổi sau khi đã đóng gói):
        - Bắt buộc phải có `--reason "<summary>"` (thoát mã `2` nếu thiếu hoặc rỗng) và file `.devtool/epic/<epic_dir>/handoff.md` phải đang tồn tại.
        - Đọc `Design commit` cũ (`<old_sha>`) từ `handoff.md`.
@@ -162,6 +163,7 @@ flowchart TD
 ## Xử lý Lỗi và Các Trường hợp Biên
 
 - **Khai báo `Depends on epic:` Bị Thiếu hoặc Tạo Chu trình**: `resolve_prerequisite_epic_dirs()` phát hiện chu trình (`A -> B -> A`) và thư mục không tồn tại, trả về lỗi `R7 FAIL` tất định mà không đệ quy vô hạn.
+- **Chạy Lại Đóng Gói Không Có `--revise` Khi Đã Có Handoff**: Gọi `package_epic.py <epic_dir>` không có cờ `--revise` khi `handoff.md` đã tồn tại sẽ thất bại với mã thoát `1` nhằm ngăn ngừa vô tình ghi đè `Open Notes` và lịch sử revisions, trừ khi truyền `--force`.
 - **Chạy `--revise` Khi Chưa Đóng gói**: Gọi `package_epic.py <epic_dir> --revise` khi chưa có `handoff.md` hoặc thiếu `--reason` sẽ thoát mã `2` kèm thông báo lỗi rõ ràng.
 - **Promote Epic Đang Bị Chặn Bởi Tiên quyết hoặc Xung đột File**: `sync_task_status.py promote <epic_dir>` từ chối chuyển task từ `backlog` sang `todo` (thoát mã `1`) nếu còn epic tiên quyết chưa `Done` hoặc có xung đột `Allowed files` với epic đang chạy, trừ khi truyền `--force`.
 - **Thiếu Nội dung `--approved` Khi Ghi nhận `--gate`**: `scripts/resume_context.py --gate <n>` không có chuỗi `--approved` khác rỗng sẽ thoát mã `2`.
