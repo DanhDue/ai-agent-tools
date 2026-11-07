@@ -96,14 +96,35 @@ for p in paths:
     seen.add(real)
     if os.path.isdir(os.path.join(real, ".git")):
         print(f"  pulling updates into unique target: {real}")
-        subprocess.run(["git", "-C", real, "checkout", "--", "."], check=False)
-        subprocess.run(["git", "-C", real, "pull", "-q", "origin", "main"], check=False)
+        subprocess.run(["git", "-C", real, "fetch", "-q", "origin", "main"], check=False)
+        subprocess.run(["git", "-C", real, "reset", "-q", "--hard", "origin/main"], check=False)
+
+codex_paths = [
+    os.path.expanduser("~/.codex/.tmp/marketplaces/danhdue-agent-tools"),
+    "/Users/danhdueexoictif/.codex/.tmp/marketplaces/danhdue-agent-tools",
+    *glob.glob("/Users/danhdueexoictif/antigravity_homes/*/.codex/.tmp/marketplaces/danhdue-agent-tools"),
+]
+seen_codex = set()
+for p in codex_paths:
+    if not os.path.exists(p):
+        continue
+    real = os.path.realpath(p)
+    if real in seen_codex:
+        continue
+    seen_codex.add(real)
+    if os.path.isdir(os.path.join(real, ".git")):
+        print(f"  pulling updates into codex marketplace: {real}")
+        subprocess.run(["git", "-C", real, "fetch", "-q", "origin", "main"], check=False)
+        subprocess.run(["git", "-C", real, "reset", "-q", "--hard", "origin/main"], check=False)
 PY
 
 if command -v codex >/dev/null 2>&1; then
   echo "  updating codex plugin"
-  codex plugin marketplace upgrade danhdue-agent-tools 2>/dev/null || true
-  codex plugin add d3nexus@danhdue-agent-tools 2>/dev/null || true
+  for h in "/Users/danhdueexoictif" "$HOME"; do
+    if [ -d "$h/.codex" ]; then
+      HOME="$h" codex plugin add d3nexus@danhdue-agent-tools 2>/dev/null || true
+    fi
+  done
 fi
 
 echo

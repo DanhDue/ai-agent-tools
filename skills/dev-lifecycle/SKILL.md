@@ -79,6 +79,10 @@ An epic whose `.devtool/epic/<epic_dir>/` holds `task_*.md` files is past Gate 2
 
 **Invoke `d3nexus:dev-designer`.**
 - **Entry:** Gate 1 spec in `.devtool/epic/<epic_dir>/`. **Exit (Gate 2):** user-confirmed task list and granularity.
+- **3-Tier Document Separation ("Prompt to Maintain" vs LLM SSOT):**
+  - `<epic_dir>.{en,vi}.md` (HLD): Human-facing system overview & Feature Maintenance Map (1 Architecture diagram, conditional Sequence diagram, canonical entry points — no duplicate embedded Gherkin).
+  - `bdd_scenarios.{en,vi}.md`: Exhaustive adversarial edge-case, boundary, exception, and atomic-rollback suite across the 5 dimensions.
+  - `task_*.md`: Self-contained LLM Execution SSOT loaded one task at a time during Stage 3.
 When an epic depends on other epics, declare `- **Depends on epic**: <epic_slug_or_dir>[, ...]` in HLD Meta Data.
 
 ### Handoff Choice
@@ -103,7 +107,7 @@ Packaging steps (automated by `package_epic.py`):
 7. Stop calling tools and present **Handoff Choice / Principal Review Choice** — follow [references/principal-review.md](references/principal-review.md):
 
 > Gate 2 passed: `<epic_slug>` is packaged (`handoff.md`) and context saved (`/save-context`). How do you want to proceed?
-> 1. **`/principal-review` (Principal Review)** — cross-model design review against source (Claude CLI, Codex CLI, or Antigravity CLI).
+> 1. **`/principal-review` (Principal Review)** — cross-model design review against source (Claude CLI, Codex CLI, Antigravity CLI, or Kiro CLI).
 > 2. **`/dev-implementation` (Continue to Stage 3)** — enter Stage 3 now (`dev-implementation`, starting at Gate 3).
 > 3. **Done (Stop here)** — keep packaged handoff for a later session.
 
@@ -122,7 +126,7 @@ Packaging steps (automated by `package_epic.py`):
 **Review Choice loop**:
 After all tasks are complete, run Gate 4. On every PASS, present Review Choice:
 - **Option 1: Finish** -> Proceed to Gate 5 (Developer Kanban Review), then Stage 4.
-- **Option 2: Cross-model review** -> Invoke `d3nexus:cross-model-review` via `run_external_review.py run` (prompting for Claude CLI, Codex CLI, or Antigravity CLI). Record round in `.devtool/epic/<epic_dir>/review_results.md`. Check unresolved findings with `run_external_review.py check --epic-dir <epic_dir>`. Any dismissed finding requires explicit developer instruction. Return to a full Gate 4 run on the new commit.
+- **Option 2: Cross-model review** -> Invoke `d3nexus:cross-model-review` via `run_external_review.py run` (prompting for Claude CLI, Codex CLI, Antigravity CLI, or Kiro CLI). Record round in `.devtool/epic/<epic_dir>/review_results.md`. Check unresolved findings with `run_external_review.py check --epic-dir <epic_dir>`. Any dismissed finding requires explicit developer instruction. Return to a full Gate 4 run on the new commit.
 - **Option 3: Local model review** -> Invoke `d3nexus:cross-model-review` (run `ollama list`, ask which model, then invoke `run_external_review.py run --cli ollama --model <model>`). A model served by the local Ollama reviews each task commit, then the epic, and one round is recorded in the same `review_results.md` under the same `check` rules. Return to a full Gate 4 run on the new commit.
 
 Every review round, option 2 or 3, is triaged before anyone acts on it: present `run_external_review.py triage --epic-dir <epic_dir>` filled as dev-implementation's `references/review-triage.md` says, and wait for the developer's decision on each finding. Once the developer confirms the triage decisions, apply the fixes, commit them, and **automatically re-run Gate 4 in full** without asking for an intermediate confirmation before running Gate 4; then stop and present Review Choice again.

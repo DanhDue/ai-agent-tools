@@ -80,7 +80,7 @@ git commit -m "[EPIC_NAME] Task title" -m "- subtask title 01
 > When all tasks of an epic are complete, run Phase 4 / Gate 4 first. Only after Gate 4 returns PASS on the current SHA:
 > 1. The AI Agent **MUST** explicitly stop calling tools and present the **Review Choice** prompt to the developer:
 >    - **Option 1: Finish** — proceed to Developer Kanban Review (Phase 4.1 / Gate 5), then Stage 4.
->    - **Option 2: Cross-model review** — invoke an independent model review using `run_external_review.py run` (prompting the developer to select Claude CLI, Codex CLI, or Antigravity CLI based on `command -v claude codex agy`).
+>    - **Option 2: Cross-model review** — invoke an independent model review using `run_external_review.py run` (prompting the developer to select Claude CLI, Codex CLI, Antigravity CLI, or Kiro CLI based on `command -v claude codex agy kiro-cli`).
 >    - **Option 3: Local model review** — run `ollama list`, ask the developer which model to use (never pick it), then invoke `run_external_review.py run --cli ollama --model <model>`.
 > 2. The AI Agent **MUST NOT** auto-select an option or assume "Finish" by default.
 > 3. **Cross-model review must return to a full Gate 4 run** after the round is recorded and all blocking findings have decisions and required Fix commits. Gate 4 PASS then presents Review Choice again. This loop repeats until the developer explicitly chooses Finish. Local model review follows the same loop. Before any Fix commit or decision, the agent presents the triage from `run_external_review.py triage` and waits for the developer's decisions. Once the developer confirms the triage decisions, the agent applies the fixes, commits them, and **automatically runs Phase 4 / Gate 4 in full** without asking for a separate confirmation before running Gate 4, then halts at Review Choice for developer self-review and selection.
@@ -94,7 +94,7 @@ git commit -m "[EPIC_NAME] Task title" -m "- subtask title 01
 >
 > 1. **No Autonomous Review Triggering**:
 >    - The AI Agent is **STRICTLY PROHIBITED** from autonomously triggering Principal Review (`d3nexus:principal-review`) or Cross-Model / Local Model Review (`d3nexus:cross-model-review`).
->    - External review tools (`run_external_review.py run`, `claude`, `codex`, `agy`, `ollama`) must **ONLY** be invoked when explicitly chosen, requested, or confirmed by the developer (e.g. at Gate 2 Principal Review checkpoint or Gate 4 Review Choice). The agent must never initiate external AI review on its own initiative.
+>    - External review tools (`run_external_review.py run`, `claude`, `codex`, `agy`, `kiro-cli`, `ollama`) must **ONLY** be invoked when explicitly chosen, requested, or confirmed by the developer (e.g. at Gate 2 Principal Review checkpoint or Gate 4 Review Choice). The agent must never initiate external AI review on its own initiative.
 > 2. **Mandatory Triage Decision Checkpoint & Automatic Local Quality Gate Re-run**:
 >    - **Before fixing any review finding**: The AI Agent **MUST STOP CALLING TOOLS** after presenting the verified triage table (`run_external_review.py triage`) and wait for the developer's explicit decisions on the findings.
 >    - **After the developer confirms triage decisions**: The AI Agent applies the approved fixes, commits the fixes and decision records, and **AUTOMATICALLY executes the deterministic local quality & packaging checks without requiring an intermediate confirmation**:

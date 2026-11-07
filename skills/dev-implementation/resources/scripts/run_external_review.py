@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Review of a finished epic through the Claude CLI, the Codex CLI, the Antigravity CLI (agy), or a model served by a local Ollama.
+"""Review of a finished epic through the Claude CLI, the Codex CLI, the Antigravity CLI (agy), the Kiro CLI (kiro-cli/kiro), or a model served by a local Ollama.
 
 Usage:
-  run_external_review.py run --epic-dir <epic_dir> --base <base_ref> --cli claude|codex|agy [--model <name>] [--timeout 1800] [--facts-timeout 300] [--diff-limit 1500]
+  run_external_review.py run --epic-dir <epic_dir> --base <base_ref> --cli claude|codex|agy|kiro [--model <name>] [--timeout 1800] [--facts-timeout 300] [--diff-limit 1500]
   run_external_review.py run --epic-dir <epic_dir> --base <base_ref> --cli ollama --model <name> [--host <url>] [--num-ctx <tokens>] [--timeout 1800]
   run_external_review.py check --epic-dir <epic_dir>
   run_external_review.py triage --epic-dir <epic_dir>
@@ -61,6 +61,10 @@ DEFAULT_REVIEW_CONFIG: dict[str, Any] = {
         "agy": {
             "model": "Gemini 4 Argon (Medium)",
             "thinking_level": "medium",
+        },
+        "kiro": {
+            "model": "claude-opus-5.5",
+            "thinking_level": "high",
         },
         "ollama": {
             "model": "qwen38-fast:latest",
@@ -330,8 +334,15 @@ def head_of(root: Path) -> str:
 def execute(command: list[str] | str, root: Path, timeout: int, prompt: str | None = None,
             shell: bool = False) -> tuple[int | None, str, str]:
     """Run to completion in its own process group, so a timeout also ends the CLI's children."""
+    env = None
+    if isinstance(command, list) and command and Path(command[0]).name in ("kiro-cli", "kiro"):
+        home = os.environ.get("HOME", "")
+        if "/antigravity_homes/" in home:
+            real_home = Path(home).parents[1]
+            if (real_home / "Library" / "Application Support" / "kiro-cli").exists() or (real_home / ".kiro").exists():
+                env = dict(os.environ, HOME=str(real_home))
     process = subprocess.Popen(command, cwd=root, shell=shell, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                               stderr=subprocess.PIPE, start_new_session=True)
+                               stderr=subprocess.PIPE, start_new_session=True, env=env)
     try:
         out, err = process.communicate((prompt or "").encode(), timeout=timeout)
         code: int | None = process.returncode
@@ -571,10 +582,31 @@ def effective_thinking_level(cli: str, thinking_level: str | None) -> str:
     return str(DEFAULT_REVIEW_CONFIG["providers"].get(cli, {}).get("thinking_level", "high"))
 
 
+def resolve_cli_binary(cli: str) -> str | None:
+    if cli == "kiro":
+        return shutil.which("kiro-cli") or shutil.which("kiro")
+    return shutil.which(cli)
+
+
 def cli_command(cli: str, model: str | None, thinking_level: str | None = None) -> list[str]:
     extra = ["--model", model] if model else []
     if cli == "claude":
         cmd = ["claude", "-p", "--dangerously-skip-permissions"]
+        if thinking_level and thinking_level != "none":
+            effort_map = {
+                "light": "low",
+                "low": "low",
+                "medium": "medium",
+                "high": "high",
+                "extra-high": "xhigh",
+            }
+            effort = effort_map.get(thinking_level.lower(), "high")
+            cmd.extend(["--effort", effort])
+        cmd.extend(extra)
+        return cmd
+    if cli == "kiro":
+        binary = "kiro-cli" if shutil.which("kiro-cli") or not shutil.which("kiro") else "kiro"
+        cmd = [binary, "chat", "--no-interactive", "--trust-all-tools", "--wrap", "never"]
         if thinking_level and thinking_level != "none":
             effort_map = {
                 "light": "low",
@@ -633,7 +665,7 @@ def format_triage_header(
     verdict: str,
     findings: list[tuple[str, str, str]] | list[list[str]],
 ) -> list[str]:
-    cli_display = {"claude": "Claude", "codex": "Codex", "agy": "agy", "ollama": "Ollama"}.get(cli, cli.capitalize())
+    cli_display = {"claude": "Claude", "codex": "Codex", "agy": "agy", "kiro": "Kiro", "ollama": "Ollama"}.get(cli, cli.capitalize())
     thinking_display = thinking_level.replace("-", " ").title() if thinking_level else "High"
     summary = format_findings_summary(findings)
     verdict_display = verdict.upper() if verdict else "NONE"
@@ -748,7 +780,7 @@ def run_principal_doc(root: Path, args: argparse.Namespace, sha: str) -> int:
     verdict = marks[-1][1] if marks else None
     findings = parse_findings(out, verdict)
 
-    cli_display = {"claude": "Claude", "codex": "Codex", "agy": "agy", "ollama": "Ollama"}.get(args.cli, args.cli.capitalize())
+    cli_display = {"claude": "Claude", "codex": "Codex", "agy": "agy", "kiro": "Kiro", "ollama": "Ollama"}.get(args.cli, args.cli.capitalize())
     triage_out = format_triage_header(
         f"Principal Review Triage: {args.doc} ({cli_display})",
         sha,
@@ -839,7 +871,7 @@ def run_adhoc_code(root: Path, args: argparse.Namespace, sha: str) -> int:
     verdict = marks[-1][1] if marks else None
     findings = parse_findings(out, verdict)
 
-    cli_display = {"claude": "Claude", "codex": "Codex", "agy": "agy", "ollama": "Ollama"}.get(args.cli, args.cli.capitalize())
+    cli_display = {"claude": "Claude", "codex": "Codex", "agy": "agy", "kiro": "Kiro", "ollama": "Ollama"}.get(args.cli, args.cli.capitalize())
     triage_out = format_triage_header(
         f"Cross-Model Review Triage: {commit_spec} ({cli_display})",
         sha,
@@ -887,14 +919,14 @@ def run(args: argparse.Namespace) -> int:
     args.thinking_level = thinking_level
 
     if kind == "principal" and args.cli == "ollama":
-        print("--kind principal supports --cli claude, codex, or agy", file=sys.stderr)
+        print("--kind principal supports --cli claude, codex, or agy (and kiro)", file=sys.stderr)
         return 2
 
     if args.cli == "ollama":
         if not args.model:
             print("--cli ollama needs --model", file=sys.stderr)
             return 2
-    elif not shutil.which(args.cli):
+    elif not resolve_cli_binary(args.cli):
         print(f"{args.cli} not found on PATH", file=sys.stderr)
         return 2
     if status_lines(root):
@@ -1249,7 +1281,7 @@ def main(argv: list[str] | None = None) -> int:
     runner.add_argument("--epic-dir")
     runner.add_argument("--doc")
     runner.add_argument("--base", required=True)
-    runner.add_argument("--cli", choices=("claude", "codex", "ollama", "agy"), default=None)
+    runner.add_argument("--cli", choices=("claude", "codex", "ollama", "agy", "kiro"), default=None)
     runner.add_argument("--model")
     runner.add_argument("--thinking-level", choices=THINKING_LEVELS, default=None)
     runner.add_argument("--host", default=local_review.host_from_env())

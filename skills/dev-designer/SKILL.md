@@ -50,8 +50,14 @@ Detect the active project platform architecture:
 
 For polyglot repositories containing multiple project layers (e.g. Python backend + Web frontend + Rust core), `detect_project_type.sh --all` detects all active project types, and `bootstrap_worktree.sh` executes sequential bootstrap steps. In Python projects, `.agents/quality/python-quality.json` supports an optional `"bootstrap"` command list (e.g. `[["uv", "sync"], ["uv", "run", "playwright", "install"]]`) executed automatically during worktree creation.
 
-### Step 1: Create the Epic Overview Document (HLD/RFC)
+### Step 1: Create the Epic Overview Document (HLD/RFC — Human-Facing System Overview & Maintenance Map)
 Generate the Epic Overview documents inside a dedicated directory: `.devtool/epic/<epic_name>/`.
+
+**Document Separation Principle ("Prompt to Maintain" vs Execution SSOT)**:
+To prevent LLM context bloat while maximizing human maintainability and edge-case coverage, the Epic documentation is strictly separated by audience and purpose:
+- **HLD (`<epic_name>.en.md` / `.vi.md`) — For Humans & System Maintenance ("Prompt to Maintain")**: A concise, high-signal architectural overview and feature maintenance map so developers (and future maintenance sessions) immediately grasp how the feature works, where its entry points live, and how components interact — enabling targeted *"Prompt to Maintain"* workflows instead of *"Prompt and Pray"*. **Do NOT embed raw Gherkin BDD blocks inside the HLD.**
+- **BDD Suite (`bdd_scenarios.en.md` / `.vi.md`) — Exhaustive Edge-Case & Exception Matrix**: Dedicated exclusively to catching the maximum number of boundary conditions, malformed inputs, race conditions, exceptions, and failure/rollback paths across all 5 dimensions.
+- **Task Files (`task_*.md`) — LLM Execution SSOT**: Self-contained execution contracts (containing `Allowed files`, `Decisions Already Made`, assigned `### BDD SCENARIOS`, and `## Verification`) loaded one task at a time during `dev-implementation` so the coding model stays 100% focused.
 
 **Self-sufficiency check (source spec placement)**: if this epic has a source spec and its `.en.md`
 and `.vi.md` pair is not already inside `.devtool/epic/<epic_name>/` — for example, the pair is
@@ -70,10 +76,13 @@ Each document MUST contain the following sections:
 2. **Meta Data**: Epic name, Status, Target Release, Platform (`Web Application`, `Flutter`, `Android Native`, `iOS Native`, `Python`, or `Rust Core`), `Depends on epic` (`- **Depends on epic**: <comma-separated list or none>`), and `Source Spec` link if this epic was derived from an approved `dev-brainstorming` spec.
 3. **Background (Bối cảnh)**: The problem statement or context (Why are we doing this?).
 4. **Goals & Non-Goals**: Clearly define what is expected to be achieved and what is strictly out of scope to avoid scope creep.
-5. **Architecture & Technical Design**:
-   - **High-Level Architecture**: Use `mermaid flowchart TD` (or `flowchart LR`) to show component interactions. NEVER use legacy `graph TD` (`graph` is legacy Mermaid syntax; `flowchart` is the modern standard that enables per-subgraph `direction` control, richer node shapes, better rendering engines, and styling).
-   - **Use Cases**: Use `mermaid flowchart` to define Actors and their interactions with the system.
-   - **Sequence Diagram**: Use `mermaid sequenceDiagram` with explicit participants and message flows to show the step-by-step lifecycle of the primary flow.
+5. **Architecture, Feature Map & Technical Design ("Prompt to Maintain")**:
+   - **High-Level Architecture (Mandatory — 1 Diagram)**: Use `mermaid flowchart TD` (or `flowchart LR`) to show component boundaries, data flow, and module dependencies. NEVER use legacy `graph TD` (`graph` is legacy Mermaid syntax; `flowchart` is the modern standard that enables per-subgraph `direction` control, richer node shapes, better rendering engines, and styling).
+   - **Sequence Diagram (Conditional — Only for Multi-Actor / Async / Stateful Flows)**: Use `mermaid sequenceDiagram` with explicit participants and message flows **only** when the epic involves cross-service/API calls, IPC/FFI bridges, async concurrency/cancellation protocols, or non-trivial state machine transitions. Omit for single-module, CLI, or static transforms, and do **not** generate redundant Actor-to-Use-Case flowcharts (which duplicate Goals and BDD scenarios).
+   - **Feature Maintenance Map ("Prompt to Maintain" Index)**: Include a concise table or structured list mapping each capability of the feature to:
+     1. **Canonical Source Paths & Entry Points** (key modules, classes, functions, routes, or CLI subcommands).
+     2. **Core Invariants & State/Config Knobs** (what must always hold true, environment variables, config files).
+     3. **Extension & Troubleshooting Guide** (where future developers or agents should look to extend behavior or diagnose failures without guessing).
    - **Diagram Standards & Lint Rules (Mermaid & Graphviz DOT)**:
      - All Mermaid diagrams MUST use `flowchart` instead of `graph`, quote node labels containing special characters, parentheses `()`, brackets `[]`, braces `{}`, colons `:`, slashes `/`, ampersands `&` (e.g. `node1["Component (Core Logic)"]`), use clean alphanumeric IDs with underscores, avoid trailing semicolons, and properly close subgraphs (`end`).
      - Any Graphviz (DOT) diagrams MUST follow semantic shapes (`diamond` for decisions `?`, `box` for actions, `plaintext` for commands, `ellipse` for states, `octagon` for warnings, `doublecircle` for start/complete), terminate statements with semicolons `;`, quote multi-word IDs/labels, use `->` in `digraph`, and prefix visual subgraphs with `cluster_`.
@@ -86,7 +95,7 @@ Each document MUST contain the following sections:
        --base-ref develop
      ```
      Inspect blast radius, downstream callers, native `MethodChannel` bridges, and coverage safety nets before freezing contracts.
-   - **Integration Test Plan & Boundary Matrix**: Map every Use Case and Sequence Diagram interaction into an explicit Integration Test Plan. Detail the end-to-end integration boundaries, mock/live services, data stores, and multi-component seams. For Web/UI applications, explicitly specify the **Visual & Browser Verification Matrix** (target viewports, URL routes/query parameters, interactive states, audio/video playback, and DOM verification).
+   - **Integration Test Plan & Boundary Matrix**: Map the architectural boundaries and failure seams into an explicit Integration Test Plan. Detail the end-to-end integration boundaries, mock/live services, data stores, and multi-component seams. For Web/UI applications, explicitly specify the **Visual & Browser Verification Matrix** (target viewports, URL routes/query parameters, interactive states, audio/video playback, and DOM verification).
    - **Integration Test Roots**: The Integration Test Plan MUST contain the line `Integration test roots: <dir>, <dir>` naming every directory that holds integration tests. Defaults: `tests/e2e/` (Web), `integration_test/` (Flutter), `app/src/test/` and `shell/src/test/` (Android), `App/Tests/` and `Shell/Tests/` (iOS), `tests/integration/` and `tests/e2e/` (Python), `tests/` (Rust). `check_bdd_traceability.py` scans exactly these directories.
    - **Protected Paths & Integration Results**: Beside `Integration test roots:`, the Integration Test Plan MUST carry these lines, which the recorder, the done gate and Gate 4 read:
      ```text
@@ -100,12 +109,6 @@ Each document MUST contain the following sections:
      ```
      This satisfies `R6` Tier C coverage checks in `check_epic_readiness.py` while `run_external_review.py` skips the live execution cleanly at Gate 4 when declared environment variables are unset without failing the gate.
    - **Verification Environment**: The HLD MUST also carry a `## Verification Environment` section: how tests are isolated from real data, which live resources are forbidden, and every variable a `Needs` column may name. When the project has a live data store, the first task carries a sentinel row proving tests cannot write to it.
-   - **Comprehensive BDD Test Scenarios**: A detailed Gherkin suite (`Given - When - Then`) covering all Use Cases and Sequence Diagram flows across the **Mandatory 5-Dimension Boundary Matrix**:
-     1. **Happy Paths**: Normal data flow and standard successful outcomes.
-     2. **Edge Cases & Boundaries**: Null inputs, empty arrays/collections, malformed payloads, boundary numbers.
-     3. **State Transitions**: Valid and invalid state transitions (MVI Action -> State / Event).
-     4. **Async / Race Conditions**: Rapid consecutive user interactions (debouncing, stream transformers, cancellation).
-     5. **Failures & Storage/Network Resilience**: Timeouts, 4xx/5xx HTTP errors, offline states, corrupted storage/DB.
 6. **Shared Contract Impact (Cross-Repo Contract Impact Analysis)**:
    In multi-repo ecosystems (e.g. `D3Nexus` hub with `lyrics-sync` and `nexus` satellite repos connected via `shared-contracts/` symlinks), waiting until local implementation finishes to update inter-service contracts creates bottlenecks. When deriving tasks from an approved spec, **read `## Shared Contract Warnings`** to discover all human-approved contract decisions, pending drifts, and waivers planned during Stage 1.
    During the HLD / Architecture design step (before finalizing the task breakdown at Gate 2), if the workspace contains a `shared-contracts/` directory (or interacts with external services, satellite repos, or FFI boundaries):
@@ -115,16 +118,21 @@ Each document MUST contain the following sections:
    - **Contract & Ledger Audit**: Inspect `shared-contracts/<domain>/api_contract.md`, `architecture_and_flow.md`, and `gaps_and_rfcs.md` before finalizing technical designs.
    - **Dedicated Overview Section**: Explicitly document any required schema additions, field rules, IPA/linguistic formatting rules, or protocol changes in a dedicated `## Shared Contract Impact` section inside the bilingual epic overview (`.devtool/epic/<epic_name>/<epic_name>.en.md` and `.vi.md`), linked in the Table of Contents. If no shared contract is affected, explicitly declare `None — self-contained feature`.
    - **Non-Breaking Schema Guarantee**: Enforce backward compatibility across repository boundaries (optional new fields with safe defaults, non-breaking enum additions, or explicit fallback rules). Breaking schema changes without backward-compatible transition windows or fallback shims are strictly forbidden.
-7. **BDD Output in Epic Directory**:
-   - In addition to embedding scenarios in the Epic Overview, generate a synchronized pair:
+7. **Exhaustive Edge-Case & Exception BDD Suite (`bdd_scenarios.{en,vi}.md`)**:
+   - Keep raw Gherkin blocks **out of the HLD** (so the HLD remains a clean human overview) and generate a dedicated, synchronized pair in the epic directory:
      - English, canonical: `.devtool/epic/<epic_name>/bdd_scenarios.en.md`
      - Vietnamese: `.devtool/epic/<epic_name>/bdd_scenarios.vi.md`
    - Each file MUST contain a linked table of contents covering every `##` section.
-   - Both files MUST organize scenarios by Use Case, exhaustively covering all 5 dimensions above in Gherkin syntax.
-   - **Scenario IDs**: Every `Scenario:` or `Scenario Outline:` line starts with a unique identifier in brackets, before any tier tag: `Scenario: [PY-HP-01] [Tier C - Integration] ...`. Shape: uppercase segments joined by `-`, ending in digits; convention `<EPIC>-<DIM>-<NN>` with `HP`, `EC`, `ST`, `AR`, `FR` for the five dimensions. The `.vi.md` file carries exactly the same identifiers, untranslated. The first segment is this epic's prefix and MUST NOT be used by any other epic in the project, because integration test roots hold every epic's tests; list the prefixes already taken with `grep -ho '\[[A-Z][A-Z0-9]*-' .devtool/epic/*/bdd_scenarios.en.md | sort -u`.
+   - **Adversarial Edge-Case & Exception Hunting Mandate**: Both files MUST organize scenarios by Use Case across the **Mandatory 5-Dimension Boundary Matrix**, with primary emphasis on **Dimensions 2–5 (maximizing edge cases, boundary violations, exceptions, and recovery invariants)**:
+     1. **Happy Paths (`HP`)**: Concise baseline nominal flows (1–2 scenarios per use case).
+     2. **Edge Cases, Boundaries & Malformed Inputs (`EC`)**: Null/empty/whitespace strings, unicode/special-character extremes, off-by-one and min/max numeric/collection bounds, missing or unexpected payload fields, malformed JSON/YAML/CLI flags, and path traversal/symlink edge cases.
+     3. **Invalid State Transitions & Invariant Guards (`ST`)**: Out-of-order events, duplicate/idempotent requests, illegal lifecycle transitions, stale leases/watermarks, unauthorized/permission-denied states, and precondition failures.
+     4. **Async, Concurrency & Race Conditions (`AR`)**: Rapid consecutive user actions (debouncing/throttling), mid-flight cancellation, timeout vs late-response arrival, file/DB lock contention, and interrupted execution.
+     5. **Exceptions, Fault Injection & Atomic Rollback (`FR`)**: Network/IO exceptions (4xx/5xx, socket drop, timeout), disk full / read-only filesystem, subprocess non-zero exit, corrupt persistence state, and **atomic rollback invariants** (proving no partial writes, corrupt state, or orphan temporary files remain when an exception occurs).
+   - **Scenario IDs**: Every `Scenario:` or `Scenario Outline:` line starts with a unique identifier in brackets, before any tier tag: `Scenario: [PY-EC-01] [Tier A - Unit] ...`. Shape: uppercase segments joined by `-`, ending in digits; convention `<EPIC>-<DIM>-<NN>` with `HP`, `EC`, `ST`, `AR`, `FR` for the five dimensions. The `.vi.md` file carries exactly the same identifiers, untranslated. The first segment is this epic's prefix and MUST NOT be used by any other epic in the project, because integration test roots hold every epic's tests; list the prefixes already taken with `grep -ho '\[[A-Z][A-Z0-9]*-' .devtool/epic/*/bdd_scenarios.en.md | sort -u`.
    - **Dual Value Purpose**:
-     1. *Human Maintenance (Living Documentation)*: Enables any incoming developer to instantly comprehend the business intent, state transitions, boundary limits, and resilience rules without wading through implementation code.
-     2. *Instant AI Agent Context Injection*: Provides a dense, unambiguous behavioral contract that can be loaded into an AI Agent's context window in one shot, eliminating hallucinations and ensuring rigorous compliance during implementation or bug fixes.
+     1. *Human Maintenance & Regression Shield*: Gives developers a complete catalog of every edge case, exception, and failure invariant the system guarantees.
+     2. *Task-Scoped AI Context Injection*: Each scenario block in `bdd_scenarios.en.md` is embedded verbatim into its assigned `task_*.md` (`### BDD SCENARIOS`), driving TDD (`RED -> GREEN`) without requiring the coding agent to load the entire epic's documentation at once.
 8. **Rollout Strategy & Mitigation**: Describe how to deploy this safely (e.g., phased rollout, feature flags) and fallback plans.
 9. **Kanban Tasks Breakdown**: A list of links pointing to the individual task files created in Step 2.
 10. **Spec Errata (Đính chính đặc tả)**: When an epic in-flight requires formal design corrections, scope amendments, or clarifications after initial approval, document each change under `## Spec Errata` using standardized `[SE-NN]` entries (e.g., `- [SE-01] <title>: <description>`). This section MUST be mirrored symmetrically across both `.en.md` and `.vi.md` variants, and linked in the Table of Contents.
@@ -231,11 +239,6 @@ Every Epic breakdown MUST explicitly structure and address all 3 testing tiers a
 - **Tier A (Unit & State Tests)**: Tasks covering component logic, domain utilities, reactive stores, state machines, parsers, and reducers with isolated unit tests (`node --test`, Vitest, Jest). Executed by the **TDD Master (Dev Persona)**.
 - **Tier B (Tooling, Types & Governance Tests)**: Tasks touching components, pages, or shared modules MUST verify type soundness (`tsc --noEmit`), framework diagnostics (`astro check` or framework linter), code style/formatting (`prettier --check` / `eslint`), and module boundaries.
 - **Tier C (Acceptance, E2E & Live Browser Verification)**: Every Web Epic MUST include an explicit final integration task (e.g. `Task N: Integration & Live Browser Verification`) verifying application composition roots, router navigation flows, running the automated integration harness (`tests/e2e/*.test.ts`, Playwright, Cypress) **AND executing Live Web Browser Verification**. The agent MUST launch the local dev/preview server, navigate using `browser_subagent`, record a video session (`.webp`), capture screenshot artifacts, and assert real DOM states, user interactions, audio/video playback, and visual layout against analyzed use cases and edge cases. Executed by the **System Integration Engineer (Integration Persona)**.
-
-##### 🐍 For Python Projects:
-- **Tier A (Unit Tests)**: Tasks covering module/domain logic, services, models, and parsers with isolated unit tests (`pytest tests/unit/` using `pytest-mock`, `unittest.mock`). Executed by the **TDD Master (Dev Persona)**.
-- **Tier B (Tooling & Governance Tests)**: Tasks touching modules or public APIs MUST verify code formatting and linting (`ruff check .`, `ruff format --check .`), strict type checking (`mypy --strict src`), and architectural layer boundaries (`lint-imports` or `import-linter` via `.importlinter`).
-- **Tier C (Acceptance & Integration Tests)**: Every Epic MUST include an explicit final integration task verifying service composition roots, API integrations, database workflows, and running automated integration/acceptance tests (`pytest tests/integration/` and `pytest tests/e2e/`). Executed by the **System Integration Engineer (Integration Persona)**.
 
 ##### 🐍 For Python Projects:
 - **Tier A (Unit Tests)**: Tasks covering module/domain logic, services, models, and parsers with isolated unit tests (`pytest tests/unit/` using `pytest-mock`, `unittest.mock`). Executed by the **TDD Master (Dev Persona)**.
@@ -354,7 +357,6 @@ Each task file MUST adhere to this exact structure:
 6. **Design Rationale**: Architecture decisions or design patterns chosen. **Crucially, review the available skills in `.agents/skills/` and explicitly note applicable skills here**:
    - **For Web Tasks**: `browser_subagent` (live browser verification), Node.js `--test` / Vitest, Astro check, Playwright.
    - **For Python Tasks**: `python-quality-check`, `pytest`, `ruff`, `mypy`, `import-linter`.
-   - **For Python Tasks**: `python-quality-check`, `pytest`, `ruff`, `mypy`, `import-linter`.
    - **For Rust Tasks**: `rust-quality-check`, `xtask`, `wasm-pack`.
    - **For Flutter Tasks**: `flutter-ui-audit`, Mason bricks (`mason make pac_mvi_feature`), `build_runner`.
    - **For Android Tasks**: `android-ui-audit`, `android-api-integration`, `moshi_dto_generator`.
@@ -367,20 +369,20 @@ Each task file MUST adhere to this exact structure:
 8. **BDD Scenarios & Acceptance Criteria (The QA Persona)**:
    Document this section under the markdown heading `### BDD SCENARIOS`.
    Directly under that heading, write the line `Covers: <ID>, <ID>` naming the epic scenario identifiers from `bdd_scenarios.en.md` whose integration tests this task writes. Omit the line only when the task covers no epic scenario, for example a Tier B tooling task.
-   Define behavioral scenarios using Gherkin syntax (`Given - When - Then`).
+   Copy the exact Gherkin scenario blocks (`Given - When - Then`) assigned to this task verbatim from `bdd_scenarios.en.md` (Rule `R3` in `check_epic_readiness.py` enforces byte-identical alignment between `bdd_scenarios.en.md` and `task_*.md`).
 
-   **Strict Adversarial Independence Mandate**:
+   **Strict Adversarial Independence & Edge-Case Mandate**:
    - The QA Persona MUST author BDD scenarios **completely decoupled from implementation code**.
-   - Do NOT base scenarios on implementation ease or existing code internals. Base them **PURELY on the Epic's HLD specifications, Use Cases (flowchart), and Sequence Diagrams**.
-   - The QA Persona's sole objective is to act as an adversarial quality gate: expose all unhandled edge cases, boundaries, race conditions, and system failure modes before any coding begins.
+   - Do NOT base scenarios on implementation ease or existing code internals. Base them **PURELY on the Epic's HLD specifications, Architecture & Feature Maintenance Map, and conditional Sequence Diagrams**.
+   - The QA Persona's sole objective is to act as an adversarial quality gate: **catch the maximum number of unhandled edge cases, boundary violations, exceptions, race conditions, and system failure/rollback modes** before any coding begins.
 
-   **Mandatory Self-Review**: Cross-check these scenarios directly against the Use Cases (flowchart) and Sequence Diagrams defined in the Epic's HLD document (`<epic_name>.en.md`) to guarantee zero missing requirements.
-   Exhaustively apply Boundary Value Analysis & Equivalence Partitioning across 5 dimensions:
-   - **Happy Paths**: Normal data flow and standard successful outcomes.
-   - **Edge Cases & Boundaries**: Null inputs, empty arrays/collections, malformed payloads, boundary numbers.
-   - **State Transitions**: Valid and invalid state transitions (MVI Action -> State / Event).
-   - **Async / Race Conditions**: Rapid consecutive user interactions (debouncing, stream transformers, cancellation).
-   - **Failures & Storage/Network Resilience**: Timeouts, 4xx/5xx HTTP errors, offline states, corrupted storage/DB.
+   **Mandatory Self-Review**: Cross-check these scenarios directly against the Goals, Architecture, and Feature Maintenance Map defined in the Epic's HLD document (`<epic_name>.en.md`) to guarantee zero missing requirements.
+   Exhaustively apply Boundary Value Analysis, Equivalence Partitioning, and Fault Injection across the 5 dimensions (prioritizing Dimensions 2–5):
+   - **Happy Paths (`HP`)**: Baseline nominal data flow and standard successful outcomes.
+   - **Edge Cases, Boundaries & Malformed Inputs (`EC`)**: Null/empty/whitespace inputs, unicode/encoding extremes, off-by-one and min/max numeric/collection bounds, malformed payloads/flags, and symlink/path edge cases.
+   - **State Transitions & Invariant Guards (`ST`)**: Valid and invalid state transitions, out-of-order events, idempotency on duplicate requests, stale leases/tokens, and permission/precondition guards.
+   - **Async, Concurrency & Race Conditions (`AR`)**: Rapid consecutive user interactions (debouncing, throttling, cancellation), timeout vs late response arrival, file/DB lock contention, and interrupted execution.
+   - **Exceptions, Fault Injection & Atomic Rollback (`FR`)**: Network/IO errors (4xx/5xx, socket drop, timeouts), offline states, disk full / read-only paths, subprocess failures, corrupted storage/DB, and atomic rollback invariants (no partial state or orphan files left behind).
 
    **Tier Categorization Tagging & 100% Traceability Mandate**:
    - `[Tier A - Unit]`: Scenarios covering class/function level logic, BLoCs/ViewModels, UseCases, Repositories, Parsers, and Guards. Must be covered 100% by unit tests.
@@ -437,25 +439,23 @@ Each task file MUST adhere to this exact structure:
 12. **References & Rollback**: Links to docs, APIs, and a rollback strategy if this specific task fails.
 
 ### Step 3: Finalize & Commit
-Before committing — and whether or not `auto_commit` is enabled — confirm that every epic scenario is assigned to a task. `SKILL_DIR` is the directory containing this `SKILL.md`:
+Before committing — and whether or not `auto_commit` is enabled — run `check_epic_readiness.py <epic_name>` (which internally executes `check_document.py`, `check_bdd_traceability.py plan`, and `check_task_contract.py --design` in a single pass; run the individual scripts below only when isolating a specific error). `SKILL_DIR` is the directory containing this `SKILL.md`:
 
 ```bash
+# Single-pass readiness check (covers R1-R8, check_bdd_traceability.py plan, and check_task_contract.py --design):
+python3 "$SKILL_DIR"/../dev-implementation/resources/scripts/check_epic_readiness.py <epic_name> [--baseline]
+
+# Targeted checks if isolating a failure:
 python3 "$SKILL_DIR"/../dev-implementation/resources/scripts/check_bdd_traceability.py plan \
   --scenarios .devtool/epic/<epic_name>/bdd_scenarios.en.md \
   --tasks .devtool/epic/<epic_name>/task_*.md
-```
 
-It must exit 0. Exit 1 names the unassigned, duplicated, unknown or malformed identifiers: fix the task files or the scenario documents and run it again.
-
-Then check the task contract, which `plan` does not cover: the Files, Verification and Definition of Done sections, the Allowed files and Read-only context paths, the commands and the HLD declarations.
-
-```bash
 python3 "$SKILL_DIR"/../dev-implementation/resources/scripts/check_task_contract.py --design \
   --hld .devtool/epic/<epic_name>/<epic_name>.en.md \
   --tasks .devtool/epic/<epic_name>/task_*.md
-
-python3 "$SKILL_DIR"/../dev-implementation/resources/scripts/check_epic_readiness.py <epic_name> --baseline
 ```
+
+It must exit 0. Exit 1 names the unassigned, duplicated, unknown or malformed identifiers or contract issues: fix the task files or the scenario documents and run it again.
 
 To verify task text directives (`Create`, `Replace in`, `Insert in`) and all verification rows end-to-end inside an isolated scratch worktree without mutating the main tree, run:
 

@@ -974,6 +974,8 @@ class TestReviewConfigAndHeader(ReviewCase):
         self.assertEqual(cfg["providers"]["claude"]["thinking_level"], "high")
         self.assertEqual(cfg["providers"]["agy"]["model"], "Gemini 4 Argon (Medium)")
         self.assertEqual(cfg["providers"]["agy"]["thinking_level"], "medium")
+        self.assertEqual(cfg["providers"]["kiro"]["model"], "claude-opus-5.5")
+        self.assertEqual(cfg["providers"]["kiro"]["thinking_level"], "high")
         self.assertEqual(cfg["providers"]["ollama"]["model"], "qwen38-fast:latest")
         self.assertEqual(cfg["providers"]["ollama"]["thinking_level"], "high")
 
@@ -1009,6 +1011,18 @@ class TestReviewConfigAndHeader(ReviewCase):
         args = self.args.read_text().split()
         self.assertIn("--effort", args)
         self.assertIn("xhigh", args)
+        self.commit("Round 2")
+        self.install("kiro-cli")
+        code_kiro, out_kiro, _ = self.run_review("--thinking-level", "high", cli="kiro", mode="pass")
+        self.assertEqual(code_kiro, 0)
+        kiro_args = self.args.read_text().split()
+        self.assertIn("chat", kiro_args)
+        self.assertIn("--no-interactive", kiro_args)
+        self.assertIn("--trust-all-tools", kiro_args)
+        self.assertIn("--wrap", kiro_args)
+        self.assertIn("--effort", kiro_args)
+        self.assertIn("high", kiro_args)
+        self.assertIn("• Reviewer: Kiro ( claude-opus-5.5 )", out_kiro)
 
     def test_rts_hp_05_claude_dangerously_skip_permissions(self) -> None:
         """[RTS-HP-05] Claude CLI uses --dangerously-skip-permissions."""

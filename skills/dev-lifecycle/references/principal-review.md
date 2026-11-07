@@ -8,10 +8,10 @@ Principal Review is a cross-model review of an epic's architecture and task desi
 
    > Packaged and context saved (`/save-context`).
    > 1. **Done** (or **`/dev-implementation`**) — proceed directly to `/dev-implementation` (Stage 3, Gate 3) or stop here and keep the packaged handoff for another session.
-   > 2. **Principal Review** (**`/principal-review`**) — a cross-model review of the design against the source before implementation (Claude CLI, Codex CLI, or Antigravity CLI).
+   > 2. **Principal Review** (**`/principal-review`**) — a cross-model review of the design against the source before implementation (Claude CLI, Codex CLI, Antigravity CLI, or Kiro CLI).
 
    Add the recommendation when it applies:
-   - When the epic was designed by a different or fast model (judged from the HLD's `Author` line or the developer's word), cross-model review is strongly recommended before committing to implementation. Recommend using each CLI's strongest reasoning model (for Antigravity CLI: `agy --model "Gemini 4 Argon (Medium)"`).
+   - When the epic was designed by a different or fast model (judged from the HLD's `Author` line or the developer's word), cross-model review is strongly recommended before committing to implementation. Recommend using each CLI's strongest reasoning model (for Antigravity CLI: `agy --model "Gemini 4 Argon (Medium)"`; for Kiro CLI: `claude-opus-5.5` or `gpt-5.6-sol`).
    - Never choose for the developer. Always wait for explicit selection.
 
 2. **`/dev-implementation` or Done**:
@@ -28,12 +28,12 @@ Principal Review is a cross-model review of an epic's architecture and task desi
      If the developer chose `/dev-implementation`, invoke `d3nexus:dev-implementation`; if they chose **Done**, print the `handoff.md` path and the Resume Prompt, and stop.
 
 3. **Principal Review**:
-   Ask the developer which CLI to use — Claude CLI, Codex CLI, or Antigravity CLI (`agy --model "Gemini 4 Argon (Medium)"`) — and optionally which model. Never choose for the developer.
+   Ask the developer which CLI to use — Claude CLI, Codex CLI, Antigravity CLI (`agy --model "Gemini 4 Argon (Medium)"`), or Kiro CLI (`kiro-cli`) — and optionally which model. Never choose for the developer.
    Invoke `d3nexus:principal-review`.
 
 4. Run the principal review:
    ```bash
-   python3 "$SKILL_DIR"/resources/scripts/run_external_review.py run --kind principal --epic-dir <epic_dir> --base <base_branch> --cli <claude|codex|agy>
+   python3 "$SKILL_DIR"/resources/scripts/run_external_review.py run --kind principal --epic-dir <epic_dir> --base <base_branch> --cli <claude|codex|agy|kiro>
    ```
    - A readiness FAIL prints the precondition banner: the CLI is never invoked. Fix the named failures as an epic revision, re-package, and return to step 1.
    - On success, the round is recorded in `.devtool/epic/<epic_dir>/principal_review.md`. Commit the recorded round:

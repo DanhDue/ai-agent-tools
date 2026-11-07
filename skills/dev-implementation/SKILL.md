@@ -42,20 +42,18 @@ This skill is **Stage 3** of the Epic Lifecycle. The surrounding stages, the fiv
    - If `.devtool/epic/<name>/` exists, `<epic_dir>` is `<name>`, and `<epic_slug>` is the `epic:` value of its task mirrors: `grep -h -m1 '^epic:' .devtool/epic/<name>/task_*.md`.
    - Otherwise `<name>` is a slug, and `<epic_dir>` is the directory holding the files `grep -l -F 'epic: "<name>"' .devtool/epic/*/task_*.md` lists.
    - With no name, or no match, list the epic directories whose overview Status is not `Done` and ask which one. Never guess, even when only one is listed.
-1. Read, in full:
-   - `.devtool/epic/<epic_dir>/<epic_dir>.en.md` (the canonical HLD — never `.vi.md` for decisions, that's a synced translation).
-   - `.devtool/epic/<epic_dir>/bdd_scenarios.en.md` (the canonical behavioral contract across the 5 dimensions, if present; `.vi.md` is its synchronized translation).
-   - Every `.devtool/features/task_*.md` whose frontmatter `epic:` matches `<epic_slug>`.
-   - Any spec file(s) linked from the HLD's Meta Data section.
-   - `.devtool/epic/<epic_dir>/handoff.md`, when present — the packaging record. Use its Open Notes as context; it is never edited manually after packaging and is updated only via `package_epic.py <epic_dir> --revise --reason "<text>"`.
-   - Restore architectural context and synchronize window title: `python3 scripts/resume_context.py --role programmer --epic <epic_slug>`.
+1. **Load Lean Orchestration Context (Bounded Context):**
+   - `.devtool/epic/<epic_dir>/handoff.md`, when present — packaging record and Open Notes (never edited manually; updated only via `package_epic.py <epic_dir> --revise --reason "<text>"`).
+   - `.devtool/epic/<epic_dir>/<epic_dir>.en.md` — canonical HLD & Maintenance Map ("Prompt to Maintain"; never `.vi.md` for decisions). Read `Meta Data`, `Architecture, Feature Map & Technical Design`, `Integration Test Plan`, and `Verification Environment`.
+   - Frontmatter, `Covers:`, and `Dependencies` of `.devtool/features/task_*.md` matching `epic: "<epic_slug>"` (read full task bodies one at a time in Phase 2).
+   - Restore context and window title: `python3 scripts/resume_context.py --role programmer --epic <epic_slug>`.
 
 #### Bounded Context Injection & Spec Fidelity
 
-Before implementing any task, the executor MUST adhere strictly to the 3-step Bounded Context Injection protocol:
-1. Read the active task file (`.devtool/features/task_*.md`).
-2. Read the Allowed files and Read-only context listed in the task file.
-3. Look up exact symbols and architectural choices declared in `Decisions Already Made`; do not perform undirected whole-repository searches.
+Before implementing any task in Phase 2, adhere strictly to Bounded Context Injection:
+1. Read **only** the active task file (`.devtool/features/task_*.md` — the Execution SSOT embedding assigned edge-case `### BDD SCENARIOS` from `bdd_scenarios.en.md` and `Decisions Already Made`).
+2. Read the `Allowed files:` and `Read-only context:` listed in the task file.
+3. Look up exact symbols and choices in `Decisions Already Made` (consult HLD or `bdd_scenarios.en.md` only for cross-task boundaries or Gate 4 traceability); avoid undirected whole-repo searches.
 
 **Strict Spec Fidelity**: Implement strictly within the boundaries specified by the active task and its Allowed files. Do not add speculative abstractions, configurability, or adjacent refactoring not requested by the task specification.
 
@@ -287,7 +285,7 @@ For each task in confirmed order, follow `d3nexus:subagent-driven-development`.
    python3 scripts/resume_context.py --state --epic <epic_slug>
    ```
 6. If implementation diverged from HLD, perform Phase 3 Doc Sync before next task.
-7. **Integrate with develop.** Run in orchestrator from epic worktree after step 5 commit:
+7. **Integrate with develop (only when base branch moved).** First check locally whether `<base_ref>` (`develop`) has any commits not in `HEAD` (`git rev-parse develop != $(git merge-base HEAD develop)`). If `develop` has not moved since the worktree branched, skip per-task rebase/verify-tier and proceed immediately to the next task (full integration runs at Stage 4). When `develop` has moved, run in orchestrator from epic worktree after step 5 commit:
    ```bash
    python3 "$INTEGRATE" preflight --base develop
    ```
@@ -382,19 +380,19 @@ review -- "round recorded" --> phase4
 choice -- "Local model review" --> localreview
 localreview -- "round recorded" --> phase4
 -->
-On Gate 4 PASS, run `python3 scripts/resume_context.py --state --epic <epic_slug> --status "Stage 4.1: Review Choice"` (which synchronizes `window.title` to Review Choice) and emit the prompt via `python3 scripts/resume_context.py --emit-prompt cross-review --epic <epic_slug>`.
+On Gate 4 PASS, record Gate 4 in `.devtool/GATE_LEDGER.md` via `python3 scripts/resume_context.py --gate 4 --epic <epic_slug> --approved "Gate 4 PASS (<candidate_sha>)"`, run `python3 scripts/resume_context.py --state --epic <epic_slug> --status "Stage 4.1: Review Choice"` (which synchronizes `window.title` to Review Choice), and emit the prompt via `python3 scripts/resume_context.py --emit-prompt cross-review --epic <epic_slug>`.
 Ask developer and wait for answer:
 
 > Gate 4 is 🟢 LGTM for `<candidate_sha>`. How do you want to proceed?
 >
 > 1. **Finish** — continue to Gate 5, then `finishing-a-development-branch`.
-> 2. **Cross-model review** — an independent model reviews the epic through Claude CLI, Codex CLI, or Antigravity CLI (`command -v claude codex agy`).
+> 2. **Cross-model review** — an independent model reviews the epic through Claude CLI, Codex CLI, Antigravity CLI, or Kiro CLI (`command -v claude codex agy kiro-cli`).
 > 3. **Local model review** — a model served by your local Ollama reviews the epic task by task (`ollama list`).
 
 Option 1 goes to Phase 4.1 / Gate 5. Option 2 invokes `d3nexus:cross-model-review` in epic worktree with clean tree:
 ```bash
 python3 "$SKILL_DIR"/resources/scripts/run_external_review.py run \
-  --epic-dir <epic_dir> --base <base_ref> --cli claude|codex|agy
+  --epic-dir <epic_dir> --base <base_ref> --cli claude|codex|agy|kiro
 ```
 Commit `review_results.md` after every round (`[EPIC_NAME] Record cross-model review round N`). After every round of option 2 or 3, run `python3 "$SKILL_DIR"/resources/scripts/run_external_review.py triage --epic-dir <epic_dir>`, fill it as [review-triage.md](references/review-triage.md) says, present it, and wait for the developer's decisions before any Fix commit or Decision cell. Once the developer confirms the triage decisions, make the Fix commits, record the decisions, commit, and **automatically rerun Phase 4 / Gate 4 in full** without asking for an intermediate confirmation before running Gate 4; only halt once Gate 4 finishes and presents Review Choice again.
 
@@ -414,7 +412,7 @@ Once `@quality_check` reports 🟢 LGTM, all tasks completed, and developer sele
    > "All tasks for epic `<epic_slug>` are completed and `@quality_check` is **🟢 LGTM**.
    > All task cards are visible in the **DONE** column on your Kanban dashboard.
    > Please review completed tasks and code changes. Reply to proceed with branch integration."
-4. **Wait for Gate 5 Confirmation**: Only proceed to Phase 5 when user explicitly approves.
+4. **Wait for Gate 5 Confirmation**: Only proceed to Phase 5 when user explicitly approves (then record Gate 5 via `python3 scripts/resume_context.py --gate 5 --epic <epic_slug> --approved "Gate 5 Kanban sign-off"`).
 
 ### Phase 5 — Branch Finishing
 

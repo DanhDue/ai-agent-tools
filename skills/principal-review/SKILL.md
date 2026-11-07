@@ -29,7 +29,7 @@ Invoked during the packaging phase of `dev-lifecycle` after all epic artefacts p
 - **Execution**:
   ```bash
   python3 skills/dev-implementation/resources/scripts/run_external_review.py run \
-    --kind principal --epic-dir <epic_dir> --base <base_branch> --cli <claude|codex|agy>
+    --kind principal --epic-dir <epic_dir> --base <base_branch> --cli <claude|codex|agy|kiro>
   ```
 - **Persistence**: Results recorded in `.devtool/epic/<epic_dir>/principal_review.md`.
 
@@ -45,7 +45,7 @@ Invoked on-demand to review standalone design documents, architecture proposals,
 - **Execution**:
   ```bash
   python3 skills/dev-implementation/resources/scripts/run_external_review.py run \
-    --kind principal --doc <path> --base <base_branch> --cli <claude|codex|agy>
+    --kind principal --doc <path> --base <base_branch> --cli <claude|codex|agy|kiro>
   ```
 - **Streaming & Visibility**:
   - The review output and triage table stream directly to stdout.
@@ -59,7 +59,7 @@ Invoked on-demand to review standalone design documents, architecture proposals,
    - For standalone docs, structural validation checks that the file exists and has valid headings.
 
 2. **External Model Review**:
-   - Executes with a read-only permissions profile (`claude -p --dangerously-skip-permissions`, `codex exec --sandbox read-only`, or `agy --sandbox --mode plan`).
+   - Executes with a read-only permissions profile (`claude -p --dangerously-skip-permissions`, `codex exec --sandbox read-only`, `agy --sandbox --mode plan`, or `kiro-cli chat --no-interactive --trust-all-tools --wrap never`).
    - The reviewer inspects active code at candidate SHA to verify groundedness (P1–P8 checklists).
 
 3. **Triage Findings**:
