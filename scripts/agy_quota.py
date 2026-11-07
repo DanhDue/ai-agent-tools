@@ -1334,10 +1334,10 @@ def print_kiro_card(data: dict):
     else:
         status_tag = f"\033[38;2;239;68;68m🔴 {status}\033[0m"
 
-    tier_tag = f"\033[48;2;88;28;135m\033[1;37m ◆ {tier} \033[0m"
+    tier_tag = f"\033[48;2;88;28;135m\033[1;38;2;216;180;254m 👻 {tier} \033[0m"
     tag_priority = "\033[48;2;24;27;38m\033[38;2;160;174;192m Priority: 90 \033[0m"
 
-    print(f"\n{BOLD}{WHITE}✦ Provider: {CYAN}Kiro CLI{RESET}  {tier_tag}  {tag_priority}  {status_tag}")
+    print(f"\n{BOLD}{WHITE}✦ Provider: \033[38;2;192;132;252m👻 Kiro CLI{RESET}  {tier_tag}  {tag_priority}  {status_tag}")
     if email:
         print(f"  {DIM}Email: {email}{RESET}")
 

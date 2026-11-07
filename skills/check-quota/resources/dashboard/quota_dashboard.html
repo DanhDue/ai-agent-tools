@@ -163,7 +163,7 @@
                 class="text-[11px] px-2.5 py-0.5 rounded-full bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border border-purple-500/40 font-mono font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm hover:scale-105 select-none"
                 title="Bấm để lọc: Xem các AI Providers (Claude, Codex, Kiro)">
                 <span class="w-1.5 h-1.5 rounded-full bg-purple-400"></span>
-                <span id="statProvidersCount">3 Providers (Claude, Codex, Kiro)</span>
+                <span id="statProvidersCount">3 Providers (Claude, Codex, 👻 Kiro)</span>
               </button>
 
               <button type="button" onclick="setStatusFilter('ACTIVE')" id="statBtnActive"
@@ -218,7 +218,7 @@
         <select id="statusFilter" onchange="filterProfiles()"
           class="bg-[var(--background)] text-[var(--foreground)] border border-[var(--border)] text-xs rounded-lg px-2.5 py-1.5 font-medium outline-none cursor-pointer hover:border-sky-500/50 transition-colors">
           <option value="ALL" id="optFilterAll">Tất cả mục (26)</option>
-          <option value="PROVIDERS" id="optFilterProviders">AI Providers (Claude, Codex, Kiro)</option>
+          <option value="PROVIDERS" id="optFilterProviders">AI Providers (Claude, Codex, 👻 Kiro)</option>
           <option value="ACTIVE" id="optFilterActive">Active Profiles</option>
           <option value="AUTH NEEDED" id="optFilterAuthNeeded">Needed Login Profiles</option>
           <option value="DISABLED" id="optFilterDisabled">Blocked Profiles (Appeal Needed)</option>
@@ -2098,7 +2098,7 @@
       // Distinct highlight styling when selected in batch mode
       const cardHighlightClass = isBatchSelecting && isSelected
         ? 'border-purple-500/80 ring-2 ring-purple-500/30 bg-purple-950/[0.04]'
-        : 'border-[var(--border)]';
+        : (profile === 'kiro' ? 'border-purple-500/40 hover:border-purple-400/80 shadow-[0_4px_20px_rgba(168,85,247,0.06)]' : 'border-[var(--border)]');
 
       const checkboxHTML = isBatchSelecting ? (canOperateQuota ? `
         <label class="flex items-center mr-1 cursor-pointer select-none">
@@ -2148,9 +2148,9 @@
                 ${checkboxHTML}
                 <span 
                   ondblclick="copyProfileNameToClipboard('${profile}')"
-                  class="text-sm sm:text-base font-bold font-mono ${data.isProvider ? (profile === 'claude' ? 'text-amber-400' : (profile === 'codex' ? 'text-white font-extrabold' : 'text-emerald-400')) : 'text-sky-400'} tracking-tight cursor-pointer hover:opacity-80 transition-colors select-none"
+                  class="text-sm sm:text-base font-bold font-mono ${data.isProvider ? (profile === 'claude' ? 'text-amber-400' : (profile === 'codex' ? 'text-white font-extrabold' : 'text-purple-300 font-extrabold drop-shadow-[0_0_10px_rgba(192,132,252,0.45)]')) : 'text-sky-400'} tracking-tight cursor-pointer hover:opacity-80 transition-colors select-none inline-flex items-center gap-1.5"
                   title="Nhấn đúp (Double-click) để sao chép '${profile}' vào clipboard"
-                >${data.displayName || profile}</span>
+                >${profile === 'kiro' ? '<span class="text-base select-none inline-block hover:scale-125 transition-transform" title="Kiro Cute Ghost">👻</span>' : ''}${data.displayName || profile}</span>
                 ${!data.isProvider ? `
                 <button 
                   onclick="openProfileInfoModal('${profile}')" 
@@ -2168,10 +2168,10 @@
                     AI PROVIDER
                   </span>
                 ` : (profile === 'kiro' ? `
-                  <span class="pill-badge bg-purple-500/20 text-purple-300 border border-purple-500/40 font-mono font-bold text-[10px]">
-                    <span class="text-purple-400">◆</span> ${data.tier || 'KIRO STUDENT'}
+                  <span class="pill-badge bg-purple-500/25 text-purple-200 border border-purple-500/50 font-mono font-bold text-[10px] shadow-sm inline-flex items-center gap-1">
+                    <span class="text-purple-300 text-xs">👻</span> ${data.tier || 'KIRO STUDENT'}
                   </span>
-                  <span class="pill-badge bg-purple-950/60 text-purple-300 border border-purple-800/60 font-mono text-[10px]">
+                  <span class="pill-badge bg-purple-950/90 text-purple-200 border border-purple-700/70 font-mono font-semibold text-[10px] shadow-sm">
                     AI PROVIDER
                   </span>
                 ` : `
@@ -2331,9 +2331,9 @@
               ` : (profile === 'kiro' || data.isCreditOnly ? `
               <!-- Kiro Provider: Single-Bar Monthly Credits Pool -->
               <div class="space-y-2.5">
-                ${renderDetailModelCard("◆", "text-purple-400", data.gemini5h.name, data.gemini5h.countdown, data.gemini5h.fraction, false, data.gemini5h.unavailable)}
+                ${renderDetailModelCard("👻", "text-purple-300", data.gemini5h.name, data.gemini5h.countdown, data.gemini5h.fraction, false, data.gemini5h.unavailable)}
               </div>
-              <div class="text-[11px] font-mono text-slate-400 pt-1 flex items-center justify-between">
+              <div class="text-[11px] font-mono text-purple-300/80 pt-1 flex items-center justify-between">
                 <span>Used: ${data.creditsPool?.used ?? 7.48} / ${data.creditsPool?.limit ?? 1000} credits</span>
                 <span>Overages: ${data.overageStatus ?? 'DISABLED'}</span>
               </div>
@@ -2564,7 +2564,7 @@
       const elExhausted = document.getElementById("statExhaustedCount");
       const btnExhausted = document.getElementById("statBtnExhausted");
 
-      if (elProviders) elProviders.textContent = `${providers || 3} Providers (Claude, Codex, Kiro)`;
+      if (elProviders) elProviders.textContent = `${providers || 3} Providers (Claude, Codex, 👻 Kiro)`;
       if (elActive) elActive.textContent = `${active} Active Profiles`;
       if (elDisabled) elDisabled.textContent = `${disabled} Blocked Profiles`;
       if (elAuth) elAuth.textContent = `${authNeeded} Needed Login Profiles`;
@@ -2584,7 +2584,7 @@
 
       const total = (providers || 0) + (profiles || 0);
       if (optAll) optAll.textContent = `Tất cả mục (${total})`;
-      if (optProv) optProv.textContent = `AI Providers (Claude, Codex, Kiro) (${providers || 0})`;
+      if (optProv) optProv.textContent = `AI Providers (Claude, Codex, 👻 Kiro) (${providers || 0})`;
       if (optAct) optAct.textContent = `Active Profiles (${active})`;
       if (optAuth) optAuth.textContent = `Needed Login Profiles (${authNeeded})`;
       if (optDis) optDis.textContent = `Blocked Profiles (${disabled})`;
@@ -2722,7 +2722,7 @@
       const countBadge = document.getElementById("profileCountBadge");
       if (countBadge) {
         if (statusFilter === "PROVIDERS") {
-          countBadge.textContent = `${matchingProfiles.length} AI Providers (Claude, Codex, Kiro)`;
+          countBadge.textContent = `${matchingProfiles.length} AI Providers (Claude, Codex, 👻 Kiro)`;
         } else if (statusFilter === "ACTIVE") {
           countBadge.textContent = `${matchingProfiles.length} Active Profiles`;
         } else if (statusFilter === "AUTH NEEDED") {
