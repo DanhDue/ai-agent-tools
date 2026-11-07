@@ -132,6 +132,42 @@ def remediate():
             except Exception as e:
                 print(f"  [WARN] Error cleaning conversation_summaries.db: {e}")
 
+        # 4. Enforce state.vscdb identity parity with Keychain token
+        vscdb_path = os.path.join(h, "data/User/globalStorage/state.vscdb")
+        kc_path = os.path.join(h, "Library/Keychains", f"{profile}.keychain-db")
+        if os.path.isfile(vscdb_path) and os.path.isfile(kc_path) and profile != "danhdue":
+            try:
+                import base64, subprocess
+                subprocess.run(["security", "unlock-keychain", "-p", "H@No!a@12345", kc_path], capture_output=True)
+                res = subprocess.run(["security", "find-generic-password", "-s", "gemini", "-a", "antigravity", "-g", kc_path], capture_output=True, text=True)
+                raw_err = res.stderr or ""
+                kc_email = None
+                if 'password: "go-keyring-base64:' in raw_err:
+                    b64 = raw_err.split('password: "go-keyring-base64:')[1].split('"')[0]
+                    tdata = json.loads(base64.b64decode(b64).decode("utf-8"))
+                    kc_email = tdata.get("id_token_email")
+
+                if kc_email:
+                    conn = sqlite3.connect(vscdb_path)
+                    c = conn.cursor()
+                    c.execute("SELECT value FROM ItemTable WHERE key='google.google-antigravity'")
+                    row = c.fetchone()
+                    if row:
+                        d = json.loads(row[0])
+                        st = d.get("antigravity-storage", {})
+                        cur_email = st.get("agy.onboarding.lastLoginUsername")
+                        if cur_email != kc_email:
+                            st["agy.onboarding.lastLoginUsername"] = kc_email
+                            d["antigravity-storage"] = st
+                            c.execute("UPDATE ItemTable SET value=? WHERE key='google.google-antigravity'", (json.dumps(d),))
+                            print(f"  ✓ Fixed state.vscdb username: {cur_email} -> {kc_email}")
+                    # Remove stale signedOut flag if present
+                    c.execute("DELETE FROM ItemTable WHERE key='antigravityUnifiedStateSync.oauthToken'")
+                    conn.commit()
+                    conn.close()
+            except Exception as e:
+                print(f"  [WARN] Error enforcing state.vscdb identity parity: {e}")
+
     print(f"\n=== SUMMARY ===")
     print(f"Total storage.json files updated: {remediated_storage} (All IDs unique: {len(seen_machine_ids)} unique machine IDs)")
     print(f"Total stale cloned conversation records purged: {remediated_convs}")
