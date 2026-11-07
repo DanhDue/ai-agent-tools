@@ -59,3 +59,57 @@ Verdict: CHANGES REQUIRED
 [Important] skills/dev-implementation/resources/scripts/package_epic.py:266 — Calling `package_epic.py <epic_dir>` without `--revise` when `handoff.md` already exists silently overwrites it via `render_initial_handoff`, discarding custom `Open Notes` and the entire `## Revisions` history (reproduced in a scratch repo); no test exercises this reachable operator-error path, and it directly undermines the preservation guarantee `MEO-ST-02` and task_03's Definition of Done require of `--revise`.
 [Minor] .devtool/epic/multi_epic_orchestration_and_governance/2026-11-06-multi-epic-orchestration-and-governance-design.en.md:Architecture and Component Design (section 3) — The design spec's CLI signature still lists `[--status "<hld_status>"]`, but task_03's Decisions and the shipped `package_epic.py` drop that flag entirely; the design spec was never updated to match the task-level contract that superseded it.
 ```
+
+## Round 3
+
+- **Date**: 2026-11-07T06:46:04Z
+- **SHA**: fbbfcb3bcba3bb70a066f2011fb90f9dc323a84c
+- **Base**: main
+- **CLI**: claude
+- **Model**: opus
+- **Thinking**: high
+- **Status**: completed
+- **Verdict**: CHANGES REQUIRED
+
+| # | Severity | Location | Problem | Decision |
+|---|----------|----------|---------|----------|
+| 1 | Important | scripts/resume_context.py:273 | `render_gate_ledger_markdown` rebuilds the tracked permanent `.devtool/GATE_LEDGER.md` solely from the gitignored ephemeral `.devtool/state/gate_ledger.jsonl`, so on any clone where `state/` is absent the first `--gate` recording truncates the committed ledger to that single row (reproduced via the CLI: Gates 1–2 deleted, `git diff --numstat` `1 2`, `--check-gate 1` flips exit 0 → exit 1), defeating the permanence guarantee observation #0020 and task_04 exist to provide; `scan_gate_ledger` already implements the Markdown fallback for exactly this case but the writer never merges existing rows, and `test_MEO_HP_04_fallback_to_markdown_and_harvest` only reads in that state so the path has zero coverage. | fixed in 745b647 |
+| 2 | Minor | scripts/resume_context.py:294 | the Markdown ledger does not escape field contents and the fallback reader skips rows containing `---`: `--approved 'HLD \| 5 tasks \| SE-01 approved'` round-trips as `approved="HLD"`, `deviations="5 tasks"`, `by="SE-01 approved"`, and `--approved 'Execution order --- wave 1-3'` is dropped entirely on read. | fixed in 745b647 |
+| 3 | Minor | .devtool/epic/multi_epic_orchestration_and_governance/task_03_package_revise_and_spec_errata.md:Decisions Already Made | the shipped `package_epic.py` CLI has `--force` and refuses to overwrite an existing `handoff.md` (exit 1), but task_03's frozen Decisions and the HLD Goals line still describe only `<epic_dir> [--revise] [--reason] [--base-branch] [--open-note]`; only the design spec was realigned in `74289b5`. | fixed in 6896e97 |
+| 4 | Minor | skills/dev-implementation/resources/scripts/check_epic_readiness.py:27 | the `replay_task_text` import became a module-level `try/except ImportError` that sets `verify_task_edit_anchors = None`, and `check_grounding` then skips the R5 edit-anchor verification entirely when it is `None`, so an import failure would silently remove a readiness check while the report still prints PASS (the `--replay` call site at line 754 is left unguarded and would instead raise on `None`); latent only, since the module imports cleanly today. | fixed in 713ca6f |
+| 5 | Minor | skills/dev-lifecycle/SKILL.md:45 | the commit also compresses prose unrelated to multi-epic orchestration (the Markdown Formatting bullets, Gate 4 condition names "Normalized Invocation Contract"/"Deterministic Aggregation" → "Contract"/"Aggregation", and the review-CLI prohibition bullet); `check_document.py` enforces no length or density rule, so these edits are outside the epic's scope. | dismissed: Required by scripts/test_lifecycle_document_contract.py 2500-word budget |
+
+Raw output:
+
+```text
+## Review
+
+I read all required artefacts (design spec en/vi, HLD en, `handoff.md`, `bdd_scenarios.en.md`, all 5 task files, `principal_review.md`, `review_results.md`, `manual_smoke_checklist.md`, evidence JSONs) and inspected every source file in the diff. I independently re-ran the quality gates and ran dynamic probes against the parsing, exception and ledger-persistence paths.
+
+**Verification re-run.** `ruff` clean across all changed modules and the three new suites; `mypy --follow-imports=silent` → "no issues found in 6 source files"; `check_document.py` on the five updated `SKILL.md` files → "0 findings". These match the task tables' V3/V4/V5 rows and the provided 461-passed / 13-of-13-traceability facts.
+
+**Audit disclosures are justified.** Every grader amendment that touched a Verification table, Definition of Done or Allowed-files list came from `9a9205f` ("Revise epic after Principal Review round 1"), which is already merged into `main` — i.e. applied at Gate 2, before any task executed. I diffed each of the five implementation commits (`5fe89e8`, `6686f01`, `261c58d`, `f5327e1`, `5fd7fc7`) against the task files: they change only frontmatter `status`/`modified`/`completedAt`. No executor repaired its own contract. `5461359` is a pre-execution alignment of the `--follow-imports=silent` position across all five mypy rows. The protected-path entries (`scripts/verify.sh` in `5fd7fc7`, `f58aea7`) are covered by task_05's Allowed files and are not in the HLD's declared protected set. The three commits outside tasks each trace to a recorded review finding.
+
+**Prior rounds genuinely closed.** `verify.sh` step 11 now invokes `pytest` directly for the three new suites; `check_task_contract.main()` surfaces `prereq_errors` via `check.problem`; `package_epic` refuses to overwrite an existing `handoff.md` without `--revise`/`--force` and has a dedicated regression test; the design spec's `--status` flag was replaced with `--force` symmetrically in en and vi (I checked both Error Handling sections — all five bullets present in each).
+
+**Dynamic probing.** `check_metadata`'s `en_errata`/`vi_errata` are bound before the `try`, and both the en-raises and vi-raises paths return a clean finding with no `UnboundLocalError`. The `new <symbol>` extractor respects word boundaries (`renew_token`, `news feed` → no symbols) and strips `()` correctly. `resolve_prerequisite_epic_dirs` terminates on a self-dependency with a deterministic cycle error rather than recursing. No `shared-contracts/` exists in this repo, matching the HLD's "None". Tests invoke production CLIs and symbols directly and reuse the real `build_ready_epic` fixture — no reconstructed logic, no synthetic anchor substitution.
+
+**One defect found by probing the persistence path.** `render_gate_ledger_markdown` rebuilds the *tracked permanent* `.devtool/GATE_LEDGER.md` purely from the *gitignored ephemeral* `.devtool/state/gate_ledger.jsonl`. `scan_gate_ledger` deliberately falls back to the Markdown table "on fresh clones or worktrees", so the authors recognised the JSONL can be absent while the Markdown exists — but the writer does not. I reproduced it end-to-end with the real CLI: a clone with Gates 1–2 committed in `GATE_LEDGER.md` and no `state/` directory loses both rows the moment `--gate 4` is recorded (`git diff --numstat` → `1 2`), and `--check-gate 1` flips from exit 0 to exit 1. Observation `#0020` exists specifically to make these approvals durable, so this reopens the gap it closed. (Git worktrees are safe — `resolve_primary_repo_root` centralises on `--git-common-dir` — but a second clone is not.) `test_MEO_HP_04_fallback_to_markdown_and_harvest` writes the Markdown-only state and then only *reads* it, which is why the gap has no coverage.
+
+Two smaller Markdown round-trip issues compound it: a `|` inside `--approved` shifts every subsequent column on read (`approved` became `"HLD"`, `deviations` `"5 tasks"`, `by` `"SE-01 approved"`), and any row containing `---` is silently dropped by the fallback's skip filter.
+
+**Gate 5 items for you to confirm**, restated — all five tasks carry the identical item:
+
+- `task_01_inter_epic_dependencies` — clean git working tree with changes restricted to Allowed files.
+- `task_02_conflict_aware_epic_promotion` — same.
+- `task_03_package_revise_and_spec_errata` — same.
+- `task_04_gate_approval_ledger` — same.
+- `task_05_multi_epic_governance_e2e_acceptance` — same.
+
+Verdict: CHANGES REQUIRED
+[Important] scripts/resume_context.py:273 — `render_gate_ledger_markdown` rebuilds the tracked permanent `.devtool/GATE_LEDGER.md` solely from the gitignored ephemeral `.devtool/state/gate_ledger.jsonl`, so on any clone where `state/` is absent the first `--gate` recording truncates the committed ledger to that single row (reproduced via the CLI: Gates 1–2 deleted, `git diff --numstat` `1 2`, `--check-gate 1` flips exit 0 → exit 1), defeating the permanence guarantee observation #0020 and task_04 exist to provide; `scan_gate_ledger` already implements the Markdown fallback for exactly this case but the writer never merges existing rows, and `test_MEO_HP_04_fallback_to_markdown_and_harvest` only reads in that state so the path has zero coverage.
+[Minor] scripts/resume_context.py:294 — the Markdown ledger does not escape field contents and the fallback reader skips rows containing `---`: `--approved 'HLD | 5 tasks | SE-01 approved'` round-trips as `approved="HLD"`, `deviations="5 tasks"`, `by="SE-01 approved"`, and `--approved 'Execution order --- wave 1-3'` is dropped entirely on read.
+[Minor] .devtool/epic/multi_epic_orchestration_and_governance/task_03_package_revise_and_spec_errata.md:Decisions Already Made — the shipped `package_epic.py` CLI has `--force` and refuses to overwrite an existing `handoff.md` (exit 1), but task_03's frozen Decisions and the HLD Goals line still describe only `<epic_dir> [--revise] [--reason] [--base-branch] [--open-note]`; only the design spec was realigned in `74289b5`.
+[Minor] skills/dev-implementation/resources/scripts/check_epic_readiness.py:27 — the `replay_task_text` import became a module-level `try/except ImportError` that sets `verify_task_edit_anchors = None`, and `check_grounding` then skips the R5 edit-anchor verification entirely when it is `None`, so an import failure would silently remove a readiness check while the report still prints PASS (the `--replay` call site at line 754 is left unguarded and would instead raise on `None`); latent only, since the module imports cleanly today.
+[Minor] skills/dev-lifecycle/SKILL.md:45 — the commit also compresses prose unrelated to multi-epic orchestration (the Markdown Formatting bullets, Gate 4 condition names "Normalized Invocation Contract"/"Deterministic Aggregation" → "Contract"/"Aggregation", and the review-CLI prohibition bullet); `check_document.py` enforces no length or density rule, so these edits are outside the epic's scope.
+```
