@@ -8,6 +8,26 @@ every installed machine on the old cached copy.
 
 ---
 
+## 1.26.0 — 2026-11-07
+
+Adds **Kiro CLI (`--cli kiro`)** as a first-class external reviewer across `principal-review`, `cross-model-review`, and `run_external_review.py`, establishes the **3-Tier Epic Documentation Architecture ("Prompt to Maintain" HLD vs Exhaustive Edge-Case BDD vs Self-Contained Task SSOT)** to reduce LLM token bloat while maximizing edge-case coverage, and completes `bin/d3nexus` subcommand & Gate Approval Ledger wiring across `/dev-lifecycle`.
+
+### Added
+
+- **Kiro CLI External Reviewer Support** (`skills/dev-implementation/resources/scripts/run_external_review.py`, `skills/principal-review/`, `skills/cross-model-review/`, `skills/dev-lifecycle/`, `rules/CRITICAL_RULES.md`):
+  - Adds `--cli kiro` (`kiro-cli` / `kiro`) to `run_external_review.py` (`DEFAULT_REVIEW_CONFIG["providers"]["kiro"] = {"model": "claude-opus-5.5", "thinking_level": "high"}`), invoking `kiro-cli chat --no-interactive --trust-all-tools --wrap never --effort <effort> --model <model>`.
+  - Automatically forwards `HOME=$REAL_HOME` when executing `kiro-cli` from inside an isolated Antigravity profile (`/antigravity_homes/<profile>`) so Kiro accesses the host macOS Keychain Builder ID session cleanly.
+- **Complete `bin/d3nexus` Subcommand & Gate Ledger Wiring** (`bin/d3nexus`, `skills/dev-brainstorming/`, `skills/dev-implementation/`):
+  - Adds `audit-epic`, `check-bdd`, `check-impact`, `integrate`, `package-epic`, `quality-check`, and `run-external-review` subcommands to `bin/d3nexus`.
+  - Wires `resume_context.py --gate 1`, `--gate 4`, and `--gate 5` into `dev-brainstorming` and `dev-implementation` so all 5 lifecycle gates are recorded deterministically in `.devtool/GATE_LEDGER.md`.
+
+### Changed
+
+- **3-Tier Epic Documentation Separation ("Prompt to Maintain" vs LLM Execution SSOT)** (`skills/dev-designer/SKILL.md`, `skills/dev-implementation/SKILL.md`, `skills/dev-lifecycle/SKILL.md`):
+  - **Human-Facing HLD (`<epic_name>.{en,vi}.md`)**: Redesigned as a concise System Overview & `Feature Maintenance Map ("Prompt to Maintain" Index)` mapping capabilities to canonical source entry points, core invariants, and troubleshooting hooks; keeps 1 mandatory High-Level Architecture diagram and makes Sequence Diagrams conditional on multi-actor/async flows (dropping redundant Use Case flowcharts and embedded Gherkin duplicates).
+  - **Exhaustive Edge-Case & Exception BDD Suite (`bdd_scenarios.{en,vi}.md`)**: Dedicated exclusively to adversarial boundary testing across the 5 dimensions, prioritizing malformed inputs (`EC`), invalid state transitions (`ST`), concurrency/race conditions (`AR`), and fault injection with atomic rollback invariants (`FR`).
+  - **Strict Bounded Context in `dev-implementation` & Single-Pass Readiness Check**: Phase 0 loads only orchestration metadata (`handoff.md`, HLD Maintenance Map & Integration Test Plan, and task headers), while Phase 2 loads one self-contained `task_*.md` SSOT at a time; Step 3 of `dev-designer` runs single-pass `check_epic_readiness.py` and Phase 2 Step 7 skips redundant per-task rebase when local `develop` has not moved.
+
 ## 1.25.0 — 2026-11-07
 
 Delivers the **Contract & Authoring Ergonomics**, **Execution & Verification Infrastructure**, and **Multi-Epic Orchestration & Governance** epics alongside **Account Block Security Auditing (`audit-account-block`)**, **Multi-Profile OS & IPC Boundary Hardening (Rule 9)**, **Automated Gate 2 Handoff & Post-Review Quality Gates**, **Worktree-Aware IDE Theme & Title Synchronization**, **Scope-Aware `NOT_APPLICABLE` UI Audits**, and **Parallel + Two-Tier Cached `scripts/verify.sh`**.
