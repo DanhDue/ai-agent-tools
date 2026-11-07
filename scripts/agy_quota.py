@@ -73,6 +73,9 @@ NATURAL_PROMPTS = [
 ]
 
 
+GLOBAL_REFRESH_INTERVAL_SECONDS = 1800  # 30 minutes
+
+
 def init_session_store_db():
     try:
         SESSION_STORE_DB.parent.mkdir(parents=True, exist_ok=True)
@@ -88,10 +91,57 @@ def init_session_store_db():
             is_active INTEGER NOT NULL
         );
         """)
+        con.execute("""
+        CREATE TABLE IF NOT EXISTS system_metadata (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL
+        );
+        """)
         con.commit()
         con.close()
     except Exception as e:
         sys.stderr.write(f"Warning: Failed to init session_store.db: {e}\n")
+
+
+def get_global_meta(key: str, default: str = "") -> str:
+    init_session_store_db()
+    try:
+        con = sqlite3.connect(str(SESSION_STORE_DB), timeout=5.0)
+        cur = con.cursor()
+        cur.execute("SELECT value FROM system_metadata WHERE key = ?", (key,))
+        row = cur.fetchone()
+        con.close()
+        return row[0] if row else default
+    except Exception:
+        return default
+
+
+def set_global_meta(key: str, value: str):
+    init_session_store_db()
+    try:
+        con = sqlite3.connect(str(SESSION_STORE_DB), timeout=5.0)
+        cur = con.cursor()
+        cur.execute("""
+            INSERT INTO system_metadata (key, value) VALUES (?, ?)
+            ON CONFLICT(key) DO UPDATE SET value=excluded.value;
+        """, (key, value))
+        con.commit()
+        con.close()
+    except Exception as e:
+        sys.stderr.write(f"Warning: Failed to set global meta: {e}\n")
+
+
+def get_last_refresh_all_time() -> int:
+    val = get_global_meta("last_refresh_all_timestamp", "0")
+    try:
+        return int(val)
+    except ValueError:
+        return 0
+
+
+def record_refresh_all_time(ts: int | None = None):
+    now = int(ts or time.time())
+    set_global_meta("last_refresh_all_timestamp", str(now))
 
 
 def hash_profile(name: str) -> str:
@@ -1436,7 +1486,21 @@ class QuotaDashboardHandler(http.server.BaseHTTPRequestHandler):
             return
 
         if path == "/api/status":
-            self.send_json({"success": True, "profiles": load_cached_profiles()})
+            last_rf = get_last_refresh_all_time()
+            now = int(time.time())
+            if last_rf == 0:
+                last_rf = now
+                record_refresh_all_time(last_rf)
+            elapsed = max(0, now - last_rf)
+            can_auto = elapsed >= GLOBAL_REFRESH_INTERVAL_SECONDS
+            self.send_json({
+                "success": True,
+                "profiles": load_cached_profiles(),
+                "last_refresh_all": last_rf,
+                "elapsed_seconds": elapsed,
+                "can_auto_refresh": can_auto,
+                "interval_seconds": GLOBAL_REFRESH_INTERVAL_SECONDS
+            })
             return
 
         if path == "/api/refresh":
@@ -1563,6 +1627,28 @@ class QuotaDashboardHandler(http.server.BaseHTTPRequestHandler):
             return
 
         if path == "/api/refresh-all":
+            is_auto = query.get("auto", ["0"])[0] in ("1", "true", "True")
+            now = int(time.time())
+            last_rf = get_last_refresh_all_time()
+            if last_rf == 0:
+                last_rf = now
+                record_refresh_all_time(last_rf)
+            elapsed = max(0, now - last_rf)
+
+            # 30-Minute guard for automated init & reload triggers:
+            if is_auto and elapsed < GLOBAL_REFRESH_INTERVAL_SECONDS:
+                self.send_json({
+                    "success": True,
+                    "skipped": True,
+                    "reason": f"Throttled: last refresh was {elapsed // 60}m ago (< 30m). Manual refresh required.",
+                    "profiles": load_cached_profiles(),
+                    "last_refresh_all": last_rf,
+                    "elapsed_seconds": elapsed,
+                    "can_auto_refresh": False,
+                    "interval_seconds": GLOBAL_REFRESH_INTERVAL_SECONDS
+                })
+                return
+
             formatted_all = {}
             # 1. AI Providers: Claude & Codex
             c_data = fetch_claude_quota()
@@ -1581,7 +1667,17 @@ class QuotaDashboardHandler(http.server.BaseHTTPRequestHandler):
                 f_data = format_profile_for_dashboard(p, r)
                 formatted_all[p] = f_data
                 update_cached_profile(p, f_data)
-            self.send_json({"success": True, "profiles": formatted_all})
+
+            record_refresh_all_time(now)
+            self.send_json({
+                "success": True,
+                "skipped": False,
+                "profiles": formatted_all,
+                "last_refresh_all": now,
+                "elapsed_seconds": 0,
+                "can_auto_refresh": False,
+                "interval_seconds": GLOBAL_REFRESH_INTERVAL_SECONDS
+            })
             return
 
         if path == "/api/login":
