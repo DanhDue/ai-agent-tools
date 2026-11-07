@@ -514,9 +514,11 @@ def main(argv: list[str] | None = None) -> int:
         check = Checker(repository_root())
         hld_text = read_file(args.hld)
         tasks = {path: read_file(path) for path in args.tasks}
-        prereq_dirs, _ = tc.resolve_prerequisite_epic_dirs(
+        prereq_dirs, prereq_errors = tc.resolve_prerequisite_epic_dirs(
             check.root, hld_text, args.hld.parent.name
         )
+        for err in prereq_errors:
+            check.problem(str(args.hld), err)
         prereq_files, _ = tc.collect_prerequisite_artifacts(check.root, prereq_dirs)
         created = {
             entry.pattern
