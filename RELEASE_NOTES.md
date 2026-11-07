@@ -1,62 +1,48 @@
-# Release Notes: d3nexus v1.24.0
+# Release Notes: d3nexus v1.25.0
 
-**Release Date:** November 05, 2026  
-**Version:** `1.24.0`  
-**Git Tag:** `v1.24.0`, `d3nexus--v1.24.0`
+**Release Date:** November 07, 2026  
+**Version:** `1.25.0`  
+**Git Tag:** `v1.25.0`, `d3nexus--v1.25.0`
 
 ---
 
 ## Executive Summary
 
-`v1.24.0` introduces the **Web Quality Assurance Provider and Integration Quality Gate**, establishing the `d3nexus:web-quality-check` skill and multi-provider polyglot quality orchestration at Gate 4 across our multi-repo ecosystem (`D3Nexus`, `lyrics-sync`, `nexus`). It delivers headless **Playwright Zero-Console-And-Layout-Defect Watchdogs** in TypeScript and Python, in-place **Vanilla JS JSDoc Type-Checking**, **Polyglot Gate 4 Registry Fan-Out**, **UI State and Styles Auditing**, automated **Manual Smoke Checklist Generation**, and codifies **Anti-Rationalization & Doubt-Driven Verification Rules** across developer skills. Additionally, it hardens **Worktree-Aware Window Title Synchronization** and formalizes **Zero-Context Fast-Execution Exemptions** in `CRITICAL_RULES.md`.
+`v1.25.0` delivers three major platform epics (**Contract & Authoring Ergonomics**, **Execution & Verification Infrastructure**, and **Multi-Epic Orchestration & Governance**), introduces **Account Block Security Auditing (`d3nexus:audit-account-block`)** and **Multi-Profile OS Boundary Safety (Rule 9)**, automates **Gate 2 Handoff Packaging & Post-Review Quality Gates**, adds **Scope-Aware `NOT_APPLICABLE` (`scope_unmodified`) UI Review Short-Circuiting**, hardens **Worktree-Aware IDE Theme & Title Synchronization**, and upgrades **`scripts/verify.sh`** with Longest-Job-First parallel test execution and 2-tier content-hash caching (~5x faster full runs, ~1s cached runs).
 
 ---
 
 ## Key Highlights
 
-### 1. Web Quality Assurance Provider (`web-quality-check`)
-- **Common Quality Contract v1**: Implements `validate_web_quality.py` to run platform capabilities (`type_check`, `lint`, `test_unit`, `test_e2e`, `ui_review`, `contracts`) and validate results against schema specifications.
-- **Genuine Test & Artifact Validation**: Validates executed testcase counts, fresh execution timestamps against Git HEAD, and confirms watchdog attachment evidence from `build/test-results/`.
-- **Astro & Vanilla JS Support**: Native support for Astro TypeScript apps and Vanilla JavaScript static preview workflows.
+### 1. Automated Gate 2 Packaging & Post-Review Quality Gates
+- **Unified Gate 2 Handoff**: Approving Gate 2 in `/dev-designer` now automatically runs `package_epic.py` and `/save-context` (`--gate 2`, `--state`, `--emit-prompt`) and presents a single choice: `/principal-review`, `/dev-implementation`, or `Done`.
+- **Auto-Run Mechanical Gates After Review Triage**: While preserving the mandatory human Triage decision checkpoint, committing review fixes in `principal-review` or `cross-model-review` now automatically runs the local mechanical quality gate (`Phase 4 / Gate 4` in Stage 3; `package_epic.py --revise` + `/save-context` in Stage 2) before returning to Review Choice.
 
-### 2. Playwright Zero-Console-And-Layout-Defect Watchdogs
-- **Dual-Language Fixtures**: Ships `playwright-zero-error.fixture.ts` for TypeScript (Astro / Playwright test runner) and `playwright_zero_error.py` for Python test harnesses.
-- **4-Layer Watchdog Guardrails**:
-  1. *Console & Exception Interception*: Captures `console.error` and unhandled browser exceptions.
-  2. *Static Asset 404 Trap*: Intercepts broken stylesheets, scripts, and media resources.
-  3. *Visual Integrity & Computed Style Checks*: `assertVisualIntegrity` inspects CSS rules and computed layout geometry to detect unstyled components.
-  4. *DOM State Leak & Duplicate Text Detector*: Catches overlapping state leaks and consecutive duplicate phrases while respecting accessibility and visibility clipping.
+### 2. Scope-Aware Quality Checks & Upgraded Impact Analysis
+- **Zero-UI-Diff Short-Circuit (`scope_unmodified`)**: `audit_ui_state_and_styles.py`, `validate_web_quality.py`, and all platform quality providers (`flutter`, `android`, `ios`, `web`) now inspect `git diff --name-only <base_ref>...HEAD` and emit `NOT_APPLICABLE` (`code: "scope_unmodified"`) when zero UI files are modified.
+- **3-State Coverage & Test Discovery**: `check_code_impact.py` now discovers `tests/**/test_<stem>.py`, parses Python `coverage.json`, and distinguishes `MEASURED`, `TESTS_PRESENT_NO_REPORT`, and `NO_TESTS_FOUND`.
+- **Gate 4 Active Execution Lease**: `verify_polyglot_registry.py` writes `.gate4_active.lease` while running and `gate4_receipt.json` on completion; `integrate_branch.py` blocks landing while a Gate 4 run is active.
 
-### 3. Vanilla JS JSDoc Type-Checking Engine
-- **In-Place Type Safety**: Uses `tsc --project jsconfig.json --noEmit` via `check_vanilla_js.py` to type-check Vanilla JavaScript files without requiring `.ts` refactoring.
-- **Standard Template**: Provides `jsconfig.template.json` with DOM definitions, JSDoc type checking, and parameter type validation.
+### 3. Worktree-Aware IDE Theme & Context CLI (`bin/d3nexus`)
+- **Primary Repo Signature Preservation in Worktrees**: `scripts/resume_context.py` resolves the primary repository root (`resolve_primary_repo_root`) inside `.worktrees/<epic_dir>` so repository icons (`🔴/🟢/🔵/🟠`) and persistent title/status bar colors (`#7f1d1d`, `#065f46`, `#0d47a1`, `#b45309`) are always preserved and synced across both primary repo and worktree `.vscode/settings.json`.
+- **Automatic Worktree Seeding**: `bootstrap_worktree.sh` automatically copies `.vscode/settings.json` and `.env*` from `REPO_ROOT`, runs `resume_context.py --sync-title`, and supports `uv sync`.
+- **Portable `d3nexus` CLI**: Added `bin/d3nexus` supporting `resume-context`, `check-task-contract`, `check-epic-readiness`, `sync-task-status`, `run-task-checks`, `package-epic`, `audit-epic`, and `run-external-review`.
 
-### 4. Polyglot Gate 4 Multi-Provider Orchestration
-- **Concurrent Dispatch**: `verify_polyglot_registry.py` fans out across all providers configured in `.agents/quality/check_quality.json`.
-- **End-to-End Execution**: Added `--execute` runner flag with Git HEAD verification, SHA mismatch detection, and drift prevention.
-- **Polyglot Scaffolding**: Added templates for polyglot Gate 4 registries and web quality manifests in `setup_quality_check`.
+### 4. Multi-Epic Orchestration, Execution Replay & Contract Ergonomics
+- **Multi-Epic Governance**: Added inter-epic `Depends On` dependency resolution, conflict-aware concurrent backlog promotion (`promote_epic_tasks.py`), `package_epic.py --revise` with HLD `Spec Errata`, and a structured Gate Approval Ledger in `PROJECT_LEDGER.md`.
+- **Task Replay & Failure Baselines**: Added `replay_task_text.py` for static anchor verification and `MEASURE` phase execution, plus `record_failure_baseline.py` and `compare_failure_sets.py`.
+- **Single-Source Task Rendering**: Added `render_epic_tasks.py` and `Evidence Files` contract enforcement.
 
-### 5. Anti-Rationalization Tables & Doubt-Driven Workflow Rules
-- **Anti-Rationalization Discipline**: Embedded strict rules in `SKILL.md` (`test-driven-development` and `dev-implementation`) that ban AI shortcuts, test fakery, and trivial mocks for integration tests.
-- **Provenance Verification**: `result_reports.py` validates Tier C runner provenance, classnames, and genuine execution logs.
+### 5. Account Block Security Audit & Rule 9 OS Boundary Safety
+- **`d3nexus:audit-account-block`**: Audits Antigravity profiles for cloned machine IDs, cross-account trajectory leaks, and 403 ToS risks.
+- **Rule 9 Multi-Profile Safety**: Codifies `.zshrc` backup/syntax verification, host macOS default keychain protection, subshell-scoped profile environments, shared toolchain symlinks, and parent IPC handle stripping.
 
-### 6. Automated Manual Smoke Checklist Generator
-- **2-Minute Walkthrough**: `generate_smoke_checklist.py` inspects deliverables, CLI entrypoints, and UI components to generate a targeted 3-5 step `manual_smoke_checklist.md` upon epic completion.
-
-### 7. UI State & Styles Audit Engine
-- **CSS & DOM Audit**: `audit_ui_state_and_styles.py` statically inspects CSS declarations, inline styles, word boundaries, and component styling isolation.
-
-### 8. Worktree-Aware Window Title Sync & Fast-Execution Exemption
-- **Worktree Isolation**: `scripts/resume_context.py` isolates window title synchronization to worktree contexts, avoiding clobbering primary repo window titles.
-- **Fast-Execution Rule**: Section 8.1 in `CRITICAL_RULES.md` exempts routine operational commands (`/refresh-session`, `/setup_keybindings`, git diff/status) from running heavyweight context restoration.
+### 6. Parallel & Two-Tier Cached `scripts/verify.sh`
+- **Longest-Job-First Parallel Test Runner**: Runs all 39 `unittest` and `pytest` suites concurrently across CPU cores (`~32s` vs `~151s` sequential) and caches `FULL_HASH:CODE_HASH` in `$GIT_DIR_PATH/.verify_tests_tree_cache` (`~1s` on cache hit, `--full` to force).
 
 ---
 
 ## Verifications & Quality Gates Passed
 
-- `scripts/verify.sh`: 🟢 **PASS — safe to publish** (16/16 sections green)
-- `pytest tests/`: 🟢 **PASS** (45/45 tests green)
-- `scripts/test_resume_context.py`: 🟢 **PASS** (22/22 unit tests green)
-- `skills/quality_check/resources/scripts/test_validate_quality_contract.py`: 🟢 **PASS** (13/13 unit tests green)
-- `skills/quality_check/resources/scripts/test_aggregate_quality_results.py`: 🟢 **PASS** (20/20 unit tests green)
-- `skills/sync-shared-contracts/resources/scripts/test_sync_contracts.py`: 🟢 **PASS** (31/31 unit tests green)
+- `bash scripts/verify.sh --full`: 🟢 **PASS — safe to publish** (Sections 1–16, 39/39 test suites green)
+- `verify_polyglot_registry.py .agents/quality/check_quality.json --profile epic`: 🟢 **PASS** (`architecture`, `format`, `lint`, `test` 62/62 pytest, `type_check` mypy)

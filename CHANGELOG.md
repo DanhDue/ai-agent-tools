@@ -8,6 +8,47 @@ every installed machine on the old cached copy.
 
 ---
 
+## 1.25.0 — 2026-11-07
+
+Delivers the **Contract & Authoring Ergonomics**, **Execution & Verification Infrastructure**, and **Multi-Epic Orchestration & Governance** epics alongside **Account Block Security Auditing (`audit-account-block`)**, **Multi-Profile OS & IPC Boundary Hardening (Rule 9)**, **Automated Gate 2 Handoff & Post-Review Quality Gates**, **Worktree-Aware IDE Theme & Title Synchronization**, **Scope-Aware `NOT_APPLICABLE` UI Audits**, and **Parallel + Two-Tier Cached `scripts/verify.sh`**.
+
+### Added
+
+- **Contract & Authoring Ergonomics** (`bin/d3nexus`, `skills/dev-implementation/`):
+  - Ships portable `bin/d3nexus` CLI with zero-setup runtime dispatch across `check-task-contract`, `check-epic-readiness`, `sync-task-status`, `run-task-checks`, `package-epic`, `audit-epic`, `run-external-review`, and `resume-context`.
+  - Adds `Evidence Files` task contract section, single-source task rendering (`render_epic_tasks.py`), shift-left R2/R3 parity checks, and verification row grammar diagnostics.
+- **Execution & Verification Infrastructure** (`skills/dev-implementation/resources/scripts/`):
+  - Adds task text replay engine (`replay_task_text.py`), static anchor verification against `HEAD`, and `MEASURE` phase execution.
+  - Adds failure-set baseline recording (`record_failure_baseline.py`) and regression comparison CLI (`compare_failure_sets.py`).
+  - Enhances `bootstrap_worktree.sh` with polyglot dependency detection (`uv sync`, `npm`, `cargo`, `flutter`), automatic `.vscode/settings.json` and `.env*` seeding from `REPO_ROOT`, and immediate window title synchronization.
+- **Multi-Epic Orchestration & Governance** (`skills/dev-implementation/resources/scripts/`, `scripts/resume_context.py`):
+  - Adds inter-epic `Depends On` declarations, readiness dependency resolution, and prerequisite task replay across queued epics.
+  - Adds conflict-aware concurrent epic backlog management (`promote_epic_tasks.py`) and bulk task promotion with file-overlap inspection.
+  - Adds `package_epic.py --revise` workflow and HLD `Spec Errata` contract for in-place packaged epic revisions without silent handoff overwrites.
+  - Adds structured Gate Approval Ledger in `scripts/resume_context.py` (`--gate`, `--status`, `--notes`).
+- **Account Block Auditing & Multi-Profile OS Safety** (`skills/audit-account-block/`, `rules/CRITICAL_RULES.md`, `scripts/agy_quota.py`):
+  - Adds `d3nexus:audit-account-block` skill to audit Antigravity profiles for cloned machine IDs, cross-account trajectory leaks, and 403 ToS suspension risks.
+  - Codifies Rule 9 in `rules/CRITICAL_RULES.md` enforcing `.zshrc` backup/syntax verification, host macOS default keychain protection, subshell-scoped profile environments, shared toolchain symlinks, and parent IPC handle stripping in `ag_run`.
+  - Upgrades `quota_dashboard.html` and `scripts/agy_quota.py` with live OpenAI usage API, Claude/Codex hashed session tracking, 30-minute init refresh throttling, and schedule auto-expiration.
+- **Gate 4 Active Execution Lease & Receipt** (`verify_polyglot_registry.py`, `integrate_branch.py`):
+  - Writes `.gate4_active.lease` during active polyglot Gate 4 execution and `gate4_receipt.json` upon completion; `integrate_branch.py` refuses branch landing while a Gate 4 run is still in progress.
+
+### Changed
+
+- **Automated Gate 2 Packaging & Post-Review Quality Gates** (`skills/dev-designer/`, `skills/dev-lifecycle/`, `skills/dev-implementation/`, `skills/principal-review/`, `skills/cross-model-review/`, `rules/CRITICAL_RULES.md`):
+  - Automatically runs `package_epic.py` and `/save-context` (`--gate 2`, `--state`, `--emit-prompt`) upon Gate 2 approval and presents a single unified Handoff Choice (`/principal-review` vs `/dev-implementation` vs `Done`).
+  - Automatically executes local mechanical quality gates (`Phase 4 / Gate 4` in Stage 3; `package_epic.py --revise` + `/save-context` in Stage 2) immediately after developer-approved review triage fixes are committed, while preserving the mandatory human Triage decision checkpoint.
+- **Scope-Aware UI Quality Checks & Impact Analysis** (`audit_ui_state_and_styles.py`, `validate_web_quality.py`, `check_code_impact.py`, `*-quality-check/SKILL.md`):
+  - Short-circuits `ui_review` with `status: "NOT_APPLICABLE"` (`code: "scope_unmodified"`) when `git diff --name-only <base_ref>...HEAD` modifies zero UI files.
+  - Upgrades `check_code_impact.py` to discover `tests/**/test_<stem>.py`, parse Python `coverage.json`, and report 3 distinct states (`MEASURED`, `TESTS_PRESENT_NO_REPORT`, `NO_TESTS_FOUND`).
+- **Worktree-Aware IDE Theme & Context Reporting** (`scripts/resume_context.py`):
+  - Resolves the primary repository root (`resolve_primary_repo_root`) when running inside `.worktrees/<epic_dir>` so `REPO_SIGNATURES` (icon `🔴/🟢/🔵/🟠` and persistent title/status bar colors) are always preserved and synced to both primary repo and worktree `.vscode/settings.json`.
+  - Separates base-branch progress, worktree-branch progress, and uncommitted dirty file counts in `scan_active_tasks`.
+- **Parallel & Cached Verification Runner** (`scripts/verify.sh`):
+  - Replaces `root.rglob("*")` in Section 8 with `git ls-files`, combines Sections 1 & 1b into a single Python invocation, runs all 39 `unittest` and `pytest` suites in parallel via `ThreadPoolExecutor` (Longest-Job-First scheduling), and adds worktree-safe 2-tier content-hash caching (`FULL_HASH:CODE_HASH` in `$GIT_DIR_PATH/.verify_tests_tree_cache` with `--full` override), cutting full verification from ~151s to ~32s and cached runs to ~1s.
+
+---
+
 ## 1.24.0 — 2026-11-05
 
 Introduces the Web Quality Assurance Provider and Integration Quality Gate, delivers Playwright zero-console-and-layout-defect watchdog fixtures for TypeScript and Python, adds in-place Vanilla JavaScript JSDoc type-checking, implements Polyglot Gate 4 registry fan-out, embeds anti-rationalization doubt-driven workflow rules, adds automated manual smoke checklist generation, introduces component UI state and styling audits, and supports worktree-isolated window title synchronization with zero-context tool exemptions.
