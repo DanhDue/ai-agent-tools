@@ -63,6 +63,7 @@ Execute specialist audits as configured:
 - **Architecture Gate**: Evaluates ArchTests pure domain logic, MVI state immutability, and boundary whitelisting.
 - **Coverage Gate**: Parses `default.profdata` and evaluates line/branch coverage against configured threshold.
 - **Specialist Audits**: Dispatches `@security-audit`, `@architecture-audit`, `@ios-ui-audit`, and `@code-health-audit`.
+  - **Scope-Aware UI Audit (`scope_unmodified`)**: Before dispatching `@ios-ui-audit`, inspect `git diff --name-only <base_ref>...HEAD`. If zero iOS UI files (`**/UI/**`, `**/Presentation/**`, `*View.swift`, `*ViewController.swift`) were modified, skip `@ios-ui-audit` and record the check as `status: "NOT_APPLICABLE"` with `not_applicable_reason: {"code": "scope_unmodified", "detail": "No iOS SwiftUI/UIKit files modified against base_ref"}`.
 
 ### Step 4: Result Assembly and Contract Emission
 

@@ -30,6 +30,36 @@ if [ ! -d "$WORKTREE_PATH" ]; then
   exit 1
 fi
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+KIT_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
+WORKTREE_ABS="$(cd "$WORKTREE_PATH" && pwd)"
+WORKTREE_NAME="$(basename "$WORKTREE_ABS")"
+
+# 0. Synchronize IDE window title & persistent repo bar colors (.vscode/settings.json)
+# and copy gitignored local environment files (.env, .env.local) if present in REPO_ROOT.
+if [ -f "$REPO_ROOT/.vscode/settings.json" ] && [ ! -f "$WORKTREE_ABS/.vscode/settings.json" ]; then
+  mkdir -p "$WORKTREE_ABS/.vscode"
+  cp "$REPO_ROOT/.vscode/settings.json" "$WORKTREE_ABS/.vscode/settings.json"
+fi
+if [ -f "$KIT_ROOT/scripts/resume_context.py" ]; then
+  python3 "$KIT_ROOT/scripts/resume_context.py" \
+    --workspace-root "$WORKTREE_ABS" \
+    --sync-title \
+    --epic "$WORKTREE_NAME" >/dev/null 2>&1 || true
+elif command -v d3nexus &>/dev/null; then
+  d3nexus resume-context \
+    --workspace-root "$WORKTREE_ABS" \
+    --sync-title \
+    --epic "$WORKTREE_NAME" >/dev/null 2>&1 || true
+fi
+
+for env_file in .env .env.local .env.development; do
+  if [ -f "$REPO_ROOT/$env_file" ] && [ ! -f "$WORKTREE_ABS/$env_file" ]; then
+    echo "Copying gitignored $env_file from main checkout into worktree..."
+    cp "$REPO_ROOT/$env_file" "$WORKTREE_ABS/$env_file"
+  fi
+done
+
 BOOTSTRAPPED=0
 
 if [ -f "$WORKTREE_PATH/pyproject.toml" ] || [ -f "$WORKTREE_PATH/requirements.txt" ]; then

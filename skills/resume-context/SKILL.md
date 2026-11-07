@@ -31,10 +31,13 @@ Restores comprehensive project architectural context across multi-repository wor
 Run the harvester from the workspace terminal or execute the shell alias:
 
 ```bash
-# Using the shell alias (configured via --sync-zshrc)
+# Portable CLI across all repositories and linked worktrees (.worktrees/<epic_dir>)
+d3nexus resume-context [--role assistant|programmer] [--epic <slug>]
+
+# Or using the shell alias (configured via --sync-zshrc)
 resume
 
-# Or invoking the Python engine directly
+# Or invoking the Python engine directly from ai-agent-tools
 python3 scripts/resume_context.py [--role assistant|programmer] [--epic <slug>]
 ```
 

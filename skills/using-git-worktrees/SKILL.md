@@ -99,23 +99,32 @@ cd "$path"
 
 **Sandbox fallback:** If `git worktree add` fails with a permission error (sandbox denial), tell the user the sandbox blocked worktree creation and you're working in the current directory instead. Then run setup and baseline tests in place.
 
-## Step 2: Project Setup
+## Step 2: Project Setup & IDE Window Synchronization
 
-Auto-detect and run appropriate setup:
+Run the kit's worktree bootstrapper first when available — it handles Python (`uv sync`, `poetry`, `pip`, or `.agents/quality/python-quality.json` `"bootstrap"`), Rust (`cargo check --workspace`), Web (`pnpm`/`npm`), Mobile (`secureFiles/` + `melos bootstrap`), copies gitignored `.env` files, and automatically configures `.vscode/settings.json` with the repository's color signature and epic window title:
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT:-$(dirname "$(command -v d3nexus 2>/dev/null)")/..}/skills/dev-implementation/resources/scripts/bootstrap_worktree.sh" "$path"
+```
+
+If running standalone without `bootstrap_worktree.sh`, auto-detect and run appropriate setup:
 
 ```bash
 # Node.js
-if [ -f package.json ]; then npm install; fi
+if [ -f pnpm-lock.yaml ] && command -v pnpm &>/dev/null; then pnpm install; elif [ -f package.json ]; then npm install; fi
 
 # Rust
-if [ -f Cargo.toml ]; then cargo build; fi
+if [ -f Cargo.toml ]; then cargo check --workspace; fi
 
-# Python
-if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-if [ -f pyproject.toml ]; then poetry install; fi
+# Python (prefer uv when uv.lock or uv CLI is present)
+if [ -f pyproject.toml ] && command -v uv &>/dev/null; then uv sync; elif [ -f poetry.lock ] && command -v poetry &>/dev/null; then poetry install; elif [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
 # Go
 if [ -f go.mod ]; then go mod download; fi
+
+# Copy gitignored local .env if present in main checkout
+REPO_ROOT="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")"
+for f in .env .env.local; do [ -f "$REPO_ROOT/$f" ] && [ ! -f "$f" ] && cp "$REPO_ROOT/$f" "$f"; done
 ```
 
 ## Step 3: Verify Clean Baseline

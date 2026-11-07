@@ -10,6 +10,7 @@ import argparse
 import concurrent.futures
 import importlib
 import json
+import os
 import subprocess
 import time
 from pathlib import Path
@@ -459,21 +460,49 @@ def verify_polyglot_execution(
             }
         plan_providers = val.get("providers", [])
         workers = max(1, len(plan_providers))
-        with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as executor:
-            futures = [
-                executor.submit(
-                    execute_provider,
-                    provider_item=plan_item,
-                    profile=requested_profile,
-                    sha=repository_sha,
-                    base_ref=base_ref,
-                    repo_root=repo_root,
+        lease_file = (
+            (repo_root / "build" / "quality" / ".gate4_active.lease")
+            if repo_root is not None
+            else None
+        )
+        if lease_file is not None:
+            try:
+                lease_file.parent.mkdir(parents=True, exist_ok=True)
+                lease_file.write_text(
+                    json.dumps(
+                        {
+                            "pid": os.getpid(),
+                            "profile": requested_profile,
+                            "repository_sha": repository_sha,
+                            "started_at": time.time(),
+                        }
+                    ),
+                    encoding="utf-8",
                 )
-                for plan_item in plan_providers
-            ]
-            results = [f.result() for f in futures]
+            except OSError:
+                pass
+        try:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as executor:
+                futures = [
+                    executor.submit(
+                        execute_provider,
+                        provider_item=plan_item,
+                        profile=requested_profile,
+                        sha=repository_sha,
+                        base_ref=base_ref,
+                        repo_root=repo_root,
+                    )
+                    for plan_item in plan_providers
+                ]
+                results = [f.result() for f in futures]
+        finally:
+            if lease_file is not None and lease_file.exists():
+                try:
+                    lease_file.unlink()
+                except OSError:
+                    pass
 
-    return fanout_and_aggregate(
+    out_res = fanout_and_aggregate(
         registry_data=registry_data,
         requested_profile=requested_profile,
         repository_sha=repository_sha,
@@ -481,6 +510,31 @@ def verify_polyglot_execution(
         provider_results=results,
         repo_root=repo_root,
     )
+    if (
+        repo_root is not None
+        and out_res.get("status") == "PASS"
+        and requested_profile in ("epic", "release")
+    ):
+        try:
+            receipt_file = repo_root / "build" / "quality" / "gate4_receipt.json"
+            receipt_file.parent.mkdir(parents=True, exist_ok=True)
+            receipt_file.write_text(
+                json.dumps(
+                    {
+                        "status": "PASS",
+                        "profile": requested_profile,
+                        "repository_sha": repository_sha,
+                        "base_ref": base_ref,
+                        "timestamp": time.time(),
+                    },
+                    indent=2,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+        except OSError:
+            pass
+    return out_res
 
 
 def main(argv: list[str] | None = None) -> int:

@@ -64,6 +64,7 @@ Execute specialist audits as configured:
 - **Architecture Gate**: Evaluates Konsist Clean Architecture layer rules, UseCase purity, and ViewModel immutability.
 - **Coverage Gate**: Parses Jacoco test reports and evaluates line/branch coverage against configured threshold.
 - **Specialist Audits**: Dispatches `@security-audit`, `@architecture-audit`, `@android-ui-audit`, and `@code-health-audit`.
+  - **Scope-Aware UI Audit (`scope_unmodified`)**: Before dispatching `@android-ui-audit`, inspect `git diff --name-only <base_ref>...HEAD`. If zero Android UI files (`**/ui/**`, `**/presentation/**`, `*Screen.kt`, `*Activity.kt`, `*Fragment.kt`, `res/layout/*.xml`) were modified, skip `@android-ui-audit` and record the check as `status: "NOT_APPLICABLE"` with `not_applicable_reason: {"code": "scope_unmodified", "detail": "No Android UI/Compose files modified against base_ref"}`.
 
 ### Step 4: Result Assembly and Contract Emission
 

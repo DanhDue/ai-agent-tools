@@ -62,6 +62,7 @@ Execute specialist audits as configured:
 - **Architecture Gate**: Evaluates Clean Architecture feature-layer isolation, BLoC immutability, and boundary whitelisting.
 - **Coverage Gate**: Parses `coverage_report/lcov.info` and evaluates against configured threshold.
 - **Specialist Audits**: Dispatches `@security-audit`, `@architecture-audit`, `@flutter-ui-audit`, and `@code-health-audit`.
+  - **Scope-Aware UI Audit (`scope_unmodified`)**: Before dispatching `@flutter-ui-audit`, inspect `git diff --name-only <base_ref>...HEAD`. If zero UI/presentation `.dart` files (`**/presentation/**`, `**/ui/**`, `**/widgets/**`, `**/screens/**`, `**/pages/**`, `**/views/**`) were modified, skip `@flutter-ui-audit` and record the check as `status: "NOT_APPLICABLE"` with `not_applicable_reason: {"code": "scope_unmodified", "detail": "No Flutter UI/presentation files modified against base_ref"}`.
 
 ### Step 4: Result Assembly and Contract Emission
 

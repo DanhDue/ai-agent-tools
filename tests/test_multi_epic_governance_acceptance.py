@@ -3,6 +3,7 @@
 
 Covers: MEO-AR-02, MEO-HP-01, MEO-HP-02, MEO-HP-03, MEO-HP-04
 """
+
 from __future__ import annotations
 
 import json
@@ -134,7 +135,14 @@ def test_MEO_HP_01_to_04_end_to_end_multi_epic_governance(tmp_path: Path) -> Non
 
     # Verify gate query
     res_chk = subprocess.run(
-        [sys.executable, str(RESUME_SCRIPT), "--check-gate", "2", "--epic", "demo-epic"],
+        [
+            sys.executable,
+            str(RESUME_SCRIPT),
+            "--check-gate",
+            "2",
+            "--epic",
+            "demo-epic",
+        ],
         cwd=str(tmp_path),
         capture_output=True,
         text=True,
@@ -149,16 +157,22 @@ def test_MEO_HP_01_to_04_end_to_end_multi_epic_governance(tmp_path: Path) -> Non
     hld_en_file = epic_path / "demo_epic.en.md"
     hld_vi_file = epic_path / "demo_epic.vi.md"
 
-    hld_en = hld_en_file.read_text(encoding="utf-8").replace(
-        "- [Kanban Tasks Breakdown](#kanban-tasks-breakdown)\n",
-        "- [Kanban Tasks Breakdown](#kanban-tasks-breakdown)\n- [Spec Errata](#spec-errata)\n",
-    ) + "\n## Spec Errata\n\n- **[SE-01] Architecture**: Refine worker sync contract\n"
+    hld_en = (
+        hld_en_file.read_text(encoding="utf-8").replace(
+            "- [Kanban Tasks Breakdown](#kanban-tasks-breakdown)\n",
+            "- [Kanban Tasks Breakdown](#kanban-tasks-breakdown)\n- [Spec Errata](#spec-errata)\n",
+        )
+        + "\n## Spec Errata\n\n- **[SE-01] Architecture**: Refine worker sync contract\n"
+    )
     hld_en_file.write_text(hld_en, encoding="utf-8")
 
-    hld_vi = hld_vi_file.read_text(encoding="utf-8").replace(
-        "- [Kanban Tasks Breakdown](#kanban-tasks-breakdown)\n",
-        "- [Kanban Tasks Breakdown](#kanban-tasks-breakdown)\n- [Đính chính Đặc tả (Spec Errata)](#đính-chính-đặc-tả-spec-errata)\n",
-    ) + "\n## Đính chính Đặc tả (Spec Errata)\n\n- **[SE-01] Kiến trúc**: Tinh chỉnh hợp đồng đồng bộ worker\n"
+    hld_vi = (
+        hld_vi_file.read_text(encoding="utf-8").replace(
+            "- [Kanban Tasks Breakdown](#kanban-tasks-breakdown)\n",
+            "- [Kanban Tasks Breakdown](#kanban-tasks-breakdown)\n- [Đính chính Đặc tả (Spec Errata)](#đính-chính-đặc-tả-spec-errata)\n",
+        )
+        + "\n## Đính chính Đặc tả (Spec Errata)\n\n- **[SE-01] Kiến trúc**: Tinh chỉnh hợp đồng đồng bộ worker\n"
+    )
     hld_vi_file.write_text(hld_vi, encoding="utf-8")
 
     git_cmd(tmp_path, "add", ".")
@@ -175,7 +189,9 @@ def test_MEO_HP_01_to_04_end_to_end_multi_epic_governance(tmp_path: Path) -> Non
 
     handoff_path = epic_path / "handoff.md"
     assert handoff_path.is_file()
-    assert f"- **Design commit**: `{head_2}`" in handoff_path.read_text(encoding="utf-8")
+    assert f"- **Design commit**: `{head_2}`" in handoff_path.read_text(
+        encoding="utf-8"
+    )
 
     # Re-anchor handoff via --revise
     (tmp_path / "note.txt").write_text("update", encoding="utf-8")
@@ -249,8 +265,12 @@ Child requirements.
 ## Requirements
 Disjoint.
 """
-    (disjoint_epic_path / "disjoint_epic.en.md").write_text(disjoint_hld, encoding="utf-8")
-    (disjoint_epic_path / "disjoint_epic.vi.md").write_text(disjoint_hld, encoding="utf-8")
+    (disjoint_epic_path / "disjoint_epic.en.md").write_text(
+        disjoint_hld, encoding="utf-8"
+    )
+    (disjoint_epic_path / "disjoint_epic.vi.md").write_text(
+        disjoint_hld, encoding="utf-8"
+    )
 
     # Add task touching distinct file
     task_d = """---
@@ -267,7 +287,9 @@ Allowed files:
 - `src/distinct.py`
 """
     (disjoint_epic_path / "task_01_disjoint.md").write_text(task_d, encoding="utf-8")
-    (tmp_path / ".devtool" / "features" / "task_01_disjoint.md").write_text(task_d, encoding="utf-8")
+    (tmp_path / ".devtool" / "features" / "task_01_disjoint.md").write_text(
+        task_d, encoding="utf-8"
+    )
 
     res_conf = subprocess.run(
         [sys.executable, str(SYNC_SCRIPT), "check-conflicts", "disjoint_epic"],
@@ -285,7 +307,9 @@ Allowed files:
         text=True,
     )
     assert res_prom.returncode == 0
-    assert 'status: "todo"' in (disjoint_epic_path / "task_01_disjoint.md").read_text(encoding="utf-8")
+    assert 'status: "todo"' in (disjoint_epic_path / "task_01_disjoint.md").read_text(
+        encoding="utf-8"
+    )
 
 
 class Test_Integration:

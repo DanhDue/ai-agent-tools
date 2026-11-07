@@ -1,7 +1,15 @@
 #!/usr/bin/env bash
 # Pre-release checks for the agent kit. Run before publishing — a broken skill
 # propagates to every project on every machine that has the plugin installed.
+# Usage:
+#   bash scripts/verify.sh          # Fast parallel check + smart 2-tier content-hash cache
+#   bash scripts/verify.sh --full   # Force full re-run of all Python unit & pytest suites
 set -uo pipefail
+
+FORCE_FULL=0
+if [ "${1:-}" = "--full" ]; then
+  FORCE_FULL=1
+fi
 
 KIT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$KIT_DIR"
@@ -9,23 +17,30 @@ FAILED=0
 note() { printf '%s\n' "$1"; }
 fail() { printf '  FAIL %s\n' "$1"; FAILED=1; }
 
-note "== 1. JSON manifests parse =="
-for f in plugin.json .claude-plugin/plugin.json .codex-plugin/plugin.json .claude-plugin/marketplace.json .agents/plugins/marketplace.json; do
-  if python3 -c "import json,sys;json.load(open('$f'))" 2>/dev/null; then
-    note "  ok   $f"
-  else
-    fail "$f is not valid JSON"
-  fi
-done
-
-note "== 1b. Runtime versions and Codex marketplace agree =="
+note "== 1. JSON manifests parse & 1b. Runtime versions and Codex marketplace agree =="
 python3 - <<'PY' || FAILED=1
 import json, pathlib, re, sys
+
+MANIFEST_PATHS = (
+    "plugin.json",
+    ".claude-plugin/plugin.json",
+    ".codex-plugin/plugin.json",
+    ".claude-plugin/marketplace.json",
+    ".agents/plugins/marketplace.json",
+)
+parsed = {}
+for p in MANIFEST_PATHS:
+    try:
+        parsed[p] = json.loads(pathlib.Path(p).read_text())
+        print(f"  ok   {p}")
+    except Exception as exc:
+        print(f"  FAIL {p} is not valid JSON: {exc}")
+        sys.exit(1)
+
 try:
-    manifests = [json.loads(pathlib.Path(p).read_text()) for p in
-                 ("plugin.json", ".claude-plugin/plugin.json", ".codex-plugin/plugin.json")]
-    claude = json.loads(pathlib.Path(".claude-plugin/marketplace.json").read_text())
-    catalog = json.loads(pathlib.Path(".agents/plugins/marketplace.json").read_text())
+    manifests = [parsed[p] for p in ("plugin.json", ".claude-plugin/plugin.json", ".codex-plugin/plugin.json")]
+    claude = parsed[".claude-plugin/marketplace.json"]
+    catalog = parsed[".agents/plugins/marketplace.json"]
     entry, = [p for p in catalog["plugins"] if p["name"] == "d3nexus"]
     claude_entry, = [p for p in claude["plugins"] if p["name"] == "d3nexus"]
     versions = {m["version"] for m in manifests} | {claude_entry["version"]}
@@ -81,8 +96,6 @@ targets = list(pathlib.Path("skills").glob("*/SKILL.md")) \
         + [pathlib.Path("README.md"), pathlib.Path("CLAUDE.md"), pathlib.Path("CHANGELOG.md")]
 targets = sorted(set(targets))
 def strip_fences(s):
-    # Link syntax also occurs inside code samples and inline code spans that document
-    # a format. Only links in prose are real links.
     s = re.sub(r'```.*?```', '', s, flags=re.S)
     return re.sub(r'`[^`\n]*`', '', s)
 
@@ -91,7 +104,7 @@ for p in targets:
         continue
     for link in re.findall(r'\]\(([^)#][^)]*)\)', strip_fences(p.read_text())):
         if link.startswith(("http://", "https://", "mailto:")) or "<" in link:
-            continue  # external, or an illustrative placeholder
+            continue
         if not (p.parent / link.split('#')[0]).exists():
             print(f"  FAIL {p} -> {link}"); bad = 1
 print(f"  checked {len(targets)} files")
@@ -125,9 +138,6 @@ else
 fi
 
 note "== 5b. Rule files start with frontmatter =="
-# Antigravity rejects a rules/*.md without frontmatter outright:
-#   "Failed to parse plugin rule file ...: invalid frontmatter format"
-# and the rule then silently never loads.
 for f in rules/*.md; do
   if head -1 "$f" | grep -qx -- '---'; then
     note "  ok   $f"
@@ -137,7 +147,7 @@ for f in rules/*.md; do
 done
 
 note "== 6. Session-start hook emits valid JSON for both runtimes =="
-hook_case() {  # <label> <expect: inject|silent> <env> <payload>
+hook_case() {
   local label="$1" expect="$2" env="$3" payload="$4" out
   out=$(printf '%s' "$payload" | env $env bash hooks/session-start 2>/dev/null) || {
     fail "hook exited non-zero: $label"; return; }
@@ -158,19 +168,16 @@ note "== 7. Methodology skills stay faithful to their sources =="
 python3 scripts/check_source_fidelity.py || FAILED=1
 
 note "== 8. Every supporting skill file is referenced by something =="
-# skills/brainstorming/spec-document-reviewer-prompt.md was 49 lines of working reviewer prompt
-# that nothing in the repository referenced, for its entire life. Nothing prevented that from
-# recurring. SKILL.md is exempt: it is a skill's entry point by definition, and without the
-# exemption this check fires on every skill in the kit.
+# Driven from `git ls-files` instead of `rglob("*")` so untracked caches, .venv, and .devtool
+# archives never pollute or slow down the scan.
 python3 - <<'PY' || FAILED=1
-import pathlib, sys
-root = pathlib.Path(".")
-# The rule is that a skill's own content must be reachable from the skill. Three things are
-# not that content: binary assets, legal files, and the repo furniture a vendored skill brings
-# with it (CI workflows and other dotfile directories, which their own tooling invokes).
+import pathlib, subprocess, sys
+
 ASSET_SUFFIXES = {".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".ico", ".pdf"}
 LEGAL_PREFIXES = ("LICENSE", "COPYING", "NOTICE")
-def is_skill_content(p):
+TEXT_SUFFIXES = {".md", ".py", ".sh", ".json", ".yaml", ".yml", ""}
+
+def is_skill_content(p: pathlib.Path) -> bool:
     if p.name == "SKILL.md" or "__pycache__" in p.parts:
         return False
     if p.suffix.lower() in ASSET_SUFFIXES:
@@ -179,16 +186,22 @@ def is_skill_content(p):
         return False
     return not any(part.startswith(".") for part in p.parts)
 
-supporting = [p for p in root.glob("skills/*/**/*") if p.is_file() and is_skill_content(p)]
-corpus = [p for p in root.rglob("*")
-          if p.is_file() and ".git/" not in str(p) and "__pycache__" not in p.parts
-          and p.suffix in {".md", ".py", ".sh", ".json", ".yaml", ".yml", ""}]
+tracked = [
+    pathlib.Path(line)
+    for line in subprocess.check_output(["git", "ls-files"], text=True).splitlines()
+    if line
+]
+
+supporting = [p for p in tracked if len(p.parts) >= 3 and p.parts[0] == "skills" and p.is_file() and is_skill_content(p)]
+corpus = [p for p in tracked if p.is_file() and p.suffix in TEXT_SUFFIXES]
+
 texts = {}
 for c in corpus:
     try:
         texts[c] = c.read_text(errors="ignore")
     except OSError:
         pass
+
 bad = 0
 for f in sorted(supporting):
     name = f.name
@@ -196,17 +209,11 @@ for f in sorted(supporting):
         continue
     print(f"  FAIL {f} is referenced by nothing")
     bad = 1
-print(f"  checked {len(supporting)} supporting files")
+print(f"  checked {len(supporting)} supporting files across {len(texts)} tracked files")
 sys.exit(bad)
 PY
 
 note "== 9. The dev-* rename is complete =="
-# The old names must survive only where they are history: archived epic records under .devtool/
-# and the CHANGELOG entries that describe the rename itself.
-# Driven from `git ls-files`, not a filesystem walk: a walk also reads gitignored scratch such as
-# .superpowers/, which exists in a normal checkout and not in a worktree — so the same tree passed
-# in one and failed in the other. The repository's own file list is the only deterministic input.
-# This file is excluded because the check's pattern necessarily contains the names it looks for.
 if hits=$(git ls-files \
           | grep -v -e '^\.devtool/' -e '^CHANGELOG\.md$' -e '^scripts/verify\.sh$' \
           | tr '\n' '\0' \
@@ -220,17 +227,6 @@ fi
 
 echo
 note "== 10. Orchestrators route to a variant, never the router =="
-# Step 9's repo-wide sweep cannot be reused for this rename. `brainstorming` is an ordinary English
-# word: it appears legitimately as "during brainstorming" in writing-plans, "not a full brainstorming
-# dialogue" in dev-designer, as a deliberately preserved pre-1.2.0 path in
-# doc_quality_check/references/document-reviewer-prompt.md, and in this file's own comments. A bare
-# sweep would fail on all four. Scope it instead to the two orchestrators, and only to the two forms
-# that actually denote the skill rather than the activity.
-#
-# What this guards: `brainstorming` is a router that resolves an ambiguous entry. A lifecycle stage
-# naming it has not routed — it has moved the ambiguity one hop downstream. The precedent is real:
-# epic-lifecycle never contained the word "invoke", so agents read a stage description and did that
-# stage's work themselves, skipping the gate the stage owned.
 if hits=$(git ls-files 'skills/dev-lifecycle/*' 'skills/doc-lifecycle/*' \
           | tr '\n' '\0' \
           | xargs -0 grep -n 'd3nexus:brainstorming\|`brainstorming`' 2>/dev/null) \
@@ -241,55 +237,171 @@ else
   note "  ok   both orchestrators name a concrete brainstorming variant"
 fi
 
+# ==============================================================================
+# Sections 11–16: Parallel Python Test Execution + Two-Tier Content-Hash Cache
+# ==============================================================================
 echo
-note "== 11. Lifecycle document contracts are enforced =="
-python3 -m unittest skills/doc_quality_check/resources/scripts/test_check_document.py || FAILED=1
-python3 scripts/test_lifecycle_document_contract.py || FAILED=1
-python3 -m unittest scripts/test_lifecycle_signals.py || FAILED=1
-python3 -m unittest skills/dev-implementation/resources/scripts/test_audit_epic.py || FAILED=1
-python3 -m unittest skills/dev-implementation/resources/scripts/test_check_bdd_traceability.py || FAILED=1
-python3 -m unittest skills/dev-implementation/resources/scripts/test_check_epic_readiness.py || FAILED=1
-python3 -m unittest skills/dev-implementation/resources/scripts/test_check_task_contract.py || FAILED=1
-python3 -m unittest skills/dev-implementation/resources/scripts/test_result_reports.py || FAILED=1
-python3 -m unittest skills/dev-implementation/resources/scripts/test_run_external_review.py || FAILED=1
-python3 -m unittest skills/dev-implementation/resources/scripts/test_local_review.py || FAILED=1
-python3 -m unittest skills/dev-implementation/resources/scripts/test_run_task_checks.py || FAILED=1
-python3 -m unittest skills/dev-implementation/resources/scripts/test_sync_task_status.py || FAILED=1
-python3 -m pytest skills/dev-implementation/resources/scripts/test_inter_epic_dependencies.py -q || FAILED=1
-python3 -m pytest skills/dev-implementation/resources/scripts/test_concurrent_epic_backlog.py -q || FAILED=1
-python3 -m pytest skills/dev-implementation/resources/scripts/test_package_and_revise_epic.py -q || FAILED=1
-python3 -m unittest scripts/test_run_unittest_junit.py || FAILED=1
-python3 -m unittest scripts/test_verifiable_handoff_text.py || FAILED=1
-python3 -m unittest scripts/test_verifiable_handoff.py || FAILED=1
+GIT_DIR_PATH="$(git rev-parse --git-dir 2>/dev/null || echo ".git")"
+CACHE_FILE="$GIT_DIR_PATH/.verify_tests_tree_cache"
 
-echo
-note "== 12. Branch integration script behaves =="
-python3 -m unittest skills/finishing-a-development-branch/resources/scripts/test_integrate_branch.py || FAILED=1
+# Compute exact content hashes (including uncommitted diffs & untracked files):
+# - FULL_HASH: all files under skills/, scripts/, hooks/, rules/, tests/, bin/
+# - CODE_HASH: only executable/code files (*.py, *.sh, bin/*, hooks/*, *.json)
+FULL_HASH=$(
+  {
+    git rev-parse HEAD:skills HEAD:scripts HEAD:hooks HEAD:rules HEAD:tests HEAD:bin 2>/dev/null
+    git diff HEAD -- skills scripts hooks rules tests bin 2>/dev/null
+    git ls-files --others --exclude-standard -- skills scripts hooks rules tests bin 2>/dev/null \
+      | sort | xargs shasum -a 256 2>/dev/null
+  } | shasum -a 256 | awk '{print $1}'
+)
 
-echo
-note "== 13. Quality provider contracts, schemas, aggregation, and platform capabilities are enforced =="
-python3 -m unittest skills/quality_check/resources/scripts/test_validate_quality_contract.py || FAILED=1
-python3 -m unittest skills/quality_check/resources/scripts/test_aggregate_quality_results.py || FAILED=1
-python3 -m unittest skills/rust-quality-check/resources/scripts/test_validate_rust_quality.py || FAILED=1
-python3 -m unittest skills/python-quality-check/resources/scripts/test_validate_python_quality.py || FAILED=1
-python3 -m unittest skills/flutter-quality-check/resources/scripts/test_validate_flutter_quality.py || FAILED=1
-python3 -m unittest skills/android-quality-check/resources/scripts/test_validate_android_quality.py || FAILED=1
-python3 -m unittest skills/ios-quality-check/resources/scripts/test_validate_ios_quality.py || FAILED=1
-python3 -m unittest skills/setup_quality_check/resources/scripts/test_scaffold_quality_manifest.py || FAILED=1
-python3 -m unittest skills/quality_check/resources/scripts/test_quality_provider_acceptance.py || FAILED=1
+CODE_HASH=$(
+  {
+    git ls-files -s -- 'skills/**.py' 'skills/**.sh' 'scripts/**.py' 'scripts/**.sh' 'hooks/*' 'tests/**.py' 'bin/*' '.agents/quality/*.json' 2>/dev/null
+    git diff HEAD -- 'skills/**.py' 'skills/**.sh' 'scripts/**.py' 'scripts/**.sh' 'hooks/*' 'tests/**.py' 'bin/*' '.agents/quality/*.json' 2>/dev/null
+    git ls-files --others --exclude-standard -- 'skills/**.py' 'skills/**.sh' 'scripts/**.py' 'scripts/**.sh' 'hooks/*' 'tests/**.py' 'bin/*' 2>/dev/null \
+      | sort | xargs shasum -a 256 2>/dev/null
+  } | shasum -a 256 | awk '{print $1}'
+)
 
-echo
-note "== 14. Shared contracts CLI engine is enforced =="
-python3 -m unittest skills/setup-shared-contracts/resources/scripts/test_setup_contracts.py || FAILED=1
-python3 -m unittest skills/sync-shared-contracts/resources/scripts/test_sync_contracts.py || FAILED=1
+CACHED_LINE="$(cat "$CACHE_FILE" 2>/dev/null || true)"
+CACHED_FULL="${CACHED_LINE%%:*}"
+CACHED_CODE="${CACHED_LINE#*:}"
 
-echo
-note "== 15. Context memory management CLI and Tri-Role governance are enforced =="
-python3 -m unittest scripts/test_resume_context.py || FAILED=1
+RUN_MODE="full"
+if [ "$FORCE_FULL" -eq 0 ] && [ -n "$CACHED_LINE" ]; then
+  if [ "$CACHED_FULL" = "$FULL_HASH" ]; then
+    RUN_MODE="skip"
+  elif [ "$CACHED_CODE" = "$CODE_HASH" ]; then
+    RUN_MODE="doc_only"
+  fi
+fi
 
-echo
-note "== 16. Session refresh CLI engine and isolation contracts are enforced =="
-python3 -m unittest skills/refresh-session/resources/scripts/test_refresh_session.py || FAILED=1
+if [ "$RUN_MODE" = "skip" ]; then
+  note "== 11–16. Python test suites (CACHED) =="
+  note "  ok   skills/, scripts/, hooks/, rules/, tests/, and bin/ unchanged since last passed run (use --full to force)"
+else
+  if [ "$RUN_MODE" = "doc_only" ]; then
+    note "== 11–16. Running Document Contract test suites (Python code unchanged; use --full for all) =="
+  else
+    note "== 11–16. Running Python test suites in parallel (Longest-Job-First) =="
+  fi
+  VerifyRunMode="$RUN_MODE" python3 - <<'PY' || FAILED=1
+import concurrent.futures
+import os
+import pathlib
+import subprocess
+import sys
+import time
+
+run_mode = os.environ.get("VerifyRunMode", "full")
+
+# Tuple format: (section, mode, path_or_label, priority_weight, affects_doc_only)
+# Higher priority_weight is scheduled first in the worker pool (Longest-Job-First)
+# while output is still printed in canonical SUITES order.
+SUITES = [
+    # Section 11: Lifecycle document contracts & implementation engines
+    ("11", "unittest", "skills/doc_quality_check/resources/scripts/test_check_document.py", 1, True),
+    ("11", "script",   "scripts/test_lifecycle_document_contract.py", 2, True),
+    ("11", "unittest", "scripts/test_lifecycle_signals.py", 2, True),
+    ("11", "unittest", "skills/dev-implementation/resources/scripts/test_audit_epic.py", 50, False),
+    ("11", "unittest", "skills/dev-implementation/resources/scripts/test_check_bdd_traceability.py", 3, False),
+    ("11", "unittest", "skills/dev-implementation/resources/scripts/test_check_epic_readiness.py", 45, False),
+    ("11", "unittest", "skills/dev-implementation/resources/scripts/test_check_task_contract.py", 35, False),
+    ("11", "unittest", "skills/dev-implementation/resources/scripts/test_result_reports.py", 1, False),
+    ("11", "unittest", "skills/dev-implementation/resources/scripts/test_run_external_review.py", 100, False),
+    ("11", "unittest", "skills/dev-implementation/resources/scripts/test_local_review.py", 95, False),
+    ("11", "unittest", "skills/dev-implementation/resources/scripts/test_run_task_checks.py", 60, False),
+    ("11", "unittest", "skills/dev-implementation/resources/scripts/test_sync_task_status.py", 40, False),
+    ("11", "pytest",   "skills/dev-implementation/resources/scripts/test_inter_epic_dependencies.py", 10, False),
+    ("11", "pytest",   "skills/dev-implementation/resources/scripts/test_concurrent_epic_backlog.py", 10, False),
+    ("11", "pytest",   "skills/dev-implementation/resources/scripts/test_package_and_revise_epic.py", 30, False),
+    ("11", "unittest", "skills/dev-implementation/resources/scripts/test_compute_execution_order.py", 5, False),
+    ("11", "pytest",   "skills/dev-implementation/resources/scripts/test_failure_baseline.py", 5, False),
+    ("11", "pytest",   "skills/dev-implementation/resources/scripts/test_replay_and_measure.py", 15, False),
+    ("11", "unittest", "skills/dev-implementation/resources/scripts/test_slug_utils.py", 2, False),
+    ("11", "unittest", "skills/impact-analysis/resources/scripts/test_check_code_impact.py", 5, False),
+    ("11", "unittest", "scripts/test_run_unittest_junit.py", 2, False),
+    ("11", "unittest", "scripts/test_verifiable_handoff_text.py", 1, True),
+    ("11", "unittest", "scripts/test_verifiable_handoff.py", 15, True),
+    # Section 12: Branch integration script
+    ("12", "unittest", "skills/finishing-a-development-branch/resources/scripts/test_integrate_branch.py", 80, False),
+    # Section 13: Quality provider contracts, schemas, aggregation, and platform capabilities
+    ("13", "unittest", "skills/quality_check/resources/scripts/test_validate_quality_contract.py", 1, False),
+    ("13", "unittest", "skills/quality_check/resources/scripts/test_aggregate_quality_results.py", 1, False),
+    ("13", "unittest", "skills/rust-quality-check/resources/scripts/test_validate_rust_quality.py", 1, False),
+    ("13", "unittest", "skills/python-quality-check/resources/scripts/test_validate_python_quality.py", 1, False),
+    ("13", "unittest", "skills/flutter-quality-check/resources/scripts/test_validate_flutter_quality.py", 1, False),
+    ("13", "unittest", "skills/android-quality-check/resources/scripts/test_validate_android_quality.py", 1, False),
+    ("13", "unittest", "skills/ios-quality-check/resources/scripts/test_validate_ios_quality.py", 1, False),
+    ("13", "unittest", "skills/web-quality-check/resources/scripts/test_validate_web_quality.py", 1, False),
+    ("13", "pytest",   "tests/test_web_quality_provider.py", 5, False),
+    ("13", "pytest",   "tests/test_audit_ui_state_and_styles.py", 2, False),
+    ("13", "unittest", "skills/setup_quality_check/resources/scripts/test_scaffold_quality_manifest.py", 1, False),
+    ("13", "unittest", "skills/quality_check/resources/scripts/test_quality_provider_acceptance.py", 20, True),
+    # 14. Shared contracts CLI engine is enforced
+    ("14", "unittest", "skills/setup-shared-contracts/resources/scripts/test_setup_contracts.py", 15, False),
+    ("14", "unittest", "skills/sync-shared-contracts/resources/scripts/test_sync_contracts.py", 25, False),
+    # 15. Context memory management CLI and Tri-Role governance are enforced
+    ("15", "unittest", "scripts/test_resume_context.py", 25, False),
+    # 16. Session refresh CLI engine and isolation contracts are enforced
+    ("16", "unittest", "skills/refresh-session/resources/scripts/test_refresh_session.py", 2, False),
+]
+
+active_suites = [
+    (idx, s)
+    for idx, s in enumerate(SUITES)
+    if pathlib.Path(s[2]).exists() and (run_mode == "full" or s[4])
+]
+
+# Schedule heaviest suites first (Longest-Job-First)
+scheduled_suites = sorted(active_suites, key=lambda item: -item[1][3])
+
+def run_suite(indexed_item):
+    orig_idx, (sec, mode, path, _prio, _doc) = indexed_item
+    t0 = time.monotonic()
+    if mode == "unittest":
+        cmd = [sys.executable, "-m", "unittest", path]
+    elif mode == "pytest":
+        cmd = [sys.executable, "-m", "pytest", path, "-q"]
+    else:
+        cmd = [sys.executable, path]
+    proc = subprocess.run(cmd, capture_output=True, text=True)
+    elapsed = time.monotonic() - t0
+    return orig_idx, sec, path, proc.returncode, elapsed, proc.stdout, proc.stderr
+
+t_start = time.monotonic()
+max_workers = min(len(scheduled_suites), (os.cpu_count() or 4))
+raw_results = []
+with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as pool:
+    futures = [pool.submit(run_suite, item) for item in scheduled_suites]
+    for fut in concurrent.futures.as_completed(futures):
+        raw_results.append(fut.result())
+
+# Sort back to canonical Section 11 -> 16 order for deterministic output
+results = sorted(raw_results, key=lambda r: r[0])
+
+failed = 0
+for _idx, sec, path, rc, elapsed, out, err in results:
+    status = "ok  " if rc == 0 else "FAIL"
+    print(f"  {status} [§{sec}] {path} ({elapsed:.2f}s)")
+    if rc != 0:
+        failed = 1
+        if out.strip():
+            print(out.rstrip())
+        if err.strip():
+            print(err.rstrip())
+
+total_elapsed = time.monotonic() - t_start
+print(f"\n  Ran {len(results)} test suites in {total_elapsed:.2f}s across {max_workers} workers.")
+sys.exit(failed)
+PY
+
+  if [ "$FAILED" -eq 0 ] && [ -n "$GIT_DIR_PATH" ]; then
+    printf '%s:%s\n' "$FULL_HASH" "$CODE_HASH" > "$CACHE_FILE"
+  fi
+fi
 
 echo
 if [ "$FAILED" -eq 0 ]; then
@@ -298,4 +410,3 @@ else
   echo "FAILED — fix the above before publishing"
 fi
 exit "$FAILED"
-

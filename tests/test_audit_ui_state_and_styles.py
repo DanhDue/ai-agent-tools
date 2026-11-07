@@ -250,4 +250,31 @@ def test_url_containing_sse_source_and_comment_handling(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     findings = audit_ui_state_machine_consistency(tmp_path)
-    assert len(findings) == 0, f"Expected 0 findings, got: {findings}"
+    assert len(findings) == 0
+
+
+def test_scope_unmodified_returns_not_applicable_when_only_backend_files_changed(
+    tmp_path: Path,
+) -> None:
+    """When git diff against base_ref only modifies backend (.py) files, run_all_ui_reviews short-circuits with NOT_APPLICABLE (scope_unmodified)."""
+    import subprocess
+
+    subprocess.run(["git", "init", "-q", "-b", "main"], cwd=tmp_path, check=True)
+    subprocess.run(
+        ["git", "config", "user.email", "test@example.com"], cwd=tmp_path, check=True
+    )
+    subprocess.run(["git", "config", "user.name", "Test"], cwd=tmp_path, check=True)
+    (tmp_path / "backend.py").write_text("x = 1\n", encoding="utf-8")
+    subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "commit", "-q", "-m", "base"], cwd=tmp_path, check=True)
+
+    subprocess.run(["git", "checkout", "-q", "-b", "feature"], cwd=tmp_path, check=True)
+    (tmp_path / "backend.py").write_text("x = 2\n", encoding="utf-8")
+    subprocess.run(
+        ["git", "commit", "-q", "-am", "backend change"], cwd=tmp_path, check=True
+    )
+
+    res = run_all_ui_reviews(repo_root=tmp_path, base_ref="main")
+    assert res["status"] == "NOT_APPLICABLE"
+    assert res["not_applicable_reason"]["code"] == "scope_unmodified"
+    assert res["total_findings"] == 0, f"Expected 0 findings, got: {res['findings']}"

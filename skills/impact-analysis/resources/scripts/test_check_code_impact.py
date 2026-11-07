@@ -174,6 +174,25 @@ class TestTestImpactAnalysis(unittest.TestCase):
 
             coverage_res = check_test_coverage(root, [src_file])
             self.assertEqual(coverage_res[str(src_file.relative_to(root))]["coverage_percent"], 100.0)
+            self.assertEqual(coverage_res[str(src_file.relative_to(root))]["coverage_state"], "MEASURED")
+
+    def test_finds_python_prefix_test_and_distinguishes_missing_coverage_artifact(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            src_file = root / "src/lyrics_sync/pipeline/aligner.py"
+            src_file.parent.mkdir(parents=True)
+            src_file.write_text("def align():\n    return True\n")
+
+            test_file = root / "tests/unit/test_aligner.py"
+            test_file.parent.mkdir(parents=True)
+            test_file.write_text("def test_align():\n    assert True\n")
+
+            coverage_res = check_test_coverage(root, [src_file])
+            entry = coverage_res["src/lyrics_sync/pipeline/aligner.py"]
+            self.assertTrue(entry["has_test_file"])
+            self.assertEqual(entry["test_file"], "tests/unit/test_aligner.py")
+            self.assertEqual(entry["coverage_state"], "TESTS_PRESENT_NO_REPORT")
+            self.assertEqual(entry["coverage_percent"], 80.0)
 
 
 class TestCliFormatting(unittest.TestCase):

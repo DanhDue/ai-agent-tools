@@ -76,12 +76,52 @@ def git(root: Path, *args: str) -> str:
 
 
 class ReviewCase(unittest.TestCase):
+    _template_dir: tempfile.TemporaryDirectory[str] | None = None
+    _template_repo: Path | None = None
+    _template_base: str = ""
+
+    @classmethod
+    def _ensure_template(cls) -> tuple[Path, str]:
+        if cls._template_repo is not None and cls._template_repo.exists():
+            return cls._template_repo, cls._template_base
+        cls._template_dir = tempfile.TemporaryDirectory()
+        repo = Path(cls._template_dir.name).resolve() / "repo"
+        repo.mkdir()
+        git(repo, "init", "-q", "-b", "main")
+        git(repo, "config", "user.email", "demo@example.com")
+        git(repo, "config", "user.name", "Demo")
+        (repo / "README.md").write_text("demo\n", encoding="utf-8")
+        git(repo, "add", "-A")
+        git(repo, "commit", "-q", "-m", "Start")
+        base = git(repo, "rev-parse", "HEAD")
+        for rel, content in (
+            (f"{EPIC}/demo.en.md", HLD),
+            (f"{EPIC}/bdd_scenarios.en.md", SCENARIOS),
+            (f"{EPIC}/design.en.md", "# Spec\n"),
+            (f"{EPIC}/task_1_demo.md", '---\nid: "task_1_demo"\nstatus: "done"\n---\n\n# Task 1\n'),
+            (
+                "build/demo.xml",
+                '<?xml version="1.0" encoding="UTF-8"?>\n<testsuites>\n  <testsuite name="demo" tests="1">\n    <testcase name="test_demo_hp_01" classname="test_demo"/>\n  </testsuite>\n</testsuites>\n',
+            ),
+            ("scripts/test_demo.py", "# [DEMO-HP-01]\ndef test_demo_hp_01(): pass\n"),
+        ):
+            p = repo / rel
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text(content, encoding="utf-8")
+        git(repo, "add", "-A")
+        git(repo, "commit", "-q", "-m", "Epic")
+        cls._template_repo = repo
+        cls._template_base = base
+        return repo, base
+
     def setUp(self) -> None:
+        template_repo, template_base = self._ensure_template()
         directory = tempfile.TemporaryDirectory()
         self.addCleanup(directory.cleanup)
         tmp = Path(directory.name).resolve()
         self.root, self.bin = tmp / "repo", tmp / "bin"
-        self.root.mkdir()
+        shutil.copytree(template_repo, self.root)
+        self.base = template_base
         self.bin.mkdir()
         for tool in ("git", "bash", "cat", "sleep", "sh"):  # only what the run needs: never a real claude or codex
             tool_path = shutil.which(tool)
@@ -93,20 +133,6 @@ class ReviewCase(unittest.TestCase):
         patcher = mock.patch.dict(os.environ, env)
         patcher.start()
         self.addCleanup(patcher.stop)
-        git(self.root, "init", "-q", "-b", "main")
-        git(self.root, "config", "user.email", "demo@example.com")
-        git(self.root, "config", "user.name", "Demo")
-        self.write("README.md", "demo\n")
-        self.commit("Start")
-        self.base = git(self.root, "rev-parse", "HEAD")
-        self.write(f"{EPIC}/demo.en.md", HLD)
-        self.write(f"{EPIC}/bdd_scenarios.en.md", SCENARIOS)
-        self.write(f"{EPIC}/design.en.md", "# Spec\n")
-        self.write(f"{EPIC}/task_1_demo.md", '---\nid: "task_1_demo"\nstatus: "done"\n---\n\n# Task 1\n')
-        xml = '<?xml version="1.0" encoding="UTF-8"?>\n<testsuites>\n  <testsuite name="demo" tests="1">\n    <testcase name="test_demo_hp_01" classname="test_demo"/>\n  </testsuite>\n</testsuites>\n'
-        self.write("build/demo.xml", xml)
-        self.write("scripts/test_demo.py", "# [DEMO-HP-01]\ndef test_demo_hp_01(): pass\n")
-        self.commit("Epic")
         self.results = self.root / EPIC / "review_results.md"
         self.cwd = os.getcwd()
         os.chdir(self.root)

@@ -1,4 +1,5 @@
 """End-to-End Acceptance Verification for Execution and Verification Infrastructure."""
+
 from __future__ import annotations
 
 import subprocess
@@ -77,10 +78,14 @@ def run():
     return 2
 ```
 """
-    task_1_text = task_1_text.replace("## Requirement Analysis", task_1_directive + "\n## Requirement Analysis")
+    task_1_text = task_1_text.replace(
+        "## Requirement Analysis", task_1_directive + "\n## Requirement Analysis"
+    )
     task_1_path.write_text(task_1_text, encoding="utf-8")
     (repo / ".devtool" / "features" / "task_1.md").write_text(
-        task_1_text.replace("](demo_epic.en.md)", "](../epic/demo_epic/demo_epic.en.md)"),
+        task_1_text.replace(
+            "](demo_epic.en.md)", "](../epic/demo_epic/demo_epic.en.md)"
+        ),
         encoding="utf-8",
     )
 
@@ -103,10 +108,14 @@ def helper():
     return "ok"
 ```
 """
-    task_2_text = task_2_text.replace("## Requirement Analysis", task_2_directive + "\n## Requirement Analysis")
+    task_2_text = task_2_text.replace(
+        "## Requirement Analysis", task_2_directive + "\n## Requirement Analysis"
+    )
     task_2_path.write_text(task_2_text, encoding="utf-8")
     (repo / ".devtool" / "features" / "task_2.md").write_text(
-        task_2_text.replace("](demo_epic.en.md)", "](../epic/demo_epic/demo_epic.en.md)"),
+        task_2_text.replace(
+            "](demo_epic.en.md)", "](../epic/demo_epic/demo_epic.en.md)"
+        ),
         encoding="utf-8",
     )
 
@@ -122,20 +131,42 @@ def helper():
         text=True,
         check=False,
     )
-    assert proc.returncode == 0, f"check_epic_readiness --replay failed:\nSTDOUT:\n{proc.stdout}\nSTDERR:\n{proc.stderr}"
+    assert proc.returncode == 0, (
+        f"check_epic_readiness --replay failed:\nSTDOUT:\n{proc.stdout}\nSTDERR:\n{proc.stderr}"
+    )
     assert "R8 PASS" in proc.stdout, f"Expected R8 PASS in stdout:\n{proc.stdout}"
 
     # Verify main repository is completely clean and untouched
-    status_proc = subprocess.run(["git", "-C", str(repo), "status", "--porcelain"], capture_output=True, text=True, check=True)
-    assert status_proc.stdout.strip() == "", f"Main repository has uncommitted changes:\n{status_proc.stdout}"
+    status_proc = subprocess.run(
+        ["git", "-C", str(repo), "status", "--porcelain"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert status_proc.stdout.strip() == "", (
+        f"Main repository has uncommitted changes:\n{status_proc.stdout}"
+    )
 
     # Verify temporary worktree was removed
-    worktrees_proc = subprocess.run(["git", "-C", str(repo), "worktree", "list", "--porcelain"], capture_output=True, text=True, check=True)
-    worktree_lines = [line for line in worktrees_proc.stdout.splitlines() if line.startswith("worktree ")]
-    assert len(worktree_lines) == 1, f"Expected exactly 1 worktree (main), got:\n{worktrees_proc.stdout}"
+    worktrees_proc = subprocess.run(
+        ["git", "-C", str(repo), "worktree", "list", "--porcelain"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    worktree_lines = [
+        line
+        for line in worktrees_proc.stdout.splitlines()
+        if line.startswith("worktree ")
+    ]
+    assert len(worktree_lines) == 1, (
+        f"Expected exactly 1 worktree (main), got:\n{worktrees_proc.stdout}"
+    )
 
     # Verify files created inside worktree were not leaked to main repository
-    assert not (repo / "helper.py").exists(), "helper.py was leaked into main repository tree"
+    assert not (repo / "helper.py").exists(), (
+        "helper.py was leaked into main repository tree"
+    )
 
 
 class Test_Execution_Infra_Acceptance_Integration:

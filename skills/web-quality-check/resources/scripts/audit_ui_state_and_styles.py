@@ -565,6 +565,38 @@ def audit_ui_state_machine_consistency(
     return findings
 
 
+UI_FILE_EXTENSIONS = {
+    ".html",
+    ".htm",
+    ".astro",
+    ".jinja",
+    ".jinja2",
+    ".css",
+    ".scss",
+    ".js",
+    ".mjs",
+    ".ts",
+    ".tsx",
+    ".jsx",
+    ".vue",
+    ".svelte",
+}
+
+
+def _git_base_ref_exists(repo_root: Path, base_ref: str) -> bool:
+    try:
+        res = subprocess.run(
+            ["git", "rev-parse", "--verify", base_ref],
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        return res.returncode == 0
+    except (subprocess.SubprocessError, OSError):
+        return False
+
+
 def run_all_ui_reviews(
     repo_root: Path | str = ".",
     base_ref: str = "main",
@@ -572,6 +604,27 @@ def run_all_ui_reviews(
     """Execute all four UI review invariant checks and aggregate findings."""
     root = Path(repo_root).resolve()
     modified_files = get_git_diff_files(root, base_ref=base_ref)
+
+    # Scope-aware short-circuit: if inside a git repo with a valid base_ref and
+    # diff against base_ref contains changes (or clean branch diff) with zero UI files,
+    # skip UI review with NOT_APPLICABLE (scope_unmodified).
+    if _git_base_ref_exists(root, base_ref):
+        ui_modified = [
+            f for f in modified_files if Path(f).suffix.lower() in UI_FILE_EXTENSIONS
+        ]
+        if len(modified_files) > 0 and len(ui_modified) == 0:
+            return {
+                "status": "NOT_APPLICABLE",
+                "not_applicable_reason": {
+                    "code": "scope_unmodified",
+                    "detail": f"No UI/frontend files were modified in {len(modified_files)} changed file(s) against '{base_ref}'.",
+                },
+                "base_ref": base_ref,
+                "modified_files_count": len(modified_files),
+                "ui_modified_files_count": 0,
+                "total_findings": 0,
+                "findings": [],
+            }
 
     all_findings: list[dict[str, Any]] = []
 
@@ -624,7 +677,12 @@ def main(argv: list[str] | None = None) -> int:
     if args.json:
         print(json.dumps(res, indent=2))
     else:
-        if res["status"] == "PASS":
+        if res["status"] == "NOT_APPLICABLE":
+            reason = res.get("not_applicable_reason", {}).get(
+                "detail", "scope_unmodified"
+            )
+            print(f"UI Review: NOT_APPLICABLE ({reason})")
+        elif res["status"] == "PASS":
             print(
                 f"UI Review: PASS ({res['total_findings']} findings across {res['modified_files_count']} modified files)"
             )
@@ -638,7 +696,7 @@ def main(argv: list[str] | None = None) -> int:
                 cat = f.get("category", "")
                 print(f"  • [{cat}] {loc}: {msg}", file=sys.stderr)
 
-    return 0 if res["status"] == "PASS" else 1
+    return 0 if res["status"] in ("PASS", "NOT_APPLICABLE") else 1
 
 
 if __name__ == "__main__":

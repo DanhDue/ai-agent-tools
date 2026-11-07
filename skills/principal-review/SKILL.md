@@ -76,14 +76,15 @@ Invoked on-demand to review standalone design documents, architecture proposals,
      • Verdict: <VERDICT> (<count> <Severity> findings)
      ```
 
-4. **Revision Loop & Commit Ordering**:
+4. **Revision Loop & Commit Ordering (Automatic Re-Package & `/save-context`)**:
+   - Once the developer confirms the triage decisions, apply document edits and automatically execute the re-packaging and context-saving steps without asking for an intermediate confirmation:
    - Apply document edits first and commit:
      `git commit -m "[<EPIC_NAME>] Revise epic after Principal Review round <n>"`
    - Record decisions with revision commit SHA in `principal_review.md`, then commit:
      `git commit -m "[<EPIC_NAME>] Record Principal Review decisions for round <n>"`
-   - Re-anchor `handoff.md` via `python3 skills/dev-implementation/resources/scripts/package_epic.py <epic_dir> --revise --reason "Revise after Principal Review round <n>"`.
-   - Record Gate 2 approval in the Gate Approval Ledger via `python3 scripts/resume_context.py --gate 2 --epic <epic_slug> --approved "Revised after Principal Review round <n>"`.
-   - Record state via `python3 scripts/resume_context.py --state --epic <epic_slug>`, emit the AI Programmer prompt via `python3 scripts/resume_context.py --emit-prompt implement --epic <epic_slug>`, and present the Principal Review Choice again.
+   - Automatically re-anchor `handoff.md` via `python3 skills/dev-implementation/resources/scripts/package_epic.py <epic_dir> --revise --reason "Revise after Principal Review round <n>"` (and commit `[<EPIC_NAME>] Package epic for handoff` if `auto_commit: true`).
+   - Automatically record Gate 2 approval in the Gate Approval Ledger via `python3 scripts/resume_context.py --gate 2 --epic <epic_slug> --approved "Revised after Principal Review round <n>"`.
+   - Automatically record state via `python3 scripts/resume_context.py --state --epic <epic_slug> --status "Stage 2: Revised after Principal Review"`, emit the AI Programmer prompt via `python3 scripts/resume_context.py --emit-prompt implement --epic <epic_slug>`, and then stop calling tools to present the Principal Review Choice (`/principal-review` vs `/dev-implementation`) again.
 
 ## Guidelines & Reference Documents
 

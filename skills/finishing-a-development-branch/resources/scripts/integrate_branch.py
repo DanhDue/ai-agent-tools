@@ -413,6 +413,9 @@ def cmd_verify_tier(args) -> tuple[int, dict]:
 def cmd_land(args) -> tuple[int, dict]:
     if not TITLE_RE.match(args.title):
         raise Refusal("title must look like '[SCOPE] Title', with no trailing period")
+    lease_path = Path("build/quality/.gate4_active.lease")
+    if lease_path.is_file():
+        raise Refusal("a Gate 4 quality verification lease is currently active (build/quality/.gate4_active.lease); wait for it to finish before landing")
     branch = integrating_branch(args.base)
     if rebase_in_progress():
         raise Refusal("a rebase is in progress; finish or abort it first")

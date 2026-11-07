@@ -66,7 +66,7 @@ Independent commands (e.g. `type_check`, `lint`, `test_unit`) may run concurrent
 
 For `epic`, `release`, and `scheduled` profiles:
 1. **Headless Playwright Execution**: Mandates headless Playwright test execution with the Zero-Console-And-Layout-Defect watchdog fixture. The provider verifies that `build/test-results/playwright.xml` exists and records zero console errors and zero layout leaks.
-2. **UI State and Styles Audit (`ui_review`)**: Executes `audit_ui_state_and_styles.py --base-ref {base_ref}` to enforce 4 concrete UI/UX invariants:
+2. **UI State and Styles Audit (`ui_review`)**: Executes `audit_ui_state_and_styles.py --base-ref {base_ref}` to enforce 4 concrete UI/UX invariants (automatically short-circuiting with `status: "NOT_APPLICABLE"` and `code: "scope_unmodified"` when git diff against `{base_ref}` modifies zero UI/frontend files):
    - **Cache-Bust Verification**: If git diff against `{base_ref}` modifies any static `.js` or `.css` file served by HTML templates, verifies that the cache-bust query parameter (`?v=...`) in referencing templates is updated.
    - **Orphaned Class & Computed Style Check**: Verifies that all CSS classes referenced in modified HTML templates or JS DOM builders exist in loaded stylesheets, and no card/drawer/badge renders with unstyled default geometry.
    - **Text Truncation & Overflow Guard**: Verifies in flex rows that left-aligned text is not clipped at start-of-string, and text is not rendered twice consecutively (e.g. "Tiến độ Tiến độ").

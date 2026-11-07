@@ -447,16 +447,31 @@ def sync_window_title(
     vscode_dir = root / ".vscode"
     settings_file = vscode_dir / "settings.json"
     vscode_dir.mkdir(parents=True, exist_ok=True)
-    if not settings_file.exists():
-        settings_file.write_text("{}\n", encoding="utf-8")
 
-    repo_name = root.name
+    primary_for_root = resolve_primary_repo_root(root)
+    if not settings_file.exists():
+        primary_settings = primary_for_root / ".vscode" / "settings.json"
+        if primary_for_root != root and primary_settings.exists():
+            try:
+                settings_file.write_text(
+                    primary_settings.read_text(encoding="utf-8"), encoding="utf-8"
+                )
+            except Exception:
+                settings_file.write_text("{}\n", encoding="utf-8")
+        else:
+            settings_file.write_text("{}\n", encoding="utf-8")
+
     REPO_SIGNATURES = {
         "lyrics-sync": ("🔴", "LYRICS-SYNC", "#7f1d1d"),
         "D3Nexus": ("🟢", "D3NEXUS", "#065f46"),
         "nexus": ("🔵", "NEXUS", "#0d47a1"),
         "ai-agent-tools": ("🟠", "AGENT-TOOLS", "#b45309"),
     }
+    repo_name = (
+        primary_for_root.name
+        if primary_for_root.name in REPO_SIGNATURES
+        else root.name
+    )
     icon, tag, theme_color = REPO_SIGNATURES.get(
         repo_name, ("📁", repo_name.upper(), None)
     )
@@ -698,6 +713,19 @@ def write_epic_state(
         (state_dir / f"{epic_slug}.md").write_text(content + "\n", encoding="utf-8")
         render_assistant_state_rollup(devtool_dir)
         sync_window_title(root, epic_slug=epic_slug, stage_override=status)
+        current_wt = resolve_current_worktree_root()
+        if (
+            current_wt.resolve() != root.resolve()
+            and resolve_primary_repo_root(current_wt).resolve() == root.resolve()
+        ):
+            sync_window_title(current_wt, epic_slug=epic_slug, stage_override=status)
+        for wt_cand in (
+            root / ".worktrees" / epic_slug,
+            root / ".worktrees" / epic_slug.replace("-", "_"),
+            root / ".worktrees" / epic_slug.replace("_", "-"),
+        ):
+            if wt_cand.is_dir() and wt_cand.resolve() != current_wt.resolve():
+                sync_window_title(wt_cand, epic_slug=epic_slug, stage_override=status)
 
 
 def append_activity_log(
@@ -1030,7 +1058,7 @@ def scan_active_tasks(root: Path, epic_filter: str | None = None) -> None:
                 total_count += 1
 
         if total_count > 0:
-            print(f"📊 [{repo_name}] Progress: {done_count}/{total_count} done")
+            print(f"📊 [{repo_name} (base branch)] Progress: {done_count}/{total_count} done")
             for t_name, t_status, t_title in active_tasks:
                 print(f"  [{repo_name}] {t_name} ({t_status}) -> {t_title}")
                 found = True
@@ -1038,6 +1066,37 @@ def scan_active_tasks(root: Path, epic_filter: str | None = None) -> None:
             for t_name, t_status, t_title in active_tasks:
                 print(f"  [{repo_name}] {t_name} ({t_status}) -> {t_title}")
                 found = True
+
+        worktrees_dir = r_path / ".worktrees"
+        if worktrees_dir.is_dir():
+            for wt_dir in sorted(worktrees_dir.iterdir()):
+                wt_features = wt_dir / ".devtool" / "features"
+                if not wt_dir.is_dir() or not wt_features.is_dir():
+                    continue
+                wt_done = len(list((wt_features / "done").glob("task_*.md"))) if (wt_features / "done").is_dir() else 0
+                wt_todo = 0
+                for tf in sorted(wt_features.glob("task_*.md")):
+                    lines = tf.read_text(encoding="utf-8").splitlines()[:15]
+                    st_line = next((l for l in lines if "status:" in l.lower()), "")
+                    st_val = st_line.replace("status:", "").strip().strip('"').strip("'").lower()
+                    if st_val == "done":
+                        wt_done += 1
+                    else:
+                        wt_todo += 1
+                wt_total = wt_done + wt_todo
+                dirty_res = subprocess.run(
+                    ["git", "-C", str(wt_dir), "status", "--porcelain"],
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
+                dirty_lines = [l for l in dirty_res.stdout.splitlines() if l.strip()]
+                dirty_tag = f", uncommitted dirty: {len(dirty_lines)} files" if dirty_lines else ", clean worktree"
+                if wt_total > 0 or dirty_lines:
+                    print(
+                        f"🌿 [{repo_name} worktree:{wt_dir.name}] Branch progress: {wt_done}/{wt_total} done{dirty_tag}"
+                    )
+                    found = True
 
     if not found:
         print("  (No active todo/in-progress/review tasks found.)")

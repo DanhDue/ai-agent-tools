@@ -54,6 +54,11 @@ Construct the immutable invocation payload:
 
 Validate the invocation using [validate_quality_contract.py](resources/scripts/validate_quality_contract.py). If invocation parameters are invalid, halt immediately with status `BLOCKED`.
 
+**Docs-Only & Scope-Aware Short-Circuit (`scope_unmodified`)**:
+- Before fanning out heavy compiler/test providers, inspect `git diff --name-only <base_ref>...HEAD` (plus staged/unstaged modifications).
+- If 100% of modified files are prose or documentation (`*.md`, `docs/**`, `.devtool/**`) and zero build-shipping files are touched, route directly to `d3nexus:doc_quality_check` instead of running code providers.
+- For individual UI capabilities (`ui_review`, `@flutter-ui-audit`, `@android-ui-audit`, `@ios-ui-audit`), if the diff against `<base_ref>` modifies zero UI/presentation files, the capability short-circuits immediately with `status: "NOT_APPLICABLE"` and `not_applicable_reason: {"code": "scope_unmodified", "detail": "..."}`.
+
 ### Step 1: Project Registry Loading
 
 Load the project quality manifest located at `.agents/quality/check_quality.json` from the repository root:

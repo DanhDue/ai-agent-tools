@@ -475,20 +475,25 @@ After the Epic Overview and all confirmed task files are written (or updated), c
   scope, one-line title, one bullet per task written. No `Co-Authored-By` or other trailer.
 - If `auto_commit: false`: skip staging and committing entirely.
 
-Then record Gate 2 approval in the Gate Approval Ledger:
-```bash
-python3 scripts/resume_context.py --gate 2 --epic <epic_slug> --approved "<approved task breakdown summary>"
-```
-Query or verify Gate 2 status via `python3 scripts/resume_context.py --check-gate 2 --epic <epic_slug>`.
-
-To package the epic for handoff or revise an already packaged epic:
-```bash
-python3 skills/dev-implementation/resources/scripts/package_epic.py <epic_dir> [--revise --reason "<text>"]
-```
-
-Then persist state via `python3 scripts/resume_context.py --state --epic <epic_slug>` (which automatically updates the IDE window title to `<ICON> [<REPO>] [@<account_id>] <Vietnamese Epic Name> - Stage 2: Design Approved`), emit role handoff prompts (`python3 scripts/resume_context.py --emit-prompt principal-review --epic <epic_slug>` and `python3 scripts/resume_context.py --emit-prompt implement --epic <epic_slug>`), and return to the [Handoff Choice](../dev-lifecycle/SKILL.md#handoff-choice) in
-`dev-lifecycle`, which also says when the choice applies after an update: ask the developer whether
-to package the epic or continue to Stage 3. This skill never invokes `dev-implementation` itself.
+Then automatically execute Gate 2 handoff packaging and `/save-context` without asking an intermediate "Package vs Continue" question first:
+1. Record Gate 2 approval in the Gate Approval Ledger:
+   ```bash
+   python3 scripts/resume_context.py --gate 2 --epic <epic_slug> --approved "<approved task breakdown summary>"
+   ```
+   (Query or verify Gate 2 status via `python3 scripts/resume_context.py --check-gate 2 --epic <epic_slug>`.)
+2. Automatically package the epic for handoff (or revise an already packaged epic):
+   ```bash
+   python3 skills/dev-implementation/resources/scripts/package_epic.py <epic_dir> [--revise --reason "<text>"]
+   ```
+   If `auto_commit: true`, commit the generated/updated `handoff.md` and `Packaged` status (`git commit -m "[<EPIC_NAME>] Package epic for handoff"`).
+3. Automatically persist `/save-context` state and emit role handoff prompts:
+   ```bash
+   python3 scripts/resume_context.py --state --epic <epic_slug> --status "Stage 2: Packaged & Ready"
+   python3 scripts/resume_context.py --emit-prompt principal-review --epic <epic_slug>
+   python3 scripts/resume_context.py --emit-prompt implement --epic <epic_slug>
+   ```
+   (This automatically updates the IDE window title to `<ICON> [<REPO>] [@<account_id>] <Vietnamese Epic Name> - Stage 2: Packaged & Ready`.)
+4. Finally, stop calling tools and present the unified [Handoff Choice](../dev-lifecycle/SKILL.md#handoff-choice) in `dev-lifecycle`: ask the developer only whether to run `/principal-review` or proceed directly to `/dev-implementation` (or stop here with the packaged handoff). This skill never invokes `dev-implementation` or `principal-review` itself.
 
 ### Updating an Existing Epic
 When new requirements arrive for an epic already in progress, append new task files continuing the sequence, and append links to the Epic Overview's Kanban Tasks Breakdown section (in both `.en.md` and `.vi.md`). Update the Mermaid diagrams if architecture changes. If the epic's `bdd_scenarios.en.md` predates scenario identifiers, retrofit the whole epic first — identifiers, `Covers:` lines and the `Integration test roots:` line, as dev-implementation Phase 1 step 3 describes — before running the Step 3 `plan` check.

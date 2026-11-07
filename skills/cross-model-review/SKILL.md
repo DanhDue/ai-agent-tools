@@ -100,13 +100,13 @@ Every review round is triaged before taking action. A reviewer's finding is a cl
      ```
    - Wait for the developer's explicit decision on each finding.
 
-5. **Commit Fixes & Record Decisions**:
-   - Make each fix in its own commit: `[<EPIC_NAME>] Fix <what>`.
+5. **Commit Fixes, Record Decisions & Automatically Re-Run Gate 4**:
+   - Once the developer confirms the triage decisions, make each fix in its own commit: `[<EPIC_NAME>] Fix <what>`.
    - Update each Decision cell in `review_results.md`: `fixed in <sha>` or `dismissed: <reason>` in developer's exact words.
    - Commit decisions: `[<EPIC_NAME>] Record review decisions for round <n>`.
-   - Record state via `python3 scripts/resume_context.py --state --epic <epic_slug>` and emit next prompt via `python3 scripts/resume_context.py --emit-prompt finish --epic <epic_slug>` (or `--emit-prompt implement` for fixes).
-   - Re-run Gate 4 machine acceptance in full on the new candidate SHA.
-   - Present Review Choice again only after Gate 4 returns PASS.
+   - **Automatically re-run Gate 4 machine acceptance in full** on the new candidate SHA without asking for a separate confirmation before running Gate 4.
+   - Record state via `python3 scripts/resume_context.py --state --epic <epic_slug> --status "Stage 4.1: Review Choice"` and emit next prompt via `python3 scripts/resume_context.py --emit-prompt finish --epic <epic_slug>` (or `--emit-prompt cross-review --epic <epic_slug>`).
+   - Stop calling tools and present the applied fix summary, the new Gate 4 PASS verdict, and Review Choice again.
 
 ## References
 

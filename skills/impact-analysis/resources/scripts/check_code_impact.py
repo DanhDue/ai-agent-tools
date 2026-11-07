@@ -243,7 +243,7 @@ def check_bridge_contracts(
 
 
 def find_paired_test(root: Path, src_file: Path) -> Path | None:
-    """Locate the conventional unit test file for a source file."""
+    """Locate the conventional unit or integration test file for a source file."""
     rel = src_file.relative_to(root)
     stem = src_file.stem
     ext = src_file.suffix
@@ -251,6 +251,10 @@ def find_paired_test(root: Path, src_file: Path) -> Path | None:
     candidates = [
         root / "test" / rel.parent / f"{stem}_test{ext}",
         root / "test" / f"{stem}_test{ext}",
+        root / "tests" / rel.parent / f"test_{stem}{ext}",
+        root / "tests" / f"test_{stem}{ext}",
+        root / "tests" / "unit" / f"test_{stem}{ext}",
+        root / "tests" / "integration" / f"test_{stem}{ext}",
         root / "src" / "test" / "java" / rel.parent / f"{stem}Test{ext}",
         root / "Tests" / f"{stem}Tests{ext}",
     ]
@@ -259,11 +263,55 @@ def find_paired_test(root: Path, src_file: Path) -> Path | None:
         if cand.is_file():
             return cand
 
-    # Broader glob search
-    for test_cand in root.glob(f"**/*{stem}*test*{ext}"):
-        if test_cand.is_file() and "build" not in test_cand.parts:
-            return test_cand
+    excluded_parts = {"build", ".git", ".venv", "venv", "node_modules", "target", ".worktrees"}
 
+    # Broader glob search (both test_<stem> and <stem>_test across nested dirs / crates)
+    for pattern in (
+        f"**/test_{stem}*{ext}",
+        f"**/*{stem}*test*{ext}",
+        f"**/tests/**/*{stem}*{ext}",
+    ):
+        for test_cand in root.glob(pattern):
+            if test_cand.is_file() and test_cand != src_file and not (excluded_parts & set(test_cand.parts)):
+                return test_cand
+
+    # Fallback: check if any test file in tests/ or test/ directly imports or references `stem`
+    if len(stem) >= 4 and stem not in ("__init__", "main", "index", "utils", "common"):
+        for test_dir_name in ("tests", "test", "crates"):
+            t_dir = root / test_dir_name
+            if not t_dir.is_dir():
+                continue
+            for tf in t_dir.rglob(f"*{ext}"):
+                if not tf.is_file() or tf == src_file or (excluded_parts & set(tf.parts)):
+                    continue
+                if "test" not in tf.name.lower() and "tests" not in tf.parts:
+                    continue
+                try:
+                    txt = tf.read_text(encoding="utf-8", errors="ignore")
+                    if re.search(rf"\b{re.escape(stem)}\b", txt):
+                        return tf
+                except OSError:
+                    pass
+
+    return None
+
+
+def parse_coverage_json_for_file(cov_json_path: Path, src_file: Path, root: Path) -> float | None:
+    """Parse Python coverage.json to find coverage percentage for a specific source file."""
+    if not cov_json_path.is_file():
+        return None
+    try:
+        data = json.loads(cov_json_path.read_text(encoding="utf-8"))
+        files_map = data.get("files", {})
+        rel_str = str(src_file.relative_to(root))
+        for k, v in files_map.items():
+            if k == rel_str or k.endswith(rel_str) or Path(k).name == src_file.name:
+                summary = v.get("summary", {})
+                pct = summary.get("percent_covered")
+                if isinstance(pct, (int, float)):
+                    return round(float(pct), 1)
+    except Exception:
+        pass
     return None
 
 
@@ -307,9 +355,15 @@ def check_test_coverage(root: Path, files: list[Path]) -> dict[str, dict]:
     coverage_results: dict[str, dict] = {}
     lcov_candidates = [
         root / "coverage" / "lcov.info",
+        root / "lcov.info",
         root / "build" / "reports" / "jacoco" / "test" / "jacocoTestReport.xml",
     ]
     lcov_file = next((f for f in lcov_candidates if f.is_file()), None)
+    cov_json_candidates = [
+        root / "coverage.json",
+        root / "build" / "coverage.json",
+    ]
+    cov_json_file = next((f for f in cov_json_candidates if f.is_file()), None)
 
     for src_file in files:
         if not src_file.is_file():
@@ -318,14 +372,19 @@ def check_test_coverage(root: Path, files: list[Path]) -> dict[str, dict]:
         test_file = find_paired_test(root, src_file)
 
         cov_percent = 0.0
+        cov_state = "NO_TESTS_FOUND"
+        parsed_cov = None
         if lcov_file:
             parsed_cov = parse_lcov_for_file(lcov_file, src_file)
-            if parsed_cov is not None:
-                cov_percent = parsed_cov
-            elif test_file:
-                cov_percent = 50.0  # test exists but file unrepresented in lcov
+        if parsed_cov is None and cov_json_file:
+            parsed_cov = parse_coverage_json_for_file(cov_json_file, src_file, root)
+
+        if parsed_cov is not None:
+            cov_percent = parsed_cov
+            cov_state = "MEASURED"
         elif test_file:
-            cov_percent = 80.0  # heuristic default when test exists without report
+            cov_percent = 80.0 if not (lcov_file or cov_json_file) else 50.0
+            cov_state = "TESTS_PRESENT_NO_REPORT"
 
         # Check for error handling in source code
         untested_error_paths: list[str] = []
@@ -337,7 +396,7 @@ def check_test_coverage(root: Path, files: list[Path]) -> dict[str, dict]:
                         encoding="utf-8", errors="ignore"
                     )
                     if not re.search(
-                        r"throws|error|exception|failure", test_content, re.I
+                        r"throws|error|exception|failure|raises", test_content, re.I
                     ):
                         untested_error_paths.append(
                             "Unhandled catch/error scenario in test suite"
@@ -353,6 +412,7 @@ def check_test_coverage(root: Path, files: list[Path]) -> dict[str, dict]:
             "has_test_file": test_file is not None,
             "test_file": str(test_file.relative_to(root)) if test_file else None,
             "coverage_percent": cov_percent,
+            "coverage_state": cov_state,
             "untested_error_paths": untested_error_paths,
         }
 
@@ -451,8 +511,14 @@ def format_markdown_report(report: ImpactReport) -> str:
     lines.append("## 4. Coverage Safety Net & Test Impact")
     for f, cov_data in report.coverage.items():
         cov_val = cov_data["coverage_percent"]
+        cov_state = cov_data.get("coverage_state", "MEASURED" if cov_data["has_test_file"] else "NO_TESTS_FOUND")
         cov_icon = "🟢" if cov_val >= 80.0 else ("🟡" if cov_val > 0 else "🔴")
-        lines.append(f"### File: `{f}` ({cov_icon} {cov_val}% Coverage)")
+        if cov_state == "TESTS_PRESENT_NO_REPORT":
+            lines.append(
+                f"### File: `{f}` ({cov_icon} {cov_val}% Estimated — Paired Test Present, No Coverage Artifact on Disk)"
+            )
+        else:
+            lines.append(f"### File: `{f}` ({cov_icon} {cov_val}% Coverage)")
         if cov_data["has_test_file"]:
             lines.append(f"- **Paired Test**: `{cov_data['test_file']}`")
         else:

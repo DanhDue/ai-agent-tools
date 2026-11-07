@@ -9,5 +9,5 @@
     "statusBar.inactiveBackground": "#b45309",
     "statusBar.inactiveForeground": "#ffffffcc"
   },
-  "window.title": "🟠 [AGENT-TOOLS] [@brother] All 3 epics landed in main; verify.sh passing 100%; clean working tree"
+  "window.title": "🟠 [AGENT-TOOLS] [@duvthinh403] ${activeEditorMedium}${separator}${rootName}"
 }

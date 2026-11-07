@@ -3,6 +3,7 @@
 
 Covers: MEO-HP-04, MEO-AR-01, MEO-FR-03
 """
+
 from __future__ import annotations
 
 import json
@@ -67,7 +68,9 @@ def test_MEO_HP_04_record_and_check_gate_approval(tmp_path: Path) -> None:
         "--deviations",
         "SE-01",
     ]
-    res_rec = subprocess.run(cmd_record, cwd=str(tmp_path), capture_output=True, text=True)
+    res_rec = subprocess.run(
+        cmd_record, cwd=str(tmp_path), capture_output=True, text=True
+    )
     assert res_rec.returncode == 0, f"Error: {res_rec.stderr}"
 
     # Verify JSONL
@@ -100,7 +103,9 @@ def test_MEO_HP_04_record_and_check_gate_approval(tmp_path: Path) -> None:
         "--epic",
         "sample-epic",
     ]
-    res_check = subprocess.run(cmd_check, cwd=str(tmp_path), capture_output=True, text=True)
+    res_check = subprocess.run(
+        cmd_check, cwd=str(tmp_path), capture_output=True, text=True
+    )
     assert res_check.returncode == 0
     checked_entry = json.loads(res_check.stdout.strip())
     assert checked_entry["gate"] == 2
@@ -152,7 +157,9 @@ def test_MEO_FR_03_rejections_and_unapproved_gates(tmp_path: Path) -> None:
         "--epic",
         "sample-epic",
     ]
-    res_check = subprocess.run(cmd_check, cwd=str(tmp_path), capture_output=True, text=True)
+    res_check = subprocess.run(
+        cmd_check, cwd=str(tmp_path), capture_output=True, text=True
+    )
     assert res_check.returncode == 1
     assert "Gate 3 is not yet recorded for epic 'sample-epic'" in res_check.stderr
 
@@ -167,7 +174,9 @@ def test_MEO_FR_03_rejections_and_unapproved_gates(tmp_path: Path) -> None:
         "--approved",
         "",
     ]
-    res_empty = subprocess.run(cmd_empty, cwd=str(tmp_path), capture_output=True, text=True)
+    res_empty = subprocess.run(
+        cmd_empty, cwd=str(tmp_path), capture_output=True, text=True
+    )
     assert res_empty.returncode == 2
     assert "error: --approved must be non-empty" in res_empty.stderr
 
@@ -199,7 +208,9 @@ def test_MEO_HP_04_fallback_to_markdown_and_harvest(tmp_path: Path) -> None:
         "--epic",
         "sample-epic",
     ]
-    res_check = subprocess.run(cmd_check, cwd=str(tmp_path), capture_output=True, text=True)
+    res_check = subprocess.run(
+        cmd_check, cwd=str(tmp_path), capture_output=True, text=True
+    )
     assert res_check.returncode == 0
     checked = json.loads(res_check.stdout.strip())
     assert checked["gate"] == 2
@@ -214,7 +225,9 @@ def test_MEO_HP_04_fallback_to_markdown_and_harvest(tmp_path: Path) -> None:
         "--epic",
         "sample-epic",
     ]
-    res_harvest = subprocess.run(cmd_harvest, cwd=str(tmp_path), capture_output=True, text=True)
+    res_harvest = subprocess.run(
+        cmd_harvest, cwd=str(tmp_path), capture_output=True, text=True
+    )
     assert res_harvest.returncode == 0
     harvest_data = json.loads(res_harvest.stdout.strip())
     assert "gate_approvals" in harvest_data
@@ -224,7 +237,9 @@ def test_MEO_HP_04_fallback_to_markdown_and_harvest(tmp_path: Path) -> None:
     assert approvals[1]["gate"] == 2
 
 
-def test_record_gate_preserves_markdown_ledger_on_absent_state_and_escapes_pipes(tmp_path: Path) -> None:
+def test_record_gate_preserves_markdown_ledger_on_absent_state_and_escapes_pipes(
+    tmp_path: Path,
+) -> None:
     """Recording a gate when state/ is absent preserves committed GATE_LEDGER.md entries and handles escaped pipes and dashes."""
     init_git_repo(tmp_path)
 
@@ -241,7 +256,14 @@ def test_record_gate_preserves_markdown_ledger_on_absent_state_and_escapes_pipes
 
     # Verify query works on both entries before state/ exists
     res_cg1 = subprocess.run(
-        [sys.executable, str(RESUME_SCRIPT), "--check-gate", "1", "--epic", "sample-epic"],
+        [
+            sys.executable,
+            str(RESUME_SCRIPT),
+            "--check-gate",
+            "1",
+            "--epic",
+            "sample-epic",
+        ],
         cwd=str(tmp_path),
         capture_output=True,
         text=True,
@@ -251,7 +273,14 @@ def test_record_gate_preserves_markdown_ledger_on_absent_state_and_escapes_pipes
     assert data_g1["approved"] == "HLD | 5 tasks | SE-01 approved"
 
     res_cg2 = subprocess.run(
-        [sys.executable, str(RESUME_SCRIPT), "--check-gate", "2", "--epic", "sample-epic"],
+        [
+            sys.executable,
+            str(RESUME_SCRIPT),
+            "--check-gate",
+            "2",
+            "--epic",
+            "sample-epic",
+        ],
         cwd=str(tmp_path),
         capture_output=True,
         text=True,
@@ -289,7 +318,14 @@ def test_record_gate_preserves_markdown_ledger_on_absent_state_and_escapes_pipes
     # Verify all 3 gates can be queried
     for g_num in (1, 2, 3):
         res_chk = subprocess.run(
-            [sys.executable, str(RESUME_SCRIPT), "--check-gate", str(g_num), "--epic", "sample-epic"],
+            [
+                sys.executable,
+                str(RESUME_SCRIPT),
+                "--check-gate",
+                str(g_num),
+                "--epic",
+                "sample-epic",
+            ],
             cwd=str(tmp_path),
             capture_output=True,
             text=True,
@@ -301,7 +337,9 @@ def test_record_gate_preserves_markdown_ledger_on_absent_state_and_escapes_pipes
     # Verify JSONL was hydrated and contains all 3 entries
     jsonl_file = tmp_path / ".devtool" / "state" / "gate_ledger.jsonl"
     assert jsonl_file.is_file()
-    lines = [l for l in jsonl_file.read_text(encoding="utf-8").splitlines() if l.strip()]
+    lines = [
+        l for l in jsonl_file.read_text(encoding="utf-8").splitlines() if l.strip()
+    ]
     assert len(lines) == 3
 
 

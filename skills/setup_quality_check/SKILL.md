@@ -27,6 +27,7 @@ The scaffolding engine inspects repository roots against the following marker fi
 | **iOS** | `Project.swift`, `Tuist.swift`, `Package.swift` | `ios-core` | `ios-quality.json` | `swiftformat`, `swiftlint`, `ArchTests` (K1-K10), `check_module_boundaries.sh`, `swift test`, `check_coverage_thresholds.sh` |
 | **Rust** | `Cargo.toml` | `rust-core` | `rust-quality.json` | `cargo fmt`, `cargo check`, `cargo clippy`, `cargo test`, `cargo llvm-cov`, `xtask check-architecture` |
 | **Python** | `pyproject.toml`, `uv.lock`, `requirements.txt`, `setup.py`, `Pipfile` | `python-core` | `python-quality.json` | `ruff format`, `ruff check`, `mypy --strict`, `pytest`, `pytest-cov`, `lint-imports` |
+| **Web** | `astro.config.*`, `playwright.config.*`, `package.json`, `src/**/web/**` | `web-quality` | `web-quality.json` | `check_vanilla_js.py`, `audit_ui_state_and_styles.py`, `playwright test` (with watchdog fixture) |
 
 In composite repositories (e.g. Flutter mobile host with Rust core, or native Android/iOS bridging modules), all detected platforms are registered in `.agents/quality/check_quality.json`.
 

@@ -41,82 +41,74 @@ Cross-model review returns to a full Gate 4 run, which presents the choice again
 
 ## Document Contract
 
-Every durable design document produced by this lifecycle MUST be emitted as a synchronized English `.en.md` and Vietnamese `.vi.md` pair. English is canonical; Vietnamese matches its structure and facts. Every variant MUST contain a linked table of contents covering every `##` section, regardless of document length. This applies to specs, HLD/overview documents, BDD scenario documents, and non-epic implementation plans. `task_*.md` files and an epic's `handoff.md` are the only exceptions and remain English-only; `handoff.md` still carries a complete table of contents.
+Durable design documents MUST be emitted as synchronized `.en.md` (canonical) and `.vi.md` pairs with a linked ToC covering every `##` section (specs, HLDs, BDD scenarios, non-epic plans). Only `task_*.md` and `handoff.md` are English-only (`handoff.md` still requires a ToC).
 
 ### Markdown Formatting & Quality Standards
 
-Documents MUST satisfy markdown quality standards:
 - **Heading Hierarchy**: Single H1 `# Title`, levels increment by one, space after `#`, no trailing punctuation.
-- **Fenced Code Blocks**: Valid language tag (e.g. `bash`, `python`). Bare fences forbidden; runtime skills omit diagrams.
-- **Lists & Links**: Consistent `-` markers. Relative links resolve; heading anchors match targets.
+- **Fenced Code Blocks**: Valid language tag (`bash`, `python`). Bare fences and runtime-skill diagrams forbidden.
+- **Lists & Links**: Consistent `-` markers; relative links resolve; heading anchors match targets.
 - **Formatting Hygiene**: No trailing whitespace, hard tabs, consecutive blank lines, or missing trailing newline.
 - **Diagram Standards**: Human docs (`docs/lifecycles.*.md`, HLDs) use `flowchart` over `graph` with quoted labels.
 
 ## The Five Gates
 
-Every gate is a **human approval** except Gate 4, which is a machine verdict. Never cross one on your own judgement. Gate decisions are recorded in `.devtool/GATE_LEDGER.md` and queried via `python3 scripts/resume_context.py --gate <1..5>` and `--check-gate <1..5>`.
+Every gate is a **human approval** except Gate 4 (machine verdict). Never cross one on your own judgement. Record and query approvals in `.devtool/GATE_LEDGER.md` via `resume_context.py --gate <1..5>` and `--check-gate <1..5>`.
 
 | Gate | Name | Approver | Enforced in | Handoff artefact |
 |------|------|----------|-------------|------------------|
-| **1** | Spec Approved | User | end of `dev-brainstorming` | `YYYY-MM-DD-<topic>-design.en.md` + `.vi.md` |
-| **2** | HLD & Task Breakdown | User | `dev-designer` task-breakdown checkpoint | `<epic_dir>.en.md` + `.vi.md` + `bdd_scenarios.en.md` + `.vi.md` + `task_*.md` |
-| **3** | Execution Order | User | `dev-implementation` Phase 1 checkpoint, or Gate 3 (resume) in its Resume Procedure | confirmed order + bootstrapped worktree |
-| **4** | Quality LGTM & Check 2 | `audit_epic.py` + `check_bdd_traceability.py` + `quality_check` | `dev-implementation` Phase 4 | `audit_epic.py` report + 🟢 report + coverage matrix + BDD traceability matrix + merge-ready branch |
-| **5** | Developer Kanban Sign-Off | User | `dev-implementation` Phase 4.1 checkpoint | User confirmation to proceed with branch finishing and archival |
+| **1** | Spec Approved | User | `dev-brainstorming` | `YYYY-MM-DD-<topic>-design.en.md` + `.vi.md` |
+| **2** | HLD & Task Breakdown | User | `dev-designer` | `<epic_dir>.en.md` + `.vi.md` + `bdd_scenarios.en.md` + `.vi.md` + `task_*.md` |
+| **3** | Execution Order | User | `dev-implementation` Phase 1 / Resume | confirmed order + bootstrapped worktree |
+| **4** | Quality LGTM & Check 2 | `audit_epic.py` + `check_bdd_traceability.py` + `quality_check` | `dev-implementation` Phase 4 | `audit_epic.py` + 🟢 report + coverage + BDD traceability + merge-ready branch |
+| **5** | Developer Kanban Sign-Off | User | `dev-implementation` Phase 4.1 | User confirmation for branch finishing and archival |
 
 ## Stages
 
 ### Resuming an Epic
 
-A request to implement, continue or resume an epic whose `.devtool/epic/<epic_dir>/` already holds `task_*.md` files is past Gate 2 — whether the epic was packaged (`handoff.md` present, Status `Packaged`) or interrupted midway through Stage 3. Announce "Gates 1 and 2 already passed; resuming at Stage 3", invoke `dev-implementation` with that epic name, and let its Entry-Point Detection choose where to start. Never redo Stage 1 or Stage 2 for it. New requirements for such an epic are not a resume: they go to dev-designer's Updating an Existing Epic.
+An epic whose `.devtool/epic/<epic_dir>/` holds `task_*.md` files is past Gate 2 — whether `Packaged` (`handoff.md` present) or interrupted in Stage 3. Announce "Gates 1 and 2 already passed; resuming at Stage 3", invoke `dev-implementation`, and let its Entry-Point Detection choose where to start. Never redo Stage 1 or 2; route new requirements to dev-designer's Updating an Existing Epic.
 
 ### Stage 1 — Inception & Spec → `dev-brainstorming`
 
-**Invoke `d3nexus:dev-brainstorming`.** Do not write the spec yourself: Gate 1 is *its* user-approval step.
-- **Entry:** a raw idea or requirement.
-- **Exit (Gate 1):** the user has approved a written spec that passed self-review.
-- **Routing decision:** Once the spec is approved, choose:
-  - **Epic-scale code** → `dev-designer` (Stage 2). Relocate spec variants to `.devtool/epic/<epic_dir>/`, update links, and enter Stage 2 with the canonical `.en.md` path.
-  - **Everything else** → `writing-plans`. This leaves the epic lifecycle; remaining gates do not apply.
-If dev-brainstorming decomposed the request into several sub-project specs, **route each one independently**. Never merge multiple specs into one epic.
+**Invoke `d3nexus:dev-brainstorming`.** Gate 1 is its user-approval step.
+- **Entry:** raw idea or requirement. **Exit (Gate 1):** user-approved spec passing self-review.
+- **Routing:** **Epic-scale code** → relocate spec variants to `.devtool/epic/<epic_dir>/`, update links, enter `dev-designer` (Stage 2). **Everything else** → `writing-plans`. Route decomposed sub-project specs independently; never merge multiple specs into one epic.
 
 ### Stage 2 — Architecture & Tasks → `dev-designer`
 
 **Invoke `d3nexus:dev-designer`.**
-- **Entry:** Gate 1 spec in `.devtool/epic/<epic_dir>/`.
-- **Exit (Gate 2):** user has confirmed the proposed task list and granularity.
-Treat the approved spec as the source of truth for scope and decisions already made.
-When an epic depends on other epics, declare `- **Depends on epic**: <epic_slug_or_dir>[, ...]` in the HLD Meta Data. Design-time contracts and readiness resolution will ground against prerequisite artifacts.
+- **Entry:** Gate 1 spec in `.devtool/epic/<epic_dir>/`. **Exit (Gate 2):** user-confirmed task list and granularity.
+When an epic depends on other epics, declare `- **Depends on epic**: <epic_slug_or_dir>[, ...]` in HLD Meta Data.
 
 ### Handoff Choice
 
-Between Gate 2 and Stage 3 the developer decides when, and by whom, the epic is implemented:
-
-> Gate 2 passed: the HLD, BDD scenarios and N task files for `<epic_slug>` are written. How do you want to proceed?
->
-> 1. **Package** — write `handoff.md`, mark the epic `Packaged`, and stop.
-> 2. **Continue** — enter Stage 3 now (`dev-implementation`, starting with Gate 3: execution order).
-
-**Continue** → invoke `dev-implementation`.
-**Package** → run packaging procedure directly or via `package_epic.py`:
+Once Gate 2 passes, **automatically package the epic and run `/save-context`** before prompting:
 ```bash
 python3 skills/dev-implementation/resources/scripts/package_epic.py <epic_dir> [--revise --reason "<reason>"]
 ```
-Manual packaging steps (if not using `package_epic.py`):
-1. **Preflight, read-only.** Must exit 0: `python3 "$SCRIPTS"/check_epic_readiness.py <epic_dir>` (runs `check_task_contract.py --design`). Its first line gives the task count.
-2. Copy `references/handoff-template.md` to `.devtool/epic/<epic_dir>/handoff.md` and fill every placeholder; `<N>` is the task count the preflight printed. Add conversation decisions and risks into Open Notes.
-3. Lint it: `python3 "$CHECK_DOC" --require-toc .devtool/epic/<epic_dir>/handoff.md`.
-4. Mark the epic packaged, then confirm both overview variants changed:
+Packaging steps (automated by `package_epic.py`):
+1. **Preflight:** `python3 "$SCRIPTS"/check_epic_readiness.py <epic_dir>` (runs `check_task_contract.py --design`). First line gives task count.
+2. Copy `references/handoff-template.md` to `.devtool/epic/<epic_dir>/handoff.md` and fill placeholders; `<N>` is the task count the preflight printed.
+3. Lint: `python3 "$CHECK_DOC" --require-toc .devtool/epic/<epic_dir>/handoff.md`.
+4. Mark packaged and verify both overview variants:
    ```bash
    python3 "$SCRIPTS"/sync_task_status.py epic <epic_dir> Packaged
    grep -n -E '^- \*\*(Status|Trạng thái)\*\*: Packaged' \
      .devtool/epic/<epic_dir>/<epic_dir>.en.md .devtool/epic/<epic_dir>/<epic_dir>.vi.md
    ```
-   Two matching lines required; otherwise set Status by hand in both variants. If previously queued, use `"Packaged (queued behind <epic>)"` and copy into Open Notes.
-5. Commit if `auto_commit: true`: `git commit -m "[<EPIC_NAME>] Package epic for handoff"`.
-6. Offer to push only with explicit permission.
-7. Persist state (`resume_context.py --state --epic <epic_slug>`), emit prompts (`--emit-prompt principal-review` and `implement`), and print `handoff.md` path.
-8. Present **Principal Review Choice** — follow [references/principal-review.md](references/principal-review.md). When Option 2 ("Principal Review") is selected, invoke `d3nexus:principal-review`.
+   If previously queued, use `"Packaged (queued behind <epic>)"` and copy into Open Notes.
+5. Commit if `auto_commit: true`: `git commit -m "[<EPIC_NAME>] Package epic for handoff"`. Offer to push only with permission.
+6. Run `/save-context`: `resume_context.py --gate 2 --epic <epic_slug> --approved "<summary>"`, `resume_context.py --state --epic <epic_slug> --status "Stage 2: Packaged & Ready"`, emit prompts (`--emit-prompt principal-review` and `implement`), and print `handoff.md` path.
+7. Stop calling tools and present **Handoff Choice / Principal Review Choice** — follow [references/principal-review.md](references/principal-review.md):
+
+> Gate 2 passed: `<epic_slug>` is packaged (`handoff.md`) and context saved (`/save-context`). How do you want to proceed?
+> 1. **`/principal-review` (Principal Review)** — cross-model design review against source (Claude CLI, Codex CLI, or Antigravity CLI).
+> 2. **`/dev-implementation` (Continue to Stage 3)** — enter Stage 3 now (`dev-implementation`, starting at Gate 3).
+> 3. **Done (Stop here)** — keep packaged handoff for a later session.
+
+- **Principal Review** → invoke `d3nexus:principal-review` (auto-revises package and `/save-context` after triage fixes).
+- **Continue** → invoke `d3nexus:dev-implementation`.
 
 ### Stage 3 — Isolated Execution → `dev-implementation`
 
@@ -133,7 +125,7 @@ After all tasks are complete, run Gate 4. On every PASS, present Review Choice:
 - **Option 2: Cross-model review** -> Invoke `d3nexus:cross-model-review` via `run_external_review.py run` (prompting for Claude CLI, Codex CLI, or Antigravity CLI). Record round in `.devtool/epic/<epic_dir>/review_results.md`. Check unresolved findings with `run_external_review.py check --epic-dir <epic_dir>`. Any dismissed finding requires explicit developer instruction. Return to a full Gate 4 run on the new commit.
 - **Option 3: Local model review** -> Invoke `d3nexus:cross-model-review` (run `ollama list`, ask which model, then invoke `run_external_review.py run --cli ollama --model <model>`). A model served by the local Ollama reviews each task commit, then the epic, and one round is recorded in the same `review_results.md` under the same `check` rules. Return to a full Gate 4 run on the new commit.
 
-Every review round, option 2 or 3, is triaged before anyone acts on it: present `run_external_review.py triage --epic-dir <epic_dir>` filled as dev-implementation's `references/review-triage.md` says, and wait for the developer's decision on each finding.
+Every review round, option 2 or 3, is triaged before anyone acts on it: present `run_external_review.py triage --epic-dir <epic_dir>` filled as dev-implementation's `references/review-triage.md` says, and wait for the developer's decision on each finding. Once the developer confirms the triage decisions, apply the fixes, commit them, and **automatically re-run Gate 4 in full** without asking for an intermediate confirmation before running Gate 4; then stop and present Review Choice again.
 
 When an epic's tasks were executed by a fast executor model (e.g. Gemini Flash, Claude Haiku, GPT-4o-mini), the agent presents a strong recommendation in the Review Choice prompt:
 *"Tasks were executed by a fast executor model. Option 2: Cross-model review (Claude CLI, Codex CLI, or Antigravity CLI) is STRONGLY RECOMMENDED to audit test integrity and subtle regressions before finishing the branch."* Local model review does not replace it.

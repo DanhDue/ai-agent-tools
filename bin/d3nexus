@@ -14,6 +14,7 @@ SUBCOMMANDS: dict[str, str] = {
     "check-doc": "skills/doc_quality_check/resources/scripts/check_document.py",
     "check-contract": "skills/dev-implementation/resources/scripts/check_task_contract.py",
     "check-readiness": "skills/dev-implementation/resources/scripts/check_epic_readiness.py",
+    "resume-context": "scripts/resume_context.py",
     "sync-status": "skills/dev-implementation/resources/scripts/sync_task_status.py",
     "run-checks": "skills/dev-implementation/resources/scripts/run_task_checks.py",
 }

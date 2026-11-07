@@ -27,7 +27,8 @@ Persists conversational decisions, active feature states, and programmer activit
 Records an architectural or task status snapshot into `.devtool/state/<epic_slug>.md` ($\le 20$ lines) and refreshes `.devtool/assistant_state.md`:
 
 ```bash
-python3 scripts/resume_context.py --state \
+# Portable across all repos and worktrees via `d3nexus resume-context` (or `python3 scripts/resume_context.py`)
+d3nexus resume-context --state \
   --epic <epic_slug> \
   --decisions "<bullet list of key decisions>" \
   --status "<current stage or task status>" \

@@ -396,7 +396,7 @@ Option 1 goes to Phase 4.1 / Gate 5. Option 2 invokes `d3nexus:cross-model-revie
 python3 "$SKILL_DIR"/resources/scripts/run_external_review.py run \
   --epic-dir <epic_dir> --base <base_ref> --cli claude|codex|agy
 ```
-Commit `review_results.md` after every round (`[EPIC_NAME] Record cross-model review round N`). After every round of option 2 or 3, run `python3 "$SKILL_DIR"/resources/scripts/run_external_review.py triage --epic-dir <epic_dir>`, fill it as [review-triage.md](references/review-triage.md) says, present it, and wait for the developer's decisions before any Fix commit or Decision cell. Then make the Fix commits, record the decisions, commit, and rerun Phase 4 / Gate 4 in full.
+Commit `review_results.md` after every round (`[EPIC_NAME] Record cross-model review round N`). After every round of option 2 or 3, run `python3 "$SKILL_DIR"/resources/scripts/run_external_review.py triage --epic-dir <epic_dir>`, fill it as [review-triage.md](references/review-triage.md) says, present it, and wait for the developer's decisions before any Fix commit or Decision cell. Once the developer confirms the triage decisions, make the Fix commits, record the decisions, commit, and **automatically rerun Phase 4 / Gate 4 in full** without asking for an intermediate confirmation before running Gate 4; only halt once Gate 4 finishes and presents Review Choice again.
 
 Option 3 invokes `d3nexus:cross-model-review` for local models (run `ollama list` first and ask the developer which model to use; never pick it). Then, in the epic worktree with a clean tree:
 ```bash

@@ -622,6 +622,35 @@ ag_run() {
         self.assertEqual(colors["titleBar.inactiveBackground"], "#b45309")
         self.assertEqual(colors["statusBar.inactiveBackground"], "#b45309")
 
+    def test_sync_window_title_inside_worktree_preserves_primary_repo_signature(self) -> None:
+        """[CMM-TITLE-03] Running sync_window_title on a linked git worktree (.worktrees/<epic>) preserves the primary repo icon, tag, and bar color."""
+        import json
+
+        epic_dir = self.repo_dir / ".devtool" / "epic" / "wt_color_check"
+        epic_dir.mkdir(parents=True, exist_ok=True)
+        (epic_dir / "wt_color_check.vi.md").write_text("# Epic: Kiểm Tra Màu Worktree\n", encoding="utf-8")
+        subprocess.run(["git", "-C", str(self.repo_dir), "add", "-A"], check=True)
+        subprocess.run(["git", "-C", str(self.repo_dir), "commit", "-q", "-m", "init epic"], check=True)
+
+        wt_dir = self.repo_dir / ".worktrees" / "wt_color_check"
+        subprocess.run(
+            ["git", "-C", str(self.repo_dir), "worktree", "add", "-q", str(wt_dir), "-b", "epic/wt-color-check"],
+            check=True,
+        )
+
+        sync_window_title(wt_dir, epic_slug="wt_color_check", stage_override="Stage 3: Implementation")
+        wt_settings = json.loads((wt_dir / ".vscode" / "settings.json").read_text(encoding="utf-8"))
+        self.assertIn("🟠 [AGENT-TOOLS]", wt_settings["window.title"])
+        self.assertIn("Kiểm Tra Màu Worktree - Stage 3: Implementation", wt_settings["window.title"])
+        self.assertEqual(
+            wt_settings["workbench.colorCustomizations"]["titleBar.activeBackground"],
+            "#b45309",
+        )
+        self.assertEqual(
+            wt_settings["workbench.colorCustomizations"]["statusBar.inactiveBackground"],
+            "#b45309",
+        )
+
     def test_sync_window_title_antigravity_home_profile(self) -> None:
         """[CMM-TITLE-02] Verify profile tag extraction from antigravity_homes path."""
         import json

@@ -363,6 +363,12 @@ def run_capabilities(
                 if res.returncode != 0:
                     check_status = "FAIL"
                     summary = f"Capability '{cap_name}' failed with exit code {res.returncode}: {res.stderr.strip() or res.stdout.strip()}"
+                elif (
+                    cap_name == "ui_review"
+                    and "UI Review: NOT_APPLICABLE" in res.stdout
+                ):
+                    check_status = "NOT_APPLICABLE"
+                    summary = res.stdout.strip()
 
         except (FileNotFoundError, PermissionError) as e:
             check_duration = round(time.time() - check_start, 3)
@@ -384,17 +390,21 @@ def run_capabilities(
 
         evidence_id = f"{cap_name}-evidence"
         rel_log_path = str(log_file.relative_to(root_path))
-        checks.append(
-            {
-                "id": cap_name,
-                "category": _resolve_category(cap_name),
-                "status": check_status,
-                "source": " ".join(substituted_cmd),
-                "duration": check_duration,
-                "summary": summary,
-                "evidence_refs": [evidence_id],
+        check_entry: dict[str, Any] = {
+            "id": cap_name,
+            "category": _resolve_category(cap_name),
+            "status": check_status,
+            "source": " ".join(substituted_cmd),
+            "duration": check_duration,
+            "summary": summary,
+            "evidence_refs": [evidence_id],
+        }
+        if check_status == "NOT_APPLICABLE":
+            check_entry["not_applicable_reason"] = {
+                "code": "scope_unmodified",
+                "detail": summary,
             }
-        )
+        checks.append(check_entry)
         evidence.append(
             {
                 "id": evidence_id,

@@ -33,8 +33,9 @@ def aggregate_results(
             p["checks"] = sorted(checks, key=lambda c: c.get("id", ""))
 
         # Sort blockers and warnings
-        p["blockers"] = sorted(p.get("blockers", []))
-        p["warnings"] = sorted(p.get("warnings", []))
+        _sort_key = lambda item: json.dumps(item, sort_keys=True) if isinstance(item, dict) else str(item)
+        p["blockers"] = sorted(p.get("blockers", []), key=_sort_key)
+        p["warnings"] = sorted(p.get("warnings", []), key=_sort_key)
 
         # Check for all-NOT_APPLICABLE checks on a required provider
         all_checks_na = len(checks) > 0 and all(c.get("status") == "NOT_APPLICABLE" for c in checks)
@@ -43,7 +44,7 @@ def aggregate_results(
             blocker_msg = f"Required provider '{p_id}' has only NOT_APPLICABLE checks"
             if blocker_msg not in p["blockers"]:
                 p["blockers"].append(blocker_msg)
-                p["blockers"].sort()
+                p["blockers"].sort(key=_sort_key)
 
         # Check for contradictory result (e.g. status PASS with failing check or sub-threshold coverage)
         if p.get("status") == "PASS":
@@ -65,7 +66,7 @@ def aggregate_results(
                                 blocker_msg = f"Contradictory result: provider reported PASS but coverage '{k}' is below threshold ({meas} < {thresh})"
                                 if blocker_msg not in p["blockers"]:
                                     p["blockers"].append(blocker_msg)
-            p["blockers"].sort()
+            p["blockers"].sort(key=_sort_key)
 
         normalized_providers.append(p)
 

@@ -135,3 +135,7 @@ When `check_code_impact.py` produces output, the agent MUST follow these decisio
 - Modifying cross-platform `MethodChannel` strings in Dart without inspecting paired Kotlin/Swift files.
 - Refactoring legacy methods with 0% coverage without first writing baseline characterization tests.
 - Claiming an epic is complete without running Check 2 during `quality_check`.
+
+## References
+- [Impact Mechanisms](references/impact-mechanisms.md): Detailed 4-layer AST, ripgrep, bridge, and coverage inspection mechanisms.
+- [Impact Engine Tests](resources/scripts/test_check_code_impact.py): Unit test suite for `check_code_impact.py`.
