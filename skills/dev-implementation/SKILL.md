@@ -47,7 +47,7 @@ This skill is **Stage 3** of the Epic Lifecycle. The surrounding stages, the fiv
    - `.devtool/epic/<epic_dir>/bdd_scenarios.en.md` (the canonical behavioral contract across the 5 dimensions, if present; `.vi.md` is its synchronized translation).
    - Every `.devtool/features/task_*.md` whose frontmatter `epic:` matches `<epic_slug>`.
    - Any spec file(s) linked from the HLD's Meta Data section.
-   - `.devtool/epic/<epic_dir>/handoff.md`, when present — the packaging record. Use its Open Notes as context; it is never updated after packaging.
+   - `.devtool/epic/<epic_dir>/handoff.md`, when present — the packaging record. Use its Open Notes as context; it is never edited manually after packaging and is updated only via `package_epic.py <epic_dir> --revise --reason "<text>"`.
    - Restore architectural context and synchronize window title: `python3 scripts/resume_context.py --role programmer --epic <epic_slug>`.
 
 #### Bounded Context Injection & Spec Fidelity
@@ -90,12 +90,18 @@ python3 "$SKILL_DIR"/resources/scripts/compute_execution_order.py <epic_slug> \
   --features-dir .devtool/epic/<epic_dir>
 ```
 
+If the HLD declares `- **Depends on epic**:`, verify prerequisites first:
+```bash
+python3 "$SKILL_DIR"/resources/scripts/sync_task_status.py check-prereqs <epic_dir>
+```
+If this exits `1`, halt immediately and report the blocking prerequisite epics. Do not proceed to execution until all prerequisite epics are finished and merged into `develop` (or the target base branch).
+
 `git ls-remote` asks each remote directly, so an epic branch pushed from another clone shows before any fetch; if a remote cannot be reached, fall back to `git branch -r --list '*/epic/<epic_slug>'`. The last command reads the epic's task mirrors (`sync_task_status.py` keeps them in step with `.devtool/features/` and `.devtool/features/done/`); its flattened order prints each task's status as `[priority, status]`. Evaluate the rows top-down — first match wins — and announce it: "Entry point: row N — <state>."
 
 | # | Signals | State | Entry point |
 |---|---------|-------|-------------|
 | 1 | Overview Status is `Done` | Finished, or Stage 4 interrupted | With no epic branch left, report finished and stop. With epic branch still present, Stage 4 was interrupted or its PR is still open: report and ask |
-| 2 | No epic branch, and any task is `backlog` | Queued behind another epic | Stop. Flipping `backlog` to `todo` is developer's call |
+| 2 | No epic branch, and any task is `backlog` | Queued behind another epic | Stop. Check conflicts via `python3 "$SKILL_DIR"/resources/scripts/sync_task_status.py check-conflicts <epic_dir>`, and promote tasks to `todo` via `sync_task_status.py promote <epic_dir> [--force]` when confirmed |
 | 3 | No epic branch locally or on remote, no worktree, every task `todo` | Not started — packaged if `handoff.md` exists | Phase 1 as written: Gate 3, then new worktree |
 | 4 | Epic branch exists, no worktree, some task not `done` | Interrupted, worktree removed | Resume Procedure |
 | 5 | Worktree exists, some task not `done` | Interrupted midway through Stage 3 | Resume Procedure |
@@ -123,6 +129,15 @@ For rows 4 and 5. Phase 1 step 4's `git worktree add -b` never runs here.
 2. Read "Manual review advised" section (if any) and cross-check against Phase 0 context. Adjust flattened order by hand if a prose note should win.
 3. **Checkpoint (Gate 3):** present the final order to user and get confirmation before touching git.
    In the same message, state the Principal Review status (`not run`, `round <n>: PASS`, or `round <n>: decided`; stop with the triage if that check exits 1), and ask once for permission to fast-forward local `develop` from its upstream for the rest of this epic (Phase 1 step 4 and Phase 2 step 7).
+
+   Once confirmed, record Gate 3 approval in the Gate Approval Ledger:
+   ```bash
+   python3 scripts/resume_context.py --gate 3 --epic <epic_slug> --approved "<execution order confirmed>"
+   ```
+   Query or verify Gate 3 status at any time via:
+   ```bash
+   python3 scripts/resume_context.py --check-gate 3 --epic <epic_slug>
+   ```
 
    Before presenting order, run BDD traceability plan check:
    ```bash

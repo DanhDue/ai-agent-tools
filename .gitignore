@@ -10,6 +10,7 @@ build/
 
 # Devtool Tier-2 ephemeral runtime state, logs, locks, and local review preferences
 # (Keep .devtool/PROJECT_LEDGER.md, .devtool/epic/, .devtool/features/, .devtool/product/ tracked)
+!.devtool/GATE_LEDGER.md
 .devtool/.memory.lock
 .devtool/assistant_state.md
 .devtool/activity_stream.log

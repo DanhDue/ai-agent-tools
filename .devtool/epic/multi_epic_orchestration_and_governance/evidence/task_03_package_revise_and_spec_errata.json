@@ -1,0 +1,208 @@
+{
+  "schema": 1,
+  "task": "task_03_package_revise_and_spec_errata",
+  "runs": {
+    "red": {
+      "head": "e2f47f1f75d74d3d78e8060b0a442052f9723901",
+      "tree": "47c3a2a242327f3fcd11e6c8747466a3444a9657",
+      "patch_id": "a6145e6c9606d678be1da15b0cd78aa3c03d8afa",
+      "started": "2026-11-06T20:52:28Z",
+      "finished": "2026-11-06T20:52:28Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m pytest skills/dev-implementation/resources/scripts/test_package_and_revise_epic.py::test_MEO_HP_03_package_and_revise_epic",
+          "expect": "exit 1; contains \"FAILED\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-06T20:52:28Z",
+          "finished": "2026-11-06T20:52:28Z",
+          "output_tail": [
+            "",
+            "skills/dev-implementation/resources/scripts/test_package_and_revise_epic.py F [100%]",
+            "",
+            "=================================== FAILURES ===================================",
+            "____________________ test_MEO_HP_03_package_and_revise_epic ____________________",
+            "",
+            "tmp_path = PosixPath('/private/tmp/ag_brother/pytest-of-danhdueexoictif/pytest-33/test_MEO_HP_03_package_and_rev0')",
+            "",
+            "    def test_MEO_HP_03_package_and_revise_epic(tmp_path: Path) -> None:",
+            "        \"\"\"[MEO-HP-03] [Tier C - Integration] package_epic.py packages an epic, validates bilingual Spec Errata, and re-anchors handoff.md on --revise.\"\"\"",
+            "        init_git_repo(tmp_path)",
+            "        epic_path = setup_valid_epic(",
+            "            tmp_path,",
+            "            \"sample_epic\",",
+            "            \"sample-epic\",",
+            "            en_errata=[(\"SE-01\", \"Design\", \"Initial design clarification\")],",
+            "            vi_errata=[(\"SE-01\", \"Thiết kế\", \"Làm rõ thiết kế ban đầu\")],",
+            "        )",
+            "    ",
+            "        git_cmd(tmp_path, \"add\", \".\")",
+            "        git_cmd(tmp_path, \"commit\", \"-m\", \"Add sample epic files\")",
+            "        head_1 = git_cmd(tmp_path, \"rev-parse\", \"--short\", \"HEAD\").stdout.strip()",
+            "    ",
+            "        # 1. Package epic",
+            "        res_pkg = subprocess.run(",
+            "            [sys.executable, str(PACKAGE_SCRIPT), \"sample_epic\"],",
+            "            cwd=str(tmp_path),",
+            "            capture_output=True,",
+            "            text=True,",
+            "        )",
+            ">       assert res_pkg.returncode == 0, f\"Error: {res_pkg.stderr}\"",
+            "E       AssertionError: Error: /opt/homebrew/Cellar/python@3.15/3.15.2/Frameworks/Python.framework/Versions/3.15/Resources/Python.app/Contents/MacOS/Python: can't open file '/Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/multi_epic_orchestration_and_governance/skills/dev-implementation/resources/scripts/package_epic.py': [Errno 2] No such file or directory",
+            "E         ",
+            "E       assert 2 == 0",
+            "E        +  where 2 = CompletedProcess(args=['/opt/homebrew/opt/python@3.15/bin/python3.15', '/Users/danhdueexoictif/AllProjects/ai-agent-to...on_and_governance/skills/dev-implementation/resources/scripts/package_epic.py': [Errno 2] No such file or directory\\n\").returncode",
+            "",
+            "skills/dev-implementation/resources/scripts/test_package_and_revise_epic.py:192: AssertionError",
+            "=========================== short test summary info ============================",
+            "FAILED skills/dev-implementation/resources/scripts/test_package_and_revise_epic.py::test_MEO_HP_03_package_and_revise_epic",
+            "============================== 1 failed in 0.17s ==============================="
+          ],
+          "output_sha256": "e25845dec7219afc326c5f7d7af4e3734ce9bb86e78dbbb5b40c831b33986784"
+        }
+      ],
+      "passed": true
+    },
+    "verify": {
+      "head": "e2f47f1f75d74d3d78e8060b0a442052f9723901",
+      "tree": "0d1e047bb215892df407982ab01107b913c1f2f2",
+      "patch_id": "810c2014f3d83d66d3961095ac2a7c86fc31aab3",
+      "started": "2026-11-06T20:57:59Z",
+      "finished": "2026-11-06T20:58:07Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m pytest skills/dev-implementation/resources/scripts/test_package_and_revise_epic.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-06T20:57:59Z",
+          "finished": "2026-11-06T20:58:03Z",
+          "output_tail": [
+            "============================= test session starts ==============================",
+            "platform darwin -- Python 3.15.2, pytest-9.2.0, pluggy-1.7.0",
+            "rootdir: /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/multi_epic_orchestration_and_governance",
+            "collected 4 items",
+            "",
+            "skills/dev-implementation/resources/scripts/test_package_and_revise_epic.py . [ 25%]",
+            "...                                                                      [100%]",
+            "",
+            "============================== 4 passed in 3.54s ==============================="
+          ],
+          "output_sha256": "640c4f8ff7512ddb2780d14ca97726e3fedcbe2d6355d3b02fbbe2837b283814"
+        },
+        {
+          "id": "V3",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py skills/dev-implementation/resources/scripts/package_epic.py skills/dev-implementation/resources/scripts/task_contract.py skills/dev-implementation/resources/scripts/check_epic_readiness.py skills/dev-implementation/resources/scripts/test_package_and_revise_epic.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-06T20:58:03Z",
+          "finished": "2026-11-06T20:58:03Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py skills/dev-implementation/resources/scripts/package_epic.py skills/dev-implementation/resources/scripts/task_contract.py skills/dev-implementation/resources/scripts/check_epic_readiness.py --follow-imports=silent",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-06T20:58:03Z",
+          "finished": "2026-11-06T20:58:03Z",
+          "output_tail": [
+            "Success: no issues found in 8 source files"
+          ],
+          "output_sha256": "157a09cfcdfdfb5977479c5a1c08345149263a3e990a2ec976ef28aaeec9cae6"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-C",
+          "command": "python3 -m pytest skills/dev-implementation/resources/scripts/test_package_and_revise_epic.py --junitxml=build/test-results/task_03_package_revise.xml",
+          "expect": "exit 0; results build/test-results/task_03_package_revise.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-06T20:58:03Z",
+          "finished": "2026-11-06T20:58:07Z",
+          "output_tail": [
+            "============================= test session starts ==============================",
+            "platform darwin -- Python 3.15.2, pytest-9.2.0, pluggy-1.7.0",
+            "rootdir: /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/multi_epic_orchestration_and_governance",
+            "collected 4 items",
+            "",
+            "skills/dev-implementation/resources/scripts/test_package_and_revise_epic.py . [ 25%]",
+            "...                                                                      [100%]",
+            "",
+            "- generated xml file: /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/multi_epic_orchestration_and_governance/build/test-results/task_03_package_revise.xml -",
+            "============================== 4 passed in 3.59s ==============================="
+          ],
+          "output_sha256": "672cec8280e89ea6757fa3735295c4309dcf388f2acd99858c11978769acdbbb",
+          "results": {
+            "path": "build/test-results/task_03_package_revise.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 4,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_MEO_HP_03_package_and_revise_epic",
+                  "classname": "skills.dev-implementation.resources.scripts.test_package_and_revise_epic",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_MEO_ST_02_revise_preserves_custom_open_notes",
+                  "classname": "skills.dev-implementation.resources.scripts.test_package_and_revise_epic",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_MEO_FR_02_spec_errata_asymmetry_and_missing_reason",
+                  "classname": "skills.dev-implementation.resources.scripts.test_package_and_revise_epic",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_MEO_HP_03_integration",
+                  "classname": "skills.dev-implementation.resources.scripts.test_package_and_revise_epic.Test_Integration",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "skills/dev-implementation/resources/scripts/check_epic_readiness.py",
+            "skills/dev-implementation/resources/scripts/package_epic.py",
+            "skills/dev-implementation/resources/scripts/task_contract.py",
+            "skills/dev-implementation/resources/scripts/test_package_and_revise_epic.py",
+            "skills/dev-lifecycle/references/handoff-template.md"
+          ],
+          "violations": []
+        }
+      ],
+      "passed": true
+    }
+  }
+}

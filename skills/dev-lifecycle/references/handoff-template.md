@@ -8,6 +8,7 @@
 - [Resume Prompt](#resume-prompt)
 - [Execution Guardrails for Receiving LLM](#execution-guardrails-for-receiving-llm)
 - [Open Notes](#open-notes)
+- [Revisions](#revisions)
 - [Rules for the Receiving Agent](#rules-for-the-receiving-agent)
 
 ## Status
@@ -63,10 +64,14 @@ Fast executor models and receiving agents MUST adhere to these four hard guardra
 
 <What the design session knows that the documents do not say — decisions taken in conversation, risks, doubts. Write `None` when there is nothing.>
 
+## Revisions
+
+- **<YYYY-MM-DD> (`<sha>`)**: Initial Stage 2 packaging
+
 ## Rules for the Receiving Agent
 
 - Do not re-run `dev-brainstorming` or `dev-designer`. Raise a wrong or missing document at Gate 3.
 - This handoff does not pass Gate 3. The developer confirms the execution order.
 - Unless the design commit is `uncommitted`: if `git log <sha>..<base_branch> -- .devtool/epic/<epic_dir>` lists any commit besides the `Package epic for handoff` commit, the documents changed after packaging. The documents win, and this file may be stale. Comparing against the base branch keeps the epic branch's own task commits out of the check.
-- This file is a dated record. It is never updated after packaging.
+- This file is updated only by `package_epic.py --revise`, which records each re-anchoring under `## Revisions`.
 - Never edit a task's Verification table, Definition of Done, Allowed files or a protected path; stop and report.

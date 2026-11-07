@@ -859,6 +859,27 @@ class ReadinessGroundingTest(unittest.TestCase):
         r5b_lines = [line for line in stdout.splitlines() if line.startswith("R5b")]
         self.assertFalse(any("WARN" in line for line in r5b_lines), f"Expected 0 R5b warnings, got:\n{stdout}")
 
+    def test_grounding_fails_r5_when_verify_task_edit_anchors_is_none(self) -> None:
+        """When verify_task_edit_anchors is None, check_grounding reports an R5 FAIL finding."""
+        import check_epic_readiness as cer
+        orig = cer.verify_task_edit_anchors
+        try:
+            cer.verify_task_edit_anchors = None
+            ctx = cer.Context(
+                root=self.root,
+                epic_dir="demo_epic",
+                epic_slug="demo-epic",
+                hld_text="",
+                tasks={Path("task_1.md"): "some text"},
+                results=[],
+                roots=[],
+            )
+            findings = cer.check_grounding(ctx)
+            r5_fails = [f for f in findings if f.check == "R5" and f.severity == "FAIL"]
+            self.assertTrue(any("could not be imported" in f.message for f in r5_fails))
+        finally:
+            cer.verify_task_edit_anchors = orig
+
 
 class Test_Check_Epic_Readiness_Integration(unittest.TestCase):
     def test_EVI_HP_03_live_integration_provenance(self) -> None:

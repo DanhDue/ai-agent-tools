@@ -78,7 +78,7 @@ Covers: MEO-HP-04, MEO-AR-01, MEO-FR-03
 | V1 | RED | `python3 -m pytest tests/test_gate_approval_ledger.py::test_MEO_HP_04_record_and_check_gate_approval` | exit 1; contains "FAILED" | — |
 | V2 | GREEN | `python3 -m pytest tests/test_gate_approval_ledger.py` | exit 0; contains "passed" | — |
 | V3 | TIER-B | `ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/resume_context.py tests/test_gate_approval_ledger.py` | exit 0 | — |
-| V4 | TIER-B | `mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py --follow-imports=silent scripts/resume_context.py tests/test_gate_approval_ledger.py` | exit 0 | — |
+| V4 | TIER-B | `mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/resume_context.py tests/test_gate_approval_ledger.py --follow-imports=silent` | exit 0 | — |
 | V5 | TIER-C | `python3 -m pytest tests/test_gate_approval_ledger.py --junitxml=build/test-results/task_04_gate_ledger.xml` | exit 0; results build/test-results/task_04_gate_ledger.xml | — |
 
 ## Stop and Report If

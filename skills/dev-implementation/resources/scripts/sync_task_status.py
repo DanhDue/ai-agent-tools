@@ -45,6 +45,7 @@ from check_bdd_traceability import (
     SCENARIO_LINE,
 )
 from slug_utils import parse_frontmatter, sanitize_slug
+import task_contract as tc
 
 TASK_STATUSES = ("backlog", "todo", "in-progress", "review", "done")
 FRONTMATTER_RE = re.compile(r"^---\n(.*?)\n---\n", re.DOTALL)
@@ -853,6 +854,133 @@ def rewrite_mirror_links(
     )
 
 
+def check_epic_prerequisites(root: Path, epic_dir: str) -> list[str]:
+    """Check whether all prerequisite epics declared in HLD are Done."""
+    hld_path = root / ".devtool" / "epic" / epic_dir / f"{epic_dir}.en.md"
+    if not hld_path.is_file():
+        hld_path = root / ".devtool" / "epic" / epic_dir / f"{epic_dir}.vi.md"
+    if not hld_path.is_file():
+        return [f"HLD overview not found for '{epic_dir}'"]
+
+    hld_text = hld_path.read_text(encoding="utf-8")
+    prereq_dirs, errors = tc.resolve_prerequisite_epic_dirs(root, hld_text, epic_dir)
+    if errors:
+        return list(errors)
+
+    blockers: list[str] = []
+    for p_dir in prereq_dirs:
+        p_hld_path = root / ".devtool" / "epic" / p_dir / f"{p_dir}.en.md"
+        if not p_hld_path.is_file():
+            p_hld_path = root / ".devtool" / "epic" / p_dir / f"{p_dir}.vi.md"
+        is_done = False
+        if p_hld_path.is_file():
+            p_hld_text = p_hld_path.read_text(encoding="utf-8")
+            match = re.search(
+                r"^-\s*\*\*(?:Status|Trạng thái)\*\*:\s*(.+)$",
+                p_hld_text,
+                re.MULTILINE,
+            )
+            if match:
+                status_str = match.group(1).strip().strip("`").strip('"')
+                if status_str.lower().startswith(("done", "hoàn thành")):
+                    is_done = True
+        if not is_done:
+            p_tasks = task_files_in(root / ".devtool" / "epic" / p_dir)
+            if p_tasks and all(
+                parse_frontmatter(t.read_text(encoding="utf-8")).get("status") == "done"
+                for t in p_tasks
+            ):
+                is_done = True
+        if not is_done:
+            blockers.append(f"prerequisite epic '{p_dir}' is not Done")
+
+    return blockers
+
+
+def check_epic_file_conflicts(root: Path, epic_dir: str) -> dict[str, list[str]]:
+    """Check Allowed files overlaps between epic_dir and active tasks of other epics."""
+    tasks = task_files_in(root / ".devtool" / "epic" / epic_dir)
+    target_patterns: list[str] = []
+    for t in tasks:
+        t_text = t.read_text(encoding="utf-8")
+        for entry in tc.parse_allowed_files(t_text):
+            if entry.pattern not in target_patterns:
+                target_patterns.append(entry.pattern)
+
+    target_slug = find_epic_slug(root, epic_dir)
+    features_dir = root / ".devtool" / "features"
+    conflicts: dict[str, set[str]] = {}
+
+    if features_dir.is_dir():
+        for other_task in task_files_in(features_dir):
+            other_text = other_task.read_text(encoding="utf-8")
+            fm = parse_frontmatter(other_text)
+            status = fm.get("status", "").lower()
+            other_epic = fm.get("epic")
+            if (
+                status in ("todo", "in-progress", "in_progress", "review")
+                and other_epic != target_slug
+            ):
+                for o_entry in tc.parse_allowed_files(other_text):
+                    o_pat = o_entry.pattern
+                    for t_pat in target_patterns:
+                        if tc.path_matches(t_pat, o_pat) or tc.path_matches(
+                            o_pat, t_pat
+                        ):
+                            conflicts.setdefault(
+                                other_epic or "unknown", set()
+                            ).add(t_pat)
+
+    return {ep: sorted(pats) for ep, pats in sorted(conflicts.items())}
+
+
+def promote_epic_tasks(
+    roots: list[Path], epic_dir: str, *, force: bool = False
+) -> tuple[list[Path], list[str]]:
+    """Promote all backlog tasks of an epic across checkouts to todo."""
+    if not roots:
+        return ([], ["No repository roots found"])
+    root = roots[0]
+
+    if not force:
+        prereq_blockers = check_epic_prerequisites(root, epic_dir)
+        conflicts = check_epic_file_conflicts(root, epic_dir)
+        if prereq_blockers or conflicts:
+            errors: list[str] = list(prereq_blockers)
+            for ep, pats in conflicts.items():
+                errors.append(f"conflict with {ep}: {', '.join(pats)}")
+            return ([], errors)
+
+    epic_path = root / ".devtool" / "epic" / epic_dir
+    if not epic_path.is_dir():
+        return ([], [f"Epic directory not found: {epic_path}"])
+
+    promoted_paths: list[Path] = []
+    for t_file in task_files_in(epic_path):
+        fm = parse_frontmatter(t_file.read_text(encoding="utf-8"))
+        if fm.get("status") == "backlog":
+            written, _ = sync_task(roots, t_file.stem, "todo")
+            promoted_paths.extend(written)
+
+    # Check and update HLD status if queued/backlog
+    hld_file = epic_path / f"{epic_dir}.en.md"
+    if not hld_file.is_file():
+        hld_file = epic_path / f"{epic_dir}.vi.md"
+    if hld_file.is_file():
+        m = re.search(
+            r"^-\s*\*\*(?:Status|Trạng thái)\*\*:\s*(.+)$",
+            hld_file.read_text(encoding="utf-8"),
+            re.MULTILINE,
+        )
+        if m:
+            st_val = m.group(1).strip().strip("`").strip('"')
+            if "backlog" in st_val.lower() or st_val.lower().startswith("queued"):
+                today_iso = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+                sync_epic(roots, epic_dir, f"Packaged ({today_iso})")
+
+    return (promoted_paths, [])
+
+
 def render_epic_tasks(
     root: Path, epic_dir: str, source_root: Path | None = None
 ) -> list[Path]:
@@ -976,6 +1104,24 @@ def main() -> None:
         help="Root directory for embedded files",
     )
 
+    prereqs_parser = subparsers.add_parser(
+        "check-prereqs", help="Check prerequisite epics for an epic"
+    )
+    prereqs_parser.add_argument("epic_dir", help="Epic directory name")
+
+    conflicts_parser = subparsers.add_parser(
+        "check-conflicts", help="Check file pattern conflicts with active epics"
+    )
+    conflicts_parser.add_argument("epic_dir", help="Epic directory name")
+
+    promote_parser = subparsers.add_parser(
+        "promote", help="Promote backlog tasks of an epic to todo"
+    )
+    promote_parser.add_argument("epic_dir", help="Epic directory name")
+    promote_parser.add_argument(
+        "--force", action="store_true", help="Bypass prerequisite and conflict checks"
+    )
+
     args = parser.parse_args()
 
     if args.command == "task":
@@ -1056,6 +1202,52 @@ def main() -> None:
         except (ValueError, FileNotFoundError) as error:
             sys.stderr.write(f"error: {error}\n")
             sys.exit(1)
+
+    elif args.command == "check-prereqs":
+        top = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        root = Path(top.stdout.strip()) if top.returncode == 0 else Path.cwd()
+        blockers = check_epic_prerequisites(root, args.epic_dir)
+        if blockers:
+            for b in blockers:
+                sys.stderr.write(f"error: {b}\n")
+            sys.exit(1)
+        else:
+            print("0 unfinished prerequisites")
+
+    elif args.command == "check-conflicts":
+        top = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        root = Path(top.stdout.strip()) if top.returncode == 0 else Path.cwd()
+        conflicts = check_epic_file_conflicts(root, args.epic_dir)
+        if conflicts:
+            for ep, pats in conflicts.items():
+                sys.stderr.write(f"conflict with {ep}: {', '.join(pats)}\n")
+            sys.exit(1)
+        else:
+            print("0 conflicts — safe for concurrent execution")
+
+    elif args.command == "promote":
+        roots = checkout_roots()
+        promoted, blockers = promote_epic_tasks(
+            roots, args.epic_dir, force=args.force
+        )
+        if blockers:
+            for b in blockers:
+                sys.stderr.write(f"error: {b}\n")
+            sys.exit(1)
+        else:
+            print(
+                f"Promoted {len(promoted)} task copies of epic '{args.epic_dir}' to todo"
+            )
 
 
 if __name__ == "__main__":

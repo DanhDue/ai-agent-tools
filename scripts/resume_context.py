@@ -24,7 +24,7 @@ import sqlite3
 import subprocess
 import sys
 from collections.abc import Iterator
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 WORKSPACE_ROOT = Path.home() / "Projects"
@@ -268,6 +268,135 @@ def refresh_activity_stream_rollup(devtool_dir: Path) -> None:
     recent = all_entries[-50:]
     rollup = devtool_dir / "activity_stream.log"
     rollup.write_text("\n".join(recent) + ("\n" if recent else ""), encoding="utf-8")
+
+
+def parse_markdown_gate_row(line_str: str) -> dict[str, object] | None:
+    line = line_str.strip()
+    if not line.startswith("|") or not line.endswith("|"):
+        return None
+    if re.match(r"^\|(?:\s*:?-+:?\s*\|)+$", line):
+        return None
+    inner = line[1:-1]
+    raw_cells = re.split(r"(?<!\\)\|", inner)
+    if len(raw_cells) < 7:
+        return None
+    cells = [c.strip().replace(r"\|", "|") for c in raw_cells]
+    if cells[0].lower() == "timestamp":
+        return None
+    try:
+        gate_num = int(cells[2])
+    except (ValueError, TypeError):
+        return None
+    return {
+        "timestamp": cells[0],
+        "epic": cells[1],
+        "gate": gate_num,
+        "commit": cells[3],
+        "approved": cells[4],
+        "deviations": cells[5],
+        "by": cells[6],
+    }
+
+
+def parse_gate_ledger_markdown(md_path: Path) -> list[dict[str, object]]:
+    entries: list[dict[str, object]] = []
+    if not md_path.exists():
+        return entries
+    for line in md_path.read_text(encoding="utf-8").splitlines():
+        parsed = parse_markdown_gate_row(line)
+        if parsed is not None:
+            entries.append(parsed)
+    return entries
+
+
+def hydrate_gate_ledger_jsonl_if_needed(devtool_dir: Path) -> None:
+    state_dir = devtool_dir / "state"
+    jsonl_path = state_dir / "gate_ledger.jsonl"
+    md_path = devtool_dir / "GATE_LEDGER.md"
+    if not md_path.exists():
+        return
+    existing_md_entries = parse_gate_ledger_markdown(md_path)
+    if not existing_md_entries:
+        return
+
+    jsonl_entries: list[dict[str, object]] = []
+    if jsonl_path.exists():
+        for line in jsonl_path.read_text(encoding="utf-8").splitlines():
+            line_str = line.strip()
+            if not line_str:
+                continue
+            try:
+                data = json.loads(line_str)
+                if isinstance(data, dict):
+                    jsonl_entries.append(data)
+            except Exception:
+                continue
+
+    if not jsonl_path.exists() or len(jsonl_entries) < len(existing_md_entries):
+        seen = {
+            (
+                str(e.get("timestamp")),
+                str(e.get("epic")),
+                str(e.get("gate")),
+                str(e.get("commit")),
+            )
+            for e in jsonl_entries
+        }
+        missing = [
+            e
+            for e in existing_md_entries
+            if (
+                str(e.get("timestamp")),
+                str(e.get("epic")),
+                str(e.get("gate")),
+                str(e.get("commit")),
+            )
+            not in seen
+        ]
+        if missing or not jsonl_path.exists():
+            state_dir.mkdir(parents=True, exist_ok=True)
+            with jsonl_path.open("a", encoding="utf-8") as f:
+                for entry in missing:
+                    f.write(json.dumps(entry) + "\n")
+
+
+def render_gate_ledger_markdown(devtool_dir: Path) -> Path:
+    hydrate_gate_ledger_jsonl_if_needed(devtool_dir)
+    state_dir = devtool_dir / "state"
+    jsonl_path = state_dir / "gate_ledger.jsonl"
+    md_path = devtool_dir / "GATE_LEDGER.md"
+
+    entries: list[dict[str, object]] = []
+    if jsonl_path.exists():
+        for line in jsonl_path.read_text(encoding="utf-8").splitlines():
+            line_str = line.strip()
+            if not line_str:
+                continue
+            try:
+                data = json.loads(line_str)
+                if isinstance(data, dict):
+                    entries.append(data)
+            except Exception:
+                continue
+
+    lines = [
+        "# Gate Approval Ledger (Permanent)",
+        "",
+        "| Timestamp | Epic | Gate | Commit | Approved Scope | Deviations | By |",
+        "|---|---|---|---|---|---|---|",
+    ]
+    for e in entries:
+        ts = str(e.get("timestamp", "")).replace("|", r"\|")
+        ep = str(e.get("epic", "")).replace("|", r"\|")
+        gt = str(e.get("gate", "")).replace("|", r"\|")
+        cm = str(e.get("commit", "")).replace("|", r"\|")
+        ap = str(e.get("approved", "")).replace("|", r"\|")
+        dev = str(e.get("deviations", "")).replace("|", r"\|")
+        by_user = str(e.get("by", "")).replace("|", r"\|")
+        lines.append(f"| {ts} | {ep} | {gt} | {cm} | {ap} | {dev} | {by_user} |")
+
+    md_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return md_path
 
 
 def resolve_target_devtool_dir(root: Path, repo: str | None = None) -> Path:
@@ -653,6 +782,98 @@ def complete_feature_and_rotate(
     sync_window_title(root, epic_slug=epic_slug, stage_override="Completed")
 
 
+def record_gate_approval(
+    root: Path,
+    epic_slug: str,
+    gate: int,
+    approved: str,
+    *,
+    deviations: str = "",
+    by: str = "developer",
+    repo: str | None = None,
+) -> dict[str, object]:
+    devtool_dir = resolve_target_devtool_dir(root, repo)
+    with file_lock(devtool_dir):
+        hydrate_gate_ledger_jsonl_if_needed(devtool_dir)
+        state_dir = devtool_dir / "state"
+        state_dir.mkdir(parents=True, exist_ok=True)
+        res = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        commit_sha = (
+            res.stdout.strip()
+            if res.returncode == 0 and res.stdout.strip()
+            else "unknown"
+        )
+        now_utc = datetime.now(timezone.utc).isoformat()
+        entry: dict[str, object] = {
+            "timestamp": now_utc,
+            "epic": epic_slug,
+            "gate": gate,
+            "commit": commit_sha,
+            "approved": approved,
+            "deviations": deviations,
+            "by": by,
+        }
+        jsonl_path = state_dir / "gate_ledger.jsonl"
+        with jsonl_path.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(entry) + "\n")
+        render_gate_ledger_markdown(devtool_dir)
+        return entry
+
+
+def scan_gate_ledger(
+    root: Path, epic_slug: str | None = None
+) -> list[dict[str, object]]:
+    devtool_dir = root if root.name == ".devtool" else root / ".devtool"
+    hydrate_gate_ledger_jsonl_if_needed(devtool_dir)
+    jsonl_path = devtool_dir / "state" / "gate_ledger.jsonl"
+    md_path = devtool_dir / "GATE_LEDGER.md"
+    entries: list[dict[str, object]] = []
+
+    if jsonl_path.exists():
+        for line in jsonl_path.read_text(encoding="utf-8").splitlines():
+            line_str = line.strip()
+            if not line_str:
+                continue
+            try:
+                data = json.loads(line_str)
+                if isinstance(data, dict):
+                    entries.append(data)
+            except Exception:
+                continue
+    elif md_path.exists():
+        entries = parse_gate_ledger_markdown(md_path)
+
+    if epic_slug:
+        norm_filter = epic_slug.replace("_", "-")
+        return [
+            e
+            for e in entries
+            if str(e.get("epic", "")) == epic_slug
+            or str(e.get("epic", "")).replace("_", "-") == norm_filter
+        ]
+
+    return entries
+
+
+def check_gate_approval(
+    root: Path,
+    epic_slug: str,
+    gate: int,
+    *,
+    repo: str | None = None,
+) -> dict[str, object] | None:
+    devtool_dir = resolve_target_devtool_dir(root, repo)
+    entries = scan_gate_ledger(devtool_dir, epic_slug=epic_slug)
+    matching = [e for e in entries if e.get("gate") == gate]
+    return matching[-1] if matching else None
+
+
 def scan_project_ledger(root: Path) -> None:
     print_section("0. PROJECT ARCHITECTURAL LEDGER (.devtool/PROJECT_LEDGER.md)")
     ledger_path = ensure_ledger(root)
@@ -940,6 +1161,8 @@ def collect_harvest_data(
                     }
                 )
 
+    gate_approvals = scan_gate_ledger(root, epic_slug=epic_filter)
+
     return {
         "ledger": ledger_text,
         "state": state_map,
@@ -947,6 +1170,7 @@ def collect_harvest_data(
         "git_status": git_status,
         "rfcs": rfcs,
         "active_tasks": active_tasks_list,
+        "gate_approvals": gate_approvals,
     }
 
 
@@ -1305,6 +1529,37 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Synchronize window.title and bar colors across all known repositories",
     )
 
+    parser.add_argument(
+        "--gate",
+        type=int,
+        choices=[1, 2, 3, 4, 5],
+        help="Record gate approval (1..5)",
+    )
+    parser.add_argument(
+        "--approved",
+        type=str,
+        default="",
+        help="Approved scope description for --gate",
+    )
+    parser.add_argument(
+        "--deviations",
+        type=str,
+        default="",
+        help="Approved deviations or Spec Errata IDs for --gate",
+    )
+    parser.add_argument(
+        "--by",
+        type=str,
+        default="developer",
+        help="Approver identity for --gate",
+    )
+    parser.add_argument(
+        "--check-gate",
+        type=int,
+        choices=[1, 2, 3, 4, 5],
+        help="Check if gate (1..5) is approved for --epic",
+    )
+
     return parser.parse_args(normalized_args)
 
 
@@ -1423,6 +1678,41 @@ def main() -> None:
         )
         return
 
+    if args.gate is not None:
+        if not args.approved.strip():
+            print(
+                "error: --approved must be non-empty when recording --gate",
+                file=sys.stderr,
+            )
+            sys.exit(2)
+        rec = record_gate_approval(
+            target_root,
+            active_epic,
+            args.gate,
+            args.approved.strip(),
+            deviations=args.deviations.strip(),
+            by=args.by.strip() or "developer",
+            repo=args.repo,
+        )
+        print(
+            f"Recorded Gate {args.gate} approval for epic '{active_epic}' at {rec.get('commit')}"
+        )
+        return
+
+    if args.check_gate is not None:
+        chk_rec = check_gate_approval(
+            target_root, active_epic, args.check_gate, repo=args.repo
+        )
+        if chk_rec is not None:
+            print(json.dumps(chk_rec))
+            sys.exit(0)
+        else:
+            print(
+                f"Gate {args.check_gate} is not yet recorded for epic '{active_epic}'",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
     # Default: Harvest context
     scan_root = target_root
     if args.json:
@@ -1431,6 +1721,16 @@ def main() -> None:
 
     scan_project_ledger(scan_root)
     scan_assistant_state(scan_root)
+    approvals = scan_gate_ledger(scan_root, epic_slug=active_epic)
+    if approvals:
+        print_section("1.5. GATE APPROVALS (.devtool/GATE_LEDGER.md)")
+        for a in approvals:
+            ep = a.get("epic")
+            g = a.get("gate")
+            ap = a.get("approved")
+            dev = a.get("deviations")
+            dev_str = f" [deviations: {dev}]" if dev else ""
+            print(f"  - Gate {g} ({ep}): {ap}{dev_str} (at {a.get('commit')})")
     scan_activity_stream(scan_root, tail_lines=args.tail)
     scan_git_status(scan_root)
     scan_open_rfcs(scan_root)

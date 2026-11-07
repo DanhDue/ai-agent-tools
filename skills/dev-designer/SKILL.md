@@ -67,7 +67,7 @@ You MUST generate two language variants for the overview document:
 Each document MUST contain the following sections:
 
 1. **Table of Contents (Mục lục)**: A linked entry for every `##` section in the document.
-2. **Meta Data**: Epic name, Status, Target Release, Platform (`Web Application`, `Flutter`, `Android Native`, `iOS Native`, `Python`, or `Rust Core`), and `Source Spec` link if this epic was derived from an approved `dev-brainstorming` spec.
+2. **Meta Data**: Epic name, Status, Target Release, Platform (`Web Application`, `Flutter`, `Android Native`, `iOS Native`, `Python`, or `Rust Core`), `Depends on epic` (`- **Depends on epic**: <comma-separated list or none>`), and `Source Spec` link if this epic was derived from an approved `dev-brainstorming` spec.
 3. **Background (Bối cảnh)**: The problem statement or context (Why are we doing this?).
 4. **Goals & Non-Goals**: Clearly define what is expected to be achieved and what is strictly out of scope to avoid scope creep.
 5. **Architecture & Technical Design**:
@@ -127,6 +127,7 @@ Each document MUST contain the following sections:
      2. *Instant AI Agent Context Injection*: Provides a dense, unambiguous behavioral contract that can be loaded into an AI Agent's context window in one shot, eliminating hallucinations and ensuring rigorous compliance during implementation or bug fixes.
 8. **Rollout Strategy & Mitigation**: Describe how to deploy this safely (e.g., phased rollout, feature flags) and fallback plans.
 9. **Kanban Tasks Breakdown**: A list of links pointing to the individual task files created in Step 2.
+10. **Spec Errata (Đính chính đặc tả)**: When an epic in-flight requires formal design corrections, scope amendments, or clarifications after initial approval, document each change under `## Spec Errata` using standardized `[SE-NN]` entries (e.g., `- [SE-01] <title>: <description>`). This section MUST be mirrored symmetrically across both `.en.md` and `.vi.md` variants, and linked in the Table of Contents.
 
 **Canonical language**: Every durable design document uses an `.en.md` and `.vi.md` pair. The
 `.en.md` variant is the source of truth for tooling/agents — always write and update it first. The
@@ -473,6 +474,17 @@ After the Epic Overview and all confirmed task files are written (or updated), c
   Follow [Commit Message Format](../../rules/CRITICAL_RULES.md#commit-message-format) — bracketed
   scope, one-line title, one bullet per task written. No `Co-Authored-By` or other trailer.
 - If `auto_commit: false`: skip staging and committing entirely.
+
+Then record Gate 2 approval in the Gate Approval Ledger:
+```bash
+python3 scripts/resume_context.py --gate 2 --epic <epic_slug> --approved "<approved task breakdown summary>"
+```
+Query or verify Gate 2 status via `python3 scripts/resume_context.py --check-gate 2 --epic <epic_slug>`.
+
+To package the epic for handoff or revise an already packaged epic:
+```bash
+python3 skills/dev-implementation/resources/scripts/package_epic.py <epic_dir> [--revise --reason "<text>"]
+```
 
 Then persist state via `python3 scripts/resume_context.py --state --epic <epic_slug>` (which automatically updates the IDE window title to `<ICON> [<REPO>] [@<account_id>] <Vietnamese Epic Name> - Stage 2: Design Approved`), emit role handoff prompts (`python3 scripts/resume_context.py --emit-prompt principal-review --epic <epic_slug>` and `python3 scripts/resume_context.py --emit-prompt implement --epic <epic_slug>`), and return to the [Handoff Choice](../dev-lifecycle/SKILL.md#handoff-choice) in
 `dev-lifecycle`, which also says when the choice applies after an update: ask the developer whether

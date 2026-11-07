@@ -124,7 +124,13 @@ def check_structure(check: Checker, stem: str, path: Path, text: str, rows: list
                           "executable task requires grounded facts, cannot be empty or 'None'")
 
 
-def check_allowed(check: Checker, stem: str, text: str, design: bool) -> None:
+def check_allowed(
+    check: Checker,
+    stem: str,
+    text: str,
+    design: bool,
+    prereq_files: set[str] | None = None,
+) -> None:
     for entry in tc.parse_allowed_files(text):
         pattern = entry.pattern
         if entry.new:
@@ -134,6 +140,11 @@ def check_allowed(check: Checker, stem: str, text: str, design: bool) -> None:
                     check.problem(f"{stem}:Files", f"{pattern} is marked (new) but already exists")
                 elif not (parent.exists() or parent.parent.exists()):
                     check.problem(f"{stem}:Files", f"{pattern} (new) has no parent or grandparent directory")
+        elif prereq_files and any(
+            tc.path_matches(p, pattern) or tc.path_matches(pattern, p)
+            for p in prereq_files
+        ):
+            pass
         elif pattern.endswith("/") or (not GLOB_CHARS.search(pattern) and (check.root / pattern).is_dir()):
             check.problem(f"{stem}:Files", f"{pattern} is a directory; list files or a glob")
         elif GLOB_CHARS.search(pattern):
@@ -232,7 +243,9 @@ def command_paths(command: str) -> tuple[list[str], str | None]:
 
 def check_grounding(check: Checker, stem: str, text: str, rows: list[Any], created: set[str]) -> None:
     for context in tc.parse_read_only_context(text):
-        if not (check.root / context).exists() and context not in created:
+        if not (check.root / context).exists() and not any(
+            tc.path_matches(p, context) or tc.path_matches(context, p) for p in created
+        ):
             check.problem(f"{stem}:Files", f"Read-only context {context} does not exist and is not (new) in any task")
     for row in rows:
         try:
@@ -378,7 +391,14 @@ def check_weak_bdd(check: Checker, source_name: str, text: str) -> None:
             check.problem(f"{source_name}:{line_num}", f"weak BDD assertion found: {m.group(0)!r}")
 
 
-def check_task(check: Checker, path: Path, text: str, design: bool, created: set[str]) -> None:
+def check_task(
+    check: Checker,
+    path: Path,
+    text: str,
+    design: bool,
+    created: set[str],
+    prereq_files: set[str] | None = None,
+) -> None:
     stem = path.stem
     rows = table_rows(check, stem, text)
     check_structure(check, stem, path, text, rows)
@@ -392,7 +412,7 @@ def check_task(check: Checker, path: Path, text: str, design: bool, created: set
     if design or not (status and status.group(1) == "done"):
         if is_python_task(text, rows):
             check_python_tier_b(check, stem, rows)
-        check_allowed(check, stem, text, design)
+        check_allowed(check, stem, text, design, prereq_files)
         check_evidence(check, stem, text, design)
         check_grounding(check, stem, text, rows, created)
 
@@ -494,7 +514,18 @@ def main(argv: list[str] | None = None) -> int:
         check = Checker(repository_root())
         hld_text = read_file(args.hld)
         tasks = {path: read_file(path) for path in args.tasks}
-        created = {entry.pattern for text in tasks.values() for entry in tc.parse_allowed_files(text) if entry.new}
+        prereq_dirs, prereq_errors = tc.resolve_prerequisite_epic_dirs(
+            check.root, hld_text, args.hld.parent.name
+        )
+        for err in prereq_errors:
+            check.problem(str(args.hld), err)
+        prereq_files, _ = tc.collect_prerequisite_artifacts(check.root, prereq_dirs)
+        created = {
+            entry.pattern
+            for text in tasks.values()
+            for entry in tc.parse_allowed_files(text)
+            if entry.new
+        } | prereq_files
         created |= {
             entry.pattern
             for text in tasks.values()
@@ -502,7 +533,7 @@ def main(argv: list[str] | None = None) -> int:
             if entry.new and not Path(entry.pattern).name.startswith("task_")
         }
         for path, text in tasks.items():
-            check_task(check, path, text, args.design, created)
+            check_task(check, path, text, args.design, created, prereq_files)
         check_hld(check, args.hld, hld_text, tasks)
         if args.design:
             check_r2_r3_parity(check, args.hld, tasks)

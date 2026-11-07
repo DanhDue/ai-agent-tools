@@ -127,7 +127,7 @@ flowchart TD
 - **`skills/dev-implementation/resources/scripts/package_epic.py` and `skills/dev-lifecycle/references/handoff-template.md` (`#0015`)**:
   - CLI signature:
     ```bash
-    package_epic.py <epic_dir> [--revise --reason "<summary>"] [--status "<hld_status>"]
+    package_epic.py <epic_dir> [--revise --reason "<summary>"] [--force]
     ```
   - Template update (`skills/dev-lifecycle/references/handoff-template.md`):
     - Replace line 71 (`"This file is a dated record. It is never updated after packaging."`) with `"This file is updated only by package_epic.py --revise, which records each re-anchoring under ## Revisions."` and add a `## Revisions` section plus its `- [Revisions](#revisions)` Table of Contents entry.
@@ -135,7 +135,8 @@ flowchart TD
     1. Runs `check_epic_readiness.py <epic_dir>` first; if readiness fails, prints the readiness report and exits `1` without writing `handoff.md`.
     2. Resolves `design_commit = git rev-parse --short HEAD` and `base_branch` (`main` or `develop`).
     3. When `--revise` is NOT passed (initial packaging):
-       - Updates `<epic_dir>.{en,vi}.md` `Status` to `Packaged (<YYYY-MM-DD>)` (or `--status` / existing `Queued (backlog)` status if any task is `backlog`) and writes `.devtool/epic/<epic_dir>/handoff.md` rendered from `skills/dev-lifecycle/references/handoff-template.md` on disk. The developer commits the HLD status update and `handoff.md` together as `[<EPIC_NAME>] Package epic for handoff`.
+       - Updates `<epic_dir>.{en,vi}.md` `Status` to `Packaged (<YYYY-MM-DD>)` (or existing `Queued (backlog)` status if any task is `backlog`) and writes `.devtool/epic/<epic_dir>/handoff.md` rendered from `skills/dev-lifecycle/references/handoff-template.md` on disk. The developer commits the HLD status update and `handoff.md` together as `[<EPIC_NAME>] Package epic for handoff`.
+       - If `handoff.md` already exists, refuses to overwrite with exit code `1` unless `--force` is passed.
     4. When `--revise` IS passed (post-packaging revision):
        - Requires `--reason "<summary>"` (exiting `2` if `--reason` is missing or empty) and requires `.devtool/epic/<epic_dir>/handoff.md` to exist.
        - Extracts the previous `Design commit` (`<old_sha>`) from `handoff.md`.
@@ -166,6 +167,7 @@ flowchart TD
 ## Error Handling and Edge Cases
 
 - **Cyclic or Missing `Depends on epic:` Declarations**: `resolve_prerequisite_epic_dirs()` detects cycles (`A -> B -> A`) and missing directories, reporting a deterministic `R7 FAIL` finding without infinite recursion.
+- **Re-running Packaging Without `--revise` on Existing Handoff**: Calling `package_epic.py <epic_dir>` without `--revise` when `handoff.md` already exists exits with code `1` and refuses to overwrite existing `Open Notes` and revisions, unless `--force` is provided.
 - **Revising an Unpackaged Epic**: Calling `package_epic.py <epic_dir> --revise` when `handoff.md` does not exist or without `--reason` exits with code `2` and a clear usage error.
 - **Promoting an Epic Blocked by Prerequisites or File Conflicts**: `sync_task_status.py promote <epic_dir>` refuses to transition tasks from `backlog` to `todo` (exiting `1`) if any prerequisite epic is not `Done` or any active epic touches overlapping `Allowed files`, unless `--force` is explicitly provided.
 - **Missing `--approved` Text on `--gate`**: `scripts/resume_context.py --gate <n>` without a non-empty `--approved` string exits with code `2` so empty approvals can never be logged.

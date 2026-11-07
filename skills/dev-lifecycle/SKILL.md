@@ -45,17 +45,16 @@ Every durable design document produced by this lifecycle MUST be emitted as a sy
 
 ### Markdown Formatting & Quality Standards
 
-Every markdown document produced by this lifecycle MUST pass markdown quality standards:
-- **Heading Hierarchy**: Exactly one top-level `# Title` (H1) at the start of the file. Heading levels increment by one without skipping. Space after `#`. No trailing punctuation in headings.
-- **Fenced Code Blocks**: Specify a valid language tag (e.g. `bash`, `markdown`, `python`, `json`). Bare fences without a language are prohibited. Runtime skills MUST NOT contain diagram code fences.
-- **Lists**: Consistent list markers (`-` for unordered lists), proper indentation, and blank lines around lists.
-- **Links & Anchors**: Relative file links must resolve on disk; heading anchor fragments (`#anchor`) must match existing headings.
-- **Formatting Hygiene**: No trailing whitespace, no hard tabs, maximum 1 consecutive blank line, and trailing newline.
-- **Diagram Standards**: Human documentation (`docs/lifecycles.*.md`, HLDs) follows modern linting standards (`flowchart` over `graph`, quoted node labels containing special characters, valid alphanumeric IDs).
+Documents MUST satisfy markdown quality standards:
+- **Heading Hierarchy**: Single H1 `# Title`, levels increment by one, space after `#`, no trailing punctuation.
+- **Fenced Code Blocks**: Valid language tag (e.g. `bash`, `python`). Bare fences forbidden; runtime skills omit diagrams.
+- **Lists & Links**: Consistent `-` markers. Relative links resolve; heading anchors match targets.
+- **Formatting Hygiene**: No trailing whitespace, hard tabs, consecutive blank lines, or missing trailing newline.
+- **Diagram Standards**: Human docs (`docs/lifecycles.*.md`, HLDs) use `flowchart` over `graph` with quoted labels.
 
 ## The Five Gates
 
-Every gate is a **human approval** except Gate 4, which is a machine verdict. Never cross one on your own judgement.
+Every gate is a **human approval** except Gate 4, which is a machine verdict. Never cross one on your own judgement. Gate decisions are recorded in `.devtool/GATE_LEDGER.md` and queried via `python3 scripts/resume_context.py --gate <1..5>` and `--check-gate <1..5>`.
 
 | Gate | Name | Approver | Enforced in | Handoff artefact |
 |------|------|----------|-------------|------------------|
@@ -87,6 +86,7 @@ If dev-brainstorming decomposed the request into several sub-project specs, **ro
 - **Entry:** Gate 1 spec in `.devtool/epic/<epic_dir>/`.
 - **Exit (Gate 2):** user has confirmed the proposed task list and granularity.
 Treat the approved spec as the source of truth for scope and decisions already made.
+When an epic depends on other epics, declare `- **Depends on epic**: <epic_slug_or_dir>[, ...]` in the HLD Meta Data. Design-time contracts and readiness resolution will ground against prerequisite artifacts.
 
 ### Handoff Choice
 
@@ -98,7 +98,11 @@ Between Gate 2 and Stage 3 the developer decides when, and by whom, the epic is 
 > 2. **Continue** — enter Stage 3 now (`dev-implementation`, starting with Gate 3: execution order).
 
 **Continue** → invoke `dev-implementation`.
-**Package** → run packaging procedure:
+**Package** → run packaging procedure directly or via `package_epic.py`:
+```bash
+python3 skills/dev-implementation/resources/scripts/package_epic.py <epic_dir> [--revise --reason "<reason>"]
+```
+Manual packaging steps (if not using `package_epic.py`):
 1. **Preflight, read-only.** Must exit 0: `python3 "$SCRIPTS"/check_epic_readiness.py <epic_dir>` (runs `check_task_contract.py --design`). Its first line gives the task count.
 2. Copy `references/handoff-template.md` to `.devtool/epic/<epic_dir>/handoff.md` and fill every placeholder; `<N>` is the task count the preflight printed. Add conversation decisions and risks into Open Notes.
 3. Lint it: `python3 "$CHECK_DOC" --require-toc .devtool/epic/<epic_dir>/handoff.md`.
@@ -108,7 +112,7 @@ Between Gate 2 and Stage 3 the developer decides when, and by whom, the epic is 
    grep -n -E '^- \*\*(Status|Trạng thái)\*\*: Packaged' \
      .devtool/epic/<epic_dir>/<epic_dir>.en.md .devtool/epic/<epic_dir>/<epic_dir>.vi.md
    ```
-   Two matching lines are required; with fewer, set the Status line by hand in both variants. If the Status read `Queued (backlog) — behind <epic>` before packaging, run the script with `"Packaged (queued behind <epic>)"` instead and copy that line into Open Notes; the `grep` still matches.
+   Two matching lines required; otherwise set Status by hand in both variants. If previously queued, use `"Packaged (queued behind <epic>)"` and copy into Open Notes.
 5. Commit if `auto_commit: true`: `git commit -m "[<EPIC_NAME>] Package epic for handoff"`.
 6. Offer to push only with explicit permission.
 7. Persist state (`resume_context.py --state --epic <epic_slug>`), emit prompts (`--emit-prompt principal-review` and `implement`), and print `handoff.md` path.
@@ -119,7 +123,8 @@ Between Gate 2 and Stage 3 the developer decides when, and by whom, the epic is 
 **Entry:** Gate 2 passed, HLD and `task_*.md` exist, and Continue chosen (or resuming packaged/interrupted epic).
 **Exit (Gate 5):** Gate 4 is 🟢 LGTM and user approves Kanban completion.
 
-- **Gate 3 (Execution Order)**: Present computed execution order and get user confirmation **before** creating worktrees or dispatching subagents.
+- **Prerequisites & Concurrency Check**: If `Depends on epic:` is declared, verify prerequisites via `sync_task_status.py check-prereqs <epic_dir>`. If queued behind another epic, inspect conflicts via `sync_task_status.py check-conflicts <epic_dir>` and promote when confirmed via `sync_task_status.py promote <epic_dir> [--force]`.
+- **Gate 3 (Execution Order)**: Present computed execution order and get user confirmation **before** creating worktrees or dispatching subagents. Record Gate 3 in `.devtool/GATE_LEDGER.md` via `resume_context.py --gate 3`.
 - **Execution**: One worktree, one task at a time, one commit per task, docs kept truthful. Rebase and integrate with `develop` after each task.
 
 **Review Choice loop**:
@@ -146,8 +151,8 @@ Gate 4 grants `🟢 LGTM` only when:
 3. `@quality_check` returns aggregated verdict of **PASS** with `profile: "epic"` against `<base_ref>` bound to candidate `repository_sha`.
 
 Gate 4 conditions:
-1. **Normalized Invocation Contract**: Explicit profile `epic`, target `base_ref`, and candidate `repository_sha`.
-2. **Deterministic Aggregation**: All registered providers resolve cleanly under `FAIL > BLOCKED > PASS`.
+1. **Contract**: Explicit profile `epic`, target `base_ref`, and candidate `repository_sha`.
+2. **Aggregation**: Registered providers resolve under `FAIL > BLOCKED > PASS`.
 3. **No Partial Approvals**: `BLOCKED` cannot approve.
 4. **Candidate Immutability**: A 🟢 verdict belongs strictly to the tested SHA. If commits change after Gate 4, a fresh traceability check and epic quality run are required before landing.
 
@@ -190,7 +195,7 @@ Never advance on a partial pass or re-run isolated checks.
 - Changing Verification tables, Allowed files, or protected paths without stopping to ask.
 - Skipping Review Choice after Gate 4 PASS or auto-selecting Finish.
 - Reusing a Gate 4 PASS after review rounds, finding decisions, or Fix commits change SHA.
-- Never pick the review CLI for the developer; picking the review CLI for the developer instead of prompting for Claude CLI, Codex CLI, or Antigravity CLI is forbidden.
+- Prohibited: picking the review CLI for the developer instead of prompting for Claude CLI, Codex CLI, or Antigravity CLI.
 - Picking the Principal Review CLI for the developer.
 - Picking the Ollama model for the developer instead of running `ollama list` and asking.
 - Acting on review findings before presenting the triage from `run_external_review.py triage`.

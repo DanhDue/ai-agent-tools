@@ -255,6 +255,9 @@ python3 -m unittest skills/dev-implementation/resources/scripts/test_run_externa
 python3 -m unittest skills/dev-implementation/resources/scripts/test_local_review.py || FAILED=1
 python3 -m unittest skills/dev-implementation/resources/scripts/test_run_task_checks.py || FAILED=1
 python3 -m unittest skills/dev-implementation/resources/scripts/test_sync_task_status.py || FAILED=1
+python3 -m pytest skills/dev-implementation/resources/scripts/test_inter_epic_dependencies.py -q || FAILED=1
+python3 -m pytest skills/dev-implementation/resources/scripts/test_concurrent_epic_backlog.py -q || FAILED=1
+python3 -m pytest skills/dev-implementation/resources/scripts/test_package_and_revise_epic.py -q || FAILED=1
 python3 -m unittest scripts/test_run_unittest_junit.py || FAILED=1
 python3 -m unittest scripts/test_verifiable_handoff_text.py || FAILED=1
 python3 -m unittest scripts/test_verifiable_handoff.py || FAILED=1
