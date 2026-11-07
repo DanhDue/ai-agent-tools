@@ -8,6 +8,32 @@ every installed machine on the old cached copy.
 
 ---
 
+## 1.26.2 — 2026-11-07
+
+Ships **Detached Background Daemon Mode** for `check-quota --ui`, **Automated Argon 7D Activation with Reset Guard**, **Anti-Bot Jitter Pacing** across multi-model pings, resilient JSON cache persistence in `quota_dashboard.html`, and a comprehensive unit test suite in `tests/test_agy_quota.py`.
+
+### Added
+
+- **Detached Background Daemon Mode for Quota Web Server** (`scripts/agy_quota.py`, `skills/check-quota/SKILL.md`):
+  - Upgrades `check-quota --ui` / `agy-quota ui` to spawn a detached background server (`start_new_session=True`, PID tracking in `/tmp/agy_quota_server.pid`, logs in `/tmp/agy_quota_server.log`), freeing the terminal immediately (<0.2s) so developers can safely close the terminal without terminating the live dashboard.
+  - Adds `check-quota --stop` to cleanly kill daemon processes and release port 8765, and `check-quota --status` to inspect active PID, URL, and logs.
+  - Adds `--foreground` / `-f` flag for direct terminal logging during debugging.
+  - Hardens `log_message` and `send_json` against `BrokenPipeError` to ensure terminal disconnects never crash request handlers.
+- **Automated Argon 7D Weekly Activation & Reset Guard** (`scripts/agy_quota.py`):
+  - Automatically identifies whether a profile has Argon enabled (`hasArgon: true`) and its weekly quota is at max 7D (`fraction >= 0.999` and weekly timer not yet locked in).
+  - Automatically dispatches a lightweight 1-token prompt to `--model gemini-4-argon-low` to start the 7-day rolling countdown at the beginning of the week.
+  - Adds reset-time guard preventing Argon pings when reset is under 7 hours (`is_argon_near_reset`) or when Argon is already actively counting down, preserving valuable weekly quota.
+- **Randomized Humanized Jitter & Anti-Bot Protection** (`scripts/agy_quota.py`):
+  - Enforces randomized sleep jitter (1.8s – 3.5s) between consecutive Gemini and Argon CLI turns.
+  - Enforces distinct prompt selection from `NATURAL_PROMPTS` between calls to simulate natural human pacing and prevent Google WAF / anti-abuse 429 rate limits and Terms of Service suspensions.
+- **Unit Test Suite for Quota Daemon & Rules** (`tests/test_agy_quota.py`):
+  - Adds 9 unit test cases covering daemon readiness, PID parsing, pipe resilience, Argon max 7D pinging, <7h reset skip guard, and jitter duration.
+
+### Fixed
+
+- **Resilient JSON Dashboard Extraction & Persistence** (`scripts/agy_quota.py`):
+  - Replaces first-semicolon substring slicing in `load_cached_profiles()` and `update_cached_profile()` with block-boundary matching (`\n};`), preventing corruption and truncation of `quota_dashboard.html` during atomic cache writes.
+
 ## 1.26.1 — 2026-11-07
 
 Documents sticky `.devtool/review_config.json` loading across `principal-review`, `cross-model-review`, and `dev-lifecycle`, and upgrades `load_review_config()` in `run_external_review.py` to automatically backfill newly added `DEFAULT_REVIEW_CONFIG` providers (such as `kiro`) onto untracked local `.devtool/review_config.json` files on disk.
