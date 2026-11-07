@@ -1031,6 +1031,320 @@ def fetch_codex_quota() -> dict:
     }
 
 
+def get_kiro_bin_path() -> str | None:
+    candidate = shutil.which("kiro-cli") or shutil.which("kiro")
+    if candidate and os.path.isfile(candidate):
+        return candidate
+    local_bin = os.path.join(REAL_HOME, ".local", "bin", "kiro-cli")
+    if os.path.isfile(local_bin):
+        return local_bin
+    return None
+
+
+def parse_kiro_whoami_email(output: str) -> str | None:
+    if not output or "not logged in" in output.lower():
+        return None
+    m = re.search(r"Email:\s*([^\s\r\n]+)", output)
+    if m:
+        return m.group(1).strip()
+    return None
+
+
+def parse_kiro_usage_limits(api_data: dict, email: str = "") -> dict:
+    sub_info = api_data.get("subscriptionInfo", {})
+    tier = sub_info.get("subscriptionTitle", "KIRO STUDENT")
+    overage_cfg = api_data.get("overageConfiguration", {})
+    overage_status = overage_cfg.get("overageStatus", "DISABLED")
+
+    used = 0.0
+    limit = 1000.0
+    breakdowns = api_data.get("usageBreakdownList", [])
+    if breakdowns:
+        b0 = breakdowns[0]
+        used = float(b0.get("currentUsageWithPrecision", b0.get("currentUsage", 0.0)))
+        limit = float(b0.get("usageLimitWithPrecision", b0.get("usageLimit", 1000.0)))
+
+    remaining = max(0.0, limit - used)
+    fraction = max(0.0, min(1.0, remaining / limit)) if limit > 0 else 0.0
+
+    next_date_reset = float(api_data.get("nextDateReset", 0.0))
+    now_ts = time.time()
+    reset_iso = ""
+    local_reset = ""
+    countdown = "⏱ Hết hạn"
+
+    if next_date_reset > 0:
+        dt_reset = datetime.datetime.fromtimestamp(next_date_reset, tz=datetime.timezone.utc)
+        reset_iso = dt_reset.isoformat()
+        local_reset = dt_reset.astimezone().strftime("%d/%m")
+        rem_sec = max(0, int(next_date_reset - now_ts))
+        days = rem_sec // 86400
+        hours = (rem_sec % 86400) // 3600
+        countdown = f"⏱ {days}d {hours:02d}h ({local_reset})"
+
+    status = "ACTIVE"
+    if fraction <= 0.0 and overage_status == "DISABLED":
+        status = "EXHAUSTED"
+
+    # Save to hashed SQLite session store
+    save_session_record("kiro", int(next_date_reset), int(next_date_reset), fraction, True)
+
+    return {
+        "profile": "kiro",
+        "displayName": "Kiro CLI",
+        "isProvider": True,
+        "providerType": "kiro",
+        "tier": tier,
+        "priority": 90,
+        "email": email or "Kiro CLI User",
+        "status": status,
+        "success": True,
+        "isSessionActive": True,
+        "resetTime": reset_iso,
+        "resetTimeLocal": local_reset,
+        "remainingCountdown": countdown,
+        "hasArgon": False,
+        "isCreditOnly": True,
+        "creditsPool": {
+            "name": "Monthly Credits Pool",
+            "used": round(used, 2),
+            "limit": round(limit, 2),
+            "remaining": round(remaining, 2),
+            "fraction": fraction,
+            "countdown": countdown,
+            "resetDate": local_reset,
+            "unavailable": False,
+        },
+        "gemini5h": {
+            "name": "Monthly Credits Pool",
+            "fraction": fraction,
+            "countdown": countdown,
+            "resetTime": reset_iso,
+            "resetTimeLocal": local_reset,
+            "unavailable": False,
+        },
+        "claude5h": None,
+        "geminiWeekly": None,
+        "overageStatus": overage_status,
+        "defaultModel": "auto (1.0x)",
+    }
+
+
+def fetch_kiro_quota() -> dict:
+    kiro_bin = get_kiro_bin_path()
+    if not kiro_bin:
+        return {
+            "profile": "kiro",
+            "displayName": "Kiro CLI",
+            "isProvider": True,
+            "providerType": "kiro",
+            "tier": "KIRO",
+            "priority": 90,
+            "email": "Kiro CLI (Not Installed)",
+            "status": "UNAVAILABLE",
+            "success": False,
+            "isSessionActive": False,
+            "resetTime": "",
+            "resetTimeLocal": "",
+            "remainingCountdown": "Unavailable",
+            "hasArgon": False,
+            "isCreditOnly": True,
+            "gemini5h": {
+                "name": "Monthly Credits Pool",
+                "fraction": 0.0,
+                "countdown": "N/A",
+                "resetTime": "",
+                "resetTimeLocal": "",
+                "unavailable": True,
+            },
+        }
+
+    env = {
+        "HOME": REAL_HOME,
+        "PATH": f"{REAL_HOME}/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin",
+    }
+
+    # 1. Check whoami
+    email = ""
+    try:
+        whoami_proc = subprocess.run([kiro_bin, "whoami"], env=env, capture_output=True, text=True, timeout=3.0)
+        email = parse_kiro_whoami_email(whoami_proc.stdout) or ""
+        if whoami_proc.returncode != 0 or not email:
+            return {
+                "profile": "kiro",
+                "displayName": "Kiro CLI",
+                "isProvider": True,
+                "providerType": "kiro",
+                "tier": "KIRO",
+                "priority": 90,
+                "email": "Chưa đăng nhập (Run 'kiro-cli login')",
+                "status": "NOT LOGGED IN",
+                "success": False,
+                "isSessionActive": False,
+                "resetTime": "",
+                "resetTimeLocal": "",
+                "remainingCountdown": "Chưa đăng nhập",
+                "hasArgon": False,
+                "isCreditOnly": True,
+                "gemini5h": {
+                    "name": "Monthly Credits Pool",
+                    "fraction": 0.0,
+                    "countdown": "Chưa đăng nhập",
+                    "resetTime": "",
+                    "resetTimeLocal": "",
+                    "unavailable": True,
+                },
+            }
+    except Exception as e:
+        sys.stderr.write(f"Warning: kiro-cli whoami error: {e}\n")
+
+    # 2. Query GetUsageLimits via KAS token
+    try:
+        kas_proc = subprocess.run([kiro_bin, "chat", "_", "get-kas-token"], env=env, capture_output=True, text=True, timeout=4.0)
+        if kas_proc.returncode == 0 and kas_proc.stdout:
+            kas_json = json.loads(kas_proc.stdout)
+            kas_data = kas_json.get("data", {})
+            token = kas_data.get("accessToken")
+            profile_arn = kas_data.get("profileArn")
+
+            if token and profile_arn:
+                req = urllib.request.Request(
+                    "https://q.us-east-1.amazonaws.com",
+                    headers={
+                        "Authorization": f"Bearer {token}",
+                        "Content-Type": "application/x-amz-json-1.0",
+                        "x-amz-target": "AmazonCodeWhispererService.GetUsageLimits",
+                        "User-Agent": "kiro-cli/3.1.0",
+                    },
+                    data=json.dumps({"profileArn": profile_arn}).encode("utf-8"),
+                )
+                with urllib.request.urlopen(req, timeout=4.0) as resp:
+                    api_data = json.loads(resp.read().decode("utf-8"))
+                    return parse_kiro_usage_limits(api_data, email=email)
+    except Exception as e:
+        sys.stderr.write(f"Warning: Failed to fetch online Kiro quota: {e}\n")
+
+    # 3. Fallback: session store cached snapshot
+    cached = get_session_record("kiro")
+    if cached:
+        fraction = cached.get("fraction_5h", 1.0)
+        reset_ts = cached.get("reset_5h", 0)
+        now_ts = time.time()
+        rem_sec = max(0, int(reset_ts - now_ts))
+        days = rem_sec // 86400
+        hours = (rem_sec % 86400) // 3600
+        local_date = datetime.datetime.fromtimestamp(reset_ts).strftime("%d/%m") if reset_ts > 0 else ""
+        countdown = f"⏱ {days}d {hours:02d}h ({local_date})" if reset_ts > 0 else "⏱ Cached"
+        return {
+            "profile": "kiro",
+            "displayName": "Kiro CLI",
+            "isProvider": True,
+            "providerType": "kiro",
+            "tier": "KIRO",
+            "priority": 90,
+            "email": email or "Kiro CLI User",
+            "status": "ACTIVE (Cached)",
+            "success": True,
+            "isSessionActive": True,
+            "resetTime": "",
+            "resetTimeLocal": local_date,
+            "remainingCountdown": countdown,
+            "hasArgon": False,
+            "isCreditOnly": True,
+            "creditsPool": {
+                "name": "Monthly Credits Pool",
+                "used": 0.0,
+                "limit": 1000.0,
+                "remaining": round(fraction * 1000.0, 2),
+                "fraction": fraction,
+                "countdown": countdown,
+                "resetDate": local_date,
+                "unavailable": False,
+            },
+            "gemini5h": {
+                "name": "Monthly Credits Pool",
+                "fraction": fraction,
+                "countdown": countdown,
+                "resetTime": "",
+                "resetTimeLocal": local_date,
+                "unavailable": False,
+            },
+        }
+
+    return {
+        "profile": "kiro",
+        "displayName": "Kiro CLI",
+        "isProvider": True,
+        "providerType": "kiro",
+        "tier": "KIRO",
+        "priority": 90,
+        "email": email or "Kiro CLI User",
+        "status": "IDLE",
+        "success": False,
+        "isSessionActive": False,
+        "resetTime": "",
+        "resetTimeLocal": "",
+        "remainingCountdown": "Unknown",
+        "hasArgon": False,
+        "isCreditOnly": True,
+        "gemini5h": {
+            "name": "Monthly Credits Pool",
+            "fraction": 0.0,
+            "countdown": "N/A",
+            "resetTime": "",
+            "resetTimeLocal": "",
+            "unavailable": True,
+        },
+    }
+
+
+def print_kiro_card(data: dict):
+    tier = data.get("tier", "KIRO")
+    email = data.get("email", "")
+    status = data.get("status", "ACTIVE")
+    cp = data.get("creditsPool", {})
+    used = cp.get("used", 0.0)
+    limit = cp.get("limit", 1000.0)
+    remaining = cp.get("remaining", limit - used)
+    fraction = cp.get("fraction", 1.0)
+    pct = fraction * 100.0
+    countdown = cp.get("countdown", "")
+
+    if status == "ACTIVE":
+        status_tag = f"\033[38;2;114;188;130m🟢 {status}\033[0m"
+    elif status == "NOT LOGGED IN":
+        status_tag = f"\033[38;2;245;158;11m🔑 {status}\033[0m"
+    else:
+        status_tag = f"\033[38;2;239;68;68m🔴 {status}\033[0m"
+
+    tier_tag = f"\033[48;2;88;28;135m\033[1;37m ◆ {tier} \033[0m"
+    tag_priority = "\033[48;2;24;27;38m\033[38;2;160;174;192m Priority: 90 \033[0m"
+
+    print(f"\n{BOLD}{WHITE}✦ Provider: {CYAN}Kiro CLI{RESET}  {tier_tag}  {tag_priority}  {status_tag}")
+    if email:
+        print(f"  {DIM}Email: {email}{RESET}")
+
+    fill_col, track_col = get_color_pair(pct)
+    bar_w = 40
+    filled = int(round(fraction * bar_w))
+    empty = bar_w - filled
+    bar_str = f"[{fill_col}{'█' * filled}{RESET}{track_col}{'░' * empty}{RESET}] {fill_col}{pct:5.1f}% remaining{RESET}"
+
+    w = 72
+    print(f" ┌{'─' * w}┐")
+    print(f" │  {BOLD}Monthly Credits Pool{RESET}{' ' * (w - 22)}│")
+    print(f" │  {bar_str}{' ' * max(0, w - str_vis_width(bar_str) - 2)}│")
+    sub_text = f"{remaining:,.2f} / {limit:,.1f} credits (Used: {used:,.2f})   {countdown}"
+    print(f" │  {DIM}{sub_text}{RESET}{' ' * max(0, w - str_vis_width(sub_text) - 2)}│")
+    print(f" ├{'─' * w}┤")
+    footer_text = f"Default Model: auto (1.0x)   •   Overages: {data.get('overageStatus', 'Disabled')}"
+    print(f" │  {DIM}{footer_text}{RESET}{' ' * max(0, w - str_vis_width(footer_text) - 2)}│")
+    print(f" └{'─' * w}┘")
+    print(f" {DIM}⚙️  Actions:{RESET}")
+    print(f"   \033[38;2;56;189;248m⚡ Refresh nhanh\033[0m : {DIM}check-quota refresh kiro{RESET}")
+    print(f"   \033[38;2;114;188;130m🎯 Quản lý account\033[0m: {DIM}kiro-cli whoami{RESET}\n")
+
+
 def load_cached_profiles() -> dict:
     global CACHED_PROFILES_DATA
     if CACHED_PROFILES_DATA:
@@ -1038,6 +1352,8 @@ def load_cached_profiles() -> dict:
             CACHED_PROFILES_DATA["claude"] = fetch_claude_quota()
         if "codex" not in CACHED_PROFILES_DATA:
             CACHED_PROFILES_DATA["codex"] = fetch_codex_quota()
+        if "kiro" not in CACHED_PROFILES_DATA:
+            CACHED_PROFILES_DATA["kiro"] = fetch_kiro_quota()
         return CACHED_PROFILES_DATA
     p = get_dashboard_html_path()
     if p.is_file():
@@ -1057,12 +1373,15 @@ def load_cached_profiles() -> dict:
                         CACHED_PROFILES_DATA["claude"] = fetch_claude_quota()
                     if "codex" not in CACHED_PROFILES_DATA:
                         CACHED_PROFILES_DATA["codex"] = fetch_codex_quota()
+                    if "kiro" not in CACHED_PROFILES_DATA:
+                        CACHED_PROFILES_DATA["kiro"] = fetch_kiro_quota()
                     return CACHED_PROFILES_DATA
         except Exception as e:
             sys.stderr.write(f"Failed to load cached profiles: {e}\n")
     CACHED_PROFILES_DATA = {
         "claude": fetch_claude_quota(),
         "codex": fetch_codex_quota(),
+        "kiro": fetch_kiro_quota(),
     }
     return CACHED_PROFILES_DATA
 
@@ -1332,7 +1651,19 @@ def execute_ping_profile(profile: str, force: bool = False) -> dict:
         except Exception as e:
             return {"profile": "codex", "success": False, "duration_ms": 50, "error": str(e)}
 
-    # 3. Antigravity profile:
+    # 3. Provider: Kiro CLI
+    if profile == "kiro":
+        k_data = fetch_kiro_quota()
+        update_cached_profile("kiro", k_data)
+        rem = k_data.get("remainingCountdown", "")
+        return {
+            "profile": "kiro",
+            "success": True,
+            "duration_ms": 150,
+            "message": f"Kiro Quota đã được đồng bộ ({rem})"
+        }
+
+    # 4. Antigravity profile:
     ag_home = f"{REAL_HOME}/antigravity_homes/{profile}"
     if not os.path.isdir(ag_home):
         return {"profile": profile, "success": False, "error": f"Profile home not found: {ag_home}"}
@@ -1640,6 +1971,11 @@ class QuotaDashboardHandler(http.server.BaseHTTPRequestHandler):
                 update_cached_profile("codex", f_data)
                 self.send_json({"success": True, "profile": "codex", "duration_ms": 5, "data": f_data, "error": None})
                 return
+            if profile == "kiro":
+                f_data = fetch_kiro_quota()
+                update_cached_profile("kiro", f_data)
+                self.send_json({"success": True, "profile": "kiro", "duration_ms": 5, "data": f_data, "error": None})
+                return
 
             cached = load_cached_profiles().get(profile, {})
             was_auth_needed = not cached or cached.get("status") == "AUTH NEEDED"
@@ -1723,6 +2059,18 @@ class QuotaDashboardHandler(http.server.BaseHTTPRequestHandler):
                     "skipped": ping_res.get("skipped", False)
                 })
                 return
+            if profile == "kiro":
+                f_data = fetch_kiro_quota()
+                update_cached_profile("kiro", f_data)
+                self.send_json({
+                    "success": ping_res.get("success", False),
+                    "profile": "kiro",
+                    "duration_ms": ping_res.get("duration_ms", 10),
+                    "data": f_data,
+                    "message": ping_res.get("message"),
+                    "skipped": ping_res.get("skipped", False)
+                })
+                return
 
             if ping_res.get("is_appeal") or ping_res.get("status") == "DISABLED":
                 err_id = ping_res.get("error_id") or "856698b5-d43c-4198-962b-4db7fc3c4adb-2"
@@ -1775,7 +2123,7 @@ class QuotaDashboardHandler(http.server.BaseHTTPRequestHandler):
                 return
 
             formatted_all = {}
-            # 1. AI Providers: Claude & Codex
+            # 1. AI Providers: Claude, Codex & Kiro
             c_data = fetch_claude_quota()
             formatted_all["claude"] = c_data
             update_cached_profile("claude", c_data)
@@ -1783,6 +2131,10 @@ class QuotaDashboardHandler(http.server.BaseHTTPRequestHandler):
             x_data = fetch_codex_quota()
             formatted_all["codex"] = x_data
             update_cached_profile("codex", x_data)
+
+            k_data = fetch_kiro_quota()
+            formatted_all["kiro"] = k_data
+            update_cached_profile("kiro", k_data)
 
             # 2. Antigravity Profiles
             profiles = get_all_profiles()
@@ -2205,6 +2557,11 @@ def main():
             update_cached_profile("codex", x_data)
             print(f"{GREEN}✅ OpenAI Codex refreshed successfully!{RESET}\n")
             return
+        if sub_target == "kiro":
+            k_data = fetch_kiro_quota()
+            update_cached_profile("kiro", k_data)
+            print(f"{GREEN}✅ Kiro CLI refreshed successfully!{RESET}\n")
+            return
         ag_home = f"{REAL_HOME}/antigravity_homes/{sub_target}"
         if not os.path.isdir(ag_home):
             print(f"{RED}❌ Profile home not found: {ag_home}{RESET}\n")
@@ -2266,6 +2623,9 @@ def main():
         else:
             for r in results:
                 print_dashboard_cards(r)
+    elif target == "kiro":
+        result = fetch_kiro_quota()
+        print_kiro_card(result)
     else:
         # Single profile dashboard
         result = fetch_quota_for_profile(target)

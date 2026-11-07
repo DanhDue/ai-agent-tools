@@ -347,6 +347,9 @@ SUITES = [
     ("15", "unittest", "scripts/test_resume_context.py", 25, False),
     # 16. Session refresh CLI engine and isolation contracts are enforced
     ("16", "unittest", "skills/refresh-session/resources/scripts/test_refresh_session.py", 2, False),
+    # 17. Quota Dashboard & Kiro CLI provider tests
+    ("17", "unittest", "tests/test_kiro_quota.py", 2, True),
+    ("17", "unittest", "tests/test_agy_quota.py", 2, True),
 ]
 
 active_suites = [

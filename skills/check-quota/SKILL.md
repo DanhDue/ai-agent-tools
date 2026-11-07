@@ -32,9 +32,9 @@ The `check-quota` executable CLI is available globally in PATH:
 | Command | Description |
 |---|---|
 | `check-quota` | View detailed model cards for current active profile |
-| `check-quota <profile>` | View detailed model cards for specific profile (e.g. `check-quota danhdue`, `check-quota tess`) |
-| `check-quota all` | Scan all accounts in parallel and print tabular multi-profile summary |
-| `check-quota refresh <profile>` | Instant 1-token pre-warm ping to synchronize session quota |
+| `check-quota <profile>` | View detailed model cards for specific profile or provider (e.g. `check-quota danhdue`, `check-quota kiro`, `check-quota claude`) |
+| `check-quota all` | Scan all accounts and AI providers in parallel and print tabular multi-profile summary |
+| `check-quota refresh <profile>` | Instant pre-warm ping / token refresh to synchronize session quota (supports Antigravity profiles, Claude, Codex, and Kiro) |
 | `check-quota --ui` or `check-quota --web` | Open the interactive Dark Mode HTML dashboard in default browser as a detached daemon (can safely close Terminal) |
 | `check-quota --ui -f` | Run Quota Dashboard in foreground terminal mode (useful for debugging) |
 | `check-quota --stop` | Stop the running background Quota Dashboard web server |
