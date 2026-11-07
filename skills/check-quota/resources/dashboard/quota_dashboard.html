@@ -1731,34 +1731,35 @@
     "providerType": "claude",
     "tier": "ANTHROPIC",
     "priority": 100,
-    "email": "Anthropic Claude Pro / Team",
+    "email": "danhdue@gmail.com",
     "status": "ACTIVE",
-    "isSessionActive": false,
-    "resetTime": "2026-11-07T18:40:00.079212+00:00",
-    "resetTimeLocal": "01:40:00",
-    "remainingCountdown": "⏱ 5h 00m (Reset xong)",
+    "isSessionActive": true,
+    "resetTime": "2026-11-08T00:50:00.127104+00:00",
+    "resetTimeLocal": "07:50:00",
+    "remainingCountdown": "⏱ 4h 9m (07:50:00)",
     "hasArgon": true,
     "gemini5h": {
       "name": "Claude 5H Session Window",
-      "fraction": 0.57,
-      "countdown": "⏱ 5h 00m (Reset xong)",
-      "resetTime": "2026-11-07T18:40:00.079212+00:00",
-      "resetTimeLocal": "01:40:00",
-      "unavailable": false
+      "fraction": 0.7,
+      "countdown": "⏱ 4h 9m (07:50:00)",
+      "resetTime": "2026-11-08T00:50:00.127104+00:00",
+      "resetTimeLocal": "07:50:00",
+      "unavailable": false,
+      "isLive": true
     },
     "claude5h": {
       "name": "Claude Session Tier",
       "fraction": 1.0,
-      "countdown": "Unified Pro 5H",
+      "countdown": "Anthropic Live API",
       "resetTime": "",
       "resetTimeLocal": "",
       "unavailable": false
     },
     "geminiWeekly": {
       "name": "Claude 7D Weekly Remaining",
-      "fraction": 0.15,
-      "countdown": "⏱ 3d 5h (11/11 07:00)",
-      "resetTime": "2026-11-11T00:00:00.079229+00:00",
+      "fraction": 0.11,
+      "countdown": "⏱ 3d 3h (11/11 07:00)",
+      "resetTime": "2026-11-11T00:00:00.127125+00:00",
       "resetTimeLocal": "11/11 07:00",
       "unavailable": false
     },
@@ -2100,7 +2101,8 @@
         ? 'border-purple-500/80 ring-2 ring-purple-500/30 bg-purple-950/[0.04]'
         : (profile === 'kiro' ? 'border-purple-500/40 hover:border-purple-400/80 shadow-[0_4px_20px_rgba(168,85,247,0.06)]' : 'border-[var(--border)]');
 
-      const checkboxHTML = isBatchSelecting ? (canOperateQuota ? `
+      const canSchedule = canOperateQuota && profile !== 'kiro' && !data.isCreditOnly;
+      const checkboxHTML = isBatchSelecting ? (canSchedule ? `
         <label class="flex items-center mr-1 cursor-pointer select-none">
           <input 
             type="checkbox" 
@@ -2111,7 +2113,7 @@
           />
         </label>
       ` : `
-        <label class="flex items-center mr-1 opacity-25 cursor-not-allowed select-none" title="Tài khoản chưa đăng nhập hoặc bị khóa">
+        <label class="flex items-center mr-1 opacity-25 cursor-not-allowed select-none" title="${profile === 'kiro' || data.isCreditOnly ? 'Kiro CLI sử dụng credit tháng, không hỗ trợ lên lịch' : 'Tài khoản chưa đăng nhập hoặc bị khóa'}">
           <input 
             type="checkbox" 
             disabled 
@@ -2219,6 +2221,7 @@
                   <span>⚡</span> <span>Refresh nhanh</span>
                 </button>
 
+                ${(profile !== 'kiro' && !data.isCreditOnly) ? `
                 <!-- Action: Kích hoạt (Ping Model kích hoạt countdown 5H & tuần) -->
                 <button 
                   onclick="triggerActivateQuota('${profile}')" 
@@ -2255,6 +2258,7 @@
                   </button>
                   `;
           })()}
+                ` : ''}
                 ` : ''}
 
                 <!-- Action 3: Mở CLI -->
@@ -2848,7 +2852,12 @@
 
     function selectAllProfiles(select) {
       if (select) {
-        selectedBatchProfiles = new Set(Object.keys(PROFILES_DATA));
+        selectedBatchProfiles = new Set(
+          Object.keys(PROFILES_DATA).filter(p => {
+            const d = PROFILES_DATA[p];
+            return p !== 'kiro' && !d.isCreditOnly && d.status !== 'DISABLED' && d.status !== 'AUTH NEEDED';
+          })
+        );
       } else {
         selectedBatchProfiles.clear();
       }
@@ -2860,8 +2869,11 @@
       const badge = document.getElementById("selectedCountBadge");
       const setLabel = document.getElementById("confirmSetLabel");
       const count = selectedBatchProfiles.size;
-      const total = Object.keys(PROFILES_DATA).length;
-      if (badge) badge.textContent = `${count}/${total} profile`;
+      const eligibleTotal = Object.keys(PROFILES_DATA).filter(p => {
+        const d = PROFILES_DATA[p];
+        return p !== 'kiro' && !d.isCreditOnly && d.status !== 'DISABLED' && d.status !== 'AUTH NEEDED';
+      }).length;
+      if (badge) badge.textContent = `${count}/${eligibleTotal} profile`;
       if (setLabel) setLabel.textContent = count > 0 ? `Thiết lập (${count})` : "Thiết lập";
     }
 

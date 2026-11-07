@@ -1660,6 +1660,8 @@ def update_cached_profile(profile: str, data: dict):
                     new_content = content[:idx1 + len(marker)] + " " + formatted_json + ";" + content[idx2 + len(end_marker):]
                     p.write_text(new_content, encoding="utf-8")
                     sync_copies = [
+                        Path.home() / ".gemini/config/plugins/d3nexus/skills/check-quota/resources/dashboard/quota_dashboard.html",
+                        Path("/Users/danhdueexoictif/.gemini/config/plugins/d3nexus/skills/check-quota/resources/dashboard/quota_dashboard.html"),
                         Path("/Users/danhdueexoictif/antigravity_homes/huynhminhtien0510/.gemini/config/plugins/d3nexus/skills/check-quota/resources/dashboard/quota_dashboard.html"),
                         Path("/Users/danhdueexoictif/antigravity_homes/huynhminhtien0510/.gemini/antigravity/brain/faba533a-ed61-4a6e-8b53-bfbf7926cccf/quota_dashboard.html"),
                     ]

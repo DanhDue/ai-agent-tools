@@ -179,6 +179,18 @@ class TestKiroQuotaProvider(unittest.TestCase):
         script_arg = call_args[2]
         self.assertIn('do script "kiro-cli login"', script_arg)
 
+    def test_quota_dashboard_html_excludes_kiro_schedule_and_activate(self):
+        """Ensure dashboard HTML does not render activate or schedule buttons for kiro."""
+        html_path = agy_quota.get_dashboard_html_path()
+        self.assertTrue(html_path.is_file())
+        content = html_path.read_text(encoding="utf-8")
+        # Ensure activate & schedule are wrapped to exclude kiro
+        self.assertIn("${(profile !== 'kiro' && !data.isCreditOnly) ? `", content)
+        # Ensure batch checkbox excludes kiro
+        self.assertIn("const canSchedule = canOperateQuota && profile !== 'kiro' && !data.isCreditOnly;", content)
+        # Ensure selectAll excludes kiro
+        self.assertIn("p !== 'kiro' && !d.isCreditOnly", content)
+
 
 if __name__ == "__main__":
     unittest.main()
