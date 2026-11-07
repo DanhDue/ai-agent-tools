@@ -83,7 +83,16 @@ def remediate():
         print(f"  ✓ Machine ID: {new_mid[:16]}... | Device ID: {new_dev_id}")
         remediated_storage += 1
 
-        # 2. Sanitize conversation_summaries.db
+        # 2. Purge rogue symlinks in .gemini/ and .antigravity/ (ensure independent directories)
+        for parent in [".gemini", ".antigravity"]:
+            for rogue in ["antigravity", "antigravity-cli", "antigravity-ide", "antigravity-browser-profile", "antigravity-backup"]:
+                target_path = os.path.join(h, parent, rogue)
+                if os.path.islink(target_path):
+                    os.unlink(target_path)
+                    os.makedirs(target_path, exist_ok=True)
+                    print(f"  ✓ Purged rogue symlink: {parent}/{rogue} -> converted to directory")
+
+        # 3. Sanitize conversation_summaries.db
         db_path = os.path.join(h, ".gemini/antigravity/conversation_summaries.db")
         conv_dir = os.path.join(h, ".gemini/antigravity/conversations")
 
