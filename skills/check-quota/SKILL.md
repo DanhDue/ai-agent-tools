@@ -35,7 +35,10 @@ The `check-quota` executable CLI is available globally in PATH:
 | `check-quota <profile>` | View detailed model cards for specific profile (e.g. `check-quota danhdue`, `check-quota tess`) |
 | `check-quota all` | Scan all accounts in parallel and print tabular multi-profile summary |
 | `check-quota refresh <profile>` | Instant 1-token pre-warm ping to synchronize session quota |
-| `check-quota --ui` or `check-quota --web` | Open the interactive Dark Mode HTML dashboard in default browser |
+| `check-quota --ui` or `check-quota --web` | Open the interactive Dark Mode HTML dashboard in default browser as a detached daemon (can safely close Terminal) |
+| `check-quota --ui -f` | Run Quota Dashboard in foreground terminal mode (useful for debugging) |
+| `check-quota --stop` | Stop the running background Quota Dashboard web server |
+| `check-quota --status` | Check running state, PID, URL, and log path of the Quota Web Server |
 | `check-quota -h` | Display help and usage options |
 
 ## Quota Thresholds & Visual Indicators

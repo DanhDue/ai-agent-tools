@@ -21,6 +21,7 @@ import json
 import time
 import datetime
 import subprocess
+import signal
 import http.server
 import socketserver
 import urllib.parse
@@ -1043,11 +1044,14 @@ def load_cached_profiles() -> dict:
         try:
             content = p.read_text(encoding="utf-8")
             marker = "const PROFILES_DATA ="
+            end_marker = "\n};"
             idx1 = content.find(marker)
             if idx1 != -1:
-                idx2 = content.find(";", idx1)
+                idx2 = content.find(end_marker, idx1)
                 if idx2 != -1:
-                    raw_json = content[idx1 + len(marker):idx2].strip()
+                    raw_json = content[idx1 + len(marker):idx2 + len(end_marker)].strip()
+                    if raw_json.endswith(";"):
+                        raw_json = raw_json[:-1].strip()
                     CACHED_PROFILES_DATA = json.loads(raw_json)
                     if "claude" not in CACHED_PROFILES_DATA:
                         CACHED_PROFILES_DATA["claude"] = fetch_claude_quota()
@@ -1073,12 +1077,13 @@ def update_cached_profile(profile: str, data: dict):
         if p.is_file():
             content = p.read_text(encoding="utf-8")
             marker = "const PROFILES_DATA ="
+            end_marker = "\n};"
             idx1 = content.find(marker)
             if idx1 != -1:
-                idx2 = content.find(";", idx1)
+                idx2 = content.find(end_marker, idx1)
                 if idx2 != -1:
                     formatted_json = json.dumps(CACHED_PROFILES_DATA, indent=2, ensure_ascii=False)
-                    new_content = content[:idx1 + len(marker)] + " " + formatted_json + content[idx2:]
+                    new_content = content[:idx1 + len(marker)] + " " + formatted_json + ";" + content[idx2 + len(end_marker):]
                     p.write_text(new_content, encoding="utf-8")
                     sync_copies = [
                         Path("/Users/danhdueexoictif/antigravity_homes/huynhminhtien0510/.gemini/config/plugins/d3nexus/skills/check-quota/resources/dashboard/quota_dashboard.html"),
@@ -1354,30 +1359,69 @@ def execute_ping_profile(profile: str, force: bool = False) -> dict:
             "error": "Profile chưa đăng nhập CLI. Cần đăng nhập bằng Terminal trước khi ping."
         }
 
-    # Conditional Skip: Check if session is already active in SQLite session store
-    if not force:
-        sec_rec = get_session_record(profile)
-        now_ts = int(time.time())
-        if sec_rec and sec_rec.get("is_active") and sec_rec.get("reset_5h", 0) > now_ts:
-            rem_sec = sec_rec["reset_5h"] - now_ts
-            rem_str = f"{rem_sec // 3600}h {(rem_sec % 3600) // 60}m"
-            local_time_str = datetime.datetime.fromtimestamp(sec_rec["reset_5h"]).strftime("%H:%M:%S")
-            return {
-                "profile": profile,
-                "success": True,
-                "status": "ACTIVE",
-                "isSessionActive": True,
-                "skipped": True,
-                "duration_ms": 5,
-                "message": f"Phiên 5H đang active (còn {rem_str}, reset lúc {local_time_str}). Bỏ qua ping.",
-            }
+    # Inspect current Argon state for this profile:
+    cached_profiles = load_cached_profiles()
+    cached_p = cached_profiles.get(profile, {})
+    has_argon = cached_p.get("hasArgon", False)
+    argon_info = cached_p.get("argonWeekly", {})
+    argon_unavailable = argon_info.get("unavailable", False)
+    argon_fraction = argon_info.get("fraction", 0.0)
+    argon_reset = argon_info.get("resetTime", "")
+
+    now_utc = datetime.datetime.now(datetime.timezone.utc)
+    argon_rem_sec = 7 * 86400
+    if argon_reset:
+        try:
+            dt = datetime.datetime.fromisoformat(argon_reset.replace("Z", "+00:00"))
+            argon_rem_sec = (dt - now_utc).total_seconds()
+        except Exception:
+            pass
+
+    # Argon Activation Rules:
+    # 1. Tự động kích hoạt nếu vẫn max 7D: fraction >= 0.999 VÀ rem_sec >= (7*86400 - 3600)
+    # 2. Nếu đã kích hoạt, reset time < 7h (rem_sec < 7 * 3600): TUYỆT ĐỐI KHÔNG GỬI
+    # 3. Nếu đã kích hoạt (chu kỳ đang chạy): KHÔNG GỬI
+    is_argon_max_7d = (argon_fraction >= 0.999) and (argon_rem_sec >= (7 * 86400 - 3600))
+    is_argon_near_reset = (argon_rem_sec < 7 * 3600)  # reset time < 7h
+
+    should_ping_argon = (
+        has_argon
+        and not argon_unavailable
+        and is_argon_max_7d
+        and not is_argon_near_reset
+    )
+
+    # Gemini 5H status:
+    sec_rec = get_session_record(profile)
+    now_ts = int(time.time())
+    is_gemini_active = (
+        sec_rec
+        and sec_rec.get("is_active")
+        and sec_rec.get("reset_5h", 0) > now_ts
+    )
+    should_ping_gemini = force or (not is_gemini_active)
+
+    # If neither needs pinging, skip cleanly
+    if not should_ping_gemini and not should_ping_argon:
+        rem_sec = sec_rec["reset_5h"] - now_ts if sec_rec else 0
+        rem_str = f"{rem_sec // 3600}h {(rem_sec % 3600) // 60}m"
+        local_time_str = datetime.datetime.fromtimestamp(sec_rec["reset_5h"]).strftime("%H:%M:%S") if sec_rec else ""
+        argon_status_str = "Argon < 7h (bỏ qua)" if is_argon_near_reset else "Argon đã kích hoạt"
+        return {
+            "profile": profile,
+            "success": True,
+            "status": "ACTIVE",
+            "isSessionActive": True,
+            "skipped": True,
+            "duration_ms": 5,
+            "message": f"Phiên 5H đang active (còn {rem_str}, reset lúc {local_time_str}). {argon_status_str}. Bỏ qua ping.",
+        }
 
     # Unlock keychain if needed
     profile_kc = f"{ag_home}/Library/Keychains/{profile}.keychain-db"
     if os.path.exists(profile_kc):
         subprocess.run(["security", "unlock-keychain", "-p", KC_PASS, profile_kc], capture_output=True)
 
-    prompt = random.choice(NATURAL_PROMPTS)
     env = os.environ.copy()
     env.update({
         "HOME": ag_home,
@@ -1386,34 +1430,109 @@ def execute_ping_profile(profile: str, force: bool = False) -> dict:
         "TMPDIR": f"/tmp/ag_{profile}",
         "BROWSER": "true",
     })
+
     t0 = time.time()
-    try:
-        res = subprocess.run([AGY_BIN, "-p", prompt], env=env, capture_output=True, text=True, timeout=25)
-        dur = int((time.time() - t0) * 1000)
-        out_all = (res.stdout or "") + " " + (res.stderr or "")
+    pinged_gemini = False
+    pinged_argon = False
+    jitter_applied = 0.0
+    prompt_gem = ""
 
-        appeal_out_id = check_profile_appeal_status(profile, out_all)
-        if appeal_out_id:
-            return {
-                "profile": profile,
-                "success": False,
-                "status": "DISABLED",
-                "is_appeal": True,
-                "error_id": appeal_out_id,
-                "duration_ms": dur,
-                "error": "Tài khoản bị vô hiệu hóa do vi phạm Điều khoản (Terms of Service / Submit an appeal)"
-            }
+    # 1. Ping Gemini default model (if needed)
+    if should_ping_gemini:
+        prompt_gem = random.choice(NATURAL_PROMPTS)
+        try:
+            res = subprocess.run([AGY_BIN, "-p", prompt_gem], env=env, capture_output=True, text=True, timeout=25)
+            out_all = (res.stdout or "") + " " + (res.stderr or "")
+            appeal_out_id = check_profile_appeal_status(profile, out_all)
+            if appeal_out_id:
+                return {
+                    "profile": profile,
+                    "success": False,
+                    "status": "DISABLED",
+                    "is_appeal": True,
+                    "error_id": appeal_out_id,
+                    "duration_ms": int((time.time() - t0) * 1000),
+                    "error": "Tài khoản bị vô hiệu hóa do vi phạm Điều khoản (Terms of Service / Submit an appeal)"
+                }
+            if res.returncode == 0:
+                pinged_gemini = True
+            else:
+                return {
+                    "profile": profile,
+                    "success": False,
+                    "duration_ms": int((time.time() - t0) * 1000),
+                    "error": res.stderr.strip() or f"Gemini ping exited with code {res.returncode}"
+                }
+        except subprocess.TimeoutExpired:
+            return {"profile": profile, "success": False, "duration_ms": 25000, "error": "Gemini ping timed out (25s)"}
+        except Exception as e:
+            return {"profile": profile, "success": False, "duration_ms": 50, "error": str(e)}
 
-        if res.returncode == 0:
-            post_q = fetch_quota_for_profile(profile)
-            if post_q.get("success"):
-                format_profile_for_dashboard(profile, post_q)
-            return {"profile": profile, "success": True, "duration_ms": dur, "message": f"Kích hoạt thành công phiên 5H ({dur}ms)"}
-        return {"profile": profile, "success": False, "duration_ms": dur, "error": res.stderr.strip() or f"Code {res.returncode}"}
-    except subprocess.TimeoutExpired:
-        return {"profile": profile, "success": False, "duration_ms": 25000, "error": "Request timed out (25s)"}
-    except Exception as e:
-        return {"profile": profile, "success": False, "duration_ms": 50, "error": str(e)}
+    # 2. Ping Argon (if max 7D and not near reset)
+    if should_ping_argon:
+        # Mandatory humanized jitter between requests to eliminate bot flags
+        if pinged_gemini:
+            jitter_applied = round(random.uniform(1.8, 3.5), 2)
+            time.sleep(jitter_applied)
+
+        other_prompts = [p for p in NATURAL_PROMPTS if p != prompt_gem] or NATURAL_PROMPTS
+        prompt_argon = random.choice(other_prompts)
+        try:
+            res_arg = subprocess.run(
+                [AGY_BIN, "--model", "gemini-4-argon-low", "-p", prompt_argon],
+                env=env,
+                capture_output=True,
+                text=True,
+                timeout=25
+            )
+            out_all = (res_arg.stdout or "") + " " + (res_arg.stderr or "")
+            appeal_out_id = check_profile_appeal_status(profile, out_all)
+            if appeal_out_id:
+                return {
+                    "profile": profile,
+                    "success": False,
+                    "status": "DISABLED",
+                    "is_appeal": True,
+                    "error_id": appeal_out_id,
+                    "duration_ms": int((time.time() - t0) * 1000),
+                    "error": "Tài khoản bị vô hiệu hóa do vi phạm Điều khoản (Terms of Service / Submit an appeal)"
+                }
+            if res_arg.returncode == 0:
+                pinged_argon = True
+        except Exception:
+            pass  # Argon failure does not abort if Gemini succeeded
+
+    total_dur = int((time.time() - t0) * 1000)
+
+    # Post-ping quota refresh to update dashboard immediately
+    post_q = fetch_quota_for_profile(profile)
+    if post_q.get("success"):
+        f_data = format_profile_for_dashboard(profile, post_q)
+        update_cached_profile(profile, f_data)
+
+    # Build detailed success message
+    if pinged_gemini and pinged_argon:
+        msg = f"Kích hoạt thành công Gemini 5H & Argon 7D (Jitter {jitter_applied}s, {total_dur}ms)"
+    elif pinged_argon and not pinged_gemini:
+        msg = f"Kích hoạt thành công Argon 7D (Gemini 5H đang active, {total_dur}ms)"
+    else:
+        argon_suffix = ""
+        if has_argon:
+            if is_argon_near_reset:
+                argon_suffix = " [Argon < 7h: Bỏ qua]"
+            elif not is_argon_max_7d:
+                argon_suffix = " [Argon: Đã kích hoạt]"
+        msg = f"Kích hoạt thành công phiên 5H{argon_suffix} ({total_dur}ms)"
+
+    return {
+        "profile": profile,
+        "success": True,
+        "duration_ms": total_dur,
+        "message": msg,
+        "pinged_gemini": pinged_gemini,
+        "pinged_argon": pinged_argon,
+        "jitter_seconds": jitter_applied,
+    }
 
 
 def scan_all_profiles_parallel(profiles: list) -> list:
@@ -1439,19 +1558,25 @@ class QuotaDashboardHandler(http.server.BaseHTTPRequestHandler):
     def log_message(self, format, *args):
         if "/favicon.ico" in self.path:
             return
-        code = args[1] if len(args) > 1 else "-"
-        color = GREEN if str(code).startswith("2") else (AMBER if str(code).startswith("3") else RED)
-        sys.stdout.write(f"  {GRAY}[{time.strftime('%H:%M:%S')}]{RESET} {CYAN}{self.command}{RESET} {self.path} {color}{code}{RESET}\n")
-        sys.stdout.flush()
+        try:
+            code = args[1] if len(args) > 1 else "-"
+            color = GREEN if str(code).startswith("2") else (AMBER if str(code).startswith("3") else RED)
+            sys.stdout.write(f"  {GRAY}[{time.strftime('%H:%M:%S')}]{RESET} {CYAN}{self.command}{RESET} {self.path} {color}{code}{RESET}\n")
+            sys.stdout.flush()
+        except Exception:
+            pass
 
     def send_json(self, data, status=200):
-        body = json.dumps(data, ensure_ascii=False).encode("utf-8")
-        self.send_response(status)
-        self.send_header("Content-Type", "application/json; charset=utf-8")
-        self.send_header("Content-Length", str(len(body)))
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.end_headers()
-        self.wfile.write(body)
+        try:
+            body = json.dumps(data, ensure_ascii=False).encode("utf-8")
+            self.send_response(status)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            self.wfile.write(body)
+        except Exception:
+            pass
 
     def do_HEAD(self):
         self.send_response(200)
@@ -1742,20 +1867,205 @@ class ThreadingTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
     allow_reuse_address = True
 
 
-def run_quota_web_server(port: int = 8765, auto_open: bool = True):
-    server_running = False
+PID_FILE = Path("/tmp/agy_quota_server.pid")
+LOG_FILE = Path("/tmp/agy_quota_server.log")
+
+
+def is_server_alive(port: int = 8765) -> bool:
     try:
-        req = urllib.request.urlopen(f"http://127.0.0.1:{port}/api/status", timeout=1)
-        if req.status == 200:
-            server_running = True
+        req = urllib.request.urlopen(f"http://127.0.0.1:{port}/api/status", timeout=1.5)
+        return req.status == 200
+    except Exception:
+        return False
+
+
+def get_server_pid(port: int = 8765) -> int | None:
+    if PID_FILE.is_file():
+        try:
+            pid = int(PID_FILE.read_text().strip())
+            os.kill(pid, 0)
+            return pid
+        except Exception:
+            try:
+                PID_FILE.unlink(missing_ok=True)
+            except Exception:
+                pass
+    try:
+        out = subprocess.check_output(["lsof", "-ti", f":{port}"], text=True, stderr=subprocess.DEVNULL).strip()
+        if out:
+            pids = [int(p) for p in out.split() if p.isdigit()]
+            if pids:
+                return pids[0]
+    except Exception:
+        pass
+    return None
+
+
+def stop_server(port: int = 8765) -> bool:
+    pid = get_server_pid(port)
+    alive = is_server_alive(port)
+    if not pid and not alive:
+        print(f"\n{AMBER}ℹ️ Quota Web Server hiện không chạy trên cổng {port}.{RESET}\n")
+        return False
+
+    print(f"\n{CYAN}🛑 Đang dừng Quota Web Server (PID {pid or 'unknown'})...{RESET}")
+    killed = False
+    if pid:
+        try:
+            os.kill(pid, signal.SIGTERM)
+            for _ in range(25):
+                time.sleep(0.1)
+                try:
+                    os.kill(pid, 0)
+                except OSError:
+                    killed = True
+                    break
+            if not killed:
+                os.kill(pid, signal.SIGKILL)
+                killed = True
+        except Exception:
+            pass
+
+    try:
+        out = subprocess.check_output(["lsof", "-ti", f":{port}"], text=True, stderr=subprocess.DEVNULL).strip()
+        for p in out.split():
+            if p.isdigit():
+                try:
+                    os.kill(int(p), signal.SIGKILL)
+                    killed = True
+                except Exception:
+                    pass
     except Exception:
         pass
 
-    if server_running:
-        print(f"\n{BOLD}{GREEN}⚡ Quota Web Server đã đang hoạt động tại:{RESET} {WHITE}http://127.0.0.1:{port}{RESET}")
+    PID_FILE.unlink(missing_ok=True)
+    print(f"{BOLD}{GREEN}✅ Đã dừng Quota Web Server thành công.{RESET}\n")
+    return True
+
+
+def status_server(port: int = 8765):
+    alive = is_server_alive(port)
+    pid = get_server_pid(port)
+    if alive:
+        pid_str = f" (PID {pid})" if pid else ""
+        print(f"\n{BOLD}{GREEN}⚡ Quota Web Server đang HOẠT ĐỘNG{pid_str}:{RESET}")
+        print(f"     URL : {WHITE}http://127.0.0.1:{port}{RESET}")
+        print(f"     Logs: {GRAY}{LOG_FILE}{RESET}")
+        print(f"  💡 Mở dashboard: {CYAN}check-quota --ui{RESET}")
+        print(f"  🛑 Dừng server : {AMBER}check-quota --stop{RESET}\n")
+    else:
+        print(f"\n{GRAY}ℹ️ Quota Web Server hiện KHÔNG HOẠT ĐỘNG.{RESET}")
+        print(f"  🚀 Chạy {CYAN}check-quota --ui{RESET} để khởi động ngầm.\n")
+
+
+def start_server_daemon(port: int = 8765, auto_open: bool = True):
+    if is_server_alive(port):
+        pid = get_server_pid(port)
+        pid_str = f" (PID {pid})" if pid else ""
+        print(f"\n{BOLD}{GREEN}⚡ Quota Web Server đã đang hoạt động{pid_str} tại:{RESET} {WHITE}http://127.0.0.1:{port}{RESET}")
         if auto_open:
             print(f"  {CYAN}🌐 Đang mở Quota Dashboard trong trình duyệt...{RESET}\n")
             subprocess.run(["open", f"http://127.0.0.1:{port}"])
+        print(f"  {GRAY}💡 Dừng server bất cứ lúc nào bằng lệnh: {WHITE}check-quota --stop{RESET}\n")
+        return
+
+    # Cleanup any stuck PID/port
+    if PID_FILE.is_file() or get_server_pid(port):
+        stop_server(port)
+
+    LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+    log_fp = open(LOG_FILE, "a", encoding="utf-8")
+    log_fp.write(f"\n--- Quota Server daemon starting at {datetime.datetime.now().isoformat()} ---\n")
+    log_fp.flush()
+
+    script_path = str(Path(__file__).resolve())
+    cmd = [sys.executable, script_path, "_serve", "--port", str(port)]
+    proc = subprocess.Popen(
+        cmd,
+        start_new_session=True,
+        stdin=subprocess.DEVNULL,
+        stdout=log_fp,
+        stderr=log_fp,
+        close_fds=True
+    )
+    PID_FILE.write_text(str(proc.pid))
+
+    ready = False
+    for _ in range(35):
+        time.sleep(0.1)
+        if is_server_alive(port):
+            ready = True
+            break
+        if proc.poll() is not None:
+            break
+
+    if not ready:
+        print(f"\n{RED}❌ Không thể khởi động Quota Web Server ngầm.{RESET}")
+        print(f"  Vui lòng xem chi tiết lỗi tại: {WHITE}{LOG_FILE}{RESET}\n")
+        return
+
+    url = f"http://127.0.0.1:{port}"
+    print(f"\n{BOLD}{CYAN}{'='*86}{RESET}")
+    print(f"{BOLD}{GREEN}  🚀 ANTIGRAVITY MULTI-PROFILE QUOTA LIVE WEB SERVER (DAEMON){RESET}")
+    print(f"     URL : {WHITE}{url}{RESET}")
+    print(f"     PID : {WHITE}{proc.pid}{RESET}  |  Logs: {GRAY}{LOG_FILE}{RESET}")
+    print(f"{BOLD}{CYAN}{'='*86}{RESET}")
+    print(f"  ✨ {BOLD}Chạy ngầm độc lập (Detached Process):{RESET}")
+    print(f"     • Bạn có thể {BOLD}{GREEN}tắt Terminal này hoàn toàn{RESET}, web vẫn tiếp tục hoạt động!")
+    print(f"     • Tự động kết nối và tương tác Live Refresh với 23 profiles.")
+    print(f"     • Dừng server khi cần bằng lệnh: {BOLD}{AMBER}check-quota --stop{RESET}\n")
+
+    if auto_open:
+        print(f"  {CYAN}🌐 Đang mở Quota Dashboard trong trình duyệt mặc định...{RESET}\n")
+        subprocess.run(["open", url])
+
+
+def run_internal_serve(port: int = 8765):
+    # Ignore SIGHUP so terminal closing never kills the daemon
+    if hasattr(signal, "SIGHUP"):
+        signal.signal(signal.SIGHUP, signal.SIG_IGN)
+
+    def handle_term(signum, frame):
+        try:
+            PID_FILE.unlink(missing_ok=True)
+        except Exception:
+            pass
+        sys.exit(0)
+
+    signal.signal(signal.SIGTERM, handle_term)
+    signal.signal(signal.SIGINT, handle_term)
+
+    PID_FILE.write_text(str(os.getpid()))
+
+    httpd = None
+    for p in range(port, port + 10):
+        try:
+            httpd = ThreadingTCPServer(("127.0.0.1", p), QuotaDashboardHandler)
+            port = p
+            break
+        except OSError:
+            continue
+
+    if not httpd:
+        sys.stderr.write(f"Cannot bind to port {port}..{port+9}\n")
+        sys.exit(1)
+
+    try:
+        httpd.serve_forever()
+    finally:
+        httpd.server_close()
+        PID_FILE.unlink(missing_ok=True)
+
+
+def run_quota_web_server(port: int = 8765, auto_open: bool = True):
+    if is_server_alive(port):
+        pid = get_server_pid(port)
+        pid_str = f" (PID {pid})" if pid else ""
+        print(f"\n{BOLD}{GREEN}⚡ Quota Web Server đã đang hoạt động{pid_str} tại:{RESET} {WHITE}http://127.0.0.1:{port}{RESET}")
+        if auto_open:
+            print(f"  {CYAN}🌐 Đang mở Quota Dashboard trong trình duyệt...{RESET}\n")
+            subprocess.run(["open", f"http://127.0.0.1:{port}"])
+        print(f"  {GRAY}💡 Dừng server bất cứ lúc nào bằng lệnh: {WHITE}check-quota --stop{RESET}\n")
         return
 
     httpd = None
@@ -1771,9 +2081,10 @@ def run_quota_web_server(port: int = 8765, auto_open: bool = True):
         print(f"\n{RED}❌ Không thể bind cổng từ {port} đến {port + 9}. Vui lòng thử lại.{RESET}\n")
         return
 
+    PID_FILE.write_text(str(os.getpid()))
     url = f"http://127.0.0.1:{port}"
     print(f"\n{BOLD}{CYAN}{'='*86}{RESET}")
-    print(f"{BOLD}{GREEN}  🚀 ANTIGRAVITY MULTI-PROFILE QUOTA LIVE WEB SERVER{RESET}")
+    print(f"{BOLD}{GREEN}  🚀 ANTIGRAVITY MULTI-PROFILE QUOTA LIVE WEB SERVER (FOREGROUND){RESET}")
     print(f"     URL: {WHITE}{url}{RESET}")
     print(f"{BOLD}{CYAN}{'='*86}{RESET}")
     print(f"  ⚡ {BOLD}Tính năng tương tác trực tiếp (Interactive Endpoints):{RESET}")
@@ -1796,11 +2107,32 @@ def run_quota_web_server(port: int = 8765, auto_open: bool = True):
         print(f"\n{AMBER}🛑 Server đã dừng an toàn (Ctrl+C). Tạm biệt!{RESET}\n")
     finally:
         httpd.server_close()
+        PID_FILE.unlink(missing_ok=True)
 
 
 def main():
     args = sys.argv[1:]
     target = args[0] if args else None
+
+    # Handle internal server runner
+    if target == "_serve":
+        port = 8765
+        if "--port" in args:
+            idx = args.index("--port")
+            if idx + 1 < len(args) and args[idx + 1].isdigit():
+                port = int(args[idx + 1])
+        run_internal_serve(port=port)
+        return
+
+    # Handle stop
+    if target in ("--stop", "stop", "-k", "--kill"):
+        stop_server(port=8765)
+        return
+
+    # Handle status
+    if target in ("--status", "status"):
+        status_server(port=8765)
+        return
 
     # Handle help
     if target in ("-h", "--help", "help"):
@@ -1812,7 +2144,10 @@ def main():
         print("  check-quota all --table         Bảng tóm tắt gọn gàng 122 ký tự cho tất cả profiles")
         print("  check-quota ping <profile>      Gửi 1-token kích hoạt countdown 5H & tuần (Ping Model)")
         print("  check-quota refresh <profile>   Làm mới quota và đồng bộ session qua /usage")
-        print("  check-quota --ui                Mở Quota Dashboard trực quan giao diện Dark Mode\n")
+        print("  check-quota --ui                Mở Quota Dashboard trực quan (chạy ngầm, tắt terminal thoải mái)")
+        print("  check-quota --ui -f             Chạy Quota Dashboard ở foreground terminal (dành cho debug)")
+        print("  check-quota --stop              Dừng Quota Dashboard Web Server đang chạy ngầm")
+        print("  check-quota --status            Kiểm tra trạng thái Quota Web Server\n")
         return
 
     # Handle UI/Web Dashboard
@@ -1826,7 +2161,10 @@ def main():
             else:
                 print(f"\n{RED}❌ Quota dashboard file not found.{RESET}\n")
             return
-        run_quota_web_server(port=8765, auto_open=auto_open)
+        if "--foreground" in args or "-f" in args:
+            run_quota_web_server(port=8765, auto_open=auto_open)
+        else:
+            start_server_daemon(port=8765, auto_open=auto_open)
         return
 
     # Detect default profile if none specified
