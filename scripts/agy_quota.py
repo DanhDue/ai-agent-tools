@@ -2633,7 +2633,7 @@ def start_server_daemon(port: int = 8765, auto_open: bool = True):
 
     url = f"http://127.0.0.1:{port}"
     print(f"\n{BOLD}{CYAN}{'='*86}{RESET}")
-    print(f"{BOLD}{GREEN}  🚀 ANTIGRAVITY MULTI-PROFILE QUOTA LIVE WEB SERVER (DAEMON){RESET}")
+    print(f"{BOLD}{GREEN}  🚀 AI MULTI-PROFILE QUOTA LIVE WEB SERVER (DAEMON){RESET}")
     print(f"     URL : {WHITE}{url}{RESET}")
     print(f"     PID : {WHITE}{proc.pid}{RESET}  |  Logs: {GRAY}{LOG_FILE}{RESET}")
     print(f"{BOLD}{CYAN}{'='*86}{RESET}")
@@ -2711,7 +2711,7 @@ def run_quota_web_server(port: int = 8765, auto_open: bool = True):
     PID_FILE.write_text(str(os.getpid()))
     url = f"http://127.0.0.1:{port}"
     print(f"\n{BOLD}{CYAN}{'='*86}{RESET}")
-    print(f"{BOLD}{GREEN}  🚀 ANTIGRAVITY MULTI-PROFILE QUOTA LIVE WEB SERVER (FOREGROUND){RESET}")
+    print(f"{BOLD}{GREEN}  🚀 AI MULTI-PROFILE QUOTA LIVE WEB SERVER (FOREGROUND){RESET}")
     print(f"     URL: {WHITE}{url}{RESET}")
     print(f"{BOLD}{CYAN}{'='*86}{RESET}")
     print(f"  ⚡ {BOLD}Tính năng tương tác trực tiếp (Interactive Endpoints):{RESET}")
