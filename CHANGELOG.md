@@ -8,6 +8,34 @@ every installed machine on the old cached copy.
 
 ---
 
+## 1.27.0 — 2026-11-09
+
+Official release of **Kiro CLI Native Power Support**, **AI Quota Dashboard Header Overhaul**, **Claude Code Anthropic Live OAuth Usage Polling**, and **Profile Isolation & Ghost Provider Exclusion**.
+
+### Added
+
+- **Official Kiro CLI Native Power Support** (`plugin.json`, `README.md`, `scripts/release.sh`):
+  - Adds Kiro CLI as the 4th official runtime supported by `ai-agent-tools` alongside Codex, Antigravity, and Claude Code.
+  - Distributes the plugin as a native Kiro power installed directly via GitHub repo (`kiro-cli powers install https://github.com/DanhDue/ai-agent-tools.git`) or local checkout (`kiro-cli powers install .`).
+  - Shares root `plugin.json` and unified steering instructions in `AGENTS.md` across all four runtimes without duplication or configuration drift.
+  - Automates Kiro CLI power synchronization in `scripts/release.sh` on release publish.
+- **AI Quota Dashboard Header Overhaul** (`skills/check-quota/resources/dashboard/quota_dashboard.html`, `scripts/agy_quota.py`):
+  - Renames the dashboard from "Antigravity Quota Dashboard" to **AI Quota Dashboard** across page title, browser tab, and sync notifications to reflect multi-agent capabilities.
+  - Promotes fixed system metrics (Live Server address `● Live Server (127.0.0.1:8765)` and Last Sync time `● Đồng bộ ...m trước`) up to Row 1 alongside the dashboard title for visual balance.
+  - Strips redundant tags (`12 Active Profiles` and `% CÒN LẠI (REMAINING)`) from the title line.
+  - Adds quick-click **`● Tất cả`** filter button (`statBtnAll`) at the beginning of Row 2 with glowing cyan active ring indicator (`ring-2 ring-sky-400 bg-sky-500/30`).
+  - Streamlines Kiro CLI card: launches `kiro-cli` directly and removes inapplicable recurring scheduler / Argon activation buttons from the monthly credit pool.
+- **Anthropic Live API Usage Polling for Claude Code** (`scripts/agy_quota.py`, `skills/check-quota/SKILL.md`):
+  - Replaces stale offline JSON file inspection with live HTTP polling to Anthropic's OAuth API (`/v1/oauth/claude_cli/usage`).
+  - Automatically loads access tokens from macOS Keychain (`Claude Code-credentials`) or `~/.claude.json`.
+  - Accurately captures live token percentages, 5-hour rolling session reset countdowns, and 7-day rate limit statistics with automatic fallback to local cache.
+
+### Fixed
+
+- **Ghost Profile & AI Provider Conflict Prevention** (`scripts/agy_quota.py`):
+  - Excludes provider names (`kiro`, `claude`, `codex`) in `get_all_profiles()`, preventing accidental or obsolete directories in `antigravity_homes/` (such as `antigravity_homes/kiro`) from registering as Antigravity profiles.
+  - Adds strict safety guards in `format_profile_for_dashboard()` to guarantee AI Provider cards are never overwritten or marked as "Auth Needed" by profile enumeration scans.
+
 ## 1.26.3 — 2026-11-08
 
 Integrates **Kiro CLI Quota Provider** (`check-quota kiro`), establishes **Local Profile Isolation & Remediation Rules** (preventing Attention Dilution / "Lost in the Middle" while protecting macOS host services and eliminating stale RAM process overwrites), delivers the **Dreamy Purple Theme & Mascot 👻** for Kiro, and adds **4-Category Account Filtering** in both the Web Dashboard and Terminal CLI.

@@ -3,9 +3,9 @@
 Shared AI agent tooling for mobile app projects — **Flutter**, **Android Native**, and
 **iOS Native**. One repository, installed once per machine, serving every project.
 
-Works in **Codex**, **Antigravity**, and **Claude Code** from a single source: `skills/` and
+Works in **Codex**, **Antigravity**, **Claude Code**, and **Kiro CLI** from a single source: `skills/` and
 `rules/` are written once, with a thin manifest for each runtime. Rule loading differs by runtime;
-see [per-project setup](#14-per-project-setup).
+see [per-project setup](#15-per-project-setup).
 
 | | |
 |---|---|
@@ -39,7 +39,8 @@ The product discovery suite is described in [3.6](#36-the-upstream-product-disco
   - [1.1. Claude Code](#11-claude-code)
   - [1.2. Antigravity](#12-antigravity)
   - [1.3. Codex](#13-codex)
-  - [1.4. Per-project setup](#14-per-project-setup)
+  - [1.4. Kiro CLI](#14-kiro-cli)
+  - [1.5. Per-project setup](#15-per-project-setup)
 - [2. Daily workflow](#2-daily-workflow)
   - [2.1. Where the single source of truth is](#21-where-the-single-source-of-truth-is)
   - [2.2. Editing a skill and republishing](#22-editing-a-skill-and-republishing)
@@ -120,7 +121,24 @@ Plugins Directory is a separate process: submit a skills-only package, complete 
 publish after approval. See [OpenAI's publishing guide](https://developers.openai.com/plugins/deploy/submission)
 and [plugin packaging reference](https://developers.openai.com/plugins/build/plugins).
 
-### 1.4. Per-project setup
+### 1.4. Kiro CLI
+
+Install the power directly into Kiro CLI via GitHub repository URL:
+
+```bash
+kiro-cli powers install https://github.com/DanhDue/ai-agent-tools.git
+```
+
+Or from a local checkout of this repository:
+
+```bash
+cd ~/AllProjects/ai-agent-tools
+kiro-cli powers install .
+```
+
+Kiro automatically discovers the shared skills and rules via `plugin.json` and `AGENTS.md`. Start a new chat session to activate the power.
+
+### 1.5. Per-project setup
 
 The plugin supplies skills and rule files. Each project still needs an entry point. From a
 working clone of this repository, run:
@@ -223,6 +241,12 @@ claude plugin update d3nexus@danhdue-agent-tools
 git -C ~/.gemini/config/plugins/d3nexus pull
 ```
 
+**Kiro CLI**:
+
+```bash
+kiro-cli powers install https://github.com/DanhDue/ai-agent-tools.git
+```
+
 ### 2.4. Command reference
 
 | Command | Purpose |
@@ -238,6 +262,8 @@ git -C ~/.gemini/config/plugins/d3nexus pull
 | `claude plugin validate <path>` | Check manifests before publishing |
 | `claude plugin disable d3nexus` / `enable` | Toggle without uninstalling |
 | `claude plugin uninstall d3nexus` | Remove it |
+| `kiro-cli powers install <path-or-url>` | Install or update power in Kiro CLI |
+| `kiro-cli powers uninstall d3nexus` | Remove power from Kiro CLI |
 
 ---
 
@@ -271,16 +297,16 @@ so installed copies retain their relative references.
 
 Worth knowing, because it explains why the layout looks the way it does:
 
-| | Antigravity | Claude Code | Codex |
-|---|---|---|---|
-| Plugin manifest | root `plugin.json` | `.claude-plugin/plugin.json` | `.codex-plugin/plugin.json` |
-| Distribution | clone into `~/.gemini/config/plugins/` | marketplace + versioned cache | marketplace + managed plugin cache |
-| Picking up a release | `git pull` | marketplace update + plugin update | marketplace upgrade + plugin add; new thread |
-| Project entry point | `AGENTS.md` | `CLAUDE.md` → `AGENTS.md` | `AGENTS.md` |
-| Loading Markdown rules | native discovery | explicit `@` imports | explicit instructions to read the rule files |
-| Rule frontmatter `trigger: always_on` | honoured | ignored | not a Codex rule mechanism |
+| | Antigravity | Claude Code | Codex | Kiro CLI |
+|---|---|---|---|---|
+| Plugin manifest | root `plugin.json` | `.claude-plugin/plugin.json` | `.codex-plugin/plugin.json` | root `plugin.json` |
+| Distribution | clone into `~/.gemini/config/plugins/` | marketplace + versioned cache | marketplace + managed plugin cache | `kiro-cli powers install <path-or-url>` |
+| Picking up a release | `git pull` | marketplace update + plugin update | marketplace upgrade + plugin add; new thread | `kiro-cli powers install <path-or-url>` |
+| Project entry point | `AGENTS.md` | `CLAUDE.md` → `AGENTS.md` | `AGENTS.md` | `AGENTS.md` |
+| Loading Markdown rules | native discovery | explicit `@` imports | explicit instructions to read the rule files | `AGENTS.md` instructions |
+| Rule frontmatter `trigger: always_on` | honoured | ignored | not a Codex rule mechanism | ignored |
 
-All three load skills by **progressive disclosure**: only `name` and `description` enter the context
+All four load skills by **progressive disclosure**: only `name` and `description` enter the context
 window; the body is read when the skill activates. Keep `SKILL.md` concise and push bulk into the
 skill's own `references/`, `scripts/`, `resources/` or `examples/` subdirectory.
 

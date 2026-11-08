@@ -1,46 +1,47 @@
-# Release Notes: d3nexus v1.26.3
+# Release Notes: d3nexus v1.27.0
 
-**Release Date:** November 08, 2026  
-**Version:** `1.26.3`  
-**Git Tag:** `v1.26.3`, `d3nexus--v1.26.3`
+**Release Date:** November 09, 2026  
+**Version:** `1.27.0`  
+**Git Tag:** `v1.27.0`, `d3nexus--v1.27.0`
 
 ---
 
 ## Executive Summary
 
-`v1.26.3` delivers full integration of **Kiro CLI Quota Provider** (`check-quota kiro`), establishes the **Local Profile Isolation & Remediation Rules** (preventing Attention Dilution / "Lost in the Middle" while protecting host macOS services and eliminating stale RAM process overwrites), brings the **Dreamy Purple Theme & Mascot 👻** for Kiro, and introduces **4-Category Account Filtering** with streamlined statistics across both the Web Dashboard and Terminal CLI.
+`v1.27.0` establishes official native runtime support for **Kiro CLI** via Kiro powers (`kiro-cli powers install`), delivers a comprehensive header and visual overhaul to the **AI Quota Dashboard** (inline server address and sync indicators, quick-select "Tất cả" filter button, duplicate tag elimination), introduces **Anthropic Live OAuth API Polling** for Claude Code usage, and hardens profile isolation to prevent AI Provider cards from being shadowed by ghost profiles in `antigravity_homes/`.
 
 ---
 
 ## Key Highlights
 
-### 1. Kiro CLI Quota Provider Integration
-- **3rd Core AI Provider**: Integrates `kiro-cli` alongside Claude Code and OpenAI Codex in multi-profile quota management.
-- **AWS Token & Credits Extraction**: Directly parses AWS CodeWhisperer `GetUsageLimits` tokens, Monthly Credits Pool (used, limit, remaining, countdown timer, model tier, and overages).
-- **Commands**:
-  - `check-quota kiro`: Prints interactive terminal card with progress bar, remaining quota, and model details.
-  - `check-quota all --providers`: Displays summary across all 3 AI Providers (Claude, Codex, Kiro).
-- **Unit Test Suite**: 7 unit tests in `tests/test_kiro_quota.py` verifying response parsing, color thresholds, offline fallback, and unauthenticated state handling.
+### 1. Official Kiro CLI Native Power Support
+- **4th Official AI Runtime**: Designates Kiro CLI alongside Antigravity, Claude Code, and OpenAI Codex as a first-class supported platform.
+- **Native Power Distribution**: Installable directly with a single command:
+  ```bash
+  kiro-cli powers install https://github.com/DanhDue/ai-agent-tools.git
+  ```
+  or locally during development:
+  ```bash
+  kiro-cli powers install .
+  ```
+- **Unified Single Source of Truth**: Reuses root `plugin.json` and `AGENTS.md` steering guidelines without duplication or configuration drift.
+- **Automated Sync**: Release automation in `scripts/release.sh` now automatically refreshes local Kiro powers on release publish.
 
-### 2. Local Profile Isolation & Anti-Contamination Rules
-- **Anti-Attention Dilution Architecture**: Rules for profile remediation and OS Keychain boundaries are kept localized in `.agents/rules/profile_isolation_rules.md` and `skills/audit-account-block/references/profile-isolation-and-remediation.md` (progressive disclosure) to prevent context pollution and "Lost in the Middle" during regular coding tasks.
-- **Process Fencing (Zero Stale RAM Overwrites)**: Automatically checks and terminates resident Antigravity IDE / agy processes (`pkill -9 -f antigravity_homes/<profile>`) before modifying `state.vscdb`, eliminating stale Electron RAM from continually overwriting repaired database state.
-- **Stale `signedOut` Token Elimination**: Purges `antigravityUnifiedStateSync.oauthToken` in `ItemTable` to prevent silent fallback to the root/default profile.
-- **Atomic Launch Window**: Establishes safe launch isolation in `ag_run()` via temporary 2.5s search-list promotion of profile keychain followed by automated rollback to `login.keychain-db`, preserving macOS host daemons (AirDrop, Apple ID, Wi-Fi, browser cookies).
-- **Rogue Symlink Defense**: Outlaws unanchored wildcard `antigravity)` in favor of `*antigravity*) ;;`, preserving `.gemini/antigravity*` physical directory independence.
+### 2. AI Quota Dashboard Header & UX Overhaul
+- **Multi-Agent Identity**: Rebranded from "Antigravity Quota Dashboard" to **AI Quota Dashboard** across header title, browser tab title, and desktop notifications.
+- **Aligned Status Bar**: Promotes fixed indicators (`● Live Server (127.0.0.1:8765)` and `● Đồng bộ ...m trước`) to Row 1 alongside the title, maximizing vertical content space.
+- **Decluttered Interface**: Eliminates duplicate active profile tags and redundant percentage badges from the header.
+- **Quick-Select "Tất cả" Filter**: Adds a dedicated `● Tất cả (26)` quick-filter button (`statBtnAll`) at the start of Row 2 with glowing cyan active ring indicators (`ring-2 ring-sky-400 bg-sky-500/30`).
+- **Kiro CLI Action Streamlining**: Direct terminal launch via `kiro-cli` and removal of non-applicable Argon activation and recurring scheduler buttons from the monthly credit pool card.
 
-### 3. Dreamy Purple Theme & Mascot 👻 for Kiro
-- **Kiro Brand Identity**: Dresses Kiro CLI in a dreamy purple theme (`text-purple-300`, glow effects) with Kiro's cute ghost mascot 👻 in the title, tier badges (`👻 KIRO STUDENT`, `AI PROVIDER`), and monthly credits pool bar.
-- **ANSI Terminal Styling**: Synchronizes matching purple ANSI colors and mascot icon in terminal CLI outputs.
+### 3. Claude Code Anthropic Live OAuth Usage Polling
+- **Direct API Verification**: Upgrades Claude Code quota provider to poll Anthropic's OAuth API (`/v1/oauth/claude_cli/usage`) using macOS Keychain credentials or `~/.claude.json`.
+- **Live Metrics**: Accurately tracks 5-hour rolling session token usage and 7-day rate limit thresholds in real time.
+- **Resilient Fallback**: Gracefully degrades to local JSON cache when offline or when tokens expire.
 
-### 4. 4-Category Account Filtering & Streamlined Statistics
-- **Clear Categorization**: Groups all 26 accounts into 4 distinct groups:
-  1. `3 Providers` (Claude, Codex, Kiro)
-  2. `12 Active Profiles`
-  3. `4 Needed Login Profiles`
-  4. `7 Blocked Profiles`
-- **Streamlined Badges**: Header buttons and badges show clean, concise counts without redundant name listings.
-- **Terminal CLI Flags**: Supports `--providers`, `--active`, `--login`, `--blocked` in `check-quota all`.
+### 4. Profile Isolation & Ghost Provider Exclusion
+- **Ghost Directory Defense**: Filters out known AI Provider names (`kiro`, `claude`, `codex`) in `get_all_profiles()`, preventing accidental directories under `antigravity_homes/` from registering as Antigravity profiles.
+- **Provider Integrity Guard**: Strengthens `format_profile_for_dashboard()` to ensure AI Provider cards are never overwritten with "Auth Needed" states during background scans.
 
 ---
 

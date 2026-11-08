@@ -127,9 +127,20 @@ if command -v codex >/dev/null 2>&1; then
   done
 fi
 
+if command -v kiro-cli >/dev/null 2>&1; then
+  echo "  updating kiro-cli power"
+  for h in "/Users/danhdueexoictif" "$HOME"; do
+    if [ -d "$h/.kiro" ]; then
+      HOME="$h" kiro-cli powers install . 2>/dev/null || true
+    fi
+  done
+fi
+
 echo
 echo "Done. Restart the session (or reload the IDE window) to load $NEW."
 echo "On any other machine, run only step 4."
 echo "For Codex, refresh the registered marketplace and reinstall:"
 echo "  codex plugin marketplace upgrade danhdue-agent-tools"
 echo "  codex plugin add d3nexus@danhdue-agent-tools"
+echo "For Kiro CLI, reinstall or update power:"
+echo "  kiro-cli powers install https://github.com/DanhDue/ai-agent-tools.git"
