@@ -316,9 +316,10 @@ def get_all_profiles() -> list:
     """Discover all actual Antigravity profile accounts directly from antigravity_homes directory."""
     profiles = []
     homes_dir = f"{REAL_HOME}/antigravity_homes"
+    known_providers = {"claude", "codex", "kiro", "anthropic", "openai"}
     if os.path.isdir(homes_dir):
         for d in sorted(os.listdir(homes_dir)):
-            if not d.startswith(".") and os.path.isdir(os.path.join(homes_dir, d)):
+            if not d.startswith(".") and d not in known_providers and os.path.isdir(os.path.join(homes_dir, d)):
                 profiles.append(d)
 
     # Also check ~/.zshrc for aliases as fallback or aliases with distinct names
@@ -330,12 +331,12 @@ def get_all_profiles() -> list:
                     m = re.search(r"antigravity_homes/([a-zA-Z0-9_-]+)", line)
                     if m:
                         p = m.group(1)
-                        if p not in profiles and os.path.isdir(os.path.join(homes_dir, p)):
+                        if p not in known_providers and p not in profiles and os.path.isdir(os.path.join(homes_dir, p)):
                             profiles.append(p)
                     m2 = re.match(r"^alias\s+([a-zA-Z0-9_-]+)='ag_run\s+([a-zA-Z0-9_-]+)'", line.strip())
                     if m2:
                         p2 = m2.group(2)
-                        if p2 not in profiles and os.path.isdir(os.path.join(homes_dir, p2)):
+                        if p2 not in known_providers and p2 not in profiles and os.path.isdir(os.path.join(homes_dir, p2)):
                             profiles.append(p2)
         except Exception:
             pass
@@ -1676,6 +1677,13 @@ def update_cached_profile(profile: str, data: dict):
 
 
 def format_profile_for_dashboard(profile: str, result: dict) -> dict:
+    if profile == "claude":
+        return fetch_claude_quota()
+    if profile == "codex":
+        return fetch_codex_quota()
+    if profile == "kiro":
+        return fetch_kiro_quota()
+
     current = load_cached_profiles().get(profile, {})
     email = current.get("email") or f"{profile}@gmail.com"
     tier = current.get("tier", "PRO")

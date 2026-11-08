@@ -191,6 +191,20 @@ class TestKiroQuotaProvider(unittest.TestCase):
         # Ensure selectAll excludes kiro
         self.assertIn("p !== 'kiro' && !d.isCreditOnly", content)
 
+    def test_providers_excluded_from_get_all_profiles(self):
+        """Ensure AI providers are never returned in Antigravity profiles list."""
+        profiles = agy_quota.get_all_profiles()
+        for p in ("claude", "codex", "kiro", "anthropic", "openai"):
+            self.assertNotIn(p, profiles)
+
+    def test_format_profile_for_dashboard_guards_providers(self):
+        """Ensure format_profile_for_dashboard delegates to provider fetchers."""
+        with patch("agy_quota.fetch_kiro_quota") as mock_fetch:
+            mock_fetch.return_value = {"profile": "kiro", "status": "ACTIVE"}
+            res = agy_quota.format_profile_for_dashboard("kiro", {"status": "DISABLED"})
+            self.assertEqual(res["profile"], "kiro")
+            self.assertEqual(res["status"], "ACTIVE")
+
 
 if __name__ == "__main__":
     unittest.main()
