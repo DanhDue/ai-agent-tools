@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import json
 import sys
 import unittest
 from pathlib import Path
@@ -158,6 +159,58 @@ class TestAgyQuotaServer(unittest.TestCase):
                                                     if "gemini-4-argon-low" in c[0][0]
                                                 ]
                                                 self.assertEqual(len(argon_calls), 1)
+
+    def test_probe_blocked_profile_unblocked_success(self):
+        """When probe returns 0 and valid quota, account is unblocked with jitter."""
+        mock_proc = MagicMock()
+        mock_proc.returncode = 0
+        mock_proc.stdout = json.dumps({"command": {"data": {"groups": []}}})
+        mock_proc.stderr = ''
+
+        agy_quota.LAST_BLOCKED_PROBE.clear()
+        with patch("os.path.isdir", return_value=True):
+            with patch("agy_quota.check_profile_auth_token", return_value=True):
+                with patch("subprocess.run", return_value=mock_proc):
+                    with patch("agy_quota.unblock_profile") as mock_unblock:
+                        with patch("agy_quota.format_profile_for_dashboard", return_value={"status": "ACTIVE"}):
+                            with patch("agy_quota.update_cached_profile"):
+                                with patch("time.sleep") as mock_sleep:
+                                    res = agy_quota.probe_blocked_profile("test_blocked")
+                                    self.assertTrue(res.get("success"))
+                                    self.assertTrue(res.get("unblocked"))
+                                    self.assertEqual(res.get("status"), "ACTIVE")
+                                    mock_unblock.assert_called_once_with("test_blocked")
+                                    mock_sleep.assert_called_once()
+                                    sleep_sec = mock_sleep.call_args[0][0]
+                                    self.assertGreaterEqual(sleep_sec, 1.8)
+                                    self.assertLessEqual(sleep_sec, 3.2)
+
+    def test_probe_blocked_profile_cooldown_rejection(self):
+        """Probing the same profile within cooldown period must be rejected."""
+        agy_quota.LAST_BLOCKED_PROBE["test_cooldown"] = agy_quota.time.time()
+        res = agy_quota.probe_blocked_profile("test_cooldown")
+        self.assertFalse(res.get("success"))
+        self.assertTrue(res.get("cooldown"))
+        self.assertIn("Vui lòng đợi thêm", res.get("error", ""))
+
+    def test_probe_blocked_profile_still_disabled(self):
+        """When Google returns 'submit an appeal', profile remains DISABLED."""
+        mock_proc = MagicMock()
+        mock_proc.returncode = 1
+        mock_proc.stdout = ''
+        mock_proc.stderr = 'This service has been disabled. Please submit an appeal (err: 12345678-1234-1234-1234-123456789abc).'
+
+        agy_quota.LAST_BLOCKED_PROBE.clear()
+        with patch("os.path.isdir", return_value=True):
+            with patch("agy_quota.check_profile_auth_token", return_value=True):
+                with patch("subprocess.run", return_value=mock_proc):
+                    with patch("agy_quota.record_profile_disabled") as mock_record:
+                        with patch("time.sleep"):
+                            res = agy_quota.probe_blocked_profile("test_still_blocked")
+                            self.assertFalse(res.get("success"))
+                            self.assertEqual(res.get("status"), "DISABLED")
+                            self.assertTrue(res.get("is_appeal"))
+                            mock_record.assert_called_once()
 
 
 if __name__ == "__main__":

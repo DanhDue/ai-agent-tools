@@ -349,6 +349,110 @@ def get_profiles_from_zshrc() -> list:
     return get_all_profiles()
 
 
+LAST_BLOCKED_PROBE = {}
+
+
+def unblock_profile(profile: str):
+    """Clear disabled marker, archive historical appeal logs, and update in-memory cache."""
+    marker_file = os.path.join(REAL_HOME, "antigravity_homes", profile, ".gemini/antigravity", "tos_disabled.json")
+    if os.path.isfile(marker_file):
+        try:
+            os.remove(marker_file)
+        except Exception:
+            pass
+
+    log_dir = os.path.join(REAL_HOME, "antigravity_homes", profile, ".gemini/antigravity/log")
+    if os.path.isdir(log_dir):
+        import glob
+        for lf in glob.glob(os.path.join(log_dir, "cli-*.log")):
+            try:
+                with open(lf, "rb") as f:
+                    content = f.read().decode("utf-8", errors="ignore").lower()
+                if "submit an appeal" in content or "violation of terms of service" in content:
+                    os.rename(lf, lf + ".resolved")
+            except Exception:
+                pass
+
+    if CACHED_PROFILES_DATA and profile in CACHED_PROFILES_DATA:
+        CACHED_PROFILES_DATA[profile]["isAppeal"] = False
+        CACHED_PROFILES_DATA[profile]["status"] = "ACTIVE"
+
+
+def probe_blocked_profile(profile: str) -> dict:
+    """Safely test whether an individual blocked profile has been unblocked by Google.
+    Includes anti-spam cooldown, randomized humanized jitter, token verification, and isolated execution.
+    """
+    now = time.time()
+    last_time = LAST_BLOCKED_PROBE.get(profile, 0)
+    cooldown = 30  # 30 seconds cooldown per profile to prevent Google WAF rate-limit
+    if (now - last_time) < cooldown:
+        remaining = int(cooldown - (now - last_time))
+        return {
+            "profile": profile,
+            "success": False,
+            "status": "COOLDOWN",
+            "cooldown": True,
+            "error": f"Vui lòng đợi thêm {remaining}s trước khi kiểm tra lại tài khoản này để bảo vệ khỏi rate limit.",
+            "remaining_cooldown": remaining
+        }
+
+    # 1. Verify auth token exists in keychain (PREVENTS BROWSER POPUP)
+    if not check_profile_auth_token(profile):
+        return {
+            "profile": profile,
+            "success": False,
+            "status": "AUTH NEEDED",
+            "is_auth_needed": True,
+            "error": "Profile chưa có token xác thực trong Keychain. Cần đăng nhập CLI trước."
+        }
+
+    LAST_BLOCKED_PROBE[profile] = now
+
+    # 2. Apply randomized humanized jitter (1.8s - 3.2s) to prevent bot detection
+    jitter_sec = round(random.uniform(1.8, 3.2), 2)
+    time.sleep(jitter_sec)
+
+    # 3. Force probe via fetch_quota_for_profile(profile, force_probe=True)
+    res = fetch_quota_for_profile(profile, force_probe=True)
+    dur = res.get("duration", 0)
+
+    if res.get("is_appeal") or res.get("status") == "DISABLED":
+        return {
+            "profile": profile,
+            "success": False,
+            "status": "DISABLED",
+            "is_appeal": True,
+            "error_id": res.get("error_id", "856698b5-d43c-4198-962b-4db7fc3c4adb-2"),
+            "duration": dur,
+            "jitter": jitter_sec,
+            "error": f"Tài khoản {profile} vẫn đang bị Google tạm ngưng (ToS Violation). Mã lỗi: {res.get('error_id')}"
+        }
+
+    if res.get("success"):
+        unblock_profile(profile)
+        formatted = format_profile_for_dashboard(profile, res)
+        update_cached_profile(profile, formatted)
+        return {
+            "profile": profile,
+            "success": True,
+            "status": "ACTIVE",
+            "unblocked": True,
+            "duration": dur,
+            "jitter": jitter_sec,
+            "data": formatted,
+            "message": f"🎉 Tuyệt vời! Tài khoản {profile} đã được Google mở khóa thành công!"
+        }
+
+    return {
+        "profile": profile,
+        "success": False,
+        "status": res.get("status", "ERROR"),
+        "duration": dur,
+        "jitter": jitter_sec,
+        "error": res.get("error", "Lỗi kiểm tra")
+    }
+
+
 def record_profile_disabled(profile: str, error_id: str):
     """Persist disabled/appeal status to disk in profile's .gemini/antigravity/tos_disabled.json."""
     try:
@@ -379,7 +483,7 @@ def check_profile_appeal_status(profile: str, out_text: str = "") -> str:
             record_profile_disabled(profile, err_id)
             return err_id
 
-    # Check marker file in profile directory
+    # Check marker file in profile directory (Single Source of Truth)
     marker_file = os.path.join(REAL_HOME, "antigravity_homes", profile, ".gemini/antigravity", "tos_disabled.json")
     if os.path.isfile(marker_file):
         try:
@@ -389,29 +493,6 @@ def check_profile_appeal_status(profile: str, out_text: str = "") -> str:
         except Exception:
             pass
 
-    # Check cached profile data in dashboard HTML
-    if CACHED_PROFILES_DATA:
-        cached = CACHED_PROFILES_DATA.get(profile, {})
-        if cached.get("isAppeal") or cached.get("status") == "DISABLED":
-            return cached.get("errorId") or "856698b5-d43c-4198-962b-4db7fc3c4adb-2"
-
-    # Check all recent cli logs in ~/.gemini/antigravity/log/
-    log_dir = os.path.join(REAL_HOME, "antigravity_homes", profile, ".gemini/antigravity/log")
-    if os.path.isdir(log_dir):
-        import glob
-        logs = sorted(glob.glob(os.path.join(log_dir, "cli-*.log")), key=os.path.getmtime, reverse=True)
-        for log_file in logs:
-            try:
-                with open(log_file, "rb") as f:
-                    content = f.read().decode("utf-8", errors="ignore")
-                    low = content.lower()
-                    if "submit an appeal" in low or "violation of terms of service" in low or "service has been disabled" in low:
-                        m = re.search(r'([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:-\d+)?)', content)
-                        err_id = m.group(1) if m else "856698b5-d43c-4198-962b-4db7fc3c4adb-2"
-                        record_profile_disabled(profile, err_id)
-                        return err_id
-            except Exception:
-                pass
     return ""
 
 
@@ -428,24 +509,25 @@ def check_profile_auth_token(profile: str) -> bool:
     return res.returncode == 0
 
 
-def fetch_quota_for_profile(profile: str) -> dict:
+def fetch_quota_for_profile(profile: str, force_probe: bool = False) -> dict:
     """Execute agy --output-format json -p '/usage' for a given profile."""
     ag_home = f"{REAL_HOME}/antigravity_homes/{profile}"
     if not os.path.isdir(ag_home):
         return {"profile": profile, "success": False, "error": f"Profile home not found: {ag_home}"}
 
     # 1. Fast check if account was disabled for ToS violation (submit an appeal)
-    appeal_err_id = check_profile_appeal_status(profile)
-    if appeal_err_id:
-        return {
-            "profile": profile,
-            "success": False,
-            "status": "DISABLED",
-            "is_appeal": True,
-            "error_id": appeal_err_id,
-            "duration": 0.05,
-            "error": "Tài khoản bị vô hiệu hóa do vi phạm Điều khoản (Terms of Service / Submit an appeal)"
-        }
+    if not force_probe:
+        appeal_err_id = check_profile_appeal_status(profile)
+        if appeal_err_id:
+            return {
+                "profile": profile,
+                "success": False,
+                "status": "DISABLED",
+                "is_appeal": True,
+                "error_id": appeal_err_id,
+                "duration": 0.05,
+                "error": "Tài khoản bị vô hiệu hóa do vi phạm Điều khoản (Terms of Service / Submit an appeal)"
+            }
 
     # 2. Fast check if account has CLI auth token in Keychain (PREVENTS agy FROM OPENING BROWSER!)
     if not check_profile_auth_token(profile):
@@ -2224,8 +2306,21 @@ class QuotaDashboardHandler(http.server.BaseHTTPRequestHandler):
             })
             return
 
+        if path == "/api/check-blocked":
+            profile = query.get("profile", [""])[0]
+            if not profile:
+                self.send_json({"success": False, "error": "Thiếu tham số profile"}, status=400)
+                return
+            res = probe_blocked_profile(profile)
+            self.send_json(res)
+            return
+
         if path == "/api/refresh":
             profile = query.get("profile", ["danhdue"])[0]
+            if query.get("check_blocked", ["0"])[0] in ("1", "true", "True") or query.get("check_appeal", ["0"])[0] in ("1", "true", "True"):
+                res = probe_blocked_profile(profile)
+                self.send_json(res)
+                return
             if profile == "claude":
                 f_data = fetch_claude_quota()
                 update_cached_profile("claude", f_data)
@@ -2817,6 +2912,20 @@ def main():
             print(f"{GREEN}✅ {res.get('message')}{RESET}\n")
         else:
             print(f"{RED}❌ {res.get('error')}{RESET}\n")
+        return
+
+    if target in ("check-blocked", "test-blocked"):
+        sub_target = args[1] if len(args) > 1 else "d3molt"
+        print(f"\n{CYAN}⚡ Kiểm tra trạng thái tài khoản bị khóa '{sub_target}' (kèm Anti-Bot Jitter)...{RESET}")
+        res = probe_blocked_profile(sub_target)
+        if res.get("unblocked"):
+            print(f"{BOLD}{GREEN}{res.get('message')}{RESET}\n")
+        elif res.get("cooldown"):
+            print(f"{AMBER}⏳ {res.get('error')}{RESET}\n")
+        elif res.get("is_appeal"):
+            print(f"{RED}🚫 {res.get('error')}{RESET}\n")
+        else:
+            print(f"{RED}❌ {res.get('error', 'Lỗi kiểm tra')}{RESET}\n")
         return
 
     if target == "refresh":
