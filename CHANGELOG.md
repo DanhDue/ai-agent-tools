@@ -8,6 +8,46 @@ every installed machine on the old cached copy.
 
 ---
 
+## 1.28.0 — 2026-11-10
+
+Delivers the **3-Round Scope-Narrowing Review Convergence Funnel** (`Full -> Delta -> Blocker-Only`), **Quota-Aware Provider Priority (`Claude -> Codex -> Kiro -> Argon`)**, **4 Anti-Fix-Loop Prompt Strategies**, **Source-of-Truth Forward Alignment & 3 Circuit Breaker Halts**, **Top 3 Highest-Risk Findings Executive Report**, **3-Level Test Scope Pyramid**, **3-Layer Lifecycle Documentation Separation** (preventing Attention Dilution and Lost-in-the-Middle), and **Live Argon Quota & Unblocked Account Probing Fixes**.
+
+### Added
+
+- **3-Round Scope-Narrowing Convergence Funnel & Quota-Aware Provider Priority** (`skills/dev-implementation/resources/scripts/run_external_review.py`, `skills/principal-review/SKILL.md`, `skills/cross-model-review/SKILL.md`, `rules/CRITICAL_RULES.md`):
+  - Enforces `MAX_REVIEW_ROUNDS = 3`: Round 1 runs Full Scope Audit (`Scope: full`); Round 2 narrows scope to Delta Verification (`prev_sha..curr_sha`, prohibiting new `Minor` findings on untouched files); Round 3 enters Strict Blocker-Only Convergence Mode (`Scope: convergence`). Attempting Round 4 without `--force` halts at pre-check (`[PRECONDITION BLOCKED] — Max review rounds (3) reached`, 0 credits used).
+  - Adds `--auto-quota` and `select_provider_by_quota()` following priority `Claude -> Codex -> Kiro -> Argon` (`PROVIDER_PRIORITY = ("claude", "codex", "kiro", "agy")`) with combined thresholds:
+    - **Claude & Codex**: `status == "ACTIVE"`, `5H Session >= 15%` (`0.15`), AND `7D Weekly > 2%` (`0.02`).
+    - **Kiro (`kiro`)**: `status` starts with `"ACTIVE"`, `Monthly Credits >= 3%` (`0.03`), AND `remaining >= 15.0 credits`.
+    - **Argon (`agy`)**: `status == "ACTIVE"` and `Argon Weekly >= 10%` (`0.10`) or `5H >= 15%` (`0.15`).
+- **4 Anti-Fix-Loop Prompt Strategies & Cross-Round Shared Context Ledger** (`skills/dev-implementation/resources/scripts/run_external_review.py`, `skills/dev-implementation/references/external-review-prompt.md`, `skills/principal-review/references/principal-review-prompt.md`, `skills/principal-review/references/document-triage.md`, `skills/cross-model-review/references/review-triage.md`):
+  - **Strategy 1 (Exhaustive Per-File Pass in Round 1)**: Instructs reviewers in Round 1 to report all `Critical` and `Important` issues within each inspected file up front, preventing piecemeal drip-feeding across rounds.
+  - **Strategy 2 (Universal Anti-Ping-Pong Guardrail)**: Injects `### Cross-Provider Handoff & Anti-Ping-Pong Guardrail` in all Round $\ge 2$ runs (both single-model and mixed-model stateless sessions) alongside `### Earlier Rounds Shared Context Ledger (Cumulative Memory)`, prohibiting solution reversals unless an objective defect is introduced.
+  - **Strategy 3 (Previously Fixed Locations Registry — `Verify-Then-Close`)**: Compiles all prior `fixed in <sha>` items into `### Previously Fixed Locations Registry (Verify-Then-Close)`, requiring silent closure (`PASS`) once resolved.
+  - **Strategy 4 (Diff-Hunk Isolation on Fixed Files)**: Prohibits reporting pre-existing issues on untouched lines of previously fixed files; re-reporting is restricted strictly to `[INCOMPLETE_FIX]` or `[NEW_REGRESSION]` in `prev_sha..sha`.
+- **Source-of-Truth Hierarchy (Forward Alignment), Top 3 Highest-Risk Findings Report & 3 Circuit Breaker Halts** (`skills/dev-implementation/resources/scripts/run_external_review.py`, `rules/CRITICAL_RULES.md`, `skills/principal-review/references/principal-review-rules.md`):
+  - Enforces **Tier 1 (User-Approved Spec & HLD) > Tier 2 (`shared-contracts/`) > Tier 3 (Legacy `src/`)**: forbids proposing reversion of intentional HLD changes (e.g. `7 steps -> 5 steps`) back to stale contracts/code; mandates **Forward Alignment** (`shared-contracts/` sync + `Allowed files` expansion).
+  - Emits `## Top 3 Highest-Risk Findings (Executive Report)` at the top of `run_external_review.py triage` with `Design Anchor` and `Proposed action` columns.
+  - Implements `compute_auto_triage_gate()` with 3 hard circuit breakers:
+    1. `CIRCUIT_BREAKER_HALT (SHARED_CONTRACT_CONFLICT)`: Immediate halt in any round when a `Critical`/`Important` finding impacts or conflicts with `shared-contracts/`.
+    2. `CIRCUIT_BREAKER_HALT (FIX_LOOP)`: Immediate halt when a previously fixed file still fails in Round $N$.
+    3. `CIRCUIT_BREAKER_HALT (MAX_ROUNDS_CRITICAL_REMAINING)`: Immediate halt when any `Critical` finding survives after 3 rounds (while Round 3 with `0 Critical` findings triggers `AUTO_PASS_FINAL_SWEEP`).
+- **3-Level Test Scope Pyramid & Anti-Stub Gate 4 Enforcer** (`skills/dev-designer/SKILL.md`, `skills/dev-designer/references/verification-rows.md`, `skills/finishing-a-development-branch/SKILL.md`, `skills/dev-implementation/resources/scripts/audit_epic.py`):
+  - Defines Level 1 (`Task-Scoped` `< 5s` per task), Level 2 (`Blast-Radius Scoped` `< 30s` in HLD `Integration results:` at Gate 4), and Level 3 (`Test All` full workspace suite executed once in `finishing-a-development-branch` before merging to `develop`).
+  - Adds deterministic **Anti-Stub Enforcer** in `audit_epic.py` rejecting `_stub(`, `raise NotImplementedError`, and `# STUB` in `src/`.
+- **Manual Re-Check Button & Real Model Inference for Blocked Accounts** (`scripts/agy_quota.py`, `skills/check-quota/resources/dashboard/quota_dashboard.html`):
+  - Adds manual re-check button on blocked account cards with anti-bot jitter and live model inference verification (`d12415d`, `656f7cb`).
+
+### Changed
+
+- **3-Layer Lifecycle Documentation Separation (Anti-Attention-Dilution)** (`docs/lifecycles.en.md`, `docs/lifecycles.vi.md`, `skills/dev-lifecycle/SKILL.md`, `skills/principal-review/SKILL.md`, `skills/cross-model-review/SKILL.md`):
+  - Slims runtime `SKILL.md` files to keep only operational sequences and gates while separating the `/dev-lifecycle` skills catalog, autonomous pipeline architecture, and 4 Anti-Fix-Loop strategies into `docs/lifecycles.{en,vi}.md` and on-demand `references/*.md` files.
+
+### Fixed
+
+- **Argon Availability & Circular Disabled Detection on Unblocked Accounts** (`scripts/agy_quota.py`):
+  - Derives Argon availability strictly from live Google quota groups (`53b064e`) and removes circular disabled detection when probing unblocked accounts (`c2c405d`).
+
 ## 1.27.0 — 2026-11-09
 
 Official release of **Kiro CLI Native Power Support**, **AI Quota Dashboard Header Overhaul**, **Claude Code Anthropic Live OAuth Usage Polling**, and **Profile Isolation & Ghost Provider Exclusion**.
