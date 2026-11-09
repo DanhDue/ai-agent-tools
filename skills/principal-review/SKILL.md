@@ -62,6 +62,7 @@ Invoked on-demand to review standalone design documents, architecture proposals,
    - **Load Sticky Provider Config**: Read `.devtool/review_config.json` (auto-seeded from `DEFAULT_REVIEW_CONFIG` in `run_external_review.py` when absent) to inspect `last_used_provider` and each provider's default `model` and `thinking_level` (`claude`, `codex`, `agy`, `kiro`, `ollama`). When prompting the developer to choose a reviewer CLI, surface the configured `model` and `thinking_level` for each available CLI and highlight `last_used_provider`. Passing `--cli`, `--model`, or `--thinking-level` to `run_external_review.py run` automatically persists the updated sticky preferences back to `.devtool/review_config.json`.
    - Executes with a read-only permissions profile (`claude -p --dangerously-skip-permissions`, `codex exec --sandbox read-only`, `agy --sandbox --mode plan`, or `kiro-cli chat --no-interactive --trust-all-tools --wrap never`).
    - The reviewer inspects active code at candidate SHA to verify groundedness (P1–P8 checklists).
+   - **Delta rounds (Round ≥ 2)**: keep the same reviewer model. The script automatically sends the previous completed round's findings and decisions plus the `git diff` of the epic artefacts since that round, so the reviewer checks the fixes and the revised text instead of re-deriving the whole design. Add `--full` to force a full review of every artefact, and use it for the final confirmation round before Gate 2 sign-off. The script falls back to a full review by itself when no revision exists since the last round or the revision exceeds `--diff-limit` lines. A delta round is recorded as `- **Scope**: delta from round <n> (<sha>)` in `principal_review.md`.
 
 3. **Triage Findings**:
    - Follow [document-triage.md](references/document-triage.md).
@@ -89,7 +90,9 @@ Invoked on-demand to review standalone design documents, architecture proposals,
 
 ## Guidelines & Reference Documents
 
-- [Prompt Template](references/principal-review-prompt.md): The read-only instruction template sent to reviewer CLIs.
-- [Review Rules](references/principal-review-rules.md): Severity definitions (Critical, Important, Minor) and source grounding standards.
-- [Document Triage Protocol](references/document-triage.md): Step-by-step decision verification and revision loop enforcement.
-- [Verification Row Grammar](../dev-designer/references/verification-row-grammar.md): Canonical Verification table grammar rules (including `\|` pipe escaping, `env VAR=val` prefixing, slash-containing search pattern rules, and portable CLI usage). Escaped pipes `\|` in table command cells are unescaped by `task_contract.py` and must not be flagged as syntax errors.
+Read these on demand, not up front. `run_external_review.py` loads the prompt template and review rules itself, so do not open them to run a review.
+
+- [Prompt Template](references/principal-review-prompt.md): The read-only instruction template sent to reviewer CLIs (script-consumed; do not read).
+- [Review Rules](references/principal-review-rules.md): Severity definitions (Critical, Important, Minor) and source grounding standards (script-consumed; do not read).
+- [Document Triage Protocol](references/document-triage.md): Step-by-step decision verification and revision loop enforcement (read at step 3 only).
+- [Verification Row Grammar](../dev-designer/references/verification-row-grammar.md) (read only when a finding concerns Verification rows): Canonical Verification table grammar rules (including `\|` pipe escaping, `env VAR=val` prefixing, slash-containing search pattern rules, and portable CLI usage). Escaped pipes `\|` in table command cells are unescaped by `task_contract.py` and must not be flagged as syntax errors.

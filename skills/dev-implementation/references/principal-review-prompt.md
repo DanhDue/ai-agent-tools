@@ -25,6 +25,8 @@ $readiness_output
 
 The readiness report is already proven: all facts above have passed their mechanical checks; do not restate them, spend your review on judgement and grounding.
 
+$round_context
+
 ## Rules
 
 $rules

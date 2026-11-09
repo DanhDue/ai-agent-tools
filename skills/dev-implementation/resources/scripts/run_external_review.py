@@ -829,6 +829,63 @@ def run_principal_doc(root: Path, args: argparse.Namespace, sha: str) -> int:
     return 1 if any(sev in BLOCKING for sev, _, _ in findings) else 0
 
 
+def delta_round_context(root: Path, args: argparse.Namespace, sha: str) -> tuple[str, dict[str, str]]:
+    """Round >= 2 prompt block: the previous round's findings and decisions plus the revision diff since it.
+
+    Returns ("", {}) when the round must be a full review: --full, no completed earlier round, an
+    unreachable earlier SHA, no revision since it, or a revision larger than --diff-limit lines.
+    """
+    if getattr(args, "full", False):
+        return "", {}
+    name, _ = review_file("principal")
+    path = root / ".devtool" / "epic" / args.epic_dir / name
+    if not path.exists():
+        return "", {}
+    completed = [(n, lines) for n, lines in rounds_in(path.read_text(encoding="utf-8"))
+                 if "- **Status**: completed" in metadata(lines)]
+    if not completed:
+        return "", {}
+    number, lines = completed[-1]
+    prev_sha = round_meta(lines).get("SHA", "")
+    if not prev_sha or prev_sha == sha:
+        return "", {}
+    epic = f".devtool/epic/{args.epic_dir}"
+    outside = re.findall(r"`([^`]+)`", principal_artefact_lines(root, args.epic_dir))
+    paths = [epic, *dict.fromkeys(p for p in outside if not p.startswith(epic))]
+    records = [f":(exclude){epic}/{n}" for n in ("principal_review.md", "review_results.md")]
+    try:
+        diff = git_run(root, "diff", f"{prev_sha}..{sha}", "--", *paths, *records).decode("utf-8", "replace").strip()
+        source = git_run(root, "diff", "--stat", f"{prev_sha}..{sha}", "--", ".",
+                         ":(exclude).devtool/**").decode("utf-8", "replace").strip()
+    except ContractError:
+        return "", {}
+    if not diff or len(diff.splitlines()) > getattr(args, "diff_limit", MAX_DIFF_LINES):
+        return "", {}
+
+    table = ["| # | Severity | Location | Problem | Decision |", "|---|---|---|---|---|"]
+    table += ["| " + " | ".join(cell(c)[:400] for c in row) + " |" for row in finding_rows(lines)]
+    fence, stat_fence = fence_for(diff), fence_for(source)
+    block = (
+        f"## Round Scope: Delta Review (Round {len(rounds_in(path.read_text(encoding='utf-8'))) + 1})\n\n"
+        f"Round {number} reviewed `{prev_sha}`. The developer triaged it and revised the artefacts since. "
+        "Do NOT re-derive the whole design from scratch.\n\n"
+        "1. For each finding below marked `fixed in <sha>`, verify the revision really resolves it at "
+        f"`{sha}`; report it as a new finding if not.\n"
+        "2. Do not re-raise a finding marked `dismissed:` unless the source contradicts its rationale.\n"
+        "3. The revision diff below is the primary scope: review the new and edited text, and every artefact "
+        "or source symbol that text references or must stay consistent with (P1, P2, P5, P7). Read an "
+        "unchanged artefact only to verify such a reference.\n"
+        "4. Everything else was reviewed in round "
+        f"{number}. Skip it, but still report a Critical or Important defect you notice in it.\n\n"
+        f"### Round {number} findings and decisions\n\n" + "\n".join(table) + "\n\n"
+        f"### Revision diff since round {number} (`{prev_sha[:12]}..{sha[:12]}`)\n\n"
+        f"{fence}diff\n{diff}\n{fence}\n\n"
+        f"Source files changed since round {number} (stat only):\n\n"
+        f"{stat_fence}text\n{source or '(none outside .devtool/)'}\n{stat_fence}\n"
+    )
+    return block, {"Scope": f"delta from round {number} ({prev_sha[:7]})"}
+
+
 def run_principal(root: Path, args: argparse.Namespace, sha: str) -> int:
     if getattr(args, "doc", None):
         return run_principal_doc(root, args, sha)
@@ -843,6 +900,10 @@ def run_principal(root: Path, args: argparse.Namespace, sha: str) -> int:
 
     base_sha = git_run(root, "rev-parse", "--verify", args.base).decode().strip()
     readiness_output = out.rstrip()
+    round_context, scope = delta_round_context(root, args, sha)
+    if scope:
+        print(f"{scope['Scope']}: reviewing the revision, not the whole epic (--full to review everything)",
+              file=sys.stderr)
 
     prompt = Template(principal_prompt_path().read_text(encoding="utf-8")).safe_substitute(
         rules=principal_rules_path().read_text(encoding="utf-8").strip(),
@@ -852,6 +913,7 @@ def run_principal(root: Path, args: argparse.Namespace, sha: str) -> int:
         epic_dir=f".devtool/epic/{args.epic_dir}",
         artefacts=principal_artefact_lines(root, args.epic_dir),
         readiness_output=readiness_output,
+        round_context=round_context,
     )
 
     if getattr(args, "developer_note", None):
@@ -860,7 +922,8 @@ def run_principal(root: Path, args: argparse.Namespace, sha: str) -> int:
     before = status_lines(root)
     code, out, err = execute(cli_command(args.cli, args.model, getattr(args, "thinking_level", None)), root, args.timeout, prompt)
     changed = tree_changes(root, before, sha)
-    return record_round(root, args, sha, [Pass("principal", code, out, err, prompt)], changed, {"Kind": "principal"})
+    return record_round(root, args, sha, [Pass("principal", code, out, err, prompt)], changed,
+                        {"Kind": "principal", **scope})
 
 
 def run_adhoc_code(root: Path, args: argparse.Namespace, sha: str) -> int:
@@ -1310,6 +1373,8 @@ def main(argv: list[str] | None = None) -> int:
     runner.add_argument("--diff-limit", type=int, default=MAX_DIFF_LINES)
     runner.add_argument("--commits")
     runner.add_argument("--developer-note")
+    runner.add_argument("--full", action="store_true",
+                        help="principal: review every artefact even when an earlier round exists (default: delta)")
     checker = modes.add_parser("check", help="list undecided blocking findings of the latest completed round")
     checker.add_argument("--kind", choices=KINDS, default="code")
     checker.add_argument("--epic-dir", required=True)
