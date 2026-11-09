@@ -472,7 +472,8 @@ def probe_blocked_profile(profile: str) -> dict:
 
         # 4. Prompt succeeded with returncode 0! Verify Argon as well if profile has Argon
         current = load_cached_profiles().get(profile, {})
-        if current.get("hasArgon", False):
+        has_argon = current.get("hasArgon", False) and not current.get("argonWeekly", {}).get("unavailable", False)
+        if has_argon:
             time.sleep(round(random.uniform(1.8, 3.2), 2))
             other_prompts = [p for p in NATURAL_PROMPTS if p != prompt] or NATURAL_PROMPTS
             prompt_argon = random.choice(other_prompts)
@@ -510,6 +511,12 @@ def probe_blocked_profile(profile: str) -> dict:
                         "data": disabled_data,
                         "error": f"Tài khoản {profile} bị chặn ToS khi gọi mô hình Argon (Submit an appeal). Mã lỗi: {err_id}"
                     }
+                if "is not recognized" in low_arg_out or "invalid model selection" in low_arg_out:
+                    current["hasArgon"] = False
+                    if "argonWeekly" in current:
+                        current["argonWeekly"]["unavailable"] = True
+                        current["argonWeekly"]["countdown"] = "Unavailable N/A"
+                    update_cached_profile(profile, current)
             except Exception:
                 pass
 
@@ -1864,7 +1871,7 @@ def format_profile_for_dashboard(profile: str, result: dict) -> dict:
             "isAppeal": True,
             "appealReason": "This service has been disabled in this account for violation of Terms of Service. Please submit an appeal to continue using this product.",
             "errorId": appeal_err_id,
-            "hasArgon": current.get("hasArgon", True),
+            "hasArgon": current.get("hasArgon", False),
             "gemini5h": {"name": "Gemini 3.8 / Pro 5H", "fraction": 0.0, "countdown": "⏱ Bị khóa", "unavailable": True},
             "claude5h": {"name": "Claude 5.5 / GPT 5H", "fraction": 0.0, "countdown": "⏱ Bị khóa", "unavailable": True},
             "geminiWeekly": {"name": "Gemini Weekly", "fraction": 0.0, "countdown": "⏱ Bị khóa", "unavailable": True},
@@ -1883,7 +1890,7 @@ def format_profile_for_dashboard(profile: str, result: dict) -> dict:
                 "isAppeal": True,
                 "appealReason": "This service has been disabled in this account for violation of Terms of Service. Please submit an appeal to continue using this product.",
                 "errorId": appeal_err_id,
-                "hasArgon": current.get("hasArgon", True),
+                "hasArgon": current.get("hasArgon", False),
                 "gemini5h": {"name": "Gemini 3.8 / Pro 5H", "fraction": 0.0, "countdown": "⏱ Bị khóa", "unavailable": True},
                 "claude5h": {"name": "Claude 5.5 / GPT 5H", "fraction": 0.0, "countdown": "⏱ Bị khóa", "unavailable": True},
                 "geminiWeekly": {"name": "Gemini Weekly", "fraction": 0.0, "countdown": "⏱ Bị khóa", "unavailable": True},
@@ -1907,7 +1914,7 @@ def format_profile_for_dashboard(profile: str, result: dict) -> dict:
     groups = result.get("groups", [])
     items = parse_quota_items(groups)
 
-    has_argon = items["argon_weekly"]["available"] or current.get("hasArgon", False)
+    has_argon = items["argon_weekly"]["available"]
 
     is_exhausted = (
         items["gem_5h"]["fraction"] == 0 and
@@ -2184,7 +2191,12 @@ def execute_ping_profile(profile: str, force: bool = False) -> dict:
         rem_sec = sec_rec["reset_5h"] - now_ts if sec_rec else 0
         rem_str = f"{rem_sec // 3600}h {(rem_sec % 3600) // 60}m"
         local_time_str = datetime.datetime.fromtimestamp(sec_rec["reset_5h"]).strftime("%H:%M:%S") if sec_rec else ""
-        argon_status_str = "Argon < 7h (bỏ qua)" if is_argon_near_reset else "Argon đã kích hoạt"
+        if not has_argon or argon_unavailable:
+            argon_status_str = "Không hỗ trợ Argon"
+        elif is_argon_near_reset:
+            argon_status_str = "Argon < 7h (bỏ qua)"
+        else:
+            argon_status_str = "Argon đã kích hoạt"
         return {
             "profile": profile,
             "success": True,
@@ -2295,7 +2307,13 @@ def execute_ping_profile(profile: str, force: bool = False) -> dict:
                     "duration_ms": int((time.time() - t0) * 1000),
                     "error": f"Tài khoản bị vô hiệu hóa do vi phạm Điều khoản (Terms of Service / Submit an appeal). Mã lỗi: {err_id}"
                 }
-            if res_arg.returncode == 0:
+            if "is not recognized" in low_out or "invalid model selection" in low_out:
+                cached_p["hasArgon"] = False
+                if "argonWeekly" in cached_p:
+                    cached_p["argonWeekly"]["unavailable"] = True
+                    cached_p["argonWeekly"]["countdown"] = "Unavailable N/A"
+                update_cached_profile(profile, cached_p)
+            elif res_arg.returncode == 0:
                 pinged_argon = True
         except Exception:
             pass  # Argon failure does not abort if Gemini succeeded

@@ -214,6 +214,70 @@ class TestAgyQuotaServer(unittest.TestCase):
                                 mock_record.assert_called_once()
 
 
+    def test_format_profile_without_argon_group_has_argon_false(self):
+        """When quota groups do NOT include Argon, hasArgon must be False and unavailable True."""
+        mock_cached = {
+            "mau": {
+                "email": "mau492974@gmail.com",
+                "hasArgon": True,  # Stale cache had True
+            }
+        }
+        res_data = {
+            "success": True,
+            "groups": [
+                {
+                    "name": "Gemini Models",
+                    "buckets": [
+                        {"window": "5h", "remaining_fraction": 1.0, "reset_time": "2026-11-09T15:00:00Z"},
+                        {"window": "weekly", "remaining_fraction": 0.8, "reset_time": "2026-11-14T15:00:00Z"},
+                    ]
+                },
+                {
+                    "name": "Claude and GPT models",
+                    "buckets": [
+                        {"window": "5h", "remaining_fraction": 1.0, "reset_time": "2026-11-09T15:00:00Z"},
+                        {"window": "weekly", "remaining_fraction": 0.9, "reset_time": "2026-11-16T15:00:00Z"},
+                    ]
+                }
+            ]
+        }
+        with patch("agy_quota.load_cached_profiles", return_value=mock_cached):
+            formatted = agy_quota.format_profile_for_dashboard("mau", res_data)
+            self.assertFalse(formatted["hasArgon"])
+            self.assertTrue(formatted["argonWeekly"]["unavailable"])
+            self.assertEqual(formatted["argonWeekly"]["countdown"], "Unavailable N/A")
+
+    def test_probe_blocked_profile_skips_argon_when_has_argon_false(self):
+        """When profile hasArgon is False, probe_blocked_profile must not call Argon."""
+        mock_cached = {
+            "mau": {
+                "hasArgon": False,
+                "argonWeekly": {"unavailable": True}
+            }
+        }
+        mock_proc = MagicMock()
+        mock_proc.returncode = 0
+        mock_proc.stdout = json.dumps({"command": {"data": {"groups": []}}})
+        mock_proc.stderr = ''
+
+        agy_quota.LAST_BLOCKED_PROBE.clear()
+        with patch("os.path.isdir", return_value=True):
+            with patch("agy_quota.check_profile_auth_token", return_value=True):
+                with patch("agy_quota.load_cached_profiles", return_value=mock_cached):
+                    with patch("subprocess.run", return_value=mock_proc) as mock_run:
+                        with patch("agy_quota.unblock_profile"):
+                            with patch("agy_quota.fetch_quota_for_profile", return_value={"success": True}):
+                                with patch("agy_quota.format_profile_for_dashboard", return_value={"status": "ACTIVE"}):
+                                    with patch("agy_quota.update_cached_profile"):
+                                        with patch("time.sleep"):
+                                            res = agy_quota.probe_blocked_profile("mau")
+                                            self.assertTrue(res.get("success"))
+                                            # Check that gemini-4-argon-low was NEVER called
+                                            for call_item in mock_run.call_args_list:
+                                                cmd = call_item[0][0]
+                                                self.assertNotIn("gemini-4-argon-low", cmd)
+
+
 if __name__ == "__main__":
     unittest.main()
 
