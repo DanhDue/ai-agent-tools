@@ -432,6 +432,7 @@ def probe_blocked_profile(profile: str) -> dict:
         unblock_profile(profile)
         formatted = format_profile_for_dashboard(profile, res)
         update_cached_profile(profile, formatted)
+        LAST_BLOCKED_PROBE.pop(profile, None)
         return {
             "profile": profile,
             "success": True,
@@ -482,6 +483,7 @@ def check_profile_appeal_status(profile: str, out_text: str = "") -> str:
             err_id = m.group(1) if m else "856698b5-d43c-4198-962b-4db7fc3c4adb-2"
             record_profile_disabled(profile, err_id)
             return err_id
+        return ""
 
     # Check marker file in profile directory (Single Source of Truth)
     marker_file = os.path.join(REAL_HOME, "antigravity_homes", profile, ".gemini/antigravity", "tos_disabled.json")
@@ -1771,8 +1773,8 @@ def format_profile_for_dashboard(profile: str, result: dict) -> dict:
     tier = current.get("tier", "PRO")
     priority = current.get("priority", 50)
 
-    appeal_err_id = result.get("error_id") or check_profile_appeal_status(profile)
-    if result.get("is_appeal") or result.get("status") == "DISABLED" or appeal_err_id:
+    if result.get("is_appeal") or result.get("status") == "DISABLED":
+        appeal_err_id = result.get("error_id") or check_profile_appeal_status(profile) or "856698b5-d43c-4198-962b-4db7fc3c4adb-2"
         return {
             "email": email,
             "tier": tier,
@@ -1780,7 +1782,7 @@ def format_profile_for_dashboard(profile: str, result: dict) -> dict:
             "status": "DISABLED",
             "isAppeal": True,
             "appealReason": "This service has been disabled in this account for violation of Terms of Service. Please submit an appeal to continue using this product.",
-            "errorId": appeal_err_id or "856698b5-d43c-4198-962b-4db7fc3c4adb-2",
+            "errorId": appeal_err_id,
             "hasArgon": current.get("hasArgon", True),
             "gemini5h": {"name": "Gemini 3.8 / Pro 5H", "fraction": 0.0, "countdown": "⏱ Bị khóa", "unavailable": True},
             "claude5h": {"name": "Claude 5.5 / GPT 5H", "fraction": 0.0, "countdown": "⏱ Bị khóa", "unavailable": True},
@@ -1790,6 +1792,23 @@ def format_profile_for_dashboard(profile: str, result: dict) -> dict:
         }
 
     if not result.get("success"):
+        appeal_err_id = check_profile_appeal_status(profile)
+        if appeal_err_id:
+            return {
+                "email": email,
+                "tier": tier,
+                "priority": priority,
+                "status": "DISABLED",
+                "isAppeal": True,
+                "appealReason": "This service has been disabled in this account for violation of Terms of Service. Please submit an appeal to continue using this product.",
+                "errorId": appeal_err_id,
+                "hasArgon": current.get("hasArgon", True),
+                "gemini5h": {"name": "Gemini 3.8 / Pro 5H", "fraction": 0.0, "countdown": "⏱ Bị khóa", "unavailable": True},
+                "claude5h": {"name": "Claude 5.5 / GPT 5H", "fraction": 0.0, "countdown": "⏱ Bị khóa", "unavailable": True},
+                "geminiWeekly": {"name": "Gemini Weekly", "fraction": 0.0, "countdown": "⏱ Bị khóa", "unavailable": True},
+                "claudeWeekly": {"name": "Claude Weekly", "fraction": 0.0, "countdown": "⏱ Bị khóa", "unavailable": True},
+                "argonWeekly": {"name": "Gemini 4 Argon Weekly", "fraction": 0.0, "countdown": "⏱ Bị khóa", "unavailable": True, "tags": True},
+            }
         return {
             "email": email,
             "tier": tier,
