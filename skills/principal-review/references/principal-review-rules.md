@@ -19,10 +19,16 @@ To avoid false-positive findings, evaluate design documents and epic artefacts a
    - Each finding must name the specific artefact (file path) and location (heading or section) to change.
    - Each finding must conclude with a concrete `Proposed: <edit>` recommendation.
 
-5. **Shared Contracts & Symlink Resolution**:
+5. **Shared Contracts, Symlink Resolution & Source-of-Truth Hierarchy (Forward Alignment over Legacy Reversion)**:
+   - **Source-of-Truth Hierarchy**:
+     1. **Tier 1 (Highest Authority — Approved Design Intent)**: User-approved Spec (`*-design.en.md`) and HLD (`<epic_dir>.en.md` Goals & Architecture).
+     2. **Tier 2 (Cross-Repo Contract Baseline)**: `shared-contracts/<domain>/` (`api_contract.md`, `architecture_and_flow.md`, `gaps_and_rfcs.md`).
+     3. **Tier 3 (Legacy Code Baseline)**: Existing source files in `src/` and task `Allowed files`.
+   - **Forward Alignment Rule (Never Revert Approved Design Intent)**: When Tier 1 intentionally introduces a new pipeline structure, step count, enum, or schema (e.g., consolidating 7 legacy steps into 5 steps) that differs from Tier 2 (`shared-contracts/`) or Tier 3 (`src/`), **DO NOT propose reverting the HLD/Spec back to the legacy Tier 2/Tier 3 design**. Instead, report a **Forward Contract-Sync / Blast-Radius Gap** and propose:
+     1. Updating `shared-contracts/<domain>/` (`api_contract.md`, `architecture_and_flow.md`, `gaps_and_rfcs.md` + `sync_contracts.py ack`) and `## Shared Contract Impact` to match the approved Tier 1 design (with backward-compatibility shims if needed).
+     2. Adding the affected legacy callers (e.g., `worker/bridge.py`, `preview/jobs.py`) into the appropriate task's `Allowed files` so implementation migrates them forward to the new design.
    - When reviewing design documents impacting inter-service or cross-repo communication, verify that `shared-contracts/` paths resolve on disk (following symlinks to target repositories if applicable).
-   - Flag any breaking schema change without backward-compatibility shims or transition windows as **Critical**.
-   - Flag any missing `## Shared Contract Impact` section or failure to prioritize contract updates in `task_01` as **Important**.
+   - Flag any unacknowledged contract drift or missing `task_01` contract/adapter synchronization as **Critical** or **Important** with a **forward-migration** `Proposed:` action.
 
 6. **5-Layer Deep Verification Checklist**:
    - **Unbound Variable in Fallback**: Verify that all variables referenced in `except` blocks are assigned or imported before the `try` block begins.

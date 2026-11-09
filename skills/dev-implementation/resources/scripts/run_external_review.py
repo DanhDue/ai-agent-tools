@@ -47,8 +47,20 @@ RULES = SCRIPTS.parent.parent / "references" / "review-rules.md"
 KINDS = ("code", "principal", "epic")
 REVIEW_CONFIG_FILE = ".devtool/review_config.json"
 THINKING_LEVELS = ("none", "light", "low", "medium", "high", "extra-high")
+PROVIDER_PRIORITY: tuple[str, ...] = ("claude", "codex", "kiro", "agy")
+MAX_REVIEW_ROUNDS = 3
+QUOTA_THRESHOLDS: dict[str, float] = {
+    "5h_min_fraction": 0.15,
+    "7d_min_fraction": 0.02,
+    "kiro_min_fraction": 0.03,
+    "kiro_min_credits": 15.0,
+    "agy_argon_min_fraction": 0.10,
+}
 DEFAULT_REVIEW_CONFIG: dict[str, Any] = {
-    "last_used_provider": "codex",
+    "last_used_provider": "claude",
+    "provider_priority": list(PROVIDER_PRIORITY),
+    "max_rounds": MAX_REVIEW_ROUNDS,
+    "quota_thresholds": dict(QUOTA_THRESHOLDS),
     "providers": {
         "claude": {
             "model": "Opus 5.5",
@@ -58,13 +70,13 @@ DEFAULT_REVIEW_CONFIG: dict[str, Any] = {
             "model": "gpt-6.1-sol",
             "thinking_level": "high",
         },
-        "agy": {
-            "model": "Gemini 4 Argon (Medium)",
-            "thinking_level": "medium",
-        },
         "kiro": {
             "model": "claude-opus-5.5",
             "thinking_level": "high",
+        },
+        "agy": {
+            "model": "Gemini 4 Argon (Medium)",
+            "thinking_level": "medium",
         },
         "ollama": {
             "model": "qwen38-fast:latest",
@@ -138,6 +150,90 @@ def update_sticky_review_config(root: Path, cli: str, model: str | None, thinkin
         pass
 
 
+def evaluate_provider_quota(cli: str, quota_data: dict[str, Any]) -> tuple[bool, str]:
+    """Evaluate check-quota payload against 5H/7D/Monthly thresholds for Claude -> Codex -> Kiro -> Argon."""
+    status = str(quota_data.get("status", ""))
+    if cli in ("claude", "codex"):
+        frac_5h = float((quota_data.get("gemini5h") or {}).get("fraction", 0.0))
+        frac_7d = float((quota_data.get("geminiWeekly") or {}).get("fraction", 0.0))
+        ok = (
+            status == "ACTIVE"
+            and frac_5h >= QUOTA_THRESHOLDS["5h_min_fraction"]
+            and frac_7d > QUOTA_THRESHOLDS["7d_min_fraction"]
+        )
+        return ok, f"5H={frac_5h * 100:.1f}%, 7D={frac_7d * 100:.1f}%, status={status}"
+    if cli == "kiro":
+        cp = quota_data.get("creditsPool") or quota_data.get("gemini5h") or {}
+        frac = float(cp.get("fraction", 0.0))
+        limit = float(cp.get("limit", 1000.0))
+        remaining = float(cp.get("remaining", frac * limit))
+        ok = (
+            status.startswith("ACTIVE")
+            and frac >= QUOTA_THRESHOLDS["kiro_min_fraction"]
+            and remaining >= QUOTA_THRESHOLDS["kiro_min_credits"]
+        )
+        return ok, f"monthly={frac * 100:.1f}% ({remaining:.1f} credits), status={status}"
+    if cli == "agy":
+        argon = quota_data.get("argonWeekly") or {}
+        g5h = quota_data.get("gemini5h") or {}
+        frac_argon = float(argon.get("fraction", 0.0))
+        frac_5h = float(g5h.get("fraction", 0.0))
+        ok = (status == "ACTIVE" or bool(quota_data.get("success"))) and (
+            frac_argon >= QUOTA_THRESHOLDS["agy_argon_min_fraction"]
+            or frac_5h >= QUOTA_THRESHOLDS["5h_min_fraction"]
+        )
+        return ok, f"5H={frac_5h * 100:.1f}%, Argon={frac_argon * 100:.1f}%, status={status}"
+    return False, f"unsupported provider {cli}"
+
+
+def _default_quota_fetcher(cli: str) -> dict[str, Any]:
+    quota_script = SCRIPTS.parents[3] / "scripts" / "agy_quota.py"
+    if not quota_script.is_file():
+        return {}
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("agy_quota", quota_script)
+    if spec is None or spec.loader is None:
+        return {}
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    if cli == "claude":
+        return dict(mod.fetch_claude_quota())
+    if cli == "codex":
+        return dict(mod.fetch_codex_quota())
+    if cli == "kiro":
+        return dict(mod.fetch_kiro_quota())
+    if cli == "agy":
+        profile = os.environ.get("AGY_PROFILE") or os.path.basename(os.environ.get("HOME", "danhdue"))
+        raw = mod.fetch_quota_for_profile(profile)
+        return dict(mod.format_profile_for_dashboard(profile, raw) if raw.get("success") else raw)
+    return {}
+
+
+def select_provider_by_quota(
+    quota_fetcher: Any = None,
+    binary_resolver: Any = None,
+) -> tuple[str | None, list[str]]:
+    """Select the highest-priority eligible provider in Claude -> Codex -> Kiro -> Argon via check-quota."""
+    fetcher = quota_fetcher or _default_quota_fetcher
+    resolver = binary_resolver or resolve_cli_binary
+    diagnostics: list[str] = []
+    for candidate in PROVIDER_PRIORITY:
+        if not resolver(candidate):
+            diagnostics.append(f"{candidate}: binary not found on PATH")
+            continue
+        try:
+            data = fetcher(candidate)
+        except Exception as exc:
+            diagnostics.append(f"{candidate}: quota check error ({exc})")
+            continue
+        ok, detail = evaluate_provider_quota(candidate, data)
+        diagnostics.append(f"{candidate}: {'ELIGIBLE' if ok else 'SKIPPED'} ({detail})")
+        if ok:
+            return candidate, diagnostics
+    return None, diagnostics
+
+
 def resolve_review_settings(
     root: Path,
     epic_dir: str | None,
@@ -145,10 +241,10 @@ def resolve_review_settings(
     cli_arg: str | None,
     model_arg: str | None,
     thinking_arg: str | None,
+    auto_quota: bool = False,
 ) -> tuple[str, str | None, str]:
     config = load_review_config(root)
-    cli = cli_arg or config.get("last_used_provider") or "codex"
-
+    prev_cli = None
     prev_model = None
     prev_thinking = None
     if epic_dir:
@@ -158,9 +254,23 @@ def resolve_review_settings(
             rounds = rounds_in(path.read_text(encoding="utf-8"))
             if rounds:
                 last_meta = round_meta(rounds[-1][1])
-                if last_meta.get("CLI") == cli:
-                    prev_model = last_meta.get("Model")
-                    prev_thinking = last_meta.get("Thinking")
+                prev_cli = last_meta.get("CLI")
+                prev_model = last_meta.get("Model")
+                prev_thinking = last_meta.get("Thinking")
+
+    if cli_arg is None and auto_quota:
+        selected, diag = select_provider_by_quota()
+        if selected:
+            print(f"{CYAN}⚡ [check-quota]{RESET} Selected provider: {selected} ({'; '.join(diag)})", file=sys.stderr)
+            cli = selected
+        else:
+            cli = prev_cli or config.get("last_used_provider") or "claude"
+    else:
+        cli = cli_arg or prev_cli or config.get("last_used_provider") or "claude"
+
+    if prev_cli != cli:
+        prev_model = None
+        prev_thinking = None
 
     provider_cfg = config.get("providers", {}).get(cli, {})
     default_model = DEFAULT_REVIEW_CONFIG["providers"].get(cli, {}).get("model", "default")
@@ -507,6 +617,20 @@ def collect_facts(root: Path, epic_dir: str, base: str, hld_text: str, timeout: 
             chk_code, chk_out, chk_err = run_gate("check_bdd_traceability.py", check, root, timeout)
             results.append(fact(shlex.join(check[1:]), chk_code, chk_out, chk_err))
 
+    py_quality_path = root / ".agents" / "quality" / "python-quality.json"
+    if py_quality_path.is_file():
+        try:
+            q_cfg = json.loads(py_quality_path.read_text(encoding="utf-8"))
+            caps = q_cfg.get("capabilities", {}) if isinstance(q_cfg, dict) else {}
+            for cap_name in ("anti_stub", "importlinter_coverage", "self_probe"):
+                cap = caps.get(cap_name)
+                if isinstance(cap, dict) and isinstance(cap.get("command"), str) and cap["command"].strip():
+                    c_cmd = cap["command"].strip()
+                    c_code, c_out, c_err = run_gate(f"Quality pre-check ({cap_name})", c_cmd, root, timeout, shell=True)
+                    audit_output += "\n" + fact(c_cmd, c_code, c_out, c_err)
+        except (json.JSONDecodeError, OSError):
+            pass
+
     return audit_output, "\n".join(results) or "No Integration results declared.\n"
 
 
@@ -829,6 +953,165 @@ def run_principal_doc(root: Path, args: argparse.Namespace, sha: str) -> int:
     return 1 if any(sev in BLOCKING for sev, _, _ in findings) else 0
 
 
+def delta_round_context(root: Path, args: argparse.Namespace, sha: str, kind: str = "principal") -> tuple[str, dict[str, str]]:
+    """Round >= 2 prompt block: the previous round's findings and decisions plus the revision diff since it.
+
+    Round 1 (or --full) returns ("", {}) so a full-modules/full-scope audit runs first.
+    Round 2 narrows scope to Delta Verification (prev_sha..sha) and prohibits new Minor findings on untouched files.
+    Round 3+ enters Convergence Mode (Blocker-Only: incomplete fixes or new Critical/Important regressions in prev_sha..sha).
+    """
+    if getattr(args, "full", False):
+        return "", {}
+    name, _ = review_file(kind)
+    path = root / ".devtool" / "epic" / args.epic_dir / name
+    if not path.exists():
+        return "", {}
+    all_rounds = rounds_in(path.read_text(encoding="utf-8"))
+    completed = [(n, lines) for n, lines in all_rounds if "- **Status**: completed" in metadata(lines)]
+    if not completed:
+        return "", {}
+    number, lines = completed[-1]
+    prev_sha = round_meta(lines).get("SHA", "")
+    if not prev_sha or prev_sha == sha:
+        return "", {}
+    epic = f".devtool/epic/{args.epic_dir}"
+    records = [f":(exclude){epic}/{n}" for n in ("principal_review.md", "review_results.md")]
+    try:
+        if kind == "principal":
+            outside = re.findall(r"`([^`]+)`", principal_artefact_lines(root, args.epic_dir))
+            paths = [epic, *dict.fromkeys(p for p in outside if not p.startswith(epic))]
+            diff = git_run(root, "diff", f"{prev_sha}..{sha}", "--", *paths, *records).decode("utf-8", "replace").strip()
+        else:
+            diff = git_run(root, "diff", f"{prev_sha}..{sha}", "--", ".", *EXCLUDES, *records).decode("utf-8", "replace").strip()
+            if not diff:
+                diff = git_run(root, "diff", f"{prev_sha}..{sha}", "--", ".", *records).decode("utf-8", "replace").strip()
+        source = git_run(root, "diff", "--stat", f"{prev_sha}..{sha}", "--", ".",
+                         ":(exclude).devtool/**").decode("utf-8", "replace").strip()
+    except ContractError:
+        return "", {}
+    if not diff or len(diff.splitlines()) > getattr(args, "diff_limit", MAX_DIFF_LINES):
+        return "", {}
+
+    next_round = len(all_rounds) + 1
+    prev_meta = round_meta(lines)
+    prev_cli = prev_meta.get("CLI", "claude")
+    prev_model = prev_meta.get("Model", "default")
+    curr_cli = getattr(args, "cli", None) or prev_cli
+    curr_model = effective_model(curr_cli, getattr(args, "model", None))
+
+    table = ["| # | Severity | Location | Problem | Decision |", "|---|---|---|---|---|"]
+    table += ["| " + " | ".join(cell(c)[:400] for c in row) + " |" for row in finding_rows(lines)]
+
+    earlier_ledger_blocks: list[str] = []
+    fixed_registry_lines: list[str] = []
+    for r_num, r_lines in completed:
+        for row in finding_rows(r_lines):
+            if len(row) >= 5 and row[4].strip().lower().startswith("fixed in"):
+                fixed_registry_lines.append(
+                    f"- `{row[2].strip()}` (Round {r_num} #{row[0].strip()}, `{row[1].strip()}`): "
+                    f"{cell(row[3])[:180]} -> `{row[4].strip()}`"
+                )
+    if len(completed) > 1:
+        for r_num, r_lines in completed[:-1]:
+            r_meta = round_meta(r_lines)
+            r_rows = finding_rows(r_lines)
+            if not r_rows:
+                continue
+            r_table = ["| # | Severity | Location | Problem | Decision |", "|---|---|---|---|---|"]
+            r_table += ["| " + " | ".join(cell(c)[:300] for c in row) + " |" for row in r_rows]
+            earlier_ledger_blocks.append(
+                f"#### Round {r_num} ({r_meta.get('CLI', '?')} / {r_meta.get('Model', '?')} at `{r_meta.get('SHA', '?')[:7]}`)\n\n"
+                + "\n".join(r_table)
+            )
+
+    provider_note = (
+        "You are taking over from a different model family. "
+        if curr_cli != prev_cli
+        else "You are running in a new stateless session following a prior review round. "
+    )
+    handoff_block = (
+        "### Cross-Provider Handoff & Anti-Ping-Pong Guardrail\n\n"
+        f"- **Previous Reviewer**: `{prev_cli}` (`{prev_model}`) at `{prev_sha[:7]}`\n"
+        f"- **Current Reviewer**: `{curr_cli}` (`{curr_model}`) at `{sha[:7]}`\n"
+        f"- **Shared Context Continuity & Anti-Ping-Pong Rule**: {provider_note}"
+        "Strictly honor all `dismissed: <rationale>` decisions and `fixed in <sha>` resolutions recorded in the "
+        "Shared Context Ledger below. Do NOT ask to revert or rewrite a prior round's accepted fix (zero solution ping-pong) "
+        "unless it introduces an objective runtime defect or violates a frozen contract in the approved HLD / "
+        "`bdd_scenarios.en.md` / `Decisions Already Made`.\n\n"
+    )
+    fixed_registry_block = (
+        "### Previously Fixed Locations Registry (Verify-Then-Close)\n\n"
+        + "\n".join(fixed_registry_lines)
+        + "\n\n"
+        if fixed_registry_lines
+        else ""
+    )
+
+    fence, stat_fence = fence_for(diff), fence_for(source)
+    if next_round >= 3:
+        header_block = (
+            f"## Round Scope: Convergence Mode (Round {next_round})\n\n"
+            f"You are in Round 3+ Convergence Mode. ONLY report (a) incomplete fixes from previous rounds, or "
+            f"(b) NEW Critical/Important regressions directly introduced by the latest fix commit "
+            f"(`{prev_sha[:12]}..{sha[:12]}`). DO NOT report new Minor/stylistic findings on untouched code.\n\n"
+        )
+        scope_meta = {"Scope": f"convergence from round {number} ({prev_sha[:7]})"}
+    else:
+        header_block = (
+            f"## Round Scope: Delta Review (Round {next_round})\n\n"
+            f"Round {number} reviewed `{prev_sha}`. The developer triaged it and revised the code/artefacts since. "
+            "Do NOT re-derive the whole design or re-audit untouched modules from scratch. "
+            "DO NOT report new Minor/stylistic findings on untouched code or artefacts.\n\n"
+        )
+        scope_meta = {"Scope": f"delta from round {number} ({prev_sha[:7]})"}
+
+    earlier_section = (
+        "### Earlier Rounds Shared Context Ledger (Cumulative Memory)\n\n"
+        + "\n\n".join(earlier_ledger_blocks)
+        + "\n\n"
+        if earlier_ledger_blocks
+        else ""
+    )
+
+    block = (
+        header_block
+        + handoff_block
+        + fixed_registry_block
+        + "1. **Approved-Design Anchoring**: Every verification and finding MUST be anchored strictly to the approved HLD "
+        "(`.devtool/epic/<epic_dir>/<epic_dir>.en.md`), `bdd_scenarios.en.md`, and `Decisions Already Made` in `task_*.md`.\n"
+        "2. **Verify-Then-Close on Fixed Locations**: For each finding below marked `fixed in <sha>`, verify whether the revision "
+        f"resolves the original defect at `{sha}`. If resolved, **close it silently (PASS)** — do NOT propose alternative "
+        "implementations or secondary refactors on that fix.\n"
+        "3. **Diff-Hunk Isolation on Fixed Files (No Late Drip-Feed)**: On any file listed in `Previously Fixed Locations Registry`, "
+        "do NOT report pre-existing issues on untouched functions or lines outside the `prev_sha..sha` diff hunks. You may only "
+        "report a finding on a previously fixed file if (a) `[INCOMPLETE_FIX]` the original defect remains unresolved, or "
+        "(b) `[NEW_REGRESSION]` the modified lines in `prev_sha..sha` directly introduce a new Critical/Important bug.\n"
+        "4. Do not re-raise a finding marked `dismissed:` unless the source contradicts its rationale.\n"
+        "5. The revision diff below is the primary scope: review the new and edited text/code, and every artefact "
+        "or source symbol that text/code references or must stay consistent with (P1, P2, P5, P7). Read an "
+        "unchanged file only to verify such a reference.\n"
+        "6. Everything else was reviewed in round "
+        f"{number}. Skip it, and DO NOT report new Minor findings on untouched code.\n\n"
+        + earlier_section
+        + f"### Round {number} findings and decisions ({prev_cli} / {prev_model})\n\n" + "\n".join(table) + "\n\n"
+        f"### Revision diff since round {number} (`{prev_sha[:12]}..{sha[:12]}`)\n\n"
+        f"{fence}diff\n{diff}\n{fence}\n\n"
+        f"Source files changed since round {number} (stat only):\n\n"
+        f"{stat_fence}text\n{source or '(none outside .devtool/)'}\n{stat_fence}\n"
+    )
+    return block, scope_meta
+
+
+def _completed_rounds_count(root: Path, epic_dir: str | None, kind: str) -> int:
+    if not epic_dir:
+        return 0
+    name, _ = review_file(kind)
+    path = root / ".devtool" / "epic" / epic_dir / name
+    if not path.exists():
+        return 0
+    return sum(1 for _n, lines in rounds_in(path.read_text(encoding="utf-8")) if "- **Status**: completed" in metadata(lines))
+
+
 def run_principal(root: Path, args: argparse.Namespace, sha: str) -> int:
     if getattr(args, "doc", None):
         return run_principal_doc(root, args, sha)
@@ -843,6 +1126,10 @@ def run_principal(root: Path, args: argparse.Namespace, sha: str) -> int:
 
     base_sha = git_run(root, "rev-parse", "--verify", args.base).decode().strip()
     readiness_output = out.rstrip()
+    round_context, scope = delta_round_context(root, args, sha, kind="principal")
+    if scope:
+        print(f"{scope['Scope']}: reviewing the revision, not the whole epic (--full to review everything)",
+              file=sys.stderr)
 
     prompt = Template(principal_prompt_path().read_text(encoding="utf-8")).safe_substitute(
         rules=principal_rules_path().read_text(encoding="utf-8").strip(),
@@ -852,6 +1139,7 @@ def run_principal(root: Path, args: argparse.Namespace, sha: str) -> int:
         epic_dir=f".devtool/epic/{args.epic_dir}",
         artefacts=principal_artefact_lines(root, args.epic_dir),
         readiness_output=readiness_output,
+        round_context=round_context,
     )
 
     if getattr(args, "developer_note", None):
@@ -860,7 +1148,8 @@ def run_principal(root: Path, args: argparse.Namespace, sha: str) -> int:
     before = status_lines(root)
     code, out, err = execute(cli_command(args.cli, args.model, getattr(args, "thinking_level", None)), root, args.timeout, prompt)
     changed = tree_changes(root, before, sha)
-    return record_round(root, args, sha, [Pass("principal", code, out, err, prompt)], changed, {"Kind": "principal"})
+    return record_round(root, args, sha, [Pass("principal", code, out, err, prompt)], changed,
+                        {"Kind": "principal", **scope})
 
 
 def run_adhoc_code(root: Path, args: argparse.Namespace, sha: str) -> int:
@@ -875,6 +1164,7 @@ def run_adhoc_code(root: Path, args: argparse.Namespace, sha: str) -> int:
         artefacts=f"- Commit range: `{commit_spec}`",
         audit_output=f"Commit log ({commit_spec}):\n{log or '(no commits)'}",
         results_output="N/A (Ad-hoc review of branch diff)",
+        round_context="",
         diff_section=diff_section,
     )
 
@@ -932,6 +1222,7 @@ def run(args: argparse.Namespace) -> int:
         cli_arg=args.cli,
         model_arg=args.model,
         thinking_arg=getattr(args, "thinking_level", None),
+        auto_quota=bool(getattr(args, "auto_quota", False)),
     )
     args.cli = cli
     args.model = model
@@ -951,6 +1242,18 @@ def run(args: argparse.Namespace) -> int:
     if status_lines(root):
         print("commit or stash your changes before a review", file=sys.stderr)
         return 2
+    max_rounds = getattr(args, "max_rounds", MAX_REVIEW_ROUNDS)
+    if getattr(args, "epic_dir", None) and not getattr(args, "force", False):
+        completed_count = _completed_rounds_count(root, args.epic_dir, kind)
+        if completed_count >= max_rounds:
+            print_gate_banner(
+                PreconditionFailedError(
+                    "Max review rounds",
+                    f"Max review rounds ({max_rounds}) reached; Circuit Breaker halted for human architect",
+                ),
+                args.cli,
+            )
+            return 2
     sha = head_of(root)
 
     if kind == "principal":
@@ -976,6 +1279,10 @@ def run(args: argparse.Namespace) -> int:
     if args.cli == "ollama":
         return run_local(root, args, sha, audit_output, results_output, model_ctx)
     diff_limit = getattr(args, "diff_limit", MAX_DIFF_LINES)
+    round_context, scope = delta_round_context(root, args, sha, kind="code")
+    if scope:
+        print(f"{scope['Scope']}: reviewing the revision delta, not the full epic diff (--full to review everything)",
+              file=sys.stderr)
     diff_section = build_diff_section(root, args.base, sha, max_lines=diff_limit)
     prompt = Template(PROMPT.read_text(encoding="utf-8")).safe_substitute(
         rules=RULES.read_text(encoding="utf-8").strip(),
@@ -985,12 +1292,13 @@ def run(args: argparse.Namespace) -> int:
         artefacts=artefact_lines(root, args.epic_dir),
         audit_output=audit_output.rstrip(),
         results_output=results_output.rstrip(),
+        round_context=round_context,
         diff_section=diff_section,
     )
     before = status_lines(root)  # after the facts: running the test commands may write build output
     code, out, err = execute(cli_command(args.cli, args.model, args.thinking_level), root, args.timeout, prompt)
     changed = tree_changes(root, before, sha)
-    return record_round(root, args, sha, [Pass("review", code, out, err, prompt)], changed, {})
+    return record_round(root, args, sha, [Pass("review", code, out, err, prompt)], changed, scope)
 
 
 def live_log_dir(root: Path, epic_dir: str) -> Path:
@@ -1229,6 +1537,157 @@ def since_lines(previous: list[list[str]], latest: list[list[str]]) -> list[str]
     return lines or ["No blocking or fixed finding in the previous round."]
 
 
+HIGH_RISK_KEYWORDS = (
+    "security",
+    "race",
+    "deadlock",
+    "corrupt",
+    "rollback",
+    "contract",
+    "shared-contracts",
+    "unbound",
+    "notimplementederror",
+    "_stub",
+    "leak",
+    "crash",
+    "injection",
+    "signature",
+)
+
+
+SHARED_CONTRACT_MARKERS = (
+    "shared-contracts",
+    "api_contract.md",
+    "architecture_and_flow.md",
+    "gaps_and_rfcs.md",
+    "contract_sync.json",
+)
+
+
+def is_shared_contract_conflict(row: list[str]) -> bool:
+    """Return True when a finding directly impacts or conflicts with shared-contracts/."""
+    combined = f"{row[2]} {row[3]}".lower()
+    return any(marker in combined for marker in SHARED_CONTRACT_MARKERS)
+
+
+def _finding_risk_sort_key(row: list[str]) -> tuple[int, int, int, int, int]:
+    """Rank findings by (severity_rank, is_not_shared_contract, is_non_prod_path, missing_high_risk_keyword, original_index)."""
+    sev_rank = {"Critical": 0, "Important": 1, "Minor": 2}.get(row[1], 3)
+    not_contract = 0 if is_shared_contract_conflict(row) else 1
+    loc = row[2].lower()
+    prob = row[3].lower()
+    is_non_prod = 0 if (loc.startswith("src/") or "shared-contracts" in loc or "bdd_scenarios" in loc) else 1
+    has_risk_kw = 0 if any(kw in prob or kw in loc for kw in HIGH_RISK_KEYWORDS) else 1
+    try:
+        idx = int(row[0])
+    except ValueError:
+        idx = 999
+    return (sev_rank, not_contract, is_non_prod, has_risk_kw, idx)
+
+
+def top_risk_findings_section(latest: list[list[str]], limit: int = 3) -> list[str]:
+    """Filter and rank the Top 3 highest-risk findings for executive reporting and design-anchored fixing."""
+    if not latest:
+        return [
+            f"## Top {limit} Highest-Risk Findings (Executive Report)",
+            "",
+            "None.",
+        ]
+    ranked = sorted(latest, key=_finding_risk_sort_key)[:limit]
+    lines = [
+        f"## Top {limit} Highest-Risk Findings (Executive Report)",
+        "",
+        "> **Strict Approved-Design Anchoring & Forward-Alignment Rule**: Tier 1 (User-approved Spec `*-design.en.md` & HLD `<epic_dir>.en.md`) "
+        "takes precedence over legacy `shared-contracts/` and legacy `src/` code. When Tier 1 intentionally changes steps/enums/schemas "
+        "(e.g. 7 steps -> 5 steps) but `shared-contracts/` or `src/` still holds legacy values, NEVER propose reverting Tier 1 to the old design; "
+        "always propose **Forward Alignment** (update `shared-contracts/` + `sync_contracts.py ack` and add affected `src/` files to task `Allowed files`).",
+        "",
+        "| Rank | # | Severity | Location | Problem | Design Anchor (HLD / BDD / Decisions Already Made) | Proposed action |",
+        "|------|---|----------|----------|---------|----------------------------------------------------|-----------------|",
+    ]
+    for rank, cells in enumerate(ranked, 1):
+        lines.append(f"| #{rank} | {cells[0]} | {cells[1]} | {cell(cells[2])} | {cell(cells[3])} | ? | ? |")
+    return lines
+
+
+def auto_triage_section(
+    number: int,
+    rounds: list[tuple[int, list[str]]],
+    latest: list[list[str]],
+    max_rounds: int = MAX_REVIEW_ROUNDS,
+) -> list[str]:
+    """Severity-Tiered Auto-Triage Gate & Circuit Breaker evaluation for the latest round."""
+    blocking_rows = [cells for cells in latest if cells[1] in BLOCKING]
+    critical_rows = [cells for cells in latest if cells[1] == "Critical"]
+    important_rows = [cells for cells in latest if cells[1] == "Important"]
+    minor_rows = [cells for cells in latest if cells[1] == "Minor"]
+    contract_conflict_rows = [cells for cells in blocking_rows if is_shared_contract_conflict(cells)]
+    fix_loop_paths: list[str] = []
+    if len(rounds) >= 2 and blocking_rows:
+        prev_fixed_paths = {
+            path_of(prev[2])
+            for prev in finding_rows(rounds[-2][1])
+            if prev[4].startswith("fixed in ")
+        }
+        for row in blocking_rows:
+            p = path_of(row[2])
+            if p and p in prev_fixed_paths and p not in fix_loop_paths:
+                fix_loop_paths.append(p)
+
+    if not blocking_rows:
+        action = "AUTO_PASS_FINAL_MINOR_SWEEP" if minor_rows else "AUTO_PASS_CLEAN"
+        reason = (
+            f"0 Critical and 0 Important findings ({len(minor_rows)} Minor). "
+            "Fix valid Minor items once (strictly anchored to approved HLD/BDD/Task contracts), run local quality gate green, "
+            "and finish stage immediately without calling external reviewer again."
+            if minor_rows
+            else "0 findings. Stage review passed cleanly."
+        )
+    elif contract_conflict_rows:
+        ids = ", ".join(f"#{r[0]}" for r in contract_conflict_rows)
+        action = "CIRCUIT_BREAKER_HALT (SHARED_CONTRACT_CONFLICT)"
+        reason = (
+            f"Shared-contract conflict detected in finding(s) {ids}: directly impacts `shared-contracts/` "
+            "(`api_contract.md` / `architecture_and_flow.md` / `gaps_and_rfcs.md`). "
+            "STOP IMMEDIATELY — do NOT auto-fix, do NOT revert user-approved HLD steps/schemas to legacy contracts, "
+            "and do NOT continue autonomous execution. Report Top 3 Highest-Risk Findings to Human Architect immediately."
+        )
+    elif fix_loop_paths:
+        action = "CIRCUIT_BREAKER_HALT (FIX_LOOP)"
+        reason = (
+            f"Fix Loop detected across consecutive rounds on {', '.join(fix_loop_paths)}. "
+            "STOP IMMEDIATELY — halt auto-pilot and escalate Top 3 Highest-Risk Findings to Human Architect."
+        )
+    elif number >= max_rounds and critical_rows:
+        ids = ", ".join(f"#{r[0]}" for r in critical_rows)
+        action = "CIRCUIT_BREAKER_HALT (MAX_ROUNDS_CRITICAL_REMAINING)"
+        reason = (
+            f"After {number}/{max_rounds} review rounds, {len(critical_rows)} Critical finding(s) ({ids}) still remain unresolved. "
+            "STOP IMMEDIATELY — do NOT continue autonomous execution; report Top 3 Highest-Risk Findings to Human Architect."
+        )
+    elif number >= max_rounds:
+        action = "AUTO_PASS_FINAL_SWEEP"
+        reason = (
+            f"Round {number}/{max_rounds} reached max_rounds with 0 Critical findings ({len(important_rows)} Important, {len(minor_rows)} Minor, no Fix Loop or contract conflict). "
+            "Apply one final fix sweep anchored to approved design, run local quality gate green, and finish stage without invoking a 4th review round."
+        )
+    else:
+        action = "AUTO_FIX_ELIGIBLE"
+        reason = (
+            f"Round {number}/{max_rounds} has {len(blocking_rows)} Critical/Important finding(s) and no Fix Loop or shared-contract conflict. "
+            "Verify against approved design (HLD, bdd_scenarios.en.md, Decisions Already Made): if Valid, "
+            "auto-record decisions, switch to Role 2.3 to fix, run local quality gate, "
+            "and advance to next review round."
+        )
+    return [
+        "## Auto-Triage Gate",
+        "",
+        f"- **Action**: {action}",
+        f"- **Round**: {number} / {max_rounds}",
+        f"- **Directive**: {reason}",
+    ]
+
+
 def triage(args: argparse.Namespace) -> int:
     """Print the latest round as a skeleton to fill, verify and present before any action on its findings."""
     root = Path(git_run(Path.cwd(), "rev-parse", "--show-toplevel").decode().strip())
@@ -1240,7 +1699,7 @@ def triage(args: argparse.Namespace) -> int:
         return 2
     number, lines = rounds[-1]
     meta = round_meta(lines)
-    cli = meta.get("CLI", "codex")
+    cli = meta.get("CLI", "claude")
     title = f"# Review Triage: {args.epic_dir}, Round {number}"
     latest = finding_rows(lines)
     header = format_triage_header(
@@ -1256,6 +1715,8 @@ def triage(args: argparse.Namespace) -> int:
         header.append(f"- **Status**: {meta.get('Status')}")
     out = [
         *header,
+        "",
+        *top_risk_findings_section(latest, limit=3),
         "",
         "## Passes",
         "",
@@ -1287,6 +1748,7 @@ def triage(args: argparse.Namespace) -> int:
         out += [f"## Since Round {rounds[-2][0]}", "", *since_lines(finding_rows(rounds[-2][1]), latest)]
     else:
         out += ["## Since the Previous Round", "", "No earlier round."]
+    out += ["", *auto_triage_section(number, rounds, latest, getattr(args, "max_rounds", MAX_REVIEW_ROUNDS))]
     out += ["", "## Next Steps", "", NEXT_STEPS]
     print("\n".join(out))
     return 0
@@ -1310,12 +1772,21 @@ def main(argv: list[str] | None = None) -> int:
     runner.add_argument("--diff-limit", type=int, default=MAX_DIFF_LINES)
     runner.add_argument("--commits")
     runner.add_argument("--developer-note")
+    runner.add_argument("--max-rounds", type=int, default=MAX_REVIEW_ROUNDS,
+                        help="maximum completed review rounds before Circuit Breaker halts (default: 3)")
+    runner.add_argument("--force", action="store_true",
+                        help="override the max-rounds Circuit Breaker limit when explicitly requested")
+    runner.add_argument("--auto-quota", action="store_true",
+                        help="auto-select provider in Claude -> Codex -> Kiro -> Argon order using check-quota thresholds")
+    runner.add_argument("--full", action="store_true",
+                        help="review every artefact/diff even when an earlier round exists (default: delta)")
     checker = modes.add_parser("check", help="list undecided blocking findings of the latest completed round")
     checker.add_argument("--kind", choices=KINDS, default="code")
     checker.add_argument("--epic-dir", required=True)
     triager = modes.add_parser("triage", help="print the latest round as a skeleton to fill before acting on it")
     triager.add_argument("--kind", choices=KINDS, default="code")
     triager.add_argument("--epic-dir", required=True)
+    triager.add_argument("--max-rounds", type=int, default=MAX_REVIEW_ROUNDS)
     args = parser.parse_args(argv)
 
     if args.mode == "run":

@@ -20,12 +20,12 @@ need to know what runs next or what must be true before it does, stay here.
 
 ## The Sequence
 
-The complete human-facing lifecycle and resume diagrams live in [lifecycles.en.md](../../docs/lifecycles.en.md) and [lifecycles.vi.md](../../docs/lifecycles.vi.md). The runtime sequence is:
+Human-facing lifecycle and resume diagrams live in [lifecycles.en.md](../../docs/lifecycles.en.md) and [lifecycles.vi.md](../../docs/lifecycles.vi.md). Runtime sequence (Interactive & Autonomous Pipeline Mode):
 
 1. **Stage 1 (Inception & Spec)**: `dev-brainstorming` -> Gate 1 approval -> Route to `dev-designer` (epic) or `writing-plans` (non-epic).
-2. **Stage 2 (Architecture & Tasks)**: `dev-designer` -> Gate 2 approval -> Handoff Choice (Package or Continue).
-3. **Stage 3 (Isolated Execution)**: `dev-implementation` -> Gate 3 (order confirmation) -> Task-by-task TDD in worktree -> Gate 4 machine acceptance -> Review Choice loop (Finish, Cross-model review or Local model review) -> Gate 5 Kanban review.
-4. **Stage 4 (Finish Branch & Archival)**: `finishing-a-development-branch` -> Rebase, verify by tier, `--no-ff` merge, archive tasks into `.devtool/epic/<slug>/`.
+2. **Stage 2 (Architecture & Tasks)**: `dev-designer` -> Gate 2 approval -> Handoff (`package_epic.py`) -> Principal Review (`Claude -> Codex -> Kiro -> Argon` via `check-quota`, Auto-fix up to Max 3 rounds).
+3. **Stage 3 (Isolated Execution)**: Role 2.3 (**Gemini Flash 3.8**) -> `dev-implementation` -> Gate 3 -> TDD in worktree -> Gate 4 -> Cross-Model Review (Auto-fix up to Max 3 rounds) -> Gate 4 -> Review Choice loop -> Gate 5.
+4. **Stage 4 (Finish Branch & Archival)**: `finishing-a-development-branch` -> Archive tasks into `.devtool/epic/<slug>/`, rebase, verify by tier (`Test All` once), `--no-ff` merge.
 
 <HARD-GATE>
 Do NOT create `implementation_plan.md` or any Antigravity planning-mode artifact.
@@ -111,7 +111,7 @@ Packaging steps (automated by `package_epic.py`):
 > 2. **`/dev-implementation` (Continue to Stage 3)** — enter Stage 3 now (`dev-implementation`, starting at Gate 3).
 > 3. **Done (Stop here)** — keep packaged handoff for a later session.
 
-- **Principal Review** → invoke `d3nexus:principal-review` (auto-revises package and `/save-context` after triage fixes).
+- **Principal Review** → invoke `d3nexus:principal-review` (`--auto-quota` priority `Claude -> Codex -> Kiro -> Argon`, 3-Round Convergence Funnel, Auto-Triage Gate auto-revises package and `/save-context` up to max 3 rounds).
 - **Continue** → invoke `d3nexus:dev-implementation`.
 
 ### Stage 3 — Isolated Execution → `dev-implementation`

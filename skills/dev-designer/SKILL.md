@@ -97,12 +97,13 @@ Each document MUST contain the following sections:
      Inspect blast radius, downstream callers, native `MethodChannel` bridges, and coverage safety nets before freezing contracts.
    - **Integration Test Plan & Boundary Matrix**: Map the architectural boundaries and failure seams into an explicit Integration Test Plan. Detail the end-to-end integration boundaries, mock/live services, data stores, and multi-component seams. For Web/UI applications, explicitly specify the **Visual & Browser Verification Matrix** (target viewports, URL routes/query parameters, interactive states, audio/video playback, and DOM verification).
    - **Integration Test Roots**: The Integration Test Plan MUST contain the line `Integration test roots: <dir>, <dir>` naming every directory that holds integration tests. Defaults: `tests/e2e/` (Web), `integration_test/` (Flutter), `app/src/test/` and `shell/src/test/` (Android), `App/Tests/` and `Shell/Tests/` (iOS), `tests/integration/` and `tests/e2e/` (Python), `tests/` (Rust). `check_bdd_traceability.py` scans exactly these directories.
-   - **Protected Paths & Integration Results**: Beside `Integration test roots:`, the Integration Test Plan MUST carry these lines, which the recorder, the done gate and Gate 4 read:
+   - **Protected Paths & Integration Results (3-Level Test Scope Pyramid — Level 2 Blast-Radius Scoped)**: Beside `Integration test roots:`, the Integration Test Plan MUST carry these lines, which the recorder, the done gate and Gate 4 read:
      ```text
      Protected paths: .agents/quality/**, .devtool/epic/<epic_name>/bdd_scenarios.en.md, .devtool/epic/<epic_name>/bdd_scenarios.vi.md
-     Integration results: uv run pytest tests/integration tests/e2e --junitxml=build/test-results/py.xml -> build/test-results/py.xml
+     Integration results: uv run pytest <epic_integration_tests> <blast_radius_caller_tests> --junitxml=build/test-results/py.xml -> build/test-results/py.xml
      ```
      `Protected paths:` lists explicit paths and globs; the three shown are the minimum, and a tracked program that a Verification row runs is protected implicitly. Write one `Integration results:` line per platform, at least one: the command Gate 4 runs, then ` -> `, then the report it writes.
+     **Blast-Radius Scoped `Integration results:` Rule**: Instead of blindly running the entire repository's test suite (`pytest tests/` or `./gradlew test`) on every Gate 4 / pre-review check, derive the test paths in `Integration results:` directly from `check_code_impact.py` (Step 1 Check 1): include only **(a) the current Epic's integration/e2e test files** and **(b) the test files covering Downstream Callers in the Blast Radius**. Full-repository `Test All` executes once at Stage 4 (`finishing-a-development-branch`) after rebasing onto `develop` right before landing.
      For opt-in live integration suites (such as local LLM or live provider benchmarks requiring environment variables like `PLT_LIVE_OLLAMA_MODEL` or `EVI_LIVE_MODEL`), declare:
      ```text
      Integration results (live, needs: VAR1, VAR2): uv run pytest tests/integration/test_live.py --junitxml=build/test-results/live.xml -> build/test-results/live.xml
@@ -217,8 +218,16 @@ When `shared-contracts/` is affected, `task_01` is reserved strictly for contrac
 - **Verification**: Unit and deserialization tests validating backward and forward compatibility against the upstream contract definition.
 - **Pre-requisite / Dependency**: Canonical contract updated in Hub repo (via Upstream Contract Handoff or local cross-repo commit).
 
-#### Mandatory 3-Tier Testing Standard in Task Breakdown
-Every Epic breakdown MUST explicitly structure and address all 3 testing tiers across the Tri-Persona system based on the target platform:
+#### Mandatory 3-Tier Testing Standard & 3-Level Test Scope Pyramid in Task Breakdown
+Every Epic breakdown MUST structure and scope all 3 testing tiers across the **3-Level Test Scope Pyramid** (`Level 1: Task-Scoped` -> `Level 2: Blast-Radius Scoped` -> `Level 3: Test All once on Merge to develop`) so `--replay`, per-task TDD, and Gate 4 run at maximum speed while guaranteeing 100% impact coverage:
+- **Level 1 — Task-Scoped (`Task 1 .. Task N-1` & `check_epic_readiness.py --replay`)**:
+  - `RED`, `GREEN`, `TIER-B`, and `TIER-C` rows in `Task 1 .. Task N-1` MUST target **only the specific files in that task's `Allowed files`** (e.g. `uv run pytest tests/unit/test_foo.py::test_bar`, `uv run ruff check --select F821,F841,B007,B904 <allowed_py_files>`, `uv run mypy --strict <allowed_src_files>`). Never run whole-repo `ruff check src tests`, `mypy --strict src`, or `pytest` across all tests in intermediate tasks.
+- **Level 2 — Blast-Radius Scoped (`Task N` Final Integration Task, Gate 4, & Pre-Checks of `/cross-model-review`)**:
+  - `Task N` and the HLD's `Integration results:` target **only the Epic's touched modules + Downstream Callers identified by `check_code_impact.py`**, paired with fast mechanical gates (< 5s total): Anti-Stub Enforcer (`check_anti_stub.py` / `audit_epic.py`), `.importlinter` package coverage (`verify_importlinter_coverage.py` + `lint-imports`), BDD Scenario Count Parity & Contract Watermark (`verify_bdd_coverage.py --verify-epic-parity --verify-contract-watermark`), and Pre-Review Self-Probe (`pre_review_self_probe.py`).
+- **Level 3 — Full Repository Suite (`Test All` — Once on Merge to `develop`)**:
+  - Executing the full test suite across every unrelated module in the repository (`pytest`, `cargo test`, `melos test`, `./gradlew testDebugUnitTest`) is reserved for **Stage 4 (`finishing-a-development-branch`) at `Update onto Base` (after archiving tasks and rebasing onto `develop`, right before `integrate_branch.py land`)**.
+
+Every Epic breakdown MUST explicitly address all 3 testing tiers across the Tri-Persona system based on the target platform:
 
 ##### 💙 For Flutter Projects:
 - **Tier A (Unit / Package Tests)**: Tasks covering module/feature logic, BLoCs, UseCases, Repositories, Parsers with isolated unit tests (`fvm flutter test` or `melos test` using `bloc_test`, Mocktail). Executed by the **TDD Master (Dev Persona)**.

@@ -25,6 +25,8 @@ $readiness_output
 
 The readiness report is already proven: all facts above have passed their mechanical checks; do not restate them, spend your review on judgement and grounding.
 
+$round_context
+
 ## Rules
 
 $rules
@@ -52,6 +54,7 @@ Verdict: PASS
 
 Rules for Severity & Verdict:
 - Use `Critical` for a defect that breaks the epic's goal, `Important` for one that must be fixed before implementation, and `Minor` for anything else.
+- **Exhaustive Per-File Pass (Anti-Drip-Feed Rule)**: In Round 1 (full-scope review), report ALL `Critical` and `Important` defects within each inspected artefact in the same round; never hold back or drip-feed findings on untouched sections of the same file across later delta rounds.
 - Output `Verdict: CHANGES REQUIRED` if and only if there is at least one `Critical` or `Important` finding.
 - If there are no findings (or only `Minor` findings), you MUST output `Verdict: PASS`.
 - A review with no finding still ends with its `Verdict: PASS` line.

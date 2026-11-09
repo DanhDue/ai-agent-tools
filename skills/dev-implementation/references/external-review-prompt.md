@@ -30,6 +30,8 @@ $results_output
 
 All commands above have passed their execution gates (exit 0); inspect their output details for coverage, warnings, or audit disclosures.
 
+$round_context
+
 ## Code Changes (Diff)
 
 $diff_section
@@ -66,6 +68,7 @@ Verdict: PASS
 
 Rules for Severity & Verdict:
 - Use `Critical` for a defect that breaks the epic's goal, `Important` for one that must be fixed before merge, and `Minor` for anything else.
+- **Exhaustive Per-File Pass (Anti-Drip-Feed Rule)**: In Round 1 (full-scope review), report ALL `Critical` and `Important` defects within each inspected file in the same round; never hold back or drip-feed findings on untouched lines of the same file across later delta rounds.
 - Output `Verdict: CHANGES REQUIRED` if and only if there is at least one `Critical` or `Important` finding.
 - If there are no findings (or only `Minor` findings), you MUST output `Verdict: PASS`.
 - A review with no finding still ends with its `Verdict: PASS` line.

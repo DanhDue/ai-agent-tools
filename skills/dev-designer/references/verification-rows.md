@@ -29,12 +29,23 @@ produces the test report a `TIER-C` row names after `results`. The table grammar
 
 ## Python
 
+### Task 1..N-1 (Level 1 — Task-Scoped to `Allowed files`)
+
 | ID | Phase | Command | Expect | Needs |
 |----|-------|---------|--------|-------|
-| V1 | RED | `uv run pytest tests/unit/test_taxonomy.py` | exit 1; contains "ModuleNotFoundError" | — |
+| V1 | RED | `uv run pytest tests/unit/test_taxonomy.py::test_parse_node` | exit 1; contains "FAILED" | — |
 | V2 | GREEN | `uv run pytest tests/unit/test_taxonomy.py` | exit 0; contains "passed" | — |
-| V3 | TIER-B | `uv run ruff check src tests` | exit 0 | — |
-| V4 | TIER-C | `uv run pytest tests/integration/test_taxonomy_bdd.py --junitxml=build/test-results/task_3.xml` | exit 0; results build/test-results/task_3.xml | — |
+| V3 | TIER-B | `uv run ruff check --select E9,F63,F7,F82,F821,F841,B007,B904 src/pkg/taxonomy.py tests/unit/test_taxonomy.py && uv run mypy --strict src/pkg/taxonomy.py` | exit 0 | — |
+| V4 | TIER-C | `uv run pytest tests/integration/test_taxonomy_bdd.py --junitxml=build/test-results/task_1.xml` | exit 0; results build/test-results/task_1.xml | — |
+
+### Task N Final Integration & Governance Task (Level 2 — Blast-Radius Scoped + Fast Mechanical Gates)
+
+| ID | Phase | Command | Expect | Needs |
+|----|-------|---------|--------|-------|
+| V1 | RED | `uv run pytest tests/integration/test_taxonomy_flow.py::test_full_pipeline` | exit 1; contains "FAILED" | — |
+| V2 | GREEN | `uv run pytest tests/integration/test_taxonomy_flow.py tests/unit/test_downstream_caller.py` | exit 0; contains "passed" | — |
+| V3 | TIER-B | `python3 scripts/check_anti_stub.py && python3 scripts/verify_importlinter_coverage.py && uv run lint-imports && python3 scripts/verify_bdd_coverage.py --verify-epic-parity --verify-contract-watermark && python3 scripts/pre_review_self_probe.py` | exit 0 | — |
+| V4 | TIER-C | `uv run pytest tests/integration/test_taxonomy_flow.py --junitxml=build/test-results/task_n.xml` | exit 0; results build/test-results/task_n.xml | — |
 
 Report: `pytest --junitxml=<path>`.
 

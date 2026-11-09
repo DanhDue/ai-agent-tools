@@ -126,7 +126,33 @@ flowchart TD
     DONE_EPIC -->|"Review Choice + Gate 5 sign-off"| MERGED
 ```
 
-These diagrams and explanations describe the lifecycle for humans; runtime skills (`dev-lifecycle`, `dev-implementation`) and scripts are the operational source of truth.
+These diagrams and explanations describe the lifecycle for humans; runtime skills (`dev-lifecycle`, `dev-implementation`) and scripts are the operational source of truth. To prevent LLM **Attention Dilution** and **Lost-in-the-Middle** degradation during execution, each runtime `SKILL.md` holds only its concise operational sequence and gates, while the workflow architecture, skill catalog, and review convergence rules are documented below and in on-demand `references/*.md` files.
+
+### dev-lifecycle Skills Catalog & Autonomous Convergence Architecture
+
+1. **Stage & Skill Catalog (Decoupled Responsibilities)**:
+   - **`dev-brainstorming` (Stage 1 — Inception & Spec)**: Collaborative problem-space and design exploration producing bilingual specs (`*-design.{en,vi}.md`) and shared-contract warnings (Gate 1).
+   - **`dev-designer` (Stage 2 — Architecture & Tasks)**: Produces the 3-Tier Design Package (`<epic_dir>.{en,vi}.md` HLD, `bdd_scenarios.{en,vi}.md`, and English-only `task_*.md` files with 3-Level Test Scope Pyramid verification rows) and runs `package_epic.py` (Gate 2).
+   - **`principal-review` (Stage 2 — Shift-Left Design Audit)**: Cross-model inspection of HLD, BDD scenarios, and task contracts against the active codebase before implementation (`principal_review.md`).
+   - **`dev-implementation` (Stage 3 — Isolated TDD Execution)**: Role 2.3 AI Programmer (**Gemini Flash 3.8**) executing one task per commit inside an isolated worktree (Gate 3), followed by Gate 4 machine verification and Gate 5 Kanban review.
+   - **`quality_check` (Stage 3 — Gate 4 Machine Orchestrator)**: Platform-neutral quality gatekeeper bound to the candidate `repository_sha` (`profile: "epic"`).
+   - **`cross-model-review` (Stage 3 — Shift-Right Code Audit)**: Independent code and diff review after Gate 4 PASS (`review_results.md`).
+   - **`finishing-a-development-branch` (Stage 4 — Land & Archive)**: Rebases onto `develop`, runs the single full-suite regression gate (`Test All`), merges `--no-ff`, and archives completed tasks into `.devtool/epic/<slug>/`.
+
+2. **End-to-End Autonomous Workflow vs. Interactive Mode**:
+   - **Autonomous Pipeline Flow**: `Design (Gate 2) -> Handoff (package_epic.py) -> Principal Review (--auto-quota, Auto-Fix up to Max 3 Rounds) -> Role 2.3 AI Programmer (Gemini Flash 3.8) -> Task-Scoped TDD -> Gate 4 Pre-Check -> Cross-Model Review (--auto-quota, Auto-Fix up to Max 3 Rounds) -> Gate 4 -> Finish (Test All on Merge)`.
+   - **Quota-Aware Provider Priority (`check-quota`)**: `Claude -> Codex -> Kiro -> Argon` (`Claude/Codex: 5H >= 15% & 7D > 2%`; `Kiro: Monthly >= 3% & >= 15 credits`; `Argon: Weekly >= 10%` or `5H >= 15%`).
+
+3. **3-Round Scope-Narrowing Convergence Funnel & 4 Anti-Fix-Loop Prompt Strategies**:
+   - **Round 1 (`full`)**: Full-scope audit with **Strategy 1 (Exhaustive Per-File Pass)** to report all `Critical`/`Important` defects per file up front (no drip-feeding).
+   - **Round 2 (`delta`)** & **Round 3 (`convergence`, Blocker-Only)**: Enforce **Strategy 2 (Universal Anti-Ping-Pong Guardrail)** across both single-model and mixed-model rounds, **Strategy 3 (Previously Fixed Locations Registry — `Verify-Then-Close`)**, and **Strategy 4 (Diff-Hunk Isolation on Fixed Files)** so untouched lines in fixed files are never re-flagged.
+
+4. **3 Circuit Breakers & 3-Level Test Scope Pyramid**:
+   - **Circuit Breakers (Immediate Halt & Report of Top 3 Highest-Risk Findings)**:
+     1. `CIRCUIT_BREAKER_HALT (SHARED_CONTRACT_CONFLICT)`: Any `Critical`/`Important` finding in any round that conflicts with `shared-contracts/` (never auto-revert approved HLD designs to legacy contracts).
+     2. `CIRCUIT_BREAKER_HALT (FIX_LOOP)`: A file marked `fixed in <sha>` in Round $N-1$ still fails with `[INCOMPLETE_FIX]` or `[NEW_REGRESSION]` in Round $N$.
+     3. `CIRCUIT_BREAKER_HALT (MAX_ROUNDS_CRITICAL_REMAINING)`: Any `Critical` finding surviving after Round 3 (whereas Round 3 with `0 Critical` findings triggers `AUTO_PASS_FINAL_SWEEP`).
+   - **3-Level Test Scope Pyramid**: Level 1 (`Task-Scoped` `< 5s` per task) -> Level 2 (`Blast-Radius Scoped` `< 30s` at Gate 4) -> Level 3 (`Test All` full workspace suite once in `finishing-a-development-branch` before merging to `develop`).
 
 ## doc-lifecycle
 
