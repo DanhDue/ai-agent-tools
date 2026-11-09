@@ -27,13 +27,13 @@ Principal Review is a cross-model review of an epic's architecture and task desi
      When the last commit touching the epic directory is not `[<EPIC_NAME>] Package epic for handoff`, re-run `package_epic.py <epic_dir> --revise` automatically.
      If the developer chose `/dev-implementation`, invoke `d3nexus:dev-implementation`; if they chose **Done**, print the `handoff.md` path and the Resume Prompt, and stop.
 
-3. **Principal Review**:
-   Read `.devtool/review_config.json` (if present; otherwise `run_external_review.py` seeds defaults from `DEFAULT_REVIEW_CONFIG`) to display `last_used_provider` and each provider's configured `model` and `thinking_level`. Ask the developer which CLI to use — Claude CLI, Codex CLI, Antigravity CLI (`agy --model "Gemini 4 Argon (Medium)"`), or Kiro CLI (`kiro-cli`) — and optionally which model. Never choose for the developer.
+3. **Principal Review (`check-quota` Priority & 3-Round Convergence Funnel)**:
+   Read `.devtool/review_config.json` (auto-seeded from `DEFAULT_REVIEW_CONFIG` with `provider_priority: ["claude", "codex", "kiro", "agy"]` and `max_rounds: 3`). In autonomous `/dev-lifecycle` mode (or with `--auto-quota`), `run_external_review.py` selects the highest-priority provider meeting quota thresholds (`Claude/Codex: 5H >= 15% & 7D > 2%`, `Kiro: >= 3% & >= 15 credits`, `Argon: >= 10%`). In interactive mode, display `last_used_provider` and each provider's configured `model` and `thinking_level`, and ask the developer which CLI to use — Claude CLI, Codex CLI, Kiro CLI (`kiro-cli`), or Antigravity CLI (`agy --model "Gemini 4 Argon (Medium)"`).
    Invoke `d3nexus:principal-review`.
 
-4. Run the principal review:
+4. Run the principal review (Round 1 runs Full Scope; Round 2 runs Delta Verification; Round 3 runs Blocker-Only Convergence Mode; max 3 rounds):
    ```bash
-   python3 "$SKILL_DIR"/resources/scripts/run_external_review.py run --kind principal --epic-dir <epic_dir> --base <base_branch> --cli <claude|codex|agy|kiro>
+   python3 "$SKILL_DIR"/resources/scripts/run_external_review.py run --kind principal --epic-dir <epic_dir> --base <base_branch> [--auto-quota | --cli <claude|codex|kiro|agy>]
    ```
    - A readiness FAIL prints the precondition banner: the CLI is never invoked. Fix the named failures as an epic revision, re-package, and return to step 1.
    - On success, the round is recorded in `.devtool/epic/<epic_dir>/principal_review.md`. Commit the recorded round:

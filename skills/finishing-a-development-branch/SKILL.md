@@ -44,19 +44,21 @@ flowchart TD
 ```
 
 
-## Step 1: Verify Tests
+## Step 1: Verify Readiness / Tests
 
-Run the project's full test suite (`npm test` / `cargo test` / `pytest` / `go test ./...`).
+- **In-Lifecycle Epic Mode (entering from `dev-lifecycle` / `dev-implementation` after Gate 4 `🟢 LGTM` & Gate 5 sign-off)**:
+  - Do **not** redundantly run the full repository test suite (`Test All`) here before archiving tasks and rebasing onto `<base-branch>`. Verify that Gate 4 (`audit_epic.py` + Blast-Radius `Integration results:` + `@quality_check` with `profile: "epic"`) already passed on `HEAD` (or verify `python3 scripts/resume_context.py --check-gate 4 --epic <epic_slug>`), then proceed directly to Step 2. The single full-repository **Level 3 `Test All`** run executes **once** in Step 5 (`Update onto Base`, Step 4 `verify-tier`) on the exact post-archival, post-rebase tree right before `integrate_branch.py land`.
+- **Standalone / Non-Epic Branch Mode**:
+  - Run the project's test suite (`npm test` / `cargo test` / `pytest` / `go test ./...`).
+  - **If tests fail**, report the failures and stop — the menu comes after a green suite:
 
-**If tests fail**, report the failures and stop — the menu comes after a green suite:
-
-```
+```text
 Tests failing (<N> failures). Must fix before completing:
 
 [Show failures]
 ```
 
-**If tests pass:** continue to Step 2.
+**If verification passes:** continue to Step 2.
 
 ## Step 2: Detect Environment
 
@@ -87,7 +89,7 @@ Confirm before merging: merging into the wrong base is expensive to undo.
 
 **Normal repo and named-branch worktree — present exactly these 3 options:**
 
-```
+```text
 Implementation complete. What would you like to do?
 
 1. Merge back to <base-branch> locally
@@ -99,7 +101,7 @@ Which option?
 
 **Detached HEAD — present exactly these 2 options:**
 
-```
+```text
 Implementation complete. You're on a detached HEAD (externally managed workspace).
 
 1. Push as new branch and create a Pull Request
@@ -255,7 +257,7 @@ Report: "Keeping branch <name>. Worktree preserved at <path>."
 This path exists only as a response to an explicit request to throw the
 work away. Confirm first:
 
-```
+```text
 This will permanently delete:
 - Branch <name>
 - All commits: <commit-list>
@@ -305,7 +307,7 @@ partner what is at stake and ask:
 git -C "$WORKTREE_PATH" status --porcelain -uall
 ```
 
-```
+```text
 Worktree removal refused — these files were never committed:
 
 <file list>

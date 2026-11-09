@@ -406,6 +406,17 @@ class AuditEpicTest(AuditCase):
             self.assertIn("task_2_demo: row V1 Invalid pytest RED phase", evidence_sec)
             self.assertIn("Result: FAIL", report)
 
+    def test_anti_stub_enforcer_fails_on_stub_or_not_implemented_in_src(self) -> None:
+        """Gate 4 audit_epic.py fails immediately if src/ contains _stub(, raise NotImplementedError, or # STUB."""
+        self.start_task(1)
+        self.finish_task(1)
+        self.write("src/app_service.py", "def compute_stub(x: int) -> int:\n    return x\n")
+        self.commit("[DEMO] Add stub in src")
+        code, report, _ = self.audit()
+        self.assertEqual(code, 1, report)
+        self.assertIn("src/app_service.py", self.section(report, "Anti-stub check"))
+        self.assertIn("Result: FAIL", report)
+
 
 if __name__ == "__main__":
     unittest.main()

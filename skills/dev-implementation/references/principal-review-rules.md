@@ -19,7 +19,7 @@ To avoid false-positive findings, evaluate the epic against these principles:
    - Each finding must name the specific artefact (file path) and location (heading or section) to change.
    - Each finding must conclude with a concrete `Proposed: <edit>` recommendation.
 
-5. **Shared Contracts & Symlink Resolution**:
-   - When reviewing design documents impacting inter-service or cross-repo communication, verify that `shared-contracts/` paths resolve on disk (following symlinks to target repositories if applicable).
-   - Flag any breaking schema change without backward-compatibility shims or transition windows as **Critical**.
-   - Flag any missing `## Shared Contract Impact` section or failure to prioritize contract updates in `task_01` as **Important**.
+5. **Shared Contracts, Symlink Resolution & Source-of-Truth Hierarchy (Forward Alignment over Legacy Reversion)**:
+   - **Source-of-Truth Hierarchy**: Tier 1 (Approved Spec `*-design.en.md` & HLD `<epic_dir>.en.md` Goals/Architecture) > Tier 2 (`shared-contracts/`) > Tier 3 (Legacy `src/` code).
+   - **Forward Alignment Rule**: When Tier 1 intentionally changes pipeline steps, enums, or schemas (e.g., replacing 7 legacy steps with 5 new steps) while `shared-contracts/` or `src/` still holds legacy values, **never propose reverting Tier 1 back to the legacy design**. Instead, propose **forward alignment**: (a) synchronize `shared-contracts/<domain>/` (`api_contract.md`, `architecture_and_flow.md`, `gaps_and_rfcs.md` + `sync_contracts.py ack`) and `## Shared Contract Impact` to the new Tier 1 design, and (b) add legacy callers in `src/` to task `Allowed files` for forward migration.
+   - Verify that `shared-contracts/` paths resolve on disk (following symlinks to target repositories if applicable) and that `task_01` prioritizes contract/adapter synchronization.

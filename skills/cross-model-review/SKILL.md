@@ -22,10 +22,10 @@ Invoked after all tasks of an epic are implemented and Gate 4 (machine acceptanc
 - **Trigger**: Developer selects Option 2 ("Cross-model review") or Option 3 ("Local model review") at the Review Choice prompt.
 - **Scope**: Evaluates all task commits, diffs against base branch, audit disclosures, and integration test traceability in `.devtool/epic/<epic_dir>/`.
 - **Execution**:
-  - External CLI:
+  - External CLI (`--auto-quota` or explicit `--cli` following priority `Claude -> Codex -> Kiro -> Argon`):
     ```bash
     python3 skills/dev-implementation/resources/scripts/run_external_review.py run \
-      --epic-dir <epic_dir> --base <base_branch> --cli <claude|codex|agy|kiro>
+      --epic-dir <epic_dir> --base <base_branch> [--auto-quota | --cli <claude|codex|kiro|agy>]
     ```
   - Local Ollama:
     ```bash
@@ -38,12 +38,12 @@ Invoked after all tasks of an epic are implemented and Gate 4 (machine acceptanc
 
 Invoked on-demand to review a feature branch, pull request diff, or specific commit range without requiring an epic directory.
 
-- **Trigger**: Developer invokes `/cross-model-review --base <base> [--commits <range>] [--cli <claude|codex|ollama|agy|kiro>] [--model <model>]`.
+- **Trigger**: Developer invokes `/cross-model-review --base <base> [--commits <range>] [--auto-quota | --cli <claude|codex|ollama|kiro|agy>] [--model <model>]`.
 - **Scope**: Evaluates the commit range and diff against `--base` (or `--commits <range>`).
 - **Execution**:
   ```bash
   python3 skills/dev-implementation/resources/scripts/run_external_review.py run \
-    --base <base_branch> [--commits <range>] --cli <claude|codex|agy|kiro> [--model <model>]
+    --base <base_branch> [--commits <range>] [--auto-quota | --cli <claude|codex|kiro|agy>] [--model <model>]
   ```
 - **Streaming & Visibility**:
   - The review output and formatted triage table stream directly to stdout.
@@ -52,45 +52,36 @@ Invoked on-demand to review a feature branch, pull request diff, or specific com
 
 ## Preconditions & Safeguards
 
-1. **Clean Working Tree**:
-   - The runner enforces a clean git working tree before invoking any model.
-   - If unstaged or untracked changes exist, execution halts immediately with:
-     `commit or stash your changes before a review`.
+1. **Clean Working Tree & Fast Mechanical Pre-Checks (< 5s, 0 Credits on Failure)**:
+   - The runner enforces a clean git working tree before invoking any model (`commit or stash your changes before a review`).
+   - Before invoking any external reviewer CLI, `run_external_review.py` runs fast mechanical pre-checks:
+     - **Max 3 Rounds Guard**: Refuses a 4th round unless `--force` is passed (`[PRECONDITION BLOCKED] — Max review rounds (3) reached`).
+     - **Gate 4 Epic Audit (`audit_epic.py`)**: Including the **Anti-Stub Enforcer** (`! git grep -n -E "def .+_stub\(|raise NotImplementedError|# STUB" src/`).
+     - **Python Mechanical Gates** (when `.agents/quality/python-quality.json` is present): `anti_stub`, `importlinter_coverage` (`verify_importlinter_coverage.py`), and `self_probe` (`pre_review_self_probe.py`), plus Blast-Radius Scoped `Integration results:` and `check_bdd_traceability.py tests --results`.
 
-2. **Provider Configuration (`.devtool/review_config.json`) & Read-Only Sandbox**:
-   - **Load Sticky Provider Config**: Read `.devtool/review_config.json` (auto-seeded from `DEFAULT_REVIEW_CONFIG` in `run_external_review.py` when absent) to inspect `last_used_provider` and each provider's configured `model` and `thinking_level` (`claude`, `codex`, `agy`, `kiro`, `ollama`). When presenting the reviewer selection to the developer, show the configured `model` and `thinking_level` from `.devtool/review_config.json` and highlight `last_used_provider`. Invoking `run_external_review.py run` automatically updates `.devtool/review_config.json` with the chosen provider, model, and thinking level.
-   - CLI invocations operate under read-only sandboxes (`claude -p --dangerously-skip-permissions`, `codex exec --sandbox read-only`, `agy --sandbox --mode plan`, or `kiro-cli chat --no-interactive --trust-all-tools --wrap never`).
-   - The runner verifies git status before and after execution; any file modifications made by a reviewer cause the round to be discarded immediately.
-
-3. **Process Supervision & Timeouts**:
-   - External CLI invocations run in their own process group.
-   - If a model call exceeds `--timeout` (default: 1800s), the process group is cleanly terminated without leaving orphaned processes.
+2. **Quota-Aware Provider Selection (`check-quota`), 3-Round Convergence Funnel & Shared Context**:
+   - **Provider Priority (`Claude -> Codex -> Kiro -> Argon`)**: Configured in `.devtool/review_config.json` (`provider_priority: ["claude", "codex", "kiro", "agy"]`, `max_rounds: 3`). With `--auto-quota`, `run_external_review.py` selects the highest-priority ACTIVE provider meeting thresholds: Claude/Codex (`5H >= 15%` AND `7D > 2%`), Kiro (`Monthly Credits >= 3%` AND `>= 15.0 credits`), or Argon (`Argon Weekly >= 10%` or `5H >= 15%`).
+   - **3-Round Scope-Narrowing Convergence Funnel (Max 3 Rounds)**:
+     - **Round 1 (`Scope: full`)**: Full audit of `base...HEAD` across touched modules (enforcing the **Exhaustive Per-File Pass** anti-drip-feed rule).
+     - **Round 2 (`Scope: delta`)**: Verifies `fixed in <sha>` items and scopes diff to `Round1_SHA..Round2_SHA`; prohibits new `Minor` findings on untouched code.
+     - **Round 3 (`Scope: convergence`)**: Strict Blocker-Only Convergence Mode (incomplete fixes or new `Critical`/`Important` regressions in `prev_sha..curr_sha`).
+   - **Shared Context & 4 Anti-Fix-Loop Prompt Strategies**: `.devtool/epic/<epic_dir>/review_results.md` serves as the persistent Shared Context SSOT across rounds (`Earlier Rounds Shared Context Ledger`). `delta_round_context()` injects the **Universal Anti-Ping-Pong Guardrail** (both single-model and mixed-model), the **Previously Fixed Locations Registry (`Verify-Then-Close`)**, and **Diff-Hunk Isolation** on fixed files. See [review-triage.md](references/review-triage.md) for the complete 4-strategy specification.
+   - CLI invocations run in read-only sandboxes under isolated process groups (`--timeout` default 1800s); any working-tree mutation discards the round immediately.
 
 ## The Triage & Fix Loop
 
-Every review round is triaged before taking action. A reviewer's finding is a claim to check, not an order:
+Every review round is triaged and verified against active code and the approved design before taking action. Follow [review-triage.md](references/review-triage.md) in full:
 
-1. **Check Decisions & Status**:
-   - For epics, check undecided findings:
-     ```bash
-     python3 skills/dev-implementation/resources/scripts/run_external_review.py check --epic-dir <epic_dir>
-     ```
-   - Print the triage skeleton:
-     ```bash
-     python3 skills/dev-implementation/resources/scripts/run_external_review.py triage --epic-dir <epic_dir>
-     ```
-
-2. **Verify Every Finding (No Performative Agreement)**:
-   - Check every finding against the actual source code at candidate SHA.
-   - Follow `d3nexus:receiving-code-review`: open the file and line, inspect the claim, and never accept or reject on the reviewer's word alone.
-
-3. **Fill Assessment & Evidence**:
-   - **Assessment**: `Valid` (the claim holds), `Debatable` (holds by letter, not intent), `False positive` (does not hold), or `Not shown` (reviewer lacked context).
-   - **Evidence**: The file, line, and code quote verifying your assessment.
-   - **Proposed action**: `fix`, `dismiss: <reason>`, or `none` for Minor findings.
-
-4. **Present Triage and Wait**:
-   - Present the completed triage to the developer and stop. The triage presentation MUST begin with the standardized 4-bullet header block:
+1. **Check Decisions & Print Triage Skeleton**:
+   ```bash
+   python3 skills/dev-implementation/resources/scripts/run_external_review.py check --epic-dir <epic_dir>
+   python3 skills/dev-implementation/resources/scripts/run_external_review.py triage --epic-dir <epic_dir>
+   ```
+2. **Verify Against Code & Approved Design (`d3nexus:receiving-code-review`)**:
+   - Inspect exact files/lines and anchor strictly to the approved HLD, `bdd_scenarios.en.md`, and `Decisions Already Made`. Fill `## Top 3 Highest-Risk Findings (Executive Report)` and `## Findings` (`Valid`, `Debatable`, `False positive`, `Not shown`).
+3. **Execute Auto-Triage Gate or Present Triage**:
+   - **`AUTO_PASS_CLEAN` / `AUTO_PASS_FINAL_MINOR_SWEEP` / `AUTO_PASS_FINAL_SWEEP` (Round 3 with `0 Critical`)**: Fix any valid non-critical items in a single sweep, run Gate 4 green, and finish without calling another review round.
+   - **`AUTO_FIX_ELIGIBLE` (Round 1..2 with `Critical`/`Important`, no `shared-contracts/` conflict, no Fix Loop)**: In autonomous `/dev-lifecycle` mode, apply verified fixes, record `fixed in <sha>`, run Gate 4 in full, and invoke Round $N+1$. In interactive mode, present the 4-bullet header block and wait for developer decisions:
      ```markdown
      Cross-Model Review Triage: Round <N> (<CLI>)
 
@@ -99,15 +90,15 @@ Every review round is triaged before taking action. A reviewer's finding is a cl
      • Thinking Level: <Light | Low | Medium | High | Extra High | None>
      • Verdict: <VERDICT> (<count> <Severity> findings)
      ```
-   - Wait for the developer's explicit decision on each finding.
+   - **`CIRCUIT_BREAKER_HALT` (`SHARED_CONTRACT_CONFLICT` in any round, `FIX_LOOP`, or `MAX_ROUNDS_CRITICAL_REMAINING` when `>= 1 Critical` survives Round 3)**: **STOP IMMEDIATELY**, never auto-fix or revert user-approved HLD decisions, and report `## Top 3 Highest-Risk Findings (Executive Report)` to the Human Architect.
 
 5. **Commit Fixes, Record Decisions & Automatically Re-Run Gate 4**:
-   - Once the developer confirms the triage decisions, make each fix in its own commit: `[<EPIC_NAME>] Fix <what>`.
+   - When applying fixes (via `AUTO_FIX_ELIGIBLE` / `AUTO_PASS_FINAL_MINOR_SWEEP` or after developer confirmation), make each fix in its own commit: `[<EPIC_NAME>] Fix <what>`.
    - Update each Decision cell in `review_results.md`: `fixed in <sha>` or `dismissed: <reason>` in developer's exact words.
    - Commit decisions: `[<EPIC_NAME>] Record review decisions for round <n>`.
    - **Automatically re-run Gate 4 machine acceptance in full** on the new candidate SHA without asking for a separate confirmation before running Gate 4.
    - Record state via `python3 scripts/resume_context.py --state --epic <epic_slug> --status "Stage 4.1: Review Choice"` and emit next prompt via `python3 scripts/resume_context.py --emit-prompt finish --epic <epic_slug>` (or `--emit-prompt cross-review --epic <epic_slug>`).
-   - Stop calling tools and present the applied fix summary, the new Gate 4 PASS verdict, and Review Choice again.
+   - In autonomous lifecycle mode, once Cross-Model Review converges (`AUTO_PASS_CLEAN` or `AUTO_PASS_FINAL_MINOR_SWEEP`) and Gate 4 is green, proceed to Finish (`finishing-a-development-branch`); in interactive mode, stop calling tools and present the applied fix summary, the new Gate 4 PASS verdict, and Review Choice again.
 
 ## References
 

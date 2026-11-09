@@ -1258,12 +1258,12 @@ python3 scripts/resume_context.py --role assistant --epic {epic_slug}
 
 MANDATORY TASKS & RULES:
 1. Thoroughly review the HLD at .devtool/epic/{target_dir}/{target_dir}.en.md and bdd_scenarios.en.md.
-2. Conduct an independent Principal Review following the `d3nexus:principal-review` skill.
+2. Conduct an independent Principal Review following the `d3nexus:principal-review` skill (Provider priority via `check-quota`: Claude -> Codex -> Kiro -> Argon; 3-Round Convergence Funnel, max 3 rounds).
 3. DO NOT modify production source code or application test suites (only design documents and Kanban tasks).{prompt_note}""")
     elif mode == "implement":
         banner = "[PERSONA: AI PROGRAMMER — SENIOR TDD SOFTWARE ENGINEER]"
         print(f"""{banner}
-You are acting as the AI Programmer (Role 2.3 — Senior TDD Software Engineer).
+You are acting as the AI Programmer (Role 2.3 — Senior TDD Software Engineer | Recommended Model: Gemini Flash 3.8).
 Startup command:
 python3 scripts/resume_context.py --role programmer --epic {epic_slug}
 
@@ -1271,7 +1271,7 @@ MANDATORY TASKS & RULES:
 1. Activate `/dev-implementation` (`d3nexus:dev-implementation`) for the `{epic_slug}` epic.
 2. Read `.devtool/epic/{target_dir}/handoff.md` first.
 3. Strictly apply the 4 Execution Guardrails (Bounded context protocol, Strict spec fidelity, Zero test fakery, No contract repair).
-4. Sequentially execute each Kanban task following the TDD cycle (Red-Green-Refactor) in an isolated git worktree.{prompt_note}""")
+4. Sequentially execute each Kanban task following the TDD cycle (Red-Green-Refactor, Level 1 Task-Scoped checks) in an isolated git worktree.{prompt_note}""")
     elif mode == "cross-review":
         banner = "[PERSONA: AI ASSISTANT — TECHNICAL ADVISOR & CO-ARCHITECT]"
         print(f"""{banner}
@@ -1281,8 +1281,8 @@ python3 scripts/resume_context.py --role assistant --epic {epic_slug}
 
 MANDATORY TASKS & RULES:
 1. Gate 4 has PASSED. Activate `d3nexus:cross-model-review`.
-2. Run independent external model review (`run_external_review.py run`).
-3. Triage findings with the Human Architect before fixing defects or proceeding to finish.{prompt_note}""")
+2. Run independent external model review (`run_external_review.py run`, Provider priority via `check-quota`: Claude -> Codex -> Kiro -> Argon; 3-Round Convergence Funnel, max 3 rounds).
+3. Evaluate Auto-Triage Gate and triage findings before fixing defects or proceeding to finish.{prompt_note}""")
     elif mode == "finish":
         banner = "[PERSONA: AI PROGRAMMER — SENIOR TDD SOFTWARE ENGINEER]"
         print(f"""{banner}

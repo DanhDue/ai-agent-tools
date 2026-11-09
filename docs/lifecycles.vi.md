@@ -129,7 +129,33 @@ flowchart TD
     DONE_EPIC -->|"Review Choice + ký duyệt Cổng 5"| MERGED
 ```
 
-Các sơ đồ và giải thích này mô tả vòng đời cho con người; các runtime skill (`dev-lifecycle`, `dev-implementation`) và script là nguồn sự thật vận hành.
+Các sơ đồ và giải thích này mô tả vòng đời cho con người; các runtime skill (`dev-lifecycle`, `dev-implementation`) và script là nguồn sự thật vận hành. Để tránh hiện tượng **Attention Dilution (Pha loãng sự chú ý)** và **Lost-in-the-Middle (Trôi thông tin ở giữa ngữ cảnh)** cho LLM khi thực thi, mỗi file `SKILL.md` chỉ giữ trình tự vận hành và các cổng kiểm soát cốt lõi, trong khi kiến trúc workflow, danh mục skill và thuật toán hội tụ review được tách riêng tại đây và trong các file `references/*.md` đọc theo ngữ cảnh.
+
+### Danh mục Skill của dev-lifecycle & Kiến trúc Hội tụ Tự động
+
+1. **Danh mục Stage & Skill (Phân tách trách nhiệm độc lập)**:
+   - **`dev-brainstorming` (Stage 1 — Khởi đầu & Spec)**: Khám phá bài toán và thiết kế, xuất spec song ngữ (`*-design.{en,vi}.md`) kèm cảnh báo `shared-contracts/` (Cổng 1).
+   - **`dev-designer` (Stage 2 — Kiến trúc & Task)**: Sinh gói thiết kế 3 tầng (`<epic_dir>.{en,vi}.md` HLD, `bdd_scenarios.{en,vi}.md`, và `task_*.md` tiếng Anh gắn Tháp Kiểm Thử 3 Tầng) và đóng gói qua `package_epic.py` (Cổng 2).
+   - **`principal-review` (Stage 2 — Rà soát Thiết kế Shift-Left)**: Kiểm tra chéo HLD, BDD và task với mã nguồn thực tế trước khi code (`principal_review.md`).
+   - **`dev-implementation` (Stage 3 — Thực thi TDD Cô lập)**: Role 2.3 AI Programmer (**Gemini Flash 3.8**) thực thi từng task trong git worktree cô lập (Cổng 3), nối tiếp bởi Cổng 4 và Cổng 5 Kanban.
+   - **`quality_check` (Stage 3 — Cổng máy Cổng 4)**: Bộ điều phối chất lượng gắn chặt với `repository_sha` (`profile: "epic"`).
+   - **`cross-model-review` (Stage 3 — Rà soát Code Shift-Right)**: Kiểm tra chéo mã nguồn và diff sau khi Cổng 4 đạt PASS (`review_results.md`).
+   - **`finishing-a-development-branch` (Stage 4 — Hoàn tất & Lưu trữ)**: Rebase lên `develop`, chạy kiểm thử toàn cục (`Test All`) đúng 1 lần, merge `--no-ff`, và lưu trữ task vào `.devtool/epic/<slug>/`.
+
+2. **Luồng Tự động Đầu-Cuối (Autonomous Pipeline) & Luồng Tương tác**:
+   - **Chuỗi vận hành tự động**: `Design (Cổng 2) -> Handoff (package_epic.py) -> Principal Review (--auto-quota, Tự động fix tối đa 3 rounds) -> Đổi vai trò Role 2.3 AI Programmer (Gemini Flash 3.8) -> Triển khai TDD -> Check Quality tiền Cross-Model Review (Cổng 4) -> Cross-Model Review (--auto-quota, Tự động fix tối đa 3 rounds) -> Quality Check (Cổng 4) -> Finish (Test All khi merge)`.
+   - **Thứ tự ưu tiên Model theo Quota (`check-quota`)**: `Claude -> Codex -> Kiro -> Argon` (`Claude/Codex: 5H >= 15% & 7D > 2%`; `Kiro: Tháng >= 3% & >= 15 credits`; `Argon: Tuần >= 10%` hoặc `5H >= 15%`).
+
+3. **Phễu Hội Tụ 3 Vòng (3-Round Convergence Funnel) & 4 Chiến thuật Prompt Chống Lặp Lỗi (Anti-Fix-Loop)**:
+   - **Round 1 (`full`)**: Rà soát toàn diện kèm **Chiến thuật 1 (Exhaustive Per-File Pass)** — bắt buộc gom hết lỗi `Critical`/`Important` trên từng file ngay ở Round 1 (cấm bắt lỗi nhỏ giọt).
+   - **Round 2 (`delta`)** & **Round 3 (`convergence`, Blocker-Only)**: Bơm **Chiến thuật 2 (Universal Anti-Ping-Pong Guardrail)** cho cả cùng model lẫn khác model, **Chiến thuật 3 (Previously Fixed Locations Registry — `Verify-Then-Close`)**, và **Chiến thuật 4 (Diff-Hunk Isolation on Fixed Files)** — cấm báo lỗi muộn trên các dòng không chạm tới của file vừa sửa.
+
+4. **3 Ngưỡng Dừng Khẩn Cấp (Circuit Breakers) & Tháp Kiểm Thử 3 Tầng**:
+   - **3 Circuit Breakers (Dừng ngay lập tức & Báo cáo Top 3 Highest-Risk Findings)**:
+     1. `CIRCUIT_BREAKER_HALT (SHARED_CONTRACT_CONFLICT)`: Bất kỳ lỗi `Critical`/`Important` nào ở bất kỳ round nào đụng chạm/xung đột với `shared-contracts/` (tuyệt đối không tự ý lùi thiết kế HLD đã chốt về contract cũ).
+     2. `CIRCUIT_BREAKER_HALT (FIX_LOOP)`: File đã đánh dấu `fixed in <sha>` ở Round $N-1$ vẫn bị báo `[INCOMPLETE_FIX]` hoặc `[NEW_REGRESSION]` ở Round $N$.
+     3. `CIRCUIT_BREAKER_HALT (MAX_ROUNDS_CRITICAL_REMAINING)`: Sau 3 rounds vẫn còn bất kỳ lỗi `Critical` nào (ngược lại nếu Round 3 đạt `0 Critical` thì `AUTO_PASS_FINAL_SWEEP` sửa nốt `Important`/`Minor` 1 lượt rồi hoàn tất).
+   - **Tháp Kiểm Thử 3 Tầng**: Tầng 1 (`Task-Scoped` `< 5s` mỗi task) -> Tầng 2 (`Blast-Radius Scoped` `< 30s` tại Cổng 4) -> Tầng 3 (`Test All` toàn bộ repo đúng 1 lần tại `finishing-a-development-branch` trước khi merge vào `develop`).
 
 ## doc-lifecycle
 

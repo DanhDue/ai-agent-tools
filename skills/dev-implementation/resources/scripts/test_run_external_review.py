@@ -21,10 +21,13 @@ from unittest import mock
 sys.path.insert(0, str(Path(__file__).parent))
 import test_check_epic_readiness as tcer
 from run_external_review import (
+    evaluate_provider_quota,
     format_triage_header,
     load_review_config,
     main,
     save_review_config,
+    select_provider_by_quota,
+    top_risk_findings_section,
 )
 
 EPIC = ".devtool/epic/demo"
@@ -962,20 +965,23 @@ class TestReviewConfigAndHeader(ReviewCase):
         self.assertIn("• Verdict: PASS (0 findings)", output)
 
     def test_rts_hp_02_canonical_defaults_auto_seeded(self) -> None:
-        """[RTS-HP-02] Canonical provider defaults are automatically seeded when config is missing."""
+        """[RTS-HP-02] Canonical provider defaults are automatically seeded when config is missing (Priority: Claude -> Codex -> Kiro -> Argon, max_rounds=3)."""
         config_path = self.root / ".devtool" / "review_config.json"
         if config_path.exists():
             config_path.unlink()
         cfg = load_review_config(self.root)
-        self.assertEqual(cfg["last_used_provider"], "codex")
-        self.assertEqual(cfg["providers"]["codex"]["model"], "gpt-6.1-sol")
-        self.assertEqual(cfg["providers"]["codex"]["thinking_level"], "high")
+        self.assertEqual(cfg["last_used_provider"], "claude")
+        self.assertEqual(cfg["provider_priority"], ["claude", "codex", "kiro", "agy"])
+        self.assertEqual(cfg["max_rounds"], 3)
+        self.assertEqual(list(cfg["providers"].keys())[:4], ["claude", "codex", "kiro", "agy"])
         self.assertEqual(cfg["providers"]["claude"]["model"], "Opus 5.5")
         self.assertEqual(cfg["providers"]["claude"]["thinking_level"], "high")
-        self.assertEqual(cfg["providers"]["agy"]["model"], "Gemini 4 Argon (Medium)")
-        self.assertEqual(cfg["providers"]["agy"]["thinking_level"], "medium")
+        self.assertEqual(cfg["providers"]["codex"]["model"], "gpt-6.1-sol")
+        self.assertEqual(cfg["providers"]["codex"]["thinking_level"], "high")
         self.assertEqual(cfg["providers"]["kiro"]["model"], "claude-opus-5.5")
         self.assertEqual(cfg["providers"]["kiro"]["thinking_level"], "high")
+        self.assertEqual(cfg["providers"]["agy"]["model"], "Gemini 4 Argon (Medium)")
+        self.assertEqual(cfg["providers"]["agy"]["thinking_level"], "medium")
         self.assertEqual(cfg["providers"]["ollama"]["model"], "qwen38-fast:latest")
         self.assertEqual(cfg["providers"]["ollama"]["thinking_level"], "high")
 
@@ -1063,10 +1069,10 @@ class TestReviewConfigAndHeader(ReviewCase):
         config_path.parent.mkdir(parents=True, exist_ok=True)
         config_path.write_bytes(b"\xff\xfe\x00\x00")
         cfg_utf8 = load_review_config(self.root)
-        self.assertEqual(cfg_utf8["last_used_provider"], "codex")
+        self.assertEqual(cfg_utf8["last_used_provider"], "claude")
         config_path.write_text("{broken json...", encoding="utf-8")
         cfg_json = load_review_config(self.root)
-        self.assertEqual(cfg_json["last_used_provider"], "codex")
+        self.assertEqual(cfg_json["last_used_provider"], "claude")
         self.assertEqual(cfg_json["providers"]["codex"]["model"], "gpt-6.1-sol")
 
     def test_rts_ec_03_zero_findings_in_verdict(self) -> None:
@@ -1125,6 +1131,305 @@ class TestReviewConfigAndHeader(ReviewCase):
         self.assertEqual(thinking_custom, "high")
         _, _, thinking_none = resolve_review_settings(self.root, "demo", "code", "codex", "gpt-6.1-sol", None)
         self.assertEqual(thinking_none, "high")
+
+    def test_convergence_funnel_round2_and_round3_for_code_review(self) -> None:
+        """Round 2 uses delta verification mode and Round 3+ enforces Convergence Mode (Blocker-Only)."""
+        self.install("claude")
+        # Round 1: full review with blocking findings
+        code1, _, _ = self.run_review(cli="claude", mode="blocking")
+        self.assertEqual(code1, 1)
+        text1 = self.results.read_text(encoding="utf-8")
+        fixed1 = text1.replace(
+            "| 1 | Critical | demo.en.md:3 | evidence missing |  |",
+            "| 1 | Critical | demo.en.md:3 | evidence missing | fixed in abc1234 |",
+        ).replace(
+            "| 2 | Important | task_1_demo.md:9 | row too weak |  |",
+            "| 2 | Important | task_1_demo.md:9 | row too weak | dismissed: intentional |",
+        )
+        self.results.write_text(fixed1, encoding="utf-8")
+        self.write("src/fix1.py", "def fixed_step() -> int:\n    return 1\n")
+        self.commit("Fix round 1 and record decisions")
+
+        # Round 2: delta verification mode
+        code2, _, _ = self.run_review(cli="claude", mode="blocking")
+        self.assertEqual(code2, 1)
+        prompt2 = self.stdin.read_text(encoding="utf-8")
+        self.assertIn("Round Scope: Delta Review (Round 2)", prompt2)
+        self.assertIn("DO NOT report new Minor", prompt2)
+        self.assertIn("Exhaustive Per-File Pass (Anti-Drip-Feed Rule)", prompt2)
+        self.assertIn("### Cross-Provider Handoff & Anti-Ping-Pong Guardrail", prompt2)
+        self.assertIn("### Previously Fixed Locations Registry (Verify-Then-Close)", prompt2)
+        self.assertIn("`demo.en.md:3` (Round 1 #1, `Critical`)", prompt2)
+        self.assertIn("Verify-Then-Close on Fixed Locations", prompt2)
+        self.assertIn("Diff-Hunk Isolation on Fixed Files (No Late Drip-Feed)", prompt2)
+        text2 = self.results.read_text(encoding="utf-8")
+        self.assertIn("- **Scope**: delta from round 1", text2)
+
+        # Record decisions for Round 2 and make a small commit for Round 3
+        lines2 = text2.splitlines()
+        updated2 = []
+        for ln in lines2:
+            if ln.endswith("|  |"):
+                updated2.append(ln[:-4] + "| fixed in def5678 |")
+            else:
+                updated2.append(ln)
+        self.results.write_text("\n".join(updated2) + "\n", encoding="utf-8")
+        self.write("src/fix2.py", "def fixed_step2() -> int:\n    return 2\n")
+        self.commit("Fix round 2 and record decisions")
+
+        # Round 3: Convergence Mode
+        code3, _, _ = self.run_review(cli="claude", mode="pass")
+        self.assertEqual(code3, 0)
+        prompt3 = self.stdin.read_text(encoding="utf-8")
+        self.assertIn("You are in Round 3+ Convergence Mode.", prompt3)
+        self.assertIn("ONLY report (a) incomplete fixes from previous rounds, or (b) NEW Critical/Important regressions", prompt3)
+        text3 = self.results.read_text(encoding="utf-8")
+        self.assertIn("- **Scope**: convergence from round 2", text3)
+        self.commit("Record round 3")
+
+        # Round 4 attempt: blocked by max 3 rounds limit (0 credits used)
+        code4, _out4, err4 = self.run_review(cli="claude", mode="pass")
+        self.assertEqual(code4, 2)
+        self.assertIn("[PRECONDITION BLOCKED]", err4)
+        self.assertIn("Max review rounds (3) reached", err4)
+
+    def test_auto_triage_gate_classifications(self) -> None:
+        """Triage output includes Auto-Triage Gate classification (AUTO_PASS_FINAL_MINOR_SWEEP, AUTO_FIX_ELIGIBLE, CIRCUIT_BREAKER_HALT)."""
+        # 1. Minor-only round -> AUTO_PASS_FINAL_MINOR_SWEEP
+        self.results.write_text(
+            "# Cross-Model Review: demo\n\n"
+            "## Round 1\n\n- **SHA**: 1111111\n- **CLI**: kiro\n- **Model**: claude-opus-5.5\n"
+            "- **Thinking**: high\n- **Status**: completed\n- **Verdict**: PASS\n\n"
+            "| # | Severity | Location | Problem | Decision |\n"
+            "|---|----------|----------|---------|----------|\n"
+            "| 1 | Minor | src/a.py:10 | nit naming |  |\n\n"
+            "Raw output:\n\n```text\nVerdict: PASS\n[Minor] src/a.py:10 — nit naming\n```\n",
+            encoding="utf-8",
+        )
+        out1 = io.StringIO()
+        with contextlib.redirect_stdout(out1):
+            main(["triage", "--epic-dir", "demo"])
+        self.assertIn("## Auto-Triage Gate", out1.getvalue())
+        self.assertIn("AUTO_PASS_FINAL_MINOR_SWEEP", out1.getvalue())
+
+        # 2. Round 1 with blocking finding -> AUTO_FIX_ELIGIBLE
+        self.results.write_text(
+            "# Cross-Model Review: demo\n\n"
+            "## Round 1\n\n- **SHA**: 1111111\n- **CLI**: kiro\n- **Model**: claude-opus-5.5\n"
+            "- **Thinking**: high\n- **Status**: completed\n- **Verdict**: CHANGES REQUIRED\n\n"
+            "| # | Severity | Location | Problem | Decision |\n"
+            "|---|----------|----------|---------|----------|\n"
+            "| 1 | Important | src/a.py:10 | missing check |  |\n\n"
+            "Raw output:\n\n```text\nVerdict: CHANGES REQUIRED\n[Important] src/a.py:10 — missing check\n```\n",
+            encoding="utf-8",
+        )
+        out2 = io.StringIO()
+        with contextlib.redirect_stdout(out2):
+            main(["triage", "--epic-dir", "demo"])
+        self.assertIn("AUTO_FIX_ELIGIBLE", out2.getvalue())
+
+        # 3. Fix loop (same file fixed in Round 1, re-reported as Important in Round 2) -> CIRCUIT_BREAKER_HALT
+        self.results.write_text(
+            "# Cross-Model Review: demo\n\n"
+            "## Round 1\n\n- **SHA**: 1111111\n- **CLI**: kiro\n- **Model**: claude-opus-5.5\n"
+            "- **Thinking**: high\n- **Status**: completed\n- **Verdict**: CHANGES REQUIRED\n\n"
+            "| # | Severity | Location | Problem | Decision |\n"
+            "|---|----------|----------|---------|----------|\n"
+            "| 1 | Important | src/a.py:10 | missing check | fixed in 2222222 |\n\n"
+            "Raw output:\n\n```text\nVerdict: CHANGES REQUIRED\n```\n\n"
+            "## Round 2\n\n- **SHA**: 2222222\n- **CLI**: kiro\n- **Model**: claude-opus-5.5\n"
+            "- **Thinking**: high\n- **Status**: completed\n- **Verdict**: CHANGES REQUIRED\n\n"
+            "| # | Severity | Location | Problem | Decision |\n"
+            "|---|----------|----------|---------|----------|\n"
+            "| 1 | Important | src/a.py:14 | still broken |  |\n\n"
+            "Raw output:\n\n```text\nVerdict: CHANGES REQUIRED\n```\n",
+            encoding="utf-8",
+        )
+        out3 = io.StringIO()
+        with contextlib.redirect_stdout(out3):
+            main(["triage", "--epic-dir", "demo"])
+        self.assertIn("CIRCUIT_BREAKER_HALT", out3.getvalue())
+
+        # 4. Shared-contract conflict in Round 1 -> CIRCUIT_BREAKER_HALT (SHARED_CONTRACT_CONFLICT) immediately
+        self.results.write_text(
+            "# Cross-Model Review: demo\n\n"
+            "## Round 1\n\n- **SHA**: 1111111\n- **CLI**: claude\n- **Model**: claude-opus-4-6\n"
+            "- **Thinking**: high\n- **Status**: completed\n- **Verdict**: CHANGES REQUIRED\n\n"
+            "| # | Severity | Location | Problem | Decision |\n"
+            "|---|----------|----------|---------|----------|\n"
+            "| 1 | Critical | demo.en.md, task_08 | Epic changes 7 wire steps to 5 steps not in shared-contracts/ |  |\n\n"
+            "Raw output:\n\n```text\nVerdict: CHANGES REQUIRED\n```\n",
+            encoding="utf-8",
+        )
+        out4 = io.StringIO()
+        with contextlib.redirect_stdout(out4):
+            main(["triage", "--epic-dir", "demo"])
+        self.assertIn("CIRCUIT_BREAKER_HALT (SHARED_CONTRACT_CONFLICT)", out4.getvalue())
+        self.assertIn("STOP IMMEDIATELY", out4.getvalue())
+
+        # 5. Round 3 with remaining Critical finding -> CIRCUIT_BREAKER_HALT (MAX_ROUNDS_CRITICAL_REMAINING)
+        self.results.write_text(
+            "# Cross-Model Review: demo\n\n"
+            "## Round 1\n\n- **SHA**: 1111111\n- **CLI**: claude\n- **Model**: claude-opus-4-6\n"
+            "- **Thinking**: high\n- **Status**: completed\n- **Verdict**: CHANGES REQUIRED\n\n"
+            "| # | Severity | Location | Problem | Decision |\n"
+            "|---|----------|----------|---------|----------|\n"
+            "| 1 | Important | src/a.py:10 | missing check | fixed in 2222222 |\n\n"
+            "Raw output:\n\n```text\nVerdict: CHANGES REQUIRED\n```\n\n"
+            "## Round 2\n\n- **SHA**: 2222222\n- **CLI**: claude\n- **Model**: claude-opus-4-6\n"
+            "- **Thinking**: high\n- **Status**: completed\n- **Verdict**: CHANGES REQUIRED\n\n"
+            "| # | Severity | Location | Problem | Decision |\n"
+            "|---|----------|----------|---------|----------|\n"
+            "| 1 | Important | src/b.py:20 | edge case | fixed in 3333333 |\n\n"
+            "Raw output:\n\n```text\nVerdict: CHANGES REQUIRED\n```\n\n"
+            "## Round 3\n\n- **SHA**: 3333333\n- **CLI**: claude\n- **Model**: claude-opus-4-6\n"
+            "- **Thinking**: high\n- **Status**: completed\n- **Verdict**: CHANGES REQUIRED\n\n"
+            "| # | Severity | Location | Problem | Decision |\n"
+            "|---|----------|----------|---------|----------|\n"
+            "| 1 | Critical | src/c.py:30 | fatal crash |  |\n\n"
+            "Raw output:\n\n```text\nVerdict: CHANGES REQUIRED\n```\n",
+            encoding="utf-8",
+        )
+        out5 = io.StringIO()
+        with contextlib.redirect_stdout(out5):
+            main(["triage", "--epic-dir", "demo"])
+        self.assertIn("CIRCUIT_BREAKER_HALT (MAX_ROUNDS_CRITICAL_REMAINING)", out5.getvalue())
+        self.assertIn("STOP IMMEDIATELY", out5.getvalue())
+
+        # 6. Round 3 with 0 Critical (only Important/Minor, no fix loop) -> AUTO_PASS_FINAL_SWEEP
+        self.results.write_text(
+            "# Cross-Model Review: demo\n\n"
+            "## Round 1\n\n- **SHA**: 1111111\n- **CLI**: claude\n- **Model**: claude-opus-4-6\n"
+            "- **Thinking**: high\n- **Status**: completed\n- **Verdict**: CHANGES REQUIRED\n\n"
+            "| # | Severity | Location | Problem | Decision |\n"
+            "|---|----------|----------|---------|----------|\n"
+            "| 1 | Important | src/a.py:10 | missing check | fixed in 2222222 |\n\n"
+            "Raw output:\n\n```text\nVerdict: CHANGES REQUIRED\n```\n\n"
+            "## Round 2\n\n- **SHA**: 2222222\n- **CLI**: claude\n- **Model**: claude-opus-4-6\n"
+            "- **Thinking**: high\n- **Status**: completed\n- **Verdict**: CHANGES REQUIRED\n\n"
+            "| # | Severity | Location | Problem | Decision |\n"
+            "|---|----------|----------|---------|----------|\n"
+            "| 1 | Important | src/b.py:20 | edge case | fixed in 3333333 |\n\n"
+            "Raw output:\n\n```text\nVerdict: CHANGES REQUIRED\n```\n\n"
+            "## Round 3\n\n- **SHA**: 3333333\n- **CLI**: claude\n- **Model**: claude-opus-4-6\n"
+            "- **Thinking**: high\n- **Status**: completed\n- **Verdict**: CHANGES REQUIRED\n\n"
+            "| # | Severity | Location | Problem | Decision |\n"
+            "|---|----------|----------|---------|----------|\n"
+            "| 1 | Important | src/c.py:30 | non-critical validation gap |  |\n\n"
+            "Raw output:\n\n```text\nVerdict: CHANGES REQUIRED\n```\n",
+            encoding="utf-8",
+        )
+        out6 = io.StringIO()
+        with contextlib.redirect_stdout(out6):
+            main(["triage", "--epic-dir", "demo"])
+        self.assertIn("AUTO_PASS_FINAL_SWEEP", out6.getvalue())
+
+    def test_select_provider_by_quota_respects_5h_7d_and_kiro_thresholds(self) -> None:
+        """select_provider_by_quota prioritizes Claude -> Codex -> Kiro -> Argon and checks 5H>=15%, 7D>2%, Kiro>=3%."""
+        # Case 1: Claude & Codex have 5H=100% (1.0) but 7D=0% (0.0) -> skipped; Kiro has 85.8% (857.91 credits) -> selected!
+        claude_exhausted_7d = {
+            "status": "ACTIVE",
+            "gemini5h": {"fraction": 1.0},
+            "geminiWeekly": {"fraction": 0.0},
+        }
+        codex_exhausted_7d = {
+            "status": "ACTIVE",
+            "gemini5h": {"fraction": 1.0},
+            "geminiWeekly": {"fraction": 0.0},
+        }
+        kiro_healthy = {
+            "status": "ACTIVE (KIRO PRO+)",
+            "creditsPool": {"fraction": 0.858, "limit": 1000.0, "remaining": 857.91},
+        }
+        agy_healthy = {
+            "status": "ACTIVE",
+            "argonWeekly": {"fraction": 0.56},
+            "gemini5h": {"fraction": 1.0},
+        }
+        self.assertFalse(evaluate_provider_quota("claude", claude_exhausted_7d)[0])
+        self.assertFalse(evaluate_provider_quota("codex", codex_exhausted_7d)[0])
+        self.assertTrue(evaluate_provider_quota("kiro", kiro_healthy)[0])
+
+        chosen, evaluations = select_provider_by_quota(
+            quota_fetcher=lambda p: {
+                "claude": claude_exhausted_7d,
+                "codex": codex_exhausted_7d,
+                "kiro": kiro_healthy,
+                "agy": agy_healthy,
+            }[p],
+            binary_resolver=lambda _p: "/usr/bin/fake",
+        )
+        self.assertEqual(chosen, "kiro")
+        self.assertEqual(len(evaluations), 3)
+
+        # Case 2: Kiro below 3% (0.02, 10 credits) -> falls back to Argon (agy)
+        kiro_low = {
+            "status": "ACTIVE (KIRO PRO+)",
+            "creditsPool": {"fraction": 0.02, "limit": 1000.0, "remaining": 10.0},
+        }
+        chosen2, _ = select_provider_by_quota(
+            quota_fetcher=lambda p: {
+                "claude": claude_exhausted_7d,
+                "codex": codex_exhausted_7d,
+                "kiro": kiro_low,
+                "agy": agy_healthy,
+            }[p],
+            binary_resolver=lambda _p: "/usr/bin/fake",
+        )
+        self.assertEqual(chosen2, "agy")
+
+    def test_cross_provider_shared_context_and_top_3_risk_findings(self) -> None:
+        """Mixed-model review injects Cross-Provider Handoff + Cumulative Ledger, and triage ranks Top 3 Highest-Risk Findings."""
+        # 1. Verify Top 3 Highest-Risk Findings ranking & Design Anchoring in triage
+        rows = [
+            ["1", "Minor", "docs/readme.md:5", "typo in comment", ""],
+            ["2", "Important", "tests/test_a.py:12", "missing assertion", ""],
+            ["3", "Critical", "src/core/worker.py:44", "race condition and deadlock on cancel", ""],
+            ["4", "Important", "src/core/step.py:88", "unbound variable contract mismatch", ""],
+            ["5", "Critical", "src/api/bridge.py:19", "shared-contracts payload corruption", ""],
+        ]
+        top3 = "\n".join(top_risk_findings_section(rows, limit=3))
+        self.assertIn("## Top 3 Highest-Risk Findings (Executive Report)", top3)
+        self.assertIn("Strict Approved-Design Anchoring & Forward-Alignment Rule", top3)
+        self.assertIn("| #1 | 5 | Critical | src/api/bridge.py:19", top3)
+        self.assertIn("| #2 | 3 | Critical | src/core/worker.py:44", top3)
+        self.assertIn("| #3 | 4 | Important | src/core/step.py:88", top3)
+        self.assertNotIn("docs/readme.md:5", top3)
+
+        # 2. Verify Cross-Provider Handoff (Round 1 Claude -> Round 2 Codex -> Round 3 Codex with cumulative ledger)
+        self.install("claude")
+        self.install("codex")
+        code1, _o1, _e1 = self.run_review(cli="claude", mode="blocking")
+        self.assertEqual(code1, 1)
+        text = self.results.read_text(encoding="utf-8").replace(
+            "| 1 | Critical | demo.en.md:3 | evidence missing |  |",
+            "| 1 | Critical | demo.en.md:3 | evidence missing | fixed in 1111111 |",
+        ).replace(
+            "| 2 | Important | task_1_demo.md:9 | row too weak |  |",
+            "| 2 | Important | task_1_demo.md:9 | row too weak | dismissed: matches approved HLD |",
+        )
+        self.results.write_text(text, encoding="utf-8")
+        self.write("src/fix1.py", "def fix1() -> int:\n    return 1\n")
+        self.commit("Fix round 1 and record decisions")
+
+        # Round 2 with Codex (Mixed-Model handoff from Claude -> Codex)
+        code2, _o2, _e2 = self.run_review(cli="codex", mode="minor")
+        self.assertEqual(code2, 0)
+        prompt_r2 = self.stdin.read_text(encoding="utf-8")
+        self.assertIn("### Cross-Provider Handoff & Anti-Ping-Pong Guardrail", prompt_r2)
+        self.assertIn("- **Previous Reviewer**: `claude`", prompt_r2)
+        self.assertIn("- **Current Reviewer**: `codex`", prompt_r2)
+        self.assertIn("Approved-Design Anchoring", prompt_r2)
+
+        # Round 3: verify Earlier Rounds Shared Context Ledger (Round 1 + Round 2 both present)
+        self.write("src/fix2.py", "def fix2() -> int:\n    return 2\n")
+        self.commit("Fix round 2")
+        code3, _o3, _e3 = self.run_review(cli="codex", mode="pass")
+        self.assertEqual(code3, 0)
+        prompt_r3 = self.stdin.read_text(encoding="utf-8")
+        self.assertIn("### Earlier Rounds Shared Context Ledger (Cumulative Memory)", prompt_r3)
+        self.assertIn("#### Round 1 (claude /", prompt_r3)
+        self.assertIn("dismissed: matches approved HLD", prompt_r3)
 
 
 if __name__ == '__main__':

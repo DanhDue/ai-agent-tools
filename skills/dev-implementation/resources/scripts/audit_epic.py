@@ -240,6 +240,21 @@ def hld_amendments(root: Path, epic_path: str, base: str) -> list[str]:
                          *(f"changed by {entry}" for entry in since)])]
 
 
+def audit_anti_stub(root: Path) -> tuple[list[str], bool]:
+    """Fail when production files under src/ at HEAD contain _stub functions, NotImplementedError, or # STUB."""
+    if not git_lines(root, "ls-tree", "-r", "--name-only", "HEAD", "--", "src/"):
+        return [], False
+    proc = subprocess.run(
+        ["git", "-C", str(root), "grep", "-n", "-E", r"def .+_stub\(|raise NotImplementedError|# STUB",
+         "HEAD", "--", "src/"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    items = [line.removeprefix("HEAD:") for line in proc.stdout.splitlines() if line.strip()]
+    return items, bool(items)
+
+
 def build_report(root: Path, epic_dir: str, base: str) -> tuple[list[tuple[str, list[str]]], bool]:
     epic_path = f".devtool/epic/{epic_dir}"
     mirrors = [p for p in git_lines(root, "ls-tree", "--name-only", "HEAD", "--", f"{epic_path}/")
@@ -262,14 +277,16 @@ def build_report(root: Path, epic_dir: str, base: str) -> tuple[list[tuple[str, 
             evidence += items
             failed = failed or bad
     protected, bad = audit_protected(root, epic_path, commits, texts)
+    anti_stub, bad_stub = audit_anti_stub(root)
     outside = [f"{c.short} {c.title}" for c in commits
                if c.sha not in task_commits and any(not p.startswith(".devtool/") for p in c.paths)]
     gate5 = [f"{Path(path).stem}: {bullet}" for path, text in sorted(texts.items()) for bullet in dod_bullets(text)
              if (reference := DOD_REFERENCE.search(bullet)) and reference.group(1) == "Gate 5"]
     sections = [("Evidence", evidence), ("Legacy tasks", legacy), ("Protected paths", protected),
+                ("Anti-stub check", anti_stub),
                 ("Grader amendments", audit_amendments(root, epic_path, base, texts)),
                 ("Commits outside tasks", outside), ("Gate 5 items", gate5)]
-    return sections, failed or bad
+    return sections, failed or bad or bad_stub
 
 
 def main(argv: list[str] | None = None) -> int:
