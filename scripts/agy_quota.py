@@ -380,7 +380,7 @@ def unblock_profile(profile: str):
 
 def probe_blocked_profile(profile: str) -> dict:
     """Safely test whether an individual blocked profile has been unblocked by Google.
-    Includes anti-spam cooldown, randomized humanized jitter, token verification, and isolated execution.
+    Includes anti-spam cooldown, randomized humanized jitter, token verification, and real model inference probe.
     """
     now = time.time()
     last_time = LAST_BLOCKED_PROBE.get(profile, 0)
@@ -412,24 +412,110 @@ def probe_blocked_profile(profile: str) -> dict:
     jitter_sec = round(random.uniform(1.8, 3.2), 2)
     time.sleep(jitter_sec)
 
-    # 3. Force probe via fetch_quota_for_profile(profile, force_probe=True)
-    res = fetch_quota_for_profile(profile, force_probe=True)
-    dur = res.get("duration", 0)
+    ag_home = f"{REAL_HOME}/antigravity_homes/{profile}"
+    profile_kc = f"{ag_home}/Library/Keychains/{profile}.keychain-db"
+    if os.path.exists(profile_kc):
+        subprocess.run(["security", "unlock-keychain", "-p", KC_PASS, profile_kc], capture_output=True)
 
-    if res.get("is_appeal") or res.get("status") == "DISABLED":
-        return {
-            "profile": profile,
-            "success": False,
-            "status": "DISABLED",
-            "is_appeal": True,
-            "error_id": res.get("error_id", "856698b5-d43c-4198-962b-4db7fc3c4adb-2"),
-            "duration": dur,
-            "jitter": jitter_sec,
-            "error": f"Tài khoản {profile} vẫn đang bị Google tạm ngưng (ToS Violation). Mã lỗi: {res.get('error_id')}"
-        }
+    env = os.environ.copy()
+    env.update({
+        "HOME": ag_home,
+        "AGY_PROFILE": profile,
+        "AGY_CLI_MODE": "1",
+        "TMPDIR": f"/tmp/ag_{profile}",
+        "BROWSER": "true",
+    })
 
-    if res.get("success"):
+    # 3. CRITICAL: Test real model inference with a lightweight prompt from NATURAL_PROMPTS
+    # Google's /usage endpoint does NOT check the ToS model suspension flag!
+    # Only sending a real generation prompt reveals whether the Gemini model is still disabled.
+    prompt = random.choice(NATURAL_PROMPTS)
+    cmd = [AGY_BIN, "-p", prompt]
+    t0 = time.time()
+    try:
+        proc = subprocess.run(cmd, env=env, capture_output=True, text=True, timeout=25)
+        dur = round(time.time() - t0, 2)
+        all_out = (proc.stdout or "") + " " + (proc.stderr or "")
+
+        appeal_err_id = check_profile_appeal_status(profile, all_out)
+        low_out = all_out.lower()
+        is_blocked = (
+            bool(appeal_err_id) or
+            "submit an appeal" in low_out or
+            "violation of terms of service" in low_out or
+            "service has been disabled" in low_out or
+            proc.returncode != 0
+        )
+
+        if is_blocked:
+            err_id = appeal_err_id or "856698b5-d43c-4198-962b-4db7fc3c4adb-2"
+            if not appeal_err_id:
+                record_profile_disabled(profile, err_id)
+            disabled_data = format_profile_for_dashboard(profile, {
+                "success": False,
+                "status": "DISABLED",
+                "is_appeal": True,
+                "error_id": err_id
+            })
+            update_cached_profile(profile, disabled_data)
+            return {
+                "profile": profile,
+                "success": False,
+                "status": "DISABLED",
+                "is_appeal": True,
+                "error_id": err_id,
+                "duration": dur,
+                "jitter": jitter_sec,
+                "data": disabled_data,
+                "error": f"Tài khoản {profile} vẫn đang bị Google tạm ngưng (ToS Violation). Vui lòng gửi đơn kháng nghị (Submit an appeal). Mã lỗi: {err_id}"
+            }
+
+        # 4. Prompt succeeded with returncode 0! Verify Argon as well if profile has Argon
+        current = load_cached_profiles().get(profile, {})
+        if current.get("hasArgon", False):
+            time.sleep(round(random.uniform(1.8, 3.2), 2))
+            other_prompts = [p for p in NATURAL_PROMPTS if p != prompt] or NATURAL_PROMPTS
+            prompt_argon = random.choice(other_prompts)
+            cmd_arg = [AGY_BIN, "--model", "gemini-4-argon-low", "-p", prompt_argon]
+            try:
+                proc_arg = subprocess.run(cmd_arg, env=env, capture_output=True, text=True, timeout=25)
+                all_arg_out = (proc_arg.stdout or "") + " " + (proc_arg.stderr or "")
+                appeal_arg_id = check_profile_appeal_status(profile, all_arg_out)
+                low_arg_out = all_arg_out.lower()
+                is_arg_blocked = (
+                    bool(appeal_arg_id) or
+                    "submit an appeal" in low_arg_out or
+                    "violation of terms of service" in low_arg_out or
+                    "service has been disabled" in low_arg_out
+                )
+                if is_arg_blocked:
+                    err_id = appeal_arg_id or "856698b5-d43c-4198-962b-4db7fc3c4adb-2"
+                    if not appeal_arg_id:
+                        record_profile_disabled(profile, err_id)
+                    disabled_data = format_profile_for_dashboard(profile, {
+                        "success": False,
+                        "status": "DISABLED",
+                        "is_appeal": True,
+                        "error_id": err_id
+                    })
+                    update_cached_profile(profile, disabled_data)
+                    return {
+                        "profile": profile,
+                        "success": False,
+                        "status": "DISABLED",
+                        "is_appeal": True,
+                        "error_id": err_id,
+                        "duration": dur,
+                        "jitter": jitter_sec,
+                        "data": disabled_data,
+                        "error": f"Tài khoản {profile} bị chặn ToS khi gọi mô hình Argon (Submit an appeal). Mã lỗi: {err_id}"
+                    }
+            except Exception:
+                pass
+
+        # 5. All model checks passed! Google has truly unblocked the account!
         unblock_profile(profile)
+        res = fetch_quota_for_profile(profile, force_probe=True)
         formatted = format_profile_for_dashboard(profile, res)
         update_cached_profile(profile, formatted)
         LAST_BLOCKED_PROBE.pop(profile, None)
@@ -443,15 +529,10 @@ def probe_blocked_profile(profile: str) -> dict:
             "data": formatted,
             "message": f"🎉 Tuyệt vời! Tài khoản {profile} đã được Google mở khóa thành công!"
         }
-
-    return {
-        "profile": profile,
-        "success": False,
-        "status": res.get("status", "ERROR"),
-        "duration": dur,
-        "jitter": jitter_sec,
-        "error": res.get("error", "Lỗi kiểm tra")
-    }
+    except subprocess.TimeoutExpired:
+        return {"profile": profile, "success": False, "status": "ERROR", "duration": 25.0, "error": "Kiểm tra bị quá hạn (25s)"}
+    except Exception as e:
+        return {"profile": profile, "success": False, "status": "ERROR", "error": str(e)}
 
 
 def record_profile_disabled(profile: str, error_id: str):
@@ -2141,15 +2222,25 @@ def execute_ping_profile(profile: str, force: bool = False) -> dict:
             res = subprocess.run([AGY_BIN, "-p", prompt_gem], env=env, capture_output=True, text=True, timeout=25)
             out_all = (res.stdout or "") + " " + (res.stderr or "")
             appeal_out_id = check_profile_appeal_status(profile, out_all)
-            if appeal_out_id:
+            low_out = out_all.lower()
+            if appeal_out_id or "submit an appeal" in low_out or "violation of terms of service" in low_out or "service has been disabled" in low_out:
+                err_id = appeal_out_id or "856698b5-d43c-4198-962b-4db7fc3c4adb-2"
+                record_profile_disabled(profile, err_id)
+                disabled_data = format_profile_for_dashboard(profile, {
+                    "success": False,
+                    "status": "DISABLED",
+                    "is_appeal": True,
+                    "error_id": err_id
+                })
+                update_cached_profile(profile, disabled_data)
                 return {
                     "profile": profile,
                     "success": False,
                     "status": "DISABLED",
                     "is_appeal": True,
-                    "error_id": appeal_out_id,
+                    "error_id": err_id,
                     "duration_ms": int((time.time() - t0) * 1000),
-                    "error": "Tài khoản bị vô hiệu hóa do vi phạm Điều khoản (Terms of Service / Submit an appeal)"
+                    "error": f"Tài khoản bị vô hiệu hóa do vi phạm Điều khoản (Terms of Service / Submit an appeal). Mã lỗi: {err_id}"
                 }
             if res.returncode == 0:
                 pinged_gemini = True
@@ -2184,15 +2275,25 @@ def execute_ping_profile(profile: str, force: bool = False) -> dict:
             )
             out_all = (res_arg.stdout or "") + " " + (res_arg.stderr or "")
             appeal_out_id = check_profile_appeal_status(profile, out_all)
-            if appeal_out_id:
+            low_out = out_all.lower()
+            if appeal_out_id or "submit an appeal" in low_out or "violation of terms of service" in low_out or "service has been disabled" in low_out:
+                err_id = appeal_out_id or "856698b5-d43c-4198-962b-4db7fc3c4adb-2"
+                record_profile_disabled(profile, err_id)
+                disabled_data = format_profile_for_dashboard(profile, {
+                    "success": False,
+                    "status": "DISABLED",
+                    "is_appeal": True,
+                    "error_id": err_id
+                })
+                update_cached_profile(profile, disabled_data)
                 return {
                     "profile": profile,
                     "success": False,
                     "status": "DISABLED",
                     "is_appeal": True,
-                    "error_id": appeal_out_id,
+                    "error_id": err_id,
                     "duration_ms": int((time.time() - t0) * 1000),
-                    "error": "Tài khoản bị vô hiệu hóa do vi phạm Điều khoản (Terms of Service / Submit an appeal)"
+                    "error": f"Tài khoản bị vô hiệu hóa do vi phạm Điều khoản (Terms of Service / Submit an appeal). Mã lỗi: {err_id}"
                 }
             if res_arg.returncode == 0:
                 pinged_argon = True

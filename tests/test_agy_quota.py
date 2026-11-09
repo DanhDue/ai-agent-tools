@@ -205,12 +205,13 @@ class TestAgyQuotaServer(unittest.TestCase):
             with patch("agy_quota.check_profile_auth_token", return_value=True):
                 with patch("subprocess.run", return_value=mock_proc):
                     with patch("agy_quota.record_profile_disabled") as mock_record:
-                        with patch("time.sleep"):
-                            res = agy_quota.probe_blocked_profile("test_still_blocked")
-                            self.assertFalse(res.get("success"))
-                            self.assertEqual(res.get("status"), "DISABLED")
-                            self.assertTrue(res.get("is_appeal"))
-                            mock_record.assert_called_once()
+                        with patch("agy_quota.update_cached_profile"):
+                            with patch("time.sleep"):
+                                res = agy_quota.probe_blocked_profile("test_still_blocked")
+                                self.assertFalse(res.get("success"))
+                                self.assertEqual(res.get("status"), "DISABLED")
+                                self.assertTrue(res.get("is_appeal"))
+                                mock_record.assert_called_once()
 
 
 if __name__ == "__main__":
