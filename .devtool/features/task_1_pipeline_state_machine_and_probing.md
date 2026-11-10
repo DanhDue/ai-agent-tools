@@ -14,7 +14,7 @@ order: "a1"
 
 # Task 1: Pipeline State Machine, Persistence, and Model Probing
 
-Epic: [autonomous_lifecycle_runner](../epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.en.md)
+Epic: [autonomous_lifecycle_runner](autonomous_lifecycle_runner.en.md)
 
 ## Requirement Analysis
 
@@ -50,24 +50,9 @@ Atomic writes via temporary files combined with `fcntl.flock` prevent JSON corru
 
 ### BDD SCENARIOS
 
-Covers: ALR-ST-01, ALR-ST-02, ALR-ST-03, ALR-AR-02
+Covers: ALR-ST-03, ALR-AR-02
 
 ```gherkin
-Scenario: [ALR-ST-01] [Tier C - Integration] State persistence and resumption from crash in intermediate stage
-
-Given the runner is interrupted by SIGINT during Stage 3 task execution
-When lifecycle_runner.py is invoked again with --resume
-Then the runner reads .devtool/state/<epic>.pipeline.json
-And the runner recovers the active stage "implementation", completed task list, and current round
-And execution resumes from the exact interrupted task without re-running completed tasks
-
-Scenario: [ALR-ST-02] [Tier C - Integration] Gate Ledger synchronization on autonomous state transitions
-
-Given the pipeline progresses autonomously through Stage 2 and Stage 3
-When each gate milestone (Gate 3, Gate 4, Gate 5 candidate) is achieved
-Then .devtool/GATE_LEDGER.md is updated with the timestamp, candidate SHA, and auto-approval metadata
-And the ledger status remains strictly in sync with .devtool/state/<epic>.pipeline.json
-
 Scenario: [ALR-ST-03] [Tier C - Integration] Probing verifies model capabilities before state initialization
 
 Given an invalid or deprecated model string specified in configuration
@@ -88,8 +73,8 @@ And the pipeline state file remains valid and uncorrupted JSON at all times
 
 | ID | Phase | Command | Expect | Needs |
 |----|-------|---------|--------|-------|
-| V1 | RED | `python3 -m unittest tests/test_lifecycle_runner.py -k test_alr_st_01` | exit 1; contains "FAILED" | — |
-| V2 | GREEN | `python3 -m unittest tests/test_lifecycle_runner.py -k test_alr_st_01` | exit 0; contains "OK" | — |
+| V1 | RED | `python3 -m unittest tests/test_lifecycle_runner.py -k test_alr_st_03` | exit 1; contains "FAILED" | — |
+| V2 | GREEN | `python3 -m unittest tests/test_lifecycle_runner.py -k test_alr_st_03` | exit 0; contains "OK" | — |
 | V3 | GREEN | `python3 -m unittest tests/test_lifecycle_runner.py` | exit 0; contains "OK" | — |
 | V4 | TIER-B | `ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py tests/test_lifecycle_runner.py` | exit 0 | — |
 | V5 | TIER-B | `mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py tests/test_lifecycle_runner.py` | exit 0 | — |
@@ -109,14 +94,14 @@ And the pipeline state file remains valid and uncorrupted JSON at all times
 
 - `StageName` enum: `initialized`, `principal_review`, `awaiting_principal_confirmation`, `implementation`, `cross_model_review`, `awaiting_finish`, `completed`, `halted`.
 - `FixPlanVerdict` enum: `APPROVED`, `ADJUSTED`, `CRITICAL_CONFLICT`.
-- `RunnerConfig` defaults: `programmer_model="gemini-3.8-flash"`, `programmer_effort="high"`, `assistant_model=None` (resolves dynamically to active selected model: Argon, Claude, Codex, etc.), `assistant_effort="high"`, `timeout_seconds=1800`, `max_review_rounds=3`.
+- `RunnerConfig` defaults: `programmer_model="gemini-3.8-flash"`, `programmer_effort="high"`, `assistant_model=None` (precedence: CLI `--assistant-model` -> `.devtool/review_config.json` `providers.assistant.model` -> active profile model -> fallback `claude-sonnet-5-5-high`), `assistant_effort="high"`, `timeout_seconds=1800`, `max_review_rounds=3`.
 - `PipelineState` tracks `epic_slug`, `active_stage`, `principal_round`, `cross_model_round`, `last_commit_sha`, `last_verdict`, `halt_reason`, `last_error`, `task_order`, and `completed_tasks`.
 - State is serialized to `.devtool/state/<epic>.pipeline.json` via `.tmp` rename with `fcntl.flock(fd, fcntl.LOCK_EX)`.
 - Gate updates execute via `resume_context.py --gate <n> --epic <slug> --approved "<text>" --by lifecycle_runner` to guarantee synchronization with `gate_ledger.jsonl`.
 
 ## Definition of Done
 
-- Scenarios ALR-ST-01, ALR-ST-02, ALR-ST-03, ALR-AR-02 are covered and pass in the test suite. (V2, V3, V6)
+- Scenarios ALR-ST-03, ALR-AR-02 are covered and pass in the test suite. (V2, V3, V6)
 - Python quality checks (lint and type check) pass cleanly. (V4, V5)
 - State persistence and recovery work reliably across interrupted sessions. (Gate 5)
 
@@ -126,5 +111,5 @@ None. Blocks [Task 2](task_2_subprocess_dispatcher_and_headless_agy.md), [Task 3
 
 ## References & Rollback
 
-- [Epic HLD](../epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.en.md), Module Contracts.
+- [Epic HLD](autonomous_lifecycle_runner.en.md), Module Contracts.
 - **Rollback**: Revert task commit; deletes `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py` and `tests/test_lifecycle_runner.py`.

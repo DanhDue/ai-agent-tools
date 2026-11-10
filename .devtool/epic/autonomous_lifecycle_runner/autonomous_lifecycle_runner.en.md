@@ -45,7 +45,7 @@ Autonomous execution eliminates unnecessary menu pauses while preserving absolut
 - Deliver a headless, resumable orchestrator CLI `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py` capable of driving an epic through Stage 2 review, Stage 3 implementation, and Stage 3 cross-model review.
 - Dispatch the AI Programmer using headless `agy --model gemini-3.8-flash --effort high --mode auto` in an isolated git worktree with process group supervision and timeout fencing.
 - Implement automated Gate 3 task execution order calculation via `compute_execution_order.py`.
-- Enforce the Human checkpoint in Principal Review: AI Assistant verifies findings, batches proposed fixes, and stops for Human confirmation before applying changes.
+- Enforce Principal Review auto-triage: AI Assistant auto-applies aligned design revisions, halting for Human confirmation only on high-risk critical issues, business/domain requirement conflicts, or `SHARED_CONTRACT_CONFLICT`.
 - Implement an automated fix-and-verify loop for Cross-Model Review: AI Programmer drafts a fix plan, AI Assistant evaluates and approves/adjusts it, AI Programmer applies fixes, and Gate 4 re-verifies automatically without stopping for Human.
 - Maintain persistent state in `.devtool/state/<epic>.pipeline.json` synchronized with `.devtool/GATE_LEDGER.md` for instant crash recovery.
 - Keep interactive mode 100% backward-compatible (`/dev-lifecycle --autonomous` or direct runner execution is strictly opt-in).
@@ -204,7 +204,15 @@ sequenceDiagram
     loop Cross-Model Review (Max 3 Rounds)
         Runner->>Reviewer: run_external_review.py run --kind code --epic-dir <dir> --base <base> --auto-quota
         Reviewer-->>Runner: Findings recorded in review_results.md
-        alt Converged (0 Blockers: AUTO_PASS_CLEAN, AUTO_PASS_FINAL_MINOR_SWEEP, AUTO_PASS_FINAL_SWEEP)
+        alt AUTO_PASS_CLEAN (0 findings)
+            Runner->>Runner: Break loop -> Advance to Final Report
+        else Final sweep (AUTO_PASS_FINAL_MINOR_SWEEP or AUTO_PASS_FINAL_SWEEP)
+            Runner->>Programmer: Apply final sweep fixes
+            Programmer-->>Runner: Code fixes applied
+            Runner->>Runner: Commit code fixes (git commit)
+            Runner->>Runner: Record decisions in review_results.md (fixed in <sha>)
+            Runner->>Runner: Commit decisions (clean git tree)
+            Runner->>Runner: run_gate4() in full (verifies clean certified SHA)
             Runner->>Runner: Break loop -> Advance to Final Report
         else Blockers exist (AUTO_FIX_ELIGIBLE)
             Runner->>Programmer: Draft fix plan (fix_plan_roundN.md)
@@ -322,6 +330,26 @@ class LifecycleRunner:
     def render_final_executive_report(self) -> str: ...
 ```
 
+#### Method Execution Contracts and Task Ownership
+
+- **`step_implementation(self) -> bool`** (Owned by Task 2):
+  - Execution contract: loops over `self.state.task_order` sequentially. For each task:
+    1. Checks if already present in `self.state.completed_tasks`. If so, skips.
+    2. Gating and evidence verification: dispatches Programmer subprocess with task prompt via stdin (`skills/dev-implementation/SKILL.md:229–240`).
+    3. Verifies task evidence and status updated to `done`.
+    4. Commits task changes cleanly (`git commit -m "[<EPIC>] Execute <task_slug>"`).
+    5. Appends task to `self.state.completed_tasks` and saves state atomically (`ALR-ST-01`).
+    6. Returns `True` if all tasks succeed; on subprocess failure or timeout, logs error, preserves state, and returns `False`.
+- **`run_gate4(self) -> Tuple[bool, str]`** (Owned by Task 5):
+  - Execution contract: executes the full Stage 3 Gate 4 verification sequence on the candidate SHA (`skills/dev-implementation/SKILL.md:321–356`):
+    1. Generates and commits smoke checklist (`skills/dev-implementation/resources/scripts/generate_smoke_checklist.py`).
+    2. Runs finding decision check (`run_external_review.py check --epic-dir <epic> --kind code`).
+    3. Runs codebase and security audit checks.
+    4. Runs declared integration commands and test suite (`run_unittest_junit.py`).
+    5. Runs registered Python capabilities (lint and type-check).
+    6. Verifies all results trace cleanly to candidate commit SHA.
+    7. Returns `(True, "Gate 4 PASS: <candidate_sha>")` if all checks pass; otherwise `(False, "<failure_reason>")`.
+
 ### Impact Analysis
 
 Impact analysis executed via `check_code_impact.py` against `main`:
@@ -347,7 +375,7 @@ Integration results: python3 scripts/run_unittest_junit.py --junitxml build/test
 | **Subprocess Group Supervision** | `ModelDispatcher.dispatch` | Fake long-running script | Process executes in isolated process group (`start_new_session=True`); SIGTERM delivered cleanly on timeout. |
 | **State Persistence & Resumption** | `LifecycleRunner.save_state`, `load_or_init_state` | Temporary filesystem with mock `.devtool/state` | Atomic `.tmp` rename prevents file corruption; runner resumes exactly from saved stage. |
 | **Gate 3 Auto-Order** | `LifecycleRunner.step_implementation` | Mock `compute_execution_order.py` | Order parsed from JSON/text output and written to `.devtool/GATE_LEDGER.md`. |
-| **Principal Review Human Checkpoint** | `step_principal_review` | Mock stdin/stdout prompt wrapper | Halts and prompts human when findings > 0; auto-proceeds when findings == 0. |
+| **Principal Review Auto-Triage** | `step_principal_review` | Mock stdin/stdout prompt wrapper | Auto-applies aligned fixes; halts and prompts human only on critical, domain, or contract conflicts. |
 | **Cross-Model Fix Plan Evaluation** | `evaluate_programmer_fix_plan` | Mock Assistant dispatcher returning `APPROVED`, `ADJUSTED`, `CRITICAL_CONFLICT` | Handles all 3 verdicts correctly; triggers Programmer fix execution or halts pipeline. |
 | **Circuit Breakers** | `evaluate_circuit_breakers` | Synthetic `review_results.md` fixtures | Immediate halt on `SHARED_CONTRACT_CONFLICT`, `FIX_LOOP`, and `MAX_ROUNDS_CRITICAL_REMAINING`. |
 | **Final Executive Report** | `LifecycleRunner.run` | Completed pipeline state | Renders markdown executive report and stops with prompt for `/finishing-a-development-branch`. |
@@ -394,4 +422,5 @@ Mitigation: Autonomous mode is strictly opt-in via `/dev-lifecycle --autonomous`
 
 - **[SE-01] Principal Review Round 1 Alignment**: Aligned external review CLI flags (`--kind principal` / `--kind code` with required `--base`), integrated `run_external_review.py triage` action parsing, made Assistant model dynamically inherit the developer's selected model (Argon/Claude/Codex/etc) with Gemini 3.8 Flash default for Programmer, added `AWAITING_PRINCIPAL_CONFIRMATION` state with proposal file and non-blocking CLI flags (`--confirm-fixes`/`--reject-fixes`), established commit sequencing for clean git tree, and aligned method signatures across HLD and tasks.
 - **[SE-02] Principal Review Round 2 Delta Alignment**: Formalized Auto-Triage Gate stage transitions (auto-application of agreed fixes in Principal Review, single-pass minor sweeps for AUTO_PASS_FINAL_MINOR_SWEEP and AUTO_PASS_FINAL_SWEEP without redundant review rounds), corrected Gate 4 commit and decision recording sequence (code fix commit -> decision recording -> decision commit -> Gate 4 run), added run_gate4() and step_implementation contract definitions, aligned ModelDispatcher to stdin pipes and process group supervision, and updated test verification commands to isolated runner scopes.
+- **[SE-03] Principal Review Round 3 Convergence Alignment**: Aligned Principal Review auto-triage policy across spec, HLD, BDD, and tasks (auto-applying aligned technical fixes without interrupting the developer, halting only on high-risk critical issues, business/domain requirement conflicts, or SHARED_CONTRACT_CONFLICT); synchronized 4 selectable model priority options at Gate 2 task confirmation with default `Claude -> Codex -> Kiro -> Argon`; updated Cross-Model Review sequence diagram to route both final sweep actions through code fix commit, decision recording, decision commit, and full Gate 4 before reporting; mapped BDD scenarios ALR-ST-01 to Task 2, ALR-ST-02 to Task 5, and ALR-ST-03 to Task 1 with 100% traceability.
 

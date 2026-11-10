@@ -81,7 +81,7 @@ flowchart TD
 ## Human Checkpoints
 
 1. **Brainstorming and design (Gates 1 and 2)**: unchanged, the Human approves the spec and the task breakdown.
-2. **Principal Review fixes**: the Assistant verifies every finding against the source and the approved design, presents the proposed fixes, and stops until the Human confirms. A round with zero findings continues without a stop. Minor-only rounds are included in the confirmation batch. After confirmation the Assistant revises, re-packages and the script starts the next round (maximum 3).
+2. **Principal Review fixes**: AI Assistant auto-applies aligned design revisions, commits them, and re-packages without human interruption. The runner halts and transitions to `AWAITING_PRINCIPAL_CONFIRMATION` only if findings involve high-risk critical issues, business/domain requirement conflicts, unaligned source conflicts, or `SHARED_CONTRACT_CONFLICT`. Minor-only rounds (`AUTO_PASS_FINAL_MINOR_SWEEP`) are swept in a single pass without stopping for Human. Model priority for Principal Review is selectable at task confirmation (Gate 2) across 4 options: (1) `Claude -> Codex -> Kiro -> Argon` [Default], (2) `Codex -> Claude -> Kiro -> Argon`, (3) `Kiro -> Claude -> Codex -> Argon`, (4) `Kiro -> Codex -> Claude -> Argon`.
 3. **Cross-model review fixes**: no Human stop. The Programmer proposes the fixes, the Assistant approves or adjusts the plan, the Programmer applies it, and Gate 4 re-runs.
 4. **Circuit Breakers**: `SHARED_CONTRACT_CONFLICT`, `FIX_LOOP` and `MAX_ROUNDS_CRITICAL_REMAINING` always halt and report, in both review stages.
 5. **Assistant CRITICAL_CONFLICT**: a fix plan that would change an approved decision halts and reports.

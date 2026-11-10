@@ -23,7 +23,8 @@ Implement headless model dispatching and process supervision in `skills/dev-life
 2. Process isolation: spawn subprocesses with `start_new_session=True` so child processes run within a dedicated POSIX process group.
 3. Timeout and termination fencing: supervisor timer triggers `os.killpg(pgid, signal.SIGTERM)`, awaits a 1.0s grace period, and escalates to `os.killpg(pgid, signal.SIGKILL)` if processes remain alive.
 4. Auto Gate 3 order calculation: implement `LifecycleRunner.resolve_gate3_order` calling `compute_execution_order.py`, validating topological task order, auto-confirming Gate 3, and recording the execution order in `.devtool/GATE_LEDGER.md`.
-5. Implement unit tests in `tests/test_lifecycle_runner.py` covering `ALR-HP-02`, `ALR-EC-04`, and `ALR-AR-01`.
+5. Implementation loop: implement `LifecycleRunner.step_implementation` to loop through the resolved tasks in order, dispatch the Programmer headless subprocess for each task via stdin, capture per-task logs, sync task status, commit each task cleanly (`[AUTONOMOUS_LIFECYCLE_RUNNER] Execute <task_slug>`), and recover from crash or interruption via saved state (`ALR-ST-01`).
+6. Implement unit tests in `tests/test_lifecycle_runner.py` covering `ALR-HP-02`, `ALR-EC-04`, `ALR-AR-01`, and `ALR-ST-01`.
 
 ## Files
 
@@ -50,7 +51,7 @@ Executing headless LLM sessions in isolated process groups (`start_new_session=T
 
 ### BDD SCENARIOS
 
-Covers: ALR-HP-02, ALR-EC-04, ALR-AR-01
+Covers: ALR-HP-02, ALR-EC-04, ALR-AR-01, ALR-ST-01
 
 ```gherkin
 Scenario: [ALR-HP-02] [Tier C - Integration] Headless dispatch of AI Programmer with Gemini 3.8 Flash High
@@ -76,6 +77,14 @@ When the supervisor timer expires in ModelDispatcher
 Then SIGTERM is broadcast to the entire subprocess group via os.killpg
 And after a 1.0s grace period, SIGKILL is escalated if the child processes remain alive
 And the runner records a timeout failure in the pipeline state without leaving orphaned processes
+
+Scenario: [ALR-ST-01] [Tier C - Integration] State persistence and resumption from crash in intermediate stage
+
+Given the runner is interrupted by SIGINT during Stage 3 task execution
+When lifecycle_runner.py is invoked again with --resume
+Then the runner reads .devtool/state/<epic>.pipeline.json
+And the runner recovers the active stage "implementation", completed task list, and current round
+And execution resumes from the exact interrupted task without re-running completed tasks
 ```
 
 ## Verification
@@ -104,10 +113,11 @@ And the runner records a timeout failure in the pipeline state without leaving o
 - The Programmer is dispatched with `--model <model>` (default: `gemini-3.8-flash`), `--effort high`, and `--mode auto` inside the worktree directory, with prompts piped via stdin.
 - `subprocess.Popen` is launched with `start_new_session=True` so `pgid = p.pid` provides the process group ID. On timeout or exit, `os.killpg(pgid, signal.SIGTERM)` is called (handling `ProcessLookupError` gracefully) followed by SIGKILL escalation if needed.
 - Gate 3 auto-confirmation runs `compute_execution_order.py`, parses the sequential order from the `Flattened sequential order:` output block (or imports `load_tasks`), fails on non-zero exit or manual review notes, and records Gate 3 approval via `resume_context.py --gate 3 --epic <slug> --approved "<order>" --by lifecycle_runner`.
+- `step_implementation` iterates sequentially over tasks, captures stdout/stderr to task log files, updates task status to done, and commits changes per task (`[AUTONOMOUS_LIFECYCLE_RUNNER] Execute <task_slug>`).
 
 ## Definition of Done
 
-- Scenarios ALR-HP-02, ALR-EC-04, ALR-AR-01 are covered and pass in the test suite. (V2, V3, V6)
+- Scenarios ALR-HP-02, ALR-EC-04, ALR-AR-01, ALR-ST-01 are covered and pass in the test suite. (V2, V3, V6)
 - Python quality checks (lint and type check) pass cleanly. (V4, V5)
 - Process termination leaves zero orphan processes upon timeout. (Gate 5)
 

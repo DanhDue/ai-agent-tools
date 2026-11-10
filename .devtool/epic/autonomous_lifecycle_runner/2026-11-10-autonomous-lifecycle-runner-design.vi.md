@@ -81,7 +81,7 @@ flowchart TD
 ## Điểm dừng chờ Human
 
 1. **Brainstorming và thiết kế (Gate 1 và 2)**: giữ nguyên, Human duyệt spec và phân rã task.
-2. **Fix của Principal Review**: Assistant kiểm chứng từng finding với source và thiết kế đã duyệt, trình bày các fix đề xuất, và dừng cho tới khi Human xác nhận. Round không có finding thì chạy tiếp, không dừng. Round chỉ có Minor được gộp vào lượt xác nhận. Sau khi xác nhận, Assistant sửa, đóng gói lại và script chạy round kế tiếp (tối đa 3).
+2. **Fix của Principal Review**: AI Assistant tự động áp dụng các sửa đổi thiết kế kỹ thuật đã đồng thuận, commit và đóng gói lại mà không làm gián đoạn con người. Runner chỉ tạm dừng và chuyển sang `AWAITING_PRINCIPAL_CONFIRMATION` khi phát hiện rủi ro nghiêm trọng, xung đột yêu cầu nghiệp vụ, xung đột mã nguồn chưa chốt, hoặc `SHARED_CONTRACT_CONFLICT`. Round chỉ có Minor (`AUTO_PASS_FINAL_MINOR_SWEEP`) được quét và xử lý trong một lượt duy nhất mà không dừng hỏi Con người. Thứ tự ưu tiên mô hình cho Principal Review được cấu hình/chọn tại bước xác nhận phân rã task (Gate 2) qua 4 tùy chọn: (1) `Claude -> Codex -> Kiro -> Argon` [Mặc định], (2) `Codex -> Claude -> Kiro -> Argon`, (3) `Kiro -> Claude -> Codex -> Argon`, (4) `Kiro -> Codex -> Claude -> Argon`.
 3. **Fix của cross-model review**: không dừng chờ Human. Programmer đề xuất fix, Assistant duyệt hoặc chỉnh plan, Programmer áp dụng, rồi Gate 4 chạy lại.
 4. **Circuit Breaker**: `SHARED_CONTRACT_CONFLICT`, `FIX_LOOP` và `MAX_ROUNDS_CRITICAL_REMAINING` luôn dừng và báo cáo, ở cả hai stage review.
 5. **Assistant CRITICAL_CONFLICT**: fix plan làm thay đổi một quyết định đã duyệt thì dừng và báo cáo.

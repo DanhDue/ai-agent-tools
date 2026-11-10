@@ -38,13 +38,13 @@ Then lệnh được điều phối chạy "agy" với "--model gemini-3.8-flash
 And câu lệnh chỉ định "--effort high" và "--mode auto"
 And việc thực thi diễn ra bên trong git worktree biệt lập với giám sát nhóm tiến trình chuyên dụng
 
-Scenario: [ALR-HP-03] [Tier C - Integration] AI Assistant đề xuất sửa lỗi và dừng chờ Human xác nhận trong Principal Review
+Scenario: [ALR-HP-03] [Tier C - Integration] AI Assistant tự động sửa các phát hiện Principal Review đã đồng thuận và chỉ dừng hỏi Con người khi có xung đột rủi ro cao hoặc nghiệp vụ
 
-Given Principal Review trả về hai phát hiện Important trên tài liệu đặc tả HLD ứng viên
+Given Principal Review trả về các phát hiện trên tài liệu đặc tả HLD ứng viên
 When AI Assistant phân loại các phát hiện trong step_principal_review
-Then Assistant xác minh các phát hiện theo tài liệu nguồn HLD và soạn thảo bảng sửa lỗi có cấu trúc
-And lifecycle_runner.py tạm dừng thực thi để hỏi xác nhận từ Con người
-And sau khi Con người xác nhận, Assistant áp dụng các chỉnh sửa, chạy package_epic.py --revise, và tiến vào vòng tiếp theo
+Then các phát hiện kỹ thuật đã đồng thuận được tự động sửa, commit và đóng gói qua package_epic.py --revise mà không làm gián đoạn con người
+And lifecycle_runner.py chuyển sang AWAITING_PRINCIPAL_CONFIRMATION chỉ khi phát hiện có rủi ro nghiêm trọng, xung đột nghiệp vụ, hoặc SHARED_CONTRACT_CONFLICT
+And sau khi Con người xác nhận phương án giải quyết xung đột, pipeline tiếp tục và tiến vào vòng review tiếp theo
 
 Scenario: [ALR-HP-04] [Tier C - Integration] AI Assistant duyệt kế hoạch sửa lỗi của AI Programmer trong Cross-Model Review không dừng hỏi Con người
 
@@ -66,12 +66,13 @@ Then runner ghi log "AUTO_PASS_CLEAN: 0 findings"
 And runner bỏ qua hoàn toàn prompt xác nhận của Con người
 And trạng thái pipeline chuyển thẳng sang Giai đoạn 3 Triển khai
 
-Scenario: [ALR-EC-02] [Tier C - Integration] Gom cụm các phát hiện minor trong Principal Review vào một lần xác nhận duy nhất
+Scenario: [ALR-EC-02] [Tier C - Integration] Gom và xử lý các phát hiện minor trong Principal Review trong một lượt duy nhất không dừng hỏi Con người
 
 Given Principal Review Vòng 1 trả về 0 Critical, 0 Important, và 2 phát hiện định dạng Minor
 When step_principal_review đánh giá báo cáo phân loại triage
-Then 2 phát hiện Minor được gom cụm vào một prompt xác nhận sửa đổi duy nhất cho Human Architect
-And sau khi xác nhận, các sửa đổi được áp dụng trong một lần và package_epic.py --revise thực thi trơn tru
+Then runner kích hoạt AUTO_PASS_FINAL_MINOR_SWEEP
+And các phát hiện Minor được quét, commit và đóng gói trong một lượt duy nhất mà không tạm dừng hỏi Con người
+And pipeline tiến thẳng vào Giai đoạn 3 Triển khai
 
 Scenario: [ALR-EC-03] [Tier C - Integration] AI Assistant điều chỉnh kế hoạch sửa lỗi của AI Programmer mà không từ chối
 

@@ -14,7 +14,7 @@ order: "a5"
 
 # Task 5: End-to-End Orchestrator, CLI Integration, and Governance Rules
 
-Epic: [autonomous_lifecycle_runner](../epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.en.md)
+Epic: [autonomous_lifecycle_runner](autonomous_lifecycle_runner.en.md)
 
 ## Requirement Analysis
 
@@ -68,7 +68,7 @@ Updating the governance rules and skill documentation ensures that all AI agent 
 
 ### BDD SCENARIOS
 
-Covers: ALR-HP-01, ALR-FR-03
+Covers: ALR-HP-01, ALR-FR-03, ALR-ST-02
 
 ```gherkin
 Scenario: [ALR-HP-01] [Tier C - Integration] Complete autonomous pipeline executes from handoff to final executive report
@@ -86,6 +86,13 @@ Given Cross-Model Review reaches Round 3 with at least 1 unresolved Critical fin
 When evaluate_circuit_breakers checks the round counter and severity counts
 Then the runner triggers CIRCUIT_BREAKER_HALT (MAX_ROUNDS_CRITICAL_REMAINING)
 And the runner halts without launching a 4th round, outputting the Top 3 Highest-Risk Findings
+
+Scenario: [ALR-ST-02] [Tier C - Integration] Gate Ledger synchronization on autonomous state transitions
+
+Given the pipeline progresses autonomously through Stage 2 and Stage 3
+When each gate milestone (Gate 3, Gate 4, Gate 5 candidate) is achieved
+Then .devtool/GATE_LEDGER.md is updated with the timestamp, candidate SHA, and auto-approval metadata
+And the ledger status remains strictly in sync with .devtool/state/<epic>.pipeline.json
 ```
 
 ## Verification
@@ -112,14 +119,16 @@ And the runner halts without launching a 4th round, outputting the Top 3 Highest
 ## Decisions Already Made
 
 - Autonomous mode does not auto-merge: it halts at `AWAITING_FINISH` and displays the prompt for `/finishing-a-development-branch`.
+- `run_gate4(self) -> Tuple[bool, str]` executes: (1) `run_external_review.py check --epic-dir <epic> --kind code`; (2) `check_bdd_traceability.py results`; (3) `run_unittest_junit.py`; (4) `ruff check --isolated`; (5) `mypy --ignore-missing-imports`.
 - Gate 4 PASS candidate SHA is verified before rendering the final executive report.
 - Circuit breaker on Round 3 critical exhaustion outputs the Top 3 Highest-Risk Findings and halts.
 - Role boundaries: In autonomous mode, the orchestrator runner invokes review CLIs and generates coordination proposals (`.devtool/`), while source code modifications are strictly executed by the AI Programmer subprocess.
+- Gate synchronization: Gate 3, 4, and 5 candidate approvals are recorded via `resume_context.py --gate <n>` to keep `.devtool/state/gate_ledger.jsonl` and `.devtool/GATE_LEDGER.md` synchronized (`ALR-ST-02`).
 - `scripts/verify.sh` registers `lifecycle-runner` suite pointing to `tests/test_lifecycle_runner.py`.
 
 ## Definition of Done
 
-- Scenarios ALR-HP-01 and ALR-FR-03 are covered and pass in the test suite. (V2, V3, V6)
+- Scenarios ALR-HP-01, ALR-FR-03, ALR-ST-02 are covered and pass in the test suite. (V2, V3, V6)
 - Python quality checks (lint and type check) pass cleanly. (V4, V5)
 - Document checks pass across all modified skills and bilingual markdown files. (Gate 5)
 
@@ -129,5 +138,5 @@ And the runner halts without launching a 4th round, outputting the Top 3 Highest
 
 ## References & Rollback
 
-- [Epic HLD](../epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.en.md), Module Contracts.
+- [Epic HLD](autonomous_lifecycle_runner.en.md), Module Contracts.
 - **Rollback**: Revert task commit; documentation and CLI wiring restored to previous revision.

@@ -45,7 +45,7 @@ Tiến trình tự động hóa loại bỏ các bước dừng menu không cầ
 - Cung cấp CLI điều phối máy trạng thái chạy headless, có khả năng phục hồi sau sự cố tại `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py`, dẫn dắt epic qua review Giai đoạn 2, triển khai Giai đoạn 3, và cross-model review Giai đoạn 3.
 - Điều phối AI Programmer sử dụng lệnh headless `agy --model gemini-3.8-flash --effort high --mode auto` trong worktree git biệt lập với giám sát nhóm tiến trình và giới hạn timeout.
 - Tự động hóa việc tính toán thứ tự thực thi task ở Gate 3 thông qua `compute_execution_order.py`.
-- Thực thi trạm dừng kiểm tra của con người (Human checkpoint) trong Principal Review: AI Assistant xác minh các phát hiện, gom cụm các sửa chữa đề xuất, và dừng lại chờ con người xác nhận trước khi áp dụng thay đổi.
+- Thực thi phân loại tự động Principal Review: AI Assistant tự động áp dụng các sửa đổi thiết kế đã đồng thuận, và chỉ tạm dừng hỏi Con người khi phát hiện rủi ro nghiêm trọng, xung đột nghiệp vụ, hoặc `SHARED_CONTRACT_CONFLICT`.
 - Hiện thực hóa vòng lặp sửa lỗi và kiểm chứng tự động cho Cross-Model Review: AI Programmer lập kế hoạch sửa lỗi, AI Assistant đánh giá và phê duyệt/điều chỉnh kế hoạch, AI Programmer áp dụng sửa đổi, và Gate 4 tự động kiểm chứng lại mà không cần dừng hỏi con người.
 - Duy trì trạng thái bền vững trong `.devtool/state/<epic>.pipeline.json` đồng bộ với `.devtool/GATE_LEDGER.md` để khôi phục tức thì khi bị ngắt quãng.
 - Đảm bảo chế độ tương tác (interactive mode) tương thích ngược 100% (`/dev-lifecycle --autonomous` hoặc gọi runner trực tiếp hoàn toàn là lựa chọn tùy chọn).
@@ -204,7 +204,15 @@ sequenceDiagram
     loop Cross-Model Review (Tối đa 3 vòng)
         Runner->>Reviewer: run_external_review.py run --kind code --epic-dir <dir> --base <base> --auto-quota
         Reviewer-->>Runner: Ghi nhận phát hiện trong review_results.md
-        alt Đã hội tụ (0 Blocker: AUTO_PASS_CLEAN, AUTO_PASS_FINAL_MINOR_SWEEP, AUTO_PASS_FINAL_SWEEP)
+        alt AUTO_PASS_CLEAN (0 phát hiện)
+            Runner->>Runner: Thoát vòng lặp -> Chuyển sang Báo cáo Cuối cùng
+        else Quét lần cuối (AUTO_PASS_FINAL_MINOR_SWEEP hoặc AUTO_PASS_FINAL_SWEEP)
+            Runner->>Programmer: Áp dụng các sửa đổi quét lần cuối
+            Programmer-->>Runner: Đã áp dụng sửa đổi mã
+            Runner->>Runner: Commit sửa đổi mã (git commit)
+            Runner->>Runner: Ghi nhận decisions vào review_results.md (fixed in <sha>)
+            Runner->>Runner: Commit decisions (clean git tree)
+            Runner->>Runner: run_gate4() đầy đủ (xác minh SHA đạt chuẩn)
             Runner->>Runner: Thoát vòng lặp -> Chuyển sang Báo cáo Cuối cùng
         else Còn tồn tại Blocker (AUTO_FIX_ELIGIBLE)
             Runner->>Programmer: Soạn kế hoạch sửa lỗi (fix_plan_roundN.md)
@@ -322,6 +330,26 @@ class LifecycleRunner:
     def render_final_executive_report(self) -> str: ...
 ```
 
+#### Hợp đồng Thực thi Phương thức và Quyền sở hữu Task
+
+- **`step_implementation(self) -> bool`** (Sở hữu bởi Task 2):
+  - Hợp đồng thực thi: lặp tuần tự qua danh sách `self.state.task_order`. Với mỗi task:
+    1. Kiểm tra xem task đã có trong `self.state.completed_tasks` chưa. Nếu có, bỏ qua.
+    2. Kiểm chứng gating và bằng chứng: dispatch tiến trình con Programmer qua stdin (`skills/dev-implementation/SKILL.md:229–240`).
+    3. Xác minh bằng chứng task và trạng thái được cập nhật thành `done`.
+    4. Commit các thay đổi của task một cách sạch sẽ (`git commit -m "[<EPIC>] Execute <task_slug>"`).
+    5. Thêm task vào `self.state.completed_tasks` và lưu trạng thái nguyên tử (`ALR-ST-01`).
+    6. Trả về `True` nếu tất cả task thành công; khi tiến trình con thất bại hoặc timeout, ghi log lỗi, bảo toàn trạng thái và trả về `False`.
+- **`run_gate4(self) -> Tuple[bool, str]`** (Sở hữu bởi Task 5):
+  - Hợp đồng thực thi: chạy chuỗi kiểm chứng Gate 4 Giai đoạn 3 đầy đủ trên SHA ứng viên (`skills/dev-implementation/SKILL.md:321–356`):
+    1. Tạo và commit checklist smoke (`skills/dev-implementation/resources/scripts/generate_smoke_checklist.py`).
+    2. Chạy kiểm tra quyết định phát hiện review (`run_external_review.py check --epic-dir <epic> --kind code`).
+    3. Chạy các kiểm tra audit mã nguồn và bảo mật.
+    4. Chạy các lệnh tích hợp và bộ test đã khai báo (`run_unittest_junit.py`).
+    5. Chạy các năng lực Python đã đăng ký (lint và type-check).
+    6. Xác minh tất cả kết quả truy xuất nguồn gốc sạch sẽ tới SHA ứng viên.
+    7. Trả về `(True, "Gate 4 PASS: <candidate_sha>")` nếu tất cả kiểm tra đều qua; ngược lại `(False, "<failure_reason>")`.
+
 ### Phân tích Tác động
 
 Phân tích tác động được thực thi qua `check_code_impact.py` so với nhánh `main`:
@@ -347,7 +375,7 @@ Integration results: python3 scripts/run_unittest_junit.py --junitxml build/test
 | **Giám sát Nhóm Tiến trình** | `ModelDispatcher.dispatch` | Script chạy giả lập thời gian dài | Tiến trình chạy trong process group riêng biệt (`start_new_session=True`); tín hiệu SIGTERM được gửi sạch sẽ khi quá thời gian timeout. |
 | **Lưu trữ và Khôi phục Trạng thái** | `LifecycleRunner.save_state`, `load_or_init_state` | Hệ thống tệp tạm thời với thư mục `.devtool/state` giả lập | Đổi tên nguyên tử `.tmp` chống hỏng file; runner khôi phục chính xác từ giai đoạn đã lưu. |
 | **Tự động hóa Thứ tự Gate 3** | `LifecycleRunner.step_implementation` | `compute_execution_order.py` giả lập | Thứ tự được bóc tách từ kết quả JSON/text và ghi nhận vào `.devtool/GATE_LEDGER.md`. |
-| **Điểm dừng Con người Principal Review** | `step_principal_review` | Lớp bọc prompt stdin/stdout giả lập | Dừng và hỏi người dùng khi số phát hiện > 0; tự động đi tiếp khi số phát hiện == 0. |
+| **Phân loại tự động Principal Review** | `step_principal_review` | Lớp bọc prompt stdin/stdout giả lập | Tự động áp dụng sửa đổi đã đồng thuận; chỉ dừng hỏi con người khi có xung đột rủi ro cao, nghiệp vụ hoặc hợp đồng. |
 | **Đánh giá Kế hoạch Sửa lỗi Cross-Model** | `evaluate_programmer_fix_plan` | Dispatcher Assistant giả lập trả về `APPROVED`, `ADJUSTED`, `CRITICAL_CONFLICT` | Xử lý chính xác cả 3 phán quyết; kích hoạt Programmer sửa lỗi hoặc dừng pipeline. |
 | **Circuit Breakers** | `evaluate_circuit_breakers` | Fixture `review_results.md` tổng hợp | Dừng ngay lập tức khi phát hiện `SHARED_CONTRACT_CONFLICT`, `FIX_LOOP`, và `MAX_ROUNDS_CRITICAL_REMAINING`. |
 | **Báo cáo Điều hành Cuối cùng** | `LifecycleRunner.run` | Trạng thái pipeline đã hoàn thành | Kết xuất báo cáo markdown điều hành và dừng lại kèm hướng dẫn `/finishing-a-development-branch`. |
@@ -394,4 +422,5 @@ Giảm thiểu rủi ro: Chế độ tự động hoàn toàn là tùy chọn qu
 
 - **[SE-01] Đồng bộ Principal Review Vòng 1**: Đồng bộ cờ CLI external review (`--kind principal` / `--kind code` kèm `--base` bắt buộc), tích hợp cơ chế phân tích action từ `run_external_review.py triage`, hỗ trợ model Assistant kế thừa linh hoạt model đang được chọn (Argon/Claude/Codex/v.v.) với mặc định Gemini 3.8 Flash cho Programmer, bổ sung trạng thái `AWAITING_PRINCIPAL_CONFIRMATION` kèm tệp đề xuất và cờ CLI non-blocking (`--confirm-fixes`/`--reject-fixes`), thiết lập tuần tự commit giữ cây git sạch, và đồng bộ chữ ký hàm giữa HLD và các task.
 - **[SE-02] Đồng bộ Principal Review Vòng 2 Delta**: Chuẩn hóa chuyển đổi trạng thái Auto-Triage Gate (tự động xử lý các sửa đổi đã thống nhất trong Principal Review, quét gom cụm lỗi minor trong một lượt cho AUTO_PASS_FINAL_MINOR_SWEEP và AUTO_PASS_FINAL_SWEEP không chạy thêm vòng review thừa), điều chỉnh tuần tự commit và ghi nhận quyết định Gate 4 (commit sửa đổi mã -> ghi nhận decisions -> commit decisions -> chạy Gate 4), bổ sung định nghĩa hợp đồng run_gate4() và step_implementation, đồng bộ ModelDispatcher với stdin pipe và giám sát process group, và cập nhật lệnh kiểm thử sang phạm vi cô lập của runner.
+- **[SE-03] Đồng bộ Principal Review Vòng 3 Hội tụ**: Đồng bộ chính sách phân loại tự động Principal Review xuyên suốt spec, HLD, BDD và task (tự động sửa các vấn đề kỹ thuật đã đồng thuận không ngắt quãng nhà phát triển, chỉ dừng lại khi có rủi ro nghiêm trọng, xung đột nghiệp vụ, hoặc SHARED_CONTRACT_CONFLICT); đồng bộ 4 tùy chọn ưu tiên mô hình tại bước xác nhận phân rã task Gate 2 với mặc định `Claude -> Codex -> Kiro -> Argon`; cập nhật sơ đồ tuần tự Cross-Model Review để cả hai hành động quét cuối đều đi qua commit sửa mã, ghi nhận decisions, commit decisions, và chạy đủ Gate 4 trước khi xuất báo cáo; phân bổ các kịch bản BDD ALR-ST-01 vào Task 2, ALR-ST-02 vào Task 5, và ALR-ST-03 vào Task 1 với truy xuất nguồn gốc 100%.
 

@@ -38,13 +38,13 @@ Then the dispatched command executes "agy" with "--model gemini-3.8-flash"
 And the command specifies "--effort high" and "--mode auto"
 And the execution runs inside the isolated git worktree with dedicated process group supervision
 
-Scenario: [ALR-HP-03] [Tier C - Integration] AI Assistant proposes fixes and prompts Human confirmation in Principal Review
+Scenario: [ALR-HP-03] [Tier C - Integration] AI Assistant auto-applies aligned Principal Review fixes and prompts Human confirmation only on critical or domain conflicts
 
-Given Principal Review returns two Important findings on candidate HLD specifications
+Given Principal Review returns findings on candidate HLD specifications
 When the AI Assistant triages the findings in step_principal_review
-Then the Assistant verifies findings against HLD source documents and drafts a structured fix table
-And lifecycle_runner.py halts execution to prompt Human confirmation
-And upon Human confirmation, the Assistant applies the revisions, runs package_epic.py --revise, and proceeds to the next round
+Then aligned technical findings are auto-applied, committed, and packaged via package_epic.py --revise without human interruption
+And lifecycle_runner.py transitions to AWAITING_PRINCIPAL_CONFIRMATION only if findings involve critical risks, business requirement conflicts, or SHARED_CONTRACT_CONFLICT
+And upon Human confirmation of the conflict proposal, the pipeline resumes and advances to the next review round
 
 Scenario: [ALR-HP-04] [Tier C - Integration] AI Assistant approves AI Programmer fix plan in Cross-Model Review without Human stop
 
@@ -66,12 +66,13 @@ Then the runner logs "AUTO_PASS_CLEAN: 0 findings"
 And the runner bypasses the Human confirmation prompt completely
 And the pipeline state advances directly to Stage 3 Implementation
 
-Scenario: [ALR-EC-02] [Tier C - Integration] Minor-only findings in Principal Review batched into single confirmation
+Scenario: [ALR-EC-02] [Tier C - Integration] Minor-only findings in Principal Review swept in single pass without Human halt
 
 Given Principal Review Round 1 returns 0 Critical, 0 Important, and 2 Minor formatting findings
 When step_principal_review evaluates the triage report
-Then the 2 Minor findings are batched into a single unified fix confirmation prompt for the Human Architect
-And once confirmed, the fixes are applied in one pass and package_epic.py --revise executes cleanly
+Then the runner triggers AUTO_PASS_FINAL_MINOR_SWEEP
+And the Minor findings are swept, committed, and packaged in a single pass without stopping for Human confirmation
+And the pipeline advances directly to Stage 3 Implementation
 
 Scenario: [ALR-EC-03] [Tier C - Integration] AI Assistant adjusts AI Programmer fix plan without rejecting
 
