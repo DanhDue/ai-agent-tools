@@ -8,6 +8,28 @@ every installed machine on the old cached copy.
 
 ---
 
+## 1.28.1 — 2026-11-10
+
+Switches Antigravity profile pre-warming and scheduling to Claude 5.5 Sonnet (`claude-sonnet-5-5-low`), adds quick access "Argon Profiles" filter tag to Quota Dashboard, and cleans up redundant drawer content.
+
+### Added
+
+- **Argon Profiles Quick Access Filter Badge** (`skills/check-quota/resources/dashboard/quota_dashboard.html`):
+  - Adds interactive quick access tag `• Argon Profiles` to the 2nd row of the Quota Dashboard alongside `Active Profiles`.
+  - Enables 1-click filtering to display exclusively profiles with active Argon model support, toggling back to all profiles on second click.
+  - Synchronizes filter state with the status dropdown (`#statusFilter`) and URL query parameters (`?status=ARGON`).
+
+### Changed
+
+- **Antigravity Profile Pre-Warming & Scheduled Activation to Claude 5.5** (`skills/refresh-session/resources/scripts/refresh_session.py`, `scripts/agy_quota.py`):
+  - Replaces default Gemini model invocation (`agy -p ...`) with `claude-sonnet-5-5-low` in `ping_profile` and `execute_ping_profile`.
+  - Automatically initializes and pre-warms the 5-hour rolling rate-limit window for Claude 5.5 / GPT models when running manual pings or daily scheduled daemons (`/refresh-session schedule`), preserving weekly Argon activation for entitled profiles.
+
+### Removed
+
+- **TypeScript Contract Spec Drawer** (`skills/check-quota/resources/dashboard/quota_dashboard.html`):
+  - Removes redundant static contract drawer at the bottom of the Quota Dashboard for a cleaner, streamlined interface.
+
 ## 1.28.0 — 2026-11-10
 
 Delivers the **3-Round Scope-Narrowing Review Convergence Funnel** (`Full -> Delta -> Blocker-Only`), **Quota-Aware Provider Priority (`Claude -> Codex -> Kiro -> Argon`)**, **4 Anti-Fix-Loop Prompt Strategies**, **Source-of-Truth Forward Alignment & 3 Circuit Breaker Halts**, **Top 3 Highest-Risk Findings Executive Report**, **3-Level Test Scope Pyramid**, **3-Layer Lifecycle Documentation Separation** (preventing Attention Dilution and Lost-in-the-Middle), and **Live Argon Quota & Unblocked Account Probing Fixes**.
