@@ -8,6 +8,28 @@ every installed machine on the old cached copy.
 
 ---
 
+## 1.28.2 — 2026-11-10
+
+Delivers automated multi-profile anti-abuse remediation, hardware fingerprint & device ID decoupling, AirDrop & host OS Keychain safeguards with zero CLI mutations, and synchronizes profile isolation rules across critical rules, agent guidelines, and safe provisioning workflows.
+
+### Added
+
+- **Hardware Fingerprint Decoupling & Telemetry Opt-Out** (`rules/CRITICAL_RULES.md`, `.agents/rules/profile_isolation_rules.md`, `skills/audit-account-block/references/profile-isolation-and-remediation.md`):
+  - Enforces cryptographically independent SHA-256 `telemetry.machineId` and UUIDv4 `telemetry.devDeviceId` in every profile's `storage.json`, eliminating cross-account device cloning flags.
+  - Mandates `"telemetry.telemetryLevel": "off"` in `settings.json` across all profiles, preventing Antigravity IDE and VS Code telemetry from leaking workspace paths (`backupWorkspaces`) to external cloud services.
+  - Prohibits trajectory cloning (`conversation_summaries.db`, `agyhub_summaries_proto.pb`) to prevent foreign UUID querying and repetitive 403 `PERMISSION_DENIED` errors in background indexing.
+- **Automated Profile Initialization Safeguard (`ag_run <profile> init`)** (`skills/audit-account-block/SKILL.md`, `skills/audit-account-block/references/profile-isolation-and-remediation.md`):
+  - Integrates automated unique machine ID generation, devDeviceId assignment, telemetry opt-out, workspace path clearing, and trajectory cleanup into `ag_run init` workflow.
+
+### Changed
+
+- **AirDrop & Host OS Keychain Safeguard with Zero CLI Mutation** (`rules/CRITICAL_RULES.md`, `.agents/rules/profile_isolation_rules.md`, `skills/audit-account-block/references/profile-isolation-and-remediation.md`):
+  - Strictly prohibits mutating `security default-keychain` and `security list-keychains -s` during CLI operations (`ag_run <profile> cli`, `{profile}-cli`). Resolves credentials directly via subshell environment (`HOME="$ag_home"`) and `~/Library/Preferences/com.apple.security.plist`, protecting macOS `sharingd` (AirDrop) and `identityservicesd` (Apple ID) from service interruption.
+  - Shortens GUI IDE atomic launch window to 1.5 seconds with verification of host keychain restoration.
+- **Rule Synchronization Across Ecosystem** (`rules/CRITICAL_RULES.md`, `.agents/rules/profile_isolation_rules.md`):
+  - Adds Section 9.2 Zero CLI Keychain Mutation and Section 9.6 Hardware Fingerprint & Telemetry Decoupling to `rules/CRITICAL_RULES.md`.
+  - Expands `profile-isolation-and-remediation.md` to "The 6 Core Isolation Rules" with dedicated guidelines for Anti-Sybil defense and Rogue Symlink elimination.
+
 ## 1.28.1 — 2026-11-10
 
 Switches Antigravity profile pre-warming and scheduling to Claude 5.5 Sonnet (`claude-sonnet-5-5-low`), adds quick access "Argon Profiles" filter tag to Quota Dashboard, and cleans up redundant drawer content.

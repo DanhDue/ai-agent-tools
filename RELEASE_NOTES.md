@@ -1,36 +1,38 @@
-# Release Notes: d3nexus v1.28.1
+# Release Notes: d3nexus v1.28.2
 
 **Release Date:** November 10, 2026  
-**Version:** `1.28.1`  
-**Git Tag:** `v1.28.1`, `d3nexus--v1.28.1`
+**Version:** `1.28.2`  
+**Git Tag:** `v1.28.2`, `d3nexus--v1.28.2`
 
 ---
 
 ## Executive Summary
 
-`v1.28.1` switches Antigravity profile session pre-warming and scheduling to Claude 5.5 Sonnet (`claude-sonnet-5-5-low`) instead of the default Gemini model, introduces the **Argon Profiles** interactive quick access filter badge to the Quota Dashboard, and cleans up redundant drawer content.
+`v1.28.2` delivers comprehensive multi-profile anti-abuse isolation and remediation safeguards: cryptographically decoupling hardware fingerprints (`telemetry.machineId`) and device IDs, enforcing telemetry opt-out to prevent workspace path leaks, safeguarding host macOS AirDrop (`sharingd`) and Apple ID via Zero CLI Keychain mutations, and synchronizing profile isolation rules across `CRITICAL_RULES.md` and safe provisioning workflows.
 
 ---
 
 ## Key Highlights
 
-### 1. Claude 5.5 Pre-Warming & Scheduled Activation for Antigravity Profiles
-- **Direct Claude Activation**: Replaces default Gemini ping (`agy -p ...`) with `--model claude-sonnet-5-5-low` in `skills/refresh-session/resources/scripts/refresh_session.py` (`ping_profile`) and `scripts/agy_quota.py` (`execute_ping_profile`).
-- **5-Hour Rolling Rate-Limit Pre-Warm**: Automatically initializes the rolling 5-hour quota window for Claude 5.5 / GPT models inside Antigravity profiles when executing on-demand pings or scheduled daily background daemons (`/refresh-session schedule`).
-- **Preserved Argon Entitlement**: Preserves 7-day weekly Argon activation when entitled, applying humanized anti-bot jitter between model calls.
+### 1. Hardware Fingerprint Decoupling & Telemetry Opt-Out
+- **Cryptographic Device Isolation**: Mandates unique SHA-256 `telemetry.machineId` and UUIDv4 `telemetry.devDeviceId` in `storage.json` for all Antigravity profiles, preventing Google Cloud / Clearcut telemetry correlation across multi-account setups.
+- **Workspace Path Privacy**: Configures `"telemetry.telemetryLevel": "off"` in `settings.json`, preventing IDE telemetry from broadcasting open repository paths (`backupWorkspaces`) to Google/Microsoft telemetry endpoints.
+- **Trajectory Isolation**: Eliminates foreign trajectory leaks in `conversation_summaries.db`, stopping repetitive 403 `PERMISSION_DENIED` background indexing errors.
 
-### 2. Argon Profiles Quick Access Filter Badge
-- **One-Click Filtering**: Adds `• Argon Profiles` badge to the top statistics bar of the Quota Dashboard, next to `Active Profiles`.
-- **Dynamic Badge & Count**: Calculates active Argon support across all non-provider profiles (12 active Argon profiles) and synchronizes with the `#statusFilter` dropdown and URL search params (`?status=ARGON`).
-- **Toggle Action**: Clicking the badge filters to show exclusively Argon profiles; clicking it again resets to "Tất cả".
+### 2. AirDrop & Host OS Keychain Safeguards (Zero CLI Mutation)
+- **Zero CLI Mutation**: Eliminates `security default-keychain` and `list-keychains` manipulation during CLI commands (`ag_run <profile> cli` and `{profile}-cli`). CLI invocations resolve credentials strictly through subshells (`HOME="$ag_home"`) and `com.apple.security.plist`.
+- **AirDrop Protection**: Guarantees that host macOS system daemons (`sharingd`, `identityservicesd`, `trustd`) retain continuous, uninterrupted access to host `login.keychain-db`, preventing AirDrop discovery degradation (error code -15).
+- **Hardened GUI Atomic Window**: Limits GUI IDE keychain promotion to 1.5s with automatic rollback verification.
 
-### 3. Dashboard UI Streamlining
-- **Removed TypeScript Contract Drawer**: Removes the redundant static specification drawer from the bottom of `quota_dashboard.html` for a clean, distraction-free view.
+### 3. Automated Profile Provisioning & Rule Governance
+- **Automated Initialization (`ag_run init`)**: Provisions new profiles cleanly with automatic machine ID generation, devDeviceId creation, telemetry opt-out, and trajectory purge.
+- **Critical Rules & Skill Sync**: Updates `rules/CRITICAL_RULES.md` (Sections 9.2, 9.6), `.agents/rules/profile_isolation_rules.md`, and `skills/audit-account-block/references/profile-isolation-and-remediation.md` with The 6 Core Isolation Rules.
 
 ---
 
 ## Verifications & Quality Gates Passed
 
 - `bash scripts/verify.sh`: 🟢 **PASS — safe to publish**
+- `test_audit_account_block.py`: 🟢 **PASS** (4/4 unit tests passing)
 - `test_refresh_session.py` & `test_agy_quota.py`: 🟢 **PASS** (53/53 unit tests passing)
 - `test_lifecycle_document_contract.py` & `test_verifiable_handoff_text.py`: 🟢 **PASS** (26/26 contract tests passing)
