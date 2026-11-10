@@ -12,7 +12,7 @@
 - [Độ bao phủ Kịch bản BDD Toàn diện](#độ-bao-phủ-kịch-bản-bdd-toàn-diện)
 - [Chiến lược Phát hành và Giảm thiểu Rủi ro](#chiến-lược-phát-hành-và-giảm-thiểu-rủi-ro)
 - [Phân rã Công việc Kanban](#phân-rã-công-việc-kanban)
-- [Đính chính Đặc tả](#đính-chính-đặc-tả)
+- [Đính chính Đặc tả (Spec Errata)](#đính-chính-đặc-tả-spec-errata)
 
 ## Siêu dữ liệu
 
@@ -76,20 +76,20 @@ flowchart TD
     end
 
     subgraph STAGE2["Giai đoạn 2: Tự động hóa Principal Review"]
-        PR_RUN["run_external_review.py run --stage principal"]
-        PR_TRIAGE["Assistant tự động phân loại & đề xuất sửa lỗi"]
+        PR_RUN["run_external_review.py run --kind principal --epic-dir <dir> --base <base> --auto-quota"]
+        PR_TRIAGE["Assistant tự động phân loại & đề xuất sửa lỗi<br/>(triage --kind principal)"]
         PR_HUMAN{"Điểm dừng Con người:<br/>Xác nhận sửa lỗi?"}
-        PR_REVISE["Assistant chỉnh sửa & đóng gói lại Epic"]
+        PR_REVISE["Assistant chỉnh sửa & đóng gói lại Epic<br/>(package_epic.py --revise)"]
     end
 
     subgraph STAGE3["Giai đoạn 3: Triển khai Headless"]
-        ORDER["compute_execution_order.py<br/>(Tự động xác nhận thứ tự Gate 3)"]
-        DISPATCH["Bộ điều phối Headless<br/>(agy --model gemini-3.8-flash --effort high)"]
+        ORDER["compute_execution_order.py<br/>(Tự động xác nhận Gate 3 qua resume_context)"]
+        DISPATCH["Bộ điều phối Headless<br/>(agy stdin --model <model> --effort high --mode auto)"]
         GATE4["Cổng chất lượng nội bộ Giai đoạn 4 / Gate 4"]
     end
 
     subgraph CMR["Giai đoạn 3: Vòng lặp Cross-Model Review"]
-        CMR_RUN["run_external_review.py run (auto-quota)"]
+        CMR_RUN["run_external_review.py run --kind code --epic-dir <dir> --base <base> --auto-quota"]
         PROG_PLAN["Programmer soạn Kế hoạch Sửa lỗi<br/>(fix_plan_roundN.md)"]
         ASST_EVAL{"Assistant đánh giá:<br/>APPROVED / ADJUSTED / CONFLICT"}
         PROG_FIX["Programmer áp dụng Sửa lỗi & Gate 4"]
@@ -154,15 +154,17 @@ sequenceDiagram
     rect rgb(240, 248, 255)
     Note over Runner,Assistant: Giai đoạn 2: Tự động hóa Principal Review
     loop Principal Review (Tối đa 3 vòng)
-        Runner->>Reviewer: run_external_review.py run --stage principal
-        Reviewer-->>Runner: Ghi nhận phát hiện review
-        Runner->>Assistant: Phân loại phát hiện theo HLD & mã nguồn
+        Runner->>Reviewer: run_external_review.py run --kind principal --epic-dir <dir> --base <base> --auto-quota
+        Reviewer-->>Runner: Ghi nhận phát hiện review trong principal_review.md
+        Runner->>Assistant: Phân loại phát hiện (run_external_review.py triage --kind principal)
         Assistant-->>Runner: Danh sách đề xuất sửa lỗi
         alt Phát hiện cần sửa chữa
-            Runner->>Human: Trình bày đề xuất & chờ xác nhận
+            Runner->>Runner: Lưu trạng thái (AWAITING_PRINCIPAL_CONFIRMATION) & ghi file đề xuất
+            Runner->>Human: Trình bày đề xuất & chờ xác nhận (--confirm-fixes / --reject-fixes)
             Human-->>Runner: Xác nhận đề xuất sửa lỗi
-            Runner->>Assistant: Áp dụng sửa chữa & package_epic.py --revise
-        else 0 phát hiện
+            Runner->>Assistant: Áp dụng sửa chữa & commit (clean git tree)
+            Runner->>Runner: package_epic.py --revise & ghi nhận decisions vào principal_review.md
+        else 0 phát hiện (AUTO_PASS_CLEAN)
             Runner->>Runner: Chuyển sang Giai đoạn Triển khai
         end
     end
@@ -170,10 +172,11 @@ sequenceDiagram
 
     rect rgb(245, 255, 250)
     Note over Runner,Programmer: Giai đoạn 3: Triển khai Tự động Headless
-    Runner->>Runner: compute_execution_order.py -> Ghi nhận Gate 3
+    Runner->>Runner: resolve_gate3_order() -> resume_context.py --gate 3
     loop Cho từng task theo thứ tự thực thi
-        Runner->>Programmer: agy --model gemini-3.8-flash --effort high --mode auto (Task N)
+        Runner->>Programmer: agy stdin --model <model> --effort high --mode auto (Task N)
         Programmer-->>Runner: Chỉnh sửa mã, unit test, bằng chứng task
+        Runner->>Runner: Commit triển khai task (clean git tree)
     end
     Runner->>Runner: Thực thi đầy đủ Gate 4 (kiểm tra nội bộ tất định)
     end
@@ -181,11 +184,11 @@ sequenceDiagram
     rect rgb(255, 250, 240)
     Note over Runner,Assistant: Giai đoạn 3: Vòng lặp Cross-Model Review
     loop Cross-Model Review (Tối đa 3 vòng)
-        Runner->>Reviewer: run_external_review.py run (auto-quota)
-        Reviewer-->>Runner: Ghi nhận phát hiện
-        alt Đã hội tụ (0 Blocker)
+        Runner->>Reviewer: run_external_review.py run --kind code --epic-dir <dir> --base <base> --auto-quota
+        Reviewer-->>Runner: Ghi nhận phát hiện trong review_results.md
+        alt Đã hội tụ (0 Blocker: AUTO_PASS_CLEAN hoặc AUTO_PASS_FINAL_SWEEP)
             Runner->>Runner: Thoát vòng lặp -> Chuyển sang Báo cáo Cuối cùng
-        else Còn tồn tại Blocker
+        else Còn tồn tại Blocker (AUTO_FIX_ELIGIBLE)
             Runner->>Programmer: Soạn kế hoạch sửa lỗi (fix_plan_roundN.md)
             Programmer-->>Runner: Đã viết fix_plan_roundN.md
             Runner->>Assistant: Đánh giá kế hoạch sửa lỗi theo HLD đã duyệt
@@ -195,6 +198,7 @@ sequenceDiagram
             else APPROVED hoặc ADJUSTED
                 Runner->>Programmer: Áp dụng kế hoạch sửa lỗi đã duyệt
                 Programmer-->>Runner: Commit sửa chữa
+                Runner->>Runner: Ghi nhận decisions vào review_results.md (clean git tree)
                 Runner->>Runner: Chạy lại đầy đủ Gate 4
             end
         end
@@ -211,9 +215,10 @@ sequenceDiagram
 |---|---|---|---|
 | **State Machine Runner** | `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py` | Tệp trạng thái `.devtool/state/<epic>.pipeline.json` phải được cập nhật nguyên tử thông qua đổi tên `.tmp`. Schema trạng thái tuân thủ dataclass `PipelineState`. | Kiểm tra file trạng thái để xem stage, vòng review và SHA gần nhất. Dùng `--resume` hoặc `--reset-stage <stage>` để khôi phục. |
 | **Model Prober & Dispatcher** | `lifecycle_runner.py::ModelDispatcher` | Tiến trình headless phải dùng `agy --print "<prompt>" --model <model> --effort <effort> --mode <mode>`. Giới hạn timeout qua `subprocess.run(timeout=...)` và cô lập process group (`start_new_session=True`). | Nếu model bị đổi tên hoặc không hỗ trợ, kiểm tra `.devtool/review_config.json` hoặc cấu hình mặc định. Thăm dò ban đầu dừng ngay trước khi sửa đổi file. |
-| **Điểm dừng Principal Review** | `lifecycle_runner.py::stage_principal_review` | Tạm dừng để trình bày bảng đề xuất sửa lỗi và chờ người dùng nhập khi số lượng phát hiện > 0. Tự động đi tiếp khi có 0 phát hiện. Phát hiện minor được gom chung vào đợt xác nhận. | Kiểm tra `review_results.md` và kết quả triage. Xác nhận cho phép Assistant chạy `package_epic.py --revise`. |
-| **Tự động hóa Gate 3** | `lifecycle_runner.py::resolve_gate3_order` | Thứ tự thực thi phải tuân thủ nghiêm ngặt sắp xếp topo từ `compute_execution_order.py`. Bản ghi Gate 3 được lưu vào `.devtool/GATE_LEDGER.md`. | Nếu có chu trình phụ thuộc, `compute_execution_order.py` sẽ báo lỗi rõ ràng; runner tạm dừng để người dùng xử lý. |
-| **Vòng lặp Cross-Model Fix** | `lifecycle_runner.py::stage_cross_model_review` | Programmer soạn thảo `.devtool/epic/<epic>/fix_plan_round<N>.md`. Assistant phản hồi bằng `APPROVED`, `ADJUSTED`, hoặc `CRITICAL_CONFLICT`. Gate 4 chạy lại sau mỗi vòng sửa lỗi. Các vòng trung gian không dừng hỏi con người. | Xem `fix_plan_round<N>.md` để kiểm tra các sửa chữa được đề xuất. Phán quyết của Assistant được lưu vào `.devtool/state/<epic>.pipeline.json`. |
+| **Điểm dừng Principal Review** | `lifecycle_runner.py::step_principal_review` | Tạm dừng để trình bày bảng đề xuất sửa lỗi và chờ người dùng nhập khi số lượng phát hiện > 0. Bypasses stop only on 0 findings. Gom cụm phát hiện minor với non-criticals. Lưu trạng thái tại `AWAITING_PRINCIPAL_CONFIRMATION` và xuất tệp `.devtool/epic/<epic>/principal_fix_proposal_round<N>.md`. | Kiểm tra `review_results.md` và kết quả triage. Xác nhận cho phép Assistant chạy `package_epic.py --revise`. Hỗ trợ `--resume --confirm-fixes` / `--reject-fixes`. |
+| **Tự động hóa Gate 3** | `lifecycle_runner.py::resolve_gate3_order` | Thứ tự thực thi phải tuân thủ nghiêm ngặt sắp xếp topo từ `compute_execution_order.py`. Bản ghi Gate 3 được lưu vào Gate Ledger qua `resume_context.py --gate 3`. | Nếu có chu trình phụ thuộc, `compute_execution_order.py` sẽ báo lỗi rõ ràng; runner tạm dừng để người dùng xử lý. |
+| **Vòng lặp Cross-Model Fix** | `lifecycle_runner.py::step_cross_model_review` | Programmer soạn thảo `.devtool/epic/<epic>/fix_plan_round<N>.md`. Assistant phản hồi bằng `APPROVED`, `ADJUSTED`, hoặc `CRITICAL_CONFLICT`. Gate 4 chạy lại sau mỗi vòng sửa lỗi. Các vòng trung gian không dừng hỏi con người. | Xem `fix_plan_round<N>.md` để kiểm tra các sửa chữa được đề xuất. Phán quyết của Assistant được lưu vào `.devtool/state/<epic>.pipeline.json`. |
+| **Tuần tự Commit & Vệ sinh Cây Git** | `lifecycle_runner.py::run` | `git status --porcelain` phải sạch trước khi gọi bất kỳ lượt review nào. Runner tuần tự commit fix plan, mã nguồn sửa đổi, và quyết định review. | Ngăn ngừa `run_external_review.py` từ chối chạy khi cây git bị dirty. |
 | **Báo cáo Điều hành Đa vòng & Dừng Cuối** | `lifecycle_runner.py::render_final_executive_report` | Chỉ kết xuất ở vòng cuối cùng khi review đã hội tụ và Gate 4 PASS. Tổng hợp Top 3 Phát hiện Rủi ro Cao nhất của cả quá trình review qua nhiều vòng. Dừng chờ xác nhận Merge hoặc hành động khác. | Gom toàn bộ các vòng từ `review_results.md`. Hiển thị phát hiện, commit sửa lỗi, và SHA đạt chuẩn Gate 4 trước khi gợi ý prompt `/finishing-a-development-branch`. |
 | **Circuit Breakers** | `lifecycle_runner.py::evaluate_circuit_breakers` | Dừng ngay lập tức không thử lại khi gặp: `SHARED_CONTRACT_CONFLICT`, `FIX_LOOP`, `MAX_ROUNDS_CRITICAL_REMAINING`, hoặc Assistant `CRITICAL_CONFLICT`. | Đọc banner cảnh báo trên console để biết nguyên nhân và hướng dẫn khắc phục. Khôi phục yêu cầu giải quyết xung đột rồi chạy `--resume`. |
 
@@ -230,6 +235,7 @@ from typing import Any, Dict, List, Optional, Tuple
 class StageName(str, Enum):
     INITIALIZED = "initialized"
     PRINCIPAL_REVIEW = "principal_review"
+    AWAITING_PRINCIPAL_CONFIRMATION = "awaiting_principal_confirmation"
     IMPLEMENTATION = "implementation"
     CROSS_MODEL_REVIEW = "cross_model_review"
     AWAITING_FINISH = "awaiting_finish"
@@ -245,7 +251,7 @@ class FixPlanVerdict(str, Enum):
 class RunnerConfig:
     programmer_model: str = "gemini-3.8-flash"
     programmer_effort: str = "high"
-    assistant_model: str = "claude-3-7-sonnet"
+    assistant_model: Optional[str] = None  # None resolves to active selected model (Argon/Claude/Codex/etc)
     assistant_effort: str = "high"
     timeout_seconds: int = 1800
     max_review_rounds: int = 3
@@ -259,6 +265,7 @@ class PipelineState:
     last_commit_sha: str = ""
     last_verdict: str = ""
     halt_reason: Optional[str] = None
+    last_error: Optional[str] = None
     task_order: List[str] = field(default_factory=list)
     completed_tasks: List[str] = field(default_factory=list)
 
@@ -284,6 +291,7 @@ class LifecycleRunner:
     def load_or_init_state(self) -> PipelineState: ...
     def save_state(self) -> None: ...
     def run(self, resume: bool = False) -> int: ...
+    def resolve_gate3_order(self) -> List[str]: ...
     def step_principal_review(self) -> bool: ...
     def step_implementation(self) -> bool: ...
     def step_cross_model_review(self) -> bool: ...
@@ -361,7 +369,7 @@ Giảm thiểu rủi ro: Chế độ tự động hoàn toàn là tùy chọn qu
 4. [Task 4: Vòng lặp Kế hoạch Sửa lỗi Cross-Model Review và Bộ Đánh giá Assistant](task_4_cross_model_review_fix_plan_loop.md)
 5. [Task 5: Điều phối viên Toàn trình, Tích hợp CLI và Quy tắc Quản trị](task_5_orchestrator_cli_and_governance_rules.md)
 
-## Đính chính Đặc tả
+## Đính chính Đặc tả (Spec Errata)
 
-Không có.
+- **[SE-01] Đồng bộ Principal Review Vòng 1**: Đồng bộ cờ CLI external review (`--kind principal` / `--kind code` kèm `--base` bắt buộc), tích hợp cơ chế phân tích action từ `run_external_review.py triage`, hỗ trợ model Assistant kế thừa linh hoạt model đang được chọn (Argon/Claude/Codex/v.v.) với mặc định Gemini 3.8 Flash cho Programmer, bổ sung trạng thái `AWAITING_PRINCIPAL_CONFIRMATION` kèm tệp đề xuất và cờ CLI non-blocking (`--confirm-fixes`/`--reject-fixes`), thiết lập tuần tự commit giữ cây git sạch, và đồng bộ chữ ký hàm giữa HLD và các task.
 

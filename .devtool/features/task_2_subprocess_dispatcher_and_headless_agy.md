@@ -33,6 +33,7 @@ Allowed files:
 
 Read-only context:
 - `skills/dev-implementation/resources/scripts/compute_execution_order.py` — topological sort implementation
+- `scripts/resume_context.py` — gate approval recording
 - `.devtool/epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.en.md` — Module Contracts
 - `.agents/quality/python-quality.json` — registered capabilities
 
@@ -54,7 +55,7 @@ Covers: ALR-HP-02, ALR-EC-04, ALR-AR-01
 ```gherkin
 Scenario: [ALR-HP-02] [Tier C - Integration] Headless dispatch of AI Programmer with Gemini 3.8 Flash High
 
-Given a pending implementation task file in .devtool/features/task_01.md
+Given a pending implementation task file in .devtool/features/task_1_pipeline_state_machine_and_probing.md
 When lifecycle_runner.py dispatches the AI Programmer for task execution
 Then the dispatched command executes "agy" with "--model gemini-3.8-flash"
 And the command specifies "--effort high" and "--mode auto"
@@ -100,9 +101,9 @@ And the runner records a timeout failure in the pipeline state without leaving o
 
 ## Decisions Already Made
 
-- The Programmer is dispatched with `--model gemini-3.8-flash`, `--effort high`, and `--mode auto` inside the worktree directory.
-- `subprocess.Popen` is launched with `start_new_session=True` so `os.getpgid(p.pid)` provides the process group ID.
-- Gate 3 auto-confirmation runs `compute_execution_order.py` in JSON/text mode and records `Gate 3: CONFIRMED (autonomous)` into `.devtool/GATE_LEDGER.md`.
+- The Programmer is dispatched with `--model <model>` (default: `gemini-3.8-flash`), `--effort high`, and `--mode auto` inside the worktree directory, with prompts piped via stdin.
+- `subprocess.Popen` is launched with `start_new_session=True` so `pgid = p.pid` provides the process group ID. On timeout or exit, `os.killpg(pgid, signal.SIGTERM)` is called (handling `ProcessLookupError` gracefully) followed by SIGKILL escalation if needed.
+- Gate 3 auto-confirmation runs `compute_execution_order.py`, parses the sequential order from the `Flattened sequential order:` output block (or imports `load_tasks`), fails on non-zero exit or manual review notes, and records Gate 3 approval via `resume_context.py --gate 3 --epic <slug> --approved "<order>" --by lifecycle_runner`.
 
 ## Definition of Done
 

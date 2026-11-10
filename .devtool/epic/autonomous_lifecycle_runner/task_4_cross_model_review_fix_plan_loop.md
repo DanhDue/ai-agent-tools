@@ -20,12 +20,12 @@ Epic: [autonomous_lifecycle_runner](autonomous_lifecycle_runner.en.md)
 
 Implement Stage 3 Cross-Model Review fix-and-verify loop with AI Assistant fix plan evaluation in `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py`:
 1. Implement `LifecycleRunner.step_cross_model_review`:
-   - Runs `run_external_review.py run` (auto-quota).
-   - Evaluates Circuit Breakers: halts with `CIRCUIT_BREAKER_HALT (FIX_LOOP)` if a finding reoccurs on an already-fixed file.
-   - Fix plan drafting: when review findings require changes, dispatches the AI Programmer (`gemini-3.8-flash --effort high --mode auto`) to draft `.devtool/epic/<epic>/fix_plan_round<N>.md`.
+   - Runs `run_external_review.py run --kind code --epic-dir <epic> --base <base> --auto-quota`.
+   - Evaluates Circuit Breakers: halts with `CIRCUIT_BREAKER_HALT (FIX_LOOP)` if a finding reoccurs on an already-fixed file path, or `CIRCUIT_BREAKER_HALT (MAX_ROUNDS_CRITICAL_REMAINING)` if Round 3 ends with Critical findings unresolved.
+   - Fix plan drafting: when review findings require changes, dispatches the AI Programmer (`--model <programmer-model>` default `gemini-3.8-flash --effort high --mode auto`) to draft `.devtool/epic/<epic>/fix_plan_round<N>.md`.
    - Fix plan evaluation (`evaluate_programmer_fix_plan`): dispatches the AI Assistant to inspect the fix plan against the approved HLD and emit one of three verdicts: `APPROVED`, `ADJUSTED`, or `CRITICAL_CONFLICT`.
    - Critical conflict halt: if the Assistant detects an unapproved architectural change or contract violation (`CRITICAL_CONFLICT`), the pipeline halts immediately and alerts the Human Architect.
-   - Automated fix application: if `APPROVED` or `ADJUSTED`, the AI Programmer applies the fixes, runs Phase 4 / Gate 4 in full, and advances to the next review round without manual intervention.
+   - Automated fix application: if `APPROVED` or `ADJUSTED`, the AI Programmer applies the fixes, commits the code fixes, runs Phase 4 / Gate 4 in full, and upon Gate 4 PASS records decision cells (`fixed in <sha>`) in `review_results.md`, commits the decisions, and advances to the next review round (Round N+1, up to max 3 rounds).
 2. Implement unit and integration tests in `tests/test_lifecycle_runner.py` covering `ALR-HP-04`, `ALR-EC-03`, `ALR-FR-02`, and `ALR-FR-04`.
 
 ## Files
@@ -72,7 +72,7 @@ And the AI Programmer receives the adjusted plan, applies the combined patch, an
 
 Scenario: [ALR-FR-02] [Tier C - Integration] Circuit Breaker halts immediately on repeated fix loop
 
-Given a finding in Round N touches the identical file and issue previously marked as fixed in Round N-1
+Given a finding in Round N touches the identical file path previously marked as fixed in Round N-1
 When evaluate_circuit_breakers evaluates the round comparison
 Then the runner triggers CIRCUIT_BREAKER_HALT (FIX_LOOP)
 And the pipeline stops calling tools and presents the recurrent finding to the Human Architect
@@ -109,9 +109,11 @@ And an alert is displayed to the Human Architect highlighting the architectural 
 
 ## Decisions Already Made
 
+- Cross-Model Review invocation uses `run_external_review.py run --kind code --epic-dir <epic> --base <base> --auto-quota` and evaluates `run_external_review.py triage`.
 - Fix plan file is stored at `.devtool/epic/<epic>/fix_plan_round<N>.md`.
 - Assistant evaluation outputs one verdict token on the first line: `APPROVED`, `ADJUSTED`, or `CRITICAL_CONFLICT`.
-- Gate 4 runs deterministically after fixes are committed, prior to launching the next review round.
+- Review loop return path: after fixes are committed, Gate 4 runs in full (`run_quality_gate(4)`). Upon Gate 4 PASS, decision cells (`fixed in <sha>`) are written to `review_results.md` and committed before launching the next review round.
+- Clean working tree discipline: code fixes and review decisions are committed before invoking subsequent review rounds.
 
 ## Definition of Done
 

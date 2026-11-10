@@ -33,7 +33,7 @@ Allowed files:
 - `tests/test_lifecycle_runner.py` (new)
 
 Read-only context:
-- `scripts/resume_context.py` — state persistence patterns and Gate Ledger formatting
+- `scripts/resume_context.py` — state persistence patterns, gate hydration, and Gate Ledger formatting
 - `.devtool/epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.en.md` — Module Contracts
 - `.agents/quality/python-quality.json` — registered capabilities
 
@@ -107,11 +107,12 @@ And the pipeline state file remains valid and uncorrupted JSON at all times
 
 ## Decisions Already Made
 
-- `StageName` enum: `initialized`, `principal_review`, `implementation`, `cross_model_review`, `awaiting_finish`, `completed`, `halted`.
+- `StageName` enum: `initialized`, `principal_review`, `awaiting_principal_confirmation`, `implementation`, `cross_model_review`, `awaiting_finish`, `completed`, `halted`.
 - `FixPlanVerdict` enum: `APPROVED`, `ADJUSTED`, `CRITICAL_CONFLICT`.
-- `RunnerConfig` defaults: `programmer_model="gemini-3.8-flash"`, `programmer_effort="high"`, `assistant_model="claude-3-7-sonnet"`, `assistant_effort="high"`, `timeout_seconds=1800`, `max_review_rounds=3`.
-- `PipelineState` tracks `epic_slug`, `active_stage`, `principal_round`, `cross_model_round`, `last_commit_sha`, `last_verdict`, `halt_reason`, `task_order`, and `completed_tasks`.
+- `RunnerConfig` defaults: `programmer_model="gemini-3.8-flash"`, `programmer_effort="high"`, `assistant_model=None` (resolves dynamically to active selected model: Argon, Claude, Codex, etc.), `assistant_effort="high"`, `timeout_seconds=1800`, `max_review_rounds=3`.
+- `PipelineState` tracks `epic_slug`, `active_stage`, `principal_round`, `cross_model_round`, `last_commit_sha`, `last_verdict`, `halt_reason`, `last_error`, `task_order`, and `completed_tasks`.
 - State is serialized to `.devtool/state/<epic>.pipeline.json` via `.tmp` rename with `fcntl.flock(fd, fcntl.LOCK_EX)`.
+- Gate updates execute via `resume_context.py --gate <n> --epic <slug> --approved "<text>" --by lifecycle_runner` to guarantee synchronization with `gate_ledger.jsonl`.
 
 ## Definition of Done
 

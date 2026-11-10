@@ -20,17 +20,19 @@ Epic: [autonomous_lifecycle_runner](autonomous_lifecycle_runner.en.md)
 
 Complete the end-to-end autonomous orchestrator CLI and update system governance documentation across the codebase:
 1. Complete CLI entry point `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py`:
-   - Argument parsing: `--epic <slug>`, `--resume`, `--config <path>`, and `--reset-stage <stage>`.
-   - Complete state machine driving: `INITIALIZED` -> `PRINCIPAL_REVIEW` -> `IMPLEMENTATION` -> `CROSS_MODEL_REVIEW` -> `AWAITING_FINISH`.
+   - Argument parsing: `--epic <slug>`, `--resume`, `--config <path>`, `--reset-stage <stage>`, `--confirm-fixes`, `--reject-fixes`, `--assistant-model <model>`, `--programmer-model <model>`, and `--dry-run`.
+   - Complete state machine driving: `INITIALIZED` -> `PRINCIPAL_REVIEW` -> `AWAITING_PRINCIPAL_CONFIRMATION` -> `IMPLEMENTATION` -> `CROSS_MODEL_REVIEW` -> `AWAITING_FINISH`.
    - Max round circuit breaker (`ALR-FR-03`): triggers `CIRCUIT_BREAKER_HALT (MAX_ROUNDS_CRITICAL_REMAINING)` when Round 3 finishes with unresolved Critical findings.
    - Final executive report display: renders markdown summary of the entire review lifecycle across all rounds, synthesizing the Top 3 Highest-Risk Findings from across all rounds, displaying their resolution and Gate 4 verification, and halting cleanly only at this final round to prompt the Human Architect for next actions (proceed to /finishing-a-development-branch to merge to local base branch, or other actions).
-2. Update governance rules and skills:
-   - `rules/CRITICAL_RULES.md`: update Sections 5 & 6 to document autonomous review execution, auto Gate 3 confirmation, and Assistant fix plan review.
+2. Update governance rules, skills, and test suites:
+   - `rules/CRITICAL_RULES.md`: update Sections 5, 6, and 8.2 to document autonomous review execution, auto Gate 3 confirmation, Assistant fix plan review, and autonomous mode role coordination.
    - `skills/dev-lifecycle/SKILL.md`: document `/dev-lifecycle --autonomous` and `lifecycle_runner.py` invocation.
-   - `skills/dev-implementation/SKILL.md`: document headless Programmer execution (`gemini-3.8-flash --effort high --mode auto`).
+   - `skills/dev-lifecycle/references/autonomous-mode.md`: create reference guide documenting CLI flags, state machine stages, circuit breakers, and actor responsibilities.
+   - `skills/dev-implementation/SKILL.md`: document headless Programmer execution (`--model <model>` default `gemini-3.8-flash --effort high --mode auto`).
    - `skills/principal-review/SKILL.md`: document auto-triage and human fix confirmation checkpoint.
    - `skills/cross-model-review/SKILL.md`: document fix plan evaluation loop (`fix_plan_round<N>.md` with `APPROVED`/`ADJUSTED`/`CRITICAL_CONFLICT`).
    - `docs/lifecycles.en.md` and `docs/lifecycles.vi.md`: update bilingual lifecycle overviews with autonomous pipeline flow.
+   - `scripts/verify.sh`: register `lifecycle-runner` in `SUITES` dictionary to execute `tests/test_lifecycle_runner.py`.
 3. Verify all unit and integration tests in `tests/test_lifecycle_runner.py` and run full test suites.
 
 ## Files
@@ -40,14 +42,16 @@ Allowed files:
 - `tests/test_lifecycle_runner.py` (new)
 - `rules/CRITICAL_RULES.md`
 - `skills/dev-lifecycle/SKILL.md`
+- `skills/dev-lifecycle/references/autonomous-mode.md` (new)
 - `skills/dev-implementation/SKILL.md`
 - `skills/principal-review/SKILL.md`
 - `skills/cross-model-review/SKILL.md`
 - `docs/lifecycles.en.md`
 - `docs/lifecycles.vi.md`
+- `scripts/verify.sh`
 
 Read-only context:
-- `scripts/verify.sh`
+- `scripts/resume_context.py`
 - `.devtool/epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.en.md` — Module Contracts
 - `.agents/quality/python-quality.json` — registered capabilities
 
@@ -110,6 +114,8 @@ And the runner halts without launching a 4th round, outputting the Top 3 Highest
 - Autonomous mode does not auto-merge: it halts at `AWAITING_FINISH` and displays the prompt for `/finishing-a-development-branch`.
 - Gate 4 PASS candidate SHA is verified before rendering the final executive report.
 - Circuit breaker on Round 3 critical exhaustion outputs the Top 3 Highest-Risk Findings and halts.
+- Role boundaries: In autonomous mode, the orchestrator runner invokes review CLIs and generates coordination proposals (`.devtool/`), while source code modifications are strictly executed by the AI Programmer subprocess.
+- `scripts/verify.sh` registers `lifecycle-runner` suite pointing to `tests/test_lifecycle_runner.py`.
 
 ## Definition of Done
 

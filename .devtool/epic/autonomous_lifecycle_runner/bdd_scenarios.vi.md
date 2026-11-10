@@ -32,7 +32,7 @@ And runner dừng lại sạch sẽ, trình bày prompt cho /finishing-a-develop
 
 Scenario: [ALR-HP-02] [Tier C - Integration] Điều phối headless AI Programmer với Gemini 3.8 Flash High
 
-Given một task triển khai đang chờ xử lý tại .devtool/features/task_01.md
+Given một task triển khai đang chờ xử lý tại .devtool/features/task_1_pipeline_state_machine_and_probing.md
 When lifecycle_runner.py điều phối AI Programmer để thực thi task
 Then lệnh được điều phối chạy "agy" với "--model gemini-3.8-flash"
 And câu lệnh chỉ định "--effort high" và "--mode auto"
@@ -41,7 +41,7 @@ And việc thực thi diễn ra bên trong git worktree biệt lập với giám
 Scenario: [ALR-HP-03] [Tier C - Integration] AI Assistant đề xuất sửa lỗi và dừng chờ Human xác nhận trong Principal Review
 
 Given Principal Review trả về hai phát hiện Important trên tài liệu đặc tả HLD ứng viên
-When AI Assistant phân loại các phát hiện trong stage_principal_review
+When AI Assistant phân loại các phát hiện trong step_principal_review
 Then Assistant xác minh các phát hiện theo tài liệu nguồn HLD và soạn thảo bảng sửa lỗi có cấu trúc
 And lifecycle_runner.py tạm dừng thực thi để hỏi xác nhận từ Con người
 And sau khi Con người xác nhận, Assistant áp dụng các chỉnh sửa, chạy package_epic.py --revise, và tiến vào vòng tiếp theo
@@ -61,7 +61,7 @@ And chu trình tiến vào Vòng 2 mà không hỏi xác nhận trung gian từ 
 Scenario: [ALR-EC-01] [Tier C - Integration] 0 phát hiện trong Principal Review bỏ qua bước xác nhận của Con người
 
 Given Principal Review hoàn thành Vòng 1 với phán quyết PASS và 0 phát hiện
-When stage_principal_review xử lý kết quả review
+When step_principal_review xử lý kết quả review
 Then runner ghi log "AUTO_PASS_CLEAN: 0 findings"
 And runner bỏ qua hoàn toàn prompt xác nhận của Con người
 And trạng thái pipeline chuyển thẳng sang Giai đoạn 3 Triển khai
@@ -69,7 +69,7 @@ And trạng thái pipeline chuyển thẳng sang Giai đoạn 3 Triển khai
 Scenario: [ALR-EC-02] [Tier C - Integration] Gom cụm các phát hiện minor trong Principal Review vào một lần xác nhận duy nhất
 
 Given Principal Review Vòng 1 trả về 0 Critical, 0 Important, và 2 phát hiện định dạng Minor
-When stage_principal_review đánh giá báo cáo phân loại triage
+When step_principal_review đánh giá báo cáo phân loại triage
 Then 2 phát hiện Minor được gom cụm vào một prompt xác nhận sửa đổi duy nhất cho Human Architect
 And sau khi xác nhận, các sửa đổi được áp dụng trong một lần và package_epic.py --revise thực thi trơn tru
 
@@ -148,7 +148,7 @@ And màn hình console hiển thị banner cảnh báo điều hành hướng d�
 
 Scenario: [ALR-FR-02] [Tier C - Integration] Circuit Breaker dừng ngay lập tức khi lặp lỗi fix loop
 
-Given một phát hiện trong Vòng N chạm vào cùng tệp và vấn đề đã được đánh dấu là sửa trong Vòng N-1
+Given một phát hiện trong Vòng N chạm vào cùng đường dẫn tệp đã được đánh dấu là sửa trong Vòng N-1
 When evaluate_circuit_breakers đánh giá so sánh giữa các vòng
 Then runner kích hoạt CIRCUIT_BREAKER_HALT (FIX_LOOP)
 And pipeline ngừng gọi công cụ và trình bày phát hiện tái diễn tới Human Architect

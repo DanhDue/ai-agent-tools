@@ -32,7 +32,7 @@ And the runner halts cleanly, presenting the prompt for /finishing-a-development
 
 Scenario: [ALR-HP-02] [Tier C - Integration] Headless dispatch of AI Programmer with Gemini 3.8 Flash High
 
-Given a pending implementation task file in .devtool/features/task_01.md
+Given a pending implementation task file in .devtool/features/task_1_pipeline_state_machine_and_probing.md
 When lifecycle_runner.py dispatches the AI Programmer for task execution
 Then the dispatched command executes "agy" with "--model gemini-3.8-flash"
 And the command specifies "--effort high" and "--mode auto"
@@ -41,7 +41,7 @@ And the execution runs inside the isolated git worktree with dedicated process g
 Scenario: [ALR-HP-03] [Tier C - Integration] AI Assistant proposes fixes and prompts Human confirmation in Principal Review
 
 Given Principal Review returns two Important findings on candidate HLD specifications
-When the AI Assistant triages the findings in stage_principal_review
+When the AI Assistant triages the findings in step_principal_review
 Then the Assistant verifies findings against HLD source documents and drafts a structured fix table
 And lifecycle_runner.py halts execution to prompt Human confirmation
 And upon Human confirmation, the Assistant applies the revisions, runs package_epic.py --revise, and proceeds to the next round
@@ -61,7 +61,7 @@ And the cycle proceeds to Round 2 without prompting the Human Architect for inte
 Scenario: [ALR-EC-01] [Tier C - Integration] Zero findings in Principal Review bypasses Human confirmation
 
 Given Principal Review completes Round 1 with verdict PASS and 0 findings
-When stage_principal_review processes the review results
+When step_principal_review processes the review results
 Then the runner logs "AUTO_PASS_CLEAN: 0 findings"
 And the runner bypasses the Human confirmation prompt completely
 And the pipeline state advances directly to Stage 3 Implementation
@@ -69,7 +69,7 @@ And the pipeline state advances directly to Stage 3 Implementation
 Scenario: [ALR-EC-02] [Tier C - Integration] Minor-only findings in Principal Review batched into single confirmation
 
 Given Principal Review Round 1 returns 0 Critical, 0 Important, and 2 Minor formatting findings
-When stage_principal_review evaluates the triage report
+When step_principal_review evaluates the triage report
 Then the 2 Minor findings are batched into a single unified fix confirmation prompt for the Human Architect
 And once confirmed, the fixes are applied in one pass and package_epic.py --revise executes cleanly
 
@@ -148,7 +148,7 @@ And the console displays the executive warning banner instructing the developer 
 
 Scenario: [ALR-FR-02] [Tier C - Integration] Circuit Breaker halts immediately on repeated fix loop
 
-Given a finding in Round N touches the identical file and issue previously marked as fixed in Round N-1
+Given a finding in Round N touches the identical file path previously marked as fixed in Round N-1
 When evaluate_circuit_breakers evaluates the round comparison
 Then the runner triggers CIRCUIT_BREAKER_HALT (FIX_LOOP)
 And the pipeline stops calling tools and presents the recurrent finding to the Human Architect

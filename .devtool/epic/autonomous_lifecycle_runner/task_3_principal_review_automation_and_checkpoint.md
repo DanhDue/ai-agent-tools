@@ -20,12 +20,12 @@ Epic: [autonomous_lifecycle_runner](autonomous_lifecycle_runner.en.md)
 
 Implement Stage 2 Principal Review automation with the mandatory Human confirmation checkpoint in `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py`:
 1. Implement `LifecycleRunner.step_principal_review`:
-   - Triggers `run_external_review.py run --stage principal` with provider auto-quota prioritization.
+   - Triggers `run_external_review.py run --kind principal --epic-dir <epic> --base <base> --auto-quota` with provider auto-quota prioritization.
    - Evaluates triage results from `run_external_review.py triage`.
    - Circuit Breaker guard: immediately aborts with `CIRCUIT_BREAKER_HALT (SHARED_CONTRACT_CONFLICT)` if any finding conflicts with `shared-contracts/`.
    - Zero-finding bypass: if Round 1 completes with PASS and 0 findings (`AUTO_PASS_CLEAN`), bypasses the Human prompt and directly transitions to `StageName.IMPLEMENTATION`.
-   - Proposed fix formulation: when findings exist, the AI Assistant triages findings, batches all findings (including Minor formatting/lint items) into a unified fix proposal, and prompts the Human Architect (`prompt_human_principal_fixes`).
-   - Revision execution: upon Human confirmation, applies changes, executes `package_epic.py <epic> --revise`, increments `principal_round`, and continues to the next round (up to max 3 rounds).
+   - Proposed fix formulation: when findings exist, the AI Assistant triages findings, batches all findings (including Minor formatting/lint items) into a unified fix proposal, transitions state to `StageName.AWAITING_PRINCIPAL_CONFIRMATION`, writes `.devtool/epic/<epic>/principal_fix_proposal_round<N>.md`, and prompts the Human Architect (`prompt_human_principal_fixes`) or awaits `--confirm-fixes`.
+   - Revision execution: upon Human confirmation (`--confirm-fixes`), applies revisions, commits them, records decision cells (`fixed in <sha>`) in `principal_review.md`, commits decisions, executes `package_epic.py <epic> --revise --reason "..."`, commits handoff re-anchor, increments `principal_round`, and advances to the next review round (up to max 3 rounds).
 2. Implement unit and integration tests in `tests/test_lifecycle_runner.py` covering `ALR-HP-03`, `ALR-EC-01`, `ALR-EC-02`, and `ALR-FR-01`.
 
 ## Files
@@ -37,6 +37,7 @@ Allowed files:
 Read-only context:
 - `skills/dev-implementation/resources/scripts/run_external_review.py` — external review runner and triage
 - `skills/dev-implementation/resources/scripts/package_epic.py` — epic packaging script
+- `scripts/resume_context.py` — gate approval recording
 - `.devtool/epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.en.md` — Module Contracts
 - `.agents/quality/python-quality.json` — registered capabilities
 
@@ -59,7 +60,7 @@ Covers: ALR-HP-03, ALR-EC-01, ALR-EC-02, ALR-FR-01
 Scenario: [ALR-HP-03] [Tier C - Integration] AI Assistant proposes fixes and prompts Human confirmation in Principal Review
 
 Given Principal Review returns two Important findings on candidate HLD specifications
-When the AI Assistant triages the findings in stage_principal_review
+When the AI Assistant triages the findings in step_principal_review
 Then the Assistant verifies findings against HLD source documents and drafts a structured fix table
 And lifecycle_runner.py halts execution to prompt Human confirmation
 And upon Human confirmation, the Assistant applies the revisions, runs package_epic.py --revise, and proceeds to the next round
@@ -67,7 +68,7 @@ And upon Human confirmation, the Assistant applies the revisions, runs package_e
 Scenario: [ALR-EC-01] [Tier C - Integration] Zero findings in Principal Review bypasses Human confirmation
 
 Given Principal Review completes Round 1 with verdict PASS and 0 findings
-When stage_principal_review processes the review results
+When step_principal_review processes the review results
 Then the runner logs "AUTO_PASS_CLEAN: 0 findings"
 And the runner bypasses the Human confirmation prompt completely
 And the pipeline state advances directly to Stage 3 Implementation
@@ -75,7 +76,7 @@ And the pipeline state advances directly to Stage 3 Implementation
 Scenario: [ALR-EC-02] [Tier C - Integration] Minor-only findings in Principal Review batched into single confirmation
 
 Given Principal Review Round 1 returns 0 Critical, 0 Important, and 2 Minor formatting findings
-When stage_principal_review evaluates the triage report
+When step_principal_review evaluates the triage report
 Then the 2 Minor findings are batched into a single unified fix confirmation prompt for the Human Architect
 And once confirmed, the fixes are applied in one pass and package_epic.py --revise executes cleanly
 
@@ -111,10 +112,11 @@ And the console displays the executive warning banner instructing the developer 
 
 ## Decisions Already Made
 
+- Principal Review invocation uses `run_external_review.py run --kind principal --epic-dir <epic> --base <base> --auto-quota` and evaluates `run_external_review.py triage`.
 - Principal Review is capped at 3 rounds.
-- When findings > 0, the Assistant drafts the fix table and stops for explicit Human input (`[Y/N]`).
+- When findings > 0, the Assistant sets state `AWAITING_PRINCIPAL_CONFIRMATION`, drafts `.devtool/epic/<epic>/principal_fix_proposal_round<N>.md`, and halts for explicit Human confirmation (`[Y/N]` or `--confirm-fixes`).
 - Minor findings are never discarded; they are batched into the same Human confirmation prompt.
-- `package_epic.py <epic> --revise` is called after applying confirmed fixes.
+- Clean working tree discipline: edits, decision records (`fixed in <sha>` in `principal_review.md`), and `package_epic.py <epic> --revise` are committed in sequence before dispatching the next review round.
 
 ## Definition of Done
 
