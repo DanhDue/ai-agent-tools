@@ -25,7 +25,7 @@ Implement Stage 3 Cross-Model Review fix-and-verify loop with AI Assistant fix p
    - Fix plan drafting: when review findings require changes, dispatches the AI Programmer (`--model <programmer-model>` default `gemini-3.8-flash --effort high --mode auto`) to draft `.devtool/epic/<epic>/fix_plan_round<N>.md`.
    - Fix plan evaluation (`evaluate_programmer_fix_plan`): dispatches the AI Assistant to inspect the fix plan against the approved HLD and emit one of three verdicts: `APPROVED`, `ADJUSTED`, or `CRITICAL_CONFLICT`.
    - Critical conflict halt: if the Assistant detects an unapproved architectural change or contract violation (`CRITICAL_CONFLICT`), the pipeline halts immediately and alerts the Human Architect.
-   - Automated fix application: if `APPROVED` or `ADJUSTED`, the AI Programmer applies the fixes, commits the code fixes, runs Phase 4 / Gate 4 in full, and upon Gate 4 PASS records decision cells (`fixed in <sha>`) in `review_results.md`, commits the decisions, and advances to the next review round (Round N+1, up to max 3 rounds).
+   - Automated fix application: if `APPROVED` or `ADJUSTED`, the AI Programmer applies the fixes, the runner commits the code fixes (`[AUTONOMOUS_LIFECYCLE_RUNNER] Apply code fixes for Cross-Model Review round N`), records decision cells (`fixed in <sha>`) in `review_results.md`, commits the decisions (`[AUTONOMOUS_LIFECYCLE_RUNNER] Record review decisions for round N`), executes Gate 4 in full on the clean candidate SHA (passing `run_external_review.py check`), and advances to the next review round (Round N+1, up to max 3 rounds) or completes Stage 3 if converged.
 2. Implement unit and integration tests in `tests/test_lifecycle_runner.py` covering `ALR-HP-04`, `ALR-EC-03`, `ALR-FR-02`, and `ALR-FR-04`.
 
 ## Files
@@ -112,7 +112,7 @@ And an alert is displayed to the Human Architect highlighting the architectural 
 - Cross-Model Review invocation uses `run_external_review.py run --kind code --epic-dir <epic> --base <base> --auto-quota` and evaluates `run_external_review.py triage`.
 - Fix plan file is stored at `.devtool/epic/<epic>/fix_plan_round<N>.md`.
 - Assistant evaluation outputs one verdict token on the first line: `APPROVED`, `ADJUSTED`, or `CRITICAL_CONFLICT`.
-- Review loop return path: after fixes are committed, Gate 4 runs in full (`run_quality_gate(4)`). Upon Gate 4 PASS, decision cells (`fixed in <sha>`) are written to `review_results.md` and committed before launching the next review round.
+- Review loop return path: after fixes are applied, the runner commits the code fixes, writes decision cells (`fixed in <sha>`) into `review_results.md`, commits the decisions, and runs Gate 4 in full. Because decisions are recorded and committed, `run_external_review.py check` passes and certifies the clean candidate commit.
 - Clean working tree discipline: code fixes and review decisions are committed before invoking subsequent review rounds.
 
 ## Definition of Done

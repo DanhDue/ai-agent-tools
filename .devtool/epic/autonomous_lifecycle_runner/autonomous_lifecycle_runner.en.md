@@ -157,15 +157,32 @@ sequenceDiagram
         Runner->>Reviewer: run_external_review.py run --kind principal --epic-dir <dir> --base <base> --auto-quota
         Reviewer-->>Runner: Review findings recorded in principal_review.md
         Runner->>Assistant: Triage findings (run_external_review.py triage --kind principal)
-        Assistant-->>Runner: Proposed fix list
-        alt Findings require fixes
-            Runner->>Runner: Save state (AWAITING_PRINCIPAL_CONFIRMATION) & write proposal file
-            Runner->>Human: Present proposed fixes & prompt confirmation (--confirm-fixes / --reject-fixes)
-            Human-->>Runner: Confirm fix proposal
-            Runner->>Assistant: Apply fixes & commit (clean git tree)
-            Runner->>Runner: package_epic.py --revise & record decisions in principal_review.md
-        else 0 findings (AUTO_PASS_CLEAN)
-            Runner->>Runner: Advance to Implementation
+        alt AUTO_PASS_CLEAN (0 findings)
+            Runner->>Runner: Direct advance to Stage 3 Implementation
+        else AUTO_PASS_FINAL_MINOR_SWEEP (0 Critical/Important, only Minor)
+            Runner->>Assistant: Sweep minor fixes in single pass
+            Assistant-->>Runner: Minor fixes applied & committed
+            Runner->>Runner: Record decisions & run package_epic.py --revise
+            Runner->>Runner: Advance to Stage 3 without extra review round
+        else AUTO_FIX_ELIGIBLE (Rounds 1-2 with valid fixes)
+            alt High-risk, business conflict, or shared-contracts conflict
+                Runner->>Runner: Save state (AWAITING_PRINCIPAL_CONFIRMATION) & write proposal file
+                Runner->>Human: Present proposed fixes & prompt confirmation (--confirm-fixes / --reject-fixes)
+                Human-->>Runner: Confirm fix proposal
+            else Aligned / established fixes
+                Runner->>Assistant: Auto-apply aligned revisions
+            end
+            Assistant-->>Runner: Revisions applied & committed
+            Runner->>Runner: Record decisions (fixed in <sha>) & commit
+            Runner->>Runner: package_epic.py <dir> --revise & commit
+            Runner->>Runner: Advance to next review round
+        else AUTO_PASS_FINAL_SWEEP (Round 3, 0 Critical, only Important/Minor)
+            Runner->>Assistant: Final fix pass anchored to approved design
+            Assistant-->>Runner: Fixes applied & committed
+            Runner->>Runner: Record decisions & package_epic.py --revise
+            Runner->>Runner: Advance to Stage 3 without 4th round
+        else CIRCUIT_BREAKER_HALT (SHARED_CONTRACT_CONFLICT / FIX_LOOP / MAX_ROUNDS_CRITICAL_REMAINING)
+            Runner->>Human: Immediate HALT: Display executive warning & halt pipeline
         end
     end
     end
@@ -177,8 +194,9 @@ sequenceDiagram
         Runner->>Programmer: agy stdin --model <model> --effort high --mode auto (Task N)
         Programmer-->>Runner: Code edits, unit tests, task evidence
         Runner->>Runner: Commit task implementation (clean git tree)
+        Runner->>Runner: Sync task status to done
     end
-    Runner->>Runner: Execute Gate 4 in full (deterministic local check)
+    Runner->>Runner: run_gate4() in full (deterministic local check)
     end
 
     rect rgb(255, 250, 240)
@@ -186,7 +204,7 @@ sequenceDiagram
     loop Cross-Model Review (Max 3 Rounds)
         Runner->>Reviewer: run_external_review.py run --kind code --epic-dir <dir> --base <base> --auto-quota
         Reviewer-->>Runner: Findings recorded in review_results.md
-        alt Converged (0 Blockers: AUTO_PASS_CLEAN or AUTO_PASS_FINAL_SWEEP)
+        alt Converged (0 Blockers: AUTO_PASS_CLEAN, AUTO_PASS_FINAL_MINOR_SWEEP, AUTO_PASS_FINAL_SWEEP)
             Runner->>Runner: Break loop -> Advance to Final Report
         else Blockers exist (AUTO_FIX_ELIGIBLE)
             Runner->>Programmer: Draft fix plan (fix_plan_roundN.md)
@@ -197,9 +215,11 @@ sequenceDiagram
                 Runner->>Human: HALT: Report design conflict
             else APPROVED or ADJUSTED
                 Runner->>Programmer: Apply approved fix plan
-                Programmer-->>Runner: Fixes committed
-                Runner->>Runner: Record decisions in review_results.md (clean git tree)
-                Runner->>Runner: Re-run Gate 4 in full
+                Programmer-->>Runner: Code fixes applied
+                Runner->>Runner: Commit code fixes (git commit)
+                Runner->>Runner: Record decisions in review_results.md (fixed in <sha>)
+                Runner->>Runner: Commit decisions (clean git tree)
+                Runner->>Runner: run_gate4() in full (verifies clean certified SHA)
             end
         end
     end
@@ -214,8 +234,8 @@ sequenceDiagram
 | Capability | Canonical Source Paths & Entry Points | Core Invariants & State/Config Knobs | Extension & Troubleshooting Guide |
 |---|---|---|---|
 | **State Machine Runner** | `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py` | State file `.devtool/state/<epic>.pipeline.json` must be updated atomically using `.tmp` rename. State schema adheres to `PipelineState` dataclass. | Inspect state file to see active stage, round, and last SHA. Use `--resume` or `--reset-stage <stage>` to recover from failed states. |
-| **Model Prober & Dispatcher** | `lifecycle_runner.py::ModelDispatcher` | Headless execution must use `agy --print "<prompt>" --model <model> --effort <effort> --mode <mode>`. Timeout bounded via `subprocess.run(timeout=...)` and process group isolation (`start_new_session=True`). | If a model is deprecated or renamed, check `.devtool/review_config.json` or fallback defaults. Startup probe fails fast before any file mutations. |
-| **Principal Review Checkpoint** | `lifecycle_runner.py::step_principal_review` | Halts execution to present proposed fix table and wait for human input when findings > 0. Bypasses stop only on 0 findings. Minor findings are batched with non-criticals. Saves state in `AWAITING_PRINCIPAL_CONFIRMATION` and writes `.devtool/epic/<epic>/principal_fix_proposal_round<N>.md`. | Check `review_results.md` and triage output. Confirming allows Assistant to run `package_epic.py --revise`. Supports `--resume --confirm-fixes` / `--reject-fixes`. |
+| **Model Prober & Dispatcher** | `lifecycle_runner.py::ModelDispatcher` | Headless execution pipes prompts via stdin to `agy --model <model> --effort <effort> --mode <mode>`. Process group isolation via `start_new_session=True` (`pgid = p.pid`) with SIGTERM, 1s grace, and SIGKILL escalation. | If a model is deprecated or renamed, check `.devtool/review_config.json` or fallback defaults. Startup probe fails fast before any file mutations. |
+| **Principal Review Checkpoint** | `lifecycle_runner.py::step_principal_review` | Automatically processes aligned/agreed fixes. Halts and transitions to `AWAITING_PRINCIPAL_CONFIRMATION` only when high-risk critical issues, business/domain requirement conflicts, unaligned source conflicts, or `SHARED_CONTRACT_CONFLICT` occur. Minor-only rounds complete via `AUTO_PASS_FINAL_MINOR_SWEEP` without extra review round. | Check `principal_review.md` and triage output. Confirming allows Assistant to run `package_epic.py --revise`. Supports `--resume --confirm-fixes` / `--reject-fixes`. |
 | **Gate 3 Auto-Order** | `lifecycle_runner.py::resolve_gate3_order` | Execution order must strictly follow topological sort from `compute_execution_order.py`. Gate 3 entry recorded in Gate Ledger via `resume_context.py --gate 3`. | If dependency cycles exist, `compute_execution_order.py` fails with clear error; runner halts and requests human resolution. |
 | **Cross-Model Fix Loop** | `lifecycle_runner.py::step_cross_model_review` | Programmer drafts `.devtool/epic/<epic>/fix_plan_round<N>.md`. Assistant answers with `APPROVED`, `ADJUSTED`, or `CRITICAL_CONFLICT`. Gate 4 re-runs after every fix round. Intermediate rounds do not pause for Human. | Review `fix_plan_round<N>.md` to inspect proposed fixes. Assistant verdict is recorded in `.devtool/state/<epic>.pipeline.json`. |
 | **Commit Sequencing & Tree Hygiene** | `lifecycle_runner.py::run` | `git status --porcelain` must be clean before invoking any review pass. The runner commits fix plans, code fixes, and review decisions in sequence. | Prevents `run_external_review.py` from refusing runs on dirty tree. |
@@ -251,7 +271,7 @@ class FixPlanVerdict(str, Enum):
 class RunnerConfig:
     programmer_model: str = "gemini-3.8-flash"
     programmer_effort: str = "high"
-    assistant_model: Optional[str] = None  # None resolves to active selected model (Argon/Claude/Codex/etc)
+    assistant_model: Optional[str] = None  # Precedence: CLI --assistant-model -> .devtool/review_config.json providers.assistant.model -> active profile model -> fallback claude-sonnet-5-5-high
     assistant_effort: str = "high"
     timeout_seconds: int = 1800
     max_review_rounds: int = 3
@@ -294,6 +314,7 @@ class LifecycleRunner:
     def resolve_gate3_order(self) -> List[str]: ...
     def step_principal_review(self) -> bool: ...
     def step_implementation(self) -> bool: ...
+    def run_gate4(self) -> Tuple[bool, str]: ...
     def step_cross_model_review(self) -> bool: ...
     def evaluate_circuit_breakers(self, stage: str, round_num: int) -> Optional[str]: ...
     def prompt_human_principal_fixes(self, triage_summary: str) -> bool: ...
@@ -372,4 +393,5 @@ Mitigation: Autonomous mode is strictly opt-in via `/dev-lifecycle --autonomous`
 ## Spec Errata
 
 - **[SE-01] Principal Review Round 1 Alignment**: Aligned external review CLI flags (`--kind principal` / `--kind code` with required `--base`), integrated `run_external_review.py triage` action parsing, made Assistant model dynamically inherit the developer's selected model (Argon/Claude/Codex/etc) with Gemini 3.8 Flash default for Programmer, added `AWAITING_PRINCIPAL_CONFIRMATION` state with proposal file and non-blocking CLI flags (`--confirm-fixes`/`--reject-fixes`), established commit sequencing for clean git tree, and aligned method signatures across HLD and tasks.
+- **[SE-02] Principal Review Round 2 Delta Alignment**: Formalized Auto-Triage Gate stage transitions (auto-application of agreed fixes in Principal Review, single-pass minor sweeps for AUTO_PASS_FINAL_MINOR_SWEEP and AUTO_PASS_FINAL_SWEEP without redundant review rounds), corrected Gate 4 commit and decision recording sequence (code fix commit -> decision recording -> decision commit -> Gate 4 run), added run_gate4() and step_implementation contract definitions, aligned ModelDispatcher to stdin pipes and process group supervision, and updated test verification commands to isolated runner scopes.
 

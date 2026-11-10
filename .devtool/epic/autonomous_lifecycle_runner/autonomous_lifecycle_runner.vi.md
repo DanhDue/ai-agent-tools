@@ -157,15 +157,32 @@ sequenceDiagram
         Runner->>Reviewer: run_external_review.py run --kind principal --epic-dir <dir> --base <base> --auto-quota
         Reviewer-->>Runner: Ghi nhận phát hiện review trong principal_review.md
         Runner->>Assistant: Phân loại phát hiện (run_external_review.py triage --kind principal)
-        Assistant-->>Runner: Danh sách đề xuất sửa lỗi
-        alt Phát hiện cần sửa chữa
-            Runner->>Runner: Lưu trạng thái (AWAITING_PRINCIPAL_CONFIRMATION) & ghi file đề xuất
-            Runner->>Human: Trình bày đề xuất & chờ xác nhận (--confirm-fixes / --reject-fixes)
-            Human-->>Runner: Xác nhận đề xuất sửa lỗi
-            Runner->>Assistant: Áp dụng sửa chữa & commit (clean git tree)
-            Runner->>Runner: package_epic.py --revise & ghi nhận decisions vào principal_review.md
-        else 0 phát hiện (AUTO_PASS_CLEAN)
-            Runner->>Runner: Chuyển sang Giai đoạn Triển khai
+        alt AUTO_PASS_CLEAN (0 phát hiện)
+            Runner->>Runner: Chuyển thẳng sang Giai đoạn 3 Triển khai
+        else AUTO_PASS_FINAL_MINOR_SWEEP (0 Critical/Important, chỉ có Minor)
+            Runner->>Assistant: Quét sửa lỗi minor trong một lượt
+            Assistant-->>Runner: Đã áp dụng & commit sửa đổi minor
+            Runner->>Runner: Ghi nhận decisions & chạy package_epic.py --revise
+            Runner->>Runner: Chuyển sang Giai đoạn 3 không cần vòng review phụ
+        else AUTO_FIX_ELIGIBLE (Vòng 1-2 với phát hiện hợp lệ)
+            alt Rủi ro cao, xung đột nghiệp vụ, hoặc xung đột shared-contracts
+                Runner->>Runner: Lưu trạng thái (AWAITING_PRINCIPAL_CONFIRMATION) & ghi file đề xuất
+                Runner->>Human: Trình bày đề xuất & chờ xác nhận (--confirm-fixes / --reject-fixes)
+                Human-->>Runner: Xác nhận đề xuất sửa lỗi
+            else Sửa đổi đã thống nhất / chuẩn hóa
+                Runner->>Assistant: Tự động áp dụng sửa đổi đã chốt
+            end
+            Assistant-->>Runner: Áp dụng sửa chữa & commit (clean git tree)
+            Runner->>Runner: Ghi nhận decisions (fixed in <sha>) & commit
+            Runner->>Runner: package_epic.py <dir> --revise & commit
+            Runner->>Runner: Chuyển sang vòng review tiếp theo
+        else AUTO_PASS_FINAL_SWEEP (Vòng 3, 0 Critical, chỉ còn Important/Minor)
+            Runner->>Assistant: Lượt sửa lỗi cuối cùng neo theo thiết kế đã duyệt
+            Assistant-->>Runner: Đã áp dụng & commit sửa lỗi
+            Runner->>Runner: Ghi nhận decisions & package_epic.py --revise
+            Runner->>Runner: Chuyển sang Giai đoạn 3 không cần vòng thứ 4
+        else CIRCUIT_BREAKER_HALT (SHARED_CONTRACT_CONFLICT / FIX_LOOP / MAX_ROUNDS_CRITICAL_REMAINING)
+            Runner->>Human: HALT NGAY LẬP TỨC: Xuất banner cảnh báo & dừng pipeline
         end
     end
     end
@@ -177,8 +194,9 @@ sequenceDiagram
         Runner->>Programmer: agy stdin --model <model> --effort high --mode auto (Task N)
         Programmer-->>Runner: Chỉnh sửa mã, unit test, bằng chứng task
         Runner->>Runner: Commit triển khai task (clean git tree)
+        Runner->>Runner: Đồng bộ trạng thái task sang hoàn thành
     end
-    Runner->>Runner: Thực thi đầy đủ Gate 4 (kiểm tra nội bộ tất định)
+    Runner->>Runner: run_gate4() đầy đủ (kiểm tra nội bộ tất định)
     end
 
     rect rgb(255, 250, 240)
@@ -186,7 +204,7 @@ sequenceDiagram
     loop Cross-Model Review (Tối đa 3 vòng)
         Runner->>Reviewer: run_external_review.py run --kind code --epic-dir <dir> --base <base> --auto-quota
         Reviewer-->>Runner: Ghi nhận phát hiện trong review_results.md
-        alt Đã hội tụ (0 Blocker: AUTO_PASS_CLEAN hoặc AUTO_PASS_FINAL_SWEEP)
+        alt Đã hội tụ (0 Blocker: AUTO_PASS_CLEAN, AUTO_PASS_FINAL_MINOR_SWEEP, AUTO_PASS_FINAL_SWEEP)
             Runner->>Runner: Thoát vòng lặp -> Chuyển sang Báo cáo Cuối cùng
         else Còn tồn tại Blocker (AUTO_FIX_ELIGIBLE)
             Runner->>Programmer: Soạn kế hoạch sửa lỗi (fix_plan_roundN.md)
@@ -197,9 +215,11 @@ sequenceDiagram
                 Runner->>Human: HALT: Báo cáo xung đột thiết kế
             else APPROVED hoặc ADJUSTED
                 Runner->>Programmer: Áp dụng kế hoạch sửa lỗi đã duyệt
-                Programmer-->>Runner: Commit sửa chữa
-                Runner->>Runner: Ghi nhận decisions vào review_results.md (clean git tree)
-                Runner->>Runner: Chạy lại đầy đủ Gate 4
+                Programmer-->>Runner: Đã áp dụng sửa đổi mã
+                Runner->>Runner: Commit sửa đổi mã (git commit)
+                Runner->>Runner: Ghi nhận decisions vào review_results.md (fixed in <sha>)
+                Runner->>Runner: Commit decisions (clean git tree)
+                Runner->>Runner: run_gate4() đầy đủ (xác minh SHA đạt chuẩn)
             end
         end
     end
@@ -214,8 +234,8 @@ sequenceDiagram
 | Khả năng | Đường dẫn Nguồn Chuẩn & Điểm vào | Bất biến Cốt lõi & Tùy chọn Trạng thái/Cấu hình | Hướng dẫn Mở rộng & Xử lý Sự cố |
 |---|---|---|---|
 | **State Machine Runner** | `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py` | Tệp trạng thái `.devtool/state/<epic>.pipeline.json` phải được cập nhật nguyên tử thông qua đổi tên `.tmp`. Schema trạng thái tuân thủ dataclass `PipelineState`. | Kiểm tra file trạng thái để xem stage, vòng review và SHA gần nhất. Dùng `--resume` hoặc `--reset-stage <stage>` để khôi phục. |
-| **Model Prober & Dispatcher** | `lifecycle_runner.py::ModelDispatcher` | Tiến trình headless phải dùng `agy --print "<prompt>" --model <model> --effort <effort> --mode <mode>`. Giới hạn timeout qua `subprocess.run(timeout=...)` và cô lập process group (`start_new_session=True`). | Nếu model bị đổi tên hoặc không hỗ trợ, kiểm tra `.devtool/review_config.json` hoặc cấu hình mặc định. Thăm dò ban đầu dừng ngay trước khi sửa đổi file. |
-| **Điểm dừng Principal Review** | `lifecycle_runner.py::step_principal_review` | Tạm dừng để trình bày bảng đề xuất sửa lỗi và chờ người dùng nhập khi số lượng phát hiện > 0. Bypasses stop only on 0 findings. Gom cụm phát hiện minor với non-criticals. Lưu trạng thái tại `AWAITING_PRINCIPAL_CONFIRMATION` và xuất tệp `.devtool/epic/<epic>/principal_fix_proposal_round<N>.md`. | Kiểm tra `review_results.md` và kết quả triage. Xác nhận cho phép Assistant chạy `package_epic.py --revise`. Hỗ trợ `--resume --confirm-fixes` / `--reject-fixes`. |
+| **Model Prober & Dispatcher** | `lifecycle_runner.py::ModelDispatcher` | Tiến trình headless truyền prompt qua stdin đến `agy --model <model> --effort <effort> --mode <mode>`. Cô lập process group qua `start_new_session=True` (`pgid = p.pid`) kèm SIGTERM, 1s ân hạn và nâng cấp SIGKILL. | Nếu model bị đổi tên hoặc không hỗ trợ, kiểm tra `.devtool/review_config.json` hoặc cấu hình mặc định. Thăm dò ban đầu dừng ngay trước khi sửa đổi file. |
+| **Điểm dừng Principal Review** | `lifecycle_runner.py::step_principal_review` | Tự động xử lý các sửa đổi đã thống nhất/chuẩn hóa. Chỉ tạm dừng và chuyển `AWAITING_PRINCIPAL_CONFIRMATION` khi có lỗi rủi ro cao critical, xung đột nghiệp vụ/yêu cầu spec, xung đột mã nguồn chưa chốt, hoặc `SHARED_CONTRACT_CONFLICT`. Vòng chỉ có minor hoàn tất qua `AUTO_PASS_FINAL_MINOR_SWEEP` không cần thêm vòng review. | Kiểm tra `principal_review.md` và kết quả triage. Xác nhận cho phép Assistant chạy `package_epic.py --revise`. Hỗ trợ `--resume --confirm-fixes` / `--reject-fixes`. |
 | **Tự động hóa Gate 3** | `lifecycle_runner.py::resolve_gate3_order` | Thứ tự thực thi phải tuân thủ nghiêm ngặt sắp xếp topo từ `compute_execution_order.py`. Bản ghi Gate 3 được lưu vào Gate Ledger qua `resume_context.py --gate 3`. | Nếu có chu trình phụ thuộc, `compute_execution_order.py` sẽ báo lỗi rõ ràng; runner tạm dừng để người dùng xử lý. |
 | **Vòng lặp Cross-Model Fix** | `lifecycle_runner.py::step_cross_model_review` | Programmer soạn thảo `.devtool/epic/<epic>/fix_plan_round<N>.md`. Assistant phản hồi bằng `APPROVED`, `ADJUSTED`, hoặc `CRITICAL_CONFLICT`. Gate 4 chạy lại sau mỗi vòng sửa lỗi. Các vòng trung gian không dừng hỏi con người. | Xem `fix_plan_round<N>.md` để kiểm tra các sửa chữa được đề xuất. Phán quyết của Assistant được lưu vào `.devtool/state/<epic>.pipeline.json`. |
 | **Tuần tự Commit & Vệ sinh Cây Git** | `lifecycle_runner.py::run` | `git status --porcelain` phải sạch trước khi gọi bất kỳ lượt review nào. Runner tuần tự commit fix plan, mã nguồn sửa đổi, và quyết định review. | Ngăn ngừa `run_external_review.py` từ chối chạy khi cây git bị dirty. |
@@ -251,7 +271,7 @@ class FixPlanVerdict(str, Enum):
 class RunnerConfig:
     programmer_model: str = "gemini-3.8-flash"
     programmer_effort: str = "high"
-    assistant_model: Optional[str] = None  # None resolves to active selected model (Argon/Claude/Codex/etc)
+    assistant_model: Optional[str] = None  # Thứ tự ưu tiên: CLI --assistant-model -> .devtool/review_config.json providers.assistant.model -> model active profile -> fallback claude-sonnet-5-5-high
     assistant_effort: str = "high"
     timeout_seconds: int = 1800
     max_review_rounds: int = 3
@@ -294,6 +314,7 @@ class LifecycleRunner:
     def resolve_gate3_order(self) -> List[str]: ...
     def step_principal_review(self) -> bool: ...
     def step_implementation(self) -> bool: ...
+    def run_gate4(self) -> Tuple[bool, str]: ...
     def step_cross_model_review(self) -> bool: ...
     def evaluate_circuit_breakers(self, stage: str, round_num: int) -> Optional[str]: ...
     def prompt_human_principal_fixes(self, triage_summary: str) -> bool: ...
@@ -372,4 +393,5 @@ Giảm thiểu rủi ro: Chế độ tự động hoàn toàn là tùy chọn qu
 ## Đính chính Đặc tả (Spec Errata)
 
 - **[SE-01] Đồng bộ Principal Review Vòng 1**: Đồng bộ cờ CLI external review (`--kind principal` / `--kind code` kèm `--base` bắt buộc), tích hợp cơ chế phân tích action từ `run_external_review.py triage`, hỗ trợ model Assistant kế thừa linh hoạt model đang được chọn (Argon/Claude/Codex/v.v.) với mặc định Gemini 3.8 Flash cho Programmer, bổ sung trạng thái `AWAITING_PRINCIPAL_CONFIRMATION` kèm tệp đề xuất và cờ CLI non-blocking (`--confirm-fixes`/`--reject-fixes`), thiết lập tuần tự commit giữ cây git sạch, và đồng bộ chữ ký hàm giữa HLD và các task.
+- **[SE-02] Đồng bộ Principal Review Vòng 2 Delta**: Chuẩn hóa chuyển đổi trạng thái Auto-Triage Gate (tự động xử lý các sửa đổi đã thống nhất trong Principal Review, quét gom cụm lỗi minor trong một lượt cho AUTO_PASS_FINAL_MINOR_SWEEP và AUTO_PASS_FINAL_SWEEP không chạy thêm vòng review thừa), điều chỉnh tuần tự commit và ghi nhận quyết định Gate 4 (commit sửa đổi mã -> ghi nhận decisions -> commit decisions -> chạy Gate 4), bổ sung định nghĩa hợp đồng run_gate4() và step_implementation, đồng bộ ModelDispatcher với stdin pipe và giám sát process group, và cập nhật lệnh kiểm thử sang phạm vi cô lập của runner.
 

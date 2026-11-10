@@ -21,11 +21,13 @@ Epic: [autonomous_lifecycle_runner](../epic/autonomous_lifecycle_runner/autonomo
 Implement Stage 2 Principal Review automation with the mandatory Human confirmation checkpoint in `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py`:
 1. Implement `LifecycleRunner.step_principal_review`:
    - Triggers `run_external_review.py run --kind principal --epic-dir <epic> --base <base> --auto-quota` with provider auto-quota prioritization.
-   - Evaluates triage results from `run_external_review.py triage`.
-   - Circuit Breaker guard: immediately aborts with `CIRCUIT_BREAKER_HALT (SHARED_CONTRACT_CONFLICT)` if any finding conflicts with `shared-contracts/`.
-   - Zero-finding bypass: if Round 1 completes with PASS and 0 findings (`AUTO_PASS_CLEAN`), bypasses the Human prompt and directly transitions to `StageName.IMPLEMENTATION`.
-   - Proposed fix formulation: when findings exist, the AI Assistant triages findings, batches all findings (including Minor formatting/lint items) into a unified fix proposal, transitions state to `StageName.AWAITING_PRINCIPAL_CONFIRMATION`, writes `.devtool/epic/<epic>/principal_fix_proposal_round<N>.md`, and prompts the Human Architect (`prompt_human_principal_fixes`) or awaits `--confirm-fixes`.
-   - Revision execution: upon Human confirmation (`--confirm-fixes`), applies revisions, commits them, records decision cells (`fixed in <sha>`) in `principal_review.md`, commits decisions, executes `package_epic.py <epic> --revise --reason "..."`, commits handoff re-anchor, increments `principal_round`, and advances to the next review round (up to max 3 rounds).
+   - Evaluates triage results and Action from `run_external_review.py triage`:
+     - `AUTO_PASS_CLEAN`: 0 findings -> directly transitions to `StageName.IMPLEMENTATION`.
+     - `AUTO_PASS_FINAL_MINOR_SWEEP`: 0 Critical/Important, only Minor -> AI Assistant executes single minor fix sweep, commits revisions, records decisions, runs `package_epic.py <epic> --revise`, and advances to Stage 3 without an additional external review round.
+     - `AUTO_FIX_ELIGIBLE`: AI Assistant auto-applies aligned revisions, commits them, records decision cells (`fixed in <sha>`) in `principal_review.md`, commits decisions, executes `package_epic.py <epic> --revise`, commits handoff re-anchor, and advances to the next review round.
+     - Human stop condition: if findings involve high-risk critical issues, business/domain requirement conflicts, unaligned source conflicts, or `SHARED_CONTRACT_CONFLICT`, the runner transitions to `StageName.AWAITING_PRINCIPAL_CONFIRMATION`, writes `.devtool/epic/<epic>/principal_fix_proposal_round<N>.md`, and prompts the Human Architect (`prompt_human_principal_fixes`) or halts for `--confirm-fixes`.
+     - `AUTO_PASS_FINAL_SWEEP`: on Round 3 with 0 Critical, executes final fix sweep, commits, records decisions, runs `package_epic.py --revise`, and advances to Stage 3 without a 4th round.
+     - `CIRCUIT_BREAKER_HALT`: halts immediately on `SHARED_CONTRACT_CONFLICT`, `FIX_LOOP`, or `MAX_ROUNDS_CRITICAL_REMAINING`.
 2. Implement unit and integration tests in `tests/test_lifecycle_runner.py` covering `ALR-HP-03`, `ALR-EC-01`, `ALR-EC-02`, and `ALR-FR-01`.
 
 ## Files
@@ -114,8 +116,8 @@ And the console displays the executive warning banner instructing the developer 
 
 - Principal Review invocation uses `run_external_review.py run --kind principal --epic-dir <epic> --base <base> --auto-quota` and evaluates `run_external_review.py triage`.
 - Principal Review is capped at 3 rounds.
-- When findings > 0, the Assistant sets state `AWAITING_PRINCIPAL_CONFIRMATION`, drafts `.devtool/epic/<epic>/principal_fix_proposal_round<N>.md`, and halts for explicit Human confirmation (`[Y/N]` or `--confirm-fixes`).
-- Minor findings are never discarded; they are batched into the same Human confirmation prompt.
+- Auto-Triage Gate actions map to deterministic transitions: `AUTO_PASS_CLEAN` advances to implementation; `AUTO_PASS_FINAL_MINOR_SWEEP` sweeps minor fixes and advances to implementation without an extra review round; `AUTO_FIX_ELIGIBLE` auto-applies aligned revisions; `AUTO_PASS_FINAL_SWEEP` executes final design-anchored sweep and finishes Stage 2.
+- The runner transitions to `AWAITING_PRINCIPAL_CONFIRMATION` only when findings involve high-risk critical issues, business/domain requirement conflicts, unaligned source conflicts, or `SHARED_CONTRACT_CONFLICT`.
 - Clean working tree discipline: edits, decision records (`fixed in <sha>` in `principal_review.md`), and `package_epic.py <epic> --revise` are committed in sequence before dispatching the next review round.
 
 ## Definition of Done
