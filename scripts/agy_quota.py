@@ -2176,18 +2176,18 @@ def execute_ping_profile(profile: str, force: bool = False) -> dict:
         and not is_argon_near_reset
     )
 
-    # Gemini 5H status:
+    # Claude 5H status:
     sec_rec = get_session_record(profile)
     now_ts = int(time.time())
-    is_gemini_active = (
+    is_claude_active = (
         sec_rec
         and sec_rec.get("is_active")
         and sec_rec.get("reset_5h", 0) > now_ts
     )
-    should_ping_gemini = force or (not is_gemini_active)
+    should_ping_claude = force or (not is_claude_active)
 
     # If neither needs pinging, skip cleanly
-    if not should_ping_gemini and not should_ping_argon:
+    if not should_ping_claude and not should_ping_argon:
         rem_sec = sec_rec["reset_5h"] - now_ts if sec_rec else 0
         rem_str = f"{rem_sec // 3600}h {(rem_sec % 3600) // 60}m"
         local_time_str = datetime.datetime.fromtimestamp(sec_rec["reset_5h"]).strftime("%H:%M:%S") if sec_rec else ""
@@ -2204,7 +2204,7 @@ def execute_ping_profile(profile: str, force: bool = False) -> dict:
             "isSessionActive": True,
             "skipped": True,
             "duration_ms": 5,
-            "message": f"Phiên 5H đang active (còn {rem_str}, reset lúc {local_time_str}). {argon_status_str}. Bỏ qua ping.",
+            "message": f"Phiên Claude 5H đang active (còn {rem_str}, reset lúc {local_time_str}). {argon_status_str}. Bỏ qua ping.",
         }
 
     # Unlock keychain if needed
@@ -2222,16 +2222,16 @@ def execute_ping_profile(profile: str, force: bool = False) -> dict:
     })
 
     t0 = time.time()
-    pinged_gemini = False
+    pinged_claude = False
     pinged_argon = False
     jitter_applied = 0.0
-    prompt_gem = ""
+    prompt_cld = ""
 
-    # 1. Ping Gemini default model (if needed)
-    if should_ping_gemini:
-        prompt_gem = random.choice(NATURAL_PROMPTS)
+    # 1. Ping Claude (claude-sonnet-5-5-low) model (if needed)
+    if should_ping_claude:
+        prompt_cld = random.choice(NATURAL_PROMPTS)
         try:
-            res = subprocess.run([AGY_BIN, "-p", prompt_gem], env=env, capture_output=True, text=True, timeout=25)
+            res = subprocess.run([AGY_BIN, "--model", "claude-sonnet-5-5-low", "-p", prompt_cld], env=env, capture_output=True, text=True, timeout=25)
             out_all = (res.stdout or "") + " " + (res.stderr or "")
             appeal_out_id = check_profile_appeal_status(profile, out_all)
             low_out = out_all.lower()
@@ -2255,27 +2255,27 @@ def execute_ping_profile(profile: str, force: bool = False) -> dict:
                     "error": f"Tài khoản bị vô hiệu hóa do vi phạm Điều khoản (Terms of Service / Submit an appeal). Mã lỗi: {err_id}"
                 }
             if res.returncode == 0:
-                pinged_gemini = True
+                pinged_claude = True
             else:
                 return {
                     "profile": profile,
                     "success": False,
                     "duration_ms": int((time.time() - t0) * 1000),
-                    "error": res.stderr.strip() or f"Gemini ping exited with code {res.returncode}"
+                    "error": res.stderr.strip() or f"Claude ping exited with code {res.returncode}"
                 }
         except subprocess.TimeoutExpired:
-            return {"profile": profile, "success": False, "duration_ms": 25000, "error": "Gemini ping timed out (25s)"}
+            return {"profile": profile, "success": False, "duration_ms": 25000, "error": "Claude ping timed out (25s)"}
         except Exception as e:
             return {"profile": profile, "success": False, "duration_ms": 50, "error": str(e)}
 
     # 2. Ping Argon (if max 7D and not near reset)
     if should_ping_argon:
         # Mandatory humanized jitter between requests to eliminate bot flags
-        if pinged_gemini:
+        if pinged_claude:
             jitter_applied = round(random.uniform(1.8, 3.5), 2)
             time.sleep(jitter_applied)
 
-        other_prompts = [p for p in NATURAL_PROMPTS if p != prompt_gem] or NATURAL_PROMPTS
+        other_prompts = [p for p in NATURAL_PROMPTS if p != prompt_cld] or NATURAL_PROMPTS
         prompt_argon = random.choice(other_prompts)
         try:
             res_arg = subprocess.run(
@@ -2316,7 +2316,7 @@ def execute_ping_profile(profile: str, force: bool = False) -> dict:
             elif res_arg.returncode == 0:
                 pinged_argon = True
         except Exception:
-            pass  # Argon failure does not abort if Gemini succeeded
+            pass  # Argon failure does not abort if Claude succeeded
 
     total_dur = int((time.time() - t0) * 1000)
 
@@ -2327,10 +2327,10 @@ def execute_ping_profile(profile: str, force: bool = False) -> dict:
         update_cached_profile(profile, f_data)
 
     # Build detailed success message
-    if pinged_gemini and pinged_argon:
-        msg = f"Kích hoạt thành công Gemini 5H & Argon 7D (Jitter {jitter_applied}s, {total_dur}ms)"
-    elif pinged_argon and not pinged_gemini:
-        msg = f"Kích hoạt thành công Argon 7D (Gemini 5H đang active, {total_dur}ms)"
+    if pinged_claude and pinged_argon:
+        msg = f"Kích hoạt thành công Claude 5.5 & Argon 7D (Jitter {jitter_applied}s, {total_dur}ms)"
+    elif pinged_argon and not pinged_claude:
+        msg = f"Kích hoạt thành công Argon 7D (Claude 5H đang active, {total_dur}ms)"
     else:
         argon_suffix = ""
         if has_argon:
@@ -2338,14 +2338,15 @@ def execute_ping_profile(profile: str, force: bool = False) -> dict:
                 argon_suffix = " [Argon < 7h: Bỏ qua]"
             elif not is_argon_max_7d:
                 argon_suffix = " [Argon: Đã kích hoạt]"
-        msg = f"Kích hoạt thành công phiên 5H{argon_suffix} ({total_dur}ms)"
+        msg = f"Kích hoạt thành công Claude 5.5 (Sonnet){argon_suffix} ({total_dur}ms)"
 
     return {
         "profile": profile,
         "success": True,
         "duration_ms": total_dur,
         "message": msg,
-        "pinged_gemini": pinged_gemini,
+        "pinged_claude": pinged_claude,
+        "pinged_gemini": pinged_claude,
         "pinged_argon": pinged_argon,
         "jitter_seconds": jitter_applied,
     }

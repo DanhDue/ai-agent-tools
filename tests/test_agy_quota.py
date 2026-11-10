@@ -146,14 +146,21 @@ class TestAgyQuotaServer(unittest.TestCase):
                                                 res = agy_quota.execute_ping_profile("test_prof")
                                                 self.assertTrue(res.get("success"))
                                                 self.assertTrue(res.get("pinged_argon"))
+                                                self.assertTrue(res.get("pinged_claude"))
                                                 self.assertTrue(res.get("pinged_gemini"))
+                                                self.assertIn("Claude 5.5", res.get("message", ""))
                                                 self.assertIn("Argon 7D", res.get("message", ""))
                                                 # Jitter sleep was called
                                                 mock_sleep.assert_called_once()
                                                 sleep_val = mock_sleep.call_args[0][0]
                                                 self.assertGreaterEqual(sleep_val, 1.8)
                                                 self.assertLessEqual(sleep_val, 3.5)
-                                                # Subprocess called with gemini-4-argon-low
+                                                # Subprocess called with claude-sonnet-5-5-low and gemini-4-argon-low
+                                                claude_calls = [
+                                                    c for c in mock_run.call_args_list
+                                                    if "claude-sonnet-5-5-low" in c[0][0]
+                                                ]
+                                                self.assertEqual(len(claude_calls), 1)
                                                 argon_calls = [
                                                     c for c in mock_run.call_args_list
                                                     if "gemini-4-argon-low" in c[0][0]

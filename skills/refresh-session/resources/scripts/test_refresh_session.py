@@ -418,6 +418,10 @@ class TestRefreshSession(unittest.TestCase):
         self.assertEqual(res["status"], "PASS")
         self.assertEqual(res["profile"], "danhdue")
         self.assertIn(res["tokens"], (0, 1))
+        # Ensure claude-sonnet-5-5-low is explicitly requested instead of Gemini
+        cmd = mock_run.call_args[0][0]
+        self.assertIn("--model", cmd)
+        self.assertIn("claude-sonnet-5-5-low", cmd)
 
     @patch("refresh_session.ping_profile", return_value={"cli": "agy (danhdue)", "profile": "danhdue", "status": "PASS", "latency_ms": 110.0, "tokens": 0, "error": None})
     def test_main_profile_dispatch(self, mock_ping_prof: MagicMock) -> None:

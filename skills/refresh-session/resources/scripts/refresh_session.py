@@ -723,7 +723,7 @@ def ping_profile(profile_name: str, timeout: int = 25) -> dict[str, Any]:
     prompt = random.choice(NATURAL_PROMPTS)
     try:
         proc = subprocess.run(
-            [agy_bin, "-p", prompt],
+            [agy_bin, "--model", "claude-sonnet-5-5-low", "-p", prompt],
             env=env,
             capture_output=True,
             text=True,
