@@ -14,7 +14,7 @@
 ## Status
 
 - **Packaged**: 2026-11-10
-- **Design commit**: `6bad2b5`
+- **Design commit**: `c7d1838`
 - **Base branch**: `main`
 - **Gates passed**: 1 (spec), 2 (HLD and task breakdown)
 - **Next**: Stage 3, `dev-implementation`. Gate 3 (execution order) still needs the developer's confirmation.
@@ -23,16 +23,16 @@
 
 | Placeholder | Value |
 |-------------|-------|
-| `autonomous_lifecycle_runner` | `autonomous_lifecycle_runner` |
-| `autonomous_lifecycle_runner` | `autonomous_lifecycle_runner` |
+| `epic_slug` | `autonomous_lifecycle_runner` |
+| `epic_dir` | `autonomous_lifecycle_runner` |
 
 These are usually different strings. Never derive one from the other.
 
 ## Read First
 
-1. `.devtool/epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.en.md` — the HLD. Its Kanban Tasks Breakdown lists the <N> tasks.
+1. `.devtool/epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.en.md` — the HLD. Its Kanban Tasks Breakdown lists the 5 tasks.
 2. `.devtool/epic/autonomous_lifecycle_runner/bdd_scenarios.en.md` — the behavioural contract.
-3. `.devtool/epic/autonomous_lifecycle_runner/<source spec>.en.md` — the approved source spec.
+3. `.devtool/epic/autonomous_lifecycle_runner/2026-11-10-autonomous-lifecycle-runner-design.en.md` — the approved source spec.
 4. `.devtool/epic/autonomous_lifecycle_runner/principal_review.md`, when present — Principal Review rounds and decisions.
 
 ## Resume Prompt
@@ -68,11 +68,12 @@ None
 
 - **2026-11-10 (`6ad5af4`)**: Initial Stage 2 packaging
 - **2026-11-10 (`6ad5af4` -> `6bad2b5`)**: Revise after Principal Review round 1
+- **2026-11-10 (`6bad2b5` -> `c7d1838`)**: Revise after Principal Review round 2 delta
 
 ## Rules for the Receiving Agent
 
 - Do not re-run `dev-brainstorming` or `dev-designer`. Raise a wrong or missing document at Gate 3.
 - This handoff does not pass Gate 3. The developer confirms the execution order.
-- Unless the design commit is `uncommitted`: if `git log 6bad2b5..main -- .devtool/epic/autonomous_lifecycle_runner` lists any commit besides the `Package epic for handoff` commit, the documents changed after packaging. The documents win, and this file may be stale. Comparing against the base branch keeps the epic branch's own task commits out of the check.
+- Unless the design commit is `uncommitted`: if `git log c7d1838..main -- .devtool/epic/autonomous_lifecycle_runner` lists any commit besides the `Package epic for handoff` commit, the documents changed after packaging. The documents win, and this file may be stale. Comparing against the base branch keeps the epic branch's own task commits out of the check.
 - This file is updated only by `package_epic.py --revise`, which records each re-anchoring under `## Revisions`.
 - Never edit a task's Verification table, Definition of Done, Allowed files or a protected path; stop and report.
