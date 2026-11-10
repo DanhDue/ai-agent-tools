@@ -124,3 +124,4 @@ Script nằm ở `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py`, l
 ## Cảnh báo Shared Contract
 
 Repository này không có `shared-contracts/`, nên không có cảnh báo contract. Đã xác nhận trạng thái sạch.
+
