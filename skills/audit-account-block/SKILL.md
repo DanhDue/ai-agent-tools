@@ -78,10 +78,11 @@ All 4 unit tests (`test_audit_detects_duplicate_machine_ids`, `test_audit_detect
 ## 5. Safe Multi-Profile Provisioning Checklist
 
 When creating or provisioning a new Antigravity profile:
-1. **Never copy `storage.json` blindly**: If copying from a template, run `audit-account-block --fix` immediately to assign a unique `machineId`.
-2. **Never clone `conversation_summaries.db`**: Initialize an empty SQLite database with the standard schema or let Antigravity create it natively on first run.
-3. **Stagger Cron Jobs**: Add random sleep jitter (1–60s) before executing automated refresh tasks.
-4. **Use Scoped Keychain Unlock**: Always unlock `<profile>.keychain-db` locally without mutating macOS global default keychain (`login.keychain-db`).
+1. **Use automated initialization**: Run `ag_run <profile> init` in terminal. It automatically generates a unique `telemetry.machineId` (SHA-256), `telemetry.devDeviceId` (UUIDv4), configures `"telemetry.telemetryLevel": "off"`, and purges any cloned trajectories.
+2. **Never copy `storage.json` blindly**: If manually copying from a template, run `audit-account-block --fix` immediately to decouple hardware fingerprints.
+3. **Never clone `conversation_summaries.db`**: Initialize an empty SQLite database or let Antigravity create it natively on first run to prevent cross-account 403 trajectory sync errors.
+4. **Stagger Cron Jobs**: Add random sleep jitter (1–60s) before executing automated refresh tasks.
+5. **Use Scoped Keychain Unlock & Zero CLI Global Mutation**: Always unlock `<profile>.keychain-db` locally without mutating macOS global default keychain (`login.keychain-db`) to protect AirDrop (`sharingd`) and Apple ID services.
 
 ---
 

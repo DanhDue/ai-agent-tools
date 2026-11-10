@@ -15,21 +15,24 @@ When managing 20+ isolated Antigravity user profiles on a single machine:
 
 ---
 
-## 2. The 5 Core Isolation Rules
+## 2. The 6 Core Isolation Rules
 
 ```
                       ┌───────────────────────────────────────────────┐
                       │            macOS Host Environment             │
                       │  Default Keychain: login.keychain-db (Fixed)  │
                       │  HOME: /Users/<user>                          │
+                      │  AirDrop Daemon: sharingd (Uninterrupted)     │
                       └───────────────────────┬───────────────────────┘
                                               │
                       ┌───────────────────────▼───────────────────────┐
                       │    Launcher: ag_run() / profile-cli           │
                       │  1. Terminate stale PIDs of this profile      │
-                      │  2. Strip parent Electron / IPC env vars       │
-                      │  3. Atomic 2.5s Keychain promotion window      │
-                      │  4. Auto-rollback default to login.keychain    │
+                      │  2. Strip parent Electron / IPC env vars      │
+                      │  3. CLI: ZERO global keychain mutation        │
+                      │  4. GUI: Atomic 1.5s window + auto-rollback   │
+                      │  5. Auto-generate unique Machine ID & UUID    │
+                      │  6. Auto-disable telemetry (telemetryLevel)   │
                       └───────────────────────┬───────────────────────┘
                                               │
          ┌────────────────────────────────────┼────────────────────────────────────┐
@@ -38,6 +41,8 @@ When managing 20+ isolated Antigravity user profiles on a single machine:
 │ Profile: hau    │                  │ Profile: tess   │                  │ Profile: molt   │
 │ • hau.keychain  │                  │ • tess.keychain │                  │ • molt.keychain │
 │ • state.vscdb   │                  │ • state.vscdb   │                  │ • state.vscdb   │
+│ • storage.json  │                  │ • storage.json  │                  │ • storage.json  │
+│   (Unique MID)  │                  │   (Unique MID)  │                  │   (Unique MID)  │
 │ • No symlink to │                  │ • No symlink to │                  │ • No symlink to │
 │   .gemini/root  │                  │   .gemini/root  │                  │   .gemini/root  │
 └─────────────────┘                  └─────────────────┘                  └─────────────────┘
@@ -79,21 +84,40 @@ For every non-root profile:
    ```
 3. If `agy.onboarding.lastLoginUsername` differs from `id_token_email`, update `state.vscdb` to match `id_token_email` immediately.
 
-### Rule 2.4: Atomic Launch Window in `ag_run()` (No Global Keychain Mutation)
-To avoid contaminating host OS services or other profiles:
+### Rule 2.4: Atomic Launch Window in `ag_run()` & AirDrop / Host OS Protection
+To avoid contaminating host OS services or breaking AirDrop (`sharingd`), Apple ID, or Wi-Fi credentials:
 - **Global Mutation Prohibited**: NEVER invoke `security default-keychain` globally in `~/.zshrc` or global login hooks. The host default keychain MUST always remain `/Users/<user>/Library/Keychains/login.keychain-db`.
-- **Atomic Launch Window**: When launching a profile via `ag_run()`, isolate Keychain access exclusively via:
-  1. Setting `com.apple.security.plist` in `~/antigravity_homes/<profile>/Library/Preferences/`.
-  2. For non-root GUI launches, temporarily promote `<profile>.keychain-db` ahead of `login.keychain-db` in the search list and set default, spawn the IDE via stripped environment, and immediately schedule an atomic rollback back to `login.keychain-db` after 2.5 seconds:
+- **Zero Mutation for CLI**: When running CLI commands (`ag_run <profile> cli` or `{profile}-cli`), NEVER alter `security default-keychain` or `security list-keychains`. The CLI binary runs in a subshell with `HOME="$ag_home"` and reads the scoped profile keychain via `~/Library/Preferences/com.apple.security.plist` and `login.keychain-db -> <profile>.keychain-db` symlink directly after scoped `security unlock-keychain`. This guarantees AirDrop (`sharingd`) is never interrupted or crashed by background CLI quota refreshes.
+- **Atomic Launch Window for GUI IDE**: When launching the graphical Antigravity IDE for a non-root profile:
+  1. Profile keychain is isolated via `com.apple.security.plist` in `~/antigravity_homes/<profile>/Library/Preferences/`.
+  2. For GUI launch, temporarily promote `<profile>.keychain-db` ahead of `login.keychain-db` in the search list and set default, spawn the IDE via stripped environment, and immediately schedule an atomic rollback back to `login.keychain-db` after 1.5 seconds:
      ```bash
      security list-keychains -d user -s "$profile_kc" "$REAL_HOME/Library/Keychains/login.keychain-db" "/Library/Keychains/System.keychain"
      security default-keychain -s "$profile_kc"
      # Launch detached IDE process...
-     ( sleep 2.5 && security list-keychains -d user -s "$REAL_HOME/Library/Keychains/login.keychain-db" "/Library/Keychains/System.keychain" && security default-keychain -s "$REAL_HOME/Library/Keychains/login.keychain-db" ) >/dev/null 2>&1 &!
+     ( sleep 1.5 && security default-keychain -s "$REAL_HOME/Library/Keychains/login.keychain-db" && security list-keychains -d user -s "$REAL_HOME/Library/Keychains/login.keychain-db" "/Library/Keychains/System.keychain" ) >/dev/null 2>&1 &!
      ```
-  3. For CLI invocations (`{profile}-cli`), run inside an isolated subshell where keychain unlock is scoped and no global list mutation occurs.
+  3. The launcher always verifies that `security default-keychain` restores to `/Users/<user>/Library/Keychains/login.keychain-db`.
 
-### Rule 2.5: Rogue Symlink Elimination & Strict State Independence
+### Rule 2.5: Hardware Fingerprint & Telemetry Decoupling (Anti-Sybil Defense)
+To prevent Google Cloud Code Assist and Clearcut Telemetry from correlating multiple accounts as a Sybil farm:
+1. **Mandatory Unique Machine ID & Device ID**:
+   Every profile MUST have a cryptographically independent SHA-256 hash in `data/User/globalStorage/storage.json`:
+   ```python
+   data["telemetry.machineId"] = hashlib.sha256(os.urandom(32) + f"{profile}-{time.time()}".encode()).hexdigest()
+   data["telemetry.devDeviceId"] = str(uuid.uuid4())
+   ```
+   Never clone `storage.json` between profiles without regenerating these values immediately.
+2. **Mandatory Telemetry Opt-Out (`telemetryLevel: "off"`)**:
+   Every profile's `data/User/settings.json` MUST configure:
+   ```json
+   "telemetry.telemetryLevel": "off"
+   ```
+   This prevents Antigravity IDE from transmitting host machine hardware fingerprints, open folder URIs (`backupWorkspaces`), and project paths back to telemetry collection endpoints.
+3. **Trajectory Leak Elimination**:
+   Never clone `conversation_summaries.db` or `agyhub_summaries_proto.pb`. On profile initialization, ensure `conversation_summaries.db` only references conversation UUIDs residing in that profile's own `.gemini/antigravity/conversations/` directory.
+
+### Rule 2.6: Rogue Symlink Elimination & Strict State Independence
 - **Wildcard Danger**: In shell functions and provisioning scripts, NEVER use imprecise wildcards such as `antigravity)` in case statements. An unanchored match will catch `.gemini/antigravity*` and replace profile-specific directories with symlinks to root!
 - **Safe Match Pattern**: Use explicit exclusion:
   ```zsh

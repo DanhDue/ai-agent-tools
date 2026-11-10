@@ -190,6 +190,7 @@ git commit -m "[EPIC_NAME] Task title" -m "- subtask title 01
 >    - Profile keychain isolation is achieved EXCLUSIVELY via:
 >      - Per-profile plist: `~/antigravity_homes/<profile>/Library/Preferences/com.apple.security.plist` (automatically respected by macOS Security framework when `HOME=$ag_home`).
 >      - Scoped unlock inside subshells: `security unlock-keychain -p <pass> <profile.keychain-db>` within isolated scripts or `ag_run` subshells.
+>      - Zero CLI Mutation: Profile CLI commands (`ag_run <profile> cli`, `{profile}-cli`) MUST NEVER mutate `security default-keychain` or `security list-keychains`.
 >
 > 3. **Strict Subshell Scope for Profile Environments (No Global Environment Contamination)**:
 >    - AI Agents MUST **NEVER** export profile-specific environment variables (such as `export HOME=...`, `export AGY_PROFILE=...`, `export TMPDIR=/tmp/ag_...`) at the top-level of `~/.zshrc`.
@@ -211,4 +212,5 @@ git commit -m "[EPIC_NAME] Task title" -m "- subtask title 01
 >    - **Identity Parity with Keychain**: The stored username in `data/User/globalStorage/state.vscdb` (`google.google-antigravity -> agy.onboarding.lastLoginUsername`) MUST match the profile's dedicated Keychain (`<profile>.keychain-db`).
 >    - **Process & Token Hygiene**: Always terminate resident Electron PIDs of a profile (`pkill -f antigravity_homes/<profile>`) before modifying its DB to prevent stale RAM overwrites, and purge `signedOut` OAuth flags. For the exhaustive local protocol, see `.agents/rules/profile_isolation_rules.md`.
 >    - **No Blind State Cloning**: Agents MUST NEVER clone `state.vscdb` from another profile without resetting `agy.onboarding.lastLoginUsername` to the target profile's email, and purging stale `comments`, `workspaceStorage`, and cross-profile paths from `extensions.user.cache`.
+>    - **Hardware Fingerprint & Telemetry Decoupling**: Every profile's `storage.json` MUST contain unique, cryptographically generated `telemetry.machineId` and `telemetry.devDeviceId`. Never copy them without regenerating. Every profile's `settings.json` MUST set `"telemetry.telemetryLevel": "off"` to prevent leaking workspace paths and hardware signatures. Profile trajectory databases (`conversation_summaries.db`) must never be cloned.
 
