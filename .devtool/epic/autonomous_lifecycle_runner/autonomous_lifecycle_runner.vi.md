@@ -17,7 +17,7 @@
 ## Siêu dữ liệu
 
 - **Tên Epic**: `autonomous_lifecycle_runner`
-- **Trạng thái**: Đang tiến hành (In Progress)
+- **Trạng thái**: Đã đóng gói (2026-11-10)
 - **Bản phát hành mục tiêu**: Bản phát hành plugin tiếp theo
 - **Nền tảng**: Bộ công cụ Python / agent skill kit
 - **Phụ thuộc vào epic**: không
