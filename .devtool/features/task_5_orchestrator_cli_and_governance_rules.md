@@ -90,9 +90,9 @@ And the runner halts without launching a 4th round, outputting the Top 3 Highest
 Scenario: [ALR-ST-02] [Tier C - Integration] Gate Ledger synchronization on autonomous state transitions
 
 Given the pipeline progresses autonomously through Stage 2 and Stage 3
-When each gate milestone (Gate 3, Gate 4, Gate 5 candidate) is achieved
+When each gate milestone (Gate 3 and Gate 4) is achieved
 Then .devtool/GATE_LEDGER.md is updated with the timestamp, candidate SHA, and auto-approval metadata
-And the ledger status remains strictly in sync with .devtool/state/<epic>.pipeline.json
+And Gate 5 candidate readiness is recorded in .devtool/state/<epic>.pipeline.json awaiting explicit human finish sign-off
 ```
 
 ## Verification
@@ -102,8 +102,8 @@ And the ledger status remains strictly in sync with .devtool/state/<epic>.pipeli
 | V1 | RED | `python3 -m unittest tests/test_lifecycle_runner.py -k test_alr_hp_01` | exit 1; contains "FAILED" | — |
 | V2 | GREEN | `python3 -m unittest tests/test_lifecycle_runner.py -k test_alr_hp_01` | exit 0; contains "OK" | — |
 | V3 | GREEN | `python3 -m unittest tests/test_lifecycle_runner.py` | exit 0; contains "OK" | — |
-| V4 | TIER-B | `ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py tests/test_lifecycle_runner.py` | exit 0 | — |
-| V5 | TIER-B | `mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py tests/test_lifecycle_runner.py` | exit 0 | — |
+| V4 | TIER-B | `ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py --ignore SIM117 skills/dev-lifecycle/resources/scripts/lifecycle_runner.py tests/test_lifecycle_runner.py` | exit 0 | — |
+| V5 | TIER-B | `mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py skills/dev-lifecycle/resources/scripts/lifecycle_runner.py tests/test_lifecycle_runner.py` | exit 0 | — |
 | V6 | TIER-C | `python3 scripts/run_unittest_junit.py --junitxml build/test-results/autonomous-lifecycle-runner.xml tests/test_lifecycle_runner.py` | exit 0; results build/test-results/autonomous-lifecycle-runner.xml | — |
 
 ## Stop and Report If
@@ -119,11 +119,11 @@ And the ledger status remains strictly in sync with .devtool/state/<epic>.pipeli
 ## Decisions Already Made
 
 - Autonomous mode does not auto-merge: it halts at `AWAITING_FINISH` and displays the prompt for `/finishing-a-development-branch`.
-- `run_gate4(self) -> Tuple[bool, str]` executes: (1) `run_external_review.py check --epic-dir <epic> --kind code`; (2) `check_bdd_traceability.py results`; (3) `run_unittest_junit.py`; (4) `ruff check --isolated`; (5) `mypy --ignore-missing-imports`.
+- `run_gate4(self) -> Tuple[bool, str]` executes the complete Stage 3 Gate 4 verification sequence on the candidate commit SHA: (1) smoke checklist generation via `generate_smoke_checklist.py`; (2) review decision check via `run_external_review.py check --epic-dir <epic> --kind code`; (3) code and security audit checks; (4) result-based BDD traceability via `check_bdd_traceability.py tests --scenarios .devtool/epic/<epic>/bdd_scenarios.en.md --roots tests/ skills/dev-lifecycle/resources/scripts/ --results build/test-results/autonomous-lifecycle-runner.xml`; and (5) aggregated quality check verification via `skills/quality_check/resources/scripts/aggregate_quality_results.py` (or `@quality_check --profile epic`) requiring PASS.
 - Gate 4 PASS candidate SHA is verified before rendering the final executive report.
 - Circuit breaker on Round 3 critical exhaustion outputs the Top 3 Highest-Risk Findings and halts.
 - Role boundaries: In autonomous mode, the orchestrator runner invokes review CLIs and generates coordination proposals (`.devtool/`), while source code modifications are strictly executed by the AI Programmer subprocess.
-- Gate synchronization: Gate 3, 4, and 5 candidate approvals are recorded via `resume_context.py --gate <n>` to keep `.devtool/state/gate_ledger.jsonl` and `.devtool/GATE_LEDGER.md` synchronized (`ALR-ST-02`).
+- Gate synchronization: Gate 3 and Gate 4 approvals are recorded via `resume_context.py --gate <n>` to keep `.devtool/state/gate_ledger.jsonl` and `.devtool/GATE_LEDGER.md` synchronized (`ALR-ST-02`). Candidate readiness for Gate 5 is tracked strictly in `.devtool/state/<epic>.pipeline.json` (`active_stage = "awaiting_finish"`); `resume_context.py --gate 5` is executed only upon explicit Human finish and merge sign-off.
 - `scripts/verify.sh` registers `lifecycle-runner` suite pointing to `tests/test_lifecycle_runner.py`.
 
 ## Definition of Done

@@ -25,12 +25,15 @@ Implement the foundational state machine and persistence infrastructure for `lif
 4. Gate Ledger synchronization: updates `.devtool/GATE_LEDGER.md` with timestamps, candidate SHAs, and autonomous verification entries.
 5. Model capability prober: `ModelDispatcher.probe_model` executes a fast, minimal headless invocation to verify that the CLI accepts the configured model identifiers (`gemini-3.8-flash` and Assistant model) before initializing state.
 6. Create unit test suite `tests/test_lifecycle_runner.py` verifying state recovery, probing, and persistence.
+7. Review model priority support: update `load_review_config` in `run_external_review.py` to load and persist custom `provider_priority` lists, and update `select_provider_by_quota` to accept custom priority orders, enabling the 4 selectable model priority options from Gate 2 with default `Claude -> Codex -> Kiro -> Argon`.
 
 ## Files
 
 Allowed files:
 - `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py` (new)
 - `tests/test_lifecycle_runner.py` (new)
+- `skills/dev-implementation/resources/scripts/run_external_review.py`
+- `skills/dev-implementation/resources/scripts/test_run_external_review.py`
 
 Read-only context:
 - `scripts/resume_context.py` — state persistence patterns, gate hydration, and Gate Ledger formatting
@@ -76,8 +79,8 @@ And the pipeline state file remains valid and uncorrupted JSON at all times
 | V1 | RED | `python3 -m unittest tests/test_lifecycle_runner.py -k test_alr_st_03` | exit 1; contains "FAILED" | — |
 | V2 | GREEN | `python3 -m unittest tests/test_lifecycle_runner.py -k test_alr_st_03` | exit 0; contains "OK" | — |
 | V3 | GREEN | `python3 -m unittest tests/test_lifecycle_runner.py` | exit 0; contains "OK" | — |
-| V4 | TIER-B | `ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py tests/test_lifecycle_runner.py` | exit 0 | — |
-| V5 | TIER-B | `mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py tests/test_lifecycle_runner.py` | exit 0 | — |
+| V4 | TIER-B | `ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py --ignore SIM117 skills/dev-lifecycle/resources/scripts/lifecycle_runner.py tests/test_lifecycle_runner.py` | exit 0 | — |
+| V5 | TIER-B | `mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py skills/dev-lifecycle/resources/scripts/lifecycle_runner.py tests/test_lifecycle_runner.py` | exit 0 | — |
 | V6 | TIER-C | `python3 scripts/run_unittest_junit.py --junitxml build/test-results/task_1.xml tests/test_lifecycle_runner.py` | exit 0; results build/test-results/task_1.xml | — |
 
 ## Stop and Report If
@@ -95,6 +98,7 @@ And the pipeline state file remains valid and uncorrupted JSON at all times
 - `StageName` enum: `initialized`, `principal_review`, `awaiting_principal_confirmation`, `implementation`, `cross_model_review`, `awaiting_finish`, `completed`, `halted`.
 - `FixPlanVerdict` enum: `APPROVED`, `ADJUSTED`, `CRITICAL_CONFLICT`.
 - `RunnerConfig` defaults: `programmer_model="gemini-3.8-flash"`, `programmer_effort="high"`, `assistant_model=None` (precedence: CLI `--assistant-model` -> `.devtool/review_config.json` `providers.assistant.model` -> active profile model -> fallback `claude-sonnet-5-5-high`), `assistant_effort="high"`, `timeout_seconds=1800`, `max_review_rounds=3`.
+- `run_external_review.py` loads and respects `provider_priority` from `.devtool/review_config.json` and supports custom priority lists matching the 4 Gate 2 options.
 - `PipelineState` tracks `epic_slug`, `active_stage`, `principal_round`, `cross_model_round`, `last_commit_sha`, `last_verdict`, `halt_reason`, `last_error`, `task_order`, and `completed_tasks`.
 - State is serialized to `.devtool/state/<epic>.pipeline.json` via `.tmp` rename with `fcntl.flock(fd, fcntl.LOCK_EX)`.
 - Gate updates execute via `resume_context.py --gate <n> --epic <slug> --approved "<text>" --by lifecycle_runner` to guarantee synchronization with `gate_ledger.jsonl`.

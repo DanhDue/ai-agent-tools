@@ -104,9 +104,9 @@ And execution resumes from the exact interrupted task without re-running complet
 Scenario: [ALR-ST-02] [Tier C - Integration] Gate Ledger synchronization on autonomous state transitions
 
 Given the pipeline progresses autonomously through Stage 2 and Stage 3
-When each gate milestone (Gate 3, Gate 4, Gate 5 candidate) is achieved
+When each gate milestone (Gate 3 and Gate 4) is achieved
 Then .devtool/GATE_LEDGER.md is updated with the timestamp, candidate SHA, and auto-approval metadata
-And the ledger status remains strictly in sync with .devtool/state/<epic>.pipeline.json
+And Gate 5 candidate readiness is recorded in .devtool/state/<epic>.pipeline.json awaiting explicit human finish sign-off
 
 Scenario: [ALR-ST-03] [Tier C - Integration] Probing verifies model capabilities before state initialization
 

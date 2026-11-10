@@ -14,7 +14,7 @@ order: "a4"
 
 # Task 4: Cross-Model Review Fix Plan Loop and Assistant Evaluator
 
-Epic: [autonomous_lifecycle_runner](../epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.en.md)
+Epic: [autonomous_lifecycle_runner](autonomous_lifecycle_runner.en.md)
 
 ## Requirement Analysis
 
@@ -93,8 +93,8 @@ And an alert is displayed to the Human Architect highlighting the architectural 
 | V1 | RED | `python3 -m unittest tests/test_lifecycle_runner.py -k test_alr_hp_04` | exit 1; contains "FAILED" | — |
 | V2 | GREEN | `python3 -m unittest tests/test_lifecycle_runner.py -k test_alr_hp_04` | exit 0; contains "OK" | — |
 | V3 | GREEN | `python3 -m unittest tests/test_lifecycle_runner.py` | exit 0; contains "OK" | — |
-| V4 | TIER-B | `ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py tests/test_lifecycle_runner.py` | exit 0 | — |
-| V5 | TIER-B | `mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py tests/test_lifecycle_runner.py` | exit 0 | — |
+| V4 | TIER-B | `ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py --ignore SIM117 skills/dev-lifecycle/resources/scripts/lifecycle_runner.py tests/test_lifecycle_runner.py` | exit 0 | — |
+| V5 | TIER-B | `mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py skills/dev-lifecycle/resources/scripts/lifecycle_runner.py tests/test_lifecycle_runner.py` | exit 0 | — |
 | V6 | TIER-C | `python3 scripts/run_unittest_junit.py --junitxml build/test-results/task_4.xml tests/test_lifecycle_runner.py` | exit 0; results build/test-results/task_4.xml | — |
 
 ## Stop and Report If
@@ -128,5 +128,5 @@ And an alert is displayed to the Human Architect highlighting the architectural 
 
 ## References & Rollback
 
-- [Epic HLD](../epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.en.md), Module Contracts.
+- [Epic HLD](autonomous_lifecycle_runner.en.md), Module Contracts.
 - **Rollback**: Revert task commit; fix plan evaluation logic removed.

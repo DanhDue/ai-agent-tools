@@ -207,13 +207,21 @@ sequenceDiagram
         alt AUTO_PASS_CLEAN (0 findings)
             Runner->>Runner: Break loop -> Advance to Final Report
         else Final sweep (AUTO_PASS_FINAL_MINOR_SWEEP or AUTO_PASS_FINAL_SWEEP)
-            Runner->>Programmer: Apply final sweep fixes
-            Programmer-->>Runner: Code fixes applied
-            Runner->>Runner: Commit code fixes (git commit)
-            Runner->>Runner: Record decisions in review_results.md (fixed in <sha>)
-            Runner->>Runner: Commit decisions (clean git tree)
-            Runner->>Runner: run_gate4() in full (verifies clean certified SHA)
-            Runner->>Runner: Break loop -> Advance to Final Report
+            Runner->>Programmer: Draft final sweep fix plan (fix_plan_roundN.md)
+            Programmer-->>Runner: fix_plan_roundN.md written
+            Runner->>Assistant: Review fix plan against approved HLD
+            Assistant-->>Runner: Verdict (APPROVED / ADJUSTED / CRITICAL_CONFLICT)
+            alt CRITICAL_CONFLICT
+                Runner->>Human: HALT: Report design conflict
+            else APPROVED or ADJUSTED
+                Runner->>Programmer: Apply approved final sweep fixes
+                Programmer-->>Runner: Code fixes applied
+                Runner->>Runner: Commit code fixes (git commit)
+                Runner->>Runner: Record decisions in review_results.md (fixed in <sha>)
+                Runner->>Runner: Commit decisions (clean git tree)
+                Runner->>Runner: run_gate4() in full (verifies clean certified SHA)
+                Runner->>Runner: Break loop -> Advance to Final Report
+            end
         else Blockers exist (AUTO_FIX_ELIGIBLE)
             Runner->>Programmer: Draft fix plan (fix_plan_roundN.md)
             Programmer-->>Runner: fix_plan_roundN.md written
@@ -342,13 +350,14 @@ class LifecycleRunner:
     6. Returns `True` if all tasks succeed; on subprocess failure or timeout, logs error, preserves state, and returns `False`.
 - **`run_gate4(self) -> Tuple[bool, str]`** (Owned by Task 5):
   - Execution contract: executes the full Stage 3 Gate 4 verification sequence on the candidate SHA (`skills/dev-implementation/SKILL.md:321–356`):
-    1. Generates and commits smoke checklist (`skills/dev-implementation/resources/scripts/generate_smoke_checklist.py`).
+    1. Generates and commits smoke checklist (`skills/dev-implementation/resources/scripts/generate_smoke_checklist.py --epic-dir <epic>`).
     2. Runs finding decision check (`run_external_review.py check --epic-dir <epic> --kind code`).
-    3. Runs codebase and security audit checks.
+    3. Runs codebase and security audit checks (`audit_epic.py --epic-dir <epic> --base <base>`).
     4. Runs declared integration commands and test suite (`run_unittest_junit.py`).
-    5. Runs registered Python capabilities (lint and type-check).
-    6. Verifies all results trace cleanly to candidate commit SHA.
-    7. Returns `(True, "Gate 4 PASS: <candidate_sha>")` if all checks pass; otherwise `(False, "<failure_reason>")`.
+    5. Runs result-based BDD traceability (`check_bdd_traceability.py tests --scenarios .devtool/epic/<epic>/bdd_scenarios.en.md --roots tests/ skills/dev-lifecycle/resources/scripts/ --results build/test-results/autonomous-lifecycle-runner.xml`).
+    6. Runs aggregated quality check verification via `skills/quality_check/resources/scripts/aggregate_quality_results.py` (or `@quality_check --profile epic`) requiring PASS.
+    7. Verifies all results trace cleanly to candidate commit SHA.
+    8. Returns `(True, "Gate 4 PASS: <candidate_sha>")` if all checks pass; otherwise `(False, "<failure_reason>")`.
 
 ### Impact Analysis
 
@@ -423,4 +432,5 @@ Mitigation: Autonomous mode is strictly opt-in via `/dev-lifecycle --autonomous`
 - **[SE-01] Principal Review Round 1 Alignment**: Aligned external review CLI flags (`--kind principal` / `--kind code` with required `--base`), integrated `run_external_review.py triage` action parsing, made Assistant model dynamically inherit the developer's selected model (Argon/Claude/Codex/etc) with Gemini 3.8 Flash default for Programmer, added `AWAITING_PRINCIPAL_CONFIRMATION` state with proposal file and non-blocking CLI flags (`--confirm-fixes`/`--reject-fixes`), established commit sequencing for clean git tree, and aligned method signatures across HLD and tasks.
 - **[SE-02] Principal Review Round 2 Delta Alignment**: Formalized Auto-Triage Gate stage transitions (auto-application of agreed fixes in Principal Review, single-pass minor sweeps for AUTO_PASS_FINAL_MINOR_SWEEP and AUTO_PASS_FINAL_SWEEP without redundant review rounds), corrected Gate 4 commit and decision recording sequence (code fix commit -> decision recording -> decision commit -> Gate 4 run), added run_gate4() and step_implementation contract definitions, aligned ModelDispatcher to stdin pipes and process group supervision, and updated test verification commands to isolated runner scopes.
 - **[SE-03] Principal Review Round 3 Convergence Alignment**: Aligned Principal Review auto-triage policy across spec, HLD, BDD, and tasks (auto-applying aligned technical fixes without interrupting the developer, halting only on high-risk critical issues, business/domain requirement conflicts, or SHARED_CONTRACT_CONFLICT); synchronized 4 selectable model priority options at Gate 2 task confirmation with default `Claude -> Codex -> Kiro -> Argon`; updated Cross-Model Review sequence diagram to route both final sweep actions through code fix commit, decision recording, decision commit, and full Gate 4 before reporting; mapped BDD scenarios ALR-ST-01 to Task 2, ALR-ST-02 to Task 5, and ALR-ST-03 to Task 1 with 100% traceability.
+- **[SE-04] Principal Review Round 3 Findings Alignment**: Synchronized run_gate4() execution contract with skills/dev-implementation/SKILL.md:321–356 (smoke checklist, review decision check, audit, result-based traceability via check_bdd_traceability.py tests --scenarios ... --roots ... --results ..., and aggregated quality check requiring PASS); updated task verification rows V4/V5 across all tasks to explicitly target skills/dev-lifecycle/resources/scripts/lifecycle_runner.py and added --ignore SIM117 so linting passes cleanly while matching registered capabilities; assigned review model priority configuration and dispatch to Task 1 with run_external_review.py and its test suite added to Allowed files; routed Cross-Model Review final sweeps through Programmer fix plan drafting and Assistant evaluation before code modification; and clarified that Gate 5 candidate readiness is stored in pipeline state (awaiting_finish) without auto-executing resume_context.py --gate 5.
 

@@ -104,9 +104,9 @@ And việc thực thi tiếp tục từ đúng task bị ngắt quãng mà khôn
 Scenario: [ALR-ST-02] [Tier C - Integration] Đồng bộ Gate Ledger trên các chuyển đổi trạng thái tự động
 
 Given pipeline tiến triển tự động qua Giai đoạn 2 và Giai đoạn 3
-When mỗi cột mốc cổng (Gate 3, Gate 4, ứng viên Gate 5) đạt được
+When mỗi cột mốc cổng (Gate 3 và Gate 4) đạt chuẩn
 Then .devtool/GATE_LEDGER.md được cập nhật dấu thời gian, candidate SHA, và siêu dữ liệu tự động duyệt
-And trạng thái ledger duy trì sự đồng bộ nghiêm ngặt với .devtool/state/<epic>.pipeline.json
+And trạng thái ứng viên Gate 5 được ghi nhận trong .devtool/state/<epic>.pipeline.json chờ con người phê duyệt hoàn thành
 
 Scenario: [ALR-ST-03] [Tier C - Integration] Thăm dò xác minh năng lực model trước khi khởi tạo trạng thái
 

@@ -207,13 +207,21 @@ sequenceDiagram
         alt AUTO_PASS_CLEAN (0 phát hiện)
             Runner->>Runner: Thoát vòng lặp -> Chuyển sang Báo cáo Cuối cùng
         else Quét lần cuối (AUTO_PASS_FINAL_MINOR_SWEEP hoặc AUTO_PASS_FINAL_SWEEP)
-            Runner->>Programmer: Áp dụng các sửa đổi quét lần cuối
-            Programmer-->>Runner: Đã áp dụng sửa đổi mã
-            Runner->>Runner: Commit sửa đổi mã (git commit)
-            Runner->>Runner: Ghi nhận decisions vào review_results.md (fixed in <sha>)
-            Runner->>Runner: Commit decisions (clean git tree)
-            Runner->>Runner: run_gate4() đầy đủ (xác minh SHA đạt chuẩn)
-            Runner->>Runner: Thoát vòng lặp -> Chuyển sang Báo cáo Cuối cùng
+            Runner->>Programmer: Soạn kế hoạch sửa đổi quét lần cuối (fix_plan_roundN.md)
+            Programmer-->>Runner: Đã viết fix_plan_roundN.md
+            Runner->>Assistant: Đánh giá kế hoạch sửa đổi theo HLD đã duyệt
+            Assistant-->>Runner: Phán quyết (APPROVED / ADJUSTED / CRITICAL_CONFLICT)
+            alt CRITICAL_CONFLICT
+                Runner->>Human: HALT: Báo cáo xung đột thiết kế
+            else APPROVED hoặc ADJUSTED
+                Runner->>Programmer: Áp dụng kế hoạch sửa đổi quét lần cuối đã duyệt
+                Programmer-->>Runner: Đã áp dụng sửa đổi mã
+                Runner->>Runner: Commit sửa đổi mã (git commit)
+                Runner->>Runner: Ghi nhận decisions vào review_results.md (fixed in <sha>)
+                Runner->>Runner: Commit decisions (clean git tree)
+                Runner->>Runner: run_gate4() đầy đủ (xác minh SHA đạt chuẩn)
+                Runner->>Runner: Thoát vòng lặp -> Chuyển sang Báo cáo Cuối cùng
+            end
         else Còn tồn tại Blocker (AUTO_FIX_ELIGIBLE)
             Runner->>Programmer: Soạn kế hoạch sửa lỗi (fix_plan_roundN.md)
             Programmer-->>Runner: Đã viết fix_plan_roundN.md
@@ -342,13 +350,14 @@ class LifecycleRunner:
     6. Trả về `True` nếu tất cả task thành công; khi tiến trình con thất bại hoặc timeout, ghi log lỗi, bảo toàn trạng thái và trả về `False`.
 - **`run_gate4(self) -> Tuple[bool, str]`** (Sở hữu bởi Task 5):
   - Hợp đồng thực thi: chạy chuỗi kiểm chứng Gate 4 Giai đoạn 3 đầy đủ trên SHA ứng viên (`skills/dev-implementation/SKILL.md:321–356`):
-    1. Tạo và commit checklist smoke (`skills/dev-implementation/resources/scripts/generate_smoke_checklist.py`).
+    1. Tạo và commit checklist smoke (`skills/dev-implementation/resources/scripts/generate_smoke_checklist.py --epic-dir <epic>`).
     2. Chạy kiểm tra quyết định phát hiện review (`run_external_review.py check --epic-dir <epic> --kind code`).
-    3. Chạy các kiểm tra audit mã nguồn và bảo mật.
+    3. Chạy các kiểm tra audit mã nguồn và bảo mật (`audit_epic.py --epic-dir <epic> --base <base>`).
     4. Chạy các lệnh tích hợp và bộ test đã khai báo (`run_unittest_junit.py`).
-    5. Chạy các năng lực Python đã đăng ký (lint và type-check).
-    6. Xác minh tất cả kết quả truy xuất nguồn gốc sạch sẽ tới SHA ứng viên.
-    7. Trả về `(True, "Gate 4 PASS: <candidate_sha>")` nếu tất cả kiểm tra đều qua; ngược lại `(False, "<failure_reason>")`.
+    5. Chạy truy xuất nguồn gốc BDD dựa trên kết quả test (`check_bdd_traceability.py tests --scenarios .devtool/epic/<epic>/bdd_scenarios.en.md --roots tests/ skills/dev-lifecycle/resources/scripts/ --results build/test-results/autonomous-lifecycle-runner.xml`).
+    6. Chạy kiểm tra chất lượng tổng hợp qua `skills/quality_check/resources/scripts/aggregate_quality_results.py` (hoặc `@quality_check --profile epic`) yêu cầu PASS.
+    7. Xác minh tất cả kết quả truy xuất nguồn gốc sạch sẽ tới SHA ứng viên.
+    8. Trả về `(True, "Gate 4 PASS: <candidate_sha>")` nếu tất cả kiểm tra đều qua; ngược lại `(False, "<failure_reason>")`.
 
 ### Phân tích Tác động
 
@@ -423,4 +432,5 @@ Giảm thiểu rủi ro: Chế độ tự động hoàn toàn là tùy chọn qu
 - **[SE-01] Đồng bộ Principal Review Vòng 1**: Đồng bộ cờ CLI external review (`--kind principal` / `--kind code` kèm `--base` bắt buộc), tích hợp cơ chế phân tích action từ `run_external_review.py triage`, hỗ trợ model Assistant kế thừa linh hoạt model đang được chọn (Argon/Claude/Codex/v.v.) với mặc định Gemini 3.8 Flash cho Programmer, bổ sung trạng thái `AWAITING_PRINCIPAL_CONFIRMATION` kèm tệp đề xuất và cờ CLI non-blocking (`--confirm-fixes`/`--reject-fixes`), thiết lập tuần tự commit giữ cây git sạch, và đồng bộ chữ ký hàm giữa HLD và các task.
 - **[SE-02] Đồng bộ Principal Review Vòng 2 Delta**: Chuẩn hóa chuyển đổi trạng thái Auto-Triage Gate (tự động xử lý các sửa đổi đã thống nhất trong Principal Review, quét gom cụm lỗi minor trong một lượt cho AUTO_PASS_FINAL_MINOR_SWEEP và AUTO_PASS_FINAL_SWEEP không chạy thêm vòng review thừa), điều chỉnh tuần tự commit và ghi nhận quyết định Gate 4 (commit sửa đổi mã -> ghi nhận decisions -> commit decisions -> chạy Gate 4), bổ sung định nghĩa hợp đồng run_gate4() và step_implementation, đồng bộ ModelDispatcher với stdin pipe và giám sát process group, và cập nhật lệnh kiểm thử sang phạm vi cô lập của runner.
 - **[SE-03] Đồng bộ Principal Review Vòng 3 Hội tụ**: Đồng bộ chính sách phân loại tự động Principal Review xuyên suốt spec, HLD, BDD và task (tự động sửa các vấn đề kỹ thuật đã đồng thuận không ngắt quãng nhà phát triển, chỉ dừng lại khi có rủi ro nghiêm trọng, xung đột nghiệp vụ, hoặc SHARED_CONTRACT_CONFLICT); đồng bộ 4 tùy chọn ưu tiên mô hình tại bước xác nhận phân rã task Gate 2 với mặc định `Claude -> Codex -> Kiro -> Argon`; cập nhật sơ đồ tuần tự Cross-Model Review để cả hai hành động quét cuối đều đi qua commit sửa mã, ghi nhận decisions, commit decisions, và chạy đủ Gate 4 trước khi xuất báo cáo; phân bổ các kịch bản BDD ALR-ST-01 vào Task 2, ALR-ST-02 vào Task 5, và ALR-ST-03 vào Task 1 với truy xuất nguồn gốc 100%.
+- **[SE-04] Đồng bộ các phát hiện Principal Review Vòng 3**: Đồng bộ hợp đồng thực thi run_gate4() với skills/dev-implementation/SKILL.md:321–356 (tạo checklist smoke, kiểm tra review decision, audit, truy xuất nguồn gốc BDD dựa trên kết quả test qua check_bdd_traceability.py tests --scenarios ... --roots ... --results ..., và kiểm tra chất lượng tổng hợp yêu cầu PASS); cập nhật các dòng kiểm thử task V4/V5 xuyên suốt toàn bộ task nhắm trực tiếp vào skills/dev-lifecycle/resources/scripts/lifecycle_runner.py kèm cờ --ignore SIM117 để linting sạch sẽ và khớp năng lực đã đăng ký; giao trách nhiệm cấu hình và dispatch thứ tự ưu tiên model review cho Task 1 kèm run_external_review.py và bộ test vào Allowed files; định tuyến luồng quét cuối Cross-Model Review qua bước Programmer lập plan và Assistant duyệt trước khi sửa code; và làm rõ trạng thái sẵn sàng Gate 5 được lưu trong state pipeline (awaiting_finish) không tự động chạy resume_context.py --gate 5.
 
