@@ -14,7 +14,7 @@
 ## Status
 
 - **Packaged**: 2026-11-10
-- **Design commit**: `c52e7c4`
+- **Design commit**: `fe1fd99`
 - **Base branch**: `main`
 - **Gates passed**: 1 (spec), 2 (HLD and task breakdown)
 - **Next**: Stage 3, `dev-implementation`. Gate 3 (execution order) still needs the developer's confirmation.
@@ -70,11 +70,12 @@ None
 - **2026-11-10 (`6ad5af4` -> `6bad2b5`)**: Revise after Principal Review round 1
 - **2026-11-10 (`6bad2b5` -> `c7d1838`)**: Revise after Principal Review round 2 delta
 - **2026-11-10 (`c7d1838` -> `c52e7c4`)**: Align auto-triage policy, model priority, and task contracts for Principal Review Round 3
+- **2026-11-10 (`c52e7c4` -> `fe1fd99`)**: Apply Round 3 revisions and prepare for Round 4 convergence
 
 ## Rules for the Receiving Agent
 
 - Do not re-run `dev-brainstorming` or `dev-designer`. Raise a wrong or missing document at Gate 3.
 - This handoff does not pass Gate 3. The developer confirms the execution order.
-- Unless the design commit is `uncommitted`: if `git log c52e7c4..main -- .devtool/epic/autonomous_lifecycle_runner` lists any commit besides the `Package epic for handoff` commit, the documents changed after packaging. The documents win, and this file may be stale. Comparing against the base branch keeps the epic branch's own task commits out of the check.
+- Unless the design commit is `uncommitted`: if `git log fe1fd99..main -- .devtool/epic/autonomous_lifecycle_runner` lists any commit besides the `Package epic for handoff` commit, the documents changed after packaging. The documents win, and this file may be stale. Comparing against the base branch keeps the epic branch's own task commits out of the check.
 - This file is updated only by `package_epic.py --revise`, which records each re-anchoring under `## Revisions`.
 - Never edit a task's Verification table, Definition of Done, Allowed files or a protected path; stop and report.
