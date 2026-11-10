@@ -8473,3 +8473,7878 @@ Verdict: CHANGES REQUIRED
 tokens used
 165,285
 `````
+
+## Round 3
+
+- **Date**: 2026-11-10T23:15:37Z
+- **SHA**: a2b1b525fa74a44c21b9b5aaafeb1078a95f383e
+- **Base**: main
+- **CLI**: codex
+- **Model**: gpt-6.1-sol
+- **Thinking**: high
+- **Status**: completed
+- **Verdict**: CHANGES REQUIRED
+- **Kind**: principal
+- **Scope**: convergence from round 2 (b86ce2b)
+
+| # | Severity | Location | Problem | Decision |
+|---|----------|----------|---------|----------|
+| 1 | Important | .devtool/epic/autonomous_lifecycle_runner/task_5_orchestrator_cli_and_governance_rules.md:122, and autonomous_lifecycle_runner.en.md:343–351 | [INCOMPLETE_FIX] Round 2 #3: Gate 4 remains incomplete. The frozen `check_bdd_traceability.py results` command exits 2; the actual interface is `tests --results` (check_bdd_traceability.py:228–238). The contract also substitutes selected Python checks for the required SHA-bound, aggregated `quality_check` epic verdict (skills/dev-implementation/SKILL.md:337–356); the registered epic profile includes format, test, and architecture capabilities (.agents/quality/python-quality.json:12). Proposed: synchronize both contracts around smoke generation, decision checks, audit, integration execution, result traceability, and a defined headless quality-check invocation accepting only an aggregated PASS for the candidate SHA. | fixed in f791c6a: synchronized run_gate4() contract with SKILL.md:321-356 across HLD and task 5 |
+| 2 | Important | .devtool/epic/autonomous_lifecycle_runner/task_1_pipeline_state_machine_and_probing.md:79–80; equivalent V4/V5 rows in tasks 2–5 | [INCOMPLETE_FIX] Round 2 #5: the verification commands remain unchanged in both task copies. A cache-disabled probe still produces 12 SIM117 failures outside Allowed files, including tests/test_agy_quota.py:32 and tests/test_claude_quota.py:91. Neither row targets lifecycle_runner.py. Proposed: apply the previously accepted isolated runner/test lint and type-check commands to all five task contracts and their feature copies. | fixed in f791c6a: targeted lifecycle_runner.py in V4/V5 across all tasks with --ignore SIM117 |
+| 3 | Important | .devtool/epic/autonomous_lifecycle_runner/2026-11-10-autonomous-lifecycle-runner-design.en.md:Human Checkpoints, item 2; autonomous_lifecycle_runner.en.md:425 | [NEW_REGRESSION] The four selectable reviewer priorities have no implementing task contract. The referenced loader discards custom `provider_priority` values, and quota selection iterates the fixed constant (run_external_review.py:103–125, 213–233). Probes confirm that Codex-first configuration still selects Claude and sticky persistence restores Claude-first order. Proposed: assign priority selection, persistence, and quota dispatch to a task, adding run_external_review.py and its existing test suite to Allowed files; synchronize the Gate 2 selection documentation. | fixed in f791c6a: assigned review model priority loading and dispatch to Task 1 with run_external_review.py in Allowed files |
+| 4 | Important | .devtool/epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.en.md:Sequence Diagram, 209–215; corresponding Vietnamese section | [NEW_REGRESSION] The new final-sweep branch dispatches code fixes without Programmer plan drafting or Assistant approval. AUTO_PASS_FINAL_SWEEP can contain Important findings (run_external_review.py:1668–1672), so this bypasses the supervision required by task 4:25–28 and ALR-FR-04 before source modification. Proposed: route final sweeps through the existing plan evaluation and CRITICAL_CONFLICT guard, retaining the accepted commit sequence, full Gate 4, and prohibition on a fourth review round. | fixed in f791c6a: routed Cross-Model Review final sweep through fix plan drafting and Assistant evaluation in HLD Sequence Diagram |
+| 5 | Important | .devtool/epic/autonomous_lifecycle_runner/task_5_orchestrator_cli_and_governance_rules.md:126 | [NEW_REGRESSION] Recording “Gate 5 candidate approvals” through `resume_context.py --gate 5` conflates readiness with human approval, violating HLD Non-Goals:56. The writer stores an approval entry (scripts/resume_context.py:841–852), and the reader accepts any matching gate entry without distinguishing candidate readiness (892–902), confirmed by an in-memory probe. Proposed: retain candidate readiness in pipeline state and record Gate 5 approval only after explicit human sign-off; clarify ALR-ST-02 accordingly. | fixed in f791c6a: clarified Gate 5 candidate readiness tracked strictly in pipeline state (awaiting_finish) in task 5 and ALR-ST-02 |
+| 6 | Minor | .devtool/epic/autonomous_lifecycle_runner/task_2_subprocess_dispatcher_and_headless_agy.md:32–33; equivalent Allowed files entries in tasks 3–5 | [INCOMPLETE_FIX] Round 2 #9: runner and test paths remain marked `(new)` although task 1 creates them. Proposed: remove those annotations from tasks 2–5 and their feature copies. | dismissed: check_task_contract.py:145-155 mechanically requires (new) on untracked files across all tasks until committed in git |
+
+Raw output:
+
+`````text
+Reviewed `a2b1b525fa74a44c21b9b5aaafeb1078a95f383e` with read-only source and runtime probes. The worktree remains unchanged.
+
+Verdict: CHANGES REQUIRED
+
+[Important] .devtool/epic/autonomous_lifecycle_runner/task_5_orchestrator_cli_and_governance_rules.md:122, and autonomous_lifecycle_runner.en.md:343–351 — [INCOMPLETE_FIX] Round 2 #3: Gate 4 remains incomplete. The frozen `check_bdd_traceability.py results` command exits 2; the actual interface is `tests --results` (check_bdd_traceability.py:228–238). The contract also substitutes selected Python checks for the required SHA-bound, aggregated `quality_check` epic verdict (skills/dev-implementation/SKILL.md:337–356); the registered epic profile includes format, test, and architecture capabilities (.agents/quality/python-quality.json:12). Proposed: synchronize both contracts around smoke generation, decision checks, audit, integration execution, result traceability, and a defined headless quality-check invocation accepting only an aggregated PASS for the candidate SHA.
+
+[Important] .devtool/epic/autonomous_lifecycle_runner/task_1_pipeline_state_machine_and_probing.md:79–80; equivalent V4/V5 rows in tasks 2–5 — [INCOMPLETE_FIX] Round 2 #5: the verification commands remain unchanged in both task copies. A cache-disabled probe still produces 12 SIM117 failures outside Allowed files, including tests/test_agy_quota.py:32 and tests/test_claude_quota.py:91. Neither row targets lifecycle_runner.py. Proposed: apply the previously accepted isolated runner/test lint and type-check commands to all five task contracts and their feature copies.
+
+[Important] .devtool/epic/autonomous_lifecycle_runner/2026-11-10-autonomous-lifecycle-runner-design.en.md:Human Checkpoints, item 2; autonomous_lifecycle_runner.en.md:425 — [NEW_REGRESSION] The four selectable reviewer priorities have no implementing task contract. The referenced loader discards custom `provider_priority` values, and quota selection iterates the fixed constant (run_external_review.py:103–125, 213–233). Probes confirm that Codex-first configuration still selects Claude and sticky persistence restores Claude-first order. Proposed: assign priority selection, persistence, and quota dispatch to a task, adding run_external_review.py and its existing test suite to Allowed files; synchronize the Gate 2 selection documentation.
+
+[Important] .devtool/epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.en.md:Sequence Diagram, 209–215; corresponding Vietnamese section — [NEW_REGRESSION] The new final-sweep branch dispatches code fixes without Programmer plan drafting or Assistant approval. AUTO_PASS_FINAL_SWEEP can contain Important findings (run_external_review.py:1668–1672), so this bypasses the supervision required by task 4:25–28 and ALR-FR-04 before source modification. Proposed: route final sweeps through the existing plan evaluation and CRITICAL_CONFLICT guard, retaining the accepted commit sequence, full Gate 4, and prohibition on a fourth review round.
+
+[Important] .devtool/epic/autonomous_lifecycle_runner/task_5_orchestrator_cli_and_governance_rules.md:126 — [NEW_REGRESSION] Recording “Gate 5 candidate approvals” through `resume_context.py --gate 5` conflates readiness with human approval, violating HLD Non-Goals:56. The writer stores an approval entry (scripts/resume_context.py:841–852), and the reader accepts any matching gate entry without distinguishing candidate readiness (892–902), confirmed by an in-memory probe. Proposed: retain candidate readiness in pipeline state and record Gate 5 approval only after explicit human sign-off; clarify ALR-ST-02 accordingly.
+
+[Minor] .devtool/epic/autonomous_lifecycle_runner/task_2_subprocess_dispatcher_and_headless_agy.md:32–33; equivalent Allowed files entries in tasks 3–5 — [INCOMPLETE_FIX] Round 2 #9: runner and test paths remain marked `(new)` although task 1 creates them. Proposed: remove those annotations from tasks 2–5 and their feature copies.
+
+
+
+--- stderr ---
+OpenAI Codex v0.167.0
+--------
+workdir: /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/autonomous_lifecycle_runner
+model: gpt-6.1-sol
+provider: openai
+approval: never
+sandbox: read-only
+reasoning effort: high
+reasoning summaries: none
+session id: 01a1c7bb-d84e-7330-a40c-939fa7f321f2
+--------
+user
+# Principal Review Prompt
+
+You are the Principal Reviewer who signs off this architectural design before implementation. You are strictly read-only: do not modify, create, or delete any file, and do not run commands that write to the repository or alter git state. Read the artefacts, inspect the source at `a2b1b525fa74a44c21b9b5aaafeb1078a95f383e`, and report.
+
+## Candidate
+
+- Commit under review: `a2b1b525fa74a44c21b9b5aaafeb1078a95f383e`
+- Base the branch diverged from: `main`
+- Base commit: `0b89f8b8008167058f1849277a6e953abf41ba6a`
+- Target path / Epic directory: `.devtool/epic/autonomous_lifecycle_runner`
+
+## Artefacts
+
+Read these paths, relative to the repository root:
+
+- `.devtool/epic/autonomous_lifecycle_runner/2026-11-10-autonomous-lifecycle-runner-design.en.md`
+- `.devtool/epic/autonomous_lifecycle_runner/2026-11-10-autonomous-lifecycle-runner-design.vi.md`
+- `.devtool/epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.en.md`
+- `.devtool/epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.vi.md`
+- `.devtool/epic/autonomous_lifecycle_runner/bdd_scenarios.en.md`
+- `.devtool/epic/autonomous_lifecycle_runner/bdd_scenarios.vi.md`
+- `.devtool/epic/autonomous_lifecycle_runner/task_1_pipeline_state_machine_and_probing.md`
+- `.devtool/epic/autonomous_lifecycle_runner/task_2_subprocess_dispatcher_and_headless_agy.md`
+- `.devtool/epic/autonomous_lifecycle_runner/task_3_principal_review_automation_and_checkpoint.md`
+- `.devtool/epic/autonomous_lifecycle_runner/task_4_cross_model_review_fix_plan_loop.md`
+- `.devtool/epic/autonomous_lifecycle_runner/task_5_orchestrator_cli_and_governance_rules.md`
+- `.devtool/epic/autonomous_lifecycle_runner/handoff.md`
+
+## Readiness facts
+
+Epic: autonomous_lifecycle_runner (autonomous_lifecycle_runner), 5 tasks
+R1 PASS
+R2 PASS
+R3 PASS
+R4 PASS
+R5 PASS
+R6 PASS
+R7 PASS
+R8 SKIP
+Result: 0 FAIL, 0 WARN — PASS
+
+The readiness report is already proven: all facts above have passed their mechanical checks; do not restate them, spend your review on judgement, architecture, and source grounding.
+
+## Round Scope: Convergence Mode (Round 3)
+
+You are in Round 3+ Convergence Mode. ONLY report (a) incomplete fixes from previous rounds, or (b) NEW Critical/Important regressions directly introduced by the latest fix commit (`b86ce2b945e3..a2b1b525fa74`). DO NOT report new Minor/stylistic findings on untouched code.
+
+### Cross-Provider Handoff & Anti-Ping-Pong Guardrail
+
+- **Previous Reviewer**: `codex` (`gpt-6.1-sol`) at `b86ce2b`
+- **Current Reviewer**: `codex` (`gpt-6.1-sol`) at `a2b1b52`
+- **Shared Context Continuity & Anti-Ping-Pong Rule**: You are running in a new stateless session following a prior review round. Strictly honor all `dismissed: <rationale>` decisions and `fixed in <sha>` resolutions recorded in the Shared Context Ledger below. Do NOT ask to revert or rewrite a prior round's accepted fix (zero solution ping-pong) unless it introduces an objective runtime defect or violates a frozen contract in the approved HLD / `bdd_scenarios.en.md` / `Decisions Already Made`.
+
+### Previously Fixed Locations Registry (Verify-Then-Close)
+
+- `.devtool/epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.en.md:High-Level Architecture and Sequence Diagram (and task_3 Requirement Analysis item 1)` (Round 1 #1, `Important`): `run_external_review.py run --stage principal` does not exist; the CLI takes `--kind {code,principal,epic}` with `--epic-dir` and a required `--base` (run_external_review.py:1760-1 -> `fixed in 04b1ad8`
+- `.devtool/epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.en.md:Module Contracts (`evaluate_circuit_breakers`) and Feature Maintenance Map, task_3/task_4 Requirement Analysis` (Round 1 #2, `Important`): the runner re-derives the Circuit Breakers from fixtures instead of using `run_external_review.py triage`, whose `## Auto-Triage Gate` already emits AUTO_PASS_CLEAN, AUTO_PASS_FINA -> `fixed in 04b1ad8`
+- `.devtool/epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.en.md:Architecture and Technical Design (no commit policy), task_3/task_4 Decisions Already Made` (Round 1 #3, `Important`): `run_external_review.py run` refuses any dirty tree (lines 1241-1243). The runner leaves untracked or modified files between rounds: `.devtool/GATE_LEDGER.md` (not ignored, `.gitig -> `fixed in 04b1ad8`
+- `.devtool/epic/autonomous_lifecycle_runner/task_1_pipeline_state_machine_and_probing.md:Requirement Analysis item 4 (and task_2 Decisions Already Made "records `Gate 3` (Round 1 #4, `Important`): CONFIRMED (autonomous)`") — `GATE_LEDGER.md` is a rendered view of `.devtool/state/gate_ledger.jsonl` (resume_context.py:813-854, 363). On re-render, `hydrate_gate_ledger_jsonl_if_ -> `fixed in 04b1ad8`
+- `.devtool/epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.en.md:Module Contracts `RunnerConfig` (and task_1 Decisions Already Made)` (Round 1 #5, `Important`): the default `assistant_model="claude-3-7-sonnet"` is not in `agy models` on this machine (only `claude-sonnet-5-5-*` / `claude-opus-5-5-*`), so the startup probe always fails witho -> `fixed in 04b1ad8`
+- `.devtool/epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.en.md:Module Contracts `StageName` / `prompt_human_principal_fixes` (and task_3 Decisions Already Made `[Y/N]`)` (Round 1 #6, `Important`): the Human checkpoint is a blocking stdin prompt with no saved state. When an agent launches the runner from `/dev-lifecycle --autonomous` through a bash tool (no TTY, tool timeout) -> `fixed in 04b1ad8`
+- `.devtool/epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.en.md:Module Contracts and Kanban Tasks Breakdown` (Round 1 #7, `Important`): "Execute Gate 4 in full" has no contract or owner. Gate 4 is a multi-step procedure (smoke checklist commit, `run_external_review.py check`, `audit_epic.py`, the Integration result -> `fixed in 04b1ad8`
+- `.devtool/epic/autonomous_lifecycle_runner/task_1_pipeline_state_machine_and_probing.md:BDD SCENARIOS Covers line` (Round 1 #8, `Important`): ALR-ST-01 ("resumes from the exact interrupted task") needs the `step_implementation` dispatch loop, and ALR-ST-02 (Gate 3/4/5 ledger sync) needs Gate 3 auto-order (task_2) and Gat -> `fixed in 04b1ad8`
+- `.devtool/epic/autonomous_lifecycle_runner/task_1_pipeline_state_machine_and_probing.md:Verification V4/V5 (identical rows in task_2..task_5)` (Round 1 #9, `Important`): V4 already fails today with 12 SIM117 errors in `tests/test_agy_quota.py` and `tests/test_claude_quota.py`, which are outside Allowed files (ruff falls back to `~/.config/ruff/ruff -> `fixed in 04b1ad8`
+- `.devtool/epic/autonomous_lifecycle_runner/task_2_subprocess_dispatcher_and_headless_agy.md:Decisions Already Made` (Round 1 #10, `Important`): `os.getpgid(p.pid)` raises ProcessLookupError once the group leader has exited, even while its children still run in the group (probed), so the timeout or cleanup path can crash an -> `fixed in 04b1ad8`
+- `.devtool/epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.en.md:Module Contracts vs Feature Maintenance Map` (Round 1 #11, `Important`): the frozen contract names `step_principal_review` / `step_cross_model_review` and has no `resolve_gate3_order`, while the Maintenance Map, BDD ALR-HP-03 / ALR-EC-01 / ALR-EC-02 and -> `fixed in 04b1ad8`
+- `.devtool/epic/autonomous_lifecycle_runner/task_5_orchestrator_cli_and_governance_rules.md:Files and Requirement Analysis item 2` (Round 1 #12, `Important`): the spec's Testing section requires `scripts/verify.sh` to run the new test, but the script runs a fixed list of suites (lines 303-353) and is only read-only context here. The spec -> `fixed in 04b1ad8`
+- `.devtool/epic/autonomous_lifecycle_runner/bdd_scenarios.en.md:ALR-HP-02` (Round 1 #13, `Minor`): `.devtool/features/task_01.md` does not match the repository's `task_<n>_<slug>.md` naming. Proposed: use `.devtool/features/task_1_<slug>.md` in both BDD variants and task_2. -> `fixed in 04b1ad8`
+- `.devtool/epic/autonomous_lifecycle_runner/handoff.md:Read First and Identifiers` (Round 1 #14, `Minor`): the placeholders `<N>` and `<source spec>` were never filled in, and the Identifiers table repeats the same row. Proposed: re-run `package_epic.py --revise` after fixing the templa -> `fixed in 04b1ad8`
+- `.devtool/epic/autonomous_lifecycle_runner/task_2_subprocess_dispatcher_and_headless_agy.md:Files` (Round 1 #15, `Minor`): tasks 2-5 mark `lifecycle_runner.py` and `tests/test_lifecycle_runner.py` as `(new)` although task_1 creates them. Proposed: drop `(new)` in task_2..task_5. -> `fixed in 04b1ad8`
+- `.devtool/epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.en.md:Feature Maintenance Map (Model Prober & Dispatcher)` (Round 1 #16, `Minor`): `agy models` lists effort-suffixed IDs (`gemini-3.8-flash-high`), so `--model gemini-3.8-flash --effort high` relies on alias resolution. Passing the prompt as an argv value also d -> `fixed in 04b1ad8`
+- `.devtool/epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.en.md:Module Contracts `PipelineState`` (Round 1 #17, `Minor`): ALR-AR-01 says the runner records a timeout failure in pipeline state, but `PipelineState` has no field for it. Proposed: state that timeouts set `halt_reason="DISPATCH_TIMEOUT:<ta -> `fixed in 04b1ad8`
+- `.devtool/epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.en.md:Sequence Diagram, lines 189–190` (Round 2 #1, `Important`): [INCOMPLETE_FIX] Round 1 #2: `AUTO_PASS_FINAL_SWEEP` advances directly to the final report, although the source emits it with unresolved Important findings and requires a final fix -> `fixed in 040fd05`
+- `.devtool/epic/autonomous_lifecycle_runner/task_4_cross_model_review_fix_plan_loop.md:Requirement Analysis item 1 and Decisions Already Made, lines 28 and 115` (Round 2 #2, `Important`): [NEW_REGRESSION] Decisions are written only after Gate 4 passes. Gate 4 first checks review decisions (`skills/dev-implementation/SKILL.md:332–336`), and an empty Important decisio -> `fixed in 040fd05`
+- `.devtool/epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.en.md:Module Contracts, lines 289–301` (Round 2 #3, `Important`): [INCOMPLETE_FIX] Round 1 #7: full Gate 4 still has no executable contract or assigned owner, and no task specifies `step_implementation`’s per-task lifecycle protocol. Task 4 newly -> `fixed in 040fd05`
+- `.devtool/epic/autonomous_lifecycle_runner/task_1_pipeline_state_machine_and_probing.md:BDD SCENARIOS and Definition of Done, lines 53–69 and 119` (Round 2 #4, `Important`): [INCOMPLETE_FIX] Round 1 #8: task 1 still must pass interrupted-task execution and Gate 3/4/5 synchronization before the dispatcher, execution loop and later gates exist. Adding th -> `fixed in 040fd05`
+- `.devtool/epic/autonomous_lifecycle_runner/task_1_pipeline_state_machine_and_probing.md:Verification V4/V5, lines 94–95; equivalent rows in tasks 2–5` (Round 2 #5, `Important`): [INCOMPLETE_FIX] Round 1 #9: these rows remain unchanged. The existing V4 target set still produces 12 SIM117 errors outside Allowed files, including `tests/test_agy_quota.py:32` a -> `fixed in 040fd05`
+- `.devtool/epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.en.md:RunnerConfig, line 254; task_1 Decisions Already Made, line 112` (Round 2 #6, `Important`): [INCOMPLETE_FIX] Round 1 #5: replacing the obsolete default with `None` leaves the inherited-model resolution contract undefined. The approved source spec still selects the `review -> `fixed in 040fd05`
+- `.devtool/epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.en.md:Feature Maintenance Map, Model Prober & Dispatcher, line 217` (Round 2 #7, `Important`): [INCOMPLETE_FIX] Round 1 #10: this row still mandates `subprocess.run(timeout=...)`, contradicting task 2’s corrected `Popen` process-group supervision. It also retains argv prompt -> `fixed in 040fd05`
+- `.devtool/epic/autonomous_lifecycle_runner/handoff.md:Identifiers and Read First, lines 24–35` (Round 2 #8, `Minor`): [INCOMPLETE_FIX] Round 1 #14: the duplicate identifier rows and literal `<N>` / `<source spec>` placeholders remain after re-anchoring. Proposed: distinguish identifier labels, rep -> `fixed in 040fd05`
+- `.devtool/epic/autonomous_lifecycle_runner/task_2_subprocess_dispatcher_and_headless_agy.md:Allowed files, lines 31–32; equivalent entries in tasks 3–5` (Round 2 #9, `Minor`): [INCOMPLETE_FIX] Round 1 #15: the runner and test remain marked `(new)` although task 1 creates them. Proposed: remove `(new)` from those entries in tasks 2–5. -> `fixed in 040fd05`
+
+1. **Approved-Design Anchoring**: Every verification and finding MUST be anchored strictly to the approved HLD (`.devtool/epic/<epic_dir>/<epic_dir>.en.md`), `bdd_scenarios.en.md`, and `Decisions Already Made` in `task_*.md`.
+2. **Verify-Then-Close on Fixed Locations**: For each finding below marked `fixed in <sha>`, verify whether the revision resolves the original defect at `a2b1b525fa74a44c21b9b5aaafeb1078a95f383e`. If resolved, **close it silently (PASS)** — do NOT propose alternative implementations or secondary refactors on that fix.
+3. **Diff-Hunk Isolation on Fixed Files (No Late Drip-Feed)**: On any file listed in `Previously Fixed Locations Registry`, do NOT report pre-existing issues on untouched functions or lines outside the `prev_sha..sha` diff hunks. You may only report a finding on a previously fixed file if (a) `[INCOMPLETE_FIX]` the original defect remains unresolved, or (b) `[NEW_REGRESSION]` the modified lines in `prev_sha..sha` directly introduce a new Critical/Important bug.
+4. Do not re-raise a finding marked `dismissed:` unless the source contradicts its rationale.
+5. The revision diff below is the primary scope: review the new and edited text/code, and every artefact or source symbol that text/code references or must stay consistent with (P1, P2, P5, P7). Read an unchanged file only to verify such a reference.
+6. Everything else was reviewed in round 2. Skip it, and DO NOT report new Minor findings on untouched code.
+
+### Earlier Rounds Shared Context Ledger (Cumulative Memory)
+
+#### Round 1 (kiro / claude-opus-5.5 at `bd893c7`)
+
+| # | Severity | Location | Problem | Decision |
+|---|---|---|---|---|
+| 1 | Important | .devtool/epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.en.md:High-Level Architecture and Sequence Diagram (and task_3 Requirement Analysis item 1) | `run_external_review.py run --stage principal` does not exist; the CLI takes `--kind {code,principal,epic}` with `--epic-dir` and a required `--base` (run_external_review.py:1760-1763), so the first Stage 2 dispatch exits 2 with an argparse error. Proposed: replace every `--stage principal` with `ru | fixed in 04b1ad8 |
+| 2 | Important | .devtool/epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.en.md:Module Contracts (`evaluate_circuit_breakers`) and Feature Maintenance Map, task_3/task_4 Requirement Analysis | the runner re-derives the Circuit Breakers from fixtures instead of using `run_external_review.py triage`, whose `## Auto-Triage Gate` already emits AUTO_PASS_CLEAN, AUTO_PASS_FINAL_MINOR_SWEEP, AUTO_FIX_ELIGIBLE, AUTO_PASS_FINAL_SWEEP and the three CIRCUIT_BREAKER_HALT actions (run_external_review. | fixed in 04b1ad8 |
+| 3 | Important | .devtool/epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.en.md:Architecture and Technical Design (no commit policy), task_3/task_4 Decisions Already Made | `run_external_review.py run` refuses any dirty tree (lines 1241-1243). The runner leaves untracked or modified files between rounds: `.devtool/GATE_LEDGER.md` (not ignored, `.gitignore:13`), `fix_plan_round<N>.md`, the review ledgers, and the Assistant's revisions. The second review invocation in ei | fixed in 04b1ad8 |
+| 4 | Important | .devtool/epic/autonomous_lifecycle_runner/task_1_pipeline_state_machine_and_probing.md:Requirement Analysis item 4 (and task_2 Decisions Already Made "records `Gate 3 | CONFIRMED (autonomous)`") — `GATE_LEDGER.md` is a rendered view of `.devtool/state/gate_ledger.jsonl` (resume_context.py:813-854, 363). On re-render, `hydrate_gate_ledger_jsonl_if_needed` imports only rows with 7 or more cells (line 285), so a free-text ledger line written by the runner is silently  | fixed in 04b1ad8 |
+| 5 | Important | .devtool/epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.en.md:Module Contracts `RunnerConfig` (and task_1 Decisions Already Made) | the default `assistant_model="claude-3-7-sonnet"` is not in `agy models` on this machine (only `claude-sonnet-5-5-*` / `claude-opus-5-5-*`), so the startup probe always fails without an override. The spec's model source, an `assistant` entry in `.devtool/review_config.json`, is deleted by every revi | fixed in 04b1ad8 |
+| 6 | Important | .devtool/epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.en.md:Module Contracts `StageName` / `prompt_human_principal_fixes` (and task_3 Decisions Already Made `[Y/N]`) | the Human checkpoint is a blocking stdin prompt with no saved state. When an agent launches the runner from `/dev-lifecycle --autonomous` through a bash tool (no TTY, tool timeout), `input()` raises EOFError (probed). A crash or exit while waiting has no stage to resume into. Proposed: add `StageNam | fixed in 04b1ad8 |
+| 7 | Important | .devtool/epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.en.md:Module Contracts and Kanban Tasks Breakdown | "Execute Gate 4 in full" has no contract or owner. Gate 4 is a multi-step procedure (smoke checklist commit, `run_external_review.py check`, `audit_epic.py`, the Integration results commands, `check_bdd_traceability.py --results`, and the agent skill `@quality_check`; dev-implementation/SKILL.md:317 | fixed in 04b1ad8 |
+| 8 | Important | .devtool/epic/autonomous_lifecycle_runner/task_1_pipeline_state_machine_and_probing.md:BDD SCENARIOS Covers line | ALR-ST-01 ("resumes from the exact interrupted task") needs the `step_implementation` dispatch loop, and ALR-ST-02 (Gate 3/4/5 ledger sync) needs Gate 3 auto-order (task_2) and Gate 4 (task_4/task_5). Neither can pass at task_1, so V2, V3 and V6 cannot go green within task_1's scope. Proposed: move  | fixed in 04b1ad8 |
+| 9 | Important | .devtool/epic/autonomous_lifecycle_runner/task_1_pipeline_state_machine_and_probing.md:Verification V4/V5 (identical rows in task_2..task_5) | V4 already fails today with 12 SIM117 errors in `tests/test_agy_quota.py` and `tests/test_claude_quota.py`, which are outside Allowed files (ruff falls back to `~/.config/ruff/ruff.toml` because the repo has no config). V5 fails with `import-not-found` on a test that imports from the hyphenated scri | fixed in 04b1ad8 |
+| 10 | Important | .devtool/epic/autonomous_lifecycle_runner/task_2_subprocess_dispatcher_and_headless_agy.md:Decisions Already Made | `os.getpgid(p.pid)` raises ProcessLookupError once the group leader has exited, even while its children still run in the group (probed), so the timeout or cleanup path can crash and leave orphans, failing the "zero orphan" DoD. The HLD Feature Maintenance Map says `subprocess.run(timeout=...)`, whic | fixed in 04b1ad8 |
+| 11 | Important | .devtool/epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.en.md:Module Contracts vs Feature Maintenance Map | the frozen contract names `step_principal_review` / `step_cross_model_review` and has no `resolve_gate3_order`, while the Maintenance Map, BDD ALR-HP-03 / ALR-EC-01 / ALR-EC-02 and task_2 name `stage_principal_review`, `stage_cross_model_review` and `LifecycleRunner.resolve_gate3_order`. With the st | fixed in 04b1ad8 |
+| 12 | Important | .devtool/epic/autonomous_lifecycle_runner/task_5_orchestrator_cli_and_governance_rules.md:Files and Requirement Analysis item 2 | the spec's Testing section requires `scripts/verify.sh` to run the new test, but the script runs a fixed list of suites (lines 303-353) and is only read-only context here. The spec's Rule Changes require SKILL.md files to point to a reference file for the detail, and no such file is in Allowed files | fixed in 04b1ad8 |
+| 13 | Minor | .devtool/epic/autonomous_lifecycle_runner/bdd_scenarios.en.md:ALR-HP-02 | `.devtool/features/task_01.md` does not match the repository's `task_<n>_<slug>.md` naming. Proposed: use `.devtool/features/task_1_<slug>.md` in both BDD variants and task_2. | fixed in 04b1ad8 |
+| 14 | Minor | .devtool/epic/autonomous_lifecycle_runner/handoff.md:Read First and Identifiers | the placeholders `<N>` and `<source spec>` were never filled in, and the Identifiers table repeats the same row. Proposed: re-run `package_epic.py --revise` after fixing the template fill-in, or write "5 tasks" and the spec filename. | fixed in 04b1ad8 |
+| 15 | Minor | .devtool/epic/autonomous_lifecycle_runner/task_2_subprocess_dispatcher_and_headless_agy.md:Files | tasks 2-5 mark `lifecycle_runner.py` and `tests/test_lifecycle_runner.py` as `(new)` although task_1 creates them. Proposed: drop `(new)` in task_2..task_5. | fixed in 04b1ad8 |
+| 16 | Minor | .devtool/epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.en.md:Feature Maintenance Map (Model Prober & Dispatcher) | `agy models` lists effort-suffixed IDs (`gemini-3.8-flash-high`), so `--model gemini-3.8-flash --effort high` relies on alias resolution. Passing the prompt as an argv value also differs from the existing stdin pattern (run_external_review.py:473-476) and can hit Linux's 128 KiB per-argument limit.  | fixed in 04b1ad8 |
+| 17 | Minor | .devtool/epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.en.md:Module Contracts `PipelineState` | ALR-AR-01 says the runner records a timeout failure in pipeline state, but `PipelineState` has no field for it. Proposed: state that timeouts set `halt_reason="DISPATCH_TIMEOUT:<task>"`, or add a `last_error: Optional[str]` field. | fixed in 04b1ad8 |
+
+### Round 2 findings and decisions (codex / gpt-6.1-sol)
+
+| # | Severity | Location | Problem | Decision |
+|---|---|---|---|---|
+| 1 | Important | .devtool/epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.en.md:Sequence Diagram, lines 189–190 | [INCOMPLETE_FIX] Round 1 #2: `AUTO_PASS_FINAL_SWEEP` advances directly to the final report, although the source emits it with unresolved Important findings and requires a final fix sweep (`skills/dev-implementation/resources/scripts/run_external_review.py:1668–1672`, dynamically confirmed). `AUTO_PASS_FINAL_MINOR_SWEEP` also lacks an explicit transition, while task 3 still requires another review  | fixed in 040fd05 |
+| 2 | Important | .devtool/epic/autonomous_lifecycle_runner/task_4_cross_model_review_fix_plan_loop.md:Requirement Analysis item 1 and Decisions Already Made, lines 28 and 115 | [NEW_REGRESSION] Decisions are written only after Gate 4 passes. Gate 4 first checks review decisions (`skills/dev-implementation/SKILL.md:332–336`), and an empty Important decision returns exit 1 (`skills/dev-implementation/resources/scripts/run_external_review.py:1467–1474`, dynamically confirmed). The prescribed sequence therefore cannot pass; its subsequent decision commit would also invalidat | fixed in 040fd05 |
+| 3 | Important | .devtool/epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.en.md:Module Contracts, lines 289–301 | [INCOMPLETE_FIX] Round 1 #7: full Gate 4 still has no executable contract or assigned owner, and no task specifies `step_implementation`’s per-task lifecycle protocol. Task 4 newly references `run_quality_gate(4)`, which is absent from the frozen API. Existing execution requires task evidence/status operations (`skills/dev-implementation/SKILL.md:229–240`) and the complete Gate 4 procedure, includ | fixed in 040fd05 |
+| 4 | Important | .devtool/epic/autonomous_lifecycle_runner/task_1_pipeline_state_machine_and_probing.md:BDD SCENARIOS and Definition of Done, lines 53–69 and 119 | [INCOMPLETE_FIX] Round 1 #8: task 1 still must pass interrupted-task execution and Gate 3/4/5 synchronization before the dispatcher, execution loop and later gates exist. Adding the ledger writer does not make those integration scenarios executable within this task. Proposed: move ALR-ST-01 to the task assigned `step_implementation` and ALR-ST-02 to task 5, updating embedded scenarios, verificatio | fixed in 040fd05 |
+| 5 | Important | .devtool/epic/autonomous_lifecycle_runner/task_1_pipeline_state_machine_and_probing.md:Verification V4/V5, lines 94–95; equivalent rows in tasks 2–5 | [INCOMPLETE_FIX] Round 1 #9: these rows remain unchanged. The existing V4 target set still produces 12 SIM117 errors outside Allowed files, including `tests/test_agy_quota.py:32` and `tests/test_claude_quota.py:91`. A cache-disabled mypy probe also reproduces unresolved runtime-path imports (`tests/test_agy_quota.py:18`). Neither row checks `lifecycle_runner.py`. Proposed: scope lint to the runner | fixed in 040fd05 |
+| 6 | Important | .devtool/epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.en.md:RunnerConfig, line 254; task_1 Decisions Already Made, line 112 | [INCOMPLETE_FIX] Round 1 #5: replacing the obsolete default with `None` leaves the inherited-model resolution contract undefined. The approved source spec still selects the `review_config.json` top-level `assistant` entry, which the existing loader drops and sticky update rewrites (`skills/dev-implementation/resources/scripts/run_external_review.py:103–148`, dynamically confirmed with mocked persi | fixed in 040fd05 |
+| 7 | Important | .devtool/epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.en.md:Feature Maintenance Map, Model Prober & Dispatcher, line 217 | [INCOMPLETE_FIX] Round 1 #10: this row still mandates `subprocess.run(timeout=...)`, contradicting task 2’s corrected `Popen` process-group supervision. It also retains argv prompts despite task 2’s stdin decision. These frozen instructions remain incompatible under handoff’s strict-spec-fidelity rule. Proposed: align both HLD maps with the accepted task 2 contract: stdin prompts, `Popen(start_new | fixed in 040fd05 |
+| 8 | Minor | .devtool/epic/autonomous_lifecycle_runner/handoff.md:Identifiers and Read First, lines 24–35 | [INCOMPLETE_FIX] Round 1 #14: the duplicate identifier rows and literal `<N>` / `<source spec>` placeholders remain after re-anchoring. Proposed: distinguish identifier labels, replace `<N>` with `5`, and name `2026-11-10-autonomous-lifecycle-runner-design.en.md` explicitly. | fixed in 040fd05 |
+| 9 | Minor | .devtool/epic/autonomous_lifecycle_runner/task_2_subprocess_dispatcher_and_headless_agy.md:Allowed files, lines 31–32; equivalent entries in tasks 3–5 | [INCOMPLETE_FIX] Round 1 #15: the runner and test remain marked `(new)` although task 1 creates them. Proposed: remove `(new)` from those entries in tasks 2–5. | fixed in 040fd05 |
+
+### Revision diff since round 2 (`b86ce2b945e3..a2b1b525fa74`)
+
+````diff
+diff --git a/.devtool/epic/autonomous_lifecycle_runner/2026-11-10-autonomous-lifecycle-runner-design.en.md b/.devtool/epic/autonomous_lifecycle_runner/2026-11-10-autonomous-lifecycle-runner-design.en.md
+index b0026c2..8f980e2 100644
+--- a/.devtool/epic/autonomous_lifecycle_runner/2026-11-10-autonomous-lifecycle-runner-design.en.md
++++ b/.devtool/epic/autonomous_lifecycle_runner/2026-11-10-autonomous-lifecycle-runner-design.en.md
+@@ -81,7 +81,7 @@ flowchart TD
+ ## Human Checkpoints
+ 
+ 1. **Brainstorming and design (Gates 1 and 2)**: unchanged, the Human approves the spec and the task breakdown.
+-2. **Principal Review fixes**: the Assistant verifies every finding against the source and the approved design, presents the proposed fixes, and stops until the Human confirms. A round with zero findings continues without a stop. Minor-only rounds are included in the confirmation batch. After confirmation the Assistant revises, re-packages and the script starts the next round (maximum 3).
++2. **Principal Review fixes**: AI Assistant auto-applies aligned design revisions, commits them, and re-packages without human interruption. The runner halts and transitions to `AWAITING_PRINCIPAL_CONFIRMATION` only if findings involve high-risk critical issues, business/domain requirement conflicts, unaligned source conflicts, or `SHARED_CONTRACT_CONFLICT`. Minor-only rounds (`AUTO_PASS_FINAL_MINOR_SWEEP`) are swept in a single pass without stopping for Human. Model priority for Principal Review is selectable at task confirmation (Gate 2) across 4 options: (1) `Claude -> Codex -> Kiro -> Argon` [Default], (2) `Codex -> Claude -> Kiro -> Argon`, (3) `Kiro -> Claude -> Codex -> Argon`, (4) `Kiro -> Codex -> Claude -> Argon`.
+ 3. **Cross-model review fixes**: no Human stop. The Programmer proposes the fixes, the Assistant approves or adjusts the plan, the Programmer applies it, and Gate 4 re-runs.
+ 4. **Circuit Breakers**: `SHARED_CONTRACT_CONFLICT`, `FIX_LOOP` and `MAX_ROUNDS_CRITICAL_REMAINING` always halt and report, in both review stages.
+ 5. **Assistant CRITICAL_CONFLICT**: a fix plan that would change an approved decision halts and reports.
+diff --git a/.devtool/epic/autonomous_lifecycle_runner/2026-11-10-autonomous-lifecycle-runner-design.vi.md b/.devtool/epic/autonomous_lifecycle_runner/2026-11-10-autonomous-lifecycle-runner-design.vi.md
+index 815c222..8da0f8a 100644
+--- a/.devtool/epic/autonomous_lifecycle_runner/2026-11-10-autonomous-lifecycle-runner-design.vi.md
++++ b/.devtool/epic/autonomous_lifecycle_runner/2026-11-10-autonomous-lifecycle-runner-design.vi.md
+@@ -81,7 +81,7 @@ flowchart TD
+ ## Điểm dừng chờ Human
+ 
+ 1. **Brainstorming và thiết kế (Gate 1 và 2)**: giữ nguyên, Human duyệt spec và phân rã task.
+-2. **Fix của Principal Review**: Assistant kiểm chứng từng finding với source và thiết kế đã duyệt, trình bày các fix đề xuất, và dừng cho tới khi Human xác nhận. Round không có finding thì chạy tiếp, không dừng. Round chỉ có Minor được gộp vào lượt xác nhận. Sau khi xác nhận, Assistant sửa, đóng gói lại và script chạy round kế tiếp (tối đa 3).
++2. **Fix của Principal Review**: AI Assistant tự động áp dụng các sửa đổi thiết kế kỹ thuật đã đồng thuận, commit và đóng gói lại mà không làm gián đoạn con người. Runner chỉ tạm dừng và chuyển sang `AWAITING_PRINCIPAL_CONFIRMATION` khi phát hiện rủi ro nghiêm trọng, xung đột yêu cầu nghiệp vụ, xung đột mã nguồn chưa chốt, hoặc `SHARED_CONTRACT_CONFLICT`. Round chỉ có Minor (`AUTO_PASS_FINAL_MINOR_SWEEP`) được quét và xử lý trong một lượt duy nhất mà không dừng hỏi Con người. Thứ tự ưu tiên mô hình cho Principal Review được cấu hình/chọn tại bước xác nhận phân rã task (Gate 2) qua 4 tùy chọn: (1) `Claude -> Codex -> Kiro -> Argon` [Mặc định], (2) `Codex -> Claude -> Kiro -> Argon`, (3) `Kiro -> Claude -> Codex -> Argon`, (4) `Kiro -> Codex -> Claude -> Argon`.
+ 3. **Fix của cross-model review**: không dừng chờ Human. Programmer đề xuất fix, Assistant duyệt hoặc chỉnh plan, Programmer áp dụng, rồi Gate 4 chạy lại.
+ 4. **Circuit Breaker**: `SHARED_CONTRACT_CONFLICT`, `FIX_LOOP` và `MAX_ROUNDS_CRITICAL_REMAINING` luôn dừng và báo cáo, ở cả hai stage review.
+ 5. **Assistant CRITICAL_CONFLICT**: fix plan làm thay đổi một quyết định đã duyệt thì dừng và báo cáo.
+diff --git a/.devtool/epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.en.md b/.devtool/epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.en.md
+index 25da474..283ffa6 100644
+--- a/.devtool/epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.en.md
++++ b/.devtool/epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.en.md
+@@ -45,7 +45,7 @@ Autonomous execution eliminates unnecessary menu pauses while preserving absolut
+ - Deliver a headless, resumable orchestrator CLI `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py` capable of driving an epic through Stage 2 review, Stage 3 implementation, and Stage 3 cross-model review.
+ - Dispatch the AI Programmer using headless `agy --model gemini-3.8-flash --effort high --mode auto` in an isolated git worktree with process group supervision and timeout fencing.
+ - Implement automated Gate 3 task execution order calculation via `compute_execution_order.py`.
+-- Enforce the Human checkpoint in Principal Review: AI Assistant verifies findings, batches proposed fixes, and stops for Human confirmation before applying changes.
++- Enforce Principal Review auto-triage: AI Assistant auto-applies aligned design revisions, halting for Human confirmation only on high-risk critical issues, business/domain requirement conflicts, or `SHARED_CONTRACT_CONFLICT`.
+ - Implement an automated fix-and-verify loop for Cross-Model Review: AI Programmer drafts a fix plan, AI Assistant evaluates and approves/adjusts it, AI Programmer applies fixes, and Gate 4 re-verifies automatically without stopping for Human.
+ - Maintain persistent state in `.devtool/state/<epic>.pipeline.json` synchronized with `.devtool/GATE_LEDGER.md` for instant crash recovery.
+ - Keep interactive mode 100% backward-compatible (`/dev-lifecycle --autonomous` or direct runner execution is strictly opt-in).
+@@ -157,15 +157,32 @@ sequenceDiagram
+         Runner->>Reviewer: run_external_review.py run --kind principal --epic-dir <dir> --base <base> --auto-quota
+         Reviewer-->>Runner: Review findings recorded in principal_review.md
+         Runner->>Assistant: Triage findings (run_external_review.py triage --kind principal)
+-        Assistant-->>Runner: Proposed fix list
+-        alt Findings require fixes
+-            Runner->>Runner: Save state (AWAITING_PRINCIPAL_CONFIRMATION) & write proposal file
+-            Runner->>Human: Present proposed fixes & prompt confirmation (--confirm-fixes / --reject-fixes)
+-            Human-->>Runner: Confirm fix proposal
+-            Runner->>Assistant: Apply fixes & commit (clean git tree)
+-            Runner->>Runner: package_epic.py --revise & record decisions in principal_review.md
+-        else 0 findings (AUTO_PASS_CLEAN)
+-            Runner->>Runner: Advance to Implementation
++        alt AUTO_PASS_CLEAN (0 findings)
++            Runner->>Runner: Direct advance to Stage 3 Implementation
++        else AUTO_PASS_FINAL_MINOR_SWEEP (0 Critical/Important, only Minor)
++            Runner->>Assistant: Sweep minor fixes in single pass
++            Assistant-->>Runner: Minor fixes applied & committed
++            Runner->>Runner: Record decisions & run package_epic.py --revise
++            Runner->>Runner: Advance to Stage 3 without extra review round
++        else AUTO_FIX_ELIGIBLE (Rounds 1-2 with valid fixes)
++            alt High-risk, business conflict, or shared-contracts conflict
++                Runner->>Runner: Save state (AWAITING_PRINCIPAL_CONFIRMATION) & write proposal file
++                Runner->>Human: Present proposed fixes & prompt confirmation (--confirm-fixes / --reject-fixes)
++                Human-->>Runner: Confirm fix proposal
++            else Aligned / established fixes
++                Runner->>Assistant: Auto-apply aligned revisions
++            end
++            Assistant-->>Runner: Revisions applied & committed
++            Runner->>Runner: Record decisions (fixed in <sha>) & commit
++            Runner->>Runner: package_epic.py <dir> --revise & commit
++            Runner->>Runner: Advance to next review round
++        else AUTO_PASS_FINAL_SWEEP (Round 3, 0 Critical, only Important/Minor)
++            Runner->>Assistant: Final fix pass anchored to approved design
++            Assistant-->>Runner: Fixes applied & committed
++            Runner->>Runner: Record decisions & package_epic.py --revise
++            Runner->>Runner: Advance to Stage 3 without 4th round
++        else CIRCUIT_BREAKER_HALT (SHARED_CONTRACT_CONFLICT / FIX_LOOP / MAX_ROUNDS_CRITICAL_REMAINING)
++            Runner->>Human: Immediate HALT: Display executive warning & halt pipeline
+         end
+     end
+     end
+@@ -177,8 +194,9 @@ sequenceDiagram
+         Runner->>Programmer: agy stdin --model <model> --effort high --mode auto (Task N)
+         Programmer-->>Runner: Code edits, unit tests, task evidence
+         Runner->>Runner: Commit task implementation (clean git tree)
++        Runner->>Runner: Sync task status to done
+     end
+-    Runner->>Runner: Execute Gate 4 in full (deterministic local check)
++    Runner->>Runner: run_gate4() in full (deterministic local check)
+     end
+ 
+     rect rgb(255, 250, 240)
+@@ -186,7 +204,15 @@ sequenceDiagram
+     loop Cross-Model Review (Max 3 Rounds)
+         Runner->>Reviewer: run_external_review.py run --kind code --epic-dir <dir> --base <base> --auto-quota
+         Reviewer-->>Runner: Findings recorded in review_results.md
+-        alt Converged (0 Blockers: AUTO_PASS_CLEAN or AUTO_PASS_FINAL_SWEEP)
++        alt AUTO_PASS_CLEAN (0 findings)
++            Runner->>Runner: Break loop -> Advance to Final Report
++        else Final sweep (AUTO_PASS_FINAL_MINOR_SWEEP or AUTO_PASS_FINAL_SWEEP)
++            Runner->>Programmer: Apply final sweep fixes
++            Programmer-->>Runner: Code fixes applied
++            Runner->>Runner: Commit code fixes (git commit)
++            Runner->>Runner: Record decisions in review_results.md (fixed in <sha>)
++            Runner->>Runner: Commit decisions (clean git tree)
++            Runner->>Runner: run_gate4() in full (verifies clean certified SHA)
+             Runner->>Runner: Break loop -> Advance to Final Report
+         else Blockers exist (AUTO_FIX_ELIGIBLE)
+             Runner->>Programmer: Draft fix plan (fix_plan_roundN.md)
+@@ -197,9 +223,11 @@ sequenceDiagram
+                 Runner->>Human: HALT: Report design conflict
+             else APPROVED or ADJUSTED
+                 Runner->>Programmer: Apply approved fix plan
+-                Programmer-->>Runner: Fixes committed
+-                Runner->>Runner: Record decisions in review_results.md (clean git tree)
+-                Runner->>Runner: Re-run Gate 4 in full
++                Programmer-->>Runner: Code fixes applied
++                Runner->>Runner: Commit code fixes (git commit)
++                Runner->>Runner: Record decisions in review_results.md (fixed in <sha>)
++                Runner->>Runner: Commit decisions (clean git tree)
++                Runner->>Runner: run_gate4() in full (verifies clean certified SHA)
+             end
+         end
+     end
+@@ -214,8 +242,8 @@ sequenceDiagram
+ | Capability | Canonical Source Paths & Entry Points | Core Invariants & State/Config Knobs | Extension & Troubleshooting Guide |
+ |---|---|---|---|
+ | **State Machine Runner** | `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py` | State file `.devtool/state/<epic>.pipeline.json` must be updated atomically using `.tmp` rename. State schema adheres to `PipelineState` dataclass. | Inspect state file to see active stage, round, and last SHA. Use `--resume` or `--reset-stage <stage>` to recover from failed states. |
+-| **Model Prober & Dispatcher** | `lifecycle_runner.py::ModelDispatcher` | Headless execution must use `agy --print "<prompt>" --model <model> --effort <effort> --mode <mode>`. Timeout bounded via `subprocess.run(timeout=...)` and process group isolation (`start_new_session=True`). | If a model is deprecated or renamed, check `.devtool/review_config.json` or fallback defaults. Startup probe fails fast before any file mutations. |
+-| **Principal Review Checkpoint** | `lifecycle_runner.py::step_principal_review` | Halts execution to present proposed fix table and wait for human input when findings > 0. Bypasses stop only on 0 findings. Minor findings are batched with non-criticals. Saves state in `AWAITING_PRINCIPAL_CONFIRMATION` and writes `.devtool/epic/<epic>/principal_fix_proposal_round<N>.md`. | Check `review_results.md` and triage output. Confirming allows Assistant to run `package_epic.py --revise`. Supports `--resume --confirm-fixes` / `--reject-fixes`. |
++| **Model Prober & Dispatcher** | `lifecycle_runner.py::ModelDispatcher` | Headless execution pipes prompts via stdin to `agy --model <model> --effort <effort> --mode <mode>`. Process group isolation via `start_new_session=True` (`pgid = p.pid`) with SIGTERM, 1s grace, and SIGKILL escalation. | If a model is deprecated or renamed, check `.devtool/review_config.json` or fallback defaults. Startup probe fails fast before any file mutations. |
++| **Principal Review Checkpoint** | `lifecycle_runner.py::step_principal_review` | Automatically processes aligned/agreed fixes. Halts and transitions to `AWAITING_PRINCIPAL_CONFIRMATION` only when high-risk critical issues, business/domain requirement conflicts, unaligned source conflicts, or `SHARED_CONTRACT_CONFLICT` occur. Minor-only rounds complete via `AUTO_PASS_FINAL_MINOR_SWEEP` without extra review round. | Check `principal_review.md` and triage output. Confirming allows Assistant to run `package_epic.py --revise`. Supports `--resume --confirm-fixes` / `--reject-fixes`. |
+ | **Gate 3 Auto-Order** | `lifecycle_runner.py::resolve_gate3_order` | Execution order must strictly follow topological sort from `compute_execution_order.py`. Gate 3 entry recorded in Gate Ledger via `resume_context.py --gate 3`. | If dependency cycles exist, `compute_execution_order.py` fails with clear error; runner halts and requests human resolution. |
+ | **Cross-Model Fix Loop** | `lifecycle_runner.py::step_cross_model_review` | Programmer drafts `.devtool/epic/<epic>/fix_plan_round<N>.md`. Assistant answers with `APPROVED`, `ADJUSTED`, or `CRITICAL_CONFLICT`. Gate 4 re-runs after every fix round. Intermediate rounds do not pause for Human. | Review `fix_plan_round<N>.md` to inspect proposed fixes. Assistant verdict is recorded in `.devtool/state/<epic>.pipeline.json`. |
+ | **Commit Sequencing & Tree Hygiene** | `lifecycle_runner.py::run` | `git status --porcelain` must be clean before invoking any review pass. The runner commits fix plans, code fixes, and review decisions in sequence. | Prevents `run_external_review.py` from refusing runs on dirty tree. |
+@@ -251,7 +279,7 @@ class FixPlanVerdict(str, Enum):
+ class RunnerConfig:
+     programmer_model: str = "gemini-3.8-flash"
+     programmer_effort: str = "high"
+-    assistant_model: Optional[str] = None  # None resolves to active selected model (Argon/Claude/Codex/etc)
++    assistant_model: Optional[str] = None  # Precedence: CLI --assistant-model -> .devtool/review_config.json providers.assistant.model -> active profile model -> fallback claude-sonnet-5-5-high
+     assistant_effort: str = "high"
+     timeout_seconds: int = 1800
+     max_review_rounds: int = 3
+@@ -294,6 +322,7 @@ class LifecycleRunner:
+     def resolve_gate3_order(self) -> List[str]: ...
+     def step_principal_review(self) -> bool: ...
+     def step_implementation(self) -> bool: ...
++    def run_gate4(self) -> Tuple[bool, str]: ...
+     def step_cross_model_review(self) -> bool: ...
+     def evaluate_circuit_breakers(self, stage: str, round_num: int) -> Optional[str]: ...
+     def prompt_human_principal_fixes(self, triage_summary: str) -> bool: ...
+@@ -301,6 +330,26 @@ class LifecycleRunner:
+     def render_final_executive_report(self) -> str: ...
+ ```
+ 
++#### Method Execution Contracts and Task Ownership
++
++- **`step_implementation(self) -> bool`** (Owned by Task 2):
++  - Execution contract: loops over `self.state.task_order` sequentially. For each task:
++    1. Checks if already present in `self.state.completed_tasks`. If so, skips.
++    2. Gating and evidence verification: dispatches Programmer subprocess with task prompt via stdin (`skills/dev-implementation/SKILL.md:229–240`).
++    3. Verifies task evidence and status updated to `done`.
++    4. Commits task changes cleanly (`git commit -m "[<EPIC>] Execute <task_slug>"`).
++    5. Appends task to `self.state.completed_tasks` and saves state atomically (`ALR-ST-01`).
++    6. Returns `True` if all tasks succeed; on subprocess failure or timeout, logs error, preserves state, and returns `False`.
++- **`run_gate4(self) -> Tuple[bool, str]`** (Owned by Task 5):
++  - Execution contract: executes the full Stage 3 Gate 4 verification sequence on the candidate SHA (`skills/dev-implementation/SKILL.md:321–356`):
++    1. Generates and commits smoke checklist (`skills/dev-implementation/resources/scripts/generate_smoke_checklist.py`).
++    2. Runs finding decision check (`run_external_review.py check --epic-dir <epic> --kind code`).
++    3. Runs codebase and security audit checks.
++    4. Runs declared integration commands and test suite (`run_unittest_junit.py`).
++    5. Runs registered Python capabilities (lint and type-check).
++    6. Verifies all results trace cleanly to candidate commit SHA.
++    7. Returns `(True, "Gate 4 PASS: <candidate_sha>")` if all checks pass; otherwise `(False, "<failure_reason>")`.
++
+ ### Impact Analysis
+ 
+ Impact analysis executed via `check_code_impact.py` against `main`:
+@@ -326,7 +375,7 @@ Integration results: python3 scripts/run_unittest_junit.py --junitxml build/test
+ | **Subprocess Group Supervision** | `ModelDispatcher.dispatch` | Fake long-running script | Process executes in isolated process group (`start_new_session=True`); SIGTERM delivered cleanly on timeout. |
+ | **State Persistence & Resumption** | `LifecycleRunner.save_state`, `load_or_init_state` | Temporary filesystem with mock `.devtool/state` | Atomic `.tmp` rename prevents file corruption; runner resumes exactly from saved stage. |
+ | **Gate 3 Auto-Order** | `LifecycleRunner.step_implementation` | Mock `compute_execution_order.py` | Order parsed from JSON/text output and written to `.devtool/GATE_LEDGER.md`. |
+-| **Principal Review Human Checkpoint** | `step_principal_review` | Mock stdin/stdout prompt wrapper | Halts and prompts human when findings > 0; auto-proceeds when findings == 0. |
++| **Principal Review Auto-Triage** | `step_principal_review` | Mock stdin/stdout prompt wrapper | Auto-applies aligned fixes; halts and prompts human only on critical, domain, or contract conflicts. |
+ | **Cross-Model Fix Plan Evaluation** | `evaluate_programmer_fix_plan` | Mock Assistant dispatcher returning `APPROVED`, `ADJUSTED`, `CRITICAL_CONFLICT` | Handles all 3 verdicts correctly; triggers Programmer fix execution or halts pipeline. |
+ | **Circuit Breakers** | `evaluate_circuit_breakers` | Synthetic `review_results.md` fixtures | Immediate halt on `SHARED_CONTRACT_CONFLICT`, `FIX_LOOP`, and `MAX_ROUNDS_CRITICAL_REMAINING`. |
+ | **Final Executive Report** | `LifecycleRunner.run` | Completed pipeline state | Renders markdown executive report and stops with prompt for `/finishing-a-development-branch`. |
+@@ -372,4 +421,6 @@ Mitigation: Autonomous mode is strictly opt-in via `/dev-lifecycle --autonomous`
+ ## Spec Errata
+ 
+ - **[SE-01] Principal Review Round 1 Alignment**: Aligned external review CLI flags (`--kind principal` / `--kind code` with required `--base`), integrated `run_external_review.py triage` action parsing, made Assistant model dynamically inherit the developer's selected model (Argon/Claude/Codex/etc) with Gemini 3.8 Flash default for Programmer, added `AWAITING_PRINCIPAL_CONFIRMATION` state with proposal file and non-blocking CLI flags (`--confirm-fixes`/`--reject-fixes`), established commit sequencing for clean git tree, and aligned method signatures across HLD and tasks.
++- **[SE-02] Principal Review Round 2 Delta Alignment**: Formalized Auto-Triage Gate stage transitions (auto-application of agreed fixes in Principal Review, single-pass minor sweeps for AUTO_PASS_FINAL_MINOR_SWEEP and AUTO_PASS_FINAL_SWEEP without redundant review rounds), corrected Gate 4 commit and decision recording sequence (code fix commit -> decision recording -> decision commit -> Gate 4 run), added run_gate4() and step_implementation contract definitions, aligned ModelDispatcher to stdin pipes and process group supervision, and updated test verification commands to isolated runner scopes.
++- **[SE-03] Principal Review Round 3 Convergence Alignment**: Aligned Principal Review auto-triage policy across spec, HLD, BDD, and tasks (auto-applying aligned technical fixes without interrupting the developer, halting only on high-risk critical issues, business/domain requirement conflicts, or SHARED_CONTRACT_CONFLICT); synchronized 4 selectable model priority options at Gate 2 task confirmation with default `Claude -> Codex -> Kiro -> Argon`; updated Cross-Model Review sequence diagram to route both final sweep actions through code fix commit, decision recording, decision commit, and full Gate 4 before reporting; mapped BDD scenarios ALR-ST-01 to Task 2, ALR-ST-02 to Task 5, and ALR-ST-03 to Task 1 with 100% traceability.
+ 
+diff --git a/.devtool/epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.vi.md b/.devtool/epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.vi.md
+index c5488dc..7791092 100644
+--- a/.devtool/epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.vi.md
++++ b/.devtool/epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.vi.md
+@@ -45,7 +45,7 @@ Tiến trình tự động hóa loại bỏ các bước dừng menu không cầ
+ - Cung cấp CLI điều phối máy trạng thái chạy headless, có khả năng phục hồi sau sự cố tại `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py`, dẫn dắt epic qua review Giai đoạn 2, triển khai Giai đoạn 3, và cross-model review Giai đoạn 3.
+ - Điều phối AI Programmer sử dụng lệnh headless `agy --model gemini-3.8-flash --effort high --mode auto` trong worktree git biệt lập với giám sát nhóm tiến trình và giới hạn timeout.
+ - Tự động hóa việc tính toán thứ tự thực thi task ở Gate 3 thông qua `compute_execution_order.py`.
+-- Thực thi trạm dừng kiểm tra của con người (Human checkpoint) trong Principal Review: AI Assistant xác minh các phát hiện, gom cụm các sửa chữa đề xuất, và dừng lại chờ con người xác nhận trước khi áp dụng thay đổi.
++- Thực thi phân loại tự động Principal Review: AI Assistant tự động áp dụng các sửa đổi thiết kế đã đồng thuận, và chỉ tạm dừng hỏi Con người khi phát hiện rủi ro nghiêm trọng, xung đột nghiệp vụ, hoặc `SHARED_CONTRACT_CONFLICT`.
+ - Hiện thực hóa vòng lặp sửa lỗi và kiểm chứng tự động cho Cross-Model Review: AI Programmer lập kế hoạch sửa lỗi, AI Assistant đánh giá và phê duyệt/điều chỉnh kế hoạch, AI Programmer áp dụng sửa đổi, và Gate 4 tự động kiểm chứng lại mà không cần dừng hỏi con người.
+ - Duy trì trạng thái bền vững trong `.devtool/state/<epic>.pipeline.json` đồng bộ với `.devtool/GATE_LEDGER.md` để khôi phục tức thì khi bị ngắt quãng.
+ - Đảm bảo chế độ tương tác (interactive mode) tương thích ngược 100% (`/dev-lifecycle --autonomous` hoặc gọi runner trực tiếp hoàn toàn là lựa chọn tùy chọn).
+@@ -157,15 +157,32 @@ sequenceDiagram
+         Runner->>Reviewer: run_external_review.py run --kind principal --epic-dir <dir> --base <base> --auto-quota
+         Reviewer-->>Runner: Ghi nhận phát hiện review trong principal_review.md
+         Runner->>Assistant: Phân loại phát hiện (run_external_review.py triage --kind principal)
+-        Assistant-->>Runner: Danh sách đề xuất sửa lỗi
+-        alt Phát hiện cần sửa chữa
+-            Runner->>Runner: Lưu trạng thái (AWAITING_PRINCIPAL_CONFIRMATION) & ghi file đề xuất
+-            Runner->>Human: Trình bày đề xuất & chờ xác nhận (--confirm-fixes / --reject-fixes)
+-            Human-->>Runner: Xác nhận đề xuất sửa lỗi
+-            Runner->>Assistant: Áp dụng sửa chữa & commit (clean git tree)
+-            Runner->>Runner: package_epic.py --revise & ghi nhận decisions vào principal_review.md
+-        else 0 phát hiện (AUTO_PASS_CLEAN)
+-            Runner->>Runner: Chuyển sang Giai đoạn Triển khai
++        alt AUTO_PASS_CLEAN (0 phát hiện)
++            Runner->>Runner: Chuyển thẳng sang Giai đoạn 3 Triển khai
++        else AUTO_PASS_FINAL_MINOR_SWEEP (0 Critical/Important, chỉ có Minor)
++            Runner->>Assistant: Quét sửa lỗi minor trong một lượt
++            Assistant-->>Runner: Đã áp dụng & commit sửa đổi minor
++            Runner->>Runner: Ghi nhận decisions & chạy package_epic.py --revise
++            Runner->>Runner: Chuyển sang Giai đoạn 3 không cần vòng review phụ
++        else AUTO_FIX_ELIGIBLE (Vòng 1-2 với phát hiện hợp lệ)
++            alt Rủi ro cao, xung đột nghiệp vụ, hoặc xung đột shared-contracts
++                Runner->>Runner: Lưu trạng thái (AWAITING_PRINCIPAL_CONFIRMATION) & ghi file đề xuất
++                Runner->>Human: Trình bày đề xuất & chờ xác nhận (--confirm-fixes / --reject-fixes)
++                Human-->>Runner: Xác nhận đề xuất sửa lỗi
++            else Sửa đổi đã thống nhất / chuẩn hóa
++                Runner->>Assistant: Tự động áp dụng sửa đổi đã chốt
++            end
++            Assistant-->>Runner: Áp dụng sửa chữa & commit (clean git tree)
++            Runner->>Runner: Ghi nhận decisions (fixed in <sha>) & commit
++            Runner->>Runner: package_epic.py <dir> --revise & commit
++            Runner->>Runner: Chuyển sang vòng review tiếp theo
++        else AUTO_PASS_FINAL_SWEEP (Vòng 3, 0 Critical, chỉ còn Important/Minor)
++            Runner->>Assistant: Lượt sửa lỗi cuối cùng neo theo thiết kế đã duyệt
++            Assistant-->>Runner: Đã áp dụng & commit sửa lỗi
++            Runner->>Runner: Ghi nhận decisions & package_epic.py --revise
++            Runner->>Runner: Chuyển sang Giai đoạn 3 không cần vòng thứ 4
++        else CIRCUIT_BREAKER_HALT (SHARED_CONTRACT_CONFLICT / FIX_LOOP / MAX_ROUNDS_CRITICAL_REMAINING)
++            Runner->>Human: HALT NGAY LẬP TỨC: Xuất banner cảnh báo & dừng pipeline
+         end
+     end
+     end
+@@ -177,8 +194,9 @@ sequenceDiagram
+         Runner->>Programmer: agy stdin --model <model> --effort high --mode auto (Task N)
+         Programmer-->>Runner: Chỉnh sửa mã, unit test, bằng chứng task
+         Runner->>Runner: Commit triển khai task (clean git tree)
++        Runner->>Runner: Đồng bộ trạng thái task sang hoàn thành
+     end
+-    Runner->>Runner: Thực thi đầy đủ Gate 4 (kiểm tra nội bộ tất định)
++    Runner->>Runner: run_gate4() đầy đủ (kiểm tra nội bộ tất định)
+     end
+ 
+     rect rgb(255, 250, 240)
+@@ -186,7 +204,15 @@ sequenceDiagram
+     loop Cross-Model Review (Tối đa 3 vòng)
+         Runner->>Reviewer: run_external_review.py run --kind code --epic-dir <dir> --base <base> --auto-quota
+         Reviewer-->>Runner: Ghi nhận phát hiện trong review_results.md
+-        alt Đã hội tụ (0 Blocker: AUTO_PASS_CLEAN hoặc AUTO_PASS_FINAL_SWEEP)
++        alt AUTO_PASS_CLEAN (0 phát hiện)
++            Runner->>Runner: Thoát vòng lặp -> Chuyển sang Báo cáo Cuối cùng
++        else Quét lần cuối (AUTO_PASS_FINAL_MINOR_SWEEP hoặc AUTO_PASS_FINAL_SWEEP)
++            Runner->>Programmer: Áp dụng các sửa đổi quét lần cuối
++            Programmer-->>Runner: Đã áp dụng sửa đổi mã
++            Runner->>Runner: Commit sửa đổi mã (git commit)
++            Runner->>Runner: Ghi nhận decisions vào review_results.md (fixed in <sha>)
++            Runner->>Runner: Commit decisions (clean git tree)
++            Runner->>Runner: run_gate4() đầy đủ (xác minh SHA đạt chuẩn)
+             Runner->>Runner: Thoát vòng lặp -> Chuyển sang Báo cáo Cuối cùng
+         else Còn tồn tại Blocker (AUTO_FIX_ELIGIBLE)
+             Runner->>Programmer: Soạn kế hoạch sửa lỗi (fix_plan_roundN.md)
+@@ -197,9 +223,11 @@ sequenceDiagram
+                 Runner->>Human: HALT: Báo cáo xung đột thiết kế
+             else APPROVED hoặc ADJUSTED
+                 Runner->>Programmer: Áp dụng kế hoạch sửa lỗi đã duyệt
+-                Programmer-->>Runner: Commit sửa chữa
+-                Runner->>Runner: Ghi nhận decisions vào review_results.md (clean git tree)
+-                Runner->>Runner: Chạy lại đầy đủ Gate 4
++                Programmer-->>Runner: Đã áp dụng sửa đổi mã
++                Runner->>Runner: Commit sửa đổi mã (git commit)
++                Runner->>Runner: Ghi nhận decisions vào review_results.md (fixed in <sha>)
++                Runner->>Runner: Commit decisions (clean git tree)
++                Runner->>Runner: run_gate4() đầy đủ (xác minh SHA đạt chuẩn)
+             end
+         end
+     end
+@@ -214,8 +242,8 @@ sequenceDiagram
+ | Khả năng | Đường dẫn Nguồn Chuẩn & Điểm vào | Bất biến Cốt lõi & Tùy chọn Trạng thái/Cấu hình | Hướng dẫn Mở rộng & Xử lý Sự cố |
+ |---|---|---|---|
+ | **State Machine Runner** | `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py` | Tệp trạng thái `.devtool/state/<epic>.pipeline.json` phải được cập nhật nguyên tử thông qua đổi tên `.tmp`. Schema trạng thái tuân thủ dataclass `PipelineState`. | Kiểm tra file trạng thái để xem stage, vòng review và SHA gần nhất. Dùng `--resume` hoặc `--reset-stage <stage>` để khôi phục. |
+-| **Model Prober & Dispatcher** | `lifecycle_runner.py::ModelDispatcher` | Tiến trình headless phải dùng `agy --print "<prompt>" --model <model> --effort <effort> --mode <mode>`. Giới hạn timeout qua `subprocess.run(timeout=...)` và cô lập process group (`start_new_session=True`). | Nếu model bị đổi tên hoặc không hỗ trợ, kiểm tra `.devtool/review_config.json` hoặc cấu hình mặc định. Thăm dò ban đầu dừng ngay trước khi sửa đổi file. |
+-| **Điểm dừng Principal Review** | `lifecycle_runner.py::step_principal_review` | Tạm dừng để trình bày bảng đề xuất sửa lỗi và chờ người dùng nhập khi số lượng phát hiện > 0. Bypasses stop only on 0 findings. Gom cụm phát hiện minor với non-criticals. Lưu trạng thái tại `AWAITING_PRINCIPAL_CONFIRMATION` và xuất tệp `.devtool/epic/<epic>/principal_fix_proposal_round<N>.md`. | Kiểm tra `review_results.md` và kết quả triage. Xác nhận cho phép Assistant chạy `package_epic.py --revise`. Hỗ trợ `--resume --confirm-fixes` / `--reject-fixes`. |
++| **Model Prober & Dispatcher** | `lifecycle_runner.py::ModelDispatcher` | Tiến trình headless truyền prompt qua stdin đến `agy --model <model> --effort <effort> --mode <mode>`. Cô lập process group qua `start_new_session=True` (`pgid = p.pid`) kèm SIGTERM, 1s ân hạn và nâng cấp SIGKILL. | Nếu model bị đổi tên hoặc không hỗ trợ, kiểm tra `.devtool/review_config.json` hoặc cấu hình mặc định. Thăm dò ban đầu dừng ngay trước khi sửa đổi file. |
++| **Điểm dừng Principal Review** | `lifecycle_runner.py::step_principal_review` | Tự động xử lý các sửa đổi đã thống nhất/chuẩn hóa. Chỉ tạm dừng và chuyển `AWAITING_PRINCIPAL_CONFIRMATION` khi có lỗi rủi ro cao critical, xung đột nghiệp vụ/yêu cầu spec, xung đột mã nguồn chưa chốt, hoặc `SHARED_CONTRACT_CONFLICT`. Vòng chỉ có minor hoàn tất qua `AUTO_PASS_FINAL_MINOR_SWEEP` không cần thêm vòng review. | Kiểm tra `principal_review.md` và kết quả triage. Xác nhận cho phép Assistant chạy `package_epic.py --revise`. Hỗ trợ `--resume --confirm-fixes` / `--reject-fixes`. |
+ | **Tự động hóa Gate 3** | `lifecycle_runner.py::resolve_gate3_order` | Thứ tự thực thi phải tuân thủ nghiêm ngặt sắp xếp topo từ `compute_execution_order.py`. Bản ghi Gate 3 được lưu vào Gate Ledger qua `resume_context.py --gate 3`. | Nếu có chu trình phụ thuộc, `compute_execution_order.py` sẽ báo lỗi rõ ràng; runner tạm dừng để người dùng xử lý. |
+ | **Vòng lặp Cross-Model Fix** | `lifecycle_runner.py::step_cross_model_review` | Programmer soạn thảo `.devtool/epic/<epic>/fix_plan_round<N>.md`. Assistant phản hồi bằng `APPROVED`, `ADJUSTED`, hoặc `CRITICAL_CONFLICT`. Gate 4 chạy lại sau mỗi vòng sửa lỗi. Các vòng trung gian không dừng hỏi con người. | Xem `fix_plan_round<N>.md` để kiểm tra các sửa chữa được đề xuất. Phán quyết của Assistant được lưu vào `.devtool/state/<epic>.pipeline.json`. |
+ | **Tuần tự Commit & Vệ sinh Cây Git** | `lifecycle_runner.py::run` | `git status --porcelain` phải sạch trước khi gọi bất kỳ lượt review nào. Runner tuần tự commit fix plan, mã nguồn sửa đổi, và quyết định review. | Ngăn ngừa `run_external_review.py` từ chối chạy khi cây git bị dirty. |
+@@ -251,7 +279,7 @@ class FixPlanVerdict(str, Enum):
+ class RunnerConfig:
+     programmer_model: str = "gemini-3.8-flash"
+     programmer_effort: str = "high"
+-    assistant_model: Optional[str] = None  # None resolves to active selected model (Argon/Claude/Codex/etc)
++    assistant_model: Optional[str] = None  # Thứ tự ưu tiên: CLI --assistant-model -> .devtool/review_config.json providers.assistant.model -> model active profile -> fallback claude-sonnet-5-5-high
+     assistant_effort: str = "high"
+     timeout_seconds: int = 1800
+     max_review_rounds: int = 3
+@@ -294,6 +322,7 @@ class LifecycleRunner:
+     def resolve_gate3_order(self) -> List[str]: ...
+     def step_principal_review(self) -> bool: ...
+     def step_implementation(self) -> bool: ...
++    def run_gate4(self) -> Tuple[bool, str]: ...
+     def step_cross_model_review(self) -> bool: ...
+     def evaluate_circuit_breakers(self, stage: str, round_num: int) -> Optional[str]: ...
+     def prompt_human_principal_fixes(self, triage_summary: str) -> bool: ...
+@@ -301,6 +330,26 @@ class LifecycleRunner:
+     def render_final_executive_report(self) -> str: ...
+ ```
+ 
++#### Hợp đồng Thực thi Phương thức và Quyền sở hữu Task
++
++- **`step_implementation(self) -> bool`** (Sở hữu bởi Task 2):
++  - Hợp đồng thực thi: lặp tuần tự qua danh sách `self.state.task_order`. Với mỗi task:
++    1. Kiểm tra xem task đã có trong `self.state.completed_tasks` chưa. Nếu có, bỏ qua.
++    2. Kiểm chứng gating và bằng chứng: dispatch tiến trình con Programmer qua stdin (`skills/dev-implementation/SKILL.md:229–240`).
++    3. Xác minh bằng chứng task và trạng thái được cập nhật thành `done`.
++    4. Commit các thay đổi của task một cách sạch sẽ (`git commit -m "[<EPIC>] Execute <task_slug>"`).
++    5. Thêm task vào `self.state.completed_tasks` và lưu trạng thái nguyên tử (`ALR-ST-01`).
++    6. Trả về `True` nếu tất cả task thành công; khi tiến trình con thất bại hoặc timeout, ghi log lỗi, bảo toàn trạng thái và trả về `False`.
++- **`run_gate4(self) -> Tuple[bool, str]`** (Sở hữu bởi Task 5):
++  - Hợp đồng thực thi: chạy chuỗi kiểm chứng Gate 4 Giai đoạn 3 đầy đủ trên SHA ứng viên (`skills/dev-implementation/SKILL.md:321–356`):
++    1. Tạo và commit checklist smoke (`skills/dev-implementation/resources/scripts/generate_smoke_checklist.py`).
++    2. Chạy kiểm tra quyết định phát hiện review (`run_external_review.py check --epic-dir <epic> --kind code`).
++    3. Chạy các kiểm tra audit mã nguồn và bảo mật.
++    4. Chạy các lệnh tích hợp và bộ test đã khai báo (`run_unittest_junit.py`).
++    5. Chạy các năng lực Python đã đăng ký (lint và type-check).
++    6. Xác minh tất cả kết quả truy xuất nguồn gốc sạch sẽ tới SHA ứng viên.
++    7. Trả về `(True, "Gate 4 PASS: <candidate_sha>")` nếu tất cả kiểm tra đều qua; ngược lại `(False, "<failure_reason>")`.
++
+ ### Phân tích Tác động
+ 
+ Phân tích tác động được thực thi qua `check_code_impact.py` so với nhánh `main`:
+@@ -326,7 +375,7 @@ Integration results: python3 scripts/run_unittest_junit.py --junitxml build/test
+ | **Giám sát Nhóm Tiến trình** | `ModelDispatcher.dispatch` | Script chạy giả lập thời gian dài | Tiến trình chạy trong process group riêng biệt (`start_new_session=True`); tín hiệu SIGTERM được gửi sạch sẽ khi quá thời gian timeout. |
+ | **Lưu trữ và Khôi phục Trạng thái** | `LifecycleRunner.save_state`, `load_or_init_state` | Hệ thống tệp tạm thời với thư mục `.devtool/state` giả lập | Đổi tên nguyên tử `.tmp` chống hỏng file; runner khôi phục chính xác từ giai đoạn đã lưu. |
+ | **Tự động hóa Thứ tự Gate 3** | `LifecycleRunner.step_implementation` | `compute_execution_order.py` giả lập | Thứ tự được bóc tách từ kết quả JSON/text và ghi nhận vào `.devtool/GATE_LEDGER.md`. |
+-| **Điểm dừng Con người Principal Review** | `step_principal_review` | Lớp bọc prompt stdin/stdout giả lập | Dừng và hỏi người dùng khi số phát hiện > 0; tự động đi tiếp khi số phát hiện == 0. |
++| **Phân loại tự động Principal Review** | `step_principal_review` | Lớp bọc prompt stdin/stdout giả lập | Tự động áp dụng sửa đổi đã đồng thuận; chỉ dừng hỏi con người khi có xung đột rủi ro cao, nghiệp vụ hoặc hợp đồng. |
+ | **Đánh giá Kế hoạch Sửa lỗi Cross-Model** | `evaluate_programmer_fix_plan` | Dispatcher Assistant giả lập trả về `APPROVED`, `ADJUSTED`, `CRITICAL_CONFLICT` | Xử lý chính xác cả 3 phán quyết; kích hoạt Programmer sửa lỗi hoặc dừng pipeline. |
+ | **Circuit Breakers** | `evaluate_circuit_breakers` | Fixture `review_results.md` tổng hợp | Dừng ngay lập tức khi phát hiện `SHARED_CONTRACT_CONFLICT`, `FIX_LOOP`, và `MAX_ROUNDS_CRITICAL_REMAINING`. |
+ | **Báo cáo Điều hành Cuối cùng** | `LifecycleRunner.run` | Trạng thái pipeline đã hoàn thành | Kết xuất báo cáo markdown điều hành và dừng lại kèm hướng dẫn `/finishing-a-development-branch`. |
+@@ -372,4 +421,6 @@ Giảm thiểu rủi ro: Chế độ tự động hoàn toàn là tùy chọn qu
+ ## Đính chính Đặc tả (Spec Errata)
+ 
+ - **[SE-01] Đồng bộ Principal Review Vòng 1**: Đồng bộ cờ CLI external review (`--kind principal` / `--kind code` kèm `--base` bắt buộc), tích hợp cơ chế phân tích action từ `run_external_review.py triage`, hỗ trợ model Assistant kế thừa linh hoạt model đang được chọn (Argon/Claude/Codex/v.v.) với mặc định Gemini 3.8 Flash cho Programmer, bổ sung trạng thái `AWAITING_PRINCIPAL_CONFIRMATION` kèm tệp đề xuất và cờ CLI non-blocking (`--confirm-fixes`/`--reject-fixes`), thiết lập tuần tự commit giữ cây git sạch, và đồng bộ chữ ký hàm giữa HLD và các task.
++- **[SE-02] Đồng bộ Principal Review Vòng 2 Delta**: Chuẩn hóa chuyển đổi trạng thái Auto-Triage Gate (tự động xử lý các sửa đổi đã thống nhất trong Principal Review, quét gom cụm lỗi minor trong một lượt cho AUTO_PASS_FINAL_MINOR_SWEEP và AUTO_PASS_FINAL_SWEEP không chạy thêm vòng review thừa), điều chỉnh tuần tự commit và ghi nhận quyết định Gate 4 (commit sửa đổi mã -> ghi nhận decisions -> commit decisions -> chạy Gate 4), bổ sung định nghĩa hợp đồng run_gate4() và step_implementation, đồng bộ ModelDispatcher với stdin pipe và giám sát process group, và cập nhật lệnh kiểm thử sang phạm vi cô lập của runner.
++- **[SE-03] Đồng bộ Principal Review Vòng 3 Hội tụ**: Đồng bộ chính sách phân loại tự động Principal Review xuyên suốt spec, HLD, BDD và task (tự động sửa các vấn đề kỹ thuật đã đồng thuận không ngắt quãng nhà phát triển, chỉ dừng lại khi có rủi ro nghiêm trọng, xung đột nghiệp vụ, hoặc SHARED_CONTRACT_CONFLICT); đồng bộ 4 tùy chọn ưu tiên mô hình tại bước xác nhận phân rã task Gate 2 với mặc định `Claude -> Codex -> Kiro -> Argon`; cập nhật sơ đồ tuần tự Cross-Model Review để cả hai hành động quét cuối đều đi qua commit sửa mã, ghi nhận decisions, commit decisions, và chạy đủ Gate 4 trước khi xuất báo cáo; phân bổ các kịch bản BDD ALR-ST-01 vào Task 2, ALR-ST-02 vào Task 5, và ALR-ST-03 vào Task 1 với truy xuất nguồn gốc 100%.
+ 
+diff --git a/.devtool/epic/autonomous_lifecycle_runner/bdd_scenarios.en.md b/.devtool/epic/autonomous_lifecycle_runner/bdd_scenarios.en.md
+index 73ea7b4..8be714a 100644
+--- a/.devtool/epic/autonomous_lifecycle_runner/bdd_scenarios.en.md
++++ b/.devtool/epic/autonomous_lifecycle_runner/bdd_scenarios.en.md
+@@ -38,13 +38,13 @@ Then the dispatched command executes "agy" with "--model gemini-3.8-flash"
+ And the command specifies "--effort high" and "--mode auto"
+ And the execution runs inside the isolated git worktree with dedicated process group supervision
+ 
+-Scenario: [ALR-HP-03] [Tier C - Integration] AI Assistant proposes fixes and prompts Human confirmation in Principal Review
++Scenario: [ALR-HP-03] [Tier C - Integration] AI Assistant auto-applies aligned Principal Review fixes and prompts Human confirmation only on critical or domain conflicts
+ 
+-Given Principal Review returns two Important findings on candidate HLD specifications
++Given Principal Review returns findings on candidate HLD specifications
+ When the AI Assistant triages the findings in step_principal_review
+-Then the Assistant verifies findings against HLD source documents and drafts a structured fix table
+-And lifecycle_runner.py halts execution to prompt Human confirmation
+-And upon Human confirmation, the Assistant applies the revisions, runs package_epic.py --revise, and proceeds to the next round
++Then aligned technical findings are auto-applied, committed, and packaged via package_epic.py --revise without human interruption
++And lifecycle_runner.py transitions to AWAITING_PRINCIPAL_CONFIRMATION only if findings involve critical risks, business requirement conflicts, or SHARED_CONTRACT_CONFLICT
++And upon Human confirmation of the conflict proposal, the pipeline resumes and advances to the next review round
+ 
+ Scenario: [ALR-HP-04] [Tier C - Integration] AI Assistant approves AI Programmer fix plan in Cross-Model Review without Human stop
+ 
+@@ -66,12 +66,13 @@ Then the runner logs "AUTO_PASS_CLEAN: 0 findings"
+ And the runner bypasses the Human confirmation prompt completely
+ And the pipeline state advances directly to Stage 3 Implementation
+ 
+-Scenario: [ALR-EC-02] [Tier C - Integration] Minor-only findings in Principal Review batched into single confirmation
++Scenario: [ALR-EC-02] [Tier C - Integration] Minor-only findings in Principal Review swept in single pass without Human halt
+ 
+ Given Principal Review Round 1 returns 0 Critical, 0 Important, and 2 Minor formatting findings
+ When step_principal_review evaluates the triage report
+-Then the 2 Minor findings are batched into a single unified fix confirmation prompt for the Human Architect
+-And once confirmed, the fixes are applied in one pass and package_epic.py --revise executes cleanly
++Then the runner triggers AUTO_PASS_FINAL_MINOR_SWEEP
++And the Minor findings are swept, committed, and packaged in a single pass without stopping for Human confirmation
++And the pipeline advances directly to Stage 3 Implementation
+ 
+ Scenario: [ALR-EC-03] [Tier C - Integration] AI Assistant adjusts AI Programmer fix plan without rejecting
+ 
+diff --git a/.devtool/epic/autonomous_lifecycle_runner/bdd_scenarios.vi.md b/.devtool/epic/autonomous_lifecycle_runner/bdd_scenarios.vi.md
+index b3f5926..98e3eae 100644
+--- a/.devtool/epic/autonomous_lifecycle_runner/bdd_scenarios.vi.md
++++ b/.devtool/epic/autonomous_lifecycle_runner/bdd_scenarios.vi.md
+@@ -38,13 +38,13 @@ Then lệnh được điều phối chạy "agy" với "--model gemini-3.8-flash
+ And câu lệnh chỉ định "--effort high" và "--mode auto"
+ And việc thực thi diễn ra bên trong git worktree biệt lập với giám sát nhóm tiến trình chuyên dụng
+ 
+-Scenario: [ALR-HP-03] [Tier C - Integration] AI Assistant đề xuất sửa lỗi và dừng chờ Human xác nhận trong Principal Review
++Scenario: [ALR-HP-03] [Tier C - Integration] AI Assistant tự động sửa các phát hiện Principal Review đã đồng thuận và chỉ dừng hỏi Con người khi có xung đột rủi ro cao hoặc nghiệp vụ
+ 
+-Given Principal Review trả về hai phát hiện Important trên tài liệu đặc tả HLD ứng viên
++Given Principal Review trả về các phát hiện trên tài liệu đặc tả HLD ứng viên
+ When AI Assistant phân loại các phát hiện trong step_principal_review
+-Then Assistant xác minh các phát hiện theo tài liệu nguồn HLD và soạn thảo bảng sửa lỗi có cấu trúc
+-And lifecycle_runner.py tạm dừng thực thi để hỏi xác nhận từ Con người
+-And sau khi Con người xác nhận, Assistant áp dụng các chỉnh sửa, chạy package_epic.py --revise, và tiến vào vòng tiếp theo
++Then các phát hiện kỹ thuật đã đồng thuận được tự động sửa, commit và đóng gói qua package_epic.py --revise mà không làm gián đoạn con người
++And lifecycle_runner.py chuyển sang AWAITING_PRINCIPAL_CONFIRMATION chỉ khi phát hiện có rủi ro nghiêm trọng, xung đột nghiệp vụ, hoặc SHARED_CONTRACT_CONFLICT
++And sau khi Con người xác nhận phương án giải quyết xung đột, pipeline tiếp tục và tiến vào vòng review tiếp theo
+ 
+ Scenario: [ALR-HP-04] [Tier C - Integration] AI Assistant duyệt kế hoạch sửa lỗi của AI Programmer trong Cross-Model Review không dừng hỏi Con người
+ 
+@@ -66,12 +66,13 @@ Then runner ghi log "AUTO_PASS_CLEAN: 0 findings"
+ And runner bỏ qua hoàn toàn prompt xác nhận của Con người
+ And trạng thái pipeline chuyển thẳng sang Giai đoạn 3 Triển khai
+ 
+-Scenario: [ALR-EC-02] [Tier C - Integration] Gom cụm các phát hiện minor trong Principal Review vào một lần xác nhận duy nhất
++Scenario: [ALR-EC-02] [Tier C - Integration] Gom và xử lý các phát hiện minor trong Principal Review trong một lượt duy nhất không dừng hỏi Con người
+ 
+ Given Principal Review Vòng 1 trả về 0 Critical, 0 Important, và 2 phát hiện định dạng Minor
+ When step_principal_review đánh giá báo cáo phân loại triage
+-Then 2 phát hiện Minor được gom cụm vào một prompt xác nhận sửa đổi duy nhất cho Human Architect
+-And sau khi xác nhận, các sửa đổi được áp dụng trong một lần và package_epic.py --revise thực thi trơn tru
++Then runner kích hoạt AUTO_PASS_FINAL_MINOR_SWEEP
++And các phát hiện Minor được quét, commit và đóng gói trong một lượt duy nhất mà không tạm dừng hỏi Con người
++And pipeline tiến thẳng vào Giai đoạn 3 Triển khai
+ 
+ Scenario: [ALR-EC-03] [Tier C - Integration] AI Assistant điều chỉnh kế hoạch sửa lỗi của AI Programmer mà không từ chối
+ 
+diff --git a/.devtool/epic/autonomous_lifecycle_runner/handoff.md b/.devtool/epic/autonomous_lifecycle_runner/handoff.md
+index 445cc86..a1517e1 100644
+--- a/.devtool/epic/autonomous_lifecycle_runner/handoff.md
++++ b/.devtool/epic/autonomous_lifecycle_runner/handoff.md
+@@ -14,7 +14,7 @@
+ ## Status
+ 
+ - **Packaged**: 2026-11-10
+-- **Design commit**: `6bad2b5`
++- **Design commit**: `c52e7c4`
+ - **Base branch**: `main`
+ - **Gates passed**: 1 (spec), 2 (HLD and task breakdown)
+ - **Next**: Stage 3, `dev-implementation`. Gate 3 (execution order) still needs the developer's confirmation.
+@@ -23,16 +23,16 @@
+ 
+ | Placeholder | Value |
+ |-------------|-------|
+-| `autonomous_lifecycle_runner` | `autonomous_lifecycle_runner` |
+-| `autonomous_lifecycle_runner` | `autonomous_lifecycle_runner` |
++| `epic_slug` | `autonomous_lifecycle_runner` |
++| `epic_dir` | `autonomous_lifecycle_runner` |
+ 
+ These are usually different strings. Never derive one from the other.
+ 
+ ## Read First
+ 
+-1. `.devtool/epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.en.md` — the HLD. Its Kanban Tasks Breakdown lists the <N> tasks.
++1. `.devtool/epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.en.md` — the HLD. Its Kanban Tasks Breakdown lists the 5 tasks.
+ 2. `.devtool/epic/autonomous_lifecycle_runner/bdd_scenarios.en.md` — the behavioural contract.
+-3. `.devtool/epic/autonomous_lifecycle_runner/<source spec>.en.md` — the approved source spec.
++3. `.devtool/epic/autonomous_lifecycle_runner/2026-11-10-autonomous-lifecycle-runner-design.en.md` — the approved source spec.
+ 4. `.devtool/epic/autonomous_lifecycle_runner/principal_review.md`, when present — Principal Review rounds and decisions.
+ 
+ ## Resume Prompt
+@@ -68,11 +68,13 @@ None
+ 
+ - **2026-11-10 (`6ad5af4`)**: Initial Stage 2 packaging
+ - **2026-11-10 (`6ad5af4` -> `6bad2b5`)**: Revise after Principal Review round 1
++- **2026-11-10 (`6bad2b5` -> `c7d1838`)**: Revise after Principal Review round 2 delta
++- **2026-11-10 (`c7d1838` -> `c52e7c4`)**: Align auto-triage policy, model priority, and task contracts for Principal Review Round 3
+ 
+ ## Rules for the Receiving Agent
+ 
+ - Do not re-run `dev-brainstorming` or `dev-designer`. Raise a wrong or missing document at Gate 3.
+ - This handoff does not pass Gate 3. The developer confirms the execution order.
+-- Unless the design commit is `uncommitted`: if `git log 6bad2b5..main -- .devtool/epic/autonomous_lifecycle_runner` lists any commit besides the `Package epic for handoff` commit, the documents changed after packaging. The documents win, and this file may be stale. Comparing against the base branch keeps the epic branch's own task commits out of the check.
++- Unless the design commit is `uncommitted`: if `git log c52e7c4..main -- .devtool/epic/autonomous_lifecycle_runner` lists any commit besides the `Package epic for handoff` commit, the documents changed after packaging. The documents win, and this file may be stale. Comparing against the base branch keeps the epic branch's own task commits out of the check.
+ - This file is updated only by `package_epic.py --revise`, which records each re-anchoring under `## Revisions`.
+ - Never edit a task's Verification table, Definition of Done, Allowed files or a protected path; stop and report.
+diff --git a/.devtool/epic/autonomous_lifecycle_runner/task_1_pipeline_state_machine_and_probing.md b/.devtool/epic/autonomous_lifecycle_runner/task_1_pipeline_state_machine_and_probing.md
+index cddc1eb..537e954 100644
+--- a/.devtool/epic/autonomous_lifecycle_runner/task_1_pipeline_state_machine_and_probing.md
++++ b/.devtool/epic/autonomous_lifecycle_runner/task_1_pipeline_state_machine_and_probing.md
+@@ -50,24 +50,9 @@ Atomic writes via temporary files combined with `fcntl.flock` prevent JSON corru
+ 
+ ### BDD SCENARIOS
+ 
+-Covers: ALR-ST-01, ALR-ST-02, ALR-ST-03, ALR-AR-02
++Covers: ALR-ST-03, ALR-AR-02
+ 
+ ```gherkin
+-Scenario: [ALR-ST-01] [Tier C - Integration] State persistence and resumption from crash in intermediate stage
+-
+-Given the runner is interrupted by SIGINT during Stage 3 task execution
+-When lifecycle_runner.py is invoked again with --resume
+-Then the runner reads .devtool/state/<epic>.pipeline.json
+-And the runner recovers the active stage "implementation", completed task list, and current round
+-And execution resumes from the exact interrupted task without re-running completed tasks
+-
+-Scenario: [ALR-ST-02] [Tier C - Integration] Gate Ledger synchronization on autonomous state transitions
+-
+-Given the pipeline progresses autonomously through Stage 2 and Stage 3
+-When each gate milestone (Gate 3, Gate 4, Gate 5 candidate) is achieved
+-Then .devtool/GATE_LEDGER.md is updated with the timestamp, candidate SHA, and auto-approval metadata
+-And the ledger status remains strictly in sync with .devtool/state/<epic>.pipeline.json
+-
+ Scenario: [ALR-ST-03] [Tier C - Integration] Probing verifies model capabilities before state initialization
+ 
+ Given an invalid or deprecated model string specified in configuration
+@@ -88,8 +73,8 @@ And the pipeline state file remains valid and uncorrupted JSON at all times
+ 
+ | ID | Phase | Command | Expect | Needs |
+ |----|-------|---------|--------|-------|
+-| V1 | RED | `python3 -m unittest tests/test_lifecycle_runner.py -k test_alr_st_01` | exit 1; contains "FAILED" | — |
+-| V2 | GREEN | `python3 -m unittest tests/test_lifecycle_runner.py -k test_alr_st_01` | exit 0; contains "OK" | — |
++| V1 | RED | `python3 -m unittest tests/test_lifecycle_runner.py -k test_alr_st_03` | exit 1; contains "FAILED" | — |
++| V2 | GREEN | `python3 -m unittest tests/test_lifecycle_runner.py -k test_alr_st_03` | exit 0; contains "OK" | — |
+ | V3 | GREEN | `python3 -m unittest tests/test_lifecycle_runner.py` | exit 0; contains "OK" | — |
+ | V4 | TIER-B | `ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py tests/test_lifecycle_runner.py` | exit 0 | — |
+ | V5 | TIER-B | `mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py tests/test_lifecycle_runner.py` | exit 0 | — |
+@@ -109,14 +94,14 @@ And the pipeline state file remains valid and uncorrupted JSON at all times
+ 
+ - `StageName` enum: `initialized`, `principal_review`, `awaiting_principal_confirmation`, `implementation`, `cross_model_review`, `awaiting_finish`, `completed`, `halted`.
+ - `FixPlanVerdict` enum: `APPROVED`, `ADJUSTED`, `CRITICAL_CONFLICT`.
+-- `RunnerConfig` defaults: `programmer_model="gemini-3.8-flash"`, `programmer_effort="high"`, `assistant_model=None` (resolves dynamically to active selected model: Argon, Claude, Codex, etc.), `assistant_effort="high"`, `timeout_seconds=1800`, `max_review_rounds=3`.
++- `RunnerConfig` defaults: `programmer_model="gemini-3.8-flash"`, `programmer_effort="high"`, `assistant_model=None` (precedence: CLI `--assistant-model` -> `.devtool/review_config.json` `providers.assistant.model` -> active profile model -> fallback `claude-sonnet-5-5-high`), `assistant_effort="high"`, `timeout_seconds=1800`, `max_review_rounds=3`.
+ - `PipelineState` tracks `epic_slug`, `active_stage`, `principal_round`, `cross_model_round`, `last_commit_sha`, `last_verdict`, `halt_reason`, `last_error`, `task_order`, and `completed_tasks`.
+ - State is serialized to `.devtool/state/<epic>.pipeline.json` via `.tmp` rename with `fcntl.flock(fd, fcntl.LOCK_EX)`.
+ - Gate updates execute via `resume_context.py --gate <n> --epic <slug> --approved "<text>" --by lifecycle_runner` to guarantee synchronization with `gate_ledger.jsonl`.
+ 
+ ## Definition of Done
+ 
+-- Scenarios ALR-ST-01, ALR-ST-02, ALR-ST-03, ALR-AR-02 are covered and pass in the test suite. (V2, V3, V6)
++- Scenarios ALR-ST-03, ALR-AR-02 are covered and pass in the test suite. (V2, V3, V6)
+ - Python quality checks (lint and type check) pass cleanly. (V4, V5)
+ - State persistence and recovery work reliably across interrupted sessions. (Gate 5)
+ 
+diff --git a/.devtool/epic/autonomous_lifecycle_runner/task_2_subprocess_dispatcher_and_headless_agy.md b/.devtool/epic/autonomous_lifecycle_runner/task_2_subprocess_dispatcher_and_headless_agy.md
+index d9bb51d..6c47b92 100644
+--- a/.devtool/epic/autonomous_lifecycle_runner/task_2_subprocess_dispatcher_and_headless_agy.md
++++ b/.devtool/epic/autonomous_lifecycle_runner/task_2_subprocess_dispatcher_and_headless_agy.md
+@@ -23,7 +23,8 @@ Implement headless model dispatching and process supervision in `skills/dev-life
+ 2. Process isolation: spawn subprocesses with `start_new_session=True` so child processes run within a dedicated POSIX process group.
+ 3. Timeout and termination fencing: supervisor timer triggers `os.killpg(pgid, signal.SIGTERM)`, awaits a 1.0s grace period, and escalates to `os.killpg(pgid, signal.SIGKILL)` if processes remain alive.
+ 4. Auto Gate 3 order calculation: implement `LifecycleRunner.resolve_gate3_order` calling `compute_execution_order.py`, validating topological task order, auto-confirming Gate 3, and recording the execution order in `.devtool/GATE_LEDGER.md`.
+-5. Implement unit tests in `tests/test_lifecycle_runner.py` covering `ALR-HP-02`, `ALR-EC-04`, and `ALR-AR-01`.
++5. Implementation loop: implement `LifecycleRunner.step_implementation` to loop through the resolved tasks in order, dispatch the Programmer headless subprocess for each task via stdin, capture per-task logs, sync task status, commit each task cleanly (`[AUTONOMOUS_LIFECYCLE_RUNNER] Execute <task_slug>`), and recover from crash or interruption via saved state (`ALR-ST-01`).
++6. Implement unit tests in `tests/test_lifecycle_runner.py` covering `ALR-HP-02`, `ALR-EC-04`, `ALR-AR-01`, and `ALR-ST-01`.
+ 
+ ## Files
+ 
+@@ -50,7 +51,7 @@ Executing headless LLM sessions in isolated process groups (`start_new_session=T
+ 
+ ### BDD SCENARIOS
+ 
+-Covers: ALR-HP-02, ALR-EC-04, ALR-AR-01
++Covers: ALR-HP-02, ALR-EC-04, ALR-AR-01, ALR-ST-01
+ 
+ ```gherkin
+ Scenario: [ALR-HP-02] [Tier C - Integration] Headless dispatch of AI Programmer with Gemini 3.8 Flash High
+@@ -76,6 +77,14 @@ When the supervisor timer expires in ModelDispatcher
+ Then SIGTERM is broadcast to the entire subprocess group via os.killpg
+ And after a 1.0s grace period, SIGKILL is escalated if the child processes remain alive
+ And the runner records a timeout failure in the pipeline state without leaving orphaned processes
++
++Scenario: [ALR-ST-01] [Tier C - Integration] State persistence and resumption from crash in intermediate stage
++
++Given the runner is interrupted by SIGINT during Stage 3 task execution
++When lifecycle_runner.py is invoked again with --resume
++Then the runner reads .devtool/state/<epic>.pipeline.json
++And the runner recovers the active stage "implementation", completed task list, and current round
++And execution resumes from the exact interrupted task without re-running completed tasks
+ ```
+ 
+ ## Verification
+@@ -104,10 +113,11 @@ And the runner records a timeout failure in the pipeline state without leaving o
+ - The Programmer is dispatched with `--model <model>` (default: `gemini-3.8-flash`), `--effort high`, and `--mode auto` inside the worktree directory, with prompts piped via stdin.
+ - `subprocess.Popen` is launched with `start_new_session=True` so `pgid = p.pid` provides the process group ID. On timeout or exit, `os.killpg(pgid, signal.SIGTERM)` is called (handling `ProcessLookupError` gracefully) followed by SIGKILL escalation if needed.
+ - Gate 3 auto-confirmation runs `compute_execution_order.py`, parses the sequential order from the `Flattened sequential order:` output block (or imports `load_tasks`), fails on non-zero exit or manual review notes, and records Gate 3 approval via `resume_context.py --gate 3 --epic <slug> --approved "<order>" --by lifecycle_runner`.
++- `step_implementation` iterates sequentially over tasks, captures stdout/stderr to task log files, updates task status to done, and commits changes per task (`[AUTONOMOUS_LIFECYCLE_RUNNER] Execute <task_slug>`).
+ 
+ ## Definition of Done
+ 
+-- Scenarios ALR-HP-02, ALR-EC-04, ALR-AR-01 are covered and pass in the test suite. (V2, V3, V6)
++- Scenarios ALR-HP-02, ALR-EC-04, ALR-AR-01, ALR-ST-01 are covered and pass in the test suite. (V2, V3, V6)
+ - Python quality checks (lint and type check) pass cleanly. (V4, V5)
+ - Process termination leaves zero orphan processes upon timeout. (Gate 5)
+ 
+diff --git a/.devtool/epic/autonomous_lifecycle_runner/task_3_principal_review_automation_and_checkpoint.md b/.devtool/epic/autonomous_lifecycle_runner/task_3_principal_review_automation_and_checkpoint.md
+index 3d7257e..5d34b32 100644
+--- a/.devtool/epic/autonomous_lifecycle_runner/task_3_principal_review_automation_and_checkpoint.md
++++ b/.devtool/epic/autonomous_lifecycle_runner/task_3_principal_review_automation_and_checkpoint.md
+@@ -21,11 +21,13 @@ Epic: [autonomous_lifecycle_runner](autonomous_lifecycle_runner.en.md)
+ Implement Stage 2 Principal Review automation with the mandatory Human confirmation checkpoint in `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py`:
+ 1. Implement `LifecycleRunner.step_principal_review`:
+    - Triggers `run_external_review.py run --kind principal --epic-dir <epic> --base <base> --auto-quota` with provider auto-quota prioritization.
+-   - Evaluates triage results from `run_external_review.py triage`.
+-   - Circuit Breaker guard: immediately aborts with `CIRCUIT_BREAKER_HALT (SHARED_CONTRACT_CONFLICT)` if any finding conflicts with `shared-contracts/`.
+-   - Zero-finding bypass: if Round 1 completes with PASS and 0 findings (`AUTO_PASS_CLEAN`), bypasses the Human prompt and directly transitions to `StageName.IMPLEMENTATION`.
+-   - Proposed fix formulation: when findings exist, the AI Assistant triages findings, batches all findings (including Minor formatting/lint items) into a unified fix proposal, transitions state to `StageName.AWAITING_PRINCIPAL_CONFIRMATION`, writes `.devtool/epic/<epic>/principal_fix_proposal_round<N>.md`, and prompts the Human Architect (`prompt_human_principal_fixes`) or awaits `--confirm-fixes`.
+-   - Revision execution: upon Human confirmation (`--confirm-fixes`), applies revisions, commits them, records decision cells (`fixed in <sha>`) in `principal_review.md`, commits decisions, executes `package_epic.py <epic> --revise --reason "..."`, commits handoff re-anchor, increments `principal_round`, and advances to the next review round (up to max 3 rounds).
++   - Evaluates triage results and Action from `run_external_review.py triage`:
++     - `AUTO_PASS_CLEAN`: 0 findings -> directly transitions to `StageName.IMPLEMENTATION`.
++     - `AUTO_PASS_FINAL_MINOR_SWEEP`: 0 Critical/Important, only Minor -> AI Assistant executes single minor fix sweep, commits revisions, records decisions, runs `package_epic.py <epic> --revise`, and advances to Stage 3 without an additional external review round.
++     - `AUTO_FIX_ELIGIBLE`: AI Assistant auto-applies aligned revisions, commits them, records decision cells (`fixed in <sha>`) in `principal_review.md`, commits decisions, executes `package_epic.py <epic> --revise`, commits handoff re-anchor, and advances to the next review round.
++     - Human stop condition: if findings involve high-risk critical issues, business/domain requirement conflicts, unaligned source conflicts, or `SHARED_CONTRACT_CONFLICT`, the runner transitions to `StageName.AWAITING_PRINCIPAL_CONFIRMATION`, writes `.devtool/epic/<epic>/principal_fix_proposal_round<N>.md`, and prompts the Human Architect (`prompt_human_principal_fixes`) or halts for `--confirm-fixes`.
++     - `AUTO_PASS_FINAL_SWEEP`: on Round 3 with 0 Critical, executes final fix sweep, commits, records decisions, runs `package_epic.py --revise`, and advances to Stage 3 without a 4th round.
++     - `CIRCUIT_BREAKER_HALT`: halts immediately on `SHARED_CONTRACT_CONFLICT`, `FIX_LOOP`, or `MAX_ROUNDS_CRITICAL_REMAINING`.
+ 2. Implement unit and integration tests in `tests/test_lifecycle_runner.py` covering `ALR-HP-03`, `ALR-EC-01`, `ALR-EC-02`, and `ALR-FR-01`.
+ 
+ ## Files
+@@ -57,13 +59,13 @@ While the overall lifecycle is autonomous, architectural design changes identifi
+ Covers: ALR-HP-03, ALR-EC-01, ALR-EC-02, ALR-FR-01
+ 
+ ```gherkin
+-Scenario: [ALR-HP-03] [Tier C - Integration] AI Assistant proposes fixes and prompts Human confirmation in Principal Review
++Scenario: [ALR-HP-03] [Tier C - Integration] AI Assistant auto-applies aligned Principal Review fixes and prompts Human confirmation only on critical or domain conflicts
+ 
+-Given Principal Review returns two Important findings on candidate HLD specifications
++Given Principal Review returns findings on candidate HLD specifications
+ When the AI Assistant triages the findings in step_principal_review
+-Then the Assistant verifies findings against HLD source documents and drafts a structured fix table
+-And lifecycle_runner.py halts execution to prompt Human confirmation
+-And upon Human confirmation, the Assistant applies the revisions, runs package_epic.py --revise, and proceeds to the next round
++Then aligned technical findings are auto-applied, committed, and packaged via package_epic.py --revise without human interruption
++And lifecycle_runner.py transitions to AWAITING_PRINCIPAL_CONFIRMATION only if findings involve critical risks, business requirement conflicts, or SHARED_CONTRACT_CONFLICT
++And upon Human confirmation of the conflict proposal, the pipeline resumes and advances to the next review round
+ 
+ Scenario: [ALR-EC-01] [Tier C - Integration] Zero findings in Principal Review bypasses Human confirmation
+ 
+@@ -73,12 +75,13 @@ Then the runner logs "AUTO_PASS_CLEAN: 0 findings"
+ And the runner bypasses the Human confirmation prompt completely
+ And the pipeline state advances directly to Stage 3 Implementation
+ 
+-Scenario: [ALR-EC-02] [Tier C - Integration] Minor-only findings in Principal Review batched into single confirmation
++Scenario: [ALR-EC-02] [Tier C - Integration] Minor-only findings in Principal Review swept in single pass without Human halt
+ 
+ Given Principal Review Round 1 returns 0 Critical, 0 Important, and 2 Minor formatting findings
+ When step_principal_review evaluates the triage report
+-Then the 2 Minor findings are batched into a single unified fix confirmation prompt for the Human Architect
+-And once confirmed, the fixes are applied in one pass and package_epic.py --revise executes cleanly
++Then the runner triggers AUTO_PASS_FINAL_MINOR_SWEEP
++And the Minor findings are swept, committed, and packaged in a single pass without stopping for Human confirmation
++And the pipeline advances directly to Stage 3 Implementation
+ 
+ Scenario: [ALR-FR-01] [Tier C - Integration] Circuit Breaker halts immediately on Shared Contract conflict
+ 
+@@ -114,8 +117,8 @@ And the console displays the executive warning banner instructing the developer
+ 
+ - Principal Review invocation uses `run_external_review.py run --kind principal --epic-dir <epic> --base <base> --auto-quota` and evaluates `run_external_review.py triage`.
+ - Principal Review is capped at 3 rounds.
+-- When findings > 0, the Assistant sets state `AWAITING_PRINCIPAL_CONFIRMATION`, drafts `.devtool/epic/<epic>/principal_fix_proposal_round<N>.md`, and halts for explicit Human confirmation (`[Y/N]` or `--confirm-fixes`).
+-- Minor findings are never discarded; they are batched into the same Human confirmation prompt.
++- Auto-Triage Gate actions map to deterministic transitions: `AUTO_PASS_CLEAN` advances to implementation; `AUTO_PASS_FINAL_MINOR_SWEEP` sweeps minor fixes and advances to implementation without an extra review round; `AUTO_FIX_ELIGIBLE` auto-applies aligned revisions; `AUTO_PASS_FINAL_SWEEP` executes final design-anchored sweep and finishes Stage 2.
++- The runner transitions to `AWAITING_PRINCIPAL_CONFIRMATION` only when findings involve high-risk critical issues, business/domain requirement conflicts, unaligned source conflicts, or `SHARED_CONTRACT_CONFLICT`.
+ - Clean working tree discipline: edits, decision records (`fixed in <sha>` in `principal_review.md`), and `package_epic.py <epic> --revise` are committed in sequence before dispatching the next review round.
+ 
+ ## Definition of Done
+diff --git a/.devtool/epic/autonomous_lifecycle_runner/task_4_cross_model_review_fix_plan_loop.md b/.devtool/epic/autonomous_lifecycle_runner/task_4_cross_model_review_fix_plan_loop.md
+index 9556dac..f73a37a 100644
+--- a/.devtool/epic/autonomous_lifecycle_runner/task_4_cross_model_review_fix_plan_loop.md
++++ b/.devtool/epic/autonomous_lifecycle_runner/task_4_cross_model_review_fix_plan_loop.md
+@@ -25,7 +25,7 @@ Implement Stage 3 Cross-Model Review fix-and-verify loop with AI Assistant fix p
+    - Fix plan drafting: when review findings require changes, dispatches the AI Programmer (`--model <programmer-model>` default `gemini-3.8-flash --effort high --mode auto`) to draft `.devtool/epic/<epic>/fix_plan_round<N>.md`.
+    - Fix plan evaluation (`evaluate_programmer_fix_plan`): dispatches the AI Assistant to inspect the fix plan against the approved HLD and emit one of three verdicts: `APPROVED`, `ADJUSTED`, or `CRITICAL_CONFLICT`.
+    - Critical conflict halt: if the Assistant detects an unapproved architectural change or contract violation (`CRITICAL_CONFLICT`), the pipeline halts immediately and alerts the Human Architect.
+-   - Automated fix application: if `APPROVED` or `ADJUSTED`, the AI Programmer applies the fixes, commits the code fixes, runs Phase 4 / Gate 4 in full, and upon Gate 4 PASS records decision cells (`fixed in <sha>`) in `review_results.md`, commits the decisions, and advances to the next review round (Round N+1, up to max 3 rounds).
++   - Automated fix application: if `APPROVED` or `ADJUSTED`, the AI Programmer applies the fixes, the runner commits the code fixes (`[AUTONOMOUS_LIFECYCLE_RUNNER] Apply code fixes for Cross-Model Review round N`), records decision cells (`fixed in <sha>`) in `review_results.md`, commits the decisions (`[AUTONOMOUS_LIFECYCLE_RUNNER] Record review decisions for round N`), executes Gate 4 in full on the clean candidate SHA (passing `run_external_review.py check`), and advances to the next review round (Round N+1, up to max 3 rounds) or completes Stage 3 if converged.
+ 2. Implement unit and integration tests in `tests/test_lifecycle_runner.py` covering `ALR-HP-04`, `ALR-EC-03`, `ALR-FR-02`, and `ALR-FR-04`.
+ 
+ ## Files
+@@ -112,7 +112,7 @@ And an alert is displayed to the Human Architect highlighting the architectural
+ - Cross-Model Review invocation uses `run_external_review.py run --kind code --epic-dir <epic> --base <base> --auto-quota` and evaluates `run_external_review.py triage`.
+ - Fix plan file is stored at `.devtool/epic/<epic>/fix_plan_round<N>.md`.
+ - Assistant evaluation outputs one verdict token on the first line: `APPROVED`, `ADJUSTED`, or `CRITICAL_CONFLICT`.
+-- Review loop return path: after fixes are committed, Gate 4 runs in full (`run_quality_gate(4)`). Upon Gate 4 PASS, decision cells (`fixed in <sha>`) are written to `review_results.md` and committed before launching the next review round.
++- Review loop return path: after fixes are applied, the runner commits the code fixes, writes decision cells (`fixed in <sha>`) into `review_results.md`, commits the decisions, and runs Gate 4 in full. Because decisions are recorded and committed, `run_external_review.py check` passes and certifies the clean candidate commit.
+ - Clean working tree discipline: code fixes and review decisions are committed before invoking subsequent review rounds.
+ 
+ ## Definition of Done
+diff --git a/.devtool/epic/autonomous_lifecycle_runner/task_5_orchestrator_cli_and_governance_rules.md b/.devtool/epic/autonomous_lifecycle_runner/task_5_orchestrator_cli_and_governance_rules.md
+index 8304185..7ce3839 100644
+--- a/.devtool/epic/autonomous_lifecycle_runner/task_5_orchestrator_cli_and_governance_rules.md
++++ b/.devtool/epic/autonomous_lifecycle_runner/task_5_orchestrator_cli_and_governance_rules.md
+@@ -68,7 +68,7 @@ Updating the governance rules and skill documentation ensures that all AI agent
+ 
+ ### BDD SCENARIOS
+ 
+-Covers: ALR-HP-01, ALR-FR-03
++Covers: ALR-HP-01, ALR-FR-03, ALR-ST-02
+ 
+ ```gherkin
+ Scenario: [ALR-HP-01] [Tier C - Integration] Complete autonomous pipeline executes from handoff to final executive report
+@@ -86,6 +86,13 @@ Given Cross-Model Review reaches Round 3 with at least 1 unresolved Critical fin
+ When evaluate_circuit_breakers checks the round counter and severity counts
+ Then the runner triggers CIRCUIT_BREAKER_HALT (MAX_ROUNDS_CRITICAL_REMAINING)
+ And the runner halts without launching a 4th round, outputting the Top 3 Highest-Risk Findings
++
++Scenario: [ALR-ST-02] [Tier C - Integration] Gate Ledger synchronization on autonomous state transitions
++
++Given the pipeline progresses autonomously through Stage 2 and Stage 3
++When each gate milestone (Gate 3, Gate 4, Gate 5 candidate) is achieved
++Then .devtool/GATE_LEDGER.md is updated with the timestamp, candidate SHA, and auto-approval metadata
++And the ledger status remains strictly in sync with .devtool/state/<epic>.pipeline.json
+ ```
+ 
+ ## Verification
+@@ -112,14 +119,16 @@ And the runner halts without launching a 4th round, outputting the Top 3 Highest
+ ## Decisions Already Made
+ 
+ - Autonomous mode does not auto-merge: it halts at `AWAITING_FINISH` and displays the prompt for `/finishing-a-development-branch`.
++- `run_gate4(self) -> Tuple[bool, str]` executes: (1) `run_external_review.py check --epic-dir <epic> --kind code`; (2) `check_bdd_traceability.py results`; (3) `run_unittest_junit.py`; (4) `ruff check --isolated`; (5) `mypy --ignore-missing-imports`.
+ - Gate 4 PASS candidate SHA is verified before rendering the final executive report.
+ - Circuit breaker on Round 3 critical exhaustion outputs the Top 3 Highest-Risk Findings and halts.
+ - Role boundaries: In autonomous mode, the orchestrator runner invokes review CLIs and generates coordination proposals (`.devtool/`), while source code modifications are strictly executed by the AI Programmer subprocess.
++- Gate synchronization: Gate 3, 4, and 5 candidate approvals are recorded via `resume_context.py --gate <n>` to keep `.devtool/state/gate_ledger.jsonl` and `.devtool/GATE_LEDGER.md` synchronized (`ALR-ST-02`).
+ - `scripts/verify.sh` registers `lifecycle-runner` suite pointing to `tests/test_lifecycle_runner.py`.
+ 
+ ## Definition of Done
+ 
+-- Scenarios ALR-HP-01 and ALR-FR-03 are covered and pass in the test suite. (V2, V3, V6)
++- Scenarios ALR-HP-01, ALR-FR-03, ALR-ST-02 are covered and pass in the test suite. (V2, V3, V6)
+ - Python quality checks (lint and type check) pass cleanly. (V4, V5)
+ - Document checks pass across all modified skills and bilingual markdown files. (Gate 5)
+````
+
+Source files changed since round 2 (stat only):
+
+```text
+(none outside .devtool/)
+```
+
+
+## Mandatory Dynamic Probing Rule
+
+Do not rely solely on static diff inspection. For any language processing logic, regex expressions, exception handlers (`try/except`), or ORM persistence code, you MUST execute active read-only terminal probes (e.g. `python3 -c "..."` or interactive read-only REPL commands) to verify:
+1. Local variables referenced in exception handlers are not unbound when exceptions occur early in a block.
+2. Edge-case lexical tokens and inflections are not deformed by tokenization or lemmatization.
+3. Database statement ordering in transaction flushes does not violate foreign keys or unique constraints.
+
+## Rules
+
+# Principal Review Rules
+
+To avoid false-positive findings, evaluate design documents and epic artefacts against these principles:
+
+1. **Severities**:
+   - **Critical**: The epic or architecture cannot reach its goal or pass execution gates as designed (e.g. fatal architectural flaw, missing core contract).
+   - **Important**: A task or component would hit Stop-and-Report, ship incorrect behavior, or break module isolation during implementation.
+   - **Minor**: Wording, formatting, typo, and minor consistency adjustments.
+
+2. **Readiness Report Is Proven Fact**:
+   - The mechanical checks (R1–R8) in `check_epic_readiness.py` are already validated prior to review.
+   - Do not re-verify mechanically checked facts or restate them as findings; spend your review effort on judgement, architecture, and source grounding.
+
+3. **Grounding in Active Source**:
+   - Every claim about the repository source code must name the specific file and line number read.
+   - Grounding verifies that referenced symbols, functions, methods, and configurations actually exist at the candidate commit.
+
+4. **Actionable Findings**:
+   - Each finding must name the specific artefact (file path) and location (heading or section) to change.
+   - Each finding must conclude with a concrete `Proposed: <edit>` recommendation.
+
+5. **Shared Contracts, Symlink Resolution & Source-of-Truth Hierarchy (Forward Alignment over Legacy Reversion)**:
+   - **Source-of-Truth Hierarchy**:
+     1. **Tier 1 (Highest Authority — Approved Design Intent)**: User-approved Spec (`*-design.en.md`) and HLD (`<epic_dir>.en.md` Goals & Architecture).
+     2. **Tier 2 (Cross-Repo Contract Baseline)**: `shared-contracts/<domain>/` (`api_contract.md`, `architecture_and_flow.md`, `gaps_and_rfcs.md`).
+     3. **Tier 3 (Legacy Code Baseline)**: Existing source files in `src/` and task `Allowed files`.
+   - **Forward Alignment Rule (Never Revert Approved Design Intent)**: When Tier 1 intentionally introduces a new pipeline structure, step count, enum, or schema (e.g., consolidating 7 legacy steps into 5 steps) that differs from Tier 2 (`shared-contracts/`) or Tier 3 (`src/`), **DO NOT propose reverting the HLD/Spec back to the legacy Tier 2/Tier 3 design**. Instead, report a **Forward Contract-Sync / Blast-Radius Gap** and propose:
+     1. Updating `shared-contracts/<domain>/` (`api_contract.md`, `architecture_and_flow.md`, `gaps_and_rfcs.md` + `sync_contracts.py ack`) and `## Shared Contract Impact` to match the approved Tier 1 design (with backward-compatibility shims if needed).
+     2. Adding the affected legacy callers (e.g., `worker/bridge.py`, `preview/jobs.py`) into the appropriate task's `Allowed files` so implementation migrates them forward to the new design.
+   - When reviewing design documents impacting inter-service or cross-repo communication, verify that `shared-contracts/` paths resolve on disk (following symlinks to target repositories if applicable).
+   - Flag any unacknowledged contract drift or missing `task_01` contract/adapter synchronization as **Critical** or **Important** with a **forward-migration** `Proposed:` action.
+
+6. **5-Layer Deep Verification Checklist**:
+   - **Unbound Variable in Fallback**: Verify that all variables referenced in `except` blocks are assigned or imported before the `try` block begins.
+   - **Part-of-Speech Ambiguity**: Verify that morphological transformation functions (lemmatizers, stemmers, token normalizers) disambiguate noun/adjective forms from verb-like gerunds and participles.
+   - **ORM Flush Semantics**: Verify SQLAlchemy Unit of Work execution ordering (Insert -> Update -> Delete). Forbid mutating ORM entities before flushing deleted records sharing the same unique key or index constraint.
+   - **Interactive Contract Boundary**: Verify that interactive token and span coverage on user interfaces conforms strictly to `architecture_and_flow.md`.
+   - **Fixture Schema Sanity**: Verify that test fixtures and mock records in RED tests satisfy database check constraints before reaching domain assertions.
+
+## Checklist
+
+- **P1 (Consistency)**: Consistency across spec, HLD, BDD, tasks, and documentation: decisions, field names, numbers, titles, statuses.
+- **P2 (Grounding)**: Grounding: every path, symbol, signature, return type, route, and constant in `Decisions Already Made` and `Impact Analysis` exists in source code as described.
+- **P3 (Pinned behaviour)**: Pinned behaviour: existing tests that pin a behaviour a task changes, especially when outside Allowed files.
+- **P4 (Blast radius)**: Blast radius: other writers and readers of changed data, background jobs, callers outside Allowed files, migrations and backfill.
+- **P5 (Task split and Verification)**: Task split and Verification: dependency order, RED rows that can fail before implementation, GREEN rows that pass at baseline, DoD references, Stop conditions.
+- **P6 (BDD quality)**: BDD quality: valid Gherkin, dimensions that match scenarios, grounded assertions, tier tags.
+- **P7 (Shared Contracts & Feasibility)**: Verification Environment, integration test feasibility, and cross-repo contract audit. When `shared-contracts/` (or an external service/FFI boundary) is touched, inspect `shared-contracts/<domain>/` canonical files (`api_contract.md`, `architecture_and_flow.md`, `gaps_and_rfcs.md`) on disk (including resolving symlinks to target repositories if applicable). Verify that the HLD contains a dedicated `## Shared Contract Impact` section, guarantees backward compatibility (optional fields, safe defaults, no breaking wire changes), reserves `task_01` for contract synchronization, and outputs the Parallel Handoff Summary for satellite repos.
+- **P8 (Risks, rollout and rollback)**: Risks, rollout and rollback.
+
+## Required output
+
+Do NOT use the bracketed tags `[Critical]`, `[Important]`, or `[Minor]` anywhere in your prose or analysis above the final verdict block.
+
+End your answer with these exact lines and nothing after them (no markdown bolding `**`, no backticks, no bullet before `Verdict:`):
+
+Verdict: PASS
+(or `Verdict: CHANGES REQUIRED`)
+[Critical|Important|Minor] <artefact>:<location> — <problem>. Proposed: <edit>
+
+Rules for Severity & Verdict:
+- Use `Critical` for a defect that breaks the design goal, `Important` for one that must be fixed before implementation, and `Minor` for anything else.
+- **Exhaustive Per-File Pass (Anti-Drip-Feed Rule)**: In Round 1 (full-scope review), report ALL `Critical` and `Important` defects within each inspected artefact in the same round; never hold back or drip-feed findings on untouched sections of the same file across later delta rounds.
+- Output `Verdict: CHANGES REQUIRED` if and only if there is at least one `Critical` or `Important` finding.
+- If there are no findings (or only `Minor` findings), you MUST output `Verdict: PASS`.
+- A review with no finding still ends with its `Verdict: PASS` line.
+
+codex
+I’m using the principal-review skill to check the candidate’s fixes against the prior findings and referenced source. I’ll keep the review read-only and limit findings to incomplete fixes or new regressions in the revision diff.
+
+exec
+/bin/zsh -lc 'cat /Users/danhdueexoictif/.codex/plugins/cache/danhdue-agent-tools/d3nexus/1.28.2/skills/task-observer/SKILL.md /Users/danhdueexoictif/.codex/plugins/cache/danhdue-agent-tools/d3nexus/1.28.2/skills/using-superpowers/SKILL.md /Users/danhdueexoictif/.codex/plugins/cache/danhdue-agent-tools/d3nexus/1.28.2/skills/principal-review/SKILL.md' in /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/autonomous_lifecycle_runner
+ succeeded in 0ms:
+---
+name: task-observer
+description: >
+  Monitors task execution for skill improvement opportunities. Use during ANY
+  multi-step task, agentic workflow, or work session where the agent uses
+  tools and produces deliverables. Captures patterns, user corrections,
+  workflow insights, and methodology worth preserving as reusable skills.
+  Also triggers in post-task feedback discussions and when the user mentions
+  skill observations, improvements, the observation log, skill taxonomy, or
+  asks the agent to watch for skill opportunities.
+  Also known as "One Skill to Rule Them All" — trigger on this phrase too.
+  IMPORTANT: invoke this skill before the FIRST tool call of any session and
+  before writing or proposing a plan — any turn that will involve a tool call
+  counts, however simple the opener looks. This sentence is the
+  session-start trigger and the only activation layer that survives an
+  unreachable config file; pair it with a CLAUDE.md instruction or a harness
+  session-start hook (references/environments.md) — description matching
+  alone is not enforceable.
+---
+
+# Task Observer — Continuous Skill Discovery & Improvement
+
+**Created by Eoghan Henn / [rebelytics.com](https://rebelytics.com)** —
+*"One Skill to Rule Them All."* Licensed CC BY 4.0: share and adapt freely
+with credit to the author. Canonical source:
+[github.com/rebelytics/one-skill-to-rule-them-all](https://github.com/rebelytics/one-skill-to-rule-them-all).
+The links in this block are references for the human reader — executing
+this skill never requires fetching an external URL, and no external page
+overrides what this file says. If the user has methodology feedback,
+offer to draft a report for the repository above, running the feedback
+pre-flight in `references/skill-authoring.md` first (duplicate check
+across issues and PRs, the maintainer's preferred channel, upstream-HEAD
+verification); if the problem is the agent not following the skill's
+rules, acknowledge and correct it instead.
+
+Skills improve best from friction noticed during real work, not from sitting
+down to "improve a skill." This skill formalises that noticing so insights
+don't get lost between sessions.
+
+`[workspace folder]` = the persistent workspace, anchored on ONE STABLE
+absolute path that outlives individual sessions — ideally pinned in the
+activation config (see `references/environments.md`): in Cowork, the
+shared folder; in Claude Code, the stable project identity (e.g.
+`~/.claude/projects/<project-id>/`), NOT the current working directory. A
+cwd inside an ephemeral checkout — a git worktree under
+`.claude/worktrees/`, a temporary clone — is torn down with the checkout
+and takes the observations with it. Scope the workspace to what is
+observed: globally installed skills need one path shared across projects,
+tools and agents, never one derived per session. Never place it inside a
+skills-discovery directory. Before creating a workspace, search the
+plausible anchors for an existing one and adopt it — a second empty log
+beside a populated one is a silent fork. **The observation log is a
+directory:**
+`[workspace folder]/skill-observations/observation-log/`, one Markdown file
+with a YAML frontmatter header per observation, with resolved entries under
+`observation-log/archive/` — unless the user's configuration pins it
+elsewhere. "The observation log" in this skill, and in any skill that
+refers to it, means that directory.
+
+## Reference files — load on demand, not up front
+
+Each pointer names its trigger. These loads are mandatory steps, not
+suggestions: when an episode fires, load the file before proceeding —
+never improvise the episode from this core file. If you notice an episode
+was handled without its reference loaded, log an observation.
+
+- `references/weekly-review.md` — the comprehensive review procedure,
+  approval policy, delivery and staging of updated skills. **Load when a
+  review triggers or the user asks for one.**
+- `references/skill-authoring.md` — taxonomy in full, structure defaults,
+  licensing, attribution, confidentiality layers, live-file editing and
+  relocation-verification rules. **Load before creating or editing any
+  skill.**
+- `references/observation-log.md` — storage layout, frontmatter fields,
+  helper snippets, archival details, and the reasoning behind the rules.
+  **Load when setting up the log for the first time, when archiving, when
+  an id or frontmatter looks wrong, or before changing how anything reads
+  the log.**
+- `references/signals.md` — the full catalogue of what is and isn't worth
+  logging. **Load when unsure whether something is an observation, or when
+  sorting many candidates.**
+- `references/environments.md` — activation and config setup, compaction
+  behaviour, bundle manifest, handoff-doc mode for storage-less
+  environments. **Load for setup questions, after compaction, or when
+  there is no filesystem.**
+- `references/migration.md` — the one-time scripted conversion of a
+  pre-3.0 single-file `log.md`. **Load only when the Session Start
+  Protocol detects a legacy log.** Fresh installs never read it.
+
+## Session Start Protocol
+
+1. **Storage.** If `skill-observations/observation-log/` (with its
+   `archive/` subdirectory) or
+   `skill-observations/cross-cutting-principles.md` don't exist,
+   create them (principles template: `references/skill-authoring.md`).
+   Create `skill-observations/last-review-date.txt` containing the literal
+   value `never` if it doesn't exist — never write a date into it at setup;
+   a date means a review actually ran. If a legacy single-file
+   `skill-observations/log.md` exists and `observation-log/` does not, this
+   is an upgrade from a pre-3.0 install: load `references/migration.md` and
+   run the scripted conversion before writing anything else. Before
+   creating or writing anything: if the resolved workspace folder sits
+   under an ephemeral path (e.g. `.claude/worktrees/`, a temporary clone),
+   warn the user and re-anchor on the stable project path first — state
+   written to an ephemeral checkout is lost at teardown.
+2. **Scan.** Read only the frontmatter of each file in `observation-log/`
+   — the header block between the first two `---` lines, never the bodies
+   — and build awareness from `status`, `skill`, `proposes_skill` and
+   `title`; also read the active principles. Hold them in awareness, don't
+   surface unprompted. Frontmatter-only is the whole point of the per-file
+   format: the scan stays cheap once hundreds of observations exist.
+
+   **An empty scan in a log known to be non-empty is a broken command
+   until proven otherwise**, never the finding "no relevant observations".
+   Count the files independently of the parse — a literal path, not the
+   variable the loop uses — and halt if files exist but nothing parsed.
+   Re-derive every path inside the same tool call: shell state does not
+   carry between calls in most harnesses, and a path variable that
+   silently resolves to empty turns a filter into a match-nothing glob
+   rather than an error.
+
+   ```bash
+   d=skill-observations/observation-log                                # re-derive in EVERY call
+   n=$(find "$d" -maxdepth 1 -name "*.md" 2>/dev/null | wc -l)         # independent count via find (zsh-safe)
+   parsed=0
+   if [ "$n" -gt 0 ]; then
+     for f in "$d"/*.md; do
+       [ -e "$f" ] || continue
+       hdr=$(awk 'NR==1 && /^---[[:space:]]*$/ {fm=1; next}
+                  fm && /^---[[:space:]]*$/ {exit}
+                  fm' "$f")
+       [ -n "$hdr" ] && parsed=$(( parsed + 1 ))
+       printf '%s\n---\n' "$hdr"
+     done
+   fi
+   [ "$n" -gt 0 ] && [ "$parsed" -eq 0 ] && \
+     { echo "SCAN COMMAND BROKEN — $n files present, 0 headers parsed"; exit 1; }
+   ```
+3. **Review trigger.** Read `skill-observations/last-review-date.txt`. The
+   value carries the truth: a date = when the last review actually ran;
+   `never` = no review has run yet. A missing file is abnormal (step 1
+   creates it) — recreate it with `never`, don't invent a date. If the
+   value is `never` or older than 7 days AND there are OPEN observations:
+   in an interactive session, offer the review in one line ("the
+   observation backlog hasn't been reviewed [in N days / yet] — run it now,
+   or carry on with your task?") and proceed with the user's task unless
+   they opt in; never gate their work on the review. Only a
+   scheduled/autonomous run loads `references/weekly-review.md` and runs
+   the review unprompted.
+4. **Activation.** Once per session: if no CLAUDE.md (or equivalent)
+   activation instruction for this skill exists, briefly suggest adding one
+   (see `references/environments.md`). Skip if already configured.
+5. **Concurrency.** There is no shared log file to guard: each observation
+   is its own file, so creating one never collides with or overwrites
+   another session's entry. Before changing the *status* of an existing
+   observation, re-read that one file first (a parallel review may have
+   resolved it).
+6. **Targets and staged work.** Resolve each distinct `skill:` value in
+   the scanned frontmatter against the installed skill set and mention, in
+   one line, any that no longer resolve — a deleted skill can accumulate
+   dozens of observations before a review discovers the target is gone.
+   If `skill-updates/PENDING.md` lists staged updates, say "N staged
+   updates awaiting review" in one line.
+7. **First run.** If the log is empty and the project has history
+   (handover or decision docs, commit history, test scripts, an existing
+   CLAUDE.md — which is largely a record of corrections nobody logged),
+   offer a one-off backfill pass over those artefacts. Backfilled entries
+   cite the durable artefact (file and section) in `session_context`
+   instead of a session, and the same-turn immediacy rule is satisfied by
+   one batched write. The pass is one-off; the scheduled review takes
+   over afterwards.
+
+## When to Observe
+
+Active for the entire task session — execution, post-task feedback, review
+discussion, meta-discussion about skills or methodology, and strategy
+conversations about how work should be done. **The observation mindset
+does not deactivate when the conversation shifts from doing the work to
+discussing it**; review-phase feedback is often the highest-signal input.
+Inactive only for casual conversation and quick factual questions with no
+tools or deliverables involved.
+
+## What to Watch For
+
+**New skill:** a reusable multi-step workflow, a methodology the user
+explains that no skill captures, a recurring task type, a process the user
+describes as "I always do it this way". **Improve a skill:** the agent
+violates a documented rule (the skill needs enforcement, not louder rules);
+a user correction reveals a missing rule or edge case; a better workflow or
+technique emerges than the skill recommends; a wrong assumption; new
+tooling obsoletes a step; a principle that applies to other skills too.
+**Simplify a skill:** a section never relevant across many sessions, a rule
+from a single unvalidated observation, contradictory rules, a rule the
+agent consistently fails to follow — convert to structural enforcement or
+remove. Full catalogue with examples: `references/signals.md`.
+
+**Do NOT log:** one-off corrections that don't generalise; preferences
+already captured in a skill; tool bugs unrelated to methodology;
+observations that would need proprietary client information to be useful
+in an open-source skill (unless an internal skill is the right home). The
+generalisability test, when unsure: would this still make sense in another
+project, and for another task using the same skill? Does it name a missing
+rule, step or principle rather than fix this task? Is it likely to recur?
+Mostly no → task context, not an observation. Before minting a
+`proposes_skill` name, check the existing candidates and reuse a fitting
+one — independently logged proposals for one skill rarely share a name.
+
+**Validate the target at write time.** A name in `skill:` must be a skill
+that exists now; if it doesn't, the observation proposes a skill instead.
+Checking is cheap at write time and expensive forty entries later.
+
+**Check the target's siblings at write time, and record that you did.**
+Libraries accumulate *families* — several skills implementing one
+methodology for different tools, one structure for different subjects, one
+companion pattern for different base skills. An insight found while using
+one member usually applies to the rest, but nothing in the workflow asks,
+so `skill:` collapses to a single entry and the family silently diverges.
+Before writing, resolve the target against the family registry
+(`skill-observations/skill-families.md`; spec, coherence models and the
+no-registry fallback in `references/observation-log.md`), and for each
+sibling either add it to `skill:` or state in the body why it does not
+apply. Fast test: **could this sentence survive having the tool's or
+subject's name removed?** If yes it belongs to every sibling — and a rule
+that declares itself generic inside one artefact ("this applies to any
+file-writing script, not just X") is the cheapest possible propagation
+signal, so treat that phrasing as an automatic multi-skill flag. Then
+record the outcome in the mandatory `siblings_checked:` frontmatter field,
+including the verdict "checked — instance-specific, no propagation": a
+one-entry `skill:` list is byte-identical whether the siblings were
+evaluated or never considered, and only the recorded field makes the
+*absence* of the judgement visible to a review or a drift audit.
+
+## How to Log
+
+Write the observation file **silently, within the same turn or the next** —
+never batch mentally for later; the act of writing is the enforcement
+mechanism.
+
+**Mandatory checkpoint after every 3rd completed todo item.** After marking
+the 3rd, 6th, 9th (etc.) item complete, you must **write to disk** — not
+merely ask yourself whether anything is pending. Either write any pending
+observation files, or, if genuinely none have accumulated, append a
+one-line `no observations` acknowledgement to
+`skill-observations/checkpoints.log`. The required action is a concrete
+write; a remembered "ask whether" is not enforcement. The count need not be
+precise; roughly every third completion is the rule. (Exception: where the
+workspace is a shared hosted document store in which every write is priced
+and invalidates other sessions' context, suppress the empty marker and
+keep only the check — see `references/environments.md`.)
+
+**A denied or failed write is not a read-only log.** Retry once before
+concluding the workspace is unwritable, and try a second tool that reaches
+the same path — a permission classifier can deny one interface while
+allowing another, and consecutive denials from a probabilistic gatekeeper
+are noise, not a wall. Report "failed N times", never "cannot be done",
+unless retries and alternate interfaces are actually exhausted; otherwise
+observations are silently lost for the rest of the session.
+
+**Deliverable-event flush.** Whenever you present or render a major
+deliverable — a file handed to the user, a deck or PDF render, a staged
+skill file — or complete a task/todo batch, write any pending observation
+files at that moment, before moving on. These checkpoints already involve a
+tool call; piggy-backing the flush onto them makes the write a side effect
+of work you were doing anyway. (Why both checkpoints are writes rather than
+questions: `references/observation-log.md`.)
+
+**Two gaps this pairing still leaves — both observed across full working days
+in which nothing was logged at all.**
+
+1. *A session can contain no todo items whatsoever.* The 3rd-completion
+   checkpoint is bound to ONE tool; work driven entirely through direct tool
+   calls and shell commands never trips it. It is armed only in sessions that
+   happen to use todos, so it is not a safety net that is always present. When
+   a session runs without them, the deliverable flush is the only enforcement
+   left and must be applied deliberately.
+2. *"Is this a major deliverable?" is a self-assessment, and self-assessment is
+   what fails under load.* Prefer triggers unmistakable in the tool record over
+   ones needing a judgement call. In particular, treat any **project-completing
+   command** — a deploy, release, publish, or push — as a flush point: it is a
+   concrete tool call, as hard a trigger as a completed todo, and it reliably
+   marks the end of a unit of work where insights have accumulated.
+
+The rule behind both: an enforcement trigger must hang on an event objectively
+visible in the tool record, never on the agent noticing that a moment qualifies.
+And a counter bound to a single tool is silently inert in every session that does
+not use it — such triggers always need a second, independent path.
+
+**Id and filename.** Each observation is `NNNN-short-slug.md` (zero-padded
+id + a kebab-case slug from the title). The id is the highest of three
+values, plus one: the highest numeric prefix in `observation-log/`, the
+highest in `observation-log/archive/`, and the number in
+`observation-log/archive/.id-floor` (the highest id ever issued — update it
+whenever you issue an id above it, so the counter can never restart from 1
+when the active directory is empty):
+
+```bash
+d=skill-observations/observation-log
+hi=$( { ls "$d" "$d/archive" 2>/dev/null | grep -oE '^[0-9]+'; cat "$d/archive/.id-floor" 2>/dev/null; } \
+     | sort -n | tail -1); : "${hi:=0}"
+[ "$hi" -eq 0 ] && [ -n "$(find "$d" -maxdepth 1 -name "*.md" 2>/dev/null)" ] && { echo "ID COMMAND BROKEN — log is non-empty but no ids extracted"; exit 1; }
+next_id=$(( hi + 1 )); echo "$next_id" > "$d/archive/.id-floor"
+```
+
+The guard line distinguishes "the log says zero" from "I could not read
+the log": a command that fails to empty rather than to error would
+otherwise propose id 1 in a populated log. A new file never touches another entry's bytes, so it cannot truncate,
+overwrite or renumber anyone else's work. If two parallel sessions pick the
+same id, two files share a number — harmless; the next review renumbers one
+and logs a meta-observation.
+
+**Batch writes: resolve each id at its own write time.** When logging more
+than one observation in a session that may overlap a scheduled review or
+another writer, run the id snippet before EACH file — never pre-compute a
+range and hardcode sequential numbers into a batch. A batch append is N
+separate races, not one; pre-baked numbers collapse N independent
+max-checks into a single stale read (observed: a hardcoded id collided
+with one a parallel review issued between the check and the write).
+
+**A structural probe that comes back empty where content existed before is
+a stop signal, not a create.** If the directory or file you logged to
+earlier in the session is suddenly missing, or the id check returns empty
+in a log you know is populated, HALT and re-probe the structure (is there
+an `observation-log/`? a `log.md.migrated`?) — a parallel session may have
+migrated or reorganised the storage. Never let an append silently recreate
+a missing target: that converts a migration signal into corruption
+(observed: a stale session recreated the retired `log.md` with a fresh
+"Observation 1" after the per-file migration renamed it).
+
+**File format.** YAML frontmatter (the metadata every scan reads) followed
+by the Issue → Improvement → Principle body. **The frontmatter is mandatory;
+always write `status: open` and a non-empty `siblings_checked:` at creation
+time** — an observation without a `status` field is treated as OPEN by
+reviews, never as nonexistent, and one without `siblings_checked:` counts
+as logged without a sibling check.
+
+```markdown
+---
+id: [N]
+title: [Short descriptive title]
+status: open            # open | actioned | declined | superseded | parked
+type: open-source       # open-source | internal
+skill: [list of existing skills this improves — always a list, even with
+       one entry; first entry is primary; may be empty]
+proposes_skill: [list of new skills this argues for, by working name;
+       may be empty — an observation can fill either list or both]
+siblings_checked: [MANDATORY, never blank: the family name and the members
+       evaluated, plus the verdict — e.g. "family-name: a, b — shared, both
+       added" or "family-name: a, b — instance-specific, no propagation";
+       the literal `none` only where the target belongs to no family]
+area: [which part of the skill or workflow]
+date: [YYYY-MM-DD]
+session_context: [what task was being worked on]
+parked_until:           # MANDATORY when status is parked, empty otherwise:
+                        #   one line naming the condition that unparks it
+resolved:               # date resolved; leave empty while OPEN
+resolution:             # what was done — set only when actioned/declined
+reference:              # optional: path to saved session-local evidence
+---
+
+**Issue:** [What happened — specific enough to understand weeks later
+without the original conversation.]
+
+**Suggested improvement:** [Concrete change. For existing skills, name the
+section or rule; for new skills, scope and key components.]
+
+**Principle:** [The generalisable takeaway — the most important field.]
+```
+
+**`parked` means decided, not pending.** Use it when an observation is sound
+but cannot be acted on until an external precondition is met — the scheduled
+task that produced it is disabled, the tool it describes is out of use, a
+dependency has not landed. A parked entry is OUT of the work queue: reviews
+must not re-escalate it, and the decision belongs in `status:`, not in a
+free-text note beside a `status: open` (a note nothing classifies on leaves
+the entry in the queue and it gets re-raised at every review). It is not
+resolved either, so it never archives — archival needs a resolved status plus
+a `resolved:` date. It stays in `observation-log/` indefinitely until either
+its `parked_until:` condition is met — set it back to `open` and queue it — or
+it is genuinely resolved. `parked_until:` is mandatory whenever status is
+`parked`: one line stating the condition, phrased so a later session can
+actually answer whether it has happened.
+
+**Context preservation:** if an observation depends on session-local data
+(uploads, API output), save that context into the workspace first and set
+`reference:` to its path — an observation whose evidence dies with the
+session is incomplete.
+
+**Confidentiality at logging time:** for `type: open-source` observations,
+the Issue/Improvement fields may reference specifics for context, but the
+Principle must be fully generalised — no client names, domains, or details
+traceable to a real project. Full confidentiality layers:
+`references/skill-authoring.md`.
+
+**Changing an existing observation:** re-read that one file, edit only the
+frontmatter fields you are changing (`status`, `parked_until`, `resolved`,
+`resolution`),
+never batch-rewrite the directory. Archival is a plain `mv` (below).
+
+## Referencing Observations
+
+Cite an observation by the `id` field in its frontmatter (= the `NNNN-`
+filename prefix). Never cite a `grep -n` line number as if it were the id —
+search-tool line numbers are positional metadata, not identifiers. A cited
+id must fall within the range that exists across `observation-log/`,
+`archive/` and `.id-floor`; a number far outside it is almost certainly a
+line number misread as an id.
+
+## Taxonomy (quick version)
+
+**Open-source** — client-agnostic, methodology-driven, useful to other
+practitioners. **Internal** — contains user/client/project specifics or
+personal preferences. Default to open-source when it could go either way,
+stripping specifics. The boundary is also a confidentiality boundary, and
+the two errors are not symmetric: over-classifying as internal costs only
+reach, under-classifying can leak — when genuinely uncertain, prefer
+internal and promote later. Full requirements (attribution, licensing,
+structure): `references/skill-authoring.md`.
+
+## Archival on Write
+
+On every write, first `mv` already-resolved files from `observation-log/`
+to `observation-log/archive/`. "Already resolved" is read from the file's
+own frontmatter: `status: actioned`, `declined` or `superseded` AND a
+`resolved:` date **before today**. Files resolved today stay until the next
+day, whichever session resolved them — the grace period lives in the file,
+never in session memory. A resolved file with no readable `resolved:` date
+gets today's date written to that field instead of being archived. One
+file per `mv`; no rewrite of anything else. Helper and rationale:
+`references/observation-log.md`.
+
+## Surfacing Protocol
+
+Default: at end of session, as a grouped summary — improvements grouped by
+skill, new-skill candidates listed separately; for each, one sentence plus
+suggested type; ask which to act on. Surface earlier when an observation
+needs user input to be complete, when a skill is actively producing wrong
+output, or when observations cluster on one skill.
+
+**Deferral wears a second disguise: not a promise, but an argument.** "Let's
+wait until this has seen a few days of real use", "we should gather more data
+first" — this reads as diligence, which is exactly why it goes unchallenged,
+including by the person saying it. It is not an announcement, so a rule about
+executing rather than announcing does not catch it. So before writing *any*
+"later" into a recommendation, name two things: **which specific observation
+would change the decision, and when it could realistically arrive.** If you
+cannot name one, the evidence is either already conclusive (act now) or waiting
+adds nothing (act now). Then ask what the delay costs — if a known-defective
+state stays live meanwhile, the burden of proof is on deferring, not on acting.
+A deferral is a decision and needs the same justification as acting; "more
+evidence would be better" is not one, because the question is whether more
+evidence could change the OUTCOME.
+
+**Default to log-and-defer.** Surfacing an observation is not an invitation
+to act on it: state that it is logged for the next review, and stop.
+Reserve in-session application strictly for the triggers under "Acting on
+Observations". Do NOT routinely offer a binary "apply now vs leave for next
+review" choice; for users who run regular reviews that offer is unwanted
+friction, and if a user has said they always defer, suppress it entirely.
+
+**Self-check before surfacing:** observations were logged throughout the
+whole session (including discussion phases); logged silently; each follows
+Issue → Improvement → Principle; each is typed; existing-skill items name
+the section; no open-source Principle contains client-identifying info;
+every observation file carries `status:` (`status: open` at write time) and
+a non-empty `siblings_checked:` — if any lacks one, do the sibling check
+now and record it rather than back-filling the field with `none`.
+
+## Acting on Observations
+
+Act only in three contexts: (1) the comprehensive review (load
+`references/weekly-review.md`); (2) an explicit user request ("update X
+skill", "act on observation #N"); (3) in-session correction when a skill is
+producing wrong output the user should know about. Otherwise: log, don't
+act.
+
+**Read the full body before resolving, dismissing, fixing, or citing.** A
+tracked item's title (observation, GitHub issue, ticket) is an index entry,
+not its content — it compresses away the failure story, the reporter's
+context, and often the proposed fix. Dismissal is the path with no
+downstream checkpoint: a resolved or cited item gets reviewed later, a
+dismissed one silently disappears. Harvest fix designs from issue bodies —
+reporters frequently include the correct solution, which also settles
+attribution. When a parallel agent logs a finding that appears to duplicate
+your own, diff the two bodies, not the titles: two entries about the same
+mechanism can carry opposite operational conclusions, and the second is
+often the refinement, not the echo. Apparent agreement suppresses
+verification more effectively than disagreement does, so this rule binds
+hardest exactly where it feels least necessary.
+
+When acting: small, clearly-additive, low-risk changes (a new rule, a
+clarification, a factual fix) may be applied without waiting for the next
+review — "directly" means *now*, not *in place*: the edit is still made on
+a staged copy based on a fresh read of the live file and handed to the user
+to install, in every environment and every context. Staging-only has no
+interactive exception; an exception the user has to remember is a gate
+that eventually gets left open. Substantial changes (restructuring, new
+capabilities, changed methodology) and all new-skill creation: load
+`references/skill-authoring.md` first and follow its editing and staging
+rules. A principle that applies to skills generally goes to the
+cross-cutting principles file (same reference).
+
+**Set the status in the same turn you act.** An observation acted on
+in-session must have its frontmatter updated — `status: actioned`,
+`resolved: YYYY-MM-DD`, `resolution: what was done` — before the turn
+ends. The work and the bookkeeping are two acts, and the second is the one
+that gets dropped; a stale `open` entry then invites redoing finished work
+over a section that has since moved on. The write is the enforcement,
+exactly as it is for logging.
+
+## Quick Reference
+
+| Question | Answer |
+|----------|--------|
+| When do I observe? | The whole session, including feedback and reflection phases |
+| How do I log? | Silently, immediately, as one file per observation named `NNNN-slug.md`; id = max(active, archive, `.id-floor`) + 1 |
+| When do I surface? | End of session, or earlier if needed |
+| Status field? | Mandatory `status: open` frontmatter on every new observation; reviews treat a missing status as OPEN, never as nonexistent. Five values: `open`, `actioned`, `declined`, `superseded`, `parked` — `parked` = decided but blocked on an external precondition, so it leaves the queue, requires `parked_until:`, and never archives |
+| Does the target skill have siblings? | Resolve it against `skill-observations/skill-families.md` BEFORE writing; add every sibling the insight applies to to `skill:`, and record the verdict in the mandatory `siblings_checked:` field — including "checked, no propagation" |
+| A scan or query came back empty? | Two possibilities, only one is a finding: guard every retrieval meant to prevent duplicate work with an independent existence check, and treat empty output over known content as a broken command |
+| Citing an observation number? | From the `id:` frontmatter field (= the `NNNN-` filename prefix); never a `grep -n` line number; sanity-check against the known id range |
+| Open-source or internal? | Default open-source; the boundary is confidential |
+| Small fix or substantial? | Additive → apply directly; restructuring/new skill → `references/skill-authoring.md` |
+| Changing an observation (status/archival)? | Re-read that one file, edit only its frontmatter, or `mv` it to `observation-log/archive/` — no shared-file rewrite |
+| Upgrading from a single-file `log.md`? | Scripted, once — `references/migration.md` |
+| Weekly review? | Trigger check at session start; procedure in `references/weekly-review.md` |
+| No filesystem? | Handoff-doc mode — `references/environments.md` |
+---
+name: using-superpowers
+description: Use when starting any conversation - establishes how to find and use skills, requiring skill invocation before ANY response including clarifying questions
+---
+
+<SUBAGENT-STOP>
+If you were dispatched as a subagent to execute a specific task, ignore this skill.
+</SUBAGENT-STOP>
+
+<EXTREMELY-IMPORTANT>
+If you think there is even a 1% chance a skill might apply to what you are doing, you ABSOLUTELY MUST invoke the skill.
+
+IF A SKILL APPLIES TO YOUR TASK, YOU DO NOT HAVE A CHOICE. YOU MUST USE IT.
+
+This is not negotiable. You cannot rationalize your way out of this.
+</EXTREMELY-IMPORTANT>
+
+## The Rule
+
+**Invoke relevant or requested skills BEFORE any response or action** — including clarifying questions, exploring the codebase, or checking files. If it turns out wrong for the situation, you don't have to use it.
+
+**Before entering plan mode:** if you haven't already brainstormed, invoke the brainstorming skill first.
+
+Then announce "Using [skill] to [purpose]" and follow the skill exactly. If it has a checklist, create a todo per item.
+
+## Skill Priority
+
+When multiple skills apply, process skills come first — they set the approach, then implementation skills (frontend-design, etc.) carry it out. Brainstorming and systematic-debugging are Superpowers' most common process skills, but the rule holds for any of them.
+
+- "Let's build X" → d3nexus:brainstorming first, then implementation skills.
+- "Fix this bug" → d3nexus:systematic-debugging first, then domain skills.
+
+## Red Flags
+
+These thoughts mean STOP—you're rationalizing:
+
+| Thought | Reality |
+|---------|---------|
+| "This is just a simple question" | Questions are tasks. Check for skills. |
+| "I need more context first" | Skill check comes BEFORE clarifying questions. |
+| "Let me explore the codebase first" | Skills tell you HOW to explore. Check first. |
+| "I can check git/files quickly" | Files lack conversation context. Check for skills. |
+| "Let me gather information first" | Skills tell you HOW to gather information. |
+| "This doesn't need a formal skill" | If a skill exists, use it. |
+| "I remember this skill" | Skills evolve. Read current version. |
+| "This doesn't count as a task" | Action = task. Check for skills. |
+| "The skill is overkill" | Simple things become complex. Use it. |
+| "I'll just do this one thing first" | Check BEFORE doing anything. |
+| "This feels productive" | Undisciplined action wastes time. Skills prevent this. |
+| "I know what that means" | Knowing the concept ≠ using the skill. Invoke it. |
+
+## Platform Adaptation
+
+This kit targets **Claude Code** (the default these skills are written against), **Antigravity**,
+and **Codex**. On Antigravity, read [`references/antigravity-tools.md`](references/antigravity-tools.md).
+On Codex, read [`references/codex-tools.md`](references/codex-tools.md). These references map the
+actions described in the skills to the tools available in each runtime.
+
+## User Instructions
+
+User instructions (CLAUDE.md, AGENTS.md, GEMINI.md, etc, direct requests) take precedence over skills, which in turn override default behavior. Only skip skill workflows or instructions when your human partner has explicitly told you to.
+---
+name: principal-review
+description: Performs Shift-Left architectural and task design document reviews (HLD, BDD, Tasks, RFC) against source code before implementation begins.
+---
+
+# Principal Review
+
+## Overview
+
+Principal Review provides rigorous, cross-model architectural inspection of High-Level Designs (HLDs), BDD scenarios, Kanban task breakdowns, and standalone RFC documents against the active source codebase.
+
+Operating on the principle of **Shift-Left Quality Assurance**, it catches misunderstandings, missing contracts, scope regressions, and symbol drift before implementation starts, when resolving them in documents is an order of magnitude faster and cheaper than debugging in code.
+
+**Announce at start:** "I'm using the principal-review skill to conduct an architectural review."
+
+## Two Modes of Operation
+
+### 1. In-Lifecycle Mode (Stage 2 Handoff Choice)
+
+Invoked during the packaging phase of `dev-lifecycle` after all epic artefacts pass Gate 2 and mechanical readiness checks.
+
+- **Trigger**: Developer selects option 2 ("Principal Review") at the Handoff Choice prompt.
+- **Scope**: Evaluates all epic artefacts in `.devtool/epic/<epic_dir>/`:
+  - Architecture spec (`*-design.en.md`, `*-design.vi.md`)
+  - Canonical HLD (`<epic_dir>.en.md`, `<epic_dir>.vi.md`)
+  - BDD scenarios (`bdd_scenarios.en.md`, `bdd_scenarios.vi.md`)
+  - All Kanban tasks (`task_*.md`)
+  - Packaging record (`handoff.md`)
+- **Execution**:
+  ```bash
+  python3 skills/dev-implementation/resources/scripts/run_external_review.py run \
+    --kind principal --epic-dir <epic_dir> --base <base_branch> [--auto-quota | --cli <claude|codex|kiro|agy>]
+  ```
+- **Persistence**: Results recorded in `.devtool/epic/<epic_dir>/principal_review.md`.
+
+### 2. Ad-Hoc Mode (Standalone Documents)
+
+Invoked on-demand to review standalone design documents, architecture proposals, or RFCs without requiring an epic directory.
+
+- **Trigger**: Developer invokes `/principal-review <path>` (e.g. `/principal-review docs/rfc/payment-service.md`).
+- **Scope**: Target markdown document and the active git repository context at `HEAD`.
+- **Pre-validation**:
+  1. The target file path must exist on disk.
+  2. The document must contain structural headings (e.g. `# Title`, `## Overview`).
+- **Execution**:
+  ```bash
+  python3 skills/dev-implementation/resources/scripts/run_external_review.py run \
+    --kind principal --doc <path> --base <base_branch> [--auto-quota | --cli <claude|codex|kiro|agy>]
+  ```
+- **Streaming & Visibility**:
+  - The review output and triage table stream directly to stdout.
+  - Ephemeral review logs are saved under `build/` (git-ignored) for inspection.
+  - No epic directory is created or required.
+
+## The Review & Triage Loop
+
+1. **Pre-Check**:
+   - For epics, `check_epic_readiness.py` runs first (enforcing R1–R8, BDD Scenario Count Parity `Count(bdd_scenarios.en.md) == Count(task_acceptance.md)`, and `check_task_contract.py --design`). If any check fails, or if `max_rounds` (default: `3`) has already been reached without `--force`, review halts immediately with `[PRECONDITION BLOCKED]` without calling external model CLIs (0 credits used).
+   - For standalone docs, structural validation checks that the file exists and has valid headings.
+
+2. **Provider Selection (`check-quota` Priority), 3-Round Convergence Funnel & Shared Context**:
+   - **Quota-Aware Provider Priority (`Claude -> Codex -> Kiro -> Argon`)**: Configured in `.devtool/review_config.json` (`provider_priority: ["claude", "codex", "kiro", "agy"]`, `max_rounds: 3`). With `--auto-quota`, `run_external_review.py` selects the highest-priority ACTIVE provider meeting thresholds: Claude/Codex (`5H >= 15%` AND `7D > 2%`), Kiro (`Monthly Credits >= 3%` AND `>= 15.0 credits`), or Argon (`Argon Weekly >= 10%` or `5H >= 15%`).
+   - **3-Round Scope-Narrowing Convergence Funnel (Max 3 Rounds)**:
+     - **Round 1 (`Scope: full`)**: Full audit of all epic artefacts against active code (enforcing the **Exhaustive Per-File Pass** anti-drip-feed rule).
+     - **Round 2 (`Scope: delta`)**: Verifies `fixed in <sha>` items and inspects only `prev_sha..curr_sha` diff hunks; prohibits new `Minor` findings on untouched files.
+     - **Round 3 (`Scope: convergence`)**: Strict Blocker-Only Convergence Mode (incomplete fixes or new `Critical`/`Important` regressions in `prev_sha..curr_sha`).
+   - **Shared Context & 4 Anti-Fix-Loop Prompt Strategies**: `.devtool/epic/<epic_dir>/principal_review.md` acts as the persistent Shared Context SSOT across rounds (`Earlier Rounds Shared Context Ledger`). `delta_round_context()` injects the **Universal Anti-Ping-Pong Guardrail** (both single-model and mixed-model), the **Previously Fixed Locations Registry (`Verify-Then-Close`)**, and **Diff-Hunk Isolation** on fixed files. See [document-triage.md](references/document-triage.md) for the complete 4-strategy specification.
+
+3. **Triage Findings, Top 3 Highest-Risk Report & Auto-Triage Gate**:
+   - Read and follow [document-triage.md](references/document-triage.md) (Source-of-Truth Hierarchy: Forward Alignment over Legacy Reversion, Top 3 Highest-Risk Findings Report, and Auto-Triage Gate).
+   - Inspect `## Auto-Triage Gate` from `run_external_review.py triage --kind principal --epic-dir <epic_dir>`:
+     - **`AUTO_PASS_CLEAN` / `AUTO_PASS_FINAL_MINOR_SWEEP` / `AUTO_PASS_FINAL_SWEEP` (Round 3 with `0 Critical`)**: Apply one final revision pass for any valid non-critical items, run `package_epic.py <epic_dir> --revise` green, and advance to Stage 3 without calling another review round.
+     - **`AUTO_FIX_ELIGIBLE` (Round 1..2 with `Critical`/`Important`, no `shared-contracts/` conflict, no Fix Loop)**: Verify against codebase and approved HLD; in autonomous mode, apply revisions, record `fixed in <sha>`, run `package_epic.py --revise`, and run Round $N+1$. In interactive mode, present the triage header block and wait for developer confirmation:
+       ```markdown
+       Principal Review Triage: Round <N> (<CLI>)
+       *(or `Principal Review Triage: <doc_path> (<CLI>)`)*
+
+       • Candidate SHA: <commit_sha>
+       • Reviewer: <CLI> ( <model> )
+       • Thinking Level: <Light | Low | Medium | High | Extra High | None>
+       • Verdict: <VERDICT> (<count> <Severity> findings)
+       ```
+     - **`CIRCUIT_BREAKER_HALT` (`SHARED_CONTRACT_CONFLICT` in any round, `FIX_LOOP`, or `MAX_ROUNDS_CRITICAL_REMAINING` when `>= 1 Critical` survives Round 3)**: **STOP IMMEDIATELY**, never auto-fix or revert the user-approved HLD design, and report `## Top 3 Highest-Risk Findings (Executive Report)` to the Human Architect.
+
+4. **Revision Loop & Commit Ordering (Automatic Re-Package & `/save-context`)**:
+   - When applying revisions (either via `AUTO_FIX_ELIGIBLE` / `AUTO_PASS_FINAL_MINOR_SWEEP` or after developer confirmation), apply document edits and automatically execute the re-packaging and context-saving steps without asking for an intermediate confirmation:
+   - Apply document edits first and commit:
+     `git commit -m "[<EPIC_NAME>] Revise epic after Principal Review round <n>"`
+   - Record decisions with revision commit SHA in `principal_review.md`, then commit:
+     `git commit -m "[<EPIC_NAME>] Record Principal Review decisions for round <n>"`
+   - Automatically re-anchor `handoff.md` via `python3 skills/dev-implementation/resources/scripts/package_epic.py <epic_dir> --revise --reason "Revise after Principal Review round <n>"` (and commit `[<EPIC_NAME>] Package epic for handoff` if `auto_commit: true`).
+   - Automatically record Gate 2 approval in the Gate Approval Ledger via `python3 scripts/resume_context.py --gate 2 --epic <epic_slug> --approved "Revised after Principal Review round <n>"`.
+   - Automatically record state via `python3 scripts/resume_context.py --state --epic <epic_slug> --status "Stage 2: Revised after Principal Review"`, and emit the AI Programmer prompt via `python3 scripts/resume_context.py --emit-prompt implement --epic <epic_slug>`. In autonomous lifecycle mode, once Principal Review converges (`AUTO_PASS_CLEAN` or `AUTO_PASS_FINAL_MINOR_SWEEP`), transition to Role 2.3 (AI Programmer, Model Gemini Flash 3.8) and invoke `d3nexus:dev-implementation`; in interactive mode, present the Principal Review Choice (`/principal-review` vs `/dev-implementation`) again.
+
+## Guidelines & Reference Documents
+
+Read these on demand, not up front. `run_external_review.py` loads the prompt template and review rules itself, so do not open them to run a review.
+
+- [Prompt Template](references/principal-review-prompt.md): The read-only instruction template sent to reviewer CLIs (script-consumed; do not read).
+- [Review Rules](references/principal-review-rules.md): Severity definitions (Critical, Important, Minor) and source grounding standards (script-consumed; do not read).
+- [Document Triage Protocol](references/document-triage.md): Step-by-step decision verification and revision loop enforcement (read at step 3 only).
+- [Verification Row Grammar](../dev-designer/references/verification-row-grammar.md) (read only when a finding concerns Verification rows): Canonical Verification table grammar rules (including `\|` pipe escaping, `env VAR=val` prefixing, slash-containing search pattern rules, and portable CLI usage). Escaped pipes `\|` in table command cells are unescaped by `task_contract.py` and must not be flagged as syntax errors.
+
+exec
+/bin/zsh -lc "rg -n 'Gate 4|principal|autonomous_lifecycle' /Users/danhdueexoictif/antigravity_homes/hau/.codex/memories/MEMORY.md" in /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/autonomous_lifecycle_runner
+ succeeded in 0ms:
+1:# Task Group: ai-agent-tools setup_shared_contracts principal contract review
+10:- rollout_summaries/2026-10-30T06-59-12-Elg4-principal_review_setup_shared_contracts_contract_drift.md (cwd=/Users/danhdueexoictif/AllProjects/ai-agent-tools, rollout_path=/Users/danhdueexoictif/.codex/sessions/2026/10/30/rollout-2026-10-30T13-59-12-01a18b9a-faa7-7f50-81b9-b3c8aa8e3a08.jsonl, updated_at=2026-10-29T23:08:05+00:00, thread_id=01a18b9a-faa7-7f50-81b9-b3c8aa8e3a08, `CHANGES REQUIRED`; later review verified these four findings were fixed)
+14:- setup_shared_contracts, principal-review, shared_contracts_readme.md.tmpl, string.Template, `{{DOMAIN_NAME}}`, --root, --repo-root, --satellite-root, scripts/verify.sh, Section 11, Section 14, contract drift
+20:- rollout_summaries/2026-10-30T06-59-12-zvna-principal_review_setup_shared_contracts_contract_contradicti.md (cwd=/Users/danhdueexoictif/AllProjects/ai-agent-tools, rollout_path=/Users/danhdueexoictif/.codex/sessions/2026/10/30/rollout-2026-10-30T13-59-12-01a18b9a-faa8-72e0-8192-3dd403258730.jsonl, updated_at=2026-10-29T23:26:36+00:00, thread_id=01a18b9a-faa8-72e0-8192-3dd403258730, `CHANGES REQUIRED`; current implementation-blocking finding)
+24:- setup_shared_contracts, principal-review, SSC-FR-03, shared-contracts, non-empty, symlink, Rule 7, `Covers:`, traceability, `python3 -m unittest`, CHANGES REQUIRED
+28:- When requesting a principal review, the user required a “strictly read-only review” with exact source file/line grounding, artefact-specific actionable findings, and an exact final verdict block -> do not edit files or Git state; cite concrete locations for each source claim. [Task 1][Task 2]
+32:- Related skill: skills/principal-contract-review/SKILL.md. [Task 1][Task 2]
+203:# Task Group: ai-agent-tools Gate 4 Review Choice loop and external-review diagnostics
+208:## Task 1: Reposition Review Choice into a Gate 4 loop, success
+216:- Gate 4, Review Choice, Cross-model review, Gate 5, SHA-bound, rules/CRITICAL_RULES.md, test_verifiable_handoff_text.py, df9f67af7c1f7fecd3b4a9768c0863d035ed3088
+230:- The user explicitly corrected the lifecycle sequence: “Gate 4 => Review Choice”, then “Finish” or “Cross model review”, and “Sau bước này chạy lại Gate 4 ... Loop cho tới khi finish.” -> preserve this order for similar ai-agent-tools lifecycle work. [Task 1]
+235:- Enforced invariant: `Gate 4 PASS -> Review Choice; Finish -> Gate 5; Cross-model review -> Gate 4 in full`. A review round, decision, Fix commit, Gate 5-requested change, cross-model CLI failure, or timeout that changes/reassesses the candidate requires full Gate 4 before another Review Choice. Gate 4 is SHA-bound. [Task 1]
+236:- The policy update touched `rules/CRITICAL_RULES.md`, `skills/dev-lifecycle/SKILL.md`, `skills/dev-implementation/SKILL.md`, bilingual lifecycle docs, lifecycle-selection docs, and `scripts/test_verifiable_handoff_text.py`; commit `df9f67af7c1f7fecd3b4a9768c0863d035ed3088` is `[REVIEW_WORKFLOW] Loop review choice through Gate 4`. [Task 1]
+242:- A first regression failed because normative files still said Review Choice occurred before Gate 4. Do not make a flowchart-only edit: synchronize rules, both skills, diagrams, English/Vietnamese docs, lifecycle-selection docs, and negative assertions. [Task 1]
+347:- Package/preflight success is not production readiness: no implementation tests, live browser evidence, or Gate 4 quality profile ran. Before implementation, read the handoff, present execution order, and wait for explicit Gate 3 confirmation. [Task 2]
+349:# Task Group: D3Nexus design_system Gate 4 evidence review and lifecycle concurrency
+351:scope: Gate 4 review of a web-heavy epic: evidence completeness, fail-closed verdicts, stable-SHA reruns, and lifecycle race protection.
+354:## Task 1: Review design_system Gate 4 readiness, partial
+367:- The workflow was expected to stop at Gate 4 and not finish/merge automatically -> preserve strict gate separation; a passing subset is not approval for Gate 5. [Task 1]
+371:- Gate 4 requires BDD traceability plus the complete provider profile; precedence is `FAIL > BLOCKED > PASS`, so one `FAIL` prevents LGTM. [Task 1]
+374:- Candidate identity can be invalidated while Gate 4 runs if another workflow archives tasks, merges the branch, deletes the worktree, or changes HEAD. A repository-scoped transition lease plus HEAD/worktree revalidation before each provider capability is the needed guard. [Task 1]
+381:- Manual web tests cannot establish Gate 4 PASS when the registered provider plan does not reconcile them; record that limitation, retain raw screenshots/video/command outputs before cleanup or merge, then rerun the whole profile. [Task 1]
+396:- lyrics_lexical_normalization, Gate 3, Gate 4, handoff.md, BDD traceability, database isolation, Gemini, DeepSeek, backfill, e1f4cfc, c1657ae, Dependencies & Blockers
+408:- Task 43 is the safety prerequisite: establish an isolated PostgreSQL namespace and prove the live catalog fingerprint remains unchanged before full pytest or coverage. Gate 4 needs the same immutable candidate SHA, complete registered `epic` profile, raw artifacts, BDD/test traceability, browser evidence at 390x844 and 1440x900, authorized provider provenance/canary evidence, and an independent catalog audit. [Task 1]
+
+exec
+/bin/zsh -lc 'cat .devtool/epic/autonomous_lifecycle_runner/2026-11-10-autonomous-lifecycle-runner-design.en.md .devtool/epic/autonomous_lifecycle_runner/2026-11-10-autonomous-lifecycle-runner-design.vi.md' in /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/autonomous_lifecycle_runner
+ succeeded in 0ms:
+# Autonomous Lifecycle Runner Design
+
+Design for an opt-in script that drives `dev-lifecycle` from handoff to the final Human report, with three actors (Human, AI Assistant, AI Programmer) and headless model dispatch.
+
+## Contents
+
+1. [Summary](#summary)
+2. [Goals and Non-Goals](#goals-and-non-goals)
+3. [Actors and Models](#actors-and-models)
+4. [Pipeline Flow](#pipeline-flow)
+5. [Human Checkpoints](#human-checkpoints)
+6. [Runner Architecture](#runner-architecture)
+7. [Rule Changes](#rule-changes)
+8. [Risks and Mitigations](#risks-and-mitigations)
+9. [Testing](#testing)
+10. [Shared Contract Warnings](#shared-contract-warnings)
+
+## Summary
+
+Today the lifecycle stops at several menus (Handoff Choice, Gate 3, Review Choice) and at every non-critical review finding. A new script, `lifecycle_runner.py`, removes the menus and runs each stage in a separate headless `agy` process that uses the model and effort that stage needs. Human decisions are kept only where the Human asked for them.
+
+## Goals and Non-Goals
+
+Goals:
+
+- Run the pipeline from handoff to the final report without menu stops.
+- Dispatch the Programmer as Gemini 3.8 Flash at high effort, and the Assistant as a stronger model.
+- Add an Assistant review of the Programmer's fix plan after every cross-model review round.
+- Survive restarts: all state lives in `.devtool/`.
+
+Non-goals:
+
+- No change to interactive mode: the runner is opt-in through `/dev-lifecycle --autonomous`.
+- No change to Gates 1 and 2, the 3-round cap, or the three Circuit Breakers.
+- No auto-merge: the Human always decides on `/finishing-a-development-branch`.
+
+## Actors and Models
+
+| Actor | Role | Model source |
+|---|---|---|
+| Human (2.1) | Chooses the solution, confirms Principal Review fixes, decides to finish | n/a |
+| AI Assistant (2.2) | Writes the design, triages review findings, approves fix plans | `.devtool/review_config.json` (`assistant` entry) |
+| AI Programmer (2.3) | Implements tasks, proposes and applies fixes | `gemini-3.8-flash`, effort `high` |
+
+The command shape was verified on this machine: `agy --print "<prompt>" --model gemini-3.8-flash --effort high --mode plan` exits 0 and answers. Programmer calls use `--mode auto` so the process can edit files in its worktree.
+
+## Pipeline Flow
+
+```mermaid
+flowchart TD
+    BS["Human and Assistant brainstorm, Gates 1 and 2"]
+    PKG["Assistant packages epic, handoff.md"]
+    PR["Script: principal review, auto-quota"]
+    TRI["Assistant triages and proposes fixes"]
+    HC{"Human confirms fixes?"}
+    REV["Assistant revises, re-packages"]
+    IMPL["Script: Programmer implements, Gate 4"]
+    CMR["Script: cross-model review, auto-quota"]
+    PLAN["Programmer writes fix plan"]
+    APP{"Assistant verdict"}
+    FIX["Programmer applies fixes, Gate 4"]
+    RPT["Script: final report"]
+    HF{"Human decides to finish?"}
+    FIN["finishing-a-development-branch, Test All"]
+    HALT(["HALT: report to Human"])
+
+    BS --> PKG --> PR --> TRI
+    TRI -->|"findings to fix"| HC
+    TRI -->|"no findings"| IMPL
+    HC -->|"confirmed"| REV --> PR
+    IMPL --> CMR --> PLAN --> APP
+    APP -->|"approved"| FIX --> CMR
+    APP -->|"adjusted"| FIX
+    APP -->|"CRITICAL_CONFLICT"| HALT
+    CMR -->|"converged"| RPT --> HF
+    HF -->|"yes"| FIN
+    TRI -->|"circuit breaker"| HALT
+    CMR -->|"circuit breaker"| HALT
+```
+
+## Human Checkpoints
+
+1. **Brainstorming and design (Gates 1 and 2)**: unchanged, the Human approves the spec and the task breakdown.
+2. **Principal Review fixes**: AI Assistant auto-applies aligned design revisions, commits them, and re-packages without human interruption. The runner halts and transitions to `AWAITING_PRINCIPAL_CONFIRMATION` only if findings involve high-risk critical issues, business/domain requirement conflicts, unaligned source conflicts, or `SHARED_CONTRACT_CONFLICT`. Minor-only rounds (`AUTO_PASS_FINAL_MINOR_SWEEP`) are swept in a single pass without stopping for Human. Model priority for Principal Review is selectable at task confirmation (Gate 2) across 4 options: (1) `Claude -> Codex -> Kiro -> Argon` [Default], (2) `Codex -> Claude -> Kiro -> Argon`, (3) `Kiro -> Claude -> Codex -> Argon`, (4) `Kiro -> Codex -> Claude -> Argon`.
+3. **Cross-model review fixes**: no Human stop. The Programmer proposes the fixes, the Assistant approves or adjusts the plan, the Programmer applies it, and Gate 4 re-runs.
+4. **Circuit Breakers**: `SHARED_CONTRACT_CONFLICT`, `FIX_LOOP` and `MAX_ROUNDS_CRITICAL_REMAINING` always halt and report, in both review stages.
+5. **Assistant CRITICAL_CONFLICT**: a fix plan that would change an approved decision halts and reports.
+6. **Final report**: after review convergence and a green Gate 4, the runner prints the executive report and stops. The Human chooses `/finishing-a-development-branch`; merge then runs `Test All`.
+
+## Runner Architecture
+
+The script lives at `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py` and is a resumable state machine.
+
+- **State**: `.devtool/state/<epic>.pipeline.json` records the current stage, round number, last SHA and last verdict. The Gate Ledger (`.devtool/GATE_LEDGER.md`) stays the record of approvals.
+- **Dispatch**: each AI step is one subprocess, `agy --print <prompt> --model <model> --effort <effort> --mode <mode>`, run in the epic worktree with a timeout and its own process group.
+- **Prompts**: built from `.devtool/` files only (handoff, task file, triage output, review ledger), because headless sessions share no context.
+- **Fix plan**: the Programmer writes `.devtool/epic/<epic>/fix_plan_round<N>.md`. The Assistant answers with one verdict line: `APPROVED`, `ADJUSTED` (with the edited plan) or `CRITICAL_CONFLICT`.
+- **Startup probe**: before the first dispatch the runner calls each configured model with a one-word prompt and stops with a clear error if it is not accepted.
+- **Existing scripts reused**: `package_epic.py`, `run_external_review.py` (`run`, `triage`, `check`), `audit_epic.py`, `compute_execution_order.py`, `resume_context.py`.
+
+## Rule Changes
+
+- `rules/CRITICAL_RULES.md` section 5 (mandatory Review Choice): in autonomous mode the runner enters cross-model review automatically after the first Gate 4 PASS and presents no menu. Interactive mode is unchanged.
+- `rules/CRITICAL_RULES.md` section 6: in autonomous mode `Debatable` and `False Positive` findings in cross-model review are resolved by the Assistant verdict, not by a Human stop.
+- Gate 3 (execution order): in autonomous mode it is confirmed automatically from the output of `compute_execution_order.py`, and the order is recorded in the Gate Ledger.
+- `skills/dev-lifecycle/SKILL.md`, `skills/dev-implementation/SKILL.md`, `skills/principal-review/SKILL.md`, `skills/cross-model-review/SKILL.md` and `docs/lifecycles.{en,vi}.md` describe the autonomous path in short form and point to a reference file for the detail.
+
+## Risks and Mitigations
+
+| Risk | Mitigation |
+|---|---|
+| The model identifier is rejected on another machine or profile | Startup probe fails fast; model and effort come from configuration, not code |
+| Assistant approval is weaker than Human approval | The Assistant sees only the fix plan and the approved design; Gate 4 re-runs after every fix; the 3-round cap and Circuit Breakers stay |
+| A headless Programmer edits outside its scope | Runs only in the epic worktree; `Allowed files` from the task file are in the prompt; `audit_epic.py` still flags protected-path changes |
+| A crash leaves the pipeline half-done | State file plus Gate Ledger; the runner resumes from the recorded stage |
+| Quota exhaustion mid-run | `--auto-quota` provider order; a provider with no quota left is skipped, and if none remain the runner halts and reports |
+
+## Testing
+
+- Unit tests use a fake `agy` executable, the same pattern as `test_run_external_review.py`.
+- Cases: each stage transition, resume after a crash at every stage, each halt condition, the Principal Review stop-and-confirm, fix-plan verdict parsing, and the startup probe failure.
+- `scripts/verify.sh` runs the new test file as part of the release check.
+
+## Shared Contract Warnings
+
+`shared-contracts/` is absent in this repository, so there are no contract warnings. Clean state confirmed.
+
+# Thiết kế Autonomous Lifecycle Runner
+
+Thiết kế một script tùy chọn (opt-in) điều khiển `dev-lifecycle` từ handoff tới báo cáo cuối cho Human, với ba tác nhân (Human, AI Assistant, AI Programmer) và dispatch model headless.
+
+## Mục lục
+
+1. [Tóm tắt](#tóm-tắt)
+2. [Mục tiêu và phi mục tiêu](#mục-tiêu-và-phi-mục-tiêu)
+3. [Tác nhân và model](#tác-nhân-và-model)
+4. [Luồng pipeline](#luồng-pipeline)
+5. [Điểm dừng chờ Human](#điểm-dừng-chờ-human)
+6. [Kiến trúc runner](#kiến-trúc-runner)
+7. [Thay đổi quy tắc](#thay-đổi-quy-tắc)
+8. [Rủi ro và giảm thiểu](#rủi-ro-và-giảm-thiểu)
+9. [Kiểm thử](#kiểm-thử)
+10. [Cảnh báo Shared Contract](#cảnh-báo-shared-contract)
+
+## Tóm tắt
+
+Hiện nay lifecycle dừng ở nhiều menu (Handoff Choice, Gate 3, Review Choice) và ở mọi finding review không phải critical. Một script mới, `lifecycle_runner.py`, bỏ các menu này và chạy mỗi stage trong một tiến trình `agy` headless riêng, dùng đúng model và effort mà stage đó cần. Quyết định của Human chỉ được giữ ở những chỗ Human yêu cầu.
+
+## Mục tiêu và phi mục tiêu
+
+Mục tiêu:
+
+- Chạy pipeline từ handoff tới báo cáo cuối mà không dừng ở menu.
+- Dispatch Programmer là Gemini 3.8 Flash ở effort high, và Assistant là model mạnh hơn.
+- Thêm bước Assistant duyệt fix plan của Programmer sau mỗi round cross-model review.
+- Chịu được khởi động lại: toàn bộ trạng thái nằm trong `.devtool/`.
+
+Phi mục tiêu:
+
+- Không đổi interactive mode: runner là tùy chọn qua `/dev-lifecycle --autonomous`.
+- Không đổi Gate 1 và Gate 2, giới hạn 3 round, hay ba Circuit Breaker.
+- Không tự merge: Human luôn quyết định `/finishing-a-development-branch`.
+
+## Tác nhân và model
+
+| Tác nhân | Vai trò | Nguồn model |
+|---|---|---|
+| Human (2.1) | Chốt giải pháp, xác nhận fix của Principal Review, quyết định finish | n/a |
+| AI Assistant (2.2) | Viết thiết kế, triage finding review, duyệt fix plan | `.devtool/review_config.json` (mục `assistant`) |
+| AI Programmer (2.3) | Triển khai task, đề xuất và áp dụng fix | `gemini-3.8-flash`, effort `high` |
+
+Dạng lệnh đã được kiểm chứng trên máy này: `agy --print "<prompt>" --model gemini-3.8-flash --effort high --mode plan` thoát mã 0 và trả lời. Các lần gọi Programmer dùng `--mode auto` để tiến trình sửa được file trong worktree.
+
+## Luồng pipeline
+
+```mermaid
+flowchart TD
+    BS["Human và Assistant brainstorm, Gate 1 và 2"]
+    PKG["Assistant đóng gói epic, handoff.md"]
+    PR["Script: principal review, auto-quota"]
+    TRI["Assistant triage và đề xuất fix"]
+    HC{"Human xác nhận fix?"}
+    REV["Assistant sửa, đóng gói lại"]
+    IMPL["Script: Programmer triển khai, Gate 4"]
+    CMR["Script: cross-model review, auto-quota"]
+    PLAN["Programmer viết fix plan"]
+    APP{"Verdict của Assistant"}
+    FIX["Programmer áp dụng fix, Gate 4"]
+    RPT["Script: báo cáo cuối"]
+    HF{"Human quyết định finish?"}
+    FIN["finishing-a-development-branch, Test All"]
+    HALT(["HALT: báo cáo cho Human"])
+
+    BS --> PKG --> PR --> TRI
+    TRI -->|"có finding cần sửa"| HC
+    TRI -->|"không có finding"| IMPL
+    HC -->|"đã xác nhận"| REV --> PR
+    IMPL --> CMR --> PLAN --> APP
+    APP -->|"approved"| FIX --> CMR
+    APP -->|"adjusted"| FIX
+    APP -->|"CRITICAL_CONFLICT"| HALT
+    CMR -->|"đã hội tụ"| RPT --> HF
+    HF -->|"có"| FIN
+    TRI -->|"circuit breaker"| HALT
+    CMR -->|"circuit breaker"| HALT
+```
+
+## Điểm dừng chờ Human
+
+1. **Brainstorming và thiết kế (Gate 1 và 2)**: giữ nguyên, Human duyệt spec và phân rã task.
+2. **Fix của Principal Review**: AI Assistant tự động áp dụng các sửa đổi thiết kế kỹ thuật đã đồng thuận, commit và đóng gói lại mà không làm gián đoạn con người. Runner chỉ tạm dừng và chuyển sang `AWAITING_PRINCIPAL_CONFIRMATION` khi phát hiện rủi ro nghiêm trọng, xung đột yêu cầu nghiệp vụ, xung đột mã nguồn chưa chốt, hoặc `SHARED_CONTRACT_CONFLICT`. Round chỉ có Minor (`AUTO_PASS_FINAL_MINOR_SWEEP`) được quét và xử lý trong một lượt duy nhất mà không dừng hỏi Con người. Thứ tự ưu tiên mô hình cho Principal Review được cấu hình/chọn tại bước xác nhận phân rã task (Gate 2) qua 4 tùy chọn: (1) `Claude -> Codex -> Kiro -> Argon` [Mặc định], (2) `Codex -> Claude -> Kiro -> Argon`, (3) `Kiro -> Claude -> Codex -> Argon`, (4) `Kiro -> Codex -> Claude -> Argon`.
+3. **Fix của cross-model review**: không dừng chờ Human. Programmer đề xuất fix, Assistant duyệt hoặc chỉnh plan, Programmer áp dụng, rồi Gate 4 chạy lại.
+4. **Circuit Breaker**: `SHARED_CONTRACT_CONFLICT`, `FIX_LOOP` và `MAX_ROUNDS_CRITICAL_REMAINING` luôn dừng và báo cáo, ở cả hai stage review.
+5. **Assistant CRITICAL_CONFLICT**: fix plan làm thay đổi một quyết định đã duyệt thì dừng và báo cáo.
+6. **Báo cáo cuối**: sau khi review hội tụ và Gate 4 xanh, runner in executive report rồi dừng. Human chọn `/finishing-a-development-branch`; merge sau đó chạy `Test All`.
+
+## Kiến trúc runner
+
+Script nằm ở `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py`, là một state machine có thể resume.
+
+- **Trạng thái**: `.devtool/state/<epic>.pipeline.json` ghi stage hiện tại, số round, SHA cuối và verdict cuối. Gate Ledger (`.devtool/GATE_LEDGER.md`) vẫn là nơi ghi các lần duyệt.
+- **Dispatch**: mỗi bước AI là một subprocess `agy --print <prompt> --model <model> --effort <effort> --mode <mode>`, chạy trong worktree của epic, có timeout và process group riêng.
+- **Prompt**: chỉ dựng từ các file trong `.devtool/` (handoff, task file, output triage, review ledger), vì các session headless không chia sẻ ngữ cảnh.
+- **Fix plan**: Programmer ghi `.devtool/epic/<epic>/fix_plan_round<N>.md`. Assistant trả lời bằng một dòng verdict: `APPROVED`, `ADJUSTED` (kèm plan đã chỉnh) hoặc `CRITICAL_CONFLICT`.
+- **Startup probe**: trước lần dispatch đầu tiên, runner gọi từng model đã cấu hình với prompt một từ và dừng với lỗi rõ ràng nếu model không được chấp nhận.
+- **Tái sử dụng script có sẵn**: `package_epic.py`, `run_external_review.py` (`run`, `triage`, `check`), `audit_epic.py`, `compute_execution_order.py`, `resume_context.py`.
+
+## Thay đổi quy tắc
+
+- `rules/CRITICAL_RULES.md` mục 5 (Review Choice bắt buộc): ở chế độ autonomous, runner tự vào cross-model review sau lần Gate 4 PASS đầu tiên và không hiện menu. Interactive mode giữ nguyên.
+- `rules/CRITICAL_RULES.md` mục 6: ở chế độ autonomous, finding `Debatable` và `False Positive` trong cross-model review được giải quyết bằng verdict của Assistant, không dừng chờ Human.
+- Gate 3 (thứ tự thực thi): ở chế độ autonomous được xác nhận tự động từ output của `compute_execution_order.py`, thứ tự được ghi vào Gate Ledger.
+- `skills/dev-lifecycle/SKILL.md`, `skills/dev-implementation/SKILL.md`, `skills/principal-review/SKILL.md`, `skills/cross-model-review/SKILL.md` và `docs/lifecycles.{en,vi}.md` mô tả đường autonomous ngắn gọn và trỏ tới một file reference cho phần chi tiết.
+
+## Rủi ro và giảm thiểu
+
+| Rủi ro | Giảm thiểu |
+|---|---|
+| Model identifier bị từ chối trên máy hoặc profile khác | Startup probe fail nhanh; model và effort lấy từ cấu hình, không hard-code |
+| Assistant duyệt yếu hơn Human duyệt | Assistant chỉ thấy fix plan và thiết kế đã duyệt; Gate 4 chạy lại sau mỗi fix; giữ giới hạn 3 round và Circuit Breaker |
+| Programmer headless sửa ngoài phạm vi | Chỉ chạy trong worktree của epic; `Allowed files` từ task file nằm trong prompt; `audit_epic.py` vẫn báo thay đổi protected path |
+| Crash làm pipeline dang dở | State file cộng Gate Ledger; runner resume từ stage đã ghi |
+| Hết quota giữa chừng | Thứ tự provider `--auto-quota`; provider hết quota bị bỏ qua, nếu không còn provider nào thì runner dừng và báo cáo |
+
+## Kiểm thử
+
+- Unit test dùng một executable `agy` giả, cùng mẫu với `test_run_external_review.py`.
+- Các case: mỗi chuyển stage, resume sau crash ở từng stage, từng điều kiện halt, bước dừng-và-xác nhận của Principal Review, parse verdict của fix plan, và lỗi startup probe.
+- `scripts/verify.sh` chạy file test mới như một phần của kiểm tra release.
+
+## Cảnh báo Shared Contract
+
+Repository này không có `shared-contracts/`, nên không có cảnh báo contract. Đã xác nhận trạng thái sạch.
+
+
+exec
+/bin/zsh -lc "cat /Users/danhdueexoictif/.codex/plugins/cache/danhdue-agent-tools/d3nexus/1.28.2/skills/using-superpowers/references/codex-tools.md; sed -n '203,238p' /Users/danhdueexoictif/antigravity_homes/hau/.codex/memories/MEMORY.md; cat /Users/danhdueexoictif/.codex/plugins/cache/danhdue-agent-tools/d3nexus/1.28.2/skills/principal-review/references/document-triage.md" in /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/autonomous_lifecycle_runner
+ succeeded in 0ms:
+# Using d3nexus in Codex
+
+The plugin ships the same skills in all runtimes. When a skill uses a Claude Code tool name,
+perform the equivalent action using the tools exposed by the current Codex session.
+
+| Skill instruction | Codex action |
+|---|---|
+| Invoke `Skill` or `d3nexus:<name>` | Select the installed d3nexus skill, then read its `SKILL.md` and follow it. Resolve supporting paths relative to that skill's directory. |
+| `Read`, `Grep`, `Glob` | Use file tools or shell reads; prefer `rg` and `rg --files` for searches. |
+| `Edit`, `Write` | Use the available patch or file editing tool. |
+| `Bash` | Use the session's shell execution tool, respecting its permission boundaries. |
+| `TodoWrite` | Use an available plan/task tool, or maintain a short progress checklist if none exists. |
+| `Agent`, `Task`, parallel reviewers | Use subagents only when available and authorized. Otherwise perform independent steps sequentially and report the limitation. |
+
+Codex reads the consuming project's `AGENTS.md`. Claude's `@file` import syntax and Antigravity's
+Markdown `trigger: always_on` frontmatter are not substitutes for explicit reading instructions.
+Read the project's rule files when present; otherwise read the plugin's
+[critical rules](../../../rules/CRITICAL_RULES.md) and
+[coding guidelines](../../../rules/coding-guidelines.md).
+
+Keep `d3nexus:` cross-references in shared skill text. They identify the owning plugin; they do
+not imply that Codex has Claude's slash-command or `Skill` API. Use the skill picker or name the
+plugin and skill in a prompt when invocation syntax differs across Codex surfaces.
+
+Follow the current host's instruction hierarchy and honor the user's authorized scope. References
+to Antigravity's native planning artifact apply to that environment; do not invent unavailable
+tools or configuration in Codex. Platform build tools, credentials, and devices requested by a
+skill still need to exist in the consuming project.
+
+After reinstalling or upgrading the plugin, start a new thread to load the updated skill inventory.
+# Task Group: ai-agent-tools Gate 4 Review Choice loop and external-review diagnostics
+
+scope: Verified lifecycle state-machine update and streamed external-review precondition reporting.
+applies_to: cwd=/Users/danhdueexoictif/AllProjects/ai-agent-tools; reuse_rule=inspect current lifecycle rules/skills and candidate SHA before reuse; flow is repository policy, not a generic shortcut around gates.
+
+## Task 1: Reposition Review Choice into a Gate 4 loop, success
+
+### rollout_summary_files
+
+- rollout_summaries/2026-10-18T10-39-52-b3XU-gate4_review_choice_loop_and_external_review_streaming.md (cwd=/Users/danhdueexoictif/AllProjects/ai-agent-tools, rollout_path=/Users/danhdueexoictif/.codex/sessions/2026/10/18/rollout-2026-10-18T17-39-52-01a14e98-b2b9-7043-9d17-65dd8df4be46.jsonl, updated_at=2026-10-18T15:23:36+00:00, thread_id=01a14e98-b2b9-7043-9d17-65dd8df4be46, committed and fully verified)
+
+### keywords
+
+- Gate 4, Review Choice, Cross-model review, Gate 5, SHA-bound, rules/CRITICAL_RULES.md, test_verifiable_handoff_text.py, df9f67af7c1f7fecd3b4a9768c0863d035ed3088
+
+## Task 2: Add realtime ANSI pre-check output to external review, success
+
+### rollout_summary_files
+
+- rollout_summaries/2026-10-18T10-39-52-b3XU-gate4_review_choice_loop_and_external_review_streaming.md (cwd=/Users/danhdueexoictif/AllProjects/ai-agent-tools, rollout_path=/Users/danhdueexoictif/.codex/sessions/2026/10/18/rollout-2026-10-18T17-39-52-01a14e98-b2b9-7043-9d17-65dd8df4be46.jsonl, updated_at=2026-10-18T15:23:36+00:00, thread_id=01a14e98-b2b9-7043-9d17-65dd8df4be46, 31 targeted tests and full verification passed)
+
+### keywords
+
+- run_external_review.py, run_gate, PreconditionFailedError, [PRECONDITION BLOCKED], ANSI, flush=True, audit_epic.py, check_bdd_traceability.py, scripts/verify.sh, android-ui-audit
+
+## User preferences
+
+- The user explicitly corrected the lifecycle sequence: “Gate 4 => Review Choice”, then “Finish” or “Cross model review”, and “Sau bước này chạy lại Gate 4 ... Loop cho tới khi finish.” -> preserve this order for similar ai-agent-tools lifecycle work. [Task 1]
+- After verification, the user asked “Commit and finish all tasks.” -> commit locally when requested, but do not push without explicit permission. [Task 1]
+
+## Reusable knowledge
+
+- Enforced invariant: `Gate 4 PASS -> Review Choice; Finish -> Gate 5; Cross-model review -> Gate 4 in full`. A review round, decision, Fix commit, Gate 5-requested change, cross-model CLI failure, or timeout that changes/reassesses the candidate requires full Gate 4 before another Review Choice. Gate 4 is SHA-bound. [Task 1]
+- The policy update touched `rules/CRITICAL_RULES.md`, `skills/dev-lifecycle/SKILL.md`, `skills/dev-implementation/SKILL.md`, bilingual lifecycle docs, lifecycle-selection docs, and `scripts/test_verifiable_handoff_text.py`; commit `df9f67af7c1f7fecd3b4a9768c0863d035ed3088` is `[REVIEW_WORKFLOW] Loop review choice through Gate 4`. [Task 1]
+- `run_gate()` emits `[Pre-check]`, `PASS`, `FAILED`, or `TIMEOUT` to stderr with `flush=True`. `PreconditionFailedError` holds `gate`, `reason`, and `details`; its banner shows the final 25 detail lines and confirms the selected CLI was not invoked. [Task 2]
+- Route `audit_epic.py`, declared Integration commands, and `check_bdd_traceability.py` through `run_gate()` while retaining captured output in the facts bundle. `run_external_review.py` does not directly invoke `android-ui-audit`; that is only indirect through the quality-provider registry. Targeted suite passed 31 tests and `scripts/verify.sh` reported `PASS — safe to publish`; worktree was clean on `main`, with no push. [Task 2]
+# Document Review Triage Protocol
+
+Every architectural and design document review round — whether executed via Claude CLI, Codex CLI, or Antigravity CLI — is triaged with the developer before anyone modifies documents or code. Review findings are claims to verify, not direct instructions.
+
+## Triage Procedure
+
+1. **Obtain Triage Table**:
+   - For an epic:
+     ```bash
+     python3 skills/dev-implementation/resources/scripts/run_external_review.py triage --kind principal --epic-dir <epic_dir>
+     ```
+   - For ad-hoc review of a standalone document (`--doc`): the triage table is streamed directly to stdout.
+
+2. **Verify Every Finding Against Code**:
+   - Follow the discipline of `d3nexus:receiving-code-review`.
+   - Open the exact file and line number cited by the reviewer.
+   - Never accept or dismiss a finding on the reviewer's claim alone without verifying active source code.
+
+3. **Assess Validity & Strict Source-of-Truth Hierarchy (Forward Alignment vs Legacy Reversion)**:
+   - **Source-of-Truth Hierarchy**:
+     1. **Tier 1 (Approved Design Intent)**: User-approved Spec (`*-design.en.md`) and HLD (`<epic_dir>.en.md`).
+     2. **Tier 2 (Cross-Repo Contract Baseline)**: `shared-contracts/<domain>/` (`api_contract.md`, `architecture_and_flow.md`, `gaps_and_rfcs.md`).
+     3. **Tier 3 (Current Code Baseline)**: Legacy code in `src/` and task `Allowed files`.
+   - **Forward Alignment Rule (Never Revert User-Approved Design to Match Stale Contracts/Code)**:
+     - If a finding points out a mismatch between Tier 1 (e.g., User approved changing 7 pipeline steps to 5 steps in Spec/HLD) and Tier 2 (`shared-contracts/` not yet updated) or Tier 3 (`worker/bridge.py`, `preview/jobs.py` still using 7 steps), **NEVER propose reverting Tier 1 back to the old 7 steps**!
+     - Instead, diagnose the root cause as a **Missed Contract Sync / Incomplete Blast-Radius in Tasks**, and write the **Proposed Action** as **Forward Alignment**:
+       1. Keep the user-approved 5-step design in the Spec/HLD.
+       2. Update `shared-contracts/<domain>/` (`api_contract.md`, `architecture_and_flow.md`, `gaps_and_rfcs.md`) and run `sync_contracts.py ack` to reflect the approved 5 steps.
+       3. Add the legacy code files (`worker/bridge.py`, `preview/jobs.py`) to the task's `Allowed files` and `Decisions Already Made` so they are migrated to the 5 steps.
+   - **Valid**: The architectural, contract-sync, or blast-radius gap genuinely exists.
+   - **Debatable**: Technically true according to literal phrasing, but intent or conventions may differ.
+   - **False Positive**: The code or configuration already accounts for the scenario, the reviewer hallucinated non-existent code, OR the reviewer asks to revert an intentional Tier 1 design decision back to legacy behavior (`dismissed: contradicts approved design intent`).
+   - **Top 3 Highest-Risk Findings (Executive Report)**: Fill the `Design Anchor (HLD / BDD / Decisions Already Made)` and `Proposed action` columns in the `## Top 3 Highest-Risk Findings (Executive Report)` table emitted by `run_external_review.py triage` so the 3 highest-risk findings are highlighted at the top of the report.
+
+4. **Evaluate Auto-Triage Gate & Developer Decision**:
+   - Present the filled triage table with Assessment, Evidence, and Proposed Action. The presentation MUST begin with the standardized 4-bullet header block:
+     ```markdown
+     Principal Review Triage: Round <N> (<CLI>)
+     *(or `Principal Review Triage: <doc_path> (<CLI>)`)*
+
+     • Candidate SHA: <commit_sha>
+     • Reviewer: <CLI> ( <model> )
+     • Thinking Level: <Light | Low | Medium | High | Extra High | None>
+     • Verdict: <VERDICT> (<count> <Severity> findings)
+     ```
+   - Follow the `## Auto-Triage Gate` classification printed by `run_external_review.py triage`:
+     - **`AUTO_PASS_CLEAN` (`0 findings`)** or **`AUTO_PASS_FINAL_MINOR_SWEEP` (`0 Critical`, `0 Important`, only `Minor` findings)**: Fix any valid `Minor` items in a single pass, re-package via `package_epic.py <epic_dir> --revise`, and complete Principal Review immediately without re-invoking the external reviewer.
+     - **`AUTO_FIX_ELIGIBLE` (Round 1..2 with `Critical`/`Important` findings, no `shared-contracts/` conflict, and no Fix Loop)**: In autonomous `/dev-lifecycle` mode, when all blocking findings verify as `Valid` in source and do not conflict with `shared-contracts/`, apply the document revisions, record `fixed in <sha>`, re-package, and proceed to the next convergence round (up to max 3 rounds). In interactive mode (or when any finding is `Debatable` / `False Positive`), stop calling tools and wait for the developer to confirm or reject each finding.
+     - **`CIRCUIT_BREAKER_HALT (SHARED_CONTRACT_CONFLICT)`**: Triggered immediately in **any round** if a `Critical`/`Important` finding conflicts with `shared-contracts/`. Stop calling tools immediately and report to the Human Architect (never auto-fix or revert the user-approved HLD design).
+     - **`CIRCUIT_BREAKER_HALT (FIX_LOOP)`**: Triggered if a file marked `fixed in <sha>` in Round $N-1$ is re-reported with a `Critical`/`Important` finding in Round $N$. Stop calling tools immediately and report to the Human Architect.
+     - **`CIRCUIT_BREAKER_HALT (MAX_ROUNDS_CRITICAL_REMAINING)`**: Triggered if after **3 rounds (`Round >= 3`) any `Critical` finding still remains**. Stop calling tools immediately and report the `Top 3 Highest-Risk Findings` to the Human Architect.
+     - **`AUTO_PASS_FINAL_SWEEP` (Round 3 with `0 Critical` findings, no `shared-contracts/` conflict, and no Fix Loop)**: Apply one final revision sweep for remaining valid `Important`/`Minor` items, re-package green, and advance without a 4th round.
+
+## 4 Anti-Fix-Loop Prompt Strategies (Enforced in `run_external_review.py`)
+
+To prevent false or repetitive Fix Loops across rounds, `delta_round_context()` and the review prompt templates enforce four structural guardrails:
+
+1. **Strategy 1 — Exhaustive Per-File Pass in Round 1 (Anti-Drip-Feed)**:
+   - Round 1 (Full Scope Audit) instructs the reviewer to report **all** `Critical` and `Important` issues within each inspected artefact in Round 1, prohibiting piecemeal drip-feeding on untouched sections in later rounds.
+2. **Strategy 2 — Universal Anti-Ping-Pong & Solution-Stability Guardrail (All Round $\ge 2$)**:
+   - Because every CLI invocation is a new stateless subprocess, `delta_round_context()` injects `### Cross-Provider Handoff & Anti-Ping-Pong Guardrail` in **all** Round $\ge 2$ runs (both single-model and mixed-model). Reviewers must honor prior `fixed in <sha>` and `dismissed: <rationale>` decisions and must never demand reversing an accepted fix unless it introduces an objective defect or violates the approved HLD.
+3. **Strategy 3 — Previously Fixed Locations Registry (`Verify-Then-Close`)**:
+   - `delta_round_context()` automatically extracts all prior `fixed in <sha>` rows into `### Previously Fixed Locations Registry (Verify-Then-Close)`. If the revision resolves the original defect at `$sha`, the reviewer must **close it silently (`PASS`)** without proposing alternative rewrites.
+4. **Strategy 4 — Diff-Hunk Isolation on Fixed Files**:
+   - On any file in `Previously Fixed Locations Registry`, the reviewer is forbidden from reporting pre-existing issues on untouched lines outside the `prev_sha..sha` diff hunks. Re-reporting a fixed file is allowed only for `(a) [INCOMPLETE_FIX]` (original defect unresolved) or `(b) [NEW_REGRESSION]` (new defect directly introduced by the modified lines in `prev_sha..sha`).
+
+## Post-Triage Revision Loop
+
+When findings are accepted by the developer:
+
+1. **Apply Document Revisions First**:
+   - Edit the relevant design documents (HLD, BDD, tasks, RFCs).
+   - Commit the document edits:
+     ```bash
+     git commit -m "[<EPIC_NAME>] Revise epic after Principal Review round <n>"
+     ```
+
+2. **Record Decisions**:
+   - In `.devtool/epic/<epic_dir>/principal_review.md`, fill the Decision column for each finding:
+     `fixed in <revision_commit_sha>` or `dismissed: <developer's rationale>`.
+   - Commit decisions:
+     ```bash
+     git commit -m "[<EPIC_NAME>] Record Principal Review decisions for round <n>"
+     ```
+
+3. **Re-Run Packaging & Preflight**:
+   - Execute `check_epic_readiness.py <epic_dir>`.
+   - Refresh `handoff.md` with the new design commit SHA.
+   - Sync epic status to `Packaged`.
+   - Commit: `[<EPIC_NAME>] Package epic for handoff`.
+   - Re-present the Principal Review Choice to the developer.
+
+exec
+/bin/zsh -lc 'git rev-parse HEAD; git status --porcelain; git diff --stat b86ce2b945e3 a2b1b525fa74; cat rules/CRITICAL_RULES.md rules/coding-guidelines.md' in /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/autonomous_lifecycle_runner
+ succeeded in 4918ms:
+git: warning: confstr() failed with code 5: couldn't get path of DARWIN_USER_TEMP_DIR; using /tmp instead
+git: error: couldn't create cache file '/tmp/xcrun_db-812OOPmC' (errno=Operation not permitted)
+2026-11-11 06:12:35.393 xcodebuild[45078:63305324]  DVTFilePathFSEvents: Failed to start fs event stream.
+2026-11-11 06:12:35.585 xcodebuild[45078:63305323] [MT] DVTDeveloperPaths: Failed to get length of DARWIN_USER_CACHE_DIR from confstr(3), error = Error Domain=NSPOSIXErrorDomain Code=5 "Input/output error". Using NSCachesDirectory instead.
+git: warning: confstr() failed with code 5: couldn't get path of DARWIN_USER_TEMP_DIR; using /tmp instead
+git: error: couldn't create cache file '/tmp/xcrun_db-PJ73H3BV' (errno=Operation not permitted)
+2026-11-11 06:12:36.043 xcodebuild[45100:63306139]  DVTFilePathFSEvents: Failed to start fs event stream.
+2026-11-11 06:12:36.152 xcodebuild[45100:63306138] [MT] DVTDeveloperPaths: Failed to get length of DARWIN_USER_CACHE_DIR from confstr(3), error = Error Domain=NSPOSIXErrorDomain Code=5 "Input/output error". Using NSCachesDirectory instead.
+a2b1b525fa74a44c21b9b5aaafeb1078a95f383e
+git: warning: confstr() failed with code 5: couldn't get path of DARWIN_USER_TEMP_DIR; using /tmp instead
+git: error: couldn't create cache file '/tmp/xcrun_db-CVG9RLhY' (errno=Operation not permitted)
+2026-11-11 06:12:37.052 xcodebuild[45139:63307522]  DVTFilePathFSEvents: Failed to start fs event stream.
+2026-11-11 06:12:37.173 xcodebuild[45139:63307521] [MT] DVTDeveloperPaths: Failed to get length of DARWIN_USER_CACHE_DIR from confstr(3), error = Error Domain=NSPOSIXErrorDomain Code=5 "Input/output error". Using NSCachesDirectory instead.
+git: warning: confstr() failed with code 5: couldn't get path of DARWIN_USER_TEMP_DIR; using /tmp instead
+git: error: couldn't create cache file '/tmp/xcrun_db-cKzxNYyf' (errno=Operation not permitted)
+2026-11-11 06:12:37.563 xcodebuild[45157:63308173]  DVTFilePathFSEvents: Failed to start fs event stream.
+2026-11-11 06:12:37.668 xcodebuild[45157:63308172] [MT] DVTDeveloperPaths: Failed to get length of DARWIN_USER_CACHE_DIR from confstr(3), error = Error Domain=NSPOSIXErrorDomain Code=5 "Input/output error". Using NSCachesDirectory instead.
+git: warning: confstr() failed with code 5: couldn't get path of DARWIN_USER_TEMP_DIR; using /tmp instead
+git: error: couldn't create cache file '/tmp/xcrun_db-RwkqcV0S' (errno=Operation not permitted)
+2026-11-11 06:12:38.552 xcodebuild[45191:63309341]  DVTFilePathFSEvents: Failed to start fs event stream.
+2026-11-11 06:12:38.661 xcodebuild[45191:63309340] [MT] DVTDeveloperPaths: Failed to get length of DARWIN_USER_CACHE_DIR from confstr(3), error = Error Domain=NSPOSIXErrorDomain Code=5 "Input/output error". Using NSCachesDirectory instead.
+git: warning: confstr() failed with code 5: couldn't get path of DARWIN_USER_TEMP_DIR; using /tmp instead
+git: error: couldn't create cache file '/tmp/xcrun_db-0W4qfiXp' (errno=Operation not permitted)
+2026-11-11 06:12:39.072 xcodebuild[45213:63309996]  DVTFilePathFSEvents: Failed to start fs event stream.
+2026-11-11 06:12:39.186 xcodebuild[45213:63309995] [MT] DVTDeveloperPaths: Failed to get length of DARWIN_USER_CACHE_DIR from confstr(3), error = Error Domain=NSPOSIXErrorDomain Code=5 "Input/output error". Using NSCachesDirectory instead.
+ ...-11-10-autonomous-lifecycle-runner-design.en.md |    2 +-
+ ...-11-10-autonomous-lifecycle-runner-design.vi.md |    2 +-
+ .../autonomous_lifecycle_runner.en.md              |   89 +-
+ .../autonomous_lifecycle_runner.vi.md              |   89 +-
+ .../bdd_scenarios.en.md                            |   17 +-
+ .../bdd_scenarios.vi.md                            |   17 +-
+ .../epic/autonomous_lifecycle_runner/handoff.md    |   14 +-
+ .../principal_review.md                            | 8130 ++++++++++++++++++++
+ .../task_1_pipeline_state_machine_and_probing.md   |   25 +-
+ ...ask_2_subprocess_dispatcher_and_headless_agy.md |   16 +-
+ ...3_principal_review_automation_and_checkpoint.md |   33 +-
+ .../task_4_cross_model_review_fix_plan_loop.md     |    4 +-
+ ...task_5_orchestrator_cli_and_governance_rules.md |   13 +-
+ .../task_1_pipeline_state_machine_and_probing.md   |   29 +-
+ ...ask_2_subprocess_dispatcher_and_headless_agy.md |   20 +-
+ ...3_principal_review_automation_and_checkpoint.md |   37 +-
+ .../task_4_cross_model_review_fix_plan_loop.md     |    4 +-
+ ...task_5_orchestrator_cli_and_governance_rules.md |   17 +-
+ 18 files changed, 8404 insertions(+), 154 deletions(-)
+---
+trigger: always_on
+---
+
+# Critical Rules
+
+> [!CRITICAL]
+> These rules are MANDATORY and MUST be strictly applied by ALL AI Agent Plugins, runtimes, orchestrators, and subagents (including Claude Code, Antigravity IDE, Cursor, Codex, Windsurf, OpenCode, and any custom/third-party plugins) in every interaction across this project and downstream repositories. Failure to follow these rules is a direct violation of the engineering standard.
+
+## Universal Scope & Plugin Applicability
+
+> [!IMPORTANT]
+> **Every AI Agent plugin operating in this environment MUST inherit and execute these rules.**
+> Regardless of which plugin, tool, extension, or agent framework initiated the session:
+> - Built-in or third-party plugins must NEVER override, circumvent, or weaken these rules.
+> - Subagents, background runners, and multi-agent teams spawned by any plugin inherit these exact constraints.
+> - If an AI agent or plugin has conflicting built-in behaviors (e.g. auto-pushing, autonomous planning artifacts, skipping human checkpoints), these Critical Rules take absolute precedence.
+
+## 1. Mandatory Quality Gates
+
+> [!IMPORTANT]
+> After completing any workflow or skill — regardless of which plugin or tool executed it — you **MUST** run the quality gate for the **kind of work you did**, and fix any issues it raises. This is critical to maintain the quality of the project.
+>
+> | Kind of work | Gate |
+> |---|---|
+> | Anything that changes a file shipping in the build | `@quality_check` |
+> | Anything whose deliverable is prose | `@doc_quality_check` |
+>
+> The two share no tier, no audit and no tooling. Running the wrong one produces a green light that means nothing — and `@doc_quality_check` refuses outright if the change touches shipped files.
+>
+> See: [Quality Check Skill](../skills/quality_check/SKILL.md) · [Document Quality Check Skill](../skills/doc_quality_check/SKILL.md)
+
+## 2. Commit Message Format (Universal Standard)
+
+Every commit — written by a skill, a plugin, an agent, or by hand — uses a bracketed scope, a one-line title, and a bullet list of the subtasks actually done:
+
+```text
+[EPIC_NAME] Task title
+
+- subtask title 01
+- subtask title 02
+```
+
+- **`[SCOPE]`** is the epic name for epic work (`[LOGGING_REFACTOR]`), otherwise the area touched (`[TOOLS]`, `[SETTINGS]`). Uppercase, in brackets, always present.
+- **Title** is one line, imperative, no trailing period.
+- **Body** lists the subtasks or changes this commit actually contains, one bullet each. Omit the body entirely when the commit does exactly one thing.
+
+Write it with two `-m` flags — the first becomes the title, the second the body:
+
+```bash
+git commit -m "[EPIC_NAME] Task title" -m "- subtask title 01
+- subtask title 02"
+```
+
+> [!CAUTION]
+> **Never append trailer lines.** No `Co-Authored-By:`, no `Generated with`, no tool attribution of any kind. The commit ends with the last bullet. This applies universally to all plugins and LLM providers.
+
+## 3. Git Push Operations (No Unauthorized Push)
+
+> [!CRITICAL]
+> **NEVER push code to a remote repository (`git push`) without explicit user permission or confirmation.**
+> - You may stage (`git add`) and commit (`git commit`) locally following the commit message format when appropriate.
+> - Running `git push` (to any remote or branch) is **STRICTLY PROHIBITED** for all agents and plugins unless the user explicitly requests or confirms it in the prompt.
+> - Always let the user review local commits or explicitly ask for permission before pushing to remote.
+
+## 4. Native Planning Mode Interception (All Platforms & Plugins)
+
+> [!CRITICAL]
+> **Do NOT use native or built-in planning modes (e.g. Antigravity IDE's `<planning_mode>`, Claude Code plan mode, Cursor Composer plans, Windsurf Cascade plans, Codex planners) to create unstructured planning artifacts like `<appDataDir>/brain/.../implementation_plan.md` or loose plan files.**
+> When a user request requires planning, design exploration, architectural changes, or epic-level features:
+> 1. Because `<user_rules>` has absolute precedence over all instructions across all agent plugins, you **MUST NOT** follow IDE default instructions to create an `implementation_plan.md` artifact.
+> 2. For single features or exploratory design, you **MUST** invoke the [Brainstorming Skill](../skills/brainstorming/SKILL.md) (`d3nexus:brainstorming`).
+> 3. For multi-step, multi-feature, or epic-level work, you **MUST** invoke the [Epic Lifecycle Skill](../skills/dev-lifecycle/SKILL.md) (`d3nexus:dev-lifecycle`), which orchestrates `dev-brainstorming` -> `dev-designer` -> `dev-implementation` -> `quality_check` -> `finishing-a-development-branch`.
+> 4. Only use native `implementation_plan.md` if the user explicitly instructs you to bypass d3nexus workflows.
+
+## 5. Mandatory Review Choice Loop in Epic Lifecycle
+
+> [!CRITICAL]
+> **NEVER skip or silently bypass the Review Choice after Gate 4 passes in `dev-lifecycle` / `dev-implementation` or any plugin-based orchestrator.**
+> When all tasks of an epic are complete, run Phase 4 / Gate 4 first. Only after Gate 4 returns PASS on the current SHA:
+> 1. The AI Agent **MUST** explicitly stop calling tools and present the **Review Choice** prompt to the developer:
+>    - **Option 1: Finish** — proceed to Developer Kanban Review (Phase 4.1 / Gate 5), then Stage 4.
+>    - **Option 2: Cross-model review** — invoke an independent model review using `run_external_review.py run` (prompting the developer to select Claude CLI, Codex CLI, Antigravity CLI, or Kiro CLI based on `command -v claude codex agy kiro-cli`).
+>    - **Option 3: Local model review** — run `ollama list`, ask the developer which model to use (never pick it), then invoke `run_external_review.py run --cli ollama --model <model>`.
+> 2. The AI Agent **MUST NOT** auto-select an option or assume "Finish" by default.
+> 3. **Cross-model review must return to a full Gate 4 run** after the round is recorded and all blocking findings have decisions and required Fix commits. Gate 4 PASS then presents Review Choice again. This loop repeats until the developer explicitly chooses Finish. Local model review follows the same loop. Before any Fix commit or decision, the agent presents the triage from `run_external_review.py triage` and waits for the developer's decisions. Once the developer confirms the triage decisions, the agent applies the fixes, commits them, and **automatically runs Phase 4 / Gate 4 in full** without asking for a separate confirmation before running Gate 4, then halts at Review Choice for developer self-review and selection.
+> 4. A previous Gate 4 PASS cannot be reused after `review_results.md`, a finding decision, or a Fix commit changes the candidate SHA.
+
+## 6. Severity-Tiered Auto-Triage Gate, 3-Round Convergence Funnel & Post-Gate Checkpoints
+
+> [!CRITICAL]
+> **Every external review invocation (`/principal-review` and `/cross-model-review`) enforces the 3-Round Scope-Narrowing Convergence Funnel (`max_rounds = 3`), `check-quota` Provider Priority (`Claude -> Codex -> Kiro -> Argon`), and the Severity-Tiered Auto-Triage Gate.**
+>
+> 1. **Quota-Aware Provider Priority & 3-Round Convergence Funnel**:
+>    - **Provider Priority (`Claude -> Codex -> Kiro -> Argon`)**: Evaluations follow `["claude", "codex", "kiro", "agy"]` using `check-quota` thresholds: Claude & Codex require `5H >= 15%` AND `7D > 2%`; Kiro requires `Monthly Credits >= 3%` (`>= 15 credits`); Argon (`agy`) requires `Weekly >= 10%` or `5H >= 15%`.
+>    - **Max 3 Rounds**: Reviews are capped at `3` rounds (`Round 1`: Full Scope Audit; `Round 2`: Delta Verification of `prev_sha..curr_sha` with no new Minor on untouched files; `Round 3`: Blocker-Only Convergence Mode).
+> 2. **Severity-Tiered Auto-Triage Gate & Automatic Local Quality Gate Re-run**:
+>    - **`AUTO_PASS_CLEAN` (`0 findings`)** or **`AUTO_PASS_FINAL_MINOR_SWEEP` (`0 Critical`, `0 Important`, only `Minor` findings)**: Role 2.3 fixes valid `Minor` items in a single sweep, runs the local quality gate (`package_epic.py --revise` in Stage 2 or Gate 4 in Stage 3) green, and **completes the review stage immediately without re-invoking the external reviewer**.
+>    - **`AUTO_FIX_ELIGIBLE` (Round 1..2 with `Critical`/`Important` findings and no Fix Loop)**:
+>      - In **Autonomous `/dev-lifecycle` Mode**, when all blocking findings verify as `Valid` in source code and do not require unapproved changes to `shared-contracts/`, the agent automatically records decisions, switches to Role 2.3 (AI Programmer, Model **Gemini Flash 3.8**), applies the fixes, runs the deterministic local quality gate (`package_epic.py <epic_dir> --revise` in Stage 2 or **Phase 4 / Gate 4 in full** in Stage 3), and invokes the next convergence round (`Round N+1`, up to max 3 rounds).
+>      - In **Interactive Mode** (or when any finding is `Debatable` / `False Positive` or touches `shared-contracts/`), the agent **MUST STOP CALLING TOOLS** after presenting the verified triage table (`run_external_review.py triage`) and wait for the developer's explicit decisions on the findings. Once confirmed, the agent applies the fixes, commits them, and **AUTOMATICALLY executes `package_epic.py --revise` (Stage 2) or Phase 4 / Gate 4 in full (Stage 3)** without asking for an intermediate confirmation, then halts at the Review Choice / Stage Transition prompt.
+>    - **`CIRCUIT_BREAKER_HALT (SHARED_CONTRACT_CONFLICT)` (Mandatory Immediate Stop on `shared-contracts/` Conflicts)**:
+     - If ANY `Critical` or `Important` finding in `/principal-review` or `/cross-model-review` directly impacts or conflicts with `shared-contracts/` (`api_contract.md`, `architecture_and_flow.md`, `gaps_and_rfcs.md`, `contract_sync.json`, or wire-level step/enum/payload contracts — e.g. HLD defines 5 new steps while `shared-contracts/` still holds 7 legacy steps), the AI Agent **MUST IMMEDIATELY STOP CALLING TOOLS AND REPORT TO THE DEVELOPER**.
+     - The AI Agent is **STRICTLY PROHIBITED** from auto-fixing `shared-contracts/` conflicts, **STRICTLY PROHIBITED** from proposing or applying a revert of the user's approved HLD/Spec design back to legacy contract steps, and **STRICTLY PROHIBITED** from continuing autonomous execution until the Human Architect explicitly confirms the contract alignment decision.
+   - **`CIRCUIT_BREAKER_HALT (MAX_ROUNDS_CRITICAL_REMAINING)` & `CIRCUIT_BREAKER_HALT (FIX_LOOP)`**:
+     - If after **3 review rounds (`Round >= 3`) any `Critical` finding still remains**, OR if a **Fix Loop** occurs (the same file marked `fixed in <sha>` in Round $N-1$ is re-reported with a `Critical`/`Important` finding in Round $N$), the AI Agent **MUST IMMEDIATELY STOP CALLING TOOLS**, present the `## Top 3 Highest-Risk Findings (Executive Report)` and triage table, and escalate to the Human Architect (never auto-continue to implementation or branch finishing when a `Critical` finding survives 3 rounds).
+     - Conversely, if Round 3 finishes with **`0 Critical` findings** (and no `shared-contracts/` conflict or Fix Loop, only remaining `Important`/`Minor` findings), `AUTO_PASS_FINAL_SWEEP` applies one final fix pass anchored to the approved design, runs the local quality gate green, and completes the stage without invoking a 4th review round.
+
+## 7. Multi-Repo Boundaries, Symlink Isolation & Contract Governance
+
+> [!CRITICAL]
+> **AI Agents MUST strictly respect repository boundaries, symbolic link isolation, and contract-first governance across multi-repo ecosystems (Hub and Satellite repositories).**
+>
+> 1. **Multi-Repo Git Boundary Isolation**:
+>    - An AI Agent running in any repository MUST NOT stage (`git add`) or commit (`git commit`) files residing outside the current git working tree.
+>    - In a Satellite repository where `shared-contracts/` is a symbolic link pointing to a Hub repository (e.g. `lyrics-sync` or `nexus` linking to `D3Nexus`):
+>      - Agents MUST treat `shared-contracts/` as **strictly read-only** for git tracking within the satellite workspace.
+>      - Agents **MUST NOT** include `shared-contracts/...` in `Files Allowed` for local git tasks (preventing `fatal: pathspec is beyond a symbolic link`).
+>      - Agents **MUST NOT** autonomously execute git commit commands in adjacent repositories (e.g. `git -C <target_repo>`) without explicit developer confirmation.
+>
+> 2. **Contract-First Triad & Canonical SSOT**:
+>    - The Hub repository containing the physical `shared-contracts/` directory is the sole canonical authority (Single Source of Truth) for contract commits.
+>    - Before modifying endpoints, database models, worker bridges, offline sync logic, or DTOs, agents MUST inspect the 3 canonical contract files in the relevant domain folder (`shared-contracts/<domain>/`):
+>      1. `api_contract.md`: Endpoints, wire format, headers, telemetry, and payload schemas.
+>      2. `architecture_and_flow.md`: Pipeline states, state machines, lifecycle fencing, and failure handling.
+>      3. `gaps_and_rfcs.md`: Asynchronous change proposals, gap ledger, and cross-repo alignments.
+>
+> 3. **No Unilateral Breaking Changes & Non-Breaking Schema Guarantee**:
+>    - Never rename API fields, mutate JSON request/response structures, or alter pipeline state enums in backend or client implementations without prior documentation and alignment in `shared-contracts/`.
+>    - All schema and payload modifications MUST guarantee backward compatibility across all consumers (optional fields with safe defaults, non-breaking enum additions). Breaking changes without backward-compatible transition windows or fallback shims are strictly forbidden.
+>
+> 4. **Asynchronous RFC Workflow (Gaps & RFCs Ledger)**:
+>    - If an agent in a satellite repo detects a payload mismatch, missing field, or new requirement, it **MUST NOT** invent ad-hoc fields or silently diverge.
+>    - The agent MUST log a formal `GAP-XX` or `RFC-XXX` entry in `gaps_and_rfcs.md` (or emit an Upstream Contract Handoff Summary via `d3nexus:dev-designer`) and wait for upstream alignment before implementing breaking changes.
+>
+> 5. **Stateless Compute & Architectural Isolation**:
+>    - Satellite worker nodes (e.g. `lyrics-sync`) must act strictly as stateless compute nodes. Direct connection to the control plane database (`DATABASE_URL`, PostgreSQL/SQLite) is **STRICTLY FORBIDDEN**. All state transitions, lease acquisitions, and result deliveries occur strictly via documented HTTP REST/SSE endpoints using worker authentication tokens.
+
+## 8. Mandatory Two-Tier Project Memory & Tri-Role Persona Discipline
+
+> [!CRITICAL]
+> **AI Agents MUST strictly preserve Two-Tier Project Memory across session rotations and respect Tri-Role Persona boundaries across all stages of development.**
+>
+> 1. **Mandatory Context Restoration on Session Startup (Scoped to Development Lifecycle)**:
+>    - When starting substantive feature engineering, architectural design, or task execution in the development lifecycle (`d3nexus:dev-lifecycle`, `dev-brainstorming`, `dev-designer`, `dev-implementation`) or after an account profile switch for development, the AI Agent MUST run `python3 scripts/resume_context.py` (or the `d3nexus:resume-context` skill) to restore architectural memory before answering or proposing solutions.
+>    - The agent MUST summarize the restored project context in 5–10 concise bullets for the developer.
+>    - **Zero-Context & Fast-Execution Exemption**: Routine operational prompts, standalone utility skills, and fast-execution commands — specifically `/refresh-session` (pinging quota windows), `/setup_keybindings`, git status/diff inspections, or quick standalone queries — **MUST NOT** invoke `resume_context.py` or `resume-context`. They must execute their requested actions immediately without loading repository context.
+>    - **No Redundant Invocation**: Within an already-resumed active working session, the AI Agent MUST NOT repeatedly re-invoke `resume-context` on normal conversation turns.
+>
+> 2. **Strict Tri-Role Persona Discipline**:
+>    - **Role 2.1 — Human Architect (Developer)**: Sole authority for system strategy, Gate approvals (Gate 1–5), and Review Choice decisions.
+>    - **Role 2.2 — AI Assistant (`[PERSONA: AI ASSISTANT — TECHNICAL ADVISOR & CO-ARCHITECT]`)**:
+>      - Activated for architectural analysis, problem statement exploration, design specifications (`d3nexus:dev-brainstorming`, `d3nexus:dev-designer`), Principal Review (`d3nexus:principal-review`), and Cross-Model Review (`d3nexus:cross-model-review`).
+>      - **STRICT PROHIBITION**: The AI Assistant is **STRICTLY PROHIBITED from modifying production source code or application test suites**. Only architectural documentation (`docs/`, `.devtool/`, `shared-contracts/`) may be edited.
+>    - **Role 2.3 — AI Programmer (`[PERSONA: AI PROGRAMMER — SENIOR TDD SOFTWARE ENGINEER]`)**:
+>      - Activated for `/dev-implementation` and task execution inside isolated git worktrees.
+>      - **STRICT BOUNDARIES**: Bound strictly to approved specifications, `Decisions Already Made`, and `Allowed files`. Must practice strict TDD (Red-Green-Refactor) and Clean Code standards. Zero test fakery.
+>
+> 3. **Deterministic State & Log Checkpointing**:
+>    - After completing each Kanban task, the AI Programmer MUST log programmer activity (`scripts/resume_context.py --log`) and update Tier 2 snapshot state (`scripts/resume_context.py --state`).
+>    - Upon feature completion in Stage 4 (`/finish`), the agent MUST run `scripts/resume_context.py --complete <epic_slug> "<milestone_summary>"` to record the permanent milestone in `.devtool/PROJECT_LEDGER.md` and archive the completed epic's Tier 2 files into `.devtool/archive/`.
+>
+> 4. **Mandatory Window Title Synchronization & Persistent Top/Bottom Bar Customization**:
+>    - To eliminate cross-project window confusion when developers operate multiple IDEs or profile accounts, AI Agents MUST synchronize `window.title` and ensure persistent top/bottom bar colors in `.vscode/settings.json` upon entering an epic, transitioning lifecycle stages, or completing tasks.
+>    - **Title Format**: `"<ICON> [<REPO_NAME>] [@<account_id>] <Vietnamese Epic Name> - <Stage / Task>"`.
+>    - The `<account_id>` is extracted from the active profile / home environment (`os.path.basename(os.environ["HOME"])` under `antigravity_homes/`, e.g. `[@danhdue]`, `[@tess]`).
+>    - The Vietnamese Epic Name MUST be extracted directly from the H1 header of `.devtool/epic/<epic_slug>/<epic_slug>.vi.md` (stripping the `# Epic:` prefix).
+>    - **Persistent Inactive Bar Parity**: Both `titleBar` and `statusBar` MUST configure matching inactive background colors (`titleBar.inactiveBackground = titleBar.activeBackground` and `statusBar.inactiveBackground = statusBar.background`) to eliminate IDE dimming when windows lose focus.
+>    - **Clean Activity Toolbar**: The left `activityBar.background` remains uncolored in default dark theme to avoid peripheral visual clutter.
+>    - **Repository Color Signatures**:
+>      - 🔴 `[LYRICS-SYNC]`: `#7f1d1d` (Crimson Red)
+>      - 🟢 `[D3NEXUS]`: `#065f46` (Emerald Green)
+>      - 🔵 `[NEXUS]`: `#0d47a1` (Royal Blue)
+>      - 🟠 `[AGENT-TOOLS]`: `#b45309` (Warm Amber)
+>    - Agents MUST preserve all existing `workbench.colorCustomizations` and developer configurations in `.vscode/settings.json`.
+
+## 9. Shell Configuration (`.zshrc`) & Multi-Profile OS Boundary Safety
+
+> [!CRITICAL]
+> **Modifications to `~/.zshrc` or shell startup scripts MUST strictly follow Multi-Profile OS Safety rules to prevent breaking host OS system services (AirDrop, Apple ID, WiFi, Docker, Keychain) and profile isolation.**
+>
+> 1. **Mandatory Pre-Modification Backup & Syntax Verification**:
+>    - Before applying ANY edits to `~/.zshrc`, agents MUST create a timestamped backup: `cp ~/.zshrc ~/.zshrc.bak.$(date +%Y%m%d_%H%M%S)`.
+>    - After editing, agents MUST immediately verify syntax via `zsh -n ~/.zshrc` before concluding the turn.
+>    - Agents MUST check for existing functions, aliases, or environment blocks before appending to avoid duplicate definitions.
+>
+> 2. **Strict Host OS Keychain & Security Protection (Zero Global Mutating)**:
+>    - AI Agents are **STRICTLY PROHIBITED** from executing `security default-keychain` or `security list-keychains -s` globally in `~/.zshrc` or global shell commands.
+>    - The host macOS default keychain MUST ALWAYS remain `/Users/<user>/Library/Keychains/login.keychain-db` to prevent crippling macOS system daemons (especially `sharingd` for AirDrop, `identityservicesd`, `trustd`, and Wi-Fi credential lookups).
+>    - Profile keychain isolation is achieved EXCLUSIVELY via:
+>      - Per-profile plist: `~/antigravity_homes/<profile>/Library/Preferences/com.apple.security.plist` (automatically respected by macOS Security framework when `HOME=$ag_home`).
+>      - Scoped unlock inside subshells: `security unlock-keychain -p <pass> <profile.keychain-db>` within isolated scripts or `ag_run` subshells.
+>      - Zero CLI Mutation: Profile CLI commands (`ag_run <profile> cli`, `{profile}-cli`) MUST NEVER mutate `security default-keychain` or `security list-keychains`.
+>
+> 3. **Strict Subshell Scope for Profile Environments (No Global Environment Contamination)**:
+>    - AI Agents MUST **NEVER** export profile-specific environment variables (such as `export HOME=...`, `export AGY_PROFILE=...`, `export TMPDIR=/tmp/ag_...`) at the top-level of `~/.zshrc`.
+>    - Profile environments MUST ONLY be established within localized subshells spawned by `ag_run()` or dedicated profile CLI aliases (`{profile}-cli`).
+>    - Inside IDE terminals (`TERM_PROGRAM == "vscode"` and `-z "$AGY_CLI_MODE"`), `$HOME` MUST always remain `$REAL_HOME` (`/Users/<user>`) to guarantee unhindered access to OS services, local daemons (PostgreSQL, Docker daemon, Redis, MinIO), and host toolchains.
+>
+> 4. **Shared Toolchains, Libs & Symlink Architecture**:
+>    - **Profile Scope & Boundary**: An Antigravity profile (`antigravity_homes/<profile>`) exists solely to isolate Antigravity user identity, credentials, OAuth tokens, and IDE session state.
+>    - **Mandatory Shared Development Infrastructure**: All programming toolchains, developer tools, shared libraries, package managers, and compilation caches (Homebrew, Android SDK, Gradle, FVM, Flutter, Rust/Cargo, Go, Python/UV, npm, Docker socket, Caches) MUST be shared from the host OS (`$REAL_HOME`) via symlinks, NEVER duplicated, isolated, or severed.
+>    - Agents modifying profile provisioning scripts or symlinks MUST strictly preserve symlinks to `$REAL_HOME` for all shared toolchains and libraries.
+>
+> 5. **Parent Process & IPC Handle Stripping in Launchers (`ag_run`)**:
+>    - When launching Antigravity IDE instances (`open -n -a "Antigravity IDE"`), agents MUST explicitly strip parent process IPC handles, socket variables, and leaked runtime environment states:
+>      `env -u ELECTRON_RUN_AS_NODE -u VSCODE_GIT_IPC_HANDLE -u VSCODE_IPC_HOOK_CLI HOME="$ag_home" AGY_PROFILE="$profile" TMPDIR="/tmp/ag_$profile" open ...`
+>    - This eliminates socket collisions, channel crossover, and environment leaks when launching a new profile from within an existing IDE terminal or background automation daemon.
+>
+> 6. **Strict Antigravity Profile Identity & State Decoupling**:
+>    - **Independent Antigravity State**: All internal Antigravity runtime state (`.gemini/antigravity`, conversation summaries, and `data/User/globalStorage/state.vscdb`) MUST remain strictly independent per profile. Never symlink `.gemini/antigravity` or `state.vscdb` to `$REAL_HOME` or another profile.
+>    - **Identity Parity with Keychain**: The stored username in `data/User/globalStorage/state.vscdb` (`google.google-antigravity -> agy.onboarding.lastLoginUsername`) MUST match the profile's dedicated Keychain (`<profile>.keychain-db`).
+>    - **Process & Token Hygiene**: Always terminate resident Electron PIDs of a profile (`pkill -f antigravity_homes/<profile>`) before modifying its DB to prevent stale RAM overwrites, and purge `signedOut` OAuth flags. For the exhaustive local protocol, see `.agents/rules/profile_isolation_rules.md`.
+>    - **No Blind State Cloning**: Agents MUST NEVER clone `state.vscdb` from another profile without resetting `agy.onboarding.lastLoginUsername` to the target profile's email, and purging stale `comments`, `workspaceStorage`, and cross-profile paths from `extensions.user.cache`.
+>    - **Hardware Fingerprint & Telemetry Decoupling**: Every profile's `storage.json` MUST contain unique, cryptographically generated `telemetry.machineId` and `telemetry.devDeviceId`. Never copy them without regenerating. Every profile's `settings.json` MUST set `"telemetry.telemetryLevel": "off"` to prevent leaking workspace paths and hardware signatures. Profile trajectory databases (`conversation_summaries.db`) must never be cloned.
+
+---
+trigger: always_on
+---
+
+# CLAUDE.md
+
+Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-specific instructions as needed.
+
+**Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.
+
+> **TL;DR — 4 rules to always follow:**
+> 1. **Think first** — State assumptions, ask when unclear, present tradeoffs before acting.
+> 2. **Simplicity** — Minimum code that solves the problem. If it could be 50 lines, don't write 200.
+> 3. **Surgical** — Touch only what the request requires. Don't improve adjacent code.
+> 4. **Verify** — Define success criteria upfront. Don't claim done without running the check.
+
+## 1. Think Before Coding
+
+**Don't assume. Don't hide confusion. Surface tradeoffs.**
+
+Before implementing:
+
+- State your assumptions explicitly. If uncertain, ask.
+- If multiple interpretations exist, present them - don't pick silently.
+- If a simpler approach exists, say so. Push back when warranted.
+- If something is unclear, stop. Name what's confusing. Ask.
+
+## 2. Simplicity First
+
+**Minimum code that solves the problem. Nothing speculative.**
+
+- No features beyond what was asked.
+- No abstractions for single-use code.
+- No "flexibility" or "configurability" that wasn't requested.
+- No error handling for impossible scenarios.
+- If you write 200 lines and it could be 50, rewrite it.
+
+Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
+
+## 3. Surgical Changes
+
+**Touch only what you must. Clean up only your own mess.**
+
+When editing existing code:
+
+- Don't "improve" adjacent code, comments, or formatting.
+- Don't refactor things that aren't broken.
+- Match existing style, even if you'd do it differently.
+- If you notice unrelated dead code, mention it - don't delete it.
+
+When your changes create orphans:
+
+- Remove imports/variables/functions that YOUR changes made unused.
+- Don't remove pre-existing dead code unless asked.
+
+The test: Every changed line should trace directly to the user's request.
+
+## 4. Goal-Driven Execution
+
+**Define success criteria. Loop until verified.**
+
+Transform tasks into verifiable goals:
+
+- "Add validation" → "Write tests for invalid inputs, then make them pass"
+- "Fix the bug" → "Write a test that reproduces it, then make it pass"
+- "Refactor X" → "Ensure tests pass before and after"
+
+For multi-step tasks, state a brief plan:
+
+```
+1. [Step] → verify: [check]
+2. [Step] → verify: [check]
+3. [Step] → verify: [check]
+```
+
+Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
+
+---
+
+**These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
+
+exec
+/bin/zsh -lc 'nl -ba .devtool/epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.en.md' in /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/autonomous_lifecycle_runner
+ succeeded in 0ms:
+     1	# Autonomous Lifecycle Runner High-Level Design
+     2	
+     3	## Table of Contents
+     4	
+     5	- [Meta Data](#meta-data)
+     6	- [Background](#background)
+     7	- [Goals and Non-Goals](#goals-and-non-goals)
+     8	- [Architecture and Technical Design](#architecture-and-technical-design)
+     9	- [Shared Contract Impact](#shared-contract-impact)
+    10	- [Integration Test Plan and Boundary Matrix](#integration-test-plan-and-boundary-matrix)
+    11	- [Verification Environment](#verification-environment)
+    12	- [Comprehensive BDD Scenario Coverage](#comprehensive-bdd-scenario-coverage)
+    13	- [Rollout Strategy and Mitigation](#rollout-strategy-and-mitigation)
+    14	- [Kanban Tasks Breakdown](#kanban-tasks-breakdown)
+    15	- [Spec Errata](#spec-errata)
+    16	
+    17	## Meta Data
+    18	
+    19	- **Epic name**: `autonomous_lifecycle_runner`
+    20	- **Status**: In Progress
+    21	- **Target release**: Next plugin release
+    22	- **Platform**: Python tooling / agent skill kit
+    23	- **Depends on epic**: none
+    24	- **Source Spec**: [Approved autonomous lifecycle runner design](2026-11-10-autonomous-lifecycle-runner-design.en.md)
+    25	
+    26	## Background
+    27	
+    28	The software development lifecycle in `dev-lifecycle` currently requires interactive manual intervention at multiple decision gates:
+    29	1. Stage 2 handoff menu (Handoff Choice prompt to run Principal Review or proceed directly).
+    30	2. Stage 3 entry menu (Gate 3 execution order confirmation).
+    31	3. Stage 3 post-implementation menu (Review Choice prompt to Finish, Cross-model review, or Local model review).
+    32	4. Review finding triage (stopping to confirm proposed actions even when findings are minor or non-critical).
+    33	
+    34	To enable fully autonomous end-to-end epic development while maintaining strict architectural governance, a unified state machine orchestrator (`lifecycle_runner.py`) is introduced. This runner orchestrates three distinct personas:
+    35	- **Human Architect (Role 2.1)**: Guides initial brainstorming, approves Gate 1 & Gate 2, reviews proposed Principal Review fixes, and makes the final Gate 5 completion decision.
+    36	- **AI Assistant (Role 2.2)**: Triages review findings, formulates proposed fixes during Principal Review, and evaluates/approves the AI Programmer's fix plans during Cross-Model Review.
+    37	- **AI Programmer (Role 2.3)**: Headless developer dispatched via `agy --model gemini-3.8-flash --effort high --mode auto`, implementing code tasks in isolated worktrees, running quality checks, and drafting fix plans.
+    38	
+    39	Autonomous execution eliminates unnecessary menu pauses while preserving absolute circuit breaker halts on architectural conflicts (`SHARED_CONTRACT_CONFLICT`, `FIX_LOOP`, `MAX_ROUNDS_CRITICAL_REMAINING`).
+    40	
+    41	## Goals and Non-Goals
+    42	
+    43	### Goals
+    44	
+    45	- Deliver a headless, resumable orchestrator CLI `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py` capable of driving an epic through Stage 2 review, Stage 3 implementation, and Stage 3 cross-model review.
+    46	- Dispatch the AI Programmer using headless `agy --model gemini-3.8-flash --effort high --mode auto` in an isolated git worktree with process group supervision and timeout fencing.
+    47	- Implement automated Gate 3 task execution order calculation via `compute_execution_order.py`.
+    48	- Enforce Principal Review auto-triage: AI Assistant auto-applies aligned design revisions, halting for Human confirmation only on high-risk critical issues, business/domain requirement conflicts, or `SHARED_CONTRACT_CONFLICT`.
+    49	- Implement an automated fix-and-verify loop for Cross-Model Review: AI Programmer drafts a fix plan, AI Assistant evaluates and approves/adjusts it, AI Programmer applies fixes, and Gate 4 re-verifies automatically without stopping for Human.
+    50	- Maintain persistent state in `.devtool/state/<epic>.pipeline.json` synchronized with `.devtool/GATE_LEDGER.md` for instant crash recovery.
+    51	- Keep interactive mode 100% backward-compatible (`/dev-lifecycle --autonomous` or direct runner execution is strictly opt-in).
+    52	
+    53	### Non-Goals
+    54	
+    55	- Modifying the interactive lifecycle path or changing how developers interact with manual prompts when `--autonomous` is omitted.
+    56	- Bypassing Human approval at Gate 1 (spec approval), Gate 2 (task breakdown confirmation), or Gate 5 (final finish & merge decision).
+    57	- Auto-pushing code to remote repositories or auto-merging feature branches into base branches without explicit developer trigger.
+    58	- Increasing the 3-round review convergence cap or relaxing the three mandatory Circuit Breakers.
+    59	
+    60	## Architecture and Technical Design
+    61	
+    62	### High-Level Architecture
+    63	
+    64	```mermaid
+    65	flowchart TD
+    66	    subgraph CLI["CLI & Runner Entry Point"]
+    67	        RUNNER["lifecycle_runner.py<br/>(Resumable State Machine)"]
+    68	        PROBE["Startup Model Probe<br/>(agy probe gemini-3.8-flash & assistant)"]
+    69	        CONF[".devtool/review_config.json"]
+    70	    end
+    71	
+    72	    subgraph STATE["Persistence & Recovery"]
+    73	        PIPE_STATE[".devtool/state/<epic>.pipeline.json"]
+    74	        GATE_LEDGER[".devtool/GATE_LEDGER.md"]
+    75	        PROJ_LEDGER[".devtool/PROJECT_LEDGER.md"]
+    76	    end
+    77	
+    78	    subgraph STAGE2["Stage 2: Principal Review Automation"]
+    79	        PR_RUN["run_external_review.py run --kind principal --epic-dir <dir> --base <base> --auto-quota"]
+    80	        PR_TRIAGE["Assistant Auto-Triage & Fix Proposals<br/>(triage --kind principal)"]
+    81	        PR_HUMAN{"Human Checkpoint:<br/>Confirm Fixes?"}
+    82	        PR_REVISE["Assistant Revises & Repackages Epic<br/>(package_epic.py --revise)"]
+    83	    end
+    84	
+    85	    subgraph STAGE3["Stage 3: Headless Implementation"]
+    86	        ORDER["compute_execution_order.py<br/>(Auto Gate 3 Order Confirmation via resume_context)"]
+    87	        DISPATCH["Headless Dispatcher<br/>(agy stdin --model <model> --effort high --mode auto)"]
+    88	        GATE4["Phase 4 / Gate 4 Local Quality Gate"]
+    89	    end
+    90	
+    91	    subgraph CMR["Stage 3: Cross-Model Review Loop"]
+    92	        CMR_RUN["run_external_review.py run --kind code --epic-dir <dir> --base <base> --auto-quota"]
+    93	        PROG_PLAN["Programmer Drafts Fix Plan<br/>(fix_plan_roundN.md)"]
+    94	        ASST_EVAL{"Assistant Evaluation:<br/>APPROVED / ADJUSTED / CONFLICT"}
+    95	        PROG_FIX["Programmer Applies Fixes & Gate 4"]
+    96	    end
+    97	
+    98	    subgraph CB["Circuit Breakers (Immediate Stop & Alert)"]
+    99	        HALT_SCC["HALT: SHARED_CONTRACT_CONFLICT"]
+   100	        HALT_FL["HALT: FIX_LOOP"]
+   101	        HALT_MR["HALT: MAX_ROUNDS_CRITICAL_REMAINING"]
+   102	        HALT_CC["HALT: Assistant CRITICAL_CONFLICT"]
+   103	    end
+   104	
+   105	    subgraph FINAL["Stage 4: Developer Review & Finish"]
+   106	        REPORT["Final Executive Report Display"]
+   107	        HUMAN_FINISH{"Human Decides:<br/>/finishing-a-development-branch"}
+   108	        FINISH_BRANCH["Integrate Branch & Full Test All"]
+   109	    end
+   110	
+   111	    CONF --> PROBE --> RUNNER
+   112	    RUNNER <--> PIPE_STATE
+   113	    RUNNER <--> GATE_LEDGER
+   114	
+   115	    RUNNER --> PR_RUN
+   116	    PR_RUN --> PR_TRIAGE
+   117	    PR_TRIAGE -->|Findings to Fix| PR_HUMAN
+   118	    PR_TRIAGE -->|0 Findings| ORDER
+   119	    PR_HUMAN -->|Confirmed| PR_REVISE --> PR_RUN
+   120	
+   121	    ORDER --> DISPATCH --> GATE4
+   122	    GATE4 -->|PASS| CMR_RUN
+   123	    CMR_RUN -->|Findings Exist| PROG_PLAN
+   124	    PROG_PLAN --> ASST_EVAL
+   125	    ASST_EVAL -->|APPROVED / ADJUSTED| PROG_FIX --> GATE4
+   126	    CMR_RUN -->|Converged (0 Blocker)| REPORT
+   127	
+   128	    REPORT --> HUMAN_FINISH
+   129	    HUMAN_FINISH -->|Finish| FINISH_BRANCH
+   130	
+   131	    PR_TRIAGE -.->|Contract Drift| HALT_SCC
+   132	    CMR_RUN -.->|Contract Drift| HALT_SCC
+   133	    CMR_RUN -.->|Re-reported in Fix| HALT_FL
+   134	    CMR_RUN -.->|Round >= 3 Critical| HALT_MR
+   135	    ASST_EVAL -.->|Design Violation| HALT_CC
+   136	```
+   137	
+   138	### Sequence Diagram
+   139	
+   140	```mermaid
+   141	sequenceDiagram
+   142	    autonumber
+   143	    actor Human as Human Architect (Role 2.1)
+   144	    participant Runner as lifecycle_runner.py
+   145	    participant Reviewer as External Reviewer (Claude/Codex/Kiro)
+   146	    participant Assistant as AI Assistant (Role 2.2)
+   147	    participant Programmer as AI Programmer (Role 2.3 Gemini 3.8)
+   148	
+   149	    Note over Human,Assistant: Gate 1 & Gate 2 Approved
+   150	    Human->>Runner: /dev-lifecycle --autonomous
+   151	    Runner->>Runner: probe_models() [verify agy & models]
+   152	    Runner->>Runner: record_state(stage="principal_review")
+   153	
+   154	    rect rgb(240, 248, 255)
+   155	    Note over Runner,Assistant: Stage 2: Principal Review Automation
+   156	    loop Principal Review (Max 3 Rounds)
+   157	        Runner->>Reviewer: run_external_review.py run --kind principal --epic-dir <dir> --base <base> --auto-quota
+   158	        Reviewer-->>Runner: Review findings recorded in principal_review.md
+   159	        Runner->>Assistant: Triage findings (run_external_review.py triage --kind principal)
+   160	        alt AUTO_PASS_CLEAN (0 findings)
+   161	            Runner->>Runner: Direct advance to Stage 3 Implementation
+   162	        else AUTO_PASS_FINAL_MINOR_SWEEP (0 Critical/Important, only Minor)
+   163	            Runner->>Assistant: Sweep minor fixes in single pass
+   164	            Assistant-->>Runner: Minor fixes applied & committed
+   165	            Runner->>Runner: Record decisions & run package_epic.py --revise
+   166	            Runner->>Runner: Advance to Stage 3 without extra review round
+   167	        else AUTO_FIX_ELIGIBLE (Rounds 1-2 with valid fixes)
+   168	            alt High-risk, business conflict, or shared-contracts conflict
+   169	                Runner->>Runner: Save state (AWAITING_PRINCIPAL_CONFIRMATION) & write proposal file
+   170	                Runner->>Human: Present proposed fixes & prompt confirmation (--confirm-fixes / --reject-fixes)
+   171	                Human-->>Runner: Confirm fix proposal
+   172	            else Aligned / established fixes
+   173	                Runner->>Assistant: Auto-apply aligned revisions
+   174	            end
+   175	            Assistant-->>Runner: Revisions applied & committed
+   176	            Runner->>Runner: Record decisions (fixed in <sha>) & commit
+   177	            Runner->>Runner: package_epic.py <dir> --revise & commit
+   178	            Runner->>Runner: Advance to next review round
+   179	        else AUTO_PASS_FINAL_SWEEP (Round 3, 0 Critical, only Important/Minor)
+   180	            Runner->>Assistant: Final fix pass anchored to approved design
+   181	            Assistant-->>Runner: Fixes applied & committed
+   182	            Runner->>Runner: Record decisions & package_epic.py --revise
+   183	            Runner->>Runner: Advance to Stage 3 without 4th round
+   184	        else CIRCUIT_BREAKER_HALT (SHARED_CONTRACT_CONFLICT / FIX_LOOP / MAX_ROUNDS_CRITICAL_REMAINING)
+   185	            Runner->>Human: Immediate HALT: Display executive warning & halt pipeline
+   186	        end
+   187	    end
+   188	    end
+   189	
+   190	    rect rgb(245, 255, 250)
+   191	    Note over Runner,Programmer: Stage 3: Autonomous Implementation
+   192	    Runner->>Runner: resolve_gate3_order() -> resume_context.py --gate 3
+   193	    loop For each task in execution order
+   194	        Runner->>Programmer: agy stdin --model <model> --effort high --mode auto (Task N)
+   195	        Programmer-->>Runner: Code edits, unit tests, task evidence
+   196	        Runner->>Runner: Commit task implementation (clean git tree)
+   197	        Runner->>Runner: Sync task status to done
+   198	    end
+   199	    Runner->>Runner: run_gate4() in full (deterministic local check)
+   200	    end
+   201	
+   202	    rect rgb(255, 250, 240)
+   203	    Note over Runner,Assistant: Stage 3: Cross-Model Review Loop
+   204	    loop Cross-Model Review (Max 3 Rounds)
+   205	        Runner->>Reviewer: run_external_review.py run --kind code --epic-dir <dir> --base <base> --auto-quota
+   206	        Reviewer-->>Runner: Findings recorded in review_results.md
+   207	        alt AUTO_PASS_CLEAN (0 findings)
+   208	            Runner->>Runner: Break loop -> Advance to Final Report
+   209	        else Final sweep (AUTO_PASS_FINAL_MINOR_SWEEP or AUTO_PASS_FINAL_SWEEP)
+   210	            Runner->>Programmer: Apply final sweep fixes
+   211	            Programmer-->>Runner: Code fixes applied
+   212	            Runner->>Runner: Commit code fixes (git commit)
+   213	            Runner->>Runner: Record decisions in review_results.md (fixed in <sha>)
+   214	            Runner->>Runner: Commit decisions (clean git tree)
+   215	            Runner->>Runner: run_gate4() in full (verifies clean certified SHA)
+   216	            Runner->>Runner: Break loop -> Advance to Final Report
+   217	        else Blockers exist (AUTO_FIX_ELIGIBLE)
+   218	            Runner->>Programmer: Draft fix plan (fix_plan_roundN.md)
+   219	            Programmer-->>Runner: fix_plan_roundN.md written
+   220	            Runner->>Assistant: Review fix plan against approved HLD
+   221	            Assistant-->>Runner: Verdict (APPROVED / ADJUSTED / CRITICAL_CONFLICT)
+   222	            alt CRITICAL_CONFLICT
+   223	                Runner->>Human: HALT: Report design conflict
+   224	            else APPROVED or ADJUSTED
+   225	                Runner->>Programmer: Apply approved fix plan
+   226	                Programmer-->>Runner: Code fixes applied
+   227	                Runner->>Runner: Commit code fixes (git commit)
+   228	                Runner->>Runner: Record decisions in review_results.md (fixed in <sha>)
+   229	                Runner->>Runner: Commit decisions (clean git tree)
+   230	                Runner->>Runner: run_gate4() in full (verifies clean certified SHA)
+   231	            end
+   232	        end
+   233	    end
+   234	    end
+   235	
+   236	    Runner->>Human: Output Final Executive Report
+   237	    Human->>Runner: Trigger /finishing-a-development-branch
+   238	```
+   239	
+   240	### Feature Maintenance Map ("Prompt to Maintain" Index)
+   241	
+   242	| Capability | Canonical Source Paths & Entry Points | Core Invariants & State/Config Knobs | Extension & Troubleshooting Guide |
+   243	|---|---|---|---|
+   244	| **State Machine Runner** | `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py` | State file `.devtool/state/<epic>.pipeline.json` must be updated atomically using `.tmp` rename. State schema adheres to `PipelineState` dataclass. | Inspect state file to see active stage, round, and last SHA. Use `--resume` or `--reset-stage <stage>` to recover from failed states. |
+   245	| **Model Prober & Dispatcher** | `lifecycle_runner.py::ModelDispatcher` | Headless execution pipes prompts via stdin to `agy --model <model> --effort <effort> --mode <mode>`. Process group isolation via `start_new_session=True` (`pgid = p.pid`) with SIGTERM, 1s grace, and SIGKILL escalation. | If a model is deprecated or renamed, check `.devtool/review_config.json` or fallback defaults. Startup probe fails fast before any file mutations. |
+   246	| **Principal Review Checkpoint** | `lifecycle_runner.py::step_principal_review` | Automatically processes aligned/agreed fixes. Halts and transitions to `AWAITING_PRINCIPAL_CONFIRMATION` only when high-risk critical issues, business/domain requirement conflicts, unaligned source conflicts, or `SHARED_CONTRACT_CONFLICT` occur. Minor-only rounds complete via `AUTO_PASS_FINAL_MINOR_SWEEP` without extra review round. | Check `principal_review.md` and triage output. Confirming allows Assistant to run `package_epic.py --revise`. Supports `--resume --confirm-fixes` / `--reject-fixes`. |
+   247	| **Gate 3 Auto-Order** | `lifecycle_runner.py::resolve_gate3_order` | Execution order must strictly follow topological sort from `compute_execution_order.py`. Gate 3 entry recorded in Gate Ledger via `resume_context.py --gate 3`. | If dependency cycles exist, `compute_execution_order.py` fails with clear error; runner halts and requests human resolution. |
+   248	| **Cross-Model Fix Loop** | `lifecycle_runner.py::step_cross_model_review` | Programmer drafts `.devtool/epic/<epic>/fix_plan_round<N>.md`. Assistant answers with `APPROVED`, `ADJUSTED`, or `CRITICAL_CONFLICT`. Gate 4 re-runs after every fix round. Intermediate rounds do not pause for Human. | Review `fix_plan_round<N>.md` to inspect proposed fixes. Assistant verdict is recorded in `.devtool/state/<epic>.pipeline.json`. |
+   249	| **Commit Sequencing & Tree Hygiene** | `lifecycle_runner.py::run` | `git status --porcelain` must be clean before invoking any review pass. The runner commits fix plans, code fixes, and review decisions in sequence. | Prevents `run_external_review.py` from refusing runs on dirty tree. |
+   250	| **Multi-Round Executive Report & Stop** | `lifecycle_runner.py::render_final_executive_report` | Rendered only at the final round when review converged and Gate 4 passes. Synthesizes Top 3 Highest-Risk Findings across all review rounds. Halts and prompts Human for merge or other actions. | Aggregates all rounds from `review_results.md`. Displays findings, fix commits, and Gate 4 certified SHA before prompting `/finishing-a-development-branch`. |
+   251	| **Circuit Breakers** | `lifecycle_runner.py::evaluate_circuit_breakers` | Halts immediately without retry on: `SHARED_CONTRACT_CONFLICT`, `FIX_LOOP`, `MAX_ROUNDS_CRITICAL_REMAINING`, or Assistant `CRITICAL_CONFLICT`. | Check console banner for error reason and remediation instructions. Resuming requires resolving the conflict and running with `--resume`. |
+   252	
+   253	### Module Contracts
+   254	
+   255	These signatures and structures are frozen for implementation in `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py`:
+   256	
+   257	```python
+   258	from dataclasses import dataclass, field
+   259	from enum import Enum
+   260	from pathlib import Path
+   261	from typing import Any, Dict, List, Optional, Tuple
+   262	
+   263	class StageName(str, Enum):
+   264	    INITIALIZED = "initialized"
+   265	    PRINCIPAL_REVIEW = "principal_review"
+   266	    AWAITING_PRINCIPAL_CONFIRMATION = "awaiting_principal_confirmation"
+   267	    IMPLEMENTATION = "implementation"
+   268	    CROSS_MODEL_REVIEW = "cross_model_review"
+   269	    AWAITING_FINISH = "awaiting_finish"
+   270	    COMPLETED = "completed"
+   271	    HALTED = "halted"
+   272	
+   273	class FixPlanVerdict(str, Enum):
+   274	    APPROVED = "APPROVED"
+   275	    ADJUSTED = "ADJUSTED"
+   276	    CRITICAL_CONFLICT = "CRITICAL_CONFLICT"
+   277	
+   278	@dataclass
+   279	class RunnerConfig:
+   280	    programmer_model: str = "gemini-3.8-flash"
+   281	    programmer_effort: str = "high"
+   282	    assistant_model: Optional[str] = None  # Precedence: CLI --assistant-model -> .devtool/review_config.json providers.assistant.model -> active profile model -> fallback claude-sonnet-5-5-high
+   283	    assistant_effort: str = "high"
+   284	    timeout_seconds: int = 1800
+   285	    max_review_rounds: int = 3
+   286	
+   287	@dataclass
+   288	class PipelineState:
+   289	    epic_slug: str
+   290	    active_stage: StageName
+   291	    principal_round: int = 0
+   292	    cross_model_round: int = 0
+   293	    last_commit_sha: str = ""
+   294	    last_verdict: str = ""
+   295	    halt_reason: Optional[str] = None
+   296	    last_error: Optional[str] = None
+   297	    task_order: List[str] = field(default_factory=list)
+   298	    completed_tasks: List[str] = field(default_factory=list)
+   299	
+   300	    def to_dict(self) -> Dict[str, Any]: ...
+   301	    @classmethod
+   302	    def from_dict(cls, data: Dict[str, Any]) -> "PipelineState": ...
+   303	
+   304	class ModelDispatcher:
+   305	    def __init__(self, config: RunnerConfig): ...
+   306	    def probe_model(self, model: str) -> bool: ...
+   307	    def dispatch(
+   308	        self,
+   309	        prompt: str,
+   310	        model: str,
+   311	        effort: str,
+   312	        mode: str,
+   313	        worktree_root: Path,
+   314	        timeout: Optional[int] = None,
+   315	    ) -> Tuple[int, str, str]: ...
+   316	
+   317	class LifecycleRunner:
+   318	    def __init__(self, root: Path, epic_slug: str, config: Optional[RunnerConfig] = None): ...
+   319	    def load_or_init_state(self) -> PipelineState: ...
+   320	    def save_state(self) -> None: ...
+   321	    def run(self, resume: bool = False) -> int: ...
+   322	    def resolve_gate3_order(self) -> List[str]: ...
+   323	    def step_principal_review(self) -> bool: ...
+   324	    def step_implementation(self) -> bool: ...
+   325	    def run_gate4(self) -> Tuple[bool, str]: ...
+   326	    def step_cross_model_review(self) -> bool: ...
+   327	    def evaluate_circuit_breakers(self, stage: str, round_num: int) -> Optional[str]: ...
+   328	    def prompt_human_principal_fixes(self, triage_summary: str) -> bool: ...
+   329	    def evaluate_programmer_fix_plan(self, round_num: int) -> Tuple[FixPlanVerdict, str]: ...
+   330	    def render_final_executive_report(self) -> str: ...
+   331	```
+   332	
+   333	#### Method Execution Contracts and Task Ownership
+   334	
+   335	- **`step_implementation(self) -> bool`** (Owned by Task 2):
+   336	  - Execution contract: loops over `self.state.task_order` sequentially. For each task:
+   337	    1. Checks if already present in `self.state.completed_tasks`. If so, skips.
+   338	    2. Gating and evidence verification: dispatches Programmer subprocess with task prompt via stdin (`skills/dev-implementation/SKILL.md:229–240`).
+   339	    3. Verifies task evidence and status updated to `done`.
+   340	    4. Commits task changes cleanly (`git commit -m "[<EPIC>] Execute <task_slug>"`).
+   341	    5. Appends task to `self.state.completed_tasks` and saves state atomically (`ALR-ST-01`).
+   342	    6. Returns `True` if all tasks succeed; on subprocess failure or timeout, logs error, preserves state, and returns `False`.
+   343	- **`run_gate4(self) -> Tuple[bool, str]`** (Owned by Task 5):
+   344	  - Execution contract: executes the full Stage 3 Gate 4 verification sequence on the candidate SHA (`skills/dev-implementation/SKILL.md:321–356`):
+   345	    1. Generates and commits smoke checklist (`skills/dev-implementation/resources/scripts/generate_smoke_checklist.py`).
+   346	    2. Runs finding decision check (`run_external_review.py check --epic-dir <epic> --kind code`).
+   347	    3. Runs codebase and security audit checks.
+   348	    4. Runs declared integration commands and test suite (`run_unittest_junit.py`).
+   349	    5. Runs registered Python capabilities (lint and type-check).
+   350	    6. Verifies all results trace cleanly to candidate commit SHA.
+   351	    7. Returns `(True, "Gate 4 PASS: <candidate_sha>")` if all checks pass; otherwise `(False, "<failure_reason>")`.
+   352	
+   353	### Impact Analysis
+   354	
+   355	Impact analysis executed via `check_code_impact.py` against `main`:
+   356	- Upstream Git Conflict Analysis: 🟢 **CLEAN** (Zero unmerged commits against `main`).
+   357	- Downstream Callers & Blast Radius: `lifecycle_runner.py` is a new standalone entry point. Consumers will be `dev-lifecycle` slash command and CLI invocations.
+   358	- No cross-platform or native bridge contracts are touched.
+   359	
+   360	## Shared Contract Impact
+   361	
+   362	None — self-contained feature.
+   363	
+   364	## Integration Test Plan and Boundary Matrix
+   365	
+   366	Integration test roots: tests/, skills/dev-lifecycle/resources/scripts/
+   367	
+   368	Protected paths: .agents/quality/**, .devtool/epic/autonomous_lifecycle_runner/bdd_scenarios.en.md, .devtool/epic/autonomous_lifecycle_runner/bdd_scenarios.vi.md, tests/test_lifecycle_runner.py
+   369	
+   370	Integration results: python3 scripts/run_unittest_junit.py --junitxml build/test-results/autonomous-lifecycle-runner.xml tests/test_lifecycle_runner.py -> build/test-results/autonomous-lifecycle-runner.xml
+   371	
+   372	| Boundary | Real components | Isolation or fixture | Required assertions |
+   373	|---|---|---|---|
+   374	| **Model Prober** | `ModelDispatcher.probe_model` | Fake `agy` script on `PATH` simulating valid and invalid exit codes | Exits 0 on recognized model; returns clear error and halts pipeline when model rejected. |
+   375	| **Subprocess Group Supervision** | `ModelDispatcher.dispatch` | Fake long-running script | Process executes in isolated process group (`start_new_session=True`); SIGTERM delivered cleanly on timeout. |
+   376	| **State Persistence & Resumption** | `LifecycleRunner.save_state`, `load_or_init_state` | Temporary filesystem with mock `.devtool/state` | Atomic `.tmp` rename prevents file corruption; runner resumes exactly from saved stage. |
+   377	| **Gate 3 Auto-Order** | `LifecycleRunner.step_implementation` | Mock `compute_execution_order.py` | Order parsed from JSON/text output and written to `.devtool/GATE_LEDGER.md`. |
+   378	| **Principal Review Auto-Triage** | `step_principal_review` | Mock stdin/stdout prompt wrapper | Auto-applies aligned fixes; halts and prompts human only on critical, domain, or contract conflicts. |
+   379	| **Cross-Model Fix Plan Evaluation** | `evaluate_programmer_fix_plan` | Mock Assistant dispatcher returning `APPROVED`, `ADJUSTED`, `CRITICAL_CONFLICT` | Handles all 3 verdicts correctly; triggers Programmer fix execution or halts pipeline. |
+   380	| **Circuit Breakers** | `evaluate_circuit_breakers` | Synthetic `review_results.md` fixtures | Immediate halt on `SHARED_CONTRACT_CONFLICT`, `FIX_LOOP`, and `MAX_ROUNDS_CRITICAL_REMAINING`. |
+   381	| **Final Executive Report** | `LifecycleRunner.run` | Completed pipeline state | Renders markdown executive report and stops with prompt for `/finishing-a-development-branch`. |
+   382	
+   383	## Verification Environment
+   384	
+   385	- All unit and integration tests run in isolated temporary directories (`tempfile.TemporaryDirectory`).
+   386	- Tests simulate the `agy` CLI using executable fake scripts or `unittest.mock.patch`, requiring zero external API keys or remote network calls.
+   387	- Process timeouts and termination are tested with short intervals (< 2.0s).
+   388	- JUnit XML reports are written to `build/test-results/autonomous-lifecycle-runner.xml`.
+   389	
+   390	## Comprehensive BDD Scenario Coverage
+   391	
+   392	The canonical Gherkin definitions are in [BDD scenarios](bdd_scenarios.en.md), with the synchronized [Vietnamese translation](bdd_scenarios.vi.md).
+   393	
+   394	| Dimension | Scenario IDs | Coverage intent |
+   395	|---|---|---|
+   396	| **Happy Paths** | `ALR-HP-01` through `ALR-HP-04` | Full autonomous pipeline run, headless Programmer Gemini 3.8 dispatch, Principal Review human confirmation, Assistant fix plan approval. |
+   397	| **Edge Cases and Boundaries** | `ALR-EC-01` through `ALR-EC-04` | 0 findings in Principal Review bypasses prompt, minor-only findings batched, Assistant adjusts fix plan, Gate 3 order auto-confirmed. |
+   398	| **State Transitions and Invariants** | `ALR-ST-01` through `ALR-ST-03` | State persistence across crash, Gate Ledger synchronization, model capability probe. |
+   399	| **Async and Concurrency** | `ALR-AR-01` through `ALR-AR-02` | Process group isolation and SIGTERM timeout fencing, atomic state file locking. |
+   400	| **Failure and Resilience** | `ALR-FR-01` through `ALR-FR-04` | Halt on shared contract conflict, halt on fix loop, halt on max rounds critical, halt on Assistant CRITICAL_CONFLICT. |
+   401	
+   402	## Rollout Strategy and Mitigation
+   403	
+   404	1. Implement core state machine, models, and persistence in `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py` with comprehensive unit tests.
+   405	2. Implement headless `agy` dispatcher with process group fencing and model probing.
+   406	3. Integrate Stage 2 Principal Review automation with Human fix confirmation checkpoint.
+   407	4. Integrate Stage 3 Cross-Model Review fix plan evaluation loop.
+   408	5. Update `rules/CRITICAL_RULES.md`, `skills/dev-lifecycle/SKILL.md`, `skills/dev-implementation/SKILL.md`, and documentation to specify autonomous mode behavior.
+   409	6. Verify full test suite using `scripts/run_unittest_junit.py` and `scripts/verify.sh`.
+   410	
+   411	Mitigation: Autonomous mode is strictly opt-in via `/dev-lifecycle --autonomous` or direct invocation of `lifecycle_runner.py`. Interactive lifecycle behavior remains completely intact and default.
+   412	
+   413	## Kanban Tasks Breakdown
+   414	
+   415	1. [Task 1: Pipeline State Machine, Persistence, and Model Probing](task_1_pipeline_state_machine_and_probing.md)
+   416	2. [Task 2: Subprocess Dispatcher and Headless agy Runner](task_2_subprocess_dispatcher_and_headless_agy.md)
+   417	3. [Task 3: Principal Review Automation and Human Checkpoint](task_3_principal_review_automation_and_checkpoint.md)
+   418	4. [Task 4: Cross-Model Review Fix Plan Loop and Assistant Evaluator](task_4_cross_model_review_fix_plan_loop.md)
+   419	5. [Task 5: End-to-End Orchestrator, CLI Integration, and Governance Rules](task_5_orchestrator_cli_and_governance_rules.md)
+   420	
+   421	## Spec Errata
+   422	
+   423	- **[SE-01] Principal Review Round 1 Alignment**: Aligned external review CLI flags (`--kind principal` / `--kind code` with required `--base`), integrated `run_external_review.py triage` action parsing, made Assistant model dynamically inherit the developer's selected model (Argon/Claude/Codex/etc) with Gemini 3.8 Flash default for Programmer, added `AWAITING_PRINCIPAL_CONFIRMATION` state with proposal file and non-blocking CLI flags (`--confirm-fixes`/`--reject-fixes`), established commit sequencing for clean git tree, and aligned method signatures across HLD and tasks.
+   424	- **[SE-02] Principal Review Round 2 Delta Alignment**: Formalized Auto-Triage Gate stage transitions (auto-application of agreed fixes in Principal Review, single-pass minor sweeps for AUTO_PASS_FINAL_MINOR_SWEEP and AUTO_PASS_FINAL_SWEEP without redundant review rounds), corrected Gate 4 commit and decision recording sequence (code fix commit -> decision recording -> decision commit -> Gate 4 run), added run_gate4() and step_implementation contract definitions, aligned ModelDispatcher to stdin pipes and process group supervision, and updated test verification commands to isolated runner scopes.
+   425	- **[SE-03] Principal Review Round 3 Convergence Alignment**: Aligned Principal Review auto-triage policy across spec, HLD, BDD, and tasks (auto-applying aligned technical fixes without interrupting the developer, halting only on high-risk critical issues, business/domain requirement conflicts, or SHARED_CONTRACT_CONFLICT); synchronized 4 selectable model priority options at Gate 2 task confirmation with default `Claude -> Codex -> Kiro -> Argon`; updated Cross-Model Review sequence diagram to route both final sweep actions through code fix commit, decision recording, decision commit, and full Gate 4 before reporting; mapped BDD scenarios ALR-ST-01 to Task 2, ALR-ST-02 to Task 5, and ALR-ST-03 to Task 1 with 100% traceability.
+   426	
+
+exec
+/bin/zsh -lc 'nl -ba .devtool/epic/autonomous_lifecycle_runner/task_1_pipeline_state_machine_and_probing.md; nl -ba .devtool/epic/autonomous_lifecycle_runner/task_2_subprocess_dispatcher_and_headless_agy.md' in /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/autonomous_lifecycle_runner
+ succeeded in 0ms:
+     1	---
+     2	id: "task_1_pipeline_state_machine_and_probing"
+     3	status: "todo"
+     4	priority: "high"
+     5	assignee: null
+     6	epic: "autonomous_lifecycle_runner"
+     7	dueDate: null
+     8	created: "2026-11-10T19:16:00Z"
+     9	modified: "2026-11-10T19:16:00Z"
+    10	completedAt: null
+    11	labels: ["lifecycle", "state-machine", "persistence"]
+    12	order: "a1"
+    13	---
+    14	
+    15	# Task 1: Pipeline State Machine, Persistence, and Model Probing
+    16	
+    17	Epic: [autonomous_lifecycle_runner](autonomous_lifecycle_runner.en.md)
+    18	
+    19	## Requirement Analysis
+    20	
+    21	Implement the foundational state machine and persistence infrastructure for `lifecycle_runner.py`:
+    22	1. Core enumerations and dataclasses: `StageName`, `FixPlanVerdict`, `RunnerConfig`, and `PipelineState`.
+    23	2. Atomic JSON persistence in `.devtool/state/<epic>.pipeline.json` using atomic temporary file renaming and file locking (`fcntl.flock`).
+    24	3. Crash recovery logic: `LifecycleRunner.load_or_init_state` restores active stage, round counters, last commit SHA, and completed task lists from existing state files.
+    25	4. Gate Ledger synchronization: updates `.devtool/GATE_LEDGER.md` with timestamps, candidate SHAs, and autonomous verification entries.
+    26	5. Model capability prober: `ModelDispatcher.probe_model` executes a fast, minimal headless invocation to verify that the CLI accepts the configured model identifiers (`gemini-3.8-flash` and Assistant model) before initializing state.
+    27	6. Create unit test suite `tests/test_lifecycle_runner.py` verifying state recovery, probing, and persistence.
+    28	
+    29	## Files
+    30	
+    31	Allowed files:
+    32	- `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py` (new)
+    33	- `tests/test_lifecycle_runner.py` (new)
+    34	
+    35	Read-only context:
+    36	- `scripts/resume_context.py` — state persistence patterns, gate hydration, and Gate Ledger formatting
+    37	- `.devtool/epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.en.md` — Module Contracts
+    38	- `.agents/quality/python-quality.json` — registered capabilities
+    39	
+    40	## Design Rationale
+    41	
+    42	Atomic writes via temporary files combined with `fcntl.flock` prevent JSON corruption when processes are aborted or interrupted. The startup probe guarantees that typos or deprecated model strings are caught instantly prior to executing any task or modifying any repository state. Applicable skills: `d3nexus:test-driven-development`, `d3nexus:python-quality-check`.
+    43	
+    44	## Impact Analysis & Blast Radius
+    45	
+    46	- **Target files and symbols**: `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py` (`StageName`, `FixPlanVerdict`, `RunnerConfig`, `PipelineState`, `ModelDispatcher.probe_model`, `LifecycleRunner.save_state`, `LifecycleRunner.load_or_init_state`).
+    47	- **Downstream callers**: Tasks 2 through 5 will build directly on these contracts.
+    48	- **Cross-platform bridges**: None.
+    49	- **Target test coverage threshold**: 100% branch coverage on state serialization and error handling.
+    50	
+    51	### BDD SCENARIOS
+    52	
+    53	Covers: ALR-ST-03, ALR-AR-02
+    54	
+    55	```gherkin
+    56	Scenario: [ALR-ST-03] [Tier C - Integration] Probing verifies model capabilities before state initialization
+    57	
+    58	Given an invalid or deprecated model string specified in configuration
+    59	When lifecycle_runner.py initiates the startup capability probe
+    60	Then ModelDispatcher.probe_model executes a minimal headless agy call
+    61	And upon non-zero exit or error, the runner aborts before writing pipeline state or modifying files
+    62	And a descriptive error message indicating the rejected model is printed to stderr
+    63	
+    64	Scenario: [ALR-AR-02] [Tier C - Integration] File locking during state updates prevents concurrency corruption
+    65	
+    66	Given concurrent processes or rapid consecutive state transitions
+    67	When LifecycleRunner writes updates to .devtool/state/<epic>.pipeline.json
+    68	Then state updates are serialized using file locking and atomic temporary file replacement (.tmp rename)
+    69	And the pipeline state file remains valid and uncorrupted JSON at all times
+    70	```
+    71	
+    72	## Verification
+    73	
+    74	| ID | Phase | Command | Expect | Needs |
+    75	|----|-------|---------|--------|-------|
+    76	| V1 | RED | `python3 -m unittest tests/test_lifecycle_runner.py -k test_alr_st_03` | exit 1; contains "FAILED" | — |
+    77	| V2 | GREEN | `python3 -m unittest tests/test_lifecycle_runner.py -k test_alr_st_03` | exit 0; contains "OK" | — |
+    78	| V3 | GREEN | `python3 -m unittest tests/test_lifecycle_runner.py` | exit 0; contains "OK" | — |
+    79	| V4 | TIER-B | `ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py tests/test_lifecycle_runner.py` | exit 0 | — |
+    80	| V5 | TIER-B | `mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py tests/test_lifecycle_runner.py` | exit 0 | — |
+    81	| V6 | TIER-C | `python3 scripts/run_unittest_junit.py --junitxml build/test-results/task_1.xml tests/test_lifecycle_runner.py` | exit 0; results build/test-results/task_1.xml | — |
+    82	
+    83	## Stop and Report If
+    84	
+    85	- A command, path, symbol or anchor named in this task does not match the repository.
+    86	- A Verification row fails for a reason other than its Expect.
+    87	- The work needs a change to a file outside Allowed files, or to a protected path.
+    88	- The work needs a change to this task's Verification table, Definition of Done, Allowed files or
+    89	  Covers line.
+    90	- A variable named in the Needs column is unset.
+    91	- Atomic state file serialization fails on POSIX file systems.
+    92	
+    93	## Decisions Already Made
+    94	
+    95	- `StageName` enum: `initialized`, `principal_review`, `awaiting_principal_confirmation`, `implementation`, `cross_model_review`, `awaiting_finish`, `completed`, `halted`.
+    96	- `FixPlanVerdict` enum: `APPROVED`, `ADJUSTED`, `CRITICAL_CONFLICT`.
+    97	- `RunnerConfig` defaults: `programmer_model="gemini-3.8-flash"`, `programmer_effort="high"`, `assistant_model=None` (precedence: CLI `--assistant-model` -> `.devtool/review_config.json` `providers.assistant.model` -> active profile model -> fallback `claude-sonnet-5-5-high`), `assistant_effort="high"`, `timeout_seconds=1800`, `max_review_rounds=3`.
+    98	- `PipelineState` tracks `epic_slug`, `active_stage`, `principal_round`, `cross_model_round`, `last_commit_sha`, `last_verdict`, `halt_reason`, `last_error`, `task_order`, and `completed_tasks`.
+    99	- State is serialized to `.devtool/state/<epic>.pipeline.json` via `.tmp` rename with `fcntl.flock(fd, fcntl.LOCK_EX)`.
+   100	- Gate updates execute via `resume_context.py --gate <n> --epic <slug> --approved "<text>" --by lifecycle_runner` to guarantee synchronization with `gate_ledger.jsonl`.
+   101	
+   102	## Definition of Done
+   103	
+   104	- Scenarios ALR-ST-03, ALR-AR-02 are covered and pass in the test suite. (V2, V3, V6)
+   105	- Python quality checks (lint and type check) pass cleanly. (V4, V5)
+   106	- State persistence and recovery work reliably across interrupted sessions. (Gate 5)
+   107	
+   108	## Dependencies & Blockers
+   109	
+   110	None. Blocks [Task 2](task_2_subprocess_dispatcher_and_headless_agy.md), [Task 3](task_3_principal_review_automation_and_checkpoint.md), [Task 4](task_4_cross_model_review_fix_plan_loop.md), and [Task 5](task_5_orchestrator_cli_and_governance_rules.md).
+   111	
+   112	## References & Rollback
+   113	
+   114	- [Epic HLD](autonomous_lifecycle_runner.en.md), Module Contracts.
+   115	- **Rollback**: Revert task commit; deletes `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py` and `tests/test_lifecycle_runner.py`.
+     1	---
+     2	id: "task_2_subprocess_dispatcher_and_headless_agy"
+     3	status: "todo"
+     4	priority: "high"
+     5	assignee: null
+     6	epic: "autonomous_lifecycle_runner"
+     7	dueDate: null
+     8	created: "2026-11-10T19:16:00Z"
+     9	modified: "2026-11-10T19:16:00Z"
+    10	completedAt: null
+    11	labels: ["lifecycle", "process-supervision", "dispatcher"]
+    12	order: "a2"
+    13	---
+    14	
+    15	# Task 2: Subprocess Dispatcher and Headless agy Runner
+    16	
+    17	Epic: [autonomous_lifecycle_runner](autonomous_lifecycle_runner.en.md)
+    18	
+    19	## Requirement Analysis
+    20	
+    21	Implement headless model dispatching and process supervision in `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py`:
+    22	1. Implement `ModelDispatcher.dispatch` executing headless command `agy --print "<prompt>" --model <model> --effort <effort> --mode <mode>`.
+    23	2. Process isolation: spawn subprocesses with `start_new_session=True` so child processes run within a dedicated POSIX process group.
+    24	3. Timeout and termination fencing: supervisor timer triggers `os.killpg(pgid, signal.SIGTERM)`, awaits a 1.0s grace period, and escalates to `os.killpg(pgid, signal.SIGKILL)` if processes remain alive.
+    25	4. Auto Gate 3 order calculation: implement `LifecycleRunner.resolve_gate3_order` calling `compute_execution_order.py`, validating topological task order, auto-confirming Gate 3, and recording the execution order in `.devtool/GATE_LEDGER.md`.
+    26	5. Implementation loop: implement `LifecycleRunner.step_implementation` to loop through the resolved tasks in order, dispatch the Programmer headless subprocess for each task via stdin, capture per-task logs, sync task status, commit each task cleanly (`[AUTONOMOUS_LIFECYCLE_RUNNER] Execute <task_slug>`), and recover from crash or interruption via saved state (`ALR-ST-01`).
+    27	6. Implement unit tests in `tests/test_lifecycle_runner.py` covering `ALR-HP-02`, `ALR-EC-04`, `ALR-AR-01`, and `ALR-ST-01`.
+    28	
+    29	## Files
+    30	
+    31	Allowed files:
+    32	- `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py` (new)
+    33	- `tests/test_lifecycle_runner.py` (new)
+    34	
+    35	Read-only context:
+    36	- `skills/dev-implementation/resources/scripts/compute_execution_order.py` — topological sort implementation
+    37	- `scripts/resume_context.py` — gate approval recording
+    38	- `.devtool/epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.en.md` — Module Contracts
+    39	- `.agents/quality/python-quality.json` — registered capabilities
+    40	
+    41	## Design Rationale
+    42	
+    43	Executing headless LLM sessions in isolated process groups (`start_new_session=True`) ensures that runaway child processes, compiler daemons, or spawned test runners are terminated cleanly when timeouts occur. Auto-confirming Gate 3 via `compute_execution_order.py` removes the interactive menu prompt while maintaining dependency safety. Applicable skills: `d3nexus:test-driven-development`, `d3nexus:python-quality-check`.
+    44	
+    45	## Impact Analysis & Blast Radius
+    46	
+    47	- **Target files and symbols**: `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py` (`ModelDispatcher.dispatch`, `LifecycleRunner.resolve_gate3_order`).
+    48	- **Downstream callers**: Stage 3 implementation loop and review dispatcher.
+    49	- **Cross-platform bridges**: None.
+    50	- **Target test coverage threshold**: 100% of dispatch and process termination paths.
+    51	
+    52	### BDD SCENARIOS
+    53	
+    54	Covers: ALR-HP-02, ALR-EC-04, ALR-AR-01, ALR-ST-01
+    55	
+    56	```gherkin
+    57	Scenario: [ALR-HP-02] [Tier C - Integration] Headless dispatch of AI Programmer with Gemini 3.8 Flash High
+    58	
+    59	Given a pending implementation task file in .devtool/features/task_1_pipeline_state_machine_and_probing.md
+    60	When lifecycle_runner.py dispatches the AI Programmer for task execution
+    61	Then the dispatched command executes "agy" with "--model gemini-3.8-flash"
+    62	And the command specifies "--effort high" and "--mode auto"
+    63	And the execution runs inside the isolated git worktree with dedicated process group supervision
+    64	
+    65	Scenario: [ALR-EC-04] [Tier C - Integration] Gate 3 execution order auto-confirmed via compute_execution_order
+    66	
+    67	Given multiple task files with explicit dependency links in .devtool/features/
+    68	When the runner enters Stage 3 Implementation
+    69	Then compute_execution_order.py is executed to resolve the topological execution sequence
+    70	And the resulting task sequence is auto-confirmed and recorded in .devtool/GATE_LEDGER.md under Gate 3
+    71	And task execution begins immediately without presenting an interactive prompt
+    72	
+    73	Scenario: [ALR-AR-01] [Tier C - Integration] Subprocess group process isolation and clean SIGTERM termination on timeout
+    74	
+    75	Given a headless agy programmer process exceeds the configured timeout limit
+    76	When the supervisor timer expires in ModelDispatcher
+    77	Then SIGTERM is broadcast to the entire subprocess group via os.killpg
+    78	And after a 1.0s grace period, SIGKILL is escalated if the child processes remain alive
+    79	And the runner records a timeout failure in the pipeline state without leaving orphaned processes
+    80	
+    81	Scenario: [ALR-ST-01] [Tier C - Integration] State persistence and resumption from crash in intermediate stage
+    82	
+    83	Given the runner is interrupted by SIGINT during Stage 3 task execution
+    84	When lifecycle_runner.py is invoked again with --resume
+    85	Then the runner reads .devtool/state/<epic>.pipeline.json
+    86	And the runner recovers the active stage "implementation", completed task list, and current round
+    87	And execution resumes from the exact interrupted task without re-running completed tasks
+    88	```
+    89	
+    90	## Verification
+    91	
+    92	| ID | Phase | Command | Expect | Needs |
+    93	|----|-------|---------|--------|-------|
+    94	| V1 | RED | `python3 -m unittest tests/test_lifecycle_runner.py -k test_alr_hp_02` | exit 1; contains "FAILED" | — |
+    95	| V2 | GREEN | `python3 -m unittest tests/test_lifecycle_runner.py -k test_alr_hp_02` | exit 0; contains "OK" | — |
+    96	| V3 | GREEN | `python3 -m unittest tests/test_lifecycle_runner.py` | exit 0; contains "OK" | — |
+    97	| V4 | TIER-B | `ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py tests/test_lifecycle_runner.py` | exit 0 | — |
+    98	| V5 | TIER-B | `mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py tests/test_lifecycle_runner.py` | exit 0 | — |
+    99	| V6 | TIER-C | `python3 scripts/run_unittest_junit.py --junitxml build/test-results/task_2.xml tests/test_lifecycle_runner.py` | exit 0; results build/test-results/task_2.xml | — |
+   100	
+   101	## Stop and Report If
+   102	
+   103	- A command, path, symbol or anchor named in this task does not match the repository.
+   104	- A Verification row fails for a reason other than its Expect.
+   105	- The work needs a change to a file outside Allowed files, or to a protected path.
+   106	- The work needs a change to this task's Verification table, Definition of Done, Allowed files or
+   107	  Covers line.
+   108	- A variable named in the Needs column is unset.
+   109	- `compute_execution_order.py` detects a dependency cycle among task files.
+   110	
+   111	## Decisions Already Made
+   112	
+   113	- The Programmer is dispatched with `--model <model>` (default: `gemini-3.8-flash`), `--effort high`, and `--mode auto` inside the worktree directory, with prompts piped via stdin.
+   114	- `subprocess.Popen` is launched with `start_new_session=True` so `pgid = p.pid` provides the process group ID. On timeout or exit, `os.killpg(pgid, signal.SIGTERM)` is called (handling `ProcessLookupError` gracefully) followed by SIGKILL escalation if needed.
+   115	- Gate 3 auto-confirmation runs `compute_execution_order.py`, parses the sequential order from the `Flattened sequential order:` output block (or imports `load_tasks`), fails on non-zero exit or manual review notes, and records Gate 3 approval via `resume_context.py --gate 3 --epic <slug> --approved "<order>" --by lifecycle_runner`.
+   116	- `step_implementation` iterates sequentially over tasks, captures stdout/stderr to task log files, updates task status to done, and commits changes per task (`[AUTONOMOUS_LIFECYCLE_RUNNER] Execute <task_slug>`).
+   117	
+   118	## Definition of Done
+   119	
+   120	- Scenarios ALR-HP-02, ALR-EC-04, ALR-AR-01, ALR-ST-01 are covered and pass in the test suite. (V2, V3, V6)
+   121	- Python quality checks (lint and type check) pass cleanly. (V4, V5)
+   122	- Process termination leaves zero orphan processes upon timeout. (Gate 5)
+   123	
+   124	## Dependencies & Blockers
+   125	
+   126	- Blocked by [Task 1](task_1_pipeline_state_machine_and_probing.md).
+   127	- Blocks [Task 3](task_3_principal_review_automation_and_checkpoint.md), [Task 4](task_4_cross_model_review_fix_plan_loop.md), and [Task 5](task_5_orchestrator_cli_and_governance_rules.md).
+   128	
+   129	## References & Rollback
+   130	
+   131	- [Epic HLD](autonomous_lifecycle_runner.en.md), Module Contracts.
+   132	- **Rollback**: Revert task commit; dispatcher changes are removed.
+
+exec
+/bin/zsh -lc 'nl -ba .devtool/epic/autonomous_lifecycle_runner/task_3_principal_review_automation_and_checkpoint.md; nl -ba .devtool/epic/autonomous_lifecycle_runner/task_4_cross_model_review_fix_plan_loop.md; nl -ba .devtool/epic/autonomous_lifecycle_runner/task_5_orchestrator_cli_and_governance_rules.md' in /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/autonomous_lifecycle_runner
+ succeeded in 0ms:
+     1	---
+     2	id: "task_3_principal_review_automation_and_checkpoint"
+     3	status: "todo"
+     4	priority: "high"
+     5	assignee: null
+     6	epic: "autonomous_lifecycle_runner"
+     7	dueDate: null
+     8	created: "2026-11-10T19:16:00Z"
+     9	modified: "2026-11-10T19:16:00Z"
+    10	completedAt: null
+    11	labels: ["lifecycle", "principal-review", "human-checkpoint"]
+    12	order: "a3"
+    13	---
+    14	
+    15	# Task 3: Principal Review Automation and Human Checkpoint
+    16	
+    17	Epic: [autonomous_lifecycle_runner](autonomous_lifecycle_runner.en.md)
+    18	
+    19	## Requirement Analysis
+    20	
+    21	Implement Stage 2 Principal Review automation with the mandatory Human confirmation checkpoint in `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py`:
+    22	1. Implement `LifecycleRunner.step_principal_review`:
+    23	   - Triggers `run_external_review.py run --kind principal --epic-dir <epic> --base <base> --auto-quota` with provider auto-quota prioritization.
+    24	   - Evaluates triage results and Action from `run_external_review.py triage`:
+    25	     - `AUTO_PASS_CLEAN`: 0 findings -> directly transitions to `StageName.IMPLEMENTATION`.
+    26	     - `AUTO_PASS_FINAL_MINOR_SWEEP`: 0 Critical/Important, only Minor -> AI Assistant executes single minor fix sweep, commits revisions, records decisions, runs `package_epic.py <epic> --revise`, and advances to Stage 3 without an additional external review round.
+    27	     - `AUTO_FIX_ELIGIBLE`: AI Assistant auto-applies aligned revisions, commits them, records decision cells (`fixed in <sha>`) in `principal_review.md`, commits decisions, executes `package_epic.py <epic> --revise`, commits handoff re-anchor, and advances to the next review round.
+    28	     - Human stop condition: if findings involve high-risk critical issues, business/domain requirement conflicts, unaligned source conflicts, or `SHARED_CONTRACT_CONFLICT`, the runner transitions to `StageName.AWAITING_PRINCIPAL_CONFIRMATION`, writes `.devtool/epic/<epic>/principal_fix_proposal_round<N>.md`, and prompts the Human Architect (`prompt_human_principal_fixes`) or halts for `--confirm-fixes`.
+    29	     - `AUTO_PASS_FINAL_SWEEP`: on Round 3 with 0 Critical, executes final fix sweep, commits, records decisions, runs `package_epic.py --revise`, and advances to Stage 3 without a 4th round.
+    30	     - `CIRCUIT_BREAKER_HALT`: halts immediately on `SHARED_CONTRACT_CONFLICT`, `FIX_LOOP`, or `MAX_ROUNDS_CRITICAL_REMAINING`.
+    31	2. Implement unit and integration tests in `tests/test_lifecycle_runner.py` covering `ALR-HP-03`, `ALR-EC-01`, `ALR-EC-02`, and `ALR-FR-01`.
+    32	
+    33	## Files
+    34	
+    35	Allowed files:
+    36	- `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py` (new)
+    37	- `tests/test_lifecycle_runner.py` (new)
+    38	
+    39	Read-only context:
+    40	- `skills/dev-implementation/resources/scripts/run_external_review.py` — external review runner and triage
+    41	- `skills/dev-implementation/resources/scripts/package_epic.py` — epic packaging script
+    42	- `scripts/resume_context.py` — gate approval recording
+    43	- `.devtool/epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.en.md` — Module Contracts
+    44	- `.agents/quality/python-quality.json` — registered capabilities
+    45	
+    46	## Design Rationale
+    47	
+    48	While the overall lifecycle is autonomous, architectural design changes identified during Principal Review must be vetted by the Human Architect before modifying HLD specifications. Halting to batch-confirm fixes prevents architectural drift while eliminating unnecessary intermediate pauses on zero-finding passes. Applicable skills: `d3nexus:test-driven-development`, `d3nexus:python-quality-check`.
+    49	
+    50	## Impact Analysis & Blast Radius
+    51	
+    52	- **Target files and symbols**: `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py` (`LifecycleRunner.step_principal_review`, `LifecycleRunner.prompt_human_principal_fixes`, `LifecycleRunner.evaluate_circuit_breakers`).
+    53	- **Downstream callers**: Runner pipeline loop.
+    54	- **Cross-platform bridges**: None.
+    55	- **Target test coverage threshold**: 100% of Principal Review state transitions, circuit breakers, and confirmation branches.
+    56	
+    57	### BDD SCENARIOS
+    58	
+    59	Covers: ALR-HP-03, ALR-EC-01, ALR-EC-02, ALR-FR-01
+    60	
+    61	```gherkin
+    62	Scenario: [ALR-HP-03] [Tier C - Integration] AI Assistant auto-applies aligned Principal Review fixes and prompts Human confirmation only on critical or domain conflicts
+    63	
+    64	Given Principal Review returns findings on candidate HLD specifications
+    65	When the AI Assistant triages the findings in step_principal_review
+    66	Then aligned technical findings are auto-applied, committed, and packaged via package_epic.py --revise without human interruption
+    67	And lifecycle_runner.py transitions to AWAITING_PRINCIPAL_CONFIRMATION only if findings involve critical risks, business requirement conflicts, or SHARED_CONTRACT_CONFLICT
+    68	And upon Human confirmation of the conflict proposal, the pipeline resumes and advances to the next review round
+    69	
+    70	Scenario: [ALR-EC-01] [Tier C - Integration] Zero findings in Principal Review bypasses Human confirmation
+    71	
+    72	Given Principal Review completes Round 1 with verdict PASS and 0 findings
+    73	When step_principal_review processes the review results
+    74	Then the runner logs "AUTO_PASS_CLEAN: 0 findings"
+    75	And the runner bypasses the Human confirmation prompt completely
+    76	And the pipeline state advances directly to Stage 3 Implementation
+    77	
+    78	Scenario: [ALR-EC-02] [Tier C - Integration] Minor-only findings in Principal Review swept in single pass without Human halt
+    79	
+    80	Given Principal Review Round 1 returns 0 Critical, 0 Important, and 2 Minor formatting findings
+    81	When step_principal_review evaluates the triage report
+    82	Then the runner triggers AUTO_PASS_FINAL_MINOR_SWEEP
+    83	And the Minor findings are swept, committed, and packaged in a single pass without stopping for Human confirmation
+    84	And the pipeline advances directly to Stage 3 Implementation
+    85	
+    86	Scenario: [ALR-FR-01] [Tier C - Integration] Circuit Breaker halts immediately on Shared Contract conflict
+    87	
+    88	Given an external review round reports a finding conflicting with shared-contracts/
+    89	When evaluate_circuit_breakers inspects the triage report
+    90	Then the runner triggers CIRCUIT_BREAKER_HALT (SHARED_CONTRACT_CONFLICT)
+    91	And the pipeline halts immediately, preserving all logs and state
+    92	And the console displays the executive warning banner instructing the developer to consult the Human Architect
+    93	```
+    94	
+    95	## Verification
+    96	
+    97	| ID | Phase | Command | Expect | Needs |
+    98	|----|-------|---------|--------|-------|
+    99	| V1 | RED | `python3 -m unittest tests/test_lifecycle_runner.py -k test_alr_hp_03` | exit 1; contains "FAILED" | — |
+   100	| V2 | GREEN | `python3 -m unittest tests/test_lifecycle_runner.py -k test_alr_hp_03` | exit 0; contains "OK" | — |
+   101	| V3 | GREEN | `python3 -m unittest tests/test_lifecycle_runner.py` | exit 0; contains "OK" | — |
+   102	| V4 | TIER-B | `ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py tests/test_lifecycle_runner.py` | exit 0 | — |
+   103	| V5 | TIER-B | `mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py tests/test_lifecycle_runner.py` | exit 0 | — |
+   104	| V6 | TIER-C | `python3 scripts/run_unittest_junit.py --junitxml build/test-results/task_3.xml tests/test_lifecycle_runner.py` | exit 0; results build/test-results/task_3.xml | — |
+   105	
+   106	## Stop and Report If
+   107	
+   108	- A command, path, symbol or anchor named in this task does not match the repository.
+   109	- A Verification row fails for a reason other than its Expect.
+   110	- The work needs a change to a file outside Allowed files, or to a protected path.
+   111	- The work needs a change to this task's Verification table, Definition of Done, Allowed files or
+   112	  Covers line.
+   113	- A variable named in the Needs column is unset.
+   114	- An unhandled exception occurs while running `run_external_review.py triage`.
+   115	
+   116	## Decisions Already Made
+   117	
+   118	- Principal Review invocation uses `run_external_review.py run --kind principal --epic-dir <epic> --base <base> --auto-quota` and evaluates `run_external_review.py triage`.
+   119	- Principal Review is capped at 3 rounds.
+   120	- Auto-Triage Gate actions map to deterministic transitions: `AUTO_PASS_CLEAN` advances to implementation; `AUTO_PASS_FINAL_MINOR_SWEEP` sweeps minor fixes and advances to implementation without an extra review round; `AUTO_FIX_ELIGIBLE` auto-applies aligned revisions; `AUTO_PASS_FINAL_SWEEP` executes final design-anchored sweep and finishes Stage 2.
+   121	- The runner transitions to `AWAITING_PRINCIPAL_CONFIRMATION` only when findings involve high-risk critical issues, business/domain requirement conflicts, unaligned source conflicts, or `SHARED_CONTRACT_CONFLICT`.
+   122	- Clean working tree discipline: edits, decision records (`fixed in <sha>` in `principal_review.md`), and `package_epic.py <epic> --revise` are committed in sequence before dispatching the next review round.
+   123	
+   124	## Definition of Done
+   125	
+   126	- Scenarios ALR-HP-03, ALR-EC-01, ALR-EC-02, ALR-FR-01 are covered and pass in the test suite. (V2, V3, V6)
+   127	- Python quality checks (lint and type check) pass cleanly. (V4, V5)
+   128	- Human confirmation prompt and circuit breaker halts function deterministically. (Gate 5)
+   129	
+   130	## Dependencies & Blockers
+   131	
+   132	- Blocked by [Task 1](task_1_pipeline_state_machine_and_probing.md) and [Task 2](task_2_subprocess_dispatcher_and_headless_agy.md).
+   133	- Blocks [Task 4](task_4_cross_model_review_fix_plan_loop.md) and [Task 5](task_5_orchestrator_cli_and_governance_rules.md).
+   134	
+   135	## References & Rollback
+   136	
+   137	- [Epic HLD](autonomous_lifecycle_runner.en.md), Module Contracts.
+   138	- **Rollback**: Revert task commit; Principal Review integration removed.
+     1	---
+     2	id: "task_4_cross_model_review_fix_plan_loop"
+     3	status: "todo"
+     4	priority: "high"
+     5	assignee: null
+     6	epic: "autonomous_lifecycle_runner"
+     7	dueDate: null
+     8	created: "2026-11-10T19:16:00Z"
+     9	modified: "2026-11-10T19:16:00Z"
+    10	completedAt: null
+    11	labels: ["lifecycle", "cross-model-review", "fix-plan"]
+    12	order: "a4"
+    13	---
+    14	
+    15	# Task 4: Cross-Model Review Fix Plan Loop and Assistant Evaluator
+    16	
+    17	Epic: [autonomous_lifecycle_runner](autonomous_lifecycle_runner.en.md)
+    18	
+    19	## Requirement Analysis
+    20	
+    21	Implement Stage 3 Cross-Model Review fix-and-verify loop with AI Assistant fix plan evaluation in `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py`:
+    22	1. Implement `LifecycleRunner.step_cross_model_review`:
+    23	   - Runs `run_external_review.py run --kind code --epic-dir <epic> --base <base> --auto-quota`.
+    24	   - Evaluates Circuit Breakers: halts with `CIRCUIT_BREAKER_HALT (FIX_LOOP)` if a finding reoccurs on an already-fixed file path, or `CIRCUIT_BREAKER_HALT (MAX_ROUNDS_CRITICAL_REMAINING)` if Round 3 ends with Critical findings unresolved.
+    25	   - Fix plan drafting: when review findings require changes, dispatches the AI Programmer (`--model <programmer-model>` default `gemini-3.8-flash --effort high --mode auto`) to draft `.devtool/epic/<epic>/fix_plan_round<N>.md`.
+    26	   - Fix plan evaluation (`evaluate_programmer_fix_plan`): dispatches the AI Assistant to inspect the fix plan against the approved HLD and emit one of three verdicts: `APPROVED`, `ADJUSTED`, or `CRITICAL_CONFLICT`.
+    27	   - Critical conflict halt: if the Assistant detects an unapproved architectural change or contract violation (`CRITICAL_CONFLICT`), the pipeline halts immediately and alerts the Human Architect.
+    28	   - Automated fix application: if `APPROVED` or `ADJUSTED`, the AI Programmer applies the fixes, the runner commits the code fixes (`[AUTONOMOUS_LIFECYCLE_RUNNER] Apply code fixes for Cross-Model Review round N`), records decision cells (`fixed in <sha>`) in `review_results.md`, commits the decisions (`[AUTONOMOUS_LIFECYCLE_RUNNER] Record review decisions for round N`), executes Gate 4 in full on the clean candidate SHA (passing `run_external_review.py check`), and advances to the next review round (Round N+1, up to max 3 rounds) or completes Stage 3 if converged.
+    29	2. Implement unit and integration tests in `tests/test_lifecycle_runner.py` covering `ALR-HP-04`, `ALR-EC-03`, `ALR-FR-02`, and `ALR-FR-04`.
+    30	
+    31	## Files
+    32	
+    33	Allowed files:
+    34	- `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py` (new)
+    35	- `tests/test_lifecycle_runner.py` (new)
+    36	
+    37	Read-only context:
+    38	- `skills/dev-implementation/resources/scripts/run_external_review.py` — review execution and triage
+    39	- `.devtool/epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.en.md` — Module Contracts
+    40	- `.agents/quality/python-quality.json` — registered capabilities
+    41	
+    42	## Design Rationale
+    43	
+    44	During Cross-Model Review, the Human Architect should not be interrupted for routine code fixes that align with the approved design. Having the AI Assistant evaluate the Programmer's fix plan provides architectural supervision: safe fixes proceed automatically, while architectural deviations trigger an immediate `CRITICAL_CONFLICT` halt. Applicable skills: `d3nexus:test-driven-development`, `d3nexus:python-quality-check`.
+    45	
+    46	## Impact Analysis & Blast Radius
+    47	
+    48	- **Target files and symbols**: `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py` (`LifecycleRunner.step_cross_model_review`, `LifecycleRunner.evaluate_programmer_fix_plan`).
+    49	- **Downstream callers**: Stage 3 review convergence loop.
+    50	- **Cross-platform bridges**: None.
+    51	- **Target test coverage threshold**: 100% of fix plan evaluation branches and circuit breakers.
+    52	
+    53	### BDD SCENARIOS
+    54	
+    55	Covers: ALR-HP-04, ALR-EC-03, ALR-FR-02, ALR-FR-04
+    56	
+    57	```gherkin
+    58	Scenario: [ALR-HP-04] [Tier C - Integration] AI Assistant approves AI Programmer fix plan in Cross-Model Review without Human stop
+    59	
+    60	Given Cross-Model Review returns review findings requiring code adjustments in Round 1
+    61	When the AI Programmer drafts a proposed fix plan in fix_plan_round1.md
+    62	Then the AI Assistant evaluates the fix plan against the approved HLD and emits verdict "APPROVED"
+    63	And the AI Programmer applies the approved code changes and re-runs Phase 4 Gate 4
+    64	And the cycle proceeds to Round 2 without prompting the Human Architect for intermediate confirmation
+    65	
+    66	Scenario: [ALR-EC-03] [Tier C - Integration] AI Assistant adjusts AI Programmer fix plan without rejecting
+    67	
+    68	Given the AI Programmer proposes a fix plan that omits a required edge-case assertion
+    69	When the AI Assistant reviews the fix plan in Cross-Model Review
+    70	Then the Assistant returns verdict "ADJUSTED" along with the amended fix plan text
+    71	And the AI Programmer receives the adjusted plan, applies the combined patch, and triggers Gate 4 re-verification
+    72	
+    73	Scenario: [ALR-FR-02] [Tier C - Integration] Circuit Breaker halts immediately on repeated fix loop
+    74	
+    75	Given a finding in Round N touches the identical file path previously marked as fixed in Round N-1
+    76	When evaluate_circuit_breakers evaluates the round comparison
+    77	Then the runner triggers CIRCUIT_BREAKER_HALT (FIX_LOOP)
+    78	And the pipeline stops calling tools and presents the recurrent finding to the Human Architect
+    79	
+    80	Scenario: [ALR-FR-04] [Tier C - Integration] AI Assistant rejects fix plan with CRITICAL_CONFLICT and halts pipeline
+    81	
+    82	Given the AI Programmer drafts a fix plan that attempts to unilaterally revert an approved architectural decision
+    83	When the AI Assistant evaluates the fix plan
+    84	Then the Assistant returns verdict "CRITICAL_CONFLICT" with detailed rationale
+    85	And lifecycle_runner.py halts immediately, preventing the Programmer from modifying source code
+    86	And an alert is displayed to the Human Architect highlighting the architectural conflict
+    87	```
+    88	
+    89	## Verification
+    90	
+    91	| ID | Phase | Command | Expect | Needs |
+    92	|----|-------|---------|--------|-------|
+    93	| V1 | RED | `python3 -m unittest tests/test_lifecycle_runner.py -k test_alr_hp_04` | exit 1; contains "FAILED" | — |
+    94	| V2 | GREEN | `python3 -m unittest tests/test_lifecycle_runner.py -k test_alr_hp_04` | exit 0; contains "OK" | — |
+    95	| V3 | GREEN | `python3 -m unittest tests/test_lifecycle_runner.py` | exit 0; contains "OK" | — |
+    96	| V4 | TIER-B | `ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py tests/test_lifecycle_runner.py` | exit 0 | — |
+    97	| V5 | TIER-B | `mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py tests/test_lifecycle_runner.py` | exit 0 | — |
+    98	| V6 | TIER-C | `python3 scripts/run_unittest_junit.py --junitxml build/test-results/task_4.xml tests/test_lifecycle_runner.py` | exit 0; results build/test-results/task_4.xml | — |
+    99	
+   100	## Stop and Report If
+   101	
+   102	- A command, path, symbol or anchor named in this task does not match the repository.
+   103	- A Verification row fails for a reason other than its Expect.
+   104	- The work needs a change to a file outside Allowed files, or to a protected path.
+   105	- The work needs a change to this task's Verification table, Definition of Done, Allowed files or
+   106	  Covers line.
+   107	- A variable named in the Needs column is unset.
+   108	- Fix plan verdict cannot be parsed from the Assistant output.
+   109	
+   110	## Decisions Already Made
+   111	
+   112	- Cross-Model Review invocation uses `run_external_review.py run --kind code --epic-dir <epic> --base <base> --auto-quota` and evaluates `run_external_review.py triage`.
+   113	- Fix plan file is stored at `.devtool/epic/<epic>/fix_plan_round<N>.md`.
+   114	- Assistant evaluation outputs one verdict token on the first line: `APPROVED`, `ADJUSTED`, or `CRITICAL_CONFLICT`.
+   115	- Review loop return path: after fixes are applied, the runner commits the code fixes, writes decision cells (`fixed in <sha>`) into `review_results.md`, commits the decisions, and runs Gate 4 in full. Because decisions are recorded and committed, `run_external_review.py check` passes and certifies the clean candidate commit.
+   116	- Clean working tree discipline: code fixes and review decisions are committed before invoking subsequent review rounds.
+   117	
+   118	## Definition of Done
+   119	
+   120	- Scenarios ALR-HP-04, ALR-EC-03, ALR-FR-02, ALR-FR-04 are covered and pass in the test suite. (V2, V3, V6)
+   121	- Python quality checks (lint and type check) pass cleanly. (V4, V5)
+   122	- Assistant evaluation cleanly prevents unauthorized design reversions. (Gate 5)
+   123	
+   124	## Dependencies & Blockers
+   125	
+   126	- Blocked by [Task 1](task_1_pipeline_state_machine_and_probing.md), [Task 2](task_2_subprocess_dispatcher_and_headless_agy.md), and [Task 3](task_3_principal_review_automation_and_checkpoint.md).
+   127	- Blocks [Task 5](task_5_orchestrator_cli_and_governance_rules.md).
+   128	
+   129	## References & Rollback
+   130	
+   131	- [Epic HLD](autonomous_lifecycle_runner.en.md), Module Contracts.
+   132	- **Rollback**: Revert task commit; fix plan evaluation logic removed.
+     1	---
+     2	id: "task_5_orchestrator_cli_and_governance_rules"
+     3	status: "todo"
+     4	priority: "high"
+     5	assignee: null
+     6	epic: "autonomous_lifecycle_runner"
+     7	dueDate: null
+     8	created: "2026-11-10T19:16:00Z"
+     9	modified: "2026-11-10T19:16:00Z"
+    10	completedAt: null
+    11	labels: ["lifecycle", "orchestration", "governance", "documentation"]
+    12	order: "a5"
+    13	---
+    14	
+    15	# Task 5: End-to-End Orchestrator, CLI Integration, and Governance Rules
+    16	
+    17	Epic: [autonomous_lifecycle_runner](autonomous_lifecycle_runner.en.md)
+    18	
+    19	## Requirement Analysis
+    20	
+    21	Complete the end-to-end autonomous orchestrator CLI and update system governance documentation across the codebase:
+    22	1. Complete CLI entry point `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py`:
+    23	   - Argument parsing: `--epic <slug>`, `--resume`, `--config <path>`, `--reset-stage <stage>`, `--confirm-fixes`, `--reject-fixes`, `--assistant-model <model>`, `--programmer-model <model>`, and `--dry-run`.
+    24	   - Complete state machine driving: `INITIALIZED` -> `PRINCIPAL_REVIEW` -> `AWAITING_PRINCIPAL_CONFIRMATION` -> `IMPLEMENTATION` -> `CROSS_MODEL_REVIEW` -> `AWAITING_FINISH`.
+    25	   - Max round circuit breaker (`ALR-FR-03`): triggers `CIRCUIT_BREAKER_HALT (MAX_ROUNDS_CRITICAL_REMAINING)` when Round 3 finishes with unresolved Critical findings.
+    26	   - Final executive report display: renders markdown summary of the entire review lifecycle across all rounds, synthesizing the Top 3 Highest-Risk Findings from across all rounds, displaying their resolution and Gate 4 verification, and halting cleanly only at this final round to prompt the Human Architect for next actions (proceed to /finishing-a-development-branch to merge to local base branch, or other actions).
+    27	2. Update governance rules, skills, and test suites:
+    28	   - `rules/CRITICAL_RULES.md`: update Sections 5, 6, and 8.2 to document autonomous review execution, auto Gate 3 confirmation, Assistant fix plan review, and autonomous mode role coordination.
+    29	   - `skills/dev-lifecycle/SKILL.md`: document `/dev-lifecycle --autonomous` and `lifecycle_runner.py` invocation.
+    30	   - `skills/dev-lifecycle/references/autonomous-mode.md`: create reference guide documenting CLI flags, state machine stages, circuit breakers, and actor responsibilities.
+    31	   - `skills/dev-implementation/SKILL.md`: document headless Programmer execution (`--model <model>` default `gemini-3.8-flash --effort high --mode auto`).
+    32	   - `skills/principal-review/SKILL.md`: document auto-triage and human fix confirmation checkpoint.
+    33	   - `skills/cross-model-review/SKILL.md`: document fix plan evaluation loop (`fix_plan_round<N>.md` with `APPROVED`/`ADJUSTED`/`CRITICAL_CONFLICT`).
+    34	   - `docs/lifecycles.en.md` and `docs/lifecycles.vi.md`: update bilingual lifecycle overviews with autonomous pipeline flow.
+    35	   - `scripts/verify.sh`: register `lifecycle-runner` in `SUITES` dictionary to execute `tests/test_lifecycle_runner.py`.
+    36	3. Verify all unit and integration tests in `tests/test_lifecycle_runner.py` and run full test suites.
+    37	
+    38	## Files
+    39	
+    40	Allowed files:
+    41	- `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py` (new)
+    42	- `tests/test_lifecycle_runner.py` (new)
+    43	- `rules/CRITICAL_RULES.md`
+    44	- `skills/dev-lifecycle/SKILL.md`
+    45	- `skills/dev-lifecycle/references/autonomous-mode.md` (new)
+    46	- `skills/dev-implementation/SKILL.md`
+    47	- `skills/principal-review/SKILL.md`
+    48	- `skills/cross-model-review/SKILL.md`
+    49	- `docs/lifecycles.en.md`
+    50	- `docs/lifecycles.vi.md`
+    51	- `scripts/verify.sh`
+    52	
+    53	Read-only context:
+    54	- `scripts/resume_context.py`
+    55	- `.devtool/epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.en.md` — Module Contracts
+    56	- `.agents/quality/python-quality.json` — registered capabilities
+    57	
+    58	## Design Rationale
+    59	
+    60	Updating the governance rules and skill documentation ensures that all AI agent runtimes (Claude Code, Antigravity IDE, Cursor, Codex) operate with clear behavioral boundaries: interactive mode remains default and untouched, while autonomous mode follows strict 3-actor protocol with hard circuit breakers. Applicable skills: `d3nexus:test-driven-development`, `d3nexus:writing-skills`, `d3nexus:doc_quality_check`.
+    61	
+    62	## Impact Analysis & Blast Radius
+    63	
+    64	- **Target files and symbols**: `lifecycle_runner.py` main CLI, `CRITICAL_RULES.md` Sections 5 & 6, runtime skill markdown files.
+    65	- **Downstream callers**: Developers using `/dev-lifecycle --autonomous` or calling `lifecycle_runner.py`.
+    66	- **Cross-platform bridges**: None.
+    67	- **Target test coverage threshold**: 100% end-to-end integration flow coverage.
+    68	
+    69	### BDD SCENARIOS
+    70	
+    71	Covers: ALR-HP-01, ALR-FR-03, ALR-ST-02
+    72	
+    73	```gherkin
+    74	Scenario: [ALR-HP-01] [Tier C - Integration] Complete autonomous pipeline executes from handoff to final executive report
+    75	
+    76	Given an epic with approved Gate 1 spec and Gate 2 task breakdown in a git worktree
+    77	And configured runner models in .devtool/review_config.json
+    78	When lifecycle_runner.py runs with --epic autonomous_lifecycle_runner
+    79	Then the runner executes Principal Review, advances through Stage 3 implementation, and completes Cross-Model Review without intermediate menu pauses
+    80	And only at the final round after convergence and Gate 4 PASS, the runner renders the executive summary report synthesizing the Top 3 Highest-Risk Findings across all review rounds
+    81	And the runner halts cleanly, presenting the prompt for /finishing-a-development-branch (merge to base branch or other actions) to the Human Architect
+    82	
+    83	Scenario: [ALR-FR-03] [Tier C - Integration] Circuit Breaker halts on max rounds exhaustion with Critical remaining
+    84	
+    85	Given Cross-Model Review reaches Round 3 with at least 1 unresolved Critical finding
+    86	When evaluate_circuit_breakers checks the round counter and severity counts
+    87	Then the runner triggers CIRCUIT_BREAKER_HALT (MAX_ROUNDS_CRITICAL_REMAINING)
+    88	And the runner halts without launching a 4th round, outputting the Top 3 Highest-Risk Findings
+    89	
+    90	Scenario: [ALR-ST-02] [Tier C - Integration] Gate Ledger synchronization on autonomous state transitions
+    91	
+    92	Given the pipeline progresses autonomously through Stage 2 and Stage 3
+    93	When each gate milestone (Gate 3, Gate 4, Gate 5 candidate) is achieved
+    94	Then .devtool/GATE_LEDGER.md is updated with the timestamp, candidate SHA, and auto-approval metadata
+    95	And the ledger status remains strictly in sync with .devtool/state/<epic>.pipeline.json
+    96	```
+    97	
+    98	## Verification
+    99	
+   100	| ID | Phase | Command | Expect | Needs |
+   101	|----|-------|---------|--------|-------|
+   102	| V1 | RED | `python3 -m unittest tests/test_lifecycle_runner.py -k test_alr_hp_01` | exit 1; contains "FAILED" | — |
+   103	| V2 | GREEN | `python3 -m unittest tests/test_lifecycle_runner.py -k test_alr_hp_01` | exit 0; contains "OK" | — |
+   104	| V3 | GREEN | `python3 -m unittest tests/test_lifecycle_runner.py` | exit 0; contains "OK" | — |
+   105	| V4 | TIER-B | `ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py tests/test_lifecycle_runner.py` | exit 0 | — |
+   106	| V5 | TIER-B | `mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py tests/test_lifecycle_runner.py` | exit 0 | — |
+   107	| V6 | TIER-C | `python3 scripts/run_unittest_junit.py --junitxml build/test-results/autonomous-lifecycle-runner.xml tests/test_lifecycle_runner.py` | exit 0; results build/test-results/autonomous-lifecycle-runner.xml | — |
+   108	
+   109	## Stop and Report If
+   110	
+   111	- A command, path, symbol or anchor named in this task does not match the repository.
+   112	- A Verification row fails for a reason other than its Expect.
+   113	- The work needs a change to a file outside Allowed files, or to a protected path.
+   114	- The work needs a change to this task's Verification table, Definition of Done, Allowed files or
+   115	  Covers line.
+   116	- A variable named in the Needs column is unset.
+   117	- Document quality check reports linting or bilingual parity errors.
+   118	
+   119	## Decisions Already Made
+   120	
+   121	- Autonomous mode does not auto-merge: it halts at `AWAITING_FINISH` and displays the prompt for `/finishing-a-development-branch`.
+   122	- `run_gate4(self) -> Tuple[bool, str]` executes: (1) `run_external_review.py check --epic-dir <epic> --kind code`; (2) `check_bdd_traceability.py results`; (3) `run_unittest_junit.py`; (4) `ruff check --isolated`; (5) `mypy --ignore-missing-imports`.
+   123	- Gate 4 PASS candidate SHA is verified before rendering the final executive report.
+   124	- Circuit breaker on Round 3 critical exhaustion outputs the Top 3 Highest-Risk Findings and halts.
+   125	- Role boundaries: In autonomous mode, the orchestrator runner invokes review CLIs and generates coordination proposals (`.devtool/`), while source code modifications are strictly executed by the AI Programmer subprocess.
+   126	- Gate synchronization: Gate 3, 4, and 5 candidate approvals are recorded via `resume_context.py --gate <n>` to keep `.devtool/state/gate_ledger.jsonl` and `.devtool/GATE_LEDGER.md` synchronized (`ALR-ST-02`).
+   127	- `scripts/verify.sh` registers `lifecycle-runner` suite pointing to `tests/test_lifecycle_runner.py`.
+   128	
+   129	## Definition of Done
+   130	
+   131	- Scenarios ALR-HP-01, ALR-FR-03, ALR-ST-02 are covered and pass in the test suite. (V2, V3, V6)
+   132	- Python quality checks (lint and type check) pass cleanly. (V4, V5)
+   133	- Document checks pass across all modified skills and bilingual markdown files. (Gate 5)
+   134	
+   135	## Dependencies & Blockers
+   136	
+   137	- Blocked by [Task 1](task_1_pipeline_state_machine_and_probing.md), [Task 2](task_2_subprocess_dispatcher_and_headless_agy.md), [Task 3](task_3_principal_review_automation_and_checkpoint.md), and [Task 4](task_4_cross_model_review_fix_plan_loop.md).
+   138	
+   139	## References & Rollback
+   140	
+   141	- [Epic HLD](autonomous_lifecycle_runner.en.md), Module Contracts.
+   142	- **Rollback**: Revert task commit; documentation and CLI wiring restored to previous revision.
+
+codex
+The new cross-model sweep path now commits fixes and decisions before Gate 4. I’m checking whether the Gate 4 contract covers the full existing procedure, and whether the earlier verification fixes reached the task snapshots used by the handoff.
+
+exec
+/bin/zsh -lc "nl -ba skills/dev-implementation/SKILL.md | sed -n '205,390p'; nl -ba .devtool/epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.en.md | sed -n '275,430p'; cat .agents/quality/python-quality.json" in /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/autonomous_lifecycle_runner
+ succeeded in 0ms:
+   205	   During implementation, coding agents must actively guard against rationalizations that cut testing corners:
+   206	
+   207	   | Agent Rationalization | Enforced Counter-Rule |
+   208	   | :--- | :--- |
+   209	   | "A Node.js test is sufficient to prove this web UI feature works." | **REJECTED**: Node tests prove only pure data logic. 80% of web defects occur in DOM queries, event bubbling, and CSS rendering. Tier C requires headless Playwright execution with Zero-Console-And-Layout-Defect Watchdog. |
+   210	   | "This component is simple; hardcoding mock data in a stub is enough." | **REJECTED**: Method-level stubs bypass JSON deserialization and network interceptors. Wire-level fixtures from `shared-contracts/` are mandatory. |
+   211	   | "The red errors in the browser console are just harmless warnings." | **REJECTED**: The Zero-Console-Error rule fails Gate 4 on any browser console error or uncaught exception. |
+   212	   | "I cannot launch a mobile simulator, so I will write a unit test instead." | **REJECTED**: Mobile Tier C requires Subcutaneous Testing with real DI and in-memory persistence. Pure unit tests cannot be tagged as Tier C. |
+   213	   | "I ported the HTML structure and JS logic from the Visual Companion mockup, and the DOM selectors match in Playwright." | **REJECTED**: Porting HTML/JS without verifying computed CSS styles results in broken, unstyled layouts. Tier C2 tests for UI components MUST assert `getComputedStyle` and `getBoundingClientRect` properties (non-zero dimensions, layout display mode, and mutually exclusive state visibility, while respecting standard clipped `.sr-only` accessibility patterns) against the Visual Companion design. |
+   214	
+   215	   **Doubt-Driven Verification Protocol**:
+   216	   Before claiming done on any task:
+   217	   1. `CLAIM`: Identify the test assertions claiming Tier C coverage.
+   218	   2. `EXTRACT`: Inspect test reports and runner provenance.
+   219	   3. `DOUBT`: Ask whether mocks hide runtime DI/DOM integration failures.
+   220	   4. `RECONCILE`: Run real headless Playwright or subcutaneous integration tests.
+   221	
+   222	   > [!CRITICAL]
+   223	   > ### 🎯 MANDATORY 100% BDD-TO-TEST TRACEABILITY RULE
+   224	   > 1. **100% Scenario Traceability**: Every single BDD scenario authored in Phase 1 MUST map directly to at least one concrete automated test function or test block.
+   225	   > 2. **Tier Separation**: `[Tier A - Unit]` covered 100% by unit tests; `[Tier C - Integration]` covered 100% by host integration flow tests. Mocks do NOT substitute for Tier C integration tests.
+   226	   > 3. **BDD Automation (Tier C, all platforms)**: For every identifier on task's `Covers:` line, author at least one integration test under HLD's `Integration test roots`, carrying the identifier in test name, description, or tag.
+   227	   > 4. **Gate to Done**:
+   228	   >    ```bash
+   229	   >    python3 "$SKILL_DIR"/resources/scripts/run_task_checks.py red <task mirror>                       # before implementing (exits 0 on expected fail)
+   230	   >    python3 "$SKILL_DIR"/resources/scripts/run_task_checks.py measure <task mirror> [--timeout 7200] [--resume] # for tasks with MEASURE rows
+   231	   >    python3 "$SKILL_DIR"/resources/scripts/run_task_checks.py verify <task mirror>                    # after last change (exits 0 with all pass)
+   232	   >    python3 "$SKILL_DIR"/resources/scripts/run_task_checks.py status <task mirror>                    # prints done gate: PASS
+   233	   >    ```
+   234	   >    Never edit `.devtool/epic/<epic_dir>/evidence/<task_id>.json` by hand. `sync_task_status.py task <id> done` refuses unless evidence matches tree and table.
+   235	   >    When task has `Covers:` line, run traceability check (exit 0):
+   236	   >    ```bash
+   237	   >    python3 "$SKILL_DIR"/resources/scripts/check_bdd_traceability.py tests \
+   238	   >      --scenarios .devtool/epic/<epic_dir>/bdd_scenarios.en.md \
+   239	   >      --roots <Integration test roots from the HLD> \
+   240	   >      --ids <identifiers on the task's Covers: line>
+   241	   >    ```
+   242	   >
+   243	   >    **Failure-Set Baseline & Regression Comparison**:
+   244	   >    When isolating pre-existing test failures before making changes or comparing regression deltas:
+   245	   >    ```bash
+   246	   >    python3 "$SKILL_DIR"/resources/scripts/record_failure_baseline.py \
+   247	   >      --cmd "<test-command>" \
+   248	   >      --out .devtool/epic/<epic_dir>/evidence/baseline.txt \
+   249	   >      [--restore <path>]
+   250	   >
+   251	   >    python3 "$SKILL_DIR"/resources/scripts/compare_failure_sets.py \
+   252	   >      --baseline .devtool/epic/<epic_dir>/evidence/baseline.txt \
+   253	   >      --current .devtool/epic/<epic_dir>/evidence/current.txt \
+   254	   >      [--rerun-new] [--allow-isolated-pass]
+   255	   >    ```
+   256	   >
+   257	   >    **Task Text Replay**:
+   258	   >    To replay structured directives (`Create`, `Replace in`, `Insert in`) and test verification rows:
+   259	   >    ```bash
+   260	   >    python3 "$SKILL_DIR"/resources/scripts/replay_task_text.py <task.md> [--worktree <dir>] [--run-rows]
+   261	   >    ```
+   262	   > 5. **Stop and Report**: A `Stop and Report If` condition in task is reported as `BLOCKED`. Never edit Verification table, Definition of Done, Allowed files or Covers line, or protected path, to force a pass. In Satellite Mode, report `BLOCKED` if an unmerged upstream contract change prevents local tests from passing.
+   263	
+   264	2. When implementer reports `DONE`, synchronize review status:
+   265	   ```bash
+   266	   python3 skills/dev-implementation/resources/scripts/sync_task_status.py task <task_id> review
+   267	   ```
+   268	3. If review finds issues, cycle between `status: "in-progress"` and `status: "review"`.
+   269	4. When both reviews pass, `run_task_checks.py status <task mirror>` prints `done gate: PASS` and `check_bdd_traceability.py tests --ids` exits 0, update status to `done`:
+   270	   ```bash
+   271	   python3 skills/dev-implementation/resources/scripts/sync_task_status.py task <task_id> done
+   272	   ```
+   273	   This moves `.devtool/features/<task_id>.md` into `.devtool/features/done/`.
+   274	5. Make exactly one commit staging code, task file, and evidence file (`.devtool/epic/<epic_dir>/evidence/<task_id>.json`):
+   275	   ```bash
+   276	   git status                                    # check nothing unrelated is pending
+   277	   git add -A                                    # code changes + .devtool/features/ + evidence
+   278	   git commit -m "[EPIC_NAME] <task_title>" -m "- <subtask 1>
+   279	   - <subtask 2>"
+   280	   ```
+   281	   No trailers (no `Co-Authored-By`).
+   282	   Log programmer activity and update state (which synchronizes `window.title` to the latest completed task):
+   283	   ```bash
+   284	   python3 scripts/resume_context.py --log --epic <epic_slug> --task <task_id> --request "<summary>" --action "<tests>"
+   285	   python3 scripts/resume_context.py --state --epic <epic_slug>
+   286	   ```
+   287	6. If implementation diverged from HLD, perform Phase 3 Doc Sync before next task.
+   288	7. **Integrate with develop (only when base branch moved).** First check locally whether `<base_ref>` (`develop`) has any commits not in `HEAD` (`git rev-parse develop != $(git merge-base HEAD develop)`). If `develop` has not moved since the worktree branched, skip per-task rebase/verify-tier and proceed immediately to the next task (full integration runs at Stage 4). When `develop` has moved, run in orchestrator from epic worktree after step 5 commit:
+   289	   ```bash
+   290	   python3 "$INTEGRATE" preflight --base develop
+   291	   ```
+   292	   - If clean or noop, rebase if needed:
+   293	     ```bash
+   294	     python3 "$INTEGRATE" rebase --base develop
+   295	     ```
+   296	   - Resolve conflicts with playbook; stop and ask on semantic conflicts.
+   297	   - Verify tier:
+   298	     ```bash
+   299	     python3 "$INTEGRATE" verify-tier --base develop
+   300	     ```
+   301	   - If verification is red, fix before next task starts, commit as `[EPIC_NAME] Fix integration with develop after <task_title>`.
+   302	
+   303	### Phase 3 — Doc Sync on Divergence
+   304	
+   305	Only when Phase 2 flags divergence:
+   306	1. Update epic's Mermaid diagrams in both `<epic_dir>.en.md` and `.vi.md`.
+   307	2. Update affected task file(s) prose.
+   308	3. Commit separately:
+   309	   ```bash
+   310	   git commit -m "[EPIC_NAME] Sync HLD after <task_title>" -m "- <diagram or section updated>"
+   311	   ```
+   312	
+   313	### Fixes after the last task
+   314	
+   315	Once every task is `done`, a fix is never made by reopening a task. Make it as its own commit on the epic branch, titled `[EPIC_NAME] Fix <what>`. Do not move a done task back, and do not re-record its evidence. `audit_epic.py` lists these commits under "Commits outside tasks". After fixes, run Phase 4 again in full on the new SHA.
+   316	
+   317	### Phase 4 — End of Epic Verification
+   318	
+   319	Once every task is `done`:
+   320	
+   321	0. **Manual Smoke Walkthrough Checklist Generation**:
+   322	   Before Gate 4 validation, automatically generate and commit a structured 3–5 step manual smoke checklist from canonical BDD Happy Path scenarios:
+   323	   ```bash
+   324	   python3 "$SKILL_DIR"/resources/scripts/generate_smoke_checklist.py --epic-dir <epic_dir>
+   325	   git add .devtool/epic/<epic_dir>/manual_smoke_checklist.md
+   326	   git commit -m "[EPIC_NAME] Generate manual smoke walkthrough checklist"
+   327	   ```
+   328	   This gives the human engineer an immediate 2-minute sanity check walkthrough while keeping the working tree clean and preserving candidate SHA stability.
+   329	
+   330	Then resolve candidate commit SHA (`git rev-parse HEAD`) with a clean tree (`git status --porcelain` prints nothing):
+   331	
+   332	1. **Review decisions**, only when `.devtool/epic/<epic_dir>/review_results.md` exists:
+   333	   ```bash
+   334	   python3 "$SKILL_DIR"/resources/scripts/run_external_review.py check --epic-dir <epic_dir>
+   335	   ```
+   336	   Exit 1 means unresolved finding: record decision or make Fix commit, then restart Phase 4 in full.
+   337	2. **Gate 4 audit**:
+   338	   ```bash
+   339	   python3 "$SKILL_DIR"/resources/scripts/audit_epic.py --epic-dir <epic_dir> --base <base_ref>
+   340	   ```
+   341	   Must exit 0. Keep output for Phase 4.1.
+   342	3. **HLD Integration results commands.** Run every `Integration results:` line of HLD Integration Test Plan.
+   343	4. **Result-based traceability**: run `check_bdd_traceability.py tests --results` over those reports:
+   344	   ```bash
+   345	   python3 "$SKILL_DIR"/resources/scripts/check_bdd_traceability.py tests \
+   346	     --scenarios .devtool/epic/<epic_dir>/bdd_scenarios.en.md \
+   347	     --roots <Integration test roots from the HLD> \
+   348	     --results <reports written by Integration results commands>
+   349	   ```
+   350	   Must exit 0: every scenario in `bdd_scenarios.en.md` is covered by at least one passing integration test. `--roots` and `--ids` accept space- or comma-separated values.
+   351	5. **Quality check.** Run `@quality_check` on the same SHA:
+   352	   - Inputs:
+   353	     - `profile`: `"epic"`
+   354	     - `base_ref`: `<base_ref>`
+   355	     - `repository_sha`: Candidate commit SHA from `git rev-parse HEAD`
+   356	   - Only an aggregated verdict of **PASS** bound to that exact SHA qualifies for Gate 4 `🟢 LGTM`.
+   357	
+   358	#### Semantic Test Integrity Governance (Gate 4 Rules)
+   359	
+   360	Gate 4 enforces strict semantic test integrity to prevent false-confidence passes. Registered providers and auditors reject test fakery with **`FAIL`**:
+   361	1. **No Reconstructed Logic**: Tests MUST import and invoke production code directly from Allowed files. Tests MUST NOT reconstruct production logic (such as retry loops, progress tracking, mapping transformations, or configuration defaults) locally within test helpers or mock harnesses. If a test reconstructs production logic instead of invoking production symbols, the review reports FAIL.
+   362	2. **Immutable Real Artifacts**: Tests MUST execute against genuine, immutable repository artifacts, schemas, and fixtures. Tests MUST NOT substitute synthetic artifacts or mock data that alter scenario anchors or weaken contractual invariants. If a test substitutes synthetic artifacts that alter scenario anchors, the review reports FAIL.
+   363	
+   364	*(Note: These are Gate 4 semantic integrity requirements evaluated by specialist providers and audits; no universal cross-language mechanical coverage claim is made.)*
+   365	
+   366	### Review Choice — after every Gate 4 PASS
+   367	
+   368	<HARD-GATE>
+   369	You MUST NOT skip or auto-decide Review Choice after Gate 4 passes.
+   370	Present the choice between "Finish", "Cross-model review" and "Local model review" and wait for the developer's explicit instruction.
+   371	Cross-model review and Local model review must return to Phase 4 in full; only the next Gate 4 PASS may present Review Choice again.
+   372	</HARD-GATE>
+   373	
+   374	The loop invariant is **Gate 4 PASS → Review Choice; Finish → Gate 5; Cross-model review → Gate 4 in full; Local model review → Gate 4 in full**.
+   375	<!-- Workflow transitions:
+   376	moretasks -- "no, epic done" --> phase4
+   377	phase4 -- "PASS" --> choice
+   378	choice -- "Finish" --> checkpoint4
+   379	review -- "round recorded" --> phase4
+   380	choice -- "Local model review" --> localreview
+   381	localreview -- "round recorded" --> phase4
+   382	-->
+   383	On Gate 4 PASS, record Gate 4 in `.devtool/GATE_LEDGER.md` via `python3 scripts/resume_context.py --gate 4 --epic <epic_slug> --approved "Gate 4 PASS (<candidate_sha>)"`, run `python3 scripts/resume_context.py --state --epic <epic_slug> --status "Stage 4.1: Review Choice"` (which synchronizes `window.title` to Review Choice), and emit the prompt via `python3 scripts/resume_context.py --emit-prompt cross-review --epic <epic_slug>`.
+   384	Ask developer and wait for answer:
+   385	
+   386	> Gate 4 is 🟢 LGTM for `<candidate_sha>`. How do you want to proceed?
+   387	>
+   388	> 1. **Finish** — continue to Gate 5, then `finishing-a-development-branch`.
+   389	> 2. **Cross-model review** — an independent model reviews the epic through Claude CLI, Codex CLI, Antigravity CLI, or Kiro CLI (`command -v claude codex agy kiro-cli`).
+   390	> 3. **Local model review** — a model served by your local Ollama reviews the epic task by task (`ollama list`).
+   275	    ADJUSTED = "ADJUSTED"
+   276	    CRITICAL_CONFLICT = "CRITICAL_CONFLICT"
+   277	
+   278	@dataclass
+   279	class RunnerConfig:
+   280	    programmer_model: str = "gemini-3.8-flash"
+   281	    programmer_effort: str = "high"
+   282	    assistant_model: Optional[str] = None  # Precedence: CLI --assistant-model -> .devtool/review_config.json providers.assistant.model -> active profile model -> fallback claude-sonnet-5-5-high
+   283	    assistant_effort: str = "high"
+   284	    timeout_seconds: int = 1800
+   285	    max_review_rounds: int = 3
+   286	
+   287	@dataclass
+   288	class PipelineState:
+   289	    epic_slug: str
+   290	    active_stage: StageName
+   291	    principal_round: int = 0
+   292	    cross_model_round: int = 0
+   293	    last_commit_sha: str = ""
+   294	    last_verdict: str = ""
+   295	    halt_reason: Optional[str] = None
+   296	    last_error: Optional[str] = None
+   297	    task_order: List[str] = field(default_factory=list)
+   298	    completed_tasks: List[str] = field(default_factory=list)
+   299	
+   300	    def to_dict(self) -> Dict[str, Any]: ...
+   301	    @classmethod
+   302	    def from_dict(cls, data: Dict[str, Any]) -> "PipelineState": ...
+   303	
+   304	class ModelDispatcher:
+   305	    def __init__(self, config: RunnerConfig): ...
+   306	    def probe_model(self, model: str) -> bool: ...
+   307	    def dispatch(
+   308	        self,
+   309	        prompt: str,
+   310	        model: str,
+   311	        effort: str,
+   312	        mode: str,
+   313	        worktree_root: Path,
+   314	        timeout: Optional[int] = None,
+   315	    ) -> Tuple[int, str, str]: ...
+   316	
+   317	class LifecycleRunner:
+   318	    def __init__(self, root: Path, epic_slug: str, config: Optional[RunnerConfig] = None): ...
+   319	    def load_or_init_state(self) -> PipelineState: ...
+   320	    def save_state(self) -> None: ...
+   321	    def run(self, resume: bool = False) -> int: ...
+   322	    def resolve_gate3_order(self) -> List[str]: ...
+   323	    def step_principal_review(self) -> bool: ...
+   324	    def step_implementation(self) -> bool: ...
+   325	    def run_gate4(self) -> Tuple[bool, str]: ...
+   326	    def step_cross_model_review(self) -> bool: ...
+   327	    def evaluate_circuit_breakers(self, stage: str, round_num: int) -> Optional[str]: ...
+   328	    def prompt_human_principal_fixes(self, triage_summary: str) -> bool: ...
+   329	    def evaluate_programmer_fix_plan(self, round_num: int) -> Tuple[FixPlanVerdict, str]: ...
+   330	    def render_final_executive_report(self) -> str: ...
+   331	```
+   332	
+   333	#### Method Execution Contracts and Task Ownership
+   334	
+   335	- **`step_implementation(self) -> bool`** (Owned by Task 2):
+   336	  - Execution contract: loops over `self.state.task_order` sequentially. For each task:
+   337	    1. Checks if already present in `self.state.completed_tasks`. If so, skips.
+   338	    2. Gating and evidence verification: dispatches Programmer subprocess with task prompt via stdin (`skills/dev-implementation/SKILL.md:229–240`).
+   339	    3. Verifies task evidence and status updated to `done`.
+   340	    4. Commits task changes cleanly (`git commit -m "[<EPIC>] Execute <task_slug>"`).
+   341	    5. Appends task to `self.state.completed_tasks` and saves state atomically (`ALR-ST-01`).
+   342	    6. Returns `True` if all tasks succeed; on subprocess failure or timeout, logs error, preserves state, and returns `False`.
+   343	- **`run_gate4(self) -> Tuple[bool, str]`** (Owned by Task 5):
+   344	  - Execution contract: executes the full Stage 3 Gate 4 verification sequence on the candidate SHA (`skills/dev-implementation/SKILL.md:321–356`):
+   345	    1. Generates and commits smoke checklist (`skills/dev-implementation/resources/scripts/generate_smoke_checklist.py`).
+   346	    2. Runs finding decision check (`run_external_review.py check --epic-dir <epic> --kind code`).
+   347	    3. Runs codebase and security audit checks.
+   348	    4. Runs declared integration commands and test suite (`run_unittest_junit.py`).
+   349	    5. Runs registered Python capabilities (lint and type-check).
+   350	    6. Verifies all results trace cleanly to candidate commit SHA.
+   351	    7. Returns `(True, "Gate 4 PASS: <candidate_sha>")` if all checks pass; otherwise `(False, "<failure_reason>")`.
+   352	
+   353	### Impact Analysis
+   354	
+   355	Impact analysis executed via `check_code_impact.py` against `main`:
+   356	- Upstream Git Conflict Analysis: 🟢 **CLEAN** (Zero unmerged commits against `main`).
+   357	- Downstream Callers & Blast Radius: `lifecycle_runner.py` is a new standalone entry point. Consumers will be `dev-lifecycle` slash command and CLI invocations.
+   358	- No cross-platform or native bridge contracts are touched.
+   359	
+   360	## Shared Contract Impact
+   361	
+   362	None — self-contained feature.
+   363	
+   364	## Integration Test Plan and Boundary Matrix
+   365	
+   366	Integration test roots: tests/, skills/dev-lifecycle/resources/scripts/
+   367	
+   368	Protected paths: .agents/quality/**, .devtool/epic/autonomous_lifecycle_runner/bdd_scenarios.en.md, .devtool/epic/autonomous_lifecycle_runner/bdd_scenarios.vi.md, tests/test_lifecycle_runner.py
+   369	
+   370	Integration results: python3 scripts/run_unittest_junit.py --junitxml build/test-results/autonomous-lifecycle-runner.xml tests/test_lifecycle_runner.py -> build/test-results/autonomous-lifecycle-runner.xml
+   371	
+   372	| Boundary | Real components | Isolation or fixture | Required assertions |
+   373	|---|---|---|---|
+   374	| **Model Prober** | `ModelDispatcher.probe_model` | Fake `agy` script on `PATH` simulating valid and invalid exit codes | Exits 0 on recognized model; returns clear error and halts pipeline when model rejected. |
+   375	| **Subprocess Group Supervision** | `ModelDispatcher.dispatch` | Fake long-running script | Process executes in isolated process group (`start_new_session=True`); SIGTERM delivered cleanly on timeout. |
+   376	| **State Persistence & Resumption** | `LifecycleRunner.save_state`, `load_or_init_state` | Temporary filesystem with mock `.devtool/state` | Atomic `.tmp` rename prevents file corruption; runner resumes exactly from saved stage. |
+   377	| **Gate 3 Auto-Order** | `LifecycleRunner.step_implementation` | Mock `compute_execution_order.py` | Order parsed from JSON/text output and written to `.devtool/GATE_LEDGER.md`. |
+   378	| **Principal Review Auto-Triage** | `step_principal_review` | Mock stdin/stdout prompt wrapper | Auto-applies aligned fixes; halts and prompts human only on critical, domain, or contract conflicts. |
+   379	| **Cross-Model Fix Plan Evaluation** | `evaluate_programmer_fix_plan` | Mock Assistant dispatcher returning `APPROVED`, `ADJUSTED`, `CRITICAL_CONFLICT` | Handles all 3 verdicts correctly; triggers Programmer fix execution or halts pipeline. |
+   380	| **Circuit Breakers** | `evaluate_circuit_breakers` | Synthetic `review_results.md` fixtures | Immediate halt on `SHARED_CONTRACT_CONFLICT`, `FIX_LOOP`, and `MAX_ROUNDS_CRITICAL_REMAINING`. |
+   381	| **Final Executive Report** | `LifecycleRunner.run` | Completed pipeline state | Renders markdown executive report and stops with prompt for `/finishing-a-development-branch`. |
+   382	
+   383	## Verification Environment
+   384	
+   385	- All unit and integration tests run in isolated temporary directories (`tempfile.TemporaryDirectory`).
+   386	- Tests simulate the `agy` CLI using executable fake scripts or `unittest.mock.patch`, requiring zero external API keys or remote network calls.
+   387	- Process timeouts and termination are tested with short intervals (< 2.0s).
+   388	- JUnit XML reports are written to `build/test-results/autonomous-lifecycle-runner.xml`.
+   389	
+   390	## Comprehensive BDD Scenario Coverage
+   391	
+   392	The canonical Gherkin definitions are in [BDD scenarios](bdd_scenarios.en.md), with the synchronized [Vietnamese translation](bdd_scenarios.vi.md).
+   393	
+   394	| Dimension | Scenario IDs | Coverage intent |
+   395	|---|---|---|
+   396	| **Happy Paths** | `ALR-HP-01` through `ALR-HP-04` | Full autonomous pipeline run, headless Programmer Gemini 3.8 dispatch, Principal Review human confirmation, Assistant fix plan approval. |
+   397	| **Edge Cases and Boundaries** | `ALR-EC-01` through `ALR-EC-04` | 0 findings in Principal Review bypasses prompt, minor-only findings batched, Assistant adjusts fix plan, Gate 3 order auto-confirmed. |
+   398	| **State Transitions and Invariants** | `ALR-ST-01` through `ALR-ST-03` | State persistence across crash, Gate Ledger synchronization, model capability probe. |
+   399	| **Async and Concurrency** | `ALR-AR-01` through `ALR-AR-02` | Process group isolation and SIGTERM timeout fencing, atomic state file locking. |
+   400	| **Failure and Resilience** | `ALR-FR-01` through `ALR-FR-04` | Halt on shared contract conflict, halt on fix loop, halt on max rounds critical, halt on Assistant CRITICAL_CONFLICT. |
+   401	
+   402	## Rollout Strategy and Mitigation
+   403	
+   404	1. Implement core state machine, models, and persistence in `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py` with comprehensive unit tests.
+   405	2. Implement headless `agy` dispatcher with process group fencing and model probing.
+   406	3. Integrate Stage 2 Principal Review automation with Human fix confirmation checkpoint.
+   407	4. Integrate Stage 3 Cross-Model Review fix plan evaluation loop.
+   408	5. Update `rules/CRITICAL_RULES.md`, `skills/dev-lifecycle/SKILL.md`, `skills/dev-implementation/SKILL.md`, and documentation to specify autonomous mode behavior.
+   409	6. Verify full test suite using `scripts/run_unittest_junit.py` and `scripts/verify.sh`.
+   410	
+   411	Mitigation: Autonomous mode is strictly opt-in via `/dev-lifecycle --autonomous` or direct invocation of `lifecycle_runner.py`. Interactive lifecycle behavior remains completely intact and default.
+   412	
+   413	## Kanban Tasks Breakdown
+   414	
+   415	1. [Task 1: Pipeline State Machine, Persistence, and Model Probing](task_1_pipeline_state_machine_and_probing.md)
+   416	2. [Task 2: Subprocess Dispatcher and Headless agy Runner](task_2_subprocess_dispatcher_and_headless_agy.md)
+   417	3. [Task 3: Principal Review Automation and Human Checkpoint](task_3_principal_review_automation_and_checkpoint.md)
+   418	4. [Task 4: Cross-Model Review Fix Plan Loop and Assistant Evaluator](task_4_cross_model_review_fix_plan_loop.md)
+   419	5. [Task 5: End-to-End Orchestrator, CLI Integration, and Governance Rules](task_5_orchestrator_cli_and_governance_rules.md)
+   420	
+   421	## Spec Errata
+   422	
+   423	- **[SE-01] Principal Review Round 1 Alignment**: Aligned external review CLI flags (`--kind principal` / `--kind code` with required `--base`), integrated `run_external_review.py triage` action parsing, made Assistant model dynamically inherit the developer's selected model (Argon/Claude/Codex/etc) with Gemini 3.8 Flash default for Programmer, added `AWAITING_PRINCIPAL_CONFIRMATION` state with proposal file and non-blocking CLI flags (`--confirm-fixes`/`--reject-fixes`), established commit sequencing for clean git tree, and aligned method signatures across HLD and tasks.
+   424	- **[SE-02] Principal Review Round 2 Delta Alignment**: Formalized Auto-Triage Gate stage transitions (auto-application of agreed fixes in Principal Review, single-pass minor sweeps for AUTO_PASS_FINAL_MINOR_SWEEP and AUTO_PASS_FINAL_SWEEP without redundant review rounds), corrected Gate 4 commit and decision recording sequence (code fix commit -> decision recording -> decision commit -> Gate 4 run), added run_gate4() and step_implementation contract definitions, aligned ModelDispatcher to stdin pipes and process group supervision, and updated test verification commands to isolated runner scopes.
+   425	- **[SE-03] Principal Review Round 3 Convergence Alignment**: Aligned Principal Review auto-triage policy across spec, HLD, BDD, and tasks (auto-applying aligned technical fixes without interrupting the developer, halting only on high-risk critical issues, business/domain requirement conflicts, or SHARED_CONTRACT_CONFLICT); synchronized 4 selectable model priority options at Gate 2 task confirmation with default `Claude -> Codex -> Kiro -> Argon`; updated Cross-Model Review sequence diagram to route both final sweep actions through code fix commit, decision recording, decision commit, and full Gate 4 before reporting; mapped BDD scenarios ALR-ST-01 to Task 2, ALR-ST-02 to Task 5, and ALR-ST-03 to Task 1 with 100% traceability.
+   426	
+{
+  "schema_version": 1,
+  "capabilities": {
+    "format": ["ruff", "format", "--check", "skills/web-quality-check", "tests", "skills/dev-implementation/resources/scripts/generate_smoke_checklist.py"],
+    "lint": ["ruff", "check", "skills/web-quality-check", "tests", "skills/dev-implementation/resources/scripts/generate_smoke_checklist.py"],
+    "type_check": ["mypy", "skills/web-quality-check/resources/scripts/validate_web_quality.py", "skills/web-quality-check/resources/scripts/run_playwright_harness.py", "skills/quality_check/resources/scripts/verify_polyglot_registry.py", "skills/web-quality-check/resources/scripts/check_vanilla_js.py", "skills/dev-implementation/resources/scripts/generate_smoke_checklist.py"],
+    "test": ["python3", "-m", "pytest", "tests"],
+    "architecture": ["bash", "scripts/verify.sh"]
+  },
+  "profiles": {
+    "pr": ["lint", "test"],
+    "epic": ["format", "lint", "type_check", "test", "architecture"],
+    "release": ["format", "lint", "type_check", "test", "architecture"],
+    "scheduled": ["format", "lint", "type_check", "test", "architecture"]
+  }
+}
+
+warning: Codex could not update marketplace `danhdue-agent-tools`: git clone marketplace source timed out after 30s: Cloning into '/Users/danhdueexoictif/antigravity_homes/hau/.codex/.tmp/marketplaces/.staging/marketplace-macos-B61SeS/checkout'...
+fatal: early EOF
+exec
+/bin/zsh -lc 'cat .devtool/epic/autonomous_lifecycle_runner/bdd_scenarios.en.md .devtool/epic/autonomous_lifecycle_runner/bdd_scenarios.vi.md .devtool/epic/autonomous_lifecycle_runner/handoff.md' in /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/autonomous_lifecycle_runner
+ succeeded in 0ms:
+# Autonomous Lifecycle Runner BDD Scenarios
+
+## Table of Contents
+
+- [Meta Data](#meta-data)
+- [Happy Paths](#happy-paths)
+- [Edge Cases and Boundaries](#edge-cases-and-boundaries)
+- [State Transitions](#state-transitions)
+- [Async and Race Conditions](#async-and-race-conditions)
+- [Failure and Resilience](#failure-and-resilience)
+
+## Meta Data
+
+- **Epic**: `autonomous_lifecycle_runner`
+- **Canonical language**: English
+- **Scenario prefix**: `ALR`
+- **Automation roots**: `tests/`, `skills/dev-lifecycle/resources/scripts/`
+- **Rule**: Every scenario ID is assigned to exactly one task and appears in an automated test.
+- **Mocking**: `agy` subprocess invocations and external review CLI calls are mocked via executable stubs or test fixtures in unit/integration tests.
+
+## Happy Paths
+
+```gherkin
+Scenario: [ALR-HP-01] [Tier C - Integration] Complete autonomous pipeline executes from handoff to final executive report
+
+Given an epic with approved Gate 1 spec and Gate 2 task breakdown in a git worktree
+And configured runner models in .devtool/review_config.json
+When lifecycle_runner.py runs with --epic autonomous_lifecycle_runner
+Then the runner executes Principal Review, advances through Stage 3 implementation, and completes Cross-Model Review without intermediate menu pauses
+And only at the final round after convergence and Gate 4 PASS, the runner renders the executive summary report synthesizing the Top 3 Highest-Risk Findings across all review rounds
+And the runner halts cleanly, presenting the prompt for /finishing-a-development-branch (merge to base branch or other actions) to the Human Architect
+
+Scenario: [ALR-HP-02] [Tier C - Integration] Headless dispatch of AI Programmer with Gemini 3.8 Flash High
+
+Given a pending implementation task file in .devtool/features/task_1_pipeline_state_machine_and_probing.md
+When lifecycle_runner.py dispatches the AI Programmer for task execution
+Then the dispatched command executes "agy" with "--model gemini-3.8-flash"
+And the command specifies "--effort high" and "--mode auto"
+And the execution runs inside the isolated git worktree with dedicated process group supervision
+
+Scenario: [ALR-HP-03] [Tier C - Integration] AI Assistant auto-applies aligned Principal Review fixes and prompts Human confirmation only on critical or domain conflicts
+
+Given Principal Review returns findings on candidate HLD specifications
+When the AI Assistant triages the findings in step_principal_review
+Then aligned technical findings are auto-applied, committed, and packaged via package_epic.py --revise without human interruption
+And lifecycle_runner.py transitions to AWAITING_PRINCIPAL_CONFIRMATION only if findings involve critical risks, business requirement conflicts, or SHARED_CONTRACT_CONFLICT
+And upon Human confirmation of the conflict proposal, the pipeline resumes and advances to the next review round
+
+Scenario: [ALR-HP-04] [Tier C - Integration] AI Assistant approves AI Programmer fix plan in Cross-Model Review without Human stop
+
+Given Cross-Model Review returns review findings requiring code adjustments in Round 1
+When the AI Programmer drafts a proposed fix plan in fix_plan_round1.md
+Then the AI Assistant evaluates the fix plan against the approved HLD and emits verdict "APPROVED"
+And the AI Programmer applies the approved code changes and re-runs Phase 4 Gate 4
+And the cycle proceeds to Round 2 without prompting the Human Architect for intermediate confirmation
+```
+
+## Edge Cases and Boundaries
+
+```gherkin
+Scenario: [ALR-EC-01] [Tier C - Integration] Zero findings in Principal Review bypasses Human confirmation
+
+Given Principal Review completes Round 1 with verdict PASS and 0 findings
+When step_principal_review processes the review results
+Then the runner logs "AUTO_PASS_CLEAN: 0 findings"
+And the runner bypasses the Human confirmation prompt completely
+And the pipeline state advances directly to Stage 3 Implementation
+
+Scenario: [ALR-EC-02] [Tier C - Integration] Minor-only findings in Principal Review swept in single pass without Human halt
+
+Given Principal Review Round 1 returns 0 Critical, 0 Important, and 2 Minor formatting findings
+When step_principal_review evaluates the triage report
+Then the runner triggers AUTO_PASS_FINAL_MINOR_SWEEP
+And the Minor findings are swept, committed, and packaged in a single pass without stopping for Human confirmation
+And the pipeline advances directly to Stage 3 Implementation
+
+Scenario: [ALR-EC-03] [Tier C - Integration] AI Assistant adjusts AI Programmer fix plan without rejecting
+
+Given the AI Programmer proposes a fix plan that omits a required edge-case assertion
+When the AI Assistant reviews the fix plan in Cross-Model Review
+Then the Assistant returns verdict "ADJUSTED" along with the amended fix plan text
+And the AI Programmer receives the adjusted plan, applies the combined patch, and triggers Gate 4 re-verification
+
+Scenario: [ALR-EC-04] [Tier C - Integration] Gate 3 execution order auto-confirmed via compute_execution_order
+
+Given multiple task files with explicit dependency links in .devtool/features/
+When the runner enters Stage 3 Implementation
+Then compute_execution_order.py is executed to resolve the topological execution sequence
+And the resulting task sequence is auto-confirmed and recorded in .devtool/GATE_LEDGER.md under Gate 3
+And task execution begins immediately without presenting an interactive prompt
+```
+
+## State Transitions
+
+```gherkin
+Scenario: [ALR-ST-01] [Tier C - Integration] State persistence and resumption from crash in intermediate stage
+
+Given the runner is interrupted by SIGINT during Stage 3 task execution
+When lifecycle_runner.py is invoked again with --resume
+Then the runner reads .devtool/state/<epic>.pipeline.json
+And the runner recovers the active stage "implementation", completed task list, and current round
+And execution resumes from the exact interrupted task without re-running completed tasks
+
+Scenario: [ALR-ST-02] [Tier C - Integration] Gate Ledger synchronization on autonomous state transitions
+
+Given the pipeline progresses autonomously through Stage 2 and Stage 3
+When each gate milestone (Gate 3, Gate 4, Gate 5 candidate) is achieved
+Then .devtool/GATE_LEDGER.md is updated with the timestamp, candidate SHA, and auto-approval metadata
+And the ledger status remains strictly in sync with .devtool/state/<epic>.pipeline.json
+
+Scenario: [ALR-ST-03] [Tier C - Integration] Probing verifies model capabilities before state initialization
+
+Given an invalid or deprecated model string specified in configuration
+When lifecycle_runner.py initiates the startup capability probe
+Then ModelDispatcher.probe_model executes a minimal headless agy call
+And upon non-zero exit or error, the runner aborts before writing pipeline state or modifying files
+And a descriptive error message indicating the rejected model is printed to stderr
+```
+
+## Async and Race Conditions
+
+```gherkin
+Scenario: [ALR-AR-01] [Tier C - Integration] Subprocess group process isolation and clean SIGTERM termination on timeout
+
+Given a headless agy programmer process exceeds the configured timeout limit
+When the supervisor timer expires in ModelDispatcher
+Then SIGTERM is broadcast to the entire subprocess group via os.killpg
+And after a 1.0s grace period, SIGKILL is escalated if the child processes remain alive
+And the runner records a timeout failure in the pipeline state without leaving orphaned processes
+
+Scenario: [ALR-AR-02] [Tier C - Integration] File locking during state updates prevents concurrency corruption
+
+Given concurrent processes or rapid consecutive state transitions
+When LifecycleRunner writes updates to .devtool/state/<epic>.pipeline.json
+Then state updates are serialized using file locking and atomic temporary file replacement (.tmp rename)
+And the pipeline state file remains valid and uncorrupted JSON at all times
+```
+
+## Failure and Resilience
+
+```gherkin
+Scenario: [ALR-FR-01] [Tier C - Integration] Circuit Breaker halts immediately on Shared Contract conflict
+
+Given an external review round reports a finding conflicting with shared-contracts/
+When evaluate_circuit_breakers inspects the triage report
+Then the runner triggers CIRCUIT_BREAKER_HALT (SHARED_CONTRACT_CONFLICT)
+And the pipeline halts immediately, preserving all logs and state
+And the console displays the executive warning banner instructing the developer to consult the Human Architect
+
+Scenario: [ALR-FR-02] [Tier C - Integration] Circuit Breaker halts immediately on repeated fix loop
+
+Given a finding in Round N touches the identical file path previously marked as fixed in Round N-1
+When evaluate_circuit_breakers evaluates the round comparison
+Then the runner triggers CIRCUIT_BREAKER_HALT (FIX_LOOP)
+And the pipeline stops calling tools and presents the recurrent finding to the Human Architect
+
+Scenario: [ALR-FR-03] [Tier C - Integration] Circuit Breaker halts on max rounds exhaustion with Critical remaining
+
+Given Cross-Model Review reaches Round 3 with at least 1 unresolved Critical finding
+When evaluate_circuit_breakers checks the round counter and severity counts
+Then the runner triggers CIRCUIT_BREAKER_HALT (MAX_ROUNDS_CRITICAL_REMAINING)
+And the runner halts without launching a 4th round, outputting the Top 3 Highest-Risk Findings
+
+Scenario: [ALR-FR-04] [Tier C - Integration] AI Assistant rejects fix plan with CRITICAL_CONFLICT and halts pipeline
+
+Given the AI Programmer drafts a fix plan that attempts to unilaterally revert an approved architectural decision
+When the AI Assistant evaluates the fix plan
+Then the Assistant returns verdict "CRITICAL_CONFLICT" with detailed rationale
+And lifecycle_runner.py halts immediately, preventing the Programmer from modifying source code
+And an alert is displayed to the Human Architect highlighting the architectural conflict
+```
+
+# Kịch bản BDD Runner Vòng đời Tự động (Autonomous Lifecycle Runner)
+
+## Mục lục
+
+- [Siêu dữ liệu](#siêu-dữ-liệu)
+- [Luồng thành công](#luồng-thành-công)
+- [Trường hợp biên và dữ liệu bất thường](#trường-hợp-biên-và-dữ-liệu-bất-thường)
+- [Chuyển đổi trạng thái](#chuyển-đổi-trạng-thái)
+- [Bất đồng bộ và điều kiện tranh chấp](#bất-đồng-bộ-và-điều-kiện-tranh-chấp)
+- [Lỗi và khả năng phục hồi](#lỗi-và-khả-năng-phục-hồi)
+
+## Siêu dữ liệu
+
+- **Epic**: `autonomous_lifecycle_runner`
+- **Ngôn ngữ chuẩn**: Tiếng Anh
+- **Prefix scenario**: `ALR`
+- **Automation roots**: `tests/`, `skills/dev-lifecycle/resources/scripts/`
+- **Quy tắc**: Mỗi ID scenario được gán đúng một task và xuất hiện trong một automated test.
+- **Giả lập**: Lệnh gọi tiến trình `agy` và các CLI review ngoài được giả lập bằng stub thực thi hoặc test fixture trong kiểm thử đơn vị/tích hợp.
+
+## Luồng thành công
+
+```gherkin
+Scenario: [ALR-HP-01] [Tier C - Integration] Toàn bộ pipeline tự động thực thi từ bàn giao đến báo cáo điều hành cuối cùng
+
+Given một epic có đặc tả Gate 1 và phân rã task Gate 2 đã được phê duyệt trong git worktree
+And cấu hình các model runner trong .devtool/review_config.json
+When lifecycle_runner.py chạy với --epic autonomous_lifecycle_runner
+Then runner thực thi Principal Review, tiến vào triển khai Giai đoạn 3, và hoàn thành Cross-Model Review mà không dừng menu trung gian
+And chỉ tại vòng cuối cùng sau khi hội tụ và Gate 4 PASS, runner kết xuất báo cáo điều hành tổng kết tổng hợp Top 3 Phát hiện Rủi ro Cao nhất của cả quá trình qua các vòng
+And runner dừng lại sạch sẽ, trình bày prompt cho /finishing-a-development-branch (merge vào nhánh base hoặc hành động khác) tới Human Architect
+
+Scenario: [ALR-HP-02] [Tier C - Integration] Điều phối headless AI Programmer với Gemini 3.8 Flash High
+
+Given một task triển khai đang chờ xử lý tại .devtool/features/task_1_pipeline_state_machine_and_probing.md
+When lifecycle_runner.py điều phối AI Programmer để thực thi task
+Then lệnh được điều phối chạy "agy" với "--model gemini-3.8-flash"
+And câu lệnh chỉ định "--effort high" và "--mode auto"
+And việc thực thi diễn ra bên trong git worktree biệt lập với giám sát nhóm tiến trình chuyên dụng
+
+Scenario: [ALR-HP-03] [Tier C - Integration] AI Assistant tự động sửa các phát hiện Principal Review đã đồng thuận và chỉ dừng hỏi Con người khi có xung đột rủi ro cao hoặc nghiệp vụ
+
+Given Principal Review trả về các phát hiện trên tài liệu đặc tả HLD ứng viên
+When AI Assistant phân loại các phát hiện trong step_principal_review
+Then các phát hiện kỹ thuật đã đồng thuận được tự động sửa, commit và đóng gói qua package_epic.py --revise mà không làm gián đoạn con người
+And lifecycle_runner.py chuyển sang AWAITING_PRINCIPAL_CONFIRMATION chỉ khi phát hiện có rủi ro nghiêm trọng, xung đột nghiệp vụ, hoặc SHARED_CONTRACT_CONFLICT
+And sau khi Con người xác nhận phương án giải quyết xung đột, pipeline tiếp tục và tiến vào vòng review tiếp theo
+
+Scenario: [ALR-HP-04] [Tier C - Integration] AI Assistant duyệt kế hoạch sửa lỗi của AI Programmer trong Cross-Model Review không dừng hỏi Con người
+
+Given Cross-Model Review trả về các phát hiện cần điều chỉnh mã nguồn trong Vòng 1
+When AI Programmer soạn thảo kế hoạch sửa lỗi đề xuất trong fix_plan_round1.md
+Then AI Assistant đánh giá kế hoạch sửa lỗi theo HLD đã duyệt và phát ra phán quyết "APPROVED"
+And AI Programmer áp dụng các thay đổi mã nguồn đã duyệt và chạy lại Phase 4 Gate 4
+And chu trình tiến vào Vòng 2 mà không hỏi xác nhận trung gian từ Human Architect
+```
+
+## Trường hợp biên và dữ liệu bất thường
+
+```gherkin
+Scenario: [ALR-EC-01] [Tier C - Integration] 0 phát hiện trong Principal Review bỏ qua bước xác nhận của Con người
+
+Given Principal Review hoàn thành Vòng 1 với phán quyết PASS và 0 phát hiện
+When step_principal_review xử lý kết quả review
+Then runner ghi log "AUTO_PASS_CLEAN: 0 findings"
+And runner bỏ qua hoàn toàn prompt xác nhận của Con người
+And trạng thái pipeline chuyển thẳng sang Giai đoạn 3 Triển khai
+
+Scenario: [ALR-EC-02] [Tier C - Integration] Gom và xử lý các phát hiện minor trong Principal Review trong một lượt duy nhất không dừng hỏi Con người
+
+Given Principal Review Vòng 1 trả về 0 Critical, 0 Important, và 2 phát hiện định dạng Minor
+When step_principal_review đánh giá báo cáo phân loại triage
+Then runner kích hoạt AUTO_PASS_FINAL_MINOR_SWEEP
+And các phát hiện Minor được quét, commit và đóng gói trong một lượt duy nhất mà không tạm dừng hỏi Con người
+And pipeline tiến thẳng vào Giai đoạn 3 Triển khai
+
+Scenario: [ALR-EC-03] [Tier C - Integration] AI Assistant điều chỉnh kế hoạch sửa lỗi của AI Programmer mà không từ chối
+
+Given AI Programmer đề xuất kế hoạch sửa lỗi bị thiếu một khẳng định ca biên bắt buộc
+When AI Assistant đánh giá kế hoạch sửa lỗi trong Cross-Model Review
+Then Assistant trả về phán quyết "ADJUSTED" kèm theo nội dung kế hoạch sửa lỗi đã bổ sung
+And AI Programmer nhận kế hoạch đã điều chỉnh, áp dụng bản vá kết hợp, và kích hoạt kiểm chứng lại Gate 4
+
+Scenario: [ALR-EC-04] [Tier C - Integration] Thứ tự thực thi Gate 3 được tự động xác nhận qua compute_execution_order
+
+Given nhiều tệp task có liên kết phụ thuộc rõ ràng trong .devtool/features/
+When runner tiến vào Giai đoạn 3 Triển khai
+Then compute_execution_order.py được thực thi để giải quyết tuần tự thực thi theo topo
+And trình tự task kết quả được tự động xác nhận và ghi vào .devtool/GATE_LEDGER.md dưới Gate 3
+And việc thực thi task bắt đầu ngay lập tức mà không hiển thị prompt tương tác
+```
+
+## Chuyển đổi trạng thái
+
+```gherkin
+Scenario: [ALR-ST-01] [Tier C - Integration] Lưu trữ và khôi phục trạng thái sau sự cố ngắt quãng ở giai đoạn trung gian
+
+Given runner bị ngắt quãng bởi SIGINT trong khi đang thực thi task ở Giai đoạn 3
+When lifecycle_runner.py được gọi lại với cờ --resume
+Then runner đọc tệp .devtool/state/<epic>.pipeline.json
+And runner khôi phục giai đoạn đang chạy "implementation", danh sách task đã hoàn thành, và vòng hiện tại
+And việc thực thi tiếp tục từ đúng task bị ngắt quãng mà không chạy lại các task đã hoàn thành
+
+Scenario: [ALR-ST-02] [Tier C - Integration] Đồng bộ Gate Ledger trên các chuyển đổi trạng thái tự động
+
+Given pipeline tiến triển tự động qua Giai đoạn 2 và Giai đoạn 3
+When mỗi cột mốc cổng (Gate 3, Gate 4, ứng viên Gate 5) đạt được
+Then .devtool/GATE_LEDGER.md được cập nhật dấu thời gian, candidate SHA, và siêu dữ liệu tự động duyệt
+And trạng thái ledger duy trì sự đồng bộ nghiêm ngặt với .devtool/state/<epic>.pipeline.json
+
+Scenario: [ALR-ST-03] [Tier C - Integration] Thăm dò xác minh năng lực model trước khi khởi tạo trạng thái
+
+Given chuỗi model không hợp lệ hoặc đã lỗi thời được chỉ định trong cấu hình
+When lifecycle_runner.py bắt đầu bước thăm dò năng lực khởi động
+Then ModelDispatcher.probe_model thực thi một lệnh agy headless tối thiểu
+And khi gặp mã thoát khác 0 hoặc lỗi, runner hủy bỏ trước khi ghi trạng thái pipeline hoặc chỉnh sửa tệp
+And một thông báo lỗi mô tả model bị từ chối được in ra stderr
+```
+
+## Bất đồng bộ và điều kiện tranh chấp
+
+```gherkin
+Scenario: [ALR-AR-01] [Tier C - Integration] Cô lập process group và ngắt SIGTERM sạch sẽ khi quá thời gian timeout
+
+Given tiến trình agy programmer headless vượt quá giới hạn timeout đã cấu hình
+When bộ đếm thời gian giám sát trong ModelDispatcher hết hạn
+Then tín hiệu SIGTERM được gửi tới toàn bộ nhóm tiến trình con qua os.killpg
+And sau khoảng thời gian ân hạn 1.0s, tín hiệu SIGKILL được nâng cấp nếu các tiến trình con vẫn còn sống
+And runner ghi nhận lỗi timeout vào trạng thái pipeline mà không để lại các tiến trình mồ côi
+
+Scenario: [ALR-AR-02] [Tier C - Integration] Khóa tệp trong quá trình cập nhật trạng thái chống xung đột đồng thời
+
+Given các tiến trình đồng thời hoặc các chuyển đổi trạng thái liên tiếp diễn ra nhanh
+When LifecycleRunner ghi cập nhật vào .devtool/state/<epic>.pipeline.json
+Then các cập nhật trạng thái được tuần tự hóa bằng khóa tệp và thay thế nguyên tử tệp tạm (.tmp)
+And tệp trạng thái pipeline luôn là JSON hợp lệ và không bị hỏng tại mọi thời điểm
+```
+
+## Lỗi và khả năng phục hồi
+
+```gherkin
+Scenario: [ALR-FR-01] [Tier C - Integration] Circuit Breaker dừng ngay lập tức khi xung đột Shared Contract
+
+Given một vòng external review báo cáo phát hiện xung đột với shared-contracts/
+When evaluate_circuit_breakers kiểm tra báo cáo phân loại triage
+Then runner kích hoạt CIRCUIT_BREAKER_HALT (SHARED_CONTRACT_CONFLICT)
+And pipeline dừng ngay lập tức, bảo toàn toàn bộ log và trạng thái
+And màn hình console hiển thị banner cảnh báo điều hành hướng dẫn nhà phát triển tham vấn Human Architect
+
+Scenario: [ALR-FR-02] [Tier C - Integration] Circuit Breaker dừng ngay lập tức khi lặp lỗi fix loop
+
+Given một phát hiện trong Vòng N chạm vào cùng đường dẫn tệp đã được đánh dấu là sửa trong Vòng N-1
+When evaluate_circuit_breakers đánh giá so sánh giữa các vòng
+Then runner kích hoạt CIRCUIT_BREAKER_HALT (FIX_LOOP)
+And pipeline ngừng gọi công cụ và trình bày phát hiện tái diễn tới Human Architect
+
+Scenario: [ALR-FR-03] [Tier C - Integration] Circuit Breaker dừng khi hết số vòng tối đa mà vẫn còn lỗi Critical
+
+Given Cross-Model Review đạt tới Vòng 3 mà vẫn còn ít nhất 1 phát hiện Critical chưa được xử lý
+When evaluate_circuit_breakers kiểm tra bộ đếm vòng và số lượng mức độ nghiêm trọng
+Then runner kích hoạt CIRCUIT_BREAKER_HALT (MAX_ROUNDS_CRITICAL_REMAINING)
+And runner dừng lại mà không khởi chạy vòng thứ 4, xuất ra Top 3 Phát hiện Rủi ro Cao nhất
+
+Scenario: [ALR-FR-04] [Tier C - Integration] AI Assistant từ chối kế hoạch sửa lỗi với CRITICAL_CONFLICT và dừng pipeline
+
+Given AI Programmer soạn kế hoạch sửa lỗi cố gắng đảo ngược đơn phương một quyết định kiến trúc đã duyệt
+When AI Assistant đánh giá kế hoạch sửa lỗi
+Then Assistant trả về phán quyết "CRITICAL_CONFLICT" kèm lý do chi tiết
+And lifecycle_runner.py dừng lại ngay lập tức, ngăn Programmer chỉnh sửa mã nguồn
+And một cảnh báo được hiển thị tới Human Architect nêu bật xung đột kiến trúc
+```
+
+# Handoff: autonomous_lifecycle_runner
+
+## Table of Contents
+
+- [Status](#status)
+- [Identifiers](#identifiers)
+- [Read First](#read-first)
+- [Resume Prompt](#resume-prompt)
+- [Execution Guardrails for Receiving LLM](#execution-guardrails-for-receiving-llm)
+- [Open Notes](#open-notes)
+- [Revisions](#revisions)
+- [Rules for the Receiving Agent](#rules-for-the-receiving-agent)
+
+## Status
+
+- **Packaged**: 2026-11-10
+- **Design commit**: `c52e7c4`
+- **Base branch**: `main`
+- **Gates passed**: 1 (spec), 2 (HLD and task breakdown)
+- **Next**: Stage 3, `dev-implementation`. Gate 3 (execution order) still needs the developer's confirmation.
+
+## Identifiers
+
+| Placeholder | Value |
+|-------------|-------|
+| `epic_slug` | `autonomous_lifecycle_runner` |
+| `epic_dir` | `autonomous_lifecycle_runner` |
+
+These are usually different strings. Never derive one from the other.
+
+## Read First
+
+1. `.devtool/epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.en.md` — the HLD. Its Kanban Tasks Breakdown lists the 5 tasks.
+2. `.devtool/epic/autonomous_lifecycle_runner/bdd_scenarios.en.md` — the behavioural contract.
+3. `.devtool/epic/autonomous_lifecycle_runner/2026-11-10-autonomous-lifecycle-runner-design.en.md` — the approved source spec.
+4. `.devtool/epic/autonomous_lifecycle_runner/principal_review.md`, when present — Principal Review rounds and decisions.
+
+## Resume Prompt
+
+```text
+[PERSONA: AI PROGRAMMER — SENIOR TDD SOFTWARE ENGINEER]
+Use the d3nexus:dev-implementation skill for the `autonomous_lifecycle_runner` epic.
+Read .devtool/epic/autonomous_lifecycle_runner/handoff.md first.
+Run: python3 scripts/resume_context.py --role programmer --epic autonomous_lifecycle_runner
+Apply the Execution Guardrails for Receiving LLM before presenting Gate 3.
+Gates 1 and 2 are passed; do not re-run brainstorming or design.
+Gate 3 is pending: present the execution order to me and wait for my confirmation.
+```
+
+## Execution Guardrails for Receiving LLM
+
+Fast executor models and receiving agents MUST adhere to these four hard guardrails throughout implementation:
+
+1. **Bounded context protocol**:
+   - Step 1: Read only the active task file (`.devtool/features/task_*.md`).
+   - Step 2: Read only the exact files declared in `Allowed files` and `Read-only context`.
+   - Step 3: Look up exact symbol definitions identified under `## Decisions Already Made`.
+   Undirected whole-repository searches (`grep`, `find`, `list_dir`) are forbidden unless an unresolved import explicitly requires symbol lookup.
+2. **Strict spec fidelity**: Frozen constants, defaults, retry counts, fallback conditions, signatures, and call paths under `## Decisions Already Made` and the HLD are hard contracts. Any mismatch causes STOP and report rather than an executor-side simplification.
+3. **Zero test fakery**: Tests import or invoke real production symbols and do not reconstruct retry loops, progress math, callback behavior, or configuration resolution.
+4. **No contract repair by the executor**: The receiver never edits Verification tables, Allowed files, Definition of Done, Covers lines, protected paths, or frozen contract facts.
+
+## Open Notes
+
+None
+
+## Revisions
+
+- **2026-11-10 (`6ad5af4`)**: Initial Stage 2 packaging
+- **2026-11-10 (`6ad5af4` -> `6bad2b5`)**: Revise after Principal Review round 1
+- **2026-11-10 (`6bad2b5` -> `c7d1838`)**: Revise after Principal Review round 2 delta
+- **2026-11-10 (`c7d1838` -> `c52e7c4`)**: Align auto-triage policy, model priority, and task contracts for Principal Review Round 3
+
+## Rules for the Receiving Agent
+
+- Do not re-run `dev-brainstorming` or `dev-designer`. Raise a wrong or missing document at Gate 3.
+- This handoff does not pass Gate 3. The developer confirms the execution order.
+- Unless the design commit is `uncommitted`: if `git log c52e7c4..main -- .devtool/epic/autonomous_lifecycle_runner` lists any commit besides the `Package epic for handoff` commit, the documents changed after packaging. The documents win, and this file may be stale. Comparing against the base branch keeps the epic branch's own task commits out of the check.
+- This file is updated only by `package_epic.py --revise`, which records each re-anchoring under `## Revisions`.
+- Never edit a task's Verification table, Definition of Done, Allowed files or a protected path; stop and report.
+
+exec
+/bin/zsh -lc "rg -n 'def |providers|assistant|AUTO_|CIRCUIT|add_argument|dirty|subprocess|SIG|fixed in' skills/dev-implementation/resources/scripts/run_external_review.py" in /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/autonomous_lifecycle_runner
+ succeeded in 0ms:
+26:import subprocess
+64:    "providers": {
+90:def _is_git_tracked(root: Path, rel_path: str) -> bool:
+92:        res = subprocess.run(
+103:def load_review_config(root: Path) -> dict[str, Any]:
+114:        existing_providers = data.get("providers")
+115:        missing_default_provider = not isinstance(existing_providers, dict) or any(
+116:            p not in existing_providers for p in DEFAULT_REVIEW_CONFIG["providers"]
+118:        if isinstance(existing_providers, dict):
+119:            for p, pdata in existing_providers.items():
+121:                    cfg["providers"].setdefault(p, {})
+122:                    cfg["providers"][p].update(pdata)
+130:def save_review_config(root: Path, config: dict[str, Any]) -> None:
+138:def update_sticky_review_config(root: Path, cli: str, model: str | None, thinking_level: str | None) -> None:
+142:        if cli not in cfg.get("providers", {}):
+143:            cfg.setdefault("providers", {})[cli] = {}
+145:            cfg["providers"][cli]["model"] = model
+147:            cfg["providers"][cli]["thinking_level"] = thinking_level
+153:def evaluate_provider_quota(cli: str, quota_data: dict[str, Any]) -> tuple[bool, str]:
+189:def _default_quota_fetcher(cli: str) -> dict[str, Any]:
+213:def select_provider_by_quota(
+237:def resolve_review_settings(
+275:    provider_cfg = config.get("providers", {}).get(cli, {})
+276:    default_model = DEFAULT_REVIEW_CONFIG["providers"].get(cli, {}).get("model", "default")
+282:    default_thinking = DEFAULT_REVIEW_CONFIG["providers"].get(cli, {}).get("thinking_level", "high")
+290:def principal_prompt_path() -> Path:
+297:def principal_rules_path() -> Path:
+305:def review_file(kind: str) -> tuple[str, str]:
+311:def principal_artefact_lines(root: Path, epic_dir: str) -> str:
+431:    def __init__(self, gate: str, reason: str, details: str = "") -> None:
+438:def print_gate_banner(error: PreconditionFailedError, cli: str) -> None:
+455:def status_lines(root: Path) -> list[str]:
+459:def head_of(root: Path) -> str:
+463:def execute(command: list[str] | str, root: Path, timeout: int, prompt: str | None = None,
+473:    process = subprocess.Popen(command, cwd=root, shell=shell, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+474:                               stderr=subprocess.PIPE, start_new_session=True, env=env)
+478:    except subprocess.TimeoutExpired:
+479:        os.killpg(process.pid, signal.SIGKILL)
+485:def run_gate(label: str, command: list[str] | str, root: Path, timeout: int,
+501:def fact(label: str, code: int | None, out: str, err: str) -> str:
+505:def collect_facts(root: Path, epic_dir: str, base: str, hld_text: str, timeout: int) -> tuple[str, str]:
+637:def artefact_lines(root: Path, epic_dir: str) -> str:
+646:def build_diff_section(root: Path, base: str, sha: str, max_lines: int = MAX_DIFF_LINES, max_bytes: int = MAX_DIFF_BYTES) -> str:
+680:def diff_range(root: Path, base: str, commits: str | None = None) -> tuple[str, str]:
+716:def effective_model(cli: str, model: str | None) -> str:
+719:    return str(DEFAULT_REVIEW_CONFIG["providers"].get(cli, {}).get("model", "default"))
+722:def effective_thinking_level(cli: str, thinking_level: str | None) -> str:
+725:    return str(DEFAULT_REVIEW_CONFIG["providers"].get(cli, {}).get("thinking_level", "high"))
+728:def resolve_cli_binary(cli: str) -> str | None:
+734:def cli_command(cli: str, model: str | None, thinking_level: str | None = None) -> list[str]:
+785:def format_findings_summary(findings: list[tuple[str, str, str]] | list[list[str]]) -> str:
+802:def format_triage_header(
+825:def cell(text: str) -> str:
+829:def fence_for(text: str) -> str:
+834:def rounds_in(text: str) -> list[tuple[int, list[str]]]:
+852:def split_row(line: str) -> list[str]:
+856:def metadata(lines: list[str]) -> list[str]:
+861:def table_findings(lines: list[str]) -> list[tuple[str, list[str]]]:
+866:def parse_findings(out: str, verdict: str | None = None) -> list[tuple[str, str, str]]:
+880:def render_round(number: int, meta: dict[str, str], findings: list[tuple[str, str, str]], output: str) -> str:
+889:def run_principal_doc(root: Path, args: argparse.Namespace, sha: str) -> int:
+956:def delta_round_context(root: Path, args: argparse.Namespace, sha: str, kind: str = "principal") -> tuple[str, dict[str, str]]:
+1009:            if len(row) >= 5 and row[4].strip().lower().startswith("fixed in"):
+1037:        "Strictly honor all `dismissed: <rationale>` decisions and `fixed in <sha>` resolutions recorded in the "
+1082:        "2. **Verify-Then-Close on Fixed Locations**: For each finding below marked `fixed in <sha>`, verify whether the revision "
+1105:def _completed_rounds_count(root: Path, epic_dir: str | None, kind: str) -> int:
+1115:def run_principal(root: Path, args: argparse.Namespace, sha: str) -> int:
+1155:def run_adhoc_code(root: Path, args: argparse.Namespace, sha: str) -> int:
+1214:def run(args: argparse.Namespace) -> int:
+1304:def live_log_dir(root: Path, epic_dir: str) -> Path:
+1309:    if subprocess.run(["git", "check-ignore", "-q", str(visible)], cwd=root, check=False).returncode == 0:
+1314:def run_local(root: Path, args: argparse.Namespace, sha: str, audit_output: str, results_output: str,
+1363:def tree_changes(root: Path, before: list[str], sha: str) -> list[str]:
+1371:def path_of(location: str) -> str:
+1376:def annotate(finding: tuple[str, str, str], shown: str) -> tuple[str, str, str]:
+1384:def pass_output(item: Pass, number: int, args: argparse.Namespace) -> str:
+1393:def record_round(root: Path, args: argparse.Namespace, sha: str, passes: list[Pass],
+1458:def check(args: argparse.Namespace) -> int:
+1470:        elif cells[1] in BLOCKING and not cells[4].startswith(("fixed in ", "dismissed: ")):
+1477:def round_meta(lines: list[str]) -> dict[str, str]:
+1482:def round_output(lines: list[str]) -> str:
+1493:def round_passes(output: str) -> list[tuple[str, str, str]]:
+1509:def finding_rows(lines: list[str]) -> list[list[str]]:
+1513:def comparison_row(number: int, lines: list[str]) -> str:
+1516:    fixed = sum(cells[4].startswith("fixed in ") for cells in rows)
+1518:    undecided = sum(cells[1] in BLOCKING and not cells[4].startswith(("fixed in ", "dismissed: ")) for cells in rows)
+1524:def since_lines(previous: list[list[str]], latest: list[list[str]]) -> list[str]:
+1528:        fixed = cells[4].startswith("fixed in ")
+1567:def is_shared_contract_conflict(row: list[str]) -> bool:
+1573:def _finding_risk_sort_key(row: list[str]) -> tuple[int, int, int, int, int]:
+1588:def top_risk_findings_section(latest: list[list[str]], limit: int = 3) -> list[str]:
+1613:def auto_triage_section(
+1630:            if prev[4].startswith("fixed in ")
+1638:        action = "AUTO_PASS_FINAL_MINOR_SWEEP" if minor_rows else "AUTO_PASS_CLEAN"
+1648:        action = "CIRCUIT_BREAKER_HALT (SHARED_CONTRACT_CONFLICT)"
+1656:        action = "CIRCUIT_BREAKER_HALT (FIX_LOOP)"
+1663:        action = "CIRCUIT_BREAKER_HALT (MAX_ROUNDS_CRITICAL_REMAINING)"
+1669:        action = "AUTO_PASS_FINAL_SWEEP"
+1675:        action = "AUTO_FIX_ELIGIBLE"
+1691:def triage(args: argparse.Namespace) -> int:
+1757:def main(argv: list[str] | None = None) -> int:
+1761:    runner.add_argument("--kind", choices=KINDS, default="code")
+1762:    runner.add_argument("--epic-dir")
+1763:    runner.add_argument("--doc")
+1764:    runner.add_argument("--base", required=True)
+1765:    runner.add_argument("--cli", choices=("claude", "codex", "ollama", "agy", "kiro"), default=None)
+1766:    runner.add_argument("--model")
+1767:    runner.add_argument("--thinking-level", choices=THINKING_LEVELS, default=None)
+1768:    runner.add_argument("--host", default=local_review.host_from_env())
+1769:    runner.add_argument("--num-ctx", type=int, default=None)
+1770:    runner.add_argument("--timeout", type=int, default=1800)
+1771:    runner.add_argument("--facts-timeout", type=int, default=300)
+1772:    runner.add_argument("--diff-limit", type=int, default=MAX_DIFF_LINES)
+1773:    runner.add_argument("--commits")
+1774:    runner.add_argument("--developer-note")
+1775:    runner.add_argument("--max-rounds", type=int, default=MAX_REVIEW_ROUNDS,
+1777:    runner.add_argument("--force", action="store_true",
+1779:    runner.add_argument("--auto-quota", action="store_true",
+1781:    runner.add_argument("--full", action="store_true",
+1784:    checker.add_argument("--kind", choices=KINDS, default="code")
+1785:    checker.add_argument("--epic-dir", required=True)
+1787:    triager.add_argument("--kind", choices=KINDS, default="code")
+1788:    triager.add_argument("--epic-dir", required=True)
+1789:    triager.add_argument("--max-rounds", type=int, default=MAX_REVIEW_ROUNDS)
+
+exec
+/bin/zsh -lc 'nl -ba .devtool/epic/autonomous_lifecycle_runner/task_1_pipeline_state_machine_and_probing.md; nl -ba .devtool/epic/autonomous_lifecycle_runner/task_2_subprocess_dispatcher_and_headless_agy.md' in /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/autonomous_lifecycle_runner
+ succeeded in 0ms:
+     1	---
+     2	id: "task_1_pipeline_state_machine_and_probing"
+     3	status: "todo"
+     4	priority: "high"
+     5	assignee: null
+     6	epic: "autonomous_lifecycle_runner"
+     7	dueDate: null
+     8	created: "2026-11-10T19:16:00Z"
+     9	modified: "2026-11-10T19:16:00Z"
+    10	completedAt: null
+    11	labels: ["lifecycle", "state-machine", "persistence"]
+    12	order: "a1"
+    13	---
+    14	
+    15	# Task 1: Pipeline State Machine, Persistence, and Model Probing
+    16	
+    17	Epic: [autonomous_lifecycle_runner](autonomous_lifecycle_runner.en.md)
+    18	
+    19	## Requirement Analysis
+    20	
+    21	Implement the foundational state machine and persistence infrastructure for `lifecycle_runner.py`:
+    22	1. Core enumerations and dataclasses: `StageName`, `FixPlanVerdict`, `RunnerConfig`, and `PipelineState`.
+    23	2. Atomic JSON persistence in `.devtool/state/<epic>.pipeline.json` using atomic temporary file renaming and file locking (`fcntl.flock`).
+    24	3. Crash recovery logic: `LifecycleRunner.load_or_init_state` restores active stage, round counters, last commit SHA, and completed task lists from existing state files.
+    25	4. Gate Ledger synchronization: updates `.devtool/GATE_LEDGER.md` with timestamps, candidate SHAs, and autonomous verification entries.
+    26	5. Model capability prober: `ModelDispatcher.probe_model` executes a fast, minimal headless invocation to verify that the CLI accepts the configured model identifiers (`gemini-3.8-flash` and Assistant model) before initializing state.
+    27	6. Create unit test suite `tests/test_lifecycle_runner.py` verifying state recovery, probing, and persistence.
+    28	
+    29	## Files
+    30	
+    31	Allowed files:
+    32	- `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py` (new)
+    33	- `tests/test_lifecycle_runner.py` (new)
+    34	
+    35	Read-only context:
+    36	- `scripts/resume_context.py` — state persistence patterns, gate hydration, and Gate Ledger formatting
+    37	- `.devtool/epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.en.md` — Module Contracts
+    38	- `.agents/quality/python-quality.json` — registered capabilities
+    39	
+    40	## Design Rationale
+    41	
+    42	Atomic writes via temporary files combined with `fcntl.flock` prevent JSON corruption when processes are aborted or interrupted. The startup probe guarantees that typos or deprecated model strings are caught instantly prior to executing any task or modifying any repository state. Applicable skills: `d3nexus:test-driven-development`, `d3nexus:python-quality-check`.
+    43	
+    44	## Impact Analysis & Blast Radius
+    45	
+    46	- **Target files and symbols**: `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py` (`StageName`, `FixPlanVerdict`, `RunnerConfig`, `PipelineState`, `ModelDispatcher.probe_model`, `LifecycleRunner.save_state`, `LifecycleRunner.load_or_init_state`).
+    47	- **Downstream callers**: Tasks 2 through 5 will build directly on these contracts.
+    48	- **Cross-platform bridges**: None.
+    49	- **Target test coverage threshold**: 100% branch coverage on state serialization and error handling.
+    50	
+    51	### BDD SCENARIOS
+    52	
+    53	Covers: ALR-ST-03, ALR-AR-02
+    54	
+    55	```gherkin
+    56	Scenario: [ALR-ST-03] [Tier C - Integration] Probing verifies model capabilities before state initialization
+    57	
+    58	Given an invalid or deprecated model string specified in configuration
+    59	When lifecycle_runner.py initiates the startup capability probe
+    60	Then ModelDispatcher.probe_model executes a minimal headless agy call
+    61	And upon non-zero exit or error, the runner aborts before writing pipeline state or modifying files
+    62	And a descriptive error message indicating the rejected model is printed to stderr
+    63	
+    64	Scenario: [ALR-AR-02] [Tier C - Integration] File locking during state updates prevents concurrency corruption
+    65	
+    66	Given concurrent processes or rapid consecutive state transitions
+    67	When LifecycleRunner writes updates to .devtool/state/<epic>.pipeline.json
+    68	Then state updates are serialized using file locking and atomic temporary file replacement (.tmp rename)
+    69	And the pipeline state file remains valid and uncorrupted JSON at all times
+    70	```
+    71	
+    72	## Verification
+    73	
+    74	| ID | Phase | Command | Expect | Needs |
+    75	|----|-------|---------|--------|-------|
+    76	| V1 | RED | `python3 -m unittest tests/test_lifecycle_runner.py -k test_alr_st_03` | exit 1; contains "FAILED" | — |
+    77	| V2 | GREEN | `python3 -m unittest tests/test_lifecycle_runner.py -k test_alr_st_03` | exit 0; contains "OK" | — |
+    78	| V3 | GREEN | `python3 -m unittest tests/test_lifecycle_runner.py` | exit 0; contains "OK" | — |
+    79	| V4 | TIER-B | `ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py tests/test_lifecycle_runner.py` | exit 0 | — |
+    80	| V5 | TIER-B | `mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py tests/test_lifecycle_runner.py` | exit 0 | — |
+    81	| V6 | TIER-C | `python3 scripts/run_unittest_junit.py --junitxml build/test-results/task_1.xml tests/test_lifecycle_runner.py` | exit 0; results build/test-results/task_1.xml | — |
+    82	
+    83	## Stop and Report If
+    84	
+    85	- A command, path, symbol or anchor named in this task does not match the repository.
+    86	- A Verification row fails for a reason other than its Expect.
+    87	- The work needs a change to a file outside Allowed files, or to a protected path.
+    88	- The work needs a change to this task's Verification table, Definition of Done, Allowed files or
+    89	  Covers line.
+    90	- A variable named in the Needs column is unset.
+    91	- Atomic state file serialization fails on POSIX file systems.
+    92	
+    93	## Decisions Already Made
+    94	
+    95	- `StageName` enum: `initialized`, `principal_review`, `awaiting_principal_confirmation`, `implementation`, `cross_model_review`, `awaiting_finish`, `completed`, `halted`.
+    96	- `FixPlanVerdict` enum: `APPROVED`, `ADJUSTED`, `CRITICAL_CONFLICT`.
+    97	- `RunnerConfig` defaults: `programmer_model="gemini-3.8-flash"`, `programmer_effort="high"`, `assistant_model=None` (precedence: CLI `--assistant-model` -> `.devtool/review_config.json` `providers.assistant.model` -> active profile model -> fallback `claude-sonnet-5-5-high`), `assistant_effort="high"`, `timeout_seconds=1800`, `max_review_rounds=3`.
+    98	- `PipelineState` tracks `epic_slug`, `active_stage`, `principal_round`, `cross_model_round`, `last_commit_sha`, `last_verdict`, `halt_reason`, `last_error`, `task_order`, and `completed_tasks`.
+    99	- State is serialized to `.devtool/state/<epic>.pipeline.json` via `.tmp` rename with `fcntl.flock(fd, fcntl.LOCK_EX)`.
+   100	- Gate updates execute via `resume_context.py --gate <n> --epic <slug> --approved "<text>" --by lifecycle_runner` to guarantee synchronization with `gate_ledger.jsonl`.
+   101	
+   102	## Definition of Done
+   103	
+   104	- Scenarios ALR-ST-03, ALR-AR-02 are covered and pass in the test suite. (V2, V3, V6)
+   105	- Python quality checks (lint and type check) pass cleanly. (V4, V5)
+   106	- State persistence and recovery work reliably across interrupted sessions. (Gate 5)
+   107	
+   108	## Dependencies & Blockers
+   109	
+   110	None. Blocks [Task 2](task_2_subprocess_dispatcher_and_headless_agy.md), [Task 3](task_3_principal_review_automation_and_checkpoint.md), [Task 4](task_4_cross_model_review_fix_plan_loop.md), and [Task 5](task_5_orchestrator_cli_and_governance_rules.md).
+   111	
+   112	## References & Rollback
+   113	
+   114	- [Epic HLD](autonomous_lifecycle_runner.en.md), Module Contracts.
+   115	- **Rollback**: Revert task commit; deletes `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py` and `tests/test_lifecycle_runner.py`.
+     1	---
+     2	id: "task_2_subprocess_dispatcher_and_headless_agy"
+     3	status: "todo"
+     4	priority: "high"
+     5	assignee: null
+     6	epic: "autonomous_lifecycle_runner"
+     7	dueDate: null
+     8	created: "2026-11-10T19:16:00Z"
+     9	modified: "2026-11-10T19:16:00Z"
+    10	completedAt: null
+    11	labels: ["lifecycle", "process-supervision", "dispatcher"]
+    12	order: "a2"
+    13	---
+    14	
+    15	# Task 2: Subprocess Dispatcher and Headless agy Runner
+    16	
+    17	Epic: [autonomous_lifecycle_runner](autonomous_lifecycle_runner.en.md)
+    18	
+    19	## Requirement Analysis
+    20	
+    21	Implement headless model dispatching and process supervision in `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py`:
+    22	1. Implement `ModelDispatcher.dispatch` executing headless command `agy --print "<prompt>" --model <model> --effort <effort> --mode <mode>`.
+    23	2. Process isolation: spawn subprocesses with `start_new_session=True` so child processes run within a dedicated POSIX process group.
+    24	3. Timeout and termination fencing: supervisor timer triggers `os.killpg(pgid, signal.SIGTERM)`, awaits a 1.0s grace period, and escalates to `os.killpg(pgid, signal.SIGKILL)` if processes remain alive.
+    25	4. Auto Gate 3 order calculation: implement `LifecycleRunner.resolve_gate3_order` calling `compute_execution_order.py`, validating topological task order, auto-confirming Gate 3, and recording the execution order in `.devtool/GATE_LEDGER.md`.
+    26	5. Implementation loop: implement `LifecycleRunner.step_implementation` to loop through the resolved tasks in order, dispatch the Programmer headless subprocess for each task via stdin, capture per-task logs, sync task status, commit each task cleanly (`[AUTONOMOUS_LIFECYCLE_RUNNER] Execute <task_slug>`), and recover from crash or interruption via saved state (`ALR-ST-01`).
+    27	6. Implement unit tests in `tests/test_lifecycle_runner.py` covering `ALR-HP-02`, `ALR-EC-04`, `ALR-AR-01`, and `ALR-ST-01`.
+    28	
+    29	## Files
+    30	
+    31	Allowed files:
+    32	- `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py` (new)
+    33	- `tests/test_lifecycle_runner.py` (new)
+    34	
+    35	Read-only context:
+    36	- `skills/dev-implementation/resources/scripts/compute_execution_order.py` — topological sort implementation
+    37	- `scripts/resume_context.py` — gate approval recording
+    38	- `.devtool/epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.en.md` — Module Contracts
+    39	- `.agents/quality/python-quality.json` — registered capabilities
+    40	
+    41	## Design Rationale
+    42	
+    43	Executing headless LLM sessions in isolated process groups (`start_new_session=True`) ensures that runaway child processes, compiler daemons, or spawned test runners are terminated cleanly when timeouts occur. Auto-confirming Gate 3 via `compute_execution_order.py` removes the interactive menu prompt while maintaining dependency safety. Applicable skills: `d3nexus:test-driven-development`, `d3nexus:python-quality-check`.
+    44	
+    45	## Impact Analysis & Blast Radius
+    46	
+    47	- **Target files and symbols**: `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py` (`ModelDispatcher.dispatch`, `LifecycleRunner.resolve_gate3_order`).
+    48	- **Downstream callers**: Stage 3 implementation loop and review dispatcher.
+    49	- **Cross-platform bridges**: None.
+    50	- **Target test coverage threshold**: 100% of dispatch and process termination paths.
+    51	
+    52	### BDD SCENARIOS
+    53	
+    54	Covers: ALR-HP-02, ALR-EC-04, ALR-AR-01, ALR-ST-01
+    55	
+    56	```gherkin
+    57	Scenario: [ALR-HP-02] [Tier C - Integration] Headless dispatch of AI Programmer with Gemini 3.8 Flash High
+    58	
+    59	Given a pending implementation task file in .devtool/features/task_1_pipeline_state_machine_and_probing.md
+    60	When lifecycle_runner.py dispatches the AI Programmer for task execution
+    61	Then the dispatched command executes "agy" with "--model gemini-3.8-flash"
+    62	And the command specifies "--effort high" and "--mode auto"
+    63	And the execution runs inside the isolated git worktree with dedicated process group supervision
+    64	
+    65	Scenario: [ALR-EC-04] [Tier C - Integration] Gate 3 execution order auto-confirmed via compute_execution_order
+    66	
+    67	Given multiple task files with explicit dependency links in .devtool/features/
+    68	When the runner enters Stage 3 Implementation
+    69	Then compute_execution_order.py is executed to resolve the topological execution sequence
+    70	And the resulting task sequence is auto-confirmed and recorded in .devtool/GATE_LEDGER.md under Gate 3
+    71	And task execution begins immediately without presenting an interactive prompt
+    72	
+    73	Scenario: [ALR-AR-01] [Tier C - Integration] Subprocess group process isolation and clean SIGTERM termination on timeout
+    74	
+    75	Given a headless agy programmer process exceeds the configured timeout limit
+    76	When the supervisor timer expires in ModelDispatcher
+    77	Then SIGTERM is broadcast to the entire subprocess group via os.killpg
+    78	And after a 1.0s grace period, SIGKILL is escalated if the child processes remain alive
+    79	And the runner records a timeout failure in the pipeline state without leaving orphaned processes
+    80	
+    81	Scenario: [ALR-ST-01] [Tier C - Integration] State persistence and resumption from crash in intermediate stage
+    82	
+    83	Given the runner is interrupted by SIGINT during Stage 3 task execution
+    84	When lifecycle_runner.py is invoked again with --resume
+    85	Then the runner reads .devtool/state/<epic>.pipeline.json
+    86	And the runner recovers the active stage "implementation", completed task list, and current round
+    87	And execution resumes from the exact interrupted task without re-running completed tasks
+    88	```
+    89	
+    90	## Verification
+    91	
+    92	| ID | Phase | Command | Expect | Needs |
+    93	|----|-------|---------|--------|-------|
+    94	| V1 | RED | `python3 -m unittest tests/test_lifecycle_runner.py -k test_alr_hp_02` | exit 1; contains "FAILED" | — |
+    95	| V2 | GREEN | `python3 -m unittest tests/test_lifecycle_runner.py -k test_alr_hp_02` | exit 0; contains "OK" | — |
+    96	| V3 | GREEN | `python3 -m unittest tests/test_lifecycle_runner.py` | exit 0; contains "OK" | — |
+    97	| V4 | TIER-B | `ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py tests/test_lifecycle_runner.py` | exit 0 | — |
+    98	| V5 | TIER-B | `mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py tests/test_lifecycle_runner.py` | exit 0 | — |
+    99	| V6 | TIER-C | `python3 scripts/run_unittest_junit.py --junitxml build/test-results/task_2.xml tests/test_lifecycle_runner.py` | exit 0; results build/test-results/task_2.xml | — |
+   100	
+   101	## Stop and Report If
+   102	
+   103	- A command, path, symbol or anchor named in this task does not match the repository.
+   104	- A Verification row fails for a reason other than its Expect.
+   105	- The work needs a change to a file outside Allowed files, or to a protected path.
+   106	- The work needs a change to this task's Verification table, Definition of Done, Allowed files or
+   107	  Covers line.
+   108	- A variable named in the Needs column is unset.
+   109	- `compute_execution_order.py` detects a dependency cycle among task files.
+   110	
+   111	## Decisions Already Made
+   112	
+   113	- The Programmer is dispatched with `--model <model>` (default: `gemini-3.8-flash`), `--effort high`, and `--mode auto` inside the worktree directory, with prompts piped via stdin.
+   114	- `subprocess.Popen` is launched with `start_new_session=True` so `pgid = p.pid` provides the process group ID. On timeout or exit, `os.killpg(pgid, signal.SIGTERM)` is called (handling `ProcessLookupError` gracefully) followed by SIGKILL escalation if needed.
+   115	- Gate 3 auto-confirmation runs `compute_execution_order.py`, parses the sequential order from the `Flattened sequential order:` output block (or imports `load_tasks`), fails on non-zero exit or manual review notes, and records Gate 3 approval via `resume_context.py --gate 3 --epic <slug> --approved "<order>" --by lifecycle_runner`.
+   116	- `step_implementation` iterates sequentially over tasks, captures stdout/stderr to task log files, updates task status to done, and commits changes per task (`[AUTONOMOUS_LIFECYCLE_RUNNER] Execute <task_slug>`).
+   117	
+   118	## Definition of Done
+   119	
+   120	- Scenarios ALR-HP-02, ALR-EC-04, ALR-AR-01, ALR-ST-01 are covered and pass in the test suite. (V2, V3, V6)
+   121	- Python quality checks (lint and type check) pass cleanly. (V4, V5)
+   122	- Process termination leaves zero orphan processes upon timeout. (Gate 5)
+   123	
+   124	## Dependencies & Blockers
+   125	
+   126	- Blocked by [Task 1](task_1_pipeline_state_machine_and_probing.md).
+   127	- Blocks [Task 3](task_3_principal_review_automation_and_checkpoint.md), [Task 4](task_4_cross_model_review_fix_plan_loop.md), and [Task 5](task_5_orchestrator_cli_and_governance_rules.md).
+   128	
+   129	## References & Rollback
+   130	
+   131	- [Epic HLD](autonomous_lifecycle_runner.en.md), Module Contracts.
+   132	- **Rollback**: Revert task commit; dispatcher changes are removed.
+
+exec
+/bin/zsh -lc "nl -ba skills/dev-implementation/resources/scripts/run_external_review.py | sed -n '45,152p;455,483p;1214,1268p;1458,1477p;1567,1689p'; nl -ba skills/dev-implementation/resources/scripts/check_bdd_traceability.py | tail -105; rg -n 'def |snapshot|mirror|evidence|Verification|Features|features|epic_dir' skills/dev-implementation/resources/scripts/sync_task_status.py skills/dev-implementation/resources/scripts/task_contract.py skills/dev-implementation/resources/scripts/package_epic.py | head -100; command -v git ruff mypy python3" in /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/autonomous_lifecycle_runner
+ succeeded in 0ms:
+    45	PROMPT = SCRIPTS.parent.parent / "references" / "external-review-prompt.md"
+    46	RULES = SCRIPTS.parent.parent / "references" / "review-rules.md"
+    47	KINDS = ("code", "principal", "epic")
+    48	REVIEW_CONFIG_FILE = ".devtool/review_config.json"
+    49	THINKING_LEVELS = ("none", "light", "low", "medium", "high", "extra-high")
+    50	PROVIDER_PRIORITY: tuple[str, ...] = ("claude", "codex", "kiro", "agy")
+    51	MAX_REVIEW_ROUNDS = 3
+    52	QUOTA_THRESHOLDS: dict[str, float] = {
+    53	    "5h_min_fraction": 0.15,
+    54	    "7d_min_fraction": 0.02,
+    55	    "kiro_min_fraction": 0.03,
+    56	    "kiro_min_credits": 15.0,
+    57	    "agy_argon_min_fraction": 0.10,
+    58	}
+    59	DEFAULT_REVIEW_CONFIG: dict[str, Any] = {
+    60	    "last_used_provider": "claude",
+    61	    "provider_priority": list(PROVIDER_PRIORITY),
+    62	    "max_rounds": MAX_REVIEW_ROUNDS,
+    63	    "quota_thresholds": dict(QUOTA_THRESHOLDS),
+    64	    "providers": {
+    65	        "claude": {
+    66	            "model": "Opus 5.5",
+    67	            "thinking_level": "high",
+    68	        },
+    69	        "codex": {
+    70	            "model": "gpt-6.1-sol",
+    71	            "thinking_level": "high",
+    72	        },
+    73	        "kiro": {
+    74	            "model": "claude-opus-5.5",
+    75	            "thinking_level": "high",
+    76	        },
+    77	        "agy": {
+    78	            "model": "Gemini 4 Argon (Medium)",
+    79	            "thinking_level": "medium",
+    80	        },
+    81	        "ollama": {
+    82	            "model": "qwen38-fast:latest",
+    83	            "thinking_level": "high",
+    84	            "host": "http://localhost:11434",
+    85	        },
+    86	    },
+    87	}
+    88	
+    89	
+    90	def _is_git_tracked(root: Path, rel_path: str) -> bool:
+    91	    try:
+    92	        res = subprocess.run(
+    93	            ["git", "ls-files", "--error-unmatch", rel_path],
+    94	            cwd=root,
+    95	            capture_output=True,
+    96	            check=False,
+    97	        )
+    98	        return res.returncode == 0
+    99	    except OSError:
+   100	        return False
+   101	
+   102	
+   103	def load_review_config(root: Path) -> dict[str, Any]:
+   104	    path = root / REVIEW_CONFIG_FILE
+   105	    if not path.is_file():
+   106	        return copy.deepcopy(DEFAULT_REVIEW_CONFIG)
+   107	    try:
+   108	        data = json.loads(path.read_text(encoding="utf-8"))
+   109	        if not isinstance(data, dict):
+   110	            return copy.deepcopy(DEFAULT_REVIEW_CONFIG)
+   111	        cfg: dict[str, Any] = copy.deepcopy(DEFAULT_REVIEW_CONFIG)
+   112	        if "last_used_provider" in data and isinstance(data["last_used_provider"], str):
+   113	            cfg["last_used_provider"] = data["last_used_provider"]
+   114	        existing_providers = data.get("providers")
+   115	        missing_default_provider = not isinstance(existing_providers, dict) or any(
+   116	            p not in existing_providers for p in DEFAULT_REVIEW_CONFIG["providers"]
+   117	        )
+   118	        if isinstance(existing_providers, dict):
+   119	            for p, pdata in existing_providers.items():
+   120	                if isinstance(pdata, dict):
+   121	                    cfg["providers"].setdefault(p, {})
+   122	                    cfg["providers"][p].update(pdata)
+   123	        if missing_default_provider and not _is_git_tracked(root, REVIEW_CONFIG_FILE):
+   124	            save_review_config(root, cfg)
+   125	        return cfg
+   126	    except (json.JSONDecodeError, OSError, UnicodeDecodeError):
+   127	        return copy.deepcopy(DEFAULT_REVIEW_CONFIG)
+   128	
+   129	
+   130	def save_review_config(root: Path, config: dict[str, Any]) -> None:
+   131	    path = root / REVIEW_CONFIG_FILE
+   132	    path.parent.mkdir(parents=True, exist_ok=True)
+   133	    tmp_path = path.with_name(f"{path.name}.tmp")
+   134	    tmp_path.write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
+   135	    tmp_path.replace(path)
+   136	
+   137	
+   138	def update_sticky_review_config(root: Path, cli: str, model: str | None, thinking_level: str | None) -> None:
+   139	    try:
+   140	        cfg = load_review_config(root)
+   141	        cfg["last_used_provider"] = cli
+   142	        if cli not in cfg.get("providers", {}):
+   143	            cfg.setdefault("providers", {})[cli] = {}
+   144	        if model:
+   145	            cfg["providers"][cli]["model"] = model
+   146	        if thinking_level:
+   147	            cfg["providers"][cli]["thinking_level"] = thinking_level
+   148	        save_review_config(root, cfg)
+   149	    except (json.JSONDecodeError, OSError, UnicodeDecodeError):
+   150	        pass
+   151	
+   152	
+   455	def status_lines(root: Path) -> list[str]:
+   456	    return git_run(root, "status", "--porcelain").decode("utf-8", "replace").splitlines()
+   457	
+   458	
+   459	def head_of(root: Path) -> str:
+   460	    return git_run(root, "rev-parse", "HEAD").decode().strip()
+   461	
+   462	
+   463	def execute(command: list[str] | str, root: Path, timeout: int, prompt: str | None = None,
+   464	            shell: bool = False) -> tuple[int | None, str, str]:
+   465	    """Run to completion in its own process group, so a timeout also ends the CLI's children."""
+   466	    env = None
+   467	    if isinstance(command, list) and command and Path(command[0]).name in ("kiro-cli", "kiro"):
+   468	        home = os.environ.get("HOME", "")
+   469	        if "/antigravity_homes/" in home:
+   470	            real_home = Path(home).parents[1]
+   471	            if (real_home / "Library" / "Application Support" / "kiro-cli").exists() or (real_home / ".kiro").exists():
+   472	                env = dict(os.environ, HOME=str(real_home))
+   473	    process = subprocess.Popen(command, cwd=root, shell=shell, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+   474	                               stderr=subprocess.PIPE, start_new_session=True, env=env)
+   475	    try:
+   476	        out, err = process.communicate((prompt or "").encode(), timeout=timeout)
+   477	        code: int | None = process.returncode
+   478	    except subprocess.TimeoutExpired:
+   479	        os.killpg(process.pid, signal.SIGKILL)
+   480	        out, err = process.communicate()
+   481	        code = None
+   482	    return code, out.decode("utf-8", "replace"), err.decode("utf-8", "replace")
+   483	
+  1214	def run(args: argparse.Namespace) -> int:
+  1215	    kind = getattr(args, "kind", "code")
+  1216	    root = Path(git_run(Path.cwd(), "rev-parse", "--show-toplevel").decode().strip())
+  1217	
+  1218	    cli, model, thinking_level = resolve_review_settings(
+  1219	        root=root,
+  1220	        epic_dir=getattr(args, "epic_dir", None),
+  1221	        kind=kind,
+  1222	        cli_arg=args.cli,
+  1223	        model_arg=args.model,
+  1224	        thinking_arg=getattr(args, "thinking_level", None),
+  1225	        auto_quota=bool(getattr(args, "auto_quota", False)),
+  1226	    )
+  1227	    args.cli = cli
+  1228	    args.model = model
+  1229	    args.thinking_level = thinking_level
+  1230	
+  1231	    if kind == "principal" and args.cli == "ollama":
+  1232	        print("--kind principal supports --cli claude, codex, or agy (and kiro)", file=sys.stderr)
+  1233	        return 2
+  1234	
+  1235	    if args.cli == "ollama":
+  1236	        if not args.model:
+  1237	            print("--cli ollama needs --model", file=sys.stderr)
+  1238	            return 2
+  1239	    elif not resolve_cli_binary(args.cli):
+  1240	        print(f"{args.cli} not found on PATH", file=sys.stderr)
+  1241	        return 2
+  1242	    if status_lines(root):
+  1243	        print("commit or stash your changes before a review", file=sys.stderr)
+  1244	        return 2
+  1245	    max_rounds = getattr(args, "max_rounds", MAX_REVIEW_ROUNDS)
+  1246	    if getattr(args, "epic_dir", None) and not getattr(args, "force", False):
+  1247	        completed_count = _completed_rounds_count(root, args.epic_dir, kind)
+  1248	        if completed_count >= max_rounds:
+  1249	            print_gate_banner(
+  1250	                PreconditionFailedError(
+  1251	                    "Max review rounds",
+  1252	                    f"Max review rounds ({max_rounds}) reached; Circuit Breaker halted for human architect",
+  1253	                ),
+  1254	                args.cli,
+  1255	            )
+  1256	            return 2
+  1257	    sha = head_of(root)
+  1258	
+  1259	    if kind == "principal":
+  1260	        return run_principal(root, args, sha)
+  1261	
+  1262	    if not args.epic_dir:
+  1263	        return run_adhoc_code(root, args, sha)
+  1264	
+  1265	    model_ctx = None
+  1266	    if args.cli == "ollama":
+  1267	        try:
+  1268	            model_ctx = local_review.probe(args.host, args.model)
+  1458	def check(args: argparse.Namespace) -> int:
+  1459	    root = Path(git_run(Path.cwd(), "rev-parse", "--show-toplevel").decode().strip())
+  1460	    name, _ = review_file(getattr(args, "kind", "code"))
+  1461	    path = root / ".devtool" / "epic" / args.epic_dir / name
+  1462	    if not path.exists():
+  1463	        return 0
+  1464	    completed = [(n, lines) for n, lines in rounds_in(path.read_text(encoding="utf-8"))
+  1465	                 if "- **Status**: completed" in metadata(lines)]
+  1466	    undecided = []
+  1467	    for line, cells in table_findings(completed[-1][1]) if completed else []:
+  1468	        if len(cells) != 5:
+  1469	            undecided.append(f"undecided: unreadable findings row: {line.strip()}")
+  1470	        elif cells[1] in BLOCKING and not cells[4].startswith(("fixed in ", "dismissed: ")):
+  1471	            undecided.append(f"undecided: #{cells[0]} {cells[1]} {cells[2]}")
+  1472	    if undecided:
+  1473	        print("\n".join(undecided))
+  1474	    return 1 if undecided else 0
+  1475	
+  1476	
+  1477	def round_meta(lines: list[str]) -> dict[str, str]:
+  1567	def is_shared_contract_conflict(row: list[str]) -> bool:
+  1568	    """Return True when a finding directly impacts or conflicts with shared-contracts/."""
+  1569	    combined = f"{row[2]} {row[3]}".lower()
+  1570	    return any(marker in combined for marker in SHARED_CONTRACT_MARKERS)
+  1571	
+  1572	
+  1573	def _finding_risk_sort_key(row: list[str]) -> tuple[int, int, int, int, int]:
+  1574	    """Rank findings by (severity_rank, is_not_shared_contract, is_non_prod_path, missing_high_risk_keyword, original_index)."""
+  1575	    sev_rank = {"Critical": 0, "Important": 1, "Minor": 2}.get(row[1], 3)
+  1576	    not_contract = 0 if is_shared_contract_conflict(row) else 1
+  1577	    loc = row[2].lower()
+  1578	    prob = row[3].lower()
+  1579	    is_non_prod = 0 if (loc.startswith("src/") or "shared-contracts" in loc or "bdd_scenarios" in loc) else 1
+  1580	    has_risk_kw = 0 if any(kw in prob or kw in loc for kw in HIGH_RISK_KEYWORDS) else 1
+  1581	    try:
+  1582	        idx = int(row[0])
+  1583	    except ValueError:
+  1584	        idx = 999
+  1585	    return (sev_rank, not_contract, is_non_prod, has_risk_kw, idx)
+  1586	
+  1587	
+  1588	def top_risk_findings_section(latest: list[list[str]], limit: int = 3) -> list[str]:
+  1589	    """Filter and rank the Top 3 highest-risk findings for executive reporting and design-anchored fixing."""
+  1590	    if not latest:
+  1591	        return [
+  1592	            f"## Top {limit} Highest-Risk Findings (Executive Report)",
+  1593	            "",
+  1594	            "None.",
+  1595	        ]
+  1596	    ranked = sorted(latest, key=_finding_risk_sort_key)[:limit]
+  1597	    lines = [
+  1598	        f"## Top {limit} Highest-Risk Findings (Executive Report)",
+  1599	        "",
+  1600	        "> **Strict Approved-Design Anchoring & Forward-Alignment Rule**: Tier 1 (User-approved Spec `*-design.en.md` & HLD `<epic_dir>.en.md`) "
+  1601	        "takes precedence over legacy `shared-contracts/` and legacy `src/` code. When Tier 1 intentionally changes steps/enums/schemas "
+  1602	        "(e.g. 7 steps -> 5 steps) but `shared-contracts/` or `src/` still holds legacy values, NEVER propose reverting Tier 1 to the old design; "
+  1603	        "always propose **Forward Alignment** (update `shared-contracts/` + `sync_contracts.py ack` and add affected `src/` files to task `Allowed files`).",
+  1604	        "",
+  1605	        "| Rank | # | Severity | Location | Problem | Design Anchor (HLD / BDD / Decisions Already Made) | Proposed action |",
+  1606	        "|------|---|----------|----------|---------|----------------------------------------------------|-----------------|",
+  1607	    ]
+  1608	    for rank, cells in enumerate(ranked, 1):
+  1609	        lines.append(f"| #{rank} | {cells[0]} | {cells[1]} | {cell(cells[2])} | {cell(cells[3])} | ? | ? |")
+  1610	    return lines
+  1611	
+  1612	
+  1613	def auto_triage_section(
+  1614	    number: int,
+  1615	    rounds: list[tuple[int, list[str]]],
+  1616	    latest: list[list[str]],
+  1617	    max_rounds: int = MAX_REVIEW_ROUNDS,
+  1618	) -> list[str]:
+  1619	    """Severity-Tiered Auto-Triage Gate & Circuit Breaker evaluation for the latest round."""
+  1620	    blocking_rows = [cells for cells in latest if cells[1] in BLOCKING]
+  1621	    critical_rows = [cells for cells in latest if cells[1] == "Critical"]
+  1622	    important_rows = [cells for cells in latest if cells[1] == "Important"]
+  1623	    minor_rows = [cells for cells in latest if cells[1] == "Minor"]
+  1624	    contract_conflict_rows = [cells for cells in blocking_rows if is_shared_contract_conflict(cells)]
+  1625	    fix_loop_paths: list[str] = []
+  1626	    if len(rounds) >= 2 and blocking_rows:
+  1627	        prev_fixed_paths = {
+  1628	            path_of(prev[2])
+  1629	            for prev in finding_rows(rounds[-2][1])
+  1630	            if prev[4].startswith("fixed in ")
+  1631	        }
+  1632	        for row in blocking_rows:
+  1633	            p = path_of(row[2])
+  1634	            if p and p in prev_fixed_paths and p not in fix_loop_paths:
+  1635	                fix_loop_paths.append(p)
+  1636	
+  1637	    if not blocking_rows:
+  1638	        action = "AUTO_PASS_FINAL_MINOR_SWEEP" if minor_rows else "AUTO_PASS_CLEAN"
+  1639	        reason = (
+  1640	            f"0 Critical and 0 Important findings ({len(minor_rows)} Minor). "
+  1641	            "Fix valid Minor items once (strictly anchored to approved HLD/BDD/Task contracts), run local quality gate green, "
+  1642	            "and finish stage immediately without calling external reviewer again."
+  1643	            if minor_rows
+  1644	            else "0 findings. Stage review passed cleanly."
+  1645	        )
+  1646	    elif contract_conflict_rows:
+  1647	        ids = ", ".join(f"#{r[0]}" for r in contract_conflict_rows)
+  1648	        action = "CIRCUIT_BREAKER_HALT (SHARED_CONTRACT_CONFLICT)"
+  1649	        reason = (
+  1650	            f"Shared-contract conflict detected in finding(s) {ids}: directly impacts `shared-contracts/` "
+  1651	            "(`api_contract.md` / `architecture_and_flow.md` / `gaps_and_rfcs.md`). "
+  1652	            "STOP IMMEDIATELY — do NOT auto-fix, do NOT revert user-approved HLD steps/schemas to legacy contracts, "
+  1653	            "and do NOT continue autonomous execution. Report Top 3 Highest-Risk Findings to Human Architect immediately."
+  1654	        )
+  1655	    elif fix_loop_paths:
+  1656	        action = "CIRCUIT_BREAKER_HALT (FIX_LOOP)"
+  1657	        reason = (
+  1658	            f"Fix Loop detected across consecutive rounds on {', '.join(fix_loop_paths)}. "
+  1659	            "STOP IMMEDIATELY — halt auto-pilot and escalate Top 3 Highest-Risk Findings to Human Architect."
+  1660	        )
+  1661	    elif number >= max_rounds and critical_rows:
+  1662	        ids = ", ".join(f"#{r[0]}" for r in critical_rows)
+  1663	        action = "CIRCUIT_BREAKER_HALT (MAX_ROUNDS_CRITICAL_REMAINING)"
+  1664	        reason = (
+  1665	            f"After {number}/{max_rounds} review rounds, {len(critical_rows)} Critical finding(s) ({ids}) still remain unresolved. "
+  1666	            "STOP IMMEDIATELY — do NOT continue autonomous execution; report Top 3 Highest-Risk Findings to Human Architect."
+  1667	        )
+  1668	    elif number >= max_rounds:
+  1669	        action = "AUTO_PASS_FINAL_SWEEP"
+  1670	        reason = (
+  1671	            f"Round {number}/{max_rounds} reached max_rounds with 0 Critical findings ({len(important_rows)} Important, {len(minor_rows)} Minor, no Fix Loop or contract conflict). "
+  1672	            "Apply one final fix sweep anchored to approved design, run local quality gate green, and finish stage without invoking a 4th review round."
+  1673	        )
+  1674	    else:
+  1675	        action = "AUTO_FIX_ELIGIBLE"
+  1676	        reason = (
+  1677	            f"Round {number}/{max_rounds} has {len(blocking_rows)} Critical/Important finding(s) and no Fix Loop or shared-contract conflict. "
+  1678	            "Verify against approved design (HLD, bdd_scenarios.en.md, Decisions Already Made): if Valid, "
+  1679	            "auto-record decisions, switch to Role 2.3 to fix, run local quality gate, "
+  1680	            "and advance to next review round."
+  1681	        )
+  1682	    return [
+  1683	        "## Auto-Triage Gate",
+  1684	        "",
+  1685	        f"- **Action**: {action}",
+  1686	        f"- **Round**: {number} / {max_rounds}",
+  1687	        f"- **Directive**: {reason}",
+  1688	    ]
+  1689	
+   161	
+   162	def check_tests(ids: list[str], selected: list[str], roots: list[Path],
+   163	                check_stale: bool) -> tuple[dict[str, list[str]], list[str], list[str]]:
+   164	    patterns = {identifier: reference_pattern(identifier) for identifier in selected}
+   165	    coverage: dict[str, list[str]] = {identifier: [] for identifier in selected}
+   166	    stale = stale_pattern(ids)
+   167	    known = set(ids)
+   168	    problems: list[str] = []
+   169	    files, warnings = integration_files(roots)
+   170	    for path in files:
+   171	        try:
+   172	            lines = path.read_text(encoding="utf-8").splitlines()
+   173	        except UnicodeDecodeError:
+   174	            continue
+   175	        for number, line in enumerate(lines, start=1):
+   176	            for identifier, pattern in patterns.items():
+   177	                if pattern.search(line):
+   178	                    coverage[identifier].append(f"{path}:{number}")
+   179	            if check_stale:
+   180	                problems.extend(f"{path}:{number}: stale reference {token}"
+   181	                                for token in stale.findall(line) if token not in known)
+   182	    return coverage, problems, warnings
+   183	
+   184	
+   185	def split_values(values: list[str] | None) -> list[str]:
+   186	    """Accept space- or comma-separated values, as copied from an HLD or Covers: line."""
+   187	    return [item for value in values or [] for part in value.split(",") for item in part.split() if item]
+   188	
+   189	
+   190	def report(coverage: dict[str, list[str]], problems: list[str], warnings: list[str]) -> int:
+   191	    width = max((len(identifier) for identifier in coverage), default=0)
+   192	    for identifier, places in coverage.items():
+   193	        print(f"{identifier.ljust(width)}    {', '.join(places) if places else '(none)'}")
+   194	    for warning in warnings:
+   195	        print(warning, file=sys.stderr)
+   196	    for problem in problems:
+   197	        print(problem)
+   198	    covered = sum(1 for places in coverage.values() if places)
+   199	    failed = bool(problems) or covered < len(coverage)
+   200	    print(f"Result: {covered}/{len(coverage)} covered — {'FAIL' if failed else 'PASS'}")
+   201	    return 1 if failed else 0
+   202	
+   203	
+   204	def report_results(ids: list[str], selected: list[str], roots: list[Path], results: list[str],
+   205	                   check_stale: bool, unknown: list[str]) -> int:
+   206	    """Coverage proven by test results: each selected identifier needs a passed case."""
+   207	    cases = load_reports(results, Path.cwd())
+   208	    _, problems, warnings = check_tests(ids, [], roots, check_stale)
+   209	    if check_stale:
+   210	        stale, known = stale_pattern(ids), set(ids)
+   211	        problems.extend(f"{case.name}: stale reference {token}" for case in cases
+   212	                        for token in stale.findall(f"{case.name} {case.classname}") if token not in known)
+   213	    judged = verdicts(selected, cases)
+   214	    width = max((len(identifier) for identifier in judged), default=0)
+   215	    for identifier, (passed, detail) in judged.items():
+   216	        print(f"{identifier.ljust(width)}    {'PASS' if passed else 'FAIL'} {detail}")
+   217	    for warning in warnings:
+   218	        print(warning, file=sys.stderr)
+   219	    problems = unknown + problems
+   220	    for problem in problems:
+   221	        print(problem)
+   222	    covered = sum(1 for passed, _ in judged.values() if passed)
+   223	    failed = bool(problems) or covered < len(judged)
+   224	    print(f"Result: {covered}/{len(judged)} covered — {'FAIL' if failed else 'PASS'}")
+   225	    return 1 if failed else 0
+   226	
+   227	
+   228	def main(argv: list[str] | None = None) -> int:
+   229	    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+   230	    modes = parser.add_subparsers(dest="mode", required=True)
+   231	    plan = modes.add_parser("plan", help="every scenario is assigned to exactly one task")
+   232	    plan.add_argument("--scenarios", required=True, type=Path)
+   233	    plan.add_argument("--tasks", required=True, nargs="+", type=Path)
+   234	    tests = modes.add_parser("tests", help="every scenario has at least one integration test")
+   235	    tests.add_argument("--scenarios", required=True, type=Path)
+   236	    tests.add_argument("--roots", required=True, nargs="+")
+   237	    tests.add_argument("--ids", nargs="+")
+   238	    tests.add_argument("--results", nargs="+")
+   239	    args = parser.parse_args(argv)
+   240	    try:
+   241	        ids, problems = load_scenarios(args.scenarios)
+   242	        if problems:
+   243	            print("\n".join(problems))
+   244	            print("Result: scenario document invalid — FAIL")
+   245	            return 1
+   246	        if args.mode == "plan":
+   247	            coverage, problems = check_plan(ids, args.tasks)
+   248	            return report(coverage, problems, [])
+   249	        roots = [Path(value) for value in split_values(args.roots)]
+   250	        selected = split_values(args.ids) or ids
+   251	        unknown = [f"--ids names unknown identifier {identifier}"
+   252	                   for identifier in selected if identifier not in ids]
+   253	        known_selected = [identifier for identifier in selected if identifier in ids]
+   254	        if args.results:
+   255	            return report_results(ids, known_selected, roots, split_values(args.results),
+   256	                                  not args.ids, unknown)
+   257	        coverage, problems, warnings = check_tests(ids, known_selected, roots, not args.ids)
+   258	        return report(coverage, unknown + problems, warnings)
+   259	    except (UsageError, ReportError) as error:
+   260	        print(f"error: {error}", file=sys.stderr)
+   261	        return 2
+   262	
+   263	
+   264	if __name__ == "__main__":
+   265	    sys.exit(main())
+skills/dev-implementation/resources/scripts/package_epic.py:5:  package_epic.py <epic_dir> [--revise] [--reason <text>] [--base-branch <branch>] [--open-note <note> ...]
+skills/dev-implementation/resources/scripts/package_epic.py:49:def resolve_root() -> Path:
+skills/dev-implementation/resources/scripts/package_epic.py:61:def resolve_base_branch(root: Path, epic_dir: str, cli_base: str | None) -> str:
+skills/dev-implementation/resources/scripts/package_epic.py:64:    epic_path = root / ".devtool" / "epic" / epic_dir
+skills/dev-implementation/resources/scripts/package_epic.py:66:        doc = epic_path / f"{epic_dir}{ext}"
+skills/dev-implementation/resources/scripts/package_epic.py:78:def render_initial_handoff(
+skills/dev-implementation/resources/scripts/package_epic.py:80:    epic_dir: str,
+skills/dev-implementation/resources/scripts/package_epic.py:89:    text = text.replace("<epic_dir>", epic_dir)
+skills/dev-implementation/resources/scripts/package_epic.py:91:    text = text.replace("<epic_dir value>", epic_dir)
+skills/dev-implementation/resources/scripts/package_epic.py:119:def revise_handoff_text(
+skills/dev-implementation/resources/scripts/package_epic.py:186:def update_epic_status_to_packaged(root: Path, epic_dir: str, today_iso: str) -> None:
+skills/dev-implementation/resources/scripts/package_epic.py:187:    epic_path = root / ".devtool" / "epic" / epic_dir
+skills/dev-implementation/resources/scripts/package_epic.py:189:        doc_path = epic_path / f"{epic_dir}{ext}"
+skills/dev-implementation/resources/scripts/package_epic.py:211:def package_epic(
+skills/dev-implementation/resources/scripts/package_epic.py:213:    epic_dir: str,
+skills/dev-implementation/resources/scripts/package_epic.py:221:    epic_path = root / ".devtool" / "epic" / epic_dir
+skills/dev-implementation/resources/scripts/package_epic.py:230:            f"handoff.md already exists for epic '{epic_dir}'. "
+skills/dev-implementation/resources/scripts/package_epic.py:237:        [sys.executable, str(READINESS_SCRIPT), epic_dir],
+skills/dev-implementation/resources/scripts/package_epic.py:265:    resolved_base = resolve_base_branch(root, epic_dir, base_branch)
+skills/dev-implementation/resources/scripts/package_epic.py:268:        find_epic_slug(root, epic_dir)
+skills/dev-implementation/resources/scripts/package_epic.py:270:        else epic_dir.replace("_", "-")
+skills/dev-implementation/resources/scripts/package_epic.py:271:    ) or epic_dir.replace("_", "-")
+skills/dev-implementation/resources/scripts/package_epic.py:274:        update_epic_status_to_packaged(root, epic_dir, today_iso)
+skills/dev-implementation/resources/scripts/package_epic.py:282:            epic_dir,
+skills/dev-implementation/resources/scripts/package_epic.py:303:def main() -> None:
+skills/dev-implementation/resources/scripts/package_epic.py:307:    parser.add_argument("epic_dir", help="Epic directory under .devtool/epic/")
+skills/dev-implementation/resources/scripts/package_epic.py:333:    handoff_file = root / ".devtool" / "epic" / args.epic_dir / "handoff.md"
+skills/dev-implementation/resources/scripts/package_epic.py:339:            f"error: handoff.md already exists for epic '{args.epic_dir}'. "
+skills/dev-implementation/resources/scripts/package_epic.py:347:            args.epic_dir,
+skills/dev-implementation/resources/scripts/package_epic.py:355:        print(f"{action} epic '{args.epic_dir}' -> {out}")
+skills/dev-implementation/resources/scripts/task_contract.py:2:"""Parse a task file's Verification contract, and fingerprint the worktree it is checked in.
+skills/dev-implementation/resources/scripts/task_contract.py:33:EVIDENCE_FILE_RE = re.compile(r"^\.devtool/epic/[A-Za-z0-9_-]+/evidence/[A-Za-z0-9_.-]+$")
+skills/dev-implementation/resources/scripts/task_contract.py:34:ENVIRONMENT_HEADING = re.compile(r"^## (?:\d+\.\s*)?Verification Environment\s*$")
+skills/dev-implementation/resources/scripts/task_contract.py:79:    epic_dir: Path
+skills/dev-implementation/resources/scripts/task_contract.py:82:    evidence: Path
+skills/dev-implementation/resources/scripts/task_contract.py:85:def section(text: str, title: str) -> str | None:
+skills/dev-implementation/resources/scripts/task_contract.py:107:def parse_expect(text: str) -> Expect:
+skills/dev-implementation/resources/scripts/task_contract.py:129:def split_cells(line: str) -> list[str]:
+skills/dev-implementation/resources/scripts/task_contract.py:136:def parse_row(cells: list[str], seen: set[str]) -> Row:
+skills/dev-implementation/resources/scripts/task_contract.py:139:        raise ContractError(f"Verification row {row_id!r}: ID must look like V1")
+skills/dev-implementation/resources/scripts/task_contract.py:141:        raise ContractError(f"Verification row {row_id}: duplicate ID")
+skills/dev-implementation/resources/scripts/task_contract.py:144:        raise ContractError(f"Verification row {row_id}: Phase must be one of {', '.join(PHASES)}")
+skills/dev-implementation/resources/scripts/task_contract.py:147:        raise ContractError(f"Verification row {row_id}: Command must be exactly one inline code span")
+skills/dev-implementation/resources/scripts/task_contract.py:151:        raise ContractError(f"Verification row {row_id}: {error}") from None
+skills/dev-implementation/resources/scripts/task_contract.py:156:            raise ContractError(f"Verification row {row_id}: Needs must be — or names like TEST_DATABASE_URL")
+skills/dev-implementation/resources/scripts/task_contract.py:160:def parse_verification(task_text: str) -> tuple[list[Row], str | None]:
+skills/dev-implementation/resources/scripts/task_contract.py:161:    body = section(task_text, "Verification")
+skills/dev-implementation/resources/scripts/task_contract.py:163:        raise ContractError("task has no ## Verification section")
+skills/dev-implementation/resources/scripts/task_contract.py:167:        raise ContractError("Verification header must be exactly: " + "| " + " | ".join(HEADER) + " |")
+skills/dev-implementation/resources/scripts/task_contract.py:173:            raise ContractError(f"Verification row {cells[0]!r}: expected {len(HEADER)} cells, found {len(cells)}")
+skills/dev-implementation/resources/scripts/task_contract.py:180:def parse_allowed_files(task_text: str) -> list[AllowedPath]:
+skills/dev-implementation/resources/scripts/task_contract.py:195:def parse_evidence_files(task_text: str) -> list[AllowedPath]:
+skills/dev-implementation/resources/scripts/task_contract.py:197:    evidence: list[AllowedPath] = []
+skills/dev-implementation/resources/scripts/task_contract.py:205:            if not line.strip() and not evidence:
+skills/dev-implementation/resources/scripts/task_contract.py:208:        evidence.append(AllowedPath(bullet.group(1), bool(bullet.group(2))))
+skills/dev-implementation/resources/scripts/task_contract.py:209:    return evidence
+skills/dev-implementation/resources/scripts/task_contract.py:212:def parse_protected_paths(hld_text: str) -> list[str]:
+skills/dev-implementation/resources/scripts/task_contract.py:219:def parse_read_only_context(task_text: str) -> list[str]:
+skills/dev-implementation/resources/scripts/task_contract.py:235:def dod_bullets(task_text: str) -> list[str]:
+skills/dev-implementation/resources/scripts/task_contract.py:259:def parse_integration_result_specs(hld_text: str) -> list[IntegrationResultSpec]:
+skills/dev-implementation/resources/scripts/task_contract.py:282:def parse_integration_results(hld_text: str) -> list[str]:
+skills/dev-implementation/resources/scripts/task_contract.py:293:def verification_environment(hld_text: str) -> str | None:
+skills/dev-implementation/resources/scripts/task_contract.py:294:    """Body of the `## Verification Environment` section, numbered or not; None when the heading is absent."""
+skills/dev-implementation/resources/scripts/task_contract.py:312:def path_matches(pattern: str, path: str) -> bool:
+skills/dev-implementation/resources/scripts/task_contract.py:328:def git_run(root: Path, *args: str, env: dict[str, str] | None = None, stdin: bytes | None = None) -> bytes:
+skills/dev-implementation/resources/scripts/task_contract.py:335:def strip_wrappers(tokens: list[str]) -> list[str]:
+skills/dev-implementation/resources/scripts/task_contract.py:359:def program_of(command: str, root: Path) -> str | None:
+skills/dev-implementation/resources/scripts/task_contract.py:403:def epic_layout(task_file: Path) -> EpicLayout:
+skills/dev-implementation/resources/scripts/task_contract.py:412:        raise ContractError("pass the task's mirror under .devtool/epic/<epic_dir>/")
+skills/dev-implementation/resources/scripts/task_contract.py:413:    epic_dir = path.parent
+skills/dev-implementation/resources/scripts/task_contract.py:414:    return EpicLayout(root, epic_dir, epic_dir / f"{epic_dir.name}.en.md",
+skills/dev-implementation/resources/scripts/task_contract.py:415:                      epic_dir / "bdd_scenarios.en.md", epic_dir / "evidence" / f"{path.stem}.json")
+skills/dev-implementation/resources/scripts/task_contract.py:418:def fingerprint(root: Path) -> tuple[str, str | None]:
+skills/dev-implementation/resources/scripts/task_contract.py:431:def changed_paths(root: Path) -> list[str]:
+skills/dev-implementation/resources/scripts/task_contract.py:446:def load_evidence(path: Path) -> dict | None:
+skills/dev-implementation/resources/scripts/task_contract.py:453:def save_evidence(path: Path, data: dict) -> None:
+skills/dev-implementation/resources/scripts/task_contract.py:459:def is_code_epic(hld_path: Path) -> bool:
+skills/dev-implementation/resources/scripts/task_contract.py:468:def row_problems(rows: list[Row], runs: dict) -> list[str]:
+skills/dev-implementation/resources/scripts/task_contract.py:475:            problems.append(f"condition 2: row {row.id}: no PASS result in the evidence")
+skills/dev-implementation/resources/scripts/task_contract.py:485:def evaluate_done_gate(task_file: Path) -> list[str]:
+skills/dev-implementation/resources/scripts/task_contract.py:486:    """One message per failed done-gate condition for a task mirror; empty when the gate passes."""
+skills/dev-implementation/resources/scripts/task_contract.py:493:    evidence = load_evidence(layout.evidence)
+skills/dev-implementation/resources/scripts/task_contract.py:494:    if evidence is None:
+skills/dev-implementation/resources/scripts/task_contract.py:495:        return [f"condition 1: evidence {layout.evidence} not found in this checkout — record it with "
+skills/dev-implementation/resources/scripts/task_contract.py:497:    runs = evidence.get("runs", {})
+skills/dev-implementation/resources/scripts/task_contract.py:502:        return [f"condition 1: evidence {layout.evidence} has no {kind} run" for kind in missing]
+skills/dev-implementation/resources/scripts/task_contract.py:541:    for ev in parse_evidence_files(task_text):
+skills/dev-implementation/resources/scripts/task_contract.py:545:                f"condition 8: evidence file {ev.pattern} declared in Evidence files was not created or is empty"
+skills/dev-implementation/resources/scripts/task_contract.py:548:            measure_digests = runs.get("measure", {}).get("evidence_digests", {})
+skills/dev-implementation/resources/scripts/task_contract.py:551:                problems.append(f"condition 8: evidence file {ev.pattern} digest does not match measure run")
+skills/dev-implementation/resources/scripts/task_contract.py:555:def parse_depends_on_epics(hld_text: str) -> list[str]:
+skills/dev-implementation/resources/scripts/task_contract.py:575:def parse_spec_errata(hld_text: str) -> list[tuple[str, str]]:
+skills/dev-implementation/resources/scripts/task_contract.py:597:def resolve_prerequisite_epic_dirs(
+skills/dev-implementation/resources/scripts/task_contract.py:598:    root: Path, hld_text: str, current_epic_dir: str | None = None
+skills/dev-implementation/resources/scripts/task_contract.py:608:    def _resolve_dir(ident: str) -> str | None:
+skills/dev-implementation/resources/scripts/task_contract.py:611:        resolved = sync_task_status.find_epic_dir_for_slug(root, ident)
+skills/dev-implementation/resources/scripts/task_contract.py:616:    def _visit(dir_name: str, hld_content: str | None = None) -> None:
+skills/dev-implementation/resources/scripts/task_contract.py:650:        if dir_name != current_epic_dir and dir_name not in ordered_dirs:
+skills/dev-implementation/resources/scripts/task_contract.py:653:    if current_epic_dir:
+skills/dev-implementation/resources/scripts/task_contract.py:654:        visiting.append(current_epic_dir)
+/usr/bin/git
+/Users/danhdueexoictif/.local/bin/ruff
+/Users/danhdueexoictif/.local/bin/mypy
+/opt/homebrew/bin/python3
+
+exec
+/bin/zsh -lc "nl -ba .devtool/epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.vi.md | sed -n '1,64p;138,352p;400,427p'; cat rules/coding-guidelines.md" in /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/autonomous_lifecycle_runner
+exec
+/bin/zsh -lc 'cat .devtool/epic/autonomous_lifecycle_runner/2026-11-10-autonomous-lifecycle-runner-design.en.md; nl -ba .devtool/epic/autonomous_lifecycle_runner/task_3_principal_review_automation_and_checkpoint.md' in /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/autonomous_lifecycle_runner
+ succeeded in 0ms:
+# Autonomous Lifecycle Runner Design
+
+Design for an opt-in script that drives `dev-lifecycle` from handoff to the final Human report, with three actors (Human, AI Assistant, AI Programmer) and headless model dispatch.
+
+## Contents
+
+1. [Summary](#summary)
+2. [Goals and Non-Goals](#goals-and-non-goals)
+3. [Actors and Models](#actors-and-models)
+4. [Pipeline Flow](#pipeline-flow)
+5. [Human Checkpoints](#human-checkpoints)
+6. [Runner Architecture](#runner-architecture)
+7. [Rule Changes](#rule-changes)
+8. [Risks and Mitigations](#risks-and-mitigations)
+9. [Testing](#testing)
+10. [Shared Contract Warnings](#shared-contract-warnings)
+
+## Summary
+
+Today the lifecycle stops at several menus (Handoff Choice, Gate 3, Review Choice) and at every non-critical review finding. A new script, `lifecycle_runner.py`, removes the menus and runs each stage in a separate headless `agy` process that uses the model and effort that stage needs. Human decisions are kept only where the Human asked for them.
+
+## Goals and Non-Goals
+
+Goals:
+
+- Run the pipeline from handoff to the final report without menu stops.
+- Dispatch the Programmer as Gemini 3.8 Flash at high effort, and the Assistant as a stronger model.
+- Add an Assistant review of the Programmer's fix plan after every cross-model review round.
+- Survive restarts: all state lives in `.devtool/`.
+
+Non-goals:
+
+- No change to interactive mode: the runner is opt-in through `/dev-lifecycle --autonomous`.
+- No change to Gates 1 and 2, the 3-round cap, or the three Circuit Breakers.
+- No auto-merge: the Human always decides on `/finishing-a-development-branch`.
+
+## Actors and Models
+
+| Actor | Role | Model source |
+|---|---|---|
+| Human (2.1) | Chooses the solution, confirms Principal Review fixes, decides to finish | n/a |
+| AI Assistant (2.2) | Writes the design, triages review findings, approves fix plans | `.devtool/review_config.json` (`assistant` entry) |
+| AI Programmer (2.3) | Implements tasks, proposes and applies fixes | `gemini-3.8-flash`, effort `high` |
+
+The command shape was verified on this machine: `agy --print "<prompt>" --model gemini-3.8-flash --effort high --mode plan` exits 0 and answers. Programmer calls use `--mode auto` so the process can edit files in its worktree.
+
+## Pipeline Flow
+
+```mermaid
+flowchart TD
+    BS["Human and Assistant brainstorm, Gates 1 and 2"]
+    PKG["Assistant packages epic, handoff.md"]
+    PR["Script: principal review, auto-quota"]
+    TRI["Assistant triages and proposes fixes"]
+    HC{"Human confirms fixes?"}
+    REV["Assistant revises, re-packages"]
+    IMPL["Script: Programmer implements, Gate 4"]
+    CMR["Script: cross-model review, auto-quota"]
+    PLAN["Programmer writes fix plan"]
+    APP{"Assistant verdict"}
+    FIX["Programmer applies fixes, Gate 4"]
+    RPT["Script: final report"]
+    HF{"Human decides to finish?"}
+    FIN["finishing-a-development-branch, Test All"]
+    HALT(["HALT: report to Human"])
+
+    BS --> PKG --> PR --> TRI
+    TRI -->|"findings to fix"| HC
+    TRI -->|"no findings"| IMPL
+    HC -->|"confirmed"| REV --> PR
+    IMPL --> CMR --> PLAN --> APP
+    APP -->|"approved"| FIX --> CMR
+    APP -->|"adjusted"| FIX
+    APP -->|"CRITICAL_CONFLICT"| HALT
+    CMR -->|"converged"| RPT --> HF
+    HF -->|"yes"| FIN
+    TRI -->|"circuit breaker"| HALT
+    CMR -->|"circuit breaker"| HALT
+```
+
+## Human Checkpoints
+
+1. **Brainstorming and design (Gates 1 and 2)**: unchanged, the Human approves the spec and the task breakdown.
+2. **Principal Review fixes**: AI Assistant auto-applies aligned design revisions, commits them, and re-packages without human interruption. The runner halts and transitions to `AWAITING_PRINCIPAL_CONFIRMATION` only if findings involve high-risk critical issues, business/domain requirement conflicts, unaligned source conflicts, or `SHARED_CONTRACT_CONFLICT`. Minor-only rounds (`AUTO_PASS_FINAL_MINOR_SWEEP`) are swept in a single pass without stopping for Human. Model priority for Principal Review is selectable at task confirmation (Gate 2) across 4 options: (1) `Claude -> Codex -> Kiro -> Argon` [Default], (2) `Codex -> Claude -> Kiro -> Argon`, (3) `Kiro -> Claude -> Codex -> Argon`, (4) `Kiro -> Codex -> Claude -> Argon`.
+3. **Cross-model review fixes**: no Human stop. The Programmer proposes the fixes, the Assistant approves or adjusts the plan, the Programmer applies it, and Gate 4 re-runs.
+4. **Circuit Breakers**: `SHARED_CONTRACT_CONFLICT`, `FIX_LOOP` and `MAX_ROUNDS_CRITICAL_REMAINING` always halt and report, in both review stages.
+5. **Assistant CRITICAL_CONFLICT**: a fix plan that would change an approved decision halts and reports.
+6. **Final report**: after review convergence and a green Gate 4, the runner prints the executive report and stops. The Human chooses `/finishing-a-development-branch`; merge then runs `Test All`.
+
+## Runner Architecture
+
+The script lives at `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py` and is a resumable state machine.
+
+- **State**: `.devtool/state/<epic>.pipeline.json` records the current stage, round number, last SHA and last verdict. The Gate Ledger (`.devtool/GATE_LEDGER.md`) stays the record of approvals.
+- **Dispatch**: each AI step is one subprocess, `agy --print <prompt> --model <model> --effort <effort> --mode <mode>`, run in the epic worktree with a timeout and its own process group.
+- **Prompts**: built from `.devtool/` files only (handoff, task file, triage output, review ledger), because headless sessions share no context.
+- **Fix plan**: the Programmer writes `.devtool/epic/<epic>/fix_plan_round<N>.md`. The Assistant answers with one verdict line: `APPROVED`, `ADJUSTED` (with the edited plan) or `CRITICAL_CONFLICT`.
+- **Startup probe**: before the first dispatch the runner calls each configured model with a one-word prompt and stops with a clear error if it is not accepted.
+- **Existing scripts reused**: `package_epic.py`, `run_external_review.py` (`run`, `triage`, `check`), `audit_epic.py`, `compute_execution_order.py`, `resume_context.py`.
+
+## Rule Changes
+
+- `rules/CRITICAL_RULES.md` section 5 (mandatory Review Choice): in autonomous mode the runner enters cross-model review automatically after the first Gate 4 PASS and presents no menu. Interactive mode is unchanged.
+- `rules/CRITICAL_RULES.md` section 6: in autonomous mode `Debatable` and `False Positive` findings in cross-model review are resolved by the Assistant verdict, not by a Human stop.
+- Gate 3 (execution order): in autonomous mode it is confirmed automatically from the output of `compute_execution_order.py`, and the order is recorded in the Gate Ledger.
+- `skills/dev-lifecycle/SKILL.md`, `skills/dev-implementation/SKILL.md`, `skills/principal-review/SKILL.md`, `skills/cross-model-review/SKILL.md` and `docs/lifecycles.{en,vi}.md` describe the autonomous path in short form and point to a reference file for the detail.
+
+## Risks and Mitigations
+
+| Risk | Mitigation |
+|---|---|
+| The model identifier is rejected on another machine or profile | Startup probe fails fast; model and effort come from configuration, not code |
+| Assistant approval is weaker than Human approval | The Assistant sees only the fix plan and the approved design; Gate 4 re-runs after every fix; the 3-round cap and Circuit Breakers stay |
+| A headless Programmer edits outside its scope | Runs only in the epic worktree; `Allowed files` from the task file are in the prompt; `audit_epic.py` still flags protected-path changes |
+| A crash leaves the pipeline half-done | State file plus Gate Ledger; the runner resumes from the recorded stage |
+| Quota exhaustion mid-run | `--auto-quota` provider order; a provider with no quota left is skipped, and if none remain the runner halts and reports |
+
+## Testing
+
+- Unit tests use a fake `agy` executable, the same pattern as `test_run_external_review.py`.
+- Cases: each stage transition, resume after a crash at every stage, each halt condition, the Principal Review stop-and-confirm, fix-plan verdict parsing, and the startup probe failure.
+- `scripts/verify.sh` runs the new test file as part of the release check.
+
+## Shared Contract Warnings
+
+`shared-contracts/` is absent in this repository, so there are no contract warnings. Clean state confirmed.
+
+     1	---
+     2	id: "task_3_principal_review_automation_and_checkpoint"
+     3	status: "todo"
+     4	priority: "high"
+     5	assignee: null
+     6	epic: "autonomous_lifecycle_runner"
+     7	dueDate: null
+     8	created: "2026-11-10T19:16:00Z"
+     9	modified: "2026-11-10T19:16:00Z"
+    10	completedAt: null
+    11	labels: ["lifecycle", "principal-review", "human-checkpoint"]
+    12	order: "a3"
+    13	---
+    14	
+    15	# Task 3: Principal Review Automation and Human Checkpoint
+    16	
+    17	Epic: [autonomous_lifecycle_runner](autonomous_lifecycle_runner.en.md)
+    18	
+    19	## Requirement Analysis
+    20	
+    21	Implement Stage 2 Principal Review automation with the mandatory Human confirmation checkpoint in `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py`:
+    22	1. Implement `LifecycleRunner.step_principal_review`:
+    23	   - Triggers `run_external_review.py run --kind principal --epic-dir <epic> --base <base> --auto-quota` with provider auto-quota prioritization.
+    24	   - Evaluates triage results and Action from `run_external_review.py triage`:
+    25	     - `AUTO_PASS_CLEAN`: 0 findings -> directly transitions to `StageName.IMPLEMENTATION`.
+    26	     - `AUTO_PASS_FINAL_MINOR_SWEEP`: 0 Critical/Important, only Minor -> AI Assistant executes single minor fix sweep, commits revisions, records decisions, runs `package_epic.py <epic> --revise`, and advances to Stage 3 without an additional external review round.
+    27	     - `AUTO_FIX_ELIGIBLE`: AI Assistant auto-applies aligned revisions, commits them, records decision cells (`fixed in <sha>`) in `principal_review.md`, commits decisions, executes `package_epic.py <epic> --revise`, commits handoff re-anchor, and advances to the next review round.
+    28	     - Human stop condition: if findings involve high-risk critical issues, business/domain requirement conflicts, unaligned source conflicts, or `SHARED_CONTRACT_CONFLICT`, the runner transitions to `StageName.AWAITING_PRINCIPAL_CONFIRMATION`, writes `.devtool/epic/<epic>/principal_fix_proposal_round<N>.md`, and prompts the Human Architect (`prompt_human_principal_fixes`) or halts for `--confirm-fixes`.
+    29	     - `AUTO_PASS_FINAL_SWEEP`: on Round 3 with 0 Critical, executes final fix sweep, commits, records decisions, runs `package_epic.py --revise`, and advances to Stage 3 without a 4th round.
+    30	     - `CIRCUIT_BREAKER_HALT`: halts immediately on `SHARED_CONTRACT_CONFLICT`, `FIX_LOOP`, or `MAX_ROUNDS_CRITICAL_REMAINING`.
+    31	2. Implement unit and integration tests in `tests/test_lifecycle_runner.py` covering `ALR-HP-03`, `ALR-EC-01`, `ALR-EC-02`, and `ALR-FR-01`.
+    32	
+    33	## Files
+    34	
+    35	Allowed files:
+    36	- `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py` (new)
+    37	- `tests/test_lifecycle_runner.py` (new)
+    38	
+    39	Read-only context:
+    40	- `skills/dev-implementation/resources/scripts/run_external_review.py` — external review runner and triage
+    41	- `skills/dev-implementation/resources/scripts/package_epic.py` — epic packaging script
+    42	- `scripts/resume_context.py` — gate approval recording
+    43	- `.devtool/epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.en.md` — Module Contracts
+    44	- `.agents/quality/python-quality.json` — registered capabilities
+    45	
+    46	## Design Rationale
+    47	
+    48	While the overall lifecycle is autonomous, architectural design changes identified during Principal Review must be vetted by the Human Architect before modifying HLD specifications. Halting to batch-confirm fixes prevents architectural drift while eliminating unnecessary intermediate pauses on zero-finding passes. Applicable skills: `d3nexus:test-driven-development`, `d3nexus:python-quality-check`.
+    49	
+    50	## Impact Analysis & Blast Radius
+    51	
+    52	- **Target files and symbols**: `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py` (`LifecycleRunner.step_principal_review`, `LifecycleRunner.prompt_human_principal_fixes`, `LifecycleRunner.evaluate_circuit_breakers`).
+    53	- **Downstream callers**: Runner pipeline loop.
+    54	- **Cross-platform bridges**: None.
+    55	- **Target test coverage threshold**: 100% of Principal Review state transitions, circuit breakers, and confirmation branches.
+    56	
+    57	### BDD SCENARIOS
+    58	
+    59	Covers: ALR-HP-03, ALR-EC-01, ALR-EC-02, ALR-FR-01
+    60	
+    61	```gherkin
+    62	Scenario: [ALR-HP-03] [Tier C - Integration] AI Assistant auto-applies aligned Principal Review fixes and prompts Human confirmation only on critical or domain conflicts
+    63	
+    64	Given Principal Review returns findings on candidate HLD specifications
+    65	When the AI Assistant triages the findings in step_principal_review
+    66	Then aligned technical findings are auto-applied, committed, and packaged via package_epic.py --revise without human interruption
+    67	And lifecycle_runner.py transitions to AWAITING_PRINCIPAL_CONFIRMATION only if findings involve critical risks, business requirement conflicts, or SHARED_CONTRACT_CONFLICT
+    68	And upon Human confirmation of the conflict proposal, the pipeline resumes and advances to the next review round
+    69	
+    70	Scenario: [ALR-EC-01] [Tier C - Integration] Zero findings in Principal Review bypasses Human confirmation
+    71	
+    72	Given Principal Review completes Round 1 with verdict PASS and 0 findings
+    73	When step_principal_review processes the review results
+    74	Then the runner logs "AUTO_PASS_CLEAN: 0 findings"
+    75	And the runner bypasses the Human confirmation prompt completely
+    76	And the pipeline state advances directly to Stage 3 Implementation
+    77	
+    78	Scenario: [ALR-EC-02] [Tier C - Integration] Minor-only findings in Principal Review swept in single pass without Human halt
+    79	
+    80	Given Principal Review Round 1 returns 0 Critical, 0 Important, and 2 Minor formatting findings
+    81	When step_principal_review evaluates the triage report
+    82	Then the runner triggers AUTO_PASS_FINAL_MINOR_SWEEP
+    83	And the Minor findings are swept, committed, and packaged in a single pass without stopping for Human confirmation
+    84	And the pipeline advances directly to Stage 3 Implementation
+    85	
+    86	Scenario: [ALR-FR-01] [Tier C - Integration] Circuit Breaker halts immediately on Shared Contract conflict
+    87	
+    88	Given an external review round reports a finding conflicting with shared-contracts/
+    89	When evaluate_circuit_breakers inspects the triage report
+    90	Then the runner triggers CIRCUIT_BREAKER_HALT (SHARED_CONTRACT_CONFLICT)
+    91	And the pipeline halts immediately, preserving all logs and state
+    92	And the console displays the executive warning banner instructing the developer to consult the Human Architect
+    93	```
+    94	
+    95	## Verification
+    96	
+    97	| ID | Phase | Command | Expect | Needs |
+    98	|----|-------|---------|--------|-------|
+    99	| V1 | RED | `python3 -m unittest tests/test_lifecycle_runner.py -k test_alr_hp_03` | exit 1; contains "FAILED" | — |
+   100	| V2 | GREEN | `python3 -m unittest tests/test_lifecycle_runner.py -k test_alr_hp_03` | exit 0; contains "OK" | — |
+   101	| V3 | GREEN | `python3 -m unittest tests/test_lifecycle_runner.py` | exit 0; contains "OK" | — |
+   102	| V4 | TIER-B | `ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py tests/test_lifecycle_runner.py` | exit 0 | — |
+   103	| V5 | TIER-B | `mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py tests/test_lifecycle_runner.py` | exit 0 | — |
+   104	| V6 | TIER-C | `python3 scripts/run_unittest_junit.py --junitxml build/test-results/task_3.xml tests/test_lifecycle_runner.py` | exit 0; results build/test-results/task_3.xml | — |
+   105	
+   106	## Stop and Report If
+   107	
+   108	- A command, path, symbol or anchor named in this task does not match the repository.
+   109	- A Verification row fails for a reason other than its Expect.
+   110	- The work needs a change to a file outside Allowed files, or to a protected path.
+   111	- The work needs a change to this task's Verification table, Definition of Done, Allowed files or
+   112	  Covers line.
+   113	- A variable named in the Needs column is unset.
+   114	- An unhandled exception occurs while running `run_external_review.py triage`.
+   115	
+   116	## Decisions Already Made
+   117	
+   118	- Principal Review invocation uses `run_external_review.py run --kind principal --epic-dir <epic> --base <base> --auto-quota` and evaluates `run_external_review.py triage`.
+   119	- Principal Review is capped at 3 rounds.
+   120	- Auto-Triage Gate actions map to deterministic transitions: `AUTO_PASS_CLEAN` advances to implementation; `AUTO_PASS_FINAL_MINOR_SWEEP` sweeps minor fixes and advances to implementation without an extra review round; `AUTO_FIX_ELIGIBLE` auto-applies aligned revisions; `AUTO_PASS_FINAL_SWEEP` executes final design-anchored sweep and finishes Stage 2.
+   121	- The runner transitions to `AWAITING_PRINCIPAL_CONFIRMATION` only when findings involve high-risk critical issues, business/domain requirement conflicts, unaligned source conflicts, or `SHARED_CONTRACT_CONFLICT`.
+   122	- Clean working tree discipline: edits, decision records (`fixed in <sha>` in `principal_review.md`), and `package_epic.py <epic> --revise` are committed in sequence before dispatching the next review round.
+   123	
+   124	## Definition of Done
+   125	
+   126	- Scenarios ALR-HP-03, ALR-EC-01, ALR-EC-02, ALR-FR-01 are covered and pass in the test suite. (V2, V3, V6)
+   127	- Python quality checks (lint and type check) pass cleanly. (V4, V5)
+   128	- Human confirmation prompt and circuit breaker halts function deterministically. (Gate 5)
+   129	
+   130	## Dependencies & Blockers
+   131	
+   132	- Blocked by [Task 1](task_1_pipeline_state_machine_and_probing.md) and [Task 2](task_2_subprocess_dispatcher_and_headless_agy.md).
+   133	- Blocks [Task 4](task_4_cross_model_review_fix_plan_loop.md) and [Task 5](task_5_orchestrator_cli_and_governance_rules.md).
+   134	
+   135	## References & Rollback
+   136	
+   137	- [Epic HLD](autonomous_lifecycle_runner.en.md), Module Contracts.
+   138	- **Rollback**: Revert task commit; Principal Review integration removed.
+
+ succeeded in 0ms:
+     1	# Thiết kế tổng thể Runner Vòng đời Tự động (Autonomous Lifecycle Runner)
+     2	
+     3	## Mục lục
+     4	
+     5	- [Siêu dữ liệu](#siêu-dữ-liệu)
+     6	- [Bối cảnh](#bối-cảnh)
+     7	- [Mục tiêu và Phi mục tiêu](#mục-tiêu-và-phi-mục-tiêu)
+     8	- [Kiến trúc và Thiết kế Kỹ thuật](#kiến-trúc-và-thiết-kế-kỹ-thuật)
+     9	- [Cảnh báo Shared Contract](#cảnh-báo-shared-contract)
+    10	- [Kế hoạch Kiểm thử Tích hợp và Ma trận Biên](#kế-hoạch-kiểm-thử-tích-hợp-và-ma-trận-biên)
+    11	- [Môi trường Kiểm thử](#môi-trường-kiểm-thử)
+    12	- [Độ bao phủ Kịch bản BDD Toàn diện](#độ-bao-phủ-kịch-bản-bdd-toàn-diện)
+    13	- [Chiến lược Phát hành và Giảm thiểu Rủi ro](#chiến-lược-phát-hành-và-giảm-thiểu-rủi-ro)
+    14	- [Phân rã Công việc Kanban](#phân-rã-công-việc-kanban)
+    15	- [Đính chính Đặc tả (Spec Errata)](#đính-chính-đặc-tả-spec-errata)
+    16	
+    17	## Siêu dữ liệu
+    18	
+    19	- **Tên Epic**: `autonomous_lifecycle_runner`
+    20	- **Trạng thái**: Đã đóng gói (2026-11-10)
+    21	- **Bản phát hành mục tiêu**: Bản phát hành plugin tiếp theo
+    22	- **Nền tảng**: Bộ công cụ Python / agent skill kit
+    23	- **Phụ thuộc vào epic**: không
+    24	- **Đặc tả nguồn**: [Thiết kế runner vòng đời tự động đã duyệt](2026-11-10-autonomous-lifecycle-runner-design.vi.md)
+    25	
+    26	## Bối cảnh
+    27	
+    28	Vòng đời phát triển phần mềm trong `dev-lifecycle` hiện tại yêu cầu can thiệp thủ công có tính tương tác tại nhiều cổng quyết định:
+    29	1. Menu bàn giao Giai đoạn 2 (prompt Handoff Choice hỏi chạy Principal Review hay tiếp tục trực tiếp).
+    30	2. Menu vào Giai đoạn 3 (xác nhận thứ tự thực thi Gate 3).
+    31	3. Menu sau triển khai Giai đoạn 3 (prompt Review Choice để Hoàn thành, Cross-model review, hoặc Local model review).
+    32	4. Phân loại (triage) phát hiện review (dừng lại xác nhận các hành động đề xuất ngay cả khi các phát hiện là thứ yếu hoặc không nghiêm trọng).
+    33	
+    34	Để hỗ trợ phát triển epic tự động hóa đầu-cuối hoàn toàn trong khi vẫn giữ vững kỷ luật quản trị kiến trúc nghiêm ngặt, một bộ điều phối máy trạng thái hợp nhất (`lifecycle_runner.py`) được giới thiệu. Runner này điều phối ba tác nhân riêng biệt:
+    35	- **Human Architect (Vai trò 2.1)**: Định hướng brainstorming ban đầu, phê duyệt Gate 1 & Gate 2, rà soát các đề xuất sửa chữa của Principal Review, và đưa ra quyết định hoàn thành Gate 5 cuối cùng.
+    36	- **AI Assistant (Vai trò 2.2)**: Phân loại phát hiện review, xây dựng danh sách đề xuất sửa chữa trong Principal Review, và đánh giá/phê duyệt kế hoạch sửa lỗi của AI Programmer trong Cross-Model Review.
+    37	- **AI Programmer (Vai trò 2.3)**: Lập trình viên chạy headless được điều phối qua `agy --model gemini-3.8-flash --effort high --mode auto`, triển khai các task code trong worktree biệt lập, chạy quality check, và soạn thảo kế hoạch sửa lỗi.
+    38	
+    39	Tiến trình tự động hóa loại bỏ các bước dừng menu không cần thiết nhưng bảo toàn tuyệt đối việc dừng khẩn cấp (circuit breaker) trước các xung đột kiến trúc (`SHARED_CONTRACT_CONFLICT`, `FIX_LOOP`, `MAX_ROUNDS_CRITICAL_REMAINING`).
+    40	
+    41	## Mục tiêu và Phi mục tiêu
+    42	
+    43	### Mục tiêu
+    44	
+    45	- Cung cấp CLI điều phối máy trạng thái chạy headless, có khả năng phục hồi sau sự cố tại `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py`, dẫn dắt epic qua review Giai đoạn 2, triển khai Giai đoạn 3, và cross-model review Giai đoạn 3.
+    46	- Điều phối AI Programmer sử dụng lệnh headless `agy --model gemini-3.8-flash --effort high --mode auto` trong worktree git biệt lập với giám sát nhóm tiến trình và giới hạn timeout.
+    47	- Tự động hóa việc tính toán thứ tự thực thi task ở Gate 3 thông qua `compute_execution_order.py`.
+    48	- Thực thi phân loại tự động Principal Review: AI Assistant tự động áp dụng các sửa đổi thiết kế đã đồng thuận, và chỉ tạm dừng hỏi Con người khi phát hiện rủi ro nghiêm trọng, xung đột nghiệp vụ, hoặc `SHARED_CONTRACT_CONFLICT`.
+    49	- Hiện thực hóa vòng lặp sửa lỗi và kiểm chứng tự động cho Cross-Model Review: AI Programmer lập kế hoạch sửa lỗi, AI Assistant đánh giá và phê duyệt/điều chỉnh kế hoạch, AI Programmer áp dụng sửa đổi, và Gate 4 tự động kiểm chứng lại mà không cần dừng hỏi con người.
+    50	- Duy trì trạng thái bền vững trong `.devtool/state/<epic>.pipeline.json` đồng bộ với `.devtool/GATE_LEDGER.md` để khôi phục tức thì khi bị ngắt quãng.
+    51	- Đảm bảo chế độ tương tác (interactive mode) tương thích ngược 100% (`/dev-lifecycle --autonomous` hoặc gọi runner trực tiếp hoàn toàn là lựa chọn tùy chọn).
+    52	
+    53	### Phi mục tiêu
+    54	
+    55	- Chỉnh sửa luồng vòng đời tương tác hoặc thay đổi cách nhà phát triển tương tác với các prompt thủ công khi không có cờ `--autonomous`.
+    56	- Bỏ qua phê duyệt của con người tại Gate 1 (duyệt spec), Gate 2 (xác nhận phân rã task), hoặc Gate 5 (quyết định hoàn thành & merge cuối cùng).
+    57	- Tự động push code lên kho từ xa hoặc tự động merge nhánh tính năng vào nhánh gốc mà không có chỉ định rõ ràng từ nhà phát triển.
+    58	- Tăng giới hạn hội tụ review quá 3 vòng hoặc nới lỏng ba Circuit Breakers bắt buộc.
+    59	
+    60	## Kiến trúc và Thiết kế Kỹ thuật
+    61	
+    62	### Kiến trúc Mức cao
+    63	
+    64	```mermaid
+   138	### Biểu đồ Tuần tự
+   139	
+   140	```mermaid
+   141	sequenceDiagram
+   142	    autonumber
+   143	    actor Human as Human Architect (Vai trò 2.1)
+   144	    participant Runner as lifecycle_runner.py
+   145	    participant Reviewer as External Reviewer (Claude/Codex/Kiro)
+   146	    participant Assistant as AI Assistant (Vai trò 2.2)
+   147	    participant Programmer as AI Programmer (Vai trò 2.3 Gemini 3.8)
+   148	
+   149	    Note over Human,Assistant: Gate 1 & Gate 2 Đã phê duyệt
+   150	    Human->>Runner: /dev-lifecycle --autonomous
+   151	    Runner->>Runner: probe_models() [kiểm tra agy & các model]
+   152	    Runner->>Runner: record_state(stage="principal_review")
+   153	
+   154	    rect rgb(240, 248, 255)
+   155	    Note over Runner,Assistant: Giai đoạn 2: Tự động hóa Principal Review
+   156	    loop Principal Review (Tối đa 3 vòng)
+   157	        Runner->>Reviewer: run_external_review.py run --kind principal --epic-dir <dir> --base <base> --auto-quota
+   158	        Reviewer-->>Runner: Ghi nhận phát hiện review trong principal_review.md
+   159	        Runner->>Assistant: Phân loại phát hiện (run_external_review.py triage --kind principal)
+   160	        alt AUTO_PASS_CLEAN (0 phát hiện)
+   161	            Runner->>Runner: Chuyển thẳng sang Giai đoạn 3 Triển khai
+   162	        else AUTO_PASS_FINAL_MINOR_SWEEP (0 Critical/Important, chỉ có Minor)
+   163	            Runner->>Assistant: Quét sửa lỗi minor trong một lượt
+   164	            Assistant-->>Runner: Đã áp dụng & commit sửa đổi minor
+   165	            Runner->>Runner: Ghi nhận decisions & chạy package_epic.py --revise
+   166	            Runner->>Runner: Chuyển sang Giai đoạn 3 không cần vòng review phụ
+   167	        else AUTO_FIX_ELIGIBLE (Vòng 1-2 với phát hiện hợp lệ)
+   168	            alt Rủi ro cao, xung đột nghiệp vụ, hoặc xung đột shared-contracts
+   169	                Runner->>Runner: Lưu trạng thái (AWAITING_PRINCIPAL_CONFIRMATION) & ghi file đề xuất
+   170	                Runner->>Human: Trình bày đề xuất & chờ xác nhận (--confirm-fixes / --reject-fixes)
+   171	                Human-->>Runner: Xác nhận đề xuất sửa lỗi
+   172	            else Sửa đổi đã thống nhất / chuẩn hóa
+   173	                Runner->>Assistant: Tự động áp dụng sửa đổi đã chốt
+   174	            end
+   175	            Assistant-->>Runner: Áp dụng sửa chữa & commit (clean git tree)
+   176	            Runner->>Runner: Ghi nhận decisions (fixed in <sha>) & commit
+   177	            Runner->>Runner: package_epic.py <dir> --revise & commit
+   178	            Runner->>Runner: Chuyển sang vòng review tiếp theo
+   179	        else AUTO_PASS_FINAL_SWEEP (Vòng 3, 0 Critical, chỉ còn Important/Minor)
+   180	            Runner->>Assistant: Lượt sửa lỗi cuối cùng neo theo thiết kế đã duyệt
+   181	            Assistant-->>Runner: Đã áp dụng & commit sửa lỗi
+   182	            Runner->>Runner: Ghi nhận decisions & package_epic.py --revise
+   183	            Runner->>Runner: Chuyển sang Giai đoạn 3 không cần vòng thứ 4
+   184	        else CIRCUIT_BREAKER_HALT (SHARED_CONTRACT_CONFLICT / FIX_LOOP / MAX_ROUNDS_CRITICAL_REMAINING)
+   185	            Runner->>Human: HALT NGAY LẬP TỨC: Xuất banner cảnh báo & dừng pipeline
+   186	        end
+   187	    end
+   188	    end
+   189	
+   190	    rect rgb(245, 255, 250)
+   191	    Note over Runner,Programmer: Giai đoạn 3: Triển khai Tự động Headless
+   192	    Runner->>Runner: resolve_gate3_order() -> resume_context.py --gate 3
+   193	    loop Cho từng task theo thứ tự thực thi
+   194	        Runner->>Programmer: agy stdin --model <model> --effort high --mode auto (Task N)
+   195	        Programmer-->>Runner: Chỉnh sửa mã, unit test, bằng chứng task
+   196	        Runner->>Runner: Commit triển khai task (clean git tree)
+   197	        Runner->>Runner: Đồng bộ trạng thái task sang hoàn thành
+   198	    end
+   199	    Runner->>Runner: run_gate4() đầy đủ (kiểm tra nội bộ tất định)
+   200	    end
+   201	
+   202	    rect rgb(255, 250, 240)
+   203	    Note over Runner,Assistant: Giai đoạn 3: Vòng lặp Cross-Model Review
+   204	    loop Cross-Model Review (Tối đa 3 vòng)
+   205	        Runner->>Reviewer: run_external_review.py run --kind code --epic-dir <dir> --base <base> --auto-quota
+   206	        Reviewer-->>Runner: Ghi nhận phát hiện trong review_results.md
+   207	        alt AUTO_PASS_CLEAN (0 phát hiện)
+   208	            Runner->>Runner: Thoát vòng lặp -> Chuyển sang Báo cáo Cuối cùng
+   209	        else Quét lần cuối (AUTO_PASS_FINAL_MINOR_SWEEP hoặc AUTO_PASS_FINAL_SWEEP)
+   210	            Runner->>Programmer: Áp dụng các sửa đổi quét lần cuối
+   211	            Programmer-->>Runner: Đã áp dụng sửa đổi mã
+   212	            Runner->>Runner: Commit sửa đổi mã (git commit)
+   213	            Runner->>Runner: Ghi nhận decisions vào review_results.md (fixed in <sha>)
+   214	            Runner->>Runner: Commit decisions (clean git tree)
+   215	            Runner->>Runner: run_gate4() đầy đủ (xác minh SHA đạt chuẩn)
+   216	            Runner->>Runner: Thoát vòng lặp -> Chuyển sang Báo cáo Cuối cùng
+   217	        else Còn tồn tại Blocker (AUTO_FIX_ELIGIBLE)
+   218	            Runner->>Programmer: Soạn kế hoạch sửa lỗi (fix_plan_roundN.md)
+   219	            Programmer-->>Runner: Đã viết fix_plan_roundN.md
+   220	            Runner->>Assistant: Đánh giá kế hoạch sửa lỗi theo HLD đã duyệt
+   221	            Assistant-->>Runner: Phán quyết (APPROVED / ADJUSTED / CRITICAL_CONFLICT)
+   222	            alt CRITICAL_CONFLICT
+   223	                Runner->>Human: HALT: Báo cáo xung đột thiết kế
+   224	            else APPROVED hoặc ADJUSTED
+   225	                Runner->>Programmer: Áp dụng kế hoạch sửa lỗi đã duyệt
+   226	                Programmer-->>Runner: Đã áp dụng sửa đổi mã
+   227	                Runner->>Runner: Commit sửa đổi mã (git commit)
+   228	                Runner->>Runner: Ghi nhận decisions vào review_results.md (fixed in <sha>)
+   229	                Runner->>Runner: Commit decisions (clean git tree)
+   230	                Runner->>Runner: run_gate4() đầy đủ (xác minh SHA đạt chuẩn)
+   231	            end
+   232	        end
+   233	    end
+   234	    end
+   235	
+   236	    Runner->>Human: Xuất Báo cáo Điều hành Cuối cùng
+   237	    Human->>Runner: Kích hoạt /finishing-a-development-branch
+   238	```
+   239	
+   240	### Bản đồ Duy trì Tính năng ("Chỉ mục Hướng dẫn Bảo trì")
+   241	
+   242	| Khả năng | Đường dẫn Nguồn Chuẩn & Điểm vào | Bất biến Cốt lõi & Tùy chọn Trạng thái/Cấu hình | Hướng dẫn Mở rộng & Xử lý Sự cố |
+   243	|---|---|---|---|
+   244	| **State Machine Runner** | `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py` | Tệp trạng thái `.devtool/state/<epic>.pipeline.json` phải được cập nhật nguyên tử thông qua đổi tên `.tmp`. Schema trạng thái tuân thủ dataclass `PipelineState`. | Kiểm tra file trạng thái để xem stage, vòng review và SHA gần nhất. Dùng `--resume` hoặc `--reset-stage <stage>` để khôi phục. |
+   245	| **Model Prober & Dispatcher** | `lifecycle_runner.py::ModelDispatcher` | Tiến trình headless truyền prompt qua stdin đến `agy --model <model> --effort <effort> --mode <mode>`. Cô lập process group qua `start_new_session=True` (`pgid = p.pid`) kèm SIGTERM, 1s ân hạn và nâng cấp SIGKILL. | Nếu model bị đổi tên hoặc không hỗ trợ, kiểm tra `.devtool/review_config.json` hoặc cấu hình mặc định. Thăm dò ban đầu dừng ngay trước khi sửa đổi file. |
+   246	| **Điểm dừng Principal Review** | `lifecycle_runner.py::step_principal_review` | Tự động xử lý các sửa đổi đã thống nhất/chuẩn hóa. Chỉ tạm dừng và chuyển `AWAITING_PRINCIPAL_CONFIRMATION` khi có lỗi rủi ro cao critical, xung đột nghiệp vụ/yêu cầu spec, xung đột mã nguồn chưa chốt, hoặc `SHARED_CONTRACT_CONFLICT`. Vòng chỉ có minor hoàn tất qua `AUTO_PASS_FINAL_MINOR_SWEEP` không cần thêm vòng review. | Kiểm tra `principal_review.md` và kết quả triage. Xác nhận cho phép Assistant chạy `package_epic.py --revise`. Hỗ trợ `--resume --confirm-fixes` / `--reject-fixes`. |
+   247	| **Tự động hóa Gate 3** | `lifecycle_runner.py::resolve_gate3_order` | Thứ tự thực thi phải tuân thủ nghiêm ngặt sắp xếp topo từ `compute_execution_order.py`. Bản ghi Gate 3 được lưu vào Gate Ledger qua `resume_context.py --gate 3`. | Nếu có chu trình phụ thuộc, `compute_execution_order.py` sẽ báo lỗi rõ ràng; runner tạm dừng để người dùng xử lý. |
+   248	| **Vòng lặp Cross-Model Fix** | `lifecycle_runner.py::step_cross_model_review` | Programmer soạn thảo `.devtool/epic/<epic>/fix_plan_round<N>.md`. Assistant phản hồi bằng `APPROVED`, `ADJUSTED`, hoặc `CRITICAL_CONFLICT`. Gate 4 chạy lại sau mỗi vòng sửa lỗi. Các vòng trung gian không dừng hỏi con người. | Xem `fix_plan_round<N>.md` để kiểm tra các sửa chữa được đề xuất. Phán quyết của Assistant được lưu vào `.devtool/state/<epic>.pipeline.json`. |
+   249	| **Tuần tự Commit & Vệ sinh Cây Git** | `lifecycle_runner.py::run` | `git status --porcelain` phải sạch trước khi gọi bất kỳ lượt review nào. Runner tuần tự commit fix plan, mã nguồn sửa đổi, và quyết định review. | Ngăn ngừa `run_external_review.py` từ chối chạy khi cây git bị dirty. |
+   250	| **Báo cáo Điều hành Đa vòng & Dừng Cuối** | `lifecycle_runner.py::render_final_executive_report` | Chỉ kết xuất ở vòng cuối cùng khi review đã hội tụ và Gate 4 PASS. Tổng hợp Top 3 Phát hiện Rủi ro Cao nhất của cả quá trình review qua nhiều vòng. Dừng chờ xác nhận Merge hoặc hành động khác. | Gom toàn bộ các vòng từ `review_results.md`. Hiển thị phát hiện, commit sửa lỗi, và SHA đạt chuẩn Gate 4 trước khi gợi ý prompt `/finishing-a-development-branch`. |
+   251	| **Circuit Breakers** | `lifecycle_runner.py::evaluate_circuit_breakers` | Dừng ngay lập tức không thử lại khi gặp: `SHARED_CONTRACT_CONFLICT`, `FIX_LOOP`, `MAX_ROUNDS_CRITICAL_REMAINING`, hoặc Assistant `CRITICAL_CONFLICT`. | Đọc banner cảnh báo trên console để biết nguyên nhân và hướng dẫn khắc phục. Khôi phục yêu cầu giải quyết xung đột rồi chạy `--resume`. |
+   252	
+   253	### Hợp đồng Mô-đun
+   254	
+   255	Các chữ ký và cấu trúc này được đóng băng cho việc triển khai tại `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py`:
+   256	
+   257	```python
+   258	from dataclasses import dataclass, field
+   259	from enum import Enum
+   260	from pathlib import Path
+   261	from typing import Any, Dict, List, Optional, Tuple
+   262	
+   263	class StageName(str, Enum):
+   264	    INITIALIZED = "initialized"
+   265	    PRINCIPAL_REVIEW = "principal_review"
+   266	    AWAITING_PRINCIPAL_CONFIRMATION = "awaiting_principal_confirmation"
+   267	    IMPLEMENTATION = "implementation"
+   268	    CROSS_MODEL_REVIEW = "cross_model_review"
+   269	    AWAITING_FINISH = "awaiting_finish"
+   270	    COMPLETED = "completed"
+   271	    HALTED = "halted"
+   272	
+   273	class FixPlanVerdict(str, Enum):
+   274	    APPROVED = "APPROVED"
+   275	    ADJUSTED = "ADJUSTED"
+   276	    CRITICAL_CONFLICT = "CRITICAL_CONFLICT"
+   277	
+   278	@dataclass
+   279	class RunnerConfig:
+   280	    programmer_model: str = "gemini-3.8-flash"
+   281	    programmer_effort: str = "high"
+   282	    assistant_model: Optional[str] = None  # Thứ tự ưu tiên: CLI --assistant-model -> .devtool/review_config.json providers.assistant.model -> model active profile -> fallback claude-sonnet-5-5-high
+   283	    assistant_effort: str = "high"
+   284	    timeout_seconds: int = 1800
+   285	    max_review_rounds: int = 3
+   286	
+   287	@dataclass
+   288	class PipelineState:
+   289	    epic_slug: str
+   290	    active_stage: StageName
+   291	    principal_round: int = 0
+   292	    cross_model_round: int = 0
+   293	    last_commit_sha: str = ""
+   294	    last_verdict: str = ""
+   295	    halt_reason: Optional[str] = None
+   296	    last_error: Optional[str] = None
+   297	    task_order: List[str] = field(default_factory=list)
+   298	    completed_tasks: List[str] = field(default_factory=list)
+   299	
+   300	    def to_dict(self) -> Dict[str, Any]: ...
+   301	    @classmethod
+   302	    def from_dict(cls, data: Dict[str, Any]) -> "PipelineState": ...
+   303	
+   304	class ModelDispatcher:
+   305	    def __init__(self, config: RunnerConfig): ...
+   306	    def probe_model(self, model: str) -> bool: ...
+   307	    def dispatch(
+   308	        self,
+   309	        prompt: str,
+   310	        model: str,
+   311	        effort: str,
+   312	        mode: str,
+   313	        worktree_root: Path,
+   314	        timeout: Optional[int] = None,
+   315	    ) -> Tuple[int, str, str]: ...
+   316	
+   317	class LifecycleRunner:
+   318	    def __init__(self, root: Path, epic_slug: str, config: Optional[RunnerConfig] = None): ...
+   319	    def load_or_init_state(self) -> PipelineState: ...
+   320	    def save_state(self) -> None: ...
+   321	    def run(self, resume: bool = False) -> int: ...
+   322	    def resolve_gate3_order(self) -> List[str]: ...
+   323	    def step_principal_review(self) -> bool: ...
+   324	    def step_implementation(self) -> bool: ...
+   325	    def run_gate4(self) -> Tuple[bool, str]: ...
+   326	    def step_cross_model_review(self) -> bool: ...
+   327	    def evaluate_circuit_breakers(self, stage: str, round_num: int) -> Optional[str]: ...
+   328	    def prompt_human_principal_fixes(self, triage_summary: str) -> bool: ...
+   329	    def evaluate_programmer_fix_plan(self, round_num: int) -> Tuple[FixPlanVerdict, str]: ...
+   330	    def render_final_executive_report(self) -> str: ...
+   331	```
+   332	
+   333	#### Hợp đồng Thực thi Phương thức và Quyền sở hữu Task
+   334	
+   335	- **`step_implementation(self) -> bool`** (Sở hữu bởi Task 2):
+   336	  - Hợp đồng thực thi: lặp tuần tự qua danh sách `self.state.task_order`. Với mỗi task:
+   337	    1. Kiểm tra xem task đã có trong `self.state.completed_tasks` chưa. Nếu có, bỏ qua.
+   338	    2. Kiểm chứng gating và bằng chứng: dispatch tiến trình con Programmer qua stdin (`skills/dev-implementation/SKILL.md:229–240`).
+   339	    3. Xác minh bằng chứng task và trạng thái được cập nhật thành `done`.
+   340	    4. Commit các thay đổi của task một cách sạch sẽ (`git commit -m "[<EPIC>] Execute <task_slug>"`).
+   341	    5. Thêm task vào `self.state.completed_tasks` và lưu trạng thái nguyên tử (`ALR-ST-01`).
+   342	    6. Trả về `True` nếu tất cả task thành công; khi tiến trình con thất bại hoặc timeout, ghi log lỗi, bảo toàn trạng thái và trả về `False`.
+   343	- **`run_gate4(self) -> Tuple[bool, str]`** (Sở hữu bởi Task 5):
+   344	  - Hợp đồng thực thi: chạy chuỗi kiểm chứng Gate 4 Giai đoạn 3 đầy đủ trên SHA ứng viên (`skills/dev-implementation/SKILL.md:321–356`):
+   345	    1. Tạo và commit checklist smoke (`skills/dev-implementation/resources/scripts/generate_smoke_checklist.py`).
+   346	    2. Chạy kiểm tra quyết định phát hiện review (`run_external_review.py check --epic-dir <epic> --kind code`).
+   347	    3. Chạy các kiểm tra audit mã nguồn và bảo mật.
+   348	    4. Chạy các lệnh tích hợp và bộ test đã khai báo (`run_unittest_junit.py`).
+   349	    5. Chạy các năng lực Python đã đăng ký (lint và type-check).
+   350	    6. Xác minh tất cả kết quả truy xuất nguồn gốc sạch sẽ tới SHA ứng viên.
+   351	    7. Trả về `(True, "Gate 4 PASS: <candidate_sha>")` nếu tất cả kiểm tra đều qua; ngược lại `(False, "<failure_reason>")`.
+   352	
+   400	| **Lỗi và khả năng phục hồi** | `ALR-FR-01` đến `ALR-FR-04` | Dừng khi xung đột shared contract, dừng khi lặp lỗi fix loop, dừng khi hết vòng review còn critical, dừng khi Assistant báo CRITICAL_CONFLICT. |
+   401	
+   402	## Chiến lược Phát hành và Giảm thiểu Rủi ro
+   403	
+   404	1. Hiện thực hóa máy trạng thái cốt lõi, models và lưu trữ trạng thái tại `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py` kèm unit tests toàn diện.
+   405	2. Hiện thực hóa dispatcher `agy` headless với ranh giới process group và thăm dò model.
+   406	3. Tích hợp tự động hóa Giai đoạn 2 Principal Review với điểm dừng con người xác nhận sửa lỗi.
+   407	4. Tích hợp vòng lặp đánh giá kế hoạch sửa lỗi Cross-Model Review ở Giai đoạn 3.
+   408	5. Cập nhật `rules/CRITICAL_RULES.md`, `skills/dev-lifecycle/SKILL.md`, `skills/dev-implementation/SKILL.md`, và tài liệu hướng dẫn hành vi chế độ tự động.
+   409	6. Xác minh toàn bộ bộ test bằng `scripts/run_unittest_junit.py` và `scripts/verify.sh`.
+   410	
+   411	Giảm thiểu rủi ro: Chế độ tự động hoàn toàn là tùy chọn qua cờ `/dev-lifecycle --autonomous` hoặc gọi trực tiếp `lifecycle_runner.py`. Hành vi tương tác mặc định của vòng đời phát triển vẫn được bảo toàn trọn vẹn.
+   412	
+   413	## Phân rã Công việc Kanban
+   414	
+   415	1. [Task 1: Máy Trạng thái Pipeline, Lưu trữ Trạng thái và Thăm dò Model](task_1_pipeline_state_machine_and_probing.md)
+   416	2. [Task 2: Bộ Điều phối Tiến trình con và Headless agy Runner](task_2_subprocess_dispatcher_and_headless_agy.md)
+   417	3. [Task 3: Tự động hóa Principal Review và Điểm dừng Con người](task_3_principal_review_automation_and_checkpoint.md)
+   418	4. [Task 4: Vòng lặp Kế hoạch Sửa lỗi Cross-Model Review và Bộ Đánh giá Assistant](task_4_cross_model_review_fix_plan_loop.md)
+   419	5. [Task 5: Điều phối viên Toàn trình, Tích hợp CLI và Quy tắc Quản trị](task_5_orchestrator_cli_and_governance_rules.md)
+   420	
+   421	## Đính chính Đặc tả (Spec Errata)
+   422	
+   423	- **[SE-01] Đồng bộ Principal Review Vòng 1**: Đồng bộ cờ CLI external review (`--kind principal` / `--kind code` kèm `--base` bắt buộc), tích hợp cơ chế phân tích action từ `run_external_review.py triage`, hỗ trợ model Assistant kế thừa linh hoạt model đang được chọn (Argon/Claude/Codex/v.v.) với mặc định Gemini 3.8 Flash cho Programmer, bổ sung trạng thái `AWAITING_PRINCIPAL_CONFIRMATION` kèm tệp đề xuất và cờ CLI non-blocking (`--confirm-fixes`/`--reject-fixes`), thiết lập tuần tự commit giữ cây git sạch, và đồng bộ chữ ký hàm giữa HLD và các task.
+   424	- **[SE-02] Đồng bộ Principal Review Vòng 2 Delta**: Chuẩn hóa chuyển đổi trạng thái Auto-Triage Gate (tự động xử lý các sửa đổi đã thống nhất trong Principal Review, quét gom cụm lỗi minor trong một lượt cho AUTO_PASS_FINAL_MINOR_SWEEP và AUTO_PASS_FINAL_SWEEP không chạy thêm vòng review thừa), điều chỉnh tuần tự commit và ghi nhận quyết định Gate 4 (commit sửa đổi mã -> ghi nhận decisions -> commit decisions -> chạy Gate 4), bổ sung định nghĩa hợp đồng run_gate4() và step_implementation, đồng bộ ModelDispatcher với stdin pipe và giám sát process group, và cập nhật lệnh kiểm thử sang phạm vi cô lập của runner.
+   425	- **[SE-03] Đồng bộ Principal Review Vòng 3 Hội tụ**: Đồng bộ chính sách phân loại tự động Principal Review xuyên suốt spec, HLD, BDD và task (tự động sửa các vấn đề kỹ thuật đã đồng thuận không ngắt quãng nhà phát triển, chỉ dừng lại khi có rủi ro nghiêm trọng, xung đột nghiệp vụ, hoặc SHARED_CONTRACT_CONFLICT); đồng bộ 4 tùy chọn ưu tiên mô hình tại bước xác nhận phân rã task Gate 2 với mặc định `Claude -> Codex -> Kiro -> Argon`; cập nhật sơ đồ tuần tự Cross-Model Review để cả hai hành động quét cuối đều đi qua commit sửa mã, ghi nhận decisions, commit decisions, và chạy đủ Gate 4 trước khi xuất báo cáo; phân bổ các kịch bản BDD ALR-ST-01 vào Task 2, ALR-ST-02 vào Task 5, và ALR-ST-03 vào Task 1 với truy xuất nguồn gốc 100%.
+   426	
+---
+trigger: always_on
+---
+
+# CLAUDE.md
+
+Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-specific instructions as needed.
+
+**Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.
+
+> **TL;DR — 4 rules to always follow:**
+> 1. **Think first** — State assumptions, ask when unclear, present tradeoffs before acting.
+> 2. **Simplicity** — Minimum code that solves the problem. If it could be 50 lines, don't write 200.
+> 3. **Surgical** — Touch only what the request requires. Don't improve adjacent code.
+> 4. **Verify** — Define success criteria upfront. Don't claim done without running the check.
+
+## 1. Think Before Coding
+
+**Don't assume. Don't hide confusion. Surface tradeoffs.**
+
+Before implementing:
+
+- State your assumptions explicitly. If uncertain, ask.
+- If multiple interpretations exist, present them - don't pick silently.
+- If a simpler approach exists, say so. Push back when warranted.
+- If something is unclear, stop. Name what's confusing. Ask.
+
+## 2. Simplicity First
+
+**Minimum code that solves the problem. Nothing speculative.**
+
+- No features beyond what was asked.
+- No abstractions for single-use code.
+- No "flexibility" or "configurability" that wasn't requested.
+- No error handling for impossible scenarios.
+- If you write 200 lines and it could be 50, rewrite it.
+
+Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
+
+## 3. Surgical Changes
+
+**Touch only what you must. Clean up only your own mess.**
+
+When editing existing code:
+
+- Don't "improve" adjacent code, comments, or formatting.
+- Don't refactor things that aren't broken.
+- Match existing style, even if you'd do it differently.
+- If you notice unrelated dead code, mention it - don't delete it.
+
+When your changes create orphans:
+
+- Remove imports/variables/functions that YOUR changes made unused.
+- Don't remove pre-existing dead code unless asked.
+
+The test: Every changed line should trace directly to the user's request.
+
+## 4. Goal-Driven Execution
+
+**Define success criteria. Loop until verified.**
+
+Transform tasks into verifiable goals:
+
+- "Add validation" → "Write tests for invalid inputs, then make them pass"
+- "Fix the bug" → "Write a test that reproduces it, then make it pass"
+- "Refactor X" → "Ensure tests pass before and after"
+
+For multi-step tasks, state a brief plan:
+
+```
+1. [Step] → verify: [check]
+2. [Step] → verify: [check]
+3. [Step] → verify: [check]
+```
+
+Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
+
+---
+
+**These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
+
+exec
+/bin/zsh -lc "nl -ba .devtool/features/task_1_pipeline_state_machine_and_probing.md | sed -n '71,109p'; nl -ba skills/dev-implementation/resources/scripts/task_contract.py | sed -n '403,416p;485,521p'; nl -ba skills/dev-implementation/resources/scripts/sync_task_status.py | sed -n '1,105p'; nl -ba .agents/quality/check_quality.json; nl -ba .agents/quality/python-quality.json" in /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/autonomous_lifecycle_runner
+ succeeded in 0ms:
+    71	
+    72	## Verification
+    73	
+    74	| ID | Phase | Command | Expect | Needs |
+    75	|----|-------|---------|--------|-------|
+    76	| V1 | RED | `python3 -m unittest tests/test_lifecycle_runner.py -k test_alr_st_03` | exit 1; contains "FAILED" | — |
+    77	| V2 | GREEN | `python3 -m unittest tests/test_lifecycle_runner.py -k test_alr_st_03` | exit 0; contains "OK" | — |
+    78	| V3 | GREEN | `python3 -m unittest tests/test_lifecycle_runner.py` | exit 0; contains "OK" | — |
+    79	| V4 | TIER-B | `ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py tests/test_lifecycle_runner.py` | exit 0 | — |
+    80	| V5 | TIER-B | `mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py tests/test_lifecycle_runner.py` | exit 0 | — |
+    81	| V6 | TIER-C | `python3 scripts/run_unittest_junit.py --junitxml build/test-results/task_1.xml tests/test_lifecycle_runner.py` | exit 0; results build/test-results/task_1.xml | — |
+    82	
+    83	## Stop and Report If
+    84	
+    85	- A command, path, symbol or anchor named in this task does not match the repository.
+    86	- A Verification row fails for a reason other than its Expect.
+    87	- The work needs a change to a file outside Allowed files, or to a protected path.
+    88	- The work needs a change to this task's Verification table, Definition of Done, Allowed files or
+    89	  Covers line.
+    90	- A variable named in the Needs column is unset.
+    91	- Atomic state file serialization fails on POSIX file systems.
+    92	
+    93	## Decisions Already Made
+    94	
+    95	- `StageName` enum: `initialized`, `principal_review`, `awaiting_principal_confirmation`, `implementation`, `cross_model_review`, `awaiting_finish`, `completed`, `halted`.
+    96	- `FixPlanVerdict` enum: `APPROVED`, `ADJUSTED`, `CRITICAL_CONFLICT`.
+    97	- `RunnerConfig` defaults: `programmer_model="gemini-3.8-flash"`, `programmer_effort="high"`, `assistant_model=None` (precedence: CLI `--assistant-model` -> `.devtool/review_config.json` `providers.assistant.model` -> active profile model -> fallback `claude-sonnet-5-5-high`), `assistant_effort="high"`, `timeout_seconds=1800`, `max_review_rounds=3`.
+    98	- `PipelineState` tracks `epic_slug`, `active_stage`, `principal_round`, `cross_model_round`, `last_commit_sha`, `last_verdict`, `halt_reason`, `last_error`, `task_order`, and `completed_tasks`.
+    99	- State is serialized to `.devtool/state/<epic>.pipeline.json` via `.tmp` rename with `fcntl.flock(fd, fcntl.LOCK_EX)`.
+   100	- Gate updates execute via `resume_context.py --gate <n> --epic <slug> --approved "<text>" --by lifecycle_runner` to guarantee synchronization with `gate_ledger.jsonl`.
+   101	
+   102	## Definition of Done
+   103	
+   104	- Scenarios ALR-ST-03, ALR-AR-02 are covered and pass in the test suite. (V2, V3, V6)
+   105	- Python quality checks (lint and type check) pass cleanly. (V4, V5)
+   106	- State persistence and recovery work reliably across interrupted sessions. (Gate 5)
+   107	
+   108	## Dependencies & Blockers
+   109	
+   403	def epic_layout(task_file: Path) -> EpicLayout:
+   404	    path = Path(task_file).resolve()
+   405	    try:
+   406	        top = git_run(path.parent, "rev-parse", "--show-toplevel").decode().strip()
+   407	    except (ContractError, OSError):
+   408	        raise ContractError(f"{task_file} is not inside a git repository") from None
+   409	    root = Path(top).resolve()
+   410	    parts = path.relative_to(root).parts if path.is_relative_to(root) else ()
+   411	    if not (len(parts) == 4 and parts[:2] == (".devtool", "epic") and re.fullmatch(r"task_.*\.md", parts[3])):
+   412	        raise ContractError("pass the task's mirror under .devtool/epic/<epic_dir>/")
+   413	    epic_dir = path.parent
+   414	    return EpicLayout(root, epic_dir, epic_dir / f"{epic_dir.name}.en.md",
+   415	                      epic_dir / "bdd_scenarios.en.md", epic_dir / "evidence" / f"{path.stem}.json")
+   416	
+   485	def evaluate_done_gate(task_file: Path) -> list[str]:
+   486	    """One message per failed done-gate condition for a task mirror; empty when the gate passes."""
+   487	    layout = epic_layout(task_file)
+   488	    task_text = Path(task_file).read_text(encoding="utf-8")
+   489	    try:
+   490	        rows, red_na = parse_verification(task_text)
+   491	    except ContractError as error:
+   492	        return [f"condition 2: {error}"]
+   493	    evidence = load_evidence(layout.evidence)
+   494	    if evidence is None:
+   495	        return [f"condition 1: evidence {layout.evidence} not found in this checkout — record it with "
+   496	                "run_task_checks.py and run the done gate in the epic worktree"]
+   497	    runs = evidence.get("runs", {})
+   498	    needs_red = red_na is None and any(row.phase == "RED" for row in rows)
+   499	    needs_measure = any(row.phase == "MEASURE" for row in rows)
+   500	    missing = [kind for kind in (("red",) if needs_red else ()) + (("measure",) if needs_measure else ()) + ("verify",) if kind not in runs]
+   501	    if missing:
+   502	        return [f"condition 1: evidence {layout.evidence} has no {kind} run" for kind in missing]
+   503	    problems = row_problems(rows, runs)
+   504	    ids = {row.id for row in rows} | {"SCOPE"}
+   505	    problems += [f"condition 2: {kind} row {r['id']} is {r['outcome']} and no longer in the table"
+   506	                 for kind, run in runs.items() for r in run["rows"]
+   507	                 if r["id"] not in ids and r["outcome"] not in ("PASS", "BLOCKED")]
+   508	    for kind, run in runs.items():
+   509	        problems += [f"condition 3: {kind} row {r['id']} is BLOCKED ({r.get('reason')})"
+   510	                     for r in run["rows"] if r["outcome"] == "BLOCKED"]
+   511	    verify = runs["verify"]
+   512	    if verify["tree"] != fingerprint(layout.root)[0]:
+   513	        problems.append("condition 4: the verify run's tree differs from the current tree — "
+   514	                        "files changed after verification")
+   515	    if verify.get("patch_id") is None:
+   516	        problems.append("condition 4: verify saw no change outside .devtool — record verify before committing")
+   517	    if needs_measure:
+   518	        measure = runs["measure"]
+   519	        if measure.get("passed") is not True:
+   520	            problems.append("condition 2: measure run did not pass")
+   521	        if measure.get("tree") != fingerprint(layout.root)[0]:
+     1	#!/usr/bin/env python3
+     2	from __future__ import annotations
+     3	
+     4	"""Mirror one epic task's Kanban status across every checkout of this repo.
+     5	
+     6	`dev-implementation` runs an epic inside an isolated worktree, but the same
+     7	task files are also checked out in the main workspace -- and `dev-designer`
+     8	writes each task twice, into `.devtool/features/` and into
+     9	`.devtool/epic/<epic_dir>/`. Writing a status to only one of those four copies
+    10	leaves every other Kanban board stale for the whole epic.
+    11	
+    12	This script writes them all:
+    13	
+    14	    sync_task_status.py task <task_id> <status>
+    15	    sync_task_status.py epic <epic_dir> <status>
+    16	
+    17	`task` mode rewrites `status`, `modified`, and -- on `done` -- `completedAt` in
+    18	the frontmatter of every copy of that task, in every checkout `git worktree
+    19	list` reports. `epic` mode rewrites the Meta Data `Status` line of the Epic
+    20	Overview's `.en.md` and `.vi.md` together, so the pair can never diverge.
+    21	
+    22	Only matched lines change; every other key and the whole document body survive
+    23	byte-for-byte. Frontmatter is parsed with the same hand-rolled regex idiom as
+    24	compute_execution_order.py -- deliberately no PyYAML, so this stays stdlib-only.
+    25	"""
+    26	import re
+    27	import subprocess
+    28	import sys
+    29	from datetime import datetime, timezone
+    30	from collections.abc import Callable
+    31	
+    32	try:
+    33	    from datetime import UTC
+    34	except ImportError:
+    35	    UTC = timezone.utc  # type: ignore[attr-defined]
+    36	from pathlib import Path
+    37	
+    38	sys.path.insert(0, str(Path(__file__).parent))
+    39	from check_bdd_traceability import (
+    40	    COVERS_LINE,
+    41	    FENCE,
+    42	    ID_SHAPE,
+    43	    ID_TOKEN,
+    44	    LEADING_TAG,
+    45	    SCENARIO_LINE,
+    46	)
+    47	from slug_utils import parse_frontmatter, sanitize_slug
+    48	import task_contract as tc
+    49	
+    50	TASK_STATUSES = ("backlog", "todo", "in-progress", "review", "done")
+    51	FRONTMATTER_RE = re.compile(r"^---\n(.*?)\n---\n", re.DOTALL)
+    52	TASK_FILE_PATTERN = re.compile(r"^task_[0-9]+.*\.md$")
+    53	
+    54	
+    55	def is_task_file(path: Path) -> bool:
+    56	    """Return True if path is a task file (e.g. task_01_name.md), excluding epic overview docs."""
+    57	    return bool(TASK_FILE_PATTERN.match(path.name)) and not path.name.endswith(
+    58	        (".en.md", ".vi.md")
+    59	    )
+    60	
+    61	
+    62	def task_files_in(directory: Path) -> list[Path]:
+    63	    """List sorted task files in directory matching task_[0-9]+.*.md, ignoring overview docs."""
+    64	    if not directory.is_dir():
+    65	        return []
+    66	    return [p for p in sorted(directory.glob("task_*.md")) if is_task_file(p)]
+    67	
+    68	
+    69	def transform_outside_code(text: str, fn: Callable[[str], str]) -> str:
+    70	    """Apply fn to text outside fenced code blocks and inline code spans."""
+    71	    lines = text.splitlines(keepends=True)
+    72	    out: list[str] = []
+    73	    non_fence_chunk: list[str] = []
+    74	    in_fence = False
+    75	    fence_char = ""
+    76	    fence_len = 0
+    77	
+    78	    fence_open_re = re.compile(r"^[ ]{0,3}(`{3,}|~{3,})")
+    79	    fence_close_re = re.compile(r"^[ ]{0,3}(`{3,}|~{3,})\s*$")
+    80	
+    81	    def flush_non_fence() -> None:
+    82	        if non_fence_chunk:
+    83	            chunk = "".join(non_fence_chunk)
+    84	            out.append(_transform_outside_inline_spans(chunk, fn))
+    85	            non_fence_chunk.clear()
+    86	
+    87	    for line in lines:
+    88	        if not in_fence:
+    89	            m = fence_open_re.match(line)
+    90	            if m:
+    91	                flush_non_fence()
+    92	                in_fence = True
+    93	                fence_char = m.group(1)[0]
+    94	                fence_len = len(m.group(1))
+    95	                out.append(line)
+    96	            else:
+    97	                non_fence_chunk.append(line)
+    98	        else:
+    99	            m = fence_close_re.match(line)
+   100	            if m and m.group(1)[0] == fence_char and len(m.group(1)) >= fence_len:
+   101	                in_fence = False
+   102	            out.append(line)
+   103	
+   104	    flush_non_fence()
+   105	    return "".join(out)
+     1	{
+     2	  "schema_version": 1,
+     3	  "providers": [
+     4	    {
+     5	      "id": "agent-tools-python",
+     6	      "skill": "d3nexus:python-quality-check",
+     7	      "required": true,
+     8	      "profiles": ["pr", "epic", "release", "scheduled"]
+     9	    }
+    10	  ]
+    11	}
+     1	{
+     2	  "schema_version": 1,
+     3	  "capabilities": {
+     4	    "format": ["ruff", "format", "--check", "skills/web-quality-check", "tests", "skills/dev-implementation/resources/scripts/generate_smoke_checklist.py"],
+     5	    "lint": ["ruff", "check", "skills/web-quality-check", "tests", "skills/dev-implementation/resources/scripts/generate_smoke_checklist.py"],
+     6	    "type_check": ["mypy", "skills/web-quality-check/resources/scripts/validate_web_quality.py", "skills/web-quality-check/resources/scripts/run_playwright_harness.py", "skills/quality_check/resources/scripts/verify_polyglot_registry.py", "skills/web-quality-check/resources/scripts/check_vanilla_js.py", "skills/dev-implementation/resources/scripts/generate_smoke_checklist.py"],
+     7	    "test": ["python3", "-m", "pytest", "tests"],
+     8	    "architecture": ["bash", "scripts/verify.sh"]
+     9	  },
+    10	  "profiles": {
+    11	    "pr": ["lint", "test"],
+    12	    "epic": ["format", "lint", "type_check", "test", "architecture"],
+    13	    "release": ["format", "lint", "type_check", "test", "architecture"],
+    14	    "scheduled": ["format", "lint", "type_check", "test", "architecture"]
+    15	  }
+    16	}
+
+exec
+/bin/zsh -lc 'ruff check --no-cache tests/test_agy_quota.py tests/test_claude_quota.py' in /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/autonomous_lifecycle_runner
+ exited 1 in 0ms:
+SIM117 Use a single `with` statement with multiple contexts instead of nested `with` statements
+  --> tests/test_agy_quota.py:32:9
+   |
+30 |           mock_file = MagicMock()
+31 |           mock_file.is_file.return_value = False
+32 | /         with patch.object(agy_quota, "PID_FILE", mock_file):
+33 | |             with patch("subprocess.check_output", return_value=""):
+   | |___________________________________________________________________^
+34 |                   self.assertIsNone(agy_quota.get_server_pid(port=59998))
+   |
+help: Combine `with` statements
+
+SIM117 Use a single `with` statement with multiple contexts instead of nested `with` statements
+  --> tests/test_agy_quota.py:41:9
+   |
+39 |           mock_file.is_file.return_value = True
+40 |           mock_file.read_text.return_value = "12345"
+41 | /         with patch.object(agy_quota, "PID_FILE", mock_file):
+42 | |             with patch("os.kill", return_value=None):
+   | |_____________________________________________________^
+43 |                   self.assertEqual(agy_quota.get_server_pid(port=59998), 12345)
+   |
+help: Combine `with` statements
+
+SIM117 Use a single `with` statement with multiple contexts instead of nested `with` statements
+  --> tests/test_agy_quota.py:47:9
+   |
+45 |       def test_stop_server_when_not_running(self):
+46 |           """stop_server gracefully returns False when server is not running."""
+47 | /         with patch("agy_quota.get_server_pid", return_value=None):
+48 | |             with patch("agy_quota.is_server_alive", return_value=False):
+   | |________________________________________________________________________^
+49 |                   res = agy_quota.stop_server(port=59998)
+50 |                   self.assertFalse(res)
+   |
+help: Combine `with` statements
+
+SIM117 Use a single `with` statement with multiple contexts instead of nested `with` statements
+  --> tests/test_agy_quota.py:55:9
+   |
+53 |           """Help screen displays --ui, --stop, and --status options."""
+54 |           captured = io.StringIO()
+55 | /         with patch("sys.stdout", captured):
+56 | |             with patch("sys.argv", ["agy_quota.py", "--help"]):
+   | |_______________________________________________________________^
+57 |                   agy_quota.main()
+58 |           output = captured.getvalue()
+   |
+help: Combine `with` statements
+
+SIM117 Use a single `with` statement with multiple contexts instead of nested `with` statements
+  --> tests/test_agy_quota.py:84:9
+   |
+82 |               }
+83 |           }
+84 | /         with patch("os.path.isdir", return_value=True):
+85 | |             with patch("agy_quota.check_profile_appeal_status", return_value=None):
+   | |___________________________________________________________________________________^
+86 |                   with patch("agy_quota.check_profile_auth_token", return_value=True):
+87 |                       with patch("agy_quota.load_cached_profiles", return_value=mock_cached):
+   |
+help: Combine `with` statements
+
+SIM117 Use a single `with` statement with multiple contexts instead of nested `with` statements
+   --> tests/test_agy_quota.py:107:9
+    |
+105 |               }
+106 |           }
+107 | /         with patch("os.path.isdir", return_value=True):
+108 | |             with patch("agy_quota.check_profile_appeal_status", return_value=None):
+    | |___________________________________________________________________________________^
+109 |                   with patch("agy_quota.check_profile_auth_token", return_value=True):
+110 |                       with patch("agy_quota.load_cached_profiles", return_value=mock_cached):
+    |
+help: Combine `with` statements
+
+SIM117 Use a single `with` statement with multiple contexts instead of nested `with` statements
+   --> tests/test_agy_quota.py:136:9
+    |
+134 |           mock_res.stderr = ""
+135 |
+136 | /         with patch("os.path.isdir", return_value=True):
+137 | |             with patch("agy_quota.check_profile_appeal_status", return_value=None):
+    | |___________________________________________________________________________________^
+138 |                   with patch("agy_quota.check_profile_auth_token", return_value=True):
+139 |                       with patch("agy_quota.load_cached_profiles", return_value=mock_cached):
+    |
+help: Combine `with` statements
+
+SIM117 Use a single `with` statement with multiple contexts instead of nested `with` statements
+   --> tests/test_agy_quota.py:178:9
+    |
+177 |           agy_quota.LAST_BLOCKED_PROBE.clear()
+178 | /         with patch("os.path.isdir", return_value=True):
+179 | |             with patch("agy_quota.check_profile_auth_token", return_value=True):
+    | |________________________________________________________________________________^
+180 |                   with patch("subprocess.run", return_value=mock_proc):
+181 |                       with patch("agy_quota.unblock_profile") as mock_unblock:
+    |
+help: Combine `with` statements
+
+SIM117 Use a single `with` statement with multiple contexts instead of nested `with` statements
+   --> tests/test_agy_quota.py:211:9
+    |
+210 |           agy_quota.LAST_BLOCKED_PROBE.clear()
+211 | /         with patch("os.path.isdir", return_value=True):
+212 | |             with patch("agy_quota.check_profile_auth_token", return_value=True):
+    | |________________________________________________________________________________^
+213 |                   with patch("subprocess.run", return_value=mock_proc):
+214 |                       with patch("agy_quota.record_profile_disabled") as mock_record:
+    |
+help: Combine `with` statements
+
+SIM117 Use a single `with` statement with multiple contexts instead of nested `with` statements
+   --> tests/test_agy_quota.py:271:9
+    |
+270 |           agy_quota.LAST_BLOCKED_PROBE.clear()
+271 | /         with patch("os.path.isdir", return_value=True):
+272 | |             with patch("agy_quota.check_profile_auth_token", return_value=True):
+    | |________________________________________________________________________________^
+273 |                   with patch("agy_quota.load_cached_profiles", return_value=mock_cached):
+274 |                       with patch("subprocess.run", return_value=mock_proc) as mock_run:
+    |
+help: Combine `with` statements
+
+SIM117 Use a single `with` statement with multiple contexts instead of nested `with` statements
+  --> tests/test_claude_quota.py:91:9
+   |
+89 |           mock_resp.__enter__.return_value = mock_resp
+90 |
+91 | /         with patch("agy_quota.get_claude_oauth_token", return_value=("sk-ant-live-token", "user@anthropic.com", True)):
+92 | |             with patch("urllib.request.urlopen", return_value=mock_resp):
+   | |_________________________________________________________________________^
+93 |                   with patch("agy_quota.update_claude_json_cache") as mock_cache_update:
+94 |                       data = agy_quota.fetch_claude_quota()
+   |
+help: Combine `with` statements
+
+SIM117 Use a single `with` statement with multiple contexts instead of nested `with` statements
+   --> tests/test_claude_quota.py:119:9
+    |
+117 |               }
+118 |           }
+119 | /         with patch("agy_quota.get_claude_oauth_token", return_value=(None, None, False)):
+120 | |             with patch("pathlib.Path.is_file", return_value=True):
+    | |__________________________________________________________________^
+121 |                   with patch("builtins.open", unittest.mock.mock_open(read_data=json.dumps(cached_json))):
+122 |                       data = agy_quota.fetch_claude_quota()
+    |
+help: Combine `with` statements
+
+Found 12 errors.
+
+exec
+/bin/zsh -lc "sed -n '1,45p' skills/dev-implementation/resources/scripts/run_external_review.py; nl -ba .devtool/epic/autonomous_lifecycle_runner/task_3_principal_review_automation_and_checkpoint.md; nl -ba .devtool/epic/autonomous_lifecycle_runner/2026-11-10-autonomous-lifecycle-runner-design.en.md | sed -n '1,85p'; cat .agents/quality/check_quality.json; ls -l /opt/homebrew/bin/git /opt/homebrew/bin/agy" in /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/autonomous_lifecycle_runner
+ exited 1 in 0ms:
+#!/usr/bin/env python3
+"""Review of a finished epic through the Claude CLI, the Codex CLI, the Antigravity CLI (agy), the Kiro CLI (kiro-cli/kiro), or a model served by a local Ollama.
+
+Usage:
+  run_external_review.py run --epic-dir <epic_dir> --base <base_ref> --cli claude|codex|agy|kiro [--model <name>] [--timeout 1800] [--facts-timeout 300] [--diff-limit 1500]
+  run_external_review.py run --epic-dir <epic_dir> --base <base_ref> --cli ollama --model <name> [--host <url>] [--num-ctx <tokens>] [--timeout 1800]
+  run_external_review.py check --epic-dir <epic_dir>
+  run_external_review.py triage --epic-dir <epic_dir>
+
+`run` exit codes: 0 a completed round without a Critical or Important finding; 1 a completed round with
+one; 2 every other outcome, including CHANGES REQUIRED with no finding line (the round is recorded whenever
+the reviewer ran). `check` exit codes: 0 nothing undecided; 1 a Critical or Important finding of the latest
+completed round has no decision, or a findings row cannot be read. `triage` prints the latest round as a
+skeleton to fill before acting on it, with a comparison of every round; exit 0, or 2 with no round.
+"""
+from __future__ import annotations
+
+import argparse
+import copy
+import json
+import os
+import re
+import shlex
+import shutil
+import signal
+import subprocess
+import sys
+import time
+from dataclasses import dataclass
+from datetime import datetime, timezone
+
+try:
+    from datetime import UTC
+except ImportError:
+    UTC = timezone.utc  # type: ignore[attr-defined]
+from pathlib import Path
+from string import Template
+from typing import Any
+
+import local_review
+from check_bdd_traceability import load_scenarios
+from task_contract import ContractError, git_run, parse_integration_results, parse_integration_result_specs
+
+SCRIPTS = Path(__file__).resolve().parent
+PROMPT = SCRIPTS.parent.parent / "references" / "external-review-prompt.md"
+     1	---
+     2	id: "task_3_principal_review_automation_and_checkpoint"
+     3	status: "todo"
+     4	priority: "high"
+     5	assignee: null
+     6	epic: "autonomous_lifecycle_runner"
+     7	dueDate: null
+     8	created: "2026-11-10T19:16:00Z"
+     9	modified: "2026-11-10T19:16:00Z"
+    10	completedAt: null
+    11	labels: ["lifecycle", "principal-review", "human-checkpoint"]
+    12	order: "a3"
+    13	---
+    14	
+    15	# Task 3: Principal Review Automation and Human Checkpoint
+    16	
+    17	Epic: [autonomous_lifecycle_runner](autonomous_lifecycle_runner.en.md)
+    18	
+    19	## Requirement Analysis
+    20	
+    21	Implement Stage 2 Principal Review automation with the mandatory Human confirmation checkpoint in `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py`:
+    22	1. Implement `LifecycleRunner.step_principal_review`:
+    23	   - Triggers `run_external_review.py run --kind principal --epic-dir <epic> --base <base> --auto-quota` with provider auto-quota prioritization.
+    24	   - Evaluates triage results and Action from `run_external_review.py triage`:
+    25	     - `AUTO_PASS_CLEAN`: 0 findings -> directly transitions to `StageName.IMPLEMENTATION`.
+    26	     - `AUTO_PASS_FINAL_MINOR_SWEEP`: 0 Critical/Important, only Minor -> AI Assistant executes single minor fix sweep, commits revisions, records decisions, runs `package_epic.py <epic> --revise`, and advances to Stage 3 without an additional external review round.
+    27	     - `AUTO_FIX_ELIGIBLE`: AI Assistant auto-applies aligned revisions, commits them, records decision cells (`fixed in <sha>`) in `principal_review.md`, commits decisions, executes `package_epic.py <epic> --revise`, commits handoff re-anchor, and advances to the next review round.
+    28	     - Human stop condition: if findings involve high-risk critical issues, business/domain requirement conflicts, unaligned source conflicts, or `SHARED_CONTRACT_CONFLICT`, the runner transitions to `StageName.AWAITING_PRINCIPAL_CONFIRMATION`, writes `.devtool/epic/<epic>/principal_fix_proposal_round<N>.md`, and prompts the Human Architect (`prompt_human_principal_fixes`) or halts for `--confirm-fixes`.
+    29	     - `AUTO_PASS_FINAL_SWEEP`: on Round 3 with 0 Critical, executes final fix sweep, commits, records decisions, runs `package_epic.py --revise`, and advances to Stage 3 without a 4th round.
+    30	     - `CIRCUIT_BREAKER_HALT`: halts immediately on `SHARED_CONTRACT_CONFLICT`, `FIX_LOOP`, or `MAX_ROUNDS_CRITICAL_REMAINING`.
+    31	2. Implement unit and integration tests in `tests/test_lifecycle_runner.py` covering `ALR-HP-03`, `ALR-EC-01`, `ALR-EC-02`, and `ALR-FR-01`.
+    32	
+    33	## Files
+    34	
+    35	Allowed files:
+    36	- `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py` (new)
+    37	- `tests/test_lifecycle_runner.py` (new)
+    38	
+    39	Read-only context:
+    40	- `skills/dev-implementation/resources/scripts/run_external_review.py` — external review runner and triage
+    41	- `skills/dev-implementation/resources/scripts/package_epic.py` — epic packaging script
+    42	- `scripts/resume_context.py` — gate approval recording
+    43	- `.devtool/epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.en.md` — Module Contracts
+    44	- `.agents/quality/python-quality.json` — registered capabilities
+    45	
+    46	## Design Rationale
+    47	
+    48	While the overall lifecycle is autonomous, architectural design changes identified during Principal Review must be vetted by the Human Architect before modifying HLD specifications. Halting to batch-confirm fixes prevents architectural drift while eliminating unnecessary intermediate pauses on zero-finding passes. Applicable skills: `d3nexus:test-driven-development`, `d3nexus:python-quality-check`.
+    49	
+    50	## Impact Analysis & Blast Radius
+    51	
+    52	- **Target files and symbols**: `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py` (`LifecycleRunner.step_principal_review`, `LifecycleRunner.prompt_human_principal_fixes`, `LifecycleRunner.evaluate_circuit_breakers`).
+    53	- **Downstream callers**: Runner pipeline loop.
+    54	- **Cross-platform bridges**: None.
+    55	- **Target test coverage threshold**: 100% of Principal Review state transitions, circuit breakers, and confirmation branches.
+    56	
+    57	### BDD SCENARIOS
+    58	
+    59	Covers: ALR-HP-03, ALR-EC-01, ALR-EC-02, ALR-FR-01
+    60	
+    61	```gherkin
+    62	Scenario: [ALR-HP-03] [Tier C - Integration] AI Assistant auto-applies aligned Principal Review fixes and prompts Human confirmation only on critical or domain conflicts
+    63	
+    64	Given Principal Review returns findings on candidate HLD specifications
+    65	When the AI Assistant triages the findings in step_principal_review
+    66	Then aligned technical findings are auto-applied, committed, and packaged via package_epic.py --revise without human interruption
+    67	And lifecycle_runner.py transitions to AWAITING_PRINCIPAL_CONFIRMATION only if findings involve critical risks, business requirement conflicts, or SHARED_CONTRACT_CONFLICT
+    68	And upon Human confirmation of the conflict proposal, the pipeline resumes and advances to the next review round
+    69	
+    70	Scenario: [ALR-EC-01] [Tier C - Integration] Zero findings in Principal Review bypasses Human confirmation
+    71	
+    72	Given Principal Review completes Round 1 with verdict PASS and 0 findings
+    73	When step_principal_review processes the review results
+    74	Then the runner logs "AUTO_PASS_CLEAN: 0 findings"
+    75	And the runner bypasses the Human confirmation prompt completely
+    76	And the pipeline state advances directly to Stage 3 Implementation
+    77	
+    78	Scenario: [ALR-EC-02] [Tier C - Integration] Minor-only findings in Principal Review swept in single pass without Human halt
+    79	
+    80	Given Principal Review Round 1 returns 0 Critical, 0 Important, and 2 Minor formatting findings
+    81	When step_principal_review evaluates the triage report
+    82	Then the runner triggers AUTO_PASS_FINAL_MINOR_SWEEP
+    83	And the Minor findings are swept, committed, and packaged in a single pass without stopping for Human confirmation
+    84	And the pipeline advances directly to Stage 3 Implementation
+    85	
+    86	Scenario: [ALR-FR-01] [Tier C - Integration] Circuit Breaker halts immediately on Shared Contract conflict
+    87	
+    88	Given an external review round reports a finding conflicting with shared-contracts/
+    89	When evaluate_circuit_breakers inspects the triage report
+    90	Then the runner triggers CIRCUIT_BREAKER_HALT (SHARED_CONTRACT_CONFLICT)
+    91	And the pipeline halts immediately, preserving all logs and state
+    92	And the console displays the executive warning banner instructing the developer to consult the Human Architect
+    93	```
+    94	
+    95	## Verification
+    96	
+    97	| ID | Phase | Command | Expect | Needs |
+    98	|----|-------|---------|--------|-------|
+    99	| V1 | RED | `python3 -m unittest tests/test_lifecycle_runner.py -k test_alr_hp_03` | exit 1; contains "FAILED" | — |
+   100	| V2 | GREEN | `python3 -m unittest tests/test_lifecycle_runner.py -k test_alr_hp_03` | exit 0; contains "OK" | — |
+   101	| V3 | GREEN | `python3 -m unittest tests/test_lifecycle_runner.py` | exit 0; contains "OK" | — |
+   102	| V4 | TIER-B | `ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py tests/test_lifecycle_runner.py` | exit 0 | — |
+   103	| V5 | TIER-B | `mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py tests/test_lifecycle_runner.py` | exit 0 | — |
+   104	| V6 | TIER-C | `python3 scripts/run_unittest_junit.py --junitxml build/test-results/task_3.xml tests/test_lifecycle_runner.py` | exit 0; results build/test-results/task_3.xml | — |
+   105	
+   106	## Stop and Report If
+   107	
+   108	- A command, path, symbol or anchor named in this task does not match the repository.
+   109	- A Verification row fails for a reason other than its Expect.
+   110	- The work needs a change to a file outside Allowed files, or to a protected path.
+   111	- The work needs a change to this task's Verification table, Definition of Done, Allowed files or
+   112	  Covers line.
+   113	- A variable named in the Needs column is unset.
+   114	- An unhandled exception occurs while running `run_external_review.py triage`.
+   115	
+   116	## Decisions Already Made
+   117	
+   118	- Principal Review invocation uses `run_external_review.py run --kind principal --epic-dir <epic> --base <base> --auto-quota` and evaluates `run_external_review.py triage`.
+   119	- Principal Review is capped at 3 rounds.
+   120	- Auto-Triage Gate actions map to deterministic transitions: `AUTO_PASS_CLEAN` advances to implementation; `AUTO_PASS_FINAL_MINOR_SWEEP` sweeps minor fixes and advances to implementation without an extra review round; `AUTO_FIX_ELIGIBLE` auto-applies aligned revisions; `AUTO_PASS_FINAL_SWEEP` executes final design-anchored sweep and finishes Stage 2.
+   121	- The runner transitions to `AWAITING_PRINCIPAL_CONFIRMATION` only when findings involve high-risk critical issues, business/domain requirement conflicts, unaligned source conflicts, or `SHARED_CONTRACT_CONFLICT`.
+   122	- Clean working tree discipline: edits, decision records (`fixed in <sha>` in `principal_review.md`), and `package_epic.py <epic> --revise` are committed in sequence before dispatching the next review round.
+   123	
+   124	## Definition of Done
+   125	
+   126	- Scenarios ALR-HP-03, ALR-EC-01, ALR-EC-02, ALR-FR-01 are covered and pass in the test suite. (V2, V3, V6)
+   127	- Python quality checks (lint and type check) pass cleanly. (V4, V5)
+   128	- Human confirmation prompt and circuit breaker halts function deterministically. (Gate 5)
+   129	
+   130	## Dependencies & Blockers
+   131	
+   132	- Blocked by [Task 1](task_1_pipeline_state_machine_and_probing.md) and [Task 2](task_2_subprocess_dispatcher_and_headless_agy.md).
+   133	- Blocks [Task 4](task_4_cross_model_review_fix_plan_loop.md) and [Task 5](task_5_orchestrator_cli_and_governance_rules.md).
+   134	
+   135	## References & Rollback
+   136	
+   137	- [Epic HLD](autonomous_lifecycle_runner.en.md), Module Contracts.
+   138	- **Rollback**: Revert task commit; Principal Review integration removed.
+     1	# Autonomous Lifecycle Runner Design
+     2	
+     3	Design for an opt-in script that drives `dev-lifecycle` from handoff to the final Human report, with three actors (Human, AI Assistant, AI Programmer) and headless model dispatch.
+     4	
+     5	## Contents
+     6	
+     7	1. [Summary](#summary)
+     8	2. [Goals and Non-Goals](#goals-and-non-goals)
+     9	3. [Actors and Models](#actors-and-models)
+    10	4. [Pipeline Flow](#pipeline-flow)
+    11	5. [Human Checkpoints](#human-checkpoints)
+    12	6. [Runner Architecture](#runner-architecture)
+    13	7. [Rule Changes](#rule-changes)
+    14	8. [Risks and Mitigations](#risks-and-mitigations)
+    15	9. [Testing](#testing)
+    16	10. [Shared Contract Warnings](#shared-contract-warnings)
+    17	
+    18	## Summary
+    19	
+    20	Today the lifecycle stops at several menus (Handoff Choice, Gate 3, Review Choice) and at every non-critical review finding. A new script, `lifecycle_runner.py`, removes the menus and runs each stage in a separate headless `agy` process that uses the model and effort that stage needs. Human decisions are kept only where the Human asked for them.
+    21	
+    22	## Goals and Non-Goals
+    23	
+    24	Goals:
+    25	
+    26	- Run the pipeline from handoff to the final report without menu stops.
+    27	- Dispatch the Programmer as Gemini 3.8 Flash at high effort, and the Assistant as a stronger model.
+    28	- Add an Assistant review of the Programmer's fix plan after every cross-model review round.
+    29	- Survive restarts: all state lives in `.devtool/`.
+    30	
+    31	Non-goals:
+    32	
+    33	- No change to interactive mode: the runner is opt-in through `/dev-lifecycle --autonomous`.
+    34	- No change to Gates 1 and 2, the 3-round cap, or the three Circuit Breakers.
+    35	- No auto-merge: the Human always decides on `/finishing-a-development-branch`.
+    36	
+    37	## Actors and Models
+    38	
+    39	| Actor | Role | Model source |
+    40	|---|---|---|
+    41	| Human (2.1) | Chooses the solution, confirms Principal Review fixes, decides to finish | n/a |
+    42	| AI Assistant (2.2) | Writes the design, triages review findings, approves fix plans | `.devtool/review_config.json` (`assistant` entry) |
+    43	| AI Programmer (2.3) | Implements tasks, proposes and applies fixes | `gemini-3.8-flash`, effort `high` |
+    44	
+    45	The command shape was verified on this machine: `agy --print "<prompt>" --model gemini-3.8-flash --effort high --mode plan` exits 0 and answers. Programmer calls use `--mode auto` so the process can edit files in its worktree.
+    46	
+    47	## Pipeline Flow
+    48	
+    49	```mermaid
+    50	flowchart TD
+    51	    BS["Human and Assistant brainstorm, Gates 1 and 2"]
+    52	    PKG["Assistant packages epic, handoff.md"]
+    53	    PR["Script: principal review, auto-quota"]
+    54	    TRI["Assistant triages and proposes fixes"]
+    55	    HC{"Human confirms fixes?"}
+    56	    REV["Assistant revises, re-packages"]
+    57	    IMPL["Script: Programmer implements, Gate 4"]
+    58	    CMR["Script: cross-model review, auto-quota"]
+    59	    PLAN["Programmer writes fix plan"]
+    60	    APP{"Assistant verdict"}
+    61	    FIX["Programmer applies fixes, Gate 4"]
+    62	    RPT["Script: final report"]
+    63	    HF{"Human decides to finish?"}
+    64	    FIN["finishing-a-development-branch, Test All"]
+    65	    HALT(["HALT: report to Human"])
+    66	
+    67	    BS --> PKG --> PR --> TRI
+    68	    TRI -->|"findings to fix"| HC
+    69	    TRI -->|"no findings"| IMPL
+    70	    HC -->|"confirmed"| REV --> PR
+    71	    IMPL --> CMR --> PLAN --> APP
+    72	    APP -->|"approved"| FIX --> CMR
+    73	    APP -->|"adjusted"| FIX
+    74	    APP -->|"CRITICAL_CONFLICT"| HALT
+    75	    CMR -->|"converged"| RPT --> HF
+    76	    HF -->|"yes"| FIN
+    77	    TRI -->|"circuit breaker"| HALT
+    78	    CMR -->|"circuit breaker"| HALT
+    79	```
+    80	
+    81	## Human Checkpoints
+    82	
+    83	1. **Brainstorming and design (Gates 1 and 2)**: unchanged, the Human approves the spec and the task breakdown.
+    84	2. **Principal Review fixes**: AI Assistant auto-applies aligned design revisions, commits them, and re-packages without human interruption. The runner halts and transitions to `AWAITING_PRINCIPAL_CONFIRMATION` only if findings involve high-risk critical issues, business/domain requirement conflicts, unaligned source conflicts, or `SHARED_CONTRACT_CONFLICT`. Minor-only rounds (`AUTO_PASS_FINAL_MINOR_SWEEP`) are swept in a single pass without stopping for Human. Model priority for Principal Review is selectable at task confirmation (Gate 2) across 4 options: (1) `Claude -> Codex -> Kiro -> Argon` [Default], (2) `Codex -> Claude -> Kiro -> Argon`, (3) `Kiro -> Claude -> Codex -> Argon`, (4) `Kiro -> Codex -> Claude -> Argon`.
+    85	3. **Cross-model review fixes**: no Human stop. The Programmer proposes the fixes, the Assistant approves or adjusts the plan, the Programmer applies it, and Gate 4 re-runs.
+{
+  "schema_version": 1,
+  "providers": [
+    {
+      "id": "agent-tools-python",
+      "skill": "d3nexus:python-quality-check",
+      "required": true,
+      "profiles": ["pr", "epic", "release", "scheduled"]
+    }
+  ]
+}
+ls: /opt/homebrew/bin/git: No such file or directory
+-rwxr-xr-x@ 1 danhdueexoictif  admin  209824176 Nov 11 00:14 /opt/homebrew/bin/agy
+
+exec
+/bin/zsh -lc "nl -ba skills/dev-implementation/resources/scripts/run_external_review.py | sed -n '213,289p'; nl -ba skills/dev-implementation/resources/scripts/compute_execution_order.py | sed -n '1,45p;160,240p'; rg -n 'priority|Gate 2|model|config|assistant' .devtool/features/task_5_orchestrator_cli_and_governance_rules.md skills/dev-lifecycle/SKILL.md skills/dev-designer/SKILL.md | head -60; rg -n 'provider_priority|load_review_config|sticky' tests/test_run_external_review.py" in /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/autonomous_lifecycle_runner
+ exited 2 in 0ms:
+   213	def select_provider_by_quota(
+   214	    quota_fetcher: Any = None,
+   215	    binary_resolver: Any = None,
+   216	) -> tuple[str | None, list[str]]:
+   217	    """Select the highest-priority eligible provider in Claude -> Codex -> Kiro -> Argon via check-quota."""
+   218	    fetcher = quota_fetcher or _default_quota_fetcher
+   219	    resolver = binary_resolver or resolve_cli_binary
+   220	    diagnostics: list[str] = []
+   221	    for candidate in PROVIDER_PRIORITY:
+   222	        if not resolver(candidate):
+   223	            diagnostics.append(f"{candidate}: binary not found on PATH")
+   224	            continue
+   225	        try:
+   226	            data = fetcher(candidate)
+   227	        except Exception as exc:
+   228	            diagnostics.append(f"{candidate}: quota check error ({exc})")
+   229	            continue
+   230	        ok, detail = evaluate_provider_quota(candidate, data)
+   231	        diagnostics.append(f"{candidate}: {'ELIGIBLE' if ok else 'SKIPPED'} ({detail})")
+   232	        if ok:
+   233	            return candidate, diagnostics
+   234	    return None, diagnostics
+   235	
+   236	
+   237	def resolve_review_settings(
+   238	    root: Path,
+   239	    epic_dir: str | None,
+   240	    kind: str,
+   241	    cli_arg: str | None,
+   242	    model_arg: str | None,
+   243	    thinking_arg: str | None,
+   244	    auto_quota: bool = False,
+   245	) -> tuple[str, str | None, str]:
+   246	    config = load_review_config(root)
+   247	    prev_cli = None
+   248	    prev_model = None
+   249	    prev_thinking = None
+   250	    if epic_dir:
+   251	        name, _ = review_file(kind)
+   252	        path = root / ".devtool" / "epic" / epic_dir / name
+   253	        if path.exists():
+   254	            rounds = rounds_in(path.read_text(encoding="utf-8"))
+   255	            if rounds:
+   256	                last_meta = round_meta(rounds[-1][1])
+   257	                prev_cli = last_meta.get("CLI")
+   258	                prev_model = last_meta.get("Model")
+   259	                prev_thinking = last_meta.get("Thinking")
+   260	
+   261	    if cli_arg is None and auto_quota:
+   262	        selected, diag = select_provider_by_quota()
+   263	        if selected:
+   264	            print(f"{CYAN}⚡ [check-quota]{RESET} Selected provider: {selected} ({'; '.join(diag)})", file=sys.stderr)
+   265	            cli = selected
+   266	        else:
+   267	            cli = prev_cli or config.get("last_used_provider") or "claude"
+   268	    else:
+   269	        cli = cli_arg or prev_cli or config.get("last_used_provider") or "claude"
+   270	
+   271	    if prev_cli != cli:
+   272	        prev_model = None
+   273	        prev_thinking = None
+   274	
+   275	    provider_cfg = config.get("providers", {}).get(cli, {})
+   276	    default_model = DEFAULT_REVIEW_CONFIG["providers"].get(cli, {}).get("model", "default")
+   277	    if cli == "ollama" and not model_arg and not prev_model:
+   278	        model = None
+   279	    else:
+   280	        model = model_arg or prev_model or provider_cfg.get("model") or default_model
+   281	
+   282	    default_thinking = DEFAULT_REVIEW_CONFIG["providers"].get(cli, {}).get("thinking_level", "high")
+   283	    thinking_level = thinking_arg or prev_thinking or provider_cfg.get("thinking_level") or default_thinking
+   284	    if thinking_level not in THINKING_LEVELS:
+   285	        thinking_level = default_thinking if default_thinking in THINKING_LEVELS else "high"
+   286	
+   287	    return cli, model, thinking_level
+   288	
+   289	
+     1	#!/usr/bin/env python3
+     2	"""Compute a sequential execution order for one epic's Kanban tasks.
+     3	
+     4	Reads every `.devtool/features/task_*.md` file whose frontmatter `epic:`
+     5	matches the given epic slug, builds a dependency graph from each task's
+     6	"## Dependencies & Blockers" section (only lines containing the literal
+     7	phrase "Blocked by" count as hard blockers -- this matches the phrasing
+     8	dev-designer's own task template prescribes), and prints:
+     9	
+    10	  1. Tasks grouped into layers. Tasks in the same layer have no dependency
+    11	     on each other -- they could technically run in parallel, though
+    12	     dev-implementation runs them sequentially (see the design spec).
+    13	  2. Any soft notes found in that section -- currently lines containing
+    14	     "Recommended" or "New dependency" (see SOFT_NOTE_MARKERS). These are
+    15	     NOT treated as hard blockers, so review them manually; the computed
+    16	     layer for that task may be earlier than the note suggests.
+    17	  3. One flattened sequential order: earlier layers first, and within a
+    18	     layer, higher priority first, then lower task number first.
+    19	
+    20	It also prints a scan summary (how many `task_*.md` files were seen, how
+    21	many matched the epic, how many were skipped) so a task file with broken
+    22	or missing frontmatter is never silently dropped.
+    23	"""
+    24	from __future__ import annotations
+    25	import argparse
+    26	import re
+    27	import sys
+    28	from pathlib import Path
+    29	
+    30	sys.path.insert(0, str(Path(__file__).parent))
+    31	from slug_utils import parse_frontmatter, sanitize_slug
+    32	
+    33	PRIORITY_RANK = {"high": 0, "medium": 1, "low": 2}
+    34	# Soft-note markers: keyword list used to surface advisory content that isn't a hard blocker.
+    35	# These are small, documented keywords — not a general sentence parser. Phase 0 (full task text)
+    36	# in the operating skill is the actual safety net for anything these markers miss.
+    37	SOFT_NOTE_MARKERS = ("Recommended", "New dependency")
+    38	FRONTMATTER_RE = re.compile(r"^---\n(.*?)\n---\n", re.DOTALL)
+    39	SECTION_RE = re.compile(r"##\s*Dependencies\s*(?:&|and)\s*Blockers\s*\n(.*?)(\n##|\Z)", re.DOTALL)
+    40	LINK_RE = re.compile(r"\]\(([^)]+\.md)\)")
+    41	TITLE_RE = re.compile(r"^#\s*Task\s*\d+:\s*(.+)$", re.MULTILINE)
+    42	NUMBER_RE = re.compile(r"\d+")
+    43	
+    44	
+    45	def parse_dependencies_section(text: str) -> str:
+   160	        print(f"No tasks found for epic '{args.epic}' in {args.features_dir}", file=sys.stderr)
+   161	        return 1
+   162	
+   163	    try:
+   164	        layers = compute_layers(tasks)
+   165	    except ValueError as error:
+   166	        print(scan_summary, file=sys.stderr)
+   167	        print(f"Cannot compute an execution order: {error}", file=sys.stderr)
+   168	        return 1
+   169	
+   170	    print(scan_summary)
+   171	    if skipped:
+   172	        for path in skipped:
+   173	            print(f"  skipped: {path}")
+   174	    print()
+   175	    print(f"Execution plan for epic '{args.epic}' ({len(tasks)} tasks):\n")
+   176	    flattened: list[str] = []
+   177	    for i, layer in enumerate(layers):
+   178	        names = ", ".join(f"{tid} ({tasks[tid]['priority']})" for tid in layer)
+   179	        parallel_note = "  -- could run in parallel" if len(layer) > 1 else ""
+   180	        print(f"Layer {i}: {names}{parallel_note}")
+   181	        flattened.extend(layer)
+   182	
+   183	    print("\nFlattened sequential order:")
+   184	    for i, task_id in enumerate(flattened, start=1):
+   185	        task = tasks[task_id]
+   186	        print(f"  {i}. {task_id} - {task['title']} [{task['priority']}, {task['status']}]")
+   187	
+   188	    soft_notes = {tid: t["soft_notes"] for tid, t in tasks.items() if t["soft_notes"]}
+   189	    if soft_notes:
+   190	        print("\nManual review advised (not parsed as hard blockers):")
+   191	        for task_id, notes in soft_notes.items():
+   192	            for note in notes:
+   193	                print(f"  {task_id}: {note}")
+   194	
+   195	    return 0
+   196	
+   197	
+   198	if __name__ == "__main__":
+   199	    sys.exit(main())
+.devtool/features/task_5_orchestrator_cli_and_governance_rules.md:4:priority: "high"
+.devtool/features/task_5_orchestrator_cli_and_governance_rules.md:23:   - Argument parsing: `--epic <slug>`, `--resume`, `--config <path>`, `--reset-stage <stage>`, `--confirm-fixes`, `--reject-fixes`, `--assistant-model <model>`, `--programmer-model <model>`, and `--dry-run`.
+.devtool/features/task_5_orchestrator_cli_and_governance_rules.md:31:   - `skills/dev-implementation/SKILL.md`: document headless Programmer execution (`--model <model>` default `gemini-3.8-flash --effort high --mode auto`).
+.devtool/features/task_5_orchestrator_cli_and_governance_rules.md:33:   - `skills/cross-model-review/SKILL.md`: document fix plan evaluation loop (`fix_plan_round<N>.md` with `APPROVED`/`ADJUSTED`/`CRITICAL_CONFLICT`).
+.devtool/features/task_5_orchestrator_cli_and_governance_rules.md:48:- `skills/cross-model-review/SKILL.md`
+.devtool/features/task_5_orchestrator_cli_and_governance_rules.md:76:Given an epic with approved Gate 1 spec and Gate 2 task breakdown in a git worktree
+.devtool/features/task_5_orchestrator_cli_and_governance_rules.md:77:And configured runner models in .devtool/review_config.json
+.devtool/features/task_5_orchestrator_cli_and_governance_rules.md:137:- Blocked by [Task 1](task_1_pipeline_state_machine_and_probing.md), [Task 2](task_2_subprocess_dispatcher_and_headless_agy.md), [Task 3](task_3_principal_review_automation_and_checkpoint.md), and [Task 4](task_4_cross_model_review_fix_plan_loop.md).
+skills/dev-lifecycle/SKILL.md:26:2. **Stage 2 (Architecture & Tasks)**: `dev-designer` -> Gate 2 approval -> Handoff (`package_epic.py`) -> Principal Review (`Claude -> Codex -> Kiro -> Argon` via `check-quota`, Auto-fix up to Max 3 rounds).
+skills/dev-lifecycle/SKILL.md:38:You MUST present the choice between "Finish", "Cross-model review" and "Local model review" on every Gate 4 PASS.
+skills/dev-lifecycle/SKILL.md:39:Cross-model review returns to a full Gate 4 run, which presents the choice again until the developer selects Finish. Local model review does the same.
+skills/dev-lifecycle/SKILL.md:70:An epic whose `.devtool/epic/<epic_dir>/` holds `task_*.md` files is past Gate 2 — whether `Packaged` (`handoff.md` present) or interrupted in Stage 3. Announce "Gates 1 and 2 already passed; resuming at Stage 3", invoke `dev-implementation`, and let its Entry-Point Detection choose where to start. Never redo Stage 1 or 2; route new requirements to dev-designer's Updating an Existing Epic.
+skills/dev-lifecycle/SKILL.md:81:- **Entry:** Gate 1 spec in `.devtool/epic/<epic_dir>/`. **Exit (Gate 2):** user-confirmed task list and granularity.
+skills/dev-lifecycle/SKILL.md:90:Once Gate 2 passes, **automatically package the epic and run `/save-context`** before prompting:
+skills/dev-lifecycle/SKILL.md:109:> Gate 2 passed: `<epic_slug>` is packaged (`handoff.md`) and context saved (`/save-context`). How do you want to proceed?
+skills/dev-lifecycle/SKILL.md:110:> 1. **`/principal-review` (Principal Review)** — cross-model design review against source (Claude CLI, Codex CLI, Antigravity CLI, or Kiro CLI).
+skills/dev-lifecycle/SKILL.md:114:- **Principal Review** → invoke `d3nexus:principal-review` (`--auto-quota` priority `Claude -> Codex -> Kiro -> Argon`, 3-Round Convergence Funnel, Auto-Triage Gate auto-revises package and `/save-context` up to max 3 rounds).
+skills/dev-lifecycle/SKILL.md:119:**Entry:** Gate 2 passed, HLD and `task_*.md` exist, and Continue chosen (or resuming packaged/interrupted epic).
+skills/dev-lifecycle/SKILL.md:129:- **Option 2: Cross-model review** -> Invoke `d3nexus:cross-model-review` via `run_external_review.py run` (prompting for Claude CLI, Codex CLI, Antigravity CLI, or Kiro CLI). Record round in `.devtool/epic/<epic_dir>/review_results.md`. Check unresolved findings with `run_external_review.py check --epic-dir <epic_dir>`. Any dismissed finding requires explicit developer instruction. Return to a full Gate 4 run on the new commit.
+skills/dev-lifecycle/SKILL.md:130:- **Option 3: Local model review** -> Invoke `d3nexus:cross-model-review` (run `ollama list`, ask which model, then invoke `run_external_review.py run --cli ollama --model <model>`). A model served by the local Ollama reviews each task commit, then the epic, and one round is recorded in the same `review_results.md` under the same `check` rules. Return to a full Gate 4 run on the new commit.
+skills/dev-lifecycle/SKILL.md:134:When an epic's tasks were executed by a fast executor model (e.g. Gemini Flash, Claude Haiku, GPT-4o-mini), the agent presents a strong recommendation in the Review Choice prompt:
+skills/dev-lifecycle/SKILL.md:135:*"Tasks were executed by a fast executor model. Option 2: Cross-model review (Claude CLI, Codex CLI, or Antigravity CLI) is STRONGLY RECOMMENDED to audit test integrity and subtle regressions before finishing the branch."* Local model review does not replace it.
+skills/dev-lifecycle/SKILL.md:137:The invariant is **Gate 4 PASS → Review Choice; Finish → Gate 5; Cross-model review → Gate 4 in full; Local model review → Gate 4 in full**. Loop repeats until developer selects Finish.
+skills/dev-lifecycle/SKILL.md:138:The review choice loop follows these exact transitions: `EXEC --> G4`, `G4 -->|"yes"| RC`, `RC -->|"1. Finish"| REVIEW`, `XR -->|"round recorded"| G4`, `RC -->|"3. Local model review"| LR`, and `LR -->|"round recorded"| G4`.
+skills/dev-lifecycle/SKILL.md:141:> **Mandatory Review Choice loop**: Once every task is `done`, run Gate 4. On PASS, the agent MUST stop calling tools and present Review Choice. Silently skipping the choice or assuming Finish is strictly prohibited. Cross-model review and Local model review always return to a full Gate 4 run before Review Choice is presented again.
+skills/dev-lifecycle/SKILL.md:196:- Picking the Ollama model for the developer instead of running `ollama list` and asking.
+skills/dev-designer/SKILL.md:13:[`dev-lifecycle`](../dev-lifecycle/SKILL.md) skill. Gate 2 (task breakdown confirmed) is
+skills/dev-designer/SKILL.md:44:- **Web Applications / Frontend**: Root or app package contains `package.json` with web frameworks (`astro.config.*`, `vite.config.*`, `next.config.*`, `nuxt.config.*`, `svelte.config.*`, `webpack.config.*`).
+skills/dev-designer/SKILL.md:60:- **Task Files (`task_*.md`) — LLM Execution SSOT**: Self-contained execution contracts (containing `Allowed files`, `Decisions Already Made`, assigned `### BDD SCENARIOS`, and `## Verification`) loaded one task at a time during `dev-implementation` so the coding model stays 100% focused.
+skills/dev-designer/SKILL.md:84:     2. **Core Invariants & State/Config Knobs** (what must always hold true, environment variables, config files).
+skills/dev-designer/SKILL.md:115:   During the HLD / Architecture design step (before finalizing the task breakdown at Gate 2), if the workspace contains a `shared-contracts/` directory (or interacts with external services, satellite repos, or FFI boundaries):
+skills/dev-designer/SKILL.md:163:When breaking the design into tasks at **Gate 2**, evaluate whether `shared-contracts/` is impacted and check the detected workspace mode:
+skills/dev-designer/SKILL.md:168:  - **Parallel Handoff Summary**: Once `task_01` is drafted and confirmed at Gate 2, output a concise handoff prompt so the developer can immediately trigger AI Agents in satellite repos (e.g. `lyrics-sync`, `nexus`) to work in parallel while local implementation proceeds. The handoff summary MUST include:
+skills/dev-designer/SKILL.md:171:    3. Actionable task prompts for satellite repo agents (e.g. updating consumer models, mocking endpoints, or adjusting downstream UI components).
+skills/dev-designer/SKILL.md:174:  - **Persona Roles**: The **Satellite Consumer Architect Persona** drafts the upstream contract delta and handoff prompt, while the **TDD Master Persona** implements consumer models and internal adapters.
+skills/dev-designer/SKILL.md:176:  - **Upstream Contract Handoff Summary & Automated Cross-Repo Flow**: At Gate 2, output a ready-to-run prompt for the AI Agent at the Hub repo (`D3Nexus`) to update and commit the canonical contract.
+skills/dev-designer/SKILL.md:216:- **Files Allowed**: Satellite-internal files only — DTOs, serializers, API clients, mock fixtures, and test files (e.g. `src/models/<domain>/*`, `src/adapters/*`, `test/fixtures/*`). **STRICTLY EXCLUDES `shared-contracts/`** (symlink target) to prevent git pathspec errors.
+skills/dev-designer/SKILL.md:217:- **Decisions Already Made**: Mapping rules from upstream payload shapes to internal domain models, fallback defaults for legacy payloads.
+skills/dev-designer/SKILL.md:225:- **Level 2 — Blast-Radius Scoped (`Task N` Final Integration Task, Gate 4, & Pre-Checks of `/cross-model-review`)**:
+skills/dev-designer/SKILL.md:244:- **Tier B (Tooling & Governance Tests)**: Tasks that touch feature packages or public API contracts MUST verify module boundaries (`bash scripts/check_module_boundaries.sh`), AST architecture governance rules K1–K10 (`swift test --package-path ArchTests`), static analysis (`swiftlint lint --strict --config quality/.swiftlint.yml`), and code formatting (`swiftformat --config quality/.swiftformat . --lint`).
+skills/dev-designer/SKILL.md:253:- **Tier A (Unit Tests)**: Tasks covering module/domain logic, services, models, and parsers with isolated unit tests (`pytest tests/unit/` using `pytest-mock`, `unittest.mock`). Executed by the **TDD Master (Dev Persona)**.
+skills/dev-designer/SKILL.md:258:- **Tier A (Unit / Crate Tests)**: Tasks covering core domain models, business logic, parsers, algorithms, and state machines with isolated unit tests (`cargo test --lib`). Executed by the **TDD Master (Dev Persona)**.
+skills/dev-designer/SKILL.md:263:- Every scenario in `bdd_scenarios.en.md` MUST be covered by **at least one automated integration test**, whatever its tier tag. One test may cover several scenarios. There are no waivers: a scenario that cannot be automated is rewritten before Gate 2.
+skills/dev-designer/SKILL.md:332:>    - **NEITHER agent** may modify shared root build or workspace files (`package.json`, `astro.config.*` in Web; `pubspec.yaml`, `melos.yaml` in Flutter; `settings.gradle.kts`, `buildSrc/**` in Android; `Project.swift`, `Workspace.swift`, `Tuist.swift` in iOS; `pyproject.toml` in Python; `pyproject.toml` in Python; root `Cargo.toml` in Rust) concurrently.
+skills/dev-designer/SKILL.md:349:   priority: "high"        # one of: low | medium | high
+skills/dev-designer/SKILL.md:416:   - **Measurement-to-Evidence Pattern**: Long-running measurement tasks (such as local model benchmarks or heavy perf evaluations) carry `Phase: MEASURE` Verification rows and declare `Evidence files:` in the task header (`Evidence files: - .devtool/epic/<epic_name>/evidence/<filename>.json`). The `MEASURE` phase executes before `GREEN` rows, writes non-empty evidence files to disk, and records SHA-256 digests in the task evidence JSON. `evaluate_done_gate()` and `audit_epic.py` enforce that `runs.measure.passed == true` and verify matching evidence file digests.
+skills/dev-designer/SKILL.md:429:   - A task with no new behaviour (a pure refactor, a config or tooling change) has no `RED` rows. Put the line `RED: n/a — <reason>` directly under the table instead, for example `RED: n/a — documentation only; no behaviour changes`.
+skills/dev-designer/SKILL.md:445:   Then add `## Decisions Already Made`: the choices from the spec or HLD that the task must not revisit, copied inline so the receiver does not have to find them. State exact production signatures, parameter defaults, canonical constants, and the caller-to-callee chain when those facts are established by the HLD or grounded repository symbols. Label grounded existing contracts with their source path and symbol. Label planned interfaces as new frozen contracts. Never invent a signature merely to fill the task; unresolved contract facts stop Gate 2 and return to design clarification. When a task has executable changes (RED or GREEN rows), this section must not be empty or write `None`. Only tasks with no executable behavior (such as pure documentation tasks) may write `None` when there are genuinely no frozen technical choices.
+skills/dev-designer/SKILL.md:478:- Read `.agents/config.json` — check the `auto_commit` setting.
+skills/dev-designer/SKILL.md:487:Then automatically execute Gate 2 handoff packaging and `/save-context` without asking an intermediate "Package vs Continue" question first:
+skills/dev-designer/SKILL.md:488:1. Record Gate 2 approval in the Gate Approval Ledger:
+skills/dev-designer/SKILL.md:492:   (Query or verify Gate 2 status via `python3 scripts/resume_context.py --check-gate 2 --epic <epic_slug>`.)
+rg: tests/test_run_external_review.py: IO error for operation on tests/test_run_external_review.py: No such file or directory (os error 2)
+
+codex
+The task verification commands still reproduce the same 12 lint failures in files outside the epic’s Allowed files. I also found gaps in the new sweep and provider-priority paths. I’m probing the referenced CLI and config behavior to separate confirmed blockers from document ambiguity.
+
+exec
+/bin/zsh -lc "python3 -B -c 'import contextlib
+import copy
+import io
+import json
+import sys
+from pathlib import Path
+from unittest.mock import patch
+sys.path.insert(0, str(Path(\"skills/dev-implementation/resources/scripts\").resolve()))
+import run_external_review as review
+import check_bdd_traceability as trace
+root = Path(\"/nonexistent-review-probe\")
+config = copy.deepcopy(review.DEFAULT_REVIEW_CONFIG)
+config[\"provider_priority\"] = [\"codex\", \"claude\", \"kiro\", \"agy\"]
+config[\"providers\"][\"assistant\"] = {\"model\": \"selected-assistant\"}
+with patch.object(Path, \"is_file\", return_value=True), patch.object(Path, \"read_text\", return_value=json.dumps(config)), patch.object(review, \"_is_git_tracked\", return_value=True), patch.object(review, \"save_review_config\") as save:
+    loaded = review.load_review_config(root)
+    print(\"CONFIG priority loaded:\", loaded[\"provider_priority\"])
+    print(\"CONFIG assistant preserved:\", loaded[\"providers\"][\"assistant\"])
+    with patch.object(review, \"save_review_config\") as sticky_save:
+        review.update_sticky_review_config(root, \"codex\", \"selected-codex\", \"high\")
+        print(\"STICKY assistant preserved:\", sticky_save.call_args.args[1][\"providers\"][\"assistant\"])
+        print(\"STICKY priority:\", sticky_save.call_args.args[1][\"provider_priority\"])
+    assert not save.called
+with patch.object(review, \"evaluate_provider_quota\", return_value=(True, \"eligible stub\")):
+    selected, diag = review.select_provider_by_quota(lambda c: {}, lambda c: \"/stub/\" + c)
+    print(\"QUOTA all eligible selects:\", selected)
+    with patch.object(review, \"_default_quota_fetcher\", return_value={}), patch.object(review, \"resolve_cli_binary\", return_value=\"/stub\"), patch.object(review, \"load_review_config\", return_value=config):
+        cli, model, thinking = review.resolve_review_settings(root, None, \"principal\", None, None, None, auto_quota=True)
+        print(\"RESOLVE with Codex-first config selects:\", cli)
+for name, number, rows in [
+    (\"minor\", 1, [[\"1\", \"Minor\", \"docs/a.md:1\", \"Formatting\", \"\"]]),
+    (\"domain-conflict\", 3, [[\"1\", \"Important\", \"design.md:10\", \"Business requirement conflicts with approved domain decision\", \"\"]]),
+    (\"shared-contract\", 1, [[\"1\", \"Important\", \"shared-contracts/a/api_contract.md:1\", \"Contract conflict\", \"\"]]),
+    (\"critical\", 3, [[\"1\", \"Critical\", \"design.md:1\", \"Fatal defect\", \"\"]]),
+]:
+    section = review.auto_triage_section(number, [], rows)
+    print(\"TRIAGE\", name, next(line for line in section if \"**Action**\" in line))
+with patch.object(Path, \"is_file\", return_value=True), patch.object(Path, \"read_text\", side_effect=OSError(\"early read failure\")):
+    print(\"EXCEPT early config read returns defaults:\", review.load_review_config(root) == review.DEFAULT_REVIEW_CONFIG)
+with patch.object(review.subprocess, \"run\", side_effect=OSError(\"early spawn failure\")):
+    print(\"EXCEPT early git spawn returns:\", review._is_git_tracked(root, \".devtool/review_config.json\"))
+with patch.object(review, \"load_review_config\", side_effect=OSError(\"early load failure\")):
+    print(\"EXCEPT early sticky load returns:\", review.update_sticky_review_config(root, \"codex\", None, None))
+err = io.StringIO()
+with contextlib.redirect_stderr(err):
+    try:
+        trace.main([\"results\"])
+    except SystemExit as exc:
+        print(\"TRACE results-subcommand exit:\", exc.code)
+print(\"TRACE diagnostic:\", err.getvalue().strip().splitlines()[-1])
+with patch.object(trace, \"load_scenarios\", side_effect=trace.UsageError(\"early parse failure\")), contextlib.redirect_stderr(io.StringIO()):
+    print(\"EXCEPT early trace parsing returns:\", trace.main([\"tests\", \"--scenarios\", \"/nonexistent\", \"--roots\", \"tests\"]))
+'" in /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/autonomous_lifecycle_runner
+ succeeded in 0ms:
+[1;36m⚡ [check-quota][0m Selected provider: claude (claude: ELIGIBLE (eligible stub))
+CONFIG priority loaded: ['claude', 'codex', 'kiro', 'agy']
+CONFIG assistant preserved: {'model': 'selected-assistant'}
+STICKY assistant preserved: {'model': 'selected-assistant'}
+STICKY priority: ['claude', 'codex', 'kiro', 'agy']
+QUOTA all eligible selects: claude
+RESOLVE with Codex-first config selects: claude
+TRIAGE minor - **Action**: AUTO_PASS_FINAL_MINOR_SWEEP
+TRIAGE domain-conflict - **Action**: AUTO_PASS_FINAL_SWEEP
+TRIAGE shared-contract - **Action**: CIRCUIT_BREAKER_HALT (SHARED_CONTRACT_CONFLICT)
+TRIAGE critical - **Action**: CIRCUIT_BREAKER_HALT (MAX_ROUNDS_CRITICAL_REMAINING)
+EXCEPT early config read returns defaults: True
+EXCEPT early git spawn returns: False
+EXCEPT early sticky load returns: None
+TRACE results-subcommand exit: 2
+TRACE diagnostic: -c: error: argument mode: invalid choice: 'results', maybe you meant 'tests'? (choose from 'plan', 'tests')
+EXCEPT early trace parsing returns: 2
+
+exec
+/bin/zsh -lc "ls -l /Library/Developer/CommandLineTools/usr/bin/git; nl -ba .agents/quality/python-quality.json; nl -ba .agents/quality/check_quality.json; rg -n 'epic|profile|provider|aggregat|PASS|run_quality' skills/quality_check/SKILL.md | head -45; nl -ba .devtool/epic/autonomous_lifecycle_runner/task_4_cross_model_review_fix_plan_loop.md | sed -n '19,44p;110,127p'; nl -ba skills/dev-implementation/resources/scripts/run_task_checks.py | sed -n '1,65p'" in /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/autonomous_lifecycle_runner
+ succeeded in 0ms:
+-rwxr-xr-x  1 root  wheel  3838240 Oct 21 07:01 /Library/Developer/CommandLineTools/usr/bin/git
+     1	{
+     2	  "schema_version": 1,
+     3	  "capabilities": {
+     4	    "format": ["ruff", "format", "--check", "skills/web-quality-check", "tests", "skills/dev-implementation/resources/scripts/generate_smoke_checklist.py"],
+     5	    "lint": ["ruff", "check", "skills/web-quality-check", "tests", "skills/dev-implementation/resources/scripts/generate_smoke_checklist.py"],
+     6	    "type_check": ["mypy", "skills/web-quality-check/resources/scripts/validate_web_quality.py", "skills/web-quality-check/resources/scripts/run_playwright_harness.py", "skills/quality_check/resources/scripts/verify_polyglot_registry.py", "skills/web-quality-check/resources/scripts/check_vanilla_js.py", "skills/dev-implementation/resources/scripts/generate_smoke_checklist.py"],
+     7	    "test": ["python3", "-m", "pytest", "tests"],
+     8	    "architecture": ["bash", "scripts/verify.sh"]
+     9	  },
+    10	  "profiles": {
+    11	    "pr": ["lint", "test"],
+    12	    "epic": ["format", "lint", "type_check", "test", "architecture"],
+    13	    "release": ["format", "lint", "type_check", "test", "architecture"],
+    14	    "scheduled": ["format", "lint", "type_check", "test", "architecture"]
+    15	  }
+    16	}
+     1	{
+     2	  "schema_version": 1,
+     3	  "providers": [
+     4	    {
+     5	      "id": "agent-tools-python",
+     6	      "skill": "d3nexus:python-quality-check",
+     7	      "required": true,
+     8	      "profiles": ["pr", "epic", "release", "scheduled"]
+     9	    }
+    10	  ]
+    11	}
+3:description: Platform-neutral quality gatekeeper and orchestrator that discovers project-registered providers from .agents/quality/check_quality.json, validates versioned contracts, aggregates verdicts (FAIL > BLOCKED > PASS), and renders immutable SHA-bound executive reports.
+12:discovering registered capability providers via dependency injection, fanning out execution across all selected providers,
+22:    CALLER["Caller supplies profile, base ref, and target SHA"] --> NORMALIZE["Step 0: Normalize request and verify repository SHA"]
+24:    REGISTRY --> VALIDATE["Step 2: Validate registry and select providers"]
+25:    VALIDATE --> FANOUT["Step 3: Fan out invocation across all selected providers"]
+27:    HEAD_CHECK --> CONTRACT_CHECK["Step 5: Validate provider results and reconcile plan"]
+30:    VERDICT -->|"PASS"| LGTM["Render Gate 4 LGTM for verified SHA"]
+40:- `profile`: Defaults to `pr` for direct interactive invocations. Formal lifecycle callers (`dev-implementation`, `dev-lifecycle`) must pass explicit profile (`epic`, `scheduled`, `release`).
+49:  "profile": "<profile>",
+58:- Before fanning out heavy compiler/test providers, inspect `git diff --name-only <base_ref>...HEAD` (plus staged/unstaged modifications).
+59:- If 100% of modified files are prose or documentation (`*.md`, `docs/**`, `.devtool/**`) and zero build-shipping files are touched, route directly to `d3nexus:doc_quality_check` instead of running code providers.
+67:python3 skills/quality_check/resources/scripts/validate_quality_contract.py registry .agents/quality/check_quality.json --profile "<profile>"
+72:- If the registry contains unknown fields, unsupported schema versions, duplicate provider IDs, or empty provider lists: halt with status `BLOCKED`.
+73:- If no provider matches the requested profile: return `BLOCKED` with finding `empty_selection`.
+74:- If a selected provider's skill is unresolvable in the active environment: halt with status `BLOCKED`.
+78:For every provider selected by the registry for the requested profile:
+79:1. Provide the identical immutable invocation payload, adding the provider's `provider_id` and `required` flag.
+80:2. Invoke the provider skill (e.g. `d3nexus:rust-quality-check`).
+81:3. Providers execute read-only checks matching their declared profile capabilities.
+82:4. Collect one structured result document per provider.
+84:Independent providers may run concurrently. Output ordering is never dependent on execution order.
+88:Before accepting provider evidence, verify current repository HEAD:
+98:Reconcile collected provider results against the execution plan:
+105:- Every result document matches [provider-result.schema.json](resources/schemas/provider-result.schema.json).
+106:- Identity fields (`provider_id`, `profile`, `repository_sha`, `started_head`, `finished_head`) match the invocation.
+107:- Missing results or duplicate results for a provider generate synthetic `BLOCKED` findings.
+115:python3 skills/quality_check/resources/scripts/aggregate_quality_results.py "<plan_json>" "<result_files...>" --markdown
+119:$$\text{FAIL} > \text{BLOCKED} > \text{PASS}$$
+121:1. **FAIL**: If any provider reported `FAIL`, the overall verdict is `FAIL`. All defects and blockers remain visible.
+122:2. **BLOCKED**: If no failure occurred, but any required provider reported `BLOCKED` or failed reconciliation, the overall verdict is `BLOCKED`.
+123:3. **PASS**: Granted if and only if every required provider passed.
+124:4. **NOT_APPLICABLE**: An optional provider may be neutral if supported by applicability evidence. A required provider with only `NOT_APPLICABLE` checks is converted to `BLOCKED`.
+128:Only an aggregated verdict of **PASS** bound to the candidate commit SHA qualifies for Gate 4 `🟢 LGTM`. If the verdict is `FAIL` or `BLOCKED`, render the complete executive report detailing all blockers and warnings, and stop.
+132:- [Provider Registry Contract](references/provider-registry-contract.md): Format and rules for `.agents/quality/check_quality.json`.
+133:- [Provider Result Contract](references/provider-result-contract.md): Schema and constraints for provider result documents.
+134:- [Result Aggregation Contract](references/aggregation-contract.md): Deterministic precedence and status reduction model.
+137:- [Result Schema](resources/schemas/provider-result.schema.json): Machine-readable JSON Schema for provider results.
+139:- [Aggregation Engine](resources/scripts/aggregate_quality_results.py): Result aggregation and markdown report engine.
+140:- [Acceptance Suite](resources/scripts/test_quality_provider_acceptance.py): End-to-end multi-provider acceptance test suite.
+    19	## Requirement Analysis
+    20	
+    21	Implement Stage 3 Cross-Model Review fix-and-verify loop with AI Assistant fix plan evaluation in `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py`:
+    22	1. Implement `LifecycleRunner.step_cross_model_review`:
+    23	   - Runs `run_external_review.py run --kind code --epic-dir <epic> --base <base> --auto-quota`.
+    24	   - Evaluates Circuit Breakers: halts with `CIRCUIT_BREAKER_HALT (FIX_LOOP)` if a finding reoccurs on an already-fixed file path, or `CIRCUIT_BREAKER_HALT (MAX_ROUNDS_CRITICAL_REMAINING)` if Round 3 ends with Critical findings unresolved.
+    25	   - Fix plan drafting: when review findings require changes, dispatches the AI Programmer (`--model <programmer-model>` default `gemini-3.8-flash --effort high --mode auto`) to draft `.devtool/epic/<epic>/fix_plan_round<N>.md`.
+    26	   - Fix plan evaluation (`evaluate_programmer_fix_plan`): dispatches the AI Assistant to inspect the fix plan against the approved HLD and emit one of three verdicts: `APPROVED`, `ADJUSTED`, or `CRITICAL_CONFLICT`.
+    27	   - Critical conflict halt: if the Assistant detects an unapproved architectural change or contract violation (`CRITICAL_CONFLICT`), the pipeline halts immediately and alerts the Human Architect.
+    28	   - Automated fix application: if `APPROVED` or `ADJUSTED`, the AI Programmer applies the fixes, the runner commits the code fixes (`[AUTONOMOUS_LIFECYCLE_RUNNER] Apply code fixes for Cross-Model Review round N`), records decision cells (`fixed in <sha>`) in `review_results.md`, commits the decisions (`[AUTONOMOUS_LIFECYCLE_RUNNER] Record review decisions for round N`), executes Gate 4 in full on the clean candidate SHA (passing `run_external_review.py check`), and advances to the next review round (Round N+1, up to max 3 rounds) or completes Stage 3 if converged.
+    29	2. Implement unit and integration tests in `tests/test_lifecycle_runner.py` covering `ALR-HP-04`, `ALR-EC-03`, `ALR-FR-02`, and `ALR-FR-04`.
+    30	
+    31	## Files
+    32	
+    33	Allowed files:
+    34	- `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py` (new)
+    35	- `tests/test_lifecycle_runner.py` (new)
+    36	
+    37	Read-only context:
+    38	- `skills/dev-implementation/resources/scripts/run_external_review.py` — review execution and triage
+    39	- `.devtool/epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.en.md` — Module Contracts
+    40	- `.agents/quality/python-quality.json` — registered capabilities
+    41	
+    42	## Design Rationale
+    43	
+    44	During Cross-Model Review, the Human Architect should not be interrupted for routine code fixes that align with the approved design. Having the AI Assistant evaluate the Programmer's fix plan provides architectural supervision: safe fixes proceed automatically, while architectural deviations trigger an immediate `CRITICAL_CONFLICT` halt. Applicable skills: `d3nexus:test-driven-development`, `d3nexus:python-quality-check`.
+   110	## Decisions Already Made
+   111	
+   112	- Cross-Model Review invocation uses `run_external_review.py run --kind code --epic-dir <epic> --base <base> --auto-quota` and evaluates `run_external_review.py triage`.
+   113	- Fix plan file is stored at `.devtool/epic/<epic>/fix_plan_round<N>.md`.
+   114	- Assistant evaluation outputs one verdict token on the first line: `APPROVED`, `ADJUSTED`, or `CRITICAL_CONFLICT`.
+   115	- Review loop return path: after fixes are applied, the runner commits the code fixes, writes decision cells (`fixed in <sha>`) into `review_results.md`, commits the decisions, and runs Gate 4 in full. Because decisions are recorded and committed, `run_external_review.py check` passes and certifies the clean candidate commit.
+   116	- Clean working tree discipline: code fixes and review decisions are committed before invoking subsequent review rounds.
+   117	
+   118	## Definition of Done
+   119	
+   120	- Scenarios ALR-HP-04, ALR-EC-03, ALR-FR-02, ALR-FR-04 are covered and pass in the test suite. (V2, V3, V6)
+   121	- Python quality checks (lint and type check) pass cleanly. (V4, V5)
+   122	- Assistant evaluation cleanly prevents unauthorized design reversions. (Gate 5)
+   123	
+   124	## Dependencies & Blockers
+   125	
+   126	- Blocked by [Task 1](task_1_pipeline_state_machine_and_probing.md), [Task 2](task_2_subprocess_dispatcher_and_headless_agy.md), and [Task 3](task_3_principal_review_automation_and_checkpoint.md).
+   127	- Blocks [Task 5](task_5_orchestrator_cli_and_governance_rules.md).
+     1	#!/usr/bin/env python3
+     2	"""Run a task's Verification rows and record the outcome as evidence.
+     3	
+     4	Usage:
+     5	  run_task_checks.py red    <task mirror> [--timeout 1800]
+     6	  run_task_checks.py verify <task mirror> [--timeout 1800]
+     7	  run_task_checks.py status <task mirror>   (read-only: print the recorded runs and the done-gate verdict)
+     8	
+     9	Exit codes: 0 every row passed (status: the done gate passes); 1 a row failed (evidence still written) or
+    10	the done gate fails; 2 usage error or a task
+    11	file the parser rejects (no evidence written).
+    12	"""
+    13	from __future__ import annotations
+    14	
+    15	import argparse
+    16	import hashlib
+    17	import importlib
+    18	import os
+    19	import re
+    20	import shlex
+    21	import signal
+    22	import subprocess
+    23	import sys
+    24	import time
+    25	from datetime import datetime, timezone
+    26	
+    27	try:
+    28	    from datetime import UTC
+    29	except ImportError:
+    30	    UTC = timezone.utc  # type: ignore[attr-defined]
+    31	from pathlib import Path
+    32	from typing import Any, cast
+    33	
+    34	_tc: Any = importlib.import_module("task_contract")
+    35	CONTROL_TOKENS: set[str] = _tc.CONTROL_TOKENS
+    36	ContractError: type[Exception] = _tc.ContractError
+    37	EpicLayout: Any = _tc.EpicLayout
+    38	Row: Any = _tc.Row
+    39	changed_paths: Any = _tc.changed_paths
+    40	epic_layout: Any = _tc.epic_layout
+    41	evaluate_done_gate: Any = _tc.evaluate_done_gate
+    42	fingerprint: Any = _tc.fingerprint
+    43	git_run: Any = _tc.git_run
+    44	load_evidence: Any = _tc.load_evidence
+    45	parse_allowed_files: Any = _tc.parse_allowed_files
+    46	parse_evidence_files: Any = _tc.parse_evidence_files
+    47	parse_protected_paths: Any = _tc.parse_protected_paths
+    48	parse_verification: Any = _tc.parse_verification
+    49	path_matches: Any = _tc.path_matches
+    50	program_of: Any = _tc.program_of
+    51	row_problems: Any = _tc.row_problems
+    52	save_evidence: Any = _tc.save_evidence
+    53	
+    54	KIT_ROOT = Path(__file__).resolve().parents[4]
+    55	
+    56	
+    57	def kit_env() -> dict[str, str]:
+    58	    env = dict(os.environ)
+    59	    env["D3NEXUS_KIT"] = str(KIT_ROOT)
+    60	    bin_dir = str(KIT_ROOT / "bin")
+    61	    current_path = os.environ.get("PATH", "")
+    62	    env["PATH"] = f"{bin_dir}{os.pathsep}{current_path}" if current_path else bin_dir
+    63	    return env
+    64	section: Any = _tc.section
+    65	strip_wrappers: Any = _tc.strip_wrappers
+
+exec
+/bin/zsh -lc "/Library/Developer/CommandLineTools/usr/bin/git --no-optional-locks diff --name-only b86ce2b945e3 a2b1b525fa74; /Library/Developer/CommandLineTools/usr/bin/git --no-optional-locks status --porcelain; rg --files skills/dev-implementation tests | rg 'test_run_external_review|test_lifecycle_runner|review_config|ruff|mypy'; nl -ba skills/quality_check/SKILL.md | sed -n '36,53p;76,110p;115,128p'; nl -ba skills/dev-implementation/resources/scripts/task_contract.py | sed -n '180,195p'" in /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/autonomous_lifecycle_runner
+ succeeded in 0ms:
+.devtool/epic/autonomous_lifecycle_runner/2026-11-10-autonomous-lifecycle-runner-design.en.md
+.devtool/epic/autonomous_lifecycle_runner/2026-11-10-autonomous-lifecycle-runner-design.vi.md
+.devtool/epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.en.md
+.devtool/epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.vi.md
+.devtool/epic/autonomous_lifecycle_runner/bdd_scenarios.en.md
+.devtool/epic/autonomous_lifecycle_runner/bdd_scenarios.vi.md
+.devtool/epic/autonomous_lifecycle_runner/handoff.md
+.devtool/epic/autonomous_lifecycle_runner/principal_review.md
+.devtool/epic/autonomous_lifecycle_runner/task_1_pipeline_state_machine_and_probing.md
+.devtool/epic/autonomous_lifecycle_runner/task_2_subprocess_dispatcher_and_headless_agy.md
+.devtool/epic/autonomous_lifecycle_runner/task_3_principal_review_automation_and_checkpoint.md
+.devtool/epic/autonomous_lifecycle_runner/task_4_cross_model_review_fix_plan_loop.md
+.devtool/epic/autonomous_lifecycle_runner/task_5_orchestrator_cli_and_governance_rules.md
+.devtool/features/task_1_pipeline_state_machine_and_probing.md
+.devtool/features/task_2_subprocess_dispatcher_and_headless_agy.md
+.devtool/features/task_3_principal_review_automation_and_checkpoint.md
+.devtool/features/task_4_cross_model_review_fix_plan_loop.md
+.devtool/features/task_5_orchestrator_cli_and_governance_rules.md
+skills/dev-implementation/resources/scripts/test_run_external_review.py
+    36	
+    37	### Step 0: Input Normalization and Invocation Contract
+    38	
+    39	Normalize caller parameters:
+    40	- `profile`: Defaults to `pr` for direct interactive invocations. Formal lifecycle callers (`dev-implementation`, `dev-lifecycle`) must pass explicit profile (`epic`, `scheduled`, `release`).
+    41	- `base_ref`: Branch or ref used for blast radius, changed-file scope, and impact analysis (e.g. `main`, `develop`).
+    42	- `repository_sha`: The 40-character commit SHA to certify. If omitted, resolve immediately using `git rev-parse HEAD`.
+    43	
+    44	Construct the immutable invocation payload:
+    45	
+    46	```json
+    47	{
+    48	  "contract_version": 1,
+    49	  "profile": "<profile>",
+    50	  "base_ref": "<base_ref>",
+    51	  "repository_sha": "<sha>"
+    52	}
+    53	```
+    76	### Step 2: Provider Invocation Fan-Out
+    77	
+    78	For every provider selected by the registry for the requested profile:
+    79	1. Provide the identical immutable invocation payload, adding the provider's `provider_id` and `required` flag.
+    80	2. Invoke the provider skill (e.g. `d3nexus:rust-quality-check`).
+    81	3. Providers execute read-only checks matching their declared profile capabilities.
+    82	4. Collect one structured result document per provider.
+    83	
+    84	Independent providers may run concurrently. Output ordering is never dependent on execution order.
+    85	
+    86	### Step 3: Stale-Evidence and Final HEAD Verification
+    87	
+    88	Before accepting provider evidence, verify current repository HEAD:
+    89	
+    90	```bash
+    91	git rev-parse HEAD
+    92	```
+    93	
+    94	If current HEAD differs from `repository_sha`, repository state drifted during execution. All collected evidence is rejected as stale, and the overall run returns `BLOCKED`.
+    95	
+    96	### Step 4: Result Contract Validation and Plan Reconciliation
+    97	
+    98	Reconcile collected provider results against the execution plan:
+    99	
+   100	```bash
+   101	python3 skills/quality_check/resources/scripts/validate_quality_contract.py reconcile "<plan_json>" --results "<result_files...>"
+   102	```
+   103	
+   104	Validation guarantees:
+   105	- Every result document matches [provider-result.schema.json](resources/schemas/provider-result.schema.json).
+   106	- Identity fields (`provider_id`, `profile`, `repository_sha`, `started_head`, `finished_head`) match the invocation.
+   107	- Missing results or duplicate results for a provider generate synthetic `BLOCKED` findings.
+   108	- Evidence references resolve cleanly to recorded evidence artifacts.
+   109	
+   110	### Step 5: Deterministic Aggregation and Executive Report
+   115	python3 skills/quality_check/resources/scripts/aggregate_quality_results.py "<plan_json>" "<result_files...>" --markdown
+   116	```
+   117	
+   118	Precedence policy:
+   119	$$\text{FAIL} > \text{BLOCKED} > \text{PASS}$$
+   120	
+   121	1. **FAIL**: If any provider reported `FAIL`, the overall verdict is `FAIL`. All defects and blockers remain visible.
+   122	2. **BLOCKED**: If no failure occurred, but any required provider reported `BLOCKED` or failed reconciliation, the overall verdict is `BLOCKED`.
+   123	3. **PASS**: Granted if and only if every required provider passed.
+   124	4. **NOT_APPLICABLE**: An optional provider may be neutral if supported by applicability evidence. A required provider with only `NOT_APPLICABLE` checks is converted to `BLOCKED`.
+   125	
+   126	### Step 6: Gate 4 Certification
+   127	
+   128	Only an aggregated verdict of **PASS** bound to the candidate commit SHA qualifies for Gate 4 `🟢 LGTM`. If the verdict is `FAIL` or `BLOCKED`, render the complete executive report detailing all blockers and warnings, and stop.
+   180	def parse_allowed_files(task_text: str) -> list[AllowedPath]:
+   181	    body = section(task_text, "Files") or ""
+   182	    allowed: list[AllowedPath] = []
+   183	    listing = False
+   184	    for line in body.splitlines():
+   185	        if not listing:
+   186	            listing = line.strip() == "Allowed files:"
+   187	            continue
+   188	        bullet = ALLOWED_BULLET.match(line)
+   189	        if not bullet:
+   190	            break
+   191	        allowed.append(AllowedPath(bullet.group(1), bool(bullet.group(2))))
+   192	    return allowed
+   193	
+   194	
+   195	def parse_evidence_files(task_text: str) -> list[AllowedPath]:
+
+exec
+/bin/zsh -lc "python3 -B -c 'import sys
+from pathlib import Path
+from unittest.mock import patch
+sys.path.insert(0, str(Path(\"skills/dev-implementation/resources/scripts\").resolve()))
+import task_contract as tc
+import run_external_review as review
+epic = Path(\".devtool/epic/autonomous_lifecycle_runner\")
+for task in sorted(epic.glob(\"task_*.md\")):
+    rows, _ = tc.parse_verification(task.read_text())
+    target = {row.id: row.command for row in rows if row.id in (\"V4\", \"V5\")}
+    print(task.name, \"V4 has broad tests:\", \" tests \" in target[\"V4\"], \"V4/V5 include runner:\", all(\"skills/dev-lifecycle/resources/scripts/lifecycle_runner.py\" in c for c in target.values()))
+for n, text in [(1, \"Important\"), (2, \"Minor\")]:
+    output = \"[\" + text + \"] design.md:10 — Example problem. Proposed: edit design.\"
+    findings = review.parse_findings(output, verdict=\"CHANGES REQUIRED\")
+    print(\"PARSER\", text, findings)
+    assert findings[0][0] == text
+print(\"LEXICAL orchestration identifiers only; no morphological processing or ORM in scoped changes.\")
+'" in /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/autonomous_lifecycle_runner
+ succeeded in 0ms:
+task_1_pipeline_state_machine_and_probing.md V4 has broad tests: True V4/V5 include runner: False
+task_2_subprocess_dispatcher_and_headless_agy.md V4 has broad tests: True V4/V5 include runner: False
+task_3_principal_review_automation_and_checkpoint.md V4 has broad tests: True V4/V5 include runner: False
+task_4_cross_model_review_fix_plan_loop.md V4 has broad tests: True V4/V5 include runner: False
+task_5_orchestrator_cli_and_governance_rules.md V4 has broad tests: True V4/V5 include runner: False
+PARSER Important [('Important', 'design.md:10', 'Example problem. Proposed: edit design.')]
+PARSER Minor [('Minor', 'design.md:10', 'Example problem. Proposed: edit design.')]
+LEXICAL orchestration identifiers only; no morphological processing or ORM in scoped changes.
+
+exec
+/bin/zsh -lc "nl -ba /Users/danhdueexoictif/antigravity_homes/hau/.codex/memories/MEMORY.md | sed -n '208,213p;233,236p'; /Library/Developer/CommandLineTools/usr/bin/git --no-optional-locks diff b86ce2b945e3 a2b1b525fa74 -- .devtool/features/task_1_pipeline_state_machine_and_probing.md .devtool/epic/autonomous_lifecycle_runner/task_5_orchestrator_cli_and_governance_rules.md" in /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/autonomous_lifecycle_runner
+ succeeded in 0ms:
+   208	## Task 1: Reposition Review Choice into a Gate 4 loop, success
+   209	
+   210	### rollout_summary_files
+   211	
+   212	- rollout_summaries/2026-10-18T10-39-52-b3XU-gate4_review_choice_loop_and_external_review_streaming.md (cwd=/Users/danhdueexoictif/AllProjects/ai-agent-tools, rollout_path=/Users/danhdueexoictif/.codex/sessions/2026/10/18/rollout-2026-10-18T17-39-52-01a14e98-b2b9-7043-9d17-65dd8df4be46.jsonl, updated_at=2026-10-18T15:23:36+00:00, thread_id=01a14e98-b2b9-7043-9d17-65dd8df4be46, committed and fully verified)
+   213	
+   233	## Reusable knowledge
+   234	
+   235	- Enforced invariant: `Gate 4 PASS -> Review Choice; Finish -> Gate 5; Cross-model review -> Gate 4 in full`. A review round, decision, Fix commit, Gate 5-requested change, cross-model CLI failure, or timeout that changes/reassesses the candidate requires full Gate 4 before another Review Choice. Gate 4 is SHA-bound. [Task 1]
+   236	- The policy update touched `rules/CRITICAL_RULES.md`, `skills/dev-lifecycle/SKILL.md`, `skills/dev-implementation/SKILL.md`, bilingual lifecycle docs, lifecycle-selection docs, and `scripts/test_verifiable_handoff_text.py`; commit `df9f67af7c1f7fecd3b4a9768c0863d035ed3088` is `[REVIEW_WORKFLOW] Loop review choice through Gate 4`. [Task 1]
+diff --git a/.devtool/epic/autonomous_lifecycle_runner/task_5_orchestrator_cli_and_governance_rules.md b/.devtool/epic/autonomous_lifecycle_runner/task_5_orchestrator_cli_and_governance_rules.md
+index 8304185..7ce3839 100644
+--- a/.devtool/epic/autonomous_lifecycle_runner/task_5_orchestrator_cli_and_governance_rules.md
++++ b/.devtool/epic/autonomous_lifecycle_runner/task_5_orchestrator_cli_and_governance_rules.md
+@@ -68,7 +68,7 @@ Updating the governance rules and skill documentation ensures that all AI agent
+ 
+ ### BDD SCENARIOS
+ 
+-Covers: ALR-HP-01, ALR-FR-03
++Covers: ALR-HP-01, ALR-FR-03, ALR-ST-02
+ 
+ ```gherkin
+ Scenario: [ALR-HP-01] [Tier C - Integration] Complete autonomous pipeline executes from handoff to final executive report
+@@ -86,6 +86,13 @@ Given Cross-Model Review reaches Round 3 with at least 1 unresolved Critical fin
+ When evaluate_circuit_breakers checks the round counter and severity counts
+ Then the runner triggers CIRCUIT_BREAKER_HALT (MAX_ROUNDS_CRITICAL_REMAINING)
+ And the runner halts without launching a 4th round, outputting the Top 3 Highest-Risk Findings
++
++Scenario: [ALR-ST-02] [Tier C - Integration] Gate Ledger synchronization on autonomous state transitions
++
++Given the pipeline progresses autonomously through Stage 2 and Stage 3
++When each gate milestone (Gate 3, Gate 4, Gate 5 candidate) is achieved
++Then .devtool/GATE_LEDGER.md is updated with the timestamp, candidate SHA, and auto-approval metadata
++And the ledger status remains strictly in sync with .devtool/state/<epic>.pipeline.json
+ ```
+ 
+ ## Verification
+@@ -112,14 +119,16 @@ And the runner halts without launching a 4th round, outputting the Top 3 Highest
+ ## Decisions Already Made
+ 
+ - Autonomous mode does not auto-merge: it halts at `AWAITING_FINISH` and displays the prompt for `/finishing-a-development-branch`.
++- `run_gate4(self) -> Tuple[bool, str]` executes: (1) `run_external_review.py check --epic-dir <epic> --kind code`; (2) `check_bdd_traceability.py results`; (3) `run_unittest_junit.py`; (4) `ruff check --isolated`; (5) `mypy --ignore-missing-imports`.
+ - Gate 4 PASS candidate SHA is verified before rendering the final executive report.
+ - Circuit breaker on Round 3 critical exhaustion outputs the Top 3 Highest-Risk Findings and halts.
+ - Role boundaries: In autonomous mode, the orchestrator runner invokes review CLIs and generates coordination proposals (`.devtool/`), while source code modifications are strictly executed by the AI Programmer subprocess.
++- Gate synchronization: Gate 3, 4, and 5 candidate approvals are recorded via `resume_context.py --gate <n>` to keep `.devtool/state/gate_ledger.jsonl` and `.devtool/GATE_LEDGER.md` synchronized (`ALR-ST-02`).
+ - `scripts/verify.sh` registers `lifecycle-runner` suite pointing to `tests/test_lifecycle_runner.py`.
+ 
+ ## Definition of Done
+ 
+-- Scenarios ALR-HP-01 and ALR-FR-03 are covered and pass in the test suite. (V2, V3, V6)
++- Scenarios ALR-HP-01, ALR-FR-03, ALR-ST-02 are covered and pass in the test suite. (V2, V3, V6)
+ - Python quality checks (lint and type check) pass cleanly. (V4, V5)
+ - Document checks pass across all modified skills and bilingual markdown files. (Gate 5)
+ 
+diff --git a/.devtool/features/task_1_pipeline_state_machine_and_probing.md b/.devtool/features/task_1_pipeline_state_machine_and_probing.md
+index ceb4cc1..537e954 100644
+--- a/.devtool/features/task_1_pipeline_state_machine_and_probing.md
++++ b/.devtool/features/task_1_pipeline_state_machine_and_probing.md
+@@ -14,7 +14,7 @@ order: "a1"
+ 
+ # Task 1: Pipeline State Machine, Persistence, and Model Probing
+ 
+-Epic: [autonomous_lifecycle_runner](../epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.en.md)
++Epic: [autonomous_lifecycle_runner](autonomous_lifecycle_runner.en.md)
+ 
+ ## Requirement Analysis
+ 
+@@ -50,24 +50,9 @@ Atomic writes via temporary files combined with `fcntl.flock` prevent JSON corru
+ 
+ ### BDD SCENARIOS
+ 
+-Covers: ALR-ST-01, ALR-ST-02, ALR-ST-03, ALR-AR-02
++Covers: ALR-ST-03, ALR-AR-02
+ 
+ ```gherkin
+-Scenario: [ALR-ST-01] [Tier C - Integration] State persistence and resumption from crash in intermediate stage
+-
+-Given the runner is interrupted by SIGINT during Stage 3 task execution
+-When lifecycle_runner.py is invoked again with --resume
+-Then the runner reads .devtool/state/<epic>.pipeline.json
+-And the runner recovers the active stage "implementation", completed task list, and current round
+-And execution resumes from the exact interrupted task without re-running completed tasks
+-
+-Scenario: [ALR-ST-02] [Tier C - Integration] Gate Ledger synchronization on autonomous state transitions
+-
+-Given the pipeline progresses autonomously through Stage 2 and Stage 3
+-When each gate milestone (Gate 3, Gate 4, Gate 5 candidate) is achieved
+-Then .devtool/GATE_LEDGER.md is updated with the timestamp, candidate SHA, and auto-approval metadata
+-And the ledger status remains strictly in sync with .devtool/state/<epic>.pipeline.json
+-
+ Scenario: [ALR-ST-03] [Tier C - Integration] Probing verifies model capabilities before state initialization
+ 
+ Given an invalid or deprecated model string specified in configuration
+@@ -88,8 +73,8 @@ And the pipeline state file remains valid and uncorrupted JSON at all times
+ 
+ | ID | Phase | Command | Expect | Needs |
+ |----|-------|---------|--------|-------|
+-| V1 | RED | `python3 -m unittest tests/test_lifecycle_runner.py -k test_alr_st_01` | exit 1; contains "FAILED" | — |
+-| V2 | GREEN | `python3 -m unittest tests/test_lifecycle_runner.py -k test_alr_st_01` | exit 0; contains "OK" | — |
++| V1 | RED | `python3 -m unittest tests/test_lifecycle_runner.py -k test_alr_st_03` | exit 1; contains "FAILED" | — |
++| V2 | GREEN | `python3 -m unittest tests/test_lifecycle_runner.py -k test_alr_st_03` | exit 0; contains "OK" | — |
+ | V3 | GREEN | `python3 -m unittest tests/test_lifecycle_runner.py` | exit 0; contains "OK" | — |
+ | V4 | TIER-B | `ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py tests/test_lifecycle_runner.py` | exit 0 | — |
+ | V5 | TIER-B | `mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py tests/test_lifecycle_runner.py` | exit 0 | — |
+@@ -109,14 +94,14 @@ And the pipeline state file remains valid and uncorrupted JSON at all times
+ 
+ - `StageName` enum: `initialized`, `principal_review`, `awaiting_principal_confirmation`, `implementation`, `cross_model_review`, `awaiting_finish`, `completed`, `halted`.
+ - `FixPlanVerdict` enum: `APPROVED`, `ADJUSTED`, `CRITICAL_CONFLICT`.
+-- `RunnerConfig` defaults: `programmer_model="gemini-3.8-flash"`, `programmer_effort="high"`, `assistant_model=None` (resolves dynamically to active selected model: Argon, Claude, Codex, etc.), `assistant_effort="high"`, `timeout_seconds=1800`, `max_review_rounds=3`.
++- `RunnerConfig` defaults: `programmer_model="gemini-3.8-flash"`, `programmer_effort="high"`, `assistant_model=None` (precedence: CLI `--assistant-model` -> `.devtool/review_config.json` `providers.assistant.model` -> active profile model -> fallback `claude-sonnet-5-5-high`), `assistant_effort="high"`, `timeout_seconds=1800`, `max_review_rounds=3`.
+ - `PipelineState` tracks `epic_slug`, `active_stage`, `principal_round`, `cross_model_round`, `last_commit_sha`, `last_verdict`, `halt_reason`, `last_error`, `task_order`, and `completed_tasks`.
+ - State is serialized to `.devtool/state/<epic>.pipeline.json` via `.tmp` rename with `fcntl.flock(fd, fcntl.LOCK_EX)`.
+ - Gate updates execute via `resume_context.py --gate <n> --epic <slug> --approved "<text>" --by lifecycle_runner` to guarantee synchronization with `gate_ledger.jsonl`.
+ 
+ ## Definition of Done
+ 
+-- Scenarios ALR-ST-01, ALR-ST-02, ALR-ST-03, ALR-AR-02 are covered and pass in the test suite. (V2, V3, V6)
++- Scenarios ALR-ST-03, ALR-AR-02 are covered and pass in the test suite. (V2, V3, V6)
+ - Python quality checks (lint and type check) pass cleanly. (V4, V5)
+ - State persistence and recovery work reliably across interrupted sessions. (Gate 5)
+ 
+@@ -126,5 +111,5 @@ None. Blocks [Task 2](task_2_subprocess_dispatcher_and_headless_agy.md), [Task 3
+ 
+ ## References & Rollback
+ 
+-- [Epic HLD](../epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.en.md), Module Contracts.
++- [Epic HLD](autonomous_lifecycle_runner.en.md), Module Contracts.
+ - **Rollback**: Revert task commit; deletes `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py` and `tests/test_lifecycle_runner.py`.
+
+exec
+/bin/zsh -lc "rg -n 'def record_gate|CONFIRMED|gate_status|check_gate|args.gate|Gate 5' scripts/resume_context.py | head -55; nl -ba scripts/resume_context.py | sed -n '345,385p;790,855p'; rg -n 'gate 5|Gate 5' skills/dev-implementation/SKILL.md | tail -12; nl -ba .devtool/epic/autonomous_lifecycle_runner/task_5_orchestrator_cli_and_governance_rules.md | sed -n '119,128p'" in /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/autonomous_lifecycle_runner
+ succeeded in 0ms:
+813:def record_gate_approval(
+892:def check_gate_approval(
+1740:    if args.gate is not None:
+1750:            args.gate,
+1757:            f"Recorded Gate {args.gate} approval for epic '{active_epic}' at {rec.get('commit')}"
+1761:    if args.check_gate is not None:
+1762:        chk_rec = check_gate_approval(
+1763:            target_root, active_epic, args.check_gate, repo=args.repo
+1770:                f"Gate {args.check_gate} is not yet recorded for epic '{active_epic}'",
+   345	        missing = [
+   346	            e
+   347	            for e in existing_md_entries
+   348	            if (
+   349	                str(e.get("timestamp")),
+   350	                str(e.get("epic")),
+   351	                str(e.get("gate")),
+   352	                str(e.get("commit")),
+   353	            )
+   354	            not in seen
+   355	        ]
+   356	        if missing or not jsonl_path.exists():
+   357	            state_dir.mkdir(parents=True, exist_ok=True)
+   358	            with jsonl_path.open("a", encoding="utf-8") as f:
+   359	                for entry in missing:
+   360	                    f.write(json.dumps(entry) + "\n")
+   361	
+   362	
+   363	def render_gate_ledger_markdown(devtool_dir: Path) -> Path:
+   364	    hydrate_gate_ledger_jsonl_if_needed(devtool_dir)
+   365	    state_dir = devtool_dir / "state"
+   366	    jsonl_path = state_dir / "gate_ledger.jsonl"
+   367	    md_path = devtool_dir / "GATE_LEDGER.md"
+   368	
+   369	    entries: list[dict[str, object]] = []
+   370	    if jsonl_path.exists():
+   371	        for line in jsonl_path.read_text(encoding="utf-8").splitlines():
+   372	            line_str = line.strip()
+   373	            if not line_str:
+   374	                continue
+   375	            try:
+   376	                data = json.loads(line_str)
+   377	                if isinstance(data, dict):
+   378	                    entries.append(data)
+   379	            except Exception:
+   380	                continue
+   381	
+   382	    lines = [
+   383	        "# Gate Approval Ledger (Permanent)",
+   384	        "",
+   385	        "| Timestamp | Epic | Gate | Commit | Approved Scope | Deviations | By |",
+   790	    candidates = [root / ".devtool"] + [root / r / ".devtool" for r in REPOS]
+   791	    for devtool_dir in candidates:
+   792	        if not devtool_dir.exists():
+   793	            continue
+   794	        with file_lock(devtool_dir):
+   795	            archive_dir = devtool_dir / "archive"
+   796	            archive_dir.mkdir(parents=True, exist_ok=True)
+   797	
+   798	            state_file = devtool_dir / "state" / f"{epic_slug}.md"
+   799	            if state_file.exists():
+   800	                dest_state = archive_dir / f"state_{epic_slug}_{timestamp}.md"
+   801	                state_file.rename(dest_state)
+   802	
+   803	            log_file = devtool_dir / "logs" / f"activity_{epic_slug}.log"
+   804	            if log_file.exists():
+   805	                dest_log = archive_dir / f"activity_{epic_slug}_{timestamp}.log"
+   806	                log_file.rename(dest_log)
+   807	
+   808	            render_assistant_state_rollup(devtool_dir)
+   809	            refresh_activity_stream_rollup(devtool_dir)
+   810	    sync_window_title(root, epic_slug=epic_slug, stage_override="Completed")
+   811	
+   812	
+   813	def record_gate_approval(
+   814	    root: Path,
+   815	    epic_slug: str,
+   816	    gate: int,
+   817	    approved: str,
+   818	    *,
+   819	    deviations: str = "",
+   820	    by: str = "developer",
+   821	    repo: str | None = None,
+   822	) -> dict[str, object]:
+   823	    devtool_dir = resolve_target_devtool_dir(root, repo)
+   824	    with file_lock(devtool_dir):
+   825	        hydrate_gate_ledger_jsonl_if_needed(devtool_dir)
+   826	        state_dir = devtool_dir / "state"
+   827	        state_dir.mkdir(parents=True, exist_ok=True)
+   828	        res = subprocess.run(
+   829	            ["git", "rev-parse", "--short", "HEAD"],
+   830	            cwd=root,
+   831	            capture_output=True,
+   832	            text=True,
+   833	            check=False,
+   834	        )
+   835	        commit_sha = (
+   836	            res.stdout.strip()
+   837	            if res.returncode == 0 and res.stdout.strip()
+   838	            else "unknown"
+   839	        )
+   840	        now_utc = datetime.now(timezone.utc).isoformat()
+   841	        entry: dict[str, object] = {
+   842	            "timestamp": now_utc,
+   843	            "epic": epic_slug,
+   844	            "gate": gate,
+   845	            "commit": commit_sha,
+   846	            "approved": approved,
+   847	            "deviations": deviations,
+   848	            "by": by,
+   849	        }
+   850	        jsonl_path = state_dir / "gate_ledger.jsonl"
+   851	        with jsonl_path.open("a", encoding="utf-8") as f:
+   852	            f.write(json.dumps(entry) + "\n")
+   853	        render_gate_ledger_markdown(devtool_dir)
+   854	        return entry
+   855	
+374:The loop invariant is **Gate 4 PASS → Review Choice; Finish → Gate 5; Cross-model review → Gate 4 in full; Local model review → Gate 4 in full**.
+388:> 1. **Finish** — continue to Gate 5, then `finishing-a-development-branch`.
+392:Option 1 goes to Phase 4.1 / Gate 5. Option 2 invokes `d3nexus:cross-model-review` in epic worktree with clean tree (`--auto-quota` priority `Claude -> Codex -> Kiro -> Argon`, 3-Round Convergence Funnel, max 3 rounds):
+406:### Phase 4.1 — Developer Kanban Review Checkpoint (🛑 MANDATORY STOP & WAIT — Gate 5)
+410:2. **Present Executive Summary**: Output summary containing epic slug, worktree path, completed tasks, `@quality_check` verdict, BDD matrix, and audit disclosure sections (Evidence, Protected paths, Commits outside tasks, Gate 5 items).
+415:4. **Wait for Gate 5 Confirmation**: Only proceed to Phase 5 when user explicitly approves (then record Gate 5 via `python3 scripts/resume_context.py --gate 5 --epic <epic_slug> --approved "Gate 5 Kanban sign-off"`).
+419:Only after user explicitly approves Gate 5:
+   119	## Decisions Already Made
+   120	
+   121	- Autonomous mode does not auto-merge: it halts at `AWAITING_FINISH` and displays the prompt for `/finishing-a-development-branch`.
+   122	- `run_gate4(self) -> Tuple[bool, str]` executes: (1) `run_external_review.py check --epic-dir <epic> --kind code`; (2) `check_bdd_traceability.py results`; (3) `run_unittest_junit.py`; (4) `ruff check --isolated`; (5) `mypy --ignore-missing-imports`.
+   123	- Gate 4 PASS candidate SHA is verified before rendering the final executive report.
+   124	- Circuit breaker on Round 3 critical exhaustion outputs the Top 3 Highest-Risk Findings and halts.
+   125	- Role boundaries: In autonomous mode, the orchestrator runner invokes review CLIs and generates coordination proposals (`.devtool/`), while source code modifications are strictly executed by the AI Programmer subprocess.
+   126	- Gate synchronization: Gate 3, 4, and 5 candidate approvals are recorded via `resume_context.py --gate <n>` to keep `.devtool/state/gate_ledger.jsonl` and `.devtool/GATE_LEDGER.md` synchronized (`ALR-ST-02`).
+   127	- `scripts/verify.sh` registers `lifecycle-runner` suite pointing to `tests/test_lifecycle_runner.py`.
+   128	
+
+exec
+/bin/zsh -lc "nl -ba scripts/resume_context.py | sed -n '855,928p;1740,1775p'; sed -n '15,60p' scripts/resume_context.py; rg -n '"'^def |''^class '"' scripts/resume_context.py | head -20; nl -ba skills/dev-implementation/resources/scripts/test_run_external_review.py | sed -n '1,60p'" in /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/autonomous_lifecycle_runner
+ succeeded in 0ms:
+   855	
+   856	
+   857	def scan_gate_ledger(
+   858	    root: Path, epic_slug: str | None = None
+   859	) -> list[dict[str, object]]:
+   860	    devtool_dir = root if root.name == ".devtool" else root / ".devtool"
+   861	    hydrate_gate_ledger_jsonl_if_needed(devtool_dir)
+   862	    jsonl_path = devtool_dir / "state" / "gate_ledger.jsonl"
+   863	    md_path = devtool_dir / "GATE_LEDGER.md"
+   864	    entries: list[dict[str, object]] = []
+   865	
+   866	    if jsonl_path.exists():
+   867	        for line in jsonl_path.read_text(encoding="utf-8").splitlines():
+   868	            line_str = line.strip()
+   869	            if not line_str:
+   870	                continue
+   871	            try:
+   872	                data = json.loads(line_str)
+   873	                if isinstance(data, dict):
+   874	                    entries.append(data)
+   875	            except Exception:
+   876	                continue
+   877	    elif md_path.exists():
+   878	        entries = parse_gate_ledger_markdown(md_path)
+   879	
+   880	    if epic_slug:
+   881	        norm_filter = epic_slug.replace("_", "-")
+   882	        return [
+   883	            e
+   884	            for e in entries
+   885	            if str(e.get("epic", "")) == epic_slug
+   886	            or str(e.get("epic", "")).replace("_", "-") == norm_filter
+   887	        ]
+   888	
+   889	    return entries
+   890	
+   891	
+   892	def check_gate_approval(
+   893	    root: Path,
+   894	    epic_slug: str,
+   895	    gate: int,
+   896	    *,
+   897	    repo: str | None = None,
+   898	) -> dict[str, object] | None:
+   899	    devtool_dir = resolve_target_devtool_dir(root, repo)
+   900	    entries = scan_gate_ledger(devtool_dir, epic_slug=epic_slug)
+   901	    matching = [e for e in entries if e.get("gate") == gate]
+   902	    return matching[-1] if matching else None
+   903	
+   904	
+   905	def scan_project_ledger(root: Path) -> None:
+   906	    print_section("0. PROJECT ARCHITECTURAL LEDGER (.devtool/PROJECT_LEDGER.md)")
+   907	    ledger_path = ensure_ledger(root)
+   908	    print(ledger_path.read_text(encoding="utf-8").strip())
+   909	
+   910	
+   911	def scan_assistant_state(root: Path) -> None:
+   912	    print_section("1. ACTIVE EPIC STATE (.devtool/assistant_state.md)")
+   913	    candidates = [root / ".devtool"] + [root / r / ".devtool" for r in REPOS]
+   914	    found = False
+   915	    for d_dir in candidates:
+   916	        if not d_dir.exists():
+   917	            continue
+   918	        migrate_legacy_storage(d_dir)
+   919	        state_dir = d_dir / "state"
+   920	        if state_dir.exists():
+   921	            for sf in sorted(state_dir.glob("*.md")):
+   922	                text = sf.read_text(encoding="utf-8").strip()
+   923	                if text:
+   924	                    rel = sf.relative_to(root)
+   925	                    print(f"[{rel}]\n{text}\n")
+   926	                    found = True
+   927	        elif (d_dir / "assistant_state.md").exists():
+   928	            text = (d_dir / "assistant_state.md").read_text(encoding="utf-8").strip()
+  1740	    if args.gate is not None:
+  1741	        if not args.approved.strip():
+  1742	            print(
+  1743	                "error: --approved must be non-empty when recording --gate",
+  1744	                file=sys.stderr,
+  1745	            )
+  1746	            sys.exit(2)
+  1747	        rec = record_gate_approval(
+  1748	            target_root,
+  1749	            active_epic,
+  1750	            args.gate,
+  1751	            args.approved.strip(),
+  1752	            deviations=args.deviations.strip(),
+  1753	            by=args.by.strip() or "developer",
+  1754	            repo=args.repo,
+  1755	        )
+  1756	        print(
+  1757	            f"Recorded Gate {args.gate} approval for epic '{active_epic}' at {rec.get('commit')}"
+  1758	        )
+  1759	        return
+  1760	
+  1761	    if args.check_gate is not None:
+  1762	        chk_rec = check_gate_approval(
+  1763	            target_root, active_epic, args.check_gate, repo=args.repo
+  1764	        )
+  1765	        if chk_rec is not None:
+  1766	            print(json.dumps(chk_rec))
+  1767	            sys.exit(0)
+  1768	        else:
+  1769	            print(
+  1770	                f"Gate {args.check_gate} is not yet recorded for epic '{active_epic}'",
+  1771	                file=sys.stderr,
+  1772	            )
+  1773	            sys.exit(1)
+  1774	
+  1775	    # Default: Harvest context
+from __future__ import annotations
+
+import argparse
+import contextlib
+import fcntl
+import json
+import os
+import re
+import sqlite3
+import subprocess
+import sys
+from collections.abc import Iterator
+from datetime import datetime, timezone
+from pathlib import Path
+
+WORKSPACE_ROOT = Path.home() / "Projects"
+REPOS = ["ai-agent-tools", "D3Nexus", "lyrics-sync", "nexus"]
+MAX_STATE_LINES = 20
+
+DEFAULT_LEDGER_TEMPLATE = """# Project Architectural Ledger & Feature History (Permanent)
+
+## 1. System Topology & Core Invariants
+- **Hub (`D3Nexus`)**: Physical SSOT for `shared-contracts/`, Rust core + FastAPI engine, Flutter client.
+- **Satellites (`lyrics-sync`, `nexus`)**: Outbound symlinks to `shared-contracts/`, mechanically verified by `check_contracts.py`.
+- **Workflows (`ai-agent-tools`)**: Bilingual TOC (`doc-designer`), Contract-First `task_01` sequencing (`dev-designer`).
+
+## 2. Completed Epics & Architectural Milestones
+"""
+
+
+def print_section(title: str) -> None:
+    print(f"\n{'=' * 65}\n📌 {title}\n{'=' * 65}")
+
+
+def print_role_banner(role: str) -> None:
+    norm_role = role.lower().strip()
+    if norm_role == "assistant":
+        print("=" * 65)
+        print("🎭 [PERSONA: AI ASSISTANT — TECHNICAL ADVISOR & CO-ARCHITECT]")
+        print("⛔ NO IMPLEMENTATION: Strictly prohibited from modifying production")
+        print(
+            "   source code or application tests. Only design docs and reviews allowed."
+        )
+        print("=" * 65)
+    elif norm_role in ("programmer", "implementer", "worker"):
+        print("=" * 65)
+45:def print_section(title: str) -> None:
+49:def print_role_banner(role: str) -> None:
+67:def resolve_primary_repo_root(cwd: Path | None = None) -> Path:
+85:def resolve_current_worktree_root(cwd: Path | None = None) -> Path:
+103:def resolve_workspace_root(explicit_root: str | None = None) -> Path:
+118:def resolve_current_epic_slug(cwd: Path | None = None) -> str:
+137:def file_lock(devtool_dir: Path) -> Iterator[None]:
+151:def migrate_legacy_storage(devtool_dir: Path) -> None:
+172:def ensure_ledger(root: Path) -> Path:
+181:def read_tail(file_path: Path, lines: int = 15) -> str:
+188:def enforce_state_line_limit(
+242:def render_assistant_state_rollup(devtool_dir: Path) -> None:
+259:def refresh_activity_stream_rollup(devtool_dir: Path) -> None:
+273:def parse_markdown_gate_row(line_str: str) -> dict[str, object] | None:
+301:def parse_gate_ledger_markdown(md_path: Path) -> list[dict[str, object]]:
+312:def hydrate_gate_ledger_jsonl_if_needed(devtool_dir: Path) -> None:
+363:def render_gate_ledger_markdown(devtool_dir: Path) -> Path:
+402:def resolve_target_devtool_dir(root: Path, repo: str | None = None) -> Path:
+418:def extract_email_id_from_profile(profile_dir: Path) -> str | None:
+441:def sync_window_title(
+     1	#!/usr/bin/env python3
+     2	"""Tests for run_external_review.py, on throwaway git repositories with fake claude and codex executables.
+     3	
+     4	The fakes are the only claude and codex on PATH, so no test reaches a real CLI.
+     5	
+     6	Run: python3 -m unittest skills/dev-implementation/resources/scripts/test_run_external_review.py
+     7	"""
+     8	from __future__ import annotations
+     9	import contextlib
+    10	import io
+    11	import json
+    12	import os
+    13	import shutil
+    14	import subprocess
+    15	import sys
+    16	import tempfile
+    17	import unittest
+    18	from pathlib import Path
+    19	from unittest import mock
+    20	
+    21	sys.path.insert(0, str(Path(__file__).parent))
+    22	import test_check_epic_readiness as tcer
+    23	from run_external_review import (
+    24	    evaluate_provider_quota,
+    25	    format_triage_header,
+    26	    load_review_config,
+    27	    main,
+    28	    save_review_config,
+    29	    select_provider_by_quota,
+    30	    top_risk_findings_section,
+    31	)
+    32	
+    33	EPIC = ".devtool/epic/demo"
+    34	TICKS = "`" * 3
+    35	FAKE = """#!/bin/bash
+    36	if [ -n "$FAKE_COUNTER" ]; then echo 1 >> "$FAKE_COUNTER"; fi
+    37	cat > "$FAKE_STDIN"
+    38	echo "$@" > "$FAKE_ARGS"
+    39	case "$FAKE_MODE" in
+    40	  pass) echo "Verdict: PASS" ;;
+    41	  minor) echo "Verdict: CHANGES REQUIRED"; echo "- [Minor] README.md:1 — wording | unclear" ;;
+    42	  blocking) echo "Verdict: CHANGES REQUIRED"
+    43	            echo "[Critical] demo.en.md:3 — evidence missing"
+    44	            echo "[Important] task_1_demo.md:9 — row too weak" ;;
+    45	  principal_changes) echo "Verdict: CHANGES REQUIRED"
+    46	                     echo "[Important] task_2:Decisions Already Made — persist_track returns a dict. Proposed: keep TrackPersistResult." ;;
+    47	  formats) echo "Verdict: CHANGES REQUIRED"
+    48	           echo "1. **[Critical]** demo.en.md:3 – evidence missing"
+    49	           echo "* [Important] task_1_demo.md:9: row too weak"
+    50	           echo "[Important] the audit output was never read" ;;
+    51	  bare) echo "Verdict: CHANGES REQUIRED"; echo "Several things look wrong." ;;
+    52	  fail) echo "credit balance is too low"; exit 1 ;;
+    53	  silent) echo "I looked at everything." ;;
+    54	  slow) sleep 30 ;;
+    55	  modify) echo changed > DEMO-created.txt; echo "Verdict: PASS" ;;
+    56	  bold_verdict) echo "**Verdict:** PASS" ;;
+    57	  heading_verdict) echo "### Verdict: CHANGES REQUIRED"; echo "- [Critical] demo.en.md:1 — broken" ;;
+    58	  case_verdict) echo "   verdict:   pass   " ;;
+    59	  prose_summary) echo "I reviewed everything and found 0 [Critical] or [Important] issues."; echo "Verdict: PASS" ;;
+    60	  list_findings) echo "Verdict: CHANGES REQUIRED"
+
+codex
+The probes confirm that a Codex-first config still selects Claude, and that `check_bdd_traceability.py results` is not a valid command. The new Gate 5 ledger instruction also records readiness through the same approval path used for human sign-off. I’m checking that boundary before finalizing the findings.
+
+exec
+/bin/zsh -lc "python3 -B -c 'import ast
+from pathlib import Path
+tree = ast.parse(Path(\"scripts/resume_context.py\").read_text())
+node = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == \"check_gate_approval\")
+candidate = {\"epic\": \"autonomous_lifecycle_runner\", \"gate\": 5, \"approved\": \"Gate 5 candidate ready (autonomous)\", \"by\": \"lifecycle_runner\", \"commit\": \"a2b1b52\"}
+scope = {\"Path\": Path, \"resolve_target_devtool_dir\": lambda root, repo: root / \".devtool\", \"scan_gate_ledger\": lambda *a, **kw: [candidate]}
+exec(compile(ast.Module(body=[node], type_ignores=[]), \"scripts/resume_context.py\", \"exec\"), scope)
+print(\"Gate 5 candidate-only record accepted as approval:\", scope[\"check_gate_approval\"](Path(\"/virtual\"), \"autonomous_lifecycle_runner\", 5) == candidate)
+'" in /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/autonomous_lifecycle_runner
+ succeeded in 0ms:
+Gate 5 candidate-only record accepted as approval: True
+
+exec
+/bin/zsh -lc "/Library/Developer/CommandLineTools/usr/bin/git --no-optional-locks rev-parse HEAD; /Library/Developer/CommandLineTools/usr/bin/git --no-optional-locks status --porcelain; nl -ba .devtool/epic/autonomous_lifecycle_runner/bdd_scenarios.en.md | sed -n '155,173p'; nl -ba .devtool/epic/autonomous_lifecycle_runner/2026-11-10-autonomous-lifecycle-runner-design.vi.md | sed -n '81,90p'; nl -ba .devtool/epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.vi.md | sed -n '353,399p'" in /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/autonomous_lifecycle_runner
+ succeeded in 0ms:
+a2b1b525fa74a44c21b9b5aaafeb1078a95f383e
+   155	And the pipeline stops calling tools and presents the recurrent finding to the Human Architect
+   156	
+   157	Scenario: [ALR-FR-03] [Tier C - Integration] Circuit Breaker halts on max rounds exhaustion with Critical remaining
+   158	
+   159	Given Cross-Model Review reaches Round 3 with at least 1 unresolved Critical finding
+   160	When evaluate_circuit_breakers checks the round counter and severity counts
+   161	Then the runner triggers CIRCUIT_BREAKER_HALT (MAX_ROUNDS_CRITICAL_REMAINING)
+   162	And the runner halts without launching a 4th round, outputting the Top 3 Highest-Risk Findings
+   163	
+   164	Scenario: [ALR-FR-04] [Tier C - Integration] AI Assistant rejects fix plan with CRITICAL_CONFLICT and halts pipeline
+   165	
+   166	Given the AI Programmer drafts a fix plan that attempts to unilaterally revert an approved architectural decision
+   167	When the AI Assistant evaluates the fix plan
+   168	Then the Assistant returns verdict "CRITICAL_CONFLICT" with detailed rationale
+   169	And lifecycle_runner.py halts immediately, preventing the Programmer from modifying source code
+   170	And an alert is displayed to the Human Architect highlighting the architectural conflict
+   171	```
+   172	
+    81	## Điểm dừng chờ Human
+    82	
+    83	1. **Brainstorming và thiết kế (Gate 1 và 2)**: giữ nguyên, Human duyệt spec và phân rã task.
+    84	2. **Fix của Principal Review**: AI Assistant tự động áp dụng các sửa đổi thiết kế kỹ thuật đã đồng thuận, commit và đóng gói lại mà không làm gián đoạn con người. Runner chỉ tạm dừng và chuyển sang `AWAITING_PRINCIPAL_CONFIRMATION` khi phát hiện rủi ro nghiêm trọng, xung đột yêu cầu nghiệp vụ, xung đột mã nguồn chưa chốt, hoặc `SHARED_CONTRACT_CONFLICT`. Round chỉ có Minor (`AUTO_PASS_FINAL_MINOR_SWEEP`) được quét và xử lý trong một lượt duy nhất mà không dừng hỏi Con người. Thứ tự ưu tiên mô hình cho Principal Review được cấu hình/chọn tại bước xác nhận phân rã task (Gate 2) qua 4 tùy chọn: (1) `Claude -> Codex -> Kiro -> Argon` [Mặc định], (2) `Codex -> Claude -> Kiro -> Argon`, (3) `Kiro -> Claude -> Codex -> Argon`, (4) `Kiro -> Codex -> Claude -> Argon`.
+    85	3. **Fix của cross-model review**: không dừng chờ Human. Programmer đề xuất fix, Assistant duyệt hoặc chỉnh plan, Programmer áp dụng, rồi Gate 4 chạy lại.
+    86	4. **Circuit Breaker**: `SHARED_CONTRACT_CONFLICT`, `FIX_LOOP` và `MAX_ROUNDS_CRITICAL_REMAINING` luôn dừng và báo cáo, ở cả hai stage review.
+    87	5. **Assistant CRITICAL_CONFLICT**: fix plan làm thay đổi một quyết định đã duyệt thì dừng và báo cáo.
+    88	6. **Báo cáo cuối**: sau khi review hội tụ và Gate 4 xanh, runner in executive report rồi dừng. Human chọn `/finishing-a-development-branch`; merge sau đó chạy `Test All`.
+    89	
+    90	## Kiến trúc runner
+   353	### Phân tích Tác động
+   354	
+   355	Phân tích tác động được thực thi qua `check_code_impact.py` so với nhánh `main`:
+   356	- Phân tích Xung đột Git Ngược dòng: 🟢 **SẠCH** (Không có commit chưa merge với `main`).
+   357	- Vùng ảnh hưởng và Đối tượng gọi: `lifecycle_runner.py` là một điểm vào độc lập mới. Nơi tiêu thụ sẽ là slash command `dev-lifecycle` và các lệnh CLI.
+   358	- Không chạm tới bất kỳ hợp đồng bridge đa nền tảng hoặc native nào.
+   359	
+   360	## Cảnh báo Shared Contract
+   361	
+   362	Không có — tính năng hoàn toàn tự chứa (self-contained feature).
+   363	
+   364	## Kế hoạch Kiểm thử Tích hợp và Ma trận Biên
+   365	
+   366	Integration test roots: tests/, skills/dev-lifecycle/resources/scripts/
+   367	
+   368	Protected paths: .agents/quality/**, .devtool/epic/autonomous_lifecycle_runner/bdd_scenarios.en.md, .devtool/epic/autonomous_lifecycle_runner/bdd_scenarios.vi.md, tests/test_lifecycle_runner.py
+   369	
+   370	Integration results: python3 scripts/run_unittest_junit.py --junitxml build/test-results/autonomous-lifecycle-runner.xml tests/test_lifecycle_runner.py -> build/test-results/autonomous-lifecycle-runner.xml
+   371	
+   372	| Ranh giới | Thành phần thực tế | Cách cô lập hoặc fixture | Khẳng định bắt buộc |
+   373	|---|---|---|---|
+   374	| **Thăm dò Model** | `ModelDispatcher.probe_model` | Script `agy` giả lập trên `PATH` mô phỏng các mã thoát thành công và thất bại | Trả về mã 0 với model hợp lệ; trả về lỗi rõ ràng và dừng pipeline khi model bị từ chối. |
+   375	| **Giám sát Nhóm Tiến trình** | `ModelDispatcher.dispatch` | Script chạy giả lập thời gian dài | Tiến trình chạy trong process group riêng biệt (`start_new_session=True`); tín hiệu SIGTERM được gửi sạch sẽ khi quá thời gian timeout. |
+   376	| **Lưu trữ và Khôi phục Trạng thái** | `LifecycleRunner.save_state`, `load_or_init_state` | Hệ thống tệp tạm thời với thư mục `.devtool/state` giả lập | Đổi tên nguyên tử `.tmp` chống hỏng file; runner khôi phục chính xác từ giai đoạn đã lưu. |
+   377	| **Tự động hóa Thứ tự Gate 3** | `LifecycleRunner.step_implementation` | `compute_execution_order.py` giả lập | Thứ tự được bóc tách từ kết quả JSON/text và ghi nhận vào `.devtool/GATE_LEDGER.md`. |
+   378	| **Phân loại tự động Principal Review** | `step_principal_review` | Lớp bọc prompt stdin/stdout giả lập | Tự động áp dụng sửa đổi đã đồng thuận; chỉ dừng hỏi con người khi có xung đột rủi ro cao, nghiệp vụ hoặc hợp đồng. |
+   379	| **Đánh giá Kế hoạch Sửa lỗi Cross-Model** | `evaluate_programmer_fix_plan` | Dispatcher Assistant giả lập trả về `APPROVED`, `ADJUSTED`, `CRITICAL_CONFLICT` | Xử lý chính xác cả 3 phán quyết; kích hoạt Programmer sửa lỗi hoặc dừng pipeline. |
+   380	| **Circuit Breakers** | `evaluate_circuit_breakers` | Fixture `review_results.md` tổng hợp | Dừng ngay lập tức khi phát hiện `SHARED_CONTRACT_CONFLICT`, `FIX_LOOP`, và `MAX_ROUNDS_CRITICAL_REMAINING`. |
+   381	| **Báo cáo Điều hành Cuối cùng** | `LifecycleRunner.run` | Trạng thái pipeline đã hoàn thành | Kết xuất báo cáo markdown điều hành và dừng lại kèm hướng dẫn `/finishing-a-development-branch`. |
+   382	
+   383	## Môi trường Kiểm thử
+   384	
+   385	- Mọi bài kiểm thử đơn vị và tích hợp chạy trong các thư mục tạm biệt lập (`tempfile.TemporaryDirectory`).
+   386	- Kiểm thử giả lập CLI `agy` bằng các script giả lập thực thi được hoặc `unittest.mock.patch`, không yêu cầu API key bên ngoài hay mạng internet.
+   387	- Timeout tiến trình và việc ngắt tín hiệu được kiểm thử với khoảng thời gian ngắn (< 2.0s).
+   388	- Báo cáo JUnit XML được ghi vào `build/test-results/autonomous-lifecycle-runner.xml`.
+   389	
+   390	## Độ bao phủ Kịch bản BDD Toàn diện
+   391	
+   392	Các định nghĩa Gherkin chuẩn nằm tại [Kịch bản BDD](bdd_scenarios.en.md), cùng bản dịch đồng bộ [Tiếng Việt](bdd_scenarios.vi.md).
+   393	
+   394	| Chiều kiểm thử | Mã kịch bản | Mục đích bao phủ |
+   395	|---|---|---|
+   396	| **Luồng thành công** | `ALR-HP-01` đến `ALR-HP-04` | Chạy toàn bộ pipeline tự động, điều phối Programmer Gemini 3.8 không giao diện, con người xác nhận Principal Review, Assistant duyệt kế hoạch sửa lỗi. |
+   397	| **Trường hợp biên và dữ liệu bất thường** | `ALR-EC-01` đến `ALR-EC-04` | 0 phát hiện trong Principal Review bỏ qua prompt, gom cụm phát hiện minor, Assistant điều chỉnh kế hoạch, tự động xác nhận Gate 3. |
+   398	| **Chuyển đổi trạng thái và bất biến** | `ALR-ST-01` đến `ALR-ST-03` | Lưu trạng thái qua sự cố, đồng bộ Gate Ledger, thăm dò tính năng model trước khi chạy. |
+   399	| **Bất đồng bộ và điều kiện tranh chấp** | `ALR-AR-01` đến `ALR-AR-02` | Cách ly process group và ngắt SIGTERM theo timeout, khóa file trạng thái chống tranh chấp. |
+
+codex
+Reviewed `a2b1b525fa74a44c21b9b5aaafeb1078a95f383e` with read-only source and runtime probes. The worktree remains unchanged.
+
+Verdict: CHANGES REQUIRED
+
+[Important] .devtool/epic/autonomous_lifecycle_runner/task_5_orchestrator_cli_and_governance_rules.md:122, and autonomous_lifecycle_runner.en.md:343–351 — [INCOMPLETE_FIX] Round 2 #3: Gate 4 remains incomplete. The frozen `check_bdd_traceability.py results` command exits 2; the actual interface is `tests --results` (check_bdd_traceability.py:228–238). The contract also substitutes selected Python checks for the required SHA-bound, aggregated `quality_check` epic verdict (skills/dev-implementation/SKILL.md:337–356); the registered epic profile includes format, test, and architecture capabilities (.agents/quality/python-quality.json:12). Proposed: synchronize both contracts around smoke generation, decision checks, audit, integration execution, result traceability, and a defined headless quality-check invocation accepting only an aggregated PASS for the candidate SHA.
+
+[Important] .devtool/epic/autonomous_lifecycle_runner/task_1_pipeline_state_machine_and_probing.md:79–80; equivalent V4/V5 rows in tasks 2–5 — [INCOMPLETE_FIX] Round 2 #5: the verification commands remain unchanged in both task copies. A cache-disabled probe still produces 12 SIM117 failures outside Allowed files, including tests/test_agy_quota.py:32 and tests/test_claude_quota.py:91. Neither row targets lifecycle_runner.py. Proposed: apply the previously accepted isolated runner/test lint and type-check commands to all five task contracts and their feature copies.
+
+[Important] .devtool/epic/autonomous_lifecycle_runner/2026-11-10-autonomous-lifecycle-runner-design.en.md:Human Checkpoints, item 2; autonomous_lifecycle_runner.en.md:425 — [NEW_REGRESSION] The four selectable reviewer priorities have no implementing task contract. The referenced loader discards custom `provider_priority` values, and quota selection iterates the fixed constant (run_external_review.py:103–125, 213–233). Probes confirm that Codex-first configuration still selects Claude and sticky persistence restores Claude-first order. Proposed: assign priority selection, persistence, and quota dispatch to a task, adding run_external_review.py and its existing test suite to Allowed files; synchronize the Gate 2 selection documentation.
+
+[Important] .devtool/epic/autonomous_lifecycle_runner/autonomous_lifecycle_runner.en.md:Sequence Diagram, 209–215; corresponding Vietnamese section — [NEW_REGRESSION] The new final-sweep branch dispatches code fixes without Programmer plan drafting or Assistant approval. AUTO_PASS_FINAL_SWEEP can contain Important findings (run_external_review.py:1668–1672), so this bypasses the supervision required by task 4:25–28 and ALR-FR-04 before source modification. Proposed: route final sweeps through the existing plan evaluation and CRITICAL_CONFLICT guard, retaining the accepted commit sequence, full Gate 4, and prohibition on a fourth review round.
+
+[Important] .devtool/epic/autonomous_lifecycle_runner/task_5_orchestrator_cli_and_governance_rules.md:126 — [NEW_REGRESSION] Recording “Gate 5 candidate approvals” through `resume_context.py --gate 5` conflates readiness with human approval, violating HLD Non-Goals:56. The writer stores an approval entry (scripts/resume_context.py:841–852), and the reader accepts any matching gate entry without distinguishing candidate readiness (892–902), confirmed by an in-memory probe. Proposed: retain candidate readiness in pipeline state and record Gate 5 approval only after explicit human sign-off; clarify ALR-ST-02 accordingly.
+
+[Minor] .devtool/epic/autonomous_lifecycle_runner/task_2_subprocess_dispatcher_and_headless_agy.md:32–33; equivalent Allowed files entries in tasks 3–5 — [INCOMPLETE_FIX] Round 2 #9: runner and test paths remain marked `(new)` although task 1 creates them. Proposed: remove those annotations from tasks 2–5 and their feature copies.
+
+
+tokens used
+154,145
+`````
