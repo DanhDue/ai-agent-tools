@@ -1,13 +1,13 @@
 ---
 id: "task_1_pipeline_state_machine_and_probing"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "autonomous_lifecycle_runner"
 dueDate: null
 created: "2026-11-10T19:16:00Z"
-modified: "2026-11-10T19:16:00Z"
-completedAt: null
+modified: "2026-11-10T23:54:14Z"
+completedAt: "2026-11-10T23:54:14Z"
 labels: ["lifecycle", "state-machine", "persistence"]
 order: "a1"
 ---

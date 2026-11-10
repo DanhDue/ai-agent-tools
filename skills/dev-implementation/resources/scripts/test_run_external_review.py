@@ -1378,6 +1378,26 @@ class TestReviewConfigAndHeader(ReviewCase):
         )
         self.assertEqual(chosen2, "agy")
 
+    def test_select_provider_by_quota_custom_priority(self) -> None:
+        """Custom priority order (e.g. Codex -> Claude -> Kiro -> Argon) is respected."""
+        claude_healthy = {
+            "status": "ACTIVE",
+            "gemini5h": {"fraction": 0.8},
+            "geminiWeekly": {"fraction": 0.5},
+        }
+        codex_healthy = {
+            "status": "ACTIVE",
+            "gemini5h": {"fraction": 0.7},
+            "geminiWeekly": {"fraction": 0.6},
+        }
+        custom_priority = ["codex", "claude", "kiro", "agy"]
+        chosen, _ = select_provider_by_quota(
+            quota_fetcher=lambda p: {"claude": claude_healthy, "codex": codex_healthy}[p],
+            binary_resolver=lambda _p: "/usr/bin/fake",
+            priority=custom_priority,
+        )
+        self.assertEqual(chosen, "codex")
+
     def test_cross_provider_shared_context_and_top_3_risk_findings(self) -> None:
         """Mixed-model review injects Cross-Provider Handoff + Cumulative Ledger, and triage ranks Top 3 Highest-Risk Findings."""
         # 1. Verify Top 3 Highest-Risk Findings ranking & Design Anchoring in triage
