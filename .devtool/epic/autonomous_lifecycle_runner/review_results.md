@@ -77,3 +77,40 @@ Verdict: CHANGES REQUIRED
 [Critical] skills/dev-lifecycle/resources/scripts/lifecycle_runner.py:769-817 — run_gate4() omits audit_epic.py, the unit test suite, check_bdd_traceability.py, and the headless quality_check workflow mandated by Task 5's Decisions Already Made and the HLD's Method Execution Contract, and unconditionally returns PASS once the smoke checklist (exit code ignored) and review-decision check run.
 [Important] skills/dev-lifecycle/resources/scripts/lifecycle_runner.py:870-895 — evaluate_programmer_fix_plan discards the dispatch exit code and defaults to FixPlanVerdict.APPROVED whenever the Assistant call fails or returns unparseable output, violating Task 4's "Stop and Report If: Fix plan verdict cannot be parsed" and creating a fail-open path around the CRITICAL_CONFLICT safety check.
 ````
+
+## Round 2
+
+- **Date**: 2026-11-11T01:06:13Z
+- **SHA**: 3af5b8eb4aa850ebb7e74d7a0ef140ebfe610b1c
+- **Base**: main
+- **CLI**: claude
+- **Model**: sonnet
+- **Thinking**: high
+- **Status**: completed
+- **Verdict**: CHANGES REQUIRED
+- **Scope**: delta from round 1 (f17e25d)
+
+| # | Severity | Location | Problem | Decision |
+|---|----------|----------|---------|----------|
+| 1 | Critical | skills/dev-lifecycle/resources/scripts/lifecycle_runner.py:963-977 | run_gate4's check_bdd_traceability.py invocation omits the required --roots argument, so the call exits 2 deterministically on every real run, making Gate 4 unable to ever pass and blocking the Cross-Model Review → AWAITING_FINISH transition the epic exists to deliver. | fixed in 499fcae |
+| 2 | Important | skills/dev-lifecycle/resources/scripts/lifecycle_runner.py:523-645 | _apply_minor_fixes and _apply_aligned_fixes capture git rev-parse HEAD before committing the dispatch's edits and the table annotation together in one commit, so the "fixed in <sha>" cell they write always cites the parent commit instead of the commit that actually contains the fix, corrupting the Verify-Then-Close audit trail for Principal Review minor/aligned fixes. | fixed in 499fcae |
+
+Raw output:
+
+````text
+## Review: autonomous_lifecycle_runner (candidate 3af5b8e) — Round 2 Delta
+
+### Verify-Then-Close on Round 1 findings
+
+- Finding 1 (undefined `--probe` flag): resolved. `probe_model` now runs `agy models` / `<cli> --version`, with the agy branch matching the target model string against the listing output. Confirmed resolved; closing silently.
+- Finding 4 (fail-open verdict parsing): resolved. `evaluate_programmer_fix_plan` now returns `CRITICAL_CONFLICT` on non-zero exit/empty stdout and on any unrecognized first line; tests exercise both paths. Closing silently.
+- Finding 2 (fix/decision methods never dispatch or write decisions): substantially resolved — `_apply_minor_fixes`, `_apply_aligned_fixes`, `_apply_code_fixes` now dispatch `agy`, and all three plus `_record_review_decisions` now stamp `principal_review.md` / `review_results.md` rows with `fixed in <sha>` before committing.
+- Finding 3 (`run_gate4` omits mandated checks): partially resolved — `audit_epic.py`, the HLD `Integration results:` command, `check_bdd_traceability.py`, and `scripts/verify.sh` are now all wired into the five-step sequence.
+
+### New regressions in this round's diff
+
+[Critical] skills/dev-lifecycle/resources/scripts/lifecycle_runner.py:963-977 — run_gate4's check_bdd_traceability.py invocation omits the required --roots argument, so the call exits 2 deterministically on every real run, making Gate 4 unable to ever pass and blocking the Cross-Model Review → AWAITING_FINISH transition the epic exists to deliver.
+[Important] skills/dev-lifecycle/resources/scripts/lifecycle_runner.py:523-645 — _apply_minor_fixes and _apply_aligned_fixes capture git rev-parse HEAD before committing the dispatch's edits and the table annotation together in one commit, so the "fixed in <sha>" cell they write always cites the parent commit instead of the commit that actually contains the fix, corrupting the Verify-Then-Close audit trail for Principal Review minor/aligned fixes.
+
+Verdict: CHANGES REQUIRED
+````
