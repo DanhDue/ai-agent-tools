@@ -177,6 +177,12 @@ For rows 4 and 5. Phase 1 step 4's `git worktree add -b` never runs here.
 
 For each task in confirmed order, follow `d3nexus:subagent-driven-development`.
 
+#### Headless & Autonomous Task Execution
+In Autonomous Mode (`/dev-lifecycle --autonomous` or `lifecycle_runner.py`), tasks are dispatched headlessly to Role 2.3 (AI Programmer):
+- Spawns `agy` with `--model <programmer-model>` (default: `gemini-3.8-flash`), `--effort high`, and `--mode auto`.
+- Spawns in an isolated process group (`start_new_session=True`) to ensure supervisor timeouts terminate all runaway compiler or child test processes cleanly (`SIGTERM` followed by `SIGKILL` escalation).
+- Captures logs per task into `.devtool/logs/tasks/<task_slug>.log`, auto-updates task status via `sync_task_status.py`, and commits cleanly (`[<EPIC_NAME>] Execute <task_slug>`).
+
 0. **Pre-Edit Verification (Impact & Conflict Check)**:
    ```bash
    python3 skills/impact-analysis/resources/scripts/check_code_impact.py \

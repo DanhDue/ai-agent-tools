@@ -1,13 +1,13 @@
 ---
 id: "task_5_orchestrator_cli_and_governance_rules"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "autonomous_lifecycle_runner"
 dueDate: null
 created: "2026-11-10T19:16:00Z"
-modified: "2026-11-10T19:16:00Z"
-completedAt: null
+modified: "2026-11-11T00:20:16Z"
+completedAt: "2026-11-11T00:20:16Z"
 labels: ["lifecycle", "orchestration", "governance", "documentation"]
 order: "a5"
 ---

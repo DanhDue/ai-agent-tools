@@ -69,6 +69,24 @@ Every gate is a **human approval** except Gate 4 (machine verdict). Never cross 
 
 An epic whose `.devtool/epic/<epic_dir>/` holds `task_*.md` files is past Gate 2 — whether `Packaged` (`handoff.md` present) or interrupted in Stage 3. Announce "Gates 1 and 2 already passed; resuming at Stage 3", invoke `dev-implementation`, and let its Entry-Point Detection choose where to start. Never redo Stage 1 or 2; route new requirements to dev-designer's Updating an Existing Epic.
 
+### Autonomous Mode (`/dev-lifecycle --autonomous`)
+
+For epics designed for hands-off execution, the Autonomous Lifecycle Runner orchestrates Stage 2 and Stage 3 without unnecessary interactive pauses:
+
+```bash
+python3 skills/dev-lifecycle/resources/scripts/lifecycle_runner.py --epic <epic_slug>
+```
+
+- **Tri-Role Coordination**: Human Architect (Role 2.1) sets strategy and signs off gates; AI Assistant (Role 2.2) evaluates specifications and fix plans; AI Programmer (Role 2.3 Gemini 3.8 Flash High) executes tasks in worktrees.
+- **Auto Gate 3 Calculation**: Automatically computes topological execution order via `compute_execution_order.py` and records Gate 3 approval.
+- **Process Group Isolation**: Dispatches headless Programmer subprocesses (`agy --model gemini-3.8-flash --effort high --mode auto`) under POSIX process group supervision (`start_new_session=True`) with SIGTERM/SIGKILL escalation.
+- **Autonomous Review Fix Loops**:
+  - **Stage 2 Principal Review**: Auto-applies aligned revisions (`AUTO_FIX_ELIGIBLE`), sweeps minor items in single pass (`AUTO_PASS_FINAL_MINOR_SWEEP`), and halts only on critical risks or domain conflicts (`AWAITING_PRINCIPAL_CONFIRMATION`).
+  - **Stage 3 Cross-Model Review**: Programmer drafts `fix_plan_round<N>.md`; Assistant evaluates with `APPROVED`, `ADJUSTED`, or `CRITICAL_CONFLICT`. Code fixes and review decisions are committed before re-running Gate 4 in full.
+- **Circuit Breakers**: Halts immediately on `SHARED_CONTRACT_CONFLICT`, `FIX_LOOP`, or `MAX_ROUNDS_CRITICAL_REMAINING`.
+- **Executive Report Synthesis**: Renders synthesized report of Top 3 Highest-Risk Findings across all review rounds, halts cleanly at `AWAITING_FINISH`, and prompts the developer for `/finishing-a-development-branch`.
+- Detailed reference: [references/autonomous-mode.md](references/autonomous-mode.md).
+
 ### Stage 1 — Inception & Spec → `dev-brainstorming`
 
 **Invoke `d3nexus:dev-brainstorming`.** Gate 1 is its user-approval step.

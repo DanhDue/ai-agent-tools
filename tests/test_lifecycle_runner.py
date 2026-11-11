@@ -479,6 +479,59 @@ class TestLifecycleRunner_Integration(unittest.TestCase):
                                 self.assertEqual(runner.state.last_verdict, FixPlanVerdict.APPROVED.value)
                                 mock_apply.assert_called_once()
 
+    def test_alr_fr_03(self) -> None:
+        """[ALR-FR-03] Circuit Breaker halts on max rounds exhaustion with Critical remaining."""
+        runner = LifecycleRunner(root=self.root, epic_slug=self.epic_slug)
+        runner.state.cross_model_round = 3
+
+        cb = runner.evaluate_circuit_breakers(
+            "code",
+            3,
+            triage_stdout="- **Action**: CIRCUIT_BREAKER_HALT (MAX_ROUNDS_CRITICAL_REMAINING)\n",
+        )
+        self.assertEqual(cb, "CIRCUIT_BREAKER_HALT (MAX_ROUNDS_CRITICAL_REMAINING)")
+
+    def test_alr_st_02(self) -> None:
+        """[ALR-ST-02] Gate Ledger synchronization on autonomous state transitions."""
+        runner = LifecycleRunner(root=self.root, epic_slug=self.epic_slug)
+
+        with patch.object(runner, "sync_gate_ledger", return_value=True) as mock_sync:
+            with patch("subprocess.run") as mock_run:
+                mock_proc = MagicMock()
+                mock_proc.returncode = 0
+                mock_proc.stdout = "OK"
+                mock_run.return_value = mock_proc
+
+                ok, msg = runner.run_gate4()
+                self.assertTrue(ok)
+                self.assertIn("PASS", msg)
+                mock_sync.assert_called_with(4, unittest.mock.ANY)
+
+    def test_alr_hp_01(self) -> None:
+        """[ALR-HP-01] Complete autonomous pipeline executes from handoff to final executive report."""
+        runner = LifecycleRunner(root=self.root, epic_slug=self.epic_slug)
+
+        def fake_step_principal() -> bool:
+            runner.state.active_stage = StageName.IMPLEMENTATION.value
+            return True
+
+        def fake_step_implementation() -> bool:
+            runner.state.active_stage = StageName.CROSS_MODEL_REVIEW.value
+            return True
+
+        def fake_step_cross_model() -> bool:
+            runner.state.active_stage = StageName.AWAITING_FINISH.value
+            return True
+
+        with patch.object(runner.dispatcher, "probe_model", return_value=(True, "OK")):
+            with patch.object(runner, "step_principal_review", side_effect=fake_step_principal):
+                with patch.object(runner, "step_implementation", side_effect=fake_step_implementation):
+                    with patch.object(runner, "step_cross_model_review", side_effect=fake_step_cross_model):
+                        with patch.object(runner, "render_final_executive_report", return_value="# Executive Review Report"):
+                            exit_code = runner.run()
+                            self.assertEqual(exit_code, 0)
+                            self.assertEqual(runner.state.active_stage, StageName.AWAITING_FINISH.value)
+
 
 if __name__ == "__main__":
     unittest.main()

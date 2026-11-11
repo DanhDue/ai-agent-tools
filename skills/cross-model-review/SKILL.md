@@ -81,7 +81,7 @@ Every review round is triaged and verified against active code and the approved 
    - Inspect exact files/lines and anchor strictly to the approved HLD, `bdd_scenarios.en.md`, and `Decisions Already Made`. Fill `## Top 3 Highest-Risk Findings (Executive Report)` and `## Findings` (`Valid`, `Debatable`, `False positive`, `Not shown`).
 3. **Execute Auto-Triage Gate or Present Triage**:
    - **`AUTO_PASS_CLEAN` / `AUTO_PASS_FINAL_MINOR_SWEEP` / `AUTO_PASS_FINAL_SWEEP` (Round 3 with `0 Critical`)**: Fix any valid non-critical items in a single sweep, run Gate 4 green, and finish without calling another review round.
-   - **`AUTO_FIX_ELIGIBLE` (Round 1..2 with `Critical`/`Important`, no `shared-contracts/` conflict, no Fix Loop)**: In autonomous `/dev-lifecycle` mode, apply verified fixes, record `fixed in <sha>`, run Gate 4 in full, and invoke Round $N+1$. In interactive mode, present the 4-bullet header block and wait for developer decisions:
+   - **`AUTO_FIX_ELIGIBLE` (Round 1..2 with `Critical`/`Important`, no `shared-contracts/` conflict, no Fix Loop)**: In autonomous mode (`lifecycle_runner.py`), the AI Programmer drafts `fix_plan_round<N>.md`. Role 2.2 (AI Assistant) evaluates the fix plan against approved HLD specifications emitting `APPROVED`, `ADJUSTED`, or `CRITICAL_CONFLICT`. Upon approval or adjustment, Role 2.3 applies fixes, commits them, records `fixed in <sha>`, runs Gate 4 in full, and advances to Round N+1. If `CRITICAL_CONFLICT` or `SHARED_CONTRACT_CONFLICT` is detected, the runner halts immediately for the Human Architect. In interactive mode, present the 4-bullet header block and wait for developer decisions:
      ```markdown
      Cross-Model Review Triage: Round <N> (<CLI>)
 

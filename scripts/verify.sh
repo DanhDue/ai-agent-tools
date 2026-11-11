@@ -325,6 +325,7 @@ SUITES = [
     ("11", "unittest", "scripts/test_run_unittest_junit.py", 2, False),
     ("11", "unittest", "scripts/test_verifiable_handoff_text.py", 1, True),
     ("11", "unittest", "scripts/test_verifiable_handoff.py", 15, True),
+    ("11", "unittest", "tests/test_lifecycle_runner.py", 20, False),
     # Section 12: Branch integration script
     ("12", "unittest", "skills/finishing-a-development-branch/resources/scripts/test_integrate_branch.py", 80, False),
     # Section 13: Quality provider contracts, schemas, aggregation, and platform capabilities
