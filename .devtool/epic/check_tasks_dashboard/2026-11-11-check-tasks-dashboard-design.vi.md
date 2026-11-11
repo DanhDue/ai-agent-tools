@@ -181,7 +181,12 @@ Daemon server tích hợp sử dụng thư viện chuẩn `http.server` của Py
 Giao diện Web (`tasks_dashboard.html`) được xây dựng dưới dạng ứng dụng đơn trang phản ứng nhanh với Tailwind CSS và hệ màu tối:
 
 ### 1. Màn hình Overview Chính
-- **Thẻ Repository**: Viền và bóng đổ đồng bộ theo màu nhận diện dự án (`border-color`, `box-shadow`, `accent-badge`).
+- **Đồng Bộ Tone Màu Từ `.vscode/settings.json` (Quy Chuẩn Rule 8 & TitleBar)**:
+  - Mỗi thẻ Repo và các thành phần con (nút bấm primary, viền thẻ, bóng glow, badge profile, branch tags) tuân thủ nghiêm ngặt tone màu quy định tại `.vscode/settings.json` (`titleBar.activeBackground`):
+    - 🟠 `ai-agent-tools`: Tone Hổ Phách Ấm (`#b45309`), viền `#b45309`, glow `rgba(180, 83, 9, 0.35)`, nút IDE nền `#b45309`.
+    - 🔴 `lyrics-sync`: Tone Đỏ Thẫm (`#7f1d1d`), viền `#7f1d1d`, glow `rgba(127, 29, 29, 0.35)`, nút IDE nền `#7f1d1d`.
+    - 🟢 `D3Nexus`: Tone Xanh Ngọc Lục Bảo (`#065f46`), viền `#065f46`, glow `rgba(6, 95, 70, 0.35)`, nút IDE nền `#065f46`.
+    - 🔵 `nexus`: Tone Xanh Hoàng Gia (`#0d47a1`), viền `#0d47a1`, glow `rgba(13, 71, 161, 0.35)`, nút IDE nền `#0d47a1`.
 - **Danh sách Worktrees**: Hiển thị các worktree đang hoạt động kèm tên nhánh Git.
 - **Vùng Nổi bật Task Hiện tại**: Làm nổi bật rõ ràng task đang ở trạng thái `in_progress`.
 - **Hàng Chỉ số Chất lượng Vòng đời (Human-Essential Metrics)**:
@@ -193,13 +198,15 @@ Giao diện Web (`tasks_dashboard.html`) được xây dựng dưới dạng ứ
   - **Quy chuẩn Đường kẻ Line Sắc nét (Không bo cong)**: Các đường line chỉ thị màu sắc bên trái (`border-left: 3px solid <color>`) được giữ thẳng tuyệt đối bằng cách triệt tiêu bán kính góc trái (`border-radius: 0 6px 6px 0; border-top-left-radius: 0; border-bottom-left-radius: 0;`), loại bỏ hiện tượng viền bị uốn lượn hình vòng cung gây chói mắt.
 - **Hộp Chỉ dẫn "⚡ Bước Tiếp Theo Con Người Cần Quyết Định"**: Hiển thị nổi bật quyết định hoặc hành động tiếp theo mà Human Architect cần thực thi theo Finite State Machine của `/dev-lifecycle`.
 - **Thanh Tiến độ Phân đoạn**: Biểu thị trực quan tỷ lệ Done (xanh lá), In Progress (cam), và Todo (xám).
-- **Các Nút Thao tác Nhanh**:
-  - `[ 💻 Mở CLI ]`: Kích hoạt CLI theo profile tại worktree.
-  - `[ 🚀 Mở IDE ]`: Kích hoạt Antigravity IDE tại worktree.
-  - `[ 📊 Xem Kanban ]`: Mở Dialog Modal Bảng Kanban.
-  - `[ 🧠 Xem Contexts ]`: Mở Dialog Modal Bộ nhớ 2 Tầng.
-  - `[ 🛡️ Principal Review ]`: Mở Dialog Modal Kết quả Đánh giá Kiến trúc.
-  - `[ 🔬 Cross-Model Review ]`: Mở Dialog Modal Kết quả Đánh giá Đa mô hình.
+- **Bản Đồ Điều Hướng: Nút Bấm ➔ Màn Hình / Dialog Pop-up**:
+  | Nút Bấm (Button) | Loại Tương Tác | Đích Đến / Dialog Hiển Thị | Chức Năng & Dữ Liệu |
+  |---|---|---|---|
+  | `[ 💻 Mở CLI ]` | Hành vi OS (AppleScript) | Mở tab Terminal / iTerm2 mới | Kích hoạt subshell profile `ag_run <profile> cli` trỏ thẳng vào worktree |
+  | `[ 🚀 Mở IDE ]` | Hành vi OS (Subprocess) | Mở cửa sổ Antigravity IDE mới | Khởi chạy Electron IDE cách ly IPC handle trỏ vào worktree |
+  | `[ 📊 Xem Kanban ]` | Modal Dialog Pop-up | Bảng Kanban 5 Cột Pop-up | Mở Dialog 5 cột (Backlog, Todo, In Progress, Review, Done) đồng bộ từ `task_*.md` |
+  | `[ 🧠 Xem Contexts ]` | Modal Dialog Pop-up | Dialog Đối Chiếu 2 Tầng | So sánh Tầng 1 (`PROJECT_LEDGER.md`) và Tầng 2 (`assistant_state.md`, `activity_stream.log`) |
+  | `[ 🛡️ Principal Review ]` | Modal Dialog Pop-up | Dialog Triage Đánh Giá HLD/Tasks | Hiển thị kết quả kiểm tra kiến trúc Stage 2 qua các vòng Round 1-3 |
+  | `[ 🔬 Cross-Model Review ]` | Modal Dialog Pop-up | Dialog Triage Đánh Giá Code/Tests | Hiển thị Header Metadata (SHA, Reviewer, Thinking, Verdict) và Bảng Triage 7 cột chuẩn Ảnh mẫu 2 |
 
 ### 2. Dialog Modal Bảng Kanban
 - Hiển thị cấu trúc 5 cột:

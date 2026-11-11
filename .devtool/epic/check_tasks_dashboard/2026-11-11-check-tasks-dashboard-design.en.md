@@ -181,7 +181,12 @@ The embedded daemon server operates using standard Python `http.server` on port 
 The Web Dashboard (`tasks_dashboard.html`) is built as a single-page reactive application using Tailwind CSS and dark-mode tokens:
 
 ### 1. Main Overview View
-- **Repository Cards**: Styled with the project's exact accent color (`border-color`, `box-shadow`, `accent-badge`).
+- **Tone Color Synchronization from `.vscode/settings.json` (Rule 8 & TitleBar Invariant)**:
+  - Each repository card and its nested child elements (primary action button, border, glow shadow, profile badge, branch tags) strictly inherit the signature tone defined in `.vscode/settings.json` (`titleBar.activeBackground`):
+    - 🟠 `ai-agent-tools`: Warm Amber tone (`#b45309`), border `#b45309`, glow `rgba(180, 83, 9, 0.35)`, IDE button background `#b45309`.
+    - 🔴 `lyrics-sync`: Crimson Red tone (`#7f1d1d`), border `#7f1d1d`, glow `rgba(127, 29, 29, 0.35)`, IDE button background `#7f1d1d`.
+    - 🟢 `D3Nexus`: Emerald Green tone (`#065f46`), border `#065f46`, glow `rgba(6, 95, 70, 0.35)`, IDE button background `#065f46`.
+    - 🔵 `nexus`: Royal Blue tone (`#0d47a1`), border `#0d47a1`, glow `rgba(13, 71, 161, 0.35)`, IDE button background `#0d47a1`.
 - **Worktree List**: Displays active worktrees per repository with Git branch tags.
 - **Current Task Highlight**: Prominently highlights the task currently `in_progress`.
 - **Human-Essential Metrics Row**:
@@ -193,13 +198,15 @@ The Web Dashboard (`tasks_dashboard.html`) is built as a single-page reactive ap
   - **Crisp Straight Indicator Line Standard (Zero Corner Curvature)**: Colored accent lines on the left (`border-left: 3px solid <color>`) are kept perfectly straight by zeroing out the left border radii (`border-radius: 0 6px 6px 0; border-top-left-radius: 0; border-bottom-left-radius: 0;`), completely eliminating glaring curved edges.
 - **"⚡ Next Immediate Step / Human Decision" Banner**: Prominently showcases the exact decision or action required by the Human Architect as determined by the `/dev-lifecycle` Finite State Machine.
 - **Progress Bar**: Segmented progress bar indicating Done, In Progress, and Todo proportions.
-- **Action Buttons**:
-  - `[ 💻 Mở CLI ]`: Clean profile CLI launcher.
-  - `[ 🚀 Mở IDE ]`: Clean Antigravity IDE launcher.
-  - `[ 📊 Xem Kanban ]`: Opens the Kanban Modal Dialog.
-  - `[ 🧠 Xem Contexts ]`: Opens the Two-Tier Context Modal Dialog.
-  - `[ 🛡️ Principal Review ]`: Opens the Principal Review Findings Modal Dialog.
-  - `[ 🔬 Cross-Model Review ]`: Opens the Cross-Model Review Findings Modal Dialog.
+- **Navigation & Dialog Mapping (Buttons ➔ Modals / Actions)**:
+  | Button | Interaction Type | Target / Displayed Modal | Purpose & Data Payload |
+  |---|---|---|---|
+  | `[ 💻 Mở CLI ]` | OS Action (AppleScript) | Launches new Terminal / iTerm2 tab | Executes profile subshell `ag_run <profile> cli` in worktree directory |
+  | `[ 🚀 Mở IDE ]` | OS Action (Subprocess) | Opens dedicated Antigravity IDE window | Spawns isolated Electron IDE with sanitized IPC environment |
+  | `[ 📊 Xem Kanban ]` | Modal Dialog Pop-up | 5-Column Kanban Board Dialog | Pop-up board (Backlog, Todo, In Progress, Review, Done) synced from `task_*.md` |
+  | `[ 🧠 Xem Contexts ]` | Modal Dialog Pop-up | Two-Tier Comparison Dialog | Side-by-side view comparing Tier 1 (`PROJECT_LEDGER.md`) and Tier 2 state |
+  | `[ 🛡️ Principal Review ]` | Modal Dialog Pop-up | Stage 2 HLD/Tasks Triage Dialog | Displays architectural inspection findings across Rounds 1-3 |
+  | `[ 🔬 Cross-Model Review ]` | Modal Dialog Pop-up | Stage 3/4 Code/Test Triage Dialog | Displays Header Metadata (SHA, Reviewer, Thinking, Verdict) and 7-column table |
 
 ### 2. Kanban Board Modal Dialog
 - Displays a 5-column layout:
