@@ -15,14 +15,14 @@ Operating on the principle of **Shift-Right Verification**, it catches code qual
 
 ## Two Modes of Operation
 
-### 1. In-Lifecycle Mode (Stage 3 Review Choice after Gate 4)
+### 1. In-Lifecycle Mode (Automated Stage 3 Review after Gate 4 Local PASS)
 
-Invoked after all tasks of an epic are implemented and Gate 4 (machine acceptance) returns PASS.
+Invoked automatically after all tasks of an epic are implemented and Gate 4 (machine acceptance) returns PASS.
 
-- **Trigger**: Developer selects Option 2 ("Cross-model review") or Option 3 ("Local model review") at the Review Choice prompt.
+- **Trigger**: Automatic transition from `dev-implementation` upon Gate 4 local PASS (zero intermediate confirmation pauses).
 - **Scope**: Evaluates all task commits, diffs against base branch, audit disclosures, and integration test traceability in `.devtool/epic/<epic_dir>/`.
 - **Execution**:
-  - External CLI (`--auto-quota` or explicit `--cli` following priority `Claude -> Codex -> Kiro -> Argon`):
+  - External CLI (`--auto-quota` or explicit `--cli` following priority `Claude -> Codex -> Kiro -> Argon` from `.devtool/review_config.json`):
     ```bash
     python3 skills/dev-implementation/resources/scripts/run_external_review.py run \
       --epic-dir <epic_dir> --base <base_branch> [--auto-quota | --cli <claude|codex|kiro|agy>]
@@ -97,8 +97,8 @@ Every review round is triaged and verified against active code and the approved 
    - Update each Decision cell in `review_results.md`: `fixed in <sha>` or `dismissed: <reason>` in developer's exact words.
    - Commit decisions: `[<EPIC_NAME>] Record review decisions for round <n>`.
    - **Automatically re-run Gate 4 machine acceptance in full** on the new candidate SHA without asking for a separate confirmation before running Gate 4.
-   - Record state via `python3 scripts/resume_context.py --state --epic <epic_slug> --status "Stage 4.1: Review Choice"` and emit next prompt via `python3 scripts/resume_context.py --emit-prompt finish --epic <epic_slug>` (or `--emit-prompt cross-review --epic <epic_slug>`).
-   - In autonomous lifecycle mode, once Cross-Model Review converges (`AUTO_PASS_CLEAN` or `AUTO_PASS_FINAL_MINOR_SWEEP`) and Gate 4 is green, proceed to Finish (`finishing-a-development-branch`); in interactive mode, stop calling tools and present the applied fix summary, the new Gate 4 PASS verdict, and Review Choice again.
+   - Record state via `python3 scripts/resume_context.py --state --epic <epic_slug> --status "Stage 4: Awaiting Finish"` and emit next prompt via `python3 scripts/resume_context.py --emit-prompt finish --epic <epic_slug>`.
+   - Once Cross-Model Review converges (`AUTO_PASS_CLEAN`, `AUTO_PASS_FINAL_MINOR_SWEEP`, or `AUTO_PASS_FINAL_SWEEP`) and Gate 4 is green on candidate SHA: render the synthesized `## Top 3 Highest-Risk Findings (Executive Report)` and stop calling tools to prompt the Human Architect for the **Stage 4 Finish Decision** (Gate 5 Sign-off) and Git merge strategy selection.
 
 ## References
 

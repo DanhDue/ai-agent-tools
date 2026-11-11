@@ -125,24 +125,24 @@ For rows 4 and 5. Phase 1 step 4's `git worktree add -b` never runs here.
    ```
    Check scan summary line (`Scanned N task_*.md files; M matched epic ...`). If `M` is smaller than expected, fix broken frontmatter before proceeding.
 2. Read "Manual review advised" section (if any) and cross-check against Phase 0 context. Adjust flattened order by hand if a prose note should win.
-3. **Checkpoint (Gate 3):** present the final order to user and get confirmation before touching git.
-   In the same message, state the Principal Review status (`not run`, `round <n>: PASS`, or `round <n>: decided`; stop with the triage if that check exits 1), and ask once for permission to fast-forward local `develop` from its upstream for the rest of this epic (Phase 1 step 4 and Phase 2 step 7).
-
-   Once confirmed, record Gate 3 approval in the Gate Approval Ledger:
+3. **Automated Gate 3 Bootstrap (Zero Manual Confirmation):**
+   The AI Assistant computes and resolves the execution order automatically via `compute_execution_order.py`.
+   Record Gate 3 approval in the Gate Approval Ledger:
    ```bash
-   python3 scripts/resume_context.py --gate 3 --epic <epic_slug> --approved "<execution order confirmed>"
+   python3 scripts/resume_context.py --gate 3 --epic <epic_slug> --approved "<execution order auto-resolved>"
    ```
    Query or verify Gate 3 status at any time via:
    ```bash
    python3 scripts/resume_context.py --check-gate 3 --epic <epic_slug>
    ```
 
-   Before presenting order, run BDD traceability plan check:
+   Run BDD traceability plan check:
    ```bash
    python3 "$SKILL_DIR"/resources/scripts/check_bdd_traceability.py plan \
      --scenarios .devtool/epic/<epic_dir>/bdd_scenarios.en.md \
      --tasks .devtool/epic/<epic_dir>/task_*.md
    ```
+   Proceed directly to worktree creation (Step 4) and task execution. Do NOT prompt the developer for manual confirmation on execution order. (Halt ONLY on cyclic DAG dependencies, malformed frontmatter, or unresolvable prerequisites).
    If needed, add bracketed identifiers to `bdd_scenarios.*.md`, `Covers:` lines to task files, and `Integration test roots:` to HLD. Commit as `[EPIC_NAME] Add BDD scenario identifiers`.
 
    Then check task contract:
@@ -366,55 +366,41 @@ Gate 4 enforces strict semantic test integrity to prevent false-confidence passe
 
 *(Note: These are Gate 4 semantic integrity requirements evaluated by specialist providers and audits; no universal cross-language mechanical coverage claim is made.)*
 
-### Review Choice — after every Gate 4 PASS
+### Automated Transition to Cross-Model Review (Zero Intermediate Confirmation)
 
 <HARD-GATE>
-You MUST NOT skip or auto-decide Review Choice after Gate 4 passes.
-Present the choice between "Finish", "Cross-model review" and "Local model review" and wait for the developer's explicit instruction.
-Cross-model review and Local model review must return to Phase 4 in full; only the next Gate 4 PASS may present Review Choice again.
+Do NOT stop to ask for an intermediate Review Choice prompt after Gate 4 passes.
+When all tasks are complete and Phase 4 / Gate 4 local machine acceptance passes (🟢 LGTM), the workflow MUST AUTOMATICALLY transition into `/cross-model-review` (`run_external_review.py run --epic-dir <epic_dir> --auto-quota`).
+Do NOT ask the developer whether to review or finish at this intermediate point.
+The decision to Finish belongs strictly in Stage 4 (Phase 4.1 / Gate 5), after Cross-Model Review completes.
 </HARD-GATE>
 
-The loop invariant is **Gate 4 PASS → Review Choice; Finish → Gate 5; Cross-model review → Gate 4 in full; Local model review → Gate 4 in full**.
-<!-- Workflow transitions:
-moretasks -- "no, epic done" --> phase4
-phase4 -- "PASS" --> choice
-choice -- "Finish" --> checkpoint4
-review -- "round recorded" --> phase4
-choice -- "Local model review" --> localreview
-localreview -- "round recorded" --> phase4
--->
-On Gate 4 PASS, record Gate 4 in `.devtool/GATE_LEDGER.md` via `python3 scripts/resume_context.py --gate 4 --epic <epic_slug> --approved "Gate 4 PASS (<candidate_sha>)"`, run `python3 scripts/resume_context.py --state --epic <epic_slug> --status "Stage 4.1: Review Choice"` (which synchronizes `window.title` to Review Choice), and emit the prompt via `python3 scripts/resume_context.py --emit-prompt cross-review --epic <epic_slug>`.
-Ask developer and wait for answer:
+The loop invariant is **Gate 4 Local PASS → Automated Cross-Model Review → Gate 4 in full → Stage 4 Finish Decision (Gate 5)**.
 
-> Gate 4 is 🟢 LGTM for `<candidate_sha>`. How do you want to proceed?
->
-> 1. **Finish** — continue to Gate 5, then `finishing-a-development-branch`.
-> 2. **Cross-model review** — an independent model reviews the epic through Claude CLI, Codex CLI, Antigravity CLI, or Kiro CLI (`command -v claude codex agy kiro-cli`).
-> 3. **Local model review** — a model served by your local Ollama reviews the epic task by task (`ollama list`).
-
-Option 1 goes to Phase 4.1 / Gate 5. Option 2 invokes `d3nexus:cross-model-review` in epic worktree with clean tree (`--auto-quota` priority `Claude -> Codex -> Kiro -> Argon`, 3-Round Convergence Funnel, max 3 rounds):
+On Gate 4 local PASS:
+1. Record Gate 4 in `.devtool/GATE_LEDGER.md` via `python3 scripts/resume_context.py --gate 4 --epic <epic_slug> --approved "Gate 4 Local PASS (<candidate_sha>)"`, and update state via `python3 scripts/resume_context.py --state --epic <epic_slug> --status "Stage 3: Cross-Model Review"`.
+2. Automatically invoke `d3nexus:cross-model-review` in epic worktree with clean tree (`--auto-quota` priority `Claude -> Codex -> Kiro -> Argon`, 3-Round Convergence Funnel, max 3 rounds):
 ```bash
 python3 "$SKILL_DIR"/resources/scripts/run_external_review.py run \
-  --epic-dir <epic_dir> --base <base_ref> [--auto-quota | --cli claude|codex|kiro|agy]
+  --epic-dir <epic_dir> --base <base_ref> --auto-quota
 ```
-Commit `review_results.md` after every round (`[EPIC_NAME] Record cross-model review round N`). After every round of option 2 or 3, run `python3 "$SKILL_DIR"/resources/scripts/run_external_review.py triage --epic-dir <epic_dir>`, fill it as [review-triage.md](references/review-triage.md) says, and inspect `## Auto-Triage Gate` (`AUTO_PASS_FINAL_MINOR_SWEEP`, `AUTO_FIX_ELIGIBLE`, `CIRCUIT_BREAKER_HALT`). Present it and wait for the developer's decisions before any Fix commit or Decision cell (or auto-apply verified `Valid` fixes in autonomous mode). Once confirmed, make the Fix commits, record the decisions, commit, and **automatically rerun Phase 4 / Gate 4 in full** without asking for an intermediate confirmation before running Gate 4; only halt once Gate 4 finishes and presents Review Choice again.
+3. Commit `review_results.md` after every round (`[EPIC_NAME] Record cross-model review round N`). After every round, run `python3 "$SKILL_DIR"/resources/scripts/run_external_review.py triage --epic-dir <epic_dir>`, fill it as [review-triage.md](references/review-triage.md) says, and inspect `## Auto-Triage Gate` (`AUTO_PASS_FINAL_MINOR_SWEEP`, `AUTO_FIX_ELIGIBLE`, `CIRCUIT_BREAKER_HALT`):
+   - **`AUTO_PASS_CLEAN` or `AUTO_PASS_FINAL_MINOR_SWEEP`**: Apply minor fixes if any, re-run Gate 4 in full green, and complete the review stage.
+   - **`AUTO_FIX_ELIGIBLE`**: Role 2.3 (AI Programmer) applies verified fixes, commits `[<EPIC_NAME>] Fix <what>`, records `fixed in <sha>`, commits decisions, automatically re-runs Gate 4 in full green, and advances to the next review round (up to max 3 rounds).
+   - **`CIRCUIT_BREAKER_HALT`**: Halts cleanly and alerts Human Architect only if `SHARED_CONTRACT_CONFLICT`, `FIX_LOOP`, or remaining Critical findings after Round 3 occur.
+4. Once `/cross-model-review` completes (converged with 0 Critical findings) and Gate 4 passes on the latest candidate SHA:
+   - Present the synthesized `## Top 3 Highest-Risk Findings (Executive Report)`.
+   - Advance directly to **Phase 4.1 (Stage 4: Developer Kanban Review & Finish Decision — Gate 5)**.
 
-Option 3 invokes `d3nexus:cross-model-review` for local models (run `ollama list` first and ask the developer which model to use; never pick it). Then, in the epic worktree with a clean tree:
-```bash
-python3 "$SKILL_DIR"/resources/scripts/run_external_review.py run \
-  --epic-dir <epic_dir> --base <base_ref> --cli ollama --model <model>
-```
-The model reviews each task commit, then the epic, and one round is recorded with the same `check` rules. Sampling and context come from the model's Modelfile; `--num-ctx` overrides the context and `--host` the server. Setup: [local-review-setup.md](references/local-review-setup.md). Commit each round as `[EPIC_NAME] Record local model review round N`, then handle findings as for option 2.
+### Phase 4.1 — Developer Kanban Review & Finish Decision (🛑 MANDATORY STOP & WAIT — Gate 5)
 
-### Phase 4.1 — Developer Kanban Review Checkpoint (🛑 MANDATORY STOP & WAIT — Gate 5)
-
-Once `@quality_check` reports 🟢 LGTM, all tasks completed, and developer selects **Finish** at Review Choice:
+Once `/cross-model-review` has converged, `@quality_check` reports 🟢 LGTM on candidate SHA, and all tasks completed:
 1. **Preserve Kanban Visibility**: All completed `task_*.md` files MUST remain in `.devtool/features/done/`.
-2. **Present Executive Summary**: Output summary containing epic slug, worktree path, completed tasks, `@quality_check` verdict, BDD matrix, and audit disclosure sections (Evidence, Protected paths, Commits outside tasks, Gate 5 items).
+2. **Present Executive Summary**: Output summary containing epic slug, worktree path, completed tasks, `@quality_check` verdict, BDD matrix, audit disclosure sections (Evidence, Protected paths, Commits outside tasks, Gate 5 items), and synthesized Executive Review Findings.
 3. 🛑 **MANDATORY STOP & WAIT**: Stop calling tools immediately. Prompt user explicitly:
-   > "All tasks for epic `<epic_slug>` are completed and `@quality_check` is **🟢 LGTM**.
+   > "All tasks for epic `<epic_slug>` are completed, `@quality_check` is **🟢 LGTM**, and Cross-Model Review has converged.
    > All task cards are visible in the **DONE** column on your Kanban dashboard.
-   > Please review completed tasks and code changes. Reply to proceed with branch integration."
+   > Please review completed tasks and code changes. Reply to proceed with branch integration (Stage 4 Finish)."
 4. **Wait for Gate 5 Confirmation**: Only proceed to Phase 5 when user explicitly approves (then record Gate 5 via `python3 scripts/resume_context.py --gate 5 --epic <epic_slug> --approved "Gate 5 Kanban sign-off"`).
 
 ### Phase 5 — Branch Finishing

@@ -17,7 +17,7 @@
 - **Design commit**: `<sha>` — `HEAD` before the packaging commit, or `uncommitted` when `auto_commit` is false
 - **Base branch**: `<base_branch>`
 - **Gates passed**: 1 (spec), 2 (HLD and task breakdown)
-- **Next**: Stage 3, `dev-implementation`. Gate 3 (execution order) still needs the developer's confirmation.
+- **Next**: Stage 3, `dev-implementation`. Gate 3 (execution order) is automated upon entry.
 
 ## Identifiers
 
@@ -42,9 +42,9 @@ These are usually different strings. Never derive one from the other.
 Use the d3nexus:dev-implementation skill for the `<epic_slug>` epic.
 Read .devtool/epic/<epic_dir>/handoff.md first.
 Run: python3 scripts/resume_context.py --role programmer --epic <epic_slug>
-Apply the Execution Guardrails for Receiving LLM before presenting Gate 3.
+Apply the Execution Guardrails for Receiving LLM.
 Gates 1 and 2 are passed; do not re-run brainstorming or design.
-Gate 3 is pending: present the execution order to me and wait for my confirmation.
+Gate 3 (execution order) and worktree creation run automatically. Begin task execution in accordance with the resolved order.
 ```
 
 ## Execution Guardrails for Receiving LLM
@@ -71,7 +71,7 @@ Fast executor models and receiving agents MUST adhere to these four hard guardra
 ## Rules for the Receiving Agent
 
 - Do not re-run `dev-brainstorming` or `dev-designer`. Raise a wrong or missing document at Gate 3.
-- This handoff does not pass Gate 3. The developer confirms the execution order.
+- Gate 3 (execution order) is auto-resolved by AI Assistant via compute_execution_order.py.
 - Unless the design commit is `uncommitted`: if `git log <sha>..<base_branch> -- .devtool/epic/<epic_dir>` lists any commit besides the `Package epic for handoff` commit, the documents changed after packaging. The documents win, and this file may be stale. Comparing against the base branch keeps the epic branch's own task commits out of the check.
 - This file is updated only by `package_epic.py --revise`, which records each re-anchoring under `## Revisions`.
 - Never edit a task's Verification table, Definition of Done, Allowed files or a protected path; stop and report.

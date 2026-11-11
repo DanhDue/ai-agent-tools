@@ -24,8 +24,8 @@ Human-facing lifecycle and resume diagrams live in [lifecycles.en.md](../../docs
 
 1. **Stage 1 (Inception & Spec)**: `dev-brainstorming` -> Gate 1 approval -> Route to `dev-designer` (epic) or `writing-plans` (non-epic).
 2. **Stage 2 (Architecture & Tasks)**: `dev-designer` -> Gate 2 approval -> Handoff (`package_epic.py`) -> Principal Review (`Claude -> Codex -> Kiro -> Argon` via `check-quota`, Auto-fix up to Max 3 rounds).
-3. **Stage 3 (Isolated Execution)**: Role 2.3 (**Gemini Flash 3.8**) -> `dev-implementation` -> Gate 3 -> TDD in worktree -> Gate 4 -> Cross-Model Review (Auto-fix up to Max 3 rounds) -> Gate 4 -> Review Choice loop -> Gate 5.
-4. **Stage 4 (Finish Branch & Archival)**: `finishing-a-development-branch` -> Archive tasks into `.devtool/epic/<slug>/`, rebase, verify by tier (`Test All` once), `--no-ff` merge.
+3. **Stage 3 (Automated Execution & Audit)**: Role 2.3 (**Gemini Flash 3.8**) -> `dev-implementation` -> Automated Gate 3 (execution order & worktree) -> TDD in worktree -> Gate 4 local PASS -> Automated Cross-Model Review (`review_config.json`, Auto-fix up to Max 3 rounds) -> Gate 4 re-verification green.
+4. **Stage 4 (Finish Decision, Integration & Archival)**: Prompt Human Architect for Finish Decision & Gate 5 Sign-off -> `finishing-a-development-branch` -> Archive tasks into `.devtool/epic/<slug>/`, rebase, verify by tier (`Test All` once), `--no-ff` or squash merge, explicit Git push confirmation.
 
 <HARD-GATE>
 Do NOT create `implementation_plan.md` or any Antigravity planning-mode artifact.
@@ -34,9 +34,10 @@ Specs go to `docs/superpowers/specs/` (Stage 1) or `.devtool/epic/<epic_dir>/` (
 Plans go through `writing-plans` skill (non-epic) or `dev-designer` task files (epic).
 If you find yourself about to write `implementation_plan.md`, STOP — you are bypassing a gate.
 
-Do NOT skip or auto-decide the Review Choice after Gate 4 passes.
-You MUST present the choice between "Finish", "Cross-model review" and "Local model review" on every Gate 4 PASS.
-Cross-model review returns to a full Gate 4 run, which presents the choice again until the developer selects Finish. Local model review does the same.
+Do NOT prompt the developer for intermediate Review Choice or Gate 3 confirmation pauses.
+Once Gate 2 passes and dev-implementation is entered, Gate 3 execution order and worktree creation run automatically.
+When all tasks complete and Gate 4 passes locally, transition AUTOMATICALLY into cross-model review.
+The decision to Finish belongs strictly to Stage 4 (Gate 5 sign-off) after cross-model review completes.
 </HARD-GATE>
 
 ## Document Contract
@@ -54,9 +55,9 @@ Every gate is a **human approval** except Gate 4 (machine verdict). Never cross 
 |------|------|----------|-------------|------------------|
 | **1** | Spec Approved | User | `dev-brainstorming` | `YYYY-MM-DD-<topic>-design.en.md` + `.vi.md` |
 | **2** | HLD & Task Breakdown | User | `dev-designer` | `<epic_dir>.en.md` + `.vi.md` + `bdd_scenarios.en.md` + `.vi.md` + `task_*.md` |
-| **3** | Execution Order | User | `dev-implementation` Phase 1 / Resume | confirmed order + bootstrapped worktree |
+| **3** | Execution Order | Automated (AI Assistant) | `dev-implementation` Phase 1 / Resume | auto-resolved order + bootstrapped worktree |
 | **4** | Quality LGTM & Check 2 | `audit_epic.py` + `check_bdd_traceability.py` + `quality_check` | `dev-implementation` Phase 4 | `audit_epic.py` + 🟢 report + coverage + BDD traceability + merge-ready branch |
-| **5** | Developer Kanban Sign-Off | User | `dev-implementation` Phase 4.1 | User confirmation for branch finishing and archival |
+| **5** | Developer Kanban Sign-Off & Finish | User | `dev-implementation` Phase 4.1 / Stage 4 | User confirmation for branch finishing and archival |
 
 ## Stages
 
@@ -123,25 +124,21 @@ Packaging steps (automated by `package_epic.py`):
 **Exit (Gate 5):** Gate 4 is 🟢 LGTM and user approves Kanban completion.
 
 - **Prerequisites & Concurrency Check**: If `Depends on epic:` is declared, verify prerequisites via `sync_task_status.py check-prereqs <epic_dir>`. If queued behind another epic, inspect conflicts via `sync_task_status.py check-conflicts <epic_dir>` and promote when confirmed via `sync_task_status.py promote <epic_dir> [--force]`.
-- **Gate 3 (Execution Order)**: Present computed execution order and get user confirmation **before** creating worktrees or dispatching subagents. Record Gate 3 in `.devtool/GATE_LEDGER.md` via `resume_context.py --gate 3`.
+- **Gate 3 (Execution Order & Worktree — Automated)**: The AI Assistant automatically resolves execution order via `compute_execution_order.py`, creates/bootstraps the isolated Git worktree, records Gate 3 in `.devtool/GATE_LEDGER.md` via `resume_context.py --gate 3`, and invokes Role 2.3 (AI Programmer) without pausing for manual confirmation. Manual halt occurs ONLY on fatal errors (cyclic DAG or unresolvable prerequisites).
 - **Execution**: One worktree, one task at a time, one commit per task, docs kept truthful. Rebase and integrate with `develop` after each task.
 
-**Review Choice loop**:
-After all tasks are complete, run Gate 4. On every PASS, present Review Choice:
-- **Option 1: Finish** -> Proceed to Gate 5 (Developer Kanban Review), then Stage 4.
-- **Option 2: Cross-model review** -> Invoke `d3nexus:cross-model-review` via `run_external_review.py run` (prompting for Claude CLI, Codex CLI, Antigravity CLI, or Kiro CLI). Record round in `.devtool/epic/<epic_dir>/review_results.md`. Check unresolved findings with `run_external_review.py check --epic-dir <epic_dir>`. Any dismissed finding requires explicit developer instruction. Return to a full Gate 4 run on the new commit.
-- **Option 3: Local model review** -> Invoke `d3nexus:cross-model-review` (run `ollama list`, ask which model, then invoke `run_external_review.py run --cli ollama --model <model>`). A model served by the local Ollama reviews each task commit, then the epic, and one round is recorded in the same `review_results.md` under the same `check` rules. Return to a full Gate 4 run on the new commit.
-
-Every review round, option 2 or 3, is triaged before anyone acts on it: present `run_external_review.py triage --epic-dir <epic_dir>` filled as dev-implementation's `references/review-triage.md` says, and wait for the developer's decision on each finding. Once the developer confirms the triage decisions, apply the fixes, commit them, and **automatically re-run Gate 4 in full** without asking for an intermediate confirmation before running Gate 4; then stop and present Review Choice again.
-
-When an epic's tasks were executed by a fast executor model (e.g. Gemini Flash, Claude Haiku, GPT-4o-mini), the agent presents a strong recommendation in the Review Choice prompt:
-*"Tasks were executed by a fast executor model. Option 2: Cross-model review (Claude CLI, Codex CLI, or Antigravity CLI) is STRONGLY RECOMMENDED to audit test integrity and subtle regressions before finishing the branch."* Local model review does not replace it.
-
-The invariant is **Gate 4 PASS → Review Choice; Finish → Gate 5; Cross-model review → Gate 4 in full; Local model review → Gate 4 in full**. Loop repeats until developer selects Finish.
-The review choice loop follows these exact transitions: `EXEC --> G4`, `G4 -->|"yes"| RC`, `RC -->|"1. Finish"| REVIEW`, `XR -->|"round recorded"| G4`, `RC -->|"3. Local model review"| LR`, and `LR -->|"round recorded"| G4`.
+**Automated Review Pipeline (Gate 4 Local PASS → Automatic Cross-Model Review)**:
+Once all tasks are complete and Phase 4 / Gate 4 local machine verification returns PASS (🟢 LGTM):
+1. **Zero-Pause Transition**: The workflow automatically transitions into `d3nexus:cross-model-review` without pausing or asking for an intermediate Review Choice.
+2. **Review Execution**: `run_external_review.py run --epic-dir <epic_dir> --base <base_ref> --auto-quota` runs using the provider priority and model configured in `.devtool/review_config.json`.
+3. **Auto-Triage & Auto-Fix Funnel (Max 3 Rounds)**:
+   - Evaluates `AUTO_PASS_CLEAN`, `AUTO_PASS_FINAL_MINOR_SWEEP`, and `AUTO_FIX_ELIGIBLE`.
+   - AI Programmer applies verified fixes, commits them, records decisions, and automatically re-runs Gate 4 in full without intermediate confirmation.
+   - Halts cleanly ONLY on Circuit Breakers (`SHARED_CONTRACT_CONFLICT`, `FIX_LOOP`, or remaining Critical findings after Round 3).
+4. **Transition to Stage 4 (Finish Decision)**: Once the review converges and Gate 4 passes on the candidate SHA, render the synthesized Executive Report (Top 3 Highest-Risk Findings across rounds) and present the **Stage 4 Finish Decision & Gate 5 Sign-off** to the Human Architect.
 
 > [!CRITICAL]
-> **Mandatory Review Choice loop**: Once every task is `done`, run Gate 4. On PASS, the agent MUST stop calling tools and present Review Choice. Silently skipping the choice or assuming Finish is strictly prohibited. Cross-model review and Local model review always return to a full Gate 4 run before Review Choice is presented again.
+> **Streamlined Pipeline Invariant**: Once every task is `done`, Gate 4 runs automatically. On PASS, the agent MUST NOT prompt for an intermediate choice between Finish and Review; it automatically invokes Cross-Model Review. The decision to Finish belongs strictly in Stage 4 (Gate 5 Sign-Off) after review convergence is complete.
 
 **Gate 4 Machine Acceptance Criteria:**
 Gate 4 grants `🟢 LGTM` only when:
@@ -183,16 +180,16 @@ Never advance on a partial pass or re-run isolated checks.
 - Skipping `dev-brainstorming` because scope seems clear.
 - Routing an approved spec straight to implementation, skipping Stage 2 for epic-scale work.
 - Merging several sub-project specs into one epic directory.
-- Creating a worktree or dispatching subagents before Gate 3. Recreating the worktree of an existing epic branch (dev-implementation Resume Procedure) is not creating one.
+- Creating a worktree before the AI Assistant has resolved the dependency DAG. Recreating the worktree of an existing epic branch (dev-implementation Resume Procedure) is not creating one.
 - Invoking `dev-implementation` without presenting Handoff Choice.
 - Packaging an epic without preflight, or pushing without explicit permission.
-- Treating packaged Gate 3 as passed.
 - Redoing design of an epic whose task files exist; use Updating an Existing Epic.
 - Merging to `develop` without Gate 4 🟢.
 - Granting Gate 4 without a passing traceability check on the same SHA, or without a passing `audit_epic.py`.
 - Ticking checkboxes or writing evidence by hand instead of running `run_task_checks.py`.
 - Changing Verification tables, Allowed files, or protected paths without stopping to ask.
-- Skipping Review Choice after Gate 4 PASS or auto-selecting Finish.
+- Prompting developer for intermediate Review Choice or Gate 3 confirmation pauses instead of running the automated pipeline.
+- Advancing to Stage 4 (Finish) without completing Cross-Model Review convergence and Gate 5 sign-off.
 - Reusing a Gate 4 PASS after review rounds, finding decisions, or Fix commits change SHA.
 - Prohibited: picking the review CLI for the developer instead of prompting for Claude CLI, Codex CLI, or Antigravity CLI.
 - Picking the Principal Review CLI for the developer.

@@ -7,7 +7,7 @@ Principal Review is a cross-model review of an epic's architecture and task desi
 1. After the automatic packaging (`package_epic.py`) and `/save-context` procedure prints `handoff.md` and the handoff prompts, present the unified Handoff / Principal Review Choice to the developer:
 
    > Packaged and context saved (`/save-context`).
-   > 1. **Done** (or **`/dev-implementation`**) — proceed directly to `/dev-implementation` (Stage 3, Gate 3) or stop here and keep the packaged handoff for another session.
+   > 1. **Done** (or **`/dev-implementation`**) — proceed directly to `/dev-implementation` (Stage 3, automated execution) or stop here and keep the packaged handoff for another session.
    > 2. **Principal Review** (**`/principal-review`**) — a cross-model review of the design against the source before implementation (Claude CLI, Codex CLI, Antigravity CLI, or Kiro CLI).
 
    Add the recommendation when it applies:

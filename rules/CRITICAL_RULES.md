@@ -73,19 +73,25 @@ git commit -m "[EPIC_NAME] Task title" -m "- subtask title 01
 > 3. For multi-step, multi-feature, or epic-level work, you **MUST** invoke the [Epic Lifecycle Skill](../skills/dev-lifecycle/SKILL.md) (`d3nexus:dev-lifecycle`), which orchestrates `dev-brainstorming` -> `dev-designer` -> `dev-implementation` -> `quality_check` -> `finishing-a-development-branch`.
 > 4. Only use native `implementation_plan.md` if the user explicitly instructs you to bypass d3nexus workflows.
 
-## 5. Mandatory Review Choice Loop in Epic Lifecycle
+## 5. Automated Execution, Mandatory Cross-Model Review & Stage 4 Finish Gate
 
 > [!CRITICAL]
-> **NEVER skip or silently bypass the Review Choice after Gate 4 passes in `dev-lifecycle` / `dev-implementation` or any plugin-based orchestrator.**
-> When all tasks of an epic are complete, run Phase 4 / Gate 4 first. Only after Gate 4 returns PASS on the current SHA:
-> 1. The AI Agent **MUST** explicitly stop calling tools and present the **Review Choice** prompt to the developer:
->    - **Option 1: Finish** — proceed to Developer Kanban Review (Phase 4.1 / Gate 5), then Stage 4.
->    - **Option 2: Cross-model review** — invoke an independent model review using `run_external_review.py run` (prompting the developer to select Claude CLI, Codex CLI, Antigravity CLI, or Kiro CLI based on `command -v claude codex agy kiro-cli`).
->    - **Option 3: Local model review** — run `ollama list`, ask the developer which model to use (never pick it), then invoke `run_external_review.py run --cli ollama --model <model>`.
-> 2. The AI Agent **MUST NOT** auto-select an option or assume "Finish" by default.
-> 3. **Cross-model review must return to a full Gate 4 run** after the round is recorded and all blocking findings have decisions and required Fix commits. Gate 4 PASS then presents Review Choice again. This loop repeats until the developer explicitly chooses Finish. Local model review follows the same loop. Before any Fix commit or decision, the agent presents the triage from `run_external_review.py triage` and waits for the developer's decisions. Once the developer confirms the triage decisions, the agent applies the fixes, commits them, and **automatically runs Phase 4 / Gate 4 in full** without asking for a separate confirmation before running Gate 4, then halts at Review Choice for developer self-review and selection.
-> 4. A previous Gate 4 PASS cannot be reused after `review_results.md`, a finding decision, or a Fix commit changes the candidate SHA.
-> 5. **Autonomous Lifecycle Mode Exemption (`/dev-lifecycle --autonomous`)**: In autonomous mode, the dedicated orchestrator (`lifecycle_runner.py`) executes Gate 4 and review loops without intermediate menu pauses. At the final round after convergence and Gate 4 PASS, it renders the synthesized Executive Report (Top 3 Highest-Risk Findings across all review rounds) and halts cleanly at `AWAITING_FINISH`, prompting the Human Architect for `/finishing-a-development-branch`.
+> **Streamlined Autonomous Execution & Zero Intermediate Confirmation Pauses:**
+> To eliminate unnecessary manual friction, AI Agents across all platforms MUST adhere to the following automated execution and review pipeline:
+>
+> 1. **Automated Gate 3 & Worktree Bootstrap (No Execution Order Confirmation Pause)**:
+>    - Once Gate 2 passes and the developer selects `/dev-implementation` (or after `/principal-review` concludes), the AI Assistant MUST automatically compute the task execution order via `compute_execution_order.py`, create/bootstrap the isolated Git worktree, record Gate 3 (`resume_context.py --gate 3`), and invoke Role 2.3 (AI Programmer) to begin TDD.
+>    - AI Agents **MUST NOT stop or prompt the developer for manual confirmation** on task execution order or worktree creation. Manual confirmation at Gate 3 is eliminated; halt occurs ONLY on fatal errors (cyclic DAG dependency, malformed task frontmatter, or unresolvable blocking prerequisites).
+>
+> 2. **Automated Transition to Cross-Model Review (No Intermediate Review Choice Prompt)**:
+>    - When all tasks of an epic are implemented and Phase 4 / Gate 4 local machine verification returns PASS, the AI Agent **MUST NOT pause to ask the developer for an intermediate Review Choice** (e.g. Finish vs Cross-model review).
+>    - The workflow **AUTOMATICALLY transitions into `/cross-model-review`** using the provider priority and model configured in `.devtool/review_config.json` (running `run_external_review.py run --epic-dir <epic_dir> --auto-quota`).
+>    - Cross-model review executes its 3-round convergence funnel and severity-tiered auto-triage gate (`AUTO_PASS_CLEAN`, `AUTO_PASS_FINAL_MINOR_SWEEP`, `AUTO_FIX_ELIGIBLE`) automatically.
+>
+> 3. **Stage 4 Finish Decision & Gate 5 Sign-off (Human Decision Point)**:
+>    - The decision to "Finish" belongs strictly to **Stage 4 (`finishing-a-development-branch`)**.
+>    - Only after `/cross-model-review` has converged, all findings are resolved, Gate 4 PASS is re-verified on the latest candidate SHA, and the synthesized Executive Report (Top 3 Highest-Risk Findings across all review rounds) is rendered, the AI Agent **MUST explicitly stop calling tools** and prompt the Human Architect for the **Stage 4 Finish Decision** (Gate 5 Sign-off) and Git merge strategy selection (`Squash`, `--no-ff`, or `Rebase`).
+>    - The AI Agent **MUST NOT** auto-finish, auto-merge, or auto-push to remote without explicit developer confirmation.
 
 ## 6. Severity-Tiered Auto-Triage Gate, 3-Round Convergence Funnel & Post-Gate Checkpoints
 
@@ -149,7 +155,7 @@ git commit -m "[EPIC_NAME] Task title" -m "- subtask title 01
 >    - **No Redundant Invocation**: Within an already-resumed active working session, the AI Agent MUST NOT repeatedly re-invoke `resume-context` on normal conversation turns.
 >
 > 2. **Strict Tri-Role Persona Discipline**:
->    - **Role 2.1 — Human Architect (Developer)**: Sole authority for system strategy, Gate approvals (Gate 1–5), and Review Choice decisions. In autonomous mode, halted strictly on critical risks, business/contract conflicts, or final merge sign-off.
+>    - **Role 2.1 — Human Architect (Developer)**: Sole authority for system strategy, Gate approvals (Gate 1, 2, 5), triage escalations, and Stage 4 Finish decisions. Task execution order (Gate 3), local Gate 4 runs, and transition to Cross-Model Review are automated by default without manual confirmation pauses. In autonomous mode, halted strictly on critical risks, business/contract conflicts, or final merge sign-off.
 >    - **Role 2.2 — AI Assistant (`[PERSONA: AI ASSISTANT — TECHNICAL ADVISOR & CO-ARCHITECT]`)**:
 >      - Activated for architectural analysis, problem statement exploration, design specifications (`d3nexus:dev-brainstorming`, `d3nexus:dev-designer`), Principal Review (`d3nexus:principal-review`), Cross-Model Review (`d3nexus:cross-model-review`), and fix plan evaluation.
 >      - Dynamically inherits developer's selected model (Argon, Claude, Codex) or CLI override `--assistant-model`.
