@@ -72,3 +72,4 @@ Upon review convergence and full Gate 4 PASS, the runner renders a synthesized E
 - Aggregates the Top 3 Highest-Risk Findings from across all review rounds.
 - Displays resolution SHA and verification status for each finding.
 - Halts cleanly at `AWAITING_FINISH` to prompt the developer for `/finishing-a-development-branch` (merge to base branch or other actions).
+

@@ -43,13 +43,8 @@ Cross-model review returns to a full Gate 4 run, which presents the choice again
 
 Durable design documents MUST be emitted as synchronized `.en.md` (canonical) and `.vi.md` pairs with a linked ToC covering every `##` section (specs, HLDs, BDD scenarios, non-epic plans). Only `task_*.md` and `handoff.md` are English-only (`handoff.md` still requires a ToC).
 
-### Markdown Formatting & Quality Standards
-
-- **Heading Hierarchy**: Single H1 `# Title`, levels increment by one, space after `#`, no trailing punctuation.
-- **Fenced Code Blocks**: Valid language tag (`bash`, `python`). Bare fences and runtime-skill diagrams forbidden.
-- **Lists & Links**: Consistent `-` markers; relative links resolve; heading anchors match targets.
-- **Formatting Hygiene**: No trailing whitespace, hard tabs, consecutive blank lines, or missing trailing newline.
-- **Diagram Standards**: Human docs (`docs/lifecycles.*.md`, HLDs) use `flowchart` over `graph` with quoted labels.
+### Markdown Quality Standards
+Synchronized `.en.md`/`.vi.md` pairs with ToCs. Enforce heading hierarchy, valid code block tags, resolving links, no trailing whitespace, and `flowchart` with quoted labels in human docs.
 
 ## The Five Gates
 
@@ -71,21 +66,11 @@ An epic whose `.devtool/epic/<epic_dir>/` holds `task_*.md` files is past Gate 2
 
 ### Autonomous Mode (`/dev-lifecycle --autonomous`)
 
-For epics designed for hands-off execution, the Autonomous Lifecycle Runner orchestrates Stage 2 and Stage 3 without unnecessary interactive pauses:
-
-```bash
-python3 skills/dev-lifecycle/resources/scripts/lifecycle_runner.py --epic <epic_slug>
-```
-
-- **Tri-Role Coordination**: Human Architect (Role 2.1) sets strategy and signs off gates; AI Assistant (Role 2.2) evaluates specifications and fix plans; AI Programmer (Role 2.3 Gemini 3.8 Flash High) executes tasks in worktrees.
-- **Auto Gate 3 Calculation**: Automatically computes topological execution order via `compute_execution_order.py` and records Gate 3 approval.
-- **Process Group Isolation**: Dispatches headless Programmer subprocesses (`agy --model gemini-3.8-flash --effort high --mode auto`) under POSIX process group supervision (`start_new_session=True`) with SIGTERM/SIGKILL escalation.
-- **Autonomous Review Fix Loops**:
-  - **Stage 2 Principal Review**: Auto-applies aligned revisions (`AUTO_FIX_ELIGIBLE`), sweeps minor items in single pass (`AUTO_PASS_FINAL_MINOR_SWEEP`), and halts only on critical risks or domain conflicts (`AWAITING_PRINCIPAL_CONFIRMATION`).
-  - **Stage 3 Cross-Model Review**: Programmer drafts `fix_plan_round<N>.md`; Assistant evaluates with `APPROVED`, `ADJUSTED`, or `CRITICAL_CONFLICT`. Code fixes and review decisions are committed before re-running Gate 4 in full.
-- **Circuit Breakers**: Halts immediately on `SHARED_CONTRACT_CONFLICT`, `FIX_LOOP`, or `MAX_ROUNDS_CRITICAL_REMAINING`.
-- **Executive Report Synthesis**: Renders synthesized report of Top 3 Highest-Risk Findings across all review rounds, halts cleanly at `AWAITING_FINISH`, and prompts the developer for `/finishing-a-development-branch`.
-- Detailed reference: [references/autonomous-mode.md](references/autonomous-mode.md).
+For hands-off execution, `lifecycle_runner.py` drives Stage 2 and Stage 3:
+- **Tri-Role**: 2.1 Architect (strategy/gates), 2.2 Assistant (HLD/fix-plan review), 2.3 Programmer (Gemini 3.8 Flash High).
+- **Automation**: Auto Gate 3 order, process group timeouts, auto-triage, and Assistant fix plan review (`APPROVED`/`ADJUSTED`/`CRITICAL_CONFLICT`).
+- **Safety**: Circuit breakers on contract conflicts, fix loops, and max rounds; final Top 3 report halts at `AWAITING_FINISH`.
+- See [references/autonomous-mode.md](references/autonomous-mode.md).
 
 ### Stage 1 — Inception & Spec → `dev-brainstorming`
 
