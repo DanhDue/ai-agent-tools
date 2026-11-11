@@ -7,9 +7,12 @@ import copy
 import fcntl
 import json
 import os
+import re
 import shutil
+import signal
 import subprocess
 import sys
+import time
 from dataclasses import asdict, dataclass, field
 from enum import Enum
 from pathlib import Path
@@ -141,8 +144,49 @@ class ModelDispatcher:
 
     def dispatch(self, cli: str, args: list[str], prompt: str) -> tuple[int, str, str]:
         """Dispatch headless process with process group isolation and timeout supervision."""
-        # Task 2 implements full process group isolation and supervisor timers.
-        return 0, "", ""
+        cmd = [cli] + args
+        try:
+            proc = subprocess.Popen(
+                cmd,
+                cwd=self.worktree_dir,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                start_new_session=True,
+            )
+        except FileNotFoundError:
+            return 1, "", f"CLI binary '{cli}' not found on PATH"
+        except Exception as exc:
+            return 1, "", f"Failed to spawn process: {exc}"
+
+        try:
+            stdout, stderr = proc.communicate(input=prompt, timeout=self.timeout_seconds)
+            return proc.returncode, stdout, stderr
+        except subprocess.TimeoutExpired:
+            pgid = proc.pid
+            try:
+                os.killpg(pgid, signal.SIGTERM)
+            except ProcessLookupError:
+                pass
+
+            alive = True
+            start_time = time.time()
+            while time.time() - start_time < 1.0:
+                if proc.poll() is not None:
+                    alive = False
+                    break
+                time.sleep(0.05)
+
+            if alive:
+                try:
+                    os.killpg(pgid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+
+            return 124, "", f"Process timeout: execution timed out after {self.timeout_seconds}s"
+        except Exception as exc:
+            return 1, "", f"Process execution error: {exc}"
 
 
 class LifecycleRunner:
@@ -174,10 +218,12 @@ class LifecycleRunner:
             try:
                 data = json.loads(path.read_text(encoding="utf-8"))
                 if isinstance(data, dict):
-                    return PipelineState.from_dict(data)
+                    self.state = PipelineState.from_dict(data)
+                    return self.state
             except (json.JSONDecodeError, OSError):
                 pass
-        return PipelineState(epic_slug=self.epic_slug)
+        self.state = PipelineState(epic_slug=self.epic_slug)
+        return self.state
 
     def save_state(self) -> None:
         """Atomically persist pipeline state with fcntl file locking."""
@@ -228,7 +274,141 @@ class LifecycleRunner:
 
     def resolve_gate3_order(self) -> list[str]:
         """Auto-calculate Gate 3 task execution order via compute_execution_order.py."""
-        return []
+        script = (
+            self.root
+            / "skills"
+            / "dev-implementation"
+            / "resources"
+            / "scripts"
+            / "compute_execution_order.py"
+        )
+        cmd = [sys.executable, str(script), self.epic_slug]
+        res = subprocess.run(
+            cmd,
+            cwd=self.root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if res.returncode != 0:
+            return []
+
+        lines = res.stdout.splitlines()
+        order: list[str] = []
+        in_order_section = False
+        task_re = re.compile(r"^\s*\d+\.\s+([a-zA-Z0-9_\-]+)\s+-")
+
+        for line in lines:
+            if "Flattened sequential order:" in line:
+                in_order_section = True
+                continue
+            if in_order_section:
+                match = task_re.search(line)
+                if match:
+                    order.append(match.group(1))
+                elif line.strip() and not line.startswith(" "):
+                    break
+
+        if order:
+            self.state.task_order = order
+            self.sync_gate_ledger(
+                3,
+                f"Topological execution order computed and confirmed: {' -> '.join(order)}",
+            )
+            self.save_state()
+
+        return order
+
+    def _find_task_file(self, task_slug: str) -> Path | None:
+        """Locate the task markdown file across known directories."""
+        candidates = [
+            self.root / ".devtool" / "features" / f"{task_slug}.md",
+            self.root / ".devtool" / "features" / "done" / f"{task_slug}.md",
+            self.root / ".devtool" / "epic" / self.epic_slug / f"{task_slug}.md",
+        ]
+        for c in candidates:
+            if c.is_file():
+                return c
+        return None
+
+    def _execute_single_task(self, task_slug: str) -> bool:
+        """Dispatch headless programmer subprocess for a single task."""
+        task_file = self._find_task_file(task_slug)
+        prompt = f"Implement task {task_slug}"
+        if task_file:
+            try:
+                content = task_file.read_text(encoding="utf-8")
+                prompt = (
+                    f"Implement task {task_slug} from {task_file.name}:\n\n"
+                    f"{content}\n"
+                )
+            except OSError:
+                pass
+
+        args = [
+            "--model",
+            self.config.programmer_model,
+            "--effort",
+            self.config.programmer_effort,
+            "--mode",
+            "auto",
+        ]
+        exit_code, stdout, stderr = self.dispatcher.dispatch(
+            cli="agy",
+            args=args,
+            prompt=prompt,
+        )
+
+        log_dir = self.root / ".devtool" / "logs" / "tasks"
+        log_dir.mkdir(parents=True, exist_ok=True)
+        log_file = log_dir / f"{task_slug}.log"
+        try:
+            log_file.write_text(
+                f"=== STDOUT ===\n{stdout}\n=== STDERR ===\n{stderr}\n",
+                encoding="utf-8",
+            )
+        except OSError:
+            pass
+
+        if exit_code != 0:
+            return False
+
+        # Mark task done via sync_task_status.py if available
+        sync_script = (
+            self.root
+            / "skills"
+            / "dev-implementation"
+            / "resources"
+            / "scripts"
+            / "sync_task_status.py"
+        )
+        if sync_script.is_file():
+            subprocess.run(
+                [sys.executable, str(sync_script), "task", task_slug, "done"],
+                cwd=self.root,
+                capture_output=True,
+                check=False,
+            )
+
+        # Commit task changes if any
+        status_res = subprocess.run(
+            ["git", "status", "--porcelain"],
+            cwd=self.root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if status_res.returncode == 0 and status_res.stdout.strip():
+            subprocess.run(["git", "add", "-A"], cwd=self.root, check=False)
+            commit_title = f"[{self.epic_slug.upper()}] Execute {task_slug}"
+            subprocess.run(
+                ["git", "commit", "-m", commit_title],
+                cwd=self.root,
+                capture_output=True,
+                check=False,
+            )
+
+        return True
 
     def step_principal_review(self) -> bool:
         """Execute Stage 2 Principal Review automation with selective human stop."""
@@ -236,6 +416,28 @@ class LifecycleRunner:
 
     def step_implementation(self) -> bool:
         """Execute Stage 3 autonomous task execution loop."""
+        self.state.active_stage = StageName.IMPLEMENTATION.value
+        if not self.state.task_order:
+            order = self.resolve_gate3_order()
+            if not order:
+                self.state.last_error = "Failed to resolve Gate 3 execution order"
+                self.save_state()
+                return False
+
+        for task_slug in self.state.task_order:
+            if task_slug in self.state.completed_tasks:
+                continue
+
+            success = self._execute_single_task(task_slug)
+            if not success:
+                self.state.last_error = f"Task execution failed: {task_slug}"
+                self.save_state()
+                return False
+
+            if task_slug not in self.state.completed_tasks:
+                self.state.completed_tasks.append(task_slug)
+            self.save_state()
+
         return True
 
     def run_gate4(self) -> tuple[bool, str]:

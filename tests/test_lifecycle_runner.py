@@ -124,6 +124,102 @@ class TestLifecycleRunner_Integration(unittest.TestCase):
         cfg_cli = RunnerConfig(assistant_model="gpt-6.1-sol")
         self.assertEqual(cfg_cli.resolve_assistant_model(self.root), "gpt-6.1-sol")
 
+    def test_alr_hp_02(self) -> None:
+        """[ALR-HP-02] Headless dispatch of AI Programmer with Gemini 3.8 Flash High."""
+        dispatcher = ModelDispatcher(worktree_dir=self.root)
+        with patch("subprocess.Popen") as mock_popen:
+            mock_proc = MagicMock()
+            mock_proc.pid = 9999
+            mock_proc.communicate.return_value = ("Task implementation completed", "")
+            mock_proc.returncode = 0
+            mock_popen.return_value = mock_proc
+
+            exit_code, stdout, _ = dispatcher.dispatch(
+                cli="agy",
+                args=["--model", "gemini-3.8-flash", "--effort", "high", "--mode", "auto"],
+                prompt="Implement task 1",
+            )
+
+            self.assertEqual(exit_code, 0)
+            self.assertIn("Task implementation completed", stdout)
+            mock_popen.assert_called_once()
+            called_args, called_kwargs = mock_popen.call_args
+            self.assertEqual(called_args[0][:6], ["agy", "--model", "gemini-3.8-flash", "--effort", "high", "--mode"])
+            self.assertTrue(called_kwargs.get("start_new_session"))
+
+    def test_alr_ec_04(self) -> None:
+        """[ALR-EC-04] Gate 3 execution order auto-confirmed via compute_execution_order."""
+        runner = LifecycleRunner(root=self.root, epic_slug=self.epic_slug)
+
+        mock_output = (
+            "Execution plan for epic 'autonomous_lifecycle_runner' (2 tasks):\n"
+            "Flattened sequential order:\n"
+            "  1. task_1_setup - Setup\n"
+            "  2. task_2_impl - Impl\n"
+        )
+        with patch("subprocess.run") as mock_run:
+            mock_proc = MagicMock()
+            mock_proc.returncode = 0
+            mock_proc.stdout = mock_output
+            mock_run.return_value = mock_proc
+
+            with patch.object(runner, "sync_gate_ledger", return_value=True) as mock_sync:
+                order = runner.resolve_gate3_order()
+                self.assertEqual(order, ["task_1_setup", "task_2_impl"])
+                self.assertEqual(runner.state.task_order, ["task_1_setup", "task_2_impl"])
+                mock_sync.assert_called_once()
+
+    def test_alr_ar_01(self) -> None:
+        """[ALR-AR-01] Subprocess group process isolation and clean SIGTERM termination on timeout."""
+        import signal
+
+        dispatcher = ModelDispatcher(worktree_dir=self.root, timeout_seconds=1)
+        with patch("subprocess.Popen") as mock_popen:
+            mock_proc = MagicMock()
+            mock_proc.pid = 12345
+            # Simulate subprocess.TimeoutExpired
+            import subprocess
+
+            mock_proc.communicate.side_effect = subprocess.TimeoutExpired(cmd=["agy"], timeout=1)
+            mock_proc.poll.side_effect = [None, 0]  # First poll None (alive), second poll 0 (terminated)
+            mock_popen.return_value = mock_proc
+
+            with patch("os.killpg") as mock_killpg:
+                exit_code, _, stderr = dispatcher.dispatch(
+                    cli="agy",
+                    args=["--model", "gemini-3.8-flash"],
+                    prompt="Long running task",
+                )
+                self.assertEqual(exit_code, 124)  # Standard timeout exit code
+                self.assertIn("timeout", stderr.lower())
+                mock_killpg.assert_any_call(12345, signal.SIGTERM)
+
+    def test_alr_st_01(self) -> None:
+        """[ALR-ST-01] State persistence and resumption from crash in intermediate stage."""
+        # 1. Simulate state after task 1 is completed
+        runner = LifecycleRunner(root=self.root, epic_slug=self.epic_slug)
+        runner.state.active_stage = StageName.IMPLEMENTATION.value
+        runner.state.task_order = ["task_1_setup", "task_2_impl"]
+        runner.state.completed_tasks = ["task_1_setup"]
+        runner.save_state()
+
+        # 2. Resumed runner should pick up and execute only task_2_impl
+        resumed_runner = LifecycleRunner(root=self.root, epic_slug=self.epic_slug)
+        resumed_runner.load_or_init_state()
+
+        dispatched_tasks: list[str] = []
+
+        def fake_dispatch_task(task_slug: str) -> bool:
+            dispatched_tasks.append(task_slug)
+            return True
+
+        with patch.object(resumed_runner, "_execute_single_task", side_effect=fake_dispatch_task):
+            ok = resumed_runner.step_implementation()
+            self.assertTrue(ok)
+            # task_1_setup is skipped, only task_2_impl is dispatched
+            self.assertEqual(dispatched_tasks, ["task_2_impl"])
+            self.assertIn("task_2_impl", resumed_runner.state.completed_tasks)
+
 
 if __name__ == "__main__":
     unittest.main()

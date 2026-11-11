@@ -1,13 +1,13 @@
 ---
 id: "task_2_subprocess_dispatcher_and_headless_agy"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "autonomous_lifecycle_runner"
 dueDate: null
 created: "2026-11-10T19:16:00Z"
-modified: "2026-11-10T19:16:00Z"
-completedAt: null
+modified: "2026-11-11T00:00:10Z"
+completedAt: "2026-11-11T00:00:10Z"
 labels: ["lifecycle", "process-supervision", "dispatcher"]
 order: "a2"
 ---
