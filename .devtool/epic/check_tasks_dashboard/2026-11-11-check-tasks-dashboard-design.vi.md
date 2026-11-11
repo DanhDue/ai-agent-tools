@@ -203,10 +203,19 @@ Giao diện Web (`tasks_dashboard.html`) được xây dựng dưới dạng ứ
   - **Tone màu trung tính thanh lịch cho các nút phụ**: Toàn bộ các nút chức năng phụ (`[ 💻 Mở CLI ]`, `[ 📊 Xem Kanban ]`, `[ 🧠 Xem Contexts ]`, `[ 🔬 Review ]`, `[ 🛡️ Review ]`) sử dụng chung kiểu dáng slate tối giản (`background: #1e293b; border: 1px solid #334155; color: #cbd5e1; hover: background: #334155; border-color: #64748b; color: #ffffff;`).
   - **Nút Primary CTA đồng nhất**: Nút `[ 🚀 Mở IDE ]` sử dụng màu xanh primary chuẩn (`background: #2563eb; border: 1px solid #3b82f6; color: #ffffff;`) đồng nhất trên toàn bộ các repo cards.
   - **Phân tách ranh giới nhận diện repo**: Màu sắc đại diện cho repo từ `.vscode/settings.json` (`#b45309`, `#7f1d1d`, `#065f46`, `#0d47a1`) chỉ được áp dụng cho viền ngoài thẻ (card border), bóng glow và badge định danh repo/profile (`@hau`, `@buivantrong8901`, `@danhdue`, `@tess`), giữ cho khu vực thanh công cụ thao tác bên trong thẻ luôn đồng nhất, êm dịu và tập trung cao độ.
-- **Ô Ghi Chú & Ý Tưởng Kiến Trúc Nhanh (Idea & Scratchpad Notes Input)**:
-  - Mỗi thẻ repo card tích hợp sẵn một ô text input tiện dụng `[💡 Ý tưởng & Ghi chú kiến trúc (Idea Scratchpad)]` cho phép lập trình viên ghi lại tức thời các ý tưởng thiết kế, đề xuất cải tiến hoặc các việc cần nhớ riêng cho từng repo.
-  - Hỗ trợ lưu trữ bền vững hai lớp (hybrid persistence): lưu trực tiếp vào `localStorage` của trình duyệt và tự động đồng bộ về endpoint `/api/repos/<repo>/note` (ghi vào tệp `.devtool/IDEAS.md` của repo).
-  - Tích hợp nút xoá nhanh `✕` và phản hồi trạng thái lưu tự động thời gian thực (`Tự động lưu` ➔ `Đã lưu ✓`).
+- **Kéo Thả Sắp Xếp & Đưa Project Cần Focus Lên Đầu (Drag & Drop Reordering & Pin to Top)**:
+  - **Tay cầm Kéo Thả `[ ⠿ ]`**: Nằm ở góc tiêu đề của mỗi repo card, cho phép lập trình viên dùng chuột kéo thả trực tiếp (HTML5 native drag & drop) để sắp xếp lại thứ tự ưu tiên các dự án trên trang điều khiển.
+  - **Nút Đưa Lên Đầu `[ 📌 Lên đầu ]`**: Thao tác một chạm để đưa ngay project đang cần tập trung cao độ lên vị trí đầu tiên của trang điều khiển với hiệu ứng nổi bật (glow highlight animation).
+  - **Ghi nhớ thứ tự ưu tiên**: Toàn bộ thứ tự repo sau khi kéo thả hoặc bấm ghim lên đầu được tự động lưu bền vững vào `localStorage` (`check_tasks_repos_order`), giúp dashboard luôn duy trì đúng danh sách focus giữa các phiên làm việc.
+- **Ô Ghi Chú Chuẩn Định Dạng Antigravity Input Box & Tự Động Đánh Số (Notes with Auto-Indexing 1, 2, 3...)**:
+  - **Tên gọi chuẩn hoá**: Đặt tên ngắn gọn và trực quan là **`📝 Notes`** (thay cho tên gọi dài dòng).
+  - **Vị trí cấu trúc chuẩn**: Nằm ở **phía trên cùng của thẻ**, ngay bên dưới phần tiêu đề repo/epic và **bên trên danh sách worktrees** (`🌲 Worktree: ...`).
+  - **Thiết kế theo chuẩn Antigravity IDE**: Khung nhập liệu than chì tối bo góc thanh lịch (`background: #141720; border: 1px solid #2d3748; border-radius: 10px; padding: 10px 14px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.5)`), khi focus chuyển viền sáng xanh dương `rgba(56, 189, 248, 0.25)`.
+  - **Cơ chế tự động đánh số index (`1. `, `2. `)**: Khi người dùng gõ `1. Thực hiện a.` và nhấn `Enter`, hệ thống tự động ngắt dòng và điền tiếp tiền tố `2. ` (giữ nguyên độ thụt lề). Khi người dùng nhấn `Enter` trên dòng chỉ chứa số mà không có nội dung (ví dụ dòng `2. ` trống), hệ thống tự động xoá tiền tố và thoát khỏi chế độ danh sách. Hỗ trợ phím `Tab` thụt lề 2 khoảng trắng.
+  - **Thao tác một chạm tiện dụng**:
+    - **Nút `[ 📋 Copy ]`**: Sao chép toàn bộ văn bản ghi chú có đánh số vào clipboard với phản hồi đổi màu xanh lá (`Đã copy ✓`).
+    - **Nút `[ ✕ Xoá ]`**: Dọn dẹp/xoá ghi chú khi đã thực hiện xong các hạng mục.
+    - **Lưu trữ tự động**: Tự động lưu tức thời vào `localStorage` (`check_tasks_antigravity_note_<repo>`).
 - **Bản Đồ Điều Hướng: Nút Bấm ➔ Màn Hình / Dialog Pop-up**:
   | Nút Bấm (Button) | Loại Tương Tác | Đích Đến / Dialog Hiển Thị | Chức Năng & Dữ Liệu |
   |---|---|---|---|

@@ -203,10 +203,19 @@ The Web Dashboard (`tasks_dashboard.html`) is built as a single-page reactive ap
   - **Neutral Dark Slate for Secondary Actions**: All secondary action buttons (`[ 💻 Mở CLI ]`, `[ 📊 Xem Kanban ]`, `[ 🧠 Xem Contexts ]`, `[ 🔬 Review ]`, `[ 🛡️ Review ]`) share a cohesive, uniform dark slate styling (`background: #1e293b; border: 1px solid #334155; color: #cbd5e1; hover: background: #334155; border-color: #64748b; color: #ffffff;`).
   - **Unified Primary Action CTA**: The `[ 🚀 Mở IDE ]` primary launch button uses a standardized primary blue styling (`background: #2563eb; border: 1px solid #3b82f6; color: #ffffff;`) consistently across all repository cards.
   - **Repository Identity Boundary**: The repository signature color extracted from `.vscode/settings.json` (`#b45309`, `#7f1d1d`, `#065f46`, `#0d47a1`) is applied exclusively to the outer card border, container glow, and identity badge (`@hau`, `@buivantrong8901`, `@danhdue`, `@tess`), ensuring the inner action toolbar remains calm, uniform, and distraction-free for developers.
-- **Idea & Architecture Scratchpad Input**:
-  - Each repository card features an inline text input `[💡 Idea & Architecture Scratchpad]` allowing the developer / Human Architect to instantly jot down technical ideas, refactoring proposals, or reminders specific to that repository.
-  - Employs hybrid persistence: cached immediately in browser `localStorage` and synchronized via the dashboard daemon endpoint `/api/repos/<repo>/note` (persisting to `.devtool/IDEAS.md`).
-  - Equipped with a quick clear button `✕` and real-time auto-save indicator feedback (`Auto-saving` ➔ `Saved ✓`).
+- **Drag & Drop Reordering & Pin to Top for Focused Project**:
+  - **Drag Handle `[ ⠿ ]`**: Placed next to each repository card title, empowering developers to freely reorder project cards via native HTML5 drag-and-drop to position their most urgent repositories on top.
+  - **Move to Top Button `[ 📌 Lên đầu ]`**: Single-click action that instantly moves the selected project to the very top of the dashboard with a smooth highlight glow animation.
+  - **Persistent Priority Order**: The custom card ordering is automatically saved to `localStorage` (`check_tasks_repos_order`), ensuring the dashboard reliably remembers the developer's prioritized project arrangement across reloads.
+- **Antigravity Input Box & Auto-Indexing Notes (`1. `, `2. `)**:
+  - **Concise Naming**: Standardized strictly as **`📝 Notes`** for clean, distraction-free visual clarity.
+  - **Structural Position**: Positioned at the **top of the card**, directly below the repo/epic title and **above the worktree info** (`🌲 Worktree: ...`).
+  - **Antigravity IDE Design Fidelity**: Dark charcoal container with smooth rounded corners (`background: #141720; border: 1px solid #2d3748; border-radius: 10px; padding: 10px 14px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.5)`), activating an azure focus glow (`rgba(56, 189, 248, 0.25)`) when editing.
+  - **Auto-Indexing Mechanics (`1. `, `2. `)**: When typing a numbered item (e.g. `1. Perform step A.`) and pressing `Enter`, the editor automatically breaks to a new line and prepends `2. ` while preserving indentation. Pressing `Enter` on an empty numbered bullet (e.g. bare `2. `) automatically removes the prefix and exits list mode gracefully. Supports `Tab` for 2-space indentation.
+  - **One-Click Action Utilities**:
+    - **Copy Button `[ 📋 Copy ]`**: Copies the entire numbered note text to clipboard with instant visual confirmation (`Đã copy ✓`).
+    - **Clear Button `[ ✕ Xoá ]`**: Resets and clears notes once all items are completed.
+    - **Automatic Persistence**: Automatically syncs changes to browser `localStorage` (`check_tasks_antigravity_note_<repo>`).
 - **Navigation & Dialog Mapping (Buttons ➔ Modals / Actions)**:
   | Button | Interaction Type | Target / Displayed Modal | Purpose & Data Payload |
   |---|---|---|---|
