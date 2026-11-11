@@ -8,6 +8,32 @@ every installed machine on the old cached copy.
 
 ---
 
+## 1.28.3 — 2026-11-11
+
+Delivers multi-profile cache cleaning (`clean-cache`) reclaiming ~12 GB of disk space, implements synchronous 1.5s atomic launch lock and zero host fallback to prevent cross-profile account bleed during token rotation, decouples credential-user-scope across profiles, and streamlines autonomous lifecycle execution with automated cross-model review convergence.
+
+### Added
+
+- **Multi-Profile Cache Cleaner (`clean-cache`)** (`scripts/clean_antigravity_cache.py`, `bin/d3nexus`):
+  - Adds standalone cleaner targeting Chromium bytecode (`CachedData`), Webview storage (`CacheStorage`), HTTP cache, stale `.vsix` extensions, and Docker installer leftovers across all Antigravity profiles, reclaiming ~12 GB of disk space without affecting settings, keychains, or sessions.
+- **Synchronous 1.5s Atomic Launch Lock & Zero Host Fallback** (`~/.zshrc`, `scripts/agy_quota.py`, `skills/audit-account-block/references/profile-isolation-and-remediation.md`):
+  - Completely removes `login.keychain-db` from `security list-keychains` during non-root profile GUI launch, eliminating silent fallback to the root `danhdue` account when launching unauthenticated or expired profiles.
+  - Implements atomic filesystem lock (`/tmp/ag_launch.lock`) and synchronous 1.5s foreground blocking wait in `ag_run()`, serializing concurrent profile launches and preventing race conditions.
+  - Integrates lock awareness into `agy()` wrapper, profile CLI commands, and `agy_quota.py` background operations to block command interleaving during the 1.5s keychain transition window.
+- **Credential User Scope Decoupling (Vector 8)** (`skills/audit-account-block/SKILL.md`, `skills/audit-account-block/resources/scripts/audit_account_block.py`):
+  - Detects and remediates cloned `credential-user-scope` files across profiles, assigning cryptographically unique identifiers (`u<16_hex_chars>`) to isolate Google Language Server instances.
+- **Keychain Gemini Token Identity Bleed Audit & Purge** (`skills/audit-account-block/resources/scripts/audit_account_block.py`):
+  - Audits actual OAuth identity stored in `gemini` generic-password entries and automatically deletes poisoned credentials in non-root profiles.
+
+### Changed
+
+- **Streamlined Autonomous Execution & Automated Cross-Model Review** (`rules/CRITICAL_RULES.md`, `skills/dev-lifecycle/`, `skills/dev-implementation/`):
+  - Automates Gate 3 execution order calculation and worktree bootstrapping without intermediate manual confirmation pauses.
+  - Transitions automatically from Gate 4 local PASS into cross-model review using configured provider priorities (`Claude -> Codex -> Kiro -> Argon`).
+  - Relocates the Finish decision and Gate 5 sign-off strictly to Stage 4 (`finishing-a-development-branch`) after review convergence.
+- **Contract Test Synchronization** (`scripts/test_lifecycle_document_contract.py`, `scripts/test_lifecycle_signals.py`):
+  - Aligns lifecycle contract tests with the streamlined Tri-Role autonomous execution model and automated cross-model review convergence.
+
 ## 1.28.2 — 2026-11-10
 
 Delivers automated multi-profile anti-abuse remediation, hardware fingerprint & device ID decoupling, AirDrop & host OS Keychain safeguards with zero CLI mutations, and synchronizes profile isolation rules across critical rules, agent guidelines, and safe provisioning workflows.

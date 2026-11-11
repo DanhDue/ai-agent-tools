@@ -1,38 +1,41 @@
-# Release Notes: d3nexus v1.28.2
+# Release Notes: d3nexus v1.28.3
 
-**Release Date:** November 10, 2026  
-**Version:** `1.28.2`  
-**Git Tag:** `v1.28.2`, `d3nexus--v1.28.2`
+**Release Date:** November 11, 2026  
+**Version:** `1.28.3`  
+**Git Tag:** `v1.28.3`, `d3nexus--v1.28.3`
 
 ---
 
 ## Executive Summary
 
-`v1.28.2` delivers comprehensive multi-profile anti-abuse isolation and remediation safeguards: cryptographically decoupling hardware fingerprints (`telemetry.machineId`) and device IDs, enforcing telemetry opt-out to prevent workspace path leaks, safeguarding host macOS AirDrop (`sharingd`) and Apple ID via Zero CLI Keychain mutations, and synchronizing profile isolation rules across `CRITICAL_RULES.md` and safe provisioning workflows.
+`v1.28.3` delivers significant multi-profile storage optimizations and hardened token isolation safeguards: reclaiming ~12 GB of disk space via the new `clean-cache` command, enforcing a synchronous 1.5s atomic launch lock with zero host keychain fallback to prevent cross-profile account bleed during token rotation, decoupling `credential-user-scope` across profiles, and streamlining the autonomous lifecycle pipeline with automated cross-model review convergence.
 
 ---
 
 ## Key Highlights
 
-### 1. Hardware Fingerprint Decoupling & Telemetry Opt-Out
-- **Cryptographic Device Isolation**: Mandates unique SHA-256 `telemetry.machineId` and UUIDv4 `telemetry.devDeviceId` in `storage.json` for all Antigravity profiles, preventing Google Cloud / Clearcut telemetry correlation across multi-account setups.
-- **Workspace Path Privacy**: Configures `"telemetry.telemetryLevel": "off"` in `settings.json`, preventing IDE telemetry from broadcasting open repository paths (`backupWorkspaces`) to Google/Microsoft telemetry endpoints.
-- **Trajectory Isolation**: Eliminates foreign trajectory leaks in `conversation_summaries.db`, stopping repetitive 403 `PERMISSION_DENIED` background indexing errors.
+### 1. Multi-Profile Cache Cleaner (`d3nexus clean-cache`)
+- **Space Recovery**: Safely targets Chromium bytecode (`CachedData`), Webview storage (`CacheStorage`), HTTP caches, stale `.vsix` installer archives, and Docker installation leftovers across all Antigravity profiles, reclaiming ~12 GB of host disk space without touching user settings, keychains, or sessions.
+- **Safety Protocol**: Implements dry-run previews, automated process termination fencing (`pkill`), and post-clean verification.
 
-### 2. AirDrop & Host OS Keychain Safeguards (Zero CLI Mutation)
-- **Zero CLI Mutation**: Eliminates `security default-keychain` and `list-keychains` manipulation during CLI commands (`ag_run <profile> cli` and `{profile}-cli`). CLI invocations resolve credentials strictly through subshells (`HOME="$ag_home"`) and `com.apple.security.plist`.
-- **AirDrop Protection**: Guarantees that host macOS system daemons (`sharingd`, `identityservicesd`, `trustd`) retain continuous, uninterrupted access to host `login.keychain-db`, preventing AirDrop discovery degradation (error code -15).
-- **Hardened GUI Atomic Window**: Limits GUI IDE keychain promotion to 1.5s with automatic rollback verification.
+### 2. Synchronous 1.5s Atomic Launch Lock & Zero Host Fallback
+- **Zero Host Keychain Fallback**: Removes `login.keychain-db` from `security list-keychains` during non-root profile launches, ensuring unauthenticated or expired profiles never silently fall back to `danhdue@gmail.com`.
+- **Synchronous Launch Lock**: Uses `/tmp/ag_launch.lock` with a synchronous 1.5-second foreground wait in `ag_run()`, serializing concurrent profile launches and blocking CLI/background calls (`agy`, `agy_quota.py`) during the keychain transition window.
+- **Background Token Protection**: Profiles running with isolated `com.apple.security.plist` remain anchored to their dedicated keychains, eliminating token cross-contamination during automatic 1-hour OAuth rotation.
 
-### 3. Automated Profile Provisioning & Rule Governance
-- **Automated Initialization (`ag_run init`)**: Provisions new profiles cleanly with automatic machine ID generation, devDeviceId creation, telemetry opt-out, and trajectory purge.
-- **Critical Rules & Skill Sync**: Updates `rules/CRITICAL_RULES.md` (Sections 9.2, 9.6), `.agents/rules/profile_isolation_rules.md`, and `skills/audit-account-block/references/profile-isolation-and-remediation.md` with The 6 Core Isolation Rules.
+### 3. Credential User Scope & Identity Bleed Purge
+- **Vector 8 Isolation**: Detects and repairs cloned `credential-user-scope` files, provisioning unique `u<16_hex_chars>` identifiers for each profile.
+- **Keychain Parity Enforcement**: Audits OAuth tokens stored in the `gemini` generic-password keychain service and automatically deletes poisoned credentials in non-root profiles.
+
+### 4. Streamlined Autonomous Lifecycle & Cross-Model Review
+- **Zero Confirmation Pauses**: Automates Gate 3 execution order calculation, worktree bootstrapping, and transition from Gate 4 local PASS into Cross-Model Review.
+- **Stage 4 Finish Gate**: Relocates the manual Finish decision and Gate 5 sign-off strictly to Stage 4 (`finishing-a-development-branch`) after review convergence.
 
 ---
 
 ## Verifications & Quality Gates Passed
 
 - `bash scripts/verify.sh`: 🟢 **PASS — safe to publish**
-- `test_audit_account_block.py`: 🟢 **PASS** (4/4 unit tests passing)
-- `test_refresh_session.py` & `test_agy_quota.py`: 🟢 **PASS** (53/53 unit tests passing)
-- `test_lifecycle_document_contract.py` & `test_verifiable_handoff_text.py`: 🟢 **PASS** (26/26 contract tests passing)
+- `test_audit_account_block.py`: 🟢 **PASS** (8/8 unit tests passing)
+- `test_lifecycle_document_contract.py` & `test_lifecycle_signals.py`: 🟢 **PASS** (28/28 contract tests passing)
+- `test_agy_quota.py` & `test_kiro_quota.py`: 🟢 **PASS** (22/22 tests passing)
