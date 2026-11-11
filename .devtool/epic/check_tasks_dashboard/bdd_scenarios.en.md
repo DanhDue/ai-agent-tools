@@ -60,7 +60,7 @@ Scenario: [CTD-HP-05] [Tier C - Integration] Interactive web dashboard displays 
 Given the web server is running and serving tasks_dashboard.html
 When the user accesses the dashboard in a browser
 Then the interface renders dark mode cards for all repositories
-And clicking a review button opens a modal displaying the candidate SHA, reviewer model, and the 7-column triage table
+And clicking a review button opens a modal displaying the candidate SHA, reviewer model, the persisted 5-column triage table, and the evidence drawer
 And clicking an IDE launch button triggers a POST request to /api/launch/ide without throwing errors
 ```
 

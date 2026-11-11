@@ -45,7 +45,7 @@ Hiện tại:
 4. **Tương tác Modal Dialog (Không Chuyển Trang)**: Giữ người dùng luôn ở màn hình Overview chính. Các thao tác chi tiết được mở dưới dạng Dialog Pop-up không gián đoạn:
    - **Kanban Board Dialog**: Bảng Kanban 5 cột (`Backlog`, `To Do`, `In Progress`, `Review`, `Done`) chuẩn theo giao diện Antigravity gốc.
    - **Two-Tier Contexts Dialog**: Màn hình đối chiếu Tầng 1 (Bất biến vĩnh viễn) và Tầng 2 (Trạng thái hiện thời).
-   - **Review Triage Dialogs**: Dialog chuyên dụng cho `/principal-review` và `/cross-model-review` hiển thị trọn vẹn metadata của vòng (Round, Candidate SHA, Reviewer, Thinking / Effort Level, Verdict) cùng bảng triage 7 cột với tags phân loại mức độ và highlight mã nguồn.
+   - **Review Triage Dialogs**: Dialog chuyên dụng cho `/principal-review` và `/cross-model-review` hiển thị trọn vẹn metadata của vòng (Round, Candidate SHA, Reviewer, Thinking / Effort Level, Verdict) cùng bảng triage 5 cột với tags phân loại mức độ và ngăn kéo hiển thị bằng chứng thô.
 5. **Đồng bộ Giao diện Kép**: Hỗ trợ đầy đủ cả dòng lệnh terminal (`check-tasks`, `check-tasks all`) lẫn web daemon nền (`check-tasks --ui`, `check-tasks --stop`).
 
 ## Cảnh báo Shared Contract
@@ -300,6 +300,6 @@ Kèm theo thẻ tóm tắt dòng lệnh ngắn gọn về các worktree đang ch
 | **V3** | Vòng đời Daemon | Chạy `check-tasks --ui`, kiểm tra `curl http://localhost:8766/api/tasks`, chạy `check-tasks --stop` | Server khởi động, API trả về JSON hợp lệ trong < 200ms, server dừng sạch sẽ |
 | **V4** | Kanban Modal | Mở Web UI, click `[ 📊 Xem Kanban ]` | Dialog modal mở tức thì, hiển thị đủ 5 cột với thẻ task thực tế khớp ảnh mẫu |
 | **V5** | Context Modal | Click `[ 🧠 Xem Contexts ]` | Dialog modal hiển thị Sổ cái Tầng 1 và Trạng thái Tầng 2 |
-| **V6** | Review Modal | Click `[ 🔬 Cross-Model Review ]` trên `ai-agent-tools` | Dialog hiển thị Bộ chọn Round, Candidate SHA, Reviewer, Thinking Level, Verdict, và bảng triage 7 cột với tags độ nghiêm trọng |
+| **V6** | Review Modal | Click `[ 🔬 Cross-Model Review ]` trên `ai-agent-tools` | Dialog hiển thị Bộ chọn Round, Candidate SHA, Reviewer, Thinking Level, Verdict, và bảng triage 5 cột với tags độ nghiêm trọng |
 | **V7** | Bộ Kích hoạt | Click `[ 💻 Mở CLI ]` và `[ 🚀 Mở IDE ]` | CLI mở tab terminal mới với môi trường profile; IDE mở cửa sổ Antigravity trỏ đúng worktree |
 | **V8** | Document QA | Chạy `check_document.py` kiểm tra cặp tài liệu song ngữ | Đạt kết quả PASS không có lỗi lint, lỗi liên kết ToC hay lệch cấu trúc song ngữ |

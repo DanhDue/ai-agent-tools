@@ -42,7 +42,10 @@ Implement the web companion frontend, Antigravity skill metadata, and end-to-end
    - Frontmatter metadata: `name: check-tasks`, `description: Real-time Cross-Repo Tasks & Context Dashboard and CLI monitor`.
    - Detailed documentation on slash command `/check-tasks`, CLI usage, and architecture.
 3. Registration & Verification:
-   - Register target scripts in `.agents/quality/python-quality.json` under `format`, `lint`, and `type_check` capabilities.
+   - Register target scripts in `.agents/quality/python-quality.json`:
+     - `format`: add `skills/check-tasks/resources/scripts/check_tasks.py`, `skills/check-tasks/resources/scripts/tasks_server.py`, `scripts/check_tasks.py`, `scripts/tasks_server.py`.
+     - `lint`: append `"--ignore"`, `"SIM117"`, and add the 4 script paths.
+     - `type_check`: add the 4 script paths.
    - Integration acceptance test suite in `tests/test_check_tasks_e2e.py` validating the full cycle from scanning to dashboard HTML rendering.
 
 ## Files
@@ -78,7 +81,7 @@ Scenario: [CTD-HP-05] [Tier C - Integration] Interactive web dashboard displays 
 Given the web server is running and serving tasks_dashboard.html
 When the user accesses the dashboard in a browser
 Then the interface renders dark mode cards for all repositories
-And clicking a review button opens a modal displaying the candidate SHA, reviewer model, and the 7-column triage table
+And clicking a review button opens a modal displaying the candidate SHA, reviewer model, the persisted 5-column triage table, and the evidence drawer
 And clicking an IDE launch button triggers a POST request to /api/launch/ide without throwing errors
 ```
 
@@ -91,7 +94,8 @@ And clicking an IDE launch button triggers a POST request to /api/launch/ide wit
 | V3 | GREEN | `python3 -m unittest tests/test_check_tasks_e2e.py` | exit 0; contains "OK" | — |
 | V4 | TIER-B | `ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py --ignore SIM117 tests/test_check_tasks_e2e.py` | exit 0 | — |
 | V5 | TIER-B | `mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py tests/test_check_tasks_e2e.py` | exit 0 | — |
-| V6 | TIER-C | `python3 scripts/run_unittest_junit.py --junitxml build/test-results/task_5.xml tests/test_check_tasks_e2e.py` | exit 0; results build/test-results/task_5.xml | — |
+| V6 | TIER-B | `python3 skills/quality_check/resources/scripts/verify_polyglot_registry.py` | exit 0 | — |
+| V7 | TIER-C | `python3 scripts/run_unittest_junit.py --junitxml build/test-results/task_5.xml tests/test_check_tasks_e2e.py` | exit 0; results build/test-results/task_5.xml | — |
 
 ## Stop and Report If
 
@@ -108,7 +112,7 @@ And clicking an IDE launch button triggers a POST request to /api/launch/ide wit
 - Modal dialogs use `<dialog>` HTML element with backdrop blur and dark background.
 - Review triage tables are rendered client-side from the persisted 5 columns of `/api/review` with an expandable evidence drawer.
 - Kanban Board Modal, Contexts Modal, and Metrics Row are natively supported in Vanilla JS.
-- The dashboard scripts are registered in `.agents/quality/python-quality.json` under `format`, `lint`, and `type_check`.
+- The dashboard scripts are registered in `.agents/quality/python-quality.json` under `format`, `lint` (with `--ignore SIM117`), and `type_check`.
 
 ## Definition of Done
 

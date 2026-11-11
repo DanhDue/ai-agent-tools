@@ -60,7 +60,7 @@ Kịch bản: [CTD-HP-05] [Tier C - Tích hợp] Giao diện web tương tác hi
 Cho web server đang chạy và phục vụ tệp tasks_dashboard.html
 Khi người dùng truy cập dashboard trên trình duyệt
 Thì giao diện hiển thị các thẻ Dark Mode cho toàn bộ các kho lưu trữ
-Và nhấp vào nút review sẽ mở modal hiển thị commit SHA ứng viên, model reviewer và bảng triage 7 cột
+Và nhấp vào nút review sẽ mở modal hiển thị commit SHA ứng viên, model reviewer, bảng triage 5 cột và ngăn kéo hiển thị bằng chứng
 Và nhấp vào nút mở IDE kích hoạt yêu cầu POST tới /api/launch/ide mà không sinh lỗi
 ```
 

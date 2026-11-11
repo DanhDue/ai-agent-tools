@@ -38,11 +38,11 @@ Inheriting the high-performance, self-contained architecture of `check-quota`, t
 
 ### Goals
 
-- Deliver a high-performance scanner and harvester module (`scripts/check_tasks.py`) that discovers all repositories in `/Users/danhdueexoictif/AllProjects`, parsing worktrees, `.vscode/settings.json`, `.devtool/epic/`, `.devtool/features/`, and Two-Tier memory artifacts.
+- Deliver a high-performance scanner and harvester module (`skills/check-tasks/resources/scripts/check_tasks.py` with `bin/check-tasks` entrypoint) that discovers all repositories in `/Users/danhdueexoictif/AllProjects`, parsing worktrees, `.vscode/settings.json`, `.devtool/epic/`, `.devtool/features/`, and Two-Tier memory artifacts.
 - Implement a Deterministic Lifecycle FSM Engine that resolves the exact human decision state across 8 lifecycle gates without guesswork.
 - Build an ANSI-colored terminal CLI supporting compact single-repo summaries (`check-tasks`), multi-repo tabular overviews (`check-tasks all`), and deep repository inspection (`check-tasks <repo>`).
-- Implement a zero-dependency Python `http.server` daemon (`scripts/tasks_server.py`) serving a unified JSON REST API (`/api/tasks`, `/api/review`, `/api/launch`, `/api/shutdown`) on port `8766` with PID guard protection and auto-port increment.
-- Build a lightweight, responsive Dark Mode web companion (`tasks_dashboard.html`) featuring project cards, worktree chips, interactive Kanban meters, a 7-column Cross-Model Review modal, and one-click CLI/IDE launchers.
+- Implement a zero-dependency Python `http.server` daemon (`skills/check-tasks/resources/scripts/tasks_server.py`) serving a unified JSON REST API (`/api/tasks`, `/api/review`, `/api/launch/cli`, `/api/launch/ide`, `/api/shutdown`) on port `8766` with PID guard protection and auto-port increment.
+- Build a lightweight, responsive Dark Mode web companion (`tasks_dashboard.html`) featuring project cards, worktree chips, interactive Kanban meters, a 5-column Cross-Model Review modal, and one-click CLI/IDE launchers.
 - Support Rule 9 Multi-Profile OS Boundary Safety for native launcher operations, dispatching localized subshells via `ag_run <profile>` without mutating host OS keychain or `$HOME`.
 - Package the tool into an Antigravity skill (`skills/check-tasks/SKILL.md`) with `/check-tasks` slash command support.
 
@@ -114,7 +114,7 @@ sequenceDiagram
     opt Inspect Cross-Model Review
         Dev->>Server: GET /api/review?repo=ai-agent-tools&round=3
         Server->>FS: Read review_results.md / principal_review.md
-        Server-->>Dev: Parsed Review Round Data (7-column triage table)
+        Server-->>Dev: Parsed Review Round Data (5-column triage table + raw evidence)
     end
 
     opt Launch Isolated Workspace
@@ -162,7 +162,7 @@ The FSM Engine resolves ambiguous repository states into exactly one actionable 
 ```text
 Integration test roots: tests
 Integration results: python3 scripts/run_unittest_junit.py --junitxml build/test-results/check_tasks_dashboard.xml tests/test_check_tasks_harvester.py tests/test_check_tasks_fsm.py tests/test_check_tasks_cli.py tests/test_check_tasks_server.py tests/test_check_tasks_e2e.py -> build/test-results/check_tasks_dashboard.xml
-Protected paths: skills/check-tasks/
+Protected paths: .devtool/epic/check_tasks_dashboard/**, .devtool/features/task_*.md, rules/**, scripts/package_epic.py, skills/dev-implementation/resources/scripts/**
 ```
 
 | ID | Boundary Under Test | Test Type | Verification Strategy |

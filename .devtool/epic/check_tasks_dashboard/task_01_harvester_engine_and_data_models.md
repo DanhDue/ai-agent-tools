@@ -29,7 +29,7 @@ Implement the foundational scanning and data model infrastructure for `check-tas
    - `scan_worktrees(repo_path: Path) -> list[WorktreeMetadata]`: executes `git worktree list --porcelain` and `git -C <worktree> status --porcelain` to record paths, heads, branches, and dirty modified file counts.
    - `resolve_active_epic(repo_path: Path) -> str | None`: derives the current active epic from branch naming `epic/<slug>`, `.devtool/state/<slug>.md`, or checkout worktrees.
    - `extract_vscode_styling(repo_path: Path) -> tuple[str, str]`: parses `.vscode/settings.json` for `workbench.colorCustomizations` and `window.title`, extracting `[@account]` identity and falling back to canonical repository signatures (`#b45309`, `#7f1d1d`, `#0d47a1`, `#065f46`) or deterministic hash palettes.
-   - `extract_task_progress(repo_path: Path, active_epic: str | None) -> TaskProgress`: implements `board_tally`-style deduplication by task ID across `.devtool/features/`, `.devtool/features/done/`, and `.devtool/epic/<epic>/` across main and worktree checkouts via `sync_task_status.epic_checkout_roots`.
+   - `extract_task_progress(repo_path: Path, active_epic: str | None) -> TaskProgress`: reimplements `board_tally`'s deduplication by task ID over `repo_path/.devtool/features/`, `repo_path/.devtool/features/done/`, and `repo_path/.devtool/epic/<epic>/`, deriving worktree roots with `git -C <repo_path> worktree list --porcelain`; never calls `os.chdir` and never calls `epic_checkout_roots`.
    - `extract_two_tier_memory(repo_path: Path) -> TwoTierMemory`: parses `.devtool/PROJECT_LEDGER.md` for milestones and `.devtool/assistant_state.md` for snapshot roles.
    - `harvest_dashboard_graph(root_path: Path, max_workers: int = 4) -> DashboardGraph`: scans all child directories in `/Users/danhdueexoictif/AllProjects` in parallel via `concurrent.futures.ThreadPoolExecutor`, collecting repo cards, kanban board data, and two-tier context modal sensors.
 3. Unit test suite `tests/test_check_tasks_harvester.py` verifying data modeling, worktree parsing, missing file fallbacks, and multi-repo harvesting.
@@ -43,7 +43,7 @@ Allowed files:
 Read-only context:
 - `scripts/resume_context.py` — state persistence patterns, gate hydration, and Gate Ledger formatting
 - `scripts/agy_quota.py` — terminal formatting patterns and scanning heuristics
-- `skills/dev-implementation/resources/scripts/sync_task_status.py` — canonical `TASK_STATUSES`, `board_tally`, and checkout root derivation
+- `skills/dev-implementation/resources/scripts/sync_task_status.py` — canonical `TASK_STATUSES` and the `board_tally` dedup idiom to mirror
 - `.devtool/epic/check_tasks_dashboard/check_tasks_dashboard.en.md` — HLD and Architecture Contracts
 
 ## Design Rationale

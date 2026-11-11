@@ -38,11 +38,11 @@ Kế thừa kiến trúc hiệu năng cao, độc lập và nhẹ của `check-q
 
 ### Mục tiêu
 
-- Cung cấp mô-đun thu thập và quét dữ liệu hiệu năng cao (`scripts/check_tasks.py`) khám phá toàn bộ các kho lưu trữ trong `/Users/danhdueexoictif/AllProjects`, phân tích worktrees, `.vscode/settings.json`, `.devtool/epic/`, `.devtool/features/`, và các thành phần bộ nhớ hai tầng.
+- Cung cấp mô-đun thu thập và quét dữ liệu hiệu năng cao (`skills/check-tasks/resources/scripts/check_tasks.py` kèm entrypoint `bin/check-tasks`) khám phá toàn bộ các kho lưu trữ trong `/Users/danhdueexoictif/AllProjects`, phân tích worktrees, `.vscode/settings.json`, `.devtool/epic/`, `.devtool/features/`, và các thành phần bộ nhớ hai tầng.
 - Triển khai Động cơ Máy Trạng thái Vòng đời Tất định (FSM) suy luận chính xác trạng thái quyết định của con người qua 8 cổng vòng đời mà không cần phỏng đoán.
 - Xây dựng giao diện dòng lệnh terminal hiển thị mã màu ANSI hỗ trợ tóm tắt một repo (`check-tasks`), bảng tổng quan đa repo (`check-tasks all`), và kiểm tra chi tiết từng repo (`check-tasks <repo>`).
-- Triển khai daemon `http.server` bằng Python thuần không phụ thuộc thư viện ngoài (`scripts/tasks_server.py`) phục vụ REST API JSON thống nhất (`/api/tasks`, `/api/review`, `/api/launch`, `/api/shutdown`) trên cổng `8766` với cơ chế bảo vệ PID và tự động tăng cổng an toàn.
-- Xây dựng giao diện web Dark Mode nhẹ, tương thích cao (`tasks_dashboard.html`) với thẻ dự án, chip worktree, thanh đo Kanban trực quan, modal Cross-Model Review 7 cột, và các nút mở nhanh CLI/IDE.
+- Triển khai daemon `http.server` bằng Python thuần không phụ thuộc thư viện ngoài (`skills/check-tasks/resources/scripts/tasks_server.py`) phục vụ REST API JSON thống nhất (`/api/tasks`, `/api/review`, `/api/launch/cli`, `/api/launch/ide`, `/api/shutdown`) trên cổng `8766` với cơ chế bảo vệ PID và tự động tăng cổng an toàn.
+- Xây dựng giao diện web Dark Mode nhẹ, tương thích cao (`tasks_dashboard.html`) với thẻ dự án, chip worktree, thanh đo Kanban trực quan, modal Cross-Model Review 5 cột, và các nút mở nhanh CLI/IDE.
 - Đảm bảo tuân thủ Quy tắc 9 về An toàn Ranh giới Hệ điều hành Đa Profile khi khởi chạy native CLI/IDE, kích hoạt subshell cục bộ qua `ag_run <profile>` mà không làm biến đổi Keychain hệ thống hay biến `$HOME` toàn cục.
 - Đóng gói công cụ thành kỹ năng Antigravity (`skills/check-tasks/SKILL.md`) hỗ trợ lệnh tắt slash command `/check-tasks`.
 
@@ -114,7 +114,7 @@ sequenceDiagram
     opt Kiểm tra Kết quả Cross-Model Review
         Dev->>Server: GET /api/review?repo=ai-agent-tools&round=3
         Server->>FS: Đọc review_results.md / principal_review.md
-        Server-->>Dev: Dữ liệu Vòng Review Phân tích (Bảng triage 7 cột)
+        Server-->>Dev: Dữ liệu Vòng Review Phân tích (Bảng triage 5 cột + bằng chứng thô)
     end
 
     opt Khởi chạy Không gian làm việc Cách ly
@@ -162,7 +162,7 @@ sequenceDiagram
 ```text
 Integration test roots: tests
 Integration results: python3 scripts/run_unittest_junit.py --junitxml build/test-results/check_tasks_dashboard.xml tests/test_check_tasks_harvester.py tests/test_check_tasks_fsm.py tests/test_check_tasks_cli.py tests/test_check_tasks_server.py tests/test_check_tasks_e2e.py -> build/test-results/check_tasks_dashboard.xml
-Protected paths: skills/check-tasks/
+Protected paths: .devtool/epic/check_tasks_dashboard/**, .devtool/features/task_*.md, rules/**, scripts/package_epic.py, skills/dev-implementation/resources/scripts/**
 ```
 
 | Mã kiểm thử | Ranh giới Kiểm thử | Loại kiểm thử | Chiến lược Xác thực |

@@ -28,11 +28,11 @@ Implement the background HTTP server daemon and REST API engine in `skills/check
 2. REST API Endpoints:
    - `GET /api/tasks`: invokes `harvest_dashboard_graph` and returns serialized JSON graph.
    - `GET /api/review?repo=<name>&round=<N>`: parses `review_results.md` or `principal_review.md` in the target repository and returns the persisted 5-column triage findings (`#`, `Severity`, `Location`, `Problem`, `Decision`), parsing raw evidence from the `Raw output:` fence, along with candidate SHA, model, thinking level, and verdict.
-   - `POST /api/launch/cli`: accepts `{"repo": str, "worktree": str, "profile": str}` and spawns terminal subshell using `ag_run <profile>` without mutating host OS keychain or `$HOME` (Rule 9).
-   - `POST /api/launch/ide`: accepts `{"repo": str, "worktree": str, "profile": str}` and spawns Antigravity IDE targeting the worktree directory via `ag_run <profile> ide <path>` with IPC handles stripped (`-u ELECTRON_RUN_AS_NODE -u VSCODE_GIT_IPC_HANDLE`).
+   - `POST /api/launch/cli`: accepts `{"repo": str, "worktree": str, "profile": str}` and spawns terminal subshell using `zsh -i -c 'env -u ELECTRON_RUN_AS_NODE -u VSCODE_GIT_IPC_HANDLE -u VSCODE_IPC_HOOK_CLI ag_run <profile> cli'` without mutating host OS keychain or `$HOME` (Rule 9).
+   - `POST /api/launch/ide`: accepts `{"repo": str, "worktree": str, "profile": str}` and spawns Antigravity IDE targeting the worktree directory via `zsh -i -c 'env -u ELECTRON_RUN_AS_NODE -u VSCODE_GIT_IPC_HANDLE -u VSCODE_IPC_HOOK_CLI ag_run <profile> "<worktree>"'` with all 3 IPC variables stripped.
    - `POST /api/shutdown`: triggers graceful server shutdown and unlinks PID file.
    - `GET /`: serves `skills/check-tasks/resources/dashboard/tasks_dashboard.html`.
-3. Create standalone runner `scripts/tasks_server.py`.
+3. Create standalone runner `scripts/tasks_server.py` delegating to the skill resource via importlib.
 4. Unit and integration test suite `tests/test_check_tasks_server.py` verifying API endpoints, PID guard lifecycle, port collision bump, and launcher safety.
 
 ## Files
@@ -120,7 +120,10 @@ And the stale PID file is safely unlinked and replaced with the new process PID
 - PID files are locked with exclusive file creation (`os.O_CREAT | os.O_EXCL`) to eliminate race conditions during startup.
 - If port 8766 is occupied by an unrelated process, the daemon increments to 8767 without crashing.
 - `/api/review` response models the canonical persisted 5-column review table (`#`, `Severity`, `Location`, `Problem`, `Decision`) with evidence parsed from the round's raw markdown output block.
-- Launcher dispatch strictly complies with `CRITICAL_RULES.md` Rule 9, using localized subshells and stripping IPC variables.
+- Launcher dispatch strictly complies with `CRITICAL_RULES.md` Rule 9, using localized subshells and stripping all three IPC environment variables:
+  - CLI: `zsh -i -c 'env -u ELECTRON_RUN_AS_NODE -u VSCODE_GIT_IPC_HANDLE -u VSCODE_IPC_HOOK_CLI ag_run <profile> cli'`
+  - IDE: `zsh -i -c 'env -u ELECTRON_RUN_AS_NODE -u VSCODE_GIT_IPC_HANDLE -u VSCODE_IPC_HOOK_CLI ag_run <profile> "<worktree>"'`
+- `scripts/tasks_server.py` loads `skills/check-tasks/resources/scripts/tasks_server.py` via `importlib.util.spec_from_file_location` under a distinct module name and exports no symbols; tests import the engine path directly, never the wrapper stem.
 
 ## Definition of Done
 

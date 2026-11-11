@@ -23,6 +23,9 @@ Implement the command-line interface and terminal formatting engine in `skills/c
    - `check-tasks` (no args): inspects current directory or worktree, rendering a compact single-repo summary card.
    - `check-tasks all`: scans all repositories in `/Users/danhdueexoictif/AllProjects`, rendering an executive ANSI table.
    - `check-tasks <repo>`: renders deep inspection card for the specified repository (active worktrees, Kanban tasks breakdown, Two-Tier Memory, Gate history).
+   - `--ui`: starts background HTTP server daemon and opens dashboard in browser.
+   - `--stop`: terminates running tasks server daemon PID.
+   - `--status`: displays HTTP server daemon status and port.
    - `--json`: outputs raw JSON representation of `DashboardGraph` for scripting.
    - `--no-color`: strips ANSI formatting regardless of TTY status.
 2. Rich ANSI formatting engine:
@@ -34,7 +37,7 @@ Implement the command-line interface and terminal formatting engine in `skills/c
      - `D3Nexus`: Emerald Green (`\033[38;2;6;95;70m`).
    - TTY detection via `sys.stdout.isatty()` with automated escape code stripping on pipe/redirection.
    - Visual progress bars (e.g. `[████████░░] 80% (4/5 done)`).
-3. Create standalone wrapper script `scripts/check_tasks.py` delegating to the skill resource.
+3. Create standalone wrapper script `scripts/check_tasks.py` and executable PATH shim `bin/check-tasks` delegating to the skill resource.
 4. Unit test suite `tests/test_check_tasks_cli.py` verifying command parsing, ANSI table generation, and plain-text stripping.
 
 ## Files
@@ -42,6 +45,7 @@ Implement the command-line interface and terminal formatting engine in `skills/c
 Allowed files:
 - `skills/check-tasks/resources/scripts/check_tasks.py` (new)
 - `scripts/check_tasks.py` (new)
+- `bin/check-tasks` (new)
 - `tests/test_check_tasks_cli.py` (new)
 
 Read-only context:

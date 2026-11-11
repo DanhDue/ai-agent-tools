@@ -112,6 +112,8 @@ And the next immediate step indicates the AI Programmer is actively implementing
 - 8 core human decision stages are mapped verbatim to the HLD specification.
 - Dual-check verification inspects `.devtool/assistant_state.md` and verifies consistency with `.devtool/GATE_LEDGER.md`.
 - In case of conflict, immutable `GATE_LEDGER.md` records take precedence over volatile assistant snapshots.
+- `derive_lifecycle_state` evaluates gates in descending order (Gate 5 -> 4 -> 3 -> 2 -> 1); a stage row matches only when its gate is the highest PASS in `GATE_LEDGER.md` for the normalized epic slug, and Stage 1 requires Gate 2 absent as well as Gate 1.
+- Stage 2 Exit is disambiguated from Stage 3 Phase 1 by checking for the existence of an active worktree checkout on `refs/heads/epic/<slug>`.
 - Status token comparison accepts both "in-progress" and legacy "in_progress", normalizing to canonical "in-progress".
 - Missing ledger records default gracefully to `IDLE` state with no unhandled exceptions.
 

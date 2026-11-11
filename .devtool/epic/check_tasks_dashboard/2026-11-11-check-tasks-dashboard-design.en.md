@@ -45,7 +45,7 @@ Currently:
 4. **Modal Dialog Interactions (Zero Page Switching)**: Keep the developer anchored on the main Overview page. Clicking actions opens non-disruptive Dialog Modals:
    - **Kanban Board Modal**: 5-column Kanban board (`Backlog`, `To Do`, `In Progress`, `Review`, `Done`) matching the clean native Antigravity Kanban UI.
    - **Two-Tier Contexts Modal**: Split-pane view of Tier 1 Permanent Ledger and Tier 2 In-Flight State.
-   - **Review Triage Modals**: Dedicated dialogs for `/principal-review` and `/cross-model-review` displaying complete round metadata (Round, Candidate SHA, Reviewer, Thinking / Effort Level, Verdict) and a structured 7-column triage table with severity tags and code highlights.
+   - **Review Triage Modals**: Dedicated dialogs for `/principal-review` and `/cross-model-review` displaying complete round metadata (Round, Candidate SHA, Reviewer, Thinking / Effort Level, Verdict) and a structured 5-column triage table with severity tags and raw evidence drawer.
 5. **Dual Interface Parity**: Support both terminal workflows (`check-tasks`, `check-tasks all`) and background web daemon (`check-tasks --ui`, `check-tasks --stop`).
 
 ## Shared Contract Warnings
@@ -300,6 +300,6 @@ Followed by a concise terminal summary card detailing active worktrees, in-fligh
 | **V3** | Daemon Lifecycle | Run `check-tasks --ui`, check `curl http://localhost:8766/api/tasks`, run `check-tasks --stop` | Server starts, API returns valid JSON graph in < 200ms, server shuts down cleanly |
 | **V4** | Kanban Modal | Open Web UI, click `[ 📊 Xem Kanban ]` | Modal dialog opens instantly, displaying 5 columns with real task cards matching native Kanban layout |
 | **V5** | Context Modal | Click `[ 🧠 Xem Contexts ]` | Modal dialog displays Tier 1 Permanent Ledger and Tier 2 In-Flight State |
-| **V6** | Review Modal | Click `[ 🔬 Cross-Model Review ]` on `ai-agent-tools` | Modal displays Round selector, Candidate SHA, Reviewer, Thinking Level, Verdict, and 7-column triage table with severity tags |
+| **V6** | Review Modal | Click `[ 🔬 Cross-Model Review ]` on `ai-agent-tools` | Modal displays Round selector, Candidate SHA, Reviewer, Thinking Level, Verdict, and 5-column triage table with severity tags |
 | **V7** | Native Launchers | Click `[ 💻 Mở CLI ]` and `[ 🚀 Mở IDE ]` | CLI opens new terminal tab with profile environment; IDE opens Antigravity instance targeting worktree |
 | **V8** | Document QA | Run `check_document.py` on bilingual spec pair | Returns PASS with zero markdown lint, ToC, or bilingual drift errors |
