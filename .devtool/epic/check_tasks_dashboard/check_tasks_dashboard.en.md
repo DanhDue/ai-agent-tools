@@ -27,7 +27,7 @@
 
 When developers and autonomous AI Agents orchestrate multi-project ecosystems across `/Users/danhdueexoictif/AllProjects` (`ai-agent-tools`, `lyrics-sync`, `nexus`, `D3Nexus`), they face cognitive overhead tracking:
 1. Parallel git worktrees, active branches, and dirty working trees across projects.
-2. In-flight epics, lifecycle stages, and real-time Kanban task progress (`done`, `in_progress`, `todo`).
+2. In-flight epics, lifecycle stages, and real-time Kanban task progress (`done`, `in-progress`, `todo`).
 3. Disparate repository styling and window signatures configured in `.vscode/settings.json`.
 4. Two-Tier Project Memory (`.devtool/PROJECT_LEDGER.md` Tier 1 permanent history and `.devtool/assistant_state.md` / `activity_stream.log` Tier 2 snapshot memory).
 5. Next required human decisions: developers frequently lose context on whether an epic is waiting for Gate 1 approval, Gate 2 task sign-off, Principal Review triage, Gate 3 order confirmation, Gate 4 Review Choice, or Gate 5 merge sign-off.
@@ -147,7 +147,7 @@ The FSM Engine resolves ambiguous repository states into exactly one actionable 
 | **Stage 2 Exit (Handoff)** | Gate 2 PASS, Gate 3 absent | Epic packaged (`handoff.md`) | **Handoff Choice**: (1) Run `/principal-review` or (2) Enter Stage 3 (`/dev-implementation`) |
 | **Stage 2 Review Triage** | Gate 2 PASS, PR in progress | Principal Review contains unconfirmed findings | **Approve Triage Decisions** (Valid / False Positive / Fix) for findings |
 | **Stage 3 Phase 1 (Order)** | Gate 2 PASS, worktree ready | Gate 3 absent in ledger | **Approve Gate 3**: Confirm Kanban execution order and worktree isolation |
-| **Stage 3 Phase 2 (TDD)** | Gate 3 PASS | Tasks in `in_progress` | AI Programmer autonomously executing TDD tasks (No human action needed) |
+| **Stage 3 Phase 2 (TDD)** | Gate 3 PASS | Tasks in `in-progress` | AI Programmer autonomously executing TDD tasks (No human action needed) |
 | **Stage 3 Phase 4 (Review)** | All tasks `done`, Gate 4 PASS | Gate 5 absent in ledger | **Review Choice (Rule 5)**: Choose (1) Finish & merge (`/finish`) or (2) Run Cross-Model Review |
 | **Stage 3 Phase 4.1 (Sign-off)** | Gate 4 PASS after review rounds | Ready for branch finish | **Approve Gate 5 (Kanban Sign-Off)**: Confirm worktree cleanup and permanent archival |
 

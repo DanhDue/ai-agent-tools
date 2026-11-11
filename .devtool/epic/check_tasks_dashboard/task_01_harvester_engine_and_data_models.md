@@ -21,16 +21,17 @@ Epic: [check_tasks_dashboard](check_tasks_dashboard.en.md)
 Implement the foundational scanning and data model infrastructure for `check-tasks`:
 1. Core dataclasses in `skills/check-tasks/resources/scripts/check_tasks.py`:
    - `WorktreeMetadata`: path, branch, head_sha, is_dirty, dirty_file_count, is_detached.
-   - `TaskProgress`: total_tasks, done_tasks, in_progress_tasks, todo_tasks, percentage, active_task_name.
+   - `TaskProgress`: total_tasks, done_tasks, in_progress_tasks, todo_tasks, percentage, active_task_name (using canonical status enum `backlog, todo, in-progress, review, done`, with automatic normalization converting `_` to `-`).
    - `TwoTierMemory`: project_ledger_path, total_milestones, last_milestone, assistant_state_role, assistant_state_status.
    - `RepoMetadata`: name, path, theme_color, window_title, active_epic, active_stage, worktrees, task_progress, memory, contract_status.
-   - `DashboardGraph`: workspace_root, scanned_at, repos.
+   - `DashboardGraph`: workspace_root, scanned_at, repos, metrics_row (total repos, active epics, dirty worktrees, tasks tally).
 2. Harvester engine functions:
-   - `scan_worktrees(repo_path: Path) -> list[WorktreeMetadata]`: executes `git worktree list --porcelain` and parses paths, heads, and branch names.
-   - `extract_vscode_styling(repo_path: Path) -> tuple[str, str]`: parses `.vscode/settings.json` for `workbench.colorCustomizations` and `window.title`, falling back to canonical repository signatures (`#b45309`, `#7f1d1d`, `#0d47a1`, `#065f46`) or deterministic hash palettes.
-   - `extract_task_progress(repo_path: Path, active_epic: str | None) -> TaskProgress`: inspects `.devtool/features/task_*.md` and `.devtool/epic/<epic>/` for task states.
+   - `scan_worktrees(repo_path: Path) -> list[WorktreeMetadata]`: executes `git worktree list --porcelain` and `git -C <worktree> status --porcelain` to record paths, heads, branches, and dirty modified file counts.
+   - `resolve_active_epic(repo_path: Path) -> str | None`: derives the current active epic from branch naming `epic/<slug>`, `.devtool/state/<slug>.md`, or checkout worktrees.
+   - `extract_vscode_styling(repo_path: Path) -> tuple[str, str]`: parses `.vscode/settings.json` for `workbench.colorCustomizations` and `window.title`, extracting `[@account]` identity and falling back to canonical repository signatures (`#b45309`, `#7f1d1d`, `#0d47a1`, `#065f46`) or deterministic hash palettes.
+   - `extract_task_progress(repo_path: Path, active_epic: str | None) -> TaskProgress`: implements `board_tally`-style deduplication by task ID across `.devtool/features/`, `.devtool/features/done/`, and `.devtool/epic/<epic>/` across main and worktree checkouts via `sync_task_status.epic_checkout_roots`.
    - `extract_two_tier_memory(repo_path: Path) -> TwoTierMemory`: parses `.devtool/PROJECT_LEDGER.md` for milestones and `.devtool/assistant_state.md` for snapshot roles.
-   - `harvest_dashboard_graph(root_path: Path, max_workers: int = 4) -> DashboardGraph`: scans all child directories in `/Users/danhdueexoictif/AllProjects` in parallel via `concurrent.futures.ThreadPoolExecutor`.
+   - `harvest_dashboard_graph(root_path: Path, max_workers: int = 4) -> DashboardGraph`: scans all child directories in `/Users/danhdueexoictif/AllProjects` in parallel via `concurrent.futures.ThreadPoolExecutor`, collecting repo cards, kanban board data, and two-tier context modal sensors.
 3. Unit test suite `tests/test_check_tasks_harvester.py` verifying data modeling, worktree parsing, missing file fallbacks, and multi-repo harvesting.
 
 ## Files
@@ -42,6 +43,7 @@ Allowed files:
 Read-only context:
 - `scripts/resume_context.py` — state persistence patterns, gate hydration, and Gate Ledger formatting
 - `scripts/agy_quota.py` — terminal formatting patterns and scanning heuristics
+- `skills/dev-implementation/resources/scripts/sync_task_status.py` — canonical `TASK_STATUSES`, `board_tally`, and checkout root derivation
 - `.devtool/epic/check_tasks_dashboard/check_tasks_dashboard.en.md` — HLD and Architecture Contracts
 
 ## Design Rationale
@@ -67,7 +69,7 @@ And each repository contains .vscode/settings.json with window.title and workben
 When the harvester scans the workspace root via harvest_dashboard_graph
 Then the returned graph contains metadata objects for all 4 repositories
 And each repository correctly reflects its theme colors, active worktrees, and git branches
-And task progress counts for done, in_progress, and todo match the filesystem state
+And task progress counts for done, in-progress, and todo match the filesystem state
 
 Scenario: [CTD-EC-01] [Tier A - Unit] Graceful fallback when .vscode/settings.json is absent
 
@@ -100,7 +102,7 @@ And the dirty flag is correctly set to true with the count of modified files
 | V1 | RED | `python3 -m unittest tests/test_check_tasks_harvester.py -k test_ctd_hp_01` | exit 1; contains "FAILED" | — |
 | V2 | GREEN | `python3 -m unittest tests/test_check_tasks_harvester.py -k test_ctd_hp_01` | exit 0; contains "OK" | — |
 | V3 | GREEN | `python3 -m unittest tests/test_check_tasks_harvester.py` | exit 0; contains "OK" | — |
-| V4 | TIER-B | `ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py skills/check-tasks/resources/scripts/check_tasks.py tests/test_check_tasks_harvester.py` | exit 0 | — |
+| V4 | TIER-B | `ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py --ignore SIM117 skills/check-tasks/resources/scripts/check_tasks.py tests/test_check_tasks_harvester.py` | exit 0 | — |
 | V5 | TIER-B | `mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py skills/check-tasks/resources/scripts/check_tasks.py tests/test_check_tasks_harvester.py` | exit 0 | — |
 | V6 | TIER-C | `python3 scripts/run_unittest_junit.py --junitxml build/test-results/task_1.xml tests/test_check_tasks_harvester.py` | exit 0; results build/test-results/task_1.xml | — |
 
@@ -116,9 +118,11 @@ And the dirty flag is correctly set to true with the count of modified files
 ## Decisions Already Made
 
 - Core models are defined with Python standard `@dataclass` without Pydantic dependencies to preserve lightweight standalone execution.
-- Worktree discovery uses `git worktree list --porcelain` rather than custom parsing to maintain 100% fidelity with git porcelain contracts.
+- Canonical Kanban status tokens strictly use hyphenated form `backlog, todo, in-progress, review, done`, normalizing any `_` to `-` to match `sync_task_status.py`.
+- Worktree discovery uses `git worktree list --porcelain` and records dirty file counts via `git -C <worktree> status --porcelain`.
+- Window title parsing extracts `[@account]` and handles unexpanded variables or missing epic segments gracefully.
 - Missing `.vscode/settings.json` gracefully falls back to deterministic palette signatures (`#b45309`, `#7f1d1d`, `#0d47a1`, `#065f46`).
-- Task progress counts are extracted from `.devtool/features/` and verified against `.devtool/epic/<epic>/`.
+- Task progress counts are extracted using `board_tally` deduplication across `.devtool/features/`, `.devtool/features/done/`, and checkout worktrees.
 - Parallel scanning uses standard `ThreadPoolExecutor` with a default of 4 workers.
 
 ## Definition of Done

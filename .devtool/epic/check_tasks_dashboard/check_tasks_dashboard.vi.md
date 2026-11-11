@@ -27,7 +27,7 @@
 
 Khi các lập trình viên và AI Agent tự hành phối hợp điều phối hệ sinh thái đa dự án tại `/Users/danhdueexoictif/AllProjects` (`ai-agent-tools`, `lyrics-sync`, `nexus`, `D3Nexus`), họ thường xuyên gặp áp lực quá tải ngữ cảnh khi phải theo dõi:
 1. Các git worktree chạy song song, nhánh đang kích hoạt và trạng thái working tree bẩn giữa các dự án.
-2. Các epic đang thực hiện, giai đoạn vòng đời hiện tại và tiến độ tasks Kanban thời gian thực (`done`, `in_progress`, `todo`).
+2. Các epic đang thực hiện, giai đoạn vòng đời hiện tại và tiến độ tasks Kanban thời gian thực (`done`, `in-progress`, `todo`).
 3. Giao diện màu sắc và tiêu đề cửa sổ nhận diện riêng biệt được cấu hình trong `.vscode/settings.json`.
 4. Bộ nhớ dự án hai tầng (Two-Tier Project Memory gồm `.devtool/PROJECT_LEDGER.md` lịch sử vĩnh viễn Tầng 1 và `.devtool/assistant_state.md` / `activity_stream.log` bộ nhớ chụp nhanh Tầng 2).
 5. Bước tiếp theo cần con người quyết định: lập trình viên thường xuyên mất phương hướng không rõ epic đang dừng chờ phê duyệt Gate 1, xác nhận phân rã tasks Gate 2, duyệt triage Principal Review, chốt thứ tự Gate 3, lựa chọn Review Choice Gate 4 hay ký duyệt hoàn tất Gate 5.
@@ -147,7 +147,7 @@ sequenceDiagram
 | **Stage 2 Exit (Handoff)** | Gate 2 PASS, chưa có Gate 3 | Epic đã đóng gói (`handoff.md`) | **Lựa chọn Handoff**: (1) Chạy `/principal-review` hoặc (2) Vào Stage 3 (`/dev-implementation`) |
 | **Stage 2 Review Triage** | Gate 2 PASS, đang chạy PR | Principal Review có findings chưa xác nhận | **Phê duyệt Quyết định Triage** (Valid / False Positive / Fix) cho các lỗi |
 | **Stage 3 Phase 1 (Order)** | Gate 2 PASS, worktree đã sẵn sàng | Chưa có Gate 3 trong sổ cái | **Phê duyệt Gate 3**: Xác nhận thứ tự thực thi Kanban tasks và phân tách worktree |
-| **Stage 3 Phase 2 (TDD)** | Gate 3 PASS | Các tasks đang ở trạng thái `in_progress` | AI Programmer đang tự động TDD từng task (Không cần con người can thiệp) |
+| **Stage 3 Phase 2 (TDD)** | Gate 3 PASS | Các tasks đang ở trạng thái `in-progress` | AI Programmer đang tự động TDD từng task (Không cần con người can thiệp) |
 | **Stage 3 Phase 4 (Review)** | Toàn bộ tasks `done`, Gate 4 PASS | Chưa có Gate 5 trong sổ cái | **Review Choice (Quy tắc 5)**: Lựa chọn (1) Kết thúc (`/finish`) hoặc (2) Chạy Cross-Model Review |
 | **Stage 3 Phase 4.1 (Sign-off)** | Gate 4 PASS sau các vòng review | Sẵn sàng kết thúc nhánh | **Phê duyệt Gate 5 (Sign-off Kanban)**: Xác nhận dọn dẹp worktree và lưu trữ cột mốc |
 

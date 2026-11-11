@@ -28,7 +28,7 @@ Và mỗi kho lưu trữ chứa .vscode/settings.json với window.title và wor
 Khi bộ thu thập quét thư mục gốc qua hàm harvest_dashboard_graph
 Thì đồ thị trả về chứa các đối tượng metadata cho toàn bộ 4 kho lưu trữ
 Và mỗi kho lưu trữ phản ánh chính xác màu chủ đạo, các worktree đang hoạt động và nhánh git
-Và số lượng tasks Kanban cho done, in_progress, và todo khớp chính xác với trạng thái đĩa cứng
+Và số lượng tasks Kanban cho done, in-progress, và todo khớp chính xác với trạng thái đĩa cứng
 
 Kịch bản: [CTD-HP-02] [Tier C - Tích hợp] Động cơ FSM vòng đời tất định suy luận chính xác bước quyết định của con người
 
@@ -109,10 +109,10 @@ Khi derive_lifecycle_state đánh giá kho lưu trữ
 Thì trạng thái chuyển dịch sang "Stage 2 Exit (Handoff)"
 Và bước tiếp theo gợi ý lập trình viên lựa chọn giữa Principal Review và Implementation
 
-Kịch bản: [CTD-ST-02] [Tier A - Đơn vị] FSM chuyển dịch sang Stage 3 Phase 2 TDD khi tasks chuyển sang in_progress
+Kịch bản: [CTD-ST-02] [Tier A - Đơn vị] FSM chuyển dịch sang Stage 3 Phase 2 TDD khi tasks chuyển sang in-progress
 
 Cho một epic có Gate 3 PASS được ghi nhận trong GATE_LEDGER.md
-Và có ít nhất một task Kanban trong .devtool/features/ có trạng thái "in_progress"
+Và có ít nhất một task Kanban trong .devtool/features/ có trạng thái "in-progress"
 Khi derive_lifecycle_state đánh giá kho lưu trữ
 Thì trạng thái chuyển dịch sang "Stage 3 Phase 2 (TDD)"
 Và bước tiếp theo hiển thị AI Programmer đang tự động triển khai tasks mà không cần can thiệp

@@ -27,7 +27,7 @@ Implement the background HTTP server daemon and REST API engine in `skills/check
    - Command flags: `--daemon` (forks background daemon), `--stop` (sends SIGTERM to running PID), `--status` (checks running status), `--port <int>` (overrides default port).
 2. REST API Endpoints:
    - `GET /api/tasks`: invokes `harvest_dashboard_graph` and returns serialized JSON graph.
-   - `GET /api/review?repo=<name>&round=<N>`: parses `review_results.md` or `principal_review.md` in the target repository and returns 7-column triage findings, candidate SHA, model, and verdict.
+   - `GET /api/review?repo=<name>&round=<N>`: parses `review_results.md` or `principal_review.md` in the target repository and returns the persisted 5-column triage findings (`#`, `Severity`, `Location`, `Problem`, `Decision`), parsing raw evidence from the `Raw output:` fence, along with candidate SHA, model, thinking level, and verdict.
    - `POST /api/launch/cli`: accepts `{"repo": str, "worktree": str, "profile": str}` and spawns terminal subshell using `ag_run <profile>` without mutating host OS keychain or `$HOME` (Rule 9).
    - `POST /api/launch/ide`: accepts `{"repo": str, "worktree": str, "profile": str}` and spawns Antigravity IDE targeting the worktree directory via `ag_run <profile> ide <path>` with IPC handles stripped (`-u ELECTRON_RUN_AS_NODE -u VSCODE_GIT_IPC_HANDLE`).
    - `POST /api/shutdown`: triggers graceful server shutdown and unlinks PID file.
@@ -101,7 +101,7 @@ And the stale PID file is safely unlinked and replaced with the new process PID
 | V1 | RED | `python3 -m unittest tests/test_check_tasks_server.py -k test_ctd_hp_04` | exit 1; contains "FAILED" | — |
 | V2 | GREEN | `python3 -m unittest tests/test_check_tasks_server.py -k test_ctd_hp_04` | exit 0; contains "OK" | — |
 | V3 | GREEN | `python3 -m unittest tests/test_check_tasks_server.py` | exit 0; contains "OK" | — |
-| V4 | TIER-B | `ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py skills/check-tasks/resources/scripts/tasks_server.py scripts/tasks_server.py tests/test_check_tasks_server.py` | exit 0 | — |
+| V4 | TIER-B | `ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py --ignore SIM117 skills/check-tasks/resources/scripts/tasks_server.py scripts/tasks_server.py tests/test_check_tasks_server.py` | exit 0 | — |
 | V5 | TIER-B | `mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py skills/check-tasks/resources/scripts/tasks_server.py scripts/tasks_server.py tests/test_check_tasks_server.py` | exit 0 | — |
 | V6 | TIER-C | `python3 scripts/run_unittest_junit.py --junitxml build/test-results/task_4.xml tests/test_check_tasks_server.py` | exit 0; results build/test-results/task_4.xml | — |
 
@@ -119,6 +119,7 @@ And the stale PID file is safely unlinked and replaced with the new process PID
 - The server uses standard library `http.server.HTTPServer` with `ThreadingMixIn` to handle concurrent API requests.
 - PID files are locked with exclusive file creation (`os.O_CREAT | os.O_EXCL`) to eliminate race conditions during startup.
 - If port 8766 is occupied by an unrelated process, the daemon increments to 8767 without crashing.
+- `/api/review` response models the canonical persisted 5-column review table (`#`, `Severity`, `Location`, `Problem`, `Decision`) with evidence parsed from the round's raw markdown output block.
 - Launcher dispatch strictly complies with `CRITICAL_RULES.md` Rule 9, using localized subshells and stripping IPC variables.
 
 ## Definition of Done

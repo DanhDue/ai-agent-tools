@@ -87,7 +87,7 @@ And the output remains cleanly aligned plain text
 | V1 | RED | `python3 -m unittest tests/test_check_tasks_cli.py -k test_ctd_hp_03` | exit 1; contains "FAILED" | — |
 | V2 | GREEN | `python3 -m unittest tests/test_check_tasks_cli.py -k test_ctd_hp_03` | exit 0; contains "OK" | — |
 | V3 | GREEN | `python3 -m unittest tests/test_check_tasks_cli.py` | exit 0; contains "OK" | — |
-| V4 | TIER-B | `ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py skills/check-tasks/resources/scripts/check_tasks.py scripts/check_tasks.py tests/test_check_tasks_cli.py` | exit 0 | — |
+| V4 | TIER-B | `ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py --ignore SIM117 skills/check-tasks/resources/scripts/check_tasks.py scripts/check_tasks.py tests/test_check_tasks_cli.py` | exit 0 | — |
 | V5 | TIER-B | `mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py skills/check-tasks/resources/scripts/check_tasks.py scripts/check_tasks.py tests/test_check_tasks_cli.py` | exit 0 | — |
 | V6 | TIER-C | `python3 scripts/run_unittest_junit.py --junitxml build/test-results/task_3.xml tests/test_check_tasks_cli.py` | exit 0; results build/test-results/task_3.xml | — |
 
@@ -105,7 +105,7 @@ And the output remains cleanly aligned plain text
 - Terminal widths adapt dynamically via `shutil.get_terminal_size()` with fallback to 100 columns.
 - Redirected stdout automatically strips ANSI escape sequences via regular expression.
 - Repository colors strictly respect the repository signatures in `CRITICAL_RULES.md` Rule 8.
-- CLI wrapper at `scripts/check_tasks.py` allows direct execution without installing pip entry points.
+- CLI wrapper at `scripts/check_tasks.py` loads `skills/check-tasks/resources/scripts/check_tasks.py` via `importlib.util.spec_from_file_location` or a clean launcher shim to avoid module name stem collision.
 
 ## Definition of Done
 

@@ -28,7 +28,7 @@ And each repository contains .vscode/settings.json with window.title and workben
 When the harvester scans the workspace root via harvest_dashboard_graph
 Then the returned graph contains metadata objects for all 4 repositories
 And each repository correctly reflects its theme colors, active worktrees, and git branches
-And task progress counts for done, in_progress, and todo match the filesystem state
+And task progress counts for done, in-progress, and todo match the filesystem state
 
 Scenario: [CTD-HP-02] [Tier C - Integration] Deterministic Lifecycle FSM derives exact human decision prompt
 
@@ -109,10 +109,10 @@ When derive_lifecycle_state evaluates the repository
 Then the state transitions to "Stage 2 Exit (Handoff)"
 And the next immediate step prompts the human architect for the handoff choice between Principal Review and Implementation
 
-Scenario: [CTD-ST-02] [Tier A - Unit] FSM transitions to Stage 3 Phase 2 TDD when tasks enter in_progress
+Scenario: [CTD-ST-02] [Tier A - Unit] FSM transitions to Stage 3 Phase 2 TDD when tasks enter in-progress
 
 Given an epic with Gate 3 PASS recorded in GATE_LEDGER.md
-And at least one Kanban task in .devtool/features/ has status "in_progress"
+And at least one Kanban task in .devtool/features/ has status "in-progress"
 When derive_lifecycle_state evaluates the repository
 Then the state transitions to "Stage 3 Phase 2 (TDD)"
 And the next immediate step indicates the AI Programmer is actively implementing tasks with zero human intervention required
