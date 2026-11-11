@@ -67,6 +67,18 @@ class TestLifecycleRunner_Integration(unittest.TestCase):
             self.assertTrue(ok)
             self.assertEqual(msg, "OK")
 
+        # 3. Model absent from agy models listing returns failure
+        with patch("subprocess.run") as mock_run:
+            mock_proc = MagicMock()
+            mock_proc.returncode = 0
+            mock_proc.stderr = ""
+            mock_proc.stdout = "gemini-4-argon-medium     Gemini 4 Argon (Medium)\nclaude-opus-5-5-high       Claude Opus 5.5 (High)\n"
+            mock_run.return_value = mock_proc
+
+            ok, err = dispatcher.probe_model("agy", "unknown-future-model")
+            self.assertFalse(ok)
+            self.assertIn("not supported by agy", err)
+
     def test_alr_ar_02(self) -> None:
         """[ALR-AR-02] Pipeline state atomic writes prevent file corruption and race conditions."""
         runner = LifecycleRunner(root=self.root, epic_slug=self.epic_slug)
@@ -386,6 +398,17 @@ class TestLifecycleRunner_Integration(unittest.TestCase):
                     self.assertFalse(ok)
                     self.assertEqual(runner.state.active_stage, StageName.HALTED.value)
                     self.assertIn("CRITICAL_CONFLICT", str(runner.state.halt_reason))
+
+        # Direct evaluation fail-closed checks
+        with patch.object(runner.dispatcher, "dispatch", return_value=(124, "", "Process timed out")):
+            verdict, rationale = runner.evaluate_programmer_fix_plan(1)
+            self.assertEqual(verdict, FixPlanVerdict.CRITICAL_CONFLICT)
+            self.assertIn("timed out", rationale)
+
+        with patch.object(runner.dispatcher, "dispatch", return_value=(0, "Unrecognized rambling reply", "")):
+            verdict, rationale = runner.evaluate_programmer_fix_plan(1)
+            self.assertEqual(verdict, FixPlanVerdict.CRITICAL_CONFLICT)
+            self.assertIn("Unparseable fix plan verdict", rationale)
 
     def test_alr_ec_03(self) -> None:
         """[ALR-EC-03] AI Assistant adjusts AI Programmer fix plan without rejecting."""

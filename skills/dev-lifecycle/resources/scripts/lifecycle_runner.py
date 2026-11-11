@@ -124,7 +124,10 @@ class ModelDispatcher:
 
     def probe_model(self, cli: str, model: str) -> tuple[bool, str]:
         """Verify model capabilities via headless CLI before state initialization."""
-        cmd = [cli, "--model", model, "--probe"]
+        if cli == "agy":
+            cmd = [cli, "models"]
+        else:
+            cmd = [cli, "--version"]
         try:
             res = subprocess.run(
                 cmd,
@@ -133,10 +136,22 @@ class ModelDispatcher:
                 text=True,
                 check=False,
             )
-            if res.returncode == 0:
-                return True, "OK"
-            err = res.stderr.strip() or res.stdout.strip() or f"Exit code {res.returncode}"
-            return False, err
+            if res.returncode != 0:
+                err = res.stderr.strip() or res.stdout.strip() or f"Exit code {res.returncode}"
+                return False, err
+
+            if cli == "agy":
+                clean_target = model.strip().lower()
+                clean_output = res.stdout.lower()
+                if (
+                    clean_target in clean_output
+                    or "model probe successful" in clean_output
+                    or any(clean_target in line for line in clean_output.splitlines())
+                ):
+                    return True, "OK"
+                return False, f"Model '{model}' is not supported by agy."
+
+            return True, "OK"
         except FileNotFoundError:
             return False, f"CLI binary '{cli}' not found on PATH"
         except Exception as exc:
@@ -877,22 +892,31 @@ class LifecycleRunner:
             f"{plan_text}\n"
         )
         assistant_model = self.config.resolve_assistant_model(self.root)
-        _, stdout, _ = self.dispatcher.dispatch(
+        code, stdout, stderr = self.dispatcher.dispatch(
             cli="agy",
             args=["--model", assistant_model, "--effort", self.config.assistant_effort, "--mode", "auto"],
             prompt=prompt,
         )
-        first_line = stdout.strip().splitlines()[0] if stdout.strip() else ""
+        if code != 0 or not stdout.strip():
+            err_msg = stderr.strip() or f"Assistant dispatch failed with exit code {code}"
+            return FixPlanVerdict.CRITICAL_CONFLICT, f"Fix plan evaluation failed: {err_msg}"
+
+        first_line = stdout.strip().splitlines()[0].strip().upper()
         rationale = (
             "\n".join(stdout.strip().splitlines()[1:]).strip()
             if "\n" in stdout.strip()
             else stdout.strip()
         )
-        if "CRITICAL_CONFLICT" in first_line.upper():
+        if "CRITICAL_CONFLICT" in first_line:
             return FixPlanVerdict.CRITICAL_CONFLICT, rationale
-        if "ADJUSTED" in first_line.upper():
+        if "ADJUSTED" in first_line:
             return FixPlanVerdict.ADJUSTED, rationale
-        return FixPlanVerdict.APPROVED, rationale
+        if "APPROVED" in first_line:
+            return FixPlanVerdict.APPROVED, rationale
+        return (
+            FixPlanVerdict.CRITICAL_CONFLICT,
+            f"Unparseable fix plan verdict from Assistant (expected APPROVED, ADJUSTED, or CRITICAL_CONFLICT): {first_line}\n{rationale}",
+        )
 
     def step_cross_model_review(self) -> bool:
         """Execute Stage 3 Cross-Model Review fix plan evaluation loop."""
