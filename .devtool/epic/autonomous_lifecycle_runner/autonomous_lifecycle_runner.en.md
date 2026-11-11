@@ -17,7 +17,7 @@
 ## Meta Data
 
 - **Epic name**: `autonomous_lifecycle_runner`
-- **Status**: In Progress
+- **Status**: Done
 - **Target release**: Next plugin release
 - **Platform**: Python tooling / agent skill kit
 - **Depends on epic**: none
