@@ -14,7 +14,7 @@
 ## Status
 
 - **Packaged**: 2026-11-11
-- **Design commit**: `2c7b44c` — `HEAD` before the packaging commit, or `uncommitted` when `auto_commit` is false
+- **Design commit**: `de7160d`
 - **Base branch**: `main`
 - **Gates passed**: 1 (spec), 2 (HLD and task breakdown)
 - **Next**: Stage 3, `dev-implementation`. Gate 3 (execution order) still needs the developer's confirmation.
@@ -67,11 +67,12 @@ None
 ## Revisions
 
 - **2026-11-11 (`2c7b44c`)**: Initial Stage 2 packaging
+- **2026-11-11 (`2c7b44c` -> `de7160d`)**: Apply Principal Review round 1 revisions
 
 ## Rules for the Receiving Agent
 
 - Do not re-run `dev-brainstorming` or `dev-designer`. Raise a wrong or missing document at Gate 3.
 - This handoff does not pass Gate 3. The developer confirms the execution order.
-- Unless the design commit is `uncommitted`: if `git log 2c7b44c..main -- .devtool/epic/check_tasks_dashboard` lists any commit besides the `Package epic for handoff` commit, the documents changed after packaging. The documents win, and this file may be stale. Comparing against the base branch keeps the epic branch's own task commits out of the check.
+- Unless the design commit is `uncommitted`: if `git log de7160d..main -- .devtool/epic/check_tasks_dashboard` lists any commit besides the `Package epic for handoff` commit, the documents changed after packaging. The documents win, and this file may be stale. Comparing against the base branch keeps the epic branch's own task commits out of the check.
 - This file is updated only by `package_epic.py --revise`, which records each re-anchoring under `## Revisions`.
 - Never edit a task's Verification table, Definition of Done, Allowed files or a protected path; stop and report.
