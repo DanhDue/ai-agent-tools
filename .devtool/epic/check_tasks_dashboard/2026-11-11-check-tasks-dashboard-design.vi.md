@@ -198,6 +198,11 @@ Giao diện Web (`tasks_dashboard.html`) được xây dựng dưới dạng ứ
   - **Quy chuẩn Đường kẻ Line Sắc nét (Không bo cong)**: Các đường line chỉ thị màu sắc bên trái (`border-left: 3px solid <color>`) được giữ thẳng tuyệt đối bằng cách triệt tiêu bán kính góc trái (`border-radius: 0 6px 6px 0; border-top-left-radius: 0; border-bottom-left-radius: 0;`), loại bỏ hiện tượng viền bị uốn lượn hình vòng cung gây chói mắt.
 - **Hộp Chỉ dẫn "⚡ Bước Tiếp Theo Con Người Cần Quyết Định"**: Hiển thị nổi bật quyết định hoặc hành động tiếp theo mà Human Architect cần thực thi theo Finite State Machine của `/dev-lifecycle`.
 - **Thanh Tiến độ Phân đoạn**: Biểu thị trực quan tỷ lệ Done (xanh lá), In Progress (cam), và Todo (xám).
+- **Quy chuẩn Màu sắc Nút Bấm Đồng nhất Giữa các Repos (Unified Button Palette Across Repos)**:
+  - **Loại bỏ hiện tượng viền cầu vồng (Rainbow border clutter)**: Tuyệt đối không dùng mỗi nút một màu viền neon khác nhau (`vàng`, `lam`, `tím`, `hồng`, v.v.) gây rối mắt cho lập trình viên.
+  - **Tone màu trung tính thanh lịch cho các nút phụ**: Toàn bộ các nút chức năng phụ (`[ 💻 Mở CLI ]`, `[ 📊 Xem Kanban ]`, `[ 🧠 Xem Contexts ]`, `[ 🔬 Review ]`, `[ 🛡️ Review ]`) sử dụng chung kiểu dáng slate tối giản (`background: #1e293b; border: 1px solid #334155; color: #cbd5e1; hover: background: #334155; border-color: #64748b; color: #ffffff;`).
+  - **Nút Primary CTA đồng nhất**: Nút `[ 🚀 Mở IDE ]` sử dụng màu xanh primary chuẩn (`background: #2563eb; border: 1px solid #3b82f6; color: #ffffff;`) đồng nhất trên toàn bộ các repo cards.
+  - **Phân tách ranh giới nhận diện repo**: Màu sắc đại diện cho repo từ `.vscode/settings.json` (`#b45309`, `#7f1d1d`, `#065f46`, `#0d47a1`) chỉ được áp dụng cho viền ngoài thẻ (card border), bóng glow và badge định danh repo/profile (`@hau`, `@buivantrong8901`, `@danhdue`, `@tess`), giữ cho khu vực thanh công cụ thao tác bên trong thẻ luôn đồng nhất, êm dịu và tập trung cao độ.
 - **Bản Đồ Điều Hướng: Nút Bấm ➔ Màn Hình / Dialog Pop-up**:
   | Nút Bấm (Button) | Loại Tương Tác | Đích Đến / Dialog Hiển Thị | Chức Năng & Dữ Liệu |
   |---|---|---|---|

@@ -198,6 +198,11 @@ The Web Dashboard (`tasks_dashboard.html`) is built as a single-page reactive ap
   - **Crisp Straight Indicator Line Standard (Zero Corner Curvature)**: Colored accent lines on the left (`border-left: 3px solid <color>`) are kept perfectly straight by zeroing out the left border radii (`border-radius: 0 6px 6px 0; border-top-left-radius: 0; border-bottom-left-radius: 0;`), completely eliminating glaring curved edges.
 - **"⚡ Next Immediate Step / Human Decision" Banner**: Prominently showcases the exact decision or action required by the Human Architect as determined by the `/dev-lifecycle` Finite State Machine.
 - **Progress Bar**: Segmented progress bar indicating Done, In Progress, and Todo proportions.
+- **Unified Button Styling Palette Across Repos**:
+  - **Eliminating Rainbow Border Clutter**: Strictly avoids assigning different neon border colors (`yellow`, `cyan`, `purple`, `pink`, etc.) to adjacent buttons within the same action bar, which causes severe visual clutter.
+  - **Neutral Dark Slate for Secondary Actions**: All secondary action buttons (`[ 💻 Mở CLI ]`, `[ 📊 Xem Kanban ]`, `[ 🧠 Xem Contexts ]`, `[ 🔬 Review ]`, `[ 🛡️ Review ]`) share a cohesive, uniform dark slate styling (`background: #1e293b; border: 1px solid #334155; color: #cbd5e1; hover: background: #334155; border-color: #64748b; color: #ffffff;`).
+  - **Unified Primary Action CTA**: The `[ 🚀 Mở IDE ]` primary launch button uses a standardized primary blue styling (`background: #2563eb; border: 1px solid #3b82f6; color: #ffffff;`) consistently across all repository cards.
+  - **Repository Identity Boundary**: The repository signature color extracted from `.vscode/settings.json` (`#b45309`, `#7f1d1d`, `#065f46`, `#0d47a1`) is applied exclusively to the outer card border, container glow, and identity badge (`@hau`, `@buivantrong8901`, `@danhdue`, `@tess`), ensuring the inner action toolbar remains calm, uniform, and distraction-free for developers.
 - **Navigation & Dialog Mapping (Buttons ➔ Modals / Actions)**:
   | Button | Interaction Type | Target / Displayed Modal | Purpose & Data Payload |
   |---|---|---|---|
