@@ -203,6 +203,10 @@ The Web Dashboard (`tasks_dashboard.html`) is built as a single-page reactive ap
   - **Neutral Dark Slate for Secondary Actions**: All secondary action buttons (`[ 💻 Mở CLI ]`, `[ 📊 Xem Kanban ]`, `[ 🧠 Xem Contexts ]`, `[ 🔬 Review ]`, `[ 🛡️ Review ]`) share a cohesive, uniform dark slate styling (`background: #1e293b; border: 1px solid #334155; color: #cbd5e1; hover: background: #334155; border-color: #64748b; color: #ffffff;`).
   - **Unified Primary Action CTA**: The `[ 🚀 Mở IDE ]` primary launch button uses a standardized primary blue styling (`background: #2563eb; border: 1px solid #3b82f6; color: #ffffff;`) consistently across all repository cards.
   - **Repository Identity Boundary**: The repository signature color extracted from `.vscode/settings.json` (`#b45309`, `#7f1d1d`, `#065f46`, `#0d47a1`) is applied exclusively to the outer card border, container glow, and identity badge (`@hau`, `@buivantrong8901`, `@danhdue`, `@tess`), ensuring the inner action toolbar remains calm, uniform, and distraction-free for developers.
+- **Idea & Architecture Scratchpad Input**:
+  - Each repository card features an inline text input `[💡 Idea & Architecture Scratchpad]` allowing the developer / Human Architect to instantly jot down technical ideas, refactoring proposals, or reminders specific to that repository.
+  - Employs hybrid persistence: cached immediately in browser `localStorage` and synchronized via the dashboard daemon endpoint `/api/repos/<repo>/note` (persisting to `.devtool/IDEAS.md`).
+  - Equipped with a quick clear button `✕` and real-time auto-save indicator feedback (`Auto-saving` ➔ `Saved ✓`).
 - **Navigation & Dialog Mapping (Buttons ➔ Modals / Actions)**:
   | Button | Interaction Type | Target / Displayed Modal | Purpose & Data Payload |
   |---|---|---|---|

@@ -203,6 +203,10 @@ Giao diện Web (`tasks_dashboard.html`) được xây dựng dưới dạng ứ
   - **Tone màu trung tính thanh lịch cho các nút phụ**: Toàn bộ các nút chức năng phụ (`[ 💻 Mở CLI ]`, `[ 📊 Xem Kanban ]`, `[ 🧠 Xem Contexts ]`, `[ 🔬 Review ]`, `[ 🛡️ Review ]`) sử dụng chung kiểu dáng slate tối giản (`background: #1e293b; border: 1px solid #334155; color: #cbd5e1; hover: background: #334155; border-color: #64748b; color: #ffffff;`).
   - **Nút Primary CTA đồng nhất**: Nút `[ 🚀 Mở IDE ]` sử dụng màu xanh primary chuẩn (`background: #2563eb; border: 1px solid #3b82f6; color: #ffffff;`) đồng nhất trên toàn bộ các repo cards.
   - **Phân tách ranh giới nhận diện repo**: Màu sắc đại diện cho repo từ `.vscode/settings.json` (`#b45309`, `#7f1d1d`, `#065f46`, `#0d47a1`) chỉ được áp dụng cho viền ngoài thẻ (card border), bóng glow và badge định danh repo/profile (`@hau`, `@buivantrong8901`, `@danhdue`, `@tess`), giữ cho khu vực thanh công cụ thao tác bên trong thẻ luôn đồng nhất, êm dịu và tập trung cao độ.
+- **Ô Ghi Chú & Ý Tưởng Kiến Trúc Nhanh (Idea & Scratchpad Notes Input)**:
+  - Mỗi thẻ repo card tích hợp sẵn một ô text input tiện dụng `[💡 Ý tưởng & Ghi chú kiến trúc (Idea Scratchpad)]` cho phép lập trình viên ghi lại tức thời các ý tưởng thiết kế, đề xuất cải tiến hoặc các việc cần nhớ riêng cho từng repo.
+  - Hỗ trợ lưu trữ bền vững hai lớp (hybrid persistence): lưu trực tiếp vào `localStorage` của trình duyệt và tự động đồng bộ về endpoint `/api/repos/<repo>/note` (ghi vào tệp `.devtool/IDEAS.md` của repo).
+  - Tích hợp nút xoá nhanh `✕` và phản hồi trạng thái lưu tự động thời gian thực (`Tự động lưu` ➔ `Đã lưu ✓`).
 - **Bản Đồ Điều Hướng: Nút Bấm ➔ Màn Hình / Dialog Pop-up**:
   | Nút Bấm (Button) | Loại Tương Tác | Đích Đến / Dialog Hiển Thị | Chức Năng & Dữ Liệu |
   |---|---|---|---|
