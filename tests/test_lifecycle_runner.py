@@ -336,6 +336,149 @@ class TestLifecycleRunner_Integration(unittest.TestCase):
                         proposal = self.root / ".devtool" / "epic" / self.epic_slug / "principal_fix_proposal_round1.md"
                         self.assertTrue(proposal.is_file())
 
+    def test_alr_fr_02(self) -> None:
+        """[ALR-FR-02] Circuit Breaker halts immediately on repeated fix loop."""
+        runner = LifecycleRunner(root=self.root, epic_slug=self.epic_slug)
+
+        mock_triage = (
+            "## Auto-Triage Gate\n\n"
+            "- **Action**: CIRCUIT_BREAKER_HALT (FIX_LOOP)\n"
+            "- **Round**: 2 / 3\n"
+            "- **Directive**: Fix Loop detected across consecutive rounds on src/app.py\n"
+        )
+        with patch("subprocess.run") as mock_run:
+            mock_proc = MagicMock()
+            mock_proc.returncode = 0
+            mock_proc.stdout = mock_triage
+            mock_run.return_value = mock_proc
+
+            ok = runner.step_cross_model_review()
+            self.assertFalse(ok)
+            self.assertEqual(runner.state.active_stage, StageName.HALTED.value)
+            self.assertEqual(runner.state.halt_reason, "CIRCUIT_BREAKER_HALT (FIX_LOOP)")
+
+    def test_alr_fr_04(self) -> None:
+        """[ALR-FR-04] AI Assistant rejects fix plan with CRITICAL_CONFLICT and halts pipeline."""
+        runner = LifecycleRunner(root=self.root, epic_slug=self.epic_slug)
+
+        mock_triage = (
+            "## Auto-Triage Gate\n\n"
+            "- **Action**: AUTO_FIX_ELIGIBLE\n"
+            "- **Round**: 1 / 3\n"
+            "- **Directive**: 1 Critical finding.\n"
+        )
+        with patch("subprocess.run") as mock_run:
+            mock_proc = MagicMock()
+            mock_proc.returncode = 0
+            mock_proc.stdout = mock_triage
+            mock_run.return_value = mock_proc
+
+            with patch.object(runner, "_draft_fix_plan", return_value="Draft fix plan"):
+                with patch.object(
+                    runner,
+                    "evaluate_programmer_fix_plan",
+                    return_value=(
+                        FixPlanVerdict.CRITICAL_CONFLICT,
+                        "Attempted unilateral contract modification",
+                    ),
+                ):
+                    ok = runner.step_cross_model_review()
+                    self.assertFalse(ok)
+                    self.assertEqual(runner.state.active_stage, StageName.HALTED.value)
+                    self.assertIn("CRITICAL_CONFLICT", str(runner.state.halt_reason))
+
+    def test_alr_ec_03(self) -> None:
+        """[ALR-EC-03] AI Assistant adjusts AI Programmer fix plan without rejecting."""
+        runner = LifecycleRunner(root=self.root, epic_slug=self.epic_slug)
+
+        mock_triage_r1 = (
+            "## Auto-Triage Gate\n\n"
+            "- **Action**: AUTO_FIX_ELIGIBLE\n"
+            "- **Round**: 1 / 3\n"
+            "- **Directive**: 1 Important finding.\n"
+        )
+        mock_triage_r2 = (
+            "## Auto-Triage Gate\n\n"
+            "- **Action**: AUTO_PASS_CLEAN\n"
+            "- **Round**: 2 / 3\n"
+            "- **Directive**: 0 findings. Stage review passed cleanly.\n"
+        )
+
+        with patch("subprocess.run") as mock_run:
+            mock_proc_r1 = MagicMock()
+            mock_proc_r1.returncode = 0
+            mock_proc_r1.stdout = mock_triage_r1
+
+            mock_proc_r2 = MagicMock()
+            mock_proc_r2.returncode = 0
+            mock_proc_r2.stdout = mock_triage_r2
+
+            mock_run.side_effect = [mock_proc_r1, mock_proc_r1, mock_proc_r2, mock_proc_r2]
+
+            with patch.object(runner, "_draft_fix_plan", return_value="Draft fix plan"):
+                with patch.object(
+                    runner,
+                    "evaluate_programmer_fix_plan",
+                    return_value=(
+                        FixPlanVerdict.ADJUSTED,
+                        "Add edge-case assertion for null payload",
+                    ),
+                ):
+                    with patch.object(runner, "_apply_code_fixes") as mock_apply:
+                        with patch.object(runner, "_record_review_decisions"):
+                            with patch.object(runner, "run_gate4", return_value=(True, "Gate 4 PASS")):
+                                ok = runner.step_cross_model_review()
+                                self.assertTrue(ok)
+                                self.assertEqual(runner.state.last_verdict, FixPlanVerdict.ADJUSTED.value)
+                                mock_apply.assert_called_once()
+                                self.assertIn("Add edge-case assertion", mock_apply.call_args[1].get("plan_text", ""))
+
+    def test_alr_hp_04(self) -> None:
+        """[ALR-HP-04] AI Assistant approves AI Programmer fix plan in Cross-Model Review without Human stop."""
+        runner = LifecycleRunner(root=self.root, epic_slug=self.epic_slug)
+
+        mock_triage_r1 = (
+            "## Auto-Triage Gate\n\n"
+            "- **Action**: AUTO_FIX_ELIGIBLE\n"
+            "- **Round**: 1 / 3\n"
+            "- **Directive**: 1 Critical finding.\n"
+        )
+        mock_triage_r2 = (
+            "## Auto-Triage Gate\n\n"
+            "- **Action**: AUTO_PASS_CLEAN\n"
+            "- **Round**: 2 / 3\n"
+            "- **Directive**: 0 findings. Stage review passed cleanly.\n"
+        )
+
+        with patch("subprocess.run") as mock_run:
+            mock_proc_r1 = MagicMock()
+            mock_proc_r1.returncode = 0
+            mock_proc_r1.stdout = mock_triage_r1
+
+            mock_proc_r2 = MagicMock()
+            mock_proc_r2.returncode = 0
+            mock_proc_r2.stdout = mock_triage_r2
+
+            mock_run.side_effect = [mock_proc_r1, mock_proc_r1, mock_proc_r2, mock_proc_r2]
+
+            with patch.object(runner, "_draft_fix_plan", return_value="Draft fix plan"):
+                with patch.object(
+                    runner,
+                    "evaluate_programmer_fix_plan",
+                    return_value=(
+                        FixPlanVerdict.APPROVED,
+                        "Fix plan adheres to HLD",
+                    ),
+                ):
+                    with patch.object(runner, "_apply_code_fixes") as mock_apply:
+                        with patch.object(runner, "_record_review_decisions"):
+                            with patch.object(runner, "run_gate4", return_value=(True, "Gate 4 PASS")):
+                                ok = runner.step_cross_model_review()
+                                self.assertTrue(ok)
+                                self.assertEqual(runner.state.active_stage, StageName.AWAITING_FINISH.value)
+                                self.assertEqual(runner.state.last_verdict, FixPlanVerdict.APPROVED.value)
+                                mock_apply.assert_called_once()
+
 
 if __name__ == "__main__":
     unittest.main()

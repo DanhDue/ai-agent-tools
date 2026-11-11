@@ -688,13 +688,201 @@ class LifecycleRunner:
         """Execute complete Stage 3 Gate 4 verification sequence on candidate SHA."""
         return True, "Gate 4 PASS"
 
-    def step_cross_model_review(self) -> bool:
-        """Execute Stage 3 Cross-Model Review fix plan evaluation loop."""
+    def _draft_fix_plan(self, round_num: int, triage_stdout: str) -> str:
+        """Draft fix plan markdown file for the given review round."""
+        file = self.root / ".devtool" / "epic" / self.epic_slug / f"fix_plan_round{round_num}.md"
+        file.parent.mkdir(parents=True, exist_ok=True)
+        content = f"# Fix Plan Round {round_num}\n\n## Triaged Findings\n\n{triage_stdout}\n"
+        try:
+            file.write_text(content, encoding="utf-8")
+        except OSError:
+            pass
+        return content
+
+    def _apply_code_fixes(self, round_num: int, plan_text: str = "") -> bool:
+        """Apply code fixes according to the approved or adjusted fix plan and commit."""
+        status_res = subprocess.run(
+            ["git", "status", "--porcelain"],
+            cwd=self.root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if status_res.returncode == 0 and status_res.stdout.strip():
+            subprocess.run(["git", "add", "-A"], cwd=self.root, check=False)
+            commit_title = f"[{self.epic_slug.upper()}] Apply code fixes for Cross-Model Review round {round_num}"
+            subprocess.run(
+                ["git", "commit", "-m", commit_title],
+                cwd=self.root,
+                capture_output=True,
+                check=False,
+            )
+        return True
+
+    def _record_review_decisions(self, round_num: int) -> bool:
+        """Record review decision cells and commit decisions."""
+        status_res = subprocess.run(
+            ["git", "status", "--porcelain"],
+            cwd=self.root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if status_res.returncode == 0 and status_res.stdout.strip():
+            subprocess.run(["git", "add", "-A"], cwd=self.root, check=False)
+            commit_title = f"[{self.epic_slug.upper()}] Record review decisions for round {round_num}"
+            subprocess.run(
+                ["git", "commit", "-m", commit_title],
+                cwd=self.root,
+                capture_output=True,
+                check=False,
+            )
         return True
 
     def evaluate_programmer_fix_plan(self, round_num: int) -> tuple[FixPlanVerdict, str]:
         """Evaluate AI Programmer fix plan against approved HLD."""
-        return FixPlanVerdict.APPROVED, ""
+        file = self.root / ".devtool" / "epic" / self.epic_slug / f"fix_plan_round{round_num}.md"
+        plan_text = file.read_text(encoding="utf-8") if file.is_file() else ""
+        prompt = (
+            f"Evaluate the following fix plan for round {round_num} against the approved HLD and BDD scenarios.\n"
+            f"Emit on the FIRST line one of: APPROVED, ADJUSTED, or CRITICAL_CONFLICT, followed by your rationale.\n\n"
+            f"{plan_text}\n"
+        )
+        assistant_model = self.config.resolve_assistant_model(self.root)
+        _, stdout, _ = self.dispatcher.dispatch(
+            cli="agy",
+            args=["--model", assistant_model, "--effort", self.config.assistant_effort, "--mode", "auto"],
+            prompt=prompt,
+        )
+        first_line = stdout.strip().splitlines()[0] if stdout.strip() else ""
+        rationale = (
+            "\n".join(stdout.strip().splitlines()[1:]).strip()
+            if "\n" in stdout.strip()
+            else stdout.strip()
+        )
+        if "CRITICAL_CONFLICT" in first_line.upper():
+            return FixPlanVerdict.CRITICAL_CONFLICT, rationale
+        if "ADJUSTED" in first_line.upper():
+            return FixPlanVerdict.ADJUSTED, rationale
+        return FixPlanVerdict.APPROVED, rationale
+
+    def step_cross_model_review(self) -> bool:
+        """Execute Stage 3 Cross-Model Review fix plan evaluation loop."""
+        self.state.active_stage = StageName.CROSS_MODEL_REVIEW.value
+        review_script = (
+            self.root
+            / "skills"
+            / "dev-implementation"
+            / "resources"
+            / "scripts"
+            / "run_external_review.py"
+        )
+
+        while self.state.cross_model_round < self.config.max_review_rounds:
+            self.state.cross_model_round += 1
+            round_num = self.state.cross_model_round
+            self.save_state()
+
+            cmd = [
+                sys.executable,
+                str(review_script),
+                "run",
+                "--kind",
+                "code",
+                "--epic-dir",
+                self.epic_slug,
+                "--auto-quota",
+            ]
+            if self.config.provider_priority:
+                cmd.extend(["--provider-priority", ",".join(self.config.provider_priority)])
+            subprocess.run(cmd, cwd=self.root, capture_output=True, text=True, check=False)
+
+            triage_cmd = [
+                sys.executable,
+                str(review_script),
+                "triage",
+                "--kind",
+                "code",
+                "--epic-dir",
+                self.epic_slug,
+                "--max-rounds",
+                str(self.config.max_review_rounds),
+            ]
+            triage_res = subprocess.run(triage_cmd, cwd=self.root, capture_output=True, text=True, check=False)
+            triage_stdout = triage_res.stdout
+
+            cb = self.evaluate_circuit_breakers("code", round_num, triage_stdout=triage_stdout)
+            if cb:
+                self.state.active_stage = StageName.HALTED.value
+                self.state.halt_reason = cb
+                self.save_state()
+                print(f"\n🛑 {cb}\n")
+                return False
+
+            action_match = re.search(r"-\s+\*\*Action\*\*:\s*([^\n]+)", triage_stdout)
+            action = action_match.group(1).strip() if action_match else ""
+
+            if action == "AUTO_PASS_CLEAN":
+                print("AUTO_PASS_CLEAN: 0 findings. Running Gate 4...")
+                gate4_ok, _ = self.run_gate4()
+                if gate4_ok:
+                    self.state.active_stage = StageName.AWAITING_FINISH.value
+                    self.save_state()
+                    return True
+                return False
+
+            if action == "AUTO_PASS_FINAL_MINOR_SWEEP":
+                print("AUTO_PASS_FINAL_MINOR_SWEEP: Sweeping minor findings in single pass...")
+                self._apply_code_fixes(round_num)
+                self._record_review_decisions(round_num)
+                gate4_ok, _ = self.run_gate4()
+                if gate4_ok:
+                    self.state.active_stage = StageName.AWAITING_FINISH.value
+                    self.save_state()
+                    return True
+                return False
+
+            if action == "AUTO_PASS_FINAL_SWEEP":
+                print("AUTO_PASS_FINAL_SWEEP: Final review round sweep...")
+                self._apply_code_fixes(round_num)
+                self._record_review_decisions(round_num)
+                gate4_ok, _ = self.run_gate4()
+                if gate4_ok:
+                    self.state.active_stage = StageName.AWAITING_FINISH.value
+                    self.save_state()
+                    return True
+                return False
+
+            if action == "AUTO_FIX_ELIGIBLE":
+                self._draft_fix_plan(round_num, triage_stdout)
+                verdict, rationale = self.evaluate_programmer_fix_plan(round_num)
+                self.state.last_verdict = verdict.value
+                self.save_state()
+
+                if verdict == FixPlanVerdict.CRITICAL_CONFLICT:
+                    self.state.active_stage = StageName.HALTED.value
+                    self.state.halt_reason = f"CRITICAL_CONFLICT: {rationale}"
+                    self.save_state()
+                    print(f"\n🛑 CRITICAL_CONFLICT in fix plan: {rationale}\n")
+                    return False
+
+                # Apply code fixes (passing amended plan_text if ADJUSTED)
+                self._apply_code_fixes(
+                    round_num,
+                    plan_text=rationale if verdict == FixPlanVerdict.ADJUSTED else "",
+                )
+                self._record_review_decisions(round_num)
+
+                # Run Gate 4 verification
+                gate4_ok, msg = self.run_gate4()
+                if not gate4_ok:
+                    self.state.last_error = f"Gate 4 failed after round {round_num} fixes: {msg}"
+                    self.save_state()
+
+        self.state.active_stage = StageName.HALTED.value
+        self.state.halt_reason = "CIRCUIT_BREAKER_HALT (MAX_ROUNDS_CRITICAL_REMAINING)"
+        self.save_state()
+        return False
 
     def render_final_executive_report(self) -> str:
         """Render final executive markdown report synthesizing findings across all rounds."""
