@@ -224,6 +224,7 @@ The Web Dashboard (`tasks_dashboard.html`) is built as a single-page reactive ap
     - **Clear Button `[ ✕ Xoá ]`**: Resets and clears notes once all items are completed.
     - **Automatic Persistence**: Automatically syncs changes to browser `localStorage` (`check_tasks_antigravity_note_<repo>`).
 - **Navigation & Dialog Mapping (Buttons ➔ Modals / Actions)**:
+  - Supports 3 intuitive modal closing mechanisms: (1) Clicking the top-right `[ ✕ ]` close button, (2) **Clicking outside on the backdrop overlay**, and (3) Pressing the **`Escape` (`Esc`)** keyboard key.
   | Button | Interaction Type | Target / Displayed Modal | Purpose & Data Payload |
   |---|---|---|---|
   | `[ 💻 Mở CLI ]` | OS Action (AppleScript) | Launches new Terminal / iTerm2 tab | Executes profile subshell `ag_run <profile> cli` in worktree directory |

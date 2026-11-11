@@ -224,6 +224,7 @@ Giao diện Web (`tasks_dashboard.html`) được xây dựng dưới dạng ứ
     - **Nút `[ ✕ Xoá ]`**: Dọn dẹp/xoá ghi chú khi đã thực hiện xong các hạng mục.
     - **Lưu trữ tự động**: Tự động lưu tức thời vào `localStorage` (`check_tasks_antigravity_note_<repo>`).
 - **Bản Đồ Điều Hướng: Nút Bấm ➔ Màn Hình / Dialog Pop-up**:
+  - Hỗ trợ 3 cơ chế đóng modal trực quan: (1) Bấm nút `[ ✕ ]` góc trên bên phải, (2) **Click ra vùng nền mờ bên ngoài (Click outside backdrop overlay)**, và (3) Nhấn phím **`Escape` (`Esc`)** trên bàn phím.
   | Nút Bấm (Button) | Loại Tương Tác | Đích Đến / Dialog Hiển Thị | Chức Năng & Dữ Liệu |
   |---|---|---|---|
   | `[ 💻 Mở CLI ]` | Hành vi OS (AppleScript) | Mở tab Terminal / iTerm2 mới | Kích hoạt subshell profile `ag_run <profile> cli` trỏ thẳng vào worktree |
