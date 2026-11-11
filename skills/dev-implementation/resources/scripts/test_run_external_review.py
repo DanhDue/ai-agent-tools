@@ -194,7 +194,7 @@ class RunExternalReviewTest(ReviewCase):
         self.install("claude")
         code, _, _ = self.run_review(cli="claude", mode="minor")
         self.assertEqual(code, 0)
-        self.assertEqual(self.args.read_text().split(), ["-p", "--dangerously-skip-permissions", "--effort", "high", "--model", "Opus", "5.5"])
+        self.assertEqual(self.args.read_text().split(), ["-p", "--dangerously-skip-permissions", "--effort", "high", "--model", "opus"])
         text = self.text()
         self.assertIn("- **Model**: Opus 5.5", text)
         self.assertIn("- **Thinking**: high", text)
