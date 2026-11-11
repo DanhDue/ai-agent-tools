@@ -522,6 +522,48 @@ class LifecycleRunner:
 
     def _apply_minor_fixes(self, round_num: int) -> bool:
         """Apply minor review revisions and commit changes."""
+        prompt = (
+            f"You are the AI Assistant (Role 2.2). Apply minor revisions for Principal Review round {round_num}.\n"
+            f"Update the architectural specifications in .devtool/epic/{self.epic_slug}/ to address all minor review findings.\n"
+        )
+        self.dispatcher.dispatch(
+            cli="agy",
+            args=["--model", self.config.resolve_assistant_model(self.root), "--effort", self.config.assistant_effort, "--mode", "accept-edits"],
+            prompt=prompt,
+        )
+        file = self.root / ".devtool" / "epic" / self.epic_slug / "principal_review.md"
+        if file.is_file():
+            content = file.read_text(encoding="utf-8")
+            rev_res = subprocess.run(
+                ["git", "rev-parse", "HEAD"],
+                cwd=self.root,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            sha_short = rev_res.stdout.strip()[:7] if rev_res.returncode == 0 else "unknown"
+            lines = content.splitlines()
+            in_target_round = False
+            in_raw_output = False
+            new_lines = []
+            for line in lines:
+                if line.startswith(f"## Round {round_num}"):
+                    in_target_round = True
+                elif line.startswith("## Round "):
+                    in_target_round = False
+                if in_target_round:
+                    if line.startswith("Raw output:"):
+                        in_raw_output = True
+                    if not in_raw_output and re.match(r"^\|\s*\d+\s*\|", line):
+                        parts = line.split("|")
+                        if len(parts) >= 6:
+                            current_dec = parts[-2].strip()
+                            if not current_dec.startswith(("fixed in ", "dismissed: ")):
+                                parts[-2] = f" fixed in {sha_short} "
+                                line = "|".join(parts)
+                new_lines.append(line)
+            file.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
+
         status_res = subprocess.run(
             ["git", "status", "--porcelain"],
             cwd=self.root,
@@ -542,6 +584,48 @@ class LifecycleRunner:
 
     def _apply_aligned_fixes(self, round_num: int) -> bool:
         """Apply aligned technical revisions and commit changes."""
+        prompt = (
+            f"You are the AI Assistant (Role 2.2). Apply aligned technical revisions for Principal Review round {round_num}.\n"
+            f"Update the architectural specifications in .devtool/epic/{self.epic_slug}/ to align with verified findings.\n"
+        )
+        self.dispatcher.dispatch(
+            cli="agy",
+            args=["--model", self.config.resolve_assistant_model(self.root), "--effort", self.config.assistant_effort, "--mode", "accept-edits"],
+            prompt=prompt,
+        )
+        file = self.root / ".devtool" / "epic" / self.epic_slug / "principal_review.md"
+        if file.is_file():
+            content = file.read_text(encoding="utf-8")
+            rev_res = subprocess.run(
+                ["git", "rev-parse", "HEAD"],
+                cwd=self.root,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            sha_short = rev_res.stdout.strip()[:7] if rev_res.returncode == 0 else "unknown"
+            lines = content.splitlines()
+            in_target_round = False
+            in_raw_output = False
+            new_lines = []
+            for line in lines:
+                if line.startswith(f"## Round {round_num}"):
+                    in_target_round = True
+                elif line.startswith("## Round "):
+                    in_target_round = False
+                if in_target_round:
+                    if line.startswith("Raw output:"):
+                        in_raw_output = True
+                    if not in_raw_output and re.match(r"^\|\s*\d+\s*\|", line):
+                        parts = line.split("|")
+                        if len(parts) >= 6:
+                            current_dec = parts[-2].strip()
+                            if not current_dec.startswith(("fixed in ", "dismissed: ")):
+                                parts[-2] = f" fixed in {sha_short} "
+                                line = "|".join(parts)
+                new_lines.append(line)
+            file.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
+
         status_res = subprocess.run(
             ["git", "status", "--porcelain"],
             cwd=self.root,
@@ -921,10 +1005,20 @@ class LifecycleRunner:
         return True, "Gate 4 PASS"
 
     def _draft_fix_plan(self, round_num: int, triage_stdout: str) -> str:
-        """Draft fix plan markdown file for the given review round."""
+        """Draft fix plan markdown file for the given review round via AI Programmer dispatch."""
         file = self.root / ".devtool" / "epic" / self.epic_slug / f"fix_plan_round{round_num}.md"
         file.parent.mkdir(parents=True, exist_ok=True)
-        content = f"# Fix Plan Round {round_num}\n\n## Triaged Findings\n\n{triage_stdout}\n"
+        prompt = (
+            f"You are the AI Programmer (Role 2.3). Draft an actionable fix plan for Cross-Model Review Round {round_num}.\n"
+            f"Triage Findings:\n\n{triage_stdout}\n\n"
+            f"Specify exact file modifications, functions, and unit tests to add/update.\n"
+        )
+        code, stdout, _ = self.dispatcher.dispatch(
+            cli="agy",
+            args=["--model", self.config.programmer_model, "--effort", self.config.programmer_effort, "--mode", "plan"],
+            prompt=prompt,
+        )
+        content = stdout.strip() if (code == 0 and stdout.strip()) else f"# Fix Plan Round {round_num}\n\n## Triaged Findings\n\n{triage_stdout}\n"
         try:
             file.write_text(content, encoding="utf-8")
         except OSError:
@@ -933,6 +1027,16 @@ class LifecycleRunner:
 
     def _apply_code_fixes(self, round_num: int, plan_text: str = "") -> bool:
         """Apply code fixes according to the approved or adjusted fix plan and commit."""
+        prompt = (
+            f"You are the AI Programmer (Role 2.3). Implement the code fixes for Cross-Model Review Round {round_num}.\n"
+            f"Approved Fix Plan:\n\n{plan_text}\n\n"
+            f"Apply the changes, verify tests pass, and adhere to strict TDD.\n"
+        )
+        self.dispatcher.dispatch(
+            cli="agy",
+            args=["--model", self.config.programmer_model, "--effort", self.config.programmer_effort, "--mode", "accept-edits"],
+            prompt=prompt,
+        )
         status_res = subprocess.run(
             ["git", "status", "--porcelain"],
             cwd=self.root,
@@ -953,6 +1057,39 @@ class LifecycleRunner:
 
     def _record_review_decisions(self, round_num: int) -> bool:
         """Record review decision cells and commit decisions."""
+        file = self.root / ".devtool" / "epic" / self.epic_slug / "review_results.md"
+        if file.is_file():
+            content = file.read_text(encoding="utf-8")
+            rev_res = subprocess.run(
+                ["git", "rev-parse", "HEAD"],
+                cwd=self.root,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            sha_short = rev_res.stdout.strip()[:7] if rev_res.returncode == 0 else "unknown"
+            lines = content.splitlines()
+            in_target_round = False
+            in_raw_output = False
+            new_lines = []
+            for line in lines:
+                if line.startswith(f"## Round {round_num}"):
+                    in_target_round = True
+                elif line.startswith("## Round "):
+                    in_target_round = False
+                if in_target_round:
+                    if line.startswith("Raw output:"):
+                        in_raw_output = True
+                    if not in_raw_output and re.match(r"^\|\s*\d+\s*\|", line):
+                        parts = line.split("|")
+                        if len(parts) >= 6:
+                            current_dec = parts[-2].strip()
+                            if not current_dec.startswith(("fixed in ", "dismissed: ")):
+                                parts[-2] = f" fixed in {sha_short} "
+                                line = "|".join(parts)
+                new_lines.append(line)
+            file.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
+
         status_res = subprocess.run(
             ["git", "status", "--porcelain"],
             cwd=self.root,
