@@ -34,6 +34,34 @@ BG_GREEN = "\033[42m"
 BG_YELLOW = "\033[43m"
 
 
+CANONICAL_SECURITY_PLIST = """<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+\t<key>DLDBSearchList</key>
+\t<array>
+\t\t<dict>
+\t\t\t<key>DbName</key>
+\t\t\t<string>~/Library/Keychains/login.keychain</string>
+\t\t\t<key>GUID</key>
+\t\t\t<string>{87191ca3-0fc9-11d4-849a-000502b52122}</string>
+\t\t\t<key>SubserviceType</key>
+\t\t\t<integer>6</integer>
+\t\t</dict>
+\t\t<dict>
+\t\t\t<key>DbName</key>
+\t\t\t<string>/Library/Keychains/System.keychain</string>
+\t\t\t<key>GUID</key>
+\t\t\t<string>{87191ca3-0fc9-11d4-849a-000502b52122}</string>
+\t\t\t<key>SubserviceType</key>
+\t\t\t<integer>6</integer>
+\t\t</dict>
+\t</array>
+</dict>
+</plist>
+"""
+
+
 def get_default_homes_dir() -> str:
     current = os.path.expanduser("~")
     if "antigravity_homes" in current:
@@ -106,6 +134,45 @@ def audit_profile(p_dir: str, profile_name: str, duplicate_mid_map: dict[str, li
         except Exception:
             pass
 
+    # 4. Inspect Keychain & Identity Isolation
+    plist_path = os.path.join(p_dir, "Library/Preferences/com.apple.security.plist")
+    has_keychain_leak = False
+    has_identity_bleed = False
+
+    if profile_name != "danhdue":
+        # Check com.apple.security.plist for host path leaks
+        if os.path.exists(plist_path):
+            try:
+                with open(plist_path, "r", encoding="utf-8", errors="ignore") as f:
+                    cnt = f.read()
+                    if "/Library/Keychains/login.keychain" in cnt and "~/Library/Keychains" not in cnt:
+                        has_keychain_leak = True
+                    elif "DefaultKeychain" in cnt and "login.keychain" in cnt:
+                        has_keychain_leak = True
+            except Exception:
+                pass
+
+        # Check state.vscdb identity parity
+        vscdb_path = os.path.join(p_dir, "data/User/globalStorage/state.vscdb")
+        if os.path.exists(vscdb_path):
+            try:
+                conn = sqlite3.connect(vscdb_path)
+                c = conn.cursor()
+                c.execute("SELECT value FROM ItemTable WHERE key='google.google-antigravity'")
+                row = c.fetchone()
+                if row:
+                    v_data = json.loads(row[0])
+                    last_user = v_data.get("antigravity-storage", {}).get("agy.onboarding.lastLoginUsername", "")
+                    if last_user == "danhdue@gmail.com":
+                        has_identity_bleed = True
+                c.execute("SELECT value FROM ItemTable WHERE key='antigravityUnifiedStateSync.oauthToken'")
+                row2 = c.fetchone()
+                if row2 and "signedOut" in row2[0]:
+                    has_identity_bleed = True
+                conn.close()
+            except Exception:
+                pass
+
     # Evaluate Vulnerabilities
     is_cloned_mid = len(duplicate_mid_map.get(machine_id, [])) > 1
     has_missing_mid = machine_id in ("MISSING", "")
@@ -116,7 +183,7 @@ def audit_profile(p_dir: str, profile_name: str, duplicate_mid_map: dict[str, li
         risk_level = "BLOCKED"
     elif is_cloned_mid and has_stale_trajectories:
         risk_level = "CRITICAL"
-    elif is_cloned_mid or has_stale_trajectories or has_missing_mid:
+    elif is_cloned_mid or has_stale_trajectories or has_missing_mid or has_keychain_leak or has_identity_bleed:
         risk_level = "HIGH"
     elif has_leaked_workspaces:
         risk_level = "MEDIUM"
@@ -139,6 +206,8 @@ def audit_profile(p_dir: str, profile_name: str, duplicate_mid_map: dict[str, li
             "missing_machine_id": has_missing_mid,
             "stale_trajectories": has_stale_trajectories,
             "leaked_workspaces": has_leaked_workspaces,
+            "keychain_leak": has_keychain_leak,
+            "identity_bleed": has_identity_bleed,
             "tos_suspended": is_tos_disabled,
         },
     }
@@ -288,11 +357,72 @@ def remediate_single_profile(p_path: str, profile_name: str, seen_machine_ids: s
         except Exception:
             pass
 
+    # Sanitize com.apple.security.plist (Keychain isolation)
+    plist_dir = os.path.join(p_path, "Library/Preferences")
+    plist_path = os.path.join(plist_dir, "com.apple.security.plist")
+    repaired_plist = False
+    if profile_name != "danhdue":
+        os.makedirs(plist_dir, exist_ok=True)
+        need_plist_repair = False
+        if not os.path.exists(plist_path):
+            need_plist_repair = True
+        else:
+            try:
+                with open(plist_path, "r", encoding="utf-8", errors="ignore") as f:
+                    cnt = f.read()
+                    if "/Library/Keychains/login.keychain" in cnt and "~/Library/Keychains" not in cnt:
+                        need_plist_repair = True
+                    elif "DefaultKeychain" in cnt and "login.keychain" in cnt:
+                        need_plist_repair = True
+            except Exception:
+                need_plist_repair = True
+
+        if need_plist_repair:
+            if os.path.exists(plist_path):
+                shutil.copy2(plist_path, f"{plist_path}.bak.{timestamp}")
+            with open(plist_path, "w", encoding="utf-8") as f:
+                f.write(CANONICAL_SECURITY_PLIST)
+            repaired_plist = True
+
+    # Sanitize state.vscdb identity parity
+    vscdb_path = os.path.join(p_path, "data/User/globalStorage/state.vscdb")
+    repaired_vscdb = False
+    if os.path.exists(vscdb_path) and profile_name != "danhdue":
+        try:
+            conn = sqlite3.connect(vscdb_path)
+            c = conn.cursor()
+            c.execute("DELETE FROM ItemTable WHERE key='antigravityUnifiedStateSync.oauthToken'")
+            c.execute("SELECT value FROM ItemTable WHERE key='google.google-antigravity'")
+            row = c.fetchone()
+            if row:
+                vd = json.loads(row[0])
+                st = vd.get("antigravity-storage", {})
+                if st.get("agy.onboarding.lastLoginUsername") == "danhdue@gmail.com":
+                    token_file = os.path.join(p_path, ".gemini/jetski-standalone-oauth-token")
+                    actual_email = None
+                    if os.path.exists(token_file):
+                        try:
+                            with open(token_file) as tf:
+                                actual_email = json.load(tf).get("id_token_email")
+                        except Exception:
+                            pass
+                    if actual_email:
+                        st["agy.onboarding.lastLoginUsername"] = actual_email
+                        vd["antigravity-storage"] = st
+                        c.execute("UPDATE ItemTable SET value=? WHERE key='google.google-antigravity'", (json.dumps(vd),))
+                        repaired_vscdb = True
+            conn.commit()
+            conn.close()
+        except Exception:
+            pass
+
     return {
         "profile": profile_name,
         "new_machine_id": new_mid,
         "new_dev_id": new_dev_id,
         "purged_trajectories": purged_count,
+        "repaired_plist": repaired_plist,
+        "repaired_vscdb": repaired_vscdb,
     }
 
 
@@ -369,6 +499,10 @@ def print_audit_report(report: dict):
             findings.append(f"{data['stale_conversation_count']} foreign trajectories")
         if data["vulnerabilities"]["leaked_workspaces"]:
             findings.append("Leaked workspace paths")
+        if data["vulnerabilities"].get("keychain_leak"):
+            findings.append("Keychain host path leak")
+        if data["vulnerabilities"].get("identity_bleed"):
+            findings.append("Identity bleed (state.vscdb points to host)")
         if not findings:
             findings.append("No vulnerabilities found")
 

@@ -19,12 +19,13 @@ Activate this skill whenever you need to:
 
 ---
 
-## 2. Core Detection Vectors (The 6 Anti-Abuse Loopholes)
+## 2. Core Detection Vectors (The 7 Anti-Abuse Loopholes)
 
 | Vulnerability Vector | Risk Level | Root Cause | Google Detection Mechanism |
 |---|---|---|---|
 | **Cloned Machine ID** (`telemetry.machineId`) | **CRITICAL** | Profiles cloned from templates share identical 64-char hex SHA-256 hashes in `data/User/globalStorage/storage.json`. | Google Cloud Code Assist (`daily-cloudcode-pa.googleapis.com`) and Telemetry (`play.googleapis.com/log`) correlate multiple accounts sending the exact same `machineId` from 1 IP, flagging **Account Farming / Sybil Attacks**. |
 | **Cross-Account Trajectory Leaks** | **CRITICAL** | Cloned `conversation_summaries.db` contains trajectories belonging to the master account. | Background `conversationsearch` tries to index foreign trajectory UUIDs, generating repeated 403 `PERMISSION_DENIED` errors logged as **Unauthorized Cross-Account Access / Scraping**. |
+| **Keychain Host Leak & Identity Bleed** | **HIGH** | `com.apple.security.plist` points to host `/Library/Keychains/login.keychain` instead of `~/...`, causing `state.vscdb` to adopt host identity. | Extension host queries host keychain, sending master account OAuth tokens alongside satellite trajectory IDs or vice versa, causing immediate 403s and session hijacking flags. |
 | **Burst Concurrency Rate Limit** | **HIGH** | `ThreadPoolExecutor(max_workers=6)` querying all accounts simultaneously without delay. | Burst spikes of 23 accounts connecting concurrently from the same residential IP trigger IP-level anti-bot throttling. |
 | **Artificial Keep-Alive Prompts** | **HIGH** | Scripted activation or refresh using constant 1-character prompts (`agy -p "1"`). | Google AI Abuse models detect repetitive single-token requests without IDE context, typing latency, or code edit telemetry. |
 | **Zero-Jitter Periodic Schedules** | **MEDIUM** | Scheduled tasks triggering at the exact second `00` (e.g. `05:30:00`). | Clock-synchronized machine periodicity without human jitter. |

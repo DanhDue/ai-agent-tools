@@ -104,10 +104,41 @@ class TestAuditAccountBlock(unittest.TestCase):
         self.assertFalse(report["profiles"]["prof_clean"]["vulnerabilities"]["leaked_workspaces"])
         self.assertTrue(report["profiles"]["prof_leaky"]["vulnerabilities"]["leaked_workspaces"])
 
+    def test_audit_detects_keychain_leak_and_identity_bleed(self):
+        p_dir = self._create_mock_profile("prof_keychain_leak", machine_id="mid_kc")
+        # Add leaked plist
+        plist_dir = os.path.join(p_dir, "Library/Preferences")
+        os.makedirs(plist_dir, exist_ok=True)
+        with open(os.path.join(plist_dir, "com.apple.security.plist"), "w") as f:
+            f.write('<key>DbName</key><string>/Users/danhdueexoictif/Library/Keychains/login.keychain</string>')
+
+        # Add identity bleed in state.vscdb
+        vscdb_dir = os.path.join(p_dir, "data/User/globalStorage")
+        vscdb_path = os.path.join(vscdb_dir, "state.vscdb")
+        conn = sqlite3.connect(vscdb_path)
+        cur = conn.cursor()
+        cur.execute("CREATE TABLE ItemTable (key TEXT PRIMARY KEY, value TEXT)")
+        cur.execute("INSERT INTO ItemTable VALUES ('google.google-antigravity', '{\"antigravity-storage\": {\"agy.onboarding.lastLoginUsername\": \"danhdue@gmail.com\"}}')")
+        cur.execute("INSERT INTO ItemTable VALUES ('antigravityUnifiedStateSync.oauthToken', '{\"state\": \"signedOut\"}')")
+        conn.commit()
+        conn.close()
+
+        report = auditor.audit_all_profiles(self.homes_dir)
+        prof_data = report["profiles"]["prof_keychain_leak"]
+        self.assertTrue(prof_data["vulnerabilities"]["keychain_leak"])
+        self.assertTrue(prof_data["vulnerabilities"]["identity_bleed"])
+        self.assertEqual(prof_data["risk_level"], "HIGH")
+
     def test_remediation_fixes_all_vulnerabilities(self):
-        # Create 2 leaky, cloned profiles
-        self._create_mock_profile("p1", machine_id="shared", dev_id="dev_shared", conv_ids=["c1", "c2"], local_convs=["c1"], has_leaked_workspaces=True)
-        self._create_mock_profile("p2", machine_id="shared", dev_id="dev_shared", conv_ids=["c1", "c2"], local_convs=["c2"], has_leaked_workspaces=True)
+        # Create 2 leaky, cloned profiles with keychain leaks
+        p1 = self._create_mock_profile("p1", machine_id="shared", dev_id="dev_shared", conv_ids=["c1", "c2"], local_convs=["c1"], has_leaked_workspaces=True)
+        p2 = self._create_mock_profile("p2", machine_id="shared", dev_id="dev_shared", conv_ids=["c1", "c2"], local_convs=["c2"], has_leaked_workspaces=True)
+
+        for p in [p1, p2]:
+            plist_dir = os.path.join(p, "Library/Preferences")
+            os.makedirs(plist_dir, exist_ok=True)
+            with open(os.path.join(plist_dir, "com.apple.security.plist"), "w") as f:
+                f.write('<key>DbName</key><string>/Users/danhdueexoictif/Library/Keychains/login.keychain</string>')
 
         # Before remediation: audit should fail clean check
         report_before = auditor.audit_all_profiles(self.homes_dir)
@@ -124,6 +155,8 @@ class TestAuditAccountBlock(unittest.TestCase):
         self.assertEqual(report_after["profiles"]["p2"]["stale_conversation_count"], 0)
         self.assertFalse(report_after["profiles"]["p1"]["vulnerabilities"]["leaked_workspaces"])
         self.assertFalse(report_after["profiles"]["p2"]["vulnerabilities"]["leaked_workspaces"])
+        self.assertFalse(report_after["profiles"]["p1"]["vulnerabilities"]["keychain_leak"])
+        self.assertFalse(report_after["profiles"]["p2"]["vulnerabilities"]["keychain_leak"])
         self.assertNotEqual(
             report_after["profiles"]["p1"]["machine_id"],
             report_after["profiles"]["p2"]["machine_id"]

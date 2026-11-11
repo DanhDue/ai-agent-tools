@@ -132,6 +132,55 @@ def remediate():
             except Exception as e:
                 print(f"  [WARN] Error cleaning conversation_summaries.db: {e}")
 
+        # 3.1 Sanitize com.apple.security.plist (Keychain isolation)
+        plist_dir = os.path.join(h, "Library/Preferences")
+        plist_path = os.path.join(plist_dir, "com.apple.security.plist")
+        if profile != "danhdue":
+            os.makedirs(plist_dir, exist_ok=True)
+            need_repair = False
+            if not os.path.exists(plist_path):
+                need_repair = True
+            else:
+                try:
+                    with open(plist_path, "r", encoding="utf-8", errors="ignore") as pf:
+                        pcnt = pf.read()
+                        if "/Library/Keychains/login.keychain" in pcnt and "~/Library/Keychains" not in pcnt:
+                            need_repair = True
+                        elif "DefaultKeychain" in pcnt:
+                            need_repair = True
+                except Exception:
+                    need_repair = True
+            if need_repair:
+                canonical_plist = """<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+\t<key>DLDBSearchList</key>
+\t<array>
+\t\t<dict>
+\t\t\t<key>DbName</key>
+\t\t\t<string>~/Library/Keychains/login.keychain</string>
+\t\t\t<key>GUID</key>
+\t\t\t<string>{87191ca3-0fc9-11d4-849a-000502b52122}</string>
+\t\t\t<key>SubserviceType</key>
+\t\t\t<integer>6</integer>
+\t\t</dict>
+\t\t<dict>
+\t\t\t<key>DbName</key>
+\t\t\t<string>/Library/Keychains/System.keychain</string>
+\t\t\t<key>GUID</key>
+\t\t\t<string>{87191ca3-0fc9-11d4-849a-000502b52122}</string>
+\t\t\t<key>SubserviceType</key>
+\t\t\t<integer>6</integer>
+\t\t</dict>
+\t</array>
+</dict>
+</plist>
+"""
+                with open(plist_path, "w", encoding="utf-8") as pf:
+                    pf.write(canonical_plist)
+                print(f"  ✓ Sanitized com.apple.security.plist (Keychain isolation enforced)")
+
         # 4. Enforce state.vscdb identity parity with Keychain token
         vscdb_path = os.path.join(h, "data/User/globalStorage/state.vscdb")
         kc_path = os.path.join(h, "Library/Keychains", f"{profile}.keychain-db")
