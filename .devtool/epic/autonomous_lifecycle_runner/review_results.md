@@ -114,3 +114,46 @@ Raw output:
 
 Verdict: CHANGES REQUIRED
 ````
+
+## Round 3
+
+- **Date**: 2026-11-11T01:13:32Z
+- **SHA**: f122fd366d0e1b9049caeab7d75fea40101f2c1d
+- **Base**: main
+- **CLI**: claude
+- **Model**: sonnet
+- **Thinking**: high
+- **Status**: completed
+- **Verdict**: PASS
+- **Scope**: convergence from round 2 (3af5b8e)
+
+| # | Severity | Location | Problem | Decision |
+|---|----------|----------|---------|----------|
+
+Raw output:
+
+```text
+## Review: autonomous_lifecycle_runner (candidate f122fd3) — Round 3 Convergence
+
+### Verify-Then-Close on Round 2 findings
+
+**Finding 1 (Critical, `--roots` missing on `check_bdd_traceability.py` call)**: resolved. `run_gate4` now builds `bdd_cmd = [sys.executable, str(bdd_script), "tests", "--roots", "tests"]` (lifecycle_runner.py:1003), and the facts show the real invocation exits 0 with 17/17 scenarios covered. Closing silently.
+
+**Finding 2 (Important, stale `fixed in <sha>` attribution in `_apply_minor_fixes`/`_apply_aligned_fixes`)**: resolved. Both methods were restructured into three explicit steps — (1) `git add -A` + commit the dispatch's edits, (2) `git rev-parse HEAD` *after* that commit to get `sha_short`, (3) write the decision cells and commit `principal_review.md` separately. I traced this by hand: step 1's commit happens before step 2 reads HEAD, so `sha_short` now correctly names the commit that contains the fix, not the parent. I also checked the sibling path (`_record_review_decisions`, used by the Cross-Model Review loop at lines 1260/1271/1297) — it was never affected by this bug because its caller already invokes `_apply_code_fixes` (which commits) before `_record_review_decisions` runs and reads HEAD, so the ordering there was already correct. Closing silently.
+
+### New regressions in this round's diff (`3af5b8e..f122fd3`)
+
+None found. The only source change in this range is the `_apply_minor_fixes`/`_apply_aligned_fixes` restructuring (499fcae) plus the `--roots`/`--results` addition to the Gate 4 BDD call (499fcae); f122fd3 itself touches only `review_results.md` (decision recording, no code). I re-ran the full suite (`python3 -m unittest tests/test_lifecycle_runner.py`, 19/19 OK) and confirmed the restructured commit/decision flow matches the commits actually produced (499fcae → code fix, f122fd3 → decisions-only commit), consistent with the "Previously Fixed Locations Registry."
+
+One observation, not a new regression: neither `_apply_minor_fixes` nor `_apply_aligned_fixes` has a dedicated unit test exercising the three-step commit/SHA-capture logic directly — tests at lines 274/340 mock these methods out entirely, same pattern Round 1 noted generally. This gap predates this diff (the bug these methods just fixed was never caught by a test either), so it's not an incomplete fix or a new regression under the Round 3 scope rule; noting it for the record only.
+
+### Gate 5 items (restated for the developer)
+
+- Task 1: state persistence/recovery — unaffected by this round's diff.
+- Task 2: zero orphan processes on timeout — unaffected.
+- Task 3: human checkpoint / circuit breaker determinism — unaffected; the Principal Review decision-recording fix strengthens the audit trail these checkpoints rely on.
+- Task 4: Assistant evaluation preventing unauthorized reversions — unaffected.
+- Task 5: document checks across modified skills/bilingual docs — unaffected.
+
+Verdict: PASS
+```
