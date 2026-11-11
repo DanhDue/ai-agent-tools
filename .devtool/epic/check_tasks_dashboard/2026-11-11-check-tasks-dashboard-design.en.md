@@ -207,9 +207,16 @@ The Web Dashboard (`tasks_dashboard.html`) is built as a single-page reactive ap
   - **Drag Handle `[ ⠿ ]`**: Placed next to each repository card title, empowering developers to freely reorder project cards via native HTML5 drag-and-drop to position their most urgent repositories on top.
   - **Move to Top Button `[ 📌 Lên đầu ]`**: Single-click action that instantly moves the selected project to the very top of the dashboard with a smooth highlight glow animation.
   - **Persistent Priority Order**: The custom card ordering is automatically saved to `localStorage` (`check_tasks_repos_order`), ensuring the dashboard reliably remembers the developer's prioritized project arrangement across reloads.
+- **Integrated Worktree Branch Badge in Header**:
+  - The git worktree branch identifier (`feat/...`) is neatly presented as a monospace badge (`font-family: monospace; background: #1e293b; color: #94a3b8`) directly beside the Epic title in the card Header.
+  - Completely eliminates intrusive worktree path lines between or below the notes, keeping the card compact and allowing the Notes container to connect directly with the Metrics grid.
+- **Drag & Drop Reordering & Pin to Top for Focused Project**:
+  - **Drag Handle `[ ⠿ ]`**: Placed next to each repository card title, empowering developers to freely reorder project cards via native HTML5 drag-and-drop to position their most urgent repositories on top.
+  - **Move to Top Button `[ 📌 Lên đầu ]`**: Single-click action that instantly moves the selected project to the very top of the dashboard with a smooth highlight glow animation.
+  - **Persistent Priority Order**: The custom card ordering is automatically saved to `localStorage` (`check_tasks_repos_order`), ensuring the dashboard reliably remembers the developer's prioritized project arrangement across reloads.
 - **Antigravity Input Box & Auto-Indexing Notes (`1. `, `2. `)**:
   - **Concise Naming**: Standardized strictly as **`📝 Notes`** for clean, distraction-free visual clarity.
-  - **Structural Position**: Positioned at the **top of the card**, directly below the repo/epic title and **above the worktree info** (`🌲 Worktree: ...`).
+  - **Structural Position**: Positioned as a single independent box at the **top of the card**, directly below the repo/epic title and connecting directly to the Metrics grid.
   - **Antigravity IDE Design Fidelity**: Dark charcoal container with smooth rounded corners (`background: #141720; border: 1px solid #2d3748; border-radius: 10px; padding: 10px 14px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.5)`), activating an azure focus glow (`rgba(56, 189, 248, 0.25)`) when editing.
   - **Auto-Indexing Mechanics (`1. `, `2. `)**: When typing a numbered item (e.g. `1. Perform step A.`) and pressing `Enter`, the editor automatically breaks to a new line and prepends `2. ` while preserving indentation. Pressing `Enter` on an empty numbered bullet (e.g. bare `2. `) automatically removes the prefix and exits list mode gracefully. Supports `Tab` for 2-space indentation.
   - **One-Click Action Utilities**:

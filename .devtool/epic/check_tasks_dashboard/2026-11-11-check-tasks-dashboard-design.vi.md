@@ -207,9 +207,16 @@ Giao diện Web (`tasks_dashboard.html`) được xây dựng dưới dạng ứ
   - **Tay cầm Kéo Thả `[ ⠿ ]`**: Nằm ở góc tiêu đề của mỗi repo card, cho phép lập trình viên dùng chuột kéo thả trực tiếp (HTML5 native drag & drop) để sắp xếp lại thứ tự ưu tiên các dự án trên trang điều khiển.
   - **Nút Đưa Lên Đầu `[ 📌 Lên đầu ]`**: Thao tác một chạm để đưa ngay project đang cần tập trung cao độ lên vị trí đầu tiên của trang điều khiển với hiệu ứng nổi bật (glow highlight animation).
   - **Ghi nhớ thứ tự ưu tiên**: Toàn bộ thứ tự repo sau khi kéo thả hoặc bấm ghim lên đầu được tự động lưu bền vững vào `localStorage` (`check_tasks_repos_order`), giúp dashboard luôn duy trì đúng danh sách focus giữa các phiên làm việc.
+- **Tích Hợp Nhánh Worktree Gọn Gàng Vào Tiêu Đề (Integrated Worktree Branch Badge)**:
+  - Tên nhánh git worktree (`feat/...`) được hiển thị dưới dạng badge gọn gàng (`font-family: monospace; background: #1e293b; color: #94a3b8`) ngay cạnh tên Epic trong phần Header của thẻ.
+  - Loại bỏ hoàn toàn dòng hiển thị đường dẫn worktree rườm rà ở giữa hoặc dưới phần ghi chú, giúp không gian thẻ thoáng đãng, tập trung và kết nối trực tiếp ô Notes với các chỉ số đo lường (Metrics).
+- **Kéo Thả Sắp Xếp & Đưa Project Cần Focus Lên Đầu (Drag & Drop Reordering & Pin to Top)**:
+  - **Tay cầm Kéo Thả `[ ⠿ ]`**: Nằm ở góc tiêu đề của mỗi repo card, cho phép lập trình viên dùng chuột kéo thả trực tiếp (HTML5 native drag & drop) để sắp xếp lại thứ tự ưu tiên các dự án trên trang điều khiển.
+  - **Nút Đưa Lên Đầu `[ 📌 Lên đầu ]`**: Thao tác một chạm để đưa ngay project đang cần tập trung cao độ lên vị trí đầu tiên của trang điều khiển với hiệu ứng nổi bật (glow highlight animation).
+  - **Ghi nhớ thứ tự ưu tiên**: Toàn bộ thứ tự repo sau khi kéo thả hoặc bấm ghim lên đầu được tự động lưu bền vững vào `localStorage` (`check_tasks_repos_order`), giúp dashboard luôn duy trì đúng danh sách focus giữa các phiên làm việc.
 - **Ô Ghi Chú Chuẩn Định Dạng Antigravity Input Box & Tự Động Đánh Số (Notes with Auto-Indexing 1, 2, 3...)**:
   - **Tên gọi chuẩn hoá**: Đặt tên ngắn gọn và trực quan là **`📝 Notes`** (thay cho tên gọi dài dòng).
-  - **Vị trí cấu trúc chuẩn**: Nằm ở **phía trên cùng của thẻ**, ngay bên dưới phần tiêu đề repo/epic và **bên trên danh sách worktrees** (`🌲 Worktree: ...`).
+  - **Vị trí cấu trúc chuẩn**: Nằm duy nhất một ô độc lập ở **phía trên cùng của thẻ**, ngay bên dưới phần tiêu đề repo/epic và kết nối trực tiếp với phần bảng chỉ số (Metrics).
   - **Thiết kế theo chuẩn Antigravity IDE**: Khung nhập liệu than chì tối bo góc thanh lịch (`background: #141720; border: 1px solid #2d3748; border-radius: 10px; padding: 10px 14px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.5)`), khi focus chuyển viền sáng xanh dương `rgba(56, 189, 248, 0.25)`.
   - **Cơ chế tự động đánh số index (`1. `, `2. `)**: Khi người dùng gõ `1. Thực hiện a.` và nhấn `Enter`, hệ thống tự động ngắt dòng và điền tiếp tiền tố `2. ` (giữ nguyên độ thụt lề). Khi người dùng nhấn `Enter` trên dòng chỉ chứa số mà không có nội dung (ví dụ dòng `2. ` trống), hệ thống tự động xoá tiền tố và thoát khỏi chế độ danh sách. Hỗ trợ phím `Tab` thụt lề 2 khoảng trắng.
   - **Thao tác một chạm tiện dụng**:
