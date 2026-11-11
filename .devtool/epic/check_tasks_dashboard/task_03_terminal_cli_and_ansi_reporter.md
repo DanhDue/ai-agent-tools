@@ -1,4 +1,5 @@
 ---
+pic: "danhdue"
 id: "task_03_terminal_cli_and_ansi_reporter"
 status: "done"
 priority: "high"

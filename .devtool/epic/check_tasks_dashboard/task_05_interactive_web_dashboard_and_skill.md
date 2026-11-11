@@ -1,4 +1,5 @@
 ---
+pic: "danhdue"
 id: "task_05_interactive_web_dashboard_and_skill"
 status: "done"
 priority: "high"

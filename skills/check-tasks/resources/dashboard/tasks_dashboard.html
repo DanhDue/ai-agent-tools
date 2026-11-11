@@ -1,0 +1,2913 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cross-Repo Tasks & Context Dashboard</title>
+  <style>
+    :root {
+      --bg: #0b0f19;
+      --card-bg: #0f172a;
+      --border: #1e293b;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent: #38bdf8;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --purple: #a855f7;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* Permanent Stable Scrollbar - Zero Pop-in / Zero Layout Shift */
+    html {
+      overflow-y: scroll;
+      scrollbar-gutter: stable;
+      scrollbar-width: thin;
+      scrollbar-color: #1e2638 #0b0f19;
+    }
+
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: #0b0f19;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #1e2638;
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #334155;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      line-height: 1.5;
+      padding: 24px;
+      min-height: 100vh;
+    }
+
+    /* Header & Metrics Bar */
+    .dashboard-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .dashboard-title-group h1 {
+      font-size: 20px;
+      font-weight: 700;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .dashboard-title-group p {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      background: #1e293b;
+      color: var(--accent);
+      border: 1px solid #334155;
+      padding: 4px 12px;
+      border-radius: 9999px;
+      font-weight: 600;
+    }
+
+    .status-badge .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #10b981;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0% { opacity: 1; }
+      50% { opacity: 0.4; }
+      100% { opacity: 1; }
+    }
+
+    /* Human-Essential Aggregate Metrics */
+    .metrics-summary-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .summary-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 0 8px 8px 0;
+      padding: 12px 16px;
+      border-left: 3px solid var(--accent);
+    }
+
+    .summary-card .label {
+      font-size: 10px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      font-weight: 600;
+      letter-spacing: 0.05em;
+    }
+
+    .summary-card .value {
+      font-size: 18px;
+      font-weight: 700;
+      color: #ffffff;
+      margin-top: 2px;
+    }
+
+    /* Buttons */
+    .btn-action-neutral {
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #cbd5e1;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+      font-family: inherit;
+    }
+
+    .btn-action-neutral:hover {
+      background: #334155;
+      border-color: #64748b;
+      color: #ffffff;
+    }
+
+    .btn-active-highlight {
+      border-color: #38bdf8 !important;
+      color: #f0f9ff !important;
+      background: rgba(56, 189, 248, 0.15) !important;
+      box-shadow: 0 0 10px rgba(56, 189, 248, 0.25);
+    }
+
+    .btn-action-primary {
+      background: #2563eb;
+      border: 1px solid #3b82f6;
+      color: #ffffff;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
+      transition: all 0.15s ease;
+      font-family: inherit;
+    }
+
+    .btn-action-primary:hover {
+      background: #1d4ed8;
+      border-color: #60a5fa;
+    }
+
+
+    
+    
+    
+    /* 4-Repo Focus Tab Navigation Bar */
+    .repo-tab-bar {
+      display: flex;
+      gap: 12px;
+      margin: 0 auto 22px auto;
+      padding: 8px 16px;
+      background: #0b0f19;
+      border: 1px solid #1e2638;
+      border-radius: 14px;
+      overflow-x: auto;
+      align-items: center;
+      justify-content: center;
+      width: fit-content;
+      max-width: 100%;
+    }
+
+    .repo-tab-btn {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 20px;
+      border-radius: 10px;
+      border: 1px solid #1e293b;
+      background: #111827;
+      color: #94a3b8;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.2, 0, 0, 1);
+      white-space: nowrap;
+      user-select: none;
+      font-family: inherit;
+    }
+
+    .repo-tab-btn:hover {
+      background: #1e2638;
+      color: #f8fafc;
+      border-color: #334155;
+      transform: translateY(-1.5px);
+    }
+
+    .repo-tab-btn.active {
+      color: #ffffff !important;
+      font-weight: 700;
+    }
+
+    .tab-badge-doing {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 9999px;
+      background: rgba(0, 0, 0, 0.45);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #fbbf24;
+    }
+
+    /* Mobile App Bottom Navigation Style Notification Badge */
+    .tab-notification-badge {
+      position: absolute;
+      top: -4px;
+      right: -4px;
+      width: 12px;
+      height: 12px;
+      background: #ef4444;
+      border: 2px solid #0b0f19;
+      border-radius: 50%;
+      box-shadow: 0 0 10px rgba(239, 68, 68, 0.9);
+      animation: badgePulse 2s infinite;
+      z-index: 10;
+    }
+
+    @keyframes badgePulse {
+      0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+      70% { transform: scale(1.15); box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+      100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+    }
+
+    /* Tab colors */
+    .repo-tab-btn.active-D3Nexus {
+      background: #065f46 !important;
+      border-color: #10b981 !important;
+      box-shadow: 0 4px 20px -2px rgba(6, 95, 70, 0.7), 0 0 12px rgba(6, 95, 70, 0.4) !important;
+    }
+
+    .repo-tab-btn.active-lyrics-sync {
+      background: #7f1d1d !important;
+      border-color: #ef4444 !important;
+      box-shadow: 0 4px 20px -2px rgba(127, 29, 29, 0.7), 0 0 12px rgba(127, 29, 29, 0.4) !important;
+    }
+
+    .repo-tab-btn.active-nexus {
+      background: #0d47a1 !important;
+      border-color: #3b82f6 !important;
+      box-shadow: 0 4px 20px -2px rgba(13, 71, 161, 0.7), 0 0 12px rgba(13, 71, 161, 0.4) !important;
+    }
+
+    .repo-tab-btn.active-ai-agent-tools {
+      background: #b45309 !important;
+      border-color: #f59e0b !important;
+      box-shadow: 0 4px 20px -2px rgba(180, 83, 9, 0.7), 0 0 12px rgba(180, 83, 9, 0.4) !important;
+    }
+
+    /* Tier Headers */
+    .tier-header-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      padding: 4px 12px;
+      border-radius: 9999px;
+      margin-bottom: 12px;
+    }
+
+    .tier-1-badge {
+      background: rgba(56, 189, 248, 0.15);
+      border: 1px solid #38bdf8;
+      color: #7dd3fc;
+    }
+
+    .tier-2-badge {
+      background: rgba(168, 85, 247, 0.15);
+      border: 1px solid #c084fc;
+      color: #e9d5ff;
+    }
+
+    /* In-Page Kanban Columns */
+    .inpage-kanban-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .inpage-kanban-col {
+      background: #0b0f19;
+      border: 1px solid #1e2433;
+      border-radius: 8px;
+      padding: 10px;
+      min-height: 200px;
+    }
+
+    .inpage-task-card {
+      background: #151a28;
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 11px;
+      margin-bottom: 8px;
+      border: 1px solid #242d40;
+      transition: all 0.15s ease;
+    }
+
+    .inpage-task-card:hover {
+      border-color: #4a5568;
+      background: #1e2538;
+      transform: translateY(-1px);
+    }
+
+/* Repo Cards Container (Deprecated legacy container kept hidden) */
+    #repos-container {
+      display: none !important;
+    }
+
+    /* Kanban Task Card Smooth Transitions & Animation */
+    .kanban-task-card {
+      transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+                  box-shadow 0.2s ease,
+                  border-color 0.2s ease,
+                  background-color 0.2s ease;
+    }
+
+    .kanban-task-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+      border-color: #3b4d6b !important;
+    }
+
+    /* Scrollable Container Custom Scrollbars & Behavior */
+    .kanban-col-cards {
+      scrollbar-width: thin;
+      scrollbar-color: #2b354f #0c101a;
+      scroll-behavior: auto;
+      overscroll-behavior: contain;
+    }
+
+    .kanban-col-cards::-webkit-scrollbar {
+      width: 6px;
+    }
+    .kanban-col-cards::-webkit-scrollbar-track {
+      background: #0c101a;
+      border-radius: 4px;
+    }
+    .kanban-col-cards::-webkit-scrollbar-thumb {
+      background: #2b354f;
+      border-radius: 4px;
+    }
+    .kanban-col-cards::-webkit-scrollbar-thumb:hover {
+      background: #3b4868;
+    }
+
+    .roadmap-scroll-wrap {
+      scrollbar-width: thin;
+      scrollbar-color: #2b354f #0c101a;
+      scroll-behavior: auto;
+      overscroll-behavior: contain;
+    }
+
+    .roadmap-scroll-wrap::-webkit-scrollbar {
+      width: 6px;
+    }
+    .roadmap-scroll-wrap::-webkit-scrollbar-track {
+      background: #0c101a;
+      border-radius: 4px;
+    }
+    .roadmap-scroll-wrap::-webkit-scrollbar-thumb {
+      background: #2b354f;
+      border-radius: 4px;
+    }
+    .roadmap-scroll-wrap::-webkit-scrollbar-thumb:hover {
+      background: #3b4868;
+    }
+
+    /* Roadmap Table Row Transitions */
+    .roadmap-epic-row {
+      transition: background-color 0.15s ease;
+    }
+
+    .roadmap-epic-row:hover {
+      background-color: #1a2234 !important;
+    }
+
+    .roadmap-notes-grid {
+      display: grid;
+      grid-template-columns: 1.6fr 1fr;
+      gap: 16px;
+      margin-bottom: 20px;
+      align-items: stretch;
+    }
+
+    @media (max-width: 1024px) {
+      .roadmap-notes-grid {
+        grid-template-columns: 1fr !important;
+      }
+    }
+
+
+    .repo-card {
+      background: var(--card-bg);
+      border: 2px solid var(--border);
+      border-radius: 14px;
+      padding: 18px;
+      transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.2s ease, opacity 0.2s ease;
+    }
+
+    .repo-card.dragging {
+      opacity: 0.45 !important;
+      border-style: dashed !important;
+      transform: scale(0.99) !important;
+    }
+
+    .repo-card.drag-over {
+      border-color: #38bdf8 !important;
+      box-shadow: 0 0 25px rgba(56, 189, 248, 0.45) !important;
+    }
+
+    .card-header {
+      cursor: grab;
+      user-select: none;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 12px;
+    }
+
+    .card-header:active {
+      cursor: grabbing;
+    }
+
+    /* Antigravity Dark Note Container */
+    .antigravity-note-container {
+      margin-bottom: 12px;
+      background: #141720;
+      border: 1px solid #2d3748;
+      border-radius: 10px;
+      padding: 10px 14px;
+      box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
+      transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+    }
+
+    .antigravity-note-container.focused {
+      border-color: #38bdf8 !important;
+      box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2), inset 0 1px 3px rgba(0, 0, 0, 0.5) !important;
+      background: #10131a !important;
+    }
+
+    .antigravity-note-container textarea {
+      width: 100%;
+      min-height: 48px;
+      background: transparent;
+      border: none;
+      outline: none;
+      font-size: 13px;
+      line-height: 1.6;
+      color: #e2e8f0;
+      font-family: inherit;
+      resize: none;
+      overflow: hidden;
+      padding: 0;
+      margin: 0;
+    }
+
+    /* Modal Backdrop and Dialogs */
+    .modal-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.85);
+      z-index: 9999;
+      backdrop-filter: blur(5px);
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .modal-box {
+      background: #0b0e14;
+      border: 2px solid var(--accent);
+      border-radius: 14px;
+      width: 95%;
+      max-width: 1200px;
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 25px 50px rgba(0, 0, 0, 0.9);
+    }
+
+    .modal-header {
+      background: #10141e;
+      border-bottom: 1px solid var(--border);
+      padding: 14px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-close-btn {
+      background: #1e293b;
+      border: 1px solid #475569;
+      color: #cbd5e1;
+      font-size: 16px;
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+    }
+
+    .modal-close-btn:hover {
+      background: #334155;
+      color: #ffffff;
+    }
+
+    .modal-body {
+      padding: 18px;
+      overflow-y: auto;
+      flex: 1;
+      background: #080a0f;
+    }
+
+    /* Tabs */
+    .tab-bar {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 14px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 8px;
+    }
+
+    .tab-btn {
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #cbd5e1;
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .tab-btn.active {
+      background: var(--accent);
+      color: #0b0f19;
+      border-color: var(--accent);
+      font-weight: 700;
+    }
+
+    /* Progress bar */
+    .progress-track {
+      background: #0b0f19;
+      height: 6px;
+      border-radius: 9999px;
+      overflow: hidden;
+      margin-bottom: 14px;
+      display: flex;
+    }
+
+    /* Toast Notification */
+    #toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #1e293b;
+      border: 1px solid var(--accent);
+      color: #ffffff;
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+      display: none;
+      z-index: 10000;
+      align-items: center;
+      gap: 8px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Header -->
+  <header class="dashboard-header">
+    <div class="dashboard-title-group">
+      <h1>
+        <span>🌐</span> Cross-Repo Tasks & Context Dashboard
+      </h1>
+      <p>Giám sát tiến độ Kanban, Bộ nhớ 2 Tầng và Đánh giá Cross-Model Review theo thời gian thực trên toàn bộ repositories</p>
+    </div>
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <span class="status-badge" id="live-indicator">
+        <span class="dot"></span> Live Polling (5s)
+      </span>
+      <button onclick="refreshDashboard()" class="btn-action-neutral">
+        <span>🔄</span> Cập nhật
+      </button>
+    </div>
+  </header>
+
+  <!-- Human-Essential Aggregate Metrics Row -->
+  <section class="metrics-summary-row" id="metrics-summary">
+    <div class="summary-card" style="border-left-color: #38bdf8;">
+      <div class="label">Repositories Đã Phát Hiện</div>
+      <div class="value" id="stat-repos-count">4 Repos</div>
+    </div>
+    <div class="summary-card" style="border-left-color: #10b981;">
+      <div class="label">Active Epics Đang Chạy</div>
+      <div class="value" id="stat-epics-count">4 Epics</div>
+    </div>
+    <div class="summary-card" style="border-left-color: #fbbf24;">
+      <div class="label">Kanban Tasks Hoàn Thành</div>
+      <div class="value" id="stat-tasks-progress">24 / 32 Done (75%)</div>
+    </div>
+    <div class="summary-card" style="border-left-color: #a855f7;">
+      <div class="label">Worktrees Hoạt Động</div>
+      <div class="value" id="stat-worktrees-count">5 Phân lập</div>
+    </div>
+  </section>
+
+
+  <!-- 4-Repo Focus Tab Navigation Bar -->
+  <nav class="repo-tab-bar" id="repo-tab-bar" aria-label="4 Repos Focus Tabs"></nav>
+
+  <!-- Detailed Single-Repo Page View Container (Active Focused Repo) -->
+  <main id="repo-detail-view" style="display: block; margin-bottom: 24px;">
+    <div id="loading-state" class="repo-card" style="text-align: center; padding: 40px; color: #94a3b8; font-size: 13px; border: 1px dashed #334155; border-radius: 12px; background: #131722;">
+      <span>⏳ Đang tải dữ liệu repository và worktrees từ server...</span>
+    </div>
+  </main>
+
+  <!-- Repositories Container (Deprecated legacy container kept hidden for test backwards compatibility) -->
+  <div id="repos-container" style="display: none !important;"></div>
+
+  <!-- ============================================================== -->
+  <!-- MODAL DIALOGS                                                  -->
+  <!-- ============================================================== -->
+
+  <!-- MODAL 0: EPICS LIST DIALOG (Đọc từ Repo Gốc) -->
+  <div id="modal-epics" class="modal-backdrop">
+    <div class="modal-box" style="border-color: #38bdf8; max-width: 1000px;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 18px;">📦</span>
+          <div>
+            <div id="epics-modal-title" style="font-size: 15px; font-weight: 700; color: #f8fafc;">Danh Sách Epics Dự Án (Đọc từ Repo Gốc)</div>
+            <div id="epics-modal-subtitle" style="font-size: 11px; color: #94a3b8; font-family: monospace;">Tổng quan trạng thái Epics: Đã hoàn thành • Đang thực hiện • Chưa thực hiện</div>
+          </div>
+        </div>
+        <button onclick="closeLiveModal('modal-epics')" class="modal-close-btn">✕</button>
+      </div>
+      <div class="modal-body" id="epics-modal-body" style="padding: 16px;">
+        <div style="text-align: center; color: #94a3b8; padding: 20px;">Đang tải danh sách epics...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 1: KANBAN BOARD DIALOG -->
+  <div id="modal-kanban" class="modal-backdrop">
+    <div class="modal-box" style="border-color: #38bdf8; max-width: 1250px;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 18px;">📊</span>
+          <div>
+            <div id="kanban-modal-title" style="font-size: 15px; font-weight: 700; color: #f8fafc;">Bảng Kanban Tasks (Pop-up Modal Dialog)</div>
+            <div id="kanban-modal-subtitle" style="font-size: 11px; color: #94a3b8; font-family: monospace;">Đồng bộ từ các tệp task_*.md • Mở bởi nút [ 📊 Xem Kanban ]</div>
+          </div>
+        </div>
+        <button onclick="closeLiveModal('modal-kanban')" class="modal-close-btn">✕</button>
+      </div>
+      <div class="modal-body" id="kanban-modal-body" style="padding: 16px;">
+        <div style="text-align: center; color: #94a3b8; padding: 30px;">Đang tải dữ liệu Kanban...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 2: TWO-TIER CONTEXT DIALOG -->
+  <div id="modal-context" class="modal-backdrop">
+    <div class="modal-box" style="border-color: #a855f7; max-width: 1100px;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 18px;">🧠</span>
+          <div>
+            <div style="font-size: 15px; font-weight: 700; color: #f8fafc;">Bộ Nhớ Hai Tầng: PROJECT_LEDGER vs Assistant State</div>
+            <div style="font-size: 11px; color: #94a3b8; font-family: monospace;">Mở bởi nút [ 🧠 Xem Contexts ] • Zero Page Reload</div>
+          </div>
+        </div>
+        <button onclick="closeLiveModal('modal-context')" class="modal-close-btn">✕</button>
+      </div>
+      <div class="modal-body" style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+        <div style="background: #141b2d; border-radius: 0 8px 8px 0; border-left: 3px solid #10b981; padding: 14px;">
+          <h4 style="color: #34d399; font-size: 13px; margin-bottom: 8px;">Tầng 1: PROJECT_LEDGER.md (Vĩnh viễn)</h4>
+          <pre id="context-ledger-content" style="font-size: 11px; color: #cbd5e1; background: #080a0f; padding: 10px; border-radius: 6px; overflow-x: auto; font-family: monospace;">
+- Bất biến: Tri-Role Governance Model
+- Milestone 2026-11-10: check-quota CLI & Web UI
+- Milestone 2026-11-11: check-tasks Specification
+          </pre>
+        </div>
+        <div style="background: #141b2d; border-radius: 0 8px 8px 0; border-left: 3px solid #38bdf8; padding: 14px;">
+          <h4 style="color: #38bdf8; font-size: 13px; margin-bottom: 8px;">Tầng 2: In-Flight State & Gate Ledger</h4>
+          <pre id="context-state-content" style="font-size: 11px; color: #cbd5e1; background: #080a0f; padding: 10px; border-radius: 6px; overflow-x: auto; font-family: monospace;">
+- Gate 1: PASS (2026-11-11 07:12)
+- Gate 2: PASS (2026-11-11 07:25)
+- Gate 3: PASS (2026-11-11 07:30)
+- Gate 4: PASS (2026-11-11 07:32)
+- Next: Review Choice (Rule 5)
+          </pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 3: PRINCIPAL REVIEW TRIAGE DIALOG -->
+  <div id="modal-principal-review" class="modal-backdrop">
+    <div class="modal-box" style="border-color: #eab308; max-width: 1250px;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 18px;">🛡️</span>
+          <div>
+            <div style="font-size: 15px; font-weight: 700; color: #fde047;">Kết Quả Principal Review (Stage 2 HLD/Tasks Triage)</div>
+            <div style="font-size: 11px; color: #94a3b8; font-family: monospace;">Mở bởi nút [ 🛡️ Principal Review ] • .devtool/epic/.../principal_review.md</div>
+          </div>
+        </div>
+        <button onclick="closeLiveModal('modal-principal-review')" class="modal-close-btn">✕</button>
+      </div>
+      
+      <div style="padding: 14px 20px; background: #161a23; border-bottom: 1px solid #282f40;">
+        <ul style="list-style: none; padding: 0; margin: 0; font-size: 12px; line-height: 1.7; color: #cbd5e1;">
+          <li>• Scope: <strong style="color: #ffffff;">HLD, BDD Scenarios & Kanban Tasks</strong> đối chiếu mã nguồn</li>
+          <li>• Reviewer: <strong style="color: #ffffff;">Claude CLI</strong> ( model <code style="background: #242b3b; color: #fde68a; padding: 1px 6px; border-radius: 4px; font-family: monospace;">sonnet</code> ) • Thinking: <strong style="color: #ffffff;">High</strong></li>
+          <li>• Verdict: <strong style="color: #34d399;">CONVERGED (PASS)</strong> (0 Critical, 0 Important remaining)</li>
+        </ul>
+      </div>
+
+      <div class="modal-body">
+        <div style="background: #1e2330; border-radius: 0 6px 6px 0; border-left: 3px solid #10b981; padding: 12px; color: #e2e8f0; font-size: 12px;">
+          <strong style="color: #34d399;">✓ Round 3 Hoàn tất:</strong> Tất cả các phát hiện đã được khắc phục và đóng dấu quyết định trong <code>principal_review.md</code>. Sẵn sàng cho Stage 3!
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 4: REVIEW TRIAGE DIALOG (Principal & Cross-Model) -->
+  <div id="modal-cross-review" class="modal-backdrop">
+    <div class="modal-box" style="border-color: #ec4899; max-width: 1250px;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span id="review-header-icon" style="font-size: 18px;">🔬</span>
+          <div>
+            <div id="cross-review-title" style="font-size: 15px; font-weight: 700; color: #f8fafc;">Kết Quả Review</div>
+            <div id="cross-review-subtitle" style="font-size: 11px; color: #94a3b8; font-family: monospace;">Bảng Triage 5 cột • Zero Page Reload</div>
+          </div>
+        </div>
+        <button onclick="closeLiveModal('modal-cross-review')" class="modal-close-btn">✕</button>
+      </div>
+      
+      <!-- Header Block -->
+      <div style="padding: 14px 20px; background: #161a23; border-bottom: 1px solid #282f40;">
+        <ul style="list-style: none; padding: 0; margin: 0; font-size: 12px; line-height: 1.7; color: #cbd5e1;">
+          <li>• Candidate Commit SHA: <code id="review-sha" style="background: #242b3b; color: #fde68a; padding: 1px 7px; border-radius: 4px; font-family: monospace;">N/A</code></li>
+          <li>• Reviewer / Provider: <strong id="review-provider" style="color: #ffffff;">N/A</strong> ( model <code id="review-model" style="background: #242b3b; color: #fde68a; padding: 1px 6px; border-radius: 4px; font-family: monospace;">default</code> ) • Thinking Level: <strong id="review-thinking" style="color: #ffffff;">High</strong></li>
+          <li>• Overall Verdict: <strong id="review-verdict" style="color: #f87171;">UNKNOWN</strong></li>
+        </ul>
+      </div>
+
+      <!-- Round Selector Tabs -->
+      <div id="review-round-tabs" style="padding: 10px 20px; background: #10131a; border-bottom: 1px solid #282f40; display: flex; gap: 8px;">
+        <button class="tab-btn active" onclick="switchReviewRound(1)">Round 1: Scope Audit</button>
+        <button class="tab-btn" onclick="switchReviewRound(2)">Round 2: Delta Audit</button>
+        <button class="tab-btn" onclick="switchReviewRound(3)">Round 3: Convergence</button>
+      </div>
+
+      <!-- Triage Table -->
+      <div class="modal-body">
+        <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left; color: #e2e8f0; margin-bottom: 16px;">
+          <thead>
+            <tr style="border-bottom: 1px solid #282f40; background: #131720; color: #94a3b8; font-size: 11px; text-transform: uppercase;">
+              <th style="padding: 8px 10px; width: 35px;">#</th>
+              <th style="padding: 8px 10px; width: 105px;">Severity</th>
+              <th style="padding: 8px 10px; width: 230px;">Location</th>
+              <th style="padding: 8px 10px;">Problem</th>
+              <th style="padding: 8px 10px; width: 250px;">Decision</th>
+            </tr>
+          </thead>
+          <tbody id="review-findings-body">
+            <tr>
+              <td colspan="5" style="padding: 30px; text-align: center; color: #94a3b8;">
+                Đang tải dữ liệu review...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- Expandable Raw Evidence Drawer -->
+        <details style="background: #141720; border: 1px solid #282f40; border-radius: 8px; padding: 10px;">
+          <summary style="font-size: 12px; font-weight: 700; color: #fde68a; cursor: pointer; user-select: none;">
+            📄 Evidence / Raw Output (Bằng chứng nguyên văn)
+          </summary>
+          <pre id="review-raw-evidence" style="margin-top: 10px; font-size: 11px; color: #94a3b8; background: #0c0f17; padding: 12px; border-radius: 6px; overflow-x: auto; font-family: monospace; white-space: pre-wrap;">
+Đang tải dữ liệu bằng chứng...
+          </pre>
+        </details>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast">
+    <span id="toast-icon">ℹ️</span>
+    <span id="toast-text">Thông báo</span>
+  </div>
+
+  <script>
+    /* ============================================================== */
+    /* STATE & DATA MANAGEMENT                                        */
+    /* ============================================================== */
+
+    let currentReposData = [];
+
+    const defaultNotes = {
+      'ai-agent-tools': '1. Kiểm tra kĩ Rule 9 subshell isolation.\n2. Tối ưu hóa auto-indexing notes input box.',
+      'lyrics-sync': '1. Hoàn thành Task 7 (Benchmark Video Evaluators).\n2. Chạy full unit tests 152/152 PASS.',
+      'D3Nexus': '1. Phê duyệt Handoff sang Stage 3 hoặc Principal Review.',
+      'nexus': '1. Chờ Human Architect phê duyệt Gate 3.'
+    };
+
+    /* ============================================================== */
+    /* MODAL INTERACTIONS & ACCESSIBILITY                             */
+    /* ============================================================== */
+
+    function openLiveModal(modalId) {
+      const modal = document.getElementById(modalId);
+      if (modal) {
+        modal.style.display = 'flex';
+      }
+    }
+
+    function closeLiveModal(modalId) {
+      const modal = document.getElementById(modalId);
+      if (modal) {
+        modal.style.display = 'none';
+      }
+    }
+
+    function initModalClickOutside() {
+      const modals = document.querySelectorAll('.modal-backdrop');
+      modals.forEach(modal => {
+        modal.addEventListener('click', (e) => {
+          if (e.target === modal) {
+            closeLiveModal(modal.id);
+          }
+        });
+      });
+
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          modals.forEach(m => {
+            if (m.style.display === 'flex' || m.style.display === 'block') {
+              closeLiveModal(m.id);
+            }
+          });
+        }
+      });
+    }
+
+    /* ============================================================== */
+    /* ANTIGRAVITY NOTE INPUT: AUTO-INDEXING (1, 2, 3...) & ACTIONS   */
+    /* ============================================================== */
+
+    function focusNoteContainer(containerId) {
+      const el = document.getElementById(containerId);
+      if (el) el.classList.add('focused');
+    }
+
+    function blurNoteContainer(containerId) {
+      const el = document.getElementById(containerId);
+      if (el) el.classList.remove('focused');
+    }
+
+    function autoResizeTextarea(textarea) {
+      if (!textarea) return;
+      textarea.style.height = 'auto';
+      textarea.style.height = Math.max(48, textarea.scrollHeight) + 'px';
+    }
+
+    function handleAntigravityNoteKeydown(e, textarea, repo) {
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const val = textarea.value;
+        textarea.value = val.substring(0, start) + '  ' + val.substring(end);
+        textarea.selectionStart = textarea.selectionEnd = start + 2;
+        saveRepoNoteText(repo, textarea.value);
+        return;
+      }
+
+      if (e.key === 'Enter' && !e.shiftKey) {
+        const val = textarea.value;
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+
+        const lastNewLine = val.lastIndexOf('\n', start - 1);
+        const lineStart = lastNewLine === -1 ? 0 : lastNewLine + 1;
+        const currentLine = val.substring(lineStart, start);
+
+        const match = currentLine.match(/^(\s*)(\d+)\.\s*(.*)$/);
+
+        if (match) {
+          e.preventDefault();
+          const indent = match[1];
+          const num = parseInt(match[2], 10);
+          const textAfterNum = match[3];
+
+          if (textAfterNum.trim() === '') {
+            textarea.value = val.substring(0, lineStart) + val.substring(start);
+            textarea.selectionStart = textarea.selectionEnd = lineStart;
+          } else {
+            const nextItem = '\n' + indent + (num + 1) + '. ';
+            textarea.value = val.substring(0, start) + nextItem + val.substring(end);
+            textarea.selectionStart = textarea.selectionEnd = start + nextItem.length;
+          }
+          autoResizeTextarea(textarea);
+          saveRepoNoteText(repo, textarea.value);
+          return;
+        }
+
+        if (val.trim() === '') {
+          e.preventDefault();
+          textarea.value = '1. ';
+          textarea.selectionStart = textarea.selectionEnd = 3;
+          autoResizeTextarea(textarea);
+          saveRepoNoteText(repo, textarea.value);
+        }
+      }
+    }
+
+    function saveRepoNoteText(repo, text) {
+      try {
+        localStorage.setItem('check_tasks_antigravity_note_' + repo, text);
+        const indicator = document.getElementById('note-saved-' + repo);
+        if (indicator) {
+          indicator.textContent = 'Đã lưu ✓';
+          indicator.style.color = '#10b981';
+        }
+      } catch (err) {}
+    }
+
+    function copyRepoNoteText(repo, btn) {
+      const textarea = document.getElementById('note-textarea-detail-' + repo) || document.getElementById('note-textarea-' + repo);
+      if (!textarea) return;
+      const textToCopy = textarea.value.trim();
+      if (!textToCopy) {
+        showToast('⚠️ Không có ghi chú để copy', 'warning');
+        return;
+      }
+      navigator.clipboard.writeText(textToCopy).then(() => {
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<span>✓</span> Đã copy';
+        btn.style.color = '#34d399';
+        setTimeout(() => {
+          btn.innerHTML = originalText;
+          btn.style.color = '';
+        }, 1500);
+        showToast('📋 Đã copy ghi chú vào clipboard', 'success');
+      }).catch(() => {
+        showToast('❌ Lỗi copy clipboard', 'danger');
+      });
+    }
+
+    function clearRepoNoteText(repo) {
+      const textarea = document.getElementById('note-textarea-detail-' + repo) || document.getElementById('note-textarea-' + repo);
+      if (textarea) {
+        textarea.value = '';
+        autoResizeTextarea(textarea);
+        saveRepoNoteText(repo, '');
+        showToast('🗑️ Đã xoá ghi chú ' + repo, 'info');
+      }
+    }
+
+    function initRepoNotes() {
+      const repos = ['ai-agent-tools', 'lyrics-sync', 'D3Nexus', 'nexus'];
+      repos.forEach(repo => {
+        try {
+          const textarea = document.getElementById('note-textarea-detail-' + repo) || document.getElementById('note-textarea-' + repo);
+          if (textarea) {
+            const saved = localStorage.getItem('check_tasks_antigravity_note_' + repo);
+            if (saved !== null) {
+              textarea.value = saved;
+            } else if (defaultNotes[repo]) {
+              textarea.value = defaultNotes[repo];
+            }
+            autoResizeTextarea(textarea);
+          }
+        } catch (e) {}
+      });
+    }
+
+    /* ============================================================== */
+    /* DRAG & DROP REORDERING + PIN TO TOP FOR FOCUSED PROJECT        */
+    /* ============================================================== */
+
+    let draggedCard = null;
+
+    function initDragAndDrop() {
+      const container = document.getElementById('repos-container');
+      if (!container) return;
+
+      const cards = container.querySelectorAll('.repo-card');
+      cards.forEach(card => {
+        card.addEventListener('dragstart', (e) => {
+          if (e.target.closest('button') || e.target.closest('textarea') || e.target.closest('input') || e.target.closest('a')) {
+            e.preventDefault();
+            return;
+          }
+          draggedCard = card;
+          card.classList.add('dragging');
+          e.dataTransfer.effectAllowed = 'move';
+          e.dataTransfer.setData('text/plain', card.id);
+        });
+
+        card.addEventListener('dragend', () => {
+          if (draggedCard) {
+            draggedCard.classList.remove('dragging');
+            draggedCard = null;
+          }
+          cards.forEach(c => c.classList.remove('drag-over'));
+          saveReposOrder();
+        });
+
+        card.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+          if (!draggedCard || draggedCard === card) return;
+
+          const rect = card.getBoundingClientRect();
+          const midY = rect.top + rect.height / 2;
+          if (e.clientY < midY) {
+            container.insertBefore(draggedCard, card);
+          } else {
+            container.insertBefore(draggedCard, card.nextSibling);
+          }
+        });
+
+        card.addEventListener('dragenter', (e) => {
+          e.preventDefault();
+          if (draggedCard && draggedCard !== card) {
+            card.classList.add('drag-over');
+          }
+        });
+
+        card.addEventListener('dragleave', () => {
+          card.classList.remove('drag-over');
+        });
+
+        card.addEventListener('drop', (e) => {
+          e.preventDefault();
+          card.classList.remove('drag-over');
+          saveReposOrder();
+        });
+      });
+
+      restoreReposOrder();
+    }
+
+    function pinRepoToTop(repoId) {
+      const card = document.getElementById('card-repo-' + repoId);
+      const container = document.getElementById('repos-container');
+      if (card && container) {
+        card.style.transition = 'transform 0.25s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.25s ease';
+        card.style.transform = 'scale(1.02)';
+        card.style.boxShadow = '0 0 25px rgba(56, 189, 248, 0.65)';
+        container.prepend(card);
+        setTimeout(() => {
+          card.style.transform = 'scale(1)';
+          card.style.boxShadow = '';
+        }, 400);
+        saveReposOrder();
+        showToast('📌 Đã đưa ' + repoId + ' lên đầu', 'success');
+      }
+    }
+
+    function saveReposOrder() {
+      const container = document.getElementById('repos-container');
+      if (!container) return;
+      const order = Array.from(container.querySelectorAll('.repo-card')).map(c => c.getAttribute('data-repo'));
+      try {
+        localStorage.setItem('check_tasks_repos_order', JSON.stringify(order));
+      } catch (e) {}
+    }
+
+    function restoreReposOrder() {
+      const container = document.getElementById('repos-container');
+      if (!container) return;
+      try {
+        const saved = localStorage.getItem('check_tasks_repos_order');
+        if (saved) {
+          const order = JSON.parse(saved);
+          order.forEach(repoId => {
+            const card = document.getElementById('card-repo-' + repoId);
+            if (card) container.appendChild(card);
+          });
+        }
+      } catch (e) {}
+    }
+
+    /* ============================================================== */
+    /* API & MODAL CONTENT POPULATION                                 */
+    /* ============================================================== */
+
+    function showToast(text, type) {
+      const toast = document.getElementById('toast');
+      const toastText = document.getElementById('toast-text');
+      const toastIcon = document.getElementById('toast-icon');
+      if (!toast) return;
+
+      toastText.textContent = text;
+      toastIcon.textContent = type === 'success' ? '✅' : type === 'warning' ? '⚠️' : type === 'danger' ? '❌' : 'ℹ️';
+      toast.style.display = 'flex';
+      setTimeout(() => {
+        toast.style.display = 'none';
+      }, 3000);
+    }
+
+    function getApiUrl(path) {
+      if (window.location.protocol === 'file:' || !window.location.port) {
+        return 'http://localhost:8766' + path;
+      }
+      return path;
+    }
+
+    function triggerLaunch(action, worktree, profile) {
+      fetch(getApiUrl('/api/launch/' + action), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ worktree: worktree, profile: profile || 'default' })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === 'ok') {
+          if (action === 'ide' && data.action === 'focused') {
+            showToast('🎯 IDE đang mở sẵn — Đã focus vào cửa sổ Antigravity IDE (PID ' + (data.pid || '') + ')!', 'success');
+          } else {
+            const cmd = data.command || ((action === 'ide' ? profile + ' ' : profile + '-cli ') + toTildePath(worktree));
+            showToast((action === 'ide' ? '🚀 Đã mở IDE: ' : '💻 Đã mở CLI: ') + cmd, 'success');
+          }
+        } else {
+          showToast('❌ Lỗi khởi chạy: ' + (data.error || 'Unknown error'), 'danger');
+        }
+      })
+      .catch(err => {
+        showToast((action === 'ide' ? '🚀 Đang kích hoạt IDE...' : '💻 Đang kích hoạt CLI...'), 'info');
+      });
+    }
+
+    
+    const AVAILABLE_PROFILES = [
+      'danhdue',
+      'phungthuy8901',
+      'huynhminhtien0510',
+      'tess',
+      'default',
+      'peter',
+      'd3molt'
+    ];
+
+        function renderPicSelect(repoName, epicSlug, currentPic) {
+      const profileSet = new Set(AVAILABLE_PROFILES);
+      if (currentPic && currentPic !== 'None' && currentPic !== 'null') {
+        profileSet.add(currentPic);
+      }
+      
+      const hasPic = Boolean(currentPic && currentPic !== 'None' && currentPic !== 'null' && currentPic !== '—');
+      const borderCol = hasPic ? '#a855f7' : '#334155';
+      const textCol = hasPic ? '#c084fc' : '#94a3b8';
+      const bgCol = hasPic ? 'rgba(168, 85, 247, 0.12)' : '#0f172a';
+
+      let options = `<option value="" style="color: #64748b;" ${!hasPic ? 'selected' : ''}>+ Gán PIC...</option>`;
+      profileSet.forEach(p => {
+        if (p === 'default') return;
+        const isSel = (p === currentPic) ? 'selected' : '';
+        options += `<option value="${escapeHtml(p)}" ${isSel}>@${escapeHtml(p)}</option>`;
+      });
+
+      return `
+        <select onchange="updateEpicPic('${escapeHtml(repoName)}', '${escapeHtml(epicSlug)}', this.value)" 
+                style="background: ${bgCol}; color: ${textCol}; border: 1px solid ${borderCol}; border-radius: 4px; padding: 2px 6px; font-size: 11px; font-family: monospace; font-weight: 700; cursor: pointer; outline: none; transition: all 0.2s;"
+                title="${hasPic ? 'Người phụ trách (PIC): @' + escapeHtml(currentPic) + ' • Click để đổi' : 'Chưa có PIC • Click để gán người phụ trách'}">
+          ${options}
+        </select>
+      `;
+    }
+
+    function updateEpicPic(repoName, epicSlug, newPic) {
+      if (!newPic) return;
+      showToast(`⏳ Đang gán PIC @${newPic} cho Epic ${epicSlug}...`, 'info');
+
+      fetch(getApiUrl('/api/epic/pic'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          repo: repoName,
+          epic: epicSlug,
+          pic: newPic
+        })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === 'ok') {
+          showToast(`✅ Đã gán PIC @${newPic} cho Epic ${epicSlug}! (Cập nhật ${data.updated_files ? data.updated_files.length : 0} vị trí)`, 'success');
+          const repo = (currentReposData || []).find(r => r.name === repoName);
+          if (repo && repo.epics_summary && repo.epics_summary.epics) {
+            const ep = repo.epics_summary.epics.find(e => e.slug === epicSlug);
+            if (ep) ep.pic = newPic;
+          }
+          if (repo && repo.active_epic === epicSlug) {
+            repo.account_id = newPic;
+          }
+          if (activeFocusTab === repoName) {
+            renderRepoDetailView(repoName, true);
+          }
+          if (document.getElementById('modal-epics')?.classList.contains('active')) {
+            openEpicsModal(repoName);
+          }
+        } else {
+          showToast(`❌ Lỗi gán PIC: ${data.error || 'Unknown error'}`, 'danger');
+        }
+      })
+      .catch(err => {
+        showToast(`❌ Không thể kết nối server để gán PIC`, 'danger');
+      });
+    }
+
+    function renderProfileOptions(activeProfile) {
+      const profileSet = new Set(AVAILABLE_PROFILES);
+      if (activeProfile && activeProfile !== 'None' && activeProfile !== 'null') {
+        profileSet.add(activeProfile);
+      }
+      return Array.from(profileSet).map(p => {
+        const isSel = (p === activeProfile) ? 'selected' : '';
+        return `<option value="${escapeHtml(p)}" ${isSel}>@${escapeHtml(p)}</option>`;
+      }).join('');
+    }
+
+    function triggerLaunchFromSelect(repoName, repoPath) {
+      const sel = document.getElementById('ide-profile-select-' + repoName);
+      const profile = sel ? sel.value : 'default';
+      triggerLaunch('ide', repoPath, profile);
+    }
+
+    function copyFolderToClipboard(text, btn) {
+      if (!text) return;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => {
+          showToast('📋 Đã copy: ' + text, 'success');
+          if (btn) {
+            const orig = btn.innerHTML;
+            btn.innerHTML = '✓';
+            setTimeout(() => { btn.innerHTML = orig; }, 1500);
+          }
+        }).catch(() => fallbackCopyFolder(text, btn));
+      } else {
+        fallbackCopyFolder(text, btn);
+      }
+    }
+
+    function fallbackCopyFolder(text, btn) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        document.execCommand('copy');
+        showToast('📋 Đã copy: ' + text, 'success');
+        if (btn) {
+          const orig = btn.innerHTML;
+          btn.innerHTML = '✓';
+          setTimeout(() => { btn.innerHTML = orig; }, 1500);
+        }
+      } catch (e) {
+        showToast('❌ Không thể copy tự động', 'warning');
+      }
+      document.body.removeChild(ta);
+    }
+
+    function toTildePath(p) {
+      if (!p) return '';
+      return String(p).replace(/^\/Users\/[^\/]+/, '~');
+    }
+
+        function getEpicStatusCategory(status) {
+      const st = (status || '').toLowerCase();
+      if (st.includes('progress') || st === 'doing') return 'in_progress';
+      if (st.includes('abandon') || st.includes('discard') || st.includes('cancel') || st.includes('hủy')) return 'abandon';
+      if (st === 'done' || st.includes('complete') || st.includes('hoàn thành')) return 'done';
+      return 'backlog';
+    }
+
+    function sortEpicsForRoadmap(epics, activeEpic) {
+      if (!epics || !epics.length) return [];
+      const priorityMap = {
+        'in_progress': 1,
+        'backlog': 2,
+        'done': 3,
+        'abandon': 4
+      };
+
+      return [...epics].sort((a, b) => {
+        // 1. Primary sort: Status Category (1: In-progress -> 2: Backlog -> 3: Done -> 4: Abandon)
+        const catA = getEpicStatusCategory(a.status);
+        const catB = getEpicStatusCategory(b.status);
+        const rankA = priorityMap[catA] || 2;
+        const rankB = priorityMap[catB] || 2;
+
+        if (rankA !== rankB) return rankA - rankB;
+
+        // Within same status category, active epic of this repository stays at the top
+        const isActA = a.slug === activeEpic;
+        const isActB = b.slug === activeEpic;
+        if (isActA && !isActB) return -1;
+        if (!isActA && isActB) return 1;
+
+        // 3. Secondary sort: Last Updated (mtime or ISO date) descending (newest first)
+        const timeA = a.mtime || (a.last_updated ? new Date(a.last_updated).getTime() / 1000 : 0);
+        const timeB = b.mtime || (b.last_updated ? new Date(b.last_updated).getTime() / 1000 : 0);
+        if (timeA !== timeB) return timeB - timeA;
+
+        // 4. Fallback: alphabetical by slug
+        return a.slug.localeCompare(b.slug);
+      });
+    }
+
+    function findEpicWorktree(repo, activeEpic) {
+      if (!repo.worktrees || repo.worktrees.length === 0) return null;
+      if (!activeEpic) {
+        return repo.worktrees.find(wt => wt.path === repo.path) || repo.worktrees[0];
+      }
+      const s = activeEpic.toLowerCase().replace(/_/g, '-');
+      const sUnderscore = activeEpic.toLowerCase().replace(/-/g, '_');
+
+      // 1. Exact match on worktree folder name or path suffix
+      const matchPath = repo.worktrees.find(wt => {
+        const parts = wt.path.split(/[\/]/);
+        const folder = (parts[parts.length - 1] || '').toLowerCase();
+        return folder === s || folder === sUnderscore;
+      });
+      if (matchPath) return matchPath;
+
+      // 2. Branch name match
+      const matchBranch = repo.worktrees.find(wt => {
+        const b = (wt.branch || '').toLowerCase();
+        return b && (b.includes(s) || b.includes(sUnderscore) || s.includes(b));
+      });
+      if (matchBranch) return matchBranch;
+
+      // 3. If this is the active_epic of the repo and there is a non-root worktree
+      if (activeEpic === repo.active_epic) {
+        const nonRootWts = repo.worktrees.filter(wt => wt.path !== repo.path);
+        if (nonRootWts.length === 1) return nonRootWts[0];
+        const dirtyWt = nonRootWts.find(wt => wt.is_dirty);
+        if (dirtyWt) return dirtyWt;
+        const rootWt = repo.worktrees.find(wt => wt.path === repo.path);
+        if (rootWt) return rootWt;
+      }
+
+      return null;
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+
+    
+    
+    
+    /* ============================================================== */
+    /* 4-REPO FOCUS TABS & 2-TIER REPO DETAILED VIEW                  */
+    /* ============================================================== */
+
+    const FOCUSED_REPOS = ['D3Nexus', 'lyrics-sync', 'nexus', 'ai-agent-tools'];
+    const REPO_THEMES = {
+      'D3Nexus': { color: '#065f46', icon: '🟢', name: 'D3Nexus', border: '#10b981', title: 'D3Nexus' },
+      'lyrics-sync': { color: '#7f1d1d', icon: '🔴', name: 'lyrics-sync', border: '#ef4444', title: 'lyrics-sync' },
+      'nexus': { color: '#0d47a1', icon: '🔵', name: 'nexus', border: '#3b82f6', title: 'nexus' },
+      'ai-agent-tools': { color: '#b45309', icon: '🟠', name: 'ai-agent-tools', border: '#f59e0b', title: 'ai-agent-tools' }
+    };
+
+    
+    /* ============================================================== */
+    /* SCROLL STATE PRESERVATION & CHANGE DETECTION ENGINE            */
+    /* ============================================================== */
+    const currentKanbanFilter = {};
+    const lastRenderedRepoState = {};
+    let lastRenderedRepoName = null;
+
+    function captureAllScrollPositions(rootEl, includeWindow = false) {
+      const positions = new Map();
+      if (!rootEl) return positions;
+
+      // Window scroll: ONLY capture if explicitly requested (e.g. initial mount or full switch)
+      if (includeWindow) {
+        positions.set('__window__', { top: window.scrollY, left: window.scrollX });
+      }
+
+      // Active element focus / cursor
+      const active = document.activeElement;
+      if (active && rootEl.contains(active) && active.id) {
+        positions.set('__active_id__', active.id);
+        if ('selectionStart' in active && typeof active.selectionStart === 'number') {
+          positions.set('__active_sel__', { start: active.selectionStart, end: active.selectionEnd });
+        }
+      }
+
+      // FAST ZERO-REFLOW QUERY: ONLY elements explicitly marked with data-scroll-id
+      const scrollEls = rootEl.querySelectorAll('[data-scroll-id]');
+      scrollEls.forEach(el => {
+        const key = el.getAttribute('data-scroll-id');
+        if (key && (el.scrollTop > 0 || el.scrollLeft > 0)) {
+          positions.set(key, { top: el.scrollTop, left: el.scrollLeft });
+        }
+      });
+
+      return positions;
+    }
+
+    function restoreAllScrollPositions(rootEl, positions) {
+      if (!rootEl || !positions || positions.size === 0) return;
+
+      // Restore elements with data-scroll-id ONLY if position differs
+      positions.forEach((pos, key) => {
+        if (key.startsWith('__')) return;
+        const target = rootEl.querySelector(`[data-scroll-id="${key}"]`);
+        if (target) {
+          if (Math.abs(target.scrollTop - pos.top) > 1) {
+            target.scrollTop = pos.top;
+          }
+          if (Math.abs(target.scrollLeft - pos.left) > 1) {
+            target.scrollLeft = pos.left;
+          }
+        }
+      });
+
+      // Restore active element focus and selection
+      if (positions.has('__active_id__')) {
+        const actId = positions.get('__active_id__');
+        const target = document.getElementById(actId);
+        if (target && document.activeElement !== target) {
+          target.focus({ preventScroll: true });
+          if (positions.has('__active_sel__')) {
+            const sel = positions.get('__active_sel__');
+            if ('setSelectionRange' in target) {
+              target.setSelectionRange(sel.start, sel.end);
+            }
+          }
+        }
+      }
+
+      // Restore window scroll ONLY if position significantly differed to avoid triggering OS scrollbar pop-in
+      if (positions.has('__window__')) {
+        const win = positions.get('__window__');
+        if (Math.abs(window.scrollY - win.top) > 2 || Math.abs(window.scrollX - win.left) > 2) {
+          window.scrollTo(win.left, win.top);
+        }
+      }
+    }
+
+    let activeFocusTab = localStorage.getItem('check_tasks_active_focus_tab');
+    if (!activeFocusTab || activeFocusTab === 'all' || !FOCUSED_REPOS.includes(activeFocusTab)) {
+      activeFocusTab = 'D3Nexus';
+    }
+
+    function switchRepoTab(tabId) {
+      if (!tabId || tabId === 'all' || !FOCUSED_REPOS.includes(tabId)) {
+        tabId = 'D3Nexus';
+      }
+      activeFocusTab = tabId;
+      try {
+        localStorage.setItem('check_tasks_active_focus_tab', tabId);
+      } catch(e) {}
+
+      document.querySelectorAll('.repo-tab-btn').forEach(btn => {
+        btn.classList.remove('active', 'active-D3Nexus', 'active-lyrics-sync', 'active-nexus', 'active-ai-agent-tools');
+        if (btn.getAttribute('data-tab') === tabId) {
+          btn.classList.add('active', 'active-' + tabId);
+        }
+      });
+
+      const detailView = document.getElementById('repo-detail-view');
+      const reposContainer = document.getElementById('repos-container');
+
+      if (reposContainer) reposContainer.style.display = 'none';
+      if (detailView) {
+        detailView.style.display = 'block';
+        renderRepoDetailView(tabId);
+      }
+    }
+
+    function renderRepoTabs(repos) {
+      const bar = document.getElementById('repo-tab-bar');
+      if (!bar) return;
+
+      const tabsSig = FOCUSED_REPOS.map(name => {
+        const r = (repos || []).find(x => x.name === name);
+        return [name, r?.epics_summary?.in_progress, r?.active_epic, r?.prompt, activeFocusTab === name];
+      }).flat().join('|');
+
+      if (bar.dataset.sig === tabsSig) {
+        return; // Zero DOM mutation when tabs data has not changed!
+      }
+      bar.dataset.sig = tabsSig;
+
+      let html = '';
+      FOCUSED_REPOS.forEach(name => {
+        const r = (repos || []).find(x => x.name === name);
+        const theme = REPO_THEMES[name];
+        const inProgressEpics = r?.epics_summary?.in_progress || (r?.active_epic ? 1 : 0);
+        const prompt = r?.prompt || '';
+        const needsConfirm = prompt.includes('Approve') || 
+                             prompt.includes('Phê duyệt') || 
+                             prompt.includes('Review Choice') || 
+                             prompt.includes('Lựa chọn') || 
+                             prompt.includes('Chờ Bạn Chọn') ||
+                             prompt.includes('Confirm') ||
+                             prompt.includes('Action Required');
+
+        const isActive = activeFocusTab === name;
+        const activeClass = isActive ? `active active-${name}` : '';
+
+        html += `
+          <button class="repo-tab-btn ${activeClass}" 
+                  data-tab="${name}" 
+                  onclick="switchRepoTab('${name}')">
+            <span>${theme.icon}</span>
+            <span style="font-weight: 700;">${name}</span>
+            <span class="tab-badge-doing">⚡ ${inProgressEpics} Doing</span>
+            ${needsConfirm ? `<span class="tab-notification-badge" title="Có thông tin cần bạn xác nhận / phê duyệt"></span>` : ''}
+          </button>
+        `;
+      });
+
+      bar.innerHTML = html;
+    }
+
+            function renderExecutionEpics(repo) {
+      if (!repo) return '';
+      const theme = REPO_THEMES[repo.name] || { color: '#38bdf8', icon: '📦', name: repo.name, border: '#0284c7' };
+      const color = repo.theme_color || theme.color;
+      const defaultAccountId = repo.account_id || 'danhdue';
+      const allTasks = repo.task_progress?.tasks || [];
+
+      // 1. Collect epics for Tier 2:
+      // Priority 1: active_epic
+      // Priority 2: in_progress epics from epics_summary
+      const epicSlugs = [];
+      if (repo.active_epic) epicSlugs.push(repo.active_epic);
+
+      const inProgEpics = (repo.epics_summary?.epics || []).filter(e => e.status === 'in_progress');
+      inProgEpics.forEach(e => {
+        if (!epicSlugs.includes(e.slug)) epicSlugs.push(e.slug);
+      });
+
+      // Track worktree paths already claimed
+      const claimedWtPaths = new Set();
+      epicSlugs.forEach(slug => {
+        const wt = findEpicWorktree(repo, slug);
+        if (wt && wt.path !== repo.path) {
+          claimedWtPaths.add(wt.path);
+        }
+      });
+
+      // Check remaining worktrees only if they match known epics in epics_summary
+      (repo.worktrees || []).forEach(wt => {
+        if (wt.path !== repo.path && !claimedWtPaths.has(wt.path)) {
+          const parts = wt.path.split(/[\/]/);
+          const name = parts[parts.length - 1];
+          if (name && !['features', 'done', '.devtool'].includes(name)) {
+            const matched = (repo.epics_summary?.epics || []).find(e => e.slug === name || e.slug === name.replace(/_/g, '-') || e.slug === name.replace(/-/g, '_'));
+            if (matched && !epicSlugs.includes(matched.slug)) {
+              epicSlugs.push(matched.slug);
+              claimedWtPaths.add(wt.path);
+            }
+          }
+        }
+      });
+
+      if (epicSlugs.length === 0) {
+        return `
+          <div style="background: #141724; border: 1px dashed #374151; border-radius: 6px; padding: 28px; text-align: center; color: #94a3b8;">
+            <span style="font-size: 20px; display: block; margin-bottom: 6px;">☕</span>
+            <strong style="color: #cbd5e1; font-size: 13px;">Hiện tại không có Epic nào đang triển khai worktree</strong>
+            <p style="font-size: 11px; color: #64748b; margin-top: 4px;">Human Architect có thể lên ý tưởng và tạo Epic mới tại Tầng 1 bên trên để bắt đầu phân lập worktree thực thi.</p>
+          </div>
+        `;
+      }
+
+      return epicSlugs.map(slug => {
+        const isPrimaryActive = slug === repo.active_epic;
+        const epicMeta = (repo.epics_summary?.epics || []).find(e => e.slug === slug);
+        const pic = epicMeta?.pic || defaultAccountId;
+
+        // Locate worktree
+        const epicWt = findEpicWorktree(repo, slug);
+        const wtPath = epicWt ? epicWt.path : (isPrimaryActive ? repo.path : repo.path + '/.worktrees/' + slug);
+        let wtBranch = (epicWt && epicWt.branch && epicWt.branch !== 'null' && epicWt.branch !== 'HEAD') ? epicWt.branch : '';
+        if (!wtBranch && epicWt && epicWt.is_detached) wtBranch = 'detached';
+        const wtDirty = epicWt ? (epicWt.is_dirty ? `Dirty (${epicWt.dirty_file_count} files)` : 'Clean') : 'Chưa phân lập worktree';
+
+        // Tasks for this epic
+        const epicTasks = allTasks.filter(t => t.epic === slug || t.epic === slug.replace(/_/g, '-') || t.epic === slug.replace(/-/g, '_'));
+        const totalCount = epicTasks.length || (isPrimaryActive ? repo.task_progress?.total_tasks || 0 : 0);
+        const doneCount = epicTasks.filter(t => t.status === 'done').length || (isPrimaryActive ? repo.task_progress?.done_tasks || 0 : 0);
+        const progressPct = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : (isPrimaryActive ? repo.task_progress?.percentage || 0 : 0);
+
+        // Active task name
+        const inProgTask = epicTasks.find(t => t.status === 'in-progress' || t.status === 'review');
+        const nextTodoTask = epicTasks.find(t => t.status === 'todo' || t.status === 'backlog');
+        let activeTaskName = inProgTask ? inProgTask.title : (nextTodoTask ? nextTodoTask.title : (totalCount > 0 && doneCount === totalCount ? 'Tất cả tasks đã hoàn thành ✓' : 'Đang thiết lập tasks...'));
+        if (isPrimaryActive && repo.task_progress?.active_task_name) {
+          activeTaskName = repo.task_progress.active_task_name;
+        }
+
+        const stageName = isPrimaryActive ? (repo.active_stage || 'Stage 1 (Inception)') : (epicMeta?.status === 'in_progress' ? 'Stage 3 (Implementation)' : 'Stage 1 (Inception)');
+        const promptText = isPrimaryActive ? (repo.prompt || 'Đang thực thi...') : 'Đang xử lý theo worktree...';
+        const isActionReq = isPrimaryActive && (
+          promptText.includes('Approve') || promptText.includes('Phê duyệt') || 
+          promptText.includes('Review Choice') || promptText.includes('Lựa chọn') || 
+          promptText.includes('Chờ Bạn Chọn') || promptText.includes('Confirm') ||
+          promptText.includes('Action Required')
+        );
+
+        return `
+          <div class="epic-execution-item" style="background: #141724; border: 1px solid #283347; border-left: 4px solid ${color}; border-radius: 6px; padding: 16px; margin-bottom: 14px;">
+            
+            <!-- Row 1: Epic Title, Branch, PIC, Stage -->
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
+              <div>
+                <div style="font-size: 15px; font-weight: 700; color: #f8fafc; display: flex; align-items: center; gap: 8px;">
+                  <span>⚡ Epic: <strong style="color: ${color};">${escapeHtml(slug)}</strong></span>
+                  ${wtBranch ? `<span style="font-size: 11px; font-family: monospace; color: #38bdf8; background: #0f172a; border: 1px solid #0284c7; padding: 1px 6px; border-radius: 4px;">⎇ ${escapeHtml(wtBranch)}</span>` : ''}
+                </div>
+                <div style="font-size: 11px; color: #94a3b8; font-family: monospace; margin-top: 4px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+                  <span>🌲 Worktree: <strong style="color: #cbd5e1;">${escapeHtml(toTildePath(wtPath))}</strong> (${escapeHtml(wtDirty)})</span>
+                  <span>👤 Profile (PIC): <strong style="color: #c084fc; background: rgba(192, 132, 252, 0.12); border: 1px solid #c084fc; padding: 1px 6px; border-radius: 4px;">@${escapeHtml(pic)}</strong></span>
+                </div>
+              </div>
+
+              <div>
+                <span style="background: rgba(56, 189, 248, 0.12); color: #7dd3fc; border: 1px solid #0284c7; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 4px;">
+                  ${escapeHtml(stageName)}
+                </span>
+              </div>
+            </div>
+
+            <!-- Action Required Alert Banner (nếu có điểm nghẽn phê duyệt) -->
+            ${isActionReq ? `
+              <div style="background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 4px; padding: 8px 12px; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span style="font-size: 14px;">🚨</span>
+                  <span style="font-size: 11px; font-weight: 700; color: #fca5a5; text-transform: uppercase; letter-spacing: 0.05em;">Bước tiếp theo con người cần quyết định:</span>
+                  <strong style="font-size: 12px; color: #fef2f2; font-weight: 700;">${escapeHtml(promptText)}</strong>
+                </div>
+                <span style="font-size: 10px; background: rgba(239, 68, 68, 0.2); color: #fca5a5; border: 1px solid #ef4444; padding: 2px 6px; border-radius: 4px; font-weight: 700;">Action Required</span>
+              </div>
+            ` : ''}
+
+            <!-- Row 2: Tasks hiện tại là gì & Bước tiếp theo -->
+            <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid #1e293b; border-radius: 4px; padding: 8px 12px; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;">
+              <div style="font-size: 12px; color: #cbd5e1; display: flex; align-items: center; gap: 6px;">
+                <span style="color: ${color}; font-weight: 700;">📌 Task hiện tại:</span>
+                <span style="font-weight: 600; color: #f1f5f9;">${escapeHtml(activeTaskName)}</span>
+              </div>
+              <div style="font-size: 11px; color: #94a3b8;">
+                ${!isActionReq ? `✓ Bước tiếp theo: <strong style="color: #cbd5e1;">${escapeHtml(promptText)}</strong>` : `Trạng thái: <strong style="color: #f87171;">Tạm dừng chờ quyết định</strong>`}
+              </div>
+            </div>
+
+            <!-- Row 3: Tiến độ là bao nhiêu % -->
+            <div style="margin-bottom: 12px;">
+              <div style="display: flex; justify-content: space-between; font-size: 11px; color: #94a3b8; margin-bottom: 4px; font-weight: 600;">
+                <span>Tiến độ Tasks: <strong style="color: #f1f5f9;">${doneCount} / ${totalCount} Hoàn thành</strong></span>
+                <span style="color: #10b981; font-weight: 700;">${progressPct}%</span>
+              </div>
+              <div style="background: #1e293b; border-radius: 4px; height: 6px; overflow: hidden;">
+                <div style="background: linear-gradient(90deg, ${color} 0%, #10b981 100%); width: ${progressPct}%; height: 100%; border-radius: 4px; transition: width 0.3s ease;"></div>
+              </div>
+            </div>
+
+            <!-- Row 4: Actions button để mở IDE, xem principal review, cross model review -->
+            <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #1e293b; padding-top: 10px; flex-wrap: wrap; gap: 8px;">
+              <div style="display: flex; gap: 6px; align-items: center;">
+                <button onclick="triggerLaunch('ide', '${escapeHtml(wtPath)}', '${escapeHtml(pic)}')" 
+                        class="btn-action-primary" 
+                        style="background: ${color}; border-color: ${theme.border}; font-size: 11px; padding: 5px 12px; border-radius: 4px;" 
+                        title="Mở Antigravity IDE trong worktree với Profile: @${escapeHtml(pic)}">
+                  <span>🚀</span> Mở IDE (@${escapeHtml(pic)})
+                </button>
+                <button onclick="triggerLaunch('cli', '${escapeHtml(wtPath)}', '${escapeHtml(pic)}')" 
+                        class="btn-action-neutral" 
+                        style="font-size: 11px; padding: 5px 10px; border-radius: 4px;" 
+                        title="Mở Terminal CLI">
+                  <span>💻</span> CLI
+                </button>
+              </div>
+
+              <div style="display: flex; gap: 6px; align-items: center;">
+                <button onclick="openReviewModal('${escapeHtml(repo.name)}', '${escapeHtml(slug)}', 1, 'principal')" 
+                        class="btn-action-neutral" 
+                        style="font-size: 11px; padding: 5px 12px; border-radius: 4px;"
+                        title="Xem kết quả Principal Review">
+                  <span>🛡️</span> Principal Review
+                </button>
+                <button onclick="openReviewModal('${escapeHtml(repo.name)}', '${escapeHtml(slug)}', 1, 'cross-model')" 
+                        class="btn-action-neutral" 
+                        style="font-size: 11px; padding: 5px 12px; border-radius: 4px;"
+                        title="Xem kết quả Cross-Model Review">
+                  <span>🔬</span> Cross-Model Review
+                </button>
+              </div>
+            </div>
+
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderKanbanDashboard(repo, selectedEpicFilter) {
+      if (!repo) return '';
+      const allTasks = (repo.task_progress && repo.task_progress.tasks) ? repo.task_progress.tasks : [];
+
+      // Filter if epic selected
+      const filteredTasks = (!selectedEpicFilter || selectedEpicFilter === 'all')
+        ? allTasks
+        : allTasks.filter(t => t.epic === selectedEpicFilter || t.epic === selectedEpicFilter.replace(/_/g, '-') || t.epic === selectedEpicFilter.replace(/-/g, '_'));
+
+      const totalCount = filteredTasks.length;
+
+      const columns = {
+        'backlog': { title: 'Backlog', color: '#94a3b8', dot: '#94a3b8', items: [] },
+        'todo': { title: 'To Do', color: '#38bdf8', dot: '#38bdf8', items: [] },
+        'in-progress': { title: 'In Progress', color: '#fbbf24', dot: '#fbbf24', items: [] },
+        'review': { title: 'Review', color: '#a855f7', dot: '#a855f7', items: [] },
+        'done': { title: 'Done', color: '#10b981', dot: '#10b981', items: [] }
+      };
+
+      filteredTasks.forEach(t => {
+        const rawStatus = (t.status || 'backlog').toLowerCase().replace('_', '-');
+        const st = (rawStatus === 'inprogress') ? 'in-progress' : rawStatus;
+        if (columns[st]) {
+          columns[st].items.push(t);
+        } else {
+          columns['backlog'].items.push(t);
+        }
+      });
+
+      // Extract unique epics for filter
+      const epicsSet = new Set();
+      allTasks.forEach(t => { if (t.epic) epicsSet.add(t.epic); });
+      const uniqueEpics = Array.from(epicsSet);
+
+      let epicsFilterOptions = uniqueEpics.map(ep => {
+        const count = allTasks.filter(t => t.epic === ep).length;
+        const isSel = (selectedEpicFilter === ep) ? 'selected' : '';
+        return `<option value="${escapeHtml(ep)}" ${isSel}>${escapeHtml(ep)} (${count})</option>`;
+      }).join('');
+
+      // Natural numerical count sort for tasks in each column (e.g. Task 1, 2, ..., 9, 10, 11)
+      for (const col of Object.values(columns)) {
+        col.items.sort((a, b) => {
+          const strA = (a.id || a.title || '');
+          const strB = (b.id || b.title || '');
+          return strA.localeCompare(strB, undefined, { numeric: true, sensitivity: 'base' });
+        });
+      }
+
+      // Build 5 columns HTML
+      let columnsHtml = '';
+      for (const [key, col] of Object.entries(columns)) {
+        let cardsHtml = '';
+        if (col.items.length === 0) {
+          cardsHtml = `<div style="color: #475569; font-size: 12px; text-align: center; padding: 60px 10px;">No features</div>`;
+        } else {
+          cardsHtml = col.items.map(t => {
+            const isDone = key === 'done';
+            const isInProg = key === 'in-progress';
+            const isRev = key === 'review';
+            const isTodo = key === 'todo';
+
+            const borderStyle = isDone ? 'border-left: 3px solid #10b981;'
+              : (isInProg ? 'border-left: 3px solid #fbbf24;'
+              : (isRev ? 'border-left: 3px solid #a855f7;'
+              : (isTodo ? 'border-left: 3px solid #38bdf8;' : 'border-left: 3px solid #475569;')));
+
+            const pri = (t.priority || 'medium').toLowerCase();
+            const priStyle = pri === 'high'
+              ? 'background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4);'
+              : (pri === 'medium' ? 'background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4);'
+              : 'background: rgba(148, 163, 184, 0.15); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.3);');
+
+            const labels = Array.isArray(t.labels) ? t.labels : [];
+
+            return `
+              <div class="kanban-task-card" style="background: #141824; border: 1px solid #222b3e; ${borderStyle} border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 8px; transition: all 0.15s ease;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
+                  <strong style="font-size: 12px; font-weight: 700; color: #f8fafc; line-height: 1.4;">${escapeHtml(t.title || t.id)}</strong>
+                  <span style="${priStyle} font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 4px; text-transform: uppercase;">
+                    ${escapeHtml(t.priority || 'medium')}
+                  </span>
+                </div>
+
+                <div style="font-size: 11px; color: #94a3b8; line-height: 1.3;">
+                  <span style="color: #64748b;">Epic:</span> 
+                  <span style="color: #60a5fa; text-decoration: underline; cursor: pointer;" onclick="openEpicsModal('${escapeHtml(repo.name)}')">[${escapeHtml(t.epic)}](${escapeHtml(t.epic)}.en.md)...</span>
+                </div>
+
+                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                  <span style="font-size: 10px; color: #c084fc; background: rgba(168, 85, 247, 0.15); border: 1px solid rgba(168, 85, 247, 0.3); padding: 1px 6px; border-radius: 4px; font-family: monospace; font-weight: 600;">
+                    🗂 ${escapeHtml(t.epic)}
+                  </span>
+                  ${labels.map(l => `
+                    <span style="font-size: 10px; color: #94a3b8; background: #1e2638; border: 1px solid #334155; padding: 1px 6px; border-radius: 4px;">
+                      ${escapeHtml(l)}
+                    </span>
+                  `).join('')}
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 10px; color: #64748b; margin-top: 2px;">
+                  <span>${t.source === 'worktree' ? '<span style="color: #38bdf8;">🌲 Worktree</span>' : '<span style="color: #94a3b8;">🏛️ Root</span>'}</span>
+                  <span>${t.status === 'done' ? '<span style="color: #34d399;">✓</span> ' : ''}${escapeHtml(t.time || '')}</span>
+                </div>
+              </div>
+            `;
+          }).join('');
+        }
+
+        columnsHtml += `
+          <div class="kanban-col" style="border-right: 1px solid #1e2638; display: flex; flex-direction: column;">
+            <div style="padding: 12px 14px; border-bottom: 1px solid #1e2638; display: flex; justify-content: space-between; align-items: center; background: #0f131d;">
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <span style="width: 7px; height: 7px; border-radius: 50%; background: ${col.dot};"></span>
+                <span style="font-size: 12px; font-weight: 700; color: #f1f5f9;">${col.title}</span>
+              </div>
+              <span style="font-size: 11px; color: #94a3b8; font-weight: 700; background: #182030; border: 1px solid #243048; padding: 1px 7px; border-radius: 4px; font-family: monospace;">${col.items.length}</span>
+            </div>
+            <div class="kanban-col-cards" data-scroll-id="kanban-col-${escapeHtml(repo.name)}-${key}" style="padding: 10px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; max-height: 480px; flex: 1;">
+              ${cardsHtml}
+            </div>
+          </div>
+        `;
+      }
+
+      return `
+        <div style="display: grid; grid-template-columns: 200px 1fr; min-height: 480px;">
+
+          <!-- LEFT SIDEBAR: OVERVIEW -->
+          <div style="background: #090c14; border-right: 1px solid #1e2638; padding: 18px 16px; display: flex; flex-direction: column;">
+            <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 10px; border-bottom: 1px solid #1e2638;">
+              <span style="font-size: 11px; font-weight: 800; color: #64748b; letter-spacing: 0.05em; text-transform: uppercase;">OVERVIEW</span>
+              <span style="font-size: 11px; font-weight: 800; color: #cbd5e1; font-family: monospace;">${totalCount} TOTAL</span>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 14px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #94a3b8;">
+                <span style="display: flex; align-items: center; gap: 6px;">
+                  <span style="width: 7px; height: 7px; border-radius: 50%; background: #94a3b8;"></span> Backlog
+                </span>
+                <span style="font-weight: 700; color: #f8fafc; font-family: monospace;">${columns['backlog'].items.length}</span>
+              </div>
+
+              <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #94a3b8;">
+                <span style="display: flex; align-items: center; gap: 6px;">
+                  <span style="width: 7px; height: 7px; border-radius: 50%; background: #38bdf8;"></span> To Do
+                </span>
+                <span style="font-weight: 700; color: #f8fafc; font-family: monospace;">${columns['todo'].items.length}</span>
+              </div>
+
+              <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #94a3b8;">
+                <span style="display: flex; align-items: center; gap: 6px;">
+                  <span style="width: 7px; height: 7px; border-radius: 50%; background: #fbbf24;"></span> In Progress
+                </span>
+                <span style="font-weight: 700; color: #f8fafc; font-family: monospace;">${columns['in-progress'].items.length}</span>
+              </div>
+
+              <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #94a3b8;">
+                <span style="display: flex; align-items: center; gap: 6px;">
+                  <span style="width: 7px; height: 7px; border-radius: 50%; background: #a855f7;"></span> Review
+                </span>
+                <span style="font-weight: 700; color: #f8fafc; font-family: monospace;">${columns['review'].items.length}</span>
+              </div>
+
+              <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #94a3b8;">
+                <span style="display: flex; align-items: center; gap: 6px;">
+                  <span style="width: 7px; height: 7px; border-radius: 50%; background: #10b981;"></span> Done
+                </span>
+                <span style="font-weight: 700; color: #34d399; font-family: monospace;">${columns['done'].items.length}</span>
+              </div>
+            </div>
+
+            ${uniqueEpics.length > 1 ? `
+            <div style="margin-top: auto; padding-top: 16px; border-top: 1px solid #1e2638;">
+              <div style="font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 6px;">Lọc theo Epic:</div>
+              <select id="kanban-epic-filter-${escapeHtml(repo.name)}" 
+                      onchange="onFilterKanbanBoard('${escapeHtml(repo.name)}', this.value)"
+                      style="width: 100%; background: #131722; color: #cbd5e1; border: 1px solid #282f40; border-radius: 6px; padding: 5px 8px; font-size: 11px; font-family: monospace; outline: none; cursor: pointer;">
+                <option value="all">⚡ Tất cả Epics (${allTasks.length})</option>
+                ${epicsFilterOptions}
+              </select>
+            </div>
+            ` : ''}
+
+          </div>
+
+          <!-- RIGHT: 5 KANBAN COLUMNS -->
+          <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 0; background: #0c0f17;">
+            ${columnsHtml}
+          </div>
+
+        </div>
+      `;
+    }
+
+    function onFilterKanbanBoard(repoName, epicValue) {
+      currentKanbanFilter[repoName] = epicValue;
+      const repo = (currentReposData || []).find(r => r.name === repoName);
+      if (!repo) return;
+      const wrapper = document.getElementById('kanban-dashboard-wrapper-' + repoName);
+      if (wrapper) {
+        const scrollSnapshot = captureAllScrollPositions(wrapper, false);
+        wrapper.innerHTML = renderKanbanDashboard(repo, epicValue);
+        wrapper.dataset.sig = JSON.stringify({
+          f: epicValue,
+          t: (repo.task_progress?.tasks || []).map(t => [t.id, t.status, t.priority, t.epic, t.title])
+        });
+        restoreAllScrollPositions(wrapper, scrollSnapshot);
+      }
+    }
+
+    function renderEpicsOverviewAndApprovalGate(repo) {
+      const epicsSummary = repo.epics_summary || { total: 0, completed: 0, in_progress: 0, unstarted: 0, abandoned: 0, epics: [] };
+      const promptText = repo.prompt || 'Kho lưu trữ đang ở trạng thái nghỉ (Idle)';
+      const needsConfirm = promptText.includes('Approve') || 
+                           promptText.includes('Phê duyệt') || 
+                           promptText.includes('Review Choice') || 
+                           promptText.includes('Lựa chọn') || 
+                           promptText.includes('Chờ Bạn Chọn') ||
+                           promptText.includes('Confirm') ||
+                           promptText.includes('Action Required');
+
+      return `
+        <!-- KHỐI 1: TỔNG QUAN VỀ EPICS -->
+        <div style="background: #141722; border: 1px solid #1e2638; border-radius: 8px; padding: 14px 18px; display: flex; flex-direction: column; justify-content: space-between;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid #1e2638; padding-bottom: 8px;">
+            <span style="font-size: 11px; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 6px;">
+              <span>📦</span> Tổng Quan Về Epics (${epicsSummary.total} Epics)
+            </span>
+            <span style="font-size: 11px; color: #64748b; font-family: monospace;">.devtool/epic/</span>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;">
+            
+            <!-- 1. In-progress -->
+            <div style="background: #0f131d; border: 1px solid #283347; border-left: 3px solid #fbbf24; border-radius: 6px; padding: 8px 12px;">
+              <div style="font-size: 10px; color: #fbbf24; font-weight: 700; text-transform: uppercase;">1. In-Progress</div>
+              <div style="font-size: 20px; font-weight: 800; color: #fbbf24; margin-top: 2px;">${epicsSummary.in_progress}</div>
+              <div style="font-size: 10px; color: #64748b; margin-top: 2px;">Đang thực hiện</div>
+            </div>
+
+            <!-- 2. Backlog -->
+            <div style="background: #0f131d; border: 1px solid #283347; border-left: 3px solid #38bdf8; border-radius: 6px; padding: 8px 12px;">
+              <div style="font-size: 10px; color: #38bdf8; font-weight: 700; text-transform: uppercase;">2. Backlog</div>
+              <div style="font-size: 20px; font-weight: 800; color: #38bdf8; margin-top: 2px;">${epicsSummary.unstarted}</div>
+              <div style="font-size: 10px; color: #64748b; margin-top: 2px;">Chưa làm / Hàng đợi</div>
+            </div>
+
+            <!-- 3. Done -->
+            <div style="background: #0f131d; border: 1px solid #283347; border-left: 3px solid #10b981; border-radius: 6px; padding: 8px 12px;">
+              <div style="font-size: 10px; color: #34d399; font-weight: 700; text-transform: uppercase;">3. Done</div>
+              <div style="font-size: 20px; font-weight: 800; color: #10b981; margin-top: 2px;">${epicsSummary.completed}</div>
+              <div style="font-size: 10px; color: #64748b; margin-top: 2px;">Đã hoàn thành</div>
+            </div>
+
+            <!-- 4. Abandon -->
+            <div style="background: #0f131d; border: 1px solid #283347; border-left: 3px solid #ef4444; border-radius: 6px; padding: 8px 12px;">
+              <div style="font-size: 10px; color: #f87171; font-weight: 700; text-transform: uppercase;">4. Abandon</div>
+              <div style="font-size: 20px; font-weight: 800; color: #ef4444; margin-top: 2px;">${epicsSummary.abandoned || 0}</div>
+              <div style="font-size: 10px; color: #64748b; margin-top: 2px;">Đã gác lại / Hủy</div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- KHỐI 2: 5. ĐIỂM NGHẼN PHÊ DUYỆT -->
+        <div style="background: #141722; border: 1px solid #1e2638; border-radius: 8px; padding: 14px 18px; display: flex; flex-direction: column; justify-content: space-between;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px solid #1e2638; padding-bottom: 8px;">
+            <span style="font-size: 11px; font-weight: 800; color: ${needsConfirm ? '#f87171' : '#94a3b8'}; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 6px;">
+              <span>${needsConfirm ? '🚨' : '🛡️'}</span> 5. Điểm Nghẽn Phê Duyệt
+            </span>
+            <span style="font-size: 10px; font-weight: 700; background: ${needsConfirm ? 'rgba(239, 68, 68, 0.2)' : 'rgba(16, 185, 129, 0.15)'}; color: ${needsConfirm ? '#fca5a5' : '#34d399'}; border: 1px solid ${needsConfirm ? '#ef4444' : '#10b981'}; padding: 1px 6px; border-radius: 4px;">
+              ${needsConfirm ? 'Action Required' : 'Passed'}
+            </span>
+          </div>
+          <div style="margin-top: 2px;">
+            <div style="font-size: 16px; font-weight: 800; color: ${needsConfirm ? '#f87171' : '#34d399'};">
+              ${needsConfirm ? 'Cần Bạn Xác Nhận' : '✓ Thông Suốt'}
+            </div>
+            <div style="font-size: 11px; color: ${needsConfirm ? '#fca5a5' : '#64748b'}; margin-top: 4px; line-height: 1.4; font-family: monospace;">
+              ${needsConfirm ? escapeHtml(repo.prompt || 'Có gate chờ duyệt') : 'Không có gate nghẽn'}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderRoadmapTableRows(repo) {
+      const epicsSummary = repo.epics_summary || { total: 0, completed: 0, in_progress: 0, unstarted: 0, abandoned: 0, epics: [] };
+      const sorted = sortEpicsForRoadmap(epicsSummary.epics || [], repo.active_epic);
+      if (!sorted || sorted.length === 0) {
+        return `<tr><td colspan="5" style="text-align: center; color: #64748b; padding: 20px;">Không có danh sách Epics.</td></tr>`;
+      }
+      return sorted.map(e => {
+        const cat = getEpicStatusCategory(e.status);
+        let badgeColor = '#94a3b8';
+        let badgeBg = 'rgba(148, 163, 184, 0.1)';
+        let stLabel = '📋 Backlog';
+
+        if (cat === 'in_progress') {
+          badgeColor = '#fbbf24';
+          badgeBg = 'rgba(245, 158, 11, 0.2)';
+          stLabel = '⚡ In Progress';
+        } else if (cat === 'done') {
+          badgeColor = '#34d399';
+          badgeBg = 'rgba(16, 185, 129, 0.2)';
+          stLabel = '✓ Done';
+        } else if (cat === 'abandon') {
+          badgeColor = '#ef4444';
+          badgeBg = 'rgba(239, 68, 68, 0.2)';
+          stLabel = '🛑 Abandon';
+        } else {
+          badgeColor = '#38bdf8';
+          badgeBg = 'rgba(56, 189, 248, 0.15)';
+          stLabel = (e.status === 'packaged') ? '📦 Packaged' : '📋 Backlog';
+        }
+
+        const isCur = repo.active_epic === e.slug;
+        const updatedStr = e.last_updated_human || (e.last_updated ? e.last_updated.substring(0, 10) : '—');
+        return `
+          <tr class="roadmap-epic-row" style="background: ${isCur ? 'rgba(56, 189, 248, 0.08)' : '#141722'}; border-bottom: 1px solid #1e2433;">
+            <td style="padding: 8px 12px; white-space: nowrap;">
+              <span style="background: ${badgeBg}; color: ${badgeColor}; border: 1px solid ${badgeColor}; padding: 2px 8px; border-radius: 4px; font-weight: 700; font-size: 10px; display: inline-flex; align-items: center; gap: 4px;">
+                ${stLabel}
+              </span>
+            </td>
+            <td style="padding: 8px 12px; font-family: monospace; font-weight: 600; color: #f1f5f9;">
+              ${escapeHtml(e.slug)} ${isCur ? '<span style="color: #38bdf8; font-size: 9px;">(Active)</span>' : ''}
+            </td>
+            <td style="padding: 8px 12px; color: #94a3b8; font-size: 11px; font-family: monospace; white-space: nowrap;" title="${escapeHtml(e.last_updated || '')}">
+              ${escapeHtml(updatedStr)}
+            </td>
+            <td style="padding: 8px 12px; color: #cbd5e1; text-align: center; font-weight: 600;">${e.task_count > 0 ? e.task_count : '—'}</td>
+            <td style="padding: 8px 12px; white-space: nowrap;">${renderPicSelect(repo.name, e.slug, e.pic)}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function renderRepoDetailView(repoName, forceRender = false) {
+      const container = document.getElementById('repo-detail-view');
+      if (!container) return;
+
+      const repo = (currentReposData || []).find(r => r.name === repoName);
+      if (!repo) {
+        container.innerHTML = `<div class="repo-card" style="text-align: center; color: #94a3b8; padding: 40px;">Đang tải thông tin chi tiết cho ${escapeHtml(repoName)}...</div>`;
+        return;
+      }
+
+      const isSwitchingRepo = lastRenderedRepoName !== repoName;
+      lastRenderedRepoName = repoName;
+
+      const selectedEpicFilter = currentKanbanFilter[repoName] || 'all';
+      const existingContent = document.getElementById('repo-detail-content-' + repoName);
+
+      // Targeted In-Place Update (Zero layout thrashing / Zero flicker during 5s polling ticks)
+      if (!isSwitchingRepo && !forceRender && existingContent) {
+        const rootWt = (repo.worktrees || []).find(wt => wt.path === repo.path) || repo.worktrees?.[0];
+        const rootBranchEl = document.getElementById('header-root-branch-' + repo.name);
+        const newBranchText = 'Branch gốc: ' + (rootWt?.branch || 'main');
+        if (rootBranchEl && rootBranchEl.textContent !== newBranchText) {
+          rootBranchEl.textContent = newBranchText;
+        }
+
+        const epicsSummary = repo.epics_summary || { total: 0, completed: 0, in_progress: 0, unstarted: 0, abandoned: 0, epics: [] };
+        const epicsBtn = document.getElementById('btn-epics-count-' + repo.name);
+        const newBtnHtml = `<span>📦</span> Epics (${epicsSummary.total})`;
+        if (epicsBtn && epicsBtn.innerHTML.replace(/\s+/g, ' ').trim() !== newBtnHtml) {
+          epicsBtn.innerHTML = newBtnHtml;
+        }
+
+        // 1. Kanban Dashboard (Checked by data signature, NOT innerHTML!)
+        const kanbanWrapper = document.getElementById('kanban-dashboard-wrapper-' + repo.name);
+        if (kanbanWrapper) {
+          const kanbanSig = JSON.stringify({
+            f: selectedEpicFilter,
+            t: (repo.task_progress?.tasks || []).map(t => [t.id, t.status, t.priority, t.epic, t.title])
+          });
+          if (kanbanWrapper.dataset.sig !== kanbanSig) {
+            const kSnapshot = captureAllScrollPositions(kanbanWrapper, false);
+            kanbanWrapper.innerHTML = renderKanbanDashboard(repo, selectedEpicFilter);
+            kanbanWrapper.dataset.sig = kanbanSig;
+            restoreAllScrollPositions(kanbanWrapper, kSnapshot);
+          }
+        }
+
+        // 2. Epics Overview (4 counters) & Approval Gate (Checked by signature)
+        const overviewWrapper = document.getElementById('epics-overview-counts-' + repo.name);
+        if (overviewWrapper) {
+          const overviewSig = `${epicsSummary.in_progress}|${epicsSummary.unstarted}|${epicsSummary.completed}|${epicsSummary.abandoned}|${epicsSummary.total}|${repo.prompt || ''}`;
+          if (overviewWrapper.dataset.sig !== overviewSig) {
+            overviewWrapper.innerHTML = renderEpicsOverviewAndApprovalGate(repo);
+            overviewWrapper.dataset.sig = overviewSig;
+          }
+        }
+
+        // 3. Roadmap Table Body (Checked by signature)
+        const roadmapCountEl = document.getElementById('roadmap-count-' + repo.name);
+        const newRoadmapCountText = `${epicsSummary.total} Epics`;
+        if (roadmapCountEl && roadmapCountEl.textContent !== newRoadmapCountText) {
+          roadmapCountEl.textContent = newRoadmapCountText;
+        }
+
+        const roadmapTbody = document.getElementById('roadmap-tbody-' + repo.name);
+        if (roadmapTbody) {
+          const roadmapSig = JSON.stringify({
+            act: repo.active_epic,
+            e: (epicsSummary.epics || []).map(e => [e.slug, e.status, e.task_count, e.pic, e.last_updated_human])
+          });
+          if (roadmapTbody.dataset.sig !== roadmapSig) {
+            const roadmapWrap = document.getElementById('roadmap-scroll-wrap-' + repo.name);
+            const currentScrollTop = roadmapWrap ? roadmapWrap.scrollTop : 0;
+            roadmapTbody.innerHTML = renderRoadmapTableRows(repo);
+            roadmapTbody.dataset.sig = roadmapSig;
+            if (roadmapWrap && currentScrollTop > 0 && Math.abs(roadmapWrap.scrollTop - currentScrollTop) > 1) {
+              roadmapWrap.scrollTop = currentScrollTop;
+            }
+          }
+        }
+
+        // 4. Tier 2 Execution Epics (Checked by signature)
+        const tier2Wrapper = document.getElementById('tier2-execution-epics-wrapper-' + repo.name);
+        if (tier2Wrapper) {
+          const tier2Sig = JSON.stringify({
+            act: repo.active_epic,
+            stg: repo.active_stage,
+            wt: (repo.worktrees || []).map(w => [w.path, w.branch, w.is_dirty, w.dirty_file_count])
+          });
+          if (tier2Wrapper.dataset.sig !== tier2Sig) {
+            const t2Snapshot = captureAllScrollPositions(tier2Wrapper, false);
+            tier2Wrapper.innerHTML = renderExecutionEpics(repo);
+            tier2Wrapper.dataset.sig = tier2Sig;
+            restoreAllScrollPositions(tier2Wrapper, t2Snapshot);
+          }
+        }
+
+        // Notes textarea is preserved 100% untouched to avoid interrupting typing
+        return;
+      }
+
+      // Initial Mount or Tab Switch: Render Complete Shell
+      const scrollSnapshot = isSwitchingRepo ? null : captureAllScrollPositions(container, true);
+
+      const theme = REPO_THEMES[repoName] || { color: '#38bdf8', icon: '📦', name: repoName, border: '#0284c7' };
+      const color = repo.theme_color || theme.color;
+      const activeEpic = repo.active_epic || '';
+      const accountId = repo.account_id || 'danhdue';
+      const epicsSummary = repo.epics_summary || { total: 0, completed: 0, in_progress: 0, unstarted: 0, abandoned: 0, epics: [] };
+
+      const rootWt = (repo.worktrees || []).find(wt => wt.path === repo.path) || repo.worktrees?.[0];
+      const epicWt = findEpicWorktree(repo, activeEpic);
+      const wtPath = epicWt ? epicWt.path : repo.path;
+
+      let noteText = '';
+      try {
+        noteText = localStorage.getItem('check_tasks_antigravity_note_' + repo.name) || defaultNotes[repo.name] || '';
+      } catch(e) {}
+
+      container.innerHTML = `
+        <div id="repo-detail-content-${escapeHtml(repo.name)}" style="display: flex; flex-direction: column; gap: 20px;">
+
+          <!-- ============================================================== -->
+          <!-- TẦNG 1: QUẢN TRỊ DỰ ÁN & BRAINSTORMING (CẤP THƯ MỤC GỐC)         -->
+          <!-- ============================================================== -->
+          <div style="background: #0f1422; border: 2px solid ${color}; border-radius: 8px; padding: 20px; box-shadow: 0 4px 20px -2px ${color}33;">
+            
+            <!-- Tier 1 Badge & Header -->
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; border-bottom: 1px solid #1e293b; padding-bottom: 14px; flex-wrap: wrap; gap: 12px;">
+              <div>
+                <div style="font-size: 13px; font-weight: 800; color: #38bdf8; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;"><span>🏛️ I. Thông tin tổng quan</span></div>
+                <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 4px;">
+                  <span style="font-size: 24px; font-weight: 800; color: ${color};">
+                    ${theme.icon} ${escapeHtml(repo.name)}
+                  </span>
+                  <span id="header-root-branch-${escapeHtml(repo.name)}" style="font-size: 11px; background: #1e293b; color: #94a3b8; border: 1px solid #334155; padding: 3px 10px; border-radius: 6px; font-weight: 600;">
+                    Branch gốc: ${escapeHtml(rootWt?.branch || 'main')}
+                  </span>
+                </div>
+                <div style="font-size: 12px; color: #94a3b8; font-family: monospace; margin-top: 8px; display: inline-flex; align-items: center; gap: 8px; background: rgba(15, 23, 42, 0.7); border: 1px solid #1e293b; padding: 4px 10px; border-radius: 6px;">
+                  <span style="color: #64748b;">📁 Folder:</span>
+                  <span style="color: #cbd5e1; font-weight: 600;">${escapeHtml(toTildePath(repo.path))}</span>
+                  <button onclick="copyFolderToClipboard('${escapeHtml(repo.path)}', this)" 
+                          title="Copy đường dẫn folder" 
+                          style="background: transparent; border: none; cursor: pointer; color: #38bdf8; font-size: 13px; padding: 0 4px; display: inline-flex; align-items: center; line-height: 1;">
+                    📋
+                  </button>
+                </div>
+              </div>
+
+              <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                <button id="btn-epics-count-${escapeHtml(repo.name)}" onclick="openEpicsModal('${escapeHtml(repo.name)}')" class="btn-action-neutral" title="Xem danh sách tất cả Epics">
+                  <span>📦</span> Epics (${epicsSummary.total})
+                </button>
+                <button onclick="openContextModal('${escapeHtml(repo.name)}')" class="btn-action-neutral" title="Xem sổ cái hai tầng và ngữ cảnh dự án">
+                  <span>🧠</span> Contexts
+                </button>
+                <div style="display: inline-flex; align-items: center; background: #131b2e; border: 1px solid #1e293b; border-radius: 6px; padding: 2px 4px; gap: 6px;">
+                  <select id="ide-profile-select-${escapeHtml(repo.name)}" 
+                          style="background: #0f172a; color: #c084fc; border: 1px solid #334155; border-radius: 4px; padding: 5px 8px; font-size: 11px; font-family: monospace; font-weight: 700; cursor: pointer; outline: none;"
+                          title="Chọn Antigravity Profile để mở IDE">
+                    ${renderProfileOptions(accountId)}
+                  </select>
+                  <button onclick="triggerLaunchFromSelect('${escapeHtml(repo.name)}', '${escapeHtml(repo.path)}')" 
+                          class="btn-action-primary" 
+                          style="background: ${color}; border-color: ${theme.border}; padding: 6px 12px; font-size: 11px; font-weight: 700; border-radius: 4px;"
+                          title="Mở IDE theo Profile đã chọn">
+                    <span>🚀</span> Mở IDE
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- BẢNG KANBAN DASHBOARD -->
+            <div id="kanban-dashboard-wrapper-${escapeHtml(repo.name)}" style="background: #0a0e17; border: 1px solid #1e2638; border-radius: 8px; overflow: hidden; margin-bottom: 20px;">
+              ${renderKanbanDashboard(repo, selectedEpicFilter)}
+            </div>
+
+            <!-- TỔNG QUAN VỀ EPICS (4 TRẠNG THÁI) & ĐIỂM NGHẼN PHÊ DUYỆT -->
+            <div id="epics-overview-counts-${escapeHtml(repo.name)}" style="display: grid; grid-template-columns: 2.6fr 1.2fr; gap: 14px; margin-bottom: 18px;">
+              ${renderEpicsOverviewAndApprovalGate(repo)}
+            </div>
+
+            <!-- 2 COLUMNS: LỘ TRÌNH EPICS DỰ ÁN & GHI CHÚ CHIẾN LƯỢC -->
+            <div class="roadmap-notes-grid" style="display: grid; grid-template-columns: 1.6fr 1fr; gap: 16px; margin-bottom: 20px; align-items: stretch;">
+              
+              <!-- Column 1: Lộ Trình Epics Dự Án (Roadmap) -->
+              <div style="background: #141722; border: 1px solid #1e2638; border-radius: 10px; padding: 14px; display: flex; flex-direction: column; min-height: 420px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                  <span style="font-size: 13px; font-weight: 700; color: #f8fafc;">
+                    📋 Lộ Trình Epics Dự Án (Roadmap từ .devtool/epic/)
+                  </span>
+                  <span id="roadmap-count-${escapeHtml(repo.name)}" style="font-size: 11px; color: #94a3b8;">${epicsSummary.total} Epics</span>
+                </div>
+                <div id="roadmap-scroll-wrap-${escapeHtml(repo.name)}" data-scroll-id="roadmap-scroll-${escapeHtml(repo.name)}" class="roadmap-scroll-wrap" style="flex: 1; max-height: 380px; overflow-y: auto; border: 1px solid #1e293b; border-radius: 6px;">
+                  <table style="width: 100%; border-collapse: collapse; font-size: 11px; text-align: left;">
+                    <thead>
+                      <tr style="background: #0f141f; border-bottom: 1px solid #1e293b; color: #94a3b8; position: sticky; top: 0; z-index: 1;">
+                        <th style="padding: 8px 12px; width: 120px; white-space: nowrap;">Trạng Thái</th>
+                        <th style="padding: 8px 12px;">Epic Slug</th>
+                        <th style="padding: 8px 12px; width: 80px; white-space: nowrap;">Cập Nhật</th>
+                        <th style="padding: 8px 12px; width: 60px; text-align: center; white-space: nowrap;">Tasks</th>
+                        <th style="padding: 8px 12px; width: 150px; white-space: nowrap;">PIC</th>
+                      </tr>
+                    </thead>
+                    <tbody id="roadmap-tbody-${escapeHtml(repo.name)}">
+                      ${renderRoadmapTableRows(repo)}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- Column 2: Ghi Chú Chiến Lược (Human Architect) -->
+              <div id="note-container-detail-${escapeHtml(repo.name)}" class="antigravity-note-container" style="background: #141722; border: 1px solid #1e2638; border-radius: 10px; padding: 14px; display: flex; flex-direction: column; min-height: 420px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                  <span style="font-size: 13px; font-weight: 700; color: #f1f5f9;">
+                    📝 Ghi Chú Chiến Lược (Human Architect)
+                  </span>
+                  <div style="display: flex; gap: 6px;">
+                    <button onclick="copyRepoNoteText('${repo.name}', this)" class="btn-action-neutral" style="padding: 2px 8px; font-size: 10px;">Copy</button>
+                    <button onclick="clearRepoNoteText('${repo.name}')" class="btn-action-neutral" style="padding: 2px 8px; font-size: 10px;">Xoá</button>
+                  </div>
+                </div>
+                <div style="font-size: 10px; color: #64748b; margin-bottom: 8px;">
+                  Tự động lưu • Nhấn Enter tự nhảy số 1., 2., 3... • Tab thụt lề
+                </div>
+                <textarea id="note-textarea-detail-${repo.name}" 
+                          style="flex: 1; width: 100%; min-height: 320px; height: 100%; box-sizing: border-box; background: #0c0f17; border: 1px solid #282f40; border-radius: 8px; color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, monospace; font-size: 12px; line-height: 1.6; padding: 12px; resize: vertical;"
+                          placeholder="1. Ý tưởng chiến lược / roadmap..." 
+                          onkeydown="handleAntigravityNoteKeydown(event, this, '${repo.name}')"
+                          oninput="saveRepoNoteText('${repo.name}', this.value)">${escapeHtml(noteText)}</textarea>
+              </div>
+
+            </div>
+
+          </div>
+
+          <!-- ============================================================== -->
+          <!-- TẦNG 2: TRIỂN KHAI THỰC THI THEO WORKTREES & PIC (WORKTREE LEVEL)-->
+          <!-- ============================================================== -->
+          <div style="background: #0f1422; border: 2px solid ${color}; border-radius: 8px; padding: 20px; box-shadow: 0 4px 20px -2px ${color}33;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid #282f40; padding-bottom: 12px; flex-wrap: wrap; gap: 10px;">
+              <div style="font-size: 13px; font-weight: 800; color: ${color}; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0; display: flex; align-items: center; gap: 8px;">
+                <span>🚀 II. Triển khai thực thi theo Worktrees & Profiles (PIC)</span>
+              </div>
+              <div style="font-size: 11px; color: #94a3b8; font-family: monospace;">
+                Phân bổ Profile cách ly • Git Worktree độc lập
+              </div>
+            </div>
+
+            <!-- Danh sách tổng quan các Epic -->
+            <div id="tier2-execution-epics-wrapper-${escapeHtml(repo.name)}">
+              ${renderExecutionEpics(repo)}
+            </div>
+          </div>
+
+        </div>
+      `;
+
+      // Initialize data signatures on initial mount
+      const mountedKanbanWrapper = document.getElementById('kanban-dashboard-wrapper-' + repo.name);
+      if (mountedKanbanWrapper) {
+        mountedKanbanWrapper.dataset.sig = JSON.stringify({
+          f: selectedEpicFilter,
+          t: (repo.task_progress?.tasks || []).map(t => [t.id, t.status, t.priority, t.epic, t.title])
+        });
+      }
+      const mountedOverviewWrapper = document.getElementById('epics-overview-counts-' + repo.name);
+      if (mountedOverviewWrapper) {
+        mountedOverviewWrapper.dataset.sig = `${epicsSummary.in_progress}|${epicsSummary.unstarted}|${epicsSummary.completed}|${epicsSummary.abandoned}|${epicsSummary.total}|${repo.prompt || ''}`;
+      }
+      const mountedRoadmapTbody = document.getElementById('roadmap-tbody-' + repo.name);
+      if (mountedRoadmapTbody) {
+        mountedRoadmapTbody.dataset.sig = JSON.stringify({
+          act: repo.active_epic,
+          e: (epicsSummary.epics || []).map(e => [e.slug, e.status, e.task_count, e.pic, e.last_updated_human])
+        });
+      }
+      const mountedTier2Wrapper = document.getElementById('tier2-execution-epics-wrapper-' + repo.name);
+      if (mountedTier2Wrapper) {
+        mountedTier2Wrapper.dataset.sig = JSON.stringify({
+          act: repo.active_epic,
+          stg: repo.active_stage,
+          wt: (repo.worktrees || []).map(w => [w.path, w.branch, w.is_dirty, w.dirty_file_count])
+        });
+      }
+
+      // 3. Restore scroll positions if re-rendering same repo
+      if (scrollSnapshot) {
+        restoreAllScrollPositions(container, scrollSnapshot);
+      }
+    }
+
+let currentReviewRepo = null;
+    let currentReviewEpic = null;
+    let currentReviewKind = 'principal';
+
+    function openReviewModal(repoName, epicName, roundNum, kind) {
+      currentReviewRepo = repoName;
+      currentReviewEpic = epicName;
+      if (kind) currentReviewKind = kind;
+      const round = roundNum || 1;
+
+      const url = '/api/review?repo=' + encodeURIComponent(repoName) + 
+                  '&epic=' + encodeURIComponent(epicName || '') + 
+                  '&round=' + round + 
+                  '&kind=' + encodeURIComponent(currentReviewKind);
+
+      fetch(getApiUrl(url))
+        .then(res => res.json())
+        .then(data => {
+          const isPrincipal = (data.kind === 'principal' || currentReviewKind === 'principal');
+          const titleEl = document.getElementById('cross-review-title');
+          const subtitleEl = document.getElementById('cross-review-subtitle');
+          const iconEl = document.getElementById('review-header-icon');
+          
+          if (iconEl) iconEl.textContent = isPrincipal ? '🛡️' : '🔬';
+          if (titleEl) {
+            titleEl.textContent = isPrincipal 
+              ? `Kết Quả Principal Review: ${repoName} (${data.epic || epicName || 'N/A'})` 
+              : `Kết Quả Cross-Model Review: ${repoName} (${data.epic || epicName || 'N/A'})`;
+          }
+          if (subtitleEl) {
+            subtitleEl.textContent = isPrincipal
+              ? `Stage 2 HLD & Tasks Architectural Verification (Round ${round}) • Bảng Triage 5 cột`
+              : `Stage 3/4 Implementation & Diff External Multi-Model Review (Round ${round}) • Bảng Triage 5 cột`;
+          }
+
+          if (data.sha) document.getElementById('review-sha').textContent = data.sha;
+          if (data.reviewer) document.getElementById('review-provider').textContent = data.reviewer;
+          if (data.model) document.getElementById('review-model').textContent = data.model;
+          const thinkingEl = document.getElementById('review-thinking');
+          if (thinkingEl) thinkingEl.textContent = data.thinking || 'High';
+
+          if (data.verdict) {
+            const vEl = document.getElementById('review-verdict');
+            vEl.textContent = data.verdict;
+            const vUpper = data.verdict.toUpperCase();
+            if (vUpper.includes('PASS') || vUpper.includes('CLEAN') || vUpper.includes('CONVERGED')) {
+              vEl.style.color = '#34d399';
+            } else if (vUpper.includes('CHANGES REQUIRED') || vUpper.includes('FAIL')) {
+              vEl.style.color = '#f87171';
+            } else {
+              vEl.style.color = '#fbbf24';
+            }
+          }
+
+          // Dynamic Round Tabs
+          const roundTabsContainer = document.getElementById('review-round-tabs');
+          if (roundTabsContainer) {
+            const availRounds = (data.available_rounds && data.available_rounds.length > 0) ? data.available_rounds : [1, 2, 3];
+            roundTabsContainer.innerHTML = availRounds.map(r => {
+              const label = r === 1 ? 'Round 1: Scope Audit' : (r === 2 ? 'Round 2: Delta Audit' : `Round ${r}: Convergence`);
+              const activeClass = r === round ? 'tab-btn active' : 'tab-btn';
+              return `<button class="${activeClass}" onclick="switchReviewRound(${r})">${label}</button>`;
+            }).join('');
+          }
+
+          // Findings table
+          const tbody = document.getElementById('review-findings-body');
+          if (tbody) {
+            if (!data.findings || data.findings.length === 0) {
+              tbody.innerHTML = `
+                <tr>
+                  <td colspan="5" style="padding: 30px; text-align: center; color: #34d399; font-weight: 600; font-size: 13px;">
+                    ✓ Không phát hiện lỗi (0 findings - CLEAN / AUTO_PASS)
+                  </td>
+                </tr>
+              `;
+            } else {
+              tbody.innerHTML = data.findings.map(f => {
+                const sev = (f.severity || '').toLowerCase();
+                const isCrit = sev.includes('crit');
+                const isImp = sev.includes('import');
+                const sevColor = isCrit ? '#f87171' : (isImp ? '#fbbf24' : '#38bdf8');
+                const sevBg = isCrit ? 'rgba(239, 68, 68, 0.2)' : (isImp ? 'rgba(245, 158, 11, 0.2)' : 'rgba(56, 189, 248, 0.2)');
+                const sevBorder = isCrit ? '#ef4444' : (isImp ? '#f59e0b' : '#0284c7');
+                
+                // Format location (bold filename, monospace)
+                const locParts = (f.location || '').split(':');
+                const locFile = locParts[0] || '';
+                const locLine = locParts.slice(1).join(':');
+
+                // Format decision badge
+                const dec = f.decision || '';
+                let decHtml = escapeHtml(dec);
+                if (dec.toLowerCase().includes('fixed in')) {
+                  decHtml = decHtml.replace(/(fixed in\s+([0-9a-fA-F]+))/g, '<span style="color: #34d399; font-weight: 700;">✓ $1</span>');
+                } else if (dec.toLowerCase().includes('dismissed')) {
+                  decHtml = `<span style="color: #94a3b8;">${decHtml}</span>`;
+                }
+
+                // Format code tokens in problem
+                const probHtml = escapeHtml(f.problem || '').replace(/`([^`]+)`/g, '<code style="background: #242b3b; color: #fde68a; padding: 1px 5px; border-radius: 3px; font-family: monospace;">$1</code>');
+
+                return `
+                  <tr style="border-bottom: 1px solid #1e2433; background: #14171f;">
+                    <td style="padding: 10px; color: #94a3b8; font-weight: 700;">${escapeHtml(f.id)}</td>
+                    <td style="padding: 10px;">
+                      <span style="background: ${sevBg}; color: ${sevColor}; border: 1px solid ${sevBorder}; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; text-transform: uppercase;">
+                        ${escapeHtml(f.severity)}
+                      </span>
+                    </td>
+                    <td style="padding: 10px; font-family: monospace; font-size: 11px; word-break: break-all;">
+                      <strong style="color: #f1f5f9;">${escapeHtml(locFile)}</strong>${locLine ? `:<span style="color: #fde68a;">${escapeHtml(locLine)}</span>` : ''}
+                    </td>
+                    <td style="padding: 10px; font-size: 11px; line-height: 1.5; color: #cbd5e1;">${probHtml}</td>
+                    <td style="padding: 10px; font-size: 11px; line-height: 1.5;">${decHtml}</td>
+                  </tr>
+                `;
+              }).join('');
+            }
+          }
+
+          const rawEl = document.getElementById('review-raw-evidence');
+          if (rawEl) {
+            rawEl.textContent = data.raw_output || 'Không có bằng chứng nguyên văn (raw output) cho round này.';
+          }
+
+          openLiveModal('modal-cross-review');
+        })
+        .catch(err => {
+          console.error("Lỗi khi tải kết quả review:", err);
+          showToast("Lỗi khi tải kết quả review: " + err.message);
+        });
+    }
+
+    function switchReviewRound(roundNum) {
+      if (currentReviewRepo) {
+        openReviewModal(currentReviewRepo, currentReviewEpic, roundNum, currentReviewKind);
+      }
+    }
+
+    function openEpicsModal(repoName) {
+      const repo = (currentReposData || []).find(r => r.name === repoName);
+      const body = document.getElementById('epics-modal-body');
+      const title = document.getElementById('epics-modal-title');
+      if (!body) return;
+
+      if (!repo || !repo.epics_summary) {
+        body.innerHTML = '<div style="text-align: center; color: #64748b; padding: 30px;">Không có dữ liệu epics cho repository này.</div>';
+        openLiveModal('modal-epics');
+        return;
+      }
+
+      const summary = repo.epics_summary;
+      const sortedEpics = sortEpicsForRoadmap(summary.epics || [], repo.active_epic);
+      const abandonCount = summary.abandoned || sortedEpics.filter(e => getEpicStatusCategory(e.status) === 'abandon').length;
+
+      if (title) {
+        title.textContent = `Danh Sách Epics Dự Án: ${repoName} (${summary.total} Epics)`;
+      }
+
+      body.innerHTML = `
+        <div style="margin-bottom: 14px; display: flex; gap: 10px; font-size: 12px; flex-wrap: wrap;">
+          <span style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid #f59e0b; padding: 4px 10px; border-radius: 6px; font-weight: 700;">
+            ⚡ ${summary.in_progress} In Progress
+          </span>
+          <span style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid #0284c7; padding: 4px 10px; border-radius: 6px; font-weight: 700;">
+            📋 ${summary.unstarted} Backlog
+          </span>
+          <span style="background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid #10b981; padding: 4px 10px; border-radius: 6px; font-weight: 700;">
+            ✓ ${summary.completed} Done
+          </span>
+          ${abandonCount > 0 ? `
+            <span style="background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid #ef4444; padding: 4px 10px; border-radius: 6px; font-weight: 700;">
+              🛑 ${abandonCount} Abandon
+            </span>
+          ` : ''}
+        </div>
+        <div style="max-height: 480px; overflow-y: auto; border: 1px solid #1e293b; border-radius: 8px;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
+            <thead>
+              <tr style="background: #0f141f; border-bottom: 1px solid #1e293b; color: #94a3b8;">
+                <th style="padding: 10px 14px;">Trạng Thái</th>
+                <th style="padding: 10px 14px;">Tên Epic / Slug</th>
+                <th style="padding: 10px 14px;">Tiêu Đề (HLD)</th>
+                <th style="padding: 10px 14px;">Cập Nhật</th>
+                <th style="padding: 10px 14px;">Tasks</th>
+                <th style="padding: 10px 14px;">PIC</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${sortedEpics.map(e => {
+                const cat = getEpicStatusCategory(e.status);
+                let badgeColor = '#94a3b8';
+                let badgeBg = 'rgba(148, 163, 184, 0.1)';
+                let stLabel = '📋 Backlog';
+
+                if (cat === 'in_progress') {
+                  badgeColor = '#fbbf24';
+                  badgeBg = 'rgba(245, 158, 11, 0.2)';
+                  stLabel = '⚡ In Progress';
+                } else if (cat === 'done') {
+                  badgeColor = '#34d399';
+                  badgeBg = 'rgba(16, 185, 129, 0.2)';
+                  stLabel = '✓ Done';
+                } else if (cat === 'abandon') {
+                  badgeColor = '#ef4444';
+                  badgeBg = 'rgba(239, 68, 68, 0.2)';
+                  stLabel = '🛑 Abandon';
+                } else {
+                  badgeColor = '#38bdf8';
+                  badgeBg = 'rgba(56, 189, 248, 0.15)';
+                  stLabel = (e.status === 'packaged') ? '📦 Packaged' : '📋 Backlog';
+                }
+
+                const isCurrent = repo.active_epic === e.slug;
+                const rowBg = isCurrent ? 'rgba(56, 189, 248, 0.08)' : '#141722';
+                const updatedStr = e.last_updated_human || (e.last_updated ? e.last_updated.substring(0, 10) : '—');
+                return `
+                  <tr style="background: ${rowBg}; border-bottom: 1px solid #1e293b;">
+                    <td style="padding: 10px 14px;">
+                      <span style="background: ${badgeBg}; color: ${badgeColor}; border: 1px solid ${badgeColor}; padding: 2px 8px; border-radius: 4px; font-weight: 700; font-size: 11px; display: inline-flex; align-items: center; gap: 4px;">
+                        ${stLabel}
+                      </span>
+                    </td>
+                    <td style="padding: 10px 14px; font-family: monospace; font-weight: 700; color: #f1f5f9;">
+                      ${escapeHtml(e.slug)} ${isCurrent ? '<span style="color: #38bdf8; font-size: 10px;">(Active)</span>' : ''}
+                    </td>
+                    <td style="padding: 10px 14px; color: #cbd5e1; max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                      ${escapeHtml(e.title || e.slug)}
+                    </td>
+                    <td style="padding: 10px 14px; color: #94a3b8; font-size: 11px; font-family: monospace;" title="${escapeHtml(e.last_updated || '')}">
+                      ${escapeHtml(updatedStr)}
+                    </td>
+                    <td style="padding: 10px 14px; color: #94a3b8; font-weight: 600;">
+                      ${e.task_count > 0 ? e.task_count + ' tasks' : '—'}
+                    </td>
+                    <td style="padding: 10px 14px;">
+                      ${renderPicSelect(repo.name, e.slug, e.pic)}
+                    </td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+
+      openLiveModal('modal-epics');
+    }
+
+    function openKanbanModal(repoName) {
+      const repo = (currentReposData || []).find(r => r.name === repoName);
+      const body = document.getElementById('kanban-modal-body');
+      if (!body) return;
+
+      const epicTitle = repo ? (repo.active_epic || 'Không có Epic') : repoName;
+      const headerTitle = document.getElementById('kanban-modal-title');
+      const headerSub = document.getElementById('kanban-modal-subtitle');
+      if (headerTitle) {
+        headerTitle.textContent = `Bảng Kanban Tasks: ${repoName} (${epicTitle})`;
+      }
+      if (headerSub) {
+        headerSub.textContent = `Đồng bộ từ các tệp task_*.md của Epic ${epicTitle} • Mở bởi nút [ 📊 Xem Kanban ]`;
+      }
+
+      const tasks = (repo && repo.task_progress && repo.task_progress.tasks) ? repo.task_progress.tasks : [];
+
+      const columns = {
+        'backlog': { title: 'Backlog', color: '#cbd5e1', items: [] },
+        'todo': { title: 'To Do', color: '#38bdf8', items: [] },
+        'in-progress': { title: 'In Progress', color: '#fbbf24', items: [] },
+        'review': { title: 'Review', color: '#a855f7', items: [] },
+        'done': { title: 'Done', color: '#10b981', items: [] }
+      };
+
+      tasks.forEach(t => {
+        const rawStatus = (t.status || 'backlog').toLowerCase().replace('_', '-');
+        const st = (rawStatus === 'inprogress') ? 'in-progress' : rawStatus;
+        if (columns[st]) {
+          columns[st].items.push(t);
+        } else {
+          columns['backlog'].items.push(t);
+        }
+      });
+
+      // Natural numerical count sort for tasks in modal columns (e.g. Task 1, 2, ..., 9, 10, 11)
+      for (const col of Object.values(columns)) {
+        col.items.sort((a, b) => {
+          const strA = (a.id || a.title || '');
+          const strB = (b.id || b.title || '');
+          return strA.localeCompare(strB, undefined, { numeric: true, sensitivity: 'base' });
+        });
+      }
+
+      let colsHtml = '<div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px;">';
+      for (const [key, col] of Object.entries(columns)) {
+        colsHtml += `
+          <div style="background: #14171f; border: 1px solid #1e2330; border-radius: 8px; padding: 10px; min-height: 250px;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px; border-bottom: 1px solid #282f40; padding-bottom: 4px;">
+              <span style="font-size: 12px; font-weight: 700; color: ${col.color};">● ${col.title} (${col.items.length})</span>
+            </div>
+        `;
+
+        if (col.items.length === 0) {
+          colsHtml += `<div style="color: #475569; font-size: 11px; text-align: center; padding: 40px 0;">No features</div>`;
+        } else {
+          col.items.forEach(t => {
+            const isDone = key === 'done';
+            const isInProg = key === 'in-progress';
+            const borderStyle = isDone 
+              ? 'border-left: 3px solid #10b981;' 
+              : (isInProg ? 'border-left: 3px solid #fbbf24; box-shadow: 0 0 10px rgba(251, 191, 36, 0.15);' : '');
+            colsHtml += `
+              <div style="background: #1e2330; border-radius: 6px; padding: 10px; font-size: 11px; margin-bottom: 8px; ${borderStyle}">
+                <strong style="color: #f1f5f9; display: block; margin-bottom: 4px; line-height: 1.4;">${escapeHtml(t.title || t.id)}</strong>
+                <div style="font-size: 10px; color: #94a3b8; font-family: monospace; word-break: break-all;">ID: ${escapeHtml(t.id)}</div>
+                <div style="margin-top: 6px; display: flex; justify-content: space-between; align-items: center;">
+                  ${t.priority ? `<span style="font-size: 9px; padding: 1px 6px; border-radius: 3px; background: #334155; color: #cbd5e1; text-transform: uppercase;">${escapeHtml(t.priority)}</span>` : '<span></span>'}
+                  ${isDone ? `<span style="font-size: 10px; color: #34d399; font-weight: 600;">✓ Verified PASS</span>` : ''}
+                  ${isInProg ? `<span style="font-size: 10px; color: #fbbf24; font-weight: 600;">⚡ In Progress</span>` : ''}
+                </div>
+              </div>
+            `;
+          });
+        }
+
+        colsHtml += '</div>';
+      }
+      colsHtml += '</div>';
+
+      body.innerHTML = colsHtml;
+      openLiveModal('modal-kanban');
+    }
+
+    function openContextModal(repoName) {
+      const repo = (currentReposData || []).find(r => r.name === repoName);
+      const ledgerEl = document.getElementById('context-ledger-content');
+      const stateEl = document.getElementById('context-state-content');
+      const headerTitle = document.querySelector('#modal-context .modal-header div div:first-child');
+      if (headerTitle) {
+        headerTitle.textContent = `Bộ Nhớ Hai Tầng: ${repoName} (${repo ? repo.active_epic || 'Idle' : ''})`;
+      }
+
+      if (repo && repo.memory) {
+        const mem = repo.memory;
+        if (ledgerEl) {
+          ledgerEl.textContent = 
+            `Repo: ${repo.name}\n` +
+            `Sổ cái: ${toTildePath(mem.project_ledger_path) || 'N/A'}\n` +
+            `Tổng Milestones: ${mem.total_milestones || 0}\n\n` +
+            `Cột mốc gần nhất:\n${mem.last_milestone || 'Chưa có cột mốc'}`;
+        }
+        if (stateEl) {
+          stateEl.textContent = 
+            `Active Epic: ${repo.active_epic || 'Không có'}\n` +
+            `Stage: ${repo.active_stage || 'Idle'}\n` +
+            `Role: ${mem.assistant_state_role || 'Chưa thiết lập'}\n` +
+            `Account: @${repo.account_id || 'default'}\n` +
+            `Status: ${mem.assistant_state_status || 'N/A'}\n\n` +
+            `Bước tiếp theo:\n${repo.prompt || 'Chưa có yêu cầu'}`;
+        }
+      } else {
+        if (ledgerEl) ledgerEl.textContent = `Không tìm thấy thông tin bộ nhớ tầng 1 cho ${repoName}`;
+        if (stateEl) stateEl.textContent = `Không tìm thấy thông tin bộ nhớ tầng 2 cho ${repoName}`;
+      }
+
+      openLiveModal('modal-context');
+    }
+
+    function switchReviewRound(roundNum) {
+      if (currentReviewRepo) {
+        openReviewModal(currentReviewRepo, currentReviewEpic, roundNum);
+      }
+    }
+
+    function renderSummary(data) {
+      const repos = data.repos || [];
+      const reposCountEl = document.getElementById('stat-repos-count');
+      const newReposText = `${repos.length} Repos`;
+      if (reposCountEl && reposCountEl.textContent !== newReposText) {
+        reposCountEl.textContent = newReposText;
+      }
+
+      const activeEpics = repos.filter(r => r.active_epic).length;
+      const epicsCountEl = document.getElementById('stat-epics-count');
+      const newEpicsText = `${activeEpics} Epics`;
+      if (epicsCountEl && epicsCountEl.textContent !== newEpicsText) {
+        epicsCountEl.textContent = newEpicsText;
+      }
+
+      let totalTasks = 0;
+      let doneTasks = 0;
+      let worktreesCount = 0;
+      let actionRequiredCount = 0;
+      let actionRepoName = '';
+
+      repos.forEach(r => {
+        if (r.task_progress) {
+          totalTasks += r.task_progress.total_tasks || 0;
+          doneTasks += r.task_progress.done_tasks || 0;
+        }
+        if (r.worktrees) {
+          worktreesCount += r.worktrees.length;
+        }
+        if (r.prompt && (r.prompt.includes('Phê duyệt') || r.prompt.includes('Lựa chọn') || r.prompt.includes('Review Choice'))) {
+          actionRequiredCount++;
+          if (!actionRepoName) actionRepoName = r.name;
+        }
+      });
+
+      const pct = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
+      const tasksProgressEl = document.getElementById('stat-tasks-progress');
+      const newProgressText = `${doneTasks} / ${totalTasks} Done (${pct}%)`;
+      if (tasksProgressEl && tasksProgressEl.textContent !== newProgressText) {
+        tasksProgressEl.textContent = newProgressText;
+      }
+
+      const wtEl = document.getElementById('stat-worktrees-count');
+      const newWtText = `${worktreesCount} Phân lập`;
+      if (wtEl && wtEl.textContent !== newWtText) {
+        wtEl.textContent = newWtText;
+      }
+
+      // human-action-banner removed as per UI streamline
+    }
+
+    function renderRepoCards(repos) {
+      // Deprecated: Stacked all-repo cards replaced by focused repo tab view
+      const container = document.getElementById('repos-container');
+      if (container) container.style.display = 'none';
+    }
+
+    function fetchTasks() {
+      fetch(getApiUrl('/api/tasks'))
+        .then(res => res.json())
+        .then(data => {
+          if (!data) return;
+          const allRepos = data.repos || [];
+          const focused = allRepos.filter(r => FOCUSED_REPOS.includes(r.name));
+          focused.sort((a, b) => FOCUSED_REPOS.indexOf(a.name) - FOCUSED_REPOS.indexOf(b.name));
+          currentReposData = focused;
+
+          // Always ensure activeFocusTab is recovered from localStorage or defaults to D3Nexus
+          const savedTab = localStorage.getItem('check_tasks_active_focus_tab');
+          if (savedTab && FOCUSED_REPOS.includes(savedTab)) {
+            activeFocusTab = savedTab;
+          } else if (!activeFocusTab || !FOCUSED_REPOS.includes(activeFocusTab)) {
+            activeFocusTab = 'D3Nexus';
+          }
+
+          renderSummary({ repos: currentReposData });
+          renderRepoTabs(currentReposData);
+          renderRepoCards(currentReposData);
+
+          const detailView = document.getElementById('repo-detail-view');
+          const reposContainer = document.getElementById('repos-container');
+          if (reposContainer) reposContainer.style.display = 'none';
+          if (detailView) {
+            detailView.style.display = 'block';
+            renderRepoDetailView(activeFocusTab);
+          }
+
+          const ind = document.getElementById('live-indicator');
+          if (ind && !ind.dataset.initialized) {
+            ind.dataset.initialized = 'true';
+            ind.innerHTML = '<span class="dot"></span> Live Polling (5s)';
+          }
+        })
+        .catch(() => {
+          // Keep current state gracefully
+        });
+    }
+
+    function refreshDashboard() {
+      fetchTasks();
+      showToast('🔄 Đã làm mới trạng thái', 'info');
+    }
+
+    let isDashboardInitialized = false;
+
+    function initDashboard() {
+      if (isDashboardInitialized) return;
+      isDashboardInitialized = true;
+      initRepoNotes();
+      initDragAndDrop();
+      initModalClickOutside();
+      fetchTasks();
+      setInterval(fetchTasks, 5000);
+    }
+
+    document.addEventListener('DOMContentLoaded', initDashboard);
+    setTimeout(initDashboard, 150);
+  </script>
+</body>
+</html>

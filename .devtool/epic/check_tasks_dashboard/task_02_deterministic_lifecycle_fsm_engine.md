@@ -1,4 +1,5 @@
 ---
+pic: "danhdue"
 id: "task_02_deterministic_lifecycle_fsm_engine"
 status: "done"
 priority: "high"

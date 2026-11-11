@@ -1,4 +1,5 @@
 ---
+pic: "danhdue"
 id: "task_01_harvester_engine_and_data_models"
 status: "done"
 priority: "high"

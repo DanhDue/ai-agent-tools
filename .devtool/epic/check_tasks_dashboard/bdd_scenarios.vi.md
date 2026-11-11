@@ -12,6 +12,7 @@
 ## Thông tin Meta
 
 - **Epic**: `check_tasks_dashboard`
+- **PIC**: `danhdue`
 - **Ngôn ngữ chuẩn**: Tiếng Việt (bản dịch từ tiếng Anh)
 - **Tiền tố Kịch bản**: `CTD`
 - **Thư mục Tự động hóa**: `tests/`

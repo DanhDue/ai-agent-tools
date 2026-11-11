@@ -1,5 +1,7 @@
 # Principal Review: check_tasks_dashboard
 
+- **PIC**: `danhdue`
+
 ## Round 1
 
 - **Date**: 2026-11-11T01:59:44Z

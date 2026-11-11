@@ -1,0 +1,18 @@
+#!/usr/bin/env python3
+"""CLI entrypoint for check-tasks: cross-repo tasks & context dashboard."""
+from __future__ import annotations
+
+import subprocess
+import sys
+from pathlib import Path
+
+KIT_ROOT = Path(__file__).resolve().parent.parent
+TARGET = KIT_ROOT / "scripts" / "check_tasks.py"
+
+if __name__ == "__main__":
+    if not TARGET.is_file():
+        sys.stderr.write(f"check-tasks: target script not found: {TARGET}\n")
+        sys.exit(1)
+    res = subprocess.run([sys.executable, str(TARGET)] + sys.argv[1:])
+    sys.exit(res.returncode)
+

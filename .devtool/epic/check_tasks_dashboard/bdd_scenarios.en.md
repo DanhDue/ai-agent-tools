@@ -12,6 +12,7 @@
 ## Meta Data
 
 - **Epic**: `check_tasks_dashboard`
+- **PIC**: `danhdue`
 - **Canonical language**: English
 - **Scenario prefix**: `CTD`
 - **Automation roots**: `tests/`
