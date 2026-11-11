@@ -220,6 +220,122 @@ class TestLifecycleRunner_Integration(unittest.TestCase):
             self.assertEqual(dispatched_tasks, ["task_2_impl"])
             self.assertIn("task_2_impl", resumed_runner.state.completed_tasks)
 
+    def test_alr_ec_01(self) -> None:
+        """[ALR-EC-01] Zero findings in Principal Review bypasses Human confirmation."""
+        runner = LifecycleRunner(root=self.root, epic_slug=self.epic_slug)
+
+        mock_triage = (
+            "## Auto-Triage Gate\n\n"
+            "- **Action**: AUTO_PASS_CLEAN\n"
+            "- **Round**: 1 / 3\n"
+            "- **Directive**: 0 findings. Stage review passed cleanly.\n"
+        )
+        with patch("subprocess.run") as mock_run:
+            mock_proc = MagicMock()
+            mock_proc.returncode = 0
+            mock_proc.stdout = mock_triage
+            mock_run.return_value = mock_proc
+
+            with patch.object(runner, "prompt_human_principal_fixes") as mock_prompt:
+                ok = runner.step_principal_review()
+                self.assertTrue(ok)
+                self.assertEqual(runner.state.active_stage, StageName.IMPLEMENTATION.value)
+                mock_prompt.assert_not_called()
+
+    def test_alr_ec_02(self) -> None:
+        """[ALR-EC-02] Minor-only findings in Principal Review swept in single pass without Human halt."""
+        runner = LifecycleRunner(root=self.root, epic_slug=self.epic_slug)
+
+        mock_triage = (
+            "## Auto-Triage Gate\n\n"
+            "- **Action**: AUTO_PASS_FINAL_MINOR_SWEEP\n"
+            "- **Round**: 1 / 3\n"
+            "- **Directive**: 0 Critical and 0 Important findings (2 Minor).\n"
+        )
+        with patch("subprocess.run") as mock_run:
+            mock_proc = MagicMock()
+            mock_proc.returncode = 0
+            mock_proc.stdout = mock_triage
+            mock_run.return_value = mock_proc
+
+            with patch.object(runner, "prompt_human_principal_fixes") as mock_prompt:
+                with patch.object(runner, "_apply_minor_fixes") as mock_minor:
+                    ok = runner.step_principal_review()
+                    self.assertTrue(ok)
+                    self.assertEqual(runner.state.active_stage, StageName.IMPLEMENTATION.value)
+                    mock_prompt.assert_not_called()
+                    mock_minor.assert_called_once()
+
+    def test_alr_fr_01(self) -> None:
+        """[ALR-FR-01] Circuit Breaker halts immediately on Shared Contract conflict."""
+        runner = LifecycleRunner(root=self.root, epic_slug=self.epic_slug)
+
+        mock_triage = (
+            "## Auto-Triage Gate\n\n"
+            "- **Action**: CIRCUIT_BREAKER_HALT (SHARED_CONTRACT_CONFLICT)\n"
+            "- **Round**: 1 / 3\n"
+            "- **Directive**: Shared-contract conflict detected in finding(s) #1\n"
+        )
+        with patch("subprocess.run") as mock_run:
+            mock_proc = MagicMock()
+            mock_proc.returncode = 0
+            mock_proc.stdout = mock_triage
+            mock_run.return_value = mock_proc
+
+            ok = runner.step_principal_review()
+            self.assertFalse(ok)
+            self.assertEqual(runner.state.active_stage, StageName.HALTED.value)
+            self.assertEqual(runner.state.halt_reason, "CIRCUIT_BREAKER_HALT (SHARED_CONTRACT_CONFLICT)")
+
+    def test_alr_hp_03(self) -> None:
+        """[ALR-HP-03] AI Assistant auto-applies aligned Principal Review fixes and prompts Human confirmation only on critical or domain conflicts."""
+        runner = LifecycleRunner(root=self.root, epic_slug=self.epic_slug)
+
+        mock_triage_r1 = (
+            "## Auto-Triage Gate\n\n"
+            "- **Action**: AUTO_FIX_ELIGIBLE\n"
+            "- **Round**: 1 / 3\n"
+            "- **Directive**: Domain Conflict: Critical business requirement conflict detected.\n"
+        )
+        mock_triage_r2 = (
+            "## Auto-Triage Gate\n\n"
+            "- **Action**: AUTO_PASS_CLEAN\n"
+            "- **Round**: 2 / 3\n"
+            "- **Directive**: 0 findings. Stage review passed cleanly.\n"
+        )
+
+        with patch("subprocess.run") as mock_run:
+            mock_proc_r1 = MagicMock()
+            mock_proc_r1.returncode = 0
+            mock_proc_r1.stdout = mock_triage_r1
+
+            mock_proc_r2 = MagicMock()
+            mock_proc_r2.returncode = 0
+            mock_proc_r2.stdout = mock_triage_r2
+
+            # Return r1 on first calls, r2 on subsequent calls
+            mock_run.side_effect = [mock_proc_r1, mock_proc_r1, mock_proc_r2, mock_proc_r2]
+
+            prompt_called = False
+
+            def fake_prompt(triage_summary: str) -> bool:
+                nonlocal prompt_called
+                prompt_called = True
+                self.assertEqual(runner.state.active_stage, StageName.AWAITING_PRINCIPAL_CONFIRMATION.value)
+                return True
+
+            with patch.object(runner, "prompt_human_principal_fixes", side_effect=fake_prompt):
+                with patch.object(runner, "_apply_aligned_fixes") as mock_aligned:
+                    with patch.object(runner, "_run_package_epic_revise", return_value=True) as mock_pkg:
+                        ok = runner.step_principal_review()
+                        self.assertTrue(ok)
+                        self.assertTrue(prompt_called)
+                        self.assertEqual(runner.state.active_stage, StageName.IMPLEMENTATION.value)
+                        mock_aligned.assert_called_once()
+                        mock_pkg.assert_called_once()
+                        proposal = self.root / ".devtool" / "epic" / self.epic_slug / "principal_fix_proposal_round1.md"
+                        self.assertTrue(proposal.is_file())
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -410,9 +410,253 @@ class LifecycleRunner:
 
         return True
 
+    def _has_domain_or_critical_conflict(self, text: str) -> bool:
+        """Check if review triage indicates critical risks or business/domain conflicts."""
+        markers = [
+            "domain conflict",
+            "business requirement conflict",
+            "critical risk",
+            "shared_contract_conflict",
+            "conflict with shared-contracts",
+        ]
+        low = text.lower()
+        return any(m in low for m in markers)
+
+    def _apply_minor_fixes(self, round_num: int) -> bool:
+        """Apply minor review revisions and commit changes."""
+        status_res = subprocess.run(
+            ["git", "status", "--porcelain"],
+            cwd=self.root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if status_res.returncode == 0 and status_res.stdout.strip():
+            subprocess.run(["git", "add", "-A"], cwd=self.root, check=False)
+            commit_title = f"[{self.epic_slug.upper()}] Apply minor Principal Review revisions round {round_num}"
+            subprocess.run(
+                ["git", "commit", "-m", commit_title],
+                cwd=self.root,
+                capture_output=True,
+                check=False,
+            )
+        return True
+
+    def _apply_aligned_fixes(self, round_num: int) -> bool:
+        """Apply aligned technical revisions and commit changes."""
+        status_res = subprocess.run(
+            ["git", "status", "--porcelain"],
+            cwd=self.root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if status_res.returncode == 0 and status_res.stdout.strip():
+            subprocess.run(["git", "add", "-A"], cwd=self.root, check=False)
+            commit_title = f"[{self.epic_slug.upper()}] Apply aligned Principal Review revisions round {round_num}"
+            subprocess.run(
+                ["git", "commit", "-m", commit_title],
+                cwd=self.root,
+                capture_output=True,
+                check=False,
+            )
+        return True
+
+    def _run_package_epic_revise(self) -> bool:
+        """Run package_epic.py <epic> --revise and commit re-anchored handoff."""
+        pkg_script = (
+            self.root
+            / "skills"
+            / "dev-implementation"
+            / "resources"
+            / "scripts"
+            / "package_epic.py"
+        )
+        if pkg_script.is_file():
+            subprocess.run(
+                [sys.executable, str(pkg_script), self.epic_slug, "--revise"],
+                cwd=self.root,
+                capture_output=True,
+                check=False,
+            )
+        status_res = subprocess.run(
+            ["git", "status", "--porcelain"],
+            cwd=self.root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if status_res.returncode == 0 and status_res.stdout.strip():
+            subprocess.run(["git", "add", "-A"], cwd=self.root, check=False)
+            commit_title = f"[{self.epic_slug.upper()}] Re-anchor epic packaging and revisions"
+            subprocess.run(
+                ["git", "commit", "-m", commit_title],
+                cwd=self.root,
+                capture_output=True,
+                check=False,
+            )
+        return True
+
+    def evaluate_circuit_breakers(
+        self,
+        stage: str,
+        round_num: int,
+        triage_stdout: str = "",
+    ) -> str | None:
+        """Evaluate circuit breaker triggers across review rounds."""
+        content = triage_stdout
+        if not content:
+            review_script = (
+                self.root
+                / "skills"
+                / "dev-implementation"
+                / "resources"
+                / "scripts"
+                / "run_external_review.py"
+            )
+            if review_script.is_file():
+                triage_cmd = [
+                    sys.executable,
+                    str(review_script),
+                    "triage",
+                    "--kind",
+                    stage,
+                    "--epic-dir",
+                    self.epic_slug,
+                    "--max-rounds",
+                    str(self.config.max_review_rounds),
+                ]
+                res = subprocess.run(triage_cmd, cwd=self.root, capture_output=True, text=True, check=False)
+                content = res.stdout
+
+        if "CIRCUIT_BREAKER_HALT (SHARED_CONTRACT_CONFLICT)" in content:
+            return "CIRCUIT_BREAKER_HALT (SHARED_CONTRACT_CONFLICT)"
+        if "CIRCUIT_BREAKER_HALT (FIX_LOOP)" in content:
+            return "CIRCUIT_BREAKER_HALT (FIX_LOOP)"
+        if "CIRCUIT_BREAKER_HALT (MAX_ROUNDS_CRITICAL_REMAINING)" in content:
+            return "CIRCUIT_BREAKER_HALT (MAX_ROUNDS_CRITICAL_REMAINING)"
+        if round_num >= self.config.max_review_rounds and "Critical" in content:
+            return "CIRCUIT_BREAKER_HALT (MAX_ROUNDS_CRITICAL_REMAINING)"
+        return None
+
+    def prompt_human_principal_fixes(self, triage_summary: str) -> bool:
+        """Prompt Human Architect for confirmation when critical/contract conflicts occur."""
+        print("\n" + "=" * 70)
+        print("⚠️ [HUMAN CHECKPOINT] Principal Review requires confirmation for critical or domain conflicts:")
+        print(triage_summary)
+        print("=" * 70 + "\n")
+        if sys.stdin.isatty():
+            try:
+                ans = input("Confirm and proceed with proposed fixes? [y/N]: ").strip().lower()
+                return ans in ("y", "yes")
+            except (EOFError, KeyboardInterrupt):
+                return False
+        return False
+
     def step_principal_review(self) -> bool:
         """Execute Stage 2 Principal Review automation with selective human stop."""
-        return True
+        self.state.active_stage = StageName.PRINCIPAL_REVIEW.value
+        review_script = (
+            self.root
+            / "skills"
+            / "dev-implementation"
+            / "resources"
+            / "scripts"
+            / "run_external_review.py"
+        )
+
+        while self.state.principal_round < self.config.max_review_rounds:
+            self.state.principal_round += 1
+            round_num = self.state.principal_round
+            self.save_state()
+
+            cmd = [
+                sys.executable,
+                str(review_script),
+                "run",
+                "--kind",
+                "principal",
+                "--epic-dir",
+                self.epic_slug,
+                "--auto-quota",
+            ]
+            if self.config.provider_priority:
+                cmd.extend(["--provider-priority", ",".join(self.config.provider_priority)])
+            subprocess.run(cmd, cwd=self.root, capture_output=True, text=True, check=False)
+
+            triage_cmd = [
+                sys.executable,
+                str(review_script),
+                "triage",
+                "--kind",
+                "principal",
+                "--epic-dir",
+                self.epic_slug,
+                "--max-rounds",
+                str(self.config.max_review_rounds),
+            ]
+            triage_res = subprocess.run(triage_cmd, cwd=self.root, capture_output=True, text=True, check=False)
+            triage_stdout = triage_res.stdout
+
+            cb = self.evaluate_circuit_breakers("principal", round_num, triage_stdout=triage_stdout)
+            if cb:
+                self.state.active_stage = StageName.HALTED.value
+                self.state.halt_reason = cb
+                self.save_state()
+                print(f"\n🛑 {cb}\n")
+                return False
+
+            action_match = re.search(r"-\s+\*\*Action\*\*:\s*([^\n]+)", triage_stdout)
+            action = action_match.group(1).strip() if action_match else ""
+
+            if action == "AUTO_PASS_CLEAN":
+                print("AUTO_PASS_CLEAN: 0 findings")
+                self.state.active_stage = StageName.IMPLEMENTATION.value
+                self.save_state()
+                return True
+
+            if action == "AUTO_PASS_FINAL_MINOR_SWEEP":
+                print("AUTO_PASS_FINAL_MINOR_SWEEP: 0 Critical and 0 Important findings")
+                self._apply_minor_fixes(round_num)
+                self._run_package_epic_revise()
+                self.state.active_stage = StageName.IMPLEMENTATION.value
+                self.save_state()
+                return True
+
+            if action == "AUTO_PASS_FINAL_SWEEP":
+                print("AUTO_PASS_FINAL_SWEEP: Final review round sweep")
+                self._apply_aligned_fixes(round_num)
+                self._run_package_epic_revise()
+                self.state.active_stage = StageName.IMPLEMENTATION.value
+                self.save_state()
+                return True
+
+            if action == "AUTO_FIX_ELIGIBLE":
+                if self._has_domain_or_critical_conflict(triage_stdout):
+                    proposal_file = (
+                        self.root
+                        / ".devtool"
+                        / "epic"
+                        / self.epic_slug
+                        / f"principal_fix_proposal_round{round_num}.md"
+                    )
+                    proposal_file.parent.mkdir(parents=True, exist_ok=True)
+                    proposal_file.write_text(triage_stdout, encoding="utf-8")
+                    self.state.active_stage = StageName.AWAITING_PRINCIPAL_CONFIRMATION.value
+                    self.save_state()
+                    confirmed = self.prompt_human_principal_fixes(triage_stdout)
+                    if not confirmed:
+                        return False
+                    self.state.active_stage = StageName.PRINCIPAL_REVIEW.value
+                    self.save_state()
+
+                self._apply_aligned_fixes(round_num)
+                self._run_package_epic_revise()
+
+        self.state.active_stage = StageName.HALTED.value
+        self.state.halt_reason = "CIRCUIT_BREAKER_HALT (MAX_ROUNDS_CRITICAL_REMAINING)"
+        self.save_state()
+        return False
 
     def step_implementation(self) -> bool:
         """Execute Stage 3 autonomous task execution loop."""
@@ -446,14 +690,6 @@ class LifecycleRunner:
 
     def step_cross_model_review(self) -> bool:
         """Execute Stage 3 Cross-Model Review fix plan evaluation loop."""
-        return True
-
-    def evaluate_circuit_breakers(self, stage: str, round_num: int) -> str | None:
-        """Evaluate circuit breaker triggers across review rounds."""
-        return None
-
-    def prompt_human_principal_fixes(self, triage_summary: str) -> bool:
-        """Prompt Human Architect for confirmation when critical/contract conflicts occur."""
         return True
 
     def evaluate_programmer_fix_plan(self, round_num: int) -> tuple[FixPlanVerdict, str]:
