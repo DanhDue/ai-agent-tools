@@ -531,17 +531,37 @@ class LifecycleRunner:
             args=["--model", self.config.resolve_assistant_model(self.root), "--effort", self.config.assistant_effort, "--mode", "accept-edits"],
             prompt=prompt,
         )
+        # 1. Commit technical revision edits first
+        status_res = subprocess.run(
+            ["git", "status", "--porcelain"],
+            cwd=self.root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if status_res.returncode == 0 and status_res.stdout.strip():
+            subprocess.run(["git", "add", "-A"], cwd=self.root, check=False)
+            commit_title = f"[{self.epic_slug.upper()}] Apply minor Principal Review revisions round {round_num}"
+            subprocess.run(
+                ["git", "commit", "-m", commit_title],
+                cwd=self.root,
+                capture_output=True,
+                check=False,
+            )
+
+        # 2. Record decision cells citing the fix commit SHA
+        rev_res = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=self.root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        sha_short = rev_res.stdout.strip()[:7] if rev_res.returncode == 0 else "unknown"
+
         file = self.root / ".devtool" / "epic" / self.epic_slug / "principal_review.md"
         if file.is_file():
             content = file.read_text(encoding="utf-8")
-            rev_res = subprocess.run(
-                ["git", "rev-parse", "HEAD"],
-                cwd=self.root,
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-            sha_short = rev_res.stdout.strip()[:7] if rev_res.returncode == 0 else "unknown"
             lines = content.splitlines()
             in_target_round = False
             in_raw_output = False
@@ -564,16 +584,17 @@ class LifecycleRunner:
                 new_lines.append(line)
             file.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
 
-        status_res = subprocess.run(
+        # 3. Commit review decisions separately
+        dec_status = subprocess.run(
             ["git", "status", "--porcelain"],
             cwd=self.root,
             capture_output=True,
             text=True,
             check=False,
         )
-        if status_res.returncode == 0 and status_res.stdout.strip():
-            subprocess.run(["git", "add", "-A"], cwd=self.root, check=False)
-            commit_title = f"[{self.epic_slug.upper()}] Apply minor Principal Review revisions round {round_num}"
+        if dec_status.returncode == 0 and dec_status.stdout.strip():
+            subprocess.run(["git", "add", str(file)], cwd=self.root, check=False)
+            commit_title = f"[{self.epic_slug.upper()}] Record Principal Review decisions for round {round_num}"
             subprocess.run(
                 ["git", "commit", "-m", commit_title],
                 cwd=self.root,
@@ -593,17 +614,37 @@ class LifecycleRunner:
             args=["--model", self.config.resolve_assistant_model(self.root), "--effort", self.config.assistant_effort, "--mode", "accept-edits"],
             prompt=prompt,
         )
+        # 1. Commit aligned revision edits first
+        status_res = subprocess.run(
+            ["git", "status", "--porcelain"],
+            cwd=self.root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if status_res.returncode == 0 and status_res.stdout.strip():
+            subprocess.run(["git", "add", "-A"], cwd=self.root, check=False)
+            commit_title = f"[{self.epic_slug.upper()}] Apply aligned Principal Review revisions round {round_num}"
+            subprocess.run(
+                ["git", "commit", "-m", commit_title],
+                cwd=self.root,
+                capture_output=True,
+                check=False,
+            )
+
+        # 2. Record decision cells citing the fix commit SHA
+        rev_res = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=self.root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        sha_short = rev_res.stdout.strip()[:7] if rev_res.returncode == 0 else "unknown"
+
         file = self.root / ".devtool" / "epic" / self.epic_slug / "principal_review.md"
         if file.is_file():
             content = file.read_text(encoding="utf-8")
-            rev_res = subprocess.run(
-                ["git", "rev-parse", "HEAD"],
-                cwd=self.root,
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-            sha_short = rev_res.stdout.strip()[:7] if rev_res.returncode == 0 else "unknown"
             lines = content.splitlines()
             in_target_round = False
             in_raw_output = False
@@ -626,16 +667,17 @@ class LifecycleRunner:
                 new_lines.append(line)
             file.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
 
-        status_res = subprocess.run(
+        # 3. Commit review decisions separately
+        dec_status = subprocess.run(
             ["git", "status", "--porcelain"],
             cwd=self.root,
             capture_output=True,
             text=True,
             check=False,
         )
-        if status_res.returncode == 0 and status_res.stdout.strip():
-            subprocess.run(["git", "add", "-A"], cwd=self.root, check=False)
-            commit_title = f"[{self.epic_slug.upper()}] Apply aligned Principal Review revisions round {round_num}"
+        if dec_status.returncode == 0 and dec_status.stdout.strip():
+            subprocess.run(["git", "add", str(file)], cwd=self.root, check=False)
+            commit_title = f"[{self.epic_slug.upper()}] Record Principal Review decisions for round {round_num}"
             subprocess.run(
                 ["git", "commit", "-m", commit_title],
                 cwd=self.root,
@@ -962,9 +1004,12 @@ class LifecycleRunner:
         )
         if bdd_script.is_file():
             scenarios_file = self.root / ".devtool" / "epic" / self.epic_slug / "bdd_scenarios.en.md"
-            bdd_cmd = [sys.executable, str(bdd_script), "tests"]
+            bdd_cmd = [sys.executable, str(bdd_script), "tests", "--roots", "tests"]
             if scenarios_file.is_file():
                 bdd_cmd.extend(["--scenarios", str(scenarios_file)])
+            report_file = self.root / "build" / "test-results" / "autonomous-lifecycle-runner.xml"
+            if report_file.is_file():
+                bdd_cmd.extend(["--results", str(report_file)])
             bdd_res = subprocess.run(
                 bdd_cmd,
                 cwd=self.root,
