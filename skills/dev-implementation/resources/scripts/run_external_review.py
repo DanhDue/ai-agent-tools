@@ -738,6 +738,16 @@ def resolve_cli_binary(cli: str) -> str | None:
 def cli_command(cli: str, model: str | None, thinking_level: str | None = None) -> list[str]:
     extra = ["--model", model] if model else []
     if cli == "claude":
+        claude_model = model
+        if claude_model:
+            low = claude_model.lower()
+            if "opus" in low:
+                claude_model = "opus"
+            elif "sonnet" in low:
+                claude_model = "sonnet"
+            elif "haiku" in low:
+                claude_model = "haiku"
+        extra = ["--model", claude_model] if claude_model else []
         cmd = ["claude", "-p", "--dangerously-skip-permissions"]
         if thinking_level and thinking_level != "none":
             effort_map = {
