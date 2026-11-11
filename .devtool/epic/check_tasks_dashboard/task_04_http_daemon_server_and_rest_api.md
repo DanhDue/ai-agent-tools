@@ -28,7 +28,7 @@ Implement the background HTTP server daemon and REST API engine in `skills/check
 2. REST API Endpoints:
    - `GET /api/tasks`: invokes `harvest_dashboard_graph` and returns serialized JSON graph.
    - `GET /api/review?repo=<name>&round=<N>`: parses `review_results.md` or `principal_review.md` in the target repository and returns the persisted 5-column triage findings (`#`, `Severity`, `Location`, `Problem`, `Decision`), parsing raw evidence from the `Raw output:` fence, along with candidate SHA, model, thinking level, and verdict.
-   - `POST /api/launch/cli`: accepts `{"repo": str, "worktree": str, "profile": str}` and spawns terminal subshell using `zsh -i -c 'env -u ELECTRON_RUN_AS_NODE -u VSCODE_GIT_IPC_HANDLE -u VSCODE_IPC_HOOK_CLI ag_run <profile> cli'` without mutating host OS keychain or `$HOME` (Rule 9).
+   - `POST /api/launch/cli`: accepts `{"repo": str, "worktree": str, "profile": str}` and spawns an interactive terminal tab via `osascript -e 'tell application "Terminal" to do script "cd \"<worktree>\" && source ~/.zshrc && ag_run <profile> cli"'`; tests assert on the dispatched argv rather than subprocess exit status.
    - `POST /api/launch/ide`: accepts `{"repo": str, "worktree": str, "profile": str}` and spawns Antigravity IDE targeting the worktree directory via `zsh -i -c 'env -u ELECTRON_RUN_AS_NODE -u VSCODE_GIT_IPC_HANDLE -u VSCODE_IPC_HOOK_CLI ag_run <profile> "<worktree>"'` with all 3 IPC variables stripped.
    - `POST /api/shutdown`: triggers graceful server shutdown and unlinks PID file.
    - `GET /`: serves `skills/check-tasks/resources/dashboard/tasks_dashboard.html`.
@@ -121,7 +121,7 @@ And the stale PID file is safely unlinked and replaced with the new process PID
 - If port 8766 is occupied by an unrelated process, the daemon increments to 8767 without crashing.
 - `/api/review` response models the canonical persisted 5-column review table (`#`, `Severity`, `Location`, `Problem`, `Decision`) with evidence parsed from the round's raw markdown output block.
 - Launcher dispatch strictly complies with `CRITICAL_RULES.md` Rule 9, using localized subshells and stripping all three IPC environment variables:
-  - CLI: `zsh -i -c 'env -u ELECTRON_RUN_AS_NODE -u VSCODE_GIT_IPC_HANDLE -u VSCODE_IPC_HOOK_CLI ag_run <profile> cli'`
+  - CLI: `osascript -e 'tell application "Terminal" to do script "cd \"<worktree>\" && source ~/.zshrc && ag_run <profile> cli"'`
   - IDE: `zsh -i -c 'env -u ELECTRON_RUN_AS_NODE -u VSCODE_GIT_IPC_HANDLE -u VSCODE_IPC_HOOK_CLI ag_run <profile> "<worktree>"'`
 - `scripts/tasks_server.py` loads `skills/check-tasks/resources/scripts/tasks_server.py` via `importlib.util.spec_from_file_location` under a distinct module name and exports no symbols; tests import the engine path directly, never the wrapper stem.
 
@@ -133,7 +133,7 @@ And the stale PID file is safely unlinked and replaced with the new process PID
 
 ## Dependencies & Blockers
 
-Requires [Task 1](task_01_harvester_engine_and_data_models.md) and [Task 2](task_02_deterministic_lifecycle_fsm_engine.md). Blocks [Task 5](task_05_interactive_web_dashboard_and_skill.md).
+Requires [Task 1](task_01_harvester_engine_and_data_models.md) and [Task 2](task_02_deterministic_lifecycle_fsm_engine.md). Blocks [Task 3](task_03_terminal_cli_and_ansi_reporter.md) and [Task 5](task_05_interactive_web_dashboard_and_skill.md).
 
 ## References & Rollback
 

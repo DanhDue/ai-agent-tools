@@ -42,6 +42,7 @@ Implement the web companion frontend, Antigravity skill metadata, and end-to-end
    - Frontmatter metadata: `name: check-tasks`, `description: Real-time Cross-Repo Tasks & Context Dashboard and CLI monitor`.
    - Detailed documentation on slash command `/check-tasks`, CLI usage, and architecture.
 3. Registration & Verification:
+   - Format 4 pre-existing test files: run `ruff format` on `tests/test_agy_quota.py`, `tests/test_claude_quota.py`, `tests/test_kiro_quota.py`, and `tests/test_lifecycle_runner.py` with no other edits.
    - Register target scripts in `.agents/quality/python-quality.json`:
      - `format`: add `skills/check-tasks/resources/scripts/check_tasks.py`, `skills/check-tasks/resources/scripts/tasks_server.py`, `scripts/check_tasks.py`, `scripts/tasks_server.py`.
      - `lint`: append `"--ignore"`, `"SIM117"`, and add the 4 script paths.
@@ -55,6 +56,10 @@ Allowed files:
 - `skills/check-tasks/SKILL.md` (new)
 - `tests/test_check_tasks_e2e.py` (new)
 - `.agents/quality/python-quality.json`
+- `tests/test_agy_quota.py`
+- `tests/test_claude_quota.py`
+- `tests/test_kiro_quota.py`
+- `tests/test_lifecycle_runner.py`
 
 Read-only context:
 - `skills/check-quota/resources/dashboard/quota_dashboard.html` — dark theme tokens, modal styles, and layout patterns
@@ -94,7 +99,7 @@ And clicking an IDE launch button triggers a POST request to /api/launch/ide wit
 | V3 | GREEN | `python3 -m unittest tests/test_check_tasks_e2e.py` | exit 0; contains "OK" | — |
 | V4 | TIER-B | `ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py --ignore SIM117 tests/test_check_tasks_e2e.py` | exit 0 | — |
 | V5 | TIER-B | `mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py tests/test_check_tasks_e2e.py` | exit 0 | — |
-| V6 | TIER-B | `python3 skills/quality_check/resources/scripts/verify_polyglot_registry.py` | exit 0 | — |
+| V6 | TIER-B | `python3 skills/quality_check/resources/scripts/verify_polyglot_registry.py .agents/quality/check_quality.json --profile epic` | exit 0 | — |
 | V7 | TIER-C | `python3 scripts/run_unittest_junit.py --junitxml build/test-results/task_5.xml tests/test_check_tasks_e2e.py` | exit 0; results build/test-results/task_5.xml | — |
 
 ## Stop and Report If
@@ -116,8 +121,8 @@ And clicking an IDE launch button triggers a POST request to /api/launch/ide wit
 
 ## Definition of Done
 
-- Scenario CTD-HP-05 is covered and passes in the test suite. (V2, V3, V6)
-- Python quality checks (lint and type check) pass cleanly. (V4, V5)
+- Scenario CTD-HP-05 is covered and passes in the test suite. (V2, V3, V7)
+- Python quality checks (lint, format, and type check) pass cleanly. (V4, V5, V6)
 - Dashboard HTML passes validation and renders properly in dark mode. (Gate 5)
 
 ## Dependencies & Blockers

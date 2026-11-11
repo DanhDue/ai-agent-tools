@@ -61,11 +61,15 @@ ai-agent-tools/
 ├── bin/
 │   └── check-tasks                              # Entrypoint thực thi toàn cục trong PATH
 ├── scripts/
-│   └── agy_tasks.py                             # Engine trung tâm: Harvester + Terminal CLI + HTTP Daemon Server
+│   ├── check_tasks.py                           # Wrapper CLI độc lập
+│   └── tasks_server.py                          # Wrapper daemon server độc lập
 └── skills/
     └── check-tasks/
         ├── SKILL.md                             # Tài liệu đặc tả skill và lệnh slash command
         └── resources/
+            ├── scripts/
+            │   ├── check_tasks.py               # Động cơ Thu thập Dữ liệu & Định dạng CLI
+            │   └── tasks_server.py              # HTTP Daemon Server & API Kích hoạt
             └── dashboard/
                 └── tasks_dashboard.html         # Giao diện Single-Page Dark Mode với Tailwind CSS & Modal Dialogs
 ```
@@ -74,7 +78,7 @@ ai-agent-tools/
 
 ```mermaid
 flowchart TD
-    CLI["Người dùng gọi check-tasks / check-tasks --ui"] --> AGY["scripts/agy_tasks.py"]
+    CLI["Người dùng gọi check-tasks / check-tasks --ui"] --> AGY["skills/check-tasks/resources/scripts/check_tasks.py"]
     AGY --> HARVEST["Động cơ Thu thập Dữ liệu (Harvester)"]
     
     subgraph DataSources["Nguồn Dữ liệu Đa Kho lưu trữ"]
@@ -95,14 +99,17 @@ flowchart TD
     HARVEST --> API["HTTP API /api/tasks (Cổng 8766)"]
     API --> WEB["Giao diện Web Dashboard (tasks_dashboard.html)"]
     
-    WEB --> LAUNCH["POST /api/launch"]
-    LAUNCH --> OS_CLI["AppleScript: Terminal / iTerm (ag_run profile cli)"]
-    LAUNCH --> OS_IDE["Tiến trình Con: ag_run profile <worktree>"]
+    WEB --> LAUNCH_CLI["POST /api/launch/cli"]
+    WEB --> LAUNCH_IDE["POST /api/launch/ide"]
+    WEB --> SHUTDOWN["POST /api/shutdown"]
+    WEB --> REVIEW["GET /api/review"]
+    LAUNCH_CLI --> OS_CLI["AppleScript: Terminal / iTerm (ag_run profile cli)"]
+    LAUNCH_IDE --> OS_IDE["Tiến trình Con: env -u ... ag_run profile <worktree>"]
 ```
 
 ## Động cơ Thu thập Dữ liệu và Quét Đa Kho lưu trữ
 
-`scripts/agy_tasks.py` triển khai bộ quét tệp bất đồng bộ, phản hồi nhanh dưới 150ms:
+`skills/check-tasks/resources/scripts/check_tasks.py` triển khai bộ quét tệp bất đồng bộ, phản hồi nhanh dưới 150ms:
 
 1. **Khám phá Kho lưu trữ**:
    - Quét thư mục gốc `WORKSPACE_ROOT` (mặc định là `/Users/danhdueexoictif/AllProjects`).
@@ -126,7 +133,7 @@ flowchart TD
    - Đọc `principal_review.md` và `review_results.md`.
    - Tách các phân đoạn vòng (`## Round 1`, `## Round 2`, `## Round 3`).
    - Trích xuất thông tin header: `Date`, `SHA`, `CLI`, `Model`, `Thinking`, `Verdict`.
-   - Phân tích các hàng bảng Markdown thành các đối tượng có cấu trúc (`#`, `Severity`, `Location`, `Problem`, `Assessment`, `Evidence`, `Proposed action`).
+   - Phân tích các hàng bảng Markdown thành các đối tượng có cấu trúc (`#`, `Severity`, `Location`, `Problem`, `Decision`).
 
 ## Web Server, REST API và Cơ chế Kích hoạt
 
@@ -135,25 +142,33 @@ Daemon server tích hợp sử dụng thư viện chuẩn `http.server` của Py
 ### Các Endpoints API
 - `GET /`: Phục vụ tệp giao diện `tasks_dashboard.html`.
 - `GET /api/tasks`: Trả về JSON hoàn chỉnh của toàn bộ repos, worktrees, active epics, tasks, màu sắc và reviews. Bộ nhớ đệm 3 giây giúp loại bỏ đọc đĩa dư thừa.
-- `POST /api/launch`: Thực thi hành vi hệ thống dựa trên payload JSON:
+- `GET /api/review?repo=<name>&round=<N>`: Trả về kết quả review và bằng chứng raw evidence cho repo và round chỉ định.
+- `POST /api/launch/cli`: Mở cửa sổ Terminal hoặc iTerm2 độc lập qua AppleScript:
   ```json
   {
-    "action": "cli",
     "profile": "hau",
     "worktree": "/Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/autonomous_lifecycle_runner"
   }
   ```
-  - **Hành động `cli`**: Mở cửa sổ Terminal hoặc iTerm2 độc lập qua AppleScript:
-    ```bash
-    osascript -e 'tell application "Terminal"
-      do script "cd \"<worktree>\" && source ~/.zshrc && ag_run <profile> cli"
-      activate
-    end tell'
-    ```
-  - **Hành động `ide`**: Mở ứng dụng Electron Antigravity IDE cô lập:
-    ```bash
-    zsh -i -c "ag_run <profile> \"<worktree>\""
-    ```
+  Kích hoạt:
+  ```bash
+  osascript -e 'tell application "Terminal"
+    do script "cd \"<worktree>\" && source ~/.zshrc && ag_run <profile> cli"
+    activate
+  end tell'
+  ```
+- `POST /api/launch/ide`: Mở ứng dụng Electron Antigravity IDE cô lập:
+  ```json
+  {
+    "profile": "hau",
+    "worktree": "/Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/autonomous_lifecycle_runner"
+  }
+  ```
+  Kích hoạt:
+  ```bash
+  env -u ELECTRON_RUN_AS_NODE -u VSCODE_GIT_IPC_HANDLE -u VSCODE_IPC_HOOK_CLI zsh -i -c "ag_run <profile> \"<worktree>\""
+  ```
+- `POST /api/shutdown`: Dừng server HTTP daemon an toàn.
 
 ### Các Lệnh Quản trị Server
 - `check-tasks --ui`: Khởi động daemon nền (nếu chưa chạy) và tự động mở trình duyệt mặc định.
@@ -209,14 +224,13 @@ Giao diện Web (`tasks_dashboard.html`) được xây dựng dưới dạng ứ
     - `Effort / Thinking Level`: `High`.
     - `Verdict`: Kết luận và tổng hợp số lượng lỗi (ví dụ: `CHANGES REQUIRED (3 Critical, 1 Important findings)`).
   - **Bộ Chọn Vòng (Round Selector)**: Chuyển đổi giữa `Round 1`, `Round 2`, và `Round 3`.
-  - **Bảng Triage 7 Cột**:
+  - **Bảng Triage 5 Cột**:
     - `#`: Số thứ tự lỗi.
     - `Severity`: Thẻ tag màu sắc theo mức độ (`Critical` màu đỏ, `Important` màu cam, `Minor` màu xanh).
     - `Location`: Đường dẫn tệp monospace kèm số dòng in đậm.
     - `Problem`: Mô tả vấn đề kèm highlight các từ khóa mã nguồn.
-    - `Assessment`: Đánh giá (`Valid`, `Debatable`, `False Positive`).
-    - `Evidence`: Khung code monospace chứa kết quả kiểm chứng động.
-    - `Proposed action`: Đề xuất sửa đổi với tiền tố `fix:` và thẻ commit `✓ fixed in <sha>`.
+    - `Decision`: Trạng thái xử lý (`fixed in <sha>` hoặc `dismissed: <lý do>`).
+  - **Ngăn Kéo Bằng Chứng Mở rộng (Raw Evidence Drawer)**: Accordion có thể click mở rộng hiển thị kết quả từ `Raw output:`.
 
 ## Động cơ Trạng thái Vòng đời và Quyết định của Con người
 
@@ -295,7 +309,7 @@ Kèm theo thẻ tóm tắt dòng lệnh ngắn gọn về các worktree đang ch
 
 | ID | Chuyên mục | Bước Kiểm thử | Tiêu chí Thành công |
 |---|---|---|---|
-| **V1** | Quét dữ liệu | Chạy `scripts/agy_tasks.py --scan` trên `/Users/danhdueexoictif/AllProjects` | Phát hiện chính xác toàn bộ repos, worktrees, active epics và mã màu `.vscode/settings.json` không gặp lỗi |
+| **V1** | Quét dữ liệu | Chạy `python3 bin/check-tasks all --json` trên `/Users/danhdueexoictif/AllProjects` | Phát hiện chính xác toàn bộ repos, worktrees, active epics và mã màu `.vscode/settings.json` không gặp lỗi |
 | **V2** | Terminal CLI | Chạy `check-tasks all` trong terminal | Hiển thị bảng ANSI màu sắc liệt kê repos, epics, tasks hiện tại và Gates |
 | **V3** | Vòng đời Daemon | Chạy `check-tasks --ui`, kiểm tra `curl http://localhost:8766/api/tasks`, chạy `check-tasks --stop` | Server khởi động, API trả về JSON hợp lệ trong < 200ms, server dừng sạch sẽ |
 | **V4** | Kanban Modal | Mở Web UI, click `[ 📊 Xem Kanban ]` | Dialog modal mở tức thì, hiển thị đủ 5 cột với thẻ task thực tế khớp ảnh mẫu |

@@ -61,11 +61,15 @@ ai-agent-tools/
 ├── bin/
 │   └── check-tasks                              # Global executable entrypoint in PATH
 ├── scripts/
-│   └── agy_tasks.py                             # Core engine: Harvester + Terminal CLI + HTTP Daemon Server
+│   ├── check_tasks.py                           # Standalone CLI wrapper
+│   └── tasks_server.py                          # Standalone daemon server wrapper
 └── skills/
     └── check-tasks/
         ├── SKILL.md                             # Skill documentation & slash command specification
         └── resources/
+            ├── scripts/
+            │   ├── check_tasks.py               # Data Harvester Engine & Terminal CLI Formatter
+            │   └── tasks_server.py              # HTTP Daemon Server & Native Launcher API
             └── dashboard/
                 └── tasks_dashboard.html         # Single-Page Dark Mode UI with Tailwind CSS & Modal Dialogs
 ```
@@ -74,7 +78,7 @@ ai-agent-tools/
 
 ```mermaid
 flowchart TD
-    CLI["User invokes check-tasks / check-tasks --ui"] --> AGY["scripts/agy_tasks.py"]
+    CLI["User invokes check-tasks / check-tasks --ui"] --> AGY["skills/check-tasks/resources/scripts/check_tasks.py"]
     AGY --> HARVEST["Data Harvester Engine"]
     
     subgraph DataSources["Multi-Repo Data Sources"]
@@ -95,14 +99,17 @@ flowchart TD
     HARVEST --> API["HTTP API /api/tasks (Port 8766)"]
     API --> WEB["Web Dashboard UI (tasks_dashboard.html)"]
     
-    WEB --> LAUNCH["POST /api/launch"]
-    LAUNCH --> OS_CLI["AppleScript: Terminal / iTerm (ag_run profile cli)"]
-    LAUNCH --> OS_IDE["Subprocess: ag_run profile <worktree>"]
+    WEB --> LAUNCH_CLI["POST /api/launch/cli"]
+    WEB --> LAUNCH_IDE["POST /api/launch/ide"]
+    WEB --> SHUTDOWN["POST /api/shutdown"]
+    WEB --> REVIEW["GET /api/review"]
+    LAUNCH_CLI --> OS_CLI["AppleScript: Terminal / iTerm (ag_run profile cli)"]
+    LAUNCH_IDE --> OS_IDE["Subprocess: env -u ... ag_run profile <worktree>"]
 ```
 
 ## Data Harvester Engine and Multi-Repo Scanning
 
-`scripts/agy_tasks.py` implements a resilient, non-blocking file scanner that parses project state within 150ms:
+`skills/check-tasks/resources/scripts/check_tasks.py` implements a resilient, non-blocking file scanner that parses project state within 150ms:
 
 1. **Repository Discovery**:
    - Searches `WORKSPACE_ROOT` (defaults to `/Users/danhdueexoictif/AllProjects`).
@@ -126,7 +133,7 @@ flowchart TD
    - Reads `principal_review.md` and `review_results.md`.
    - Extracts round sections (`## Round 1`, `## Round 2`, `## Round 3`).
    - Parses round headers: `Date`, `SHA`, `CLI`, `Model`, `Thinking`, `Verdict`.
-   - Parses markdown table rows into structured finding objects (`#`, `Severity`, `Location`, `Problem`, `Assessment`, `Evidence`, `Proposed action`).
+   - Parses markdown table rows into structured finding objects (`#`, `Severity`, `Location`, `Problem`, `Decision`).
 
 ## Web Server, REST API and Launcher Operations
 
@@ -135,25 +142,33 @@ The embedded daemon server operates using standard Python `http.server` on port 
 ### Endpoints
 - `GET /`: Serves `tasks_dashboard.html`.
 - `GET /api/tasks`: Returns the complete JSON graph of all scanned repositories, worktrees, active epics, tasks, colors, and reviews. Cached for 3 seconds to eliminate excessive disk I/O.
-- `POST /api/launch`: Executes native operating system actions based on JSON payload:
+- `GET /api/review?repo=<name>&round=<N>`: Returns parsed review findings and raw evidence for the specified repository and round.
+- `POST /api/launch/cli`: Spawns an isolated Terminal or iTerm2 window via AppleScript:
   ```json
   {
-    "action": "cli",
     "profile": "hau",
     "worktree": "/Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/autonomous_lifecycle_runner"
   }
   ```
-  - **Action `cli`**: Spawns an isolated Terminal or iTerm2 window via AppleScript:
-    ```bash
-    osascript -e 'tell application "Terminal"
-      do script "cd \"<worktree>\" && source ~/.zshrc && ag_run <profile> cli"
-      activate
-    end tell'
-    ```
-  - **Action `ide`**: Spawns the isolated Electron Antigravity IDE:
-    ```bash
-    zsh -i -c "ag_run <profile> \"<worktree>\""
-    ```
+  Dispatches:
+  ```bash
+  osascript -e 'tell application "Terminal"
+    do script "cd \"<worktree>\" && source ~/.zshrc && ag_run <profile> cli"
+    activate
+  end tell'
+  ```
+- `POST /api/launch/ide`: Spawns the isolated Electron Antigravity IDE:
+  ```json
+  {
+    "profile": "hau",
+    "worktree": "/Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/autonomous_lifecycle_runner"
+  }
+  ```
+  Dispatches:
+  ```bash
+  env -u ELECTRON_RUN_AS_NODE -u VSCODE_GIT_IPC_HANDLE -u VSCODE_IPC_HOOK_CLI zsh -i -c "ag_run <profile> \"<worktree>\""
+  ```
+- `POST /api/shutdown`: Gracefully terminates the HTTP daemon server.
 
 ### Server Management Commands
 - `check-tasks --ui`: Starts the server as a background daemon (if not already running) and opens the default web browser.
@@ -209,14 +224,13 @@ The Web Dashboard (`tasks_dashboard.html`) is built as a single-page reactive ap
     - `Effort / Thinking Level`: `High`.
     - `Verdict`: Verdict text with count summary (e.g., `CHANGES REQUIRED (3 Critical, 1 Important findings)`).
   - **Round Selector**: Tabs to switch between `Round 1`, `Round 2`, and `Round 3`.
-  - **Triage Table (7 Columns)**:
+  - **Triage Table (5 Persisted Columns)**:
     - `#`: Sequential issue index.
     - `Severity`: Muted, clean tag pills (`Critical` in red, `Important` in amber, `Minor` in blue).
     - `Location`: Monospace file path with bold line numbers.
     - `Problem`: Description with highlighted code tokens.
-    - `Assessment`: Status (`Valid`, `Debatable`, `False Positive`).
-    - `Evidence`: Monospace dynamic probing code block.
-    - `Proposed action`: Action description with highlighted `fix:` prefix and `✓ fixed in <sha>` commit tag.
+    - `Decision`: Resolution cell (`fixed in <sha>` or `dismissed: <rationale>`).
+  - **Expandable Raw Evidence Drawer**: Clickable accordion sourced from the round's `Raw output:` fence.
 
 ## Lifecycle State Engine and Human Decisions
 
@@ -295,7 +309,7 @@ Followed by a concise terminal summary card detailing active worktrees, in-fligh
 
 | ID | Category | Verification Step | Success Criteria |
 |---|---|---|---|
-| **V1** | Scanning | Run `scripts/agy_tasks.py --scan` across `/Users/danhdueexoictif/AllProjects` | Discovers all repos, worktrees, active epics, and `.vscode/settings.json` colors without error |
+| **V1** | Scanning | Run `python3 bin/check-tasks all --json` across `/Users/danhdueexoictif/AllProjects` | Discovers all repos, worktrees, active epics, and `.vscode/settings.json` colors without error |
 | **V2** | Terminal CLI | Run `check-tasks all` in terminal | Renders rich ANSI colored table listing repos, epics, current tasks, and Gates |
 | **V3** | Daemon Lifecycle | Run `check-tasks --ui`, check `curl http://localhost:8766/api/tasks`, run `check-tasks --stop` | Server starts, API returns valid JSON graph in < 200ms, server shuts down cleanly |
 | **V4** | Kanban Modal | Open Web UI, click `[ 📊 Xem Kanban ]` | Modal dialog opens instantly, displaying 5 columns with real task cards matching native Kanban layout |

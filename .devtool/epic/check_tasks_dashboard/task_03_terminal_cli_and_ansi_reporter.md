@@ -109,6 +109,7 @@ And the output remains cleanly aligned plain text
 - Terminal widths adapt dynamically via `shutil.get_terminal_size()` with fallback to 100 columns.
 - Redirected stdout automatically strips ANSI escape sequences via regular expression.
 - Repository colors strictly respect the repository signatures in `CRITICAL_RULES.md` Rule 8.
+- Flags `--ui`, `--stop`, and `--status` delegate daemon management to `skills/check-tasks/resources/scripts/tasks_server.py` (`start_server`, `stop_server`, `server_status`) loaded via `importlib.util.spec_from_file_location` rather than re-implementing PID handling.
 - CLI wrapper at `scripts/check_tasks.py` loads `skills/check-tasks/resources/scripts/check_tasks.py` via `importlib.util.spec_from_file_location` or a clean launcher shim to avoid module name stem collision.
 
 ## Definition of Done
@@ -119,7 +120,7 @@ And the output remains cleanly aligned plain text
 
 ## Dependencies & Blockers
 
-Requires [Task 1](task_01_harvester_engine_and_data_models.md) and [Task 2](task_02_deterministic_lifecycle_fsm_engine.md). Blocks [Task 5](task_05_interactive_web_dashboard_and_skill.md).
+Requires [Task 1](task_01_harvester_engine_and_data_models.md), [Task 2](task_02_deterministic_lifecycle_fsm_engine.md), and [Task 4](task_04_http_daemon_server_and_rest_api.md). Blocks [Task 5](task_05_interactive_web_dashboard_and_skill.md).
 
 ## References & Rollback
 
