@@ -203,17 +203,17 @@ The Web Dashboard (`tasks_dashboard.html`) is built as a single-page reactive ap
   - **Neutral Dark Slate for Secondary Actions**: All secondary action buttons (`[ 💻 Mở CLI ]`, `[ 📊 Xem Kanban ]`, `[ 🧠 Xem Contexts ]`, `[ 🔬 Review ]`, `[ 🛡️ Review ]`) share a cohesive, uniform dark slate styling (`background: #1e293b; border: 1px solid #334155; color: #cbd5e1; hover: background: #334155; border-color: #64748b; color: #ffffff;`).
   - **Unified Primary Action CTA**: The `[ 🚀 Mở IDE ]` primary launch button uses a standardized primary blue styling (`background: #2563eb; border: 1px solid #3b82f6; color: #ffffff;`) consistently across all repository cards.
   - **Repository Identity Boundary**: The repository signature color extracted from `.vscode/settings.json` (`#b45309`, `#7f1d1d`, `#065f46`, `#0d47a1`) is applied exclusively to the outer card border, container glow, and identity badge (`@hau`, `@buivantrong8901`, `@danhdue`, `@tess`), ensuring the inner action toolbar remains calm, uniform, and distraction-free for developers.
-- **Drag & Drop Reordering & Pin to Top for Focused Project**:
-  - **Drag Handle `[ ⠿ ]`**: Placed next to each repository card title, empowering developers to freely reorder project cards via native HTML5 drag-and-drop to position their most urgent repositories on top.
-  - **Move to Top Button `[ 📌 Lên đầu ]`**: Single-click action that instantly moves the selected project to the very top of the dashboard with a smooth highlight glow animation.
-  - **Persistent Priority Order**: The custom card ordering is automatically saved to `localStorage` (`check_tasks_repos_order`), ensuring the dashboard reliably remembers the developer's prioritized project arrangement across reloads.
+- **Seamless Drag & Drop Reordering (Icon-Free)**:
+  - **Natural Card-Level Dragging**: Developers can freely drag and drop repository cards to reorder priorities directly via HTML5 native drag-and-drop. The card header acts as the natural grab target (`cursor: grab`), completely eliminating visual clutter by omitting explicit drag handle icons (`⠿`).
+  - **Form Control Exemption**: Interactive form controls (`textarea`, `button`, `input`) are exempted from triggering card drag operations, allowing smooth text highlighting and clicking.
+  - **Persistent Priority Order**: Custom arrangement is automatically saved to `localStorage` (`check_tasks_repos_order`), ensuring the dashboard preserves the developer's prioritized card order across sessions.
+- **Move to Top Action Button `[ ↑ Lên đầu ]` (Bottom-Right Positioning)**:
+  - **Contextual Alignment**: Relocated from the top header to the bottom action bar, positioned immediately to the right of the review findings button (`[ 🔬 Cross-Model Review ]` or `[ 🛡️ Principal Review ]`).
+  - **Standalone Alignment**: On repositories without a review button, the `[ ↑ Lên đầu ]` button sits cleanly on the right end (`margin-left: auto;`).
+  - **Arrow Icon Standard**: Utilizes an upward arrow icon (`<span>↑</span> Lên đầu`) instead of a pin icon, providing clear visual intent to jump the project directly to the top with a highlight glow animation.
 - **Integrated Worktree Branch Badge in Header**:
   - The git worktree branch identifier (`feat/...`) is neatly presented as a monospace badge (`font-family: monospace; background: #1e293b; color: #94a3b8`) directly beside the Epic title in the card Header.
   - Completely eliminates intrusive worktree path lines between or below the notes, keeping the card compact and allowing the Notes container to connect directly with the Metrics grid.
-- **Drag & Drop Reordering & Pin to Top for Focused Project**:
-  - **Drag Handle `[ ⠿ ]`**: Placed next to each repository card title, empowering developers to freely reorder project cards via native HTML5 drag-and-drop to position their most urgent repositories on top.
-  - **Move to Top Button `[ 📌 Lên đầu ]`**: Single-click action that instantly moves the selected project to the very top of the dashboard with a smooth highlight glow animation.
-  - **Persistent Priority Order**: The custom card ordering is automatically saved to `localStorage` (`check_tasks_repos_order`), ensuring the dashboard reliably remembers the developer's prioritized project arrangement across reloads.
 - **Antigravity Input Box & Auto-Indexing Notes (`1. `, `2. `)**:
   - **Concise Naming**: Standardized strictly as **`📝 Notes`** for clean, distraction-free visual clarity.
   - **Structural Position**: Positioned as a single independent box at the **top of the card**, directly below the repo/epic title and connecting directly to the Metrics grid.

@@ -203,17 +203,17 @@ Giao diện Web (`tasks_dashboard.html`) được xây dựng dưới dạng ứ
   - **Tone màu trung tính thanh lịch cho các nút phụ**: Toàn bộ các nút chức năng phụ (`[ 💻 Mở CLI ]`, `[ 📊 Xem Kanban ]`, `[ 🧠 Xem Contexts ]`, `[ 🔬 Review ]`, `[ 🛡️ Review ]`) sử dụng chung kiểu dáng slate tối giản (`background: #1e293b; border: 1px solid #334155; color: #cbd5e1; hover: background: #334155; border-color: #64748b; color: #ffffff;`).
   - **Nút Primary CTA đồng nhất**: Nút `[ 🚀 Mở IDE ]` sử dụng màu xanh primary chuẩn (`background: #2563eb; border: 1px solid #3b82f6; color: #ffffff;`) đồng nhất trên toàn bộ các repo cards.
   - **Phân tách ranh giới nhận diện repo**: Màu sắc đại diện cho repo từ `.vscode/settings.json` (`#b45309`, `#7f1d1d`, `#065f46`, `#0d47a1`) chỉ được áp dụng cho viền ngoài thẻ (card border), bóng glow và badge định danh repo/profile (`@hau`, `@buivantrong8901`, `@danhdue`, `@tess`), giữ cho khu vực thanh công cụ thao tác bên trong thẻ luôn đồng nhất, êm dịu và tập trung cao độ.
-- **Kéo Thả Sắp Xếp & Đưa Project Cần Focus Lên Đầu (Drag & Drop Reordering & Pin to Top)**:
-  - **Tay cầm Kéo Thả `[ ⠿ ]`**: Nằm ở góc tiêu đề của mỗi repo card, cho phép lập trình viên dùng chuột kéo thả trực tiếp (HTML5 native drag & drop) để sắp xếp lại thứ tự ưu tiên các dự án trên trang điều khiển.
-  - **Nút Đưa Lên Đầu `[ 📌 Lên đầu ]`**: Thao tác một chạm để đưa ngay project đang cần tập trung cao độ lên vị trí đầu tiên của trang điều khiển với hiệu ứng nổi bật (glow highlight animation).
-  - **Ghi nhớ thứ tự ưu tiên**: Toàn bộ thứ tự repo sau khi kéo thả hoặc bấm ghim lên đầu được tự động lưu bền vững vào `localStorage` (`check_tasks_repos_order`), giúp dashboard luôn duy trì đúng danh sách focus giữa các phiên làm việc.
+- **Kéo Thả Sắp Xếp Tự Nhiên (Không Dùng Icon Rườm Rà)**:
+  - **Kéo thả mượt mà trên thẻ**: Cho phép lập trình viên kéo và thả trực tiếp cả thẻ repo (HTML5 drag & drop) để sắp xếp lại thứ tự ưu tiên các dự án. Khu vực header của thẻ đóng vai trò điểm bám tự nhiên (`cursor: grab`), loại bỏ hoàn toàn icon kéo thả `⠿` để giữ giao diện tối giản, thanh lịch.
+  - **Miễn trừ các phần tử tương tác**: Các phần tử như `textarea`, `button`, `input` được loại trừ khỏi sự kiện dragstart để đảm bảo việc bôi đen chữ, gõ ghi chú và bấm nút diễn ra hoàn hảo.
+  - **Ghi nhớ thứ tự ưu tiên**: Toàn bộ thứ tự sau khi kéo thả được lưu tự động vào `localStorage` (`check_tasks_repos_order`), duy trì chính xác thứ tự sắp xếp giữa các phiên làm việc.
+- **Nút Đưa Lên Đầu `[ ↑ Lên đầu ]` (Bố Trí Góc Dưới Bên Phải)**:
+  - **Vị trí theo ngữ cảnh**: Di chuyển từ góc trên header xuống thanh thao tác dưới cùng (bottom action bar), đặt nằm ngay bên phải nút hiển thị kết quả review (`[ 🔬 Cross-Model Review ]` hoặc `[ 🛡️ Principal Review ]`).
+  - **Căn phải độc lập**: Đối với repo chưa có nút review, nút `[ ↑ Lên đầu ]` được căn sang sát mép phải (`margin-left: auto;`).
+  - **Biểu tượng mũi tên hướng lên**: Sử dụng icon mũi tên `↑` (`<span>↑</span> Lên đầu`) thay cho icon ghim `📌`, thể hiện trực quan hành vi đưa dự án lên đầu danh sách kèm hiệu ứng viền phát sáng (glow highlight animation).
 - **Tích Hợp Nhánh Worktree Gọn Gàng Vào Tiêu Đề (Integrated Worktree Branch Badge)**:
   - Tên nhánh git worktree (`feat/...`) được hiển thị dưới dạng badge gọn gàng (`font-family: monospace; background: #1e293b; color: #94a3b8`) ngay cạnh tên Epic trong phần Header của thẻ.
   - Loại bỏ hoàn toàn dòng hiển thị đường dẫn worktree rườm rà ở giữa hoặc dưới phần ghi chú, giúp không gian thẻ thoáng đãng, tập trung và kết nối trực tiếp ô Notes với các chỉ số đo lường (Metrics).
-- **Kéo Thả Sắp Xếp & Đưa Project Cần Focus Lên Đầu (Drag & Drop Reordering & Pin to Top)**:
-  - **Tay cầm Kéo Thả `[ ⠿ ]`**: Nằm ở góc tiêu đề của mỗi repo card, cho phép lập trình viên dùng chuột kéo thả trực tiếp (HTML5 native drag & drop) để sắp xếp lại thứ tự ưu tiên các dự án trên trang điều khiển.
-  - **Nút Đưa Lên Đầu `[ 📌 Lên đầu ]`**: Thao tác một chạm để đưa ngay project đang cần tập trung cao độ lên vị trí đầu tiên của trang điều khiển với hiệu ứng nổi bật (glow highlight animation).
-  - **Ghi nhớ thứ tự ưu tiên**: Toàn bộ thứ tự repo sau khi kéo thả hoặc bấm ghim lên đầu được tự động lưu bền vững vào `localStorage` (`check_tasks_repos_order`), giúp dashboard luôn duy trì đúng danh sách focus giữa các phiên làm việc.
 - **Ô Ghi Chú Chuẩn Định Dạng Antigravity Input Box & Tự Động Đánh Số (Notes with Auto-Indexing 1, 2, 3...)**:
   - **Tên gọi chuẩn hoá**: Đặt tên ngắn gọn và trực quan là **`📝 Notes`** (thay cho tên gọi dài dòng).
   - **Vị trí cấu trúc chuẩn**: Nằm duy nhất một ô độc lập ở **phía trên cùng của thẻ**, ngay bên dưới phần tiêu đề repo/epic và kết nối trực tiếp với phần bảng chỉ số (Metrics).
