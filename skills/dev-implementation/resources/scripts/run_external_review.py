@@ -246,6 +246,7 @@ def resolve_review_settings(
     model_arg: str | None,
     thinking_arg: str | None,
     auto_quota: bool = False,
+    provider_priority_arg: list[str] | None = None,
 ) -> tuple[str, str | None, str]:
     config = load_review_config(root)
     prev_cli = None
@@ -263,7 +264,8 @@ def resolve_review_settings(
                 prev_thinking = last_meta.get("Thinking")
 
     if cli_arg is None and auto_quota:
-        selected, diag = select_provider_by_quota(priority=config.get("provider_priority"))
+        effective_priority = provider_priority_arg or config.get("provider_priority")
+        selected, diag = select_provider_by_quota(priority=effective_priority)
         if selected:
             print(f"{CYAN}⚡ [check-quota]{RESET} Selected provider: {selected} ({'; '.join(diag)})", file=sys.stderr)
             cli = selected
@@ -1229,6 +1231,8 @@ def run(args: argparse.Namespace) -> int:
     kind = getattr(args, "kind", "code")
     root = Path(git_run(Path.cwd(), "rev-parse", "--show-toplevel").decode().strip())
 
+    raw_priority = getattr(args, "provider_priority", None)
+    parsed_priority = [p.strip() for p in raw_priority.split(",") if p.strip()] if raw_priority else None
     cli, model, thinking_level = resolve_review_settings(
         root=root,
         epic_dir=getattr(args, "epic_dir", None),
@@ -1237,6 +1241,7 @@ def run(args: argparse.Namespace) -> int:
         model_arg=args.model,
         thinking_arg=getattr(args, "thinking_level", None),
         auto_quota=bool(getattr(args, "auto_quota", False)),
+        provider_priority_arg=parsed_priority,
     )
     args.cli = cli
     args.model = model
@@ -1689,8 +1694,9 @@ def auto_triage_section(
         action = "AUTO_FIX_ELIGIBLE"
         reason = (
             f"Round {number}/{max_rounds} has {len(blocking_rows)} Critical/Important finding(s) and no Fix Loop or shared-contract conflict. "
-            "Verify against approved design (HLD, bdd_scenarios.en.md, Decisions Already Made): if Valid, "
-            "auto-record decisions, switch to Role 2.3 to fix, run local quality gate, "
+            "Verify against source and approved design (Spec, HLD, bdd_scenarios.en.md, Decisions Already Made): "
+            "if Valid (and zero CRITICAL_CONFLICT or Debatable trade-offs), auto-record decisions, "
+            "revise docs in Role 2.2 (or fix code in Role 2.3), run local quality gate, "
             "and advance to next review round."
         )
     return [
@@ -1762,8 +1768,17 @@ def triage(args: argparse.Namespace) -> int:
         out += [f"## Since Round {rounds[-2][0]}", "", *since_lines(finding_rows(rounds[-2][1]), latest)]
     else:
         out += ["## Since the Previous Round", "", "No earlier round."]
+    kind = getattr(args, "kind", "code")
     out += ["", *auto_triage_section(number, rounds, latest, getattr(args, "max_rounds", MAX_REVIEW_ROUNDS))]
-    out += ["", "## Next Steps", "", NEXT_STEPS]
+    next_steps = (
+        "To be written after verifying every finding against source and approved Spec/HLD: "
+        "auto-apply Valid doc revisions + record decisions in both Interactive and Autonomous modes "
+        "(halt ONLY on Circuit Breaker, CRITICAL_CONFLICT, or Debatable trade-off), "
+        "run check_epic_readiness.py, and advance to next review round (package after convergence)."
+        if kind == "principal"
+        else NEXT_STEPS
+    )
+    out += ["", "## Next Steps", "", next_steps]
     print("\n".join(out))
     return 0
 
@@ -1791,7 +1806,9 @@ def main(argv: list[str] | None = None) -> int:
     runner.add_argument("--force", action="store_true",
                         help="override the max-rounds Circuit Breaker limit when explicitly requested")
     runner.add_argument("--auto-quota", action="store_true",
-                        help="auto-select provider in Claude -> Codex -> Kiro -> Argon order using check-quota thresholds")
+                        help="auto-select provider priority using check-quota thresholds")
+    runner.add_argument("--provider-priority", type=str, default=None,
+                        help="comma-separated provider priority order for --auto-quota (e.g. codex,claude,kiro,agy)")
     runner.add_argument("--full", action="store_true",
                         help="review every artefact/diff even when an earlier round exists (default: delta)")
     checker = modes.add_parser("check", help="list undecided blocking findings of the latest completed round")

@@ -1324,6 +1324,34 @@ class TestReviewConfigAndHeader(ReviewCase):
             main(["triage", "--epic-dir", "demo"])
         self.assertIn("AUTO_PASS_FINAL_SWEEP", out6.getvalue())
 
+        # 7. Principal Review Round 1 blocking finding -> AUTO_FIX_ELIGIBLE (Role 2.2 directive, no false-positive conflict markers)
+        pr_path = self.root / ".devtool" / "epic" / "demo" / "principal_review.md"
+        pr_path.write_text(
+            "# Principal Review: demo\n\n"
+            "## Round 1\n\n- **SHA**: 1111111\n- **CLI**: codex\n- **Model**: gpt-5.4\n"
+            "- **Thinking**: high\n- **Kind**: principal\n- **Status**: completed\n- **Verdict**: CHANGES REQUIRED\n\n"
+            "| # | Severity | Location | Problem | Decision |\n"
+            "|---|----------|----------|---------|----------|\n"
+            "| 1 | Important | demo.en.md, task_01 | missing step contract detail |  |\n\n"
+            "Raw output:\n\n```text\nVerdict: CHANGES REQUIRED\n[Important] demo.en.md, task_01 — missing step contract detail\n```\n",
+            encoding="utf-8",
+        )
+        out7 = io.StringIO()
+        with contextlib.redirect_stdout(out7):
+            main(["triage", "--kind", "principal", "--epic-dir", "demo"])
+        triage7 = out7.getvalue()
+        self.assertIn("AUTO_FIX_ELIGIBLE", triage7)
+        self.assertIn("revise docs in Role 2.2", triage7)
+        self.assertIn("auto-apply Valid doc revisions", triage7)
+        for marker in (
+            "domain conflict",
+            "business requirement conflict",
+            "critical risk",
+            "shared_contract_conflict",
+            "conflict with shared-contracts",
+        ):
+            self.assertNotIn(marker, triage7.lower())
+
     def test_select_provider_by_quota_respects_5h_7d_and_kiro_thresholds(self) -> None:
         """select_provider_by_quota prioritizes Claude -> Codex -> Kiro -> Argon and checks 5H>=15%, 7D>2%, Kiro>=3%."""
         # Case 1: Claude & Codex have 5H=100% (1.0) but 7D=0% (0.0) -> skipped; Kiro has 85.8% (857.91 credits) -> selected!
@@ -1397,6 +1425,29 @@ class TestReviewConfigAndHeader(ReviewCase):
             priority=custom_priority,
         )
         self.assertEqual(chosen, "codex")
+
+    def test_resolve_review_settings_honors_provider_priority_arg(self) -> None:
+        """resolve_review_settings uses explicit provider_priority_arg over default config when --auto-quota is enabled."""
+        from unittest.mock import patch
+
+        from run_external_review import resolve_review_settings
+
+        healthy = {"status": "ACTIVE", "gemini5h": {"fraction": 0.9}, "geminiWeekly": {"fraction": 0.8}}
+        with patch("run_external_review.resolve_cli_binary", return_value="/usr/bin/fake"), patch(
+            "run_external_review._default_quota_fetcher", return_value=healthy
+        ):
+            cli, model, _lvl = resolve_review_settings(
+                root=self.root,
+                epic_dir="demo",
+                kind="principal",
+                cli_arg=None,
+                model_arg=None,
+                thinking_arg=None,
+                auto_quota=True,
+                provider_priority_arg=["codex", "claude", "kiro", "agy"],
+            )
+        self.assertEqual(cli, "codex")
+        self.assertEqual(model, "gpt-6.1-sol")
 
     def test_cross_provider_shared_context_and_top_3_risk_findings(self) -> None:
         """Mixed-model review injects Cross-Provider Handoff + Cumulative Ledger, and triage ranks Top 3 Highest-Risk Findings."""

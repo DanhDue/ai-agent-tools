@@ -1,6 +1,6 @@
 # Document Review Triage Protocol
 
-Every architectural and design document review round — whether executed via Claude CLI, Codex CLI, or Antigravity CLI — is triaged with the developer before anyone modifies documents or code. Review findings are claims to verify, not direct instructions.
+Every architectural and design document review round — whether executed via Claude CLI, Codex CLI, or Antigravity CLI — MUST be verified against live source code and approved Tier-1/Tier-2 design documents via `run_external_review.py triage --kind principal` before anyone modifies documents or code. Review findings are claims to verify, not direct instructions.
 
 ## Triage Procedure
 
@@ -44,12 +44,12 @@ Every architectural and design document review round — whether executed via Cl
      • Verdict: <VERDICT> (<count> <Severity> findings)
      ```
    - Follow the `## Auto-Triage Gate` classification printed by `run_external_review.py triage`:
-     - **`AUTO_PASS_CLEAN` (`0 findings`)** or **`AUTO_PASS_FINAL_MINOR_SWEEP` (`0 Critical`, `0 Important`, only `Minor` findings)**: Fix any valid `Minor` items in a single pass, re-package via `package_epic.py <epic_dir> --revise`, and complete Principal Review immediately without re-invoking the external reviewer.
-     - **`AUTO_FIX_ELIGIBLE` (Round 1..2 with `Critical`/`Important` findings, no `shared-contracts/` conflict, and no Fix Loop)**: In autonomous `/dev-lifecycle` mode, when all blocking findings verify as `Valid` in source and do not conflict with `shared-contracts/`, apply the document revisions, record `fixed in <sha>`, re-package, and proceed to the next convergence round (up to max 3 rounds). In interactive mode (or when any finding is `Debatable` / `False Positive`), stop calling tools and wait for the developer to confirm or reject each finding.
+     - **`AUTO_PASS_CLEAN` (`0 findings`)** or **`AUTO_PASS_FINAL_MINOR_SWEEP` (`0 Critical`, `0 Important`, only `Minor` findings)**: Fix any valid `Minor` items in a single pass (commit revisions + decisions), then run final packaging (`package_epic.py <epic_dir>`, or `--revise` if `handoff.md` already exists), print `--emit-prompt implement`, and prompt **Triển khai (tự động)** vs **Dừng lại** without re-invoking the external reviewer.
+     - **`AUTO_FIX_ELIGIBLE` (Round 1..2 with `Critical`/`Important` findings, no `shared-contracts/` conflict, and no Fix Loop)**: Verify every finding against source code and approved Spec/HLD (`Decisions Already Made`), and present the verified triage summary. In **BOTH Interactive and Autonomous `/dev-lifecycle` modes**, when all blocking findings verify as `Valid` (plus any objective `False positive` clearly refuted with exact source/approved-Spec proof) and zero halt triggers apply, **do NOT pause for confirmation**: apply the document revisions in Role 2.2, commit revisions and decisions (`fixed in <sha>`), verify readiness (`check_epic_readiness.py`, no premature `handoff.md` packaging), and proceed immediately to Round `N+1` (up to max 3 rounds). **Stop calling tools and escalate to the Human Architect ONLY when touching**: (1) `CRITICAL_CONFLICT` (business/domain requirement, critical risk, or frozen Tier-1 Spec intent conflict), (2) a `Debatable` finding needing a trade-off choice (or an unresolvable `Not shown` claim), (3) `CIRCUIT_BREAKER_HALT (SHARED_CONTRACT_CONFLICT)`, (4) `CIRCUIT_BREAKER_HALT (FIX_LOOP)`, or (5) `CIRCUIT_BREAKER_HALT (MAX_ROUNDS_CRITICAL_REMAINING)`. Once the developer resolves the halted item(s), apply fixes and automatically advance to Round `N+1`.
      - **`CIRCUIT_BREAKER_HALT (SHARED_CONTRACT_CONFLICT)`**: Triggered immediately in **any round** if a `Critical`/`Important` finding conflicts with `shared-contracts/`. Stop calling tools immediately and report to the Human Architect (never auto-fix or revert the user-approved HLD design).
      - **`CIRCUIT_BREAKER_HALT (FIX_LOOP)`**: Triggered if a file marked `fixed in <sha>` in Round $N-1$ is re-reported with a `Critical`/`Important` finding in Round $N$. Stop calling tools immediately and report to the Human Architect.
      - **`CIRCUIT_BREAKER_HALT (MAX_ROUNDS_CRITICAL_REMAINING)`**: Triggered if after **3 rounds (`Round >= 3`) any `Critical` finding still remains**. Stop calling tools immediately and report the `Top 3 Highest-Risk Findings` to the Human Architect.
-     - **`AUTO_PASS_FINAL_SWEEP` (Round 3 with `0 Critical` findings, no `shared-contracts/` conflict, and no Fix Loop)**: Apply one final revision sweep for remaining valid `Important`/`Minor` items, re-package green, and advance without a 4th round.
+     - **`AUTO_PASS_FINAL_SWEEP` (Round 3 with `0 Critical` findings, no `shared-contracts/` conflict, and no Fix Loop)**: Apply one final revision sweep for remaining valid `Important`/`Minor` items, commit revisions + decisions, execute final `package_epic.py`, print `--emit-prompt implement`, and present **Triển khai (tự động)** vs **Dừng lại** without a 4th round.
 
 ## 4 Anti-Fix-Loop Prompt Strategies (Enforced in `run_external_review.py`)
 
@@ -66,7 +66,7 @@ To prevent false or repetitive Fix Loops across rounds, `delta_round_context()` 
 
 ## Post-Triage Revision Loop
 
-When findings are accepted by the developer:
+When findings are verified as `Valid` with zero halt triggers (or after the developer resolves an escalation halt):
 
 1. **Apply Document Revisions First**:
    - Edit the relevant design documents (HLD, BDD, tasks, RFCs).
@@ -83,9 +83,9 @@ When findings are accepted by the developer:
      git commit -m "[<EPIC_NAME>] Record Principal Review decisions for round <n>"
      ```
 
-3. **Re-Run Packaging & Preflight**:
-   - Execute `check_epic_readiness.py <epic_dir>`.
-   - Refresh `handoff.md` with the new design commit SHA.
-   - Sync epic status to `Packaged`.
-   - Commit: `[<EPIC_NAME>] Package epic for handoff`.
-   - Re-present the Principal Review Choice to the developer.
+3. **Verify Readiness / Advance Round or Package at Completion**:
+   - **If another review round remains** (Round 1..2 with blocking fixes applied): run `check_epic_readiness.py <epic_dir>` (do **NOT** run `package_epic.py` mid-loop) and automatically invoke the next convergence round (`Round n+1`).
+   - **At completion / convergence** (`AUTO_PASS_CLEAN`, `AUTO_PASS_FINAL_MINOR_SWEEP`, or `AUTO_PASS_FINAL_SWEEP`):
+     - Execute `python3 skills/dev-implementation/resources/scripts/package_epic.py <epic_dir>` (or `--revise --reason "Revise after Principal Review"` if `handoff.md` already exists), syncing epic status to `Packaged` and generating/anchoring `handoff.md`.
+     - Commit: `[<EPIC_NAME>] Package epic for handoff`.
+     - Save state (`resume_context.py --state --epic <epic_slug> --status "Stage 2: Packaged & Ready"`), **print `--emit-prompt implement`**, and prompt **Triển khai (tự động)** vs **Dừng lại** (*"Dừng lại ở đây để tôi lấy prompt cho một AI Agents khác triển khai"*).

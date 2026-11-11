@@ -106,7 +106,9 @@ EXPECTED: dict[str, tuple[str, ...]] = {
         "a fresh traceability check and epic quality run",  # LF-ST-05
         "`<N>` is the task count the preflight printed",  # LF-HP-05
         "check_epic_readiness.py <epic_dir>",
-        "Principal Review Choice",
+        "provider/model priority",
+        "Triển khai (tự động)",
+        "Dừng lại",
         "references/principal-review.md",
     ),
     "skills/dev-lifecycle/references/handoff-template.md": (
@@ -326,11 +328,13 @@ class LifecycleDocumentContractTest(unittest.TestCase):
 
 class PrincipalReviewWorkflowTest(unittest.TestCase):
     def test_prv_hp_04_packaging_readiness_and_principal_review_choice(self) -> None:
-        """[PRV-HP-04] Packaging runs one readiness command and offers Principal Review Choice."""
+        """[PRV-HP-04] Stage 2 asks provider/model priority, runs Principal Review, packages after convergence, and prompts Implement vs Stop."""
         skill_path = ROOT / "skills/dev-lifecycle/SKILL.md"
         skill_text = skill_path.read_text(encoding="utf-8")
         self.assertIn("check_epic_readiness.py <epic_dir>", skill_text)
-        self.assertIn("Principal Review Choice", skill_text)
+        self.assertIn("provider/model priority", skill_text)
+        self.assertIn("Triển khai (tự động)", skill_text)
+        self.assertIn("Dừng lại", skill_text)
         self.assertIn("references/principal-review.md", skill_text)
         self.assertNotIn(
             "check_bdd_traceability.py plan --scenarios .devtool/epic/<epic_dir>/bdd_scenarios.en.md --tasks",
@@ -344,12 +348,14 @@ class PrincipalReviewWorkflowTest(unittest.TestCase):
         ref_path = ROOT / "skills/dev-lifecycle/references/principal-review.md"
         self.assertTrue(ref_path.is_file(), f"{ref_path} must exist")
         ref_text = ref_path.read_text(encoding="utf-8")
-        self.assertIn("1. **Done**", ref_text)
-        self.assertIn("2. **Principal Review**", ref_text)
+        self.assertIn("provider/model priority order", ref_text)
         self.assertIn("Claude CLI", ref_text)
         self.assertIn("Codex CLI", ref_text)
         self.assertIn("Never choose for the developer", ref_text)
         self.assertIn("strongly recommended", ref_text)
+        self.assertIn("1. **Triển khai (tự động)**", ref_text)
+        self.assertIn("2. **Dừng lại**", ref_text)
+        self.assertIn("Dừng lại ở đây để tôi lấy prompt cho một AI Agents khác triển khai", ref_text)
 
     def test_prv_ec_07_handoff_template_reads_first_principal_review(self) -> None:
         """[PRV-EC-07] Read First lists principal_review.md."""
@@ -360,12 +366,15 @@ class PrincipalReviewWorkflowTest(unittest.TestCase):
         self.assertIn("`git log <sha>..<base_branch> -- .devtool/epic/<epic_dir>`", text)
 
     def test_prv_st_03_diagram_loop_returns_to_package_and_done_repackages(self) -> None:
-        """[PRV-ST-03] The loop returns to Package and Done re-packages after a round."""
+        """[PRV-ST-03] Stage 2 flows through Provider Priority -> Principal Review -> Package -> Implement/Stop Choice."""
         for doc_name in ("docs/lifecycles.en.md", "docs/lifecycles.vi.md"):
             doc_text = (ROOT / doc_name).read_text(encoding="utf-8")
-            self.assertIn("PKG --> PRC", doc_text)
-            self.assertIn('PRC -->|"2. Principal Review"| PR', doc_text)
-            self.assertIn('PR -->|"revised and re-packaged"| PKG', doc_text)
+            self.assertIn("PRC -->", doc_text)
+            self.assertIn("PR -->", doc_text)
+            self.assertIn("| PKG", doc_text)
+            self.assertIn("PKG --> HC", doc_text)
+            self.assertIn("Triển khai (tự động)", doc_text)
+            self.assertIn("Dừng lại", doc_text)
             self.assertNotRegex(doc_text, r"PR\s*[-.=]+>[^\n]*(S3|G3)")
 
         ref_path = ROOT / "skills/dev-lifecycle/references/principal-review.md"
@@ -399,6 +408,29 @@ class PrincipalReviewWorkflowTest(unittest.TestCase):
 
 
 class TestReviewSkillContracts(unittest.TestCase):
+    def test_prv_st_05_interactive_principal_review_auto_fixes_valid_findings(self) -> None:
+        """[PRV-ST-05] Interactive /principal-review auto-verifies and auto-fixes valid findings, halting only on critical/debatable/circuit-breaker triggers."""
+        critical_rules = (ROOT / "rules/CRITICAL_RULES.md").read_text(encoding="utf-8")
+        self.assertIn("BOTH Interactive Mode and Autonomous", critical_rules)
+        self.assertIn("CRITICAL_CONFLICT", critical_rules)
+        self.assertIn("Debatable", critical_rules)
+
+        pr_skill = (ROOT / "skills/principal-review/SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("BOTH Autonomous (`lifecycle_runner.py`) and Interactive Mode", pr_skill)
+        self.assertIn("do NOT pause for confirmation", pr_skill)
+
+        doc_triage = (ROOT / "skills/principal-review/references/document-triage.md").read_text(encoding="utf-8")
+        self.assertIn("BOTH Interactive and Autonomous", doc_triage)
+        self.assertIn("Stop calling tools and escalate to the Human Architect ONLY when touching", doc_triage)
+
+        lc_pr_ref = (ROOT / "skills/dev-lifecycle/references/principal-review.md").read_text(encoding="utf-8")
+        self.assertIn("document-triage.md", lc_pr_ref)
+        self.assertIn("both** interactive and autonomous modes", lc_pr_ref)
+
+        lc_skill = (ROOT / "skills/dev-lifecycle/SKILL.md").read_text(encoding="utf-8")
+        red_flags = lc_skill.split("## Red Flags", 1)[1].split("\n## ", 1)[0]
+        self.assertIn("Acting on a Principal Review finding before verifying against source/Spec and running triage", red_flags)
+
     def test_srs_hp_06_review_skills_expose_contract_and_frontmatter(self) -> None:
         """[SRS-HP-06] Document contracts enforce new review skills exposure."""
         for skill_rel in ("skills/principal-review/SKILL.md", "skills/cross-model-review/SKILL.md"):

@@ -43,7 +43,7 @@ Pick by how many reviewable pieces the work has.
 **Several independent components, or you would want an architecture diagram and a task board**
 — run `d3nexus:dev-lifecycle`. It takes you through five gates:
 spec (Gate 1), task breakdown (Gate 2), execution order (Gate 3), `quality_check` with audit and BDD traceability (Gate 4), and your own Kanban sign-off (Gate 5) before the branch is finished.
-It also enforces two explicit choice points: the **Handoff Choice** (package or continue) after Stage 2, and the mandatory **Review Choice** (Finish, Cross-model review or Local model review) after every Gate 4 PASS. Either review returns to a full Gate 4 run, so the loop continues until you choose Finish.
+It also enforces explicit choice points: after Stage 2 you choose the provider/model priority order so `principal-review` runs automatically first (followed by packaging `handoff.md`, printing the implementation prompt, and choosing **Triển khai (tự động)** vs **Dừng lại**), and after every Gate 4 PASS you get the mandatory **Review Choice** (Finish, Cross-model review or Local model review). Either review returns to a full Gate 4 run, so the loop continues until you choose Finish.
 
 **One component, one plan** — run `d3nexus:dev-brainstorming`, then `d3nexus:writing-plans`.
 This leaves the epic lifecycle; its remaining gates do not apply. You still cross two:

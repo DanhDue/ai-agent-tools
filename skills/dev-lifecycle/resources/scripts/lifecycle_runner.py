@@ -687,7 +687,7 @@ class LifecycleRunner:
         return True
 
     def _run_package_epic_revise(self) -> bool:
-        """Run package_epic.py <epic> --revise and commit re-anchored handoff."""
+        """Run initial package_epic.py <epic> or --revise when handoff.md exists, and commit."""
         pkg_script = (
             self.root
             / "skills"
@@ -697,12 +697,11 @@ class LifecycleRunner:
             / "package_epic.py"
         )
         if pkg_script.is_file():
-            subprocess.run(
-                [sys.executable, str(pkg_script), self.epic_slug, "--revise"],
-                cwd=self.root,
-                capture_output=True,
-                check=False,
-            )
+            handoff_file = self.root / ".devtool" / "epic" / self.epic_slug / "handoff.md"
+            cmd = [sys.executable, str(pkg_script), self.epic_slug]
+            if handoff_file.is_file():
+                cmd.extend(["--revise", "--reason", "Revise after Principal Review"])
+            subprocess.run(cmd, cwd=self.root, capture_output=True, check=False)
         status_res = subprocess.run(
             ["git", "status", "--porcelain"],
             cwd=self.root,
@@ -835,6 +834,7 @@ class LifecycleRunner:
 
             if action == "AUTO_PASS_CLEAN":
                 print("AUTO_PASS_CLEAN: 0 findings")
+                self._run_package_epic_revise()
                 self.state.active_stage = StageName.IMPLEMENTATION.value
                 self.save_state()
                 return True
@@ -875,7 +875,6 @@ class LifecycleRunner:
                     self.save_state()
 
                 self._apply_aligned_fixes(round_num)
-                self._run_package_epic_revise()
 
         self.state.active_stage = StageName.HALTED.value
         self.state.halt_reason = "CIRCUIT_BREAKER_HALT (MAX_ROUNDS_CRITICAL_REMAINING)"

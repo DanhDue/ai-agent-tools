@@ -52,11 +52,11 @@ flowchart TD
     PLANS(["writing-plans<br/>(rời workflow này)"])
     S2["Stage 2 — Kiến trúc &amp; Task<br/>(dev-designer)<br/>[2.2 AI Assistant: --role assistant, auto --state]"]
     G2{"Cổng 2 — 2.1 Architect<br/>HLD &amp; phân rã task được duyệt?"}
-    HC{"Handoff choice — 2.1 Architect<br/>package hay continue?"}
-    PKG["Package epic<br/>handoff.md, status Packaged<br/>[2.2 AI Assistant: --state &amp; --emit-prompt]"]
-    PRC{"Principal Review Choice — 2.1 Architect<br/>Done hay Principal Review?"}
-    PR["principal-review<br/>(Rà soát kiến trúc Shift-Left)<br/>[2.2 AI Assistant: triage, decisions, chỉnh sửa]"]
-    PKGSTOP(["Dừng: handoff.md và AI Programmer Resume Prompt"])
+    PRC{"Lựa chọn Thứ tự Ưu tiên Provider/Model — 2.1 Architect<br/>chọn thứ tự cho /principal-review?"}
+    PR["principal-review<br/>(Tự động rà soát kiến trúc Shift-Left, tối đa 3 round)<br/>[2.2 AI Assistant: triage, decisions, chỉnh sửa]"]
+    PKG["Package epic &amp; Emit Prompt<br/>handoff.md, status Packaged<br/>[2.2 AI Assistant: --state &amp; --emit-prompt implement]"]
+    HC{"Handoff choice — 2.1 Architect<br/>Triển khai (tự động) hay Dừng lại?"}
+    PKGSTOP(["Dừng: handoff.md và AI Programmer Implement Prompt"])
     S3["Stage 3 — Thực thi độc lập<br/>(dev-implementation)<br/>[2.3 AI Programmer: --role programmer trong worktree]"]
     G3{"Cổng 3 — 2.1 Architect<br/>Thứ tự thực thi đã xác nhận?"}
     EXEC["Phase 2-3: TDD từng task<br/>[2.3 AI Programmer: tự động --log &amp; --state mỗi task,<br/>tích hợp vào develop sau mỗi task]"]
@@ -75,14 +75,14 @@ flowchart TD
     ROUTE -->|có| S2
     S2 --> G2
     G2 -->|chưa, điều chỉnh phân rã| S2
-    G2 -->|rồi| HC
-    HC -->|"1. package"| PKG
-    HC -->|"2. continue"| S3
-    PKG --> PRC
-    PRC -->|"1. Done"| PKGSTOP
-    PRC -->|"2. Principal Review"| PR
-    PR -->|"revised and re-packaged"| PKG
-    PKGSTOP -.->|"phiên sau hoặc AI Programmer"| S3
+    G2 -->|rồi| PRC
+    PRC -->|"đã chọn thứ tự provider/model"| PR
+    PR -->|"round đã chỉnh sửa (readiness OK)"| PR
+    PR -->|"hội tụ PASS"| PKG
+    PKG --> HC
+    HC -->|"1. Triển khai (tự động)"| S3
+    HC -->|"2. Dừng lại (lấy prompt)"| PKGSTOP
+    PKGSTOP -.->|"phiên sau hoặc AI Agent khác"| S3
     S3 --> G3
     G3 -->|chưa, sắp xếp lại| G3
     G3 -->|rồi| EXEC
@@ -99,10 +99,8 @@ flowchart TD
     G5 -->|rồi| S4
 ```
 
-Vòng đời trải qua bốn giai đoạn (stage) và năm cổng phê duyệt (approval gate), cùng hai điểm lựa chọn rõ ràng:
-- **Routing & Handoff Choice**: Sau khi qua Cổng 1, công việc quy mô epic đi tới Stage 2 (`dev-designer`). Giữa Cổng 2 và Stage 3, nhà phát triển chọn **Package** (`handoff.md`, trạng thái `Packaged`, dừng để phiên sau hoặc LLM khác làm) hoặc **Continue** vào Stage 3 ngay.
-
-Khi một epic được đóng gói, nhà phát triển đối diện với **Principal Review Choice**: hoặc kết thúc việc đóng gói (**Done**) hoặc gọi `principal-review` (một đợt rà soát chéo Shift-Left giữa các mô hình đánh giá tài liệu thiết kế, kịch bản BDD và task với mã nguồn thông qua Claude CLI, Codex CLI hoặc Antigravity CLI). Các round được ghi nhận trong `principal_review.md`, được triage cùng nhà phát triển, chỉnh sửa tại chỗ, và đóng gói lại trước khi quay lại lựa chọn.
+Vòng đời trải qua bốn giai đoạn (stage) và năm cổng phê duyệt (approval gate), cùng các điểm lựa chọn rõ ràng:
+- **Chuyển tiếp Stage 2 -> Principal Review & Đóng gói sau Review**: Sau khi qua Cổng 1, công việc quy mô epic đi tới Stage 2 (`dev-designer`). Khi Cổng 2 được duyệt, agent **KHÔNG** chạy `package_epic.py` (`handoff.md`) ngay; thay vào đó, agent hỏi nhà phát triển **trình tự ưu tiên provider/model** cho `/principal-review`. Ngay khi xác nhận, `/principal-review` chạy tự động (tối đa 3 round qua `run_external_review.py`, cập nhật trực tiếp HLD/BDD/tasks sau mỗi round triage mà không đóng gói giữa chừng). Chỉ tới cuối `/principal-review` sau khi hội tụ PASS, agent mới chạy `package_epic.py` (tạo `handoff.md`, trạng thái `Packaged`), **in prompt triển khai (`--emit-prompt implement`)**, rồi hỏi lựa chọn **Triển khai (tự động)** (đi tiếp vào Stage 3 ngay) hay **Dừng lại** (*"Dừng lại ở đây để tôi lấy prompt cho một AI Agents khác triển khai"*).
 - **Thực thi độc lập**: Stage 3 thực thi từng task độc lập trong git worktree theo phương pháp TDD và tích hợp liên tục vào `develop`. Khi mọi task đã xong, agent chạy Cổng 4 trên SHA ứng viên.
 - **Vòng lặp Cổng 4 và Review Choice**: Cổng 4 là cổng máy duy nhất trên nhánh phát triển của kit này. Nó chỉ cấp 🟢 khi `audit_epic.py` exit 0, `check_bdd_traceability.py tests --results` exit 0, và `@quality_check` profile `epic` trả về PASS trên đúng commit SHA ứng viên. Mỗi lần PASS sẽ đưa ra **Review Choice**: **Finish** đi tới Cổng 5; **Cross-model review** (Claude CLI, Codex CLI hoặc Antigravity CLI) và **Local model review** (Ollama) kích hoạt `cross-model-review` (rà soát độc lập Shift-Right đối với mã nguồn, diff và tính toàn vẹn của test). Mỗi round review được ghi nhận vào `review_results.md` rồi quay lại chạy đầy đủ Cổng 4. Mỗi round review được triage cùng nhà phát triển (`run_external_review.py triage`) trước mọi lần sửa. Vòng lặp tiếp tục cho tới khi nhà phát triển chọn Finish.
 - **Chế độ Vòng đời Tự động (`/dev-lifecycle --autonomous`)**: Đối với quy trình thực thi rảnh tay, `lifecycle_runner.py` điều phối toàn bộ đường ống: tự động probe năng lực model, thực thi Principal Review với cổng auto-triage (`AUTO_PASS_CLEAN`, `AUTO_PASS_FINAL_MINOR_SWEEP`, `AUTO_FIX_ELIGIBLE`), tự động tính thứ tự topo Cổng 3, chạy tiến trình Programmer Gemini 3.8 Flash High headless dưới sự giám sát của process group, đánh giá fix plan qua AI Assistant (`APPROVED`/`ADJUSTED`/`CRITICAL_CONFLICT`), chạy trọn vẹn nghiệm thu máy Cổng 4, và tổng hợp báo cáo Top 3 Rủi ro Cao nhất qua mọi round review. Runner chỉ dừng lại khi gặp rủi ro nghiêm trọng, xung đột nghiệp vụ, hoặc `SHARED_CONTRACT_CONFLICT`, và dừng tại `AWAITING_FINISH` để ký duyệt hoàn tất merge nhánh.
@@ -121,10 +119,9 @@ flowchart TD
     INCON["Trạng thái không nhất quán<br/>(tài liệu bị sửa sau khi đóng gói)<br/>[2.2 AI Assistant: đồng bộ tài liệu &amp; đóng gói lại]"]
     MERGED["Stage 4: Merge nhánh &amp; Lưu trữ<br/>[2.3 AI Programmer: --complete -> PROJECT_LEDGER.md &amp; archive/]"]
 
-    FRESH -->|"Hoàn tất Stage 1-2 (--state)"| PKG
-    FRESH -->|"Continue tại Handoff Choice"| INTR
+    FRESH -->|"Cổng 2 + Principal Review hội tụ (--state)"| PKG
     PKG -->|"Kiểm tra git log từ khi đóng gói"| INCON
-    PKG -->|"Resume tại Stage 3 Cổng 3 (--emit-prompt implement)"| INTR
+    PKG -->|"Triển khai (tự động) / resume Stage 3 (--emit-prompt implement)"| INTR
     INCON -->|"Tài liệu thắng, xử lý lệch"| INTR
     INTR -->|"TDD từng task (--log &amp; --state)"| DONE_EPIC
     DONE_EPIC -->|"Review Choice + ký duyệt Cổng 5"| MERGED
@@ -136,15 +133,15 @@ Các sơ đồ và giải thích này mô tả vòng đời cho con người; c�
 
 1. **Danh mục Stage & Skill (Phân tách trách nhiệm độc lập)**:
    - **`dev-brainstorming` (Stage 1 — Khởi đầu & Spec)**: Khám phá bài toán và thiết kế, xuất spec song ngữ (`*-design.{en,vi}.md`) kèm cảnh báo `shared-contracts/` (Cổng 1).
-   - **`dev-designer` (Stage 2 — Kiến trúc & Task)**: Sinh gói thiết kế 3 tầng (`<epic_dir>.{en,vi}.md` HLD, `bdd_scenarios.{en,vi}.md`, và `task_*.md` tiếng Anh gắn Tháp Kiểm Thử 3 Tầng) và đóng gói qua `package_epic.py` (Cổng 2).
-   - **`principal-review` (Stage 2 — Rà soát Thiết kế Shift-Left)**: Kiểm tra chéo HLD, BDD và task với mã nguồn thực tế trước khi code (`principal_review.md`).
+   - **`dev-designer` (Stage 2 — Kiến trúc & Task)**: Sinh gói thiết kế 3 tầng (`<epic_dir>.{en,vi}.md` HLD, `bdd_scenarios.{en,vi}.md`, và `task_*.md` tiếng Anh gắn Tháp Kiểm Thử 3 Tầng), ghi nhận Cổng 2 và hỏi trình tự ưu tiên provider/model cho `/principal-review` (chưa đóng gói `handoff.md`).
+   - **`principal-review` (Stage 2 — Rà soát Thiết kế Shift-Left)**: Tự động kiểm tra chéo HLD, BDD và task với mã nguồn thực tế (`principal_review.md`), và khi hội tụ sẽ chạy `package_epic.py` (`handoff.md`), in `--emit-prompt implement` và hỏi **Triển khai (tự động)** hay **Dừng lại**.
    - **`dev-implementation` (Stage 3 — Thực thi TDD Cô lập)**: Role 2.3 AI Programmer (**Gemini Flash 3.8**) thực thi từng task trong git worktree cô lập (Cổng 3), nối tiếp bởi Cổng 4 và Cổng 5 Kanban.
    - **`quality_check` (Stage 3 — Cổng máy Cổng 4)**: Bộ điều phối chất lượng gắn chặt với `repository_sha` (`profile: "epic"`).
    - **`cross-model-review` (Stage 3 — Rà soát Code Shift-Right)**: Kiểm tra chéo mã nguồn và diff sau khi Cổng 4 đạt PASS (`review_results.md`).
    - **`finishing-a-development-branch` (Stage 4 — Hoàn tất & Lưu trữ)**: Rebase lên `develop`, chạy kiểm thử toàn cục (`Test All`) đúng 1 lần, merge `--no-ff`, và lưu trữ task vào `.devtool/epic/<slug>/`.
 
 2. **Luồng Tự động Đầu-Cuối (Autonomous Pipeline) & Luồng Tương tác**:
-   - **Chuỗi vận hành tự động**: `Design (Cổng 2) -> Handoff (package_epic.py) -> Principal Review (--auto-quota, Tự động fix tối đa 3 rounds) -> Đổi vai trò Role 2.3 AI Programmer (Gemini Flash 3.8) -> Triển khai TDD -> Check Quality tiền Cross-Model Review (Cổng 4) -> Cross-Model Review (--auto-quota, Tự động fix tối đa 3 rounds) -> Quality Check (Cổng 4) -> Finish (Test All khi merge)`.
+   - **Chuỗi vận hành tự động**: `Design (Cổng 2) -> Thứ tự ưu tiên Provider/Model -> Principal Review (--auto-quota, Tự động fix tối đa 3 rounds) -> Đóng gói Handoff (package_epic.py) & In Prompt Triển khai -> Đổi vai trò Role 2.3 AI Programmer (Gemini Flash 3.8) -> Triển khai TDD -> Check Quality tiền Cross-Model Review (Cổng 4) -> Cross-Model Review (--auto-quota, Tự động fix tối đa 3 rounds) -> Quality Check (Cổng 4) -> Finish (Test All khi merge)`.
    - **Thứ tự ưu tiên Model theo Quota (`check-quota`)**: `Claude -> Codex -> Kiro -> Argon` (`Claude/Codex: 5H >= 15% & 7D > 2%`; `Kiro: Tháng >= 3% & >= 15 credits`; `Argon: Tuần >= 10%` hoặc `5H >= 15%`).
 
 3. **Phễu Hội Tụ 3 Vòng (3-Round Convergence Funnel) & 4 Chiến thuật Prompt Chống Lặp Lỗi (Anti-Fix-Loop)**:

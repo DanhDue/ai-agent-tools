@@ -33,7 +33,7 @@ $rules
 
 ## Checklist
 
-- **P1 (Consistency)**: Consistency across spec, HLD, BDD, tasks and `handoff.md`: decisions, field names, numbers, titles, statuses.
+- **P1 (Consistency)**: Consistency across spec, HLD, BDD, tasks and `handoff.md` (when present): decisions, field names, numbers, titles, statuses.
 - **P2 (Grounding)**: Grounding: every path, symbol, signature, return type, route and constant in `Decisions Already Made` and `Impact Analysis` exists as described.
 - **P3 (Pinned behaviour)**: Pinned behaviour: existing tests that pin a behaviour a task changes, when those tests are outside the task's Allowed files.
 - **P4 (Blast radius)**: Blast radius: other writers and readers of the changed data, background jobs, callers outside Allowed files, migrations and backfill.

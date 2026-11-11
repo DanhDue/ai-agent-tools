@@ -49,11 +49,11 @@ flowchart TD
     PLANS(["writing-plans<br/>(leaves this workflow)"])
     S2["Stage 2 — Architecture &amp; Tasks<br/>(dev-designer)<br/>[2.2 AI Assistant: --role assistant, auto --state]"]
     G2{"Gate 2 — 2.1 Architect<br/>HLD &amp; task breakdown approved?"}
-    HC{"Handoff choice — 2.1 Architect<br/>package or continue?"}
-    PKG["Package epic<br/>handoff.md, status Packaged<br/>[2.2 AI Assistant: --state &amp; --emit-prompt]"]
-    PRC{"Principal Review Choice — 2.1 Architect<br/>Done or Principal Review?"}
-    PR["principal-review<br/>(Shift-Left design audit)<br/>[2.2 AI Assistant: triage, decisions, revision]"]
-    PKGSTOP(["Stop: handoff.md and AI Programmer Resume Prompt"])
+    PRC{"Provider Priority Choice — 2.1 Architect<br/>pick /principal-review provider/model order?"}
+    PR["principal-review<br/>(Auto Shift-Left design audit, up to 3 rounds)<br/>[2.2 AI Assistant: triage, decisions, revision]"]
+    PKG["Package epic &amp; Emit Prompt<br/>handoff.md, status Packaged<br/>[2.2 AI Assistant: --state &amp; --emit-prompt implement]"]
+    HC{"Handoff choice — 2.1 Architect<br/>Triển khai (tự động) or Dừng lại?"}
+    PKGSTOP(["Stop: handoff.md and AI Programmer Implement Prompt"])
     S3["Stage 3 — Isolated Execution<br/>(dev-implementation)<br/>[2.3 AI Programmer: --role programmer in worktree]"]
     G3{"Gate 3 — 2.1 Architect<br/>Execution order confirmed?"}
     EXEC["Phase 2-3: task-by-task TDD<br/>[2.3 AI Programmer: auto --log &amp; --state per task,<br/>integrate with develop after each task]"]
@@ -72,14 +72,14 @@ flowchart TD
     ROUTE -->|yes| S2
     S2 --> G2
     G2 -->|no, adjust breakdown| S2
-    G2 -->|yes| HC
-    HC -->|"1. package"| PKG
-    HC -->|"2. continue"| S3
-    PKG --> PRC
-    PRC -->|"1. Done"| PKGSTOP
-    PRC -->|"2. Principal Review"| PR
-    PR -->|"revised and re-packaged"| PKG
-    PKGSTOP -.->|"later session or AI Programmer"| S3
+    G2 -->|yes| PRC
+    PRC -->|"provider/model priority set"| PR
+    PR -->|"round revised (readiness OK)"| PR
+    PR -->|"converged"| PKG
+    PKG --> HC
+    HC -->|"1. Triển khai (tự động)"| S3
+    HC -->|"2. Dừng lại (take prompt)"| PKGSTOP
+    PKGSTOP -.->|"later session or other AI Agent"| S3
     S3 --> G3
     G3 -->|no, reorder| G3
     G3 -->|yes| EXEC
@@ -96,10 +96,8 @@ flowchart TD
     G5 -->|yes| S4
 ```
 
-The lifecycle proceeds through four stages and five approval gates, with two explicit human choice points:
-- **Routing & Handoff Choice**: Once Gate 1 passes, epic-scale work routes to Stage 2 (`dev-designer`). Between Gate 2 and Stage 3, the developer chooses whether to **Package** (`handoff.md`, status `Packaged`, stop for later session or another LLM) or **Continue** into Stage 3 immediately.
-
-When an epic is packaged, the developer faces **Principal Review Choice**: either conclude packaging (**Done**) or invoke `principal-review` (a Shift-Left cross-model review of design documents, BDD scenarios, and tasks against the source code via Claude CLI, Codex CLI, or Antigravity CLI). Rounds are recorded in `principal_review.md`, triaged with the developer, revised in place, and re-packaged before returning to the choice.
+The lifecycle proceeds through four stages and five approval gates, with explicit human choice points:
+- **Stage 2 -> Principal Review Transition & Post-Review Packaging**: Once Gate 1 passes, epic-scale work routes to Stage 2 (`dev-designer`). When Gate 2 passes, the agent does **NOT** run `package_epic.py` (`handoff.md`) yet; instead, it asks the developer for the **provider/model priority order** for `/principal-review`. Once confirmed, `/principal-review` runs automatically (up to 3 rounds via `run_external_review.py`, refining design docs/tasks in place after each triaged round without premature packaging). Only after `/principal-review` converges does packaging run (`package_epic.py` generating `handoff.md` and `Packaged` status), followed immediately by printing the AI Programmer implementation prompt (`--emit-prompt implement`) and asking **Triển khai (tự động)** (enter Stage 3 immediately) vs **Dừng lại** (stop so the developer can copy the prompt to another AI Agent).
 - **Isolated Execution**: Stage 3 executes each task independently in an isolated worktree with TDD and continuous integration into `develop`. Once all tasks are complete, the agent runs Gate 4 on the candidate SHA.
 - **Gate 4 and Review Choice loop**: Gate 4 is the only machine verdict in this kit's development path. It grants 🟢 only when `audit_epic.py` exits 0, `check_bdd_traceability.py tests --results` exits 0, and `@quality_check` profile `epic` returns PASS on the exact candidate commit SHA. Every PASS presents **Review Choice**: **Finish** advances to Gate 5; **Cross-model review** (Claude CLI, Codex CLI, or Antigravity CLI) and **Local model review** (Ollama) invoke `cross-model-review` (Shift-Right independent review of code changes, diffs, and test integrity). Each round records into `review_results.md` and returns to a full Gate 4 run. Every review round is triaged with the developer (`run_external_review.py triage`) before any fix. The loop repeats until the developer selects Finish.
 - **Autonomous Pipeline Mode (`/dev-lifecycle --autonomous`)**: For hands-off execution, `lifecycle_runner.py` drives the pipeline end-to-end: auto-probes model capabilities, executes Principal Review with auto-triage gate (`AUTO_PASS_CLEAN`, `AUTO_PASS_FINAL_MINOR_SWEEP`, `AUTO_FIX_ELIGIBLE`), auto-computes Gate 3 topological order, runs headless Gemini 3.8 Flash High Programmer subprocesses under process group supervision, evaluates fix plans via AI Assistant (`APPROVED`/`ADJUSTED`/`CRITICAL_CONFLICT`), runs full Gate 4 machine acceptance, and synthesizes the Top 3 Highest-Risk Findings across all review rounds. It halts strictly on critical risks, domain conflicts, or `SHARED_CONTRACT_CONFLICT`, and halts at `AWAITING_FINISH` for final branch merge sign-off.
@@ -118,10 +116,9 @@ flowchart TD
     INCON["Inconsistent State<br/>(documents modified after packaging)<br/>[2.2 AI Assistant: reconcile docs &amp; re-package]"]
     MERGED["Stage 4: Landed Branch &amp; Archival<br/>[2.3 AI Programmer: --complete -> PROJECT_LEDGER.md &amp; archive/]"]
 
-    FRESH -->|"Stage 1-2 completion (--state)"| PKG
-    FRESH -->|"Continue at Handoff Choice"| INTR
+    FRESH -->|"Gate 2 + Principal Review converged (--state)"| PKG
     PKG -->|"Check git log since packaging"| INCON
-    PKG -->|"Resume at Stage 3 Gate 3 (--emit-prompt implement)"| INTR
+    PKG -->|"Triển khai (tự động) / resume at Stage 3 (--emit-prompt implement)"| INTR
     INCON -->|"Documents win, reconcile staleness"| INTR
     INTR -->|"Task-by-task TDD (--log &amp; --state)"| DONE_EPIC
     DONE_EPIC -->|"Review Choice + Gate 5 sign-off"| MERGED
@@ -133,15 +130,15 @@ These diagrams and explanations describe the lifecycle for humans; runtime skill
 
 1. **Stage & Skill Catalog (Decoupled Responsibilities)**:
    - **`dev-brainstorming` (Stage 1 — Inception & Spec)**: Collaborative problem-space and design exploration producing bilingual specs (`*-design.{en,vi}.md`) and shared-contract warnings (Gate 1).
-   - **`dev-designer` (Stage 2 — Architecture & Tasks)**: Produces the 3-Tier Design Package (`<epic_dir>.{en,vi}.md` HLD, `bdd_scenarios.{en,vi}.md`, and English-only `task_*.md` files with 3-Level Test Scope Pyramid verification rows) and runs `package_epic.py` (Gate 2).
-   - **`principal-review` (Stage 2 — Shift-Left Design Audit)**: Cross-model inspection of HLD, BDD scenarios, and task contracts against the active codebase before implementation (`principal_review.md`).
+   - **`dev-designer` (Stage 2 — Architecture & Tasks)**: Produces the 3-Tier Design Package (`<epic_dir>.{en,vi}.md` HLD, `bdd_scenarios.{en,vi}.md`, and English-only `task_*.md` files with 3-Level Test Scope Pyramid verification rows), records Gate 2, and asks the provider/model priority order for `/principal-review` (without premature packaging).
+   - **`principal-review` (Stage 2 — Shift-Left Design Audit)**: Automatically executes cross-model inspection of HLD, BDD scenarios, and task contracts against the active codebase (`principal_review.md`), then upon convergence runs `package_epic.py` (`handoff.md`), prints `--emit-prompt implement`, and prompts **Triển khai (tự động)** vs **Dừng lại**.
    - **`dev-implementation` (Stage 3 — Isolated TDD Execution)**: Role 2.3 AI Programmer (**Gemini Flash 3.8**) executing one task per commit inside an isolated worktree (Gate 3), followed by Gate 4 machine verification and Gate 5 Kanban review.
    - **`quality_check` (Stage 3 — Gate 4 Machine Orchestrator)**: Platform-neutral quality gatekeeper bound to the candidate `repository_sha` (`profile: "epic"`).
    - **`cross-model-review` (Stage 3 — Shift-Right Code Audit)**: Independent code and diff review after Gate 4 PASS (`review_results.md`).
    - **`finishing-a-development-branch` (Stage 4 — Land & Archive)**: Rebases onto `develop`, runs the single full-suite regression gate (`Test All`), merges `--no-ff`, and archives completed tasks into `.devtool/epic/<slug>/`.
 
 2. **End-to-End Autonomous Workflow vs. Interactive Mode**:
-   - **Autonomous Pipeline Flow**: `Design (Gate 2) -> Handoff (package_epic.py) -> Principal Review (--auto-quota, Auto-Fix up to Max 3 Rounds) -> Role 2.3 AI Programmer (Gemini Flash 3.8) -> Task-Scoped TDD -> Gate 4 Pre-Check -> Cross-Model Review (--auto-quota, Auto-Fix up to Max 3 Rounds) -> Gate 4 -> Finish (Test All on Merge)`.
+   - **Autonomous Pipeline Flow**: `Design (Gate 2) -> Provider/Model Priority -> Principal Review (--auto-quota, Auto-Fix up to Max 3 Rounds) -> Package Handoff (package_epic.py) & Emit Implement Prompt -> Role 2.3 AI Programmer (Gemini Flash 3.8) -> Task-Scoped TDD -> Gate 4 Pre-Check -> Cross-Model Review (--auto-quota, Auto-Fix up to Max 3 Rounds) -> Gate 4 -> Finish (Test All on Merge)`.
    - **Quota-Aware Provider Priority (`check-quota`)**: `Claude -> Codex -> Kiro -> Argon` (`Claude/Codex: 5H >= 15% & 7D > 2%`; `Kiro: Monthly >= 3% & >= 15 credits`; `Argon: Weekly >= 10%` or `5H >= 15%`).
 
 3. **3-Round Scope-Narrowing Convergence Funnel & 4 Anti-Fix-Loop Prompt Strategies**:

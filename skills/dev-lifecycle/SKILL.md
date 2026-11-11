@@ -23,7 +23,7 @@ need to know what runs next or what must be true before it does, stay here.
 Human-facing lifecycle and resume diagrams live in [lifecycles.en.md](../../docs/lifecycles.en.md) and [lifecycles.vi.md](../../docs/lifecycles.vi.md). Runtime sequence (Interactive & Autonomous Pipeline Mode):
 
 1. **Stage 1 (Inception & Spec)**: `dev-brainstorming` -> Gate 1 approval -> Route to `dev-designer` (epic) or `writing-plans` (non-epic).
-2. **Stage 2 (Architecture & Tasks)**: `dev-designer` -> Gate 2 approval -> Handoff (`package_epic.py`) -> Principal Review (`Claude -> Codex -> Kiro -> Argon` via `check-quota`, Auto-fix up to Max 3 rounds).
+2. **Stage 2 (Architecture & Tasks)**: `dev-designer` -> Gate 2 approval -> Provider/model priority prompt -> `/principal-review` (auto, up to Max 3 rounds) -> Post-review Package (`package_epic.py`) & print implement prompt -> Choice (**Triển khai (tự động)** vs **Dừng lại**).
 3. **Stage 3 (Automated Execution & Audit)**: Role 2.3 (**Gemini Flash 3.8**) -> `dev-implementation` -> Automated Gate 3 (execution order & worktree) -> TDD in worktree -> Gate 4 local PASS -> Automated Cross-Model Review (`review_config.json`, Auto-fix up to Max 3 rounds) -> Gate 4 re-verification green.
 4. **Stage 4 (Finish Decision, Integration & Archival)**: Prompt Human Architect for Finish Decision & Gate 5 Sign-off -> `finishing-a-development-branch` -> Archive tasks into `.devtool/epic/<slug>/`, rebase, verify by tier (`Test All` once), `--no-ff` or squash merge, explicit Git push confirmation.
 
@@ -34,8 +34,9 @@ Specs go to `docs/superpowers/specs/` (Stage 1) or `.devtool/epic/<epic_dir>/` (
 Plans go through `writing-plans` skill (non-epic) or `dev-designer` task files (epic).
 If you find yourself about to write `implementation_plan.md`, STOP — you are bypassing a gate.
 
-Do NOT prompt the developer for intermediate Review Choice or Gate 3 confirmation pauses.
-Once Gate 2 passes and dev-implementation is entered, Gate 3 execution order and worktree creation run automatically.
+Do NOT package (`package_epic.py`) before `/principal-review` completes, and do NOT prompt the developer for intermediate Gate 3 or Cross-Model Review Choice pauses.
+Once Gate 2 passes, ask the developer for the provider/model priority order and automatically run `d3nexus:principal-review`; package (`handoff.md`) only when `principal-review` converges, then print the implementation prompt and ask only **Triển khai (tự động)** vs **Dừng lại**.
+Once the developer chooses **Triển khai (tự động)** (`dev-implementation`), Gate 3 execution order and worktree creation run automatically.
 When all tasks complete and Gate 4 passes locally, transition AUTOMATICALLY into cross-model review.
 The decision to Finish belongs strictly to Stage 4 (Gate 5 sign-off) after Cross-model review completes.
 </HARD-GATE>
@@ -91,36 +92,30 @@ When an epic depends on other epics, declare `- **Depends on epic**: <epic_slug_
 
 ### Handoff Choice
 
-Once Gate 2 passes, **automatically package the epic and run `/save-context`** before prompting:
-```bash
-python3 skills/dev-implementation/resources/scripts/package_epic.py <epic_dir> [--revise --reason "<reason>"]
-```
-Packaging steps (automated by `package_epic.py`):
-1. **Preflight:** `python3 "$SCRIPTS"/check_epic_readiness.py <epic_dir>` (runs `check_task_contract.py --design`). First line gives task count.
-2. Copy `references/handoff-template.md` to `.devtool/epic/<epic_dir>/handoff.md` and fill placeholders; `<N>` is the task count the preflight printed.
-3. Lint: `python3 "$CHECK_DOC" --require-toc .devtool/epic/<epic_dir>/handoff.md`.
-4. Mark packaged and verify both overview variants:
+Follow [references/principal-review.md](references/principal-review.md) across Stage 2 -> Principal Review -> Packaging -> Stage 3:
+
+- **End of Stage 2 (No Premature Packaging):** After Gate 2 and `check_epic_readiness.py <epic_dir>` pass (design committed), do **NOT** run `package_epic.py` yet. Save Gate 2 & state (`--status "Stage 2: Ready for Principal Review"`), read `.devtool/review_config.json`, stop calling tools, and ask the developer for the **provider/model priority order** for `/principal-review`.
+- **Automatic `/principal-review`:** Once confirmed, automatically invoke `d3nexus:principal-review` (`--auto-quota` / `--provider-priority` / `--cli`, max 3 rounds; intermediate rounds run `check_epic_readiness.py`, never `package_epic.py`).
+- **End-of-Review Packaging:** Upon convergence, run `python3 skills/dev-implementation/resources/scripts/package_epic.py <epic_dir> [--revise --reason "<reason>"]` (without `--revise` when `handoff.md` does not exist):
+1. **Preflight:** `python3 "$SCRIPTS"/check_epic_readiness.py <epic_dir>` (runs `check_task_contract.py --design`). First line prints task count.
+2. Copy `references/handoff-template.md` to `.devtool/epic/<epic_dir>/handoff.md` (`<N>` is the task count the preflight printed) and lint via `python3 "$CHECK_DOC" --require-toc .devtool/epic/<epic_dir>/handoff.md`.
+3. Mark packaged and verify both overview variants:
    ```bash
    python3 "$SCRIPTS"/sync_task_status.py epic <epic_dir> Packaged
    grep -n -E '^- \*\*(Status|Trạng thái)\*\*: Packaged' \
      .devtool/epic/<epic_dir>/<epic_dir>.en.md .devtool/epic/<epic_dir>/<epic_dir>.vi.md
    ```
-   If previously queued, use `"Packaged (queued behind <epic>)"` and copy into Open Notes.
-5. Commit if `auto_commit: true`: `git commit -m "[<EPIC_NAME>] Package epic for handoff"`. Offer to push only with permission.
-6. Run `/save-context`: `resume_context.py --gate 2 --epic <epic_slug> --approved "<summary>"`, `resume_context.py --state --epic <epic_slug> --status "Stage 2: Packaged & Ready"`, emit prompts (`--emit-prompt principal-review` and `implement`), and print `handoff.md` path.
-7. Stop calling tools and present **Handoff Choice / Principal Review Choice** — follow [references/principal-review.md](references/principal-review.md):
-
-> Gate 2 passed: `<epic_slug>` is packaged (`handoff.md`) and context saved (`/save-context`). How do you want to proceed?
-> 1. **`/principal-review` (Principal Review)** — cross-model design review against source (Claude CLI, Codex CLI, Antigravity CLI, or Kiro CLI).
-> 2. **`/dev-implementation` (Continue to Stage 3)** — enter Stage 3 now (`dev-implementation`, starting at Gate 3).
-> 3. **Done (Stop here)** — keep packaged handoff for a later session.
-
-- **Principal Review** → invoke `d3nexus:principal-review` (`--auto-quota` priority `Claude -> Codex -> Kiro -> Argon`, 3-Round Convergence Funnel, Auto-Triage Gate auto-revises package and `/save-context` up to max 3 rounds).
-- **Continue** → invoke `d3nexus:dev-implementation`.
+   If previously queued, use `"Packaged (queued behind <epic>)"` in Open Notes. Commit `[<EPIC_NAME>] Package epic for handoff` (`auto_commit: true`).
+4. Run `/save-context` (`--state --epic <epic_slug> --status "Stage 2: Packaged & Ready"`), print `handoff.md` path and **`python3 scripts/resume_context.py --emit-prompt implement --epic <epic_slug>`**.
+5. Stop calling tools and ask:
+   > `/principal-review` passed and `<epic_slug>` is packaged (`handoff.md`). How do you want to proceed?
+   > 1. **Triển khai (tự động)** — proceed automatically to `/dev-implementation` (Stage 3, auto Gate 3 & TDD).
+   > 2. **Dừng lại** — Dừng lại ở đây để tôi lấy prompt cho một AI Agents khác triển khai.
+   - **Triển khai (tự động)** → invoke `d3nexus:dev-implementation`. **Dừng lại** → stop cleanly.
 
 ### Stage 3 — Isolated Execution → `dev-implementation`
 
-**Entry:** Gate 2 passed, HLD and `task_*.md` exist, and Continue chosen (or resuming packaged/interrupted epic).
+**Entry:** Gate 2 passed, `/principal-review` converged and packaged (`handoff.md`), and **Triển khai (tự động)** chosen (or resuming packaged/interrupted epic).
 **Exit (Gate 5):** Gate 4 is 🟢 LGTM and user approves Kanban completion.
 
 - **Prerequisites & Concurrency Check**: If `Depends on epic:` is declared, verify prerequisites via `sync_task_status.py check-prereqs <epic_dir>`. If queued behind another epic, inspect conflicts via `sync_task_status.py check-conflicts <epic_dir>` and promote when confirmed via `sync_task_status.py promote <epic_dir> [--force]`.
@@ -181,7 +176,7 @@ Never advance on a partial pass or re-run isolated checks.
 - Routing an approved spec straight to implementation, skipping Stage 2 for epic-scale work.
 - Merging several sub-project specs into one epic directory.
 - Creating a worktree before the AI Assistant has resolved the dependency DAG. Recreating the worktree of an existing epic branch (dev-implementation Resume Procedure) is not creating one.
-- Invoking `dev-implementation` without presenting Handoff Choice.
+- Running `package_epic.py` before `/principal-review` completes, or invoking `dev-implementation` without presenting the post-package Handoff Choice (**Triển khai (tự động)** vs **Dừng lại**).
 - Packaging an epic without preflight, or pushing without explicit permission.
 - Redoing design of an epic whose task files exist; use Updating an Existing Epic.
 - Merging to `develop` without Gate 4 🟢.
@@ -194,8 +189,8 @@ Never advance on a partial pass or re-run isolated checks.
 - Prohibited: picking the review CLI for the developer instead of prompting for Claude CLI, Codex CLI, or Antigravity CLI.
 - Picking the Principal Review CLI for the developer.
 - Picking the Ollama model for the developer instead of running `ollama list` and asking.
-- Acting on review findings before presenting the triage from `run_external_review.py triage`.
-- Acting on a Principal Review finding before triage.
+- Acting on review findings before presenting the triage from `run_external_review.py triage` (every finding must first be verified against live source and approved Spec/HLD).
+- Acting on a Principal Review finding before verifying against source/Spec and running triage (once verified as `Valid` with zero `CRITICAL_CONFLICT` / `Debatable` / Circuit Breaker halt triggers, auto-fix and advance in both interactive and autonomous modes without pausing).
 - Writing `dismissed` decisions in `review_results.md` without explicit developer words.
 - Merging to `develop` manually instead of through `integrate_branch.py land`.
 - Starting a task while integration with `develop` is failing.

@@ -58,10 +58,10 @@ stateDiagram-v2
 
 | Action / Verdict | Trigger Condition | Autonomous Action |
 |---|---|---|
-| `AUTO_PASS_CLEAN` | 0 findings in review round | Advances immediately to next stage without pause. |
-| `AUTO_PASS_FINAL_MINOR_SWEEP` | 0 Critical, 0 Important, only Minor findings | Applies Minor sweep, commits, packages epic, and advances to next stage without extra review round. |
-| `AUTO_FIX_ELIGIBLE` | Critical/Important findings, no contract conflict | Drafts fix plan, evaluates plan, applies fixes, commits code and decisions, and enters next round. |
-| `AUTO_PASS_FINAL_SWEEP` | Round 3 ends with 0 Critical | Final fix pass anchored to approved design, completes stage without 4th round. |
+| `AUTO_PASS_CLEAN` | 0 findings in review round | Packages epic (Stage 2) or advances immediately to next stage without pause. |
+| `AUTO_PASS_FINAL_MINOR_SWEEP` | 0 Critical, 0 Important, only Minor findings | Applies Minor sweep, commits, packages epic (Stage 2), and advances to next stage without extra review round. |
+| `AUTO_FIX_ELIGIBLE` | Critical/Important findings, no contract conflict | Drafts fix plan, evaluates plan, applies fixes, commits code/docs and decisions, and enters next round (no mid-loop Stage 2 packaging). |
+| `AUTO_PASS_FINAL_SWEEP` | Round 3 ends with 0 Critical | Final fix pass anchored to approved design, packages epic (Stage 2), completes stage without 4th round. |
 | `CIRCUIT_BREAKER_HALT (SHARED_CONTRACT_CONFLICT)` | Finding conflicts with `shared-contracts/` | Halts immediately. Strictly prohibited from auto-fixing contract conflicts. |
 | `CIRCUIT_BREAKER_HALT (FIX_LOOP)` | Re-reported finding on previously fixed file | Halts immediately. Prevents cyclic code edits. |
 | `CIRCUIT_BREAKER_HALT (MAX_ROUNDS_CRITICAL_REMAINING)` | Round 3 completes with unresolved Critical | Halts immediately and outputs Top 3 Highest-Risk Findings. |
