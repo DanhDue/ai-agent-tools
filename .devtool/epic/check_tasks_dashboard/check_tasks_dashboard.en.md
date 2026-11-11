@@ -162,7 +162,7 @@ The FSM Engine resolves ambiguous repository states into exactly one actionable 
 ```text
 Integration test roots: tests
 Integration results: python3 scripts/run_unittest_junit.py --junitxml build/test-results/check_tasks_dashboard.xml tests/test_check_tasks_harvester.py tests/test_check_tasks_fsm.py tests/test_check_tasks_cli.py tests/test_check_tasks_server.py tests/test_check_tasks_e2e.py -> build/test-results/check_tasks_dashboard.xml
-Protected paths: .devtool/epic/check_tasks_dashboard/**, .devtool/features/task_*.md, rules/**, scripts/package_epic.py, skills/dev-implementation/resources/scripts/**
+Protected paths: .agents/quality/**, .devtool/epic/check_tasks_dashboard/bdd_scenarios.en.md, .devtool/epic/check_tasks_dashboard/bdd_scenarios.vi.md
 ```
 
 | ID | Boundary Under Test | Test Type | Verification Strategy |
