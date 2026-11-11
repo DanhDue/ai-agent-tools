@@ -530,6 +530,29 @@ class TestLifecycleRunner_Integration(unittest.TestCase):
                 self.assertIn("PASS", msg)
                 mock_sync.assert_called_with(4, unittest.mock.ANY)
 
+        # Gate 4 fails deterministically when audit fails
+        audit_file = (
+            self.root
+            / "skills"
+            / "dev-implementation"
+            / "resources"
+            / "scripts"
+            / "audit_epic.py"
+        )
+        audit_file.parent.mkdir(parents=True, exist_ok=True)
+        audit_file.write_text("#!/usr/bin/env python3\n", encoding="utf-8")
+
+        with patch("subprocess.run") as mock_run:
+            mock_proc = MagicMock()
+            mock_proc.returncode = 2
+            mock_proc.stderr = "Audit failure: missing task evidence"
+            mock_proc.stdout = ""
+            mock_run.return_value = mock_proc
+
+            ok, err = runner.run_gate4()
+            self.assertFalse(ok)
+            self.assertIn("failed", err.lower())
+
     def test_alr_hp_01(self) -> None:
         """[ALR-HP-01] Complete autonomous pipeline executes from handoff to final executive report."""
         runner = LifecycleRunner(root=self.root, epic_slug=self.epic_slug)

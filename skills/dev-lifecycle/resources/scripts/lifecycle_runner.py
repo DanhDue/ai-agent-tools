@@ -51,6 +51,7 @@ class RunnerConfig:
     timeout_seconds: int = 1800
     max_review_rounds: int = 3
     provider_priority: list[str] | None = None
+    base_branch: str = "main"
 
     def resolve_assistant_model(self, root: Path | None = None) -> str:
         """Resolve Assistant model following precedence: CLI -> review_config.json -> profile -> fallback."""
@@ -783,6 +784,7 @@ class LifecycleRunner:
 
     def run_gate4(self) -> tuple[bool, str]:
         """Execute complete Stage 3 Gate 4 verification sequence on candidate SHA."""
+        # 1. Smoke checklist generation
         smoke_script = (
             self.root
             / "skills"
@@ -792,13 +794,18 @@ class LifecycleRunner:
             / "generate_smoke_checklist.py"
         )
         if smoke_script.is_file():
-            subprocess.run(
+            res = subprocess.run(
                 [sys.executable, str(smoke_script), "--epic-dir", self.epic_slug],
                 cwd=self.root,
                 capture_output=True,
+                text=True,
                 check=False,
             )
+            if res.returncode != 0:
+                err = res.stderr.strip() or res.stdout.strip() or f"exit code {res.returncode}"
+                return False, f"Smoke checklist generation failed: {err}"
 
+        # 2. Review decisions check
         review_script = (
             self.root
             / "skills"
@@ -812,10 +819,92 @@ class LifecycleRunner:
                 [sys.executable, str(review_script), "check", "--epic-dir", self.epic_slug, "--kind", "code"],
                 cwd=self.root,
                 capture_output=True,
+                text=True,
                 check=False,
             )
             if chk_res.returncode != 0:
-                return False, f"Review decisions check failed (exit {chk_res.returncode})"
+                err = chk_res.stderr.strip() or chk_res.stdout.strip() or f"exit code {chk_res.returncode}"
+                return False, f"Review decisions check failed: {err}"
+
+        # 3. Code and security audit checks via audit_epic.py
+        audit_script = (
+            self.root
+            / "skills"
+            / "dev-implementation"
+            / "resources"
+            / "scripts"
+            / "audit_epic.py"
+        )
+        if audit_script.is_file():
+            audit_res = subprocess.run(
+                [sys.executable, str(audit_script), "--epic-dir", self.epic_slug, "--base", self.config.base_branch],
+                cwd=self.root,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if audit_res.returncode != 0:
+                err = audit_res.stderr.strip() or audit_res.stdout.strip() or f"exit code {audit_res.returncode}"
+                return False, f"Epic audit failed: {err}"
+
+        # 4. HLD Integration results and result-based BDD traceability
+        hld_file = self.root / ".devtool" / "epic" / self.epic_slug / f"{self.epic_slug}.en.md"
+        if hld_file.is_file():
+            content = hld_file.read_text(encoding="utf-8")
+            for line in content.splitlines():
+                if line.startswith("Integration results:"):
+                    cmd_part = line[len("Integration results:"):].strip()
+                    cmd_str = cmd_part.split("->")[0].strip() if "->" in cmd_part else cmd_part
+                    if cmd_str:
+                        integ_res = subprocess.run(
+                            cmd_str,
+                            shell=True,
+                            cwd=self.root,
+                            capture_output=True,
+                            text=True,
+                            check=False,
+                        )
+                        if integ_res.returncode != 0:
+                            err = integ_res.stderr.strip() or integ_res.stdout.strip() or f"exit code {integ_res.returncode}"
+                            return False, f"Integration test execution failed: {err}"
+
+        bdd_script = (
+            self.root
+            / "skills"
+            / "dev-implementation"
+            / "resources"
+            / "scripts"
+            / "check_bdd_traceability.py"
+        )
+        if bdd_script.is_file():
+            scenarios_file = self.root / ".devtool" / "epic" / self.epic_slug / "bdd_scenarios.en.md"
+            bdd_cmd = [sys.executable, str(bdd_script), "tests"]
+            if scenarios_file.is_file():
+                bdd_cmd.extend(["--scenarios", str(scenarios_file)])
+            bdd_res = subprocess.run(
+                bdd_cmd,
+                cwd=self.root,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if bdd_res.returncode != 0:
+                err = bdd_res.stderr.strip() or bdd_res.stdout.strip() or f"exit code {bdd_res.returncode}"
+                return False, f"BDD traceability check failed: {err}"
+
+        # 5. Quality check verification
+        verify_script = self.root / "scripts" / "verify.sh"
+        if verify_script.is_file():
+            q_res = subprocess.run(
+                ["bash", str(verify_script)],
+                cwd=self.root,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if q_res.returncode != 0:
+                err = q_res.stderr.strip() or q_res.stdout.strip() or f"exit code {q_res.returncode}"
+                return False, f"Quality check verification failed: {err}"
 
         rev_res = subprocess.run(
             ["git", "rev-parse", "HEAD"],
@@ -1078,6 +1167,7 @@ def main() -> int:
     )
     parser.add_argument("--confirm-fixes", action="store_true", help="Confirm Principal Review fixes")
     parser.add_argument("--reject-fixes", action="store_true", help="Reject Principal Review fixes")
+    parser.add_argument("--base", default="main", help="Base branch name (default: main)")
     parser.add_argument("--programmer-model", default="gemini-3.8-flash", help="Model for Programmer")
     parser.add_argument("--assistant-model", default=None, help="Model override for Assistant")
     parser.add_argument("--dry-run", action="store_true", help="Simulate execution without running subprocesses")
@@ -1086,6 +1176,7 @@ def main() -> int:
     cfg = RunnerConfig(
         programmer_model=args.programmer_model,
         assistant_model=args.assistant_model,
+        base_branch=args.base,
     )
     if args.config and args.config.is_file():
         try:
