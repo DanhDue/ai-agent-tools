@@ -43,13 +43,8 @@ Cross-model review returns to a full Gate 4 run, which presents the choice again
 
 Durable design documents MUST be emitted as synchronized `.en.md` (canonical) and `.vi.md` pairs with a linked ToC covering every `##` section (specs, HLDs, BDD scenarios, non-epic plans). Only `task_*.md` and `handoff.md` are English-only (`handoff.md` still requires a ToC).
 
-### Markdown Formatting & Quality Standards
-
-- **Heading Hierarchy**: Single H1 `# Title`, levels increment by one, space after `#`, no trailing punctuation.
-- **Fenced Code Blocks**: Valid language tag (`bash`, `python`). Bare fences and runtime-skill diagrams forbidden.
-- **Lists & Links**: Consistent `-` markers; relative links resolve; heading anchors match targets.
-- **Formatting Hygiene**: No trailing whitespace, hard tabs, consecutive blank lines, or missing trailing newline.
-- **Diagram Standards**: Human docs (`docs/lifecycles.*.md`, HLDs) use `flowchart` over `graph` with quoted labels.
+### Markdown Quality Standards
+Synchronized `.en.md`/`.vi.md` pairs with ToCs. Enforce heading hierarchy, valid code block tags, resolving links, no trailing whitespace, and `flowchart` with quoted labels in human docs.
 
 ## The Five Gates
 
@@ -68,6 +63,14 @@ Every gate is a **human approval** except Gate 4 (machine verdict). Never cross 
 ### Resuming an Epic
 
 An epic whose `.devtool/epic/<epic_dir>/` holds `task_*.md` files is past Gate 2 — whether `Packaged` (`handoff.md` present) or interrupted in Stage 3. Announce "Gates 1 and 2 already passed; resuming at Stage 3", invoke `dev-implementation`, and let its Entry-Point Detection choose where to start. Never redo Stage 1 or 2; route new requirements to dev-designer's Updating an Existing Epic.
+
+### Autonomous Mode (`/dev-lifecycle --autonomous`)
+
+For hands-off execution, `lifecycle_runner.py` drives Stage 2 and Stage 3:
+- **Tri-Role**: 2.1 Architect (strategy/gates), 2.2 Assistant (HLD/fix-plan review), 2.3 Programmer (Gemini 3.8 Flash High).
+- **Automation**: Auto Gate 3 order, process group timeouts, auto-triage, and Assistant fix plan review (`APPROVED`/`ADJUSTED`/`CRITICAL_CONFLICT`).
+- **Safety**: Circuit breakers on contract conflicts, fix loops, and max rounds; final Top 3 report halts at `AWAITING_FINISH`.
+- See [references/autonomous-mode.md](references/autonomous-mode.md).
 
 ### Stage 1 — Inception & Spec → `dev-brainstorming`
 

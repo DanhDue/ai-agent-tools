@@ -111,6 +111,8 @@ def load_review_config(root: Path) -> dict[str, Any]:
         cfg: dict[str, Any] = copy.deepcopy(DEFAULT_REVIEW_CONFIG)
         if "last_used_provider" in data and isinstance(data["last_used_provider"], str):
             cfg["last_used_provider"] = data["last_used_provider"]
+        if "provider_priority" in data and isinstance(data["provider_priority"], list):
+            cfg["provider_priority"] = [str(x) for x in data["provider_priority"] if isinstance(x, str)]
         existing_providers = data.get("providers")
         missing_default_provider = not isinstance(existing_providers, dict) or any(
             p not in existing_providers for p in DEFAULT_REVIEW_CONFIG["providers"]
@@ -213,12 +215,14 @@ def _default_quota_fetcher(cli: str) -> dict[str, Any]:
 def select_provider_by_quota(
     quota_fetcher: Any = None,
     binary_resolver: Any = None,
+    priority: list[str] | None = None,
 ) -> tuple[str | None, list[str]]:
-    """Select the highest-priority eligible provider in Claude -> Codex -> Kiro -> Argon via check-quota."""
+    """Select the highest-priority eligible provider via check-quota."""
     fetcher = quota_fetcher or _default_quota_fetcher
     resolver = binary_resolver or resolve_cli_binary
     diagnostics: list[str] = []
-    for candidate in PROVIDER_PRIORITY:
+    order = priority if priority is not None else PROVIDER_PRIORITY
+    for candidate in order:
         if not resolver(candidate):
             diagnostics.append(f"{candidate}: binary not found on PATH")
             continue
@@ -259,7 +263,7 @@ def resolve_review_settings(
                 prev_thinking = last_meta.get("Thinking")
 
     if cli_arg is None and auto_quota:
-        selected, diag = select_provider_by_quota()
+        selected, diag = select_provider_by_quota(priority=config.get("provider_priority"))
         if selected:
             print(f"{CYAN}⚡ [check-quota]{RESET} Selected provider: {selected} ({'; '.join(diag)})", file=sys.stderr)
             cli = selected

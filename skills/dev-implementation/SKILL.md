@@ -177,6 +177,9 @@ For rows 4 and 5. Phase 1 step 4's `git worktree add -b` never runs here.
 
 For each task in confirmed order, follow `d3nexus:subagent-driven-development`.
 
+#### Headless & Autonomous Task Execution
+In Autonomous Mode (`/dev-lifecycle --autonomous`), `lifecycle_runner.py` dispatches Role 2.3 (AI Programmer: `gemini-3.8-flash --effort high --mode auto`) in an isolated process group (`start_new_session=True`) with SIGTERM/SIGKILL supervision, per-task logs, and commits (`[<EPIC_NAME>] Execute <task_slug>`).
+
 0. **Pre-Edit Verification (Impact & Conflict Check)**:
    ```bash
    python3 skills/impact-analysis/resources/scripts/check_code_impact.py \
@@ -206,11 +209,11 @@ For each task in confirmed order, follow `d3nexus:subagent-driven-development`.
 
    | Agent Rationalization | Enforced Counter-Rule |
    | :--- | :--- |
-   | "A Node.js test is sufficient to prove this web UI feature works." | **REJECTED**: Node tests prove only pure data logic. 80% of web defects occur in DOM queries, event bubbling, and CSS rendering. Tier C requires headless Playwright execution with Zero-Console-And-Layout-Defect Watchdog. |
+   | "A Node.js test is sufficient to prove this web UI feature works." | **REJECTED**: Node tests prove only pure data logic. Web defects occur in DOM queries and CSS rendering. Tier C requires headless Playwright execution with Zero-Console-And-Layout-Defect Watchdog. |
    | "This component is simple; hardcoding mock data in a stub is enough." | **REJECTED**: Method-level stubs bypass JSON deserialization and network interceptors. Wire-level fixtures from `shared-contracts/` are mandatory. |
    | "The red errors in the browser console are just harmless warnings." | **REJECTED**: The Zero-Console-Error rule fails Gate 4 on any browser console error or uncaught exception. |
    | "I cannot launch a mobile simulator, so I will write a unit test instead." | **REJECTED**: Mobile Tier C requires Subcutaneous Testing with real DI and in-memory persistence. Pure unit tests cannot be tagged as Tier C. |
-   | "I ported the HTML structure and JS logic from the Visual Companion mockup, and the DOM selectors match in Playwright." | **REJECTED**: Porting HTML/JS without verifying computed CSS styles results in broken, unstyled layouts. Tier C2 tests for UI components MUST assert `getComputedStyle` and `getBoundingClientRect` properties (non-zero dimensions, layout display mode, and mutually exclusive state visibility, while respecting standard clipped `.sr-only` accessibility patterns) against the Visual Companion design. |
+   | "I ported the HTML structure and JS logic from the Visual Companion mockup, and the DOM selectors match in Playwright." | **REJECTED**: Porting HTML/JS without verifying computed CSS styles results in unstyled layouts. Tier C2 tests for UI components MUST assert `getComputedStyle` and `getBoundingClientRect` (non-zero dimensions, display mode, and mutually exclusive state visibility, respecting standard clipped `.sr-only` accessibility patterns) against the Visual Companion design. |
 
    **Doubt-Driven Verification Protocol**:
    Before claiming done on any task:
