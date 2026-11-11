@@ -8,6 +8,7 @@
 - [Động cơ Thu thập Dữ liệu và Quét Đa Kho lưu trữ](#động-cơ-thu-thập-dữ-liệu-và-quét-đa-kho-lưu-trữ)
 - [Web Server, REST API và Cơ chế Kích hoạt](#web-server-rest-api-và-cơ-chế-kích-hoạt)
 - [Kiến trúc Giao diện UI và UX với Modal Dialogs](#kiến-trúc-giao-diện-ui-và-ux-với-modal-dialogs)
+- [Động cơ Trạng thái Vòng đời và Quyết định của Con người](#động-cơ-trạng-thái-vòng-đời-và-quyết-định-của-con-người)
 - [Giao diện Dòng lệnh CLI và Tích hợp Slash Command](#giao-diện-dòng-lệnh-cli-và-tích-hợp-slash-command)
 - [Xử lý Lỗi, An toàn và Đồng thời](#xử-lý-lỗi-an-toàn-và-đồng-thời)
 - [Kế hoạch Kiểm thử và Tiêu chí Nghiệm thu](#kế-hoạch-kiểm-thử-và-tiêu-chí-nghiệm-thu)
@@ -168,6 +169,14 @@ Giao diện Web (`tasks_dashboard.html`) được xây dựng dưới dạng ứ
 - **Thẻ Repository**: Viền và bóng đổ đồng bộ theo màu nhận diện dự án (`border-color`, `box-shadow`, `accent-badge`).
 - **Danh sách Worktrees**: Hiển thị các worktree đang hoạt động kèm tên nhánh Git.
 - **Vùng Nổi bật Task Hiện tại**: Làm nổi bật rõ ràng task đang ở trạng thái `in_progress`.
+- **Hàng Chỉ số Chất lượng Vòng đời (Human-Essential Metrics)**:
+  - 4 thẻ con hiển thị các chỉ số kiểm chứng cốt lõi mà lập trình viên cần nắm bắt ngay lập tức:
+    1. `Unit & Integration Tests`: Tỷ lệ pass test thực tế (`19 / 19 PASS (100%)`).
+    2. `BDD Scenarios Traceability`: Độ bao phủ kịch bản hành vi (`17 / 17 Covered`).
+    3. `Git Worktree State`: Trạng thái cây làm việc (`Clean (0 uncommitted)`).
+    4. `Profile Quota (5H Window)`: Hạn mức tài nguyên profile còn lại (`78% còn lại`).
+  - **Quy chuẩn Đường kẻ Line Sắc nét (Không bo cong)**: Các đường line chỉ thị màu sắc bên trái (`border-left: 3px solid <color>`) được giữ thẳng tuyệt đối bằng cách triệt tiêu bán kính góc trái (`border-radius: 0 6px 6px 0; border-top-left-radius: 0; border-bottom-left-radius: 0;`), loại bỏ hiện tượng viền bị uốn lượn hình vòng cung gây chói mắt.
+- **Hộp Chỉ dẫn "⚡ Bước Tiếp Theo Con Người Cần Quyết Định"**: Hiển thị nổi bật quyết định hoặc hành động tiếp theo mà Human Architect cần thực thi theo Finite State Machine của `/dev-lifecycle`.
 - **Thanh Tiến độ Phân đoạn**: Biểu thị trực quan tỷ lệ Done (xanh lá), In Progress (cam), và Todo (xám).
 - **Các Nút Thao tác Nhanh**:
   - `[ 💻 Mở CLI ]`: Kích hoạt CLI theo profile tại worktree.
@@ -208,6 +217,36 @@ Giao diện Web (`tasks_dashboard.html`) được xây dựng dưới dạng ứ
     - `Assessment`: Đánh giá (`Valid`, `Debatable`, `False Positive`).
     - `Evidence`: Khung code monospace chứa kết quả kiểm chứng động.
     - `Proposed action`: Đề xuất sửa đổi với tiền tố `fix:` và thẻ commit `✓ fixed in <sha>`.
+
+## Động cơ Trạng thái Vòng đời và Quyết định của Con người
+
+Để loại bỏ sự mơ hồ cho lập trình viên khi điều phối nhiều epic chạy song song, `check-tasks` tích hợp động cơ kiểm tra trạng thái vòng đời tất định (Deterministic Lifecycle FSM Engine). Mục tiêu là luôn xác định chính xác và nhất quán: **"⚡ Bước tiếp theo con người cần quyết định"** mà không cần phỏng đoán.
+
+### 1. Cơ chế Kiểm chứng Kép Tất định (Deterministic Dual-Check)
+
+Hệ thống truy xuất thông tin này qua hai nguồn dữ liệu độc lập:
+
+1. **Trạng thái Đĩa Cứng Tức thời (`assistant_state.md` / `state/<epic>.md`)**:
+   - Khi các AI Agent thực hiện quy trình `/dev-lifecycle`, mỗi lần dừng lại chờ phê duyệt hoặc kết thúc một giai đoạn, lệnh `/save-context` bắt buộc phải ghi nhận trường `## Next Immediate Step:`.
+   - Ví dụ: Sau khi Gate 4 PASS, trường này ghi rõ: `- Review Choice: (1) Kết thúc (/finish) hoặc (2) Chạy Cross-Model Review (Claude / Codex / Kiro)`.
+2. **Động cơ Suy luận Máy Trạng thái Hữu hạn (Deterministic FSM Engine)**:
+   - Trong trường hợp tệp `assistant_state.md` chưa được ghi hoặc lập trình viên mở một epic mới, `check-tasks` tự động suy luận trạng thái dựa trên các nguồn dữ liệu bất biến:
+     - Sổ cái Gate: `.devtool/GATE_LEDGER.md` (Gate 1, 2, 3, 4, 5 đã được ghi nhận hay chưa).
+     - Trạng thái Tasks: Danh sách tệp `task_*.md` (số lượng task `done`, `in_progress`, `todo`).
+     - Đánh giá Chất lượng: Kết quả kiểm tra trong `review_results.md` hoặc `principal_review.md`.
+
+### 2. Bảng Ánh xạ 8 Trạng thái Quyết định Cốt lõi của Con người
+
+| Giai đoạn Vòng đời | Điều kiện Trạng thái Máy | ⚡ Bước tiếp theo con người cần quyết định |
+|---|---|---|
+| **Stage 1 (Inception)** | Chưa có Gate 1 trong `GATE_LEDGER.md`, tài liệu spec tồn tại | **Phê duyệt Gate 1 (Design Spec)** để chuyển giao sang Stage 2 |
+| **Stage 2 (Architecture)** | Gate 1 PASS, chưa có Gate 2, đang soạn thảo HLD/BDD/Tasks | AI Assistant đang thiết kế HLD & Task Breakdown (`/dev-designer`) |
+| **Stage 2 Exit (Handoff)** | Gate 2 PASS, chưa có Gate 3, epic đã đóng gói (`handoff.md`) | **Lựa chọn Handoff**: (1) Chạy `/principal-review` hoặc (2) Vào Stage 3 (`/dev-implementation`) |
+| **Stage 2 Review Triage** | Vòng Principal Review có findings `Critical`/`Important` | **Phê duyệt Quyết định Triage** (Valid / False Positive / Fix) cho các lỗi |
+| **Stage 3 Phase 1 (Order)** | Gate 2 PASS, worktree đã sẵn sàng, chưa ghi nhận Gate 3 | **Phê duyệt Gate 3**: Xác nhận thứ tự thực thi Kanban tasks và phân tách worktree |
+| **Stage 3 Phase 2 (TDD)** | Gate 3 PASS, các tasks đang có trạng thái `in_progress` | AI Programmer đang tự động TDD từng task (Không cần con người can thiệp) |
+| **Stage 3 Phase 4 (Review)** | Toàn bộ tasks `done`, Gate 4 PASS, chưa có Gate 5 | **Review Choice (Bắt buộc theo Rule 5)**: Lựa chọn (1) Kết thúc và đóng nhánh (`/finish`) hoặc (2) Chạy Cross-Model Review độc lập bằng Claude / Codex / Kiro |
+| **Stage 3 Phase 4.1 (Sign-off)** | Gate 4 PASS sau các vòng review, sẵn sàng đóng nhánh | **Phê duyệt Gate 5 (Sign-off Kanban)**: Xác nhận dọn dẹp worktree và lưu trữ cột mốc |
 
 ## Giao diện Dòng lệnh CLI và Tích hợp Slash Command
 

@@ -8,6 +8,7 @@
 - [Data Harvester Engine and Multi-Repo Scanning](#data-harvester-engine-and-multi-repo-scanning)
 - [Web Server, REST API and Launcher Operations](#web-server-rest-api-and-launcher-operations)
 - [UI and UX Architecture with Modal Dialogs](#ui-and-ux-architecture-with-modal-dialogs)
+- [Lifecycle State Engine and Human Decisions](#lifecycle-state-engine-and-human-decisions)
 - [Terminal CLI and Slash Command Integration](#terminal-cli-and-slash-command-integration)
 - [Error Handling, Safety and Concurrency](#error-handling-safety-and-concurrency)
 - [Verification and Acceptance Plan](#verification-and-acceptance-plan)
@@ -168,6 +169,14 @@ The Web Dashboard (`tasks_dashboard.html`) is built as a single-page reactive ap
 - **Repository Cards**: Styled with the project's exact accent color (`border-color`, `box-shadow`, `accent-badge`).
 - **Worktree List**: Displays active worktrees per repository with Git branch tags.
 - **Current Task Highlight**: Prominently highlights the task currently `in_progress`.
+- **Human-Essential Metrics Row**:
+  - 4 compact sub-cards presenting crucial verification telemetry that a Human Architect needs to know at a glance:
+    1. `Unit & Integration Tests`: Actual test pass rate (`19 / 19 PASS (100%)`).
+    2. `BDD Scenarios Traceability`: Behavioral test contract coverage (`17 / 17 Covered`).
+    3. `Git Worktree State`: Working tree hygiene (`Clean (0 uncommitted)`).
+    4. `Profile Quota (5H Window)`: Remaining profile quota headroom (`78% remaining`).
+  - **Crisp Straight Indicator Line Standard (Zero Corner Curvature)**: Colored accent lines on the left (`border-left: 3px solid <color>`) are kept perfectly straight by zeroing out the left border radii (`border-radius: 0 6px 6px 0; border-top-left-radius: 0; border-bottom-left-radius: 0;`), completely eliminating glaring curved edges.
+- **"⚡ Next Immediate Step / Human Decision" Banner**: Prominently showcases the exact decision or action required by the Human Architect as determined by the `/dev-lifecycle` Finite State Machine.
 - **Progress Bar**: Segmented progress bar indicating Done, In Progress, and Todo proportions.
 - **Action Buttons**:
   - `[ 💻 Mở CLI ]`: Clean profile CLI launcher.
@@ -208,6 +217,36 @@ The Web Dashboard (`tasks_dashboard.html`) is built as a single-page reactive ap
     - `Assessment`: Status (`Valid`, `Debatable`, `False Positive`).
     - `Evidence`: Monospace dynamic probing code block.
     - `Proposed action`: Action description with highlighted `fix:` prefix and `✓ fixed in <sha>` commit tag.
+
+## Lifecycle State Engine and Human Decisions
+
+To eliminate ambiguity for developers coordinating multiple parallel epics, `check-tasks` embeds a deterministic lifecycle state engine. Its primary purpose is to ascertain **"⚡ Next Immediate Step / Human Decision"** deterministically without guesswork.
+
+### 1. Deterministic Dual-Check Mechanism
+
+The system queries this information through two independent, mutually-verifying paths:
+
+1. **Immediate Disk State (`assistant_state.md` / `state/<epic>.md`)**:
+   - As AI agents execute `/dev-lifecycle`, every pause for human approval or stage completion mandatorily triggers `/save-context`, persisting `## Next Immediate Step:`.
+   - Example: Upon Gate 4 PASS, this field explicitly records: `- Review Choice: (1) Finish (/finish) or (2) Cross-Model Review (Claude / Codex / Kiro)`.
+2. **Deterministic Finite State Machine (FSM) Engine**:
+   - If `assistant_state.md` has not yet been persisted or when a developer inspects a newly cloned epic, `check-tasks` dynamically derives the state from immutable ledger records:
+     - Gate Ledger: `.devtool/GATE_LEDGER.md` (identifying which of Gates 1, 2, 3, 4, 5 are recorded).
+     - Task Progress: Granular counts of `task_*.md` (number of tasks in `done`, `in_progress`, `todo`).
+     - Verification Artifacts: Verdicts recorded in `review_results.md` or `principal_review.md`.
+
+### 2. Core 8-State Human Decision Mapping
+
+| Lifecycle Stage | Machine State Condition | ⚡ Next Immediate Step / Human Decision |
+|---|---|---|
+| **Stage 1 (Inception)** | No Gate 1 in `GATE_LEDGER.md`, design spec exists | **Approve Gate 1 (Design Spec)** to advance to Stage 2 |
+| **Stage 2 (Architecture)** | Gate 1 PASS, no Gate 2, drafting HLD/BDD/Tasks | AI Assistant drafting HLD & Task Breakdown (`/dev-designer`) |
+| **Stage 2 Exit (Handoff)** | Gate 2 PASS, no Gate 3, epic packaged (`handoff.md`) | **Handoff Choice**: (1) Run `/principal-review` or (2) Enter Stage 3 (`/dev-implementation`) |
+| **Stage 2 Review Triage** | Principal Review round contains `Critical`/`Important` findings | **Confirm Triage Decisions** (Valid / False Positive / Fix) for findings |
+| **Stage 3 Phase 1 (Order)** | Gate 2 PASS, worktree initialized, no Gate 3 recorded | **Approve Gate 3**: Confirm Kanban execution order and worktree isolation |
+| **Stage 3 Phase 2 (TDD)** | Gate 3 PASS, tasks currently `in_progress` | AI Programmer autonomously executing TDD tasks (No human action needed) |
+| **Stage 3 Phase 4 (Review)** | All tasks `done`, Gate 4 PASS, no Gate 5 | **Review Choice (Mandatory Rule 5)**: Choose (1) Finish & merge branch (`/finish`) or (2) Run Cross-Model Review (Claude / Codex / Kiro) |
+| **Stage 3 Phase 4.1 (Sign-off)** | Gate 4 PASS following review rounds, ready for merge | **Approve Gate 5 (Kanban Sign-Off)**: Confirm worktree cleanup and permanent archival |
 
 ## Terminal CLI and Slash Command Integration
 
