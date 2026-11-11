@@ -191,7 +191,7 @@ class TestReviewSkillDelegation(SignalCase):
         impl_text = (ROOT / "skills/dev-implementation/SKILL.md").read_text()
         self.assertIn("d3nexus:cross-model-review", impl_text)
         self.assertIn("<HARD-GATE>", impl_text)
-        self.assertIn("Gate 4 PASS → Review Choice", impl_text)
+        self.assertIn("Automated Cross-model review", impl_text)
 
 
 if __name__ == "__main__":

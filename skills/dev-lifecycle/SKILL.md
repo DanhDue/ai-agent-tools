@@ -37,7 +37,7 @@ If you find yourself about to write `implementation_plan.md`, STOP — you are b
 Do NOT prompt the developer for intermediate Review Choice or Gate 3 confirmation pauses.
 Once Gate 2 passes and dev-implementation is entered, Gate 3 execution order and worktree creation run automatically.
 When all tasks complete and Gate 4 passes locally, transition AUTOMATICALLY into cross-model review.
-The decision to Finish belongs strictly to Stage 4 (Gate 5 sign-off) after cross-model review completes.
+The decision to Finish belongs strictly to Stage 4 (Gate 5 sign-off) after Cross-model review completes.
 </HARD-GATE>
 
 ## Document Contract

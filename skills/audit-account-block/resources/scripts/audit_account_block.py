@@ -8,12 +8,16 @@ Detects, scores, and remediates vulnerabilities leading to account blocks / 403 
 from __future__ import annotations
 
 import argparse
+import base64
 import glob
 import hashlib
 import json
 import os
+import re
+import secrets
 import shutil
 import sqlite3
+import subprocess
 import sys
 import time
 import uuid
@@ -71,7 +75,56 @@ def get_default_homes_dir() -> str:
     return f"{real_home}/antigravity_homes"
 
 
-def audit_profile(p_dir: str, profile_name: str, duplicate_mid_map: dict[str, list[str]]) -> dict:
+RESERVED_NON_PROFILES = {
+    "Library", "System", "Shared", "AllProjects", "Projects", "fvm",
+    "claude", "codex", "kiro", "anthropic", "openai", ".gemini", ".antigravity",
+    ".antigravity-ide"
+}
+
+
+def is_valid_profile_dir(path: str) -> bool:
+    """Validate whether a path inside antigravity_homes is an actual Antigravity profile directory."""
+    if not os.path.exists(path) or os.path.islink(path):
+        return False
+    if not os.path.isdir(path):
+        return False
+
+    name = os.path.basename(path)
+    if name.startswith(".") or name.startswith("-"):
+        return False
+    if name in RESERVED_NON_PROFILES:
+        return False
+    if not re.match(r"^[a-zA-Z0-9_-]+$", name):
+        return False
+
+    # Check for profile directory characteristics
+    has_gemini = os.path.exists(os.path.join(path, ".gemini"))
+    has_ag = os.path.exists(os.path.join(path, ".antigravity"))
+    has_data = os.path.exists(os.path.join(path, "data"))
+    has_kc = os.path.exists(os.path.join(path, "Library/Keychains"))
+
+    if name == "default":
+        # Only accept 'default' if it has an alias in ~/.zshrc
+        zshrc = os.path.expanduser("~/.zshrc")
+        if os.path.exists(zshrc):
+            try:
+                with open(zshrc, "r", encoding="utf-8", errors="ignore") as f:
+                    if "ag_run default" not in f.read():
+                        return False
+            except Exception:
+                return False
+        else:
+            return False
+
+    return bool(has_gemini or has_ag or has_data or has_kc)
+
+
+def audit_profile(
+    p_dir: str,
+    profile_name: str,
+    duplicate_mid_map: dict[str, list[str]],
+    duplicate_scope_map: dict[str, list[str]] | None = None,
+) -> dict:
     storage_path = os.path.join(p_dir, "data/User/globalStorage/storage.json")
     db_path = os.path.join(p_dir, ".gemini/antigravity/conversation_summaries.db")
     conv_dir = os.path.join(p_dir, ".gemini/antigravity/conversations")
@@ -124,6 +177,9 @@ def audit_profile(p_dir: str, profile_name: str, duplicate_mid_map: dict[str, li
         except Exception:
             pass
 
+    pb_path = os.path.join(p_dir, ".gemini/antigravity/agyhub_summaries_proto.pb")
+    has_stale_proto = os.path.exists(pb_path) and profile_name != "danhdue"
+
     # 3. Inspect Block Status
     is_tos_disabled = os.path.exists(tos_path)
     tos_details = None
@@ -173,19 +229,68 @@ def audit_profile(p_dir: str, profile_name: str, duplicate_mid_map: dict[str, li
             except Exception:
                 pass
 
+        # Check Keychain gemini OAuth token for cross-account identity bleed
+        if profile_name not in ("danhdue", "default"):
+            kc_path = os.path.join(p_dir, f"Library/Keychains/{profile_name}.keychain-db")
+            if os.path.exists(kc_path):
+                try:
+                    subprocess.run(["security", "unlock-keychain", "-p", "H@No!a@12345", kc_path], capture_output=True, timeout=2)
+                    res_kc = subprocess.run(["security", "find-generic-password", "-s", "gemini", "-w", kc_path], capture_output=True, text=True, timeout=2)
+                    if res_kc.returncode == 0 and res_kc.stdout.strip().startswith("go-keyring-base64:"):
+                        raw_b64 = res_kc.stdout.strip().replace("go-keyring-base64:", "")
+                        t_data = json.loads(base64.b64decode(raw_b64).decode("utf-8"))
+                        if t_data.get("id_token_email") == "danhdue@gmail.com":
+                            has_identity_bleed = True
+                except Exception:
+                    pass
+
+    # 5. Inspect Terminal Profile Environment in settings.json
+    settings_path = os.path.join(p_dir, "data/User/settings.json")
+    has_missing_terminal_profile = False
+    if profile_name != "danhdue" and os.path.exists(p_dir):
+        if not os.path.exists(settings_path):
+            has_missing_terminal_profile = True
+        else:
+            try:
+                with open(settings_path, "r", encoding="utf-8") as f:
+                    s_data = json.load(f)
+                    term_env = s_data.get("terminal.integrated.env.osx", {})
+                    if term_env.get("AGY_PROFILE") != profile_name:
+                        has_missing_terminal_profile = True
+            except Exception:
+                has_missing_terminal_profile = True
+
+    # 6. Inspect Credential User Scope (Google Language Server)
+    scope_path = os.path.join(p_dir, "Library/Application Support/antigravity/credential-user-scope")
+    user_scope = "MISSING"
+    if os.path.exists(scope_path):
+        try:
+            with open(scope_path, "r", encoding="utf-8") as f:
+                user_scope = f.read().strip()
+        except Exception:
+            pass
+
     # Evaluate Vulnerabilities
+    if duplicate_scope_map is None:
+        duplicate_scope_map = {}
     is_cloned_mid = len(duplicate_mid_map.get(machine_id, [])) > 1
     has_missing_mid = machine_id in ("MISSING", "")
-    has_stale_trajectories = stale_conv_count > 0
+    has_stale_trajectories = (stale_conv_count > 0) or has_stale_proto
+    is_cloned_scope = (
+        len(duplicate_scope_map.get(user_scope, [])) > 1
+        and user_scope not in ("MISSING", "")
+        and profile_name != "danhdue"
+    )
+    has_missing_scope = (user_scope in ("MISSING", "")) and (profile_name != "danhdue")
 
     # Risk Level Calculation
     if is_tos_disabled:
         risk_level = "BLOCKED"
     elif is_cloned_mid and has_stale_trajectories:
         risk_level = "CRITICAL"
-    elif is_cloned_mid or has_stale_trajectories or has_missing_mid or has_keychain_leak or has_identity_bleed:
+    elif is_cloned_mid or has_stale_trajectories or has_missing_mid or has_keychain_leak or has_identity_bleed or has_missing_terminal_profile or is_cloned_scope:
         risk_level = "HIGH"
-    elif has_leaked_workspaces:
+    elif has_leaked_workspaces or has_missing_scope:
         risk_level = "MEDIUM"
     else:
         risk_level = "CLEAN"
@@ -196,6 +301,7 @@ def audit_profile(p_dir: str, profile_name: str, duplicate_mid_map: dict[str, li
         "risk_level": risk_level,
         "machine_id": machine_id,
         "dev_device_id": dev_device_id,
+        "user_scope": user_scope,
         "total_convs_in_db": total_convs_in_db,
         "local_conv_count": local_conv_count,
         "stale_conversation_count": stale_conv_count,
@@ -205,6 +311,10 @@ def audit_profile(p_dir: str, profile_name: str, duplicate_mid_map: dict[str, li
             "cloned_machine_id": is_cloned_mid,
             "missing_machine_id": has_missing_mid,
             "stale_trajectories": has_stale_trajectories,
+            "stale_proto_summaries": has_stale_proto,
+            "missing_terminal_profile_env": has_missing_terminal_profile,
+            "cloned_user_scope": is_cloned_scope,
+            "missing_user_scope": has_missing_scope,
             "leaked_workspaces": has_leaked_workspaces,
             "keychain_leak": has_keychain_leak,
             "identity_bleed": has_identity_bleed,
@@ -218,10 +328,11 @@ def audit_all_profiles(homes_dir: str | None = None) -> dict:
         homes_dir = get_default_homes_dir()
 
     profile_paths = sorted(glob.glob(f"{homes_dir}/*"))
-    profiles = [p for p in profile_paths if os.path.isdir(p)]
+    profiles = [p for p in profile_paths if is_valid_profile_dir(p)]
 
-    # Pass 1: Collect Machine IDs to detect duplicates
+    # Pass 1: Collect Machine IDs and User Scopes to detect duplicates
     mid_to_profiles: dict[str, list[str]] = {}
+    scope_to_profiles: dict[str, list[str]] = {}
     for p_path in profiles:
         p_name = os.path.basename(p_path)
         storage_path = os.path.join(p_path, "data/User/globalStorage/storage.json")
@@ -235,7 +346,18 @@ def audit_all_profiles(homes_dir: str | None = None) -> dict:
             except Exception:
                 pass
 
+        scope_path = os.path.join(p_path, "Library/Application Support/antigravity/credential-user-scope")
+        if os.path.exists(scope_path):
+            try:
+                with open(scope_path, "r", encoding="utf-8") as f:
+                    sc = f.read().strip()
+                    if sc and sc != "MISSING":
+                        scope_to_profiles.setdefault(sc, []).append(p_name)
+            except Exception:
+                pass
+
     duplicate_mids = {mid: plist for mid, plist in mid_to_profiles.items() if len(plist) > 1}
+    duplicate_scopes = {sc: plist for sc, plist in scope_to_profiles.items() if len(plist) > 1}
 
     # Pass 2: Audit each profile
     profile_results = {}
@@ -247,7 +369,7 @@ def audit_all_profiles(homes_dir: str | None = None) -> dict:
 
     for p_path in profiles:
         p_name = os.path.basename(p_path)
-        res = audit_profile(p_path, p_name, duplicate_mids)
+        res = audit_profile(p_path, p_name, duplicate_mids, duplicate_scopes)
         profile_results[p_name] = res
 
         lvl = res["risk_level"]
@@ -262,7 +384,7 @@ def audit_all_profiles(homes_dir: str | None = None) -> dict:
         elif lvl == "CLEAN":
             clean_count += 1
 
-    is_healthy = (critical_count == 0 and high_count == 0 and len(duplicate_mids) == 0)
+    is_healthy = (critical_count == 0 and high_count == 0 and len(duplicate_mids) == 0 and len(duplicate_scopes) == 0)
 
     return {
         "timestamp": time.time(),
@@ -270,6 +392,7 @@ def audit_all_profiles(homes_dir: str | None = None) -> dict:
         "total_profiles": len(profiles),
         "is_healthy": is_healthy,
         "duplicate_machine_ids": duplicate_mids,
+        "duplicate_user_scopes": duplicate_scopes,
         "summary": {
             "blocked": blocked_count,
             "critical": critical_count,
@@ -281,7 +404,19 @@ def audit_all_profiles(homes_dir: str | None = None) -> dict:
     }
 
 
-def remediate_single_profile(p_path: str, profile_name: str, seen_machine_ids: set[str], timestamp: str) -> dict:
+def remediate_single_profile(
+    p_path: str,
+    profile_name: str,
+    seen_machine_ids: set[str],
+    timestamp: str,
+    seen_user_scopes: set[str] | None = None,
+) -> dict:
+    # 0. Terminate resident processes of this profile to prevent Ghost Electron memory flush
+    try:
+        subprocess.run(["pkill", "-9", "-f", f"antigravity_homes/{profile_name}"], capture_output=True)
+    except Exception:
+        pass
+
     storage_dir = os.path.join(p_path, "data/User/globalStorage")
     storage_path = os.path.join(storage_dir, "storage.json")
     os.makedirs(storage_dir, exist_ok=True)
@@ -350,10 +485,12 @@ def remediate_single_profile(p_path: str, profile_name: str, seen_machine_ids: s
 
     # Sanitize agyhub_summaries_proto.pb (prevents agy from restoring foreign cloned summaries on startup)
     pb_path = os.path.join(p_path, ".gemini/antigravity/agyhub_summaries_proto.pb")
+    purged_proto = False
     if os.path.exists(pb_path) and profile_name != "danhdue":
         try:
             shutil.copy2(pb_path, f"{pb_path}.bak.{timestamp}")
             os.remove(pb_path)
+            purged_proto = True
         except Exception:
             pass
 
@@ -384,7 +521,7 @@ def remediate_single_profile(p_path: str, profile_name: str, seen_machine_ids: s
                 f.write(CANONICAL_SECURITY_PLIST)
             repaired_plist = True
 
-    # Sanitize state.vscdb identity parity
+    # Sanitize state.vscdb identity parity & clear stale trajectory summaries cache
     vscdb_path = os.path.join(p_path, "data/User/globalStorage/state.vscdb")
     repaired_vscdb = False
     if os.path.exists(vscdb_path) and profile_name != "danhdue":
@@ -392,6 +529,7 @@ def remediate_single_profile(p_path: str, profile_name: str, seen_machine_ids: s
             conn = sqlite3.connect(vscdb_path)
             c = conn.cursor()
             c.execute("DELETE FROM ItemTable WHERE key='antigravityUnifiedStateSync.oauthToken'")
+            c.execute("DELETE FROM ItemTable WHERE key='antigravityUnifiedStateSync.trajectorySummaries'")
             c.execute("SELECT value FROM ItemTable WHERE key='google.google-antigravity'")
             row = c.fetchone()
             if row:
@@ -406,6 +544,23 @@ def remediate_single_profile(p_path: str, profile_name: str, seen_machine_ids: s
                                 actual_email = json.load(tf).get("id_token_email")
                         except Exception:
                             pass
+                    if not actual_email:
+                        kc = os.path.join(p_path, f"Library/Keychains/{profile_name}.keychain-db")
+                        if os.path.exists(kc):
+                            try:
+                                res = subprocess.run(
+                                    ["security", "find-generic-password", "-s", "gemini", "-a", "antigravity", "-g", kc],
+                                    capture_output=True, text=True
+                                )
+                                out = res.stderr or res.stdout
+                                if "go-keyring-base64:" in out:
+                                    import base64
+                                    b64 = out.split("go-keyring-base64:")[1].split('"')[0].strip()
+                                    actual_email = json.loads(base64.b64decode(b64).decode()).get("id_token_email")
+                            except Exception:
+                                pass
+                    if not actual_email:
+                        actual_email = f"{profile_name}@gmail.com"
                     if actual_email:
                         st["agy.onboarding.lastLoginUsername"] = actual_email
                         vd["antigravity-storage"] = st
@@ -416,13 +571,110 @@ def remediate_single_profile(p_path: str, profile_name: str, seen_machine_ids: s
         except Exception:
             pass
 
+    # Ensure settings.json has telemetryLevel off and AGY_PROFILE in terminal environment
+    settings_dir = os.path.join(p_path, "data/User")
+    settings_path = os.path.join(settings_dir, "settings.json")
+    os.makedirs(settings_dir, exist_ok=True)
+    repaired_settings = False
+    if profile_name != "danhdue":
+        try:
+            s_data = {}
+            if os.path.exists(settings_path):
+                with open(settings_path, "r", encoding="utf-8") as sf:
+                    s_data = json.load(sf)
+
+            real_h = p_path.split("/antigravity_homes")[0] if "antigravity_homes" in p_path else "/Users/danhdueexoictif"
+            user_name = os.path.basename(real_h)
+
+            need_s_save = False
+            if s_data.get("telemetry.telemetryLevel") != "off":
+                s_data["telemetry.telemetryLevel"] = "off"
+                need_s_save = True
+
+            expected_title = f"[@{profile_name}] ${{dirty}}${{activeEditorMedium}}${{separator}}${{rootName}}"
+            if s_data.get("window.title") != expected_title:
+                s_data["window.title"] = expected_title
+                need_s_save = True
+
+            term_env = s_data.get("terminal.integrated.env.osx", {})
+            if (
+                term_env.get("AGY_PROFILE") != profile_name
+                or term_env.get("HOME") != real_h
+                or term_env.get("REAL_HOME") != real_h
+            ):
+                term_env["HOME"] = real_h
+                term_env["REAL_HOME"] = real_h
+                term_env["AGY_PROFILE"] = profile_name
+                term_env["USER"] = user_name
+                s_data["terminal.integrated.env.osx"] = term_env
+                need_s_save = True
+
+            if need_s_save:
+                with open(settings_path, "w", encoding="utf-8") as sf:
+                    json.dump(s_data, sf, indent=2)
+                repaired_settings = True
+        except Exception:
+            pass
+
+    # Sanitize credential-user-scope (Google Language Server User Scope)
+    scope_dir = os.path.join(p_path, "Library/Application Support/antigravity")
+    scope_path = os.path.join(scope_dir, "credential-user-scope")
+    repaired_scope = False
+    new_scope_val = None
+
+    if seen_user_scopes is None:
+        seen_user_scopes = set()
+
+    if profile_name == "danhdue":
+        if os.path.exists(scope_path):
+            try:
+                with open(scope_path, "r", encoding="utf-8") as f:
+                    sc = f.read().strip()
+                    if sc:
+                        seen_user_scopes.add(sc)
+                        new_scope_val = sc
+            except Exception:
+                pass
+    else:
+        current_scope = ""
+        if os.path.exists(scope_path):
+            try:
+                with open(scope_path, "r", encoding="utf-8") as f:
+                    current_scope = f.read().strip()
+            except Exception:
+                pass
+
+        if (not current_scope) or (current_scope in seen_user_scopes):
+            while True:
+                candidate = f"u{secrets.token_hex(8)}"
+                if candidate not in seen_user_scopes:
+                    new_scope_val = candidate
+                    seen_user_scopes.add(candidate)
+                    break
+            os.makedirs(scope_dir, exist_ok=True)
+            if os.path.exists(scope_path):
+                try:
+                    shutil.copy2(scope_path, f"{scope_path}.bak.{timestamp}")
+                except Exception:
+                    pass
+            with open(scope_path, "w", encoding="utf-8") as f:
+                f.write(new_scope_val)
+            repaired_scope = True
+        else:
+            seen_user_scopes.add(current_scope)
+            new_scope_val = current_scope
+
     return {
         "profile": profile_name,
         "new_machine_id": new_mid,
         "new_dev_id": new_dev_id,
+        "user_scope": new_scope_val,
         "purged_trajectories": purged_count,
+        "purged_proto": purged_proto,
         "repaired_plist": repaired_plist,
         "repaired_vscdb": repaired_vscdb,
+        "repaired_settings": repaired_settings,
+        "repaired_scope": repaired_scope,
     }
 
 
@@ -431,18 +683,32 @@ def remediate_all_profiles(homes_dir: str | None = None, target: str | None = No
         homes_dir = get_default_homes_dir()
 
     profile_paths = sorted(glob.glob(f"{homes_dir}/*"))
-    profiles = [p for p in profile_paths if os.path.isdir(p)]
+    profiles = [p for p in profile_paths if is_valid_profile_dir(p)]
 
     if target:
         profiles = [p for p in profiles if os.path.basename(p) == target]
 
     timestamp = time.strftime("%Y%m%d_%H%M%S")
     seen_machine_ids: set[str] = set()
+    seen_user_scopes: set[str] = set()
+
+    # Pre-populate seen_user_scopes with root host scope if present
+    real_h = homes_dir.split("/antigravity_homes")[0] if "antigravity_homes" in homes_dir else "/Users/danhdueexoictif"
+    root_scope_file = os.path.join(real_h, "Library/Application Support/antigravity/credential-user-scope")
+    if os.path.exists(root_scope_file):
+        try:
+            with open(root_scope_file, "r", encoding="utf-8") as f:
+                sc = f.read().strip()
+                if sc:
+                    seen_user_scopes.add(sc)
+        except Exception:
+            pass
+
     results = []
 
     for p_path in profiles:
         p_name = os.path.basename(p_path)
-        res = remediate_single_profile(p_path, p_name, seen_machine_ids, timestamp)
+        res = remediate_single_profile(p_path, p_name, seen_machine_ids, timestamp, seen_user_scopes)
         results.append(res)
 
     return results
@@ -467,6 +733,12 @@ def print_audit_report(report: dict):
         print(f"{BOLD}{RED}🚨 DUPLICATE MACHINE IDs DETECTED (Sybil / Farming Risk):{RESET}")
         for mid, plist in report["duplicate_machine_ids"].items():
             print(f"  • {YELLOW}{mid[:20]}...{RESET} shared by {len(plist)} profiles: {plist}")
+        print()
+
+    if report.get("duplicate_user_scopes"):
+        print(f"{BOLD}{RED}🚨 DUPLICATE CREDENTIAL USER SCOPES DETECTED (Google Language Server Leak):{RESET}")
+        for sc, plist in report["duplicate_user_scopes"].items():
+            print(f"  • {YELLOW}{sc}{RESET} shared by {len(plist)} profiles: {plist}")
         print()
 
     # Table format
@@ -497,6 +769,14 @@ def print_audit_report(report: dict):
             findings.append("Cloned Machine ID")
         if data["vulnerabilities"]["stale_trajectories"]:
             findings.append(f"{data['stale_conversation_count']} foreign trajectories")
+        if data["vulnerabilities"].get("stale_proto_summaries"):
+            findings.append("Stale proto cache (agyhub_summaries_proto.pb)")
+        if data["vulnerabilities"].get("cloned_user_scope"):
+            findings.append("Cloned Credential User Scope (Google Language Server)")
+        if data["vulnerabilities"].get("missing_user_scope"):
+            findings.append("Missing Credential User Scope")
+        if data["vulnerabilities"].get("missing_terminal_profile_env"):
+            findings.append("Missing AGY_PROFILE in terminal environment")
         if data["vulnerabilities"]["leaked_workspaces"]:
             findings.append("Leaked workspace paths")
         if data["vulnerabilities"].get("keychain_leak"):
@@ -521,11 +801,30 @@ def main():
     parser = argparse.ArgumentParser(description="Antigravity Account Block & Anti-Abuse Audit Tool")
     parser.add_argument("--audit", action="store_true", default=True, help="Run audit inspection (default)")
     parser.add_argument("--fix", action="store_true", help="Automatically remediate detected vulnerabilities")
+    parser.add_argument("--clean-cache", action="store_true", help="Purge disposable caches (V8 bytecode, webviews, Chromium HTTP) to reclaim disk space")
+    parser.add_argument("--dry-run", action="store_true", help="Preview reclaimable cache space without deleting (use with --clean-cache)")
     parser.add_argument("--json", action="store_true", help="Output results in JSON format")
     parser.add_argument("--target", type=str, default=None, help="Target a specific profile")
     parser.add_argument("--homes-dir", type=str, default=None, help="Custom antigravity_homes directory")
 
     args = parser.parse_args()
+
+    if args.clean_cache or args.dry_run:
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        clean_script = os.path.join(script_dir, "../../../../scripts/clean_antigravity_cache.py")
+        if os.path.exists(clean_script):
+            cmd = [sys.executable, os.path.abspath(clean_script)]
+            if args.dry_run:
+                cmd.append("--dry-run")
+            if args.target:
+                cmd.extend(["--target", args.target])
+            if args.homes_dir:
+                cmd.extend(["--homes-dir", args.homes_dir])
+            res = subprocess.run(cmd)
+            return res.returncode
+        else:
+            print(f"{RED}Error: clean_antigravity_cache.py not found at {clean_script}{RESET}")
+            return 1
 
     if args.fix:
         remed_results = remediate_all_profiles(args.homes_dir, args.target)

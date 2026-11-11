@@ -73,7 +73,7 @@ You MUST generate two language variants for the overview document:
 Each document MUST contain the following sections:
 
 1. **Table of Contents (Mục lục)**: A linked entry for every `##` section in the document.
-2. **Meta Data**: Epic name, Status, Target Release, Platform (`Web Application`, `Flutter`, `Android Native`, `iOS Native`, `Python`, or `Rust Core`), `Depends on epic` (`- **Depends on epic**: <comma-separated list or none>`), and `Source Spec` link if this epic was derived from an approved `dev-brainstorming` spec.
+2. **Meta Data**: Epic name, Status, PIC / Assigned Profile (`- **PIC**: <profile_account_id>` — defined once per Epic in Meta Data and `handoff.md`; individual `task_*.md` files inherit the Epic PIC and do not need a per-task PIC field), Target Release, Platform (`Web Application`, `Flutter`, `Android Native`, `iOS Native`, `Python`, or `Rust Core`), `Depends on epic` (`- **Depends on epic**: <comma-separated list or none>`), and `Source Spec` link if this epic was derived from an approved `dev-brainstorming` spec.
 3. **Background (Bối cảnh)**: The problem statement or context (Why are we doing this?).
 4. **Goals & Non-Goals**: Clearly define what is expected to be achieved and what is strictly out of scope to avoid scope creep.
 5. **Architecture, Feature Map & Technical Design ("Prompt to Maintain")**:

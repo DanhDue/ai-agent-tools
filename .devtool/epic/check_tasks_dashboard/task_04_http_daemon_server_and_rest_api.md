@@ -1,13 +1,13 @@
 ---
 id: "task_04_http_daemon_server_and_rest_api"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "check_tasks_dashboard"
 dueDate: null
 created: "2026-11-11T08:30:00Z"
-modified: "2026-11-11T08:30:00Z"
-completedAt: null
+modified: "2026-11-11T06:50:09Z"
+completedAt: "2026-11-11T06:50:09Z"
 labels: ["daemon", "server", "rest-api"]
 order: "a4"
 ---

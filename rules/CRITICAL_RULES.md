@@ -84,7 +84,7 @@ git commit -m "[EPIC_NAME] Task title" -m "- subtask title 01
 >    - AI Agents **MUST NOT stop or prompt the developer for manual confirmation** on task execution order or worktree creation. Manual confirmation at Gate 3 is eliminated; halt occurs ONLY on fatal errors (cyclic DAG dependency, malformed task frontmatter, or unresolvable blocking prerequisites).
 >
 > 2. **Automated Transition to Cross-Model Review (No Intermediate Review Choice Prompt)**:
->    - When all tasks of an epic are implemented and Phase 4 / Gate 4 local machine verification returns PASS, the AI Agent **MUST NOT pause to ask the developer for an intermediate Review Choice** (e.g. Finish vs Cross-model review).
+>    - When all tasks of an epic are implemented and Phase 4 / Gate 4 local machine verification returns PASS (after Gate 4 passes, Cross-model review must return to a full Gate 4 run), the AI Agent **MUST NOT pause to ask the developer for an intermediate Review Choice** (e.g. Finish vs Cross-model review).
 >    - The workflow **AUTOMATICALLY transitions into `/cross-model-review`** using the provider priority and model configured in `.devtool/review_config.json` (running `run_external_review.py run --epic-dir <epic_dir> --auto-quota`).
 >    - Cross-model review executes its 3-round convergence funnel and severity-tiered auto-triage gate (`AUTO_PASS_CLEAN`, `AUTO_PASS_FINAL_MINOR_SWEEP`, `AUTO_FIX_ELIGIBLE`) automatically.
 >

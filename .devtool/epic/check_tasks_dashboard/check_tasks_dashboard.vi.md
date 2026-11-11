@@ -18,6 +18,7 @@
 
 - **Tên Epic**: `check_tasks_dashboard`
 - **Trạng thái**: In Progress
+- **Người phụ trách (PIC)**: `danhdue`
 - **Phiên bản Đích**: Bản phát hành plugin tiếp theo (v1.29.0)
 - **Nền tảng**: Công cụ Python / Bộ công cụ kỹ năng Agent
 - **Phụ thuộc vào epic**: `autonomous_lifecycle_runner`

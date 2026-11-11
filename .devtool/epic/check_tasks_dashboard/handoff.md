@@ -16,6 +16,7 @@
 - **Packaged**: 2026-11-11
 - **Design commit**: `dd10ef4`
 - **Base branch**: `main`
+- **PIC**: `danhdue`
 - **Gates passed**: 1 (spec), 2 (HLD and task breakdown)
 - **Next**: Stage 3, `dev-implementation`. Gate 3 (execution order) still needs the developer's confirmation.
 

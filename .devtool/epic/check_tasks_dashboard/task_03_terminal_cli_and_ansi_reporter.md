@@ -1,13 +1,13 @@
 ---
 id: "task_03_terminal_cli_and_ansi_reporter"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "check_tasks_dashboard"
 dueDate: null
 created: "2026-11-11T08:30:00Z"
-modified: "2026-11-11T08:30:00Z"
-completedAt: null
+modified: "2026-11-11T06:53:08Z"
+completedAt: "2026-11-11T06:53:08Z"
 labels: ["cli", "ansi", "reporter"]
 order: "a3"
 ---

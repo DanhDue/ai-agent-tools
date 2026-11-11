@@ -77,6 +77,15 @@ NATURAL_PROMPTS = [
 GLOBAL_REFRESH_INTERVAL_SECONDS = 1800  # 30 minutes
 
 
+def wait_for_launch_lock(timeout: float = 3.0) -> None:
+    """Wait if any profile is currently in its 1.5s atomic launch window."""
+    lock_dir = "/tmp/ag_launch.lock"
+    if os.path.exists(lock_dir):
+        start = time.time()
+        while os.path.exists(lock_dir) and (time.time() - start < timeout):
+            time.sleep(0.1)
+
+
 def init_session_store_db():
     try:
         SESSION_STORE_DB.parent.mkdir(parents=True, exist_ok=True)
@@ -312,14 +321,54 @@ def render_card(icon: str, icon_color: str, title: str, timer_str: str, fraction
     return [top, content, bar_line, bot]
 
 
+RESERVED_NON_PROFILES = {
+    "Library", "System", "Shared", "AllProjects", "Projects", "fvm",
+    "claude", "codex", "kiro", "anthropic", "openai", ".gemini", ".antigravity",
+    ".antigravity-ide"
+}
+
+
+def is_valid_antigravity_profile(profile_name: str, homes_dir: str | None = None) -> bool:
+    """Validate whether a name corresponds to an actual Antigravity profile account."""
+    if not profile_name or profile_name.startswith(".") or profile_name.startswith("-"):
+        return False
+    if profile_name in RESERVED_NON_PROFILES:
+        return False
+    if not re.match(r"^[a-zA-Z0-9_-]+$", profile_name):
+        return False
+
+    h_dir = homes_dir or f"{REAL_HOME}/antigravity_homes"
+    ag_home = os.path.join(h_dir, profile_name)
+
+    if not os.path.exists(ag_home) or os.path.islink(ag_home) or not os.path.isdir(ag_home):
+        return False
+
+    if profile_name == "default":
+        zshrc_path = os.path.expanduser("~/.zshrc")
+        if os.path.exists(zshrc_path):
+            try:
+                with open(zshrc_path, "r", encoding="utf-8", errors="ignore") as f:
+                    if "ag_run default" not in f.read():
+                        return False
+            except Exception:
+                return False
+        else:
+            return False
+
+    has_gemini = os.path.exists(os.path.join(ag_home, ".gemini"))
+    has_ag = os.path.exists(os.path.join(ag_home, ".antigravity"))
+    has_data = os.path.exists(os.path.join(ag_home, "data"))
+    has_kc = os.path.exists(os.path.join(ag_home, "Library/Keychains"))
+    return bool(has_gemini or has_ag or has_data or has_kc)
+
+
 def get_all_profiles() -> list:
     """Discover all actual Antigravity profile accounts directly from antigravity_homes directory."""
     profiles = []
     homes_dir = f"{REAL_HOME}/antigravity_homes"
-    known_providers = {"claude", "codex", "kiro", "anthropic", "openai"}
     if os.path.isdir(homes_dir):
         for d in sorted(os.listdir(homes_dir)):
-            if not d.startswith(".") and d not in known_providers and os.path.isdir(os.path.join(homes_dir, d)):
+            if is_valid_antigravity_profile(d, homes_dir=homes_dir):
                 profiles.append(d)
 
     # Also check ~/.zshrc for aliases as fallback or aliases with distinct names
@@ -331,12 +380,12 @@ def get_all_profiles() -> list:
                     m = re.search(r"antigravity_homes/([a-zA-Z0-9_-]+)", line)
                     if m:
                         p = m.group(1)
-                        if p not in known_providers and p not in profiles and os.path.isdir(os.path.join(homes_dir, p)):
+                        if is_valid_antigravity_profile(p, homes_dir=homes_dir) and p not in profiles:
                             profiles.append(p)
                     m2 = re.match(r"^alias\s+([a-zA-Z0-9_-]+)='ag_run\s+([a-zA-Z0-9_-]+)'", line.strip())
                     if m2:
                         p2 = m2.group(2)
-                        if p2 not in known_providers and p2 not in profiles and os.path.isdir(os.path.join(homes_dir, p2)):
+                        if is_valid_antigravity_profile(p2, homes_dir=homes_dir) and p2 not in profiles:
                             profiles.append(p2)
         except Exception:
             pass
@@ -591,6 +640,7 @@ def check_profile_auth_token(profile: str) -> bool:
     CRITICAL: If False, running agy will attempt to open the web browser for OAuth!
     We MUST NOT execute agy when this returns False.
     """
+    wait_for_launch_lock()
     kc = os.path.join(REAL_HOME, "antigravity_homes", profile, "Library/Keychains", f"{profile}.keychain-db")
     if not os.path.isfile(kc):
         return False
@@ -756,7 +806,15 @@ def print_dashboard_cards(result: dict):
     has_argon = items["argon_weekly"].get("available", False)
     argon_tag_str = f"  {TAG_ARGON}" if has_argon else ""
 
-    print(f"\n{BOLD}{WHITE}✦ Profile: {CYAN}{profile}{RESET}  {TAG_PRO}  {TAG_PRIORITY}{argon_tag_str}  {status_tag}")
+    has_5h = items["gem_5h"].get("available", False) or items["cld_5h"].get("available", False)
+    if has_5h:
+        tier_tag = TAG_PRO
+        priority_tag = TAG_PRIORITY
+    else:
+        tier_tag = "\033[48;2;217;119;6m\033[1;37m FREE \033[0m"
+        priority_tag = "\033[48;2;24;27;38m\033[38;2;160;174;192m Priority: 20 \033[0m"
+
+    print(f"\n{BOLD}{WHITE}✦ Profile: {CYAN}{profile}{RESET}  {tier_tag}  {priority_tag}{argon_tag_str}  {status_tag}")
 
     # Row 1: Gemini 5H  &  Claude 5H
     gem_5h_time = format_countdown(items["gem_5h"]["reset_time"])
@@ -1797,6 +1855,29 @@ def load_cached_profiles() -> dict:
                     if raw_json.endswith(";"):
                         raw_json = raw_json[:-1].strip()
                     CACHED_PROFILES_DATA = json.loads(raw_json)
+                    allowed_providers = {"claude", "codex", "kiro"}
+                    purged_keys = [k for k in list(CACHED_PROFILES_DATA.keys()) if k not in allowed_providers and not is_valid_antigravity_profile(k)]
+                    if purged_keys:
+                        for k in purged_keys:
+                            del CACHED_PROFILES_DATA[k]
+                        try:
+                            formatted_json = json.dumps(CACHED_PROFILES_DATA, indent=2, ensure_ascii=False)
+                            new_content = content[:idx1 + len(marker)] + " " + formatted_json + ";" + content[idx2 + len(end_marker):]
+                            p.write_text(new_content, encoding="utf-8")
+                            sync_copies = [
+                                Path.home() / ".gemini/config/plugins/d3nexus/skills/check-quota/resources/dashboard/quota_dashboard.html",
+                                Path("/Users/danhdueexoictif/.gemini/config/plugins/d3nexus/skills/check-quota/resources/dashboard/quota_dashboard.html"),
+                                Path("/Users/danhdueexoictif/antigravity_homes/huynhminhtien0510/.gemini/config/plugins/d3nexus/skills/check-quota/resources/dashboard/quota_dashboard.html"),
+                                Path("/Users/danhdueexoictif/antigravity_homes/huynhminhtien0510/.gemini/antigravity/brain/faba533a-ed61-4a6e-8b53-bfbf7926cccf/quota_dashboard.html"),
+                            ]
+                            for sc in sync_copies:
+                                if sc.is_file() and sc != p:
+                                    try:
+                                        sc.write_text(new_content, encoding="utf-8")
+                                    except Exception:
+                                        pass
+                        except Exception:
+                            pass
                     if "claude" not in CACHED_PROFILES_DATA:
                         CACHED_PROFILES_DATA["claude"] = fetch_claude_quota()
                     if "codex" not in CACHED_PROFILES_DATA:
@@ -1915,6 +1996,9 @@ def format_profile_for_dashboard(profile: str, result: dict) -> dict:
     items = parse_quota_items(groups)
 
     has_argon = items["argon_weekly"]["available"]
+    has_5h = items["gem_5h"]["available"] or items["cld_5h"]["available"]
+    tier = "PRO" if has_5h else "FREE"
+    priority = 50 if has_5h else 20
 
     is_exhausted = (
         items["gem_5h"]["fraction"] == 0 and
@@ -2208,6 +2292,7 @@ def execute_ping_profile(profile: str, force: bool = False) -> dict:
         }
 
     # Unlock keychain if needed
+    wait_for_launch_lock()
     profile_kc = f"{ag_home}/Library/Keychains/{profile}.keychain-db"
     if os.path.exists(profile_kc):
         subprocess.run(["security", "unlock-keychain", "-p", KC_PASS, profile_kc], capture_output=True)
@@ -3203,6 +3288,12 @@ def main():
         result = fetch_kiro_quota()
         print_kiro_card(result)
     else:
+        if target.startswith("-"):
+            print(f"\n{RED}❌ Lỗi: Đối số hoặc cờ không hợp lệ: '{target}'. Gõ 'check-quota --help' để xem hướng dẫn.{RESET}\n")
+            return
+        if not is_valid_antigravity_profile(target):
+            print(f"\n{RED}❌ Lỗi: Profile '{target}' không tồn tại hoặc không phải là profile Antigravity hợp lệ.{RESET}\n")
+            return
         # Single profile dashboard
         result = fetch_quota_for_profile(target)
         print_dashboard_cards(result)

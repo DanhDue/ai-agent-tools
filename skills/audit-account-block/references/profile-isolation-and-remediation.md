@@ -84,20 +84,34 @@ For every non-root profile:
    ```
 3. If `agy.onboarding.lastLoginUsername` differs from `id_token_email`, update `state.vscdb` to match `id_token_email` immediately.
 
-### Rule 2.4: Atomic Launch Window in `ag_run()` & AirDrop / Host OS Protection
-To avoid contaminating host OS services or breaking AirDrop (`sharingd`), Apple ID, or Wi-Fi credentials:
+### Rule 2.4: Synchronous 1.5s Atomic Launch Lock & Zero Host Fallback
+To avoid contaminating host OS services, breaking AirDrop (`sharingd`), or causing cross-profile token collisions during startup:
 - **Global Mutation Prohibited**: NEVER invoke `security default-keychain` globally in `~/.zshrc` or global login hooks. The host default keychain MUST always remain `/Users/<user>/Library/Keychains/login.keychain-db`.
 - **Zero Mutation for CLI**: When running CLI commands (`ag_run <profile> cli` or `{profile}-cli`), NEVER alter `security default-keychain` or `security list-keychains`. The CLI binary runs in a subshell with `HOME="$ag_home"` and reads the scoped profile keychain via `~/Library/Preferences/com.apple.security.plist` and `login.keychain-db -> <profile>.keychain-db` symlink directly after scoped `security unlock-keychain`. This guarantees AirDrop (`sharingd`) is never interrupted or crashed by background CLI quota refreshes.
-- **Atomic Launch Window for GUI IDE**: When launching the graphical Antigravity IDE for a non-root profile:
-  1. Profile keychain is isolated via `com.apple.security.plist` in `~/antigravity_homes/<profile>/Library/Preferences/`.
-  2. For GUI launch, temporarily promote `<profile>.keychain-db` ahead of `login.keychain-db` in the search list and set default, spawn the IDE via stripped environment, and immediately schedule an atomic rollback back to `login.keychain-db` after 1.5 seconds:
-     ```bash
-     security list-keychains -d user -s "$profile_kc" "$REAL_HOME/Library/Keychains/login.keychain-db" "/Library/Keychains/System.keychain"
-     security default-keychain -s "$profile_kc"
-     # Launch detached IDE process...
-     ( sleep 1.5 && security default-keychain -s "$REAL_HOME/Library/Keychains/login.keychain-db" && security list-keychains -d user -s "$REAL_HOME/Library/Keychains/login.keychain-db" "/Library/Keychains/System.keychain" ) >/dev/null 2>&1 &!
-     ```
-  3. The launcher always verifies that `security default-keychain` restores to `/Users/<user>/Library/Keychains/login.keychain-db`.
+- **Zero Host Fallback in Search List**: When launching the GUI IDE for a non-root profile, the search list MUST strictly contain only `"$profile_kc"` and `"/Library/Keychains/System.keychain"`. NEVER include `login.keychain-db` in the search list, ensuring that an unauthenticated or expired profile never silently falls back to `danhdue@gmail.com`.
+- **Synchronous 1.5s Launch Lock (`/tmp/ag_launch.lock`)**:
+  To prevent race conditions when opening multiple IDE windows or when an existing background profile refreshes its token:
+  1. `ag_run()` acquires the atomic filesystem lock `/tmp/ag_launch.lock`.
+  2. Sets `security list-keychains -d user -s "$profile_kc" "/Library/Keychains/System.keychain"` and `security default-keychain -s "$profile_kc"`.
+  3. Launches Electron IDE via `open -n -a "Antigravity IDE"`.
+  4. **Waits synchronously in the foreground for 1.5 seconds** (blocking any subsequent command in the current terminal, while other terminals or `agy()` / quota calls wait on `/tmp/ag_launch.lock`).
+  5. Restores `default-keychain` and `list-keychains` to `login.keychain-db` + `System.keychain`.
+  6. Releases `/tmp/ag_launch.lock`.
+  ```bash
+  # Atomic launch lock & zero fallback implementation:
+  local lock_dir="/tmp/ag_launch.lock"
+  while ! mkdir "$lock_dir" 2>/dev/null; do sleep 0.2; done
+  echo "$profile ($$)" > "$lock_dir/owner"
+
+  security list-keychains -d user -s "$profile_kc" "/Library/Keychains/System.keychain"
+  security default-keychain -s "$profile_kc"
+  open -n -a "Antigravity IDE" --args --user-data-dir="$ag_home/data" ...
+
+  sleep 1.5 # Synchronous blocking wait
+  security default-keychain -s "$REAL_HOME/Library/Keychains/login.keychain-db"
+  security list-keychains -d user -s "$REAL_HOME/Library/Keychains/login.keychain-db" "/Library/Keychains/System.keychain"
+  rm -rf "$lock_dir"
+  ```
 
 ### Rule 2.5: Hardware Fingerprint & Telemetry Decoupling (Anti-Sybil Defense)
 To prevent Google Cloud Code Assist and Clearcut Telemetry from correlating multiple accounts as a Sybil farm:
@@ -116,6 +130,8 @@ To prevent Google Cloud Code Assist and Clearcut Telemetry from correlating mult
    This prevents Antigravity IDE from transmitting host machine hardware fingerprints, open folder URIs (`backupWorkspaces`), and project paths back to telemetry collection endpoints.
 3. **Trajectory Leak Elimination**:
    Never clone `conversation_summaries.db` or `agyhub_summaries_proto.pb`. On profile initialization, ensure `conversation_summaries.db` only references conversation UUIDs residing in that profile's own `.gemini/antigravity/conversations/` directory.
+4. **Credential User Scope Decoupling**:
+   Every profile MUST have a unique `Library/Application Support/antigravity/credential-user-scope` (`u<16_hex_chars>`). This file is directly read by Google's native `language_server` binary; sharing it across profiles causes Cloud Code completions and telemetry to cross-link accounts.
 
 ### Rule 2.6: Rogue Symlink Elimination & Strict State Independence
 - **Wildcard Danger**: In shell functions and provisioning scripts, NEVER use imprecise wildcards such as `antigravity)` in case statements. An unanchored match will catch `.gemini/antigravity*` and replace profile-specific directories with symlinks to root!

@@ -18,6 +18,7 @@
 
 - **Epic name**: `check_tasks_dashboard`
 - **Status**: In Progress
+- **PIC**: `danhdue`
 - **Target release**: Next plugin release (v1.29.0)
 - **Platform**: Python tooling / agent skill kit
 - **Depends on epic**: `autonomous_lifecycle_runner`

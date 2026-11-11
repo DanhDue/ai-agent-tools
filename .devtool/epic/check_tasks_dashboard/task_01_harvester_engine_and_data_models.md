@@ -1,13 +1,13 @@
 ---
 id: "task_01_harvester_engine_and_data_models"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "check_tasks_dashboard"
 dueDate: null
 created: "2026-11-11T08:30:00Z"
-modified: "2026-11-11T08:30:00Z"
-completedAt: null
+modified: "2026-11-11T06:42:33Z"
+completedAt: "2026-11-11T06:42:33Z"
 labels: ["harvester", "scanner", "data-models"]
 order: "a1"
 ---

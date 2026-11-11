@@ -162,6 +162,115 @@ class TestAuditAccountBlock(unittest.TestCase):
             report_after["profiles"]["p2"]["machine_id"]
         )
 
+    def test_audit_ignores_non_profile_directories(self):
+        # Create a valid profile
+        self._create_mock_profile("valid_prof", machine_id="mid_valid")
+
+        # Create a symlink (e.g. AllProjects -> temp dir)
+        target_dir = os.path.join(self.test_dir.name, "target_projects")
+        os.makedirs(target_dir, exist_ok=True)
+        symlink_path = os.path.join(self.homes_dir, "AllProjects")
+        os.symlink(target_dir, symlink_path)
+
+        # Create hidden directory
+        hidden_dir = os.path.join(self.homes_dir, ".gemini")
+        os.makedirs(hidden_dir, exist_ok=True)
+
+        # Create reserved system directory
+        library_dir = os.path.join(self.homes_dir, "Library")
+        os.makedirs(library_dir, exist_ok=True)
+
+        report = auditor.audit_all_profiles(self.homes_dir)
+        self.assertEqual(report["total_profiles"], 1)
+        self.assertIn("valid_prof", report["profiles"])
+        self.assertNotIn("AllProjects", report["profiles"])
+        self.assertNotIn(".gemini", report["profiles"])
+        self.assertNotIn("Library", report["profiles"])
+
+    def test_audit_detects_proto_summaries_and_missing_terminal_env(self):
+        p_dir = self._create_mock_profile("prof_proto", machine_id="mid_proto")
+        # Add stale proto summaries file
+        pb_path = os.path.join(p_dir, ".gemini/antigravity/agyhub_summaries_proto.pb")
+        with open(pb_path, "w") as f:
+            f.write("mock_proto_data")
+
+        # Create settings.json without AGY_PROFILE
+        settings_dir = os.path.join(p_dir, "data/User")
+        os.makedirs(settings_dir, exist_ok=True)
+        settings_path = os.path.join(settings_dir, "settings.json")
+        with open(settings_path, "w") as f:
+            json.dump({
+                "terminal.integrated.env.osx": {
+                    "HOME": "/Users/mock",
+                    "USER": "mock"
+                }
+            }, f)
+
+        report_before = auditor.audit_all_profiles(self.homes_dir)
+        prof_data = report_before["profiles"]["prof_proto"]
+        self.assertTrue(prof_data["vulnerabilities"]["stale_proto_summaries"])
+        self.assertTrue(prof_data["vulnerabilities"]["missing_terminal_profile_env"])
+        self.assertEqual(prof_data["risk_level"], "HIGH")
+
+        # Remediate
+        auditor.remediate_all_profiles(self.homes_dir)
+
+        # Verify proto removed
+        self.assertFalse(os.path.exists(pb_path))
+
+        # Verify settings repaired with AGY_PROFILE
+        with open(settings_path) as f:
+            repaired_settings = json.load(f)
+            self.assertEqual(
+                repaired_settings.get("terminal.integrated.env.osx", {}).get("AGY_PROFILE"),
+                "prof_proto"
+            )
+
+        report_after = auditor.audit_all_profiles(self.homes_dir)
+        self.assertFalse(report_after["profiles"]["prof_proto"]["vulnerabilities"]["stale_proto_summaries"])
+        self.assertFalse(report_after["profiles"]["prof_proto"]["vulnerabilities"]["missing_terminal_profile_env"])
+
+    def test_audit_detects_and_remediates_credential_user_scopes(self):
+        # Create 2 profiles with shared user scope
+        p1 = self._create_mock_profile("prof_scope_1", machine_id="mid_s1")
+        p2 = self._create_mock_profile("prof_scope_2", machine_id="mid_s2")
+        # Create 1 profile with missing user scope
+        p3 = self._create_mock_profile("prof_scope_3", machine_id="mid_s3")
+
+        shared_scope = "u1122334455667788"
+        for p in [p1, p2]:
+            s_dir = os.path.join(p, "Library/Application Support/antigravity")
+            os.makedirs(s_dir, exist_ok=True)
+            with open(os.path.join(s_dir, "credential-user-scope"), "w") as f:
+                f.write(shared_scope)
+
+        report_before = auditor.audit_all_profiles(self.homes_dir)
+        self.assertIn(shared_scope, report_before["duplicate_user_scopes"])
+        self.assertTrue(report_before["profiles"]["prof_scope_1"]["vulnerabilities"]["cloned_user_scope"])
+        self.assertTrue(report_before["profiles"]["prof_scope_2"]["vulnerabilities"]["cloned_user_scope"])
+        self.assertTrue(report_before["profiles"]["prof_scope_3"]["vulnerabilities"]["missing_user_scope"])
+        self.assertFalse(report_before["is_healthy"])
+
+        # Remediate
+        auditor.remediate_all_profiles(self.homes_dir)
+
+        # Audit after remediation
+        report_after = auditor.audit_all_profiles(self.homes_dir)
+        self.assertEqual(len(report_after["duplicate_user_scopes"]), 0)
+        self.assertFalse(report_after["profiles"]["prof_scope_1"]["vulnerabilities"]["cloned_user_scope"])
+        self.assertFalse(report_after["profiles"]["prof_scope_2"]["vulnerabilities"]["cloned_user_scope"])
+        self.assertFalse(report_after["profiles"]["prof_scope_3"]["vulnerabilities"]["missing_user_scope"])
+
+        scope1 = report_after["profiles"]["prof_scope_1"]["user_scope"]
+        scope2 = report_after["profiles"]["prof_scope_2"]["user_scope"]
+        scope3 = report_after["profiles"]["prof_scope_3"]["user_scope"]
+        self.assertTrue(scope1.startswith("u"))
+        self.assertTrue(scope2.startswith("u"))
+        self.assertTrue(scope3.startswith("u"))
+        self.assertNotEqual(scope1, scope2)
+        self.assertNotEqual(scope1, scope3)
+        self.assertNotEqual(scope2, scope3)
+
 
 if __name__ == "__main__":
     unittest.main()

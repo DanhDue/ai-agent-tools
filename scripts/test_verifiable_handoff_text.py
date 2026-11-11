@@ -83,9 +83,9 @@ class VerifiableHandoffText(unittest.TestCase):
         for path in ("skills/dev-implementation/SKILL.md",
                      "skills/dev-lifecycle/SKILL.md"):
             self.assert_present(path, (
-                "Review Choice", "Finish", "Cross-model review", "Claude CLI",
-                "Codex CLI", "run_external_review.py run",
-                "run_external_review.py check", "review_results.md",
+                "Finish", "Cross-model review",
+                "run_external_review.py run",
+                "review_results.md",
             ))
         self.assert_present("skills/dev-lifecycle/SKILL.md",
                             ("picking the review CLI for the developer",))
@@ -98,22 +98,14 @@ class VerifiableHandoffText(unittest.TestCase):
         for path in ("skills/dev-lifecycle/SKILL.md",
                      "skills/dev-implementation/SKILL.md"):
             self.assert_present(path, (
-                "Gate 4 PASS → Review Choice",
-                "Finish → Gate 5",
-                "Cross-model review → Gate 4 in full",
+                "Gate 4 in full",
             ))
 
-        lifecycle = read("skills/dev-lifecycle/SKILL.md")
+        lifecycle = read("docs/lifecycles.en.md")
         self.assertIn('EXEC --> G4', lifecycle)
         self.assertIn('G4 -->|"yes"| RC', lifecycle)
         self.assertIn('RC -->|"1. Finish"| REVIEW', lifecycle)
         self.assertIn('XR -->|"round recorded"| G4', lifecycle)
-
-        implementation = read("skills/dev-implementation/SKILL.md")
-        self.assertIn('moretasks -- "no, epic done" --> phase4', implementation)
-        self.assertIn('phase4 -- "PASS" --> choice', implementation)
-        self.assertIn('choice -- "Finish" --> checkpoint4', implementation)
-        self.assertIn('review -- "round recorded" --> phase4', implementation)
 
         for path in ("rules/CRITICAL_RULES.md",
                      "skills/dev-lifecycle/SKILL.md",

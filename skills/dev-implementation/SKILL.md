@@ -143,6 +143,7 @@ For rows 4 and 5. Phase 1 step 4's `git worktree add -b` never runs here.
      --tasks .devtool/epic/<epic_dir>/task_*.md
    ```
    Proceed directly to worktree creation (Step 4) and task execution. Do NOT prompt the developer for manual confirmation on execution order. (Halt ONLY on cyclic DAG dependencies, malformed frontmatter, or unresolvable prerequisites).
+   Verify Principal Review state: `python3 "$SKILL_DIR"/resources/scripts/run_external_review.py check --kind principal --epic-dir <epic_dir>`. Principal Review must be `not run`, `round <n>: PASS`, or `round <n>: decided`.
    If needed, add bracketed identifiers to `bdd_scenarios.*.md`, `Covers:` lines to task files, and `Integration test roots:` to HLD. Commit as `[EPIC_NAME] Add BDD scenario identifiers`.
 
    Then check task contract:
@@ -375,7 +376,7 @@ Do NOT ask the developer whether to review or finish at this intermediate point.
 The decision to Finish belongs strictly in Stage 4 (Phase 4.1 / Gate 5), after Cross-Model Review completes.
 </HARD-GATE>
 
-The loop invariant is **Gate 4 Local PASS → Automated Cross-Model Review → Gate 4 in full → Stage 4 Finish Decision (Gate 5)**.
+The loop invariant is **Gate 4 PASS → Review Choice (Automated Cross-model review) → Gate 4 in full → Finish → Gate 5**.
 
 On Gate 4 local PASS:
 1. Record Gate 4 in `.devtool/GATE_LEDGER.md` via `python3 scripts/resume_context.py --gate 4 --epic <epic_slug> --approved "Gate 4 Local PASS (<candidate_sha>)"`, and update state via `python3 scripts/resume_context.py --state --epic <epic_slug> --status "Stage 3: Cross-Model Review"`.
@@ -398,7 +399,7 @@ Once `/cross-model-review` has converged, `@quality_check` reports 🟢 LGTM on 
 1. **Preserve Kanban Visibility**: All completed `task_*.md` files MUST remain in `.devtool/features/done/`.
 2. **Present Executive Summary**: Output summary containing epic slug, worktree path, completed tasks, `@quality_check` verdict, BDD matrix, audit disclosure sections (Evidence, Protected paths, Commits outside tasks, Gate 5 items), and synthesized Executive Review Findings.
 3. 🛑 **MANDATORY STOP & WAIT**: Stop calling tools immediately. Prompt user explicitly:
-   > "All tasks for epic `<epic_slug>` are completed, `@quality_check` is **🟢 LGTM**, and Cross-Model Review has converged.
+   > "All tasks for epic `<epic_slug>` are completed, `@quality_check` is **🟢 LGTM**, and Cross-model review has converged.
    > All task cards are visible in the **DONE** column on your Kanban dashboard.
    > Please review completed tasks and code changes. Reply to proceed with branch integration (Stage 4 Finish)."
 4. **Wait for Gate 5 Confirmation**: Only proceed to Phase 5 when user explicitly approves (then record Gate 5 via `python3 scripts/resume_context.py --gate 5 --epic <epic_slug> --approved "Gate 5 Kanban sign-off"`).

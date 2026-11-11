@@ -17,6 +17,7 @@ SUBCOMMANDS: dict[str, str] = {
     "check-impact": "skills/impact-analysis/resources/scripts/check_code_impact.py",
     "check-quota": "scripts/agy_quota.py",
     "check-readiness": "skills/dev-implementation/resources/scripts/check_epic_readiness.py",
+    "clean-cache": "scripts/clean_antigravity_cache.py",
     "integrate": "skills/finishing-a-development-branch/resources/scripts/integrate_branch.py",
     "package-epic": "skills/dev-implementation/resources/scripts/package_epic.py",
     "quality-check": "skills/quality_check/resources/scripts/verify_polyglot_registry.py",

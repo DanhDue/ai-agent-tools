@@ -16,6 +16,7 @@
 - **Packaged**: <YYYY-MM-DD>
 - **Design commit**: `<sha>` — `HEAD` before the packaging commit, or `uncommitted` when `auto_commit` is false
 - **Base branch**: `<base_branch>`
+- **PIC / Assigned Profile**: `<profile_account_id>` (e.g. `danhdue`, `buivantrong8901`, `huynhminhtien0510`)
 - **Gates passed**: 1 (spec), 2 (HLD and task breakdown)
 - **Next**: Stage 3, `dev-implementation`. Gate 3 (execution order) is automated upon entry.
 
@@ -42,7 +43,7 @@ These are usually different strings. Never derive one from the other.
 Use the d3nexus:dev-implementation skill for the `<epic_slug>` epic.
 Read .devtool/epic/<epic_dir>/handoff.md first.
 Run: python3 scripts/resume_context.py --role programmer --epic <epic_slug>
-Apply the Execution Guardrails for Receiving LLM.
+Apply the Execution Guardrails for Receiving LLM before presenting Gate 3.
 Gates 1 and 2 are passed; do not re-run brainstorming or design.
 Gate 3 (execution order) and worktree creation run automatically. Begin task execution in accordance with the resolved order.
 ```

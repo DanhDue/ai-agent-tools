@@ -476,11 +476,7 @@ def sync_window_title(
         repo_name, ("📁", repo_name.upper(), None)
     )
 
-    account_id = (
-        profile_override
-        or os.environ.get("AGY_PROFILE", "")
-        or os.environ.get("ANTIGRAVITY_PROFILE", "")
-    )
+    account_id = profile_override or ""
 
     homes_dir = Path("/Users/danhdueexoictif/antigravity_homes")
 
@@ -492,22 +488,54 @@ def sync_window_title(
     except Exception:
         settings_data = {}
 
-    if not account_id:
-        primary = resolve_primary_repo_root()
-        current_wt = resolve_current_worktree_root()
-        # 1. If running inside target repo or its worktree, current environment HOME is authoritative
-        is_local = (
-            root.resolve() == primary.resolve()
-            or root.resolve() == current_wt.resolve()
-            or resolve_primary_repo_root(root).resolve() == primary.resolve()
-        )
-        if is_local:
-            home_dir = os.environ.get("HOME", "")
-            if "antigravity_homes" in home_dir:
-                prof_dir = Path(home_dir)
-                account_id = extract_email_id_from_profile(prof_dir) or prof_dir.name
+    epic_slug = epic_slug or resolve_current_epic_slug(root)
 
-        # 2. Foreign repo: first check if an active agy or Antigravity IDE process is attached to that repo
+    # 1. Active Epic PIC / Profile metadata is authoritative SSOT
+    if not account_id and epic_slug and epic_slug != "general":
+        epic_candidates = [
+            root / ".devtool" / "epic" / epic_slug / "handoff.md",
+            root / ".devtool" / "epic" / epic_slug / f"{epic_slug}.en.md",
+            root / ".devtool" / "epic" / epic_slug / f"{epic_slug}.vi.md",
+            primary_for_root / ".devtool" / "epic" / epic_slug / "handoff.md",
+            primary_for_root / ".devtool" / "epic" / epic_slug / f"{epic_slug}.en.md",
+            primary_for_root / ".devtool" / "epic" / epic_slug / f"{epic_slug}.vi.md",
+        ]
+        for cand_f in epic_candidates:
+            if cand_f.is_file():
+                try:
+                    m = re.search(
+                        r"-\s+\*\*(?:PIC|Profile|Assigned Profile|Người phụ trách(?: \(PIC\))?)\*\*:\s*`?([a-zA-Z0-9_\-]+)`?",
+                        cand_f.read_text(encoding="utf-8"),
+                        re.IGNORECASE,
+                    )
+                    if m:
+                        account_id = m.group(1).strip()
+                        break
+                except Exception:  # noqa: S110
+                    pass
+
+    if not account_id:
+        account_id = (
+            os.environ.get("AGY_PROFILE", "")
+            or os.environ.get("ANTIGRAVITY_PROFILE", "")
+        )
+
+        # 2. Local environment fallback: if running inside target repo and no explicit epic PIC
+        if not account_id:
+            primary = resolve_primary_repo_root()
+            current_wt = resolve_current_worktree_root()
+            is_local = (
+                root.resolve() == primary.resolve()
+                or root.resolve() == current_wt.resolve()
+                or resolve_primary_repo_root(root).resolve() == primary.resolve()
+            )
+            if is_local:
+                home_dir = os.environ.get("HOME", "")
+                if "antigravity_homes" in home_dir:
+                    prof_dir = Path(home_dir)
+                    account_id = extract_email_id_from_profile(prof_dir) or prof_dir.name
+
+        # 3. Foreign repo: check if an active agy or Antigravity IDE process is attached to that repo
         if not account_id:
             try:
                 ps_out = subprocess.check_output(["ps", "-eo", "command"], text=True)
@@ -1455,7 +1483,13 @@ def sync_shell_env(
     profiles_dir = r_home / "antigravity_homes"
     if profiles_dir.exists():
         for prof in sorted(profiles_dir.iterdir()):
-            if prof.is_dir():
+            if (
+                prof.is_dir()
+                and not prof.is_symlink()
+                and not prof.name.startswith(".")
+                and not prof.name.startswith("-")
+                and prof.name not in {"Library", "System", "Shared", "AllProjects", "Projects", "fvm", "claude", "codex", "kiro"}
+            ):
                 merge_profile_history(prof / ".zsh_history", main_hist, seen_cmds)
                 sync_profile_symlinks(prof, main_hist, ws_root)
                 synced_profiles.append(prof.name)

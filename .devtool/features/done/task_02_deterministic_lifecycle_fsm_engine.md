@@ -1,13 +1,13 @@
 ---
 id: "task_02_deterministic_lifecycle_fsm_engine"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "check_tasks_dashboard"
 dueDate: null
 created: "2026-11-11T08:30:00Z"
-modified: "2026-11-11T08:30:00Z"
-completedAt: null
+modified: "2026-11-11T06:46:14Z"
+completedAt: "2026-11-11T06:46:14Z"
 labels: ["fsm", "lifecycle", "governance"]
 order: "a2"
 ---
