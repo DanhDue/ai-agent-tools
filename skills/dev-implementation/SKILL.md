@@ -7,9 +7,9 @@ description: Use when an epic already has an approved HLD and Kanban task files 
 
 ## Overview
 
-Runs an already-approved epic's Kanban tasks end-to-end: reload the epic's own docs for context, detect the platform (Flutter, Android Native, iOS Native, Web, Python, or Rust), compute a dependency-safe execution order, bootstrap one worktree that can actually build this project, then drive each task sequentially through `d3nexus:subagent-driven-development` with exactly one commit per task.
+Runs an already-approved epic's Kanban tasks end-to-end: reload the epic's own docs for context, detect the platform (Flutter, Android Native, iOS Native, Web, Python, or Rust), compute a dependency-safe execution order with parallel batches, bootstrap the main epic worktree with an isolated 2-slot ephemeral worker pool, then orchestrate tasks with sub-agents—running independent tasks in parallel with zero storage overhead via APFS clone / shared cache.
 
-**Core principle:** One worktree, one task at a time, one commit per task, docs stay truthful.
+**Core principle:** AI Programmer acts as Implementation Orchestrator. 2-slot ephemeral worker pool + shared cache for parallel execution; one commit per task, docs stay truthful.
 
 **Announce at start:** "I'm using the dev-implementation skill to implement the `<epic_slug>` epic."
 
@@ -121,9 +121,9 @@ For rows 4 and 5. Phase 1 step 4's `git worktree add -b` never runs here.
 
 1. Run:
    ```bash
-   python3 "$SKILL_DIR"/resources/scripts/compute_execution_order.py <epic_slug>
+   python3 "$SKILL_DIR"/resources/scripts/compute_execution_order.py <epic_slug> --parallel
    ```
-   Check scan summary line (`Scanned N task_*.md files; M matched epic ...`). If `M` is smaller than expected, fix broken frontmatter before proceeding.
+   Check scan summary line (`Scanned N task_*.md files; M matched epic ...`). If `M` is smaller than expected, fix broken frontmatter before proceeding. Inspect the computed parallel batches.
 2. Read "Manual review advised" section (if any) and cross-check against Phase 0 context. Adjust flattened order by hand if a prose note should win.
 3. **Automated Gate 3 Bootstrap (Zero Manual Confirmation):**
    The AI Assistant computes and resolves the execution order automatically via `compute_execution_order.py`.
@@ -173,10 +173,29 @@ For rows 4 and 5. Phase 1 step 4's `git worktree add -b` never runs here.
    ```
 5. Bootstrap worktree using platform tooling (`bootstrap_worktree.sh`, Gradle sync, Tuist, npm/pnpm, uv sync, cargo check).
 6. Never copy build caches (`.dart_tool/`, `/build/`, `.build/`, `android/**/.cxx/`) from another checkout into this worktree.
+7. **Initialize 2-Slot Ephemeral Worker Pool:**
+   Set up isolated worktree slots with shared caches (APFS clone / symlink):
+   ```bash
+   python3 "$SKILL_DIR"/resources/scripts/manage_worker_pool.py init --epic-dir <epic_dir> --epic-slug <epic_slug>
+   ```
 
-### Phase 2 — Sequential Task Execution
+### Phase 2 — Parallel Task Execution (AI Programmer as Orchestrator)
 
-For each task in confirmed order, follow `d3nexus:subagent-driven-development`.
+The AI Programmer acts as the **Implementation Orchestrator**, coordinating execution across a **2-Slot Ephemeral Worker Pool** with shared cache.
+
+#### 2-Slot Ephemeral Worker Pool
+- **Main Worktree**: `.worktrees/<epic_dir>` (`epic/<epic_slug>`) holds canonical build tooling and base dependencies.
+- **Worker Slots**: `.worktrees/<epic_dir>-slot-1` and `...-slot-2`. Caches (`node_modules`, `.venv`, `.gradle`, `target`, `.dart_tool`) are symlinked or APFS-cloned (`cp -c -R`) with **0 byte storage overhead**.
+- **Pool CLI**:
+  - Init: `python3 "$SKILL_DIR"/resources/scripts/manage_worker_pool.py init --epic-dir <epic_dir> --epic-slug <epic_slug>`
+  - Sync: `python3 "$SKILL_DIR"/resources/scripts/manage_worker_pool.py sync --epic-dir <epic_dir> --epic-slug <epic_slug> --slot <1|2>`
+  - Merge: `python3 "$SKILL_DIR"/resources/scripts/manage_worker_pool.py merge --epic-dir <epic_dir> --epic-slug <epic_slug> --slot <1|2> --task <task_id>`
+  - Cleanup: `python3 "$SKILL_DIR"/resources/scripts/manage_worker_pool.py cleanup --epic-dir <epic_dir> --epic-slug <epic_slug>`
+
+#### Orchestration Workflow per Layer
+1. **Parallel Slots**: For 2-task parallel batches from `compute_execution_order.py --parallel`, dispatch 2 implementers into Slot 1 and Slot 2 concurrently. For 1-task batches, dispatch to Slot 1. Isolated worktrees prevent compiler or test collision.
+2. **Sequential Merge**: As each task finishes, verify (`run_task_checks.py verify <task mirror>`), merge into main worktree (`manage_worker_pool.py merge`), update dual-workspace status (`sync_task_status.py task <task_id> done`), and sync slot (`manage_worker_pool.py sync`).
+3. **Layer Barrier & Cleanup**: Run hermetic sanity tests on main worktree after each layer. Run `manage_worker_pool.py cleanup` after all layers complete before Phase 4.
 
 #### Headless & Autonomous Task Execution
 In Autonomous Mode (`/dev-lifecycle --autonomous`), `lifecycle_runner.py` dispatches Role 2.3 (AI Programmer: `gemini-3.8-flash --effort high --mode auto`) in an isolated process group (`start_new_session=True`) with SIGTERM/SIGKILL supervision, per-task logs, and commits (`[<EPIC_NAME>] Execute <task_slug>`).
@@ -206,22 +225,15 @@ In Autonomous Mode (`/dev-lifecycle --autonomous`), `lifecycle_runner.py` dispat
 
    #### Anti-Rationalization and Doubt-Driven Verification
 
-   During implementation, coding agents must actively guard against rationalizations that cut testing corners:
-
-   | Agent Rationalization | Enforced Counter-Rule |
-   | :--- | :--- |
-   | "A Node.js test is sufficient to prove this web UI feature works." | **REJECTED**: Node tests prove only pure data logic. Web defects occur in DOM queries and CSS rendering. Tier C requires headless Playwright execution with Zero-Console-And-Layout-Defect Watchdog. |
-   | "This component is simple; hardcoding mock data in a stub is enough." | **REJECTED**: Method-level stubs bypass JSON deserialization and network interceptors. Wire-level fixtures from `shared-contracts/` are mandatory. |
-   | "The red errors in the browser console are just harmless warnings." | **REJECTED**: The Zero-Console-Error rule fails Gate 4 on any browser console error or uncaught exception. |
-   | "I cannot launch a mobile simulator, so I will write a unit test instead." | **REJECTED**: Mobile Tier C requires Subcutaneous Testing with real DI and in-memory persistence. Pure unit tests cannot be tagged as Tier C. |
-   | "I ported the HTML structure and JS logic from the Visual Companion mockup, and the DOM selectors match in Playwright." | **REJECTED**: Porting HTML/JS without verifying computed CSS styles results in unstyled layouts. Tier C2 tests for UI components MUST assert `getComputedStyle` and `getBoundingClientRect` (non-zero dimensions, display mode, and mutually exclusive state visibility, respecting standard clipped `.sr-only` accessibility patterns) against the Visual Companion design. |
+   Reject rationalizations that cut testing corners:
+   - **"Node test is sufficient for web UI"**: REJECTED. Node tests prove only pure data logic. Web defects occur in DOM queries and CSS rendering. Tier C requires headless Playwright with Zero-Console-Error watchdog.
+   - **"Mock data in stub is enough"**: REJECTED. Method stubs bypass JSON deserialization and network interceptors. Wire fixtures from `shared-contracts/` are mandatory.
+   - **"Red console errors are harmless warnings"**: REJECTED. Zero-Console-Error rule fails Gate 4 on any browser console error.
+   - **"Cannot launch simulator, unit test instead"**: REJECTED. Mobile Tier C requires subcutaneous testing with real DI and in-memory persistence.
+   - **"HTML ported from mockup, selectors match"**: REJECTED. Tier C2 UI tests MUST assert computed styles (`getComputedStyle`, non-zero dimensions) against mockup.
 
    **Doubt-Driven Verification Protocol**:
-   Before claiming done on any task:
-   1. `CLAIM`: Identify the test assertions claiming Tier C coverage.
-   2. `EXTRACT`: Inspect test reports and runner provenance.
-   3. `DOUBT`: Ask whether mocks hide runtime DI/DOM integration failures.
-   4. `RECONCILE`: Run real headless Playwright or subcutaneous integration tests.
+   Before claiming done on any task: `CLAIM` Tier C coverage -> `EXTRACT` test reports -> `DOUBT` mock isolation -> `RECONCILE` real headless/subcutaneous tests.
 
    > [!CRITICAL]
    > ### 🎯 MANDATORY 100% BDD-TO-TEST TRACEABILITY RULE
@@ -386,8 +398,8 @@ python3 "$SKILL_DIR"/resources/scripts/run_external_review.py run \
   --epic-dir <epic_dir> --base <base_ref> --auto-quota
 ```
 3. Commit `review_results.md` after every round (`[EPIC_NAME] Record cross-model review round N`). After every round, run `python3 "$SKILL_DIR"/resources/scripts/run_external_review.py triage --epic-dir <epic_dir>`, fill it as [review-triage.md](references/review-triage.md) says, and inspect `## Auto-Triage Gate` (`AUTO_PASS_FINAL_MINOR_SWEEP`, `AUTO_FIX_ELIGIBLE`, `CIRCUIT_BREAKER_HALT`):
-   - **`AUTO_PASS_CLEAN` or `AUTO_PASS_FINAL_MINOR_SWEEP`**: Apply minor fixes if any, re-run Gate 4 in full green, and complete the review stage.
-   - **`AUTO_FIX_ELIGIBLE`**: Role 2.3 (AI Programmer) applies verified fixes, commits `[<EPIC_NAME>] Fix <what>`, records `fixed in <sha>`, commits decisions, automatically re-runs Gate 4 in full green, and advances to the next review round (up to max 3 rounds).
+   - **`AUTO_PASS_CLEAN` or `AUTO_PASS_FINAL_MINOR_SWEEP`**: Apply minor fixes if any, re-run full Gate 4 machine acceptance green (Final Convergence Gate), and complete the review stage.
+   - **`AUTO_FIX_ELIGIBLE`**: Role 2.3 (AI Programmer) applies verified fixes, commits `[<EPIC_NAME>] Fix <what>`, records `fixed in <sha>`, commits decisions, runs **scoped tests only** (fast static checks and explicitly targeted unit tests covering modified modules; repo-wide pytest and Playwright E2E suites forbidden), and advances to the next review round (up to max 3 rounds). Full Gate 4 is reserved strictly for the Final Convergence Gate.
    - **`CIRCUIT_BREAKER_HALT`**: Halts cleanly and alerts Human Architect only if `SHARED_CONTRACT_CONFLICT`, `FIX_LOOP`, or remaining Critical findings after Round 3 occur.
 4. Once `/cross-model-review` completes (converged with 0 Critical findings) and Gate 4 passes on the latest candidate SHA:
    - Present the synthesized `## Top 3 Highest-Risk Findings (Executive Report)`.

@@ -80,8 +80,8 @@ Every review round is triaged and verified against active code and the approved 
 2. **Verify Against Code & Approved Design (`d3nexus:receiving-code-review`)**:
    - Inspect exact files/lines and anchor strictly to the approved HLD, `bdd_scenarios.en.md`, and `Decisions Already Made`. Fill `## Top 3 Highest-Risk Findings (Executive Report)` and `## Findings` (`Valid`, `Debatable`, `False positive`, `Not shown`).
 3. **Execute Auto-Triage Gate or Present Triage**:
-   - **`AUTO_PASS_CLEAN` / `AUTO_PASS_FINAL_MINOR_SWEEP` / `AUTO_PASS_FINAL_SWEEP` (Round 3 with `0 Critical`)**: Fix any valid non-critical items in a single sweep, run Gate 4 green, and finish without calling another review round.
-   - **`AUTO_FIX_ELIGIBLE` (Round 1..2 with `Critical`/`Important`, no `shared-contracts/` conflict, no Fix Loop)**: In autonomous mode (`lifecycle_runner.py`), the AI Programmer drafts `fix_plan_round<N>.md`. Role 2.2 (AI Assistant) evaluates the fix plan against approved HLD specifications emitting `APPROVED`, `ADJUSTED`, or `CRITICAL_CONFLICT`. Upon approval or adjustment, Role 2.3 applies fixes, commits them, records `fixed in <sha>`, runs Gate 4 in full, and advances to Round N+1. If `CRITICAL_CONFLICT` or `SHARED_CONTRACT_CONFLICT` is detected, the runner halts immediately for the Human Architect. In interactive mode, present the 4-bullet header block and wait for developer decisions:
+   - **`AUTO_PASS_CLEAN` / `AUTO_PASS_FINAL_MINOR_SWEEP` / `AUTO_PASS_FINAL_SWEEP` (Round 3 with `0 Critical`)**: Fix any valid non-critical items in a single sweep, run full Gate 4 machine acceptance green (Final Convergence Gate), and finish without calling another review round.
+   - **`AUTO_FIX_ELIGIBLE` (Round 1..2 with `Critical`/`Important`, no `shared-contracts/` conflict, no Fix Loop)**: In autonomous mode (`lifecycle_runner.py`), the AI Programmer drafts `fix_plan_round<N>.md`. Role 2.2 (AI Assistant) evaluates the fix plan against approved HLD specifications emitting `APPROVED`, `ADJUSTED`, or `CRITICAL_CONFLICT`. Upon approval or adjustment, Role 2.3 applies fixes, commits them, records `fixed in <sha>`, runs **scoped tests only** (fast static/architecture checks and targeted unit tests covering modified modules; repo-wide pytest and Playwright E2E suites forbidden), and advances to Round N+1. Full Gate 4 is reserved strictly for the Final Convergence Gate. If `CRITICAL_CONFLICT` or `SHARED_CONTRACT_CONFLICT` is detected, the runner halts immediately for the Human Architect. In interactive mode, present the 4-bullet header block and wait for developer decisions:
      ```markdown
      Cross-Model Review Triage: Round <N> (<CLI>)
 
@@ -92,13 +92,27 @@ Every review round is triaged and verified against active code and the approved 
      ```
    - **`CIRCUIT_BREAKER_HALT` (`SHARED_CONTRACT_CONFLICT` in any round, `FIX_LOOP`, or `MAX_ROUNDS_CRITICAL_REMAINING` when `>= 1 Critical` survives Round 3)**: **STOP IMMEDIATELY**, never auto-fix or revert user-approved HLD decisions, and report `## Top 3 Highest-Risk Findings (Executive Report)` to the Human Architect.
 
-5. **Commit Fixes, Record Decisions & Automatically Re-Run Gate 4**:
+5. **Commit Fixes, Record Decisions & Final Gate Verification**:
    - When applying fixes (via `AUTO_FIX_ELIGIBLE` / `AUTO_PASS_FINAL_MINOR_SWEEP` or after developer confirmation), make each fix in its own commit: `[<EPIC_NAME>] Fix <what>`.
    - Update each Decision cell in `review_results.md`: `fixed in <sha>` or `dismissed: <reason>` in developer's exact words.
    - Commit decisions: `[<EPIC_NAME>] Record review decisions for round <n>`.
-   - **Automatically re-run Gate 4 machine acceptance in full** on the new candidate SHA without asking for a separate confirmation before running Gate 4.
+   - **Intermediate Rounds (Round 1, Round 2...)**: Run **scoped tests only** (`uv run pytest <test_file.py>` covering modified modules, fast static checks). Strictly forbid repo-wide pytest discovery, `tests/e2e/`, and piping to `| tail`.
+   - **Final Convergence Gate Only**: Once Cross-Model Review converges (`AUTO_PASS_CLEAN`, `AUTO_PASS_FINAL_MINOR_SWEEP`, or `AUTO_PASS_FINAL_SWEEP` with 0 Critical findings), **automatically re-run Gate 4 machine acceptance in full** (full regression suite, Playwright E2E browser harness, and `@quality_check` artifact regeneration) on the new candidate SHA without asking for a separate confirmation.
    - Record state via `python3 scripts/resume_context.py --state --epic <epic_slug> --status "Stage 4: Awaiting Finish"` and emit next prompt via `python3 scripts/resume_context.py --emit-prompt finish --epic <epic_slug>`.
-   - Once Cross-Model Review converges (`AUTO_PASS_CLEAN`, `AUTO_PASS_FINAL_MINOR_SWEEP`, or `AUTO_PASS_FINAL_SWEEP`) and Gate 4 is green on candidate SHA: render the synthesized `## Top 3 Highest-Risk Findings (Executive Report)` and stop calling tools to prompt the Human Architect for the **Stage 4 Finish Decision** (Gate 5 Sign-off) and Git merge strategy selection.
+   - Once Gate 4 is green on candidate SHA: render the synthesized `## Top 3 Highest-Risk Findings (Executive Report)` and stop calling tools to prompt the Human Architect for the **Stage 4 Finish Decision** (Gate 5 Sign-off) and Git merge strategy selection.
+
+## ⚡ Remediation Loop & Test Execution Protocol (Hard Constraints)
+
+1. **Scoped Tests Only During Intermediate Fix Rounds (Round 1, Round 2...)**:
+   - While fixing findings in intermediate rounds, run **ONLY** fast static/architecture checks (`ruff`, `mypy`, `lint-imports`, AST invariants) and **explicitly targeted test files** that directly cover modified modules:
+     `uv run pytest <explicit_test_file_1.py> <explicit_test_file_2.py>`
+   - **STRICTLY FORBIDDEN IN INTERMEDIATE ROUNDS**: Do NOT run repo-wide `pytest` discoveries (even with `-m "not slow..."`), do NOT run `tests/e2e/` browser suites, and do NOT pipe unfiltered repo-wide test runs into `| tail` (which hides hanging browser/SSE sockets).
+   - **FINAL GATE ONLY**: Reserve the full regression suite, Playwright E2E browser harness, and full `quality_check` artifact regeneration strictly for the **Final Convergence Gate** after all code findings are resolved.
+
+2. **Zero-Tolerance Anti-Evasion Rules (No Shortcut Fixes)**:
+   - **No Dependency/Artifact Deletion**: Never resolve an unlocked dependency finding by removing the required package from `pyproject.toml`, and never resolve a stale quality report finding by simply deleting the report without regenerating it. If `uv.lock` is blocked by task scope rules, explicitly add `uv.lock` to the task's `Allowed files` and run `uv lock`.
+   - **No Synthesized Fallback Fixtures**: When a finding flags fake/generated test data, do not replace it with another runtime generator. Load genuine immutable fixtures from disk and fail hard when missing.
+   - **Browser Binary Synchronization**: Whenever `playwright` is added or upgraded in `pyproject.toml` / `uv.lock`, immediately run `uv run playwright install chromium` before invoking any browser E2E check.
 
 ## References
 

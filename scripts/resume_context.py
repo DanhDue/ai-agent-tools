@@ -478,7 +478,7 @@ def sync_window_title(
 
     account_id = profile_override or ""
 
-    homes_dir = Path("/Users/danhdueexoictif/antigravity_homes")
+    homes_dir = _real_home() / "antigravity_homes"
 
     existing_title = ""
     try:
@@ -1457,12 +1457,18 @@ def sync_profile_symlinks(prof: Path, main_hist: Path, ws_root: Path) -> None:
             p_link.symlink_to(ws_root)
 
 
+def _real_home() -> Path:
+    """Host user's real HOME, derived (never hard-coded); strips /antigravity_homes/<profile> when inside a profile."""
+    home = os.environ.get("REAL_HOME") or str(Path.home())
+    return Path(home.split("/antigravity_homes")[0]) if "/antigravity_homes" in home else Path(home)
+
+
 def sync_shell_env(
     real_home: Path | None = None,
     workspace_root: Path | None = None,
 ) -> dict[str, object]:
-    r_home = real_home or Path("/Users/danhdueexoictif")
-    ws_root = workspace_root or Path("/Users/danhdueexoictif/AllProjects")
+    r_home = real_home or _real_home()
+    ws_root = workspace_root or _real_home() / "AllProjects"
     zshrc_path = r_home / ".zshrc"
     main_hist = r_home / ".zsh_history"
 
@@ -1708,7 +1714,7 @@ def main() -> None:
             base_dir = (
                 target_root.parent
                 if (target_root.parent / "ai-agent-tools").exists()
-                else Path("/Users/danhdueexoictif/AllProjects")
+                else _real_home() / "AllProjects"
             )
             for rname in REPOS:
                 rpath = base_dir / rname

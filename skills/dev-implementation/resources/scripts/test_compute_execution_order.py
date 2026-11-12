@@ -10,13 +10,34 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from compute_execution_order import compute_layers, load_tasks, parse_blockers, parse_soft_notes, scan_tasks
+from compute_execution_order import (
+    compute_layers,
+    compute_parallel_batches,
+    load_tasks,
+    main,
+    parse_allowed_files,
+    parse_blockers,
+    parse_soft_notes,
+    scan_tasks,
+)
 
 
-def write_task(directory: Path, filename: str, *, epic: str, priority: str, title: str, dependencies_body: str) -> None:
+def write_task(
+    directory: Path,
+    filename: str,
+    *,
+    epic: str,
+    priority: str,
+    title: str,
+    dependencies_body: str,
+    allowed_files: list[str] | None = None,
+) -> None:
+    files_section = ""
+    if allowed_files is not None:
+        files_section = "\n## Files\n\nAllowed files:\n" + "\n".join(f"- `{f}`" for f in allowed_files) + "\n"
     (directory / filename).write_text(
         f'---\nid: "{filename[:-3]}"\nstatus: "todo"\npriority: "{priority}"\nepic: "{epic}"\n---\n'
-        f"# {title}\n\n## Dependencies & Blockers\n{dependencies_body}\n"
+        f"# {title}\n\n## Dependencies & Blockers\n{dependencies_body}\n{files_section}"
     )
 
 
@@ -159,6 +180,98 @@ class ComputeLayersTests(unittest.TestCase):
             tasks = load_tasks(directory, "demo")
             with self.assertRaises(ValueError):
                 compute_layers(tasks)
+
+
+class ParseAllowedFilesTests(unittest.TestCase):
+    def test_parse_allowed_files_single_and_multiple(self):
+        text = "## Files\n\nAllowed files:\n- `src/core.py`\n- `tests/test_core.py` (new)\n\nRead-only context:\n- `src/base.py`\n"
+        files = parse_allowed_files(text)
+        self.assertEqual(files, ["src/core.py", "tests/test_core.py"])
+
+    def test_parse_allowed_files_empty_when_no_section(self):
+        text = "# Task 1: Demo\n\n## Summary\nJust a task\n"
+        self.assertEqual(parse_allowed_files(text), [])
+
+
+class ComputeParallelBatchesTests(unittest.TestCase):
+    def test_disjoint_tasks_batched_together(self):
+        tasks = {
+            "task_1": {
+                "id": "task_1",
+                "priority": "high",
+                "allowed_files": ["src/a.py"],
+            },
+            "task_2": {
+                "id": "task_2",
+                "priority": "medium",
+                "allowed_files": ["src/b.py"],
+            },
+        }
+        layers = [["task_1", "task_2"]]
+        batches = compute_parallel_batches(layers, tasks, pool_size=2)
+        # Both tasks should be in the same batch since files are disjoint and pool_size is 2
+        self.assertEqual(batches, [[["task_1", "task_2"]]])
+
+    def test_conflicting_tasks_split_into_separate_batches(self):
+        tasks = {
+            "task_1": {
+                "id": "task_1",
+                "priority": "high",
+                "allowed_files": ["src/shared.py", "src/a.py"],
+            },
+            "task_2": {
+                "id": "task_2",
+                "priority": "medium",
+                "allowed_files": ["src/shared.py", "src/b.py"],
+            },
+        }
+        layers = [["task_1", "task_2"]]
+        batches = compute_parallel_batches(layers, tasks, pool_size=2)
+        # Even though they are in the same layer, file conflict forces separate sequential batches
+        self.assertEqual(batches, [[["task_1"], ["task_2"]]])
+
+    def test_pool_size_limits_batch_size(self):
+        tasks = {
+            "task_1": {"id": "task_1", "priority": "high", "allowed_files": ["src/a.py"]},
+            "task_2": {"id": "task_2", "priority": "high", "allowed_files": ["src/b.py"]},
+            "task_3": {"id": "task_3", "priority": "medium", "allowed_files": ["src/c.py"]},
+        }
+        layers = [["task_1", "task_2", "task_3"]]
+        batches = compute_parallel_batches(layers, tasks, pool_size=2)
+        self.assertEqual(batches, [[["task_1", "task_2"], ["task_3"]]])
+
+
+class MainParallelCliTests(unittest.TestCase):
+    def test_cli_parallel_and_json_modes(self):
+        import io
+        import json
+        from contextlib import redirect_stdout
+
+        with tempfile.TemporaryDirectory() as tmp:
+            directory = Path(tmp)
+            write_task(directory, "task_1_a.md", epic="demo", priority="high", title="Task 1: A",
+                       dependencies_body="- **Dependencies**: None.", allowed_files=["src/a.py"])
+            write_task(directory, "task_2_b.md", epic="demo", priority="high", title="Task 2: B",
+                       dependencies_body="- **Dependencies**: None.", allowed_files=["src/b.py"])
+
+            # Test JSON mode
+            buf = io.StringIO()
+            with redirect_stdout(buf):
+                exit_code = main(["demo", "--json", "--features-dir", str(directory)])
+            self.assertEqual(exit_code, 0)
+            data = json.loads(buf.getvalue())
+            self.assertEqual(data["epic"], "demo")
+            self.assertEqual(data["tasks_count"], 2)
+            self.assertEqual(data["parallel_batches"], [[["task_1_a", "task_2_b"]]])
+
+            # Test Parallel text mode
+            buf_text = io.StringIO()
+            with redirect_stdout(buf_text):
+                exit_code = main(["demo", "--parallel", "--features-dir", str(directory)])
+            self.assertEqual(exit_code, 0)
+            text_output = buf_text.getvalue()
+            self.assertIn("Parallel execution plan for epic 'demo'", text_output)
+            self.assertIn("Parallel (Slots 1-2)", text_output)
 
 
 class RealLoggingRefactorEpicTests(unittest.TestCase):

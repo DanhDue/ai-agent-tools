@@ -1048,6 +1048,35 @@ class LifecycleRunner:
 
         return True, "Gate 4 PASS"
 
+    def run_intermediate_check(self) -> tuple[bool, str]:
+        """Execute fast scoped checks during intermediate review-remediation rounds.
+
+        Enforces Scoped Tests Protocol:
+        - Only fast static checks and review decisions check.
+        - Strictly forbids full Gate 4, repo-wide pytest discoveries, and Playwright E2E suites.
+        - Full regression and machine acceptance run strictly at Final Convergence Gate.
+        """
+        review_script = (
+            self.root
+            / "skills"
+            / "dev-implementation"
+            / "resources"
+            / "scripts"
+            / "run_external_review.py"
+        )
+        if review_script.is_file():
+            chk_res = subprocess.run(
+                [sys.executable, str(review_script), "check", "--epic-dir", self.epic_slug, "--kind", "code"],
+                cwd=self.root,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if chk_res.returncode != 0:
+                err = chk_res.stderr.strip() or chk_res.stdout.strip() or f"exit code {chk_res.returncode}"
+                return False, f"Review decisions check failed: {err}"
+        return True, "Intermediate scoped check PASS"
+
     def _draft_fix_plan(self, round_num: int, triage_stdout: str) -> str:
         """Draft fix plan markdown file for the given review round via AI Programmer dispatch."""
         file = self.root / ".devtool" / "epic" / self.epic_slug / f"fix_plan_round{round_num}.md"
@@ -1295,10 +1324,10 @@ class LifecycleRunner:
                 )
                 self._record_review_decisions(round_num)
 
-                # Run Gate 4 verification
-                gate4_ok, msg = self.run_gate4()
-                if not gate4_ok:
-                    self.state.last_error = f"Gate 4 failed after round {round_num} fixes: {msg}"
+                # Run intermediate scoped verification (reserve full Gate 4 for final convergence)
+                scoped_ok, msg = self.run_intermediate_check()
+                if not scoped_ok:
+                    self.state.last_error = f"Intermediate scoped check failed after round {round_num} fixes: {msg}"
                     self.save_state()
 
         self.state.active_stage = StageName.HALTED.value

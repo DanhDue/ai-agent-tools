@@ -33,12 +33,27 @@ Every review round — Claude CLI, Codex CLI, Antigravity CLI or a local Ollama 
    • Thinking Level: <Light | Low | Medium | High | Extra High | None>
    • Verdict: <VERDICT> (<count> <Severity> findings)
    ```
-   - **`AUTO_PASS_CLEAN` (`0 findings`)** or **`AUTO_PASS_FINAL_MINOR_SWEEP` (`0 Critical`, `0 Important`, only `Minor` findings)**: Fix any valid `Minor` items in a single sweep, run Gate 4 green, and complete the review stage without calling the external CLI again.
-   - **`AUTO_FIX_ELIGIBLE` (Round 1..2 with `Critical`/`Important` findings, no `shared-contracts/` conflict, and no Fix Loop)**: In autonomous `/dev-lifecycle` mode, when all blocking findings are verified as `Valid` in source and do not conflict with `shared-contracts/`, apply the fixes, record `fixed in <sha>`, run Gate 4 in full, and proceed to the next convergence round (up to max 3 rounds). In interactive mode (or when any finding is `Debatable` / `False positive`), wait until the developer decides each finding.
+   - **`AUTO_PASS_CLEAN` (`0 findings`)** or **`AUTO_PASS_FINAL_MINOR_SWEEP` (`0 Critical`, `0 Important`, only `Minor` findings)**: Fix any valid `Minor` items in a single sweep, run full Gate 4 machine acceptance green (Final Convergence Gate), and complete the review stage without calling the external CLI again.
+   - **`AUTO_FIX_ELIGIBLE` (Round 1..2 with `Critical`/`Important` findings, no `shared-contracts/` conflict, and no Fix Loop)**: In autonomous `/dev-lifecycle` mode, when all blocking findings are verified as `Valid` in source and do not conflict with `shared-contracts/`, apply the fixes, record `fixed in <sha>`, validate with **scoped tests only** (fast static checks and explicitly targeted unit tests covering modified modules; repo-wide pytest and Playwright E2E suites forbidden), and proceed to the next convergence round (up to max 3 rounds). Full Gate 4 is reserved strictly for the Final Convergence Gate. In interactive mode (or when any finding is `Debatable` / `False positive`), wait until the developer decides each finding.
    - **`CIRCUIT_BREAKER_HALT (SHARED_CONTRACT_CONFLICT)`**: Triggered immediately in **any round** if a `Critical`/`Important` finding conflicts with `shared-contracts/`. Stop calling tools immediately and report to the Human Architect (never auto-fix or revert the user-approved HLD design).
    - **`CIRCUIT_BREAKER_HALT (FIX_LOOP)`**: Triggered if a file marked `fixed in <sha>` in Round $N-1$ is re-reported with a `Critical`/`Important` finding in Round $N$. Stop calling tools immediately and report to the Human Architect.
    - **`CIRCUIT_BREAKER_HALT (MAX_ROUNDS_CRITICAL_REMAINING)`**: Triggered if after **3 rounds (`Round >= 3`) any `Critical` finding still remains**. Stop calling tools immediately and report the `Top 3 Highest-Risk Findings` to the Human Architect.
-   - **`AUTO_PASS_FINAL_SWEEP` (Round 3 with `0 Critical` findings, no `shared-contracts/` conflict, and no Fix Loop)**: Apply one final fix pass for remaining valid `Important`/`Minor` items, run Gate 4 green, and complete the stage without a 4th round.
+   - **`AUTO_PASS_FINAL_SWEEP` (Round 3 with `0 Critical` findings, no `shared-contracts/` conflict, and no Fix Loop)**: Apply one final fix pass for remaining valid `Important`/`Minor` items, run full Gate 4 machine acceptance green, and complete the stage without a 4th round.
+
+## ⚡ Remediation Loop & Test Execution Protocol (HARD CONSTRAINTS)
+
+To prevent multi-minute test hangs, token waste, and incomplete/evasive fixes during review-remediation cycles, both the Orchestrator and Fixer/Implementer agents MUST strictly obey the following rules:
+
+1. **SCOPED TESTS ONLY DURING INTERMEDIATE FIX ROUNDS (Round 1, Round 2...):**
+   - While fixing findings in intermediate rounds, run **ONLY** fast static/architecture checks (`ruff`, `mypy`, `lint-imports`, AST invariants) and **explicitly targeted test files** that directly cover the modified modules:
+     `uv run pytest <explicit_test_file_1.py> <explicit_test_file_2.py>`
+   - **STRICTLY FORBIDDEN IN INTERMEDIATE ROUNDS:** Do NOT run repo-wide `pytest` discoveries (even with `-m "not slow..."`), do NOT run `tests/e2e/` browser suites, and do NOT pipe unfiltered repo-wide test runs into `| tail` (which hides hanging browser/SSE sockets).
+   - **FINAL GATE ONLY:** Reserve the full regression suite, Playwright E2E browser harness, and full `quality_check` artifact regeneration strictly for the **Final Convergence Gate** after all code findings are resolved.
+
+2. **ZERO-TOLERANCE ANTI-EVASION RULES (NO SHORTCUT FIXES):**
+   - **No Dependency/Artifact Deletion:** Never resolve an unlocked dependency finding by removing the required package from `pyproject.toml`, and never resolve a stale quality report finding by simply deleting the report without regenerating it. If `uv.lock` is blocked by task scope rules, explicitly add `uv.lock` to the task's `Allowed files` and run `uv lock`.
+   - **No Synthesized Fallback Fixtures:** When a finding flags fake/generated test data, do not replace it with another runtime generator. Load genuine immutable fixtures from disk and fail hard when missing.
+   - **Browser Binary Synchronization:** Whenever `playwright` is added or upgraded in `pyproject.toml` / `uv.lock`, immediately run `uv run playwright install chromium` before invoking any browser E2E check.
 
 ## 4 Anti-Fix-Loop Prompt Strategies (Enforced in `run_external_review.py`)
 
@@ -58,5 +73,6 @@ To prevent false or repetitive Fix Loops across rounds, `delta_round_context()` 
 - Make each fix as its own commit titled `[<EPIC_NAME>] Fix <what>`.
 - Write each Decision cell in `review_results.md`: `fixed in <sha>`, or `dismissed: <reason>` in the developer's own words. Never write a dismissal the developer did not give.
 - Commit the decisions: `[<EPIC_NAME>] Record review decisions for round <n>`.
-- Re-run Phase 4 / Gate 4 in full on the new SHA.
-- Present Review Choice again only after Gate 4 returns PASS on the new candidate SHA.
+- **Intermediate rounds**: validate fixes using **scoped tests only** (`uv run pytest <explicit_test_file.py>` and fast static checks; no repo-wide pytest, no `tests/e2e/`).
+- **Final convergence only**: re-run Phase 4 / Gate 4 in full on the candidate SHA.
+- Present Stage 4 Finish Decision only after Gate 4 returns PASS on the final candidate SHA.

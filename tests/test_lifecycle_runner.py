@@ -578,6 +578,52 @@ class TestLifecycleRunner_Integration(unittest.TestCase):
                             self.assertEqual(exit_code, 0)
                             self.assertEqual(runner.state.active_stage, StageName.AWAITING_FINISH.value)
 
+    def test_scoped_tests_protocol_intermediate_rounds(self) -> None:
+        """[ALR-ST-03] Intermediate fix rounds run scoped tests only; full Gate 4 runs at final convergence."""
+        runner = LifecycleRunner(root=self.root, epic_slug=self.epic_slug)
+
+        mock_triage_r1 = (
+            "## Auto-Triage Gate\n\n"
+            "- **Action**: AUTO_FIX_ELIGIBLE\n"
+            "- **Round**: 1 / 3\n"
+            "- **Directive**: 1 Important finding.\n"
+        )
+        mock_triage_r2 = (
+            "## Auto-Triage Gate\n\n"
+            "- **Action**: AUTO_PASS_CLEAN\n"
+            "- **Round**: 2 / 3\n"
+            "- **Directive**: 0 findings. Stage review passed cleanly.\n"
+        )
+
+        with patch("subprocess.run") as mock_run:
+            mock_proc_r1 = MagicMock()
+            mock_proc_r1.returncode = 0
+            mock_proc_r1.stdout = mock_triage_r1
+
+            mock_proc_r2 = MagicMock()
+            mock_proc_r2.returncode = 0
+            mock_proc_r2.stdout = mock_triage_r2
+
+            mock_run.side_effect = [mock_proc_r1, mock_proc_r1, mock_proc_r2, mock_proc_r2]
+
+            with patch.object(runner, "_draft_fix_plan", return_value="Draft fix plan"):
+                with patch.object(
+                    runner,
+                    "evaluate_programmer_fix_plan",
+                    return_value=(FixPlanVerdict.APPROVED, "Fix plan adheres to HLD"),
+                ):
+                    with patch.object(runner, "_apply_code_fixes"):
+                        with patch.object(runner, "_record_review_decisions"):
+                            with patch.object(runner, "run_intermediate_check", return_value=(True, "Scoped OK")) as mock_scoped:
+                                with patch.object(runner, "run_gate4", return_value=(True, "Gate 4 PASS")) as mock_gate4:
+                                    ok = runner.step_cross_model_review()
+                                    self.assertTrue(ok)
+                                    # Intermediate round 1 must call run_intermediate_check exactly once
+                                    mock_scoped.assert_called_once()
+                                    # Full Gate 4 must NOT be called in round 1, but called once on final convergence (round 2)
+                                    mock_gate4.assert_called_once()
+                                    self.assertEqual(runner.state.active_stage, StageName.AWAITING_FINISH.value)
+
 
 if __name__ == "__main__":
     unittest.main()
