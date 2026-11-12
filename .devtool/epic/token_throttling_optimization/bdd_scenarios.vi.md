@@ -48,19 +48,19 @@ Và check_bdd_traceability.py đối chiếu độ phủ task thuần túy dựa
 
 Scenario: [TTO-HP-04] [Tier A - Unit] RunnerConfig phân giải model và effort cho Role 2.3 theo thứ tự ưu tiên cấu hình
 
-Cho tệp .devtool/review_config.json cấu hình providers.programmer.model là "gemini-4-hydrogen-xhigh" và thinking_level là "extra"
+Cho tệp .devtool/review_config.json cấu hình providers.programmer.model là "gemini-4-hydrogen-xhigh" và thinking_level là "extra" (hoặc bản cũ "gemini-3.8-flash-high" trên đĩa)
 Và biến môi trường AGY_PROGRAMMER_MODEL chưa được đặt
-Khi lifecycle_runner.RunnerConfig phân giải model và effort lập trình viên mà không truyền cờ CLI
-Thì resolve_programmer_model trả về "gemini-4-hydrogen-xhigh" và resolve_programmer_effort trả về "xhigh"
+Khi lifecycle_runner.RunnerConfig phân giải model/effort hoặc gọi agy mà không truyền cờ CLI
+Thì resolve_programmer_model trả về "gemini-4-hydrogen-xhigh", resolve_programmer_effort trả về "xhigh", và lệnh agy nhận "--model gemini-4-hydrogen-xhigh --effort xhigh" qua bảng alias dùng chung
 Và truyền cờ --programmer-model "gemini-4-pro-high" qua CLI ghi đè cả .devtool/review_config.json lẫn biến môi trường
 
 Scenario: [TTO-HP-05] [Tier C - Integration] Quy tắc và kỹ năng đã tinh gọn đáp ứng ngưỡng byte và các kiểm tra hợp đồng phát hành
 
-Cho các tệp rules/CRITICAL_RULES.md, skills/dev-designer/SKILL.md và skills/task-observer/SKILL.md đã cập nhật trong repository
-Khi chạy scripts/test_lifecycle_document_contract.py và đo kích thước byte trên đĩa
-Thì rules/CRITICAL_RULES.md có dung lượng tối đa 8192 bytes và chứa quy tắc Zero-Fluff Output Cap
-Và skills/dev-designer/SKILL.md có dung lượng tối đa 22528 bytes đồng thời giữ đủ các mục bắt buộc và liên kết tới references trích xuất
-Và skills/task-observer/SKILL.md chứa chỉ thị <SUBAGENT-STOP> ngăn gọi trong subagent và worker chạy nền
+Cho các tệp rules/CRITICAL_RULES.md, skills/dev-designer/SKILL.md, skills/dev-lifecycle/SKILL.md, skills/dev-implementation/SKILL.md và skills/task-observer/SKILL.md đã cập nhật trong repository
+Khi chạy scripts/test_lifecycle_document_contract.py và đo kích thước byte/từ trên đĩa
+Thì rules/CRITICAL_RULES.md có dung lượng tối đa 8192 bytes, giữ nguyên mục §9 Shell Configuration và thêm §10 Zero-Fluff Output Cap
+Và skills/dev-designer/SKILL.md <= 22528 bytes, skills/dev-lifecycle/SKILL.md <= 2500 từ, skills/dev-implementation/SKILL.md <= 4500 từ đồng thời giữ đủ các mục bắt buộc và liên kết references trích xuất
+Và skills/task-observer/SKILL.md đặt <SUBAGENT-STOP> ngay sau YAML frontmatter hợp lệ và sửa description loại trừ subagent/worker chạy nền
 Và scripts/test_lifecycle_document_contract.py thoát với mã 0 và không có lỗi khẳng định nào
 
 Scenario: [TTO-HP-06] [Tier C - Integration] Khôi phục ngữ cảnh rút gọn giới hạn tối đa 4096 bytes và đọc động cấu hình programmer
@@ -183,8 +183,8 @@ Scenario: [TTO-AR-01] [Tier C - Integration] Điều phối theo wave song song 
 Cho một đồ thị DAG của epic gồm hai task Wave 1 độc lập và một task Wave 2 bị chặn bởi cả hai task trên
 Và một pool worker cô lập được khởi tạo bằng manage_worker_pool.py
 Khi lifecycle_runner.step_implementation thực thi giai đoạn lập trình qua mock dispatcher ghi nhận an toàn luồng
-Thì cả hai task Wave 1 chạy song song trong các slot pool tách biệt trước khi Wave 2 bắt đầu
-Và prompt mỗi task không nhúng toàn văn file task, chỉ truyền đường dẫn tệp cùng vùng dòng mục tiêu và kèm quy tắc Zero-Fluff
+Thì cả hai task Wave 1 chạy song song trong các slot tách biệt với sync trạng thái và git commit thực hiện trong cwd=slot_path (mỗi commit chỉ chứa file của task đó) trước khi serialize merge_slot
+Và prompt mỗi task không nhúng toàn văn file task, cấm gọi d3nexus:task-observer, chỉ truyền đường dẫn tệp cùng vùng dòng mục tiêu và kèm quy tắc Zero-Fluff
 
 Scenario: [TTO-AR-02] [Tier C - Integration] Ngữ cảnh sạch từng task và log thô tách biệt theo từng vòng ngăn rò rỉ lịch sử giữa các phiên
 
@@ -203,7 +203,7 @@ Cho một lệnh đạt chuẩn trả về 180 dòng stdout với mã thoát 0 v
 Khi run_external_review.fact tạo bằng chứng cho prompt và render_round lưu kết quả vòng review
 Thì lệnh đạt chuẩn chỉ tạo đúng một dòng "PASS: <label>" và bỏ qua stdout
 Và lệnh thất bại chỉ đính kèm nhãn lệnh cùng tối đa 25 dòng cuối khác rỗng
-Và toàn bộ stdout/stderr gốc của CLI được ghi vào build/reviews/<epic>_<kind>_round<n>_<sha7>.raw.log giúp principal_review.md giữ dung lượng gọn
+Và phần thân dài và --- stderr --- của CLI được ghi vào build/reviews/<epic>_<kind>_round<n>_<sha7>.raw.log trong khi Raw output: vẫn giữ tiêu đề pass, Verdict và dòng đầu lỗi để round_passes(round_output(lines)) trả về đúng verdict
 
 Scenario: [TTO-FR-02] [Tier C - Integration] Gate 4 rút gọn hiển thị tiêu đề provider lỗi và 25 dòng đuôi khi gặp sự cố
 

@@ -14,7 +14,7 @@ order: "a3"
 
 # Task 3: Option A Bilingual Guards, Surgical Contracts, and Compact Memory
 
-Epic: [token_throttling_optimization](../epic/token_throttling_optimization/token_throttling_optimization.en.md)
+Epic: [token_throttling_optimization](token_throttling_optimization.en.md)
 
 ## Requirement Analysis
 
@@ -36,7 +36,7 @@ Implement Option A Bilingual Workflow guards, Surgical Target Line Range enforce
    - Require explicit symbol and/or `(L<start>-L<end>)` line-range anchors for each such `> 200`-line file inside `## Impact Analysis & Blast Radius` or `## Files`.
 4. **Scoped `--compact` Context Restoration & Dynamic Programmer Prompt (`scripts/resume_context.py`)**:
    - Add `--compact` (auto-scoped when `--epic <slug>` is passed) emitting `<= 4096` bytes containing only active epic snapshot, current repo git status, matching epic tasks, and relevant open RFCs.
-   - Update `emit_handoff_prompt()` to resolve Role 2.3's recommended model and effort dynamically from `.devtool/review_config.json["providers"]["programmer"]` with fallback `gemini-4-hydrogen-xhigh` (`xhigh`) instead of hardcoded `Gemini Flash 3.8`.
+   - Update `emit_handoff_prompt()` to read `.devtool/review_config.json["providers"]["programmer"]`, apply the shared legacy alias map (`{"gemini-3.8-flash", "gemini-3.8-flash-high"}` -> `"gemini-4-hydrogen-xhigh"`, `"xhigh"`), and fall back to `"gemini-4-hydrogen-xhigh"` (`"xhigh"`) instead of hardcoded `Gemini Flash 3.8`.
 5. Add `tests/test_tto_bilingual_and_surgical.py` covering `TTO-HP-03`, `TTO-HP-06`, `TTO-EC-03`, `TTO-ST-02`, and `TTO-ST-03`, updating paired script test files as needed.
 
 ## Files
@@ -151,7 +151,7 @@ And after delta-syncing .vi.md provenance digests and adding bdd_scenarios.vi.md
 - `check_epic_readiness.py` (`run_checks` L830-L852, `main` L952-L1016) and `check_bdd_traceability.py` (`load_scenarios` L82-L100, `main` L228-L261) add `--strict-bilingual` (default `False`). Without `--strict-bilingual`, in-flight checks validate English SSOT docs/BDDs cleanly and tolerate `.vi.md` drift or missing `bdd_scenarios.vi.md`. With `--strict-bilingual`, `check_epic_readiness.py` enforces Spec/HLD content-sync provenance (`<!-- sync-en-sha256: <hex16> -->` matching the normalized `.en.md` SHA-256 digest even when headings stay identical) alongside ToC heading parity and `bdd_scenarios.vi.md`, separated from `check_bdd_traceability.py plan --scenarios <bdd> --tasks <task...> --strict-bilingual` which enforces BDD scenario ID parity.
 - `package_epic.py` (`render_initial_handoff` L78-L116, `revise_handoff_text` L119-L183) and `skills/dev-lifecycle/references/handoff-template.md` list only English SSOT paths in `Read First`, while keeping required tokens from `scripts/test_lifecycle_document_contract.py` (`principal_review.md`, 4 Execution Guardrails, `or \`uncommitted\` when \`auto_commit\` is false`, `git log <sha>..<base_branch> -- .devtool/epic/<epic_dir>`) and `scripts/test_resume_context.py` (`resume_context.py`, `[PERSONA: AI PROGRAMMER — SENIOR TDD SOFTWARE ENGINEER]`).
 - `check_task_contract.py --design` (`check_task` L394-L417) requires explicit symbol or line-range anchor (`L<start>-L<end>`) in `## Files` or `## Impact Analysis & Blast Radius` for every non-new tracked source/script file exceeding `200` lines in `Allowed files`.
-- `scripts/resume_context.py --compact --epic <slug>` enforces output size `<= 4096` bytes and `emit_handoff_prompt` reads `.devtool/review_config.json["providers"]["programmer"]` with fallback `("gemini-4-hydrogen-xhigh", "xhigh")`.
+- `scripts/resume_context.py --compact --epic <slug>` enforces output size `<= 4096` bytes and `emit_handoff_prompt` reads `.devtool/review_config.json["providers"]["programmer"]` applying the shared legacy alias upgrade (`{"gemini-3.8-flash", "gemini-3.8-flash-high"}` -> `("gemini-4-hydrogen-xhigh", "xhigh")`) with fallback `("gemini-4-hydrogen-xhigh", "xhigh")`.
 
 ## Definition of Done
 
@@ -162,10 +162,10 @@ And after delta-syncing .vi.md provenance digests and adding bdd_scenarios.vi.md
 
 ## Dependencies & Blockers
 
-None. Blocks [Task 4](../epic/token_throttling_optimization/task_04_lifecycle_runner_programmer_config_and_pool_isolation.md) and [Task 5](../epic/token_throttling_optimization/task_05_slimming_rules_skills_dedup_and_selective_reviewer.md).
+None. Blocks [Task 4](task_04_lifecycle_runner_programmer_config_and_pool_isolation.md) and [Task 5](task_05_slimming_rules_skills_dedup_and_selective_reviewer.md).
 
 ## References & Rollback
 
-- [Epic HLD](../epic/token_throttling_optimization/token_throttling_optimization.en.md), Module Contracts (§3).
+- [Epic HLD](token_throttling_optimization.en.md), Module Contracts (§3).
 - **Rollback**: Revert task commit; restores prior readiness, traceability, contract, packaging, and context scripts.
 

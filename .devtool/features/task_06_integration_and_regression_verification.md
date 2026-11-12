@@ -14,7 +14,7 @@ order: "a6"
 
 # Task 6: Token Throttling Acceptance and Quantitative Regression Suite
 
-Epic: [token_throttling_optimization](../epic/token_throttling_optimization/token_throttling_optimization.en.md)
+Epic: [token_throttling_optimization](token_throttling_optimization.en.md)
 
 ## Requirement Analysis
 
@@ -23,9 +23,9 @@ Implement the end-to-end quantitative token-throttling acceptance and regression
    - Validate all quantitative byte ceilings against the live repository and mock epic fixtures:
      - `rules/CRITICAL_RULES.md <= 8192` bytes and contains Zero-Fluff Output Cap (`Rule 5`).
      - `skills/dev-designer/SKILL.md <= 22528` bytes.
-     - `skills/task-observer/SKILL.md` opens with `<SUBAGENT-STOP>`.
+     - `skills/task-observer/SKILL.md` places `<SUBAGENT-STOP>` immediately after YAML frontmatter (`L20+`) and amends `description` to exclude subagents and headless workers.
      - `scripts/resume_context.py --compact --epic <slug> <= 4096` bytes.
-     - Zero stale hardcoded `Gemini Flash 3.8` / `gemini-3.8-flash` Role 2.3 defaults in lifecycle skills, rules, templates, or runner defaults; resolved default programmer model equals `gemini-4-hydrogen-xhigh` with effort `xhigh`.
+     - Zero stale hardcoded `Gemini Flash 3.8` / `gemini-3.8-flash` Role 2.3 defaults across the exact bounded runtime/doc path set (`rules/CRITICAL_RULES.md`, `docs/lifecycles.en.md`, `docs/lifecycles.vi.md`, `skills/dev-lifecycle/SKILL.md`, `skills/dev-lifecycle/references/autonomous-mode.md`, `skills/dev-implementation/SKILL.md`, `skills/principal-review/SKILL.md`, `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py`, `scripts/resume_context.py`); resolved default programmer model equals `gemini-4-hydrogen-xhigh` with effort `xhigh`, including when upgrading an on-disk legacy `"gemini-3.8-flash-high"` entry.
    - Verify fail-loud quantitative assertions (`TTO-FR-04`): exceeding any threshold produces explicit actual-vs-budget byte diagnostic messages.
    - Verify isolated per-task context and per-round raw log isolation (`TTO-AR-02`): consecutive review rounds write distinct `build/reviews/<epic>_<kind>_round<n>_<sha7>.raw.log` files without colliding between `principal` and `code` reviews or leaking transcripts into adjacent rounds/markdown tables, and consecutive `lifecycle_runner.py` task prompts carry zero accumulated Task `N` output into Task `N+1`.
    - Verify compact Gate 4 and `--quiet` vs `--full` release harness behavior (`TTO-HP-08`, `TTO-EC-06`).
@@ -132,9 +132,9 @@ And exceeding any ceiling fails with concrete byte-count diagnostics rather than
 
 ## Dependencies & Blockers
 
-Blocked by [Task 1](../epic/token_throttling_optimization/task_01_diff_only_external_review_and_transcript_isolation.md), [Task 2](../epic/token_throttling_optimization/task_02_silent_gate4_and_truncated_test_runners.md), [Task 3](../epic/token_throttling_optimization/task_03_option_a_bilingual_and_surgical_contract_guards.md), [Task 4](../epic/token_throttling_optimization/task_04_lifecycle_runner_programmer_config_and_pool_isolation.md), and [Task 5](../epic/token_throttling_optimization/task_05_slimming_rules_skills_dedup_and_selective_reviewer.md). Blocks none.
+Blocked by [Task 1](task_01_diff_only_external_review_and_transcript_isolation.md), [Task 2](task_02_silent_gate4_and_truncated_test_runners.md), [Task 3](task_03_option_a_bilingual_and_surgical_contract_guards.md), [Task 4](task_04_lifecycle_runner_programmer_config_and_pool_isolation.md), and [Task 5](task_05_slimming_rules_skills_dedup_and_selective_reviewer.md). Blocks none.
 
 ## References & Rollback
 
-- [Epic HLD](../epic/token_throttling_optimization/token_throttling_optimization.en.md), Integration Test Plan & Rollout (§4).
+- [Epic HLD](token_throttling_optimization.en.md), Integration Test Plan & Rollout (§4).
 - **Rollback**: Revert task commit; restores prior `scripts/verify.sh` suite list and removes `tests/test_token_throttling_acceptance.py`.

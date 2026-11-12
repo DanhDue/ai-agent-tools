@@ -23,9 +23,9 @@ Implement the end-to-end quantitative token-throttling acceptance and regression
    - Validate all quantitative byte ceilings against the live repository and mock epic fixtures:
      - `rules/CRITICAL_RULES.md <= 8192` bytes and contains Zero-Fluff Output Cap (`Rule 5`).
      - `skills/dev-designer/SKILL.md <= 22528` bytes.
-     - `skills/task-observer/SKILL.md` opens with `<SUBAGENT-STOP>`.
+     - `skills/task-observer/SKILL.md` places `<SUBAGENT-STOP>` immediately after YAML frontmatter (`L20+`) and amends `description` to exclude subagents and headless workers.
      - `scripts/resume_context.py --compact --epic <slug> <= 4096` bytes.
-     - Zero stale hardcoded `Gemini Flash 3.8` / `gemini-3.8-flash` Role 2.3 defaults in lifecycle skills, rules, templates, or runner defaults; resolved default programmer model equals `gemini-4-hydrogen-xhigh` with effort `xhigh`.
+     - Zero stale hardcoded `Gemini Flash 3.8` / `gemini-3.8-flash` Role 2.3 defaults across the exact bounded runtime/doc path set (`rules/CRITICAL_RULES.md`, `docs/lifecycles.en.md`, `docs/lifecycles.vi.md`, `skills/dev-lifecycle/SKILL.md`, `skills/dev-lifecycle/references/autonomous-mode.md`, `skills/dev-implementation/SKILL.md`, `skills/principal-review/SKILL.md`, `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py`, `scripts/resume_context.py`); resolved default programmer model equals `gemini-4-hydrogen-xhigh` with effort `xhigh`, including when upgrading an on-disk legacy `"gemini-3.8-flash-high"` entry.
    - Verify fail-loud quantitative assertions (`TTO-FR-04`): exceeding any threshold produces explicit actual-vs-budget byte diagnostic messages.
    - Verify isolated per-task context and per-round raw log isolation (`TTO-AR-02`): consecutive review rounds write distinct `build/reviews/<epic>_<kind>_round<n>_<sha7>.raw.log` files without colliding between `principal` and `code` reviews or leaking transcripts into adjacent rounds/markdown tables, and consecutive `lifecycle_runner.py` task prompts carry zero accumulated Task `N` output into Task `N+1`.
    - Verify compact Gate 4 and `--quiet` vs `--full` release harness behavior (`TTO-HP-08`, `TTO-EC-06`).

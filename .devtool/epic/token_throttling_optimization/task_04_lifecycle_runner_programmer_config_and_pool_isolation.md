@@ -22,14 +22,14 @@ Upgrade `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py` and `skills
 1. **Config-Driven Role 2.3 Model & Effort Precedence (`RunnerConfig` + `main`)**:
    - Replace hardcoded `"gemini-3.8-flash"` defaults with `"gemini-4-hydrogen-xhigh"` and `"xhigh"` fallback.
    - Add `normalize_agy_effort(raw: str) -> str` mapping `"extra"`, `"extra-high"`, `"extra_high"`, and `"xhigh"` (case-insensitive) to `"xhigh"`.
-   - Implement `RunnerConfig.resolve_programmer_model(self, root: Path | None = None) -> str` and `RunnerConfig.resolve_programmer_effort(self, root: Path | None = None) -> str` following:
+   - Implement `RunnerConfig.resolve_programmer_model(self, root: Path | None = None) -> str` and `RunnerConfig.resolve_programmer_effort(self, root: Path | None = None) -> str` applying the shared legacy alias upgrade (`{"gemini-3.8-flash", "gemini-3.8-flash-high"}` -> `("gemini-4-hydrogen-xhigh", "xhigh")`, matching `run_external_review.load_review_config` and `resume_context.emit_handoff_prompt` while leaving git-tracked `.devtool/review_config.json` untouched on disk) using precedence:
      `CLI (--programmer-model / --programmer-effort) -> Runner --config JSON -> .devtool/review_config.json["providers"]["programmer"] -> env (AGY_PROGRAMMER_MODEL / AGY_PROGRAMMER_EFFORT) -> fallback ("gemini-4-hydrogen-xhigh", "xhigh")`.
    - Update `main()` so `argparse` uses `default=None` for `--programmer-model` and add `--programmer-effort` (`default=None`), ensuring CLI overrides config only when explicitly passed.
    - Update startup `probe_model()` and `_execute_single_task()` / `_apply_code_fixes()` to pass resolved model and normalized `--effort` to `ModelDispatcher.dispatch()`.
 2. **Parallel Worker Pool Execution & Path-Only Zero-Fluff Prompts**:
-   - Explicitly separate `repo_root` (parent repository holding `.worktrees/<epic_dir>`) from `epic_worktree_root` and `epic_dir` from `epic_slug` across `step_implementation()` and `manage_worker_pool.py` so `merge_slot()` never nests `.worktrees/<epic_dir>/.worktrees/<epic_dir>`; bind each concurrent worker `ModelDispatcher` to its isolated `slot_path`, serialize `merge_slot()` merges with rollback/error recovery, and test executing from an actual epic worktree through successful merge and conflict/failure recovery.
-   - Refactor `_execute_single_task()` so each task starts in a clean session context passing ONLY the task file path, target file paths + line ranges, and the Zero-Fluff output cap (scoping prose omission strictly to discretionary narration so mandatory verdicts, status tokens, findings tables, and structured gate contracts remain intact).
-   - Ensure `run_gate4()` invokes `--compact` on polyglot/Gate 4 commands where available and uses `_tail_lines(output, 25)` on failures in both `run_gate4()` and `run_intermediate_check()`.
+   - Explicitly separate `repo_root` (parent repository holding `.worktrees/<epic_dir>`) from `epic_worktree_root` and `epic_dir` from `epic_slug` across `step_implementation()` and `manage_worker_pool.py` so `merge_slot()` never nests `.worktrees/<epic_dir>/.worktrees/<epic_dir>`; bind each concurrent worker `ModelDispatcher` to its isolated `slot_path`, require EVERY post-dispatch subprocess in `_execute_single_task()` (`sync_task_status.py` L475-L489 and `git status --porcelain`/`git add`/`git commit` L492-L507) to take the owning `slot_path` as `cwd`, commit per slot, integrate strictly via serialized `merge_slot()` with rollback/error recovery, and test executing from an actual epic worktree asserting each slot commit contains only its own paths alongside conflict/failure recovery.
+   - Refactor `_execute_single_task()` so each task starts in a clean session context passing ONLY the task file path, target file paths + line ranges, an explicit `"do not invoke d3nexus:task-observer"` instruction, and the Zero-Fluff output cap (scoping prose omission strictly to discretionary narration so mandatory verdicts, status tokens, findings tables, and structured gate contracts remain intact).
+   - Pass `--quiet` to `["bash", str(verify_script), "--quiet"]` in `run_gate4()` (`L1023-L1035`) and wrap ALL six `err = ...stderr.strip() or ...stdout.strip()` failure branches in `run_gate4()` (L930, L951, L972, L993, L1020, L1034) plus `run_intermediate_check()` (L1076) in `_tail_lines(..., 25)`.
 3. **Streamlined Cross-Model Fix Loop & Real Executive Report**:
    - Update `step_cross_model_review()`: require an explicit, source-grounded classification confirming every open finding is an unambiguous code defect before bypassing Role 2.2; route any unknown, `"Debatable:"`, `"ambiguous architectural state transition"`, or `shared-contracts/` finding through Role 2.2 `_draft_fix_plan()` + `evaluate_programmer_fix_plan()` (or halt cleanly on `CRITICAL_CONFLICT`), and cover negative classification paths with unit tests.
    - Define an explicit input and success contract on `_apply_code_fixes(round_num, findings=..., review_artifact=..., plan_text=...) -> bool`: inject verified findings and design anchors into the worker prompt, verify BOTH `dispatcher.dispatch()` return code AND scoped-test pass before returning `True`, return `False` on dispatch or verification failure, and prohibit recording `"fixed"` decisions or advancing rounds when `_apply_code_fixes()` returns `False`.
@@ -70,10 +70,10 @@ Covers: TTO-HP-04, TTO-HP-07, TTO-EC-04, TTO-ST-04, TTO-AR-01, TTO-FR-03
 ```gherkin
 Scenario: [TTO-HP-04] [Tier A - Unit] RunnerConfig resolves Role 2.3 programmer model and effort using config precedence
 
-Given a .devtool/review_config.json defining providers.programmer.model as "gemini-4-hydrogen-xhigh" and thinking_level as "extra"
+Given a .devtool/review_config.json defining providers.programmer.model as "gemini-4-hydrogen-xhigh" and thinking_level as "extra" (or legacy "gemini-3.8-flash-high" on disk)
 And AGY_PROGRAMMER_MODEL environment override is unset
-When lifecycle_runner.RunnerConfig resolves the programmer model and effort with no CLI flag supplied
-Then resolve_programmer_model returns "gemini-4-hydrogen-xhigh" and resolve_programmer_effort returns "xhigh"
+When lifecycle_runner.RunnerConfig resolves the programmer model and effort or dispatches agy with no CLI flag supplied
+Then resolve_programmer_model returns "gemini-4-hydrogen-xhigh", resolve_programmer_effort returns "xhigh", and dispatched commands receive "--model gemini-4-hydrogen-xhigh --effort xhigh" via the shared legacy alias map
 And supplying --programmer-model "gemini-4-pro-high" via CLI overrides both .devtool/review_config.json and environment variables
 
 Scenario: [TTO-HP-07] [Tier C - Integration] Streamlined cross-model review fast-tracks clean code fixes and renders actual Executive Report findings
@@ -101,8 +101,8 @@ Scenario: [TTO-AR-01] [Tier C - Integration] Parallel wave dispatch executes ind
 Given an epic DAG containing two disjoint Wave 1 tasks (no mutual blocker dependency) and one Wave 2 task blocked by both
 And an isolated worker pool initialized by manage_worker_pool.py
 When lifecycle_runner.step_implementation executes the implementation phase using a thread-safe recording mock dispatcher
-Then both Wave 1 tasks run concurrently inside distinct pool slots before Wave 2 begins
-And each task prompt omits inlined task markdown bodies, injects only target file paths and line ranges, and includes the Zero-Fluff output cap
+Then both Wave 1 tasks run concurrently inside distinct pool slots with status sync and git commits running inside cwd=slot_path so each slot commit contains only its owning task paths before serialized merge_slot integration
+And each task prompt omits inlined task markdown bodies, forbids d3nexus:task-observer, injects only target file paths and line ranges, and includes the Zero-Fluff output cap
 
 Scenario: [TTO-FR-03] [Tier A - Unit] lifecycle_runner._tail_lines bounds Gate 4 and intermediate check failure summaries to 25 lines
 
@@ -135,10 +135,10 @@ And the exception or state message propagated to the next step never exceeds 25 
 ## Decisions Already Made
 
 - `normalize_agy_effort(raw: str) -> str` maps `{"extra", "extra-high", "extra_high", "xhigh"}` -> `"xhigh"`, lowercasing and trimming input; default fallback pair is `("gemini-4-hydrogen-xhigh", "xhigh")`.
-- `RunnerConfig.resolve_programmer_model` and `resolve_programmer_effort` follow: `CLI -> Runner --config -> .devtool/review_config.json["providers"]["programmer"] -> env (AGY_PROGRAMMER_MODEL / AGY_PROGRAMMER_EFFORT) -> fallback`.
+- `RunnerConfig.resolve_programmer_model` and `resolve_programmer_effort` follow: `CLI -> Runner --config -> .devtool/review_config.json["providers"]["programmer"] -> env (AGY_PROGRAMMER_MODEL / AGY_PROGRAMMER_EFFORT) -> fallback`, applying the shared legacy alias map (`{"gemini-3.8-flash", "gemini-3.8-flash-high"}` -> `("gemini-4-hydrogen-xhigh", "xhigh")`) consistently regardless of whether `load_review_config()` persists tracked files on disk.
 - `main()` sets `default=None` on `--programmer-model` and `--programmer-effort` so `.devtool/review_config.json` controls defaults unless explicitly overridden at invocation.
-- `LifecycleRunner` explicitly distinguishes `repo_root` vs `epic_worktree_root` and `epic_dir` vs `epic_slug` for `manage_worker_pool.py` `merge_slot()`, binds each parallel worker `ModelDispatcher` to `slot_path`, serializes merges under lock with failure recovery, and executes clean per-task prompts referencing file paths, line ranges, and discretionary-narration Zero-Fluff output cap (preserving mandatory Verdicts, Findings, and status tokens).
-- `LifecycleRunner._tail_lines(text: str, limit: int = 25) -> str` caps Gate 4 and intermediate failure summaries at `25` lines.
+- `LifecycleRunner` explicitly distinguishes `repo_root` vs `epic_worktree_root` and `epic_dir` vs `epic_slug` for `manage_worker_pool.py` `merge_slot()`, binds each parallel worker `ModelDispatcher` and all `_execute_single_task()` post-dispatch subprocesses (`sync_task_status.py`, `git status`/`git add`/`git commit`) to `cwd=slot_path`, serializes `merge_slot()` under lock with failure recovery, and executes clean per-task prompts referencing file paths, line ranges, `"do not invoke d3nexus:task-observer"`, and discretionary-narration Zero-Fluff output cap (preserving mandatory Verdicts, Findings, and status tokens).
+- `run_gate4()` passes `--quiet` to `bash scripts/verify.sh` (`L1023-L1035`) and `LifecycleRunner._tail_lines(text: str, limit: int = 25) -> str` wraps all six `run_gate4()` error branches (L930, L951, L972, L993, L1020, L1034) plus `run_intermediate_check()` (L1076) at `25` lines.
 - `step_cross_model_review()` only bypasses `_draft_fix_plan` / `evaluate_programmer_fix_plan` when every verified finding is explicitly classified via source/severity/category check as an unambiguous code defect; unknown, `"Debatable:"`, ambiguous architectural transitions, or `shared-contracts/` conflicts halt with `CRITICAL_CONFLICT` or route through Role 2.2. `_apply_code_fixes()` checks both dispatcher exit status and scoped tests and never records `"fixed"` on failure.
 
 ## Definition of Done

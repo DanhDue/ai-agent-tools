@@ -48,19 +48,19 @@ And check_bdd_traceability.py validates task coverage solely against bdd_scenari
 
 Scenario: [TTO-HP-04] [Tier A - Unit] RunnerConfig resolves Role 2.3 programmer model and effort using config precedence
 
-Given a .devtool/review_config.json defining providers.programmer.model as "gemini-4-hydrogen-xhigh" and thinking_level as "extra"
+Given a .devtool/review_config.json defining providers.programmer.model as "gemini-4-hydrogen-xhigh" and thinking_level as "extra" (or legacy "gemini-3.8-flash-high" on disk)
 And AGY_PROGRAMMER_MODEL environment override is unset
-When lifecycle_runner.RunnerConfig resolves the programmer model and effort with no CLI flag supplied
-Then resolve_programmer_model returns "gemini-4-hydrogen-xhigh" and resolve_programmer_effort returns "xhigh"
+When lifecycle_runner.RunnerConfig resolves the programmer model and effort or dispatches agy with no CLI flag supplied
+Then resolve_programmer_model returns "gemini-4-hydrogen-xhigh", resolve_programmer_effort returns "xhigh", and dispatched commands receive "--model gemini-4-hydrogen-xhigh --effort xhigh" via the shared legacy alias map
 And supplying --programmer-model "gemini-4-pro-high" via CLI overrides both .devtool/review_config.json and environment variables
 
 Scenario: [TTO-HP-05] [Tier C - Integration] Slimmed rules and dev-designer skill satisfy byte caps and release contract checks
 
-Given the updated rules/CRITICAL_RULES.md, skills/dev-designer/SKILL.md, and skills/task-observer/SKILL.md in the repository
-When scripts/test_lifecycle_document_contract.py executes and file byte sizes are measured on disk
-Then rules/CRITICAL_RULES.md measures at most 8192 bytes and contains the Zero-Fluff Output Cap directive
-And skills/dev-designer/SKILL.md measures at most 22528 bytes while preserving every required section and Extracted reference link
-And skills/task-observer/SKILL.md contains an explicit <SUBAGENT-STOP> instruction preventing invocation in subagents and headless workers
+Given the updated rules/CRITICAL_RULES.md, skills/dev-designer/SKILL.md, skills/dev-lifecycle/SKILL.md, skills/dev-implementation/SKILL.md, and skills/task-observer/SKILL.md in the repository
+When scripts/test_lifecycle_document_contract.py executes and file byte/word sizes are measured on disk
+Then rules/CRITICAL_RULES.md measures at most 8192 bytes retaining §9 Shell Configuration and adding §10 Zero-Fluff Output Cap
+And skills/dev-designer/SKILL.md measures at most 22528 bytes, skills/dev-lifecycle/SKILL.md stays <= 2500 words, and skills/dev-implementation/SKILL.md stays <= 4500 words while preserving every required section and Extracted reference link
+And skills/task-observer/SKILL.md places <SUBAGENT-STOP> immediately after valid YAML frontmatter and amends its description trigger to exclude subagents and headless workers
 And scripts/test_lifecycle_document_contract.py exits with status 0 and zero assertion failures
 
 Scenario: [TTO-HP-06] [Tier C - Integration] Compact context restoration caps output at 4096 bytes and reads programmer config dynamically
@@ -183,8 +183,8 @@ Scenario: [TTO-AR-01] [Tier C - Integration] Parallel wave dispatch executes ind
 Given an epic DAG containing two disjoint Wave 1 tasks (no mutual blocker dependency) and one Wave 2 task blocked by both
 And an isolated worker pool initialized by manage_worker_pool.py
 When lifecycle_runner.step_implementation executes the implementation phase using a thread-safe recording mock dispatcher
-Then both Wave 1 tasks run concurrently inside distinct pool slots before Wave 2 begins
-And each task prompt omits inlined task markdown bodies, injects only target file paths and line ranges, and includes the Zero-Fluff output cap
+Then both Wave 1 tasks run concurrently inside distinct pool slots with status sync and git commits running inside cwd=slot_path so each slot commit contains only its owning task paths before serialized merge_slot integration
+And each task prompt omits inlined task markdown bodies, forbids d3nexus:task-observer, injects only target file paths and line ranges, and includes the Zero-Fluff output cap
 
 Scenario: [TTO-AR-02] [Tier C - Integration] Per-task clean context and per-round raw logs prevent cross-session transcript contamination
 
@@ -203,7 +203,7 @@ Given a passing command returning 180 stdout lines with exit code 0 and a failin
 When run_external_review.fact builds prompt evidence and render_round persists the round artifact
 Then the passing command produces a single "PASS: <label>" line omitting stdout
 And the failing command includes the command label plus at most 25 trailing non-empty output lines
-And unfiltered CLI stdout/stderr is routed into build/reviews/<epic>_<kind>_round<n>_<sha7>.raw.log so principal_review.md remains compact
+And unfiltered CLI body and stderr payloads route into build/reviews/<epic>_<kind>_round<n>_<sha7>.raw.log while Raw output: preserves pass headers, Verdict lines, and first error line so round_passes(round_output(lines)) still yields the true verdict
 
 Scenario: [TTO-FR-02] [Tier C - Integration] Compact Gate 4 surfaces failing provider header and 25-line log tail on error
 

@@ -14,7 +14,7 @@ order: "a2"
 
 # Task 2: Silent Gate 4 and Truncated Test Runners
 
-Epic: [token_throttling_optimization](../epic/token_throttling_optimization/token_throttling_optimization.en.md)
+Epic: [token_throttling_optimization](token_throttling_optimization.en.md)
 
 ## Requirement Analysis
 
@@ -56,7 +56,7 @@ Quality checks routinely emit thousands of passing lines and JSON structures int
   - `skills/quality_check/resources/scripts/verify_polyglot_registry.py`: `execute_provider` (L142-L438), `verify_polyglot_execution` (L441-L537), `main` (L540-L618)
   - `skills/dev-implementation/resources/scripts/run_task_checks.py`: `run_row` (L282-L321), `main` (L461-L476)
   - `skills/dev-implementation/resources/scripts/test_run_task_checks.py`: `RepoCase` (L49-L90), `RecorderTest` (L240-L530)
-  - `skills/setup_quality_check/resources/scripts/scaffold_quality_manifest.py`: `build_registry_data` (L226-L241)
+  - `skills/setup_quality_check/resources/scripts/scaffold_quality_manifest.py`: `PLATFORM_CONFIGS["python"]` (L125-L145)
   - `skills/setup_quality_check/resources/scripts/test_scaffold_quality_manifest.py`: `TestDetectPlatforms` (L73-L121), `TestScaffoldQualityManifests` (L122-L290)
   - `scripts/verify.sh`: `SUITES` (L303-L400) and `--quiet` / `--full` section formatting (L1-L417)
   - `tests/test_polyglot_gate4.py`: `test_verify_polyglot_registry_cli_execution` (L181-L252), integration assertions for `TTO-HP-02`, `TTO-EC-02`, `TTO-FR-02`
@@ -131,10 +131,10 @@ And all 80 raw diagnostic lines remain preserved on disk inside build/quality/<p
 
 ## Dependencies & Blockers
 
-None. Blocks [Task 4](../epic/token_throttling_optimization/task_04_lifecycle_runner_programmer_config_and_pool_isolation.md) and [Task 5](../epic/token_throttling_optimization/task_05_slimming_rules_skills_dedup_and_selective_reviewer.md).
+None. Blocks [Task 4](task_04_lifecycle_runner_programmer_config_and_pool_isolation.md) and [Task 5](task_05_slimming_rules_skills_dedup_and_selective_reviewer.md).
 
 ## References & Rollback
 
-- [Epic HLD](../epic/token_throttling_optimization/token_throttling_optimization.en.md), Module Contracts (§2).
+- [Epic HLD](token_throttling_optimization.en.md), Module Contracts (§2).
 - **Rollback**: Revert task commit; restores prior `verify_polyglot_registry.py`, `TAIL_LINES = 40`, `python-quality.json`, and `verify.sh`.
 
