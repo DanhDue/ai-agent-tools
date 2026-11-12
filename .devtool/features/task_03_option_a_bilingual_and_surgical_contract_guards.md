@@ -160,3 +160,4 @@ None. Blocks [Task 4](../epic/token_throttling_optimization/task_04_lifecycle_ru
 
 - [Epic HLD](../epic/token_throttling_optimization/token_throttling_optimization.en.md), Module Contracts (§3).
 - **Rollback**: Revert task commit; restores prior readiness, traceability, contract, packaging, and context scripts.
+

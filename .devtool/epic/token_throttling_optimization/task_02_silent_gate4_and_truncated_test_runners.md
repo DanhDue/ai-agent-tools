@@ -135,3 +135,4 @@ None. Blocks [Task 4](task_04_lifecycle_runner_programmer_config_and_pool_isolat
 
 - [Epic HLD](token_throttling_optimization.en.md), Module Contracts (§2).
 - **Rollback**: Revert task commit; restores prior `verify_polyglot_registry.py`, `TAIL_LINES = 40`, `python-quality.json`, and `verify.sh`.
+

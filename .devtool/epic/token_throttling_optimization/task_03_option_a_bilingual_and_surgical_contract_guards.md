@@ -160,3 +160,4 @@ None. Blocks [Task 4](task_04_lifecycle_runner_programmer_config_and_pool_isolat
 
 - [Epic HLD](token_throttling_optimization.en.md), Module Contracts (§3).
 - **Rollback**: Revert task commit; restores prior readiness, traceability, contract, packaging, and context scripts.
+
