@@ -6,6 +6,7 @@
 #   bash scripts/verify.sh --full   # Force full re-run of all Python unit & pytest suites
 #   bash scripts/verify.sh --quiet  # Emit 1-line summaries on pass and <=25 trailing lines on fail
 set -uo pipefail
+export VERIFY_SH_ACTIVE=1
 
 FORCE_FULL=0
 QUIET_MODE=0
@@ -385,6 +386,10 @@ SUITES = [
     ("11", "unittest", "scripts/test_verifiable_handoff_text.py", 1, True),
     ("11", "unittest", "scripts/test_verifiable_handoff.py", 15, True),
     ("11", "unittest", "tests/test_lifecycle_runner.py", 20, False),
+    ("11", "pytest",   "tests/test_tto_external_review.py", 30, False),
+    ("11", "pytest",   "tests/test_tto_bilingual_and_surgical.py", 15, False),
+    ("11", "pytest",   "tests/test_tto_docs_and_slimming.py", 5, True),
+    ("11", "pytest",   "tests/test_token_throttling_acceptance.py", 60, True),
     # Section 12: Branch integration script
     ("12", "unittest", "skills/finishing-a-development-branch/resources/scripts/test_integrate_branch.py", 80, False),
     # Section 13: Quality provider contracts, schemas, aggregation, and platform capabilities
@@ -397,6 +402,7 @@ SUITES = [
     ("13", "unittest", "skills/ios-quality-check/resources/scripts/test_validate_ios_quality.py", 1, False),
     ("13", "unittest", "skills/web-quality-check/resources/scripts/test_validate_web_quality.py", 1, False),
     ("13", "pytest",   "tests/test_web_quality_provider.py", 5, False),
+    ("13", "pytest",   "tests/test_polyglot_gate4.py", 15, False),
     ("13", "pytest",   "tests/test_audit_ui_state_and_styles.py", 2, False),
     ("13", "unittest", "skills/setup_quality_check/resources/scripts/test_scaffold_quality_manifest.py", 1, False),
     ("13", "unittest", "skills/quality_check/resources/scripts/test_quality_provider_acceptance.py", 20, True),
