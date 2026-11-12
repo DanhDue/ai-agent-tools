@@ -643,6 +643,79 @@
       align-items: center;
       gap: 8px;
     }
+
+    /* Custom Dropdown Selects with Generous Arrow Padding */
+    .custom-select {
+      appearance: none;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      background-repeat: no-repeat;
+      background-position: right 8px center;
+      background-size: 9px 5px;
+      cursor: pointer;
+      outline: none;
+    }
+
+    .select-profile-pic {
+      background-color: #0f172a;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='none' stroke='%23c084fc' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' d='m1 1 4 4 4-4'/%3E%3C/svg%3E");
+      color: #c084fc;
+      border: 1px solid #334155;
+      border-radius: 4px;
+      padding: 5px 26px 5px 10px;
+      font-size: 11px;
+      font-family: monospace;
+      font-weight: 700;
+      transition: border-color 0.15s ease;
+    }
+    .select-profile-pic:hover {
+      border-color: #c084fc;
+    }
+
+    .select-pic-assigned {
+      background-color: rgba(168, 85, 247, 0.12);
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='none' stroke='%23c084fc' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' d='m1 1 4 4 4-4'/%3E%3C/svg%3E");
+      color: #c084fc;
+      border: 1px solid #a855f7;
+      border-radius: 4px;
+      padding: 3px 26px 3px 8px;
+      font-size: 11px;
+      font-family: monospace;
+      font-weight: 700;
+      transition: all 0.2s;
+    }
+    .select-pic-assigned:hover {
+      border-color: #c084fc;
+      box-shadow: 0 0 8px rgba(192, 132, 252, 0.2);
+    }
+
+    .select-pic-unassigned {
+      background-color: #0f172a;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='none' stroke='%2394a3b8' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' d='m1 1 4 4 4-4'/%3E%3C/svg%3E");
+      color: #94a3b8;
+      border: 1px solid #334155;
+      border-radius: 4px;
+      padding: 3px 26px 3px 8px;
+      font-size: 11px;
+      font-family: monospace;
+      font-weight: 700;
+      transition: all 0.2s;
+    }
+    .select-pic-unassigned:hover {
+      border-color: #94a3b8;
+    }
+
+    .select-epic-filter {
+      background-color: #131722;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='none' stroke='%2394a3b8' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' d='m1 1 4 4 4-4'/%3E%3C/svg%3E");
+      color: #cbd5e1;
+      border: 1px solid #282f40;
+      border-radius: 6px;
+      padding: 5px 26px 5px 10px;
+      font-size: 11px;
+      font-family: monospace;
+      width: 100%;
+    }
   </style>
 </head>
 <body>
@@ -808,9 +881,9 @@
   </div>
 
   <!-- MODAL 4: REVIEW TRIAGE DIALOG (Principal & Cross-Model) -->
-  <div id="modal-cross-review" class="modal-backdrop">
-    <div class="modal-box" id="modal-review-box" style="border-color: #b45309; max-width: 1400px; width: 95vw;">
-      <div class="modal-header">
+  <div id="modal-cross-review" class="modal-backdrop" style="padding: 10px 14px;">
+    <div class="modal-box" id="modal-review-box" style="border-color: #b45309; width: 98vw; max-width: 1750px; height: 88vh; min-height: 650px; max-height: 88vh; display: flex; flex-direction: column;">
+      <div class="modal-header" style="padding: 10px 16px;">
         <div style="display: flex; align-items: center; gap: 10px;">
           <span id="review-header-icon" style="font-size: 18px;">🔬</span>
           <div>
@@ -822,8 +895,8 @@
       </div>
       
       <!-- Header Block -->
-      <div style="padding: 14px 20px; background: #161a23; border-bottom: 1px solid #282f40;">
-        <ul style="list-style: none; padding: 0; margin: 0; font-size: 12px; line-height: 1.7; color: #cbd5e1;">
+      <div style="padding: 8px 16px; background: #161a23; border-bottom: 1px solid #282f40;">
+        <ul style="list-style: none; padding: 0; margin: 0; font-size: 11px; line-height: 1.6; color: #cbd5e1;">
           <li>• Candidate Commit SHA: <code id="review-sha" style="background: #242b3b; color: #fde68a; padding: 1px 7px; border-radius: 4px; font-family: monospace;">N/A</code></li>
           <li>• Reviewer / Provider: <strong id="review-provider" style="color: #ffffff;">N/A</strong> ( model <code id="review-model" style="background: #242b3b; color: #fde68a; padding: 1px 6px; border-radius: 4px; font-family: monospace;">default</code> ) • Thinking Level: <strong id="review-thinking" style="color: #ffffff;">High</strong></li>
           <li>• Overall Verdict: <strong id="review-verdict" style="color: #f87171;">UNKNOWN</strong></li>
@@ -831,40 +904,42 @@
       </div>
 
       <!-- Round Selector Tabs -->
-      <div id="review-round-tabs" style="padding: 10px 20px; background: #10131a; border-bottom: 1px solid #282f40; display: flex; gap: 8px;">
+      <div id="review-round-tabs" style="padding: 8px 16px; background: #10131a; border-bottom: 1px solid #282f40; display: flex; gap: 8px;">
         <button class="tab-btn active" onclick="switchReviewRound(1)">Round 1: Scope Audit</button>
         <button class="tab-btn" onclick="switchReviewRound(2)">Round 2: Delta Audit</button>
         <button class="tab-btn" onclick="switchReviewRound(3)">Round 3: Convergence</button>
       </div>
 
       <!-- Triage Table (6 columns matching spec) -->
-      <div class="modal-body">
-        <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left; color: #e2e8f0; margin-bottom: 16px;">
-          <thead>
-            <tr style="border-bottom: 1px solid #282f40; background: #131720; color: #94a3b8; font-size: 11px; text-transform: uppercase;">
-              <th style="padding: 10px 12px; width: 40px; text-align: center;">#</th>
-              <th style="padding: 10px 12px; width: 65px;">Sev</th>
-              <th style="padding: 10px 12px; width: 220px;">Location</th>
-              <th style="padding: 10px 12px; min-width: 260px;">Problem</th>
-              <th style="padding: 10px 12px; min-width: 260px;">Proposed Action</th>
-              <th style="padding: 10px 12px; width: 170px;">Fixed in(commit)</th>
-            </tr>
-          </thead>
-          <tbody id="review-findings-body">
-            <tr>
-              <td colspan="6" style="padding: 30px; text-align: center; color: #94a3b8;">
-                Đang tải dữ liệu review...
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      <div class="modal-body" style="padding: 12px 16px; flex: 1; overflow-y: auto; display: flex; flex-direction: column;">
+        <div style="flex: 1; overflow-y: auto; margin-bottom: 10px;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left; color: #e2e8f0;">
+            <thead>
+              <tr style="border-bottom: 1px solid #282f40; background: #131720; color: #94a3b8; font-size: 11px; text-transform: uppercase; position: sticky; top: 0; z-index: 10;">
+                <th style="padding: 8px 10px; width: 35px; text-align: center;">#</th>
+                <th style="padding: 8px 10px; width: 60px;">Sev</th>
+                <th style="padding: 8px 10px; width: 220px;">Location</th>
+                <th style="padding: 8px 10px; min-width: 280px;">Problem</th>
+                <th style="padding: 8px 10px; min-width: 280px;">Proposed Action</th>
+                <th style="padding: 8px 10px; width: 140px;">Fixed in(commit)</th>
+              </tr>
+            </thead>
+            <tbody id="review-findings-body">
+              <tr>
+                <td colspan="6" style="padding: 50px; text-align: center; color: #94a3b8;">
+                  Đang tải dữ liệu review...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
         <!-- Expandable Raw Evidence Drawer -->
-        <details style="background: #141720; border: 1px solid #282f40; border-radius: 8px; padding: 10px;">
-          <summary style="font-size: 12px; font-weight: 700; color: #fde68a; cursor: pointer; user-select: none;">
+        <details style="background: #141720; border: 1px solid #282f40; border-radius: 8px; padding: 8px 12px; margin-top: auto;">
+          <summary style="font-size: 11px; font-weight: 700; color: #fde68a; cursor: pointer; user-select: none;">
             📄 Evidence / Raw Output (Bằng chứng nguyên văn)
           </summary>
-          <pre id="review-raw-evidence" style="margin-top: 10px; font-size: 11px; color: #94a3b8; background: #0c0f17; padding: 12px; border-radius: 6px; overflow-x: auto; font-family: monospace; white-space: pre-wrap;">
+          <pre id="review-raw-evidence" style="margin-top: 8px; font-size: 11px; color: #94a3b8; background: #0c0f17; padding: 10px; border-radius: 6px; overflow-x: auto; font-family: monospace; white-space: pre-wrap; max-height: 180px;">
 Đang tải dữ liệu bằng chứng...
           </pre>
         </details>
@@ -1250,9 +1325,10 @@
         options += `<option value="${escapeHtml(p)}" ${isSel}>@${escapeHtml(p)}</option>`;
       });
 
+      const picClass = hasPic ? 'custom-select select-pic-assigned' : 'custom-select select-pic-unassigned';
       return `
         <select onchange="updateEpicPic('${escapeHtml(repoName)}', '${escapeHtml(epicSlug)}', this.value)" 
-                style="background: ${bgCol}; color: ${textCol}; border: 1px solid ${borderCol}; border-radius: 4px; padding: 3px 24px 3px 8px; font-size: 11px; font-family: monospace; font-weight: 700; cursor: pointer; outline: none; transition: all 0.2s;"
+                class="${picClass}"
                 title="${hasPic ? 'Người phụ trách (PIC): @' + escapeHtml(currentPic) + ' • Click để đổi' : 'Chưa có PIC • Click để gán người phụ trách'}">
           ${options}
         </select>
@@ -1977,7 +2053,7 @@
               <div style="font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 6px;">Lọc theo Epic:</div>
               <select id="kanban-epic-filter-${escapeHtml(repo.name)}" 
                       onchange="onFilterKanbanBoard('${escapeHtml(repo.name)}', this.value)"
-                      style="width: 100%; background: #131722; color: #cbd5e1; border: 1px solid #282f40; border-radius: 6px; padding: 5px 24px 5px 10px; font-size: 11px; font-family: monospace; outline: none; cursor: pointer;">
+                      class="custom-select select-epic-filter">
                 <option value="all">⚡ Tất cả Epics (${allTasks.length})</option>
                 ${epicsFilterOptions}
               </select>
@@ -2325,7 +2401,7 @@
                 <div style="display: inline-flex; align-items: center; background: #131b2e; border: 1px solid #1e293b; border-radius: 6px; padding: 2px 4px 2px 8px; gap: 8px;">
                   <span style="font-size: 13px; color: #c084fc; display: inline-flex; align-items: center; user-select: none;" title="Người phụ trách (PIC) / Profile">👤</span>
                   <select id="ide-profile-select-${escapeHtml(repo.name)}" 
-                          style="background: #0f172a; color: #c084fc; border: 1px solid #334155; border-radius: 4px; padding: 5px 26px 5px 10px; font-size: 11px; font-family: monospace; font-weight: 700; cursor: pointer; outline: none;"
+                          class="custom-select select-profile-pic"
                           title="Chọn Antigravity Profile (PIC) để mở IDE">
                     ${renderProfileOptions(accountId)}
                   </select>
@@ -2472,7 +2548,8 @@ let currentReviewRepo = null;
       const url = '/api/review?repo=' + encodeURIComponent(repoName) + 
                   '&epic=' + encodeURIComponent(epicName || '') + 
                   '&round=' + round + 
-                  '&kind=' + encodeURIComponent(currentReviewKind);
+                  '&kind=' + encodeURIComponent(currentReviewKind) +
+                  '&_t=' + Date.now();
 
       fetch(getApiUrl(url))
         .then(res => res.json())
@@ -2499,7 +2576,7 @@ let currentReviewRepo = null;
           const themeColor = data.theme_color || (repoObj && repoObj.theme_color) || (REPO_THEMES[repoName] ? REPO_THEMES[repoName].color : '#b45309');
           const modalReviewBox = document.getElementById('modal-review-box') || document.querySelector('#modal-cross-review .modal-box');
           if (modalReviewBox) {
-            modalReviewBox.style.borderColor = themeColor;
+            modalReviewBox.style.setProperty('border-color', themeColor, 'important');
             modalReviewBox.style.boxShadow = `0 15px 45px -5px ${themeColor}88, 0 0 0 1px ${themeColor}`;
           }
 
@@ -2539,7 +2616,7 @@ let currentReviewRepo = null;
             if (!data.findings || data.findings.length === 0) {
               tbody.innerHTML = `
                 <tr>
-                  <td colspan="6" style="padding: 30px; text-align: center; color: #34d399; font-weight: 600; font-size: 13px;">
+                  <td colspan="6" style="padding: 80px 20px; text-align: center; color: #34d399; font-weight: 600; font-size: 13px;">
                     ✓ Không phát hiện lỗi (0 findings - CLEAN / AUTO_PASS)
                   </td>
                 </tr>
@@ -2559,15 +2636,32 @@ let currentReviewRepo = null;
                 const locFile = locParts[0] || '';
                 const locRest = locParts.slice(1).join(':');
 
-                // Format decision badge (Fixed in commit)
+                // Format decision column: Only commit ID + copy icon
                 const dec = f.decision || '';
-                let decHtml = escapeHtml(dec);
-                if (dec.toLowerCase().includes('fixed in')) {
-                  decHtml = decHtml.replace(/(fixed in\s+([0-9a-fA-F]+))/g, '<span style="color: #34d399; font-weight: 700; font-family: monospace;">✓ $1</span>');
+                let decHtml = '';
+                const mCommit = dec.match(/([0-9a-fA-F]{7,40})/i);
+                if (mCommit) {
+                  const sha = mCommit[1];
+                  decHtml = `
+                    <span style="display: inline-flex; align-items: center; gap: 6px; background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.35); padding: 2px 7px; border-radius: 4px; font-family: monospace;">
+                      <span style="color: #34d399; font-weight: 700; font-size: 11px;">${escapeHtml(sha)}</span>
+                      <button onclick="copyFolderToClipboard('${escapeHtml(sha)}', this)" 
+                              title="Copy commit ID: ${escapeHtml(sha)}" 
+                              style="background: transparent; border: none; cursor: pointer; color: #6ee7b7; padding: 0; display: inline-flex; align-items: center; line-height: 1; transition: color 0.15s ease;"
+                              onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='#6ee7b7'">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: middle;">
+                          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                        </svg>
+                      </button>
+                    </span>
+                  `;
                 } else if (dec.toLowerCase().includes('dismissed')) {
-                  decHtml = `<span style="color: #94a3b8;">${decHtml}</span>`;
+                  decHtml = `<span style="color: #94a3b8; font-size: 11px;">${escapeHtml(dec)}</span>`;
                 } else if (dec.toLowerCase().includes('open') || dec.toLowerCase().includes('pending')) {
-                  decHtml = `<span style="color: #fbbf24; font-weight: 600;">${decHtml}</span>`;
+                  decHtml = `<span style="color: #fbbf24; font-weight: 600; font-size: 11px;">${escapeHtml(dec)}</span>`;
+                } else {
+                  decHtml = `<span style="color: #cbd5e1; font-size: 11px;">${escapeHtml(dec || '—')}</span>`;
                 }
 
                 // Format code tokens in problem & proposed action
@@ -2582,18 +2676,18 @@ let currentReviewRepo = null;
 
                 return `
                   <tr style="border-bottom: 1px solid #1e2433; background: #14171f;">
-                    <td style="padding: 10px; color: #94a3b8; font-weight: 700; text-align: center;">${escapeHtml(f.id)}</td>
-                    <td style="padding: 10px;">
+                    <td style="padding: 8px 10px; color: #94a3b8; font-weight: 700; text-align: center;">${escapeHtml(f.id)}</td>
+                    <td style="padding: 8px 10px;">
                       <span style="background: ${sevBg}; color: ${sevColor}; border: 1px solid ${sevBorder}; font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 4px; font-family: monospace;">
                         ${sevLabel}
                       </span>
                     </td>
-                    <td style="padding: 10px; font-family: monospace; font-size: 11px; word-break: break-word; line-height: 1.4;">
+                    <td style="padding: 8px 10px; font-family: monospace; font-size: 11px; word-break: break-word; line-height: 1.4;">
                       <span style="color: #fde68a; font-weight: 600;">${escapeHtml(locFile)}</span>${locRest ? `:<span style="color: #94a3b8;">${escapeHtml(locRest)}</span>` : ''}
                     </td>
-                    <td style="padding: 10px; font-size: 11px; line-height: 1.5; color: #cbd5e1;">${probHtml}</td>
-                    <td style="padding: 10px; font-size: 11px; line-height: 1.5; color: #f1f5f9;">${propHtml}</td>
-                    <td style="padding: 10px; font-size: 11px; line-height: 1.5;">${decHtml}</td>
+                    <td style="padding: 8px 10px; font-size: 11px; line-height: 1.5; color: #cbd5e1;">${probHtml}</td>
+                    <td style="padding: 8px 10px; font-size: 11px; line-height: 1.5; color: #f1f5f9;">${propHtml}</td>
+                    <td style="padding: 8px 10px; font-size: 11px; line-height: 1.5;">${decHtml}</td>
                   </tr>
                 `;
               }).join('');
@@ -2846,12 +2940,6 @@ let currentReviewRepo = null;
       }
 
       openLiveModal('modal-context');
-    }
-
-    function switchReviewRound(roundNum) {
-      if (currentReviewRepo) {
-        openReviewModal(currentReviewRepo, currentReviewEpic, roundNum);
-      }
     }
 
     function renderSummary(data) {
