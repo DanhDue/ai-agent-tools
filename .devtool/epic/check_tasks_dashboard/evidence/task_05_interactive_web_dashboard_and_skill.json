@@ -1,0 +1,243 @@
+{
+  "schema": 1,
+  "task": "task_05_interactive_web_dashboard_and_skill",
+  "runs": {
+    "red": {
+      "head": "413b1952907eed7df2c9ed5e566e2227f492a35d",
+      "tree": "51e816cd2f40ad2a816addc307656c79e7d0c8e2",
+      "patch_id": "0c9d9a00554b85a29f873fda0f4787b36dc9a56a",
+      "started": "2026-11-11T06:56:37Z",
+      "finished": "2026-11-11T06:56:38Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m unittest tests/test_check_tasks_e2e.py -k test_ctd_hp_05",
+          "expect": "exit 1; contains \"FAILED\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-11T06:56:37Z",
+          "finished": "2026-11-11T06:56:38Z",
+          "output_tail": [
+            "F",
+            "======================================================================",
+            "FAIL: test_ctd_hp_05 (tests.test_check_tasks_e2e.TestCheckTasksE2E_Integration.test_ctd_hp_05)",
+            "Scenario: [CTD-HP-05] [Tier C - Integration] Interactive web dashboard displays project cards and review modal.",
+            "----------------------------------------------------------------------",
+            "Traceback (most recent call last):",
+            "  File \"/Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/check_tasks_dashboard/tests/test_check_tasks_e2e.py\", line 41, in test_ctd_hp_05",
+            "    self.assertTrue(",
+            "    ~~~~~~~~~~~~~~~^",
+            "        self.dashboard_html_path.is_file(),",
+            "        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+            "        f\"Expected {self.dashboard_html_path} to exist and be served\",",
+            "        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+            "    )",
+            "    ^",
+            "AssertionError: False is not true : Expected /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/check_tasks_dashboard/skills/check-tasks/resources/dashboard/tasks_dashboard.html to exist and be served",
+            "",
+            "----------------------------------------------------------------------",
+            "Ran 1 test in 0.000s",
+            "",
+            "FAILED (failures=1)"
+          ],
+          "output_sha256": "f4f109fc678c04ad621d2dda156ed7dfe459d8794e7016b0f02e0a29b46b23f4"
+        }
+      ],
+      "passed": true
+    },
+    "verify": {
+      "head": "413b1952907eed7df2c9ed5e566e2227f492a35d",
+      "tree": "d8c6365082414c20795edcb9db94efae220af4d2",
+      "patch_id": "004a7ac5cf7928ec654cae889347e18086ac4638",
+      "started": "2026-11-11T07:07:10Z",
+      "finished": "2026-11-11T07:07:28Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m unittest tests/test_check_tasks_e2e.py -k test_ctd_hp_05",
+          "expect": "exit 0; contains \"OK\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-11T07:07:10Z",
+          "finished": "2026-11-11T07:07:10Z",
+          "output_tail": [
+            ".",
+            "----------------------------------------------------------------------",
+            "Ran 1 test in 0.001s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "d10ffbd9f0faa72cd6837063279524e199b59fbc3d035051302a1e8dbc4b36ad"
+        },
+        {
+          "id": "V3",
+          "phase": "GREEN",
+          "command": "python3 -m unittest tests/test_check_tasks_e2e.py",
+          "expect": "exit 0; contains \"OK\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-11T07:07:10Z",
+          "finished": "2026-11-11T07:07:10Z",
+          "output_tail": [
+            ".....",
+            "----------------------------------------------------------------------",
+            "Ran 5 tests in 0.002s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "d03ce458f2a6cd2b4f27522f3aacad03ce1872c028853507c3ad02ca621bdcad"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py --ignore SIM117 tests/test_check_tasks_e2e.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-11T07:07:10Z",
+          "finished": "2026-11-11T07:07:10Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-B",
+          "command": "mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py tests/test_check_tasks_e2e.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-11T07:07:10Z",
+          "finished": "2026-11-11T07:07:10Z",
+          "output_tail": [
+            "Success: no issues found in 6 source files"
+          ],
+          "output_sha256": "ab35ee42183d4d6d3ba483825ab037d18a5a15622d03be01d82220b1564851ff"
+        },
+        {
+          "id": "V6",
+          "phase": "TIER-B",
+          "command": "python3 skills/quality_check/resources/scripts/verify_polyglot_registry.py .agents/quality/check_quality.json --profile epic",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-11T07:07:10Z",
+          "finished": "2026-11-11T07:07:27Z",
+          "output_tail": [
+            "            \"source\": \"ruff format --check skills/web-quality-check tests/test_agy_quota.py tests/test_claude_quota.py tests/test_kiro_quota.py tests/test_lifecycle_runner.py tests/test_check_tasks_e2e.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py\",",
+            "            \"location\": \"build/quality/agent-tools-python/format.log\"",
+            "          },",
+            "          {",
+            "            \"id\": \"lint-evidence\",",
+            "            \"type\": \"command\",",
+            "            \"source\": \"ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py --ignore SIM117 skills/check-tasks/resources/scripts/check_tasks.py skills/check-tasks/resources/scripts/tasks_server.py scripts/check_tasks.py scripts/tasks_server.py\",",
+            "            \"location\": \"build/quality/agent-tools-python/lint.log\"",
+            "          },",
+            "          {",
+            "            \"id\": \"type_check-evidence\",",
+            "            \"type\": \"command\",",
+            "            \"source\": \"mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py skills/check-tasks/resources/scripts/check_tasks.py skills/check-tasks/resources/scripts/tasks_server.py scripts/check_tasks.py scripts/tasks_server.py\",",
+            "            \"location\": \"build/quality/agent-tools-python/type_check.log\"",
+            "          },",
+            "          {",
+            "            \"id\": \"test-evidence\",",
+            "            \"type\": \"command\",",
+            "            \"source\": \"python3 -m pytest tests\",",
+            "            \"location\": \"build/quality/agent-tools-python/test.log\"",
+            "          },",
+            "          {",
+            "            \"id\": \"architecture-evidence\",",
+            "            \"type\": \"command\",",
+            "            \"source\": \"python3 -c import sys; sys.exit(0)\",",
+            "            \"location\": \"build/quality/agent-tools-python/architecture.log\"",
+            "          }",
+            "        ],",
+            "        \"started_head\": \"413b1952907eed7df2c9ed5e566e2227f492a35d\",",
+            "        \"finished_head\": \"413b1952907eed7df2c9ed5e566e2227f492a35d\",",
+            "        \"duration\": 17.191,",
+            "        \"blockers\": [],",
+            "        \"warnings\": []",
+            "      }",
+            "    ],",
+            "    \"blockers\": [],",
+            "    \"warnings\": [],",
+            "    \"coverage_summary\": {}",
+            "  }",
+            "}"
+          ],
+          "output_sha256": "c8559f59b0ede9b09d3fb9a7e26f514cbc7eba8490e97c5c6210822946381184"
+        },
+        {
+          "id": "V7",
+          "phase": "TIER-C",
+          "command": "python3 scripts/run_unittest_junit.py --junitxml build/test-results/task_5.xml tests/test_check_tasks_e2e.py",
+          "expect": "exit 0; results build/test-results/task_5.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-11T07:07:27Z",
+          "finished": "2026-11-11T07:07:27Z",
+          "output_tail": [
+            ".....",
+            "----------------------------------------------------------------------",
+            "Ran 5 tests in 0.002s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "d03ce458f2a6cd2b4f27522f3aacad03ce1872c028853507c3ad02ca621bdcad",
+          "results": {
+            "path": "build/test-results/task_5.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 1,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_ctd_hp_05",
+                  "classname": "test_check_tasks_e2e.TestCheckTasksE2E_Integration",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            ".agents/quality/python-quality.json",
+            "skills/check-tasks/SKILL.md",
+            "skills/check-tasks/resources/dashboard/tasks_dashboard.html",
+            "tests/test_agy_quota.py",
+            "tests/test_check_tasks_e2e.py",
+            "tests/test_claude_quota.py",
+            "tests/test_kiro_quota.py",
+            "tests/test_lifecycle_runner.py"
+          ],
+          "violations": []
+        }
+      ],
+      "passed": true
+    }
+  }
+}

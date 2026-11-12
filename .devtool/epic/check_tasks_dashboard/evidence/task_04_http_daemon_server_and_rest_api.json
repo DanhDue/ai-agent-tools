@@ -1,0 +1,192 @@
+{
+  "schema": 1,
+  "task": "task_04_http_daemon_server_and_rest_api",
+  "runs": {
+    "red": {
+      "head": "a13bb3b7a454aece01c8fdb3b2d5502a712ed871",
+      "tree": "59acc7bb1c8e0dd227002580d4998bd7df8806f8",
+      "patch_id": "d9c86e92a7b7e46d832a4584c4139ed4aab54f20",
+      "started": "2026-11-11T06:47:16Z",
+      "finished": "2026-11-11T06:47:16Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m unittest tests/test_check_tasks_server.py -k test_ctd_hp_04",
+          "expect": "exit 1; contains \"FAILED\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-11T06:47:16Z",
+          "finished": "2026-11-11T06:47:16Z",
+          "output_tail": [
+            "E",
+            "======================================================================",
+            "ERROR: test_ctd_hp_04 (tests.test_check_tasks_server.TestCheckTasksServer_Integration.test_ctd_hp_04)",
+            "[CTD-HP-04] [Tier C - Integration] Web server daemon starts cleanly and serves REST API.",
+            "----------------------------------------------------------------------",
+            "Traceback (most recent call last):",
+            "  File \"/Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/check_tasks_dashboard/tests/test_check_tasks_server.py\", line 52, in test_ctd_hp_04",
+            "    port = find_available_port(18766)",
+            "           ^^^^^^^^^^^^^^^^^^^",
+            "NameError: name 'find_available_port' is not defined",
+            "",
+            "----------------------------------------------------------------------",
+            "Ran 1 test in 0.002s",
+            "",
+            "FAILED (errors=1)"
+          ],
+          "output_sha256": "d028db8649dcdc2da8d5cd58aec03508fe2e3256722ff938a65b75370ed62d98"
+        }
+      ],
+      "passed": true
+    },
+    "verify": {
+      "head": "a13bb3b7a454aece01c8fdb3b2d5502a712ed871",
+      "tree": "eb070f133014003be91521f5623bd9ae603c9219",
+      "patch_id": "40db3c9140303633d92862452d3a25617de75560",
+      "started": "2026-11-11T06:49:52Z",
+      "finished": "2026-11-11T06:49:55Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m unittest tests/test_check_tasks_server.py -k test_ctd_hp_04",
+          "expect": "exit 0; contains \"OK\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-11T06:49:52Z",
+          "finished": "2026-11-11T06:49:52Z",
+          "output_tail": [
+            ".",
+            "----------------------------------------------------------------------",
+            "Ran 1 test in 0.620s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "49a46f994e8ce29f0d30ce78600ec4e3ce05c4db4d6b7ade4718c5f3dbf06a7a"
+        },
+        {
+          "id": "V3",
+          "phase": "GREEN",
+          "command": "python3 -m unittest tests/test_check_tasks_server.py",
+          "expect": "exit 0; contains \"OK\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-11T06:49:52Z",
+          "finished": "2026-11-11T06:49:53Z",
+          "output_tail": [
+            ".....",
+            "----------------------------------------------------------------------",
+            "Ran 5 tests in 0.625s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "0fdc5a091488397736cf41a7f9de12296ea0e98ea063ee7e5ce74dd1d4faa4ff"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py --ignore SIM117 skills/check-tasks/resources/scripts/tasks_server.py scripts/tasks_server.py tests/test_check_tasks_server.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-11T06:49:53Z",
+          "finished": "2026-11-11T06:49:53Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-B",
+          "command": "mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py skills/check-tasks/resources/scripts/tasks_server.py scripts/tasks_server.py tests/test_check_tasks_server.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-11T06:49:53Z",
+          "finished": "2026-11-11T06:49:53Z",
+          "output_tail": [
+            "Success: no issues found in 8 source files"
+          ],
+          "output_sha256": "157a09cfcdfdfb5977479c5a1c08345149263a3e990a2ec976ef28aaeec9cae6"
+        },
+        {
+          "id": "V6",
+          "phase": "TIER-C",
+          "command": "python3 scripts/run_unittest_junit.py --junitxml build/test-results/task_4.xml tests/test_check_tasks_server.py",
+          "expect": "exit 0; results build/test-results/task_4.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-11T06:49:53Z",
+          "finished": "2026-11-11T06:49:54Z",
+          "output_tail": [
+            ".....",
+            "----------------------------------------------------------------------",
+            "Ran 5 tests in 0.626s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "a2aed7e56a94a0ccf453857d5c5842382f505e0ce220fa42537316379234de3b",
+          "results": {
+            "path": "build/test-results/task_4.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 4,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_ctd_ar_01",
+                  "classname": "test_check_tasks_server.TestCheckTasksServer_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ctd_fr_01",
+                  "classname": "test_check_tasks_server.TestCheckTasksServer_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ctd_fr_02",
+                  "classname": "test_check_tasks_server.TestCheckTasksServer_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ctd_hp_04",
+                  "classname": "test_check_tasks_server.TestCheckTasksServer_Integration",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "scripts/tasks_server.py",
+            "skills/check-tasks/resources/scripts/tasks_server.py",
+            "tests/test_check_tasks_server.py"
+          ],
+          "violations": []
+        }
+      ],
+      "passed": true
+    }
+  }
+}

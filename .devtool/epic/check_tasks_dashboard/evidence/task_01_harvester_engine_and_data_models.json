@@ -1,0 +1,231 @@
+{
+  "schema": 1,
+  "task": "task_01_harvester_engine_and_data_models",
+  "runs": {
+    "verify": {
+      "head": "a8fea65c7c35b044b87c64d42f5b8daa71664876",
+      "tree": "159a54aafec903f14f8fa58a9869ea31f5964df9",
+      "patch_id": "8ccd32771e099bd4904368f971a06b408bed55ce",
+      "started": "2026-11-11T06:42:17Z",
+      "finished": "2026-11-11T06:42:20Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m unittest tests/test_check_tasks_harvester.py -k test_ctd_hp_01",
+          "expect": "exit 0; contains \"OK\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-11T06:42:17Z",
+          "finished": "2026-11-11T06:42:18Z",
+          "output_tail": [
+            "[main (root-commit) 05961a0] Initial commit",
+            " 1 file changed, 1 insertion(+)",
+            " create mode 100644 README.md",
+            "[main (root-commit) f3748cf] Initial commit",
+            " 1 file changed, 1 insertion(+)",
+            " create mode 100644 README.md",
+            "[main (root-commit) a6659ac] Initial commit",
+            " 1 file changed, 1 insertion(+)",
+            " create mode 100644 README.md",
+            "[main (root-commit) afc59e2] Initial commit",
+            " 1 file changed, 1 insertion(+)",
+            " create mode 100644 README.md",
+            ".",
+            "----------------------------------------------------------------------",
+            "Ran 1 test in 0.328s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "3fb9130a6b114c12bc94c0d3c36b0fc466123496cc788708c4c5f9d8fd2cd5c3"
+        },
+        {
+          "id": "V3",
+          "phase": "GREEN",
+          "command": "python3 -m unittest tests/test_check_tasks_harvester.py",
+          "expect": "exit 0; contains \"OK\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-11T06:42:18Z",
+          "finished": "2026-11-11T06:42:18Z",
+          "output_tail": [
+            "..[main (root-commit) 5f98162] First commit",
+            " 1 file changed, 1 insertion(+)",
+            " create mode 100644 file1.txt",
+            ".[main (root-commit) 8658304] Initial commit",
+            " 1 file changed, 1 insertion(+)",
+            " create mode 100644 README.md",
+            "[main (root-commit) 7bf2863] Initial commit",
+            " 1 file changed, 1 insertion(+)",
+            " create mode 100644 README.md",
+            "[main (root-commit) a6659ac] Initial commit",
+            " 1 file changed, 1 insertion(+)",
+            " create mode 100644 README.md",
+            "[main (root-commit) afc59e2] Initial commit",
+            " 1 file changed, 1 insertion(+)",
+            " create mode 100644 README.md",
+            "...",
+            "----------------------------------------------------------------------",
+            "Ran 6 tests in 0.486s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "98f8100f5c9866ba12bfa1f490365e830a8f988deb2bb82f318ed52114bc7e5f"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py --ignore SIM117 skills/check-tasks/resources/scripts/check_tasks.py tests/test_check_tasks_harvester.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-11T06:42:18Z",
+          "finished": "2026-11-11T06:42:18Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-B",
+          "command": "mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py skills/check-tasks/resources/scripts/check_tasks.py tests/test_check_tasks_harvester.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-11T06:42:18Z",
+          "finished": "2026-11-11T06:42:18Z",
+          "output_tail": [
+            "Success: no issues found in 7 source files"
+          ],
+          "output_sha256": "050c52a2b0c61e8b681ef5c485e0bc03340b8d55148e0acef27d744c8be42033"
+        },
+        {
+          "id": "V6",
+          "phase": "TIER-C",
+          "command": "python3 scripts/run_unittest_junit.py --junitxml build/test-results/task_1.xml tests/test_check_tasks_harvester.py",
+          "expect": "exit 0; results build/test-results/task_1.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-11T06:42:18Z",
+          "finished": "2026-11-11T06:42:19Z",
+          "output_tail": [
+            "..[main (root-commit) 8276513] First commit",
+            " 1 file changed, 1 insertion(+)",
+            " create mode 100644 file1.txt",
+            ".[main (root-commit) 4ca62c1] Initial commit",
+            " 1 file changed, 1 insertion(+)",
+            " create mode 100644 README.md",
+            "[main (root-commit) c0ea247] Initial commit",
+            " 1 file changed, 1 insertion(+)",
+            " create mode 100644 README.md",
+            "[main (root-commit) 0394992] Initial commit",
+            " 1 file changed, 1 insertion(+)",
+            " create mode 100644 README.md",
+            "[main (root-commit) ea275de] Initial commit",
+            " 1 file changed, 1 insertion(+)",
+            " create mode 100644 README.md",
+            "...",
+            "----------------------------------------------------------------------",
+            "Ran 6 tests in 0.496s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "f234e17903418b4712a173a639bef2a85c3ee7ae45c40c064a8de413ad1a85f9",
+          "results": {
+            "path": "build/test-results/task_1.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 4,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_ctd_ec_01",
+                  "classname": "test_check_tasks_harvester.TestCheckTasksHarvester_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ctd_ec_02",
+                  "classname": "test_check_tasks_harvester.TestCheckTasksHarvester_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ctd_ec_03",
+                  "classname": "test_check_tasks_harvester.TestCheckTasksHarvester_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ctd_hp_01",
+                  "classname": "test_check_tasks_harvester.TestCheckTasksHarvester_Integration",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "skills/check-tasks/resources/scripts/check_tasks.py",
+            "tests/test_check_tasks_harvester.py"
+          ],
+          "violations": []
+        }
+      ],
+      "passed": true
+    },
+    "red": {
+      "head": "a8fea65c7c35b044b87c64d42f5b8daa71664876",
+      "tree": "8cd52805b45a101a3f6fd7c5e432b247a8cc2f86",
+      "patch_id": null,
+      "started": "2026-11-11T05:00:00Z",
+      "finished": "2026-11-11T05:00:02Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m unittest tests/test_check_tasks_harvester.py -k test_ctd_hp_01",
+          "expect": "exit 1; contains \"FAILED\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-11T05:00:00Z",
+          "finished": "2026-11-11T05:00:02Z",
+          "output_tail": [
+            "E",
+            "======================================================================",
+            "ERROR: test_ctd_hp_01 (tests.test_check_tasks_harvester.TestCheckTasksHarvester.test_ctd_hp_01)",
+            "----------------------------------------------------------------------",
+            "Traceback (most recent call last):",
+            "  File \"tests/test_check_tasks_harvester.py\", line 25, in test_ctd_hp_01",
+            "    graph = harvest_dashboard_graph(workspace_root)",
+            "            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+            "NotImplementedError: TDD Red phase",
+            "----------------------------------------------------------------------",
+            "Ran 1 test in 0.001s",
+            "",
+            "FAILED (errors=1)"
+          ],
+          "output_sha256": "81826185c5a342815be946dd82c963eac3e895aae120cafd7c18d346efce3955"
+        }
+      ],
+      "passed": true
+    }
+  }
+}

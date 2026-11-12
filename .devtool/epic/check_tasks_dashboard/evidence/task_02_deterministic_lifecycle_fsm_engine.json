@@ -1,0 +1,186 @@
+{
+  "schema": 1,
+  "task": "task_02_deterministic_lifecycle_fsm_engine",
+  "runs": {
+    "red": {
+      "head": "b0d8cf6e752664124b5b6799f8b80b338beff1e3",
+      "tree": "851d58485ebe49e728016f6036b9172f5babc29d",
+      "patch_id": "1aab46a49b33c0b08bf1e3a262666ebd0c506736",
+      "started": "2026-11-11T06:43:57Z",
+      "finished": "2026-11-11T06:43:57Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m unittest tests/test_check_tasks_fsm.py -k test_ctd_hp_02",
+          "expect": "exit 1; contains \"FAILED\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-11T06:43:57Z",
+          "finished": "2026-11-11T06:43:57Z",
+          "output_tail": [
+            "E",
+            "======================================================================",
+            "ERROR: test_ctd_hp_02 (tests.test_check_tasks_fsm.TestCheckTasksFSM_Integration.test_ctd_hp_02)",
+            "[CTD-HP-02] [Tier C - Integration] Deterministic Lifecycle FSM derives exact human decision prompt.",
+            "----------------------------------------------------------------------",
+            "Traceback (most recent call last):",
+            "  File \"/Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/check_tasks_dashboard/tests/test_check_tasks_fsm.py\", line 68, in test_ctd_hp_02",
+            "    decision = derive_lifecycle_state(self.repo_path, epic_name)",
+            "               ^^^^^^^^^^^^^^^^^^^^^^",
+            "NameError: name 'derive_lifecycle_state' is not defined",
+            "",
+            "----------------------------------------------------------------------",
+            "Ran 1 test in 0.002s",
+            "",
+            "FAILED (errors=1)"
+          ],
+          "output_sha256": "54901c897d8e63320f7f8b083033ec7dcf41b285ab694c5366d86842b33fa6eb"
+        }
+      ],
+      "passed": true
+    },
+    "verify": {
+      "head": "b0d8cf6e752664124b5b6799f8b80b338beff1e3",
+      "tree": "a343b1056124fe0e83f2f8fc7f90a38f3b4efa3e",
+      "patch_id": "25f975e6bb515751eff7e912a7a54a013607552d",
+      "started": "2026-11-11T06:46:02Z",
+      "finished": "2026-11-11T06:46:03Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m unittest tests/test_check_tasks_fsm.py -k test_ctd_hp_02",
+          "expect": "exit 0; contains \"OK\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-11T06:46:02Z",
+          "finished": "2026-11-11T06:46:02Z",
+          "output_tail": [
+            ".",
+            "----------------------------------------------------------------------",
+            "Ran 1 test in 0.002s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "c346f1228fe88f4ab3cb336ffa610dc3a34ec7c7bb7d05df7a1c222f2d928881"
+        },
+        {
+          "id": "V3",
+          "phase": "GREEN",
+          "command": "python3 -m unittest tests/test_check_tasks_fsm.py",
+          "expect": "exit 0; contains \"OK\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-11T06:46:02Z",
+          "finished": "2026-11-11T06:46:02Z",
+          "output_tail": [
+            "........",
+            "----------------------------------------------------------------------",
+            "Ran 8 tests in 0.007s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "322e9bec5d6bbde47d6476008f309469c1e42048ed96320a3bae52af8811e27a"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py --ignore SIM117 skills/check-tasks/resources/scripts/check_tasks.py tests/test_check_tasks_fsm.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-11T06:46:02Z",
+          "finished": "2026-11-11T06:46:02Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-B",
+          "command": "mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py skills/check-tasks/resources/scripts/check_tasks.py tests/test_check_tasks_fsm.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-11T06:46:02Z",
+          "finished": "2026-11-11T06:46:02Z",
+          "output_tail": [
+            "Success: no issues found in 7 source files"
+          ],
+          "output_sha256": "050c52a2b0c61e8b681ef5c485e0bc03340b8d55148e0acef27d744c8be42033"
+        },
+        {
+          "id": "V6",
+          "phase": "TIER-C",
+          "command": "python3 scripts/run_unittest_junit.py --junitxml build/test-results/task_2.xml tests/test_check_tasks_fsm.py",
+          "expect": "exit 0; results build/test-results/task_2.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-11T06:46:02Z",
+          "finished": "2026-11-11T06:46:02Z",
+          "output_tail": [
+            "........",
+            "----------------------------------------------------------------------",
+            "Ran 8 tests in 0.006s",
+            "",
+            "OK"
+          ],
+          "output_sha256": "637ad693971420b70a01476cd5d51065ecc3c7af270c41cfe91899ec8c2db4bd",
+          "results": {
+            "path": "build/test-results/task_2.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 3,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_ctd_hp_02",
+                  "classname": "test_check_tasks_fsm.TestCheckTasksFSM_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ctd_st_01",
+                  "classname": "test_check_tasks_fsm.TestCheckTasksFSM_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_ctd_st_02",
+                  "classname": "test_check_tasks_fsm.TestCheckTasksFSM_Integration",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "skills/check-tasks/resources/scripts/check_tasks.py",
+            "tests/test_check_tasks_fsm.py"
+          ],
+          "violations": []
+        }
+      ],
+      "passed": true
+    }
+  }
+}

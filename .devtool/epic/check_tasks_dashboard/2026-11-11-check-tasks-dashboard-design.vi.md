@@ -1,7 +1,5 @@
 # Thiết kế Cross-Repo Tasks & Context Dashboard
 
-- **PIC**: `danhdue`
-
 ## Mục lục
 - [Tổng quan](#tổng-quan)
 - [Bối cảnh và Mục tiêu](#bối-cảnh-và-mục-tiêu)
