@@ -17,7 +17,7 @@
 ## Thông tin Meta
 
 - **Tên Epic**: `check_tasks_dashboard`
-- **Trạng thái**: In Progress
+- **Trạng thái**: Done
 - **Người phụ trách (PIC)**: `danhdue`
 - **Phiên bản Đích**: Bản phát hành plugin tiếp theo (v1.29.0)
 - **Nền tảng**: Công cụ Python / Bộ công cụ kỹ năng Agent
