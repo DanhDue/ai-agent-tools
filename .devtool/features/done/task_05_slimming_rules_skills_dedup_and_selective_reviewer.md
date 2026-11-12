@@ -1,13 +1,13 @@
 ---
 id: "task_05_slimming_rules_skills_dedup_and_selective_reviewer"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "token_throttling_optimization"
 dueDate: null
 created: "2026-11-13T02:36:00Z"
-modified: "2026-11-13T02:36:00Z"
-completedAt: null
+modified: "2026-11-12T22:29:04Z"
+completedAt: "2026-11-12T22:29:04Z"
 labels: ["docs", "slimming", "skills", "token-optimization"]
 order: "a5"
 ---

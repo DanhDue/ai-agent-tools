@@ -71,4 +71,4 @@ Principal Review is a cross-model review of an epic's architecture and task desi
 
 ## Guidelines and References
 
-For detailed guidelines on how to verify reviewer claims, assess validity, and record decisions, refer to [review-triage.md](../../dev-implementation/references/review-triage.md).
+For detailed guidelines on how to verify reviewer claims, assess validity, and record decisions, refer to [review-triage.md](../../cross-model-review/references/review-triage.md) and [document-triage.md](../../principal-review/references/document-triage.md).

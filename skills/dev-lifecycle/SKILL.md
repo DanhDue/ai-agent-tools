@@ -22,7 +22,7 @@ Human-facing lifecycle and resume diagrams live in [lifecycles.en.md](../../docs
 
 1. **Stage 1 (Inception & Spec)**: `dev-brainstorming` -> Gate 1 approval -> Route to `dev-designer` (epic) or `writing-plans` (non-epic).
 2. **Stage 2 (Architecture & Tasks)**: `dev-designer` -> Gate 2 approval -> Provider/model priority prompt -> `/principal-review` (auto, up to Max 3 rounds) -> Post-review Package (`package_epic.py`) & print implement prompt -> Choice (**Triển khai (tự động)** vs **Dừng lại**).
-3. **Stage 3 (Automated Execution & Audit)**: Role 2.3 (**Gemini Flash 3.8**) -> `dev-implementation` -> Automated Gate 3 (execution order & worktree) -> TDD in worktree -> Gate 4 local PASS -> Automated Cross-Model Review (`review_config.json`, Auto-fix up to Max 3 rounds) -> Gate 4 re-verification green.
+3. **Stage 3 (Automated Execution & Audit)**: Role 2.3 (resolved via `.devtool/review_config.json["providers"]["programmer"]`, default `gemini-4-hydrogen-xhigh --effort xhigh`) -> `dev-implementation` -> Automated Gate 3 (order & worktree) -> TDD in worktree -> Gate 4 local PASS -> Automated Cross-Model Review (`review_config.json`, Max 3 rounds) -> full Gate 4 re-verification.
 4. **Stage 4 (Finish Decision, Integration & Archival)**: Prompt Human Architect for Finish Decision & Gate 5 Sign-off -> `finishing-a-development-branch` -> Archive tasks into `.devtool/epic/<slug>/`, rebase, verify by tier (`Test All` once), `--no-ff` or squash merge, explicit Git push confirmation.
 
 <HARD-GATE>
@@ -62,7 +62,8 @@ An epic whose `.devtool/epic/<epic_dir>/` holds `task_*.md` files is past Gate 2
 ### Autonomous Mode (`/dev-lifecycle --autonomous`)
 
 For hands-off execution, `lifecycle_runner.py` drives Stage 2 and Stage 3:
-- **Tri-Role**: 2.1 Architect (strategy/gates), 2.2 Assistant (HLD/fix-plan review), 2.3 Programmer (Gemini 3.8 Flash High).
+- **Tri-Role**: 2.1 Architect (strategy/gates), 2.2 Assistant (HLD/fix-plan review), 2.3 Programmer (`.devtool/review_config.json`, default `gemini-4-hydrogen-xhigh`, `--effort xhigh`).
+- **Execution Hygiene & Checklists**: Enforce Rule 3 bounded reads (`StartLine`/`EndLine` on files > 200 lines) and Rule 5 Zero-Fluff Output Cap (preserve Verdicts, Findings, and gate results). Extended checklists: [governance-checklists.md](references/governance-checklists.md).
 - **Automation**: Auto Gate 3 order, process group timeouts, auto-triage, and Assistant fix plan review (`APPROVED`/`ADJUSTED`/`CRITICAL_CONFLICT`).
 - **Safety**: Circuit breakers on contract conflicts, fix loops, and max rounds; final Top 3 report halts at `AWAITING_FINISH`.
 - See [references/autonomous-mode.md](references/autonomous-mode.md).
@@ -124,12 +125,7 @@ Once all tasks are complete and Phase 4 / Gate 4 local machine verification retu
    - Halts cleanly ONLY on Circuit Breakers (`SHARED_CONTRACT_CONFLICT`, `FIX_LOOP`, or remaining Critical findings after Round 3).
 4. **Transition to Stage 4 (Finish Decision)**: Once the review converges and full Gate 4 passes on the candidate SHA, render the synthesized Executive Report (Top 3 Highest-Risk Findings across rounds) and present the **Stage 4 Finish Decision & Gate 5 Sign-off** to the Human Architect.
 
-> [!CRITICAL]
-> **Streamlined Pipeline & Remediation Test Protocol**:
-> 1. **Zero-Pause Review**: Once tasks are `done`, Gate 4 runs automatically. On PASS, transition directly to Cross-Model Review without asking between Finish and Review. Finish belongs in Stage 4 (Gate 5 sign-off).
-> 2. **Scoped Tests in Intermediate Rounds**: While fixing intermediate findings (Round 1, Round 2...), run ONLY fast static checks and explicitly targeted test files covering modified modules (`uv run pytest <test_file.py>`). Repo-wide pytest, `tests/e2e/`, and piping to `| tail` are strictly forbidden.
-> 3. **Final Gate Only**: Reserve full regression, Playwright E2E harness, and `@quality_check` artifact regeneration strictly for the Final Convergence Gate.
-> 4. **Zero-Tolerance Anti-Evasion**: Never delete packages from `pyproject.toml` or delete stale quality reports (add `uv.lock` to Allowed files and run `uv lock`). Never synthesize fake test fixtures; load immutable fixtures from disk. Run `uv run playwright install chromium` if playwright was added/updated.
+- **Zero-Pause Review & Remediation Hygiene**: Once tasks finish, run Gate 4 automatically; on PASS, advance directly to Cross-Model Review (no intermediate Review Choice — Finish belongs strictly in Stage 4 / Gate 5). Intermediate fix rounds run ONLY static checks + explicitly targeted tests (`uv run pytest <file.py>`); full regression, Playwright E2E, and `@quality_check` belong strictly to the Final Convergence Gate. Never delete packages/reports instead of `uv lock`/regeneration, never synthesize fake fixtures, and run `uv run playwright install chromium` after Playwright upgrades. See [governance-checklists.md](references/governance-checklists.md).
 
 **Gate 4 Machine Acceptance Criteria:**
 Gate 4 grants `🟢 LGTM` only when:

@@ -19,6 +19,12 @@ Subagent (general-purpose):
 
     [Scene-setting: where this fits, dependencies, architectural context]
 
+    ## Execution Hygiene (Mandatory)
+
+    - **Do NOT invoke `d3nexus:task-observer`**: Headless implementer subagents must never load `task-observer` or write skill observation entries; start immediately on the task brief.
+    - **Rule 3 — Bounded Reads**: Search symbols first (`rg -n`) and read only needed line ranges (`StartLine`/`EndLine` or `sed -n 'X,Yp'`, <= 150 lines) when inspecting files `> 200` lines.
+    - **Rule 5 — Zero-Fluff Output Cap**: Omit step-by-step narration and redundant file restatements. Always preserve Verdicts, Status, Findings, gate outputs, and evidence paths.
+
     ## Before You Begin
 
     If you have questions about:

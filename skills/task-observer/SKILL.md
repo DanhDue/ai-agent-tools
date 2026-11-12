@@ -9,14 +9,17 @@ description: >
   skill observations, improvements, the observation log, skill taxonomy, or
   asks the agent to watch for skill opportunities.
   Also known as "One Skill to Rule Them All" — trigger on this phrase too.
-  IMPORTANT: invoke this skill before the FIRST tool call of any session and
-  before writing or proposing a plan — any turn that will involve a tool call
-  counts, however simple the opener looks. This sentence is the
-  session-start trigger and the only activation layer that survives an
-  unreachable config file; pair it with a CLAUDE.md instruction or a harness
-  session-start hook (references/environments.md) — description matching
-  alone is not enforceable.
+  IMPORTANT: invoke this skill before the FIRST tool call of any interactive
+  coordinator or main-session turn that will run tools and is NOT a headless
+  subagent, task implementer, or background worker — pair it with a CLAUDE.md
+  instruction or harness session-start hook (references/environments.md) since
+  description matching alone is not enforceable. Subagents, task reviewers, and
+  headless workers MUST skip this skill.
 ---
+
+<SUBAGENT-STOP>
+Subagents, headless task implementers, and spawned worker conversations MUST NOT load or run `d3nexus:task-observer`. Return control immediately to your task prompt.
+</SUBAGENT-STOP>
 
 # Task Observer — Continuous Skill Discovery & Improvement
 

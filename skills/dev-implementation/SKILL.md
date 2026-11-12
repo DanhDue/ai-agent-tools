@@ -52,12 +52,12 @@ This skill is **Stage 3** of the Epic Lifecycle. The surrounding stages, the fiv
 
 Before implementing any task in Phase 2, adhere strictly to Bounded Context Injection:
 1. Read **only** the active task file (`.devtool/features/task_*.md` — the Execution SSOT embedding assigned edge-case `### BDD SCENARIOS` from `bdd_scenarios.en.md` and `Decisions Already Made`).
-2. Read the `Allowed files:` and `Read-only context:` listed in the task file.
-3. Look up exact symbols and choices in `Decisions Already Made` (consult HLD or `bdd_scenarios.en.md` only for cross-task boundaries or Gate 4 traceability); avoid undirected whole-repo searches.
+2. Read listed `Allowed files:` and `Read-only context:` using **Rule 3 bounded reads** (`StartLine`/`EndLine` at `target_files` ranges + symbol search when files exceed `200` lines).
+3. Look up symbols in `Decisions Already Made` (avoid undirected whole-repo searches). Enforce **Rule 5 Zero-Fluff Output Cap** (omit filler narration while preserving Verdicts, Findings, and gate outputs).
 
-**Strict Spec Fidelity**: Implement strictly within the boundaries specified by the active task and its Allowed files. Do not add speculative abstractions, configurability, or adjacent refactoring not requested by the task specification.
+**Strict Spec Fidelity**: Stay strictly within the active task and `Allowed files`; avoid unrequested abstractions or adjacent refactors.
 
-**Symlink & Multi-Repo Boundary Invariant**: In Satellite repositories where `shared-contracts/` is a symbolic link (e.g. `lyrics-sync` or `nexus` linking to `D3Nexus`), the implementer MUST treat `shared-contracts/` as strictly read-only for git operations. Never attempt to stage files through the symlink (`git add shared-contracts/...`), which triggers `fatal: pathspec is beyond a symbolic link`. If an upstream contract modification is needed, stop and report `BLOCKED` with an Upstream Contract Handoff Summary rather than attempting cross-repo edits.
+**Symlink & Multi-Repo Boundary Invariant**: Where `shared-contracts/` is a symlink (`lyrics-sync`, `nexus`), treat it as read-only for git (never `git add shared-contracts/...` -> `fatal: pathspec is beyond a symbolic link`); report `BLOCKED` with an Upstream Contract Handoff Summary if upstream changes are required.
 
 2. Resolve the three paths the rest of this skill uses. `SKILL_DIR` is the directory this `SKILL.md` was loaded from:
    ```bash
@@ -198,7 +198,7 @@ The AI Programmer acts as the **Implementation Orchestrator**, coordinating exec
 3. **Layer Barrier & Cleanup**: Run hermetic sanity tests on main worktree after each layer. Run `manage_worker_pool.py cleanup` after all layers complete before Phase 4.
 
 #### Headless & Autonomous Task Execution
-In Autonomous Mode (`/dev-lifecycle --autonomous`), `lifecycle_runner.py` dispatches Role 2.3 (AI Programmer: `gemini-3.8-flash --effort high --mode auto`) in an isolated process group (`start_new_session=True`) with SIGTERM/SIGKILL supervision, per-task logs, and commits (`[<EPIC_NAME>] Execute <task_slug>`).
+In Autonomous Mode (`/dev-lifecycle --autonomous`), `lifecycle_runner.py` dispatches Role 2.3 (AI Programmer resolved via `.devtool/review_config.json["providers"]["programmer"]`, default `gemini-4-hydrogen-xhigh --effort xhigh --mode auto`) in an isolated process group (`start_new_session=True`) with SIGTERM/SIGKILL supervision, per-task logs, and commits (`[<EPIC_NAME>] Execute <task_slug>`).
 
 0. **Pre-Edit Verification (Impact & Conflict Check)**:
    ```bash
@@ -219,9 +219,9 @@ In Autonomous Mode (`/dev-lifecycle --autonomous`), `lifecycle_runner.py` dispat
 
    **Tri-Persona Subagent Execution Model**:
    When dispatching implementer subagent, operate across the 3-Tier Testing Standard:
-   1. **Expert QA (Red Team Persona)**: Authors BDD Scenarios in complete isolation from coding, purely from HLD and `bdd_scenarios.en.md`, applying 5 dimensions: Happy Paths, Edge Cases & Boundaries, State Transitions, Async / Race Conditions, Failures & Resilience. Categorizes scenarios into `[Tier A - Unit]` vs `[Tier C - Integration]`. In Satellite Mode, authors verification scenarios validating that local deserializers parse both legacy and updated upstream payloads safely.
-   2. **Principal Engineer (TDD Master Persona — Tier A)**: Implements unit logic, state emissions, and hermetic tests using platform tools (Dart/Flutter, Kotlin/Compose, Swift/SwiftUI, TypeScript/Web, Python/pytest, Rust/cargo). Enforces RED failing test first -> minimal GREEN code -> REFACTOR formatting, linter, strict types. In Satellite Mode, adapts consumer models, DTOs, and adapters within satellite-internal files without staging symlinked paths.
-   3. **System Integration & E2E Engineer (Tier C Persona)**: Implements host integration flow tests (`integration_test/`, `*FlowTest.kt`, `App/Tests`, `tests/e2e/`, `tests/integration/`) connecting DI, navigation, and persistence contracts.
+   1. **Expert QA (Red Team)**: Authors adversarial BDD scenarios decoupled from code across 5 dimensions (`HP`, `EC`, `ST`, `AR`, `FR`) into `[Tier A - Unit]` vs `[Tier C - Integration]` (validating backward-compatible payloads in Satellite Mode).
+   2. **Principal Engineer (TDD Master — Tier A)**: Executes RED failing test -> minimal GREEN code -> REFACTOR/lint/strict types in task files only.
+   3. **System Integration & E2E Engineer (Tier C)**: Authors host integration flow tests (`integration_test/`, `*FlowTest.kt`, `App/Tests`, `tests/e2e/`, `tests/integration/`) exercising real DI, navigation, and persistence.
 
    #### Anti-Rationalization and Doubt-Driven Verification
 
@@ -229,8 +229,8 @@ In Autonomous Mode (`/dev-lifecycle --autonomous`), `lifecycle_runner.py` dispat
    - **"Node test is sufficient for web UI"**: REJECTED. Node tests prove only pure data logic. Web defects occur in DOM queries and CSS rendering. Tier C requires headless Playwright with Zero-Console-Error watchdog.
    - **"Mock data in stub is enough"**: REJECTED. Method stubs bypass JSON deserialization and network interceptors. Wire fixtures from `shared-contracts/` are mandatory.
    - **"Red console errors are harmless warnings"**: REJECTED. Zero-Console-Error rule fails Gate 4 on any browser console error.
-   - **"Cannot launch simulator, unit test instead"**: REJECTED. Mobile Tier C requires subcutaneous testing with real DI and in-memory persistence.
-   - **"HTML ported from mockup, selectors match"**: REJECTED. Tier C2 UI tests MUST assert computed styles (`getComputedStyle`, non-zero dimensions) against mockup.
+   - **"Cannot launch simulator, unit test instead"**: REJECTED. Mobile Tier C requires Subcutaneous testing with real DI and in-memory persistence.
+   - **"HTML ported from mockup, selectors match"**: REJECTED. Tier C2 UI tests MUST assert `getComputedStyle` and `getBoundingClientRect` properties against the Visual Companion design.
 
    **Doubt-Driven Verification Protocol**:
    Before claiming done on any task: `CLAIM` Tier C coverage -> `EXTRACT` test reports -> `DOUBT` mock isolation -> `RECONCILE` real headless/subcutaneous tests.
@@ -277,12 +277,10 @@ In Autonomous Mode (`/dev-lifecycle --autonomous`), `lifecycle_runner.py` dispat
    >    ```
    > 5. **Stop and Report**: A `Stop and Report If` condition in task is reported as `BLOCKED`. Never edit Verification table, Definition of Done, Allowed files or Covers line, or protected path, to force a pass. In Satellite Mode, report `BLOCKED` if an unmerged upstream contract change prevents local tests from passing.
 
-2. When implementer reports `DONE`, synchronize review status:
-   ```bash
-   python3 skills/dev-implementation/resources/scripts/sync_task_status.py task <task_id> review
-   ```
-3. If review finds issues, cycle between `status: "in-progress"` and `status: "review"`.
-4. When both reviews pass, `run_task_checks.py status <task mirror>` prints `done gate: PASS` and `check_bdd_traceability.py tests --ids` exits 0, update status to `done`:
+2. When implementer reports `DONE`:
+   - **Selective `task-reviewer` gating:** Dispatch `task-reviewer` **only** when `review_tier: "full"` in task frontmatter, OR task labels include `security`, `architecture`, `concurrency`, or `contract`, OR `> 2` non-test modules change (`sync_task_status.py task <task_id> review`). Trivial single-file tasks without high-risk triggers skip `task-reviewer` (rely on implementer self-review + `run_task_checks.py verify`).
+3. If `task-reviewer` is dispatched and finds issues, cycle between `status: "in-progress"` and `status: "review"`.
+4. When required review passes (or is skipped per selective gating), `run_task_checks.py status <task mirror>` prints `done gate: PASS`, and `check_bdd_traceability.py tests --ids` exits 0, update status to `done`:
    ```bash
    python3 skills/dev-implementation/resources/scripts/sync_task_status.py task <task_id> done
    ```
