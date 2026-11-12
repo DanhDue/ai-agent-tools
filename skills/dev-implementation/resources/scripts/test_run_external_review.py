@@ -15,11 +15,14 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import importlib
 from pathlib import Path
+from typing import Any as _Any
 from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).parent))
-import test_check_epic_readiness as tcer
+# Dynamic import keeps mypy scoped to this file's checks without pulling sibling test_check_epic_readiness.py.
+tcer: _Any = importlib.import_module("test_check_epic_readiness")
 from run_external_review import (
     evaluate_provider_quota,
     format_triage_header,
@@ -395,9 +398,9 @@ class RunExternalReviewTest(ReviewCase):
         self.assertIn("- **Status**: completed", self.text())
         prompt = self.stdin.read_text(encoding="utf-8")
         self.assertIn("The audit of the epic branch, with its exit code:", prompt)
-        self.assertIn("$ audit_epic.py", prompt)
+        self.assertIn("PASS: audit_epic.py", prompt)
         self.assertIn("The integration test commands and the result-based traceability check", prompt)
-        self.assertIn("$ true", prompt)
+        self.assertIn("PASS: true", prompt)
 
     # [RWE-EC-04] Facts timeout separated from CLI timeout
     def test_rwe_ec_04_facts_timeout_separated_from_cli_timeout(self) -> None:

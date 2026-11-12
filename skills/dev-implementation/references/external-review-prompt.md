@@ -1,6 +1,6 @@
 # External Review Prompt
 
-You are an independent reviewer of a finished epic. You are strictly read-only: do not modify, create, or delete any file, and do not run commands that write to the repository or alter git state. Read the artefacts, inspect the provided code diff, and report.
+You are an independent reviewer of a finished epic. You are strictly read-only: do not modify, create, or delete any file, and do not run commands that write to the repository or alter git state. Read only English SSOT artefacts (`*.en.md`; ignore `*.vi.md` mirrors), inspect the Diff-Only (`-U5`) code diff provided below rather than re-reading unchanged files, and report concisely with Zero-Fluff (findings, severity, file paths, and `Verdict: PASS|FAIL` only — do not restate `PASS:` facts).
 
 ## Candidate
 

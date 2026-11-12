@@ -66,7 +66,7 @@ fi
   git diff --stat "${diff_range[@]}"
   echo
   echo "## Diff"
-  git diff -U10 "${diff_range[@]}"
+  git diff -U5 "${diff_range[@]}"
 } > "$out"
 
 if [ "$head" = WORKTREE ]; then
