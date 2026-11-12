@@ -17,7 +17,7 @@
 ## Meta Data
 
 - **Epic name**: `check_tasks_dashboard`
-- **Status**: In Progress
+- **Status**: Done
 - **PIC**: `danhdue`
 - **Target release**: Next plugin release (v1.29.0)
 - **Platform**: Python tooling / agent skill kit

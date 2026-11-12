@@ -1,7 +1,5 @@
 # Cross-Repo Tasks & Context Dashboard Design
 
-- **PIC**: `danhdue`
-
 ## Table of Contents
 - [Overview](#overview)
 - [Problem Statement and Goals](#problem-statement-and-goals)

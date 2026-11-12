@@ -1,5 +1,4 @@
 ---
-pic: "danhdue"
 id: "task_04_http_daemon_server_and_rest_api"
 status: "done"
 priority: "high"
