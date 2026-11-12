@@ -1513,6 +1513,10 @@ def test_tto_ar_01_parallel_pool_dispatch_and_path_only_prompts() -> None:
             "compute_execution_order.py",
             "manage_worker_pool.py",
             "slug_utils.py",
+            "sync_task_status.py",
+            "check_bdd_traceability.py",
+            "task_contract.py",
+            "result_reports.py",
         ):
             shutil.copy2(src_scripts_dir / script_name, repo_scripts / script_name)
 
@@ -1630,7 +1634,44 @@ def test_tto_ar_01_parallel_pool_dispatch_and_path_only_prompts() -> None:
             .stdout.strip()
             .splitlines()
         )
-        assert changed_files == {"src/mod_a.py", "src/mod_b.py", "src/mod_c.py"}
+        assert {"src/mod_a.py", "src/mod_b.py", "src/mod_c.py"}.issubset(changed_files)
+        for task_slug, mod_file in (
+            ("task_01_a", "src/mod_a.py"),
+            ("task_02_b", "src/mod_b.py"),
+            ("task_03_c", "src/mod_c.py"),
+        ):
+            assert (
+                epic_wt / ".devtool" / "features" / "done" / f"{task_slug}.md"
+            ).is_file()
+            assert not (epic_wt / ".devtool" / "features" / f"{task_slug}.md").exists()
+            task_sha = _git(
+                epic_wt,
+                "log",
+                "-n",
+                "1",
+                "--format=%H",
+                "--grep",
+                f"Execute {task_slug}$",
+            ).stdout.strip()
+            assert task_sha
+            commit_files = set(
+                _git(
+                    epic_wt,
+                    "show",
+                    "--no-renames",
+                    "--name-only",
+                    "--format=",
+                    task_sha,
+                )
+                .stdout.strip()
+                .splitlines()
+            )
+            assert commit_files == {
+                mod_file,
+                f".devtool/features/{task_slug}.md",
+                f".devtool/features/done/{task_slug}.md",
+            }
+            assert (main_repo / ".devtool" / "features" / f"{task_slug}.md").is_file()
 
         # Merge conflict recovery: merge_slot must run git merge --abort on conflict
         pool_mod.init_slots(
@@ -1709,6 +1750,32 @@ def test_tto_ar_01_parallel_pool_dispatch_and_path_only_prompts() -> None:
         assert runner.state.last_error and "task_04_fail" in runner.state.last_error
         assert not (main_repo / ".worktrees" / "demo_epic-slot-1").exists()
         assert not (main_repo / ".worktrees" / "demo_epic-slot-2").exists()
+
+
+def test_extract_task_targets_filters_non_path_tokens(tmp_path: Path) -> None:
+    """_extract_task_targets emits file paths/ranges and drops non-path identifiers like RunnerConfig or TTO-HP-04."""
+    runner = LifecycleRunner(root=tmp_path, epic_slug="demo_epic")
+    task_md = (
+        "## Files\n"
+        "Allowed files:\n"
+        "- `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py` (L44-L80)\n"
+        "- `scripts/verify.sh`\n\n"
+        "## Impact Analysis & Blast Radius\n"
+        "- Updates `RunnerConfig` and `normalize_agy_effort` covered by `TTO-HP-04` and `--compact`.\n"
+        "- See `tests/test_lifecycle_runner.py` (L10-L30).\n"
+    )
+    targets = runner._extract_task_targets(task_md)
+    assert (
+        "skills/dev-lifecycle/resources/scripts/lifecycle_runner.py (L44-L80)"
+        in targets
+    )
+    assert "scripts/verify.sh" in targets
+    assert "tests/test_lifecycle_runner.py (L10-L30)" in targets
+    joined = " | ".join(targets)
+    assert "RunnerConfig" not in joined
+    assert "normalize_agy_effort" not in joined
+    assert "TTO-HP-04" not in joined
+    assert "--compact" not in joined
 
 
 if __name__ == "__main__":

@@ -453,3 +453,31 @@ class TestTTOBilingualAndSurgical_Integration:
 
     def test_tto_st_03_integration(self) -> None:
         test_tto_st_03_strict_bilingual_stage4_gate()
+
+
+def test_revise_handoff_text_heals_stale_placeholders() -> None:
+    """revise_handoff_text replaces lingering <N> and <source spec>.en.md placeholders on --revise."""
+    stale = (
+        "# Handoff: demo\n\n"
+        "## Status\n\n"
+        "- **Packaged**: 2026-11-11\n"
+        "- **Design commit**: `abc1234`\n\n"
+        "## Read First\n\n"
+        "1. `.devtool/epic/demo/demo.en.md` — the HLD. Its Kanban Tasks Breakdown lists the <N> tasks.\n"
+        "2. `.devtool/epic/demo/<source spec>.en.md` — the approved source spec.\n\n"
+        "## Revisions\n\n"
+        "- **2026-11-11 (`abc1234`)**: Initial Stage 2 packaging\n"
+    )
+    pkg_mod: Any = importlib.import_module("package_epic")
+    revised = pkg_mod.revise_handoff_text(
+        stale,
+        "def5678",
+        "Fix placeholders",
+        "2026-11-12",
+        task_count=6,
+        source_spec="2026-11-12-demo-design.en.md",
+    )
+    assert "<N>" not in revised
+    assert "<source spec>.en.md" not in revised
+    assert "lists the 6 tasks." in revised
+    assert ".devtool/epic/demo/2026-11-12-demo-design.en.md" in revised

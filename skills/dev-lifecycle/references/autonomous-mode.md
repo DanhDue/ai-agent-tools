@@ -25,6 +25,7 @@ python3 skills/dev-lifecycle/resources/scripts/lifecycle_runner.py --epic <epic_
 - `--confirm-fixes`: Confirms proposed fixes while in `awaiting_principal_confirmation`.
 - `--reject-fixes`: Rejects proposed fixes while in `awaiting_principal_confirmation` and halts.
 - `--programmer-model <model>`: Model identifier for AI Programmer (defaults to `.devtool/review_config.json["providers"]["programmer"]` / `gemini-4-hydrogen-xhigh`).
+- `--programmer-effort <effort>`: Reasoning effort level for AI Programmer (`xhigh`, `high`, `medium`, `low`; normalized per CLI, defaults to `.devtool/review_config.json["providers"]["programmer_effort"]` / `xhigh`).
 - `--assistant-model <model>`: Model override for AI Assistant.
 - `--root <path>`: Workspace root path (defaults to current working directory).
 - `--dry-run`: Simulates execution without spawning child subprocesses.

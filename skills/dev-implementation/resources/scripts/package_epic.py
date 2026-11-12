@@ -169,16 +169,25 @@ def revise_handoff_text(
     design_commit: str,
     reason: str,
     today_iso: str,
+    *,
+    task_count: int | None = None,
+    source_spec: str | None = None,
 ) -> str:
     old_sha_match = re.search(
         r"^-\s*\*\*Design commit\*\*:\s*`?([^`\s\n]+)`?", handoff_text, re.MULTILINE
     )
     old_sha = old_sha_match.group(1).strip() if old_sha_match else "unknown"
 
+    text = handoff_text
+    if task_count is not None:
+        text = text.replace("<N>", str(task_count))
+    if source_spec is not None:
+        text = text.replace("<source spec>.en.md", source_spec)
+
     text = re.sub(
         r"^(-\s*\*\*Packaged\*\*:\s*)(.*)$",
         rf"\g<1>{today_iso}",
-        handoff_text,
+        text,
         flags=re.MULTILINE,
     )
 
@@ -318,6 +327,15 @@ def package_epic(
         else epic_dir.replace("_", "-")
     ) or epic_dir.replace("_", "-")
 
+    task_count = len(list(epic_path.glob("task_*.md")))
+    spec_candidates = sorted(
+        p.name
+        for p in epic_path.glob("*.en.md")
+        if p.name not in (f"{epic_dir}.en.md", "bdd_scenarios.en.md")
+        and (p.name.endswith("-design.en.md") or "spec" in p.name.lower())
+    )
+    source_spec = spec_candidates[0] if spec_candidates else None
+
     if not revise:
         update_epic_status_to_packaged(root, epic_dir, today_iso)
         tpl = TEMPLATE_PATH
@@ -325,14 +343,6 @@ def package_epic(
             tpl = root / "skills" / "dev-lifecycle" / "references" / "handoff-template.md"
         if not tpl.is_file():
             raise FileNotFoundError(f"handoff-template.md not found at {TEMPLATE_PATH}")
-        task_count = len(list(epic_path.glob("task_*.md")))
-        spec_candidates = sorted(
-            p.name
-            for p in epic_path.glob("*.en.md")
-            if p.name not in (f"{epic_dir}.en.md", "bdd_scenarios.en.md")
-            and (p.name.endswith("-design.en.md") or "spec" in p.name.lower())
-        )
-        source_spec = spec_candidates[0] if spec_candidates else None
         content = render_initial_handoff(
             tpl,
             epic_dir,
@@ -352,6 +362,8 @@ def package_epic(
             design_commit,
             reason,
             today_iso,
+            task_count=task_count,
+            source_spec=source_spec,
         )
         handoff_file.write_text(revised, encoding="utf-8")
 

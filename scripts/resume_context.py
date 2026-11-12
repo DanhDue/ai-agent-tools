@@ -1401,6 +1401,7 @@ def _collect_compact_snapshot(
                     break
 
     if norm_epic:
+        hld_found = False
         for r in roots:
             epic_root = r / ".devtool" / "epic"
             if not epic_root.is_dir():
@@ -1417,6 +1418,9 @@ def _collect_compact_snapshot(
                     ]
                     if meta:
                         lines.append(f"HLD ({hld_path.relative_to(r)}): " + " | ".join(meta[:4]))
+                        hld_found = True
+                break
+            if hld_found:
                 break
 
         for r in roots:

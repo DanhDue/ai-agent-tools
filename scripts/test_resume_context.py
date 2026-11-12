@@ -960,6 +960,24 @@ ag_run() {
         self.assertIn("claude-sonnet-4-6", res_custom.stdout)
         self.assertIn("medium", res_custom.stdout)
 
+    def test_compact_context_emits_single_hld_line_across_roots(self) -> None:
+        """build_compact_context stops scanning roots once the active epic HLD line is emitted."""
+        from resume_context import build_compact_context
+
+        main_root = self.workspace / "main_repo_copy"
+        wt_root = self.workspace / "wt_repo_copy"
+        for copy_root, status_label in ((main_root, "In Progress"), (wt_root, "Packaged (2026-11-12)")):
+            ep_dir = copy_root / ".devtool" / "epic" / "demo_epic"
+            ep_dir.mkdir(parents=True, exist_ok=True)
+            (ep_dir / "demo_epic.en.md").write_text(
+                f"# Epic: Demo Epic\n- **Epic**: demo-epic\n- **Status**: {status_label}\n",
+                encoding="utf-8",
+            )
+        compact = build_compact_context(main_root, worktree_root=wt_root, epic_slug="demo-epic")
+        hld_lines = [ln for ln in compact.splitlines() if ln.startswith("HLD (")]
+        self.assertEqual(len(hld_lines), 1)
+        self.assertIn("Packaged (2026-11-12)", hld_lines[0])
+
 
 if __name__ == "__main__":
     unittest.main()

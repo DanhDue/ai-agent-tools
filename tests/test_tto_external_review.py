@@ -652,3 +652,71 @@ class TestTTOExternalReview_Integration:
 
     def test_tto_fr_01_integration(self, tmp_path: Path, monkeypatch: Any) -> None:
         test_tto_fr_01_quiet_facts_and_raw_log_offloading(tmp_path, monkeypatch)
+
+
+def test_review_round1_fixes_audit_disclosures_artefacts_and_budget(
+    tmp_path: Path,
+) -> None:
+    """Verify audit disclosures reach prompts, principal_review is excluded, and diff truncation obeys max_bytes."""
+    sample_audit = (
+        "### Evidence\n"
+        "- task_01: PASS\n"
+        "- task_02: PASS\n\n"
+        "### Legacy tasks\nNone\n\n"
+        "### Protected paths\n- abc1234 scripts/verify.sh\n\n"
+        "### Grader amendments\n- task_01: amended\n\n"
+        "### Commits outside tasks\n- def5678 Fix lint\n\n"
+        "### Gate 5 items\n- task_01: Visual check (Gate 5)\n\n"
+        "Result: PASS\n"
+    )
+    formatted_audit = rer._format_audit_output(0, sample_audit, "")
+    assert formatted_audit.startswith("PASS: audit_epic.py\n")
+    assert "### Evidence: 2/2 PASS" in formatted_audit
+    assert "task_02: PASS" not in formatted_audit
+    assert "### Protected paths" in formatted_audit
+    assert "### Grader amendments" in formatted_audit
+    assert "### Commits outside tasks" in formatted_audit
+    assert "### Gate 5 items" in formatted_audit
+
+    epic_folder = tmp_path / ".devtool" / "epic" / "demo"
+    epic_folder.mkdir(parents=True)
+    for fname in (
+        "2026-11-13-demo-design.en.md",
+        "demo.en.md",
+        "demo.vi.md",
+        "bdd_scenarios.en.md",
+        "principal_review.md",
+        "review_results.md",
+        "fix_plan_round1.md",
+        "task_01_first.md",
+    ):
+        (epic_folder / fname).write_text("# doc\n", encoding="utf-8")
+    artefacts = rer.artefact_lines(tmp_path, "demo")
+    assert "principal_review.md" not in artefacts
+    assert "review_results.md" not in artefacts
+    assert "fix_plan_round1.md" not in artefacts
+    assert "demo.vi.md" not in artefacts
+    assert "2026-11-13-demo-design.en.md" in artefacts
+    assert "task_01_first.md" in artefacts
+
+    diff_chunks = []
+    for i in range(15):
+        diff_chunks.append(
+            f"diff --git a/src/mod_{i:02d}.py b/src/mod_{i:02d}.py\n"
+            f"--- a/src/mod_{i:02d}.py\n"
+            f"+++ b/src/mod_{i:02d}.py\n"
+            f"@@ -1,2 +1,2 @@ def fn_{i:02d}():\n"
+            f"-x = {i}\n"
+            f"+x = {i + 1}\n"
+        )
+    large_diff = "".join(diff_chunks)
+    for max_bytes in (500, 650, 800):
+        rendered = rer._render_diff_payload(
+            " 15 files changed, 15 insertions(+)",
+            large_diff,
+            "main...HEAD",
+            "(none)",
+            max_lines=5,
+            max_bytes=max_bytes,
+        )
+        assert len(rendered.encode("utf-8")) <= max_bytes

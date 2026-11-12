@@ -633,7 +633,12 @@ class LifecycleRunner:
             for match in line_range_re.finditer(raw_line):
                 path_tok = (match.group(1) or match.group(3) or "").strip()
                 range_tok = (match.group(2) or match.group(4) or "").strip()
-                if not path_tok or " " in path_tok:
+                if (
+                    not path_tok
+                    or " " in path_tok
+                    or path_tok.startswith("-")
+                    or not ("/" in path_tok or re.search(r"\.[A-Za-z][A-Za-z0-9]{0,7}$", path_tok))
+                ):
                     continue
                 if range_tok and not range_tok.startswith("L"):
                     range_tok = f"L{range_tok}"
@@ -745,7 +750,7 @@ class LifecycleRunner:
         )
         if sync_script.is_file():
             subprocess.run(
-                [sys.executable, str(sync_script), "task", task_slug, "done"],
+                [sys.executable, "-B", str(sync_script), "task", task_slug, "done"],
                 cwd=exec_root,
                 capture_output=True,
                 check=False,

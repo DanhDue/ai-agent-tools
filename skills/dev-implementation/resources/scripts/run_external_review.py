@@ -537,10 +537,42 @@ def fact(label: str, code: int | None, out: str, err: str) -> str:
     return f"$ {label}\nexit {status}\n{tail}\n" if tail else f"$ {label}\nexit {status}\n"
 
 
+def _format_audit_output(audit_code: int | None, audit_out: str, audit_err: str) -> str:
+    """Format audit_epic.py output: keep PASS summary plus concise disclosure sections."""
+    if audit_code != 0:
+        return fact("audit_epic.py", audit_code, audit_out, audit_err)
+    sections: list[str] = ["PASS: audit_epic.py"]
+    current_header: str | None = None
+    current_lines: list[str] = []
+
+    def flush() -> None:
+        if current_header is None:
+            return
+        non_empty = [ln.rstrip() for ln in current_lines if ln.strip()]
+        if current_header == "### Evidence" and non_empty and all(ln.endswith(": PASS") for ln in non_empty):
+            sections.append(f"### Evidence: {len(non_empty)}/{len(non_empty)} PASS")
+            return
+        if len(non_empty) == 1 and non_empty[0] == "None":
+            sections.append(f"{current_header}: None")
+            return
+        sections.append(current_header)
+        sections.extend(non_empty or ["None"])
+
+    for line in audit_out.splitlines():
+        if line.startswith("### "):
+            flush()
+            current_header = line.strip()
+            current_lines = []
+        elif current_header is not None and not line.startswith("Result:"):
+            current_lines.append(line)
+    flush()
+    return "\n".join(sections) + "\n"
+
+
 def collect_facts(root: Path, epic_dir: str, base: str, hld_text: str, timeout: int) -> tuple[str, str]:
     audit = [sys.executable, str(SCRIPTS / "audit_epic.py"), "--epic-dir", epic_dir, "--base", base]
     audit_code, audit_out, audit_err = run_gate("audit_epic.py", audit, root, timeout)
-    audit_output = fact("audit_epic.py", audit_code, audit_out, audit_err)
+    audit_output = _format_audit_output(audit_code, audit_out, audit_err)
     results, reports = [], []
     skipped_live_commands: list[str] = []
 
@@ -672,7 +704,11 @@ def collect_facts(root: Path, epic_dir: str, base: str, hld_text: str, timeout: 
 def artefact_lines(root: Path, epic_dir: str) -> str:
     folder = root / ".devtool" / "epic" / epic_dir
     names = sorted(p.name for p in folder.glob("*.md") if not p.name.endswith(".vi.md"))
-    spec = [n for n in names if not n.startswith(("task_", "bdd_", epic_dir, "review_results"))]
+    spec = [
+        n
+        for n in names
+        if not n.startswith(("task_", "bdd_", epic_dir, "review_results", "principal_review", "fix_plan_round"))
+    ]
     paths = (spec + [f"{epic_dir}.en.md", "bdd_scenarios.en.md"]
              + [n for n in names if n.startswith("task_")] + ["evidence/"])
     return "\n".join(f"- `.devtool/epic/{epic_dir}/{p}`" for p in paths)
@@ -738,10 +774,14 @@ def _render_diff_payload(
     kept: list[str] = []
     used = 0
     trunc_marker = "# ... (hunk headers truncated to budget)"
+    marker_bytes = len((trunc_marker + "\n").encode("utf-8"))
     for line in headers:
         line_bytes = len((line + "\n").encode("utf-8"))
         if used + line_bytes > budget:
-            if budget >= len(trunc_marker.encode("utf-8")) + 1 and kept:
+            while kept and (budget - used) < marker_bytes:
+                popped = kept.pop()
+                used -= len((popped + "\n").encode("utf-8"))
+            if (budget - used) >= marker_bytes and kept:
                 kept.append(trunc_marker)
             break
         kept.append(line)
