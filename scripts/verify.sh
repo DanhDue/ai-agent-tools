@@ -318,6 +318,7 @@ SUITES = [
     ("11", "pytest",   "skills/dev-implementation/resources/scripts/test_concurrent_epic_backlog.py", 10, False),
     ("11", "pytest",   "skills/dev-implementation/resources/scripts/test_package_and_revise_epic.py", 30, False),
     ("11", "unittest", "skills/dev-implementation/resources/scripts/test_compute_execution_order.py", 5, False),
+    ("11", "pytest",   "skills/dev-implementation/resources/scripts/test_manage_worker_pool.py", 1, False),
     ("11", "pytest",   "skills/dev-implementation/resources/scripts/test_failure_baseline.py", 5, False),
     ("11", "pytest",   "skills/dev-implementation/resources/scripts/test_replay_and_measure.py", 15, False),
     ("11", "unittest", "skills/dev-implementation/resources/scripts/test_slug_utils.py", 2, False),
