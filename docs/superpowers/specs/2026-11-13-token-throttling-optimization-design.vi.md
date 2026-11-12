@@ -12,6 +12,7 @@
   - [4.4 Cách ly Context Task và Selective Task Reviewer](#44-cách-ly-context-task-và-selective-task-reviewer)
   - [4.5 Giới hạn Output, Rút gọn Rules và Skills](#45-giới-hạn-output-rút-gọn-rules-và-skills)
   - [4.6 Luồng Song ngữ Option A](#46-luồng-song-ngữ-option-a)
+  - [4.7 Cấu hình Programmer Persona qua File Config và Gemini 4 Hydrogen](#47-cấu-hình-programmer-persona-qua-file-config-và-gemini-4-hydrogen)
 - [5. Chiến lược Kiểm thử và Bất biến của Kit](#5-chiến-lược-kiểm-thử-và-bất-biến-của-kit)
 - [6. Cảnh báo Shared Contract](#6-cảnh-báo-shared-contract)
 
@@ -109,16 +110,23 @@ flowchart TD
 - **Dung sai trong lúc thực thi (`check_epic_readiness.py` & `check_bdd_traceability.py`)**: Giữ nguyên Spec và HLD `.vi.md` trên disk cho người dùng đọc (không xóa), thêm chế độ mặc định in-flight trên `check_epic_readiness.py` (kèm cờ `--strict-bilingual` cho Gate 5 / Finish) và `check_bdd_traceability.py` để các chỉnh sửa Principal Review trên `.en.md` hoặc việc chưa có `bdd_scenarios.vi.md` không làm fail `R1`/`R3`/`R7` giữa chừng; đồng thời bỏ `.vi.md` khỏi `handoff.md` (`Read First`) và `run_external_review.py`.
 - **Đồng bộ tại Stage 4 Pre-Finish (`/finishing-a-development-branch`)**: Cập nhật Pre-Finish Hook (trước commit archive ở Option 1 và Option 2) để delta-sync thay đổi sang Spec/HLD `.vi.md`, sinh `bdd_scenarios.vi.md` một lần duy nhất, rồi nghiệm thu lại bằng `check_document.py --require-toc --require-bilingual` và `check_epic_readiness.py --strict-bilingual`.
 
+### 4.7 Cấu hình Programmer Persona qua File Config và Gemini 4 Hydrogen
+
+- **Nguồn chân lý cấu hình (`.devtool/review_config.json`)**: Bổ sung `"assistant"` và `"programmer"` vào `DEFAULT_REVIEW_CONFIG["providers"]` trong `run_external_review.py` và chuẩn hóa `.devtool/review_config.json["providers"]["programmer"]` với mặc định `model: "gemini-4-hydrogen-xhigh"` và `thinking_level: "xhigh"` (thay thế mặc định hardcode `Gemini Flash 3.8`).
+- **Thứ tự ưu tiên & Ánh xạ Effort (`lifecycle_runner.py`)**: Thêm `resolve_programmer_model()` và `resolve_programmer_effort()` trên `RunnerConfig` theo thứ tự ưu tiên `CLI (--programmer-model / --programmer-effort) -> Runner --config JSON -> .devtool/review_config.json["providers"]["programmer"] -> env (AGY_PROGRAMMER_MODEL / AGY_PROGRAMMER_EFFORT) -> fallback ("gemini-4-hydrogen-xhigh", "xhigh")`; đổi default trên `argparse` cho `--programmer-model` / `--programmer-effort` thành `None` để không che khuất file config. Chuẩn hóa các alias `"extra"`, `"extra-high"`, `"extra_high"` và `"xhigh"` sang cờ `agy` CLI `--effort xhigh` (`low|medium|high|xhigh|max`).
+- **Đồng bộ Handoff Prompt, Rules và Skills**: Cập nhật `resume_context.py` (`emit_handoff_prompt`), `rules/CRITICAL_RULES.md`, `skills/dev-lifecycle/SKILL.md`, `skills/dev-lifecycle/references/autonomous-mode.md`, `skills/dev-implementation/SKILL.md` và `skills/principal-review/SKILL.md` để đọc/tham chiếu `.devtool/review_config.json` (`providers.programmer`, mặc định `gemini-4-hydrogen-xhigh`, effort `xhigh`) thay vì hardcode `Gemini Flash 3.8` (giữ nguyên nhãn hiển thị quota bucket trên `agy_quota.py` và dashboard UI).
+
 ## 5. Chiến lược Kiểm thử và Bất biến của Kit
 
 - Bảo toàn toàn bộ kiểm định phát hành bằng `bash scripts/verify.sh --full` (`42+` suite, JSON manifest, YAML frontmatter, relative links, ToC anchors, Section 7 methodology fidelity, Section 8 unreferenced supporting files, và `scripts/test_lifecycle_document_contract.py`).
 - Bổ sung unit & integration tests cho:
   - `test_run_external_review.py`: ngữ cảnh diff `-U5`, không lặp `base...sha` ở Round 2, quiet `collect_facts()`, loại trừ `.vi.md` và tách `stderr` transcript ra `build/reviews/`.
-  - `test_lifecycle_runner.py`: silent Gate 4 pass / cắt đuôi 25 dòng lỗi, worker pool parallel dispatch, fix loop tinh gọn cho code bug và `render_final_executive_report()` đọc findings thật.
+  - `test_lifecycle_runner.py`: silent Gate 4 pass / cắt đuôi 25 dòng lỗi, worker pool parallel dispatch, fix loop tinh gọn cho code bug, `render_final_executive_report()` đọc findings thật, và thứ tự ưu tiên `resolve_programmer_model()` / `resolve_programmer_effort()` kèm ánh xạ `"extra"` -> `"xhigh"`.
   - `test_check_epic_readiness.py` và `test_integrate_branch.py`: Option A hoãn `bdd_scenarios.vi.md` ở Stage 2/Review vs `--strict-bilingual` ở Stage 4 Finish, và check dải dòng trong `check_task_contract.py`.
-  - `test_resume_context.py` và `test_aggregate_quality_results.py`: output `--compact` theo epic và định dạng `GATE_PASS:`.
+  - `test_resume_context.py` và `test_aggregate_quality_results.py`: output `--compact` theo epic, `emit_handoff_prompt` lấy Programmer model từ config và định dạng `GATE_PASS:`.
 - Đo kiểm định lượng trước/sau cho dung lượng `CRITICAL_RULES.md`, `dev-designer/SKILL.md`, `resume_context.py --epic <slug> --compact` và kích thước artefact `principal_review.md`.
 
 ## 6. Cảnh báo Shared Contract
 
-Repository `ai-agent-tools` không chứa thư mục `shared-contracts/` (đây là bộ workflow kit độc lập, không phải Hub/Satellite dịch vụ). Mọi hợp đồng CLI nội bộ giữa `run_external_review.py`, `check_epic_readiness.py`, `verify_polyglot_registry.py`, `resume_context.py`, `lifecycle_runner.py` và `integrate_branch.py` được giữ tương thích ngược thông qua cờ mặc định và tham số tùy chọn.
+Repository `ai-agent-tools` không chứa thư mục `shared-contracts/` (đây là bộ workflow kit độc lập, không phải Hub/Satellite dịch vụ). Mọi hợp đồng CLI nội bộ giữa `run_external_review.py`, `check_epic_readiness.py`, `verify_polyglot_registry.py`, `resume_context.py`, `lifecycle_runner.py` và `integrate_branch.py` cùng schema `.devtool/review_config.json` được giữ tương thích ngược thông qua cờ mặc định và giá trị fallback tùy chọn.
+

@@ -12,6 +12,7 @@
   - [4.4 Context Isolation and Selective Task Reviewer](#44-context-isolation-and-selective-task-reviewer)
   - [4.5 Zero-Fluff Output Cap, Rules, and Skills Slimming](#45-zero-fluff-output-cap-rules-and-skills-slimming)
   - [4.6 Option A Bilingual Workflow](#46-option-a-bilingual-workflow)
+  - [4.7 Config-Driven Programmer Persona and Gemini 4 Hydrogen](#47-config-driven-programmer-persona-and-gemini-4-hydrogen)
 - [5. Verification Strategy and Kit Invariants](#5-verification-strategy-and-kit-invariants)
 - [6. Shared Contract Warnings](#6-shared-contract-warnings)
 
@@ -109,16 +110,22 @@ flowchart TD
 - **In-Flight Tolerance (`check_epic_readiness.py` & `check_bdd_traceability.py`)**: Keep Spec and HLD `.vi.md` on disk untouched for human reading; configure `check_epic_readiness.py` (in-flight default, with `--strict-bilingual` for Gate 5 / Finish) and `check_bdd_traceability.py` so Principal Review revisions to `.en.md` and deferred `bdd_scenarios.vi.md` do not block readiness (`R1`/`R3`/`R7`) mid-lifecycle, while removing `.vi.md` from `handoff.md` (`Read First`) and `run_external_review.py`.
 - **Stage 4 Pre-Finish Sync (`/finishing-a-development-branch`)**: Update Pre-Finish Hook (before archival commit in Options 1 and 2) to delta-sync `.en.md` edits into Spec/HLD `.vi.md`, generate `bdd_scenarios.vi.md` once, and validate the complete pair set with `check_document.py --require-toc --require-bilingual` and `check_epic_readiness.py --strict-bilingual`.
 
+### 4.7 Config-Driven Programmer Persona and Gemini 4 Hydrogen
+
+- **Configuration Source of Truth (`.devtool/review_config.json`)**: Add `"assistant"` and `"programmer"` entries to `DEFAULT_REVIEW_CONFIG["providers"]` in `run_external_review.py` and standardize `.devtool/review_config.json["providers"]["programmer"]` with default `model: "gemini-4-hydrogen-xhigh"` and `thinking_level: "xhigh"` (replacing hardcoded `Gemini Flash 3.8` defaults).
+- **Precedence & CLI Effort Mapping (`lifecycle_runner.py`)**: Add `resolve_programmer_model()` and `resolve_programmer_effort()` on `RunnerConfig` using strict precedence `CLI (--programmer-model / --programmer-effort) -> Runner --config JSON -> .devtool/review_config.json["providers"]["programmer"] -> env (AGY_PROGRAMMER_MODEL / AGY_PROGRAMMER_EFFORT) -> fallback ("gemini-4-hydrogen-xhigh", "xhigh")`; change `argparse` `--programmer-model` / `--programmer-effort` defaults to `None` so parser defaults do not shadow file configuration. Normalize effort aliases `"extra"`, `"extra-high"`, `"extra_high"`, and `"xhigh"` cleanly to the `agy` CLI `--effort xhigh` flag (`low|medium|high|xhigh|max`).
+- **Dynamic Prompts & Rule/Skill Alignment**: Update `resume_context.py` (`emit_handoff_prompt`), `rules/CRITICAL_RULES.md`, `skills/dev-lifecycle/SKILL.md`, `skills/dev-lifecycle/references/autonomous-mode.md`, `skills/dev-implementation/SKILL.md`, and `skills/principal-review/SKILL.md` to read/reference `.devtool/review_config.json` (`providers.programmer`, default `gemini-4-hydrogen-xhigh`, effort `xhigh`) instead of hardcoding `Gemini Flash 3.8` (leaving quota bucket labels in `agy_quota.py` and the quota dashboard UI unchanged).
+
 ## 5. Verification Strategy and Kit Invariants
 
 - Preserve all repository release checks via `bash scripts/verify.sh --full` (`42+` test suites, JSON manifest consistency, YAML frontmatter checks, relative link resolution, ToC anchor verification, Section 7 methodology source-fidelity checks, Section 8 unreferenced skill file checks, and `scripts/test_lifecycle_document_contract.py`).
 - Add targeted unit and integration tests covering:
   - `test_run_external_review.py`: `-U5` diff context, Round 2 no-duplicate `base...sha`, quiet `collect_facts()` output, `.vi.md` exclusion, and `build/reviews/` raw stderr separation.
-  - `test_lifecycle_runner.py`: silent Gate 4 pass / 25-line failure truncation, worker pool parallel dispatch wiring, streamlined code fix path, and non-hardcoded `render_final_executive_report()`.
+  - `test_lifecycle_runner.py`: silent Gate 4 pass / 25-line failure truncation, worker pool parallel dispatch wiring, streamlined code fix path, `render_final_executive_report()`, and `resolve_programmer_model()` / `resolve_programmer_effort()` precedence with `"extra"` -> `"xhigh"` normalization.
   - `test_check_epic_readiness.py` & `test_integrate_branch.py`: Option A deferred `bdd_scenarios.vi.md` during Principal Review vs `--strict-bilingual` enforcement at Stage 4 Finish, plus `check_task_contract.py` line-range validation.
-  - `test_resume_context.py` & `test_aggregate_quality_results.py`: `--compact` scoped startup output and `--compact` Gate 4 `GATE_PASS:` output format.
+  - `test_resume_context.py` & `test_aggregate_quality_results.py`: `--compact` scoped startup output, config-driven `emit_handoff_prompt` Programmer model output, and `--compact` Gate 4 `GATE_PASS:` output format.
 - Measure before/after byte sizes of `CRITICAL_RULES.md`, `dev-designer/SKILL.md`, `resume_context.py --epic <slug> --compact`, and sample multi-round `principal_review.md` artefacts as quantitative regression assertions.
 
 ## 6. Shared Contract Warnings
 
-No `shared-contracts/` directory exists in `ai-agent-tools` (this repository is the standalone agent workflow kit rather than a Hub/Satellite service pair). Internal kit contracts between scripts (`run_external_review.py`, `check_epic_readiness.py`, `verify_polyglot_registry.py`, `resume_context.py`, `lifecycle_runner.py`, and `integrate_branch.py`) remain backward-compatible via optional/default flags.
+No `shared-contracts/` directory exists in `ai-agent-tools` (this repository is the standalone agent workflow kit rather than a Hub/Satellite service pair). Internal kit contracts between scripts (`run_external_review.py`, `check_epic_readiness.py`, `verify_polyglot_registry.py`, `resume_context.py`, `lifecycle_runner.py`, and `integrate_branch.py`) and `.devtool/review_config.json` remain backward-compatible via optional flags and fallback defaults.
