@@ -781,9 +781,6 @@
   <div class="top-tabs-row">
     <nav class="repo-tab-bar" id="repo-tab-bar" aria-label="4 Repos Focus Tabs"></nav>
     <div class="top-actions">
-      <span class="status-badge" id="live-indicator">
-        <span class="dot"></span> Live Polling (5s)
-      </span>
       <button onclick="refreshDashboard()" class="btn-action-neutral">
         <span>🔄</span> Cập nhật
       </button>
@@ -3129,12 +3126,6 @@ let currentReviewRepo = null;
           if (detailView) {
             detailView.style.display = 'block';
             renderRepoDetailView(activeFocusTab);
-          }
-
-          const ind = document.getElementById('live-indicator');
-          if (ind && !ind.dataset.initialized) {
-            ind.dataset.initialized = 'true';
-            ind.innerHTML = '<span class="dot"></span> Live Polling (5s)';
           }
         })
         .catch(() => {
