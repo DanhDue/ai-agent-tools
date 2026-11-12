@@ -37,7 +37,9 @@ def _init_git_repo(root: Path) -> None:
     _git(root, "config", "user.name", "TTO Test")
 
 
-def _run_py(script: Path, cwd: Path, *args: str, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
+def _run_py(
+    script: Path, cwd: Path, *args: str, env: dict[str, str] | None = None
+) -> subprocess.CompletedProcess[str]:
     merged_env = dict(os.environ)
     if env:
         merged_env.update(env)
@@ -70,14 +72,17 @@ def test_tto_hp_03_option_a_default_readiness() -> None:
 
         hld_vi = epic_dir / "demo_epic.vi.md"
         hld_vi.write_text(
-            hld_vi.read_text(encoding="utf-8") + "\n## Unsynced In-Flight Section\n\nDrifted VI prose\n",
+            hld_vi.read_text(encoding="utf-8")
+            + "\n## Unsynced In-Flight Section\n\nDrifted VI prose\n",
             encoding="utf-8",
         )
         _git(repo, "add", "-A")
         _git(repo, "commit", "-q", "-m", "Epic with in-flight vi drift")
 
         proc = _run_py(cer_script, repo, "demo_epic")
-        assert proc.returncode == 0, f"Expected default PASS:\n{proc.stdout}\n{proc.stderr}"
+        assert proc.returncode == 0, (
+            f"Expected default PASS:\n{proc.stdout}\n{proc.stderr}"
+        )
         assert "R1 PASS" in proc.stdout
         assert "R3 PASS" in proc.stdout
         assert "R7 PASS" in proc.stdout
@@ -130,11 +135,15 @@ def test_tto_hp_06_compact_context_and_dynamic_config() -> None:
             encoding="utf-8",
         )
         (devtool / "ACTIVE_STATE.md").write_text(
-            "# Active State\n\nEpic: demo_epic\nStatus: Stage 3\n" + ("Old log entry\n" * 150),
+            "# Active State\n\nEpic: demo_epic\nStatus: Stage 3\n"
+            + ("Old log entry\n" * 150),
             encoding="utf-8",
         )
         (devtool / "PROJECT_LEDGER.md").write_text(
-            "# Project Ledger\n\n" + "".join(f"- [2026-11-12] milestone_{k}: {'x' * 120}\n" for k in range(80)),
+            "# Project Ledger\n\n"
+            + "".join(
+                f"- [2026-11-12] milestone_{k}: {'x' * 120}\n" for k in range(80)
+            ),
             encoding="utf-8",
         )
         (devtool / "review_config.json").write_text(
@@ -142,7 +151,10 @@ def test_tto_hp_06_compact_context_and_dynamic_config() -> None:
                 {
                     "last_used_provider": "claude",
                     "providers": {
-                        "programmer": {"model": "gemini-4-hydrogen-xhigh", "thinking_level": "extra"},
+                        "programmer": {
+                            "model": "gemini-4-hydrogen-xhigh",
+                            "thinking_level": "extra",
+                        },
                     },
                 },
                 indent=2,
@@ -193,7 +205,16 @@ def test_tto_hp_06_compact_context_and_dynamic_config() -> None:
 
         # Legacy programmer model upgrades dynamically via shared alias map
         (devtool / "review_config.json").write_text(
-            json.dumps({"providers": {"programmer": {"model": "gemini-3.8-flash-high", "thinking_level": "high"}}}),
+            json.dumps(
+                {
+                    "providers": {
+                        "programmer": {
+                            "model": "gemini-3.8-flash-high",
+                            "thinking_level": "high",
+                        }
+                    }
+                }
+            ),
             encoding="utf-8",
         )
         proc_legacy = _run_py(
@@ -224,9 +245,13 @@ def test_tto_ec_03_surgical_anchor_required_for_large_files() -> None:
         (repo / ".gitignore").write_text("build/\n", encoding="utf-8")
         (repo / "src").mkdir()
         big_lines = [f"def fn_{i}():\n    return {i}" for i in range(130)]
-        (repo / "src" / "big_mod.py").write_text("\n".join(big_lines) + "\n", encoding="utf-8")
+        (repo / "src" / "big_mod.py").write_text(
+            "\n".join(big_lines) + "\n", encoding="utf-8"
+        )
         (repo / "tests").mkdir()
-        (repo / "tests" / "test_big_mod.py").write_text("def test_fn_1():\n    pass\n", encoding="utf-8")
+        (repo / "tests" / "test_big_mod.py").write_text(
+            "def test_fn_1():\n    pass\n", encoding="utf-8"
+        )
 
         epic = repo / ".devtool" / "epic" / "demo"
         epic.mkdir(parents=True)
@@ -251,19 +276,30 @@ def test_tto_ec_03_surgical_anchor_required_for_large_files() -> None:
             "## Definition of Done\n\n- Done (V2)\n"
         )
         task = epic / "task_1.md"
-        task.write_text(task_tmpl.format(impact="## Impact Analysis & Blast Radius\n\n- General update.\n"), encoding="utf-8")
+        task.write_text(
+            task_tmpl.format(
+                impact="## Impact Analysis & Blast Radius\n\n- General update.\n"
+            ),
+            encoding="utf-8",
+        )
         _git(repo, "add", "-A")
         _git(repo, "commit", "-q", "-m", "Repo with large file")
 
-        bad = _run_py(ctc_script, repo, "--design", "--hld", str(hld), "--tasks", str(task))
+        bad = _run_py(
+            ctc_script, repo, "--design", "--hld", str(hld), "--tasks", str(task)
+        )
         assert bad.returncode != 0
         assert "src/big_mod.py" in (bad.stdout + bad.stderr)
 
         task.write_text(
-            task_tmpl.format(impact="## Impact Analysis & Blast Radius\n\n- `src/big_mod.py`: `fn_5` (L11-L15)\n"),
+            task_tmpl.format(
+                impact="## Impact Analysis & Blast Radius\n\n- `src/big_mod.py`: `fn_5` (L11-L15)\n"
+            ),
             encoding="utf-8",
         )
-        good = _run_py(ctc_script, repo, "--design", "--hld", str(hld), "--tasks", str(task))
+        good = _run_py(
+            ctc_script, repo, "--design", "--hld", str(hld), "--tasks", str(task)
+        )
         assert good.returncode == 0, good.stdout + good.stderr
 
 
@@ -271,7 +307,9 @@ def test_tto_st_02_handoff_excludes_vi_md() -> None:
     """[TTO-ST-02] Packaged handoff.md Read First and handoff-template.md exclude *.vi.md and legacy model hardcodes."""
     tcer: Any = importlib.import_module("test_check_epic_readiness")
     pkg_script = SCRIPTS_DIR / "package_epic.py"
-    template_path = REPO_ROOT / "skills" / "dev-lifecycle" / "references" / "handoff-template.md"
+    template_path = (
+        REPO_ROOT / "skills" / "dev-lifecycle" / "references" / "handoff-template.md"
+    )
     template_text = template_path.read_text(encoding="utf-8")
     assert ".vi.md" not in template_text
     assert "Gemini Flash 3.8" not in template_text
@@ -287,7 +325,9 @@ def test_tto_st_02_handoff_excludes_vi_md() -> None:
         proc = _run_py(pkg_script, repo, "demo_epic")
         assert proc.returncode == 0, proc.stdout + proc.stderr
 
-        handoff_text = (repo / ".devtool" / "epic" / "demo_epic" / "handoff.md").read_text(encoding="utf-8")
+        handoff_text = (
+            repo / ".devtool" / "epic" / "demo_epic" / "handoff.md"
+        ).read_text(encoding="utf-8")
         m = re.search(r"## Read First\n(.*?)(?:\n## |\Z)", handoff_text, re.DOTALL)
         assert m is not None
         read_first = m.group(1)
@@ -316,15 +356,29 @@ def test_tto_st_03_strict_bilingual_stage4_gate() -> None:
         tasks = sorted(epic_dir.glob("task_*.md"))
 
         digest_fn = getattr(cer, "compute_en_sync_digest", None)
-        assert digest_fn is not None, "compute_en_sync_digest must exist on check_epic_readiness"
+        assert digest_fn is not None, (
+            "compute_en_sync_digest must exist on check_epic_readiness"
+        )
         en_digest = digest_fn(hld_en.read_text(encoding="utf-8"))
         assert re.fullmatch(r"[0-9a-f]{16}", en_digest)
         spec_digest = digest_fn(spec_en.read_text(encoding="utf-8"))
 
         # Identical heading levels in HLD .vi.md, edited prose in HLD .en.md, stale digest in .vi.md
-        hld_en.write_text(hld_en.read_text(encoding="utf-8") + "\nAdditional English sentence under identical heading.\n", encoding="utf-8")
-        hld_vi.write_text(hld_vi.read_text(encoding="utf-8") + f"\n<!-- sync-en-sha256: {en_digest} -->\n", encoding="utf-8")
-        spec_vi.write_text(spec_vi.read_text(encoding="utf-8") + f"\n<!-- sync-en-sha256: {spec_digest} -->\n", encoding="utf-8")
+        hld_en.write_text(
+            hld_en.read_text(encoding="utf-8")
+            + "\nAdditional English sentence under identical heading.\n",
+            encoding="utf-8",
+        )
+        hld_vi.write_text(
+            hld_vi.read_text(encoding="utf-8")
+            + f"\n<!-- sync-en-sha256: {en_digest} -->\n",
+            encoding="utf-8",
+        )
+        spec_vi.write_text(
+            spec_vi.read_text(encoding="utf-8")
+            + f"\n<!-- sync-en-sha256: {spec_digest} -->\n",
+            encoding="utf-8",
+        )
         _git(repo, "add", "-A")
         _git(repo, "commit", "-q", "-m", "Stale provenance with same headings")
 
@@ -348,10 +402,19 @@ def test_tto_st_03_strict_bilingual_stage4_gate() -> None:
         # Refresh digest in HLD .vi.md + restore bdd_scenarios.vi.md -> both strict gates pass
         fresh_hld_digest = digest_fn(hld_en.read_text(encoding="utf-8"))
         assert fresh_hld_digest != en_digest
-        hld_vi.write_text(hld_vi.read_text(encoding="utf-8").replace(en_digest, fresh_hld_digest), encoding="utf-8")
+        hld_vi.write_text(
+            hld_vi.read_text(encoding="utf-8").replace(en_digest, fresh_hld_digest),
+            encoding="utf-8",
+        )
         bdd_vi.write_text(bdd_vi_saved, encoding="utf-8")
         _git(repo, "add", "-A")
-        _git(repo, "commit", "-q", "-m", "Synced bilingual provenance and bdd_scenarios.vi.md")
+        _git(
+            repo,
+            "commit",
+            "-q",
+            "-m",
+            "Synced bilingual provenance and bdd_scenarios.vi.md",
+        )
 
         strict_pass = _run_py(cer_script, repo, "demo_epic", "--strict-bilingual")
         assert strict_pass.returncode == 0, strict_pass.stdout + strict_pass.stderr
@@ -365,7 +428,9 @@ def test_tto_st_03_strict_bilingual_stage4_gate() -> None:
             *(str(t) for t in tasks),
             "--strict-bilingual",
         )
-        assert tr_strict_pass.returncode == 0, tr_strict_pass.stdout + tr_strict_pass.stderr
+        assert tr_strict_pass.returncode == 0, (
+            tr_strict_pass.stdout + tr_strict_pass.stderr
+        )
 
         # Verify normalized sha helper stays unused-import clean via hashlib assertion
         assert len(hashlib.sha256(b"x").hexdigest()[:16]) == 16

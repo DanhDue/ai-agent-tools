@@ -20,7 +20,11 @@ def _parse_frontmatter(text: str) -> tuple[list[str], str]:
     match = re.match(r"^---\n(.*?)\n---\n(.*)$", text, flags=re.DOTALL)
     assert match is not None, "Expected YAML frontmatter delimited by --- lines"
     fm_body, rest = match.group(1), match.group(2)
-    keys = [line.split(":", 1)[0].strip() for line in fm_body.splitlines() if re.match(r"^[A-Za-z0-9_-]+:", line)]
+    keys = [
+        line.split(":", 1)[0].strip()
+        for line in fm_body.splitlines()
+        if re.match(r"^[A-Za-z0-9_-]+:", line)
+    ]
     return keys, rest
 
 
@@ -31,7 +35,10 @@ def test_tto_hp_05_slimmed_rules_and_skills_caps() -> None:
     assert len(critical_rules.encode("utf-8")) <= 8192, (
         f"CRITICAL_RULES.md too large: {len(critical_rules.encode('utf-8'))} bytes > 8192"
     )
-    assert "## 8. Mandatory Two-Tier Project Memory & Tri-Role Persona Discipline" in critical_rules
+    assert (
+        "## 8. Mandatory Two-Tier Project Memory & Tri-Role Persona Discipline"
+        in critical_rules
+    )
     assert "## 9. Shell Configuration" in critical_rules
     assert "## 10. Zero-Fluff Output Cap" in critical_rules
     for required_preserved in ("Verdict", "Findings", "Gate"):
@@ -39,7 +46,13 @@ def test_tto_hp_05_slimmed_rules_and_skills_caps() -> None:
     assert ".devtool/review_config.json" in critical_rules
     assert "gemini-4-hydrogen-xhigh" in critical_rules
     assert "governance-checklists.md" in critical_rules
-    assert (REPO_ROOT / "skills" / "dev-lifecycle" / "references" / "governance-checklists.md").is_file()
+    assert (
+        REPO_ROOT
+        / "skills"
+        / "dev-lifecycle"
+        / "references"
+        / "governance-checklists.md"
+    ).is_file()
     assert "Gemini Flash 3.8" not in critical_rules
     assert "gemini-3.8-flash" not in critical_rules
 
@@ -48,7 +61,13 @@ def test_tto_hp_05_slimmed_rules_and_skills_caps() -> None:
         f"skills/dev-designer/SKILL.md too large: {len(dev_designer.encode('utf-8'))} bytes > 22528"
     )
     assert "references/task-template-examples.md" in dev_designer
-    assert (REPO_ROOT / "skills" / "dev-designer" / "references" / "task-template-examples.md").is_file()
+    assert (
+        REPO_ROOT
+        / "skills"
+        / "dev-designer"
+        / "references"
+        / "task-template-examples.md"
+    ).is_file()
     assert "Stage 4" in dev_designer and "bdd_scenarios.en.md" in dev_designer
     assert "target_files" in dev_designer and "200" in dev_designer
     assert 'review_tier: "full"' in dev_designer or "review_tier" in dev_designer
@@ -62,7 +81,9 @@ def test_tto_hp_05_slimmed_rules_and_skills_caps() -> None:
     fm_block = task_observer.split("---", 2)[1]
     assert "subagent" in fm_block.lower() or "headless" in fm_block.lower()
     stripped_after = after_fm.lstrip()
-    assert stripped_after.startswith("<SUBAGENT-STOP>"), "Expected <SUBAGENT-STOP> immediately after frontmatter"
+    assert stripped_after.startswith("<SUBAGENT-STOP>"), (
+        "Expected <SUBAGENT-STOP> immediately after frontmatter"
+    )
 
 
 def test_tto_hp_05_lifecycle_word_caps() -> None:
@@ -78,7 +99,9 @@ def test_tto_hp_05_lifecycle_word_caps() -> None:
 
     dev_impl = _read("skills/dev-implementation/SKILL.md")
     impl_words = _word_count(dev_impl)
-    assert impl_words <= 4500, f"dev-implementation/SKILL.md word count {impl_words} > 4500"
+    assert impl_words <= 4500, (
+        f"dev-implementation/SKILL.md word count {impl_words} > 4500"
+    )
     assert ".devtool/review_config.json" in dev_impl
     assert "gemini-4-hydrogen-xhigh" in dev_impl
     assert 'review_tier: "full"' in dev_impl or "review_tier" in dev_impl
@@ -96,10 +119,13 @@ def test_tto_hp_05_lifecycle_word_caps() -> None:
     for rel_path in config_checked_paths:
         content = _read(rel_path)
         for stale in ("Gemini Flash 3.8", "gemini-3.8-flash", "Gemini 3.8 Flash High"):
-            assert stale not in content, f"Found stale programmer model reference {stale!r} in {rel_path}"
-        assert ".devtool/review_config.json" in content or "gemini-4-hydrogen-xhigh" in content, (
-            f"Missing config-driven Role 2.3 default in {rel_path}"
-        )
+            assert stale not in content, (
+                f"Found stale programmer model reference {stale!r} in {rel_path}"
+            )
+        assert (
+            ".devtool/review_config.json" in content
+            or "gemini-4-hydrogen-xhigh" in content
+        ), f"Missing config-driven Role 2.3 default in {rel_path}"
 
     skill_paths = (
         "skills/task-observer/SKILL.md",
@@ -112,7 +138,9 @@ def test_tto_hp_05_lifecycle_word_caps() -> None:
     )
     for skill_rel in skill_paths:
         keys, _ = _parse_frontmatter(_read(skill_rel))
-        assert keys == ["name", "description"], f"Invalid frontmatter keys {keys} in {skill_rel}"
+        assert keys == ["name", "description"], (
+            f"Invalid frontmatter keys {keys} in {skill_rel}"
+        )
 
 
 def test_tto_ec_05_selective_task_reviewer_and_prompt_rules() -> None:
@@ -126,9 +154,15 @@ def test_tto_ec_05_selective_task_reviewer_and_prompt_rules() -> None:
         lowered = text.lower()
         assert "review_tier" in text
         for label in ("security", "architecture", "concurrency", "contract"):
-            assert label in lowered, f"Missing high-risk trigger label {label!r} in {rel_path}"
-        assert "> 2" in text or "more than 2" in lowered, f"Missing > 2 non-test modules trigger in {rel_path}"
-        assert "skip" in lowered, f"Missing skip rule for trivial single-file tasks in {rel_path}"
+            assert label in lowered, (
+                f"Missing high-risk trigger label {label!r} in {rel_path}"
+            )
+        assert "> 2" in text or "more than 2" in lowered, (
+            f"Missing > 2 non-test modules trigger in {rel_path}"
+        )
+        assert "skip" in lowered, (
+            f"Missing skip rule for trivial single-file tasks in {rel_path}"
+        )
 
     sdd = _read("skills/subagent-driven-development/SKILL.md")
     assert "-U5" in sdd
@@ -138,7 +172,11 @@ def test_tto_ec_05_selective_task_reviewer_and_prompt_rules() -> None:
 
     impl_prompt = _read("skills/subagent-driven-development/implementer-prompt.md")
     assert "d3nexus:task-observer" in impl_prompt
-    assert "not" in impl_prompt.lower() or "never" in impl_prompt.lower() or "do not" in impl_prompt.lower()
+    assert (
+        "not" in impl_prompt.lower()
+        or "never" in impl_prompt.lower()
+        or "do not" in impl_prompt.lower()
+    )
     assert "StartLine" in impl_prompt or "sed -n" in impl_prompt
     assert "Zero-Fluff" in impl_prompt
     assert "run_task_checks.py red" in impl_prompt
@@ -165,12 +203,22 @@ def test_tto_ec_05_selective_task_reviewer_and_prompt_rules() -> None:
     )
     for pointer_rel, expected_target in pointer_pairs:
         pointer_text = _read(pointer_rel)
-        assert expected_target in pointer_text, f"Expected pointer {expected_target} in {pointer_rel}"
-        assert len(pointer_text.encode("utf-8")) <= 1024, f"Pointer {pointer_rel} should stay thin (<= 1024 bytes)"
+        assert expected_target in pointer_text, (
+            f"Expected pointer {expected_target} in {pointer_rel}"
+        )
+        assert len(pointer_text.encode("utf-8")) <= 1024, (
+            f"Pointer {pointer_rel} should stay thin (<= 1024 bytes)"
+        )
 
-    assert "No Reconstructed Logic" in _read("skills/dev-implementation/references/review-rules.md")
-    assert "5-Layer Deep Verification Checklist" in _read("skills/principal-review/references/principal-review-rules.md")
-    assert "Auto-Triage Gate" in _read("skills/cross-model-review/references/review-triage.md")
+    assert "No Reconstructed Logic" in _read(
+        "skills/dev-implementation/references/review-rules.md"
+    )
+    assert "5-Layer Deep Verification Checklist" in _read(
+        "skills/principal-review/references/principal-review-rules.md"
+    )
+    assert "Auto-Triage Gate" in _read(
+        "skills/cross-model-review/references/review-triage.md"
+    )
 
 
 def test_tto_st_05_pre_finish_bilingual_sync_hook() -> None:

@@ -15,15 +15,31 @@ from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SCRIPTS_DIR = REPO_ROOT / "skills" / "dev-implementation" / "resources" / "scripts"
-REVIEW_PACKAGE_BIN = REPO_ROOT / "skills" / "subagent-driven-development" / "scripts" / "review-package"
-EXT_PROMPT = REPO_ROOT / "skills" / "dev-implementation" / "references" / "external-review-prompt.md"
-PR_PROMPT = REPO_ROOT / "skills" / "principal-review" / "references" / "principal-review-prompt.md"
+REVIEW_PACKAGE_BIN = (
+    REPO_ROOT / "skills" / "subagent-driven-development" / "scripts" / "review-package"
+)
+EXT_PROMPT = (
+    REPO_ROOT
+    / "skills"
+    / "dev-implementation"
+    / "references"
+    / "external-review-prompt.md"
+)
+PR_PROMPT = (
+    REPO_ROOT
+    / "skills"
+    / "principal-review"
+    / "references"
+    / "principal-review-prompt.md"
+)
 
 
 def _load_external_review_module() -> ModuleType:
     if str(SCRIPTS_DIR) not in sys.path:
         sys.path.insert(0, str(SCRIPTS_DIR))
-    spec = importlib.util.spec_from_file_location("run_external_review", SCRIPTS_DIR / "run_external_review.py")
+    spec = importlib.util.spec_from_file_location(
+        "run_external_review", SCRIPTS_DIR / "run_external_review.py"
+    )
     assert spec is not None and spec.loader is not None
     mod = importlib.util.module_from_spec(spec)
     sys.modules["run_external_review"] = mod
@@ -84,7 +100,18 @@ def _init_epic_repo(tmp_path: Path) -> tuple[Path, str, Path, Path]:
     bin_dir.mkdir()
     prompt_dir.mkdir()
 
-    for tool in ("git", "bash", "cat", "seq", "sed", "tr", "wc", "mktemp", "dirname", "rm"):
+    for tool in (
+        "git",
+        "bash",
+        "cat",
+        "seq",
+        "sed",
+        "tr",
+        "wc",
+        "mktemp",
+        "dirname",
+        "rm",
+    ):
         found = shutil.which(tool)
         if found is not None:
             (bin_dir / tool).symlink_to(found)
@@ -102,10 +129,16 @@ def _init_epic_repo(tmp_path: Path) -> tuple[Path, str, Path, Path]:
     (repo / "README.md").write_text("base\n", encoding="utf-8")
     core_lines = [f"line_{i:02d} = {i}" for i in range(1, 16)]
     (repo / "src").mkdir()
-    (repo / "src" / "core.py").write_text("\n".join(core_lines) + "\n", encoding="utf-8")
-    (repo / "src" / "round1_only.py").write_text("ROUND1_ONLY_MARKER = 'init'\n", encoding="utf-8")
+    (repo / "src" / "core.py").write_text(
+        "\n".join(core_lines) + "\n", encoding="utf-8"
+    )
+    (repo / "src" / "round1_only.py").write_text(
+        "ROUND1_ONLY_MARKER = 'init'\n", encoding="utf-8"
+    )
     (repo / "docs").mkdir()
-    (repo / "docs" / "guide.vi.md").write_text("# Huong dan\n\nBan dau\n", encoding="utf-8")
+    (repo / "docs" / "guide.vi.md").write_text(
+        "# Huong dan\n\nBan dau\n", encoding="utf-8"
+    )
 
     _git(repo, "add", "-A")
     _git(repo, "commit", "-q", "-m", "Base commit")
@@ -136,7 +169,9 @@ def _init_epic_repo(tmp_path: Path) -> tuple[Path, str, Path, Path]:
     )
     (epic / "handoff.md").write_text("# Handoff\n", encoding="utf-8")
     (repo / "scripts").mkdir()
-    (repo / "scripts" / "test_demo.py").write_text("# [DEMO-HP-01]\ndef test_demo_hp_01() -> None: pass\n", encoding="utf-8")
+    (repo / "scripts" / "test_demo.py").write_text(
+        "# [DEMO-HP-01]\ndef test_demo_hp_01() -> None: pass\n", encoding="utf-8"
+    )
     (repo / "build").mkdir()
     (repo / "build" / "demo.xml").write_text(
         '<?xml version="1.0" encoding="UTF-8"?>\n<testsuites><testsuite name="demo" tests="1">'
@@ -146,15 +181,21 @@ def _init_epic_repo(tmp_path: Path) -> tuple[Path, str, Path, Path]:
 
     core_r1 = [f"line_{i:02d} = {i if i != 8 else 888}" for i in range(1, 16)]
     (repo / "src" / "core.py").write_text("\n".join(core_r1) + "\n", encoding="utf-8")
-    (repo / "src" / "round1_only.py").write_text("ROUND1_ONLY_MARKER = 'round1'\n", encoding="utf-8")
-    (repo / "docs" / "guide.vi.md").write_text("# Huong dan\n\nSua lan 1\n", encoding="utf-8")
+    (repo / "src" / "round1_only.py").write_text(
+        "ROUND1_ONLY_MARKER = 'round1'\n", encoding="utf-8"
+    )
+    (repo / "docs" / "guide.vi.md").write_text(
+        "# Huong dan\n\nSua lan 1\n", encoding="utf-8"
+    )
 
     _git(repo, "add", "-A")
     _git(repo, "commit", "-q", "-m", "Epic round 1")
     return repo, base_sha, bin_dir, prompt_dir
 
 
-def test_tto_hp_01_diff_only_round1_and_round2(tmp_path: Path, monkeypatch: Any) -> None:
+def test_tto_hp_01_diff_only_round1_and_round2(
+    tmp_path: Path, monkeypatch: Any
+) -> None:
     """[TTO-HP-01] Diff-only external review uses -U5, excludes *.vi.md, and omits base...sha in Round 2."""
     repo, base_sha, bin_dir, prompt_dir = _init_epic_repo(tmp_path)
     count_file = tmp_path / "count.txt"
@@ -173,7 +214,14 @@ def test_tto_hp_01_diff_only_round1_and_round2(tmp_path: Path, monkeypatch: Any)
     # review-package uses -U5 context (shows line_03 and line_13, omits line_01)
     pkg_out = tmp_path / "review.diff"
     subprocess.run(
-        ["bash", str(REVIEW_PACKAGE_BIN), str(repo / ".devtool" / "epic" / "demo" / "task_1_demo.md"), base_sha, "HEAD", str(pkg_out)],
+        [
+            "bash",
+            str(REVIEW_PACKAGE_BIN),
+            str(repo / ".devtool" / "epic" / "demo" / "task_1_demo.md"),
+            base_sha,
+            "HEAD",
+            str(pkg_out),
+        ],
         cwd=repo,
         check=True,
         capture_output=True,
@@ -197,8 +245,13 @@ def test_tto_hp_01_diff_only_round1_and_round2(tmp_path: Path, monkeypatch: Any)
     monkeypatch.chdir(repo)
 
     # Round 1
-    with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
-        code1 = rer.main(["run", "--epic-dir", "demo", "--base", base_sha, "--cli", "codex"])
+    with (
+        contextlib.redirect_stdout(io.StringIO()),
+        contextlib.redirect_stderr(io.StringIO()),
+    ):
+        code1 = rer.main(
+            ["run", "--epic-dir", "demo", "--base", base_sha, "--cli", "codex"]
+        )
     assert code1 == 1
     prompt1 = (prompt_dir / "prompt_1.txt").read_text(encoding="utf-8")
     assert "line_03 = 3" in prompt1
@@ -216,8 +269,12 @@ def test_tto_hp_01_diff_only_round1_and_round2(tmp_path: Path, monkeypatch: Any)
     results_path.write_text(results_text, encoding="utf-8")
     core_r2 = [f"line_{i:02d} = {i if i != 8 else 999}" for i in range(1, 16)]
     (repo / "src" / "core.py").write_text("\n".join(core_r2) + "\n", encoding="utf-8")
-    (repo / "docs" / "guide.vi.md").write_text("# Huong dan\n\nSua lan 2\n", encoding="utf-8")
-    (repo / ".devtool" / "epic" / "demo" / "demo.vi.md").write_text("# Demo VI\n\nNoi dung moi\n", encoding="utf-8")
+    (repo / "docs" / "guide.vi.md").write_text(
+        "# Huong dan\n\nSua lan 2\n", encoding="utf-8"
+    )
+    (repo / ".devtool" / "epic" / "demo" / "demo.vi.md").write_text(
+        "# Demo VI\n\nNoi dung moi\n", encoding="utf-8"
+    )
     (repo / ".devtool" / "epic" / "demo" / "demo.en.md").write_text(
         "# Demo\n\nUpdated EN.\n\nIntegration test roots: scripts/\n\nIntegration results: true -> build/demo.xml\n",
         encoding="utf-8",
@@ -240,14 +297,24 @@ def test_tto_hp_01_diff_only_round1_and_round2(tmp_path: Path, monkeypatch: Any)
     _git(repo, "add", str(pr_path))
     _git(repo, "commit", "-q", "-m", "Seed principal round 1")
     r2_sha = _git(repo, "rev-parse", "HEAD")
-    pr_delta, _ = rer.delta_round_context(repo, rer.argparse.Namespace(epic_dir="demo", cli="codex", model=None, full=False), r2_sha, kind="principal")
+    pr_delta, _ = rer.delta_round_context(
+        repo,
+        rer.argparse.Namespace(epic_dir="demo", cli="codex", model=None, full=False),
+        r2_sha,
+        kind="principal",
+    )
     assert "Updated EN." in pr_delta
     assert ".vi.md" not in pr_delta
     assert "Noi dung moi" not in pr_delta
 
     # Round 2 (delta-only: omits full base...curr_sha diff block, emits 1-line cumulative stat reference)
-    with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
-        code2 = rer.main(["run", "--epic-dir", "demo", "--base", base_sha, "--cli", "codex"])
+    with (
+        contextlib.redirect_stdout(io.StringIO()),
+        contextlib.redirect_stderr(io.StringIO()),
+    ):
+        code2 = rer.main(
+            ["run", "--epic-dir", "demo", "--base", base_sha, "--cli", "codex"]
+        )
     assert code2 == 0
     prompt2 = (prompt_dir / "prompt_2.txt").read_text(encoding="utf-8")
     assert "Round Scope: Delta Review (Round 2)" in prompt2
@@ -262,8 +329,22 @@ def test_tto_hp_01_diff_only_round1_and_round2(tmp_path: Path, monkeypatch: Any)
     # Round 3 with --full explicitly includes full base...sha diff
     _git(repo, "add", "-A")
     _git(repo, "commit", "-q", "-m", "Record round 2")
-    with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
-        code3 = rer.main(["run", "--epic-dir", "demo", "--base", base_sha, "--cli", "codex", "--full"])
+    with (
+        contextlib.redirect_stdout(io.StringIO()),
+        contextlib.redirect_stderr(io.StringIO()),
+    ):
+        code3 = rer.main(
+            [
+                "run",
+                "--epic-dir",
+                "demo",
+                "--base",
+                base_sha,
+                "--cli",
+                "codex",
+                "--full",
+            ]
+        )
     assert code3 == 0
     prompt3 = (prompt_dir / "prompt_3.txt").read_text(encoding="utf-8")
     assert "The complete source diff" in prompt3
@@ -286,8 +367,12 @@ def test_tto_ec_01_over_budget_diff_stat_and_hunk_headers(tmp_path: Path) -> Non
 
     alpha_body = "\n".join(f"alpha_{i:04d} = '{'x' * 50}'" for i in range(900))
     beta_body = "\n".join(f"beta_{i:04d} = '{'y' * 50}'" for i in range(900))
-    (repo / "src" / "alpha.py").write_text(f"def a():\n    return 1\n{alpha_body}\n", encoding="utf-8")
-    (repo / "src" / "beta.py").write_text(f"def b():\n    return 2\n{beta_body}\n", encoding="utf-8")
+    (repo / "src" / "alpha.py").write_text(
+        f"def a():\n    return 1\n{alpha_body}\n", encoding="utf-8"
+    )
+    (repo / "src" / "beta.py").write_text(
+        f"def b():\n    return 2\n{beta_body}\n", encoding="utf-8"
+    )
     _git(repo, "add", "-A")
     _git(repo, "commit", "-q", "-m", "Large change")
     head_sha = _git(repo, "rev-parse", "HEAD")
@@ -302,7 +387,9 @@ def test_tto_ec_01_over_budget_diff_stat_and_hunk_headers(tmp_path: Path) -> Non
     assert "@@" in section
     assert "alpha_0800" not in section
 
-    tight = rer.build_diff_section(repo, base_sha, head_sha, max_lines=10, max_bytes=2500)
+    tight = rer.build_diff_section(
+        repo, base_sha, head_sha, max_lines=10, max_bytes=2500
+    )
     assert len(tight.encode("utf-8")) <= 2500
     assert "src/alpha.py" in tight
     assert "@@" in tight
@@ -313,21 +400,35 @@ def test_tto_ec_01_over_budget_diff_stat_and_hunk_headers(tmp_path: Path) -> Non
     assert "@@" in range_section
 
 
-def test_tto_st_01_load_review_config_migrates_legacy_and_preserves_custom(tmp_path: Path) -> None:
+def test_tto_st_01_load_review_config_migrates_legacy_and_preserves_custom(
+    tmp_path: Path,
+) -> None:
     """[TTO-ST-01] Default providers include assistant/programmer and legacy IDs upgrade in-memory only."""
     defaults = rer.DEFAULT_REVIEW_CONFIG["providers"]
-    assert defaults["assistant"] == {"model": "claude-opus-5-5-high", "thinking_level": "high"}
-    assert defaults["programmer"] == {"model": "gemini-4-hydrogen-xhigh", "thinking_level": "xhigh"}
+    assert defaults["assistant"] == {
+        "model": "claude-opus-5-5-high",
+        "thinking_level": "high",
+    }
+    assert defaults["programmer"] == {
+        "model": "gemini-4-hydrogen-xhigh",
+        "thinking_level": "xhigh",
+    }
 
-    assert rer.upgrade_legacy_programmer_provider({"model": "gemini-3.8-flash", "thinking_level": "high"}) == (
+    assert rer.upgrade_legacy_programmer_provider(
+        {"model": "gemini-3.8-flash", "thinking_level": "high"}
+    ) == (
         "gemini-4-hydrogen-xhigh",
         "xhigh",
     )
-    assert rer.upgrade_legacy_programmer_provider({"model": "gemini-3.8-flash-high", "thinking_level": "high"}) == (
+    assert rer.upgrade_legacy_programmer_provider(
+        {"model": "gemini-3.8-flash-high", "thinking_level": "high"}
+    ) == (
         "gemini-4-hydrogen-xhigh",
         "xhigh",
     )
-    assert rer.upgrade_legacy_programmer_provider({"model": "claude-sonnet-4-6", "thinking_level": "medium"}) == (
+    assert rer.upgrade_legacy_programmer_provider(
+        {"model": "claude-sonnet-4-6", "thinking_level": "medium"}
+    ) == (
         "claude-sonnet-4-6",
         "medium",
     )
@@ -352,8 +453,14 @@ def test_tto_st_01_load_review_config_migrates_legacy_and_preserves_custom(tmp_p
     _git(repo1, "commit", "-q", "-m", "Track legacy config")
 
     loaded1 = rer.load_review_config(repo1)
-    assert loaded1["providers"]["programmer"] == {"model": "gemini-4-hydrogen-xhigh", "thinking_level": "xhigh"}
-    assert loaded1["providers"]["assistant"] == {"model": "claude-opus-5-5-high", "thinking_level": "high"}
+    assert loaded1["providers"]["programmer"] == {
+        "model": "gemini-4-hydrogen-xhigh",
+        "thinking_level": "xhigh",
+    }
+    assert loaded1["providers"]["assistant"] == {
+        "model": "claude-opus-5-5-high",
+        "thinking_level": "high",
+    }
     assert cfg_path1.read_text(encoding="utf-8") == raw_legacy
     assert _git(repo1, "status", "--porcelain") == ""
 
@@ -377,7 +484,10 @@ def test_tto_st_01_load_review_config_migrates_legacy_and_preserves_custom(tmp_p
     _git(repo2, "commit", "-q", "-m", "Track custom config")
 
     loaded2 = rer.load_review_config(repo2)
-    assert loaded2["providers"]["programmer"] == {"model": "claude-sonnet-4-6", "thinking_level": "medium"}
+    assert loaded2["providers"]["programmer"] == {
+        "model": "claude-sonnet-4-6",
+        "thinking_level": "medium",
+    }
     assert cfg_path2.read_text(encoding="utf-8") == raw_custom
 
     # Untracked config missing default providers seeds defaults to disk
@@ -386,14 +496,19 @@ def test_tto_st_01_load_review_config_migrates_legacy_and_preserves_custom(tmp_p
     _git(repo3, "init", "-q", "-b", "main")
     cfg_path3 = repo3 / ".devtool" / "review_config.json"
     cfg_path3.parent.mkdir(parents=True)
-    cfg_path3.write_text(json.dumps({"providers": {"claude": {"model": "Opus 5.5"}}}) + "\n", encoding="utf-8")
+    cfg_path3.write_text(
+        json.dumps({"providers": {"claude": {"model": "Opus 5.5"}}}) + "\n",
+        encoding="utf-8",
+    )
     rer.load_review_config(repo3)
     persisted3 = json.loads(cfg_path3.read_text(encoding="utf-8"))
     assert persisted3["providers"]["programmer"]["model"] == "gemini-4-hydrogen-xhigh"
     assert persisted3["providers"]["assistant"]["model"] == "claude-opus-5-5-high"
 
 
-def test_tto_fr_01_quiet_facts_and_raw_log_offloading(tmp_path: Path, monkeypatch: Any) -> None:
+def test_tto_fr_01_quiet_facts_and_raw_log_offloading(
+    tmp_path: Path, monkeypatch: Any
+) -> None:
     """[TTO-FR-01] Passing facts collapse to 1 line; failing facts cap at 25 lines; raw output offloads to build/reviews."""
     passing_stdout = "\n".join(f"ok_line_{i}" for i in range(180))
     assert rer.fact("audit_epic.py", 0, passing_stdout, "") == "PASS: audit_epic.py\n"
@@ -420,8 +535,13 @@ def test_tto_fr_01_quiet_facts_and_raw_log_offloading(tmp_path: Path, monkeypatc
     monkeypatch.setenv("FAKE_MODE", "noisy_pass")
     monkeypatch.chdir(repo)
 
-    with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
-        code_res = rer.main(["run", "--epic-dir", "demo", "--base", base_sha, "--cli", "codex"])
+    with (
+        contextlib.redirect_stdout(io.StringIO()),
+        contextlib.redirect_stderr(io.StringIO()),
+    ):
+        code_res = rer.main(
+            ["run", "--epic-dir", "demo", "--base", base_sha, "--cli", "codex"]
+        )
     assert code_res == 0
 
     code_raw_rel = f"build/reviews/demo_code_round1_{sha7}.raw.log"
@@ -431,7 +551,9 @@ def test_tto_fr_01_quiet_facts_and_raw_log_offloading(tmp_path: Path, monkeypatc
     assert "bulk analysis prose line 120" in raw_content
     assert "noisy stderr warning 40" in raw_content
 
-    rev_md = (repo / ".devtool" / "epic" / "demo" / "review_results.md").read_text(encoding="utf-8")
+    rev_md = (repo / ".devtool" / "epic" / "demo" / "review_results.md").read_text(
+        encoding="utf-8"
+    )
     assert code_raw_rel in rev_md
     assert "bulk analysis prose line 1" not in rev_md
     assert "noisy stderr warning 1" not in rev_md
@@ -458,12 +580,36 @@ def test_tto_fr_01_quiet_facts_and_raw_log_offloading(tmp_path: Path, monkeypatc
     _git(pr_repo, "commit", "-q", "-m", "Ready epic")
     pr_sha7 = _git(pr_repo, "rev-parse", "HEAD")[:7]
     monkeypatch.chdir(pr_repo)
-    with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
-        pr_res = rer.main(["run", "--kind", "principal", "--epic-dir", "demo_epic", "--base", pr_base_sha, "--cli", "codex"])
+    with (
+        contextlib.redirect_stdout(io.StringIO()),
+        contextlib.redirect_stderr(io.StringIO()),
+    ):
+        pr_res = rer.main(
+            [
+                "run",
+                "--kind",
+                "principal",
+                "--epic-dir",
+                "demo_epic",
+                "--base",
+                pr_base_sha,
+                "--cli",
+                "codex",
+            ]
+        )
     assert pr_res == 0
     pr_raw_rel = f"build/reviews/demo_epic_principal_round1_{pr_sha7}.raw.log"
     assert (pr_repo / pr_raw_rel).is_file()
-    rer.render_round(1, {"SHA": head_sha}, [], "Verdict: PASS\n", root=repo, epic_dir="demo", kind="principal", sha=head_sha)
+    rer.render_round(
+        1,
+        {"SHA": head_sha},
+        [],
+        "Verdict: PASS\n",
+        root=repo,
+        epic_dir="demo",
+        kind="principal",
+        sha=head_sha,
+    )
     assert (repo / f"build/reviews/demo_principal_round1_{sha7}.raw.log").is_file()
     assert code_raw_path.is_file()
 
