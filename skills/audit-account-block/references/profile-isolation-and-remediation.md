@@ -146,6 +146,11 @@ To prevent Google Cloud Code Assist and Clearcut Telemetry from correlating mult
   - `data/User/globalStorage/state.vscdb`
   - `data/User/globalStorage/storage.json`
 
+### Rule 2.7: Relative Symlinks Only
+- Every symlink in a profile home MUST be relative to its own directory (e.g. `~/antigravity_homes/hau/.android -> ../../.android`, `Library/Caches -> ../../../Library/Caches`). Absolute `/Users/<user>/...` targets are flagged as `absolute_symlinks` and rewritten by `--fix` using an atomic `os.replace`.
+- `ag_run` uses `_ag_rel_link` / `_ag_link_ok` so a re-launch also repairs stale absolute links.
+- Nested rogue links (`.gemini/antigravity/antigravity -> host`) and missing `login.keychain` / `login.keychain-db` links are also detected and repaired.
+
 ---
 
 ## 3. Standard Remediation Workflow

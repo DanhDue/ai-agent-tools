@@ -14,11 +14,110 @@ from datetime import datetime, timezone
 from enum import Enum
 import hashlib
 import json
+import os
 from pathlib import Path
 import re
 import subprocess
 import sys
 from typing import Any
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+
+def _real_home() -> Path:
+    """Host user's real HOME, derived (never hard-coded); strips /antigravity_homes/<profile> when inside a profile."""
+    home = str(Path.home())
+    return Path(home.split("/antigravity_homes")[0]) if "/antigravity_homes" in home else Path(home)
+
+
+get_real_home = _real_home
+
+
+def discover_antigravity_profiles(real_home: str | Path | None = None) -> list[str]:
+    """Discover all actual Antigravity profile accounts following /check-quota mechanism."""
+    # 1. Try delegating to scripts/agy_quota.py (check-quota Single Source of Truth) if on default host home
+    if real_home is None:
+        for parent in [SCRIPT_DIR] + list(SCRIPT_DIR.parents):
+            cand_scripts = parent / "scripts"
+            if (cand_scripts / "agy_quota.py").is_file():
+                if str(cand_scripts) not in sys.path:
+                    sys.path.insert(0, str(cand_scripts))
+                break
+        try:
+            import agy_quota  # type: ignore
+
+            if hasattr(agy_quota, "get_all_profiles"):
+                q_profiles = agy_quota.get_all_profiles()
+                if q_profiles and isinstance(q_profiles, list):
+                    allowed = [
+                        p
+                        for p in q_profiles
+                        if p not in ("claude", "codex", "kiro", "anthropic", "openai")
+                    ]
+                    if allowed:
+                        return sorted(list(set(allowed)))
+        except Exception:
+            pass
+
+    # 2. Direct discovery matching check-quota's exact rules (supports custom real_home for tests/profiles)
+    r_home = Path(real_home) if real_home is not None else _real_home()
+    homes_dir = r_home / "antigravity_homes"
+    profiles: list[str] = []
+    reserved_non_profiles = {
+        "Library", "System", "Shared", "AllProjects", "Projects", "fvm",
+        "claude", "codex", "kiro", "anthropic", "openai", ".gemini", ".antigravity",
+        ".antigravity-ide", "bin", "etc", "var", "tmp", "opt", ".Trash"
+    }
+
+    if homes_dir.is_dir():
+        for entry in sorted(homes_dir.iterdir()):
+            if entry.name.startswith(".") or entry.name.startswith("-") or entry.is_symlink() or not entry.is_dir():
+                continue
+            if entry.name in reserved_non_profiles:
+                continue
+            if not re.match(r"^[a-zA-Z0-9_\-]+$", entry.name):
+                continue
+            if (
+                (entry / ".gemini").exists()
+                or (entry / ".antigravity").exists()
+                or (entry / "data").exists()
+                or (entry / "Library" / "Keychains").exists()
+            ):
+                profiles.append(entry.name)
+
+    zshrc_path = r_home / ".zshrc"
+    if zshrc_path.is_file():
+        try:
+            content = zshrc_path.read_text(encoding="utf-8", errors="ignore")
+            for m in re.finditer(r"antigravity_homes/([a-zA-Z0-9_\-]+)", content):
+                p = m.group(1)
+                if (homes_dir / p).is_dir() and p not in reserved_non_profiles and p not in profiles:
+                    profiles.append(p)
+            for m2 in re.finditer(r"^alias\s+([a-zA-Z0-9_\-]+)='ag_run\s+([a-zA-Z0-9_\-]+)'", content, re.MULTILINE):
+                p2 = m2.group(2)
+                if (homes_dir / p2).is_dir() and p2 not in reserved_non_profiles and p2 not in profiles:
+                    profiles.append(p2)
+        except Exception:
+            pass
+
+    return sorted(list(set(profiles)))
+
+
+def _build_clean_host_env() -> dict[str, str]:
+    """Environment for launching the daemon: real HOME, no leaked IDE/Electron/profile variables.
+
+    Kept local on purpose: scripts/tasks_server.py is a thin wrapper that shadows the real
+    tasks_server module on sys.path, so importing it from here is unreliable.
+    """
+    env = dict(os.environ)
+    env["HOME"] = str(_real_home())
+    for key in ("AGY_PROFILE", "AGY_CLI_MODE", "AGY_ENABLE_HUB", "TERM_PROGRAM",
+                "TERM_PROGRAM_VERSION", "TERM_SESSION_ID", "TMPDIR", "ZDOTDIR"):
+        env.pop(key, None)
+    for key in list(env):
+        if key.startswith(("VSCODE_", "ANTIGRAVITY_", "ELECTRON_", "CHROME_")):
+            env.pop(key, None)
+    return env
+
 
 CANONICAL_SIGNATURES: dict[str, str] = {
     "ai-agent-tools": "#b45309",
@@ -98,6 +197,8 @@ class RepoMetadata:
     quick_note: str | None = None
     prompt: str | None = None
     epics_summary: EpicsSummary | None = None
+    is_human_action_required: bool = False
+    is_blocked: bool = False
 
 
 @dataclass
@@ -108,6 +209,7 @@ class DashboardGraph:
     scanned_at: str
     repos: list[RepoMetadata]
     metrics_row: dict[str, Any] = field(default_factory=dict)
+    available_profiles: list[str] = field(default_factory=list)
 
 
 class LifecycleStage(str, Enum):
@@ -259,11 +361,45 @@ def scan_worktrees(repo_path: Path) -> list[WorktreeMetadata]:
     return worktrees
 
 
-def resolve_active_epic(repo_path: Path) -> str | None:
-    """Derive active epic from branch name, active worktrees, state snapshot files, or git worktree directories."""
-    # 0. Get completed slugs from PROJECT_LEDGER.md to exclude finished epics
+def extract_epic_hld_status(epic_dir: Path, slug: str) -> str | None:
+    """Extract epic lifecycle status from HLD design documents (.en.md, .vi.md, or *.md)."""
+    candidates = [epic_dir / f"{slug}.en.md", epic_dir / f"{slug}.vi.md"]
+    with contextlib.suppress(OSError):
+        for f in epic_dir.glob("*.md"):
+            if f not in candidates and not f.name.startswith("task_") and f.name != "handoff.md":
+                candidates.append(f)
+
+    for hld in candidates:
+        if not hld.is_file():
+            continue
+        with contextlib.suppress(OSError):
+            text = hld.read_text(encoding="utf-8")
+            m = re.search(
+                r"-\s+\*\*(?:Status|Trạng thái)\*\*:\s*`?([^\n\r`]+)",
+                text,
+                re.IGNORECASE,
+            )
+            if m:
+                val = m.group(1).strip().lower()
+                if val.startswith("done") or val.startswith("completed") or "hoàn thành" in val:
+                    return "done"
+                if any(k in val for k in ("discard", "abandon", "cancel", "hủy")):
+                    return "abandon"
+                if "progress" in val:
+                    return "in_progress"
+                if "package" in val:
+                    return "packaged"
+                if any(k in val for k in ("todo", "backlog", "chờ", "unstarted")):
+                    return "unstarted"
+    return None
+
+
+def get_completed_epic_slugs(repo_path: Path) -> set[str]:
+    """Harvest completed epic slugs from PROJECT_LEDGER.md, archive, and HLD design documents."""
+    completed: set[str] = set()
+
+    # 1. Check .devtool/PROJECT_LEDGER.md
     ledger_file = repo_path / ".devtool" / "PROJECT_LEDGER.md"
-    completed_slugs: set[str] = set()
     if ledger_file.is_file():
         with contextlib.suppress(OSError):
             content = ledger_file.read_text(encoding="utf-8")
@@ -271,7 +407,34 @@ def resolve_active_epic(repo_path: Path) -> str | None:
                 r"-\s+\*\*\[\d{4}-\d{2}-\d{2}\]\s+`?([a-zA-Z0-9_\-]+)`?\*\*:",
                 content,
             ):
-                completed_slugs.add(m.group(1).strip())
+                completed.add(m.group(1).strip())
+
+    # 2. Check .devtool/archive/ for archived state/activity/epic records
+    archive_dir = repo_path / ".devtool" / "archive"
+    if archive_dir.is_dir():
+        with contextlib.suppress(OSError):
+            for f in archive_dir.iterdir():
+                m_arch = re.match(r"(?:state|activity)_([a-zA-Z0-9_\-]+)_\d{8}_\d{4}\.", f.name)
+                if m_arch:
+                    completed.add(m_arch.group(1).strip())
+
+    # 3. Check HLD design documents in .devtool/epic/<slug>/ (Status: Done)
+    epic_dir = repo_path / ".devtool" / "epic"
+    if epic_dir.is_dir():
+        with contextlib.suppress(OSError):
+            for d in epic_dir.iterdir():
+                if not d.is_dir() or d.name.startswith("."):
+                    continue
+                if extract_epic_hld_status(d, d.name) == "done":
+                    completed.add(d.name)
+
+    return completed
+
+
+def resolve_active_epic(repo_path: Path) -> str | None:
+    """Derive active epic from branch name, active worktrees, state snapshot files, or git worktree directories."""
+    # 0. Get completed slugs from PROJECT_LEDGER.md, archive, and HLD Status: Done
+    completed_slugs = get_completed_epic_slugs(repo_path)
 
     # 1. Check current branch or worktree branches for epic/<slug> or feat/<slug>
     for wt in scan_worktrees(repo_path):
@@ -369,30 +532,6 @@ def resolve_active_epic(repo_path: Path) -> str | None:
         if epics:
             return epics[0]
 
-    # Fallback to any epic if all are completed
-    if epic_dir.is_dir():
-        epics = sorted(
-            [
-                d.name
-                for d in epic_dir.iterdir()
-                if d.is_dir() and not d.name.startswith(".") and d.name not in completed_slugs
-            ]
-        )
-        if epics:
-            return epics[0]
-
-    # Fallback to any epic if all are completed
-    if epic_dir.is_dir():
-        epics = sorted(
-            [
-                d.name
-                for d in epic_dir.iterdir()
-                if d.is_dir() and not d.name.startswith(".")
-            ]
-        )
-        if epics:
-            return epics[0]
-
     return None
 
 
@@ -443,16 +582,7 @@ def find_epic_worktree_path(repo_path: Path, active_epic: str | None) -> Path:
 def harvest_epics_overview(repo_path: Path) -> EpicsSummary:
     """Harvest high-level project epics summary and status breakdown from the root repository."""
     epic_dir = repo_path / ".devtool" / "epic"
-    ledger_file = repo_path / ".devtool" / "PROJECT_LEDGER.md"
-    completed_slugs: set[str] = set()
-    if ledger_file.is_file():
-        with contextlib.suppress(OSError):
-            content = ledger_file.read_text(encoding="utf-8")
-            for m in re.finditer(
-                r"-\s+\*\*\[\d{4}-\d{2}-\d{2}\]\s+`?([a-zA-Z0-9_\-]+)`?\*\*:",
-                content,
-            ):
-                completed_slugs.add(m.group(1).strip())
+    completed_slugs = get_completed_epic_slugs(repo_path)
 
     epics: list[dict[str, Any]] = []
     if epic_dir.is_dir():
@@ -460,51 +590,24 @@ def harvest_epics_overview(repo_path: Path) -> EpicsSummary:
             if not d.is_dir() or d.name.startswith("."):
                 continue
             slug = d.name
+            hld_status = extract_epic_hld_status(d, slug)
             has_wt = (
                 (repo_path / ".worktrees" / slug).is_dir()
                 or (repo_path / ".worktrees" / slug.replace("-", "_")).is_dir()
                 or (repo_path / ".worktrees" / slug.replace("_", "-")).is_dir()
             )
 
-            # Status determination
-            if has_wt:
-                status = "in_progress"
-            elif slug in completed_slugs:
+            # Status determination (HLD status is SSOT for Done/Abandon)
+            if hld_status == "done" or slug in completed_slugs:
                 status = "done"
+            elif hld_status in ("abandon", "packaged"):
+                status = hld_status
+            elif has_wt:
+                status = "in_progress"
+            elif hld_status == "in_progress":
+                status = "in_progress"
             else:
                 status = "unstarted"
-                for hld in [d / f"{slug}.en.md", d / f"{slug}.vi.md"]:
-                    if hld.is_file():
-                        with contextlib.suppress(OSError):
-                            t = hld.read_text(encoding="utf-8")
-                            if re.search(
-                                r"-\s+\*\*(?:Status|Trạng thái)\*\*:\s*(?:discarded|abandoned?|cancelled?|hủy)",
-                                t,
-                                re.IGNORECASE,
-                            ):
-                                status = "abandon"
-                                break
-                            if re.search(
-                                r"-\s+\*\*(?:Status|Trạng thái)\*\*:\s*Done",
-                                t,
-                                re.IGNORECASE,
-                            ):
-                                status = "done"
-                                break
-                            if re.search(
-                                r"-\s+\*\*(?:Status|Trạng thái)\*\*:\s*In Progress",
-                                t,
-                                re.IGNORECASE,
-                            ):
-                                status = "in_progress"
-                                break
-                            if re.search(
-                                r"-\s+\*\*(?:Status|Trạng thái)\*\*:\s*Packaged",
-                                t,
-                                re.IGNORECASE,
-                            ):
-                                status = "packaged"
-                                break
 
             # Title
             title = slug
@@ -632,16 +735,7 @@ def extract_task_progress(repo_path: Path, active_epic: str | None) -> TaskProgr
     3. For active epic in worktree: fetch latest detailed tasks from worktree.
     """
     epic_dir = repo_path / ".devtool" / "epic"
-    ledger_file = repo_path / ".devtool" / "PROJECT_LEDGER.md"
-    completed_slugs: set[str] = set()
-    if ledger_file.is_file():
-        with contextlib.suppress(OSError):
-            content = ledger_file.read_text(encoding="utf-8")
-            for m in re.finditer(
-                r"-\s+\*\*\[\d{4}-\d{2}-\d{2}\]\s+`?([a-zA-Z0-9_\-]+)`?\*\*:",
-                content,
-            ):
-                completed_slugs.add(m.group(1).strip())
+    completed_slugs = get_completed_epic_slugs(repo_path)
 
     candidate_epics: list[str] = []
     if active_epic:
@@ -995,12 +1089,17 @@ def derive_lifecycle_state(
     gates = parse_gate_ledger_entries(repo_path, active_epic)
     approved_gate_nums = {int(g["gate"]) for g in gates if "gate" in g}
 
-    # Inspect assistant_state.md for explicit state hints
+    # Inspect assistant_state.md and epic-specific state for explicit state hints
     assistant_state_text = ""
     assistant_state_file = repo_path / ".devtool" / "assistant_state.md"
     if assistant_state_file.is_file():
         with contextlib.suppress(Exception):
             assistant_state_text = assistant_state_file.read_text(encoding="utf-8")
+
+    epic_state_file = repo_path / ".devtool" / "state" / f"{active_epic}.md"
+    if epic_state_file.is_file():
+        with contextlib.suppress(Exception):
+            assistant_state_text += "\n" + epic_state_file.read_text(encoding="utf-8")
 
     task_progress = extract_task_progress(repo_path, active_epic)
 
@@ -1013,25 +1112,46 @@ def derive_lifecycle_state(
             is_human_action_required=False,
         )
 
+    lower_state = assistant_state_text.lower()
+
+    # Check for Circuit Breaker / conflict halts first across any stage
+    has_cb_halt = (
+        "circuit_breaker_halt (" in lower_state
+        or "circuit_breaker_halt:" in lower_state
+        or "[circuit_breaker_halt]" in lower_state
+        or "status: circuit_breaker_halt" in lower_state
+        or "status: halted" in lower_state
+    )
+    if has_cb_halt:
+        return LifecycleDecision(
+            stage_name="Stage 3: Circuit Breaker Halt",
+            gate_status="Halted on Conflict",
+            prompt="Dừng khẩn cấp: Xung đột kiến trúc hoặc contract cần Human Architect giải quyết",
+            is_human_action_required=True,
+            is_blocked=True,
+        )
+
     # Gate 4 PASS
     if 4 in approved_gate_nums:
-        lower_state = assistant_state_text.lower()
         if (
             "review converged" in lower_state
             or "gate 5" in lower_state
             or "sign-off" in lower_state
+            or "stage 4" in lower_state
+            or "finish" in lower_state
         ):
             return LifecycleDecision(
                 stage_name=LifecycleStage.STAGE_3_PHASE_4_1_SIGNOFF.value,
                 gate_status="Gate 4 PASS (Review Converged)",
-                prompt="Phê duyệt Gate 5 (Kanban Sign-off) và kết thúc nhánh",
+                prompt="Phê duyệt Gate 5 (Kanban Sign-off) và kết thúc nhánh (/finish)",
                 is_human_action_required=True,
             )
+        # In automated pipeline, Gate 4 PASS automatically runs Cross-Model Review
         return LifecycleDecision(
             stage_name=LifecycleStage.STAGE_3_PHASE_4_REVIEW.value,
-            gate_status="Gate 4 PASS",
-            prompt="Review Choice (Rule 5): (1) Kết thúc và đóng nhánh (/finish) hoặc (2) Chạy Cross-Model Review độc lập",
-            is_human_action_required=True,
+            gate_status="Gate 4 PASS (Cross-Model Review)",
+            prompt="Đang chạy Cross-Model Review tự động (3 rounds auto-triage)",
+            is_human_action_required=False,
         )
 
     # Gate 3 PASS
@@ -1043,11 +1163,12 @@ def derive_lifecycle_state(
         active_total = len(active_tasks)
         active_done = sum(1 for t in active_tasks if t.get("status") == "done")
         if active_total > 0 and active_done == active_total:
+            # All tasks done -> automatically run Gate 4 local verification
             return LifecycleDecision(
                 stage_name=LifecycleStage.STAGE_3_PHASE_4_REVIEW.value,
-                gate_status="Tasks Done (Pending Gate 4)",
-                prompt="Review Choice (Rule 5): (1) Kết thúc và đóng nhánh (/finish) hoặc (2) Chạy Cross-Model Review độc lập",
-                is_human_action_required=True,
+                gate_status="Tasks Done (Running Gate 4 Verification)",
+                prompt="Đang thực thi kiểm thử tự động Gate 4 (quality_check + audit_epic)",
+                is_human_action_required=False,
             )
         active_task_str = (
             f" ({task_progress.active_task_name})"
@@ -1096,14 +1217,14 @@ def derive_lifecycle_state(
                 )
             return LifecycleDecision(
                 stage_name=LifecycleStage.STAGE_2_EXIT_HANDOFF.value,
-                gate_status="Gate 2 PASS",
-                prompt="Handoff Choice: (1) Run /principal-review or (2) Enter Stage 3 (/dev-implementation)",
+                gate_status="Gate 2 PASS (Review Passed)",
+                prompt="Lựa chọn triển khai: Triển khai (tự động) hoặc Dừng lại lấy prompt",
                 is_human_action_required=True,
             )
         return LifecycleDecision(
-            stage_name=LifecycleStage.STAGE_3_PHASE_1_ORDER.value,
-            gate_status="Gate 2 PASS",
-            prompt="Phê duyệt Gate 3: Xác nhận thứ tự thực thi Kanban tasks và phân lập worktree",
+            stage_name=LifecycleStage.STAGE_2_EXIT_HANDOFF.value,
+            gate_status="Gate 2 PASS (Ready for Review)",
+            prompt="Xác nhận thứ tự ưu tiên provider/model cho /principal-review",
             is_human_action_required=True,
         )
 
@@ -1197,6 +1318,34 @@ def scan_repo(repo_path: Path) -> RepoMetadata:
     decision = derive_lifecycle_state(repo_path, active_epic)
     active_stage = decision.stage_name
 
+    # Propagate deterministic action requirements to each epic in epics_summary
+    completed_slugs = get_completed_epic_slugs(repo_path)
+    if epics_summary and epics_summary.epics:
+        for ep in epics_summary.epics:
+            slug = ep.get("slug", "")
+            if ep.get("status") == "done" or slug in completed_slugs:
+                ep["is_action_required"] = False
+                ep["action_prompt"] = ""
+                ep["is_review_converged"] = True
+                continue
+            if active_epic and _normalize_slug(slug) == _normalize_slug(active_epic):
+                ep["is_action_required"] = decision.is_human_action_required
+                ep["action_prompt"] = decision.prompt if decision.is_human_action_required else ""
+                ep["is_review_converged"] = (decision.stage_name == LifecycleStage.STAGE_3_PHASE_4_1_SIGNOFF.value)
+            else:
+                state_f = repo_path / ".devtool" / "state" / f"{slug}.md"
+                ep_act = False
+                ep_conv = False
+                if state_f.is_file():
+                    with contextlib.suppress(Exception):
+                        st_lower = state_f.read_text(encoding="utf-8").lower()
+                        if any(k in st_lower for k in ("action required", "cần bạn xác nhận", "waiting for user")):
+                            ep_act = True
+                        if any(k in st_lower for k in ("review converged", "gate 5", "sign-off", "finish")):
+                            ep_conv = True
+                ep["is_action_required"] = ep_act
+                ep["is_review_converged"] = ep_conv
+
     return RepoMetadata(
         name=repo_path.name,
         path=str(repo_path.resolve()),
@@ -1211,6 +1360,8 @@ def scan_repo(repo_path: Path) -> RepoMetadata:
         quick_note=quick_note,
         prompt=decision.prompt,
         epics_summary=epics_summary,
+        is_human_action_required=decision.is_human_action_required,
+        is_blocked=decision.is_blocked,
     )
 
 
@@ -1270,11 +1421,14 @@ def harvest_dashboard_graph(root_path: Path, max_workers: int = 4) -> DashboardG
         else 0.0,
     }
 
+    available_profiles = discover_antigravity_profiles()
+
     return DashboardGraph(
         workspace_root=str(root_path.resolve()),
         scanned_at=datetime.now().isoformat(),
         repos=repos,
         metrics_row=metrics_row,
+        available_profiles=available_profiles,
     )
 
 
@@ -1469,7 +1623,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--workspace-root",
         type=Path,
-        default=Path("/Users/danhdueexoictif/AllProjects"),
+        default=_real_home() / "AllProjects",
         help="Workspace root containing repositories",
     )
     args = parser.parse_args(argv)
@@ -1490,7 +1644,7 @@ def main(argv: list[str] | None = None) -> int:
             cmd.append("--stop")
         elif args.status:
             cmd.append("--status")
-        ret = subprocess.call(cmd)
+        ret = subprocess.call(cmd, env=_build_clean_host_env())
         if args.ui and ret == 0 and not args.foreground:
             import webbrowser
 

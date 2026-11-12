@@ -27,7 +27,11 @@
 ## 5. Symlink Boundary Protection
 - In shell scripts and `.zshrc`, never use unanchored wildcards like `antigravity)` in directory matchers. Always use `*antigravity*) ;;` to preserve independent physical directories for `.gemini/antigravity*`.
 
-## 6. Automated Execution
+## 6. Relative Symlinks Only
+- Symlinks inside `~/antigravity_homes/<profile>/` MUST be relative (`../../.android`, `../../../Library/Caches`), never absolute `/Users/<user>/...`. `ag_run` creates them via `_ag_rel_link`; `audit_account_block.py --fix` converts any absolute leftovers.
+- Never pkill the profile that hosts the current session (`AGY_PROFILE` / `HOME`); remediation skips it.
+
+## 7. Automated Execution
 - Whenever diagnosing identity bleed or repairing profiles, execute the certified audit & remediation engine:
   ```bash
   python3 skills/audit-account-block/resources/scripts/audit_account_block.py --fix

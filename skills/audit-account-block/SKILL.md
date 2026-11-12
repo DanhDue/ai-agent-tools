@@ -27,6 +27,7 @@ Activate this skill whenever you need to:
 | **Cross-Account Trajectory Leaks** | **CRITICAL** | Cloned `conversation_summaries.db` contains trajectories belonging to the master account. | Background `conversationsearch` tries to index foreign trajectory UUIDs, generating repeated 403 `PERMISSION_DENIED` errors logged as **Unauthorized Cross-Account Access / Scraping**. |
 | **Cloned Credential User Scope** | **HIGH** | `Library/Application Support/antigravity/credential-user-scope` cloned from template or missing. | Google `language_server` binary reads `credential-user-scope` (`u<16_hex_chars>`) and attaches it to Cloud Code requests, linking completions and metrics across accounts. |
 | **Keychain Host Leak & Identity Bleed** | **HIGH** | `com.apple.security.plist` points to host `/Library/Keychains/login.keychain` instead of `~/...`, causing `state.vscdb` to adopt host identity. | Extension host queries host keychain, sending master account OAuth tokens alongside satellite trajectory IDs or vice versa, causing immediate 403s and session hijacking flags. |
+| **Absolute / Rogue Symlinks** | **MEDIUM / HIGH** | Profile symlinks embed absolute `/Users/<user>/...` targets (should be relative, e.g. `../../.android`), or `.gemini/antigravity/antigravity` points to the host runtime dir. | Absolute links break when the home moves and leak the host path/identity; rogue runtime links make a profile read/write host trajectories and tokens. |
 | **Burst Concurrency Rate Limit** | **HIGH** | `ThreadPoolExecutor(max_workers=6)` querying all accounts simultaneously without delay. | Burst spikes of 23 accounts connecting concurrently from the same residential IP trigger IP-level anti-bot throttling. |
 | **Artificial Keep-Alive Prompts** | **HIGH** | Scripted activation or refresh using constant 1-character prompts (`agy -p "1"`). | Google AI Abuse models detect repetitive single-token requests without IDE context, typing latency, or code edit telemetry. |
 | **Zero-Jitter Periodic Schedules** | **MEDIUM** | Scheduled tasks triggering at the exact second `00` (e.g. `05:30:00`). | Clock-synchronized machine periodicity without human jitter. |
@@ -83,7 +84,7 @@ Always verify the audit suite passes unit tests before and after modifying audit
 ```bash
 python3 skills/audit-account-block/resources/scripts/test_audit_account_block.py
 ```
-All 4 unit tests (`test_audit_detects_duplicate_machine_ids`, `test_audit_detects_stale_trajectory_leaks`, `test_audit_detects_workspace_path_leaks`, `test_remediation_fixes_all_vulnerabilities`) must return `OK`.
+All unit tests in the file (including the relative-symlink, rogue-symlink, `login.keychain` symlink, base64 `oauthToken` and active-session process guard cases) must return `OK`.
 
 ---
 
@@ -94,7 +95,8 @@ When creating or provisioning a new Antigravity profile:
 2. **Never copy `storage.json` blindly**: If manually copying from a template, run `audit-account-block --fix` immediately to decouple hardware fingerprints.
 3. **Never clone `conversation_summaries.db`**: Initialize an empty SQLite database or let Antigravity create it natively on first run to prevent cross-account 403 trajectory sync errors.
 4. **Stagger Cron Jobs**: Add random sleep jitter (1–60s) before executing automated refresh tasks.
-5. **Use Scoped Keychain Unlock & Zero CLI Global Mutation**: Always unlock `<profile>.keychain-db` locally without mutating macOS global default keychain (`login.keychain-db`) to protect AirDrop (`sharingd`) and Apple ID services.
+5. **Symlinks must be relative**: Profile symlinks to shared toolchains/caches use relative targets (`../../.android`, `../../../Library/Caches`), never `/Users/<user>/...`. `--fix` converts existing absolute links atomically; `ag_run` in `~/.zshrc` creates them relative.
+6. **Use Scoped Keychain Unlock & Zero CLI Global Mutation**: Always unlock `<profile>.keychain-db` locally without mutating macOS global default keychain (`login.keychain-db`) to protect AirDrop (`sharingd`) and Apple ID services.
 
 ---
 

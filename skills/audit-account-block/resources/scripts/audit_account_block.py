@@ -16,6 +16,7 @@ import os
 import re
 import secrets
 import shutil
+import signal
 import sqlite3
 import subprocess
 import sys
@@ -80,6 +81,166 @@ RESERVED_NON_PROFILES = {
     "claude", "codex", "kiro", "anthropic", "openai", ".gemini", ".antigravity",
     ".antigravity-ide"
 }
+
+ROGUE_GEMINI_RUNTIME_DIRS = (
+    "antigravity",
+    "antigravity-cli",
+    "antigravity-ide",
+    "antigravity-browser-profile",
+    "antigravity-backup",
+)
+ROGUE_AG_RUNTIME_DIRS = ("antigravity", "antigravity-cli", "antigravity-ide")
+
+
+def _get_ancestor_pids() -> set[int]:
+    """Return all ancestor PIDs of the current process up to PID 1."""
+    ancestors: set[int] = set()
+    pid = os.getppid()
+    seen = 0
+    while pid > 1 and pid not in ancestors and seen < 64:
+        ancestors.add(pid)
+        seen += 1
+        try:
+            out = subprocess.check_output(
+                ["ps", "-o", "ppid=", "-p", str(pid)],
+                text=True,
+                stderr=subprocess.DEVNULL,
+            ).strip()
+            pid = int(out) if out.isdigit() else 0
+        except Exception:
+            break
+    return ancestors
+
+
+def is_current_session_profile(profile_name: str) -> bool:
+    """Return True if the current process is executing inside the target profile's active session."""
+    if os.environ.get("AGY_PROFILE") == profile_name:
+        return True
+    cur_home = os.path.expanduser("~").rstrip("/")
+    return cur_home == f"/Users/{os.path.basename(os.path.dirname(os.path.dirname(cur_home)))}/antigravity_homes/{profile_name}" or cur_home.endswith(f"/antigravity_homes/{profile_name}")
+
+
+def terminate_profile_processes(profile_name: str) -> tuple[list[int], bool]:
+    """Terminate resident profile processes while never killing the active host session or ancestors."""
+    if is_current_session_profile(profile_name):
+        return ([], True)
+    try:
+        pg = subprocess.run(
+            ["pgrep", "-f", f"antigravity_homes/{profile_name}"],
+            capture_output=True,
+            text=True,
+        )
+        protected = _get_ancestor_pids() | {os.getpid()}
+        killed_pids: list[int] = []
+        for raw_pid in pg.stdout.splitlines():
+            raw_pid = raw_pid.strip()
+            if not raw_pid.isdigit():
+                continue
+            pid = int(raw_pid)
+            if pid in protected:
+                continue
+            try:
+                os.kill(pid, signal.SIGKILL)
+                killed_pids.append(pid)
+            except OSError:
+                pass
+        return (killed_pids, False)
+    except Exception:
+        return ([], False)
+
+
+def find_rogue_symlinks(p_dir: str) -> list[str]:
+    """Detect direct and 1-level nested runtime symlinks pointing outside profile isolation."""
+    rogues: list[str] = []
+    checks = [
+        (".gemini", ROGUE_GEMINI_RUNTIME_DIRS),
+        (".antigravity", ROGUE_AG_RUNTIME_DIRS),
+    ]
+    for parent_rel, runtime_dirs in checks:
+        parent_dir = os.path.join(p_dir, parent_rel)
+        for name in runtime_dirs:
+            path = os.path.join(parent_dir, name)
+            if os.path.islink(path):
+                rogues.append(path)
+            elif os.path.isdir(path):
+                try:
+                    for entry in os.listdir(path):
+                        sub = os.path.join(path, entry)
+                        if os.path.islink(sub):
+                            target = os.readlink(sub)
+                            if (
+                                "/.gemini/antigravity" in target
+                                or "/.antigravity/antigravity" in target
+                            ):
+                                rogues.append(sub)
+                except OSError:
+                    pass
+    return rogues
+
+
+def find_absolute_symlinks(p_dir: str) -> list[str]:
+    """Detect symlinks with absolute targets in the profile home (top level + 2 levels under .gemini/.antigravity*/Library).
+
+    Profile symlinks MUST be relative (e.g. ../../.android) so they never embed /Users/<user>/...
+    """
+    found: list[str] = []
+    scan_dirs = [p_dir]
+    for sub in (".gemini", ".antigravity", ".antigravity-ide", "Library"):
+        scan_dirs.append(os.path.join(p_dir, sub))
+    for parent in list(scan_dirs[1:]):
+        try:
+            for entry in os.listdir(parent):
+                child = os.path.join(parent, entry)
+                if os.path.isdir(child) and not os.path.islink(child):
+                    scan_dirs.append(child)
+        except OSError:
+            pass
+    for d in scan_dirs:
+        try:
+            entries = os.listdir(d)
+        except OSError:
+            continue
+        for entry in entries:
+            path = os.path.join(d, entry)
+            if os.path.islink(path) and os.path.isabs(os.readlink(path)):
+                found.append(path)
+    return sorted(set(found))
+
+
+def convert_symlinks_to_relative(paths: list[str]) -> int:
+    """Rewrite absolute symlinks as relative symlinks pointing at the same target. Returns converted count."""
+    converted = 0
+    for path in paths:
+        try:
+            target = os.readlink(path)
+            if not os.path.isabs(target):
+                continue
+            rel = os.path.relpath(target, os.path.dirname(path))
+            tmp_link = f"{path}.rel.tmp"
+            if os.path.lexists(tmp_link):
+                os.unlink(tmp_link)
+            os.symlink(rel, tmp_link)
+            os.replace(tmp_link, path)  # atomic swap: no window where the link is missing
+            converted += 1
+        except OSError:
+            pass
+    return converted
+
+
+def _has_signed_out_or_bleed_token(raw_val: str, profile_name: str) -> bool:
+    """Inspect oauthToken value in both raw form and base64-decoded payload."""
+    if not raw_val:
+        return False
+    if "signedOut" in raw_val or (profile_name != "danhdue" and "danhdue@gmail.com" in raw_val):
+        return True
+    try:
+        padded = raw_val.strip() + "=" * (-len(raw_val.strip()) % 4)
+        decoded = base64.b64decode(padded).decode("utf-8", errors="ignore")
+        if "signedOut" in decoded or (profile_name != "danhdue" and "danhdue@gmail.com" in decoded):
+            return True
+    except Exception:
+        pass
+    return False
 
 
 def is_valid_profile_dir(path: str) -> bool:
@@ -223,7 +384,7 @@ def audit_profile(
                         has_identity_bleed = True
                 c.execute("SELECT value FROM ItemTable WHERE key='antigravityUnifiedStateSync.oauthToken'")
                 row2 = c.fetchone()
-                if row2 and "signedOut" in row2[0]:
+                if row2 and _has_signed_out_or_bleed_token(row2[0], profile_name):
                     has_identity_bleed = True
                 conn.close()
             except Exception:
@@ -270,6 +431,22 @@ def audit_profile(
         except Exception:
             pass
 
+    # 7. Inspect Rogue Runtime Symlinks & Keychain Login Symlink Parity
+    rogue_symlinks = find_rogue_symlinks(p_dir)
+    has_rogue_symlinks = bool(rogue_symlinks)
+    has_absolute_symlinks = bool(find_absolute_symlinks(p_dir))
+    has_missing_keychain_symlink = False
+    if profile_name != "danhdue":
+        kc_dir = os.path.join(p_dir, "Library/Keychains")
+        expected_kc_name = f"{profile_name}.keychain-db"
+        kc_db_file = os.path.join(kc_dir, expected_kc_name)
+        if os.path.exists(kc_db_file):
+            for link_name in ("login.keychain-db", "login.keychain"):
+                link_path = os.path.join(kc_dir, link_name)
+                if not os.path.islink(link_path) or os.readlink(link_path) != expected_kc_name:
+                    has_missing_keychain_symlink = True
+                    break
+
     # Evaluate Vulnerabilities
     if duplicate_scope_map is None:
         duplicate_scope_map = {}
@@ -288,9 +465,9 @@ def audit_profile(
         risk_level = "BLOCKED"
     elif is_cloned_mid and has_stale_trajectories:
         risk_level = "CRITICAL"
-    elif is_cloned_mid or has_stale_trajectories or has_missing_mid or has_keychain_leak or has_identity_bleed or has_missing_terminal_profile or is_cloned_scope:
+    elif is_cloned_mid or has_stale_trajectories or has_missing_mid or has_keychain_leak or has_identity_bleed or has_missing_terminal_profile or is_cloned_scope or has_rogue_symlinks or has_missing_keychain_symlink:
         risk_level = "HIGH"
-    elif has_leaked_workspaces or has_missing_scope:
+    elif has_absolute_symlinks or has_leaked_workspaces or has_missing_scope:
         risk_level = "MEDIUM"
     else:
         risk_level = "CLEAN"
@@ -318,6 +495,9 @@ def audit_profile(
             "leaked_workspaces": has_leaked_workspaces,
             "keychain_leak": has_keychain_leak,
             "identity_bleed": has_identity_bleed,
+            "rogue_symlinks": has_rogue_symlinks,
+            "absolute_symlinks": has_absolute_symlinks,
+            "missing_keychain_symlink": has_missing_keychain_symlink,
             "tos_suspended": is_tos_disabled,
         },
     }
@@ -411,11 +591,26 @@ def remediate_single_profile(
     timestamp: str,
     seen_user_scopes: set[str] | None = None,
 ) -> dict:
-    # 0. Terminate resident processes of this profile to prevent Ghost Electron memory flush
-    try:
-        subprocess.run(["pkill", "-9", "-f", f"antigravity_homes/{profile_name}"], capture_output=True)
-    except Exception:
-        pass
+    # 0. Terminate resident processes of this profile (without self/active-IDE suicide)
+    _killed_pids, skipped_active = terminate_profile_processes(profile_name)
+    if skipped_active:
+        print(f"  [WARN] Skipping IDE process termination for active session profile '{profile_name}'", file=sys.stderr)
+
+    # 0b. Purge direct & nested rogue runtime symlinks
+    purged_rogue_symlinks = 0
+    for rogue_path in find_rogue_symlinks(p_path):
+        try:
+            parent_rel = os.path.relpath(rogue_path, p_path)
+            os.unlink(rogue_path)
+            # Top-level .gemini/<runtime_dir> and .antigravity/<runtime_dir> should be restored as real dirs
+            if parent_rel.count(os.sep) == 1:
+                os.makedirs(rogue_path, exist_ok=True)
+            purged_rogue_symlinks += 1
+        except OSError:
+            pass
+
+    # 0c. Convert absolute symlinks to relative (never embed /Users/<user>/... in profile symlinks)
+    converted_relative_symlinks = convert_symlinks_to_relative(find_absolute_symlinks(p_path))
 
     storage_dir = os.path.join(p_path, "data/User/globalStorage")
     storage_path = os.path.join(storage_dir, "storage.json")
@@ -494,11 +689,25 @@ def remediate_single_profile(
         except Exception:
             pass
 
-    # Sanitize com.apple.security.plist (Keychain isolation)
+    # Sanitize com.apple.security.plist (Keychain isolation) & login.keychain* symlinks
     plist_dir = os.path.join(p_path, "Library/Preferences")
     plist_path = os.path.join(plist_dir, "com.apple.security.plist")
     repaired_plist = False
+    repaired_kc_symlink = False
     if profile_name != "danhdue":
+        kc_dir = os.path.join(p_path, "Library/Keychains")
+        expected_kc_name = f"{profile_name}.keychain-db"
+        if os.path.exists(os.path.join(kc_dir, expected_kc_name)):
+            for link_name in ("login.keychain-db", "login.keychain"):
+                link_path = os.path.join(kc_dir, link_name)
+                if not os.path.islink(link_path) or os.readlink(link_path) != expected_kc_name:
+                    try:
+                        if os.path.lexists(link_path):
+                            os.unlink(link_path)
+                        os.symlink(expected_kc_name, link_path)
+                        repaired_kc_symlink = True
+                    except OSError:
+                        pass
         os.makedirs(plist_dir, exist_ok=True)
         need_plist_repair = False
         if not os.path.exists(plist_path):
@@ -583,7 +792,7 @@ def remediate_single_profile(
                 with open(settings_path, "r", encoding="utf-8") as sf:
                     s_data = json.load(sf)
 
-            real_h = p_path.split("/antigravity_homes")[0] if "antigravity_homes" in p_path else "/Users/danhdueexoictif"
+            real_h = p_path.split("/antigravity_homes")[0] if "antigravity_homes" in p_path else os.path.expanduser("~")
             user_name = os.path.basename(real_h)
 
             need_s_save = False
@@ -671,7 +880,10 @@ def remediate_single_profile(
         "user_scope": new_scope_val,
         "purged_trajectories": purged_count,
         "purged_proto": purged_proto,
+        "purged_rogue_symlinks": purged_rogue_symlinks,
+        "converted_relative_symlinks": converted_relative_symlinks,
         "repaired_plist": repaired_plist,
+        "repaired_keychain_symlink": repaired_kc_symlink,
         "repaired_vscdb": repaired_vscdb,
         "repaired_settings": repaired_settings,
         "repaired_scope": repaired_scope,
@@ -693,7 +905,7 @@ def remediate_all_profiles(homes_dir: str | None = None, target: str | None = No
     seen_user_scopes: set[str] = set()
 
     # Pre-populate seen_user_scopes with root host scope if present
-    real_h = homes_dir.split("/antigravity_homes")[0] if "antigravity_homes" in homes_dir else "/Users/danhdueexoictif"
+    real_h = homes_dir.split("/antigravity_homes")[0] if "antigravity_homes" in homes_dir else os.path.expanduser("~")
     root_scope_file = os.path.join(real_h, "Library/Application Support/antigravity/credential-user-scope")
     if os.path.exists(root_scope_file):
         try:
@@ -783,6 +995,12 @@ def print_audit_report(report: dict):
             findings.append("Keychain host path leak")
         if data["vulnerabilities"].get("identity_bleed"):
             findings.append("Identity bleed (state.vscdb points to host)")
+        if data["vulnerabilities"].get("rogue_symlinks"):
+            findings.append("Rogue runtime symlinks pointing to host")
+        if data["vulnerabilities"].get("absolute_symlinks"):
+            findings.append("Absolute symlinks (must be relative ~/ paths)")
+        if data["vulnerabilities"].get("missing_keychain_symlink"):
+            findings.append("Missing login.keychain symlink")
         if not findings:
             findings.append("No vulnerabilities found")
 

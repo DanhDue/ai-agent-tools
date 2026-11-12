@@ -7,14 +7,29 @@ Sanitize and decouple Antigravity profiles:
 3. Cleans up leaked workspace file paths in storage.json.
 """
 
-import os
 import glob
+import hashlib
 import json
-import uuid
-import time
+import os
 import shutil
 import sqlite3
-import hashlib
+import sys
+import time
+import uuid
+
+_AUDIT_SCRIPTS_DIR = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "../skills/audit-account-block/resources/scripts")
+)
+if _AUDIT_SCRIPTS_DIR not in sys.path:
+    sys.path.insert(0, _AUDIT_SCRIPTS_DIR)
+
+from audit_account_block import (  # noqa: E402
+    convert_symlinks_to_relative,
+    find_absolute_symlinks,
+    find_rogue_symlinks,
+    is_valid_profile_dir,
+    terminate_profile_processes,
+)
 
 current_home = os.path.expanduser("~")
 if "antigravity_homes" in current_home:
@@ -25,7 +40,7 @@ HOMES_DIR = f"{REAL_HOME}/antigravity_homes"
 
 def remediate():
     timestamp = time.strftime("%Y%m%d_%H%M%S")
-    homes = sorted(glob.glob(f"{HOMES_DIR}/*"))
+    homes = [h for h in sorted(glob.glob(f"{HOMES_DIR}/*")) if is_valid_profile_dir(h)]
     
     print(f"=== ANTIGRAVITY PROFILE REMEDIATION TOOL ===")
     print(f"Found {len(homes)} profiles in {HOMES_DIR}")
@@ -83,14 +98,21 @@ def remediate():
         print(f"  ✓ Machine ID: {new_mid[:16]}... | Device ID: {new_dev_id}")
         remediated_storage += 1
 
-        # 2. Purge rogue symlinks in .gemini/ and .antigravity/ (ensure independent directories)
-        for parent in [".gemini", ".antigravity"]:
-            for rogue in ["antigravity", "antigravity-cli", "antigravity-ide", "antigravity-browser-profile", "antigravity-backup"]:
-                target_path = os.path.join(h, parent, rogue)
-                if os.path.islink(target_path):
-                    os.unlink(target_path)
-                    os.makedirs(target_path, exist_ok=True)
-                    print(f"  ✓ Purged rogue symlink: {parent}/{rogue} -> converted to directory")
+        # 2. Purge direct and nested rogue symlinks in .gemini/ and .antigravity/
+        for rogue_path in find_rogue_symlinks(h):
+            try:
+                rel = os.path.relpath(rogue_path, h)
+                os.unlink(rogue_path)
+                if rel.count(os.sep) == 1:
+                    os.makedirs(rogue_path, exist_ok=True)
+                print(f"  ✓ Purged rogue symlink: {rel}")
+            except OSError:
+                pass
+
+        # 2.1 Convert absolute symlinks to relative (~/-anchored, e.g. ../../.android)
+        rel_count = convert_symlinks_to_relative(find_absolute_symlinks(h))
+        if rel_count:
+            print(f"  ✓ Converted {rel_count} absolute symlinks to relative paths")
 
         # 3. Sanitize conversation_summaries.db
         db_path = os.path.join(h, ".gemini/antigravity/conversation_summaries.db")
@@ -132,10 +154,23 @@ def remediate():
             except Exception as e:
                 print(f"  [WARN] Error cleaning conversation_summaries.db: {e}")
 
-        # 3.1 Sanitize com.apple.security.plist (Keychain isolation)
+        # 3.1 Sanitize com.apple.security.plist & login.keychain* symlinks (Keychain isolation)
         plist_dir = os.path.join(h, "Library/Preferences")
         plist_path = os.path.join(plist_dir, "com.apple.security.plist")
         if profile != "danhdue":
+            kc_dir = os.path.join(h, "Library/Keychains")
+            expected_kc_name = f"{profile}.keychain-db"
+            if os.path.exists(os.path.join(kc_dir, expected_kc_name)):
+                for link_name in ("login.keychain-db", "login.keychain"):
+                    link_path = os.path.join(kc_dir, link_name)
+                    if not os.path.islink(link_path) or os.readlink(link_path) != expected_kc_name:
+                        try:
+                            if os.path.lexists(link_path):
+                                os.unlink(link_path)
+                            os.symlink(expected_kc_name, link_path)
+                            print(f"  ✓ Repaired symlink: Library/Keychains/{link_name} -> {expected_kc_name}")
+                        except OSError:
+                            pass
             os.makedirs(plist_dir, exist_ok=True)
             need_repair = False
             if not os.path.exists(plist_path):
@@ -187,13 +222,12 @@ def remediate():
         if os.path.isfile(vscdb_path) and os.path.isfile(kc_path) and profile != "danhdue":
             try:
                 import base64, subprocess
-                # Terminate any stale resident IDE / agy processes for this profile
-                # to prevent Electron RAM from overwriting SQLite changes on exit
-                pids_proc = subprocess.run(["pgrep", "-f", f"antigravity_homes/{profile}"], capture_output=True, text=True)
-                pids = [p.strip() for p in pids_proc.stdout.splitlines() if p.strip()]
-                if pids:
-                    subprocess.run(["pkill", "-9", "-f", f"antigravity_homes/{profile}"], capture_output=True)
-                    print(f"  ✓ Terminated {len(pids)} stale resident processes for {profile} (PIDs: {', '.join(pids)})")
+                # Terminate stale resident IDE / agy processes while protecting current active session
+                killed_pids, skipped_active = terminate_profile_processes(profile)
+                if skipped_active:
+                    print(f"  [WARN] Skipped process kill for active session profile '{profile}'")
+                elif killed_pids:
+                    print(f"  ✓ Terminated {len(killed_pids)} stale resident processes for {profile} (PIDs: {', '.join(str(p) for p in killed_pids)})")
 
                 subprocess.run(["security", "unlock-keychain", "-p", "H@No!a@12345", kc_path], capture_output=True)
                 res = subprocess.run(["security", "find-generic-password", "-s", "gemini", "-a", "antigravity", "-g", kc_path], capture_output=True, text=True)

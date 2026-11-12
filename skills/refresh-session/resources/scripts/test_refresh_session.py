@@ -404,10 +404,11 @@ class TestRefreshSession(unittest.TestCase):
         args = refresh_session.parse_args(["danhdue"])
         self.assertEqual(args.target, "danhdue")
 
+    @patch("time.sleep")
     @patch("subprocess.run")
     @patch("os.path.isdir", return_value=True)
     @patch("shutil.which", return_value="/opt/homebrew/bin/agy")
-    def test_ping_profile_success(self, mock_which: MagicMock, mock_isdir: MagicMock, mock_run: MagicMock) -> None:
+    def test_ping_profile_success(self, mock_which: MagicMock, mock_isdir: MagicMock, mock_run: MagicMock, mock_sleep: MagicMock) -> None:
         """Pings profile using agy and returns PASS when returncode is 0."""
         mock_proc = MagicMock()
         mock_proc.returncode = 0
@@ -417,11 +418,33 @@ class TestRefreshSession(unittest.TestCase):
         res = refresh_session.ping_profile("danhdue")
         self.assertEqual(res["status"], "PASS")
         self.assertEqual(res["profile"], "danhdue")
-        self.assertIn(res["tokens"], (0, 1))
-        # Ensure claude-sonnet-5-5-low is explicitly requested instead of Gemini
-        cmd = mock_run.call_args[0][0]
-        self.assertIn("--model", cmd)
-        self.assertIn("claude-sonnet-5-5-low", cmd)
+        self.assertGreaterEqual(res["tokens"], 1)
+        # Ensure both Gemini 5H and Claude 5H were called
+        all_cmds = [c[0][0] for c in mock_run.call_args_list]
+        gemini_cmds = [c for c in all_cmds if "-p" in c and "claude-sonnet-5-5-low" not in c and "gemini-4-argon-low" not in c]
+        claude_cmds = [c for c in all_cmds if "claude-sonnet-5-5-low" in c]
+        self.assertTrue(len(gemini_cmds) >= 1)
+        self.assertTrue(len(claude_cmds) >= 1)
+
+    @patch("time.sleep")
+    @patch("refresh_session.check_profile_has_argon", return_value=True)
+    @patch("subprocess.run")
+    @patch("os.path.isdir", return_value=True)
+    @patch("shutil.which", return_value="/opt/homebrew/bin/agy")
+    def test_ping_profile_all_three_models_with_argon(self, mock_which: MagicMock, mock_isdir: MagicMock, mock_run: MagicMock, mock_argon: MagicMock, mock_sleep: MagicMock) -> None:
+        """Pings all 3 models (Gemini 5H, Claude 5H, and Argon 7D) when profile has Argon."""
+        mock_proc = MagicMock()
+        mock_proc.returncode = 0
+        mock_proc.stdout = '{"status": "ok"}'
+        mock_run.return_value = mock_proc
+
+        res = refresh_session.ping_profile("brother")
+        self.assertEqual(res["status"], "PASS")
+        self.assertIn("Gemini 5H", res.get("models_pinged", []))
+        self.assertIn("Claude 5H", res.get("models_pinged", []))
+        self.assertIn("Argon 7D", res.get("models_pinged", []))
+        self.assertEqual(res["tokens"], 3)
+        self.assertEqual(mock_sleep.call_count, 2)
 
     @patch("refresh_session.ping_profile", return_value={"cli": "agy (danhdue)", "profile": "danhdue", "status": "PASS", "latency_ms": 110.0, "tokens": 0, "error": None})
     def test_main_profile_dispatch(self, mock_ping_prof: MagicMock) -> None:

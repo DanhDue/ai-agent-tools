@@ -76,10 +76,19 @@ class TestCheckTasksFSM_Integration(unittest.TestCase):
             encoding="utf-8",
         )
 
+        # In Rule 5 automated mode, Gate 4 PASS automatically triggers Cross-Model Review
         decision = derive_lifecycle_state(self.repo_path, epic_name)
         self.assertEqual(decision.stage_name, LifecycleStage.STAGE_3_PHASE_4_REVIEW)
-        self.assertIn("Review Choice (Rule 5)", decision.prompt)
-        self.assertTrue(decision.is_human_action_required)
+        self.assertIn("Cross-Model Review", decision.prompt)
+        self.assertFalse(decision.is_human_action_required)
+
+        # When review converges, FSM transitions to Stage 3 Phase 4.1 Sign-off requiring human action
+        state = self.repo_path / ".devtool" / "assistant_state.md"
+        state.write_text("# Assistant State\n## Status:\nReview Converged\n", encoding="utf-8")
+        decision2 = derive_lifecycle_state(self.repo_path, epic_name)
+        self.assertEqual(decision2.stage_name, LifecycleStage.STAGE_3_PHASE_4_1_SIGNOFF)
+        self.assertIn("Gate 5", decision2.prompt)
+        self.assertTrue(decision2.is_human_action_required)
 
     def test_ctd_st_01(self) -> None:
         """[CTD-ST-01] [Tier A - Unit] FSM transitions from Stage 2 Architecture to Stage 2 Exit Handoff."""
@@ -92,13 +101,20 @@ class TestCheckTasksFSM_Integration(unittest.TestCase):
         )
         epic_dir = self.repo_path / ".devtool" / "epic" / epic_name
         epic_dir.mkdir(parents=True, exist_ok=True)
-        handoff = epic_dir / "handoff.md"
-        handoff.write_text("# Handoff\nReady for handoff choice\n", encoding="utf-8")
 
+        # Before handoff.md is created, prompt asks for provider priority for /principal-review
         decision = derive_lifecycle_state(self.repo_path, epic_name)
         self.assertEqual(decision.stage_name, LifecycleStage.STAGE_2_EXIT_HANDOFF)
         self.assertIn("principal-review", decision.prompt.lower())
         self.assertTrue(decision.is_human_action_required)
+
+        # After principal-review converges and handoff.md is packaged, prompt asks for implementation choice
+        handoff = epic_dir / "handoff.md"
+        handoff.write_text("# Handoff\nReady for handoff choice\n", encoding="utf-8")
+        decision2 = derive_lifecycle_state(self.repo_path, epic_name)
+        self.assertEqual(decision2.stage_name, LifecycleStage.STAGE_2_EXIT_HANDOFF)
+        self.assertIn("triển khai", decision2.prompt.lower())
+        self.assertTrue(decision2.is_human_action_required)
 
     def test_ctd_st_02(self) -> None:
         """[CTD-ST-02] [Tier A - Unit] FSM transitions to Stage 3 Phase 2 TDD when tasks enter in-progress."""
@@ -193,6 +209,44 @@ class TestCheckTasksFSM_Integration(unittest.TestCase):
         self.assertEqual(decision.stage_name, LifecycleStage.STAGE_3_PHASE_4_1_SIGNOFF)
         self.assertTrue(decision.is_human_action_required)
         self.assertIn("Gate 5", decision.prompt)
+
+    def test_stage_3_all_tasks_done_pending_gate_4(self) -> None:
+        """When all tasks are done but Gate 4 has not run yet, verification is automated."""
+        epic_name = "test_epic"
+        self._init_gate_ledger(
+            [
+                {"epic": epic_name, "gate": 1, "approved": "Spec approved"},
+                {"epic": epic_name, "gate": 2, "approved": "HLD approved"},
+                {"epic": epic_name, "gate": 3, "approved": "Order confirmed"},
+            ]
+        )
+        features_dir = self.repo_path / ".devtool" / "features"
+        done_dir = features_dir / "done"
+        done_dir.mkdir(parents=True, exist_ok=True)
+        (done_dir / "task_1.md").write_text(
+            "---\nid: task_1\nstatus: done\nepic: test_epic\n---\n# Task 1\n",
+            encoding="utf-8",
+        )
+        decision = derive_lifecycle_state(self.repo_path, epic_name)
+        self.assertEqual(decision.stage_name, LifecycleStage.STAGE_3_PHASE_4_REVIEW)
+        self.assertIn("Gate 4", decision.prompt)
+        self.assertFalse(decision.is_human_action_required)
+
+    def test_scan_repo_action_required_propagation(self) -> None:
+        """scan_repo propagates is_human_action_required to RepoMetadata and epics_summary."""
+        from check_tasks import scan_repo
+        epic_name = "active_test_epic"
+        epic_dir = self.repo_path / ".devtool" / "epic" / epic_name
+        epic_dir.mkdir(parents=True, exist_ok=True)
+        (epic_dir / f"{epic_name}.en.md").write_text("# Feature Spec\n", encoding="utf-8")
+
+        meta = scan_repo(self.repo_path)
+        self.assertTrue(meta.is_human_action_required)
+        self.assertIn("Gate 1", meta.prompt)
+        self.assertIsNotNone(meta.epics_summary)
+        active_ep = next((e for e in meta.epics_summary.epics if e["slug"] == epic_name), None)
+        self.assertIsNotNone(active_ep)
+        self.assertTrue(active_ep.get("is_action_required"))
 
 
 if __name__ == "__main__":

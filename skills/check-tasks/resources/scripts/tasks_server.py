@@ -37,13 +37,46 @@ if str(SCRIPT_DIR) not in sys.path:
 try:
     from check_tasks import (
         DashboardGraph,
+        discover_antigravity_profiles,
         harvest_dashboard_graph,
     )
 except ImportError:
     pass
 
 DEFAULT_PORT = 8766
+DEFAULT_QUOTA_PORT = 8765
 DEFAULT_PID_FILE = Path("/tmp/agy_tasks_server.pid")
+
+
+def get_real_home() -> str:
+    """Resolve the host user's real HOME directory even when invoked inside an isolated profile."""
+    current = os.path.expanduser("~")
+    if "/antigravity_homes/" in current:
+        return current.split("/antigravity_homes/", 1)[0]
+    if current.endswith("/antigravity_homes"):
+        return current[: -len("/antigravity_homes")]
+    return os.environ.get("REAL_HOME") or current
+
+
+def build_clean_host_env(base_env: dict[str, str] | None = None) -> dict[str, str]:
+    """Return a clean host environment stripped of leaked IDE, Electron, and profile variables."""
+    env = dict(os.environ if base_env is None else base_env)
+    env["HOME"] = get_real_home()
+    for exact_key in (
+        "AGY_PROFILE",
+        "AGY_CLI_MODE",
+        "AGY_ENABLE_HUB",
+        "TERM_PROGRAM",
+        "TERM_PROGRAM_VERSION",
+        "TERM_SESSION_ID",
+        "TMPDIR",
+        "ZDOTDIR",
+    ):
+        env.pop(exact_key, None)
+    for key in list(env.keys()):
+        if key.startswith(("VSCODE_", "ANTIGRAVITY_", "ELECTRON_", "CHROME_")):
+            env.pop(key, None)
+    return env
 
 
 def get_running_pid(pid_file: Path = DEFAULT_PID_FILE) -> int | None:
@@ -127,6 +160,77 @@ def build_ide_launch_command(worktree: str, profile: str) -> list[str]:
         else f"antigravity {quoted_worktree}"
     )
     return ["zsh", "-i", "-c", cmd_str]
+
+
+def find_quota_script(workspace_root: Path) -> Path | None:
+    """Locate scripts/agy_quota.py across workspace roots and repositories."""
+    candidates = [
+        workspace_root / "scripts" / "agy_quota.py",
+        workspace_root / "ai-agent-tools" / "scripts" / "agy_quota.py",
+    ]
+    for c in candidates:
+        if c.is_file():
+            return c
+
+    for parent in SCRIPT_DIR.parents:
+        cand = parent / "scripts" / "agy_quota.py"
+        if cand.is_file():
+            return cand
+
+    real_home = get_real_home()
+    cand_home = (
+        Path(real_home) / "AllProjects" / "ai-agent-tools" / "scripts" / "agy_quota.py"
+    )
+    if cand_home.is_file():
+        return cand_home
+
+    return None
+
+
+def is_quota_server_alive(port: int = DEFAULT_QUOTA_PORT) -> bool:
+    """Check if the Quota Web Server daemon is active and responding."""
+    try:
+        import urllib.request
+
+        req = urllib.request.urlopen(
+            f"http://127.0.0.1:{port}/api/status", timeout=1.0
+        )
+        return req.status == 200
+    except Exception:
+        return False
+
+
+def launch_quota_server(
+    workspace_root: Path, port: int = DEFAULT_QUOTA_PORT
+) -> dict[str, Any]:
+    """Launch the Quota Web Server daemon in background if not already alive."""
+    url = f"http://127.0.0.1:{port}"
+    if is_quota_server_alive(port):
+        return {"status": "ok", "action": "already_running", "url": url}
+
+    quota_script = find_quota_script(workspace_root)
+    if not quota_script or not quota_script.is_file():
+        return {
+            "status": "error",
+            "error": "scripts/agy_quota.py not found",
+            "url": url,
+        }
+
+    cmd = [sys.executable, str(quota_script), "--ui", "--no-open"]
+    try:
+        subprocess.Popen(
+            cmd,
+            cwd=str(quota_script.parent.parent),
+            env=build_clean_host_env(),
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,
+            close_fds=True,
+        )
+        return {"status": "ok", "action": "launched", "url": url}
+    except Exception as e:
+        return {"status": "error", "error": str(e), "url": url}
 
 
 def parse_review_results(
@@ -263,10 +367,25 @@ def parse_review_results(
     # Check if filename specifies round
     m_file_round = re.search(r"round_(\d+)", review_file.name, re.IGNORECASE)
 
-    # Detect all available rounds in the file
-    round_matches = list(re.finditer(r"(?m)^##\s+Round\s+(\d+)", content))
-    if round_matches:
-        result["available_rounds"] = [int(m.group(1)) for m in round_matches]
+    # Detect all available rounds in the file using fence-aware scanner (ignoring markdown headings inside code blocks)
+    fence_pattern = re.compile(r"^(`{3,}|~{3,})")
+    parsed_rounds: list[tuple[int, list[str]]] = []
+    current_fence = ""
+    for line in content.splitlines():
+        fence_match = fence_pattern.match(line)
+        if current_fence:
+            if line.rstrip() == current_fence:
+                current_fence = ""
+        elif fence_match:
+            current_fence = fence_match.group(1)
+        elif (heading_match := re.fullmatch(r"##\s+Round\s+(\d+)", line.strip())):
+            parsed_rounds.append((int(heading_match.group(1)), []))
+        elif parsed_rounds:
+            parsed_rounds[-1][1].append(line)
+
+    unique_rounds = sorted(list({r[0] for r in parsed_rounds}))
+    if unique_rounds:
+        result["available_rounds"] = unique_rounds
     elif m_file_round:
         result["available_rounds"] = [int(m_file_round.group(1))]
     else:
@@ -284,13 +403,12 @@ def parse_review_results(
 
     result["round"] = round_to_extract
 
+    # Extract round content
     round_content = content
-    if round_matches:
-        blocks = re.split(r"(?m)^##\s+Round\s+(\d+)", content)
-        # blocks: [header, round_num_1, text_1, round_num_2, text_2, ...]
-        for i in range(1, len(blocks), 2):
-            if int(blocks[i]) == round_to_extract:
-                round_content = f"## Round {blocks[i]}\n{blocks[i + 1]}"
+    if parsed_rounds:
+        for r_num, r_lines in parsed_rounds:
+            if r_num == round_to_extract:
+                round_content = f"## Round {r_num}\n" + "\n".join(r_lines)
                 break
     elif not m_file_round:
         m_r = re.search(r"(?:Round\s+(\d+)|Round\*\*:\s*(\d+))", content, re.IGNORECASE)
@@ -614,6 +732,15 @@ class TasksHandler(http.server.BaseHTTPRequestHandler):
             self._send_json(200, sanitize_paths_to_tilde(data))
             return
 
+        if path == "/api/profiles":
+            profiles: list[str] = []
+            try:
+                profiles = discover_antigravity_profiles(get_real_home())
+            except Exception:
+                pass
+            self._send_json(200, {"profiles": profiles})
+            return
+
         if path == "/api/status":
             self._send_json(
                 200,
@@ -687,10 +814,21 @@ class TasksHandler(http.server.BaseHTTPRequestHandler):
 
         if path == "/api/launch/cli":
             worktree = payload.get("worktree", "")
-            profile = payload.get("profile", "default")
+            profile = payload.get("profile") or "danhdue"
+            if not re.match(r"^[a-zA-Z0-9_\-]+$", profile):
+                self._send_json(400, {"error": "Invalid profile name"})
+                return
             cmd = build_cli_launch_command(worktree, profile)
             try:
-                subprocess.Popen(cmd)
+                subprocess.Popen(
+                    cmd,
+                    env=build_clean_host_env(),
+                    stdin=subprocess.DEVNULL,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    start_new_session=True,
+                    close_fds=True,
+                )
             except Exception as e:
                 self._send_json(500, {"error": str(e), "command": cmd})
                 return
@@ -699,18 +837,37 @@ class TasksHandler(http.server.BaseHTTPRequestHandler):
 
         if path == "/api/launch/ide":
             worktree = payload.get("worktree", "")
-            profile = payload.get("profile", "default")
+            profile = payload.get("profile") or "danhdue"
             if not re.match(r"^[a-zA-Z0-9_\-]+$", profile):
                 self._send_json(400, {"error": "Invalid profile name"})
                 return
 
             cmd = build_ide_launch_command(worktree, profile)
             try:
-                subprocess.Popen(cmd)
+                subprocess.Popen(
+                    cmd,
+                    env=build_clean_host_env(),
+                    stdin=subprocess.DEVNULL,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    start_new_session=True,
+                    close_fds=True,
+                )
             except Exception as e:
                 self._send_json(500, {"error": str(e), "command": cmd})
                 return
             self._send_json(200, {"status": "ok", "action": "launched", "command": cmd})
+            return
+
+        if path == "/api/launch/quota":
+            port = payload.get("port") or DEFAULT_QUOTA_PORT
+            try:
+                port = int(port)
+            except (ValueError, TypeError):
+                port = DEFAULT_QUOTA_PORT
+            res = launch_quota_server(self.server.workspace_root, port=port)
+            status_code = 200 if res.get("status") == "ok" else 500
+            self._send_json(status_code, res)
             return
 
         if path == "/api/shutdown":
@@ -742,9 +899,7 @@ class TasksServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
         workspace_root: Path | None = None,
         pid_file: Path = DEFAULT_PID_FILE,
     ) -> None:
-        self.workspace_root = workspace_root or Path(
-            "/Users/danhdueexoictif/AllProjects"
-        )
+        self.workspace_root = workspace_root or Path(get_real_home()) / "AllProjects"
         self.pid_file = pid_file
         available_port = find_available_port(port)
         super().__init__((host, available_port), TasksHandler)
@@ -814,7 +969,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--workspace-root",
         type=Path,
-        default=Path("/Users/danhdueexoictif/AllProjects"),
+        default=Path(get_real_home()) / "AllProjects",
         help="Root workspace containing repositories",
     )
     args = parser.parse_args(argv)
@@ -854,10 +1009,12 @@ def main(argv: list[str] | None = None) -> int:
         ]
         proc = subprocess.Popen(
             cmd,
+            env=build_clean_host_env(),
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             stdin=subprocess.DEVNULL,
             start_new_session=True,
+            close_fds=True,
         )
         print(f"Tasks server started in background (PID {proc.pid}, port {args.port}).")
         return 0

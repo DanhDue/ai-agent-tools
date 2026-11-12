@@ -213,11 +213,17 @@
     
     
     .top-tabs-row {
-      position: relative;
+      position: sticky;
+      top: 0;
+      z-index: 1000;
       display: flex;
       align-items: center;
       justify-content: center;
       margin-bottom: 22px;
+      padding: 10px 0;
+      background: #0b0f19;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      backdrop-filter: blur(8px);
     }
     .top-tabs-row .repo-tab-bar { margin: 0; }
     .top-actions {
@@ -226,8 +232,103 @@
       top: 50%;
       transform: translateY(-50%);
       display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 5px;
+    }
+    .top-actions button {
+      display: inline-flex;
       align-items: center;
-      gap: 12px;
+      justify-content: center;
+      padding: 5px 10px;
+      font-size: 11px;
+      font-weight: 600;
+      border-radius: 6px;
+      white-space: nowrap;
+    }
+    .btn-quota-top {
+      background: rgba(245, 158, 11, 0.12) !important;
+      border-color: rgba(245, 158, 11, 0.4) !important;
+      color: #fbbf24 !important;
+      font-weight: 700 !important;
+    }
+    .btn-quota-top:hover {
+      background: rgba(245, 158, 11, 0.25) !important;
+      border-color: #f59e0b !important;
+      color: #fef3c7 !important;
+      box-shadow: 0 0 10px rgba(245, 158, 11, 0.25);
+    }
+    .epic-progress-item:hover {
+      background: #141a29 !important;
+      border-color: #334155 !important;
+    }
+    .custom-scroll::-webkit-scrollbar {
+      width: 4px;
+    }
+    .custom-scroll::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background: #1e2638;
+      border-radius: 4px;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb:hover {
+      background: #334155;
+    }
+    .modal-quota-backdrop {
+      padding: 0 !important;
+      margin: 0 !important;
+      background: rgba(0, 0, 0, 0.94) !important;
+      backdrop-filter: blur(8px) !important;
+    }
+    .modal-quota-container {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      max-width: 100vw;
+      max-height: 100vh;
+      border: none !important;
+      border-radius: 0 !important;
+      background: #090c14;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: none !important;
+    }
+    .modal-quota-iframe {
+      width: 100%;
+      height: 100%;
+      border: none !important;
+      border-radius: 0 !important;
+      background: #090c14;
+      flex: 1;
+    }
+    .modal-quota-close-btn {
+      position: absolute;
+      top: 14px;
+      right: 20px;
+      z-index: 10001;
+      width: 38px;
+      height: 38px;
+      border-radius: 8px;
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid #334155;
+      color: #94a3b8;
+      font-size: 18px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s ease;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(6px);
+    }
+    .modal-quota-close-btn:hover {
+      background: #ef4444;
+      border-color: #f87171;
+      color: #ffffff;
+      transform: scale(1.05);
     }
     .tab-badges {
       display: inline-flex;
@@ -781,6 +882,9 @@
   <div class="top-tabs-row">
     <nav class="repo-tab-bar" id="repo-tab-bar" aria-label="4 Repos Focus Tabs"></nav>
     <div class="top-actions">
+      <button onclick="openQuotaModal()" class="btn-action-neutral btn-quota-top" title="Mở Antigravity Quota Dashboard (Dialog)">
+        <span>⚡</span> Check Quota
+      </button>
       <button onclick="refreshDashboard()" class="btn-action-neutral">
         <span>🔄</span> Cập nhật
       </button>
@@ -972,6 +1076,13 @@
     </div>
   </div>
 
+  <!-- MODAL 5: QUOTA DASHBOARD DIALOG (Embedded Quota Dashboard, Internal Card Close Button) -->
+  <div id="modal-quota" class="modal-backdrop modal-quota-backdrop">
+    <div class="modal-quota-container">
+      <iframe id="quota-iframe" src="about:blank" class="modal-quota-iframe"></iframe>
+    </div>
+  </div>
+
   <!-- Toast Notification -->
   <div id="toast">
     <span id="toast-icon">ℹ️</span>
@@ -1025,6 +1136,13 @@
             closeLiveModal(modal.id);
           }
         });
+      });
+
+      // Listen for close message from embedded iframes (e.g. Quota Dashboard)
+      window.addEventListener('message', (e) => {
+        if (e.data && (e.data.action === 'close_quota_modal' || e.data.action === 'close_modal')) {
+          closeLiveModal(e.data.modalId || 'modal-quota');
+        }
       });
 
       document.addEventListener('keydown', (e) => {
@@ -1329,7 +1447,7 @@
       fetch(getApiUrl('/api/launch/' + action), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ worktree: worktree, profile: profile || 'default' })
+        body: JSON.stringify({ worktree: worktree, profile: profile || 'danhdue' })
       })
       .then(res => res.json())
       .then(data => {
@@ -1346,17 +1464,123 @@
     }
 
     
-    const AVAILABLE_PROFILES = [
+    const QUOTA_SERVER_PORT = 8765;
+    const QUOTA_SERVER_URL = 'http://127.0.0.1:8765';
+
+    function openQuotaModal() {
+      openLiveModal('modal-quota');
+      const iframe = document.getElementById('quota-iframe');
+      const statusMsg = document.getElementById('quota-loading-msg');
+      if (statusMsg) statusMsg.style.display = 'block';
+
+      fetch(getApiUrl('/api/launch/quota'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+      })
+      .then(res => res.json())
+      .then(data => {
+        const targetUrl = data.url || QUOTA_SERVER_URL;
+        if (iframe) {
+          if (!iframe.src || iframe.src === 'about:blank' || iframe.src.indexOf('8765') === -1) {
+            iframe.src = targetUrl;
+          }
+        }
+        setTimeout(() => {
+          if (statusMsg) statusMsg.style.display = 'none';
+        }, 600);
+      })
+      .catch(() => {
+        if (iframe && (!iframe.src || iframe.src === 'about:blank')) {
+          iframe.src = QUOTA_SERVER_URL;
+        }
+        if (statusMsg) statusMsg.style.display = 'none';
+      });
+    }
+
+    function refreshQuotaIframe() {
+      const iframe = document.getElementById('quota-iframe');
+      if (iframe) {
+        const currentSrc = iframe.src || QUOTA_SERVER_URL;
+        iframe.src = 'about:blank';
+        setTimeout(() => {
+          iframe.src = currentSrc.indexOf('8765') !== -1 ? currentSrc : QUOTA_SERVER_URL;
+        }, 100);
+        showToast('🔄 Đang làm mới Quota Dashboard...', 'info');
+      }
+    }
+
+    function openQuotaExternal() {
+      window.open(QUOTA_SERVER_URL, '_blank');
+    }
+
+    let AVAILABLE_PROFILES = [
+      'brother',
+      'buivantrong8901',
+      'd3molt',
+      'daddy',
       'danhdue',
-      'phungthuy8901',
+      'duedd',
+      'duvthinh403',
+      'hau',
+      'hoangcongtam690',
       'huynhminhtien0510',
-      'tess',
-      'default',
+      'khangatuaon248',
+      'khe',
+      'mau',
+      'molt',
+      'mommy',
+      'ngocanh000690',
+      'nguyenhieu000690',
+      'nguyenthilan89012',
       'peter',
-      'd3molt'
+      'phungthuy8901',
+      'tess',
+      'thau03880',
+      'trananh',
+      'waeropiahh'
     ];
 
-        function renderPicSelect(repoName, epicSlug, currentPic) {
+    function updateAvailableProfiles(newProfiles) {
+      if (!newProfiles || !Array.isArray(newProfiles) || newProfiles.length === 0) return;
+      const filtered = newProfiles.filter(p => !['claude', 'codex', 'kiro', 'default'].includes(p));
+      const oldSet = new Set(AVAILABLE_PROFILES);
+      let changed = false;
+      filtered.forEach(p => {
+        if (!oldSet.has(p)) {
+          oldSet.add(p);
+          changed = true;
+        }
+      });
+      if (changed) {
+        AVAILABLE_PROFILES = Array.from(oldSet).sort();
+        refreshAllProfileSelects();
+      }
+    }
+
+    function refreshAllProfileSelects() {
+      // 1. Refresh .select-profile-pic dropdowns
+      document.querySelectorAll('.select-profile-pic').forEach(sel => {
+        const val = sel.value;
+        sel.innerHTML = renderProfileOptions(val);
+      });
+      // 2. Refresh roadmap PIC selects
+      document.querySelectorAll('.select-pic-roadmap').forEach(sel => {
+        const repo = sel.dataset.repo;
+        const epic = sel.dataset.epic;
+        const cur = sel.value || sel.dataset.currentPic;
+        if (repo && epic) {
+          const temp = document.createElement('div');
+          temp.innerHTML = renderPicSelect(repo, epic, cur);
+          const newSel = temp.firstElementChild;
+          if (newSel && sel.parentNode) {
+            sel.parentNode.replaceChild(newSel, sel);
+          }
+        }
+      });
+    }
+
+    function renderPicSelect(repoName, epicSlug, currentPic) {
       const profileSet = new Set(AVAILABLE_PROFILES);
       if (currentPic && currentPic !== 'None' && currentPic !== 'null') {
         profileSet.add(currentPic);
@@ -1377,7 +1601,10 @@
       const picClass = hasPic ? 'custom-select select-pic-assigned' : 'custom-select select-pic-unassigned';
       return `
         <select onchange="updateEpicPic('${escapeHtml(repoName)}', '${escapeHtml(epicSlug)}', this.value)" 
-                class="${picClass}"
+                class="${picClass} select-pic-roadmap"
+                data-repo="${escapeHtml(repoName)}"
+                data-epic="${escapeHtml(epicSlug)}"
+                data-current-pic="${escapeHtml(currentPic || '')}"
                 title="${hasPic ? 'Người phụ trách (PIC): @' + escapeHtml(currentPic) + ' • Click để đổi' : 'Chưa có PIC • Click để gán người phụ trách'}">
           ${options}
         </select>
@@ -1426,7 +1653,7 @@
 
     function renderProfileOptions(activeProfile) {
       const profileSet = new Set(AVAILABLE_PROFILES);
-      if (activeProfile && activeProfile !== 'None' && activeProfile !== 'null') {
+      if (activeProfile && activeProfile !== 'None' && activeProfile !== 'null' && activeProfile !== 'default') {
         profileSet.add(activeProfile);
       }
       return Array.from(profileSet).map(p => {
@@ -1437,7 +1664,7 @@
 
     function triggerLaunchFromSelect(repoName, repoPath) {
       const sel = document.getElementById('ide-profile-select-' + repoName);
-      const profile = sel ? sel.value : 'default';
+      const profile = sel ? sel.value : 'danhdue';
       triggerLaunch('ide', repoPath, profile);
     }
 
@@ -1703,7 +1930,7 @@
 
       const tabsSig = FOCUSED_REPOS.map(name => {
         const r = (repos || []).find(x => x.name === name);
-        return [name, r?.epics_summary?.in_progress, r?.active_epic, r?.prompt, activeFocusTab === name, getRepoNoteCount(getRepoNoteText(name))];
+        return [name, r?.epics_summary?.in_progress, r?.active_epic, r?.prompt, r?.is_human_action_required, activeFocusTab === name, getRepoNoteCount(getRepoNoteText(name))];
       }).flat().join('|');
 
       if (bar.dataset.sig === tabsSig) {
@@ -1717,13 +1944,7 @@
         const theme = REPO_THEMES[name];
         const inProgressEpics = r?.epics_summary?.in_progress || (r?.active_epic ? 1 : 0);
         const prompt = r?.prompt || '';
-        const needsConfirm = prompt.includes('Approve') || 
-                             prompt.includes('Phê duyệt') || 
-                             prompt.includes('Review Choice') || 
-                             prompt.includes('Lựa chọn') || 
-                             prompt.includes('Chờ Bạn Chọn') ||
-                             prompt.includes('Confirm') ||
-                             prompt.includes('Action Required');
+        const needsConfirm = (r?.is_human_action_required === true);
 
         const isActive = activeFocusTab === name;
         const activeClass = isActive ? `active active-${name}` : '';
@@ -1802,7 +2023,7 @@
         const isPrimaryActive = slug === repo.active_epic;
         const epicMeta = (repo.epics_summary?.epics || []).find(e => e.slug === slug);
         const pic = epicMeta?.pic || (isPrimaryActive ? defaultAccountId : '');
-        const picLaunch = pic || defaultAccountId || 'default';
+        const picLaunch = pic || defaultAccountId || 'danhdue';
 
         // Locate worktree
         const epicWt = findEpicWorktree(repo, slug);
@@ -1958,9 +2179,138 @@
         }
       });
 
-      // Extract unique epics for filter
+      // Extract unique epics for filter and calculate per-epic progress
       const epicsSet = new Set();
-      allTasks.forEach(t => { if (t.epic) epicsSet.add(t.epic); });
+      const epicsProgressMap = new Map();
+
+      allTasks.forEach(t => {
+        const epSlug = t.epic || 'unknown';
+        epicsSet.add(epSlug);
+
+        if (!epicsProgressMap.has(epSlug)) {
+          epicsProgressMap.set(epSlug, {
+            slug: epSlug,
+            title: epSlug,
+            total: 0,
+            done: 0,
+            in_progress: 0,
+          });
+        }
+        const epItem = epicsProgressMap.get(epSlug);
+        epItem.total++;
+        const rawStatus = (t.status || 'backlog').toLowerCase().replace('_', '-');
+        const st = (rawStatus === 'inprogress') ? 'in-progress' : rawStatus;
+        if (st === 'done') epItem.done++;
+        else if (st === 'in-progress') epItem.in_progress++;
+      });
+
+      // Enrich epic titles from repo.epics_summary if present
+      if (repo.epics_summary && Array.isArray(repo.epics_summary.epics)) {
+        repo.epics_summary.epics.forEach(summaryEp => {
+          if (epicsProgressMap.has(summaryEp.slug)) {
+            const item = epicsProgressMap.get(summaryEp.slug);
+            if (summaryEp.title && summaryEp.title !== summaryEp.slug) {
+              item.title = summaryEp.title;
+            }
+          }
+        });
+      }
+
+      const epicsList = Array.from(epicsProgressMap.values()).sort((a, b) => {
+        const aPct = a.total > 0 ? (a.done / a.total) : 0;
+        const bPct = b.total > 0 ? (b.done / b.total) : 0;
+        if (a.in_progress !== b.in_progress) return b.in_progress - a.in_progress;
+        if (aPct !== bPct) return bPct - aPct;
+        return b.total - a.total;
+      });
+
+      const epicsProgressHtml = epicsList.map(ep => {
+        // Find matching summary epic from repo.epics_summary
+        const summaryEp = (repo.epics_summary?.epics || []).find(e => 
+          e.slug === ep.slug || e.slug.replace(/[-_]/g, '') === ep.slug.replace(/[-_]/g, '')
+        );
+
+        // An epic is ONLY truly DONE if it is marked as done in epics_summary (Gate 5 approved / in PROJECT_LEDGER.md)
+        const isFullyDone = summaryEp?.status === 'done' || ep.status === 'done';
+        const epNeedsConfirm = summaryEp?.is_action_required === true || 
+                               (repo.active_epic === ep.slug && repo.is_human_action_required === true);
+        const isWaitingFinish = summaryEp?.is_review_converged === true || 
+                               (repo.active_epic === ep.slug && epNeedsConfirm && (
+                                 (repo.active_stage || '').includes('Sign-off') || 
+                                 (repo.prompt || '').includes('Gate 5') || 
+                                 (repo.prompt || '').includes('/finish')
+                               ));
+
+        let pct = 0;
+        if (ep.total > 0) {
+          if (isFullyDone) {
+            pct = 100;
+          } else if (isWaitingFinish) {
+            // "100% chỉ là khi chờ tôi confirm /finishing-a-development-branch thôi."
+            pct = 100;
+          } else if (ep.done === ep.total) {
+            // "Hết tasks chưa phải là done. Chỉ 99% thôi."
+            pct = 99;
+          } else {
+            // Tasks in progress: 0% to 98%
+            pct = Math.min(98, Math.round((ep.done / ep.total) * 100));
+          }
+        }
+
+        const isSelected = (selectedEpicFilter === ep.slug);
+        const barColor = (pct === 100)
+          ? (isFullyDone ? '#10b981' : '#f59e0b')
+          : (pct >= 50
+            ? 'linear-gradient(90deg, #38bdf8 0%, #10b981 100%)'
+            : (pct > 0 ? 'linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%)' : '#334155'));
+
+        const pctColor = (pct === 100) 
+          ? (isFullyDone ? '#34d399' : '#fbbf24') 
+          : (pct >= 99 ? '#38bdf8' : (pct > 0 ? '#fbbf24' : '#64748b'));
+
+        let statusText = '';
+        if (isFullyDone) {
+          statusText = '<span style="color: #10b981; font-weight: 700;">✓ Done</span>';
+        } else if (isWaitingFinish) {
+          statusText = '<span style="color: #f87171; font-weight: 700;">⚠️ Chờ /finish</span>';
+        } else if (pct === 99) {
+          statusText = '<span style="color: #38bdf8; font-weight: 700;">⚡ 99% Review</span>';
+        } else if (ep.in_progress > 0) {
+          statusText = `<span style="color: #fbbf24; font-weight: 700;">⚡ ${ep.in_progress} Doing</span>`;
+        }
+
+        return `
+          <div class="epic-progress-item" 
+               onclick="onFilterKanbanBoard('${escapeHtml(repo.name)}', '${isSelected ? 'all' : escapeHtml(ep.slug)}')"
+               title="Lọc Kanban theo: ${escapeHtml(ep.title || ep.slug)} (${pct}%)"
+               style="cursor: pointer; padding: 7px 9px; border-radius: 6px; background: ${isSelected ? 'rgba(56, 189, 248, 0.12)' : '#0d111a'}; border: 1px solid ${isSelected ? '#38bdf8' : (epNeedsConfirm ? '#ef4444' : '#1e2638')}; transition: all 0.15s ease; position: relative;">
+            
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; gap: 6px;">
+              <span style="display: inline-flex; align-items: center; gap: 6px; max-width: 140px;">
+                <span style="font-size: 11px; font-weight: 600; color: ${isSelected ? '#38bdf8' : '#e2e8f0'}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(ep.title || ep.slug)}">
+                  ${escapeHtml(ep.slug)}
+                </span>
+                ${epNeedsConfirm ? `<span class="tab-notification-badge" style="position: static; display: inline-block; width: 8px; height: 8px; flex-shrink: 0;" title="Epic cần bạn xác nhận / phê duyệt"></span>` : ''}
+              </span>
+              <span style="font-size: 10px; font-weight: 700; color: ${pctColor}; font-family: monospace; white-space: nowrap;">
+                ${pct}%
+              </span>
+            </div>
+
+            <!-- Progress Bar -->
+            <div style="background: #1e2638; border-radius: 9999px; height: 5px; overflow: hidden;">
+              <div style="background: ${barColor}; width: ${pct}%; height: 100%; border-radius: 9999px; transition: width 0.3s ease;"></div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px; font-size: 9px; color: #64748b; font-family: monospace;">
+              <span>${ep.done}/${ep.total} Tasks</span>
+              <span>${statusText}</span>
+            </div>
+
+          </div>
+        `;
+      }).join('');
+
       const uniqueEpics = Array.from(epicsSet);
 
       let epicsFilterOptions = uniqueEpics.map(ep => {
@@ -2055,7 +2405,7 @@
       }
 
       return `
-        <div style="display: grid; grid-template-columns: 200px 1fr; min-height: 680px;">
+        <div style="display: grid; grid-template-columns: 220px 1fr; min-height: 680px;">
 
           <!-- LEFT SIDEBAR: OVERVIEW -->
           <div style="background: #090c14; border-right: 1px solid #1e2638; padding: 18px 16px; display: flex; flex-direction: column;">
@@ -2101,13 +2451,25 @@
               </div>
             </div>
 
+            ${epicsList.length > 0 ? `
+            <div style="margin-top: 16px; padding-top: 14px; border-top: 1px solid #1e2638; display: flex; flex-direction: column; gap: 8px;">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 10px; font-weight: 800; color: #64748b; letter-spacing: 0.05em; text-transform: uppercase;">TIẾN ĐỘ EPICS</span>
+                <span style="font-size: 10px; font-weight: 700; color: #94a3b8; font-family: monospace;">${epicsList.length}</span>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 8px; max-height: 280px; overflow-y: auto; padding-right: 2px;" class="custom-scroll">
+                ${epicsProgressHtml}
+              </div>
+            </div>
+            ` : ''}
+
             ${uniqueEpics.length > 1 ? `
             <div style="margin-top: auto; padding-top: 16px; border-top: 1px solid #1e2638;">
               <div style="font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 6px;">Lọc theo Epic:</div>
               <select id="kanban-epic-filter-${escapeHtml(repo.name)}" 
                       onchange="onFilterKanbanBoard('${escapeHtml(repo.name)}', this.value)"
                       class="custom-select select-epic-filter">
-                <option value="all">⚡ Tất cả Epics (${allTasks.length})</option>
+                <option value="all" ${(!selectedEpicFilter || selectedEpicFilter === 'all') ? 'selected' : ''}>⚡ Tất cả Epics (${allTasks.length})</option>
                 ${epicsFilterOptions}
               </select>
             </div>
@@ -2143,13 +2505,7 @@
     function renderEpicsOverviewAndApprovalGate(repo) {
       const epicsSummary = repo.epics_summary || { total: 0, completed: 0, in_progress: 0, unstarted: 0, abandoned: 0, epics: [] };
       const promptText = repo.prompt || 'Kho lưu trữ đang ở trạng thái nghỉ (Idle)';
-      const needsConfirm = promptText.includes('Approve') || 
-                           promptText.includes('Phê duyệt') || 
-                           promptText.includes('Review Choice') || 
-                           promptText.includes('Lựa chọn') || 
-                           promptText.includes('Chờ Bạn Chọn') ||
-                           promptText.includes('Confirm') ||
-                           promptText.includes('Action Required');
+      const needsConfirm = (repo.is_human_action_required === true);
 
       return `
         <!-- KHỐI 1: TỔNG QUAN VỀ EPICS -->
@@ -2193,11 +2549,11 @@
           </div>
         </div>
 
-        <!-- KHỐI 2: 5. ĐIỂM NGHẼN PHÊ DUYỆT -->
+        <!-- KHỐI 2: ĐIỂM NGHẼN CẦN PHÊ DUYỆT -->
         <div style="background: #141722; border: 1px solid #1e2638; border-radius: 8px; padding: 14px 18px; display: flex; flex-direction: column; justify-content: space-between;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px solid #1e2638; padding-bottom: 8px;">
             <span style="font-size: 11px; font-weight: 800; color: ${needsConfirm ? '#f87171' : '#94a3b8'}; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 6px;">
-              <span>${needsConfirm ? '🚨' : '🛡️'}</span> 5. Điểm Nghẽn Phê Duyệt
+              <span>${needsConfirm ? '🚨' : '🛡️'}</span> Điểm Nghẽn Cần Phê Duyệt
             </span>
             <span style="font-size: 10px; font-weight: 700; background: ${needsConfirm ? 'rgba(239, 68, 68, 0.2)' : 'rgba(16, 185, 129, 0.15)'}; color: ${needsConfirm ? '#fca5a5' : '#34d399'}; border: 1px solid ${needsConfirm ? '#ef4444' : '#10b981'}; padding: 1px 6px; border-radius: 4px;">
               ${needsConfirm ? 'Action Required' : 'Passed'}
@@ -2245,7 +2601,8 @@
           stLabel = (e.status === 'packaged') ? '📦 Packaged' : '📋 Backlog';
         }
 
-        const isCur = repo.active_epic === e.slug;
+        const isEpicDone = (cat === 'done' || e.status === 'done');
+        const isCur = !isEpicDone && (repo.active_epic === e.slug);
         const updatedStr = e.last_updated_human || (e.last_updated ? e.last_updated.substring(0, 10) : '—');
         return `
           <tr class="roadmap-epic-row" style="background: ${isCur ? 'rgba(56, 189, 248, 0.08)' : '#141722'}; border-bottom: 1px solid #1e2433;">
@@ -2255,7 +2612,11 @@
               </span>
             </td>
             <td style="padding: 8px 12px; font-family: monospace; font-weight: 600; color: #f1f5f9;">
-              ${escapeHtml(e.slug)} ${isCur ? '<span style="color: #38bdf8; font-size: 9px;">(Active)</span>' : ''}
+              <span style="display: inline-flex; align-items: center; gap: 6px;">
+                <span>${escapeHtml(e.slug)}</span>
+                ${isCur ? '<span style="color: #38bdf8; font-size: 9px;">(Active)</span>' : ''}
+                ${(!isEpicDone && (e.is_action_required || (isCur && repo.is_human_action_required))) ? `<span class="tab-notification-badge" style="position: static; display: inline-block; width: 8px; height: 8px; flex-shrink: 0;" title="Epic có thông tin cần bạn xác nhận / phê duyệt"></span>` : ''}
+              </span>
             </td>
             <td style="padding: 8px 12px; color: #94a3b8; font-size: 11px; font-family: monospace; white-space: nowrap;" title="${escapeHtml(e.last_updated || '')}">
               <span id="roadmap-time-${escapeHtml(repo.name)}-${escapeHtml(e.slug)}">${escapeHtml(updatedStr)}</span>
@@ -2652,10 +3013,11 @@ let currentReviewRepo = null;
             }
           }
 
-          // Dynamic Round Tabs
+          // Dynamic Round Tabs (Deduplicated & Sorted)
           const roundTabsContainer = document.getElementById('review-round-tabs');
           if (roundTabsContainer) {
-            const availRounds = (data.available_rounds && data.available_rounds.length > 0) ? data.available_rounds : [1, 2, 3];
+            const rawRounds = (data.available_rounds && data.available_rounds.length > 0) ? data.available_rounds : [1, 2, 3];
+            const availRounds = Array.from(new Set(rawRounds)).sort((a, b) => a - b);
             roundTabsContainer.innerHTML = availRounds.map(r => {
               const label = r === 1 ? 'Round 1: Scope Audit' : (r === 2 ? 'Round 2: Delta Audit' : `Round ${r}: Convergence`);
               const activeClass = r === round ? 'tab-btn active' : 'tab-btn';
@@ -3099,6 +3461,9 @@ let currentReviewRepo = null;
         .then(res => res.json())
         .then(data => {
           if (!data) return;
+          if (data && data.available_profiles && Array.isArray(data.available_profiles)) {
+            updateAvailableProfiles(data.available_profiles);
+          }
           const allRepos = data.repos || [];
           const focused = allRepos.filter(r => FOCUSED_REPOS.includes(r.name));
           focused.sort((a, b) => FOCUSED_REPOS.indexOf(a.name) - FOCUSED_REPOS.indexOf(b.name));
@@ -3142,6 +3507,25 @@ let currentReviewRepo = null;
       initRepoNotes();
       initDragAndDrop();
       initModalClickOutside();
+      // 1. Fetch from tasks server
+      fetch(getApiUrl('/api/profiles'))
+        .then(res => res.json())
+        .then(data => {
+          if (data && Array.isArray(data.profiles)) {
+            updateAvailableProfiles(data.profiles);
+          }
+        })
+        .catch(() => {});
+
+      // 2. Fetch directly from check-quota server (port 8765) as secondary source
+      fetch('http://127.0.0.1:8765/api/status')
+        .then(res => res.json())
+        .then(data => {
+          if (data && data.profiles) {
+            updateAvailableProfiles(Object.keys(data.profiles));
+          }
+        })
+        .catch(() => {});
       fetchTasks();
       setInterval(fetchTasks, 5000);
     }

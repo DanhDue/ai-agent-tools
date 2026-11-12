@@ -29,6 +29,7 @@ import urllib.request
 import sqlite3
 import hashlib
 import random
+import shlex
 import shutil
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
@@ -56,7 +57,13 @@ TAG_MED      = "\033[48;2;30;58;138m\033[38;2;191;219;254m Med \033[0m"
 TAG_LOW      = "\033[48;2;15;23;42m\033[38;2;148;163;184m Low \033[0m"
 TAG_INACTIVE = "\033[48;2;30;41;59m\033[38;2;148;163;184m INACTIVE \033[0m"
 
-REAL_HOME = "/Users/danhdueexoictif"
+def _derive_real_home() -> str:
+    """Host user's real HOME, derived (never hard-coded); strips /antigravity_homes/<profile> when inside a profile."""
+    home = os.environ.get("REAL_HOME") or os.path.expanduser("~")
+    return home.split("/antigravity_homes")[0] if "/antigravity_homes" in home else home
+
+
+REAL_HOME = _derive_real_home()
 KC_PASS = "H@No!a@12345"
 AGY_BIN = "/opt/homebrew/bin/agy"
 SESSION_STORE_DB = Path(REAL_HOME) / ".devtool" / "state" / ".session_store.db"
@@ -84,6 +91,27 @@ def wait_for_launch_lock(timeout: float = 3.0) -> None:
         start = time.time()
         while os.path.exists(lock_dir) and (time.time() - start < timeout):
             time.sleep(0.1)
+
+
+def build_clean_host_env(base_env: dict[str, str] | None = None) -> dict[str, str]:
+    """Return a clean host environment stripped of leaked IDE, Electron, and profile variables."""
+    env = dict(os.environ if base_env is None else base_env)
+    env["HOME"] = REAL_HOME
+    for exact_key in (
+        "AGY_PROFILE",
+        "AGY_CLI_MODE",
+        "AGY_ENABLE_HUB",
+        "TERM_PROGRAM",
+        "TERM_PROGRAM_VERSION",
+        "TERM_SESSION_ID",
+        "TMPDIR",
+        "ZDOTDIR",
+    ):
+        env.pop(exact_key, None)
+    for key in list(env.keys()):
+        if key.startswith(("VSCODE_", "ANTIGRAVITY_", "ELECTRON_", "CHROME_")):
+            env.pop(key, None)
+    return env
 
 
 def init_session_store_db():
@@ -924,9 +952,9 @@ def print_all_summary(results: list, show_providers: bool = True):
 def get_dashboard_html_path() -> Path:
     candidates = [
         Path(__file__).resolve().parent.parent / "skills" / "check-quota" / "resources" / "dashboard" / "quota_dashboard.html",
-        Path("/Users/danhdueexoictif/AllProjects/ai-agent-tools/skills/check-quota/resources/dashboard/quota_dashboard.html"),
-        Path("/Users/danhdueexoictif/Projects/ai-agent-tools/skills/check-quota/resources/dashboard/quota_dashboard.html"),
-        Path("/Users/danhdueexoictif/antigravity_homes/huynhminhtien0510/.gemini/antigravity/brain/faba533a-ed61-4a6e-8b53-bfbf7926cccf/quota_dashboard.html"),
+        Path(REAL_HOME) / "AllProjects/ai-agent-tools/skills/check-quota/resources/dashboard/quota_dashboard.html",
+        Path(REAL_HOME) / "Projects/ai-agent-tools/skills/check-quota/resources/dashboard/quota_dashboard.html",
+        Path(REAL_HOME) / "antigravity_homes/huynhminhtien0510/.gemini/antigravity/brain/faba533a-ed61-4a6e-8b53-bfbf7926cccf/quota_dashboard.html",
     ]
     for c in candidates:
         if c.is_file():
@@ -1866,9 +1894,9 @@ def load_cached_profiles() -> dict:
                             p.write_text(new_content, encoding="utf-8")
                             sync_copies = [
                                 Path.home() / ".gemini/config/plugins/d3nexus/skills/check-quota/resources/dashboard/quota_dashboard.html",
-                                Path("/Users/danhdueexoictif/.gemini/config/plugins/d3nexus/skills/check-quota/resources/dashboard/quota_dashboard.html"),
-                                Path("/Users/danhdueexoictif/antigravity_homes/huynhminhtien0510/.gemini/config/plugins/d3nexus/skills/check-quota/resources/dashboard/quota_dashboard.html"),
-                                Path("/Users/danhdueexoictif/antigravity_homes/huynhminhtien0510/.gemini/antigravity/brain/faba533a-ed61-4a6e-8b53-bfbf7926cccf/quota_dashboard.html"),
+                                Path(REAL_HOME) / ".gemini/config/plugins/d3nexus/skills/check-quota/resources/dashboard/quota_dashboard.html",
+                                Path(REAL_HOME) / "antigravity_homes/huynhminhtien0510/.gemini/config/plugins/d3nexus/skills/check-quota/resources/dashboard/quota_dashboard.html",
+                                Path(REAL_HOME) / "antigravity_homes/huynhminhtien0510/.gemini/antigravity/brain/faba533a-ed61-4a6e-8b53-bfbf7926cccf/quota_dashboard.html",
                             ]
                             for sc in sync_copies:
                                 if sc.is_file() and sc != p:
@@ -1915,9 +1943,9 @@ def update_cached_profile(profile: str, data: dict):
                     p.write_text(new_content, encoding="utf-8")
                     sync_copies = [
                         Path.home() / ".gemini/config/plugins/d3nexus/skills/check-quota/resources/dashboard/quota_dashboard.html",
-                        Path("/Users/danhdueexoictif/.gemini/config/plugins/d3nexus/skills/check-quota/resources/dashboard/quota_dashboard.html"),
-                        Path("/Users/danhdueexoictif/antigravity_homes/huynhminhtien0510/.gemini/config/plugins/d3nexus/skills/check-quota/resources/dashboard/quota_dashboard.html"),
-                        Path("/Users/danhdueexoictif/antigravity_homes/huynhminhtien0510/.gemini/antigravity/brain/faba533a-ed61-4a6e-8b53-bfbf7926cccf/quota_dashboard.html"),
+                        Path(REAL_HOME) / ".gemini/config/plugins/d3nexus/skills/check-quota/resources/dashboard/quota_dashboard.html",
+                        Path(REAL_HOME) / "antigravity_homes/huynhminhtien0510/.gemini/config/plugins/d3nexus/skills/check-quota/resources/dashboard/quota_dashboard.html",
+                        Path(REAL_HOME) / "antigravity_homes/huynhminhtien0510/.gemini/antigravity/brain/faba533a-ed61-4a6e-8b53-bfbf7926cccf/quota_dashboard.html",
                     ]
                     for sc in sync_copies:
                         if sc.is_file() and sc != p:
@@ -2231,18 +2259,58 @@ def execute_ping_profile(profile: str, force: bool = False) -> dict:
     # Inspect current Argon state for this profile:
     cached_profiles = load_cached_profiles()
     cached_p = cached_profiles.get(profile, {})
+
+    now_utc = datetime.datetime.now(datetime.timezone.utc)
+    now_ts = int(time.time())
+    sec_rec = get_session_record(profile)
+    is_5h_session_active = bool(
+        sec_rec
+        and sec_rec.get("is_active")
+        and sec_rec.get("reset_5h", 0) > now_ts
+    )
+
+    # 1. Gemini 5H status:
+    gemini_info = cached_p.get("gemini5h")
+    gemini_available = (gemini_info is not None and not gemini_info.get("unavailable", False))
+    if gemini_info is None:
+        gemini_available = (cached_p.get("tier", "PRO") == "PRO")
+    gem_rem_sec = 0
+    if gemini_info and gemini_info.get("resetTime"):
+        try:
+            dt_g = datetime.datetime.fromisoformat(gemini_info["resetTime"].replace("Z", "+00:00"))
+            gem_rem_sec = (dt_g - now_utc).total_seconds()
+        except Exception:
+            pass
+    is_gemini_active = (gem_rem_sec > 60) or is_5h_session_active
+    should_ping_gemini = gemini_available and (force or not is_gemini_active)
+
+    # 2. Claude 5H status:
+    claude_info = cached_p.get("claude5h")
+    claude_available = (claude_info is not None and not claude_info.get("unavailable", False))
+    if claude_info is None:
+        claude_available = (cached_p.get("tier", "PRO") == "PRO")
+    cld_rem_sec = 0
+    if claude_info and claude_info.get("resetTime"):
+        try:
+            dt_c = datetime.datetime.fromisoformat(claude_info["resetTime"].replace("Z", "+00:00"))
+            cld_rem_sec = (dt_c - now_utc).total_seconds()
+        except Exception:
+            pass
+    is_claude_active = (cld_rem_sec > 60) or is_5h_session_active
+    should_ping_claude = claude_available and (force or not is_claude_active)
+
+    # 3. Argon status:
     has_argon = cached_p.get("hasArgon", False)
     argon_info = cached_p.get("argonWeekly", {})
     argon_unavailable = argon_info.get("unavailable", False)
     argon_fraction = argon_info.get("fraction", 0.0)
     argon_reset = argon_info.get("resetTime", "")
 
-    now_utc = datetime.datetime.now(datetime.timezone.utc)
     argon_rem_sec = 7 * 86400
     if argon_reset:
         try:
-            dt = datetime.datetime.fromisoformat(argon_reset.replace("Z", "+00:00"))
-            argon_rem_sec = (dt - now_utc).total_seconds()
+            dt_a = datetime.datetime.fromisoformat(argon_reset.replace("Z", "+00:00"))
+            argon_rem_sec = (dt_a - now_utc).total_seconds()
         except Exception:
             pass
 
@@ -2256,31 +2324,29 @@ def execute_ping_profile(profile: str, force: bool = False) -> dict:
     should_ping_argon = (
         has_argon
         and not argon_unavailable
-        and is_argon_max_7d
         and not is_argon_near_reset
+        and (force or is_argon_max_7d)
     )
 
-    # Claude 5H status:
-    sec_rec = get_session_record(profile)
-    now_ts = int(time.time())
-    is_claude_active = (
-        sec_rec
-        and sec_rec.get("is_active")
-        and sec_rec.get("reset_5h", 0) > now_ts
-    )
-    should_ping_claude = force or (not is_claude_active)
+    # If all models are already active, skip cleanly
+    if not should_ping_gemini and not should_ping_claude and not should_ping_argon:
+        active_parts = []
+        if gemini_available:
+            active_parts.append(f"Gemini 5H ({int(gem_rem_sec // 3600)}h {int((gem_rem_sec % 3600) // 60)}m)")
+        if claude_available:
+            cld_str = f"{int(cld_rem_sec // 3600)}h {int((cld_rem_sec % 3600) // 60)}m" if cld_rem_sec > 60 else (
+                f"{(sec_rec['reset_5h'] - now_ts) // 3600}h {((sec_rec['reset_5h'] - now_ts) % 3600) // 60}m" if sec_rec else "5h"
+            )
+            active_parts.append(f"Claude 5H ({cld_str})")
+        if has_argon and not argon_unavailable:
+            if is_argon_near_reset:
+                active_parts.append("Argon < 7h (bỏ qua)")
+            else:
+                active_parts.append("Argon đã kích hoạt")
+        elif not has_argon or argon_unavailable:
+            active_parts.append("Không hỗ trợ Argon")
 
-    # If neither needs pinging, skip cleanly
-    if not should_ping_claude and not should_ping_argon:
-        rem_sec = sec_rec["reset_5h"] - now_ts if sec_rec else 0
-        rem_str = f"{rem_sec // 3600}h {(rem_sec % 3600) // 60}m"
-        local_time_str = datetime.datetime.fromtimestamp(sec_rec["reset_5h"]).strftime("%H:%M:%S") if sec_rec else ""
-        if not has_argon or argon_unavailable:
-            argon_status_str = "Không hỗ trợ Argon"
-        elif is_argon_near_reset:
-            argon_status_str = "Argon < 7h (bỏ qua)"
-        else:
-            argon_status_str = "Argon đã kích hoạt"
+        msg = f"Tất cả models đang trong phiên hoạt động ({', '.join(active_parts)}). Bỏ qua ping."
         return {
             "profile": profile,
             "success": True,
@@ -2288,7 +2354,10 @@ def execute_ping_profile(profile: str, force: bool = False) -> dict:
             "isSessionActive": True,
             "skipped": True,
             "duration_ms": 5,
-            "message": f"Phiên Claude 5H đang active (còn {rem_str}, reset lúc {local_time_str}). {argon_status_str}. Bỏ qua ping.",
+            "message": msg,
+            "pinged_gemini": False,
+            "pinged_claude": False,
+            "pinged_argon": False,
         }
 
     # Unlock keychain if needed
@@ -2307,17 +2376,20 @@ def execute_ping_profile(profile: str, force: bool = False) -> dict:
     })
 
     t0 = time.time()
+    pinged_gemini = False
     pinged_claude = False
     pinged_argon = False
     jitter_applied = 0.0
+    prompt_gem = ""
     prompt_cld = ""
+    prompt_arg = ""
 
-    # 1. Ping Claude (claude-sonnet-5-5-low) model (if needed)
-    if should_ping_claude:
-        prompt_cld = random.choice(NATURAL_PROMPTS)
+    # 1. Ping Gemini 5H (if needed)
+    if should_ping_gemini:
+        prompt_gem = random.choice(NATURAL_PROMPTS)
         try:
-            res = subprocess.run([AGY_BIN, "--model", "claude-sonnet-5-5-low", "-p", prompt_cld], env=env, capture_output=True, text=True, timeout=25)
-            out_all = (res.stdout or "") + " " + (res.stderr or "")
+            res_gem = subprocess.run([AGY_BIN, "-p", prompt_gem], env=env, capture_output=True, text=True, timeout=25)
+            out_all = (res_gem.stdout or "") + " " + (res_gem.stderr or "")
             appeal_out_id = check_profile_appeal_status(profile, out_all)
             low_out = out_all.lower()
             if appeal_out_id or "submit an appeal" in low_out or "violation of terms of service" in low_out or "service has been disabled" in low_out:
@@ -2339,29 +2411,77 @@ def execute_ping_profile(profile: str, force: bool = False) -> dict:
                     "duration_ms": int((time.time() - t0) * 1000),
                     "error": f"Tài khoản bị vô hiệu hóa do vi phạm Điều khoản (Terms of Service / Submit an appeal). Mã lỗi: {err_id}"
                 }
-            if res.returncode == 0:
+            if res_gem.returncode == 0:
+                pinged_gemini = True
+            else:
+                return {
+                    "profile": profile,
+                    "success": False,
+                    "duration_ms": int((time.time() - t0) * 1000),
+                    "error": res_gem.stderr.strip() or f"Gemini ping exited with code {res_gem.returncode}"
+                }
+        except subprocess.TimeoutExpired:
+            return {"profile": profile, "success": False, "duration_ms": 25000, "error": "Gemini ping timed out (25s)"}
+        except Exception as e:
+            return {"profile": profile, "success": False, "duration_ms": 50, "error": str(e)}
+
+    # 2. Ping Claude (claude-sonnet-5-5-low) model (if needed)
+    if should_ping_claude:
+        if pinged_gemini:
+            j = round(random.uniform(1.5, 2.5), 2)
+            jitter_applied += j
+            time.sleep(j)
+
+        other_cld = [p for p in NATURAL_PROMPTS if p != prompt_gem] or NATURAL_PROMPTS
+        prompt_cld = random.choice(other_cld)
+        try:
+            res_cld = subprocess.run([AGY_BIN, "--model", "claude-sonnet-5-5-low", "-p", prompt_cld], env=env, capture_output=True, text=True, timeout=25)
+            out_all = (res_cld.stdout or "") + " " + (res_cld.stderr or "")
+            appeal_out_id = check_profile_appeal_status(profile, out_all)
+            low_out = out_all.lower()
+            if appeal_out_id or "submit an appeal" in low_out or "violation of terms of service" in low_out or "service has been disabled" in low_out:
+                err_id = appeal_out_id or "856698b5-d43c-4198-962b-4db7fc3c4adb-2"
+                record_profile_disabled(profile, err_id)
+                disabled_data = format_profile_for_dashboard(profile, {
+                    "success": False,
+                    "status": "DISABLED",
+                    "is_appeal": True,
+                    "error_id": err_id
+                })
+                update_cached_profile(profile, disabled_data)
+                return {
+                    "profile": profile,
+                    "success": False,
+                    "status": "DISABLED",
+                    "is_appeal": True,
+                    "error_id": err_id,
+                    "duration_ms": int((time.time() - t0) * 1000),
+                    "error": f"Tài khoản bị vô hiệu hóa do vi phạm Điều khoản (Terms of Service / Submit an appeal). Mã lỗi: {err_id}"
+                }
+            if res_cld.returncode == 0:
                 pinged_claude = True
             else:
                 return {
                     "profile": profile,
                     "success": False,
                     "duration_ms": int((time.time() - t0) * 1000),
-                    "error": res.stderr.strip() or f"Claude ping exited with code {res.returncode}"
+                    "error": res_cld.stderr.strip() or f"Claude ping exited with code {res_cld.returncode}"
                 }
         except subprocess.TimeoutExpired:
             return {"profile": profile, "success": False, "duration_ms": 25000, "error": "Claude ping timed out (25s)"}
         except Exception as e:
             return {"profile": profile, "success": False, "duration_ms": 50, "error": str(e)}
 
-    # 2. Ping Argon (if max 7D and not near reset)
+    # 3. Ping Argon (if max 7D and not near reset)
     if should_ping_argon:
         # Mandatory humanized jitter between requests to eliminate bot flags
-        if pinged_claude:
-            jitter_applied = round(random.uniform(1.8, 3.5), 2)
-            time.sleep(jitter_applied)
+        if pinged_gemini or pinged_claude:
+            j = round(random.uniform(1.8, 3.0), 2)
+            jitter_applied += j
+            time.sleep(j)
 
-        other_prompts = [p for p in NATURAL_PROMPTS if p != prompt_cld] or NATURAL_PROMPTS
-        prompt_argon = random.choice(other_prompts)
+        other_arg = [p for p in NATURAL_PROMPTS if p not in (prompt_gem, prompt_cld)] or NATURAL_PROMPTS
+        prompt_argon = random.choice(other_arg)
         try:
             res_arg = subprocess.run(
                 [AGY_BIN, "--model", "gemini-4-argon-low", "-p", prompt_argon],
@@ -2404,6 +2524,7 @@ def execute_ping_profile(profile: str, force: bool = False) -> dict:
             pass  # Argon failure does not abort if Claude succeeded
 
     total_dur = int((time.time() - t0) * 1000)
+    jitter_applied = round(jitter_applied, 2)
 
     # Post-ping quota refresh to update dashboard immediately
     post_q = fetch_quota_for_profile(profile)
@@ -2412,26 +2533,28 @@ def execute_ping_profile(profile: str, force: bool = False) -> dict:
         update_cached_profile(profile, f_data)
 
     # Build detailed success message
-    if pinged_claude and pinged_argon:
-        msg = f"Kích hoạt thành công Claude 5.5 & Argon 7D (Jitter {jitter_applied}s, {total_dur}ms)"
-    elif pinged_argon and not pinged_claude:
-        msg = f"Kích hoạt thành công Argon 7D (Claude 5H đang active, {total_dur}ms)"
+    act_names = []
+    if pinged_gemini:
+        act_names.append("Gemini 3.8 / Pro 5H")
+    if pinged_claude:
+        act_names.append("Claude 5.5")
+    if pinged_argon:
+        act_names.append("Argon 7D")
+
+    if act_names:
+        act_str = " & ".join(act_names)
+        jitter_str = f", Jitter {jitter_applied}s" if jitter_applied > 0 else ""
+        msg = f"Kích hoạt thành công {act_str}{jitter_str} ({total_dur}ms)"
     else:
-        argon_suffix = ""
-        if has_argon:
-            if is_argon_near_reset:
-                argon_suffix = " [Argon < 7h: Bỏ qua]"
-            elif not is_argon_max_7d:
-                argon_suffix = " [Argon: Đã kích hoạt]"
-        msg = f"Kích hoạt thành công Claude 5.5 (Sonnet){argon_suffix} ({total_dur}ms)"
+        msg = f"Đã kiểm tra phiên làm việc của {profile} ({total_dur}ms)"
 
     return {
         "profile": profile,
         "success": True,
         "duration_ms": total_dur,
         "message": msg,
+        "pinged_gemini": pinged_gemini,
         "pinged_claude": pinged_claude,
-        "pinged_gemini": pinged_claude,
         "pinged_argon": pinged_argon,
         "jitter_seconds": jitter_applied,
     }
@@ -2743,8 +2866,8 @@ class QuotaDashboardHandler(http.server.BaseHTTPRequestHandler):
 
         if path == "/api/login":
             profile = query.get("profile", [""])[0]
-            if not profile:
-                self.send_json({"success": False, "error": "No profile specified"}, 400)
+            if not profile or not re.fullmatch(r"[a-zA-Z0-9_-]+", profile):
+                self.send_json({"success": False, "error": "Invalid profile name"}, 400)
                 return
             if profile == "claude":
                 cli_cmd = "claude auth login"
@@ -2758,14 +2881,14 @@ class QuotaDashboardHandler(http.server.BaseHTTPRequestHandler):
                 activate
                 do script "{cli_cmd}"
             end tell'''
-            subprocess.run(["osascript", "-e", osa], capture_output=True)
+            subprocess.run(["osascript", "-e", osa], env=build_clean_host_env(), capture_output=True)
             self.send_json({"success": True, "message": f"Terminal opened for {profile} login"})
             return
 
         if path == "/api/open-cli":
             profile = query.get("profile", ["danhdue"])[0]
-            if not profile:
-                self.send_json({"success": False, "error": "No profile specified"}, 400)
+            if not profile or not re.fullmatch(r"[a-zA-Z0-9_-]+", profile):
+                self.send_json({"success": False, "error": "Invalid profile name"}, 400)
                 return
             if profile == "claude":
                 cli_cmd = "claude"
@@ -2774,35 +2897,43 @@ class QuotaDashboardHandler(http.server.BaseHTTPRequestHandler):
             elif profile == "kiro":
                 cli_cmd = "kiro-cli"
             else:
-                cli_cmd = f"source ~/.zshrc && ag_run {profile} cli"
+                target_profile = "danhdue" if profile == "default" else profile
+                cli_cmd = f"source ~/.zshrc && ag_run {shlex.quote(target_profile)} cli"
             osa = f'''tell application "Terminal"
                 activate
                 do script "{cli_cmd}"
             end tell'''
-            subprocess.run(["osascript", "-e", osa], capture_output=True)
+            subprocess.run(["osascript", "-e", osa], env=build_clean_host_env(), capture_output=True)
             self.send_json({"success": True, "message": f"Terminal opened for {profile} CLI"})
             return
 
         if path == "/api/open-ide":
             profile = query.get("profile", ["danhdue"])[0]
-            if not profile:
-                self.send_json({"success": False, "error": "No profile specified"}, 400)
+            if not profile or not re.fullmatch(r"[a-zA-Z0-9_-]+", profile):
+                self.send_json({"success": False, "error": "Invalid profile name"}, 400)
                 return
 
-            # Clean environment: eliminate leaked parent runtime variables
-            clean_env = os.environ.copy()
-            clean_env["HOME"] = REAL_HOME
-            clean_env.pop("AGY_PROFILE", None)
-            clean_env.pop("AGY_CLI_MODE", None)
-            clean_env.pop("ELECTRON_RUN_AS_NODE", None)
-            for k in list(clean_env.keys()):
-                if k.startswith("VSCODE_"):
-                    clean_env.pop(k, None)
+            target_profile = "danhdue" if profile == "default" else profile
+            clean_env = build_clean_host_env()
 
-            # Trigger profile CLI command directly (e.g. 'danhdue', 'hau') as requested
-            cmd = f'unset ELECTRON_RUN_AS_NODE VSCODE_GIT_IPC_HANDLE VSCODE_IPC_HOOK_CLI; if type {profile} >/dev/null 2>&1; then {profile}; else ag_run "{profile}"; fi'
-            subprocess.Popen(["zsh", "-ic", cmd], env=clean_env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            self.send_json({"success": True, "message": f"Đã kích hoạt lệnh '{profile}' mở Antigravity IDE"})
+            # Trigger profile CLI command directly (e.g. 'danhdue', 'hau') from a sanitized host environment
+            cmd = (
+                "unset ELECTRON_RUN_AS_NODE ELECTRON_NO_ASAR TERM_PROGRAM TERM_PROGRAM_VERSION "
+                "TERM_SESSION_ID AGY_PROFILE AGY_CLI_MODE ZDOTDIR VSCODE_GIT_IPC_HANDLE "
+                "VSCODE_IPC_HOOK_CLI VSCODE_RESOLVING_ENVIRONMENT; "
+                f"if type {target_profile} >/dev/null 2>&1; then {target_profile}; "
+                f"else ag_run {shlex.quote(target_profile)}; fi"
+            )
+            subprocess.Popen(
+                ["zsh", "-ic", cmd],
+                env=clean_env,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True,
+                close_fds=True,
+            )
+            self.send_json({"success": True, "message": f"Đã kích hoạt lệnh '{target_profile}' mở Antigravity IDE"})
             return
 
         self.send_error(404, "API endpoint not found")
@@ -2928,6 +3059,7 @@ def start_server_daemon(port: int = 8765, auto_open: bool = True):
     cmd = [sys.executable, script_path, "_serve", "--port", str(port)]
     proc = subprocess.Popen(
         cmd,
+        env=build_clean_host_env(),
         start_new_session=True,
         stdin=subprocess.DEVNULL,
         stdout=log_fp,

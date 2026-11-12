@@ -35,10 +35,13 @@ try:
         extract_task_progress,
         extract_two_tier_memory,
         extract_vscode_styling,
+        get_completed_epic_slugs,
         harvest_dashboard_graph,
+        harvest_epics_overview,
         normalize_task_status,
         resolve_active_epic,
         scan_worktrees,
+        discover_antigravity_profiles,
     )
 except ImportError:
     # During RED phase, check_tasks may not exist yet
@@ -272,6 +275,47 @@ class TestCheckTasksHarvester_Integration(unittest.TestCase):
         self.assertIn("autonomous_lifecycle_runner", memory.last_milestone)
         self.assertEqual(memory.assistant_state_role, "programmer")
         self.assertEqual(memory.assistant_state_status, "In Progress")
+
+    def test_discover_antigravity_profiles(self) -> None:
+        """Verify discover_antigravity_profiles discovers all valid profiles under antigravity_homes."""
+        homes_dir = self.workspace_root / "antigravity_homes"
+        homes_dir.mkdir()
+        (homes_dir / "profile_a" / ".gemini").mkdir(parents=True)
+        (homes_dir / "profile_b" / ".antigravity").mkdir(parents=True)
+        (homes_dir / "not_a_profile").mkdir()  # no markers
+
+        profiles = discover_antigravity_profiles(real_home=self.workspace_root)
+        self.assertIn("profile_a", profiles)
+        self.assertIn("profile_b", profiles)
+        self.assertNotIn("not_a_profile", profiles)
+
+    def test_epic_done_in_hld_is_recognized_as_completed(self) -> None:
+        """Verify an epic with Status: Done in its design document is recognized as completed."""
+        repo_path = self.workspace_root / "repo_hld_done"
+        repo_path.mkdir()
+        devtool_dir = repo_path / ".devtool"
+        epic_dir = devtool_dir / "epic" / "my_done_epic"
+        epic_dir.mkdir(parents=True)
+
+        hld_content = (
+            "# Epic: My Done Epic\n\n"
+            "## 1. Meta Data\n\n"
+            "- **Epic name**: `my_done_epic`\n"
+            "- **Status**: Done\n"
+            "- **Target Release**: 1.0.0\n"
+        )
+        (epic_dir / "my_done_epic.en.md").write_text(hld_content, encoding="utf-8")
+
+        completed = get_completed_epic_slugs(repo_path)
+        self.assertIn("my_done_epic", completed)
+
+        summary = harvest_epics_overview(repo_path)
+        self.assertEqual(len(summary.epics), 1)
+        self.assertEqual(summary.epics[0]["status"], "done")
+
+        # resolve_active_epic should not pick my_done_epic
+        active = resolve_active_epic(repo_path)
+        self.assertNotEqual(active, "my_done_epic")
 
 
 if __name__ == "__main__":

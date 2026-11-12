@@ -4,12 +4,14 @@ test_audit_account_block.py
 Unit tests for audit_account_block.py
 """
 
+import base64
 import os
 import sys
 import json
 import sqlite3
 import tempfile
 import unittest
+from unittest.mock import patch
 
 # Add script directory to sys.path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -270,6 +272,91 @@ class TestAuditAccountBlock(unittest.TestCase):
         self.assertNotEqual(scope1, scope2)
         self.assertNotEqual(scope1, scope3)
         self.assertNotEqual(scope2, scope3)
+
+    def test_audit_detects_and_remediates_nested_rogue_symlinks(self):
+        p_dir = self._create_mock_profile("prof_rogue", machine_id="mid_r1")
+        ag_dir = os.path.join(p_dir, ".gemini/antigravity")
+        os.makedirs(os.path.join(ag_dir, "log"), exist_ok=True)
+        legit_link = os.path.join(ag_dir, "cli.log")
+        os.symlink("log/cli-2026.log", legit_link)
+        nested_rogue = os.path.join(ag_dir, "antigravity")
+        os.symlink("/Users/danhdueexoictif/.gemini/antigravity", nested_rogue)
+
+        report_before = auditor.audit_all_profiles(self.homes_dir)
+        prof_before = report_before["profiles"]["prof_rogue"]
+        self.assertTrue(prof_before["vulnerabilities"]["rogue_symlinks"])
+        self.assertEqual(prof_before["risk_level"], "HIGH")
+
+        auditor.remediate_all_profiles(self.homes_dir)
+        self.assertFalse(os.path.islink(nested_rogue))
+        self.assertTrue(os.path.islink(legit_link))
+
+        report_after = auditor.audit_all_profiles(self.homes_dir)
+        self.assertFalse(report_after["profiles"]["prof_rogue"]["vulnerabilities"]["rogue_symlinks"])
+        self.assertEqual(report_after["profiles"]["prof_rogue"]["risk_level"], "CLEAN")
+
+    def test_audit_detects_and_remediates_missing_login_keychain_symlink(self):
+        p_dir = self._create_mock_profile("prof_kc", machine_id="mid_kc_link")
+        kc_dir = os.path.join(p_dir, "Library/Keychains")
+        os.makedirs(kc_dir, exist_ok=True)
+        with open(os.path.join(kc_dir, "prof_kc.keychain-db"), "w") as f:
+            f.write("mock_kc")
+
+        report_before = auditor.audit_all_profiles(self.homes_dir)
+        self.assertTrue(report_before["profiles"]["prof_kc"]["vulnerabilities"]["missing_keychain_symlink"])
+
+        auditor.remediate_all_profiles(self.homes_dir)
+        self.assertEqual(os.readlink(os.path.join(kc_dir, "login.keychain")), "prof_kc.keychain-db")
+        self.assertEqual(os.readlink(os.path.join(kc_dir, "login.keychain-db")), "prof_kc.keychain-db")
+
+        report_after = auditor.audit_all_profiles(self.homes_dir)
+        self.assertFalse(report_after["profiles"]["prof_kc"]["vulnerabilities"]["missing_keychain_symlink"])
+
+    def test_audit_detects_base64_signed_out_oauth_token(self):
+        p_dir = self._create_mock_profile("prof_b64", machine_id="mid_b64")
+        vscdb_path = os.path.join(p_dir, "data/User/globalStorage/state.vscdb")
+        conn = sqlite3.connect(vscdb_path)
+        encoded = base64.b64encode(b'\n\x1fauthState{"state":"signedOut"}').decode()
+        conn.execute("CREATE TABLE ItemTable (key TEXT PRIMARY KEY, value TEXT)")
+        conn.execute(
+            "INSERT INTO ItemTable VALUES ('antigravityUnifiedStateSync.oauthToken', ?)",
+            (encoded,),
+        )
+        conn.commit()
+        conn.close()
+
+        report = auditor.audit_all_profiles(self.homes_dir)
+        self.assertTrue(report["profiles"]["prof_b64"]["vulnerabilities"]["identity_bleed"])
+
+    def test_audit_detects_and_converts_absolute_symlinks_to_relative(self):
+        p_dir = self._create_mock_profile("prof_abs", machine_id="mid_abs")
+        real_home = os.path.dirname(self.homes_dir)
+        os.makedirs(os.path.join(real_home, ".cache"), exist_ok=True)
+        os.makedirs(os.path.join(real_home, "Library/Caches"), exist_ok=True)
+        os.makedirs(os.path.join(p_dir, "Library"), exist_ok=True)
+        top_link = os.path.join(p_dir, ".cache")
+        nested_link = os.path.join(p_dir, "Library/Caches")
+        os.symlink(os.path.join(real_home, ".cache"), top_link)
+        os.symlink(os.path.join(real_home, "Library/Caches"), nested_link)
+
+        report_before = auditor.audit_all_profiles(self.homes_dir)
+        self.assertTrue(report_before["profiles"]["prof_abs"]["vulnerabilities"]["absolute_symlinks"])
+
+        auditor.remediate_all_profiles(self.homes_dir)
+        self.assertEqual(os.readlink(top_link), "../../.cache")
+        self.assertEqual(os.readlink(nested_link), "../../../Library/Caches")
+        self.assertTrue(os.path.isdir(top_link) and os.path.isdir(nested_link))
+
+        report_after = auditor.audit_all_profiles(self.homes_dir)
+        self.assertFalse(report_after["profiles"]["prof_abs"]["vulnerabilities"]["absolute_symlinks"])
+
+    def test_terminate_profile_processes_protects_active_session(self):
+        with patch.dict("os.environ", {"AGY_PROFILE": "active_prof"}):
+            with patch("os.kill") as mock_kill:
+                killed, skipped = auditor.terminate_profile_processes("active_prof")
+                self.assertTrue(skipped)
+                self.assertEqual(killed, [])
+                mock_kill.assert_not_called()
 
 
 if __name__ == "__main__":

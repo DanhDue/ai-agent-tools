@@ -23,7 +23,13 @@ import time
 from pathlib import Path
 from typing import Any
 
-REAL_HOME = "/Users/danhdueexoictif"
+def _derive_real_home() -> str:
+    """Host user's real HOME, derived (never hard-coded); strips /antigravity_homes/<profile> when inside a profile."""
+    home = os.environ.get("REAL_HOME") or os.path.expanduser("~")
+    return home.split("/antigravity_homes")[0] if "/antigravity_homes" in home else home
+
+
+REAL_HOME = _derive_real_home()
 KC_PASS = "H@No!a@12345"
 SESSION_STORE_DB = Path(REAL_HOME) / ".devtool" / "state" / ".session_store.db"
 SALT = "d3nexus-session-salt-2026"
@@ -650,8 +656,31 @@ def check_profile_auth_token(profile: str) -> bool:
     return res.returncode == 0
 
 
+def check_profile_has_argon(profile: str) -> bool:
+    """Check whether an Antigravity profile supports Argon model from cached dashboard data."""
+    for p in [
+        Path(REAL_HOME) / "AllProjects/ai-agent-tools/skills/check-quota/resources/dashboard/quota_dashboard.html",
+        Path(REAL_HOME) / ".gemini/config/plugins/d3nexus/skills/check-quota/resources/dashboard/quota_dashboard.html",
+    ]:
+        if p.is_file():
+            try:
+                content = p.read_text(encoding="utf-8")
+                marker = "const PROFILES_DATA ="
+                end_marker = "\n};"
+                i1 = content.find(marker)
+                if i1 != -1:
+                    i2 = content.find(end_marker, i1)
+                    if i2 != -1:
+                        data = json.loads(content[i1 + len(marker):i2 + len(end_marker)].strip())
+                        prof_data = data.get(profile, {})
+                        return bool(prof_data.get("hasArgon") and not prof_data.get("argonWeekly", {}).get("unavailable", False))
+            except Exception:
+                pass
+    return False
+
+
 def ping_profile(profile_name: str, timeout: int = 25) -> dict[str, Any]:
-    """Execute sandboxed minimal 1-token / usage ping for an Antigravity profile.
+    """Execute sandboxed minimal multi-model (Gemini 5H, Claude 5H, and Argon) ping for an Antigravity profile.
 
     Sets isolated HOME, AGY_PROFILE, TMPDIR, and unlocks profile keychain.
     """
@@ -720,51 +749,97 @@ def ping_profile(profile_name: str, timeout: int = 25) -> dict[str, Any]:
     })
 
     start_time = time.perf_counter()
-    prompt = random.choice(NATURAL_PROMPTS)
+    has_argon = check_profile_has_argon(profile_name)
+    models_pinged = []
+    last_proc = None
+
+    # 1. Ping Gemini 5H
+    prompt_gem = random.choice(NATURAL_PROMPTS)
     try:
-        proc = subprocess.run(
-            [agy_bin, "--model", "claude-sonnet-5-5-low", "-p", prompt],
+        proc_gem = subprocess.run(
+            [agy_bin, "-p", prompt_gem],
             env=env,
             capture_output=True,
             text=True,
             check=False,
             timeout=timeout,
         )
-        elapsed_ms = (time.perf_counter() - start_time) * 1000.0
-        result["latency_ms"] = round(elapsed_ms, 2)
-        if proc.returncode == 0:
-            result["status"] = "PASS"
-            result["tokens"] = 1
-            # Update session store
-            try:
-                con = sqlite3.connect(str(SESSION_STORE_DB), timeout=2.0)
-                now_ts = int(time.time())
-                con.execute("""
-                    INSERT INTO session_store (profile_hash, reset_5h, reset_weekly, fraction_5h, last_checked, last_ping, is_active)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                    ON CONFLICT(profile_hash) DO UPDATE SET
-                        reset_5h=excluded.reset_5h,
-                        last_checked=excluded.last_checked,
-                        last_ping=excluded.last_ping,
-                        is_active=excluded.is_active;
-                """, (hash_profile(profile_name), now_ts + 18000, 0, 1.0, now_ts, now_ts, 1))
-                con.commit()
-                con.close()
-            except Exception:
-                pass
-        else:
-            err_msg = (proc.stderr or proc.stdout or "").strip()
-            result["error"] = err_msg or f"Exited with return code {proc.returncode}"
-    except subprocess.TimeoutExpired:
-        elapsed_ms = (time.perf_counter() - start_time) * 1000.0
-        result["latency_ms"] = round(elapsed_ms, 2)
-        result["status"] = "FAIL"
-        result["error"] = f"Timed out after {timeout} seconds"
-    except Exception as exc:
-        elapsed_ms = (time.perf_counter() - start_time) * 1000.0
-        result["latency_ms"] = round(elapsed_ms, 2)
-        result["status"] = "FAIL"
-        result["error"] = str(exc)
+        last_proc = proc_gem
+        if proc_gem.returncode == 0:
+            models_pinged.append("Gemini 5H")
+    except Exception:
+        pass
+
+    # Humanized jitter between model requests
+    time.sleep(round(random.uniform(1.5, 2.5), 2))
+
+    # 2. Ping Claude 5H
+    other_prompts = [p for p in NATURAL_PROMPTS if p != prompt_gem] or NATURAL_PROMPTS
+    prompt_cld = random.choice(other_prompts)
+    try:
+        proc_cld = subprocess.run(
+            [agy_bin, "--model", "claude-sonnet-5-5-low", "-p", prompt_cld],
+            env=env,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=timeout,
+        )
+        last_proc = proc_cld
+        if proc_cld.returncode == 0:
+            models_pinged.append("Claude 5H")
+    except Exception:
+        pass
+
+    # 3. Ping Argon (if profile has Argon)
+    if has_argon:
+        time.sleep(round(random.uniform(1.8, 3.0), 2))
+        other_arg = [p for p in NATURAL_PROMPTS if p not in (prompt_gem, prompt_cld)] or NATURAL_PROMPTS
+        prompt_arg = random.choice(other_arg)
+        try:
+            proc_arg = subprocess.run(
+                [agy_bin, "--model", "gemini-4-argon-low", "-p", prompt_arg],
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=timeout,
+            )
+            last_proc = proc_arg
+            if proc_arg.returncode == 0:
+                models_pinged.append("Argon 7D")
+        except Exception:
+            pass
+
+    elapsed_ms = (time.perf_counter() - start_time) * 1000.0
+    result["latency_ms"] = round(elapsed_ms, 2)
+    result["models_pinged"] = models_pinged
+
+    if len(models_pinged) > 0:
+        result["status"] = "PASS"
+        result["tokens"] = len(models_pinged)
+        # Update session store
+        try:
+            con = sqlite3.connect(str(SESSION_STORE_DB), timeout=2.0)
+            now_ts = int(time.time())
+            con.execute("""
+                INSERT INTO session_store (profile_hash, reset_5h, reset_weekly, fraction_5h, last_checked, last_ping, is_active)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(profile_hash) DO UPDATE SET
+                    reset_5h=excluded.reset_5h,
+                    last_checked=excluded.last_checked,
+                    last_ping=excluded.last_ping,
+                    is_active=excluded.is_active;
+            """, (hash_profile(profile_name), now_ts + 18000, 0, 1.0, now_ts, now_ts, 1))
+            con.commit()
+            con.close()
+        except Exception:
+            pass
+    else:
+        err_msg = ""
+        if last_proc:
+            err_msg = (last_proc.stderr or last_proc.stdout or "").strip()
+        result["error"] = err_msg or (f"Exited with return code {last_proc.returncode}" if last_proc else "No models pinged")
 
     return result
 

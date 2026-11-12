@@ -31,11 +31,18 @@ sys.path.insert(0, str(SCRIPT_DIR))
 try:
     from tasks_server import (
         DEFAULT_PORT,
+        DEFAULT_QUOTA_PORT,
+        TasksHandler,
         TasksServer,
+        build_clean_host_env,
         build_cli_launch_command,
         build_ide_launch_command,
         find_available_port,
+        find_quota_script,
+        get_real_home,
         get_running_pid,
+        is_quota_server_alive,
+        launch_quota_server,
         parse_review_results,
     )
 except ImportError:
@@ -216,6 +223,38 @@ class TestCheckTasksServer_Integration(unittest.TestCase):
         self.assertEqual(len(data.get("findings", [])), 1)
         self.assertIn("Clean convergence verified", data.get("raw_output", ""))
 
+    def test_api_review_parsing_ignores_fenced_rounds(self) -> None:
+        """Test that round headings inside fenced code blocks are ignored and available_rounds deduplicated."""
+        repo_dir = self.workspace_root / "lyrics-repo"
+        epic_dir = repo_dir / ".devtool" / "epic" / "my_feature"
+        epic_dir.mkdir(parents=True, exist_ok=True)
+
+        review_file = epic_dir / "review_results.md"
+        content = (
+            "# Cross-Model Review: my_feature\n\n"
+            "## Round 1\n"
+            "- **SHA**: `5421929`\n"
+            "- **Reviewer**: Codex\n"
+            "- **Verdict**: CHANGES REQUIRED\n\n"
+            "| # | Severity | Location | Problem | Decision |\n"
+            "|---|---|---|---|---|\n"
+            "| 1 | Important | src/main.py:10 | Bug found | Pending |\n\n"
+            "### Raw Output\n"
+            "```text\n"
+            "Regurgitated prompt output containing:\n"
+            "## Round 1\n"
+            "## Round 1\n"
+            "## Round 2\n"
+            "## Round 3\n"
+            "```\n"
+        )
+        review_file.write_text(content, encoding="utf-8")
+
+        data = parse_review_results(repo_dir, "my_feature")
+        self.assertEqual(data.get("round"), 1)
+        self.assertEqual(data.get("available_rounds"), [1])
+        self.assertEqual(len(data.get("findings", [])), 1)
+
     def test_assign_epic_pic_and_endpoint(self) -> None:
         """Test assigning PIC updates epic HLD, handoff, tasks, and settings."""
         from tasks_server import assign_epic_pic
@@ -254,6 +293,145 @@ class TestCheckTasksServer_Integration(unittest.TestCase):
             "- **PIC**: `phungthuy8901`", handoff_file.read_text(encoding="utf-8")
         )
         self.assertIn('pic: "phungthuy8901"', task_file.read_text(encoding="utf-8"))
+
+    def test_build_clean_host_env_and_launch_endpoints_sanitize_env(self) -> None:
+        """build_clean_host_env and /api/launch/* sanitize IDE vars and validate profiles."""
+        with patch("os.path.expanduser", return_value="/Users/danhdueexoictif/antigravity_homes/hau"):
+            self.assertEqual(get_real_home(), "/Users/danhdueexoictif")
+            cleaned = build_clean_host_env(
+                {
+                    "HOME": "/Users/danhdueexoictif/antigravity_homes/hau",
+                    "PATH": "/opt/homebrew/bin:/usr/bin",
+                    "TERM_PROGRAM": "vscode",
+                    "VSCODE_PID": "1463",
+                    "ELECTRON_RUN_AS_NODE": "1",
+                    "ANTIGRAVITY_X": "1",
+                    "AGY_PROFILE": "hau",
+                    "TMPDIR": "/tmp/ag_hau",
+                    "ZDOTDIR": "/tmp/zdot",
+                }
+            )
+            self.assertEqual(cleaned["HOME"], "/Users/danhdueexoictif")
+            self.assertEqual(cleaned["PATH"], "/opt/homebrew/bin:/usr/bin")
+            for k in (
+                "TERM_PROGRAM", "VSCODE_PID", "ELECTRON_RUN_AS_NODE",
+                "ANTIGRAVITY_X", "AGY_PROFILE", "TMPDIR", "ZDOTDIR",
+            ):
+                self.assertNotIn(k, cleaned)
+
+        handler = TasksHandler.__new__(TasksHandler)
+        handler.server = MagicMock()
+        handler.headers = {"Content-Length": "40"}  # type: ignore[assignment]
+        handler._send_json = MagicMock()  # type: ignore[method-assign]
+
+        dirty = {
+            "HOME": "/Users/danhdueexoictif/antigravity_homes/danhdue",
+            "TERM_PROGRAM": "vscode",
+            "VSCODE_IPC_HOOK": "/tmp/hook",
+            "ELECTRON_RUN_AS_NODE": "1",
+            "AGY_PROFILE": "danhdue",
+            "PATH": "/usr/bin",
+        }
+        with patch("os.path.expanduser", return_value="/Users/danhdueexoictif/antigravity_homes/danhdue"):
+            with patch.dict("os.environ", dirty, clear=True):
+                with patch("subprocess.Popen") as mock_popen:
+                    # Invalid profile rejected on /api/launch/cli
+                    handler.path = "/api/launch/cli"
+                    handler.rfile = MagicMock()
+                    handler.rfile.read.return_value = json.dumps(
+                        {"worktree": "/tmp/wt", "profile": "bad;cmd"}
+                    ).encode("utf-8")
+                    handler.do_POST()
+                    mock_popen.assert_not_called()
+                    self.assertEqual(handler._send_json.call_args[0][0], 400)
+
+                    # Valid profile on /api/launch/ide gets clean env & detached session
+                    handler._send_json.reset_mock()
+                    handler.path = "/api/launch/ide"
+                    handler.rfile.read.return_value = json.dumps(
+                        {"worktree": "/tmp/wt", "profile": "hau"}
+                    ).encode("utf-8")
+                    handler.do_POST()
+                    mock_popen.assert_called_once()
+                    kwargs = mock_popen.call_args.kwargs
+                    self.assertTrue(kwargs.get("start_new_session"))
+                    passed_env = kwargs["env"]
+                    self.assertEqual(passed_env["HOME"], "/Users/danhdueexoictif")
+                    self.assertNotIn("TERM_PROGRAM", passed_env)
+                    self.assertNotIn("VSCODE_IPC_HOOK", passed_env)
+                    self.assertNotIn("AGY_PROFILE", passed_env)
+
+    def test_api_profiles_endpoint(self) -> None:
+        """Test GET /api/profiles returns list of discovered Antigravity profiles."""
+        port = find_available_port(18770)
+        server = TasksServer(
+            host="127.0.0.1",
+            port=port,
+            workspace_root=self.workspace_root,
+            pid_file=self.pid_file,
+        )
+        server_thread = threading.Thread(target=server.serve_forever, daemon=True)
+        server_thread.start()
+        time.sleep(0.1)
+
+        try:
+            url = f"http://127.0.0.1:{port}/api/profiles"
+            req = urllib.request.Request(url)
+            with urllib.request.urlopen(req, timeout=3) as resp:
+                self.assertEqual(resp.status, 200)
+                data = json.loads(resp.read().decode("utf-8"))
+                self.assertIn("profiles", data)
+                self.assertIsInstance(data["profiles"], list)
+                self.assertTrue(len(data["profiles"]) > 0)
+                self.assertIn("danhdue", data["profiles"])
+        finally:
+            server.shutdown()
+            server.server_close()
+
+    def test_api_launch_quota_endpoint(self) -> None:
+        """Test POST /api/launch/quota triggers quota server and returns 200."""
+        handler = TasksHandler.__new__(TasksHandler)
+        handler.server = MagicMock()
+        handler.server.workspace_root = self.workspace_root
+        handler.headers = {"Content-Length": "2"}
+        handler._send_json = MagicMock()
+
+        with patch("tasks_server.launch_quota_server") as mock_launch:
+            mock_launch.return_value = {
+                "status": "ok",
+                "action": "already_running",
+                "url": "http://127.0.0.1:8765",
+            }
+            handler.path = "/api/launch/quota"
+            handler.rfile = MagicMock()
+            handler.rfile.read.return_value = b"{}"
+            handler.do_POST()
+
+            mock_launch.assert_called_once_with(self.workspace_root, port=8765)
+            handler._send_json.assert_called_once_with(
+                200,
+                {
+                    "status": "ok",
+                    "action": "already_running",
+                    "url": "http://127.0.0.1:8765",
+                },
+            )
+
+    def test_find_quota_script_and_alive_check(self) -> None:
+        """Test finding agy_quota.py script and checking alive status."""
+        script = find_quota_script(self.workspace_root)
+        self.assertIsNotNone(script)
+        self.assertTrue(script.is_file())
+        self.assertEqual(script.name, "agy_quota.py")
+
+        with patch("urllib.request.urlopen") as mock_urlopen:
+            mock_resp = MagicMock()
+            mock_resp.status = 200
+            mock_urlopen.return_value = mock_resp
+            self.assertTrue(is_quota_server_alive(8765))
+
+        with patch("urllib.request.urlopen", side_effect=Exception("down")):
+            self.assertFalse(is_quota_server_alive(8765))
 
 
 if __name__ == "__main__":

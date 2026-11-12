@@ -8,6 +8,7 @@ Covers BDD Scenarios:
 import json
 from pathlib import Path
 import re
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -154,6 +155,18 @@ class TestCheckTasksCLI_Integration(unittest.TestCase):
         self.assertIn("check_tasks_dashboard", card)
         self.assertIn("epic/check_tasks_dashboard", card)
         self.assertIn("40%", card)
+
+    def test_wrapper_entrypoint_status_does_not_hit_shadowed_tasks_server(self) -> None:
+        """scripts/check_tasks.py --status must work (scripts/tasks_server.py wrapper shadows the real module)."""
+        wrapper = Path(__file__).resolve().parent.parent / "scripts" / "check_tasks.py"
+        proc = subprocess.run(
+            [sys.executable, str(wrapper), "--status"],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        self.assertNotIn("ImportError", proc.stderr)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
 
 
 if __name__ == "__main__":
