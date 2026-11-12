@@ -207,9 +207,23 @@ def parse_review_results(
         "reviewer": None,
         "model": None,
         "thinking": None,
+        "theme_color": None,
         "findings": [],
         "raw_output": "",
     }
+
+    # Extract repo theme color from .vscode/settings.json if present
+    vscode_settings = repo_dir / ".vscode" / "settings.json"
+    if vscode_settings.is_file():
+        try:
+            settings_json = json.loads(vscode_settings.read_text(encoding="utf-8"))
+            color_customizations = settings_json.get("workbench.colorCustomizations", {})
+            result["theme_color"] = (
+                color_customizations.get("titleBar.activeBackground")
+                or color_customizations.get("statusBar.background")
+            )
+        except Exception:
+            pass
 
     candidates: list[Path] = []
 
@@ -382,13 +396,17 @@ def parse_review_results(
     if m_kind:
         result["kind"] = m_kind.group(1).strip()
 
+    # Clean active round section to isolate only its immediate table before Raw Output or prompt logs
+    m_raw_split = re.search(r"(?m)^(?:Raw output:|### Earlier Rounds|```)", round_content)
+    table_section = round_content[:m_raw_split.start()] if m_raw_split else round_content
+
     # Parse 5-column triage table: | # | Severity | Location | Problem | Decision |
-    lines = round_content.splitlines()
+    lines = table_section.splitlines()
     in_table = False
     findings: list[dict[str, str]] = []
     for line in lines:
         s = line.strip()
-        if s.startswith("|") and ("Severity" in s or "Mức độ" in s):
+        if s.startswith("|") and ("Severity" in s or "Mức độ" in s or "Sev" in s):
             in_table = True
             continue
         if in_table:
@@ -396,14 +414,32 @@ def parse_review_results(
                 if not s.startswith("|"):
                     in_table = False
                 continue
-            cells = [c.strip() for c in s.strip("|").split("|")]
+            raw_cells = re.split(r"(?<!\\)\|", s)
+            cells = [c.strip().replace(r"\|", "|") for c in raw_cells]
+            if cells and cells[0] == "":
+                cells.pop(0)
+            if cells and cells[-1] == "":
+                cells.pop()
             if len(cells) >= 5:
+                problem_full = cells[3]
+                problem_text = problem_full
+                proposed_action = ""
+                m_prop = re.search(
+                    r"(?:Proposed(?:\s+Action)?|Đề xuất):\s*(.+)$",
+                    problem_full,
+                    re.IGNORECASE | re.DOTALL,
+                )
+                if m_prop:
+                    proposed_action = m_prop.group(1).strip()
+                    problem_text = problem_full[:m_prop.start()].strip()
+
                 findings.append(
                     {
                         "id": cells[0],
                         "severity": cells[1],
                         "location": cells[2],
-                        "problem": cells[3],
+                        "problem": problem_text,
+                        "proposed_action": proposed_action,
                         "decision": cells[4],
                     }
                 )
