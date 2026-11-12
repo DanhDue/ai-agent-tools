@@ -22,6 +22,8 @@
       box-sizing: border-box;
       margin: 0;
       padding: 0;
+      scrollbar-width: thin;
+      scrollbar-color: #1e2638 transparent;
     }
 
     /* Permanent Stable Scrollbar - Zero Pop-in / Zero Layout Shift */
@@ -33,12 +35,12 @@
     }
 
     ::-webkit-scrollbar {
-      width: 8px;
-      height: 8px;
+      width: 6px;
+      height: 6px;
     }
 
     ::-webkit-scrollbar-track {
-      background: #0b0f19;
+      background: transparent;
     }
 
     ::-webkit-scrollbar-thumb {
@@ -48,6 +50,18 @@
 
     ::-webkit-scrollbar-thumb:hover {
       background: #334155;
+    }
+
+    .kanban-col-cards {
+      scrollbar-gutter: stable;
+      scrollbar-width: thin;
+      scrollbar-color: #1e2638 transparent;
+    }
+
+    .roadmap-scroll-wrap {
+      scrollbar-gutter: stable;
+      scrollbar-width: thin;
+      scrollbar-color: #1e2638 transparent;
     }
 
     body {
@@ -1903,7 +1917,7 @@
               </div>
               <span style="font-size: 11px; color: #94a3b8; font-weight: 700; background: #182030; border: 1px solid #243048; padding: 1px 7px; border-radius: 4px; font-family: monospace;">${col.items.length}</span>
             </div>
-            <div class="kanban-col-cards" data-scroll-id="kanban-col-${escapeHtml(repo.name)}-${key}" style="padding: 10px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; max-height: 480px; flex: 1;">
+            <div class="kanban-col-cards" data-scroll-id="kanban-col-${escapeHtml(repo.name)}-${key}" style="padding: 10px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; max-height: 480px; flex: 1; scrollbar-gutter: stable; scrollbar-width: thin; scrollbar-color: #1e2638 transparent;">
               ${cardsHtml}
             </div>
           </div>
@@ -2114,7 +2128,7 @@
               ${escapeHtml(e.slug)} ${isCur ? '<span style="color: #38bdf8; font-size: 9px;">(Active)</span>' : ''}
             </td>
             <td style="padding: 8px 12px; color: #94a3b8; font-size: 11px; font-family: monospace; white-space: nowrap;" title="${escapeHtml(e.last_updated || '')}">
-              ${escapeHtml(updatedStr)}
+              <span id="roadmap-time-${escapeHtml(repo.name)}-${escapeHtml(e.slug)}">${escapeHtml(updatedStr)}</span>
             </td>
             <td style="padding: 8px 12px; color: #cbd5e1; text-align: center; font-weight: 600;">${e.task_count > 0 ? e.task_count : '—'}</td>
             <td style="padding: 8px 12px; white-space: nowrap;">${renderPicSelect(repo.name, e.slug, e.pic)}</td>
@@ -2191,7 +2205,7 @@
         if (roadmapTbody) {
           const roadmapSig = JSON.stringify({
             act: repo.active_epic,
-            e: (epicsSummary.epics || []).map(e => [e.slug, e.status, e.task_count, e.pic, e.last_updated_human])
+            e: (epicsSummary.epics || []).map(e => [e.slug, e.status, e.task_count, e.pic])
           });
           if (roadmapTbody.dataset.sig !== roadmapSig) {
             const roadmapWrap = document.getElementById('roadmap-scroll-wrap-' + repo.name);
@@ -2201,6 +2215,15 @@
             if (roadmapWrap && currentScrollTop > 0 && Math.abs(roadmapWrap.scrollTop - currentScrollTop) > 1) {
               roadmapWrap.scrollTop = currentScrollTop;
             }
+          } else {
+            // In-place update of relative timestamp without rebuilding table DOM
+            (epicsSummary.epics || []).forEach(e => {
+              const timeEl = document.getElementById('roadmap-time-' + repo.name + '-' + e.slug);
+              const updatedStr = e.last_updated_human || (e.last_updated ? e.last_updated.substring(0, 10) : '—');
+              if (timeEl && timeEl.textContent !== updatedStr) {
+                timeEl.textContent = updatedStr;
+              }
+            });
           }
         }
 
@@ -2242,6 +2265,21 @@
         noteText = localStorage.getItem('check_tasks_antigravity_note_' + repo.name) || defaultNotes[repo.name] || '';
       } catch(e) {}
 
+      const initKanbanSig = JSON.stringify({
+        f: selectedEpicFilter,
+        t: (repo.task_progress?.tasks || []).map(t => [t.id, t.status, t.priority, t.epic, t.title])
+      });
+      const initOverviewSig = `${epicsSummary.in_progress}|${epicsSummary.unstarted}|${epicsSummary.completed}|${epicsSummary.abandoned}|${epicsSummary.total}|${repo.prompt || ''}`;
+      const initRoadmapSig = JSON.stringify({
+        act: repo.active_epic,
+        e: (epicsSummary.epics || []).map(e => [e.slug, e.status, e.task_count, e.pic])
+      });
+      const initTier2Sig = JSON.stringify({
+        act: repo.active_epic,
+        stg: repo.active_stage,
+        wt: (repo.worktrees || []).map(w => [w.path, w.branch, w.is_dirty, w.dirty_file_count])
+      });
+
       container.innerHTML = `
         <div id="repo-detail-content-${escapeHtml(repo.name)}" style="display: flex; flex-direction: column; gap: 20px;">
 
@@ -2280,10 +2318,11 @@
                 <button onclick="openContextModal('${escapeHtml(repo.name)}')" class="btn-action-neutral" title="Xem sổ cái hai tầng và ngữ cảnh dự án">
                   <span>🧠</span> Contexts
                 </button>
-                <div style="display: inline-flex; align-items: center; background: #131b2e; border: 1px solid #1e293b; border-radius: 6px; padding: 2px 4px; gap: 6px;">
+                <div style="display: inline-flex; align-items: center; background: #131b2e; border: 1px solid #1e293b; border-radius: 6px; padding: 2px 4px 2px 8px; gap: 8px;">
+                  <span style="font-size: 13px; color: #c084fc; display: inline-flex; align-items: center; user-select: none;" title="Người phụ trách (PIC) / Profile">👤</span>
                   <select id="ide-profile-select-${escapeHtml(repo.name)}" 
-                          style="background: #0f172a; color: #c084fc; border: 1px solid #334155; border-radius: 4px; padding: 5px 8px; font-size: 11px; font-family: monospace; font-weight: 700; cursor: pointer; outline: none;"
-                          title="Chọn Antigravity Profile để mở IDE">
+                          style="background: #0f172a; color: #c084fc; border: 1px solid #334155; border-radius: 4px; padding: 5px 10px; font-size: 11px; font-family: monospace; font-weight: 700; cursor: pointer; outline: none;"
+                          title="Chọn Antigravity Profile (PIC) để mở IDE">
                     ${renderProfileOptions(accountId)}
                   </select>
                   <button onclick="triggerLaunchFromSelect('${escapeHtml(repo.name)}', '${escapeHtml(repo.path)}')" 
@@ -2297,12 +2336,12 @@
             </div>
 
             <!-- BẢNG KANBAN DASHBOARD -->
-            <div id="kanban-dashboard-wrapper-${escapeHtml(repo.name)}" style="background: #0a0e17; border: 1px solid #1e2638; border-radius: 8px; overflow: hidden; margin-bottom: 20px;">
+            <div id="kanban-dashboard-wrapper-${escapeHtml(repo.name)}" data-sig="${escapeHtml(initKanbanSig)}" style="background: #0a0e17; border: 1px solid #1e2638; border-radius: 8px; overflow: hidden; margin-bottom: 20px;">
               ${renderKanbanDashboard(repo, selectedEpicFilter)}
             </div>
 
             <!-- TỔNG QUAN VỀ EPICS (4 TRẠNG THÁI) & ĐIỂM NGHẼN PHÊ DUYỆT -->
-            <div id="epics-overview-counts-${escapeHtml(repo.name)}" style="display: grid; grid-template-columns: 2.6fr 1.2fr; gap: 14px; margin-bottom: 18px;">
+            <div id="epics-overview-counts-${escapeHtml(repo.name)}" data-sig="${escapeHtml(initOverviewSig)}" style="display: grid; grid-template-columns: 2.6fr 1.2fr; gap: 14px; margin-bottom: 18px;">
               ${renderEpicsOverviewAndApprovalGate(repo)}
             </div>
 
@@ -2328,7 +2367,7 @@
                         <th style="padding: 8px 12px; width: 150px; white-space: nowrap;">PIC</th>
                       </tr>
                     </thead>
-                    <tbody id="roadmap-tbody-${escapeHtml(repo.name)}">
+                    <tbody id="roadmap-tbody-${escapeHtml(repo.name)}" data-sig="${escapeHtml(initRoadmapSig)}">
                       ${renderRoadmapTableRows(repo)}
                     </tbody>
                   </table>
@@ -2374,7 +2413,7 @@
             </div>
 
             <!-- Danh sách tổng quan các Epic -->
-            <div id="tier2-execution-epics-wrapper-${escapeHtml(repo.name)}">
+            <div id="tier2-execution-epics-wrapper-${escapeHtml(repo.name)}" data-sig="${escapeHtml(initTier2Sig)}">
               ${renderExecutionEpics(repo)}
             </div>
           </div>
