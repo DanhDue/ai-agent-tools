@@ -212,6 +212,39 @@
     
     
     
+    .top-tabs-row {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 22px;
+    }
+    .top-tabs-row .repo-tab-bar { margin: 0; }
+    .top-actions {
+      position: absolute;
+      right: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .tab-badges {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 3px;
+    }
+    .tab-badge-notes {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 9999px;
+      background: rgba(0, 0, 0, 0.45);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #7dd3fc;
+    }
+
     /* 4-Repo Focus Tab Navigation Bar */
     .repo-tab-bar {
       display: flex;
@@ -721,23 +754,7 @@
 </head>
 <body>
 
-  <!-- Top Header -->
-  <header class="dashboard-header">
-    <div class="dashboard-title-group">
-      <h1>
-        <span>🌐</span> Cross-Repo Tasks & Context Dashboard
-      </h1>
-      <p>Giám sát tiến độ Kanban, Bộ nhớ 2 Tầng và Đánh giá Cross-Model Review theo thời gian thực trên toàn bộ repositories</p>
-    </div>
-    <div style="display: flex; align-items: center; gap: 12px;">
-      <span class="status-badge" id="live-indicator">
-        <span class="dot"></span> Live Polling (5s)
-      </span>
-      <button onclick="refreshDashboard()" class="btn-action-neutral">
-        <span>🔄</span> Cập nhật
-      </button>
-    </div>
-  </header>
+
 
   <!-- Human-Essential Aggregate Metrics Row (Hidden per user preference) -->
   <section class="metrics-summary-row" id="metrics-summary" style="display: none !important;">
@@ -761,7 +778,17 @@
 
 
   <!-- 4-Repo Focus Tab Navigation Bar -->
-  <nav class="repo-tab-bar" id="repo-tab-bar" aria-label="4 Repos Focus Tabs"></nav>
+  <div class="top-tabs-row">
+    <nav class="repo-tab-bar" id="repo-tab-bar" aria-label="4 Repos Focus Tabs"></nav>
+    <div class="top-actions">
+      <span class="status-badge" id="live-indicator">
+        <span class="dot"></span> Live Polling (5s)
+      </span>
+      <button onclick="refreshDashboard()" class="btn-action-neutral">
+        <span>🔄</span> Cập nhật
+      </button>
+    </div>
+  </div>
 
   <!-- Detailed Single-Repo Page View Container (Active Focused Repo) -->
   <main id="repo-detail-view" style="display: block; margin-bottom: 24px;">
@@ -1086,6 +1113,24 @@
       }
     }
 
+    function getRepoNoteText(repo) {
+      try {
+        const saved = localStorage.getItem('check_tasks_antigravity_note_' + repo);
+        if (saved !== null) return saved;
+      } catch (e) {}
+      return defaultNotes[repo] || '';
+    }
+
+    function getRepoNoteCount(text) {
+      if (!text || !text.trim()) return 0;
+      const lines = text.split('\n');
+      const numbered = lines.filter(l => /^\s*\d+\.\s*\S+/.test(l));
+      if (numbered.length > 0) return numbered.length;
+      const bullets = lines.filter(l => /^\s*[-*•]\s*\S+/.test(l));
+      if (bullets.length > 0) return bullets.length;
+      return lines.filter(l => l.trim().length > 0).length;
+    }
+
     function saveRepoNoteText(repo, text) {
       try {
         localStorage.setItem('check_tasks_antigravity_note_' + repo, text);
@@ -1094,6 +1139,9 @@
           indicator.textContent = 'Đã lưu ✓';
           indicator.style.color = '#10b981';
         }
+        const countEl = document.getElementById('tab-note-count-' + repo);
+        if (countEl) countEl.textContent = '📝 ' + getRepoNoteCount(text) + ' Notes';
+        if (typeof renderRepoTabs === 'function') renderRepoTabs(currentReposData);
       } catch (err) {}
     }
 
@@ -1662,7 +1710,7 @@
 
       const tabsSig = FOCUSED_REPOS.map(name => {
         const r = (repos || []).find(x => x.name === name);
-        return [name, r?.epics_summary?.in_progress, r?.active_epic, r?.prompt, activeFocusTab === name];
+        return [name, r?.epics_summary?.in_progress, r?.active_epic, r?.prompt, activeFocusTab === name, getRepoNoteCount(getRepoNoteText(name))];
       }).flat().join('|');
 
       if (bar.dataset.sig === tabsSig) {
@@ -1693,7 +1741,10 @@
                   onclick="switchRepoTab('${name}')">
             <span>${theme.icon}</span>
             <span style="font-weight: 700;">${name}</span>
-            <span class="tab-badge-doing">⚡ ${inProgressEpics} Doing</span>
+            <span class="tab-badges">
+              <span class="tab-badge-doing">⚡ ${inProgressEpics} Doing</span>
+              <span class="tab-badge-notes" id="tab-note-count-${name}">📝 ${getRepoNoteCount(getRepoNoteText(name))} Notes</span>
+            </span>
             ${needsConfirm ? `<span class="tab-notification-badge" title="Có thông tin cần bạn xác nhận / phê duyệt"></span>` : ''}
           </button>
         `;
@@ -1757,7 +1808,8 @@
       return epicSlugs.map(slug => {
         const isPrimaryActive = slug === repo.active_epic;
         const epicMeta = (repo.epics_summary?.epics || []).find(e => e.slug === slug);
-        const pic = epicMeta?.pic || defaultAccountId;
+        const pic = epicMeta?.pic || (isPrimaryActive ? defaultAccountId : '');
+        const picLaunch = pic || 'default';
 
         // Locate worktree
         const epicWt = findEpicWorktree(repo, slug);
@@ -1801,7 +1853,7 @@
                 </div>
                 <div style="font-size: 11px; color: #94a3b8; font-family: monospace; margin-top: 4px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
                   <span>🌲 Worktree: <strong style="color: #cbd5e1;">${escapeHtml(toTildePath(wtPath))}</strong> (${escapeHtml(wtDirty)})</span>
-                  <span>👤 Profile (PIC): <strong style="color: #c084fc; background: rgba(192, 132, 252, 0.12); border: 1px solid #c084fc; padding: 1px 6px; border-radius: 4px;">@${escapeHtml(pic)}</strong></span>
+                  <span>👤 Profile (PIC): <strong style="color: #c084fc; background: rgba(192, 132, 252, 0.12); border: 1px solid #c084fc; padding: 1px 6px; border-radius: 4px;">${pic ? '@' + escapeHtml(pic) : 'Chưa gán'}</strong></span>
                 </div>
               </div>
 
@@ -1849,13 +1901,13 @@
             <!-- Row 4: Actions button để mở IDE, xem principal review, cross model review -->
             <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #1e293b; padding-top: 10px; flex-wrap: wrap; gap: 8px;">
               <div style="display: flex; gap: 6px; align-items: center;">
-                <button onclick="triggerLaunch('ide', '${escapeHtml(wtPath)}', '${escapeHtml(pic)}')" 
+                <button onclick="triggerLaunch('ide', '${escapeHtml(wtPath)}', '${escapeHtml(picLaunch)}')" 
                         class="btn-action-primary" 
                         style="background: ${color}; border-color: ${theme.border}; font-size: 11px; padding: 5px 12px; border-radius: 4px;" 
-                        title="Mở Antigravity IDE trong worktree với Profile: @${escapeHtml(pic)}">
-                  <span>🚀</span> Mở IDE (@${escapeHtml(pic)})
+                        title="Mở Antigravity IDE trong worktree với Profile: @${escapeHtml(picLaunch)}">
+                  <span>🚀</span> Mở IDE (@${escapeHtml(picLaunch)})
                 </button>
-                <button onclick="triggerLaunch('cli', '${escapeHtml(wtPath)}', '${escapeHtml(pic)}')" 
+                <button onclick="triggerLaunch('cli', '${escapeHtml(wtPath)}', '${escapeHtml(picLaunch)}')" 
                         class="btn-action-neutral" 
                         style="font-size: 11px; padding: 5px 10px; border-radius: 4px;" 
                         title="Mở Terminal CLI">
