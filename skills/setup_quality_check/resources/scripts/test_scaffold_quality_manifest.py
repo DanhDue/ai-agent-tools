@@ -229,6 +229,8 @@ class TestScaffoldQualityManifests(unittest.TestCase):
         manifest_path = self.out_dir / "python-quality.json"
         self.assertTrue(manifest_path.exists())
         manifest_data = json.loads(manifest_path.read_text())
+        for flag in ("-q", "--tb=short", "--maxfail=3"):
+            self.assertIn(flag, manifest_data["capabilities"]["test"])
         if validate_python_config:
             res = validate_python_config(manifest_data, "epic")
             self.assertEqual("PASS", res["status"])

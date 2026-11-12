@@ -212,7 +212,7 @@ def execute_provider(
                 sys.path.insert(0, str(web_scripts))
             from validate_web_quality import run_capabilities
 
-            return run_capabilities(
+            web_res = run_capabilities(
                 config=manifest_data,
                 profile=profile,
                 repository_sha=sha,
@@ -222,6 +222,22 @@ def execute_provider(
                 skills_dir=skills_dir,
                 check_watchdog_evidence=True,
             )
+            if p_id and p_id != "web":
+                p_log_dir = root / "build" / "quality" / p_id
+                p_log_dir.mkdir(parents=True, exist_ok=True)
+                for ev in web_res.get("evidence", []):
+                    if not isinstance(ev, dict):
+                        continue
+                    loc = ev.get("location", "")
+                    src_log = root / loc if loc else None
+                    if src_log is not None and src_log.is_file():
+                        dest_log = p_log_dir / src_log.name
+                        if dest_log.resolve() != src_log.resolve():
+                            dest_log.write_text(
+                                src_log.read_text(encoding="utf-8", errors="replace"),
+                                encoding="utf-8",
+                            )
+            return web_res
         except Exception as exc:  # noqa: BLE001
             return {
                 "provider_id": p_id,
@@ -360,6 +376,8 @@ def execute_provider(
             cap_duration = round(time.time() - cap_start, 3)
             c_status = "BLOCKED"
             summary = f"{cap_name}: failed to execute: {exc}"
+            log_file = log_dir / f"{cap_name}.log"
+            log_file.write_text(f"$ {' '.join(substituted_cmd)}\n\n--- ERROR ---\n{exc}\n", encoding="utf-8")
 
         evidence_id = f"{cap_name}-evidence"
         log_file = log_dir / f"{cap_name}.log"
@@ -537,6 +555,84 @@ def verify_polyglot_execution(
     return out_res
 
 
+def _compact_log_tail(log_path: Path, limit: int = 25) -> list[str]:
+    try:
+        raw_lines = log_path.read_text(encoding="utf-8", errors="replace").splitlines()
+    except OSError:
+        return []
+    non_empty = [ln for ln in raw_lines if ln.strip()]
+    return non_empty[-limit:]
+
+
+def format_compact_output(res: dict[str, Any], repo_root: Path) -> str:
+    """Format compact single-line GATE_PASS summaries and 25-line failure tails."""
+    lines: list[str] = []
+    overall = str(res.get("status", "FAIL"))
+    aggregated = res.get("aggregated")
+    if aggregated is None:
+        lines.append(f"GATE_{overall}: registry")
+        for f in res.get("findings", [])[:25]:
+            msg = f.get("message", str(f)) if isinstance(f, dict) else str(f)
+            lines.append(f"  {msg}")
+        lines.append(f"GATE_VERDICT: {overall}")
+        return "\n".join(lines)
+
+    for p in aggregated.get("providers", []):
+        p_id = str(p.get("provider_id", "provider"))
+        p_status = str(p.get("status", "BLOCKED"))
+        ev_map = {
+            str(ev.get("id")): str(ev.get("location"))
+            for ev in p.get("evidence", [])
+            if isinstance(ev, dict) and ev.get("id") and ev.get("location")
+        }
+        checks = p.get("checks", [])
+        shown_failure = False
+        if checks:
+            for c in checks:
+                cid = str(c.get("id", "check"))
+                cst = str(c.get("status", p_status))
+                if cst in {"PASS", "NOT_APPLICABLE"}:
+                    lines.append(f"GATE_PASS: {p_id}:{cid}")
+                else:
+                    shown_failure = True
+                    lines.append(f"GATE_{cst}: {p_id}:{cid}")
+                    log_path: Path | None = None
+                    for ref in c.get("evidence_refs", []):
+                        loc = ev_map.get(str(ref))
+                        if loc:
+                            cand = repo_root / loc
+                            if cand.is_file():
+                                log_path = cand
+                                break
+                    if log_path is None:
+                        for folder in (p_id, "web"):
+                            cand = repo_root / "build" / "quality" / folder / f"{cid}.log"
+                            if cand.is_file():
+                                log_path = cand
+                                break
+                    if log_path is not None:
+                        lines.extend(_compact_log_tail(log_path, 25))
+                    elif c.get("summary"):
+                        lines.append(f"  {c['summary']}")
+        else:
+            if p_status == "PASS":
+                lines.append(f"GATE_PASS: {p_id}")
+            else:
+                shown_failure = True
+                lines.append(f"GATE_{p_status}: {p_id}")
+        if p_status != "PASS" and not shown_failure:
+            for b in p.get("blockers", [])[:25]:
+                msg = b.get("message", str(b)) if isinstance(b, dict) else str(b)
+                lines.append(f"  {msg}")
+
+    for b in aggregated.get("blockers", []):
+        msg = b.get("message", str(b)) if isinstance(b, dict) else str(b)
+        if not any(msg in existing for existing in lines):
+            lines.append(f"GATE_BLOCKER: {msg}")
+    lines.append(f"GATE_VERDICT: {overall}")
+    return "\n".join(lines)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Verify polyglot quality registry and multi-provider results."
@@ -556,6 +652,11 @@ def main(argv: list[str] | None = None) -> int:
         "--execute",
         action="store_true",
         help="Execute declared providers and aggregate live results",
+    )
+    parser.add_argument(
+        "--compact",
+        action="store_true",
+        help="Print single-line GATE_PASS summaries and 25-line failure tails while keeping full logs under build/quality/",
     )
 
     args = parser.parse_args(argv)
@@ -614,7 +715,10 @@ def main(argv: list[str] | None = None) -> int:
         provider_results=provider_results,
         repo_root=git_root,
     )
-    print(json.dumps(res, indent=2))
+    if args.compact:
+        print(format_compact_output(res, repo_root))
+    else:
+        print(json.dumps(res, indent=2))
     return 0 if res["status"] == "PASS" else 1
 
 

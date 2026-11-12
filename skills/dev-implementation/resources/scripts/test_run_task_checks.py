@@ -432,12 +432,12 @@ class RecorderTest(RepoCase):
         self.assertIn("3", by_id["V1"]["reason"])
         self.assertIn("absent", by_id["V2"]["reason"])
 
-    def test_stderr_is_combined_and_tail_keeps_the_last_forty_lines(self) -> None:
+    def test_stderr_is_combined_and_tail_keeps_the_last_twenty_five_lines(self) -> None:
         rows = ("| V1 | GREEN | `seq 1 100; echo oops >&2` | exit 0; contains \"oops\" | — |\n")
         task = self.epic(rows, allowed="- `x` (new)")
         self.assertEqual(self.run_cli("verify", task)[0], 0)
         tail = self.run_rows()["V1"]["output_tail"]
-        self.assertEqual(len(tail), 40)
+        self.assertEqual(len(tail), 25)
         self.assertEqual(tail[-1], "oops")
 
     def test_pipefail_applies(self) -> None:

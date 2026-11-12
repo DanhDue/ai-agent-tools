@@ -4,12 +4,17 @@
 # Usage:
 #   bash scripts/verify.sh          # Fast parallel check + smart 2-tier content-hash cache
 #   bash scripts/verify.sh --full   # Force full re-run of all Python unit & pytest suites
+#   bash scripts/verify.sh --quiet  # Emit 1-line summaries on pass and <=25 trailing lines on fail
 set -uo pipefail
 
 FORCE_FULL=0
-if [ "${1:-}" = "--full" ]; then
-  FORCE_FULL=1
-fi
+QUIET_MODE=0
+for arg in "$@"; do
+  case "$arg" in
+    --full) FORCE_FULL=1 ;;
+    --quiet) QUIET_MODE=1 ;;
+  esac
+done
 
 KIT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$KIT_DIR"
@@ -17,7 +22,31 @@ FAILED=0
 note() { printf '%s\n' "$1"; }
 fail() { printf '  FAIL %s\n' "$1"; FAILED=1; }
 
-note "== 1. JSON manifests parse & 1b. Runtime versions and Codex marketplace agree =="
+run_sec() {
+  local label="$1"
+  local fn="$2"
+  if [ "$QUIET_MODE" -eq 0 ]; then
+    note "$label"
+    "$fn"
+    return 0
+  fi
+  local prev_failed="$FAILED" tmp_log rc
+  tmp_log=$(mktemp)
+  FAILED=0
+  "$fn" >"$tmp_log" 2>&1
+  rc=$?
+  if [ "$rc" -eq 0 ] && [ "$FAILED" -eq 0 ]; then
+    printf '  ok   %s\n' "$label"
+    FAILED="$prev_failed"
+  else
+    FAILED=1
+    printf '  FAIL %s (exit %s, last 25 lines):\n' "$label" "$rc"
+    grep -v '^[[:space:]]*$' "$tmp_log" | tail -n 25
+  fi
+  rm -f "$tmp_log"
+}
+
+sec_1() {
 python3 - <<'PY' || FAILED=1
 import json, pathlib, re, sys
 
@@ -64,8 +93,9 @@ except (AssertionError, KeyError, ValueError, OSError, TypeError) as error:
     print(f"  FAIL {error}")
     sys.exit(1)
 PY
+}
 
-note "== 2. Skill frontmatter is exactly name + description =="
+sec_2() {
 python3 - <<'PY' || FAILED=1
 import pathlib, re, sys
 bad = 0
@@ -85,8 +115,9 @@ for p in sorted(pathlib.Path("skills").glob("*/SKILL.md")):
 print(f"  checked {len(list(pathlib.Path('skills').glob('*/SKILL.md')))} skills")
 sys.exit(bad)
 PY
+}
 
-note "== 3. Relative links resolve =="
+sec_3() {
 python3 - <<'PY' || FAILED=1
 import pathlib, re, sys
 bad = 0
@@ -110,8 +141,9 @@ for p in targets:
 print(f"  checked {len(targets)} files")
 sys.exit(bad)
 PY
+}
 
-note "== 4. ToC anchors match headings =="
+sec_4() {
 python3 - <<'PY' || FAILED=1
 import pathlib, re, sys
 def anchor(h):
@@ -128,16 +160,18 @@ for p in sorted(pathlib.Path("skills").glob("*/SKILL.md")) + [pathlib.Path("READ
             print(f"  FAIL {p} -> {link}"); bad = 1
 sys.exit(bad)
 PY
+}
 
-note "== 5. No stale cross-namespace references =="
+sec_5() {
 if grep -rq "superpowers:" skills rules 2>/dev/null; then
   grep -rn "superpowers:" skills rules | head -5
   fail "skills still reference the superpowers namespace"
 else
   note "  ok   none"
 fi
+}
 
-note "== 5b. Rule files start with frontmatter =="
+sec_5b() {
 for f in rules/*.md; do
   if head -1 "$f" | grep -qx -- '---'; then
     note "  ok   $f"
@@ -145,8 +179,9 @@ for f in rules/*.md; do
     fail "$f has no frontmatter — Antigravity will refuse to load it"
   fi
 done
+}
 
-note "== 6. Session-start hook emits valid JSON for both runtimes =="
+sec_6() {
 hook_case() {
   local label="$1" expect="$2" env="$3" payload="$4" out
   out=$(printf '%s' "$payload" | env $env bash hooks/session-start 2>/dev/null) || {
@@ -163,11 +198,13 @@ hook_case "Antigravity first invocation"    inject "X=1" '{"invocationNum":0}'
 hook_case "Antigravity second invocation"   silent "X=1" '{"invocationNum":1}'
 hook_case "Antigravity later invocation"    silent "X=1" '{"invocationNum":7}'
 hook_case "Antigravity unreadable payload"  silent "X=1" 'not json'
+}
 
-note "== 7. Methodology skills stay faithful to their sources =="
+sec_7() {
 python3 scripts/check_source_fidelity.py || FAILED=1
+}
 
-note "== 8. Every supporting skill file is referenced by something =="
+sec_8() {
 # Driven from `git ls-files` instead of `rglob("*")` so untracked caches, .venv, and .devtool
 # archives never pollute or slow down the scan.
 python3 - <<'PY' || FAILED=1
@@ -212,8 +249,9 @@ for f in sorted(supporting):
 print(f"  checked {len(supporting)} supporting files across {len(texts)} tracked files")
 sys.exit(bad)
 PY
+}
 
-note "== 9. The dev-* rename is complete =="
+sec_9() {
 if hits=$(git ls-files \
           | grep -v -e '^\.devtool/' -e '^CHANGELOG\.md$' -e '^scripts/verify\.sh$' \
           | tr '\n' '\0' \
@@ -224,9 +262,9 @@ if hits=$(git ls-files \
 else
   note "  ok   no live file names epic-lifecycle, epic-designer or epic-implementation"
 fi
+}
 
-echo
-note "== 10. Orchestrators route to a variant, never the router =="
+sec_10() {
 if hits=$(git ls-files 'skills/dev-lifecycle/*' 'skills/doc-lifecycle/*' \
           | tr '\n' '\0' \
           | xargs -0 grep -n 'd3nexus:brainstorming\|`brainstorming`' 2>/dev/null) \
@@ -236,6 +274,20 @@ if hits=$(git ls-files 'skills/dev-lifecycle/*' 'skills/doc-lifecycle/*' \
 else
   note "  ok   both orchestrators name a concrete brainstorming variant"
 fi
+}
+
+run_sec "== 1. JSON manifests parse & 1b. Runtime versions and Codex marketplace agree ==" sec_1
+run_sec "== 2. Skill frontmatter is exactly name + description ==" sec_2
+run_sec "== 3. Relative links resolve ==" sec_3
+run_sec "== 4. ToC anchors match headings ==" sec_4
+run_sec "== 5. No stale cross-namespace references ==" sec_5
+run_sec "== 5b. Rule files start with frontmatter ==" sec_5b
+run_sec "== 6. Session-start hook emits valid JSON for both runtimes ==" sec_6
+run_sec "== 7. Methodology skills stay faithful to their sources ==" sec_7
+run_sec "== 8. Every supporting skill file is referenced by something ==" sec_8
+run_sec "== 9. The dev-* rename is complete ==" sec_9
+echo
+run_sec "== 10. Orchestrators route to a variant, never the router ==" sec_10
 
 # ==============================================================================
 # Sections 11–16: Parallel Python Test Execution + Two-Tier Content-Hash Cache
@@ -279,15 +331,21 @@ if [ "$FORCE_FULL" -eq 0 ] && [ -n "$CACHED_LINE" ]; then
 fi
 
 if [ "$RUN_MODE" = "skip" ]; then
-  note "== 11–16. Python test suites (CACHED) =="
-  note "  ok   skills/, scripts/, hooks/, rules/, tests/, and bin/ unchanged since last passed run (use --full to force)"
-else
-  if [ "$RUN_MODE" = "doc_only" ]; then
-    note "== 11–16. Running Document Contract test suites (Python code unchanged; use --full for all) =="
+  if [ "$QUIET_MODE" -eq 1 ]; then
+    note "  ok   == 11–16. Python test suites (CACHED) =="
   else
-    note "== 11–16. Running Python test suites in parallel (Longest-Job-First) =="
+    note "== 11–16. Python test suites (CACHED) =="
+    note "  ok   skills/, scripts/, hooks/, rules/, tests/, and bin/ unchanged since last passed run (use --full to force)"
   fi
-  VerifyRunMode="$RUN_MODE" python3 - <<'PY' || FAILED=1
+else
+  if [ "$QUIET_MODE" -eq 0 ]; then
+    if [ "$RUN_MODE" = "doc_only" ]; then
+      note "== 11–16. Running Document Contract test suites (Python code unchanged; use --full for all) =="
+    else
+      note "== 11–16. Running Python test suites in parallel (Longest-Job-First) =="
+    fi
+  fi
+  VerifyRunMode="$RUN_MODE" VerifyQuiet="$QUIET_MODE" python3 - <<'PY' || FAILED=1
 import concurrent.futures
 import os
 import pathlib
@@ -377,7 +435,7 @@ def run_suite(indexed_item):
     return orig_idx, sec, path, proc.returncode, elapsed, proc.stdout, proc.stderr
 
 t_start = time.monotonic()
-max_workers = min(len(scheduled_suites), (os.cpu_count() or 4))
+max_workers = max(1, min(len(scheduled_suites), (os.cpu_count() or 4)))
 raw_results = []
 with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as pool:
     futures = [pool.submit(run_suite, item) for item in scheduled_suites]
@@ -387,19 +445,28 @@ with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as pool:
 # Sort back to canonical Section 11 -> 16 order for deterministic output
 results = sorted(raw_results, key=lambda r: r[0])
 
+quiet = os.environ.get("VerifyQuiet") == "1"
 failed = 0
 for _idx, sec, path, rc, elapsed, out, err in results:
-    status = "ok  " if rc == 0 else "FAIL"
-    print(f"  {status} [§{sec}] {path} ({elapsed:.2f}s)")
     if rc != 0:
         failed = 1
-        if out.strip():
-            print(out.rstrip())
-        if err.strip():
-            print(err.rstrip())
+        print(f"  FAIL [§{sec}] {path} ({elapsed:.2f}s)")
+        combined = "\n".join(part for part in (out.rstrip(), err.rstrip()) if part)
+        if quiet:
+            tail = [ln for ln in combined.splitlines() if ln.strip()][-25:]
+            for ln in tail:
+                print(ln)
+        elif combined:
+            print(combined)
+    elif not quiet:
+        print(f"  ok   [§{sec}] {path} ({elapsed:.2f}s)")
 
 total_elapsed = time.monotonic() - t_start
-print(f"\n  Ran {len(results)} test suites in {total_elapsed:.2f}s across {max_workers} workers.")
+if quiet:
+    if failed == 0:
+        print(f"  ok   == 11–16. Passed {len(results)} test suites in {total_elapsed:.2f}s across {max_workers} workers ==")
+else:
+    print(f"\n  Ran {len(results)} test suites in {total_elapsed:.2f}s across {max_workers} workers.")
 sys.exit(failed)
 PY
 
@@ -408,7 +475,9 @@ PY
   fi
 fi
 
-echo
+if [ "$QUIET_MODE" -eq 0 ]; then
+  echo
+fi
 if [ "$FAILED" -eq 0 ]; then
   echo "PASS — safe to publish"
 else

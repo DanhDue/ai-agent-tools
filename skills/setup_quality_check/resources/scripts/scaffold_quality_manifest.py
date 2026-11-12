@@ -128,7 +128,7 @@ PLATFORM_CONFIGS: Dict[str, Dict[str, Any]] = {
                 "format": ["uv", "run", "ruff", "format", "--check", "."],
                 "lint": ["uv", "run", "ruff", "check", "."],
                 "type_check": ["uv", "run", "mypy", "--strict", "src"],
-                "test": ["uv", "run", "pytest", "-m", "not slow and not acceptance and not live_llm"],
+                "test": ["uv", "run", "pytest", "-q", "--tb=short", "--maxfail=3", "-m", "not slow and not acceptance and not live_llm"],
                 "coverage": {
                     "command": ["uv", "run", "pytest", "--cov=src", "--cov-report=json:coverage.json"],
                     "threshold": 0.8

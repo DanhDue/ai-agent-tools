@@ -1,13 +1,13 @@
 ---
 id: "task_02_silent_gate4_and_truncated_test_runners"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "token_throttling_optimization"
 dueDate: null
 created: "2026-11-13T02:30:00Z"
-modified: "2026-11-13T02:30:00Z"
-completedAt: null
+modified: "2026-11-12T21:56:55Z"
+completedAt: "2026-11-12T21:56:55Z"
 labels: ["gate4", "quality-check", "token-optimization"]
 order: "a2"
 ---
