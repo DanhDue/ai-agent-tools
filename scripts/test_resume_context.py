@@ -834,6 +834,132 @@ ag_run() {
         primary_data = json.loads(primary_settings.read_text(encoding="utf-8"))
         self.assertEqual(primary_data["window.title"], "🟠 [AGENT-TOOLS] [@danhdue] Primary Title")
 
+    def test_tto_hp_06_compact_mode_scoped_and_capped(self) -> None:
+        """[TTO-HP-06] --compact scopes to active epic, omits unrelated ledger dumps, and stays <= 4096 UTF-8 bytes."""
+        devtool = self.repo_dir / ".devtool"
+        (devtool / "epic" / "demo_epic").mkdir(parents=True, exist_ok=True)
+        (devtool / "epic" / "demo_epic" / "demo_epic.en.md").write_text(
+            "# Demo Epic\n\n- **Epic name**: demo_epic\n- **Status**: Stage 3\n",
+            encoding="utf-8",
+        )
+        (devtool / "state").mkdir(parents=True, exist_ok=True)
+        (devtool / "state" / "demo_epic.md").write_text(
+            "# Active Epic: demo_epic\n- Role: programmer\n\n## Recent Decisions Locked:\n- Keep output <= 4KB\n\n## Repo/Task Status:\n- Stage 3 active\n\n## Next Immediate Step:\n- Run task_01\n",
+            encoding="utf-8",
+        )
+        (devtool / "state" / "unrelated_epic.md").write_text(
+            "# Active Epic: unrelated_epic\n- Should never appear\n",
+            encoding="utf-8",
+        )
+        features = devtool / "features"
+        features.mkdir(parents=True, exist_ok=True)
+        for i in range(1, 35):
+            ep = "demo_epic" if i <= 2 else f"other_epic_{i}"
+            (features / f"task_{i:02d}_item.md").write_text(
+                f'---\nid: "task_{i:02d}_item"\nstatus: "todo"\nepic: "{ep}"\n---\n\n# Task {i}\n',
+                encoding="utf-8",
+            )
+        (devtool / "PROJECT_LEDGER.md").write_text(
+            "# Project Ledger\n\n" + "".join(f"- [2026-11-12] milestone_{k}: {'x' * 120}\n" for k in range(90)),
+            encoding="utf-8",
+        )
+        contracts = self.repo_dir / "shared-contracts" / "core"
+        contracts.mkdir(parents=True, exist_ok=True)
+        (contracts / "gaps_and_rfcs.md").write_text(
+            "# Gaps\n\n## GAP-01 — Open demo_epic rate guard\n- Status: OPEN\n- Epic: demo_epic\n"
+            + ("Filler noise line.\n" * 120),
+            encoding="utf-8",
+        )
+        subprocess.run(["git", "-C", str(self.repo_dir), "add", "-A"], check=True, capture_output=True)
+        subprocess.run(["git", "-C", str(self.repo_dir), "commit", "-q", "-m", "Add epic fixtures"], check=True, capture_output=True)
+
+        res = self.run_cli([
+            "--workspace-root", str(self.workspace),
+            "--repo", "ai-agent-tools",
+            "--epic", "demo_epic",
+            "--compact",
+        ])
+        self.assertEqual(res.returncode, 0, res.stderr)
+        payload = res.stdout
+        self.assertLessEqual(len(payload.encode("utf-8")), 4096)
+        self.assertIn("demo_epic", payload)
+        self.assertIn("task_01_item.md", payload)
+        self.assertIn("GAP-01", payload)
+        self.assertNotIn("other_epic_15", payload)
+        self.assertNotIn("unrelated_epic", payload)
+        self.assertNotIn("milestone_10", payload)
+        self.assertNotIn("Filler noise line", payload)
+
+        # Extreme task volume still respects hard 4096-byte UTF-8 ceiling
+        for i in range(1, 120):
+            (features / f"task_bulk_{i:03d}.md").write_text(
+                f'---\nid: "task_bulk_{i:03d}"\nstatus: "todo"\nepic: "demo_epic"\n---\n\n# Tác vụ {i} — kiểm thử giới hạn byte dài {"đ" * 40}\n',
+                encoding="utf-8",
+            )
+        res_bulk = self.run_cli([
+            "--workspace-root", str(self.workspace),
+            "--repo", "ai-agent-tools",
+            "--epic", "demo_epic",
+            "--compact",
+        ])
+        self.assertEqual(res_bulk.returncode, 0, res_bulk.stderr)
+        self.assertLessEqual(len(res_bulk.stdout.encode("utf-8")), 4096)
+        self.assertIn("demo_epic", res_bulk.stdout)
+
+        # Ensure .vscode/settings.json was not mutated by --compact
+        self.assertFalse((self.repo_dir / ".vscode" / "settings.json").exists())
+
+    def test_tto_hp_06_emit_handoff_prompt_config_and_legacy_upgrade(self) -> None:
+        """[TTO-HP-06] emit_handoff_prompt reads review_config.json, normalizes effort, and upgrades legacy models."""
+        import json
+
+        devtool = self.repo_dir / ".devtool"
+        devtool.mkdir(parents=True, exist_ok=True)
+        cfg_file = devtool / "review_config.json"
+
+        # 1. Missing review_config.json -> default gemini-4-hydrogen-xhigh / xhigh
+        res_default = self.run_cli(["--emit-prompt", "implement", "--epic", "demo_epic"])
+        self.assertEqual(res_default.returncode, 0, res_default.stderr)
+        self.assertIn("gemini-4-hydrogen-xhigh", res_default.stdout)
+        self.assertIn("xhigh", res_default.stdout)
+        self.assertNotIn("Gemini Flash 3.8", res_default.stdout)
+
+        # 2. Extra effort alias normalization -> xhigh
+        cfg_file.write_text(
+            json.dumps({"providers": {"programmer": {"model": "gemini-4-hydrogen-xhigh", "thinking_level": "extra"}}}),
+            encoding="utf-8",
+        )
+        res_extra = self.run_cli([
+            "--workspace-root", str(self.workspace),
+            "--repo", "ai-agent-tools",
+            "--emit-prompt", "implement",
+            "--epic", "demo_epic",
+        ])
+        self.assertEqual(res_extra.returncode, 0, res_extra.stderr)
+        self.assertIn("gemini-4-hydrogen-xhigh", res_extra.stdout)
+        self.assertIn("xhigh", res_extra.stdout)
+        self.assertNotIn("Gemini Flash 3.8", res_extra.stdout)
+
+        # 3. Legacy model upgrade -> gemini-4-hydrogen-xhigh / xhigh
+        cfg_file.write_text(
+            json.dumps({"providers": {"programmer": {"model": "gemini-3.8-flash-high", "thinking_level": "high"}}}),
+            encoding="utf-8",
+        )
+        res_legacy = self.run_cli(["--emit-prompt", "implement", "--epic", "demo_epic"])
+        self.assertEqual(res_legacy.returncode, 0, res_legacy.stderr)
+        self.assertIn("gemini-4-hydrogen-xhigh", res_legacy.stdout)
+        self.assertIn("xhigh", res_legacy.stdout)
+
+        # 4. Custom model preserved
+        cfg_file.write_text(
+            json.dumps({"providers": {"programmer": {"model": "claude-sonnet-4-6", "thinking_level": "medium"}}}),
+            encoding="utf-8",
+        )
+        res_custom = self.run_cli(["--emit-prompt", "implement", "--epic", "demo_epic"])
+        self.assertEqual(res_custom.returncode, 0, res_custom.stderr)
+        self.assertIn("claude-sonnet-4-6", res_custom.stdout)
+        self.assertIn("medium", res_custom.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()

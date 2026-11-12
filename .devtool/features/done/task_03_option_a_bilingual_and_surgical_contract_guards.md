@@ -1,13 +1,13 @@
 ---
 id: "task_03_option_a_bilingual_and_surgical_contract_guards"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "token_throttling_optimization"
 dueDate: null
 created: "2026-11-13T02:30:00Z"
-modified: "2026-11-13T02:30:00Z"
-completedAt: null
+modified: "2026-11-12T22:12:37Z"
+completedAt: "2026-11-12T22:12:37Z"
 labels: ["bilingual", "contract", "memory", "token-optimization"]
 order: "a3"
 ---

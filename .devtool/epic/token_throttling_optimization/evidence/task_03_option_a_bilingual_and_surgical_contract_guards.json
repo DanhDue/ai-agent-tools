@@ -1,0 +1,230 @@
+{
+  "schema": 1,
+  "task": "task_03_option_a_bilingual_and_surgical_contract_guards",
+  "runs": {
+    "red": {
+      "head": "1ed087139ce39efc821d9fe4550771635f52ec81",
+      "tree": "26d6efc66759d0837814776afb1777024ccb0a4f",
+      "patch_id": "1dadb8d612b596ff66282da935fd1f743a615e42",
+      "started": "2026-11-12T22:10:55Z",
+      "finished": "2026-11-12T22:10:56Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_tto_bilingual_and_surgical.py::test_tto_hp_03_option_a_default_readiness",
+          "expect": "exit 1; contains \"failed\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-12T22:10:55Z",
+          "finished": "2026-11-12T22:10:56Z",
+          "output_tail": [
+            "F                                                                        [100%]",
+            "=================================== FAILURES ===================================",
+            "__________________ test_tto_hp_03_option_a_default_readiness ___________________",
+            "tests/test_tto_bilingual_and_surgical.py:80: in test_tto_hp_03_option_a_default_readiness",
+            "    assert proc.returncode == 0, f\"Expected default PASS:\\n{proc.stdout}\\n{proc.stderr}\"",
+            "E   AssertionError: Expected default PASS:",
+            "E     Epic: demo_epic (demo-epic), 2 tasks",
+            "E     R1 FAIL check_document.py: checked 5 documents, 3 findings",
+            "E     R2 PASS",
+            "E     R3 PASS",
+            "E     R4 PASS",
+            "E     R5 PASS",
+            "E     R6 PASS",
+            "E     R7 PASS",
+            "E     R8 SKIP",
+            "E     Result: 1 FAIL, 0 WARN — FAIL",
+            "E     ",
+            "E     ",
+            "E   assert 1 == 0",
+            "E    +  where 1 = CompletedProcess(args=['/opt/homebrew/opt/python@3.15/bin/python3.15', '/Users/danhdueexoictif/AllProjects/ai-agent-to...3 findings\\nR2 PASS\\nR3 PASS\\nR4 PASS\\nR5 PASS\\nR6 PASS\\nR7 PASS\\nR8 SKIP\\nResult: 1 FAIL, 0 WARN — FAIL\\n', stderr='').returncode",
+            "=========================== short test summary info ============================",
+            "FAILED tests/test_tto_bilingual_and_surgical.py::test_tto_hp_03_option_a_default_readiness",
+            "1 failed in 0.50s"
+          ],
+          "output_sha256": "58e71a1d16478e17a60ec9b8268544fb2a6da8b796b6624a940e576ccb49be80"
+        }
+      ],
+      "passed": true
+    },
+    "verify": {
+      "head": "1ed087139ce39efc821d9fe4550771635f52ec81",
+      "tree": "9e21c7efe18074a644a8742d38889e587d9b7082",
+      "patch_id": "6c8e6c80c9e7c8b6d101f4a2f3cc66c4bd7d0e04",
+      "started": "2026-11-12T22:11:03Z",
+      "finished": "2026-11-12T22:11:45Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_tto_bilingual_and_surgical.py::test_tto_hp_03_option_a_default_readiness",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-12T22:11:03Z",
+          "finished": "2026-11-12T22:11:03Z",
+          "output_tail": [
+            ".                                                                        [100%]",
+            "1 passed in 0.59s"
+          ],
+          "output_sha256": "0d70d5e3025d41820ee8d7865e5ffaa062debd9f4fd30ca4b26f7820dfb180f9"
+        },
+        {
+          "id": "V3",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_tto_bilingual_and_surgical.py skills/dev-implementation/resources/scripts/test_check_epic_readiness.py skills/dev-implementation/resources/scripts/test_check_bdd_traceability.py skills/dev-implementation/resources/scripts/test_check_task_contract.py skills/dev-implementation/resources/scripts/test_package_and_revise_epic.py scripts/test_resume_context.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-12T22:11:03Z",
+          "finished": "2026-11-12T22:11:40Z",
+          "output_tail": [
+            "........................................................................ [ 51%]",
+            "...................................................................      [100%]",
+            "139 passed in 36.15s"
+          ],
+          "output_sha256": "cfb033565892414f2b5713573da741e6684b4b4e7ea53b4e2aa268d95669c422"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py --ignore SIM117 skills/dev-implementation/resources/scripts/check_epic_readiness.py skills/dev-implementation/resources/scripts/check_bdd_traceability.py skills/dev-implementation/resources/scripts/check_task_contract.py skills/dev-implementation/resources/scripts/package_epic.py scripts/resume_context.py tests/test_tto_bilingual_and_surgical.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-12T22:11:40Z",
+          "finished": "2026-11-12T22:11:40Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-B",
+          "command": "mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py skills/dev-implementation/resources/scripts/check_epic_readiness.py skills/dev-implementation/resources/scripts/check_bdd_traceability.py skills/dev-implementation/resources/scripts/check_task_contract.py skills/dev-implementation/resources/scripts/package_epic.py scripts/resume_context.py tests/test_tto_bilingual_and_surgical.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-12T22:11:40Z",
+          "finished": "2026-11-12T22:11:40Z",
+          "output_tail": [
+            "Success: no issues found in 11 source files"
+          ],
+          "output_sha256": "049f51b850512be193c74d3fbb731e25fbc6374a66560d8ec0d6569d79c88ea6"
+        },
+        {
+          "id": "V6",
+          "phase": "TIER-C",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 --junitxml=build/test-results/task_3.xml tests/test_tto_bilingual_and_surgical.py",
+          "expect": "exit 0; results build/test-results/task_3.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-12T22:11:40Z",
+          "finished": "2026-11-12T22:11:45Z",
+          "output_tail": [
+            "..........                                                               [100%]",
+            "10 passed in 4.97s"
+          ],
+          "output_sha256": "9ff4f2dacad8d49c8e9d44493e365fbe2cf0c383f690a742572e31e6cc1a41ef",
+          "results": {
+            "path": "build/test-results/task_3.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 10,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_tto_hp_03_option_a_default_readiness",
+                  "classname": "tests.test_tto_bilingual_and_surgical",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_tto_hp_06_compact_context_and_dynamic_config",
+                  "classname": "tests.test_tto_bilingual_and_surgical",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_tto_ec_03_surgical_anchor_required_for_large_files",
+                  "classname": "tests.test_tto_bilingual_and_surgical",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_tto_st_02_handoff_excludes_vi_md",
+                  "classname": "tests.test_tto_bilingual_and_surgical",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_tto_st_03_strict_bilingual_stage4_gate",
+                  "classname": "tests.test_tto_bilingual_and_surgical",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_tto_hp_03_integration",
+                  "classname": "tests.test_tto_bilingual_and_surgical.TestTTOBilingualAndSurgical_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_tto_hp_06_integration",
+                  "classname": "tests.test_tto_bilingual_and_surgical.TestTTOBilingualAndSurgical_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_tto_ec_03_integration",
+                  "classname": "tests.test_tto_bilingual_and_surgical.TestTTOBilingualAndSurgical_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_tto_st_02_integration",
+                  "classname": "tests.test_tto_bilingual_and_surgical.TestTTOBilingualAndSurgical_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_tto_st_03_integration",
+                  "classname": "tests.test_tto_bilingual_and_surgical.TestTTOBilingualAndSurgical_Integration",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "scripts/resume_context.py",
+            "scripts/test_resume_context.py",
+            "skills/dev-implementation/resources/scripts/check_bdd_traceability.py",
+            "skills/dev-implementation/resources/scripts/check_epic_readiness.py",
+            "skills/dev-implementation/resources/scripts/check_task_contract.py",
+            "skills/dev-implementation/resources/scripts/package_epic.py",
+            "skills/dev-implementation/resources/scripts/test_check_bdd_traceability.py",
+            "skills/dev-implementation/resources/scripts/test_check_epic_readiness.py",
+            "skills/dev-implementation/resources/scripts/test_check_task_contract.py",
+            "skills/dev-implementation/resources/scripts/test_package_and_revise_epic.py",
+            "tests/test_tto_bilingual_and_surgical.py"
+          ],
+          "violations": []
+        }
+      ],
+      "passed": true
+    }
+  }
+}

@@ -647,6 +647,94 @@ def test_TCAE_EC_03_grep_slash_pattern_excluded() -> None:
         test.doCleanups()
 
 
+class SurgicalAnchorTest(ContractCase):
+    def _big_py_content(self, num_lines: int) -> str:
+        lines: list[str] = []
+        idx = 0
+        while len(lines) < num_lines:
+            lines.append(f"def fn_{idx}() -> int:")
+            if len(lines) < num_lines:
+                lines.append(f"    return {idx}")
+            idx += 1
+        return "\n".join(lines[:num_lines]) + "\n"
+
+    def _task_with_sections(self, allowed: str, extra_sections: str, status: str = "todo") -> Path:
+        body = (
+            f"---\nstatus: \"{status}\"\n---\n# Task\n\n"
+            f"## Files\n\nAllowed files:\n{allowed}\n\nRead-only context:\n- `README.md` — note\n\n"
+            f"{extra_sections}\n"
+            f"## Verification\n\n{HEAD}{DEFAULT_ROWS}\n\n"
+            f"## Definition of Done\n\n- done (V2, V3, V4, V5)\n\n"
+            f"## Stop and Report If\n\n- A command does not match.\n\n"
+            f"## Decisions Already Made\n\n- Grounded design decision.\n"
+        )
+        return self.write(f"{EPIC}/task_1_surgical.md", body)
+
+    def test_tto_ec_03_rejects_large_file_without_symbol_or_line_range(self) -> None:
+        """[TTO-EC-03] --design rejects >200-line tracked Allowed file lacking symbol or (L<start>-L<end>) anchor."""
+        self.write("src/big_mod.py", self._big_py_content(202))
+        task = self._task_with_sections(
+            allowed="- `src/big_mod.py`",
+            extra_sections="## Impact Analysis & Blast Radius\n\n- General refactor in `src/big_mod.py`.\n",
+        )
+        code, out, _ = self.check(task, design=True)
+        self.assertEqual(code, 1, out)
+        self.assertIn("src/big_mod.py", out)
+        self.assertIn("> 200", out)
+
+    def test_tto_ec_03_rejects_out_of_bounds_range_and_unknown_symbol(self) -> None:
+        """[TTO-EC-03] Out-of-bounds line range or nonexistent symbol does not satisfy anchor check."""
+        self.write("src/big_mod.py", self._big_py_content(210))
+        bad_range = self._task_with_sections(
+            allowed="- `src/big_mod.py`",
+            extra_sections="## Impact Analysis & Blast Radius\n\n- `src/big_mod.py`: (L900-L950)\n",
+        )
+        code, out, _ = self.check(bad_range, design=True)
+        self.assertEqual(code, 1, out)
+        self.assertIn("src/big_mod.py", out)
+
+        bad_sym = self._task_with_sections(
+            allowed="- `src/big_mod.py`",
+            extra_sections="## Impact Analysis & Blast Radius\n\n- `src/big_mod.py`: `missing_symbol`\n",
+        )
+        code2, out2, _ = self.check(bad_sym, design=True)
+        self.assertEqual(code2, 1, out2)
+        self.assertIn("src/big_mod.py", out2)
+
+    def test_tto_ec_03_accepts_valid_symbol_or_line_range_anchor(self) -> None:
+        """[TTO-EC-03] Valid symbol or (L<start>-L<end>) anchor across supported sections passes."""
+        self.write("src/big_mod.py", self._big_py_content(220))
+        variants = [
+            "## Impact Analysis & Blast Radius\n\n- `src/big_mod.py`: `fn_5` (L11-L15)\n",
+            "## Impact Analysis & Blast Radius\n\n- `src/big_mod.py`: (L10-L25)\n",
+            "## Impact Analysis & Blast Radius\n\n- `src/big_mod.py` :: fn_5\n",
+            "## File Anchor Map\n\n- `src/big_mod.py` :: `fn_5` (L11-L12)\n",
+            "## Impact & Design\n\n- `src/big_mod.py`: (L1-L20)\n",
+        ]
+        for idx, sec in enumerate(variants):
+            task = self._task_with_sections(allowed="- `src/big_mod.py`", extra_sections=sec)
+            code, out, _ = self.check(task, design=True)
+            self.assertEqual(code, 0, f"Variant {idx} failed:\n{out}")
+
+    def test_tto_ec_03_boundary_200_lines_and_new_files_skip_anchor_check(self) -> None:
+        """[TTO-EC-03] Files <= 200 lines, (new) files, and non-design runs pass without anchors."""
+        self.write("src/exact_200.py", self._big_py_content(200))
+        self.write("src/big_unanchored.py", self._big_py_content(250))
+        task_200 = self._task_with_sections(
+            allowed="- `src/exact_200.py`\n- `src/created.py` (new)",
+            extra_sections="## Impact Analysis & Blast Radius\n\n- Boundary check.\n",
+        )
+        code, out, _ = self.check(task_200, design=True)
+        self.assertEqual(code, 0, out)
+
+        task_big = self._task_with_sections(
+            allowed="- `src/big_unanchored.py`",
+            extra_sections="## Impact Analysis & Blast Radius\n\n- No anchors.\n",
+        )
+        code_non_design, out_nd, _ = self.check(task_big, design=False)
+        self.assertEqual(code_non_design, 0, out_nd)
+
+
 if __name__ == "__main__":
     unittest.main()
 

@@ -11,6 +11,7 @@ Python 3 standard library only.
 from __future__ import annotations
 
 import argparse
+import ast
 import importlib
 import json
 import re
@@ -36,6 +37,23 @@ GLOB_CHARS = re.compile(r"[*?]")
 WEAK_ASSERTION_RE = re.compile(r"\b(should be truthy|is valid|should work|returns non-empty)\b", re.IGNORECASE)
 RESERVED_RUNNER_EVIDENCE = re.compile(r"^task_.*\.json$")
 NON_PORTABLE_PATH_RE = re.compile(r"(?:/Users/|/home/|~/|\.claude/plugins/cache/|\.gemini/config/plugins/)")
+SURGICAL_LINE_THRESHOLD = 200
+LOCKFILE_NAMES = frozenset({"uv.lock", "package-lock.json", "pubspec.lock", "Cargo.lock", "Podfile.lock"})
+ANCHOR_SECTIONS = frozenset({
+    "files",
+    "impact analysis & blast radius",
+    "impact analysis and blast radius",
+    "impact analysis",
+    "impact & design",
+    "decisions already made",
+    "file anchor map",
+})
+LINE_RANGE_RE = re.compile(r"\bL(\d+)\s*[-–:]\s*L?(\d+)\b")
+NON_SYMBOL_WORDS = frozenset({
+    "new", "add", "update", "modify", "edit", "fix", "remove", "delete",
+    "file", "files", "line", "lines", "section", "sections", "module",
+    "test", "tests", "general", "todo", "done", "none",
+})
 
 
 class Checker:
@@ -391,6 +409,197 @@ def check_weak_bdd(check: Checker, source_name: str, text: str) -> None:
             check.problem(f"{source_name}:{line_num}", f"weak BDD assertion found: {m.group(0)!r}")
 
 
+def _read_text_if_not_binary(path: Path) -> str | None:
+    try:
+        raw = path.read_bytes()
+    except OSError:
+        return None
+    if b"\x00" in raw[:8192]:
+        return None
+    return raw.decode("utf-8", errors="replace")
+
+
+def _python_symbols(content: str) -> set[str]:
+    symbols: set[str] = set()
+    try:
+        tree = ast.parse(content)
+    except SyntaxError:
+        for m in re.finditer(
+            r"^\s*(?:async\s+def|def|class)\s+([A-Za-z_][A-Za-z0-9_]*)",
+            content,
+            re.MULTILINE,
+        ):
+            symbols.add(m.group(1))
+        return symbols
+
+    def _visit(node: ast.AST, prefix: str = "") -> None:
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            symbols.add(node.name)
+            qual = f"{prefix}.{node.name}" if prefix else node.name
+            symbols.add(qual)
+            for child in node.body:
+                _visit(child, qual)
+        elif isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name):
+                    symbols.add(target.id)
+                    if prefix:
+                        symbols.add(f"{prefix}.{target.id}")
+        elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+            symbols.add(node.target.id)
+            if prefix:
+                symbols.add(f"{prefix}.{node.target.id}")
+        elif isinstance(node, (ast.If, ast.Try, ast.With)):
+            for subnode in ast.iter_child_nodes(node):
+                _visit(subnode, prefix)
+
+    for top_node in tree.body:
+        _visit(top_node)
+    return symbols
+
+
+def _collect_anchor_section_bodies(text: str) -> list[str]:
+    bodies: list[str] = []
+    current_lines: list[str] | None = None
+    fence: str | None = None
+    for line in text.splitlines():
+        marker = tc.FENCE.match(line)
+        if marker:
+            if fence is None:
+                fence = marker.group(1)
+            elif marker.group(1)[0] == fence[0] and len(marker.group(1)) >= len(fence):
+                fence = None
+        elif fence is None and line.startswith("## "):
+            if current_lines is not None:
+                bodies.append("\n".join(current_lines))
+            heading = line[3:].strip().lower()
+            current_lines = [] if heading in ANCHOR_SECTIONS else None
+            continue
+        if current_lines is not None:
+            current_lines.append(line)
+    if current_lines is not None:
+        bodies.append("\n".join(current_lines))
+    return bodies
+
+
+def _strip_matched_path(line: str, pattern: str) -> tuple[bool, str]:
+    full_re = re.compile(rf"(?<![\w/.-]){re.escape(pattern)}(?![\w/.-])")
+    base_name = Path(pattern).name
+    base_re = re.compile(rf"(?<![\w/.-]){re.escape(base_name)}(?![\w/.-])")
+    if full_re.search(line):
+        cleaned = line.replace(f"`{pattern}`", "")
+        cleaned = full_re.sub("", cleaned)
+        return True, cleaned
+    if base_re.search(line):
+        cleaned = line.replace(f"`{base_name}`", "")
+        cleaned = base_re.sub("", cleaned)
+        return True, cleaned
+    return False, line
+
+
+def _iter_file_anchor_chunks(section_bodies: list[str], pattern: str) -> list[tuple[str, str]]:
+    chunks: list[tuple[str, str]] = []
+    for body in section_bodies:
+        lines = body.splitlines()
+        idx = 0
+        while idx < len(lines):
+            line = lines[idx]
+            matched, cleaned_head = _strip_matched_path(line, pattern)
+            if not matched:
+                idx += 1
+                continue
+            raw_parts = [line]
+            clean_parts = [cleaned_head]
+            if re.match(r"^\s*[-*]\s+", line):
+                base_indent = len(line) - len(line.lstrip())
+                next_idx = idx + 1
+                while next_idx < len(lines):
+                    nxt = lines[next_idx]
+                    if not nxt.strip():
+                        break
+                    if (len(nxt) - len(nxt.lstrip())) <= base_indent:
+                        break
+                    raw_parts.append(nxt)
+                    _, cleaned_nxt = _strip_matched_path(nxt, pattern)
+                    clean_parts.append(cleaned_nxt)
+                    next_idx += 1
+            chunks.append(("\n".join(raw_parts), "\n".join(clean_parts)))
+            idx += 1
+    return chunks
+
+
+def _extract_symbol_candidates(raw_chunk: str, cleaned_chunk: str) -> list[str]:
+    candidates: list[str] = []
+    for span in tc.CODE_SPAN.findall(cleaned_chunk):
+        cand = span.strip().removesuffix("()").split("[", 1)[0]
+        if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_.]*", cand) and not re.fullmatch(r"L\d+", cand):
+            candidates.append(cand)
+    for m in re.finditer(r"::\s*`?([A-Za-z_][A-Za-z0-9_.]*)`?", raw_chunk):
+        cand = m.group(1)
+        if not re.fullmatch(r"L\d+", cand):
+            candidates.append(cand)
+    for line in cleaned_chunk.splitlines():
+        if ":" not in line:
+            continue
+        after_colon = line.split(":", 1)[1]
+        for tok in re.findall(r"\b([A-Za-z_][A-Za-z0-9_.]*)\b", after_colon):
+            if not re.fullmatch(r"L\d+", tok) and tok.lower() not in NON_SYMBOL_WORDS:
+                candidates.append(tok)
+    return candidates
+
+
+def _symbol_present_in_file(cand: str, is_python: bool, py_symbols: set[str], content: str) -> bool:
+    if is_python:
+        return cand in py_symbols or cand.split(".")[-1] in py_symbols
+    leaf = cand.split(".")[-1]
+    if len(leaf) < 2 or leaf.lower() in NON_SYMBOL_WORDS:
+        return False
+    return bool(re.search(rf"\b{re.escape(leaf)}\b", content))
+
+
+def _has_valid_anchor(pattern: str, content: str, line_count: int, section_bodies: list[str]) -> bool:
+    is_python = pattern.endswith(".py")
+    py_symbols: set[str] | None = None
+    for raw_chunk, cleaned_chunk in _iter_file_anchor_chunks(section_bodies, pattern):
+        for m in LINE_RANGE_RE.finditer(cleaned_chunk):
+            start, end = int(m.group(1)), int(m.group(2))
+            if 1 <= start <= end <= line_count:
+                return True
+        candidates = _extract_symbol_candidates(raw_chunk, cleaned_chunk)
+        if candidates:
+            if is_python and py_symbols is None:
+                py_symbols = _python_symbols(content)
+            for cand in candidates:
+                if _symbol_present_in_file(cand, is_python, py_symbols or set(), content):
+                    return True
+    return False
+
+
+def check_surgical_anchors(check: Checker, stem: str, text: str) -> None:
+    """Require symbol or (L<start>-L<end>) anchors for >200-line tracked Allowed files."""
+    section_bodies = _collect_anchor_section_bodies(text)
+    for entry in tc.parse_allowed_files(text):
+        pattern = entry.pattern
+        if entry.new or GLOB_CHARS.search(pattern) or pattern.endswith("/"):
+            continue
+        if not check.is_tracked(pattern):
+            continue
+        target_path = check.root / pattern
+        if not target_path.is_file() or target_path.name in LOCKFILE_NAMES or target_path.suffix.lower() == ".lock":
+            continue
+        content = _read_text_if_not_binary(target_path)
+        if content is None:
+            continue
+        lines = content.splitlines()
+        if len(lines) <= SURGICAL_LINE_THRESHOLD:
+            continue
+        if not _has_valid_anchor(pattern, content, len(lines), section_bodies):
+            check.problem(
+                f"{stem}:Files",
+                f"{pattern} ({len(lines)} lines > {SURGICAL_LINE_THRESHOLD}) lacks a target symbol or (L<start>-L<end>) line-range anchor",
+            )
+
+
 def check_task(
     check: Checker,
     path: Path,
@@ -413,6 +622,8 @@ def check_task(
         if is_python_task(text, rows):
             check_python_tier_b(check, stem, rows)
         check_allowed(check, stem, text, design, prereq_files)
+        if design:
+            check_surgical_anchors(check, stem, text)
         check_evidence(check, stem, text, design)
         check_grounding(check, stem, text, rows, created)
 

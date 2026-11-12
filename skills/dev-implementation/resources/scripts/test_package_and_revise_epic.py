@@ -212,8 +212,19 @@ def test_MEO_FR_02_spec_errata_asymmetry_and_missing_reason(tmp_path: Path) -> N
         ],
     )
 
-    res_readiness = subprocess.run(
+    # Default Option A tolerates in-flight .vi.md Spec Errata lag
+    res_default = subprocess.run(
         [sys.executable, str(READINESS_SCRIPT), "demo_epic"],
+        cwd=str(tmp_path),
+        capture_output=True,
+        text=True,
+    )
+    assert res_default.returncode == 0
+    assert "R7 PASS" in res_default.stdout
+
+    # --strict-bilingual catches asymmetric Spec Errata on R7
+    res_readiness = subprocess.run(
+        [sys.executable, str(READINESS_SCRIPT), "demo_epic", "--strict-bilingual"],
         cwd=str(tmp_path),
         capture_output=True,
         text=True,
@@ -271,6 +282,54 @@ def test_package_epic_refuses_overwrite_without_revise(tmp_path: Path) -> None:
         text=True,
     )
     assert res_force.returncode == 0
+
+
+def test_tto_handoff_and_revise_exclude_vi_md_from_read_first(tmp_path: Path) -> None:
+    """[TTO-ST-02] Initial packaging and --revise render English-only Read First without *.vi.md."""
+    init_git_repo(tmp_path)
+    epic_path = setup_valid_epic(tmp_path, "demo_epic")
+    git_cmd(tmp_path, "add", ".")
+    git_cmd(tmp_path, "commit", "-m", "Add sample epic")
+
+    res_pkg = subprocess.run(
+        [sys.executable, str(PACKAGE_SCRIPT), "demo_epic"],
+        cwd=str(tmp_path),
+        capture_output=True,
+        text=True,
+    )
+    assert res_pkg.returncode == 0, res_pkg.stderr
+    handoff_file = epic_path / "handoff.md"
+    handoff_text = handoff_file.read_text(encoding="utf-8")
+
+    m = re.search(r"## Read First\n(.*?)(?:\n## |\Z)", handoff_text, re.DOTALL)
+    assert m is not None
+    read_first = m.group(1)
+    assert "2026-10-22-demo-epic-design.en.md" in read_first
+    assert "lists the 2 tasks" in read_first
+    assert ".vi.md" not in read_first
+    assert "Gemini Flash 3.8" not in handoff_text
+
+    # Simulate revising an older handoff.md that still carried a .vi.md Read First bullet
+    injected = handoff_text.replace(
+        "4. `.devtool/epic/demo_epic/principal_review.md`",
+        "4. `.devtool/epic/demo_epic/demo_epic.vi.md` — legacy Vietnamese mirror.\n5. `.devtool/epic/demo_epic/principal_review.md`",
+    )
+    handoff_file.write_text(injected, encoding="utf-8")
+    git_cmd(tmp_path, "add", ".")
+    git_cmd(tmp_path, "commit", "-m", "Simulate legacy handoff")
+
+    res_rev = subprocess.run(
+        [sys.executable, str(PACKAGE_SCRIPT), "demo_epic", "--revise", "--reason", "Strip legacy vi links"],
+        cwd=str(tmp_path),
+        capture_output=True,
+        text=True,
+    )
+    assert res_rev.returncode == 0, res_rev.stderr
+    revised = handoff_file.read_text(encoding="utf-8")
+    m_rev = re.search(r"## Read First\n(.*?)(?:\n## |\Z)", revised, re.DOTALL)
+    assert m_rev is not None
+    assert ".vi.md" not in m_rev.group(1)
+    assert "4. `.devtool/epic/demo_epic/principal_review.md`" in m_rev.group(1)
 
 
 class Test_Integration:

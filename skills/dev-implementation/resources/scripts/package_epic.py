@@ -75,6 +75,47 @@ def resolve_base_branch(root: Path, epic_dir: str, cli_base: str | None) -> str:
     return "main"
 
 
+_READ_FIRST_RE = re.compile(r"(## Read First\n)(.*?)(\n## |\Z)", re.DOTALL)
+_VI_MD_INLINE_RE = re.compile(
+    r"\s*(?:/|,|\band\b|\bvà\b)?\s*`?[^\s`()]*\.vi\.md`?",
+    re.IGNORECASE,
+)
+
+
+def _sanitize_read_first_english_only(text: str) -> str:
+    """Strip *.vi.md paths from ## Read First so AI coder handoffs read English SSOT only."""
+    match = _READ_FIRST_RE.search(text)
+    if not match or ".vi.md" not in match.group(2):
+        return text
+
+    header, body, tail = match.group(1), match.group(2), match.group(3)
+    trailing_nl = len(body) - len(body.rstrip("\n"))
+    kept_lines: list[str] = []
+    for line in body.splitlines():
+        if ".vi.md" not in line:
+            kept_lines.append(line)
+            continue
+        if ".en.md" in line:
+            cleaned = _VI_MD_INLINE_RE.sub("", line)
+            cleaned = re.sub(r"\(\s*\)", "", cleaned)
+            cleaned = re.sub(r" {2,}", " ", cleaned).rstrip()
+            if ".vi.md" not in cleaned:
+                kept_lines.append(cleaned)
+
+    renumbered: list[str] = []
+    item_num = 1
+    for line in kept_lines:
+        m_num = re.match(r"^(\s*)\d+\.(\s+.*)$", line)
+        if m_num:
+            renumbered.append(f"{m_num.group(1)}{item_num}.{m_num.group(2)}")
+            item_num += 1
+        else:
+            renumbered.append(line)
+
+    new_body = "\n".join(renumbered).rstrip("\n") + ("\n" * trailing_nl)
+    return text[: match.start()] + header + new_body + tail + text[match.end() :]
+
+
 def render_initial_handoff(
     template_path: Path,
     epic_dir: str,
@@ -83,6 +124,9 @@ def render_initial_handoff(
     base_branch: str,
     today_iso: str,
     open_notes: list[str] | None = None,
+    *,
+    task_count: int | None = None,
+    source_spec: str | None = None,
 ) -> str:
     template = template_path.read_text(encoding="utf-8")
     text = template.replace("<epic_slug>", epic_slug)
@@ -92,6 +136,10 @@ def render_initial_handoff(
     text = text.replace("<YYYY-MM-DD>", today_iso)
     text = text.replace("<sha>", design_commit)
     text = text.replace("<base_branch>", base_branch)
+    if task_count is not None:
+        text = text.replace("<N>", str(task_count))
+    if source_spec is not None:
+        text = text.replace("<source spec>.en.md", source_spec)
 
     if open_notes:
         notes_str = "\n".join(f"- {n}" for n in open_notes)
@@ -113,7 +161,7 @@ def render_initial_handoff(
         rev_init,
     )
 
-    return text
+    return _sanitize_read_first_english_only(text)
 
 
 def revise_handoff_text(
@@ -180,7 +228,7 @@ def revise_handoff_text(
         else:
             text = text.rstrip() + f"\n\n## Revisions\n\n{rev_bullet}\n"
 
-    return text
+    return _sanitize_read_first_english_only(text)
 
 
 def update_epic_status_to_packaged(root: Path, epic_dir: str, today_iso: str) -> None:
@@ -277,6 +325,14 @@ def package_epic(
             tpl = root / "skills" / "dev-lifecycle" / "references" / "handoff-template.md"
         if not tpl.is_file():
             raise FileNotFoundError(f"handoff-template.md not found at {TEMPLATE_PATH}")
+        task_count = len(list(epic_path.glob("task_*.md")))
+        spec_candidates = sorted(
+            p.name
+            for p in epic_path.glob("*.en.md")
+            if p.name not in (f"{epic_dir}.en.md", "bdd_scenarios.en.md")
+            and (p.name.endswith("-design.en.md") or "spec" in p.name.lower())
+        )
+        source_spec = spec_candidates[0] if spec_candidates else None
         content = render_initial_handoff(
             tpl,
             epic_dir,
@@ -285,6 +341,8 @@ def package_epic(
             resolved_base,
             today_iso,
             open_notes=open_notes,
+            task_count=task_count,
+            source_spec=source_spec,
         )
         handoff_file.write_text(content, encoding="utf-8")
     else:

@@ -30,6 +30,11 @@ from pathlib import Path
 WORKSPACE_ROOT = Path.home() / "Projects"
 REPOS = ["ai-agent-tools", "D3Nexus", "lyrics-sync", "nexus"]
 MAX_STATE_LINES = 20
+COMPACT_MAX_BYTES = 4096
+DEFAULT_PROGRAMMER_MODEL = "gemini-4-hydrogen-xhigh"
+DEFAULT_PROGRAMMER_EFFORT = "xhigh"
+LEGACY_PROGRAMMER_MODELS = frozenset({"gemini-3.8-flash", "gemini-3.8-flash-high"})
+EXTRA_EFFORT_ALIASES = frozenset({"extra", "extra-high", "extra_high", "xhigh"})
 
 DEFAULT_LEDGER_TEMPLATE = """# Project Architectural Ledger & Feature History (Permanent)
 
@@ -1268,11 +1273,481 @@ def harvest_json(
     print(json.dumps(data, indent=2))
 
 
+def normalize_programmer_effort(raw: str | None) -> str:
+    """Normalize thinking/effort aliases (including 'extra') to canonical CLI values."""
+    cleaned = (raw or "").strip()
+    if not cleaned or cleaned.lower() in EXTRA_EFFORT_ALIASES:
+        return DEFAULT_PROGRAMMER_EFFORT
+    return cleaned
+
+
+def upgrade_legacy_programmer_provider(pdata: dict[str, object]) -> tuple[str, str]:
+    """Upgrade deprecated Role 2.3 models in memory while preserving custom entries."""
+    raw_model = str(pdata.get("model") or "").strip()
+    raw_level = str(pdata.get("thinking_level") or pdata.get("effort") or "").strip()
+    if not raw_model or raw_model.lower() in LEGACY_PROGRAMMER_MODELS:
+        return DEFAULT_PROGRAMMER_MODEL, DEFAULT_PROGRAMMER_EFFORT
+    return raw_model, normalize_programmer_effort(raw_level)
+
+
+def resolve_programmer_model_config(root: Path | None = None) -> tuple[str, str]:
+    """Read Role 2.3 model and effort from .devtool/review_config.json with safe fallback."""
+    candidates: list[Path] = []
+    seen: set[Path] = set()
+    for base in (root, Path.cwd(), resolve_primary_repo_root(root or Path.cwd())):
+        if base is None:
+            continue
+        resolved = base.resolve()
+        if resolved not in seen:
+            seen.add(resolved)
+            candidates.append(base)
+    for cand in candidates:
+        cfg_path = cand / ".devtool" / "review_config.json"
+        if not cfg_path.is_file():
+            continue
+        try:
+            data: object = json.loads(cfg_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError, UnicodeDecodeError):
+            break
+        if isinstance(data, dict):
+            providers = data.get("providers")
+            if isinstance(providers, dict):
+                prog = providers.get("programmer")
+                if isinstance(prog, dict):
+                    return upgrade_legacy_programmer_provider(prog)
+        break
+    return DEFAULT_PROGRAMMER_MODEL, DEFAULT_PROGRAMMER_EFFORT
+
+
+def _normalize_epic(slug: str) -> str:
+    return slug.strip().lower().replace("_", "-")
+
+
+def _truncate_utf8(text: str, max_bytes: int) -> str:
+    raw = text.encode("utf-8")
+    if len(raw) <= max_bytes:
+        return text
+    suffix = "\n...[truncated]"
+    budget = max(0, max_bytes - len(suffix.encode("utf-8")))
+    cut = raw[:budget].decode("utf-8", errors="ignore").rstrip()
+    result = (cut + suffix) if cut else raw[:max_bytes].decode("utf-8", errors="ignore")
+    while len(result.encode("utf-8")) > max_bytes:
+        result = result[:-1]
+    return result
+
+
+def _compact_candidate_roots(
+    root: Path,
+    workspace_base: Path | None,
+    worktree_root: Path | None,
+) -> list[Path]:
+    candidates: list[Path] = []
+    seen: set[Path] = set()
+    ws_dir = workspace_base or (root.parent if root.name in REPOS else root)
+    raw_list: list[Path | None] = [worktree_root, root]
+    raw_list.extend(ws_dir / r for r in REPOS)
+    for item in raw_list:
+        if item is None or not item.exists():
+            continue
+        resolved = item.resolve()
+        if resolved not in seen:
+            seen.add(resolved)
+            candidates.append(item)
+    return candidates
+
+
+def _collect_compact_snapshot(
+    roots: list[Path],
+    primary_root: Path,
+    epic_slug: str | None,
+    tail_lines: int,
+) -> list[str]:
+    lines: list[str] = []
+    norm_epic = _normalize_epic(epic_slug) if epic_slug and epic_slug != "general" else None
+
+    state_found = False
+    for r in roots:
+        state_dir = r / ".devtool" / "state"
+        if not state_dir.is_dir():
+            continue
+        for sf in sorted(state_dir.glob("*.md")):
+            if norm_epic and _normalize_epic(sf.stem) != norm_epic:
+                continue
+            raw_lines = [ln.strip() for ln in sf.read_text(encoding="utf-8", errors="replace").splitlines() if ln.strip()]
+            if raw_lines:
+                lines.extend(ln[:160] for ln in raw_lines[:8])
+                state_found = True
+                break
+        if state_found:
+            break
+
+    if not state_found:
+        for r in roots:
+            active_state = r / ".devtool" / "ACTIVE_STATE.md"
+            if active_state.is_file():
+                raw_lines = [
+                    ln.strip()
+                    for ln in active_state.read_text(encoding="utf-8", errors="replace").splitlines()
+                    if ln.strip()
+                ]
+                filtered = [
+                    ln[:160]
+                    for ln in raw_lines[:10]
+                    if not ln.startswith("#") and "old log entry" not in ln.lower()
+                ]
+                if filtered:
+                    lines.append("State: " + " | ".join(filtered[:4]))
+                    state_found = True
+                    break
+
+    if norm_epic:
+        for r in roots:
+            epic_root = r / ".devtool" / "epic"
+            if not epic_root.is_dir():
+                continue
+            for ep_dir in sorted(epic_root.iterdir()):
+                if not ep_dir.is_dir() or _normalize_epic(ep_dir.name) != norm_epic:
+                    continue
+                hld_path = ep_dir / f"{ep_dir.name}.en.md"
+                if hld_path.is_file():
+                    meta = [
+                        ln.strip()[:140]
+                        for ln in hld_path.read_text(encoding="utf-8", errors="replace").splitlines()[:35]
+                        if ln.strip().startswith(("# ", "- **Epic", "- **Status", "- **Depends"))
+                    ]
+                    if meta:
+                        lines.append(f"HLD ({hld_path.relative_to(r)}): " + " | ".join(meta[:4]))
+                break
+
+        for r in roots:
+            approvals = scan_gate_ledger(r, epic_slug=epic_slug)
+            if approvals:
+                summary = ", ".join(
+                    f"G{a.get('gate')}@{a.get('commit')}" for a in approvals[-5:]
+                )
+                lines.append(f"Gates: {summary}")
+                break
+
+        log_limit = min(max(tail_lines, 1), 3)
+        for r in roots:
+            logs_dir = r / ".devtool" / "logs"
+            if not logs_dir.is_dir():
+                continue
+            for lf in sorted(logs_dir.glob("activity_*.log")):
+                slug_part = lf.stem.removeprefix("activity_")
+                if _normalize_epic(slug_part) != norm_epic:
+                    continue
+                tail = [ln.strip()[:140] for ln in read_tail(lf, log_limit).splitlines() if ln.strip()]
+                if tail:
+                    lines.extend(f"Log: {ln}" for ln in tail)
+                    break
+
+    ledger = primary_root / ".devtool" / "PROJECT_LEDGER.md"
+    if ledger.is_file():
+        ledger_lines = ledger.read_text(encoding="utf-8", errors="replace").splitlines()
+        matched_ledger = (
+            [ln.strip()[:140] for ln in ledger_lines if norm_epic and norm_epic in _normalize_epic(ln)][:2]
+            if norm_epic
+            else []
+        )
+        if matched_ledger:
+            lines.extend(f"Ledger: {ln}" for ln in matched_ledger)
+        else:
+            lines.append("Ledger: .devtool/PROJECT_LEDGER.md (historical milestones omitted)")
+    return lines
+
+
+def _collect_compact_git_status(
+    root: Path,
+    workspace_base: Path | None,
+    worktree_root: Path | None,
+) -> list[str]:
+    targets: list[Path] = []
+    seen: set[Path] = set()
+    for cand in (worktree_root, root):
+        if cand is not None and (cand / ".git").exists():
+            res_p = cand.resolve()
+            if res_p not in seen:
+                seen.add(res_p)
+                targets.append(cand)
+    if not targets:
+        ws = workspace_base or root
+        for r in REPOS:
+            cand = ws / r
+            if (cand / ".git").exists():
+                targets.append(cand)
+    status_lines: list[str] = []
+    for repo_path in targets:
+        res = subprocess.run(
+            ["git", "-C", str(repo_path), "status", "-s", "-b"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        raw = [ln.rstrip() for ln in res.stdout.splitlines() if ln.strip()]
+        if not raw:
+            continue
+        branch = raw[0]
+        dirty = raw[1:]
+        if dirty:
+            shown = "; ".join(d.strip() for d in dirty[:5])
+            extra = f" (+{len(dirty) - 5} more)" if len(dirty) > 5 else ""
+            status_lines.append(f"- {repo_path.name}: {branch} | {shown}{extra}")
+        else:
+            status_lines.append(f"- {repo_path.name}: {branch} (clean)")
+    return status_lines
+
+
+def _collect_compact_tasks(
+    roots: list[Path],
+    epic_slug: str | None,
+) -> tuple[int, int, list[str]]:
+    norm_filter = _normalize_epic(epic_slug) if epic_slug and epic_slug != "general" else None
+    done_count = 0
+    total_count = 0
+    active_lines: list[str] = []
+    seen_files: set[tuple[str, str]] = set()
+
+    def _scan_dir(task_dir: Path, repo_label: str, *, force_done: bool) -> None:
+        nonlocal done_count, total_count
+        if not task_dir.is_dir():
+            return
+        for tf in sorted(task_dir.glob("task_*.md")):
+            key = (repo_label, tf.name)
+            if key in seen_files:
+                continue
+            head = tf.read_text(encoding="utf-8", errors="replace").splitlines()[:20]
+            epic_line = next((ln for ln in head if ln.startswith("epic:")), "")
+            epic_val = epic_line.split(":", 1)[1].strip().strip('"').strip("'") if ":" in epic_line else ""
+            if norm_filter and _normalize_epic(epic_val) != norm_filter:
+                continue
+            seen_files.add(key)
+            if force_done:
+                done_count += 1
+                total_count += 1
+                continue
+            status_line = next((ln for ln in head if "status:" in ln.lower()), "status: todo")
+            st_val = status_line.split(":", 1)[1].strip().strip('"').strip("'").lower() if ":" in status_line else "todo"
+            total_count += 1
+            if st_val == "done":
+                done_count += 1
+            else:
+                title_line = next((ln for ln in head if ln.startswith("# ")), tf.name)
+                title = title_line.lstrip("# ").strip()[:90]
+                active_lines.append(f"- [{repo_label}] {tf.name} ({st_val}): {title}")
+
+    for r in roots:
+        features_dir = r / ".devtool" / "features"
+        if features_dir.is_dir():
+            repo_label = resolve_primary_repo_root(r).name
+            _scan_dir(features_dir, repo_label, force_done=False)
+            _scan_dir(features_dir / "done", repo_label, force_done=True)
+
+    if total_count == 0 and norm_filter:
+        for r in roots:
+            epic_root = r / ".devtool" / "epic"
+            if not epic_root.is_dir():
+                continue
+            repo_label = resolve_primary_repo_root(r).name
+            for ep_dir in sorted(epic_root.iterdir()):
+                if ep_dir.is_dir() and _normalize_epic(ep_dir.name) == norm_filter:
+                    _scan_dir(ep_dir, repo_label, force_done=False)
+
+    return done_count, total_count, active_lines
+
+
+def _collect_compact_rfcs(
+    roots: list[Path],
+    workspace_base: Path | None,
+    epic_slug: str | None,
+) -> list[str]:
+    norm_epic = _normalize_epic(epic_slug) if epic_slug and epic_slug != "general" else None
+    contract_dirs: list[Path] = []
+    seen_dirs: set[Path] = set()
+    candidates = [r / "shared-contracts" for r in roots]
+    if workspace_base is not None:
+        candidates.append(workspace_base / "D3Nexus" / "shared-contracts")
+    for cdir in candidates:
+        if cdir.is_dir():
+            res_c = cdir.resolve()
+            if res_c not in seen_dirs:
+                seen_dirs.add(res_c)
+                contract_dirs.append(cdir)
+
+    matched_rfcs: list[str] = []
+    generic_rfcs: list[str] = []
+    for cdir in contract_dirs:
+        rfc_files = sorted(set(cdir.glob("*/gaps_and_rfcs.md")) | set(cdir.glob("gaps_and_rfcs.md")))
+        for rfc_file in rfc_files:
+            rel = str(rfc_file.relative_to(cdir))
+            text = rfc_file.read_text(encoding="utf-8", errors="replace")
+            sections: list[list[str]] = []
+            current: list[str] = []
+            for ln in text.splitlines():
+                if ln.startswith(("## ", "### ")):
+                    if current:
+                        sections.append(current)
+                    current = [ln.strip()]
+                elif current:
+                    current.append(ln.strip())
+            if current:
+                sections.append(current)
+
+            for sec in sections:
+                sec_text = "\n".join(sec)
+                if "OPEN" not in sec_text.upper():
+                    continue
+                if "STATUS: CLOSED" in sec_text.upper() or "STATUS: RESOLVED" in sec_text.upper():
+                    continue
+                epic_line = next((ln for ln in sec if ln.lower().startswith(("- epic:", "epic:"))), "")
+                sec_epic = epic_line.split(":", 1)[1].strip() if ":" in epic_line else ""
+                if norm_epic and sec_epic and _normalize_epic(sec_epic) != norm_epic:
+                    continue
+                heading = sec[0][:100]
+                meta = [ln for ln in sec[1:] if ln.startswith(("- Status:", "Status:", "- Epic:", "Epic:"))][:2]
+                entry = f"- [{rel}] {heading}" + (f" | {' | '.join(meta)}" if meta else "")
+                if norm_epic and norm_epic in _normalize_epic(sec_text):
+                    matched_rfcs.append(entry[:180])
+                else:
+                    generic_rfcs.append(entry[:180])
+
+    return matched_rfcs if matched_rfcs else generic_rfcs[:3]
+
+
+def _render_compact_sections(
+    epic_label: str,
+    repo_label: str,
+    snapshot_lines: list[str],
+    git_lines: list[str],
+    done_count: int,
+    total_count: int,
+    task_lines: list[str],
+    rfc_lines: list[str],
+    *,
+    max_tasks: int | None = None,
+    max_rfcs: int | None = None,
+    max_snap: int | None = None,
+    max_git: int | None = None,
+) -> str:
+    snap_slice = snapshot_lines[:max_snap] if max_snap is not None else snapshot_lines
+    git_slice = git_lines[:max_git] if max_git is not None else git_lines
+    rfc_slice = rfc_lines[:max_rfcs] if max_rfcs is not None else rfc_lines
+    if max_tasks is not None and len(task_lines) > max_tasks:
+        shown_tasks = task_lines[:max_tasks] + [f"- ... (+{len(task_lines) - max_tasks} more tasks)"]
+    else:
+        shown_tasks = task_lines
+
+    parts = [
+        f"# Compact Context | Epic: {epic_label} | Repo: {repo_label}",
+        *snap_slice,
+        "",
+        "## Git Status",
+        *(git_slice or ["- (no git repo detected)"]),
+        "",
+        f"## Tasks ({done_count}/{total_count} done)",
+        *(shown_tasks or ["- (no active tasks)"]),
+    ]
+    if rfc_slice:
+        parts.extend(["", "## Open RFCs", *rfc_slice])
+    return "\n".join(parts)
+
+
+def build_compact_context(
+    root: Path,
+    *,
+    workspace_base: Path | None = None,
+    worktree_root: Path | None = None,
+    epic_slug: str | None = None,
+    tail_lines: int = 5,
+    max_bytes: int = COMPACT_MAX_BYTES,
+) -> str:
+    """Build an epic-scoped context snapshot strictly bounded to <= max_bytes UTF-8 bytes."""
+    roots = _compact_candidate_roots(root, workspace_base, worktree_root)
+    snapshot_lines = _collect_compact_snapshot(roots, root, epic_slug, tail_lines)
+    git_lines = _collect_compact_git_status(root, workspace_base, worktree_root)
+    done_count, total_count, task_lines = _collect_compact_tasks(roots, epic_slug)
+    rfc_lines = _collect_compact_rfcs(roots, workspace_base, epic_slug)
+
+    epic_label = epic_slug or "general"
+    repo_label = root.name
+    budgets: list[tuple[int | None, int | None, int | None, int | None]] = [
+        (None, None, None, None),
+        (8, 4, 6, 6),
+        (4, 2, 4, 3),
+        (2, 1, 3, 2),
+    ]
+    for max_t, max_r, max_s, max_g in budgets:
+        rendered = _render_compact_sections(
+            epic_label,
+            repo_label,
+            snapshot_lines,
+            git_lines,
+            done_count,
+            total_count,
+            task_lines,
+            rfc_lines,
+            max_tasks=max_t,
+            max_rfcs=max_r,
+            max_snap=max_s,
+            max_git=max_g,
+        )
+        if len(rendered.encode("utf-8")) <= max_bytes:
+            return rendered
+
+    return _truncate_utf8(rendered, max_bytes)
+
+
+def build_compact_json(
+    root: Path,
+    *,
+    workspace_base: Path | None = None,
+    worktree_root: Path | None = None,
+    epic_slug: str | None = None,
+    tail_lines: int = 5,
+    max_bytes: int = COMPACT_MAX_BYTES,
+) -> str:
+    """Build an epic-scoped JSON snapshot strictly bounded to <= max_bytes UTF-8 bytes."""
+    roots = _compact_candidate_roots(root, workspace_base, worktree_root)
+    snapshot_lines = _collect_compact_snapshot(roots, root, epic_slug, tail_lines)
+    git_lines = _collect_compact_git_status(root, workspace_base, worktree_root)
+    done_count, total_count, task_lines = _collect_compact_tasks(roots, epic_slug)
+    rfc_lines = _collect_compact_rfcs(roots, workspace_base, epic_slug)
+
+    for limit in (20, 8, 4, 2, 1):
+        payload = {
+            "epic": epic_slug or "general",
+            "repo": root.name,
+            "snapshot": snapshot_lines[:limit],
+            "git_status": git_lines[:limit],
+            "task_progress": {"done": done_count, "total": total_count},
+            "active_tasks": task_lines[:limit],
+            "rfcs": rfc_lines[:limit],
+        }
+        rendered = json.dumps(payload, indent=2, ensure_ascii=False)
+        if len(rendered.encode("utf-8")) <= max_bytes:
+            return rendered
+        compact_rendered = json.dumps(payload, separators=(",", ":"), ensure_ascii=False)
+        if len(compact_rendered.encode("utf-8")) <= max_bytes:
+            return compact_rendered
+
+    minimal = json.dumps(
+        {
+            "epic": epic_slug or "general",
+            "repo": root.name,
+            "task_progress": {"done": done_count, "total": total_count},
+        },
+        separators=(",", ":"),
+        ensure_ascii=False,
+    )
+    return minimal if len(minimal.encode("utf-8")) <= max_bytes else "{}"
+
+
 def emit_handoff_prompt(
     mode: str,
     epic_slug: str,
     epic_dir: str | None = None,
     custom_prompt: str | None = None,
+    root: Path | None = None,
 ) -> None:
     target_dir = epic_dir or epic_slug
     prompt_note = f"\nNote: {custom_prompt}\n" if custom_prompt else ""
@@ -1289,9 +1764,10 @@ MANDATORY TASKS & RULES:
 2. Conduct an independent Principal Review following the `d3nexus:principal-review` skill (Provider priority via `check-quota`: Claude -> Codex -> Kiro -> Argon; 3-Round Convergence Funnel, max 3 rounds).
 3. DO NOT modify production source code or application test suites (only design documents and Kanban tasks).{prompt_note}""")
     elif mode == "implement":
+        prog_model, prog_effort = resolve_programmer_model_config(root)
         banner = "[PERSONA: AI PROGRAMMER — SENIOR TDD SOFTWARE ENGINEER]"
         print(f"""{banner}
-You are acting as the AI Programmer (Role 2.3 — Senior TDD Software Engineer | Recommended Model: Gemini Flash 3.8).
+You are acting as the AI Programmer (Role 2.3 — Senior TDD Software Engineer | Model: {prog_model}, Thinking/Effort: {prog_effort}).
 Startup command:
 python3 scripts/resume_context.py --role programmer --epic {epic_slug}
 
@@ -1546,6 +2022,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--json", action="store_true", help="Output harvest in JSON format"
     )
+    parser.add_argument(
+        "--compact",
+        action="store_true",
+        help="Emit epic-scoped compact context bounded to <= 4096 UTF-8 bytes",
+    )
 
     parser.add_argument(
         "--state", action="store_true", help="Record active epic state snapshot"
@@ -1693,13 +2174,41 @@ def main() -> None:
         if args.workspace_root
         else (target_root if args.repo else current_worktree)
     )
-    active_epic = args.epic or resolve_current_epic_slug(title_target)
+    ws_arg = Path(args.workspace_root).resolve() if args.workspace_root else None
+    if args.repo:
+        if ws_arg is not None and (ws_arg / args.repo).exists():
+            repo_root = ws_arg / args.repo
+        elif (primary_repo.parent / args.repo).exists():
+            repo_root = primary_repo.parent / args.repo
+        elif (workspace / args.repo).exists():
+            repo_root = workspace / args.repo
+        elif primary_repo.name == args.repo:
+            repo_root = primary_repo
+        else:
+            repo_root = target_root
+    elif ws_arg is not None:
+        if (ws_arg / ".git").exists() or (ws_arg / ".devtool").exists():
+            repo_root = ws_arg
+        elif (current_worktree / ".git").exists() and current_worktree.parent == ws_arg:
+            repo_root = current_worktree
+        else:
+            repo_root = ws_arg
+    else:
+        repo_root = target_root
+
+    active_epic = args.epic or resolve_current_epic_slug(repo_root if args.repo else title_target)
 
     if args.role:
         print_role_banner(args.role)
 
     if args.emit_prompt:
-        emit_handoff_prompt(args.emit_prompt, active_epic, args.epic_dir, args.prompt)
+        emit_handoff_prompt(
+            args.emit_prompt,
+            active_epic,
+            args.epic_dir,
+            args.prompt,
+            root=repo_root,
+        )
         return
 
     if args.sync_zshrc:
@@ -1813,6 +2322,35 @@ def main() -> None:
             sys.exit(1)
 
     # Default: Harvest context
+    if args.compact:
+        wt_for_compact: Path | None = None
+        if (args.workspace_root is None and args.repo is None) or (
+            resolve_primary_repo_root(current_worktree).resolve() == repo_root.resolve()
+        ):
+            wt_for_compact = current_worktree
+        scoped_epic = args.epic or (active_epic if active_epic != "general" else None)
+        if args.json:
+            print(
+                build_compact_json(
+                    repo_root,
+                    workspace_base=workspace,
+                    worktree_root=wt_for_compact,
+                    epic_slug=scoped_epic,
+                    tail_lines=args.tail,
+                )
+            )
+        else:
+            print(
+                build_compact_context(
+                    repo_root,
+                    workspace_base=workspace,
+                    worktree_root=wt_for_compact,
+                    epic_slug=scoped_epic,
+                    tail_lines=args.tail,
+                )
+            )
+        return
+
     scan_root = target_root
     if args.json:
         harvest_json(scan_root, tail_lines=args.tail, epic_filter=args.epic)
