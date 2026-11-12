@@ -39,22 +39,22 @@ class TestKiroQuotaProvider(unittest.TestCase):
         api_data = {
             "daysUntilReset": 0,
             "nextDateReset": 1796083200.0,
-            "overageConfiguration": {
-                "overageStatus": "DISABLED"
-            },
+            "overageConfiguration": {"overageStatus": "DISABLED"},
             "subscriptionInfo": {
                 "subscriptionTitle": "KIRO STUDENT",
-                "type": "Q_DEVELOPER_STANDALONE_STUDENT"
+                "type": "Q_DEVELOPER_STANDALONE_STUDENT",
             },
             "usageBreakdownList": [
                 {
                     "currentUsageWithPrecision": 7.22,
                     "usageLimitWithPrecision": 1000.0,
-                    "resourceType": "CREDIT"
+                    "resourceType": "CREDIT",
                 }
-            ]
+            ],
         }
-        res = agy_quota.parse_kiro_usage_limits(api_data, email="Elenor.Zulaufell001@mymdc.net")
+        res = agy_quota.parse_kiro_usage_limits(
+            api_data, email="Elenor.Zulaufell001@mymdc.net"
+        )
         self.assertEqual(res["profile"], "kiro")
         self.assertEqual(res["tier"], "KIRO STUDENT")
         self.assertEqual(res["email"], "Elenor.Zulaufell001@mymdc.net")
@@ -115,13 +115,15 @@ class TestKiroQuotaProvider(unittest.TestCase):
         # Mock get-kas-token
         kas_proc = MagicMock()
         kas_proc.returncode = 0
-        kas_proc.stdout = json.dumps({
-            "kind": "getKasToken",
-            "data": {
-                "accessToken": "mock-token",
-                "profileArn": "arn:aws:codewhisperer:us-east-1:12345:profile/TEST"
+        kas_proc.stdout = json.dumps(
+            {
+                "kind": "getKasToken",
+                "data": {
+                    "accessToken": "mock-token",
+                    "profileArn": "arn:aws:codewhisperer:us-east-1:12345:profile/TEST",
+                },
             }
-        })
+        )
 
         mock_run.side_effect = [whoami_proc, kas_proc]
 
@@ -135,9 +137,9 @@ class TestKiroQuotaProvider(unittest.TestCase):
                 {
                     "currentUsageWithPrecision": 50.0,
                     "usageLimitWithPrecision": 1000.0,
-                    "resourceType": "CREDIT"
+                    "resourceType": "CREDIT",
                 }
-            ]
+            ],
         }
         mock_resp = MagicMock()
         mock_resp.read.return_value = json.dumps(api_data).encode("utf-8")
@@ -164,7 +166,7 @@ class TestKiroQuotaProvider(unittest.TestCase):
         self.assertEqual(call_args[0], "osascript")
         script_arg = call_args[2]
         self.assertIn('do script "kiro-cli"', script_arg)
-        self.assertNotIn('ag_run', script_arg)
+        self.assertNotIn("ag_run", script_arg)
 
     @patch("agy_quota.subprocess.run")
     def test_login_kiro_executes_kiro_cli_login(self, mock_run):
@@ -187,7 +189,10 @@ class TestKiroQuotaProvider(unittest.TestCase):
         # Ensure activate & schedule are wrapped to exclude kiro
         self.assertIn("${(profile !== 'kiro' && !data.isCreditOnly) ? `", content)
         # Ensure batch checkbox excludes kiro
-        self.assertIn("const canSchedule = canOperateQuota && profile !== 'kiro' && !data.isCreditOnly;", content)
+        self.assertIn(
+            "const canSchedule = canOperateQuota && profile !== 'kiro' && !data.isCreditOnly;",
+            content,
+        )
         # Ensure selectAll excludes kiro
         self.assertIn("p !== 'kiro' && !d.isCreditOnly", content)
 
@@ -208,4 +213,3 @@ class TestKiroQuotaProvider(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

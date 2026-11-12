@@ -84,7 +84,9 @@ class TestCheckTasksFSM_Integration(unittest.TestCase):
 
         # When review converges, FSM transitions to Stage 3 Phase 4.1 Sign-off requiring human action
         state = self.repo_path / ".devtool" / "assistant_state.md"
-        state.write_text("# Assistant State\n## Status:\nReview Converged\n", encoding="utf-8")
+        state.write_text(
+            "# Assistant State\n## Status:\nReview Converged\n", encoding="utf-8"
+        )
         decision2 = derive_lifecycle_state(self.repo_path, epic_name)
         self.assertEqual(decision2.stage_name, LifecycleStage.STAGE_3_PHASE_4_1_SIGNOFF)
         self.assertIn("Gate 5", decision2.prompt)
@@ -235,16 +237,21 @@ class TestCheckTasksFSM_Integration(unittest.TestCase):
     def test_scan_repo_action_required_propagation(self) -> None:
         """scan_repo propagates is_human_action_required to RepoMetadata and epics_summary."""
         from check_tasks import scan_repo
+
         epic_name = "active_test_epic"
         epic_dir = self.repo_path / ".devtool" / "epic" / epic_name
         epic_dir.mkdir(parents=True, exist_ok=True)
-        (epic_dir / f"{epic_name}.en.md").write_text("# Feature Spec\n", encoding="utf-8")
+        (epic_dir / f"{epic_name}.en.md").write_text(
+            "# Feature Spec\n", encoding="utf-8"
+        )
 
         meta = scan_repo(self.repo_path)
         self.assertTrue(meta.is_human_action_required)
         self.assertIn("Gate 1", meta.prompt)
         self.assertIsNotNone(meta.epics_summary)
-        active_ep = next((e for e in meta.epics_summary.epics if e["slug"] == epic_name), None)
+        active_ep = next(
+            (e for e in meta.epics_summary.epics if e["slug"] == epic_name), None
+        )
         self.assertIsNotNone(active_ep)
         self.assertTrue(active_ep.get("is_action_required"))
 
