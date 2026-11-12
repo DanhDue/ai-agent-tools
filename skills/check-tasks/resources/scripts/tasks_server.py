@@ -129,66 +129,6 @@ def build_ide_launch_command(worktree: str, profile: str) -> list[str]:
     return ["zsh", "-i", "-c", cmd_str]
 
 
-def find_running_ide_pid(profile: str) -> int | None:
-    """Return PID of running Antigravity IDE for the given profile, if any."""
-    with contextlib.suppress(Exception):
-        out = subprocess.check_output(["ps", "-ww", "-eo", "pid,args"], text=True)
-        for line in out.splitlines():
-            if (
-                "Antigravity IDE.app/Contents/MacOS/Electron" in line
-                and "--type=" not in line
-            ):
-                if f"antigravity_homes/{profile}" in line or (
-                    profile == "danhdue" and "antigravity_homes" not in line
-                ):
-                    return int(line.strip().split()[0])
-    return None
-
-
-def focus_existing_ide_window(running_pid: int, worktree: str) -> bool:
-    """Bring running Antigravity IDE window to front via macOS System Events AXRaise."""
-    real_path = os.path.expanduser(worktree)
-    folder_name = os.path.basename(real_path)
-    repo_name = (
-        os.path.basename(os.path.dirname(real_path))
-        if ".worktrees" in real_path
-        else folder_name
-    )
-    ascript = f"""
-    tell application "System Events"
-        try
-            set p to (first process whose unix id is {running_pid})
-            set frontmost of p to true
-            set targetFound to false
-            try
-                set wList to (every UI element of p whose role is "AXWindow")
-                repeat with w in wList
-                    set wTitle to (name of w)
-                    if wTitle contains "{folder_name}" or wTitle contains "{repo_name}" then
-                        tell w to perform action "AXRaise"
-                        set targetFound to true
-                        exit repeat
-                    end if
-                end repeat
-                if not targetFound and (count of wList) > 0 then
-                    tell (first item of wList) to perform action "AXRaise"
-                end if
-            end try
-            return "SUCCESS"
-        on error
-            return "ERROR"
-        end try
-    end tell
-    """
-    try:
-        res = subprocess.run(
-            ["osascript", "-e", ascript], capture_output=True, text=True, timeout=3
-        )
-        return "SUCCESS" in res.stdout
-    except Exception:
-        return False
-
-
 def parse_review_results(
     repo_dir: Path,
     active_epic: str | None = None,
@@ -763,22 +703,6 @@ class TasksHandler(http.server.BaseHTTPRequestHandler):
             if not re.match(r"^[a-zA-Z0-9_\-]+$", profile):
                 self._send_json(400, {"error": "Invalid profile name"})
                 return
-
-            # Check if IDE is already running for this profile; focus instead of spawning duplicate
-            running_pid = find_running_ide_pid(profile)
-            if running_pid:
-                focused = focus_existing_ide_window(running_pid, worktree)
-                if focused:
-                    self._send_json(
-                        200,
-                        {
-                            "status": "ok",
-                            "action": "focused",
-                            "pid": running_pid,
-                            "message": f"Focused existing Antigravity IDE window (PID {running_pid})",
-                        },
-                    )
-                    return
 
             cmd = build_ide_launch_command(worktree, profile)
             try:

@@ -1334,12 +1334,8 @@
       .then(res => res.json())
       .then(data => {
         if (data.status === 'ok') {
-          if (action === 'ide' && data.action === 'focused') {
-            showToast('🎯 IDE đang mở sẵn — Đã focus vào cửa sổ Antigravity IDE (PID ' + (data.pid || '') + ')!', 'success');
-          } else {
-            const cmd = data.command || ((action === 'ide' ? profile + ' ' : profile + '-cli ') + toTildePath(worktree));
-            showToast((action === 'ide' ? '🚀 Đã mở IDE: ' : '💻 Đã mở CLI: ') + cmd, 'success');
-          }
+          const cmd = data.command || ((action === 'ide' ? profile + ' ' : profile + '-cli ') + toTildePath(worktree));
+          showToast((action === 'ide' ? '🚀 Đã mở IDE: ' : '💻 Đã mở CLI: ') + (Array.isArray(cmd) ? cmd.join(' ') : cmd), 'success');
         } else {
           showToast('❌ Lỗi khởi chạy: ' + (data.error || 'Unknown error'), 'danger');
         }
@@ -1806,14 +1802,12 @@
         const isPrimaryActive = slug === repo.active_epic;
         const epicMeta = (repo.epics_summary?.epics || []).find(e => e.slug === slug);
         const pic = epicMeta?.pic || (isPrimaryActive ? defaultAccountId : '');
-        const picLaunch = pic || 'default';
+        const picLaunch = pic || defaultAccountId || 'default';
 
         // Locate worktree
         const epicWt = findEpicWorktree(repo, slug);
         const wtPath = epicWt ? epicWt.path : (isPrimaryActive ? repo.path : repo.path + '/.worktrees/' + slug);
-        let wtBranch = (epicWt && epicWt.branch && epicWt.branch !== 'null' && epicWt.branch !== 'HEAD') ? epicWt.branch : '';
-        if (!wtBranch && epicWt && epicWt.is_detached) wtBranch = 'detached';
-        const wtDirty = epicWt ? (epicWt.is_dirty ? `Dirty (${epicWt.dirty_file_count} files)` : 'Clean') : 'Chưa phân lập worktree';
+        const wtDirty = epicWt ? (epicWt.is_dirty ? `Dirty (${epicWt.dirty_file_count} files)` : 'Clean') : '';
 
         // Tasks for this epic
         const epicTasks = allTasks.filter(t => t.epic === slug || t.epic === slug.replace(/_/g, '-') || t.epic === slug.replace(/-/g, '_'));
@@ -1841,16 +1835,18 @@
         return `
           <div class="epic-execution-item" style="background: #141724; border: 1px solid #283347; border-left: 4px solid ${color}; border-radius: 6px; padding: 16px; margin-bottom: 14px;">
             
-            <!-- Row 1: Epic Title, Branch, PIC, Stage -->
+            <!-- Row 1: Epic Title, PIC, Stage -->
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
               <div>
                 <div style="font-size: 15px; font-weight: 700; color: #f8fafc; display: flex; align-items: center; gap: 8px;">
                   <span>⚡ Epic: <strong style="color: ${color};">${escapeHtml(slug)}</strong></span>
-                  ${wtBranch ? `<span style="font-size: 11px; font-family: monospace; color: #38bdf8; background: #0f172a; border: 1px solid #0284c7; padding: 1px 6px; border-radius: 4px;">⎇ ${escapeHtml(wtBranch)}</span>` : ''}
+                  <span style="font-size: 11px; font-weight: 400; font-family: monospace; color: #94a3b8;">👤 PIC: <strong style="color: #c084fc; background: rgba(192, 132, 252, 0.12); border: 1px solid #c084fc; padding: 1px 6px; border-radius: 4px;">${pic ? '@' + escapeHtml(pic) : 'Chưa gán'}</strong></span>
                 </div>
-                <div style="font-size: 11px; color: #94a3b8; font-family: monospace; margin-top: 4px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
-                  <span>🌲 Worktree: <strong style="color: #cbd5e1;">${escapeHtml(toTildePath(wtPath))}</strong> (${escapeHtml(wtDirty)})</span>
-                  <span>👤 Profile (PIC): <strong style="color: #c084fc; background: rgba(192, 132, 252, 0.12); border: 1px solid #c084fc; padding: 1px 6px; border-radius: 4px;">${pic ? '@' + escapeHtml(pic) : 'Chưa gán'}</strong></span>
+                <div style="font-size: 11px; color: #94a3b8; font-family: monospace; margin-top: 4px; display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+                  <span>🌲 Worktree: <strong style="color: #cbd5e1;">${escapeHtml(toTildePath(wtPath))}</strong>${epicWt ? ` (${escapeHtml(wtDirty)})` : ''}</span>
+                  <button onclick="copyFolderToClipboard('${escapeHtml(toTildePath(wtPath))}', this)" title="Copy đường dẫn worktree" style="background: transparent; border: none; cursor: pointer; color: #94a3b8; padding: 0; display: inline-flex; align-items: center; line-height: 1;" onmouseover="this.style.color='#ffffff'" onmouseout="this.style.color='#94a3b8'">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                  </button>
                 </div>
               </div>
 
