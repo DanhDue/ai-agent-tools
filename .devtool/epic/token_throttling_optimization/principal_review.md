@@ -13139,3 +13139,42 @@ Verdict: CHANGES REQUIRED
 [Important] .devtool/epic/token_throttling_optimization/task_01_diff_only_external_review_and_transcript_isolation.md:Requirement Analysis §2 — "Change `git diff` context from `-U10` to `-U5` in both `run_external_review.py` (`build_diff_section`, `diff_range`)" names an anchor that does not exist: neither function passes any `-U` flag (run_external_review.py:652-719), so they run at git's default `-U3`, and the only `-U10` in the repo is review-package:69; the edit is therefore a context increase in the primary review path, not a reduction, and interacts with the unchanged `MAX_DIFF_LINES`/`MAX_DIFF_BYTES` budget. Proposed: reword §2 and Spec §4.1 to "add explicit `-U5` to `build_diff_section()`/`diff_range()` (currently git default `-U3`) and reduce `review-package` from `-U10` to `-U5`", and note in the Design Rationale that the budget constants were re-validated against the wider context.
 [Minor] .devtool/epic/token_throttling_optimization/task_02_silent_gate4_and_truncated_test_runners.md:Impact Analysis & Blast Radius — The anchor for `scaffold_quality_manifest.py` points at `build_registry_data` (L226-L241), which contains no pytest command; the actual edit site is `PLATFORM_CONFIGS["python"]["manifest"]["capabilities"]["test"]` at L131, as Decisions Already Made correctly states. Proposed: change the Target Files & Symbols entry to `PLATFORM_CONFIGS["python"] (L125-L145)` so the surgical read window matches the edit.
 ```
+
+## Round 3
+
+- **Date**: 2026-11-12T20:25:29Z
+- **SHA**: 0a69e94f497b545d0170f928f6f042b0c8f989f3
+- **Base**: main
+- **CLI**: claude
+- **Model**: Opus 5.5
+- **Thinking**: high
+- **Status**: completed
+- **Verdict**: CHANGES REQUIRED
+- **Kind**: principal
+- **Scope**: convergence from round 2 (cc59f19)
+
+| # | Severity | Location | Problem | Decision |
+|---|----------|----------|---------|----------|
+| 1 | Important | .devtool/epic/token_throttling_optimization/task_05_slimming_rules_skills_dedup_and_selective_reviewer.md:Requirement Analysis §1 | The CRITICAL_RULES.md compression contract (L23) and Decisions Already Made (L167) enumerate preserved headings and literal markers but omit the `---\ntrigger: always_on\n---` YAML frontmatter, which `scripts/verify.sh:140-147` (§5b) requires as the file's first line; a full rewrite to 8192 bytes that drops it fails only at Gate 4, and Task 6 cannot fix it because `rules/CRITICAL_RULES.md` is outside its Allowed files, forcing Stop-and-Report. Proposed: add `preserving the leading `---` / `trigger: always_on` / `---` frontmatter block required by `scripts/verify.sh` §5b` to the marker list in Requirement Analysis §1 and to the Decisions Already Made line, and extend the `test_tto_hp_05_slimmed_rules_and_skills_caps` assertion (V2) to check `rules/CRITICAL_RULES.md` starts with `---\ntrigger: always_on\n---`. | fixed in fcd4938 |
+
+Raw output:
+
+```text
+I verified each of the twelve round-2 findings against source at `0a69e94`.
+
+**Closed (verified resolved):**
+
+- **#1, #2 (`run_gate4` / transcript isolation)** — the six `err = ...` branches sit exactly at `lifecycle_runner.py:930,951,972,993,1020,1034` plus `run_intermediate_check` at `:1076`, and `["bash", str(verify_script)]` at `:1027`; Task 4 is blocked by Task 2, so `--quiet` exists before use. For the transcript fix I probed the real parsers: rendering a round whose body is offloaded but whose `Verdict:` line and `### Pass` header are retained yields `round_passes(round_output(lines)) == [('review', 'CHANGES REQUIRED', '—')]` and `[('1 audit', 'PASS', 'timeout contacting host')]`, with `finding_rows` and `rounds_in` unaffected.
+- **#3 (shared alias contract)** — `resolve_assistant_model` reads `review_config.json` directly at `lifecycle_runner.py:56-80`; the HLD now freezes one read-time alias upgrade across all three read sites. `_is_git_tracked`, `REVIEW_CONFIG_FILE`, `missing_default_provider` exist at `run_external_review.py:90,48,117` as cited.
+- **#4 (slot isolation)** — `cwd=self.root` at `:486`, `:494`, `:500`, `:504` is now explicitly required to become `cwd=slot_path`.
+- **#5 (word caps)** — measured 2499/2500 and 4490/4500; balanced-removal constraint plus new V6 row added.
+- **#6** — `test_verifiable_handoff_text.py:94-96` pins both strings; new V5 row probed green (`Ran 7 tests ... OK`).
+- **#7, #8, #9** — `governance-checklists.md` added to Allowed files (verify.sh §8 only needs the filename in a tracked file); `<SUBAGENT-STOP>` moved after frontmatter at L20+ (verify.sh §2 anchors `^---`), description L12-L18 amended, invocation forbidden in worker prompts; renumbered to `## 10`, preserving `## 9`.
+- **#10** — all nine files in Task 6's bounded path set are in some task's Allowed files; `tests/test_lifecycle_runner.py` (which pins `gemini-3.8-flash` at L151/159) is in Task 4's Allowed files.
+- **#11, #12** — `build_diff_section` (L652) and `diff_range` (L686) carry no `-U` flag; `review-package:69` has `-U10`. Text now accurate. `PLATFORM_CONFIGS["python"]` anchor correct.
+
+**One incomplete fix** on a line rewritten this round: `rules/CRITICAL_RULES.md` opens with `---\ntrigger: always_on\n---`, and `verify.sh:140-147` fails any `rules/*.md` whose first line isn't `---` ("Antigravity will refuse to load it"). The rewritten preservation enumeration lists headings and literal strings but not that frontmatter, and no Task 5 row runs verify.sh — so a 32,773 → 8,192-byte rewrite that drops it surfaces only at Gate 4, where Task 6 (Allowed files: `tests/test_token_throttling_acceptance.py`, `scripts/verify.sh`) cannot repair it.
+
+Verdict: CHANGES REQUIRED
+[Important] .devtool/epic/token_throttling_optimization/task_05_slimming_rules_skills_dedup_and_selective_reviewer.md:Requirement Analysis §1 — The CRITICAL_RULES.md compression contract (L23) and Decisions Already Made (L167) enumerate preserved headings and literal markers but omit the `---\ntrigger: always_on\n---` YAML frontmatter, which `scripts/verify.sh:140-147` (§5b) requires as the file's first line; a full rewrite to 8192 bytes that drops it fails only at Gate 4, and Task 6 cannot fix it because `rules/CRITICAL_RULES.md` is outside its Allowed files, forcing Stop-and-Report. Proposed: add `preserving the leading `---` / `trigger: always_on` / `---` frontmatter block required by `scripts/verify.sh` §5b` to the marker list in Requirement Analysis §1 and to the Decisions Already Made line, and extend the `test_tto_hp_05_slimmed_rules_and_skills_caps` assertion (V2) to check `rules/CRITICAL_RULES.md` starts with `---\ntrigger: always_on\n---`.
+```
