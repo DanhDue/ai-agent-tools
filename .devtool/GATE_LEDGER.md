@@ -11,3 +11,4 @@
 | 2026-11-11T07:08:49.791400+00:00 | check_tasks_dashboard | 4 | a8fea65 | All 5 tasks verified passing with 100% BDD coverage and audit_epic PASS |  | developer |
 | 2026-11-11T07:34:31.785289+00:00 | check_tasks_dashboard | 4 | a8fea65 | Round 1 convergence fixes verified passing (30/30 tests, BDD 14/14, polyglot PASS) |  | developer |
 | 2026-11-12T19:09:43.803156+00:00 | token_throttling_optimization | 1 | 6bbf588 | Approved design spec (2026-11-13-token-throttling-optimization-design.{en,vi}.md): Phase 1+2 token throttling, Option A bilingual, selective task-reviewer, config-driven Programmer Gemini 4 Hydrogen xhigh |  | developer |
+| 2026-11-12T19:38:58.193334+00:00 | token_throttling_optimization | 2 | 5a85217 | 6-task breakdown (TTO-HP-01..FR-04, Waves 1-3) |  | developer |
