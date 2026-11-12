@@ -117,7 +117,7 @@ sequenceDiagram
 
     Des->>Rev: HLD .en.md + bdd_scenarios.en.md + Tasks (loại bỏ .vi.md)
     Rev->>Rev: Chạy check_epic_readiness.py (Option A in-flight) + Delta -U5
-    Rev-->>Rev: Tách transcript stderr sang build/reviews/<epic>_roundN.raw.log
+    Rev-->>Rev: Tách transcript stderr sang build/reviews/<epic>_<kind>_roundN_<sha7>.raw.log
     Dev->>Run: Chốt Gate 2 -> AUTO MODE (Claude -> Codex -> Kiro -> Argon)
     Run->>Run: Lấy model Programmer (gemini-4-hydrogen-xhigh, --effort xhigh)
     Run->>Pool: Điều phối wave task độc lập chỉ truyền path + dải dòng mục tiêu
@@ -137,9 +137,9 @@ sequenceDiagram
 
 | Tính năng | Đường dẫn Chuẩn và Entry Points | Bất biến Cốt lõi và Núm Cấu hình | Hướng dẫn Mở rộng và Gỡ lỗi |
 |---|---|---|---|
-| **Diff-Only External Review** | `skills/dev-implementation/resources/scripts/run_external_review.py`, `skills/subagent-driven-development/scripts/review-package` | Dùng `git diff -U5`; Round `>= 2` bỏ full diff `base...sha` khi có `delta_round_context`; loại `*.vi.md`; diff lớn vẫn xuất `--stat` + `@@` hunks | Xem full transcript CLI tại `build/reviews/<epic>_round<n>.raw.log`; kiểm tra `MAX_DIFF_LINES` (`1500`) và `MAX_DIFF_BYTES` (`60000`) |
+| **Diff-Only External Review** | `skills/dev-implementation/resources/scripts/run_external_review.py`, `skills/subagent-driven-development/scripts/review-package` | Dùng `git diff -U5`; Round `>= 2` bỏ full diff `base...sha` khi có `delta_round_context`; loại `*.vi.md` trên mọi luồng diff/tài liệu; diff lớn vẫn xuất `--stat` + `@@` hunks | Xem full transcript CLI tại `build/reviews/<epic>_<kind>_round<n>_<sha7>.raw.log`; kiểm tra `MAX_DIFF_LINES` (`1500`) và `MAX_DIFF_BYTES` (`60000`) |
 | **Silent Gate 4 và Runners** | `skills/quality_check/resources/scripts/verify_polyglot_registry.py`, `skills/dev-implementation/resources/scripts/run_task_checks.py`, `scripts/verify.sh` | `--compact` in 1 dòng `GATE_PASS: <id>` khi pass và summary + 25 dòng cuối khi fail; `TAIL_LINES = 25`; `pytest -q --tb=short --maxfail=3` trong `python-quality.json` | Đọc full log tại `build/quality/<provider>/<cap>.log`; chạy `bash scripts/verify.sh --full` khi cần log đầy đủ |
-| **Bộ bảo vệ Option A Song ngữ** | `skills/dev-implementation/resources/scripts/check_epic_readiness.py`, `check_bdd_traceability.py`, `package_epic.py` | Mặc định dung sai sai lệch `.vi.md` in-flight và hoãn `bdd_scenarios.vi.md`; `--strict-bilingual` kiểm chặt tại Stage 4; `handoff.md` bỏ `*.vi.md` | Truyền `--strict-bilingual` trước khi archive Finish; xem Pre-Finish Hook trong `finishing-a-development-branch/SKILL.md` |
+| **Bộ bảo vệ Option A Song ngữ** | `skills/dev-implementation/resources/scripts/check_epic_readiness.py`, `check_bdd_traceability.py`, `package_epic.py` | Mặc định dung sai sai lệch `.vi.md` in-flight và hoãn `bdd_scenarios.vi.md`; `--strict-bilingual` kiểm chứng watermark đồng bộ (`sync-en-sha256`) Spec/HLD + ToC + `bdd_scenarios.vi.md` tại Stage 4; `handoff.md` bỏ `*.vi.md` | Truyền `--strict-bilingual` sau bước delta-sync ở Stage 4 Finish; xem Pre-Finish Hook trong `finishing-a-development-branch/SKILL.md` |
 | **Kiểm tra Dải dòng Phẫu thuật** | `skills/dev-implementation/resources/scripts/check_task_contract.py`, `skills/dev-designer/SKILL.md` | File tracked >200 dòng trong `Allowed files` (không gắn `(new)`) phải có neo `path :: Symbol (L<start>-L<end>)` dưới `--design` | Xem thông báo lỗi `check_task_contract.py --design` khi thêm file >200 dòng thiếu vùng đọc mục tiêu |
 | **Programmer Config và Pool** | `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py`, `manage_worker_pool.py`, `scripts/resume_context.py` | Thứ tự `CLI -> Runner config -> .devtool/review_config.json -> env -> fallback ("gemini-4-hydrogen-xhigh", "xhigh")`; `"extra"` ánh xạ thành `--effort xhigh` | Chỉnh `.devtool/review_config.json["providers"]["programmer"]` mà không sửa code; xem `PipelineState` tại `.devtool/state/<epic>.pipeline.json` |
 | **Rút gọn Rules và Memory** | `rules/CRITICAL_RULES.md`, `skills/task-observer/SKILL.md`, `skills/dev-designer/SKILL.md`, `skills/dev-lifecycle/references/` | `CRITICAL_RULES.md <= 8192` bytes; `dev-designer/SKILL.md <= 22528` bytes; `task-observer/SKILL.md` có `<SUBAGENT-STOP>`; `resume_context.py --compact --epic <slug> <= 4096` bytes | Chạy `bash scripts/verify.sh` và `scripts/test_lifecycle_document_contract.py` sau khi sửa tài liệu/tách reference |
@@ -153,9 +153,9 @@ Các giao diện và hợp đồng hành vi sau được cố định cho giai �
    - `DEFAULT_REVIEW_CONFIG["providers"]` bổ sung `"assistant"` (`"claude-opus-5-5-high"`, `"high"`) và `"programmer"` (`"gemini-4-hydrogen-xhigh"`, `"xhigh"`).
    - `load_review_config(root: Path) -> dict[str, Any]` bổ sung provider còn thiếu và nâng cấp các giá trị mặc định cũ của programmer (`"gemini-3.8-flash"`, `"gemini-3.8-flash-high"`) sang `"gemini-4-hydrogen-xhigh"` với `"thinking_level": "xhigh"`, nhưng giữ nguyên mọi model do người dùng tự đặt.
    - `build_diff_section(...)` và `diff_range(...)`: dùng `git diff -U5`; khi vượt ngưỡng dung lượng/số dòng, xuất `git diff --stat` kèm danh sách hunk headers (`@@ ... @@`) cho từng file sửa thay vì để rỗng.
-   - `principal_artefact_lines(root, epic_dir)`: loại bỏ toàn bộ `*.vi.md`.
+   - `principal_artefact_lines(root, epic_dir)` cùng mọi bộ dựng diff (`EXCLUDES`, đường dẫn delta `principal`, `diff_range`, fallback/ad-hoc/local review): loại bỏ toàn bộ `*.vi.md`.
    - `fact(label, code, out, err)`: trả `f"PASS: {label}\n"` khi `code == 0`, hoặc lệnh và 25 dòng cuối output khi khác `0`/timeout.
-   - `render_round(...)`: tách transcript đầy đủ ra `build/reviews/<epic>_round<n>.raw.log` và chèn một dòng trỏ file log trong markdown (giữ nguyên cột bảng tương thích `rounds_in` / `finding_rows` / `triage`).
+   - `render_round(...)`: tách transcript đầy đủ ra `build/reviews/<epic>_<kind>_round<n>_<sha7>.raw.log` (tránh xung đột `principal` vs `code` / `--force`) và chèn đường dẫn log trong bảng markdown (giữ nguyên cột bảng tương thích `rounds_in` / `finding_rows` / `triage`).
    - `run(args)`: khi `round_num >= 2` và `delta_round_context()` hoạt động (`not args.full`), bỏ `diff_section` (`base...sha`) và chỉ giữ 1 dòng tham chiếu thống kê lũy kế.
 
 2. **Compact Quality Gates và Runners (`verify_polyglot_registry.py`, `run_task_checks.py`, `verify.sh`)**:
@@ -165,9 +165,9 @@ Các giao diện và hợp đồng hành vi sau được cố định cho giai �
    - `scripts/verify.sh` thêm `--quiet` (1 dòng/mục, cắt đuôi 25 dòng khi lỗi) mà vẫn giữ nguyên `--full`.
 
 3. **Kiểm tra Option A, Dải dòng Phẫu thuật và Memory gọn**:
-   - `check_epic_readiness.py` và `check_bdd_traceability.py` thêm `--strict-bilingual` (mặc định `False` trong vòng lặp Stage 2/3, bỏ qua sai lệch `.vi.md` và `bdd_scenarios.vi.md`; `--strict-bilingual` ép đồng bộ đầy đủ ở Stage 4).
+   - `check_epic_readiness.py` và `check_bdd_traceability.py` thêm `--strict-bilingual` (mặc định `False` trong Stage 2/3). Dưới `--strict-bilingual`, `check_epic_readiness.py` kiểm chứng watermark đồng bộ nội dung Spec/HLD (`<!-- sync-en-sha256: <hex16> -->` khớp digest `.en.md` kể cả khi heading không đổi) và sự tồn tại/khớp của `bdd_scenarios.vi.md`, tách bạch hoàn toàn với `check_bdd_traceability.py plan --scenarios <bdd> --tasks <task...> --strict-bilingual` (chuyên kiểm ID kịch bản BDD).
    - `package_epic.py` và `handoff-template.md` chỉ liệt kê `.en.md` / tài liệu tiếng Anh trong `Read First`.
-   - `check_task_contract.py --design` kiểm tra file tracked >200 dòng (không gắn `(new)`) trong `Allowed files` phải có neo symbol/dải dòng (`:: <Symbol> (L<start>-L<end>)` hoặc `(L<start>-L<end>)`).
+   - `check_task_contract.py --design` kiểm tra file tracked >200 dòng (không gắn `(new)`) trong `Allowed files` (gồm cả script nguồn và file test Python hiện có) phải khai báo neo symbol/dải dòng (`:: <Symbol> (L<start>-L<end>)` hoặc `(L<start>-L<end>)`) trong `## Files` hoặc `## Impact Analysis & Blast Radius`.
    - `scripts/resume_context.py` bổ sung `--compact` (mặc định kích hoạt khi truyền `--epic <slug>`), chỉ xuất state epic đang chạy, git status repo hiện tại, RFC liên quan và task thuộc epic (`<= 4096` bytes); `emit_handoff_prompt` đọc `.devtool/review_config.json["providers"]["programmer"]` với fallback `gemini-4-hydrogen-xhigh` (`xhigh`).
 
 4. **Lifecycle Runner và Programmer Config (`lifecycle_runner.py`)**:
@@ -175,8 +175,8 @@ Các giao diện và hợp đồng hành vi sau được cố định cho giai �
      `CLI (--programmer-model / --programmer-effort) -> Runner --config JSON -> .devtool/review_config.json["providers"]["programmer"] -> env (AGY_PROGRAMMER_MODEL / AGY_PROGRAMMER_EFFORT) -> fallback ("gemini-4-hydrogen-xhigh", "xhigh")`.
    - `main()` đặt default `None` cho `--programmer-model` và `--programmer-effort` trên `argparse` để không ghi đè file config.
    - `_tail_lines(text: str, limit: int = 25) -> str` cắt gọn output lỗi cho `run_gate4()` và `run_intermediate_check()`.
-   - `step_implementation()` dùng `manage_worker_pool.py` chạy song song các wave độc lập; `_execute_single_task()` chỉ truyền path + kỷ luật đọc giới hạn dòng + Zero-Fluff output cap.
-   - `step_cross_model_review()` cho phép sửa trực tiếp qua `_apply_code_fixes()` với lỗi code rõ ràng không chạm contract/kiến trúc, chỉ gọi `_draft_fix_plan()` + `evaluate_programmer_fix_plan()` khi có xung đột thiết kế.
+   - `step_implementation()` phân tách rạch ròi `repo_root` (kho chính chứa `.worktrees/<epic_dir>`) với `epic_worktree_root` và `epic_dir` với `epic_slug`, dùng `manage_worker_pool.py` chạy song song các wave độc lập kèm `ModelDispatcher` gắn đúng `slot_path` và tuần tự hóa `merge_slot()` có phục hồi lỗi; `_execute_single_task()` chỉ truyền path + kỷ luật đọc giới hạn dòng + Zero-Fluff output cap (giới hạn phần tường thuật tự do, bảo toàn Verdict/status/Findings/gate contracts).
+   - `step_cross_model_review()` yêu cầu phân loại tường minh trên mã nguồn rằng mọi finding là bug code thuần túy trước khi bỏ qua Role 2.2; mọi finding không rõ, `Debatable:`, mơ hồ kiến trúc hoặc chạm `shared-contracts/` đều chuyển qua Role 2.2 `_draft_fix_plan()` / `evaluate_programmer_fix_plan()` hoặc dừng ở `CRITICAL_CONFLICT`. `_apply_code_fixes(round_num, findings=..., review_artifact=..., plan_text=...)` kiểm tra cả mã thoát dispatcher lẫn scoped tests trước khi trả `True`, nghiêm cấm đánh dấu `fixed` hay tiến vòng khi thất bại.
    - `render_final_executive_report()` phân tích findings rủi ro cao và SHA thực từ `review_results.md` / `principal_review.md`.
 
 ## Phân tích Tác động

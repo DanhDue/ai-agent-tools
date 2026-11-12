@@ -27,7 +27,7 @@ Implement the end-to-end quantitative token-throttling acceptance and regression
      - `scripts/resume_context.py --compact --epic <slug> <= 4096` bytes.
      - Zero stale hardcoded `Gemini Flash 3.8` / `gemini-3.8-flash` Role 2.3 defaults in lifecycle skills, rules, templates, or runner defaults; resolved default programmer model equals `gemini-4-hydrogen-xhigh` with effort `xhigh`.
    - Verify fail-loud quantitative assertions (`TTO-FR-04`): exceeding any threshold produces explicit actual-vs-budget byte diagnostic messages.
-   - Verify isolated per-task context and per-round raw log isolation (`TTO-AR-02`): consecutive review rounds write distinct `build/reviews/<epic>_round<n>.raw.log` files without leaking transcripts into adjacent rounds or markdown tables, and consecutive `lifecycle_runner.py` task prompts carry zero accumulated Task `N` output into Task `N+1`.
+   - Verify isolated per-task context and per-round raw log isolation (`TTO-AR-02`): consecutive review rounds write distinct `build/reviews/<epic>_<kind>_round<n>_<sha7>.raw.log` files without colliding between `principal` and `code` reviews or leaking transcripts into adjacent rounds/markdown tables, and consecutive `lifecycle_runner.py` task prompts carry zero accumulated Task `N` output into Task `N+1`.
    - Verify compact Gate 4 and `--quiet` vs `--full` release harness behavior (`TTO-HP-08`, `TTO-EC-06`).
 2. **Release Verification Registry (`scripts/verify.sh`)**:
    - Add `tests/test_tto_external_review.py`, `tests/test_tto_bilingual_and_surgical.py`, `tests/test_tto_docs_and_slimming.py`, and `tests/test_token_throttling_acceptance.py` (alongside any unregistered polyglot/runner test suites as appropriate) into `SUITES` in `scripts/verify.sh` so both `--quiet` and `--full` run all §1–§17 checks cleanly.
@@ -82,9 +82,9 @@ And --full executes all registered verification sections §1 through §17 and ex
 
 Scenario: [TTO-AR-02] [Tier C - Integration] Per-task clean context and per-round raw logs prevent cross-session transcript contamination
 
-Given two sequential or parallel review rounds and consecutive task dispatches within a single epic run
+Given sequential Principal Review and Cross-Model Review rounds alongside consecutive task dispatches within a single epic run
 When run_external_review.render_round writes logs and lifecycle_runner invokes Task N+1 after Task N commits
-Then each review round writes its isolated raw transcript to build/reviews/<epic>_round<n>.raw.log without appending into markdown review tables or adjacent round logs
+Then each review round writes its isolated raw transcript to a distinct build/reviews/<epic>_<kind>_round<n>_<sha7>.raw.log path without colliding across principal and code reviews or appending into adjacent round logs
 And the Task N+1 invocation prompt contains no accumulated tool output or stderr from Task N
 
 Scenario: [TTO-FR-04] [Tier C - Integration] Quantitative regression tests fail loudly if rule, skill, context, or prompt sizes exceed caps
@@ -99,8 +99,8 @@ And exceeding any ceiling fails with concrete byte-count diagnostics rather than
 
 | ID | Phase | Command | Expect | Needs |
 |----|-------|---------|--------|-------|
-| V1 | RED | `python3 -m pytest -q --tb=short --maxfail=3 tests/test_token_throttling_acceptance.py::test_tto_fr_04_quantitative_byte_ceilings` | exit 1; contains "failed" | — |
-| V2 | GREEN | `python3 -m pytest -q --tb=short --maxfail=3 tests/test_token_throttling_acceptance.py::test_tto_fr_04_quantitative_byte_ceilings` | exit 0; contains "passed" | — |
+| V1 | RED | `python3 -m pytest -q --tb=short --maxfail=3 tests/test_token_throttling_acceptance.py::test_tto_ec_06_verify_suite_registration` | exit 1; contains "failed" | — |
+| V2 | GREEN | `python3 -m pytest -q --tb=short --maxfail=3 tests/test_token_throttling_acceptance.py::test_tto_ec_06_verify_suite_registration` | exit 0; contains "passed" | — |
 | V3 | GREEN | `python3 -m pytest -q --tb=short --maxfail=3 tests/test_tto_external_review.py tests/test_polyglot_gate4.py tests/test_tto_bilingual_and_surgical.py tests/test_lifecycle_runner.py tests/test_tto_docs_and_slimming.py tests/test_token_throttling_acceptance.py` | exit 0; contains "passed" | — |
 | V4 | TIER-B | `ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py --ignore SIM117 tests/test_token_throttling_acceptance.py` | exit 0 | — |
 | V5 | TIER-B | `mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py tests/test_token_throttling_acceptance.py` | exit 0 | — |
@@ -119,7 +119,8 @@ And exceeding any ceiling fails with concrete byte-count diagnostics rather than
 
 ## Decisions Already Made
 
-- Quantitative regression assertions fail with concrete formatted actual vs limit byte counts rather than opaque booleans.
+- Quantitative regression assertions fail with concrete formatted actual vs limit byte counts rather than opaque booleans; `V1` RED targets missing `scripts/verify.sh` `SUITES` registration (`test_tto_ec_06_verify_suite_registration`) rather than pre-satisfied Tasks 3/5 byte bounds.
+- `TTO-AR-02` validates non-colliding `build/reviews/<epic>_<kind>_round<n>_<sha7>.raw.log` isolation between `principal` and `code` reviews.
 - `scripts/verify.sh` retains full backward compatibility on `--full` (`§1`–`§17`) while `--quiet` prints single-line summaries for passing sections and capped failure tails.
 
 ## Definition of Done

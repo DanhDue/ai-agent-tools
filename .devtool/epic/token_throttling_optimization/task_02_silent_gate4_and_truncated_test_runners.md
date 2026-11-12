@@ -55,9 +55,11 @@ Quality checks routinely emit thousands of passing lines and JSON structures int
 - **Target Files & Symbols**:
   - `skills/quality_check/resources/scripts/verify_polyglot_registry.py`: `execute_provider` (L142-L438), `verify_polyglot_execution` (L441-L537), `main` (L540-L618)
   - `skills/dev-implementation/resources/scripts/run_task_checks.py`: `run_row` (L282-L321), `main` (L461-L476)
+  - `skills/dev-implementation/resources/scripts/test_run_task_checks.py`: `RepoCase` (L49-L90), `RecorderTest` (L240-L530)
   - `skills/setup_quality_check/resources/scripts/scaffold_quality_manifest.py`: `build_registry_data` (L226-L241)
-  - `scripts/verify.sh`: §1-§17 output formatting (L1-L417)
-  - `tests/test_polyglot_gate4.py`: integration assertions for `TTO-HP-02`, `TTO-EC-02`, `TTO-FR-02`
+  - `skills/setup_quality_check/resources/scripts/test_scaffold_quality_manifest.py`: `TestDetectPlatforms` (L73-L121), `TestScaffoldQualityManifests` (L122-L290)
+  - `scripts/verify.sh`: `SUITES` (L303-L400) and `--quiet` / `--full` section formatting (L1-L417)
+  - `tests/test_polyglot_gate4.py`: `test_verify_polyglot_registry_cli_execution` (L181-L252), integration assertions for `TTO-HP-02`, `TTO-EC-02`, `TTO-FR-02`
 - **Downstream Callers**: `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py` (`run_gate4`), `skills/dev-implementation/SKILL.md` (`@quality_check`), `skills/quality_check/resources/scripts/test_quality_provider_acceptance.py`.
 - **Cross-Platform Bridges**: None.
 - **Target Test Coverage Threshold**: 100% of `--compact` pass/fail branches, 25-line truncation boundaries, and `--quiet` `verify.sh` handling.

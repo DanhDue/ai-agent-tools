@@ -156,10 +156,10 @@ And handoff-template.md contains no static legacy model hardcodes conflicting wi
 
 Scenario: [TTO-ST-03] [Tier C - Integration] Stage 4 --strict-bilingual readiness gate enforces full .en.md and .vi.md parity
 
-Given an epic directory whose .vi.md HLD has drifted behind .en.md or lacks bdd_scenarios.vi.md
-When check_epic_readiness.py runs with --strict-bilingual and check_bdd_traceability.py runs with --strict-bilingual
-Then both commands exit non-zero highlighting the missing or out-of-sync Vietnamese mirror files
-And after synchronizing .vi.md and adding bdd_scenarios.vi.md with matching IDs and ToC headings, both --strict-bilingual checks exit with status 0
+Given an epic directory whose .vi.md HLD retains identical heading levels but drifted out of sync with edited .en.md prose, or lacks bdd_scenarios.vi.md
+When check_epic_readiness.py runs with --strict-bilingual and check_bdd_traceability.py plan --scenarios bdd_scenarios.en.md --tasks task_*.md runs with --strict-bilingual
+Then check_epic_readiness.py --strict-bilingual exits non-zero detecting stale Spec/HLD sync provenance and missing bdd_scenarios.vi.md while check_bdd_traceability.py --strict-bilingual validates scenario ID parity
+And after delta-syncing .vi.md provenance digests and adding bdd_scenarios.vi.md with matching IDs and ToC headings, both --strict-bilingual checks exit with status 0
 
 Scenario: [TTO-ST-04] [Tier C - Integration] Cross-model review escalates to Role 2.2 when shared-contracts or architecture ambiguity arises
 
@@ -188,9 +188,9 @@ And each task prompt omits inlined task markdown bodies, injects only target fil
 
 Scenario: [TTO-AR-02] [Tier C - Integration] Per-task clean context and per-round raw logs prevent cross-session transcript contamination
 
-Given two sequential or parallel review rounds and consecutive task dispatches within a single epic run
+Given sequential Principal Review and Cross-Model Review rounds alongside consecutive task dispatches within a single epic run
 When run_external_review.render_round writes logs and lifecycle_runner invokes Task N+1 after Task N commits
-Then each review round writes its isolated raw transcript to build/reviews/<epic>_round<n>.raw.log without appending into markdown review tables or adjacent round logs
+Then each review round writes its isolated raw transcript to a distinct build/reviews/<epic>_<kind>_round<n>_<sha7>.raw.log path without colliding across principal and code reviews or appending into adjacent round logs
 And the Task N+1 invocation prompt contains no accumulated tool output or stderr from Task N
 ```
 
@@ -203,7 +203,7 @@ Given a passing command returning 180 stdout lines with exit code 0 and a failin
 When run_external_review.fact builds prompt evidence and render_round persists the round artifact
 Then the passing command produces a single "PASS: <label>" line omitting stdout
 And the failing command includes the command label plus at most 25 trailing non-empty output lines
-And unfiltered CLI stdout/stderr is routed into build/reviews/<epic>_round<n>.raw.log so principal_review.md remains compact
+And unfiltered CLI stdout/stderr is routed into build/reviews/<epic>_<kind>_round<n>_<sha7>.raw.log so principal_review.md remains compact
 
 Scenario: [TTO-FR-02] [Tier C - Integration] Compact Gate 4 surfaces failing provider header and 25-line log tail on error
 

@@ -63,7 +63,7 @@ flowchart TD
 - **Loại trùng `base...sha` ở Round >= 2**: Trong `run_external_review.py` (`run()`), khi `round_num >= 2` và `delta_round_context()` hoạt động, bỏ `diff_section` (`base...sha`) dư thừa. Chỉ truyền diff `prev_sha..sha` (`-U5`), Prior Fixed Locations Registry, bảng findings đang mở rút gọn (<= 200 ký tự mỗi ô) và Acceptance Criteria / phần task liên quan.
 - **Chỉ dùng `.en.md` SSOT cho AI Review**: Cập nhật `principal_artefact_lines()` và `collect_facts()` trong `run_external_review.py` để loại toàn bộ file `*.vi.md` khỏi prompt external reviewer.
 - **Quiet Pre-Check Facts**: Thay output nguyên văn của `fact()` trong `collect_facts()` bằng 1 dòng `PASS: <label>` khi `returncode == 0`, và chỉ giữ lệnh lỗi + 25 dòng cuối khi khác `0`.
-- **Cách ly Transcript (`Raw output:`)**: Trong `render_round()`, ghi toàn bộ `stderr` transcript của external CLI ra file git-ignored `build/reviews/<epic>_round<n>.raw.log`; file `principal_review.md` và `review_results.md` chỉ lưu Verdict, Pass summary, Bảng Findings và đường dẫn file log (triệt tiêu lỗi file `1.88 MB`).
+- **Cách ly Transcript (`Raw output:`)**: Trong `render_round()`, ghi toàn bộ `stderr` transcript của external CLI ra file git-ignored `build/reviews/<epic>_<kind>_round<n>_<sha7>.raw.log` (tránh xung đột giữa `principal`, `code` và lượt chạy `--force`); file `principal_review.md` và `review_results.md` chỉ lưu Verdict, Pass summary, Bảng Findings và đường dẫn file log (triệt tiêu lỗi file `1.88 MB`).
 - **Quy tắc Prompt**: Bổ sung ràng buộc `DIFF-ONLY REVIEW` vào `principal-review-prompt.md` và `external-review-prompt.md`, cấm đọc toàn bộ source/spec trừ khi truy vết một symbol/caller cụ thể còn thiếu.
 
 ### 4.2 Silent Gate 4 và Cắt gọn Output Kiểm thử
@@ -95,7 +95,7 @@ flowchart TD
 
 ### 4.5 Giới hạn Output, Rút gọn Rules và Skills
 
-- **Quy tắc Zero-Fluff Output Cap**: Bổ sung bộ 5 quy tắc giới hạn output vào `rules/CRITICAL_RULES.md`, `dev-lifecycle/SKILL.md`, `dev-implementation/SKILL.md`, `quality_check/SKILL.md`, `finishing-a-development-branch/SKILL.md` và prompts của `lifecycle_runner.py`: không chào hỏi/diễn giải lại đề bài, không in lại code giữ nguyên, không giải thích test đã pass; chỉ xuất `[STATE]`, tool calls và tối đa 3 bullet nguyên nhân gốc khi lỗi.
+- **Quy tắc Zero-Fluff Output Cap**: Bổ sung quy tắc giới hạn output vào `rules/CRITICAL_RULES.md`, `dev-lifecycle/SKILL.md`, `dev-implementation/SKILL.md`, `quality_check/SKILL.md`, `finishing-a-development-branch/SKILL.md` và worker prompts của `lifecycle_runner.py`, giới hạn riêng phần tường thuật tự do: cấm lời chào/mở bài, cấm lặp lại đề bài, cấm in lại code giữ nguyên và cấm giải thích test pass; giữ nguyên `[STATE]`, tool calls và tối đa 3 bullet nguyên nhân gốc khi lỗi, nhưng **bảo toàn đầy đủ** Verdict có cấu trúc máy đọc được, Bảng Findings đầy đủ, kết quả provider/JSON, worker status và thông điệp Human Gate.
 - **Rút gọn Rules & Bảo vệ Subagent**:
   - Nén `rules/CRITICAL_RULES.md` từ `32,773` bytes xuống `<= 8,192` bytes (hết bị IDE cắt `<truncated>`) bằng cách giữ các mệnh đề `MUST`/`NEVER` súc tích và chuyển hướng dẫn chi tiết sang `skills/dev-lifecycle/references/`, bảo toàn ngữ nghĩa Rule 1–9 và các bài check trong `scripts/verify.sh`.
   - Thêm thẻ `<SUBAGENT-STOP>` ở đầu `skills/task-observer/SKILL.md` để subagents và external review CLIs bỏ qua việc nạp `31.4 KB` file này.
@@ -108,7 +108,7 @@ flowchart TD
 
 - **Stage 1 & Stage 2 (Human Review)**: `dev-brainstorming` tạo cặp Spec `.en.md` + `.vi.md`; `dev-designer` tạo cặp HLD `<epic>.en.md` + `<epic>.vi.md` và chỉ tạo `bdd_scenarios.en.md` (hoãn `bdd_scenarios.vi.md` đến Stage 4).
 - **Dung sai trong lúc thực thi (`check_epic_readiness.py` & `check_bdd_traceability.py`)**: Giữ nguyên Spec và HLD `.vi.md` trên disk cho người dùng đọc (không xóa), thêm chế độ mặc định in-flight trên `check_epic_readiness.py` (kèm cờ `--strict-bilingual` cho Gate 5 / Finish) và `check_bdd_traceability.py` để các chỉnh sửa Principal Review trên `.en.md` hoặc việc chưa có `bdd_scenarios.vi.md` không làm fail `R1`/`R3`/`R7` giữa chừng; đồng thời bỏ `.vi.md` khỏi `handoff.md` (`Read First`) và `run_external_review.py`.
-- **Đồng bộ tại Stage 4 Pre-Finish (`/finishing-a-development-branch`)**: Cập nhật Pre-Finish Hook (trước commit archive ở Option 1 và Option 2) để delta-sync thay đổi sang Spec/HLD `.vi.md`, sinh `bdd_scenarios.vi.md` một lần duy nhất, rồi nghiệm thu lại bằng `check_document.py --require-toc --require-bilingual` và `check_epic_readiness.py --strict-bilingual`.
+- **Đồng bộ tại Stage 4 Pre-Finish (`/finishing-a-development-branch`)**: Cập nhật Pre-Finish Hook (trước commit archive ở Option 1 và Option 2) để delta-sync thay đổi sang Spec/HLD `.vi.md`, cập nhật watermark `<!-- sync-en-sha256: <hex16> -->` tương ứng nguồn `.en.md`, sinh `bdd_scenarios.vi.md` một lần duy nhất, rồi nghiệm thu lại bằng `check_document.py --require-toc --require-bilingual`, `check_epic_readiness.py <epic> --strict-bilingual` và `check_bdd_traceability.py plan --scenarios .devtool/epic/<epic>/bdd_scenarios.en.md --tasks .devtool/epic/<epic>/task_*.md --strict-bilingual`.
 
 ### 4.7 Cấu hình Programmer Persona qua File Config và Gemini 4 Hydrogen
 

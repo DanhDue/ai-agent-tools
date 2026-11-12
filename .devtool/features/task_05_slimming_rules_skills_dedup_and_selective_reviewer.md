@@ -20,7 +20,7 @@ Epic: [token_throttling_optimization](../epic/token_throttling_optimization/toke
 
 Slim always-on instructions and lifecycle skills (`Rule 1`, `Rule 3`, `Rule 5`), replace scattered legacy `Gemini Flash 3.8` / `gemini-3.8-flash` defaults with config-driven `.devtool/review_config.json` resolution (`gemini-4-hydrogen-xhigh`, `--effort xhigh`), deduplicate overlapping reference files across `dev-implementation/`, `principal-review/`, and `cross-model-review/`, enforce selective `task-reviewer` gating, and add the Stage 4 Pre-Finish bilingual sync hook:
 1. **Always-On Rule & Observer Slimming (`CRITICAL_RULES.md`, `task-observer/SKILL.md`)**:
-   - Compress `rules/CRITICAL_RULES.md` to `<= 8192` bytes while preserving all mandatory headings, markers (`## 8. Mandatory Two-Tier Project Memory & Tri-Role Persona Discipline`, `BOTH Interactive Mode and Autonomous`, `CRITICAL_CONFLICT`, `Debatable`), update Role 2.3 description to reference `.devtool/review_config.json["providers"]["programmer"]` (default `gemini-4-hydrogen-xhigh`, `--effort xhigh`), and add §9 Zero-Fluff Output Cap (`Rule 5`).
+   - Compress `rules/CRITICAL_RULES.md` to `<= 8192` bytes while preserving all mandatory headings, markers (`## 8. Mandatory Two-Tier Project Memory & Tri-Role Persona Discipline`, `BOTH Interactive Mode and Autonomous`, `CRITICAL_CONFLICT`, `Debatable`), update Role 2.3 description to reference `.devtool/review_config.json["providers"]["programmer"]` (default `gemini-4-hydrogen-xhigh`, `--effort xhigh`), and add §9 Zero-Fluff Output Cap (`Rule 5`) scoped strictly to **discretionary prose/narration** while explicitly preserving mandatory machine-parsed Verdicts, complete Findings tables, structured JSON/provider gate results, worker status contracts, and human Gate prompts.
    - Prepend an explicit `<SUBAGENT-STOP>` block at the top of `skills/task-observer/SKILL.md` forbidding invocation inside headless/subagent task workers and `lifecycle_runner.py` sessions while preserving interactive session trigger behavior.
 2. **Stage 2 Designer Slimming, Surgical Line Ranges, and Bilingual Option A (`dev-designer/SKILL.md`)**:
    - Extract verbose worked task examples/templates into `skills/dev-designer/references/task-template-examples.md` (and keep `verification-rows.md` / `verification-row-grammar.md` linked) so `skills/dev-designer/SKILL.md` measures `<= 22528` bytes while preserving all `EXPECTED["skills/dev-designer/SKILL.md"]` contract markers (`exact node ID`, `Decisions Already Made`, etc.).
@@ -28,12 +28,14 @@ Slim always-on instructions and lifecycle skills (`Rule 1`, `Rule 3`, `Rule 5`),
 3. **Selective `task-reviewer` & Config-Driven Programmer Wording (`dev-implementation`, `dev-lifecycle`, `principal-review`, `subagent-driven-development`)**:
    - Replace remaining `Gemini Flash 3.8` / `gemini-3.8-flash` strings in `skills/dev-implementation/SKILL.md`, `skills/dev-lifecycle/SKILL.md`, `skills/dev-lifecycle/references/autonomous-mode.md`, and `skills/principal-review/SKILL.md` with `.devtool/review_config.json` Role 2.3 resolution (`gemini-4-hydrogen-xhigh`, `--effort xhigh`).
    - Enforce selective `task-reviewer` gating across `skills/dev-designer/SKILL.md`, `skills/dev-implementation/SKILL.md`, and `skills/subagent-driven-development/SKILL.md`: skip per-task `task-reviewer` for single-file/trivial tasks and trigger it only when `review_tier: "full"`, high-risk labels (`security`, `architecture`, `concurrency`, `contract`), or `> 2` non-test modules are touched.
-   - Inject `Rule 3` (line-bounded reads) and `Rule 5` (Zero-Fluff Output Cap) into `dev-implementation/SKILL.md`, `dev-lifecycle/SKILL.md`, and `subagent-driven-development/SKILL.md`.
+   - Inject `Rule 3` (line-bounded reads using `StartLine`/`EndLine` or `sed -n 'X,Yp'` and symbol search) and `Rule 5` (Zero-Fluff Output Cap preserving mandatory Verdicts, Findings, and gate contracts) into `dev-implementation/SKILL.md`, `dev-lifecycle/SKILL.md`, `subagent-driven-development/SKILL.md`, and `skills/subagent-driven-development/implementer-prompt.md`.
 4. **Reference Deduplication (`dev-implementation/references/`, `principal-review/references/`, `cross-model-review/references/`)**:
    - Reconcile overlapping reference files (`principal-review-prompt.md`, `principal-review-rules.md`, `review-triage.md`, `local-review-setup.md`, `review-rules.md`) so duplicate instructions live in a single canonical location with thin relative pointers where required by `scripts/verify.sh` §3/§8 and `scripts/test_lifecycle_document_contract.py`.
 5. **Stage 4 Pre-Finish Bilingual Sync Hook (`finishing-a-development-branch/SKILL.md`)**:
-   - Update Step 5 Pre-Finish Hook (`L119-L160`) to delta-sync `.vi.md` companions from changed `.en.md` Spec/HLD documents, generate/sync `bdd_scenarios.vi.md` matching IDs and ToC headings, and run `check_epic_readiness.py <epic> --strict-bilingual` + `check_bdd_traceability.py plan <epic> --strict-bilingual` before merge while preserving `resume_context.py` archival behavior.
-6. Update `scripts/test_lifecycle_document_contract.py` if needed and create `tests/test_tto_docs_and_slimming.py` covering `TTO-HP-05`, `TTO-EC-05`, and `TTO-ST-05`.
+   - Update Step 5 Pre-Finish Hook (`L119-L160`) to delta-sync `.vi.md` companions from changed `.en.md` Spec/HLD documents, refresh `<!-- sync-en-sha256: <hex16> -->` content-sync provenance inside each synced Spec/HLD `.vi.md`, generate/sync `bdd_scenarios.vi.md` matching IDs and ToC headings, and run the complete executable verification sequence before merge while preserving `resume_context.py` archival behavior:
+     - `python3 skills/dev-implementation/resources/scripts/check_epic_readiness.py <epic_slug> --strict-bilingual`
+     - `python3 skills/dev-implementation/resources/scripts/check_bdd_traceability.py plan --scenarios .devtool/epic/<epic_dir>/bdd_scenarios.en.md --tasks .devtool/epic/<epic_dir>/task_*.md --strict-bilingual`
+6. Update `scripts/test_lifecycle_document_contract.py` if needed and create `tests/test_tto_docs_and_slimming.py` covering `TTO-HP-05`, `TTO-EC-05`, `TTO-ST-05`, `skills/subagent-driven-development/implementer-prompt.md` bounded-read rules, Zero-Fluff Verdict/Findings exemptions, and the exact Stage 4 Pre-Finish `check_bdd_traceability.py` command.
 
 ## Files
 
@@ -49,6 +51,7 @@ Allowed files:
 - `skills/dev-lifecycle/references/principal-review.md`
 - `skills/principal-review/SKILL.md`
 - `skills/subagent-driven-development/SKILL.md`
+- `skills/subagent-driven-development/implementer-prompt.md`
 - `skills/finishing-a-development-branch/SKILL.md`
 - `skills/dev-implementation/references/principal-review-prompt.md`
 - `skills/dev-implementation/references/principal-review-rules.md`
@@ -84,6 +87,7 @@ Every top-level session loads `rules/CRITICAL_RULES.md` unconditionally and ever
   - `skills/dev-lifecycle/references/principal-review.md`: stage 2 review handoff wording (L1-L74)
   - `skills/principal-review/SKILL.md`: convergence handoff line (L80-L105)
   - `skills/subagent-driven-development/SKILL.md`: flowchart, selective task-reviewer gate, and Zero-Fluff cap (L1-L593)
+  - `skills/subagent-driven-development/implementer-prompt.md`: bounded-read rules and discretionary-narration Zero-Fluff cap (L1-L187)
   - `skills/finishing-a-development-branch/SKILL.md`: Step 5 Pre-Finish Hook (L119-L160)
   - `skills/dev-implementation/references/principal-review-prompt.md`: thin canonical pointer to `principal-review/references/` (L1-L60)
   - `skills/dev-implementation/references/principal-review-rules.md`: deduplicated canonical reference (L1-L25)
@@ -152,7 +156,8 @@ And all cross-references and doc contract invariants remain unbroken under verif
 
 ## Decisions Already Made
 
-- `rules/CRITICAL_RULES.md` must stay `<= 8192` bytes, retain all required contract markers (`test_lifecycle_document_contract.py` + `test_resume_context.py`), replace `Gemini Flash 3.8` with `.devtool/review_config.json`, and define §9 Zero-Fluff Output Cap.
+- `rules/CRITICAL_RULES.md` must stay `<= 8192` bytes, retain all required contract markers (`test_lifecycle_document_contract.py` + `test_resume_context.py`), replace `Gemini Flash 3.8` with `.devtool/review_config.json`, and define §9 Zero-Fluff Output Cap scoped strictly to discretionary prose/narration while explicitly preserving mandatory machine-parsed Verdicts, Findings tables, JSON/provider gate results, worker statuses, and human Gate prompts.
+- Stage 4 Pre-Finish Hook in `skills/finishing-a-development-branch/SKILL.md` invokes exact valid CLI arguments: `check_epic_readiness.py <epic_slug> --strict-bilingual` and `check_bdd_traceability.py plan --scenarios .devtool/epic/<epic_dir>/bdd_scenarios.en.md --tasks .devtool/epic/<epic_dir>/task_*.md --strict-bilingual`, after delta-syncing `.vi.md` files and stamping `<!-- sync-en-sha256: <hex16> -->`.
 - `skills/dev-designer/SKILL.md` must stay `<= 22528` bytes by offloading worked templates to linked `references/` files (`verify.sh` §8 requires every file in `references/` to be referenced by filename in a tracked file).
 - `skills/task-observer/SKILL.md` opens with `<SUBAGENT-STOP>` so subagents never activate continuous observer overhead.
 - Selective `task-reviewer` criteria are standardized identically across `dev-designer`, `dev-implementation`, and `subagent-driven-development`: trigger on `review_tier: "full"`, labels containing `security`, `architecture`, `concurrency`, or `contract`, or `> 2` non-test modules; otherwise skip.

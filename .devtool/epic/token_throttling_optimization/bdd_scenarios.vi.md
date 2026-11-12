@@ -156,10 +156,10 @@ Và handoff-template.md không còn dòng gán cứng model cũ mâu thuẫn v�
 
 Scenario: [TTO-ST-03] [Tier C - Integration] Cổng sẵn sàng Stage 4 với --strict-bilingual bắt buộc khớp hoàn toàn giữa .en.md và .vi.md
 
-Cho một thư mục epic có bản HLD .vi.md bị lệch so với .en.md hoặc thiếu tệp bdd_scenarios.vi.md
-Khi chạy check_epic_readiness.py --strict-bilingual và check_bdd_traceability.py --strict-bilingual
-Thì cả hai lệnh đều thoát khác 0 và chỉ rõ các bản dịch tiếng Việt bị thiếu hoặc lệch nội dung
-Và sau khi đồng bộ .vi.md cùng tạo bdd_scenarios.vi.md khớp mã kịch bản và cấu trúc mục lục, cả hai lệnh --strict-bilingual đều thoát mã 0
+Cho một thư mục epic có bản HLD .vi.md giữ nguyên heading nhưng nội dung bị lệch sau khi .en.md chỉnh sửa, hoặc thiếu tệp bdd_scenarios.vi.md
+Khi chạy check_epic_readiness.py --strict-bilingual và check_bdd_traceability.py plan --scenarios bdd_scenarios.en.md --tasks task_*.md --strict-bilingual
+Thì check_epic_readiness.py --strict-bilingual thoát khác 0 do lệch watermark Spec/HLD hoặc thiếu bdd_scenarios.vi.md trong khi check_bdd_traceability.py kiểm tra khớp ID kịch bản BDD
+Và sau khi đồng bộ watermark Spec/HLD .vi.md cùng tạo bdd_scenarios.vi.md khớp mã kịch bản và mục lục, cả hai lệnh --strict-bilingual đều thoát mã 0
 
 Scenario: [TTO-ST-04] [Tier C - Integration] Cross-model review chuyển lên Role 2.2 khi xuất hiện xung đột shared-contracts hoặc mơ hồ kiến trúc
 
@@ -188,9 +188,9 @@ Và prompt mỗi task không nhúng toàn văn file task, chỉ truyền đườ
 
 Scenario: [TTO-AR-02] [Tier C - Integration] Ngữ cảnh sạch từng task và log thô tách biệt theo từng vòng ngăn rò rỉ lịch sử giữa các phiên
 
-Cho hai vòng review nối tiếp hoặc song song và các lượt điều phối task liên tiếp trong cùng một epic
+Cho các vòng Principal Review và Cross-Model Review nối tiếp cùng các lượt điều phối task liên tiếp trong cùng một epic
 Khi run_external_review.render_round ghi log và lifecycle_runner khởi chạy Task N+1 sau khi Task N đã commit
-Thì mỗi vòng review ghi bản log thô cô lập vào build/reviews/<epic>_round<n>.raw.log mà không ghép vào bảng markdown hoặc file log vòng khác
+Thì mỗi vòng review ghi bản log thô cô lập vào đường dẫn riêng build/reviews/<epic>_<kind>_round<n>_<sha7>.raw.log không ghi đè giữa principal và code hoặc ghép vào file vòng khác
 Và prompt của Task N+1 hoàn toàn không mang theo đầu ra công cụ hay stderr tích tụ từ Task N
 ```
 
@@ -203,7 +203,7 @@ Cho một lệnh đạt chuẩn trả về 180 dòng stdout với mã thoát 0 v
 Khi run_external_review.fact tạo bằng chứng cho prompt và render_round lưu kết quả vòng review
 Thì lệnh đạt chuẩn chỉ tạo đúng một dòng "PASS: <label>" và bỏ qua stdout
 Và lệnh thất bại chỉ đính kèm nhãn lệnh cùng tối đa 25 dòng cuối khác rỗng
-Và toàn bộ stdout/stderr gốc của CLI được ghi vào build/reviews/<epic>_round<n>.raw.log giúp principal_review.md giữ dung lượng gọn
+Và toàn bộ stdout/stderr gốc của CLI được ghi vào build/reviews/<epic>_<kind>_round<n>_<sha7>.raw.log giúp principal_review.md giữ dung lượng gọn
 
 Scenario: [TTO-FR-02] [Tier C - Integration] Gate 4 rút gọn hiển thị tiêu đề provider lỗi và 25 dòng đuôi khi gặp sự cố
 
