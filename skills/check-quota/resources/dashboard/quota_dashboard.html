@@ -344,7 +344,7 @@
         <!-- Button Lên lịch nhiều tài khoản: Bấm để hiện checkbox ở grid + bottom action bar -->
         <button onclick="toggleBatchSelectMode()" id="batchScheduleBtn"
           class="px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-semibold text-xs transition-colors flex items-center gap-1.5 shadow-sm">
-          <span>⏰</span> <span>Lên lịch nhiều tài khoản</span>
+          <span id="batchScheduleIcon">⏰</span> <span id="batchScheduleLabel">Lên lịch nhiều tài khoản</span>
         </button>
       </div>
     </header>
@@ -3060,10 +3060,18 @@
       const btn = document.getElementById("batchScheduleBtn");
       const bottomBar = document.getElementById("batchBottomBar");
 
+      const iconEl = document.getElementById("batchScheduleIcon");
+      const labelEl = document.getElementById("batchScheduleLabel");
+
       if (isBatchSelecting) {
         selectedBatchProfiles.clear(); // Uncheck tất cả! Để user tự chọn từng profile
         btn.classList.add("ring-2", "ring-purple-400", "bg-purple-700");
-        btn.innerHTML = `<span>✕</span> <span>Thoát chọn</span>`;
+        if (iconEl && labelEl) {
+          iconEl.textContent = "✕";
+          labelEl.textContent = "Thoát chọn";
+        } else {
+          btn.innerHTML = `<span>✕</span> <span>Thoát chọn</span>`;
+        }
         bottomBar.classList.remove("hidden");
 
         // Reset inputs: ko chọn mặc định
@@ -3085,7 +3093,12 @@
         updateSelectedCountBadge();
       } else {
         btn.classList.remove("ring-2", "ring-purple-400", "bg-purple-700");
-        btn.innerHTML = `<span>⏰</span> <span>Lên lịch nhiều tài khoản</span>`;
+        if (iconEl && labelEl) {
+          iconEl.textContent = "⏰";
+          labelEl.textContent = "Lên lịch nhiều tài khoản";
+        } else {
+          btn.innerHTML = `<span>⏰</span> <span>Lên lịch nhiều tài khoản</span>`;
+        }
         bottomBar.classList.add("hidden");
       }
 
@@ -4276,6 +4289,27 @@
       }
     });
 
+    function isClickInsideElementOrDetached(e, container) {
+      if (!e || !e.target) return false;
+      if (container && typeof e.composedPath === "function") {
+        const path = e.composedPath();
+        if (Array.isArray(path) && path.includes(container)) return true;
+      }
+      // Synchronous onclick re-renders (e.g. innerHTML or renderAllProfiles) detach e.target
+      // before the event bubbles to document, making container.contains(e.target) return false.
+      if ("isConnected" in e.target && !e.target.isConnected) return true;
+      if (
+        document.body &&
+        typeof document.body.contains === "function" &&
+        e.target !== document &&
+        e.target !== document.documentElement &&
+        !document.body.contains(e.target)
+      ) {
+        return true;
+      }
+      return Boolean(container && container.contains(e.target));
+    }
+
     document.addEventListener("click", (e) => {
       if (window.parent && window.parent !== window) {
         if (getActiveInnerModal()) return;
@@ -4287,7 +4321,7 @@
         if (anyModal) return;
 
         const container = document.getElementById("dashboardCard") || document.querySelector(".max-w-7xl");
-        if (container && !container.contains(e.target)) {
+        if (container && !isClickInsideElementOrDetached(e, container)) {
           handleCardClose();
         }
       }

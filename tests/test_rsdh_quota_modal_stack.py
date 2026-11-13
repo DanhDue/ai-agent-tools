@@ -1248,3 +1248,187 @@ try {{
 """
             cdp_res = _run_node_script(cdp_script, timeout=60)
             assert cdp_res["status"] == "ok"
+
+    def test_batch_schedule_toggle_keeps_embedded_quota_modal_open(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """[Regression] Clicking 'Lên lịch nhiều tài khoản' or 'Thoát chọn' must not close embedded #modal-quota."""
+        # Part A: Node DOM check for detached child target after toggleBatchSelectMode()
+        preamble = _NODE_DOM_HARNESS_PREAMBLE.replace(
+            "__QUOTA_HTML_PATH__", json.dumps(str(QUOTA_DASHBOARD_HTML))
+        )
+        node_script = (
+            preamble
+            + r"""
+const { sandbox, doc, parentMessages } = createQuotaDomHarness({
+  search: '?embedded=1&no-auto-refresh=1',
+  embeddedParent: true,
+});
+
+const batchBtn = doc.getElementById('batchScheduleBtn');
+assert.ok(batchBtn, 'batchScheduleBtn must exist');
+const initialLabelSpan = batchBtn.children[batchBtn.children.length - 1];
+assert.ok(initialLabelSpan, 'batchScheduleBtn must have span child');
+
+// Emulate real click bubbling: onclick runs toggleBatchSelectMode() on btn, then event reaches document
+batchBtn.addEventListener('click', () => sandbox.toggleBatchSelectMode());
+initialLabelSpan.dispatchEvent({ type: 'click', target: initialLabelSpan });
+
+assert.equal(
+  doc.getElementById('batchBottomBar').classList.contains('hidden'),
+  false,
+  'Clicking Lên lịch nhiều tài khoản must open batchBottomBar',
+);
+assert.equal(
+  parentMessages.length,
+  0,
+  'Clicking child span inside batchScheduleBtn must NOT post close_quota_modal',
+);
+
+const exitLabelSpan = batchBtn.children[batchBtn.children.length - 1];
+exitLabelSpan.dispatchEvent({ type: 'click', target: exitLabelSpan });
+assert.equal(
+  doc.getElementById('batchBottomBar').classList.contains('hidden'),
+  true,
+  'Clicking Thoát chọn must close batchBottomBar',
+);
+assert.equal(
+  parentMessages.length,
+  0,
+  'Clicking Thoát chọn must NOT post close_quota_modal',
+);
+
+// Simulated grid child re-render (e.g. checkbox toggle calling renderAllProfiles)
+const col1 = doc.getElementById('gridCol1');
+assert.ok(col1, 'gridCol1 must exist');
+const cardTarget = doc.createElement('span');
+col1.appendChild(cardTarget);
+col1.addEventListener('click', () => sandbox.renderAllProfiles());
+cardTarget.dispatchEvent({ type: 'click', target: cardTarget });
+assert.equal(
+  doc.body.contains(cardTarget),
+  false,
+  'renderAllProfiles() must detach cardTarget from gridCol1',
+);
+assert.equal(
+  parentMessages.length,
+  0,
+  'Detached target from inside dashboardCard must NOT post close_quota_modal',
+);
+
+// Genuine click outside #dashboardCard still closes #modal-quota
+doc.body.dispatchEvent({ type: 'click', target: doc.body });
+assert.equal(parentMessages.length, 1);
+assert.deepEqual(parentMessages[0].msg, { action: 'close_quota_modal' });
+
+console.log(JSON.stringify({ status: 'ok' }));
+"""
+        )
+        node_res = _run_node_script(node_script)
+        assert node_res["status"] == "ok"
+
+        # Part B: Real Chrome CDP click coordinates on child <span> of #batchScheduleBtn inside #modal-quota iframe
+        chrome_bin = _resolve_chrome_binary()
+        cdp_helper_path = tmp_path / "cdp_helper.mjs"
+        cdp_helper_path.write_text(_NODE_CDP_HELPER, encoding="utf-8")
+
+        with _start_isolated_quota_and_tasks_servers(tmp_path, monkeypatch) as urls:
+            cdp_script = rf"""
+import assert from 'node:assert/strict';
+import {{ launchHeadlessChromeCdp }} from {json.dumps(str(cdp_helper_path))};
+
+const cdp = await launchHeadlessChromeCdp({json.dumps(chrome_bin)});
+try {{
+  await cdp.send('Page.navigate', {{ url: {json.dumps(urls["tasks_url"])} }});
+  for (let i = 0; i < 40; i++) {{
+    if (await cdp.evaluate(`typeof openQuotaModal === 'function'`)) break;
+    await new Promise((r) => setTimeout(r, 100));
+  }}
+  await cdp.evaluate(`openQuotaModal()`);
+  const iframeCtx = await cdp.waitForQuotaIframeContext(`typeof toggleBatchSelectMode === 'function'`);
+  assert.ok(iframeCtx !== null, 'Quota iframe context must be ready');
+
+  const iframeRect = await cdp.evaluate(`(() => {{
+    const r = document.getElementById('quota-iframe').getBoundingClientRect();
+    return {{ left: r.left, top: r.top }};
+  }})()`);
+
+  async function clickSpanInsideBatchBtn() {{
+    const pt = await cdp.evaluate(`(() => {{
+      const span = document.querySelector('#batchScheduleBtn span:last-child');
+      const r = span.getBoundingClientRect();
+      return {{ x: r.left + r.width / 2, y: r.top + r.height / 2, text: span.textContent.trim() }};
+    }})()`, iframeCtx);
+    await cdp.clickAt(iframeRect.left + pt.x, iframeRect.top + pt.y);
+    await new Promise((r) => setTimeout(r, 80));
+    return pt.text;
+  }}
+
+  // 1. Click "Lên lịch nhiều tài khoản" child <span> -> opens bottom bar & keeps #modal-quota open
+  const enterText = await clickSpanInsideBatchBtn();
+  assert.equal(enterText, 'Lên lịch nhiều tài khoản');
+  assert.equal(
+    await cdp.evaluate(`getComputedStyle(document.getElementById('modal-quota')).display`),
+    'flex',
+    '#modal-quota must remain open after clicking Lên lịch nhiều tài khoản',
+  );
+  assert.equal(
+    await cdp.evaluate(`document.getElementById('batchBottomBar').classList.contains('hidden')`, iframeCtx),
+    false,
+    'batchBottomBar must be visible',
+  );
+
+  // 2. Click "Chọn tất cả" -> renderAllProfiles() must keep #modal-quota open
+  const selectAllPt = await cdp.evaluate(`(() => {{
+    const btn = document.querySelector('#batchBottomBar button[onclick*="selectAllProfiles(true)"]');
+    const r = btn.getBoundingClientRect();
+    return {{ x: r.left + r.width / 2, y: r.top + r.height / 2 }};
+  }})()`, iframeCtx);
+  await cdp.clickAt(iframeRect.left + selectAllPt.x, iframeRect.top + selectAllPt.y);
+  await new Promise((r) => setTimeout(r, 80));
+  assert.equal(
+    await cdp.evaluate(`getComputedStyle(document.getElementById('modal-quota')).display`),
+    'flex',
+    '#modal-quota must stay open after Chọn tất cả re-render',
+  );
+
+  // 3. Click "Thoát chọn" child <span> -> exits batch mode & keeps #modal-quota open
+  const exitText = await clickSpanInsideBatchBtn();
+  assert.equal(exitText, 'Thoát chọn');
+  assert.equal(
+    await cdp.evaluate(`getComputedStyle(document.getElementById('modal-quota')).display`),
+    'flex',
+    '#modal-quota must remain open after clicking Thoát chọn',
+  );
+  assert.equal(
+    await cdp.evaluate(`document.getElementById('batchBottomBar').classList.contains('hidden')`, iframeCtx),
+    true,
+    'batchBottomBar must hide after Thoát chọn',
+  );
+
+  // 4. Toggle batch mode again and click "Hủy" button -> keeps #modal-quota open
+  await clickSpanInsideBatchBtn();
+  const cancelPt = await cdp.evaluate(`(() => {{
+    const btn = document.querySelector('#batchBottomBar button[onclick*="exitBatchSelectMode"]');
+    const r = btn.getBoundingClientRect();
+    return {{ x: r.left + r.width / 2, y: r.top + r.height / 2 }};
+  }})()`, iframeCtx);
+  await cdp.clickAt(iframeRect.left + cancelPt.x, iframeRect.top + cancelPt.y);
+  await new Promise((r) => setTimeout(r, 80));
+  assert.equal(
+    await cdp.evaluate(`getComputedStyle(document.getElementById('modal-quota')).display`),
+    'flex',
+    '#modal-quota must remain open after clicking Hủy',
+  );
+
+  assert.deepEqual(cdp.consoleErrors, [], `Unexpected console errors: ${{cdp.consoleErrors}}`);
+  assert.deepEqual(cdp.runtimeExceptions, [], `Unexpected runtime exceptions: ${{cdp.runtimeExceptions}}`);
+  console.log(JSON.stringify({{ status: 'ok' }}));
+}} finally {{
+  await cdp.close();
+}}
+"""
+            cdp_res = _run_node_script(cdp_script, timeout=60)
+            assert cdp_res["status"] == "ok"
