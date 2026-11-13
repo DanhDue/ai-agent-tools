@@ -33,9 +33,7 @@ DASHBOARD_HTML = (
     / "dashboard"
     / "tasks_dashboard.html"
 )
-CHECK_TASKS_SCRIPT_DIR = (
-    REPO_ROOT / "skills" / "check-tasks" / "resources" / "scripts"
-)
+CHECK_TASKS_SCRIPT_DIR = REPO_ROOT / "skills" / "check-tasks" / "resources" / "scripts"
 if str(CHECK_TASKS_SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(CHECK_TASKS_SCRIPT_DIR))
 
@@ -48,9 +46,7 @@ def _resolve_chrome_binary() -> str:
     if env_bin and Path(env_bin).is_file():
         return env_bin
 
-    mac_chrome = Path(
-        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-    )
+    mac_chrome = Path("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome")
     if mac_chrome.is_file():
         return str(mac_chrome)
 
@@ -59,7 +55,9 @@ def _resolve_chrome_binary() -> str:
         if resolved:
             return resolved
 
-    msg = "Headless Chrome binary not found (checked CHROME_BIN, macOS Chrome, and PATH)"
+    msg = (
+        "Headless Chrome binary not found (checked CHROME_BIN, macOS Chrome, and PATH)"
+    )
     pytest.fail(msg)
     raise RuntimeError(msg)
 
@@ -94,7 +92,9 @@ def _run_node_script(script_source: str, timeout: int = 30) -> dict[str, Any]:
         f"STDOUT:\n{proc.stdout}\nSTDERR:\n{proc.stderr}"
     )
     lines = [line for line in proc.stdout.splitlines() if line.strip()]
-    assert lines, f"Expected JSON line on stdout, got empty output. STDERR:\n{proc.stderr}"
+    assert lines, (
+        f"Expected JSON line on stdout, got empty output. STDERR:\n{proc.stderr}"
+    )
     return json.loads(lines[-1])  # type: ignore[no-any-return]
 
 
@@ -684,7 +684,9 @@ def _sample_repo_payload(
                     "in_progress_tasks": total_count - done_count,
                     "todo_tasks": 0,
                     "percentage": pct,
-                    "active_task_name": "task_05" if done_count < total_count else "All tasks done",
+                    "active_task_name": "task_05"
+                    if done_count < total_count
+                    else "All tasks done",
                     "tasks": tasks,
                 },
                 "epics_summary": {
@@ -724,12 +726,31 @@ def _sample_repo_payload(
 
 
 def _git_init_with_commit(repo_path: Path) -> None:
-    subprocess.run(["git", "init", "-b", "main"], cwd=repo_path, check=True, capture_output=True)
-    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=repo_path, check=True, capture_output=True)
-    subprocess.run(["git", "config", "user.name", "Tester"], cwd=repo_path, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "init", "-b", "main"], cwd=repo_path, check=True, capture_output=True
+    )
+    subprocess.run(
+        ["git", "config", "user.email", "test@example.com"],
+        cwd=repo_path,
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Tester"],
+        cwd=repo_path,
+        check=True,
+        capture_output=True,
+    )
     (repo_path / "README.md").write_text("# Test Repo\n", encoding="utf-8")
-    subprocess.run(["git", "add", "README.md"], cwd=repo_path, check=True, capture_output=True)
-    subprocess.run(["git", "commit", "-m", "[TEST] Init repo"], cwd=repo_path, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "add", "README.md"], cwd=repo_path, check=True, capture_output=True
+    )
+    subprocess.run(
+        ["git", "commit", "-m", "[TEST] Init repo"],
+        cwd=repo_path,
+        check=True,
+        capture_output=True,
+    )
 
 
 def test_rsdh_hp_07_96_cap_and_tier2_live_sync() -> None:
@@ -748,7 +769,11 @@ const payloads = """
                 _sample_repo_payload(
                     account_id="brother",
                     prompt="Running Gate 4 verification",
-                    heartbeat={"active_wave": 1, "last_event": "wave 1 started", "slots": {"1": {"task_id": "task_05", "status": "working"}}},
+                    heartbeat={
+                        "active_wave": 1,
+                        "last_event": "wave 1 started",
+                        "slots": {"1": {"task_id": "task_05", "status": "working"}},
+                    },
                     quality_active=None,
                 ),
                 _sample_repo_payload(
@@ -761,7 +786,12 @@ const payloads = """
                     account_id="tess",
                     prompt="Approve Gate 4 Triage",
                     is_human_action_required=True,
-                    pending_decision={"decision_id": "dec-1", "active": True, "epic": "demo-epic", "reason": "Approve Gate 4 Triage"},
+                    pending_decision={
+                        "decision_id": "dec-1",
+                        "active": True,
+                        "epic": "demo-epic",
+                        "reason": "Approve Gate 4 Triage",
+                    },
                     heartbeat={"active_wave": 1, "last_event": "wave 1 paused"},
                     quality_active=None,
                 ),
@@ -769,15 +799,35 @@ const payloads = """
                     account_id="tess",
                     prompt="Running quality gate",
                     is_human_action_required=False,
-                    heartbeat={"active_wave": 2, "last_event": "wave 2 active", "slots": {"2": {"task_id": "task_06", "status": "working"}}},
-                    quality_active={"run_id": "run-1", "epic_slug": "demo-epic", "status": "running", "provider": "python-qa", "capability": "test", "step_index": 2, "step_total": 4, "elapsed_sec": 14},
+                    heartbeat={
+                        "active_wave": 2,
+                        "last_event": "wave 2 active",
+                        "slots": {"2": {"task_id": "task_06", "status": "working"}},
+                    },
+                    quality_active={
+                        "run_id": "run-1",
+                        "epic_slug": "demo-epic",
+                        "status": "running",
+                        "provider": "python-qa",
+                        "capability": "test",
+                        "step_index": 2,
+                        "step_total": 4,
+                        "elapsed_sec": 14,
+                    },
                 ),
                 _sample_repo_payload(
                     account_id="tess",
                     prompt="Stale quality ignored",
                     is_human_action_required=False,
                     heartbeat=None,
-                    quality_active={"run_id": "run-stale", "epic_slug": "demo-epic", "status": "stale", "provider": "python-qa", "step_index": 1, "step_total": 4},
+                    quality_active={
+                        "run_id": "run-stale",
+                        "epic_slug": "demo-epic",
+                        "status": "stale",
+                        "provider": "python-qa",
+                        "step_index": 1,
+                        "step_total": 4,
+                    },
                 ),
             ]
         )
@@ -846,6 +896,7 @@ console.log(JSON.stringify({ status: 'ok', finalSig: tier2El.dataset.sig }));
     node_res = _run_node_script(node_script)
     assert node_res["status"] == "ok"
 
+
 class TestTasksDashboard_Integration:
     """Integration runner suite verifying real Chrome CDP and live server DOM behavior."""
 
@@ -869,8 +920,21 @@ class TestTasksDashboard_Integration:
         updated_payload = _sample_repo_payload(
             account_id="tess",
             prompt="Live Gate 4 Check",
-            heartbeat={"active_wave": 2, "last_event": "slot 2 running", "slots": {"2": {"task_id": "task_05", "status": "working"}}},
-            quality_active={"run_id": "r2", "epic_slug": "demo-epic", "status": "running", "provider": "python-qa", "capability": "test", "step_index": 3, "step_total": 4, "elapsed_sec": 9},
+            heartbeat={
+                "active_wave": 2,
+                "last_event": "slot 2 running",
+                "slots": {"2": {"task_id": "task_05", "status": "working"}},
+            },
+            quality_active={
+                "run_id": "r2",
+                "epic_slug": "demo-epic",
+                "status": "running",
+                "provider": "python-qa",
+                "capability": "test",
+                "step_index": 3,
+                "step_total": 4,
+                "elapsed_sec": 9,
+            },
         )
         server.payload_next = updated_payload  # type: ignore[attr-defined]
 
@@ -884,12 +948,14 @@ class TestTasksDashboard_Integration:
                 self.end_headers()
 
         ctrl_port = find_available_port(19920)
-        ctrl_server = http.server.ThreadingHTTPServer(("127.0.0.1", ctrl_port), _ControlHandler)
+        ctrl_server = http.server.ThreadingHTTPServer(
+            ("127.0.0.1", ctrl_port), _ControlHandler
+        )
         threading.Thread(target=ctrl_server.serve_forever, daemon=True).start()
 
         cdp_test_script = rf"""
 import assert from 'node:assert/strict';
-import {{ launchHeadlessChromeCdp }} from {json.dumps(str(tmp_path / 'cdp_helper.mjs'))};
+import {{ launchHeadlessChromeCdp }} from {json.dumps(str(tmp_path / "cdp_helper.mjs"))};
 
 const cdp = await launchHeadlessChromeCdp({json.dumps(chrome_bin)});
 try {{
@@ -910,7 +976,7 @@ try {{
   assert.match(sec2Before, /96% Review/);
   assert.doesNotMatch(sec2Before, /99%|100%/);
 
-  const mutRes = await fetch({json.dumps(f'http://127.0.0.1:{ctrl_port}/mutate')}, {{ method: 'POST' }});
+  const mutRes = await fetch({json.dumps(f"http://127.0.0.1:{ctrl_port}/mutate")}, {{ method: 'POST' }});
   assert.equal(mutRes.status, 200);
 
   await cdp.evaluate(`pollDashboard()`);
@@ -1086,7 +1152,9 @@ console.log(JSON.stringify({ status: 'ok', rowKeys, openEpicsCalls }));
         )
 
         # Set distinct same-day UTC mtimes: epic-alpha older (01:00 UTC), epic-beta newer (08:00 UTC)
-        today_utc = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+        today_utc = datetime.now(timezone.utc).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
         t_alpha = today_utc.replace(hour=1).timestamp()
         t_beta = today_utc.replace(hour=8).timestamp()
         for path_item in epic_alpha.iterdir():
@@ -1128,13 +1196,15 @@ console.log(JSON.stringify({ status: 'ok', rowKeys, openEpicsCalls }));
                 self.end_headers()
 
         bump_port = find_available_port(19940)
-        bump_server = http.server.ThreadingHTTPServer(("127.0.0.1", bump_port), _BumpBetaHandler)
+        bump_server = http.server.ThreadingHTTPServer(
+            ("127.0.0.1", bump_port), _BumpBetaHandler
+        )
         threading.Thread(target=bump_server.serve_forever, daemon=True).start()
 
         url = f"http://127.0.0.1:{server.server_port}/"
         cdp_script = rf"""
 import assert from 'node:assert/strict';
-import {{ launchHeadlessChromeCdp }} from {json.dumps(str(tmp_path / 'cdp_helper.mjs'))};
+import {{ launchHeadlessChromeCdp }} from {json.dumps(str(tmp_path / "cdp_helper.mjs"))};
 
 const cdp = await launchHeadlessChromeCdp({json.dumps(chrome_bin)});
 try {{
@@ -1161,7 +1231,7 @@ try {{
   assert.equal(focused, true, 'Native select must hold document.activeElement');
 
   // Bump epic-beta mtime & task count on disk while select holds focus, then poll
-  const bumpResp = await fetch({json.dumps(f'http://127.0.0.1:{bump_port}/bump')}, {{ method: 'POST' }});
+  const bumpResp = await fetch({json.dumps(f"http://127.0.0.1:{bump_port}/bump")}, {{ method: 'POST' }});
   assert.equal(bumpResp.status, 200);
   await cdp.evaluate(`pollDashboard()`);
 
@@ -1238,8 +1308,12 @@ try {{
         )
         scenarios = {
             "mid_75": _sample_repo_payload(done_count=3, total_count=4)["repos"][0],
-            "high_cap_95": _sample_repo_payload(done_count=39, total_count=40)["repos"][0],
-            "pre_finish_96": _sample_repo_payload(done_count=4, total_count=4, is_review_converged=False)["repos"][0],
+            "high_cap_95": _sample_repo_payload(done_count=39, total_count=40)["repos"][
+                0
+            ],
+            "pre_finish_96": _sample_repo_payload(
+                done_count=4, total_count=4, is_review_converged=False
+            )["repos"][0],
             "waiting_finish_100": _sample_repo_payload(
                 done_count=4,
                 total_count=4,
@@ -1317,7 +1391,15 @@ console.log(JSON.stringify({{ status: 'ok' }}));
             done_count=3,
             total_count=4,
             heartbeat={"active_wave": 1, "last_event": "wave 1 starting"},
-            quality_active={"run_id": "q1", "epic_slug": "demo-epic", "status": "running", "provider": "python-qa", "capability": "lint", "step_index": 1, "step_total": 3},
+            quality_active={
+                "run_id": "q1",
+                "epic_slug": "demo-epic",
+                "status": "running",
+                "provider": "python-qa",
+                "capability": "lint",
+                "step_index": 1,
+                "step_total": 3,
+            },
         )
         server = _MutableTasksServer(initial_payload)
         threading.Thread(target=server.serve_forever, daemon=True).start()
@@ -1327,7 +1409,15 @@ console.log(JSON.stringify({{ status: 'ok' }}));
             done_count=4,
             total_count=4,
             heartbeat={"active_wave": 2, "last_event": "wave 2 executing"},
-            quality_active={"run_id": "q1", "epic_slug": "demo-epic", "status": "running", "provider": "python-qa", "capability": "test", "step_index": 2, "step_total": 3},
+            quality_active={
+                "run_id": "q1",
+                "epic_slug": "demo-epic",
+                "status": "running",
+                "provider": "python-qa",
+                "capability": "test",
+                "step_index": 2,
+                "step_total": 3,
+            },
         )
         second_payload["repos"][0]["epics_summary"]["epics"][1]["task_count"] = 5
 
@@ -1341,14 +1431,16 @@ console.log(JSON.stringify({{ status: 'ok' }}));
                 self.end_headers()
 
         ctrl_port = find_available_port(19960)
-        ctrl_server = http.server.ThreadingHTTPServer(("127.0.0.1", ctrl_port), _StepHandler)
+        ctrl_server = http.server.ThreadingHTTPServer(
+            ("127.0.0.1", ctrl_port), _StepHandler
+        )
         threading.Thread(target=ctrl_server.serve_forever, daemon=True).start()
 
         (tmp_path / "cdp_helper.mjs").write_text(_NODE_CDP_HELPER, encoding="utf-8")
         url = f"http://127.0.0.1:{server.server_port}/"
         cdp_script = rf"""
 import assert from 'node:assert/strict';
-import {{ launchHeadlessChromeCdp }} from {json.dumps(str(tmp_path / 'cdp_helper.mjs'))};
+import {{ launchHeadlessChromeCdp }} from {json.dumps(str(tmp_path / "cdp_helper.mjs"))};
 
 const cdp = await launchHeadlessChromeCdp({json.dumps(chrome_bin)});
 try {{
@@ -1371,7 +1463,7 @@ try {{
   assert.equal(focused, true);
 
   // Push Wave 2 + quality step 2/3 + sibling task_count change while select holds focus
-  await fetch({json.dumps(f'http://127.0.0.1:{ctrl_port}/next')}, {{ method: 'POST' }});
+  await fetch({json.dumps(f"http://127.0.0.1:{ctrl_port}/next")}, {{ method: 'POST' }});
   await cdp.evaluate(`pollDashboard()`);
 
   const duringFocus = await cdp.evaluate(`(() => {{

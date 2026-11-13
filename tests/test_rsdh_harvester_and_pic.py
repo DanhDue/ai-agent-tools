@@ -27,9 +27,7 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS_DIR = REPO_ROOT / "scripts"
-CHECK_TASKS_SCRIPTS = (
-    REPO_ROOT / "skills" / "check-tasks" / "resources" / "scripts"
-)
+CHECK_TASKS_SCRIPTS = REPO_ROOT / "skills" / "check-tasks" / "resources" / "scripts"
 for _p in (str(SCRIPTS_DIR), str(CHECK_TASKS_SCRIPTS)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
@@ -237,7 +235,9 @@ class TestRsdhHarvesterAndPic_Integration:
     def test_rsdh_hp_06_pic_root_worktree_sync(self, tmp_path: Path) -> None:
         """[RSDH-HP-06] [Tier C - Integration] PIC reassignment synchronizes root and worktree PIC-bearing files while preserving review and BDD prose."""
         repo = _init_git_repo(tmp_path / "demo-repo")
-        root_files = _seed_epic_checkout(repo, "demo_epic", "mommy", include_vscode=True)
+        root_files = _seed_epic_checkout(
+            repo, "demo_epic", "mommy", include_vscode=True
+        )
 
         # Add an unrelated sibling task in root .devtool/features/ that must stay untouched
         sibling_feat = repo / ".devtool" / "features" / "task_99_sibling.md"
@@ -270,7 +270,9 @@ class TestRsdhHarvesterAndPic_Integration:
         root_protected_bytes = {k: root_files[k].read_bytes() for k in protected_keys}
         wt_protected_bytes = {k: wt_files[k].read_bytes() for k in protected_keys}
 
-        result = tasks_server.assign_epic_pic(tmp_path, "demo-repo", "demo_epic", "brother")
+        result = tasks_server.assign_epic_pic(
+            tmp_path, "demo-repo", "demo_epic", "brother"
+        )
 
         assert result["status"] == "ok"
         assert result["pic"] == "brother"
@@ -283,10 +285,9 @@ class TestRsdhHarvesterAndPic_Integration:
             assert "- **PIC**: `brother`" in checkout_files["design_spec"].read_text(
                 encoding="utf-8"
             )
-            assert (
-                "- **PIC / Assigned Profile**: `brother`"
-                in checkout_files["handoff"].read_text(encoding="utf-8")
-            )
+            assert "- **PIC / Assigned Profile**: `brother`" in checkout_files[
+                "handoff"
+            ].read_text(encoding="utf-8")
             assert 'pic: "brother"' in checkout_files["epic_task"].read_text(
                 encoding="utf-8"
             )
@@ -320,7 +321,9 @@ class TestRsdhHarvesterAndPic_Integration:
             assert root_files[k].read_bytes() == root_protected_bytes[k]
             assert wt_files[k].read_bytes() == wt_protected_bytes[k]
 
-    def test_rsdh_ec_04_idle_repo_no_alphabetical_fallback(self, tmp_path: Path) -> None:
+    def test_rsdh_ec_04_idle_repo_no_alphabetical_fallback(
+        self, tmp_path: Path
+    ) -> None:
         """[RSDH-EC-04] [Tier A - Unit] Check-Tasks harvester leaves idle repositories without active worktrees or tasks in Idle state."""
         repo = _init_git_repo(tmp_path / "idle-repo")
         for slug in ("alpha_dormant", "choosing_a_lifecycle"):
@@ -359,7 +362,9 @@ class TestRsdhHarvesterAndPic_Integration:
         demo_root = _seed_epic_checkout(repo, "demo_epic", "mommy")
         sibling_root = _seed_epic_checkout(repo, "sibling_epic", "alice")
 
-        demo_wt = _add_worktree(repo, repo / ".worktrees" / "demo_epic", "epic/demo-epic")
+        demo_wt = _add_worktree(
+            repo, repo / ".worktrees" / "demo_epic", "epic/demo-epic"
+        )
         demo_wt_files = _seed_epic_checkout(
             demo_wt, "demo_epic", "mommy", include_vscode=True
         )
@@ -377,9 +382,13 @@ class TestRsdhHarvesterAndPic_Integration:
         demo_before = demo_root["en_hld"].read_bytes()
 
         with pytest.raises(ValueError):
-            tasks_server.assign_epic_pic(tmp_path, "multi-epic-repo", "demo_epic", "../bad")
+            tasks_server.assign_epic_pic(
+                tmp_path, "multi-epic-repo", "demo_epic", "../bad"
+            )
         with pytest.raises(ValueError):
-            tasks_server.assign_epic_pic(tmp_path, "multi-epic-repo", "../bad_epic", "tess")
+            tasks_server.assign_epic_pic(
+                tmp_path, "multi-epic-repo", "../bad_epic", "tess"
+            )
         assert demo_root["en_hld"].read_bytes() == demo_before
 
         port = tasks_server.find_available_port(18850)
@@ -495,7 +504,9 @@ class TestRsdhHarvesterAndPic_Integration:
             encoding="utf-8",
         )
         decision = check_tasks.derive_lifecycle_state(repo, "demo_epic")
-        assert decision.stage_name == check_tasks.LifecycleStage.STAGE_3_PHASE_2_TDD.value
+        assert (
+            decision.stage_name == check_tasks.LifecycleStage.STAGE_3_PHASE_2_TDD.value
+        )
         assert decision.is_human_action_required is False
 
     def test_rsdh_st_04_extract_epic_pic_worktree_and_placeholders(
@@ -770,4 +781,3 @@ class TestRsdhHarvesterAndPic_Integration:
 
         other_dec = check_tasks.derive_lifecycle_state(repo, "other-epic")
         assert other_dec.is_human_action_required is False
-

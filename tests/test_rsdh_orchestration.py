@@ -30,7 +30,11 @@ SYNC_SCRIPT = SCRIPTS_DIR / "sync_task_status.py"
 POOL_SCRIPT = SCRIPTS_DIR / "manage_worker_pool.py"
 INTEGRATE_SCRIPT = FINISH_SCRIPTS_DIR / "integrate_branch.py"
 
-for path_entry in (str(REPO_ROOT / "scripts"), str(SCRIPTS_DIR), str(FINISH_SCRIPTS_DIR)):
+for path_entry in (
+    str(REPO_ROOT / "scripts"),
+    str(SCRIPTS_DIR),
+    str(FINISH_SCRIPTS_DIR),
+):
     if path_entry not in sys.path:
         sys.path.insert(0, path_entry)
 
@@ -89,7 +93,9 @@ def _commit_all(root: Path, message: str) -> str:
     return _git(root, "rev-parse", "HEAD")
 
 
-def _set_task_status(root: Path, epic_dir: str, task_name: str, new_status: str) -> None:
+def _set_task_status(
+    root: Path, epic_dir: str, task_name: str, new_status: str
+) -> None:
     epic_task = root / ".devtool" / "epic" / epic_dir / task_name
     feat_task = root / ".devtool" / "features" / task_name
     for path in (epic_task, feat_task):
@@ -128,8 +134,12 @@ def _add_epic_files_for_slug(
         f"# {epic_slug} Design\n\n## Mục lục\n\n- [Tổng quan](#tổng-quan)\n\n"
         "## Tổng quan\n\nĐã duyệt.\n"
     )
-    (epic_path / f"2026-11-13-{epic_slug}-design.en.md").write_text(spec_en, encoding="utf-8")
-    (epic_path / f"2026-11-13-{epic_slug}-design.vi.md").write_text(spec_vi, encoding="utf-8")
+    (epic_path / f"2026-11-13-{epic_slug}-design.en.md").write_text(
+        spec_en, encoding="utf-8"
+    )
+    (epic_path / f"2026-11-13-{epic_slug}-design.vi.md").write_text(
+        spec_vi, encoding="utf-8"
+    )
 
     hld_en = f"""# {epic_slug} HLD
 
@@ -199,7 +209,11 @@ def test_rsdh_hp_04_wave_parallel_handoff_and_creator_pic(tmp_path: Path) -> Non
 
     prof_home = tmp_path / "antigravity_homes" / "brother"
     prof_home.mkdir(parents=True)
-    extra_env = {"HOME": str(prof_home), "ANTIGRAVITY_PROFILE": "brother", "USER": "nobody"}
+    extra_env = {
+        "HOME": str(prof_home),
+        "ANTIGRAVITY_PROFILE": "brother",
+        "USER": "nobody",
+    }
 
     g1 = _run(
         [
@@ -253,11 +267,20 @@ def test_rsdh_hp_04_wave_parallel_handoff_and_creator_pic(tmp_path: Path) -> Non
         "cleanup",
         "English",
     ):
-        assert required_token in handoff_text, f"Missing '{required_token}' in rendered handoff.md"
+        assert required_token in handoff_text, (
+            f"Missing '{required_token}' in rendered handoff.md"
+        )
     assert "Sequentially execute each Kanban task" not in handoff_text
 
     emitted = _run(
-        [sys.executable, str(RESUME_SCRIPT), "--emit-prompt", "implement", "--epic", "demo-epic"],
+        [
+            sys.executable,
+            str(RESUME_SCRIPT),
+            "--emit-prompt",
+            "implement",
+            "--epic",
+            "demo-epic",
+        ],
         cwd=tmp_path,
         extra_env=extra_env,
     )
@@ -279,7 +302,11 @@ def test_rsdh_hp_04_wave_parallel_handoff_and_creator_pic(tmp_path: Path) -> Non
     tpl_text = (
         REPO_ROOT / "skills" / "dev-lifecycle" / "references" / "handoff-template.md"
     ).read_text(encoding="utf-8")
-    assert "workspace:" in tpl_text or 'workspace:"share"' in tpl_text or "share" in tpl_text
+    assert (
+        "workspace:" in tpl_text
+        or 'workspace:"share"' in tpl_text
+        or "share" in tpl_text
+    )
     assert "--parallel" in tpl_text
     assert "manage_worker_pool.py" in tpl_text
     assert "cleanup" in tpl_text
@@ -404,12 +431,30 @@ def test_rsdh_ec_03_stage3_revise_vs_stage2_strict(tmp_path: Path) -> None:
 
     # Stage 2 initial packaging succeeds cleanly before (new) files are created.
     g1 = _run(
-        [sys.executable, str(RESUME_SCRIPT), "--gate", "1", "--epic", "demo-epic", "--approved", "G1"],
+        [
+            sys.executable,
+            str(RESUME_SCRIPT),
+            "--gate",
+            "1",
+            "--epic",
+            "demo-epic",
+            "--approved",
+            "G1",
+        ],
         cwd=tmp_path,
     )
     assert g1.returncode == 0
     g2 = _run(
-        [sys.executable, str(RESUME_SCRIPT), "--gate", "2", "--epic", "demo-epic", "--approved", "G2"],
+        [
+            sys.executable,
+            str(RESUME_SCRIPT),
+            "--gate",
+            "2",
+            "--epic",
+            "demo-epic",
+            "--approved",
+            "G2",
+        ],
         cwd=tmp_path,
     )
     assert g2.returncode == 0
@@ -418,7 +463,9 @@ def test_rsdh_ec_03_stage3_revise_vs_stage2_strict(tmp_path: Path) -> None:
         cwd=tmp_path,
         extra_env={"ANTIGRAVITY_PROFILE": "brother"},
     )
-    assert init_pkg.returncode == 0, f"Initial package failed:\n{init_pkg.stdout}\n{init_pkg.stderr}"
+    assert init_pkg.returncode == 0, (
+        f"Initial package failed:\n{init_pkg.stdout}\n{init_pkg.stderr}"
+    )
     _commit_all(tmp_path, "Package initial handoff")
 
     # Now create task_1's artifacts while task_1 is still `todo` -> Stage 2 strict check MUST fail!
@@ -517,8 +564,7 @@ def test_rsdh_ec_03_stage3_revise_vs_stage2_strict(tmp_path: Path) -> None:
     assert pd.returncode == 0, pd.stderr
 
     hld_en_file.write_text(
-        hld_en_file.read_text(encoding="utf-8")
-        .replace(
+        hld_en_file.read_text(encoding="utf-8").replace(
             "- [Kanban Tasks Breakdown](#kanban-tasks-breakdown)\n",
             "- [Kanban Tasks Breakdown](#kanban-tasks-breakdown)\n- [Spec Errata](#spec-errata)\n",
         )
@@ -526,8 +572,7 @@ def test_rsdh_ec_03_stage3_revise_vs_stage2_strict(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     hld_vi_file.write_text(
-        hld_vi_file.read_text(encoding="utf-8")
-        .replace(
+        hld_vi_file.read_text(encoding="utf-8").replace(
             "- [Kanban Tasks Breakdown](#kanban-tasks-breakdown)\n",
             "- [Kanban Tasks Breakdown](#kanban-tasks-breakdown)\n- [Đính chính Đặc tả (Spec Errata)](#đính-chính-đặc-tả-spec-errata)\n",
         )
@@ -537,16 +582,27 @@ def test_rsdh_ec_03_stage3_revise_vs_stage2_strict(tmp_path: Path) -> None:
     _commit_all(tmp_path, "Stage 3 revision ready")
 
     revise_proc = _run(
-        [sys.executable, str(PACKAGE_SCRIPT), "--revise", "--reason", "Stage 3 revision", "demo_epic"],
+        [
+            sys.executable,
+            str(PACKAGE_SCRIPT),
+            "--revise",
+            "--reason",
+            "Stage 3 revision",
+            "demo_epic",
+        ],
         cwd=tmp_path,
         extra_env={"ANTIGRAVITY_PROFILE": "brother"},
     )
-    assert revise_proc.returncode == 0, f"--revise failed:\n{revise_proc.stdout}\n{revise_proc.stderr}"
+    assert revise_proc.returncode == 0, (
+        f"--revise failed:\n{revise_proc.stdout}\n{revise_proc.stderr}"
+    )
     pd_data = _read_json(tmp_path / ".devtool" / "state" / "pending_decision.json")
     assert "demo-epic" not in pd_data.get("decisions", {})
 
     # Still STRICT when a `todo` task claims an already-existing (new) path.
-    (tmp_path / "src" / "future_mod.py").write_text("COLLISION = True\n", encoding="utf-8")
+    (tmp_path / "src" / "future_mod.py").write_text(
+        "COLLISION = True\n", encoding="utf-8"
+    )
     _commit_all(tmp_path, "Create todo collision file")
     todo_collision = _run(
         [
@@ -568,9 +624,14 @@ def test_rsdh_ec_03_stage3_revise_vs_stage2_strict(tmp_path: Path) -> None:
     # Still STRICT when two tasks duplicate the same (new) claim.
     (tmp_path / "src" / "future_mod.py").unlink()
     _commit_all(tmp_path, "Remove collision file")
-    for p in (epic_path / "task_2.md", tmp_path / ".devtool" / "features" / "task_2.md"):
+    for p in (
+        epic_path / "task_2.md",
+        tmp_path / ".devtool" / "features" / "task_2.md",
+    ):
         p.write_text(
-            p.read_text(encoding="utf-8").replace("`src/future_mod.py` (new)", "`src/done_mod.py` (new)"),
+            p.read_text(encoding="utf-8").replace(
+                "`src/future_mod.py` (new)", "`src/done_mod.py` (new)"
+            ),
             encoding="utf-8",
         )
     dup_claim = _run(
@@ -588,7 +649,10 @@ def test_rsdh_ec_03_stage3_revise_vs_stage2_strict(tmp_path: Path) -> None:
         cwd=tmp_path,
     )
     assert dup_claim.returncode != 0
-    assert "duplicate" in dup_claim.stdout.lower() or "multiple tasks" in dup_claim.stdout.lower()
+    assert (
+        "duplicate" in dup_claim.stdout.lower()
+        or "multiple tasks" in dup_claim.stdout.lower()
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -604,7 +668,16 @@ def test_rsdh_ec_08_preservation_safe_pool_cleanup_and_land(tmp_path: Path) -> N
 
     # Create epic worktree on epic/demo-epic so develop stays checked out in tmp_path.
     epic_wt = tmp_path / ".worktrees" / "demo_epic"
-    _git(tmp_path, "worktree", "add", "-q", str(epic_wt), "-b", "epic/demo-epic", "develop")
+    _git(
+        tmp_path,
+        "worktree",
+        "add",
+        "-q",
+        str(epic_wt),
+        "-b",
+        "epic/demo-epic",
+        "develop",
+    )
     (epic_wt / "app.py").write_text("v = 1\n", encoding="utf-8")
     _commit_all(epic_wt, "Epic base commit")
 
@@ -647,7 +720,14 @@ def test_rsdh_ec_08_preservation_safe_pool_cleanup_and_land(tmp_path: Path) -> N
     _git(epic_wt, "branch", "worker/demo-epic/slot-4", "epic/demo-epic")
     shutil.rmtree(slot1_wt)
     # Create unmerged orphan worker/demo-epic/slot-3 off detached branch commit
-    _git(tmp_path, "checkout", "-q", "-b", "worker/demo-epic/slot-3", "epic/demo-epic-slot-1")
+    _git(
+        tmp_path,
+        "checkout",
+        "-q",
+        "-b",
+        "worker/demo-epic/slot-3",
+        "epic/demo-epic-slot-1",
+    )
     _git(tmp_path, "checkout", "-q", "develop")
 
     stale_res = _run(
@@ -681,7 +761,9 @@ def test_rsdh_ec_08_preservation_safe_pool_cleanup_and_land(tmp_path: Path) -> N
         ],
         cwd=epic_wt,
     )
-    assert force_res.returncode == 0, f"Forced cleanup failed:\n{force_res.stdout}\n{force_res.stderr}"
+    assert force_res.returncode == 0, (
+        f"Forced cleanup failed:\n{force_res.stdout}\n{force_res.stderr}"
+    )
     branches_after_force = _git(epic_wt, "branch", "--list")
     assert "epic/demo-epic-slot-1" not in branches_after_force
     assert "worker/demo-epic/slot-3" not in branches_after_force
@@ -714,7 +796,9 @@ def test_rsdh_ec_08_preservation_safe_pool_cleanup_and_land(tmp_path: Path) -> N
         ],
         cwd=epic_wt,
     )
-    assert land_res.returncode == 0, f"integrate_branch land failed:\n{land_res.stdout}\n{land_res.stderr}"
+    assert land_res.returncode == 0, (
+        f"integrate_branch land failed:\n{land_res.stdout}\n{land_res.stderr}"
+    )
     branches_after_land = _git(tmp_path, "branch", "--list")
     assert "worker/demo-epic/slot-5" not in branches_after_land
     assert "worker/demo-epic/slot-6" in branches_after_land
@@ -725,13 +809,17 @@ def test_rsdh_ec_08_preservation_safe_pool_cleanup_and_land(tmp_path: Path) -> N
 # ---------------------------------------------------------------------------
 
 
-def test_rsdh_st_01_pending_decision_per_epic_isolation_and_clear(tmp_path: Path) -> None:
+def test_rsdh_st_01_pending_decision_per_epic_isolation_and_clear(
+    tmp_path: Path,
+) -> None:
     """[RSDH-ST-01] Concurrent epics keep isolated pending_decision entries across root and worktree."""
     _init_repo(tmp_path, branch="develop")
     (tmp_path / "tool.py").write_text("x = 1\n", encoding="utf-8")
     (tmp_path / "README.md").write_text("# Root\n", encoding="utf-8")
     (tmp_path / "scripts").mkdir()
-    (tmp_path / "scripts" / "verify.sh").write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    (tmp_path / "scripts" / "verify.sh").write_text(
+        "#!/bin/sh\nexit 0\n", encoding="utf-8"
+    )
     _add_epic_files_for_slug(tmp_path, "epic_a", "epic-a", "task_a1")
     _add_epic_files_for_slug(tmp_path, "epic_b", "epic-b", "task_b1")
     _commit_all(tmp_path, "Setup epic-a and epic-b")
@@ -885,7 +973,16 @@ def test_rsdh_st_03_worker_pool_slot_and_wave_heartbeat_updates(tmp_path: Path) 
     _commit_all(tmp_path, "Initial")
 
     epic_wt = tmp_path / ".worktrees" / "demo_epic"
-    _git(tmp_path, "worktree", "add", "-q", str(epic_wt), "-b", "epic/demo-epic", "develop")
+    _git(
+        tmp_path,
+        "worktree",
+        "add",
+        "-q",
+        str(epic_wt),
+        "-b",
+        "epic/demo-epic",
+        "develop",
+    )
 
     hb_path = tmp_path / ".devtool" / "state" / "demo-epic.heartbeat.json"
 
@@ -1010,9 +1107,18 @@ def test_rsdh_st_07_governance_docs_caps_and_orchestration_parity() -> None:
 
     for skill_rel, expected_tokens in (
         ("skills/dev-brainstorming/SKILL.md", ("PIC", "--pending-decision")),
-        ("skills/principal-review/SKILL.md", ("--pending-decision", "CRITICAL_CONFLICT")),
-        ("skills/cross-model-review/SKILL.md", ("--pending-decision", "CRITICAL_CONFLICT")),
-        ("skills/finishing-a-development-branch/SKILL.md", ("--pending-decision", "cleanup")),
+        (
+            "skills/principal-review/SKILL.md",
+            ("--pending-decision", "CRITICAL_CONFLICT"),
+        ),
+        (
+            "skills/cross-model-review/SKILL.md",
+            ("--pending-decision", "CRITICAL_CONFLICT"),
+        ),
+        (
+            "skills/finishing-a-development-branch/SKILL.md",
+            ("--pending-decision", "cleanup"),
+        ),
     ):
         path = REPO_ROOT / skill_rel
         assert set(_parse_frontmatter_keys(path)) == {"name", "description"}, (
@@ -1037,15 +1143,32 @@ def test_rsdh_fr_03_end_to_end_single_terminal_flow(tmp_path: Path) -> None:
 
     prof_home = tmp_path / "antigravity_homes" / "personal"
     prof_home.mkdir(parents=True)
-    prof_env = {"HOME": str(prof_home), "ANTIGRAVITY_PROFILE": "personal", "USER": "nobody"}
+    prof_env = {
+        "HOME": str(prof_home),
+        "ANTIGRAVITY_PROFILE": "personal",
+        "USER": "nobody",
+    }
 
     assert (
-        _run([sys.executable, str(RESUME_SCRIPT), "--detect-profile"], cwd=tmp_path, extra_env=prof_env).stdout.strip()
+        _run(
+            [sys.executable, str(RESUME_SCRIPT), "--detect-profile"],
+            cwd=tmp_path,
+            extra_env=prof_env,
+        ).stdout.strip()
         == "personal"
     )
     assert (
         _run(
-            [sys.executable, str(RESUME_SCRIPT), "--gate", "1", "--epic", "demo-epic", "--approved", "G1"],
+            [
+                sys.executable,
+                str(RESUME_SCRIPT),
+                "--gate",
+                "1",
+                "--epic",
+                "demo-epic",
+                "--approved",
+                "G1",
+            ],
             cwd=tmp_path,
             extra_env=prof_env,
         ).returncode
@@ -1053,32 +1176,70 @@ def test_rsdh_fr_03_end_to_end_single_terminal_flow(tmp_path: Path) -> None:
     )
     assert (
         _run(
-            [sys.executable, str(RESUME_SCRIPT), "--gate", "2", "--epic", "demo-epic", "--approved", "G2"],
+            [
+                sys.executable,
+                str(RESUME_SCRIPT),
+                "--gate",
+                "2",
+                "--epic",
+                "demo-epic",
+                "--approved",
+                "G2",
+            ],
             cwd=tmp_path,
             extra_env=prof_env,
         ).returncode
         == 0
     )
     assert (
-        _run([sys.executable, str(PACKAGE_SCRIPT), "demo_epic"], cwd=tmp_path, extra_env=prof_env).returncode
+        _run(
+            [sys.executable, str(PACKAGE_SCRIPT), "demo_epic"],
+            cwd=tmp_path,
+            extra_env=prof_env,
+        ).returncode
         == 0
     )
-    handoff_text = (tmp_path / ".devtool" / "epic" / "demo_epic" / "handoff.md").read_text(encoding="utf-8")
+    handoff_text = (
+        tmp_path / ".devtool" / "epic" / "demo_epic" / "handoff.md"
+    ).read_text(encoding="utf-8")
     assert "<profile_account_id>" not in handoff_text
     assert "personal" in handoff_text
 
     # Epic worktree + wave pool run
     _commit_all(tmp_path, "Commit initial package")
     epic_wt = tmp_path / ".worktrees" / "demo_epic"
-    _git(tmp_path, "worktree", "add", "-q", str(epic_wt), "-b", "epic/demo-epic", "develop")
+    _git(
+        tmp_path,
+        "worktree",
+        "add",
+        "-q",
+        str(epic_wt),
+        "-b",
+        "epic/demo-epic",
+        "develop",
+    )
 
     assert (
-        _run([sys.executable, str(POOL_SCRIPT), "init", "demo_epic", "--pool-size", "1"], cwd=epic_wt).returncode
+        _run(
+            [sys.executable, str(POOL_SCRIPT), "init", "demo_epic", "--pool-size", "1"],
+            cwd=epic_wt,
+        ).returncode
         == 0
     )
     assert (
         _run(
-            [sys.executable, str(POOL_SCRIPT), "sync", "demo_epic", "--slot", "1", "--task", "task_1", "--wave", "1"],
+            [
+                sys.executable,
+                str(POOL_SCRIPT),
+                "sync",
+                "demo_epic",
+                "--slot",
+                "1",
+                "--task",
+                "task_1",
+                "--wave",
+                "1",
+            ],
             cwd=epic_wt,
         ).returncode
         == 0
@@ -1090,11 +1251,24 @@ def test_rsdh_fr_03_end_to_end_single_terminal_flow(tmp_path: Path) -> None:
     _commit_all(slot1_wt, "Implement task_1")
 
     assert (
-        _run([sys.executable, str(POOL_SCRIPT), "merge", "demo_epic", "--slot", "1"], cwd=epic_wt).returncode
+        _run(
+            [sys.executable, str(POOL_SCRIPT), "merge", "demo_epic", "--slot", "1"],
+            cwd=epic_wt,
+        ).returncode
         == 0
     )
     assert (
-        _run([sys.executable, str(POOL_SCRIPT), "cleanup", "demo_epic", "--pool-size", "1"], cwd=epic_wt).returncode
+        _run(
+            [
+                sys.executable,
+                str(POOL_SCRIPT),
+                "cleanup",
+                "demo_epic",
+                "--pool-size",
+                "1",
+            ],
+            cwd=epic_wt,
+        ).returncode
         == 0
     )
 
@@ -1117,7 +1291,14 @@ def test_rsdh_fr_03_end_to_end_single_terminal_flow(tmp_path: Path) -> None:
     )
     assert (
         _run(
-            [sys.executable, str(PACKAGE_SCRIPT), "--revise", "--reason", "Stage 3 revision", "demo_epic"],
+            [
+                sys.executable,
+                str(PACKAGE_SCRIPT),
+                "--revise",
+                "--reason",
+                "Stage 3 revision",
+                "demo_epic",
+            ],
             cwd=epic_wt,
             extra_env=prof_env,
         ).returncode
@@ -1143,7 +1324,9 @@ def test_rsdh_fr_03_end_to_end_single_terminal_flow(tmp_path: Path) -> None:
         ],
         cwd=epic_wt,
     )
-    assert land_res.returncode == 0, f"land failed:\n{land_res.stdout}\n{land_res.stderr}"
+    assert land_res.returncode == 0, (
+        f"land failed:\n{land_res.stdout}\n{land_res.stderr}"
+    )
 
 
 class TestRSDHOrchestration_Integration:
@@ -1184,4 +1367,3 @@ class TestRSDHOrchestration_Integration:
     def test_RSDH_FR_03_integration(self, tmp_path: Path) -> None:
         """[RSDH-FR-03] Integration check for end-to-end single-terminal lifecycle flow."""
         test_rsdh_fr_03_end_to_end_single_terminal_flow(tmp_path)
-

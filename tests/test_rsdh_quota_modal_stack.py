@@ -32,9 +32,7 @@ QUOTA_DASHBOARD_HTML = (
     / "dashboard"
     / "quota_dashboard.html"
 )
-CHECK_TASKS_SCRIPT_DIR = (
-    REPO_ROOT / "skills" / "check-tasks" / "resources" / "scripts"
-)
+CHECK_TASKS_SCRIPT_DIR = REPO_ROOT / "skills" / "check-tasks" / "resources" / "scripts"
 if str(CHECK_TASKS_SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(CHECK_TASKS_SCRIPT_DIR))
 
@@ -47,9 +45,7 @@ def _resolve_chrome_binary() -> str:
     if env_bin and Path(env_bin).is_file():
         return env_bin
 
-    mac_chrome = Path(
-        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-    )
+    mac_chrome = Path("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome")
     if mac_chrome.is_file():
         return str(mac_chrome)
 
@@ -58,7 +54,9 @@ def _resolve_chrome_binary() -> str:
         if resolved:
             return resolved
 
-    msg = "Headless Chrome binary not found (checked CHROME_BIN, macOS Chrome, and PATH)"
+    msg = (
+        "Headless Chrome binary not found (checked CHROME_BIN, macOS Chrome, and PATH)"
+    )
     pytest.fail(msg)
     raise RuntimeError(msg)
 
@@ -91,7 +89,9 @@ def _run_node_script(script_source: str, timeout: int = 45) -> dict[str, Any]:
         f"STDOUT:\n{proc.stdout}\nSTDERR:\n{proc.stderr}"
     )
     lines = [line for line in proc.stdout.splitlines() if line.strip()]
-    assert lines, f"Expected JSON line on stdout, got empty output. STDERR:\n{proc.stderr}"
+    assert lines, (
+        f"Expected JSON line on stdout, got empty output. STDERR:\n{proc.stderr}"
+    )
     return json.loads(lines[-1])  # type: ignore[no-any-return]
 
 
@@ -710,7 +710,9 @@ def _start_isolated_quota_and_tasks_servers(
             self.end_headers()
 
     quota_port = tasks_server.find_available_port(19600)
-    quota_http = http.server.ThreadingHTTPServer(("127.0.0.1", quota_port), _QuotaHandler)
+    quota_http = http.server.ThreadingHTTPServer(
+        ("127.0.0.1", quota_port), _QuotaHandler
+    )
     threading.Thread(target=quota_http.serve_forever, daemon=True).start()
 
     # Isolated workspace for real TasksServer + safe /api/launch/quota override
@@ -845,7 +847,7 @@ import {{ launchHeadlessChromeCdp }} from {json.dumps(str(cdp_helper_path))};
 
 const cdp = await launchHeadlessChromeCdp({json.dumps(chrome_bin)});
 try {{
-  await cdp.send('Page.navigate', {{ url: {json.dumps(urls['tasks_url'])} }});
+  await cdp.send('Page.navigate', {{ url: {json.dumps(urls["tasks_url"])} }});
   let tasksReady = false;
   for (let i = 0; i < 40; i++) {{
     tasksReady = await cdp.evaluate(`typeof openQuotaModal === 'function'`);
@@ -975,7 +977,7 @@ import {{ launchHeadlessChromeCdp }} from {json.dumps(str(cdp_helper_path))};
 
 const cdp = await launchHeadlessChromeCdp({json.dumps(chrome_bin)});
 try {{
-  await cdp.send('Page.navigate', {{ url: {json.dumps(urls['tasks_url'])} }});
+  await cdp.send('Page.navigate', {{ url: {json.dumps(urls["tasks_url"])} }});
   for (let i = 0; i < 40; i++) {{
     if (await cdp.evaluate(`typeof openQuotaModal === 'function'`)) break;
     await new Promise((r) => setTimeout(r, 100));
@@ -1114,7 +1116,7 @@ import {{ launchHeadlessChromeCdp }} from {json.dumps(str(cdp_helper_path))};
 const cdp = await launchHeadlessChromeCdp({json.dumps(chrome_bin)});
 try {{
   // 1. Standalone view
-  await cdp.send('Page.navigate', {{ url: {json.dumps(urls['quota_url'])} }});
+  await cdp.send('Page.navigate', {{ url: {json.dumps(urls["quota_url"])} }});
   for (let i = 0; i < 40; i++) {{
     if (await cdp.evaluate(`Boolean(document.getElementById('dashboardCard'))`)) break;
     await new Promise((r) => setTimeout(r, 100));
@@ -1128,7 +1130,7 @@ try {{
   assert.ok(parseFloat(standalone.paddingTop) >= 16, 'Standalone card must preserve card padding');
 
   // 2. Embedded ?embedded=1 inside #modal-quota real iframe
-  await cdp.send('Page.navigate', {{ url: {json.dumps(urls['tasks_url'])} }});
+  await cdp.send('Page.navigate', {{ url: {json.dumps(urls["tasks_url"])} }});
   for (let i = 0; i < 40; i++) {{
     if (await cdp.evaluate(`typeof openQuotaModal === 'function'`)) break;
     await new Promise((r) => setTimeout(r, 100));
@@ -1201,7 +1203,7 @@ import {{ launchHeadlessChromeCdp }} from {json.dumps(str(cdp_helper_path))};
 
 const cdp = await launchHeadlessChromeCdp({json.dumps(chrome_bin)});
 try {{
-  await cdp.send('Page.navigate', {{ url: {json.dumps(urls['tasks_url'])} }});
+  await cdp.send('Page.navigate', {{ url: {json.dumps(urls["tasks_url"])} }});
   for (let i = 0; i < 40; i++) {{
     if (await cdp.evaluate(`typeof openQuotaModal === 'function'`)) break;
     await new Promise((r) => setTimeout(r, 100));
