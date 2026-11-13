@@ -448,6 +448,32 @@ class TestReviewSkillContracts(unittest.TestCase):
             self.assertIn("principal-review", doc_text)
             self.assertIn("cross-model-review", doc_text)
 
+    def test_test_efficiency_and_anti_bloat_contracts(self) -> None:
+        """Enforce Anti-Test-Bloat Rules and Tiered Test Execution Protocol across lifecycle, implementation, and TDD skills."""
+        checklists = (ROOT / "skills/dev-lifecycle/references/governance-checklists.md").read_text(
+            encoding="utf-8"
+        )
+        for token in (
+            "Mandatory Parametrization",
+            "@pytest.mark.parametrize",
+            "No Trivial Boilerplate Tests",
+            "Fixture Scope Discipline",
+            "Tier 1",
+            "Tier 2",
+            "Tier 3",
+            "--dist loadscope --timeout=30",
+        ):
+            self.assertIn(token, checklists, f"governance-checklists.md missing: {token}")
+
+        for rel in (
+            "skills/dev-lifecycle/SKILL.md",
+            "skills/dev-implementation/SKILL.md",
+            "skills/test-driven-development/SKILL.md",
+        ):
+            text = (ROOT / rel).read_text(encoding="utf-8")
+            for token in ("@pytest.mark.parametrize", "Tier 1", "Tier 2", "Tier 3", 'scope="session"'):
+                self.assertIn(token, text, f"{rel} missing test efficiency token: {token}")
+
 
 if __name__ == "__main__":
     unittest.main()

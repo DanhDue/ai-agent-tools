@@ -182,6 +182,8 @@ test as tautological.
 | Need cleanup only tests use | Put it in test utilities |
 | Watch mock setup balloon | Switch to an integration test with real components |
 | Finish a test file | Run the mutation check |
+| Vary inputs on the same branch | Consolidate into `@pytest.mark.parametrize` / table tests (never copy-paste `def test_*`) |
+| Load read-only JSON, AST, server, or browser fixtures | Set `scope="module"` or `scope="session"`, never `scope="function"` |
 
 ## Warning Signs
 

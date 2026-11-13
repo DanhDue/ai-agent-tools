@@ -29,7 +29,7 @@
   - `CIRCUIT_BREAKER_HALT (MAX_ROUNDS_CRITICAL_REMAINING)` & `CIRCUIT_BREAKER_HALT (FIX_LOOP)`: Halt immediately if `Critical` findings remain after Round 3 or if a file marked `fixed in <sha>` in Round `N-1` is flagged `Critical`/`Important` in Round `N`. If Round 3 finishes with `0 Critical` (only `Important`/`Minor`, no Fix Loop/contract conflict), run `AUTO_PASS_FINAL_SWEEP`, pass Gate 4 in full, and complete without a 4th round.
 
 ### 1.3 Intermediate Scoped Tests & Anti-Evasion Rules
-- **Intermediate Rounds**: Run fast static checks (`ruff`, `mypy`, `lint-imports`, AST invariants) plus targeted pytest files covering modified modules (`python3 -m pytest -q --tb=short --maxfail=3 <file_1.py> <file_2.py>`). Repo-wide `pytest`, `tests/e2e/` browser suites, and unfiltered `| tail` runs are forbidden until Final Convergence Gate (`Gate 4 in full`).
+- **Intermediate Rounds (Tier 1 Only)**: Run fast static checks (`ruff`, `mypy`, `lint-imports`, AST invariants) plus targeted pytest files covering modified modules (`uv run pytest <changed_test_files> -n auto --timeout=30 -q --tb=short`, or module-scoped runner for non-Python projects). Repo-wide `pytest`, `tests/e2e/` browser suites, and unfiltered `| tail` runs are forbidden until Final Convergence Gate (`Gate 4 in full`).
 - **Zero-Tolerance Anti-Evasion**: Never delete a required dependency from `pyproject.toml` instead of running `uv lock`; never delete stale reports without regenerating them; never synthesize fake test data in place of immutable disk fixtures; always run `uv run playwright install chromium` after adding/upgrading `playwright`.
 
 ---
@@ -76,3 +76,23 @@
 
 - **Trim**: Discretionary preamble, step-by-step narration, redundant restatements of already-read files, and conversational padding in subagent/worker outputs.
 - **Always Preserve**: Machine Verdicts (`PASS`/`FAIL`/`BLOCKED`, `🟢 LGTM`/`🟡 CONCERNS`/`🔴 BLOCKED`), severity-tiered Findings tables, JSON/provider gate results (`run_external_review.py`, `run_task_checks.py`), worker status contracts, and human Gate decision prompts.
+
+---
+
+## 5. Test Efficiency, Anti-Test-Bloat & Tiered Execution Protocol
+
+### 5.1 Anti-Test-Bloat Rules (When Writing Tests in Gate 3)
+- **Mandatory Parametrization**: Never write multiple copy-pasted `def test_*` functions that test the same logic branch with different inputs. Always consolidate variations into a single `@pytest.mark.parametrize` (or table-driven) test.
+- **No Trivial Boilerplate Tests**: Do NOT write tests that merely assert Python language features, Pydantic default field values, or trivial getters/setters without business logic. Every test must verify a distinct behavioral contract or edge case from the Spec/HLD.
+- **Fixture Scope Discipline**: Any read-only fixture (loading JSON snapshots, parsing ASTs, spinning up mock servers or headless browsers) MUST use `scope="module"` or `scope="session"` — never `scope="function"`.
+
+### 5.2 Tiered Test Execution Protocol (When Running Tests)
+- **Tier 1 — Task Implementation & Intermediate Review Fix Rounds**:
+  - Run ONLY static checks (`ruff`, `mypy`, `lint-imports`) + explicitly scoped test files in parallel:
+    `uv run pytest <changed_test_files> -n auto --timeout=30 -q --tb=short`
+  - **NEVER** run `tests/e2e` or unfiltered repo-wide `pytest` during intermediate steps.
+- **Tier 2 — Pre-Review / Pre-Gate Fast Regression**:
+  - Run unit + integration tests in parallel across CPU cores, excluding `tests/e2e`:
+    `uv run pytest --ignore=tests/e2e -m "not slow and not acceptance and not live_llm" -n auto --dist loadscope --timeout=30 -q --tb=short`
+- **Tier 3 — Final Gate Convergence Only (Run Exactly Once per Epic)**:
+  - Run Tier 2 + the session-scoped `tests/e2e` Playwright suite + `audit_epic.py` / `quality_check`.

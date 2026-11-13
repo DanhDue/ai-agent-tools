@@ -209,6 +209,22 @@ When writing or changing any test, read [writing-good-tests.md](writing-good-tes
 - Keep test-only code in test utilities, out of production classes
 - Understand a dependency's side effects before mocking it
 
+## Test Efficiency & Anti-Test-Bloat Rules
+
+### 1. Anti-Test-Bloat Rules
+- **Mandatory Parametrization:** Never write multiple copy-pasted `def test_*` functions that test the same logic branch with different inputs. Always consolidate variations into a single `@pytest.mark.parametrize` (or table-driven) test.
+- **No Trivial Boilerplate Tests:** Do NOT write tests that merely assert Python language features, Pydantic default field values, or trivial getters/setters without business logic. Every test must verify a distinct behavioral contract or edge case from the Spec/HLD.
+- **Fixture Scope Discipline:** Any read-only fixture (loading JSON snapshots, parsing ASTs, spinning up mock servers or headless browsers) MUST use `scope="module"` or `scope="session"` — never `scope="function"`.
+
+### 2. Tiered Test Execution Protocol
+- **Tier 1 — Task Implementation & Intermediate Fix Rounds:**
+  Run ONLY static checks (`ruff`, `mypy`, `lint-imports`) + explicitly scoped test files in parallel (`uv run pytest <changed_test_files> -n auto --timeout=30 -q --tb=short`). **NEVER** run `tests/e2e` or unfiltered repo-wide `pytest` during intermediate steps.
+- **Tier 2 — Pre-Review / Pre-Gate Fast Regression:**
+  Run unit + integration tests in parallel across CPU cores, excluding `tests/e2e`:
+  `uv run pytest --ignore=tests/e2e -m "not slow and not acceptance and not live_llm" -n auto --dist loadscope --timeout=30 -q --tb=short`
+- **Tier 3 — Final Gate Convergence Only (Run Exactly Once per Epic):**
+  Run Tier 2 + the session-scoped `tests/e2e` Playwright suite + `audit_epic.py` / `quality_check`.
+
 ## Common Rationalizations
 
 | Excuse | Reality |
@@ -305,6 +321,8 @@ Before marking work complete:
 - [ ] Output pristine (no errors, warnings)
 - [ ] Tests use real code (mocks only if unavoidable)
 - [ ] Edge cases and errors covered
+- [ ] Input variations consolidated with `@pytest.mark.parametrize` / table tests (zero copy-pasted boilerplate or trivial Pydantic-default/getter tests)
+- [ ] Read-only, AST/snapshot, server, and browser fixtures use `scope="module"` or `scope="session"` (and intermediate checks stayed in Tier 1)
 
 Can't check all boxes? You skipped TDD. Start over.
 

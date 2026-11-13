@@ -164,13 +164,7 @@ For rows 4 and 5. Phase 1 step 4's `git worktree add -b` never runs here.
    If `sync-base` exits 3 (diverged or dirty file), stop and ask.
    If overview Status begins with `Packaged`, run `python3 "$SKILL_DIR"/resources/scripts/sync_task_status.py epic <epic_dir> "In Progress"`.
 
-   **Isolated IDE Window Launch**: Recommend or execute launching a separate Antigravity IDE window for this worktree to maintain isolated Git branches, separate title bars, and distinct user profiles:
-   ```bash
-   # Quick open via user profile alias (e.g. peter, danhdue, tess):
-   <profile_alias> .worktrees/<epic_dir>
-   # Or using antigravity launcher:
-   antigravity <profile> .worktrees/<epic_dir>
-   ```
+   **Isolated IDE Window**: Optionally open the worktree in a separate IDE profile window (`antigravity <profile> .worktrees/<epic_dir>`).
 5. Bootstrap worktree using platform tooling (`bootstrap_worktree.sh`, Gradle sync, Tuist, npm/pnpm, uv sync, cargo check).
 6. Never copy build caches (`.dart_tool/`, `/build/`, `.build/`, `android/**/.cxx/`) from another checkout into this worktree.
 7. **Initialize 2-Slot Ephemeral Worker Pool:**
@@ -215,13 +209,16 @@ In Autonomous Mode (`/dev-lifecycle --autonomous`), `lifecycle_runner.py` dispat
    python3 skills/dev-implementation/resources/scripts/sync_task_status.py task <task_id> in-progress
    ```
 
-   **Test Assertion Health Rule**: When authoring tests verifying build artifacts, never assert conditions only inside `if path.exists()` without asserting evaluated counts. Always assert `found > 0`.
+   **Test Assertion Health, Anti-Bloat & Tiered Execution**: Never assert only inside `if path.exists()`; always assert `found > 0`. Enforce:
+   - **Mandatory Parametrization**: Never copy-paste `def test_*` functions across input variations; consolidate into `@pytest.mark.parametrize` (or table tests).
+   - **No Trivial Boilerplate Tests**: Ban tests asserting only Python language features, Pydantic defaults, or trivial getters/setters; verify distinct Spec/HLD contracts.
+   - **Fixture Scope Discipline**: Read-only fixtures (JSON snapshots, AST trees, mock servers, headless browsers) MUST use `scope="module"` or `scope="session"`, never `scope="function"`.
+   - **Tier 1 (Task & Fix Rounds)**: Static checks + scoped parallel files (`uv run pytest <changed_test_files> -n auto --timeout=30 -q --tb=short`); never `tests/e2e` or repo-wide pytest. **Tier 2 (Pre-Gate)**: `uv run pytest --ignore=tests/e2e -m "not slow and not acceptance and not live_llm" -n auto --dist loadscope --timeout=30 -q --tb=short`. **Tier 3 (Final Gate Convergence Only)**: Tier 2 + session-scoped `tests/e2e` + `audit_epic.py` / `@quality_check`.
 
-   **Tri-Persona Subagent Execution Model**:
-   When dispatching implementer subagent, operate across the 3-Tier Testing Standard:
-   1. **Expert QA (Red Team)**: Authors adversarial BDD scenarios decoupled from code across 5 dimensions (`HP`, `EC`, `ST`, `AR`, `FR`) into `[Tier A - Unit]` vs `[Tier C - Integration]` (validating backward-compatible payloads in Satellite Mode).
+   **Tri-Persona Subagent Execution Model**: Operate across the 3-Tier Testing Standard:
+   1. **Expert QA (Red Team)**: Authors adversarial BDD scenarios (`HP`, `EC`, `ST`, `AR`, `FR`) split cleanly between `[Tier A - Unit]` and `[Tier C - Integration]`.
    2. **Principal Engineer (TDD Master — Tier A)**: Executes RED failing test -> minimal GREEN code -> REFACTOR/lint/strict types in task files only.
-   3. **System Integration & E2E Engineer (Tier C)**: Authors host integration flow tests (`integration_test/`, `*FlowTest.kt`, `App/Tests`, `tests/e2e/`, `tests/integration/`) exercising real DI, navigation, and persistence.
+   3. **System Integration & E2E Engineer (Tier C)**: Authors integration/browser suites (`integration_test/`, `*FlowTest.kt`, `App/Tests`, `tests/e2e/`, `tests/integration/`) exercising real DI, navigation, and persistence.
 
    #### Anti-Rationalization and Doubt-Driven Verification
 
@@ -339,7 +336,7 @@ Once every task is `done`:
    git add .devtool/epic/<epic_dir>/manual_smoke_checklist.md
    git commit -m "[EPIC_NAME] Generate manual smoke walkthrough checklist"
    ```
-   This gives the human engineer an immediate 2-minute sanity check walkthrough while keeping the working tree clean and preserving candidate SHA stability.
+   Provides a 2-minute sanity walkthrough on a clean candidate SHA.
 
 Then resolve candidate commit SHA (`git rev-parse HEAD`) with a clean tree (`git status --porcelain` prints nothing):
 
@@ -397,7 +394,7 @@ python3 "$SKILL_DIR"/resources/scripts/run_external_review.py run \
 ```
 3. Commit `review_results.md` after every round (`[EPIC_NAME] Record cross-model review round N`). After every round, run `python3 "$SKILL_DIR"/resources/scripts/run_external_review.py triage --epic-dir <epic_dir>`, fill it as [review-triage.md](references/review-triage.md) says, and inspect `## Auto-Triage Gate` (`AUTO_PASS_FINAL_MINOR_SWEEP`, `AUTO_FIX_ELIGIBLE`, `CIRCUIT_BREAKER_HALT`):
    - **`AUTO_PASS_CLEAN` or `AUTO_PASS_FINAL_MINOR_SWEEP`**: Apply minor fixes if any, re-run full Gate 4 machine acceptance green (Final Convergence Gate), and complete the review stage.
-   - **`AUTO_FIX_ELIGIBLE`**: Role 2.3 (AI Programmer) applies verified fixes, commits `[<EPIC_NAME>] Fix <what>`, records `fixed in <sha>`, commits decisions, runs **scoped tests only** (fast static checks and explicitly targeted unit tests covering modified modules; repo-wide pytest and Playwright E2E suites forbidden), and advances to the next review round (up to max 3 rounds). Full Gate 4 is reserved strictly for the Final Convergence Gate.
+   - **`AUTO_FIX_ELIGIBLE`**: Role 2.3 fixes verified findings, commits `[<EPIC_NAME>] Fix <what>`, records `fixed in <sha>`, validates via **Tier 1 scoped tests only** (`uv run pytest <changed_test_files> -n auto --timeout=30 -q --tb=short`; repo-wide pytest and `tests/e2e/` forbidden), and advances up to 3 rounds. Reserve Tier 3 + full Gate 4 for Final Convergence.
    - **`CIRCUIT_BREAKER_HALT`**: Halts cleanly and alerts Human Architect only if `SHARED_CONTRACT_CONFLICT`, `FIX_LOOP`, or remaining Critical findings after Round 3 occur.
 4. Once `/cross-model-review` completes (converged with 0 Critical findings) and Gate 4 passes on the latest candidate SHA:
    - Present the synthesized `## Top 3 Highest-Risk Findings (Executive Report)`.
