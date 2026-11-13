@@ -501,7 +501,7 @@ def cleanup_slots_report(
                 text=True,
                 check=False,
             )
-            dirty = st.returncode == 0 and bool(st.stdout.strip())
+            dirty = st.returncode != 0 or bool(st.stdout.strip())
 
         unmerged = branch_exists and not _is_ancestor(repo_root, branch, integration_ref)
 
@@ -524,6 +524,13 @@ def cleanup_slots_report(
                 continue
 
         if branch_exists:
+            if not wt_exists:
+                subprocess.run(
+                    ["git", "worktree", "prune"],
+                    cwd=repo_root,
+                    capture_output=True,
+                    check=False,
+                )
             # Ancestor check against integration_ref already guarded safety unless discard_unmerged is True.
             br_res = subprocess.run(
                 ["git", "branch", "-D", branch],

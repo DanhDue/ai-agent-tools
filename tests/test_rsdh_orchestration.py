@@ -262,7 +262,7 @@ def test_rsdh_hp_04_wave_parallel_handoff_and_creator_pic(tmp_path: Path) -> Non
     for required_token in (
         "compute_execution_order.py",
         "--parallel",
-        "estimate_heartbeat.py",
+        "python3 scripts/estimate_heartbeat.py",
         "manage_worker_pool.py",
         "cleanup",
         "English",
@@ -270,6 +270,11 @@ def test_rsdh_hp_04_wave_parallel_handoff_and_creator_pic(tmp_path: Path) -> Non
         assert required_token in handoff_text, (
             f"Missing '{required_token}' in rendered handoff.md"
         )
+    assert (
+        "skills/dev-implementation/resources/scripts/estimate_heartbeat.py"
+        not in handoff_text
+    )
+    assert (REPO_ROOT / "scripts" / "estimate_heartbeat.py").is_file()
     assert "Sequentially execute each Kanban task" not in handoff_text
 
     emitted = _run(
@@ -288,7 +293,7 @@ def test_rsdh_hp_04_wave_parallel_handoff_and_creator_pic(tmp_path: Path) -> Non
     for required_token in (
         "compute_execution_order.py",
         "--parallel",
-        "estimate_heartbeat.py",
+        "python3 scripts/estimate_heartbeat.py",
         "manage_worker_pool.py",
         "cleanup",
         "English",
@@ -297,6 +302,10 @@ def test_rsdh_hp_04_wave_parallel_handoff_and_creator_pic(tmp_path: Path) -> Non
         assert required_token in emitted.stdout, (
             f"Missing '{required_token}' in --emit-prompt implement output:\n{emitted.stdout}"
         )
+    assert (
+        "skills/dev-implementation/resources/scripts/estimate_heartbeat.py"
+        not in emitted.stdout
+    )
     assert "Sequentially execute each Kanban task" not in emitted.stdout
 
     tpl_text = (
@@ -308,20 +317,25 @@ def test_rsdh_hp_04_wave_parallel_handoff_and_creator_pic(tmp_path: Path) -> Non
         or "share" in tpl_text
     )
     assert "--parallel" in tpl_text
+    assert "python3 scripts/estimate_heartbeat.py" in tpl_text
+    assert (
+        "skills/dev-implementation/resources/scripts/estimate_heartbeat.py"
+        not in tpl_text
+    )
     assert "manage_worker_pool.py" in tpl_text
     assert "cleanup" in tpl_text
     assert "Sequentially execute each Kanban task" not in tpl_text
 
 
 # ---------------------------------------------------------------------------
-# [RSDH-HP-05] Profile folder name precedence & -/_ epic slug normalization
+# [RSDH-EC-08] Profile folder name precedence & creator PIC auto-stamping
 # ---------------------------------------------------------------------------
 
 
-def test_rsdh_hp_05_profile_folder_precedence_and_slug_normalization(
+def test_rsdh_ec_08_creator_profile_auto_detection_and_pic_stamping(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """[RSDH-HP-05] detect_current_profile prioritizes env/folder name over email ID and sync_window_title normalizes -/_."""
+    """[RSDH-EC-08] detect_current_profile prioritizes env/folder name over email ID and sync_window_title normalizes -/_."""
     import resume_context  # noqa: E402
 
     _init_repo(tmp_path)
@@ -656,12 +670,14 @@ def test_rsdh_ec_03_stage3_revise_vs_stage2_strict(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# [RSDH-EC-08] Preservation-safe worker pool cleanup & land orphan cleanup
+# [RSDH-ST-07] Worker pool cleanup preservation of dirty/unmerged/missing worktrees
 # ---------------------------------------------------------------------------
 
 
-def test_rsdh_ec_08_preservation_safe_pool_cleanup_and_land(tmp_path: Path) -> None:
-    """[RSDH-EC-08] cleanup preserves dirty worktrees and unmerged commits/orphans until discarded; integrate_branch land cleans merged orphans."""
+def test_rsdh_st_07_pool_cleanup_preserves_dirty_unmerged_and_missing_wt(
+    tmp_path: Path,
+) -> None:
+    """[RSDH-ST-07] cleanup preserves dirty worktrees, unmerged commits, and missing-worktree unmerged branches until --discard-unmerged."""
     _init_repo(tmp_path, branch="develop")
     (tmp_path / "app.py").write_text("v = 0\n", encoding="utf-8")
     _commit_all(tmp_path, "Base commit on develop")
@@ -768,10 +784,71 @@ def test_rsdh_ec_08_preservation_safe_pool_cleanup_and_land(tmp_path: Path) -> N
     assert "epic/demo-epic-slot-1" not in branches_after_force
     assert "worker/demo-epic/slot-3" not in branches_after_force
 
-    # 4. integrate_branch.py land cleans merged worker/demo-epic/slot-5 while preserving unmerged worker/demo-epic/slot-6.
+
+# ---------------------------------------------------------------------------
+# [RSDH-ST-03] Stale worker pool pruning & branch landing orphan cleanup
+# ---------------------------------------------------------------------------
+
+
+def test_rsdh_st_03_stale_pool_pruning_and_branch_landing(tmp_path: Path) -> None:
+    """[RSDH-ST-03] First-pass stale cleanup prunes missing merged slot worktrees/branches and land removes merged orphans."""
+    _init_repo(tmp_path, branch="develop")
+    (tmp_path / "app.py").write_text("v = 0\n", encoding="utf-8")
+    _commit_all(tmp_path, "Base commit on develop")
+
+    epic_wt = tmp_path / ".worktrees" / "demo_epic"
+    _git(
+        tmp_path,
+        "worktree",
+        "add",
+        "-q",
+        str(epic_wt),
+        "-b",
+        "epic/demo-epic",
+        "develop",
+    )
+    (epic_wt / "app.py").write_text("v = 1\n", encoding="utf-8")
+    _commit_all(epic_wt, "Epic base commit")
+
+    init_res = _run(
+        [sys.executable, str(POOL_SCRIPT), "init", "demo_epic", "--pool-size", "2"],
+        cwd=epic_wt,
+    )
+    assert init_res.returncode == 0, init_res.stderr
+    slot1_wt = tmp_path / ".worktrees" / "demo_epic-slot-1"
+    slot2_wt = tmp_path / ".worktrees" / "demo_epic-slot-2"
+    assert slot1_wt.is_dir() and slot2_wt.is_dir()
+
+    # Delete merged slot-1 worktree dir manually WITHOUT prior prune; first-pass cleanup must prune and delete branch cleanly.
+    shutil.rmtree(slot1_wt)
+    first_pass = _run(
+        [
+            sys.executable,
+            str(POOL_SCRIPT),
+            "cleanup",
+            "demo_epic",
+            "--pool-size",
+            "2",
+            "--stale-only",
+        ],
+        cwd=epic_wt,
+    )
+    assert first_pass.returncode == 0, (
+        f"First-pass stale cleanup failed:\n{first_pass.stdout}\n{first_pass.stderr}"
+    )
+    assert "epic/demo-epic-slot-1" not in _git(epic_wt, "branch", "--list")
+    assert "demo_epic-slot-1" not in _git(epic_wt, "worktree", "list")
+    assert slot2_wt.is_dir()  # Live slot-2 left intact in --stale-only mode
+
+    full_clean = _run(
+        [sys.executable, str(POOL_SCRIPT), "cleanup", "demo_epic", "--pool-size", "2"],
+        cwd=epic_wt,
+    )
+    assert full_clean.returncode == 0, full_clean.stderr
+
+    # integrate_branch.py land cleans merged worker/demo-epic/slot-5 while preserving unmerged worker/demo-epic/slot-6.
     _git(epic_wt, "branch", "worker/demo-epic/slot-5", "epic/demo-epic")
     _git(epic_wt, "branch", "worker/demo-epic/slot-6", "epic/demo-epic")
-    # Advance worker/demo-epic/slot-6 so it is unmerged ahead of epic/demo-epic.
     slot6_wt = tmp_path / ".worktrees" / "slot6"
     _git(tmp_path, "worktree", "add", "-q", str(slot6_wt), "worker/demo-epic/slot-6")
     (slot6_wt / "extra_unmerged.py").write_text("keep = True\n", encoding="utf-8")
@@ -802,6 +879,61 @@ def test_rsdh_ec_08_preservation_safe_pool_cleanup_and_land(tmp_path: Path) -> N
     branches_after_land = _git(tmp_path, "branch", "--list")
     assert "worker/demo-epic/slot-5" not in branches_after_land
     assert "worker/demo-epic/slot-6" in branches_after_land
+
+
+def test_round1_pool_cleanup_fails_closed_on_status_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """cleanup_slots_report must fail closed (treat as dirty) when git status --porcelain errors."""
+    import manage_worker_pool  # noqa: E402
+
+    _init_repo(tmp_path, branch="develop")
+    (tmp_path / "app.py").write_text("v = 0\n", encoding="utf-8")
+    _commit_all(tmp_path, "Base commit on develop")
+    epic_wt = tmp_path / ".worktrees" / "demo_epic"
+    _git(
+        tmp_path,
+        "worktree",
+        "add",
+        "-q",
+        str(epic_wt),
+        "-b",
+        "epic/demo-epic",
+        "develop",
+    )
+    init_res = _run(
+        [sys.executable, str(POOL_SCRIPT), "init", "demo_epic", "--pool-size", "1"],
+        cwd=epic_wt,
+    )
+    assert init_res.returncode == 0, init_res.stderr
+
+    slot1_wt = tmp_path / ".worktrees" / "demo_epic-slot-1"
+    real_run = subprocess.run
+    rm_called: list[list[str]] = []
+
+    def _mock_run(cmd: list[str], *args: Any, **kwargs: Any) -> Any:
+        if (
+            cmd[:3] == ["git", "status", "--porcelain"]
+            and kwargs.get("cwd") == slot1_wt
+        ):
+            return subprocess.CompletedProcess(
+                cmd, returncode=128, stdout="", stderr="fatal: index corrupt"
+            )
+        if cmd[:3] == ["git", "worktree", "remove"]:
+            rm_called.append(cmd)
+        return real_run(cmd, *args, **kwargs)
+
+    monkeypatch.setattr(manage_worker_pool.subprocess, "run", _mock_run)
+    report = manage_worker_pool.cleanup_slots_report(
+        tmp_path,
+        tmp_path / ".devtool" / "epic" / "demo_epic",
+        "demo_epic",
+        pool_size=1,
+    )
+    assert report["ok"] is False
+    assert "epic/demo-epic-slot-1" in report["preserved_dirty"]
+    assert slot1_wt.is_dir()
+    assert not rm_called
 
 
 # ---------------------------------------------------------------------------
@@ -958,12 +1090,12 @@ def test_rsdh_st_01_pending_decision_per_epic_isolation_and_clear(
 
 
 # ---------------------------------------------------------------------------
-# [RSDH-ST-03] Worker pool slot & wave heartbeat updates
+# [RSDH-HP-05] Worker pool live slot & wave heartbeat updates + clean cleanup
 # ---------------------------------------------------------------------------
 
 
-def test_rsdh_st_03_worker_pool_slot_and_wave_heartbeat_updates(tmp_path: Path) -> None:
-    """[RSDH-ST-03] manage_worker_pool init/sync/merge/cleanup and resume_context --wave update per-epic heartbeat.json."""
+def test_rsdh_hp_05_worker_pool_slot_and_wave_heartbeat_updates(tmp_path: Path) -> None:
+    """[RSDH-HP-05] manage_worker_pool init/sync/merge/cleanup and resume_context --wave update per-epic heartbeat.json."""
     import manage_worker_pool  # noqa: E402
 
     assert manage_worker_pool.get_slot_branch("demo-epic", 1) == "epic/demo-epic-slot-1"
@@ -1057,7 +1189,7 @@ def test_rsdh_st_03_worker_pool_slot_and_wave_heartbeat_updates(tmp_path: Path) 
 
 
 # ---------------------------------------------------------------------------
-# [RSDH-ST-07] Governance docs, byte caps & frontmatter contracts
+# [RSDH-FR-03] Governance docs, byte caps & frontmatter contracts
 # ---------------------------------------------------------------------------
 
 
@@ -1074,8 +1206,8 @@ def _parse_frontmatter_keys(path: Path) -> list[str]:
     return keys
 
 
-def test_rsdh_st_07_governance_docs_caps_and_orchestration_parity() -> None:
-    """[RSDH-ST-07] Critical governance docs stay within byte/word caps, preserve frontmatter, and reflect Choice A / wave-parallel / PIC / English rules."""
+def test_rsdh_fr_03_governance_docs_caps_and_orchestration_parity() -> None:
+    """[RSDH-FR-03] Critical governance docs stay within byte/word caps, preserve frontmatter, and reflect Choice A / wave-parallel / PIC / English rules."""
     cr_path = REPO_ROOT / "rules" / "CRITICAL_RULES.md"
     cr_bytes = len(cr_path.read_bytes())
     assert cr_bytes <= 8192, f"CRITICAL_RULES.md exceeded 8192 bytes: {cr_bytes}"
@@ -1336,34 +1468,35 @@ class TestRSDHOrchestration_Integration:
         """[RSDH-HP-04] Integration check for wave-parallel handoff and creator PIC stamping."""
         test_rsdh_hp_04_wave_parallel_handoff_and_creator_pic(tmp_path)
 
-    def test_RSDH_HP_05_integration(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        """[RSDH-HP-05] Integration check for profile folder precedence and -/_ slug normalization."""
-        test_rsdh_hp_05_profile_folder_precedence_and_slug_normalization(
-            tmp_path, monkeypatch
-        )
+    def test_RSDH_HP_05_integration(self, tmp_path: Path) -> None:
+        """[RSDH-HP-05] Integration check for worker pool live slot, wave heartbeat updates, and clean slot cleanup."""
+        test_rsdh_hp_05_worker_pool_slot_and_wave_heartbeat_updates(tmp_path)
 
     def test_RSDH_EC_03_integration(self, tmp_path: Path) -> None:
         """[RSDH-EC-03] Integration check for Stage 3 package --revise vs strict Stage 2 ownership."""
         test_rsdh_ec_03_stage3_revise_vs_stage2_strict(tmp_path)
 
-    def test_RSDH_EC_08_integration(self, tmp_path: Path) -> None:
-        """[RSDH-EC-08] Integration check for preservation-safe pool cleanup and branch landing."""
-        test_rsdh_ec_08_preservation_safe_pool_cleanup_and_land(tmp_path)
+    def test_RSDH_EC_08_integration(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """[RSDH-EC-08] Integration check for automatic creator profile detection and PIC stamping."""
+        test_rsdh_ec_08_creator_profile_auto_detection_and_pic_stamping(
+            tmp_path, monkeypatch
+        )
 
     def test_RSDH_ST_01_integration(self, tmp_path: Path) -> None:
         """[RSDH-ST-01] Integration check for multi-epic Choice A pending-decision isolation."""
         test_rsdh_st_01_pending_decision_per_epic_isolation_and_clear(tmp_path)
 
     def test_RSDH_ST_03_integration(self, tmp_path: Path) -> None:
-        """[RSDH-ST-03] Integration check for worker pool live slot and wave heartbeat updates."""
-        test_rsdh_st_03_worker_pool_slot_and_wave_heartbeat_updates(tmp_path)
+        """[RSDH-ST-03] Integration check for stale worker pool pruning and branch landing orphan cleanup."""
+        test_rsdh_st_03_stale_pool_pruning_and_branch_landing(tmp_path)
 
-    def test_RSDH_ST_07_integration(self) -> None:
-        """[RSDH-ST-07] Integration check for governance doc byte caps and orchestration parity."""
-        test_rsdh_st_07_governance_docs_caps_and_orchestration_parity()
+    def test_RSDH_ST_07_integration(self, tmp_path: Path) -> None:
+        """[RSDH-ST-07] Integration check for pool cleanup preserving dirty, unmerged, and missing-wt branches."""
+        test_rsdh_st_07_pool_cleanup_preserves_dirty_unmerged_and_missing_wt(tmp_path)
 
     def test_RSDH_FR_03_integration(self, tmp_path: Path) -> None:
-        """[RSDH-FR-03] Integration check for end-to-end single-terminal lifecycle flow."""
+        """[RSDH-FR-03] Integration check for CRITICAL_RULES byte cap, orchestration parity, and end-to-end flow."""
+        test_rsdh_fr_03_governance_docs_caps_and_orchestration_parity()
         test_rsdh_fr_03_end_to_end_single_terminal_flow(tmp_path)

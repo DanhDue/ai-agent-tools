@@ -2012,7 +2012,7 @@ MANDATORY TASKS & RULES:
 1. Activate `/dev-implementation` (`d3nexus:dev-implementation`) for the `{epic_slug}` epic.
 2. Read `.devtool/epic/{target_dir}/handoff.md` first (author all internal orchestration, plans, code comments, and commits strictly in English).
 3. Strictly apply the 4 Execution Guardrails (Bounded context protocol, Strict spec fidelity, Zero test fakery, No contract repair).
-4. Compute waves via `python3 skills/dev-implementation/resources/scripts/compute_execution_order.py {epic_slug} --parallel`, monitor `python3 skills/dev-implementation/resources/scripts/estimate_heartbeat.py`, dispatch independent tasks in parallel (`manage_worker_pool.py init|sync|merge|cleanup` / `workspace:"share"` subagents), and run strict Red-Green-Refactor TDD per task.
+4. Compute waves via `python3 skills/dev-implementation/resources/scripts/compute_execution_order.py {epic_slug} --parallel`, monitor `python3 scripts/estimate_heartbeat.py`, dispatch independent tasks in parallel (`manage_worker_pool.py init|sync|merge|cleanup` / `workspace:"share"` subagents), and run strict Red-Green-Refactor TDD per task.
 5. After all waves merge, verify Gate 4 + Cross-Model Review, clean up worker slots via `manage_worker_pool.py cleanup`, and pause via `--pending-decision` only on Choice A gates or `CRITICAL_CONFLICT`.{prompt_note}""")
     elif mode == "cross-review":
         banner = "[PERSONA: AI ASSISTANT — TECHNICAL ADVISOR & CO-ARCHITECT]"

@@ -735,6 +735,46 @@ class SurgicalAnchorTest(ContractCase):
         self.assertEqual(code_non_design, 0, out_nd)
 
 
+class DuplicateNewClaimHardeningCase(ContractCase):
+    """Regression coverage for cross-category and dot-directory (new) claims."""
+
+    def test_cross_category_new_claim_collision_rejected(self) -> None:
+        t1 = self.task("1", allowed="- `tool.py`\n- `out/shared.json` (new)")
+        t2 = self.task(
+            "2",
+            allowed="- `README.md`",
+            read_only="- `tool.py` — base",
+            evidence="- `out/shared.json` (new)",
+        )
+        code, out, _ = self.run_cli("--design", "--hld", f"{EPIC}/demo.en.md", "--tasks", t1, t2)
+        self.assertEqual(code, 1, out)
+        self.assertIn("duplicate (new) claim", out)
+
+    def test_hidden_dotdir_and_plain_dir_not_conflated(self) -> None:
+        (self.root / ".agents").mkdir(parents=True, exist_ok=True)
+        (self.root / "agents").mkdir(parents=True, exist_ok=True)
+        t1 = self.task("1", allowed="- `.agents/quality/conf.json` (new)")
+        t2 = self.task(
+            "2",
+            allowed="- `agents/quality/conf.json` (new)",
+            read_only="- `tool.py` — base",
+        )
+        code, out, _ = self.run_cli("--design", "--hld", f"{EPIC}/demo.en.md", "--tasks", t1, t2)
+        self.assertEqual(code, 0, out)
+
+    def test_dot_slash_prefix_still_deduped_cleanly(self) -> None:
+        (self.root / ".agents").mkdir(parents=True, exist_ok=True)
+        t1 = self.task("1", allowed="- `./.agents/quality/conf.json` (new)")
+        t2 = self.task(
+            "2",
+            allowed="- `.agents/quality/conf.json` (new)",
+            read_only="- `tool.py` — base",
+        )
+        code, out, _ = self.run_cli("--design", "--hld", f"{EPIC}/demo.en.md", "--tasks", t1, t2)
+        self.assertEqual(code, 1, out)
+        self.assertIn("duplicate (new) claim", out)
+
+
 if __name__ == "__main__":
     unittest.main()
 

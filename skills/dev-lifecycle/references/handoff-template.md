@@ -45,7 +45,7 @@ Read .devtool/epic/<epic_dir>/handoff.md first. Write all internal orchestration
 Run: python3 scripts/resume_context.py --role programmer --epic <epic_slug>
 Apply the Execution Guardrails for Receiving LLM before presenting Gate 3.
 Gates 1 and 2 are passed; do not re-run brainstorming or design.
-Gate 3 runs automatically: compute wave order via `python3 skills/dev-implementation/resources/scripts/compute_execution_order.py <epic_slug> --parallel`, monitor `python3 skills/dev-implementation/resources/scripts/estimate_heartbeat.py`, dispatch independent tasks in parallel (`manage_worker_pool.py` / `workspace:"share"` subagents), run strict TDD per task, verify Gate 4 + Cross-Model Review, and run `manage_worker_pool.py cleanup` before Stage 4 landing.
+Gate 3 runs automatically: compute wave order via `python3 skills/dev-implementation/resources/scripts/compute_execution_order.py <epic_slug> --parallel`, monitor `python3 scripts/estimate_heartbeat.py`, dispatch independent tasks in parallel (`manage_worker_pool.py` / `workspace:"share"` subagents), run strict TDD per task, verify Gate 4 + Cross-Model Review, and run `manage_worker_pool.py cleanup` before Stage 4 landing.
 ```
 
 ## Execution Guardrails for Receiving LLM

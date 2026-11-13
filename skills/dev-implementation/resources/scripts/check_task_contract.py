@@ -220,35 +220,36 @@ def check_evidence(
             check.problem(f"{stem}:Files", f"Evidence file {pattern} is marked (new) but already exists")
 
 
+def _normalize_rel_claim(pattern: str) -> str:
+    """Normalize a relative claim path without corrupting leading dot-directories."""
+    norm = Path(pattern).as_posix()
+    while norm.startswith("./"):
+        norm = norm[2:]
+    return norm
+
+
 def check_duplicate_new_claims(check: Checker, tasks: dict[Path, str]) -> None:
     """Reject duplicate (new) Allowed or Evidence path claims across multiple tasks."""
-    allowed_owners: dict[str, list[str]] = {}
-    evidence_owners: dict[str, list[str]] = {}
+    new_owners: dict[str, list[str]] = {}
     for path, text in tasks.items():
         stem = path.stem
         for entry in tc.parse_allowed_files(text):
             if entry.new:
-                norm = Path(entry.pattern).as_posix().lstrip("./")
-                owners = allowed_owners.setdefault(norm, [])
+                norm = _normalize_rel_claim(entry.pattern)
+                owners = new_owners.setdefault(norm, [])
                 if stem not in owners:
                     owners.append(stem)
         for entry in tc.parse_evidence_files(text):
             if entry.new and not Path(entry.pattern).name.startswith("task_"):
-                norm = Path(entry.pattern).as_posix().lstrip("./")
-                owners = evidence_owners.setdefault(norm, [])
+                norm = _normalize_rel_claim(entry.pattern)
+                owners = new_owners.setdefault(norm, [])
                 if stem not in owners:
                     owners.append(stem)
-    for pattern, owners in sorted(allowed_owners.items()):
+    for pattern, owners in sorted(new_owners.items()):
         if len(owners) > 1:
             check.problem(
                 f"{owners[0]}:Files",
                 f"duplicate (new) claim for {pattern} across multiple tasks ({', '.join(owners)})",
-            )
-    for pattern, owners in sorted(evidence_owners.items()):
-        if len(owners) > 1:
-            check.problem(
-                f"{owners[0]}:Files",
-                f"duplicate (new) evidence claim for {pattern} across multiple tasks ({', '.join(owners)})",
             )
 
 
