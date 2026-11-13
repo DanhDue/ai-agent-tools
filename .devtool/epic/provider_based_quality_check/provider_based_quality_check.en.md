@@ -20,7 +20,7 @@
 | Field | Value |
 |-------|-------|
 | Epic | `provider_based_quality_check` |
-| Status | Ready for implementation — Gate 2 task breakdown confirmed |
+| Status | Done |
 | Target Release | Next `d3nexus` agent-kit release after implementation and Gate 5 approval |
 | Platform | Agent Kit — Markdown skills and Python validators |
 | Source Spec | [Approved provider-based quality design](2026-10-11-provider-based-quality-check-design.en.md) |

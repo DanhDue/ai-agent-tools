@@ -18,7 +18,7 @@
 ## 1. Meta Data
 
 - **Epic Name**: `python_quality_provider_and_onboarding`
-- **Status**: `todo`
+- **Status**: Done
 - **Target Release**: `v1.7.0`
 - **Platform**: `Python / Platform-Neutral Core`
 - **Source Spec**: [2026-10-12-python-quality-provider-and-onboarding-design.en.md](2026-10-12-python-quality-provider-and-onboarding-design.en.md)

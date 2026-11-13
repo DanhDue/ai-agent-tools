@@ -18,7 +18,7 @@
 ## 1. Dữ Liệu Đặc Tả
 
 - **Tên Epic**: `python_quality_provider_and_onboarding`
-- **Trạng Thái**: `todo`
+- **Trạng thái**: Done
 - **Phiên Bản Mục Tiêu**: `v1.7.0`
 - **Nền Tảng**: `Python / Lõi Trung Lập Nền Tảng`
 - **Tài Liệu Đặc Tả Gốc**: [2026-10-12-python-quality-provider-and-onboarding-design.vi.md](2026-10-12-python-quality-provider-and-onboarding-design.vi.md)

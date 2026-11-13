@@ -20,7 +20,7 @@
 | Trường | Giá trị |
 |--------|---------|
 | Epic | `provider_based_quality_check` |
-| Trạng thái | Sẵn sàng triển khai — phân rã task Gate 2 đã xác nhận |
+| Trạng thái | Done |
 | Target Release | Bản phát hành agent kit `d3nexus` kế tiếp sau implementation và Gate 5 |
 | Nền tảng | Agent Kit — Markdown skill và Python validator |
 | Source Spec | [Thiết kế quality dựa trên provider đã duyệt](2026-10-11-provider-based-quality-check-design.vi.md) |

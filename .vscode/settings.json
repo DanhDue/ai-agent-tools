@@ -9,5 +9,5 @@
     "statusBar.inactiveBackground": "#b45309",
     "statusBar.inactiveForeground": "#ffffffcc"
   },
-  "window.title": "🟠 [AGENT-TOOLS] [@duvthinh403] ${activeEditorMedium}${separator}${rootName}"
+  "window.title": "🟠 [AGENT-TOOLS] [@phungthuy8901] ${activeEditorMedium}${separator}${rootName}"
 }
