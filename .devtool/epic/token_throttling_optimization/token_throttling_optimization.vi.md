@@ -20,7 +20,7 @@
 ## Meta Data
 
 - **Epic name**: `token_throttling_optimization`
-- **Status**: In Progress
+- **Status**: Done
 - **PIC**: `danhdue`
 - **Target release**: Next plugin release
 - **Platform**: Python tooling and agent workflow kit
@@ -245,3 +245,5 @@ Giảm thiểu rủi ro: Mọi cờ rút gọn (`--compact`, `--quiet`) đều g
 ## Đính chính Đặc tả
 
 Chưa có.
+
+<!-- sync-en-sha256: eb0a39beb9d03d94 -->

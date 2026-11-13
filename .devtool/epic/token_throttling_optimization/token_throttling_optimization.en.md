@@ -20,7 +20,7 @@
 ## Meta Data
 
 - **Epic name**: `token_throttling_optimization`
-- **Status**: In Progress
+- **Status**: Done
 - **PIC**: `danhdue`
 - **Target release**: Next plugin release
 - **Platform**: Python tooling and agent workflow kit

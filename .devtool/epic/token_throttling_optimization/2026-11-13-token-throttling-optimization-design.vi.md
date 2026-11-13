@@ -130,3 +130,4 @@ flowchart TD
 
 Repository `ai-agent-tools` không chứa thư mục `shared-contracts/` (đây là bộ workflow kit độc lập, không phải Hub/Satellite dịch vụ). Mọi hợp đồng CLI nội bộ giữa `run_external_review.py`, `check_epic_readiness.py`, `verify_polyglot_registry.py`, `resume_context.py`, `lifecycle_runner.py` và `integrate_branch.py` cùng schema `.devtool/review_config.json` được giữ tương thích ngược thông qua cờ mặc định và giá trị fallback tùy chọn.
 
+<!-- sync-en-sha256: 8c6d4478b59d81b8 -->

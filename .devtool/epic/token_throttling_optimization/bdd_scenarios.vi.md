@@ -227,3 +227,5 @@ Khi chạy bộ kiểm thử chấp nhận định lượng dưới pytest
 Thì các assertion kiểm tra tường minh trần dung lượng byte (CRITICAL_RULES.md <= 8192, dev-designer/SKILL.md <= 22528, resume_context --compact <= 4096) và ngân sách prompt review
 Và mọi vi phạm trần đều báo lỗi kèm thông số đo thực tế thay cho các phép kiểm tra boolean chung chung
 ```
+
+<!-- sync-en-sha256: be7c992ac8a39186 -->
