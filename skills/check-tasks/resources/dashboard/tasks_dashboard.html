@@ -1116,10 +1116,24 @@
       }
     }
 
+    function postResetQuotaSubmodals() {
+      const iframe = document.getElementById('quota-iframe');
+      try {
+        if (iframe && iframe.contentWindow && typeof iframe.contentWindow.postMessage === 'function') {
+          iframe.contentWindow.postMessage({ action: 'reset_quota_submodals' }, '*');
+        }
+      } catch (err) {
+        // Ignore unloaded or cross-origin iframe state gracefully
+      }
+    }
+
     function closeLiveModal(modalId) {
       const modal = document.getElementById(modalId);
       if (modal) {
         modal.style.display = 'none';
+        if (modalId === 'modal-quota') {
+          postResetQuotaSubmodals();
+        }
         const anyOpen = Array.from(document.querySelectorAll('.modal-backdrop')).some(m => m.style.display === 'flex' || m.style.display === 'block');
         if (!anyOpen) {
           document.body.style.overflow = '';
@@ -1467,8 +1481,30 @@
     const QUOTA_SERVER_PORT = 8765;
     const QUOTA_SERVER_URL = 'http://127.0.0.1:8765';
 
+    function withEmbeddedParam(rawUrl) {
+      const base = rawUrl || QUOTA_SERVER_URL;
+      try {
+        const origin = (typeof window !== 'undefined' && window.location && window.location.origin && window.location.origin !== 'null')
+          ? window.location.origin
+          : undefined;
+        const parsed = origin ? new URL(base, origin) : new URL(base);
+        if (!parsed.searchParams.has('embedded')) {
+          parsed.searchParams.set('embedded', '1');
+        }
+        return parsed.toString();
+      } catch (err) {
+        if (base.indexOf('embedded=1') !== -1) return base;
+        const hashIdx = base.indexOf('#');
+        const preHash = hashIdx === -1 ? base : base.slice(0, hashIdx);
+        const hashPart = hashIdx === -1 ? '' : base.slice(hashIdx);
+        const sep = preHash.indexOf('?') === -1 ? '?' : '&';
+        return preHash + sep + 'embedded=1' + hashPart;
+      }
+    }
+
     function openQuotaModal() {
       openLiveModal('modal-quota');
+      postResetQuotaSubmodals();
       const iframe = document.getElementById('quota-iframe');
       const statusMsg = document.getElementById('quota-loading-msg');
       if (statusMsg) statusMsg.style.display = 'block';
@@ -1480,9 +1516,9 @@
       })
       .then(res => res.json())
       .then(data => {
-        const targetUrl = data.url || QUOTA_SERVER_URL;
+        const targetUrl = withEmbeddedParam(data.url || QUOTA_SERVER_URL);
         if (iframe) {
-          if (!iframe.src || iframe.src === 'about:blank' || iframe.src.indexOf('8765') === -1) {
+          if (!iframe.src || iframe.src === 'about:blank' || iframe.src.indexOf('8765') === -1 || iframe.src.indexOf('embedded=1') === -1) {
             iframe.src = targetUrl;
           }
         }
@@ -1491,8 +1527,8 @@
         }, 600);
       })
       .catch(() => {
-        if (iframe && (!iframe.src || iframe.src === 'about:blank')) {
-          iframe.src = QUOTA_SERVER_URL;
+        if (iframe && (!iframe.src || iframe.src === 'about:blank' || iframe.src.indexOf('embedded=1') === -1)) {
+          iframe.src = withEmbeddedParam(QUOTA_SERVER_URL);
         }
         if (statusMsg) statusMsg.style.display = 'none';
       });
@@ -1501,10 +1537,11 @@
     function refreshQuotaIframe() {
       const iframe = document.getElementById('quota-iframe');
       if (iframe) {
-        const currentSrc = iframe.src || QUOTA_SERVER_URL;
+        const baseSrc = (iframe.src && iframe.src.indexOf('8765') !== -1) ? iframe.src : QUOTA_SERVER_URL;
+        const nextSrc = withEmbeddedParam(baseSrc);
         iframe.src = 'about:blank';
         setTimeout(() => {
-          iframe.src = currentSrc.indexOf('8765') !== -1 ? currentSrc : QUOTA_SERVER_URL;
+          iframe.src = nextSrc;
         }, 100);
         showToast('🔄 Đang làm mới Quota Dashboard...', 'info');
       }
@@ -1512,6 +1549,31 @@
 
     function openQuotaExternal() {
       window.open(QUOTA_SERVER_URL, '_blank');
+    }
+
+    const pendingRoadmapRenderRepos = {};
+    const pendingPicSelections = {};
+
+    function applyPicToRepoModel(repo, epicSlug, newPic) {
+      if (!repo) return;
+      if (repo.epics_summary && Array.isArray(repo.epics_summary.epics)) {
+        const ep = repo.epics_summary.epics.find(e => e.slug === epicSlug);
+        if (ep) ep.pic = newPic;
+      }
+      if (repo.active_epic === epicSlug) {
+        repo.account_id = newPic;
+      }
+    }
+
+    function applyPendingPicSelections(repo) {
+      if (!repo || !repo.name) return;
+      Object.entries(pendingPicSelections).forEach(([rowKey, picVal]) => {
+        const prefix = repo.name + ':';
+        if (rowKey.startsWith(prefix)) {
+          const slug = rowKey.slice(prefix.length);
+          applyPicToRepoModel(repo, slug, picVal);
+        }
+      });
     }
 
     let AVAILABLE_PROFILES = [
@@ -1561,13 +1623,17 @@
     function refreshAllProfileSelects() {
       // 1. Refresh .select-profile-pic dropdowns
       document.querySelectorAll('.select-profile-pic').forEach(sel => {
+        if (document.activeElement === sel) return;
         const val = sel.value;
         sel.innerHTML = renderProfileOptions(val);
       });
-      // 2. Refresh roadmap PIC selects
+      // 2. Refresh roadmap PIC selects unless actively focused
       document.querySelectorAll('.select-pic-roadmap').forEach(sel => {
-        const repo = sel.dataset.repo;
-        const epic = sel.dataset.epic;
+        if (document.activeElement === sel) return;
+        const rowKey = sel.dataset.rowKey || '';
+        const keyParts = rowKey.includes(':') ? rowKey.split(':') : [];
+        const repo = sel.dataset.repo || keyParts[0];
+        const epic = sel.dataset.epic || keyParts.slice(1).join(':');
         const cur = sel.value || sel.dataset.currentPic;
         if (repo && epic) {
           const temp = document.createElement('div');
@@ -1587,9 +1653,6 @@
       }
       
       const hasPic = Boolean(currentPic && currentPic !== 'None' && currentPic !== 'null' && currentPic !== '—');
-      const borderCol = hasPic ? '#a855f7' : '#334155';
-      const textCol = hasPic ? '#c084fc' : '#94a3b8';
-      const bgCol = hasPic ? 'rgba(168, 85, 247, 0.12)' : '#0f172a';
 
       let options = `<option value="" style="color: #64748b;" ${!hasPic ? 'selected' : ''}>+ Gán PIC...</option>`;
       profileSet.forEach(p => {
@@ -1599,9 +1662,11 @@
       });
 
       const picClass = hasPic ? 'custom-select select-pic-assigned' : 'custom-select select-pic-unassigned';
+      const rowKey = `${repoName}:${epicSlug}`;
       return `
         <select onchange="updateEpicPic('${escapeHtml(repoName)}', '${escapeHtml(epicSlug)}', this.value)" 
                 class="${picClass} select-pic-roadmap"
+                data-row-key="${escapeHtml(rowKey)}"
                 data-repo="${escapeHtml(repoName)}"
                 data-epic="${escapeHtml(epicSlug)}"
                 data-current-pic="${escapeHtml(currentPic || '')}"
@@ -1613,9 +1678,18 @@
 
     function updateEpicPic(repoName, epicSlug, newPic) {
       if (!newPic) return;
+      const rowKey = `${repoName}:${epicSlug}`;
+      const repo = (currentReposData || []).find(r => r.name === repoName);
+      const prevEp = repo?.epics_summary?.epics?.find(e => e.slug === epicSlug);
+      const prevPic = prevEp ? prevEp.pic : '';
+      const prevAcc = repo ? repo.account_id : '';
+
+      pendingPicSelections[rowKey] = newPic;
+      applyPicToRepoModel(repo, epicSlug, newPic);
+      applyPicToRepoModel(pendingRoadmapRenderRepos[repoName], epicSlug, newPic);
       showToast(`⏳ Đang gán PIC @${newPic} cho Epic ${epicSlug}...`, 'info');
 
-      fetch(getApiUrl('/api/epic/pic'), {
+      return fetch(getApiUrl('/api/epic/pic'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1626,27 +1700,35 @@
       })
       .then(res => res.json())
       .then(data => {
+        delete pendingPicSelections[rowKey];
         if (data.status === 'ok') {
           showToast(`✅ Đã gán PIC @${newPic} cho Epic ${epicSlug}! (Cập nhật ${data.updated_files ? data.updated_files.length : 0} vị trí)`, 'success');
-          const repo = (currentReposData || []).find(r => r.name === repoName);
-          if (repo && repo.epics_summary && repo.epics_summary.epics) {
-            const ep = repo.epics_summary.epics.find(e => e.slug === epicSlug);
-            if (ep) ep.pic = newPic;
-          }
-          if (repo && repo.active_epic === epicSlug) {
-            repo.account_id = newPic;
-          }
+          const latestRepo = (currentReposData || []).find(r => r.name === repoName);
+          applyPicToRepoModel(latestRepo, epicSlug, newPic);
+          applyPicToRepoModel(pendingRoadmapRenderRepos[repoName], epicSlug, newPic);
           if (activeFocusTab === repoName) {
-            renderRepoDetailView(repoName, true);
+            renderRepoDetailView(repoName);
           }
-          if (document.getElementById('modal-epics')?.classList.contains('active')) {
+          const epicsModal = document.getElementById('modal-epics');
+          const isEpicsModalVisible = Boolean(
+            epicsModal && (
+              epicsModal.style.display === 'flex' ||
+              (typeof window.getComputedStyle === 'function' && window.getComputedStyle(epicsModal).display === 'flex')
+            )
+          );
+          if (isEpicsModalVisible) {
             openEpicsModal(repoName);
           }
         } else {
+          if (prevEp) prevEp.pic = prevPic;
+          if (repo && repo.active_epic === epicSlug) repo.account_id = prevAcc;
           showToast(`❌ Lỗi gán PIC: ${data.error || 'Unknown error'}`, 'danger');
         }
       })
       .catch(err => {
+        delete pendingPicSelections[rowKey];
+        if (prevEp) prevEp.pic = prevPic;
+        if (repo && repo.active_epic === epicSlug) repo.account_id = prevAcc;
         showToast(`❌ Không thể kết nối server để gán PIC`, 'danger');
       });
     }
@@ -1742,13 +1824,13 @@
         if (isActA && !isActB) return -1;
         if (!isActA && isActB) return 1;
 
-        // 3. Secondary sort: Last Updated (mtime or ISO date) descending (newest first)
-        const timeA = a.mtime || (a.last_updated ? new Date(a.last_updated).getTime() / 1000 : 0);
-        const timeB = b.mtime || (b.last_updated ? new Date(b.last_updated).getTime() / 1000 : 0);
-        if (timeA !== timeB) return timeB - timeA;
+        // 3. Secondary sort: stable created/date-day bucket descending (ignoring sub-day timestamp churn)
+        const dayA = String(a.created || a.last_updated || '').slice(0, 10);
+        const dayB = String(b.created || b.last_updated || '').slice(0, 10);
+        if (dayA !== dayB) return dayB.localeCompare(dayA);
 
-        // 4. Fallback: alphabetical by slug
-        return a.slug.localeCompare(b.slug);
+        // 4. Deterministic fallback: alphabetical by slug
+        return String(a.slug || '').localeCompare(String(b.slug || ''));
       });
     }
 
@@ -1967,7 +2049,153 @@
       bar.innerHTML = html;
     }
 
-            function renderExecutionEpics(repo) {
+    function slugsMatch(a, b) {
+      if (!a || !b) return false;
+      if (a === b) return true;
+      return String(a).replace(/[-_]/g, '') === String(b).replace(/[-_]/g, '');
+    }
+
+    function computeEpicProgressState(repo, slug, totalCount, doneCount, summaryEp, fallbackDone = false) {
+      const isPrimaryActive = slugsMatch(repo.active_epic, slug);
+      const isFullyDone = Boolean(fallbackDone || summaryEp?.status === 'done');
+      const hasPendingDecision = Boolean(
+        repo.pending_decision &&
+        repo.pending_decision.active === true &&
+        (!repo.pending_decision.epic || slugsMatch(repo.pending_decision.epic, slug))
+      );
+      const epNeedsConfirm = Boolean(
+        summaryEp?.is_action_required === true ||
+        (isPrimaryActive && (repo.is_human_action_required === true || hasPendingDecision))
+      );
+      const stageStr = String(repo.active_stage || '');
+      const promptStr = String(repo.prompt || '');
+      const isWaitingFinish = Boolean(
+        summaryEp?.is_review_converged === true ||
+        (isPrimaryActive && (
+          stageStr.includes('Waiting Finish') ||
+          stageStr.includes('Sign-off') ||
+          (epNeedsConfirm && (promptStr.includes('Gate 5') || promptStr.includes('/finish')))
+        ))
+      );
+
+      let pct = 0;
+      if (totalCount > 0) {
+        if (isFullyDone || isWaitingFinish) {
+          pct = 100;
+        } else if (doneCount >= totalCount) {
+          pct = 96;
+        } else {
+          pct = Math.min(95, Math.round((doneCount / totalCount) * 100));
+        }
+      } else if (isPrimaryActive) {
+        const rawPct = Number(repo.task_progress?.percentage || 0);
+        if (isFullyDone || (isWaitingFinish && rawPct >= 96)) {
+          pct = 100;
+        } else {
+          pct = Math.min(96, rawPct);
+        }
+      }
+
+      return {
+        isPrimaryActive,
+        isFullyDone,
+        epNeedsConfirm,
+        hasPendingDecision,
+        isWaitingFinish,
+        pct,
+      };
+    }
+
+    function collectEpicQualityRuns(repo, slug, isPrimaryActive) {
+      const candidates = [];
+      const seenIds = new Set();
+      const pushRun = (run) => {
+        if (!run || typeof run !== 'object') return;
+        const matchesEpic = !run.epic_slug || slugsMatch(run.epic_slug, slug) || isPrimaryActive;
+        if (!matchesEpic) return;
+        const key = run.run_id || `${run.provider || ''}:${run.capability || ''}:${run.status || ''}`;
+        if (seenIds.has(key)) return;
+        seenIds.add(key);
+        candidates.push(run);
+      };
+
+      if (Array.isArray(repo.quality_runs)) {
+        repo.quality_runs.forEach(pushRun);
+      }
+      const qa = repo.quality_active;
+      if (qa && typeof qa === 'object') {
+        if (qa.status) {
+          pushRun(qa);
+        } else if (qa.runs && typeof qa.runs === 'object') {
+          Object.values(qa.runs).forEach(pushRun);
+        }
+      }
+      return candidates;
+    }
+
+    function renderLiveTelemetryBanner(repo, slug, isPrimaryActive) {
+      const blocks = [];
+      const hb = repo.heartbeat;
+      const hbMatches = hb && typeof hb === 'object' && (!hb.epic_slug || slugsMatch(hb.epic_slug, slug) || isPrimaryActive);
+      if (hbMatches) {
+        const hasWave = hb.active_wave !== undefined && hb.active_wave !== null && hb.active_wave !== '';
+        const lastEvent = hb.last_event ? String(hb.last_event) : '';
+        const slotEntries = (hb.slots && typeof hb.slots === 'object') ? Object.entries(hb.slots) : [];
+        if (hasWave || lastEvent || slotEntries.length > 0) {
+          const slotChips = slotEntries.map(([slotNum, slotObj]) => {
+            const taskId = slotObj?.task_id ? String(slotObj.task_id) : 'idle';
+            const slotStatus = slotObj?.status ? String(slotObj.status) : 'unknown';
+            return `<span style="font-size: 10px; background: rgba(56, 189, 248, 0.12); color: #bae6fd; border: 1px solid rgba(56, 189, 248, 0.35); padding: 1px 6px; border-radius: 4px; font-family: monospace;">Slot ${escapeHtml(String(slotNum))}: ${escapeHtml(taskId)} (${escapeHtml(slotStatus)})</span>`;
+          }).join(' ');
+          blocks.push(`
+            <div data-telemetry="heartbeat" style="background: rgba(15, 23, 42, 0.75); border: 1px solid #1e3a5f; border-radius: 4px; padding: 6px 10px; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;">
+              <div style="display: flex; align-items: center; gap: 8px; font-size: 11px; color: #cbd5e1; flex-wrap: wrap;">
+                ${hasWave ? `<span style="background: rgba(56, 189, 248, 0.16); color: #38bdf8; border: 1px solid #0284c7; padding: 1px 6px; border-radius: 4px; font-weight: 700;">📡 Wave ${escapeHtml(String(hb.active_wave))}</span>` : ''}
+                ${lastEvent ? `<span style="font-family: monospace; color: #e2e8f0;">${escapeHtml(lastEvent)}</span>` : ''}
+              </div>
+              ${slotChips ? `<div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">${slotChips}</div>` : ''}
+            </div>
+          `);
+        }
+      }
+
+      const runs = collectEpicQualityRuns(repo, slug, isPrimaryActive);
+      const runningRuns = runs.filter(r => r.status === 'running');
+      const alertRuns = runningRuns.length === 0 ? runs.filter(r => r.status === 'failed' || r.status === 'aborted') : [];
+
+      runningRuns.forEach(run => {
+        const stepIndex = Number(run.step_index || 0);
+        const stepTotal = Number(run.step_total || 0);
+        const stepPct = stepTotal > 0 ? Math.min(100, Math.round((stepIndex / stepTotal) * 100)) : 0;
+        const provider = String(run.provider || 'quality_check');
+        const capability = String(run.capability || run.profile || '');
+        const elapsed = run.elapsed_sec != null ? `${Math.round(Number(run.elapsed_sec))}s` : '';
+        blocks.push(`
+          <div class="quality-live-banner" data-telemetry="quality" style="background: rgba(168, 85, 247, 0.1); border: 1px solid rgba(168, 85, 247, 0.4); border-radius: 4px; padding: 7px 10px; margin-bottom: 8px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #e9d5ff; margin-bottom: 4px; gap: 8px;">
+              <span>🔬 <strong>Quality Running:</strong> ${escapeHtml(provider)}${capability ? ' · ' + escapeHtml(capability) : ''}${stepTotal > 0 ? ` (${stepIndex}/${stepTotal})` : ''}</span>
+              ${elapsed ? `<span style="font-family: monospace; color: #c084fc; font-weight: 700;">${escapeHtml(elapsed)}</span>` : ''}
+            </div>
+            <div style="background: #1e1b2e; border-radius: 3px; height: 4px; overflow: hidden;">
+              <div style="background: linear-gradient(90deg, #a855f7 0%, #38bdf8 100%); width: ${stepPct}%; height: 100%; transition: width 0.3s ease;"></div>
+            </div>
+          </div>
+        `);
+      });
+
+      alertRuns.slice(0, 1).forEach(run => {
+        const provider = String(run.provider || 'quality_check');
+        blocks.push(`
+          <div data-telemetry="quality-status" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 4px; padding: 5px 10px; margin-bottom: 8px; font-size: 11px; color: #fca5a5;">
+            ⚠️ Quality ${escapeHtml(String(run.status))}: <strong>${escapeHtml(provider)}</strong>
+          </div>
+        `);
+      });
+
+      return blocks.join('');
+    }
+
+    function renderExecutionEpics(repo) {
       if (!repo) return '';
       const theme = REPO_THEMES[repo.name] || { color: '#38bdf8', icon: '📦', name: repo.name, border: '#0284c7' };
       const color = repo.theme_color || theme.color;
@@ -2020,8 +2248,17 @@
       }
 
       return epicSlugs.map(slug => {
-        const isPrimaryActive = slug === repo.active_epic;
-        const epicMeta = (repo.epics_summary?.epics || []).find(e => e.slug === slug);
+        const epicMeta = (repo.epics_summary?.epics || []).find(e => slugsMatch(e.slug, slug));
+
+        // Tasks for this epic
+        const epicTasks = allTasks.filter(t => slugsMatch(t.epic, slug));
+        const totalCount = epicTasks.length > 0 ? epicTasks.length : (slugsMatch(repo.active_epic, slug) ? (repo.task_progress?.total_tasks || 0) : 0);
+        const doneCount = epicTasks.length > 0 ? epicTasks.filter(t => t.status === 'done').length : (slugsMatch(repo.active_epic, slug) ? (repo.task_progress?.done_tasks || 0) : 0);
+
+        const progState = computeEpicProgressState(repo, slug, totalCount, doneCount, epicMeta);
+        const isPrimaryActive = progState.isPrimaryActive;
+        const progressPct = progState.pct;
+
         const pic = epicMeta?.pic || (isPrimaryActive ? defaultAccountId : '');
         const picLaunch = pic || defaultAccountId || 'danhdue';
 
@@ -2029,12 +2266,6 @@
         const epicWt = findEpicWorktree(repo, slug);
         const wtPath = epicWt ? epicWt.path : (isPrimaryActive ? repo.path : repo.path + '/.worktrees/' + slug);
         const wtDirty = epicWt ? (epicWt.is_dirty ? `Dirty (${epicWt.dirty_file_count} files)` : 'Clean') : '';
-
-        // Tasks for this epic
-        const epicTasks = allTasks.filter(t => t.epic === slug || t.epic === slug.replace(/_/g, '-') || t.epic === slug.replace(/-/g, '_'));
-        const totalCount = epicTasks.length || (isPrimaryActive ? repo.task_progress?.total_tasks || 0 : 0);
-        const doneCount = epicTasks.filter(t => t.status === 'done').length || (isPrimaryActive ? repo.task_progress?.done_tasks || 0 : 0);
-        const progressPct = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : (isPrimaryActive ? repo.task_progress?.percentage || 0 : 0);
 
         // Active task name
         const inProgTask = epicTasks.find(t => t.status === 'in-progress' || t.status === 'review');
@@ -2045,13 +2276,28 @@
         }
 
         const stageName = isPrimaryActive ? (repo.active_stage || 'Stage 1 (Inception)') : (epicMeta?.status === 'in_progress' ? 'Stage 3 (Implementation)' : 'Stage 1 (Inception)');
-        const promptText = isPrimaryActive ? (repo.prompt || 'Đang thực thi...') : 'Đang xử lý theo worktree...';
-        const isActionReq = isPrimaryActive && (
-          promptText.includes('Approve') || promptText.includes('Phê duyệt') || 
-          promptText.includes('Review Choice') || promptText.includes('Lựa chọn') || 
+        const decisionReason = progState.hasPendingDecision && repo.pending_decision?.reason ? String(repo.pending_decision.reason) : '';
+        const promptText = isPrimaryActive ? (decisionReason || repo.prompt || 'Đang thực thi...') : 'Đang xử lý theo worktree...';
+        const hasPromptActionWords = (
+          promptText.includes('Approve') || promptText.includes('Phê duyệt') ||
+          promptText.includes('Review Choice') || promptText.includes('Lựa chọn') ||
           promptText.includes('Chờ Bạn Chọn') || promptText.includes('Confirm') ||
           promptText.includes('Action Required')
         );
+        const isActionReq = progState.epNeedsConfirm || (
+          isPrimaryActive && repo.is_human_action_required !== false && hasPromptActionWords
+        );
+        const telemetryHtml = renderLiveTelemetryBanner(repo, slug, isPrimaryActive);
+        const pctLabelHtml = progState.isFullyDone
+          ? '<span style="color: #10b981; font-weight: 700;">100% ✓ Done</span>'
+          : (progState.isWaitingFinish
+            ? '<span style="color: #fbbf24; font-weight: 700;">100% ⚠️ Chờ /finish</span>'
+            : (progressPct === 96
+              ? '<span style="color: #38bdf8; font-weight: 700;">⚡ 96% Review</span>'
+              : `<span style="color: #10b981; font-weight: 700;">${progressPct}%</span>`));
+        const progressBarBg = progressPct === 96
+          ? `linear-gradient(90deg, ${color} 0%, #38bdf8 100%)`
+          : `linear-gradient(90deg, ${color} 0%, #10b981 100%)`;
 
         return `
           <div class="epic-execution-item" style="background: #141724; border: 1px solid #283347; border-left: 4px solid ${color}; border-radius: 6px; padding: 16px; margin-bottom: 14px;">
@@ -2090,6 +2336,8 @@
               </div>
             ` : ''}
 
+            ${telemetryHtml}
+
             <!-- Row 2: Tasks hiện tại là gì & Bước tiếp theo -->
             <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid #1e293b; border-radius: 4px; padding: 8px 12px; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;">
               <div style="font-size: 12px; color: #cbd5e1; display: flex; align-items: center; gap: 6px;">
@@ -2105,10 +2353,10 @@
             <div style="margin-bottom: 12px;">
               <div style="display: flex; justify-content: space-between; font-size: 11px; color: #94a3b8; margin-bottom: 4px; font-weight: 600;">
                 <span>Tiến độ Tasks: <strong style="color: #f1f5f9;">${doneCount} / ${totalCount} Hoàn thành</strong></span>
-                <span style="color: #10b981; font-weight: 700;">${progressPct}%</span>
+                ${pctLabelHtml}
               </div>
               <div style="background: #1e293b; border-radius: 4px; height: 6px; overflow: hidden;">
-                <div style="background: linear-gradient(90deg, ${color} 0%, #10b981 100%); width: ${progressPct}%; height: 100%; border-radius: 4px; transition: width 0.3s ease;"></div>
+                <div style="background: ${progressBarBg}; width: ${progressPct}%; height: 100%; border-radius: 4px; transition: width 0.3s ease;"></div>
               </div>
             </div>
 
@@ -2226,36 +2474,19 @@
 
       const epicsProgressHtml = epicsList.map(ep => {
         // Find matching summary epic from repo.epics_summary
-        const summaryEp = (repo.epics_summary?.epics || []).find(e => 
-          e.slug === ep.slug || e.slug.replace(/[-_]/g, '') === ep.slug.replace(/[-_]/g, '')
+        const summaryEp = (repo.epics_summary?.epics || []).find(e => slugsMatch(e.slug, ep.slug));
+        const progState = computeEpicProgressState(
+          repo,
+          ep.slug,
+          ep.total,
+          ep.done,
+          summaryEp,
+          ep.status === 'done'
         );
-
-        // An epic is ONLY truly DONE if it is marked as done in epics_summary (Gate 5 approved / in PROJECT_LEDGER.md)
-        const isFullyDone = summaryEp?.status === 'done' || ep.status === 'done';
-        const epNeedsConfirm = summaryEp?.is_action_required === true || 
-                               (repo.active_epic === ep.slug && repo.is_human_action_required === true);
-        const isWaitingFinish = summaryEp?.is_review_converged === true || 
-                               (repo.active_epic === ep.slug && epNeedsConfirm && (
-                                 (repo.active_stage || '').includes('Sign-off') || 
-                                 (repo.prompt || '').includes('Gate 5') || 
-                                 (repo.prompt || '').includes('/finish')
-                               ));
-
-        let pct = 0;
-        if (ep.total > 0) {
-          if (isFullyDone) {
-            pct = 100;
-          } else if (isWaitingFinish) {
-            // "100% chỉ là khi chờ tôi confirm /finishing-a-development-branch thôi."
-            pct = 100;
-          } else if (ep.done === ep.total) {
-            // "Hết tasks chưa phải là done. Chỉ 99% thôi."
-            pct = 99;
-          } else {
-            // Tasks in progress: 0% to 98%
-            pct = Math.min(98, Math.round((ep.done / ep.total) * 100));
-          }
-        }
+        const isFullyDone = progState.isFullyDone;
+        const epNeedsConfirm = progState.epNeedsConfirm;
+        const isWaitingFinish = progState.isWaitingFinish;
+        const pct = progState.pct;
 
         const isSelected = (selectedEpicFilter === ep.slug);
         const barColor = (pct === 100)
@@ -2264,17 +2495,17 @@
             ? 'linear-gradient(90deg, #38bdf8 0%, #10b981 100%)'
             : (pct > 0 ? 'linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%)' : '#334155'));
 
-        const pctColor = (pct === 100) 
-          ? (isFullyDone ? '#34d399' : '#fbbf24') 
-          : (pct >= 99 ? '#38bdf8' : (pct > 0 ? '#fbbf24' : '#64748b'));
+        const pctColor = (pct === 100)
+          ? (isFullyDone ? '#34d399' : '#fbbf24')
+          : (pct >= 96 ? '#38bdf8' : (pct > 0 ? '#fbbf24' : '#64748b'));
 
         let statusText = '';
         if (isFullyDone) {
           statusText = '<span style="color: #10b981; font-weight: 700;">✓ Done</span>';
         } else if (isWaitingFinish) {
           statusText = '<span style="color: #f87171; font-weight: 700;">⚠️ Chờ /finish</span>';
-        } else if (pct === 99) {
-          statusText = '<span style="color: #38bdf8; font-weight: 700;">⚡ 99% Review</span>';
+        } else if (pct === 96) {
+          statusText = '<span style="color: #38bdf8; font-weight: 700;">⚡ 96% Review</span>';
         } else if (ep.in_progress > 0) {
           statusText = `<span style="color: #fbbf24; font-weight: 700;">⚡ ${ep.in_progress} Doing</span>`;
         }
@@ -2486,6 +2717,122 @@
       `;
     }
 
+    function buildKanbanSig(repo, selectedEpicFilter) {
+      return JSON.stringify({
+        f: selectedEpicFilter,
+        act: repo.active_epic || null,
+        stg: repo.active_stage || null,
+        req: Boolean(repo.is_human_action_required),
+        prompt: repo.prompt || null,
+        ep: (repo.epics_summary?.epics || []).map(e => [
+          e.slug,
+          e.status,
+          Boolean(e.is_review_converged),
+          Boolean(e.is_action_required),
+        ]),
+        t: (repo.task_progress?.tasks || []).map(t => [t.id, t.status, t.priority, t.epic, t.title]),
+      });
+    }
+
+    function buildOverviewSig(repo) {
+      const epicsSummary = repo.epics_summary || { total: 0, completed: 0, in_progress: 0, unstarted: 0, abandoned: 0 };
+      return `${epicsSummary.in_progress}|${epicsSummary.unstarted}|${epicsSummary.completed}|${epicsSummary.abandoned || 0}|${epicsSummary.total}|${repo.prompt || ''}|${Boolean(repo.is_human_action_required)}`;
+    }
+
+    function buildRoadmapSig(repo) {
+      const epicsSummary = repo.epics_summary || { epics: [] };
+      const sorted = sortEpicsForRoadmap(epicsSummary.epics || [], repo.active_epic);
+      return JSON.stringify({
+        act: repo.active_epic || null,
+        req: Boolean(repo.is_human_action_required),
+        e: sorted.map(e => [
+          `${repo.name}:${e.slug}`,
+          e.status,
+          e.task_count,
+          e.pic || '',
+          Boolean(e.is_action_required),
+        ]),
+      });
+    }
+
+    function buildTier2Sig(repo) {
+      const tp = repo.task_progress || {};
+      return JSON.stringify({
+        act: repo.active_epic || null,
+        stg: repo.active_stage || null,
+        acc: repo.account_id || null,
+        prompt: repo.prompt || null,
+        req: Boolean(repo.is_human_action_required),
+        tp: {
+          total: tp.total_tasks || 0,
+          done: tp.done_tasks || 0,
+          in_prog: tp.in_progress_tasks || 0,
+          todo: tp.todo_tasks || 0,
+          pct: tp.percentage || 0,
+          active_task: tp.active_task_name || null,
+          tasks: (tp.tasks || []).map(t => [t.id, t.status, t.epic, t.title]),
+        },
+        pd: repo.pending_decision || null,
+        hb: repo.heartbeat || null,
+        qa: repo.quality_active || null,
+        qr: repo.quality_runs || null,
+        wt: (repo.worktrees || []).map(w => [w.path, w.branch, w.is_dirty, w.dirty_file_count]),
+        ep: (repo.epics_summary?.epics || []).map(e => [
+          e.slug,
+          e.status,
+          e.pic || '',
+          Boolean(e.is_action_required),
+          Boolean(e.is_review_converged),
+        ]),
+      });
+    }
+
+    function isRoadmapSelectFocused(roadmapTbody, excludeEl = null) {
+      const activeEl = document.activeElement;
+      return Boolean(
+        activeEl &&
+        activeEl !== excludeEl &&
+        roadmapTbody &&
+        roadmapTbody.contains(activeEl) &&
+        activeEl.classList &&
+        activeEl.classList.contains('select-pic-roadmap')
+      );
+    }
+
+    function flushPendingRoadmapRender(repoName, blurredEl = null) {
+      const queuedRepo = pendingRoadmapRenderRepos[repoName];
+      if (!queuedRepo) return;
+      const roadmapTbody = document.getElementById('roadmap-tbody-' + repoName);
+      if (!roadmapTbody) {
+        delete pendingRoadmapRenderRepos[repoName];
+        return;
+      }
+      if (isRoadmapSelectFocused(roadmapTbody, blurredEl)) {
+        return;
+      }
+      const liveRepo = (currentReposData || []).find(r => r.name === repoName) || queuedRepo;
+      delete pendingRoadmapRenderRepos[repoName];
+      applyPendingPicSelections(liveRepo);
+      const nextSig = buildRoadmapSig(liveRepo);
+      if (roadmapTbody.dataset.sig !== nextSig) {
+        const roadmapWrap = document.getElementById('roadmap-scroll-wrap-' + repoName);
+        const currentScrollTop = roadmapWrap ? roadmapWrap.scrollTop : 0;
+        roadmapTbody.innerHTML = renderRoadmapTableRows(liveRepo);
+        roadmapTbody.dataset.sig = nextSig;
+        if (roadmapWrap && currentScrollTop > 0 && Math.abs(roadmapWrap.scrollTop - currentScrollTop) > 1) {
+          roadmapWrap.scrollTop = currentScrollTop;
+        }
+      }
+    }
+
+    function bindRoadmapSelectFocusGuard(selectEl, repoName) {
+      if (!selectEl || selectEl.dataset.focusGuardBound === '1') return;
+      selectEl.dataset.focusGuardBound = '1';
+      selectEl.addEventListener('blur', () => {
+        flushPendingRoadmapRender(repoName, selectEl);
+      });
+    }
+
     function onFilterKanbanBoard(repoName, epicValue) {
       currentKanbanFilter[repoName] = epicValue;
       const repo = (currentReposData || []).find(r => r.name === repoName);
@@ -2494,10 +2841,7 @@
       if (wrapper) {
         const scrollSnapshot = captureAllScrollPositions(wrapper, false);
         wrapper.innerHTML = renderKanbanDashboard(repo, epicValue);
-        wrapper.dataset.sig = JSON.stringify({
-          f: epicValue,
-          t: (repo.task_progress?.tasks || []).map(t => [t.id, t.status, t.priority, t.epic, t.title])
-        });
+        wrapper.dataset.sig = buildKanbanSig(repo, epicValue);
         restoreAllScrollPositions(wrapper, scrollSnapshot);
       }
     }
@@ -2604,8 +2948,9 @@
         const isEpicDone = (cat === 'done' || e.status === 'done');
         const isCur = !isEpicDone && (repo.active_epic === e.slug);
         const updatedStr = e.last_updated_human || (e.last_updated ? e.last_updated.substring(0, 10) : '—');
+        const rowKey = `${repo.name}:${e.slug}`;
         return `
-          <tr class="roadmap-epic-row" style="background: ${isCur ? 'rgba(56, 189, 248, 0.08)' : '#141722'}; border-bottom: 1px solid #1e2433;">
+          <tr class="roadmap-epic-row" data-row-key="${escapeHtml(rowKey)}" style="background: ${isCur ? 'rgba(56, 189, 248, 0.08)' : '#141722'}; border-bottom: 1px solid #1e2433;">
             <td style="padding: 8px 12px; white-space: nowrap;">
               <span style="background: ${badgeBg}; color: ${badgeColor}; border: 1px solid ${badgeColor}; padding: 2px 8px; border-radius: 4px; font-weight: 700; font-size: 10px; display: inline-flex; align-items: center; gap: 4px;">
                 ${stLabel}
@@ -2663,10 +3008,7 @@
         // 1. Kanban Dashboard (Checked by data signature, NOT innerHTML!)
         const kanbanWrapper = document.getElementById('kanban-dashboard-wrapper-' + repo.name);
         if (kanbanWrapper) {
-          const kanbanSig = JSON.stringify({
-            f: selectedEpicFilter,
-            t: (repo.task_progress?.tasks || []).map(t => [t.id, t.status, t.priority, t.epic, t.title])
-          });
+          const kanbanSig = buildKanbanSig(repo, selectedEpicFilter);
           if (kanbanWrapper.dataset.sig !== kanbanSig) {
             const kSnapshot = captureAllScrollPositions(kanbanWrapper, false);
             kanbanWrapper.innerHTML = renderKanbanDashboard(repo, selectedEpicFilter);
@@ -2678,14 +3020,14 @@
         // 2. Epics Overview (4 counters) & Approval Gate (Checked by signature)
         const overviewWrapper = document.getElementById('epics-overview-counts-' + repo.name);
         if (overviewWrapper) {
-          const overviewSig = `${epicsSummary.in_progress}|${epicsSummary.unstarted}|${epicsSummary.completed}|${epicsSummary.abandoned}|${epicsSummary.total}|${repo.prompt || ''}`;
+          const overviewSig = buildOverviewSig(repo);
           if (overviewWrapper.dataset.sig !== overviewSig) {
             overviewWrapper.innerHTML = renderEpicsOverviewAndApprovalGate(repo);
             overviewWrapper.dataset.sig = overviewSig;
           }
         }
 
-        // 3. Roadmap Table Body (Checked by signature)
+        // 3. Roadmap Table Body (Checked by signature, deferred while select-pic-roadmap has focus)
         const roadmapCountEl = document.getElementById('roadmap-count-' + repo.name);
         const newRoadmapCountText = `${epicsSummary.total} Epics`;
         if (roadmapCountEl && roadmapCountEl.textContent !== newRoadmapCountText) {
@@ -2694,17 +3036,20 @@
 
         const roadmapTbody = document.getElementById('roadmap-tbody-' + repo.name);
         if (roadmapTbody) {
-          const roadmapSig = JSON.stringify({
-            act: repo.active_epic,
-            e: (epicsSummary.epics || []).map(e => [e.slug, e.status, e.task_count, e.pic])
-          });
+          const roadmapSig = buildRoadmapSig(repo);
           if (roadmapTbody.dataset.sig !== roadmapSig) {
-            const roadmapWrap = document.getElementById('roadmap-scroll-wrap-' + repo.name);
-            const currentScrollTop = roadmapWrap ? roadmapWrap.scrollTop : 0;
-            roadmapTbody.innerHTML = renderRoadmapTableRows(repo);
-            roadmapTbody.dataset.sig = roadmapSig;
-            if (roadmapWrap && currentScrollTop > 0 && Math.abs(roadmapWrap.scrollTop - currentScrollTop) > 1) {
-              roadmapWrap.scrollTop = currentScrollTop;
+            if (isRoadmapSelectFocused(roadmapTbody)) {
+              pendingRoadmapRenderRepos[repo.name] = repo;
+              bindRoadmapSelectFocusGuard(document.activeElement, repo.name);
+            } else {
+              delete pendingRoadmapRenderRepos[repo.name];
+              const roadmapWrap = document.getElementById('roadmap-scroll-wrap-' + repo.name);
+              const currentScrollTop = roadmapWrap ? roadmapWrap.scrollTop : 0;
+              roadmapTbody.innerHTML = renderRoadmapTableRows(repo);
+              roadmapTbody.dataset.sig = roadmapSig;
+              if (roadmapWrap && currentScrollTop > 0 && Math.abs(roadmapWrap.scrollTop - currentScrollTop) > 1) {
+                roadmapWrap.scrollTop = currentScrollTop;
+              }
             }
           } else {
             // In-place update of relative timestamp without rebuilding table DOM
@@ -2718,14 +3063,10 @@
           }
         }
 
-        // 4. Tier 2 Execution Epics (Checked by signature)
+        // 4. Tier 2 Execution Epics (Checked by full live signature)
         const tier2Wrapper = document.getElementById('tier2-execution-epics-wrapper-' + repo.name);
         if (tier2Wrapper) {
-          const tier2Sig = JSON.stringify({
-            act: repo.active_epic,
-            stg: repo.active_stage,
-            wt: (repo.worktrees || []).map(w => [w.path, w.branch, w.is_dirty, w.dirty_file_count])
-          });
+          const tier2Sig = buildTier2Sig(repo);
           if (tier2Wrapper.dataset.sig !== tier2Sig) {
             const t2Snapshot = captureAllScrollPositions(tier2Wrapper, false);
             tier2Wrapper.innerHTML = renderExecutionEpics(repo);
@@ -2739,6 +3080,7 @@
       }
 
       // Initial Mount or Tab Switch: Render Complete Shell
+      delete pendingRoadmapRenderRepos[repo.name];
       const scrollSnapshot = isSwitchingRepo ? null : captureAllScrollPositions(container, true);
 
       const theme = REPO_THEMES[repoName] || { color: '#38bdf8', icon: '📦', name: repoName, border: '#0284c7' };
@@ -2748,28 +3090,16 @@
       const epicsSummary = repo.epics_summary || { total: 0, completed: 0, in_progress: 0, unstarted: 0, abandoned: 0, epics: [] };
 
       const rootWt = (repo.worktrees || []).find(wt => wt.path === repo.path) || repo.worktrees?.[0];
-      const epicWt = findEpicWorktree(repo, activeEpic);
-      const wtPath = epicWt ? epicWt.path : repo.path;
 
       let noteText = '';
       try {
         noteText = localStorage.getItem('check_tasks_antigravity_note_' + repo.name) || defaultNotes[repo.name] || '';
       } catch(e) {}
 
-      const initKanbanSig = JSON.stringify({
-        f: selectedEpicFilter,
-        t: (repo.task_progress?.tasks || []).map(t => [t.id, t.status, t.priority, t.epic, t.title])
-      });
-      const initOverviewSig = `${epicsSummary.in_progress}|${epicsSummary.unstarted}|${epicsSummary.completed}|${epicsSummary.abandoned}|${epicsSummary.total}|${repo.prompt || ''}`;
-      const initRoadmapSig = JSON.stringify({
-        act: repo.active_epic,
-        e: (epicsSummary.epics || []).map(e => [e.slug, e.status, e.task_count, e.pic])
-      });
-      const initTier2Sig = JSON.stringify({
-        act: repo.active_epic,
-        stg: repo.active_stage,
-        wt: (repo.worktrees || []).map(w => [w.path, w.branch, w.is_dirty, w.dirty_file_count])
-      });
+      const initKanbanSig = buildKanbanSig(repo, selectedEpicFilter);
+      const initOverviewSig = buildOverviewSig(repo);
+      const initRoadmapSig = buildRoadmapSig(repo);
+      const initTier2Sig = buildTier2Sig(repo);
 
       container.innerHTML = `
         <div id="repo-detail-content-${escapeHtml(repo.name)}" style="display: flex; flex-direction: column; gap: 20px;">
@@ -2915,32 +3245,22 @@
         </div>
       `;
 
-      // Initialize data signatures on initial mount
+      // Initialize data signatures on initial mount (strictly aligned with polling signatures)
       const mountedKanbanWrapper = document.getElementById('kanban-dashboard-wrapper-' + repo.name);
       if (mountedKanbanWrapper) {
-        mountedKanbanWrapper.dataset.sig = JSON.stringify({
-          f: selectedEpicFilter,
-          t: (repo.task_progress?.tasks || []).map(t => [t.id, t.status, t.priority, t.epic, t.title])
-        });
+        mountedKanbanWrapper.dataset.sig = initKanbanSig;
       }
       const mountedOverviewWrapper = document.getElementById('epics-overview-counts-' + repo.name);
       if (mountedOverviewWrapper) {
-        mountedOverviewWrapper.dataset.sig = `${epicsSummary.in_progress}|${epicsSummary.unstarted}|${epicsSummary.completed}|${epicsSummary.abandoned}|${epicsSummary.total}|${repo.prompt || ''}`;
+        mountedOverviewWrapper.dataset.sig = initOverviewSig;
       }
       const mountedRoadmapTbody = document.getElementById('roadmap-tbody-' + repo.name);
       if (mountedRoadmapTbody) {
-        mountedRoadmapTbody.dataset.sig = JSON.stringify({
-          act: repo.active_epic,
-          e: (epicsSummary.epics || []).map(e => [e.slug, e.status, e.task_count, e.pic, e.last_updated_human])
-        });
+        mountedRoadmapTbody.dataset.sig = initRoadmapSig;
       }
       const mountedTier2Wrapper = document.getElementById('tier2-execution-epics-wrapper-' + repo.name);
       if (mountedTier2Wrapper) {
-        mountedTier2Wrapper.dataset.sig = JSON.stringify({
-          act: repo.active_epic,
-          stg: repo.active_stage,
-          wt: (repo.worktrees || []).map(w => [w.path, w.branch, w.is_dirty, w.dirty_file_count])
-        });
+        mountedTier2Wrapper.dataset.sig = initTier2Sig;
       }
 
       // 3. Restore scroll positions if re-rendering same repo
@@ -3248,7 +3568,7 @@ let currentReviewRepo = null;
                 const rowBg = isCurrent ? 'rgba(56, 189, 248, 0.08)' : '#141722';
                 const updatedStr = e.last_updated_human || (e.last_updated ? e.last_updated.substring(0, 10) : '—');
                 return `
-                  <tr style="background: ${rowBg}; border-bottom: 1px solid #1e293b;">
+                  <tr data-row-key="${escapeHtml(repo.name + ':' + e.slug)}" style="background: ${rowBg}; border-bottom: 1px solid #1e293b;">
                     <td style="padding: 10px 14px;">
                       <span style="background: ${badgeBg}; color: ${badgeColor}; border: 1px solid ${badgeColor}; padding: 2px 8px; border-radius: 4px; font-weight: 700; font-size: 11px; display: inline-flex; align-items: center; gap: 4px;">
                         ${stLabel}
@@ -3456,8 +3776,12 @@ let currentReviewRepo = null;
       if (container) container.style.display = 'none';
     }
 
+    function pollDashboard() {
+      return fetchTasks();
+    }
+
     function fetchTasks() {
-      fetch(getApiUrl('/api/tasks'))
+      return fetch(getApiUrl('/api/tasks'))
         .then(res => res.json())
         .then(data => {
           if (!data) return;
@@ -3467,11 +3791,18 @@ let currentReviewRepo = null;
           const allRepos = data.repos || [];
           const focused = allRepos.filter(r => FOCUSED_REPOS.includes(r.name));
           focused.sort((a, b) => FOCUSED_REPOS.indexOf(a.name) - FOCUSED_REPOS.indexOf(b.name));
+          focused.forEach(r => applyPendingPicSelections(r));
           currentReposData = focused;
 
-          // Always ensure activeFocusTab is recovered from localStorage or defaults to D3Nexus
+          // Recover activeFocusTab from localStorage or present focused repos before defaulting to D3Nexus
           const savedTab = localStorage.getItem('check_tasks_active_focus_tab');
-          if (savedTab && FOCUSED_REPOS.includes(savedTab)) {
+          if (savedTab && focused.some(r => r.name === savedTab)) {
+            activeFocusTab = savedTab;
+          } else if (activeFocusTab && focused.some(r => r.name === activeFocusTab)) {
+            // Keep current visible repo tab across polls
+          } else if (focused.length > 0) {
+            activeFocusTab = focused[0].name;
+          } else if (savedTab && FOCUSED_REPOS.includes(savedTab)) {
             activeFocusTab = savedTab;
           } else if (!activeFocusTab || !FOCUSED_REPOS.includes(activeFocusTab)) {
             activeFocusTab = 'D3Nexus';
@@ -3526,8 +3857,8 @@ let currentReviewRepo = null;
           }
         })
         .catch(() => {});
-      fetchTasks();
-      setInterval(fetchTasks, 5000);
+      pollDashboard();
+      setInterval(pollDashboard, 5000);
     }
 
     document.addEventListener('DOMContentLoaded', initDashboard);

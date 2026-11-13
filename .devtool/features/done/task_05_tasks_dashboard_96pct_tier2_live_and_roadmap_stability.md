@@ -1,13 +1,13 @@
 ---
 id: "task_05_tasks_dashboard_96pct_tier2_live_and_roadmap_stability"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "runtime_sync_and_dashboard_hardening"
 dueDate: null
 created: "2026-11-13T09:24:00Z"
-modified: "2026-11-13T09:24:00Z"
-completedAt: null
+modified: "2026-11-13T04:40:02Z"
+completedAt: "2026-11-13T04:40:02Z"
 labels: ["frontend", "dashboard", "live-sync", "check-tasks"]
 order: "a5"
 review_tier: "full"
@@ -15,7 +15,7 @@ review_tier: "full"
 
 # Task 5: Tasks Dashboard 96% Ceiling, Section II Live Telemetry, and Roadmap Stability
 
-Epic: [runtime_sync_and_dashboard_hardening](../epic/runtime_sync_and_dashboard_hardening/runtime_sync_and_dashboard_hardening.en.md)
+Epic: [runtime_sync_and_dashboard_hardening](../../epic/runtime_sync_and_dashboard_hardening/runtime_sync_and_dashboard_hardening.en.md)
 
 ## Requirement Analysis
 
@@ -124,11 +124,11 @@ Then Section II updates immediately once focus settles, focused selects never lo
 
 ## Dependencies & Blockers
 
-Blocked by [Task 1](../epic/runtime_sync_and_dashboard_hardening/task_01_runtime_state_envelope_and_two_tier_sync.md) and [Task 3](../epic/runtime_sync_and_dashboard_hardening/task_03_wave_parallel_handoff_stage3_revise_and_pool_cleanup.md).
+Blocked by [Task 1](../../epic/runtime_sync_and_dashboard_hardening/task_01_runtime_state_envelope_and_two_tier_sync.md) and [Task 3](../../epic/runtime_sync_and_dashboard_hardening/task_03_wave_parallel_handoff_stage3_revise_and_pool_cleanup.md).
 
 Downstream dependent (blocked by Task 5): `task_07`.
 
 ## References & Rollback
 
-- [Epic HLD](../epic/runtime_sync_and_dashboard_hardening/runtime_sync_and_dashboard_hardening.en.md), Module Contracts (§4.6).
+- [Epic HLD](../../epic/runtime_sync_and_dashboard_hardening/runtime_sync_and_dashboard_hardening.en.md), Module Contracts (§4.6).
 - **Rollback**: Revert task commit; restores prior `tasks_dashboard.html` and removes `tests/test_rsdh_tasks_dashboard_ui.py`.
