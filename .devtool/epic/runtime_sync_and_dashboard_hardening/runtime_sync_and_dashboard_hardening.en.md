@@ -20,7 +20,7 @@
 ## Meta Data
 
 - **Epic name**: `runtime_sync_and_dashboard_hardening`
-- **Status**: In Progress
+- **Status**: Done
 - **PIC**: `brother`
 - **Target release**: Next plugin release
 - **Platform**: Python tooling, dashboard HTML/JS UI, and agent workflow kit

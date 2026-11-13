@@ -16,3 +16,4 @@
 - **[2026-11-11] `autonomous_lifecycle_runner`**: Complete Autonomous Lifecycle Runner with 3-round convergence and model prober
 - **[2026-11-12] `check_tasks_dashboard`**: Cross-Repo Tasks & Context Dashboard (check-tasks skill, HTTP daemon server, terminal CLI, FSM engine, and multi-repo harvester)
 - **[2026-11-13] `token_throttling_optimization`**: Diff-only external review, quiet Gate 4/pytest outputs, Option A English-SSOT bilingual sync, config-driven Programmer defaults with pool isolation, slimmed rules/skills, and quantitative acceptance suite
+- **[2026-11-13] `runtime-sync-and-dashboard-hardening`**: Dual-root atomic runtime state envelope, live quality progress & hybrid estimator, wave-parallel Stage 3 revise & safe pool cleanup, Choice A pending decisions & unified ledgers, 96% dashboard ceiling & live Section II, root+worktree PIC sync & Roadmap stability, and Check-Quota Modal Stack Controller (34/34 BDD)
