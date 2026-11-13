@@ -28,14 +28,14 @@ Implement zero-LLM workload duration estimation (`scripts/estimate_heartbeat.py`
      - `estimated_sec < 60` -> `"light"`, `recommended_interval_sec: null`
      - `60 <= estimated_sec <= 240` -> `"medium"`, `recommended_interval_sec: 180`
      - `estimated_sec > 240` -> `"heavy"`, `recommended_interval_sec: 240` (escalating to `300` strictly when `--has-e2e` is set)
-2. **Live Progress Streaming in `verify_polyglot_registry.py`**:
-   - Upgrade `execute_provider` (`L142-L458`) and `verify_polyglot_execution` (`L459-L557`) to accept an optional `heartbeat_interval` parameter (default `15.0`, CLI flag `--heartbeat-interval` in `main` `L636-L726`).
-   - Run capability subprocesses via `subprocess.Popen` redirecting combined stdout/stderr directly into `build/quality/<provider_id>/<cap_name>.log`.
-   - Poll at `heartbeat_interval` ticks, emitting a concise zero-token progress line to `stderr` (`[quality_check] <i>/<n> <provider>:<cap> (<elapsed>s elapsed)`) and updating `.devtool/state/quality_active.json` atomically (`Atomic` JSON helper — local atomic helper fallback if `_state_envelope.py` is absent in older repos, using `scripts/_state_envelope.py` when present).
-   - Wrap provider execution in `try ... finally` so passing, failing (`exit != 0`), or aborted runs always transition `quality_active.json` out of `"running"` into `"passed"`, `"failed"`, or `"aborted"` with `finished_at`.
+2. **Live Progress Streaming, Isolation & Signal Safety in `verify_polyglot_registry.py`**:
+   - Upgrade `execute_provider` (`L142-L458`) and `verify_polyglot_execution` (`L459-L557`) to accept optional `heartbeat_interval` (default `15.0`, CLI `--heartbeat-interval` in `main` `L636-L726`) and `epic_slug` (`--epic` / auto-resolved).
+   - Assign a unique `run_id` per invocation and launch capability subprocesses via `subprocess.Popen(..., start_new_session=True)` redirecting combined stdout/stderr into run-isolated logs `build/quality/<provider_id>/runs/<run_id>/<cap_name>.log` so concurrent runs never collide.
+   - Poll at `heartbeat_interval` ticks, printing `[quality_check] <i>/<n> <provider>:<cap> (<elapsed>s elapsed)` to `stderr` and refreshing namespaced `runs[run_id]` inside `.devtool/state/quality_active.json` (`run_id`, `epic_slug`, `pid`, `host`, `updated_at`, `ttl_sec = max(120, estimated_sec * 2)`) under `scripts/_state_envelope.py` (with local locked fallback).
+   - Register `SIGINT` & `SIGTERM` handlers (saving & cleanly restoring prior handlers) alongside `try ... finally` to terminate (`os.killpg` `SIGTERM` -> bounded wait -> `SIGKILL`) and reap active child process groups cleanly, finalizing **only** `runs[run_id]` (under `run_id` ownership) to `"passed"`, `"failed"`, or `"aborted"` with `finished_at` without touching concurrent live runs.
 3. **Document Estimator & Watchdog Workflow (`skills/quality_check/SKILL.md`)**:
-   - Document running `python3 scripts/estimate_heartbeat.py --quality-profile <profile> --json` before long quality checks and monitoring live `[quality_check]` stderr output / `quality_active.json`.
-4. Add `tests/test_rsdh_heartbeat_quality.py` covering `RSDH-HP-02`, `RSDH-HP-03`, `RSDH-EC-02`, and `RSDH-FR-02`.
+   - Document running `python3 scripts/estimate_heartbeat.py --quality-profile <profile> --json` before long quality checks and monitoring live `[quality_check]` stderr output / namespaced `quality_active.json`.
+4. Add `tests/test_rsdh_heartbeat_quality.py` covering `RSDH-HP-02`, `RSDH-HP-03` (concurrent run isolation + isolated `runs/<run_id>/` logs), `RSDH-EC-02`, `RSDH-FR-02`, and `RSDH-FR-07` (`SIGTERM` signal trap, child reaping, abort status without clobbering concurrent runs).
 
 ## Files
 
@@ -63,11 +63,11 @@ Long `quality_check` runs across Android, iOS, Flutter, Rust, and Web previously
   - `tests/test_rsdh_heartbeat_quality.py`: new unit and subprocess integration tests for `RSDH-HP-02`, `RSDH-HP-03`, `RSDH-EC-02`, `RSDH-FR-02`
 - **Downstream Callers**: `tests/test_polyglot_gate4.py`, `skills/quality_check/resources/scripts/test_quality_provider_acceptance.py`, `skills/dev-lifecycle/resources/scripts/lifecycle_runner.py`.
 - **Cross-Platform Bridges**: None.
-- **Target Test Coverage Threshold**: 100% of estimator tier branches, `Popen` heartbeat loop, and `finally` state transitions (`passed`/`failed`/`aborted`).
+- **Target Test Coverage Threshold**: 100% of estimator tier branches, `Popen` heartbeat loop, run-isolated logs/telemetry, `SIGINT`/`SIGTERM` child reaping + abort finalization, and `finally` transitions.
 
 ### BDD SCENARIOS
 
-Covers: RSDH-HP-02, RSDH-HP-03, RSDH-EC-02, RSDH-FR-02
+Covers: RSDH-HP-02, RSDH-HP-03, RSDH-EC-02, RSDH-FR-02, RSDH-FR-07
 
 
 ```gherkin
@@ -77,12 +77,12 @@ Given representative inputs covering a 1-task/1-file micro fix, a 2-task/5-file 
 When scripts/estimate_heartbeat.py evaluates each input via CLI and Python API with --json
 Then the micro fix (estimated_sec 35 < 60) returns tier "light" with recommended_interval_sec null, the feature wave (estimated_sec 80) returns tier "medium" with recommended_interval_sec 180, the full quality run (estimated_sec 250) returns tier "heavy" with 240, and the E2E run returns tier "heavy" with 300
 
-Scenario: [RSDH-HP-03] [Tier C - Integration] Polyglot quality runner streams zero-token stderr progress and updates quality_active.json
+Scenario: [RSDH-HP-03] [Tier C - Integration] Polyglot quality runner streams zero-token stderr progress and isolates concurrent runs
 
-Given a registered provider capability command that runs longer than the configured heartbeat interval
-When verify_polyglot_registry.py executes the provider via Popen with a shortened test heartbeat interval and active devtool state directory
-Then verify_polyglot_registry.py writes command output to build/quality/<provider>/<capability>.log while printing periodic "[quality_check]" progress lines to stderr
-And .devtool/state/quality_active.json transitions from status "running" with step_index/step_total to final status "passed" upon completion
+Given two registered provider capability runs executing concurrently against the same capability under verify_polyglot_registry.py
+When both execute via Popen with start_new_session=True, a shortened test heartbeat interval, and shared devtool state directories
+Then verify_polyglot_registry.py writes isolated logs under build/quality/<provider>/runs/<run_id>/<capability>.log without collisions while printing periodic "[quality_check]" progress lines to stderr
+And .devtool/state/quality_active.json namespaces both entries under runs[run_id] (with pid, host, updated_at, ttl_sec) and finalizes only each finished run_id without overwriting sibling live runs
 
 Scenario: [RSDH-EC-02] [Tier A - Unit] Heartbeat estimator clamps zero inputs and escalates E2E runs to 300 seconds
 
@@ -91,11 +91,17 @@ When both evaluations run
 Then the empty input produces tier "light" with recommended_interval_sec null
 And the epic E2E run produces tier "heavy" with recommended_interval_sec 300
 
-Scenario: [RSDH-FR-02] [Tier C - Integration] Quality verification finalizes quality_active.json on failing command or runtime error
+Scenario: [RSDH-FR-02] [Tier C - Integration] Quality verification finalizes failing run_id without clobbering concurrent runs
 
-Given a capability command in verify_polyglot_registry.py that exits non-zero with failing stdout/stderr
-When verify_polyglot_registry.py runs and handles the failure inside try/finally
-Then quality_active.json is finalized cleanly with status "failed" and non-null finished_at so no permanent "running" indicator remains
+Given a failing capability command in verify_polyglot_registry.py running alongside an independent healthy run_id in quality_active.json
+When the failing command exits non-zero
+Then only its own runs[run_id] transitions to status "failed" with non-null finished_at while sibling live runs remain intact
+
+Scenario: [RSDH-FR-07] [Tier C - Integration] Signal-aborted quality verification reaps child processes and recovers stale owners
+
+Given a running capability subprocess group under verify_polyglot_registry.py alongside an independent healthy concurrent run
+When SIGTERM interrupts the first verify_polyglot_registry.py runner process
+Then the signal handler terminates and reaps the active child process group and transitions only its own runs[run_id] to status "aborted" while leaving the sibling run intact
 ```
 
 ## Verification
@@ -121,13 +127,13 @@ Then quality_active.json is finalized cleanly with status "failed" and non-null 
 ## Decisions Already Made
 
 - `scripts/estimate_heartbeat.py` is 100% deterministic (zero LLM/network calls) and maps discrete tiers: `< 60s -> light (null)`, `60..240s -> medium (180)`, `> 240s -> heavy (240, or 300 strictly with --has-e2e)` using `base 5s + 25s*tasks + 5s*files + profile {fast:15, pr:120, epic:210, release:245, full:245} + e2e 240s`.
-- `verify_polyglot_registry.py` streams capability stdout/stderr directly to `build/quality/<provider_id>/<cap_name>.log` via `subprocess.Popen`, emits `[quality_check] <i>/<n> <provider>:<cap> (<elapsed>s elapsed)` every `heartbeat_interval` (default `15.0s`), and finalizes `quality_active.json` in `try ... finally` across resolved shared `.devtool/state/` dirs without importing project-specific paths; also clean up pre-existing `S110` at `L294` if touched (`# noqa` or structured warning log).
+- `verify_polyglot_registry.py` assigns a unique `run_id`, launches capability subprocesses with `start_new_session=True` streaming combined stdout/stderr into run-isolated `build/quality/<provider_id>/runs/<run_id>/<cap_name>.log`, emits `[quality_check] <i>/<n> <provider>:<cap> (<elapsed>s elapsed)` every `heartbeat_interval` (default `15.0s`), installs `SIGINT`/`SIGTERM` handlers (cleanly restoring previous handlers on exit) to terminate + reap child process groups, and finalizes **only** `runs[run_id]` (keeping `pid`, `host`, `updated_at`, `ttl_sec`) under run-ownership locking across shared `.devtool/state/` dirs without touching sibling live runs; also clean up pre-existing `S110` at `L294` if touched (`# noqa` or structured warning log).
 - `tests/test_rsdh_heartbeat_quality.py` MUST import `scripts/estimate_heartbeat` lazily inside test function bodies (not at module top level) so V1 RED executes collected tests and exits `1` (`failed`) cleanly rather than failing collection with exit `2`.
 - Keep `execute_provider` and `verify_polyglot_execution` signatures strictly backward-compatible for callers omitting `heartbeat_interval`.
 
 ## Definition of Done
 
-- Scenarios RSDH-HP-02, RSDH-HP-03, RSDH-EC-02, and RSDH-FR-02 pass across unit and subprocess capability tests. (V2, V6)
+- Scenarios RSDH-HP-02, RSDH-HP-03, RSDH-EC-02, RSDH-FR-02, and RSDH-FR-07 pass across unit, subprocess isolation, and `SIGTERM` reaping tests. (V2, V6)
 - Existing polyglot Gate 4 and quality provider acceptance suites pass with zero regressions. (V3, V6)
 - Ruff lint and mypy strict checks pass on `estimate_heartbeat.py` and `verify_polyglot_registry.py`. (V4, V5)
 - `quality_check/SKILL.md` link and ToC checks remain valid on candidate commit. (Gate 5)

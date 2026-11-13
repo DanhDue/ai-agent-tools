@@ -31,7 +31,7 @@ Eliminate nested multi-layer overlapping dialogs when `check-quota` runs both st
 3. **Embedded Container Flattening (`#dashboardCard` `L176-L200`)**:
    - When `location.search` includes `?embedded=1` or `window.parent !== window` (iframe detection), apply an embedded mode class to `document.body` / `#dashboardCard` removing duplicate outer card borders, shadows, and excess padding while preserving full container framing in standalone mode.
    - **Strict Diff Hygiene**: Perform surgical edits ONLY to CSS, modal HTML/JS sections; NEVER overwrite or alter runtime `PROFILES_DATA` snapshot blocks in `quota_dashboard.html`.
-4. Add `tests/test_rsdh_quota_modal_stack.py` executing real extracted `<script>` handlers under headless `node` (`v25.6.0`) covering `RSDH-HP-08`, `RSDH-EC-07`, `RSDH-ST-06`, and `RSDH-FR-05`.
+4. Add `tests/test_rsdh_quota_modal_stack.py` combining fast headless `node` (`v25.6.0`) unit checks AND a **provisioned real headless Chrome CDP integration test** (`CHROME_BIN` / `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome` + `node v25` WebSocket serving `quota_dashboard.html` standalone and inside an actual `<iframe>` with `?embedded=1`) verifying `window.getComputedStyle(#dashboardCard)`, `max=1` modal exclusivity, real backdrop click, real `Escape` cascade (`1 -> 0 -> handleCardClose`), and real `postMessage` `{ action: 'reset_quota_submodals' }` covering `RSDH-HP-08`, `RSDH-EC-07`, `RSDH-ST-06`, and `RSDH-FR-05`.
 
 ## Files
 
@@ -54,7 +54,7 @@ Read-only context:
   - `tests/test_rsdh_quota_modal_stack.py`: new Node DOM integration suite for `RSDH-HP-08`, `RSDH-EC-07`, `RSDH-ST-06`, `RSDH-FR-05`
 - **Downstream Callers**: Standalone `check-quota` UI server and `tasks_dashboard.html` `#modal-quota` embedded iframe (`?embedded=1`).
 - **Cross-Platform Bridges**: `postMessage` (`{ action: 'reset_quota_submodals' }` matching `e.data.action`) from `tasks_dashboard.html` `#modal-quota` close handler (end-to-end parent+iframe integration runs in Wave 4 Task 07).
-- **Target Test Coverage Threshold**: 100% of Single Modal Stack Controller exclusivity across all 4 inner modals, backdrop dismissal, `Escape` cascade (`1 -> 0` modals), `?embedded=1` layout flattening, and zero `console.error` events.
+- **Target Test Coverage Threshold**: 100% of Single Modal Stack Controller exclusivity across all 4 inner modals, backdrop dismissal, `Escape` cascade (`1 -> 0` modals), `?embedded=1` computed-style flattening in Chrome CDP, and zero `console.error` events.
 
 ### BDD SCENARIOS
 
@@ -62,12 +62,12 @@ Covers: RSDH-HP-08, RSDH-EC-07, RSDH-ST-06, RSDH-FR-05
 
 
 ```gherkin
-Scenario: [RSDH-HP-08] [Tier C - Integration] Check-Quota Modal Stack Controller limits open inner sub-modals to one and resets on parent close
+Scenario: [RSDH-HP-08] [Tier C - Integration] Check-Quota Modal Stack Controller enforces max one inner modal and real iframe reset
 
-Given quota_dashboard.html embedded inside #modal-quota in tasks_dashboard.html
+Given quota_dashboard.html served inside #modal-quota's real iframe over TasksServer HTTP in provisioned headless Chrome CDP
 When the user opens #scheduleModal and then triggers #loginModal, and later the parent closes #modal-quota
 Then opening #loginModal automatically closes #scheduleModal so at most one inner sub-modal has the open state simultaneously
-And closing #modal-quota posts {action: "reset_quota_submodals"} causing quota_dashboard.html to close every inner sub-modal cleanly
+And closing #modal-quota posts {action: "reset_quota_submodals"} across the real iframe boundary causing quota_dashboard.html to close every inner sub-modal cleanly
 
 Scenario: [RSDH-EC-07] [Tier C - Integration] Check-Quota inner sub-modal backdrop and Escape close only the active inner dialog
 
@@ -75,11 +75,11 @@ Given #modal-quota is open and inside quota_dashboard.html one of #profileInfoMo
 When the user clicks the sub-modal backdrop or presses Escape inside the iframe
 Then only the active inner sub-modal closes, preserving the rest of #dashboardCard and keeping #modal-quota open
 
-Scenario: [RSDH-ST-06] [Tier C - Integration] Check-Quota embedded mode strips redundant outer card frame cleanly
+Scenario: [RSDH-ST-06] [Tier C - Integration] Check-Quota embedded mode strips redundant outer card frame in real Chrome iframe
 
-Given quota_dashboard.html loaded with query parameter "?embedded=1" versus standalone URL
-When the initialization script applies embedded styling classes to #dashboardCard
-Then embedded mode removes redundant outer modal spacing/borders while standalone mode preserves full container layout
+Given quota_dashboard.html loaded with "?embedded=1" inside an actual iframe versus standalone URL in provisioned headless Chrome CDP
+When window.getComputedStyle evaluates #dashboardCard border, boxShadow, margin, and padding across standalone and embedded views
+Then embedded mode flattens outer spacing, borders, and shadow cleanly while standalone mode preserves full card framing
 
 Scenario: [RSDH-FR-05] [Tier C - Integration] Pressing Escape with no open inner quota sub-modal closes cleanly via handleCardClose
 
@@ -112,11 +112,11 @@ Then the key handler sees zero open inner sub-modals and invokes handleCardClose
 
 - Pre-existing dirty runtime snapshot lines in `quota_dashboard.html` (`PROFILES_DATA`) MUST be preserved intact during edits — apply surgical diffs ONLY to styles, modal HTML/JS stack controller, and `?embedded=1` handlers.
 - The canonical cross-iframe reset payload is `{ action: 'reset_quota_submodals' }` (`postMessage`), matching `tasks_dashboard.html` `e.data.action` conventions; end-to-end parent+iframe integration runs in Wave 4 Task 07 so Task 06 stays independent of Wave 3 sibling Task 05.
-- Because `playwright` is not installed (`playwright_pkg: False`), `tests/test_rsdh_quota_modal_stack.py` executes the real extracted modal controller script under headless `node` (`v25.6.0`) across all 4 modal IDs.
+- Because `playwright` is not installed (`playwright_pkg: False`), `tests/test_rsdh_quota_modal_stack.py` pairs fast headless `node` (`v25.6.0`) script checks WITH a **provisioned real headless Chrome CDP integration test** (`CHROME_BIN` -> `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome` -> `google-chrome`/`chromium` via `node v25` WebSocket serving `quota_dashboard.html` standalone and inside an actual `<iframe>` with `?embedded=1`) verifying `window.getComputedStyle(#dashboardCard)` flattening, modal exclusivity across all 4 modal IDs, real backdrop click, and real `Escape` cascade.
 
 ## Definition of Done
 
-- Scenarios RSDH-HP-08, RSDH-EC-07, RSDH-ST-06, and RSDH-FR-05 pass under Node DOM execution with zero console errors. (V2, V6)
+- Scenarios RSDH-HP-08, RSDH-EC-07, RSDH-ST-06, and RSDH-FR-05 pass across Node DOM checks AND provisioned real headless Chrome CDP browser tests with zero console errors. (V2, V6)
 - Ruff lint and registered mypy checks pass cleanly with `PROFILES_DATA` uncorrupted. (V4, V5)
 
 ## Dependencies & Blockers

@@ -22,14 +22,13 @@ Epic: [runtime_sync_and_dashboard_hardening](runtime_sync_and_dashboard_hardenin
 Implement the shared atomic runtime state layer (`scripts/_state_envelope.py`) and mechanically couple Kanban / memory transitions to dual-root `.devtool/state/` snapshots across worktree and primary repository roots:
 
 1. **Shared State Envelope (`scripts/_state_envelope.py`)**:
-   - Provide `resolve_shared_devtool_dirs(start_path: Path) -> list[Path]` returning deduplicated `.devtool/` paths for both the active worktree top-level (`git rev-parse --show-toplevel`) and the primary repository root (`git rev-parse --git-common-dir` parent).
-   - Provide `atomic_write_json(path: Path, payload: dict[str, Any]) -> None` using a sibling temporary file + `os.replace()` protected by an `fcntl.flock` sidecar lock (`path.with_suffix(path.suffix + ".lock")`).
-   - Provide `read_json_safe(path: Path, default: T) -> T` returning `default` cleanly on missing, empty, or malformed JSON.
-   - Provide structured domain helpers (`update_epic_heartbeat(...)`, `write_pending_decision(...)`, `clear_pending_decision(...)`, `write_quality_active(...)`) mirroring writes atomically across all resolved shared `.devtool/state/` directories.
+   - Provide `resolve_shared_devtool_dirs(start_path: Path) -> list[Path]` returning deduplicated `.devtool/` paths ordered with the primary repository root (`git rev-parse --git-common-dir` parent) first and the active worktree top-level (`git rev-parse --show-toplevel`) second.
+   - Provide a canonical-root transaction primitive `run_state_transaction(start_path, filename, mutator, default)` holding a single primary-root `fcntl.flock` lock (`.devtool/state/.state_envelope.lock`) over read -> merge -> monotonic `generation += 1` increment -> sibling-temp + `os.replace()` write to primary `.devtool/state/` -> identical versioned mirror write to worktree `.devtool/state/` (rejecting stale lower-generation writes so interleaved RMW updates never drop slots or diverge across mirrors). Also expose `atomic_write_json(path, payload)` and `read_json_safe(path, default)`.
+   - Provide structured domain helpers supporting concurrency and ownership isolation: `update_epic_heartbeat(...)`, `record_pending_decision(..., epic_slug, decision_id=...)` / `clear_pending_decision(..., epic_slug, decision_id=None)` (namespaced under `decisions[epic_slug]` with compatibility summary fields so clearing Epic B never erases Epic A), and `update_quality_run(...)` / `read_quality_runs(...)` (namespaced under `runs[run_id]` with `pid`, `host`, `updated_at`, `ttl_sec` + local dead-PID/`ttl_sec` `"stale"` expiry).
 2. **Mechanical Two-Tier Sync in `resume_context.py` and `sync_task_status.py`**:
-   - Update `scripts/resume_context.py` (`write_epic_state` L728-L762 and `complete_feature_and_rotate` L785-L845) so saving state refreshes `<epic_slug>.heartbeat.json` across shared devtool dirs and completing an epic cleans/archives stale state files cleanly from both active worktree and primary repo `.devtool/state/` + `.devtool/assistant_state.md` rollup without duplicating `PROJECT_LEDGER.md` entries.
-   - Update `skills/dev-implementation/resources/scripts/sync_task_status.py` (`sync_task` L303-L335, `sync_epic` L566-L600, `main` L1079-L1276) so task/epic status mutations mechanically call `update_epic_heartbeat()`, regenerate `.devtool/state/<epic_slug>.md` + `.devtool/assistant_state.md` under lock (`resume_context`), and invoke `clear_pending_decision()` when marking a task `in-progress` or `done`.
-3. Add `tests/test_rsdh_state_envelope.py` covering `RSDH-HP-01`, `RSDH-EC-01`, `RSDH-AR-01`, and `RSDH-FR-01`.
+   - Update `scripts/resume_context.py` (`write_epic_state` L728-L762 and `complete_feature_and_rotate` L785-L845) so saving state transactionally refreshes `<epic_slug>.heartbeat.json` across shared devtool dirs and completing an epic cleans/archives stale state files cleanly from both active worktree and primary repo `.devtool/state/` + `.devtool/assistant_state.md` rollup without duplicating `PROJECT_LEDGER.md` entries.
+   - Update `skills/dev-implementation/resources/scripts/sync_task_status.py` (`sync_task` L303-L335, `sync_epic` L566-L600, `main` L1079-L1276) so task/epic status mutations transactionally call `update_epic_heartbeat()`, regenerate `.devtool/state/<epic_slug>.md` + `.devtool/assistant_state.md` under lock (`resume_context`), and invoke ownership-scoped `clear_pending_decision(..., epic_slug=...)` when marking a task `in-progress` or `done`.
+3. Add `tests/test_rsdh_state_envelope.py` covering `RSDH-HP-01`, `RSDH-EC-01`, `RSDH-AR-01` (interleaved RMW slot updates retaining all mutations + matching mirror `generation` + multi-epic `pending_decision`/`quality_active` isolation), and `RSDH-FR-01`.
 
 ## Files
 
@@ -51,13 +50,13 @@ Read-only context:
 ## Impact Analysis & Blast Radius
 
 - **Target Files & Symbols**:
-  - `scripts/_state_envelope.py`: new shared atomic state module (`resolve_shared_devtool_dirs`, `atomic_write_json`, `read_json_safe`, `update_epic_heartbeat`, `write_pending_decision`, `clear_pending_decision`, `write_quality_active`)
+  - `scripts/_state_envelope.py`: new shared atomic state module (`resolve_shared_devtool_dirs`, `run_state_transaction`, `atomic_write_json`, `read_json_safe`, `update_epic_heartbeat`, `record_pending_decision`, `clear_pending_decision`, `update_quality_run`, `read_quality_runs`)
   - `scripts/resume_context.py`: `write_epic_state` (L728-L762), `complete_feature_and_rotate` (L785-L845)
   - `skills/dev-implementation/resources/scripts/sync_task_status.py`: `sync_task` (L303-L335), `sync_epic` (L566-L600), `main` (L1079-L1276)
   - `tests/test_rsdh_state_envelope.py`: new test suite for `RSDH-HP-01`, `RSDH-EC-01`, `RSDH-AR-01`, `RSDH-FR-01`
 - **Downstream Callers**: `skills/dev-implementation/resources/scripts/manage_worker_pool.py`, `skills/quality_check/resources/scripts/verify_polyglot_registry.py`, `skills/check-tasks/resources/scripts/check_tasks.py`, `scripts/test_resume_context.py`, `skills/dev-implementation/resources/scripts/test_sync_task_status.py`.
 - **Cross-Platform Bridges**: None.
-- **Target Test Coverage Threshold**: 100% of dual-root path resolution, `flock` atomic replace, corrupt fallback, and mechanical `.md` sync paths.
+- **Target Test Coverage Threshold**: 100% of dual-root path resolution, canonical-root transaction `flock` + `generation` versioning, corrupt fallback, namespaced `pending_decision`/`quality_active` isolation, and mechanical `.md` sync paths.
 
 ### BDD SCENARIOS
 
@@ -78,11 +77,11 @@ Given nonexistent, zero-byte, and malformed truncated files at .devtool/state/br
 When _state_envelope.read_json_safe reads each path with a default dictionary
 Then read_json_safe returns the provided default dictionary cleanly without raising JSONDecodeError or OSError
 
-Scenario: [RSDH-AR-01] [Tier C - Integration] Concurrent multi-process envelope writes preserve valid JSON and latest updates under flock
+Scenario: [RSDH-AR-01] [Tier C - Integration] Canonical transaction lock serializes interleaved slot RMW updates and versioned mirrors
 
-Given multiple worker processes concurrently calling _state_envelope.atomic_write_json and update_epic_heartbeat on the same .devtool/state/ targets
-When all parallel writes complete across 16 concurrent invocations
-Then every JSON file parses cleanly without truncation or JSONDecodeError and lock contention produces zero exceptions
+Given multiple concurrent workers performing interleaved read-modify-write slot mutations on shared .devtool/state/ targets across primary root and active worktree
+When 16 parallel updates execute under _state_envelope.py's canonical-root fcntl.flock transaction lock
+Then zero slot updates are dropped across concurrent RMW cycles and primary plus worktree mirrors contain identical generation numbers and JSON payloads
 
 Scenario: [RSDH-FR-01] [Tier C - Integration] Stale heartbeat metadata never blocks subsequent task status synchronization
 
@@ -113,9 +112,10 @@ Then the stale heartbeat is safely superseded atomically under lock and executio
 
 ## Decisions Already Made
 
-- `_state_envelope.py` resolves unique `.devtool/` dirs via `git rev-parse --show-toplevel` and `git rev-parse --git-common-dir` so worktree executions mirror runtime JSON envelopes (`<epic_slug>.heartbeat.json`, `quality_active.json`, `pending_decision.json`) to primary repo `.devtool/state/` as well.
-- All JSON mutations go through a sidecar `.lock` under `fcntl.flock` + temporary sibling write + `os.replace()`; `read_json_safe()` catches `OSError` and `json.JSONDecodeError` returning defaults cleanly.
-- `sync_task_status.py` refreshes `.devtool/state/<epic_slug>.md` + `.devtool/assistant_state.md` via `resume_context.write_epic_state` / `render_assistant_state_rollup` when available and calls `clear_pending_decision()` on `in-progress` and `done` transitions without duplicating `PROJECT_LEDGER.md`.
+- `_state_envelope.py` resolves unique `.devtool/` dirs ordered primary repo (`git rev-parse --git-common-dir` parent) first and active worktree (`git rev-parse --show-toplevel`) second so mirrors always anchor to the canonical root.
+- All read-modify-write state updates hold a canonical primary-root `fcntl.flock` transaction lock (`.devtool/state/.state_envelope.lock`) over read -> merge -> monotonic `generation += 1` increment -> sibling temp + `os.replace()` write to primary -> mirrored write to worktree (rejecting lower-generation stale writes); `read_json_safe()` catches `OSError` and `json.JSONDecodeError` returning defaults cleanly.
+- `pending_decision.json` is namespaced by `decisions[epic_slug]` + `decision_id` (plus backward-compatible top-level summary fields), and `quality_active.json` is namespaced by `runs[run_id]` with `pid`, `host`, `updated_at`, and `ttl_sec` (consumers expire dead local PIDs or overdue `ttl_sec` entries to `"stale"`).
+- `sync_task_status.py` refreshes `.devtool/state/<epic_slug>.md` + `.devtool/assistant_state.md` via `resume_context.write_epic_state` / `render_assistant_state_rollup` when available and calls ownership-scoped `clear_pending_decision(..., epic_slug=...)` on `in-progress` and `done` transitions without duplicating `PROJECT_LEDGER.md` or clearing sibling epic decisions.
 - `resume_context.py` (`write_epic_state` L728-L762, `complete_feature_and_rotate` L785-L845) synchronizes completion/archival across shared `.devtool/` dirs cleanly.
 - `tests/test_rsdh_state_envelope.py` MUST import `scripts/_state_envelope` lazily inside each test function body rather than at module top level so pytest V1 RED runs execute collected tests and exit `1` (`failed`) instead of failing collection with exit `2`.
 

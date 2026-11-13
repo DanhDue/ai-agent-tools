@@ -26,7 +26,7 @@ Lock in cross-layer end-to-end verification and continuous CI regression guards 
      - Write dual-root `_state_envelope` heartbeat + quality telemetry and run `resume_context.py --detect-profile` / `--pending-decision` / `--gate` / `--clear-decision` / `sync_window_title()`.
      - Run `estimate_heartbeat.py` + `verify_polyglot_registry.py` against real test subprocess capabilities and confirm `quality_active.json` transitions (`running` -> `passed`).
      - Test Stage 3 `package_epic.py --revise` (`handoff.md` creator PIC stamping + `--post-design`) and `manage_worker_pool.py cleanup`.
-     - Start a bound local `127.0.0.1` `TasksServer`, verify `/api/tasks` + `/api/epic/pic` root+worktree updates, and run real extracted `<script>` checks from `tasks_dashboard.html` (`96%` cap, Section II `tier2Sig`, Roadmap `data-row-key` focus guard, `#quota-iframe.src` `?embedded=1` wiring) and `quota_dashboard.html` (Single Modal Stack Controller `max=1`, `?embedded=1` flattening, cross-iframe `{ action: 'reset_quota_submodals' }` reset) in headless `node` (`v25.6.0`).
+     - Start a bound local `127.0.0.1` `TasksServer` alongside a local static HTTP server serving `quota_dashboard.html`, verify `/api/tasks` + `/api/epic/pic` root+worktree updates (including concurrent `quality_runs`, dead-PID/`ttl_sec` stale recovery, and multi-epic `pending_decision` isolation), and run real provisioned **headless Chrome CDP** (`CHROME_BIN` / local Google Chrome + `node v25` WebSocket) against live `tasks_dashboard.html` (`96%` cap, Section II `tier2Sig`, distinct same-day mtime order stability + native `<select>` focus guard, `/api/launch/quota` -> `#quota-iframe` `?embedded=1`) embedding real `quota_dashboard.html` inside the real `<iframe>` (verifying `getComputedStyle` flattening, Single Modal Stack Controller `max=1`, backdrop/Escape cascade, and cross-iframe `{ action: 'reset_quota_submodals' }`) with zero browser console/exception errors.
    - **`RSDH-FR-06`**: Verify regression invariants deterministically:
      - `rules/CRITICAL_RULES.md` UTF-8 size `<= 8192` bytes; `skills/dev-designer/SKILL.md` UTF-8 size `<= 22528` bytes.
      - `skills/check-tasks/resources/scripts/check_tasks.py` contains no Strategy 7 alphabetical fallback to unstarted `.devtool/epic/` folders (`choosing_a_lifecycle`).
@@ -67,11 +67,11 @@ Covers: RSDH-HP-09, RSDH-FR-06
 
 
 ```gherkin
-Scenario: [RSDH-HP-09] [Tier C - Integration] End-to-end orchestration, envelope sync, 96% dashboard, PIC sync, and modal stack pass together
+Scenario: [RSDH-HP-09] [Tier C - Integration] End-to-end orchestration, envelope sync, 96% dashboard, PIC sync, and Chrome CDP modal stack pass together
 
 Given a multi-worktree workspace running live TasksServer HTTP endpoints with Wave 1-3 updates applied
-When an epic advances through sync_task_status, verify_polyglot_registry progress, Choice A pending-decision save/clear, PIC reassignment across root and worktree, and dashboard DOM interactions in headless Node
-Then live /api/tasks reflects 96% pre-finish progress, updated PICs, cleared bottlenecks, and extracted dashboard JS runs with zero uncaught errors
+When an epic advances through sync_task_status, verify_polyglot_registry progress, Choice A pending-decision save/clear, PIC reassignment across root and worktree, and real provisioned Chrome CDP parent/iframe dashboard interactions
+Then live /api/tasks reflects 96% pre-finish progress, updated PICs, cleared bottlenecks, and live browser rendering passes with zero console or runtime errors
 
 Scenario: [RSDH-FR-06] [Tier C - Integration] Registered verification suites guard byte budgets, idle false positives, and snapshot isolation continuously
 
@@ -104,10 +104,11 @@ Then CRITICAL_RULES.md remains <= 8192 bytes, dev-designer/SKILL.md remains <= 2
 
 - `test_runtime_sync_and_dashboard_hardening.py` MUST NOT spawn `bash scripts/verify.sh` recursively inside `pytest` because `verify.sh` itself executes `SUITES` (preventing infinite subprocess recursion); full `verify.sh --quiet` execution is verified explicitly in V3 and Gate 4.
 - All 7 new test files (`test_rsdh_*.py` + `test_runtime_sync_and_dashboard_hardening.py`) are explicitly appended to `SUITES` inside `scripts/verify.sh` (`L362-L420`).
+- Real browser end-to-end assertions run via provisioned headless Google Chrome CDP (`CHROME_BIN` -> `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome` -> `google-chrome`/`chromium`) driven by `node` (`v25.6.0`) built-in `WebSocket` against live bound `127.0.0.1` `TasksServer` across real parent `tasks_dashboard.html` + `<iframe src="http://127.0.0.1:<quota_port>/?embedded=1">` (`quota_dashboard.html`) with zero pip/npm downloads required.
 
 ## Definition of Done
 
-- Scenarios RSDH-HP-09 and RSDH-FR-06 pass cleanly across real git worktrees, HTTP server, Node DOM checks, and byte budget guards. (V2, V6)
+- Scenarios RSDH-HP-09 and RSDH-FR-06 pass cleanly across real git worktrees, HTTP server, Node + provisioned Chrome CDP browser checks, and byte budget guards. (V2, V6)
 - `bash scripts/verify.sh --quiet` exits `0` with all 7 new test suites registered and green. (V3)
 - Ruff lint and registered mypy checks pass cleanly. (V4, V5)
 

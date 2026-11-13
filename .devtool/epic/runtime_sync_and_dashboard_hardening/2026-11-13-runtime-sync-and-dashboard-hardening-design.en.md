@@ -87,17 +87,17 @@ All Python state writers resolve **both** the active worktree `.devtool/state/` 
 ### 4.1. Atomic Runtime State Envelope and Two-Tier Memory Sync
 
 Create a lightweight helper `scripts/_state_envelope.py` usable both from `scripts/` and via `KIT_ROOT / "scripts"` from any skill script:
-- `atomic_write_json(path: Path, payload: dict[str, Any]) -> None`: writes via temporary sibling file + `os.replace()` inside a sidecar `.lock` (`fcntl.flock`).
+- `resolve_shared_devtool_dirs(cwd: Path) -> list[Path]`: returns unique `.devtool/` directories for the primary repo root first and the active worktree (if inside a worktree).
+- **Canonical-Root Transaction Lock & Versioned Snapshots**: `run_state_transaction()` acquires a single `fcntl.flock` lock on the primary repo `.devtool/state/.state_envelope.lock` wrapping the full read -> merge -> monotonic `generation += 1` bump -> atomic temp write + `os.replace()` to the primary root -> mirrored atomic write to any active worktree root (rejecting stale lower-generation writes so interleaved multi-process RMW updates never drop slots or diverge across mirrors).
 - `read_json_safe(path: Path, default: T) -> T`: returns `default` gracefully on missing or corrupt JSON (never crashing `check_tasks.py` polling).
-- `resolve_shared_devtool_dirs(cwd: Path) -> list[Path]`: returns unique `.devtool/` directories for the active worktree (if inside a worktree) and the primary repo root.
-- Whenever `sync_task_status.py` updates a task or epic, `manage_worker_pool.py` updates slots, or `resume_context.py --state` saves state, `.devtool/state/<epic_slug>.heartbeat.json` is refreshed with `{epic_slug, stage, active_wave, active_tasks, slots, last_event, updated_at}` and `<epic_slug>.md` / `assistant_state.md` are regenerated mechanically under `file_lock`.
+- Whenever `sync_task_status.py`, `manage_worker_pool.py` (`init`, `sync`, `merge`, `cleanup`), or `resume_context.py` (`--state`, `--wave`) updates epic progress or slots, `.devtool/state/<epic_slug>.heartbeat.json` is updated transactionally (`generation`, `epic_slug`, `stage`, `active_wave`, `active_tasks`, `slots`, `last_event`, `updated_at`) and `<epic_slug>.md` / `assistant_state.md` regenerate under lock.
 
 ### 4.2. Hybrid Heartbeat, Simple Estimator, and Quality Check Progress
 
 1. **Zero-Token Quality Progress (`verify_polyglot_registry.py`)**:
-   - Replace silent `subprocess.run(..., capture_output=True)` during capability execution with `subprocess.Popen` streaming stdout/stderr to `build/quality/<provider>/<cap>.log`.
-   - Every `heartbeat_interval` seconds (default `15s`, configurable for tests), emit a single concise line to `stderr` (`[quality_check] 2/5 <provider>:<cap> (<elapsed>s elapsed)`) and write `.devtool/state/quality_active.json` with `{run_id, profile, status, provider, capability, step_index, step_total, started_at, updated_at, elapsed_sec}`.
-   - Wrap execution in `try ... finally` so interruptions or failures always transition `quality_active.json` to `status: "passed" | "failed" | "aborted"` rather than leaving stale `"running"` banners on the dashboard.
+   - Isolate each invocation with a unique `run_id` (`uuid`/timestamp-pid), run capability commands in child process groups (`subprocess.Popen(..., start_new_session=True)`), and stream combined output to run-scoped logs `build/quality/<provider>/runs/<run_id>/<cap>.log`.
+   - Every `heartbeat_interval` seconds (default `15s`, configurable for tests), emit a single concise line to `stderr` (`[quality_check] 2/5 <provider>:<cap> (<elapsed>s elapsed)`) and update namespaced `runs[run_id]` inside `.devtool/state/quality_active.json` (`{run_id, epic_slug, profile, status, provider, capability, step_index, step_total, pid, host, started_at, updated_at, ttl_sec, elapsed_sec}`) under run-ownership locking so concurrent runs never overwrite one another.
+   - Install `SIGINT`/`SIGTERM` signal handlers alongside `try ... finally` to terminate + reap active child process groups and finalize **only** `runs[run_id]` as `"passed" | "failed" | "aborted"`; consumers (`check_tasks.py`) expire dead-PID or `updated_at + ttl_sec`-overdue entries as `"stale"`.
 2. **Simple Rule-Based Estimator (`scripts/estimate_heartbeat.py`)**:
    - Accepts CLI inputs (`--tasks-count`, `--files-count`, `--epic-dir` / `--wave`, or `--quality-profile fast|pr|epic|release|full`, `--has-e2e`).
    - Computes an additive duration estimate in seconds (`estimated_sec`) and maps to discrete tiers:
@@ -114,24 +114,25 @@ Create a lightweight helper `scripts/_state_envelope.py` usable both from `scrip
 2. **Stage 3 `--revise` Contract Compatibility (`package_epic.py`, `check_epic_readiness.py`, `check_task_contract.py`)**:
    - Add `--post-design` to `check_epic_readiness.py` and `--allow-existing-done-new` to `check_task_contract.py`.
    - In `package_epic.py --revise`, detect automatically whether the epic has entered Stage 3 (Gate 3 recorded in `gate_ledger.jsonl` / `GATE_LEDGER.md` OR any task has status `in-progress`, `review`, or `done`). When true, invoke `check_epic_readiness.py <epic_dir> --post-design`.
-   - Inside `check_task_contract.py`: when `--design --allow-existing-done-new` is active, tasks in status `done` or `review` skip the `<pattern> is marked (new) but already exists` error for Allowed Files and Evidence files, while still validating structure, BDD traceability, test matrix rows, and surgical anchors for non-done tasks. Pre-Stage-3 epics retain strict `--design` enforcement.
+   - Inside `check_task_contract.py`: when `--design --allow-existing-done-new` is active, tasks in status `done`, `review`, or `in-progress` skip the `<pattern> is marked (new) but already exists` error on their own previously created Allowed/Evidence files (rejecting duplicate `(new)` declarations across tasks and failing `todo` tasks whose `(new)` paths already exist). Pre-Stage-3 epics retain strict `--design` enforcement.
 
 ### 4.4. Worker Pool and Subagent Mechanical Cleanup
 
-- Enhance `cleanup_pool()` / `cleanup` CLI in `skills/dev-implementation/resources/scripts/manage_worker_pool.py`:
-  - Remove all `<epic>-slot-*` worktree directories (`git worktree remove --force`), prune worktree refs (`git worktree prune`), delete temporary `worker/<epic>/slot-*` branches, and strip cleared slots from `.devtool/state/<epic_slug>.heartbeat.json`.
-  - Support `--stale-only` (prune dead/missing slot paths without interrupting active slots) and ensure `dev-implementation/SKILL.md` mandates `manage_worker_pool.py cleanup` at wave completion/abort (before Gate 4) and `integrate_branch.py` runs orphan slot cleanup during `land` / discard.
+- Enhance `cleanup_slots()` / `cleanup` CLI in `skills/dev-implementation/resources/scripts/manage_worker_pool.py`:
+  - Assign explicit slot/wave heartbeat producers across `init`, `sync --task --wave`, `merge`, `cleanup`, and `resume_context.py --wave`.
+  - Inspect each slot worktree and branch (even when the worktree folder is missing) before deleting: auto-remove **only** clean, integrated slots (`git status --porcelain` empty and merged into target epic/base branch) plus run `git worktree prune`; **preserve and report** dirty worktrees, unmerged commits, or unmerged missing-worktree branches (updating slot status cleanly rather than silently deleting) unless `--discard-unmerged` / `--force` is explicitly requested.
+  - Support `--stale-only`, mandate safe `manage_worker_pool.py cleanup` before Gate 4 (`dev-implementation/SKILL.md`), and run orphan slot cleanup during `integrate_branch.py cmd_land`.
 
 ### 4.5. Approval Bottleneck (Choice A), 96% Ceiling, and Section II Live Sync
 
 1. **Pending Decision Save-on-Pause & Auto-Clear (Choice A)**:
-   - Extend `scripts/resume_context.py` CLI with `--pending-decision "<reason>"`, `--decision-kind <kind>`, and `--clear-decision` writing/removing `.devtool/state/pending_decision.json` (`{active, epic, kind, reason, stage, created_at, worktree}`).
-   - Automatically clear `pending_decision.json` when: (a) `--gate <N>` records an approval, (b) `--clear-decision` is passed, (c) `--state` sets a non-paused execution status (`Executing`, `Stage 3`, etc.), or (d) `sync_task_status.py` marks a task `in-progress` / `done` or `package_epic.py` runs.
+   - Extend `scripts/resume_context.py` CLI with `--pending-decision "<reason>"`, `--decision-kind <kind>`, and `--clear-decision` storing epic-namespaced records in `.devtool/state/pending_decision.json` (`decisions[epic_slug] = {decision_id, epic, kind, reason, stage, created_at, worktree}` plus active summary mirror) under the canonical transaction lock.
+   - Clearing requires matching `epic` (and optional `--decision-id`) ownership when `--gate <N>`, `--clear-decision`, `--state`, `sync_task_status.py`, or `package_epic.py` runs, so concurrent epics never erase another epic's outstanding human approval.
    - Update Stage 1–4 skill guidance (`dev-brainstorming`, `dev-designer`, `principal-review`, `cross-model-review`, `finishing-a-development-branch`, `CRITICAL_RULES.md`) so stopping for human confirmation records `--pending-decision` before ending the turn.
 2. **Eliminate Idle False Positives & Unify Ledgers (`check_tasks.py`)**:
-   - Remove the unstarted alphabetical folder fallback (`choosing_a_lifecycle`) in `resolve_active_epic()` and remove the implicit `Approve Gate 1 (Design Spec)` synthesis in `derive_lifecycle_state()` for epics without active worktrees, active tasks, or `pending_decision.json`.
+   - Remove Strategy 7 dormant alphabetical fallback in `resolve_active_epic()` while preserving Strategy 6 (`features/` scan), and remove implicit `Approve Gate 1 (Design Spec)` synthesis when no `pending_decision` or active execution state exists.
    - Fix `parse_gate_ledger_entries()` so it merges entries across root + active worktree `gate_ledger.jsonl` and `GATE_LEDGER.md` instead of short-circuiting on `gate_ledger.jsonl` when `GATE_LEDGER.md` holds newer approvals.
-   - Surface `pending_decision`, `heartbeat`, and `quality_active` cleanly inside `RepoMetadata` / API JSON (`/api/tasks`).
+   - Surface epic-matched `pending_decision`, `heartbeat`, `quality_active`, and concurrent live `quality_runs` (expiring dead/overdue runs to `"stale"`) in `RepoMetadata` / `/api/tasks`.
 3. **96% Completion Ceiling & Section II Live DOM Updates (`tasks_dashboard.html`)**:
    - Enact the all-tasks-done-pre-finish `96%` ceiling (`⚡ 96% Review`) across Section I (`renderKanbanDashboard`: update `99`/`98` to `96`/`95`) and Section II (`renderExecutionEpics`: add `isFullyDone`/`isWaitingFinish`-aware cap where it today renders raw `100%`), reserving `100%` strictly for `Waiting Finish` converged / `Done`.
    - Fix `tier2Sig` at mount (`L2938`) and polling (`L2724`) to include `account_id`, `prompt`, `is_human_action_required`, `task_progress` counts/active task, `heartbeat`, and `quality_active`, rendering live wave/slot/quality progress bars in Section II without page reloads.
@@ -143,7 +144,7 @@ Create a lightweight helper `scripts/_state_envelope.py` usable both from `scrip
    - Update PIC atomically across **both** root and matched worktrees in targeted files only: HLD (`<epic>.en.md`, `<epic>.vi.md`, design spec metadata), `handoff.md` (including `- **PIC / Assigned Profile**:` lines), `task_*.md` inside both `.devtool/epic/<epic>/` and `.devtool/features/`, `.devtool/state/<slug>.pipeline.json`, `.devtool/state/<slug>.heartbeat.json`, and worktree `.vscode/settings.json`. Never inject `- **PIC**:` into review/BDD prose artifacts (`bdd_scenarios.*`, `principal_review.md`, `review_results.md`).
    - Update `extract_epic_pic()` to inspect `**PIC / Assigned Profile**` placeholders accurately and check active worktree `handoff.md`/HLD alongside root.
 2. **Frontend (`tasks_dashboard.html`)**:
-   - Stabilize Roadmap sorting (`sortEpicsForRoadmap`): keep status category + `active_epic` + initial design/created order or date-day tie-breaker without jumping rows immediately upon minor second-level `mtime` bumps from PIC edits, and annotate every row/select with canonical `data-row-key="<repo>:<epic_slug>"`.
+   - Stabilize Roadmap sorting (`sortEpicsForRoadmap`): explicitly replace sub-day `mtime` timestamp comparison with status category + `active_epic` + created/date-day bucket (`YYYY-MM-DD`) + deterministic slug tie-breaker (`a.slug.localeCompare(b.slug)`), and annotate every row/select with canonical `data-row-key="<repo>:<epic_slug>"`.
    - Defer `roadmapTbody.innerHTML` replacement during 5s polling whenever any `.select-pic-roadmap` has focus/active interaction (`document.activeElement`), align mount vs polling `roadmapSig` (`L2934` vs `L2699`), and fix `updateEpicPic()`'s `modal-epics` visibility check (`style.display === 'flex'` instead of `.classList.contains('active')`) + explicit `refreshAllProfileSelects` key matching.
 
 ### 4.7. Check-Quota Modal Stack Controller
@@ -175,12 +176,12 @@ This repository (`ai-agent-tools`) is the standalone shared agent kit plugin rep
 
 ## 7. Verification and Testing Strategy
 
-All behavior will be verified by automated unit, integration, and UI/DOM regression tests integrated into `scripts/verify.sh`:
-- **Envelope & Estimator**: atomic read/write under concurrency, corrupt JSON fallback, 3-tier `estimate_heartbeat.py` calculations (`light -> null`, `medium -> 180`, `heavy -> 240/300`).
-- **Quality Check Live Progress**: mock capability runner verifying 15s (parameterized `0.1s` in tests) stderr heartbeat output, `quality_active.json` running -> passed/failed lifecycle, and cleanup in `finally`.
-- **Handoff, Stage 3 Revise & Cleanup**: `resume_context.py --emit-prompt implement` asserting wave-parallel text, `package_epic.py --revise` passing on Stage 3 epics with `done` tasks and existing `(new)` files while Stage 2 `--design` still rejects existing `(new)` files, and `manage_worker_pool.py cleanup` removing slot worktrees/branches and updating `heartbeat.json`.
-- **Choice A Pending Decision & 96% Ceiling**: save/auto-clear lifecycle across `--pending-decision`, `--gate`, `--state`, `sync_task_status.py`; `check_tasks.py` returning `is_human_action_required=False` on idle `choosing_a_lifecycle` repos; Section I/II asserting `96%` cap.
-- **PIC Sync & Quota Modal Stack**: `assign_epic_pic()` updating root + worktree `handoff.md`/HLD/`task_*.md`/`.vscode/settings.json` without touching `principal_review.md`; Playwright/DOM verification confirming non-jumping Roadmap `<select>` updates on 5s poll and single-layer `quota_dashboard.html` modal stack open/backdrop/Escape behavior inside `#modal-quota`.
+All behavior will be verified by automated unit, integration, and browser/UI regression tests integrated into `scripts/verify.sh`:
+- **Envelope & Estimator**: transactional RMW concurrency + matching `generation` mirrors, namespaced `pending_decision`/`quality_active`, corrupt JSON fallback, 3-tier `estimate_heartbeat.py` (`light -> null`, `medium -> 180`, `heavy -> 240/300`).
+- **Quality Check Live Progress**: mock capability runner verifying 15s (parameterized `0.1s` in tests) stderr heartbeat output, `runs/<run_id>/<cap>.log` isolation, `SIGINT`/`SIGTERM` child reaping -> `"aborted"`, and consumer `ttl_sec`/dead-PID `"stale"` expiry.
+- **Handoff, Stage 3 Revise & Cleanup**: `resume_context.py --emit-prompt implement` asserting wave-parallel text, `package_epic.py --revise` passing on Stage 3 `done`/`review`/`in-progress` tasks while failing colliding `todo` tasks, and safe `manage_worker_pool.py cleanup` preserving dirty/unmerged & missing-worktree branches unless `--discard-unmerged` while populating `working` slots before cleanup.
+- **Choice A Pending Decision & 96% Ceiling**: epic-namespaced save/auto-clear across `--pending-decision`, `--gate`, `--state`, `sync_task_status.py` without clobbering sibling epics; `check_tasks.py` returning `is_human_action_required=False` on idle repos plus `quality_runs` / stale recovery; Section I/II asserting `96%` cap.
+- **PIC Sync, Roadmap & Modal Stack (Node Unit + Provisioned Chrome CDP)**: `assign_epic_pic()` updating root + worktree `handoff.md`/HLD/`task_*.md`/`.vscode/settings.json` without touching `principal_review.md`; headless Node script unit checks PLUS a provisioned real headless Google Chrome CDP harness (`CHROME_BIN` / local Chrome + `node v25` WebSocket) against live `127.0.0.1` `TasksServer` verifying rendered `getComputedStyle` (`?embedded=1` card flattening), native `<select>` focus retention under polling despite distinct same-day `mtime` timestamps, and real parent/iframe `Escape`/backdrop/`postMessage` transitions inside `#modal-quota`.
 
 ---
 
@@ -189,7 +190,7 @@ All behavior will be verified by automated unit, integration, and UI/DOM regress
 | Risk | Impact | Mitigation |
 | :--- | :--- | :--- |
 | **`CRITICAL_RULES.md` exceeds 8192-byte prompt budget** | Rule file truncation across agent harnesses | Keep any addition in `rules/CRITICAL_RULES.md` concise (`<= 8000` bytes total); place procedural detail inside skill `SKILL.md` files and scripts. |
-| **`--post-design` weakens pre-implementation validation** | False pass on malformed new tasks in Stage 2 | Activate `--allow-existing-done-new` strictly when `--revise` detects Stage 3 indicators (`done`/`in-progress`/`review` task or Gate 3 ledger) and only for `done`/`review` tasks. |
-| **Root vs worktree state divergence** | `check_tasks` shows stale approval/progress when work runs in a worktree | `_state_envelope.py` resolves and mirrors state updates atomically to both the active worktree `.devtool/state/` and the primary repo `.devtool/state/`. |
-| **Roadmap table sorting instability during typing/clicking** | Wrong epic PIC changed when 5s poll replaces DOM | Pin stable row keys (`data-row-key`), remove sub-day `mtime` thrash in `sortEpicsForRoadmap`, and skip `tbody` replacement while `.select-pic-roadmap` holds focus. |
+| **`--post-design` weakens pre-implementation validation** | False pass on malformed new tasks in Stage 2 | Activate `--allow-existing-done-new` strictly when `--revise` detects Stage 3 indicators and strictly for `done`/`review`/`in-progress` tasks, while blocking colliding `todo` `(new)` declarations. |
+| **Root vs worktree state divergence** | `check_tasks` shows stale approval/progress when work runs in a worktree | `_state_envelope.py` executes RMW updates under a canonical primary-root `fcntl.flock` lock with monotonic `generation` numbers and atomic primary + worktree publication. |
+| **Roadmap table sorting instability during typing/clicking** | Wrong epic PIC changed when 5s poll replaces DOM | Pin stable row keys (`data-row-key`), remove sub-day `mtime` ordering from `sortEpicsForRoadmap`, skip `tbody` replacement while `.select-pic-roadmap` holds focus, and verify in real Chrome CDP. |
 

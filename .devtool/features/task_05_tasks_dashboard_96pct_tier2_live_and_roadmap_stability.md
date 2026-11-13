@@ -27,11 +27,11 @@ Fix the pre-finish `99%` ceiling, live Section II Tier 2 telemetry updates, and 
    - Expand `tier2Sig` (`L2724-L2740`) beyond stage/epic slug alone to serialize `account_id`, active `prompt`, `is_human_action_required`, `task_progress`, `pending_decision`, `heartbeat`, and `quality_active`, so `fetchTasks` / `renderRepoDetailView` re-renders Section II (`renderExecutionEpics` / `renderKanbanDashboard`) immediately on every genuine runtime transition without forcing manual refresh.
   - Surface active heartbeat wave/event and running `quality_active` telemetry cleanly inside Section II without console errors or null-dereference regressions when optional fields are absent.
 3. **Roadmap Row Stability, Focus Guard, and Modal Refresh (`sortEpicsForRoadmap`, `renderRoadmapTableRows`, `updateEpicPic`, `modal-quota`)**:
-   - Stabilize `sortEpicsForRoadmap` (`L1721-L1760`) with deterministic tie-breaking on epic slug (`a.slug.localeCompare(b.slug)`) when timestamps or priorities match.
-   - Stamp explicit `data-row-key` attributes on rows in `renderRoadmapTableRows` (`L2575-L2635`), align `roadmapSig` (`L2697-L2715`) with PIC/progress/row identity, and defer `roadmapTbody.innerHTML` replacement during 5s polling inside `renderRepoDetailView` whenever a `.select-pic-roadmap` inside `#roadmap-tbody` holds `document.activeElement` (applying the queued render once the select blurs).
+   - Explicitly remove sub-day `a.mtime` timestamp sorting from `sortEpicsForRoadmap` (`L1745-L1751`), replacing it with status category + `active_epic` + stable created/date-day key (`(a.created || a.last_updated || '').slice(0, 10)`) + deterministic `a.slug.localeCompare(b.slug)` tie-breaker so distinct same-day file mtime bumps never reorder Roadmap rows.
+   - Stamp explicit `data-row-key` attributes on rows in `renderRoadmapTableRows` (`L2574-L2630`), align `roadmapSig` (`L2697-L2715`) with PIC/progress/row identity, and defer `roadmapTbody.innerHTML` replacement during 5s polling inside `renderRepoDetailView` whenever a `.select-pic-roadmap` inside `#roadmap-tbody` holds `document.activeElement` (applying the queued render once the select blurs).
    - Fix `updateEpicPic` (`L1614-L1652`, line `L1642`) to check `#modal-epics` visibility using `style.display === 'flex'` instead of stale `.classList.contains('active')`.
-   - In `openQuotaModal` (`L1470-L1499`) and `refreshQuotaIframe` (`L1501-L1511`), append `?embedded=1` (preserving existing query params cleanly) to `#quota-iframe.src`, and synchronize `#modal-quota` open/close (`closeLiveModal` `L1119-L1158`, `openQuotaModal` `L1470-L1515`) by posting `{ action: 'reset_quota_submodals' }` via `contentWindow.postMessage` (matching existing `e.data.action` listener convention at `L1142-L1145`).
-4. Add `tests/test_rsdh_tasks_dashboard_ui.py` executing real extracted `<script>` logic in headless `node` (`v25.6.0`) against DOM fixtures covering `RSDH-HP-07`, `RSDH-EC-06`, `RSDH-ST-05`, and `RSDH-AR-02`.
+   - In `openQuotaModal` (`L1470-L1499`) and `refreshQuotaIframe` (`L1501-L1515`), append `?embedded=1` (preserving existing query params cleanly) to `#quota-iframe.src`, and synchronize `#modal-quota` open/close (`closeLiveModal` `L1119-L1158`, `openQuotaModal` `L1470-L1515`) by posting `{ action: 'reset_quota_submodals' }` via `contentWindow.postMessage` (matching existing `e.data.action` listener convention at `L1142-L1145`).
+4. Add `tests/test_rsdh_tasks_dashboard_ui.py` combining fast headless `node` (`v25.6.0`) script checks AND a **provisioned real headless Chrome CDP integration test** (`CHROME_BIN` / `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome` + `node v25` WebSocket against live bound `TasksServer`) covering `RSDH-HP-07`, `RSDH-EC-06` (distinct same-day mtime bump order invariance + real native `<select>` focus retention under polling + `#modal-epics` computed `display === 'flex'`), `RSDH-ST-05`, and `RSDH-AR-02`.
 
 ## Files
 
@@ -70,12 +70,12 @@ When pollDashboard receives an updated payload updating active account_id, task_
 Then both Section I sidebar and Section II execution card render 96% ("96% Review") rather than 99%
 And tier2Sig detects the change and re-renders Section II with the live wave/quality progress banner without reloading the page
 
-Scenario: [RSDH-EC-06] [Tier C - Integration] Roadmap select preserves focus and exact row mapping during 5s polling and open modals
+Scenario: [RSDH-EC-06] [Tier C - Integration] Roadmap eliminates sub-day mtime sorting and preserves native select focus in Chrome CDP
 
-Given tasks_dashboard.html rendering a Roadmap table where two epics share recent update timestamps and the user focuses a .select-pic-roadmap dropdown with data-row-key
-When a 5s poll payload arrives while .select-pic-roadmap holds document.activeElement, and updateEpicPic completes while #modal-epics has style.display === "flex"
-Then pollDashboard defers replacing roadmapTbody.innerHTML until focus blurs so the dropdown choice does not jump rows
-And updateEpicPic detects #modal-epics visibility via style.display === "flex" and refreshes modal rows accurately
+Given tasks_dashboard.html served over HTTP in provisioned headless Chrome CDP with two same-day epics whose file mtimes differ and change when editing a PIC, while a user focuses .select-pic-roadmap with data-row-key
+When 5s pollDashboard delivers a payload bumping the second epic's sub-day mtime while .select-pic-roadmap holds document.activeElement, and updateEpicPic completes while #modal-epics has computed style display === "flex"
+Then sortEpicsForRoadmap ignores sub-day mtime diffs so rows do not reorder between same-day timestamps and pollDashboard defers DOM replacement until blur
+And updateEpicPic detects #modal-epics visibility via style.display === "flex" and refreshes modal rows cleanly without losing selection
 
 Scenario: [RSDH-ST-05] [Tier C - Integration] Progress calculation enforces 75% mid-epic, 95% in-progress cap, 96% pre-finish cap, and 100% finished state
 
@@ -113,12 +113,12 @@ Then Section II updates immediately once focus settles, focused selects never lo
 ## Decisions Already Made
 
 - Pre-finish ceiling is strictly `96%` (`⚡ 96% Review`); active uncompleted task progress caps at `95%`; `100%` displays strictly on converged `Waiting Finish` / Sign-off or `Done`.
-- `playwright` is not installed (`playwright_pkg: False`), so `tests/test_rsdh_tasks_dashboard_ui.py` extracts real embedded `<script>` code from `tasks_dashboard.html` and executes it under headless `node` (`v25.6.0`) with genuine DOM mocks and `console.error` fail-fast assertions.
+- `playwright` is not installed (`playwright_pkg: False`), so `tests/test_rsdh_tasks_dashboard_ui.py` combines fast headless `node` (`v25.6.0`) script checks WITH a **provisioned real headless Chrome CDP integration test** (`CHROME_BIN` -> `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome` -> `which google-chrome`/`chromium` via `node v25` built-in `WebSocket` against live `127.0.0.1` `TasksServer`) verifying native `<select>` focus under 5s polling, `getComputedStyle` visibility, same-day distinct `mtime` order stability (`sortEpicsForRoadmap` removes sub-day `mtime` sorting), and zero console/runtime errors.
 - Pending Roadmap polling renders queued while `.select-pic-roadmap` has focus must flush automatically on `blur`/`change` without dropping the user's selected value.
 
 ## Definition of Done
 
-- Scenarios RSDH-HP-07, RSDH-EC-06, RSDH-ST-05, and RSDH-AR-02 pass under Node DOM + pytest execution with zero console errors. (V2, V6)
+- Scenarios RSDH-HP-07, RSDH-EC-06, RSDH-ST-05, and RSDH-AR-02 pass across Node script checks AND provisioned real headless Chrome CDP browser tests with zero console errors. (V2, V6)
 - Existing `test_check_tasks_e2e.py` and `test_check_tasks_server.py` suites pass cleanly. (V3, V6)
 - Ruff lint and registered mypy checks pass cleanly. (V4, V5)
 

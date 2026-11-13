@@ -24,12 +24,12 @@ Given representative inputs covering a 1-task/1-file micro fix, a 2-task/5-file 
 When scripts/estimate_heartbeat.py evaluates each input via CLI and Python API with --json
 Then the micro fix (estimated_sec 35 < 60) returns tier "light" with recommended_interval_sec null, the feature wave (estimated_sec 80) returns tier "medium" with recommended_interval_sec 180, the full quality run (estimated_sec 250) returns tier "heavy" with 240, and the E2E run returns tier "heavy" with 300
 
-Scenario: [RSDH-HP-03] [Tier C - Integration] Polyglot quality runner streams zero-token stderr progress and updates quality_active.json
+Scenario: [RSDH-HP-03] [Tier C - Integration] Polyglot quality runner streams zero-token stderr progress and isolates concurrent runs
 
-Given a registered provider capability command that runs longer than the configured heartbeat interval
-When verify_polyglot_registry.py executes the provider via Popen with a shortened test heartbeat interval and active devtool state directory
-Then verify_polyglot_registry.py writes command output to build/quality/<provider>/<capability>.log while printing periodic "[quality_check]" progress lines to stderr
-And .devtool/state/quality_active.json transitions from status "running" with step_index/step_total to final status "passed" upon completion
+Given two registered provider capability runs executing concurrently against the same capability under verify_polyglot_registry.py
+When both execute via Popen with start_new_session=True, a shortened test heartbeat interval, and shared devtool state directories
+Then verify_polyglot_registry.py writes isolated logs under build/quality/<provider>/runs/<run_id>/<capability>.log without collisions while printing periodic "[quality_check]" progress lines to stderr
+And .devtool/state/quality_active.json namespaces both entries under runs[run_id] (with pid, host, updated_at, ttl_sec) and finalizes only each finished run_id without overwriting sibling live runs
 
 Scenario: [RSDH-HP-04] [Tier C - Integration] Wave-parallel handoff prompt and template instruct parallel execution and cleanup
 
@@ -38,12 +38,12 @@ When resume_context.py --emit-prompt implement --epic demo-sync executes and ski
 Then both instruct the programmer orchestrator to run compute_execution_order.py --parallel, run estimate_heartbeat.py per wave and before Gate 4, execute multi-task waves across parallel pool slots, and invoke manage_worker_pool.py cleanup afterward
 And neither emits instructions forcing strictly sequential one-task-at-a-time execution for independent waves
 
-Scenario: [RSDH-HP-05] [Tier C - Integration] Worker pool cleanup removes slot worktrees, prunes refs, deletes slot branches, and clears heartbeat slots
+Scenario: [RSDH-HP-05] [Tier C - Integration] Worker pool tracks live slot and wave states and cleans clean integrated slots
 
-Given a git repository with initialized 2-slot worker pool worktrees (.worktrees/demo_epic-slot-1 and slot-2), temporary slot branches, and active slot entries in demo-epic.heartbeat.json
-When manage_worker_pool.py cleanup --epic-dir demo_epic --epic-slug demo-epic runs
-Then both slot worktree directories and both slot branch refs (epic/<slug>-slot-* and worker/<epic>/slot-*) are deleted and pruned
-And .devtool/state/demo-epic.heartbeat.json contains an empty slots mapping without deleting non-slot epic metadata
+Given a git repository with initialized 2-slot worker pool worktrees (.worktrees/demo_epic-slot-1 and slot-2) assigned via manage_worker_pool.py sync --task --wave and resume_context.py --wave
+When live slot transitions are observed while working and manage_worker_pool.py cleanup --epic-dir demo_epic --epic-slug demo-epic runs after slot integration
+Then demo-epic.heartbeat.json initially records populated active_wave and slots ("working" with task_id) before cleanup
+And clean integrated slot worktrees and branches (epic/<slug>-slot-* and worker/<epic>/slot-*) are deleted and pruned, leaving an empty slots mapping without deleting non-slot epic metadata
 
 Scenario: [RSDH-HP-06] [Tier C - Integration] PIC reassignment synchronizes root and worktree PIC-bearing files while preserving review and BDD prose
 
@@ -59,18 +59,18 @@ When pollDashboard receives an updated payload updating active account_id, task_
 Then both Section I sidebar and Section II execution card render 96% ("96% Review") rather than 99%
 And tier2Sig detects the change and re-renders Section II with the live wave/quality progress banner without reloading the page
 
-Scenario: [RSDH-HP-08] [Tier C - Integration] Check-Quota Modal Stack Controller limits open inner sub-modals to one and resets on parent close
+Scenario: [RSDH-HP-08] [Tier C - Integration] Check-Quota Modal Stack Controller enforces max one inner modal and real iframe reset
 
-Given quota_dashboard.html embedded inside #modal-quota in tasks_dashboard.html
+Given quota_dashboard.html served inside #modal-quota's real iframe over TasksServer HTTP in provisioned headless Chrome CDP
 When the user opens #scheduleModal and then triggers #loginModal, and later the parent closes #modal-quota
 Then opening #loginModal automatically closes #scheduleModal so at most one inner sub-modal has the open state simultaneously
-And closing #modal-quota posts {action: "reset_quota_submodals"} causing quota_dashboard.html to close every inner sub-modal cleanly
+And closing #modal-quota posts {action: "reset_quota_submodals"} across the real iframe boundary causing quota_dashboard.html to close every inner sub-modal cleanly
 
-Scenario: [RSDH-HP-09] [Tier C - Integration] End-to-end orchestration, envelope sync, 96% dashboard, PIC sync, and modal stack pass together
+Scenario: [RSDH-HP-09] [Tier C - Integration] End-to-end orchestration, envelope sync, 96% dashboard, PIC sync, and Chrome CDP modal stack pass together
 
 Given a multi-worktree workspace running live TasksServer HTTP endpoints with Wave 1-3 updates applied
-When an epic advances through sync_task_status, verify_polyglot_registry progress, Choice A pending-decision save/clear, PIC reassignment across root and worktree, and dashboard DOM interactions in headless Node
-Then live /api/tasks reflects 96% pre-finish progress, updated PICs, cleared bottlenecks, and extracted dashboard JS runs with zero uncaught errors
+When an epic advances through sync_task_status, verify_polyglot_registry progress, Choice A pending-decision save/clear, PIC reassignment across root and worktree, and real provisioned Chrome CDP parent/iframe dashboard interactions
+Then live /api/tasks reflects 96% pre-finish progress, updated PICs, cleared bottlenecks, and live browser rendering passes with zero console or runtime errors
 ```
 
 ## Edge Cases
@@ -89,12 +89,12 @@ When both evaluations run
 Then the empty input produces tier "light" with recommended_interval_sec null
 And the epic E2E run produces tier "heavy" with recommended_interval_sec 300
 
-Scenario: [RSDH-EC-03] [Tier C - Integration] Stage 3 package_epic --revise accepts completed (new) files while Stage 2 design remains strict
+Scenario: [RSDH-EC-03] [Tier C - Integration] Stage 3 package_epic --revise owns in-progress/done (new) files while failing todo collisions
 
-Given a Stage 3 epic where task_01 is status "done" referencing an already-created "(new)" file in Allowed Files and Evidence, alongside an unstarted Stage 2 epic whose todo task references an already-existing "(new)" file
-When package_epic.py --revise runs on the Stage 3 epic and check_epic_readiness.py runs natively on the Stage 2 epic
-Then the Stage 3 revision enables --post-design / --allow-existing-done-new and exits 0
-And the Stage 2 readiness check retains strict --design enforcement and exits non-zero on the colliding todo "(new)" path
+Given a Stage 3 epic where task_01 is "done" and task_02 is "in-progress" referencing their already-created "(new)" files alongside an unstarted Stage 2 epic and a Stage 3 revision introducing a new "todo" task declaring an already-existing "(new)" file
+When package_epic.py --revise runs on the active Stage 3 epic and check_epic_readiness.py checks the Stage 2 and colliding-todo epics
+Then Stage 3 revision accepts existing "(new)" files owned by done/review/in-progress tasks and exits 0
+And Stage 2 readiness and newly colliding todo "(new)" declarations or duplicate "(new)" claims exit non-zero under strict ownership checks
 
 Scenario: [RSDH-EC-04] [Tier A - Unit] Check-Tasks harvester leaves idle repositories without active worktrees or tasks in Idle state
 
@@ -109,12 +109,12 @@ When tasks_server.assign_epic_pic is called directly and via POST /api/epic/pic 
 Then the direct assign_epic_pic call raises ValueError without modifying any files and POST /api/epic/pic returns HTTP 400 with {"status": "error", ...} rather than HTTP 500
 And the valid update changes only demo_epic across root and its matched worktree while leaving all sibling_epic files untouched
 
-Scenario: [RSDH-EC-06] [Tier C - Integration] Roadmap select preserves focus and exact row mapping during 5s polling and open modals
+Scenario: [RSDH-EC-06] [Tier C - Integration] Roadmap eliminates sub-day mtime sorting and preserves native select focus in Chrome CDP
 
-Given tasks_dashboard.html rendering a Roadmap table where two epics share recent update timestamps and the user focuses a .select-pic-roadmap dropdown with data-row-key
-When a 5s poll payload arrives while .select-pic-roadmap holds document.activeElement, and updateEpicPic completes while #modal-epics has style.display === "flex"
-Then pollDashboard defers replacing roadmapTbody.innerHTML until focus blurs so the dropdown choice does not jump rows
-And updateEpicPic detects #modal-epics visibility via style.display === "flex" and refreshes modal rows accurately
+Given tasks_dashboard.html served over HTTP in provisioned headless Chrome CDP with two same-day epics whose file mtimes differ and change when editing a PIC, while a user focuses .select-pic-roadmap with data-row-key
+When 5s pollDashboard delivers a payload bumping the second epic's sub-day mtime while .select-pic-roadmap holds document.activeElement, and updateEpicPic completes while #modal-epics has computed style display === "flex"
+Then sortEpicsForRoadmap ignores sub-day mtime diffs so rows do not reorder between same-day timestamps and pollDashboard defers DOM replacement until blur
+And updateEpicPic detects #modal-epics visibility via style.display === "flex" and refreshes modal rows cleanly without losing selection
 
 Scenario: [RSDH-EC-07] [Tier C - Integration] Check-Quota inner sub-modal backdrop and Escape close only the active inner dialog
 
@@ -132,12 +132,12 @@ Then --detect-profile outputs "brother" prioritizing folder profile name over em
 ## State Transitions and Invariants
 
 ```gherkin
-Scenario: [RSDH-ST-01] [Tier C - Integration] Choice A pending_decision flags pause cleanly and clears automatically on confirmation or resume
+Scenario: [RSDH-ST-01] [Tier C - Integration] Namespaced pending_decision flags pause per epic and require matching ownership on clear
 
-Given an epic paused awaiting human confirmation via resume_context.py --pending-decision "Confirm Gate 2" --decision-kind gate_2_choice
-When check_tasks.scan_repo inspects the repo before and after running --gate 2 (or --clear-decision, non-paused --state, sync_task_status in-progress, or package_epic)
-Then pending_decision.json initially sets is_human_action_required True with the recorded prompt
-And each resume/confirmation trigger removes pending_decision.json across root and worktree so is_human_action_required flips back to False
+Given two concurrent epics (epic-a and epic-b) both paused cleanly via resume_context.py --pending-decision with distinct decision_id values
+When sync_task_status.py marks a task in epic-b "in-progress" (or --gate 2 / --clear-decision clears epic-b) while check_tasks.scan_repo inspects both epics
+Then pending_decision.json stores isolated decisions[epic] entries so epic-b resume clears ONLY epic-b while epic-a keeps pending decision and is_human_action_required True
+And clearing epic-a's own decision across root and worktree transitions epic-a's is_human_action_required cleanly back to False
 
 Scenario: [RSDH-ST-02] [Tier C - Integration] Gate ledger unification merges root and worktree JSONL and GATE_LEDGER.md entries
 
@@ -163,27 +163,40 @@ Given task counts transitioning from 3/4 done, 4/4 done before Gate 4 convergenc
 When check_tasks backend and tasks_dashboard.html compute progress display values
 Then 3/4 done yields 75% (high in-progress ratios capped at 95%), 4/4 done pre-convergence yields exactly 96%, and converged Waiting Finish / Done yields 100%
 
-Scenario: [RSDH-ST-06] [Tier C - Integration] Check-Quota embedded mode strips redundant outer card frame cleanly
+Scenario: [RSDH-ST-06] [Tier C - Integration] Check-Quota embedded mode strips redundant outer card frame in real Chrome iframe
 
-Given quota_dashboard.html loaded with query parameter "?embedded=1" versus standalone URL
-When the initialization script applies embedded styling classes to #dashboardCard
-Then embedded mode removes redundant outer modal spacing/borders while standalone mode preserves full container layout
+Given quota_dashboard.html loaded with "?embedded=1" inside an actual iframe versus standalone URL in provisioned headless Chrome CDP
+When window.getComputedStyle evaluates #dashboardCard border, boxShadow, margin, and padding across standalone and embedded views
+Then embedded mode flattens outer spacing, borders, and shadow cleanly while standalone mode preserves full card framing
+
+Scenario: [RSDH-ST-07] [Tier C - Integration] Worker pool cleanup preserves dirty worktrees, unmerged commits, and missing-worktree unmerged branches
+
+Given a repository whose slot-1 has uncommitted dirty changes, slot-2 has an unmerged commit with its worktree folder deleted on disk, and slot-3 is clean and merged into epic/demo-epic
+When manage_worker_pool.py cleanup runs in default safe mode versus explicit --discard-unmerged
+Then default cleanup deletes only clean merged slot-3 while preserving slot-1 worktree, keeping slot-2's unmerged orphan branch intact, reporting preserved resources cleanly, and marking preserved status instead of silent deletion
+And passing --discard-unmerged removes all targeted slots and temporary branches when discard is explicitly requested
 ```
 
 ## Async and Concurrency
 
 ```gherkin
-Scenario: [RSDH-AR-01] [Tier C - Integration] Concurrent multi-process envelope writes preserve valid JSON and latest updates under flock
+Scenario: [RSDH-AR-01] [Tier C - Integration] Canonical transaction lock serializes interleaved slot RMW updates and versioned mirrors
 
-Given multiple worker processes concurrently calling _state_envelope.atomic_write_json and update_epic_heartbeat on the same .devtool/state/ targets
-When all parallel writes complete across 16 concurrent invocations
-Then every JSON file parses cleanly without truncation or JSONDecodeError and lock contention produces zero exceptions
+Given multiple concurrent workers performing interleaved read-modify-write slot mutations on shared .devtool/state/ targets across primary root and active worktree
+When 16 parallel updates execute under _state_envelope.py's canonical-root fcntl.flock transaction lock
+Then zero slot updates are dropped across concurrent RMW cycles and primary plus worktree mirrors contain identical generation numbers and JSON payloads
 
 Scenario: [RSDH-AR-02] [Tier C - Integration] Live polling applies Tier 2 updates immediately without clobbering focused controls or emitting console errors
 
 Given tasks_dashboard.html receiving periodic pollDashboard snapshots containing changed heartbeat waves, quality_active status, and PIC selections
 When poll updates run both during active .select-pic-roadmap focus and after blur
 Then Section II updates immediately once focus settles, focused selects never lose user selection, and zero console errors are raised
+
+Scenario: [RSDH-AR-03] [Tier C - Integration] Check-tasks harvester isolates multi-epic decisions, exposes live quality_runs, and expires stale owners
+
+Given quality_active.json containing one active live run, one dead-PID/expired-TTL stale running entry, plus pending_decision.json with multiple namespaced epic decisions
+When check_tasks.scan_repo inspects the repository
+Then expired/dead-PID runs transition to status "stale" without rendering permanent running banners, active concurrent runs surface via quality_runs, and active_epic resolves only its matching namespaced pending_decision
 ```
 
 ## Failure Recovery
@@ -195,11 +208,11 @@ Given an old heartbeat.json file referencing an aborted previous wave and missin
 When sync_task_status.py or resume_context.py writes a new state transition
 Then the stale heartbeat is safely superseded atomically under lock and execution continues cleanly
 
-Scenario: [RSDH-FR-02] [Tier C - Integration] Quality verification finalizes quality_active.json on failing command or runtime error
+Scenario: [RSDH-FR-02] [Tier C - Integration] Quality verification finalizes failing run_id without clobbering concurrent runs
 
-Given a capability command in verify_polyglot_registry.py that exits non-zero with failing stdout/stderr
-When verify_polyglot_registry.py runs and handles the failure inside try/finally
-Then quality_active.json is finalized cleanly with status "failed" and non-null finished_at so no permanent "running" indicator remains
+Given a failing capability command in verify_polyglot_registry.py running alongside an independent healthy run_id in quality_active.json
+When the failing command exits non-zero
+Then only its own runs[run_id] transitions to status "failed" with non-null finished_at while sibling live runs remain intact
 
 Scenario: [RSDH-FR-03] [Tier C - Integration] Updated Choice A and cleanup rules keep CRITICAL_RULES.md within the 8192-byte prompt cap
 
@@ -224,4 +237,10 @@ Scenario: [RSDH-FR-06] [Tier C - Integration] Registered verification suites gua
 Given scripts/verify.sh with all epic suites registered in SUITES and current kit files on disk
 When bash scripts/verify.sh --quiet runs and regression checks inspect CRITICAL_RULES.md, dev-designer/SKILL.md, and dashboard scripts
 Then CRITICAL_RULES.md remains <= 8192 bytes, dev-designer/SKILL.md remains <= 22528 bytes, idle alphabetical fallbacks stay absent, and all registered verification sections exit 0
+
+Scenario: [RSDH-FR-07] [Tier C - Integration] Signal-aborted quality verification reaps child processes and recovers stale owners
+
+Given a running capability subprocess group under verify_polyglot_registry.py alongside an independent healthy concurrent run
+When SIGTERM interrupts the first verify_polyglot_registry.py runner process
+Then the signal handler terminates and reaps the active child process group and transitions only its own runs[run_id] to status "aborted" while leaving the sibling run intact
 ```
