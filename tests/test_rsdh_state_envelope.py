@@ -679,3 +679,62 @@ def test_rsdh_state_envelope_sync_epic_and_decision_clear(tmp_path: Path) -> Non
     )
     assert "demo-sync" not in pdec.get("decisions", {})
     assert "other-epic" in pdec.get("decisions", {})
+
+
+def test_round1_concurrent_multiroot_write_epic_state_stays_consistent(
+    tmp_path: Path,
+) -> None:
+    """Concurrent multi-root write_epic_state invocations keep markdown, rollups, and heartbeat synchronized."""
+    repo, wt = _init_git_repo_with_worktree(tmp_path)
+
+    procs: list[subprocess.Popen[str]] = []
+    for idx in range(6):
+        cwd = wt if idx % 2 == 0 else repo
+        label = f"Stage 3 Worker {idx}"
+        procs.append(
+            subprocess.Popen(
+                [
+                    sys.executable,
+                    str(RESUME_CONTEXT_SCRIPT),
+                    "--epic",
+                    "demo-sync",
+                    "--state",
+                    "--role",
+                    "programmer",
+                    "--status",
+                    label,
+                    "--next",
+                    f"step-{idx}",
+                ],
+                cwd=str(cwd),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+        )
+
+    for proc in procs:
+        stdout, stderr = proc.communicate(timeout=20)
+        assert proc.returncode == 0, f"stdout={stdout}\nstderr={stderr}"
+
+    repo_md = (repo / ".devtool" / "state" / "demo-sync.md").read_text(encoding="utf-8")
+    wt_md = (wt / ".devtool" / "state" / "demo-sync.md").read_text(encoding="utf-8")
+    assert repo_md == wt_md
+
+    repo_rollup = (repo / ".devtool" / "assistant_state.md").read_text(encoding="utf-8")
+    wt_rollup = (wt / ".devtool" / "assistant_state.md").read_text(encoding="utf-8")
+    assert repo_rollup == wt_rollup
+
+    repo_hb = json.loads(
+        (repo / ".devtool" / "state" / "demo-sync.heartbeat.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    wt_hb = json.loads(
+        (wt / ".devtool" / "state" / "demo-sync.heartbeat.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert repo_hb == wt_hb
+    assert repo_hb["generation"] == 6
+    assert repo_hb["stage"] in repo_md

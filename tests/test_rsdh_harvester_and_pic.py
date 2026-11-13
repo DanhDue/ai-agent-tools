@@ -781,3 +781,193 @@ class TestRsdhHarvesterAndPic_Integration:
 
         other_dec = check_tasks.derive_lifecycle_state(repo, "other-epic")
         assert other_dec.is_human_action_required is False
+
+    def test_round1_pic_assign_concurrent_with_slot_heartbeat_updates(
+        self, tmp_path: Path
+    ) -> None:
+        """PIC assignment and concurrent slot heartbeat updates share canonical locking and monotonic generation."""
+        repo = _init_git_repo(tmp_path / "concurrent-repo")
+        _seed_epic_checkout(repo, "demo_epic", "mommy")
+        wt = _add_worktree(repo, repo / ".worktrees" / "demo_epic", "epic/demo-epic")
+        _seed_epic_checkout(wt, "demo_epic", "mommy")
+
+        _state_envelope.update_epic_heartbeat(
+            wt,
+            "demo_epic",
+            stage="Stage 3: Coding",
+            pic="mommy",
+            slots={"slot-1": {"status": "idle", "seq": 0}},
+            last_event="init",
+        )
+
+        errors: list[BaseException] = []
+
+        def _slot_worker() -> None:
+            try:
+                for idx in range(1, 7):
+                    _state_envelope.update_epic_heartbeat(
+                        wt,
+                        "demo_epic",
+                        slot_updates={"slot-1": {"status": "running", "seq": idx}},
+                        last_event=f"slot-{idx}",
+                    )
+            except BaseException as exc:
+                errors.append(exc)
+
+        def _pic_worker() -> None:
+            try:
+                for pic_name in ("brother", "hau"):
+                    res = tasks_server.assign_epic_pic(
+                        tmp_path, "concurrent-repo", "demo_epic", pic_name
+                    )
+                    assert res["status"] == "ok"
+            except BaseException as exc:
+                errors.append(exc)
+
+        t1 = threading.Thread(target=_slot_worker)
+        t2 = threading.Thread(target=_pic_worker)
+        t1.start()
+        t2.start()
+        t1.join(timeout=15)
+        t2.join(timeout=15)
+
+        assert not errors
+        root_hb = json.loads(
+            (repo / ".devtool" / "state" / "demo_epic.heartbeat.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        wt_hb = json.loads(
+            (wt / ".devtool" / "state" / "demo_epic.heartbeat.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        assert root_hb["generation"] == wt_hb["generation"]
+        assert root_hb["generation"] >= 9
+        assert root_hb["pic"] == "hau"
+        assert wt_hb["pic"] == "hau"
+        assert root_hb["slots"]["slot-1"]["seq"] == 6
+        assert wt_hb["slots"]["slot-1"]["seq"] == 6
+
+    def test_round1_pic_assign_rejects_worktree_and_file_symlink_escapes(
+        self, tmp_path: Path
+    ) -> None:
+        """Symlinked worktrees or epic artifacts escaping repository boundary raise ValueError and return HTTP 400."""
+        ws = tmp_path / "ws"
+        outside = tmp_path / "outside"
+        outside.mkdir(parents=True)
+        outside_wt = outside / "escaped_wt"
+        _seed_epic_checkout(outside_wt, "demo_epic", "mommy")
+        outside_wt_en = (
+            outside_wt / ".devtool" / "epic" / "demo_epic" / "demo_epic.en.md"
+        )
+        outside_before = outside_wt_en.read_bytes()
+
+        repo = _init_git_repo(ws / "demo-repo")
+        root_files = _seed_epic_checkout(repo, "demo_epic", "mommy")
+        (repo / ".worktrees").mkdir(parents=True, exist_ok=True)
+        (repo / ".worktrees" / "demo_epic").symlink_to(outside_wt)
+
+        with pytest.raises(ValueError, match="boundary"):
+            tasks_server.assign_epic_pic(ws, "demo-repo", "demo_epic", "brother")
+        assert outside_wt_en.read_bytes() == outside_before
+
+        # Remove symlinked worktree and instead replace handoff.md with an escaping file symlink
+        (repo / ".worktrees" / "demo_epic").unlink()
+        outside_secret = outside / "secret_handoff.md"
+        outside_secret.write_text(
+            "# Handoff\n\n- **PIC / Assigned Profile**: @mommy\n", encoding="utf-8"
+        )
+        secret_before = outside_secret.read_bytes()
+        en_before = root_files["en_hld"].read_bytes()
+        root_files["handoff"].unlink()
+        root_files["handoff"].symlink_to(outside_secret)
+
+        with pytest.raises(ValueError, match="boundary"):
+            tasks_server.assign_epic_pic(ws, "demo-repo", "demo_epic", "brother")
+        assert outside_secret.read_bytes() == secret_before
+        # Pre-validation prevented partial mutations across valid sibling files
+        assert root_files["en_hld"].read_bytes() == en_before
+
+        server = tasks_server.TasksServer(
+            host="127.0.0.1",
+            port=0,
+            workspace_root=ws,
+            pid_file=tmp_path / "srv.pid",
+        )
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            port = server.server_address[1]
+            req = urllib.request.Request(
+                f"http://127.0.0.1:{port}/api/epic/pic",
+                data=json.dumps(
+                    {"repo": "demo-repo", "epic": "demo_epic", "pic": "brother"}
+                ).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with pytest.raises(urllib.error.HTTPError) as err_info:
+                urllib.request.urlopen(req, timeout=5)
+            assert err_info.value.code == 400
+            err_body = json.loads(err_info.value.read().decode("utf-8"))
+            assert err_body["status"] == "error"
+            assert outside_secret.read_bytes() == secret_before
+        finally:
+            server.shutdown()
+            server.server_close()
+
+    def test_round1_rollup_state_scoping_no_sibling_review_leak(
+        self, tmp_path: Path
+    ) -> None:
+        """Converged status for sibling epic in assistant_state.md must not leak to another epic."""
+        repo = _init_git_repo(tmp_path / "rollup-repo")
+        devtool = repo / ".devtool"
+        features = devtool / "features"
+        done_dir = features / "done"
+        state_dir = devtool / "state"
+        done_dir.mkdir(parents=True, exist_ok=True)
+        state_dir.mkdir(parents=True, exist_ok=True)
+        (devtool / "epic" / "epic_alpha").mkdir(parents=True, exist_ok=True)
+        (devtool / "epic" / "epic_beta").mkdir(parents=True, exist_ok=True)
+
+        (done_dir / "task_01_alpha.md").write_text(
+            '---\nid: "task_01_alpha"\nstatus: "done"\nepic: "epic_alpha"\n---\n# Alpha 1\n',
+            encoding="utf-8",
+        )
+        (done_dir / "task_02_beta.md").write_text(
+            '---\nid: "task_02_beta"\nstatus: "done"\nepic: "epic_beta"\n---\n# Beta 1\n',
+            encoding="utf-8",
+        )
+        (devtool / "GATE_LEDGER.md").write_text(
+            "| Timestamp | Epic | Gate | Commit | Approved Scope | Deviations | By |\n"
+            "|---|---|---|---|---|---|---|\n"
+            "| 2026-11-11T04:00:00Z | epic_alpha | 4 | aaa1111 | Gate 4 PASS |  | dev |\n"
+            "| 2026-11-11T04:05:00Z | epic_beta | 4 | bbb2222 | Gate 4 PASS |  | dev |\n",
+            encoding="utf-8",
+        )
+        (state_dir / "epic_alpha.md").write_text(
+            "# Active Epic: epic_alpha\n- **Status**: Stage 3: Phase 4 Local Verification\n",
+            encoding="utf-8",
+        )
+        (state_dir / "epic_beta.md").write_text(
+            "# Active Epic: epic_beta\n- **Status**: Stage 4: Review Converged\n",
+            encoding="utf-8",
+        )
+        (devtool / "assistant_state.md").write_text(
+            "# Active Epic: epic_alpha\n- **Status**: Stage 3: Phase 4 Local Verification\n\n---\n\n"
+            "# Active Epic: epic_beta\n- **Status**: Stage 4: Review Converged\n",
+            encoding="utf-8",
+        )
+
+        dec_alpha = check_tasks.derive_lifecycle_state(repo, "epic_alpha")
+        assert dec_alpha.stage_name == check_tasks.LifecycleStage.STAGE_3_PHASE_4_REVIEW
+        assert dec_alpha.is_human_action_required is False
+        assert check_tasks.extract_task_progress(repo, "epic_alpha").percentage == 96.0
+
+        dec_beta = check_tasks.derive_lifecycle_state(repo, "epic_beta")
+        assert (
+            dec_beta.stage_name == check_tasks.LifecycleStage.STAGE_3_PHASE_4_1_SIGNOFF
+        )
+        assert dec_beta.is_human_action_required is True
+        assert check_tasks.extract_task_progress(repo, "epic_beta").percentage == 100.0

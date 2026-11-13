@@ -23,6 +23,7 @@ import re
 import sqlite3
 import subprocess
 import sys
+import tempfile
 from collections.abc import Iterator, Sequence
 from datetime import datetime, timezone
 from pathlib import Path
@@ -144,6 +145,31 @@ def resolve_current_epic_slug(cwd: Path | None = None) -> str:
     return "general"
 
 
+def _atomic_write_text(path: Path, content: str) -> None:
+    """Atomically write UTF-8 text via sibling temporary file, fsync, and os.replace."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=path.parent,
+            prefix=f".{path.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as handle:
+            tmp_path = Path(handle.name)
+            handle.write(content)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(tmp_path, path)
+        tmp_path = None
+    finally:
+        if tmp_path is not None and tmp_path.exists():
+            with contextlib.suppress(OSError):
+                tmp_path.unlink()
+
+
 @contextlib.contextmanager
 def file_lock(devtool_dir: Path) -> Iterator[None]:
     devtool_dir.mkdir(parents=True, exist_ok=True)
@@ -262,9 +288,9 @@ def render_assistant_state_rollup(devtool_dir: Path) -> None:
             parts.append(content)
     rollup = devtool_dir / "assistant_state.md"
     if parts:
-        rollup.write_text("\n\n---\n\n".join(parts) + "\n", encoding="utf-8")
+        _atomic_write_text(rollup, "\n\n---\n\n".join(parts) + "\n")
     elif rollup.exists():
-        rollup.write_text("No active epic state.\n", encoding="utf-8")
+        _atomic_write_text(rollup, "No active epic state.\n")
 
 
 def refresh_activity_stream_rollup(devtool_dir: Path) -> None:
@@ -278,7 +304,7 @@ def refresh_activity_stream_rollup(devtool_dir: Path) -> None:
     all_entries.sort()
     recent = all_entries[-50:]
     rollup = devtool_dir / "activity_stream.log"
-    rollup.write_text("\n".join(recent) + ("\n" if recent else ""), encoding="utf-8")
+    _atomic_write_text(rollup, "\n".join(recent) + ("\n" if recent else ""))
 
 
 def parse_markdown_gate_row(line_str: str) -> dict[str, object] | None:
@@ -869,30 +895,32 @@ def write_epic_state(
     content = enforce_state_line_limit(
         epic_slug, role, decisions, status, next_step, prompt
     )
-    for target_dt in target_devtool_dirs:
-        with file_lock(target_dt):
-            migrate_legacy_storage(target_dt)
-            state_dir = target_dt / "state"
-            state_dir.mkdir(parents=True, exist_ok=True)
-            (state_dir / f"{epic_slug}.md").write_text(content + "\n", encoding="utf-8")
-            render_assistant_state_rollup(target_dt)
+    canonical_lock_dt = (primary_root / ".devtool").resolve()
+    with _state_envelope._state_lock(canonical_lock_dt):
+        for target_dt in target_devtool_dirs:
+            with file_lock(target_dt):
+                migrate_legacy_storage(target_dt)
+                state_dir = target_dt / "state"
+                state_dir.mkdir(parents=True, exist_ok=True)
+                _atomic_write_text(state_dir / f"{epic_slug}.md", content + "\n")
+                render_assistant_state_rollup(target_dt)
 
-    if refresh_heartbeat:
-        _state_envelope.update_epic_heartbeat(
-            primary_root,
-            epic_slug,
-            stage=status if status else None,
-            active_wave=active_wave,
-            last_event=next_step or status or "resume_context --state",
-            extra_devtool_dirs=target_devtool_dirs,
-        )
+        if refresh_heartbeat:
+            _state_envelope.update_epic_heartbeat(
+                primary_root,
+                epic_slug,
+                stage=status if status else None,
+                active_wave=active_wave,
+                last_event=next_step or status or "resume_context --state",
+                extra_devtool_dirs=target_devtool_dirs,
+            )
 
-    if status.strip() and not _is_paused_status(status):
-        _state_envelope.clear_pending_decision(
-            primary_root,
-            epic_slug,
-            extra_devtool_dirs=target_devtool_dirs,
-        )
+        if status.strip() and not _is_paused_status(status):
+            _state_envelope.clear_pending_decision(
+                primary_root,
+                epic_slug,
+                extra_devtool_dirs=target_devtool_dirs,
+            )
 
     if sync_title:
         sync_window_title(root, epic_slug=epic_slug, stage_override=status)
@@ -959,83 +987,84 @@ def complete_feature_and_rotate(
         if repo is None and (root / ".git").exists()
         else root
     )
-    ledger_path = ensure_ledger(primary_root)
-    dup_pattern = re.compile(
-        rf"^\s*-\s+\*\*\[[^\]]+\]\s+`{re.escape(epic_slug)}`\*\*:",
-        re.MULTILINE,
-    )
-    with file_lock(ledger_path.parent):
-        existing_ledger = ledger_path.read_text(encoding="utf-8")
-        if dup_pattern.search(existing_ledger):
-            print(
-                f"ℹ️ Milestone for `{epic_slug}` already exists in {ledger_path.relative_to(primary_root)}; skipped duplicate entry."
-            )
-        else:
-            with ledger_path.open("a", encoding="utf-8") as f:
-                f.write(milestone)
-            print(
-                f"✅ Appended milestone to {ledger_path.relative_to(primary_root)}:\n   {milestone.strip()}"
-            )
+    with _state_envelope._state_lock((primary_root / ".devtool").resolve()):
+        ledger_path = ensure_ledger(primary_root)
+        dup_pattern = re.compile(
+            rf"^\s*-\s+\*\*\[[^\]]+\]\s+`{re.escape(epic_slug)}`\*\*:",
+            re.MULTILINE,
+        )
+        with file_lock(ledger_path.parent):
+            existing_ledger = ledger_path.read_text(encoding="utf-8")
+            if dup_pattern.search(existing_ledger):
+                print(
+                    f"ℹ️ Milestone for `{epic_slug}` already exists in {ledger_path.relative_to(primary_root)}; skipped duplicate entry."
+                )
+            else:
+                with ledger_path.open("a", encoding="utf-8") as f:
+                    f.write(milestone)
+                print(
+                    f"✅ Appended milestone to {ledger_path.relative_to(primary_root)}:\n   {milestone.strip()}"
+                )
 
-    raw_candidates: list[Path] = (
-        [root / ".devtool", primary_root / ".devtool"]
-        + [root / r / ".devtool" for r in REPOS]
-        + [wt / ".devtool" for wt in _matching_epic_worktrees(primary_root, epic_slug)]
-    )
-    if (primary_root / ".git").exists():
-        wt_out = _state_envelope._run_git(primary_root, "worktree", "list", "--porcelain")
-        if wt_out:
-            safe_slug = _state_envelope._sanitize_epic_slug(epic_slug)
-            for wt_path, _branch in _state_envelope._parse_worktree_branches(wt_out):
-                if _state_envelope._is_slot_worktree(wt_path):
-                    continue
-                wt_dt = wt_path / ".devtool"
-                if (
-                    (wt_dt / "state" / f"{epic_slug}.md").exists()
-                    or (wt_dt / "state" / f"{safe_slug}.heartbeat.json").exists()
-                ):
-                    raw_candidates.append(wt_dt)
+        raw_candidates: list[Path] = (
+            [root / ".devtool", primary_root / ".devtool"]
+            + [root / r / ".devtool" for r in REPOS]
+            + [wt / ".devtool" for wt in _matching_epic_worktrees(primary_root, epic_slug)]
+        )
+        if (primary_root / ".git").exists():
+            wt_out = _state_envelope._run_git(primary_root, "worktree", "list", "--porcelain")
+            if wt_out:
+                safe_slug = _state_envelope._sanitize_epic_slug(epic_slug)
+                for wt_path, _branch in _state_envelope._parse_worktree_branches(wt_out):
+                    if _state_envelope._is_slot_worktree(wt_path):
+                        continue
+                    wt_dt = wt_path / ".devtool"
+                    if (
+                        (wt_dt / "state" / f"{epic_slug}.md").exists()
+                        or (wt_dt / "state" / f"{safe_slug}.heartbeat.json").exists()
+                    ):
+                        raw_candidates.append(wt_dt)
 
-    deduped_dirs: list[Path] = []
-    seen_dt: set[Path] = set()
-    for cand in raw_candidates:
-        if not cand.exists():
-            continue
-        resolved = cand.resolve()
-        if resolved not in seen_dt:
-            seen_dt.add(resolved)
-            deduped_dirs.append(resolved)
+        deduped_dirs: list[Path] = []
+        seen_dt: set[Path] = set()
+        for cand in raw_candidates:
+            if not cand.exists():
+                continue
+            resolved = cand.resolve()
+            if resolved not in seen_dt:
+                seen_dt.add(resolved)
+                deduped_dirs.append(resolved)
 
-    safe_slug = _state_envelope._sanitize_epic_slug(epic_slug)
-    for devtool_dir in deduped_dirs:
-        with file_lock(devtool_dir):
-            archive_dir = devtool_dir / "archive"
-            _safe_archive_move(
-                devtool_dir / "state" / f"{epic_slug}.md",
-                archive_dir,
-                f"state_{epic_slug}_{timestamp}",
-                ".md",
-            )
-            _safe_archive_move(
-                devtool_dir / "state" / f"{safe_slug}.heartbeat.json",
-                archive_dir,
-                f"heartbeat_{safe_slug}_{timestamp}",
-                ".json",
-            )
-            _safe_archive_move(
-                devtool_dir / "logs" / f"activity_{epic_slug}.log",
-                archive_dir,
-                f"activity_{epic_slug}_{timestamp}",
-                ".log",
-            )
-            render_assistant_state_rollup(devtool_dir)
-            refresh_activity_stream_rollup(devtool_dir)
+        safe_slug = _state_envelope._sanitize_epic_slug(epic_slug)
+        for devtool_dir in deduped_dirs:
+            with file_lock(devtool_dir):
+                archive_dir = devtool_dir / "archive"
+                _safe_archive_move(
+                    devtool_dir / "state" / f"{epic_slug}.md",
+                    archive_dir,
+                    f"state_{epic_slug}_{timestamp}",
+                    ".md",
+                )
+                _safe_archive_move(
+                    devtool_dir / "state" / f"{safe_slug}.heartbeat.json",
+                    archive_dir,
+                    f"heartbeat_{safe_slug}_{timestamp}",
+                    ".json",
+                )
+                _safe_archive_move(
+                    devtool_dir / "logs" / f"activity_{epic_slug}.log",
+                    archive_dir,
+                    f"activity_{epic_slug}_{timestamp}",
+                    ".log",
+                )
+                render_assistant_state_rollup(devtool_dir)
+                refresh_activity_stream_rollup(devtool_dir)
 
-    _state_envelope.clear_pending_decision(
-        primary_root,
-        epic_slug,
-        extra_devtool_dirs=deduped_dirs,
-    )
+        _state_envelope.clear_pending_decision(
+            primary_root,
+            epic_slug,
+            extra_devtool_dirs=deduped_dirs,
+        )
     sync_window_title(primary_root, epic_slug=epic_slug, stage_override="Completed")
     if root.resolve() != primary_root.resolve():
         sync_window_title(root, epic_slug=epic_slug, stage_override="Completed")

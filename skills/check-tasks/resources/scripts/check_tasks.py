@@ -1277,6 +1277,33 @@ def extract_repo_note(repo_path: Path) -> str | None:
 _UNSET: Any = object()
 
 
+_ACTIVE_EPIC_SECTION_RE = re.compile(r"(?im)^#\s*Active Epic\s*:\s*([^\n]+)")
+
+
+def _filter_rollup_state_for_epic(text: str, active_epic: str | None) -> str:
+    """Scope rollup `assistant_state.md` text to sections matching active_epic."""
+    if not active_epic:
+        return text
+    matches = list(_ACTIVE_EPIC_SECTION_RE.finditer(text))
+    if not matches:
+        return text
+    target_norm = re.sub(r"[-_]+", "_", active_epic.strip().lower())
+    selected: list[str] = []
+    for idx, match in enumerate(matches):
+        raw_header = match.group(1).strip().strip("`").strip()
+        slug_token = raw_header.split()[0].strip("`") if raw_header else ""
+        header_norm = re.sub(r"[-_]+", "_", slug_token.lower())
+        if header_norm != target_norm:
+            continue
+        start = match.start()
+        end = matches[idx + 1].start() if idx + 1 < len(matches) else len(text)
+        block = text[start:end].strip()
+        block = re.sub(r"(?:\n---\s*)+\Z", "", block).strip()
+        if block:
+            selected.append(block)
+    return "\n".join(selected)
+
+
 def _read_combined_state_text(repo_path: Path, active_epic: str | None) -> str:
     """Combine `assistant_state.md` and epic state markdown across root and worktrees."""
     chunks: list[str] = []
@@ -1304,7 +1331,11 @@ def _read_combined_state_text(repo_path: Path, active_epic: str | None) -> str:
                 continue
             seen_files.add(resolved)
             with contextlib.suppress(OSError, UnicodeDecodeError):
-                chunks.append(sf.read_text(encoding="utf-8"))
+                content = sf.read_text(encoding="utf-8")
+                if sf.name == "assistant_state.md":
+                    content = _filter_rollup_state_for_epic(content, active_epic)
+                if content:
+                    chunks.append(content)
     return "\n".join(chunks)
 
 

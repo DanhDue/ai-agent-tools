@@ -16,6 +16,7 @@ import contextlib
 import dataclasses
 from datetime import datetime, timezone
 import http.server
+import importlib
 import json
 import os
 from pathlib import Path
@@ -48,6 +49,34 @@ except ImportError:
 DEFAULT_PORT = 8766
 DEFAULT_QUOTA_PORT = 8765
 DEFAULT_PID_FILE = Path("/tmp/agy_tasks_server.pid")
+_STATE_ENVELOPE_MOD: Any | None = None
+
+
+def _load_state_envelope() -> Any | None:
+    """Lazily import shared `scripts/_state_envelope.py` without failing on standalone copies."""
+    global _STATE_ENVELOPE_MOD
+    if _STATE_ENVELOPE_MOD is not None:
+        return _STATE_ENVELOPE_MOD
+    for parent in [SCRIPT_DIR, *SCRIPT_DIR.parents]:
+        cand_scripts = parent / "scripts"
+        if (cand_scripts / "_state_envelope.py").is_file():
+            if str(cand_scripts) not in sys.path:
+                sys.path.insert(0, str(cand_scripts))
+            try:
+                _STATE_ENVELOPE_MOD = importlib.import_module("_state_envelope")
+                return _STATE_ENVELOPE_MOD
+            except Exception:
+                return None
+    return None
+
+
+def _assert_contained(path: Path, boundary: Path, label: str) -> Path:
+    """Verify resolved `path` remains inside resolved `boundary`, raising ValueError on escape."""
+    resolved = path.resolve()
+    bound_resolved = boundary.resolve()
+    if not resolved.is_relative_to(bound_resolved):
+        raise ValueError(f"{label} escapes allowed boundary: {path} -> {resolved}")
+    return resolved
 
 
 def get_real_home() -> str:
@@ -577,19 +606,25 @@ def _format_updated_path(target: Path, repo_dir: Path) -> str:
         return str(target.resolve())
 
 
-def _discover_pic_worktrees(repo_dir: Path, epic_slug: str) -> list[Path]:
+def _discover_pic_worktrees(
+    repo_dir: Path,
+    epic_slug: str,
+    workspace_root: Path | None = None,
+) -> list[Path]:
     """Discover all matching git worktrees and `.worktrees/<slug>*` directories for epic_slug."""
     target_norm = _norm_epic_slug(epic_slug)
     repo_resolved = repo_dir.resolve()
+    ws_resolved = workspace_root.resolve() if workspace_root is not None else repo_resolved
+    wt_root = repo_dir / ".worktrees"
     worktrees: list[Path] = []
     seen: set[Path] = set()
 
-    def _add_if_matches(candidate: Path, branch_name: str | None = None) -> None:
-        if not candidate.is_dir():
-            return
-        resolved = candidate.resolve()
-        if resolved == repo_resolved or resolved in seen:
-            return
+    def _add_if_matches(
+        candidate: Path,
+        branch_name: str | None = None,
+        *,
+        is_dot_worktree: bool = False,
+    ) -> None:
         dir_base = _PIC_SLOT_SUFFIX_RE.sub("", candidate.name.strip())
         dir_match = _norm_epic_slug(dir_base) == target_norm
         branch_match = False
@@ -599,9 +634,30 @@ def _discover_pic_worktrees(repo_dir: Path, epic_slug: str) -> list[Path]:
             if m_br:
                 br_base = _PIC_SLOT_SUFFIX_RE.sub("", m_br.group(1))
                 branch_match = _norm_epic_slug(br_base) == target_norm
-        if dir_match or branch_match:
-            seen.add(resolved)
-            worktrees.append(candidate)
+
+        is_in_dot_wt = is_dot_worktree or (
+            candidate == wt_root or wt_root in candidate.parents
+        )
+        if not dir_match and not branch_match:
+            if (
+                is_in_dot_wt
+                and candidate.is_symlink()
+                and not candidate.resolve().is_relative_to(repo_resolved)
+            ):
+                if (candidate.resolve() / ".devtool" / "epic" / epic_slug).exists():
+                    raise ValueError(
+                        f"Worktree symlink escapes repository boundary: {candidate}"
+                    )
+            return
+
+        if not (candidate.exists() or candidate.is_symlink()):
+            return
+        boundary = repo_resolved if is_in_dot_wt else ws_resolved
+        resolved = _assert_contained(candidate, boundary, "Worktree")
+        if not candidate.is_dir() or resolved == repo_resolved or resolved in seen:
+            return
+        seen.add(resolved)
+        worktrees.append(candidate)
 
     with contextlib.suppress(OSError, subprocess.SubprocessError):
         proc = subprocess.run(
@@ -624,12 +680,15 @@ def _discover_pic_worktrees(repo_dir: Path, epic_slug: str) -> list[Path]:
                 if wt_line:
                     _add_if_matches(Path(wt_line), branch_line)
 
-    wt_dir = repo_dir / ".worktrees"
-    if wt_dir.is_dir():
+    if wt_root.exists() or wt_root.is_symlink():
+        _assert_contained(wt_root, repo_resolved, ".worktrees directory")
+    if wt_root.is_dir():
         with contextlib.suppress(OSError):
-            for entry in sorted(wt_dir.iterdir()):
-                if entry.is_dir() and not entry.name.startswith("."):
-                    _add_if_matches(entry)
+            for entry in sorted(wt_root.iterdir()):
+                if not entry.name.startswith(".") and (
+                    entry.is_dir() or entry.is_symlink()
+                ):
+                    _add_if_matches(entry, is_dot_worktree=True)
 
     return worktrees
 
@@ -739,14 +798,71 @@ def assign_epic_pic(
         raise ValueError(f"Invalid repository name: {repo_name!r}")
 
     ws_resolved = workspace_root.resolve()
-    repo_dir = (workspace_root / repo_name).resolve()
-    if not str(repo_dir).startswith(str(ws_resolved) + os.sep) and repo_dir != ws_resolved:
+    repo_dir = _assert_contained(
+        workspace_root / repo_name, ws_resolved, f"Repository {repo_name!r}"
+    )
+    if repo_dir == ws_resolved:
         raise ValueError(f"Repository path escapes workspace boundary: {repo_name!r}")
     if not repo_dir.is_dir():
         return {"status": "error", "error": f"Repository '{repo_name}' not found"}
 
-    matched_worktrees = _discover_pic_worktrees(repo_dir, epic_slug)
+    matched_worktrees = _discover_pic_worktrees(
+        repo_dir, epic_slug, workspace_root=ws_resolved
+    )
     checkouts: list[Path] = [repo_dir, *matched_worktrees]
+    wt_root_dir = repo_dir / ".worktrees"
+    slug_variants = tuple(
+        dict.fromkeys((epic_slug, epic_slug.replace("_", "-"), epic_slug.replace("-", "_")))
+    )
+
+    # Pre-validate symlink containment across all checkouts before reading or mutating any file
+    checkout_boundaries: dict[Path, Path] = {}
+    for checkout in checkouts:
+        in_dot_wt = checkout != repo_dir and (
+            checkout.parent == wt_root_dir or wt_root_dir in checkout.parents
+        )
+        co_bound = _assert_contained(
+            checkout,
+            repo_dir if in_dot_wt else ws_resolved,
+            "Checkout",
+        )
+        checkout_boundaries[checkout] = co_bound
+        devtool_dir = checkout / ".devtool"
+        epic_root = devtool_dir / "epic"
+        co_epic_dir = epic_root / epic_slug
+        features_dir = devtool_dir / "features"
+        done_dir = features_dir / "done"
+        state_dir = devtool_dir / "state"
+        vscode_dir = checkout / ".vscode"
+        for sub_dir, label in (
+            (devtool_dir, ".devtool directory"),
+            (epic_root, ".devtool/epic directory"),
+            (co_epic_dir, "Epic directory"),
+            (features_dir, "Features directory"),
+            (done_dir, "Done features directory"),
+            (state_dir, "State directory"),
+            (vscode_dir, ".vscode directory"),
+            (vscode_dir / "settings.json", ".vscode/settings.json"),
+        ):
+            if sub_dir.exists() or sub_dir.is_symlink():
+                _assert_contained(sub_dir, co_bound, label)
+        if co_epic_dir.is_dir():
+            for md_cand in sorted(co_epic_dir.glob("*.md")):
+                if md_cand.exists() or md_cand.is_symlink():
+                    _assert_contained(md_cand, co_bound, "Epic markdown target")
+        for fdir in (features_dir, done_dir):
+            if fdir.is_dir():
+                for tf_cand in sorted(fdir.glob("task_*.md")):
+                    if tf_cand.exists() or tf_cand.is_symlink():
+                        _assert_contained(tf_cand, co_bound, "Feature task target")
+        if state_dir.is_dir():
+            p_cand = state_dir / f"{epic_slug}.pipeline.json"
+            if p_cand.exists() or p_cand.is_symlink():
+                _assert_contained(p_cand, co_bound, "Pipeline state target")
+            for sv in slug_variants:
+                hb_cand = state_dir / f"{sv}.heartbeat.json"
+                if hb_cand.exists() or hb_cand.is_symlink():
+                    _assert_contained(hb_cand, co_bound, "Heartbeat state target")
 
     has_epic_anywhere = any(
         (co / ".devtool" / "epic" / epic_slug).is_dir() for co in checkouts
@@ -762,8 +878,8 @@ def assign_epic_pic(
     seen_targets: set[Path] = set()
     target_norm = _norm_epic_slug(epic_slug)
 
-    def _record_write(target: Path, new_content: str) -> None:
-        resolved = target.resolve()
+    def _record_write(target: Path, new_content: str, *, boundary: Path) -> None:
+        resolved = _assert_contained(target, boundary, "PIC target file")
         if resolved in seen_targets:
             return
         seen_targets.add(resolved)
@@ -775,8 +891,10 @@ def assign_epic_pic(
             warnings.append(f"{rel}: {exc}")
 
     wt_resolved_set = {wt.resolve() for wt in matched_worktrees}
+    hb_entries_by_slug: dict[str, list[tuple[Path, Path]]] = {}
 
     for checkout in checkouts:
+        co_bound = checkout_boundaries[checkout]
         checkout_epic_dir = checkout / ".devtool" / "epic" / epic_slug
         if checkout_epic_dir.is_dir():
             # 1. HLD & design spec files (excluding BDD/review/fix-plan/smoke prose)
@@ -792,6 +910,7 @@ def assign_epic_pic(
             for hld in hld_candidates:
                 if not hld.is_file():
                     continue
+                _assert_contained(hld, co_bound, "HLD target")
                 try:
                     content = hld.read_text(encoding="utf-8")
                 except OSError as exc:
@@ -799,11 +918,12 @@ def assign_epic_pic(
                     continue
                 updated = _update_markdown_pic(content, new_pic, is_handoff=False)
                 if updated is not None:
-                    _record_write(hld, updated)
+                    _record_write(hld, updated, boundary=co_bound)
 
             # 2. handoff.md
             handoff_file = checkout_epic_dir / "handoff.md"
             if handoff_file.is_file():
+                _assert_contained(handoff_file, co_bound, "Handoff target")
                 try:
                     content = handoff_file.read_text(encoding="utf-8")
                 except OSError as exc:
@@ -813,11 +933,12 @@ def assign_epic_pic(
                 else:
                     updated = _update_markdown_pic(content, new_pic, is_handoff=True)
                     if updated is not None:
-                        _record_write(handoff_file, updated)
+                        _record_write(handoff_file, updated, boundary=co_bound)
 
             # 3a. Epic task files inside .devtool/epic/<epic_slug>/
             with contextlib.suppress(OSError):
                 for tf in sorted(checkout_epic_dir.glob("task_*.md")):
+                    _assert_contained(tf, co_bound, "Epic task target")
                     try:
                         t_content = tf.read_text(encoding="utf-8")
                     except OSError as exc:
@@ -828,7 +949,7 @@ def assign_epic_pic(
                         continue
                     updated_task = _update_task_frontmatter_pic(t_content, new_pic)
                     if updated_task is not None:
-                        _record_write(tf, updated_task)
+                        _record_write(tf, updated_task, boundary=co_bound)
 
         # 3b. Task files in .devtool/features/ filtered strictly by matching epic frontmatter
         for feat_dir in (
@@ -839,6 +960,7 @@ def assign_epic_pic(
                 continue
             with contextlib.suppress(OSError):
                 for tf in sorted(feat_dir.glob("task_*.md")):
+                    _assert_contained(tf, co_bound, "Feature task target")
                     try:
                         t_content = tf.read_text(encoding="utf-8")
                     except OSError as exc:
@@ -849,13 +971,14 @@ def assign_epic_pic(
                         continue
                     updated_task = _update_task_frontmatter_pic(t_content, new_pic)
                     if updated_task is not None:
-                        _record_write(tf, updated_task)
+                        _record_write(tf, updated_task, boundary=co_bound)
 
-        # 4. State pipeline & heartbeat JSON files in checkout/.devtool/state/
+        # 4. State pipeline JSON & collect heartbeat JSON mirrors in checkout/.devtool/state/
         state_dir = checkout / ".devtool" / "state"
         if state_dir.is_dir():
             pipeline_file = state_dir / f"{epic_slug}.pipeline.json"
             if pipeline_file.is_file():
+                _assert_contained(pipeline_file, co_bound, "Pipeline state target")
                 try:
                     s_data = json.loads(pipeline_file.read_text(encoding="utf-8"))
                     if isinstance(s_data, dict):
@@ -863,44 +986,25 @@ def assign_epic_pic(
                         _record_write(
                             pipeline_file,
                             json.dumps(s_data, indent=2, ensure_ascii=False) + "\n",
+                            boundary=co_bound,
                         )
                 except (OSError, json.JSONDecodeError) as exc:
                     warnings.append(
                         f"{_format_updated_path(pipeline_file, repo_dir)}: {exc}"
                     )
 
-            hb_candidates: list[Path] = []
-            for slug_var in dict.fromkeys(
-                (epic_slug, epic_slug.replace("_", "-"), epic_slug.replace("-", "_"))
-            ):
+            for slug_var in slug_variants:
                 hb_path = state_dir / f"{slug_var}.heartbeat.json"
                 if hb_path.is_file():
-                    hb_candidates.append(hb_path)
-            for hb_file in hb_candidates:
-                try:
-                    hb_data = json.loads(hb_file.read_text(encoding="utf-8"))
-                    if isinstance(hb_data, dict):
-                        hb_data["pic"] = new_pic
-                        if "generation" in hb_data and isinstance(
-                            hb_data["generation"], int
-                        ):
-                            hb_data["generation"] += 1
-                        hb_data["updated_at"] = datetime.now(timezone.utc).isoformat(
-                            timespec="seconds"
-                        )
-                        _record_write(
-                            hb_file,
-                            json.dumps(hb_data, indent=2, ensure_ascii=False) + "\n",
-                        )
-                except (OSError, json.JSONDecodeError) as exc:
-                    warnings.append(
-                        f"{_format_updated_path(hb_file, repo_dir)}: {exc}"
+                    hb_entries_by_slug.setdefault(slug_var, []).append(
+                        (co_bound, hb_path)
                     )
 
         # 5. Worktree-only .vscode/settings.json window.title (never root .vscode/settings.json)
-        if checkout.resolve() in wt_resolved_set:
+        if co_bound in wt_resolved_set:
             vscode_settings = checkout / ".vscode" / "settings.json"
             if vscode_settings.is_file():
+                _assert_contained(vscode_settings, co_bound, "Worktree settings target")
                 try:
                     s_content = vscode_settings.read_text(encoding="utf-8")
                 except OSError as exc:
@@ -913,7 +1017,71 @@ def assign_epic_pic(
                             r"\[@[a-zA-Z0-9_\-]+\]", f"[@{new_pic}]", s_content
                         )
                         if new_s_content != s_content:
-                            _record_write(vscode_settings, new_s_content)
+                            _record_write(vscode_settings, new_s_content, boundary=co_bound)
+
+    # Synchronize all existing heartbeat mirrors atomically under canonical state lock
+    if hb_entries_by_slug:
+        state_env = _load_state_envelope()
+        lock_ctx = (
+            state_env._state_lock(repo_dir / ".devtool")
+            if state_env is not None
+            else contextlib.nullcontext()
+        )
+        with lock_ctx:
+            for slug_var, items in hb_entries_by_slug.items():
+                filename = f"{slug_var}.heartbeat.json"
+                max_gen = 0
+                best_data: dict[str, Any] | None = None
+                bad_paths: set[Path] = set()
+
+                if state_env is not None:
+                    with contextlib.suppress(Exception):
+                        mirror_dts = state_env._collect_target_devtool_dirs(
+                            repo_dir, filename
+                        )
+                        snap, snap_gen = state_env._read_highest_snapshot(
+                            mirror_dts, filename, {}
+                        )
+                        if snap and snap_gen >= max_gen:
+                            max_gen = snap_gen
+                            best_data = snap
+
+                for _co_bound, hb_file in items:
+                    try:
+                        parsed = json.loads(hb_file.read_text(encoding="utf-8"))
+                    except (OSError, json.JSONDecodeError) as exc:
+                        warnings.append(
+                            f"{_format_updated_path(hb_file, repo_dir)}: {exc}"
+                        )
+                        bad_paths.add(hb_file)
+                        continue
+                    if not isinstance(parsed, dict):
+                        continue
+                    raw_gen = parsed.get("generation")
+                    gen = (
+                        raw_gen
+                        if isinstance(raw_gen, int) and not isinstance(raw_gen, bool)
+                        else 0
+                    )
+                    if best_data is None or gen >= max_gen:
+                        max_gen = max(max_gen, gen)
+                        best_data = parsed
+
+                if best_data is None:
+                    continue
+                next_hb = dict(best_data)
+                next_hb["pic"] = new_pic
+                next_hb["generation"] = max_gen + 1
+                next_hb["updated_at"] = datetime.now(timezone.utc).isoformat(
+                    timespec="seconds"
+                )
+                serialized_hb = (
+                    json.dumps(next_hb, indent=2, ensure_ascii=False) + "\n"
+                )
+                for co_bound, hb_file in items:
+                    if hb_file in bad_paths:
+                        continue
+                    _record_write(hb_file, serialized_hb, boundary=co_bound)
 
     return {
         "status": "ok",

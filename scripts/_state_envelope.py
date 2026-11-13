@@ -21,6 +21,7 @@ import re
 import socket
 import subprocess
 import tempfile
+import threading
 from typing import Any, TypeVar, cast
 import uuid
 
@@ -31,6 +32,49 @@ TERMINAL_QUALITY_STATUSES = frozenset({"passed", "failed", "aborted", "stale"})
 _SLOT_WORKTREE_RE = re.compile(r"-slot-\d+$")
 
 T = TypeVar("T")
+
+_LOCK_REGISTRY_GUARD = threading.Lock()
+_INPROC_PATH_LOCKS: dict[Path, threading.RLock] = {}
+_ACTIVE_FLOCKS: dict[Path, tuple[int, Any]] = {}
+
+
+@contextlib.contextmanager
+def _state_lock(primary_devtool_dir: Path) -> Iterator[None]:
+    """Acquire a reentrant thread+process exclusive lock on the primary repository's state lock file."""
+    state_dir = primary_devtool_dir / "state"
+    state_dir.mkdir(parents=True, exist_ok=True)
+    lock_file = (state_dir / ENVELOPE_LOCK_NAME).resolve()
+    with _LOCK_REGISTRY_GUARD:
+        rlock = _INPROC_PATH_LOCKS.setdefault(lock_file, threading.RLock())
+    rlock.acquire()
+    try:
+        active = _ACTIVE_FLOCKS.get(lock_file)
+        if active is None:
+            handle = lock_file.open("a+", encoding="utf-8")
+            try:
+                fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+            except BaseException:
+                with contextlib.suppress(OSError):
+                    handle.close()
+                raise
+            _ACTIVE_FLOCKS[lock_file] = (1, handle)
+        else:
+            depth, handle = active
+            _ACTIVE_FLOCKS[lock_file] = (depth + 1, handle)
+        try:
+            yield
+        finally:
+            cur_depth, cur_handle = _ACTIVE_FLOCKS[lock_file]
+            if cur_depth > 1:
+                _ACTIVE_FLOCKS[lock_file] = (cur_depth - 1, cur_handle)
+            else:
+                _ACTIVE_FLOCKS.pop(lock_file, None)
+                with contextlib.suppress(OSError):
+                    fcntl.flock(cur_handle.fileno(), fcntl.LOCK_UN)
+                with contextlib.suppress(OSError):
+                    cur_handle.close()
+    finally:
+        rlock.release()
 
 
 def _utc_now_iso() -> str:
@@ -286,23 +330,6 @@ def atomic_write_json(path: Path, payload: Mapping[str, Any]) -> Path:
             except OSError:
                 pass
     return path
-
-
-@contextlib.contextmanager
-def _state_lock(primary_devtool_dir: Path) -> Iterator[None]:
-    """Acquire an exclusive `fcntl.flock` on the primary repository's state lock file."""
-    state_dir = primary_devtool_dir / "state"
-    state_dir.mkdir(parents=True, exist_ok=True)
-    lock_file = state_dir / ENVELOPE_LOCK_NAME
-    with lock_file.open("a+", encoding="utf-8") as handle:
-        fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
-        try:
-            yield
-        finally:
-            try:
-                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
-            except OSError:
-                pass
 
 
 def _read_highest_snapshot(
