@@ -32,3 +32,27 @@ Raw output:
 ```text
 Verdict: CHANGES REQUIRED
 ```
+
+## Round 2
+
+- **Date**: 2026-11-13T07:47:55Z
+- **SHA**: b6e0ecfcf17d31c788139600b34f92fe9ea7e65a
+- **Base**: main
+- **CLI**: claude
+- **Model**: Opus 5.5
+- **Thinking**: high
+- **Status**: completed
+- **Verdict**: CHANGES REQUIRED
+- **Raw log**: `build/reviews/runtime_sync_and_dashboard_hardening_code_round2_b6e0ecf.raw.log`
+
+| # | Severity | Location | Problem | Decision |
+|---|----------|----------|---------|----------|
+| 1 | Critical | .agents/quality/python-quality.json:3 | adding `scripts/_state_envelope.py` and `scripts/estimate_heartbeat.py` to `lint`/`type_check` without updating tasks' V4/V5 rows makes `check_task_contract.py --design` exit 1 with 12 "missing registered capability" problems (0 on `main`), so `check_epic_readiness.py` and `package_epic.py --revise` now abort for this epic and for already-merged Python epics — defeating task_03's Stage 3 `--revise` fix. | fixed in fa8f958 |
+| 2 | Important | skills/dev-implementation/resources/scripts/sync_task_status.py:375 | the envelope is keyed by the task frontmatter `epic:` value (underscores) while `resume_context.write_epic_state` and `manage_worker_pool` key by the hyphen slug, producing two `<epic>.heartbeat.json` + two `<epic>.md` files with independent `generation` counters and a duplicated epic in `assistant_state.md`, breaking the HLD's single-envelope contract and `RSDH-AR-01`'s monotonic-generation guarantee. | fixed in 7fafd2a |
+| 3 | Important | skills/dev-implementation/resources/scripts/sync_task_status.py:327 | `_collect_epic_task_summary`/`board_tally` run over `summary_roots` with the primary checkout first and dedupe first-seen-wins, so stale primary `.devtool/features/` copies override the worktree's authoritative statuses; the shipped state records `[todo: 7]` and "Start task_01" while all 7 tasks are `done`. | fixed in 7fafd2a |
+
+Raw output:
+
+```text
+Verdict: CHANGES REQUIRED
+```
