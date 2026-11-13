@@ -13,6 +13,7 @@ import concurrent.futures
 from datetime import datetime, timezone
 import fcntl
 import importlib
+import inspect
 import json
 import os
 from pathlib import Path
@@ -262,11 +263,29 @@ def _auto_resolve_epic_slug(repo_root: Path | None) -> str | None:
     return None
 
 
+def _is_pg_alive(pgid: int) -> bool:
+    """Return True if any non-reaped process remains active in process group `pgid`."""
+    try:
+        os.killpg(pgid, 0)
+        return True
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    except OSError:
+        return False
+
+
 def _terminate_process_group(
     proc: subprocess.Popen[Any], grace_sec: float = 1.0
 ) -> None:
-    """Send SIGTERM to process group, wait briefly, escalate to SIGKILL, and reap."""
-    if proc.poll() is not None:
+    """Send SIGTERM to process group, wait for full group exit, escalate to SIGKILL, and reap."""
+    try:
+        pgid = os.getpgid(proc.pid)
+    except (ProcessLookupError, OSError):
+        pgid = proc.pid
+
+    if proc.poll() is not None and not _is_pg_alive(pgid):
         try:
             proc.wait(timeout=1.0)
         except subprocess.SubprocessError:
@@ -274,20 +293,19 @@ def _terminate_process_group(
         return
 
     try:
-        pgid = os.getpgid(proc.pid)
         os.killpg(pgid, signal.SIGTERM)
     except (ProcessLookupError, PermissionError, OSError):
         pass
 
     deadline = time.monotonic() + max(0.1, grace_sec)
     while time.monotonic() < deadline:
-        if proc.poll() is not None:
+        leader_done = proc.poll() is not None
+        if leader_done and not _is_pg_alive(pgid):
             break
         time.sleep(0.02)
 
-    if proc.poll() is None:
+    if proc.poll() is None or _is_pg_alive(pgid):
         try:
-            pgid = os.getpgid(proc.pid)
             os.killpg(pgid, signal.SIGKILL)
         except (ProcessLookupError, PermissionError, OSError):
             pass
@@ -346,9 +364,11 @@ class _QualityRunCoordinator:
     def abort_and_reap_children(self, grace_sec: float = 1.0) -> None:
         self.aborted = True
         with self._lock:
-            procs = list(self._active_procs.values())
-        for proc in procs:
+            items = list(self._active_procs.items())
+        for pid, proc in items:
             _terminate_process_group(proc, grace_sec=grace_sec)
+            with self._lock:
+                self._active_procs.pop(pid, None)
 
     def start_step(self, provider: str, capability: str) -> int:
         with self._lock:
@@ -650,6 +670,7 @@ def _run_capability_subprocess(
 
     run_log_file.parent.mkdir(parents=True, exist_ok=True)
     proc: subprocess.Popen[Any] | None = None
+    unwound = False
     try:
         with run_log_file.open("w", encoding="utf-8") as log_fh:
             log_fh.write(f"$ {' '.join(substituted_cmd)}\n\n--- OUTPUT ---\n")
@@ -694,8 +715,11 @@ def _run_capability_subprocess(
         )
         _copy_file_atomic(run_log_file, compat_log_file)
         return "BLOCKED", f"{cap_name}: failed to execute: {exc}", cap_duration
+    except BaseException:
+        unwound = True
+        raise
     finally:
-        if proc is not None:
+        if proc is not None and not unwound and not coordinator.aborted:
             coordinator.unregister_proc(proc)
 
     cap_duration = round(time.time() - cap_start, 3)
@@ -742,29 +766,60 @@ def _execute_web_provider(
         if str(web_scripts) not in sys.path:
             sys.path.insert(0, str(web_scripts))
         web_mod = importlib.import_module("validate_web_quality")
-        web_res: dict[str, Any] = web_mod.run_capabilities(
-            config=manifest_data,
-            profile=profile,
-            repository_sha=sha,
-            repo_root=root,
-            provider_id=p_id,
-            base_ref=base_ref,
-            skills_dir=skills_dir,
-            check_watchdog_evidence=True,
-        )
         run_log_dir = root / "build" / "quality" / p_id / "runs" / coordinator.run_id
         run_log_dir.mkdir(parents=True, exist_ok=True)
         p_log_dir = root / "build" / "quality" / p_id
         p_log_dir.mkdir(parents=True, exist_ok=True)
+        run_caps_kwargs: dict[str, Any] = {
+            "config": manifest_data,
+            "profile": profile,
+            "repository_sha": sha,
+            "repo_root": root,
+            "provider_id": p_id,
+            "base_ref": base_ref,
+            "skills_dir": skills_dir,
+            "check_watchdog_evidence": True,
+        }
+        try:
+            sig_params: Any = inspect.signature(web_mod.run_capabilities).parameters
+        except (ValueError, TypeError):
+            sig_params = {}
+        if "log_dir" in sig_params:
+            run_caps_kwargs["log_dir"] = run_log_dir
+        if "proc_hooks" in sig_params:
+            run_caps_kwargs["proc_hooks"] = {
+                "register_proc": coordinator.register_proc,
+                "unregister_proc": coordinator.unregister_proc,
+                "is_aborted": lambda: coordinator.aborted,
+                "terminate_group": _terminate_process_group,
+            }
+        web_res: dict[str, Any] = web_mod.run_capabilities(**run_caps_kwargs)
+        check_ev_map: dict[str, str] = {}
         for ev in web_res.get("evidence", []):
             if not isinstance(ev, dict):
                 continue
             loc = ev.get("location", "")
-            src_log = root / loc if loc else None
+            src_log = (
+                (root / loc).resolve()
+                if loc and not Path(loc).is_absolute()
+                else (Path(loc).resolve() if loc else None)
+            )
             if src_log is not None and src_log.is_file():
-                _copy_file_atomic(src_log, run_log_dir / src_log.name)
+                scoped_dest = run_log_dir / src_log.name
+                if src_log != scoped_dest.resolve():
+                    _copy_file_atomic(src_log, scoped_dest)
                 if p_id and p_id != "web":
-                    _copy_file_atomic(src_log, p_log_dir / src_log.name)
+                    _copy_file_atomic(scoped_dest, p_log_dir / src_log.name)
+                try:
+                    scoped_rel = str(scoped_dest.relative_to(root.resolve()))
+                except ValueError:
+                    scoped_rel = str(scoped_dest)
+                ev["location"] = scoped_rel
+                if isinstance(ev.get("id"), str):
+                    check_ev_map[ev["id"]] = scoped_rel
+        for check in web_res.get("checks", []):
+            if isinstance(check, dict) and check_ev_map:
+                check["evidence_refs"] = [ref for ref in check.get("evidence_refs", [])]
         return web_res
     except Exception as exc:  # noqa: BLE001
         return {

@@ -250,6 +250,8 @@ def run_capabilities(
     provider_id: str = "web-quality",
     skills_dir: Path | str | None = None,
     check_watchdog_evidence: bool = True,
+    log_dir: Path | str | None = None,
+    proc_hooks: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Execute capabilities for the requested profile and return a Provider Result Contract v1 document."""
     start_time = time.time()
@@ -310,8 +312,12 @@ def run_capabilities(
     evidence: list[dict[str, Any]] = []
     warnings: list[dict[str, Any]] = []
 
-    log_dir = root_path / "build" / "quality" / "web"
-    log_dir.mkdir(parents=True, exist_ok=True)
+    resolved_log_dir = (
+        Path(log_dir)
+        if log_dir is not None
+        else (root_path / "build" / "quality" / "web")
+    )
+    resolved_log_dir.mkdir(parents=True, exist_ok=True)
 
     for cap_name in caps_to_run:
         cap_val = capabilities.get(cap_name)
@@ -330,45 +336,104 @@ def run_capabilities(
         check_start = time.time()
         check_status = "PASS"
         summary = f"Capability '{cap_name}' passed"
-        log_file = log_dir / f"{cap_name}.log"
+        log_file = resolved_log_dir / f"{cap_name}.log"
 
         try:
-            res = subprocess.run(
-                substituted_cmd,
-                cwd=str(root_path),
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-            check_duration = round(time.time() - check_start, 3)
-
-            log_content = (
-                f"$ {' '.join(substituted_cmd)}\n"
-                f"[exit_code: {res.returncode}]\n"
-                f"--- STDOUT ---\n{res.stdout}\n"
-                f"--- STDERR ---\n{res.stderr}\n"
-            )
-            log_file.write_text(log_content, encoding="utf-8")
-
-            if "contract" in cap_name:
-                if res.returncode == 0:
-                    check_status = "PASS"
-                elif res.returncode == 2:
-                    check_status = "BLOCKED"
-                    summary = f"Capability '{cap_name}' blocked: {res.stderr.strip() or res.stdout.strip()}"
-                else:
+            if proc_hooks is not None:
+                proc: subprocess.Popen[Any] | None = None
+                unwound = False
+                is_aborted = proc_hooks["is_aborted"]
+                register_proc = proc_hooks["register_proc"]
+                unregister_proc = proc_hooks["unregister_proc"]
+                terminate_group = proc_hooks["terminate_group"]
+                returncode = 0
+                aborted_run = False
+                try:
+                    with log_file.open("w", encoding="utf-8") as log_fh:
+                        log_fh.write(f"$ {' '.join(substituted_cmd)}\n--- OUTPUT ---\n")
+                        log_fh.flush()
+                        proc = subprocess.Popen(
+                            substituted_cmd,
+                            cwd=str(root_path),
+                            stdout=log_fh,
+                            stderr=subprocess.STDOUT,
+                            start_new_session=True,
+                        )
+                        if not register_proc(proc):
+                            terminate_group(proc)
+                            aborted_run = True
+                            returncode = -15
+                        else:
+                            while True:
+                                if is_aborted():
+                                    terminate_group(proc)
+                                    aborted_run = True
+                                    returncode = (
+                                        proc.returncode
+                                        if proc.returncode is not None
+                                        else -15
+                                    )
+                                    break
+                                try:
+                                    returncode = proc.wait(timeout=0.1)
+                                    break
+                                except subprocess.TimeoutExpired:
+                                    continue
+                except BaseException:
+                    unwound = True
+                    raise
+                finally:
+                    if proc is not None and not unwound and not is_aborted():
+                        unregister_proc(proc)
+                check_duration = round(time.time() - check_start, 3)
+                output_text = log_file.read_text(encoding="utf-8")
+                res_returncode = returncode
+                stdout_text = output_text
+                stderr_text = ""
+                if aborted_run or is_aborted():
                     check_status = "FAIL"
-                    summary = f"Capability '{cap_name}' failed: {res.stderr.strip() or res.stdout.strip()}"
+                    summary = f"Capability '{cap_name}' aborted by signal"
+                    res_returncode = returncode or -15
             else:
-                if res.returncode != 0:
-                    check_status = "FAIL"
-                    summary = f"Capability '{cap_name}' failed with exit code {res.returncode}: {res.stderr.strip() or res.stdout.strip()}"
-                elif (
-                    cap_name == "ui_review"
-                    and "UI Review: NOT_APPLICABLE" in res.stdout
-                ):
-                    check_status = "NOT_APPLICABLE"
-                    summary = res.stdout.strip()
+                res = subprocess.run(
+                    substituted_cmd,
+                    cwd=str(root_path),
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
+                check_duration = round(time.time() - check_start, 3)
+                log_content = (
+                    f"$ {' '.join(substituted_cmd)}\n"
+                    f"[exit_code: {res.returncode}]\n"
+                    f"--- STDOUT ---\n{res.stdout}\n"
+                    f"--- STDERR ---\n{res.stderr}\n"
+                )
+                log_file.write_text(log_content, encoding="utf-8")
+                res_returncode = res.returncode
+                stdout_text = res.stdout
+                stderr_text = res.stderr
+
+            if check_status != "FAIL":
+                if "contract" in cap_name:
+                    if res_returncode == 0:
+                        check_status = "PASS"
+                    elif res_returncode == 2:
+                        check_status = "BLOCKED"
+                        summary = f"Capability '{cap_name}' blocked: {stderr_text.strip() or stdout_text.strip()}"
+                    else:
+                        check_status = "FAIL"
+                        summary = f"Capability '{cap_name}' failed: {stderr_text.strip() or stdout_text.strip()}"
+                else:
+                    if res_returncode != 0:
+                        check_status = "FAIL"
+                        summary = f"Capability '{cap_name}' failed with exit code {res_returncode}: {stderr_text.strip() or stdout_text.strip()}"
+                    elif (
+                        cap_name == "ui_review"
+                        and "UI Review: NOT_APPLICABLE" in stdout_text
+                    ):
+                        check_status = "NOT_APPLICABLE"
+                        summary = stdout_text.strip()
 
         except (FileNotFoundError, PermissionError) as e:
             check_duration = round(time.time() - check_start, 3)

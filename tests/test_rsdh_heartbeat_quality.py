@@ -757,3 +757,248 @@ class Test_Polyglot_Integration:
                 if proc.poll() is None:
                     proc.kill()
                     proc.wait(timeout=5)
+
+
+def test_round1_terminate_pg_kills_sigterm_ignoring_grandchild_after_leader_exit(
+    tmp_path: Path,
+) -> None:
+    """_terminate_process_group escalates to SIGKILL on surviving PG members even after leader exits."""
+    vpr = _load_verify_module()
+    gc_pid_file = tmp_path / "grandchild.pid"
+    gc_script = tmp_path / "gc.py"
+    gc_script.write_text(
+        "import os, pathlib, signal, sys, time\n"
+        "signal.signal(signal.SIGTERM, signal.SIG_IGN)\n"
+        "pathlib.Path(sys.argv[1]).write_text(str(os.getpid()), encoding='utf-8')\n"
+        "time.sleep(30)\n",
+        encoding="utf-8",
+    )
+    leader_script = tmp_path / "leader.py"
+    leader_script.write_text(
+        "import signal, subprocess, sys, time\n"
+        "gc = subprocess.Popen([sys.executable, sys.argv[1], sys.argv[2]])\n"
+        "signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))\n"
+        "time.sleep(30)\n",
+        encoding="utf-8",
+    )
+    proc = subprocess.Popen(
+        [sys.executable, str(leader_script), str(gc_script), str(gc_pid_file)],
+        cwd=str(tmp_path),
+        start_new_session=True,
+    )
+    gc_pid = 0
+    try:
+        assert _wait_for_path(gc_pid_file, timeout=5.0)
+        gc_pid = int(gc_pid_file.read_text(encoding="utf-8").strip())
+        assert _pid_alive(gc_pid)
+        vpr._terminate_process_group(proc, grace_sec=0.2)
+        assert _wait_for_condition(lambda: not _pid_alive(gc_pid), timeout=3.0)
+    finally:
+        if gc_pid and _pid_alive(gc_pid):
+            os.kill(gc_pid, signal.SIGKILL)
+        if proc.poll() is None:
+            proc.kill()
+            proc.wait(timeout=2)
+
+
+def test_round1_execute_provider_signal_unwind_still_reaps_active_child(
+    tmp_path: Path,
+) -> None:
+    """Direct execute_provider() signal abort keeps proc registered until abort_and_reap_children runs."""
+    vpr = _load_verify_module()
+    pid_file = tmp_path / "direct_child.pid"
+    cap_script = f"""import os, pathlib, signal, sys, time
+signal.signal(signal.SIGTERM, signal.SIG_IGN)
+pathlib.Path({json.dumps(str(pid_file))}).write_text(str(os.getpid()), encoding='utf-8')
+time.sleep(30)
+"""
+    repo, _ = _init_git_quality_repo(tmp_path / "repo", cap_script, cap_name="sig_cap")
+    sha = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+    provider_item = {
+        "id": "demo-python",
+        "skill": "d3nexus:python-quality-check",
+        "required": True,
+        "profiles": ["pr"],
+    }
+
+    import threading
+
+    def _trigger_sigterm() -> None:
+        if _wait_for_path(pid_file, timeout=6.0):
+            time.sleep(0.15)
+            os.kill(os.getpid(), signal.SIGTERM)
+
+    killer = threading.Thread(target=_trigger_sigterm, daemon=True)
+    killer.start()
+    orig_term = vpr._terminate_process_group
+    term_calls: list[int] = []
+
+    def _spy_term(p: subprocess.Popen[Any], grace_sec: float = 1.0) -> None:
+        term_calls.append(p.pid)
+        orig_term(p, grace_sec=0.15)
+
+    vpr._terminate_process_group = _spy_term
+    try:
+        try:
+            vpr.execute_provider(
+                provider_item=provider_item,
+                profile="pr",
+                sha=sha,
+                repo_root=repo,
+                heartbeat_interval=0.2,
+                run_id="direct-sig-run",
+            )
+            raise AssertionError("Expected _SignalAbort from SIGTERM")
+        except vpr._SignalAbort:
+            pass
+        assert len(term_calls) >= 1
+        child_pid = int(pid_file.read_text(encoding="utf-8").strip())
+        assert _wait_for_condition(lambda: not _pid_alive(child_pid), timeout=3.0)
+    finally:
+        vpr._terminate_process_group = orig_term
+        killer.join(timeout=2.0)
+
+
+def test_round1_web_provider_uses_isolated_logs_and_signal_cleanup(
+    tmp_path: Path,
+) -> None:
+    """Concurrent web provider runs isolate evidence locations per run_id and reap children on SIGTERM."""
+    vpr = _load_verify_module()
+    repo = tmp_path / "web_repo"
+    repo.mkdir(parents=True, exist_ok=True)
+    subprocess.run(["git", "init", "-q", "-b", "main"], cwd=repo, check=True)
+    subprocess.run(
+        ["git", "config", "user.email", "rsdh@example.com"], cwd=repo, check=True
+    )
+    subprocess.run(["git", "config", "user.name", "RSDH Test"], cwd=repo, check=True)
+
+    run_check = repo / "web_cap.py"
+    run_check.write_text(
+        """import pathlib, sys, time
+marker = sys.argv[1]
+if marker == "sleep":
+    pathlib.Path("web_started.pid").write_text(str(__import__("os").getpid()), encoding="utf-8")
+    time.sleep(30)
+print(f"WEB_OK_{marker}")
+""",
+        encoding="utf-8",
+    )
+    agents = repo / ".agents" / "quality"
+    agents.mkdir(parents=True, exist_ok=True)
+    (agents / "web-quality.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "capabilities": {
+                    "type_check": [sys.executable, str(run_check), "fast"],
+                    "lint": [sys.executable, str(run_check), "fast"],
+                    "test_unit": [sys.executable, str(run_check), "fast"],
+                },
+                "profiles": {"pr": ["type_check", "lint", "test_unit"]},
+            }
+        ),
+        encoding="utf-8",
+    )
+    (agents / "check_quality.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "providers": [
+                    {
+                        "id": "app-web",
+                        "skill": "d3nexus:web-quality-check",
+                        "required": True,
+                        "profiles": ["pr"],
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    subprocess.run(["git", "add", "."], cwd=repo, check=True)
+    subprocess.run(
+        ["git", "commit", "-q", "-m", "Initial web repo"], cwd=repo, check=True
+    )
+    sha = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+    provider_item = {
+        "id": "app-web",
+        "skill": "d3nexus:web-quality-check",
+        "required": True,
+        "profiles": ["pr"],
+    }
+
+    res_a = vpr.execute_provider(
+        provider_item=provider_item,
+        profile="pr",
+        sha=sha,
+        repo_root=repo,
+        run_id="web-run-a",
+    )
+    res_b = vpr.execute_provider(
+        provider_item=provider_item,
+        profile="pr",
+        sha=sha,
+        repo_root=repo,
+        run_id="web-run-b",
+    )
+    assert res_a["status"] == "PASS" and res_b["status"] == "PASS"
+    locs_a = {ev["location"] for ev in res_a["evidence"]}
+    locs_b = {ev["location"] for ev in res_b["evidence"]}
+    assert any("runs/web-run-a/" in loc for loc in locs_a)
+    assert any("runs/web-run-b/" in loc for loc in locs_b)
+    assert locs_a.isdisjoint(locs_b)
+
+    # Verify SIGTERM aborts active web capability subprocess cleanly instead of hanging 30s
+    (agents / "web-quality.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "capabilities": {
+                    "type_check": [sys.executable, str(run_check), "sleep"],
+                    "lint": [sys.executable, str(run_check), "fast"],
+                    "test_unit": [sys.executable, str(run_check), "fast"],
+                },
+                "profiles": {"pr": ["type_check", "lint", "test_unit"]},
+            }
+        ),
+        encoding="utf-8",
+    )
+    import threading
+
+    def _sigterm_web() -> None:
+        if _wait_for_path(repo / "web_started.pid", timeout=5.0):
+            time.sleep(0.15)
+            os.kill(os.getpid(), signal.SIGTERM)
+
+    t = threading.Thread(target=_sigterm_web, daemon=True)
+    t.start()
+    try:
+        t0 = time.monotonic()
+        try:
+            vpr.execute_provider(
+                provider_item=provider_item,
+                profile="pr",
+                sha=sha,
+                repo_root=repo,
+                run_id="web-run-sig",
+            )
+            raise AssertionError("Expected _SignalAbort on web provider SIGTERM")
+        except vpr._SignalAbort:
+            elapsed = time.monotonic() - t0
+            assert elapsed < 5.0
+        web_pid = int((repo / "web_started.pid").read_text(encoding="utf-8").strip())
+        assert _wait_for_condition(lambda: not _pid_alive(web_pid), timeout=3.0)
+    finally:
+        t.join(timeout=2.0)
