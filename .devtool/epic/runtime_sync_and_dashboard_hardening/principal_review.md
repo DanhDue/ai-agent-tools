@@ -39,3 +39,34 @@ Raw output:
 ```text
 Verdict: CHANGES REQUIRED
 ```
+
+## Round 2
+
+- **Date**: 2026-11-13T02:59:26Z
+- **SHA**: c27f06abe41b15a5ccafcf0a23b5e1fa76e02997
+- **Base**: d4b7e06
+- **CLI**: codex
+- **Model**: gpt-6.1-sol
+- **Thinking**: high
+- **Status**: completed
+- **Verdict**: CHANGES REQUIRED
+- **Kind**: principal
+- **Raw log**: `build/reviews/runtime_sync_and_dashboard_hardening_principal_round2_c27f06a.raw.log`
+
+| # | Severity | Location | Problem | Decision |
+|---|----------|----------|---------|----------|
+| 1 | Important | .devtool/epic/runtime_sync_and_dashboard_hardening/runtime_sync_and_dashboard_hardening.en.md:80, “Runtime State Envelope and Two-Tier Memory Synchronization” | Locking only individual writes leaves read-modify-write updates and dual-root replication unordered. In-memory interleaving probes demonstrated lost slot updates and divergent mirrors. Proposed: specify a canonical-root transaction lock covering read/merge/publication, version mirrored snapshots, and strengthen RSDH-AR-01 to assert retained updates and matching generations. | fixed in f82d0d7 |
+| 2 | Important | .devtool/epic/runtime_sync_and_dashboard_hardening/runtime_sync_and_dashboard_hardening.en.md:176, “Module Contracts and CLI Interfaces” | A singleton pending_decision.json cannot retain concurrent epic decisions; unconditional clearing on task progress can erase another outstanding approval. Proposed: namespace decisions by epic and decision ID, require matching ownership when clearing, and test overlapping pauses plus unrelated task completion across Tasks 01/03/04. | fixed in f82d0d7 |
+| 3 | Important | .devtool/epic/runtime_sync_and_dashboard_hardening/runtime_sync_and_dashboard_hardening.en.md:159, “Module Contracts and CLI Interfaces” | quality_active.json has no epic ownership or concurrent-run isolation. Overlapping runs overwrite telemetry, while identical provider/capability log paths collide. Proposed: namespace telemetry and logs by epic/run ID, guard finalization by run ownership, and specify how the harvester exposes concurrent runs. | fixed in f82d0d7 |
+| 4 | Important | .devtool/epic/runtime_sync_and_dashboard_hardening/task_02_hybrid_heartbeat_estimator_and_quality_progress.md:35, “Requirement Analysis” | try/finally cannot guarantee aborted-run finalization: the read-only SIGTERM probe exited without executing finally. No expiry contract prevents permanently running banners after process death. Proposed: define signal handling, subprocess termination/reaping, and consumer-side heartbeat expiry; add termination and stale-owner recovery scenarios. | fixed in f82d0d7 |
+| 5 | Important | .devtool/epic/runtime_sync_and_dashboard_hardening/task_03_wave_parallel_handoff_stage3_revise_and_pool_cleanup.md:30, “Requirement Analysis” | Stage 3 detection includes in-progress tasks, but the exemption rejects their legitimately created “(new)” files. Thus revision remains blocked during active implementation. Proposed: define an ownership-aware post-design rule accepting files created by authorized execution while retaining collision checks for newly introduced tasks; align Spec/HLD and test an in-progress revision. | fixed in f82d0d7 |
+| 6 | Important | .devtool/epic/runtime_sync_and_dashboard_hardening/task_03_wave_parallel_handoff_stage3_revise_and_pool_cleanup.md:34, “Requirement Analysis” | Forced cleanup, also mandated on abort by Spec §4.4, has no dirty-worktree or unmerged-commit preservation condition. It can destroy recoverable worker work. Proposed: automatically delete only clean, integrated slots; preserve and report unmerged/dirty resources, including missing-worktree branches, unless explicitly discarded. Add preservation tests. | fixed in f82d0d7 |
+| 7 | Important | .devtool/epic/runtime_sync_and_dashboard_hardening/task_03_wave_parallel_handoff_stage3_revise_and_pool_cleanup.md:33, “Requirement Analysis” | Pool integration specifies removing heartbeat slots but assigns no producer for live slot transitions or active_wave changes promised by Spec §4.1. Proposed: assign wave start/end and every pool-state mutation to envelope updates, with tests observing populated working slots before cleanup. | fixed in f82d0d7 |
+| 8 | Important | .devtool/epic/runtime_sync_and_dashboard_hardening/task_05_tasks_dashboard_96pct_tier2_live_and_roadmap_stability.md:30, “Requirement Analysis” | Adding a slug tie-breaker leaves unequal mutable timestamps controlling row order, contrary to Spec §4.6. The ordering probe still reversed rows after an mtime bump. Proposed: explicitly replace sub-day mtime ordering with the approved stable creation/order keys and test PIC changes between distinct same-day timestamps. | fixed in f82d0d7 |
+| 9 | Important | .devtool/epic/runtime_sync_and_dashboard_hardening/runtime_sync_and_dashboard_hardening.en.md:232, “Verification Environment” | Node execution with DOM mocks cannot establish the promised rendered spacing, native select focus, and actual parent/iframe event behavior. Proposed: retain Node unit coverage, but add a provisioned browser integration harness for Tasks 05–07, including computed styles, polling during selection, and Escape/backdrop/reset behavior across the real iframe boundary. | fixed in f82d0d7 |
+
+Raw output:
+
+```text
+Verdict: CHANGES REQUIRED
+```
