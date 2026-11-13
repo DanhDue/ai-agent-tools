@@ -775,6 +775,94 @@ class DuplicateNewClaimHardeningCase(ContractCase):
         self.assertIn("duplicate (new) claim", out)
 
 
+class HistoricalPythonCapabilityCase(ContractCase):
+    """Regression coverage for Python capability prefix compatibility across done/revise tasks."""
+
+    def _expanded_manifest(self) -> None:
+        self.write("pkg/a.py", "x = 1\n")
+        self.write("tests/test_a.py", "def test_ok():\n    assert True\n")
+        self.write("scripts/b.py", "y = 2\n")
+        self.write("scripts/c.py", "z = 3\n")
+        manifest = json.dumps(
+            {
+                "schema_version": 1,
+                "capabilities": {
+                    "lint": ["ruff", "check", "pkg", "tests", "scripts/b.py"],
+                    "type_check": ["mypy", "pkg/a.py", "scripts/b.py", "scripts/c.py"],
+                },
+            }
+        )
+        self.write(".agents/quality/python-quality.json", manifest)
+        self.commit()
+
+    def test_done_task_historical_prefix_passes_when_manifest_grows_targets(self) -> None:
+        self._expanded_manifest()
+        rows = (
+            RED
+            + GREEN
+            + "| V3 | TIER-B | `ruff check pkg` | exit 0 | — |\n"
+            + "| V4 | TIER-B | `mypy pkg/a.py` | exit 0 | — |\n"
+            + TIER_C
+        )
+        t = self.task("1_done", status="done", allowed="- `tool.py`", rows=rows, dod="- done (V2, V3, V4, V5)\n")
+        code, out, _ = self.check(t, design=True)
+        self.assertEqual(code, 0, out)
+
+    def test_todo_task_still_rejected_when_omitting_newly_registered_targets(self) -> None:
+        self._expanded_manifest()
+        rows = (
+            RED
+            + GREEN
+            + "| V3 | TIER-B | `ruff check pkg` | exit 0 | — |\n"
+            + "| V4 | TIER-B | `mypy pkg/a.py` | exit 0 | — |\n"
+            + TIER_C
+        )
+        t = self.task("1_todo", status="todo", allowed="- `tool.py`", rows=rows, dod="- done (V2, V3, V4, V5)\n")
+        code, out, _ = self.check(t, design=True)
+        self.assertEqual(code, 1, out)
+        self.assertIn("missing registered", out)
+
+    def test_done_task_with_wrong_runner_still_rejected(self) -> None:
+        manifest = json.dumps(
+            {
+                "schema_version": 1,
+                "capabilities": {
+                    "lint": ["uv", "run", "ruff", "check", "."],
+                    "type_check": ["uv", "run", "mypy", "--strict", "src"],
+                },
+            }
+        )
+        self.write(".agents/quality/python-quality.json", manifest)
+        self.commit()
+        rows = (
+            RED
+            + GREEN
+            + "| V3 | TIER-B | `ruff check tool.py` | exit 0 | — |\n"
+            + "| V4 | TIER-B | `mypy --strict tool.py` | exit 0 | — |\n"
+            + TIER_C
+        )
+        t = self.task("1_runner", status="done", allowed="- `tool.py`", rows=rows, dod="- done (V2, V3, V4, V5)\n")
+        code, out, _ = self.check(t, design=True)
+        self.assertEqual(code, 1, out)
+        self.assertIn("missing registered", out)
+
+    def test_in_progress_task_passes_under_allow_existing_done_new(self) -> None:
+        self._expanded_manifest()
+        rows = (
+            RED
+            + GREEN
+            + "| V3 | TIER-B | `ruff check pkg` | exit 0 | — |\n"
+            + "| V4 | TIER-B | `mypy pkg/a.py` | exit 0 | — |\n"
+            + TIER_C
+        )
+        t = self.task("1_wip", status="in-progress", allowed="- `tool.py`", rows=rows, dod="- done (V2, V3, V4, V5)\n")
+        self.commit()
+        code, out, _ = self.run_cli(
+            "--design", "--allow-existing-done-new", "--hld", f"{EPIC}/demo.en.md", "--tasks", t
+        )
+        self.assertEqual(code, 0, out)
+
+
 if __name__ == "__main__":
     unittest.main()
 

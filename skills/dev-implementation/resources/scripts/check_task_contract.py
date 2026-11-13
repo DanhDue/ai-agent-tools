@@ -391,7 +391,34 @@ def is_python_task(text: str, rows: list[Any]) -> bool:
     return False
 
 
-def check_python_tier_b(check: Checker, stem: str, rows: list[Any]) -> None:
+_PY_TOOL_NAMES = frozenset({"ruff", "mypy", "pyright", "ty", "flake8", "pylint"})
+_PY_BOOL_FLAGS = frozenset(
+    {"--strict", "--check", "--frozen", "--quiet", "--verbose", "--show-error-codes"}
+)
+
+
+def _cap_tool_prefix(cap: list[str]) -> list[str]:
+    """Return the runner, tool, subcommand, and leading boolean flags before target paths."""
+    for idx, tok in enumerate(cap):
+        tool = Path(tok).name
+        if tool not in _PY_TOOL_NAMES:
+            continue
+        end = idx + 1
+        if tool == "ruff" and end < len(cap) and cap[end] in ("check", "format"):
+            end += 1
+        while end < len(cap) and cap[end] in _PY_BOOL_FLAGS:
+            end += 1
+        return list(cap[:end])
+    return list(cap[:-1]) if len(cap) > 1 else list(cap)
+
+
+def check_python_tier_b(
+    check: Checker,
+    stem: str,
+    rows: list[Any],
+    *,
+    allow_historical_prefix: bool = False,
+) -> None:
     tier_b_rows = [r for r in rows if r.phase == "TIER-B"]
     manifest_path = check.root / ".agents" / "quality" / "python-quality.json"
     if manifest_path.exists():
@@ -425,7 +452,13 @@ def check_python_tier_b(check: Checker, stem: str, rows: list[Any]) -> None:
                 return True
             if len(cap) > 1 and row_toks[:len(cap) - 1] == cap[:-1]:
                 return True
-            return bool(len(row_toks) >= len(cap) and row_toks[:len(cap)] == cap)
+            if len(row_toks) >= len(cap) and row_toks[:len(cap)] == cap:
+                return True
+            if allow_historical_prefix:
+                prefix = _cap_tool_prefix(cap)
+                if prefix and len(row_toks) > len(prefix) and row_toks[:len(prefix)] == prefix:
+                    return True
+            return False
 
         has_lint = any(matches_cap(lint_cmd, r.command) for r in tier_b_rows)
         has_type = any(matches_cap(type_check_cmd, r.command) for r in tier_b_rows)
@@ -679,7 +712,10 @@ def check_task(
     task_status = _task_status(text)
     if design or task_status != "done":
         if is_python_task(text, rows):
-            check_python_tier_b(check, stem, rows)
+            allow_hist = task_status == "done" or (
+                allow_existing_done_new and task_status in EXISTING_NEW_EXEMPT_STATUSES
+            )
+            check_python_tier_b(check, stem, rows, allow_historical_prefix=allow_hist)
         check_allowed(
             check,
             stem,
