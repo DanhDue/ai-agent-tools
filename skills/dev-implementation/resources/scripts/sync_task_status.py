@@ -26,8 +26,9 @@ compute_execution_order.py -- deliberately no PyYAML, so this stays stdlib-only.
 import re
 import subprocess
 import sys
-from datetime import datetime, timezone
 from collections.abc import Callable, Sequence
+from datetime import datetime, timezone
+from typing import Any
 
 try:
     from datetime import UTC
@@ -42,7 +43,14 @@ if str(_SCRIPTS_DIR) not in sys.path:
 if str(_KIT_SCRIPTS_DIR) not in sys.path:
     sys.path.append(str(_KIT_SCRIPTS_DIR))
 
-import _state_envelope
+_state_envelope: Any
+try:
+    import _state_envelope as _imported_state_envelope  # type: ignore[import-not-found]
+except ImportError:
+    _state_envelope = None
+else:
+    _state_envelope = _imported_state_envelope
+
 from check_bdd_traceability import (
     COVERS_LINE,
     FENCE,
@@ -51,7 +59,15 @@ from check_bdd_traceability import (
     LEADING_TAG,
     SCENARIO_LINE,
 )
-import resume_context
+
+_resume_context: Any
+try:
+    import resume_context as _imported_resume_context  # type: ignore[import-not-found]
+except ImportError:
+    _resume_context = None
+else:
+    _resume_context = _imported_resume_context
+
 from slug_utils import parse_frontmatter, sanitize_slug
 import task_contract as tc
 
@@ -370,7 +386,7 @@ def _sync_runtime_envelope_and_memory(
     clear_decision: bool,
 ) -> None:
     """Atomically refresh heartbeat JSON, clear owned decision, and sync Two-Tier Memory."""
-    if not active_roots or not epic_slug:
+    if not active_roots or not epic_slug or _state_envelope is None:
         return
     anchor = active_roots[0]
     safe_slug = _state_envelope._sanitize_epic_slug(epic_slug)
@@ -435,16 +451,17 @@ def _sync_runtime_envelope_and_memory(
     if not decisions_text:
         decisions_text = f"- {last_event}"
 
-    resume_context.write_epic_state(
-        target_devtool_dirs[0].parent,
-        epic_slug,
-        decisions=decisions_text,
-        status=status_line,
-        next_step=next_step,
-        refresh_heartbeat=False,
-        sync_title=False,
-        mirror_roots=[d.parent for d in target_devtool_dirs],
-    )
+    if _resume_context is not None:
+        _resume_context.write_epic_state(
+            target_devtool_dirs[0].parent,
+            epic_slug,
+            decisions=decisions_text,
+            status=status_line,
+            next_step=next_step,
+            refresh_heartbeat=False,
+            sync_title=False,
+            mirror_roots=[d.parent for d in target_devtool_dirs],
+        )
 
 
 def sync_task(
