@@ -494,6 +494,12 @@ class Test_Polyglot_Integration:
         )
         try:
             assert _wait_for_path(barrier_dir / "wt1_started", timeout=8.0)
+            baseline_runs = _read_quality_active(primary_repo).get("runs", {})
+            baseline_elapsed = (
+                float(next(iter(baseline_runs.values())).get("elapsed_sec", 0.0))
+                if baseline_runs
+                else 0.0
+            )
 
             def _mirrored_running() -> bool:
                 p_qa = _read_quality_active(primary_repo)
@@ -502,8 +508,12 @@ class Test_Polyglot_Integration:
                 if not runs:
                     return False
                 first_run = next(iter(runs.values()))
+                elapsed = float(first_run.get("elapsed_sec", 0.0))
+                # Require elapsed_sec to advance past the post-start baseline so
+                # at least one emit_heartbeat() stderr write has completed under load.
                 return (
-                    float(first_run.get("elapsed_sec", 0.0)) >= 0.08
+                    elapsed > baseline_elapsed
+                    and elapsed >= 0.08
                     and p_qa.get("generation") == w_qa.get("generation")
                     and p_qa.get("runs") == w_qa.get("runs")
                 )
