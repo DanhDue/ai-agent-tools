@@ -317,6 +317,63 @@ class TestCheckTasksHarvester_Integration(unittest.TestCase):
         active = resolve_active_epic(repo_path)
         self.assertNotEqual(active, "my_done_epic")
 
+    def test_extract_epic_hld_status_legacy_and_multiformat_variants(self) -> None:
+        """Verify extract_epic_hld_status parses legacy markdown variants without false-done matches."""
+        from check_tasks import extract_epic_hld_status
+
+        cases = [
+            ("colon_inside_bold", "- **Status:** Done\n", "done"),
+            (
+                "blockquote_done",
+                "> **Status:** Done (All 43 Tasks Completed)\n",
+                "done",
+            ),
+            ("bold_value_done", "- **Status**: **Done** (2026-09-04)\n", "done"),
+            ("unbulleted_bold_vi", "**Trạng thái**: Hoàn tất — đã merge\n", "done"),
+            (
+                "table_complete",
+                "| **Status** | Complete — all 15 tasks verified |\n",
+                "done",
+            ),
+            (
+                "table_completed_vi",
+                "| Trạng thái | Đã hoàn thành (Completed) |\n",
+                "done",
+            ),
+            ("yaml_done", "```yaml\nKind: document\nStatus: Done\n```\n", "done"),
+            (
+                "heading_done",
+                "```yaml\nKind: document\n```\n\n## Status\n\nDone\n",
+                "done",
+            ),
+            ("capitalized_vi_todo", "- **Trạng Thái**: `todo`\n", "unstarted"),
+            (
+                "table_ready",
+                "| Status | Ready for implementation — Gate 2 confirmed |\n",
+                "unstarted",
+            ),
+            (
+                "yaml_queued",
+                "```yaml\nKind: document\nStatus: Queued (backlog)\n```\n",
+                "unstarted",
+            ),
+            ("blockquote_in_progress", "> **Status:** In Progress\n", "in_progress"),
+            (
+                "supersedes_other_not_abandon",
+                "## Status\nApproved — ready for writing-plans / supersedes the current scope.\n",
+                "unstarted",
+            ),
+            ("negated_incomplete", "- **Status**: Incomplete — not done yet\n", None),
+        ]
+        for slug, body, expected in cases:
+            with self.subTest(slug=slug):
+                epic_dir = self.workspace_root / "variants" / ".devtool" / "epic" / slug
+                epic_dir.mkdir(parents=True, exist_ok=True)
+                (epic_dir / f"{slug}.en.md").write_text(
+                    f"# {slug}\n\n{body}", encoding="utf-8"
+                )
+                self.assertEqual(extract_epic_hld_status(epic_dir, slug), expected)
+
 
 if __name__ == "__main__":
     unittest.main()

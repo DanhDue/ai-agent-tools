@@ -15,6 +15,7 @@ import argparse
 import contextlib
 import dataclasses
 from datetime import datetime, timezone
+import hashlib
 import http.server
 import importlib
 import json
@@ -29,8 +30,10 @@ import subprocess
 import sys
 import tempfile
 import threading
+import time
 from typing import Any
 import urllib.parse
+import urllib.request
 
 # Ensure check_tasks is importable
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -110,6 +113,25 @@ def build_clean_host_env(base_env: dict[str, str] | None = None) -> dict[str, st
     return env
 
 
+def pid_meta_path(pid_file: Path = DEFAULT_PID_FILE) -> Path:
+    """Return the companion metadata file path used to track a daemon's code fingerprint."""
+    return pid_file.with_name(f"{pid_file.name}.meta.json")
+
+
+def compute_server_code_fingerprint() -> str:
+    """Compute a deterministic digest of the server and harvester Python sources on disk."""
+    hasher = hashlib.sha256()
+    for rel_name in ("tasks_server.py", "check_tasks.py"):
+        src = SCRIPT_DIR / rel_name
+        hasher.update(rel_name.encode("utf-8"))
+        hasher.update(b"\0")
+        if src.is_file():
+            with contextlib.suppress(OSError):
+                hasher.update(src.read_bytes())
+        hasher.update(b"\0")
+    return hasher.hexdigest()[:16]
+
+
 def get_running_pid(pid_file: Path = DEFAULT_PID_FILE) -> int | None:
     """Return the PID of the running server if alive; cleanup stale file if dead."""
     if not pid_file.is_file():
@@ -122,7 +144,59 @@ def get_running_pid(pid_file: Path = DEFAULT_PID_FILE) -> int | None:
     except (ValueError, OSError):
         with contextlib.suppress(OSError):
             pid_file.unlink(missing_ok=True)
+            pid_meta_path(pid_file).unlink(missing_ok=True)
         return None
+
+
+def is_running_server_stale(
+    existing_pid: int,
+    pid_file: Path,
+    expected_workspace: Path,
+    port: int = DEFAULT_PORT,
+    expected_fingerprint: str | None = None,
+) -> bool:
+    """Return True if the running daemon came from older code or a different workspace."""
+    expected_fp = expected_fingerprint or compute_server_code_fingerprint()
+    expected_ws = str(expected_workspace.resolve())
+
+    meta_file = pid_meta_path(pid_file)
+    if meta_file.is_file():
+        with contextlib.suppress(OSError, ValueError, TypeError):
+            meta = json.loads(meta_file.read_text(encoding="utf-8"))
+            if isinstance(meta, dict) and meta.get("pid") == existing_pid:
+                meta_ws = str(meta.get("workspace_root") or "")
+                with contextlib.suppress(OSError):
+                    meta_ws = str(Path(meta_ws).resolve())
+                return (
+                    meta.get("code_fingerprint") != expected_fp
+                    or meta_ws != expected_ws
+                )
+
+    with contextlib.suppress(OSError, ValueError, TimeoutError):
+        req = urllib.request.Request(f"http://127.0.0.1:{port}/api/status")
+        with urllib.request.urlopen(req, timeout=0.8) as resp:
+            if resp.status == 200:
+                data = json.loads(resp.read().decode("utf-8"))
+                if isinstance(data, dict) and data.get("pid") == existing_pid:
+                    remote_fp = data.get("code_fingerprint")
+                    return not remote_fp or remote_fp != expected_fp
+
+    return True
+
+
+def _wait_for_daemon_ready(port: int, timeout: float = 2.0) -> bool:
+    """Poll /api/status briefly so the newly spawned daemon is accepting connections."""
+    deadline = time.monotonic() + timeout
+    url = f"http://127.0.0.1:{port}/api/status"
+    while time.monotonic() < deadline:
+        with (
+            contextlib.suppress(OSError, ValueError, TimeoutError),
+            urllib.request.urlopen(url, timeout=0.4) as resp,
+        ):
+            if resp.status == 200:
+                return True
+        time.sleep(0.05)
+    return False
 
 
 def find_available_port(start_port: int, max_attempts: int = 10) -> int:
@@ -223,9 +297,7 @@ def is_quota_server_alive(port: int = DEFAULT_QUOTA_PORT) -> bool:
     try:
         import urllib.request
 
-        req = urllib.request.urlopen(
-            f"http://127.0.0.1:{port}/api/status", timeout=1.0
-        )
+        req = urllib.request.urlopen(f"http://127.0.0.1:{port}/api/status", timeout=1.0)
         return req.status == 200
     except Exception:
         return False
@@ -292,11 +364,12 @@ def parse_review_results(
     if vscode_settings.is_file():
         try:
             settings_json = json.loads(vscode_settings.read_text(encoding="utf-8"))
-            color_customizations = settings_json.get("workbench.colorCustomizations", {})
-            result["theme_color"] = (
-                color_customizations.get("titleBar.activeBackground")
-                or color_customizations.get("statusBar.background")
+            color_customizations = settings_json.get(
+                "workbench.colorCustomizations", {}
             )
+            result["theme_color"] = color_customizations.get(
+                "titleBar.activeBackground"
+            ) or color_customizations.get("statusBar.background")
         except Exception:
             pass
 
@@ -409,7 +482,7 @@ def parse_review_results(
                 current_fence = ""
         elif fence_match:
             current_fence = fence_match.group(1)
-        elif (heading_match := re.fullmatch(r"##\s+Round\s+(\d+)", line.strip())):
+        elif heading_match := re.fullmatch(r"##\s+Round\s+(\d+)", line.strip()):
             parsed_rounds.append((int(heading_match.group(1)), []))
         elif parsed_rounds:
             parsed_rounds[-1][1].append(line)
@@ -486,8 +559,12 @@ def parse_review_results(
         result["kind"] = m_kind.group(1).strip()
 
     # Clean active round section to isolate only its immediate table before Raw Output or prompt logs
-    m_raw_split = re.search(r"(?m)^(?:Raw output:|### Earlier Rounds|```)", round_content)
-    table_section = round_content[:m_raw_split.start()] if m_raw_split else round_content
+    m_raw_split = re.search(
+        r"(?m)^(?:Raw output:|### Earlier Rounds|```)", round_content
+    )
+    table_section = (
+        round_content[: m_raw_split.start()] if m_raw_split else round_content
+    )
 
     # Parse 5-column triage table: | # | Severity | Location | Problem | Decision |
     lines = table_section.splitlines()
@@ -520,7 +597,7 @@ def parse_review_results(
                 )
                 if m_prop:
                     proposed_action = m_prop.group(1).strip()
-                    problem_text = problem_full[:m_prop.start()].strip()
+                    problem_text = problem_full[: m_prop.start()].strip()
 
                 findings.append(
                     {
@@ -614,7 +691,9 @@ def _discover_pic_worktrees(
     """Discover all matching git worktrees and `.worktrees/<slug>*` directories for epic_slug."""
     target_norm = _norm_epic_slug(epic_slug)
     repo_resolved = repo_dir.resolve()
-    ws_resolved = workspace_root.resolve() if workspace_root is not None else repo_resolved
+    ws_resolved = (
+        workspace_root.resolve() if workspace_root is not None else repo_resolved
+    )
     wt_root = repo_dir / ".worktrees"
     worktrees: list[Path] = []
     seen: set[Path] = set()
@@ -721,8 +800,12 @@ def _update_markdown_pic(content: str, new_pic: str, *, is_handoff: bool) -> str
     if is_handoff:
         anchor_patterns.extend(
             [
-                re.compile(r"^(-\s+\*\*Base branch\*\*:[^\n]+)$", re.MULTILINE | re.IGNORECASE),
-                re.compile(r"^(-\s+\*\*Packaged\*\*:[^\n]+)$", re.MULTILINE | re.IGNORECASE),
+                re.compile(
+                    r"^(-\s+\*\*Base branch\*\*:[^\n]+)$", re.MULTILINE | re.IGNORECASE
+                ),
+                re.compile(
+                    r"^(-\s+\*\*Packaged\*\*:[^\n]+)$", re.MULTILINE | re.IGNORECASE
+                ),
                 re.compile(r"^(##\s+Status\s*)$", re.MULTILINE | re.IGNORECASE),
             ]
         )
@@ -812,7 +895,9 @@ def assign_epic_pic(
     checkouts: list[Path] = [repo_dir, *matched_worktrees]
     wt_root_dir = repo_dir / ".worktrees"
     slug_variants = tuple(
-        dict.fromkeys((epic_slug, epic_slug.replace("_", "-"), epic_slug.replace("-", "_")))
+        dict.fromkeys(
+            (epic_slug, epic_slug.replace("_", "-"), epic_slug.replace("-", "_"))
+        )
     )
 
     # Pre-validate symlink containment across all checkouts before reading or mutating any file
@@ -904,7 +989,9 @@ def assign_epic_pic(
             ]
             with contextlib.suppress(OSError):
                 for doc in sorted(checkout_epic_dir.glob("*.md")):
-                    if doc not in hld_candidates and _is_pic_hld_or_spec(doc, epic_slug):
+                    if doc not in hld_candidates and _is_pic_hld_or_spec(
+                        doc, epic_slug
+                    ):
                         hld_candidates.append(doc)
 
             for hld in hld_candidates:
@@ -1017,7 +1104,9 @@ def assign_epic_pic(
                             r"\[@[a-zA-Z0-9_\-]+\]", f"[@{new_pic}]", s_content
                         )
                         if new_s_content != s_content:
-                            _record_write(vscode_settings, new_s_content, boundary=co_bound)
+                            _record_write(
+                                vscode_settings, new_s_content, boundary=co_bound
+                            )
 
     # Synchronize all existing heartbeat mirrors atomically under canonical state lock
     if hb_entries_by_slug:
@@ -1075,9 +1164,7 @@ def assign_epic_pic(
                 next_hb["updated_at"] = datetime.now(timezone.utc).isoformat(
                     timespec="seconds"
                 )
-                serialized_hb = (
-                    json.dumps(next_hb, indent=2, ensure_ascii=False) + "\n"
-                )
+                serialized_hb = json.dumps(next_hb, indent=2, ensure_ascii=False) + "\n"
                 for co_bound, hb_file in items:
                     if hb_file in bad_paths:
                         continue
@@ -1166,6 +1253,11 @@ class TasksHandler(http.server.BaseHTTPRequestHandler):
                     "port": self.server.server_port,
                     "workspace_root": sanitize_paths_to_tilde(
                         str(self.server.workspace_root)
+                    ),
+                    "code_fingerprint": getattr(
+                        self.server,
+                        "code_fingerprint",
+                        compute_server_code_fingerprint(),
                     ),
                 },
             )
@@ -1330,10 +1422,12 @@ class TasksServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
     ) -> None:
         self.workspace_root = workspace_root or Path(get_real_home()) / "AllProjects"
         self.pid_file = pid_file
+        self.code_fingerprint = compute_server_code_fingerprint()
         available_port = find_available_port(port)
         super().__init__((host, available_port), TasksHandler)
 
     def serve_forever(self, poll_interval: float = 0.5) -> None:
+        meta_file = pid_meta_path(self.pid_file)
         try:
             self.pid_file.parent.mkdir(parents=True, exist_ok=True)
             try:
@@ -1344,37 +1438,59 @@ class TasksServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
                     f.write(f"{os.getpid()}\n")
             except FileExistsError:
                 self.pid_file.write_text(f"{os.getpid()}\n", encoding="utf-8")
+            with contextlib.suppress(OSError):
+                meta_file.write_text(
+                    json.dumps(
+                        {
+                            "pid": os.getpid(),
+                            "port": self.server_port,
+                            "workspace_root": str(self.workspace_root.resolve()),
+                            "code_fingerprint": self.code_fingerprint,
+                        }
+                    ),
+                    encoding="utf-8",
+                )
             super().serve_forever(poll_interval)
         finally:
             with contextlib.suppress(OSError):
                 self.pid_file.unlink(missing_ok=True)
+                meta_file.unlink(missing_ok=True)
 
     def server_close(self) -> None:
         with contextlib.suppress(OSError):
             self.pid_file.unlink(missing_ok=True)
+            pid_meta_path(self.pid_file).unlink(missing_ok=True)
         super().server_close()
 
 
 def stop_server(pid_file: Path = DEFAULT_PID_FILE) -> bool:
-    """Stop the running background server by sending SIGTERM."""
+    """Stop the running background server by sending SIGTERM (with SIGKILL fallback)."""
     pid = get_running_pid(pid_file)
     if not pid:
         return False
+    meta_file = pid_meta_path(pid_file)
     try:
         os.kill(pid, signal.SIGTERM)
+        terminated = False
         for _ in range(20):
-            time_val = 0.1
-            threading.Event().wait(time_val)
+            threading.Event().wait(0.1)
             try:
                 os.kill(pid, 0)
             except OSError:
+                terminated = True
                 break
+        if not terminated:
+            with contextlib.suppress(OSError):
+                os.kill(pid, signal.SIGKILL)
+                threading.Event().wait(0.2)
         with contextlib.suppress(OSError):
             pid_file.unlink(missing_ok=True)
+            meta_file.unlink(missing_ok=True)
         return True
     except OSError:
         with contextlib.suppress(OSError):
             pid_file.unlink(missing_ok=True)
+            meta_file.unlink(missing_ok=True)
         return False
 
 
@@ -1388,6 +1504,9 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument(
         "--daemon", action="store_true", help="Run as background daemon"
+    )
+    parser.add_argument(
+        "--restart", action="store_true", help="Restart running server daemon"
     )
     parser.add_argument(
         "--stop", action="store_true", help="Stop running server daemon"
@@ -1423,8 +1542,14 @@ def main(argv: list[str] | None = None) -> int:
 
     existing_pid = get_running_pid(pid_file)
     if existing_pid:
-        print(f"Tasks server already running (PID {existing_pid}).")
-        return 0
+        if args.restart or is_running_server_stale(
+            existing_pid, pid_file, args.workspace_root, args.port
+        ):
+            print(f"Restarting stale tasks server (PID {existing_pid})...")
+            stop_server(pid_file)
+        else:
+            print(f"Tasks server already running (PID {existing_pid}).")
+            return 0
 
     if args.daemon:
         # Spawn child process in background
@@ -1445,6 +1570,7 @@ def main(argv: list[str] | None = None) -> int:
             start_new_session=True,
             close_fds=True,
         )
+        _wait_for_daemon_ready(args.port)
         print(f"Tasks server started in background (PID {proc.pid}, port {args.port}).")
         return 0
 

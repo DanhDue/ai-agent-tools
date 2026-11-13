@@ -58,10 +58,15 @@ def _load_state_envelope() -> Any | None:
                 return None
     return None
 
+
 def _real_home() -> Path:
     """Host user's real HOME, derived (never hard-coded); strips /antigravity_homes/<profile> when inside a profile."""
     home = str(Path.home())
-    return Path(home.split("/antigravity_homes")[0]) if "/antigravity_homes" in home else Path(home)
+    return (
+        Path(home.split("/antigravity_homes")[0])
+        if "/antigravity_homes" in home
+        else Path(home)
+    )
 
 
 get_real_home = _real_home
@@ -98,14 +103,36 @@ def discover_antigravity_profiles(real_home: str | Path | None = None) -> list[s
     homes_dir = r_home / "antigravity_homes"
     profiles: list[str] = []
     reserved_non_profiles = {
-        "Library", "System", "Shared", "AllProjects", "Projects", "fvm",
-        "claude", "codex", "kiro", "anthropic", "openai", ".gemini", ".antigravity",
-        ".antigravity-ide", "bin", "etc", "var", "tmp", "opt", ".Trash"
+        "Library",
+        "System",
+        "Shared",
+        "AllProjects",
+        "Projects",
+        "fvm",
+        "claude",
+        "codex",
+        "kiro",
+        "anthropic",
+        "openai",
+        ".gemini",
+        ".antigravity",
+        ".antigravity-ide",
+        "bin",
+        "etc",
+        "var",
+        "tmp",
+        "opt",
+        ".Trash",
     }
 
     if homes_dir.is_dir():
         for entry in sorted(homes_dir.iterdir()):
-            if entry.name.startswith(".") or entry.name.startswith("-") or entry.is_symlink() or not entry.is_dir():
+            if (
+                entry.name.startswith(".")
+                or entry.name.startswith("-")
+                or entry.is_symlink()
+                or not entry.is_dir()
+            ):
                 continue
             if entry.name in reserved_non_profiles:
                 continue
@@ -125,11 +152,23 @@ def discover_antigravity_profiles(real_home: str | Path | None = None) -> list[s
             content = zshrc_path.read_text(encoding="utf-8", errors="ignore")
             for m in re.finditer(r"antigravity_homes/([a-zA-Z0-9_\-]+)", content):
                 p = m.group(1)
-                if (homes_dir / p).is_dir() and p not in reserved_non_profiles and p not in profiles:
+                if (
+                    (homes_dir / p).is_dir()
+                    and p not in reserved_non_profiles
+                    and p not in profiles
+                ):
                     profiles.append(p)
-            for m2 in re.finditer(r"^alias\s+([a-zA-Z0-9_\-]+)='ag_run\s+([a-zA-Z0-9_\-]+)'", content, re.MULTILINE):
+            for m2 in re.finditer(
+                r"^alias\s+([a-zA-Z0-9_\-]+)='ag_run\s+([a-zA-Z0-9_\-]+)'",
+                content,
+                re.MULTILINE,
+            ):
                 p2 = m2.group(2)
-                if (homes_dir / p2).is_dir() and p2 not in reserved_non_profiles and p2 not in profiles:
+                if (
+                    (homes_dir / p2).is_dir()
+                    and p2 not in reserved_non_profiles
+                    and p2 not in profiles
+                ):
                     profiles.append(p2)
         except Exception:
             pass
@@ -145,8 +184,16 @@ def _build_clean_host_env() -> dict[str, str]:
     """
     env = dict(os.environ)
     env["HOME"] = str(_real_home())
-    for key in ("AGY_PROFILE", "AGY_CLI_MODE", "AGY_ENABLE_HUB", "TERM_PROGRAM",
-                "TERM_PROGRAM_VERSION", "TERM_SESSION_ID", "TMPDIR", "ZDOTDIR"):
+    for key in (
+        "AGY_PROFILE",
+        "AGY_CLI_MODE",
+        "AGY_ENABLE_HUB",
+        "TERM_PROGRAM",
+        "TERM_PROGRAM_VERSION",
+        "TERM_SESSION_ID",
+        "TMPDIR",
+        "ZDOTDIR",
+    ):
         env.pop(key, None)
     for key in list(env):
         if key.startswith(("VSCODE_", "ANTIGRAVITY_", "ELECTRON_", "CHROME_")):
@@ -400,12 +447,84 @@ def scan_worktrees(repo_path: Path) -> list[WorktreeMetadata]:
     return worktrees
 
 
+_HLD_STATUS_PATTERNS = (
+    re.compile(
+        r"^(?:>\s*)?(?:-\s*)?\*\*(?:Status|Trạng\s*thái)(?:\*\*\s*:|\s*:\*\*)\s*([^\n\r]+)$",
+        re.MULTILINE | re.IGNORECASE,
+    ),
+    re.compile(
+        r"^\|\s*\*{0,2}(?:Status|Trạng\s*thái)\*{0,2}\s*\|\s*([^|\n\r]+?)\s*\|",
+        re.MULTILINE | re.IGNORECASE,
+    ),
+    re.compile(
+        r"^(?:Status|Trạng\s*thái)\s*:\s*([^\n\r]+)$",
+        re.MULTILINE | re.IGNORECASE,
+    ),
+    re.compile(
+        r"^#{2,3}\s+(?:Status|Trạng\s*thái)\s*\n+\s*([^\n\r#|]+)$",
+        re.MULTILINE | re.IGNORECASE,
+    ),
+)
+
+
+def _classify_hld_status_value(raw: str) -> str | None:
+    """Normalize a raw HLD Status value string into a canonical lifecycle state."""
+    val = re.sub(r"[*_`]+", "", raw).strip().lower()
+    if not val:
+        return None
+    if any(
+        neg in val
+        for neg in ("not done", "incomplete", "chưa hoàn thành", "chưa hoàn tất")
+    ):
+        return None
+    if (
+        re.match(r"^(?:done|completed?|finished)\b", val)
+        or "hoàn thành" in val
+        or "hoàn tất" in val
+    ):
+        return "done"
+    if any(k in val for k in ("discard", "abandon", "cancel", "superseded", "hủy")):
+        return "abandon"
+    if any(
+        k in val
+        for k in ("progress", "đang thực hiện", "đang triển khai", "đang thi công")
+    ):
+        return "in_progress"
+    if any(k in val for k in ("package", "đã đóng gói")):
+        return "packaged"
+    if any(
+        k in val
+        for k in (
+            "todo",
+            "backlog",
+            "planned",
+            "đã lên kế hoạch",
+            "design",
+            "thiết kế",
+            "draft",
+            "planning",
+            "queued",
+            "ready",
+            "sẵn sàng",
+            "inception",
+            "chờ",
+            "unstarted",
+        )
+    ):
+        return "unstarted"
+    return None
+
+
 def extract_epic_hld_status(epic_dir: Path, slug: str) -> str | None:
     """Extract epic lifecycle status from HLD design documents (.en.md, .vi.md, or *.md)."""
     candidates = [epic_dir / f"{slug}.en.md", epic_dir / f"{slug}.vi.md"]
     with contextlib.suppress(OSError):
-        for f in epic_dir.glob("*.md"):
-            if f not in candidates and not f.name.startswith("task_") and f.name != "handoff.md":
+        for f in sorted(epic_dir.glob("*.md")):
+            if (
+                f not in candidates
+                and not f.name.startswith("task_")
+                and f.name != "handoff.md"
+            ):
                 candidates.append(f)
 
     for hld in candidates:
@@ -413,23 +532,15 @@ def extract_epic_hld_status(epic_dir: Path, slug: str) -> str | None:
             continue
         with contextlib.suppress(OSError):
             text = hld.read_text(encoding="utf-8")
-            m = re.search(
-                r"-\s+\*\*(?:Status|Trạng thái)\*\*:\s*`?([^\n\r`]+)",
-                text,
-                re.IGNORECASE,
-            )
-            if m:
-                val = m.group(1).strip().lower()
-                if val.startswith("done") or val.startswith("completed") or "hoàn thành" in val:
-                    return "done"
-                if any(k in val for k in ("discard", "abandon", "cancel", "hủy")):
-                    return "abandon"
-                if "progress" in val:
-                    return "in_progress"
-                if "package" in val:
-                    return "packaged"
-                if any(k in val for k in ("todo", "backlog", "chờ", "unstarted")):
-                    return "unstarted"
+            matches: list[tuple[int, str]] = []
+            for pat in _HLD_STATUS_PATTERNS:
+                m = pat.search(text)
+                if m:
+                    matches.append((m.start(), m.group(1)))
+            for _, raw_val in sorted(matches, key=lambda item: item[0]):
+                classified = _classify_hld_status_value(raw_val)
+                if classified is not None:
+                    return classified
     return None
 
 
@@ -453,7 +564,9 @@ def get_completed_epic_slugs(repo_path: Path) -> set[str]:
     if archive_dir.is_dir():
         with contextlib.suppress(OSError):
             for f in archive_dir.iterdir():
-                m_arch = re.match(r"(?:state|activity)_([a-zA-Z0-9_\-]+)_\d{8}_\d{4}\.", f.name)
+                m_arch = re.match(
+                    r"(?:state|activity)_([a-zA-Z0-9_\-]+)_\d{8}_\d{4}\.", f.name
+                )
                 if m_arch:
                     completed.add(m_arch.group(1).strip())
 
@@ -485,7 +598,9 @@ def _is_completed_epic(slug: str, completed_slugs: set[str]) -> bool:
     if not slug:
         return False
     norm = _normalize_slug(slug)
-    return slug in completed_slugs or any(_normalize_slug(c) == norm for c in completed_slugs)
+    return slug in completed_slugs or any(
+        _normalize_slug(c) == norm for c in completed_slugs
+    )
 
 
 def _resolve_canonical_epic_slug(repo_path: Path, candidate: str) -> str:
@@ -601,7 +716,9 @@ def _read_state_snapshot(
                     collected_dirs.append(extra)
         if not collected_dirs:
             return dict(default)
-        snapshot, _ = state_env._read_highest_snapshot(collected_dirs, filename, default)
+        snapshot, _ = state_env._read_highest_snapshot(
+            collected_dirs, filename, default
+        )
         return dict(snapshot)
 
     best_snapshot: dict[str, Any] = {}
@@ -614,7 +731,9 @@ def _read_state_snapshot(
             parsed = json.loads(candidate_path.read_text(encoding="utf-8"))
             if isinstance(parsed, dict) and parsed:
                 gen = parsed.get("generation", 0)
-                gen_num = gen if isinstance(gen, int) and not isinstance(gen, bool) else 0
+                gen_num = (
+                    gen if isinstance(gen, int) and not isinstance(gen, bool) else 0
+                )
                 if gen_num > best_gen:
                     best_gen = gen_num
                     best_snapshot = parsed
@@ -635,7 +754,9 @@ def _match_pending_decision_for_epic(
     if isinstance(decisions, dict) and decisions:
         exact_match = decisions.get(epic_slug)
         if isinstance(exact_match, dict):
-            return dict(exact_match) if exact_match.get("active", True) is True else None
+            return (
+                dict(exact_match) if exact_match.get("active", True) is True else None
+            )
         for key, entry in decisions.items():
             if not isinstance(entry, dict):
                 continue
@@ -727,7 +848,11 @@ def resolve_active_epic(repo_path: Path) -> str | None:
                     with contextlib.suppress(OSError):
                         fm = parse_frontmatter(tf.read_text(encoding="utf-8"))
                         ep = fm.get("epic")
-                        if ep and ep != "general" and not _is_completed_epic(ep, completed_slugs):
+                        if (
+                            ep
+                            and ep != "general"
+                            and not _is_completed_epic(ep, completed_slugs)
+                        ):
                             return _resolve_canonical_epic_slug(repo_path, ep)
 
             # Check if directory name (stripped of slot suffix) matches an epic
@@ -744,14 +869,20 @@ def resolve_active_epic(repo_path: Path) -> str | None:
             content = state_file.read_text(encoding="utf-8")
             for m in re.finditer(r"#\s*Active Epic:\s*([a-zA-Z0-9_\-]+)", content):
                 slug = m.group(1).strip()
-                if slug and slug != "general" and not _is_completed_epic(slug, completed_slugs):
+                if (
+                    slug
+                    and slug != "general"
+                    and not _is_completed_epic(slug, completed_slugs)
+                ):
                     return _resolve_canonical_epic_slug(repo_path, slug)
 
     # 4. Check state folder for non-general state files in deterministic order
     state_dir = repo_path / ".devtool" / "state"
     if state_dir.is_dir():
         for sf in sorted(state_dir.glob("*.md")):
-            if sf.stem != "general" and not _is_completed_epic(sf.stem, completed_slugs):
+            if sf.stem != "general" and not _is_completed_epic(
+                sf.stem, completed_slugs
+            ):
                 return _resolve_canonical_epic_slug(repo_path, sf.stem)
 
     # 5. Check .worktrees directory in deterministic order (any worktree not completed)
@@ -763,7 +894,9 @@ def resolve_active_epic(repo_path: Path) -> str | None:
                     return _resolve_canonical_epic_slug(repo_path, base_name)
 
     # 5.5 Check explicit active pending_decision.json entries
-    pending_epic = _resolve_active_epic_from_pending_decision(repo_path, completed_slugs)
+    pending_epic = _resolve_active_epic_from_pending_decision(
+        repo_path, completed_slugs
+    )
     if pending_epic:
         return pending_epic
 
@@ -774,7 +907,11 @@ def resolve_active_epic(repo_path: Path) -> str | None:
             with contextlib.suppress(OSError):
                 fm = parse_frontmatter(tf.read_text(encoding="utf-8"))
                 ep = fm.get("epic")
-                if ep and ep != "general" and not _is_completed_epic(ep, completed_slugs):
+                if (
+                    ep
+                    and ep != "general"
+                    and not _is_completed_epic(ep, completed_slugs)
+                ):
                     return _resolve_canonical_epic_slug(repo_path, ep)
 
     return None
@@ -883,7 +1020,9 @@ def harvest_epics_overview(repo_path: Path) -> EpicsSummary:
                 if wt_candidate.is_dir():
                     features_dir = wt_candidate / ".devtool" / "features"
                     if features_dir.is_dir():
-                        wt_mtimes = [f.stat().st_mtime for f in features_dir.glob("task_*.md")]
+                        wt_mtimes = [
+                            f.stat().st_mtime for f in features_dir.glob("task_*.md")
+                        ]
                         if wt_mtimes:
                             max_mtime = max(max_mtime, max(wt_mtimes))
                     break
@@ -925,7 +1064,9 @@ def harvest_epics_overview(repo_path: Path) -> EpicsSummary:
     total = len(epics)
     completed = sum(1 for e in epics if e["status"] == "done")
     in_prog = sum(1 for e in epics if e["status"] == "in_progress")
-    abandoned = sum(1 for e in epics if e["status"] in ("abandon", "abandoned", "discarded"))
+    abandoned = sum(
+        1 for e in epics if e["status"] in ("abandon", "abandoned", "discarded")
+    )
     unstarted = total - completed - in_prog - abandoned
     return EpicsSummary(
         total=total,
@@ -935,6 +1076,7 @@ def harvest_epics_overview(repo_path: Path) -> EpicsSummary:
         abandoned=abandoned,
         epics=epics,
     )
+
 
 def format_relative_time(iso_str: str | None) -> str:
     """Format ISO timestamp to compact days and hours without ago (e.g. 1d3h, 5d, 12h, 45m)."""
@@ -1098,7 +1240,9 @@ def extract_task_progress(repo_path: Path, active_epic: str | None) -> TaskProgr
                                 labels = [labels]
 
                         time_val = format_relative_time(
-                            fm.get("completedAt") or fm.get("modified") or fm.get("created")
+                            fm.get("completedAt")
+                            or fm.get("modified")
+                            or fm.get("created")
                         )
 
                         all_tasks.append(
@@ -1466,10 +1610,14 @@ def parse_gate_ledger_entries(
     # Read JSONL sources first (preserving structured metadata), then Markdown tables (no short-circuit)
     for devtool_dir in devtool_dirs:
         _append_unique(
-            _read_jsonl_ledger_file(devtool_dir / "state" / "gate_ledger.jsonl", norm_active)
+            _read_jsonl_ledger_file(
+                devtool_dir / "state" / "gate_ledger.jsonl", norm_active
+            )
         )
     for devtool_dir in devtool_dirs:
-        _append_unique(_read_markdown_ledger_file(devtool_dir / "GATE_LEDGER.md", norm_active))
+        _append_unique(
+            _read_markdown_ledger_file(devtool_dir / "GATE_LEDGER.md", norm_active)
+        )
 
     merged.sort(key=lambda e: (str(e.get("timestamp", "")), int(e.get("gate", 0))))
     return merged
@@ -1566,7 +1714,9 @@ def _read_quality_state(
         key=lambda e: (str(e.get("updated_at", "")), str(e.get("run_id", ""))),
         reverse=True,
     )
-    quality_runs = [entry for entry in sorted_entries if entry.get("status") == "running"]
+    quality_runs = [
+        entry for entry in sorted_entries if entry.get("status") == "running"
+    ]
 
     quality_active: dict[str, Any] | None = None
     if active_epic:
@@ -1580,10 +1730,14 @@ def _read_quality_state(
             live_epic = [e for e in epic_matches if e.get("status") == "running"]
             quality_active = live_epic[0] if live_epic else epic_matches[0]
         else:
-            unscoped = [e for e in sorted_entries if not str(e.get("epic_slug", "")).strip()]
+            unscoped = [
+                e for e in sorted_entries if not str(e.get("epic_slug", "")).strip()
+            ]
             live_unscoped = [e for e in unscoped if e.get("status") == "running"]
             quality_active = (
-                live_unscoped[0] if live_unscoped else (unscoped[0] if unscoped else None)
+                live_unscoped[0]
+                if live_unscoped
+                else (unscoped[0] if unscoped else None)
             )
     else:
         quality_active = quality_runs[0] if quality_runs else sorted_entries[0]
@@ -1658,8 +1812,7 @@ def derive_lifecycle_state(
         pd_reason = str(matched_pd.get("reason") or "Approve Pending Decision")
         pd_kind = str(matched_pd.get("kind") or "Pending Decision")
         pd_blocked = bool(
-            matched_pd.get("blocked", False)
-            or "circuit_breaker" in pd_kind.lower()
+            matched_pd.get("blocked", False) or "circuit_breaker" in pd_kind.lower()
         )
         return LifecycleDecision(
             stage_name=pd_stage,
@@ -1864,7 +2017,9 @@ def extract_epic_pic(repo_path: Path, active_epic: str | None) -> str | None:
             _add_candidate(epic_dir / f"{active_epic}.vi.md")
             with contextlib.suppress(OSError):
                 for doc in sorted(epic_dir.glob("*.md")):
-                    if "design" in doc.name.lower() and not doc.name.startswith("task_"):
+                    if "design" in doc.name.lower() and not doc.name.startswith(
+                        "task_"
+                    ):
                         _add_candidate(doc)
 
     for candidate in candidates:
@@ -1925,7 +2080,8 @@ def scan_repo(repo_path: Path) -> RepoMetadata:
                     decision.prompt if decision.is_human_action_required else ""
                 )
                 ep["is_review_converged"] = (
-                    decision.stage_name == LifecycleStage.STAGE_3_PHASE_4_1_SIGNOFF.value
+                    decision.stage_name
+                    == LifecycleStage.STAGE_3_PHASE_4_1_SIGNOFF.value
                 )
             else:
                 ep_pd = _match_pending_decision_for_epic(pd_snapshot, slug)
@@ -1947,7 +2103,12 @@ def scan_repo(repo_path: Path) -> RepoMetadata:
                             ep_act = True
                         if any(
                             k in st_lower
-                            for k in ("review converged", "gate 5", "sign-off", "finish")
+                            for k in (
+                                "review converged",
+                                "gate 5",
+                                "sign-off",
+                                "finish",
+                            )
                         ):
                             ep_conv = True
                 ep["is_action_required"] = ep_act
@@ -2226,6 +2387,11 @@ def main(argv: list[str] | None = None) -> int:
         help="Run dashboard server in foreground mode",
     )
     parser.add_argument(
+        "--restart",
+        action="store_true",
+        help="Restart background HTTP dashboard server",
+    )
+    parser.add_argument(
         "--stop", action="store_true", help="Stop background HTTP dashboard server"
     )
     parser.add_argument(
@@ -2243,14 +2409,16 @@ def main(argv: list[str] | None = None) -> int:
 
     use_color = not args.no_color and sys.stdout.isatty()
 
-    if args.ui or args.stop or args.status:
+    if args.ui or args.stop or args.status or args.restart:
         server_script = Path(__file__).resolve().parent / "tasks_server.py"
         if not server_script.is_file():
             sys.stderr.write(f"Error: tasks_server.py not found at {server_script}\n")
             return 1
         cmd = [sys.executable, str(server_script)]
         cmd.extend(["--workspace-root", str(args.workspace_root)])
-        if args.ui:
+        if args.restart:
+            cmd.append("--restart")
+        if args.ui or args.restart:
             if not args.foreground:
                 cmd.append("--daemon")
         elif args.stop:

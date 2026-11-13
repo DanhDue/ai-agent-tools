@@ -446,6 +446,152 @@ class TestCheckTasksServer_Integration(unittest.TestCase):
         with patch("urllib.request.urlopen", side_effect=Exception("down")):
             self.assertFalse(is_quota_server_alive(8765))
 
+    def test_status_exposes_code_fingerprint_and_meta_sidecar(self) -> None:
+        """[CTD-FR-03] /api/status and meta sidecar expose code fingerprint for stale daemon detection."""
+        from tasks_server import compute_server_code_fingerprint, pid_meta_path
+
+        port = find_available_port(18790)
+        server = TasksServer(
+            host="127.0.0.1",
+            port=port,
+            workspace_root=self.workspace_root,
+            pid_file=self.pid_file,
+        )
+        meta_path = pid_meta_path(self.pid_file)
+        server_thread = threading.Thread(target=server.serve_forever, daemon=True)
+        server_thread.start()
+        time.sleep(0.1)
+
+        try:
+            url = f"http://127.0.0.1:{port}/api/status"
+            with urllib.request.urlopen(url, timeout=3) as resp:
+                self.assertEqual(resp.status, 200)
+                status_data = json.loads(resp.read().decode("utf-8"))
+
+            expected_fp = compute_server_code_fingerprint()
+            self.assertEqual(status_data.get("code_fingerprint"), expected_fp)
+            self.assertTrue(meta_path.is_file())
+            meta = json.loads(meta_path.read_text(encoding="utf-8"))
+            self.assertEqual(meta.get("code_fingerprint"), expected_fp)
+            self.assertEqual(meta.get("port"), server.server_port)
+            self.assertEqual(
+                meta.get("workspace_root"), str(self.workspace_root.resolve())
+            )
+        finally:
+            server.shutdown()
+            server.server_close()
+
+        server_thread.join(timeout=2.0)
+        self.assertFalse(meta_path.is_file())
+
+    def test_stale_daemon_restarts_automatically_on_launch(self) -> None:
+        """[CTD-FR-04] Launching daemon automatically restarts stale server when code/workspace changes."""
+        import tasks_server
+
+        meta_path = tasks_server.pid_meta_path(self.pid_file)
+        self.pid_file.write_text("424242\n", encoding="utf-8")
+
+        # 1. Missing meta sidecar & unreachable HTTP status -> legacy pre-fingerprint daemon is stale
+        self.assertTrue(
+            tasks_server.is_running_server_stale(
+                424242,
+                self.pid_file,
+                self.workspace_root,
+                port=18799,
+                expected_fingerprint="abc123",
+            )
+        )
+
+        # 2. Matching meta sidecar -> fresh (not stale)
+        meta_path.write_text(
+            json.dumps(
+                {
+                    "pid": 424242,
+                    "port": 18799,
+                    "workspace_root": str(self.workspace_root.resolve()),
+                    "code_fingerprint": "abc123",
+                }
+            ),
+            encoding="utf-8",
+        )
+        self.assertFalse(
+            tasks_server.is_running_server_stale(
+                424242,
+                self.pid_file,
+                self.workspace_root,
+                port=18799,
+                expected_fingerprint="abc123",
+            )
+        )
+
+        # 3. Mismatched fingerprint -> stale
+        self.assertTrue(
+            tasks_server.is_running_server_stale(
+                424242,
+                self.pid_file,
+                self.workspace_root,
+                port=18799,
+                expected_fingerprint="new999",
+            )
+        )
+
+        # 4. main --daemon restarts stale daemon but reuses fresh daemon unless --restart
+        with (
+            patch.object(tasks_server, "DEFAULT_PID_FILE", self.pid_file),
+            patch("tasks_server.get_running_pid", return_value=424242),
+            patch("tasks_server.stop_server", return_value=True) as mock_stop,
+            patch(
+                "tasks_server.compute_server_code_fingerprint", return_value="new999"
+            ),
+            patch("tasks_server._wait_for_daemon_ready", return_value=True),
+            patch("subprocess.Popen") as mock_popen,
+        ):
+            mock_popen.return_value.pid = 535353
+            rc = tasks_server.main(
+                [
+                    "--daemon",
+                    "--port",
+                    "18799",
+                    "--workspace-root",
+                    str(self.workspace_root),
+                ]
+            )
+            self.assertEqual(rc, 0)
+            mock_stop.assert_called_once_with(self.pid_file)
+            mock_popen.assert_called_once()
+
+            mock_stop.reset_mock()
+            mock_popen.reset_mock()
+            with patch(
+                "tasks_server.compute_server_code_fingerprint", return_value="abc123"
+            ):
+                rc_reuse = tasks_server.main(
+                    [
+                        "--daemon",
+                        "--port",
+                        "18799",
+                        "--workspace-root",
+                        str(self.workspace_root),
+                    ]
+                )
+                self.assertEqual(rc_reuse, 0)
+                mock_stop.assert_not_called()
+                mock_popen.assert_not_called()
+
+                rc_force = tasks_server.main(
+                    [
+                        "--daemon",
+                        "--restart",
+                        "--port",
+                        "18799",
+                        "--workspace-root",
+                        str(self.workspace_root),
+                    ]
+                )
+                self.assertEqual(rc_force, 0)
+                mock_stop.assert_called_once_with(self.pid_file)
+                mock_popen.assert_called_once()
+
 
 if __name__ == "__main__":
     unittest.main()

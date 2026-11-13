@@ -476,6 +476,61 @@ class SyncEpicTests(unittest.TestCase):
             self.assertEqual(matched, [])
             self.assertEqual(written, [])
 
+    def test_updates_table_blockquote_unbulleted_yaml_and_case_variants(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            cases = [
+                (
+                    "table_meta",
+                    "| Status | Ready for implementation |\n",
+                    "| Trạng thái | Sẵn sàng triển khai |\n",
+                    "| Status | Done |\n",
+                    "| Trạng thái | Done |\n",
+                ),
+                (
+                    "table_bold_meta",
+                    "| **Status** | Design |\n",
+                    "| **Trạng thái** | Thiết kế |\n",
+                    "| **Status** | Done |\n",
+                    "| **Trạng thái** | Done |\n",
+                ),
+                (
+                    "blockquote_meta",
+                    "> **Status:** In Progress  \n",
+                    "> **Trạng thái:** Đang triển khai  \n",
+                    "> **Status:** Done\n",
+                    "> **Trạng thái:** Done\n",
+                ),
+                (
+                    "unbulleted_bold_meta",
+                    "**Status**: In Progress\n",
+                    "**Trạng Thái**: `todo`\n",
+                    "**Status**: Done\n",
+                    "**Trạng Thái**: Done\n",
+                ),
+                (
+                    "yaml_meta",
+                    "```yaml\nKind: document\nStatus: Queued (backlog)\n```\n",
+                    "```yaml\nKind: document\nStatus: Queued (backlog)\n```\n",
+                    "```yaml\nKind: document\nStatus: Done\n```\n",
+                    "```yaml\nKind: document\nStatus: Done\n```\n",
+                ),
+            ]
+            for slug, en_in, vi_in, en_expected, vi_expected in cases:
+                with self.subTest(slug=slug):
+                    epic_dir = root / ".devtool" / "epic" / slug
+                    epic_dir.mkdir(parents=True, exist_ok=True)
+                    en_doc = epic_dir / f"{slug}.en.md"
+                    vi_doc = epic_dir / f"{slug}.vi.md"
+                    en_doc.write_text(f"# {slug}\n\n{en_in}", encoding="utf-8")
+                    vi_doc.write_text(f"# {slug}\n\n{vi_in}", encoding="utf-8")
+
+                    matched, written = sync_epic([root], slug, "Done")
+                    self.assertEqual(len(matched), 2)
+                    self.assertEqual(len(written), 2)
+                    self.assertIn(en_expected.strip(), en_doc.read_text(encoding="utf-8"))
+                    self.assertIn(vi_expected.strip(), vi_doc.read_text(encoding="utf-8"))
+
 
 class LinkFixTests(unittest.TestCase):
     def test_fix_task_markdown_links(self):

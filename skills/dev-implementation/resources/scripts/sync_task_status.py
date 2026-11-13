@@ -841,8 +841,28 @@ def sync_epic(
     matched: list[Path] = []
     written: list[Path] = []
     touched_roots: list[Path] = []
-    status_re = re.compile(
-        r"^(-\s*\*\*(?:Status|Trạng thái)(?:\*\*:\s*|:\*\*\s*)).*$", re.MULTILINE
+    status_patterns: tuple[tuple[re.Pattern[str], str], ...] = (
+        (
+            re.compile(
+                r"^((?:>\s*)?(?:-\s*)?\*\*(?:Status|Trạng\s*thái)(?:\*\*:\s*|:\*\*\s*)).*$",
+                re.MULTILINE | re.IGNORECASE,
+            ),
+            rf"\g<1>{new_status}",
+        ),
+        (
+            re.compile(
+                r"^(\|\s*\*{0,2}(?:Status|Trạng\s*thái)\*{0,2}\s*\|\s*)[^|\n\r]+?(\s*\|)\s*$",
+                re.MULTILINE | re.IGNORECASE,
+            ),
+            rf"\g<1>{new_status}\g<2>",
+        ),
+        (
+            re.compile(
+                r"^((?:Status|Trạng\s*thái):\s*)[^\n\r]+$",
+                re.MULTILINE | re.IGNORECASE,
+            ),
+            rf"\g<1>{new_status}",
+        ),
     )
     for root in roots:
         epic_path = root / ".devtool" / "epic" / epic_dir
@@ -855,12 +875,14 @@ def sync_epic(
                 continue
             matched.append(doc)
             root_matched = True
-            text = doc.read_text()
-            if status_re.search(text):
-                new_text = status_re.sub(rf"\g<1>{new_status}", text)
-                if new_text != text:
-                    doc.write_text(new_text)
-                written.append(doc)
+            text = doc.read_text(encoding="utf-8")
+            for status_re, repl in status_patterns:
+                if status_re.search(text):
+                    new_text = status_re.sub(repl, text, count=1)
+                    if new_text != text:
+                        doc.write_text(new_text, encoding="utf-8")
+                    written.append(doc)
+                    break
         if root_matched:
             touched_roots.append(root)
 
