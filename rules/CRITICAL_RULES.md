@@ -37,11 +37,11 @@ Never create loose native plans (`implementation_plan.md`, Composer/Cascade/Code
 
 ## 5. Automated Execution, Cross-Model Review & Stage 4 Finish Gate
 
-1. **Gate 2 Unified Confirmation**: After Gate 2 readiness checks pass, stop before `package_epic.py`, record Gate 2, read `.devtool/review_config.json`, and present Gate 2 Choices with priority (`Claude -> Codex -> Kiro -> Argon`):
-   - **Option 1 (Recommended) — `Triển khai (tự động)` (AUTO MODE)**: Runs `/principal-review` -> `package_epic.py` -> Gate 3 -> `dev-implementation` -> Gate 4 -> `/cross-model-review` with zero intermediate confirmation pauses (halting only on Circuit Breakers or Gate 5).
+1. **Gate 2 Unified Confirmation**: After Gate 2 readiness checks pass, stop before `package_epic.py`, record Gate 2, read `.devtool/review_config.json`, call `resume_context.py --pending-decision` for Choice A pause, and present Gate 2 Choices (`Claude -> Codex -> Kiro -> Argon`):
+   - **Option 1 (Recommended) — `Triển khai (tự động)` (AUTO MODE)**: Runs `/principal-review` -> `package_epic.py` -> Gate 3 -> `dev-implementation` (wave-parallel `--parallel`, `manage_worker_pool.py` + `cleanup`) -> Gate 4 -> `/cross-model-review` with zero intermediate confirmation pauses (halting only on Circuit Breakers or Gate 5).
    - **Option 2 — Handoff Mode**: Runs `/principal-review` -> `package_epic.py` -> prints `--emit-prompt implement` -> stops.
 2. **Automated Cross-Model Review**: When tasks finish (after Gate 4 passes, Cross-model review must return to a full Gate 4 run), immediately run `/cross-model-review` (`run_external_review.py run --epic-dir <epic_dir> --auto-quota`) with zero intermediate Review Choice prompt.
-3. **Stage 4 Finish & Gate 5 Sign-Off**: Stage 4 (`finishing-a-development-branch`) owns `Finish`. After cross-model convergence and Gate 4 PASS on the latest SHA, stop calling tools and ask the Human Architect for Gate 5 Finish/merge strategy (`Squash`, `--no-ff`, `Rebase`). Never auto-merge or auto-push.
+3. **Stage 4 Finish & Gate 5 Sign-Off**: Stage 4 (`finishing-a-development-branch`) owns `Finish`. After cross-model convergence and Gate 4 PASS on the latest SHA, record `resume_context.py --pending-decision`, stop calling tools, and ask the Human Architect for Gate 5 Finish/merge strategy (`Squash`, `--no-ff`, `Rebase`). Never auto-merge or auto-push.
 
 ## 6. Auto-Triage Gate, 3-Round Funnel & Remediation Protocol
 
@@ -50,9 +50,9 @@ External reviews (`/principal-review`, `/cross-model-review`) enforce `max_round
 - **`AUTO_PASS_CLEAN` / `AUTO_PASS_FINAL_MINOR_SWEEP` (`0 Critical`, `0 Important`)**: Verify against source + approved Spec/HLD, fix valid `Minor` items once, run local gate, and complete without another external round.
 - **`AUTO_FIX_ELIGIBLE` (Rounds 1–2)**:
   - **Stage 2 `/principal-review` (BOTH Interactive Mode and Autonomous `/dev-lifecycle` Mode)**: Run `run_external_review.py triage --kind principal --epic-dir <epic_dir>` and verify findings against source + Spec/HLD first. If all blockers verify `Valid` (or objective `False positive`) with zero halt triggers, apply Role 2.2 revisions, commit, run `check_epic_readiness.py <epic_dir>`, and run Round `N+1`. Halt on `CRITICAL_CONFLICT`, `Debatable`, `Not shown`, or Circuit Breakers.
-  - **Stage 3 `/cross-model-review` Autonomous Mode**: Unambiguous source-grounded code defects (real non-`.md`/non-`shared-contracts/` paths, zero escalation/debatable/trade-off triggers) fast-track via Role 2.3 (`_apply_code_fixes`), commits, **scoped tests only**, and Round `N+1`; any ambiguity or contract question routes through Role 2.2 `fix_plan_round<N>.md` evaluation (`APPROVED`/`ADJUSTED`/`CRITICAL_CONFLICT`). Interactive mode (or any `Debatable` / `False positive` / halt trigger) stops after triage for confirmation.
-- **Circuit Breakers (`CIRCUIT_BREAKER_HALT`)**: Halt immediately on `SHARED_CONTRACT_CONFLICT`, `FIX_LOOP`, or `MAX_ROUNDS_CRITICAL_REMAINING`. If Round 3 ends with `0 Critical`, apply `AUTO_PASS_FINAL_SWEEP` and pass Gate 4 in full.
-- **Remediation Hygiene**: Intermediate fix rounds run ONLY static checks + targeted pytest files (full Gate 4 / `tests/e2e/` at Final Convergence only). Never delete dependencies/reports instead of `uv lock`/regeneration, never fake test fixtures, and run `uv run playwright install chromium` after Playwright upgrades.
+  - **Stage 3 `/cross-model-review` Autonomous Mode**: Unambiguous source-grounded code defects (non-`.md`/non-`shared-contracts/`, zero escalation/trade-off triggers) fast-track via Role 2.3 (`_apply_code_fixes`), commits, **scoped tests only**, and Round `N+1`; ambiguities route through Role 2.2 `fix_plan_round<N>.md` (`APPROVED`/`ADJUSTED`/`CRITICAL_CONFLICT`). Interactive mode (or `Debatable`/`False positive`/halt) pauses after triage.
+- **Circuit Breakers (`CIRCUIT_BREAKER_HALT`)**: Halt via `--pending-decision` on `SHARED_CONTRACT_CONFLICT`, `FIX_LOOP`, or `MAX_ROUNDS_CRITICAL_REMAINING`. If Round 3 ends with `0 Critical`, apply `AUTO_PASS_FINAL_SWEEP` and pass Gate 4 in full.
+- **Remediation Hygiene**: Intermediate rounds run static checks + targeted pytest only (full Gate 4/`tests/e2e/` at Final Convergence). Never delete dependencies/reports instead of `uv lock`/regeneration or fake fixtures; run `uv run playwright install chromium` after Playwright upgrades.
 
 ## 7. Multi-Repo Boundaries, Symlink Isolation & Contract Governance
 
@@ -66,7 +66,7 @@ External reviews (`/principal-review`, `/cross-model-review`) enforce `max_round
    - **Role 2.1 Human Architect**: Owns Gates 1, 2, 5, escalations, and Stage 4 Finish.
    - **Role 2.2 AI Assistant**: Designs/reviews (`docs/`, `.devtool/`, `shared-contracts/` only); **STRICTLY PROHIBITED** from modifying production or test code.
    - **Role 2.3 AI Programmer**: Executes TDD tasks in worktrees; resolves model via `.devtool/review_config.json["providers"]["programmer"]` (default `gemini-4-hydrogen-xhigh`, `--effort xhigh --mode auto`), bounded strictly to Specs, `Decisions Already Made`, and `Allowed files`.
-3. **Checkpoints & Window Sync**: Checkpoint pauses (`resume_context.py --state --status "Waiting for <Action>"`) and autonomous phases (`--status "In progress: <Phase>"`); `--complete` at Stage 4; sync `.vscode/settings.json` `window.title` and bars per [governance-checklists.md](../skills/dev-lifecycle/references/governance-checklists.md).
+3. **Checkpoints, Choice A & English SSOT**: Record Choice A pauses (`--pending-decision`, cleared on `--gate`/non-paused `--state`/`--revise`), creator PIC (`--detect-profile`), and English-only internal docs/code/commits; `--complete` at Stage 4; sync `window.title` per [governance-checklists.md](../skills/dev-lifecycle/references/governance-checklists.md).
 
 ## 9. Shell Configuration (`.zshrc`) & Multi-Profile OS Boundary Safety
 

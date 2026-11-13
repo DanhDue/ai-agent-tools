@@ -1,13 +1,13 @@
 ---
 id: "task_03_wave_parallel_handoff_stage3_revise_and_pool_cleanup"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "runtime_sync_and_dashboard_hardening"
 dueDate: null
 created: "2026-11-13T09:18:00Z"
-modified: "2026-11-13T09:18:00Z"
-completedAt: null
+modified: "2026-11-13T04:18:36Z"
+completedAt: "2026-11-13T04:18:36Z"
 labels: ["architecture", "workflow", "worktree", "handoff"]
 order: "a3"
 review_tier: "full"
@@ -15,7 +15,7 @@ review_tier: "full"
 
 # Task 3: Wave Handoff, Stage 3 Revise Fix, Pool Cleanup, and Choice A CLI
 
-Epic: [runtime_sync_and_dashboard_hardening](../epic/runtime_sync_and_dashboard_hardening/runtime_sync_and_dashboard_hardening.en.md)
+Epic: [runtime_sync_and_dashboard_hardening](../../epic/runtime_sync_and_dashboard_hardening/runtime_sync_and_dashboard_hardening.en.md)
 
 ## Requirement Analysis
 
@@ -183,11 +183,11 @@ Then rules/CRITICAL_RULES.md remains strictly <= 8192 UTF-8 bytes and all static
 
 ## Dependencies & Blockers
 
-Blocked by [Task 1](../epic/runtime_sync_and_dashboard_hardening/task_01_runtime_state_envelope_and_two_tier_sync.md) and [Task 2](../epic/runtime_sync_and_dashboard_hardening/task_02_hybrid_heartbeat_estimator_and_quality_progress.md).
+Blocked by [Task 1](../../epic/runtime_sync_and_dashboard_hardening/task_01_runtime_state_envelope_and_two_tier_sync.md) and [Task 2](../../epic/runtime_sync_and_dashboard_hardening/task_02_hybrid_heartbeat_estimator_and_quality_progress.md).
 
 Downstream dependents (blocked by Task 3): `task_04`, `task_05`, `task_06`, `task_07`.
 
 ## References & Rollback
 
-- [Epic HLD](../epic/runtime_sync_and_dashboard_hardening/runtime_sync_and_dashboard_hardening.en.md), Module Contracts (§4.3–§4.5).
+- [Epic HLD](../../epic/runtime_sync_and_dashboard_hardening/runtime_sync_and_dashboard_hardening.en.md), Module Contracts (§4.3–§4.5).
 - **Rollback**: Revert task commit; restores prior handoff, readiness, pool, integrate, and rule files and removes `tests/test_rsdh_orchestration.py`.

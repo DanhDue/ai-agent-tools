@@ -426,6 +426,111 @@ def resolve_target_devtool_dir(root: Path, repo: str | None = None) -> Path:
     return root / ".devtool"
 
 
+def _profile_folder_from_path(path_value: str | Path) -> str:
+    parts = Path(path_value).expanduser().parts
+    for idx, part in enumerate(parts):
+        if part == "antigravity_homes" and idx + 1 < len(parts):
+            candidate = parts[idx + 1].strip().lstrip("@")
+            if candidate and candidate not in (".", ".."):
+                return candidate
+    return ""
+
+
+def detect_current_profile(
+    root: Path | None = None,
+    *,
+    real_home: str | Path | None = None,
+) -> str:
+    """Resolve active profile identifier prioritizing env and folder names before email or fallback."""
+    env_profile = (
+        os.environ.get("AGY_PROFILE", "")
+        or os.environ.get("ANTIGRAVITY_PROFILE", "")
+    ).strip().lstrip("@")
+    if env_profile:
+        return env_profile
+
+    home_str = os.environ.get("HOME", "")
+    folder_profile = _profile_folder_from_path(home_str) if home_str else ""
+    if folder_profile:
+        return folder_profile
+
+    target_root = root.resolve() if root is not None else None
+    if target_root is not None:
+        try:
+            ps_out = subprocess.check_output(["ps", "-eo", "command"], text=True)
+            for line in ps_out.splitlines():
+                if (
+                    ("agy" in line or "Antigravity IDE" in line)
+                    and "antigravity_homes" in line
+                    and (
+                        f"--add-dir={target_root}" in line
+                        or str(target_root) in line
+                    )
+                ):
+                    m = re.search(r"antigravity_homes/([^/\s]+)", line)
+                    if m:
+                        return m.group(1).strip().lstrip("@")
+        except Exception:  # noqa: S110
+            pass
+
+    base_home = Path(real_home).expanduser() if real_home else Path(os.path.expanduser("~"))
+    homes_dir = (
+        base_home
+        if base_home.parent.name == "antigravity_homes"
+        else base_home / "antigravity_homes"
+    )
+    if homes_dir.name == "antigravity_homes" and homes_dir.is_dir() and target_root is not None:
+        try:
+            target_uri = f"file://{target_root}"
+            matching: list[tuple[float, Path]] = []
+            for h in sorted(homes_dir.iterdir()):
+                if not h.is_dir():
+                    continue
+                ws_storage = h / "data" / "User" / "workspaceStorage"
+                if not ws_storage.is_dir():
+                    continue
+                entries = sorted(
+                    ws_storage.iterdir(),
+                    key=lambda x: x.stat().st_mtime,
+                    reverse=True,
+                )
+                for ws_entry in entries:
+                    ws_json = ws_entry / "workspace.json"
+                    if ws_json.is_file():
+                        try:
+                            ws_data = json.loads(ws_json.read_text(encoding="utf-8"))
+                            if ws_data.get("folder") == target_uri:
+                                matching.append((ws_entry.stat().st_mtime, h))
+                                break
+                        except Exception:  # noqa: S110
+                            pass
+            if matching:
+                matching.sort(key=lambda x: x[0], reverse=True)
+                return matching[0][1].name
+        except Exception:  # noqa: S110
+            pass
+
+    if target_root is not None:
+        settings_file = target_root / ".vscode" / "settings.json"
+        if settings_file.is_file():
+            try:
+                s_data = json.loads(settings_file.read_text(encoding="utf-8"))
+                title_val = s_data.get("window.title", "")
+                if isinstance(title_val, str):
+                    m_existing = re.search(r"\[@([a-zA-Z0-9_\-\.]+)\]", title_val)
+                    if m_existing:
+                        return m_existing.group(1)
+            except Exception:  # noqa: S110
+                pass
+
+    if home_str and (Path(home_str) / "data").is_dir():
+        email_id = extract_email_id_from_profile(Path(home_str))
+        if email_id:
+            return email_id
+
+    return os.environ.get("USER", "").strip()
+
+
 def extract_email_id_from_profile(profile_dir: Path) -> str | None:
     db_path = profile_dir / "data" / "User" / "globalStorage" / "state.vscdb"
     if not db_path.exists():
@@ -487,139 +592,46 @@ def sync_window_title(
         repo_name, ("📁", repo_name.upper(), None)
     )
 
-    account_id = profile_override or ""
-
-    homes_dir = _real_home() / "antigravity_homes"
-
-    existing_title = ""
-    try:
-        content = settings_file.read_text(encoding="utf-8")
-        settings_data = json.loads(content)
-        existing_title = settings_data.get("window.title", "")
-    except Exception:
-        settings_data = {}
+    account_id = (profile_override or "").strip().lstrip("@")
 
     epic_slug = epic_slug or resolve_current_epic_slug(root)
 
-    # 1. Active Epic PIC / Profile metadata is authoritative SSOT
+    # 1. Active Epic PIC / Profile metadata is authoritative SSOT (normalizing -/_)
     if not account_id and epic_slug and epic_slug != "general":
-        epic_candidates = [
-            root / ".devtool" / "epic" / epic_slug / "handoff.md",
-            root / ".devtool" / "epic" / epic_slug / f"{epic_slug}.en.md",
-            root / ".devtool" / "epic" / epic_slug / f"{epic_slug}.vi.md",
-            primary_for_root / ".devtool" / "epic" / epic_slug / "handoff.md",
-            primary_for_root / ".devtool" / "epic" / epic_slug / f"{epic_slug}.en.md",
-            primary_for_root / ".devtool" / "epic" / epic_slug / f"{epic_slug}.vi.md",
-        ]
+        slug_variants = list(
+            dict.fromkeys(
+                [epic_slug, epic_slug.replace("-", "_"), epic_slug.replace("_", "-")]
+            )
+        )
+        epic_candidates: list[Path] = []
+        for variant in slug_variants:
+            for base_r in (root, primary_for_root):
+                ep_dir = base_r / ".devtool" / "epic" / variant
+                epic_candidates.extend(
+                    [
+                        ep_dir / "handoff.md",
+                        ep_dir / f"{variant}.en.md",
+                        ep_dir / f"{variant}.vi.md",
+                    ]
+                )
         for cand_f in epic_candidates:
             if cand_f.is_file():
                 try:
                     m = re.search(
-                        r"-\s+\*\*(?:PIC|Profile|Assigned Profile|Người phụ trách(?: \(PIC\))?)\*\*:\s*`?([a-zA-Z0-9_\-]+)`?",
+                        r"-\s+\*\*(?:PIC(?:\s*/\s*Assigned\s+Profile)?|Profile|Assigned Profile|Người phụ trách(?: \(PIC\))?)\*\*:\s*`?@?([a-zA-Z0-9_.\-]+)`?",
                         cand_f.read_text(encoding="utf-8"),
                         re.IGNORECASE,
                     )
                     if m:
-                        account_id = m.group(1).strip()
-                        break
+                        cand_id = m.group(1).strip().lstrip("@")
+                        if cand_id and cand_id != "profile_account_id":
+                            account_id = cand_id
+                            break
                 except Exception:  # noqa: S110
                     pass
 
     if not account_id:
-        account_id = (
-            os.environ.get("AGY_PROFILE", "")
-            or os.environ.get("ANTIGRAVITY_PROFILE", "")
-        )
-
-        # 2. Local environment fallback: if running inside target repo and no explicit epic PIC
-        if not account_id:
-            primary = resolve_primary_repo_root()
-            current_wt = resolve_current_worktree_root()
-            is_local = (
-                root.resolve() == primary.resolve()
-                or root.resolve() == current_wt.resolve()
-                or resolve_primary_repo_root(root).resolve() == primary.resolve()
-            )
-            if is_local:
-                home_dir = os.environ.get("HOME", "")
-                if "antigravity_homes" in home_dir:
-                    prof_dir = Path(home_dir)
-                    account_id = extract_email_id_from_profile(prof_dir) or prof_dir.name
-
-        # 3. Foreign repo: check if an active agy or Antigravity IDE process is attached to that repo
-        if not account_id:
-            try:
-                ps_out = subprocess.check_output(["ps", "-eo", "command"], text=True)
-                for line in ps_out.splitlines():
-                    if (
-                        "agy" in line or "Antigravity IDE" in line
-                    ) and "antigravity_homes" in line:
-                        if (
-                            f"--add-dir={root}" in line
-                            or f"--add-dir={root.resolve()}" in line
-                            or str(root.resolve()) in line
-                        ):
-                            m = re.search(r"antigravity_homes/([^/]+)/", line)
-                            if m:
-                                cand = m.group(1)
-                                if homes_dir.exists() and (homes_dir / cand).exists():
-                                    account_id = (
-                                        extract_email_id_from_profile(homes_dir / cand)
-                                        or cand
-                                    )
-                                else:
-                                    account_id = cand
-                                break
-            except Exception:  # noqa: S110
-                pass
-
-        # 3. Check workspaceStorage across all profiles under antigravity_homes
-        if not account_id and homes_dir.exists():
-            try:
-                target_uri = f"file://{root.resolve()}"
-                matching = []
-                for h in sorted(homes_dir.iterdir()):
-                    if not h.is_dir():
-                        continue
-                    ws_storage = h / "data" / "User" / "workspaceStorage"
-                    if not ws_storage.exists():
-                        continue
-                    entries = sorted(
-                        ws_storage.iterdir(),
-                        key=lambda x: x.stat().st_mtime,
-                        reverse=True,
-                    )
-                    for ws_entry in entries:
-                        ws_json = ws_entry / "workspace.json"
-                        if ws_json.exists():
-                            try:
-                                ws_data = json.loads(
-                                    ws_json.read_text(encoding="utf-8")
-                                )
-                                if ws_data.get("folder") == target_uri:
-                                    matching.append((ws_entry.stat().st_mtime, h))
-                                    break
-                            except Exception:  # noqa: S110
-                                pass
-                if matching:
-                    matching.sort(key=lambda x: x[0], reverse=True)
-                    best_h = matching[0][1]
-                    account_id = extract_email_id_from_profile(best_h) or best_h.name
-            except Exception:  # noqa: S110
-                pass
-
-        # 4. If no process or workspaceStorage hit, check foreign repo's existing configured [@profile] tag
-        if not account_id and existing_title:
-            m_existing = re.search(r"\[@([a-zA-Z0-9_\-\.]+)\]", existing_title)
-            if m_existing:
-                account_id = m_existing.group(1)
-
-        # 5. Fallback to current HOME
-        if not account_id:
-            home_dir = os.environ.get("HOME", "")
-            if "antigravity_homes" in home_dir:
-                prof_dir = Path(home_dir)
-                account_id = extract_email_id_from_profile(prof_dir) or prof_dir.name
+        account_id = detect_current_profile(root, real_home=_real_home())
 
     if not account_id:
         account_id = os.environ.get("USER", "")
@@ -788,6 +800,26 @@ def _safe_archive_move(src: Path, archive_dir: Path, stem: str, suffix: str) -> 
     src.rename(dest)
 
 
+def _is_paused_status(status: str) -> bool:
+    lowered = status.strip().lower()
+    if not lowered:
+        return False
+    paused_markers = (
+        "waiting",
+        "paused",
+        "pending",
+        "halt",
+        "blocked",
+        "choice a",
+        "human action",
+        "circuit breaker",
+        "awaiting",
+    )
+    if any(marker in lowered for marker in paused_markers):
+        return True
+    return bool(re.search(r"\bgate\s*[125]\b.*(?:approval|review|sign)", lowered))
+
+
 def write_epic_state(
     root: Path,
     epic_slug: str,
@@ -801,6 +833,7 @@ def write_epic_state(
     refresh_heartbeat: bool = True,
     sync_title: bool = True,
     mirror_roots: Sequence[Path] | None = None,
+    active_wave: int | None = None,
 ) -> None:
     devtool_dir = resolve_target_devtool_dir(root, repo)
     primary_root = (
@@ -849,7 +882,15 @@ def write_epic_state(
             primary_root,
             epic_slug,
             stage=status if status else None,
+            active_wave=active_wave,
             last_event=next_step or status or "resume_context --state",
+            extra_devtool_dirs=target_devtool_dirs,
+        )
+
+    if status.strip() and not _is_paused_status(status):
+        _state_envelope.clear_pending_decision(
+            primary_root,
+            epic_slug,
             extra_devtool_dirs=target_devtool_dirs,
         )
 
@@ -1041,6 +1082,12 @@ def record_gate_approval(
         with jsonl_path.open("a", encoding="utf-8") as f:
             f.write(json.dumps(entry) + "\n")
         render_gate_ledger_markdown(devtool_dir)
+        shared_dt = list(dict.fromkeys([devtool_dir, *_state_envelope.resolve_shared_devtool_dirs(root)]))
+        _state_envelope.clear_pending_decision(
+            root,
+            epic_slug,
+            extra_devtool_dirs=shared_dt,
+        )
         return entry
 
 
@@ -1934,9 +1981,10 @@ python3 scripts/resume_context.py --role programmer --epic {epic_slug}
 
 MANDATORY TASKS & RULES:
 1. Activate `/dev-implementation` (`d3nexus:dev-implementation`) for the `{epic_slug}` epic.
-2. Read `.devtool/epic/{target_dir}/handoff.md` first.
+2. Read `.devtool/epic/{target_dir}/handoff.md` first (author all internal orchestration, plans, code comments, and commits strictly in English).
 3. Strictly apply the 4 Execution Guardrails (Bounded context protocol, Strict spec fidelity, Zero test fakery, No contract repair).
-4. Sequentially execute each Kanban task following the TDD cycle (Red-Green-Refactor, Level 1 Task-Scoped checks) in an isolated git worktree.{prompt_note}""")
+4. Compute waves via `python3 skills/dev-implementation/resources/scripts/compute_execution_order.py {epic_slug} --parallel`, monitor `python3 skills/dev-implementation/resources/scripts/estimate_heartbeat.py`, dispatch independent tasks in parallel (`manage_worker_pool.py init|sync|merge|cleanup` / `workspace:"share"` subagents), and run strict Red-Green-Refactor TDD per task.
+5. After all waves merge, verify Gate 4 + Cross-Model Review, clean up worker slots via `manage_worker_pool.py cleanup`, and pause via `--pending-decision` only on Choice A gates or `CRITICAL_CONFLICT`.{prompt_note}""")
     elif mode == "cross-review":
         banner = "[PERSONA: AI ASSISTANT — TECHNICAL ADVISOR & CO-ARCHITECT]"
         print(f"""{banner}
@@ -2300,6 +2348,40 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         choices=[1, 2, 3, 4, 5],
         help="Check if gate (1..5) is approved for --epic",
     )
+    parser.add_argument(
+        "--detect-profile",
+        action="store_true",
+        help="Resolve and print the active profile identifier",
+    )
+    parser.add_argument(
+        "--pending-decision",
+        type=str,
+        default=None,
+        help="Record a pending Choice A human decision for --epic",
+    )
+    parser.add_argument(
+        "--decision-kind",
+        type=str,
+        default="approval",
+        help="Decision kind metadata for --pending-decision",
+    )
+    parser.add_argument(
+        "--decision-id",
+        type=str,
+        default=None,
+        help="Explicit decision identifier for --pending-decision or --clear-decision",
+    )
+    parser.add_argument(
+        "--clear-decision",
+        action="store_true",
+        help="Clear pending Choice A decision for --epic (and optional --decision-id)",
+    )
+    parser.add_argument(
+        "--wave",
+        type=int,
+        default=None,
+        help="Active execution wave number for per-epic heartbeat updates",
+    )
 
     return parser.parse_args(normalized_args)
 
@@ -2358,6 +2440,10 @@ def main() -> None:
         repo_root = target_root
 
     active_epic = args.epic or resolve_current_epic_slug(repo_root if args.repo else title_target)
+
+    if args.detect_profile:
+        print(detect_current_profile(title_target, real_home=args.real_home))
+        return
 
     if args.role:
         print_role_banner(args.role)
@@ -2422,6 +2508,42 @@ def main() -> None:
         )
         return
 
+    if args.clear_decision:
+        _state_envelope.clear_pending_decision(
+            target_root,
+            active_epic,
+            decision_id=(args.decision_id.strip() if args.decision_id else None),
+        )
+        print(f"Cleared pending decision for epic '{active_epic}'")
+        return
+
+    if args.pending_decision is not None:
+        reason_text = args.pending_decision.strip()
+        if not reason_text:
+            print(
+                "error: --pending-decision must be non-empty",
+                file=sys.stderr,
+            )
+            sys.exit(2)
+        _state_envelope.record_pending_decision(
+            target_root,
+            active_epic,
+            reason_text,
+            kind=(args.decision_kind.strip() or "approval"),
+            decision_id=(args.decision_id.strip() if args.decision_id else None),
+            stage=args.status.strip() or args.stage.strip(),
+            worktree=current_worktree,
+        )
+        if args.wave is not None:
+            _state_envelope.update_epic_heartbeat(
+                target_root,
+                active_epic,
+                active_wave=args.wave,
+                last_event=f"Pending decision recorded: {reason_text}",
+            )
+        print(f"Recorded pending decision for epic '{active_epic}'")
+        return
+
     if args.state:
         write_epic_state(
             target_root,
@@ -2432,7 +2554,18 @@ def main() -> None:
             prompt=args.prompt,
             role=args.role or "programmer",
             repo=args.repo,
+            active_wave=args.wave,
         )
+        return
+
+    if args.wave is not None:
+        _state_envelope.update_epic_heartbeat(
+            target_root,
+            active_epic,
+            active_wave=args.wave,
+            last_event=f"Active wave set to {args.wave}",
+        )
+        print(f"Updated active wave to {args.wave} for epic '{active_epic}'")
         return
 
     if args.log:

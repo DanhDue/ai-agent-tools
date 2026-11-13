@@ -142,20 +142,35 @@ def check_structure(check: Checker, stem: str, path: Path, text: str, rows: list
                           "executable task requires grounded facts, cannot be empty or 'None'")
 
 
+EXISTING_NEW_EXEMPT_STATUSES = frozenset({"done", "review", "in-progress"})
+
+
+def _task_status(text: str) -> str:
+    if not text.startswith("---"):
+        return ""
+    match = STATUS.search(text.split("\n---", 1)[0])
+    return match.group(1).strip() if match else ""
+
+
 def check_allowed(
     check: Checker,
     stem: str,
     text: str,
     design: bool,
     prereq_files: set[str] | None = None,
+    *,
+    allow_existing_done_new: bool = False,
+    task_status: str = "",
 ) -> None:
+    skip_existing = allow_existing_done_new and task_status in EXISTING_NEW_EXEMPT_STATUSES
     for entry in tc.parse_allowed_files(text):
         pattern = entry.pattern
         if entry.new:
             if design:
                 parent = (check.root / pattern).parent
                 if (check.root / pattern).exists():
-                    check.problem(f"{stem}:Files", f"{pattern} is marked (new) but already exists")
+                    if not skip_existing:
+                        check.problem(f"{stem}:Files", f"{pattern} is marked (new) but already exists")
                 elif not (parent.exists() or parent.parent.exists()):
                     check.problem(f"{stem}:Files", f"{pattern} (new) has no parent or grandparent directory")
         elif prereq_files and any(
@@ -172,7 +187,16 @@ def check_allowed(
             check.problem(f"{stem}:Files", f"{pattern} is not tracked by git")
 
 
-def check_evidence(check: Checker, stem: str, text: str, design: bool) -> None:
+def check_evidence(
+    check: Checker,
+    stem: str,
+    text: str,
+    design: bool,
+    *,
+    allow_existing_done_new: bool = False,
+    task_status: str = "",
+) -> None:
+    skip_existing = allow_existing_done_new and task_status in EXISTING_NEW_EXEMPT_STATUSES
     for entry in tc.parse_evidence_files(text):
         pattern = entry.pattern
         parts = Path(pattern).parts
@@ -192,8 +216,40 @@ def check_evidence(check: Checker, stem: str, text: str, design: bool) -> None:
                 f"Evidence file {pattern} collides with reserved 'task_*.json' runner records",
             )
             continue
-        if design and entry.new and (check.root / pattern).exists():
+        if design and entry.new and (check.root / pattern).exists() and not skip_existing:
             check.problem(f"{stem}:Files", f"Evidence file {pattern} is marked (new) but already exists")
+
+
+def check_duplicate_new_claims(check: Checker, tasks: dict[Path, str]) -> None:
+    """Reject duplicate (new) Allowed or Evidence path claims across multiple tasks."""
+    allowed_owners: dict[str, list[str]] = {}
+    evidence_owners: dict[str, list[str]] = {}
+    for path, text in tasks.items():
+        stem = path.stem
+        for entry in tc.parse_allowed_files(text):
+            if entry.new:
+                norm = Path(entry.pattern).as_posix().lstrip("./")
+                owners = allowed_owners.setdefault(norm, [])
+                if stem not in owners:
+                    owners.append(stem)
+        for entry in tc.parse_evidence_files(text):
+            if entry.new and not Path(entry.pattern).name.startswith("task_"):
+                norm = Path(entry.pattern).as_posix().lstrip("./")
+                owners = evidence_owners.setdefault(norm, [])
+                if stem not in owners:
+                    owners.append(stem)
+    for pattern, owners in sorted(allowed_owners.items()):
+        if len(owners) > 1:
+            check.problem(
+                f"{owners[0]}:Files",
+                f"duplicate (new) claim for {pattern} across multiple tasks ({', '.join(owners)})",
+            )
+    for pattern, owners in sorted(evidence_owners.items()):
+        if len(owners) > 1:
+            check.problem(
+                f"{owners[0]}:Files",
+                f"duplicate (new) evidence claim for {pattern} across multiple tasks ({', '.join(owners)})",
+            )
 
 
 SEARCH_PROGRAMS = {"grep", "egrep", "fgrep", "rg", "sed", "awk"}
@@ -607,6 +663,8 @@ def check_task(
     design: bool,
     created: set[str],
     prereq_files: set[str] | None = None,
+    *,
+    allow_existing_done_new: bool = False,
 ) -> None:
     stem = path.stem
     rows = table_rows(check, stem, text)
@@ -617,14 +675,29 @@ def check_task(
         check_pytest_k(check, stem, row)
         check_portable_command(check, stem, row)
     check_weak_bdd(check, stem, text)
-    status = STATUS.search(text.split("\n---", 1)[0]) if text.startswith("---") else None
-    if design or not (status and status.group(1) == "done"):
+    task_status = _task_status(text)
+    if design or task_status != "done":
         if is_python_task(text, rows):
             check_python_tier_b(check, stem, rows)
-        check_allowed(check, stem, text, design, prereq_files)
+        check_allowed(
+            check,
+            stem,
+            text,
+            design,
+            prereq_files,
+            allow_existing_done_new=allow_existing_done_new,
+            task_status=task_status,
+        )
         if design:
             check_surgical_anchors(check, stem, text)
-        check_evidence(check, stem, text, design)
+        check_evidence(
+            check,
+            stem,
+            text,
+            design,
+            allow_existing_done_new=allow_existing_done_new,
+            task_status=task_status,
+        )
         check_grounding(check, stem, text, rows, created)
 
 
@@ -718,6 +791,7 @@ def repository_root() -> Path:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--design", action="store_true")
+    parser.add_argument("--allow-existing-done-new", action="store_true")
     parser.add_argument("--hld", required=True, type=Path)
     parser.add_argument("--tasks", required=True, nargs="+", type=Path)
     args = parser.parse_args(argv)
@@ -743,8 +817,17 @@ def main(argv: list[str] | None = None) -> int:
             for entry in tc.parse_evidence_files(text)
             if entry.new and not Path(entry.pattern).name.startswith("task_")
         }
+        check_duplicate_new_claims(check, tasks)
         for path, text in tasks.items():
-            check_task(check, path, text, args.design, created, prereq_files)
+            check_task(
+                check,
+                path,
+                text,
+                args.design,
+                created,
+                prereq_files,
+                allow_existing_done_new=args.allow_existing_done_new,
+            )
         check_hld(check, args.hld, hld_text, tasks)
         if args.design:
             check_r2_r3_parity(check, args.hld, tasks)

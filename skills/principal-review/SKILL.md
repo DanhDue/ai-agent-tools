@@ -80,7 +80,7 @@ Invoked on-demand to review standalone design documents, architecture proposals,
        • Thinking Level: <Light | Low | Medium | High | Extra High | None>
        • Verdict: <VERDICT> (<count> <Severity> findings)
        ```
-     - **`CIRCUIT_BREAKER_HALT` (`SHARED_CONTRACT_CONFLICT` in any round, `FIX_LOOP`, or `MAX_ROUNDS_CRITICAL_REMAINING` when `>= 1 Critical` survives Round 3)**: **STOP IMMEDIATELY**, never auto-fix or revert the user-approved HLD design, and report `## Top 3 Highest-Risk Findings (Executive Report)` to the Human Architect.
+     - **`CIRCUIT_BREAKER_HALT` (`SHARED_CONTRACT_CONFLICT` in any round, `FIX_LOOP`, or `MAX_ROUNDS_CRITICAL_REMAINING` when `>= 1 Critical` survives Round 3)**: **STOP IMMEDIATELY**, never auto-fix or revert the user-approved HLD design, record `python3 scripts/resume_context.py --pending-decision "Resolve Principal Review blocker (<reason>)" --decision-kind blocker --epic <epic_slug>`, and report `## Top 3 Highest-Risk Findings (Executive Report)` to the Human Architect. (All review tables, findings, and revision prose stay strictly in **English**.)
 
 4. **Revision Loop, Convergence & Post-Review Packaging (`package_epic.py` + `/save-context`)**:
    - **Intermediate rounds (when advancing to Round `n+1`)**: apply document edits and record decisions without running `package_epic.py` mid-loop:
@@ -90,10 +90,10 @@ Invoked on-demand to review standalone design documents, architecture proposals,
        `git commit -m "[<EPIC_NAME>] Record Principal Review decisions for round <n>"`
      - Verify `python3 skills/dev-implementation/resources/scripts/check_epic_readiness.py <epic_dir>` exits 0 and automatically advance to Round `n+1`.
    - **At completion of `/principal-review` (after convergence `AUTO_PASS_CLEAN`, `AUTO_PASS_FINAL_MINOR_SWEEP`, or `AUTO_PASS_FINAL_SWEEP` and any final sweep commits)**:
-     - Execute packaging now: `python3 skills/dev-implementation/resources/scripts/package_epic.py <epic_dir>` (pass `--revise --reason "Revise after Principal Review round <n>"` only if `handoff.md` already exists) and commit `[<EPIC_NAME>] Package epic for handoff` if `auto_commit: true`.
+     - Execute packaging now: `python3 skills/dev-implementation/resources/scripts/package_epic.py <epic_dir>` (pass `--revise --reason "Revise after Principal Review round <n>"` only if `handoff.md` already exists — packaging stamps creator PIC cleanly and clears any pending decision for this epic) and commit `[<EPIC_NAME>] Package epic for handoff` if `auto_commit: true`.
      - Record Gate 2 approval (if revised) via `python3 scripts/resume_context.py --gate 2 --epic <epic_slug> --approved "Passed Principal Review round <n> and packaged"`.
      - Record state via `python3 scripts/resume_context.py --state --epic <epic_slug> --status "Stage 2: Packaged & Ready"`, and **print the AI Programmer implementation prompt** (`python3 scripts/resume_context.py --emit-prompt implement --epic <epic_slug>` + `handoff.md` path).
-     - In autonomous lifecycle mode (`lifecycle_runner.py`), transition directly to Role 2.3 (AI Programmer, resolved from `.devtool/review_config.json["providers"]["programmer"]` / default `gemini-4-hydrogen-xhigh --effort xhigh`) and invoke `d3nexus:dev-implementation`. In interactive mode, stop calling tools and ask **Triển khai (tự động)** vs **Dừng lại** (*"Dừng lại ở đây để tôi lấy prompt cho một AI Agents khác triển khai"*): invoke `d3nexus:dev-implementation` automatically if **Triển khai (tự động)**, or stop cleanly if **Dừng lại**.
+     - In autonomous lifecycle mode (`lifecycle_runner.py`), transition directly to Role 2.3 (AI Programmer, resolved from `.devtool/review_config.json["providers"]["programmer"]` / default `gemini-4-hydrogen-xhigh --effort xhigh`) and invoke `d3nexus:dev-implementation`. In interactive mode, record `--pending-decision "Choose Triển khai (tự động) vs Dừng lại" --decision-kind choice_a`, stop calling tools, and ask **Triển khai (tự động)** vs **Dừng lại** (*"Dừng lại ở đây để tôi lấy prompt cho một AI Agents khác triển khai"*): invoke `d3nexus:dev-implementation` automatically if **Triển khai (tự động)**, or stop cleanly if **Dừng lại**.
 
 ## Guidelines & Reference Documents
 

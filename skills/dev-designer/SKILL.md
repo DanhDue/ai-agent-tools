@@ -20,7 +20,7 @@ Detect platform via root manifests (`package.json`, `pubspec.yaml`/`melos.yaml`,
 
 ### Step 1: Create the Epic Overview Document (`HLD`) & BDD Suite
 Write artifacts inside `.devtool/epic/<epic_name>/`, strictly separating audiences:
-1. **HLD (`<epic_name>.en.md` + Stage 4 companion `<epic_name>.vi.md`)**: Human overview & "Prompt to Maintain" map — Table of Contents (linking every `##`), Meta Data (`PIC`, Platform, `Depends on epic`, `Source Spec`), Background, Goals & Non-Goals, Architecture (`mermaid flowchart TD`/`LR` only — never `graph`; conditional `sequenceDiagram` only for multi-actor/async/IPC flows), Feature Maintenance Map, Rollout Strategy, Kanban Tasks Breakdown, and symmetric `[SE-NN]` `## Spec Errata`. Do **not** embed raw Gherkin blocks inside the HLD.
+1. **HLD (`<epic_name>.en.md` + Stage 4 companion `<epic_name>.vi.md`)**: Human overview & "Prompt to Maintain" map — Table of Contents (linking every `##`), Meta Data (stamp creator `- **PIC**: <profile>` resolved via `python3 scripts/resume_context.py --detect-profile`, Platform, `Depends on epic`, `Source Spec`), Background, Goals & Non-Goals, Architecture (`mermaid flowchart TD`/`LR` only — never `graph`; conditional `sequenceDiagram` only for multi-actor/async/IPC flows), Feature Maintenance Map, Rollout Strategy, Kanban Tasks Breakdown, and symmetric `[SE-NN]` `## Spec Errata`. Do **not** embed raw Gherkin blocks inside the HLD. All internal design/task prose, plans, code comments, and commits MUST be strictly in **English**.
 2. **Option A Bilingual Authoring**: Write `<epic_name>.en.md` and `bdd_scenarios.en.md` first as English SSOT during Stages 1–3. Generating/delta-syncing `bdd_scenarios.vi.md` and final `<epic_name>.vi.md` parity is deferred to Stage 4 Pre-Finish (`--strict-bilingual`); whenever both variants exist before Gate 2, verify them mechanically with:
    ```bash
    python3 skills/doc_quality_check/resources/scripts/check_document.py \
@@ -69,11 +69,13 @@ Each task must include:
    ```
    (Isolate failures with `check_bdd_traceability.py plan` and `check_task_contract.py --design`.) Both must exit 0 before committing.
 2. If `.agents/config.json` sets `auto_commit: true`, stage only `.devtool/epic/<epic_name>/` and generated `.devtool/features/task_*.md`, committing per [Commit Message Format](../../rules/CRITICAL_RULES.md#commit-message-format) (no trailers).
-3. Record Gate 2 and checkpoint state (do **not** run `package_epic.py` or generate `handoff.md` yet — packaging runs at `/principal-review` completion):
+3. Record Gate 2, pause via `--pending-decision` for Choice A, and checkpoint state (do **not** run `package_epic.py` or generate `handoff.md` yet — packaging runs at `/principal-review` completion and stamps creator PIC cleanly; verify parallel waves cleanly via `compute_execution_order.py <epic_slug> --parallel`):
    ```bash
    python3 scripts/resume_context.py --gate 2 --epic <epic_slug> --approved "<task breakdown summary>"
-   python3 scripts/resume_context.py --state --epic <epic_slug> --status "Stage 2: Ready for Principal Review"
+   python3 scripts/resume_context.py --pending-decision "Approve Gate 2 HLD and choose execution mode" --decision-kind gate_2 --epic <epic_slug>
+   python3 scripts/resume_context.py --state --epic <epic_slug> --status "Stage 2: Waiting for Choice A"
    ```
+   (When the user chooses AUTO MODE or Handoff Mode, `--gate` / non-paused `--state` / `package_epic.py` clears this epic's pending decision automatically.)
 4. Read `.devtool/review_config.json`, stop calling tools, and present the [Handoff Choice](../dev-lifecycle/SKILL.md#handoff-choice) (Gate 2 Unified Confirmation with reviewer provider/model priority: AUTO MODE `Triển khai (tự động)` vs Handoff Mode `Dừng lại`). Never invoke `dev-implementation` directly.
 
 ### Updating an Existing Epic

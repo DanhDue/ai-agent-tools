@@ -443,9 +443,56 @@ def cmd_land(args) -> tuple[int, dict]:
             git("merge", "--abort", cwd=checkout, check=False)
             raise GitError(f"git merge failed in {checkout} and was aborted: {result.stderr.strip()}")
     check_landed(args.base, old_base, sha, checkout)
+    pool_cleanup = cleanup_landed_worker_branches(branch, args.base)
     return EXIT_OK, {"command": "land", "branch": branch, "base": args.base,
                      "merge_commit": rev(args.base), "verified_sha": sha,
-                     "checkout": str(checkout) if checkout else None}
+                     "checkout": str(checkout) if checkout else None,
+                     "pool_cleanup": pool_cleanup}
+
+
+def cleanup_landed_worker_branches(branch: str, base: str) -> dict[str, list[str]]:
+    """Safely prune stale worktrees and delete merged slot/orphan branches for a landed epic."""
+    epic_raw = branch.removeprefix("epic/").strip("/")
+    variants = list(dict.fromkeys([epic_raw, epic_raw.replace("-", "_"), epic_raw.replace("_", "-")]))
+    prefixes = tuple(
+        prefix for v in variants if v for prefix in (f"epic/{v}-slot-", f"worker/{v}/slot-")
+    )
+    removed: list[str] = []
+    preserved: list[str] = []
+
+    git("worktree", "prune", check=False)
+    if not prefixes:
+        return {"removed": removed, "preserved": preserved}
+
+    refs_out = out("for-each-ref", "--format=%(refname:short)", "refs/heads/")
+    for candidate in sorted(r.strip() for r in refs_out.splitlines() if r.strip()):
+        if not candidate.startswith(prefixes):
+            continue
+        wt = checkout_of(candidate)
+        if wt is not None and wt.is_dir():
+            if dirty_files(wt):
+                preserved.append(candidate)
+                continue
+            if not is_ancestor(candidate, base):
+                preserved.append(candidate)
+                continue
+            rm_res = git("worktree", "remove", "--force", str(wt), check=False)
+            if rm_res.returncode != 0:
+                preserved.append(candidate)
+                continue
+        elif not is_ancestor(candidate, base):
+            preserved.append(candidate)
+            continue
+
+        # Safe to delete with -D because is_ancestor(candidate, base) verified full integration above.
+        del_res = git("branch", "-D", candidate, check=False)
+        if del_res.returncode == 0:
+            removed.append(candidate)
+        else:
+            preserved.append(candidate)
+
+    git("worktree", "prune", check=False)
+    return {"removed": removed, "preserved": preserved}
 
 
 def guard_checkout(checkout: Path, touched: list[str]) -> None:

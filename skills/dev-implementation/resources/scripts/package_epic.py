@@ -11,6 +11,7 @@ re-anchoring history under ## Revisions.
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import re
 import subprocess
@@ -19,6 +20,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
+KIT_SCRIPTS_DIR = REPO_ROOT / "scripts"
+if str(KIT_SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(KIT_SCRIPTS_DIR))
+
+import _state_envelope  # noqa: E402
+import resume_context  # noqa: E402
 TEMPLATE_PATH = (
     REPO_ROOT / "skills" / "dev-lifecycle" / "references" / "handoff-template.md"
 )
@@ -116,6 +123,40 @@ def _sanitize_read_first_english_only(text: str) -> str:
     return text[: match.start()] + header + new_body + tail + text[match.end() :]
 
 
+def _is_stage3_active(root: Path, epic_path: Path, epic_slug: str) -> bool:
+    """Return True when Gate 3 was recorded or any task entered in-progress/review/done."""
+    active_statuses = {"in-progress", "review", "done"}
+    for task_file in sorted(epic_path.glob("task_*.md")):
+        txt = task_file.read_text(encoding="utf-8")
+        if txt.startswith("---"):
+            fm = txt.split("\n---", 1)[0]
+            m = re.search(r'^status:\s*"?([^"\n]+)"?', fm, re.MULTILINE)
+            if m and m.group(1).strip() in active_statuses:
+                return True
+
+    norm_slug = _state_envelope._sanitize_epic_slug(epic_slug)
+    for dt_dir in _state_envelope.resolve_shared_devtool_dirs(root):
+        ledger_jsonl = dt_dir / "state" / "gate_ledger.jsonl"
+        if ledger_jsonl.is_file():
+            for raw in ledger_jsonl.read_text(encoding="utf-8").splitlines():
+                if not raw.strip():
+                    continue
+                try:
+                    entry = json.loads(raw)
+                except Exception:
+                    continue
+                if entry.get("gate") == 3 and (
+                    _state_envelope._sanitize_epic_slug(str(entry.get("epic", ""))) == norm_slug
+                ):
+                    return True
+        ledger_md = dt_dir / "state" / "GATE_LEDGER.md"
+        if ledger_md.is_file():
+            md_txt = ledger_md.read_text(encoding="utf-8")
+            if re.search(rf"\bGate\s*3\b.*{re.escape(norm_slug)}|{re.escape(norm_slug)}.*\bGate\s*3\b", md_txt):
+                return True
+    return False
+
+
 def render_initial_handoff(
     template_path: Path,
     epic_dir: str,
@@ -127,12 +168,15 @@ def render_initial_handoff(
     *,
     task_count: int | None = None,
     source_spec: str | None = None,
+    creator_pic: str | None = None,
 ) -> str:
     template = template_path.read_text(encoding="utf-8")
+    resolved_pic = (creator_pic or "").strip() or "unknown"
     text = template.replace("<epic_slug>", epic_slug)
     text = text.replace("<epic_dir>", epic_dir)
     text = text.replace("<epic_slug value>", epic_slug)
     text = text.replace("<epic_dir value>", epic_dir)
+    text = text.replace("<profile_account_id>", resolved_pic)
     text = text.replace("<YYYY-MM-DD>", today_iso)
     text = text.replace("<sha>", design_commit)
     text = text.replace("<base_branch>", base_branch)
@@ -289,9 +333,20 @@ def package_epic(
             "or --force to overwrite."
         )
 
+    epic_slug_hint = (
+        find_epic_slug(root, epic_dir)
+        if find_epic_slug is not None
+        else None
+    ) or epic_dir.replace("_", "-")
+    stage3_post_design = revise and _is_stage3_active(root, epic_path, epic_slug_hint)
+
     # 1. Run check_epic_readiness.py
+    readiness_cmd = [sys.executable, str(READINESS_SCRIPT)]
+    if stage3_post_design:
+        readiness_cmd.append("--post-design")
+    readiness_cmd.append(epic_dir)
     readiness_proc = subprocess.run(
-        [sys.executable, str(READINESS_SCRIPT), epic_dir],
+        readiness_cmd,
         cwd=root,
         capture_output=True,
         text=True,
@@ -336,6 +391,8 @@ def package_epic(
     )
     source_spec = spec_candidates[0] if spec_candidates else None
 
+    creator_pic = resume_context.detect_current_profile(root) or os.environ.get("USER", "unknown")
+
     if not revise:
         update_epic_status_to_packaged(root, epic_dir, today_iso)
         tpl = TEMPLATE_PATH
@@ -353,6 +410,7 @@ def package_epic(
             open_notes=open_notes,
             task_count=task_count,
             source_spec=source_spec,
+            creator_pic=creator_pic,
         )
         handoff_file.write_text(content, encoding="utf-8")
     else:
@@ -365,8 +423,11 @@ def package_epic(
             task_count=task_count,
             source_spec=source_spec,
         )
+        if "<profile_account_id>" in revised:
+            revised = revised.replace("<profile_account_id>", creator_pic)
         handoff_file.write_text(revised, encoding="utf-8")
 
+    _state_envelope.clear_pending_decision(root, epic_slug)
     return handoff_file
 
 

@@ -178,18 +178,18 @@ For rows 4 and 5. Phase 1 step 4's `git worktree add -b` never runs here.
 The AI Programmer acts as the **Implementation Orchestrator**, coordinating execution across a **2-Slot Ephemeral Worker Pool** with shared cache.
 
 #### 2-Slot Ephemeral Worker Pool
-- **Main Worktree**: `.worktrees/<epic_dir>` (`epic/<epic_slug>`) holds canonical build tooling and base dependencies.
-- **Worker Slots**: `.worktrees/<epic_dir>-slot-1` and `...-slot-2`. Caches (`node_modules`, `.venv`, `.gradle`, `target`, `.dart_tool`) are symlinked or APFS-cloned (`cp -c -R`) with **0 byte storage overhead**.
+- **Main Worktree**: `.worktrees/<epic_dir>` (`epic/<epic_slug>`) holds canonical tooling and base dependencies.
+- **Worker Slots**: `.worktrees/<epic_dir>-slot-1` / `-slot-2` share caches (`node_modules`, `.venv`, `.gradle`, `target`, `.dart_tool`) via symlink/APFS clone (`0` bytes overhead) and update per-epic heartbeat automatically.
 - **Pool CLI**:
-  - Init: `python3 "$SKILL_DIR"/resources/scripts/manage_worker_pool.py init --epic-dir <epic_dir> --epic-slug <epic_slug>`
-  - Sync: `python3 "$SKILL_DIR"/resources/scripts/manage_worker_pool.py sync --epic-dir <epic_dir> --epic-slug <epic_slug> --slot <1|2>`
+  - Init: `python3 "$SKILL_DIR"/resources/scripts/manage_worker_pool.py init --epic-dir <epic_dir> --epic-slug <epic_slug> [--wave <k>]`
+  - Sync: `python3 "$SKILL_DIR"/resources/scripts/manage_worker_pool.py sync --epic-dir <epic_dir> --epic-slug <epic_slug> --slot <1|2> --task <task_id> --wave <k>`
   - Merge: `python3 "$SKILL_DIR"/resources/scripts/manage_worker_pool.py merge --epic-dir <epic_dir> --epic-slug <epic_slug> --slot <1|2> --task <task_id>`
-  - Cleanup: `python3 "$SKILL_DIR"/resources/scripts/manage_worker_pool.py cleanup --epic-dir <epic_dir> --epic-slug <epic_slug>`
+  - Cleanup (preserves dirty/unmerged work by default): `python3 "$SKILL_DIR"/resources/scripts/manage_worker_pool.py cleanup --epic-dir <epic_dir> --epic-slug <epic_slug>`
 
 #### Orchestration Workflow per Layer
-1. **Parallel Slots**: For 2-task parallel batches from `compute_execution_order.py --parallel`, dispatch 2 implementers into Slot 1 and Slot 2 concurrently. For 1-task batches, dispatch to Slot 1. Isolated worktrees prevent compiler or test collision.
-2. **Sequential Merge**: As each task finishes, verify (`run_task_checks.py verify <task mirror>`), merge into main worktree (`manage_worker_pool.py merge`), update dual-workspace status (`sync_task_status.py task <task_id> done`), and sync slot (`manage_worker_pool.py sync`).
-3. **Layer Barrier & Cleanup**: Run hermetic sanity tests on main worktree after each layer. Run `manage_worker_pool.py cleanup` after all layers complete before Phase 4.
+1. **Wave & Heartbeat**: Run `compute_execution_order.py <epic_slug> --parallel`, monitor long commands with `estimate_heartbeat.py`, record active wave (`resume_context.py --epic <epic_slug> --wave <k> --state --status "In progress: Wave <k>"`), and dispatch 2-task waves concurrently into Slot 1 and Slot 2 (write all code comments, tasks, and commits in English).
+2. **Sequential Merge**: Verify (`run_task_checks.py verify <task mirror>`), merge (`manage_worker_pool.py merge`), sync status (`sync_task_status.py task <task_id> done`), and reset slots (`manage_worker_pool.py sync`).
+3. **Barrier & Cleanup**: Run sanity tests after each wave and run `manage_worker_pool.py cleanup` before Phase 4. If docs revise in Stage 3, use `package_epic.py --revise --reason "<text>" <epic_dir>` (`--post-design` aware).
 
 #### Headless & Autonomous Task Execution
 In Autonomous Mode (`/dev-lifecycle --autonomous`), `lifecycle_runner.py` dispatches Role 2.3 (AI Programmer resolved via `.devtool/review_config.json["providers"]["programmer"]`, default `gemini-4-hydrogen-xhigh --effort xhigh --mode auto`) in an isolated process group (`start_new_session=True`) with SIGTERM/SIGKILL supervision, per-task logs, and commits (`[<EPIC_NAME>] Execute <task_slug>`).
@@ -405,11 +405,9 @@ python3 "$SKILL_DIR"/resources/scripts/run_external_review.py run \
 Once `/cross-model-review` has converged, `@quality_check` reports 🟢 LGTM on candidate SHA, and all tasks completed:
 1. **Preserve Kanban Visibility**: All completed `task_*.md` files MUST remain in `.devtool/features/done/`.
 2. **Present Executive Summary**: Output summary containing epic slug, worktree path, completed tasks, `@quality_check` verdict, BDD matrix, audit disclosure sections (Evidence, Protected paths, Commits outside tasks, Gate 5 items), and synthesized Executive Review Findings.
-3. 🛑 **MANDATORY STOP & WAIT**: Stop calling tools immediately. Prompt user explicitly:
-   > "All tasks for epic `<epic_slug>` are completed, `@quality_check` is **🟢 LGTM**, and Cross-model review has converged.
-   > All task cards are visible in the **DONE** column on your Kanban dashboard.
-   > Please review completed tasks and code changes. Reply to proceed with branch integration (Stage 4 Finish)."
-4. **Wait for Gate 5 Confirmation**: Only proceed to Phase 5 when user explicitly approves (then record Gate 5 via `python3 scripts/resume_context.py --gate 5 --epic <epic_slug> --approved "Gate 5 Kanban sign-off"`).
+3. 🛑 **MANDATORY STOP & WAIT**: Record Choice A decision (`python3 scripts/resume_context.py --pending-decision "Gate 5 Kanban review and Stage 4 finish" --decision-kind gate_5 --epic <epic_slug>`) and stop calling tools immediately:
+   > "Epic `<epic_slug>` tasks complete, `@quality_check` **🟢 LGTM**, Cross-model review converged; tasks remain in `.devtool/features/done/`. Review and reply to proceed with Stage 4 Finish."
+4. **Wait for Gate 5 Confirmation**: Only proceed to Phase 5 after explicit approval (then record `--gate 5`, which clears the pending decision automatically).
 
 ### Phase 5 — Branch Finishing
 
