@@ -1,0 +1,193 @@
+{
+  "schema": 1,
+  "task": "task_02_hybrid_heartbeat_estimator_and_quality_progress",
+  "runs": {
+    "red": {
+      "head": "0c006041c54c476de20d9b718a51295c49bea5b0",
+      "tree": "bc7fb46d860f1c51661feff127c189e5fa37efee",
+      "patch_id": "1a1975ce3c91ff866c00ea4d4bde30cc1c31b74f",
+      "started": "2026-11-13T03:19:53Z",
+      "finished": "2026-11-13T03:20:01Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_rsdh_heartbeat_quality.py::test_rsdh_hp_03_live_stderr_and_quality_active",
+          "expect": "exit 1; contains \"failed\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-13T03:19:53Z",
+          "finished": "2026-11-13T03:20:01Z",
+          "output_tail": [
+            "F                                                                        [100%]",
+            "=================================== FAILURES ===================================",
+            "________________ test_rsdh_hp_03_live_stderr_and_quality_active ________________",
+            "tests/test_rsdh_heartbeat_quality.py:333: in test_rsdh_hp_03_live_stderr_and_quality_active",
+            "    assert _wait_for_path(barrier_dir / \"run1_started\", timeout=8.0)",
+            "E   AssertionError: assert False",
+            "E    +  where False = _wait_for_path((PosixPath('/private/tmp/ag_brother/pytest-of-danhdueexoictif/pytest-176/test_rsdh_hp_03_live_stderr_an0/barriers') / 'run1_started'), timeout=8.0)",
+            "=========================== short test summary info ============================",
+            "FAILED tests/test_rsdh_heartbeat_quality.py::test_rsdh_hp_03_live_stderr_and_quality_active",
+            "1 failed in 8.16s"
+          ],
+          "output_sha256": "be10d4f000505a88cca7d41f6dbc6fc35b1f69bf5815c702eaf4e85e682dc812"
+        }
+      ],
+      "passed": true
+    },
+    "verify": {
+      "head": "0c006041c54c476de20d9b718a51295c49bea5b0",
+      "tree": "65ca1b1a006526f14b8cd8fd585b4dcad4dc085c",
+      "patch_id": "485de94140edaed35efac9f284a9bf72b8e9fdff",
+      "started": "2026-11-13T03:27:14Z",
+      "finished": "2026-11-13T03:27:25Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_rsdh_heartbeat_quality.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-13T03:27:14Z",
+          "finished": "2026-11-13T03:27:16Z",
+          "output_tail": [
+            "......                                                                   [100%]",
+            "6 passed in 1.85s"
+          ],
+          "output_sha256": "91f7c111aaa7d5514214bcde1b9bc1f41967272bb27a702708f0b9162e579f8c"
+        },
+        {
+          "id": "V3",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_polyglot_gate4.py && python3 -m unittest skills/quality_check/resources/scripts/test_quality_provider_acceptance.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-13T03:27:16Z",
+          "finished": "2026-11-13T03:27:21Z",
+          "output_tail": [
+            "........                                                                 [100%]",
+            "8 passed in 2.49s",
+            "...............",
+            "----------------------------------------------------------------------",
+            "Ran 15 tests in 1.642s",
+            "OK"
+          ],
+          "output_sha256": "d03010faf1f9ad3de0c57ec3e3adaee6daae3bb0c60c4f6a136afc2ab08b2fb4"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/estimate_heartbeat.py tests/test_rsdh_heartbeat_quality.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-13T03:27:21Z",
+          "finished": "2026-11-13T03:27:21Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-B",
+          "command": "mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/estimate_heartbeat.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-13T03:27:21Z",
+          "finished": "2026-11-13T03:27:21Z",
+          "output_tail": [
+            "Success: no issues found in 6 source files"
+          ],
+          "output_sha256": "ab35ee42183d4d6d3ba483825ab037d18a5a15622d03be01d82220b1564851ff"
+        },
+        {
+          "id": "V6",
+          "phase": "TIER-C",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 --junitxml=build/test-results/task_2.xml tests/test_rsdh_heartbeat_quality.py tests/test_polyglot_gate4.py",
+          "expect": "exit 0; results build/test-results/task_2.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-13T03:27:21Z",
+          "finished": "2026-11-13T03:27:25Z",
+          "output_tail": [
+            "..............                                                           [100%]",
+            "14 passed in 4.08s"
+          ],
+          "output_sha256": "97a0d2a6d97a38365e360f5f61b02071e2eaf40b2cb4e0228cd5833553bd94f1",
+          "results": {
+            "path": "build/test-results/task_2.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 6,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_rsdh_hp_02_estimator_tiers_cli_and_api",
+                  "classname": "tests.test_rsdh_heartbeat_quality",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rsdh_ec_02_zero_clamp_and_e2e_escalation",
+                  "classname": "tests.test_rsdh_heartbeat_quality",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rsdh_hp_03_live_stderr_and_quality_active",
+                  "classname": "tests.test_rsdh_heartbeat_quality",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rsdh_hp_03_integration_worktree_dual_root",
+                  "classname": "tests.test_rsdh_heartbeat_quality.Test_Polyglot_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rsdh_fr_02_failing_run_preserves_sibling_live_run",
+                  "classname": "tests.test_rsdh_heartbeat_quality.Test_Polyglot_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rsdh_fr_07_signal_abort_reaps_children_and_preserves_sibling",
+                  "classname": "tests.test_rsdh_heartbeat_quality.Test_Polyglot_Integration",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "scripts/estimate_heartbeat.py",
+            "skills/quality_check/SKILL.md",
+            "skills/quality_check/resources/scripts/verify_polyglot_registry.py",
+            "tests/test_rsdh_heartbeat_quality.py"
+          ],
+          "violations": []
+        }
+      ],
+      "passed": true
+    }
+  }
+}

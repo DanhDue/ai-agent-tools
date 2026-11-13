@@ -1,13 +1,13 @@
 ---
 id: "task_02_hybrid_heartbeat_estimator_and_quality_progress"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "runtime_sync_and_dashboard_hardening"
 dueDate: null
 created: "2026-11-13T09:18:00Z"
-modified: "2026-11-13T09:18:00Z"
-completedAt: null
+modified: "2026-11-13T03:27:40Z"
+completedAt: "2026-11-13T03:27:40Z"
 labels: ["observability", "quality-check", "heartbeat"]
 order: "a2"
 review_tier: "full"
@@ -15,7 +15,7 @@ review_tier: "full"
 
 # Task 2: Hybrid Heartbeat Estimator and Live Quality Progress
 
-Epic: [runtime_sync_and_dashboard_hardening](../epic/runtime_sync_and_dashboard_hardening/runtime_sync_and_dashboard_hardening.en.md)
+Epic: [runtime_sync_and_dashboard_hardening](../../epic/runtime_sync_and_dashboard_hardening/runtime_sync_and_dashboard_hardening.en.md)
 
 ## Requirement Analysis
 
@@ -146,5 +146,5 @@ Downstream dependents (blocked by Task 2): `task_03`, `task_07`.
 
 ## References & Rollback
 
-- [Epic HLD](../epic/runtime_sync_and_dashboard_hardening/runtime_sync_and_dashboard_hardening.en.md), Module Contracts (§4.2).
+- [Epic HLD](../../epic/runtime_sync_and_dashboard_hardening/runtime_sync_and_dashboard_hardening.en.md), Module Contracts (§4.2).
 - **Rollback**: Revert task commit; removes `scripts/estimate_heartbeat.py` and restores `verify_polyglot_registry.py` and `skills/quality_check/SKILL.md`.

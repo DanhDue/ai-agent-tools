@@ -59,6 +59,13 @@ Validate the invocation using [validate_quality_contract.py](resources/scripts/v
 - If 100% of modified files are prose or documentation (`*.md`, `docs/**`, `.devtool/**`) and zero build-shipping files are touched, route directly to `d3nexus:doc_quality_check` instead of running code providers.
 - For individual UI capabilities (`ui_review`, `@flutter-ui-audit`, `@android-ui-audit`, `@ios-ui-audit`), if the diff against `<base_ref>` modifies zero UI/presentation files, the capability short-circuits immediately with `status: "NOT_APPLICABLE"` and `not_applicable_reason: {"code": "scope_unmodified", "detail": "..."}`.
 
+**Pre-Flight Duration Estimation (Zero-LLM)**:
+- Before running medium/heavy checks, run the deterministic estimator (`light <60s` skips `schedule()`, `medium 60..240s` -> `180s`, `heavy >240s` -> `240s`, or `300s` with `--has-e2e`):
+
+```bash
+python3 scripts/estimate_heartbeat.py --quality-profile "<profile>" --json
+```
+
 ### Step 1: Project Registry Loading
 
 Load the project quality manifest located at `.agents/quality/check_quality.json` from the repository root:
@@ -95,7 +102,7 @@ If current HEAD differs from `repository_sha`, repository state drifted during e
 
 ### Step 4: Result Contract Validation and Plan Reconciliation
 
-Reconcile collected provider results against the execution plan (or run the compact polyglot runner with `--execute --compact`, which writes full capability logs under `build/quality/<provider>/<cap>.log` and emits single-line `GATE_PASS:` summaries or at most 25 trailing lines on failure):
+Reconcile collected provider results against the execution plan (or run the compact polyglot runner with `--execute --compact`, which streams zero-token `[quality_check] <i>/<n> <provider>:<cap> (<elapsed>s elapsed)` ticks to `stderr` every `--heartbeat-interval` seconds [default `15.0`], updates namespaced `runs[run_id]` inside `.devtool/state/quality_active.json` with signal-safe `SIGINT`/`SIGTERM` child reaping, writes isolated logs under `build/quality/<provider>/runs/<run_id>/<cap>.log`, and emits single-line `GATE_PASS:` summaries or at most 25 trailing lines on failure):
 
 ```bash
 python3 skills/quality_check/resources/scripts/verify_polyglot_registry.py .agents/quality/check_quality.json --profile "<profile>" --execute --compact
