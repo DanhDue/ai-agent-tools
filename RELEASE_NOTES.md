@@ -1,41 +1,37 @@
-# Release Notes: d3nexus v1.28.3
+# Release Notes: d3nexus v1.29.0
 
-**Release Date:** November 11, 2026  
-**Version:** `1.28.3`  
-**Git Tag:** `v1.28.3`, `d3nexus--v1.28.3`
+**Release Date:** November 13, 2026  
+**Version:** `1.29.0`  
+**Git Tag:** `v1.29.0`, `d3nexus--v1.29.0`
 
 ---
 
 ## Executive Summary
 
-`v1.28.3` delivers significant multi-profile storage optimizations and hardened token isolation safeguards: reclaiming ~12 GB of disk space via the new `clean-cache` command, enforcing a synchronous 1.5s atomic launch lock with zero host keychain fallback to prevent cross-profile account bleed during token rotation, decoupling `credential-user-scope` across profiles, and streamlining the autonomous lifecycle pipeline with automated cross-model review convergence.
+`v1.29.0` ships the interactive **Cross-Repo Tasks & Context Dashboard (`check-tasks`)**, comprehensive **Token Throttling Optimizations**, and **Runtime Sync & Dashboard Hardening**—along with multi-format HLD status parsing/syncing, automatic stale daemon replacement in `tasks_server.py`, and the regression fix keeping the embedded `check-quota` dialog open when toggling batch scheduling.
 
 ---
 
 ## Key Highlights
 
-### 1. Multi-Profile Cache Cleaner (`d3nexus clean-cache`)
-- **Space Recovery**: Safely targets Chromium bytecode (`CachedData`), Webview storage (`CacheStorage`), HTTP caches, stale `.vsix` installer archives, and Docker installation leftovers across all Antigravity profiles, reclaiming ~12 GB of host disk space without touching user settings, keychains, or sessions.
-- **Safety Protocol**: Implements dry-run previews, automated process termination fencing (`pkill`), and post-clean verification.
+### 1. Cross-Repo Tasks & Context Dashboard (`check-tasks`)
+- **Multi-Repo Harvester & Deterministic FSM** (`skills/check-tasks/resources/scripts/check_tasks.py`): Scans active worktrees, Kanban task files, Two-Tier memory (`PROJECT_LEDGER.md` vs `assistant_state.md`), and cross-model review results across workspace repositories.
+- **Daemon Server & Dark Mode UI** (`skills/check-tasks/resources/scripts/tasks_server.py`, `skills/check-tasks/resources/dashboard/tasks_dashboard.html`): Serves REST APIs (`/api/tasks`, `/api/review`, `/api/profiles`, `/api/launch/*`), Rule 9 sanitized CLI/IDE launchers, per-epic PIC assignment, 4-repo focused tabs, Roadmap table, and embedded Quota viewer.
+- **Multi-Format HLD Status & Auto-Restart**: Accurately parses and syncs bold, Markdown table, blockquote, YAML, and heading status formats across `check_tasks.py` and `sync_task_status.py`, fixes false `"abandon"` matches on `"superseded"`, and auto-restarts stale `tasks_server.py` daemons via `code_fingerprint` sidecar validation (`--restart`).
 
-### 2. Synchronous 1.5s Atomic Launch Lock & Zero Host Fallback
-- **Zero Host Keychain Fallback**: Removes `login.keychain-db` from `security list-keychains` during non-root profile launches, ensuring unauthenticated or expired profiles never silently fall back to `danhdue@gmail.com`.
-- **Synchronous Launch Lock**: Uses `/tmp/ag_launch.lock` with a synchronous 1.5-second foreground wait in `ag_run()`, serializing concurrent profile launches and blocking CLI/background calls (`agy`, `agy_quota.py`) during the keychain transition window.
-- **Background Token Protection**: Profiles running with isolated `com.apple.security.plist` remain anchored to their dedicated keychains, eliminating token cross-contamination during automatic 1-hour OAuth rotation.
+### 2. Runtime Sync & Dashboard Hardening
+- **Atomic Runtime State Envelope** (`scripts/_state_envelope.py`, `scripts/resume_context.py`): Enforces atomic envelope updates, canonical slug normalization, worktree summary prioritization, PIC transaction locking, and symlink boundary enforcement.
+- **Hybrid Heartbeat & Pool Isolation** (`scripts/estimate_heartbeat.py`, `skills/dev-lifecycle/`, `skills/dev-implementation/`): Provides live wave/slot progress estimation, fail-closed worker pool cleanup/pruning, and quality runner process-group cleanup.
 
-### 3. Credential User Scope & Identity Bleed Purge
-- **Vector 8 Isolation**: Detects and repairs cloned `credential-user-scope` files, provisioning unique `u<16_hex_chars>` identifiers for each profile.
-- **Keychain Parity Enforcement**: Audits OAuth tokens stored in the `gemini` generic-password keychain service and automatically deletes poisoned credentials in non-root profiles.
+### 3. Token Throttling & Review Optimization
+- **Focused Context & Diff-Only Review** (`rules/CRITICAL_RULES.md`, `skills/dev-implementation/resources/scripts/run_external_review.py`): Slims rules/skills, isolates transcripts, applies silent Gate 4 checks, gates selective task review, and uses English worker orchestration to improve reasoning and reduce token overhead.
 
-### 4. Streamlined Autonomous Lifecycle & Cross-Model Review
-- **Zero Confirmation Pauses**: Automates Gate 3 execution order calculation, worktree bootstrapping, and transition from Gate 4 local PASS into Cross-Model Review.
-- **Stage 4 Finish Gate**: Relocates the manual Finish decision and Gate 5 sign-off strictly to Stage 4 (`finishing-a-development-branch`) after review convergence.
+### 4. Quota Dashboard Modal Fix
+- **Batch Schedule Toggle Fix** (`skills/check-quota/resources/dashboard/quota_dashboard.html`, `tests/test_rsdh_quota_modal_stack.py`): Preserves `#batchScheduleBtn` DOM identity via in-place span updates and guards outside-click detection against detached nodes after synchronous re-renders so clicking **"Lên lịch nhiều tài khoản"** or **"Thoát chọn"** never closes `#modal-quota`.
 
 ---
 
 ## Verifications & Quality Gates Passed
 
-- `bash scripts/verify.sh`: 🟢 **PASS — safe to publish**
-- `test_audit_account_block.py`: 🟢 **PASS** (8/8 unit tests passing)
-- `test_lifecycle_document_contract.py` & `test_lifecycle_signals.py`: 🟢 **PASS** (28/28 contract tests passing)
-- `test_agy_quota.py` & `test_kiro_quota.py`: 🟢 **PASS** (22/22 tests passing)
+- `@quality_check` (`verify_polyglot_registry.py .agents/quality/check_quality.json --profile epic --execute --compact`): **PASS** (`architecture`, `format`, `lint`, `test`, `type_check`)
+- `bash scripts/verify.sh --full --quiet`: **PASS — safe to publish** (Checks 1–10 + 55 test suites)

@@ -8,6 +8,37 @@ every installed machine on the old cached copy.
 
 ---
 
+## 1.29.0 — 2026-11-13
+
+Introduces the interactive **Cross-Repo Tasks & Context Dashboard (`check-tasks`)**, **Token Throttling Optimization** across lifecycle & review scripts, **Runtime Sync & Dashboard Hardening** (atomic state envelopes, hybrid heartbeat estimation, single modal stack control, and worker pool hardening), plus **multi-format HLD status parsing**, **stale daemon auto-restart**, and the **embedded quota batch-schedule modal fix**.
+
+### Added
+
+- **Cross-Repo Tasks & Context Dashboard (`check-tasks`)** (`bin/check-tasks`, `skills/check-tasks/SKILL.md`, `skills/check-tasks/resources/scripts/check_tasks.py`, `skills/check-tasks/resources/scripts/tasks_server.py`, `skills/check-tasks/resources/dashboard/tasks_dashboard.html`):
+  - Multi-repository harvester scanning active Git worktrees, Kanban tasks (`task_*.md`), Two-Tier memory (`PROJECT_LEDGER.md` vs `assistant_state.md`), and deterministic lifecycle FSM state.
+  - Threaded HTTP daemon (`tasks_server.py`) with port collision protection, PID tracking, Rule 9 sanitized CLI/IDE launchers, per-epic PIC assignment, review modal inspection, and embedded Quota integration.
+  - Dark Mode Web Companion featuring 4-repo focused tabs, Roadmap & Notes strategic panels, live Tier-2 telemetry, and zero-flicker signature-based polling updates.
+- **Atomic Runtime State Envelope & Hybrid Heartbeat Estimator** (`scripts/_state_envelope.py`, `scripts/estimate_heartbeat.py`, `scripts/resume_context.py`):
+  - Introduces atomic runtime state envelopes with canonical slug normalization, two-tier synchronization, dual-root/worktree summary prioritization, PIC transaction locking, and symlink containment checks.
+  - Adds hybrid heartbeat estimation and live quality-check progress reporting for active implementation workers.
+- **Multi-Format HLD Status Extraction & Stale Daemon Auto-Restart** (`skills/check-tasks/resources/scripts/check_tasks.py`, `skills/check-tasks/resources/scripts/tasks_server.py`, `skills/dev-implementation/resources/scripts/sync_task_status.py`):
+  - Supports extracting and syncing HLD status across bold (`**Status:**` / `**Status**:`), Markdown tables, blockquotes, YAML code blocks, and headings, while guarding negations and preventing false `abandon` classification on `"superseded"` phrasing.
+  - Adds `code_fingerprint` metadata sidecar and `/api/status` digest plus `--restart`, automatically replacing stale `tasks_server.py` daemons when backend scripts change or run against legacy pre-fingerprint processes.
+
+### Changed
+
+- **Token Throttling & Review Optimization** (`rules/CRITICAL_RULES.md`, `skills/dev-lifecycle/`, `skills/dev-implementation/`, `skills/principal-review/`, `skills/cross-model-review/`):
+  - Adds diff-only external review, transcript isolation, silent Gate 4 checks, selective task reviewer gating, English-first worker orchestration, bilingual/contract guards, slimmed rule/skill references, parallel worker pool isolation/pruning, and fail-closed pool cleanup.
+- **Dashboard & Quota Hardening** (`skills/check-quota/resources/dashboard/quota_dashboard.html`, `skills/check-tasks/resources/dashboard/tasks_dashboard.html`, `scripts/agy_quota.py`):
+  - Implements single modal stack control and embedded overlay cleanup in `quota_dashboard.html`, alongside 96% completion ceiling telemetry and stable Roadmap table scroll preservation in `tasks_dashboard.html`.
+
+### Fixed
+
+- **Embedded Quota Modal Dismissal on Batch Schedule Toggle** (`skills/check-quota/resources/dashboard/quota_dashboard.html`, `tests/test_rsdh_quota_modal_stack.py`):
+  - Updates `#batchScheduleBtn` icon/label spans in place and guards the document-level click listener against detached DOM nodes (`isClickInsideElementOrDetached`), preventing clicking **"Lên lịch nhiều tài khoản"** or **"Thoát chọn"** from closing the parent `#modal-quota` dialog.
+- **Epic HLD Status Reconciliation**:
+  - Marks completed quality provider epics (`provider_based_quality_check`, `python_quality_provider_and_onboarding`) as `Done` matching their completed tasks.
+
 ## 1.28.3 — 2026-11-11
 
 Delivers multi-profile cache cleaning (`clean-cache`) reclaiming ~12 GB of disk space, implements synchronous 1.5s atomic launch lock and zero host fallback to prevent cross-profile account bleed during token rotation, decouples credential-user-scope across profiles, and streamlines autonomous lifecycle execution with automated cross-model review convergence.
