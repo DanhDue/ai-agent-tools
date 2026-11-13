@@ -272,13 +272,17 @@ def epic_checkout_roots(epic_dir: str) -> list[Path]:
     entries = parse_worktree_branches(wt_result.stdout)
 
     slug = find_epic_slug(current_root, epic_dir) or epic_dir
-    target_branch = f"refs/heads/epic/{slug}"
+    target_branches = {
+        f"refs/heads/epic/{slug}",
+        f"refs/heads/epic/{slug.replace('_', '-')}",
+        f"refs/heads/epic/{slug.replace('-', '_')}",
+    }
 
     roots: list[Path] = [current_root]
     seen = {current_root.resolve()}
 
     for path, branch in entries:
-        if branch == target_branch:
+        if branch in target_branches:
             resolved = path.resolve()
             if resolved not in seen:
                 seen.add(resolved)
@@ -324,6 +328,53 @@ def expected_epic(roots: list[Path], task_id: str) -> str | None:
     return None
 
 
+def _same_epic_slug(left: str | None, right: str | None) -> bool:
+    """Compare two epic identifiers ignoring dash/underscore, formatting, and case differences."""
+    if not left or not right:
+        return False
+    norm_left = (sanitize_slug(left) or left).strip().lower().replace("_", "-")
+    norm_right = (sanitize_slug(right) or right).strip().lower().replace("_", "-")
+    return bool(norm_left and norm_left == norm_right)
+
+
+def _canonical_envelope_slug(epic_slug: str) -> str:
+    """Return canonical hyphenated epic slug used by heartbeat envelopes and Two-Tier memory."""
+    cleaned = (sanitize_slug(epic_slug) or epic_slug).strip().replace("_", "-")
+    return cleaned or epic_slug.strip()
+
+
+def _order_summary_roots(
+    active_roots: Sequence[Path],
+    target_devtool_dirs: Sequence[Path],
+    primary_root: Path | None,
+) -> list[Path]:
+    """Order checkout roots so active worktrees precede primary_root during summary reads."""
+    current_root = _current_checkout_root()
+    primary_resolved = primary_root.resolve() if primary_root is not None else None
+    candidates = list(active_roots) + [d.parent for d in target_devtool_dirs]
+    ordered: list[Path] = []
+    seen: set[Path] = set()
+
+    def _add(root_path: Path) -> None:
+        resolved = root_path.resolve()
+        if resolved not in seen:
+            seen.add(resolved)
+            ordered.append(root_path)
+
+    if current_root is not None and not _is_slot_worktree(current_root):
+        cur_res = current_root.resolve()
+        if primary_resolved is None or cur_res != primary_resolved:
+            if any(c.resolve() == cur_res for c in candidates):
+                _add(current_root)
+    for cand in candidates:
+        if primary_resolved is None or cand.resolve() != primary_resolved:
+            _add(cand)
+    for cand in candidates:
+        if primary_resolved is not None and cand.resolve() == primary_resolved:
+            _add(cand)
+    return ordered
+
+
 def _collect_epic_task_summary(
     roots: Sequence[Path], epic_slug: str
 ) -> tuple[dict[str, int], list[str], str | None]:
@@ -346,7 +397,7 @@ def _collect_epic_task_summary(
                 if task_id in seen_tasks:
                     continue
                 fm = parse_frontmatter(path.read_text(encoding="utf-8"))
-                if fm.get("epic") != epic_slug:
+                if not _same_epic_slug(fm.get("epic"), epic_slug):
                     continue
                 seen_tasks.add(task_id)
                 status = fm.get("status")
@@ -389,7 +440,9 @@ def _sync_runtime_envelope_and_memory(
     if not active_roots or not epic_slug or _state_envelope is None:
         return
     anchor = active_roots[0]
-    safe_slug = _state_envelope._sanitize_epic_slug(epic_slug)
+    envelope_slug = _canonical_envelope_slug(epic_slug)
+    safe_slug = _state_envelope._sanitize_epic_slug(envelope_slug)
+    raw_safe = _state_envelope._sanitize_epic_slug(epic_slug)
     hb_filename = f"{safe_slug}.heartbeat.json"
 
     target_devtool_dirs: list[Path] = []
@@ -401,26 +454,35 @@ def _sync_runtime_envelope_and_memory(
             seen_dt.add(resolved)
             target_devtool_dirs.append(resolved)
 
+    primary_root: Path | None = None
     if (anchor / ".git").exists():
         for shared_dt in _state_envelope.resolve_shared_devtool_dirs(anchor):
             _add_dt(shared_dt)
-        primary_root = target_devtool_dirs[0].parent
-        for mirror_dt in _state_envelope._discover_active_mirror_dirs(
-            primary_root, hb_filename
-        ):
-            _add_dt(mirror_dt)
+        if target_devtool_dirs:
+            primary_root = target_devtool_dirs[0].parent
+            for fname in (
+                (hb_filename, f"{raw_safe}.heartbeat.json")
+                if raw_safe != safe_slug
+                else (hb_filename,)
+            ):
+                for mirror_dt in _state_envelope._discover_active_mirror_dirs(
+                    primary_root, fname
+                ):
+                    _add_dt(mirror_dt)
     for root in active_roots:
         if (root / ".devtool").is_dir():
             _add_dt(root / ".devtool")
     if not target_devtool_dirs:
         _add_dt(anchor / ".devtool")
 
-    summary_roots = list(dict.fromkeys([d.parent for d in target_devtool_dirs] + list(active_roots)))
+    summary_roots = _order_summary_roots(
+        active_roots, target_devtool_dirs, primary_root
+    )
     tally, active_tasks, next_todo = _collect_epic_task_summary(summary_roots, epic_slug)
 
     _state_envelope.update_epic_heartbeat(
         anchor,
-        epic_slug,
+        envelope_slug,
         stage=stage,
         active_tasks=active_tasks,
         last_event=last_event,
@@ -430,9 +492,15 @@ def _sync_runtime_envelope_and_memory(
     if clear_decision:
         _state_envelope.clear_pending_decision(
             anchor,
-            epic_slug,
+            envelope_slug,
             extra_devtool_dirs=target_devtool_dirs,
         )
+        if epic_slug != envelope_slug:
+            _state_envelope.clear_pending_decision(
+                anchor,
+                epic_slug,
+                extra_devtool_dirs=target_devtool_dirs,
+            )
 
     tally_str = ", ".join(f"{k}: {v}" for k, v in tally.items() if v > 0) or "empty"
     status_line = f"{stage} [{tally_str}]"
@@ -444,17 +512,39 @@ def _sync_runtime_envelope_and_memory(
         next_step = "Verify epic completion"
 
     decisions_text = ""
-    for dt_dir in target_devtool_dirs:
-        decisions_text = _extract_existing_decisions(dt_dir / "state" / f"{epic_slug}.md")
+    md_candidates = (
+        [f"{envelope_slug}.md", f"{epic_slug}.md"]
+        if epic_slug != envelope_slug
+        else [f"{envelope_slug}.md"]
+    )
+    for md_name in md_candidates:
+        for dt_dir in target_devtool_dirs:
+            decisions_text = _extract_existing_decisions(dt_dir / "state" / md_name)
+            if decisions_text:
+                break
         if decisions_text:
             break
     if not decisions_text:
         decisions_text = f"- {last_event}"
 
+    if epic_slug != envelope_slug:
+        lock_dt = (primary_root / ".devtool").resolve() if primary_root is not None else target_devtool_dirs[0]
+        with _state_envelope._state_lock(lock_dt):
+            for dt_dir in target_devtool_dirs:
+                for stale_name in {
+                    f"{raw_safe}.heartbeat.json",
+                    f"{epic_slug}.md",
+                    f"{raw_safe}.md",
+                }:
+                    if stale_name not in (hb_filename, f"{envelope_slug}.md"):
+                        stale_path = dt_dir / "state" / stale_name
+                        if stale_path.is_file():
+                            stale_path.unlink()
+
     if _resume_context is not None:
         _resume_context.write_epic_state(
             target_devtool_dirs[0].parent,
-            epic_slug,
+            envelope_slug,
             decisions=decisions_text,
             status=status_line,
             next_step=next_step,
@@ -479,7 +569,7 @@ def sync_task(
         root_wrote = False
         for path in targets:
             file_epic = epic_of(path)
-            if exp_epic and file_epic and file_epic != exp_epic:
+            if exp_epic and file_epic and not _same_epic_slug(file_epic, exp_epic):
                 notes.append(
                     f"Skipped {path}: belongs to epic '{file_epic}', expected '{exp_epic}'"
                 )
@@ -557,7 +647,7 @@ def board_tally(roots: list[Path], epic_slug: str) -> dict[str, int]:
                 if task_id in seen_tasks:
                     continue
                 fm = parse_frontmatter(path.read_text())
-                if fm.get("epic") == epic_slug:
+                if _same_epic_slug(fm.get("epic"), epic_slug):
                     seen_tasks.add(task_id)
                     status = fm.get("status")
                     if status in tally:
@@ -1372,7 +1462,12 @@ def main() -> None:
 
         exp_epic = expected_epic(roots, args.task_id)
         if exp_epic:
-            tally = board_tally(roots, exp_epic)
+            primary_root: Path | None = None
+            if _state_envelope is not None and roots and (roots[0] / ".git").exists():
+                shared_dts = _state_envelope.resolve_shared_devtool_dirs(roots[0])
+                if shared_dts:
+                    primary_root = shared_dts[0].parent
+            tally = board_tally(_order_summary_roots(roots, [], primary_root), exp_epic)
             tally_str = ", ".join(f"{k}: {v}" for k, v in tally.items())
             print(
                 f"Updated {len(written)} copies of {args.task_id} -> '{args.status}' "

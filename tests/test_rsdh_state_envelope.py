@@ -738,3 +738,94 @@ def test_round1_concurrent_multiroot_write_epic_state_stays_consistent(
     assert repo_hb == wt_hb
     assert repo_hb["generation"] == 6
     assert repo_hb["stage"] in repo_md
+
+
+def test_round2_underscore_frontmatter_and_worktree_summary_precedence(
+    tmp_path: Path,
+) -> None:
+    """sync_task_status converges underscore epic keys to hyphen slugs and prioritizes worktree state."""
+    repo, wt = _init_git_repo_with_worktree(tmp_path)
+    scripts_dir = str(Path(SYNC_TASK_SCRIPT).resolve().parent)
+    if scripts_dir not in sys.path:
+        sys.path.insert(0, scripts_dir)
+    import sync_task_status
+
+    underscore_task = (
+        "---\n"
+        'id: "task_01_demo"\n'
+        'status: "todo"\n'
+        'epic: "demo_sync"\n'
+        'modified: "2026-11-12T00:00:00Z"\n'
+        "completedAt: null\n"
+        "---\n\n"
+        "# task_01_demo\n"
+    )
+    for base in (repo, wt):
+        (base / ".devtool" / "epic" / "demo_sync" / "demo_sync.en.md").write_text(
+            "# Demo Epic\n\n- **Epic name**: `demo_sync`\n- **Status**: Stage 3\n",
+            encoding="utf-8",
+        )
+        (base / ".devtool" / "epic" / "demo_sync" / "task_01_demo.md").write_text(
+            underscore_task, encoding="utf-8"
+        )
+        (base / ".devtool" / "features" / "task_01_demo.md").write_text(
+            underscore_task, encoding="utf-8"
+        )
+
+    env = _import_envelope()
+    env.record_pending_decision(
+        wt, "demo-sync", "Awaiting Gate 3", kind="gate_3_choice", decision_id="dec-1"
+    )
+    init_hb = env.update_epic_heartbeat(
+        wt, "demo-sync", stage="Stage 3: Wave 1", active_wave=1, last_event="init"
+    )
+    assert init_hb["generation"] == 1
+
+    # Advance only the worktree task to done while primary remains stale todo.
+    sync_task_status.sync_task([wt], "task_01_demo", "done")
+    sync_task_status._sync_runtime_envelope_and_memory(
+        [repo, wt],
+        "demo_sync",
+        stage="Stage 3 (done: task_01_demo)",
+        last_event="sync_task task_01_demo -> done",
+        clear_decision=True,
+    )
+
+    for base in (repo, wt):
+        state_dir = base / ".devtool" / "state"
+        assert (state_dir / "demo-sync.heartbeat.json").is_file()
+        assert (state_dir / "demo-sync.md").is_file()
+        assert not (state_dir / "demo_sync.heartbeat.json").exists()
+        assert not (state_dir / "demo_sync.md").exists()
+
+    hb = json.loads(
+        (repo / ".devtool" / "state" / "demo-sync.heartbeat.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert hb == json.loads(
+        (wt / ".devtool" / "state" / "demo-sync.heartbeat.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert hb["epic_slug"] == "demo-sync"
+    assert hb["generation"] == init_hb["generation"] + 2
+    assert hb["tally"]["done"] == 1
+    assert hb["tally"]["todo"] == 0
+
+    state_md = (wt / ".devtool" / "state" / "demo-sync.md").read_text(encoding="utf-8")
+    assert "[done: 1]" in state_md
+    assert "Verify epic completion" in state_md
+    assert "[todo:" not in state_md
+
+    rollup = (wt / ".devtool" / "assistant_state.md").read_text(encoding="utf-8")
+    assert rollup.count("# Active Epic:") == 1
+    assert "# Active Epic: demo-sync" in rollup
+
+    pdec = json.loads(
+        (repo / ".devtool" / "state" / "pending_decision.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert "demo-sync" not in pdec.get("decisions", {})
+    assert "demo_sync" not in pdec.get("decisions", {})
