@@ -23,9 +23,15 @@ import re
 import sqlite3
 import subprocess
 import sys
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from datetime import datetime, timezone
 from pathlib import Path
+
+_KIT_SCRIPTS_DIR = Path(__file__).resolve().parent
+if str(_KIT_SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(_KIT_SCRIPTS_DIR))
+
+import _state_envelope
 
 WORKSPACE_ROOT = Path.home() / "Projects"
 REPOS = ["ai-agent-tools", "D3Nexus", "lyrics-sync", "nexus"]
@@ -725,6 +731,63 @@ def sync_window_title(
         pass
 
 
+def _matching_epic_worktrees(root: Path, epic_slug: str) -> list[Path]:
+    """Return linked non-slot worktrees matching `epic_slug` or active worktree."""
+    matches: list[Path] = []
+    seen: set[Path] = set()
+    root_resolved = root.resolve()
+
+    def _consider(candidate: Path) -> None:
+        resolved = candidate.resolve()
+        if resolved != root_resolved and resolved not in seen and candidate.is_dir():
+            seen.add(resolved)
+            matches.append(candidate)
+
+    current_wt = resolve_current_worktree_root()
+    if (
+        current_wt.resolve() != root_resolved
+        and resolve_primary_repo_root(current_wt).resolve() == root_resolved
+    ):
+        _consider(current_wt)
+
+    for wt_cand in (
+        root / ".worktrees" / epic_slug,
+        root / ".worktrees" / epic_slug.replace("-", "_"),
+        root / ".worktrees" / epic_slug.replace("_", "-"),
+    ):
+        _consider(wt_cand)
+
+    try:
+        wt_res = subprocess.run(
+            ["git", "worktree", "list", "--porcelain"],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if wt_res.returncode == 0 and wt_res.stdout:
+            target_branch = f"refs/heads/epic/{epic_slug}"
+            for wt_path, branch in _state_envelope._parse_worktree_branches(wt_res.stdout):
+                if branch == target_branch and not _state_envelope._is_slot_worktree(wt_path):
+                    _consider(wt_path)
+    except OSError:
+        pass
+    return matches
+
+
+def _safe_archive_move(src: Path, archive_dir: Path, stem: str, suffix: str) -> None:
+    """Move `src` into `archive_dir` without colliding on existing archive filenames."""
+    if not src.exists():
+        return
+    archive_dir.mkdir(parents=True, exist_ok=True)
+    dest = archive_dir / f"{stem}{suffix}"
+    counter = 1
+    while dest.exists():
+        dest = archive_dir / f"{stem}_{counter}{suffix}"
+        counter += 1
+    src.rename(dest)
+
+
 def write_epic_state(
     root: Path,
     epic_slug: str,
@@ -734,31 +797,68 @@ def write_epic_state(
     prompt: str = "",
     role: str = "programmer",
     repo: str | None = None,
+    *,
+    refresh_heartbeat: bool = True,
+    sync_title: bool = True,
+    mirror_roots: Sequence[Path] | None = None,
 ) -> None:
     devtool_dir = resolve_target_devtool_dir(root, repo)
-    with file_lock(devtool_dir):
-        migrate_legacy_storage(devtool_dir)
-        state_dir = devtool_dir / "state"
-        state_dir.mkdir(parents=True, exist_ok=True)
-        content = enforce_state_line_limit(
-            epic_slug, role, decisions, status, next_step, prompt
+    primary_root = (
+        resolve_primary_repo_root(devtool_dir.parent)
+        if repo is None and (devtool_dir.parent / ".git").exists()
+        else devtool_dir.parent
+    )
+
+    target_devtool_dirs: list[Path] = []
+    seen_dirs: set[Path] = set()
+
+    def _add_devtool_dir(candidate: Path) -> None:
+        resolved = candidate.resolve()
+        if resolved not in seen_dirs:
+            seen_dirs.add(resolved)
+            target_devtool_dirs.append(resolved)
+
+    _add_devtool_dir(devtool_dir)
+    matching_wts: list[Path] = []
+    if mirror_roots is not None:
+        for mr in mirror_roots:
+            _add_devtool_dir(mr if mr.name == ".devtool" else mr / ".devtool")
+    elif repo is None:
+        if primary_root.resolve() != devtool_dir.parent.resolve() and (
+            primary_root / ".devtool"
+        ).is_dir():
+            _add_devtool_dir(primary_root / ".devtool")
+        matching_wts = _matching_epic_worktrees(primary_root, epic_slug)
+        for wt in matching_wts:
+            if (wt / ".devtool").is_dir():
+                _add_devtool_dir(wt / ".devtool")
+
+    content = enforce_state_line_limit(
+        epic_slug, role, decisions, status, next_step, prompt
+    )
+    for target_dt in target_devtool_dirs:
+        with file_lock(target_dt):
+            migrate_legacy_storage(target_dt)
+            state_dir = target_dt / "state"
+            state_dir.mkdir(parents=True, exist_ok=True)
+            (state_dir / f"{epic_slug}.md").write_text(content + "\n", encoding="utf-8")
+            render_assistant_state_rollup(target_dt)
+
+    if refresh_heartbeat:
+        _state_envelope.update_epic_heartbeat(
+            primary_root,
+            epic_slug,
+            stage=status if status else None,
+            last_event=next_step or status or "resume_context --state",
+            extra_devtool_dirs=target_devtool_dirs,
         )
-        (state_dir / f"{epic_slug}.md").write_text(content + "\n", encoding="utf-8")
-        render_assistant_state_rollup(devtool_dir)
+
+    if sync_title:
         sync_window_title(root, epic_slug=epic_slug, stage_override=status)
-        current_wt = resolve_current_worktree_root()
-        if (
-            current_wt.resolve() != root.resolve()
-            and resolve_primary_repo_root(current_wt).resolve() == root.resolve()
-        ):
-            sync_window_title(current_wt, epic_slug=epic_slug, stage_override=status)
-        for wt_cand in (
-            root / ".worktrees" / epic_slug,
-            root / ".worktrees" / epic_slug.replace("-", "_"),
-            root / ".worktrees" / epic_slug.replace("_", "-"),
-        ):
-            if wt_cand.is_dir() and wt_cand.resolve() != current_wt.resolve():
-                sync_window_title(wt_cand, epic_slug=epic_slug, stage_override=status)
+        if not matching_wts:
+            matching_wts = _matching_epic_worktrees(root, epic_slug)
+        for wt_cand in matching_wts:
+            sync_window_title(wt_cand, epic_slug=epic_slug, stage_override=status)
 
 
 def append_activity_log(
@@ -813,34 +913,91 @@ def complete_feature_and_rotate(
     timestamp = datetime.now().strftime("%Y%m%d_%H%M")
     milestone = f"- **[{today}] `{epic_slug}`**: {summary}\n"
 
-    ledger_path = ensure_ledger(root)
-    with ledger_path.open("a", encoding="utf-8") as f:
-        f.write(milestone)
-    print(
-        f"✅ Appended milestone to {ledger_path.relative_to(root)}:\n   {milestone.strip()}"
+    primary_root = (
+        resolve_primary_repo_root(root)
+        if repo is None and (root / ".git").exists()
+        else root
     )
+    ledger_path = ensure_ledger(primary_root)
+    dup_pattern = re.compile(
+        rf"^\s*-\s+\*\*\[[^\]]+\]\s+`{re.escape(epic_slug)}`\*\*:",
+        re.MULTILINE,
+    )
+    with file_lock(ledger_path.parent):
+        existing_ledger = ledger_path.read_text(encoding="utf-8")
+        if dup_pattern.search(existing_ledger):
+            print(
+                f"ℹ️ Milestone for `{epic_slug}` already exists in {ledger_path.relative_to(primary_root)}; skipped duplicate entry."
+            )
+        else:
+            with ledger_path.open("a", encoding="utf-8") as f:
+                f.write(milestone)
+            print(
+                f"✅ Appended milestone to {ledger_path.relative_to(primary_root)}:\n   {milestone.strip()}"
+            )
 
-    candidates = [root / ".devtool"] + [root / r / ".devtool" for r in REPOS]
-    for devtool_dir in candidates:
-        if not devtool_dir.exists():
+    raw_candidates: list[Path] = (
+        [root / ".devtool", primary_root / ".devtool"]
+        + [root / r / ".devtool" for r in REPOS]
+        + [wt / ".devtool" for wt in _matching_epic_worktrees(primary_root, epic_slug)]
+    )
+    if (primary_root / ".git").exists():
+        wt_out = _state_envelope._run_git(primary_root, "worktree", "list", "--porcelain")
+        if wt_out:
+            safe_slug = _state_envelope._sanitize_epic_slug(epic_slug)
+            for wt_path, _branch in _state_envelope._parse_worktree_branches(wt_out):
+                if _state_envelope._is_slot_worktree(wt_path):
+                    continue
+                wt_dt = wt_path / ".devtool"
+                if (
+                    (wt_dt / "state" / f"{epic_slug}.md").exists()
+                    or (wt_dt / "state" / f"{safe_slug}.heartbeat.json").exists()
+                ):
+                    raw_candidates.append(wt_dt)
+
+    deduped_dirs: list[Path] = []
+    seen_dt: set[Path] = set()
+    for cand in raw_candidates:
+        if not cand.exists():
             continue
+        resolved = cand.resolve()
+        if resolved not in seen_dt:
+            seen_dt.add(resolved)
+            deduped_dirs.append(resolved)
+
+    safe_slug = _state_envelope._sanitize_epic_slug(epic_slug)
+    for devtool_dir in deduped_dirs:
         with file_lock(devtool_dir):
             archive_dir = devtool_dir / "archive"
-            archive_dir.mkdir(parents=True, exist_ok=True)
-
-            state_file = devtool_dir / "state" / f"{epic_slug}.md"
-            if state_file.exists():
-                dest_state = archive_dir / f"state_{epic_slug}_{timestamp}.md"
-                state_file.rename(dest_state)
-
-            log_file = devtool_dir / "logs" / f"activity_{epic_slug}.log"
-            if log_file.exists():
-                dest_log = archive_dir / f"activity_{epic_slug}_{timestamp}.log"
-                log_file.rename(dest_log)
-
+            _safe_archive_move(
+                devtool_dir / "state" / f"{epic_slug}.md",
+                archive_dir,
+                f"state_{epic_slug}_{timestamp}",
+                ".md",
+            )
+            _safe_archive_move(
+                devtool_dir / "state" / f"{safe_slug}.heartbeat.json",
+                archive_dir,
+                f"heartbeat_{safe_slug}_{timestamp}",
+                ".json",
+            )
+            _safe_archive_move(
+                devtool_dir / "logs" / f"activity_{epic_slug}.log",
+                archive_dir,
+                f"activity_{epic_slug}_{timestamp}",
+                ".log",
+            )
             render_assistant_state_rollup(devtool_dir)
             refresh_activity_stream_rollup(devtool_dir)
-    sync_window_title(root, epic_slug=epic_slug, stage_override="Completed")
+
+    _state_envelope.clear_pending_decision(
+        primary_root,
+        epic_slug,
+        extra_devtool_dirs=deduped_dirs,
+    )
+    sync_window_title(primary_root, epic_slug=epic_slug, stage_override="Completed")
+    if root.resolve() != primary_root.resolve():
+        sync_window_title(root, epic_slug=epic_slug, stage_override="Completed")
 
 
 def record_gate_approval(

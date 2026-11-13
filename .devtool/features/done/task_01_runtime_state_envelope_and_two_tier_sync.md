@@ -1,13 +1,13 @@
 ---
 id: "task_01_runtime_state_envelope_and_two_tier_sync"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "runtime_sync_and_dashboard_hardening"
 dueDate: null
 created: "2026-11-13T09:18:00Z"
-modified: "2026-11-13T09:18:00Z"
-completedAt: null
+modified: "2026-11-13T03:29:32Z"
+completedAt: "2026-11-13T03:29:32Z"
 labels: ["architecture", "concurrency", "state-sync"]
 order: "a1"
 review_tier: "full"
@@ -15,7 +15,7 @@ review_tier: "full"
 
 # Task 1: Atomic Runtime State Envelope and Two-Tier Memory Sync
 
-Epic: [runtime_sync_and_dashboard_hardening](../epic/runtime_sync_and_dashboard_hardening/runtime_sync_and_dashboard_hardening.en.md)
+Epic: [runtime_sync_and_dashboard_hardening](../../epic/runtime_sync_and_dashboard_hardening/runtime_sync_and_dashboard_hardening.en.md)
 
 ## Requirement Analysis
 
@@ -134,5 +134,5 @@ Downstream dependents (blocked by Task 1): `task_03`, `task_04`, `task_05`, `tas
 
 ## References & Rollback
 
-- [Epic HLD](../epic/runtime_sync_and_dashboard_hardening/runtime_sync_and_dashboard_hardening.en.md), Module Contracts (§4.1 / `_state_envelope.py`).
+- [Epic HLD](../../epic/runtime_sync_and_dashboard_hardening/runtime_sync_and_dashboard_hardening.en.md), Module Contracts (§4.1 / `_state_envelope.py`).
 - **Rollback**: Revert task commit; removes `scripts/_state_envelope.py` and restores `resume_context.py` and `sync_task_status.py`.

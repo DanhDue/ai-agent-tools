@@ -1,0 +1,188 @@
+{
+  "schema": 1,
+  "task": "task_01_runtime_state_envelope_and_two_tier_sync",
+  "runs": {
+    "red": {
+      "head": "0c006041c54c476de20d9b718a51295c49bea5b0",
+      "tree": "f0e61dfe6b420c182930bdb0a6f760700885cff9",
+      "patch_id": "1d0783445cf72a35f1707a93c2a9e789047b1031",
+      "started": "2026-11-13T03:20:53Z",
+      "finished": "2026-11-13T03:20:53Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_rsdh_state_envelope.py::test_rsdh_hp_01_dual_root_envelope_and_sync",
+          "expect": "exit 1; contains \"failed\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-13T03:20:53Z",
+          "finished": "2026-11-13T03:20:53Z",
+          "output_tail": [
+            "F                                                                        [100%]",
+            "=================================== FAILURES ===================================",
+            "_________________ test_rsdh_hp_01_dual_root_envelope_and_sync __________________",
+            "tests/test_rsdh_state_envelope.py:150: in test_rsdh_hp_01_dual_root_envelope_and_sync",
+            "    env = _import_envelope()",
+            "          ^^^^^^^^^^^^^^^^^^",
+            "tests/test_rsdh_state_envelope.py:39: in _import_envelope",
+            "    from scripts import _state_envelope",
+            "E   ImportError: cannot import name '_state_envelope' from 'scripts' (unknown location)",
+            "=========================== short test summary info ============================",
+            "FAILED tests/test_rsdh_state_envelope.py::test_rsdh_hp_01_dual_root_envelope_and_sync",
+            "1 failed in 0.05s"
+          ],
+          "output_sha256": "c6dd8f8f538610a6a66a5d45ddd731c3db74822440dac22263001e8e10cc0cbc"
+        }
+      ],
+      "passed": true
+    },
+    "verify": {
+      "head": "0c006041c54c476de20d9b718a51295c49bea5b0",
+      "tree": "7fbb709d6deb6742b80f3d7762a4c12dff2b2965",
+      "patch_id": "cac6d7b8d6c863e1149fed9afd0ee5b772079630",
+      "started": "2026-11-13T03:28:42Z",
+      "finished": "2026-11-13T03:29:04Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_rsdh_state_envelope.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-13T03:28:42Z",
+          "finished": "2026-11-13T03:28:45Z",
+          "output_tail": [
+            "..........                                                               [100%]",
+            "10 passed in 2.88s"
+          ],
+          "output_sha256": "180ec4916bcdd6f78cc549fa43b756626943236418ba5d69bf8297a2db85eb2a"
+        },
+        {
+          "id": "V3",
+          "phase": "GREEN",
+          "command": "python3 -m unittest scripts/test_resume_context.py skills/dev-implementation/resources/scripts/test_sync_task_status.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-13T03:28:45Z",
+          "finished": "2026-11-13T03:28:59Z",
+          "output_tail": [
+            "...........................................................................................",
+            "----------------------------------------------------------------------",
+            "Ran 91 tests in 14.284s",
+            "OK"
+          ],
+          "output_sha256": "b95193387fa28a784f6a9f5919f01d660a5db13b05b1401ab71c7581e8d40c19"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/resume_context.py skills/dev-implementation/resources/scripts/sync_task_status.py tests/test_rsdh_state_envelope.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-13T03:28:59Z",
+          "finished": "2026-11-13T03:28:59Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-B",
+          "command": "mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/resume_context.py skills/dev-implementation/resources/scripts/sync_task_status.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-13T03:28:59Z",
+          "finished": "2026-11-13T03:29:00Z",
+          "output_tail": [
+            "Success: no issues found in 8 source files"
+          ],
+          "output_sha256": "157a09cfcdfdfb5977479c5a1c08345149263a3e990a2ec976ef28aaeec9cae6"
+        },
+        {
+          "id": "V6",
+          "phase": "TIER-C",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 --junitxml=build/test-results/task_1.xml tests/test_rsdh_state_envelope.py",
+          "expect": "exit 0; results build/test-results/task_1.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-13T03:29:00Z",
+          "finished": "2026-11-13T03:29:03Z",
+          "output_tail": [
+            "..........                                                               [100%]",
+            "10 passed in 3.69s"
+          ],
+          "output_sha256": "0b7de8b12300bac146e3278b330da9dc76efc7a90f9855b94774022d5ba95148",
+          "results": {
+            "path": "build/test-results/task_1.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 5,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_rsdh_hp_01_dual_root_envelope_and_sync",
+                  "classname": "tests.test_rsdh_state_envelope",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rsdh_ec_01_corrupt_and_missing_state_fallback",
+                  "classname": "tests.test_rsdh_state_envelope",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rsdh_hp_01_dual_root_envelope_and_sync",
+                  "classname": "tests.test_rsdh_state_envelope.TestStateEnvelope_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rsdh_ar_01_canonical_transaction_flock_and_mirrors",
+                  "classname": "tests.test_rsdh_state_envelope.TestStateEnvelope_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rsdh_fr_01_stale_heartbeat_recovery",
+                  "classname": "tests.test_rsdh_state_envelope.TestStateEnvelope_Integration",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "scripts/_state_envelope.py",
+            "scripts/resume_context.py",
+            "skills/dev-implementation/resources/scripts/sync_task_status.py",
+            "tests/test_rsdh_state_envelope.py"
+          ],
+          "violations": []
+        }
+      ],
+      "passed": true
+    }
+  }
+}

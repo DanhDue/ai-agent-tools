@@ -27,7 +27,7 @@ import re
 import subprocess
 import sys
 from datetime import datetime, timezone
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 
 try:
     from datetime import UTC
@@ -35,7 +35,14 @@ except ImportError:
     UTC = timezone.utc  # type: ignore[attr-defined]
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent))
+_SCRIPTS_DIR = Path(__file__).resolve().parent
+_KIT_SCRIPTS_DIR = Path(__file__).resolve().parents[4] / "scripts"
+if str(_SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS_DIR))
+if str(_KIT_SCRIPTS_DIR) not in sys.path:
+    sys.path.append(str(_KIT_SCRIPTS_DIR))
+
+import _state_envelope
 from check_bdd_traceability import (
     COVERS_LINE,
     FENCE,
@@ -44,6 +51,7 @@ from check_bdd_traceability import (
     LEADING_TAG,
     SCENARIO_LINE,
 )
+import resume_context
 from slug_utils import parse_frontmatter, sanitize_slug
 import task_contract as tc
 
@@ -300,6 +308,145 @@ def expected_epic(roots: list[Path], task_id: str) -> str | None:
     return None
 
 
+def _collect_epic_task_summary(
+    roots: Sequence[Path], epic_slug: str
+) -> tuple[dict[str, int], list[str], str | None]:
+    """Return `(tally, active_task_ids, next_todo_id)` across `roots` for `epic_slug`."""
+    tally = board_tally(list(roots), epic_slug)
+    active_tasks: list[str] = []
+    next_todo: str | None = None
+    seen_tasks: set[str] = set()
+    for root in roots:
+        search_dirs = [
+            root / ".devtool" / "features",
+            root / ".devtool" / "features" / "done",
+        ]
+        search_dirs.extend(sorted((root / ".devtool" / "epic").glob("*")))
+        for directory in search_dirs:
+            if not directory.is_dir():
+                continue
+            for path in task_files_in(directory):
+                task_id = path.stem
+                if task_id in seen_tasks:
+                    continue
+                fm = parse_frontmatter(path.read_text(encoding="utf-8"))
+                if fm.get("epic") != epic_slug:
+                    continue
+                seen_tasks.add(task_id)
+                status = fm.get("status")
+                if status in ("in-progress", "review"):
+                    active_tasks.append(task_id)
+                elif status == "todo" and next_todo is None:
+                    next_todo = task_id
+    return tally, active_tasks, next_todo
+
+
+def _extract_existing_decisions(state_md: Path) -> str:
+    """Extract existing locked decision bullets from `.devtool/state/<epic>.md`."""
+    if not state_md.is_file():
+        return ""
+    lines = state_md.read_text(encoding="utf-8").splitlines()
+    captured: list[str] = []
+    in_section = False
+    for line in lines:
+        stripped = line.strip()
+        if stripped == "## Recent Decisions Locked:":
+            in_section = True
+            continue
+        if in_section:
+            if stripped.startswith("## "):
+                break
+            if stripped and stripped != "- Initialized state snapshot":
+                captured.append(stripped)
+    return "\n".join(captured)
+
+
+def _sync_runtime_envelope_and_memory(
+    active_roots: Sequence[Path],
+    epic_slug: str,
+    *,
+    stage: str,
+    last_event: str,
+    clear_decision: bool,
+) -> None:
+    """Atomically refresh heartbeat JSON, clear owned decision, and sync Two-Tier Memory."""
+    if not active_roots or not epic_slug:
+        return
+    anchor = active_roots[0]
+    safe_slug = _state_envelope._sanitize_epic_slug(epic_slug)
+    hb_filename = f"{safe_slug}.heartbeat.json"
+
+    target_devtool_dirs: list[Path] = []
+    seen_dt: set[Path] = set()
+
+    def _add_dt(devtool_dir: Path) -> None:
+        resolved = devtool_dir.resolve()
+        if resolved not in seen_dt:
+            seen_dt.add(resolved)
+            target_devtool_dirs.append(resolved)
+
+    if (anchor / ".git").exists():
+        for shared_dt in _state_envelope.resolve_shared_devtool_dirs(anchor):
+            _add_dt(shared_dt)
+        primary_root = target_devtool_dirs[0].parent
+        for mirror_dt in _state_envelope._discover_active_mirror_dirs(
+            primary_root, hb_filename
+        ):
+            _add_dt(mirror_dt)
+    for root in active_roots:
+        if (root / ".devtool").is_dir():
+            _add_dt(root / ".devtool")
+    if not target_devtool_dirs:
+        _add_dt(anchor / ".devtool")
+
+    summary_roots = list(dict.fromkeys([d.parent for d in target_devtool_dirs] + list(active_roots)))
+    tally, active_tasks, next_todo = _collect_epic_task_summary(summary_roots, epic_slug)
+
+    _state_envelope.update_epic_heartbeat(
+        anchor,
+        epic_slug,
+        stage=stage,
+        active_tasks=active_tasks,
+        last_event=last_event,
+        tally=tally,
+        extra_devtool_dirs=target_devtool_dirs,
+    )
+    if clear_decision:
+        _state_envelope.clear_pending_decision(
+            anchor,
+            epic_slug,
+            extra_devtool_dirs=target_devtool_dirs,
+        )
+
+    tally_str = ", ".join(f"{k}: {v}" for k, v in tally.items() if v > 0) or "empty"
+    status_line = f"{stage} [{tally_str}]"
+    if active_tasks:
+        next_step = f"Continue {active_tasks[0]}"
+    elif next_todo:
+        next_step = f"Start {next_todo}"
+    else:
+        next_step = "Verify epic completion"
+
+    decisions_text = ""
+    for dt_dir in target_devtool_dirs:
+        decisions_text = _extract_existing_decisions(dt_dir / "state" / f"{epic_slug}.md")
+        if decisions_text:
+            break
+    if not decisions_text:
+        decisions_text = f"- {last_event}"
+
+    resume_context.write_epic_state(
+        target_devtool_dirs[0].parent,
+        epic_slug,
+        decisions=decisions_text,
+        status=status_line,
+        next_step=next_step,
+        refresh_heartbeat=False,
+        sync_title=False,
+        mirror_roots=[d.parent for d in target_devtool_dirs],
+    )
+
+
 def sync_task(
     roots: list[Path], task_id: str, new_status: str
 ) -> tuple[list[Path], list[str]]:
@@ -307,10 +454,12 @@ def sync_task(
     exp_epic = expected_epic(roots, task_id)
     written: list[Path] = []
     notes: list[str] = []
+    touched_roots: list[Path] = []
     now = now_iso()
 
     for root in roots:
         targets = task_targets(root, task_id)
+        root_wrote = False
         for path in targets:
             file_epic = epic_of(path)
             if exp_epic and file_epic and file_epic != exp_epic:
@@ -329,6 +478,18 @@ def sync_task(
                     text = set_frontmatter_field(text, "completedAt", "null")
             path.write_text(text)
             written.append(board_location(root, path, new_status))
+            root_wrote = True
+        if root_wrote:
+            touched_roots.append(root)
+
+    if written and exp_epic and touched_roots:
+        _sync_runtime_envelope_and_memory(
+            touched_roots,
+            exp_epic,
+            stage=f"Stage 3 ({new_status}: {task_id})",
+            last_event=f"sync_task {task_id} -> {new_status}",
+            clear_decision=new_status in ("in-progress", "done"),
+        )
 
     return written, notes
 
@@ -572,6 +733,7 @@ def sync_epic(
     """
     matched: list[Path] = []
     written: list[Path] = []
+    touched_roots: list[Path] = []
     status_re = re.compile(
         r"^(-\s*\*\*(?:Status|Trạng thái)(?:\*\*:\s*|:\*\*\s*)).*$", re.MULTILINE
     )
@@ -579,20 +741,40 @@ def sync_epic(
         epic_path = root / ".devtool" / "epic" / epic_dir
         if not epic_path.is_dir():
             continue
+        root_matched = False
         for ext in (".en.md", ".vi.md"):
             doc = epic_path / f"{epic_dir}{ext}"
             if not doc.is_file():
                 continue
             matched.append(doc)
+            root_matched = True
             text = doc.read_text()
             if status_re.search(text):
                 new_text = status_re.sub(rf"\g<1>{new_status}", text)
                 if new_text != text:
                     doc.write_text(new_text)
                 written.append(doc)
+        if root_matched:
+            touched_roots.append(root)
 
     if new_status.strip().lower() in ("done", "hoàn thành"):
         archive_epic_tasks(roots, epic_dir)
+
+    if matched and touched_roots:
+        epic_slug = next(
+            (slug for r in touched_roots if (slug := find_epic_slug(r, epic_dir))),
+            None,
+        )
+        if epic_slug:
+            norm_status = new_status.strip().lower()
+            _sync_runtime_envelope_and_memory(
+                touched_roots,
+                epic_slug,
+                stage=new_status,
+                last_event=f"sync_epic {epic_dir} -> {new_status}",
+                clear_decision=norm_status
+                in ("in progress", "in-progress", "đang thực hiện", "done", "hoàn thành"),
+            )
 
     return matched, written
 
