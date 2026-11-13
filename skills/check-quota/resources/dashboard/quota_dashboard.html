@@ -168,6 +168,52 @@
       transform: scale(1.08);
       box-shadow: 0 6px 20px rgba(239, 68, 68, 0.5);
     }
+
+    /* Standalone card baseline framing & embedded mode flattening */
+    #dashboardCard {
+      border: 1px solid #1f2937;
+      border-radius: 1rem;
+      padding: 1rem;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    }
+    @media (min-width: 640px) {
+      #dashboardCard {
+        padding: 1.5rem;
+      }
+    }
+    body.embedded-mode {
+      padding: 0 !important;
+      margin: 0 !important;
+      background-color: #090c14 !important;
+    }
+    body.embedded-mode #dashboardCard,
+    #dashboardCard.embedded-mode {
+      border: 0 none transparent !important;
+      border-radius: 0 !important;
+      box-shadow: none !important;
+      margin: 0 !important;
+      max-width: 100% !important;
+      padding: 10px 14px !important;
+    }
+
+    /* Deterministic overlay visibility for inner sub-modals */
+    #scheduleModal,
+    #loginModal,
+    #profileInfoModal,
+    #appealDetailModal {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #scheduleModal.hidden,
+    #loginModal.hidden,
+    #profileInfoModal.hidden,
+    #appealDetailModal.hidden {
+      display: none !important;
+    }
   </style>
 </head>
 
@@ -3565,49 +3611,137 @@
     }
 
     /**
+     * Single Modal Stack Controller: guarantees at most one inner sub-modal is open.
+     */
+    const INNER_MODAL_IDS = [
+      "scheduleModal",
+      "loginModal",
+      "profileInfoModal",
+      "appealDetailModal",
+    ];
+    let activeInnerModalId = null;
+
+    function isInnerModalOpen(modalEl) {
+      return Boolean(modalEl && !modalEl.classList.contains("hidden"));
+    }
+
+    function getActiveInnerModal() {
+      if (activeInnerModalId && INNER_MODAL_IDS.includes(activeInnerModalId)) {
+        const trackedEl = document.getElementById(activeInnerModalId);
+        if (isInnerModalOpen(trackedEl)) {
+          return activeInnerModalId;
+        }
+      }
+      for (const modalId of INNER_MODAL_IDS) {
+        const modalEl = document.getElementById(modalId);
+        if (isInnerModalOpen(modalEl)) {
+          activeInnerModalId = modalId;
+          return modalId;
+        }
+      }
+      activeInnerModalId = null;
+      return null;
+    }
+
+    function closeAllInnerModals(exceptId = null) {
+      for (const modalId of INNER_MODAL_IDS) {
+        if (exceptId && modalId === exceptId) continue;
+        const modalEl = document.getElementById(modalId);
+        if (modalEl) {
+          modalEl.classList.add("hidden");
+        }
+      }
+      if (exceptId && isInnerModalOpen(document.getElementById(exceptId))) {
+        activeInnerModalId = exceptId;
+      } else {
+        activeInnerModalId = null;
+      }
+    }
+
+    function openInnerModal(modalId, onOpen) {
+      if (!INNER_MODAL_IDS.includes(modalId)) return false;
+      closeAllInnerModals(modalId);
+      if (typeof onOpen === "function") {
+        onOpen();
+      }
+      const modalEl = document.getElementById(modalId);
+      if (!modalEl) return false;
+      modalEl.classList.remove("hidden");
+      activeInnerModalId = modalId;
+      return true;
+    }
+
+    function closeInnerModal(modalId = null) {
+      const targetId = modalId || getActiveInnerModal();
+      if (!targetId) return false;
+      const modalEl = document.getElementById(targetId);
+      if (modalEl) {
+        modalEl.classList.add("hidden");
+      }
+      if (activeInnerModalId === targetId) {
+        activeInnerModalId = null;
+      }
+      getActiveInnerModal();
+      return true;
+    }
+
+    function openQuotaSubModal(modalId, onOpen) {
+      return openInnerModal(modalId, onOpen);
+    }
+
+    function closeQuotaSubModal(modalId = null) {
+      return closeInnerModal(modalId);
+    }
+
+    function closeAllQuotaSubModals(exceptId = null) {
+      return closeAllInnerModals(exceptId);
+    }
+
+    /**
      * Single Profile Schedule Modal
      */
     function openScheduleModal(profile) {
-      activeModalProfile = profile;
-      document.getElementById("modalProfileName").textContent = profile;
+      openInnerModal("scheduleModal", () => {
+        activeModalProfile = profile;
+        document.getElementById("modalProfileName").textContent = profile;
 
-      const sched = getProfileSchedule(profile);
-      const banner = document.getElementById("modalActiveScheduleBanner");
-      const btnCancelFooter = document.getElementById("btnModalCancelSched");
-      const btnConfirmLabel = document.getElementById("btnModalConfirmLabel");
+        const sched = getProfileSchedule(profile);
+        const banner = document.getElementById("modalActiveScheduleBanner");
+        const btnCancelFooter = document.getElementById("btnModalCancelSched");
+        const btnConfirmLabel = document.getElementById("btnModalConfirmLabel");
 
-      if (sched) {
-        if (banner) {
-          banner.classList.remove("hidden");
-          const timeDisp = document.getElementById("activeSchedTimeDisplay");
-          const delayDisp = document.getElementById("activeSchedDelayDisplay");
-          if (timeDisp) timeDisp.textContent = sched.time;
-          if (delayDisp) delayDisp.textContent = `+${sched.delay}s`;
+        if (sched) {
+          if (banner) {
+            banner.classList.remove("hidden");
+            const timeDisp = document.getElementById("activeSchedTimeDisplay");
+            const delayDisp = document.getElementById("activeSchedDelayDisplay");
+            if (timeDisp) timeDisp.textContent = sched.time;
+            if (delayDisp) delayDisp.textContent = `+${sched.delay}s`;
+          }
+          if (btnCancelFooter) btnCancelFooter.classList.remove("hidden");
+          if (btnConfirmLabel) btnConfirmLabel.textContent = "Cập nhật lịch mới";
+
+          // Pre-fill existing schedule inputs
+          const parts = sched.time.split(":");
+          document.getElementById("customHour").value = parts[0] || "07";
+          document.getElementById("customMin").value = parts[1] || "00";
+          document.getElementById("customScheduleOffset").value = sched.delay !== undefined ? sched.delay : "30";
+        } else {
+          if (banner) banner.classList.add("hidden");
+          if (btnCancelFooter) btnCancelFooter.classList.add("hidden");
+          if (btnConfirmLabel) btnConfirmLabel.textContent = "Thiết lập";
+
+          document.getElementById("customHour").value = "";
+          document.getElementById("customMin").value = "";
+          document.getElementById("customScheduleOffset").value = "30";
         }
-        if (btnCancelFooter) btnCancelFooter.classList.remove("hidden");
-        if (btnConfirmLabel) btnConfirmLabel.textContent = "Cập nhật lịch mới";
 
-        // Pre-fill existing schedule inputs
-        const parts = sched.time.split(":");
-        document.getElementById("customHour").value = parts[0] || "07";
-        document.getElementById("customMin").value = parts[1] || "00";
-        document.getElementById("customScheduleOffset").value = sched.delay !== undefined ? sched.delay : "30";
-      } else {
-        if (banner) banner.classList.add("hidden");
-        if (btnCancelFooter) btnCancelFooter.classList.add("hidden");
-        if (btnConfirmLabel) btnConfirmLabel.textContent = "Thiết lập";
-
-        document.getElementById("customHour").value = "";
-        document.getElementById("customMin").value = "";
-        document.getElementById("customScheduleOffset").value = "30";
-      }
-
-      updateModalCmdPreview();
-      document.getElementById("scheduleModal").classList.remove("hidden");
+        updateModalCmdPreview();
+      });
     }
 
     function closeScheduleModal() {
-      document.getElementById("scheduleModal").classList.add("hidden");
+      closeInnerModal("scheduleModal");
     }
 
     function cancelCurrentSchedule() {
@@ -3779,34 +3913,34 @@
      * Requirement: Profile Info Modal (ℹ) Handlers
      */
     function openProfileInfoModal(profile) {
-      const data = PROFILES_DATA[profile] || {};
-      document.getElementById("infoModalProfile").textContent = profile;
-      document.getElementById("infoModalEmail").textContent = data.email || `${profile}@gmail.com`;
+      openInnerModal("profileInfoModal", () => {
+        const data = PROFILES_DATA[profile] || {};
+        document.getElementById("infoModalProfile").textContent = profile;
+        document.getElementById("infoModalEmail").textContent = data.email || `${profile}@gmail.com`;
 
-      const statusEl = document.getElementById("infoModalStatus");
-      if (data.status === "DISABLED" || data.isAppeal) {
-        statusEl.innerHTML = `<span class="text-rose-400 font-bold flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span> 🚫 Bị khóa (Appeal Needed)</span>`;
-      } else if (data.status === "AUTH NEEDED") {
-        statusEl.innerHTML = `<span class="text-amber-400 font-bold flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-amber-400"></span> 🔑 Chưa đăng nhập CLI</span>`;
-      } else {
-        statusEl.innerHTML = `<span class="text-emerald-400 font-bold flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-400"></span> 🟢 Đang hoạt động (ACTIVE)</span>`;
-      }
+        const statusEl = document.getElementById("infoModalStatus");
+        if (data.status === "DISABLED" || data.isAppeal) {
+          statusEl.innerHTML = `<span class="text-rose-400 font-bold flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span> 🚫 Bị khóa (Appeal Needed)</span>`;
+        } else if (data.status === "AUTH NEEDED") {
+          statusEl.innerHTML = `<span class="text-amber-400 font-bold flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-amber-400"></span> 🔑 Chưa đăng nhập CLI</span>`;
+        } else {
+          statusEl.innerHTML = `<span class="text-emerald-400 font-bold flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-400"></span> 🟢 Đang hoạt động (ACTIVE)</span>`;
+        }
 
-      document.getElementById("infoModalTier").textContent = `${data.tier || 'PRO'} (Priority ${data.priority || 50})${data.hasArgon ? ' • Argon Support' : ''}`;
-      document.getElementById("infoModalCliCmd").textContent = `${profile}-cli`;
-      document.getElementById("infoModalHomePath").textContent = `~/antigravity_homes/${profile}`;
-      document.getElementById("infoModalKeychainPath").textContent = `~/antigravity_homes/${profile}/Library/Keychains/${profile}.keychain-db`;
+        document.getElementById("infoModalTier").textContent = `${data.tier || 'PRO'} (Priority ${data.priority || 50})${data.hasArgon ? ' • Argon Support' : ''}`;
+        document.getElementById("infoModalCliCmd").textContent = `${profile}-cli`;
+        document.getElementById("infoModalHomePath").textContent = `~/antigravity_homes/${profile}`;
+        document.getElementById("infoModalKeychainPath").textContent = `~/antigravity_homes/${profile}/Library/Keychains/${profile}.keychain-db`;
 
-      const copyEmailBtn = document.getElementById("copyEmailText");
-      if (copyEmailBtn) copyEmailBtn.textContent = "Sao chép";
-      const copyCliBtn = document.getElementById("copyCliText");
-      if (copyCliBtn) copyCliBtn.textContent = "Sao chép";
-
-      document.getElementById("profileInfoModal").classList.remove("hidden");
+        const copyEmailBtn = document.getElementById("copyEmailText");
+        if (copyEmailBtn) copyEmailBtn.textContent = "Sao chép";
+        const copyCliBtn = document.getElementById("copyCliText");
+        if (copyCliBtn) copyCliBtn.textContent = "Sao chép";
+      });
     }
 
     function closeProfileInfoModal() {
-      document.getElementById("profileInfoModal").classList.add("hidden");
+      closeInnerModal("profileInfoModal");
     }
 
     function copyInfoEmail() {
@@ -3833,41 +3967,40 @@
      * Requirement: Appeal Modal Handlers
      */
     function openAppealModal(profile) {
-      const data = PROFILES_DATA[profile] || {};
-      document.getElementById("appealModalProfile").textContent = profile;
-      const errEl = document.getElementById("appealErrorId");
-      if (errEl) errEl.textContent = data.errorId || "856698b5-d43c-4198-962b-4db7fc3c4adb-2";
-      document.getElementById("appealDetailModal").classList.remove("hidden");
+      openInnerModal("appealDetailModal", () => {
+        const data = PROFILES_DATA[profile] || {};
+        document.getElementById("appealModalProfile").textContent = profile;
+        const errEl = document.getElementById("appealErrorId");
+        if (errEl) errEl.textContent = data.errorId || "856698b5-d43c-4198-962b-4db7fc3c4adb-2";
+      });
     }
 
     function closeAppealModal() {
-      document.getElementById("appealDetailModal").classList.add("hidden");
+      closeInnerModal("appealDetailModal");
     }
 
     /**
      * Requirement: Login CLI Modal & Toast handlers
      */
     function openLoginModal(profile) {
-      document.getElementById("loginModalProfile").textContent = profile;
-      document.getElementById("loginCmdProfile").textContent = profile;
-      document.getElementById("loginCmdInline").textContent = `${profile}-cli`;
-      const homeProfile = document.getElementById("loginHomeProfile");
-      const alt1 = document.getElementById("loginAltProfile");
-      const alt2 = document.getElementById("loginAltProfile2");
-      if (homeProfile) homeProfile.textContent = profile;
-      if (alt1) alt1.textContent = profile;
-      if (alt2) alt2.textContent = profile;
+      openInnerModal("loginModal", () => {
+        document.getElementById("loginModalProfile").textContent = profile;
+        document.getElementById("loginCmdProfile").textContent = profile;
+        document.getElementById("loginCmdInline").textContent = `${profile}-cli`;
+        const homeProfile = document.getElementById("loginHomeProfile");
+        const alt1 = document.getElementById("loginAltProfile");
+        const alt2 = document.getElementById("loginAltProfile2");
+        if (homeProfile) homeProfile.textContent = profile;
+        if (alt1) alt1.textContent = profile;
+        if (alt2) alt2.textContent = profile;
 
-      const copyBtn = document.getElementById("copyBtnText");
-      if (copyBtn) copyBtn.textContent = "Sao chép lệnh";
-
-      const modal = document.getElementById("loginModal");
-      modal.classList.remove("hidden");
+        const copyBtn = document.getElementById("copyBtnText");
+        if (copyBtn) copyBtn.textContent = "Sao chép lệnh";
+      });
     }
 
     function closeLoginModal() {
-      const modal = document.getElementById("loginModal");
-      modal.classList.add("hidden");
+      closeInnerModal("loginModal");
     }
 
     function confirmLoginAndRefresh() {
@@ -4052,6 +4185,78 @@
       if (p) openLoginModal(p);
     }
 
+    function isEmbeddedMode() {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get("embedded") === "1") return true;
+      } catch (err) {
+        // Ignore invalid query string
+      }
+      try {
+        return Boolean(window.parent && window.parent !== window);
+      } catch (err) {
+        return true;
+      }
+    }
+
+    function applyEmbeddedMode() {
+      const embedded = isEmbeddedMode();
+      if (document.body) {
+        document.body.classList.toggle("embedded-mode", embedded);
+      }
+      const card = document.getElementById("dashboardCard");
+      if (card) {
+        card.classList.toggle("embedded-mode", embedded);
+      }
+      return embedded;
+    }
+
+    function initInnerModalBackdropHandlers() {
+      for (const modalId of INNER_MODAL_IDS) {
+        const modalEl = document.getElementById(modalId);
+        if (!modalEl || modalEl.dataset.backdropBound === "1") continue;
+        modalEl.dataset.backdropBound = "1";
+        modalEl.addEventListener("click", (e) => {
+          if (e.target === modalEl) {
+            e.preventDefault();
+            e.stopPropagation();
+            closeInnerModal(modalId);
+          }
+        });
+      }
+    }
+
+    function isTrustedParentMessage(event) {
+      if (!event) return false;
+      try {
+        if (
+          event.source &&
+          window.parent &&
+          window.parent !== window &&
+          event.source !== window.parent &&
+          event.source !== window
+        ) {
+          return false;
+        }
+      } catch (err) {
+        return false;
+      }
+      const origin = event.origin;
+      if (!origin || origin === window.location.origin) return true;
+      if (origin === "null" && window.location.protocol === "file:") return true;
+      try {
+        const parsed = new URL(origin);
+        return (
+          parsed.hostname === "127.0.0.1" ||
+          parsed.hostname === "localhost" ||
+          parsed.hostname === "::1" ||
+          parsed.hostname === "[::1]"
+        );
+      } catch (err) {
+        return false;
+      }
+    }
+
     // Modal Close & Click-Outside Handlers for embedded iframe
     function handleCardClose() {
       if (window.parent && window.parent !== window) {
@@ -4061,10 +4266,24 @@
       }
     }
 
+    applyEmbeddedMode();
+    initInnerModalBackdropHandlers();
+
+    window.addEventListener("message", (e) => {
+      if (!isTrustedParentMessage(e)) return;
+      if (e.data && typeof e.data === "object" && e.data.action === "reset_quota_submodals") {
+        closeAllInnerModals();
+      }
+    });
+
     document.addEventListener("click", (e) => {
       if (window.parent && window.parent !== window) {
-        // Do not close if clicking inside scheduleModal, loginModal, or any modal dialog
-        const anyModal = e.target.closest("#scheduleModal, #loginModal, #cronDetailsModal, #auditModal");
+        if (getActiveInnerModal()) return;
+        const innerSelector = INNER_MODAL_IDS.map((id) => `#${id}`).join(", ");
+        const anyModal =
+          e.target && typeof e.target.closest === "function"
+            ? e.target.closest(`${innerSelector}, #cronDetailsModal, #auditModal`)
+            : null;
         if (anyModal) return;
 
         const container = document.getElementById("dashboardCard") || document.querySelector(".max-w-7xl");
@@ -4075,9 +4294,15 @@
     });
 
     document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") {
-        handleCardClose();
+      if (e.key !== "Escape") return;
+      const activeModalId = getActiveInnerModal();
+      if (activeModalId) {
+        e.preventDefault();
+        e.stopPropagation();
+        closeInnerModal(activeModalId);
+        return;
       }
+      handleCardClose();
     });
   </script>
 </body>

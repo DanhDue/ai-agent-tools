@@ -1,13 +1,13 @@
 ---
 id: "task_06_check_quota_modal_stack_controller"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "runtime_sync_and_dashboard_hardening"
 dueDate: null
 created: "2026-11-13T09:24:00Z"
-modified: "2026-11-13T09:24:00Z"
-completedAt: null
+modified: "2026-11-13T04:55:22Z"
+completedAt: "2026-11-13T04:55:22Z"
 labels: ["frontend", "check-quota", "modal", "ui"]
 order: "a6"
 review_tier: "full"
@@ -15,7 +15,7 @@ review_tier: "full"
 
 # Task 6: Check-Quota Single Modal Stack Controller and Embedded Cleanup
 
-Epic: [runtime_sync_and_dashboard_hardening](../epic/runtime_sync_and_dashboard_hardening/runtime_sync_and_dashboard_hardening.en.md)
+Epic: [runtime_sync_and_dashboard_hardening](../../epic/runtime_sync_and_dashboard_hardening/runtime_sync_and_dashboard_hardening.en.md)
 
 ## Requirement Analysis
 
@@ -121,11 +121,11 @@ Then the key handler sees zero open inner sub-modals and invokes handleCardClose
 
 ## Dependencies & Blockers
 
-Blocked by [Task 3](../epic/runtime_sync_and_dashboard_hardening/task_03_wave_parallel_handoff_stage3_revise_and_pool_cleanup.md).
+Blocked by [Task 3](../../epic/runtime_sync_and_dashboard_hardening/task_03_wave_parallel_handoff_stage3_revise_and_pool_cleanup.md).
 
 Downstream dependent (blocked by Task 6): `task_07`.
 
 ## References & Rollback
 
-- [Epic HLD](../epic/runtime_sync_and_dashboard_hardening/runtime_sync_and_dashboard_hardening.en.md), Module Contracts (§4.7).
+- [Epic HLD](../../epic/runtime_sync_and_dashboard_hardening/runtime_sync_and_dashboard_hardening.en.md), Module Contracts (§4.7).
 - **Rollback**: Revert task commit; restores prior modal code in `quota_dashboard.html` and removes `tests/test_rsdh_quota_modal_stack.py`.

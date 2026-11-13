@@ -1,13 +1,13 @@
 ---
 id: "task_06_check_quota_modal_stack_controller"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "runtime_sync_and_dashboard_hardening"
 dueDate: null
 created: "2026-11-13T09:24:00Z"
-modified: "2026-11-13T09:24:00Z"
-completedAt: null
+modified: "2026-11-13T04:55:22Z"
+completedAt: "2026-11-13T04:55:22Z"
 labels: ["frontend", "check-quota", "modal", "ui"]
 order: "a6"
 review_tier: "full"
