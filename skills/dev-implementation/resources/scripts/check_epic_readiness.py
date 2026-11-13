@@ -54,6 +54,7 @@ class Context:
     row_timeout: int = 600
     replay: bool = False
     strict_bilingual: bool = False
+    post_design: bool = False
 
 
 SYNC_EN_DIGEST_RE = re.compile(r"<!--\s*sync-en-sha256:\s*([^\s>]+)\s*-->", re.IGNORECASE)
@@ -166,11 +167,17 @@ def check_preflight(ctx: Context) -> list[Finding]:
         sys.executable,
         str(SCRIPTS_DIR / "check_task_contract.py"),
         "--design",
-        "--hld",
-        str(epic_path / f"{ctx.epic_dir}.en.md"),
-        "--tasks",
-        *task_paths_str,
     ]
+    if ctx.post_design:
+        cmd3.append("--allow-existing-done-new")
+    cmd3.extend(
+        [
+            "--hld",
+            str(epic_path / f"{ctx.epic_dir}.en.md"),
+            "--tasks",
+            *task_paths_str,
+        ]
+    )
     res3 = subprocess.run(cmd3, check=False, cwd=ctx.root, capture_output=True, text=True, env=rtc.kit_env())
     if res3.returncode != 0:
         last_line = get_last_non_empty_line(res3.stdout, res3.stderr)
@@ -901,6 +908,7 @@ def run_checks(
     row_timeout: int = 600,
     replay: bool = False,
     strict_bilingual: bool | None = None,
+    post_design: bool | None = None,
 ) -> list[Finding]:
     active_ctx = Context(
         root=ctx.root,
@@ -914,6 +922,7 @@ def run_checks(
         row_timeout=row_timeout,
         replay=replay or ctx.replay,
         strict_bilingual=ctx.strict_bilingual if strict_bilingual is None else strict_bilingual,
+        post_design=ctx.post_design if post_design is None else post_design,
     )
     findings: list[Finding] = []
     for _check_id, check_fn in CHECKS:
@@ -1032,6 +1041,11 @@ def main(argv: list[str] | None = None) -> int:
         help="Replay epic tasks in an isolated worktree and verify rows",
     )
     parser.add_argument(
+        "--post-design",
+        action="store_true",
+        help="Allow already-existing (new) artifacts owned by done/review/in-progress tasks during Stage 3 revision",
+    )
+    parser.add_argument(
         "--replay-prereqs",
         action="store_true",
         help="Replay unfinished prerequisite epics in topological order before replaying epic",
@@ -1096,6 +1110,7 @@ def main(argv: list[str] | None = None) -> int:
         row_timeout=args.row_timeout,
         replay=args.replay,
         strict_bilingual=args.strict_bilingual,
+        post_design=args.post_design,
     )
     report = render_report(ctx, findings)
     print(report)

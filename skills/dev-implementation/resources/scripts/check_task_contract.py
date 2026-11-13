@@ -142,20 +142,35 @@ def check_structure(check: Checker, stem: str, path: Path, text: str, rows: list
                           "executable task requires grounded facts, cannot be empty or 'None'")
 
 
+EXISTING_NEW_EXEMPT_STATUSES = frozenset({"done", "review", "in-progress"})
+
+
+def _task_status(text: str) -> str:
+    if not text.startswith("---"):
+        return ""
+    match = STATUS.search(text.split("\n---", 1)[0])
+    return match.group(1).strip() if match else ""
+
+
 def check_allowed(
     check: Checker,
     stem: str,
     text: str,
     design: bool,
     prereq_files: set[str] | None = None,
+    *,
+    allow_existing_done_new: bool = False,
+    task_status: str = "",
 ) -> None:
+    skip_existing = allow_existing_done_new and task_status in EXISTING_NEW_EXEMPT_STATUSES
     for entry in tc.parse_allowed_files(text):
         pattern = entry.pattern
         if entry.new:
             if design:
                 parent = (check.root / pattern).parent
                 if (check.root / pattern).exists():
-                    check.problem(f"{stem}:Files", f"{pattern} is marked (new) but already exists")
+                    if not skip_existing:
+                        check.problem(f"{stem}:Files", f"{pattern} is marked (new) but already exists")
                 elif not (parent.exists() or parent.parent.exists()):
                     check.problem(f"{stem}:Files", f"{pattern} (new) has no parent or grandparent directory")
         elif prereq_files and any(
@@ -172,7 +187,16 @@ def check_allowed(
             check.problem(f"{stem}:Files", f"{pattern} is not tracked by git")
 
 
-def check_evidence(check: Checker, stem: str, text: str, design: bool) -> None:
+def check_evidence(
+    check: Checker,
+    stem: str,
+    text: str,
+    design: bool,
+    *,
+    allow_existing_done_new: bool = False,
+    task_status: str = "",
+) -> None:
+    skip_existing = allow_existing_done_new and task_status in EXISTING_NEW_EXEMPT_STATUSES
     for entry in tc.parse_evidence_files(text):
         pattern = entry.pattern
         parts = Path(pattern).parts
@@ -192,8 +216,41 @@ def check_evidence(check: Checker, stem: str, text: str, design: bool) -> None:
                 f"Evidence file {pattern} collides with reserved 'task_*.json' runner records",
             )
             continue
-        if design and entry.new and (check.root / pattern).exists():
+        if design and entry.new and (check.root / pattern).exists() and not skip_existing:
             check.problem(f"{stem}:Files", f"Evidence file {pattern} is marked (new) but already exists")
+
+
+def _normalize_rel_claim(pattern: str) -> str:
+    """Normalize a relative claim path without corrupting leading dot-directories."""
+    norm = Path(pattern).as_posix()
+    while norm.startswith("./"):
+        norm = norm[2:]
+    return norm
+
+
+def check_duplicate_new_claims(check: Checker, tasks: dict[Path, str]) -> None:
+    """Reject duplicate (new) Allowed or Evidence path claims across multiple tasks."""
+    new_owners: dict[str, list[str]] = {}
+    for path, text in tasks.items():
+        stem = path.stem
+        for entry in tc.parse_allowed_files(text):
+            if entry.new:
+                norm = _normalize_rel_claim(entry.pattern)
+                owners = new_owners.setdefault(norm, [])
+                if stem not in owners:
+                    owners.append(stem)
+        for entry in tc.parse_evidence_files(text):
+            if entry.new and not Path(entry.pattern).name.startswith("task_"):
+                norm = _normalize_rel_claim(entry.pattern)
+                owners = new_owners.setdefault(norm, [])
+                if stem not in owners:
+                    owners.append(stem)
+    for pattern, owners in sorted(new_owners.items()):
+        if len(owners) > 1:
+            check.problem(
+                f"{owners[0]}:Files",
+                f"duplicate (new) claim for {pattern} across multiple tasks ({', '.join(owners)})",
+            )
 
 
 SEARCH_PROGRAMS = {"grep", "egrep", "fgrep", "rg", "sed", "awk"}
@@ -334,7 +391,34 @@ def is_python_task(text: str, rows: list[Any]) -> bool:
     return False
 
 
-def check_python_tier_b(check: Checker, stem: str, rows: list[Any]) -> None:
+_PY_TOOL_NAMES = frozenset({"ruff", "mypy", "pyright", "ty", "flake8", "pylint"})
+_PY_BOOL_FLAGS = frozenset(
+    {"--strict", "--check", "--frozen", "--quiet", "--verbose", "--show-error-codes"}
+)
+
+
+def _cap_tool_prefix(cap: list[str]) -> list[str]:
+    """Return the runner, tool, subcommand, and leading boolean flags before target paths."""
+    for idx, tok in enumerate(cap):
+        tool = Path(tok).name
+        if tool not in _PY_TOOL_NAMES:
+            continue
+        end = idx + 1
+        if tool == "ruff" and end < len(cap) and cap[end] in ("check", "format"):
+            end += 1
+        while end < len(cap) and cap[end] in _PY_BOOL_FLAGS:
+            end += 1
+        return list(cap[:end])
+    return list(cap[:-1]) if len(cap) > 1 else list(cap)
+
+
+def check_python_tier_b(
+    check: Checker,
+    stem: str,
+    rows: list[Any],
+    *,
+    allow_historical_prefix: bool = False,
+) -> None:
     tier_b_rows = [r for r in rows if r.phase == "TIER-B"]
     manifest_path = check.root / ".agents" / "quality" / "python-quality.json"
     if manifest_path.exists():
@@ -368,7 +452,13 @@ def check_python_tier_b(check: Checker, stem: str, rows: list[Any]) -> None:
                 return True
             if len(cap) > 1 and row_toks[:len(cap) - 1] == cap[:-1]:
                 return True
-            return bool(len(row_toks) >= len(cap) and row_toks[:len(cap)] == cap)
+            if len(row_toks) >= len(cap) and row_toks[:len(cap)] == cap:
+                return True
+            if allow_historical_prefix:
+                prefix = _cap_tool_prefix(cap)
+                if prefix and len(row_toks) > len(prefix) and row_toks[:len(prefix)] == prefix:
+                    return True
+            return False
 
         has_lint = any(matches_cap(lint_cmd, r.command) for r in tier_b_rows)
         has_type = any(matches_cap(type_check_cmd, r.command) for r in tier_b_rows)
@@ -607,6 +697,8 @@ def check_task(
     design: bool,
     created: set[str],
     prereq_files: set[str] | None = None,
+    *,
+    allow_existing_done_new: bool = False,
 ) -> None:
     stem = path.stem
     rows = table_rows(check, stem, text)
@@ -617,14 +709,32 @@ def check_task(
         check_pytest_k(check, stem, row)
         check_portable_command(check, stem, row)
     check_weak_bdd(check, stem, text)
-    status = STATUS.search(text.split("\n---", 1)[0]) if text.startswith("---") else None
-    if design or not (status and status.group(1) == "done"):
+    task_status = _task_status(text)
+    if design or task_status != "done":
         if is_python_task(text, rows):
-            check_python_tier_b(check, stem, rows)
-        check_allowed(check, stem, text, design, prereq_files)
+            allow_hist = task_status == "done" or (
+                allow_existing_done_new and task_status in EXISTING_NEW_EXEMPT_STATUSES
+            )
+            check_python_tier_b(check, stem, rows, allow_historical_prefix=allow_hist)
+        check_allowed(
+            check,
+            stem,
+            text,
+            design,
+            prereq_files,
+            allow_existing_done_new=allow_existing_done_new,
+            task_status=task_status,
+        )
         if design:
             check_surgical_anchors(check, stem, text)
-        check_evidence(check, stem, text, design)
+        check_evidence(
+            check,
+            stem,
+            text,
+            design,
+            allow_existing_done_new=allow_existing_done_new,
+            task_status=task_status,
+        )
         check_grounding(check, stem, text, rows, created)
 
 
@@ -718,6 +828,7 @@ def repository_root() -> Path:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--design", action="store_true")
+    parser.add_argument("--allow-existing-done-new", action="store_true")
     parser.add_argument("--hld", required=True, type=Path)
     parser.add_argument("--tasks", required=True, nargs="+", type=Path)
     args = parser.parse_args(argv)
@@ -743,8 +854,17 @@ def main(argv: list[str] | None = None) -> int:
             for entry in tc.parse_evidence_files(text)
             if entry.new and not Path(entry.pattern).name.startswith("task_")
         }
+        check_duplicate_new_claims(check, tasks)
         for path, text in tasks.items():
-            check_task(check, path, text, args.design, created, prereq_files)
+            check_task(
+                check,
+                path,
+                text,
+                args.design,
+                created,
+                prereq_files,
+                allow_existing_done_new=args.allow_existing_done_new,
+            )
         check_hld(check, args.hld, hld_text, tasks)
         if args.design:
             check_r2_r3_parity(check, args.hld, tasks)

@@ -1,13 +1,13 @@
 ---
 id: "task_04_check_tasks_harvester_bottleneck_and_pic_backend"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "runtime_sync_and_dashboard_hardening"
 dueDate: null
 created: "2026-11-13T09:18:00Z"
-modified: "2026-11-13T09:18:00Z"
-completedAt: null
+modified: "2026-11-13T04:39:09Z"
+completedAt: "2026-11-13T04:39:09Z"
 labels: ["backend", "harvester", "pic-sync", "check-tasks"]
 order: "a4"
 review_tier: "full"

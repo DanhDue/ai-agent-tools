@@ -1,0 +1,273 @@
+{
+  "schema": 1,
+  "task": "task_03_wave_parallel_handoff_stage3_revise_and_pool_cleanup",
+  "runs": {
+    "red": {
+      "head": "228e5281c6a35a49ba27ace85472ea4d980c38c8",
+      "tree": "36263f7c819fa7cd18b0eb156f0f148c07959568",
+      "patch_id": "5892b595f68bac5154ddd96c6a4610ae186bb599",
+      "started": "2026-11-13T04:15:29Z",
+      "finished": "2026-11-13T04:15:31Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_rsdh_orchestration.py::test_rsdh_ec_03_stage3_revise_vs_stage2_strict",
+          "expect": "exit 1; contains \"failed\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-13T04:15:29Z",
+          "finished": "2026-11-13T04:15:31Z",
+          "output_tail": [
+            "F                                                                        [100%]",
+            "=================================== FAILURES ===================================",
+            "________________ test_rsdh_ec_03_stage3_revise_vs_stage2_strict ________________",
+            "tests/test_rsdh_orchestration.py:472: in test_rsdh_ec_03_stage3_revise_vs_stage2_strict",
+            "    assert contract_stage3.returncode == 0, (",
+            "E   AssertionError: Expected --allow-existing-done-new PASS for done:",
+            "E     ",
+            "E   assert 2 == 0",
+            "E    +  where 2 = CompletedProcess(args=['/opt/homebrew/opt/python@3.15/bin/python3.15', '/Users/danhdueexoictif/AllProjects/ai-agent-to...        --tasks TASKS [TASKS ...]\\ncheck_task_contract.py: error: unrecognized arguments: --allow-existing-done-new\\n').returncode",
+            "=========================== short test summary info ============================",
+            "FAILED tests/test_rsdh_orchestration.py::test_rsdh_ec_03_stage3_revise_vs_stage2_strict",
+            "1 failed in 1.59s"
+          ],
+          "output_sha256": "65a86bc63ecae94c15fcfc950de2c36a15a52bad3b1a159744c9d7f8074afdde"
+        }
+      ],
+      "passed": true
+    },
+    "verify": {
+      "head": "228e5281c6a35a49ba27ace85472ea4d980c38c8",
+      "tree": "873a1db06c280d991667566af9acafce562a46a6",
+      "patch_id": "dd9bc8d48fe792c0c66b0bdd9157de25da266f89",
+      "started": "2026-11-13T04:15:37Z",
+      "finished": "2026-11-13T04:18:19Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_rsdh_orchestration.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-13T04:15:37Z",
+          "finished": "2026-11-13T04:16:00Z",
+          "output_tail": [
+            "................                                                         [100%]",
+            "16 passed in 22.36s"
+          ],
+          "output_sha256": "97f38750a8127f37ffe35d0933c7346af1f6ed4617064e13ae58381c40878ccf"
+        },
+        {
+          "id": "V3",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 skills/dev-implementation/resources/scripts/test_package_and_revise_epic.py skills/dev-implementation/resources/scripts/test_check_epic_readiness.py skills/dev-implementation/resources/scripts/test_check_task_contract.py tests/test_tto_docs_and_slimming.py tests/test_tto_bilingual_and_surgical.py tests/test_token_throttling_acceptance.py && python3 -m unittest skills/dev-implementation/resources/scripts/test_manage_worker_pool.py skills/finishing-a-development-branch/resources/scripts/test_integrate_branch.py scripts/test_resume_context.py scripts/test_verifiable_handoff_text.py scripts/test_lifecycle_document_contract.py scripts/test_lifecycle_signals.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-13T04:16:00Z",
+          "finished": "2026-11-13T04:17:50Z",
+          "output_tail": [
+            "........................................................................ [ 80%]",
+            "..................                                                       [100%]",
+            "90 passed in 83.71s (0:01:23)",
+            "[main (root-commit) f9d7951] Initial commit",
+            " 1 file changed, 1 insertion(+)",
+            " create mode 100644 README.md",
+            ".[main (root-commit) f9d7951] Initial commit",
+            " 1 file changed, 1 insertion(+)",
+            " create mode 100644 README.md",
+            "[epic/sample-epic-slot-1 e66503a] [SAMPLE-EPIC] Task 1",
+            " 1 file changed, 1 insertion(+)",
+            " create mode 100644 task1_file.txt",
+            "......................................................................................................",
+            "----------------------------------------------------------------------",
+            "Ran 103 tests in 25.973s",
+            "OK",
+            "Initialized 2 worker pool slots:",
+            "  /private/tmp/ag_brother/tmpw37qm1ma/test_repo/.worktrees/sample_epic-slot-1",
+            "  /private/tmp/ag_brother/tmpw37qm1ma/test_repo/.worktrees/sample_epic-slot-2",
+            "Worker Pool Status for sample_epic:",
+            "  Slot 1: Active (HEAD: f9d7951, Dirty: False) at /private/tmp/ag_brother/tmpw37qm1ma/test_repo/.worktrees/sample_epic-slot-1",
+            "  Slot 2: Active (HEAD: f9d7951, Dirty: False) at /private/tmp/ag_brother/tmpw37qm1ma/test_repo/.worktrees/sample_epic-slot-2",
+            "Cleaned 2 worker pool entry/entries for sample_epic"
+          ],
+          "output_sha256": "5a91ee02d359e8eea2e684c9da56376b4eeb3b75f711aadf2ae18a128453f706"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/resume_context.py skills/dev-implementation/resources/scripts/package_epic.py skills/dev-implementation/resources/scripts/check_epic_readiness.py skills/dev-implementation/resources/scripts/check_task_contract.py skills/dev-implementation/resources/scripts/manage_worker_pool.py tests/test_rsdh_orchestration.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-13T04:17:50Z",
+          "finished": "2026-11-13T04:17:50Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-B",
+          "command": "mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/resume_context.py skills/dev-implementation/resources/scripts/package_epic.py skills/dev-implementation/resources/scripts/check_epic_readiness.py skills/dev-implementation/resources/scripts/check_task_contract.py skills/dev-implementation/resources/scripts/manage_worker_pool.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-13T04:17:50Z",
+          "finished": "2026-11-13T04:17:50Z",
+          "output_tail": [
+            "Success: no issues found in 10 source files"
+          ],
+          "output_sha256": "14fdf673bd175fe32ef42df34666481bb15e465313f7dbef32d0aea2ba76a26e"
+        },
+        {
+          "id": "V6",
+          "phase": "TIER-C",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 --junitxml=build/test-results/task_3.xml tests/test_rsdh_orchestration.py tests/test_multi_epic_governance_acceptance.py",
+          "expect": "exit 0; results build/test-results/task_3.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-13T04:17:50Z",
+          "finished": "2026-11-13T04:18:18Z",
+          "output_tail": [
+            "....................                                                     [100%]",
+            "20 passed in 28.30s"
+          ],
+          "output_sha256": "484c463c8dbe9f90bf285aa0a8dcf903ec50de7e6953c7621597be109307c1dc",
+          "results": {
+            "path": "build/test-results/task_3.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 16,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_rsdh_hp_04_wave_parallel_handoff_and_creator_pic",
+                  "classname": "tests.test_rsdh_orchestration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rsdh_hp_05_profile_folder_precedence_and_slug_normalization",
+                  "classname": "tests.test_rsdh_orchestration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rsdh_ec_03_stage3_revise_vs_stage2_strict",
+                  "classname": "tests.test_rsdh_orchestration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rsdh_ec_08_preservation_safe_pool_cleanup_and_land",
+                  "classname": "tests.test_rsdh_orchestration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rsdh_st_01_pending_decision_per_epic_isolation_and_clear",
+                  "classname": "tests.test_rsdh_orchestration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rsdh_st_03_worker_pool_slot_and_wave_heartbeat_updates",
+                  "classname": "tests.test_rsdh_orchestration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rsdh_st_07_governance_docs_caps_and_orchestration_parity",
+                  "classname": "tests.test_rsdh_orchestration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rsdh_fr_03_end_to_end_single_terminal_flow",
+                  "classname": "tests.test_rsdh_orchestration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_RSDH_HP_04_integration",
+                  "classname": "tests.test_rsdh_orchestration.TestRSDHOrchestration_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_RSDH_HP_05_integration",
+                  "classname": "tests.test_rsdh_orchestration.TestRSDHOrchestration_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_RSDH_EC_03_integration",
+                  "classname": "tests.test_rsdh_orchestration.TestRSDHOrchestration_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_RSDH_EC_08_integration",
+                  "classname": "tests.test_rsdh_orchestration.TestRSDHOrchestration_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_RSDH_ST_01_integration",
+                  "classname": "tests.test_rsdh_orchestration.TestRSDHOrchestration_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_RSDH_ST_03_integration",
+                  "classname": "tests.test_rsdh_orchestration.TestRSDHOrchestration_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_RSDH_ST_07_integration",
+                  "classname": "tests.test_rsdh_orchestration.TestRSDHOrchestration_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_RSDH_FR_03_integration",
+                  "classname": "tests.test_rsdh_orchestration.TestRSDHOrchestration_Integration",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "rules/CRITICAL_RULES.md",
+            "scripts/resume_context.py",
+            "skills/cross-model-review/SKILL.md",
+            "skills/dev-brainstorming/SKILL.md",
+            "skills/dev-designer/SKILL.md",
+            "skills/dev-implementation/SKILL.md",
+            "skills/dev-implementation/resources/scripts/check_epic_readiness.py",
+            "skills/dev-implementation/resources/scripts/check_task_contract.py",
+            "skills/dev-implementation/resources/scripts/manage_worker_pool.py",
+            "skills/dev-implementation/resources/scripts/package_epic.py",
+            "skills/dev-lifecycle/references/handoff-template.md",
+            "skills/finishing-a-development-branch/SKILL.md",
+            "skills/finishing-a-development-branch/resources/scripts/integrate_branch.py",
+            "skills/principal-review/SKILL.md",
+            "tests/test_rsdh_orchestration.py"
+          ],
+          "violations": []
+        }
+      ],
+      "passed": true
+    }
+  }
+}

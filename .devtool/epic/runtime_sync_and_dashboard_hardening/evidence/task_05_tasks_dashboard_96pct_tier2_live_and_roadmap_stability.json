@@ -1,0 +1,197 @@
+{
+  "schema": 1,
+  "task": "task_05_tasks_dashboard_96pct_tier2_live_and_roadmap_stability",
+  "runs": {
+    "red": {
+      "head": "8bc640f58a848c598bcc58b0eb0061fc4dc4efe0",
+      "tree": "682df8d658aa39529bff452acdddb226ea1488f3",
+      "patch_id": "046c46f705ffece4990b88baa0a6439b3d4fb796",
+      "started": "2026-11-13T04:27:53Z",
+      "finished": "2026-11-13T04:27:54Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_rsdh_tasks_dashboard_ui.py::test_rsdh_hp_07_96_cap_and_tier2_live_sync",
+          "expect": "exit 1; contains \"failed\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-13T04:27:53Z",
+          "finished": "2026-11-13T04:27:54Z",
+          "output_tail": [
+            "E         at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:655:26)",
+            "E         at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5) {",
+            "E       generatedMessage: false,",
+            "E       code: 'ERR_ASSERTION',",
+            "E       actual: 'undefined',",
+            "E       expected: 'function',",
+            "E       operator: 'strictEqual',",
+            "E       diff: 'simple'",
+            "E     }",
+            "E     ",
+            "E     Node.js v25.6.0",
+            "E     ",
+            "E   assert 1 == 0",
+            "E    +  where 1 = CompletedProcess(args=['/opt/homebrew/bin/node', '/tmp/ag_brother/tmpddd_1oy_.mjs'], returncode=1, stdout='', stderr=\"...  actual: 'undefined',\\n  expected: 'function',\\n  operator: 'strictEqual',\\n  diff: 'simple'\\n}\\n\\nNode.js v25.6.0\\n\").returncode",
+            "=============================== warnings summary ===============================",
+            "tests/test_rsdh_tasks_dashboard_ui.py:980",
+            "  /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/runtime_sync_and_dashboard_hardening-slot-2/tests/test_rsdh_tasks_dashboard_ui.py:980: SyntaxWarning: \"\\/\" is an invalid escape sequence. Such sequences will not work in the future. Did you mean \"\\\\/\"? A raw string is also an option.",
+            "    def test_rsdh_ec_06_roadmap_no_subday_mtime_and_focus_chrome_cdp(tmp_path: Path) -> None:",
+            "tests/test_rsdh_tasks_dashboard_ui.py:1460",
+            "  /Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/runtime_sync_and_dashboard_hardening-slot-2/tests/test_rsdh_tasks_dashboard_ui.py:1460: SyntaxWarning: \"\\/\" is an invalid escape sequence. Such sequences will not work in the future. Did you mean \"\\\\/\"? A raw string is also an option.",
+            "    ctrl_server.shutdown()",
+            "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html",
+            "=========================== short test summary info ============================",
+            "FAILED tests/test_rsdh_tasks_dashboard_ui.py::test_rsdh_hp_07_96_cap_and_tier2_live_sync",
+            "1 failed, 2 warnings in 0.20s"
+          ],
+          "output_sha256": "7baf82a58c7bd91c5e680ff9af9502a907fa79dd4255f31d919fbcfa81f61c70"
+        }
+      ],
+      "passed": true
+    },
+    "verify": {
+      "head": "8bc640f58a848c598bcc58b0eb0061fc4dc4efe0",
+      "tree": "bd5ec39fbe6227bdbe089fb0cb8a3753efc97d6b",
+      "patch_id": "32eb229f7900fab652b3106b76f998a180a5c9f6",
+      "started": "2026-11-13T04:39:35Z",
+      "finished": "2026-11-13T04:39:46Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_rsdh_tasks_dashboard_ui.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-13T04:39:35Z",
+          "finished": "2026-11-13T04:39:40Z",
+          "output_tail": [
+            ".....                                                                    [100%]",
+            "5 passed in 4.66s"
+          ],
+          "output_sha256": "45f07fc903cbb9b8677623341502422bb073c1d5e2b5ac2f4a27434cebdb5ed8"
+        },
+        {
+          "id": "V3",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_check_tasks_e2e.py tests/test_check_tasks_server.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-13T04:39:40Z",
+          "finished": "2026-11-13T04:39:41Z",
+          "output_tail": [
+            ".................                                                        [100%]",
+            "17 passed in 1.30s"
+          ],
+          "output_sha256": "4fdafa09460a22430704ba55f1f5ad2692022273ca6f09321ff816f835b7c1b3"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py tests/test_rsdh_tasks_dashboard_ui.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-13T04:39:41Z",
+          "finished": "2026-11-13T04:39:41Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-B",
+          "command": "mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-13T04:39:41Z",
+          "finished": "2026-11-13T04:39:41Z",
+          "output_tail": [
+            "Success: no issues found in 5 source files"
+          ],
+          "output_sha256": "e317872697c2cbfdefa321527a6efe73290dff3a390b0fa8723b87092eccba6a"
+        },
+        {
+          "id": "V6",
+          "phase": "TIER-C",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 --junitxml=build/test-results/task_5.xml tests/test_rsdh_tasks_dashboard_ui.py tests/test_check_tasks_e2e.py",
+          "expect": "exit 0; results build/test-results/task_5.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-13T04:39:41Z",
+          "finished": "2026-11-13T04:39:45Z",
+          "output_tail": [
+            "..........                                                               [100%]",
+            "10 passed in 3.69s"
+          ],
+          "output_sha256": "0b7de8b12300bac146e3278b330da9dc76efc7a90f9855b94774022d5ba95148",
+          "results": {
+            "path": "build/test-results/task_5.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 5,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_rsdh_hp_07_96_cap_and_tier2_live_sync",
+                  "classname": "tests.test_rsdh_tasks_dashboard_ui",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rsdh_hp_07_chrome_cdp_integration",
+                  "classname": "tests.test_rsdh_tasks_dashboard_ui.TestTasksDashboard_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rsdh_ec_06_roadmap_no_subday_mtime_and_focus_chrome_cdp",
+                  "classname": "tests.test_rsdh_tasks_dashboard_ui.TestTasksDashboard_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rsdh_st_05_progress_transitions",
+                  "classname": "tests.test_rsdh_tasks_dashboard_ui.TestTasksDashboard_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rsdh_ar_02_live_polling_preserves_focus_and_zero_console_errors",
+                  "classname": "tests.test_rsdh_tasks_dashboard_ui.TestTasksDashboard_Integration",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "skills/check-tasks/resources/dashboard/tasks_dashboard.html",
+            "tests/test_rsdh_tasks_dashboard_ui.py"
+          ],
+          "violations": []
+        }
+      ],
+      "passed": true
+    }
+  }
+}

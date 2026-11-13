@@ -4,7 +4,7 @@
 - **Trạng thái**: Đã phê duyệt (Gate 1)
 - **Thư mục Epic**: `runtime_sync_and_dashboard_hardening`
 - **Epic Slug**: `runtime-sync-and-dashboard-hardening`
-- **Phạm vi**: `scripts/_state_envelope.py`, `scripts/estimate_heartbeat.py`, `scripts/resume_context.py`, `skills/quality_check/resources/scripts/verify_polyglot_registry.py`, `skills/quality_check/SKILL.md`, `skills/dev-lifecycle/references/handoff-template.md`, `skills/dev-implementation/SKILL.md`, `skills/dev-implementation/resources/scripts/package_epic.py`, `skills/dev-implementation/resources/scripts/check_epic_readiness.py`, `skills/dev-implementation/resources/scripts/check_task_contract.py`, `skills/dev-implementation/resources/scripts/sync_task_status.py`, `skills/dev-implementation/resources/scripts/manage_worker_pool.py`, `skills/finishing-a-development-branch/resources/scripts/integrate_branch.py`, `skills/dev-brainstorming/SKILL.md`, `skills/dev-designer/SKILL.md`, `skills/principal-review/SKILL.md`, `skills/cross-model-review/SKILL.md`, `skills/check-tasks/resources/scripts/check_tasks.py`, `skills/check-tasks/resources/scripts/tasks_server.py`, `skills/check-tasks/resources/dashboard/tasks_dashboard.html`, `skills/check-quota/resources/dashboard/quota_dashboard.html`, `rules/CRITICAL_RULES.md`, `tests/`
+- **Phạm vi**: `scripts/_state_envelope.py`, `scripts/estimate_heartbeat.py`, `scripts/resume_context.py`, `scripts/verify.sh`, `.agents/quality/python-quality.json`, `skills/quality_check/resources/scripts/verify_polyglot_registry.py`, `skills/quality_check/SKILL.md`, `skills/dev-lifecycle/references/handoff-template.md`, `skills/dev-implementation/SKILL.md`, `skills/dev-implementation/resources/scripts/package_epic.py`, `skills/dev-implementation/resources/scripts/check_epic_readiness.py`, `skills/dev-implementation/resources/scripts/check_task_contract.py`, `skills/dev-implementation/resources/scripts/sync_task_status.py`, `skills/dev-implementation/resources/scripts/manage_worker_pool.py`, `skills/finishing-a-development-branch/SKILL.md`, `skills/finishing-a-development-branch/resources/scripts/integrate_branch.py`, `skills/dev-brainstorming/SKILL.md`, `skills/dev-designer/SKILL.md`, `skills/principal-review/SKILL.md`, `skills/cross-model-review/SKILL.md`, `skills/check-tasks/resources/scripts/check_tasks.py`, `skills/check-tasks/resources/scripts/tasks_server.py`, `skills/check-tasks/resources/dashboard/tasks_dashboard.html`, `skills/check-quota/resources/dashboard/quota_dashboard.html`, `rules/CRITICAL_RULES.md`, `tests/`
 - **Bước tiếp theo**: `dev-designer` (Stage 2)
 
 ## Mục lục
@@ -38,7 +38,7 @@ Qua các epic đa-agent gần đây sử dụng `d3nexus:dev-lifecycle`, tám l�
 3. **Handoff Tuần tự & Lỗi `--revise` ở Stage 3**: `resume_context.py --emit-prompt implement` và `handoff-template.md` vẫn hướng dẫn chạy tuần tự từng task thay vì song song theo wave, còn `package_epic.py --revise` bị lỗi khi chạy ở Stage 3 vì `check_epic_readiness.py` luôn bật `check_task_contract.py --design`, báo `<file> is marked (new) but already exists` đối với task đã hoàn thành.
 4. **Rò rỉ tài nguyên Worker Slot**: Khi một wave song song kết thúc hoặc bị gián đoạn, thư mục `.worktrees/<epic>-slot-*` và nhánh tạm chưa có cơ chế dọn dẹp cơ học xuyên suốt.
 5. **Báo giả Điểm nghẽn Phê duyệt**: `check_tasks.py` rơi về cơ chế quét `.devtool/epic/` theo bảng chữ cái (gắn nhầm `choosing_a_lifecycle` thành `Approve Gate 1 (Design Spec)`), đọc lệch giữa `GATE_LEDGER.md` và `gate_ledger.jsonl`, đồng thời chưa có cơ chế lưu `pending_decision` khi agent dừng hỏi người dùng và tự gỡ khi xác nhận (Phương án A).
-6. **Trần tiến độ 99% trước khi Finish**: Cả sidebar Phần I lẫn card Phần II đang hiển thị `99%` (`⚡ 99% Review`) khi làm xong hết tasks trước Gate 5 Sign-off; mức mong muốn là `96%`.
+6. **Trần tiến độ 99% trước khi Finish / Phần II chưa giới hạn**: Sidebar Phần I hiện chặn tiến độ khi xong hết tasks trước lúc Finish ở `99%` (`⚡ 99% Review`), còn Phần II (`renderExecutionEpics`) hiển thị thẳng `100%` mà chưa kiểm tra hội tụ Gate 4; cả hai cần áp dụng trần **`96%`** (`95%` khi đang chạy, `100%` chỉ khi Waiting Finish đã hội tụ Gate 4 / Done).
 7. **Lỗi Chuyển PIC**: `assign_epic_pic()` trong `tasks_server.py` bỏ sót các bản sao `.devtool/epic/<epic>/` trong worktree, không khớp dòng `**PIC / Assigned Profile**` và sửa lan sang các file không liên quan (`principal_review.md`, `bdd_scenarios.*.md`); trong khi `tasks_dashboard.html` sắp xếp bảng Roadmap theo `mtime` biến động liên tục và thay thế DOM `<select>` giữa lúc thao tác, dẫn tới đổi nhầm dòng và không refresh `modal-epics`.
 8. **Chồng nhiều tầng Dialog ở Check-Quota**: Nhúng `quota_dashboard.html` trong `modal-quota` tạo 3 lớp overlay lồng nhau; mở dialog con mới không đóng dialog con cũ; click nền mờ hoặc nhấn `Escape` bỏ qua `profileInfoModal`/`appealDetailModal` và đóng nhầm luôn iframe cha.
 
@@ -87,17 +87,17 @@ Mọi script ghi state đều phân giải **cả** `.devtool/state/` của work
 ### 4.1. Vỏ Trạng thái Runtime Atomic và Đồng bộ Bộ nhớ Hai tầng
 
 Tạo module dùng chung `scripts/_state_envelope.py` để cả `scripts/` lẫn các skill scripts gọi được qua `KIT_ROOT / "scripts"`:
-- `atomic_write_json(path: Path, payload: dict[str, Any]) -> None`: ghi qua file tạm cùng thư mục rồi `os.replace()` dưới khóa sidecar `.lock` (`fcntl.flock`).
+- `resolve_shared_devtool_dirs(cwd: Path) -> list[Path]`: trả về danh sách `.devtool/` không trùng lặp gồm repo gốc trước và active worktree (nếu đang chạy trong worktree).
+- **Khóa Giao dịch Tại Repo Gốc & Snapshot Phiên bản hóa**: `run_state_transaction()` giữ một khóa `fcntl.flock` duy nhất trên `.devtool/state/.state_envelope.lock` tại repo gốc bao trùm toàn bộ chu trình read -> merge -> tăng đơn điệu `generation += 1` -> ghi file tạm atomic + `os.replace()` tại repo gốc -> đồng bộ atomic sang worktree đang chạy (từ chối ghi đè bởi snapshot có `generation` thấp hơn để các cập nhật RMW đa tiến trình không làm rơi slot hoặc lệch bản sao).
 - `read_json_safe(path: Path, default: T) -> T`: trả về `default` an toàn nếu thiếu file hoặc JSON hỏng (không làm sập polling của `check_tasks.py`).
-- `resolve_shared_devtool_dirs(cwd: Path) -> list[Path]`: trả về danh sách `.devtool/` không trùng lặp gồm worktree hiện hành (nếu có) và repo gốc.
-- Mỗi khi `sync_task_status.py` đổi trạng thái task/epic, `manage_worker_pool.py` cập nhật slots, hoặc `resume_context.py --state` lưu ngữ cảnh, hệ thống ghi `.devtool/state/<epic_slug>.heartbeat.json` (`{epic_slug, stage, active_wave, active_tasks, slots, last_event, updated_at}`) và tự động tái tạo `<epic_slug>.md` cùng `assistant_state.md` dưới `file_lock`.
+- Mỗi khi `sync_task_status.py`, `manage_worker_pool.py` (`init`, `sync`, `merge`, `cleanup`), hoặc `resume_context.py` (`--state`, `--wave`) cập nhật tiến độ hoặc slots của epic, hệ thống cập nhật có giao dịch `.devtool/state/<epic_slug>.heartbeat.json` (`generation`, `epic_slug`, `stage`, `active_wave`, `active_tasks`, `slots`, `last_event`, `updated_at`) và tái tạo `<epic_slug>.md` cùng `assistant_state.md` dưới khóa.
 
 ### 4.2. Hybrid Heartbeat, Estimator Đơn giản và Tiến độ Quality Check
 
 1. **Tiến độ Quality Check 0-Token (`verify_polyglot_registry.py`)**:
-   - Thay `subprocess.run(..., capture_output=True)` bằng `subprocess.Popen` vừa ghi log vào `build/quality/<provider>/<cap>.log` vừa xuất heartbeat định kỳ.
-   - Mỗi `heartbeat_interval` giây (mặc định `15s`, tham số hóa để test nhanh), in 1 dòng gọn ra `stderr` (`[quality_check] 2/5 <provider>:<cap> (<elapsed>s elapsed)`) và ghi `.devtool/state/quality_active.json` (`{run_id, profile, status, provider, capability, step_index, step_total, started_at, updated_at, elapsed_sec}`).
-   - Bọc trong khối `try ... finally` để dù pass, fail hay bị ngắt giữa chừng, `quality_active.json` luôn chốt về `status: "passed" | "failed" | "aborted"`, tránh treo banner "đang chạy" giả trên UI.
+   - Cô lập từng lần chạy bằng `run_id` duy nhất (`uuid`/timestamp-pid), thực thi từng capability trong process group con (`subprocess.Popen(..., start_new_session=True)`), và ghi luồng log vào đường dẫn theo run `build/quality/<provider>/runs/<run_id>/<cap>.log`.
+   - Mỗi `heartbeat_interval` giây (mặc định `15s`, tham số hóa để test nhanh), in 1 dòng gọn ra `stderr` (`[quality_check] 2/5 <provider>:<cap> (<elapsed>s elapsed)`) và cập nhật mục theo namespace `runs[run_id]` bên trong `.devtool/state/quality_active.json` (`{run_id, epic_slug, profile, status, provider, capability, step_index, step_total, pid, host, started_at, updated_at, ttl_sec, elapsed_sec}`) dưới khóa sở hữu run để các tiến trình chạy song song không ghi đè lẫn nhau.
+   - Gắn bộ xử lý tín hiệu `SIGINT`/`SIGTERM` kết hợp `try ... finally` để dừng + thu hồi process group con đang chạy và chốt **riêng** `runs[run_id]` về `"passed" | "failed" | "aborted"`; phía đọc (`check_tasks.py`) hết hạn các mục có PID chết hoặc quá `updated_at + ttl_sec` thành `"stale"`.
 2. **Script Estimator Quy tắc Đơn giản (`scripts/estimate_heartbeat.py`)**:
    - Nhận tham số CLI gọn nhẹ (`--tasks-count`, `--files-count`, `--epic-dir` / `--wave`, hoặc `--quality-profile fast|pr|epic|release|full`, `--has-e2e`).
    - Cộng điểm ước lượng thời lượng (`estimated_sec`) và trả về JSON 3 ngưỡng:
@@ -114,45 +114,46 @@ Tạo module dùng chung `scripts/_state_envelope.py` để cả `scripts/` lẫ
 2. **Tương thích `--revise` ở Stage 3 (`package_epic.py`, `check_epic_readiness.py`, `check_task_contract.py`)**:
    - Thêm cờ `--post-design` trên `check_epic_readiness.py` và `--allow-existing-done-new` trên `check_task_contract.py`.
    - Trong `package_epic.py --revise`: tự nhận diện nếu epic đã vào Stage 3 (có Gate 3 trong `gate_ledger.jsonl` / `GATE_LEDGER.md` HOẶC có ít nhất 1 task ở trạng thái `in-progress`, `review` hay `done`) để truyền `--post-design` cho `check_epic_readiness.py`.
-   - Trong `check_task_contract.py`: khi bật `--design --allow-existing-done-new`, chỉ các task `done` hoặc `review` được miễn lỗi `<pattern> is marked (new) but already exists` (cho cả Allowed Files lẫn Evidence files) nhưng vẫn kiểm tra cấu trúc, BDD traceability, test matrix và surgical anchors đối với task chưa xong. Các epic Stage 2 giữ nguyên kiểm tra `--design` chặt chẽ.
+   - Trong `check_task_contract.py`: khi bật `--design --allow-existing-done-new`, các task ở trạng thái `done`, `review`, hoặc `in-progress` được miễn lỗi `<pattern> is marked (new) but already exists` đối với các file Allowed/Evidence do chính task đó đã tạo trước đó (vẫn từ chối khai báo `(new)` trùng lặp giữa các task và đánh trượt task `todo` có đường dẫn `(new)` đã tồn tại). Các epic tiền-Stage-3 giữ nguyên kiểm tra `--design` chặt chẽ.
 
 ### 4.4. Dọn dẹp Cơ học Worker Pool và Subagent
 
-- Mở rộng `cleanup_pool()` / lệnh `cleanup` trong `skills/dev-implementation/resources/scripts/manage_worker_pool.py`:
-  - Gỡ toàn bộ thư mục worktree `<epic>-slot-*` (`git worktree remove --force`), chạy `git worktree prune`, xóa nhánh tạm `worker/<epic>/slot-*` và loại bỏ slot đã dọn khỏi `.devtool/state/<epic_slug>.heartbeat.json`.
-  - Hỗ trợ `--stale-only` (thu hồi slot hỏng/chết mà không chạm slot đang chạy); đồng thời ràng buộc trong `dev-implementation/SKILL.md` (dọn slot cuối wave/trước Gate 4) và `integrate_branch.py` (quét dọn orphan slots khi land hoặc discard).
+- Mở rộng `cleanup_slots()` / lệnh `cleanup` trong `skills/dev-implementation/resources/scripts/manage_worker_pool.py`:
+  - Gán các điểm cập nhật heartbeat slot/wave tường minh qua `init`, `sync --task --wave`, `merge`, `cleanup`, và `resume_context.py --wave`.
+  - Kiểm tra từng slot worktree và branch (kể cả khi thư mục worktree đã mất) trước khi xóa: chỉ tự động xóa các slot sạch, đã tích hợp (`git status --porcelain` rỗng và đã merge vào nhánh epic/base đích) kết hợp chạy `git worktree prune`; **giữ lại và báo cáo** worktree bẩn, commit chưa merge, hoặc branch chưa merge bị thiếu worktree (cập nhật trạng thái slot rõ ràng thay vì âm thầm xóa) trừ khi truyền tường minh `--discard-unmerged` / `--force`.
+  - Hỗ trợ `--stale-only`, bắt buộc chạy `manage_worker_pool.py cleanup` an toàn trước Gate 4 (`dev-implementation/SKILL.md`), và chạy dọn slot mồ côi trong `integrate_branch.py cmd_land`.
 
 ### 4.5. Điểm nghẽn Phê duyệt (Phương án A), Trần 96% và Sync Live Phần II
 
 1. **Lưu khi dừng — Tự gỡ khi duyệt (Phương án A)**:
-   - Bổ sung `--pending-decision "<lý do>"`, `--decision-kind <loại>` và `--clear-decision` vào `scripts/resume_context.py` để ghi/xóa `.devtool/state/pending_decision.json` (`{active, epic, kind, reason, stage, created_at, worktree}`).
-   - Tự động xóa `pending_decision.json` khi: (a) `--gate <N>` ghi nhận phê duyệt, (b) truyền `--clear-decision`, (c) `--state` chuyển sang trạng thái thực thi tiếp (`Executing`, `Stage 3`, v.v.), hoặc (d) `sync_task_status.py` đưa task sang `in-progress` / `done` hoặc chạy `package_epic.py`.
-   - Cập nhật hướng dẫn tại `dev-brainstorming`, `dev-designer`, `principal-review`, `cross-model-review`, `finishing-a-development-branch` và `CRITICAL_RULES.md` để mỗi lần dừng hỏi Human đều ghi `--pending-decision` trước khi kết thúc lượt.
+   - Bổ sung `--pending-decision "<lý do>"`, `--decision-kind <loại>` và `--clear-decision` vào `scripts/resume_context.py` để lưu bản ghi theo namespace epic trong `.devtool/state/pending_decision.json` (`decisions[epic_slug] = {decision_id, epic, kind, reason, stage, created_at, worktree}` kèm tóm tắt active) dưới khóa giao dịch tại repo gốc.
+   - Cơ chế gỡ yêu cầu khớp đúng quyền sở hữu `epic` (và `--decision-id` tùy chọn) khi `--gate <N>`, `--clear-decision`, `--state`, `sync_task_status.py`, hoặc `package_epic.py` chạy, nhờ vậy các epic song song không xóa nhầm phê duyệt đang chờ của epic khác.
+   - Cập nhật hướng dẫn tại Stage 1–4 (`dev-brainstorming`, `dev-designer`, `principal-review`, `cross-model-review`, `finishing-a-development-branch`, `CRITICAL_RULES.md`) để mỗi lần dừng hỏi Human đều ghi `--pending-decision` trước khi kết thúc lượt.
 2. **Loại bỏ báo giả lúc Idle & Hợp nhất Ledger (`check_tasks.py`)**:
-   - Bỏ nhánh fallback chọn bừa thư mục epic theo thứ tự chữ cái (`choosing_a_lifecycle`) trong `resolve_active_epic()`, và bỏ logic tự bịa `Approve Gate 1 (Design Spec)` trong `derive_lifecycle_state()` khi không có worktree chạy, không có task mở và không có `pending_decision.json`.
-   - Sửa `parse_gate_ledger_entries()` để gộp và khử trùng dữ liệu giữa `gate_ledger.jsonl` và `GATE_LEDGER.md` của cả repo gốc lẫn active worktree, không còn dừng sớm khi `GATE_LEDGER.md` có dòng mới hơn.
-   - Đưa `pending_decision`, `heartbeat` và `quality_active` vào `RepoMetadata` và JSON `/api/tasks`.
+   - Bỏ fallback Strategy 7 quét thư mục theo chữ cái trong `resolve_active_epic()` trong khi giữ nguyên Strategy 6 (quét `features/`), và bỏ logic tự bịa `Approve Gate 1 (Design Spec)` khi chưa có `pending_decision` hoặc trạng thái thực thi đang hoạt động.
+   - Sửa `parse_gate_ledger_entries()` để gộp và khử trùng dữ liệu giữa `gate_ledger.jsonl` và `GATE_LEDGER.md` của cả repo gốc lẫn active worktree, không dừng sớm khi `GATE_LEDGER.md` chứa phê duyệt mới hơn.
+   - Đưa `pending_decision`, `heartbeat`, `quality_active` khớp theo epic và các `quality_runs` đang chạy đồng thời (hết hạn các mục PID chết/quá TTL thành `"stale"`) vào `RepoMetadata` / `/api/tasks`.
 3. **Trần `96%` & Cập nhật Live Phần II (`tasks_dashboard.html`)**:
-   - Hạ mức trần khi hết tasks trước lúc Finish ở cả sidebar Phần I lẫn Phần II (`renderExecutionEpics`) từ `99%` (`⚡ 99% Review`) xuống **`96%`** (task đang chạy tối đa `95%`; chỉ lên `100%` khi converged `Waiting Finish` / `Done`).
-   - Đồng bộ `tier2Sig` lúc mount (`L2938`) và lúc polling (`L2724`) để theo dõi `account_id`, `prompt`, `is_human_action_required`, `task_progress`, `heartbeat`, và `quality_active`, hiển thị thanh tiến độ wave/slot/quality trực tiếp ở Phần II.
+   - Áp dụng trần `96%` (`⚡ 96% Review`) khi đã xong hết tasks trước lúc Finish trên cả Phần I (`renderKanbanDashboard`: đổi `99`/`98` thành `96`/`95`) và Phần II (`renderExecutionEpics`: bổ sung giới hạn nhận biết `isFullyDone`/`isWaitingFinish` tại nơi đang render thô `100%`), chỉ dành `100%` cho `Waiting Finish` đã hội tụ hoặc `Done`.
+   - Sửa `tier2Sig` lúc mount (`L2938`) và lúc polling (`L2724`) để theo dõi `account_id`, `prompt`, `is_human_action_required`, `task_progress` (số đếm/task đang chạy), `heartbeat`, và `quality_active`, cập nhật thanh tiến độ wave/slot/quality trực tiếp ở Phần II mà không cần tải lại trang.
 
 ### 4.6. Đồng bộ PIC Repo Gốc + Worktree và Ổn định Bảng Roadmap
 
 1. **Backend (`tasks_server.py` & `check_tasks.py`)**:
-   - Sửa `assign_epic_pic()` dùng `git worktree list --porcelain` tìm tất cả worktree khớp epic (theo tên nhánh `epic/<slug>` hoặc thư mục `<epic_dir>` / `<slug>`) bên cạnh repo gốc.
-   - Chỉ cập nhật PIC trong các tệp siêu dữ liệu chuẩn ở **cả repo gốc lẫn mọi worktree khớp epic**: HLD (`<epic>.en.md`, `<epic>.vi.md`, design spec), `handoff.md` (hỗ trợ chuẩn cả `- **PIC / Assigned Profile**:`), các `task_*.md` trong cả `.devtool/epic/<epic>/` và `.devtool/features/`, `.devtool/state/<slug>.pipeline.json`, `.devtool/state/<slug>.heartbeat.json`, và `.vscode/settings.json` của worktree. Cấm sửa lan sang `bdd_scenarios.*`, `principal_review.md` hay `review_results.md`.
-   - Cập nhật `extract_epic_pic()` đọc chính xác pattern `PIC / Assigned Profile` và ưu tiên kiểm tra thêm worktree đang hoạt động.
+   - Tái cấu trúc `assign_epic_pic()` dùng `git worktree list --porcelain` tìm tất cả worktree khớp epic (theo tên nhánh `epic/<slug>` hoặc thư mục/tiền tố `<epic_dir>` / `<slug>`) bên cạnh repo gốc.
+   - Cập nhật PIC nguyên tử trên **cả repo gốc lẫn mọi worktree khớp epic** chỉ trong các tệp đích: HLD (`<epic>.en.md`, `<epic>.vi.md`, metadata design spec), `handoff.md` (gồm dòng `- **PIC / Assigned Profile**:`), `task_*.md` trong cả `.devtool/epic/<epic>/` và `.devtool/features/`, `.devtool/state/<slug>.pipeline.json`, `.devtool/state/<slug>.heartbeat.json`, và `.vscode/settings.json` của worktree. Không bao giờ chèn `- **PIC**:` vào tài liệu prose review/BDD (`bdd_scenarios.*`, `principal_review.md`, `review_results.md`).
+   - Cập nhật `extract_epic_pic()` để đọc chính xác placeholder `**PIC / Assigned Profile**` và kiểm tra thêm `handoff.md`/HLD ở worktree đang hoạt động.
 2. **Frontend (`tasks_dashboard.html`)**:
-   - Ổn định `sortEpicsForRoadmap`: giữ nhóm trạng thái + `active_epic` + thứ tự ngày/slug ổn định, tránh nhảy dòng tức thì vì chênh `mtime` vài giây khi sửa PIC; gắn khóa `data-row-key="<repo>:<epic_slug>"` cho từng hàng và `<select>`.
-   - Tạm hoãn thay HTML của `roadmapTbody` trong nhịp polling 5 giây khi một `.select-pic-roadmap` đang focus/tương tác (`document.activeElement`), làm khớp `roadmapSig` lúc mount (`L2934`) với lúc poll (`L2699`), và sửa `updateEpicPic()` kiểm tra đúng `style.display === 'flex'` khi làm mới `modal-epics`.
+   - Ổn định `sortEpicsForRoadmap`: thay thế tường minh so sánh timestamp `mtime` dưới 1 ngày bằng nhóm trạng thái + `active_epic` + cụm ngày tạo (`YYYY-MM-DD`) + khóa phụ xác định theo slug (`a.slug.localeCompare(b.slug)`), đồng thời gắn `data-row-key="<repo>:<epic_slug>"` cho mọi dòng và `<select>`.
+   - Tạm hoãn thay `roadmapTbody.innerHTML` trong nhịp polling 5 giây khi `.select-pic-roadmap` đang focus/tương tác (`document.activeElement`), căn khớp `roadmapSig` lúc mount (`L2934`) với lúc poll (`L2699`), và sửa kiểm tra hiển thị `modal-epics` trong `updateEpicPic()` (`style.display === 'flex'` thay vì `.classList.contains('active')`) cùng khớp khóa `refreshAllProfileSelects`.
 
 ### 4.7. Bộ Điều khiển Tầng Dialog cho Check-Quota
 
 Trong `skills/check-quota/resources/dashboard/quota_dashboard.html` và `skills/check-tasks/resources/dashboard/tasks_dashboard.html`:
-- Thay các hàm đóng/mở rời rạc (`openScheduleModal`, `openLoginModal`, `openProfileInfoModal`, `openAppealModal`) bằng `openQuotaSubModal(modalId)` / `closeQuotaSubModal(modalId)` / `closeAllQuotaSubModals()` với bất biến: **tại một thời điểm chỉ có tối đa 1 dialog con được mở trong `quota_dashboard.html`**.
-- Gắn xử lý click nền mờ trực tiếp lên từng dialog con (`#scheduleModal`, `#loginModal`, `#profileInfoModal`, `#appealDetailModal`) và đưa đủ cả 4 ID vào bộ lọc click ngoài của iframe để click nền ngoài chỉ đóng **chính dialog con đó**, không đóng nhầm `#modal-quota`.
-- Chuẩn hóa tầng phím `Escape`: trong `quota_dashboard.html`, nhấn `Escape` ưu tiên đóng dialog con đang mở trên cùng; chỉ khi không còn dialog con nào mở mới gọi `handleCardClose()`.
-- Phía `tasks_dashboard.html`, tinh gọn chế độ nhúng iframe (ẩn/giảm padding lồng khung đôi trên `#dashboardCard`), bắt `Escape` tôn trọng sub-modal trước, và gửi `{action: 'reset_submodals'}` vào `#quota-iframe` mỗi khi đóng `#modal-quota` để lần mở lại không còn dialog cũ bị kẹt.
+- Thay các hàm bật/tắt rời rạc (`openScheduleModal`, `openLoginModal`, `openProfileInfoModal`, `openAppealModal`) bằng bộ điều khiển `openQuotaSubModal(modalId)` / `closeQuotaSubModal(modalId)` / `closeAllQuotaSubModals()` với bất biến: **tại một thời điểm chỉ có tối đa một dialog con được mở trong `quota_dashboard.html`**.
+- Gắn click nền mờ trực tiếp lên `#scheduleModal`, `#loginModal`, `#profileInfoModal`, `#appealDetailModal` (`if (e.target === modalEl) closeQuotaSubModal(...)`), và thêm đủ 4 ID này vào bộ lọc click của document iframe để click nền ngoài chỉ đóng **chính dialog con đó**, không đóng `#modal-quota`.
+- Sửa tầng phím `Escape`: bên trong `quota_dashboard.html`, `Escape` ưu tiên đóng dialog con đang mở; chỉ khi không còn dialog con nào mở mới gọi `handleCardClose()`.
+- Phía `tasks_dashboard.html`, gắn `?embedded=1` vào `#quota-iframe.src` trong `openQuotaModal` và `refreshQuotaIframe` (kèm phát hiện dự phòng `window.parent !== window` bên trong `quota_dashboard.html` để làm phẳng padding/viền ngoài lồng đôi của `#dashboardCard`), bắt phím `Escape` từ cửa sổ cha sạch sẽ, và gửi `{action: 'reset_quota_submodals'}` tới `#quota-iframe` mỗi khi `#modal-quota` mở hoặc đóng để lần mở lại không còn dialog con mồ côi.
 
 ---
 
@@ -175,12 +176,12 @@ Kho lưu trữ này (`ai-agent-tools`) là repo kit/plugin dùng chung độc l�
 
 ## 7. Chiến lược Kiểm thử và Xác minh
 
-Toàn bộ yêu cầu sẽ được kiểm thử tự động (unit, integration và DOM/UI tests) tích hợp vào `scripts/verify.sh`:
-- **Envelope & Estimator**: Kiểm thử ghi/đọc atomic đa luồng, chịu lỗi JSON hỏng, phân ngưỡng `estimate_heartbeat.py` (`light -> null`, `medium -> 180`, `heavy -> 240/300`).
-- **Tiến độ Quality Check**: Mock provider runner xác minh dòng `stderr` định kỳ (tham số hóa `0.1s` trong test), vòng đời `running -> passed/failed` của `quality_active.json`, và khôi phục trạng thái ở `finally`.
-- **Handoff, `--revise` Stage 3 & Dọn Worker**: Kiểm thử `resume_context.py --emit-prompt implement` sinh chỉ dẫn wave song song, `package_epic.py --revise` pass ở Stage 3 với task `done` có file `(new)` trong khi Stage 2 `--design` vẫn chặn file `(new)` trùng, và `manage_worker_pool.py cleanup` thu hồi slot worktrees/branches + cập nhật `heartbeat.json`.
-- **Điểm nghẽn Phương án A & Trần 96%**: Kiểm thử lưu/tự xóa qua `--pending-decision`, `--gate`, `--state`, `sync_task_status.py`; `check_tasks.py` trả `is_human_action_required=False` cho repo idle có `choosing_a_lifecycle`; UI Phần I/II chốt trần `96%`.
-- **Chuyển PIC & Tầng Dialog Quota**: Kiểm thử `assign_epic_pic()` cập nhật đủ repo gốc + worktree mà không đụng `principal_review.md`; kiểm thử DOM/Playwright xác minh dropdown bảng Roadmap không nhảy nhầm dòng khi poll 5s và bộ điều khiển modal của `quota_dashboard.html` trong `#modal-quota` đóng mở đúng từng tầng qua backdrop và phím `Escape`.
+Toàn bộ hành vi được kiểm thử tự động theo đơn vị, tích hợp và trình duyệt/UI tích hợp vào `scripts/verify.sh`:
+- **Envelope & Estimator**: Kiểm thử đồng thời RMW giao dịch + bản sao khớp `generation`, `pending_decision`/`quality_active` theo namespace, dự phòng JSON hỏng, và 3 ngưỡng `estimate_heartbeat.py` (`light -> null`, `medium -> 180`, `heavy -> 240/300`).
+- **Tiến độ Quality Check Live**: Mock capability runner xác minh dòng `stderr` mỗi `15s` (tham số hóa `0.1s` trong test), cô lập `runs/<run_id>/<cap>.log`, thu hồi tiến trình con khi `SIGINT`/`SIGTERM` -> `"aborted"`, và hết hạn `"stale"` theo `ttl_sec`/PID chết.
+- **Handoff, `--revise` Stage 3 & Dọn dẹp**: `resume_context.py --emit-prompt implement` xác minh hướng dẫn wave song song, `package_epic.py --revise` pass ở Stage 3 trên task `done`/`review`/`in-progress` và chặn task `todo` va chạm, đồng thời `manage_worker_pool.py cleanup` an toàn giữ nguyên worktree bẩn/nhánh chưa merge & nhánh mồ côi thiếu worktree trừ `--discard-unmerged` trong khi ghi nhận slots `"working"` trước lúc dọn.
+- **Điểm nghẽn Phương án A & Trần 96%**: Lưu/tự gỡ theo namespace epic qua `--pending-decision`, `--gate`, `--state`, `sync_task_status.py` không ghi đè epic anh em; `check_tasks.py` trả `is_human_action_required=False` cho repo rỗi kèm `quality_runs` / phục hồi stale; Phần I/II chốt trần `96%`.
+- **Chuyển PIC, Roadmap & Tầng Dialog (Node Unit + Chrome CDP Thật)**: `assign_epic_pic()` cập nhật repo gốc + worktree (`handoff.md`/HLD/`task_*.md`/`.vscode/settings.json`) không chạm `principal_review.md`; unit check Node script trích xuất kết hợp **Chrome CDP không giao diện thật** (`CHROME_BIN` / Chrome cài sẵn + `node v25` WebSocket) chạy trên `TasksServer` `127.0.0.1` xác minh `getComputedStyle` (`?embedded=1` phẳng viền), giữ focus `<select>` khi polling dù `mtime` cùng ngày khác nhau, và đóng mở qua lại `Escape`/backdrop/`postMessage` giữa iframe và cha trong `#modal-quota`.
 
 ---
 
@@ -188,8 +189,9 @@ Toàn bộ yêu cầu sẽ được kiểm thử tự động (unit, integration
 
 | Rủi ro | Mức ảnh hưởng | Biện pháp giảm thiểu |
 | :--- | :--- | :--- |
-| **`CRITICAL_RULES.md` vượt ngưỡng 8192 bytes** | Bị cắt bớt rule khi nạp vào context | Chỉ thêm chỉ dẫn rất ngắn tại `rules/CRITICAL_RULES.md` (giữ tổng `<= 8000` bytes); đặt chi tiết vận hành trong `SKILL.md` và script. |
-| **`--post-design` nới lỏng check ở Stage 2** | Bỏ sót lỗi file `(new)` đã tồn tại trước khi code | Chỉ kích hoạt `--allow-existing-done-new` khi `--revise` phát hiện dấu hiệu Stage 3 và chỉ áp dụng cho task có trạng thái `done`/`review`. |
-| **Lệch state giữa repo gốc và worktree** | `check_tasks` hiển thị trễ hoặc sai điểm nghẽn | `_state_envelope.py` đồng bộ atomic vào cả `.devtool/state/` của worktree lẫn repo gốc. |
-| **Bảng Roadmap nhảy hàng lúc thao tác** | Click chọn PIC rơi sang epic khác | Ghim `data-row-key`, bỏ so sánh `mtime` theo giây trong `sortEpicsForRoadmap`, và hoãn thay `tbody` khi `<select>` đang focus. |
+| **`CRITICAL_RULES.md` vượt ngưỡng 8192-byte prompt budget** | Bị cắt rule trên các harness agent | Mọi bổ sung vào `rules/CRITICAL_RULES.md` thật cô đọng (`<= 8000` bytes tổng); chi tiết thao tác đặt trong `SKILL.md` và script. |
+| **`--post-design` nới lỏng kiểm tra tiền-triển-khai** | Bỏ sót task mới khai báo sai ở Stage 2 | Chỉ kích hoạt `--allow-existing-done-new` khi `--revise` phát hiện dấu hiệu Stage 3 và chỉ cho task `done`/`review`/`in-progress`, đồng thời vẫn chặn khai báo `(new)` va chạm trên task `todo`. |
+| **Lệch state giữa repo gốc và worktree** | `check_tasks` hiển thị phê duyệt/tiến độ cũ khi làm trong worktree | `_state_envelope.py` thực thi RMW dưới một khóa `fcntl.flock` duy nhất tại repo gốc kèm số `generation` đơn điệu và đồng bộ atomic tới repo gốc + worktree. |
+| **Bảng Roadmap nhảy hàng lúc thao tác** | Đổi nhầm PIC epic khi poll 5s thay thế DOM | Ghim khóa hàng ổn định (`data-row-key`), bỏ sắp xếp theo `mtime` dưới 1 ngày trong `sortEpicsForRoadmap`, hoãn thay `tbody` khi `.select-pic-roadmap` giữ focus, và kiểm chứng trên Chrome CDP thật. |
 
+<!-- sync-en-sha256: 4d53effc3f004876 -->

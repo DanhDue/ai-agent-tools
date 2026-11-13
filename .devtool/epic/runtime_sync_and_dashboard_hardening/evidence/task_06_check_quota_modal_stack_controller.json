@@ -1,0 +1,197 @@
+{
+  "schema": 1,
+  "task": "task_06_check_quota_modal_stack_controller",
+  "runs": {
+    "red": {
+      "head": "83c2d594dd5578f94e1e92da5fa798bd1aeaf832",
+      "tree": "aac83d2b6fb55a223a61d8af643bd815489c97bb",
+      "patch_id": "492451c810fdc4690b6380eac86b479733a25544",
+      "started": "2026-11-13T04:47:34Z",
+      "finished": "2026-11-13T04:47:34Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_rsdh_quota_modal_stack.py::test_rsdh_hp_08_single_modal_stack_exclusivity",
+          "expect": "exit 1; contains \"failed\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-13T04:47:34Z",
+          "finished": "2026-11-13T04:47:34Z",
+          "output_tail": [
+            "E     AssertionError [ERR_ASSERTION]: openInnerModal must be defined",
+            "E     + actual - expected",
+            "E     ",
+            "E     + 'undefined'",
+            "E     - 'function'",
+            "E     ",
+            "E         at file:///Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/runtime_sync_and_dashboard_hardening-slot-1/tests/.tmp_node_33218_1794545254248212000.mjs:337:8",
+            "E         at ModuleJob.run (node:internal/modules/esm/module_job:430:25)",
+            "E         at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:655:26)",
+            "E         at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5) {",
+            "E       generatedMessage: false,",
+            "E       code: 'ERR_ASSERTION',",
+            "E       actual: 'undefined',",
+            "E       expected: 'function',",
+            "E       operator: 'strictEqual',",
+            "E       diff: 'simple'",
+            "E     }",
+            "E     ",
+            "E     Node.js v25.6.0",
+            "E     ",
+            "E   assert 1 == 0",
+            "E    +  where 1 = CompletedProcess(args=['/opt/homebrew/bin/node', '/Users/danhdueexoictif/AllProjects/ai-agent-tools/.worktrees/runtime...  actual: 'undefined',\\n  expected: 'function',\\n  operator: 'strictEqual',\\n  diff: 'simple'\\n}\\n\\nNode.js v25.6.0\\n\").returncode",
+            "=========================== short test summary info ============================",
+            "FAILED tests/test_rsdh_quota_modal_stack.py::test_rsdh_hp_08_single_modal_stack_exclusivity",
+            "1 failed in 0.11s"
+          ],
+          "output_sha256": "ca74831f3459055490001a1136cf4d708b17e542584fc413f3927f64025929a4"
+        }
+      ],
+      "passed": true
+    },
+    "verify": {
+      "head": "83c2d594dd5578f94e1e92da5fa798bd1aeaf832",
+      "tree": "df622c67756be1722d7915d7a65fd8d4ed81223a",
+      "patch_id": "a2d4e5b17db5ed235f891561f6d4a55fb11641c9",
+      "started": "2026-11-13T04:54:29Z",
+      "finished": "2026-11-13T04:54:59Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_rsdh_quota_modal_stack.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-13T04:54:29Z",
+          "finished": "2026-11-13T04:54:39Z",
+          "output_tail": [
+            ".....                                                                    [100%]",
+            "5 passed in 10.07s"
+          ],
+          "output_sha256": "7158b9e48454428d28d63e48e08f37c486db9e3a2bd303504e678662cb1ca3d2"
+        },
+        {
+          "id": "V3",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_rsdh_quota_modal_stack.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-13T04:54:39Z",
+          "finished": "2026-11-13T04:54:49Z",
+          "output_tail": [
+            ".....                                                                    [100%]",
+            "5 passed in 9.73s"
+          ],
+          "output_sha256": "6b96f41a72877865a223c265da9b8099057106bb5935ffdcf3db45f32b902d9f"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py tests/test_rsdh_quota_modal_stack.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-13T04:54:49Z",
+          "finished": "2026-11-13T04:54:49Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-B",
+          "command": "mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-13T04:54:49Z",
+          "finished": "2026-11-13T04:54:49Z",
+          "output_tail": [
+            "Success: no issues found in 5 source files"
+          ],
+          "output_sha256": "e317872697c2cbfdefa321527a6efe73290dff3a390b0fa8723b87092eccba6a"
+        },
+        {
+          "id": "V6",
+          "phase": "TIER-C",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 --junitxml=build/test-results/task_6.xml tests/test_rsdh_quota_modal_stack.py",
+          "expect": "exit 0; results build/test-results/task_6.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-13T04:54:49Z",
+          "finished": "2026-11-13T04:54:59Z",
+          "output_tail": [
+            ".....                                                                    [100%]",
+            "5 passed in 9.32s"
+          ],
+          "output_sha256": "41c62416b9d4ae5d12ce8684861b468843cba8e270df84b61ebc9dc4e04bd6c3",
+          "results": {
+            "path": "build/test-results/task_6.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 5,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_rsdh_hp_08_single_modal_stack_exclusivity",
+                  "classname": "tests.test_rsdh_quota_modal_stack",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rsdh_hp_08_chrome_cdp_integration",
+                  "classname": "tests.test_rsdh_quota_modal_stack.TestQuotaModalStack_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rsdh_ec_07_inner_modal_backdrop_and_escape",
+                  "classname": "tests.test_rsdh_quota_modal_stack.TestQuotaModalStack_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rsdh_st_06_embedded_mode_flattens_card",
+                  "classname": "tests.test_rsdh_quota_modal_stack.TestQuotaModalStack_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rsdh_fr_05_escape_with_zero_inner_modals_closes_card",
+                  "classname": "tests.test_rsdh_quota_modal_stack.TestQuotaModalStack_Integration",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "skills/check-quota/resources/dashboard/quota_dashboard.html",
+            "tests/test_rsdh_quota_modal_stack.py"
+          ],
+          "violations": []
+        }
+      ],
+      "passed": true
+    }
+  }
+}

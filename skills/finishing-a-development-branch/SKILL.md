@@ -111,7 +111,7 @@ Which option?
 ```
 
 Present the menu exactly as written — concise, with every option coming
-from the list above. Discarding the work happens only in response to your
+from the list above. Before pausing for Choice A, record `python3 scripts/resume_context.py --pending-decision "Choose Stage 4 integration option" --decision-kind finish --epic <epic_slug>` (cleared automatically when the decision is acted upon). Discarding the work happens only in response to your
 human partner explicitly asking for it (see "If your human partner asks to
 discard the work" below). Wait for their answer; the integration decision
 is theirs.
@@ -310,6 +310,8 @@ created this worktree — we own cleanup:
 ```bash
 git worktree remove "$WORKTREE_PATH"
 git worktree prune  # Self-healing: clean up any stale registrations
+# Preservation-safe worker slot cleanup (preserves dirty/unmerged slots by default; integrate_branch land also cleans merged orphans):
+python3 skills/dev-implementation/resources/scripts/manage_worker_pool.py cleanup --epic-dir <epic_dir> --epic-slug <epic_slug> --stale-only
 ```
 
 **If removal is refused** (`contains modified or untracked files`): the

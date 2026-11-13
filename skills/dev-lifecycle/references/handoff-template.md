@@ -41,11 +41,11 @@ These are usually different strings. Never derive one from the other.
 ```text
 [PERSONA: AI PROGRAMMER — SENIOR TDD SOFTWARE ENGINEER]
 Use the d3nexus:dev-implementation skill for the `<epic_slug>` epic.
-Read .devtool/epic/<epic_dir>/handoff.md first.
+Read .devtool/epic/<epic_dir>/handoff.md first. Write all internal orchestration, plans, code comments, and commits strictly in English.
 Run: python3 scripts/resume_context.py --role programmer --epic <epic_slug>
 Apply the Execution Guardrails for Receiving LLM before presenting Gate 3.
 Gates 1 and 2 are passed; do not re-run brainstorming or design.
-Gate 3 (execution order) and worktree creation run automatically. Begin task execution in accordance with the resolved order.
+Gate 3 runs automatically: compute wave order via `python3 skills/dev-implementation/resources/scripts/compute_execution_order.py <epic_slug> --parallel`, monitor `python3 scripts/estimate_heartbeat.py`, dispatch independent tasks in parallel (`manage_worker_pool.py` / `workspace:"share"` subagents), run strict TDD per task, verify Gate 4 + Cross-Model Review, and run `manage_worker_pool.py cleanup` before Stage 4 landing.
 ```
 
 ## Execution Guardrails for Receiving LLM
@@ -72,7 +72,7 @@ Fast executor models and receiving agents MUST adhere to these four hard guardra
 ## Rules for the Receiving Agent
 
 - Do not re-run `dev-brainstorming` or `dev-designer`. Raise a wrong or missing document at Gate 3.
-- Gate 3 (execution order) is auto-resolved by AI Assistant via compute_execution_order.py.
+- Gate 3 computes wave-parallel execution automatically via `compute_execution_order.py <epic_slug> --parallel`, estimates wave heartbeat via `estimate_heartbeat.py`, dispatches independent wave tasks across isolated slots (`manage_worker_pool.py init|sync|merge|cleanup` / `workspace:"share"` subagents), and pauses via `resume_context.py --pending-decision` only on Choice A gates or `CRITICAL_CONFLICT`.
 - Unless the design commit is `uncommitted`: if `git log <sha>..<base_branch> -- .devtool/epic/<epic_dir>` lists any commit besides the `Package epic for handoff` commit, the documents changed after packaging. The documents win, and this file may be stale. Comparing against the base branch keeps the epic branch's own task commits out of the check.
-- This file is updated only by `package_epic.py --revise`, which records each re-anchoring under `## Revisions`.
+- This file is updated only by `package_epic.py --revise`, which records each re-anchoring under `## Revisions` and clears any pending revision decision for this epic.
 - Never edit a task's Verification table, Definition of Done, Allowed files or a protected path; stop and report.

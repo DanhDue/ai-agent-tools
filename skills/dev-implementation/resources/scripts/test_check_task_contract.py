@@ -735,6 +735,134 @@ class SurgicalAnchorTest(ContractCase):
         self.assertEqual(code_non_design, 0, out_nd)
 
 
+class DuplicateNewClaimHardeningCase(ContractCase):
+    """Regression coverage for cross-category and dot-directory (new) claims."""
+
+    def test_cross_category_new_claim_collision_rejected(self) -> None:
+        t1 = self.task("1", allowed="- `tool.py`\n- `out/shared.json` (new)")
+        t2 = self.task(
+            "2",
+            allowed="- `README.md`",
+            read_only="- `tool.py` — base",
+            evidence="- `out/shared.json` (new)",
+        )
+        code, out, _ = self.run_cli("--design", "--hld", f"{EPIC}/demo.en.md", "--tasks", t1, t2)
+        self.assertEqual(code, 1, out)
+        self.assertIn("duplicate (new) claim", out)
+
+    def test_hidden_dotdir_and_plain_dir_not_conflated(self) -> None:
+        (self.root / ".agents").mkdir(parents=True, exist_ok=True)
+        (self.root / "agents").mkdir(parents=True, exist_ok=True)
+        t1 = self.task("1", allowed="- `.agents/quality/conf.json` (new)")
+        t2 = self.task(
+            "2",
+            allowed="- `agents/quality/conf.json` (new)",
+            read_only="- `tool.py` — base",
+        )
+        code, out, _ = self.run_cli("--design", "--hld", f"{EPIC}/demo.en.md", "--tasks", t1, t2)
+        self.assertEqual(code, 0, out)
+
+    def test_dot_slash_prefix_still_deduped_cleanly(self) -> None:
+        (self.root / ".agents").mkdir(parents=True, exist_ok=True)
+        t1 = self.task("1", allowed="- `./.agents/quality/conf.json` (new)")
+        t2 = self.task(
+            "2",
+            allowed="- `.agents/quality/conf.json` (new)",
+            read_only="- `tool.py` — base",
+        )
+        code, out, _ = self.run_cli("--design", "--hld", f"{EPIC}/demo.en.md", "--tasks", t1, t2)
+        self.assertEqual(code, 1, out)
+        self.assertIn("duplicate (new) claim", out)
+
+
+class HistoricalPythonCapabilityCase(ContractCase):
+    """Regression coverage for Python capability prefix compatibility across done/revise tasks."""
+
+    def _expanded_manifest(self) -> None:
+        self.write("pkg/a.py", "x = 1\n")
+        self.write("tests/test_a.py", "def test_ok():\n    assert True\n")
+        self.write("scripts/b.py", "y = 2\n")
+        self.write("scripts/c.py", "z = 3\n")
+        manifest = json.dumps(
+            {
+                "schema_version": 1,
+                "capabilities": {
+                    "lint": ["ruff", "check", "pkg", "tests", "scripts/b.py"],
+                    "type_check": ["mypy", "pkg/a.py", "scripts/b.py", "scripts/c.py"],
+                },
+            }
+        )
+        self.write(".agents/quality/python-quality.json", manifest)
+        self.commit()
+
+    def test_done_task_historical_prefix_passes_when_manifest_grows_targets(self) -> None:
+        self._expanded_manifest()
+        rows = (
+            RED
+            + GREEN
+            + "| V3 | TIER-B | `ruff check pkg` | exit 0 | — |\n"
+            + "| V4 | TIER-B | `mypy pkg/a.py` | exit 0 | — |\n"
+            + TIER_C
+        )
+        t = self.task("1_done", status="done", allowed="- `tool.py`", rows=rows, dod="- done (V2, V3, V4, V5)\n")
+        code, out, _ = self.check(t, design=True)
+        self.assertEqual(code, 0, out)
+
+    def test_todo_task_still_rejected_when_omitting_newly_registered_targets(self) -> None:
+        self._expanded_manifest()
+        rows = (
+            RED
+            + GREEN
+            + "| V3 | TIER-B | `ruff check pkg` | exit 0 | — |\n"
+            + "| V4 | TIER-B | `mypy pkg/a.py` | exit 0 | — |\n"
+            + TIER_C
+        )
+        t = self.task("1_todo", status="todo", allowed="- `tool.py`", rows=rows, dod="- done (V2, V3, V4, V5)\n")
+        code, out, _ = self.check(t, design=True)
+        self.assertEqual(code, 1, out)
+        self.assertIn("missing registered", out)
+
+    def test_done_task_with_wrong_runner_still_rejected(self) -> None:
+        manifest = json.dumps(
+            {
+                "schema_version": 1,
+                "capabilities": {
+                    "lint": ["uv", "run", "ruff", "check", "."],
+                    "type_check": ["uv", "run", "mypy", "--strict", "src"],
+                },
+            }
+        )
+        self.write(".agents/quality/python-quality.json", manifest)
+        self.commit()
+        rows = (
+            RED
+            + GREEN
+            + "| V3 | TIER-B | `ruff check tool.py` | exit 0 | — |\n"
+            + "| V4 | TIER-B | `mypy --strict tool.py` | exit 0 | — |\n"
+            + TIER_C
+        )
+        t = self.task("1_runner", status="done", allowed="- `tool.py`", rows=rows, dod="- done (V2, V3, V4, V5)\n")
+        code, out, _ = self.check(t, design=True)
+        self.assertEqual(code, 1, out)
+        self.assertIn("missing registered", out)
+
+    def test_in_progress_task_passes_under_allow_existing_done_new(self) -> None:
+        self._expanded_manifest()
+        rows = (
+            RED
+            + GREEN
+            + "| V3 | TIER-B | `ruff check pkg` | exit 0 | — |\n"
+            + "| V4 | TIER-B | `mypy pkg/a.py` | exit 0 | — |\n"
+            + TIER_C
+        )
+        t = self.task("1_wip", status="in-progress", allowed="- `tool.py`", rows=rows, dod="- done (V2, V3, V4, V5)\n")
+        self.commit()
+        code, out, _ = self.run_cli(
+            "--design", "--allow-existing-done-new", "--hld", f"{EPIC}/demo.en.md", "--tasks", t
+        )
+        self.assertEqual(code, 0, out)
+
+
 if __name__ == "__main__":
     unittest.main()
 

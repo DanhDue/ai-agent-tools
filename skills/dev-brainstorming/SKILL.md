@@ -186,7 +186,7 @@ To ensure this is a true creative collaboration and not just a rigid interrogati
 
 **Documentation:**
 
-- Write the validated design (spec) as a synchronized pair:
+- Write the validated design (spec) in **English** first (never mix languages in internal design docs, tasks, or commits) as a synchronized pair, stamping creator `- **PIC**: <profile>` resolved via `python3 scripts/resume_context.py --detect-profile`:
   - English, canonical: `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.en.md`
   - Vietnamese: `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.vi.md`
   - (User preferences for spec location override this default)
@@ -228,7 +228,7 @@ After writing the spec document, look at it with fresh eyes:
 Fix any issues inline. No need to re-review — just fix and move on.
 
 **User Review Gate:**
-After the spec review loop passes, ask the user to review the written spec before proceeding:
+Before halting for Gate 1 review, record the Choice A pending decision so the dashboard highlights human action (`python3 scripts/resume_context.py --pending-decision "Approve Gate 1 design spec" --decision-kind gate_1 --epic <topic_slug>`). After the spec review loop passes, ask the user to review the written spec before proceeding:
 
 > "Spec written and committed to `<english-path>` and `<vietnamese-path>`. Please review the pair
 > and let me know if you want to make any changes before we start writing out the implementation

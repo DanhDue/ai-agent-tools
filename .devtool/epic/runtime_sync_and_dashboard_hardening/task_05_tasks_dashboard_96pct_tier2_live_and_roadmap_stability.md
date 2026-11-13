@@ -1,13 +1,13 @@
 ---
 id: "task_05_tasks_dashboard_96pct_tier2_live_and_roadmap_stability"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "runtime_sync_and_dashboard_hardening"
 dueDate: null
 created: "2026-11-13T09:24:00Z"
-modified: "2026-11-13T09:24:00Z"
-completedAt: null
+modified: "2026-11-13T04:40:02Z"
+completedAt: "2026-11-13T04:40:02Z"
 labels: ["frontend", "dashboard", "live-sync", "check-tasks"]
 order: "a5"
 review_tier: "full"

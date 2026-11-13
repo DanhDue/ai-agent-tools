@@ -416,6 +416,14 @@ SUITES = [
     # 17. Quota Dashboard & Kiro CLI provider tests
     ("17", "unittest", "tests/test_kiro_quota.py", 2, True),
     ("17", "unittest", "tests/test_agy_quota.py", 2, True),
+    # 18. Runtime Sync & Dashboard Hardening suites
+    ("18", "pytest",   "tests/test_rsdh_state_envelope.py", 5, False),
+    ("18", "pytest",   "tests/test_rsdh_heartbeat_quality.py", 5, False),
+    ("18", "pytest",   "tests/test_rsdh_orchestration.py", 15, False),
+    ("18", "pytest",   "tests/test_rsdh_harvester_and_pic.py", 10, False),
+    ("18", "pytest",   "tests/test_rsdh_tasks_dashboard_ui.py", 25, False),
+    ("18", "pytest",   "tests/test_rsdh_quota_modal_stack.py", 25, False),
+    ("18", "pytest",   "tests/test_runtime_sync_and_dashboard_hardening.py", 30, False),
 ]
 
 active_suites = [
