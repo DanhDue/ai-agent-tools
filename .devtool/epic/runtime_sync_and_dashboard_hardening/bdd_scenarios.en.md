@@ -20,9 +20,9 @@ And both .devtool/state/demo-sync.md and .devtool/assistant_state.md reflect the
 
 Scenario: [RSDH-HP-02] [Tier A - Unit] Simple rule-based heartbeat estimator maps workloads across light, medium, and heavy cadence tiers
 
-Given representative inputs covering a 1-task/1-file micro fix, a 2-task/5-file feature wave, a full polyglot quality run, and an E2E quality run
+Given representative inputs covering a 1-task/1-file micro fix, a 2-task/5-file feature wave, a full quality profile run (`--quality-profile full`), and an E2E quality run (`--has-e2e`)
 When scripts/estimate_heartbeat.py evaluates each input via CLI and Python API with --json
-Then the micro fix returns tier "light" with recommended_interval_sec null, the feature wave returns tier "medium" with recommended_interval_sec 180, the full quality run returns tier "heavy" with 240, and the E2E run returns tier "heavy" with 300
+Then the micro fix (estimated_sec 35 < 60) returns tier "light" with recommended_interval_sec null, the feature wave (estimated_sec 80) returns tier "medium" with recommended_interval_sec 180, the full quality run (estimated_sec 250) returns tier "heavy" with 240, and the E2E run returns tier "heavy" with 300
 
 Scenario: [RSDH-HP-03] [Tier C - Integration] Polyglot quality runner streams zero-token stderr progress and updates quality_active.json
 
@@ -64,7 +64,7 @@ Scenario: [RSDH-HP-08] [Tier C - Integration] Check-Quota Modal Stack Controller
 Given quota_dashboard.html embedded inside #modal-quota in tasks_dashboard.html
 When the user opens #scheduleModal and then triggers #loginModal, and later the parent closes #modal-quota
 Then opening #loginModal automatically closes #scheduleModal so at most one inner sub-modal has the open state simultaneously
-And closing #modal-quota posts reset_submodals causing quota_dashboard.html to close every inner sub-modal cleanly
+And closing #modal-quota posts {action: "reset_quota_submodals"} causing quota_dashboard.html to close every inner sub-modal cleanly
 
 Scenario: [RSDH-HP-09] [Tier C - Integration] End-to-end orchestration, envelope sync, 96% dashboard, PIC sync, and modal stack pass together
 
@@ -104,9 +104,9 @@ Then resolve_active_epic returns None and derive_lifecycle_state returns Idle wi
 
 Scenario: [RSDH-EC-05] [Tier A - Unit] PIC reassignment validates profile names and isolates sibling epics across worktrees
 
-Given a repository with two distinct epics (demo_epic and sibling_epic) having separate directories and worktrees
-When tasks_server.assign_epic_pic is called with malformed PIC "../bad" and then valid PIC "tess" for "demo_epic"
-Then the malformed PIC request raises ValueError without modifying any files
+Given a repository with two distinct epics (demo_epic and sibling_epic) having separate directories and worktrees behind a live TasksServer HTTP endpoint
+When tasks_server.assign_epic_pic is called directly and via POST /api/epic/pic with malformed PIC "../bad", and then called with valid PIC "tess" for "demo_epic"
+Then the direct assign_epic_pic call raises ValueError without modifying any files and POST /api/epic/pic returns HTTP 400 with {"status": "error", ...} rather than HTTP 500
 And the valid update changes only demo_epic across root and its matched worktree while leaving all sibling_epic files untouched
 
 Scenario: [RSDH-EC-06] [Tier C - Integration] Roadmap select preserves focus and exact row mapping during 5s polling and open modals
@@ -122,7 +122,7 @@ Given #modal-quota is open and inside quota_dashboard.html one of #profileInfoMo
 When the user clicks the sub-modal backdrop or presses Escape inside the iframe
 Then only the active inner sub-modal closes, preserving the rest of #dashboardCard and keeping #modal-quota open
 
-Scenario: [RSDH-EC-08] [Tier A - Unit] Epic creator profile is automatically detected and stamped as initial PIC
+Scenario: [RSDH-EC-08] [Tier C - Integration] Epic creator profile is automatically detected and stamped as initial PIC
 
 Given an active Antigravity profile environment where AGY_PROFILE (or profile folder /antigravity_homes/brother) runs alongside an HLD containing "- **PIC**: brother" and an active workspace slug with mixed "-" and "_" separators
 When resume_context.py --detect-profile and sync_window_title run and package_epic.py generates handoff.md from handoff-template.md
@@ -157,13 +157,13 @@ Given an active epic whose root HLD has no PIC yet while its active worktree han
 When check_tasks.extract_epic_pic inspects the repository
 Then the valid worktree PIC "danhdue" is extracted cleanly and placeholder tokens like "<unassigned>" return None
 
-Scenario: [RSDH-ST-05] [Tier C - Integration] Progress calculation enforces 95% in-progress cap, 96% pre-finish cap, and 100% finished state
+Scenario: [RSDH-ST-05] [Tier C - Integration] Progress calculation enforces 75% mid-epic, 95% in-progress cap, 96% pre-finish cap, and 100% finished state
 
 Given task counts transitioning from 3/4 done, 4/4 done before Gate 4 convergence, 4/4 done with Gate 4 Review Converged (Waiting Finish), and Gate 5 Done
 When check_tasks backend and tasks_dashboard.html compute progress display values
-Then 3/4 done yields <= 95%, 4/4 done pre-convergence yields exactly 96%, and converged Waiting Finish / Done yields 100%
+Then 3/4 done yields 75% (high in-progress ratios capped at 95%), 4/4 done pre-convergence yields exactly 96%, and converged Waiting Finish / Done yields 100%
 
-Scenario: [RSDH-ST-06] [Tier A - Unit] Check-Quota embedded mode strips redundant outer card frame cleanly
+Scenario: [RSDH-ST-06] [Tier C - Integration] Check-Quota embedded mode strips redundant outer card frame cleanly
 
 Given quota_dashboard.html loaded with query parameter "?embedded=1" versus standalone URL
 When the initialization script applies embedded styling classes to #dashboardCard

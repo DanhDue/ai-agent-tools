@@ -28,7 +28,7 @@ Implement the shared atomic runtime state layer (`scripts/_state_envelope.py`) a
    - Provide structured domain helpers (`update_epic_heartbeat(...)`, `write_pending_decision(...)`, `clear_pending_decision(...)`, `write_quality_active(...)`) mirroring writes atomically across all resolved shared `.devtool/state/` directories.
 2. **Mechanical Two-Tier Sync in `resume_context.py` and `sync_task_status.py`**:
    - Update `scripts/resume_context.py` (`write_epic_state` L728-L762 and `complete_feature_and_rotate` L785-L845) so saving state refreshes `<epic_slug>.heartbeat.json` across shared devtool dirs and completing an epic cleans/archives stale state files cleanly from both active worktree and primary repo `.devtool/state/` + `.devtool/assistant_state.md` rollup without duplicating `PROJECT_LEDGER.md` entries.
-   - Update `skills/dev-implementation/resources/scripts/sync_task_status.py` (`sync_task` L303-L335, `sync_epic` L566-L600, `main` L1150-L1276) so task/epic status mutations mechanically call `update_epic_heartbeat()`, regenerate `.devtool/state/<epic_slug>.md` + `.devtool/assistant_state.md` under lock (`resume_context`), and invoke `clear_pending_decision()` when marking a task `in-progress` or `done`.
+   - Update `skills/dev-implementation/resources/scripts/sync_task_status.py` (`sync_task` L303-L335, `sync_epic` L566-L600, `main` L1079-L1276) so task/epic status mutations mechanically call `update_epic_heartbeat()`, regenerate `.devtool/state/<epic_slug>.md` + `.devtool/assistant_state.md` under lock (`resume_context`), and invoke `clear_pending_decision()` when marking a task `in-progress` or `done`.
 3. Add `tests/test_rsdh_state_envelope.py` covering `RSDH-HP-01`, `RSDH-EC-01`, `RSDH-AR-01`, and `RSDH-FR-01`.
 
 ## Files
@@ -53,7 +53,7 @@ Read-only context:
 - **Target Files & Symbols**:
   - `scripts/_state_envelope.py`: new shared atomic state module (`resolve_shared_devtool_dirs`, `atomic_write_json`, `read_json_safe`, `update_epic_heartbeat`, `write_pending_decision`, `clear_pending_decision`, `write_quality_active`)
   - `scripts/resume_context.py`: `write_epic_state` (L728-L762), `complete_feature_and_rotate` (L785-L845)
-  - `skills/dev-implementation/resources/scripts/sync_task_status.py`: `sync_task` (L303-L335), `sync_epic` (L566-L600), `main` (L1150-L1276)
+  - `skills/dev-implementation/resources/scripts/sync_task_status.py`: `sync_task` (L303-L335), `sync_epic` (L566-L600), `main` (L1079-L1276)
   - `tests/test_rsdh_state_envelope.py`: new test suite for `RSDH-HP-01`, `RSDH-EC-01`, `RSDH-AR-01`, `RSDH-FR-01`
 - **Downstream Callers**: `skills/dev-implementation/resources/scripts/manage_worker_pool.py`, `skills/quality_check/resources/scripts/verify_polyglot_registry.py`, `skills/check-tasks/resources/scripts/check_tasks.py`, `scripts/test_resume_context.py`, `skills/dev-implementation/resources/scripts/test_sync_task_status.py`.
 - **Cross-Platform Bridges**: None.
@@ -117,6 +117,7 @@ Then the stale heartbeat is safely superseded atomically under lock and executio
 - All JSON mutations go through a sidecar `.lock` under `fcntl.flock` + temporary sibling write + `os.replace()`; `read_json_safe()` catches `OSError` and `json.JSONDecodeError` returning defaults cleanly.
 - `sync_task_status.py` refreshes `.devtool/state/<epic_slug>.md` + `.devtool/assistant_state.md` via `resume_context.write_epic_state` / `render_assistant_state_rollup` when available and calls `clear_pending_decision()` on `in-progress` and `done` transitions without duplicating `PROJECT_LEDGER.md`.
 - `resume_context.py` (`write_epic_state` L728-L762, `complete_feature_and_rotate` L785-L845) synchronizes completion/archival across shared `.devtool/` dirs cleanly.
+- `tests/test_rsdh_state_envelope.py` MUST import `scripts/_state_envelope` lazily inside each test function body rather than at module top level so pytest V1 RED runs execute collected tests and exit `1` (`failed`) instead of failing collection with exit `2`.
 
 ## Definition of Done
 

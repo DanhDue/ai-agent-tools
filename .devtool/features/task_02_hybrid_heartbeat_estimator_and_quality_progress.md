@@ -24,10 +24,10 @@ Implement zero-LLM workload duration estimation (`scripts/estimate_heartbeat.py`
 1. **Rule-Based Heartbeat Estimator (`scripts/estimate_heartbeat.py`)**:
    - Accept `--tasks-count`, `--files-count`, `--epic-dir`, `--wave`, `--quality-profile` (`fast|pr|epic|release|full`), `--has-e2e`, and `--json`.
    - When `--epic-dir` (and optional `--wave`) is passed without explicit counts, inspect `.devtool/features/` / `.devtool/epic/<epic_dir>/task_*.md` to derive pending task count and modified file count cleanly.
-   - Evaluate deterministic additive formula (`base 10s + 45s*tasks + 10s*files + profile baseline {fast:20, pr:120, epic:210, release:270, full:270} + e2e bonus 90s`, clamping `0` tasks & `0` files with no quality profile to `< 60s`) into tiers:
+   - Evaluate deterministic additive formula (`base 5s + 25s*tasks + 5s*files + profile baseline {fast:15, pr:120, epic:210, release:245, full:245} + e2e bonus 240s`, yielding `5s` for 0/0, `35s` for 1/1, `80s` for 2/5, `250s` for `--quality-profile full`) into tiers:
      - `estimated_sec < 60` -> `"light"`, `recommended_interval_sec: null`
      - `60 <= estimated_sec <= 240` -> `"medium"`, `recommended_interval_sec: 180`
-     - `estimated_sec > 240` -> `"heavy"`, `recommended_interval_sec: 240` (or `300` when `--has-e2e` or `epic`/`release`/`full`)
+     - `estimated_sec > 240` -> `"heavy"`, `recommended_interval_sec: 240` (escalating to `300` strictly when `--has-e2e` is set)
 2. **Live Progress Streaming in `verify_polyglot_registry.py`**:
    - Upgrade `execute_provider` (`L142-L458`) and `verify_polyglot_execution` (`L459-L557`) to accept an optional `heartbeat_interval` parameter (default `15.0`, CLI flag `--heartbeat-interval` in `main` `L636-L726`).
    - Run capability subprocesses via `subprocess.Popen` redirecting combined stdout/stderr directly into `build/quality/<provider_id>/<cap_name>.log`.
@@ -73,9 +73,9 @@ Covers: RSDH-HP-02, RSDH-HP-03, RSDH-EC-02, RSDH-FR-02
 ```gherkin
 Scenario: [RSDH-HP-02] [Tier A - Unit] Simple rule-based heartbeat estimator maps workloads across light, medium, and heavy cadence tiers
 
-Given representative inputs covering a 1-task/1-file micro fix, a 2-task/5-file feature wave, a full polyglot quality run, and an E2E quality run
+Given representative inputs covering a 1-task/1-file micro fix, a 2-task/5-file feature wave, a full quality profile run (`--quality-profile full`), and an E2E quality run (`--has-e2e`)
 When scripts/estimate_heartbeat.py evaluates each input via CLI and Python API with --json
-Then the micro fix returns tier "light" with recommended_interval_sec null, the feature wave returns tier "medium" with recommended_interval_sec 180, the full quality run returns tier "heavy" with 240, and the E2E run returns tier "heavy" with 300
+Then the micro fix (estimated_sec 35 < 60) returns tier "light" with recommended_interval_sec null, the feature wave (estimated_sec 80) returns tier "medium" with recommended_interval_sec 180, the full quality run (estimated_sec 250) returns tier "heavy" with 240, and the E2E run returns tier "heavy" with 300
 
 Scenario: [RSDH-HP-03] [Tier C - Integration] Polyglot quality runner streams zero-token stderr progress and updates quality_active.json
 
@@ -105,7 +105,7 @@ Then quality_active.json is finalized cleanly with status "failed" and non-null 
 | V1 | RED | `python3 -m pytest -q --tb=short --maxfail=3 tests/test_rsdh_heartbeat_quality.py::test_rsdh_hp_03_live_stderr_and_quality_active` | exit 1; contains "failed" | — |
 | V2 | GREEN | `python3 -m pytest -q --tb=short --maxfail=3 tests/test_rsdh_heartbeat_quality.py` | exit 0; contains "passed" | — |
 | V3 | GREEN | `python3 -m pytest -q --tb=short --maxfail=3 tests/test_polyglot_gate4.py && python3 -m unittest skills/quality_check/resources/scripts/test_quality_provider_acceptance.py` | exit 0 | — |
-| V4 | TIER-B | `ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/estimate_heartbeat.py skills/quality_check/resources/scripts/verify_polyglot_registry.py tests/test_rsdh_heartbeat_quality.py` | exit 0 | — |
+| V4 | TIER-B | `ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/estimate_heartbeat.py tests/test_rsdh_heartbeat_quality.py` | exit 0 | — |
 | V5 | TIER-B | `mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/estimate_heartbeat.py` | exit 0 | — |
 | V6 | TIER-C | `python3 -m pytest -q --tb=short --maxfail=3 --junitxml=build/test-results/task_2.xml tests/test_rsdh_heartbeat_quality.py tests/test_polyglot_gate4.py` | exit 0; results build/test-results/task_2.xml | — |
 
@@ -120,8 +120,9 @@ Then quality_active.json is finalized cleanly with status "failed" and non-null 
 
 ## Decisions Already Made
 
-- `scripts/estimate_heartbeat.py` is 100% deterministic (zero LLM/network calls) and maps discrete tiers: `< 60s -> light (null)`, `60..240s -> medium (180)`, `> 240s -> heavy (240 or 300 with --has-e2e or full/epic/release profile)`.
-- `verify_polyglot_registry.py` streams capability stdout/stderr directly to `build/quality/<provider_id>/<cap_name>.log` via `subprocess.Popen`, emits `[quality_check] <i>/<n> <provider>:<cap> (<elapsed>s elapsed)` every `heartbeat_interval` (default `15.0s`), and finalizes `quality_active.json` in `try ... finally` across resolved shared `.devtool/state/` dirs without importing project-specific paths.
+- `scripts/estimate_heartbeat.py` is 100% deterministic (zero LLM/network calls) and maps discrete tiers: `< 60s -> light (null)`, `60..240s -> medium (180)`, `> 240s -> heavy (240, or 300 strictly with --has-e2e)` using `base 5s + 25s*tasks + 5s*files + profile {fast:15, pr:120, epic:210, release:245, full:245} + e2e 240s`.
+- `verify_polyglot_registry.py` streams capability stdout/stderr directly to `build/quality/<provider_id>/<cap_name>.log` via `subprocess.Popen`, emits `[quality_check] <i>/<n> <provider>:<cap> (<elapsed>s elapsed)` every `heartbeat_interval` (default `15.0s`), and finalizes `quality_active.json` in `try ... finally` across resolved shared `.devtool/state/` dirs without importing project-specific paths; also clean up pre-existing `S110` at `L294` if touched (`# noqa` or structured warning log).
+- `tests/test_rsdh_heartbeat_quality.py` MUST import `scripts/estimate_heartbeat` lazily inside test function bodies (not at module top level) so V1 RED executes collected tests and exits `1` (`failed`) cleanly rather than failing collection with exit `2`.
 - Keep `execute_provider` and `verify_polyglot_execution` signatures strictly backward-compatible for callers omitting `heartbeat_interval`.
 
 ## Definition of Done

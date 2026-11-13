@@ -36,7 +36,7 @@ During recent multi-agent epics under `d3nexus:dev-lifecycle`, eight tightly cou
 3. **Sequential Handoff Prompt & Stage 3 `--revise` Failure**: `resume_context.py` (`emit_handoff_prompt` `L1770-L1783`) and `skills/dev-lifecycle/references/handoff-template.md` instruct sequential task execution, while `package_epic.py --revise` (`L292-L306`) unconditionally invokes `check_epic_readiness.py` -> `check_task_contract.py --design`, failing Stage 3 revisions with `<pattern> is marked (new) but already exists` on completed tasks.
 4. **Orphaned Worker Slot Resources**: Interrupted or completed waves leave `.worktrees/<epic>-slot-*` directories and `worker/<epic>/slot-*` / `epic/<slug>-slot-*` branches behind without automated cleanup before Gate 4 or branch integration.
 5. **False-Positive Approval Bottlenecks & Uncleared Pause Markers**: `check_tasks.py` (`resolve_active_epic` `L434-L537`) falls back alphabetically onto unstarted directories (`choosing_a_lifecycle`) and synthesizes `Approve Gate 1 (Design Spec)` (`L1240-L1258`), `parse_gate_ledger_entries()` (`L1007-L1065`) short-circuits on older `gate_ledger.jsonl` files when `GATE_LEDGER.md` holds newer approvals, and no explicit Choice A `pending_decision.json` save/clear protocol exists.
-6. **99% Pre-Finish Ceiling**: Section I sidebar (`L2244-L2279`) and Section II (`L2033-L2038`) cap all-tasks-done-pre-finish progress at `99%` (`⚡ 99% Review`) instead of **`96%`** (with in-progress capped at `95%` and `100%` reserved for Gate 4 converged Waiting Finish / Gate 5 Done).
+6. **99% Pre-Finish Ceiling / Uncapped Section II**: Section I sidebar (`renderKanbanDashboard` `L2252`, `L2255`, `L2277`) caps all-tasks-done-pre-finish progress at `99%` (`⚡ 99% Review`) while Section II (`renderExecutionEpics` `L2037`) renders raw `100%` without checking Gate 4 convergence; both must enforce the **`96%`** pre-finish ceiling (`95%` in-progress, `100%` reserved strictly for Gate 4 converged Waiting Finish / Gate 5 Done).
 7. **Broken PIC Assignment & Volatile Roadmap Sorting**: `assign_epic_pic()` (`tasks_server.py` `L520-L678`) misses worktree `.devtool/epic/<epic>/` copies and `- **PIC / Assigned Profile**:` lines while polluting unrelated prose (`bdd_scenarios.*`, `principal_review.md`), and `tasks_dashboard.html` (`sortEpicsForRoadmap` `L1721`, polling `L2696-L2715`, `updateEpicPic` `L1642`) re-sorts rows on second-level `mtime` bumps, destroys focused `<select>` controls mid-interaction, and checks the wrong `active` class on `modal-epics`.
 8. **Layered Check-Quota Dialogs**: `quota_dashboard.html` (`L407-L765`, `L3570-L3885`, `L4056-L4081`) lets inner dialogs (`#scheduleModal`, `#loginModal`, `#profileInfoModal`, `#appealDetailModal`) overlap simultaneously inside `#modal-quota`, omits `#profileInfoModal` and `#appealDetailModal` from click guards, and allows `Escape` to bypass inner dialogs and dismiss the parent iframe.
 
@@ -86,8 +86,8 @@ flowchart TD
 
 1. **Rule-Based Pre-Flight Estimator (`scripts/estimate_heartbeat.py`)**:
    - Pure deterministic scorer accepting `--tasks-count`, `--files-count`, `--epic-dir`, `--wave`, `--quality-profile` (`fast|pr|epic|release|full`), and `--has-e2e`.
-   - Formula adds base setup (`10s`), per-task weight (`45s` * `tasks_count`), per-file complexity (`10s` * `files_count`), quality profile baseline (`fast: 20s`, `pr: 120s`, `epic: 210s`, `release/full: 270s`), and E2E bonus (`90s` when `--has-e2e`).
-   - Maps `< 60s` -> tier `"light"`, `recommended_interval_sec: null` (skip `schedule()`); `60..240s` -> `"medium"`, `180`; `> 240s` -> `"heavy"`, `240` (or `300` when `--has-e2e` / `epic`/`release`/`full`).
+   - Formula adds base setup (`5s`), per-task weight (`25s` * `tasks_count`), per-file complexity (`5s` * `files_count`), quality profile baseline (`fast: 15s`, `pr: 120s`, `epic: 210s`, `release/full: 245s`), and E2E bonus (`240s` when `--has-e2e`).
+   - Maps `< 60s` -> tier `"light"`, `recommended_interval_sec: null` (skip `schedule()`, e.g. 0 tasks/0 files -> `5s`, 1 task/1 file -> `35s`); `60..240s` -> `"medium"`, `180` (e.g. 2 tasks/5 files -> `80s`); `> 240s` -> `"heavy"`, `240` (e.g. `--quality-profile full` -> `250s`), upgrading `"heavy"` strictly to `300` when `--has-e2e` is set.
 2. **Zero-Token Live Quality Stream (`verify_polyglot_registry.py`)**:
    - Replaces blocking `subprocess.run(..., capture_output=True)` during `cap` execution with `subprocess.Popen` streaming directly into `build/quality/<provider_id>/<cap_name>.log`.
    - Poll loop wakes every `heartbeat_interval` (default `15.0s`, parameterized in Python API and CLI `--heartbeat-interval` for sub-second tests) to print `[quality_check] <i>/<n> <provider>:<cap> (<elapsed>s elapsed)` to `stderr` and refresh `.devtool/state/quality_active.json`.
@@ -108,15 +108,15 @@ flowchart TD
 
 1. **Choice A Pending Decision & Idle False-Positive Elimination**:
    - `resume_context.py` gains `--pending-decision "<reason>"`, `--decision-kind <kind>`, and `--clear-decision`. Recording Gate approvals (`--gate`), setting non-paused `--state` statuses, running `sync_task_status.py` (`in-progress`/`done`), or `package_epic.py` clears `pending_decision.json` automatically.
-   - `check_tasks.py`: `resolve_active_epic()` removes Strategy 6 alphabetical folder fallback so idle repos report `active_epic = None`; `derive_lifecycle_state()` removes implicit `Approve Gate 1 (Design Spec)` unless backed by `pending_decision.json` or an explicitly awaiting Gate 1 checkpoint; `parse_gate_ledger_entries()` merges root + active worktree `gate_ledger.jsonl` AND `GATE_LEDGER.md` chronologically.
+   - `check_tasks.py`: `resolve_active_epic()` removes **Strategy 7** (`check_tasks.py:519-536`) alphabetical `.devtool/epic/` fallback while preserving **Strategy 6** (`check_tasks.py:508-517`) `.devtool/features/` scan so idle repos report `active_epic = None`; `derive_lifecycle_state()` removes implicit `Approve Gate 1 (Design Spec)` unless backed by `pending_decision.json` or an explicitly awaiting Gate 1 checkpoint; `parse_gate_ledger_entries()` merges root + active worktree `gate_ledger.jsonl` AND `GATE_LEDGER.md` chronologically.
 2. **96% Ceiling & Live Section II (`check_tasks.py` & `tasks_dashboard.html`)**:
-   - Pre-finish all-tasks-done progress caps at **`96%`** (`⚡ 96% Review`); in-progress caps at **`95%`**; `100%` requires `isWaitingFinish` (Gate 4 converged Sign-off) or `isFullyDone` (Gate 5 Done).
+   - Both `renderExecutionEpics()` (`L2037`, replacing raw `Math.round((doneCount / totalCount) * 100)`) and `renderKanbanDashboard()` (`L2252`, `L2255`, `L2277`, replacing `99`/`98` literals) alongside `check_tasks.py` cap pre-finish all-tasks-done progress at **`96%`** (`⚡ 96% Review`) and in-progress at **`95%`**; `100%` requires `isWaitingFinish` (Gate 4 converged Sign-off) or `isFullyDone` (Gate 5 Done).
    - `tier2Sig` at mount (`L2938`) and poll (`L2724`) tracks `account_id`, `prompt`, `is_human_action_required`, `task_progress`, `pending_decision`, `heartbeat`, and `quality_active`, updating Section II cards incrementally.
 3. **PIC Root + Worktree Sync & Roadmap Stability (`tasks_server.py` & `tasks_dashboard.html`)**:
-   - `assign_epic_pic()` discovers matched worktrees via `git worktree list --porcelain` (branch `epic/<slug>` or worktree dir `<epic_dir>`/`<slug>`) alongside root, updating **only** HLD (`<epic>.{en,vi}.md`, design specs), `handoff.md` (including `- **PIC / Assigned Profile**:`), `task_*.md` in `.devtool/epic/<epic>/` & `.devtool/features/`, `.pipeline.json`, `.heartbeat.json`, and worktree `.vscode/settings.json`. Prose/review files (`bdd_scenarios.*`, `principal_review.md`, `review_results.md`, `fix_plan_*.md`, `manual_smoke_checklist.md`) are never modified.
+   - `assign_epic_pic()` discovers matched worktrees via `git worktree list --porcelain` (branch `epic/<slug>` or worktree dir `<epic_dir>`/`<slug>`) alongside root, updating **only** HLD (`<epic>.{en,vi}.md`, design specs), `handoff.md` (including `- **PIC / Assigned Profile**:`), `task_*.md` in `.devtool/epic/<epic>/` & `.devtool/features/`, `.pipeline.json`, `.heartbeat.json`, and worktree `.vscode/settings.json`. Prose/review files (`bdd_scenarios.*`, `principal_review.md`, `review_results.md`, `fix_plan_*.md`, `manual_smoke_checklist.md`) are never modified. Unknown/invalid PIC inputs raise `ValueError`, caught in `do_POST()` (`L799-812`) to return HTTP `400`.
    - `sortEpicsForRoadmap` drops second-level `mtime` thrash in favor of status category + `active_epic` + created/date-day + deterministic tie-breakers, adds `data-row-key="<repo>:<slug>"`, skips `roadmapTbody.innerHTML` replacement while a `.select-pic-roadmap` holds focus, aligns mount vs poll `roadmapSig`, and fixes `modal-epics` `style.display === 'flex'` check.
 4. **Check-Quota Single Modal Stack Controller (`quota_dashboard.html` & `tasks_dashboard.html`)**:
-   - Single `openQuotaSubModal` / `closeQuotaSubModal` / `closeAllQuotaSubModals` registry over `['scheduleModal', 'loginModal', 'profileInfoModal', 'appealDetailModal']` enforces max `1` open inner modal, fixes backdrop clicks + `Escape` precedence (inner sub-modal -> `handleCardClose()`), flattens `#dashboardCard` on `?embedded=1`, and resets all sub-modals via `postMessage` when `#modal-quota` closes.
+   - Single `openQuotaSubModal` / `closeQuotaSubModal` / `closeAllQuotaSubModals` registry over `['scheduleModal', 'loginModal', 'profileInfoModal', 'appealDetailModal']` enforces max `1` open inner modal, fixes backdrop clicks + `Escape` precedence (inner sub-modal -> `handleCardClose()`), flattens `#dashboardCard` on `?embedded=1` (appended by `openQuotaModal()` / `refreshQuotaIframe()` at `L1470-1511`), checks `window.parent !== window`, and resets all sub-modals via `{ action: 'reset_quota_submodals' }` (`e.data.action`) when `#modal-quota` closes.
 
 ## Feature Maintenance Map
 
@@ -137,7 +137,7 @@ flowchart TD
 | `skills/check-tasks/resources/dashboard/tasks_dashboard.html` | `96%` cap UI, Section II live `tier2Sig`, stable Roadmap `data-row-key` & focus guard, `?embedded=1` quota reset | Task 05 |
 | `skills/check-quota/resources/dashboard/quota_dashboard.html` | Single Modal Stack Controller (`max=1`), click/Escape guards, `?embedded=1`, `postMessage` reset | Task 06 |
 | `rules/CRITICAL_RULES.md` & Skill Markdown Docs | Concise rules (`<= 8192` bytes) for Choice A pause/clear, wave cleanup, estimator pre-flight | Task 02, Task 03 |
-| `tests/test_runtime_sync_and_dashboard_hardening.py` & `scripts/verify.sh` | Cross-layer unit + Tier C integration + Node DOM acceptance suite registration | Task 07 |
+| `tests/test_runtime_sync_and_dashboard_hardening.py`, `.agents/quality/python-quality.json`, `scripts/verify.sh` | Cross-layer unit + Tier C integration + Node DOM suite registration & standing `python-quality.json` coverage | Task 07 |
 
 ## Module Contracts and CLI Interfaces
 
@@ -214,8 +214,8 @@ None — self-contained feature in `ai-agent-tools` plugin kit. All new `.devtoo
 ## Integration Test Plan and Boundary Matrix
 
 Integration test roots: tests
-Protected paths: .agents/quality/**, .devtool/epic/runtime_sync_and_dashboard_hardening/bdd_scenarios.en.md
-Integration results: python3 -m pytest -q --tb=short --maxfail=3 --junitxml=build/test-results/runtime-sync-and-dashboard-hardening.xml tests/test_rsdh_state_envelope.py tests/test_rsdh_heartbeat_quality.py tests/test_rsdh_orchestration.py tests/test_rsdh_harvester_and_pic.py tests/test_rsdh_tasks_dashboard_ui.py tests/test_rsdh_quota_modal_stack.py tests/test_runtime_sync_and_dashboard_hardening.py tests/test_check_tasks_server.py tests/test_check_tasks_fsm.py tests/test_check_tasks_e2e.py tests/test_polyglot_gate4.py tests/test_gate_approval_ledger.py tests/test_multi_epic_governance_acceptance.py -> build/test-results/runtime-sync-and-dashboard-hardening.xml
+Protected paths: .devtool/epic/runtime_sync_and_dashboard_hardening/bdd_scenarios.en.md
+Integration results: python3 -m pytest -q --tb=short --maxfail=3 --junitxml=build/test-results/runtime-sync-and-dashboard-hardening.xml tests/test_rsdh_state_envelope.py tests/test_rsdh_heartbeat_quality.py tests/test_rsdh_orchestration.py tests/test_rsdh_harvester_and_pic.py tests/test_rsdh_tasks_dashboard_ui.py tests/test_rsdh_quota_modal_stack.py tests/test_runtime_sync_and_dashboard_hardening.py tests/test_check_tasks_server.py tests/test_check_tasks_fsm.py tests/test_check_tasks_harvester.py tests/test_check_tasks_cli.py tests/test_check_tasks_e2e.py tests/test_polyglot_gate4.py tests/test_gate_approval_ledger.py tests/test_multi_epic_governance_acceptance.py -> build/test-results/runtime-sync-and-dashboard-hardening.xml
 
 | Layer Boundary | Real Fixture / Harness | Behavior Asserted | Covered Scenarios |
 | :--- | :--- | :--- | :--- |
@@ -228,7 +228,7 @@ Integration results: python3 -m pytest -q --tb=short --maxfail=3 --junitxml=buil
 
 ## Verification Environment
 
-- **Runtime & Test Tooling**: `Python 3.15.2`, `pytest 9.2.0`, `ruff`, `Node.js v25.6.0` (`/opt/homebrew/bin/node`), `bash scripts/verify.sh --full --quiet`.
+- **Runtime & Test Tooling**: `Python 3.15.2`, `pytest 9.2.0`, `ruff` (resolved against `~/.config/ruff/ruff.toml` when no local `ruff.toml` exists; `.agents/quality/python-quality.json` scopes standing `format`/`lint`/`type_check` targets and Task 07 extends them to `scripts/_state_envelope.py` and `scripts/estimate_heartbeat.py`), `Node.js v25.6.0` (`/opt/homebrew/bin/node`), `bash scripts/verify.sh --full --quiet`.
 - **Browser / DOM Constraints**: `playwright` Python/CLI package is not installed in this plugin repository (`playwright_pkg: False`); `.agents/quality/python-quality.json` registers the Python + `verify.sh` quality capabilities. Frontend UI behavior (`tasks_dashboard.html` and `quota_dashboard.html`) is exercised end-to-end by extracting and executing the real embedded JavaScript runtime inside headless Node `v25.6.0` against genuine DOM/event fixtures plus live `TasksServer` HTTP endpoints, asserting zero uncaught exceptions or `console.error` emissions.
 - **Database / External Services**: None (`tmp_path` real git repositories and local HTTP loopback sockets only).
 
@@ -257,15 +257,15 @@ All 31 adversarial BDD scenarios defined in [BDD Scenarios](bdd_scenarios.en.md)
 | `RSDH-EC-04` | Tier A | Edge Case | Idle repo returns `active_epic=None` and `is_human_action_required=False` | Task 04 |
 | `RSDH-EC-05` | Tier A | Edge Case | `assign_epic_pic()` rejects invalid PIC & isolates sibling epics | Task 04 |
 | `RSDH-ST-04` | Tier A | State Transition | `extract_epic_pic()` resolves `**PIC / Assigned Profile**` across root/worktree | Task 04 |
-| `RSDH-EC-08` | Tier A | Edge Case | Epic creator profile is automatically detected (`--detect-profile`) and stamped as initial PIC | Task 03 |
+| `RSDH-EC-08` | Tier C | Edge Case | Epic creator profile is automatically detected (`--detect-profile`) and stamped as initial PIC | Task 03 |
 | `RSDH-FR-04` | Tier C | Failure Recovery | `assign_epic_pic()` partial failure handling reports updated vs skipped cleanly | Task 04 |
 | `RSDH-HP-07` | Tier C | Happy Path | `tasks_dashboard.html` shows `96%` cap & updates Section II live via `tier2Sig` | Task 05 |
 | `RSDH-EC-06` | Tier C | Edge Case | Roadmap `data-row-key`, focus guard on `.select-pic-roadmap`, `modal-epics` refresh | Task 05 |
-| `RSDH-ST-05` | Tier C | State Transition | Progress transitions (`<=95%` -> `96%` pre-finish -> `100%` Sign-off/Done) | Task 05 |
+| `RSDH-ST-05` | Tier C | State Transition | Progress transitions (`75%` / `<=95%` -> `96%` pre-finish -> `100%` Sign-off/Done) | Task 05 |
 | `RSDH-AR-02` | Tier C | Concurrency | Live polling preserves active `<select>` focus and renders Section II cleanly | Task 05 |
 | `RSDH-HP-08` | Tier C | Happy Path | `quota_dashboard.html` Stack Controller enforces max `1` inner modal + reset | Task 06 |
 | `RSDH-EC-07` | Tier C | Edge Case | Inner backdrop click & `Escape` dismiss only inner sub-modal inside `#modal-quota` | Task 06 |
-| `RSDH-ST-06` | Tier A | State Transition | `?embedded=1` flattens container card padding cleanly inside iframe | Task 06 |
+| `RSDH-ST-06` | Tier C | State Transition | `?embedded=1` flattens container card padding cleanly inside iframe | Task 06 |
 | `RSDH-FR-05` | Tier C | Failure Recovery | `Escape` with `0` open inner modals cleanly triggers `handleCardClose()` | Task 06 |
 | `RSDH-HP-09` | Tier C | Happy Path | Cross-layer Wave 1–4 orchestration, HTTP server, and DOM run cleanly | Task 07 |
 | `RSDH-FR-06` | Tier C | Failure Recovery | `verify.sh --quiet` & regression suite enforce byte caps and clean state | Task 07 |
@@ -277,7 +277,7 @@ All 31 adversarial BDD scenarios defined in [BDD Scenarios](bdd_scenarios.en.md)
 - **Wave 1 (Disjoint Foundations)**: Task 01 (`_state_envelope.py`, `sync_task_status.py`, `resume_context.write_epic_state`) and Task 02 (`estimate_heartbeat.py`, `verify_polyglot_registry.py`, `quality_check/SKILL.md`) run in parallel without file overlap.
 - **Wave 2 (Orchestration & Gates)**: Task 03 integrates `_state_envelope` into `resume_context` Choice A flags + wave handoff, Stage 3 `--revise` readiness compatibility, worker slot cleanup, and concise workflow rules (`CRITICAL_RULES.md <= 8192B`).
 - **Wave 3 (Parallel Dashboard Layer)**: Task 04 (`check_tasks.py` + `tasks_server.py`), Task 05 (`tasks_dashboard.html`), and Task 06 (`quota_dashboard.html`) execute independently across disjoint backend/frontend files.
-- **Wave 4 (Full Verification & Registration)**: Task 07 locks in the full end-to-end suite (`tests/test_runtime_sync_and_dashboard_hardening.py`) and registers it in `scripts/verify.sh`, followed by Gate 4 `verify_polyglot_registry.py --profile epic --execute --compact`, `ruff`, and `verify.sh --full --quiet`.
+- **Wave 4 (Full Verification & Registration)**: Task 07 locks in the full end-to-end suite (`tests/test_runtime_sync_and_dashboard_hardening.py`), extends `.agents/quality/python-quality.json` standing checks to `scripts/_state_envelope.py` + `scripts/estimate_heartbeat.py`, and registers all 7 epic suites in `scripts/verify.sh`, followed by Gate 4 `verify_polyglot_registry.py --profile epic --execute --compact`, `ruff`, and `verify.sh --full --quiet`.
 
 ## Kanban Tasks Breakdown
 

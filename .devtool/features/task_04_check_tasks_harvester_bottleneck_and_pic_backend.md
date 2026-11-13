@@ -22,16 +22,16 @@ Epic: [runtime_sync_and_dashboard_hardening](../epic/runtime_sync_and_dashboard_
 Fix false-positive approval bottlenecks, incomplete gate ledger resolution, runtime state ingestion, `96%` pre-finish percentage backend, and root + worktree PIC assignment in the `check-tasks` backend:
 
 1. **Idle False-Positive Elimination & Ledger Union (`skills/check-tasks/resources/scripts/check_tasks.py`)**:
-   - In `resolve_active_epic()` (`L434-L537`), remove the alphabetical `.devtool/epic/` fallback (`choosing_a_lifecycle`) when no active branch, active worktree, active `features/` task, or active `pending_decision.json` exists, returning `None` cleanly on idle repositories.
+   - In `resolve_active_epic()` (`L434-L537`), remove **Strategy 7** (`L519-L536`) alphabetical `.devtool/epic/` fallback (`choosing_a_lifecycle`) when no active branch, active worktree, active `features/` task, or active `pending_decision.json` exists, while **preserving Strategy 6** (`L508-L517`) `.devtool/features/` scan and returning `None` cleanly on idle repositories.
    - In `parse_gate_ledger_entries()` (`L1007-L1065`), merge gate approval records across both `gate_ledger.jsonl` and `GATE_LEDGER.md` from both primary root and active worktree (deduplicating cleanly without letting an older `gate_ledger.jsonl` shadow newer `GATE_LEDGER.md` approvals).
-   - In `derive_lifecycle_state()` (`L1070-L1266`) and `scan_repo()` (`L1296-L1366`):
-     - Ingest `.devtool/state/pending_decision.json`, `.devtool/state/<slug>.heartbeat.json`, and `.devtool/state/quality_active.json` (across worktree + root via `_state_envelope.read_json_safe`) into `RepoMetadata` (`L182-L202` optional fields `pending_decision`, `heartbeat`, `quality_active` defaulting to `None`).
-     - If `pending_decision.active` is True, surface its explicit `reason`/`stage` (`is_human_action_required = True`); otherwise remove the implicit `Approve Gate 1 (Design Spec)` heuristic (`L1240-L1258`) for idle folders without active worktree/tasks.
+   - In `derive_lifecycle_state()` (`L1076-L1266`) and `scan_repo()` (`L1296-L1366`):
+     - Ingest `.devtool/state/pending_decision.json`, `.devtool/state/<slug>.heartbeat.json`, and `.devtool/state/quality_active.json` (across worktree + root via `_state_envelope.read_json_safe`) into `RepoMetadata` (`L183-L202` optional fields `pending_decision`, `heartbeat`, `quality_active` defaulting to `None`).
+     - If `pending_decision.active` is True, surface its explicit `reason`/`stage` (`is_human_action_required = True`); otherwise remove the implicit `Approve Gate 1 (Design Spec)` heuristic (`L1240-L1258`) for idle folders without active worktree/tasks, and update `tests/test_check_tasks_fsm.py::test_stage_1_inception` (`L150-L162`) to assert `IDLE`/`False` when `pending_decision.json` is absent plus a positive test with `pending_decision.json` present.
      - Apply backend `96%` pre-finish / `95%` in-progress cap in `extract_task_progress` / `scan_repo` (`100%` only on Gate 4 converged `Waiting Finish` / Gate 5 `Done`).
-     - Update `extract_epic_pic()` (`L1268-L1294`) to check both active worktree and root `handoff.md` (`- **PIC / Assigned Profile**:`) + HLD while ignoring placeholder values (`<unassigned>`, `None`, `null`).
+     - Update `extract_epic_pic()` (`L1268-L1294`) to check both active worktree and root `handoff.md` (`- **PIC / Assigned Profile**:`) + HLD while ignoring placeholder values (`<unassigned>`, `<profile_account_id>`, `None`, `null`).
 2. **Root + Worktree PIC Reassignment (`skills/check-tasks/resources/scripts/tasks_server.py`)**:
    - Refactor `assign_epic_pic()` (`L520-L678`) to:
-     - Validate `new_pic` strictly against `^[a-zA-Z0-9_\-]+$` (raising `ValueError` on invalid input) and ensure epic slug stays within repo boundaries.
+     - Validate `new_pic` strictly against `^[a-zA-Z0-9_\-]+$` (raising `ValueError` on invalid input) and ensure epic slug stays within repo boundaries, AND wrap the `assign_epic_pic` call in `TasksHandler.do_POST` (`L799-L812` inside `do_POST` `L788-L865`) with `except ValueError as exc: self._send_json(400, {"status": "error", "error": str(exc)})` so `POST /api/epic/pic` cleanly returns HTTP `400` rather than HTTP `500`.
      - Discover all matching worktrees via `git worktree list --porcelain` (matching branch `epic/<slug>` or worktree folder `<epic_dir>`/`<slug>`).
      - Update PIC atomically in **both** primary root and matched worktrees across **PIC-bearing files only**: HLD (`<epic>.en.md`, `<epic>.vi.md`, design spec metadata), `handoff.md` (including `- **PIC / Assigned Profile**:`), `task_*.md` in `.devtool/epic/<epic>/` & `.devtool/features/`, `.devtool/state/<slug>.pipeline.json`, `<slug>.heartbeat.json`, and worktree `.vscode/settings.json`.
      - Explicitly skip review and BDD prose artifacts (`bdd_scenarios.*`, `principal_review.md`, `review_results.md`, `fix_plan_*.md`, `manual_smoke_checklist.md`) and never mutate sibling epics or unrelated directories.
@@ -43,6 +43,7 @@ Fix false-positive approval bottlenecks, incomplete gate ledger resolution, runt
 Allowed files:
 - `skills/check-tasks/resources/scripts/check_tasks.py`
 - `skills/check-tasks/resources/scripts/tasks_server.py`
+- `tests/test_check_tasks_fsm.py`
 - `tests/test_rsdh_harvester_and_pic.py` (new)
 
 Read-only context:
@@ -57,8 +58,9 @@ Idle false positives occur because `check_tasks.py` falls back alphabetically on
 ## Impact Analysis & Blast Radius
 
 - **Target Files & Symbols**:
-  - `skills/check-tasks/resources/scripts/check_tasks.py`: `RepoMetadata` (L182-L202), `resolve_active_epic` (L434-L537), `parse_gate_ledger_entries` (L1007-L1065), `derive_lifecycle_state` (L1070-L1266), `extract_epic_pic` (L1268-L1294), `scan_repo` (L1296-L1366)
+  - `skills/check-tasks/resources/scripts/check_tasks.py`: `RepoMetadata` (L183-L202), `resolve_active_epic` (L434-L537), `parse_gate_ledger_entries` (L1007-L1065), `derive_lifecycle_state` (L1076-L1266), `extract_epic_pic` (L1268-L1294), `scan_repo` (L1296-L1366)
   - `skills/check-tasks/resources/scripts/tasks_server.py`: `assign_epic_pic` (L520-L678), `TasksHandler.do_POST` (L788-L865)
+  - `tests/test_check_tasks_fsm.py`: `test_stage_1_inception` (L150-L162)
   - `tests/test_rsdh_harvester_and_pic.py`: new unit and integration suite for `RSDH-HP-06`, `RSDH-EC-04`, `RSDH-EC-05`, `RSDH-ST-02`, `RSDH-ST-04`, `RSDH-FR-04`
 - **Downstream Callers**: `skills/check-tasks/resources/dashboard/tasks_dashboard.html` (`/api/tasks`, `/api/epic/pic`), `tests/test_check_tasks_server.py`, `tests/test_check_tasks_fsm.py`, `tests/test_check_tasks_harvester.py`, `tests/test_check_tasks_e2e.py`.
 - **Cross-Platform Bridges**: None.
@@ -85,9 +87,9 @@ Then resolve_active_epic returns None and derive_lifecycle_state returns Idle wi
 
 Scenario: [RSDH-EC-05] [Tier A - Unit] PIC reassignment validates profile names and isolates sibling epics across worktrees
 
-Given a repository with two distinct epics (demo_epic and sibling_epic) having separate directories and worktrees
-When tasks_server.assign_epic_pic is called with malformed PIC "../bad" and then valid PIC "tess" for "demo_epic"
-Then the malformed PIC request raises ValueError without modifying any files
+Given a repository with two distinct epics (demo_epic and sibling_epic) having separate directories and worktrees behind a live TasksServer HTTP endpoint
+When tasks_server.assign_epic_pic is called directly and via POST /api/epic/pic with malformed PIC "../bad", and then called with valid PIC "tess" for "demo_epic"
+Then the direct assign_epic_pic call raises ValueError without modifying any files and POST /api/epic/pic returns HTTP 400 with {"status": "error", ...} rather than HTTP 500
 And the valid update changes only demo_epic across root and its matched worktree while leaving all sibling_epic files untouched
 
 Scenario: [RSDH-ST-02] [Tier C - Integration] Gate ledger unification merges root and worktree JSONL and GATE_LEDGER.md entries
@@ -116,7 +118,7 @@ Then writable target files still update cleanly, warnings identify the failed pa
 | V1 | RED | `python3 -m pytest -q --tb=short --maxfail=3 tests/test_rsdh_harvester_and_pic.py::test_rsdh_hp_06_pic_root_worktree_sync` | exit 1; contains "failed" | — |
 | V2 | GREEN | `python3 -m pytest -q --tb=short --maxfail=3 tests/test_rsdh_harvester_and_pic.py` | exit 0; contains "passed" | — |
 | V3 | GREEN | `python3 -m pytest -q --tb=short --maxfail=3 tests/test_check_tasks_server.py tests/test_check_tasks_fsm.py tests/test_check_tasks_harvester.py tests/test_check_tasks_cli.py tests/test_check_tasks_e2e.py` | exit 0; contains "passed" | — |
-| V4 | TIER-B | `ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py skills/check-tasks/resources/scripts/check_tasks.py skills/check-tasks/resources/scripts/tasks_server.py tests/test_rsdh_harvester_and_pic.py` | exit 0 | — |
+| V4 | TIER-B | `ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py tests/test_check_tasks_fsm.py tests/test_rsdh_harvester_and_pic.py` | exit 0 | — |
 | V5 | TIER-B | `mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py` | exit 0 | — |
 | V6 | TIER-C | `python3 -m pytest -q --tb=short --maxfail=3 --junitxml=build/test-results/task_4.xml tests/test_rsdh_harvester_and_pic.py tests/test_check_tasks_server.py tests/test_check_tasks_fsm.py` | exit 0; results build/test-results/task_4.xml | — |
 
@@ -132,9 +134,11 @@ Then writable target files still update cleanly, warnings identify the failed pa
 ## Decisions Already Made
 
 - `assign_epic_pic()` updates ONLY HLD (`<epic>.{en,vi}.md`, design specs), `handoff.md` (`- **PIC / Assigned Profile**:` & `- **PIC**:`), `task_*.md` in `.devtool/epic/<epic>/` & `.devtool/features/`, `.pipeline.json`, `.heartbeat.json`, and worktree `.vscode/settings.json`; it NEVER injects PIC headers into `bdd_scenarios.*`, `principal_review.md`, `review_results.md`, `fix_plan_*.md`, or `manual_smoke_checklist.md`.
-- `resolve_active_epic()` returns `None` on idle repositories instead of picking alphabetical dormant folders; explicit `pending_decision.json` overrides heuristics for human-action flags.
+- `tests/test_check_tasks_fsm.py::test_stage_1_inception` (`L150-L162`) is re-pinned to expect `IDLE`/`False` when `pending_decision.json` is absent on bare `.devtool/epic/` folders, alongside a new positive test verifying `STAGE_1_INCEPTION`/`True` when `pending_decision.json` is present.
+- `resolve_active_epic()` removes Strategy 7 (`L519-L536`) alphabetical dormant-folder fallback while keeping Strategy 6 (`L508-L517`) `.devtool/features/` scan intact; explicit `pending_decision.json` overrides heuristics for human-action flags.
+- `TasksHandler.do_POST` (`L799-L812`) wraps `assign_epic_pic()` with `except ValueError as exc:` -> HTTP `400 {"status": "error", "error": str(exc)}` so invalid PIC validation stays safe at the HTTP boundary.
 - `extract_epic_pic()` also ignores placeholder tokens such as `<unassigned>`, `<profile_account_id>`, `None`, and `null` so unpopulated templates never surface as fake PICs.
-- `check_tasks.py` and `tasks_server.py` carry pre-existing `mypy` annotations elsewhere, so V5 runs the clean `.agents/quality/python-quality.json` `mypy` contract while keeping any newly edited functions cleanly typed and `ruff`-clean.
+- `check_tasks.py` and `tasks_server.py` carry pre-existing `mypy` and global-config `ruff` findings elsewhere, so V4/V5 scope to registered `.agents/quality/python-quality.json` targets + touched tests while keeping newly modified functions cleanly typed and `ruff`-clean.
 
 ## Definition of Done
 

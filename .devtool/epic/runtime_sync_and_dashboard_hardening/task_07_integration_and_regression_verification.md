@@ -26,20 +26,22 @@ Lock in cross-layer end-to-end verification and continuous CI regression guards 
      - Write dual-root `_state_envelope` heartbeat + quality telemetry and run `resume_context.py --detect-profile` / `--pending-decision` / `--gate` / `--clear-decision` / `sync_window_title()`.
      - Run `estimate_heartbeat.py` + `verify_polyglot_registry.py` against real test subprocess capabilities and confirm `quality_active.json` transitions (`running` -> `passed`).
      - Test Stage 3 `package_epic.py --revise` (`handoff.md` creator PIC stamping + `--post-design`) and `manage_worker_pool.py cleanup`.
-     - Start a bound local `127.0.0.1` `TasksServer`, verify `/api/tasks` + `/api/epic/pic` root+worktree updates, and run real extracted `<script>` checks from `tasks_dashboard.html` (`96%` cap, Section II `tier2Sig`, Roadmap `data-row-key` focus guard) and `quota_dashboard.html` (Single Modal Stack Controller `max=1` + `?embedded=1`) in headless `node` (`v25.6.0`).
+     - Start a bound local `127.0.0.1` `TasksServer`, verify `/api/tasks` + `/api/epic/pic` root+worktree updates, and run real extracted `<script>` checks from `tasks_dashboard.html` (`96%` cap, Section II `tier2Sig`, Roadmap `data-row-key` focus guard, `#quota-iframe.src` `?embedded=1` wiring) and `quota_dashboard.html` (Single Modal Stack Controller `max=1`, `?embedded=1` flattening, cross-iframe `{ action: 'reset_quota_submodals' }` reset) in headless `node` (`v25.6.0`).
    - **`RSDH-FR-06`**: Verify regression invariants deterministically:
      - `rules/CRITICAL_RULES.md` UTF-8 size `<= 8192` bytes; `skills/dev-designer/SKILL.md` UTF-8 size `<= 22528` bytes.
-     - `skills/check-tasks/resources/scripts/check_tasks.py` contains no alphabetical fallback to unstarted `.devtool/epic/` folders (`choosing_a_lifecycle`).
+     - `skills/check-tasks/resources/scripts/check_tasks.py` contains no Strategy 7 alphabetical fallback to unstarted `.devtool/epic/` folders (`choosing_a_lifecycle`).
      - `skills/dev-lifecycle/references/handoff-template.md` + `package_epic.py` leave zero unreplaced `<profile_account_id>` literal when packaging an epic with a detected creator profile.
-     - `scripts/verify.sh` registers every `tests/test_rsdh_*.py` and `tests/test_runtime_sync_and_dashboard_hardening.py` suite inside `SUITES`.
-2. **Suite Registration (`scripts/verify.sh`)**:
+     - `scripts/verify.sh` registers every `tests/test_rsdh_*.py` and `tests/test_runtime_sync_and_dashboard_hardening.py` suite inside `SUITES`, and `.agents/quality/python-quality.json` includes `scripts/_state_envelope.py` and `scripts/estimate_heartbeat.py` in standing `format`/`lint`/`type_check` coverage.
+2. **Suite Registration & Standing Quality Coverage (`scripts/verify.sh`, `.agents/quality/python-quality.json`)**:
    - Update `SUITES = [` (`L362-L420`) in `scripts/verify.sh` to include all new epic unit/integration suites (`tests/test_rsdh_state_envelope.py`, `tests/test_rsdh_heartbeat_quality.py`, `tests/test_rsdh_orchestration.py`, `tests/test_rsdh_harvester_and_pic.py`, `tests/test_rsdh_tasks_dashboard_ui.py`, `tests/test_rsdh_quota_modal_stack.py`, `tests/test_runtime_sync_and_dashboard_hardening.py`) without triggering recursive `verify.sh` execution inside pytest.
+   - Extend `.agents/quality/python-quality.json` `format`, `lint`, and `type_check` commands to include `scripts/_state_envelope.py` and `scripts/estimate_heartbeat.py` so standing Gate 4 runs cover the new `scripts/` modules continuously.
 
 ## Files
 
 Allowed files:
 - `tests/test_runtime_sync_and_dashboard_hardening.py` (new)
 - `scripts/verify.sh`
+- `.agents/quality/python-quality.json`
 
 Read-only context:
 - `.devtool/epic/runtime_sync_and_dashboard_hardening/runtime_sync_and_dashboard_hardening.en.md` — HLD Integration Test Plan & Coverage Matrix
@@ -53,6 +55,7 @@ Per-component suites (`test_rsdh_*.py`) isolate Wave 1–3 contracts, while `tes
 
 - **Target Files & Symbols**:
   - `scripts/verify.sh`: `SUITES` array (L362-L420)
+  - `.agents/quality/python-quality.json`: small file (`16` lines `<= 200`), extend `format`, `lint`, and `type_check` with `scripts/_state_envelope.py` and `scripts/estimate_heartbeat.py`
   - `tests/test_runtime_sync_and_dashboard_hardening.py`: new end-to-end and regression test suite (`test_rsdh_hp_09_cross_layer_orchestration`, `test_rsdh_fr_06_verify_and_byte_budget_invariants`)
 - **Downstream Callers**: `.agents/quality/python-quality.json` (`architecture` capability `bash scripts/verify.sh`) and release Gate 4 verification.
 - **Cross-Platform Bridges**: None.

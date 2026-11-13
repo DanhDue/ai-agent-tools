@@ -22,14 +22,15 @@ Epic: [runtime_sync_and_dashboard_hardening](runtime_sync_and_dashboard_hardenin
 Fix the pre-finish `99%` ceiling, live Section II Tier 2 telemetry updates, and Roadmap row-jump / PIC-dropdown glitches in `skills/check-tasks/resources/dashboard/tasks_dashboard.html`:
 
 1. **`96%` Pre-Finish Ceiling & Progress Display (`renderExecutionEpics`, `renderKanbanDashboard`)**:
-   - Update progress formatting in `renderExecutionEpics` (`L1970-L2151`) and `renderKanbanDashboard` (`L2153-L2295`, specifically `L2244-L2279`) from `99%` / `98%` to a strict `96%` pre-finish ceiling (`⚡ 96% Review` when all tasks are done before Gate 4 convergence; active in-progress tasks capped at `<= 95%`; `100%` rendered strictly when the epic reaches converged `Waiting Finish` / Sign-off or `Done`).
+   - Add an `isFullyDone`/`isWaitingFinish`-aware `96%` pre-finish ceiling (`⚡ 96% Review`) to `renderExecutionEpics` (`tasks_dashboard.html:2037` inside `L1970-L2151`, which currently renders raw `100%` when all tasks finish pre-convergence) and update the existing `99` / `98` literals in `renderKanbanDashboard` (`L2252`, `L2255`, `L2277` inside `L2153-L2295`) to `96` / `95` (`<= 95%` while tasks remain incomplete; `100%` rendered strictly when the epic reaches converged `Waiting Finish` / Sign-off or `Done`).
 2. **Section II Live Tier 2 Synchronization (`tier2Sig`, `pollDashboard`)**:
    - Expand `tier2Sig` (`L2724-L2740`) beyond stage/epic slug alone to serialize `account_id`, active `prompt`, `is_human_action_required`, `task_progress`, `pending_decision`, `heartbeat`, and `quality_active`, so `fetchTasks` / `renderRepoDetailView` re-renders Section II (`renderExecutionEpics` / `renderKanbanDashboard`) immediately on every genuine runtime transition without forcing manual refresh.
   - Surface active heartbeat wave/event and running `quality_active` telemetry cleanly inside Section II without console errors or null-dereference regressions when optional fields are absent.
 3. **Roadmap Row Stability, Focus Guard, and Modal Refresh (`sortEpicsForRoadmap`, `renderRoadmapTableRows`, `updateEpicPic`, `modal-quota`)**:
    - Stabilize `sortEpicsForRoadmap` (`L1721-L1760`) with deterministic tie-breaking on epic slug (`a.slug.localeCompare(b.slug)`) when timestamps or priorities match.
    - Stamp explicit `data-row-key` attributes on rows in `renderRoadmapTableRows` (`L2575-L2635`), align `roadmapSig` (`L2697-L2715`) with PIC/progress/row identity, and defer `roadmapTbody.innerHTML` replacement during 5s polling inside `renderRepoDetailView` whenever a `.select-pic-roadmap` inside `#roadmap-tbody` holds `document.activeElement` (applying the queued render once the select blurs).
-   - Fix `updateEpicPic` (`L1614-L1652`, line `L1642`) to check `#modal-epics` visibility using `style.display === 'flex'` instead of stale `.classList.contains('active')`, and synchronize `#modal-quota` open/close (`closeLiveModal` `L1119-L1158`, `openQuotaModal` `L1470-L1515`) by posting `{ type: 'reset-quota-modals' }` to the quota iframe and handling child close messages cleanly.
+   - Fix `updateEpicPic` (`L1614-L1652`, line `L1642`) to check `#modal-epics` visibility using `style.display === 'flex'` instead of stale `.classList.contains('active')`.
+   - In `openQuotaModal` (`L1470-L1499`) and `refreshQuotaIframe` (`L1501-L1511`), append `?embedded=1` (preserving existing query params cleanly) to `#quota-iframe.src`, and synchronize `#modal-quota` open/close (`closeLiveModal` `L1119-L1158`, `openQuotaModal` `L1470-L1515`) by posting `{ action: 'reset_quota_submodals' }` via `contentWindow.postMessage` (matching existing `e.data.action` listener convention at `L1142-L1145`).
 4. Add `tests/test_rsdh_tasks_dashboard_ui.py` executing real extracted `<script>` logic in headless `node` (`v25.6.0`) against DOM fixtures covering `RSDH-HP-07`, `RSDH-EC-06`, `RSDH-ST-05`, and `RSDH-AR-02`.
 
 ## Files
@@ -50,10 +51,10 @@ DOM replacement during active `<select>` interaction causes native dropdown opti
 ## Impact Analysis & Blast Radius
 
 - **Target Files & Symbols**:
-  - `skills/check-tasks/resources/dashboard/tasks_dashboard.html`: `closeLiveModal` (L1119-L1158), `openQuotaModal` (L1470-L1515), `updateEpicPic` (L1614-L1652), `sortEpicsForRoadmap` (L1721-L1760), `renderExecutionEpics` (L1970-L2151), `renderKanbanDashboard` (L2153-L2295), `renderRoadmapTableRows` (L2575-L2635), `renderRepoDetailView` (L2631-L2740), `fetchTasks` (L3459-L3535)
+  - `skills/check-tasks/resources/dashboard/tasks_dashboard.html`: `closeLiveModal` (L1119-L1158), `openQuotaModal` (L1470-L1499), `refreshQuotaIframe` (L1501-L1515), `updateEpicPic` (L1614-L1652), `sortEpicsForRoadmap` (L1721-L1760), `renderExecutionEpics` (L1970-L2151), `renderKanbanDashboard` (L2153-L2295), `renderRoadmapTableRows` (L2574-L2630), `renderRepoDetailView` (L2631-L2740), `fetchTasks` (L3459-L3535)
   - `tests/test_rsdh_tasks_dashboard_ui.py`: new Node DOM + HTTP integration test suite for `RSDH-HP-07`, `RSDH-EC-06`, `RSDH-ST-05`, `RSDH-AR-02`
-- **Downstream Callers**: `tasks_server.py` dashboard serving (`/`), embedded `quota_dashboard.html` iframe via `postMessage`, `tests/test_check_tasks_e2e.py`.
-- **Cross-Platform Bridges**: `postMessage` (`reset-quota-modals`) with `quota_dashboard.html` (Task 6).
+- **Downstream Callers**: `tasks_server.py` dashboard serving (`/`), embedded `quota_dashboard.html` iframe via `postMessage` (`{ action: 'reset_quota_submodals' }`), `tests/test_check_tasks_e2e.py`.
+- **Cross-Platform Bridges**: `postMessage` (`{ action: 'reset_quota_submodals' }`) and `?embedded=1` iframe src with `quota_dashboard.html` (Task 6).
 - **Target Test Coverage Threshold**: 100% of `96%` cap thresholds, `tier2Sig` diffing, Roadmap `data-row-key` focus guard, and `modal-epics` refresh path with zero console errors.
 
 ### BDD SCENARIOS
@@ -76,11 +77,11 @@ When a 5s poll payload arrives while .select-pic-roadmap holds document.activeEl
 Then pollDashboard defers replacing roadmapTbody.innerHTML until focus blurs so the dropdown choice does not jump rows
 And updateEpicPic detects #modal-epics visibility via style.display === "flex" and refreshes modal rows accurately
 
-Scenario: [RSDH-ST-05] [Tier C - Integration] Progress calculation enforces 95% in-progress cap, 96% pre-finish cap, and 100% finished state
+Scenario: [RSDH-ST-05] [Tier C - Integration] Progress calculation enforces 75% mid-epic, 95% in-progress cap, 96% pre-finish cap, and 100% finished state
 
 Given task counts transitioning from 3/4 done, 4/4 done before Gate 4 convergence, 4/4 done with Gate 4 Review Converged (Waiting Finish), and Gate 5 Done
 When check_tasks backend and tasks_dashboard.html compute progress display values
-Then 3/4 done yields <= 95%, 4/4 done pre-convergence yields exactly 96%, and converged Waiting Finish / Done yields 100%
+Then 3/4 done yields 75% (high in-progress ratios capped at 95%), 4/4 done pre-convergence yields exactly 96%, and converged Waiting Finish / Done yields 100%
 
 Scenario: [RSDH-AR-02] [Tier C - Integration] Live polling applies Tier 2 updates immediately without clobbering focused controls or emitting console errors
 
