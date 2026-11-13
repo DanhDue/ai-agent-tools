@@ -1,13 +1,13 @@
 ---
 id: "task_07_integration_and_regression_verification"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "runtime_sync_and_dashboard_hardening"
 dueDate: null
 created: "2026-11-13T09:24:00Z"
-modified: "2026-11-13T09:24:00Z"
-completedAt: null
+modified: "2026-11-13T05:18:40Z"
+completedAt: "2026-11-13T05:18:40Z"
 labels: ["integration", "regression", "verify-sh", "acceptance"]
 order: "a7"
 review_tier: "full"
@@ -15,7 +15,7 @@ review_tier: "full"
 
 # Task 7: End-to-End Integration Suite and Verify Registration
 
-Epic: [runtime_sync_and_dashboard_hardening](../epic/runtime_sync_and_dashboard_hardening/runtime_sync_and_dashboard_hardening.en.md)
+Epic: [runtime_sync_and_dashboard_hardening](../../epic/runtime_sync_and_dashboard_hardening/runtime_sync_and_dashboard_hardening.en.md)
 
 ## Requirement Analysis
 
@@ -114,9 +114,9 @@ Then CRITICAL_RULES.md remains <= 8192 bytes, dev-designer/SKILL.md remains <= 2
 
 ## Dependencies & Blockers
 
-Blocked by [Task 1](../epic/runtime_sync_and_dashboard_hardening/task_01_runtime_state_envelope_and_two_tier_sync.md), [Task 2](../epic/runtime_sync_and_dashboard_hardening/task_02_hybrid_heartbeat_estimator_and_quality_progress.md), [Task 3](../epic/runtime_sync_and_dashboard_hardening/task_03_wave_parallel_handoff_stage3_revise_and_pool_cleanup.md), [Task 4](../epic/runtime_sync_and_dashboard_hardening/task_04_check_tasks_harvester_bottleneck_and_pic_backend.md), [Task 5](../epic/runtime_sync_and_dashboard_hardening/task_05_tasks_dashboard_96pct_tier2_live_and_roadmap_stability.md), and [Task 6](../epic/runtime_sync_and_dashboard_hardening/task_06_check_quota_modal_stack_controller.md).
+Blocked by [Task 1](../../epic/runtime_sync_and_dashboard_hardening/task_01_runtime_state_envelope_and_two_tier_sync.md), [Task 2](../../epic/runtime_sync_and_dashboard_hardening/task_02_hybrid_heartbeat_estimator_and_quality_progress.md), [Task 3](../../epic/runtime_sync_and_dashboard_hardening/task_03_wave_parallel_handoff_stage3_revise_and_pool_cleanup.md), [Task 4](../../epic/runtime_sync_and_dashboard_hardening/task_04_check_tasks_harvester_bottleneck_and_pic_backend.md), [Task 5](../../epic/runtime_sync_and_dashboard_hardening/task_05_tasks_dashboard_96pct_tier2_live_and_roadmap_stability.md), and [Task 6](../../epic/runtime_sync_and_dashboard_hardening/task_06_check_quota_modal_stack_controller.md).
 
 ## References & Rollback
 
-- [Epic HLD](../epic/runtime_sync_and_dashboard_hardening/runtime_sync_and_dashboard_hardening.en.md), Integration Test Plan and Boundary Matrix.
+- [Epic HLD](../../epic/runtime_sync_and_dashboard_hardening/runtime_sync_and_dashboard_hardening.en.md), Integration Test Plan and Boundary Matrix.
 - **Rollback**: Revert task commit; removes `tests/test_runtime_sync_and_dashboard_hardening.py` and restores `scripts/verify.sh` `SUITES`.

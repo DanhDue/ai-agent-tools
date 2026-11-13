@@ -1,0 +1,408 @@
+{
+  "schema": 1,
+  "task": "task_07_integration_and_regression_verification",
+  "runs": {
+    "red": {
+      "head": "b74df85c9dfb0a2faf62f914511878cd987e77ac",
+      "tree": "86a9d507c2a3b0d06a56d9ad7ac5304e345b2f49",
+      "patch_id": "39ce6dde0e366c3811fdd4306dde942da3171924",
+      "started": "2026-11-13T05:01:35Z",
+      "finished": "2026-11-13T05:01:36Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_runtime_sync_and_dashboard_hardening.py::test_rsdh_fr_06_verify_and_byte_budget_invariants",
+          "expect": "exit 1; contains \"failed\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-13T05:01:35Z",
+          "finished": "2026-11-13T05:01:36Z",
+          "output_tail": [
+            "F                                                                        [100%]",
+            "=================================== FAILURES ===================================",
+            "______________ test_rsdh_fr_06_verify_and_byte_budget_invariants _______________",
+            "tests/test_runtime_sync_and_dashboard_hardening.py:1291: in test_rsdh_fr_06_verify_and_byte_budget_invariants",
+            "    assert \"@brother\" in rendered_handoff",
+            "E   assert '@brother' in \"# Handoff: demo-epic\\n\\n## Table of Contents\\n\\n- [Status](#status)\\n- [Identifiers](#identifiers)\\n- [Read First](#r....\\n- Never edit a task's Verification table, Definition of Done, Allowed files or a protected path; stop and report.\\n\"",
+            "=========================== short test summary info ============================",
+            "FAILED tests/test_runtime_sync_and_dashboard_hardening.py::test_rsdh_fr_06_verify_and_byte_budget_invariants",
+            "1 failed in 1.01s"
+          ],
+          "output_sha256": "4e87016654f9b2db0e35ae4b8de6077849a36c781fd28008cea1db0631628a20"
+        }
+      ],
+      "passed": true
+    },
+    "verify": {
+      "head": "b74df85c9dfb0a2faf62f914511878cd987e77ac",
+      "tree": "4abcc03ede2a959cc1b3b41867271ebfcf0b98a5",
+      "patch_id": "508adc20468ec8b4358f768f273cb5434db210b8",
+      "started": "2026-11-13T05:15:36Z",
+      "finished": "2026-11-13T05:17:25Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_runtime_sync_and_dashboard_hardening.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-13T05:15:36Z",
+          "finished": "2026-11-13T05:16:05Z",
+          "output_tail": [
+            "....                                                                     [100%]",
+            "4 passed in 28.81s"
+          ],
+          "output_sha256": "e58040d284189245b707f4db7a1756850ae238028a655acb7737a738452ee276"
+        },
+        {
+          "id": "V3",
+          "phase": "GREEN",
+          "command": "bash scripts/verify.sh --quiet",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-13T05:16:05Z",
+          "finished": "2026-11-13T05:16:07Z",
+          "output_tail": [
+            "  ok   == 1. JSON manifests parse & 1b. Runtime versions and Codex marketplace agree ==",
+            "  ok   == 2. Skill frontmatter is exactly name + description ==",
+            "  ok   == 3. Relative links resolve ==",
+            "  ok   == 4. ToC anchors match headings ==",
+            "  ok   == 5. No stale cross-namespace references ==",
+            "  ok   == 5b. Rule files start with frontmatter ==",
+            "  ok   == 6. Session-start hook emits valid JSON for both runtimes ==",
+            "  ok   == 7. Methodology skills stay faithful to their sources ==",
+            "  ok   == 8. Every supporting skill file is referenced by something ==",
+            "  ok   == 9. The dev-* rename is complete ==",
+            "  ok   == 10. Orchestrators route to a variant, never the router ==",
+            "  ok   == 11–16. Python test suites (CACHED) ==",
+            "PASS — safe to publish"
+          ],
+          "output_sha256": "26a4e389d64a68db0945a0b422067db7b89000f7ee003ea59b43b05165973a90"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py tests/test_runtime_sync_and_dashboard_hardening.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-13T05:16:07Z",
+          "finished": "2026-11-13T05:16:07Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-B",
+          "command": "mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-13T05:16:07Z",
+          "finished": "2026-11-13T05:16:07Z",
+          "output_tail": [
+            "Success: no issues found in 5 source files"
+          ],
+          "output_sha256": "e317872697c2cbfdefa321527a6efe73290dff3a390b0fa8723b87092eccba6a"
+        },
+        {
+          "id": "V6",
+          "phase": "TIER-C",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 --junitxml=build/test-results/task_7.xml tests/test_rsdh_state_envelope.py tests/test_rsdh_heartbeat_quality.py tests/test_rsdh_orchestration.py tests/test_rsdh_harvester_and_pic.py tests/test_rsdh_tasks_dashboard_ui.py tests/test_rsdh_quota_modal_stack.py tests/test_runtime_sync_and_dashboard_hardening.py",
+          "expect": "exit 0; results build/test-results/task_7.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-13T05:16:07Z",
+          "finished": "2026-11-13T05:17:24Z",
+          "output_tail": [
+            ".......................................................                  [100%]",
+            "55 passed in 77.27s (0:01:17)"
+          ],
+          "output_sha256": "d85d31ec10d612a2ec3fb0222d48a8110b35179fe6ad5c01ac6f81d28125b67a",
+          "results": {
+            "path": "build/test-results/task_7.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 48,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_rsdh_hp_01_dual_root_envelope_and_sync",
+                  "classname": "tests.test_rsdh_state_envelope",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rsdh_ec_01_corrupt_and_missing_state_fallback",
+                  "classname": "tests.test_rsdh_state_envelope",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rsdh_hp_01_dual_root_envelope_and_sync",
+                  "classname": "tests.test_rsdh_state_envelope.TestStateEnvelope_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rsdh_ar_01_canonical_transaction_flock_and_mirrors",
+                  "classname": "tests.test_rsdh_state_envelope.TestStateEnvelope_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rsdh_fr_01_stale_heartbeat_recovery",
+                  "classname": "tests.test_rsdh_state_envelope.TestStateEnvelope_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rsdh_hp_02_estimator_tiers_cli_and_api",
+                  "classname": "tests.test_rsdh_heartbeat_quality",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rsdh_ec_02_zero_clamp_and_e2e_escalation",
+                  "classname": "tests.test_rsdh_heartbeat_quality",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rsdh_hp_03_live_stderr_and_quality_active",
+                  "classname": "tests.test_rsdh_heartbeat_quality",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rsdh_hp_03_integration_worktree_dual_root",
+                  "classname": "tests.test_rsdh_heartbeat_quality.Test_Polyglot_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rsdh_fr_02_failing_run_preserves_sibling_live_run",
+                  "classname": "tests.test_rsdh_heartbeat_quality.Test_Polyglot_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rsdh_fr_07_signal_abort_reaps_children_and_preserves_sibling",
+                  "classname": "tests.test_rsdh_heartbeat_quality.Test_Polyglot_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rsdh_hp_04_wave_parallel_handoff_and_creator_pic",
+                  "classname": "tests.test_rsdh_orchestration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rsdh_hp_05_profile_folder_precedence_and_slug_normalization",
+                  "classname": "tests.test_rsdh_orchestration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rsdh_ec_03_stage3_revise_vs_stage2_strict",
+                  "classname": "tests.test_rsdh_orchestration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rsdh_ec_08_preservation_safe_pool_cleanup_and_land",
+                  "classname": "tests.test_rsdh_orchestration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rsdh_st_01_pending_decision_per_epic_isolation_and_clear",
+                  "classname": "tests.test_rsdh_orchestration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rsdh_st_03_worker_pool_slot_and_wave_heartbeat_updates",
+                  "classname": "tests.test_rsdh_orchestration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rsdh_st_07_governance_docs_caps_and_orchestration_parity",
+                  "classname": "tests.test_rsdh_orchestration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rsdh_fr_03_end_to_end_single_terminal_flow",
+                  "classname": "tests.test_rsdh_orchestration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_RSDH_HP_04_integration",
+                  "classname": "tests.test_rsdh_orchestration.TestRSDHOrchestration_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_RSDH_HP_05_integration",
+                  "classname": "tests.test_rsdh_orchestration.TestRSDHOrchestration_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_RSDH_EC_03_integration",
+                  "classname": "tests.test_rsdh_orchestration.TestRSDHOrchestration_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_RSDH_EC_08_integration",
+                  "classname": "tests.test_rsdh_orchestration.TestRSDHOrchestration_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_RSDH_ST_01_integration",
+                  "classname": "tests.test_rsdh_orchestration.TestRSDHOrchestration_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_RSDH_ST_03_integration",
+                  "classname": "tests.test_rsdh_orchestration.TestRSDHOrchestration_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_RSDH_ST_07_integration",
+                  "classname": "tests.test_rsdh_orchestration.TestRSDHOrchestration_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_RSDH_FR_03_integration",
+                  "classname": "tests.test_rsdh_orchestration.TestRSDHOrchestration_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rsdh_hp_06_pic_root_worktree_sync",
+                  "classname": "tests.test_rsdh_harvester_and_pic.TestRsdhHarvesterAndPic_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rsdh_ec_04_idle_repo_no_alphabetical_fallback",
+                  "classname": "tests.test_rsdh_harvester_and_pic.TestRsdhHarvesterAndPic_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rsdh_ec_05_pic_validation_http_400_and_sibling_isolation",
+                  "classname": "tests.test_rsdh_harvester_and_pic.TestRsdhHarvesterAndPic_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rsdh_st_02_gate_ledger_union_root_and_worktree",
+                  "classname": "tests.test_rsdh_harvester_and_pic.TestRsdhHarvesterAndPic_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rsdh_st_04_extract_epic_pic_worktree_and_placeholders",
+                  "classname": "tests.test_rsdh_harvester_and_pic.TestRsdhHarvesterAndPic_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rsdh_ar_03_multi_epic_isolation_quality_runs_and_stale_expiry",
+                  "classname": "tests.test_rsdh_harvester_and_pic.TestRsdhHarvesterAndPic_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rsdh_fr_04_partial_readonly_failure_warnings_and_counts",
+                  "classname": "tests.test_rsdh_harvester_and_pic.TestRsdhHarvesterAndPic_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rsdh_hp_07_96_cap_and_tier2_live_sync",
+                  "classname": "tests.test_rsdh_tasks_dashboard_ui",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rsdh_hp_07_chrome_cdp_integration",
+                  "classname": "tests.test_rsdh_tasks_dashboard_ui.TestTasksDashboard_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rsdh_ec_06_roadmap_no_subday_mtime_and_focus_chrome_cdp",
+                  "classname": "tests.test_rsdh_tasks_dashboard_ui.TestTasksDashboard_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rsdh_st_05_progress_transitions",
+                  "classname": "tests.test_rsdh_tasks_dashboard_ui.TestTasksDashboard_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rsdh_ar_02_live_polling_preserves_focus_and_zero_console_errors",
+                  "classname": "tests.test_rsdh_tasks_dashboard_ui.TestTasksDashboard_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rsdh_hp_08_single_modal_stack_exclusivity",
+                  "classname": "tests.test_rsdh_quota_modal_stack",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rsdh_hp_08_chrome_cdp_integration",
+                  "classname": "tests.test_rsdh_quota_modal_stack.TestQuotaModalStack_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rsdh_ec_07_inner_modal_backdrop_and_escape",
+                  "classname": "tests.test_rsdh_quota_modal_stack.TestQuotaModalStack_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rsdh_st_06_embedded_mode_flattens_card",
+                  "classname": "tests.test_rsdh_quota_modal_stack.TestQuotaModalStack_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rsdh_fr_05_escape_with_zero_inner_modals_closes_card",
+                  "classname": "tests.test_rsdh_quota_modal_stack.TestQuotaModalStack_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rsdh_hp_09_cross_layer_orchestration",
+                  "classname": "tests.test_runtime_sync_and_dashboard_hardening",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rsdh_fr_06_verify_and_byte_budget_invariants",
+                  "classname": "tests.test_runtime_sync_and_dashboard_hardening",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rsdh_hp_09_integration",
+                  "classname": "tests.test_runtime_sync_and_dashboard_hardening.TestRuntimeSyncAndDashboardHardening_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rsdh_fr_06_integration",
+                  "classname": "tests.test_runtime_sync_and_dashboard_hardening.TestRuntimeSyncAndDashboardHardening_Integration",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            ".agents/quality/python-quality.json",
+            "scripts/verify.sh",
+            "tests/test_runtime_sync_and_dashboard_hardening.py"
+          ],
+          "violations": []
+        }
+      ],
+      "passed": true
+    }
+  }
+}

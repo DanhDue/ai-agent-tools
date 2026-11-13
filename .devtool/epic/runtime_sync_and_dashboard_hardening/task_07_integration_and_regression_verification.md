@@ -1,13 +1,13 @@
 ---
 id: "task_07_integration_and_regression_verification"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "runtime_sync_and_dashboard_hardening"
 dueDate: null
 created: "2026-11-13T09:24:00Z"
-modified: "2026-11-13T09:24:00Z"
-completedAt: null
+modified: "2026-11-13T05:18:40Z"
+completedAt: "2026-11-13T05:18:40Z"
 labels: ["integration", "regression", "verify-sh", "acceptance"]
 order: "a7"
 review_tier: "full"

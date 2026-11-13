@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
   "capabilities": {
-    "format": ["ruff", "format", "--check", "skills/web-quality-check", "tests", "skills/dev-implementation/resources/scripts/generate_smoke_checklist.py"],
-    "lint": ["ruff", "check", "skills/web-quality-check", "tests", "skills/dev-implementation/resources/scripts/generate_smoke_checklist.py"],
-    "type_check": ["mypy", "skills/web-quality-check/resources/scripts/validate_web_quality.py", "skills/web-quality-check/resources/scripts/run_playwright_harness.py", "skills/quality_check/resources/scripts/verify_polyglot_registry.py", "skills/web-quality-check/resources/scripts/check_vanilla_js.py", "skills/dev-implementation/resources/scripts/generate_smoke_checklist.py"],
+    "format": ["ruff", "format", "--check", "skills/web-quality-check", "tests", "skills/dev-implementation/resources/scripts/generate_smoke_checklist.py", "scripts/_state_envelope.py", "scripts/estimate_heartbeat.py"],
+    "lint": ["ruff", "check", "skills/web-quality-check", "tests", "skills/dev-implementation/resources/scripts/generate_smoke_checklist.py", "scripts/_state_envelope.py", "scripts/estimate_heartbeat.py"],
+    "type_check": ["mypy", "skills/web-quality-check/resources/scripts/validate_web_quality.py", "skills/web-quality-check/resources/scripts/run_playwright_harness.py", "skills/quality_check/resources/scripts/verify_polyglot_registry.py", "skills/web-quality-check/resources/scripts/check_vanilla_js.py", "skills/dev-implementation/resources/scripts/generate_smoke_checklist.py", "scripts/_state_envelope.py", "scripts/estimate_heartbeat.py"],
     "test": ["python3", "-m", "pytest", "-q", "--tb=short", "--maxfail=3", "tests"],
     "architecture": ["bash", "scripts/verify.sh"]
   },
