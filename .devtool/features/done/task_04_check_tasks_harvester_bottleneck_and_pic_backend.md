@@ -1,13 +1,13 @@
 ---
 id: "task_04_check_tasks_harvester_bottleneck_and_pic_backend"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "runtime_sync_and_dashboard_hardening"
 dueDate: null
 created: "2026-11-13T09:18:00Z"
-modified: "2026-11-13T09:18:00Z"
-completedAt: null
+modified: "2026-11-13T04:39:09Z"
+completedAt: "2026-11-13T04:39:09Z"
 labels: ["backend", "harvester", "pic-sync", "check-tasks"]
 order: "a4"
 review_tier: "full"
@@ -15,7 +15,7 @@ review_tier: "full"
 
 # Task 4: Check-Tasks Harvester, Ledger Union, 96% Backend, and PIC Sync
 
-Epic: [runtime_sync_and_dashboard_hardening](../epic/runtime_sync_and_dashboard_hardening/runtime_sync_and_dashboard_hardening.en.md)
+Epic: [runtime_sync_and_dashboard_hardening](../../epic/runtime_sync_and_dashboard_hardening/runtime_sync_and_dashboard_hardening.en.md)
 
 ## Requirement Analysis
 
@@ -157,11 +157,11 @@ Then writable target files still update cleanly, warnings identify the failed pa
 
 ## Dependencies & Blockers
 
-Blocked by [Task 1](../epic/runtime_sync_and_dashboard_hardening/task_01_runtime_state_envelope_and_two_tier_sync.md) and [Task 3](../epic/runtime_sync_and_dashboard_hardening/task_03_wave_parallel_handoff_stage3_revise_and_pool_cleanup.md).
+Blocked by [Task 1](../../epic/runtime_sync_and_dashboard_hardening/task_01_runtime_state_envelope_and_two_tier_sync.md) and [Task 3](../../epic/runtime_sync_and_dashboard_hardening/task_03_wave_parallel_handoff_stage3_revise_and_pool_cleanup.md).
 
 Downstream dependent (blocked by Task 4): `task_07`.
 
 ## References & Rollback
 
-- [Epic HLD](../epic/runtime_sync_and_dashboard_hardening/runtime_sync_and_dashboard_hardening.en.md), Module Contracts (§4.5, §4.6).
+- [Epic HLD](../../epic/runtime_sync_and_dashboard_hardening/runtime_sync_and_dashboard_hardening.en.md), Module Contracts (§4.5, §4.6).
 - **Rollback**: Revert task commit; restores prior `check_tasks.py` and `tasks_server.py` and removes `tests/test_rsdh_harvester_and_pic.py`.

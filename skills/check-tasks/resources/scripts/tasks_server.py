@@ -14,6 +14,7 @@ from __future__ import annotations
 import argparse
 import contextlib
 import dataclasses
+from datetime import datetime, timezone
 import http.server
 import json
 import os
@@ -25,6 +26,7 @@ import socket
 import socketserver
 import subprocess
 import sys
+import tempfile
 import threading
 from typing import Any
 import urllib.parse
@@ -517,157 +519,401 @@ def parse_review_results(
     return result
 
 
+_PIC_NAME_RE = re.compile(r"^[a-zA-Z0-9_\-]+$")
+_EPIC_SLUG_RE = re.compile(r"^[a-zA-Z0-9_\-]+$")
+_PIC_SLOT_SUFFIX_RE = re.compile(r"-slot-\d+$")
+_PIC_LINE_RE = re.compile(
+    r"^(-\s+\*\*(?:PIC(?:\s*/\s*Assigned\s+Profile)?|Profile|Assigned Profile|Người phụ trách(?: \(PIC\))?)\*\*:\s*)([^\n]+)$",
+    re.MULTILINE | re.IGNORECASE,
+)
+_PIC_SKIP_PREFIXES = (
+    "task_",
+    "bdd_scenarios",
+    "principal_review",
+    "review_results",
+    "review_round_",
+    "fix_plan_",
+    "manual_smoke_checklist",
+)
+
+
+def _norm_epic_slug(slug: str) -> str:
+    """Normalize epic slug for cross-convention dash/underscore matching."""
+    return slug.strip().lower().replace("_", "-")
+
+
+def _atomic_write_text(target: Path, content: str) -> None:
+    """Atomically write UTF-8 text via sibling temporary file, fsync, and os.replace."""
+    if target.exists() and not os.access(target, os.W_OK):
+        raise PermissionError(f"Permission denied: {target}")
+    target.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=target.parent,
+            prefix=f".{target.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as handle:
+            tmp_path = Path(handle.name)
+            handle.write(content)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(tmp_path, target)
+        tmp_path = None
+    finally:
+        if tmp_path is not None and tmp_path.exists():
+            with contextlib.suppress(OSError):
+                tmp_path.unlink()
+
+
+def _format_updated_path(target: Path, repo_dir: Path) -> str:
+    """Format updated file path relative to repo_dir when contained, else absolute."""
+    try:
+        return str(target.resolve().relative_to(repo_dir.resolve()))
+    except ValueError:
+        return str(target.resolve())
+
+
+def _discover_pic_worktrees(repo_dir: Path, epic_slug: str) -> list[Path]:
+    """Discover all matching git worktrees and `.worktrees/<slug>*` directories for epic_slug."""
+    target_norm = _norm_epic_slug(epic_slug)
+    repo_resolved = repo_dir.resolve()
+    worktrees: list[Path] = []
+    seen: set[Path] = set()
+
+    def _add_if_matches(candidate: Path, branch_name: str | None = None) -> None:
+        if not candidate.is_dir():
+            return
+        resolved = candidate.resolve()
+        if resolved == repo_resolved or resolved in seen:
+            return
+        dir_base = _PIC_SLOT_SUFFIX_RE.sub("", candidate.name.strip())
+        dir_match = _norm_epic_slug(dir_base) == target_norm
+        branch_match = False
+        if branch_name:
+            clean_branch = branch_name.removeprefix("refs/heads/")
+            m_br = re.match(r"(?:epic|feat)/([a-zA-Z0-9_\-]+)", clean_branch)
+            if m_br:
+                br_base = _PIC_SLOT_SUFFIX_RE.sub("", m_br.group(1))
+                branch_match = _norm_epic_slug(br_base) == target_norm
+        if dir_match or branch_match:
+            seen.add(resolved)
+            worktrees.append(candidate)
+
+    with contextlib.suppress(OSError, subprocess.SubprocessError):
+        proc = subprocess.run(
+            ["git", "-C", str(repo_dir), "worktree", "list", "--porcelain"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+        if proc.returncode == 0:
+            for block in proc.stdout.strip().split("\n\n"):
+                wt_line = ""
+                branch_line: str | None = None
+                for raw in block.splitlines():
+                    stripped = raw.strip()
+                    if stripped.startswith("worktree "):
+                        wt_line = stripped[9:].strip()
+                    elif stripped.startswith("branch "):
+                        branch_line = stripped[7:].strip()
+                if wt_line:
+                    _add_if_matches(Path(wt_line), branch_line)
+
+    wt_dir = repo_dir / ".worktrees"
+    if wt_dir.is_dir():
+        with contextlib.suppress(OSError):
+            for entry in sorted(wt_dir.iterdir()):
+                if entry.is_dir() and not entry.name.startswith("."):
+                    _add_if_matches(entry)
+
+    return worktrees
+
+
+def _extract_task_frontmatter_epic(content: str) -> str | None:
+    """Extract optional `epic` field from YAML frontmatter without external dependencies."""
+    lines = content.splitlines()
+    if not lines or lines[0].strip() != "---":
+        return None
+    for line in lines[1:]:
+        s = line.strip()
+        if s == "---":
+            break
+        if s.lower().startswith("epic:"):
+            return s.split(":", 1)[1].strip().strip("'\"")
+    return None
+
+
+def _update_markdown_pic(content: str, new_pic: str, *, is_handoff: bool) -> str | None:
+    """Return updated markdown with PIC replaced or inserted, or None if unchanged."""
+    if _PIC_LINE_RE.search(content):
+        return _PIC_LINE_RE.sub(rf"\g<1>`{new_pic}`", content)
+
+    anchor_patterns: list[re.Pattern[str]] = [
+        re.compile(
+            r"^(-\s+\*\*(?:Epic name|Tên Epic|Epic|Epic Directory)\*\*:[^\n]+)$",
+            re.MULTILINE | re.IGNORECASE,
+        )
+    ]
+    if is_handoff:
+        anchor_patterns.extend(
+            [
+                re.compile(r"^(-\s+\*\*Base branch\*\*:[^\n]+)$", re.MULTILINE | re.IGNORECASE),
+                re.compile(r"^(-\s+\*\*Packaged\*\*:[^\n]+)$", re.MULTILINE | re.IGNORECASE),
+                re.compile(r"^(##\s+Status\s*)$", re.MULTILINE | re.IGNORECASE),
+            ]
+        )
+    for pattern in anchor_patterns:
+        m = pattern.search(content)
+        if m:
+            pos = m.end()
+            return content[:pos] + f"\n- **PIC**: `{new_pic}`" + content[pos:]
+
+    lines = content.splitlines()
+    for idx, line in enumerate(lines):
+        if line.startswith("# "):
+            lines.insert(idx + 1, f"\n- **PIC**: `{new_pic}`")
+            trailing = "\n" if content.endswith("\n") else ""
+            return "\n".join(lines) + trailing
+    return None
+
+
+def _update_task_frontmatter_pic(content: str, new_pic: str) -> str | None:
+    """Update `pic:`/`assigned:` frontmatter in a task file, or insert `pic:`."""
+    if not content.startswith("---"):
+        return None
+    fm_end = content.find("---", 3)
+    if fm_end == -1:
+        return None
+    fm_text = content[3:fm_end]
+    body_text = content[fm_end:]
+    if re.search(r"^(pic|assigned):\s*.*$", fm_text, re.MULTILINE):
+        new_fm = re.sub(
+            r"^(pic|assigned):\s*.*$",
+            f'pic: "{new_pic}"',
+            fm_text,
+            flags=re.MULTILINE,
+        )
+    elif fm_text.startswith("\n"):
+        new_fm = f'\npic: "{new_pic}"' + fm_text
+    else:
+        new_fm = f'\npic: "{new_pic}"\n' + fm_text
+    return f"---{new_fm}{body_text}"
+
+
+def _is_pic_hld_or_spec(doc: Path, epic_slug: str) -> bool:
+    """Return True if doc is the epic HLD or design spec (never review/BDD/smoke prose)."""
+    lower_name = doc.name.lower()
+    if any(lower_name.startswith(prefix) for prefix in _PIC_SKIP_PREFIXES):
+        return False
+    if lower_name == "handoff.md" or "evidence" in lower_name:
+        return False
+    return (
+        lower_name in (f"{epic_slug.lower()}.en.md", f"{epic_slug.lower()}.vi.md")
+        or "design" in lower_name
+    )
+
+
 def assign_epic_pic(
     workspace_root: Path,
     repo_name: str,
     epic_slug: str,
-    new_pic: str
+    new_pic: str,
 ) -> dict[str, Any]:
-    """Assign or update PIC / profile across the epic HLD, handoff, tasks, and worktree settings."""
-    if not re.match(r"^[a-zA-Z0-9_\-]+$", new_pic):
-        return {"status": "error", "error": "Invalid profile / PIC name"}
+    """Validate and atomically synchronize PIC across root and all matching worktree checkouts."""
+    if not isinstance(new_pic, str) or not _PIC_NAME_RE.fullmatch(new_pic):
+        raise ValueError("Invalid profile / PIC name: must match ^[a-zA-Z0-9_\\-]+$")
+    if not isinstance(epic_slug, str) or not _EPIC_SLUG_RE.fullmatch(epic_slug):
+        raise ValueError(f"Invalid epic slug: {epic_slug!r}")
+    if (
+        not isinstance(repo_name, str)
+        or not repo_name
+        or "/" in repo_name
+        or "\\" in repo_name
+        or ".." in repo_name
+    ):
+        raise ValueError(f"Invalid repository name: {repo_name!r}")
 
-    repo_dir = workspace_root / repo_name
+    ws_resolved = workspace_root.resolve()
+    repo_dir = (workspace_root / repo_name).resolve()
+    if not str(repo_dir).startswith(str(ws_resolved) + os.sep) and repo_dir != ws_resolved:
+        raise ValueError(f"Repository path escapes workspace boundary: {repo_name!r}")
     if not repo_dir.is_dir():
         return {"status": "error", "error": f"Repository '{repo_name}' not found"}
 
-    epic_dir = repo_dir / ".devtool" / "epic" / epic_slug
-    if not epic_dir.is_dir():
-        return {"status": "error", "error": f"Epic '{epic_slug}' not found in {repo_name}"}
+    matched_worktrees = _discover_pic_worktrees(repo_dir, epic_slug)
+    checkouts: list[Path] = [repo_dir, *matched_worktrees]
+
+    has_epic_anywhere = any(
+        (co / ".devtool" / "epic" / epic_slug).is_dir() for co in checkouts
+    )
+    if not has_epic_anywhere:
+        return {
+            "status": "error",
+            "error": f"Epic '{epic_slug}' not found in {repo_name}",
+        }
 
     updated_files: list[str] = []
+    warnings: list[str] = []
+    seen_targets: set[Path] = set()
+    target_norm = _norm_epic_slug(epic_slug)
 
-    # 1. Update HLD markdown files in .devtool/epic/<epic_slug>/
-    hld_candidates = [
-        epic_dir / f"{epic_slug}.en.md",
-        epic_dir / f"{epic_slug}.vi.md",
-    ]
-    for doc in epic_dir.glob("*.md"):
-        if doc not in hld_candidates and not doc.name.startswith("task_") and doc.name != "handoff.md":
-            hld_candidates.append(doc)
-
-    for hld in hld_candidates:
-        if not hld.is_file():
-            continue
+    def _record_write(target: Path, new_content: str) -> None:
+        resolved = target.resolve()
+        if resolved in seen_targets:
+            return
+        seen_targets.add(resolved)
+        rel = _format_updated_path(target, repo_dir)
         try:
-            content = hld.read_text(encoding="utf-8")
-            pic_pattern = re.compile(
-                r"^(-\s+\*\*(?:PIC|Profile|Assigned Profile|Người phụ trách(?: \(PIC\))?)\*\*:\s*)([^\n]+)$",
-                re.MULTILINE | re.IGNORECASE,
-            )
-            if pic_pattern.search(content):
-                content = pic_pattern.sub(rf"\g<1>`{new_pic}`", content)
-                hld.write_text(content, encoding="utf-8")
-                updated_files.append(str(hld.relative_to(repo_dir)))
-            else:
-                meta_pattern = re.compile(
-                    r"^(-\s+\*\*(?:Epic name|Tên Epic|Epic)\*\*:[^\n]+)$",
-                    re.MULTILINE | re.IGNORECASE,
-                )
-                m = meta_pattern.search(content)
-                if m:
-                    pos = m.end()
-                    content = content[:pos] + f"\n- **PIC**: `{new_pic}`" + content[pos:]
-                    hld.write_text(content, encoding="utf-8")
-                    updated_files.append(str(hld.relative_to(repo_dir)))
+            _atomic_write_text(target, new_content)
+            updated_files.append(rel)
+        except OSError as exc:
+            warnings.append(f"{rel}: {exc}")
+
+    wt_resolved_set = {wt.resolve() for wt in matched_worktrees}
+
+    for checkout in checkouts:
+        checkout_epic_dir = checkout / ".devtool" / "epic" / epic_slug
+        if checkout_epic_dir.is_dir():
+            # 1. HLD & design spec files (excluding BDD/review/fix-plan/smoke prose)
+            hld_candidates: list[Path] = [
+                checkout_epic_dir / f"{epic_slug}.en.md",
+                checkout_epic_dir / f"{epic_slug}.vi.md",
+            ]
+            with contextlib.suppress(OSError):
+                for doc in sorted(checkout_epic_dir.glob("*.md")):
+                    if doc not in hld_candidates and _is_pic_hld_or_spec(doc, epic_slug):
+                        hld_candidates.append(doc)
+
+            for hld in hld_candidates:
+                if not hld.is_file():
+                    continue
+                try:
+                    content = hld.read_text(encoding="utf-8")
+                except OSError as exc:
+                    warnings.append(f"{_format_updated_path(hld, repo_dir)}: {exc}")
+                    continue
+                updated = _update_markdown_pic(content, new_pic, is_handoff=False)
+                if updated is not None:
+                    _record_write(hld, updated)
+
+            # 2. handoff.md
+            handoff_file = checkout_epic_dir / "handoff.md"
+            if handoff_file.is_file():
+                try:
+                    content = handoff_file.read_text(encoding="utf-8")
+                except OSError as exc:
+                    warnings.append(
+                        f"{_format_updated_path(handoff_file, repo_dir)}: {exc}"
+                    )
                 else:
-                    lines = content.splitlines()
-                    for idx, line in enumerate(lines):
-                        if line.startswith("# "):
-                            lines.insert(idx + 1, f"\n- **PIC**: `{new_pic}`")
-                            content = "\n".join(lines)
-                            hld.write_text(content, encoding="utf-8")
-                            updated_files.append(str(hld.relative_to(repo_dir)))
-                            break
-        except Exception:
-            pass
+                    updated = _update_markdown_pic(content, new_pic, is_handoff=True)
+                    if updated is not None:
+                        _record_write(handoff_file, updated)
 
-    # 2. Update handoff.md if present
-    handoff_file = epic_dir / "handoff.md"
-    if handoff_file.is_file():
-        try:
-            content = handoff_file.read_text(encoding="utf-8")
-            pic_pattern = re.compile(
-                r"^(-\s+\*\*(?:PIC|Profile|Assigned Profile|Người phụ trách(?: \(PIC\))?)\*\*:\s*)([^\n]+)$",
-                re.MULTILINE | re.IGNORECASE,
-            )
-            if pic_pattern.search(content):
-                content = pic_pattern.sub(rf"\g<1>`{new_pic}`", content)
-            else:
-                meta_pattern = re.compile(
-                    r"^(-\s+\*\*(?:Epic name|Tên Epic|Epic)\*\*:[^\n]+)$",
-                    re.MULTILINE | re.IGNORECASE,
-                )
-                m = meta_pattern.search(content)
-                if m:
-                    pos = m.end()
-                    content = content[:pos] + f"\n- **PIC**: `{new_pic}`" + content[pos:]
-            handoff_file.write_text(content, encoding="utf-8")
-            updated_files.append(str(handoff_file.relative_to(repo_dir)))
-        except Exception:
-            pass
+            # 3a. Epic task files inside .devtool/epic/<epic_slug>/
+            with contextlib.suppress(OSError):
+                for tf in sorted(checkout_epic_dir.glob("task_*.md")):
+                    try:
+                        t_content = tf.read_text(encoding="utf-8")
+                    except OSError as exc:
+                        warnings.append(f"{_format_updated_path(tf, repo_dir)}: {exc}")
+                        continue
+                    fm_epic = _extract_task_frontmatter_epic(t_content)
+                    if fm_epic and _norm_epic_slug(fm_epic) != target_norm:
+                        continue
+                    updated_task = _update_task_frontmatter_pic(t_content, new_pic)
+                    if updated_task is not None:
+                        _record_write(tf, updated_task)
 
-    # 3. Update task files in epic directory & worktree features directory
-    task_files = list(epic_dir.glob("task_*.md"))
-    wt_candidates = [
-        repo_dir / ".worktrees" / epic_slug,
-        repo_dir / ".worktrees" / epic_slug.replace("-", "_"),
-        repo_dir / ".worktrees" / epic_slug.replace("_", "-"),
-    ]
-    for wt in wt_candidates:
-        if wt.is_dir():
-            wt_features = wt / ".devtool" / "features"
-            if wt_features.is_dir():
-                for tf in wt_features.glob("task_*.md"):
-                    if tf not in task_files:
-                        task_files.append(tf)
+        # 3b. Task files in .devtool/features/ filtered strictly by matching epic frontmatter
+        for feat_dir in (
+            checkout / ".devtool" / "features",
+            checkout / ".devtool" / "features" / "done",
+        ):
+            if not feat_dir.is_dir():
+                continue
+            with contextlib.suppress(OSError):
+                for tf in sorted(feat_dir.glob("task_*.md")):
+                    try:
+                        t_content = tf.read_text(encoding="utf-8")
+                    except OSError as exc:
+                        warnings.append(f"{_format_updated_path(tf, repo_dir)}: {exc}")
+                        continue
+                    fm_epic = _extract_task_frontmatter_epic(t_content)
+                    if not fm_epic or _norm_epic_slug(fm_epic) != target_norm:
+                        continue
+                    updated_task = _update_task_frontmatter_pic(t_content, new_pic)
+                    if updated_task is not None:
+                        _record_write(tf, updated_task)
 
-            # 4. Update worktree .vscode/settings.json window.title
-            vscode_settings = wt / ".vscode" / "settings.json"
+        # 4. State pipeline & heartbeat JSON files in checkout/.devtool/state/
+        state_dir = checkout / ".devtool" / "state"
+        if state_dir.is_dir():
+            pipeline_file = state_dir / f"{epic_slug}.pipeline.json"
+            if pipeline_file.is_file():
+                try:
+                    s_data = json.loads(pipeline_file.read_text(encoding="utf-8"))
+                    if isinstance(s_data, dict):
+                        s_data["pic"] = new_pic
+                        _record_write(
+                            pipeline_file,
+                            json.dumps(s_data, indent=2, ensure_ascii=False) + "\n",
+                        )
+                except (OSError, json.JSONDecodeError) as exc:
+                    warnings.append(
+                        f"{_format_updated_path(pipeline_file, repo_dir)}: {exc}"
+                    )
+
+            hb_candidates: list[Path] = []
+            for slug_var in dict.fromkeys(
+                (epic_slug, epic_slug.replace("_", "-"), epic_slug.replace("-", "_"))
+            ):
+                hb_path = state_dir / f"{slug_var}.heartbeat.json"
+                if hb_path.is_file():
+                    hb_candidates.append(hb_path)
+            for hb_file in hb_candidates:
+                try:
+                    hb_data = json.loads(hb_file.read_text(encoding="utf-8"))
+                    if isinstance(hb_data, dict):
+                        hb_data["pic"] = new_pic
+                        if "generation" in hb_data and isinstance(
+                            hb_data["generation"], int
+                        ):
+                            hb_data["generation"] += 1
+                        hb_data["updated_at"] = datetime.now(timezone.utc).isoformat(
+                            timespec="seconds"
+                        )
+                        _record_write(
+                            hb_file,
+                            json.dumps(hb_data, indent=2, ensure_ascii=False) + "\n",
+                        )
+                except (OSError, json.JSONDecodeError) as exc:
+                    warnings.append(
+                        f"{_format_updated_path(hb_file, repo_dir)}: {exc}"
+                    )
+
+        # 5. Worktree-only .vscode/settings.json window.title (never root .vscode/settings.json)
+        if checkout.resolve() in wt_resolved_set:
+            vscode_settings = checkout / ".vscode" / "settings.json"
             if vscode_settings.is_file():
                 try:
                     s_content = vscode_settings.read_text(encoding="utf-8")
+                except OSError as exc:
+                    warnings.append(
+                        f"{_format_updated_path(vscode_settings, repo_dir)}: {exc}"
+                    )
+                else:
                     if "[@" in s_content:
-                        new_s_content = re.sub(r"\[@[a-zA-Z0-9_\-]+\]", f"[@{new_pic}]", s_content)
-                        if new_s_content != s_content:
-                            vscode_settings.write_text(new_s_content, encoding="utf-8")
-                            updated_files.append(str(vscode_settings.relative_to(repo_dir)))
-                except Exception:
-                    pass
-            break
-
-    for tf in task_files:
-        try:
-            t_content = tf.read_text(encoding="utf-8")
-            if t_content.startswith("---"):
-                fm_end = t_content.find("---", 3)
-                if fm_end != -1:
-                    fm_text = t_content[3:fm_end]
-                    body_text = t_content[fm_end:]
-                    if re.search(r"^(pic|assigned):\s*.*$", fm_text, re.MULTILINE):
-                        fm_text = re.sub(
-                            r"^(pic|assigned):\s*.*$",
-                            f'pic: "{new_pic}"',
-                            fm_text,
-                            flags=re.MULTILINE,
+                        new_s_content = re.sub(
+                            r"\[@[a-zA-Z0-9_\-]+\]", f"[@{new_pic}]", s_content
                         )
-                    else:
-                        fm_text = f'pic: "{new_pic}"\n' + fm_text
-                    tf.write_text(f"---{fm_text}{body_text}", encoding="utf-8")
-                    updated_files.append(str(tf.relative_to(repo_dir)))
-        except Exception:
-            pass
-
-    # 5. Update state pipeline if present
-    state_file = repo_dir / ".devtool" / "state" / f"{epic_slug}.pipeline.json"
-    if state_file.is_file():
-        try:
-            s_data = json.loads(state_file.read_text(encoding="utf-8"))
-            s_data["pic"] = new_pic
-            state_file.write_text(json.dumps(s_data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-            updated_files.append(str(state_file.relative_to(repo_dir)))
-        except Exception:
-            pass
+                        if new_s_content != s_content:
+                            _record_write(vscode_settings, new_s_content)
 
     return {
         "status": "ok",
@@ -675,6 +921,8 @@ def assign_epic_pic(
         "epic": epic_slug,
         "pic": new_pic,
         "updated_files": updated_files,
+        "updated_count": len(updated_files),
+        "warnings": warnings,
     }
 
 
@@ -802,10 +1050,23 @@ class TasksHandler(http.server.BaseHTTPRequestHandler):
             pic = payload.get("pic", "")
 
             if not repo_name or not epic_slug or not pic:
-                self._send_json(400, {"error": "Missing required fields: repo, epic, pic"})
+                self._send_json(
+                    400,
+                    {
+                        "status": "error",
+                        "error": "Missing required fields: repo, epic, pic",
+                    },
+                )
                 return
 
-            result = assign_epic_pic(self.server.workspace_root, repo_name, epic_slug, pic)
+            try:
+                result = assign_epic_pic(
+                    self.server.workspace_root, repo_name, epic_slug, pic
+                )
+            except ValueError as exc:
+                self._send_json(400, {"status": "error", "error": str(exc)})
+                return
+
             if result.get("status") == "ok":
                 self._send_json(200, result)
             else:

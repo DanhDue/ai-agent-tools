@@ -148,12 +148,37 @@ class TestCheckTasksFSM_Integration(unittest.TestCase):
         self.assertFalse(decision.is_human_action_required)
 
     def test_stage_1_inception(self) -> None:
-        """FSM returns Stage 1 Inception when no gates are passed but spec exists."""
+        """FSM returns Idle/False when pending_decision.json is absent on bare epic spec folders."""
         epic_name = "new_feature"
         epic_dir = self.repo_path / ".devtool" / "epic" / epic_name
         epic_dir.mkdir(parents=True, exist_ok=True)
         spec = epic_dir / f"{epic_name}.en.md"
         spec.write_text("# Feature Spec\n", encoding="utf-8")
+
+        decision = derive_lifecycle_state(self.repo_path, epic_name)
+        self.assertEqual(decision.stage_name, LifecycleStage.IDLE)
+        self.assertFalse(decision.is_human_action_required)
+
+    def test_stage_1_inception_with_pending_decision(self) -> None:
+        """FSM returns Stage 1 Inception and True when matching pending_decision.json is present."""
+        scripts_dir = Path(__file__).resolve().parent.parent / "scripts"
+        if str(scripts_dir) not in sys.path:
+            sys.path.insert(0, str(scripts_dir))
+        import _state_envelope  # type: ignore[import-not-found]
+
+        epic_name = "new_feature"
+        epic_dir = self.repo_path / ".devtool" / "epic" / epic_name
+        epic_dir.mkdir(parents=True, exist_ok=True)
+        spec = epic_dir / f"{epic_name}.en.md"
+        spec.write_text("# Feature Spec\n", encoding="utf-8")
+
+        _state_envelope.record_pending_decision(
+            self.repo_path,
+            epic_name,
+            "Approve Gate 1 (Design Spec)",
+            kind="gate_1_spec",
+            stage=LifecycleStage.STAGE_1_INCEPTION.value,
+        )
 
         decision = derive_lifecycle_state(self.repo_path, epic_name)
         self.assertEqual(decision.stage_name, LifecycleStage.STAGE_1_INCEPTION)
@@ -238,21 +263,37 @@ class TestCheckTasksFSM_Integration(unittest.TestCase):
         """scan_repo propagates is_human_action_required to RepoMetadata and epics_summary."""
         from check_tasks import scan_repo
 
+        scripts_dir = Path(__file__).resolve().parent.parent / "scripts"
+        if str(scripts_dir) not in sys.path:
+            sys.path.insert(0, str(scripts_dir))
+        import _state_envelope  # type: ignore[import-not-found]
+
         epic_name = "active_test_epic"
         epic_dir = self.repo_path / ".devtool" / "epic" / epic_name
         epic_dir.mkdir(parents=True, exist_ok=True)
         (epic_dir / f"{epic_name}.en.md").write_text(
             "# Feature Spec\n", encoding="utf-8"
         )
+        _state_envelope.record_pending_decision(
+            self.repo_path,
+            epic_name,
+            "Approve Gate 1 (Design Spec)",
+            kind="gate_1_spec",
+            stage=LifecycleStage.STAGE_1_INCEPTION.value,
+        )
 
         meta = scan_repo(self.repo_path)
         self.assertTrue(meta.is_human_action_required)
+        self.assertIsNotNone(meta.prompt)
+        assert meta.prompt is not None
         self.assertIn("Gate 1", meta.prompt)
         self.assertIsNotNone(meta.epics_summary)
+        assert meta.epics_summary is not None
         active_ep = next(
             (e for e in meta.epics_summary.epics if e["slug"] == epic_name), None
         )
         self.assertIsNotNone(active_ep)
+        assert active_ep is not None
         self.assertTrue(active_ep.get("is_action_required"))
 
 

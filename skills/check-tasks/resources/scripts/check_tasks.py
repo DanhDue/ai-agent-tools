@@ -13,15 +13,50 @@ import datetime
 from datetime import datetime, timezone
 from enum import Enum
 import hashlib
+import importlib
 import json
 import os
 from pathlib import Path
 import re
+import socket
 import subprocess
 import sys
 from typing import Any
 
 SCRIPT_DIR = Path(__file__).resolve().parent
+_STATE_ENVELOPE_MOD: Any | None = None
+_SLOT_SUFFIX_RE = re.compile(r"-slot-\d+$")
+_PIC_PLACEHOLDERS = frozenset(
+    {
+        "",
+        "none",
+        "null",
+        "unassigned",
+        "unknown",
+        "profile_account_id",
+        "n/a",
+        "tbd",
+        "pending",
+    }
+)
+
+
+def _load_state_envelope() -> Any | None:
+    """Lazily import shared `scripts/_state_envelope.py` without failing on standalone copies."""
+    global _STATE_ENVELOPE_MOD
+    if _STATE_ENVELOPE_MOD is not None:
+        return _STATE_ENVELOPE_MOD
+    for parent in [SCRIPT_DIR, *SCRIPT_DIR.parents]:
+        cand_scripts = parent / "scripts"
+        if (cand_scripts / "_state_envelope.py").is_file():
+            if str(cand_scripts) not in sys.path:
+                sys.path.insert(0, str(cand_scripts))
+            try:
+                _STATE_ENVELOPE_MOD = importlib.import_module("_state_envelope")
+                return _STATE_ENVELOPE_MOD
+            except Exception:  # noqa: S110
+                return None
+    return None
 
 def _real_home() -> Path:
     """Host user's real HOME, derived (never hard-coded); strips /antigravity_homes/<profile> when inside a profile."""
@@ -199,6 +234,10 @@ class RepoMetadata:
     epics_summary: EpicsSummary | None = None
     is_human_action_required: bool = False
     is_blocked: bool = False
+    pending_decision: dict[str, Any] | None = None
+    heartbeat: dict[str, Any] | None = None
+    quality_active: dict[str, Any] | None = None
+    quality_runs: list[dict[str, Any]] = field(default_factory=list)
 
 
 @dataclass
@@ -431,8 +470,221 @@ def get_completed_epic_slugs(repo_path: Path) -> set[str]:
     return completed
 
 
+def _normalize_slug(slug: str) -> str:
+    """Normalize epic slugs for robust comparison across dash/underscore conventions."""
+    return slug.strip().lower().replace("_", "-")
+
+
+def _strip_slot_suffix(name: str) -> str:
+    """Strip ephemeral slot suffixes (e.g. '-slot-1') from branch or worktree names."""
+    return _SLOT_SUFFIX_RE.sub("", name.strip())
+
+
+def _is_completed_epic(slug: str, completed_slugs: set[str]) -> bool:
+    """Return True if slug matches any completed epic across dash/underscore forms."""
+    if not slug:
+        return False
+    norm = _normalize_slug(slug)
+    return slug in completed_slugs or any(_normalize_slug(c) == norm for c in completed_slugs)
+
+
+def _resolve_canonical_epic_slug(repo_path: Path, candidate: str) -> str:
+    """Resolve a stripped slug to the canonical `.devtool/epic/` directory name if present."""
+    clean = _strip_slot_suffix(candidate)
+    if not clean:
+        return clean
+    epic_root = repo_path / ".devtool" / "epic"
+    if not epic_root.is_dir():
+        return clean
+    if (epic_root / clean).is_dir():
+        return clean
+    target_norm = _normalize_slug(clean)
+    with contextlib.suppress(OSError):
+        for entry in sorted(epic_root.iterdir()):
+            if (
+                entry.is_dir()
+                and not entry.name.startswith(".")
+                and _normalize_slug(entry.name) == target_norm
+            ):
+                return entry.name
+    return clean
+
+
+def _collect_matching_worktrees(
+    repo_path: Path, epic_slug: str | None = None
+) -> list[Path]:
+    """Discover unique non-root worktrees matching `epic_slug` (or all worktrees when None)."""
+    results: list[Path] = []
+    seen: set[Path] = set()
+    root_resolved = repo_path.resolve()
+    target_norm = _normalize_slug(_strip_slot_suffix(epic_slug)) if epic_slug else None
+
+    def _maybe_add(candidate_path: Path, branch_name: str | None = None) -> None:
+        if not candidate_path.is_dir():
+            return
+        resolved = candidate_path.resolve()
+        if resolved == root_resolved or resolved in seen:
+            return
+        if target_norm is not None:
+            dir_norm = _normalize_slug(_strip_slot_suffix(candidate_path.name))
+            branch_match = False
+            if branch_name:
+                m_br = re.match(r"(?:epic|feat)/([a-zA-Z0-9_\-]+)", branch_name)
+                if m_br:
+                    branch_match = (
+                        _normalize_slug(_strip_slot_suffix(m_br.group(1)))
+                        == target_norm
+                    )
+            if dir_norm != target_norm and not branch_match:
+                return
+        seen.add(resolved)
+        results.append(candidate_path)
+
+    for wt in scan_worktrees(repo_path):
+        _maybe_add(Path(wt.path), wt.branch)
+
+    wt_dir = repo_path / ".worktrees"
+    if wt_dir.is_dir():
+        with contextlib.suppress(OSError):
+            for d in sorted(wt_dir.iterdir()):
+                if not d.is_dir() or d.name.startswith("."):
+                    continue
+                _maybe_add(d)
+
+    return results
+
+
+def _collect_devtool_dirs(
+    repo_path: Path, active_epic: str | None = None
+) -> list[Path]:
+    """Collect unique `.devtool` directories across root, worktrees, and git common dir."""
+    dirs: list[Path] = []
+    seen: set[Path] = set()
+
+    def _add_dir(devtool_dir: Path) -> None:
+        if not devtool_dir.is_dir():
+            return
+        resolved = devtool_dir.resolve()
+        if resolved in seen:
+            return
+        seen.add(resolved)
+        dirs.append(devtool_dir)
+
+    _add_dir(repo_path / ".devtool")
+    for wt_path in _collect_matching_worktrees(repo_path, active_epic):
+        _add_dir(wt_path / ".devtool")
+
+    state_env = _load_state_envelope()
+    if state_env is not None:
+        with contextlib.suppress(Exception):
+            for shared_dir in state_env.resolve_shared_devtool_dirs(repo_path):
+                _add_dir(shared_dir)
+
+    return dirs
+
+
+def _read_state_snapshot(
+    repo_path: Path,
+    filename: str,
+    default: dict[str, Any],
+    active_epic: str | None = None,
+) -> dict[str, Any]:
+    """Select the highest-generation state snapshot across root, worktrees, and common dir."""
+    state_env = _load_state_envelope()
+    collected_dirs = _collect_devtool_dirs(repo_path, active_epic)
+    if state_env is not None:
+        seen = {d.resolve() for d in collected_dirs if d.is_dir()}
+        with contextlib.suppress(Exception):
+            for extra in state_env._collect_target_devtool_dirs(repo_path, filename):
+                if extra.is_dir() and extra.resolve() not in seen:
+                    seen.add(extra.resolve())
+                    collected_dirs.append(extra)
+        if not collected_dirs:
+            return dict(default)
+        snapshot, _ = state_env._read_highest_snapshot(collected_dirs, filename, default)
+        return dict(snapshot)
+
+    best_snapshot: dict[str, Any] = {}
+    best_gen = -1
+    for devtool_dir in collected_dirs:
+        candidate_path = devtool_dir / "state" / filename
+        if not candidate_path.is_file():
+            continue
+        with contextlib.suppress(OSError, json.JSONDecodeError, UnicodeDecodeError):
+            parsed = json.loads(candidate_path.read_text(encoding="utf-8"))
+            if isinstance(parsed, dict) and parsed:
+                gen = parsed.get("generation", 0)
+                gen_num = gen if isinstance(gen, int) and not isinstance(gen, bool) else 0
+                if gen_num > best_gen:
+                    best_gen = gen_num
+                    best_snapshot = parsed
+    merged = dict(default)
+    merged.update(best_snapshot)
+    return merged
+
+
+def _match_pending_decision_for_epic(
+    snapshot: dict[str, Any], epic_slug: str | None
+) -> dict[str, Any] | None:
+    """Return the active pending decision matching `epic_slug`, ignoring sibling epics."""
+    if not snapshot or not epic_slug:
+        return None
+
+    target_norm = _normalize_slug(epic_slug)
+    decisions = snapshot.get("decisions")
+    if isinstance(decisions, dict) and decisions:
+        exact_match = decisions.get(epic_slug)
+        if isinstance(exact_match, dict):
+            return dict(exact_match) if exact_match.get("active", True) is True else None
+        for key, entry in decisions.items():
+            if not isinstance(entry, dict):
+                continue
+            entry_epic = str(entry.get("epic") or key)
+            if _normalize_slug(entry_epic) == target_norm:
+                return dict(entry) if entry.get("active", True) is True else None
+        return None
+
+    # Legacy single-record fallback when no namespaced decisions exist
+    if snapshot.get("active") is True:
+        legacy_epic = snapshot.get("epic")
+        if not legacy_epic or _normalize_slug(str(legacy_epic)) == target_norm:
+            return dict(snapshot)
+    return None
+
+
+def _resolve_active_epic_from_pending_decision(
+    repo_path: Path, completed_slugs: set[str]
+) -> str | None:
+    """Resolve an active non-completed epic recorded in `pending_decision.json`."""
+    snapshot = _read_state_snapshot(repo_path, "pending_decision.json", {})
+    if not snapshot:
+        return None
+
+    decisions = snapshot.get("decisions")
+    if isinstance(decisions, dict) and decisions:
+        candidates: list[tuple[str, str]] = []
+        for key, entry in decisions.items():
+            if not isinstance(entry, dict) or entry.get("active", True) is not True:
+                continue
+            ep = str(entry.get("epic") or key).strip()
+            if not ep or _is_completed_epic(ep, completed_slugs):
+                continue
+            stamp = str(entry.get("updated_at") or entry.get("created_at") or "")
+            candidates.append((stamp, ep))
+        if not candidates:
+            return None
+        candidates.sort(key=lambda item: (item[0], item[1]), reverse=True)
+        return _resolve_canonical_epic_slug(repo_path, candidates[0][1])
+
+    if snapshot.get("active") is True and snapshot.get("epic"):
+        ep = str(snapshot["epic"]).strip()
+        if ep and not _is_completed_epic(ep, completed_slugs):
+            return _resolve_canonical_epic_slug(repo_path, ep)
+    return None
+
+
 def resolve_active_epic(repo_path: Path) -> str | None:
-    """Derive active epic from branch name, active worktrees, state snapshot files, or git worktree directories."""
+    """Derive active epic from worktrees, branches, active snapshots, pending decisions, or features."""
     # 0. Get completed slugs from PROJECT_LEDGER.md, archive, and HLD Status: Done
     completed_slugs = get_completed_epic_slugs(repo_path)
 
@@ -441,9 +693,9 @@ def resolve_active_epic(repo_path: Path) -> str | None:
         if wt.branch:
             m_br = re.match(r"(?:epic|feat)/([a-zA-Z0-9_\-]+)", wt.branch)
             if m_br:
-                slug = m_br.group(1).strip()
-                if slug not in completed_slugs:
-                    return slug
+                raw_slug = _strip_slot_suffix(m_br.group(1))
+                if raw_slug and not _is_completed_epic(raw_slug, completed_slugs):
+                    return _resolve_canonical_epic_slug(repo_path, raw_slug)
 
     # 2. Check active worktrees under .worktrees/ (prioritize worktrees with git changes or tasks)
     wt_dir = repo_path / ".worktrees"
@@ -465,8 +717,8 @@ def resolve_active_epic(repo_path: Path) -> str | None:
                     m_epic = re.search(r"\.devtool/epic/([a-zA-Z0-9_\-]+)/", line)
                     if m_epic:
                         slug = m_epic.group(1).strip()
-                        if slug not in completed_slugs:
-                            return slug
+                        if not _is_completed_epic(slug, completed_slugs):
+                            return _resolve_canonical_epic_slug(repo_path, slug)
 
             # Check tasks inside worktree features
             wt_feat = d / ".devtool" / "features"
@@ -475,13 +727,15 @@ def resolve_active_epic(repo_path: Path) -> str | None:
                     with contextlib.suppress(OSError):
                         fm = parse_frontmatter(tf.read_text(encoding="utf-8"))
                         ep = fm.get("epic")
-                        if ep and ep != "general" and ep not in completed_slugs:
-                            return ep
+                        if ep and ep != "general" and not _is_completed_epic(ep, completed_slugs):
+                            return _resolve_canonical_epic_slug(repo_path, ep)
 
-            # Check if directory name matches an epic
-            if (repo_path / ".devtool" / "epic" / d.name).is_dir():
-                if d.name not in completed_slugs:
-                    return d.name
+            # Check if directory name (stripped of slot suffix) matches an epic
+            base_name = _strip_slot_suffix(d.name)
+            canonical = _resolve_canonical_epic_slug(repo_path, base_name)
+            if (repo_path / ".devtool" / "epic" / canonical).is_dir():
+                if not _is_completed_epic(canonical, completed_slugs):
+                    return canonical
 
     # 3. Check assistant_state.md, skipping placeholder "general" and completed epics
     state_file = repo_path / ".devtool" / "assistant_state.md"
@@ -490,22 +744,28 @@ def resolve_active_epic(repo_path: Path) -> str | None:
             content = state_file.read_text(encoding="utf-8")
             for m in re.finditer(r"#\s*Active Epic:\s*([a-zA-Z0-9_\-]+)", content):
                 slug = m.group(1).strip()
-                if slug and slug != "general" and slug not in completed_slugs:
-                    return slug
+                if slug and slug != "general" and not _is_completed_epic(slug, completed_slugs):
+                    return _resolve_canonical_epic_slug(repo_path, slug)
 
     # 4. Check state folder for non-general state files in deterministic order
     state_dir = repo_path / ".devtool" / "state"
     if state_dir.is_dir():
         for sf in sorted(state_dir.glob("*.md")):
-            if sf.stem != "general" and sf.stem not in completed_slugs:
-                return sf.stem
+            if sf.stem != "general" and not _is_completed_epic(sf.stem, completed_slugs):
+                return _resolve_canonical_epic_slug(repo_path, sf.stem)
 
     # 5. Check .worktrees directory in deterministic order (any worktree not completed)
     if wt_dir.is_dir():
         for d in sorted(wt_dir.iterdir()):
             if d.is_dir() and not d.name.startswith("."):
-                if d.name not in completed_slugs:
-                    return d.name
+                base_name = _strip_slot_suffix(d.name)
+                if base_name and not _is_completed_epic(base_name, completed_slugs):
+                    return _resolve_canonical_epic_slug(repo_path, base_name)
+
+    # 5.5 Check explicit active pending_decision.json entries
+    pending_epic = _resolve_active_epic_from_pending_decision(repo_path, completed_slugs)
+    if pending_epic:
+        return pending_epic
 
     # 6. Check .devtool/features/*.md for epic frontmatter
     features_dir = repo_path / ".devtool" / "features"
@@ -514,23 +774,8 @@ def resolve_active_epic(repo_path: Path) -> str | None:
             with contextlib.suppress(OSError):
                 fm = parse_frontmatter(tf.read_text(encoding="utf-8"))
                 ep = fm.get("epic")
-                if ep and ep != "general" and ep not in completed_slugs:
-                    return ep
-
-    # 7. Check epic folder in deterministic order for uncompleted epics
-    epic_dir = repo_path / ".devtool" / "epic"
-    if epic_dir.is_dir():
-        epics = sorted(
-            [
-                d.name
-                for d in epic_dir.iterdir()
-                if d.is_dir()
-                and not d.name.startswith(".")
-                and d.name not in completed_slugs
-            ]
-        )
-        if epics:
-            return epics[0]
+                if ep and ep != "general" and not _is_completed_epic(ep, completed_slugs):
+                    return _resolve_canonical_epic_slug(repo_path, ep)
 
     return None
 
@@ -770,20 +1015,47 @@ def extract_task_progress(repo_path: Path, active_epic: str | None) -> TaskProgr
     active_task: str | None = None
     all_tasks: list[dict[str, Any]] = []
 
-    # Build fast worktree lookup table (O(1) filesystem check)
+    # Build fast worktree lookup table supporting slot suffixes and linked worktrees
+    known_wts: dict[str, list[Path]] = {}
+    wt_seen: dict[str, set[Path]] = {}
+
+    def _register_wt(key_raw: str, wt_path_obj: Path) -> None:
+        if not wt_path_obj.is_dir():
+            return
+        resolved = wt_path_obj.resolve()
+        for k in (
+            key_raw,
+            _strip_slot_suffix(key_raw),
+            _normalize_slug(_strip_slot_suffix(key_raw)),
+        ):
+            if not k:
+                continue
+            bucket_seen = wt_seen.setdefault(k, set())
+            if resolved not in bucket_seen:
+                bucket_seen.add(resolved)
+                known_wts.setdefault(k, []).append(wt_path_obj)
+
     wt_dir = repo_path / ".worktrees"
-    known_wts: dict[str, Path] = {}
     if wt_dir.is_dir():
-        for item in wt_dir.iterdir():
+        for item in sorted(wt_dir.iterdir()):
             if item.is_dir() and not item.name.startswith("."):
-                known_wts[item.name] = item
-                known_wts[item.name.replace("-", "_")] = item
-                known_wts[item.name.replace("_", "-")] = item
+                _register_wt(item.name, item)
+
+    for wt_meta in scan_worktrees(repo_path):
+        wt_p = Path(wt_meta.path)
+        if wt_p.is_dir() and wt_p.resolve() != repo_path.resolve():
+            _register_wt(wt_p.name, wt_p)
+            if wt_meta.branch:
+                m_br = re.match(r"(?:epic|feat)/([a-zA-Z0-9_\-]+)", wt_meta.branch)
+                if m_br:
+                    _register_wt(m_br.group(1), wt_p)
 
     # Rule 3: For active epic(s) with dedicated worktrees, fetch detailed tasks from worktree
     for ep in candidate_epics:
-        ep_wt = known_wts.get(ep)
-        if ep_wt and ep_wt.is_dir():
+        ep_wts = known_wts.get(ep) or known_wts.get(_normalize_slug(ep)) or []
+        for ep_wt in ep_wts:
+            if not ep_wt.is_dir():
+                continue
             for d in [
                 ep_wt / ".devtool" / "features",
                 ep_wt / ".devtool" / "features" / "done",
@@ -861,12 +1133,10 @@ def extract_task_progress(repo_path: Path, active_epic: str | None) -> TaskProgr
                 content = tf.read_text(encoding="utf-8")
                 fm = parse_frontmatter(content)
                 task_epic = fm.get("epic") or "backlog"
-                if (
-                    candidate_epics
-                    and task_epic not in candidate_epics
-                    and task_epic not in [e.replace("_", "-") for e in candidate_epics]
-                ):
-                    continue
+                if candidate_epics:
+                    norm_candidates = {_normalize_slug(e) for e in candidate_epics}
+                    if _normalize_slug(task_epic) not in norm_candidates:
+                        continue
 
                 seen_tasks.add(task_id)
                 status = normalize_task_status(fm.get("status"))
@@ -926,7 +1196,12 @@ def extract_task_progress(repo_path: Path, active_epic: str | None) -> TaskProgr
     todo = tally["todo"]
     backlog = tally["backlog"]
     review = tally["review"]
-    pct = round((done / total * 100), 1) if total > 0 else 0.0
+    if total <= 0:
+        pct = 0.0
+    elif done >= total:
+        pct = 100.0 if _is_epic_converged_or_done(repo_path, active_epic) else 96.0
+    else:
+        pct = min(95.0, round((done / total * 100), 1))
 
     return TaskProgress(
         total_tasks=total,
@@ -999,82 +1274,297 @@ def extract_repo_note(repo_path: Path) -> str | None:
     return None
 
 
-def _normalize_slug(slug: str) -> str:
-    """Normalize epic slugs for robust comparison across dash/underscore conventions."""
-    return slug.strip().lower().replace("_", "-")
+_UNSET: Any = object()
+
+
+def _read_combined_state_text(repo_path: Path, active_epic: str | None) -> str:
+    """Combine `assistant_state.md` and epic state markdown across root and worktrees."""
+    chunks: list[str] = []
+    seen_files: set[Path] = set()
+    state_names = ["assistant_state.md"]
+    epic_variants: list[str] = []
+    if active_epic:
+        for candidate in (
+            active_epic,
+            active_epic.replace("-", "_"),
+            active_epic.replace("_", "-"),
+        ):
+            if candidate not in epic_variants:
+                epic_variants.append(candidate)
+
+    for devtool_dir in _collect_devtool_dirs(repo_path, active_epic):
+        cand_files: list[Path] = [devtool_dir / name for name in state_names]
+        for variant in epic_variants:
+            cand_files.append(devtool_dir / "state" / f"{variant}.md")
+        for sf in cand_files:
+            if not sf.is_file():
+                continue
+            resolved = sf.resolve()
+            if resolved in seen_files:
+                continue
+            seen_files.add(resolved)
+            with contextlib.suppress(OSError, UnicodeDecodeError):
+                chunks.append(sf.read_text(encoding="utf-8"))
+    return "\n".join(chunks)
+
+
+def _has_review_converged_hint(
+    repo_path: Path,
+    active_epic: str | None,
+    pending_decision: dict[str, Any] | None = None,
+) -> bool:
+    """Return True if runtime state or matching pending decision signals Stage 4 readiness."""
+    lower_state = _read_combined_state_text(repo_path, active_epic).lower()
+    markers = ("review converged", "gate 5", "sign-off", "stage 4", "finish")
+    if any(marker in lower_state for marker in markers):
+        return True
+    if pending_decision and pending_decision.get("active", True) is True:
+        pd_text = " ".join(
+            str(pending_decision.get(k, "")).lower()
+            for k in ("kind", "stage", "reason")
+        )
+        if any(m in pd_text for m in ("gate 5", "sign-off", "stage 4", "finish")):
+            return True
+    return False
+
+
+def _is_epic_converged_or_done(repo_path: Path, active_epic: str | None) -> bool:
+    """Return True only when active_epic is completed or Gate 4+ converged / Gate 5 passed."""
+    if not active_epic:
+        return False
+    completed_slugs = get_completed_epic_slugs(repo_path)
+    if _is_completed_epic(active_epic, completed_slugs):
+        return True
+    gates = parse_gate_ledger_entries(repo_path, active_epic)
+    approved = {int(g["gate"]) for g in gates if "gate" in g}
+    if 5 in approved:
+        return True
+    if 4 in approved:
+        pd_snapshot = _read_state_snapshot(repo_path, "pending_decision.json", {})
+        matched_pd = _match_pending_decision_for_epic(pd_snapshot, active_epic)
+        return _has_review_converged_hint(repo_path, active_epic, matched_pd)
+    return False
+
+
+def _read_jsonl_ledger_file(
+    jsonl_path: Path, norm_active: str | None
+) -> list[dict[str, Any]]:
+    """Read matching gate ledger records from a `gate_ledger.jsonl` file."""
+    rows: list[dict[str, Any]] = []
+    if not jsonl_path.is_file():
+        return rows
+    with contextlib.suppress(OSError, UnicodeDecodeError):
+        for line in jsonl_path.read_text(encoding="utf-8").splitlines():
+            line_str = line.strip()
+            if not line_str:
+                continue
+            with contextlib.suppress(json.JSONDecodeError, TypeError, ValueError):
+                data = json.loads(line_str)
+                if not isinstance(data, dict) or "gate" not in data:
+                    continue
+                int(data["gate"])
+                epic = str(data.get("epic", "")).strip()
+                if not norm_active or not epic or _normalize_slug(epic) == norm_active:
+                    rows.append(data)
+    return rows
+
+
+def _read_markdown_ledger_file(
+    md_path: Path, norm_active: str | None
+) -> list[dict[str, Any]]:
+    """Read matching gate ledger records from a markdown `GATE_LEDGER.md` table."""
+    rows: list[dict[str, Any]] = []
+    if not md_path.is_file():
+        return rows
+    with contextlib.suppress(OSError, UnicodeDecodeError):
+        for line in md_path.read_text(encoding="utf-8").splitlines():
+            stripped = line.strip()
+            if (
+                not stripped.startswith("|")
+                or stripped.startswith("|---")
+                or "timestamp" in stripped.lower()
+            ):
+                continue
+            cells = [c.strip() for c in stripped.strip("|").split("|")]
+            if len(cells) < 3:
+                continue
+            try:
+                gate_num = int(cells[2])
+            except ValueError:
+                continue
+            epic = cells[1].strip()
+            if not norm_active or not epic or _normalize_slug(epic) == norm_active:
+                rows.append(
+                    {
+                        "timestamp": cells[0],
+                        "epic": epic,
+                        "gate": gate_num,
+                        "commit": cells[3] if len(cells) > 3 else "",
+                        "approved": cells[4] if len(cells) > 4 else "",
+                        "deviations": cells[5] if len(cells) > 5 else "",
+                        "by": cells[6] if len(cells) > 6 else "",
+                    }
+                )
+    return rows
 
 
 def parse_gate_ledger_entries(
     repo_path: Path, active_epic: str | None = None
 ) -> list[dict[str, Any]]:
-    """Parse gate approval entries from state/gate_ledger.jsonl or GATE_LEDGER.md."""
-    entries: list[dict[str, Any]] = []
-    devtool_dir = repo_path / ".devtool"
-    if not devtool_dir.is_dir():
-        return entries
+    """Merge gate approval entries from `state/gate_ledger.jsonl` and `GATE_LEDGER.md` across root and worktrees."""
+    devtool_dirs = _collect_devtool_dirs(repo_path, active_epic=None)
+    if not devtool_dirs:
+        return []
 
     norm_active = _normalize_slug(active_epic) if active_epic else None
+    merged: list[dict[str, Any]] = []
+    seen_keys: set[tuple[str, int, str]] = set()
 
-    jsonl_path = devtool_dir / "state" / "gate_ledger.jsonl"
-    if jsonl_path.is_file():
+    def _append_unique(rows: list[dict[str, Any]]) -> None:
+        for row in rows:
+            with contextlib.suppress(TypeError, ValueError):
+                gate_num = int(row["gate"])
+                row["gate"] = gate_num
+                epic_key = _normalize_slug(str(row.get("epic", "")))
+                ts_key = str(row.get("timestamp", "")).strip()
+                dedup_key = (epic_key, gate_num, ts_key)
+                if dedup_key not in seen_keys:
+                    seen_keys.add(dedup_key)
+                    merged.append(row)
+
+    # Read JSONL sources first (preserving structured metadata), then Markdown tables (no short-circuit)
+    for devtool_dir in devtool_dirs:
+        _append_unique(
+            _read_jsonl_ledger_file(devtool_dir / "state" / "gate_ledger.jsonl", norm_active)
+        )
+    for devtool_dir in devtool_dirs:
+        _append_unique(_read_markdown_ledger_file(devtool_dir / "GATE_LEDGER.md", norm_active))
+
+    merged.sort(key=lambda e: (str(e.get("timestamp", "")), int(e.get("gate", 0))))
+    return merged
+
+
+def _read_epic_heartbeat(
+    repo_path: Path, active_epic: str | None
+) -> dict[str, Any] | None:
+    """Read the highest-generation `<epic_slug>.heartbeat.json` across root and worktrees."""
+    if not active_epic:
+        return None
+    state_env = _load_state_envelope()
+    slug_candidates: list[str] = [
+        active_epic,
+        active_epic.replace("_", "-"),
+        active_epic.replace("-", "_"),
+    ]
+    if state_env is not None:
         with contextlib.suppress(Exception):
-            for line in jsonl_path.read_text(encoding="utf-8").splitlines():
-                line_str = line.strip()
-                if not line_str:
-                    continue
-                with contextlib.suppress(Exception):
-                    data = json.loads(line_str)
-                    if isinstance(data, dict):
-                        epic = str(data.get("epic", ""))
-                        if (
-                            not norm_active
-                            or _normalize_slug(epic) == norm_active
-                            or not epic
-                        ):
-                            entries.append(data)
-            if entries:
-                return entries
+            slug_candidates.append(state_env._sanitize_epic_slug(active_epic))
 
-    md_path = devtool_dir / "GATE_LEDGER.md"
-    if md_path.is_file():
+    filenames: list[str] = []
+    for slug in slug_candidates:
+        fname = f"{slug}.heartbeat.json"
+        if fname not in filenames:
+            filenames.append(fname)
+
+    best_hb: dict[str, Any] | None = None
+    best_key = (-1, "")
+    for fname in filenames:
+        snap = _read_state_snapshot(repo_path, fname, {}, active_epic=active_epic)
+        if not snap:
+            continue
+        if "epic_slug" not in snap and "slots" not in snap and "stage" not in snap:
+            continue
+        gen = snap.get("generation", 0)
+        gen_num = gen if isinstance(gen, int) and not isinstance(gen, bool) else 0
+        key = (gen_num, str(snap.get("updated_at", "")))
+        if key > best_key:
+            best_key = key
+            best_hb = snap
+    return best_hb
+
+
+def _read_quality_state(
+    repo_path: Path, active_epic: str | None
+) -> tuple[dict[str, Any] | None, list[dict[str, Any]]]:
+    """Read `quality_active.json`, expire dead-PID / TTL runs, and isolate active epic vs live concurrent runs."""
+    state_env = _load_state_envelope()
+    devtool_dirs = _collect_devtool_dirs(repo_path, active_epic=None)
+    if state_env is not None:
+        seen = {d.resolve() for d in devtool_dirs if d.is_dir()}
         with contextlib.suppress(Exception):
-            for line in md_path.read_text(encoding="utf-8").splitlines():
-                stripped = line.strip()
-                if (
-                    not stripped.startswith("|")
-                    or stripped.startswith("|---")
-                    or "timestamp" in stripped.lower()
-                ):
-                    continue
-                cells = [c.strip() for c in stripped.strip("|").split("|")]
-                if len(cells) >= 3:
-                    try:
-                        gate_num = int(cells[2])
-                        epic = cells[1]
-                        if (
-                            not norm_active
-                            or _normalize_slug(epic) == norm_active
-                            or not epic
-                        ):
-                            entries.append(
-                                {
-                                    "timestamp": cells[0],
-                                    "epic": epic,
-                                    "gate": gate_num,
-                                    "commit": cells[3] if len(cells) > 3 else "",
-                                    "approved": cells[4] if len(cells) > 4 else "",
-                                    "deviations": cells[5] if len(cells) > 5 else "",
-                                    "by": cells[6] if len(cells) > 6 else "",
-                                }
-                            )
-                    except (ValueError, IndexError):
-                        continue
+            for extra in state_env._collect_target_devtool_dirs(
+                repo_path, "quality_active.json"
+            ):
+                if extra.is_dir() and extra.resolve() not in seen:
+                    seen.add(extra.resolve())
+                    devtool_dirs.append(extra)
+        snapshot, _ = state_env._read_highest_snapshot(
+            devtool_dirs, "quality_active.json", {}
+        )
+    else:
+        snapshot = _read_state_snapshot(repo_path, "quality_active.json", {})
 
-    return entries
+    if not snapshot:
+        return None, []
+
+    runs_map: dict[str, dict[str, Any]] = {}
+    raw_runs = snapshot.get("runs")
+    if isinstance(raw_runs, dict):
+        for run_id, entry in raw_runs.items():
+            if isinstance(entry, dict):
+                runs_map[str(run_id)] = dict(entry)
+    elif isinstance(snapshot.get("run_id"), str) and snapshot["run_id"]:
+        runs_map[snapshot["run_id"]] = dict(snapshot)
+
+    if not runs_map:
+        return None, []
+
+    now_utc = datetime.now(timezone.utc)
+    local_host = socket.gethostname()
+    expired_runs: dict[str, dict[str, Any]] = {}
+    for run_id, entry in runs_map.items():
+        if state_env is not None:
+            expired_runs[run_id] = state_env._expire_stale_quality_entry(
+                entry, now=now_utc, local_host=local_host
+            )
+        else:
+            expired_runs[run_id] = dict(entry)
+
+    sorted_entries = sorted(
+        expired_runs.values(),
+        key=lambda e: (str(e.get("updated_at", "")), str(e.get("run_id", ""))),
+        reverse=True,
+    )
+    quality_runs = [entry for entry in sorted_entries if entry.get("status") == "running"]
+
+    quality_active: dict[str, Any] | None = None
+    if active_epic:
+        norm_epic = _normalize_slug(active_epic)
+        epic_matches = [
+            entry
+            for entry in sorted_entries
+            if _normalize_slug(str(entry.get("epic_slug", ""))) == norm_epic
+        ]
+        if epic_matches:
+            live_epic = [e for e in epic_matches if e.get("status") == "running"]
+            quality_active = live_epic[0] if live_epic else epic_matches[0]
+        else:
+            unscoped = [e for e in sorted_entries if not str(e.get("epic_slug", "")).strip()]
+            live_unscoped = [e for e in unscoped if e.get("status") == "running"]
+            quality_active = (
+                live_unscoped[0] if live_unscoped else (unscoped[0] if unscoped else None)
+            )
+    else:
+        quality_active = quality_runs[0] if quality_runs else sorted_entries[0]
+
+    return quality_active, quality_runs
 
 
 def derive_lifecycle_state(
-    repo_path: Path, active_epic: str | None
+    repo_path: Path,
+    active_epic: str | None,
+    *,
+    pending_decision: Any = _UNSET,
 ) -> LifecycleDecision:
     """Derive deterministic lifecycle state and human action prompt for a repository."""
     if not active_epic:
@@ -1089,19 +1579,17 @@ def derive_lifecycle_state(
     gates = parse_gate_ledger_entries(repo_path, active_epic)
     approved_gate_nums = {int(g["gate"]) for g in gates if "gate" in g}
 
-    # Inspect assistant_state.md and epic-specific state for explicit state hints
-    assistant_state_text = ""
-    assistant_state_file = repo_path / ".devtool" / "assistant_state.md"
-    if assistant_state_file.is_file():
-        with contextlib.suppress(Exception):
-            assistant_state_text = assistant_state_file.read_text(encoding="utf-8")
-
-    epic_state_file = repo_path / ".devtool" / "state" / f"{active_epic}.md"
-    if epic_state_file.is_file():
-        with contextlib.suppress(Exception):
-            assistant_state_text += "\n" + epic_state_file.read_text(encoding="utf-8")
-
+    assistant_state_text = _read_combined_state_text(repo_path, active_epic)
     task_progress = extract_task_progress(repo_path, active_epic)
+
+    matched_pd: dict[str, Any] | None
+    if pending_decision is _UNSET:
+        pd_snapshot = _read_state_snapshot(repo_path, "pending_decision.json", {})
+        matched_pd = _match_pending_decision_for_epic(pd_snapshot, active_epic)
+    else:
+        matched_pd = (
+            dict(pending_decision) if isinstance(pending_decision, dict) else None
+        )
 
     # Gate 5 PASS -> Completed / Idle
     if 5 in approved_gate_nums:
@@ -1131,6 +1619,25 @@ def derive_lifecycle_state(
             is_blocked=True,
         )
 
+    # Explicit runtime pending_decision matching active_epic drives human action visibility
+    if matched_pd and matched_pd.get("active", True) is True:
+        pd_stage = str(
+            matched_pd.get("stage") or LifecycleStage.STAGE_1_INCEPTION.value
+        )
+        pd_reason = str(matched_pd.get("reason") or "Approve Pending Decision")
+        pd_kind = str(matched_pd.get("kind") or "Pending Decision")
+        pd_blocked = bool(
+            matched_pd.get("blocked", False)
+            or "circuit_breaker" in pd_kind.lower()
+        )
+        return LifecycleDecision(
+            stage_name=pd_stage,
+            gate_status=pd_kind,
+            prompt=pd_reason,
+            is_human_action_required=True,
+            is_blocked=pd_blocked,
+        )
+
     # Gate 4 PASS
     if 4 in approved_gate_nums:
         if (
@@ -1156,10 +1663,12 @@ def derive_lifecycle_state(
 
     # Gate 3 PASS
     if 3 in approved_gate_nums:
+        norm_active = _normalize_slug(active_epic)
         active_tasks = [
-            t for t in task_progress.tasks
-            if t.get("epic") in (active_epic, active_epic.replace("-", "_"), active_epic.replace("_", "-"))
-        ] if active_epic else task_progress.tasks
+            t
+            for t in task_progress.tasks
+            if _normalize_slug(str(t.get("epic") or "")) == norm_active
+        ]
         active_total = len(active_tasks)
         active_done = sum(1 for t in active_tasks if t.get("status") == "done")
         if active_total > 0 and active_done == active_total:
@@ -1184,13 +1693,9 @@ def derive_lifecycle_state(
 
     # Gate 2 PASS
     if 2 in approved_gate_nums:
-        epic_dir = repo_path / ".devtool" / "epic" / active_epic
-        handoff_file = epic_dir / "handoff.md"
-        worktree_dir = repo_path / ".worktrees" / active_epic
-        has_worktree = worktree_dir.is_dir() or any(
-            (wt.branch and _normalize_slug(active_epic) in _normalize_slug(wt.branch))
-            or (Path(wt.path).name == active_epic)
-            for wt in scan_worktrees(repo_path)
+        matching_wts = _collect_matching_worktrees(repo_path, active_epic)
+        has_worktree = (repo_path / ".worktrees" / active_epic).is_dir() or bool(
+            matching_wts
         )
 
         # If an active worktree exists, Stage 3 Phase 1 (Order) wins
@@ -1202,8 +1707,21 @@ def derive_lifecycle_state(
                 is_human_action_required=True,
             )
 
+        epic_dirs = [wt / ".devtool" / "epic" / active_epic for wt in matching_wts]
+        epic_dirs.append(repo_path / ".devtool" / "epic" / active_epic)
+        handoff_file = next(
+            (d / "handoff.md" for d in epic_dirs if (d / "handoff.md").is_file()),
+            repo_path / ".devtool" / "epic" / active_epic / "handoff.md",
+        )
         if handoff_file.is_file():
-            principal_review_file = epic_dir / "principal_review.md"
+            principal_review_file = next(
+                (
+                    d / "principal_review.md"
+                    for d in epic_dirs
+                    if (d / "principal_review.md").is_file()
+                ),
+                repo_path / ".devtool" / "epic" / active_epic / "principal_review.md",
+            )
             if (
                 principal_review_file.is_file()
                 and "unconfirmed"
@@ -1237,26 +1755,7 @@ def derive_lifecycle_state(
             is_human_action_required=False,
         )
 
-    # No gates approved yet
-    epic_dir = repo_path / ".devtool" / "epic" / active_epic
-    has_spec = False
-    if epic_dir.is_dir():
-        for f in epic_dir.iterdir():
-            if (
-                f.suffix == ".md"
-                and not f.name.startswith("task_")
-                and "evidence" not in f.name
-            ):
-                has_spec = True
-                break
-    if has_spec:
-        return LifecycleDecision(
-            stage_name=LifecycleStage.STAGE_1_INCEPTION.value,
-            gate_status="Inception",
-            prompt="Approve Gate 1 (Design Spec)",
-            is_human_action_required=True,
-        )
-
+    # No gates approved and no active pending_decision -> Idle
     return LifecycleDecision(
         stage_name=LifecycleStage.IDLE.value,
         gate_status="Idle",
@@ -1265,31 +1764,85 @@ def derive_lifecycle_state(
     )
 
 
+_PIC_LINE_RE = re.compile(
+    r"-\s+\*\*(?:PIC(?:\s*/\s*Assigned\s+Profile)?|Profile|Assigned Profile|Người phụ trách(?: \(PIC\))?)\*\*:\s*(.+)$",
+    re.IGNORECASE | re.MULTILINE,
+)
+
+
+def _clean_pic_candidate(raw_value: str) -> str | None:
+    """Validate and extract a PIC profile identifier, rejecting template placeholders."""
+    stripped = raw_value.strip()
+    if not stripped:
+        return None
+    token = stripped.split()[0].strip("`*_\"'")
+    if token.startswith("<") and token.endswith(">"):
+        return None
+    token = token.lstrip("@").strip("`*_\"',.")
+    if token.lower() in _PIC_PLACEHOLDERS:
+        return None
+    if not re.fullmatch(r"[a-zA-Z0-9_\-]+", token):
+        return None
+    return token
+
+
+def _find_epic_dirs_for_checkout(checkout_root: Path, active_epic: str) -> list[Path]:
+    """Locate matching `.devtool/epic/<epic>` directories inside a single checkout."""
+    epic_base = checkout_root / ".devtool" / "epic"
+    if not epic_base.is_dir():
+        return []
+    matches: list[Path] = []
+    exact = epic_base / active_epic
+    if exact.is_dir():
+        matches.append(exact)
+    target_norm = _normalize_slug(active_epic)
+    with contextlib.suppress(OSError):
+        for entry in sorted(epic_base.iterdir()):
+            if (
+                entry.is_dir()
+                and entry not in matches
+                and _normalize_slug(entry.name) == target_norm
+            ):
+                matches.append(entry)
+    return matches
+
+
 def extract_epic_pic(repo_path: Path, active_epic: str | None) -> str | None:
-    """Extract assigned PIC / profile from active epic HLD or handoff.md if present."""
+    """Extract assigned PIC / profile from worktree and root handoff, HLD, or design docs."""
     if not active_epic:
         return None
-    epic_dir = repo_path / ".devtool" / "epic" / active_epic
-    if not epic_dir.is_dir():
-        return None
-    candidates = [
-        epic_dir / "handoff.md",
-        epic_dir / f"{active_epic}.en.md",
-        epic_dir / f"{active_epic}.vi.md",
-    ]
-    for c in candidates:
-        if c.is_file():
-            try:
-                text = c.read_text(encoding="utf-8")
-                m = re.search(
-                    r"-\s+\*\*(?:PIC|Profile|Assigned Profile|Người phụ trách(?: \(PIC\))?)\*\*:\s*`?([a-zA-Z0-9_\-]+)`?",
-                    text,
-                    re.IGNORECASE,
-                )
-                if m:
-                    return m.group(1).strip()
-            except Exception:  # noqa: S110
-                pass
+
+    checkouts = [*_collect_matching_worktrees(repo_path, active_epic), repo_path]
+    candidates: list[Path] = []
+    seen_paths: set[Path] = set()
+
+    def _add_candidate(path_obj: Path) -> None:
+        if not path_obj.is_file():
+            return
+        resolved = path_obj.resolve()
+        if resolved not in seen_paths:
+            seen_paths.add(resolved)
+            candidates.append(path_obj)
+
+    for checkout in checkouts:
+        for epic_dir in _find_epic_dirs_for_checkout(checkout, active_epic):
+            _add_candidate(epic_dir / "handoff.md")
+            _add_candidate(epic_dir / f"{epic_dir.name}.en.md")
+            _add_candidate(epic_dir / f"{active_epic}.en.md")
+            _add_candidate(epic_dir / f"{epic_dir.name}.vi.md")
+            _add_candidate(epic_dir / f"{active_epic}.vi.md")
+            with contextlib.suppress(OSError):
+                for doc in sorted(epic_dir.glob("*.md")):
+                    if "design" in doc.name.lower() and not doc.name.startswith("task_"):
+                        _add_candidate(doc)
+
+    for candidate in candidates:
+        with contextlib.suppress(OSError, UnicodeDecodeError):
+            text = candidate.read_text(encoding="utf-8")
+            for m in _PIC_LINE_RE.finditer(text):
+                cleaned = _clean_pic_candidate(m.group(1))
+                if cleaned:
+                    return cleaned
     return None
 
 
@@ -1302,20 +1855,27 @@ def scan_repo(repo_path: Path) -> RepoMetadata:
     quick_note = extract_repo_note(repo_path)
     epics_summary = harvest_epics_overview(repo_path)
 
-    # 2. Epic-level: detailed task progress & lifecycle from .worktrees/<active_epic>
+    # 2. Epic-level: active epic, state envelopes, task progress, and PIC
     active_epic = resolve_active_epic(repo_path)
     task_progress = extract_task_progress(repo_path, active_epic)
 
-    # 1. First priority: Extract account ID / PIC directly from active epic metadata (SSOT)
+    # First priority: PIC directly from active epic metadata (worktree + root)
     account_id = extract_epic_pic(repo_path, active_epic)
 
-    # 2. Second priority: Extract account ID from window_title if available
+    # Second priority: Extract account ID from window_title if available
     if not account_id:
         m_acc = re.search(r"\[@([a-zA-Z0-9_\-]+)\]", window_title)
         if m_acc:
             account_id = m_acc.group(1)
 
-    decision = derive_lifecycle_state(repo_path, active_epic)
+    pd_snapshot = _read_state_snapshot(repo_path, "pending_decision.json", {})
+    matched_pending = _match_pending_decision_for_epic(pd_snapshot, active_epic)
+    heartbeat = _read_epic_heartbeat(repo_path, active_epic)
+    quality_active, quality_runs = _read_quality_state(repo_path, active_epic)
+
+    decision = derive_lifecycle_state(
+        repo_path, active_epic, pending_decision=matched_pending
+    )
     active_stage = decision.stage_name
 
     # Propagate deterministic action requirements to each epic in epics_summary
@@ -1323,27 +1883,45 @@ def scan_repo(repo_path: Path) -> RepoMetadata:
     if epics_summary and epics_summary.epics:
         for ep in epics_summary.epics:
             slug = ep.get("slug", "")
-            if ep.get("status") == "done" or slug in completed_slugs:
+            if ep.get("status") == "done" or _is_completed_epic(slug, completed_slugs):
                 ep["is_action_required"] = False
                 ep["action_prompt"] = ""
                 ep["is_review_converged"] = True
                 continue
             if active_epic and _normalize_slug(slug) == _normalize_slug(active_epic):
                 ep["is_action_required"] = decision.is_human_action_required
-                ep["action_prompt"] = decision.prompt if decision.is_human_action_required else ""
-                ep["is_review_converged"] = (decision.stage_name == LifecycleStage.STAGE_3_PHASE_4_1_SIGNOFF.value)
+                ep["action_prompt"] = (
+                    decision.prompt if decision.is_human_action_required else ""
+                )
+                ep["is_review_converged"] = (
+                    decision.stage_name == LifecycleStage.STAGE_3_PHASE_4_1_SIGNOFF.value
+                )
             else:
-                state_f = repo_path / ".devtool" / "state" / f"{slug}.md"
-                ep_act = False
+                ep_pd = _match_pending_decision_for_epic(pd_snapshot, slug)
+                ep_act = bool(ep_pd and ep_pd.get("active", True) is True)
+                ep_prompt = str(ep_pd.get("reason", "")) if ep_act and ep_pd else ""
                 ep_conv = False
+                state_f = repo_path / ".devtool" / "state" / f"{slug}.md"
                 if state_f.is_file():
                     with contextlib.suppress(Exception):
                         st_lower = state_f.read_text(encoding="utf-8").lower()
-                        if any(k in st_lower for k in ("action required", "cần bạn xác nhận", "waiting for user")):
+                        if not ep_act and any(
+                            k in st_lower
+                            for k in (
+                                "action required",
+                                "cần bạn xác nhận",
+                                "waiting for user",
+                            )
+                        ):
                             ep_act = True
-                        if any(k in st_lower for k in ("review converged", "gate 5", "sign-off", "finish")):
+                        if any(
+                            k in st_lower
+                            for k in ("review converged", "gate 5", "sign-off", "finish")
+                        ):
                             ep_conv = True
                 ep["is_action_required"] = ep_act
+                if ep_prompt and not ep.get("action_prompt"):
+                    ep["action_prompt"] = ep_prompt
                 ep["is_review_converged"] = ep_conv
 
     return RepoMetadata(
@@ -1362,6 +1940,10 @@ def scan_repo(repo_path: Path) -> RepoMetadata:
         epics_summary=epics_summary,
         is_human_action_required=decision.is_human_action_required,
         is_blocked=decision.is_blocked,
+        pending_decision=matched_pending,
+        heartbeat=heartbeat,
+        quality_active=quality_active,
+        quality_runs=quality_runs,
     )
 
 

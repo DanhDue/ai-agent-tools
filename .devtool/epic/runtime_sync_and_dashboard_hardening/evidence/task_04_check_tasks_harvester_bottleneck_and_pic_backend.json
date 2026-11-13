@@ -1,0 +1,195 @@
+{
+  "schema": 1,
+  "task": "task_04_check_tasks_harvester_bottleneck_and_pic_backend",
+  "runs": {
+    "red": {
+      "head": "8bc640f58a848c598bcc58b0eb0061fc4dc4efe0",
+      "tree": "d8818b5ff3a81c2427a39fbee394bbf06324e2a2",
+      "patch_id": "dfd2678350af5ca8c2676f02e53408a3c0d50503",
+      "started": "2026-11-13T04:27:29Z",
+      "finished": "2026-11-13T04:27:29Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_rsdh_harvester_and_pic.py::test_rsdh_hp_06_pic_root_worktree_sync",
+          "expect": "exit 1; contains \"failed\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-13T04:27:29Z",
+          "finished": "2026-11-13T04:27:29Z",
+          "output_tail": [
+            "F                                                                        [100%]",
+            "=================================== FAILURES ===================================",
+            "____________________ test_rsdh_hp_06_pic_root_worktree_sync ____________________",
+            "tests/test_rsdh_harvester_and_pic.py:274: in test_rsdh_hp_06_pic_root_worktree_sync",
+            "    assert result.get(\"warnings\") == []",
+            "E   AssertionError: assert None == []",
+            "E    +  where None = <built-in method get of dict object at 0x109741ac0>('warnings')",
+            "E    +    where <built-in method get of dict object at 0x109741ac0> = {'status': 'ok', 'repo': 'demo-repo', 'epic': 'demo_epic', 'pic': 'brother', ...}.get",
+            "=========================== short test summary info ============================",
+            "FAILED tests/test_rsdh_harvester_and_pic.py::test_rsdh_hp_06_pic_root_worktree_sync",
+            "1 failed in 0.16s"
+          ],
+          "output_sha256": "6f6458eb8c3f4cb0a487c5e20b98ca6c9bb45eda86f4f4ce04f44d8ea6fd4c26"
+        }
+      ],
+      "passed": true
+    },
+    "verify": {
+      "head": "8bc640f58a848c598bcc58b0eb0061fc4dc4efe0",
+      "tree": "d8959ae0b758ca9784f7845db9b6912e7f7cd16d",
+      "patch_id": "9987c6a24333fe467e755816a9f917cb2566008e",
+      "started": "2026-11-13T04:38:25Z",
+      "finished": "2026-11-13T04:38:50Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_rsdh_harvester_and_pic.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-13T04:38:25Z",
+          "finished": "2026-11-13T04:38:35Z",
+          "output_tail": [
+            ".........                                                                [100%]",
+            "9 passed in 9.62s"
+          ],
+          "output_sha256": "a9796a86b26edf8f10026a18ffa3c5a9fa08cfdf02d88af93bcb1bc7a0ca546d"
+        },
+        {
+          "id": "V3",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_check_tasks_server.py tests/test_check_tasks_fsm.py tests/test_check_tasks_harvester.py tests/test_check_tasks_cli.py tests/test_check_tasks_e2e.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-13T04:38:35Z",
+          "finished": "2026-11-13T04:38:40Z",
+          "output_tail": [
+            "..........................................                               [100%]",
+            "42 passed in 5.13s"
+          ],
+          "output_sha256": "f5ed92a143cd531662afbd4ba1c07bdf62f8bada7f53dc60756439dce04da562"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py tests/test_check_tasks_fsm.py tests/test_rsdh_harvester_and_pic.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-13T04:38:40Z",
+          "finished": "2026-11-13T04:38:40Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-B",
+          "command": "mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-13T04:38:40Z",
+          "finished": "2026-11-13T04:38:40Z",
+          "output_tail": [
+            "Success: no issues found in 5 source files"
+          ],
+          "output_sha256": "e317872697c2cbfdefa321527a6efe73290dff3a390b0fa8723b87092eccba6a"
+        },
+        {
+          "id": "V6",
+          "phase": "TIER-C",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 --junitxml=build/test-results/task_4.xml tests/test_rsdh_harvester_and_pic.py tests/test_check_tasks_server.py tests/test_check_tasks_fsm.py",
+          "expect": "exit 0; results build/test-results/task_4.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-13T04:38:40Z",
+          "finished": "2026-11-13T04:38:50Z",
+          "output_tail": [
+            "................................                                         [100%]",
+            "32 passed in 9.25s"
+          ],
+          "output_sha256": "3e2397d44fd67802889aefdbe3a3d7230852f83c6a9c156279413765c96b2580",
+          "results": {
+            "path": "build/test-results/task_4.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 7,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_rsdh_hp_06_pic_root_worktree_sync",
+                  "classname": "tests.test_rsdh_harvester_and_pic.TestRsdhHarvesterAndPic_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rsdh_ec_04_idle_repo_no_alphabetical_fallback",
+                  "classname": "tests.test_rsdh_harvester_and_pic.TestRsdhHarvesterAndPic_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rsdh_ec_05_pic_validation_http_400_and_sibling_isolation",
+                  "classname": "tests.test_rsdh_harvester_and_pic.TestRsdhHarvesterAndPic_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rsdh_st_02_gate_ledger_union_root_and_worktree",
+                  "classname": "tests.test_rsdh_harvester_and_pic.TestRsdhHarvesterAndPic_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rsdh_st_04_extract_epic_pic_worktree_and_placeholders",
+                  "classname": "tests.test_rsdh_harvester_and_pic.TestRsdhHarvesterAndPic_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rsdh_ar_03_multi_epic_isolation_quality_runs_and_stale_expiry",
+                  "classname": "tests.test_rsdh_harvester_and_pic.TestRsdhHarvesterAndPic_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_rsdh_fr_04_partial_readonly_failure_warnings_and_counts",
+                  "classname": "tests.test_rsdh_harvester_and_pic.TestRsdhHarvesterAndPic_Integration",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "skills/check-tasks/resources/scripts/check_tasks.py",
+            "skills/check-tasks/resources/scripts/tasks_server.py",
+            "tests/test_check_tasks_fsm.py",
+            "tests/test_rsdh_harvester_and_pic.py"
+          ],
+          "violations": []
+        }
+      ],
+      "passed": true
+    }
+  }
+}
