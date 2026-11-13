@@ -68,6 +68,7 @@ digraph process {
         "Implementer asks questions?" [shape=diamond];
         "Answer questions, provide context" [shape=box];
         "Implementer implements, tests, commits (or records verify, uncommitted), self-reviews" [shape=box];
+        "Selective review required?" [shape=diamond];
         "Generate review package, dispatch task reviewer (./task-reviewer-prompt.md)" [shape=box];
         "Spec ✅ and quality approved?" [shape=diamond];
         "Finding conflicts with plan text?" [shape=diamond];
@@ -95,7 +96,9 @@ digraph process {
     "Implementer asks questions?" -> "Answer questions, provide context" [label="yes"];
     "Answer questions, provide context" -> "Implementer implements, tests, commits (or records verify, uncommitted), self-reviews";
     "Implementer asks questions?" -> "Implementer implements, tests, commits (or records verify, uncommitted), self-reviews" [label="no"];
-    "Implementer implements, tests, commits (or records verify, uncommitted), self-reviews" -> "Generate review package, dispatch task reviewer (./task-reviewer-prompt.md)";
+    "Implementer implements, tests, commits (or records verify, uncommitted), self-reviews" -> "Selective review required?";
+    "Selective review required?" -> "Generate review package, dispatch task reviewer (./task-reviewer-prompt.md)" [label="yes"];
+    "Selective review required?" -> "Append completion to ledger, mark todo complete" [label="no (skip trivial single-file)"];
     "Generate review package, dispatch task reviewer (./task-reviewer-prompt.md)" -> "Spec ✅ and quality approved?";
     "Spec ✅ and quality approved?" -> "Append completion to ledger, mark todo complete" [label="yes"];
     "Spec ✅ and quality approved?" -> "Finding conflicts with plan text?" [label="no"];
@@ -321,16 +324,14 @@ rush it into implementation.
 
 ### 3. Review the task
 
-Per-task reviews are task-scoped gates. The broad review happens once, at the
-final whole-branch review. Never skip the task review, and never accept a
-report missing either verdict — spec compliance AND task quality are both
-required. Implementer self-review never replaces the task review; both are
-needed.
+Per-task reviews are selective, task-scoped gates. The broad review happens once, at the final whole-branch review.
 
+- **Selective `task-reviewer` gating:** Dispatch `task-reviewer` **ONLY** when `review_tier: "full"` in task frontmatter, OR task labels include any high-risk trigger (`security`, `architecture`, `concurrency`, `contract`), OR the task modifies `> 2` non-test modules. For trivial single-file or routine tasks without high-risk triggers (where `review_tier` is unset or `skip`), skip `task-reviewer` and rely on implementer self-review, `run_task_checks.py verify`, and the final whole-branch review. Whenever a `task-reviewer` IS dispatched, never accept a report missing either verdict — spec compliance AND task quality are both required.
+- **Rule 3 & Rule 5 discipline:** Require bounded reads (`StartLine`/`EndLine` or `sed -n 'X,Yp'` with symbol search on files `> 200` lines) and enforce the Zero-Fluff Output Cap for subagent narration while preserving Verdicts, Findings tables, gate results, and status contracts.
 - Hand the reviewer its diff as a file: run this skill's
   `scripts/review-package PLAN_FILE BASE HEAD` and pass the reviewer the file path
   it prints (or, without bash: `git log --oneline`, `git diff --stat`,
-  and `git diff -U10` for the range, redirected to one uniquely named
+  and `git diff -U5` for the range, redirected to one uniquely named
   file). For a task with a Verification table the change is uncommitted:
   run `scripts/review-package PLAN_FILE BASE WORKTREE`, which packages the
   working tree against BASE through a temporary index (the real index is

@@ -6,7 +6,7 @@ Autonomous Mode executes software development epics from inception to completion
 
 1. **Human Architect (Role 2.1)**: Owns system strategy, gate milestone sign-offs, and critical conflict resolutions. Halted only when high-risk or domain requirement conflicts occur, or when final merge approval is needed.
 2. **AI Assistant (Role 2.2)**: Evaluates architectural specifications and fix plans. Inherits the developer's configured model (Argon, Claude, Codex) or `--assistant-model`. Emits deterministic verdicts (`APPROVED`, `ADJUSTED`, `CRITICAL_CONFLICT`).
-3. **AI Programmer (Role 2.3)**: Executes implementation tasks and applies code fixes inside isolated git worktrees. Defaults to `gemini-3.8-flash` with `--effort high --mode auto`. Never alters architectural boundaries without approved fix plans.
+3. **AI Programmer (Role 2.3)**: Executes implementation tasks and applies code fixes inside isolated git worktrees. Resolves its model from `.devtool/review_config.json["providers"]["programmer"]` (default `gemini-4-hydrogen-xhigh` with `--effort xhigh --mode auto`). Never alters architectural boundaries without approved fix plans.
 
 ## 2. CLI Flags & Invocation
 
@@ -24,7 +24,8 @@ python3 skills/dev-lifecycle/resources/scripts/lifecycle_runner.py --epic <epic_
 - `--reset-stage <stage>`: Resets state machine to a specific stage (`initialized`, `principal_review`, `implementation`, `cross_model_review`, `awaiting_finish`).
 - `--confirm-fixes`: Confirms proposed fixes while in `awaiting_principal_confirmation`.
 - `--reject-fixes`: Rejects proposed fixes while in `awaiting_principal_confirmation` and halts.
-- `--programmer-model <model>`: Model identifier for AI Programmer (default: `gemini-3.8-flash`).
+- `--programmer-model <model>`: Model identifier for AI Programmer (defaults to `.devtool/review_config.json["providers"]["programmer"]` / `gemini-4-hydrogen-xhigh`).
+- `--programmer-effort <effort>`: Reasoning effort level for AI Programmer (`xhigh`, `high`, `medium`, `low`; normalized per CLI, defaults to `.devtool/review_config.json["providers"]["programmer_effort"]` / `xhigh`).
 - `--assistant-model <model>`: Model override for AI Assistant.
 - `--root <path>`: Workspace root path (defaults to current working directory).
 - `--dry-run`: Simulates execution without spawning child subprocesses.

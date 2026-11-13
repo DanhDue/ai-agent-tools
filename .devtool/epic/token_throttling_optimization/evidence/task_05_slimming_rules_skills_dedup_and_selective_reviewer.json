@@ -1,0 +1,273 @@
+{
+  "schema": 1,
+  "task": "task_05_slimming_rules_skills_dedup_and_selective_reviewer",
+  "runs": {
+    "red": {
+      "head": "193513f13eab2a987cfbd38945ad08f73f3ca4c5",
+      "tree": "68823e0b38c39df50ad3898fb9fc234b78009bca",
+      "patch_id": "cee1a2be0fc917b5d59bea614e449b544405f055",
+      "started": "2026-11-12T22:28:24Z",
+      "finished": "2026-11-12T22:28:25Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_tto_docs_and_slimming.py::test_tto_hp_05_slimmed_rules_and_skills_caps",
+          "expect": "exit 1; contains \"failed\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-12T22:28:24Z",
+          "finished": "2026-11-12T22:28:24Z",
+          "output_tail": [
+            "F                                                                        [100%]",
+            "=================================== FAILURES ===================================",
+            "_________________ test_tto_hp_05_slimmed_rules_and_skills_caps _________________",
+            "tests/test_tto_docs_and_slimming.py:31: in test_tto_hp_05_slimmed_rules_and_skills_caps",
+            "    assert len(critical_rules.encode(\"utf-8\")) <= 8192, (",
+            "E   AssertionError: CRITICAL_RULES.md too large: 32773 bytes > 8192",
+            "E   assert 32773 <= 8192",
+            "E    +  where 32773 = len(b'---\\ntrigger: always_on\\n---\\n\\n# Critical Rules\\n\\n> [!CRITICAL]\\n> These rules are MANDATORY and MUST be strictly ...ce paths and hardware signatures. Profile trajectory databases (`conversation_summaries.db`) must never be cloned.\\n\\n')",
+            "E    +    where b'---\\ntrigger: always_on\\n---\\n\\n# Critical Rules\\n\\n> [!CRITICAL]\\n> These rules are MANDATORY and MUST be strictly ...ce paths and hardware signatures. Profile trajectory databases (`conversation_summaries.db`) must never be cloned.\\n\\n' = <built-in method encode of str object at 0x7cb96c8000>('utf-8')",
+            "E    +      where <built-in method encode of str object at 0x7cb96c8000> = '---\\ntrigger: always_on\\n---\\n\\n# Critical Rules\\n\\n> [!CRITICAL]\\n> These rules are MANDATORY and MUST be strictly a...ce paths and hardware signatures. Profile trajectory databases (`conversation_summaries.db`) must never be cloned.\\n\\n'.encode",
+            "=========================== short test summary info ============================",
+            "FAILED tests/test_tto_docs_and_slimming.py::test_tto_hp_05_slimmed_rules_and_skills_caps",
+            "1 failed in 0.03s"
+          ],
+          "output_sha256": "e4775d4b274d6df4d44b388e1e04de3dc4b79d02233df9bbe68456417efd697a"
+        }
+      ],
+      "passed": true
+    },
+    "verify": {
+      "head": "193513f13eab2a987cfbd38945ad08f73f3ca4c5",
+      "tree": "f1baba38d712e51b8e6390e3c70f00eb89bc0739",
+      "patch_id": "6ce24981791c4b6f3d52e40036d1df9205d77c54",
+      "started": "2026-11-12T22:28:31Z",
+      "finished": "2026-11-12T22:28:39Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_tto_docs_and_slimming.py::test_tto_hp_05_slimmed_rules_and_skills_caps",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-12T22:28:31Z",
+          "finished": "2026-11-12T22:28:31Z",
+          "output_tail": [
+            ".                                                                        [100%]",
+            "1 passed in 0.00s"
+          ],
+          "output_sha256": "bea5a77cc68582c0c66ca0fc860c9b8f449e679bec8d6a9178605ee7b7dc69a3"
+        },
+        {
+          "id": "V3",
+          "phase": "GREEN",
+          "command": "python3 scripts/test_lifecycle_document_contract.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-12T22:28:31Z",
+          "finished": "2026-11-12T22:28:32Z",
+          "output_tail": [
+            ".....................",
+            "----------------------------------------------------------------------",
+            "Ran 21 tests in 0.004s",
+            "OK"
+          ],
+          "output_sha256": "2b390ad0ecc0187ae4c9907c4b66fcd5cf984adc11b10becfdaa3a91cfef8ccd"
+        },
+        {
+          "id": "V4",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_tto_docs_and_slimming.py scripts/test_lifecycle_document_contract.py scripts/test_resume_context.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-12T22:28:32Z",
+          "finished": "2026-11-12T22:28:37Z",
+          "output_tail": [
+            ".....................................................                    [100%]",
+            "53 passed in 5.66s"
+          ],
+          "output_sha256": "4bb82720917797602b3266aace80d43011e2942a80f6ece7ac4ff638f17d422f"
+        },
+        {
+          "id": "V5",
+          "phase": "GREEN",
+          "command": "python3 -m unittest scripts/test_verifiable_handoff_text.py scripts/test_verifiable_handoff.py",
+          "expect": "exit 0; contains \"OK\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-12T22:28:37Z",
+          "finished": "2026-11-12T22:28:38Z",
+          "output_tail": [
+            ".......",
+            "----------------------------------------------------------------------",
+            "Ran 7 tests in 1.074s",
+            "OK"
+          ],
+          "output_sha256": "4ecc8576537c88adb86a89dfb2e45a5233c3ef43191f0845841d195f760657ff"
+        },
+        {
+          "id": "V6",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_tto_docs_and_slimming.py::test_tto_hp_05_lifecycle_word_caps",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-12T22:28:38Z",
+          "finished": "2026-11-12T22:28:39Z",
+          "output_tail": [
+            ".                                                                        [100%]",
+            "1 passed in 0.01s"
+          ],
+          "output_sha256": "4bcefcc9f6c645923b9993ccf73ad92e6b400ca25458ea14e095857fc2131342"
+        },
+        {
+          "id": "V7",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py --ignore SIM117 scripts/test_lifecycle_document_contract.py tests/test_tto_docs_and_slimming.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-12T22:28:39Z",
+          "finished": "2026-11-12T22:28:39Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V8",
+          "phase": "TIER-B",
+          "command": "mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py tests/test_tto_docs_and_slimming.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-12T22:28:39Z",
+          "finished": "2026-11-12T22:28:39Z",
+          "output_tail": [
+            "Success: no issues found in 6 source files"
+          ],
+          "output_sha256": "ab35ee42183d4d6d3ba483825ab037d18a5a15622d03be01d82220b1564851ff"
+        },
+        {
+          "id": "V9",
+          "phase": "TIER-C",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 --junitxml=build/test-results/task_5.xml tests/test_tto_docs_and_slimming.py",
+          "expect": "exit 0; results build/test-results/task_5.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-12T22:28:39Z",
+          "finished": "2026-11-12T22:28:39Z",
+          "output_tail": [
+            ".......                                                                  [100%]",
+            "7 passed in 0.01s"
+          ],
+          "output_sha256": "f82ef5dfe7698ffb764de054a81d190d7df4e7119218d436d12350d7af175f80",
+          "results": {
+            "path": "build/test-results/task_5.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 7,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_tto_hp_05_slimmed_rules_and_skills_caps",
+                  "classname": "tests.test_tto_docs_and_slimming",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_tto_hp_05_lifecycle_word_caps",
+                  "classname": "tests.test_tto_docs_and_slimming",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_tto_ec_05_selective_task_reviewer_and_prompt_rules",
+                  "classname": "tests.test_tto_docs_and_slimming",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_tto_st_05_pre_finish_bilingual_sync_hook",
+                  "classname": "tests.test_tto_docs_and_slimming",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_tto_hp_05_integration",
+                  "classname": "tests.test_tto_docs_and_slimming.TestTTODocsAndSlimming_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_tto_ec_05_integration",
+                  "classname": "tests.test_tto_docs_and_slimming.TestTTODocsAndSlimming_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_tto_st_05_integration",
+                  "classname": "tests.test_tto_docs_and_slimming.TestTTODocsAndSlimming_Integration",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "docs/lifecycles.en.md",
+            "docs/lifecycles.vi.md",
+            "rules/CRITICAL_RULES.md",
+            "skills/cross-model-review/references/local-review-setup.md",
+            "skills/cross-model-review/references/review-triage.md",
+            "skills/dev-designer/SKILL.md",
+            "skills/dev-designer/references/task-template-examples.md",
+            "skills/dev-designer/references/verification-rows.md",
+            "skills/dev-implementation/SKILL.md",
+            "skills/dev-implementation/references/local-review-setup.md",
+            "skills/dev-implementation/references/principal-review-prompt.md",
+            "skills/dev-implementation/references/principal-review-rules.md",
+            "skills/dev-implementation/references/review-rules.md",
+            "skills/dev-implementation/references/review-triage.md",
+            "skills/dev-lifecycle/SKILL.md",
+            "skills/dev-lifecycle/references/autonomous-mode.md",
+            "skills/dev-lifecycle/references/governance-checklists.md",
+            "skills/dev-lifecycle/references/principal-review.md",
+            "skills/finishing-a-development-branch/SKILL.md",
+            "skills/principal-review/SKILL.md",
+            "skills/principal-review/references/principal-review-rules.md",
+            "skills/subagent-driven-development/SKILL.md",
+            "skills/subagent-driven-development/implementer-prompt.md",
+            "skills/task-observer/SKILL.md",
+            "tests/test_tto_docs_and_slimming.py"
+          ],
+          "violations": []
+        }
+      ],
+      "passed": true
+    }
+  }
+}

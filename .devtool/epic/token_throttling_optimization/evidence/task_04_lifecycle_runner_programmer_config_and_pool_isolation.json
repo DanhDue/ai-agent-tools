@@ -1,0 +1,218 @@
+{
+  "schema": 1,
+  "task": "task_04_lifecycle_runner_programmer_config_and_pool_isolation",
+  "runs": {
+    "red": {
+      "head": "6e5e25a9f6fbaa705c3490111959729b5ec25112",
+      "tree": "309a114bda08c7ef54e69bb28da659a8ee5df849",
+      "patch_id": "be54398ea54e4e1f1cd4f901213f57408d4d1439",
+      "started": "2026-11-12T22:30:10Z",
+      "finished": "2026-11-12T22:30:10Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_lifecycle_runner.py::test_tto_hp_04_runner_config_precedence",
+          "expect": "exit 1; contains \"failed\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-12T22:30:10Z",
+          "finished": "2026-11-12T22:30:10Z",
+          "output_tail": [
+            "F                                                                        [100%]",
+            "=================================== FAILURES ===================================",
+            "___________________ test_tto_hp_04_runner_config_precedence ____________________",
+            "tests/test_lifecycle_runner.py:714: in test_tto_hp_04_runner_config_precedence",
+            "    assert cfg.resolve_programmer_model(root) == \"gemini-4-hydrogen-xhigh\"",
+            "           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+            "E   AttributeError: 'RunnerConfig' object has no attribute 'resolve_programmer_model'",
+            "=========================== short test summary info ============================",
+            "FAILED tests/test_lifecycle_runner.py::test_tto_hp_04_runner_config_precedence",
+            "1 failed in 0.05s"
+          ],
+          "output_sha256": "fdd7e89d0532a76c52ffeb6070af3e9e361dc35e775b73b6d14063bf214d7309"
+        }
+      ],
+      "passed": true
+    },
+    "verify": {
+      "head": "6e5e25a9f6fbaa705c3490111959729b5ec25112",
+      "tree": "b06080f77e53154353f70385221addeab135a22d",
+      "patch_id": "8ad3fd913d9135321a1fd9ed4d732e3d218661d1",
+      "started": "2026-11-12T22:30:21Z",
+      "finished": "2026-11-12T22:30:29Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_lifecycle_runner.py::test_tto_hp_04_runner_config_precedence",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-12T22:30:21Z",
+          "finished": "2026-11-12T22:30:22Z",
+          "output_tail": [
+            ".                                                                        [100%]",
+            "1 passed in 0.02s"
+          ],
+          "output_sha256": "a71df3ef716cabe43ead70bd8311cda3aeadcb986bea501da0ea9262f31c3925"
+        },
+        {
+          "id": "V3",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_lifecycle_runner.py skills/dev-implementation/resources/scripts/test_manage_worker_pool.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-12T22:30:22Z",
+          "finished": "2026-11-12T22:30:25Z",
+          "output_tail": [
+            "....................................                                     [100%]",
+            "36 passed in 3.60s"
+          ],
+          "output_sha256": "4fd1f52a4eaa002496db07b89d9acd7dcf97cb3cd3e8016980da969058ec5c17"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py --ignore SIM117 skills/dev-lifecycle/resources/scripts/lifecycle_runner.py skills/dev-implementation/resources/scripts/manage_worker_pool.py tests/test_lifecycle_runner.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-12T22:30:25Z",
+          "finished": "2026-11-12T22:30:25Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-B",
+          "command": "mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py skills/dev-lifecycle/resources/scripts/lifecycle_runner.py skills/dev-implementation/resources/scripts/manage_worker_pool.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-12T22:30:25Z",
+          "finished": "2026-11-12T22:30:25Z",
+          "output_tail": [
+            "Success: no issues found in 7 source files"
+          ],
+          "output_sha256": "050c52a2b0c61e8b681ef5c485e0bc03340b8d55148e0acef27d744c8be42033"
+        },
+        {
+          "id": "V6",
+          "phase": "TIER-C",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 --junitxml=build/test-results/task_4.xml tests/test_lifecycle_runner.py",
+          "expect": "exit 0; results build/test-results/task_4.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-12T22:30:25Z",
+          "finished": "2026-11-12T22:30:28Z",
+          "output_tail": [
+            "................................                                         [100%]",
+            "32 passed in 2.82s"
+          ],
+          "output_sha256": "a897a15dd0ae69bb7c6a295b41e8d6d8e13dea10a9569abb9e5dc6470584a79e",
+          "results": {
+            "path": "build/test-results/task_4.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 12,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_tto_ar_01_integration",
+                  "classname": "tests.test_lifecycle_runner.TestLifecycleRunner_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_tto_ec_04_integration",
+                  "classname": "tests.test_lifecycle_runner.TestLifecycleRunner_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_tto_fr_03_integration",
+                  "classname": "tests.test_lifecycle_runner.TestLifecycleRunner_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_tto_hp_04_integration",
+                  "classname": "tests.test_lifecycle_runner.TestLifecycleRunner_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_tto_hp_07_integration",
+                  "classname": "tests.test_lifecycle_runner.TestLifecycleRunner_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_tto_st_04_integration",
+                  "classname": "tests.test_lifecycle_runner.TestLifecycleRunner_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_tto_hp_04_runner_config_precedence",
+                  "classname": "tests.test_lifecycle_runner",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_tto_ec_04_effort_normalization_and_cli_args",
+                  "classname": "tests.test_lifecycle_runner",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_tto_fr_03_tail_lines_caps_gate4_and_intermediate_errors",
+                  "classname": "tests.test_lifecycle_runner",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_tto_hp_07_streamlined_code_fix_and_real_executive_report",
+                  "classname": "tests.test_lifecycle_runner",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_tto_st_04_cross_model_escalation_on_contract_or_ambiguity",
+                  "classname": "tests.test_lifecycle_runner",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_tto_ar_01_parallel_pool_dispatch_and_path_only_prompts",
+                  "classname": "tests.test_lifecycle_runner",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "skills/dev-implementation/resources/scripts/manage_worker_pool.py",
+            "skills/dev-lifecycle/resources/scripts/lifecycle_runner.py",
+            "tests/test_lifecycle_runner.py"
+          ],
+          "violations": []
+        }
+      ],
+      "passed": true
+    }
+  }
+}

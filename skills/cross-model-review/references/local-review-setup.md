@@ -1,34 +1,26 @@
 # Local Model Review Setup
 
-Review Choice option 3 sends the finished epic to a model served by a local Ollama:
+Runs local Ollama review passes when selected (`--cli ollama --model <model>`, chosen by the developer from `ollama list`):
 
 ```bash
 python3 skills/dev-implementation/resources/scripts/run_external_review.py run \
   --epic-dir <epic_dir> --base <base_ref> --cli ollama --model <model>
 ```
 
-The developer picks the model from `ollama list`; the agent never picks it.
+For triage and finding rules, see [review-triage.md](review-triage.md) and [review-rules.md](../../dev-implementation/references/review-rules.md).
 
-## What the runner sends
+## What the Runner Sends
 
-- One pass per task commit, then one pass for the epic. Each pass is self-contained, because the model has no tools and cannot open a file.
-- A system message built from `local-review-prompt.md`: the workflow primer, `review-rules.md`, the platform rules for the languages that pass touches, and its checklist. It replaces any `SYSTEM` block of the Modelfile for the duration of the call.
-- No sampling option and no `think` field. Temperature and the other sampling parameters come from the Modelfile. The context is the Modelfile's `num_ctx`; `--num-ctx` overrides it, and 32768 is used when the Modelfile sets none.
-- `--host` defaults to `$OLLAMA_HOST`, then `http://localhost:11434`. `--timeout` applies to each pass.
+- One self-contained pass per task commit plus one epic pass (model has no filesystem tools).
+- System message built from `local-review-prompt.md`, [review-rules.md](../../dev-implementation/references/review-rules.md), language rules, and checklist (overriding Modelfile `SYSTEM` for that call).
+- Temperature/sampling come from the Modelfile; context defaults to Modelfile `num_ctx` (`32768` fallback, overridden via `--num-ctx`).
+- `--host` defaults to `$OLLAMA_HOST` or `http://localhost:11434`; `--timeout` bounds each pass.
 
-## Watching a review
+## Watching a Review
 
-The runner streams every pass and prints `Live logs: <directory>` before the first one. Each pass writes `<n>-<label>.log` there as the model produces it: its thinking first, then a `--- answer ---` line, then the analysis and verdict block. Open a file in the editor, or follow it:
+Live logs stream to `build/local-review/<epic_dir>/<n>-<label>.log` (when `build/` is gitignored; otherwise inside `.git`): `tail -f build/local-review/<epic_dir>/1-<first task id>.log`. Only text after `--- answer ---` reaches `review_results.md`.
 
-```bash
-tail -f build/local-review/<epic_dir>/1-<first task id>.log
-```
-
-The directory is `build/local-review/<epic_dir>` when Git ignores `build/`; otherwise it sits inside the Git directory, at `git rev-parse --git-path local-review/<epic_dir>`. Neither place changes `git status`, so watching never discards a round. Only the answer reaches `review_results.md`.
-
-## A reviewer Modelfile
-
-The reference model used while designing this option, on a 64 GB Mac:
+## Reference Reviewer Modelfile (64 GB Mac)
 
 ```text
 FROM hf.co/unsloth/Qwen3.8-27B-GGUF:Q8_0
@@ -58,19 +50,9 @@ Reasoning effort is set to xhigh. Please think carefully through the task, valid
 """
 ```
 
-Create it with `ollama create qwen38-reviewer -f <path to the Modelfile>`.
-
-- It has no `SYSTEM` block: the runner sends the system message.
-- Its template opens `<think>` without closing it, so the model reasons before it answers. Ollama returns that reasoning in `message.thinking`, which the runner ignores; when a template puts it in `content` instead, the runner keeps only the text after the last `</think>`.
-
-## Thinking turned off by a template
-
-Some imported templates pre-fill an empty `<think>` and `</think>` pair after the assistant turn opens. That is how Qwen's non-thinking mode is selected: the model starts after the reasoning block has already closed. Removing a `<think>` stop token does not change it. Check with `ollama show <model> --modelfile`; if the empty pair is there, override `TEMPLATE` as above.
-
-The review still works with thinking off, because the prompt asks for an `## Analysis` section before the verdict block.
+Create with `ollama create qwen38-reviewer -f <Modelfile>`. No `SYSTEM` block is needed; if an imported template pre-fills empty `<think></think>`, override `TEMPLATE` as above (`ollama show <model> --modelfile` to check).
 
 ## Expectations & Guidance
 
-- Generation runs at about 11 tokens per second and thinking is most of what is generated, so a pass takes 10 to 26 minutes and an eight-pass round several hours. A pass can exceed the default `--timeout 1800`; raise it, or turn thinking off.
-- Loading the model needs its full size in memory and may evict another loaded model.
-- More false positives than a frontier model. Critical and Important findings require a quote, a finding at a path the pass never showed is marked `(location not shown to reviewer)`, and every blocking finding still needs the developer's decision.
+- Passes take ~10–26 minutes at ~11 tok/s (raise `--timeout` from `1800` if needed) and require full model size in memory.
+- Critical/Important findings require a quote; unshown locations carry `(location not shown to reviewer)`. Triage per [review-triage.md](review-triage.md).

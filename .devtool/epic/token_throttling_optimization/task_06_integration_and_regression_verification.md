@@ -1,13 +1,13 @@
 ---
 id: "task_06_integration_and_regression_verification"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "token_throttling_optimization"
 dueDate: null
 created: "2026-11-13T02:36:00Z"
-modified: "2026-11-13T02:36:00Z"
-completedAt: null
+modified: "2026-11-12T22:46:06Z"
+completedAt: "2026-11-12T22:46:06Z"
 labels: ["acceptance", "regression", "verification", "token-optimization"]
 order: "a6"
 ---

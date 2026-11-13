@@ -12,3 +12,7 @@
 | 2026-11-11T07:34:31.785289+00:00 | check_tasks_dashboard | 4 | a8fea65 | Round 1 convergence fixes verified passing (30/30 tests, BDD 14/14, polyglot PASS) |  | developer |
 | 2026-11-12T19:09:43.803156+00:00 | token_throttling_optimization | 1 | 6bbf588 | Approved design spec (2026-11-13-token-throttling-optimization-design.{en,vi}.md): Phase 1+2 token throttling, Option A bilingual, selective task-reviewer, config-driven Programmer Gemini 4 Hydrogen xhigh |  | developer |
 | 2026-11-12T19:38:58.193334+00:00 | token_throttling_optimization | 2 | 5a85217 | 6-task breakdown (TTO-HP-01..FR-04, Waves 1-3) |  | developer |
+| 2026-11-12T21:34:46.391987+00:00 | token_throttling_optimization | 3 | 385a91d | Sequential order: task_01 -> task_02 -> task_03 -> task_04 -> task_05 -> task_06 |  | developer |
+| 2026-11-12T23:00:35.006348+00:00 | token_throttling_optimization | 4 | 385a91d | Gate 4 Local PASS (76bb5a2) |  | developer |
+| 2026-11-12T23:42:28.190802+00:00 | token_throttling_optimization | 4 | 385a91d | Converged at 3b0f4bd: Gate 4 quality_check PASS, audit_epic PASS, 25/25 BDD, verify.sh 48 suites PASS, Cross-Model Review Round 2 PASS |  | AI Programmer + Local Gate 4 |
+| 2026-11-13T01:22:47.856204+00:00 | token_throttling_optimization | 5 | 3b0f4bd | Human Architect approved Gate 5 Option 1 Merge (--no-ff) to main after Cross-Model Review Round 2 PASS and Gate 4 green verification on 3b0f4bd |  | developer |

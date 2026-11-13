@@ -2,9 +2,9 @@
 """Check that every epic BDD scenario is assigned to a task and covered by an integration test.
 
 Usage:
-  check_bdd_traceability.py plan  --scenarios <bdd_scenarios.en.md> --tasks <task_*.md ...>
+  check_bdd_traceability.py plan  --scenarios <bdd_scenarios.en.md> --tasks <task_*.md ...> [--strict-bilingual]
   check_bdd_traceability.py tests --scenarios <bdd_scenarios.en.md> --roots <dir ...> [--ids <ID ...>]
-                                  [--results <report file|dir|glob ...>]
+                                  [--results <report file|dir|glob ...>] [--strict-bilingual]
 
 Exit codes: 0 all covered; 1 traceability failure; 2 usage error.
 """
@@ -79,16 +79,18 @@ def scenario_ids(path: Path) -> tuple[list[str], list[str]]:
     return ids, problems
 
 
-def load_scenarios(path: Path) -> tuple[list[str], list[str]]:
-    """Validate the English document and, when present, its Vietnamese sibling."""
+def load_scenarios(path: Path, *, strict_bilingual: bool = False) -> tuple[list[str], list[str]]:
+    """Validate the scenario document and, under strict_bilingual, its Vietnamese sibling."""
     if not path.is_file():
         raise UsageError(f"scenario document not found: {path}")
     ids, problems = scenario_ids(path)
     if not ids and not problems:
         problems.append(f"{path}: no scenarios found inside gherkin fences")
-    if path.name.endswith(".en.md"):
+    if strict_bilingual and path.name.endswith(".en.md"):
         sibling = path.with_name(path.name[: -len(".en.md")] + ".vi.md")
-        if sibling.is_file():
+        if not sibling.is_file():
+            problems.append(f"{sibling}: missing Vietnamese scenario document (--strict-bilingual)")
+        else:
             vi_ids, vi_problems = scenario_ids(sibling)
             problems.extend(vi_problems)
             missing = sorted(set(ids) - set(vi_ids))
@@ -231,14 +233,24 @@ def main(argv: list[str] | None = None) -> int:
     plan = modes.add_parser("plan", help="every scenario is assigned to exactly one task")
     plan.add_argument("--scenarios", required=True, type=Path)
     plan.add_argument("--tasks", required=True, nargs="+", type=Path)
+    plan.add_argument(
+        "--strict-bilingual",
+        action="store_true",
+        help="require .vi.md sibling presence and exact scenario ID parity",
+    )
     tests = modes.add_parser("tests", help="every scenario has at least one integration test")
     tests.add_argument("--scenarios", required=True, type=Path)
     tests.add_argument("--roots", required=True, nargs="+")
     tests.add_argument("--ids", nargs="+")
     tests.add_argument("--results", nargs="+")
+    tests.add_argument(
+        "--strict-bilingual",
+        action="store_true",
+        help="require .vi.md sibling presence and exact scenario ID parity",
+    )
     args = parser.parse_args(argv)
     try:
-        ids, problems = load_scenarios(args.scenarios)
+        ids, problems = load_scenarios(args.scenarios, strict_bilingual=args.strict_bilingual)
         if problems:
             print("\n".join(problems))
             print("Result: scenario document invalid — FAIL")

@@ -296,7 +296,10 @@ class TestCheckTasksServer_Integration(unittest.TestCase):
 
     def test_build_clean_host_env_and_launch_endpoints_sanitize_env(self) -> None:
         """build_clean_host_env and /api/launch/* sanitize IDE vars and validate profiles."""
-        with patch("os.path.expanduser", return_value="/Users/danhdueexoictif/antigravity_homes/hau"):
+        with patch(
+            "os.path.expanduser",
+            return_value="/Users/danhdueexoictif/antigravity_homes/hau",
+        ):
             self.assertEqual(get_real_home(), "/Users/danhdueexoictif")
             cleaned = build_clean_host_env(
                 {
@@ -314,8 +317,13 @@ class TestCheckTasksServer_Integration(unittest.TestCase):
             self.assertEqual(cleaned["HOME"], "/Users/danhdueexoictif")
             self.assertEqual(cleaned["PATH"], "/opt/homebrew/bin:/usr/bin")
             for k in (
-                "TERM_PROGRAM", "VSCODE_PID", "ELECTRON_RUN_AS_NODE",
-                "ANTIGRAVITY_X", "AGY_PROFILE", "TMPDIR", "ZDOTDIR",
+                "TERM_PROGRAM",
+                "VSCODE_PID",
+                "ELECTRON_RUN_AS_NODE",
+                "ANTIGRAVITY_X",
+                "AGY_PROFILE",
+                "TMPDIR",
+                "ZDOTDIR",
             ):
                 self.assertNotIn(k, cleaned)
 
@@ -332,34 +340,39 @@ class TestCheckTasksServer_Integration(unittest.TestCase):
             "AGY_PROFILE": "danhdue",
             "PATH": "/usr/bin",
         }
-        with patch("os.path.expanduser", return_value="/Users/danhdueexoictif/antigravity_homes/danhdue"):
-            with patch.dict("os.environ", dirty, clear=True):
-                with patch("subprocess.Popen") as mock_popen:
-                    # Invalid profile rejected on /api/launch/cli
-                    handler.path = "/api/launch/cli"
-                    handler.rfile = MagicMock()
-                    handler.rfile.read.return_value = json.dumps(
-                        {"worktree": "/tmp/wt", "profile": "bad;cmd"}
-                    ).encode("utf-8")
-                    handler.do_POST()
-                    mock_popen.assert_not_called()
-                    self.assertEqual(handler._send_json.call_args[0][0], 400)
+        with (
+            patch(
+                "os.path.expanduser",
+                return_value="/Users/danhdueexoictif/antigravity_homes/danhdue",
+            ),
+            patch.dict("os.environ", dirty, clear=True),
+            patch("subprocess.Popen") as mock_popen,
+        ):
+            # Invalid profile rejected on /api/launch/cli
+            handler.path = "/api/launch/cli"
+            handler.rfile = MagicMock()
+            handler.rfile.read.return_value = json.dumps(
+                {"worktree": "/tmp/wt", "profile": "bad;cmd"}
+            ).encode("utf-8")
+            handler.do_POST()
+            mock_popen.assert_not_called()
+            self.assertEqual(handler._send_json.call_args[0][0], 400)
 
-                    # Valid profile on /api/launch/ide gets clean env & detached session
-                    handler._send_json.reset_mock()
-                    handler.path = "/api/launch/ide"
-                    handler.rfile.read.return_value = json.dumps(
-                        {"worktree": "/tmp/wt", "profile": "hau"}
-                    ).encode("utf-8")
-                    handler.do_POST()
-                    mock_popen.assert_called_once()
-                    kwargs = mock_popen.call_args.kwargs
-                    self.assertTrue(kwargs.get("start_new_session"))
-                    passed_env = kwargs["env"]
-                    self.assertEqual(passed_env["HOME"], "/Users/danhdueexoictif")
-                    self.assertNotIn("TERM_PROGRAM", passed_env)
-                    self.assertNotIn("VSCODE_IPC_HOOK", passed_env)
-                    self.assertNotIn("AGY_PROFILE", passed_env)
+            # Valid profile on /api/launch/ide gets clean env & detached session
+            handler._send_json.reset_mock()
+            handler.path = "/api/launch/ide"
+            handler.rfile.read.return_value = json.dumps(
+                {"worktree": "/tmp/wt", "profile": "hau"}
+            ).encode("utf-8")
+            handler.do_POST()
+            mock_popen.assert_called_once()
+            kwargs = mock_popen.call_args.kwargs
+            self.assertTrue(kwargs.get("start_new_session"))
+            passed_env = kwargs["env"]
+            self.assertEqual(passed_env["HOME"], "/Users/danhdueexoictif")
+            self.assertNotIn("TERM_PROGRAM", passed_env)
+            self.assertNotIn("VSCODE_IPC_HOOK", passed_env)
+            self.assertNotIn("AGY_PROFILE", passed_env)
 
     def test_api_profiles_endpoint(self) -> None:
         """Test GET /api/profiles returns list of discovered Antigravity profiles."""

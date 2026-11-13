@@ -1,0 +1,200 @@
+{
+  "schema": 1,
+  "task": "task_01_diff_only_external_review_and_transcript_isolation",
+  "runs": {
+    "red": {
+      "head": "385a91d4edb46b90b60d5e8f4612a99565969935",
+      "tree": "eb2a0b48eaf4a9f966d58117a66e34d26fe12c7e",
+      "patch_id": "1ae048a3e7ce3e67852d75bbefd17ca4b51572b7",
+      "started": "2026-11-12T21:38:59Z",
+      "finished": "2026-11-12T21:39:00Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_tto_external_review.py::test_tto_hp_01_diff_only_round1_and_round2",
+          "expect": "exit 1; contains \"failed\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-12T21:38:59Z",
+          "finished": "2026-11-12T21:39:00Z",
+          "output_tail": [
+            "F                                                                        [100%]",
+            "=================================== FAILURES ===================================",
+            "__________________ test_tto_hp_01_diff_only_round1_and_round2 __________________",
+            "tests/test_tto_external_review.py:170: in test_tto_hp_01_diff_only_round1_and_round2",
+            "    assert \".vi.md\" not in art_text",
+            "E   AssertionError: assert '.vi.md' not in '- `.devtool.../handoff.md`'",
+            "E     ",
+            "E     '.vi.md' is contained here:",
+            "E       emo-design.vi.md`",
+            "E     ?           ++++++",
+            "E       - `.devtool/epic/demo/demo.en.md`",
+            "E       - `.devtool/epic/demo/demo.vi.md`",
+            "E       - `.devtool/epic/demo/bdd_scenarios.en.md`...",
+            "E     ",
+            "E     ...Full output truncated, use '-vv' to show",
+            "=========================== short test summary info ============================",
+            "FAILED tests/test_tto_external_review.py::test_tto_hp_01_diff_only_round1_and_round2",
+            "1 failed in 0.21s"
+          ],
+          "output_sha256": "5088da2945bcb3803136c0d4eb3efc59254823cc709c1c5b9358c8e696fda9a9"
+        }
+      ],
+      "passed": true
+    },
+    "verify": {
+      "head": "385a91d4edb46b90b60d5e8f4612a99565969935",
+      "tree": "0075139726fd7b7c834bc0077a976cce7d7ce7f1",
+      "patch_id": "35b6031a63b998674360218f52926690a3f0c6a7",
+      "started": "2026-11-12T21:49:03Z",
+      "finished": "2026-11-12T21:49:52Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_tto_external_review.py::test_tto_hp_01_diff_only_round1_and_round2",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-12T21:49:03Z",
+          "finished": "2026-11-12T21:49:05Z",
+          "output_tail": [
+            ".                                                                        [100%]",
+            "1 passed in 1.65s"
+          ],
+          "output_sha256": "49ae1d28768606678fb46a3a1115bec23f60c30f324650f113d9783ee5d44d57"
+        },
+        {
+          "id": "V3",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_tto_external_review.py skills/dev-implementation/resources/scripts/test_run_external_review.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-12T21:49:05Z",
+          "finished": "2026-11-12T21:49:45Z",
+          "output_tail": [
+            "..................................................................... [ 87%]",
+            "..........                                                               [100%]",
+            "79 passed, 3 subtests passed in 39.99s"
+          ],
+          "output_sha256": "28c94c5717a76749bfeec20ca564c5b544a77a1b2f71934586b68a583e7ab7d9"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py --ignore SIM117 skills/dev-implementation/resources/scripts/run_external_review.py skills/dev-implementation/resources/scripts/test_run_external_review.py tests/test_tto_external_review.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-12T21:49:45Z",
+          "finished": "2026-11-12T21:49:45Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-B",
+          "command": "mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py skills/dev-implementation/resources/scripts/run_external_review.py skills/dev-implementation/resources/scripts/test_run_external_review.py tests/test_tto_external_review.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-12T21:49:45Z",
+          "finished": "2026-11-12T21:49:45Z",
+          "output_tail": [
+            "Success: no issues found in 8 source files"
+          ],
+          "output_sha256": "157a09cfcdfdfb5977479c5a1c08345149263a3e990a2ec976ef28aaeec9cae6"
+        },
+        {
+          "id": "V6",
+          "phase": "TIER-C",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 --junitxml=build/test-results/task_1.xml tests/test_tto_external_review.py",
+          "expect": "exit 0; results build/test-results/task_1.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-12T21:49:45Z",
+          "finished": "2026-11-12T21:49:52Z",
+          "output_tail": [
+            "......                                                                   [100%]",
+            "6 passed in 6.21s"
+          ],
+          "output_sha256": "100e8624a00dba1c04b3ef42f2c9df96ba262d02d9dd60a2e122c1d08713a8fe",
+          "results": {
+            "path": "build/test-results/task_1.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 6,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_tto_hp_01_diff_only_round1_and_round2",
+                  "classname": "tests.test_tto_external_review",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_tto_ec_01_over_budget_diff_stat_and_hunk_headers",
+                  "classname": "tests.test_tto_external_review",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_tto_st_01_load_review_config_migrates_legacy_and_preserves_custom",
+                  "classname": "tests.test_tto_external_review",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_tto_fr_01_quiet_facts_and_raw_log_offloading",
+                  "classname": "tests.test_tto_external_review",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_tto_hp_01_integration",
+                  "classname": "tests.test_tto_external_review.TestTTOExternalReview_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_tto_fr_01_integration",
+                  "classname": "tests.test_tto_external_review.TestTTOExternalReview_Integration",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "skills/dev-implementation/references/external-review-prompt.md",
+            "skills/dev-implementation/resources/scripts/run_external_review.py",
+            "skills/dev-implementation/resources/scripts/test_run_external_review.py",
+            "skills/principal-review/references/principal-review-prompt.md",
+            "skills/subagent-driven-development/scripts/review-package",
+            "tests/test_tto_external_review.py"
+          ],
+          "violations": []
+        }
+      ],
+      "passed": true
+    }
+  }
+}

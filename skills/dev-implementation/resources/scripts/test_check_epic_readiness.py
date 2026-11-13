@@ -561,10 +561,12 @@ Scenario: [DEMO-EC-09] [Tier C - Integration] Uncovered scenario
             f"Expected R1 FAIL mentioning 'check_bdd_traceability.py plan', got:\n{stdout}",
         )
 
-        # Missing bilingual counterpart fails R1
+        # Missing bilingual counterpart is tolerated in Option A default mode and fails R1 under --strict-bilingual
         unpaired = self.root / ".devtool" / "epic" / "demo_epic" / "unpaired-doc.en.md"
         unpaired.write_text("# Unpaired\n\n## Table of Contents\n\n- [Section](#section)\n\n## Section\n\nText\n", encoding="utf-8")
-        code_unpaired, stdout_unpaired, _ = self.run_check("demo_epic")
+        _code_default, stdout_default, _ = self.run_check("demo_epic")
+        self.assertFalse(any("check_document.py" in line for line in stdout_default.splitlines()))
+        code_unpaired, stdout_unpaired, _ = self.run_check("demo_epic", "--strict-bilingual")
         self.assertEqual(code_unpaired, 1)
         self.assertTrue(any("check_document.py" in line for line in stdout_unpaired.splitlines()))
         unpaired.unlink()
@@ -861,7 +863,9 @@ class ReadinessGroundingTest(unittest.TestCase):
 
     def test_grounding_fails_r5_when_verify_task_edit_anchors_is_none(self) -> None:
         """When verify_task_edit_anchors is None, check_grounding reports an R5 FAIL finding."""
-        import check_epic_readiness as cer
+        import check_epic_readiness
+
+        cer: Any = check_epic_readiness
         orig = cer.verify_task_edit_anchors
         try:
             cer.verify_task_edit_anchors = None
@@ -879,6 +883,65 @@ class ReadinessGroundingTest(unittest.TestCase):
             self.assertTrue(any("could not be imported" in f.message for f in r5_fails))
         finally:
             cer.verify_task_edit_anchors = orig
+
+    def test_tto_same_heading_prose_drift_and_strict_bilingual_provenance(self) -> None:
+        """[TTO-ST-03] --strict-bilingual catches same-heading English prose changes and missing/stale digests."""
+        import re
+
+        assert check_epic_readiness is not None
+        cer: Any = check_epic_readiness
+        epic_dir = self.root / ".devtool" / "epic" / "demo_epic"
+        spec_en = epic_dir / "2026-10-22-demo-epic-design.en.md"
+        spec_vi = epic_dir / "2026-10-22-demo-epic-design.vi.md"
+        hld_en = epic_dir / "demo_epic.en.md"
+        hld_vi = epic_dir / "demo_epic.vi.md"
+        review_en = epic_dir / "review_report.en.md"
+
+        # CRLF/LF normalization produces identical 16-hex digest
+        en_text = hld_en.read_text(encoding="utf-8")
+        d_lf = cer.compute_en_sync_digest(en_text)
+        d_crlf = cer.compute_en_sync_digest(en_text.replace("\n", "\r\n") + "\n")
+        self.assertRegex(d_lf, r"^[0-9a-f]{16}$")
+        self.assertEqual(d_lf, d_crlf)
+
+        # Write matching provenance digests to Spec and HLD .vi.md
+        spec_digest = cer.compute_en_sync_digest(spec_en.read_text(encoding="utf-8"))
+        spec_vi.write_text(spec_vi.read_text(encoding="utf-8") + f"\n<!-- sync-en-sha256: {spec_digest} -->\n", encoding="utf-8")
+        hld_vi.write_text(hld_vi.read_text(encoding="utf-8") + f"\n<!-- sync-en-sha256: {d_lf} -->\n", encoding="utf-8")
+
+        # Unpaired review_report.en.md is tolerated in default mode, rejected in --strict-bilingual
+        review_en.write_text("# Review\n\n## Table of Contents\n\n- [Summary](#summary)\n\n## Summary\n\nClean.\n", encoding="utf-8")
+        code_def, stdout_def, _ = self.run_check("demo_epic")
+        self.assertEqual(code_def, 0, stdout_def)
+
+        code_rev_strict, stdout_rev_strict, _ = self.run_check("demo_epic", "--strict-bilingual")
+        self.assertEqual(code_rev_strict, 1, stdout_rev_strict)
+        self.assertTrue(any("review_report.vi.md" in ln for ln in stdout_rev_strict.splitlines()))
+        review_en.unlink()
+
+        # Pass with synced Spec + HLD + bdd_scenarios.vi.md
+        code_ok, stdout_ok, _ = self.run_check("demo_epic", "--strict-bilingual")
+        self.assertEqual(code_ok, 0, stdout_ok)
+
+        # Edit English prose under an identical heading without refreshing HLD .vi.md digest
+        hld_en.write_text(en_text + "\nSame heading, updated English prose.\n", encoding="utf-8")
+        code_default_prose, stdout_default_prose, _ = self.run_check("demo_epic")
+        self.assertEqual(code_default_prose, 0, stdout_default_prose)
+        self.assertIn("R7 PASS", stdout_default_prose)
+
+        code_stale, stdout_stale, _ = self.run_check("demo_epic", "--strict-bilingual")
+        self.assertEqual(code_stale, 1, stdout_stale)
+        self.assertTrue(
+            any(ln.startswith("R7 FAIL") and "stale sync-en-sha256" in ln for ln in stdout_stale.splitlines()),
+            stdout_stale,
+        )
+
+        # Refresh digest -> strict passes again
+        new_digest = cer.compute_en_sync_digest(hld_en.read_text(encoding="utf-8"))
+        self.assertNotEqual(new_digest, d_lf)
+        hld_vi.write_text(re.sub(d_lf, new_digest, hld_vi.read_text(encoding="utf-8")), encoding="utf-8")
+        code_resynced, stdout_resynced, _ = self.run_check("demo_epic", "--strict-bilingual")
+        self.assertEqual(code_resynced, 0, stdout_resynced)
 
 
 class Test_Check_Epic_Readiness_Integration(unittest.TestCase):

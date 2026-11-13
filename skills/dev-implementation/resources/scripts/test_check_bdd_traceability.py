@@ -81,13 +81,45 @@ class DocumentValidationTest(TraceabilityCase):
             "Kịch bản: [PY-HP-01] Thứ nhất", "Khung tình huống: [PY-EC-02] Thứ hai"))
         code, out, _ = self.plan(scenarios, self.covering_task())
         self.assertEqual(code, 0, out)
+        strict_code, strict_out, _ = self.run_cli(
+            "plan", "--scenarios", str(scenarios), "--tasks", str(self.covering_task()), "--strict-bilingual"
+        )
+        self.assertEqual(strict_code, 0, strict_out)
 
     def test_vietnamese_sibling_missing_identifier_fails(self) -> None:
         scenarios = self.scenarios(*TWO)
         self.write("epic/bdd_scenarios.vi.md", gherkin("Kịch bản: [PY-HP-01] Thứ nhất"))
-        code, out, _ = self.plan(scenarios, self.covering_task())
+        # Option A default mode tolerates drifted .vi.md
+        default_code, default_out, _ = self.plan(scenarios, self.covering_task())
+        self.assertEqual(default_code, 0, default_out)
+        # --strict-bilingual requires exact .vi.md parity
+        code, out, _ = self.run_cli(
+            "plan", "--scenarios", str(scenarios), "--tasks", str(self.covering_task()), "--strict-bilingual"
+        )
         self.assertEqual(code, 1)
         self.assertIn("missing identifiers PY-EC-02", out)
+
+    def test_absent_vietnamese_sibling_tolerated_by_default_fails_strict(self) -> None:
+        scenarios = self.scenarios(*TWO)
+        self.write("tests/integration/flow_test.ts", "test('[PY-HP-01] [PY-EC-02] all', () => {});\n")
+        # Default plan and tests modes pass without bdd_scenarios.vi.md
+        p_def, p_out, _ = self.plan(scenarios, self.covering_task())
+        self.assertEqual(p_def, 0, p_out)
+        t_def, t_out, _ = self.run_cli(
+            "tests", "--scenarios", str(scenarios), "--roots", str(self.root / "tests/integration")
+        )
+        self.assertEqual(t_def, 0, t_out)
+        # --strict-bilingual fails both plan and tests modes when bdd_scenarios.vi.md is absent
+        p_strict, p_strict_out, _ = self.run_cli(
+            "plan", "--scenarios", str(scenarios), "--tasks", str(self.covering_task()), "--strict-bilingual"
+        )
+        self.assertEqual(p_strict, 1)
+        self.assertIn("bdd_scenarios.vi.md", p_strict_out)
+        t_strict, t_strict_out, _ = self.run_cli(
+            "tests", "--scenarios", str(scenarios), "--roots", str(self.root / "tests/integration"), "--strict-bilingual"
+        )
+        self.assertEqual(t_strict, 1)
+        self.assertIn("bdd_scenarios.vi.md", t_strict_out)
 
     def test_scenario_lines_outside_gherkin_fences_are_ignored(self) -> None:
         text = gherkin(*TWO) + "\nScenario: prose without an identifier\n" \

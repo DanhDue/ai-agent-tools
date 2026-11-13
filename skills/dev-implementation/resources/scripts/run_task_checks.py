@@ -74,7 +74,7 @@ _cbt: Any = importlib.import_module("check_bdd_traceability")
 UsageError: type[Exception] = _cbt.UsageError
 load_scenarios: Any = _cbt.load_scenarios
 
-TAIL_LINES = 40
+TAIL_LINES = 25
 VERIFY_PHASES = ("GREEN", "TIER-B", "TIER-C")
 STALE = "results not produced by this run"
 
@@ -302,7 +302,8 @@ def run_row(row: Row, root: Path, timeout: int, scenario_ids: list[str]) -> dict
         started = time.time()
         code, output = run_command(row.command, root, timeout)
         text = output.decode("utf-8", "replace")
-        record.update(exit=code, output_tail=text.splitlines()[-TAIL_LINES:],
+        non_empty = [ln for ln in text.splitlines() if ln.strip()]
+        record.update(exit=code, output_tail=non_empty[-TAIL_LINES:],
                       output_sha256=hashlib.sha256(output).hexdigest())
         reason = f"timeout after {timeout} s" if code is None else mismatch(row, code, text)
         if row.phase == "RED":

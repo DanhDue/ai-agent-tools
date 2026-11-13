@@ -95,9 +95,10 @@ If current HEAD differs from `repository_sha`, repository state drifted during e
 
 ### Step 4: Result Contract Validation and Plan Reconciliation
 
-Reconcile collected provider results against the execution plan:
+Reconcile collected provider results against the execution plan (or run the compact polyglot runner with `--execute --compact`, which writes full capability logs under `build/quality/<provider>/<cap>.log` and emits single-line `GATE_PASS:` summaries or at most 25 trailing lines on failure):
 
 ```bash
+python3 skills/quality_check/resources/scripts/verify_polyglot_registry.py .agents/quality/check_quality.json --profile "<profile>" --execute --compact
 python3 skills/quality_check/resources/scripts/validate_quality_contract.py reconcile "<plan_json>" --results "<result_files...>"
 ```
 

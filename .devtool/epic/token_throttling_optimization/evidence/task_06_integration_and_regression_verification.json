@@ -1,0 +1,265 @@
+{
+  "schema": 1,
+  "task": "task_06_integration_and_regression_verification",
+  "runs": {
+    "red": {
+      "head": "58be536876ad2c751724c9eaa13f135c5709c014",
+      "tree": "041bc4dd058188310c1bbcebb8a01cbf03f53b55",
+      "patch_id": "434723e7fb2614c648cf18614590dc16af268628",
+      "started": "2026-11-12T22:43:24Z",
+      "finished": "2026-11-12T22:43:25Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_token_throttling_acceptance.py::test_tto_ec_06_verify_suite_registration",
+          "expect": "exit 1; contains \"failed\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-12T22:43:24Z",
+          "finished": "2026-11-12T22:43:24Z",
+          "output_tail": [
+            "F                                                                        [100%]",
+            "=================================== FAILURES ===================================",
+            "___________________ test_tto_ec_06_verify_suite_registration ___________________",
+            "tests/test_token_throttling_acceptance.py:717: in test_tto_ec_06_verify_suite_registration",
+            "    assert \"export VERIFY_SH_ACTIVE=1\" in verify_text, (",
+            "E   AssertionError: scripts/verify.sh must export VERIFY_SH_ACTIVE=1 to prevent recursive test loops",
+            "E   assert 'export VERIFY_SH_ACTIVE=1' in '#!/usr/bin/env bash\\n# Pre-release checks for the agent kit. Run before publishing — a broken skill\\n# propagates to ...; then\\n  echo \"PASS — safe to publish\"\\nelse\\n  echo \"FAILED — fix the above before publishing\"\\nfi\\nexit \"$FAILED\"\\n'",
+            "=========================== short test summary info ============================",
+            "FAILED tests/test_token_throttling_acceptance.py::test_tto_ec_06_verify_suite_registration",
+            "1 failed in 0.04s"
+          ],
+          "output_sha256": "a49655174bcf4f30b4cd92141e228bce01a6f0ce77285aedc66e313b6e39a881"
+        }
+      ],
+      "passed": true
+    },
+    "verify": {
+      "head": "58be536876ad2c751724c9eaa13f135c5709c014",
+      "tree": "236eeab01e106e7725408a984f072d5204af833d",
+      "patch_id": "38a6efe9c02382960636aef23bda89aa2d325991",
+      "started": "2026-11-12T22:43:33Z",
+      "finished": "2026-11-12T22:45:43Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_token_throttling_acceptance.py::test_tto_ec_06_verify_suite_registration",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-12T22:43:33Z",
+          "finished": "2026-11-12T22:44:14Z",
+          "output_tail": [
+            ".                                                                        [100%]",
+            "1 passed in 40.22s"
+          ],
+          "output_sha256": "0641fd0c1f5e865cce647ccf30df62f0cc853995448f0880c6ee5ac421220c13"
+        },
+        {
+          "id": "V3",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_tto_external_review.py tests/test_polyglot_gate4.py tests/test_tto_bilingual_and_surgical.py tests/test_lifecycle_runner.py tests/test_tto_docs_and_slimming.py tests/test_token_throttling_acceptance.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-12T22:44:14Z",
+          "finished": "2026-11-12T22:44:46Z",
+          "output_tail": [
+            ".......................................................................  [100%]",
+            "71 passed in 32.10s"
+          ],
+          "output_sha256": "2e7eab18f3533d046a0b507087b2de63b396e58bfa7d267dacde4955dc4db39d"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py --ignore SIM117 tests/test_token_throttling_acceptance.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-12T22:44:46Z",
+          "finished": "2026-11-12T22:44:46Z",
+          "output_tail": [
+            "All checks passed!"
+          ],
+          "output_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-B",
+          "command": "mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py tests/test_token_throttling_acceptance.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-12T22:44:46Z",
+          "finished": "2026-11-12T22:44:46Z",
+          "output_tail": [
+            "Success: no issues found in 6 source files"
+          ],
+          "output_sha256": "ab35ee42183d4d6d3ba483825ab037d18a5a15622d03be01d82220b1564851ff"
+        },
+        {
+          "id": "V6",
+          "phase": "TIER-B",
+          "command": "bash scripts/verify.sh --quiet",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-12T22:44:46Z",
+          "finished": "2026-11-12T22:44:48Z",
+          "output_tail": [
+            "  ok   == 1. JSON manifests parse & 1b. Runtime versions and Codex marketplace agree ==",
+            "  ok   == 2. Skill frontmatter is exactly name + description ==",
+            "  ok   == 3. Relative links resolve ==",
+            "  ok   == 4. ToC anchors match headings ==",
+            "  ok   == 5. No stale cross-namespace references ==",
+            "  ok   == 5b. Rule files start with frontmatter ==",
+            "  ok   == 6. Session-start hook emits valid JSON for both runtimes ==",
+            "  ok   == 7. Methodology skills stay faithful to their sources ==",
+            "  ok   == 8. Every supporting skill file is referenced by something ==",
+            "  ok   == 9. The dev-* rename is complete ==",
+            "  ok   == 10. Orchestrators route to a variant, never the router ==",
+            "  ok   == 11–16. Python test suites (CACHED) ==",
+            "PASS — safe to publish"
+          ],
+          "output_sha256": "26a4e389d64a68db0945a0b422067db7b89000f7ee003ea59b43b05165973a90"
+        },
+        {
+          "id": "V7",
+          "phase": "TIER-C",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 --junitxml=build/test-results/task_6.xml tests/test_token_throttling_acceptance.py",
+          "expect": "exit 0; results build/test-results/task_6.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-12T22:44:48Z",
+          "finished": "2026-11-12T22:45:04Z",
+          "output_tail": [
+            "........                                                                 [100%]",
+            "8 passed in 15.10s"
+          ],
+          "output_sha256": "645889b8c3dc59ee8c4a4ebfa08b66c02ac67ff25a507b2a129be1ee35e43f76",
+          "results": {
+            "path": "build/test-results/task_6.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 8,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_tto_hp_08_end_to_end_pipeline",
+                  "classname": "tests.test_token_throttling_acceptance",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_tto_ec_06_verify_suite_registration",
+                  "classname": "tests.test_token_throttling_acceptance",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_tto_ar_02_isolated_context_and_round_logs",
+                  "classname": "tests.test_token_throttling_acceptance",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_tto_fr_04_quantitative_byte_caps_and_fail_loud",
+                  "classname": "tests.test_token_throttling_acceptance",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_tto_hp_08_integration",
+                  "classname": "tests.test_token_throttling_acceptance.TestTTOTokenThrottlingAcceptance_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_tto_ec_06_integration",
+                  "classname": "tests.test_token_throttling_acceptance.TestTTOTokenThrottlingAcceptance_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_tto_ar_02_integration",
+                  "classname": "tests.test_token_throttling_acceptance.TestTTOTokenThrottlingAcceptance_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_tto_fr_04_integration",
+                  "classname": "tests.test_token_throttling_acceptance.TestTTOTokenThrottlingAcceptance_Integration",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "V8",
+          "phase": "TIER-C",
+          "command": "bash scripts/verify.sh --full",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-12T22:45:04Z",
+          "finished": "2026-11-12T22:45:42Z",
+          "output_tail": [
+            "  ok   [§11] tests/test_tto_external_review.py (9.20s)",
+            "  ok   [§11] tests/test_tto_bilingual_and_surgical.py (7.44s)",
+            "  ok   [§11] tests/test_tto_docs_and_slimming.py (0.17s)",
+            "  ok   [§11] tests/test_token_throttling_acceptance.py (16.73s)",
+            "  ok   [§12] skills/finishing-a-development-branch/resources/scripts/test_integrate_branch.py (23.09s)",
+            "  ok   [§13] skills/quality_check/resources/scripts/test_validate_quality_contract.py (0.07s)",
+            "  ok   [§13] skills/quality_check/resources/scripts/test_aggregate_quality_results.py (0.06s)",
+            "  ok   [§13] skills/rust-quality-check/resources/scripts/test_validate_rust_quality.py (0.07s)",
+            "  ok   [§13] skills/python-quality-check/resources/scripts/test_validate_python_quality.py (0.06s)",
+            "  ok   [§13] skills/flutter-quality-check/resources/scripts/test_validate_flutter_quality.py (0.06s)",
+            "  ok   [§13] skills/android-quality-check/resources/scripts/test_validate_android_quality.py (0.06s)",
+            "  ok   [§13] skills/ios-quality-check/resources/scripts/test_validate_ios_quality.py (0.05s)",
+            "  ok   [§13] tests/test_web_quality_provider.py (1.05s)",
+            "  ok   [§13] tests/test_polyglot_gate4.py (3.25s)",
+            "  ok   [§13] tests/test_audit_ui_state_and_styles.py (0.55s)",
+            "  ok   [§13] skills/setup_quality_check/resources/scripts/test_scaffold_quality_manifest.py (0.08s)",
+            "  ok   [§13] skills/quality_check/resources/scripts/test_quality_provider_acceptance.py (3.19s)",
+            "  ok   [§14] skills/setup-shared-contracts/resources/scripts/test_setup_contracts.py (1.60s)",
+            "  ok   [§14] skills/sync-shared-contracts/resources/scripts/test_sync_contracts.py (7.15s)",
+            "  ok   [§15] scripts/test_resume_context.py (8.32s)",
+            "  ok   [§16] skills/refresh-session/resources/scripts/test_refresh_session.py (0.12s)",
+            "  ok   [§17] tests/test_kiro_quota.py (0.11s)",
+            "  ok   [§17] tests/test_agy_quota.py (0.14s)",
+            "  Ran 48 test suites in 36.47s across 14 workers.",
+            "PASS — safe to publish"
+          ],
+          "output_sha256": "7cc97fa3b6d60e554faa506e1e60468236e73618d5ac05f085c0108ed4c0909a"
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "scripts/verify.sh",
+            "tests/test_token_throttling_acceptance.py"
+          ],
+          "violations": []
+        }
+      ],
+      "passed": true
+    }
+  }
+}

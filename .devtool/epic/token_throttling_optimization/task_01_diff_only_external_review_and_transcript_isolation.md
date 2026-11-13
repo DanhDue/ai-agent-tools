@@ -1,13 +1,13 @@
 ---
 id: "task_01_diff_only_external_review_and_transcript_isolation"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "token_throttling_optimization"
 dueDate: null
 created: "2026-11-13T02:30:00Z"
-modified: "2026-11-13T02:30:00Z"
-completedAt: null
+modified: "2026-11-12T21:50:08Z"
+completedAt: "2026-11-12T21:50:08Z"
 labels: ["review", "token-optimization", "config"]
 order: "a1"
 ---

@@ -193,19 +193,36 @@ def parse_worktree_branches(output: str) -> list[tuple[Path, str | None]]:
     return entries
 
 
-def checkout_roots() -> list[Path]:
-    """Every checkout of this repo, main worktree first.
+_SLOT_WORKTREE_RE = re.compile(r"-slot-\d+$")
 
-    The only subprocess boundary in this module -- everything else is pure and
-    directly testable, which is why the test suite needs no git fixtures.
-    """
+
+def _is_slot_worktree(path: Path) -> bool:
+    """Return True if path is an ephemeral parallel worker pool slot worktree."""
+    return path.parent.name == ".worktrees" and bool(_SLOT_WORKTREE_RE.search(path.name))
+
+
+def _current_checkout_root() -> Path | None:
+    """Return current git top-level checkout path, or None if unavailable."""
+    res = subprocess.run(
+        ["git", "rev-parse", "--show-toplevel"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if res.returncode == 0 and res.stdout.strip():
+        return Path(res.stdout.strip())
+    return None
+
+
+def checkout_roots() -> list[Path]:
+    """Every non-slot checkout of this repo, main worktree first."""
     result = subprocess.run(
         ["git", "worktree", "list", "--porcelain"],
         capture_output=True,
         text=True,
         check=True,
     )
-    return parse_worktree_list(result.stdout)
+    return [p for p in parse_worktree_list(result.stdout) if not _is_slot_worktree(p)]
 
 
 def epic_checkout_roots(epic_dir: str) -> list[Path]:
@@ -1138,7 +1155,12 @@ def main() -> None:
                 sys.stderr.write(f"  {failure}\n")
             sys.exit(1)
 
-        roots = checkout_roots()
+        current_root = _current_checkout_root()
+        roots = (
+            [current_root]
+            if current_root is not None and _is_slot_worktree(current_root)
+            else checkout_roots()
+        )
         written, notes = sync_task(roots, args.task_id, args.status)
         for note in notes:
             sys.stderr.write(f"Note: {note}\n")

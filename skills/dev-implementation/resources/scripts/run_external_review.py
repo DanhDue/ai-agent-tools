@@ -46,7 +46,10 @@ PROMPT = SCRIPTS.parent.parent / "references" / "external-review-prompt.md"
 RULES = SCRIPTS.parent.parent / "references" / "review-rules.md"
 KINDS = ("code", "principal", "epic")
 REVIEW_CONFIG_FILE = ".devtool/review_config.json"
-THINKING_LEVELS = ("none", "light", "low", "medium", "high", "extra-high")
+THINKING_LEVELS = ("none", "light", "low", "medium", "high", "xhigh", "extra-high")
+LEGACY_PROGRAMMER_MODELS = frozenset({"gemini-3.8-flash", "gemini-3.8-flash-high"})
+DEFAULT_PROGRAMMER_MODEL = "gemini-4-hydrogen-xhigh"
+DEFAULT_PROGRAMMER_THINKING = "xhigh"
 PROVIDER_PRIORITY: tuple[str, ...] = ("claude", "codex", "kiro", "agy")
 MAX_REVIEW_ROUNDS = 3
 QUOTA_THRESHOLDS: dict[str, float] = {
@@ -83,8 +86,25 @@ DEFAULT_REVIEW_CONFIG: dict[str, Any] = {
             "thinking_level": "high",
             "host": "http://localhost:11434",
         },
+        "assistant": {
+            "model": "claude-opus-5-5-high",
+            "thinking_level": "high",
+        },
+        "programmer": {
+            "model": DEFAULT_PROGRAMMER_MODEL,
+            "thinking_level": DEFAULT_PROGRAMMER_THINKING,
+        },
     },
 }
+
+
+def upgrade_legacy_programmer_provider(pdata: dict[str, Any]) -> tuple[str, str]:
+    """Upgrade legacy programmer model IDs in memory while preserving custom models."""
+    raw_model = str(pdata.get("model") or "").strip()
+    raw_level = str(pdata.get("thinking_level") or "").strip()
+    if not raw_model or raw_model.lower() in LEGACY_PROGRAMMER_MODELS:
+        return DEFAULT_PROGRAMMER_MODEL, DEFAULT_PROGRAMMER_THINKING
+    return raw_model, (raw_level or DEFAULT_PROGRAMMER_THINKING)
 
 
 def _is_git_tracked(root: Path, rel_path: str) -> bool:
@@ -124,6 +144,11 @@ def load_review_config(root: Path) -> dict[str, Any]:
                     cfg["providers"][p].update(pdata)
         if missing_default_provider and not _is_git_tracked(root, REVIEW_CONFIG_FILE):
             save_review_config(root, cfg)
+        prog_pdata = cfg["providers"].get("programmer")
+        if isinstance(prog_pdata, dict):
+            upgraded_model, upgraded_level = upgrade_legacy_programmer_provider(prog_pdata)
+            prog_pdata["model"] = upgraded_model
+            prog_pdata["thinking_level"] = upgraded_level
         return cfg
     except (json.JSONDecodeError, OSError, UnicodeDecodeError):
         return copy.deepcopy(DEFAULT_REVIEW_CONFIG)
@@ -318,31 +343,28 @@ def principal_artefact_lines(root: Path, epic_dir: str) -> str:
     epic_path = root / ".devtool" / "epic" / epic_dir
     lines: list[str] = []
 
-    # 1. *-design.en.md and *-design.vi.md
+    # 1. English design specs (*-design.en.md only; exclude *.vi.md)
     for f in sorted(epic_path.glob("*-design.en.md")):
         lines.append(f"- `.devtool/epic/{epic_dir}/{f.name}`")
-    for f in sorted(epic_path.glob("*-design.vi.md")):
-        lines.append(f"- `.devtool/epic/{epic_dir}/{f.name}`")
 
-    # 2. <epic_dir>.en.md and <epic_dir>.vi.md
-    for ext in (".en.md", ".vi.md"):
-        doc = epic_path / f"{epic_dir}{ext}"
-        if doc.is_file():
-            line = f"- `.devtool/epic/{epic_dir}/{doc.name}`"
-            if line not in lines:
-                lines.append(line)
+    # 2. <epic_dir>.en.md (exclude *.vi.md)
+    hld_doc = epic_path / f"{epic_dir}.en.md"
+    if hld_doc.is_file():
+        line = f"- `.devtool/epic/{epic_dir}/{hld_doc.name}`"
+        if line not in lines:
+            lines.append(line)
 
-    # 3. bdd_scenarios.en.md and bdd_scenarios.vi.md
-    for ext in (".en.md", ".vi.md"):
-        doc = epic_path / f"bdd_scenarios{ext}"
-        if doc.is_file():
-            line = f"- `.devtool/epic/{epic_dir}/{doc.name}`"
-            if line not in lines:
-                lines.append(line)
+    # 3. bdd_scenarios.en.md (exclude *.vi.md)
+    bdd_doc = epic_path / "bdd_scenarios.en.md"
+    if bdd_doc.is_file():
+        line = f"- `.devtool/epic/{epic_dir}/{bdd_doc.name}`"
+        if line not in lines:
+            lines.append(line)
 
     # 4. every task_*.md, sorted
     for t in sorted(epic_path.glob("task_*.md")):
-        lines.append(f"- `.devtool/epic/{epic_dir}/{t.name}`")
+        if not t.name.endswith(".vi.md"):
+            lines.append(f"- `.devtool/epic/{epic_dir}/{t.name}`")
 
     # 5. handoff.md when present
     handoff = epic_path / "handoff.md"
@@ -385,13 +407,14 @@ CYAN = "\033[1;36m"
 RESET = "\033[0m"
 
 EXCLUDES = (
-    # 1. Common Locks, Build & Devtool
+    # 1. Common Locks, Build, Bilingual Companions & Devtool
     ":(exclude)*.lock",
     ":(exclude)*-lock.*",
     ":(exclude)*.lockfile",
     ":(exclude)**/Package.resolved",
     ":(exclude)build/**",
     ":(exclude).devtool/**",
+    ":(exclude)*.vi.md",
     # 2. Flutter / Dart Codegen & FFI Bridge
     ":(exclude)*.g.dart",
     ":(exclude)*.freezed.dart",
@@ -505,13 +528,51 @@ def run_gate(label: str, command: list[str] | str, root: Path, timeout: int,
 
 
 def fact(label: str, code: int | None, out: str, err: str) -> str:
-    return f"$ {label}\nexit {code if code is not None else 'timeout'}\n{(out + err).rstrip()}\n"
+    if code == 0:
+        return f"PASS: {label}\n"
+    combined = f"{out.rstrip()}\n{err}" if out.strip() and err.strip() else (out + err)
+    non_empty = [line for line in combined.splitlines() if line.strip()]
+    tail = "\n".join(non_empty[-25:])
+    status = code if code is not None else "timeout"
+    return f"$ {label}\nexit {status}\n{tail}\n" if tail else f"$ {label}\nexit {status}\n"
+
+
+def _format_audit_output(audit_code: int | None, audit_out: str, audit_err: str) -> str:
+    """Format audit_epic.py output: keep PASS summary plus concise disclosure sections."""
+    if audit_code != 0:
+        return fact("audit_epic.py", audit_code, audit_out, audit_err)
+    sections: list[str] = ["PASS: audit_epic.py"]
+    current_header: str | None = None
+    current_lines: list[str] = []
+
+    def flush() -> None:
+        if current_header is None:
+            return
+        non_empty = [ln.rstrip() for ln in current_lines if ln.strip()]
+        if current_header == "### Evidence" and non_empty and all(ln.endswith(": PASS") for ln in non_empty):
+            sections.append(f"### Evidence: {len(non_empty)}/{len(non_empty)} PASS")
+            return
+        if len(non_empty) == 1 and non_empty[0] == "None":
+            sections.append(f"{current_header}: None")
+            return
+        sections.append(current_header)
+        sections.extend(non_empty or ["None"])
+
+    for line in audit_out.splitlines():
+        if line.startswith("### "):
+            flush()
+            current_header = line.strip()
+            current_lines = []
+        elif current_header is not None and not line.startswith("Result:"):
+            current_lines.append(line)
+    flush()
+    return "\n".join(sections) + "\n"
 
 
 def collect_facts(root: Path, epic_dir: str, base: str, hld_text: str, timeout: int) -> tuple[str, str]:
     audit = [sys.executable, str(SCRIPTS / "audit_epic.py"), "--epic-dir", epic_dir, "--base", base]
     audit_code, audit_out, audit_err = run_gate("audit_epic.py", audit, root, timeout)
-    audit_output = fact("audit_epic.py", audit_code, audit_out, audit_err)
+    audit_output = _format_audit_output(audit_code, audit_out, audit_err)
     results, reports = [], []
     skipped_live_commands: list[str] = []
 
@@ -642,31 +703,40 @@ def collect_facts(root: Path, epic_dir: str, base: str, hld_text: str, timeout: 
 
 def artefact_lines(root: Path, epic_dir: str) -> str:
     folder = root / ".devtool" / "epic" / epic_dir
-    names = sorted(p.name for p in folder.glob("*.md"))
-    spec = [n for n in names if not n.startswith(("task_", "bdd_", epic_dir, "review_results"))]
+    names = sorted(p.name for p in folder.glob("*.md") if not p.name.endswith(".vi.md"))
+    spec = [
+        n
+        for n in names
+        if not n.startswith(("task_", "bdd_", epic_dir, "review_results", "principal_review", "fix_plan_round"))
+    ]
     paths = (spec + [f"{epic_dir}.en.md", "bdd_scenarios.en.md"]
              + [n for n in names if n.startswith("task_")] + ["evidence/"])
     return "\n".join(f"- `.devtool/epic/{epic_dir}/{p}`" for p in paths)
 
 
-def build_diff_section(root: Path, base: str, sha: str, max_lines: int = MAX_DIFF_LINES, max_bytes: int = MAX_DIFF_BYTES) -> str:
-    """Hybrid inlining: always show full --stat; inline filtered diff if within size budget."""
-    full_stat = git_run(
-        root, "diff", "--stat", f"{base}...{sha}", "--", ".", ":(exclude).devtool/**"
-    ).decode("utf-8", "replace").strip()
-    filtered_diff = git_run(
-        root, "diff", f"{base}...{sha}", "--", ".", *EXCLUDES
-    ).decode("utf-8", "replace").strip()
+def _extract_diff_hunk_headers(filtered_diff: str) -> list[str]:
+    prefixes = ("diff --git ", "new file mode ", "deleted file mode ", "rename from ", "rename to ", "--- ", "+++ ", "@@ ")
+    return [line for line in filtered_diff.splitlines() if line.startswith(prefixes)]
 
+
+def _render_diff_payload(
+    full_stat: str,
+    filtered_diff: str,
+    inspect_spec: str,
+    empty_stat_label: str,
+    max_lines: int = MAX_DIFF_LINES,
+    max_bytes: int = MAX_DIFF_BYTES,
+) -> str:
     stat_fence = fence_for(full_stat)
-    stat_block = f"Full file change summary (`git diff --stat`, including locks/codegen):\n\n{stat_fence}text\n{full_stat or '(no changes outside .devtool/)'}\n{stat_fence}\n\n"
-
+    stat_block = (
+        f"Full file change summary (`git diff --stat`, including locks/codegen):\n\n"
+        f"{stat_fence}text\n{full_stat or empty_stat_label}\n{stat_fence}\n\n"
+    )
     if not filtered_diff:
         return stat_block + "No non-excluded source code changes to inline."
 
     line_count = len(filtered_diff.splitlines())
     byte_size = len(filtered_diff.encode("utf-8"))
-
     if line_count <= max_lines and byte_size <= max_bytes:
         diff_fence = fence_for(filtered_diff)
         return (
@@ -676,10 +746,66 @@ def build_diff_section(root: Path, base: str, sha: str, max_lines: int = MAX_DIF
             f"{diff_fence}diff\n{filtered_diff}\n{diff_fence}"
         )
 
-    return (
-        stat_block
-        + f"The source diff is large ({line_count} lines, {byte_size // 1024} KB > inline budget). "
-        f"Do NOT run an unfiltered `git diff`; inspect specific target files via `git diff {base}...{sha} -- <path>` as needed."
+    note = (
+        f"The source diff is large ({line_count} lines, {byte_size // 1024} KB > inline budget). "
+        f"Showing `--stat` and file/`@@` hunk headers; inspect specific target files via `git diff {inspect_spec} -- <path>` as needed."
+    )
+    headers = _extract_diff_hunk_headers(filtered_diff)
+    if not headers:
+        return stat_block + note
+
+    hunk_fence = fence_for("\n".join(headers))
+    prefix = f"{stat_block}{note}\n\n{hunk_fence}diff\n"
+    suffix = f"\n{hunk_fence}"
+    if len((prefix + suffix).encode("utf-8")) > max_bytes and full_stat:
+        stat_lines = full_stat.splitlines()
+        while len(stat_lines) > 1:
+            stat_lines = stat_lines[:-1]
+            candidate_stat = "\n".join([*stat_lines, "... (stat truncated)"])
+            stat_block = (
+                f"Full file change summary (`git diff --stat`, including locks/codegen):\n\n"
+                f"{stat_fence}text\n{candidate_stat}\n{stat_fence}\n\n"
+            )
+            prefix = f"{stat_block}{note}\n\n{hunk_fence}diff\n"
+            if len((prefix + suffix).encode("utf-8")) <= max_bytes:
+                break
+
+    budget = max(0, max_bytes - len((prefix + suffix).encode("utf-8")))
+    kept: list[str] = []
+    used = 0
+    trunc_marker = "# ... (hunk headers truncated to budget)"
+    marker_bytes = len((trunc_marker + "\n").encode("utf-8"))
+    for line in headers:
+        line_bytes = len((line + "\n").encode("utf-8"))
+        if used + line_bytes > budget:
+            while kept and (budget - used) < marker_bytes:
+                popped = kept.pop()
+                used -= len((popped + "\n").encode("utf-8"))
+            if (budget - used) >= marker_bytes and kept:
+                kept.append(trunc_marker)
+            break
+        kept.append(line)
+        used += line_bytes
+    if not kept:
+        return (stat_block + note)[:max_bytes] if len((stat_block + note).encode("utf-8")) > max_bytes else (stat_block + note)
+    return prefix + "\n".join(kept) + suffix
+
+
+def build_diff_section(root: Path, base: str, sha: str, max_lines: int = MAX_DIFF_LINES, max_bytes: int = MAX_DIFF_BYTES) -> str:
+    """Hybrid inlining: always show full --stat; inline filtered diff if within size budget."""
+    full_stat = git_run(
+        root, "diff", "--stat", f"{base}...{sha}", "--", ".", ":(exclude).devtool/**", ":(exclude)*.vi.md"
+    ).decode("utf-8", "replace").strip()
+    filtered_diff = git_run(
+        root, "diff", "-U5", f"{base}...{sha}", "--", ".", *EXCLUDES
+    ).decode("utf-8", "replace").strip()
+    return _render_diff_payload(
+        full_stat,
+        filtered_diff,
+        f"{base}...{sha}",
+        "(no changes outside .devtool/)",
+        max_lines=max_lines,
+        max_bytes=max_bytes,
     )
 
 
@@ -688,34 +814,17 @@ def diff_range(root: Path, base: str, commits: str | None = None) -> tuple[str, 
     commit_spec = commits if commits else f"{base}...HEAD"
     log = git_run(root, "log", "--oneline", commit_spec).decode("utf-8", "replace").strip()
     full_stat = git_run(
-        root, "diff", "--stat", commit_spec, "--", "."
+        root, "diff", "--stat", commit_spec, "--", ".", ":(exclude)*.vi.md"
     ).decode("utf-8", "replace").strip()
     filtered_diff = git_run(
-        root, "diff", commit_spec, "--", ".", *EXCLUDES
+        root, "diff", "-U5", commit_spec, "--", ".", *EXCLUDES
     ).decode("utf-8", "replace").strip()
-
-    stat_fence = fence_for(full_stat)
-    stat_block = f"Full file change summary (`git diff --stat`, including locks/codegen):\n\n{stat_fence}text\n{full_stat or '(no changes)'}\n{stat_fence}\n\n"
-
-    if not filtered_diff:
-        diff_section = stat_block + "No non-excluded source code changes to inline."
-    else:
-        line_count = len(filtered_diff.splitlines())
-        byte_size = len(filtered_diff.encode("utf-8"))
-        if line_count <= MAX_DIFF_LINES and byte_size <= MAX_DIFF_BYTES:
-            diff_fence = fence_for(filtered_diff)
-            diff_section = (
-                stat_block
-                + f"The complete source diff ({line_count} lines, {byte_size // 1024} KB, lock, generated, and noisy metadata/asset files excluded) "
-                f"is inlined below. Do NOT run `git diff` again unless you need to inspect an excluded file:\n\n"
-                f"{diff_fence}diff\n{filtered_diff}\n{diff_fence}"
-            )
-        else:
-            diff_section = (
-                stat_block
-                + f"The source diff is large ({line_count} lines, {byte_size // 1024} KB > inline budget). "
-                f"Do NOT run an unfiltered `git diff`; inspect specific target files via `git diff {commit_spec} -- <path>` as needed."
-            )
+    diff_section = _render_diff_payload(
+        full_stat,
+        filtered_diff,
+        commit_spec,
+        "(no changes)",
+    )
     return log, diff_section
 
 
@@ -757,6 +866,7 @@ def cli_command(cli: str, model: str | None, thinking_level: str | None = None) 
                 "low": "low",
                 "medium": "medium",
                 "high": "high",
+                "xhigh": "xhigh",
                 "extra-high": "xhigh",
             }
             effort = effort_map.get(thinking_level.lower(), "high")
@@ -772,6 +882,7 @@ def cli_command(cli: str, model: str | None, thinking_level: str | None = None) 
                 "low": "low",
                 "medium": "medium",
                 "high": "high",
+                "xhigh": "xhigh",
                 "extra-high": "xhigh",
             }
             effort = effort_map.get(thinking_level.lower(), "high")
@@ -789,6 +900,7 @@ def cli_command(cli: str, model: str | None, thinking_level: str | None = None) 
             "low": "low",
             "medium": "medium",
             "high": "high",
+            "xhigh": "extra-high",
             "extra-high": "extra-high",
             "none": "none",
         }
@@ -893,13 +1005,76 @@ def parse_findings(out: str, verdict: str | None = None) -> list[tuple[str, str,
     return findings
 
 
-def render_round(number: int, meta: dict[str, str], findings: list[tuple[str, str, str]], output: str) -> str:
-    head = "".join(f"- **{key}**: {value}\n" for key, value in meta.items())
+def _condense_round_output(output: str) -> str:
+    """Keep pass headers, verdicts, first --- error --- lines, timeout notices, and brief non-verdict excerpts."""
+    blocks: list[tuple[str | None, list[str]]] = []
+    for line in output.splitlines():
+        if PASS_HEADER.match(line):
+            blocks.append((line, []))
+        elif blocks:
+            blocks[-1][1].append(line)
+        else:
+            blocks.append((None, [line]))
+
+    parts: list[str] = []
+    for header, block_lines in blocks:
+        timeout_lines = [ln for ln in block_lines if ln.startswith("--- timed out after ")]
+        if "--- stderr ---" in block_lines:
+            stdout_lines = block_lines[: block_lines.index("--- stderr ---")]
+        else:
+            stdout_lines = [ln for ln in block_lines if not ln.startswith("--- timed out after ")]
+
+        verdict_lines = [ln for ln in stdout_lines if VERDICT.match(ln)]
+        error_lines: list[str] = []
+        if "--- error ---" in stdout_lines:
+            idx = stdout_lines.index("--- error ---")
+            after = [ln.strip() for ln in stdout_lines[idx + 1 :] if ln.strip()]
+            error_lines = ["--- error ---", *(after[:1])]
+
+        kept: list[str] = []
+        if header:
+            kept.append(header)
+        if verdict_lines or error_lines or timeout_lines:
+            kept.extend(verdict_lines)
+            kept.extend(error_lines)
+            kept.extend(timeout_lines)
+        else:
+            non_empty = [ln for ln in stdout_lines if ln.strip()]
+            kept.extend(non_empty[-5:])
+        if kept:
+            parts.append("\n".join(kept))
+    return "\n\n".join(parts)
+
+
+def render_round(
+    number: int,
+    meta: dict[str, str],
+    findings: list[tuple[str, str, str]],
+    output: str,
+    *,
+    root: Path | None = None,
+    epic_dir: str | None = None,
+    kind: str = "code",
+    sha: str | None = None,
+) -> str:
+    render_meta = dict(meta)
+    if root is not None or epic_dir is not None:
+        base_root = root if root is not None else Path.cwd()
+        epic_name = epic_dir or "review"
+        sha7 = (sha or meta.get("SHA", "") or "unknown")[:7]
+        raw_log_rel = f"build/reviews/{epic_name}_{kind}_round{number}_{sha7}.raw.log"
+        raw_log_path = base_root / raw_log_rel
+        raw_log_path.parent.mkdir(parents=True, exist_ok=True)
+        raw_log_path.write_text(output.rstrip("\n") + "\n", encoding="utf-8")
+        render_meta.setdefault("Raw log", f"`{raw_log_rel}`")
+
+    condensed = _condense_round_output(output)
+    head = "".join(f"- **{key}**: {value}\n" for key, value in render_meta.items())
     table = "| # | Severity | Location | Problem | Decision |\n|---|----------|----------|---------|----------|\n"
     table += "".join(f"| {i} | {sev} | {cell(loc)} | {cell(problem)} |  |\n"
                      for i, (sev, loc, problem) in enumerate(findings, 1))
-    fence = fence_for(output)
-    return f"## Round {number}\n\n{head}\n{table}\nRaw output:\n\n{fence}text\n{output.rstrip()}\n{fence}\n"
+    fence = fence_for(condensed)
+    return f"## Round {number}\n\n{head}\n{table}\nRaw output:\n\n{fence}text\n{condensed.rstrip()}\n{fence}\n"
 
 
 def run_principal_doc(root: Path, args: argparse.Namespace, sha: str) -> int:
@@ -996,13 +1171,13 @@ def delta_round_context(root: Path, args: argparse.Namespace, sha: str, kind: st
         if kind == "principal":
             outside = re.findall(r"`([^`]+)`", principal_artefact_lines(root, args.epic_dir))
             paths = [epic, *dict.fromkeys(p for p in outside if not p.startswith(epic))]
-            diff = git_run(root, "diff", f"{prev_sha}..{sha}", "--", *paths, *records).decode("utf-8", "replace").strip()
+            diff = git_run(root, "diff", "-U5", f"{prev_sha}..{sha}", "--", *paths, *records, ":(exclude)*.vi.md").decode("utf-8", "replace").strip()
         else:
-            diff = git_run(root, "diff", f"{prev_sha}..{sha}", "--", ".", *EXCLUDES, *records).decode("utf-8", "replace").strip()
+            diff = git_run(root, "diff", "-U5", f"{prev_sha}..{sha}", "--", ".", *EXCLUDES, *records).decode("utf-8", "replace").strip()
             if not diff:
-                diff = git_run(root, "diff", f"{prev_sha}..{sha}", "--", ".", *records).decode("utf-8", "replace").strip()
+                diff = git_run(root, "diff", "-U5", f"{prev_sha}..{sha}", "--", ".", *records, ":(exclude)*.vi.md").decode("utf-8", "replace").strip()
         source = git_run(root, "diff", "--stat", f"{prev_sha}..{sha}", "--", ".",
-                         ":(exclude).devtool/**").decode("utf-8", "replace").strip()
+                         ":(exclude).devtool/**", ":(exclude)*.vi.md").decode("utf-8", "replace").strip()
     except ContractError:
         return "", {}
     if not diff or len(diff.splitlines()) > getattr(args, "diff_limit", MAX_DIFF_LINES):
@@ -1302,7 +1477,24 @@ def run(args: argparse.Namespace) -> int:
     if scope:
         print(f"{scope['Scope']}: reviewing the revision delta, not the full epic diff (--full to review everything)",
               file=sys.stderr)
-    diff_section = build_diff_section(root, args.base, sha, max_lines=diff_limit)
+    if round_context and not getattr(args, "full", False):
+        stat_short = git_run(
+            root,
+            "diff",
+            "--shortstat",
+            f"{args.base}...{sha}",
+            "--",
+            ".",
+            ":(exclude).devtool/**",
+            ":(exclude)*.vi.md",
+        ).decode("utf-8", "replace").strip()
+        diff_section = (
+            f"Cumulative branch diff (`git diff --stat {args.base}...{sha}`): "
+            f"{stat_short or '0 files changed'} "
+            "(full base diff omitted in delta round; review `prev_sha..sha` above or pass `--full`)."
+        )
+    else:
+        diff_section = build_diff_section(root, args.base, sha, max_lines=diff_limit)
     prompt = Template(PROMPT.read_text(encoding="utf-8")).safe_substitute(
         rules=RULES.read_text(encoding="utf-8").strip(),
         sha=sha,
@@ -1455,7 +1647,17 @@ def record_round(root: Path, args: argparse.Namespace, sha: str, passes: list[Pa
     if (omitted := "; ".join(f"{item.label}: {', '.join(item.omitted)}" for item in passes if item.omitted)):
         meta["Omitted"] = omitted
     output = "\n\n".join(pass_output(item, number, args) for number, item in enumerate(passes, 1))
-    text = existing.rstrip("\n") + "\n\n" + render_round(round_num, meta, findings, output)
+    rendered = render_round(
+        round_num,
+        meta,
+        findings,
+        output,
+        root=root,
+        epic_dir=args.epic_dir,
+        kind=getattr(args, "kind", "code"),
+        sha=sha,
+    )
+    text = existing.rstrip("\n") + "\n\n" + rendered
     path.write_text(text, encoding="utf-8")
     update_sticky_review_config(root, args.cli, getattr(args, "model", None), getattr(args, "thinking_level", None))
     header = format_triage_header(

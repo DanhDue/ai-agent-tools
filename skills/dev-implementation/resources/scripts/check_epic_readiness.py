@@ -2,11 +2,12 @@
 """Check epic readiness before implementation or review.
 
 Usage:
-    check_epic_readiness.py <epic_dir> [--baseline] [--row-timeout 600]
+    check_epic_readiness.py <epic_dir> [--baseline] [--row-timeout 600] [--strict-bilingual]
 """
 from __future__ import annotations
 
 import argparse
+import hashlib
 import re
 import shlex
 import subprocess
@@ -52,6 +53,16 @@ class Context:
     baseline: bool = False
     row_timeout: int = 600
     replay: bool = False
+    strict_bilingual: bool = False
+
+
+SYNC_EN_DIGEST_RE = re.compile(r"<!--\s*sync-en-sha256:\s*([^\s>]+)\s*-->", re.IGNORECASE)
+
+
+def compute_en_sync_digest(text: str) -> str:
+    """Return 16 lowercase hex chars of SHA-256 over LF-normalized, stripped English markdown."""
+    normalized = text.replace("\r\n", "\n").replace("\r", "\n").strip()
+    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()[:16]
 
 
 def parse_integration_test_roots(hld_text: str) -> list[str]:
@@ -69,6 +80,7 @@ def load_context(
     baseline: bool = False,
     row_timeout: int = 600,
     replay: bool = False,
+    strict_bilingual: bool = False,
 ) -> Context:
     epic_path = root / ".devtool" / "epic" / epic_dir
     hld_path = epic_path / f"{epic_dir}.en.md"
@@ -98,6 +110,7 @@ def load_context(
         baseline=baseline,
         row_timeout=row_timeout,
         replay=replay,
+        strict_bilingual=strict_bilingual,
     )
 
 
@@ -141,6 +154,8 @@ def check_preflight(ctx: Context) -> list[Finding]:
         "--tasks",
         *task_paths_str,
     ]
+    if ctx.strict_bilingual:
+        cmd2.append("--strict-bilingual")
     res2 = subprocess.run(cmd2, check=False, cwd=ctx.root, capture_output=True, text=True, env=rtc.kit_env())
     if res2.returncode != 0:
         last_line = get_last_non_empty_line(res2.stdout, res2.stderr)
@@ -162,14 +177,18 @@ def check_preflight(ctx: Context) -> list[Finding]:
         findings.append(Finding("R1", "FAIL", f"check_task_contract.py --design: {last_line}"))
 
     # 4. check_document.py
-    bilingual_files = sorted(set(epic_path.glob("*.en.md")) | set(epic_path.glob("*.vi.md")))
-    if bilingual_files:
+    if ctx.strict_bilingual:
+        doc_files = sorted(set(epic_path.glob("*.en.md")) | set(epic_path.glob("*.vi.md")))
+        doc_flags = ["--require-toc", "--require-bilingual"]
+    else:
+        doc_files = sorted(epic_path.glob("*.en.md"))
+        doc_flags = ["--require-toc"]
+    if doc_files:
         cmd_doc1 = [
             sys.executable,
             str(LINTER_PATH),
-            "--require-toc",
-            "--require-bilingual",
-            *[str(f) for f in bilingual_files],
+            *doc_flags,
+            *[str(f) for f in doc_files],
         ]
         res_doc1 = subprocess.run(cmd_doc1, check=False, cwd=ctx.root, capture_output=True, text=True, env=rtc.kit_env())
         if res_doc1.returncode != 0:
@@ -328,17 +347,22 @@ def check_bdd_scenarios(ctx: Context) -> list[Finding]:
                     Finding("R3", "FAIL", f"{task_path.name}: {sc_id} differs from bdd_scenarios.en.md")
                 )
 
-    bdd_vi_path = epic_path / "bdd_scenarios.vi.md"
-    if bdd_vi_path.is_file():
-        en_ids, _ = cb.scenario_ids(bdd_en_path)
-        vi_ids, _ = cb.scenario_ids(bdd_vi_path)
-        en_set = set(en_ids)
-        vi_set = set(vi_ids)
-        if en_set != vi_set:
-            for missing_or_extra in sorted(en_set ^ vi_set):
-                findings.append(
-                    Finding("R3", "FAIL", f"bdd_scenarios.vi.md: {missing_or_extra} missing or extra")
-                )
+    if ctx.strict_bilingual:
+        bdd_vi_path = epic_path / "bdd_scenarios.vi.md"
+        if not bdd_vi_path.is_file():
+            findings.append(Finding("R3", "FAIL", "bdd_scenarios.vi.md is missing (--strict-bilingual)"))
+        else:
+            en_ids, _ = cb.scenario_ids(bdd_en_path)
+            vi_ids, vi_problems = cb.scenario_ids(bdd_vi_path)
+            for prob in vi_problems:
+                findings.append(Finding("R3", "FAIL", prob))
+            en_set = set(en_ids)
+            vi_set = set(vi_ids)
+            if en_set != vi_set:
+                for missing_or_extra in sorted(en_set ^ vi_set):
+                    findings.append(
+                        Finding("R3", "FAIL", f"bdd_scenarios.vi.md: {missing_or_extra} missing or extra")
+                    )
 
     return findings
 
@@ -642,35 +666,17 @@ def check_gate4_coverage(ctx: Context) -> list[Finding]:
     return findings
 
 
-def check_metadata(ctx: Context) -> list[Finding]:
+def _check_vi_sync_metadata(ctx: Context, en_errata: list[tuple[str, str]]) -> list[Finding]:
+    """Validate .vi.md mirror presence, metadata parity, and sync-en-sha256 provenance."""
     findings: list[Finding] = []
     epic_path = ctx.root / ".devtool" / "epic" / ctx.epic_dir
-    handoff_file = epic_path / "handoff.md"
-    has_handoff = handoff_file.is_file()
-
-    prereq_dirs, prereq_errors = tc.resolve_prerequisite_epic_dirs(
-        ctx.root, ctx.hld_text, ctx.epic_dir
-    )
-    for err in prereq_errors:
-        findings.append(Finding("R7", "FAIL", err))
-
-    en_errata: list[tuple[str, str]] = []
-    vi_errata: list[tuple[str, str]] = []
-    try:
-        en_errata = tc.parse_spec_errata(ctx.hld_text)
-    except tc.ContractError as err:
-        findings.append(Finding("R7", "FAIL", str(err)))
-        return findings
-
-    vi_file = ctx.root / ".devtool" / "epic" / ctx.epic_dir / f"{ctx.epic_dir}.vi.md"
+    vi_file = epic_path / f"{ctx.epic_dir}.vi.md"
     if vi_file.is_file():
         try:
             vi_text = vi_file.read_text(encoding="utf-8")
             if tc.parse_depends_on_epics(vi_text) != tc.parse_depends_on_epics(ctx.hld_text):
                 findings.append(
-                    Finding(
-                        "R7", "FAIL", "Depends on epic differs between .en.md and .vi.md"
-                    )
+                    Finding("R7", "FAIL", "Depends on epic differs between .en.md and .vi.md")
                 )
             try:
                 vi_errata = tc.parse_spec_errata(vi_text)
@@ -688,6 +694,67 @@ def check_metadata(ctx: Context) -> list[Finding]:
                 )
         except OSError:
             pass
+
+    for en_path in sorted(epic_path.glob("*.en.md")):
+        vi_path = en_path.with_name(en_path.name[: -len(".en.md")] + ".vi.md")
+        is_bdd = en_path.name == "bdd_scenarios.en.md"
+        if not vi_path.is_file():
+            if not is_bdd:
+                findings.append(
+                    Finding(
+                        "R7",
+                        "FAIL",
+                        f"{vi_path.name}: missing Vietnamese mirror (--strict-bilingual)",
+                    )
+                )
+            continue
+        try:
+            en_text = en_path.read_text(encoding="utf-8")
+            vi_text = vi_path.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        matches = SYNC_EN_DIGEST_RE.findall(vi_text)
+        if not matches:
+            if not is_bdd:
+                findings.append(
+                    Finding(
+                        "R7",
+                        "FAIL",
+                        f"{vi_path.name}: missing <!-- sync-en-sha256: <hex16> --> provenance comment",
+                    )
+                )
+            continue
+        expected = compute_en_sync_digest(en_text)
+        recorded = matches[-1].strip().lower()
+        if recorded != expected:
+            findings.append(
+                Finding("R7", "FAIL", f"{vi_path.name}: stale sync-en-sha256 ({recorded} != {expected})")
+            )
+
+    return findings
+
+
+def check_metadata(ctx: Context) -> list[Finding]:
+    findings: list[Finding] = []
+    epic_path = ctx.root / ".devtool" / "epic" / ctx.epic_dir
+    handoff_file = epic_path / "handoff.md"
+    has_handoff = handoff_file.is_file()
+
+    prereq_dirs, prereq_errors = tc.resolve_prerequisite_epic_dirs(
+        ctx.root, ctx.hld_text, ctx.epic_dir
+    )
+    for err in prereq_errors:
+        findings.append(Finding("R7", "FAIL", err))
+
+    en_errata: list[tuple[str, str]] = []
+    try:
+        en_errata = tc.parse_spec_errata(ctx.hld_text)
+    except tc.ContractError as err:
+        findings.append(Finding("R7", "FAIL", str(err)))
+        return findings
+
+    if ctx.strict_bilingual:
+        findings.extend(_check_vi_sync_metadata(ctx, en_errata))
 
     status_match = re.search(r"^- \*\*Status\*\*:\s*(.*)$", ctx.hld_text, re.MULTILINE)
     hld_status = status_match.group(1).strip() if status_match else ""
@@ -833,6 +900,7 @@ def run_checks(
     baseline: bool = False,
     row_timeout: int = 600,
     replay: bool = False,
+    strict_bilingual: bool | None = None,
 ) -> list[Finding]:
     active_ctx = Context(
         root=ctx.root,
@@ -845,6 +913,7 @@ def run_checks(
         baseline=baseline,
         row_timeout=row_timeout,
         replay=replay or ctx.replay,
+        strict_bilingual=ctx.strict_bilingual if strict_bilingual is None else strict_bilingual,
     )
     findings: list[Finding] = []
     for _check_id, check_fn in CHECKS:
@@ -973,6 +1042,11 @@ def main(argv: list[str] | None = None) -> int:
         default=600,
         help="Timeout in seconds for each baseline row",
     )
+    parser.add_argument(
+        "--strict-bilingual",
+        action="store_true",
+        help="Enforce strict .en.md/.vi.md parity, provenance digests, and bdd_scenarios.vi.md presence",
+    )
 
     args = parser.parse_args(argv)
 
@@ -1008,8 +1082,21 @@ def main(argv: list[str] | None = None) -> int:
             return 1
         return 0
 
-    ctx = load_context(root, args.epic_dir, baseline=args.baseline, row_timeout=args.row_timeout, replay=args.replay)
-    findings = run_checks(ctx, baseline=args.baseline, row_timeout=args.row_timeout, replay=args.replay)
+    ctx = load_context(
+        root,
+        args.epic_dir,
+        baseline=args.baseline,
+        row_timeout=args.row_timeout,
+        replay=args.replay,
+        strict_bilingual=args.strict_bilingual,
+    )
+    findings = run_checks(
+        ctx,
+        baseline=args.baseline,
+        row_timeout=args.row_timeout,
+        replay=args.replay,
+        strict_bilingual=args.strict_bilingual,
+    )
     report = render_report(ctx, findings)
     print(report)
 

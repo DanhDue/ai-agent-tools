@@ -14,7 +14,7 @@
 ## Status
 
 - **Packaged**: 2026-11-12
-- **Design commit**: `431cbf8` — `HEAD` before the packaging commit, or `uncommitted` when `auto_commit` is false
+- **Design commit**: `57c15b7`
 - **Base branch**: `main`
 - **PIC / Assigned Profile**: `<profile_account_id>` (e.g. `danhdue`, `buivantrong8901`, `huynhminhtien0510`)
 - **Gates passed**: 1 (spec), 2 (HLD and task breakdown)
@@ -31,9 +31,9 @@ These are usually different strings. Never derive one from the other.
 
 ## Read First
 
-1. `.devtool/epic/token_throttling_optimization/token_throttling_optimization.en.md` — the HLD. Its Kanban Tasks Breakdown lists the <N> tasks.
+1. `.devtool/epic/token_throttling_optimization/token_throttling_optimization.en.md` — the HLD. Its Kanban Tasks Breakdown lists the 6 tasks.
 2. `.devtool/epic/token_throttling_optimization/bdd_scenarios.en.md` — the behavioural contract.
-3. `.devtool/epic/token_throttling_optimization/<source spec>.en.md` — the approved source spec.
+3. `.devtool/epic/token_throttling_optimization/2026-11-13-token-throttling-optimization-design.en.md` — the approved source spec.
 4. `.devtool/epic/token_throttling_optimization/principal_review.md`, when present — Principal Review rounds and decisions.
 
 ## Resume Prompt
@@ -68,11 +68,12 @@ None
 ## Revisions
 
 - **2026-11-12 (`431cbf8`)**: Initial Stage 2 packaging
+- **2026-11-12 (`431cbf8` -> `57c15b7`)**: Heal Read First placeholders (<N> and <source spec>.en.md) for Cross-Model Review Round 1 #9
 
 ## Rules for the Receiving Agent
 
 - Do not re-run `dev-brainstorming` or `dev-designer`. Raise a wrong or missing document at Gate 3.
 - Gate 3 (execution order) is auto-resolved by AI Assistant via compute_execution_order.py.
-- Unless the design commit is `uncommitted`: if `git log 431cbf8..main -- .devtool/epic/token_throttling_optimization` lists any commit besides the `Package epic for handoff` commit, the documents changed after packaging. The documents win, and this file may be stale. Comparing against the base branch keeps the epic branch's own task commits out of the check.
+- Unless the design commit is `uncommitted`: if `git log 57c15b7..main -- .devtool/epic/token_throttling_optimization` lists any commit besides the `Package epic for handoff` commit, the documents changed after packaging. The documents win, and this file may be stale. Comparing against the base branch keeps the epic branch's own task commits out of the check.
 - This file is updated only by `package_epic.py --revise`, which records each re-anchoring under `## Revisions`.
 - Never edit a task's Verification table, Definition of Done, Allowed files or a protected path; stop and report.

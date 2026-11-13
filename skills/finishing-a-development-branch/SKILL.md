@@ -118,9 +118,23 @@ is theirs.
 
 ## Step 5: Execute Choice
 
-### Pre-Finish Hook: Epic Archival & Kanban Clean-up
+### Pre-Finish Hook: Bilingual Sync, Epic Archival & Kanban Clean-up
 
-Before executing **Option 1 (Merge)** or **Option 2 (Push & PR)**, if the workspace contains completed tasks in `.devtool/features/done/`, archive them into their respective epic directory:
+Before executing **Option 1 (Merge)** or **Option 2 (Push & PR)**:
+
+1. **Stage 4 Bilingual Delta-Sync & Strict Gates (Option A Finish Sync)**:
+   - Delta-sync any modified English design sections in `.devtool/epic/<epic_dir>/` (`<epic_dir>.en.md`, `*-design.en.md`) into their `.vi.md` companions and stamp/refresh `<!-- sync-en-sha256: <hex16> -->`.
+   - Generate or sync `.devtool/epic/<epic_dir>/bdd_scenarios.vi.md` from `bdd_scenarios.en.md` matching all scenario IDs and ToC headings, stamped with `<!-- sync-en-sha256: <hex16> -->`.
+   - Validate parity with all three strict bilingual gates (keep output concise per Rule 5 Zero-Fluff while preserving Verdicts and gate results):
+     ```bash
+     python3 skills/doc_quality_check/resources/scripts/check_document.py --require-toc --require-bilingual \
+       .devtool/epic/<epic_dir>/<epic_dir>.en.md .devtool/epic/<epic_dir>/<epic_dir>.vi.md \
+       .devtool/epic/<epic_dir>/bdd_scenarios.en.md .devtool/epic/<epic_dir>/bdd_scenarios.vi.md
+     python3 skills/dev-implementation/resources/scripts/check_epic_readiness.py <epic_slug> --strict-bilingual
+     python3 skills/dev-implementation/resources/scripts/check_bdd_traceability.py plan --scenarios .devtool/epic/<epic_dir>/bdd_scenarios.en.md --tasks .devtool/epic/<epic_dir>/task_*.md --strict-bilingual
+     ```
+
+2. **Epic Archival & Kanban Clean-up**: If the workspace contains completed tasks in `.devtool/features/done/`, archive them into their respective epic directory:
 
 ```bash
 SYNC_SCRIPT="$SKILL_DIR/../dev-implementation/resources/scripts/sync_task_status.py"
