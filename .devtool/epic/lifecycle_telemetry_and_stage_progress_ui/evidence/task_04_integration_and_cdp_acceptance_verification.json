@@ -38,11 +38,11 @@
       "passed": true
     },
     "verify": {
-      "head": "81d6b0c8ff3b4fcab235518ad392147770217166",
-      "tree": "f33a62572fff758c8f9e8f08a4b3ceec87f5f86e",
-      "patch_id": "b585567cc77f60c8c18a98ec171b340b041dbd53",
-      "started": "2026-11-14T03:24:24Z",
-      "finished": "2026-11-14T03:25:38Z",
+      "head": "7158bdfa3a0ab28870f3578a461ca08a63184d70",
+      "tree": "8d69597fe198c9a06e1ca5719271c0f5c6cd1ccb",
+      "patch_id": "9046f6abcb406f73660585cde57dad17fe5c951c",
+      "started": "2026-11-14T03:53:52Z",
+      "finished": "2026-11-14T03:55:06Z",
       "rows": [
         {
           "id": "V2",
@@ -53,13 +53,13 @@
           "exit": 0,
           "outcome": "PASS",
           "reason": null,
-          "started": "2026-11-14T03:24:24Z",
-          "finished": "2026-11-14T03:24:46Z",
+          "started": "2026-11-14T03:53:52Z",
+          "finished": "2026-11-14T03:54:15Z",
           "output_tail": [
             "..................                                                       [100%]",
-            "18 passed in 22.62s"
+            "18 passed in 22.56s"
           ],
-          "output_sha256": "5d49c0bfa494ea23c86c140ddb43d8ff3f0bb0bd3c12fb48364a80eff0de2750"
+          "output_sha256": "767aaa7098d9d8672b6acdfd250c3e2f75367a3f420fcba4a6b2734aa2f2e534"
         },
         {
           "id": "V3",
@@ -70,8 +70,8 @@
           "exit": 0,
           "outcome": "PASS",
           "reason": null,
-          "started": "2026-11-14T03:24:46Z",
-          "finished": "2026-11-14T03:24:46Z",
+          "started": "2026-11-14T03:54:15Z",
+          "finished": "2026-11-14T03:54:15Z",
           "output_tail": [
             "All checks passed!"
           ],
@@ -86,8 +86,8 @@
           "exit": 0,
           "outcome": "PASS",
           "reason": null,
-          "started": "2026-11-14T03:24:46Z",
-          "finished": "2026-11-14T03:24:46Z",
+          "started": "2026-11-14T03:54:15Z",
+          "finished": "2026-11-14T03:54:15Z",
           "output_tail": [
             "Success: no issues found in 7 source files"
           ],
@@ -102,13 +102,13 @@
           "exit": 0,
           "outcome": "PASS",
           "reason": null,
-          "started": "2026-11-14T03:24:46Z",
-          "finished": "2026-11-14T03:25:38Z",
+          "started": "2026-11-14T03:54:15Z",
+          "finished": "2026-11-14T03:55:06Z",
           "output_tail": [
             "........................................................................ [100%]",
-            "72 passed in 50.97s"
+            "72 passed in 50.59s"
           ],
-          "output_sha256": "584c87f09ebe5b2c097d8dc1dedbebfc11692260dbc3c9a95767809f244a9934",
+          "output_sha256": "a26465dd72f9dd703ee2a22c7eebe73ca2bd9d3a28f54da091f8329dedeaa7b9",
           "results": {
             "path": "build/test-results/lifecycle-telemetry-and-stage-progress-ui.xml",
             "fresh": true,
@@ -288,7 +288,6 @@
           "phase": "SCOPE",
           "outcome": "PASS",
           "changed": [
-            "scripts/verify.sh",
             "tests/test_lifecycle_telemetry_and_stage_progress.py"
           ],
           "violations": []

@@ -846,9 +846,7 @@ class TestLifecycleTelemetryAndStageProgress_Integration:
         epic_dir = repo / ".devtool" / "epic" / "rev_epic"
         features_dir = repo / ".devtool" / "features"
         _write_task(epic_dir, features_dir, "task_01", "rev_epic", "done")
-        resume_context.record_gate_approval(
-            repo, "rev_epic", 4, "Gate 4 PASS"
-        )
+        resume_context.record_gate_approval(repo, "rev_epic", 4, "Gate 4 PASS")
 
         # Round 1 recorded SHA: sha1 with CHANGES REQUIRED and 1 Important finding
         (epic_dir / "review_results.md").write_text(
@@ -955,10 +953,10 @@ class TestLifecycleTelemetryAndStageProgress_Integration:
         # Primary active_epic: epic_alpha in Stage 3 Cross-Model Review (4/4 tasks · 100%)
         epic_alpha = repo / ".devtool" / "epic" / "epic_alpha"
         for i in range(1, 5):
-            _write_task(epic_alpha, features_dir, f"task_0{i}_alpha", "epic_alpha", "done")
-        resume_context.record_gate_approval(
-            repo, "epic_alpha", 4, "Gate 4 PASS"
-        )
+            _write_task(
+                epic_alpha, features_dir, f"task_0{i}_alpha", "epic_alpha", "done"
+            )
+        resume_context.record_gate_approval(repo, "epic_alpha", 4, "Gate 4 PASS")
         _state_envelope.update_epic_heartbeat(
             repo,
             "epic_alpha",
@@ -988,9 +986,7 @@ class TestLifecycleTelemetryAndStageProgress_Integration:
                 f'---\nid: "task_0{i}_beta"\nstatus: "todo"\nepic: "epic_beta"\n---\n# Beta {i}\n',
                 encoding="utf-8",
             )
-        resume_context.record_gate_approval(
-            repo, "epic_beta", 1, "Gate 1 PASS"
-        )
+        resume_context.record_gate_approval(repo, "epic_beta", 1, "Gate 1 PASS")
         _state_envelope.update_epic_heartbeat(
             repo,
             "epic_beta",
