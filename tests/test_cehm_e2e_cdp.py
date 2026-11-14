@@ -366,7 +366,9 @@ def _seed_in_prog_and_backlog_epics(repo_dir: Path) -> None:
     )
 
 
-def _extract_verify_suites(verify_sh_path: Path) -> list[tuple[str, str, str, int, bool]]:
+def _extract_verify_suites(
+    verify_sh_path: Path,
+) -> list[tuple[str, str, str, int, bool]]:
     """Parse the Python `SUITES` list literal embedded inside `scripts/verify.sh`."""
     content = verify_sh_path.read_text(encoding="utf-8")
     marker = "SUITES = ["
@@ -710,7 +712,9 @@ def test_cehm_fr_02_end_to_end_chrome_cdp_history_modal_workflow(
     """BDD CEHM-FR-02: Verify live TasksServer + headless Chrome CDP workflow and verify.sh registration."""
     assert shutil.which("node"), "Node.js is required for headless Chrome CDP tests"
     chrome_bin = _resolve_chrome_binary()
-    assert chrome_bin, "Google Chrome / Chromium binary required for headless Chrome CDP"
+    assert chrome_bin, (
+        "Google Chrome / Chromium binary required for headless Chrome CDP"
+    )
 
     import tasks_server  # type: ignore[import-not-found]
 
@@ -750,12 +754,13 @@ def test_cehm_fr_02_end_to_end_chrome_cdp_history_modal_workflow(
     # Assert scripts/verify.sh registers all 4 CEHM pytest suites
     suites = _extract_verify_suites(REPO_ROOT / "scripts" / "verify.sh")
     registered = {
-        path: (section, mode, skip)
-        for section, mode, path, _timeout, skip in suites
+        path: (section, mode, skip) for section, mode, path, _timeout, skip in suites
     }
     for suite_path in CEHM_VERIFY_SUITES:
         assert suite_path in registered, f"Missing verify.sh registration: {suite_path}"
         section, mode, skip = registered[suite_path]
-        assert section == "20", f"Expected section '20' for {suite_path}, got {section!r}"
+        assert section == "20", (
+            f"Expected section '20' for {suite_path}, got {section!r}"
+        )
         assert mode == "pytest", f"Expected pytest mode for {suite_path}, got {mode!r}"
         assert skip is False, f"Expected active suite (skip=False) for {suite_path}"

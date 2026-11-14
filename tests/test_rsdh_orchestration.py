@@ -1270,7 +1270,9 @@ def test_rsdh_fr_03_end_to_end_single_terminal_flow(tmp_path: Path) -> None:
     """[RSDH-FR-03] End-to-end flow: detect profile -> package -> wave prompt -> pool slots -> --pending-decision -> --revise -> cleanup -> land."""
     _init_repo(tmp_path, branch="develop")
     build_ready_epic(tmp_path)
-    (tmp_path / ".gitignore").write_text("build/\n.devtool/state/\n.devtool/logs/\n.devtool/archive/\n", encoding="utf-8")
+    (tmp_path / ".gitignore").write_text(
+        "build/\n.devtool/state/\n.devtool/logs/\n.devtool/archive/\n", encoding="utf-8"
+    )
     _commit_all(tmp_path, "Initial demo epic")
 
     prof_home = tmp_path / "antigravity_homes" / "personal"

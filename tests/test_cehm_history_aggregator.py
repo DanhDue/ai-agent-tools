@@ -105,7 +105,7 @@ def _test_cehm_hp_02_impl(tmp_path: Path) -> None:
         f"epic: {epic_slug}\n"
         "status: done\n"
         "priority: high\n"
-        "labels: [\"backend\", \"telemetry\"]\n"
+        'labels: ["backend", "telemetry"]\n'
         "completedAt: 2026-11-14T12:00:00Z\n"
         "---\n\n"
         "# Task 1: Alpha Hardening\n",
@@ -714,7 +714,7 @@ def test_cehm_fr_01_malformed_jsonl_and_corrupt_evidence(tmp_path: Path) -> None
                 "message": "Valid first line",
             }
         )
-        + "\n\n{bad json line\n\"just-a-string\"\n"
+        + '\n\n{bad json line\n"just-a-string"\n'
         + json.dumps(
             {
                 "ts": "2026-11-14T09:05:00Z",
@@ -732,11 +732,7 @@ def test_cehm_fr_01_malformed_jsonl_and_corrupt_evidence(tmp_path: Path) -> None
     )
     _write_text(
         repo / ".devtool" / "features" / "task_01_broken.md",
-        "---\n"
-        f"epic: {epic_slug}\n"
-        "status: done\n"
-        "---\n\n"
-        "# Task 1: Broken Evidence\n",
+        f"---\nepic: {epic_slug}\nstatus: done\n---\n\n# Task 1: Broken Evidence\n",
     )
     _write_text(epic_dir / "evidence" / "task_01_broken.json", "{not valid json")
 
