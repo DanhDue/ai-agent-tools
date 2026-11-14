@@ -20,7 +20,7 @@
 ## Meta Data
 
 - **Epic name**: `lifecycle_telemetry_and_stage_progress_ui`
-- **Status**: In Progress
+- **Status**: Done
 - **PIC**: `phungthuy8901`
 - **Target release**: Next plugin release
 - **Platform**: Python tooling, dashboard HTML/JS UI, and agent workflow kit
