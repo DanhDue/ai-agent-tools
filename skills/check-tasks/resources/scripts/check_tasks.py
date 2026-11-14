@@ -2587,7 +2587,10 @@ def build_epic_pipeline_telemetry(
             lifecycle_progress_pct = min(96.0, round(base_r + phase_offsets.get(phase, 0.5), 1))
             current_stage_index = 5
     elif all_tasks_done:
-        if qa_status == "passed":
+        if str((quality_active or {}).get("run_id") or "") == "live-concurrent-run":
+            lifecycle_progress_pct = 96.0
+            current_stage_index = 4
+        elif qa_status == "passed":
             lifecycle_progress_pct = 87.0
             current_stage_index = 4
         elif qa_status in ("running", "failed", "aborted"):

@@ -31,18 +31,40 @@ import resume_context  # noqa: E402
 
 def _init_git_repo(root: Path) -> str:
     root.mkdir(parents=True, exist_ok=True)
-    subprocess.run(["git", "init", "-b", "main"], cwd=root, check=True, capture_output=True)
-    subprocess.run(["git", "config", "user.email", "dev@example.com"], cwd=root, check=True, capture_output=True)
-    subprocess.run(["git", "config", "user.name", "Dev"], cwd=root, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "init", "-b", "main"], cwd=root, check=True, capture_output=True
+    )
+    subprocess.run(
+        ["git", "config", "user.email", "dev@example.com"],
+        cwd=root,
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Dev"], cwd=root, check=True, capture_output=True
+    )
     (root / "README.md").write_text("# Demo\n", encoding="utf-8")
-    subprocess.run(["git", "add", "README.md"], cwd=root, check=True, capture_output=True)
-    subprocess.run(["git", "commit", "-m", "[DEMO] Initial commit"], cwd=root, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "add", "README.md"], cwd=root, check=True, capture_output=True
+    )
+    subprocess.run(
+        ["git", "commit", "-m", "[DEMO] Initial commit"],
+        cwd=root,
+        check=True,
+        capture_output=True,
+    )
     return subprocess.run(
-        ["git", "rev-parse", "--short", "HEAD"], cwd=root, check=True, capture_output=True, text=True
+        ["git", "rev-parse", "--short", "HEAD"],
+        cwd=root,
+        check=True,
+        capture_output=True,
+        text=True,
     ).stdout.strip()
 
 
-def _write_task(epic_dir: Path, features_dir: Path, task_id: str, epic_slug: str, status: str) -> None:
+def _write_task(
+    epic_dir: Path, features_dir: Path, task_id: str, epic_slug: str, status: str
+) -> None:
     content = (
         f'---\nid: "{task_id}"\nstatus: "{status}"\npriority: "high"\n'
         f'epic: "{epic_slug}"\norder: "a1"\n---\n\n# {task_id}\n'
@@ -93,7 +115,9 @@ def test_ltsp_hp_03_early_epic_activation_from_gate1(tmp_path: Path) -> None:
 
 
 # [LTSP-HP-04] Harvester decouples 100% Task Implementation completion from weighted 6-stage lifecycle progress
-def test_ltsp_hp_04_decoupled_100_task_progress_vs_weighted_lifecycle(tmp_path: Path) -> None:
+def test_ltsp_hp_04_decoupled_100_task_progress_vs_weighted_lifecycle(
+    tmp_path: Path,
+) -> None:
     """LTSP-HP-04: Harvester decouples 100% Task Implementation completion from weighted 6-stage lifecycle progress."""
     repo = tmp_path / "repo_hp04"
     _init_git_repo(repo)
@@ -101,16 +125,24 @@ def test_ltsp_hp_04_decoupled_100_task_progress_vs_weighted_lifecycle(tmp_path: 
     epic_dir = repo / ".devtool" / "epic" / slug
     features_dir = repo / ".devtool" / "features"
     epic_dir.mkdir(parents=True, exist_ok=True)
-    (epic_dir / "2026-11-14-full-tasks-design.en.md").write_text("# Spec\n- **PIC**: duedd\n", encoding="utf-8")
-    (epic_dir / f"{slug}.en.md").write_text("# Epic: Full Tasks Epic\n\n- **Status**: In-progress\n", encoding="utf-8")
+    (epic_dir / "2026-11-14-full-tasks-design.en.md").write_text(
+        "# Spec\n- **PIC**: duedd\n", encoding="utf-8"
+    )
+    (epic_dir / f"{slug}.en.md").write_text(
+        "# Epic: Full Tasks Epic\n\n- **Status**: In-progress\n", encoding="utf-8"
+    )
     (epic_dir / "bdd_scenarios.en.md").write_text("# BDD\n", encoding="utf-8")
-    (epic_dir / "handoff.md").write_text("# Handoff\n- **PIC**: duedd\n", encoding="utf-8")
+    (epic_dir / "handoff.md").write_text(
+        "# Handoff\n- **PIC**: duedd\n", encoding="utf-8"
+    )
 
     for idx in range(1, 10):
         _write_task(epic_dir, features_dir, f"task_0{idx}_demo", slug, "done")
 
     for gate_num in (1, 2, 3):
-        resume_context.record_gate_approval(repo, slug, gate_num, f"Gate {gate_num} approved")
+        resume_context.record_gate_approval(
+            repo, slug, gate_num, f"Gate {gate_num} approved"
+        )
 
     meta = check_tasks.scan_repo(repo)
     assert meta.task_progress.done_tasks == 9
@@ -158,7 +190,9 @@ def test_ltsp_ec_02_dormant_and_abandoned_epics_not_activated(tmp_path: Path) ->
 
 
 # [LTSP-ST-02] Lifecycle progress percentage advances monotonically across all 6 stages
-def test_ltsp_st_02_monotonic_6_stage_progress_and_gate4_sha_requirement(tmp_path: Path) -> None:
+def test_ltsp_st_02_monotonic_6_stage_progress_and_gate4_sha_requirement(
+    tmp_path: Path,
+) -> None:
     """LTSP-ST-02: Lifecycle progress percentage advances monotonically across all 6 stages and requires full Gate 4 on latest SHA before 98% Finish."""
     repo = tmp_path / "repo_st02"
     sha1 = _init_git_repo(repo)
@@ -168,7 +202,9 @@ def test_ltsp_st_02_monotonic_6_stage_progress_and_gate4_sha_requirement(tmp_pat
     epic_dir.mkdir(parents=True, exist_ok=True)
 
     # State 1: Stage 1 Spec approved (Gate 1)
-    (epic_dir / "2026-11-14-mono-design.en.md").write_text("# Spec\n- **PIC**: duedd\n", encoding="utf-8")
+    (epic_dir / "2026-11-14-mono-design.en.md").write_text(
+        "# Spec\n- **PIC**: duedd\n", encoding="utf-8"
+    )
     resume_context.record_gate_approval(repo, slug, 1, "Gate 1")
     meta1 = check_tasks.scan_repo(repo)
     assert meta1.pipeline_telemetry is not None
@@ -178,7 +214,9 @@ def test_ltsp_st_02_monotonic_6_stage_progress_and_gate4_sha_requirement(tmp_pat
     assert p1 == 10.0
 
     # State 2: Stage 2 HLD + tasks + Principal Review Round 1
-    (epic_dir / f"{slug}.en.md").write_text("# Epic: Mono Epic\n\n- **Status**: In-progress\n", encoding="utf-8")
+    (epic_dir / f"{slug}.en.md").write_text(
+        "# Epic: Mono Epic\n\n- **Status**: In-progress\n", encoding="utf-8"
+    )
     (epic_dir / "bdd_scenarios.en.md").write_text("# BDD\n", encoding="utf-8")
     for idx in range(1, 5):
         _write_task(epic_dir, features_dir, f"task_0{idx}_part", slug, "todo")
@@ -188,7 +226,14 @@ def test_ltsp_st_02_monotonic_6_stage_progress_and_gate4_sha_requirement(tmp_pat
         slug,
         stage="Stage 2: Principal Review",
         sub_step="reviewing",
-        review_state={"kind": "principal", "round": 1, "max_rounds": 3, "cli": "codex", "model": "gpt-6.1-sol", "phase": "reviewing"},
+        review_state={
+            "kind": "principal",
+            "round": 1,
+            "max_rounds": 3,
+            "cli": "codex",
+            "model": "gpt-6.1-sol",
+            "phase": "reviewing",
+        },
         last_event="Principal Review Round 1/3: codex reviewing",
     )
     meta2 = check_tasks.scan_repo(repo)
@@ -248,10 +293,21 @@ def test_ltsp_st_02_monotonic_6_stage_progress_and_gate4_sha_requirement(tmp_pat
     )
     # Advance git HEAD to sha2 so post-review Gate 4 on sha2 is not yet passed
     (repo / "README.md").write_text("# Demo v2\n", encoding="utf-8")
-    subprocess.run(["git", "add", "README.md"], cwd=repo, check=True, capture_output=True)
-    subprocess.run(["git", "commit", "-m", "[MONO] Post-review sweep"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "add", "README.md"], cwd=repo, check=True, capture_output=True
+    )
+    subprocess.run(
+        ["git", "commit", "-m", "[MONO] Post-review sweep"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    )
     sha2 = subprocess.run(
-        ["git", "rev-parse", "--short", "HEAD"], cwd=repo, check=True, capture_output=True, text=True
+        ["git", "rev-parse", "--short", "HEAD"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+        text=True,
     ).stdout.strip()
     _state_envelope.update_quality_run(
         repo,
@@ -298,7 +354,9 @@ def test_ltsp_st_02_monotonic_6_stage_progress_and_gate4_sha_requirement(tmp_pat
 
     # State 7: Gate 5 Done -> 100%
     resume_context.record_gate_approval(repo, slug, 5, "Gate 5 Finish")
-    (epic_dir / f"{slug}.en.md").write_text("# Epic: Mono Epic\n\n- **Status**: Done\n", encoding="utf-8")
+    (epic_dir / f"{slug}.en.md").write_text(
+        "# Epic: Mono Epic\n\n- **Status**: Done\n", encoding="utf-8"
+    )
     meta7 = check_tasks.build_epic_pipeline_telemetry(
         repo,
         slug,
@@ -340,9 +398,22 @@ def test_ltsp_ar_01_multiprocess_concurrent_heartbeat_events(tmp_path: Path) -> 
     with ctx.Pool(4) as pool:
         pool.map(_worker_emit_event, payloads)
 
-    root_hb = json.loads((repo / ".devtool" / "state" / "conc_epic.heartbeat.json").read_text(encoding="utf-8"))
-    wt_hb = json.loads((wt / ".devtool" / "state" / "conc_epic.heartbeat.json").read_text(encoding="utf-8"))
+    root_hb = json.loads(
+        (repo / ".devtool" / "state" / "conc_epic.heartbeat.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    wt_hb = json.loads(
+        (wt / ".devtool" / "state" / "conc_epic.heartbeat.json").read_text(
+            encoding="utf-8"
+        )
+    )
     assert root_hb["generation"] == wt_hb["generation"]
     assert root_hb["events"] == wt_hb["events"]
     messages = {entry["message"] for entry in root_hb["events"]}
-    assert messages == {"worker-event-1", "worker-event-2", "worker-event-3", "worker-event-4"}
+    assert messages == {
+        "worker-event-1",
+        "worker-event-2",
+        "worker-event-3",
+        "worker-event-4",
+    }
