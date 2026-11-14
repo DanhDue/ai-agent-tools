@@ -1,0 +1,199 @@
+{
+  "schema": 1,
+  "task": "task_02_epic_history_aggregator_and_scoped_api",
+  "runs": {
+    "red": {
+      "head": "36c35abe51051891720f7c7322e1d8d92939af53",
+      "tree": "6e43b7e77c474ac46ad3fdc3a028dd5571ec9cb2",
+      "patch_id": "279f8cefd92d9c7177d769f5a372c941ac064354",
+      "started": "2026-11-14T18:37:32Z",
+      "finished": "2026-11-14T18:37:33Z",
+      "rows": [
+        {
+          "id": "V1",
+          "phase": "RED",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_cehm_history_aggregator.py::test_cehm_hp_02_stitch_legacy_done_epic",
+          "expect": "exit 1; contains \"failed\"",
+          "needs": [],
+          "exit": 1,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-14T18:37:32Z",
+          "finished": "2026-11-14T18:37:33Z",
+          "output_tail": [
+            "F                                                                        [100%]",
+            "=================================== FAILURES ===================================",
+            "___________________ test_cehm_hp_02_stitch_legacy_done_epic ____________________",
+            "tests/test_cehm_history_aggregator.py:218: in test_cehm_hp_02_stitch_legacy_done_epic",
+            "    assert set(check_tasks._collect_slug_variants(epic_slug)) == {",
+            "               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+            "E   AttributeError: module 'check_tasks' has no attribute '_collect_slug_variants'",
+            "=========================== short test summary info ============================",
+            "FAILED tests/test_cehm_history_aggregator.py::test_cehm_hp_02_stitch_legacy_done_epic",
+            "1 failed in 0.12s"
+          ],
+          "output_sha256": "e1cb2a20fd69fb0699952974473022b92c2911e40379dcb057b4cdb559baf6e0"
+        }
+      ],
+      "passed": true
+    },
+    "verify": {
+      "head": "36c35abe51051891720f7c7322e1d8d92939af53",
+      "tree": "105ced0cab1b2fa217842456e719a24294e11368",
+      "patch_id": "153b1b851e3445a8f1ec8cacace4a2b83158bc57",
+      "started": "2026-11-14T18:52:34Z",
+      "finished": "2026-11-14T18:53:01Z",
+      "rows": [
+        {
+          "id": "V2",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_cehm_history_aggregator.py",
+          "expect": "exit 0; contains \"passed\"",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-14T18:52:34Z",
+          "finished": "2026-11-14T18:52:36Z",
+          "output_tail": [
+            "........                                                                 [100%]",
+            "8 passed in 2.05s"
+          ],
+          "output_sha256": "8f7577c66ddff1066a116901fbeee2cde0cf9d2fc49552dd205efa03933ae7ea"
+        },
+        {
+          "id": "V3",
+          "phase": "GREEN",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 tests/test_check_tasks_server.py tests/test_ltsp_harvester_pipeline.py tests/test_rsdh_harvester_and_pic.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-14T18:52:36Z",
+          "finished": "2026-11-14T18:52:51Z",
+          "output_tail": [
+            "..................................                                       [100%]",
+            "34 passed in 14.80s"
+          ],
+          "output_sha256": "20c667bd65ba433244fb70795c42ba70a320e28913c7cd5765bca03ef349c322"
+        },
+        {
+          "id": "V4",
+          "phase": "TIER-B",
+          "command": "ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py skills/check-tasks/resources/scripts/check_tasks.py tests/test_cehm_history_aggregator.py && ruff check --select F821,F841,B,E9 skills/check-tasks/resources/scripts/tasks_server.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-14T18:52:51Z",
+          "finished": "2026-11-14T18:52:51Z",
+          "output_tail": [
+            "All checks passed!",
+            "All checks passed!"
+          ],
+          "output_sha256": "d63ab3df51a50c66f9c57056288c7d4faf9dce413552d89215714320ac2b748e"
+        },
+        {
+          "id": "V5",
+          "phase": "TIER-B",
+          "command": "mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py skills/check-tasks/resources/scripts/check_tasks.py skills/check-tasks/resources/scripts/tasks_server.py tests/test_cehm_history_aggregator.py",
+          "expect": "exit 0",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-14T18:52:51Z",
+          "finished": "2026-11-14T18:52:51Z",
+          "output_tail": [
+            "Success: no issues found in 10 source files"
+          ],
+          "output_sha256": "14fdf673bd175fe32ef42df34666481bb15e465313f7dbef32d0aea2ba76a26e"
+        },
+        {
+          "id": "V6",
+          "phase": "TIER-C",
+          "command": "python3 -m pytest -q --tb=short --maxfail=3 --junitxml=build/test-results/cehm_task_02.xml tests/test_cehm_history_aggregator.py tests/test_check_tasks_server.py tests/test_ltsp_harvester_pipeline.py",
+          "expect": "exit 0; results build/test-results/cehm_task_02.xml",
+          "needs": [],
+          "exit": 0,
+          "outcome": "PASS",
+          "reason": null,
+          "started": "2026-11-14T18:52:51Z",
+          "finished": "2026-11-14T18:53:01Z",
+          "output_tail": [
+            "..............................                                           [100%]",
+            "30 passed in 9.54s"
+          ],
+          "output_sha256": "267d5608ca1b5b7bf93cd860326d18c3ab7616ed75842220adc1bbadde193376",
+          "results": {
+            "path": "build/test-results/cehm_task_02.xml",
+            "fresh": true,
+            "digest": {
+              "totals": {
+                "passed": 8,
+                "failed": 0,
+                "skipped": 0
+              },
+              "cases": [
+                {
+                  "name": "test_cehm_hp_02_stitch_legacy_done_epic",
+                  "classname": "tests.test_cehm_history_aggregator",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cehm_hp_02_stitch_legacy_done_epic",
+                  "classname": "tests.test_cehm_history_aggregator.TestCehm_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cehm_hp_03_history_endpoint_multi_round_reviews",
+                  "classname": "tests.test_cehm_history_aggregator.TestCehm_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cehm_ar_03_history_endpoint_validation_and_traversal",
+                  "classname": "tests.test_cehm_history_aggregator.TestCehm_Integration",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cehm_ec_01_draft_backlog_empty_history",
+                  "classname": "tests.test_cehm_history_aggregator",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cehm_ec_02_strict_epic_review_isolation",
+                  "classname": "tests.test_cehm_history_aggregator",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cehm_st_01_timeline_dedup_and_log_completeness",
+                  "classname": "tests.test_cehm_history_aggregator",
+                  "status": "passed"
+                },
+                {
+                  "name": "test_cehm_fr_01_malformed_jsonl_and_corrupt_evidence",
+                  "classname": "tests.test_cehm_history_aggregator",
+                  "status": "passed"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "SCOPE",
+          "phase": "SCOPE",
+          "outcome": "PASS",
+          "changed": [
+            "skills/check-tasks/resources/scripts/check_tasks.py",
+            "skills/check-tasks/resources/scripts/tasks_server.py",
+            "tests/test_cehm_history_aggregator.py"
+          ],
+          "violations": []
+        }
+      ],
+      "passed": true
+    }
+  }
+}

@@ -1,13 +1,13 @@
 ---
 id: "task_02_epic_history_aggregator_and_scoped_api"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "check_tasks_epic_history_modal"
 dueDate: null
 created: "2026-11-15T01:00:00Z"
-modified: "2026-11-15T01:00:00Z"
-completedAt: null
+modified: "2026-11-14T18:55:49Z"
+completedAt: "2026-11-14T18:55:49Z"
 labels: ["check-tasks", "harvester", "http-api", "review-isolation"]
 order: "a2"
 review_tier: "full"
@@ -15,7 +15,7 @@ review_tier: "full"
 
 # Task 2: Epic History Aggregator, Scoped Review Lookup, and `/api/epic/history` Endpoint
 
-Epic: [check_tasks_epic_history_modal](../epic/check_tasks_epic_history_modal/check_tasks_epic_history_modal.en.md)
+Epic: [check_tasks_epic_history_modal](../../epic/check_tasks_epic_history_modal/check_tasks_epic_history_modal.en.md)
 
 ## Requirement Analysis
 
@@ -152,5 +152,5 @@ Downstream dependents (blocked by Task 2): `task_03`, `task_04`.
 
 ## References & Rollback
 
-- [Epic HLD](../epic/check_tasks_epic_history_modal/check_tasks_epic_history_modal.en.md)
+- [Epic HLD](../../epic/check_tasks_epic_history_modal/check_tasks_epic_history_modal.en.md)
 - **Rollback**: Revert task commit to restore `check_tasks.py` and `tasks_server.py`.

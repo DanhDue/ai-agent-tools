@@ -1,13 +1,13 @@
 ---
 id: "task_02_epic_history_aggregator_and_scoped_api"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "check_tasks_epic_history_modal"
 dueDate: null
 created: "2026-11-15T01:00:00Z"
-modified: "2026-11-15T01:00:00Z"
-completedAt: null
+modified: "2026-11-14T18:55:49Z"
+completedAt: "2026-11-14T18:55:49Z"
 labels: ["check-tasks", "harvester", "http-api", "review-isolation"]
 order: "a2"
 review_tier: "full"

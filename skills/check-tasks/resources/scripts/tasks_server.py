@@ -45,6 +45,7 @@ try:
         DashboardGraph,
         discover_antigravity_profiles,
         harvest_dashboard_graph,
+        harvest_epic_history,
     )
 except ImportError:
     pass
@@ -336,11 +337,178 @@ def launch_quota_server(
         return {"status": "error", "error": str(e), "url": url}
 
 
+def _epic_slug_variants(active_epic: str) -> list[str]:
+    """Return ordered unique slug variants across hyphen and underscore forms."""
+    return list(
+        dict.fromkeys(
+            [
+                active_epic,
+                active_epic.replace("-", "_"),
+                active_epic.replace("_", "-"),
+            ]
+        )
+    )
+
+
+def _discover_round_files(
+    review_dir: Path, detected_kind: str
+) -> list[tuple[int, Path]]:
+    """Discover per-round review files inside `review_dir` sorted by round number."""
+    if not review_dir.is_dir():
+        return []
+    pattern = (
+        re.compile(r"^principal_review_round_(\d+)\.md$", re.IGNORECASE)
+        if detected_kind == "principal"
+        else re.compile(r"^(?:review_results|review)_round_(\d+)\.md$", re.IGNORECASE)
+    )
+    found: list[tuple[int, Path]] = []
+    with contextlib.suppress(OSError):
+        for entry in sorted(review_dir.iterdir()):
+            if not entry.is_file():
+                continue
+            m = pattern.match(entry.name)
+            if m:
+                found.append((int(m.group(1)), entry))
+    found.sort(key=lambda item: (item[0], item[1].name))
+    return found
+
+
+def _build_epic_review_roots(repo_dir: Path, active_epic: str | None) -> list[Path]:
+    """Build ordered candidate checkout roots (matching worktrees before root repo)."""
+    roots: list[Path] = []
+    if active_epic:
+        roots.extend(repo_dir / ".worktrees" / v for v in _epic_slug_variants(active_epic))
+    roots.append(repo_dir)
+    seen: set[Path] = set()
+    ordered: list[Path] = []
+    for root in roots:
+        if not root.is_dir():
+            continue
+        resolved = root.resolve()
+        if resolved not in seen:
+            seen.add(resolved)
+            ordered.append(root)
+    return ordered
+
+
+def _append_kind_review_files(
+    candidates: list[Path], base_dir: Path, target_round: int | None, kind: str | None
+) -> None:
+    """Append ordered review markdown candidates under an epic or root .devtool dir."""
+    if kind == "principal":
+        if target_round:
+            candidates.append(base_dir / f"principal_review_round_{target_round}.md")
+        candidates.append(base_dir / "principal_review.md")
+        if target_round is None:
+            candidates.extend(
+                p for _, p in _discover_round_files(base_dir, "principal")
+            )
+    elif kind == "cross-model":
+        if target_round:
+            candidates.extend(
+                [
+                    base_dir / f"review_results_round_{target_round}.md",
+                    base_dir / f"review_round_{target_round}.md",
+                ]
+            )
+        candidates.append(base_dir / "review_results.md")
+        if target_round is None:
+            candidates.extend(
+                p for _, p in _discover_round_files(base_dir, "cross-model")
+            )
+    else:
+        if target_round:
+            candidates.extend(
+                [
+                    base_dir / f"review_results_round_{target_round}.md",
+                    base_dir / f"review_round_{target_round}.md",
+                    base_dir / f"principal_review_round_{target_round}.md",
+                ]
+            )
+        candidates.extend(
+            [base_dir / "review_results.md", base_dir / "principal_review.md"]
+        )
+        if target_round is None:
+            candidates.extend(
+                p for _, p in _discover_round_files(base_dir, "cross-model")
+            )
+            candidates.extend(
+                p for _, p in _discover_round_files(base_dir, "principal")
+            )
+
+
+def _collect_review_candidates(
+    repo_dir: Path,
+    active_epic: str | None,
+    target_round: int | None,
+    kind: str | None,
+    strict_epic: bool,
+) -> list[Path]:
+    """Collect ordered review markdown paths honoring `strict_epic` scoping."""
+    roots = _build_epic_review_roots(repo_dir, active_epic)
+    candidates: list[Path] = []
+    if active_epic:
+        variants = _epic_slug_variants(active_epic)
+        for root in roots:
+            dt = root / ".devtool"
+            for variant in variants:
+                _append_kind_review_files(
+                    candidates, dt / "epic" / variant, target_round, kind
+                )
+        if not strict_epic:
+            for root in roots:
+                dt = root / ".devtool"
+                if kind == "principal":
+                    candidates.append(dt / "principal_review.md")
+                elif kind == "cross-model":
+                    candidates.append(dt / "review_results.md")
+                else:
+                    candidates.extend(
+                        [dt / "review_results.md", dt / "principal_review.md"]
+                    )
+        return candidates
+
+    for root in roots:
+        dt = root / ".devtool"
+        if kind == "principal":
+            _append_kind_review_files(candidates, dt, target_round, kind)
+        else:
+            _append_kind_review_files(candidates, dt, target_round, "cross-model")
+            candidates.append(dt / "features" / "review_results.md")
+    return candidates
+
+
+def _discover_round_file_numbers(review_dir: Path, detected_kind: str) -> list[int]:
+    """Discover sibling per-round review files so multi-file rounds list accurately."""
+    return [r for r, _ in _discover_round_files(review_dir, detected_kind)]
+
+
+def _scan_round_headings(content: str) -> list[tuple[int, list[str]]]:
+    """Scan `## Round N` sections using a fence-aware parser."""
+    fence_pattern = re.compile(r"^(`{3,}|~{3,})")
+    parsed_rounds: list[tuple[int, list[str]]] = []
+    current_fence = ""
+    for line in content.splitlines():
+        fence_match = fence_pattern.match(line)
+        if current_fence:
+            if line.rstrip() == current_fence:
+                current_fence = ""
+        elif fence_match:
+            current_fence = fence_match.group(1)
+        elif heading_match := re.fullmatch(r"##\s+Round\s+(\d+)", line.strip()):
+            parsed_rounds.append((int(heading_match.group(1)), []))
+        elif parsed_rounds:
+            parsed_rounds[-1][1].append(line)
+    return parsed_rounds
+
+
 def parse_review_results(
     repo_dir: Path,
     active_epic: str | None = None,
     target_round: int | None = None,
     kind: str | None = None,
+    *,
+    strict_epic: bool = False,
 ) -> dict[str, Any]:
     """Parse persisted review findings and triage table for a repository and round."""
     result: dict[str, Any] = {
@@ -349,6 +517,7 @@ def parse_review_results(
         "round": target_round or 1,
         "available_rounds": [1],
         "kind": kind or "review",
+        "present": False,
         "verdict": "UNKNOWN",
         "sha": None,
         "reviewer": None,
@@ -373,90 +542,15 @@ def parse_review_results(
         except Exception:
             pass
 
-    candidates: list[Path] = []
-
-    # Check dedicated worktree first, then repo_dir
-    roots: list[Path] = []
-    if active_epic:
-        roots.extend(
-            [
-                repo_dir / ".worktrees" / active_epic,
-                repo_dir / ".worktrees" / active_epic.replace("-", "_"),
-                repo_dir / ".worktrees" / active_epic.replace("_", "-"),
-            ]
-        )
-    roots.append(repo_dir)
-
-    for root in [r for r in roots if r.is_dir()]:
-        dt = root / ".devtool"
-        if active_epic:
-            epic_dir = dt / "epic" / active_epic
-            if kind == "principal":
-                if target_round:
-                    candidates.append(
-                        epic_dir / f"principal_review_round_{target_round}.md"
-                    )
-                candidates.extend(
-                    [
-                        epic_dir / "principal_review.md",
-                        dt / "principal_review.md",
-                    ]
-                )
-            elif kind == "cross-model":
-                if target_round:
-                    candidates.extend(
-                        [
-                            epic_dir / f"review_results_round_{target_round}.md",
-                            epic_dir / f"review_round_{target_round}.md",
-                        ]
-                    )
-                candidates.extend(
-                    [
-                        epic_dir / "review_results.md",
-                        dt / "review_results.md",
-                    ]
-                )
-            else:
-                if target_round:
-                    candidates.extend(
-                        [
-                            epic_dir / f"review_results_round_{target_round}.md",
-                            epic_dir / f"review_round_{target_round}.md",
-                            epic_dir / f"principal_review_round_{target_round}.md",
-                        ]
-                    )
-                candidates.extend(
-                    [
-                        epic_dir / "review_results.md",
-                        epic_dir / "principal_review.md",
-                        dt / "review_results.md",
-                        dt / "principal_review.md",
-                    ]
-                )
-        else:
-            if kind == "principal":
-                if target_round:
-                    candidates.append(dt / f"principal_review_round_{target_round}.md")
-                candidates.append(dt / "principal_review.md")
-            else:
-                if target_round:
-                    candidates.extend(
-                        [
-                            dt / f"review_results_round_{target_round}.md",
-                            dt / f"review_round_{target_round}.md",
-                        ]
-                    )
-                candidates.extend(
-                    [
-                        dt / "review_results.md",
-                        dt / "features" / "review_results.md",
-                    ]
-                )
+    candidates = _collect_review_candidates(
+        repo_dir, active_epic, target_round, kind, strict_epic
+    )
 
     review_file: Path | None = next((c for c in candidates if c and c.is_file()), None)
     if not review_file:
         return result
 
+    result["present"] = True
     content = review_file.read_text(encoding="utf-8")
 
     # Detect kind from filename if not specified
@@ -471,23 +565,31 @@ def parse_review_results(
     # Check if filename specifies round
     m_file_round = re.search(r"round_(\d+)", review_file.name, re.IGNORECASE)
 
-    # Detect all available rounds in the file using fence-aware scanner (ignoring markdown headings inside code blocks)
-    fence_pattern = re.compile(r"^(`{3,}|~{3,})")
-    parsed_rounds: list[tuple[int, list[str]]] = []
-    current_fence = ""
-    for line in content.splitlines():
-        fence_match = fence_pattern.match(line)
-        if current_fence:
-            if line.rstrip() == current_fence:
-                current_fence = ""
-        elif fence_match:
-            current_fence = fence_match.group(1)
-        elif heading_match := re.fullmatch(r"##\s+Round\s+(\d+)", line.strip()):
-            parsed_rounds.append((int(heading_match.group(1)), []))
-        elif parsed_rounds:
-            parsed_rounds[-1][1].append(line)
+    parsed_rounds = _scan_round_headings(content)
+    sibling_rounds = _discover_round_file_numbers(
+        review_file.parent, str(result["kind"])
+    )
+    unnumbered_rounds: set[int] = set()
+    if m_file_round is not None:
+        sibling_name = (
+            "principal_review.md"
+            if result["kind"] == "principal"
+            else "review_results.md"
+        )
+        unnumbered_path = review_file.parent / sibling_name
+        if unnumbered_path.is_file():
+            with contextlib.suppress(OSError, UnicodeDecodeError):
+                sib_parsed = _scan_round_headings(
+                    unnumbered_path.read_text(encoding="utf-8")
+                )
+                if sib_parsed:
+                    unnumbered_rounds.update(r[0] for r in sib_parsed)
+                else:
+                    unnumbered_rounds.add(1)
 
-    unique_rounds = sorted(list({r[0] for r in parsed_rounds}))
+    unique_rounds = sorted(
+        {r[0] for r in parsed_rounds} | set(sibling_rounds) | unnumbered_rounds
+    )
     if unique_rounds:
         result["available_rounds"] = unique_rounds
     elif m_file_round:
@@ -1211,6 +1313,112 @@ class TasksHandler(http.server.BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
 
+    def _resolve_repo_for_query(
+        self, repo_name: str
+    ) -> tuple[Path | None, tuple[int, str] | None]:
+        """Validate `repo` query param syntax and workspace containment boundary."""
+        if not repo_name:
+            return None, (400, "Missing required 'repo' query parameter.")
+        if repo_name in (".", "..") or "/" in repo_name or "\\" in repo_name:
+            return None, (400, f"Invalid repository name: {repo_name}")
+        ws_root = self.server.workspace_root
+        try:
+            resolved_repo = _assert_contained(ws_root / repo_name, ws_root, "repo")
+        except ValueError as exc:
+            return None, (400, str(exc))
+        if resolved_repo == ws_root.resolve():
+            return None, (400, f"Invalid repository name: {repo_name}")
+        return resolved_repo, None
+
+    @staticmethod
+    def _parse_optional_positive_int(
+        query: dict[str, list[str]], param: str
+    ) -> tuple[int | None, str | None]:
+        raw = query.get(param, [""])[0].strip()
+        if not raw:
+            return None, None
+        try:
+            val = int(raw)
+        except ValueError:
+            return None, f"Invalid integer for '{param}': {raw}"
+        if val < 1:
+            return None, f"Parameter '{param}' must be >= 1: {raw}"
+        return val, None
+
+    def _handle_epic_history(self, query: dict[str, list[str]]) -> None:
+        """Serve `GET /api/epic/history` for a single repository and epic slug."""
+        repo_name = query.get("repo", [""])[0].strip()
+        epic_slug = query.get("epic", [""])[0].strip()
+        repo_dir, repo_err = self._resolve_repo_for_query(repo_name)
+        if repo_err is not None or repo_dir is None:
+            status_code, msg = repo_err or (400, "Invalid repository")
+            self._send_json(status_code, {"success": False, "error": msg})
+            return
+
+        if not epic_slug:
+            self._send_json(
+                400,
+                {"success": False, "error": "Missing required 'epic' query parameter."},
+            )
+            return
+        if not _EPIC_SLUG_RE.fullmatch(epic_slug):
+            self._send_json(
+                400, {"success": False, "error": f"Invalid epic slug: {epic_slug}"}
+            )
+            return
+
+        round_principal, err_p = self._parse_optional_positive_int(
+            query, "round_principal"
+        )
+        if err_p:
+            self._send_json(400, {"success": False, "error": err_p})
+            return
+        round_cross, err_c = self._parse_optional_positive_int(query, "round_cross")
+        if err_c:
+            self._send_json(400, {"success": False, "error": err_c})
+            return
+
+        if not repo_dir.is_dir():
+            self._send_json(
+                404, {"success": False, "error": f"Repository not found: {repo_name}"}
+            )
+            return
+
+        history = harvest_epic_history(repo_dir, epic_slug)
+        if not history.get("exists"):
+            self._send_json(
+                404, {"success": False, "error": f"Epic not found: {epic_slug}"}
+            )
+            return
+
+        principal_rev = parse_review_results(
+            repo_dir,
+            active_epic=epic_slug,
+            target_round=round_principal,
+            kind="principal",
+            strict_epic=True,
+        )
+        cross_rev = parse_review_results(
+            repo_dir,
+            active_epic=epic_slug,
+            target_round=round_cross,
+            kind="cross-model",
+            strict_epic=True,
+        )
+        payload = {
+            "success": True,
+            "epic": history["epic"],
+            "pipeline_telemetry": history["pipeline_telemetry"],
+            "tasks": history["tasks"],
+            "timeline": history["timeline"],
+            "reviews": {
+                "principal": principal_rev,
+                "cross_model": cross_rev,
+            },
+            "log_completeness": history["log_completeness"],
+        }
+        self._send_json(200, sanitize_paths_to_tilde(payload))
+
     def do_GET(self) -> None:
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
@@ -1220,18 +1428,29 @@ class TasksHandler(http.server.BaseHTTPRequestHandler):
             self._send_json(200, sanitize_paths_to_tilde(graph))
             return
 
+        if path == "/api/epic/history":
+            self._handle_epic_history(urllib.parse.parse_qs(parsed.query))
+            return
+
         if path == "/api/review":
             query = urllib.parse.parse_qs(parsed.query)
             repo_name = query.get("repo", [""])[0]
             repo_dir = self.server.workspace_root / repo_name
             active_epic = query.get("epic", [None])[0]
             kind = query.get("kind", [None])[0]
+            strict_epic = query.get("strict", [""])[0].strip().lower() in (
+                "1",
+                "true",
+                "yes",
+            )
             target_round_str = query.get("round", [None])[0]
             target_round: int | None = None
             if target_round_str:
                 with contextlib.suppress(ValueError):
                     target_round = int(target_round_str)
-            data = parse_review_results(repo_dir, active_epic, target_round, kind)
+            data = parse_review_results(
+                repo_dir, active_epic, target_round, kind, strict_epic=strict_epic
+            )
             self._send_json(200, sanitize_paths_to_tilde(data))
             return
 
