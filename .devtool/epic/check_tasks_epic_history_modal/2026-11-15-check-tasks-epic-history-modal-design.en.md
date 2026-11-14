@@ -1,7 +1,7 @@
 # Check-Tasks Epic History Modal & Append-Only Telemetry Design
 
 - **Date**: 2026-11-15
-- **Status**: Draft (Awaiting Gate 1 Approval)
+- **Status**: Approved (Gate 1)
 - **PIC**: `phungthuy8901`
 - **Epic Directory**: `check_tasks_epic_history_modal`
 - **Epic Slug**: `check_tasks_epic_history_modal`

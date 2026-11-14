@@ -1,7 +1,7 @@
 # Thiết kế Modal Lịch sử Epic & Telemetry Append-Only cho Check-Tasks
 
 - **Ngày**: 2026-11-15
-- **Trạng thái**: Bản nháp (Chờ phê duyệt Gate 1)
+- **Trạng thái**: Đã phê duyệt (Gate 1)
 - **PIC**: `phungthuy8901`
 - **Thư mục Epic**: `check_tasks_epic_history_modal`
 - **Epic Slug**: `check_tasks_epic_history_modal`
