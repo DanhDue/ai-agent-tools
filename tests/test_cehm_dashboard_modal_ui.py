@@ -1498,3 +1498,136 @@ class TestCehmDashboardModalUi_Integration:
             """
         )
         assert res["ok"] is True
+
+
+def test_cehm_regression_round1_substeps_strip_and_malformed_json() -> None:
+    """Regression #4 & #5:
+    - #4: History modal stepper renders the required sub-step strip when telemetry supplies sub-steps.
+    - #5: Malformed HTTP 200 JSON decoding failures propagate to show the Retry error banner.
+    """
+    res = _eval_cehm_js(
+        r"""
+            let returnMalformedJson = false;
+
+            const makePayload = () => ({
+              success: true,
+              epic: {
+                slug: 'substep_test_epic',
+                title: 'Substep Test Epic',
+                status: 'in_progress',
+                pic: 'danhdue',
+                has_worktree: true,
+                done_tasks: 1,
+                total_tasks: 2,
+                last_updated_human: 'just now',
+              },
+              pipeline_telemetry: {
+                epic_slug: 'substep_test_epic',
+                current_stage_index: 5,
+                stages: [
+                  { id: 'gate_1', index: 1, label: '1. Inception', status: 'done', summary: 'Gate 1', sub_steps: [] },
+                  { id: 'gate_2', index: 2, label: '2. Design', status: 'done', summary: 'Gate 2', sub_steps: [] },
+                  { id: 'tasks', index: 3, label: '3. Tasks', status: 'done', summary: 'Tasks Done', sub_steps: [] },
+                  { id: 'gate_4', index: 4, label: '4. QA Gate', status: 'done', summary: 'Gate 4', sub_steps: [] },
+                  {
+                    id: 'cross_review',
+                    index: 5,
+                    label: '5. Review',
+                    status: 'running',
+                    summary: 'Cross-Model Review',
+                    sub_steps: [
+                      { id: 'reviewing', label: 'Reviewing', status: 'done', detail: '' },
+                      { id: 'triage', label: 'Triage', status: 'running', detail: 'AUTO_FIX_ELIGIBLE' },
+                      { id: 'fixing', label: 'Fixing', status: 'pending', detail: '' },
+                      { id: 'verifying', label: 'Verifying', status: 'pending', detail: '' },
+                    ],
+                  },
+                  { id: 'gate_5', index: 6, label: '6. Sign-off', status: 'pending', summary: 'Gate 5', sub_steps: [] },
+                ],
+                events: [],
+              },
+              tasks: [],
+              timeline: [],
+              reviews: { principal: { present: false, findings: [] }, cross_model: { present: false, findings: [] } },
+              log_completeness: 'full_stream',
+            });
+
+            const { sandbox, doc } = createCehmDomHarness(async (url) => {
+              const parsed = new URL(url, 'http://127.0.0.1:8766');
+              if (parsed.pathname === '/api/tasks') {
+                return {
+                  ok: true,
+                  status: 200,
+                  async json() {
+                    return {
+                      repos: [{
+                        name: 'demo-repo',
+                        path: '/tmp/demo-repo',
+                        active_epic: 'substep_test_epic',
+                        epics_summary: {
+                          total: 1,
+                          completed: 0,
+                          in_progress: 1,
+                          unstarted: 0,
+                          abandoned: 0,
+                          epics: [{ slug: 'substep_test_epic', status: 'in_progress', task_count: 2, pic: 'danhdue' }],
+                        },
+                      }],
+                      available_profiles: ['danhdue'],
+                    };
+                  },
+                };
+              }
+              if (parsed.pathname === '/api/epic/history') {
+                if (returnMalformedJson) {
+                  return {
+                    ok: true,
+                    status: 200,
+                    async json() {
+                      throw new SyntaxError('Unexpected token < in JSON at position 0');
+                    },
+                  };
+                }
+                return {
+                  ok: true,
+                  status: 200,
+                  async json() { return makePayload(); },
+                };
+              }
+              throw new Error(`Unexpected URL: ${url}`);
+            });
+
+            await sandbox.pollDashboard();
+            await flushMicrotasks();
+
+            // 1. Verify Finding #4: History modal stepper renders sub-steps strip
+            sandbox.openEpicHistoryModal('demo-repo', 'substep_test_epic');
+            await flushMicrotasks();
+
+            const stepperEl = doc.getElementById('epic-history-stepper');
+            assert.ok(stepperEl, 'Modal must contain #epic-history-stepper');
+            const subStepsStrip = findAllByPredicate(stepperEl, (el) => el.getAttribute('data-telemetry') === 'sub-steps');
+            assert.ok(subStepsStrip.length >= 1, 'Stepper must render [data-telemetry="sub-steps"] container');
+            const subStepElements = stepperEl.querySelectorAll('[data-substep-id]');
+            assert.ok(subStepElements.length >= 4, `Expected at least 4 sub-step chips, got ${subStepElements.length}`);
+            const triageChip = subStepElements.find((el) => el.getAttribute('data-substep-id') === 'triage');
+            assert.ok(triageChip, 'Stepper must contain triage sub-step chip');
+            assert.ok(getAllText(triageChip).includes('Triage'), 'Triage chip must render label');
+
+            // 2. Verify Finding #5: JSON decoding failure propagates and shows error banner + retry
+            returnMalformedJson = true;
+            sandbox.refreshEpicHistoryModal();
+            await flushMicrotasks();
+
+            const errBanner = doc.getElementById('epic-history-error-banner');
+            assert.ok(errBanner && errBanner.style.display !== 'none', 'Error banner must be visible on malformed JSON response');
+            const bannerText = getAllText(errBanner);
+            assert.ok(bannerText.includes('Failed to parse epic history JSON') || bannerText.includes('Unexpected token'),
+              `Error banner should describe JSON failure, got: ${bannerText}`);
+            const retryBtns = errBanner.querySelectorAll('button');
+            assert.ok(retryBtns.length >= 1, 'Error banner must provide a Retry button');
+
+            console.log(JSON.stringify({ ok: true }));
+        """
+    )
+    assert res["ok"] is True

@@ -377,7 +377,9 @@ def _build_epic_review_roots(repo_dir: Path, active_epic: str | None) -> list[Pa
     """Build ordered candidate checkout roots (matching worktrees before root repo)."""
     roots: list[Path] = []
     if active_epic:
-        roots.extend(repo_dir / ".worktrees" / v for v in _epic_slug_variants(active_epic))
+        roots.extend(
+            repo_dir / ".worktrees" / v for v in _epic_slug_variants(active_epic)
+        )
     roots.append(repo_dir)
     seen: set[Path] = set()
     ordered: list[Path] = []
@@ -531,7 +533,7 @@ def parse_review_results(
     # Extract repo theme color from .vscode/settings.json if present
     vscode_settings = repo_dir / ".vscode" / "settings.json"
     if vscode_settings.is_file():
-        try:
+        with contextlib.suppress(Exception):
             settings_json = json.loads(vscode_settings.read_text(encoding="utf-8"))
             color_customizations = settings_json.get(
                 "workbench.colorCustomizations", {}
@@ -539,8 +541,6 @@ def parse_review_results(
             result["theme_color"] = color_customizations.get(
                 "titleBar.activeBackground"
             ) or color_customizations.get("statusBar.background")
-        except Exception:
-            pass
 
     candidates = _collect_review_candidates(
         repo_dir, active_epic, target_round, kind, strict_epic
@@ -550,8 +550,12 @@ def parse_review_results(
     if not review_file:
         return result
 
+    try:
+        content = review_file.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return result
+
     result["present"] = True
-    content = review_file.read_text(encoding="utf-8")
 
     # Detect kind from filename if not specified
     if "principal" in review_file.name.lower():
@@ -1391,20 +1395,57 @@ class TasksHandler(http.server.BaseHTTPRequestHandler):
             )
             return
 
-        principal_rev = parse_review_results(
-            repo_dir,
-            active_epic=epic_slug,
-            target_round=round_principal,
-            kind="principal",
-            strict_epic=True,
-        )
-        cross_rev = parse_review_results(
-            repo_dir,
-            active_epic=epic_slug,
-            target_round=round_cross,
-            kind="cross-model",
-            strict_epic=True,
-        )
+        try:
+            principal_rev = parse_review_results(
+                repo_dir,
+                active_epic=epic_slug,
+                target_round=round_principal,
+                kind="principal",
+                strict_epic=True,
+            )
+        except Exception:
+            principal_rev = {
+                "repo": repo_dir.name,
+                "epic": epic_slug,
+                "round": round_principal or 1,
+                "available_rounds": [1],
+                "kind": "principal",
+                "present": False,
+                "verdict": "UNKNOWN",
+                "sha": None,
+                "reviewer": None,
+                "model": None,
+                "thinking": None,
+                "theme_color": None,
+                "findings": [],
+                "raw_output": "",
+            }
+
+        try:
+            cross_rev = parse_review_results(
+                repo_dir,
+                active_epic=epic_slug,
+                target_round=round_cross,
+                kind="cross-model",
+                strict_epic=True,
+            )
+        except Exception:
+            cross_rev = {
+                "repo": repo_dir.name,
+                "epic": epic_slug,
+                "round": round_cross or 1,
+                "available_rounds": [1],
+                "kind": "cross-model",
+                "present": False,
+                "verdict": "UNKNOWN",
+                "sha": None,
+                "reviewer": None,
+                "model": None,
+                "thinking": None,
+                "theme_color": None,
+                "findings": [],
+                "raw_output": "",
+            }
         payload = {
             "success": True,
             "epic": history["epic"],
@@ -1456,10 +1497,8 @@ class TasksHandler(http.server.BaseHTTPRequestHandler):
 
         if path == "/api/profiles":
             profiles: list[str] = []
-            try:
+            with contextlib.suppress(Exception):
                 profiles = discover_antigravity_profiles(get_real_home())
-            except Exception:
-                pass
             self._send_json(200, {"profiles": profiles})
             return
 

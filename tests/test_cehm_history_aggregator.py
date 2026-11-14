@@ -753,3 +753,134 @@ def test_cehm_fr_01_malformed_jsonl_and_corrupt_evidence(tmp_path: Path) -> None
     assert status == 200
     assert payload["success"] is True
     assert payload["tasks"][0]["evidence"] is None
+
+
+def test_cehm_regression_round1_review_transition_deduplication(
+    tmp_path: Path,
+) -> None:
+    """Regression #1: Deduplication must preserve distinct review transitions sharing timestamp, stage, sub_step, and message."""
+    repo = tmp_path / "dedup_repo"
+    epic_slug = "review_dedup_epic"
+    epic_dir = repo / ".devtool" / "epic" / epic_slug
+    _write_text(
+        epic_dir / f"{epic_slug}.en.md",
+        "# Epic: Review Dedup Epic\n\n- **Status**: In Progress\n",
+    )
+    ev1 = {
+        "ts": "2026-11-14T21:00:00Z",
+        "epic": epic_slug,
+        "stage": "Stage 5",
+        "sub_step": "review",
+        "message": "cross-model review",
+        "review_state": {
+            "kind": "code",
+            "round": 1,
+            "phase": "reviewing",
+            "cli": "codex",
+        },
+    }
+    ev2 = {
+        "ts": "2026-11-14T21:00:00Z",
+        "epic": epic_slug,
+        "stage": "Stage 5",
+        "sub_step": "review",
+        "message": "cross-model review",
+        "review_state": {
+            "kind": "code",
+            "round": 1,
+            "phase": "triage",
+            "action": "AUTO_FIX_ELIGIBLE",
+        },
+    }
+    stream_file = repo / ".devtool" / "logs" / f"events_{epic_slug}.jsonl"
+    _write_text(stream_file, json.dumps(ev1) + "\n" + json.dumps(ev2) + "\n")
+
+    merged = check_tasks._merge_epic_heartbeats(repo, epic_slug)
+    assert len(merged["step_events"]) == 2
+    assert merged["step_events"][0]["review_state"]["phase"] == "reviewing"
+    assert merged["step_events"][1]["review_state"]["phase"] == "triage"
+
+    history = check_tasks.harvest_epic_history(repo, epic_slug)
+    timeline_steps = [ev for ev in history["timeline"] if ev.get("category") == "step"]
+    assert len(timeline_steps) == 2
+    assert timeline_steps[0]["review_state"]["phase"] == "reviewing"
+    assert timeline_steps[1]["review_state"]["phase"] == "triage"
+
+
+def test_cehm_regression_round1_packaged_hld_with_gate2_status(
+    tmp_path: Path,
+) -> None:
+    """Regression #2: A Packaged HLD with Gate 2 in ledger must stay 'packaged' and not become 'in_progress'."""
+    repo = tmp_path / "packaged_repo"
+    epic_slug = "packaged_sample_epic"
+    epic_dir = repo / ".devtool" / "epic" / epic_slug
+    _write_text(
+        epic_dir / f"{epic_slug}.en.md",
+        "---\nstatus: packaged\n---\n\n# Epic: Packaged Sample\n\n- **Status**: Packaged\n",
+    )
+    ledger = (
+        "# Gate Ledger\n\n"
+        f"| 2026-11-14T10:00:00Z | {epic_slug} | 1 | Architect | a1b2c3d | Gate 1 Inception |\n"
+        f"| 2026-11-14T11:00:00Z | {epic_slug} | 2 | Architect | d4e5f6a | Gate 2 Packaging |\n"
+    )
+    _write_text(repo / ".devtool" / "GATE_LEDGER.md", ledger)
+
+    history = check_tasks.harvest_epic_history(repo, epic_slug)
+    assert history["epic"]["status"] == "packaged"
+
+    meta = check_tasks.scan_repo(repo)
+    assert meta.epics_summary is not None
+    matching = [e for e in meta.epics_summary.epics if e.get("slug") == epic_slug]
+    assert len(matching) == 1
+    assert matching[0]["status"] == "packaged"
+
+
+def test_cehm_regression_round1_unreadable_review_files_resilience(
+    tmp_path: Path,
+) -> None:
+    """Regression #3: Unreadable / non-UTF-8 review files must not abort /api/epic/history."""
+    ws = tmp_path / "resilient_ws"
+    repo = ws / "corrupt_rev_repo"
+    epic_slug = "corrupt_rev_epic"
+    epic_dir = repo / ".devtool" / "epic" / epic_slug
+
+    _write_text(
+        epic_dir / f"{epic_slug}.en.md",
+        "# Epic: Corrupt Review Resilience\n\n- **Status**: In Progress\n",
+    )
+    _write_text(
+        repo / ".devtool" / "features" / "task_01_core.md",
+        f"---\nepic: {epic_slug}\nstatus: done\n---\n\n# Task 1: Core Function\n",
+    )
+    _write_text(
+        repo / ".devtool" / "logs" / f"events_{epic_slug}.jsonl",
+        json.dumps(
+            {
+                "ts": "2026-11-14T20:00:00Z",
+                "epic": epic_slug,
+                "stage": "tasks",
+                "sub_step": "coding",
+                "message": "Valid task timeline",
+            }
+        )
+        + "\n",
+    )
+    bad_bytes = b"\x80\xff\xfe\x00corrupt-bytes"
+    rev_file = epic_dir / "review_results.md"
+    rev_file.parent.mkdir(parents=True, exist_ok=True)
+    rev_file.write_bytes(bad_bytes)
+    pr_file = epic_dir / "principal_review.md"
+    pr_file.write_bytes(bad_bytes)
+
+    with _running_server(ws, tmp_path / "tasks.pid") as base_url:
+        status, payload = _http_get_json(
+            f"{base_url}/api/epic/history?repo=corrupt_rev_repo&epic={epic_slug}"
+        )
+
+    assert status == 200
+    assert payload["success"] is True
+    assert len(payload["tasks"]) == 1
+    assert payload["tasks"][0]["id"] == "task_01_core"
+    assert len(payload["timeline"]) >= 1
+    assert payload["reviews"]["principal"]["present"] is False
+    assert payload["reviews"]["cross_model"]["present"] is False

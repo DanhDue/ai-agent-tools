@@ -2675,7 +2675,9 @@ Loading evidence data...
       const telemetry = pt && typeof pt === 'object' ? pt : {};
       const stages = Array.isArray(telemetry.stages) ? telemetry.stages : [];
       const curIdx = Number(telemetry.current_stage_index || 3);
-      const rs = (hb && hb.review_state && typeof hb.review_state === 'object') ? hb.review_state : null;
+      const rs = (hb && hb.review_state && typeof hb.review_state === 'object')
+        ? hb.review_state
+        : ((telemetry && telemetry.review_state && typeof telemetry.review_state === 'object') ? telemetry.review_state : null);
       const compact = Boolean(opts.compact);
       const includeSubSteps = opts.includeSubSteps !== undefined ? Boolean(opts.includeSubSteps) : !compact;
       const includeLogs = opts.includeLogs !== undefined ? Boolean(opts.includeLogs) : !compact;
@@ -4321,16 +4323,16 @@ let currentReviewRepo = null;
       return fetch(getApiUrl(buildEpicHistoryUrl()), fetchOpts)
         .then(async (res) => {
           if (!epicHistoryState.isOpen || token !== epicHistoryState.requestToken) return;
-          let payload = null;
+          let payload;
           try {
             payload = await res.json();
-          } catch (e) {
-            payload = null;
+          } catch (err) {
+            throw new Error(`Failed to parse epic history JSON: ${err && err.message ? err.message : String(err)}`);
           }
           if (!epicHistoryState.isOpen || token !== epicHistoryState.requestToken) return;
 
           const httpFailed = (res && typeof res.ok === 'boolean' && !res.ok) || (res && typeof res.status === 'number' && res.status >= 400);
-          if (httpFailed || (payload && payload.success === false)) {
+          if (httpFailed || !payload || payload.success === false) {
             const msg = (payload && payload.error)
               ? String(payload.error)
               : `HTTP ${res && res.status ? res.status : 500} failed to load epic history`;
@@ -4427,9 +4429,9 @@ let currentReviewRepo = null;
 
       const stepperEl = document.getElementById('epic-history-stepper');
       if (stepperEl) {
-        stepperEl.innerHTML = buildPipelineStepperHtml(data.pipeline_telemetry, null, {
+        stepperEl.innerHTML = buildPipelineStepperHtml(data.pipeline_telemetry, data.heartbeat || null, {
           compact: true,
-          includeSubSteps: false,
+          includeSubSteps: true,
           includeLogs: false,
         });
       }

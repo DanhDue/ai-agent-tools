@@ -619,7 +619,7 @@ def _is_epic_eligible_for_active(
         return False
     if abandoned_slugs and _is_completed_epic(slug, abandoned_slugs):
         return False
-    return hld_status not in ("done", "abandon", "abandoned")
+    return hld_status not in ("done", "abandon", "abandoned", "packaged")
 
 
 def _normalize_slug(slug: str) -> str:
@@ -1129,6 +1129,11 @@ def harvest_epics_overview(repo_path: Path) -> EpicsSummary:
                 or (repo_path / ".worktrees" / slug.replace("_", "-")).is_dir()
             )
             norm_slug = _normalize_slug(slug)
+            has_gate3_or_more = any(
+                _normalize_slug(str(g.get("epic", ""))) == norm_slug
+                and int(g.get("gate", 0)) >= 3
+                for g in all_gates
+            )
             has_gate1_or_more = any(
                 _normalize_slug(str(g.get("epic", ""))) == norm_slug
                 and int(g.get("gate", 0)) >= 1
@@ -1150,6 +1155,10 @@ def harvest_epics_overview(repo_path: Path) -> EpicsSummary:
                     if hld_status in ("abandon", "abandoned")
                     else "abandoned"
                 )
+            elif hld_status == "packaged" and not (
+                has_wt or has_gate3_or_more or has_active_hb
+            ):
+                status = "packaged"
             elif (
                 has_wt
                 or hld_status == "in_progress"
@@ -3296,9 +3305,16 @@ def _extract_event_epic(record: dict[str, Any]) -> str:
     return str(record.get("epic") or record.get("epic_slug") or "").strip()
 
 
-def _normalize_step_event(
-    record: dict[str, Any], source: str
-) -> dict[str, Any] | None:
+def _review_state_key(rev: Any) -> str:
+    """Deterministic string key representing review_state identity for deduplication."""
+    if not rev:
+        return ""
+    if isinstance(rev, dict):
+        return json.dumps(rev, sort_keys=True, separators=(",", ":"))
+    return str(rev)
+
+
+def _normalize_step_event(record: dict[str, Any], source: str) -> dict[str, Any] | None:
     """Normalize a JSONL or heartbeat event dict into a timeline step item."""
     message = str(
         record.get("message")
@@ -3309,7 +3325,7 @@ def _normalize_step_event(
     ).strip()
     if not message:
         return None
-    return {
+    normalized: dict[str, Any] = {
         "ts": _normalize_utc_iso(record.get("ts") or record.get("timestamp")),
         "category": "step",
         "stage": str(record.get("stage") or "").strip(),
@@ -3318,6 +3334,9 @@ def _normalize_step_event(
         "message": message,
         "source": source,
     }
+    if record.get("review_state") is not None:
+        normalized["review_state"] = record.get("review_state")
+    return normalized
 
 
 def _read_stream_events(
@@ -3400,19 +3419,20 @@ def _merge_epic_heartbeats(repo_path: Path, epic_slug: str) -> dict[str, Any]:
     ]
 
     step_events: list[dict[str, Any]] = []
-    seen_exact: set[tuple[str, str, str, str]] = set()
-    stream_msg_keys: set[tuple[str, str, str]] = set()
+    seen_exact: set[tuple[str, str, str, str, str]] = set()
+    stream_msg_keys: set[tuple[str, str, str, str]] = set()
     has_stream = False
 
     for s_path in stream_files:
         src = "archive_stream" if s_path.parent.name == "archive" else "stream"
         for ev in _read_stream_events(s_path, norm_target, src):
             has_stream = True
-            exact_key = (ev["ts"], ev["stage"], ev["sub_step"], ev["message"])
+            rev_key = _review_state_key(ev.get("review_state"))
+            exact_key = (ev["ts"], ev["stage"], ev["sub_step"], ev["message"], rev_key)
             if exact_key in seen_exact:
                 continue
             seen_exact.add(exact_key)
-            stream_msg_keys.add((ev["stage"], ev["sub_step"], ev["message"]))
+            stream_msg_keys.add((ev["stage"], ev["sub_step"], ev["message"], rev_key))
             step_events.append(ev)
 
     best_hb: dict[str, Any] | None = None
@@ -3445,13 +3465,20 @@ def _merge_epic_heartbeats(repo_path: Path, epic_slug: str) -> dict[str, Any]:
             hb_ev = _normalize_step_event(item, src)
             if hb_ev is None:
                 continue
+            rev_key = _review_state_key(hb_ev.get("review_state"))
             exact_key = (
                 hb_ev["ts"],
                 hb_ev["stage"],
                 hb_ev["sub_step"],
                 hb_ev["message"],
+                rev_key,
             )
-            msg_key = (hb_ev["stage"], hb_ev["sub_step"], hb_ev["message"])
+            msg_key = (
+                hb_ev["stage"],
+                hb_ev["sub_step"],
+                hb_ev["message"],
+                rev_key,
+            )
             if exact_key in seen_exact or msg_key in stream_msg_keys:
                 continue
             seen_exact.add(exact_key)
@@ -3465,6 +3492,11 @@ def _merge_epic_heartbeats(repo_path: Path, epic_slug: str) -> dict[str, Any]:
                 "stage": ev["stage"],
                 "sub_step": ev["sub_step"],
                 "message": ev["message"],
+                **(
+                    {"review_state": ev["review_state"]}
+                    if ev.get("review_state") is not None
+                    else {}
+                ),
             }
             for ev in step_events
         ]
@@ -3646,8 +3678,7 @@ def _parse_task_card(
         fm = parse_frontmatter(content)
         task_epic = str(fm.get("epic") or "").strip()
         dir_match = (
-            tf.parent.name in variants
-            or _normalize_slug(tf.parent.name) == norm_target
+            tf.parent.name in variants or _normalize_slug(tf.parent.name) == norm_target
         )
         if task_epic:
             if _normalize_slug(task_epic) != norm_target:
@@ -3766,9 +3797,7 @@ def _build_unified_timeline(
         approver = str(g.get("approver") or g.get("by") or "").strip()
         commit = str(g.get("commit") or "").strip()
         detail = (
-            f"{approver} ({commit})"
-            if approver and commit
-            else (approver or commit)
+            f"{approver} ({commit})" if approver and commit else (approver or commit)
         )
         msg = f"Gate {gate_num}: {summary}" if summary else f"Gate {gate_num} approved"
         raw_items.append(
@@ -3806,13 +3835,15 @@ def _build_unified_timeline(
         )
 
     deduped: list[dict[str, Any]] = []
-    seen: set[tuple[str, str, str, str]] = set()
+    seen: set[tuple[str, str, str, str, str]] = set()
     for item in raw_items:
+        rev_key = _review_state_key(item.get("review_state"))
         key = (
             str(item.get("ts") or ""),
             str(item.get("category") or ""),
             str(item.get("sub_step") or ""),
             str(item.get("message") or ""),
+            rev_key,
         )
         if key in seen:
             continue
@@ -3903,9 +3934,7 @@ def harvest_epic_history(repo_path: Path, epic_slug: str) -> dict[str, Any]:
     abandoned_slugs = get_abandoned_epic_slugs(repo_path)
     gate_entries = parse_gate_ledger_entries(repo_path, epic_slug)
     merged_hb = _merge_epic_heartbeats(repo_path, epic_slug)
-    activity_events, has_activity = _collect_epic_activity_events(
-        repo_path, epic_slug
-    )
+    activity_events, has_activity = _collect_epic_activity_events(repo_path, epic_slug)
 
     hld_status: str | None = None
     for ed in epic_dirs:
@@ -3916,18 +3945,29 @@ def harvest_epic_history(repo_path: Path, epic_slug: str) -> dict[str, Any]:
             break
 
     has_gate5 = any(_safe_int_val(g.get("gate"), 0) == 5 for g in gate_entries)
-    if hld_status == "done" or _is_completed_epic(epic_slug, completed_slugs) or has_gate5:
+    has_gate3_or_more = any(_safe_int_val(g.get("gate"), 0) >= 3 for g in gate_entries)
+    if (
+        hld_status == "done"
+        or _is_completed_epic(epic_slug, completed_slugs)
+        or has_gate5
+    ):
         status = "done"
     elif hld_status in ("abandon", "abandoned") or _is_completed_epic(
         epic_slug, abandoned_slugs
     ):
-        status = (
-            hld_status if hld_status in ("abandon", "abandoned") else "abandoned"
-        )
+        status = hld_status if hld_status in ("abandon", "abandoned") else "abandoned"
+    elif hld_status == "packaged" and not (
+        matching_wts
+        or has_gate3_or_more
+        or merged_hb["has_heartbeat"]
+        or merged_hb["has_stream"]
+    ):
+        status = "packaged"
     elif (
         matching_wts
         or hld_status == "in_progress"
-        or gate_entries
+        or has_gate3_or_more
+        or (gate_entries and hld_status != "packaged")
         or merged_hb["has_heartbeat"]
         or merged_hb["has_stream"]
     ):
@@ -3940,7 +3980,7 @@ def harvest_epic_history(repo_path: Path, epic_slug: str) -> dict[str, Any]:
     tasks = _collect_epic_tasks_with_evidence(
         repo_path, epic_slug, status, matching_wts
     )
-    if status == "unstarted" and any(
+    if status in ("unstarted", "packaged") and any(
         t.get("status") in ("in-progress", "review", "done") for t in tasks
     ):
         status = "in_progress"
