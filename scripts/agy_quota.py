@@ -274,6 +274,22 @@ def build_clean_host_env(base_env: dict[str, str] | None = None) -> dict[str, st
     return env
 
 
+def build_profile_cli_env(profile: str) -> dict[str, str]:
+    """Return a sanitized host environment scoped to a single Antigravity profile."""
+    ag_home = f"{REAL_HOME}/antigravity_homes/{profile}"
+    tmpdir_path = f"/tmp/ag_{profile}"
+    os.makedirs(tmpdir_path, exist_ok=True)
+    env = build_clean_host_env()
+    env.update({
+        "HOME": ag_home,
+        "AGY_PROFILE": profile,
+        "AGY_CLI_MODE": "1",
+        "TMPDIR": tmpdir_path,
+        "BROWSER": "true",
+    })
+    return env
+
+
 def init_session_store_db():
     try:
         SESSION_STORE_DB.parent.mkdir(parents=True, exist_ok=True)
@@ -654,14 +670,7 @@ def probe_blocked_profile(profile: str) -> dict:
     if os.path.exists(profile_kc):
         subprocess.run(["security", "unlock-keychain", "-p", KC_PASS, profile_kc], capture_output=True)
 
-    env = os.environ.copy()
-    env.update({
-        "HOME": ag_home,
-        "AGY_PROFILE": profile,
-        "AGY_CLI_MODE": "1",
-        "TMPDIR": f"/tmp/ag_{profile}",
-        "BROWSER": "true",
-    })
+    env = build_profile_cli_env(profile)
 
     # 3. CRITICAL: Test real model inference with a lightweight prompt from NATURAL_PROMPTS
     # Google's /usage endpoint does NOT check the ToS model suspension flag!
@@ -874,16 +883,7 @@ def fetch_quota_for_profile(profile: str, force_probe: bool = False) -> dict:
         subprocess.run(["security", "unlock-keychain", "-p", KC_PASS, profile_kc], capture_output=True)
 
     # 4. Build isolated environment
-    tmpdir_path = f"/tmp/ag_{profile}"
-    os.makedirs(tmpdir_path, exist_ok=True)
-    env = build_clean_host_env()
-    env.update({
-        "HOME": ag_home,
-        "AGY_PROFILE": profile,
-        "AGY_CLI_MODE": "1",
-        "TMPDIR": tmpdir_path,
-        "BROWSER": "true",  # Safeguard against browser launch
-    })
+    env = build_profile_cli_env(profile)
 
     cmd = [AGY_BIN, "--output-format", "json", "-p", "/usage"]
     t0 = time.time()
@@ -2562,15 +2562,7 @@ def execute_ping_profile(profile: str, force: bool = False) -> dict:
     if os.path.exists(profile_kc):
         subprocess.run(["security", "unlock-keychain", "-p", KC_PASS, profile_kc], capture_output=True)
 
-    tmp_profile_dir = f"/tmp/ag_{profile}"
-    os.makedirs(tmp_profile_dir, exist_ok=True)
-    env = build_clean_host_env({
-        "HOME": ag_home,
-        "AGY_PROFILE": profile,
-        "AGY_CLI_MODE": "1",
-        "TMPDIR": tmp_profile_dir,
-        "BROWSER": "true",
-    })
+    env = build_profile_cli_env(profile)
 
     pinged_gemini = False
     pinged_claude = False
@@ -3167,10 +3159,14 @@ class QuotaDashboardHandler(http.server.BaseHTTPRequestHandler):
                 })
                 return
             post_q = ping_res.get("post_quota")
-            result = post_q if (isinstance(post_q, dict) and post_q.get("success")) else fetch_quota_for_profile(profile)
-            formatted = format_profile_for_dashboard(profile, result) if result.get("groups") else load_cached_profiles().get(profile, {})
-            if result.get("groups"):
+            if isinstance(post_q, dict) and post_q.get("success") and not post_q.get("groups"):
+                formatted = post_q
                 update_cached_profile(profile, formatted)
+            else:
+                result = post_q if (isinstance(post_q, dict) and post_q.get("groups")) else fetch_quota_for_profile(profile)
+                formatted = format_profile_for_dashboard(profile, result) if result.get("groups") else load_cached_profiles().get(profile, {})
+                if result.get("groups"):
+                    update_cached_profile(profile, formatted)
             self.send_json({
                 "success": bool(ping_res.get("success", False)),
                 "profile": profile,

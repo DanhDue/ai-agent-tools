@@ -1132,6 +1132,136 @@ class TestAgyQuotaServer(unittest.TestCase):
                 ticking_q = agy_quota.fetch_codex_quota()
                 self.assertTrue(ticking_q["isSessionActive"])
 
+    def test_execute_ping_profile_preserves_target_home_and_path(self):
+        """execute_ping_profile must isolate target profile HOME/AGY_PROFILE and preserve PATH."""
+        now_utc = agy_quota.datetime.datetime.now(agy_quota.datetime.timezone.utc)
+        fresh_5h = (now_utc + agy_quota.datetime.timedelta(hours=5)).strftime(
+            "%Y-%m-%dT%H:%M:%SZ"
+        )
+        live_quota = {
+            "success": True,
+            "tier": "PRO",
+            "groups": [
+                {
+                    "name": "Gemini Models",
+                    "buckets": [
+                        {
+                            "window": "5h",
+                            "remaining_fraction": 1.0,
+                            "reset_time": fresh_5h,
+                        }
+                    ],
+                },
+                {
+                    "name": "Claude and GPT models",
+                    "buckets": [
+                        {
+                            "window": "5h",
+                            "remaining_fraction": 1.0,
+                            "reset_time": fresh_5h,
+                        }
+                    ],
+                },
+            ],
+        }
+        dirty_env = {
+            "PATH": "/opt/homebrew/bin:/usr/bin",
+            "HOME": "/Users/danhdueexoictif",
+            "VSCODE_PID": "999",
+            "ANTIGRAVITY_AGENT": "1",
+            "AGY_PROFILE": "phungthuy8901",
+            "ELECTRON_RUN_AS_NODE": "1",
+        }
+        captured_envs = []
+
+        def fake_run(cmd, **kwargs):
+            if cmd[0] == agy_quota.AGY_BIN:
+                captured_envs.append((list(cmd), dict(kwargs.get("env") or {})))
+            if cmd[1:2] == ["models"]:
+                return MagicMock(
+                    returncode=0,
+                    stdout="gemini-3.8-flash-low\nclaude-sonnet-5-5-low\n",
+                    stderr="",
+                )
+            return MagicMock(returncode=0, stdout="OK", stderr="")
+
+        with (
+            patch.dict("os.environ", dirty_env, clear=True),
+            patch("os.path.isdir", return_value=True),
+            patch("os.makedirs"),
+            patch("agy_quota.wait_for_launch_lock"),
+            patch("agy_quota.check_profile_appeal_status", return_value=None),
+            patch("agy_quota.check_profile_auth_token", return_value=True),
+            patch("agy_quota.load_cached_profiles", return_value={}),
+            patch("agy_quota.fetch_quota_for_profile", return_value=live_quota),
+            patch("agy_quota.update_cached_profile"),
+            patch("subprocess.run", side_effect=fake_run),
+            patch("time.sleep"),
+        ):
+            res = agy_quota.execute_ping_profile("hau")
+            self.assertTrue(res.get("success"))
+            self.assertTrue(res.get("pinged_claude"))
+            self.assertTrue(captured_envs)
+            expected_home = f"{agy_quota.REAL_HOME}/antigravity_homes/hau"
+            for _, env in captured_envs:
+                self.assertEqual(env.get("HOME"), expected_home)
+                self.assertEqual(env.get("AGY_PROFILE"), "hau")
+                self.assertEqual(env.get("AGY_CLI_MODE"), "1")
+                self.assertEqual(env.get("PATH"), "/opt/homebrew/bin:/usr/bin")
+                self.assertNotIn("VSCODE_PID", env)
+                self.assertNotIn("ANTIGRAVITY_AGENT", env)
+                self.assertNotIn("ELECTRON_RUN_AS_NODE", env)
+
+    def test_api_ping_returns_formatted_post_quota_directly(self):
+        """/api/ping uses formatted post_quota directly instead of falling back to stale cache."""
+        handler = agy_quota.QuotaDashboardHandler.__new__(
+            agy_quota.QuotaDashboardHandler
+        )
+        handler.send_json = MagicMock()
+        fresh_formatted = {
+            "profile": "hau",
+            "success": True,
+            "status": "ACTIVE",
+            "claude5h": {
+                "name": "Claude 5.5 / GPT 5H",
+                "fraction": 0.96,
+                "countdown": "⏱ 4h 59m (03:09:32)",
+            },
+        }
+        stale_cache = {
+            "hau": {
+                "profile": "hau",
+                "success": True,
+                "status": "ACTIVE",
+                "claude5h": {
+                    "name": "Claude 5.5 / GPT 5H",
+                    "fraction": 1.0,
+                    "countdown": "⏱ 4h 59m (stale)",
+                },
+            }
+        }
+        with (
+            patch(
+                "agy_quota.execute_ping_profile",
+                return_value={
+                    "profile": "hau",
+                    "success": True,
+                    "duration_ms": 120,
+                    "message": "ok",
+                    "post_quota": fresh_formatted,
+                },
+            ),
+            patch("agy_quota.load_cached_profiles", return_value=stale_cache),
+            patch("agy_quota.update_cached_profile") as mock_update,
+        ):
+            handler.path = "/api/ping?profile=hau"
+            handler.command = "GET"
+            handler.do_GET()
+            resp = handler.send_json.call_args[0][0]
+            self.assertTrue(resp["success"])
+            self.assertEqual(resp["data"]["claude5h"]["fraction"], 0.96)
+            mock_update.assert_called_once_with("hau", fresh_formatted)
+
 
 if __name__ == "__main__":
     unittest.main()
