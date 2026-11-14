@@ -57,7 +57,7 @@ Bổ sung 2 bài kiểm thử tái hiện lỗi gốc và trường hợp biên 
 2. `test_scan_repo_aggregates_secondary_epic_action_blockers_and_stages(tmp_path: Path)`:
    - Tạo repo 2 epic: `primary_auto_epic` chạy tự động trong worktree (`.worktrees/primary_auto_epic`, `Stage 3`, `is_human_action_required == False`) còn `blocked_secondary_epic` (`in_progress`) đang chờ xác nhận trong `pending_decision.json` (`decisions["blocked_secondary_epic"]` với lý do `"Confirm Gate 3 task ordering"`).
    - Kèm thêm 1 epic `done` cũ để chứng minh epic đã hoàn thành không lọt vào `action_blockers`.
-   - Xác nhận `repo.is_human_action_required is True`, `repo.action_blockers == [{"epic": "blocked_secondary_epic", "stage": ..., "reason": "Confirm Gate 3 task ordering"}]`, epic `blocked_secondary_epic` mang `active_stage`, `is_action_required is True`, `action_prompt == "Confirm Gate 3 task ordering"`, và `repo.prompt` phản ánh blocker thay vì `"Idle"`.
+   - Xác nhận `repo.is_human_action_required is False` (bảo toàn cách ly quyết định theo `active_epic` của `RSDH-AR-03`), `repo.action_blockers == [{"epic": "blocked_secondary_epic", "stage": ..., "reason": "Confirm Gate 3 task ordering"}]`, và epic `blocked_secondary_epic` mang `active_stage`, `is_action_required is True`, `action_prompt == "Confirm Gate 3 task ordering"`.
 
 - [ ] **Bước 2: Chạy pytest mục tiêu xác nhận FAIL**
 
@@ -72,11 +72,12 @@ Kỳ vọng: FAIL (`mac_mini_to_cloud_roadmap` bị chọn nhầm hoặc thiếu
 1. Trong `RepoMetadata` (`L263-287`): thêm `action_blockers: list[dict[str, str]] = field(default_factory=list)`.
 2. Trong `resolve_active_epic()` (`L877-1055`):
    - Giữ ưu tiên hàng đầu cho nhánh worktree (`epic/` hoặc `feat/`), tệp dirty `.devtool/epic/<slug>`, và tên thư mục worktree khớp `_strip_slot_suffix(d.name)`.
-   - Khi quét `wt_feat = d / ".devtool" / "features"`: chỉ trả về ngay nếu `t.epic` chuẩn hóa khớp `_strip_slot_suffix(d.name)` HOẶC `t.status == "in_progress"`; ngược lại giữ làm `unrelated_wt_feature_fallback` để Bước 3, 4, 5, 5.5 (`pending_decision.json`) và Bước 7 (`stage12_candidates`: `gate >= 1`, `heartbeat`, epic `in_progress`) được đánh giá trước.
+   - Khi quét `wt_feat = d / ".devtool" / "features"`: chỉ trả về ngay nếu `t.epic` chuẩn hóa khớp `_strip_slot_suffix(d.name)` HOẶC `t.status == "in_progress"`; ngược lại giữ làm `unrelated_wt_feature_fallback` để Bước 3, 4, Bước 5.5 (`pending_decision.json`) và Bước 7 (`stage12_candidates`: `gate >= 1`, `heartbeat`, epic `in_progress`) được đánh giá trước khi fallback về tên thư mục worktree chưa xác thực ở Bước 5 hay backlog cũ.
 3. Trong `_scan_repo_impl()` (`L3230-3323`):
    - Gán `ep["active_stage"]` cho mọi epic trong `epics_summary["epics"]` (`decision.stage.value` với active epic, `ep_decision.stage.value` với non-done epic).
    - Loại trừ `status == "done"` khỏi blocker; bảo đảm mọi epic non-done đang cần xác nhận đều có `is_action_required = True` và `action_prompt` không rỗng (`ep_prompt or ep.get("action_prompt") or ep_decision.prompt`).
-   - Tổng hợp `action_blockers` không trùng lặp theo slug chuẩn hóa (gồm cả `active_epic` và các epic phụ đang bị chặn), bật `repo.is_human_action_required = bool(decision.is_human_action_required or action_blockers)`, và cập nhật `repo.prompt` thành `<epic>: <reason>` nếu chỉ epic phụ bị chặn.
+   - Tổng hợp `action_blockers` không trùng lặp theo slug chuẩn hóa (gồm cả `active_epic` và các epic phụ đang bị chặn).
+   - Giữ `is_human_action_required=decision.is_human_action_required` và `prompt=decision.prompt` giới hạn theo `active_epic` (bảo toàn cách ly `RSDH-AR-03`), đồng thời truyền `action_blockers=action_blockers` vào `RepoMetadata(...)` để `collectRepoActionBlockers(repo)` tổng hợp toàn bộ epic bị chặn.
 
 - [ ] **Bước 4: Chạy lại bộ test harvester & FSM xác nhận PASS**
 

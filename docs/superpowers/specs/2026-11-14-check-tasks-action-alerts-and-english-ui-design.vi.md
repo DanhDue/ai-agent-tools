@@ -44,7 +44,7 @@ Phân tích nguyên nhân gốc cho thấy hai vấn đề cộng hưởng:
 ### Mục Tiêu
 
 - Đảm bảo `resolve_active_epic()` ưu tiên `pending_decision.json` đang active và các epic Stage 1–4 đang chạy trước các task backlog `unstarted` cũ nằm trong worktree không liên quan.
-- Tổng hợp trạng thái chờ xác nhận trên **toàn bộ** epic chưa hoàn thành của repo (`repo.is_human_action_required`, `repo.action_blockers`, `ep.active_stage`).
+- Tổng hợp trạng thái chờ xác nhận trên **toàn bộ** epic chưa hoàn thành của repo vào `repo.action_blockers` (và `ep.active_stage` cho từng epic), đồng thời giữ nguyên cách ly `repo.is_human_action_required` / `repo.prompt` chỉ theo `active_epic`.
 - Hiển thị cảnh báo đồng nhất tại đủ cả 4 vị trí trên dashboard:
   1. **Banner Thẻ Execution Epic**: Hiển thị đúng `action_prompt` và `active_stage` thực tế.
   2. **Kanban Sidebar (`EPICS PROGRESS`)**: Giữ viền đỏ và chấm tròn pulse kèm tooltip tiếng Anh.
@@ -90,8 +90,7 @@ Thêm trường `action_blockers: list[dict[str, str]] = field(default_factory=l
 
 - Chạy `ep_decision = derive_lifecycle_state(repo_path, slug, pending_decision=ep_pd)` cho các epic active/in-progress để mỗi epic chưa hoàn thành trong `epics_summary.epics` đều có `active_stage`, `is_action_required`, và `action_prompt` chính xác (fallback sạch về `ep_decision.prompt` nếu `ep_pd` không ghi `reason`).
 - Dựng danh sách `action_blockers` từ cả `active_epic` (nếu `decision.is_human_action_required`) lẫn mọi epic chưa `done` trong `epics_summary.epics` có `ep.is_action_required == True` (loại trùng theo slug chuẩn hóa, mỗi phần tử gồm `{"epic": slug, "stage": stage_name, "reason": prompt}`).
-- Gán `repo.is_human_action_required = bool(decision.is_human_action_required or action_blockers)`.
-- Khi `decision.is_human_action_required` là `False` nhưng `action_blockers` khác rỗng, giữ `repo.prompt` ở trạng thái phản ánh blocker (ví dụ `<epic>: <reason>`) thay vì để `"Idle"`.
+- Giữ `repo.is_human_action_required` và `repo.prompt` giới hạn chặt chẽ theo `active_epic` (`decision.is_human_action_required` và `decision.prompt`) để trạng thái chờ ở epic khác không tràn sang `active_epic` (bảo toàn hợp đồng cách ly đa epic `RSDH-AR-03`), trong khi `repo.action_blockers` chuyển tải mọi epic bị chặn trên toàn repo cho giao diện và thẻ overview.
 
 ---
 
@@ -135,7 +134,7 @@ Repository `ai-agent-tools` không chứa thư mục `shared-contracts/`; mọi 
 
 1. **Unit & Harvester Tests (`tests/test_ltsp_harvester_pipeline.py`)**:
    - Tái hiện đúng tình huống của `lyrics-sync`: worktree lạ chứa backlog `unstarted` cũ song song với `pending_decision.json` active của epic khác; kiểm tra `resolve_active_epic` ưu tiên đúng epic đang chờ quyết định.
-   - Kiểm tra repo chạy nhiều epic song song khi epic phụ đang dừng chờ confirm: xác nhận `repo.is_human_action_required is True`, `repo.action_blockers` chứa đúng epic + lý do + stage, và `ep["active_stage"]` khớp thực tế.
+   - Kiểm tra repo chạy nhiều epic song song khi epic phụ đang dừng chờ confirm: xác nhận `repo.is_human_action_required is False` (giữ cách ly `active_epic`), `repo.action_blockers` chứa đúng epic phụ + lý do + stage, và `ep["active_stage"]` khớp thực tế.
 2. **UI & CDP Browser Acceptance Tests (`tests/test_ltsp_dashboard_ui.py`, `tests/test_lifecycle_telemetry_and_stage_progress.py`)**:
    - Khởi chạy `TasksServer` thật với repo đa-epic đang chờ confirm (`lyrics-sync` nền đỏ + blocker phụ).
    - Xác minh qua Chrome DevTools Protocol (CDP) headless rằng **cả 4 vị trí** đều hiện cảnh báo đồng bộ (tab repo có pill + chấm đỏ, thẻ Approval Blockers liệt kê đúng blocker, mục sidebar `EPICS PROGRESS` đỏ/chấm pulse, banner Execution hiện đúng lý do và stage thật) cùng các tiêu đề tiếng Anh sạch hoàn toàn.

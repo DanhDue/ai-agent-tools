@@ -57,7 +57,7 @@ Add two TDD tests covering the root causes and multi-epic edge cases:
 2. `test_scan_repo_aggregates_secondary_epic_action_blockers_and_stages(tmp_path: Path)`:
    - Create a two-epic repo where `primary_auto_epic` is in active worktree (`.worktrees/primary_auto_epic`, autonomous `Stage 3`, `is_human_action_required == False`), and sibling `blocked_secondary_epic` (status `in_progress`, Gate 2 in ledger or `pending_decision.json` multi-decision map `decisions["blocked_secondary_epic"]`) requires human confirmation (`"Confirm Gate 3 task ordering"`).
    - Also include a `done` historical epic with a stale flag to prove completed epics are excluded from `action_blockers`.
-   - Assert `repo.is_human_action_required is True`, `repo.action_blockers == [{"epic": "blocked_secondary_epic", "stage": ..., "reason": "Confirm Gate 3 task ordering"}]`, `blocked_secondary_epic` in `repo.epics_summary["epics"]` carries non-empty `active_stage`, `is_action_required is True`, `action_prompt == "Confirm Gate 3 task ordering"`, and `repo.prompt` reflects the active blocker rather than `"Idle"` or misleading non-action status.
+   - Assert `repo.is_human_action_required is False` (preserving `active_epic` decision isolation per `RSDH-AR-03`), `repo.action_blockers == [{"epic": "blocked_secondary_epic", "stage": ..., "reason": "Confirm Gate 3 task ordering"}]`, and `blocked_secondary_epic` in `repo.epics_summary["epics"]` carries non-empty `active_stage`, `is_action_required is True`, and `action_prompt == "Confirm Gate 3 task ordering"`.
 
 - [ ] **Step 2: Run targeted pytest to confirm FAIL**
 
@@ -73,7 +73,7 @@ Expected: FAIL (`mac_mini_to_cloud_roadmap` selected instead of `alignment_flow_
    - Add `action_blockers: list[dict[str, str]] = field(default_factory=list)`.
 2. In `resolve_active_epic()` (`L877-1055`):
    - Keep Step 1 (`wt.branch` matching `epic/` or `feat/`), Step 2a (dirty `.devtool/epic/<slug>` inside worktree), and Step 2c (`_strip_slot_suffix(d.name)` matching a known epic) ahead of fallback states.
-   - In Step 2b (`wt_feat = d / ".devtool" / "features"`): only return immediately if the task's normalized `epic` matches `_strip_slot_suffix(d.name)` OR the task has `status == "in_progress"`. Otherwise store the first `wt_feat` epic in `unrelated_wt_feature_fallback` and let Steps 3 (`assistant_state.md`), 4 (`.devtool/state/*.md`), 5 (`.worktrees/` directory names), 5.5 (`_resolve_active_epic_from_pending_decision`), and 7 (`stage12_candidates`: `gate >= 1`, `heartbeat`, active `in_progress` epics) resolve before falling back to `unrelated_wt_feature_fallback` or Step 6 root `.devtool/features/`.
+   - In Step 2b (`wt_feat = d / ".devtool" / "features"`): only return immediately if the task's normalized `epic` matches `_strip_slot_suffix(d.name)` OR the task has `status == "in_progress"`. Otherwise store the first `wt_feat` epic in `unrelated_wt_feature_fallback` and let Step 3 (`assistant_state.md`), Step 4 (`.devtool/state/*.md`), Step 5.5 (`_resolve_active_epic_from_pending_decision`), and Step 7 (`stage12_candidates`: `gate >= 1`, `heartbeat`, active `in_progress` epics) resolve before falling back to Step 5 unverified `.worktrees/` directory names, `unrelated_wt_feature_fallback`, or Step 6 root `.devtool/features/`.
 3. In `_scan_repo_impl()` (`L3230-3323`):
    - Track `ep["active_stage"]` for every epic in `epics_summary["epics"]`:
      - For `active_epic`: set `ep["active_stage"] = decision.stage.value`.
@@ -82,9 +82,7 @@ Expected: FAIL (`mac_mini_to_cloud_roadmap` selected instead of `alignment_flow_
    - Build `action_blockers: list[dict[str, str]] = []` deduplicated by `_normalize_slug(slug)`:
      - Include primary `active_epic` if `decision.is_human_action_required` (reason = `matched_pending.get("reason")` if active else `decision.prompt`, stage = `decision.stage.value`).
      - Append each non-done epic in `epics_summary["epics"]` with `ep.get("is_action_required") is True` and not yet seen (`stage = ep.get("active_stage") or "Stage 1 (Inception)"`, `reason = ep.get("action_prompt") or "Confirmation required"`).
-   - Compute `repo_action_required = bool(decision.is_human_action_required or action_blockers)`.
-   - Compute `repo_prompt = decision.prompt`: if `not decision.is_human_action_required and action_blockers`, format `first = action_blockers[0]`; `repo_prompt = f"{first['epic']}: {first['reason']}"` so top-level `repo.prompt` is actionable.
-   - Pass `is_human_action_required=repo_action_required`, `prompt=repo_prompt`, and `action_blockers=action_blockers` into `RepoMetadata(...)`.
+   - Keep `is_human_action_required=decision.is_human_action_required` and `prompt=decision.prompt` scoped to `active_epic` (preserving strict `RSDH-AR-03` isolation), while passing `action_blockers=action_blockers` into `RepoMetadata(...)` so `collectRepoActionBlockers(repo)` surfaces every blocked epic across the repo.
 
 - [ ] **Step 4: Run targeted & harvester test suite to verify PASS**
 

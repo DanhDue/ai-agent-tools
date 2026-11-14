@@ -44,7 +44,7 @@ Root cause analysis confirmed two compounding issues:
 ### Goals
 
 - Ensure `resolve_active_epic()` prioritizes live `pending_decision.json` blockers and active Stage 1–4 epics over stale `unstarted` backlog tasks in unrelated worktrees.
-- Aggregate action-required blockers across **all** non-completed epics in a repository (`repo.is_human_action_required`, `repo.action_blockers`, `ep.active_stage`).
+- Aggregate action-required blockers across **all** non-completed epics in a repository into `repo.action_blockers` (and per-epic `active_stage`), while preserving `repo.is_human_action_required` / `repo.prompt` isolation for `active_epic`.
 - Display consistent visual warnings across all four dashboard locations:
   1. **Execution Epic Card Banner**: Show real `action_prompt` and accurate `active_stage`.
   2. **Kanban Sidebar (`EPICS PROGRESS`)**: Highlight blocked epic border with pulsing dot and English tooltip.
@@ -90,8 +90,7 @@ Add `action_blockers: list[dict[str, str]] = field(default_factory=list)` to `Re
 
 - Derive `ep_decision = derive_lifecycle_state(repo_path, slug, pending_decision=ep_pd)` for active/in-progress epics so every non-done epic in `epics_summary.epics` carries accurate `active_stage`, `is_action_required`, and `action_prompt` (falling back cleanly to `ep_decision.prompt` when `ep_pd` has no explicit reason).
 - Build `action_blockers` deterministically across both `active_epic` (when `decision.is_human_action_required`) and any non-done epic in `epics_summary.epics` where `ep.is_action_required` is `True` (deduplicated by normalized slug, each entry shaped `{"epic": slug, "stage": stage_name, "reason": prompt}`).
-- Set `repo.is_human_action_required = bool(decision.is_human_action_required or action_blockers)`.
-- If `decision.is_human_action_required` is `False` while `action_blockers` is non-empty, keep `repo.prompt` actionable (e.g., `<epic>: <reason>` or summarized blocker count) instead of `"Idle"`.
+- Keep `repo.is_human_action_required` and `repo.prompt` scoped strictly to `active_epic` (`decision.is_human_action_required` and `decision.prompt`) so sibling blocker states do not bleed onto `active_epic` (`RSDH-AR-03` multi-epic isolation contract), while `repo.action_blockers` surfaces every blocked epic across the repository to the frontend and overview cards.
 
 ---
 
@@ -135,7 +134,7 @@ No `shared-contracts/` directory exists in `ai-agent-tools`; all schema addition
 
 1. **Unit & Harvester Tests (`tests/test_ltsp_harvester_pipeline.py`)**:
    - Reproduce `lyrics-sync` stale `.worktrees/<other>/.devtool/features/` backlog alongside an active `pending_decision.json` blocker; verify `resolve_active_epic` picks the blocked epic (not the stale unstarted backlog).
-   - Verify multi-epic repo where `active_epic` runs autonomously while a sibling `in_progress` epic has an active `pending_decision`: assert `repo.is_human_action_required is True`, `repo.action_blockers` contains the blocked epic with reason/stage, and `ep["active_stage"]` matches.
+   - Verify multi-epic repo where `active_epic` runs autonomously while a sibling `in_progress` epic has an active `pending_decision`: assert `repo.is_human_action_required is False` (active_epic isolation preserved), `repo.action_blockers` contains the blocked sibling epic with reason/stage, and `ep["active_stage"]` matches.
 2. **UI & CDP Browser Acceptance Tests (`tests/test_ltsp_dashboard_ui.py`, `tests/test_lifecycle_telemetry_and_stage_progress.py`)**:
    - Serve live `TasksServer` with synthetic multi-epic action-required repo (`lyrics-sync` red theme + secondary blocker).
    - Assert via headless Chrome CDP that **all 4 locations** display action-required alerts simultaneously (Repo tab pill + dot, Approval Blockers card listing blocker, Kanban `EPICS PROGRESS` item border/dot, Execution card banner with exact reason and accurate stage) and key English titles render without Vietnamese UI regressions.
