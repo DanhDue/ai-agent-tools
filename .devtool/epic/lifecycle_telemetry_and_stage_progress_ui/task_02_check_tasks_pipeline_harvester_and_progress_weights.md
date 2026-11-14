@@ -22,22 +22,23 @@ Epic: [lifecycle_telemetry_and_stage_progress_ui](lifecycle_telemetry_and_stage_
 Enhance `skills/check-tasks/resources/scripts/check_tasks.py` so Epics activate in Section II immediately after Gate 1 (`dev-brainstorming`), decouple `100%` Task Implementation progress from weighted 6-stage `/dev-lifecycle` progress, and harvest detailed sub-step telemetry (`pipeline_telemetry`) across all 6 stages:
 
 1. **Early Epic Activation from Gate 1 (`resolve_active_epic` & `harvest_epics_overview`)**:
-   - In `resolve_active_epic(repo_path)` (`L807-L918`), after checking worktrees, `assistant_state.md`, `.devtool/state/*.md`, and `pending_decision.json`, inspect `parse_gate_ledger_entries(repo_path)` and `.devtool/state/*.heartbeat.json`. Resolve the most recently updated non-completed epic that has Gate 1+ approved or an active `.heartbeat.json` snapshot, while leaving dormant backlog folders without gates or heartbeats idle (`None`).
-   - In `harvest_epics_overview(repo_path)` (`L964-L1078`), mark a non-completed, non-abandoned epic as `status = "in_progress"` when `has_wt` is True, `hld_status == "in_progress"`, OR when the epic has Gate 1+ approved in `parse_gate_ledger_entries(repo_path, slug)` or an active `.heartbeat.json` / state file.
+   - Share a single eligibility helper (`_is_epic_eligible_for_active(slug, completed_epics, abandoned_epics, hld_status)`) across `resolve_active_epic(repo_path)` (`L807-L918`) and `harvest_epics_overview(repo_path)` (`L964-L1078`) that excludes `completed`, `archived`, and `abandoned` epics even when an abandoned epic retains a Gate 1 ledger entry or `.heartbeat.json`.
+   - In `resolve_active_epic(repo_path)` (`L807-L918`), after checking worktrees, `assistant_state.md`, `.devtool/state/*.md`, and `pending_decision.json`, inspect `parse_gate_ledger_entries(repo_path)` and `.devtool/state/*.heartbeat.json`. Resolve the most recently updated eligible non-completed, non-abandoned epic that has Gate 1+ approved or an active `.heartbeat.json` snapshot, while leaving dormant backlog folders without gates or heartbeats idle (`None`).
+   - In `harvest_epics_overview(repo_path)` (`L964-L1078`), mark an eligible non-completed, non-abandoned epic as `status = "in_progress"` when `has_wt` is True, `hld_status == "in_progress"`, OR when the epic has Gate 1+ approved in `parse_gate_ledger_entries(repo_path, slug)` or an active `.heartbeat.json` / state file.
    - In `extract_epic_pic(repo_path, active_epic)` (`L2081-L2120`), ensure `*design*.md` files inside `.devtool/epic/<epic>/` are scanned so Stage 1 specs with `- **PIC**: <profile>` resolve PIC immediately.
 2. **Decoupled 100% Task Progress vs. Weighted 6-Stage Lifecycle Progress**:
    - Add `task_completion_pct: float = 0.0` to `TaskProgress` (`L227-L239`). In `extract_task_progress()` (`L1203-L1448`), set `task_completion_pct = round((done / total) * 100.0, 1)` when `total > 0` (reaching **`100.0`** immediately when `done >= total > 0`).
-   - Compute `lifecycle_progress_pct: float` monotonically across the 6 `/dev-lifecycle` stages:
+   - Compute `lifecycle_progress_pct: float` monotonically across the 6 `/dev-lifecycle` stages (decoupled from `current_stage_index` when Gate 4 re-runs after review):
      - Stage 1 (`1. Spec`, `5% -> 10%`): `5.0` when spec exists pre-Gate 1; `10.0` when Gate 1 is approved.
      - Stage 2 (`2. HLD & Principal Review`, `10% -> 25%`): `14.0` when HLD/BDD exist; `18.0` when Gate 2 is approved or `task_*.md` exist; `20.0..23.0` during `/principal-review` Round `1..3`; `25.0` when `handoff.md` is packaged.
      - Stage 3 Phase 1–2 (`3. Task Implementation`, `25% -> 80%`): `25.0` when Gate 3 is approved or `.worktrees/<epic>` exists with `0` done tasks; `25.0 + round((done / total) * 55.0, 1)` when `0 < done < total` (capped at `79.0`); **`80.0`** when `done >= total > 0` before Gate 4 starts.
-     - Stage 3 Phase 4a (`4. Gate 4 Quality Check`, `80% -> 88%`): `81.0..87.0` while Gate 4 (`audit_epic`, `bdd_traceability`, or `quality_check` step `i/N`) runs; **`88.0`** when Gate 4 PASS is recorded.
-     - Stage 3 Phase 4b (`5. Cross-Model Review`, `88% -> 96%`): `89.0..96.0` across Round `1..3` and micro-steps (`reviewing`, `triage`, `fixing`, `verifying`).
-     - Stage 4 (`6. Finish & Sign-Off`, `98% -> 100%`): **`98.0`** when Review Converged / Waiting `/finish` (`Stage 3 Phase 4.1 (Sign-off)`); **`100.0`** when Gate 5 is approved or epic status is `done`.
+     - Stage 3 Phase 4a (`4. Gate 4 Quality Check`, `80% -> 88%`): `81.0..87.0` while Gate 4 (`audit_epic`, `bdd_traceability`, or `quality_check` step `i/N`) runs; passing `quality_check` capabilities alone without `audit_epic` and `bdd_traceability` remains capped at **`87.0`**. **`88.0`** requires full Gate 4 PASS (`audit_epic` PASS + `bdd_traceability` PASS + `quality_check` PASS, or Gate 4 recorded in `GATE_LEDGER.md` / `gate_ledger.jsonl`).
+     - Stage 3 Phase 4b (`5. Cross-Model Review`, `88% -> 96%`): `89.0..96.0` across Round `1..3`, micro-steps (`reviewing`, `triage`, `fixing`, `verifying`), and post-review Gate 4 re-verification on the latest candidate SHA (`96.0`).
+     - Stage 4 (`6. Finish & Sign-Off`, `98% -> 100%`): **`98.0`** ONLY when Cross-Model Review has converged **AND** Gate 4 has passed on the current `HEAD` SHA (`Stage 3 Phase 4.1 (Sign-off)` / Waiting `/finish`); **`100.0`** when Gate 5 is approved or epic status is `done`.
 3. **Structured 6-Stage `pipeline_telemetry` Builder (`build_epic_pipeline_telemetry`)**:
    - Attach `pipeline_telemetry: dict[str, Any]` to `RepoMetadata` (`L265-L289`) and to each active/in-progress epic entry in `epics_summary.epics` inside `scan_repo()` (`L2122-L2227`).
    - Populate `stages` (6 items) with `id`, `index` (`1..6`), `label`, `status` (`"done" | "running" | "action_required" | "failed" | "pending"`), `summary`, and `sub_steps: list[dict[str, str]]`:
-     - Stage 2 & Stage 5 Review sub-steps: `[1. <CLI/Model> Reviewing]`, `[2. Lập bảng Triage]`, `[3. Fix findings]`, `[4. Verifying]`, including automatic commit-based inference when git `HEAD` in the epic worktree has advanced past the latest round's `SHA` in `review_results.md` / `principal_review.md` or when `fixed in <sha>` is recorded.
+     - Stage 2 & Stage 5 Review sub-steps: `[1. <CLI/Model> Reviewing]`, `[2. Lập bảng Triage]`, `[3. Fix findings]`, `[4. Verifying]`, inferring `"fixing"` when git `HEAD` in the epic worktree has advanced past the latest round's `SHA` in `review_results.md` / `principal_review.md` or when `fixed in <sha>` is recorded, and transitioning to `"verifying"` only when a verification execution (`quality_active.json` run or `--phase verifying` / `run_task_checks.py` heartbeat) starts on or after the fix commit.
      - Stage 3 Task Implementation sub-steps: Wave number, active worker slots (`Slot k: task_id (working/review)`), and `done/total (100%)` summary.
      - Stage 4 Gate 4 Quality Check sub-steps: `Epic Audit`, `BDD Traceability`, and per-capability steps from `quality_active.json` (`Static Lint`, `Typecheck`, `PyCore / Unit Test`, `Integration Test`, `UI / E2E Test`, `Architecture Gate`).
 4. Add unit tests in `tests/test_ltsp_harvester_pipeline.py` covering `LTSP-HP-03`, `LTSP-HP-04`, `LTSP-EC-02`, `LTSP-ST-02`, and `LTSP-AR-01`.
@@ -88,14 +89,14 @@ And `meta.pipeline_telemetry["task_completion_pct"]` equals 100.0
 And `meta.pipeline_telemetry["stages"][2]["status"]` equals `"done"` and `meta.pipeline_telemetry["stages"][2]["summary"]` contains `"9/9 (100%)"`
 And `meta.pipeline_telemetry["lifecycle_progress_pct"]` is between 80 and 96
 
-Scenario: [LTSP-EC-02] [Tier A - Unit] Dormant backlog epic directories without Gate 1 or active heartbeat remain unstarted and do not trigger active_epic
-Given a repository containing `.devtool/epic/dormant_backlog/dormant_backlog.en.md` with `- **Status**: Backlog` and zero entries in `GATE_LEDGER.md`, `gate_ledger.jsonl`, or `.devtool/state/`
+Scenario: [LTSP-EC-02] [Tier A - Unit] Dormant backlog and abandoned epic directories do not trigger active_epic even if abandoned epic retains Gate 1 or heartbeat
+Given a repository containing `.devtool/epic/dormant_backlog/dormant_backlog.en.md` with `- **Status**: Backlog` and `.devtool/epic/abandoned_old/abandoned_old.en.md` with `- **Status**: Abandoned` plus a retained Gate 1 entry and `.devtool/state/abandoned_old.heartbeat.json`
 When `resolve_active_epic` and `harvest_epics_overview` inspect the repository
 Then `resolve_active_epic` returns `None`
-And the `"dormant_backlog"` entry in `epics_summary.epics` has `status` equal to `"unstarted"`
+And the `"dormant_backlog"` entry in `epics_summary.epics` has `status` equal to `"unstarted"` and `"abandoned_old"` has `status` equal to `"abandoned"`
 
-Scenario: [LTSP-ST-02] [Tier A - Unit] Lifecycle progress percentage advances monotonically across all 6 stages from Stage 1 to Stage 4
-Given an epic progressing sequentially through: (1) Stage 1 Spec, (2) Stage 2 HLD + Principal Review Round 1, (3) Stage 3 Tasks 2/4 Done, (4) Stage 3 Tasks 4/4 Done + Gate 4 QA Running, (5) Gate 4 PASS + Cross-Model Review Round 2, (6) Review Converged Waiting Finish, and (7) Gate 5 Done
+Scenario: [LTSP-ST-02] [Tier A - Unit] Lifecycle progress percentage advances monotonically across all 6 stages and requires full Gate 4 on latest SHA before 98% Finish
+Given an epic progressing sequentially through: (1) Stage 1 Spec, (2) Stage 2 HLD + Principal Review Round 1, (3) Stage 3 Tasks 2/4 Done, (4) Stage 3 Tasks 4/4 Done + quality_check capabilities passed without Epic Audit/BDD (`87%`), (5) Full Gate 4 PASS (`88%`) + Cross-Model Review Round 2 + post-review Gate 4 re-verification running (`96%`), (6) Review Converged AND Gate 4 PASS on latest HEAD SHA (`98%` Waiting Finish), and (7) Gate 5 Done (`100%`)
 When `build_epic_pipeline_telemetry` computes `(task_completion_pct, lifecycle_progress_pct)` at each state
 Then `lifecycle_progress_pct` strictly increases across states `(1) < (2) < (3) < (4) < (5) < (6) < (7)` ending at `100.0`
 And `task_completion_pct` equals `0.0` at `(1)-(2)`, `50.0` at `(3)`, and `100.0` for all states `(4)` through `(7)`

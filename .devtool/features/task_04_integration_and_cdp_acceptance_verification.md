@@ -23,7 +23,7 @@ Build the end-to-end integration and headless Chrome CDP acceptance test suite `
 
 1. **End-to-End Integration & Chrome CDP Suite (`tests/test_lifecycle_telemetry_and_stage_progress.py`)**:
    - **`LTSP-HP-06` (`test_ltsp_hp_06_chrome_cdp_live_stage_and_microstep_transitions`)**:
-     - Launch `TasksServer` on an ephemeral port and connect via headless Chrome CDP (with JSDOM / `TasksServer` HTTP harness fallback only if Chrome binary is absent, matching `test_rsdh_tasks_dashboard_ui.py`).
+     - Launch `TasksServer` on an ephemeral port and connect via a real headless Chrome CDP session (requiring Chrome CDP for `LTSP-HP-06` and failing/reporting acceptance BLOCKED if Chrome is unavailable; keep any non-CDP HTTP/DOM harness check in a separate smoke test function).
      - Transition the server state sequentially across:
        1. Wave 2 Task Implementation (`8/9 tasks`, active worker slots)
        2. All Tasks Done (`9/9 · 100%`) running Gate 4 Quality Check (`PyCore / Unit Test 3/5`)
@@ -32,7 +32,7 @@ Build the end-to-end integration and headless Chrome CDP acceptance test suite `
    - **`LTSP-EC-04` (`test_ltsp_ec_04_expandable_event_log_preserves_state_across_polls`)**:
      - Render an epic card with 8 heartbeat events, click the toggle button to expand all event logs, trigger `pollDashboard()` with a 9th heartbeat event, and verify the drawer remains expanded and renders all 9 events.
    - **`LTSP-ST-04` (`test_ltsp_st_04_commit_based_fix_and_verifying_inference`)**:
-     - Create an epic worktree where `review_results.md` Round 1 recorded `SHA: <sha1>` with `Verdict: CHANGES REQUIRED` and 1 Important finding; create a new commit `<sha2>` with subject `"[REV_EPIC] Fix validation edge case"` and record `fixed in <sha2>`, and verify `build_epic_pipeline_telemetry` infers `"fixing"` / `"verifying"` micro-steps before Round 2 starts.
+     - Create an epic worktree where `review_results.md` Round 1 recorded `SHA: <sha1>` with `Verdict: CHANGES REQUIRED` and 1 Important finding; create a new commit `<sha2>` with subject `"[REV_EPIC] Fix validation edge case"` and record `fixed in <sha2>`, verify `build_epic_pipeline_telemetry` infers `"fixing"` immediately after `<sha2>`, and then start a verification execution (`quality_active.json` or `run_external_review.py status --phase verifying`) on `<sha2>` and verify it transitions to `"verifying"`.
    - **`LTSP-AR-03` (`test_ltsp_ar_03_multi_epic_pipeline_telemetry_isolation`)**:
      - Create a repository with primary `active_epic` `"epic_alpha"` in Stage 3 Cross-Model Review (`4/4 tasks · 100%`) and secondary `in_progress` `"epic_beta"` in Stage 2 Principal Review (`0/3 tasks · 0%`), run `scan_repo` and `renderExecutionEpics`, and verify zero cross-epic state bleed.
    - **`LTSP-FR-03` (`test_ltsp_fr_03_corrupted_review_and_heartbeat_recovery`)**:
@@ -84,10 +84,10 @@ Given a repository card in `tasks_dashboard.html` with 8 heartbeat events where 
 When `pollDashboard()` runs on the next polling tick with a new 9th heartbeat event
 Then the event log container remains expanded and displays all 9 events without collapsing back to the 4-line preview
 
-Scenario: [LTSP-ST-04] [Tier C - Integration] Commit-based fix and verification detection infers fixing and verifying sub-steps when git HEAD advances past review round SHA
+Scenario: [LTSP-ST-04] [Tier C - Integration] Commit-based fix and verification detection infers fixing after commit and verifying only when verification executes
 Given an epic worktree where `review_results.md` Round 1 recorded `SHA: <sha1>` with `Verdict: CHANGES REQUIRED` and 1 Important finding
-When a new commit `<sha2>` with subject `"[REV_EPIC] Fix validation edge case"` is committed in the worktree and later `fixed in <sha2>` is recorded in `review_results.md`
-Then `build_epic_pipeline_telemetry` infers the Cross-Model Review Round 1 micro-step as `"fixing"` / `"verifying"` even before Round 2 starts
+When a new commit `<sha2>` with subject `"[REV_EPIC] Fix validation edge case"` is committed in the worktree and `fixed in <sha2>` is recorded in `review_results.md`, and subsequently a verification run (`quality_active.json` or `run_external_review.py status --phase verifying`) starts on `<sha2>`
+Then `build_epic_pipeline_telemetry` infers the Cross-Model Review Round 1 micro-step as `"fixing"` immediately after `<sha2>` and transitions to `"verifying"` once the verification execution starts on `<sha2>`
 
 Scenario: [LTSP-AR-03] [Tier C - Integration] Multi-epic workspace isolates pipeline_telemetry per epic across active and secondary in-progress epics
 Given a repository with primary `active_epic` `"epic_alpha"` in Stage 3 Cross-Model Review (`4/4 tasks · 100%`) and secondary `in_progress` `"epic_beta"` in Stage 2 Principal Review (`0/3 tasks · 0%`)

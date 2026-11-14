@@ -20,13 +20,14 @@ Then `.devtool/state/demo_epic.heartbeat.json` contains an `events` list of leng
 And `events[0]["message"]` equals `"event-06"` and `events[-1]["message"]` equals `"event-25"`
 And `review_state["phase"]` equals `"reviewing"` and `review_state["cli"]` equals `"codex"`
 
-Scenario: [LTSP-HP-02] [Tier A - Unit] Polyglot quality runner maps capability labels and records per-step status in quality_active.json
+Scenario: [LTSP-HP-02] [Tier A - Unit] Polyglot quality runner maps capability labels and records per-step status and distinct start/completion events
 Given a quality manifest for provider "python-qa" with capabilities `["lint", "typecheck", "pycore", "integration", "e2e"]`
-When `_QualityRunCoordinator` starts step 1 (`"lint"`), completes it, and starts step 3 (`"pycore"`)
+When `_QualityRunCoordinator` starts step 1 (`"lint"`), completes it as `"passed"`, and starts step 3 (`"pycore"`)
 Then `format_capability_label("python-qa", "pycore")` returns `"PyCore / Unit Test"`
 And `format_capability_label("python-qa", "integration")` returns `"Integration Test"`
 And `format_capability_label("python-qa", "e2e")` returns `"UI / E2E Test"`
 And `quality_active.json` `runs[run_id]["steps"]` contains 5 entries where step `"lint"` has status `"passed"` and step `"pycore"` has status `"running"` and label `"PyCore / Unit Test"`
+And `<epic_slug>.heartbeat.json` `events` preserves both the `"lint"` start (`"running..."`) and completion (`"-> passed"`) events as separate entries without deduplication collapse
 
 Scenario: [LTSP-HP-03] [Tier A - Unit] Check-Tasks harvester activates epic immediately after Gate 1 approval and extracts Stage 1-2 telemetry
 Given a git repository with `.devtool/epic/early_epic/2026-11-14-early-epic-design.en.md` containing `- **PIC**: phungthuy8901` and Gate 1 recorded in `GATE_LEDGER.md` without a `.worktrees/early_epic` directory
@@ -74,11 +75,11 @@ Given an epic heartbeat file `.devtool/state/dedup_epic.heartbeat.json`
 When `update_epic_heartbeat` is called 5 times in a row with the same `last_event="wave 1 polling"`
 Then `heartbeat["events"]` contains exactly 1 entry with `message == "wave 1 polling"` and its `ts` updated to the latest timestamp
 
-Scenario: [LTSP-EC-02] [Tier A - Unit] Dormant backlog epic directories without Gate 1 or active heartbeat remain unstarted and do not trigger active_epic
-Given a repository containing `.devtool/epic/dormant_backlog/dormant_backlog.en.md` with `- **Status**: Backlog` and zero entries in `GATE_LEDGER.md`, `gate_ledger.jsonl`, or `.devtool/state/`
+Scenario: [LTSP-EC-02] [Tier A - Unit] Dormant backlog and abandoned epic directories do not trigger active_epic even if abandoned epic retains Gate 1 or heartbeat
+Given a repository containing `.devtool/epic/dormant_backlog/dormant_backlog.en.md` with `- **Status**: Backlog` and `.devtool/epic/abandoned_old/abandoned_old.en.md` with `- **Status**: Abandoned` plus a retained Gate 1 entry and `.devtool/state/abandoned_old.heartbeat.json`
 When `resolve_active_epic` and `harvest_epics_overview` inspect the repository
 Then `resolve_active_epic` returns `None`
-And the `"dormant_backlog"` entry in `epics_summary.epics` has `status` equal to `"unstarted"`
+And the `"dormant_backlog"` entry in `epics_summary.epics` has `status` equal to `"unstarted"` and `"abandoned_old"` has `status` equal to `"abandoned"`
 
 Scenario: [LTSP-EC-03] [Tier C - Integration] Dashboard degrades gracefully when legacy payloads omit pipeline_telemetry or events
 Given a legacy `/api/tasks` repository payload without `pipeline_telemetry` or `heartbeat.events` where `done_tasks == 4` and `total_tasks == 4`
@@ -103,8 +104,8 @@ When `run_external_review.py triage --epic-dir rev_epic` and `run_external_revie
 Then `.devtool/state/rev_epic.heartbeat.json` records `review_state["phase"]` transitioning from `"triage"` (`action == "AUTO_FIX_ELIGIBLE"`) to `"fixing"` to `"verifying"`
 And `events` records each phase transition in chronological order
 
-Scenario: [LTSP-ST-02] [Tier A - Unit] Lifecycle progress percentage advances monotonically across all 6 stages from Stage 1 to Stage 4
-Given an epic progressing sequentially through: (1) Stage 1 Spec, (2) Stage 2 HLD + Principal Review Round 1, (3) Stage 3 Tasks 2/4 Done, (4) Stage 3 Tasks 4/4 Done + Gate 4 QA Running, (5) Gate 4 PASS + Cross-Model Review Round 2, (6) Review Converged Waiting Finish, and (7) Gate 5 Done
+Scenario: [LTSP-ST-02] [Tier A - Unit] Lifecycle progress percentage advances monotonically across all 6 stages and requires full Gate 4 on latest SHA before 98% Finish
+Given an epic progressing sequentially through: (1) Stage 1 Spec, (2) Stage 2 HLD + Principal Review Round 1, (3) Stage 3 Tasks 2/4 Done, (4) Stage 3 Tasks 4/4 Done + quality_check capabilities passed without Epic Audit/BDD (`87%`), (5) Full Gate 4 PASS (`88%`) + Cross-Model Review Round 2 + post-review Gate 4 re-verification running (`96%`), (6) Review Converged AND Gate 4 PASS on latest HEAD SHA (`98%` Waiting Finish), and (7) Gate 5 Done (`100%`)
 When `build_epic_pipeline_telemetry` computes `(task_completion_pct, lifecycle_progress_pct)` at each state
 Then `lifecycle_progress_pct` strictly increases across states `(1) < (2) < (3) < (4) < (5) < (6) < (7)` ending at `100.0`
 And `task_completion_pct` equals `0.0` at `(1)-(2)`, `50.0` at `(3)`, and `100.0` for all states `(4)` through `(7)`
@@ -114,10 +115,10 @@ Given `quality_active.json` with a running `python-qa` run whose `steps` array t
 When `renderExecutionEpics` renders the card
 Then `[data-telemetry="quality"]` displays completed checkmarks for `"Static Lint"` and `"Typecheck"`, an active running badge for `"PyCore / Unit Test"`, and a pending indicator for `"UI / E2E Test"`
 
-Scenario: [LTSP-ST-04] [Tier C - Integration] Commit-based fix and verification detection infers fixing and verifying sub-steps when git HEAD advances past review round SHA
+Scenario: [LTSP-ST-04] [Tier C - Integration] Commit-based fix and verification detection infers fixing after commit and verifying only when verification executes
 Given an epic worktree where `review_results.md` Round 1 recorded `SHA: <sha1>` with `Verdict: CHANGES REQUIRED` and 1 Important finding
-When a new commit `<sha2>` with subject `"[REV_EPIC] Fix validation edge case"` is committed in the worktree and later `fixed in <sha2>` is recorded in `review_results.md`
-Then `build_epic_pipeline_telemetry` infers the Cross-Model Review Round 1 micro-step as `"fixing"` / `"verifying"` even before Round 2 starts
+When a new commit `<sha2>` with subject `"[REV_EPIC] Fix validation edge case"` is committed in the worktree and `fixed in <sha2>` is recorded in `review_results.md`, and subsequently a verification run (`quality_active.json` or `run_external_review.py status --phase verifying`) starts on `<sha2>`
+Then `build_epic_pipeline_telemetry` infers the Cross-Model Review Round 1 micro-step as `"fixing"` immediately after `<sha2>` and transitions to `"verifying"` once the verification execution starts on `<sha2>`
 ```
 
 ---

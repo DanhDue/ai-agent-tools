@@ -26,7 +26,7 @@ Extend the atomic state envelope (`scripts/_state_envelope.py`) with a bounded r
    - Maintain `events: list[dict[str, str]]` in `<epic_slug>.heartbeat.json`. Whenever `last_event` is non-empty, if `events` is empty or `events[-1].get("message") != last_event`, append `{"ts": state["updated_at"], "stage": str(state.get("stage") or ""), "sub_step": str(state.get("sub_step") or ""), "message": str(last_event)}` and slice `events[-max_events:]`. When `last_event` matches `events[-1].get("message")`, update `events[-1]["ts"] = state["updated_at"]` in-place without duplicating the entry.
 2. **Quality Check Capability Labels & Per-Step Status (`skills/quality_check/resources/scripts/verify_polyglot_registry.py`)**:
    - Add `format_capability_label(provider: str, capability: str) -> str` mapping capability identifiers (`pycore`/`unit` -> `"PyCore / Unit Test"`, `test`/`pytest` -> `"Unit & Integration Test"`, `integration` -> `"Integration Test"`, `e2e`/`ui`/`playwright` -> `"UI / E2E Test"`, `lint`/`ruff` -> `"Static Lint"`, `typecheck`/`type_check`/`mypy` -> `"Typecheck"`, `architecture`/`import_linter` -> `"Architecture Gate"`).
-   - Extend `_QualityRunCoordinator` (`L319-L494`) and `_plan_step_stats` / `execute_polyglot_plan` (`L549-L1150`) to maintain `steps: list[dict[str, Any]]` (`index`, `provider`, `capability`, `label`, `status` in `"pending" | "running" | "passed" | "failed"`, `elapsed_sec`) and `capability_label` inside `runs[run_id]` in `quality_active.json`, and emit a non-fatal heartbeat event via `_state_envelope.update_epic_heartbeat()` when each step starts and finishes.
+   - Extend `_QualityRunCoordinator` (`L319-L494`) and `_plan_step_stats` / `verify_polyglot_execution` (`L549-L1337`) to maintain `steps: list[dict[str, Any]]` (`index`, `provider`, `capability`, `label`, `status` in `"pending" | "running" | "passed" | "failed"`, `elapsed_sec`) and `capability_label` inside `runs[run_id]` in `quality_active.json`, and emit distinct non-fatal start (`"Quality Check [i/N]: <label> (<provider>:<cap>) running..."`) and completion (`"Quality Check [i/N]: <label> (<provider>:<cap>) -> <status> (<elapsed>s)"`) heartbeat events via `_state_envelope.update_epic_heartbeat()` so consecutive deduplication preserves both events.
 3. **Review Micro-Step State Machine & Mechanical Producers (`run_external_review.py`, `audit_epic.py`, `check_bdd_traceability.py`, `package_epic.py`, `run_task_checks.py`, `resume_context.py`, `lifecycle_runner.py`, `SKILL.md` files)**:
    - In `skills/dev-implementation/resources/scripts/run_external_review.py` (`run` `L1405-L1602`, `record_round` `L1604-L1677`, `triage` `L1913-L1986`, `main` `L1988-L2045`):
      - Add `_emit_review_heartbeat(...)` updating `<epic_slug>.heartbeat.json` (`review_state`, `sub_step`, `sub_step_detail`, `last_event`) when a review round starts (`phase="reviewing"`, `"{kind_label} Round {round_num}/{max_rounds}: {cli} ({model}) reviewing"`), when `record_round()` or `triage()` completes (`phase="triage"`, `"Lập bảng triage"` with verdict/counts/action), and add subcommand `status --epic-dir <dir> [--kind code|principal|epic] --phase <reviewing|triage|fixing|verifying|converged> [--round <n>] [--detail <text>]`.
@@ -89,13 +89,14 @@ Then `.devtool/state/demo_epic.heartbeat.json` contains an `events` list of leng
 And `events[0]["message"]` equals `"event-06"` and `events[-1]["message"]` equals `"event-25"`
 And `review_state["phase"]` equals `"reviewing"` and `review_state["cli"]` equals `"codex"`
 
-Scenario: [LTSP-HP-02] [Tier A - Unit] Polyglot quality runner maps capability labels and records per-step status in quality_active.json
+Scenario: [LTSP-HP-02] [Tier A - Unit] Polyglot quality runner maps capability labels and records per-step status and distinct start/completion events
 Given a quality manifest for provider "python-qa" with capabilities `["lint", "typecheck", "pycore", "integration", "e2e"]`
-When `_QualityRunCoordinator` starts step 1 (`"lint"`), completes it, and starts step 3 (`"pycore"`)
+When `_QualityRunCoordinator` starts step 1 (`"lint"`), completes it as `"passed"`, and starts step 3 (`"pycore"`)
 Then `format_capability_label("python-qa", "pycore")` returns `"PyCore / Unit Test"`
 And `format_capability_label("python-qa", "integration")` returns `"Integration Test"`
 And `format_capability_label("python-qa", "e2e")` returns `"UI / E2E Test"`
 And `quality_active.json` `runs[run_id]["steps"]` contains 5 entries where step `"lint"` has status `"passed"` and step `"pycore"` has status `"running"` and label `"PyCore / Unit Test"`
+And `<epic_slug>.heartbeat.json` `events` preserves both the `"lint"` start (`"running..."`) and completion (`"-> passed"`) events as separate entries without deduplication collapse
 
 Scenario: [LTSP-EC-01] [Tier A - Unit] Consecutive identical heartbeat events are deduplicated in the events ring buffer
 Given an epic heartbeat file `.devtool/state/dedup_epic.heartbeat.json`

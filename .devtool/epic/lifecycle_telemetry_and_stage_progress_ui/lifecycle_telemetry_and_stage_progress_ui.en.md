@@ -72,18 +72,18 @@ flowchart TD
 ### Early Epic Activation and Stage Weighting Model
 
 1. **Early Stage 1/2 Activation (`check_tasks.py`)**:
-   - `resolve_active_epic(repo_path)` checks non-completed epics in `parse_gate_ledger_entries(repo_path)` (any epic with Gate 1+ approved) and `.devtool/state/*.heartbeat.json` before falling back to idle `None`, while still ignoring bare unstarted backlog folders without gates or heartbeats (`RSDH-EC-04`).
-   - `harvest_epics_overview(repo_path)` marks a non-completed, non-abandoned epic as `in_progress` if `has_wt` is True, `hld_status == "in_progress"`, or the epic has Gate 1+ approved in the unified gate ledger / an active `.heartbeat.json` or `assistant_state.md` entry.
+   - Both `resolve_active_epic(repo_path)` and `harvest_epics_overview(repo_path)` share a single eligibility predicate (`_is_epic_eligible_for_active(slug, completed_epics, abandoned_epics, hld_status)`) that excludes `completed`, `archived`, and `abandoned` epics (even if an abandoned epic retains a Gate 1 ledger entry or `.heartbeat.json`).
+   - Eligible epics with Gate 1+ in `parse_gate_ledger_entries(repo_path)` or an active `.heartbeat.json` / state file resolve as `active_epic` and `status = "in_progress"` in `epics_summary.epics`, while bare unstarted backlog folders without gates or heartbeats remain `None` / `"unstarted"` (`RSDH-EC-04`).
    - `extract_epic_pic(repo_path, active_epic)` scans `*design*.md` in `.devtool/epic/<epic>/` alongside HLD and `handoff.md` so PIC (`@phungthuy8901` / `@duedd`) is resolved immediately at Stage 1.
 2. **Decoupled Task Progress vs. 6-Stage Lifecycle Progress**:
    - `TaskProgress.task_completion_pct`: `round((done_tasks / total_tasks) * 100.0, 1)` when `total_tasks > 0`, else `0.0`. Reaches **`100.0`** immediately when `done_tasks == total_tasks > 0`.
-   - `lifecycle_progress_pct`:
+   - `lifecycle_progress_pct` (monotonic milestone watermark decoupled from `current_stage_index` when QA re-runs after review):
      - **Stage 1 (`stage_1_spec`, weight `0% -> 10%`)**: `5%` while drafting spec (`*-design.en.md` present, Gate 1 not yet approved); `10%` when Gate 1 is approved.
      - **Stage 2 (`stage_2_hld`, weight `10% -> 25%`)**: `14%` when HLD/BDD exist; `18%` when Gate 2 is approved or `task_*.md` files exist; `20%..23%` while `/principal-review` Round `1..3` runs (`20 + min(3, round_num)`); `25%` when `handoff.md` is packaged (`Stage 2 Exit`).
      - **Stage 3 Phase 1–2 (`stage_3_tasks`, weight `25% -> 80%`)**: `25%` when Gate 3 is approved or `.worktrees/<epic>` exists with `0` tasks done; `25 + round((done_tasks / total_tasks) * 55)` while tasks are in progress (`0 < done_tasks < total_tasks`, capped at `79%`); **`80%`** when `done_tasks == total_tasks > 0` and Gate 4 has not started.
-     - **Stage 3 Phase 4a (`stage_3_quality`, weight `80% -> 88%`)**: `81%..87%` while Gate 4 verification (`audit_epic`, `bdd_traceability`, or `quality_check` step `step_index / step_total`) is running; **`88%`** once Gate 4 PASS is recorded (or all quality steps passed).
-     - **Stage 3 Phase 4b (`stage_3_review`, weight `88% -> 96%`)**: Scales across Cross-Model Review rounds and micro-steps (`Round 1: 89%..92%`, `Round 2: 93%..95%`, `Round 3 / pre-finish review ceiling: 96%`).
-     - **Stage 4 (`stage_4_finish`, weight `98% -> 100%`)**: **`98%`** (with `100%` task badge and `Chờ /finish` status) when Cross-Model Review is converged (`Stage 3 Phase 4.1 (Sign-off)`); **`100%`** when Gate 5 is approved or epic status is `done`.
+     - **Stage 3 Phase 4a (`stage_3_quality`, weight `80% -> 88%`)**: `81%..87%` while Gate 4 verification (`audit_epic`, `bdd_traceability`, or `quality_check` step `step_index / step_total`) is running; passing `quality_check` capabilities alone without `audit_epic` and `bdd_traceability` stays at **`87%`**. Reaching **`88%`** requires full Gate 4 PASS (`audit_epic` PASS + `bdd_traceability` PASS + `quality_check` PASS, or Gate 4 recorded in `GATE_LEDGER.md` / `gate_ledger.jsonl`).
+     - **Stage 3 Phase 4b (`stage_3_review`, weight `88% -> 96%`)**: Scales across Cross-Model Review rounds and micro-steps (`Round 1: 89%..92%`, `Round 2: 93%..95%`, `Round 3 / post-review Gate 4 re-verification on latest SHA: 96%`). When Gate 4 re-runs after review fixes, `lifecycle_progress_pct` stays monotonically in `95%..96%` while `current_stage_index` / `sub_steps` show the active post-review verification on the candidate SHA.
+     - **Stage 4 (`stage_4_finish`, weight `98% -> 100%`)**: **`98%`** (with `100%` task badge and `Chờ /finish` status) ONLY when Cross-Model Review is converged **AND** Gate 4 has passed on the current `HEAD` SHA (`Stage 3 Phase 4.1 (Sign-off)`); **`100%`** when Gate 5 is approved or epic status is `done`.
 
 ### Granular Sub-Step Producers and Rolling Event Log
 
@@ -99,13 +99,13 @@ flowchart TD
      - `lint` / `ruff` / `spotless` / `swiftlint` / `clippy` -> `"Static Lint"`
      - `typecheck` / `type_check` / `mypy` / `analyze` -> `"Typecheck"`
      - `architecture` / `import_linter` / `konsist` -> `"Architecture Gate"`
-   - `_QualityRunCoordinator` initializes `steps: list[dict[str, Any]]` from the planned provider capabilities (`status: "pending"`), transitions each step to `"running"` on `start_step()` and `"passed"` / `"failed"` on completion, persists `steps` and `capability_label` inside `runs[run_id]` in `quality_active.json`, and emits a heartbeat event to `<epic_slug>.heartbeat.json` if `epic_slug` is known.
+   - `_QualityRunCoordinator` initializes `steps: list[dict[str, Any]]` from the planned provider capabilities (`status: "pending"`), transitions each step to `"running"` on `start_step()` and `"passed"` / `"failed"` on completion, persists `steps` and `capability_label` inside `runs[run_id]` in `quality_active.json`, and emits distinct start (`"Quality Check [i/N]: <label> (<provider>:<cap>) running..."`) and completion (`"Quality Check [i/N]: <label> (<provider>:<cap>) -> <status> (<elapsed>s)"`) heartbeat events to `<epic_slug>.heartbeat.json`.
 3. **Review Micro-Step State Machine (`run_external_review.py` & `check_tasks.py`)**:
    - Every review round (`kind="principal"` or `kind="code"|"epic"`) tracks 4 sequential micro-steps:
      1. `reviewing`: `<CLI> (<Model>) reviewing` — emitted when `run_external_review.py run` starts invoking the reviewer CLI.
      2. `triage`: `Lập bảng triage` — emitted when `record_round()` records the round and when `run_external_review.py triage` generates the triage table (`AUTO_PASS_CLEAN`, `AUTO_FIX_ELIGIBLE`, `CIRCUIT_BREAKER_HALT`).
      3. `fixing`: `Fix findings` — emitted via `run_external_review.py status --phase fixing` or inferred automatically by `check_tasks.py` when `review_results.md` / `principal_review.md` has `fixed in <sha>` decisions or when `HEAD` has advanced past the latest round's `SHA` (`[EPIC] Fix ...` / `[EPIC] Revise ...`).
-     4. `verifying`: `Verifying` — emitted via `run_external_review.py status --phase verifying` or inferred automatically when a quality/test run executes after a round with fixes or when `AUTO_PASS_*` is verifying final Gate 4.
+     4. `verifying`: `Verifying` — emitted via `run_external_review.py status --phase verifying` or inferred automatically only when a verification execution (`quality_active.json` run, `audit_epic.py` / `run_task_checks.py` heartbeat, or `--phase verifying` status) runs on or after the fix commit `<sha2>`.
 
 ## Feature Maintenance Map
 
