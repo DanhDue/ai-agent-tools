@@ -8,6 +8,36 @@ every installed machine on the old cached copy.
 
 ---
 
+## 1.30.0 — 2026-11-14
+
+Delivers real-time **Lifecycle Stage Telemetry & Stage Progress UI** across the `/check-tasks` dashboard and terminal monitor, enabling early Stage 1 activation right after brainstorming, a 6-stage interactive stepper with detailed sub-step descriptions, dynamic event logging, weighted stage progress allocation, and an overview stage badge on the Kanban Epics card.
+
+### Added
+
+- **Early Stage 1 Activation & Lifecycle Visibility (`skills/check-tasks/resources/scripts/check_tasks.py`, `skills/dev-lifecycle/`)**:
+  - Automatically activates and displays epics on `/check-tasks` immediately upon spec or brainstorming completion (`Stage 1 Inception`), giving complete visibility of the dev-lifecycle progression before task decomposition.
+  - Supports early tracking of design status, BDD readiness, and principal review gates before worktree creation.
+- **Granular Sub-Step Activity Telemetry (`scripts/_state_envelope.py`, `skills/check-tasks/resources/scripts/check_tasks.py`)**:
+  - Emits real-time, human-readable activity descriptions for every lifecycle phase:
+    - Quality Check: tracks PyCore testing, unit test execution, integration suites, and architecture audits.
+    - External Reviews: tracks Principal Review and Cross-Model Review rounds (`Codex -> Kiro -> Claude -> agy`), model evaluation, triage table generation, finding remediation, and verification loops.
+    - Task Implementation: shows active task ID, execution wave, and worker state.
+  - Adds rolling ring-buffer event history (`add_stage_event`, `MAX_STAGE_EVENTS = 50`) to capture chronological stage milestones without unbound memory growth.
+- **Interactive 6-Stage Stepper & Event Logs UI (`skills/check-tasks/resources/dashboard/tasks_dashboard.html`)**:
+  - Renders a modern 6-stage stepper (Inception, Design, Packaging, Implementation, Review, Finished) with animated pulsing glow indicators for the active stage and green checkmarks for completed stages.
+  - Displays a dedicated sub-step activity badge and an expandable slide-out event logs drawer showing timestamps and chronological lifecycle transitions.
+  - Adds an overview stage badge directly onto the `TIẾN ĐỘ EPICS` sidebar card, providing quick at-a-glance status across all repositories without opening epic modals.
+- **Weighted Progress Allocation & 100% Completion Discipline**:
+  - Rebalances epic progress calculations across lifecycle stages: Inception (5%), Design (15%), Implementation (50%), Review (20%), Finished (10%).
+  - Guarantees task progress shows 100% when all tasks reach `done`, and overall progress cleanly converges to 100% upon Gate 5 approval.
+
+### Changed
+
+- **Worker Pool Slot Worktree State Isolation (`scripts/_state_envelope.py`, `skills/dev-implementation/resources/scripts/sync_task_status.py`)**:
+  - Explicitly excludes ephemeral slot worktrees (`-slot-N`) from runtime `.devtool/state` mirror replication, eliminating race conditions and merge conflicts between concurrent task workers.
+- **E2E Acceptance Verification & Telemetry Test Suites (`tests/test_ltsp_*.py`, `tests/test_lifecycle_telemetry_and_stage_progress.py`, `scripts/verify.sh`)**:
+  - Adds 4 comprehensive test suites (37 test cases) and Chrome DevTools Protocol (CDP) headless acceptance tests registered under Section 19 of `scripts/verify.sh`.
+
 ## 1.29.1 — 2026-11-14
 
 Delivers automated **Kanban Task Status Synchronization & Heartbeat Slot Overlay**, embedding physical status transition gates directly in `dev-implementation` and `subagent-driven-development` workflows without rule bloat, adding `--status working|review|idle` and `--no-reset` to `manage_worker_pool.py`, mapping active worker slots directly onto the Kanban Dashboard without dirtying the main worktree, and propagating task identities and execution waves in `lifecycle_runner.py`.

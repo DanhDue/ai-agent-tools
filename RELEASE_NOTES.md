@@ -1,36 +1,43 @@
-# Release Notes: d3nexus v1.29.1
+# Release Notes: d3nexus v1.30.0
 
 **Release Date:** November 14, 2026  
-**Version:** `1.29.1`  
-**Git Tag:** `v1.29.1`, `d3nexus--v1.29.1`
+**Version:** `1.30.0`  
+**Git Tag:** `v1.30.0`, `d3nexus--v1.30.0`
 
 ---
 
 ## Executive Summary
 
-`v1.29.1` delivers automated **Kanban Task Status Synchronization & Heartbeat Slot Overlay**, embedding physical status transition gates directly in `dev-implementation` and `subagent-driven-development` workflows without rule bloat, adding `--status working|review|idle` and `--no-reset` to `manage_worker_pool.py`, automatically mapping active worker slots onto the Kanban Dashboard without dirtying the main worktree, and wiring task identities and execution waves into `lifecycle_runner.py`.
+`v1.30.0` delivers real-time **Lifecycle Stage Telemetry & Stage Progress UI** across the `/check-tasks` dashboard and terminal monitor, enabling early Stage 1 activation right after brainstorming, a 6-stage interactive stepper with granular sub-step activity descriptions, dynamic event logging, weighted stage progress allocation, and an overview stage badge on the Kanban Epics card.
 
 ---
 
 ## Key Highlights
 
-### 1. Physical Task Status Transition Gates
-- **Workflow-Embedded Gates** (`skills/dev-implementation/SKILL.md`, `skills/subagent-driven-development/SKILL.md`): Embeds physical pre-dispatch, pre-review, and fix-loop transition gates directly in task execution skills instead of adding global rules, avoiding agent Focus Dilution.
-- **Pool vs. Single-Worktree Discipline**: Enforces `manage_worker_pool.py sync --status working|review` in 2-slot pool mode (keeping `main_wt` clean) while gating `sync_task_status.py task <task_id> in-progress|review` for single-worktree runs, and ensures tasks run `done` + commit in slot before merging.
+### 1. Early Stage 1 Activation & End-to-End Visibility
+- **Immediate Brainstorming Tracking** (`skills/check-tasks/resources/scripts/check_tasks.py`): Epics appear on the dashboard immediately upon spec creation (`Stage 1 Inception`), providing end-to-end lifecycle visibility across all 5 stages before Kanban task decomposition.
+- **Stage Progression Overview**: Adds an overview stage badge directly to the `TIẾN ĐỘ EPICS` sidebar card, allowing developers to see which stage every epic is in without opening detailed modals.
 
-### 2. Worker Pool State Synchronization
-- **Heartbeat Slot Management** (`skills/dev-implementation/resources/scripts/manage_worker_pool.py`): Adds `--status working|review|idle` and `--no-reset` to `sync`, allowing slots to update their execution status and assigned task IDs in `<epic_slug>.heartbeat.json`.
-- **Uncommitted Change Preservation**: `--status review` and `--no-reset` preserve uncommitted implementation files and test evidence while updating slot telemetry.
+### 2. Granular Sub-Step Activity Telemetry
+- **Live Activity Reporting** (`scripts/_state_envelope.py`, `skills/check-tasks/resources/scripts/check_tasks.py`): Replaces static stage labels with real-time descriptions of active operations:
+  - **Quality Check**: Specific suites currently executing (PyCore testing, unit tests, integration tests, UI audits).
+  - **External Reviews**: Active review round, reviewing model (`Codex -> Kiro -> Claude -> agy`), triage table synthesis, finding fixes, and re-verification.
+  - **Task Implementation**: Current task title, active wave, and slot status.
+- **Chronological Event Logs**: Preserves a rolling ring-buffer of up to 50 lifecycle events per epic with timestamps and formatted details.
 
-### 3. Automated Kanban Dashboard Overlay
-- **Clean In-Progress & Review Mapping** (`skills/check-tasks/resources/scripts/check_tasks.py`, `skills/check-tasks/resources/dashboard/tasks_dashboard.html`): Automatically maps tasks running in active pool slots from `todo` to `in-progress` or `review` on the Kanban Dashboard using heartbeat state, rendering slot badges (`slot-1`, `slot-2`) without touching tracked git files.
-- **Review Progress Tracking**: Adds review task counts to the `TIẾN ĐỘ EPICS` sidebar in the dark-mode dashboard companion.
+### 3. Interactive 6-Stage Stepper & Event Logs UI
+- **Visual Lifecycle Stepper** (`skills/check-tasks/resources/dashboard/tasks_dashboard.html`): Displays an interactive stepper featuring active pulsing glow effects, completed milestone markers, and live sub-step pills.
+- **Expandable Logs Drawer**: Developers can toggle open a live event logs drawer directly below the progress bar to inspect historical step transitions.
 
-### 4. Autonomous Lifecycle Runner Enhancement
-- **Task & Wave Propagation** (`skills/dev-lifecycle/resources/scripts/lifecycle_runner.py`): Wires task IDs and execution wave numbers into slot synchronization during DAG batch execution, and safely resets slots to `idle` on rollback or merge failures.
+### 4. Balanced Stage Progress Weighting
+- **Proportional Weighting**: Allocates progress accurately across lifecycle stages (Inception 5%, Design 15%, Implementation 50%, Review 20%, Finished 10%).
+- **Strict Completion Guarantees**: Ensures task implementation displays 100% when all tasks finish, and overall progress reaches 100% upon Gate 5 completion.
+
+### 5. Worker Pool Slot State Isolation
+- **Mirror Exclusion** (`scripts/_state_envelope.py`, `skills/dev-implementation/resources/scripts/sync_task_status.py`): Excludes ephemeral `-slot-N` pool worktrees from runtime `.devtool/state` synchronization, preventing merge conflicts during parallel task execution.
 
 ---
 
 ## Verifications & Quality Gates Passed
 
-- `bash scripts/verify.sh --full --quiet`: **PASS — safe to publish** (Checks 1–10 + 56 test suites)
+- `bash scripts/verify.sh --full`: **PASS — safe to publish** (Checks 1–10 + 60 test suites across 14 workers)
