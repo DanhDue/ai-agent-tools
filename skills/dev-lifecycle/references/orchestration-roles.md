@@ -34,7 +34,11 @@ In autonomous mode, `lifecycle_runner.py` implements this matrix itself (`build_
 
 Role 2.2 work may also be delegated to keep the main context lean — e.g. the Principal Review **reviser** — using any subagent on the Orchestrator's own model (`invoke_subagent` `TypeName="self"`, `Model="inherit"`, or Claude Code `Task`). A reviser stays inside Role 2.2 boundaries: read-only on `src/`/`tests/`, edits only `.devtool/epic/<epic_dir>/` docs and task prose.
 
-Every brief names: the role, worktree path, task or round, the exact inputs (task file, finding IDs + `PROPOSED ACTION`, approved fix plan), the dispatch mode, and the summary contract below.
+Every brief names: the role, worktree path, task or round, the exact inputs (task file, finding IDs + `PROPOSED ACTION`, approved fix plan), the dispatch mode, and the summary contract below. Generate the Role 2.3 header and JSON contract with:
+
+```bash
+python3 scripts/resume_context.py --emit-prompt brief --brief-role <task-implementer|task-reviewer|review-fixer|gate4-verifier> --epic <epic_slug>
+```
 
 ## 3. Summary Contracts
 

@@ -62,10 +62,10 @@ def print_role_banner(role: str) -> None:
     norm_role = role.lower().strip()
     if norm_role == "assistant":
         print("=" * 65)
-        print("🎭 [PERSONA: AI ASSISTANT — TECHNICAL ADVISOR & CO-ARCHITECT]")
-        print("⛔ NO IMPLEMENTATION: Strictly prohibited from modifying production")
+        print("🎭 [PERSONA: AI ASSISTANT — ORCHESTRATOR]")
+        print("⛔ NO IMPLEMENTATION: Strictly prohibited from reading/editing src/ or tests/")
         print(
-            "   source code or application tests. Only design docs and reviews allowed."
+            "   or running test suites in main session. Coordinates & verifies Role 2.3."
         )
         print("=" * 65)
     elif norm_role in ("programmer", "implementer", "worker"):
@@ -1988,74 +1988,117 @@ def build_compact_json(
     return minimal if len(minimal.encode("utf-8")) <= max_bytes else "{}"
 
 
+_BRIEF_ROLE_CONTRACTS: dict[str, tuple[str, str]] = {
+    "task-implementer": (
+        "Implement assigned Kanban task in isolated slot worktree using strict Red-Green-Refactor TDD.",
+        '{"task_id": "...", "slot": 1, "status": "DONE|BLOCKED|NEEDS_CONTEXT", '
+        '"head_sha": "...", "verify": "PASS|FAIL", "changed_files": [...], '
+        '"non_test_modules_changed": 0, "review_tier": "standard|full", '
+        '"labels": [...], "finalized": false}',
+    ),
+    "task-reviewer": (
+        "Audit slot diff, AST, Zero Fakery, `run_task_checks.py status` (`done gate: PASS`), and `check_bdd_traceability.py`; mark `done` and commit on PASS.",
+        '{"task_id": "...", "verdict": "PASS|FAIL", "head_sha": "...", '
+        '"done_gate": "PASS|FAIL", "findings": [...]}',
+    ),
+    "review-fixer": (
+        "Apply Cross-Model Review fixes in `fast-track`, `plan-first` (`fix_plan_round<N>.md`), or `apply-plan` mode with Tier 1 scoped tests only.",
+        '{"round": 1, "mode": "fast-track|plan-first|apply-plan", '
+        '"status": "FIXED|PLAN_WRITTEN|BLOCKED", "fix_shas": [...], '
+        '"decision_sha": "...", "changed_files": [...], "tier1": "PASS|FAIL"}',
+    ),
+    "gate4-verifier": (
+        "Execute full Gate 4 verification (`generate_smoke_checklist.py`, `audit_epic.py`, HLD integration results, `check_bdd_traceability.py`, `@quality_check --profile epic`) without editing code.",
+        '{"candidate_sha": "...", "verdict": "PASS|FAIL", "audit_exit": 0, '
+        '"quality_check_report": "...", "failures": [...]}',
+    ),
+}
+
+
 def emit_handoff_prompt(
     mode: str,
     epic_slug: str,
     epic_dir: str | None = None,
     custom_prompt: str | None = None,
     root: Path | None = None,
+    brief_role: str | None = None,
 ) -> None:
     target_dir = epic_dir or epic_slug
     prompt_note = f"\nNote: {custom_prompt}\n" if custom_prompt else ""
+    prog_model, prog_effort = resolve_programmer_model_config(root)
+    assistant_banner = "[PERSONA: AI ASSISTANT — ORCHESTRATOR]"
+    programmer_banner = "[PERSONA: AI PROGRAMMER — SENIOR TDD SOFTWARE ENGINEER]"
 
     if mode == "principal-review":
-        banner = "[PERSONA: AI ASSISTANT — TECHNICAL ADVISOR & CO-ARCHITECT]"
-        print(f"""{banner}
-You are acting as the AI Assistant (Role 2.2 — Technical Advisor & Reviewer).
+        print(f"""{assistant_banner}
+You are acting as the AI Assistant (Role 2.2 — Orchestrator & Co-Architect).
 Startup command:
 python3 scripts/resume_context.py --role assistant --epic {epic_slug}
 
 MANDATORY TASKS & RULES:
-1. Thoroughly review the HLD at .devtool/epic/{target_dir}/{target_dir}.en.md and bdd_scenarios.en.md.
-2. Conduct an independent Principal Review following the `d3nexus:principal-review` skill (Provider priority via `check-quota`: Claude -> Codex -> Kiro -> Argon; 3-Round Convergence Funnel, max 3 rounds).
-3. DO NOT modify production source code or application test suites (only design documents and Kanban tasks).{prompt_note}""")
+1. Review the HLD at .devtool/epic/{target_dir}/{target_dir}.en.md and bdd_scenarios.en.md.
+2. Run `d3nexus:principal-review` (`Claude -> Codex -> Kiro -> Argon`, max 3 rounds). Delegate doc edits to a Role 2.2 `principal-reviser` subagent, then run `check_epic_readiness.py {target_dir}` in the main session.
+3. DO NOT read/edit `src/` or `tests/` or modify production code.{prompt_note}""")
     elif mode == "implement":
-        prog_model, prog_effort = resolve_programmer_model_config(root)
-        banner = "[PERSONA: AI PROGRAMMER — SENIOR TDD SOFTWARE ENGINEER]"
-        print(f"""{banner}
-You are acting as the AI Programmer (Role 2.3 — Senior TDD Software Engineer | Model: {prog_model}, Thinking/Effort: {prog_effort}).
+        print(f"""{assistant_banner}
+You are acting as the AI Assistant (Role 2.2 — Orchestrator).
 Startup command:
-python3 scripts/resume_context.py --role programmer --epic {epic_slug}
+python3 scripts/resume_context.py --role assistant --epic {epic_slug}
 
 MANDATORY TASKS & RULES:
-1. Activate `/dev-implementation` (`d3nexus:dev-implementation`) for the `{epic_slug}` epic.
+1. Activate `/dev-implementation` (`d3nexus:dev-implementation`) for the `{epic_slug}` epic, following `skills/dev-lifecycle/references/orchestration-roles.md`.
 2. Read `.devtool/epic/{target_dir}/handoff.md` first (author all internal orchestration, plans, code comments, and commits strictly in English).
-3. Strictly apply the 4 Execution Guardrails (Bounded context protocol, Strict spec fidelity, Zero test fakery, No contract repair).
-4. Compute waves via `python3 skills/dev-implementation/resources/scripts/compute_execution_order.py {epic_slug} --parallel`, monitor `python3 scripts/estimate_heartbeat.py`, sync slot/task Kanban status (`manage_worker_pool.py sync --slot <1|2> --task <task_id> [--wave <k>] --status working|review` in pool mode, or `sync_task_status.py task <task_id> in-progress|review` single-worktree), dispatch tasks (`manage_worker_pool.py init|sync|merge|cleanup` / `workspace:"share"`), and run strict Red-Green-Refactor TDD + `sync_task_status.py task <task_id> done` before merge.
-5. After all waves merge, verify Gate 4 + Cross-Model Review, clean up worker slots via `manage_worker_pool.py cleanup`, and pause via `--pending-decision` only on Choice A gates or `CRITICAL_CONFLICT`.{prompt_note}""")
+3. Orchestrator boundary: NEVER read/edit `src/` or `tests/`, and NEVER run test suites or `run_task_checks.py` in the main session.
+4. Compute waves via `python3 skills/dev-implementation/resources/scripts/compute_execution_order.py {epic_slug} --parallel`, monitor `python3 scripts/estimate_heartbeat.py`, and own every `manage_worker_pool.py` call (`init`, `sync --slot <1|2> --task <task_id> [--wave <k>] --status working|review`, `merge`, `cleanup`).
+5. Dispatch Role 2.3 Programmer subagents (`task-implementer`, `task-reviewer`, fresh `gate4-verifier`) via `agy --model {prog_model} --effort {prog_effort} --mode auto` using briefs from `python3 scripts/resume_context.py --emit-prompt brief --brief-role <role> --epic {epic_slug}`, verify gating/SHAs independently, then run Cross-Model Review.{prompt_note}""")
     elif mode == "cross-review":
-        banner = "[PERSONA: AI ASSISTANT — TECHNICAL ADVISOR & CO-ARCHITECT]"
-        print(f"""{banner}
-You are acting as the AI Assistant (Role 2.2 — Technical Advisor & Reviewer).
+        print(f"""{assistant_banner}
+You are acting as the AI Assistant (Role 2.2 — Orchestrator).
 Startup command:
 python3 scripts/resume_context.py --role assistant --epic {epic_slug}
 
 MANDATORY TASKS & RULES:
-1. Gate 4 has PASSED. Activate `d3nexus:cross-model-review`.
-2. Run independent external model review (`run_external_review.py run`, Provider priority via `check-quota`: Claude -> Codex -> Kiro -> Argon; 3-Round Convergence Funnel, max 3 rounds).
-3. Evaluate Auto-Triage Gate and triage findings before fixing defects or proceeding to finish.{prompt_note}""")
+1. Gate 4 has PASSED. Activate `d3nexus:cross-model-review` following `skills/dev-lifecycle/references/orchestration-roles.md`.
+2. Run external review (`run_external_review.py run`, priority `Claude -> Codex -> Kiro -> Argon`, max 3 rounds) and `triage`. NEVER read/edit `src/` or `tests/` in the main session.
+3. Choose `fast-track` vs `plan-first` from triage, dispatch Role 2.3 `review-fixer` via `agy --model {prog_model} --effort {prog_effort} --mode auto` (`--emit-prompt brief --brief-role review-fixer`), scope-check `git diff --name-only`, and dispatch a fresh `gate4-verifier` on convergence.{prompt_note}""")
     elif mode == "finish":
-        banner = "[PERSONA: AI PROGRAMMER — SENIOR TDD SOFTWARE ENGINEER]"
-        print(f"""{banner}
-You are acting as the AI Programmer (Role 2.3 — Senior TDD Software Engineer).
+        print(f"""{assistant_banner}
+You are acting as the AI Assistant (Role 2.2 — Orchestrator).
+Startup command:
+python3 scripts/resume_context.py --role assistant --epic {epic_slug}
+
+MANDATORY TASKS & RULES:
+1. Activate `d3nexus:finishing-a-development-branch` for the `{epic_slug}` epic, following `skills/dev-lifecycle/references/orchestration-roles.md`.
+2. Execute Pre-Finish Hook: `python3 scripts/resume_context.py --complete {epic_slug} "<milestone_summary>"`.
+3. Dispatch Role 2.3 via `agy --model {prog_model} --effort {prog_effort} --mode auto` (`--emit-prompt brief --brief-role <role>`) if rebase/conflict resolution/`verify-tier` is needed, then land and clean up the worktree.{prompt_note}""")
+    elif mode == "assistant":
+        print(f"""{assistant_banner}
+You are acting as the AI Assistant (Role 2.2 — Orchestrator & Co-Architect).
+Startup command:
+python3 scripts/resume_context.py --role assistant --epic {epic_slug}
+
+MANDATORY TASKS & RULES:
+1. Engage in technical discussion, root cause analysis (RCA), orchestration, and solution trade-off evaluation.
+2. STRICTLY PROHIBITED from modifying production code or running test suites in the main session.
+3. Persist discussion takeaways anytime via `python3 scripts/resume_context.py --state --epic {epic_slug} --decisions "<conclusions>"`.{prompt_note}""")
+    elif mode == "brief":
+        role_key = brief_role or ""
+        if role_key not in _BRIEF_ROLE_CONTRACTS:
+            print(f"Unknown brief role: {role_key}")
+            return
+        objective, schema = _BRIEF_ROLE_CONTRACTS[role_key]
+        print(f"""{programmer_banner}
+You are acting as the AI Programmer subagent (Role 2.3: `{role_key}` | Model: {prog_model}, Thinking/Effort: {prog_effort}).
 Startup command:
 python3 scripts/resume_context.py --role programmer --epic {epic_slug}
 
-MANDATORY TASKS & RULES:
-1. Activate `d3nexus:finishing-a-development-branch` for the `{epic_slug}` epic.
-2. Execute Pre-Finish Hook: `python3 scripts/resume_context.py --complete {epic_slug} "<milestone_summary>"`.
-3. Verify branch integration and clean up the worktree.{prompt_note}""")
-    elif mode == "assistant":
-        banner = "[PERSONA: AI ASSISTANT — TECHNICAL ADVISOR & CO-ARCHITECT]"
-        print(f"""{banner}
-You are acting as the AI Assistant (Role 2.2 — Technical Advisor & Co-Architect).
-Startup command:
-python3 scripts/resume_context.py --role assistant --epic {epic_slug}
-
-MANDATORY TASKS & RULES:
-1. Engage in technical discussion, root cause analysis (RCA), and solution trade-off evaluation.
-2. STRICTLY PROHIBITED from modifying production code in this mode.
-3. Persist discussion takeaways anytime via `python3 scripts/resume_context.py --state --epic {epic_slug} --decisions "<conclusions>"`.{prompt_note}""")
+SUBAGENT BRIEF & BOUNDARIES:
+1. Objective: {objective}
+2. Boundaries: Stay strictly within task `Allowed files`, `Decisions Already Made`, and approved HLD. Never call `manage_worker_pool.py` (pool state is Orchestrator-only). Never edit task Verification tables, DoD, `Allowed files`, or `shared-contracts/`.
+3. End your response with exactly one fenced `json` block matching:
+```json
+{schema}
+```{prompt_note}""")
     else:
         print(f"Unknown prompt mode: {mode}")
 
@@ -2321,8 +2364,15 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
             "cross-review",
             "finish",
             "assistant",
+            "brief",
         ],
         help="Emit handoff prompt",
+    )
+    parser.add_argument(
+        "--brief-role",
+        type=str,
+        choices=list(_BRIEF_ROLE_CONTRACTS.keys()),
+        help="Subagent role for --emit-prompt brief",
     )
     parser.add_argument(
         "--epic-dir", type=str, help="Epic directory name for --emit-prompt"
@@ -2487,12 +2537,15 @@ def main() -> None:
         print_role_banner(args.role)
 
     if args.emit_prompt:
+        if args.emit_prompt == "brief" and not args.brief_role:
+            parser.error("--brief-role is required when --emit-prompt brief is used")
         emit_handoff_prompt(
             args.emit_prompt,
             active_epic,
             args.epic_dir,
             args.prompt,
             root=repo_root,
+            brief_role=args.brief_role,
         )
         return
 

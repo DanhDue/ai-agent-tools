@@ -9,7 +9,7 @@ description: Use when an epic already has an approved HLD and Kanban task files 
 
 Runs an already-approved epic's Kanban tasks end-to-end: reload the epic's own docs for context, detect the platform (Flutter, Android Native, iOS Native, Web, Python, or Rust), compute a dependency-safe execution order with parallel batches, bootstrap the main epic worktree with an isolated 2-slot ephemeral worker pool, then orchestrate tasks with sub-agents—running independent tasks in parallel with zero storage overhead via APFS clone / shared cache.
 
-**Core principle:** AI Programmer acts as Implementation Orchestrator. 2-slot ephemeral worker pool + shared cache for parallel execution; one commit per task, docs stay truthful.
+**Core principle:** AI Assistant (Role 2.2) acts as Implementation Orchestrator; Role 2.3 Programmer subagents execute tasks in a 2-slot ephemeral worker pool + shared cache; one commit per task, docs stay truthful.
 
 **Announce at start:** "I'm using the dev-implementation skill to implement the `<epic_slug>` epic."
 
@@ -46,7 +46,7 @@ This skill is **Stage 3** of the Epic Lifecycle. The surrounding stages, the fiv
    - `.devtool/epic/<epic_dir>/handoff.md`, when present — packaging record and Open Notes (never edited manually; updated only via `package_epic.py <epic_dir> --revise --reason "<text>"`).
    - `.devtool/epic/<epic_dir>/<epic_dir>.en.md` — canonical HLD & Maintenance Map ("Prompt to Maintain"; never `.vi.md` for decisions). Read `Meta Data`, `Architecture, Feature Map & Technical Design`, `Integration Test Plan`, and `Verification Environment`.
    - Frontmatter, `Covers:`, and `Dependencies` of `.devtool/features/task_*.md` matching `epic: "<epic_slug>"` (read full task bodies one at a time in Phase 2).
-   - Restore context and window title: `python3 scripts/resume_context.py --role programmer --epic <epic_slug>`.
+   - Restore context and window title: `python3 scripts/resume_context.py --role assistant --epic <epic_slug>`.
 
 #### Bounded Context Injection & Spec Fidelity
 

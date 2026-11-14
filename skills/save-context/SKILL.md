@@ -66,11 +66,12 @@ python3 scripts/resume_context.py --emit-prompt <mode> --epic <epic_slug> [--epi
 ```
 
 Supported modes:
-- `principal-review`: Emits **AI Assistant** prompt for Stage 2 Principal Review.
-- `implement`: Emits **AI Programmer** prompt for `/dev-implementation` (Stage 3).
-- `cross-review`: Emits **AI Assistant** prompt for Cross-Model Review (Gate 4 PASS).
-- `finish`: Emits **AI Programmer** prompt for `/finish` (Stage 4).
-- `assistant`: Emits **AI Assistant** prompt for general architectural discussions.
+- `principal-review`: Emits **AI Assistant (Orchestrator)** prompt for Stage 2 Principal Review.
+- `implement`: Emits **AI Assistant (Orchestrator)** prompt for `/dev-implementation` (Stage 3; dispatches Role 2.3 subagents).
+- `cross-review`: Emits **AI Assistant (Orchestrator)** prompt for Cross-Model Review (Gate 4 PASS; dispatches Role 2.3 fixers/verifier).
+- `finish`: Emits **AI Assistant (Orchestrator)** prompt for `/finish` (Stage 4; dispatches Role 2.3 for rebase/`verify-tier` if needed).
+- `assistant`: Emits **AI Assistant (Orchestrator)** prompt for general architectural discussions.
+- `brief` (`--brief-role <task-implementer|task-reviewer|review-fixer|gate4-verifier>`): Emits **AI Programmer (Role 2.3)** subagent brief with summary JSON contract.
 
 ### 5. Feature Completion & Compaction (`--complete`)
 

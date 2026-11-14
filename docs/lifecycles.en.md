@@ -53,17 +53,17 @@ flowchart TD
     PR["principal-review<br/>(Auto Shift-Left design audit, up to 3 rounds)<br/>[2.2 AI Assistant: triage, decisions, revision]"]
     PKG["Package epic &amp; Emit Prompt<br/>handoff.md, status Packaged<br/>[2.2 AI Assistant: --state &amp; --emit-prompt implement]"]
     HC{"Handoff choice — 2.1 Architect<br/>Triển khai (tự động) or Dừng lại?"}
-    PKGSTOP(["Stop: handoff.md and AI Programmer Implement Prompt"])
-    S3["Stage 3 — Isolated Execution<br/>(dev-implementation)<br/>[2.3 AI Programmer: --role programmer in worktree]"]
+    PKGSTOP(["Stop: handoff.md and Orchestrator Implement Prompt"])
+    S3["Stage 3 — Isolated Execution<br/>(dev-implementation)<br/>[2.2 Orchestrator: --role assistant, dispatches 2.3 subagents]"]
     G3{"Gate 3 — 2.1 Architect<br/>Execution order confirmed?"}
-    EXEC["Phase 2-3: task-by-task TDD<br/>[2.3 AI Programmer: auto --log &amp; --state per task,<br/>integrate with develop after each task]"]
+    EXEC["Phase 2-3: task-by-task TDD<br/>[2.2 Orchestrator: pool &amp; --log/--state;<br/>2.3 Programmer subagents: TDD in slots]"]
     RC{"Review Choice — 2.1 Architect<br/>Finish, Cross-model review or Local model review?"}
     XR["cross-model-review<br/>(Shift-Right external CLI: Claude/Codex)<br/>[2.2 AI Assistant: triage &amp; --emit-prompt]"]
     LR["cross-model-review (local)<br/>(Shift-Right local model: Ollama)<br/>[2.2 AI Assistant: triage &amp; --emit-prompt]"]
     G4{"Gate 4<br/>audit + result-based traceability + quality_check 🟢 LGTM?"}
     REVIEW["Phase 4.1: Developer Kanban Review<br/>(All tasks held in DONE column for visual inspection)"]
     G5{"Gate 5 — 2.1 Architect<br/>User sign-off &amp; finish approved?"}
-    S4["Stage 4 — Finish Branch &amp; Archival<br/>(finishing-a-development-branch)<br/>[2.3 AI Programmer: --complete appends Ledger &amp; archives logs]"]
+    S4["Stage 4 — Finish Branch &amp; Archival<br/>(finishing-a-development-branch)<br/>[2.2 Orchestrator: --complete appends Ledger &amp; archives logs]"]
 
     S1 --> G1
     G1 -->|no, revise| S1
@@ -110,11 +110,11 @@ When work stops or an epic is packaged, the lifecycle resumes deterministically 
 ```mermaid
 flowchart TD
     FRESH["Fresh Epic<br/>(Stage 1 or Stage 2, no task files)<br/>[2.2 AI Assistant: resume --role assistant]"]
-    PKG["Packaged Epic<br/>(handoff.md present, status Packaged)<br/>[2.2 AI Assistant -> 2.3 AI Programmer Handoff]"]
-    INTR["Interrupted Epic<br/>(task files exist, mid-Stage 3 in worktree)<br/>[2.3 AI Programmer: resume --role programmer]"]
+    PKG["Packaged Epic<br/>(handoff.md present, status Packaged)<br/>[2.2 Orchestrator: --emit-prompt implement]"]
+    INTR["Interrupted Epic<br/>(task files exist, mid-Stage 3 in worktree)<br/>[2.2 Orchestrator: resume --role assistant, dispatches 2.3]"]
     DONE_EPIC["Completed Epic<br/>(all tasks done, Gate 4 PASS)<br/>[2.2 AI Assistant: cross-model-review / 2.1 Architect]"]
     INCON["Inconsistent State<br/>(documents modified after packaging)<br/>[2.2 AI Assistant: reconcile docs &amp; re-package]"]
-    MERGED["Stage 4: Landed Branch &amp; Archival<br/>[2.3 AI Programmer: --complete -> PROJECT_LEDGER.md &amp; archive/]"]
+    MERGED["Stage 4: Landed Branch &amp; Archival<br/>[2.2 Orchestrator: --complete -> PROJECT_LEDGER.md &amp; archive/]"]
 
     FRESH -->|"Gate 2 + Principal Review converged (--state)"| PKG
     PKG -->|"Check git log since packaging"| INCON

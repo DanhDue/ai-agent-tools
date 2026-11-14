@@ -56,17 +56,17 @@ flowchart TD
     PR["principal-review<br/>(Tự động rà soát kiến trúc Shift-Left, tối đa 3 round)<br/>[2.2 AI Assistant: triage, decisions, chỉnh sửa]"]
     PKG["Package epic &amp; Emit Prompt<br/>handoff.md, status Packaged<br/>[2.2 AI Assistant: --state &amp; --emit-prompt implement]"]
     HC{"Handoff choice — 2.1 Architect<br/>Triển khai (tự động) hay Dừng lại?"}
-    PKGSTOP(["Dừng: handoff.md và AI Programmer Implement Prompt"])
-    S3["Stage 3 — Thực thi độc lập<br/>(dev-implementation)<br/>[2.3 AI Programmer: --role programmer trong worktree]"]
+    PKGSTOP(["Dừng: handoff.md và Orchestrator Implement Prompt"])
+    S3["Stage 3 — Thực thi độc lập<br/>(dev-implementation)<br/>[2.2 Orchestrator: --role assistant, dispatch 2.3 subagent]"]
     G3{"Cổng 3 — 2.1 Architect<br/>Thứ tự thực thi đã xác nhận?"}
-    EXEC["Phase 2-3: TDD từng task<br/>[2.3 AI Programmer: tự động --log &amp; --state mỗi task,<br/>tích hợp vào develop sau mỗi task]"]
+    EXEC["Phase 2-3: TDD từng task<br/>[2.2 Orchestrator: pool &amp; --log/--state;<br/>2.3 Programmer subagent: TDD trong slot]"]
     RC{"Review Choice — 2.1 Architect<br/>Finish, Cross-model review hay Local model review?"}
     XR["cross-model-review<br/>(Shift-Right external CLI: Claude/Codex)<br/>[2.2 AI Assistant: triage &amp; --emit-prompt]"]
     LR["cross-model-review (local)<br/>(Shift-Right local model: Ollama)<br/>[2.2 AI Assistant: triage &amp; --emit-prompt]"]
     G4{"Cổng 4<br/>audit + BDD traceability + quality_check 🟢 LGTM?"}
     REVIEW["Phase 4.1: Developer Kanban Review<br/>(Mọi task giữ ở cột DONE để kiểm tra trực quan)"]
     G5{"Cổng 5 — 2.1 Architect<br/>Người dùng ký duyệt &amp; cho phép finish?"}
-    S4["Stage 4 — Hoàn tất nhánh &amp; Lưu trữ<br/>(finishing-a-development-branch)<br/>[2.3 AI Programmer: --complete ghi Ledger &amp; nén log]"]
+    S4["Stage 4 — Hoàn tất nhánh &amp; Lưu trữ<br/>(finishing-a-development-branch)<br/>[2.2 Orchestrator: --complete ghi Ledger &amp; nén log]"]
 
     S1 --> G1
     G1 -->|chưa, chỉnh sửa| S1
@@ -113,11 +113,11 @@ Khi công việc tạm dừng hoặc một epic được đóng gói, vòng đ�
 ```mermaid
 flowchart TD
     FRESH["Epic mới<br/>(Stage 1 hoặc Stage 2, chưa có task file)<br/>[2.2 AI Assistant: resume --role assistant]"]
-    PKG["Epic đã đóng gói<br/>(có handoff.md, trạng thái Packaged)<br/>[2.2 AI Assistant -> 2.3 AI Programmer Handoff]"]
-    INTR["Epic bị ngắt quãng<br/>(đã có task file, đang dở Stage 3 trong worktree)<br/>[2.3 AI Programmer: resume --role programmer]"]
+    PKG["Epic đã đóng gói<br/>(có handoff.md, trạng thái Packaged)<br/>[2.2 Orchestrator: --emit-prompt implement]"]
+    INTR["Epic bị ngắt quãng<br/>(đã có task file, đang dở Stage 3 trong worktree)<br/>[2.2 Orchestrator: resume --role assistant, dispatch 2.3]"]
     DONE_EPIC["Epic hoàn thành<br/>(mọi task done, Cổng 4 PASS)<br/>[2.2 AI Assistant: cross-model-review / 2.1 Architect]"]
     INCON["Trạng thái không nhất quán<br/>(tài liệu bị sửa sau khi đóng gói)<br/>[2.2 AI Assistant: đồng bộ tài liệu &amp; đóng gói lại]"]
-    MERGED["Stage 4: Merge nhánh &amp; Lưu trữ<br/>[2.3 AI Programmer: --complete -> PROJECT_LEDGER.md &amp; archive/]"]
+    MERGED["Stage 4: Merge nhánh &amp; Lưu trữ<br/>[2.2 Orchestrator: --complete -> PROJECT_LEDGER.md &amp; archive/]"]
 
     FRESH -->|"Cổng 2 + Principal Review hội tụ (--state)"| PKG
     PKG -->|"Kiểm tra git log từ khi đóng gói"| INCON

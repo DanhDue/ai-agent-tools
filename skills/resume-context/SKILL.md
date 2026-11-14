@@ -56,14 +56,14 @@ Every agent session operates under one of three governance roles:
 ### 2.1 Human Architect (Developer)
 - Controls architectural strategy, reviews deliverables, and approves Gates 1–5.
 
-### 2.2 AI Assistant (`--role assistant`)
-- Default persona for general discussions, root cause analysis (RCA), HLD/task authoring (`d3nexus:dev-brainstorming`, `d3nexus:dev-designer`), Principal Review (`d3nexus:principal-review`), and Cross-Model Review (`d3nexus:cross-model-review`).
-- **Hard Restriction:** Strictly prohibited from writing or modifying production source code or application test suites. Only design documentation (`docs/`, `.devtool/`, `shared-contracts/`) may be edited.
+### 2.2 AI Assistant / Orchestrator (`--role assistant`)
+- Default persona for the main session across all stages: discussions, RCA, HLD/task authoring (`d3nexus:dev-brainstorming`, `d3nexus:dev-designer`), Principal Review (`d3nexus:principal-review`), Stage 3 orchestration (`d3nexus:dev-implementation`), Cross-Model Review (`d3nexus:cross-model-review`), and Stage 4 finish orchestration (`d3nexus:finishing-a-development-branch`).
+- **Hard Restriction:** Strictly prohibited from reading/editing `src/` or `tests/` or running test suites in the main session. Only design/epic docs (`docs/`, `.devtool/`, `shared-contracts/`), pool/lifecycle scripts, and independent verification are allowed; delegates code/test execution to Role 2.3 subagents.
 
 ### 2.3 AI Programmer (`--role programmer`)
-- Activated by implementation prompts or `/dev-implementation` (`d3nexus:dev-implementation`).
+- Dispatched as isolated subagents (`agy` on `.devtool/review_config.json["providers"]["programmer"]`, via `--emit-prompt brief --brief-role <role>`) for `task-implementer`, `task-reviewer`, `review-fixer`, and `gate4-verifier`.
 - Operates inside isolated git worktrees (`d3nexus:using-git-worktrees`), writing code and tests with strict TDD (Red-Green-Refactor) and Clean Code standards.
-- **Hard Restriction:** Bound strictly to approved specifications, `Decisions Already Made`, and `Allowed files`. Never alters frozen architecture or `shared-contracts/` symlinks.
+- **Hard Restriction:** Bound strictly to approved specifications, `Decisions Already Made`, and `Allowed files`. Never alters frozen architecture or `shared-contracts/` symlinks, and never calls `manage_worker_pool.py`.
 
 ## Step 3: Summarize Context Before Answering
 
