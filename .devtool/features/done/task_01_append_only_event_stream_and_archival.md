@@ -1,13 +1,13 @@
 ---
 id: "task_01_append_only_event_stream_and_archival"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "check_tasks_epic_history_modal"
 dueDate: null
 created: "2026-11-15T01:00:00Z"
-modified: "2026-11-15T01:00:00Z"
-completedAt: null
+modified: "2026-11-14T18:30:56Z"
+completedAt: "2026-11-14T18:30:56Z"
 labels: ["telemetry", "state-envelope", "archival", "concurrency"]
 order: "a1"
 review_tier: "full"
@@ -15,7 +15,7 @@ review_tier: "full"
 
 # Task 1: Append-Only Per-Epic Event Stream and Dual-Variant Archival
 
-Epic: [check_tasks_epic_history_modal](../epic/check_tasks_epic_history_modal/check_tasks_epic_history_modal.en.md)
+Epic: [check_tasks_epic_history_modal](../../epic/check_tasks_epic_history_modal/check_tasks_epic_history_modal.en.md)
 
 ## Requirement Analysis
 
@@ -115,5 +115,5 @@ Downstream dependents (blocked by Task 1): `task_02`, `task_03`, `task_04`.
 
 ## References & Rollback
 
-- [Epic HLD](../epic/check_tasks_epic_history_modal/check_tasks_epic_history_modal.en.md)
+- [Epic HLD](../../epic/check_tasks_epic_history_modal/check_tasks_epic_history_modal.en.md)
 - **Rollback**: Revert task commit to restore `scripts/_state_envelope.py` and `scripts/resume_context.py`.

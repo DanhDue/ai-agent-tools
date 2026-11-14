@@ -951,6 +951,33 @@ def append_activity_log(
         refresh_activity_stream_rollup(devtool_dir)
 
 
+def _epic_slug_variants(epic_slug: str) -> list[str]:
+    """Return deduplicated hyphen/underscore variants of `epic_slug` and its safe slug."""
+    safe_slug = _state_envelope._sanitize_epic_slug(epic_slug)
+    candidates = (
+        safe_slug,
+        epic_slug,
+        safe_slug.replace("_", "-"),
+        safe_slug.replace("-", "_"),
+        epic_slug.replace("_", "-"),
+        epic_slug.replace("-", "_"),
+    )
+    variants: list[str] = []
+    seen: set[str] = set()
+    for cand in candidates:
+        cleaned = cand.strip()
+        if (
+            not cleaned
+            or cleaned in {".", ".."}
+            or Path(cleaned).name != cleaned
+            or cleaned in seen
+        ):
+            continue
+        seen.add(cleaned)
+        variants.append(cleaned)
+    return variants
+
+
 def complete_feature_and_rotate(
     root: Path,
     epic_slug: str,
@@ -1006,6 +1033,7 @@ def complete_feature_and_rotate(
                     f"✅ Appended milestone to {ledger_path.relative_to(primary_root)}:\n   {milestone.strip()}"
                 )
 
+        slug_variants = _epic_slug_variants(epic_slug)
         raw_candidates: list[Path] = (
             [root / ".devtool", primary_root / ".devtool"]
             + [root / r / ".devtool" for r in REPOS]
@@ -1014,14 +1042,15 @@ def complete_feature_and_rotate(
         if (primary_root / ".git").exists():
             wt_out = _state_envelope._run_git(primary_root, "worktree", "list", "--porcelain")
             if wt_out:
-                safe_slug = _state_envelope._sanitize_epic_slug(epic_slug)
                 for wt_path, _branch in _state_envelope._parse_worktree_branches(wt_out):
                     if _state_envelope._is_slot_worktree(wt_path):
                         continue
                     wt_dt = wt_path / ".devtool"
-                    if (
-                        (wt_dt / "state" / f"{epic_slug}.md").exists()
-                        or (wt_dt / "state" / f"{safe_slug}.heartbeat.json").exists()
+                    if any(
+                        (wt_dt / "state" / f"{variant}.md").exists()
+                        or (wt_dt / "state" / f"{variant}.heartbeat.json").exists()
+                        or (wt_dt / "logs" / f"events_{variant}.jsonl").exists()
+                        for variant in slug_variants
                     ):
                         raw_candidates.append(wt_dt)
 
@@ -1035,28 +1064,34 @@ def complete_feature_and_rotate(
                 seen_dt.add(resolved)
                 deduped_dirs.append(resolved)
 
-        safe_slug = _state_envelope._sanitize_epic_slug(epic_slug)
         for devtool_dir in deduped_dirs:
             with file_lock(devtool_dir):
                 archive_dir = devtool_dir / "archive"
-                _safe_archive_move(
-                    devtool_dir / "state" / f"{epic_slug}.md",
-                    archive_dir,
-                    f"state_{epic_slug}_{timestamp}",
-                    ".md",
-                )
-                _safe_archive_move(
-                    devtool_dir / "state" / f"{safe_slug}.heartbeat.json",
-                    archive_dir,
-                    f"heartbeat_{safe_slug}_{timestamp}",
-                    ".json",
-                )
-                _safe_archive_move(
-                    devtool_dir / "logs" / f"activity_{epic_slug}.log",
-                    archive_dir,
-                    f"activity_{epic_slug}_{timestamp}",
-                    ".log",
-                )
+                for variant in slug_variants:
+                    _safe_archive_move(
+                        devtool_dir / "state" / f"{variant}.md",
+                        archive_dir,
+                        f"state_{variant}_{timestamp}",
+                        ".md",
+                    )
+                    _safe_archive_move(
+                        devtool_dir / "state" / f"{variant}.heartbeat.json",
+                        archive_dir,
+                        f"heartbeat_{variant}_{timestamp}",
+                        ".json",
+                    )
+                    _safe_archive_move(
+                        devtool_dir / "logs" / f"activity_{variant}.log",
+                        archive_dir,
+                        f"activity_{variant}_{timestamp}",
+                        ".log",
+                    )
+                    _safe_archive_move(
+                        devtool_dir / "logs" / f"events_{variant}.jsonl",
+                        archive_dir,
+                        f"events_{variant}_{timestamp}",
+                        ".jsonl",
+                    )
                 render_assistant_state_rollup(devtool_dir)
                 refresh_activity_stream_rollup(devtool_dir)
 
