@@ -1,13 +1,13 @@
 ---
 id: "task_04_end_to_end_cdp_and_regression_alignment"
-status: "in-progress"
+status: "done"
 priority: "high"
 assignee: null
 epic: "check_tasks_epic_history_modal"
 dueDate: null
 created: "2026-11-15T01:00:00Z"
-modified: "2026-11-14T19:29:43Z"
-completedAt: null
+modified: "2026-11-14T20:13:07Z"
+completedAt: "2026-11-14T20:13:07Z"
 labels: ["integration", "cdp", "e2e", "verify"]
 order: "a4"
 review_tier: "full"
@@ -15,7 +15,7 @@ review_tier: "full"
 
 # Task 4: End-to-End Integration, Headless Chrome CDP Verification, and Regression Alignment
 
-Epic: [check_tasks_epic_history_modal](../epic/check_tasks_epic_history_modal/check_tasks_epic_history_modal.en.md)
+Epic: [check_tasks_epic_history_modal](../../epic/check_tasks_epic_history_modal/check_tasks_epic_history_modal.en.md)
 
 ## Requirement Analysis
 
@@ -116,5 +116,5 @@ Downstream dependents (blocked by Task 4): None.
 
 ## References & Rollback
 
-- [Epic HLD](../epic/check_tasks_epic_history_modal/check_tasks_epic_history_modal.en.md)
+- [Epic HLD](../../epic/check_tasks_epic_history_modal/check_tasks_epic_history_modal.en.md)
 - **Rollback**: Revert task commit to restore `scripts/verify.sh` and remove `tests/test_cehm_e2e_cdp.py`.

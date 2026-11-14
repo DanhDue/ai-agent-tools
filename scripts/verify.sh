@@ -430,6 +430,12 @@ SUITES = [
     ("19", "pytest",   "tests/test_ltsp_harvester_pipeline.py", 15, False),
     ("19", "pytest",   "tests/test_ltsp_dashboard_ui.py", 15, False),
     ("19", "pytest",   "tests/test_lifecycle_telemetry_and_stage_progress.py", 25, False),
+
+    # 20. Check-Tasks Epic History Modal & Append-Only Telemetry suites
+    ("20", "pytest",   "tests/test_cehm_telemetry_stream.py", 10, False),
+    ("20", "pytest",   "tests/test_cehm_history_aggregator.py", 15, False),
+    ("20", "pytest",   "tests/test_cehm_dashboard_modal_ui.py", 15, False),
+    ("20", "pytest",   "tests/test_cehm_e2e_cdp.py", 50, False),
 ]
 
 active_suites = [
