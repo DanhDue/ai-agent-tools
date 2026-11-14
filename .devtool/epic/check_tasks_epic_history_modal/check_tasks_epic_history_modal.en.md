@@ -20,7 +20,7 @@
 ## Meta Data
 
 - **Epic name**: `check_tasks_epic_history_modal`
-- **Status**: Packaged (2026-11-14)
+- **Status**: In Progress
 - **PIC**: `phungthuy8901`
 - **Target release**: Next plugin release
 - **Platform**: Python tooling, local HTTP dashboard server, and HTML/Vanilla JS dashboard UI
