@@ -1,13 +1,13 @@
 ---
 id: "task_02_check_tasks_pipeline_harvester_and_progress_weights"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "lifecycle_telemetry_and_stage_progress_ui"
 dueDate: null
 created: "2026-11-14T08:58:00Z"
-modified: "2026-11-14T08:58:00Z"
-completedAt: null
+modified: "2026-11-14T03:08:02Z"
+completedAt: "2026-11-14T03:08:02Z"
 labels: ["architecture", "harvester", "progress-weights", "telemetry"]
 order: "a2"
 review_tier: "full"
