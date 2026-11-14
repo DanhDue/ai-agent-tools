@@ -40,6 +40,26 @@ CACHE_DIR_CANDIDATES = [
     ".build",
 ]
 
+SLOT_SYNC_STATUSES = ("working", "review", "idle")
+ACTIVE_SLOT_STATUSES = frozenset(("working", "review"))
+
+
+def _collect_other_active_tasks(
+    existing_slots: dict[str, dict[str, Any]],
+    slot: int,
+    slot_key: str,
+) -> set[str]:
+    """Collect active task IDs held by sibling slots in working or review state."""
+    excluded_keys = {slot_key, str(slot)}
+    return {
+        str(info["task_id"])
+        for key, info in existing_slots.items()
+        if key not in excluded_keys
+        and isinstance(info, dict)
+        and str(info.get("status") or "").strip().lower() in ACTIVE_SLOT_STATUSES
+        and info.get("task_id")
+    }
+
 
 def resolve_repo_root(path: Path) -> Path:
     """Resolve the primary git repository root from any checkout or linked worktree."""
@@ -317,53 +337,71 @@ def sync_slot(
     *,
     task_id: str | None = None,
     active_wave: int | None = None,
+    status: str = "working",
+    reset_worktree: bool = True,
 ) -> bool:
-    """Reset slot worktree cleanly to epic HEAD and update worker heartbeat state."""
+    """Sync slot state ('working'/'idle' reset worktree unless reset_worktree=False; 'review' updates heartbeat in-place)."""
+    normalized_status = status.strip().lower()
+    if normalized_status not in SLOT_SYNC_STATUSES:
+        raise ValueError(
+            f"Unsupported slot sync status {status!r}; expected one of {SLOT_SYNC_STATUSES}"
+        )
+
     repo_root = resolve_repo_root(root)
     slot_path = get_slot_path(repo_root, epic_dir, slot)
     if not slot_path.is_dir():
         return False
 
-    target_ref = base_ref or f"epic/{epic_slug}"
-    subprocess.run(
-        ["git", "fetch", ".", f"{target_ref}:{target_ref}"],
-        cwd=slot_path,
-        capture_output=True,
-        check=False,
-    )
-    res = subprocess.run(
-        ["git", "reset", "--hard", target_ref],
-        cwd=slot_path,
-        capture_output=True,
-        check=False,
-    )
-    if res.returncode != 0:
-        return False
+    if normalized_status in ("working", "idle") and reset_worktree:
+        target_ref = base_ref or f"epic/{epic_slug}"
+        subprocess.run(
+            ["git", "fetch", ".", f"{target_ref}:{target_ref}"],
+            cwd=slot_path,
+            capture_output=True,
+            check=False,
+        )
+        res = subprocess.run(
+            ["git", "reset", "--hard", target_ref],
+            cwd=slot_path,
+            capture_output=True,
+            check=False,
+        )
+        if res.returncode != 0:
+            return False
 
-    clean_cmd = ["git", "clean", "-fd"]
-    for cdir in CACHE_DIR_CANDIDATES:
-        clean_cmd.extend(["-e", cdir])
-    subprocess.run(clean_cmd, cwd=slot_path, capture_output=True, check=False)
+        clean_cmd = ["git", "clean", "-fd"]
+        for cdir in CACHE_DIR_CANDIDATES:
+            clean_cmd.extend(["-e", cdir])
+        subprocess.run(clean_cmd, cwd=slot_path, capture_output=True, check=False)
 
     slot_key = f"slot-{slot}"
     existing_slots = _active_tasks_from_heartbeat(repo_root, epic_slug)
-    working_tasks: set[str] = {
-        str(info["task_id"])
-        for key, info in existing_slots.items()
-        if key != slot_key
-        and isinstance(info, dict)
-        and info.get("status") == "working"
-        and info.get("task_id")
-    }
-    if task_id:
-        working_tasks.add(task_id)
+    prev_entry = existing_slots.get(slot_key) or existing_slots.get(str(slot)) or {}
+    prev_task_id = prev_entry.get("task_id") if isinstance(prev_entry, dict) else None
+    if normalized_status == "idle":
+        effective_task_id = None
+    else:
+        preserve_existing_task = normalized_status == "review" or not reset_worktree
+        effective_task_id = task_id or (
+            str(prev_task_id) if prev_task_id and preserve_existing_task else None
+        )
+
+    working_tasks = _collect_other_active_tasks(existing_slots, slot, slot_key)
+    if effective_task_id:
+        working_tasks.add(effective_task_id)
 
     slot_entry: dict[str, Any] = {
-        "status": "working",
+        "status": normalized_status,
         "branch": get_slot_branch(epic_slug, slot),
         "path": str(slot_path),
-        "task_id": task_id,
+        "task_id": effective_task_id,
     }
+    if normalized_status == "review":
+        last_event = f"Reviewing {slot_key}" + (f" ({effective_task_id})" if effective_task_id else "")
+    elif normalized_status == "idle":
+        last_event = f"Reset {slot_key} to idle"
+    else:
+        last_event = f"Synced {slot_key}" + (f" for {effective_task_id}" if effective_task_id else "")
     _emit_pool_heartbeat(
         root,
         repo_root,
@@ -371,7 +409,7 @@ def sync_slot(
         active_wave=active_wave,
         active_tasks=sorted(working_tasks),
         slot_updates={slot_key: slot_entry},
-        last_event=f"Synced {slot_key}" + (f" for {task_id}" if task_id else ""),
+        last_event=last_event,
     )
     return True
 
@@ -418,14 +456,7 @@ def merge_slot(
 
     slot_key = f"slot-{slot}"
     existing_slots = _active_tasks_from_heartbeat(repo_root, epic_slug)
-    working_tasks = sorted(
-        str(info["task_id"])
-        for key, info in existing_slots.items()
-        if key != slot_key
-        and isinstance(info, dict)
-        and info.get("status") == "working"
-        and info.get("task_id")
-    )
+    working_tasks = sorted(_collect_other_active_tasks(existing_slots, slot, slot_key))
     _emit_pool_heartbeat(
         root,
         repo_root,
@@ -662,12 +693,25 @@ def main(argv: list[str] | None = None) -> int:
     p_init.add_argument("--wave", type=int, default=None, help="Active execution wave number")
 
     # sync
-    p_sync = subparsers.add_parser("sync", help="Reset slot to latest epic HEAD")
+    p_sync = subparsers.add_parser("sync", help="Reset slot or update slot heartbeat status")
     _add_epic_flags(p_sync)
     p_sync.add_argument("--slot", type=int, required=True, help="Slot number (1 or 2)")
     p_sync.add_argument("--base", default=None, help="Base ref to sync to (default: epic/<epic_slug>)")
     p_sync.add_argument("--task", default=None, help="Task ID assigned to this slot")
     p_sync.add_argument("--wave", type=int, default=None, help="Active execution wave number")
+    p_sync.add_argument(
+        "--status",
+        choices=SLOT_SYNC_STATUSES,
+        default="working",
+        help="Slot heartbeat state ('working'/'idle' reset worktree by default; 'review' preserves uncommitted work)",
+    )
+    p_sync.add_argument(
+        "--no-reset",
+        action="store_false",
+        dest="reset_worktree",
+        default=True,
+        help="Update heartbeat status/task without resetting the slot git worktree",
+    )
 
     # merge
     p_merge = subparsers.add_parser("merge", help="Merge slot back to main worktree")
@@ -726,9 +770,20 @@ def main(argv: list[str] | None = None) -> int:
             base_ref=args.base,
             task_id=args.task,
             active_wave=args.wave,
+            status=args.status,
+            reset_worktree=args.reset_worktree,
         )
         if ok:
-            print(f"Slot {args.slot} synchronized to latest {args.base or f'epic/{epic_slug}'}")
+            if args.status == "review":
+                print(f"Slot {args.slot} heartbeat marked as review")
+            elif args.status == "idle" and not args.reset_worktree:
+                print(f"Slot {args.slot} heartbeat marked as idle (worktree preserved)")
+            elif args.status == "idle":
+                print(f"Slot {args.slot} reset to idle at {args.base or f'epic/{epic_slug}'}")
+            elif not args.reset_worktree:
+                print(f"Slot {args.slot} heartbeat marked as {args.status} (worktree preserved)")
+            else:
+                print(f"Slot {args.slot} synchronized to latest {args.base or f'epic/{epic_slug}'}")
             return 0
         print(f"Failed to sync slot {args.slot}", file=sys.stderr)
         return 1

@@ -418,6 +418,7 @@ SUITES = [
     ("17", "unittest", "tests/test_agy_quota.py", 2, True),
     # 18. Runtime Sync & Dashboard Hardening suites
     ("18", "pytest",   "tests/test_rsdh_state_envelope.py", 5, False),
+    ("18", "pytest",   "tests/test_check_tasks_harvester.py", 10, False),
     ("18", "pytest",   "tests/test_rsdh_heartbeat_quality.py", 5, False),
     ("18", "pytest",   "tests/test_rsdh_orchestration.py", 15, False),
     ("18", "pytest",   "tests/test_rsdh_harvester_and_pic.py", 10, False),

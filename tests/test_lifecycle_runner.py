@@ -1536,6 +1536,9 @@ def test_tto_ar_01_parallel_pool_dispatch_and_path_only_prompts() -> None:
         active_wave1 = 0
         max_wave1 = 0
 
+        observed_heartbeats: dict[str, dict[str, Any]] = {}
+        hb_path = main_repo / ".devtool" / "state" / "demo_epic.heartbeat.json"
+
         def fake_dispatch(
             self_disp: ModelDispatcher, cli: str, args: list[str], prompt: str
         ) -> tuple[int, str, str]:
@@ -1566,6 +1569,17 @@ def test_tto_ar_01_parallel_pool_dispatch_and_path_only_prompts() -> None:
                 if task_slug in {"task_01_a", "task_02_b"}:
                     active_wave1 += 1
                     max_wave1 = max(max_wave1, active_wave1)
+                if hb_path.is_file():
+                    observed_heartbeats[task_slug] = json.loads(
+                        hb_path.read_text(encoding="utf-8")
+                    )
+                dirty_non_runtime = [
+                    ln
+                    for ln in _git(
+                        epic_wt, "status", "--porcelain", "--", ".devtool/features", "src"
+                    ).stdout.splitlines()
+                ]
+                assert dirty_non_runtime == []
             time.sleep(0.05)
             target.write_text(new_text, encoding="utf-8")
             with lock:
@@ -1608,6 +1622,18 @@ def test_tto_ar_01_parallel_pool_dispatch_and_path_only_prompts() -> None:
         }
         assert wave1_wts == {slot1_resolved, slot2_resolved}
         assert max_wave1 == 2
+
+        assert set(observed_heartbeats) == {"task_01_a", "task_02_b", "task_03_c"}
+        hb_w1 = observed_heartbeats["task_01_a"]
+        assert hb_w1.get("active_wave") == 1
+        assert hb_w1.get("slots", {}).get("slot-1", {}).get("task_id") == "task_01_a"
+        assert hb_w1.get("slots", {}).get("slot-1", {}).get("status") == "working"
+        assert hb_w1.get("slots", {}).get("slot-2", {}).get("task_id") == "task_02_b"
+        assert hb_w1.get("slots", {}).get("slot-2", {}).get("status") == "working"
+        hb_w2 = observed_heartbeats["task_03_c"]
+        assert hb_w2.get("active_wave") == 2
+        assert hb_w2.get("slots", {}).get("slot-1", {}).get("task_id") == "task_03_c"
+        assert hb_w2.get("slots", {}).get("slot-1", {}).get("status") == "working"
 
         for rec in dispatches:
             prompt_text = rec["prompt"]

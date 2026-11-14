@@ -1114,6 +1114,92 @@ def natural_sort_key(val: Any) -> list[int | str]:
     return [int(t) if t.isdigit() else t.lower() for t in re.split(r"(\d+)", s)]
 
 
+_SLOT_ACTIVE_STATUS_MAP: dict[str, str] = {
+    "working": "in-progress",
+    "in-progress": "in-progress",
+    "in_progress": "in-progress",
+    "running": "in-progress",
+    "review": "review",
+}
+_TASK_NUM_RE = re.compile(r"^task_?0*(\d+)$")
+
+
+def _slot_task_match_rank(task_id: str, slot_task_id: str) -> int:
+    """Return match rank (3 exact, 2 bounded prefix, 1 strict task_N number, 0 none)."""
+    norm_task = re.sub(r"\.md$", "", task_id.strip(), flags=re.IGNORECASE).lower()
+    norm_slot = re.sub(r"\.md$", "", slot_task_id.strip(), flags=re.IGNORECASE).lower()
+    if not norm_task or not norm_slot:
+        return 0
+    if norm_task == norm_slot:
+        return 3
+    if norm_task.startswith(f"{norm_slot}_"):
+        return 2
+    m_slot = _TASK_NUM_RE.match(norm_slot)
+    if m_slot:
+        num = int(m_slot.group(1))
+        if re.match(rf"^task_?0*{num}(?:_|$)", norm_task):
+            return 1
+    return 0
+
+
+def _apply_heartbeat_slot_statuses(
+    repo_path: Path,
+    all_tasks: list[dict[str, Any]],
+    completed_slugs: set[str],
+) -> None:
+    """Overlay active heartbeat slot statuses (`working`/`review`) onto non-done tasks."""
+    if not all_tasks:
+        return
+    hb_cache: dict[str, dict[str, Any] | None] = {}
+    for task in all_tasks:
+        ep = str(task.get("epic") or "").strip()
+        if not ep or ep == "backlog" or _is_completed_epic(ep, completed_slugs):
+            continue
+        norm_ep = _normalize_slug(ep)
+        if norm_ep not in hb_cache:
+            hb_cache[norm_ep] = _read_epic_heartbeat(repo_path, ep)
+
+    for norm_ep, hb in hb_cache.items():
+        if not isinstance(hb, dict):
+            continue
+        hb_slug = hb.get("epic_slug")
+        if hb_slug and _normalize_slug(str(hb_slug)) != norm_ep:
+            continue
+        slots = hb.get("slots")
+        if not isinstance(slots, dict):
+            continue
+        ep_tasks = [
+            t
+            for t in all_tasks
+            if _normalize_slug(str(t.get("epic") or "")) == norm_ep
+        ]
+        if not ep_tasks:
+            continue
+        for slot_key, slot_meta in slots.items():
+            if not isinstance(slot_meta, dict):
+                continue
+            raw_slot_status = str(slot_meta.get("status") or "").strip().lower()
+            mapped_status = _SLOT_ACTIVE_STATUS_MAP.get(raw_slot_status)
+            slot_task_id = str(slot_meta.get("task_id") or "").strip()
+            if not mapped_status or not slot_task_id:
+                continue
+            best_rank = 0
+            matched: list[dict[str, Any]] = []
+            for task in ep_tasks:
+                rank = _slot_task_match_rank(str(task.get("id") or ""), slot_task_id)
+                if rank > best_rank:
+                    best_rank = rank
+                    matched = [task]
+                elif rank > 0 and rank == best_rank:
+                    matched.append(task)
+            for task in matched:
+                if task.get("status") == "done":
+                    continue
+                task["status"] = mapped_status
+                task["slot"] = str(slot_key)
+                task["slot_status"] = raw_slot_status
+
+
 def extract_task_progress(repo_path: Path, active_epic: str | None) -> TaskProgress:
     """Harvest comprehensive Kanban tasks across active and backlog epics according to 2-tier governance.
 
@@ -1224,7 +1310,6 @@ def extract_task_progress(repo_path: Path, active_epic: str | None) -> TaskProgr
 
                         seen_tasks.add(task_id)
                         status = normalize_task_status(fm.get("status"))
-                        tally[status] = tally.get(status, 0) + 1
 
                         title = task_id
                         for line in content.splitlines():
@@ -1258,9 +1343,6 @@ def extract_task_progress(repo_path: Path, active_epic: str | None) -> TaskProgr
                             }
                         )
 
-                        if status == "in-progress" and not active_task:
-                            active_task = title
-
     # Rule 2: For backlog epics, keep root task information
     root_dirs = [
         repo_path / ".devtool" / "features",
@@ -1284,7 +1366,6 @@ def extract_task_progress(repo_path: Path, active_epic: str | None) -> TaskProgr
 
                 seen_tasks.add(task_id)
                 status = normalize_task_status(fm.get("status"))
-                tally[status] = tally.get(status, 0) + 1
 
                 title = task_id
                 for line in content.splitlines():
@@ -1316,8 +1397,11 @@ def extract_task_progress(repo_path: Path, active_epic: str | None) -> TaskProgr
                     }
                 )
 
-                if status == "in-progress" and not active_task:
-                    active_task = title
+    _apply_heartbeat_slot_statuses(repo_path, all_tasks, completed_slugs)
+
+    for t in all_tasks:
+        st = str(t.get("status") or "todo")
+        tally[st] = tally.get(st, 0) + 1
 
     # Sort all_tasks in natural numerical count order (e.g. Task 1, 2, ..., 9, 10, 11)
     def task_compare_key(t: dict[str, Any]) -> tuple[str, list[int | str]]:
@@ -1327,11 +1411,14 @@ def extract_task_progress(repo_path: Path, active_epic: str | None) -> TaskProgr
 
     all_tasks.sort(key=task_compare_key)
 
-    # Re-derive active_task as the first in-progress task in natural numerical order
+    # Re-derive active_task as the first in-progress (or review) task in natural numerical order
     active_task = None
-    for t in all_tasks:
-        if t.get("status") == "in-progress":
-            active_task = t.get("title")
+    for target_status in ("in-progress", "review"):
+        for t in all_tasks:
+            if t.get("status") == target_status:
+                active_task = t.get("title")
+                break
+        if active_task:
             break
 
     total = len(seen_tasks)
@@ -2328,10 +2415,16 @@ def render_single_repo(repo: RepoMetadata, use_color: bool = True) -> str:
 
     pct = repo.task_progress.percentage
     bar = render_progress_bar(pct, width=12, use_color=use_color)
+    review_str = (
+        f", {repo.task_progress.review_tasks} review"
+        if repo.task_progress.review_tasks > 0
+        else ""
+    )
     lines.append(
         f"Tasks: {bar} {int(pct)}% "
         f"({repo.task_progress.done_tasks}/{repo.task_progress.total_tasks} done, "
-        f"{repo.task_progress.in_progress_tasks} in-progress, "
+        f"{repo.task_progress.in_progress_tasks} in-progress"
+        f"{review_str}, "
         f"{repo.task_progress.todo_tasks} todo)"
     )
 

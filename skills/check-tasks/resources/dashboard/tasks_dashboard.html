@@ -2442,6 +2442,7 @@
             total: 0,
             done: 0,
             in_progress: 0,
+            review: 0,
           });
         }
         const epItem = epicsProgressMap.get(epSlug);
@@ -2450,6 +2451,7 @@
         const st = (rawStatus === 'inprogress') ? 'in-progress' : rawStatus;
         if (st === 'done') epItem.done++;
         else if (st === 'in-progress') epItem.in_progress++;
+        else if (st === 'review') epItem.review++;
       });
 
       // Enrich epic titles from repo.epics_summary if present
@@ -2467,7 +2469,9 @@
       const epicsList = Array.from(epicsProgressMap.values()).sort((a, b) => {
         const aPct = a.total > 0 ? (a.done / a.total) : 0;
         const bPct = b.total > 0 ? (b.done / b.total) : 0;
-        if (a.in_progress !== b.in_progress) return b.in_progress - a.in_progress;
+        const aActive = a.in_progress + a.review;
+        const bActive = b.in_progress + b.review;
+        if (aActive !== bActive) return bActive - aActive;
         if (aPct !== bPct) return bPct - aPct;
         return b.total - a.total;
       });
@@ -2506,8 +2510,12 @@
           statusText = '<span style="color: #f87171; font-weight: 700;">⚠️ Chờ /finish</span>';
         } else if (pct === 96) {
           statusText = '<span style="color: #38bdf8; font-weight: 700;">⚡ 96% Review</span>';
+        } else if (ep.in_progress > 0 && ep.review > 0) {
+          statusText = `<span style="color: #fbbf24; font-weight: 700;">⚡ ${ep.in_progress} Doing · <span style="color: #c084fc;">${ep.review} Review</span></span>`;
         } else if (ep.in_progress > 0) {
           statusText = `<span style="color: #fbbf24; font-weight: 700;">⚡ ${ep.in_progress} Doing</span>`;
+        } else if (ep.review > 0) {
+          statusText = `<span style="color: #c084fc; font-weight: 700;">🔍 ${ep.review} Review</span>`;
         }
 
         return `
@@ -2611,7 +2619,7 @@
                 </div>
 
                 <div style="display: flex; justify-content: space-between; align-items: center; font-size: 10px; color: #64748b; margin-top: 2px;">
-                  <span>${t.source === 'worktree' ? '<span style="color: #38bdf8;">🌲 Worktree</span>' : '<span style="color: #94a3b8;">🏛️ Root</span>'}</span>
+                  <span>${t.source === 'worktree' ? '<span style="color: #38bdf8;">🌲 Worktree</span>' : '<span style="color: #94a3b8;">🏛️ Root</span>'}${t.slot ? ` <span style="background: rgba(56,189,248,0.14); color: #7dd3fc; border: 1px solid rgba(56,189,248,0.3); padding: 0 4px; border-radius: 3px; font-weight: 600;">${escapeHtml(String(t.slot))}</span>` : ''}</span>
                   <span>${t.status === 'done' ? '<span style="color: #34d399;">✓</span> ' : ''}${escapeHtml(t.time || '')}</span>
                 </div>
               </div>

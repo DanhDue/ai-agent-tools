@@ -40,6 +40,7 @@ try:
         harvest_epics_overview,
         normalize_task_status,
         resolve_active_epic,
+        scan_repo,
         scan_worktrees,
         discover_antigravity_profiles,
     )
@@ -373,6 +374,143 @@ class TestCheckTasksHarvester_Integration(unittest.TestCase):
                     f"# {slug}\n\n{body}", encoding="utf-8"
                 )
                 self.assertEqual(extract_epic_hld_status(epic_dir, slug), expected)
+
+    def test_heartbeat_slots_overlay_todo_to_in_progress_and_review_without_dirtying_worktree(
+        self,
+    ) -> None:
+        """Heartbeat slot statuses ('working'/'review') map clean 'todo' tasks to 'in-progress'/'review'."""
+        repo_path = self.workspace_root / "hb-overlay-repo"
+        repo_path.mkdir(parents=True)
+        subprocess.run(
+            ["git", "init", "-b", "main"],
+            cwd=str(repo_path),
+            check=True,
+            capture_output=True,
+        )
+        subprocess.run(
+            ["git", "config", "user.email", "test@test.local"],
+            cwd=str(repo_path),
+            check=True,
+        )
+        subprocess.run(
+            ["git", "config", "user.name", "Test User"],
+            cwd=str(repo_path),
+            check=True,
+        )
+        epic_slug = "demo-epic"
+        epic_dir = "demo_epic"
+        epic_docs = repo_path / ".devtool" / "epic" / epic_dir
+        epic_docs.mkdir(parents=True)
+        (epic_docs / f"{epic_dir}.en.md").write_text(
+            "# Demo Epic\n\n- **Status**: In Progress\n", encoding="utf-8"
+        )
+        (repo_path / "README.md").write_text("# Overlay Test\n", encoding="utf-8")
+        subprocess.run(["git", "add", "."], cwd=str(repo_path), check=True)
+        subprocess.run(
+            ["git", "commit", "-m", "Initial commit"],
+            cwd=str(repo_path),
+            check=True,
+            capture_output=True,
+        )
+
+        # Create clean main_wt under .worktrees/epic/<epic_dir> with todo/done tasks on disk
+        main_wt = repo_path / ".worktrees" / "epic" / epic_dir
+        main_wt.parent.mkdir(parents=True, exist_ok=True)
+        subprocess.run(
+            ["git", "worktree", "add", "-q", str(main_wt), "-b", f"epic/{epic_slug}"],
+            cwd=str(repo_path),
+            check=True,
+            capture_output=True,
+        )
+        wt_done = main_wt / ".devtool" / "features" / "done"
+        wt_feat = main_wt / ".devtool" / "features"
+        wt_done.mkdir(parents=True, exist_ok=True)
+        (wt_done / "task_01_done_base.md").write_text(
+            '---\nid: "task_01_done_base"\nstatus: "done"\nepic: "demo_epic"\n---\n# Task 1 Done\n',
+            encoding="utf-8",
+        )
+        (wt_feat / "task_02_worker_work.md").write_text(
+            '---\nid: "task_02_worker_work"\nstatus: "todo"\nepic: "demo_epic"\n---\n# Task 2 Worker\n',
+            encoding="utf-8",
+        )
+        (wt_feat / "task_03_in_review.md").write_text(
+            '---\nid: "task_03_in_review"\nstatus: "todo"\nepic: "demo_epic"\n---\n# Task 3 Review\n',
+            encoding="utf-8",
+        )
+        (wt_feat / "task_20_future.md").write_text(
+            '---\nid: "task_20_future"\nstatus: "todo"\nepic: "demo_epic"\n---\n# Task 20 Future\n',
+            encoding="utf-8",
+        )
+        subprocess.run(["git", "add", "."], cwd=str(main_wt), check=True)
+        subprocess.run(
+            ["git", "commit", "-m", "Seed tasks"],
+            cwd=str(main_wt),
+            check=True,
+            capture_output=True,
+        )
+
+        state_dir = repo_path / ".devtool" / "state"
+        state_dir.mkdir(parents=True, exist_ok=True)
+        hb_file = state_dir / f"{epic_slug}.heartbeat.json"
+        hb_file.write_text(
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "generation": 5,
+                    "epic_slug": epic_slug,
+                    "active_wave": 1,
+                    "active_tasks": ["task_02_worker_work", "task_03_in_review"],
+                    "slots": {
+                        "slot-1": {
+                            "status": "working",
+                            "task_id": "task_2",
+                        },
+                        "slot-2": {
+                            "status": "review",
+                            "task_id": "task_03_in_review",
+                        },
+                        "slot-3": {
+                            "status": "working",
+                            "task_id": "task_01_done_base",
+                        },
+                        "slot-4": {
+                            "status": "idle",
+                            "task_id": "task_20_future",
+                        },
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        progress = extract_task_progress(repo_path, epic_dir)
+        by_id = {t["id"]: t for t in progress.tasks}
+        # 'done' must never be downgraded by stale working slot
+        self.assertEqual(by_id["task_01_done_base"]["status"], "done")
+        # Shorthand 'task_2' maps cleanly to 'task_02_worker_work' (not 'task_20_future')
+        self.assertEqual(by_id["task_02_worker_work"]["status"], "in-progress")
+        self.assertEqual(by_id["task_02_worker_work"].get("slot"), "slot-1")
+        # 'review' slot maps 'todo' -> 'review'
+        self.assertEqual(by_id["task_03_in_review"]["status"], "review")
+        self.assertEqual(by_id["task_03_in_review"].get("slot"), "slot-2")
+        # 'idle' slot leaves task_20_future as 'todo'
+        self.assertEqual(by_id["task_20_future"]["status"], "todo")
+
+        self.assertEqual(progress.done_tasks, 1)
+        self.assertEqual(progress.in_progress_tasks, 1)
+        self.assertEqual(progress.review_tasks, 1)
+        self.assertEqual(progress.todo_tasks, 1)
+        self.assertEqual(progress.active_task_name, "Task 2 Worker")
+
+        # Verify main_wt stays completely clean (zero dirty files)
+        wt_status = subprocess.run(
+            ["git", "status", "--porcelain"],
+            cwd=str(main_wt),
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+        self.assertEqual(wt_status, "")
 
 
 if __name__ == "__main__":

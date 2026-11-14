@@ -251,6 +251,11 @@ child is noticed within minutes, not at the end of the session.
 Record BASE (`git rev-parse HEAD`) before dispatching — the review package
 and fix-round diffs need it.
 
+**Pre-Dispatch Status Gate (tasks with a Verification table):** Transition the
+task to `in-progress` BEFORE dispatching the implementer:
+- *2-slot pool mode (keeps `main_wt` clean)*: `python3 skills/dev-implementation/resources/scripts/manage_worker_pool.py sync --epic-dir <epic_dir> --epic-slug <epic_slug> --slot <1|2> --task <id> [--wave <k>] --status working`
+- *Single-worktree / non-pool mode*: `python3 skills/dev-implementation/resources/scripts/sync_task_status.py task <id> in-progress`
+
 **A task with a Verification table** (an epic task run by
 d3nexus:dev-implementation) is never committed by the implementer. It runs
 `run_task_checks.py red` before implementing and `run_task_checks.py verify`
@@ -325,6 +330,11 @@ rush it into implementation.
 ### 3. Review the task
 
 Per-task reviews are selective, task-scoped gates. The broad review happens once, at the final whole-branch review.
+
+- **Pre-Review Status Gate (tasks with a Verification table):** Whenever `task-reviewer` IS dispatched, transition task status to `review` BEFORE spawning the reviewer:
+  - *2-slot pool mode (preserves uncommitted slot changes and keeps `main_wt` clean)*: `python3 skills/dev-implementation/resources/scripts/manage_worker_pool.py sync --epic-dir <epic_dir> --epic-slug <epic_slug> --slot <1|2> --task <id> [--wave <k>] --status review`
+  - *Single-worktree / non-pool mode*: `python3 skills/dev-implementation/resources/scripts/sync_task_status.py task <id> review`
+  If review enters Step 4 (fix loop), immediately return status to `in-progress` (`manage_worker_pool.py sync ... --status working --no-reset` in pool mode, or `sync_task_status.py task <id> in-progress` in single-worktree mode), then flip back to `review` (`--status review`) before re-review.
 
 - **Selective `task-reviewer` gating:** Dispatch `task-reviewer` **ONLY** when `review_tier: "full"` in task frontmatter, OR task labels include any high-risk trigger (`security`, `architecture`, `concurrency`, `contract`), OR the task modifies `> 2` non-test modules. For trivial single-file or routine tasks without high-risk triggers (where `review_tier` is unset or `skip`), skip `task-reviewer` and rely on implementer self-review, `run_task_checks.py verify`, and the final whole-branch review. Whenever a `task-reviewer` IS dispatched, never accept a report missing either verdict — spec compliance AND task quality are both required.
 - **Rule 3 & Rule 5 discipline:** Require bounded reads (`StartLine`/`EndLine` or `sed -n 'X,Yp'` with symbol search on files `> 200` lines) and enforce the Zero-Fluff Output Cap for subagent narration while preserving Verdicts, Findings tables, gate results, and status contracts.
@@ -457,7 +467,9 @@ a silent discard is forbidden.
 When the review comes back clean — or every open finding is parked with a
 ruling at the cap — first, for a task with a Verification table, run
 `sync_task_status.py task <id> done` and, once it passes, make the task's
-single commit (dev-implementation Phase 2 steps 4–5). Then append the
+single commit yourself in the active worktree/slot, then in 2-slot pool mode run
+`manage_worker_pool.py merge --slot <1|2> --task <id>` to land it cleanly and
+return the slot heartbeat to `idle` (dev-implementation Phase 2 steps 4–5). Then append the
 completion line to the ledger in the same message as your other bookkeeping:
 
 - `Task <N>: complete (commits <base7>..<head7>, review clean)`

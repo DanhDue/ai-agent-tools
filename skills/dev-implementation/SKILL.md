@@ -178,36 +178,26 @@ For rows 4 and 5. Phase 1 step 4's `git worktree add -b` never runs here.
 The AI Programmer acts as the **Implementation Orchestrator**, coordinating execution across a **2-Slot Ephemeral Worker Pool** with shared cache.
 
 #### 2-Slot Ephemeral Worker Pool
-- **Main Worktree**: `.worktrees/<epic_dir>` (`epic/<epic_slug>`) holds canonical tooling and base dependencies.
-- **Worker Slots**: `.worktrees/<epic_dir>-slot-1` / `-slot-2` share caches (`node_modules`, `.venv`, `.gradle`, `target`, `.dart_tool`) via symlink/APFS clone (`0` bytes overhead) and update per-epic heartbeat automatically.
-- **Pool CLI**:
-  - Init: `python3 "$SKILL_DIR"/resources/scripts/manage_worker_pool.py init --epic-dir <epic_dir> --epic-slug <epic_slug> [--wave <k>]`
-  - Sync: `python3 "$SKILL_DIR"/resources/scripts/manage_worker_pool.py sync --epic-dir <epic_dir> --epic-slug <epic_slug> --slot <1|2> --task <task_id> --wave <k>`
-  - Merge: `python3 "$SKILL_DIR"/resources/scripts/manage_worker_pool.py merge --epic-dir <epic_dir> --epic-slug <epic_slug> --slot <1|2> --task <task_id>`
-  - Cleanup (preserves dirty/unmerged work by default): `python3 "$SKILL_DIR"/resources/scripts/manage_worker_pool.py cleanup --epic-dir <epic_dir> --epic-slug <epic_slug>`
+- **Main Worktree**: `.worktrees/<epic_dir>` (`epic/<epic_slug>`) holds base tooling and dependencies.
+- **Worker Slots**: `.worktrees/<epic_dir>-slot-1` / `-slot-2` symlink/APFS-clone shared caches (`0` bytes) and auto-update per-epic heartbeat.
+- **Pool CLI** (`python3 "$SKILL_DIR"/resources/scripts/manage_worker_pool.py <cmd> --epic-dir <epic_dir> --epic-slug <epic_slug>`):
+  `init [--wave <k>]` | `sync --slot <1|2> --task <task_id> [--wave <k>] [--status working|review|idle] [--no-reset]` | `merge --slot <1|2> --task <task_id>` | `cleanup` (keeps dirty/unmerged work)
 
 #### Orchestration Workflow per Layer
-1. **Wave & Heartbeat**: Run `compute_execution_order.py <epic_slug> --parallel`, monitor long commands with `estimate_heartbeat.py`, record active wave (`resume_context.py --epic <epic_slug> --wave <k> --state --status "In progress: Wave <k>"`), and dispatch 2-task waves concurrently into Slot 1 and Slot 2 (write all code comments, tasks, and commits in English).
-2. **Sequential Merge**: Verify (`run_task_checks.py verify <task mirror>`), merge (`manage_worker_pool.py merge`), sync status (`sync_task_status.py task <task_id> done`), and reset slots (`manage_worker_pool.py sync`).
-3. **Barrier & Cleanup**: Run sanity tests after each wave and run `manage_worker_pool.py cleanup` before Phase 4. If docs revise in Stage 3, use `package_epic.py --revise --reason "<text>" <epic_dir>` (`--post-design` aware).
+1. **Wave & Heartbeat**: Run `compute_execution_order.py <epic_slug> --parallel`, monitor `estimate_heartbeat.py`, log wave (`resume_context.py --epic <epic_slug> --wave <k> --state --status "In progress: Wave <k>"`), and sync slot (`manage_worker_pool.py sync ... --slot <1|2> --task <task_id> --wave <k> --status working`) before dispatch (auto-maps Kanban `todo` -> `in-progress` cleanly; write English code/tasks/commits).
+2. **Review & Merge**: Before `task-reviewer`, run `sync ... --status review` (fix loops: `--status working --no-reset`). Inside verified slot run `run_task_checks.py verify`, `sync_task_status.py task <task_id> done`, commit once, then `merge` (auto-idles slot).
+3. **Barrier & Cleanup**: Sanity-test each wave; run `cleanup` before Phase 4 (`--status idle` aborts unmerged slots). Stage 3 revisions use `package_epic.py --revise --reason "<text>" <epic_dir>` (`--post-design` aware).
 
 #### Headless & Autonomous Task Execution
 In Autonomous Mode (`/dev-lifecycle --autonomous`), `lifecycle_runner.py` dispatches Role 2.3 (AI Programmer resolved via `.devtool/review_config.json["providers"]["programmer"]`, default `gemini-4-hydrogen-xhigh --effort xhigh --mode auto`) in an isolated process group (`start_new_session=True`) with SIGTERM/SIGKILL supervision, per-task logs, and commits (`[<EPIC_NAME>] Execute <task_slug>`).
 
-0. **Pre-Edit Verification (Impact & Conflict Check)**:
-   ```bash
-   python3 skills/impact-analysis/resources/scripts/check_code_impact.py \
-     --files <target_files> \
-     --symbols <target_symbols> \
-     --base-ref <base_ref>
-   ```
-   - If `🔴 DIVERGENCE DETECTED`: **HALT IMMEDIATELY**. Run step 7 (Integrate with develop) now, then rerun check.
-   - If `⚠️ UNPROTECTED CODE (0% Coverage)`: Author baseline characterization unit tests first.
+0. **Pre-Edit Verification (Impact & Conflict Check)**: Run `python3 skills/impact-analysis/resources/scripts/check_code_impact.py --files <target_files> --symbols <target_symbols> --base-ref <base_ref>`.
+   - On `🔴 DIVERGENCE DETECTED`: **HALT IMMEDIATELY** and run step 7 (Integrate with develop), then rerun.
+   - On `⚠️ UNPROTECTED CODE (0% Coverage)`: Write baseline characterization unit tests first.
 
-1. **Live Dual-Workspace Kanban Status (In-Progress)**:
-   ```bash
-   python3 skills/dev-implementation/resources/scripts/sync_task_status.py task <task_id> in-progress
-   ```
+1. **Live Kanban Status (`in-progress` before Dispatch)**:
+   - Pool mode (`main_wt` stays clean): `manage_worker_pool.py sync --epic-dir <epic_dir> --epic-slug <epic_slug> --slot <1|2> --task <task_id> [--wave <k>] --status working`
+   - Single-worktree mode: `python3 skills/dev-implementation/resources/scripts/sync_task_status.py task <task_id> in-progress`
 
    **Test Assertion Health, Anti-Bloat & Tiered Execution**: Never assert only inside `if path.exists()`; always assert `found > 0`. Enforce:
    - **Mandatory Parametrization**: Never copy-paste `def test_*` functions across input variations; consolidate into `@pytest.mark.parametrize` (or table tests).
@@ -275,14 +265,10 @@ In Autonomous Mode (`/dev-lifecycle --autonomous`), `lifecycle_runner.py` dispat
    > 5. **Stop and Report**: A `Stop and Report If` condition in task is reported as `BLOCKED`. Never edit Verification table, Definition of Done, Allowed files or Covers line, or protected path, to force a pass. In Satellite Mode, report `BLOCKED` if an unmerged upstream contract change prevents local tests from passing.
 
 2. When implementer reports `DONE`:
-   - **Selective `task-reviewer` gating:** Dispatch `task-reviewer` **only** when `review_tier: "full"` in task frontmatter, OR task labels include `security`, `architecture`, `concurrency`, or `contract`, OR `> 2` non-test modules change (`sync_task_status.py task <task_id> review`). Trivial single-file tasks without high-risk triggers skip `task-reviewer` (rely on implementer self-review + `run_task_checks.py verify`).
-3. If `task-reviewer` is dispatched and finds issues, cycle between `status: "in-progress"` and `status: "review"`.
-4. When required review passes (or is skipped per selective gating), `run_task_checks.py status <task mirror>` prints `done gate: PASS`, and `check_bdd_traceability.py tests --ids` exits 0, update status to `done`:
-   ```bash
-   python3 skills/dev-implementation/resources/scripts/sync_task_status.py task <task_id> done
-   ```
-   This moves `.devtool/features/<task_id>.md` into `.devtool/features/done/`.
-5. Make exactly one commit staging code, task file, and evidence file (`.devtool/epic/<epic_dir>/evidence/<task_id>.json`):
+   - **Selective `task-reviewer` gating:** Dispatch `task-reviewer` **only** when `review_tier: "full"` in frontmatter, labels include `security`, `architecture`, `concurrency`, or `contract`, or `> 2` non-test modules change; first mark `review` (`manage_worker_pool.py sync ... --status review` in pool mode, keeping `main_wt` clean; `sync_task_status.py task <task_id> review` single-worktree). Routine single-file tasks skip `task-reviewer` (self-review + `run_task_checks.py verify`).
+3. If `task-reviewer` finds issues, cycle `in-progress` (`sync ... --status working --no-reset` or `sync_task_status.py task <task_id> in-progress`) -> fix -> `--status review`.
+4. When review passes/skips, `run_task_checks.py status <task mirror>` prints `done gate: PASS`, and `check_bdd_traceability.py tests --ids` exits 0, mark `done` (in slot for pool mode): `python3 skills/dev-implementation/resources/scripts/sync_task_status.py task <task_id> done` (moves `.devtool/features/<task_id>.md` -> `done/`).
+5. Commit code, task file, and `.devtool/epic/<epic_dir>/evidence/<task_id>.json` once, then in pool mode run `manage_worker_pool.py merge` (auto-idles slot):
    ```bash
    git status                                    # check nothing unrelated is pending
    git add -A                                    # code changes + .devtool/features/ + evidence

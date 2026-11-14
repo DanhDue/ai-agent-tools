@@ -717,6 +717,21 @@ class LifecycleRunner:
         prog_model = self.config.resolve_programmer_model(self.root)
         prog_effort = self.config.resolve_programmer_effort(self.root)
         cmd = build_agy_command(prog_model, prog_effort, mode="auto")
+        sync_script = (
+            exec_root
+            / "skills"
+            / "dev-implementation"
+            / "resources"
+            / "scripts"
+            / "sync_task_status.py"
+        )
+        if worktree_dir is None and sync_script.is_file():
+            subprocess.run(
+                [sys.executable, "-B", str(sync_script), "task", task_slug, "in-progress"],
+                cwd=exec_root,
+                capture_output=True,
+                check=False,
+            )
         active_dispatcher = dispatcher or self.dispatcher
         exit_code, stdout, stderr = active_dispatcher.dispatch(
             cli=cmd[0],
@@ -740,14 +755,6 @@ class LifecycleRunner:
             return False
 
         # Mark task done via sync_task_status.py if present in exec_root
-        sync_script = (
-            exec_root
-            / "skills"
-            / "dev-implementation"
-            / "resources"
-            / "scripts"
-            / "sync_task_status.py"
-        )
         if sync_script.is_file():
             subprocess.run(
                 [sys.executable, "-B", str(sync_script), "task", task_slug, "done"],
@@ -1242,15 +1249,19 @@ class LifecycleRunner:
         epic_wt: Path,
         epic_branch: str,
         pending_batch: list[str],
+        wave_num: int | None = None,
     ) -> bool:
         """Execute one DAG wave batch across isolated pool slots and serialize merges."""
-        for slot_idx in range(1, len(pending_batch) + 1):
+        for slot_idx, task_slug in enumerate(pending_batch, start=1):
             if not pool_mod.sync_slot(
                 repo_root,
                 self.epic_slug,
                 self.epic_slug,
                 slot=slot_idx,
                 base_ref=epic_branch,
+                task_id=task_slug,
+                active_wave=wave_num,
+                status="working",
             ):
                 self.state.last_error = f"Failed to sync pool slot {slot_idx} to {epic_branch}"
                 self.save_state()
@@ -1288,6 +1299,7 @@ class LifecycleRunner:
                     self.epic_slug,
                     slot=slot_idx,
                     base_ref=epic_branch,
+                    status="idle",
                 )
                 self.state.last_error = f"Task execution failed: {task_slug}"
                 self.save_state()
@@ -1301,6 +1313,7 @@ class LifecycleRunner:
                     slot=slot_idx,
                     task_id=task_slug,
                     epic_worktree_root=epic_wt,
+                    active_wave=wave_num,
                 )
             if not merged:
                 pool_mod.sync_slot(
@@ -1309,6 +1322,7 @@ class LifecycleRunner:
                     self.epic_slug,
                     slot=slot_idx,
                     base_ref=epic_branch,
+                    status="idle",
                 )
                 self.state.last_error = f"Slot {slot_idx} merge failed for task {task_slug}"
                 self.save_state()
@@ -1360,17 +1374,17 @@ class LifecycleRunner:
             return False
 
         pending_batches = [
-            [t for t in batch if t not in self.state.completed_tasks]
-            for batch in batches
+            (wave_idx, [t for t in batch if t not in self.state.completed_tasks])
+            for wave_idx, batch in enumerate(batches, start=1)
         ]
-        pending_batches = [b for b in pending_batches if b]
+        pending_batches = [(wave_idx, b) for wave_idx, b in pending_batches if b]
         if not pending_batches:
             return True
 
         repo_root, resolved_wt = pool_mod.resolve_pool_roots(self.root, self.epic_slug)
         epic_wt = resolved_wt if resolved_wt.is_dir() else self.root
         epic_branch = self._resolve_epic_base_ref(repo_root, epic_wt)
-        pool_size = max(2, max((len(b) for b in pending_batches), default=2))
+        pool_size = max(2, max((len(b) for _, b in pending_batches), default=2))
 
         pool_mod.init_slots(
             repo_root,
@@ -1381,13 +1395,14 @@ class LifecycleRunner:
             epic_worktree_root=epic_wt,
         )
         try:
-            for pending_batch in pending_batches:
+            for wave_num, pending_batch in pending_batches:
                 if not self._run_pool_batch(
                     pool_mod,
                     repo_root,
                     epic_wt,
                     epic_branch,
                     pending_batch,
+                    wave_num=wave_num,
                 ):
                     return False
         finally:
