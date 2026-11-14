@@ -38,11 +38,10 @@ for _p in (SCRIPTS_DIR, CHECK_TASKS_DIR):
 import _state_envelope  # noqa: E402
 import check_tasks  # type: ignore[import-not-found]  # noqa: E402
 import resume_context  # noqa: E402
-from tasks_server import find_available_port  # type: ignore[import-not-found]  # noqa: E402
+from tasks_server import TasksServer, find_available_port  # type: ignore[import-not-found]  # noqa: E402
 from tests.test_rsdh_tasks_dashboard_ui import (  # noqa: E402
     _NODE_CDP_HELPER,
     _NODE_DOM_HARNESS_PREAMBLE,
-    _MutableTasksServer,
     _resolve_chrome_binary,
     _run_node_script,
 )
@@ -114,541 +113,6 @@ def _eval_dashboard_js(test_body_js: str) -> dict[str, Any]:
     return _run_node_script(preamble + helper + "\n" + test_body_js)
 
 
-def _build_stage_payload(phase: str) -> dict[str, Any]:
-    tasks_8_of_9 = [
-        {
-            "id": f"task_0{i}",
-            "title": f"Task {i}",
-            "status": "done" if i < 9 else "in-progress",
-            "priority": "high",
-            "epic": "ltsp_epic",
-        }
-        for i in range(1, 10)
-    ]
-    tasks_9_of_9 = [
-        {
-            "id": f"task_0{i}",
-            "title": f"Task {i}",
-            "status": "done",
-            "priority": "high",
-            "epic": "ltsp_epic",
-        }
-        for i in range(1, 10)
-    ]
-
-    if phase == "wave2":
-        pipeline_telemetry: dict[str, Any] = {
-            "epic_slug": "ltsp_epic",
-            "task_completion_pct": 89.0,
-            "lifecycle_progress_pct": 74.0,
-            "current_stage_index": 3,
-            "active_sub_step_summary": "Wave 2 · Slot 1: task_09 (working) · 8/9 tasks (89%)",
-            "stages": [
-                {
-                    "id": "spec",
-                    "index": 1,
-                    "label": "1. Spec",
-                    "status": "done",
-                    "summary": "Gate 1 PASS",
-                    "sub_steps": [],
-                },
-                {
-                    "id": "hld_principal",
-                    "index": 2,
-                    "label": "2. HLD & Principal",
-                    "status": "done",
-                    "summary": "Gate 2 + Principal R1 PASS",
-                    "sub_steps": [],
-                },
-                {
-                    "id": "tasks",
-                    "index": 3,
-                    "label": "3. Tasks",
-                    "status": "running",
-                    "summary": "Wave 2 · 8/9 (89%)",
-                    "sub_steps": [
-                        {
-                            "id": "wave_2",
-                            "label": "Wave 2",
-                            "status": "running",
-                            "detail": "Slot 1: task_09 (working)",
-                        }
-                    ],
-                },
-                {
-                    "id": "gate4_quality",
-                    "index": 4,
-                    "label": "4. Gate 4 QA",
-                    "status": "pending",
-                    "summary": "Chờ Tasks",
-                    "sub_steps": [],
-                },
-                {
-                    "id": "cross_review",
-                    "index": 5,
-                    "label": "5. Cross-Review",
-                    "status": "pending",
-                    "summary": "Chờ Gate 4",
-                    "sub_steps": [],
-                },
-                {
-                    "id": "finish",
-                    "index": 6,
-                    "label": "6. Finish",
-                    "status": "pending",
-                    "summary": "Chờ Gate 5",
-                    "sub_steps": [],
-                },
-            ],
-            "events": [
-                {
-                    "ts": "2026-11-14T08:00:00Z",
-                    "stage": "Stage 3 Phase 2 (TDD)",
-                    "sub_step": "wave_2",
-                    "message": "Slot 1 working on task_09",
-                }
-            ],
-        }
-        return {
-            "available_profiles": ["phungthuy8901"],
-            "repos": [
-                {
-                    "name": "ai-agent-tools",
-                    "path": "/tmp/ws/ai-agent-tools",
-                    "theme_color": "#38bdf8",
-                    "account_id": "phungthuy8901",
-                    "active_epic": "ltsp_epic",
-                    "active_stage": "Stage 3 Phase 2 (TDD)",
-                    "prompt": "Executing Wave 2 task_09",
-                    "is_human_action_required": False,
-                    "worktrees": [
-                        {
-                            "path": "/tmp/ws/ai-agent-tools/.worktrees/ltsp_epic",
-                            "branch": "epic/ltsp_epic",
-                            "is_dirty": False,
-                            "dirty_file_count": 0,
-                        }
-                    ],
-                    "task_progress": {
-                        "total_tasks": 9,
-                        "done_tasks": 8,
-                        "in_progress_tasks": 1,
-                        "todo_tasks": 0,
-                        "percentage": 89.0,
-                        "task_completion_pct": 89.0,
-                        "tasks": tasks_8_of_9,
-                    },
-                    "epics_summary": {
-                        "total": 1,
-                        "completed": 0,
-                        "in_progress": 1,
-                        "unstarted": 0,
-                        "abandoned": 0,
-                        "epics": [
-                            {
-                                "slug": "ltsp_epic",
-                                "title": "LTSP Epic",
-                                "status": "in_progress",
-                                "pic": "phungthuy8901",
-                                "task_count": 9,
-                                "pipeline_telemetry": pipeline_telemetry,
-                            }
-                        ],
-                    },
-                    "heartbeat": {
-                        "epic_slug": "ltsp_epic",
-                        "stage": "Stage 3 Phase 2 (TDD)",
-                        "active_wave": 2,
-                        "slots": {"1": {"task_id": "task_09", "status": "working"}},
-                        "last_event": "Slot 1 working on task_09",
-                        "events": pipeline_telemetry["events"],
-                    },
-                    "pipeline_telemetry": pipeline_telemetry,
-                }
-            ],
-        }
-
-    if phase == "quality":
-        pipeline_telemetry = {
-            "epic_slug": "ltsp_epic",
-            "task_completion_pct": 100.0,
-            "lifecycle_progress_pct": 85.0,
-            "current_stage_index": 4,
-            "active_sub_step_summary": "Quality Check [3/5]: PyCore / Unit Test (python-qa:pycore)",
-            "stages": [
-                {
-                    "id": "spec",
-                    "index": 1,
-                    "label": "1. Spec",
-                    "status": "done",
-                    "summary": "Gate 1 PASS",
-                    "sub_steps": [],
-                },
-                {
-                    "id": "hld_principal",
-                    "index": 2,
-                    "label": "2. HLD & Principal",
-                    "status": "done",
-                    "summary": "Gate 2 + Principal R1 PASS",
-                    "sub_steps": [],
-                },
-                {
-                    "id": "tasks",
-                    "index": 3,
-                    "label": "3. Tasks",
-                    "status": "done",
-                    "summary": "9/9 (100%)",
-                    "sub_steps": [],
-                },
-                {
-                    "id": "gate4_quality",
-                    "index": 4,
-                    "label": "4. Gate 4 QA",
-                    "status": "running",
-                    "summary": "3/5 · PyCore / Unit Test",
-                    "sub_steps": [
-                        {
-                            "id": "lint",
-                            "label": "Static Lint",
-                            "status": "done",
-                            "detail": "0.4s",
-                        },
-                        {
-                            "id": "typecheck",
-                            "label": "Typecheck",
-                            "status": "done",
-                            "detail": "1.1s",
-                        },
-                        {
-                            "id": "pycore",
-                            "label": "PyCore / Unit Test",
-                            "status": "running",
-                            "detail": "3.2s",
-                        },
-                        {
-                            "id": "integration",
-                            "label": "Integration Test",
-                            "status": "pending",
-                            "detail": "",
-                        },
-                        {
-                            "id": "e2e",
-                            "label": "UI / E2E Test",
-                            "status": "pending",
-                            "detail": "",
-                        },
-                    ],
-                },
-                {
-                    "id": "cross_review",
-                    "index": 5,
-                    "label": "5. Cross-Review",
-                    "status": "pending",
-                    "summary": "Chờ Gate 4",
-                    "sub_steps": [],
-                },
-                {
-                    "id": "finish",
-                    "index": 6,
-                    "label": "6. Finish",
-                    "status": "pending",
-                    "summary": "Chờ Gate 5",
-                    "sub_steps": [],
-                },
-            ],
-            "events": [
-                {
-                    "ts": "2026-11-14T08:02:00Z",
-                    "stage": "Stage 3 Phase 4 (Review)",
-                    "sub_step": "pycore",
-                    "message": "Quality Check [3/5]: PyCore / Unit Test (python-qa:pycore) running...",
-                }
-            ],
-        }
-        return {
-            "available_profiles": ["phungthuy8901"],
-            "repos": [
-                {
-                    "name": "ai-agent-tools",
-                    "path": "/tmp/ws/ai-agent-tools",
-                    "theme_color": "#38bdf8",
-                    "account_id": "phungthuy8901",
-                    "active_epic": "ltsp_epic",
-                    "active_stage": "Stage 3 Phase 4 (Review)",
-                    "prompt": "Running Gate 4 Quality Check",
-                    "is_human_action_required": False,
-                    "worktrees": [
-                        {
-                            "path": "/tmp/ws/ai-agent-tools/.worktrees/ltsp_epic",
-                            "branch": "epic/ltsp_epic",
-                            "is_dirty": False,
-                            "dirty_file_count": 0,
-                        }
-                    ],
-                    "task_progress": {
-                        "total_tasks": 9,
-                        "done_tasks": 9,
-                        "in_progress_tasks": 0,
-                        "todo_tasks": 0,
-                        "percentage": 85.0,
-                        "task_completion_pct": 100.0,
-                        "tasks": tasks_9_of_9,
-                    },
-                    "epics_summary": {
-                        "total": 1,
-                        "completed": 0,
-                        "in_progress": 1,
-                        "unstarted": 0,
-                        "abandoned": 0,
-                        "epics": [
-                            {
-                                "slug": "ltsp_epic",
-                                "title": "LTSP Epic",
-                                "status": "in_progress",
-                                "pic": "phungthuy8901",
-                                "task_count": 9,
-                                "pipeline_telemetry": pipeline_telemetry,
-                            }
-                        ],
-                    },
-                    "quality_active": {
-                        "run_id": "qa-ltsp",
-                        "epic_slug": "ltsp_epic",
-                        "status": "running",
-                        "provider": "python-qa",
-                        "capability": "pycore",
-                        "capability_label": "PyCore / Unit Test",
-                        "step_index": 3,
-                        "step_total": 5,
-                        "elapsed_sec": 3.2,
-                        "steps": [
-                            {
-                                "index": 1,
-                                "provider": "python-qa",
-                                "capability": "lint",
-                                "label": "Static Lint",
-                                "status": "passed",
-                                "elapsed_sec": 0.4,
-                            },
-                            {
-                                "index": 2,
-                                "provider": "python-qa",
-                                "capability": "typecheck",
-                                "label": "Typecheck",
-                                "status": "passed",
-                                "elapsed_sec": 1.1,
-                            },
-                            {
-                                "index": 3,
-                                "provider": "python-qa",
-                                "capability": "pycore",
-                                "label": "PyCore / Unit Test",
-                                "status": "running",
-                                "elapsed_sec": 3.2,
-                            },
-                            {
-                                "index": 4,
-                                "provider": "python-qa",
-                                "capability": "integration",
-                                "label": "Integration Test",
-                                "status": "pending",
-                            },
-                            {
-                                "index": 5,
-                                "provider": "python-qa",
-                                "capability": "e2e",
-                                "label": "UI / E2E Test",
-                                "status": "pending",
-                            },
-                        ],
-                    },
-                    "heartbeat": {
-                        "epic_slug": "ltsp_epic",
-                        "stage": "Stage 3 Phase 4 (Review)",
-                        "sub_step": "pycore",
-                        "sub_step_detail": "Quality Check [3/5]: PyCore / Unit Test",
-                        "last_event": "Quality Check [3/5]: PyCore / Unit Test (python-qa:pycore) running...",
-                        "events": pipeline_telemetry["events"],
-                    },
-                    "pipeline_telemetry": pipeline_telemetry,
-                }
-            ],
-        }
-
-    # phase == "cross_review"
-    pipeline_telemetry = {
-        "epic_slug": "ltsp_epic",
-        "task_completion_pct": 100.0,
-        "lifecycle_progress_pct": 92.0,
-        "current_stage_index": 5,
-        "active_sub_step_summary": "Round 1/3 · codex (gpt-6.1-sol) · Fix findings",
-        "stages": [
-            {
-                "id": "spec",
-                "index": 1,
-                "label": "1. Spec",
-                "status": "done",
-                "summary": "Gate 1 PASS",
-                "sub_steps": [],
-            },
-            {
-                "id": "hld_principal",
-                "index": 2,
-                "label": "2. HLD & Principal",
-                "status": "done",
-                "summary": "Gate 2 + Principal R1 PASS",
-                "sub_steps": [],
-            },
-            {
-                "id": "tasks",
-                "index": 3,
-                "label": "3. Tasks",
-                "status": "done",
-                "summary": "9/9 (100%)",
-                "sub_steps": [],
-            },
-            {
-                "id": "gate4_quality",
-                "index": 4,
-                "label": "4. Gate 4 QA",
-                "status": "done",
-                "summary": "Audit + BDD + QA PASS",
-                "sub_steps": [],
-            },
-            {
-                "id": "cross_review",
-                "index": 5,
-                "label": "5. Cross-Review",
-                "status": "running",
-                "summary": "Round 1/3 · codex (gpt-6.1-sol) · Fix findings",
-                "sub_steps": [
-                    {
-                        "id": "reviewing",
-                        "label": "Reviewing",
-                        "status": "done",
-                        "detail": "codex (gpt-6.1-sol)",
-                    },
-                    {
-                        "id": "triage",
-                        "label": "Lập bảng triage",
-                        "status": "done",
-                        "detail": "1 Important",
-                    },
-                    {
-                        "id": "fixing",
-                        "label": "Fix findings",
-                        "status": "running",
-                        "detail": "Applying fix",
-                    },
-                    {
-                        "id": "verifying",
-                        "label": "Verifying",
-                        "status": "pending",
-                        "detail": "",
-                    },
-                ],
-            },
-            {
-                "id": "finish",
-                "index": 6,
-                "label": "6. Finish",
-                "status": "pending",
-                "summary": "Chờ Gate 5",
-                "sub_steps": [],
-            },
-        ],
-        "events": [
-            {
-                "ts": "2026-11-14T08:03:00Z",
-                "stage": "Stage 3 Phase 4 (Review)",
-                "sub_step": "reviewing",
-                "message": "Cross-Model Review R1: codex reviewing",
-            },
-            {
-                "ts": "2026-11-14T08:04:00Z",
-                "stage": "Stage 3 Phase 4 (Review)",
-                "sub_step": "triage",
-                "message": "Cross-Model Review R1: Lập bảng triage",
-            },
-            {
-                "ts": "2026-11-14T08:05:00Z",
-                "stage": "Stage 3 Phase 4 (Review)",
-                "sub_step": "fixing",
-                "message": "Cross-Model Review R1: Fix findings",
-            },
-        ],
-    }
-    return {
-        "available_profiles": ["phungthuy8901"],
-        "repos": [
-            {
-                "name": "ai-agent-tools",
-                "path": "/tmp/ws/ai-agent-tools",
-                "theme_color": "#38bdf8",
-                "account_id": "phungthuy8901",
-                "active_epic": "ltsp_epic",
-                "active_stage": "Stage 3 Phase 4 (Review)",
-                "prompt": "Cross-Model Review Round 1 fixing",
-                "is_human_action_required": False,
-                "worktrees": [
-                    {
-                        "path": "/tmp/ws/ai-agent-tools/.worktrees/ltsp_epic",
-                        "branch": "epic/ltsp_epic",
-                        "is_dirty": False,
-                        "dirty_file_count": 0,
-                    }
-                ],
-                "task_progress": {
-                    "total_tasks": 9,
-                    "done_tasks": 9,
-                    "in_progress_tasks": 0,
-                    "todo_tasks": 0,
-                    "percentage": 92.0,
-                    "task_completion_pct": 100.0,
-                    "tasks": tasks_9_of_9,
-                },
-                "epics_summary": {
-                    "total": 1,
-                    "completed": 0,
-                    "in_progress": 1,
-                    "unstarted": 0,
-                    "abandoned": 0,
-                    "epics": [
-                        {
-                            "slug": "ltsp_epic",
-                            "title": "LTSP Epic",
-                            "status": "in_progress",
-                            "pic": "phungthuy8901",
-                            "task_count": 9,
-                            "pipeline_telemetry": pipeline_telemetry,
-                        }
-                    ],
-                },
-                "heartbeat": {
-                    "epic_slug": "ltsp_epic",
-                    "stage": "Stage 3 Phase 4 (Review)",
-                    "sub_step": "fixing",
-                    "sub_step_detail": "Round 1/3: Fix findings",
-                    "review_state": {
-                        "kind": "code",
-                        "round": 1,
-                        "max_rounds": 3,
-                        "cli": "codex",
-                        "model": "gpt-6.1-sol",
-                        "phase": "fixing",
-                        "verdict": "CHANGES REQUIRED",
-                        "action": "AUTO_FIX_ELIGIBLE",
-                    },
-                    "last_event": "Cross-Model Review R1: Fix findings",
-                    "events": pipeline_telemetry["events"],
-                },
-                "pipeline_telemetry": pipeline_telemetry,
-            }
-        ],
-    }
-
-
-# [LTSP-HP-06] End-to-end headless Chrome CDP verifies live stage and micro-step transitions from Tasks to Quality Check to Cross-Model Review
 def test_ltsp_hp_06_chrome_cdp_live_stage_and_microstep_transitions(
     tmp_path: Path,
 ) -> None:
@@ -658,15 +122,71 @@ def test_ltsp_hp_06_chrome_cdp_live_stage_and_microstep_transitions(
         f"Real Chrome binary required for LTSP-HP-06 CDP test, got: {chrome_bin}"
     )
 
-    wave2_payload = _build_stage_payload("wave2")
-    qa_payload = _build_stage_payload("quality")
-    review_payload = _build_stage_payload("cross_review")
+    qa_scripts_dir = REPO_ROOT / "skills" / "quality_check" / "resources" / "scripts"
+    ext_rev_dir = REPO_ROOT / "skills" / "dev-implementation" / "resources" / "scripts"
+    for p in (qa_scripts_dir, ext_rev_dir):
+        if str(p) not in sys.path:
+            sys.path.insert(0, str(p))
+    import run_external_review  # type: ignore[import-not-found]
+    import verify_polyglot_registry  # type: ignore[import-not-found]
 
-    server = _MutableTasksServer(wave2_payload)
+    ws_root = tmp_path / "ws"
+    repo = ws_root / "ai-agent-tools"
+    sha = _init_git_repo(repo)
+    slug = "demo_epic"
+    epic_dir = repo / ".devtool" / "epic" / slug
+    features_dir = repo / ".devtool" / "features"
+    epic_dir.mkdir(parents=True, exist_ok=True)
+    (epic_dir / f"{slug}.en.md").write_text(f"# {slug}\n", encoding="utf-8")
+    (epic_dir / "principal_review.md").write_text(
+        "# Principal Review\nRound 1\nVerdict: PASS\n", encoding="utf-8"
+    )
+    for idx in range(1, 9):
+        _write_task(epic_dir, features_dir, f"task_0{idx}_step", slug, "done")
+    _write_task(epic_dir, features_dir, "task_09_step", slug, "in-progress")
+
+    resume_context.record_gate_approval(repo, slug, 1, "yes", by="architect")
+    resume_context.record_gate_approval(repo, slug, 2, "yes", by="architect")
+    _state_envelope.update_epic_heartbeat(
+        repo,
+        slug,
+        stage="Stage 3 (Implementation)",
+        sub_step="wave_2",
+        sub_step_detail="Wave 2: 8/9 tasks done",
+        last_event="Wave 2 implementing task_09_step",
+        active_wave=2,
+        slots={"1": {"task_id": "task_09_step", "status": "working"}},
+        active_tasks=["task_09_step"],
+    )
+
+    server = TasksServer(
+        host="127.0.0.1",
+        port=find_available_port(19980),
+        workspace_root=ws_root,
+        pid_file=tmp_path / "tasks_server.pid",
+    )
     threading.Thread(target=server.serve_forever, daemon=True).start()
     url = f"http://127.0.0.1:{server.server_port}/"
 
     (tmp_path / "cdp_helper.mjs").write_text(_NODE_CDP_HELPER, encoding="utf-8")
+
+    coord = verify_polyglot_registry._QualityRunCoordinator(
+        run_id="qa-hp06-live",
+        repo_root=repo,
+        profile="epic",
+        epic_slug=slug,
+        heartbeat_interval=60.0,
+        step_total=5,
+        ttl_sec=120,
+        planned_steps=[
+            ("python-qa", "lint"),
+            ("python-qa", "typecheck"),
+            ("python-qa", "pytest_unit"),
+            ("python-qa", "integration"),
+            ("python-qa", "e2e"),
+        ],
+        head_sha=sha,
+    )
 
     class _ControlHandler(http.server.BaseHTTPRequestHandler):
         def log_message(self, format: str, *args: Any) -> None:  # noqa: A002
@@ -674,13 +194,101 @@ def test_ltsp_hp_06_chrome_cdp_live_stage_and_microstep_transitions(
 
         def do_POST(self) -> None:
             if self.path.endswith("/quality"):
-                server.payload = qa_payload
-            elif self.path.endswith("/review"):
-                server.payload = review_payload
+                _write_task(epic_dir, features_dir, "task_09_step", slug, "done")
+                coord.start_step("python-qa", "lint")
+                coord.complete_step(
+                    "python-qa", "lint", status="passed", elapsed_sec=0.4
+                )
+                coord.start_step("python-qa", "typecheck")
+                coord.complete_step(
+                    "python-qa", "typecheck", status="passed", elapsed_sec=0.8
+                )
+                coord.start_step("python-qa", "pytest_unit")
+            elif self.path.endswith("/review/reviewing"):
+                coord.complete_step(
+                    "python-qa", "pytest_unit", status="passed", elapsed_sec=1.2
+                )
+                coord.start_step("python-qa", "integration")
+                coord.complete_step(
+                    "python-qa", "integration", status="passed", elapsed_sec=0.9
+                )
+                coord.start_step("python-qa", "e2e")
+                coord.complete_step(
+                    "python-qa", "e2e", status="passed", elapsed_sec=1.1
+                )
+                coord.finalize("passed")
+                _state_envelope.update_epic_heartbeat(
+                    repo,
+                    slug,
+                    stage="Stage 3 Phase 4 (Review)",
+                    sub_step="audit_epic",
+                    last_event="audit_epic PASS; check_bdd_traceability PASS",
+                )
+                resume_context.record_gate_approval(repo, slug, 4, "yes", by="qa")
+                run_external_review._emit_review_heartbeat(
+                    repo,
+                    slug,
+                    kind="code",
+                    phase="reviewing",
+                    round_num=1,
+                    max_rounds=3,
+                    cli="codex",
+                    model="gpt-6.1-sol",
+                    detail="Codex reviewing Round 1",
+                    sha=sha,
+                )
+            elif self.path.endswith("/review/triage"):
+                run_external_review._emit_review_heartbeat(
+                    repo,
+                    slug,
+                    kind="code",
+                    phase="triage",
+                    round_num=1,
+                    max_rounds=3,
+                    cli="codex",
+                    model="gpt-6.1-sol",
+                    verdict="CHANGES REQUIRED",
+                    important=1,
+                    action="AUTO_FIX_ELIGIBLE",
+                    detail="Lập bảng triage: 1 Important",
+                    sha=sha,
+                )
+            elif self.path.endswith("/review/fixing"):
+                run_external_review._emit_review_heartbeat(
+                    repo,
+                    slug,
+                    kind="code",
+                    phase="fixing",
+                    round_num=1,
+                    max_rounds=3,
+                    cli="codex",
+                    model="gpt-6.1-sol",
+                    verdict="CHANGES REQUIRED",
+                    important=1,
+                    action="AUTO_FIX_ELIGIBLE",
+                    detail="Fix findings in Round 1",
+                    sha=sha,
+                )
+            elif self.path.endswith("/review/verifying"):
+                run_external_review._emit_review_heartbeat(
+                    repo,
+                    slug,
+                    kind="code",
+                    phase="verifying",
+                    round_num=1,
+                    max_rounds=3,
+                    cli="codex",
+                    model="gpt-6.1-sol",
+                    verdict="CHANGES REQUIRED",
+                    important=1,
+                    action="AUTO_FIX_ELIGIBLE",
+                    detail="Verifying Round 1 fixes",
+                    sha=sha,
+                )
             self.send_response(200)
             self.end_headers()
 
-    ctrl_port = find_available_port(19960)
+    ctrl_port = find_available_port(19995)
     ctrl_server = http.server.ThreadingHTTPServer(
         ("127.0.0.1", ctrl_port), _ControlHandler
     )
@@ -694,12 +302,12 @@ const cdp = await launchHeadlessChromeCdp({json.dumps(chrome_bin)});
 try {{
   await cdp.send('Page.navigate', {{ url: {json.dumps(url)} }});
   let ready = false;
-  for (let i = 0; i < 40; i++) {{
+  for (let i = 0; i < 50; i++) {{
     ready = await cdp.evaluate(`Boolean(document.querySelector('#tier2-execution-epics-wrapper-ai-agent-tools .epic-execution-item'))`);
     if (ready) break;
     await new Promise((r) => setTimeout(r, 100));
   }}
-  assert.ok(ready, 'Dashboard must render initial Tier 2 card in Chrome CDP');
+  assert.ok(ready, 'Dashboard must render initial Tier 2 card from live TasksServer in Chrome CDP');
   await cdp.evaluate(`window.__ltspNoReloadMarker = 'alive'`);
 
   // Phase 1: Wave 2 Task Implementation (8/9 tasks)
@@ -717,13 +325,34 @@ try {{
   assert.match(sec2Qa, /9\s*\/\s*9\s*Hoàn thành/);
   assert.match(sec2Qa, /100%/);
   assert.match(sec2Qa, /PyCore \/ Unit Test/);
+  assert.match(sec2Qa, /Static Lint/);
+  assert.match(sec2Qa, /Typecheck/);
   assert.match(kanbanQa, /9\/9 Tasks \(100%\)/);
 
-  // Phase 3: Cross-Model Review Round 1 (codex reviewing -> Lập bảng triage -> Fix findings -> Verifying)
-  const revRes = await fetch({json.dumps(f"http://127.0.0.1:{ctrl_port}/review")}, {{ method: 'POST' }});
-  assert.equal(revRes.status, 200);
+  // Phase 3a: Cross-Model Review Round 1 - Reviewing
+  assert.equal((await fetch({json.dumps(f"http://127.0.0.1:{ctrl_port}/review/reviewing")}, {{ method: 'POST' }})).status, 200);
   await cdp.evaluate(`pollDashboard()`);
+  const sec2Rev1 = await cdp.evaluate(`document.getElementById('tier2-execution-epics-wrapper-ai-agent-tools').innerText`);
+  assert.match(sec2Rev1, /Round 1\/3/);
+  assert.match(sec2Rev1, /codex/);
+  assert.match(sec2Rev1, /Reviewing/);
 
+  // Phase 3b: Cross-Model Review Round 1 - Lập bảng triage
+  assert.equal((await fetch({json.dumps(f"http://127.0.0.1:{ctrl_port}/review/triage")}, {{ method: 'POST' }})).status, 200);
+  await cdp.evaluate(`pollDashboard()`);
+  const sec2Triage = await cdp.evaluate(`document.getElementById('tier2-execution-epics-wrapper-ai-agent-tools').innerText`);
+  assert.match(sec2Triage, /Lập bảng triage/);
+  assert.match(sec2Triage, /CHANGES REQUIRED/);
+
+  // Phase 3c: Cross-Model Review Round 1 - Fix findings
+  assert.equal((await fetch({json.dumps(f"http://127.0.0.1:{ctrl_port}/review/fixing")}, {{ method: 'POST' }})).status, 200);
+  await cdp.evaluate(`pollDashboard()`);
+  const sec2Fixing = await cdp.evaluate(`document.getElementById('tier2-execution-epics-wrapper-ai-agent-tools').innerText`);
+  assert.match(sec2Fixing, /Fix findings/);
+
+  // Phase 3d: Cross-Model Review Round 1 - Verifying
+  assert.equal((await fetch({json.dumps(f"http://127.0.0.1:{ctrl_port}/review/verifying")}, {{ method: 'POST' }})).status, 200);
+  await cdp.evaluate(`pollDashboard()`);
   const sec2Rev = await cdp.evaluate(`document.getElementById('tier2-execution-epics-wrapper-ai-agent-tools').innerText`);
   const kanbanRev = await cdp.evaluate(`document.getElementById('kanban-dashboard-wrapper-ai-agent-tools').innerText`);
   const marker = await cdp.evaluate(`window.__ltspNoReloadMarker`);
@@ -732,9 +361,9 @@ try {{
   assert.match(sec2Rev, /9\s*\/\s*9\s*Hoàn thành/);
   assert.match(sec2Rev, /100%/);
   assert.match(sec2Rev, /Round 1\/3/);
-  assert.match(sec2Rev, /Lập bảng triage/);
-  assert.match(sec2Rev, /Fix findings/);
-  assert.match(kanbanRev, /92%/);
+  assert.match(sec2Rev, /Verifying/);
+  assert.match(kanbanRev, /9\/9 Tasks \(100%\)/);
+  assert.match(kanbanRev, /9[0-6]%/);
   assert.deepEqual(cdp.consoleErrors, [], `Unexpected console errors: ${{cdp.consoleErrors}}`);
   assert.deepEqual(cdp.runtimeExceptions, [], `Unexpected runtime exceptions: ${{cdp.runtimeExceptions}}`);
   console.log(JSON.stringify({{ status: 'ok', marker }}));

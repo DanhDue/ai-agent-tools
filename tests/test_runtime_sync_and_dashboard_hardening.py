@@ -1115,12 +1115,14 @@ try {{
 
   await cdp.evaluate(`window.__rsdhNoReload = 'ok'`);
 
-  // 1. Verify 96% pre-finish ceiling in BOTH Section I and Section II (never 99% or 100%)
+  // 1. Verify weighted 83% running-QA progress + 100% task completion in Section I and Section II (never 99% or 100% lifecycle)
   const sec1Text = await cdp.evaluate(`document.getElementById('kanban-dashboard-wrapper-ai-agent-tools').innerText`);
   const sec2Text = await cdp.evaluate(`document.getElementById('tier2-execution-epics-wrapper-ai-agent-tools').innerText`);
-  assert.ok(sec1Text.includes('96%'), `Section I must render 96%, got: ${{sec1Text}}`);
+  assert.ok(sec1Text.includes('83%'), `Section I must render 83% weighted running-QA progress, got: ${{sec1Text}}`);
+  assert.ok(sec1Text.includes('2/2 Tasks (100%)'), `Section I must render 100% task completion, got: ${{sec1Text}}`);
   assert.ok(!sec1Text.includes('99%'), 'Section I must not render 99%');
-  assert.ok(sec2Text.includes('96%'), `Section II must render 96%, got: ${{sec2Text}}`);
+  assert.ok(sec2Text.includes('83%'), `Section II must render 83% weighted running-QA progress, got: ${{sec2Text}}`);
+  assert.ok(sec2Text.includes('100%'), `Section II must render 100% task completion, got: ${{sec2Text}}`);
   assert.ok(sec2Text.includes('live-concurrent-run') || sec2Text.includes('lint'), `Section II must show running quality step`);
 
   // 2. Live Section II tier2Sig refresh on disk change without page reload
