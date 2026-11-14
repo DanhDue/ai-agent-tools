@@ -2097,18 +2097,43 @@
         pct = Math.min(100, Math.round(Number(pipelineTelemetry.lifecycle_progress_pct)));
       } else if (totalCount > 0) {
         if (isWaitingFinish) {
-          pct = 100;
+          pct = 98;
         } else if (doneCount >= totalCount) {
-          pct = 96;
+          const runs = collectEpicQualityRuns(repo, slug, isPrimaryActive);
+          const runningQa = runs.find(r => r.status === 'running');
+          const passedQa = runs.find(r => r.status === 'passed');
+          const failedQa = !passedQa && runs.some(r => r.status === 'failed' || r.status === 'aborted');
+          const hbMatch = (repo.heartbeat && (!repo.heartbeat.epic_slug || slugsMatch(repo.heartbeat.epic_slug, slug) || isPrimaryActive)) ? repo.heartbeat : null;
+          const rs = (hbMatch && hbMatch.review_state && typeof hbMatch.review_state === 'object') ? hbMatch.review_state : null;
+          const isInReviewPhase = Boolean(
+            (rs && rs.kind !== 'principal') ||
+            (isPrimaryActive && (stageStr.includes('Phase 4') || stageStr.includes('Review') || stageStr.includes('Cross')))
+          );
+          if (runningQa) {
+            const sIdx = Number(runningQa.step_index || 0);
+            const sTot = Number(runningQa.step_total || 0);
+            const ratio = sTot > 0 ? Math.min(1.0, Math.max(0, sIdx / sTot)) : 0.6;
+            pct = Math.min(86, Math.round(81 + ratio * 5));
+          } else if (failedQa) {
+            pct = 82;
+          } else if (isInReviewPhase) {
+            pct = 92;
+          } else if (passedQa) {
+            pct = 87;
+          } else {
+            pct = 80;
+          }
+        } else if (doneCount > 0) {
+          pct = Math.min(79, Math.round(25 + (doneCount / totalCount) * 55));
         } else {
-          pct = Math.min(95, Math.round((doneCount / totalCount) * 100));
+          pct = 0;
         }
       } else if (isPrimaryActive) {
         const rawPct = Number(repo.task_progress?.percentage || 0);
-        if (isWaitingFinish && rawPct >= 96) {
-          pct = 100;
+        if (isWaitingFinish) {
+          pct = 98;
         } else {
-          pct = Math.min(96, rawPct);
+          pct = Math.min(80, Math.round(rawPct * 0.8));
         }
       }
 
@@ -2592,10 +2617,10 @@
           ? '<span style="color: #10b981; font-weight: 700;">100% ✓ Done</span>'
           : (progState.isWaitingFinish
             ? `<span style="color: #fbbf24; font-weight: 700;">${progressPct}% ⚠️ Chờ /finish</span>`
-            : (progressPct === 96
-              ? '<span style="color: #38bdf8; font-weight: 700;">⚡ 96% Review</span>'
+            : (progressPct >= 88 && progressPct <= 96
+              ? `<span style="color: #38bdf8; font-weight: 700;">⚡ ${progressPct}% Review</span>`
               : `<span style="color: #10b981; font-weight: 700;">${progressPct}%</span>`));
-        const progressBarBg = progressPct === 96
+        const progressBarBg = (progressPct >= 88 && progressPct <= 96 && !progState.isWaitingFinish)
           ? `linear-gradient(90deg, ${color} 0%, #38bdf8 100%)`
           : `linear-gradient(90deg, ${color} 0%, #10b981 100%)`;
 
@@ -2812,15 +2837,15 @@
 
         const pctColor = (pct === 100)
           ? (isFullyDone ? '#34d399' : '#fbbf24')
-          : (pct >= 96 ? '#38bdf8' : (pct > 0 ? '#fbbf24' : '#64748b'));
+          : (pct >= 88 ? '#38bdf8' : (pct > 0 ? '#fbbf24' : '#64748b'));
 
         let statusText = '';
         if (isFullyDone) {
           statusText = '<span style="color: #10b981; font-weight: 700;">✓ Done</span>';
         } else if (isWaitingFinish) {
           statusText = '<span style="color: #f87171; font-weight: 700;">⚠️ Chờ /finish</span>';
-        } else if (pct === 96) {
-          statusText = '<span style="color: #38bdf8; font-weight: 700;">⚡ 96% Review</span>';
+        } else if (pct >= 88 && pct <= 96) {
+          statusText = `<span style="color: #38bdf8; font-weight: 700;">⚡ ${pct}% Review</span>`;
         } else if (ep.in_progress > 0 && ep.review > 0) {
           statusText = `<span style="color: #fbbf24; font-weight: 700;">⚡ ${ep.in_progress} Doing · <span style="color: #c084fc;">${ep.review} Review</span></span>`;
         } else if (ep.in_progress > 0) {

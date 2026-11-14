@@ -12,6 +12,7 @@ Covers BDD Scenarios:
 
 from __future__ import annotations
 
+import http.server
 import json
 import os
 from pathlib import Path
@@ -40,6 +41,8 @@ if str(CHECK_TASKS_SCRIPT_DIR) not in sys.path:
 
 from tasks_server import TasksHandler, TasksServer, find_available_port  # type: ignore[import-not-found]  # noqa: E402
 from tests.test_rsdh_tasks_dashboard_ui import (  # noqa: E402
+    _MutableTasksServer,
+    _NODE_CDP_HELPER,
     _NODE_DOM_HARNESS_PREAMBLE,
     _resolve_chrome_binary,
     _run_node_script,
@@ -231,16 +234,24 @@ class TestLtspDashboardUi_Integration:
               },
             };
             const progState = ctx.computeEpicProgressState(repo, 'legacy_epic', 4, 4, repo.epics_summary.epics[0]);
+            const tddRepo = { ...repo, active_stage: 'Stage 3 Phase 2 (TDD)' };
+            const tddState = ctx.computeEpicProgressState(tddRepo, 'legacy_epic', 4, 4, {});
+            const signoffRepo = { ...repo, active_stage: 'Stage 3 Phase 4.1 (Sign-off)' };
+            const signoffState = ctx.computeEpicProgressState(signoffRepo, 'legacy_epic', 4, 4, {});
             const execHtml = ctx.renderExecutionEpics(repo);
             const kanbanHtml = ctx.renderKanbanDashboard(repo, 'all');
-            console.log(JSON.stringify({ progState, execHtml, kanbanHtml }));
+            console.log(JSON.stringify({ progState, tddState, signoffState, execHtml, kanbanHtml }));
             """
         )
         prog_state = res["progState"]
         assert prog_state["taskPct"] == 100
-        assert prog_state["pct"] > 0
+        assert prog_state["pct"] == 92
+        assert res["tddState"]["pct"] == 80
+        assert res["tddState"]["taskPct"] == 100
+        assert res["signoffState"]["pct"] == 98
         assert "4 / 4 Hoàn thành" in res["execHtml"]
         assert "100%" in res["execHtml"]
+        assert "92% Review" in res["execHtml"]
 
     def test_ltsp_st_03_quality_check_substeps_visual_transition(self) -> None:
         """LTSP-ST-03: Quality Check sub-steps transition visually from Static Lint to Typecheck to PyCore/Unit Test to UI/E2E Test."""
@@ -289,6 +300,7 @@ class TestLtspDashboardUi_Integration:
 
     def test_ltsp_ar_02_tier2_sig_updates_without_clobbering_roadmap_focus(
         self,
+        tmp_path: Path,
     ) -> None:
         """LTSP-AR-02: Section II tier2Sig detects sub-step, review_state, quality step, and event log changes without clobbering sibling Roadmap focus."""
         res = _eval_dashboard_js(
@@ -335,6 +347,280 @@ class TestLtspDashboardUi_Integration:
         assert res["tier2Changed"] is True
         assert res["kanbanChanged"] is True
         assert res["roadmapUnchanged"] is True
+
+        # Live Chrome CDP assertion verifying <select> focus in Section III survives pipeline_telemetry sub-step updates
+        chrome_bin = _resolve_chrome_binary()
+
+        def _make_payload(
+            *,
+            qa_cap: str,
+            qa_label: str,
+            step_index: int,
+            pct: float,
+            event_msg: str,
+        ) -> dict[str, Any]:
+            pt = {
+                "epic_slug": "ar_epic",
+                "task_completion_pct": 100.0,
+                "lifecycle_progress_pct": pct,
+                "current_stage_index": 4,
+                "active_sub_step_summary": f"Gate 4 QA · {qa_label}",
+                "stages": [
+                    {
+                        "id": "spec",
+                        "index": 1,
+                        "label": "1. Spec",
+                        "status": "done",
+                        "summary": "Gate 1 PASS",
+                        "sub_steps": [],
+                    },
+                    {
+                        "id": "hld_principal",
+                        "index": 2,
+                        "label": "2. HLD & Principal",
+                        "status": "done",
+                        "summary": "HLD PASS",
+                        "sub_steps": [],
+                    },
+                    {
+                        "id": "tasks",
+                        "index": 3,
+                        "label": "3. Tasks",
+                        "status": "done",
+                        "summary": "2/2 (100%)",
+                        "sub_steps": [],
+                    },
+                    {
+                        "id": "gate4_quality",
+                        "index": 4,
+                        "label": "4. Gate 4 QA",
+                        "status": "running",
+                        "summary": qa_label,
+                        "sub_steps": [
+                            {
+                                "id": "qa_lint",
+                                "label": "Static Lint",
+                                "status": "done" if step_index > 1 else "running",
+                                "detail": "0.5s",
+                            },
+                            {
+                                "id": "qa_unit",
+                                "label": "PyCore / Unit Test",
+                                "status": "running" if step_index == 2 else "done",
+                                "detail": "1.2s",
+                            },
+                            {
+                                "id": "qa_int",
+                                "label": "Integration Test",
+                                "status": "running" if step_index == 3 else "pending",
+                                "detail": "",
+                            },
+                        ],
+                    },
+                    {
+                        "id": "cross_review",
+                        "index": 5,
+                        "label": "5. Cross-Review",
+                        "status": "pending",
+                        "summary": "Pending",
+                        "sub_steps": [],
+                    },
+                    {
+                        "id": "finish",
+                        "index": 6,
+                        "label": "6. Finish",
+                        "status": "pending",
+                        "summary": "Pending",
+                        "sub_steps": [],
+                    },
+                ],
+                "events": [
+                    {
+                        "ts": "2026-11-14T08:00:00Z",
+                        "stage": "Gate 4 QA",
+                        "sub_step": qa_cap,
+                        "message": event_msg,
+                    },
+                ],
+            }
+            return {
+                "timestamp": 1730000000 + step_index,
+                "accounts": ["brother", "tess"],
+                "repos": [
+                    {
+                        "name": "ai-agent-tools",
+                        "path": "/tmp/ar02-repo",
+                        "theme_color": "#38bdf8",
+                        "account_id": "brother",
+                        "active_epic": "ar_epic",
+                        "active_stage": "Stage 3 Phase 4 (Gate 4 QA)",
+                        "prompt": f"Running {qa_label}",
+                        "is_human_action_required": False,
+                        "worktrees": [
+                            {
+                                "path": "/tmp/ar02-repo/.worktrees/ar_epic",
+                                "branch": "epic/ar_epic",
+                                "is_dirty": False,
+                                "dirty_file_count": 0,
+                            }
+                        ],
+                        "task_progress": {
+                            "total_tasks": 2,
+                            "done_tasks": 2,
+                            "in_progress_tasks": 0,
+                            "todo_tasks": 0,
+                            "percentage": 85.0,
+                            "task_completion_pct": 100.0,
+                            "tasks": [
+                                {
+                                    "id": "t1",
+                                    "title": "Task 1",
+                                    "status": "done",
+                                    "priority": "high",
+                                    "epic": "ar_epic",
+                                },
+                                {
+                                    "id": "t2",
+                                    "title": "Task 2",
+                                    "status": "done",
+                                    "priority": "high",
+                                    "epic": "ar_epic",
+                                },
+                                {
+                                    "id": "t3",
+                                    "title": "Backlog Task",
+                                    "status": "todo",
+                                    "priority": "low",
+                                    "epic": "sibling-backlog",
+                                },
+                            ],
+                        },
+                        "epics_summary": {
+                            "total": 2,
+                            "completed": 0,
+                            "in_progress": 1,
+                            "unstarted": 1,
+                            "abandoned": 0,
+                            "epics": [
+                                {
+                                    "slug": "ar_epic",
+                                    "title": "AR Epic",
+                                    "status": "in_progress",
+                                    "task_count": 2,
+                                    "pic": "brother",
+                                    "pipeline_telemetry": pt,
+                                },
+                                {
+                                    "slug": "sibling-backlog",
+                                    "title": "Sibling Backlog",
+                                    "status": "unstarted",
+                                    "task_count": 1,
+                                    "pic": "brother",
+                                },
+                            ],
+                        },
+                        "heartbeat": {
+                            "epic_slug": "ar_epic",
+                            "stage": "Stage 3 Phase 4 (Gate 4 QA)",
+                            "sub_step": qa_cap,
+                            "events": pt["events"],
+                        },
+                        "pipeline_telemetry": pt,
+                    }
+                ],
+            }
+
+        payload_1 = _make_payload(
+            qa_cap="pytest_unit",
+            qa_label="PyCore / Unit Test",
+            step_index=2,
+            pct=83.0,
+            event_msg="qa running PyCore / Unit Test",
+        )
+        payload_2 = _make_payload(
+            qa_cap="integration",
+            qa_label="Integration Test",
+            step_index=3,
+            pct=85.0,
+            event_msg="qa running Integration Test",
+        )
+
+        server = _MutableTasksServer(payload_1)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        url = f"http://127.0.0.1:{server.server_port}/"
+        (tmp_path / "cdp_ar02.mjs").write_text(_NODE_CDP_HELPER, encoding="utf-8")
+
+        class _CtrlHandler(http.server.BaseHTTPRequestHandler):
+            def log_message(self, format: str, *args: Any) -> None:  # noqa: A002
+                return
+
+            def do_POST(self) -> None:
+                server.payload = payload_2
+                self.send_response(200)
+                self.end_headers()
+
+        ctrl_port = find_available_port(19960)
+        ctrl_server = http.server.ThreadingHTTPServer(
+            ("127.0.0.1", ctrl_port), _CtrlHandler
+        )
+        threading.Thread(target=ctrl_server.serve_forever, daemon=True).start()
+
+        cdp_script = rf"""
+import assert from 'node:assert/strict';
+import {{ launchHeadlessChromeCdp }} from {json.dumps(str(tmp_path / "cdp_ar02.mjs"))};
+
+const cdp = await launchHeadlessChromeCdp({json.dumps(chrome_bin)});
+try {{
+  await cdp.send('Page.navigate', {{ url: {json.dumps(url)} }});
+  let ready = false;
+  for (let i = 0; i < 40; i++) {{
+    ready = await cdp.evaluate(`Boolean(document.querySelector('#roadmap-tbody-ai-agent-tools select.select-pic-roadmap[data-row-key="ai-agent-tools:sibling-backlog"]'))`);
+    if (ready) break;
+    await new Promise((r) => setTimeout(r, 100));
+  }}
+  assert.ok(ready, 'Roadmap sibling select must render in Chrome CDP');
+
+  const sec2Before = await cdp.evaluate(`document.getElementById('tier2-execution-epics-wrapper-ai-agent-tools').innerText`);
+  assert.match(sec2Before, /PyCore \/ Unit Test/);
+
+  await cdp.evaluate(`(() => {{
+    const sel = document.querySelector('#roadmap-tbody-ai-agent-tools select.select-pic-roadmap[data-row-key="ai-agent-tools:sibling-backlog"]');
+    window.__ltspSibSel = sel;
+    sel.focus();
+  }})()`);
+
+  const mutRes = await fetch({json.dumps(f"http://127.0.0.1:{ctrl_port}/mutate")}, {{ method: 'POST' }});
+  assert.equal(mutRes.status, 200);
+  await cdp.evaluate(`pollDashboard()`);
+
+  const during = await cdp.evaluate(`(() => {{
+    const sec2 = document.getElementById('tier2-execution-epics-wrapper-ai-agent-tools').innerText;
+    const sel = document.querySelector('#roadmap-tbody-ai-agent-tools select.select-pic-roadmap[data-row-key="ai-agent-tools:sibling-backlog"]');
+    return {{
+      sec2,
+      sameNode: sel === window.__ltspSibSel,
+      stillFocused: document.activeElement === window.__ltspSibSel,
+    }};
+  }})()`);
+  assert.equal(during.sameNode, true, 'Focused Roadmap <select> DOM node must be preserved');
+  assert.equal(during.stillFocused, true, 'Focused Roadmap <select> must keep activeElement focus');
+  assert.match(during.sec2, /Integration Test/, 'Section II must update sub-step in place');
+  assert.match(during.sec2, /qa running Integration Test/, 'Section II must render updated event log');
+  assert.deepEqual(cdp.consoleErrors, [], `Unexpected console errors: ${{cdp.consoleErrors}}`);
+  assert.deepEqual(cdp.runtimeExceptions, [], `Unexpected runtime exceptions: ${{cdp.runtimeExceptions}}`);
+  console.log(JSON.stringify({{ status: 'ok' }}));
+}} finally {{
+  await cdp.close();
+}}
+"""
+        try:
+            cdp_res = _run_node_script(cdp_script, timeout=45)
+            assert cdp_res["status"] == "ok"
+        finally:
+            ctrl_server.shutdown()
+            ctrl_server.server_close()
+            server.shutdown()
+            server.server_close()
 
     def test_ltsp_fr_02_failed_quality_and_circuit_breaker_halt_badges(self) -> None:
         """LTSP-FR-02: Failed or aborted quality step and Circuit Breaker review halt render explicit error badges in the stage stepper."""
