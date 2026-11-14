@@ -174,8 +174,9 @@ class TestRefreshSession(unittest.TestCase):
         self.assertEqual(res["status"], "FAIL")
         self.assertIn("Authentication required", res.get("error", ""))
 
+    @patch("refresh_session.is_target_session_active", return_value=(False, ""))
     @patch("refresh_session.ping_cli")
-    def test_main_json_output(self, mock_ping: MagicMock) -> None:
+    def test_main_json_output(self, mock_ping: MagicMock, mock_active: MagicMock) -> None:
         """Formats output as structured JSON on --json flag."""
         mock_ping.return_value = {
             "cli": "claude",
@@ -392,8 +393,9 @@ class TestRefreshSession(unittest.TestCase):
         self.assertIn("<string>30</string>", plist)
 
     @patch("time.sleep")
+    @patch("refresh_session.is_target_session_active", return_value=(False, ""))
     @patch("refresh_session.ping_cli", return_value={"cli": "claude", "status": "PASS", "latency_ms": 10.0, "tokens": 1, "error": None})
-    def test_main_delay_sleep_invoked(self, mock_ping: MagicMock, mock_sleep: MagicMock) -> None:
+    def test_main_delay_sleep_invoked(self, mock_ping: MagicMock, mock_active: MagicMock, mock_sleep: MagicMock) -> None:
         """Invokes time.sleep when delay > 0 before pinging."""
         code = refresh_session.main(["claude", "--delay", "30"])
         self.assertEqual(code, 0)
@@ -687,6 +689,124 @@ class TestMultiScheduleAndAntigravityPing(unittest.TestCase):
                 if "-p" in c.args[0] and "/usage" not in c.args[0]:
                     self.assertGreaterEqual(c.kwargs.get("timeout", 0), 45)
                     self.assertIsNotNone(c.kwargs.get("cwd"))
+
+    def test_is_target_session_active_claude_uses_live_api_and_zero_util(self) -> None:
+        """is_target_session_active('claude') queries live API first and catches 0% active 5H sessions."""
+        import os
+        import tempfile
+        import urllib.request
+
+        now_utc = __import__("datetime").datetime.now(__import__("datetime").timezone.utc)
+        active_4h = (now_utc + __import__("datetime").timedelta(hours=4)).isoformat()
+        idle_payload = {
+            "five_hour": {"utilization": 0.0, "resets_at": None},
+            "seven_day": {"utilization": 66.0, "resets_at": active_4h},
+            "limits": [{"kind": "session", "is_active": False, "resets_at": None}],
+        }
+        active_payload = {
+            "five_hour": {"utilization": 0.0, "resets_at": active_4h},
+            "seven_day": {"utilization": 66.0, "resets_at": active_4h},
+            "limits": [{"kind": "session", "is_active": True, "resets_at": active_4h}],
+        }
+
+        def make_resp(payload: dict) -> MagicMock:
+            m = MagicMock()
+            m.status = 200
+            m.read.return_value = json.dumps(payload).encode("utf-8")
+            m.__enter__.return_value = m
+            return m
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with (
+                patch.object(refresh_session, "REAL_HOME", tmpdir),
+                patch.object(refresh_session, "REAL_HOME_DIR", Path(tmpdir)),
+                patch.dict(os.environ, {"CLAUDE_CODE_OAUTH_TOKEN": "tok-test"}, clear=False),
+                patch.object(
+                    urllib.request,
+                    "urlopen",
+                    side_effect=[make_resp(idle_payload), make_resp(active_payload)],
+                ),
+            ):
+                is_act_idle, _ = refresh_session.is_target_session_active("claude")
+                self.assertFalse(is_act_idle)
+
+                is_act_running, msg = refresh_session.is_target_session_active("claude")
+                self.assertTrue(is_act_running)
+                self.assertIn("Session active", msg)
+
+    def test_is_target_session_active_codex_uses_live_api_and_falls_back_to_sqlite(self) -> None:
+        """is_target_session_active('codex') prefers live wham/usage over SQLite and skips ticking 0% 5H."""
+        import sqlite3
+        import tempfile
+        import time
+        import urllib.request
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            codex_dir = Path(tmpdir) / ".codex"
+            codex_dir.mkdir(parents=True)
+            (codex_dir / "auth.json").write_text(
+                json.dumps({"tokens": {"access_token": "codex-tok", "account_id": "acc"}}),
+                encoding="utf-8",
+            )
+            db_path = codex_dir / "logs_2.sqlite"
+            con = sqlite3.connect(str(db_path))
+            con.execute("CREATE TABLE logs (ts INTEGER);")
+            con.execute("INSERT INTO logs (ts) VALUES (?);", (int(time.time()) - 1000,))
+            con.commit()
+            con.close()
+
+            idle_rl = {
+                "rate_limit": {
+                    "primary_window": {
+                        "used_percent": 0,
+                        "limit_window_seconds": 18000,
+                        "reset_after_seconds": 18000,
+                    }
+                }
+            }
+            ticking_rl = {
+                "rate_limit": {
+                    "primary_window": {
+                        "used_percent": 0,
+                        "limit_window_seconds": 18000,
+                        "reset_after_seconds": 17500,
+                    }
+                }
+            }
+
+            def make_resp(payload: dict) -> MagicMock:
+                m = MagicMock()
+                m.status = 200
+                m.read.return_value = json.dumps(payload).encode("utf-8")
+                m.__enter__.return_value = m
+                return m
+
+            with (
+                patch.object(refresh_session, "REAL_HOME", tmpdir),
+                patch.object(refresh_session, "REAL_HOME_DIR", Path(tmpdir)),
+                patch.object(
+                    urllib.request,
+                    "urlopen",
+                    side_effect=[
+                        make_resp(idle_rl),
+                        make_resp(ticking_rl),
+                        OSError("network down"),
+                    ],
+                ),
+            ):
+                # 1. Live API explicitly IDLE must win even if SQLite has recent ts
+                act1, _ = refresh_session.is_target_session_active("codex")
+                self.assertFalse(act1)
+
+                # 2. Live API ticking (< 18000 - 30) skips even when used_percent == 0
+                act2, msg2 = refresh_session.is_target_session_active("codex")
+                self.assertTrue(act2)
+                self.assertIn("Session active", msg2)
+
+                # 3. Offline Live API -> SQLite fallback detects < 5h log
+                act3, msg3 = refresh_session.is_target_session_active("codex")
+                self.assertTrue(act3)
+                self.assertIn("Session active", msg3)
 
 
 if __name__ == "__main__":

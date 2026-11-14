@@ -21,6 +21,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import urllib.request
 from pathlib import Path
 from typing import Any
 from xml.sax.saxutils import escape as _xml_escape
@@ -144,6 +145,179 @@ def is_bucket_activated(
     return False
 
 
+def evaluate_claude_5h_session(
+    api_data: dict[str, Any] | None,
+    now_utc: datetime.datetime | None = None,
+) -> tuple[bool, int, int, str]:
+    """Evaluate whether Claude 5H rolling window is active.
+
+    Anthropic returns five_hour.resets_at == null when idle and sets a future
+    timestamp once a session begins, even when utilization rounds to 0%.
+    Returns (is_active, rem_sec_5h, resets_at_ts, local_reset_str).
+    """
+    data = api_data or {}
+    five_h = data.get("five_hour") or {}
+    utilization_5h = float(five_h.get("utilization") or 0)
+    resets_at_iso = str(five_h.get("resets_at") or "").strip()
+    limits = data.get("limits") or []
+    session_limit_active = any(
+        isinstance(item, dict)
+        and item.get("kind") == "session"
+        and bool(item.get("is_active"))
+        for item in limits
+    )
+    now_ref = now_utc or datetime.datetime.now(datetime.timezone.utc)
+    rem_sec_5h = 0
+    resets_at_ts = 0
+    local_reset = ""
+    if resets_at_iso:
+        try:
+            dt_5h = datetime.datetime.fromisoformat(resets_at_iso.replace("Z", "+00:00"))
+            resets_at_ts = int(dt_5h.timestamp())
+            local_reset = dt_5h.astimezone().strftime("%H:%M:%S")
+            rem_sec_5h = max(0, int((dt_5h - now_ref).total_seconds()))
+        except (TypeError, ValueError):
+            pass
+    is_active = bool(
+        (rem_sec_5h > 0 and (utilization_5h > 0 or session_limit_active or rem_sec_5h <= 5 * 3600 + 60))
+        or (session_limit_active and not resets_at_iso)
+    )
+    return is_active, rem_sec_5h, resets_at_ts, local_reset
+
+
+def is_codex_5h_active(
+    rate_limit: dict[str, Any] | None,
+    grace_sec: int = 30,
+) -> tuple[bool, int, int, float]:
+    """Evaluate whether Codex 5H primary_window is active.
+
+    Idle Codex accounts report used_percent == 0 and reset_after_seconds == limit_window_seconds.
+    Returns (is_active, rem_sec, window_sec, used_percent).
+    """
+    pw = (rate_limit or {}).get("primary_window") or {}
+    p_used = float(pw.get("used_percent") or 0)
+    p_rem_sec = int(pw.get("reset_after_seconds") or 0)
+    p_win_sec = int(pw.get("limit_window_seconds") or 5 * 3600) or (5 * 3600)
+    is_active = bool(
+        p_rem_sec > 0 and (p_used > 0 or p_rem_sec < max(1, p_win_sec - grace_sec))
+    )
+    return is_active, p_rem_sec, p_win_sec, p_used
+
+
+def _get_claude_access_token() -> str | None:
+    """Resolve Claude OAuth access token from env, Keychain, or ~/.claude/.credentials.json."""
+    env_tok = (os.environ.get("CLAUDE_CODE_OAUTH_TOKEN") or "").strip()
+    if env_tok:
+        return env_tok
+    if Path(REAL_HOME).resolve() == Path(_derive_real_home()).resolve():
+        try:
+            user = os.environ.get("USER", "danhdueexoictif")
+            proc = subprocess.run(
+                ["security", "find-generic-password", "-s", "Claude Code-credentials", "-w"],
+                capture_output=True,
+                text=True,
+                timeout=2.0,
+            )
+            if proc.returncode != 0:
+                proc = subprocess.run(
+                    ["security", "find-generic-password", "-s", "Claude Code-credentials", "-a", user, "-w"],
+                    capture_output=True,
+                    text=True,
+                    timeout=2.0,
+                )
+            if proc.returncode == 0 and proc.stdout:
+                raw = proc.stdout.strip()
+                if raw.startswith("{") and raw.endswith("}"):
+                    oauth = json.loads(raw).get("claudeAiOauth", {})
+                    tok = (oauth.get("accessToken") or "").strip()
+                    exp = oauth.get("expiresAt") or 0
+                    if tok and (exp == 0 or exp > int(time.time() * 1000) + 60000):
+                        return tok
+        except Exception:
+            pass
+    cred_file = Path(REAL_HOME) / ".claude" / ".credentials.json"
+    if cred_file.is_file():
+        try:
+            oauth = json.loads(cred_file.read_text(encoding="utf-8")).get("claudeAiOauth", {})
+            tok = (oauth.get("accessToken") or "").strip()
+            if tok:
+                return tok
+        except Exception:
+            pass
+    return None
+
+
+def _fetch_live_claude_usage() -> dict[str, Any] | None:
+    """Query Anthropic live OAuth usage API and refresh ~/.claude.json cache when present."""
+    token = _get_claude_access_token()
+    if not token:
+        return None
+    try:
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "User-Agent": "claude-cli/2.1.231",
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "anthropic-beta": "claude-code-20250219",
+        }
+        req = urllib.request.Request("https://api.anthropic.com/api/oauth/usage", headers=headers)
+        with urllib.request.urlopen(req, timeout=4.0) as resp:
+            if getattr(resp, "status", 200) == 200:
+                raw_data = json.loads(resp.read().decode("utf-8"))
+                usage = raw_data.get("utilization", raw_data)
+                if isinstance(usage, dict):
+                    _update_claude_cache_file(usage)
+                    return usage
+    except Exception:
+        pass
+    return None
+
+
+def _update_claude_cache_file(usage: dict[str, Any]) -> None:
+    """Persist live Claude usage into ~/.claude.json cachedUsageUtilization if file exists."""
+    claude_json = Path(REAL_HOME) / ".claude.json"
+    if not claude_json.is_file():
+        return
+    try:
+        data = json.loads(claude_json.read_text(encoding="utf-8"))
+        uuid = data.get("oauthAccount", {}).get("accountUuid", "")
+        data["cachedUsageUtilization"] = {
+            "fetchedAtMs": int(time.time() * 1000),
+            "accountUuid": uuid,
+            "utilization": usage,
+        }
+        claude_json.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    except Exception:
+        pass
+
+
+def _fetch_live_codex_usage() -> dict[str, Any] | None:
+    """Query ChatGPT Codex wham/usage endpoint; return rate_limit dict or None on failure."""
+    auth_json = Path(REAL_HOME) / ".codex" / "auth.json"
+    if not auth_json.is_file():
+        return None
+    try:
+        tokens = json.loads(auth_json.read_text(encoding="utf-8")).get("tokens", {})
+        token = tokens.get("access_token")
+        account_id = tokens.get("account_id")
+        if not token:
+            return None
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "User-Agent": "codex/0.167.0",
+            "Accept": "application/json",
+        }
+        if account_id:
+            headers["ChatGPT-Account-ID"] = account_id
+        req = urllib.request.Request("https://chatgpt.com/backend-api/wham/usage", headers=headers)
+        with urllib.request.urlopen(req, timeout=4.0) as resp:
+            api_data = json.loads(resp.read().decode("utf-8"))
+            rl = api_data.get("rate_limit")
+            return rl if isinstance(rl, dict) else None
+    except Exception:
+        return None
+
+
 def _clean_host_env(base_env: dict[str, str] | None = None) -> dict[str, str]:
     """Build a sanitized environment free of leaked IDE/profile IPC variables."""
     env = (base_env if base_env is not None else os.environ).copy()
@@ -191,36 +365,43 @@ def is_target_session_active(target_name: str) -> tuple[bool, str]:
     """Check if session is currently active. Returns (is_active, message)."""
     now_ts = int(time.time())
 
-    # 1. Claude check
+    # 1. Claude check (Live API first, fallback to ~/.claude.json cachedUsageUtilization)
     if target_name == "claude":
-        claude_json = Path(REAL_HOME) / ".claude.json"
-        if claude_json.is_file():
-            try:
-                with open(claude_json, "r", encoding="utf-8") as f:
-                    c = json.load(f)
-                five_h = c.get("cachedUsageUtilization", {}).get("utilization", {}).get("five_hour") or {}
-                resets_at = five_h.get("resets_at")
-                util = five_h.get("utilization", 0)
-                if resets_at and util > 0:
-                    dt = datetime.datetime.fromisoformat(resets_at.replace("Z", "+00:00"))
-                    now_utc = datetime.datetime.now(datetime.timezone.utc)
-                    rem = int((dt - now_utc).total_seconds())
-                    if rem > 0:
-                        loc = dt.astimezone().strftime("%H:%M:%S")
-                        return True, f"Session active ({rem // 3600}h {(rem % 3600) // 60}m remaining, reset at {loc})"
-            except Exception:
-                pass
+        usage = _fetch_live_claude_usage()
+        if usage is None:
+            claude_json = Path(REAL_HOME) / ".claude.json"
+            if claude_json.is_file():
+                try:
+                    c = json.loads(claude_json.read_text(encoding="utf-8"))
+                    cached_u = c.get("cachedUsageUtilization", {}).get("utilization")
+                    if isinstance(cached_u, dict):
+                        usage = cached_u
+                except Exception:
+                    pass
+        if isinstance(usage, dict):
+            is_act, rem, _, loc = evaluate_claude_5h_session(usage)
+            if is_act:
+                loc_str = f", reset at {loc}" if loc else ""
+                return True, f"Session active ({rem // 3600}h {(rem % 3600) // 60}m remaining{loc_str})"
 
-    # 2. Codex check
+    # 2. Codex check (Live wham/usage API authoritative when reachable; SQLite fallback when offline)
     if target_name == "codex":
+        rate_limit = _fetch_live_codex_usage()
+        if rate_limit is not None:
+            is_act, rem, _, _ = is_codex_5h_active(rate_limit)
+            if is_act:
+                loc = datetime.datetime.fromtimestamp(now_ts + rem).strftime("%H:%M:%S")
+                return True, f"Session active ({rem // 3600}h {(rem % 3600) // 60}m remaining, reset at {loc})"
+            return False, ""
+
         codex_sqlite = Path(REAL_HOME) / ".codex" / "logs_2.sqlite"
         if codex_sqlite.is_file():
+            con = None
             try:
                 con = sqlite3.connect(str(codex_sqlite), timeout=2.0)
                 cur = con.cursor()
                 cur.execute("SELECT max(ts) FROM logs;")
                 row = cur.fetchone()
-                con.close()
                 if row and row[0]:
                     max_ts = row[0]
                     delta = now_ts - max_ts
@@ -230,6 +411,9 @@ def is_target_session_active(target_name: str) -> tuple[bool, str]:
                         return True, f"Session active ({rem // 3600}h {(rem % 3600) // 60}m remaining, reset at {loc})"
             except Exception:
                 pass
+            finally:
+                if con is not None:
+                    con.close()
 
     return False, ""
 
@@ -1633,6 +1817,8 @@ def main(argv: list[str] | None = None) -> int:
             res = ping_profile(target_name, timeout=args.timeout)
         else:
             res = ping_cli(target_name, timeout=args.timeout)
+            if res.get("status") == "PASS":
+                _record_bucket_session(target_name, "5h", 18000)
         results.append(res)
 
     has_fail = any(r["status"] == "FAIL" for r in results)

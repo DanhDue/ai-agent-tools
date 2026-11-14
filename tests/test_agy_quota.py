@@ -959,6 +959,179 @@ class TestAgyQuotaServer(unittest.TestCase):
             mock_mod.install_schedule.assert_called_once()
             self.assertTrue(handler.send_json.call_args[0][0]["success"])
 
+    def test_argon_ping_not_blocked_when_reset_time_expired(self):
+        """Expired Argon reset_time (<= 0s remaining, fraction=1.0) must not be misclassified as < 7h near-reset."""
+        now_utc = agy_quota.datetime.datetime.now(agy_quota.datetime.timezone.utc)
+        expired_reset = (now_utc - agy_quota.datetime.timedelta(minutes=2)).strftime(
+            "%Y-%m-%dT%H:%M:%SZ"
+        )
+        active_3h = (now_utc + agy_quota.datetime.timedelta(hours=3)).strftime(
+            "%Y-%m-%dT%H:%M:%SZ"
+        )
+        live_quota = {
+            "success": True,
+            "tier": "PRO",
+            "groups": [
+                {
+                    "name": "Gemini Models",
+                    "buckets": [
+                        {
+                            "window": "5h",
+                            "remaining_fraction": 0.85,
+                            "reset_time": active_3h,
+                        }
+                    ],
+                },
+                {
+                    "name": "Claude and GPT models",
+                    "buckets": [
+                        {
+                            "window": "5h",
+                            "remaining_fraction": 0.90,
+                            "reset_time": active_3h,
+                        }
+                    ],
+                },
+                {
+                    "name": "Argon",
+                    "buckets": [
+                        {
+                            "window": "weekly",
+                            "remaining_fraction": 1.0,
+                            "reset_time": expired_reset,
+                        }
+                    ],
+                },
+            ],
+        }
+        mock_proc = MagicMock(returncode=0, stdout="gemini-4-argon-low\n", stderr="")
+        with (
+            patch("os.path.isdir", return_value=True),
+            patch("os.makedirs"),
+            patch("agy_quota.wait_for_launch_lock"),
+            patch("agy_quota.check_profile_appeal_status", return_value=None),
+            patch("agy_quota.check_profile_auth_token", return_value=True),
+            patch("agy_quota.load_cached_profiles", return_value={}),
+            patch("agy_quota.fetch_quota_for_profile", return_value=live_quota),
+            patch("agy_quota.update_cached_profile"),
+            patch("subprocess.run", return_value=mock_proc) as mock_run,
+        ):
+            res = agy_quota.execute_ping_profile("test_prof")
+            self.assertTrue(res.get("success"))
+            self.assertFalse(res.get("skipped"))
+            self.assertTrue(res.get("pinged_argon"))
+            self.assertTrue(
+                any(
+                    "gemini-4-argon-low" in c.args[0]
+                    for c in mock_run.call_args_list
+                    if isinstance(c.args[0], list)
+                )
+            )
+
+    def test_claude_5h_active_when_reset_in_future_even_at_zero_percent_util(self):
+        """Claude 5H must be marked active when resets_at is in future even if utilization rounds to 0."""
+        now_utc = agy_quota.datetime.datetime.now(agy_quota.datetime.timezone.utc)
+        active_4h = (now_utc + agy_quota.datetime.timedelta(hours=4)).isoformat()
+        idle_payload = {
+            "five_hour": {"utilization": 0.0, "resets_at": None},
+            "seven_day": {"utilization": 66.0, "resets_at": active_4h},
+            "limits": [{"kind": "session", "is_active": False, "resets_at": None}],
+        }
+        active_zero_util_payload = {
+            "five_hour": {"utilization": 0.0, "resets_at": active_4h},
+            "seven_day": {"utilization": 66.0, "resets_at": active_4h},
+            "limits": [{"kind": "session", "is_active": True, "resets_at": active_4h}],
+        }
+
+        def make_resp(payload):
+            m = MagicMock()
+            m.status = 200
+            m.read.return_value = json.dumps(payload).encode("utf-8")
+            m.__enter__.return_value = m
+            return m
+
+        with (
+            patch(
+                "agy_quota.get_claude_oauth_token",
+                return_value=("tok", "user@anthropic.com", True),
+            ),
+            patch("agy_quota.update_claude_json_cache"),
+            patch("agy_quota.save_session_record"),
+            patch(
+                "urllib.request.urlopen",
+                side_effect=[
+                    make_resp(idle_payload),
+                    make_resp(active_zero_util_payload),
+                ],
+            ),
+        ):
+            idle_q = agy_quota.fetch_claude_quota()
+            self.assertFalse(idle_q["isSessionActive"])
+
+            active_q = agy_quota.fetch_claude_quota()
+            self.assertTrue(active_q["isSessionActive"])
+
+    def test_codex_5h_active_when_clock_ticking_even_at_zero_percent_used(self):
+        """Codex 5H must skip when reset_after_seconds < limit_window_seconds - 30 even at 0% used."""
+        idle_payload = {
+            "rate_limit": {
+                "allowed": True,
+                "primary_window": {
+                    "used_percent": 0,
+                    "limit_window_seconds": 18000,
+                    "reset_after_seconds": 18000,
+                    "reset_at": int(agy_quota.time.time()) + 18000,
+                },
+                "secondary_window": {
+                    "used_percent": 84,
+                    "limit_window_seconds": 604800,
+                    "reset_after_seconds": 280000,
+                    "reset_at": int(agy_quota.time.time()) + 280000,
+                },
+            }
+        }
+        ticking_payload = {
+            "rate_limit": {
+                "allowed": True,
+                "primary_window": {
+                    "used_percent": 0,
+                    "limit_window_seconds": 18000,
+                    "reset_after_seconds": 17500,
+                    "reset_at": int(agy_quota.time.time()) + 17500,
+                },
+                "secondary_window": idle_payload["rate_limit"]["secondary_window"],
+            }
+        }
+
+        def make_resp(payload):
+            m = MagicMock()
+            m.read.return_value = json.dumps(payload).encode("utf-8")
+            m.__enter__.return_value = m
+            return m
+
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            auth_dir = agy_quota.Path(tmpdir) / ".codex"
+            auth_dir.mkdir(parents=True)
+            (auth_dir / "auth.json").write_text(
+                json.dumps({"tokens": {"access_token": "tok", "account_id": "acc"}}),
+                encoding="utf-8",
+            )
+            with (
+                patch.object(agy_quota, "REAL_HOME", tmpdir),
+                patch("agy_quota.save_session_record"),
+                patch(
+                    "urllib.request.urlopen",
+                    side_effect=[make_resp(idle_payload), make_resp(ticking_payload)],
+                ),
+            ):
+                idle_q = agy_quota.fetch_codex_quota()
+                self.assertFalse(idle_q["isSessionActive"])
+
+                ticking_q = agy_quota.fetch_codex_quota()
+                self.assertTrue(ticking_q["isSessionActive"])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -137,6 +137,63 @@ def select_model_from_candidates(available_models: list[str], candidates, defaul
             return c
     return candidates[0] if candidates else default
 
+
+def evaluate_claude_5h_session(
+    api_data: dict | None,
+    now_utc: datetime.datetime | None = None,
+) -> tuple[bool, int, int, str]:
+    """Delegate Claude 5H active evaluation to refresh_session module with built-in fallback."""
+    mod = _load_refresh_session_module()
+    if mod and hasattr(mod, "evaluate_claude_5h_session"):
+        return mod.evaluate_claude_5h_session(api_data, now_utc=now_utc)
+    data = api_data or {}
+    five_h = data.get("five_hour") or {}
+    utilization_5h = float(five_h.get("utilization") or 0)
+    resets_at_iso = str(five_h.get("resets_at") or "").strip()
+    limits = data.get("limits") or []
+    session_limit_active = any(
+        isinstance(item, dict)
+        and item.get("kind") == "session"
+        and bool(item.get("is_active"))
+        for item in limits
+    )
+    now_ref = now_utc or datetime.datetime.now(datetime.timezone.utc)
+    rem_sec_5h = 0
+    resets_at_ts = 0
+    local_reset = ""
+    if resets_at_iso:
+        try:
+            dt_5h = datetime.datetime.fromisoformat(resets_at_iso.replace("Z", "+00:00"))
+            resets_at_ts = int(dt_5h.timestamp())
+            local_reset = dt_5h.astimezone().strftime("%H:%M:%S")
+            rem_sec_5h = max(0, int((dt_5h - now_ref).total_seconds()))
+        except (TypeError, ValueError):
+            pass
+    is_active = bool(
+        (rem_sec_5h > 0 and (utilization_5h > 0 or session_limit_active or rem_sec_5h <= 5 * 3600 + 60))
+        or (session_limit_active and not resets_at_iso)
+    )
+    return is_active, rem_sec_5h, resets_at_ts, local_reset
+
+
+def is_codex_5h_active(
+    rate_limit: dict | None,
+    grace_sec: int = 30,
+) -> tuple[bool, int, int, float]:
+    """Delegate Codex 5H active evaluation to refresh_session module with built-in fallback."""
+    mod = _load_refresh_session_module()
+    if mod and hasattr(mod, "is_codex_5h_active"):
+        return mod.is_codex_5h_active(rate_limit, grace_sec=grace_sec)
+    pw = (rate_limit or {}).get("primary_window") or {}
+    p_used = float(pw.get("used_percent") or 0)
+    p_rem_sec = int(pw.get("reset_after_seconds") or 0)
+    p_win_sec = int(pw.get("limit_window_seconds") or 5 * 3600) or (5 * 3600)
+    is_active = bool(
+        p_rem_sec > 0 and (p_used > 0 or p_rem_sec < max(1, p_win_sec - grace_sec))
+    )
+    return is_active, p_rem_sec, p_win_sec, p_used
+
+
 # ANSI Colors & Styling
 GREEN       = "\033[38;2;114;188;130m"      # Soft Green (#72bc82)
 AMBER       = "\033[38;2;245;158;11m"       # Amber / Orange (#f59e0b)
@@ -1268,20 +1325,9 @@ def fetch_claude_quota() -> dict:
     resets_at_7d_iso = seven_d.get("resets_at", "")
 
     now_utc = datetime.datetime.now(datetime.timezone.utc)
-    is_active_5h = False
-    rem_sec_5h = 0
-    resets_at_5h_ts = 0
-    local_reset_5h = ""
-    if resets_at_5h_iso:
-        try:
-            dt_5h = datetime.datetime.fromisoformat(resets_at_5h_iso.replace("Z", "+00:00"))
-            resets_at_5h_ts = int(dt_5h.timestamp())
-            local_reset_5h = dt_5h.astimezone().strftime("%H:%M:%S")
-            rem_sec_5h = max(0, int((dt_5h - now_utc).total_seconds()))
-            if rem_sec_5h > 0 and utilization_5h > 0:
-                is_active_5h = True
-        except Exception:
-            pass
+    is_active_5h, rem_sec_5h, resets_at_5h_ts, local_reset_5h = evaluate_claude_5h_session(
+        api_data, now_utc=now_utc
+    )
 
     rem_sec_7d = 0
     resets_at_7d_ts = 0
@@ -1437,7 +1483,7 @@ def fetch_codex_quota() -> dict:
                 countdown_5h = f"⏱ {p_rem_sec // 3600}h {(p_rem_sec % 3600) // 60}m ({local_reset_5h})" if p_rem_sec > 0 else "⏱ 5h 00m (Reset xong)"
                 countdown_7d = f"⏱ {s_rem_sec // 86400}d {(s_rem_sec % 86400) // 3600}h ({local_reset_7d})" if s_rem_sec > 0 else "⏱ 7d 00h (Reset xong)"
 
-                is_active = p_rem_sec > 0 and p_used > 0
+                is_active, _, _, _ = is_codex_5h_active(rl)
                 status = "ACTIVE" if rl.get("allowed", True) else "EXHAUSTED"
 
                 # Save to hashed SQLite session store
@@ -2469,7 +2515,7 @@ def execute_ping_profile(profile: str, force: bool = False) -> dict:
     is_argon_active = is_bucket_activated(arg_bucket, 7 * 86400, now_ts=now_ts)
 
     argon_fraction = float(arg_bucket.get("fraction", 0.0) or 0.0)
-    is_argon_near_reset = has_argon and (argon_rem_sec < 7 * 3600)
+    is_argon_near_reset = has_argon and (0 < argon_rem_sec < 7 * 3600)
     is_argon_max_7d = has_argon and not is_argon_active and (argon_fraction >= 0.999)
 
     should_ping_gemini = gemini_available and (force or not is_gemini_active)
