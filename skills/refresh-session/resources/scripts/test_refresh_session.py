@@ -808,6 +808,32 @@ class TestMultiScheduleAndAntigravityPing(unittest.TestCase):
                 self.assertTrue(act3)
                 self.assertIn("Session active", msg3)
 
+    def test_check_profile_auth_token_uses_fallback_oauth_file(self) -> None:
+        """Fallback OAuth token files keep profile authenticated when Keychain lacks item."""
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            profile_home = Path(tmpdir) / "antigravity_homes" / "duedd"
+            kc_path = profile_home / "Library" / "Keychains" / "duedd.keychain-db"
+            kc_path.parent.mkdir(parents=True)
+            kc_path.write_bytes(b"placeholder")
+            cli_tok = profile_home / ".gemini" / "antigravity-cli" / "antigravity-oauth-token"
+            cli_tok.parent.mkdir(parents=True)
+            cli_tok.write_text(
+                json.dumps({"token": {"access_token": "ya29.ok", "refresh_token": "1//ok"}}),
+                encoding="utf-8",
+            )
+
+            missing_kc = MagicMock(returncode=44, stdout="", stderr="")
+            with (
+                patch.object(refresh_session, "REAL_HOME", tmpdir),
+                patch("subprocess.run", return_value=missing_kc),
+            ):
+                self.assertTrue(refresh_session.check_profile_auth_token("duedd"))
+
+                cli_tok.write_text("{}", encoding="utf-8")
+                self.assertFalse(refresh_session.check_profile_auth_token("duedd"))
+
 
 if __name__ == "__main__":
     unittest.main()

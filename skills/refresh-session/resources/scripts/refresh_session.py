@@ -1203,16 +1203,58 @@ def ping_cli(cli_name: str, timeout: int = 60) -> dict[str, Any]:
     return result
 
 
+_FALLBACK_OAUTH_TOKEN_RELPATHS = (
+    Path(".gemini") / "antigravity-cli" / "antigravity-oauth-token",
+    Path(".gemini") / "jetski-standalone-oauth-token",
+)
+
+
+def _is_valid_oauth_token_payload(payload: object) -> bool:
+    """Return True if parsed OAuth file JSON holds a non-empty token credential."""
+    if not isinstance(payload, dict):
+        return False
+    token = payload.get("token")
+    if isinstance(token, dict):
+        return any(
+            isinstance(token.get(k), str) and bool(token[k].strip())
+            for k in ("refresh_token", "access_token")
+        )
+    if isinstance(token, str):
+        return bool(token.strip())
+    return False
+
+
+def has_valid_fallback_oauth_token(profile_home: str | Path) -> bool:
+    """Return True if profile_home has a non-empty CLI fallback OAuth token file."""
+    home = Path(profile_home)
+    for rel_path in _FALLBACK_OAUTH_TOKEN_RELPATHS:
+        token_path = home / rel_path
+        if not os.path.isfile(token_path):
+            continue
+        try:
+            raw = token_path.read_text(encoding="utf-8").strip()
+            if not raw:
+                continue
+            payload = json.loads(raw)
+        except Exception:
+            continue
+        if _is_valid_oauth_token_payload(payload):
+            return True
+    return False
+
+
 def check_profile_auth_token(profile: str) -> bool:
-    """Check in ~8ms whether profile has an active gemini token in its keychain.
+    """Check whether profile has an active gemini token in Keychain or fallback file.
     If False, running agy will attempt to open web browser for OAuth!
     """
-    kc = os.path.join(REAL_HOME, "antigravity_homes", profile, "Library/Keychains", f"{profile}.keychain-db")
-    if not os.path.isfile(kc):
-        return False
-    subprocess.run(["security", "unlock-keychain", "-p", KC_PASS, kc], capture_output=True)
-    res = subprocess.run(["security", "find-generic-password", "-s", "gemini", "-a", "antigravity", kc], capture_output=True)
-    return res.returncode == 0
+    profile_home = Path(REAL_HOME) / "antigravity_homes" / profile
+    kc = str(profile_home / "Library" / "Keychains" / f"{profile}.keychain-db")
+    if os.path.isfile(kc):
+        subprocess.run(["security", "unlock-keychain", "-p", KC_PASS, kc], capture_output=True)
+        res = subprocess.run(["security", "find-generic-password", "-s", "gemini", "-a", "antigravity", kc], capture_output=True)
+        if res.returncode == 0:
+            return True
+    return has_valid_fallback_oauth_token(profile_home)
 
 
 def check_profile_has_argon(profile: str) -> bool:

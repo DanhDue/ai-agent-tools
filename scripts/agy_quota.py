@@ -194,6 +194,38 @@ def is_codex_5h_active(
     return is_active, p_rem_sec, p_win_sec, p_used
 
 
+def has_valid_fallback_oauth_token(profile_home: str | Path) -> bool:
+    """Delegate fallback OAuth file check to refresh_session module with built-in fallback."""
+    mod = _load_refresh_session_module()
+    fn = getattr(mod, "has_valid_fallback_oauth_token", None) if mod else None
+    if callable(fn):
+        res = fn(profile_home)
+        if isinstance(res, bool):
+            return res
+    home = Path(profile_home)
+    for rel_path in (
+        Path(".gemini") / "antigravity-cli" / "antigravity-oauth-token",
+        Path(".gemini") / "jetski-standalone-oauth-token",
+    ):
+        token_path = home / rel_path
+        if not os.path.isfile(token_path):
+            continue
+        try:
+            raw = token_path.read_text(encoding="utf-8").strip()
+            payload = json.loads(raw) if raw else None
+        except Exception:
+            continue
+        token = payload.get("token") if isinstance(payload, dict) else None
+        if isinstance(token, dict) and any(
+            isinstance(token.get(k), str) and bool(token[k].strip())
+            for k in ("refresh_token", "access_token")
+        ):
+            return True
+        if isinstance(token, str) and token.strip():
+            return True
+    return False
+
+
 # ANSI Colors & Styling
 GREEN       = "\033[38;2;114;188;130m"      # Soft Green (#72bc82)
 AMBER       = "\033[38;2;245;158;11m"       # Amber / Orange (#f59e0b)
@@ -833,17 +865,19 @@ def check_profile_appeal_status(profile: str, out_text: str = "") -> str:
 
 
 def check_profile_auth_token(profile: str) -> bool:
-    """Check in ~8ms whether profile has an active gemini token in its keychain.
+    """Check in ~8ms whether profile has an active gemini token in Keychain or fallback file.
     CRITICAL: If False, running agy will attempt to open the web browser for OAuth!
     We MUST NOT execute agy when this returns False.
     """
     wait_for_launch_lock()
-    kc = os.path.join(REAL_HOME, "antigravity_homes", profile, "Library/Keychains", f"{profile}.keychain-db")
-    if not os.path.isfile(kc):
-        return False
-    subprocess.run(["security", "unlock-keychain", "-p", KC_PASS, kc], capture_output=True)
-    res = subprocess.run(["security", "find-generic-password", "-s", "gemini", "-a", "antigravity", kc], capture_output=True)
-    return res.returncode == 0
+    profile_home = Path(REAL_HOME) / "antigravity_homes" / profile
+    kc = str(profile_home / "Library" / "Keychains" / f"{profile}.keychain-db")
+    if os.path.isfile(kc):
+        subprocess.run(["security", "unlock-keychain", "-p", KC_PASS, kc], capture_output=True)
+        res = subprocess.run(["security", "find-generic-password", "-s", "gemini", "-a", "antigravity", kc], capture_output=True)
+        if res.returncode == 0:
+            return True
+    return has_valid_fallback_oauth_token(profile_home)
 
 
 def fetch_quota_for_profile(profile: str, force_probe: bool = False) -> dict:

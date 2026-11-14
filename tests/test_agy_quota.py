@@ -1262,6 +1262,156 @@ class TestAgyQuotaServer(unittest.TestCase):
             self.assertEqual(resp["data"]["claude5h"]["fraction"], 0.96)
             mock_update.assert_called_once_with("hau", fresh_formatted)
 
+    def test_check_profile_auth_token_accepts_fallback_oauth_file_when_keychain_missing(
+        self,
+    ):
+        """Fallback OAuth token files keep profile authenticated when macOS Keychain lacks item."""
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            profile_home = Path(tmpdir) / "antigravity_homes" / "duedd"
+            kc_path = profile_home / "Library" / "Keychains" / "duedd.keychain-db"
+            kc_path.parent.mkdir(parents=True)
+            kc_path.write_bytes(b"placeholder")
+            cli_tok = (
+                profile_home / ".gemini" / "antigravity-cli" / "antigravity-oauth-token"
+            )
+            cli_tok.parent.mkdir(parents=True)
+            cli_tok.write_text(
+                json.dumps(
+                    {
+                        "token": {
+                            "access_token": "ya29.test",
+                            "refresh_token": "1//test-refresh",
+                            "token_type": "Bearer",
+                        },
+                        "auth_method": "oauth",
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            missing_kc_item = MagicMock(returncode=44, stdout="", stderr="")
+            with (
+                patch.object(agy_quota, "REAL_HOME", tmpdir),
+                patch("agy_quota.wait_for_launch_lock"),
+                patch("subprocess.run", return_value=missing_kc_item),
+            ):
+                self.assertTrue(agy_quota.check_profile_auth_token("duedd"))
+
+                # Even without .keychain-db at all, standalone fallback token works
+                kc_path.unlink()
+                self.assertTrue(agy_quota.check_profile_auth_token("duedd"))
+
+                # Legacy jetski-standalone-oauth-token fallback also accepted
+                cli_tok.unlink()
+                legacy_tok = profile_home / ".gemini" / "jetski-standalone-oauth-token"
+                legacy_tok.write_text(
+                    json.dumps({"token": {"refresh_token": "1//legacy-refresh"}}),
+                    encoding="utf-8",
+                )
+                self.assertTrue(agy_quota.check_profile_auth_token("duedd"))
+
+                # Works even when refresh_session module cannot be loaded (standalone fallback)
+                with patch("agy_quota._load_refresh_session_module", return_value=None):
+                    self.assertTrue(agy_quota.check_profile_auth_token("duedd"))
+
+    def test_check_profile_auth_token_rejects_missing_empty_or_corrupt_fallback(self):
+        """Missing, blank, corrupt, or tokenless fallback files return False when Keychain fails."""
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            profile_home = Path(tmpdir) / "antigravity_homes" / "ngocanh000690"
+            cli_tok = (
+                profile_home / ".gemini" / "antigravity-cli" / "antigravity-oauth-token"
+            )
+            cli_tok.parent.mkdir(parents=True)
+
+            missing_kc_item = MagicMock(returncode=44, stdout="", stderr="")
+            with (
+                patch.object(agy_quota, "REAL_HOME", tmpdir),
+                patch("agy_quota.wait_for_launch_lock"),
+                patch("subprocess.run", return_value=missing_kc_item),
+            ):
+                # No file at all
+                self.assertFalse(agy_quota.check_profile_auth_token("ngocanh000690"))
+
+                for bad_payload in (
+                    "",
+                    "   \n",
+                    "{not-json",
+                    "[]",
+                    json.dumps({}),
+                    json.dumps({"token": None}),
+                    json.dumps({"token": ""}),
+                    json.dumps({"token": {}}),
+                    json.dumps({"token": {"access_token": "   "}}),
+                ):
+                    cli_tok.write_text(bad_payload, encoding="utf-8")
+                    self.assertFalse(
+                        agy_quota.check_profile_auth_token("ngocanh000690"),
+                        f"Expected False for payload: {bad_payload!r}",
+                    )
+
+    def test_fetch_quota_for_profile_runs_agy_with_fallback_oauth_token(self):
+        """fetch_quota_for_profile proceeds to invoke agy when fallback OAuth token is present."""
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            profile_home = Path(tmpdir) / "antigravity_homes" / "duedd"
+            cli_tok = (
+                profile_home / ".gemini" / "antigravity-cli" / "antigravity-oauth-token"
+            )
+            cli_tok.parent.mkdir(parents=True)
+            cli_tok.write_text(
+                json.dumps(
+                    {"token": {"access_token": "ya29.ok", "refresh_token": "1//ok"}}
+                ),
+                encoding="utf-8",
+            )
+
+            quota_stdout = json.dumps(
+                {
+                    "command": {
+                        "data": {
+                            "tier_name": "PRO",
+                            "groups": [
+                                {
+                                    "name": "Claude",
+                                    "buckets": [
+                                        {
+                                            "window": "5h",
+                                            "remaining_fraction": 1.0,
+                                            "description": "Available",
+                                        },
+                                    ],
+                                }
+                            ],
+                        }
+                    }
+                }
+            )
+
+            def fake_run(cmd, **kwargs):
+                if cmd and cmd[0] == "security":
+                    return MagicMock(returncode=44, stdout="", stderr="")
+                return MagicMock(returncode=0, stdout=quota_stdout, stderr="")
+
+            with (
+                patch.object(agy_quota, "REAL_HOME", tmpdir),
+                patch("agy_quota.wait_for_launch_lock"),
+                patch("agy_quota.check_profile_appeal_status", return_value=None),
+                patch("subprocess.run", side_effect=fake_run) as mock_run,
+            ):
+                res = agy_quota.fetch_quota_for_profile("duedd")
+                self.assertTrue(res.get("success"))
+                self.assertTrue(
+                    any(
+                        call_args[0][0] and "agy" in str(call_args[0][0][0])
+                        for call_args in mock_run.call_args_list
+                    )
+                )
+
 
 if __name__ == "__main__":
     unittest.main()
