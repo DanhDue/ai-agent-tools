@@ -1,12 +1,12 @@
 ---
 id: "task_04_end_to_end_cdp_and_regression_alignment"
-status: "todo"
+status: "in-progress"
 priority: "high"
 assignee: null
 epic: "check_tasks_epic_history_modal"
 dueDate: null
 created: "2026-11-15T01:00:00Z"
-modified: "2026-11-15T01:00:00Z"
+modified: "2026-11-14T19:29:43Z"
 completedAt: null
 labels: ["integration", "cdp", "e2e", "verify"]
 order: "a4"
@@ -37,12 +37,15 @@ Build the end-to-end headless Chrome CDP integration acceptance suite `tests/tes
      - Recording `cdp.consoleErrors == []` and `cdp.runtimeExceptions == []`.
 2. **Release Verification Suite Registration (`scripts/verify.sh` `L362-L435`)**:
    - Append section `20` entries in `SUITES` for `tests/test_cehm_telemetry_stream.py`, `tests/test_cehm_history_aggregator.py`, `tests/test_cehm_dashboard_modal_ui.py`, and `tests/test_cehm_e2e_cdp.py`.
+3. **RSDH Synthetic `.gitignore` Alignment (`tests/test_rsdh_orchestration.py` `L1273`)**:
+   - Align the simulated repository `.gitignore` in `test_rsdh_fr_03_end_to_end_single_terminal_flow` (`L1273`) with the root `.gitignore` (`build/`, `.devtool/state/`, `.devtool/logs/`, `.devtool/archive/`) so Task 1's mirrored `events_<safe_slug>.jsonl` files remain untracked/ignored across worktrees during `integrate_branch.py land`.
 
 ## Files
 
 Allowed files:
 - `tests/test_cehm_e2e_cdp.py` (new)
 - `scripts/verify.sh`
+- `tests/test_rsdh_orchestration.py`
 
 Read-only context:
 - `.devtool/epic/check_tasks_epic_history_modal/check_tasks_epic_history_modal.en.md` — HLD & Integration Results Contract
@@ -82,7 +85,7 @@ And `cdp.consoleErrors` and `cdp.runtimeExceptions` are both `[]`
 | V2 | GREEN | `python3 -m pytest -q --tb=short --maxfail=3 tests/test_cehm_e2e_cdp.py` | exit 0; contains "passed" | — |
 | V3 | TIER-B | `ruff check skills/web-quality-check tests skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py tests/test_cehm_e2e_cdp.py tests/test_cehm_telemetry_stream.py tests/test_cehm_history_aggregator.py tests/test_cehm_dashboard_modal_ui.py` | exit 0 | — |
 | V4 | TIER-B | `mypy skills/web-quality-check/resources/scripts/validate_web_quality.py skills/web-quality-check/resources/scripts/run_playwright_harness.py skills/quality_check/resources/scripts/verify_polyglot_registry.py skills/web-quality-check/resources/scripts/check_vanilla_js.py skills/dev-implementation/resources/scripts/generate_smoke_checklist.py scripts/_state_envelope.py scripts/estimate_heartbeat.py && mypy tests/test_cehm_e2e_cdp.py` | exit 0 | — |
-| V5 | TIER-C | `python3 -m pytest -q --tb=short --maxfail=3 --junitxml=build/test-results/check-tasks-epic-history-modal.xml tests/test_cehm_telemetry_stream.py tests/test_cehm_history_aggregator.py tests/test_cehm_dashboard_modal_ui.py tests/test_cehm_e2e_cdp.py tests/test_check_tasks_server.py tests/test_check_tasks_fsm.py tests/test_ltsp_state_and_producers.py tests/test_ltsp_harvester_pipeline.py tests/test_ltsp_dashboard_ui.py tests/test_rsdh_state_envelope.py tests/test_rsdh_harvester_and_pic.py tests/test_rsdh_tasks_dashboard_ui.py` | exit 0; results build/test-results/check-tasks-epic-history-modal.xml | — |
+| V5 | TIER-C | `python3 -m pytest -q --tb=short --maxfail=3 --junitxml=build/test-results/check-tasks-epic-history-modal.xml tests/test_cehm_telemetry_stream.py tests/test_cehm_history_aggregator.py tests/test_cehm_dashboard_modal_ui.py tests/test_cehm_e2e_cdp.py tests/test_check_tasks_server.py tests/test_check_tasks_fsm.py tests/test_ltsp_state_and_producers.py tests/test_ltsp_harvester_pipeline.py tests/test_ltsp_dashboard_ui.py tests/test_rsdh_state_envelope.py tests/test_rsdh_harvester_and_pic.py tests/test_rsdh_tasks_dashboard_ui.py tests/test_rsdh_orchestration.py` | exit 0; results build/test-results/check-tasks-epic-history-modal.xml | — |
 
 ## Stop and Report If
 

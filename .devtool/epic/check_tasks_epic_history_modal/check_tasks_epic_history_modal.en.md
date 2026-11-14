@@ -162,7 +162,7 @@ None — self-contained feature inside `ai-agent-tools` (`shared-contracts/` doe
 
 Integration test roots: tests
 Protected paths: .agents/quality/**, .devtool/epic/check_tasks_epic_history_modal/bdd_scenarios.en.md, .devtool/epic/check_tasks_epic_history_modal/bdd_scenarios.vi.md
-Integration results: python3 -m pytest -q --tb=short --maxfail=3 --junitxml=build/test-results/check-tasks-epic-history-modal.xml tests/test_cehm_telemetry_stream.py tests/test_cehm_history_aggregator.py tests/test_cehm_dashboard_modal_ui.py tests/test_cehm_e2e_cdp.py tests/test_check_tasks_server.py tests/test_check_tasks_fsm.py tests/test_ltsp_state_and_producers.py tests/test_ltsp_harvester_pipeline.py tests/test_ltsp_dashboard_ui.py tests/test_rsdh_state_envelope.py tests/test_rsdh_harvester_and_pic.py tests/test_rsdh_tasks_dashboard_ui.py -> build/test-results/check-tasks-epic-history-modal.xml
+Integration results: python3 -m pytest -q --tb=short --maxfail=3 --junitxml=build/test-results/check-tasks-epic-history-modal.xml tests/test_cehm_telemetry_stream.py tests/test_cehm_history_aggregator.py tests/test_cehm_dashboard_modal_ui.py tests/test_cehm_e2e_cdp.py tests/test_check_tasks_server.py tests/test_check_tasks_fsm.py tests/test_ltsp_state_and_producers.py tests/test_ltsp_harvester_pipeline.py tests/test_ltsp_dashboard_ui.py tests/test_rsdh_state_envelope.py tests/test_rsdh_harvester_and_pic.py tests/test_rsdh_tasks_dashboard_ui.py tests/test_rsdh_orchestration.py -> build/test-results/check-tasks-epic-history-modal.xml
 
 | Boundary | Producer | Consumer | Verification Tier |
 |---|---|---|---|
