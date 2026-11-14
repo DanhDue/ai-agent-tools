@@ -1576,7 +1576,12 @@ def test_tto_ar_01_parallel_pool_dispatch_and_path_only_prompts() -> None:
                 dirty_non_runtime = [
                     ln
                     for ln in _git(
-                        epic_wt, "status", "--porcelain", "--", ".devtool/features", "src"
+                        epic_wt,
+                        "status",
+                        "--porcelain",
+                        "--",
+                        ".devtool/features",
+                        "src",
                     ).stdout.splitlines()
                 ]
                 assert dirty_non_runtime == []
