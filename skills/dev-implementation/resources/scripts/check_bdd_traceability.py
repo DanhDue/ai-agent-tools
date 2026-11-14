@@ -11,6 +11,7 @@ Exit codes: 0 all covered; 1 traceability failure; 2 usage error.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import re
 import subprocess
 import sys
@@ -257,17 +258,37 @@ def main(argv: list[str] | None = None) -> int:
             return 1
         if args.mode == "plan":
             coverage, problems = check_plan(ids, args.tasks)
-            return report(coverage, problems, [])
-        roots = [Path(value) for value in split_values(args.roots)]
-        selected = split_values(args.ids) or ids
-        unknown = [f"--ids names unknown identifier {identifier}"
-                   for identifier in selected if identifier not in ids]
-        known_selected = [identifier for identifier in selected if identifier in ids]
-        if args.results:
-            return report_results(ids, known_selected, roots, split_values(args.results),
-                                  not args.ids, unknown)
-        coverage, problems, warnings = check_tests(ids, known_selected, roots, not args.ids)
-        return report(coverage, unknown + problems, warnings)
+            rc = report(coverage, problems, [])
+        else:
+            roots = [Path(value) for value in split_values(args.roots)]
+            selected = split_values(args.ids) or ids
+            unknown = [f"--ids names unknown identifier {identifier}"
+                       for identifier in selected if identifier not in ids]
+            known_selected = [identifier for identifier in selected if identifier in ids]
+            if args.results:
+                rc = report_results(ids, known_selected, roots, split_values(args.results),
+                                    not args.ids, unknown)
+            else:
+                coverage, problems, warnings = check_tests(ids, known_selected, roots, not args.ids)
+                rc = report(coverage, unknown + problems, warnings)
+        with contextlib.suppress(Exception):
+            scen_path = Path(args.scenarios).resolve()
+            if scen_path.parent.parent.name == "epic":
+                epic_slug = scen_path.parent.name
+                repo_root = scen_path.parent.parent.parent.parent
+                kit_scripts = Path(__file__).resolve().parents[4] / "scripts"
+                if str(kit_scripts) not in sys.path:
+                    sys.path.insert(0, str(kit_scripts))
+                import _state_envelope
+                verdict = "PASS" if rc == 0 else "FAIL"
+                _state_envelope.update_epic_heartbeat(
+                    repo_root,
+                    epic_slug,
+                    sub_step=f"bdd_{args.mode}",
+                    sub_step_detail=f"BDD Traceability ({args.mode}): {verdict}",
+                    last_event=f"check_bdd_traceability {args.mode} -> {verdict}",
+                )
+        return rc
     except (UsageError, ReportError) as error:
         print(f"error: {error}", file=sys.stderr)
         return 2

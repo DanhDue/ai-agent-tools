@@ -1136,7 +1136,9 @@ class LifecycleRunner:
 
             if action == "AUTO_PASS_FINAL_SWEEP":
                 print("AUTO_PASS_FINAL_SWEEP: Final review round sweep")
+                self._emit_review_phase_status("principal", "fixing", round_num)
                 self._apply_aligned_fixes(round_num)
+                self._emit_review_phase_status("principal", "verifying", round_num)
                 self._run_package_epic_revise()
                 self.state.active_stage = StageName.IMPLEMENTATION.value
                 self.save_state()
@@ -1161,7 +1163,9 @@ class LifecycleRunner:
                     self.state.active_stage = StageName.PRINCIPAL_REVIEW.value
                     self.save_state()
 
+                self._emit_review_phase_status("principal", "fixing", round_num)
                 self._apply_aligned_fixes(round_num)
+                self._emit_review_phase_status("principal", "verifying", round_num)
 
         self.state.active_stage = StageName.HALTED.value
         self.state.halt_reason = "CIRCUIT_BREAKER_HALT (MAX_ROUNDS_CRITICAL_REMAINING)"
@@ -1686,6 +1690,34 @@ class LifecycleRunner:
 
         return True, "Scoped checks PASS"
 
+    def _emit_review_phase_status(self, kind: str, phase: str, round_num: int) -> None:
+        """Emit mechanical review phase telemetry via run_external_review.py status."""
+        script = self._resolve_script("dev-implementation/resources/scripts/run_external_review.py")
+        if script is None:
+            return
+        try:
+            subprocess.run(
+                [
+                    sys.executable,
+                    str(script),
+                    "status",
+                    "--kind",
+                    kind,
+                    "--epic-dir",
+                    self.epic_slug,
+                    "--phase",
+                    phase,
+                    "--round",
+                    str(round_num),
+                ],
+                cwd=self.root,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        except Exception:
+            pass
+
     def _apply_code_fixes(
         self,
         round_num: int,
@@ -1736,6 +1768,7 @@ class LifecycleRunner:
 
         prog_model = self.config.resolve_programmer_model(self.root)
         prog_effort = self.config.resolve_programmer_effort(self.root)
+        self._emit_review_phase_status("code", "fixing", round_num)
         cmd = build_agy_command(prog_model, prog_effort, mode="accept-edits")
         exit_code, stdout, stderr = self.dispatcher.dispatch(
             cli=cmd[0],
@@ -1747,6 +1780,7 @@ class LifecycleRunner:
             self.state.last_error = f"Code fix dispatch failed in round {round_num}: {_tail_lines(raw_err, 25) or raw_err}"
             return False
 
+        self._emit_review_phase_status("code", "verifying", round_num)
         scoped_ok, scoped_msg = self._run_scoped_tests(findings=findings)
         if not scoped_ok:
             self.state.last_error = f"Scoped tests failed after round {round_num} fixes: {scoped_msg}"

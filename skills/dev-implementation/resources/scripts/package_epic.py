@@ -428,6 +428,17 @@ def package_epic(
         handoff_file.write_text(revised, encoding="utf-8")
 
     _state_envelope.clear_pending_decision(root, epic_slug)
+    try:
+        _state_envelope.update_epic_heartbeat(
+            root,
+            epic_slug,
+            stage="Stage 2: Packaged & Ready",
+            sub_step="packaged",
+            sub_step_detail=f"Packaged handoff.md ({task_count} tasks)",
+            last_event=f"package_epic {epic_slug} ({'revise' if revise else 'initial'}) -> handoff.md",
+        )
+    except Exception:
+        pass
     return handoff_file
 
 

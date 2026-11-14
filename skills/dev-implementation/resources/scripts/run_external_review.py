@@ -482,7 +482,11 @@ def print_gate_banner(error: PreconditionFailedError, cli: str) -> None:
 
 
 def status_lines(root: Path) -> list[str]:
-    return git_run(root, "status", "--porcelain").decode("utf-8", "replace").splitlines()
+    return [
+        line
+        for line in git_run(root, "status", "--porcelain").decode("utf-8", "replace").splitlines()
+        if not line[3:].strip().startswith(".devtool/state")
+    ]
 
 
 def head_of(root: Path) -> str:
@@ -1336,6 +1340,16 @@ def run_principal(root: Path, args: argparse.Namespace, sha: str) -> int:
     if getattr(args, "developer_note", None):
         prompt += f"\n\n## Developer Special Instructions\n\n{args.developer_note}\n"
 
+    _emit_review_heartbeat(
+        root,
+        args.epic_dir,
+        kind="principal",
+        phase="reviewing",
+        round_num=_completed_rounds_count(root, args.epic_dir, "principal") + 1,
+        max_rounds=getattr(args, "max_rounds", MAX_REVIEW_ROUNDS),
+        cli=args.cli,
+        model=effective_model(args.cli, getattr(args, "model", None)),
+    )
     before = status_lines(root)
     code, out, err = execute(cli_command(args.cli, args.model, getattr(args, "thinking_level", None)), root, args.timeout, prompt)
     changed = tree_changes(root, before, sha)
@@ -1506,6 +1520,16 @@ def run(args: argparse.Namespace) -> int:
         round_context=round_context,
         diff_section=diff_section,
     )
+    _emit_review_heartbeat(
+        root,
+        args.epic_dir,
+        kind=kind,
+        phase="reviewing",
+        round_num=_completed_rounds_count(root, args.epic_dir, kind) + 1,
+        max_rounds=max_rounds,
+        cli=args.cli,
+        model=effective_model(args.cli, getattr(args, "model", None)),
+    )
     before = status_lines(root)  # after the facts: running the test commands may write build output
     code, out, err = execute(cli_command(args.cli, args.model, args.thinking_level), root, args.timeout, prompt)
     changed = tree_changes(root, before, sha)
@@ -1660,6 +1684,24 @@ def record_round(root: Path, args: argparse.Namespace, sha: str, passes: list[Pa
     text = existing.rstrip("\n") + "\n\n" + rendered
     path.write_text(text, encoding="utf-8")
     update_sticky_review_config(root, args.cli, getattr(args, "model", None), getattr(args, "thinking_level", None))
+    crit_c = sum(1 for sev, _, _ in findings if sev == "Critical")
+    imp_c = sum(1 for sev, _, _ in findings if sev == "Important")
+    min_c = sum(1 for sev, _, _ in findings if sev == "Minor")
+    _emit_review_heartbeat(
+        root,
+        args.epic_dir,
+        kind=getattr(args, "kind", "code"),
+        phase="triage",
+        round_num=round_num,
+        max_rounds=getattr(args, "max_rounds", MAX_REVIEW_ROUNDS),
+        cli=args.cli,
+        model=effective_model(args.cli, getattr(args, "model", None)),
+        verdict=verdict_text,
+        critical=crit_c,
+        important=imp_c,
+        minor=min_c,
+        sha=sha,
+    )
     header = format_triage_header(
         f"Round {round_num}: {status} ({path.relative_to(root)})",
         sha,
@@ -1971,7 +2013,32 @@ def triage(args: argparse.Namespace) -> int:
     else:
         out += ["## Since the Previous Round", "", "No earlier round."]
     kind = getattr(args, "kind", "code")
-    out += ["", *auto_triage_section(number, rounds, latest, getattr(args, "max_rounds", MAX_REVIEW_ROUNDS))]
+    triage_lines = auto_triage_section(number, rounds, latest, getattr(args, "max_rounds", MAX_REVIEW_ROUNDS))
+    out += ["", *triage_lines]
+    action_val = ""
+    for tline in triage_lines:
+        if tline.startswith("- **Action**:"):
+            action_val = tline.split(":", 1)[1].strip()
+            break
+    crit_c = sum(1 for r in latest if len(r) > 1 and r[1] == "Critical")
+    imp_c = sum(1 for r in latest if len(r) > 1 and r[1] == "Important")
+    min_c = sum(1 for r in latest if len(r) > 1 and r[1] == "Minor")
+    _emit_review_heartbeat(
+        root,
+        args.epic_dir,
+        kind=kind,
+        phase="triage",
+        round_num=number,
+        max_rounds=getattr(args, "max_rounds", MAX_REVIEW_ROUNDS),
+        cli=cli,
+        model=meta.get("Model", "?"),
+        verdict=meta.get("Verdict", "none"),
+        critical=crit_c,
+        important=imp_c,
+        minor=min_c,
+        action=action_val,
+        sha=meta.get("SHA", ""),
+    )
     next_steps = (
         "To be written after verifying every finding against source and approved Spec/HLD: "
         "auto-apply Valid doc revisions + record decisions in both Interactive and Autonomous modes "
@@ -1982,6 +2049,134 @@ def triage(args: argparse.Namespace) -> int:
     )
     out += ["", "## Next Steps", "", next_steps]
     print("\n".join(out))
+    return 0
+
+
+def _emit_review_heartbeat(
+    root: Path,
+    epic_dir: str | None,
+    *,
+    kind: str = "code",
+    phase: str = "reviewing",
+    round_num: int = 1,
+    max_rounds: int = MAX_REVIEW_ROUNDS,
+    cli: str = "",
+    model: str = "",
+    verdict: str = "",
+    critical: int = 0,
+    important: int = 0,
+    minor: int = 0,
+    action: str = "",
+    detail: str = "",
+    sha: str = "",
+) -> None:
+    if not epic_dir:
+        return
+    try:
+        scripts_dir = root / "scripts"
+        if not scripts_dir.is_dir():
+            scripts_dir = Path(__file__).resolve().parents[4] / "scripts"
+        if str(scripts_dir) not in sys.path:
+            sys.path.insert(0, str(scripts_dir))
+        import _state_envelope
+
+        kind_norm = "principal" if kind == "principal" else "code"
+        kind_label = "Principal Review" if kind_norm == "principal" else "Cross-Model Review"
+        stage_label = "Stage 2 (Principal Review)" if kind_norm == "principal" else "Stage 3 Phase 4 (Review)"
+
+        existing_hb: dict[str, Any] = {}
+        for candidate in (
+            root / ".devtool" / "state" / f"{epic_dir}.heartbeat.json",
+            root / ".devtool" / "state" / f"{epic_dir.replace('_', '-')}.heartbeat.json",
+        ):
+            if candidate.is_file():
+                existing_hb = _state_envelope.read_json_safe(candidate, {})
+                if existing_hb:
+                    break
+        prev_rev = existing_hb.get("review_state")
+        rev_dict: dict[str, Any] = dict(prev_rev) if isinstance(prev_rev, dict) else {}
+        rev_dict["kind"] = kind_norm
+        if round_num:
+            rev_dict["round"] = int(round_num)
+        elif "round" not in rev_dict:
+            rev_dict["round"] = 1
+        rev_dict["max_rounds"] = int(max_rounds or MAX_REVIEW_ROUNDS)
+        if cli:
+            rev_dict["cli"] = cli
+        if model:
+            rev_dict["model"] = model
+        rev_dict["phase"] = phase
+        if verdict:
+            rev_dict["verdict"] = verdict
+        if phase == "triage" or critical or important or minor:
+            rev_dict["critical"] = int(critical)
+            rev_dict["important"] = int(important)
+            rev_dict["minor"] = int(minor)
+        if action:
+            rev_dict["action"] = action
+        if sha:
+            rev_dict["sha"] = sha
+
+        eff_round = rev_dict.get("round", 1)
+        eff_max = rev_dict.get("max_rounds", MAX_REVIEW_ROUNDS)
+        eff_cli = rev_dict.get("cli", "reviewer")
+        eff_model = rev_dict.get("model", "")
+        cli_model = f"{eff_cli} ({eff_model})" if eff_model else eff_cli
+
+        if phase == "reviewing":
+            sub_detail = detail or f"Round {eff_round}/{eff_max}: {cli_model} reviewing"
+            event_msg = f"{kind_label} Round {eff_round}/{eff_max}: {cli_model} reviewing..."
+        elif phase == "triage":
+            v_str = rev_dict.get("verdict", "")
+            act_str = rev_dict.get("action", "")
+            counts_str = f"{rev_dict.get('critical', 0)}C/{rev_dict.get('important', 0)}I/{rev_dict.get('minor', 0)}M"
+            suffix = f" -> {v_str} ({counts_str}" + (f" · {act_str})" if act_str else ")") if v_str else ""
+            sub_detail = detail or f"Round {eff_round}/{eff_max}: Lập bảng triage{suffix}"
+            event_msg = f"{kind_label} Round {eff_round}/{eff_max}: Lập bảng triage{suffix}"
+        elif phase == "fixing":
+            sub_detail = detail or f"Round {eff_round}/{eff_max}: Fix findings"
+            event_msg = f"{kind_label} Round {eff_round}/{eff_max}: Fix findings" + (f" ({detail})" if detail else "")
+        elif phase == "verifying":
+            sub_detail = detail or f"Round {eff_round}/{eff_max}: Verifying fixes"
+            event_msg = f"{kind_label} Round {eff_round}/{eff_max}: Verifying" + (f" ({detail})" if detail else "")
+        else:
+            sub_detail = detail or f"Round {eff_round}/{eff_max}: {phase}"
+            event_msg = f"{kind_label} Round {eff_round}/{eff_max}: {phase}"
+
+        rev_dict["label"] = sub_detail
+        _state_envelope.update_epic_heartbeat(
+            root,
+            epic_dir,
+            stage=stage_label,
+            sub_step=phase,
+            sub_step_detail=sub_detail,
+            review_state=rev_dict,
+            last_event=event_msg,
+        )
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def status_cmd(args: argparse.Namespace) -> int:
+    """Update review micro-step phase (reviewing, triage, fixing, verifying, converged) in epic heartbeat."""
+    root = Path(git_run(Path.cwd(), "rev-parse", "--show-toplevel").decode().strip())
+    kind = getattr(args, "kind", "code")
+    round_num = getattr(args, "round", None) or 0
+    if not round_num:
+        name, _ = review_file(kind)
+        path = root / ".devtool" / "epic" / args.epic_dir / name
+        rounds = rounds_in(path.read_text(encoding="utf-8")) if path.exists() else []
+        round_num = rounds[-1][0] if rounds else 1
+    _emit_review_heartbeat(
+        root,
+        args.epic_dir,
+        kind=kind,
+        phase=args.phase,
+        round_num=round_num,
+        max_rounds=getattr(args, "max_rounds", MAX_REVIEW_ROUNDS),
+        detail=getattr(args, "detail", "") or "",
+        sha=head_of(root),
+    )
     return 0
 
 
@@ -2020,6 +2215,17 @@ def main(argv: list[str] | None = None) -> int:
     triager.add_argument("--kind", choices=KINDS, default="code")
     triager.add_argument("--epic-dir", required=True)
     triager.add_argument("--max-rounds", type=int, default=MAX_REVIEW_ROUNDS)
+    status_parser = modes.add_parser("status", help="update review micro-step phase in epic heartbeat")
+    status_parser.add_argument("--kind", choices=KINDS, default="code")
+    status_parser.add_argument("--epic-dir", required=True)
+    status_parser.add_argument(
+        "--phase",
+        choices=("reviewing", "triage", "fixing", "verifying", "converged"),
+        required=True,
+    )
+    status_parser.add_argument("--round", type=int, default=None)
+    status_parser.add_argument("--max-rounds", type=int, default=MAX_REVIEW_ROUNDS)
+    status_parser.add_argument("--detail", type=str, default="")
     args = parser.parse_args(argv)
 
     if args.mode == "run":
@@ -2035,7 +2241,7 @@ def main(argv: list[str] | None = None) -> int:
             return 2
 
     try:
-        return {"run": run, "check": check, "triage": triage}[args.mode](args)
+        return {"run": run, "check": check, "triage": triage, "status": status_cmd}[args.mode](args)
     except (ContractError, OSError) as error:
         print(f"error: {error}", file=sys.stderr)
         return 2

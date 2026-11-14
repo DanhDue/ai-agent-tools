@@ -418,6 +418,9 @@ def update_epic_heartbeat(
     epic_slug: str,
     *,
     stage: str | None = None,
+    sub_step: str | None = None,
+    sub_step_detail: str | None = None,
+    review_state: Mapping[str, Any] | None = None,
     active_wave: int | None = None,
     active_tasks: Sequence[str] | None = None,
     slots: Mapping[str, Any] | None = None,
@@ -428,6 +431,7 @@ def update_epic_heartbeat(
     updated_at: str | None = None,
     pic: str | None = None,
     tally: Mapping[str, int] | None = None,
+    max_events: int = 20,
     extra_devtool_dirs: Sequence[Path] | None = None,
 ) -> dict[str, Any]:
     """Transactionally update `<epic_slug>.heartbeat.json` across shared devtool mirrors."""
@@ -438,10 +442,14 @@ def update_epic_heartbeat(
         "generation": 0,
         "epic_slug": epic_slug,
         "stage": "",
+        "sub_step": "",
+        "sub_step_detail": "",
+        "review_state": None,
         "active_wave": None,
         "active_tasks": [],
         "slots": {},
         "last_event": "",
+        "events": [],
         "updated_at": _utc_now_iso(),
     }
 
@@ -449,6 +457,15 @@ def update_epic_heartbeat(
         state["epic_slug"] = epic_slug
         if stage is not None:
             state["stage"] = stage
+        if sub_step is not None:
+            state["sub_step"] = sub_step
+        if sub_step_detail is not None:
+            state["sub_step_detail"] = sub_step_detail
+        if review_state is not None:
+            existing_rev = state.get("review_state")
+            merged_rev = dict(existing_rev) if isinstance(existing_rev, dict) else {}
+            merged_rev.update(copy.deepcopy(dict(review_state)))
+            state["review_state"] = merged_rev
         if active_wave is not None:
             state["active_wave"] = active_wave
         if active_tasks is not None:
@@ -461,7 +478,36 @@ def update_epic_heartbeat(
             state["tally"] = dict(tally)
         if last_event is not None:
             state["last_event"] = last_event
-        state["updated_at"] = updated_at or _utc_now_iso()
+        now_ts = updated_at or _utc_now_iso()
+        state["updated_at"] = now_ts
+
+        raw_events = state.get("events")
+        events_list: list[dict[str, str]] = (
+            [dict(e) for e in raw_events if isinstance(e, dict)]
+            if isinstance(raw_events, list)
+            else []
+        )
+        if last_event and str(last_event).strip():
+            msg_str = str(last_event).strip()
+            curr_stage = str(state.get("stage") or "")
+            curr_sub_step = str(state.get("sub_step") or "")
+            if events_list and events_list[-1].get("message") == msg_str:
+                events_list[-1]["ts"] = now_ts
+                if curr_stage:
+                    events_list[-1]["stage"] = curr_stage
+                if curr_sub_step:
+                    events_list[-1]["sub_step"] = curr_sub_step
+            else:
+                events_list.append(
+                    {
+                        "ts": now_ts,
+                        "stage": curr_stage,
+                        "sub_step": curr_sub_step,
+                        "message": msg_str,
+                    }
+                )
+        cap = max(1, int(max_events))
+        state["events"] = events_list[-cap:]
 
         current_slots = state.get("slots")
         merged_slots = (

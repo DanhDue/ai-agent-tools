@@ -1,13 +1,13 @@
 ---
 id: "task_01_state_envelope_events_and_stage_producers"
-status: "todo"
+status: "done"
 priority: "high"
 assignee: null
 epic: "lifecycle_telemetry_and_stage_progress_ui"
 dueDate: null
 created: "2026-11-14T08:58:00Z"
-modified: "2026-11-14T08:58:00Z"
-completedAt: null
+modified: "2026-11-14T02:47:36Z"
+completedAt: "2026-11-14T02:47:36Z"
 labels: ["architecture", "telemetry", "state-sync", "quality-check", "review"]
 order: "a1"
 review_tier: "full"

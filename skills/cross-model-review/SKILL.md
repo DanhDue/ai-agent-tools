@@ -93,9 +93,13 @@ Every review round is triaged and verified against active code and the approved 
    - **`CIRCUIT_BREAKER_HALT` (`SHARED_CONTRACT_CONFLICT` in any round, `FIX_LOOP`, or `MAX_ROUNDS_CRITICAL_REMAINING` when `>= 1 Critical` survives Round 3)**: **STOP IMMEDIATELY**, never auto-fix or revert user-approved HLD decisions, record `python3 scripts/resume_context.py --pending-decision "Resolve Cross-Model Review blocker (<reason>)" --decision-kind blocker --epic <epic_slug>`, and report `## Top 3 Highest-Risk Findings (Executive Report)` to the Human Architect. (All review tables, findings, and fix commits remain strictly in **English**.)
 
 5. **Commit Fixes, Record Decisions & Final Gate Verification**:
+   - Before editing files for Round `n` fixes, emit fixing sub-step status:
+     `python3 skills/dev-implementation/resources/scripts/run_external_review.py status --epic-dir <epic_dir> --phase fixing --round <n>`
    - When applying fixes (via `AUTO_FIX_ELIGIBLE` / `AUTO_PASS_FINAL_MINOR_SWEEP` or after developer confirmation), make each fix in its own commit: `[<EPIC_NAME>] Fix <what>`.
    - Update each Decision cell in `review_results.md`: `fixed in <sha>` or `dismissed: <reason>` in developer's exact words.
    - Commit decisions: `[<EPIC_NAME>] Record review decisions for round <n>`.
+   - Emit verifying sub-step status before running scoped or final checks:
+     `python3 skills/dev-implementation/resources/scripts/run_external_review.py status --epic-dir <epic_dir> --phase verifying --round <n>`
    - **Intermediate Rounds (Round 1, Round 2...)**: Run **scoped tests only** (`uv run pytest <test_file.py>` covering modified modules, fast static checks). Strictly forbid repo-wide pytest discovery, `tests/e2e/`, and piping to `| tail`.
    - **Final Convergence Gate Only**: Once Cross-Model Review converges (`AUTO_PASS_CLEAN`, `AUTO_PASS_FINAL_MINOR_SWEEP`, or `AUTO_PASS_FINAL_SWEEP` with 0 Critical findings), **automatically re-run Gate 4 machine acceptance in full** (full regression suite, Playwright E2E browser harness, and `@quality_check` artifact regeneration) on the new candidate SHA without asking for a separate confirmation.
    - Record state via `python3 scripts/resume_context.py --state --epic <epic_slug> --status "Stage 4: Awaiting Finish"`, record `python3 scripts/resume_context.py --pending-decision "Review Gate 5 executive report and choose Finish strategy" --decision-kind gate_5 --epic <epic_slug>`, and emit next prompt via `python3 scripts/resume_context.py --emit-prompt finish --epic <epic_slug>`.

@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 from collections.abc import Callable
 import concurrent.futures
+import contextlib
 from datetime import datetime, timezone
 import fcntl
 import importlib
@@ -316,6 +317,31 @@ def _terminate_process_group(
         pass
 
 
+def format_capability_label(provider: str, capability: str) -> str:
+    """Map provider and capability identifiers to human-readable quality check labels."""
+    cap_norm = str(capability or "").strip().lower()
+    prov_norm = str(provider or "").strip().lower()
+    if any(k in cap_norm for k in ("e2e", "playwright", "ui", "web_e2e")):
+        return "UI / E2E Test"
+    if any(k in cap_norm for k in ("integration", "integration_test")):
+        return "Integration Test"
+    if any(k in cap_norm for k in ("pycore", "unit_test")) or cap_norm == "unit":
+        return "PyCore / Unit Test"
+    if any(k in cap_norm for k in ("pytest", "flutter_test", "cargo_test")) or cap_norm == "test":
+        return "Unit & Integration Test"
+    if any(k in cap_norm for k in ("lint", "ruff", "spotless", "swiftlint", "clippy", "format")):
+        return "Static Lint"
+    if any(k in cap_norm for k in ("typecheck", "type_check", "mypy", "analyze", "tsc")):
+        return "Typecheck"
+    if any(k in cap_norm for k in ("architecture", "import_linter", "konsist", "arch")):
+        return "Architecture Gate"
+    if cap_norm == "web" or "web" in prov_norm:
+        return "UI / E2E Test"
+    if cap_norm:
+        return cap_norm.replace("_", " ").replace("-", " ").title()
+    return "Quality Check"
+
+
 class _QualityRunCoordinator:
     """Tracks run_id ownership, stderr heartbeat ticks, quality_active.json, and child PGs."""
 
@@ -329,13 +355,14 @@ class _QualityRunCoordinator:
         heartbeat_interval: float,
         step_total: int,
         ttl_sec: int,
+        planned_steps: list[tuple[str, str]] | None = None,
     ) -> None:
         self.run_id = run_id
         self.repo_root = repo_root
         self.profile = profile
         self.epic_slug = epic_slug
         self.heartbeat_interval = max(0.01, float(heartbeat_interval))
-        self.step_total = max(1, int(step_total))
+        self.step_total = max(1, int(step_total), len(planned_steps or []))
         self.ttl_sec = ttl_sec
         self.pid = os.getpid()
         self.host = socket.gethostname()
@@ -349,6 +376,50 @@ class _QualityRunCoordinator:
         self._last_provider = ""
         self._last_capability = ""
         self._last_step_index = 0
+        self._steps: list[dict[str, Any]] = []
+        if planned_steps:
+            for idx, (prov, cap) in enumerate(planned_steps, 1):
+                self._steps.append(
+                    {
+                        "index": idx,
+                        "provider": prov,
+                        "capability": cap,
+                        "label": format_capability_label(prov, cap),
+                        "status": "pending",
+                        "elapsed_sec": 0.0,
+                    }
+                )
+
+    def _emit_epic_step_event(
+        self,
+        *,
+        provider: str,
+        capability: str,
+        step_index: int,
+        phase_status: str,
+        elapsed_sec: float | None = None,
+    ) -> None:
+        if self.repo_root is None or not self.epic_slug:
+            return
+        env_mod = _load_state_envelope()
+        if env_mod is None:
+            return
+        label = format_capability_label(provider, capability)
+        if phase_status == "running":
+            msg = f"Quality Check [{step_index}/{self.step_total}]: {label} ({provider}:{capability}) running..."
+            detail = f"{label} ({step_index}/{self.step_total})"
+        else:
+            el_str = f" ({elapsed_sec:.1f}s)" if elapsed_sec is not None else ""
+            msg = f"Quality Check [{step_index}/{self.step_total}]: {label} ({provider}:{capability}) -> {phase_status}{el_str}"
+            detail = f"{label}: {phase_status}"
+        with contextlib.suppress(Exception):
+            env_mod.update_epic_heartbeat(
+                self.repo_root,
+                self.epic_slug,
+                sub_step="quality_check",
+                sub_step_detail=detail,
+                last_event=msg,
+            )
 
     def register_proc(self, proc: subprocess.Popen[Any]) -> bool:
         with self._lock:
@@ -374,10 +445,38 @@ class _QualityRunCoordinator:
         with self._lock:
             self._next_step += 1
             step_index = self._next_step
-            self.step_total = max(self.step_total, step_index)
+            self.step_total = max(self.step_total, step_index, len(self._steps))
             self._last_provider = provider
             self._last_capability = capability
             self._last_step_index = step_index
+            matched = False
+            for item in self._steps:
+                if (
+                    item.get("provider") == provider
+                    and item.get("capability") == capability
+                    and item.get("status") == "pending"
+                ):
+                    item["status"] = "running"
+                    matched = True
+                    break
+            if not matched:
+                for item in self._steps:
+                    if item.get("capability") == capability and item.get("status") == "pending":
+                        item["status"] = "running"
+                        matched = True
+                        break
+            if not matched:
+                self._steps.append(
+                    {
+                        "index": len(self._steps) + 1,
+                        "provider": provider,
+                        "capability": capability,
+                        "label": format_capability_label(provider, capability),
+                        "status": "running",
+                        "elapsed_sec": 0.0,
+                    }
+                )
+                self.step_total = max(self.step_total, len(self._steps))
         self._write_run_state(
             status="running",
             provider=provider,
@@ -385,7 +484,45 @@ class _QualityRunCoordinator:
             step_index=step_index,
             finished_at=None,
         )
+        self._emit_epic_step_event(
+            provider=provider,
+            capability=capability,
+            step_index=step_index,
+            phase_status="running",
+        )
         return step_index
+
+    def complete_step(
+        self,
+        provider: str,
+        capability: str,
+        *,
+        status: str = "passed",
+        elapsed_sec: float = 0.0,
+    ) -> None:
+        norm_status = "passed" if str(status).lower() in ("pass", "passed") else "failed"
+        with self._lock:
+            step_index = self._last_step_index or 1
+            for item in self._steps:
+                if item.get("provider") == provider and item.get("capability") == capability:
+                    item["status"] = norm_status
+                    item["elapsed_sec"] = round(float(elapsed_sec), 3)
+                    step_index = int(item.get("index", step_index))
+                    break
+        self._write_run_state(
+            status="running",
+            provider=provider,
+            capability=capability,
+            step_index=step_index,
+            finished_at=None,
+        )
+        self._emit_epic_step_event(
+            provider=provider,
+            capability=capability,
+            step_index=step_index,
+            phase_status=norm_status,
+            elapsed_sec=elapsed_sec,
+        )
 
     def mark_running(self, provider: str = "", capability: str = "") -> None:
         self._write_run_state(
@@ -416,6 +553,15 @@ class _QualityRunCoordinator:
 
     def finalize(self, status: str) -> None:
         finished_at = _utc_now_iso()
+        with self._lock:
+            if status == "passed":
+                for item in self._steps:
+                    if item.get("status") == "running":
+                        item["status"] = "passed"
+            elif status in ("failed", "aborted"):
+                for item in self._steps:
+                    if item.get("status") == "running":
+                        item["status"] = status
         self._write_run_state(
             status=status,
             provider=self._last_provider,
@@ -437,6 +583,8 @@ class _QualityRunCoordinator:
             return
         now_iso = _utc_now_iso()
         elapsed = round(max(0.0, time.monotonic() - self.start_monotonic), 3)
+        with self._lock:
+            steps_copy = [dict(s) for s in self._steps]
         entry: dict[str, Any] = {
             "run_id": self.run_id,
             "epic_slug": self.epic_slug,
@@ -444,8 +592,10 @@ class _QualityRunCoordinator:
             "status": status,
             "provider": provider,
             "capability": capability,
+            "capability_label": format_capability_label(provider, capability) if (provider or capability) else "",
             "step_index": step_index,
             "step_total": self.step_total,
+            "steps": steps_copy,
             "pid": self.pid,
             "host": self.host,
             "ttl_sec": self.ttl_sec,
@@ -544,6 +694,37 @@ def _find_manifest_path(root: Path, provider_item: dict[str, Any]) -> Path | Non
         if part and part not in ("quality", "check"):
             candidates.append(root / ".agents" / "quality" / f"{part}-quality.json")
     return next((c for c in candidates if c and c.is_file()), None)
+
+
+def _collect_planned_steps(
+    plan_providers: list[dict[str, Any]], profile: str, repo_root: Path | None
+) -> list[tuple[str, str]]:
+    """Return ordered (provider_id, capability) pairs planned for profile."""
+    steps: list[tuple[str, str]] = []
+    if repo_root is None:
+        return [(str(item.get("id", "provider")), "check") for item in plan_providers]
+    for item in plan_providers:
+        p_id = str(item.get("id", "provider"))
+        skill = str(item.get("skill", ""))
+        if "web" in p_id or "web" in skill:
+            steps.append((p_id, "web"))
+            continue
+        manifest_path = _find_manifest_path(repo_root, item)
+        if manifest_path is None:
+            steps.append((p_id, "check"))
+            continue
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            steps.append((p_id, "check"))
+            continue
+        caps = manifest.get("profiles", {}).get(profile)
+        if isinstance(caps, list) and caps:
+            for cap in caps:
+                steps.append((p_id, str(cap)))
+        else:
+            steps.append((p_id, "check"))
+    return steps
 
 
 def _plan_step_stats(
@@ -820,8 +1001,15 @@ def _execute_web_provider(
         for check in web_res.get("checks", []):
             if isinstance(check, dict) and check_ev_map:
                 check["evidence_refs"] = [ref for ref in check.get("evidence_refs", [])]
+        coordinator.complete_step(
+            p_id,
+            "web",
+            status="passed" if web_res.get("status") == "PASS" else "failed",
+            elapsed_sec=float(web_res.get("duration", 0.0) or 0.0),
+        )
         return web_res
     except Exception as exc:  # noqa: BLE001
+        coordinator.complete_step(p_id, "web", status="failed", elapsed_sec=0.0)
         return {
             "provider_id": p_id,
             "contract_version": 1,
@@ -852,6 +1040,7 @@ def _execute_with_coordinator(
     step_total: int,
     has_e2e: bool,
     run_id: str | None,
+    planned_steps: list[tuple[str, str]] | None = None,
     fn: Callable[[_QualityRunCoordinator], dict[str, Any]],
 ) -> dict[str, Any]:
     """Run fn under signal handlers, child reaping, and finally-safe quality_active cleanup."""
@@ -866,6 +1055,7 @@ def _execute_with_coordinator(
         heartbeat_interval=heartbeat_interval,
         step_total=step_total,
         ttl_sec=_estimate_ttl_sec(profile, has_e2e=has_e2e),
+        planned_steps=planned_steps,
     )
 
     is_main = threading.current_thread() is threading.main_thread()
@@ -1102,6 +1292,12 @@ def execute_provider(
                 cap_name=cap_name,
                 step_idx=step_idx,
             )
+            coordinator.complete_step(
+                p_id,
+                cap_name,
+                status="passed" if c_status == "PASS" else "failed",
+                elapsed_sec=cap_duration,
+            )
 
             evidence_id = f"{cap_name}-evidence"
             rel_log_path = (
@@ -1184,6 +1380,7 @@ def execute_provider(
         return _run_with_coord(_coordinator)
 
     step_total, has_e2e = _plan_step_stats([provider_item], profile, root)
+    planned_steps = _collect_planned_steps([provider_item], profile, root)
     return _execute_with_coordinator(
         repo_root=repo_root,
         profile=profile,
@@ -1192,6 +1389,7 @@ def execute_provider(
         step_total=step_total,
         has_e2e=has_e2e,
         run_id=run_id,
+        planned_steps=planned_steps,
         fn=_run_with_coord,
     )
 
@@ -1297,6 +1495,7 @@ def verify_polyglot_execution(
             step_total=step_total,
             has_e2e=has_e2e,
             run_id=None,
+            planned_steps=_collect_planned_steps(plan_providers, requested_profile, repo_root),
             fn=_execute_all,
         )
     else:
